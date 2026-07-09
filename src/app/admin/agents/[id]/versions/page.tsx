@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 
 import { AgentMetricCard } from '@/components/agent-ops/agent-metric-card'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
-import { VersionComparisonCard, VersionStageBadge } from '@/components/agent-ops/version-comparison-card'
+import { VersionComparisonCard, VersionStageBadge, versionNeverTested } from '@/components/agent-ops/version-comparison-card'
 import { Button } from '@/components/catalyst/button'
 import { Subheading } from '@/components/catalyst/heading'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
@@ -133,10 +133,24 @@ export default async function VersionsPage({ params }: { params: Promise<{ id: s
                   <VersionStageBadge stage={version.stage} />
                 </TableCell>
                 <TableCell className="text-right font-mono tabular-nums text-zinc-700 dark:text-zinc-300">
-                  {formatPercent(version.scores.testPassRate)}
+                  {versionNeverTested(version) ? (
+                    <span className="text-zinc-500">
+                      <span aria-hidden="true">—</span>
+                      <span className="sr-only">not measured</span>
+                    </span>
+                  ) : (
+                    formatPercent(version.scores.testPassRate)
+                  )}
                 </TableCell>
                 <TableCell className="text-right font-mono tabular-nums text-zinc-700 dark:text-zinc-300">
-                  {version.scores.benchmarkScore}
+                  {versionNeverTested(version) ? (
+                    <span className="text-zinc-500">
+                      <span aria-hidden="true">—</span>
+                      <span className="sr-only">not measured</span>
+                    </span>
+                  ) : (
+                    version.scores.benchmarkScore
+                  )}
                 </TableCell>
                 <TableCell className="text-right">
                   {version.scores.shadowAgreement === null ? (

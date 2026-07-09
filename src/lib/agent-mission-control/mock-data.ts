@@ -284,7 +284,7 @@ export const versions: CopilotVersion[] = [
     changelog: 'Adds safe account actions (plan changes, seat management) behind risky-only confirmation.',
     createdAt: '2026-06-18T09:30:00Z',
     createdBy: 'nadia.kessler',
-    scores: { testPassRate: 0.93, benchmarkScore: 87, shadowAgreement: 0.97, unsafeActionCount: 0 },
+    scores: { testPassRate: 0.945, benchmarkScore: 87, shadowAgreement: 0.97, unsafeActionCount: 0 },
   },
   {
     id: 'ver-sn-300',

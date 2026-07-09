@@ -5,7 +5,6 @@ import { AgentMetricCard } from '@/components/agent-ops/agent-metric-card'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ShadowExperimentCard } from '@/components/agent-ops/shadow-experiment-card'
 import { Badge } from '@/components/catalyst/badge'
-import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Text } from '@/components/catalyst/text'
 import { formatPercent, formatTimestamp } from '@/lib/agent-mission-control/format'
@@ -100,25 +99,33 @@ export default async function ShadowPage({ params }: { params: Promise<{ id: str
           <Table bleed className="[--gutter:--spacing(6)]">
             <TableHead>
               <TableRow>
-                <TableHeader>When (UTC)</TableHeader>
-                <TableHeader>Severity</TableHeader>
+                <TableHeader className="w-0" title="Times in UTC">
+                  When
+                </TableHeader>
+                <TableHeader className="w-0">Severity</TableHeader>
                 <TableHeader>Summary</TableHeader>
                 <TableHeader>Production action</TableHeader>
                 <TableHeader>Candidate action</TableHeader>
-                <TableHeader>Run</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
               {mismatches.map((mismatch) => (
-                <TableRow key={mismatch.id}>
-                  <TableCell className="font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
-                    {formatTimestamp(mismatch.occurredAt)}
+                <TableRow
+                  key={mismatch.id}
+                  href={`/admin/agents/${id}/runs?run=${mismatch.runId}`}
+                  title={`Open run ${mismatch.runId}`}
+                >
+                  <TableCell
+                    className="font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400"
+                    title={formatTimestamp(mismatch.occurredAt)}
+                  >
+                    {formatTimestamp(mismatch.occurredAt).replace(' UTC', '')}
                   </TableCell>
                   <TableCell>
                     <SeverityBadge severity={mismatch.severity} />
                   </TableCell>
                   <TableCell className="text-zinc-700 dark:text-zinc-300">
-                    <span className="block max-w-96 truncate" title={mismatch.summary}>
+                    <span className="block max-w-80 truncate" title={mismatch.summary}>
                       {mismatch.summary}
                     </span>
                   </TableCell>
@@ -137,14 +144,6 @@ export default async function ShadowPage({ params }: { params: Promise<{ id: str
                     >
                       {mismatch.candidateAction}
                     </span>
-                  </TableCell>
-                  <TableCell>
-                    <Link
-                      href={`/admin/agents/${id}/runs?run=${mismatch.runId}`}
-                      className="font-mono text-xs text-zinc-700 underline decoration-zinc-950/20 underline-offset-4 tabular-nums hover:text-zinc-950 hover:decoration-zinc-950/40 dark:text-zinc-300 dark:decoration-white/20 dark:hover:text-white dark:hover:decoration-white/40"
-                    >
-                      {mismatch.runId}
-                    </Link>
                   </TableCell>
                 </TableRow>
               ))}

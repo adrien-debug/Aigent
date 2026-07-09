@@ -113,14 +113,17 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
   const testSuites = getTestSuitesForCopilot(copilot.id)
   const testRuns = [...getTestRunsForCopilot(copilot.id)].sort((a, b) => b.startedAt.localeCompare(a.startedAt))
   const latestTestRun = testRuns[0]
-  const previousTestRun = testRuns[1]
   const latestTestResults = latestTestRun ? getTestResultsForRun(latestTestRun.id) : []
   const passCount = latestTestResults.filter((r) => r.status === 'pass').length
   const failCount = latestTestResults.filter((r) => r.status === 'fail').length
   const errorCount = latestTestResults.filter((r) => r.status === 'error').length
 
+  // Delta vs the production baseline (same copilot-level quantity as the value shown),
+  // never a cross-suite run comparison.
   const passRateDelta =
-    latestTestRun && previousTestRun ? (latestTestRun.passRate - previousTestRun.passRate) * 100 : null
+    productionVersion && productionVersion.scores.testPassRate > 0 && copilot.health.testPassRate > 0
+      ? (copilot.health.testPassRate - productionVersion.scores.testPassRate) * 100
+      : null
   const passRateTrend: 'up' | 'down' | 'flat' =
     passRateDelta === null || Math.abs(passRateDelta) < 0.5 ? 'flat' : passRateDelta > 0 ? 'up' : 'down'
 
@@ -327,14 +330,8 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
 
       {/* 2 — Bento grid */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* Identity — 2 cols */}
-        <AgentBentoCard
-          eyebrow="Identity"
-          title={copilot.name}
-          description={copilot.description}
-          className="lg:col-span-2"
-          level={2}
-        >
+        {/* Identity — 2 cols. No duplicated title/description: the page header already carries them. */}
+        <AgentBentoCard title="Identity" className="lg:col-span-2" level={2}>
           <DescriptionList>
             <DescriptionTerm>Owner</DescriptionTerm>
             <DescriptionDetails className="font-mono text-sm">{copilot.owner}</DescriptionDetails>
@@ -416,6 +413,30 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
               <dt className="text-zinc-500">Avg latency</dt>
               <dd className="font-mono text-zinc-700 tabular-nums dark:text-zinc-300">
                 {copilot.health.avgLatencyMs > 0 ? formatDurationMs(copilot.health.avgLatencyMs) : '—'}
+              </dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="text-zinc-500">Runs (24h)</dt>
+              <dd className="font-mono text-zinc-700 tabular-nums dark:text-zinc-300">
+                {copilot.health.runsLast24h > 0 ? copilot.health.runsLast24h : '—'}
+              </dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="text-zinc-500">Cost (24h)</dt>
+              <dd className="font-mono text-zinc-700 tabular-nums dark:text-zinc-300">
+                {copilot.health.runsLast24h > 0 ? formatUsd(copilot.health.costLast24hUsd) : '—'}
+              </dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="text-zinc-500">Open warnings</dt>
+              <dd
+                className={clsx(
+                  'font-mono tabular-nums',
+                  copilot.health.openWarnings > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-700 dark:text-zinc-300'
+                )}
+              >
+                {copilot.health.openWarnings}
+                {copilot.health.openWarnings > 0 ? ' · needs review' : ''}
               </dd>
             </div>
           </dl>

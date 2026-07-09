@@ -52,7 +52,7 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
             const forced = isConfirmationForced(tool)
             const enabled = enabledState[tool.id] ?? tool.enabled
             const requiresConfirmation = forced ? true : (confirmationState[tool.id] ?? tool.requiresConfirmation)
-            const visibleRoutes = tool.scopedRoutes.slice(0, 2)
+            const visibleRoutes = tool.scopedRoutes.slice(0, 1)
             const hiddenRouteCount = tool.scopedRoutes.length - visibleRoutes.length
 
             return (
@@ -87,12 +87,18 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Switch
-                      color="amber"
+                      color={forced ? 'green' : 'amber'}
                       checked={requiresConfirmation}
                       disabled={forced}
                       onChange={(checked) => {
                         if (!forced) setConfirmationState((prev) => ({ ...prev, [tool.id]: checked }))
                       }}
+                      // A locked-on switch must LOOK on (doctrine): keep the green track, just dim it.
+                      className={
+                        forced
+                          ? 'cursor-not-allowed! data-disabled:opacity-60! data-disabled:data-checked:bg-(--switch-bg)! data-disabled:data-checked:ring-(--switch-bg-ring)! dark:data-disabled:data-checked:bg-(--switch-bg)! dark:data-disabled:data-checked:ring-(--switch-bg-ring)!'
+                          : undefined
+                      }
                       aria-label={`Require confirmation for ${tool.name}`}
                       title={
                         forced
@@ -101,7 +107,7 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
                       }
                     />
                     <span className="text-xs text-zinc-500">
-                      {forced ? 'Locked' : requiresConfirmation ? 'On' : 'Off'}
+                      {forced ? 'Locked · On' : requiresConfirmation ? 'On' : 'Off'}
                       {forced ? (
                         <span className="sr-only">
                           {' '}
@@ -130,7 +136,7 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
                       {hiddenRouteCount > 0 ? (
                         <span
                           className="text-xs text-zinc-500 tabular-nums"
-                          title={tool.scopedRoutes.slice(2).join(', ')}
+                          title={tool.scopedRoutes.join(', ')}
                         >
                           +{hiddenRouteCount}
                           <span className="sr-only"> more scoped routes</span>

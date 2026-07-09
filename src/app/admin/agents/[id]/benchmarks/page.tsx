@@ -123,7 +123,8 @@ export default async function BenchmarksPage({ params }: { params: Promise<{ id:
                     ? `Top 3 of ${rows.length} candidates by composite score. The winner is flagged.`
                     : 'Candidates ranked by composite score. The winner is flagged.'}
                 </Text>
-                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {/* auto-fit: 2 candidates fill the row (no empty grid cell); slice(0, 3) caps at 3 per row. */}
+                <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
                   {rows.slice(0, 3).map((row, index) => (
                     <BenchmarkScoreCard key={row.run.id} run={row.run} result={row.result} isBest={index === 0} />
                   ))}

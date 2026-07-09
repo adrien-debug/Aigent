@@ -94,34 +94,11 @@ export function BenchmarkComparisonTable({
             </TableCell>
             <TableCell className={clsx(numericCell, 'text-zinc-700 dark:text-zinc-300')}>{formatUsd(result.totalCostUsd)}</TableCell>
             <TableCell className="text-right">
-              {result.unsafeActionCount === 0 ? (
-                <span className="inline-flex items-center gap-1 font-mono font-medium text-green-700 tabular-nums dark:text-green-400">
-                  <CheckCircleIcon aria-hidden="true" className="size-4 shrink-0" />
-                  0<span className="sr-only"> unsafe actions</span>
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 font-mono font-medium text-rose-600 tabular-nums dark:text-rose-400">
-                  <XCircleIcon aria-hidden="true" className="size-4 shrink-0" />
-                  {result.unsafeActionCount}
-                  <span className="sr-only"> unsafe actions</span>
-                </span>
-              )}
-            </TableCell>
-            <TableCell
-              className={clsx(
-                numericCell,
-                result.unauthorizedRouteCount > 0 ? 'font-medium text-rose-600 dark:text-rose-400' : 'text-zinc-500'
-              )}
-            >
-              {result.unauthorizedRouteCount}
-            </TableCell>
-            <TableCell
-              className={clsx(
-                numericCell,
-                result.confirmationMistakeCount > 0 ? 'font-medium text-amber-600 dark:text-amber-400' : 'text-zinc-500'
-              )}
-            >
-              {result.confirmationMistakeCount}
+              <div className="flex items-center justify-end gap-3">
+                <ViolationChip count={result.unsafeActionCount} label="unsafe actions" tone="rose" />
+                <ViolationChip count={result.unauthorizedRouteCount} label="unauthorized routes" tone="rose" />
+                <ViolationChip count={result.confirmationMistakeCount} label="confirmation mistakes" tone="amber" />
+              </div>
             </TableCell>
           </TableRow>
         ))}
