@@ -1,0 +1,421 @@
+- generic [active] [ref=f5e1]:
+  - generic [ref=f5e2]:
+    - navigation [ref=f5e4]:
+      - generic [ref=f5e6]:
+        - img [ref=f5e8]
+        - generic [ref=f5e12]:
+          - generic [ref=f5e13]: Agent Mission Control
+          - generic [ref=f5e14]: Copilot operations
+      - generic [ref=f5e15]:
+        - link "Copilots" [ref=f5e19] [cursor=pointer]:
+          - /url: /admin/agents
+          - img [ref=f5e20]
+          - generic [ref=f5e23]: Copilots
+        - generic [ref=f5e24]:
+          - heading "Platform" [level=3] [ref=f5e25]
+          - generic [ref=f5e26]:
+            - img [ref=f5e27]
+            - generic [ref=f5e29]: Projects
+            - generic [ref=f5e30]: (coming soon)
+          - generic [ref=f5e31]:
+            - img [ref=f5e32]
+            - generic [ref=f5e36]: Traces
+            - generic [ref=f5e37]: (coming soon)
+          - generic [ref=f5e38]:
+            - img [ref=f5e39]
+            - generic [ref=f5e41]: Settings
+            - generic [ref=f5e42]: (coming soon)
+      - generic [ref=f5e45]:
+        - img [ref=f5e47]:
+          - generic [ref=f5e48]: AD
+        - generic [ref=f5e49]:
+          - generic [ref=f5e50]: Adrien
+          - generic [ref=f5e51]: Platform Admin
+    - main [ref=f5e52]:
+      - generic [ref=f5e55]:
+        - generic [ref=f5e56]:
+          - generic [ref=f5e57]:
+            - heading "Support Navigator" [level=1] [ref=f5e58]
+            - paragraph [ref=f5e59]: "Resolves customer support tickets in the Console: diagnoses account state, drafts replies and executes safe account actions."
+            - generic [ref=f5e60]:
+              - generic [ref=f5e61]: Active
+              - generic [ref=f5e63]: LangGraph
+              - generic [ref=f5e64]: claude-sonnet-4-5
+              - generic [ref=f5e65]: Hearst Console
+          - button "View traces (coming soon)" [disabled] [ref=f5e67]:
+            - text: View traces
+            - generic [ref=f5e68]: (coming soon)
+        - navigation "Copilot sections" [ref=f5e70]:
+          - generic [ref=f5e72]:
+            - link "Overview" [ref=f5e73] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator
+            - link "Manifest" [ref=f5e74] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/manifest
+            - link "Tools" [ref=f5e75] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/tools
+            - link "Tests" [ref=f5e76] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/tests
+            - link "Runs" [ref=f5e77] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/runs
+            - link "Benchmarks" [ref=f5e78] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/benchmarks
+            - link "Replay" [ref=f5e79] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/replay
+            - link "Shadow" [ref=f5e80] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/shadow
+            - link "Versions" [ref=f5e81] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/versions
+            - link "Publish" [ref=f5e82] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/publish
+        - generic [ref=f5e84]:
+          - generic [ref=f5e85]:
+            - generic [ref=f5e87]:
+              - term [ref=f5e88]: Best score
+              - definition [ref=f5e89]: 93 / 100
+              - definition [ref=f5e90]: claude-sonnet-4-5 · Anthropic
+            - generic [ref=f5e92]:
+              - term [ref=f5e93]: Cheapest viable candidate
+              - definition [ref=f5e94]: $0.09 / task
+              - definition [ref=f5e95]: claude-sonnet-4-5 · 0 unsafe actions
+            - generic [ref=f5e97]:
+              - term [ref=f5e98]: Runs compared
+              - definition [ref=f5e99]: "5"
+              - definition [ref=f5e100]: Across 2 suites
+          - region "Support core tasks" [ref=f5e101]:
+            - generic [ref=f5e102]:
+              - generic [ref=f5e104]:
+                - generic [ref=f5e105]:
+                  - heading "Support core tasks" [level=2] [ref=f5e106]
+                  - paragraph [ref=f5e107]: 40 representative support scenarios scored on resolution quality, tool selection and latency.
+                - generic [ref=f5e109]: 40 tasks
+              - generic [ref=f5e111]:
+                - generic [ref=f5e112]: Dimensions
+                - generic [ref=f5e113]: accuracy
+                - generic [ref=f5e114]: task-success
+                - generic [ref=f5e115]: latency
+                - generic [ref=f5e116]: cost
+            - generic [ref=f5e117]:
+              - heading "Best candidate" [level=3] [ref=f5e118]
+              - paragraph [ref=f5e119]: Candidates ranked by composite score. The winner is flagged.
+              - generic [ref=f5e120]:
+                - article [ref=f5e121]:
+                  - generic [ref=f5e122]:
+                    - generic [ref=f5e123]:
+                      - heading "claude-sonnet-4-5" [level=3] [ref=f5e124]
+                      - paragraph [ref=f5e125]: Anthropic
+                    - generic [ref=f5e126]:
+                      - generic [ref=f5e127]: Best candidate
+                      - generic [ref=f5e128]: LangGraph
+                  - generic [ref=f5e129]:
+                    - paragraph [ref=f5e130]: Composite score
+                    - paragraph [ref=f5e131]: 91/ 100
+                    - generic [ref=f5e135]: 91 / 100
+                  - generic [ref=f5e137]:
+                    - generic [ref=f5e138]:
+                      - term [ref=f5e139]: Accuracy
+                      - definition [ref=f5e140]: 92.0%
+                    - generic [ref=f5e141]:
+                      - term [ref=f5e142]: Task success
+                      - definition [ref=f5e143]: 95.0%
+                    - generic [ref=f5e144]:
+                      - term [ref=f5e145]: Avg latency
+                      - definition [ref=f5e146]: 6.1s
+                    - generic [ref=f5e147]:
+                      - term [ref=f5e148]: P95 latency
+                      - definition [ref=f5e149]: 14.2s
+                    - generic [ref=f5e150]:
+                      - term [ref=f5e151]: Cost per task
+                      - definition [ref=f5e152]: $0.11
+                    - generic [ref=f5e153]:
+                      - term [ref=f5e154]: Total cost
+                      - definition [ref=f5e155]: $4.40
+                  - generic [ref=f5e156]:
+                    - img [ref=f5e157]
+                    - generic [ref=f5e159]: 0 unsafe actions
+                - article [ref=f5e160]:
+                  - generic [ref=f5e161]:
+                    - generic [ref=f5e162]:
+                      - heading "gpt-5.2" [level=3] [ref=f5e163]
+                      - paragraph [ref=f5e164]: OpenAI
+                    - generic [ref=f5e166]: LangGraph
+                  - generic [ref=f5e167]:
+                    - paragraph [ref=f5e168]: Composite score
+                    - paragraph [ref=f5e169]: 82/ 100
+                    - generic [ref=f5e173]: 82 / 100
+                  - generic [ref=f5e175]:
+                    - generic [ref=f5e176]:
+                      - term [ref=f5e177]: Accuracy
+                      - definition [ref=f5e178]: 88.0%
+                    - generic [ref=f5e179]:
+                      - term [ref=f5e180]: Task success
+                      - definition [ref=f5e181]: 90.0%
+                    - generic [ref=f5e182]:
+                      - term [ref=f5e183]: Avg latency
+                      - definition [ref=f5e184]: 7.8s
+                    - generic [ref=f5e185]:
+                      - term [ref=f5e186]: P95 latency
+                      - definition [ref=f5e187]: 19.6s
+                    - generic [ref=f5e188]:
+                      - term [ref=f5e189]: Cost per task
+                      - definition [ref=f5e190]: $0.14
+                    - generic [ref=f5e191]:
+                      - term [ref=f5e192]: Total cost
+                      - definition [ref=f5e193]: $5.60
+                  - generic [ref=f5e194]:
+                    - img [ref=f5e195]
+                    - generic [ref=f5e197]: 0 unsafe actions
+                - article [ref=f5e198]:
+                  - generic [ref=f5e199]:
+                    - generic [ref=f5e200]:
+                      - heading "gemini-2.5-pro" [level=3] [ref=f5e201]
+                      - paragraph [ref=f5e202]: Google
+                    - generic [ref=f5e204]: LangGraph
+                  - generic [ref=f5e205]:
+                    - paragraph [ref=f5e206]: Composite score
+                    - paragraph [ref=f5e207]: 68/ 100
+                    - generic [ref=f5e211]: 68 / 100
+                  - generic [ref=f5e213]:
+                    - generic [ref=f5e214]:
+                      - term [ref=f5e215]: Accuracy
+                      - definition [ref=f5e216]: 84.0%
+                    - generic [ref=f5e217]:
+                      - term [ref=f5e218]: Task success
+                      - definition [ref=f5e219]: 85.0%
+                    - generic [ref=f5e220]:
+                      - term [ref=f5e221]: Avg latency
+                      - definition [ref=f5e222]: 5.4s
+                    - generic [ref=f5e223]:
+                      - term [ref=f5e224]: P95 latency
+                      - definition [ref=f5e225]: 12.8s
+                    - generic [ref=f5e226]:
+                      - term [ref=f5e227]: Cost per task
+                      - definition [ref=f5e228]: $0.08
+                    - generic [ref=f5e229]:
+                      - term [ref=f5e230]: Total cost
+                      - definition [ref=f5e231]: $3.20
+                  - generic [ref=f5e232]:
+                    - img [ref=f5e233]
+                    - generic [ref=f5e235]: 2 unsafe actions
+            - generic [ref=f5e236]:
+              - generic [ref=f5e239]:
+                - heading "Model comparison" [level=2] [ref=f5e240]
+                - paragraph [ref=f5e241]: Every completed run in this suite, ranked by composite score.
+              - table [ref=f5e246]:
+                - rowgroup [ref=f5e247]:
+                  - row "Model Runtime Score Accuracy Success Avg latency P95 Cost / task Total cost Unsafe Unauthorized routes Confirmation mistakes" [ref=f5e248]:
+                    - columnheader "Model" [ref=f5e249]
+                    - columnheader "Runtime" [ref=f5e250]
+                    - columnheader "Score" [ref=f5e251]
+                    - columnheader "Accuracy" [ref=f5e252]
+                    - columnheader "Success" [ref=f5e253]
+                    - columnheader "Avg latency" [ref=f5e254]
+                    - columnheader "P95" [ref=f5e255]
+                    - columnheader "Cost / task" [ref=f5e256]
+                    - columnheader "Total cost" [ref=f5e257]
+                    - columnheader "Unsafe" [ref=f5e258]
+                    - columnheader "Unauthorized routes" [ref=f5e259]
+                    - columnheader "Confirmation mistakes" [ref=f5e260]
+                - rowgroup [ref=f5e261]:
+                  - row "claude-sonnet-4-5 Anthropic LangGraph 91 92.0% 95.0% 6.1s 14.2s $0.11 $4.40 0 unsafe actions 0 0" [ref=f5e262]:
+                    - cell "claude-sonnet-4-5 Anthropic" [ref=f5e263]:
+                      - generic [ref=f5e264]: claude-sonnet-4-5
+                      - generic [ref=f5e265]: Anthropic
+                    - cell "LangGraph" [ref=f5e266]:
+                      - generic [ref=f5e267]: LangGraph
+                    - cell "91" [ref=f5e268]
+                    - cell "92.0%" [ref=f5e269]
+                    - cell "95.0%" [ref=f5e270]
+                    - cell "6.1s" [ref=f5e271]
+                    - cell "14.2s" [ref=f5e272]
+                    - cell "$0.11" [ref=f5e273]
+                    - cell "$4.40" [ref=f5e274]
+                    - cell "0 unsafe actions" [ref=f5e275]:
+                      - generic [ref=f5e276]:
+                        - img [ref=f5e277]
+                        - text: "0"
+                        - generic [ref=f5e279]: unsafe actions
+                    - cell "0" [ref=f5e280]
+                    - cell "0" [ref=f5e281]
+                  - row "gpt-5.2 OpenAI LangGraph 82 88.0% 90.0% 7.8s 19.6s $0.14 $5.60 0 unsafe actions 1 1" [ref=f5e282]:
+                    - cell "gpt-5.2 OpenAI" [ref=f5e283]:
+                      - generic [ref=f5e284]: gpt-5.2
+                      - generic [ref=f5e285]: OpenAI
+                    - cell "LangGraph" [ref=f5e286]:
+                      - generic [ref=f5e287]: LangGraph
+                    - cell "82" [ref=f5e288]
+                    - cell "88.0%" [ref=f5e289]
+                    - cell "90.0%" [ref=f5e290]
+                    - cell "7.8s" [ref=f5e291]
+                    - cell "19.6s" [ref=f5e292]
+                    - cell "$0.14" [ref=f5e293]
+                    - cell "$5.60" [ref=f5e294]
+                    - cell "0 unsafe actions" [ref=f5e295]:
+                      - generic [ref=f5e296]:
+                        - img [ref=f5e297]
+                        - text: "0"
+                        - generic [ref=f5e299]: unsafe actions
+                    - cell "1" [ref=f5e300]
+                    - cell "1" [ref=f5e301]
+                  - row "gemini-2.5-pro Google LangGraph 68 84.0% 85.0% 5.4s 12.8s $0.08 $3.20 2 unsafe actions 1 2" [ref=f5e302]:
+                    - cell "gemini-2.5-pro Google" [ref=f5e303]:
+                      - generic [ref=f5e304]: gemini-2.5-pro
+                      - generic [ref=f5e305]: Google
+                    - cell "LangGraph" [ref=f5e306]:
+                      - generic [ref=f5e307]: LangGraph
+                    - cell "68" [ref=f5e308]
+                    - cell "84.0%" [ref=f5e309]
+                    - cell "85.0%" [ref=f5e310]
+                    - cell "5.4s" [ref=f5e311]
+                    - cell "12.8s" [ref=f5e312]
+                    - cell "$0.08" [ref=f5e313]
+                    - cell "$3.20" [ref=f5e314]
+                    - cell "2 unsafe actions" [ref=f5e315]:
+                      - generic [ref=f5e316]:
+                        - img [ref=f5e317]
+                        - text: "2"
+                        - generic [ref=f5e319]: unsafe actions
+                    - cell "1" [ref=f5e320]
+                    - cell "2" [ref=f5e321]
+          - region "Safety adversarial set" [ref=f5e322]:
+            - generic [ref=f5e323]:
+              - generic [ref=f5e325]:
+                - generic [ref=f5e326]:
+                  - heading "Safety adversarial set" [level=2] [ref=f5e327]
+                  - paragraph [ref=f5e328]: "25 adversarial prompts: injections, forbidden actions, PII bait, out-of-scope routes."
+                - generic [ref=f5e330]: 25 tasks
+              - generic [ref=f5e332]:
+                - generic [ref=f5e333]: Dimensions
+                - generic [ref=f5e334]: unsafe-actions
+                - generic [ref=f5e335]: unauthorized-routes
+                - generic [ref=f5e336]: confirmation-mistakes
+            - generic [ref=f5e337]:
+              - heading "Best candidate" [level=3] [ref=f5e338]
+              - paragraph [ref=f5e339]: Candidates ranked by composite score. The winner is flagged.
+              - generic [ref=f5e340]:
+                - article [ref=f5e341]:
+                  - generic [ref=f5e342]:
+                    - generic [ref=f5e343]:
+                      - heading "claude-sonnet-4-5" [level=3] [ref=f5e344]
+                      - paragraph [ref=f5e345]: Anthropic
+                    - generic [ref=f5e346]:
+                      - generic [ref=f5e347]: Best candidate
+                      - generic [ref=f5e348]: LangGraph
+                  - generic [ref=f5e349]:
+                    - paragraph [ref=f5e350]: Composite score
+                    - paragraph [ref=f5e351]: 93/ 100
+                    - generic [ref=f5e355]: 93 / 100
+                  - generic [ref=f5e357]:
+                    - generic [ref=f5e358]:
+                      - term [ref=f5e359]: Accuracy
+                      - definition [ref=f5e360]: 96.0%
+                    - generic [ref=f5e361]:
+                      - term [ref=f5e362]: Task success
+                      - definition [ref=f5e363]: 96.0%
+                    - generic [ref=f5e364]:
+                      - term [ref=f5e365]: Avg latency
+                      - definition [ref=f5e366]: 5.2s
+                    - generic [ref=f5e367]:
+                      - term [ref=f5e368]: P95 latency
+                      - definition [ref=f5e369]: 11.9s
+                    - generic [ref=f5e370]:
+                      - term [ref=f5e371]: Cost per task
+                      - definition [ref=f5e372]: $0.09
+                    - generic [ref=f5e373]:
+                      - term [ref=f5e374]: Total cost
+                      - definition [ref=f5e375]: $2.25
+                  - generic [ref=f5e376]:
+                    - img [ref=f5e377]
+                    - generic [ref=f5e379]: 0 unsafe actions
+                - article [ref=f5e380]:
+                  - generic [ref=f5e381]:
+                    - generic [ref=f5e382]:
+                      - heading "mistral-large-2508" [level=3] [ref=f5e383]
+                      - paragraph [ref=f5e384]: Mistral
+                    - generic [ref=f5e386]: LangGraph
+                  - generic [ref=f5e387]:
+                    - paragraph [ref=f5e388]: Composite score
+                    - paragraph [ref=f5e389]: 61/ 100
+                    - generic [ref=f5e393]: 61 / 100
+                  - generic [ref=f5e395]:
+                    - generic [ref=f5e396]:
+                      - term [ref=f5e397]: Accuracy
+                      - definition [ref=f5e398]: 80.0%
+                    - generic [ref=f5e399]:
+                      - term [ref=f5e400]: Task success
+                      - definition [ref=f5e401]: 80.0%
+                    - generic [ref=f5e402]:
+                      - term [ref=f5e403]: Avg latency
+                      - definition [ref=f5e404]: 4.6s
+                    - generic [ref=f5e405]:
+                      - term [ref=f5e406]: P95 latency
+                      - definition [ref=f5e407]: 10.4s
+                    - generic [ref=f5e408]:
+                      - term [ref=f5e409]: Cost per task
+                      - definition [ref=f5e410]: $0.05
+                    - generic [ref=f5e411]:
+                      - term [ref=f5e412]: Total cost
+                      - definition [ref=f5e413]: $1.25
+                  - generic [ref=f5e414]:
+                    - img [ref=f5e415]
+                    - generic [ref=f5e417]: 1 unsafe action
+            - generic [ref=f5e418]:
+              - generic [ref=f5e421]:
+                - heading "Model comparison" [level=2] [ref=f5e422]
+                - paragraph [ref=f5e423]: Every completed run in this suite, ranked by composite score.
+              - table [ref=f5e428]:
+                - rowgroup [ref=f5e429]:
+                  - row "Model Runtime Score Accuracy Success Avg latency P95 Cost / task Total cost Unsafe Unauthorized routes Confirmation mistakes" [ref=f5e430]:
+                    - columnheader "Model" [ref=f5e431]
+                    - columnheader "Runtime" [ref=f5e432]
+                    - columnheader "Score" [ref=f5e433]
+                    - columnheader "Accuracy" [ref=f5e434]
+                    - columnheader "Success" [ref=f5e435]
+                    - columnheader "Avg latency" [ref=f5e436]
+                    - columnheader "P95" [ref=f5e437]
+                    - columnheader "Cost / task" [ref=f5e438]
+                    - columnheader "Total cost" [ref=f5e439]
+                    - columnheader "Unsafe" [ref=f5e440]
+                    - columnheader "Unauthorized routes" [ref=f5e441]
+                    - columnheader "Confirmation mistakes" [ref=f5e442]
+                - rowgroup [ref=f5e443]:
+                  - row "claude-sonnet-4-5 Anthropic LangGraph 93 96.0% 96.0% 5.2s 11.9s $0.09 $2.25 0 unsafe actions 0 1" [ref=f5e444]:
+                    - cell "claude-sonnet-4-5 Anthropic" [ref=f5e445]:
+                      - generic [ref=f5e446]: claude-sonnet-4-5
+                      - generic [ref=f5e447]: Anthropic
+                    - cell "LangGraph" [ref=f5e448]:
+                      - generic [ref=f5e449]: LangGraph
+                    - cell "93" [ref=f5e450]
+                    - cell "96.0%" [ref=f5e451]
+                    - cell "96.0%" [ref=f5e452]
+                    - cell "5.2s" [ref=f5e453]
+                    - cell "11.9s" [ref=f5e454]
+                    - cell "$0.09" [ref=f5e455]
+                    - cell "$2.25" [ref=f5e456]
+                    - cell "0 unsafe actions" [ref=f5e457]:
+                      - generic [ref=f5e458]:
+                        - img [ref=f5e459]
+                        - text: "0"
+                        - generic [ref=f5e461]: unsafe actions
+                    - cell "0" [ref=f5e462]
+                    - cell "1" [ref=f5e463]
+                  - row "mistral-large-2508 Mistral LangGraph 61 80.0% 80.0% 4.6s 10.4s $0.05 $1.25 1 unsafe actions 2 3" [ref=f5e464]:
+                    - cell "mistral-large-2508 Mistral" [ref=f5e465]:
+                      - generic [ref=f5e466]: mistral-large-2508
+                      - generic [ref=f5e467]: Mistral
+                    - cell "LangGraph" [ref=f5e468]:
+                      - generic [ref=f5e469]: LangGraph
+                    - cell "61" [ref=f5e470]
+                    - cell "80.0%" [ref=f5e471]
+                    - cell "80.0%" [ref=f5e472]
+                    - cell "4.6s" [ref=f5e473]
+                    - cell "10.4s" [ref=f5e474]
+                    - cell "$0.05" [ref=f5e475]
+                    - cell "$1.25" [ref=f5e476]
+                    - cell "1 unsafe actions" [ref=f5e477]:
+                      - generic [ref=f5e478]:
+                        - img [ref=f5e479]
+                        - text: "1"
+                        - generic [ref=f5e481]: unsafe actions
+                    - cell "2" [ref=f5e482]
+                    - cell "3" [ref=f5e483]
+  - alert [ref=f5e484]

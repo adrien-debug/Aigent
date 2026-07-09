@@ -1,0 +1,372 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e4]:
+      - generic [ref=e6]:
+        - img [ref=e8]
+        - generic [ref=e12]:
+          - generic [ref=e13]: Agent Mission Control
+          - generic [ref=e14]: Copilot operations
+      - generic [ref=e15]:
+        - link "Copilots" [ref=e19] [cursor=pointer]:
+          - /url: /admin/agents
+          - img [ref=e20]
+          - generic [ref=e23]: Copilots
+        - generic [ref=e24]:
+          - heading "Platform" [level=3] [ref=e25]
+          - generic [ref=e26]:
+            - img [ref=e27]
+            - generic [ref=e29]: Projects
+            - generic [ref=e30]: (coming soon)
+          - generic [ref=e31]:
+            - img [ref=e32]
+            - generic [ref=e36]: Traces
+            - generic [ref=e37]: (coming soon)
+          - generic [ref=e38]:
+            - img [ref=e39]
+            - generic [ref=e41]: Settings
+            - generic [ref=e42]: (coming soon)
+      - generic [ref=e45]:
+        - img [ref=e47]:
+          - generic [ref=e48]: AD
+        - generic [ref=e49]:
+          - generic [ref=e50]: Adrien
+          - generic [ref=e51]: Platform Admin
+    - main [ref=e52]:
+      - generic [ref=e55]:
+        - generic [ref=e56]:
+          - generic [ref=e57]:
+            - heading "Copilots" [level=1] [ref=e58]
+            - paragraph [ref=e59]: Registry of every copilot agent across projects — status, runtime, health and cost at a glance.
+          - button "New copilot (coming soon)" [disabled] [ref=e61]:
+            - img [ref=e62]
+            - text: New copilot
+            - generic [ref=e64]: (coming soon)
+        - region "Registry key metrics" [ref=e65]:
+          - generic [ref=e67]:
+            - term [ref=e68]: Copilots
+            - definition [ref=e69]: "6"
+            - definition [ref=e70]: 2 active
+          - generic [ref=e72]:
+            - term [ref=e73]: Active
+            - definition [ref=e74]: "2"
+            - definition [ref=e75]: Serving traffic
+          - generic [ref=e77]:
+            - term [ref=e78]: Avg test pass
+            - definition [ref=e79]: 65.0%
+            - definition [ref=e80]: Measured copilots
+          - generic [ref=e82]:
+            - term [ref=e83]: Runs 24h
+            - definition [ref=e84]: "201"
+            - definition [ref=e85]: All projects
+          - generic [ref=e87]:
+            - term [ref=e88]: Cost 24h
+            - definition [ref=e89]: $29.67
+            - definition [ref=e90]: Model + tools
+          - generic [ref=e92]:
+            - term [ref=e93]: Open warnings
+            - definition [ref=e94]: "6"
+            - definition [ref=e95]: Needs attention
+        - generic [ref=e96]:
+          - generic [ref=e98]:
+            - generic [ref=e100]:
+              - generic [ref=e101]:
+                - heading "Copilot registry" [level=2] [ref=e102]
+                - paragraph [ref=e103]: Every copilot across projects — filter by project, runtime or status.
+              - generic [ref=e105]: 6 of 6
+            - generic [ref=e106]:
+              - generic [ref=e107]:
+                - generic [ref=e108]:
+                  - text: Search
+                  - generic [ref=e109]:
+                    - img
+                    - searchbox "Search" [ref=e111]
+                - generic [ref=e112]:
+                  - text: Project
+                  - generic [ref=e113]:
+                    - combobox "Project" [ref=e114]:
+                      - option "All projects" [selected]
+                      - option "Hearst Console"
+                      - option "Hearst Studio"
+                      - option "Hearst Gateway"
+                    - generic:
+                      - img
+                - generic [ref=e115]:
+                  - text: Runtime
+                  - generic [ref=e116]:
+                    - combobox "Runtime" [ref=e117]:
+                      - option "All runtimes" [selected]
+                      - option "LangGraph"
+                      - option "OpenAI Assistants"
+                      - option "Anthropic SDK"
+                      - option "Gemini"
+                      - option "Custom runtime"
+                    - generic:
+                      - img
+                - generic [ref=e118]:
+                  - text: Status
+                  - generic [ref=e119]:
+                    - combobox "Status" [ref=e120]:
+                      - option "All statuses" [selected]
+                      - option "Active"
+                      - option "Degraded"
+                      - option "Paused"
+                      - option "Draft"
+                      - option "Archived"
+                    - generic:
+                      - img
+              - table [ref=e125]:
+                - rowgroup [ref=e126]:
+                  - row "Name Project Runtime Status Test pass Runs 24h Cost 24h Warnings" [ref=e127]:
+                    - columnheader "Name" [ref=e128]
+                    - columnheader "Project" [ref=e129]
+                    - columnheader "Runtime" [ref=e130]
+                    - columnheader "Status" [ref=e131]
+                    - columnheader "Test pass" [ref=e132]
+                    - columnheader "Runs 24h" [ref=e133]
+                    - columnheader "Cost 24h" [ref=e134]
+                    - columnheader "Warnings" [ref=e135]
+                - rowgroup [ref=e136]:
+                  - row "Preview Support Navigator Support Navigator support-navigator Hearst Console LangGraph Active 93.0% 142 $18.42 1 open warnings" [ref=e137] [cursor=pointer]:
+                    - cell "Preview Support Navigator Support Navigator support-navigator" [ref=e138]:
+                      - button "Preview Support Navigator" [pressed] [ref=e139]:
+                        - generic [ref=e140]: Preview Support Navigator
+                      - link "Support Navigator" [ref=e141]:
+                        - /url: /admin/agents/cp-support-navigator
+                      - generic [ref=e142]: support-navigator
+                    - cell "Hearst Console" [ref=e143]
+                    - cell "LangGraph" [ref=e144]:
+                      - generic [ref=e145]: LangGraph
+                    - cell "Active" [ref=e146]:
+                      - generic [ref=e147]: Active
+                    - cell "93.0%" [ref=e149]
+                    - cell "142" [ref=e150]
+                    - cell "$18.42" [ref=e151]
+                    - cell "1 open warnings" [ref=e152]:
+                      - generic [ref=e153]:
+                        - generic [ref=e155]: "1"
+                        - generic [ref=e156]: open warnings
+                  - row "Preview Billing Sentinel Billing Sentinel billing-sentinel Hearst Console OpenAI Assistants Degraded 71.0% 38 $6.90 3 open warnings" [ref=e157] [cursor=pointer]:
+                    - cell "Preview Billing Sentinel Billing Sentinel billing-sentinel" [ref=e158]:
+                      - button "Preview Billing Sentinel" [ref=e159]:
+                        - generic [ref=e160]: Preview Billing Sentinel
+                      - link "Billing Sentinel" [ref=e161]:
+                        - /url: /admin/agents/cp-billing-sentinel
+                      - generic [ref=e162]: billing-sentinel
+                    - cell "Hearst Console" [ref=e163]
+                    - cell "OpenAI Assistants" [ref=e164]:
+                      - generic [ref=e165]: OpenAI Assistants
+                    - cell "Degraded" [ref=e166]:
+                      - generic [ref=e167]: Degraded
+                    - cell "71.0%" [ref=e169]
+                    - cell "38" [ref=e170]
+                    - cell "$6.90" [ref=e171]
+                    - cell "3 open warnings" [ref=e172]:
+                      - generic [ref=e173]:
+                        - generic [ref=e175]: "3"
+                        - generic [ref=e176]: open warnings
+                  - row "Preview Docs Drafter Docs Drafter docs-drafter Hearst Studio Gemini Draft 0.0% 0 $0.00 0 open warnings" [ref=e177] [cursor=pointer]:
+                    - cell "Preview Docs Drafter Docs Drafter docs-drafter" [ref=e178]:
+                      - button "Preview Docs Drafter" [ref=e179]:
+                        - generic [ref=e180]: Preview Docs Drafter
+                      - link "Docs Drafter" [ref=e181]:
+                        - /url: /admin/agents/cp-docs-drafter
+                      - generic [ref=e182]: docs-drafter
+                    - cell "Hearst Studio" [ref=e183]
+                    - cell "Gemini" [ref=e184]:
+                      - generic [ref=e185]: Gemini
+                    - cell "Draft" [ref=e186]:
+                      - generic [ref=e187]: Draft
+                    - cell "0.0%" [ref=e189]
+                    - cell "0" [ref=e190]
+                    - cell "$0.00" [ref=e191]
+                    - cell "0 open warnings" [ref=e192]:
+                      - generic [ref=e193]:
+                        - generic [ref=e194]: "0"
+                        - generic [ref=e195]: open warnings
+                  - row "Preview Release Pilot Release Pilot release-pilot Hearst Studio Anthropic SDK Active 96.0% 21 $4.35 1 open warnings" [ref=e196] [cursor=pointer]:
+                    - cell "Preview Release Pilot Release Pilot release-pilot" [ref=e197]:
+                      - button "Preview Release Pilot" [ref=e198]:
+                        - generic [ref=e199]: Preview Release Pilot
+                      - link "Release Pilot" [ref=e200]:
+                        - /url: /admin/agents/cp-release-pilot
+                      - generic [ref=e201]: release-pilot
+                    - cell "Hearst Studio" [ref=e202]
+                    - cell "Anthropic SDK" [ref=e203]:
+                      - generic [ref=e204]: Anthropic SDK
+                    - cell "Active" [ref=e205]:
+                      - generic [ref=e206]: Active
+                    - cell "96.0%" [ref=e208]
+                    - cell "21" [ref=e209]
+                    - cell "$4.35" [ref=e210]
+                    - cell "1 open warnings" [ref=e211]:
+                      - generic [ref=e212]:
+                        - generic [ref=e214]: "1"
+                        - generic [ref=e215]: open warnings
+                  - row "Preview API Triage API Triage api-triage Hearst Gateway Custom runtime Paused 0.0% 0 $0.00 1 open warnings" [ref=e216] [cursor=pointer]:
+                    - cell "Preview API Triage API Triage api-triage" [ref=e217]:
+                      - button "Preview API Triage" [ref=e218]:
+                        - generic [ref=e219]: Preview API Triage
+                      - link "API Triage" [ref=e220]:
+                        - /url: /admin/agents/cp-api-triage
+                      - generic [ref=e221]: api-triage
+                    - cell "Hearst Gateway" [ref=e222]
+                    - cell "Custom runtime" [ref=e223]:
+                      - generic [ref=e224]: Custom runtime
+                    - cell "Paused" [ref=e225]:
+                      - generic [ref=e226]: Paused
+                    - cell "0.0%" [ref=e228]
+                    - cell "0" [ref=e229]
+                    - cell "$0.00" [ref=e230]
+                    - cell "1 open warnings" [ref=e231]:
+                      - generic [ref=e232]:
+                        - generic [ref=e234]: "1"
+                        - generic [ref=e235]: open warnings
+                  - row "Preview Quota Advisor Quota Advisor quota-advisor Hearst Gateway OpenAI Assistants Archived 0.0% 0 $0.00 0 open warnings" [ref=e236] [cursor=pointer]:
+                    - cell "Preview Quota Advisor Quota Advisor quota-advisor" [ref=e237]:
+                      - button "Preview Quota Advisor" [ref=e238]:
+                        - generic [ref=e239]: Preview Quota Advisor
+                      - link "Quota Advisor" [ref=e240]:
+                        - /url: /admin/agents/cp-quota-advisor
+                      - generic [ref=e241]: quota-advisor
+                    - cell "Hearst Gateway" [ref=e242]
+                    - cell "OpenAI Assistants" [ref=e243]:
+                      - generic [ref=e244]: OpenAI Assistants
+                    - cell "Archived" [ref=e245]:
+                      - generic [ref=e246]: Archived
+                    - cell "0.0%" [ref=e248]
+                    - cell "0" [ref=e249]
+                    - cell "$0.00" [ref=e250]
+                    - cell "0 open warnings" [ref=e251]:
+                      - generic [ref=e252]:
+                        - generic [ref=e253]: "0"
+                        - generic [ref=e254]: open warnings
+          - generic [ref=e255]:
+            - generic [ref=e256]:
+              - generic [ref=e259]:
+                - heading "Support Navigator" [level=2] [ref=e260]
+                - paragraph [ref=e261]: Hearst Console project
+              - generic [ref=e262]:
+                - generic [ref=e263]:
+                  - generic [ref=e264]: Active
+                  - generic [ref=e266]: LangGraph
+                - generic [ref=e267]:
+                  - term [ref=e268]: Owner
+                  - definition [ref=e269]: nadia.kessler
+                  - term [ref=e270]: Model
+                  - definition [ref=e271]: claude-sonnet-4-5
+                  - term [ref=e272]: Provider
+                  - definition [ref=e273]: Anthropic
+                  - term [ref=e274]: Created
+                  - definition [ref=e275]: Jun 2, 2026
+                  - term [ref=e276]: Updated
+                  - definition [ref=e277]: Jul 8, 2026
+                  - term [ref=e278]: Tags
+                  - definition [ref=e279]:
+                    - generic [ref=e280]:
+                      - generic [ref=e281]: support
+                      - generic [ref=e282]: tier-1
+                      - generic [ref=e283]: console
+                  - term [ref=e284]: Test pass rate
+                  - definition [ref=e285]: 93.0%
+                  - term [ref=e286]: Benchmark score
+                  - definition [ref=e287]: 87 / 100
+                  - term [ref=e288]: Error rate 24h
+                  - definition [ref=e289]: 2.1%
+                  - term [ref=e290]: Avg latency
+                  - definition [ref=e291]: 6.4s
+                  - term [ref=e292]: Cost 24h
+                  - definition [ref=e293]: $18.42
+                - generic [ref=e294]:
+                  - generic [ref=e295]: Production v2.1.0
+                  - link "Open copilot" [ref=e296] [cursor=pointer]:
+                    - /url: /admin/agents/cp-support-navigator
+            - generic [ref=e297]:
+              - generic [ref=e300]:
+                - heading "Recent warnings" [level=2] [ref=e301]
+                - paragraph [ref=e302]: Latest signals across the registry.
+              - list [ref=e304]:
+                - listitem [ref=e305]:
+                  - generic [ref=e307]:
+                    - paragraph [ref=e308]: Error rate over the last 24h is 18%, above the 5% alert threshold.
+                    - paragraph [ref=e309]:
+                      - generic [ref=e310]: Warning
+                      - generic [ref=e311]: ·
+                      - generic [ref=e312]: Billing Sentinel
+                      - generic [ref=e313]: ·
+                      - time [ref=e314]: 5h ago
+                      - generic [ref=e315]: ·
+                      - link "Investigate Billing Sentinel warning" [ref=e316] [cursor=pointer]:
+                        - /url: /admin/agents/cp-billing-sentinel
+                        - text: Investigate
+                        - generic [ref=e317]: Billing Sentinel warning
+                - listitem [ref=e318]:
+                  - generic [ref=e320]:
+                    - paragraph [ref=e321]: Test pass rate dropped to 33% on the anomaly-detection suite (proration regression).
+                    - paragraph [ref=e322]:
+                      - generic [ref=e323]: Danger
+                      - generic [ref=e324]: ·
+                      - generic [ref=e325]: Billing Sentinel
+                      - generic [ref=e326]: ·
+                      - time [ref=e327]: 5h ago
+                      - generic [ref=e328]: ·
+                      - link "Investigate Billing Sentinel warning" [ref=e329] [cursor=pointer]:
+                        - /url: /admin/agents/cp-billing-sentinel/tests
+                        - text: Investigate
+                        - generic [ref=e330]: Billing Sentinel warning
+                - listitem [ref=e331]:
+                  - generic [ref=e333]:
+                    - paragraph [ref=e334]: "Nightly sweep failed: invoice_lookup timing out on shard eu-2 (error rate 21% over 7 days)."
+                    - paragraph [ref=e335]:
+                      - generic [ref=e336]: Danger
+                      - generic [ref=e337]: ·
+                      - generic [ref=e338]: Billing Sentinel
+                      - generic [ref=e339]: ·
+                      - time [ref=e340]: 9h ago
+                      - generic [ref=e341]: ·
+                      - link "Investigate Billing Sentinel warning" [ref=e342] [cursor=pointer]:
+                        - /url: /admin/agents/cp-billing-sentinel/runs
+                        - text: Investigate
+                        - generic [ref=e343]: Billing Sentinel warning
+                - listitem [ref=e344]:
+                  - generic [ref=e346]:
+                    - paragraph [ref=e347]: Shadow experiment agreement at 94.0%, below the 95% promotion threshold, with 1 unsafe proposal.
+                    - paragraph [ref=e348]:
+                      - generic [ref=e349]: Warning
+                      - generic [ref=e350]: ·
+                      - generic [ref=e351]: Support Navigator
+                      - generic [ref=e352]: ·
+                      - time [ref=e353]: 16h ago
+                      - generic [ref=e354]: ·
+                      - link "Investigate Support Navigator warning" [ref=e355] [cursor=pointer]:
+                        - /url: /admin/agents/cp-support-navigator/shadow
+                        - text: Investigate
+                        - generic [ref=e356]: Support Navigator warning
+                - listitem [ref=e357]:
+                  - generic [ref=e359]:
+                    - paragraph [ref=e360]: schedule_publish has not been exercised by tests since the v1.2.0-beta.1 build.
+                    - paragraph [ref=e361]:
+                      - generic [ref=e362]: Warning
+                      - generic [ref=e363]: ·
+                      - generic [ref=e364]: Release Pilot
+                      - generic [ref=e365]: ·
+                      - time [ref=e366]: 2d ago
+                      - generic [ref=e367]: ·
+                      - link "Investigate Release Pilot warning" [ref=e368] [cursor=pointer]:
+                        - /url: /admin/agents/cp-release-pilot/tests
+                        - text: Investigate
+                        - generic [ref=e369]: Release Pilot warning
+                - listitem [ref=e370]:
+                  - generic [ref=e372]:
+                    - paragraph [ref=e373]: Copilot paused for 7 days; quota_read credentials expire on 2026-07-20.
+                    - paragraph [ref=e374]:
+                      - generic [ref=e375]: Warning
+                      - generic [ref=e376]: ·
+                      - generic [ref=e377]: API Triage
+                      - generic [ref=e378]: ·
+                      - time [ref=e379]: 3d ago
+                      - generic [ref=e380]: ·
+                      - link "Investigate API Triage warning" [ref=e381] [cursor=pointer]:
+                        - /url: /admin/agents/cp-api-triage
+                        - text: Investigate
+                        - generic [ref=e382]: API Triage warning
+  - alert [ref=e383]

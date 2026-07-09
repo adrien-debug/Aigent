@@ -1,0 +1,162 @@
+import { CheckCircleIcon, ClockIcon, MinusCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
+import clsx from 'clsx'
+
+import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { Badge } from '@/components/catalyst/badge'
+import { formatTimestamp } from '@/lib/agent-mission-control/format'
+import type { CopilotVersion, PromotionCheck, PromotionGate } from '@/lib/agent-mission-control/types'
+
+/**
+ * Mock `observed` strings embed the comparison against the threshold (e.g.
+ * "95.0% ≥ 90%") which duplicates the "required ≥ 90%" line below it. Show the
+ * observed value only; the required line owns the threshold.
+ */
+function observedValueOnly(observed: string): string {
+  return observed.replace(/\s*[≥≤<>]\s*\S+$/u, '')
+}
+
+const checkStatusConfig: Record<
+  PromotionCheck['status'],
+  { label: string; badgeColor: 'green' | 'rose' | 'amber' | 'zinc'; Icon: typeof CheckCircleIcon; iconClassName: string }
+> = {
+  pass: { label: 'Pass', badgeColor: 'green', Icon: CheckCircleIcon, iconClassName: 'text-green-600 dark:text-green-400' },
+  fail: { label: 'Fail', badgeColor: 'rose', Icon: XCircleIcon, iconClassName: 'text-rose-600 dark:text-rose-400' },
+  pending: { label: 'Pending', badgeColor: 'amber', Icon: ClockIcon, iconClassName: 'text-amber-600 dark:text-amber-400' },
+  waived: { label: 'Waived', badgeColor: 'zinc', Icon: MinusCircleIcon, iconClassName: 'text-zinc-500' },
+}
+
+function StatusBanner({ gate, candidateLabel }: { gate: PromotionGate; candidateLabel: string }) {
+  const failingCount = gate.checks.filter((check) => check.status === 'fail').length
+
+  if (gate.overallStatus === 'ready') {
+    return (
+      <div className="rounded-lg bg-green-500/10 p-4 outline outline-green-500/20">
+        <div className="flex gap-3">
+          <CheckCircleIcon aria-hidden="true" className="size-5 shrink-0 text-green-600 dark:text-green-400" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-green-800 dark:text-green-200">Ready to promote</p>
+            <p className="mt-1 text-xs text-green-800/80 dark:text-green-200/85">
+              Every gate check passes — <span className="font-mono tabular-nums">{candidateLabel}</span> can be promoted
+              to {gate.targetStage}.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (gate.overallStatus === 'blocked') {
+    return (
+      <div className="rounded-lg bg-rose-500/10 p-4 outline outline-rose-500/20">
+        <div className="flex gap-3">
+          <XCircleIcon aria-hidden="true" className="size-5 shrink-0 text-rose-600 dark:text-rose-400" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-rose-800 dark:text-rose-200">
+              Blocked — {failingCount} {failingCount === 1 ? 'check' : 'checks'} failing
+            </p>
+            <p className="mt-1 text-xs text-rose-800/80 dark:text-rose-200/85">
+              <span className="font-mono tabular-nums">{candidateLabel}</span> cannot reach {gate.targetStage} until
+              every failing check passes or is explicitly waived.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-lg bg-amber-500/10 p-4 outline outline-amber-500/20">
+      <div className="flex gap-3">
+        <ClockIcon aria-hidden="true" className="size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Awaiting human approval</p>
+          <p className="mt-1 text-xs text-amber-800/80 dark:text-amber-200/85">
+            All automated checks pass — a sign-off is still required before{' '}
+            <span className="font-mono tabular-nums">{candidateLabel}</span> ships to {gate.targetStage}.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Promotion gate panel: overall status banner, checks progress bar, and the
+ * full checklist with observed vs required thresholds. Server-safe.
+ */
+export function PromotionGateCard({
+  gate,
+  candidateVersion,
+}: {
+  gate: PromotionGate
+  candidateVersion?: CopilotVersion
+}) {
+  const candidateLabel = candidateVersion?.label ?? gate.candidateVersionId
+  const totalChecks = gate.checks.length
+  const passedChecks = gate.checks.filter((check) => check.status === 'pass').length
+  const allPassing = totalChecks > 0 && passedChecks === totalChecks
+  const progressPct = totalChecks > 0 ? (passedChecks / totalChecks) * 100 : 0
+
+  return (
+    <AgentSectionCard
+      title="Promotion gate"
+      description={`Last evaluated ${formatTimestamp(gate.lastEvaluatedAt)}`}
+      actions={
+        <>
+          <span className="font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-300">{candidateLabel}</span>
+          <Badge color={gate.targetStage === 'production' ? 'green' : 'zinc'}>target: {gate.targetStage}</Badge>
+        </>
+      }
+      contentClassName="px-6 py-5"
+    >
+      <StatusBanner gate={gate} candidateLabel={candidateLabel} />
+
+      <div className="mt-6">
+        <div className="flex items-baseline justify-between gap-4">
+          <p className="text-sm font-medium text-zinc-950 dark:text-white">Checks passing</p>
+          <p className="font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+            {passedChecks} / {totalChecks}
+          </p>
+        </div>
+        <div
+          role="progressbar"
+          aria-label="Gate checks passing"
+          aria-valuemin={0}
+          aria-valuemax={totalChecks}
+          aria-valuenow={passedChecks}
+          aria-valuetext={`${passedChecks} of ${totalChecks} checks passing`}
+          className="mt-3 overflow-hidden rounded-full bg-zinc-950/10 dark:bg-zinc-800"
+        >
+          <div
+            style={{ width: `${progressPct}%` }}
+            className={clsx('h-2 rounded-full', allPassing ? 'bg-green-500' : 'bg-zinc-500')}
+          />
+        </div>
+      </div>
+
+      <ul role="list" className="mt-6 divide-y divide-zinc-950/5 dark:divide-white/5">
+        {gate.checks.map((check) => {
+          const config = checkStatusConfig[check.status]
+          return (
+            <li key={check.id} className="flex items-start gap-3 py-4 first:pt-0 last:pb-0">
+              <config.Icon aria-hidden="true" className={clsx('mt-0.5 size-5 shrink-0', config.iconClassName)} />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium text-zinc-950 dark:text-white">{check.label}</p>
+                  <Badge color={config.badgeColor}>{config.label}</Badge>
+                </div>
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{check.description}</p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
+                  {observedValueOnly(check.observed)}
+                </p>
+                <p className="mt-1 font-mono text-xs tabular-nums text-zinc-500">required {check.required}</p>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </AgentSectionCard>
+  )
+}

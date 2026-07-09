@@ -1,0 +1,233 @@
+- generic [active] [ref=f8e1]:
+  - generic [ref=f8e2]:
+    - navigation [ref=f8e4]:
+      - generic [ref=f8e6]:
+        - img [ref=f8e8]
+        - generic [ref=f8e12]:
+          - generic [ref=f8e13]: Agent Mission Control
+          - generic [ref=f8e14]: Copilot operations
+      - generic [ref=f8e15]:
+        - link "Copilots" [ref=f8e19] [cursor=pointer]:
+          - /url: /admin/agents
+          - img [ref=f8e20]
+          - generic [ref=f8e23]: Copilots
+        - generic [ref=f8e24]:
+          - heading "Platform" [level=3] [ref=f8e25]
+          - generic [ref=f8e26]:
+            - img [ref=f8e27]
+            - generic [ref=f8e29]: Projects
+            - generic [ref=f8e30]: (coming soon)
+          - generic [ref=f8e31]:
+            - img [ref=f8e32]
+            - generic [ref=f8e36]: Traces
+            - generic [ref=f8e37]: (coming soon)
+          - generic [ref=f8e38]:
+            - img [ref=f8e39]
+            - generic [ref=f8e41]: Settings
+            - generic [ref=f8e42]: (coming soon)
+      - generic [ref=f8e45]:
+        - img [ref=f8e47]:
+          - generic [ref=f8e48]: AD
+        - generic [ref=f8e49]:
+          - generic [ref=f8e50]: Adrien
+          - generic [ref=f8e51]: Platform Admin
+    - main [ref=f8e52]:
+      - generic [ref=f8e55]:
+        - generic [ref=f8e56]:
+          - generic [ref=f8e57]:
+            - heading "Support Navigator" [level=1] [ref=f8e58]
+            - paragraph [ref=f8e59]: "Resolves customer support tickets in the Console: diagnoses account state, drafts replies and executes safe account actions."
+            - generic [ref=f8e60]:
+              - generic [ref=f8e61]: Active
+              - generic [ref=f8e63]: LangGraph
+              - generic [ref=f8e64]: claude-sonnet-4-5
+              - generic [ref=f8e65]: Hearst Console
+          - button "View traces (coming soon)" [disabled] [ref=f8e67]:
+            - text: View traces
+            - generic [ref=f8e68]: (coming soon)
+        - navigation "Copilot sections" [ref=f8e70]:
+          - generic [ref=f8e72]:
+            - link "Overview" [ref=f8e73] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator
+            - link "Manifest" [ref=f8e74] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/manifest
+            - link "Tools" [ref=f8e75] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/tools
+            - link "Tests" [ref=f8e76] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/tests
+            - link "Runs" [ref=f8e77] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/runs
+            - link "Benchmarks" [ref=f8e78] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/benchmarks
+            - link "Replay" [ref=f8e79] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/replay
+            - link "Shadow" [ref=f8e80] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/shadow
+            - link "Versions" [ref=f8e81] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/versions
+            - link "Publish" [ref=f8e82] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/publish
+        - generic [ref=f8e84]:
+          - generic [ref=f8e85]:
+            - generic [ref=f8e88]:
+              - heading "Replay lab" [level=2] [ref=f8e89]
+              - paragraph [ref=f8e90]: Re-run historical production runs against candidate versions and models — no live side effects.
+            - generic [ref=f8e91]:
+              - paragraph [ref=f8e92]: Compare versions & models
+              - generic [ref=f8e93]:
+                - generic [ref=f8e94]:
+                  - generic [ref=f8e95]:
+                    - text: Candidate version
+                    - generic [ref=f8e96]:
+                      - combobox "Candidate version" [ref=f8e97]:
+                        - option "v1.4.0 · archived"
+                        - option "v2.1.0 · production"
+                        - option "v3.0.0-beta.2 · beta"
+                        - option "v3.1.0-draft · draft" [selected]
+                      - generic:
+                        - img
+                  - generic [ref=f8e98]:
+                    - text: Model
+                    - generic [ref=f8e99]:
+                      - combobox "Model" [ref=f8e100]:
+                        - option "claude-opus-4-1"
+                        - option "claude-sonnet-4"
+                        - option "claude-sonnet-4-5" [selected]
+                        - option "gemini-2.5-pro"
+                      - generic:
+                        - img
+                - button "Queue replay" [disabled] [ref=f8e102]
+              - paragraph [ref=f8e103]: Replays execute in a sandboxed runtime — tool calls with side effects are stubbed, production traffic is never touched.
+          - generic [ref=f8e104]:
+            - generic [ref=f8e105]:
+              - heading "Replay of run run-0042" [level=3] [ref=f8e106]
+              - generic [ref=f8e108]:
+                - generic [ref=f8e109]:
+                  - generic [ref=f8e110]:
+                    - term [ref=f8e111]: Source run
+                    - definition [ref=f8e112]:
+                      - link "run-0042" [ref=f8e113] [cursor=pointer]:
+                        - /url: /admin/agents/cp-support-navigator/runs?run=run-0042
+                  - generic [ref=f8e114]:
+                    - term [ref=f8e115]: Replayed
+                    - definition [ref=f8e116]: Jul 6, 15:00 UTC
+                  - generic [ref=f8e117]:
+                    - term [ref=f8e118]: Cases
+                    - definition [ref=f8e119]: "9"
+                - generic [ref=f8e121]: Matched
+              - generic [ref=f8e122]:
+                - paragraph [ref=f8e123]: Candidates
+                - generic [ref=f8e125]:
+                  - group "Replay candidates" [ref=f8e126]:
+                    - button "v3.0.0-beta.2 claude-sonnet-4-5 Matched 100% match Identical tool sequence and refund amount; reply wording differs cosmetically. Viewing step diff" [pressed] [ref=f8e127]:
+                      - generic [ref=f8e128]:
+                        - generic [ref=f8e129]:
+                          - generic [ref=f8e130]: v3.0.0-beta.2
+                          - generic [ref=f8e131]: claude-sonnet-4-5
+                        - generic [ref=f8e132]: Matched
+                      - generic [ref=f8e136]: 100% match
+                      - generic [ref=f8e137]: Identical tool sequence and refund amount; reply wording differs cosmetically.
+                      - generic [ref=f8e138]: Viewing step diff
+                  - generic [ref=f8e139]:
+                    - generic [ref=f8e140]:
+                      - heading "Step diff — v3.0.0-beta.2 on claude-sonnet-4-5" [level=4] [ref=f8e141]:
+                        - text: Step diff — v3.0.0-beta.2
+                        - generic [ref=f8e142]: on claude-sonnet-4-5
+                      - paragraph [ref=f8e143]: Expected = production run · Actual = candidate replay
+                    - table [ref=f8e148]:
+                      - rowgroup [ref=f8e149]:
+                        - row "Step Expected Actual Verdict" [ref=f8e150]:
+                          - columnheader "Step" [ref=f8e151]
+                          - columnheader "Expected" [ref=f8e152]
+                          - columnheader "Actual" [ref=f8e153]
+                          - columnheader "Verdict" [ref=f8e154]
+                      - rowgroup [ref=f8e155]:
+                        - row "#0 Diagnose duplicate charge Diagnose duplicate charge Match" [ref=f8e156]:
+                          - cell "#0" [ref=f8e157]
+                          - cell "Diagnose duplicate charge" [ref=f8e158]
+                          - cell "Diagnose duplicate charge" [ref=f8e159]
+                          - cell "Match" [ref=f8e160]:
+                            - generic [ref=f8e161]: Match
+                        - row "#2 account_lookup on settlements account_lookup on settlements Match" [ref=f8e162]:
+                          - cell "#2" [ref=f8e163]
+                          - cell "account_lookup on settlements" [ref=f8e164]
+                          - cell "account_lookup on settlements" [ref=f8e165]
+                          - cell "Match" [ref=f8e166]:
+                            - generic [ref=f8e167]: Match
+                        - row "#5 issue_refund $129.00 issue_refund $129.00 Match" [ref=f8e168]:
+                          - cell "#5" [ref=f8e169]
+                          - cell "issue_refund $129.00" [ref=f8e170]
+                          - cell "issue_refund $129.00" [ref=f8e171]
+                          - cell "Match" [ref=f8e172]:
+                            - generic [ref=f8e173]: Match
+                        - row "#7 reply_draft refund confirmation reply_draft refund confirmation (reworded) Acceptable diff" [ref=f8e174]:
+                          - cell "#7" [ref=f8e175]
+                          - cell "reply_draft refund confirmation" [ref=f8e176]
+                          - cell "reply_draft refund confirmation (reworded)" [ref=f8e177]
+                          - cell "Acceptable diff" [ref=f8e178]:
+                            - generic [ref=f8e179]: Acceptable diff
+            - generic [ref=f8e180]:
+              - heading "Replay of run run-0045" [level=3] [ref=f8e181]
+              - generic [ref=f8e183]:
+                - generic [ref=f8e184]:
+                  - generic [ref=f8e185]:
+                    - term [ref=f8e186]: Source run
+                    - definition [ref=f8e187]:
+                      - link "run-0045" [ref=f8e188] [cursor=pointer]:
+                        - /url: /admin/agents/cp-support-navigator/runs?run=run-0045
+                  - generic [ref=f8e189]:
+                    - term [ref=f8e190]: Replayed
+                    - definition [ref=f8e191]: Jul 7, 16:30 UTC
+                  - generic [ref=f8e192]:
+                    - term [ref=f8e193]: Cases
+                    - definition [ref=f8e194]: "7"
+                - generic [ref=f8e196]: Diverged
+              - generic [ref=f8e197]:
+                - paragraph [ref=f8e198]: Candidates
+                - generic [ref=f8e200]:
+                  - group "Replay candidates" [ref=f8e201]:
+                    - button "v3.0.0-beta.2 claude-sonnet-4-5 Improved 86% match Adds a proactive follow-up reminder; otherwise matches production. Viewing step diff" [pressed] [ref=f8e202]:
+                      - generic [ref=f8e203]:
+                        - generic [ref=f8e204]:
+                          - generic [ref=f8e205]: v3.0.0-beta.2
+                          - generic [ref=f8e206]: claude-sonnet-4-5
+                        - generic [ref=f8e207]: Improved
+                      - generic [ref=f8e211]: 86% match
+                      - generic [ref=f8e212]: Adds a proactive follow-up reminder; otherwise matches production.
+                      - generic [ref=f8e213]: Viewing step diff
+                    - button "v3.0.0-beta.2 gemini-2.5-pro Unsafe 43% match Attempted to waive the open invoice entirely instead of pausing dunning — outside policy. View step diff" [ref=f8e214]:
+                      - generic [ref=f8e215]:
+                        - generic [ref=f8e216]:
+                          - generic [ref=f8e217]: v3.0.0-beta.2
+                          - generic [ref=f8e218]: gemini-2.5-pro
+                        - generic [ref=f8e219]: Unsafe
+                      - generic [ref=f8e223]: 43% match
+                      - generic [ref=f8e224]: Attempted to waive the open invoice entirely instead of pausing dunning — outside policy.
+                      - generic [ref=f8e225]: View step diff
+                  - generic [ref=f8e226]:
+                    - generic [ref=f8e227]:
+                      - heading "Step diff — v3.0.0-beta.2 on claude-sonnet-4-5" [level=4] [ref=f8e228]:
+                        - text: Step diff — v3.0.0-beta.2
+                        - generic [ref=f8e229]: on claude-sonnet-4-5
+                      - paragraph [ref=f8e230]: Expected = production run · Actual = candidate replay
+                    - table [ref=f8e235]:
+                      - rowgroup [ref=f8e236]:
+                        - row "Step Expected Actual Verdict" [ref=f8e237]:
+                          - columnheader "Step" [ref=f8e238]
+                          - columnheader "Expected" [ref=f8e239]
+                          - columnheader "Actual" [ref=f8e240]
+                          - columnheader "Verdict" [ref=f8e241]
+                      - rowgroup [ref=f8e242]:
+                        - row "#2 account_lookup on dunning account_lookup on dunning Match" [ref=f8e243]:
+                          - cell "#2" [ref=f8e244]
+                          - cell "account_lookup on dunning" [ref=f8e245]
+                          - cell "account_lookup on dunning" [ref=f8e246]
+                          - cell "Match" [ref=f8e247]:
+                            - generic [ref=f8e248]: Match
+                        - row "#4 pause_dunning 14 days pause_dunning 14 days + follow-up reminder Acceptable diff" [ref=f8e249]:
+                          - cell "#4" [ref=f8e250]
+                          - cell "pause_dunning 14 days" [ref=f8e251]
+                          - cell "pause_dunning 14 days + follow-up reminder" [ref=f8e252]
+                          - cell "Acceptable diff" [ref=f8e253]:
+                            - generic [ref=f8e254]: Acceptable diff
+  - alert [ref=f8e255]

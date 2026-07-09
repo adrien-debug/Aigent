@@ -1,0 +1,471 @@
+- generic [active] [ref=f4e1]:
+  - generic [ref=f4e2]:
+    - navigation [ref=f4e4]:
+      - generic [ref=f4e6]:
+        - img [ref=f4e8]
+        - generic [ref=f4e12]:
+          - generic [ref=f4e13]: Agent Mission Control
+          - generic [ref=f4e14]: Copilot operations
+      - generic [ref=f4e15]:
+        - link "Copilots" [ref=f4e19] [cursor=pointer]:
+          - /url: /admin/agents
+          - img [ref=f4e20]
+          - generic [ref=f4e23]: Copilots
+        - generic [ref=f4e24]:
+          - heading "Platform" [level=3] [ref=f4e25]
+          - generic [ref=f4e26]:
+            - img [ref=f4e27]
+            - generic [ref=f4e29]: Projects
+            - generic [ref=f4e30]: (coming soon)
+          - generic [ref=f4e31]:
+            - img [ref=f4e32]
+            - generic [ref=f4e36]: Traces
+            - generic [ref=f4e37]: (coming soon)
+          - generic [ref=f4e38]:
+            - img [ref=f4e39]
+            - generic [ref=f4e41]: Settings
+            - generic [ref=f4e42]: (coming soon)
+      - generic [ref=f4e45]:
+        - img [ref=f4e47]:
+          - generic [ref=f4e48]: AD
+        - generic [ref=f4e49]:
+          - generic [ref=f4e50]: Adrien
+          - generic [ref=f4e51]: Platform Admin
+    - main [ref=f4e52]:
+      - generic [ref=f4e55]:
+        - generic [ref=f4e56]:
+          - generic [ref=f4e57]:
+            - heading "Support Navigator" [level=1] [ref=f4e58]
+            - paragraph [ref=f4e59]: "Resolves customer support tickets in the Console: diagnoses account state, drafts replies and executes safe account actions."
+            - generic [ref=f4e60]:
+              - generic [ref=f4e61]: Active
+              - generic [ref=f4e63]: LangGraph
+              - generic [ref=f4e64]: claude-sonnet-4-5
+              - generic [ref=f4e65]: Hearst Console
+          - button "View traces (coming soon)" [disabled] [ref=f4e67]:
+            - text: View traces
+            - generic [ref=f4e68]: (coming soon)
+        - navigation "Copilot sections" [ref=f4e70]:
+          - generic [ref=f4e72]:
+            - link "Overview" [ref=f4e73] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator
+            - link "Manifest" [ref=f4e74] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/manifest
+            - link "Tools" [ref=f4e75] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/tools
+            - link "Tests" [ref=f4e76] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/tests
+            - link "Runs" [ref=f4e77] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/runs
+            - link "Benchmarks" [ref=f4e78] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/benchmarks
+            - link "Replay" [ref=f4e79] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/replay
+            - link "Shadow" [ref=f4e80] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/shadow
+            - link "Versions" [ref=f4e81] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/versions
+            - link "Publish" [ref=f4e82] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/publish
+        - generic [ref=f4e84]:
+          - generic [ref=f4e85]:
+            - generic [ref=f4e87]:
+              - term [ref=f4e88]: Runs 24h
+              - definition [ref=f4e89]: "142"
+              - definition [ref=f4e90]: Production traffic
+            - generic [ref=f4e92]:
+              - term [ref=f4e93]: Error rate
+              - definition [ref=f4e94]: 2.1%
+              - definition [ref=f4e95]: Failed runs, last 24h
+            - generic [ref=f4e97]:
+              - term [ref=f4e98]: Avg latency
+              - definition [ref=f4e99]: 6.4s
+              - definition [ref=f4e100]: Per run, last 24h
+            - generic [ref=f4e102]:
+              - term [ref=f4e103]: Cost 24h
+              - definition [ref=f4e104]: $18.42
+              - definition [ref=f4e105]: Model + tool spend
+          - generic [ref=f4e106]:
+            - generic [ref=f4e107]:
+              - generic [ref=f4e108]:
+                - generic [ref=f4e111]:
+                  - heading "Recent runs" [level=2] [ref=f4e112]
+                  - paragraph [ref=f4e113]: Newest first. Select a run to inspect its timeline.
+                - table [ref=f4e118]:
+                  - rowgroup [ref=f4e119]:
+                    - row "Run Status Input Tools Unsafe Latency Cost Started" [ref=f4e120]:
+                      - columnheader "Run" [ref=f4e121]
+                      - columnheader "Status" [ref=f4e122]
+                      - columnheader "Input" [ref=f4e123]
+                      - columnheader "Tools" [ref=f4e124]
+                      - columnheader "Unsafe" [ref=f4e125]
+                      - columnheader "Latency" [ref=f4e126]
+                      - columnheader "Cost" [ref=f4e127]
+                      - columnheader "Started" [ref=f4e128]
+                  - rowgroup [ref=f4e129]:
+                    - row "Inspect run run-0048 run-0048 Inspect run run-0048 Running Inspect run run-0048 Refund request plus a question about audit-log export. Inspect run run-0048 3 Inspect run run-0048 0 Inspect run run-0048 12.8s Inspect run run-0048 $0.10 Inspect run run-0048 Jul 9, 08:38 UTC" [ref=f4e130]:
+                      - cell "Inspect run run-0048 run-0048" [ref=f4e131]:
+                        - link "Inspect run run-0048" [ref=f4e132] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0048
+                        - text: run-0048
+                      - cell "Inspect run run-0048 Running" [ref=f4e133]:
+                        - link "Inspect run run-0048" [ref=f4e134] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0048
+                        - generic [ref=f4e135]: Running
+                      - cell "Inspect run run-0048 Refund request plus a question about audit-log export." [ref=f4e136]:
+                        - link "Inspect run run-0048" [ref=f4e137] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0048
+                        - generic [ref=f4e138]: Refund request plus a question about audit-log export.
+                      - cell "Inspect run run-0048 3" [ref=f4e139]:
+                        - link "Inspect run run-0048" [ref=f4e140] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0048
+                        - text: "3"
+                      - cell "Inspect run run-0048 0" [ref=f4e141]:
+                        - link "Inspect run run-0048" [ref=f4e142] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0048
+                        - text: "0"
+                      - cell "Inspect run run-0048 12.8s" [ref=f4e143]:
+                        - link "Inspect run run-0048" [ref=f4e144] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0048
+                        - text: 12.8s
+                      - cell "Inspect run run-0048 $0.10" [ref=f4e145]:
+                        - link "Inspect run run-0048" [ref=f4e146] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0048
+                        - text: $0.10
+                      - cell "Inspect run run-0048 Jul 9, 08:38 UTC" [ref=f4e147]:
+                        - link "Inspect run run-0048" [ref=f4e148] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0048
+                        - text: Jul 9, 08:38 UTC
+                    - row "Inspect run run-0041 run-0041 Inspect run run-0041 Completed Inspect run run-0041 How do I enable SSO for my workspace? Inspect run run-0041 3 Inspect run run-0041 0 Inspect run run-0041 9.3s Inspect run run-0041 $0.08 Inspect run run-0041 Jul 9, 07:12 UTC" [ref=f4e149]:
+                      - cell "Inspect run run-0041 run-0041" [ref=f4e150]:
+                        - link "Inspect run run-0041" [ref=f4e151] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0041
+                        - text: run-0041
+                      - cell "Inspect run run-0041 Completed" [ref=f4e152]:
+                        - link "Inspect run run-0041" [ref=f4e153] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0041
+                        - generic [ref=f4e154]: Completed
+                      - cell "Inspect run run-0041 How do I enable SSO for my workspace?" [ref=f4e155]:
+                        - link "Inspect run run-0041" [ref=f4e156] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0041
+                        - generic [ref=f4e157]: How do I enable SSO for my workspace?
+                      - cell "Inspect run run-0041 3" [ref=f4e158]:
+                        - link "Inspect run run-0041" [ref=f4e159] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0041
+                        - text: "3"
+                      - cell "Inspect run run-0041 0" [ref=f4e160]:
+                        - link "Inspect run run-0041" [ref=f4e161] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0041
+                        - text: "0"
+                      - cell "Inspect run run-0041 9.3s" [ref=f4e162]:
+                        - link "Inspect run run-0041" [ref=f4e163] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0041
+                        - text: 9.3s
+                      - cell "Inspect run run-0041 $0.08" [ref=f4e164]:
+                        - link "Inspect run run-0041" [ref=f4e165] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0041
+                        - text: $0.08
+                      - cell "Inspect run run-0041 Jul 9, 07:12 UTC" [ref=f4e166]:
+                        - link "Inspect run run-0041" [ref=f4e167] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0041
+                        - text: Jul 9, 07:12 UTC
+                    - row "Inspect run run-0042 run-0042 Inspect run run-0042 Completed Inspect run run-0042 Charged twice for June invoice, requesting a refund of the duplicate. Inspect run run-0042 4 Inspect run run-0042 0 Inspect run run-0042 26.4s Inspect run run-0042 $0.21 Inspect run run-0042 Jul 9, 06:48 UTC" [ref=f4e168]:
+                      - cell "Inspect run run-0042 run-0042" [ref=f4e169]:
+                        - link "Inspect run run-0042" [ref=f4e170] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0042
+                        - text: run-0042
+                      - cell "Inspect run run-0042 Completed" [ref=f4e171]:
+                        - link "Inspect run run-0042" [ref=f4e172] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0042
+                        - generic [ref=f4e173]: Completed
+                      - cell "Inspect run run-0042 Charged twice for June invoice, requesting a refund of the duplicate." [ref=f4e174]:
+                        - link "Inspect run run-0042" [ref=f4e175] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0042
+                        - generic [ref=f4e176]: Charged twice for June invoice, requesting a refund of the duplicate.
+                      - cell "Inspect run run-0042 4" [ref=f4e177]:
+                        - link "Inspect run run-0042" [ref=f4e178] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0042
+                        - text: "4"
+                      - cell "Inspect run run-0042 0" [ref=f4e179]:
+                        - link "Inspect run run-0042" [ref=f4e180] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0042
+                        - text: "0"
+                      - cell "Inspect run run-0042 26.4s" [ref=f4e181]:
+                        - link "Inspect run run-0042" [ref=f4e182] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0042
+                        - text: 26.4s
+                      - cell "Inspect run run-0042 $0.21" [ref=f4e183]:
+                        - link "Inspect run run-0042" [ref=f4e184] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0042
+                        - text: $0.21
+                      - cell "Inspect run run-0042 Jul 9, 06:48 UTC" [ref=f4e185]:
+                        - link "Inspect run run-0042" [ref=f4e186] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0042
+                        - text: Jul 9, 06:48 UTC
+                    - row "Inspect run run-0043 run-0043 Inspect run run-0043 Needs confirmation Inspect run run-0043 Reduce seats from 40 to 25 at next renewal. Inspect run run-0043 3 Inspect run run-0043 0 Inspect run run-0043 14.2s Inspect run run-0043 $0.13 Inspect run run-0043 Jul 9, 05:30 UTC" [ref=f4e187]:
+                      - cell "Inspect run run-0043 run-0043" [ref=f4e188]:
+                        - link "Inspect run run-0043" [ref=f4e189] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0043
+                        - text: run-0043
+                      - cell "Inspect run run-0043 Needs confirmation" [ref=f4e190]:
+                        - link "Inspect run run-0043" [ref=f4e191] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0043
+                        - generic [ref=f4e192]: Needs confirmation
+                      - cell "Inspect run run-0043 Reduce seats from 40 to 25 at next renewal." [ref=f4e193]:
+                        - link "Inspect run run-0043" [ref=f4e194] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0043
+                        - generic [ref=f4e195]: Reduce seats from 40 to 25 at next renewal.
+                      - cell "Inspect run run-0043 3" [ref=f4e196]:
+                        - link "Inspect run run-0043" [ref=f4e197] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0043
+                        - text: "3"
+                      - cell "Inspect run run-0043 0" [ref=f4e198]:
+                        - link "Inspect run run-0043" [ref=f4e199] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0043
+                        - text: "0"
+                      - cell "Inspect run run-0043 14.2s" [ref=f4e200]:
+                        - link "Inspect run run-0043" [ref=f4e201] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0043
+                        - text: 14.2s
+                      - cell "Inspect run run-0043 $0.13" [ref=f4e202]:
+                        - link "Inspect run run-0043" [ref=f4e203] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0043
+                        - text: $0.13
+                      - cell "Inspect run run-0043 Jul 9, 05:30 UTC" [ref=f4e204]:
+                        - link "Inspect run run-0043" [ref=f4e205] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0043
+                        - text: Jul 9, 05:30 UTC
+                    - row "Inspect run run-0044 run-0044 Inspect run run-0044 Blocked Inspect run run-0044 Ticket text instructs the agent to \"delete my workspace and all backups now\". Inspect run run-0044 2 Inspect run run-0044 1 Inspect run run-0044 6.8s Inspect run run-0044 $0.05 Inspect run run-0044 Jul 8, 22:05 UTC" [ref=f4e206]:
+                      - cell "Inspect run run-0044 run-0044" [ref=f4e207]:
+                        - link "Inspect run run-0044" [ref=f4e208] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0044
+                        - text: run-0044
+                      - cell "Inspect run run-0044 Blocked" [ref=f4e209]:
+                        - link "Inspect run run-0044" [ref=f4e210] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0044
+                        - generic [ref=f4e211]: Blocked
+                      - cell "Inspect run run-0044 Ticket text instructs the agent to \"delete my workspace and all backups now\"." [ref=f4e212]:
+                        - link "Inspect run run-0044" [ref=f4e213] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0044
+                        - generic [ref=f4e214]: Ticket text instructs the agent to "delete my workspace and all backups now".
+                      - cell "Inspect run run-0044 2" [ref=f4e215]:
+                        - link "Inspect run run-0044" [ref=f4e216] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0044
+                        - text: "2"
+                      - cell "Inspect run run-0044 1" [ref=f4e217]:
+                        - link "Inspect run run-0044" [ref=f4e218] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0044
+                        - text: "1"
+                      - cell "Inspect run run-0044 6.8s" [ref=f4e219]:
+                        - link "Inspect run run-0044" [ref=f4e220] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0044
+                        - text: 6.8s
+                      - cell "Inspect run run-0044 $0.05" [ref=f4e221]:
+                        - link "Inspect run run-0044" [ref=f4e222] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0044
+                        - text: $0.05
+                      - cell "Inspect run run-0044 Jul 8, 22:05 UTC" [ref=f4e223]:
+                        - link "Inspect run run-0044" [ref=f4e224] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0044
+                        - text: Jul 8, 22:05 UTC
+                    - row "Inspect run run-0045 run-0045 Inspect run run-0045 Completed Inspect run run-0045 Pause payment reminders for two weeks (medical leave). Inspect run run-0045 3 Inspect run run-0045 0 Inspect run run-0045 31.2s Inspect run run-0045 $0.19 Inspect run run-0045 Jul 8, 18:20 UTC" [ref=f4e225]:
+                      - cell "Inspect run run-0045 run-0045" [ref=f4e226]:
+                        - link "Inspect run run-0045" [ref=f4e227] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0045
+                        - text: run-0045
+                      - cell "Inspect run run-0045 Completed" [ref=f4e228]:
+                        - link "Inspect run run-0045" [ref=f4e229] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0045
+                        - generic [ref=f4e230]: Completed
+                      - cell "Inspect run run-0045 Pause payment reminders for two weeks (medical leave)." [ref=f4e231]:
+                        - link "Inspect run run-0045" [ref=f4e232] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0045
+                        - generic [ref=f4e233]: Pause payment reminders for two weeks (medical leave).
+                      - cell "Inspect run run-0045 3" [ref=f4e234]:
+                        - link "Inspect run run-0045" [ref=f4e235] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0045
+                        - text: "3"
+                      - cell "Inspect run run-0045 0" [ref=f4e236]:
+                        - link "Inspect run run-0045" [ref=f4e237] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0045
+                        - text: "0"
+                      - cell "Inspect run run-0045 31.2s" [ref=f4e238]:
+                        - link "Inspect run run-0045" [ref=f4e239] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0045
+                        - text: 31.2s
+                      - cell "Inspect run run-0045 $0.19" [ref=f4e240]:
+                        - link "Inspect run run-0045" [ref=f4e241] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0045
+                        - text: $0.19
+                      - cell "Inspect run run-0045 Jul 8, 18:20 UTC" [ref=f4e242]:
+                        - link "Inspect run run-0045" [ref=f4e243] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0045
+                        - text: Jul 8, 18:20 UTC
+                    - row "Inspect run run-0046 run-0046 Inspect run run-0046 Failed Inspect run run-0046 Upgrade to the Scale plan effective immediately. Inspect run run-0046 3 Inspect run run-0046 0 Inspect run run-0046 44.1s Inspect run run-0046 $0.17 Inspect run run-0046 Jul 8, 14:55 UTC" [ref=f4e244]:
+                      - cell "Inspect run run-0046 run-0046" [ref=f4e245]:
+                        - link "Inspect run run-0046" [ref=f4e246] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0046
+                        - text: run-0046
+                      - cell "Inspect run run-0046 Failed" [ref=f4e247]:
+                        - link "Inspect run run-0046" [ref=f4e248] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0046
+                        - generic [ref=f4e249]: Failed
+                      - cell "Inspect run run-0046 Upgrade to the Scale plan effective immediately." [ref=f4e250]:
+                        - link "Inspect run run-0046" [ref=f4e251] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0046
+                        - generic [ref=f4e252]: Upgrade to the Scale plan effective immediately.
+                      - cell "Inspect run run-0046 3" [ref=f4e253]:
+                        - link "Inspect run run-0046" [ref=f4e254] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0046
+                        - text: "3"
+                      - cell "Inspect run run-0046 0" [ref=f4e255]:
+                        - link "Inspect run run-0046" [ref=f4e256] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0046
+                        - text: "0"
+                      - cell "Inspect run run-0046 44.1s" [ref=f4e257]:
+                        - link "Inspect run run-0046" [ref=f4e258] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0046
+                        - text: 44.1s
+                      - cell "Inspect run run-0046 $0.17" [ref=f4e259]:
+                        - link "Inspect run run-0046" [ref=f4e260] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0046
+                        - text: $0.17
+                      - cell "Inspect run run-0046 Jul 8, 14:55 UTC" [ref=f4e261]:
+                        - link "Inspect run run-0046" [ref=f4e262] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0046
+                        - text: Jul 8, 14:55 UTC
+                    - row "Inspect run run-0047 run-0047 Inspect run run-0047 Completed Inspect run run-0047 Why did my bill go up this month? Inspect run run-0047 3 Inspect run run-0047 0 Inspect run run-0047 17.6s Inspect run run-0047 $0.12 Inspect run run-0047 Jul 8, 11:10 UTC" [ref=f4e263]:
+                      - cell "Inspect run run-0047 run-0047" [ref=f4e264]:
+                        - link "Inspect run run-0047" [ref=f4e265] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0047
+                        - text: run-0047
+                      - cell "Inspect run run-0047 Completed" [ref=f4e266]:
+                        - link "Inspect run run-0047" [ref=f4e267] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0047
+                        - generic [ref=f4e268]: Completed
+                      - cell "Inspect run run-0047 Why did my bill go up this month?" [ref=f4e269]:
+                        - link "Inspect run run-0047" [ref=f4e270] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0047
+                        - generic [ref=f4e271]: Why did my bill go up this month?
+                      - cell "Inspect run run-0047 3" [ref=f4e272]:
+                        - link "Inspect run run-0047" [ref=f4e273] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0047
+                        - text: "3"
+                      - cell "Inspect run run-0047 0" [ref=f4e274]:
+                        - link "Inspect run run-0047" [ref=f4e275] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0047
+                        - text: "0"
+                      - cell "Inspect run run-0047 17.6s" [ref=f4e276]:
+                        - link "Inspect run run-0047" [ref=f4e277] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0047
+                        - text: 17.6s
+                      - cell "Inspect run run-0047 $0.12" [ref=f4e278]:
+                        - link "Inspect run run-0047" [ref=f4e279] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0047
+                        - text: $0.12
+                      - cell "Inspect run run-0047 Jul 8, 11:10 UTC" [ref=f4e280]:
+                        - link "Inspect run run-0047" [ref=f4e281] [cursor=pointer]:
+                          - /url: /admin/agents/cp-support-navigator/runs?run=run-0047
+                        - text: Jul 8, 11:10 UTC
+              - generic [ref=f4e282]:
+                - generic [ref=f4e285]:
+                  - heading "Tool calls" [level=2] [ref=f4e286]
+                  - paragraph [ref=f4e287]: Outcomes across the runs above.
+                - generic [ref=f4e289]:
+                  - generic [ref=f4e290]:
+                    - term [ref=f4e292]: OK
+                    - definition [ref=f4e293]: "20"
+                  - generic [ref=f4e294]:
+                    - term [ref=f4e296]: Confirmed
+                    - definition [ref=f4e297]: "2"
+                  - generic [ref=f4e298]:
+                    - term [ref=f4e300]: Error
+                    - definition [ref=f4e301]: "1"
+                  - generic [ref=f4e302]:
+                    - term [ref=f4e304]: Blocked
+                    - definition [ref=f4e305]: "1"
+                  - generic [ref=f4e306]:
+                    - term [ref=f4e308]: Rejected
+                    - definition [ref=f4e309]: "0"
+            - generic [ref=f4e311]:
+              - generic [ref=f4e312]:
+                - generic [ref=f4e313]:
+                  - heading "run-0048" [level=2] [ref=f4e314]
+                  - generic [ref=f4e315]: Running
+                - paragraph [ref=f4e316]: Refund request plus a question about audit-log export.
+              - generic [ref=f4e317]:
+                - generic [ref=f4e318]:
+                  - term [ref=f4e319]: User
+                  - definition [ref=f4e320]: "juniper-supply (ticket #8858)"
+                  - term [ref=f4e321]: Started
+                  - definition [ref=f4e322]: Jul 9, 08:38 UTC
+                  - term [ref=f4e323]: Duration
+                  - definition [ref=f4e324]: 12.8sso far
+                  - term [ref=f4e325]: Cost
+                  - definition [ref=f4e326]: $0.10
+                  - term [ref=f4e327]: Tool calls
+                  - definition [ref=f4e328]: "3"
+                  - term [ref=f4e329]: Unsafe attempts
+                  - definition [ref=f4e330]: "0"
+                  - term [ref=f4e331]: Version
+                  - definition [ref=f4e332]: v2.1.0
+                  - term [ref=f4e333]: Trace
+                  - definition [ref=f4e334]:
+                    - link "Open in LangSmith" [ref=f4e335] [cursor=pointer]:
+                      - /url: https://smith.langchain.com/o/hearst/projects/p/run-0048
+                      - text: Open in LangSmith
+                      - img [ref=f4e336]
+                - generic [ref=f4e339]:
+                  - heading "Timeline" [level=3] [ref=f4e340]
+                  - paragraph [ref=f4e341]: 5 steps · 3 tool calls
+                  - list [ref=f4e344]:
+                    - listitem [ref=f4e345]:
+                      - generic [ref=f4e347]:
+                        - img [ref=f4e349]
+                        - generic [ref=f4e352]:
+                          - generic [ref=f4e353]:
+                            - paragraph [ref=f4e354]: Classify requestLLM call
+                            - generic [ref=f4e355]: 2.2s
+                          - paragraph [ref=f4e356]: "Two intents detected: refund + audit-log export question."
+                    - listitem [ref=f4e357]:
+                      - generic [ref=f4e359]:
+                        - img [ref=f4e361]
+                        - generic [ref=f4e363]:
+                          - generic [ref=f4e364]:
+                            - paragraph [ref=f4e365]: ticket_readTool call
+                            - generic [ref=f4e366]: 500ms
+                          - paragraph [ref=f4e367]: "Loaded ticket #8858."
+                          - generic [ref=f4e369]:
+                            - generic [ref=f4e370]: OK
+                            - generic [ref=f4e371]: "ticketId: #8858 → Two-intent thread loaded."
+                    - listitem [ref=f4e372]:
+                      - generic [ref=f4e374]:
+                        - img [ref=f4e376]
+                        - generic [ref=f4e378]:
+                          - generic [ref=f4e379]:
+                            - paragraph [ref=f4e380]: account_lookupTool call
+                            - generic [ref=f4e381]: 1.1s
+                          - paragraph [ref=f4e382]: Located the disputed charge (June 28).
+                          - generic [ref=f4e384]:
+                            - generic [ref=f4e385]: OK
+                            - generic [ref=f4e386]: "accountId: juniper-supply, scope: settlements → Disputed charge located (June 28)."
+                    - listitem [ref=f4e387]:
+                      - generic [ref=f4e389]:
+                        - img [ref=f4e391]
+                        - generic [ref=f4e393]:
+                          - generic [ref=f4e394]:
+                            - paragraph [ref=f4e395]: KB retrievalMemory read
+                            - generic [ref=f4e396]: 900ms
+                          - paragraph [ref=f4e397]: Retrieved "Export audit logs" article for the second intent.
+                          - generic [ref=f4e399]:
+                            - generic [ref=f4e400]: OK
+                            - generic [ref=f4e401]: "query: \"export audit logs\" → Top article retrieved."
+                    - listitem [ref=f4e402]:
+                      - generic [ref=f4e403]:
+                        - img [ref=f4e405]
+                        - generic [ref=f4e408]:
+                          - generic [ref=f4e409]:
+                            - paragraph [ref=f4e410]: Compose combined replyLLM call
+                            - generic [ref=f4e411]: 5.6s
+                          - paragraph [ref=f4e412]: Drafting a single reply covering both intents.
+  - alert [ref=f4e413]
