@@ -5,6 +5,7 @@ import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { BenchmarkComparisonTable } from '@/components/agent-ops/benchmark-comparison-table'
 import { BenchmarkRunSteps } from '@/components/agent-ops/benchmark-run-steps'
 import { BenchmarkScoreCard } from '@/components/agent-ops/benchmark-score-card'
+import { BenchmarkScoreChart } from '@/components/agent-ops/benchmark-score-chart'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Subheading } from '@/components/catalyst/heading'
@@ -105,6 +106,20 @@ export default async function BenchmarksPage({ params }: { params: Promise<{ id:
                   ))}
                 </div>
               </div>
+
+              <AgentSectionCard title="Score comparison" description="Composite score by candidate.">
+                {/* Serializable plain objects only — this crosses the server → client boundary. */}
+                <BenchmarkScoreChart
+                  data={rows.map((row, index) => ({
+                    model: row.run.model,
+                    score: row.result.score,
+                    accuracy: row.result.accuracy,
+                    costPerTask: row.result.avgCostPerTaskUsd,
+                    unsafe: row.result.unsafeActionCount,
+                    isBest: index === 0,
+                  }))}
+                />
+              </AgentSectionCard>
 
               <AgentSectionCard
                 title="Model comparison"

@@ -3,12 +3,13 @@ import { notFound } from 'next/navigation'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { RunTestsButton } from '@/components/agent-ops/run-tests-button'
 import { TestCaseTable } from '@/components/agent-ops/test-case-table'
+import { TestPassTrendChart } from '@/components/agent-ops/test-pass-trend-chart'
 import { TestResultBadge } from '@/components/agent-ops/test-result-badge'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Subheading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
-import { formatPercent } from '@/lib/agent-mission-control/format'
+import { formatDate, formatPercent } from '@/lib/agent-mission-control/format'
 import {
   getCopilot,
   getTestCasesForSuite,
@@ -39,6 +40,19 @@ export default async function CopilotTestsPage({ params }: { params: Promise<{ i
 
   const [suites, testRuns] = await Promise.all([getTestSuitesForCopilot(id), getTestRunsForCopilot(id)])
   const runsById = new Map(testRuns.map((run) => [run.id, run]))
+
+  // Serializable plain objects for the client chart — completed runs, oldest → newest.
+  const passTrendData = testRuns
+    .filter((run) => run.status === 'completed')
+    .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
+    .map((run) => ({
+      runId: run.id,
+      startedAt: run.startedAt,
+      label: formatDate(run.startedAt),
+      passRate: run.passRate,
+      costUsd: run.totalCostUsd,
+      triggeredBy: run.triggeredBy,
+    }))
 
   const suiteViews = await Promise.all(
     suites.map(async (suite) => {
@@ -90,6 +104,12 @@ export default async function CopilotTestsPage({ params }: { params: Promise<{ i
 
   return (
     <div className="space-y-8">
+      {passTrendData.length >= 2 ? (
+        <AgentSectionCard title="Pass rate trend" description="Across test runs, oldest to newest.">
+          <TestPassTrendChart data={passTrendData} />
+        </AgentSectionCard>
+      ) : null}
+
       <div className="flex flex-wrap items-center justify-between gap-4">
         <Subheading>Test suites</Subheading>
         <div className="flex flex-wrap items-center gap-3">

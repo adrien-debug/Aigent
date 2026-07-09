@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { RunDetailPanel, RunStatusBadge } from '@/components/agent-ops/run-detail-panel'
+import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
 import { Button } from '@/components/catalyst/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Text } from '@/components/catalyst/text'
@@ -41,6 +42,15 @@ export default async function RunsPage({
     selectedRun ? getStepsForRun(selectedRun.id) : [],
     selectedRun ? getToolCallsForRun(selectedRun.id) : [],
   ])
+  // Chart data: chronological (oldest → newest), plain serializable objects only.
+  const latencyPoints = [...runs].reverse().map((run) => ({
+    id: run.id,
+    label: formatTimestamp(run.startedAt).replace(' UTC', ''),
+    latencyMs: run.latencyMs,
+    costUsd: run.costUsd,
+    status: run.status,
+  }))
+
   const allToolCalls = allToolCallsByRun.flat()
   const toolCallCounts = allToolCalls.reduce<Record<ToolCall['status'], number>>(
     (acc, call) => {
@@ -69,73 +79,79 @@ export default async function RunsPage({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-5 lg:items-start">
-          <div className="space-y-6 lg:col-span-2">
-            <AgentSectionCard
-              title="Recent runs"
-              description="Newest first. Select a run to inspect its timeline."
-              contentClassName="px-6 py-4"
-            >
-              <Table dense bleed className="[--gutter:--spacing(6)]">
-                <TableHead>
-                  <TableRow>
-                    <TableHeader>Run</TableHeader>
-                    <TableHeader>Status</TableHeader>
-                    <TableHeader>Input</TableHeader>
-                    <TableHeader>Started</TableHeader>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {runs.map((run) => {
-                    const selected = run.id === selectedRun.id
-                    return (
-                      <TableRow
-                        key={run.id}
-                        href={`/admin/agents/${id}/runs?run=${run.id}`}
-                        title={`Inspect run ${run.id}`}
-                        className={clsx(selected && 'bg-zinc-950/5 dark:bg-white/5')}
-                      >
-                        <TableCell>
-                          <span className="font-mono text-xs font-medium tabular-nums text-zinc-950 dark:text-white">{run.id}</span>
-                        </TableCell>
-                        <TableCell>
-                          <RunStatusBadge status={run.status} />
-                        </TableCell>
-                        <TableCell className="max-w-0 w-full">
-                          <span title={run.inputSummary} className="block truncate text-zinc-500 dark:text-zinc-400">
-                            {run.inputSummary}
-                          </span>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums text-zinc-500">
-                          {formatTimestamp(run.startedAt).replace(' UTC', '')}
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </AgentSectionCard>
+        <>
+          <AgentSectionCard title="Latency" description="Per-run latency, oldest to newest.">
+            <RunLatencyChart data={latencyPoints} />
+          </AgentSectionCard>
 
-            <AgentSectionCard title="Tool calls" description="Outcomes across the runs above.">
-              {/* Flat stat pairs — no boxed sub-surfaces inside a card (doctrine: surfaces). */}
-              <dl className="flex flex-wrap gap-x-6 gap-y-2">
-                {toolCallStatuses.map(({ status, label, dotClassName }) => (
-                  <div key={status} className="flex items-baseline gap-2">
-                    <span aria-hidden="true" className={clsx('size-1.5 shrink-0 self-center rounded-full', dotClassName)} />
-                    <dt className="text-xs text-zinc-500 dark:text-zinc-400">{label}</dt>
-                    <dd className="font-mono text-sm font-semibold tabular-nums text-zinc-950 dark:text-white">
-                      {toolCallCounts[status]}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </AgentSectionCard>
-          </div>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-5 lg:items-start">
+            <div className="space-y-6 lg:col-span-2">
+              <AgentSectionCard
+                title="Recent runs"
+                description="Newest first. Select a run to inspect its timeline."
+                contentClassName="px-6 py-4"
+              >
+                <Table dense bleed className="[--gutter:--spacing(6)]">
+                  <TableHead>
+                    <TableRow>
+                      <TableHeader>Run</TableHeader>
+                      <TableHeader>Status</TableHeader>
+                      <TableHeader>Input</TableHeader>
+                      <TableHeader>Started</TableHeader>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {runs.map((run) => {
+                      const selected = run.id === selectedRun.id
+                      return (
+                        <TableRow
+                          key={run.id}
+                          href={`/admin/agents/${id}/runs?run=${run.id}`}
+                          title={`Inspect run ${run.id}`}
+                          className={clsx(selected && 'bg-zinc-950/5 dark:bg-white/5')}
+                        >
+                          <TableCell>
+                            <span className="font-mono text-xs font-medium tabular-nums text-zinc-950 dark:text-white">{run.id}</span>
+                          </TableCell>
+                          <TableCell>
+                            <RunStatusBadge status={run.status} />
+                          </TableCell>
+                          <TableCell className="max-w-0 w-full">
+                            <span title={run.inputSummary} className="block truncate text-zinc-500 dark:text-zinc-400">
+                              {run.inputSummary}
+                            </span>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums text-zinc-500">
+                            {formatTimestamp(run.startedAt).replace(' UTC', '')}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </AgentSectionCard>
 
-          <div className="lg:col-span-3">
-            <RunDetailPanel run={selectedRun} steps={selectedSteps} toolCalls={selectedToolCalls} />
+              <AgentSectionCard title="Tool calls" description="Outcomes across the runs above.">
+                {/* Flat stat pairs — no boxed sub-surfaces inside a card (doctrine: surfaces). */}
+                <dl className="flex flex-wrap gap-x-6 gap-y-2">
+                  {toolCallStatuses.map(({ status, label, dotClassName }) => (
+                    <div key={status} className="flex items-baseline gap-2">
+                      <span aria-hidden="true" className={clsx('size-1.5 shrink-0 self-center rounded-full', dotClassName)} />
+                      <dt className="text-xs text-zinc-500 dark:text-zinc-400">{label}</dt>
+                      <dd className="font-mono text-sm font-semibold tabular-nums text-zinc-950 dark:text-white">
+                        {toolCallCounts[status]}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </AgentSectionCard>
+            </div>
+
+            <div className="lg:col-span-3">
+              <RunDetailPanel run={selectedRun} steps={selectedSteps} toolCalls={selectedToolCalls} />
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   )

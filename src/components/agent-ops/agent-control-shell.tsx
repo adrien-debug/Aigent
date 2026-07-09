@@ -34,9 +34,9 @@ function LogoMark() {
 }
 
 const PLATFORM_ITEMS = [
-  { label: 'Projects', icon: FolderIcon },
-  { label: 'Traces', icon: Square3Stack3DIcon },
-  { label: 'Settings', icon: Cog6ToothIcon },
+  { label: 'Projects', icon: FolderIcon, href: '/admin/projects' },
+  { label: 'Traces', icon: Square3Stack3DIcon, href: '/admin/traces' },
+  { label: 'Settings', icon: Cog6ToothIcon, href: '/admin/settings' },
 ] as const
 
 export function AgentControlShell({ children }: { children: React.ReactNode }) {
@@ -78,16 +78,11 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
 
             <SidebarSection>
               <SidebarHeading>Platform</SidebarHeading>
-              {/* Coming-soon stubs: visibly inert, non-focusable — no fake links, no disabled-button semantics. */}
-              {PLATFORM_ITEMS.map(({ label, icon: Icon }) => (
-                <span
-                  key={label}
-                  className="flex w-full cursor-default items-center gap-3 rounded-lg px-2 py-2.5 text-left text-base/6 font-medium text-zinc-500 sm:py-2 sm:text-sm/5 *:data-[slot=icon]:size-6 *:data-[slot=icon]:shrink-0 *:data-[slot=icon]:fill-zinc-400 sm:*:data-[slot=icon]:size-5 dark:*:data-[slot=icon]:fill-zinc-600"
-                >
+              {PLATFORM_ITEMS.map(({ label, icon: Icon, href }) => (
+                <SidebarItem key={label} href={href} current={pathname.startsWith(href)}>
                   <Icon data-slot="icon" />
-                  <span className="truncate">{label}</span>
-                  <span className="sr-only"> (coming soon)</span>
-                </span>
+                  <SidebarLabel>{label}</SidebarLabel>
+                </SidebarItem>
               ))}
             </SidebarSection>
 

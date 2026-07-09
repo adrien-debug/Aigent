@@ -181,6 +181,21 @@ export async function getRun(id: string): Promise<AgentRun | undefined> {
   return run
 }
 
+export async function getRecentRuns(limit = 30): Promise<AgentRun[]> {
+  if (!isGpu1Backed()) {
+    return [...mock.agentRuns].sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1)).slice(0, limit)
+  }
+  const rows = await rest<RawRow[]>(
+    `agent_runs?select=*,agent_run_steps(id)&order=started_at.desc&limit=${limit}`
+  )
+  return rows.map((r) => {
+    const { agent_run_steps, ...rest_ } = r as RawRow & { agent_run_steps: { id: string }[] }
+    const run = camelRow<AgentRun>(rest_)
+    run.stepIds = (agent_run_steps ?? []).map((s) => s.id)
+    return run
+  })
+}
+
 export async function getStepsForRun(runId: string): Promise<AgentRunStep[]> {
   if (!isGpu1Backed()) return mock.getStepsForRun(runId)
   return camelRows<AgentRunStep>(

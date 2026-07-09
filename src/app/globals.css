@@ -9,6 +9,38 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Chart tokens — SINGLE source of truth for every Recharts surface.
+   Recharts wants concrete color strings, so charts pass `var(--chart-*)`
+   instead of re-hardcoding hex. Solid inks map to Tailwind's color scale;
+   alpha overlays (grid / cursor / hover) live here once. Theme-aware:
+   `:root` = light, `.dark` = the app's forced dark mission-control look.
+   Semantics follow DESIGN-DOCTRINE.md (green = success, zinc = neutral). */
+:root {
+  --chart-series: var(--color-zinc-500);        /* neutral line/area — a measure, not a status */
+  --chart-success: var(--color-green-500);       /* pass rate, winning score, dots */
+  --chart-success-muted: var(--color-green-600); /* non-winning bars on the same hue ramp */
+  --chart-label: var(--color-zinc-900);          /* direct value labels at bar ends */
+  --chart-axis: var(--color-zinc-600);           /* category axis text (model names) */
+  --chart-tick: var(--color-zinc-500);           /* numeric axis ticks */
+  --chart-grid: rgba(9, 9, 11, 0.05);            /* gridlines & reference lines */
+  --chart-cursor: rgba(9, 9, 11, 0.1);           /* hover crosshair stroke */
+  --chart-hover: rgba(9, 9, 11, 0.04);           /* hover bar fill */
+  --chart-surface: #ffffff;                      /* active-dot ring against the card */
+}
+
+.dark {
+  --chart-series: var(--color-zinc-400);
+  --chart-success: var(--color-green-400);
+  --chart-success-muted: var(--color-green-600);
+  --chart-label: var(--color-zinc-100);
+  --chart-axis: var(--color-zinc-400);
+  --chart-tick: var(--color-zinc-500);
+  --chart-grid: rgba(255, 255, 255, 0.05);
+  --chart-cursor: rgba(255, 255, 255, 0.1);
+  --chart-hover: rgba(255, 255, 255, 0.04);
+  --chart-surface: #09090b;                      /* zinc-950 — the card surface */
+}
+
 body {
   @apply bg-zinc-950 text-zinc-100;
 }
