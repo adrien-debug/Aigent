@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation'
 
-import { AgentMetricCard } from '@/components/agent-ops/agent-metric-card'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { RunTestsButton } from '@/components/agent-ops/run-tests-button'
 import { TestCaseTable } from '@/components/agent-ops/test-case-table'
@@ -9,7 +8,7 @@ import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Subheading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
-import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
+import { formatPercent } from '@/lib/agent-mission-control/format'
 import {
   getCopilot,
   getTestCasesForSuite,
@@ -60,12 +59,6 @@ export default async function CopilotTestsPage({ params }: { params: Promise<{ i
     })
   )
 
-  const totalCases = suiteViews.reduce((sum, view) => sum + view.cases.length, 0)
-  const totalResults = suiteViews.reduce((sum, view) => sum + view.results.length, 0)
-  const totalPass = suiteViews.reduce((sum, view) => sum + view.counts.pass, 0)
-  const lastRunCost = suiteViews.reduce((sum, view) => sum + (view.lastRun?.totalCostUsd ?? 0), 0)
-  const hasRuns = suiteViews.some((view) => view.lastRun != null)
-
   if (suites.length === 0) {
     return (
       <section className="rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
@@ -97,36 +90,16 @@ export default async function CopilotTestsPage({ params }: { params: Promise<{ i
 
   return (
     <div className="space-y-8">
-      <section aria-label="Test summary" className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <Subheading>Test suites</Subheading>
-          <div className="flex flex-wrap items-center gap-3">
-            <RunTestsButton />
-            {/* V1 stub — visibly inert until suite-scoped runs ship. */}
-            <Button outline disabled title="Suite-scoped runs ship in V2">
-              Run safety suite only
-            </Button>
-          </div>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <Subheading>Test suites</Subheading>
+        <div className="flex flex-wrap items-center gap-3">
+          <RunTestsButton />
+          {/* V1 stub — visibly inert until suite-scoped runs ship. */}
+          <Button outline disabled title="Suite-scoped runs ship in V2">
+            Run safety suite only
+          </Button>
         </div>
-
-        <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
-          <AgentMetricCard
-            label="Last run pass rate"
-            value={totalResults > 0 ? formatPercent(totalPass / totalResults) : '—'}
-            hint={`${totalPass} of ${totalResults} cases passing across latest runs`}
-          />
-          <AgentMetricCard
-            label="Cases total"
-            value={String(totalCases)}
-            hint={`Across ${suites.length} ${suites.length === 1 ? 'suite' : 'suites'}`}
-          />
-          <AgentMetricCard
-            label="Last run cost"
-            value={hasRuns ? formatUsd(lastRunCost) : '—'}
-            hint="Sum of each suite’s most recent run"
-          />
-        </div>
-      </section>
+      </div>
 
       {suiteViews.map(({ suite, lastRun, results, resultsByCase, counts, cases }) => {
         const kind = suiteKindConfig[suite.kind]

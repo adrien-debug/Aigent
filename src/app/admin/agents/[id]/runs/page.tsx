@@ -2,13 +2,12 @@ import { SignalIcon } from '@heroicons/react/20/solid'
 import clsx from 'clsx'
 import { notFound } from 'next/navigation'
 
-import { AgentMetricCard } from '@/components/agent-ops/agent-metric-card'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { RunDetailPanel, RunStatusBadge } from '@/components/agent-ops/run-detail-panel'
 import { Button } from '@/components/catalyst/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Text } from '@/components/catalyst/text'
-import { formatDurationMs, formatPercent, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
+import { formatTimestamp } from '@/lib/agent-mission-control/format'
 import { getCopilot, getRunsForCopilot, getStepsForRun, getToolCallsForRun } from '@/lib/agent-mission-control/data'
 import type { ToolCall } from '@/lib/agent-mission-control/types'
 
@@ -51,21 +50,8 @@ export default async function RunsPage({
     { ok: 0, error: 0, blocked: 0, confirmed: 0, rejected: 0 }
   )
 
-  const { health } = copilot
-
   return (
     <div className="space-y-8">
-      <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-4">
-        <AgentMetricCard label="Runs 24h" value={String(health.runsLast24h)} hint="Production traffic" />
-        <AgentMetricCard
-          label="Error rate"
-          value={formatPercent(health.errorRateLast24h)}
-          hint="Failed runs, last 24h"
-        />
-        <AgentMetricCard label="Avg latency" value={formatDurationMs(health.avgLatencyMs)} hint="Per run, last 24h" />
-        <AgentMetricCard label="Cost 24h" value={formatUsd(health.costLast24hUsd)} hint="Model + tool spend" />
-      </div>
-
       {runs.length === 0 || !selectedRun ? (
         <div className="rounded-xl bg-white px-6 py-12 ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
           <div className="mx-auto max-w-md text-center">

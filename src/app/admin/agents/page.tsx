@@ -1,14 +1,10 @@
-import { PlusIcon } from '@heroicons/react/16/solid'
 import type { Metadata } from 'next'
 
-import { AgentMetricCard } from '@/components/agent-ops/agent-metric-card'
-import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
+import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { RegistryView } from '@/components/agent-ops/registry-view'
 import NextLink from 'next/link'
-
-import { Button } from '@/components/catalyst/button'
-import { formatPercent, formatRelative, formatUsd } from '@/lib/agent-mission-control/format'
+import { formatPercent, formatRelative } from '@/lib/agent-mission-control/format'
 import {
   getCopilots,
   getProjects,
@@ -108,35 +104,16 @@ export default async function AgentsRegistryPage() {
 
   return (
     <div className="space-y-8">
-      <AgentPageHeader
-        title="Copilots"
-        description="Registry of every copilot agent across projects — status, runtime, health and cost at a glance."
-        actions={
-          /* V1 stub — visibly inert until copilot creation ships. */
-          <Button color="green" disabled title="Copilot creation ships in V2">
-            <PlusIcon />
-            New copilot
-            <span className="sr-only"> (coming soon)</span>
-          </Button>
-        }
+      {/* KPI en haut, marge au-dessus = petit header (directive Adrien 2026-07-10) */}
+      <AgentKpiBand
+        className="mt-2"
+        stats={[
+          { name: 'Copilots', value: String(kpis.totalCopilots), hint: `${kpis.activeCopilots} active` },
+          { name: 'Active', value: String(kpis.activeCopilots), hint: 'Serving traffic' },
+          { name: 'Avg test pass', value: formatPercent(kpis.avgTestPassRate), hint: 'Measured copilots' },
+          { name: 'Runs 24h', value: kpis.runsLast24h.toLocaleString('en-US'), hint: 'All projects' },
+        ]}
       />
-
-      <section aria-label="Registry key metrics" className="grid gap-8 sm:grid-cols-2 xl:grid-cols-6">
-        <AgentMetricCard label="Copilots" value={String(kpis.totalCopilots)} hint={`${kpis.activeCopilots} active`} />
-        <AgentMetricCard label="Active" value={String(kpis.activeCopilots)} hint="Serving traffic" />
-        <AgentMetricCard
-          label="Avg test pass"
-          value={formatPercent(kpis.avgTestPassRate)}
-          hint="Measured copilots"
-        />
-        <AgentMetricCard label="Runs 24h" value={kpis.runsLast24h.toLocaleString('en-US')} hint="All projects" />
-        <AgentMetricCard label="Cost 24h" value={formatUsd(kpis.totalCostLast24hUsd)} hint="Model + tools" />
-        <AgentMetricCard
-          label="Open warnings"
-          value={String(kpis.openWarnings)}
-          hint={kpis.openWarnings > 0 ? 'Needs attention' : 'All clear'}
-        />
-      </section>
 
       <RegistryView
         copilots={copilots}

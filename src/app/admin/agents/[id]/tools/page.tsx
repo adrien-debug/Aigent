@@ -1,10 +1,8 @@
 import { WrenchScrewdriverIcon } from '@heroicons/react/24/outline'
 import { notFound } from 'next/navigation'
 
-import { AgentMetricCard } from '@/components/agent-ops/agent-metric-card'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ToolPermissionMatrix } from '@/components/agent-ops/tool-permission-matrix'
-import { formatPercent } from '@/lib/agent-mission-control/format'
 import { getCopilot, getToolsForCopilot } from '@/lib/agent-mission-control/data'
 
 export default async function ToolsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -32,32 +30,8 @@ export default async function ToolsPage({ params }: { params: Promise<{ id: stri
     )
   }
 
-  const enabledCount = tools.filter((tool) => tool.enabled).length
-  const highRiskCount = tools.filter(
-    (tool) => tool.riskLevel === 'high' || tool.riskLevel === 'critical'
-  ).length
-  const avgErrorRate = tools.reduce((sum, tool) => sum + tool.errorRateLast7d, 0) / tools.length
-
   return (
     <div className="space-y-8">
-      <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
-        <AgentMetricCard
-          label="Enabled tools"
-          value={`${enabledCount}`}
-          hint={`of ${tools.length} registered`}
-        />
-        <AgentMetricCard
-          label="High & critical risk"
-          value={`${highRiskCount}`}
-          hint="Always require confirmation"
-        />
-        <AgentMetricCard
-          label="Error rate (7d avg)"
-          value={formatPercent(avgErrorRate)}
-          hint="Mean across all registered tools"
-        />
-      </div>
-
       <AgentSectionCard
         title="Tool permissions"
         description="Which tools this copilot may call, and under which confirmation rules."

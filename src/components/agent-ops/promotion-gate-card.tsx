@@ -4,7 +4,7 @@ import clsx from 'clsx'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { Badge } from '@/components/catalyst/badge'
 import { formatTimestamp } from '@/lib/agent-mission-control/format'
-import type { CopilotVersion, PromotionCheck, PromotionGate } from '@/lib/agent-mission-control/types'
+import type { CopilotVersion, PromotionCheck, PromotionCheckId, PromotionGate } from '@/lib/agent-mission-control/types'
 
 /**
  * Mock `observed` strings embed the comparison against the threshold (e.g.
@@ -13,6 +13,21 @@ import type { CopilotVersion, PromotionCheck, PromotionGate } from '@/lib/agent-
  */
 function observedValueOnly(observed: string): string {
   return observed.replace(/\s*[≥≤<>]\s*\S+$/u, '')
+}
+
+/**
+ * Label groups under the progress bar (ecommerce labeled-progress rhythm):
+ * a group tints green only when every check it maps to passes.
+ */
+const CHECK_GROUPS: { label: string; checkIds: PromotionCheckId[] }[] = [
+  { label: 'Tests', checkIds: ['test-pass-rate'] },
+  { label: 'Safety', checkIds: ['unsafe-actions', 'unauthorized-routes', 'confirmation-mistakes'] },
+  { label: 'Shadow', checkIds: ['shadow-agreement'] },
+  { label: 'Approval', checkIds: ['human-approval'] },
+]
+
+function groupFullyPassed(checks: PromotionCheck[], checkIds: PromotionCheckId[]): boolean {
+  return checkIds.every((id) => checks.some((check) => check.id === id && check.status === 'pass'))
 }
 
 const checkStatusConfig: Record<
@@ -94,7 +109,6 @@ export function PromotionGateCard({
   const candidateLabel = candidateVersion?.label ?? gate.candidateVersionId
   const totalChecks = gate.checks.length
   const passedChecks = gate.checks.filter((check) => check.status === 'pass').length
-  const allPassing = totalChecks > 0 && passedChecks === totalChecks
   const progressPct = totalChecks > 0 ? (passedChecks / totalChecks) * 100 : 0
 
   return (
@@ -112,25 +126,41 @@ export function PromotionGateCard({
       <StatusBanner gate={gate} candidateLabel={candidateLabel} />
 
       <div className="mt-6">
-        <div className="flex items-baseline justify-between gap-4">
-          <p className="text-sm font-medium text-zinc-950 dark:text-white">Checks passing</p>
-          <p className="font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
-            {passedChecks} / {totalChecks}
-          </p>
-        </div>
-        <div
-          role="progressbar"
-          aria-label="Gate checks passing"
-          aria-valuemin={0}
-          aria-valuemax={totalChecks}
-          aria-valuenow={passedChecks}
-          aria-valuetext={`${passedChecks} of ${totalChecks} checks passing`}
-          className="mt-3 overflow-hidden rounded-full bg-zinc-950/10 dark:bg-zinc-800"
-        >
+        <p className="text-sm font-medium text-zinc-950 dark:text-white">
+          Checks passing —{' '}
+          <span className="font-mono tabular-nums">
+            {passedChecks} of {totalChecks}
+          </span>
+        </p>
+        <div className="mt-6">
           <div
-            style={{ width: `${progressPct}%` }}
-            className={clsx('h-2 rounded-full', allPassing ? 'bg-green-500' : 'bg-zinc-500')}
-          />
+            role="progressbar"
+            aria-label="Gate checks passing"
+            aria-valuemin={0}
+            aria-valuemax={totalChecks}
+            aria-valuenow={passedChecks}
+            aria-valuetext={`${passedChecks} of ${totalChecks} checks passing`}
+            className="overflow-hidden rounded-full bg-zinc-950/10 dark:bg-white/10"
+          >
+            <div style={{ width: `${progressPct}%` }} className="h-2 rounded-full bg-green-500" />
+          </div>
+          <div className="mt-6 hidden grid-cols-4 text-sm font-medium text-zinc-500 sm:grid dark:text-zinc-400">
+            {CHECK_GROUPS.map((group, groupIdx) => (
+              <div
+                key={group.label}
+                className={clsx(
+                  groupIdx === CHECK_GROUPS.length - 1
+                    ? 'text-right'
+                    : groupIdx !== 0
+                      ? 'text-center'
+                      : undefined,
+                  groupFullyPassed(gate.checks, group.checkIds) && 'text-green-600 dark:text-green-400'
+                )}
+              >
+                {group.label}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

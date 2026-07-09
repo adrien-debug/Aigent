@@ -1,10 +1,12 @@
-import { CheckIcon, ClipboardDocumentCheckIcon, ClockIcon, RocketLaunchIcon } from '@heroicons/react/20/solid'
 import { ArrowUpCircleIcon } from '@heroicons/react/24/outline'
 import { notFound } from 'next/navigation'
 import clsx from 'clsx'
 
+import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { GateHistoryFeed, type GateHistoryEvent } from '@/components/agent-ops/gate-history-feed'
 import { PromotionGateCard } from '@/components/agent-ops/promotion-gate-card'
+import { PromotionPipelineSteps } from '@/components/agent-ops/promotion-pipeline-steps'
 import { PublishActions } from '@/components/agent-ops/publish-actions'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
@@ -19,49 +21,7 @@ import {
   getVersion,
   getVersionsForCopilot,
 } from '@/lib/agent-mission-control/data'
-import type { CopilotVersion, IsoTimestamp } from '@/lib/agent-mission-control/types'
-
-interface HistoryEvent {
-  id: string
-  title: React.ReactNode
-  detail: string
-  at: IsoTimestamp
-  Icon: typeof CheckIcon
-  nodeClassName: string
-}
-
-function HistoryFeed({ events }: { events: HistoryEvent[] }) {
-  return (
-    <ul role="list" className="-mb-8">
-      {events.map((event, index) => (
-        <li key={event.id} className="relative pb-8">
-          {index !== events.length - 1 ? (
-            <span aria-hidden="true" className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-zinc-950/10 dark:bg-white/10" />
-          ) : null}
-          <div className="relative flex gap-3">
-            <span
-              className={clsx(
-                'flex size-8 shrink-0 items-center justify-center rounded-full ring-8 ring-white dark:ring-zinc-950',
-                event.nodeClassName
-              )}
-            >
-              <event.Icon aria-hidden="true" className="size-4" />
-            </span>
-            <div className="flex min-w-0 flex-1 justify-between gap-4 pt-1.5">
-              <div className="min-w-0">
-                <p className="text-sm text-zinc-700 dark:text-zinc-300">{event.title}</p>
-                <p className="mt-1 text-xs text-zinc-500">{event.detail}</p>
-              </div>
-              <time dateTime={event.at} className="font-mono text-xs whitespace-nowrap tabular-nums text-zinc-500">
-                {formatTimestamp(event.at)}
-              </time>
-            </div>
-          </div>
-        </li>
-      ))}
-    </ul>
-  )
-}
+import type { CopilotVersion } from '@/lib/agent-mission-control/types'
 
 export default async function PublishPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -115,70 +75,106 @@ export default async function PublishPage({ params }: { params: Promise<{ id: st
   const passedChecks = gate.checks.filter((check) => check.status === 'pass').length
   const approvalCheck = gate.checks.find((check) => check.id === 'human-approval')
 
-  const historyEvents: HistoryEvent[] = []
+  const historyEvents: GateHistoryEvent[] = []
   historyEvents.push({
     id: 'evaluated',
-    title: 'Gate evaluated',
-    detail: `${passedChecks} of ${gate.checks.length} checks passing — status: ${gate.overallStatus}`,
-    at: gate.lastEvaluatedAt,
-    Icon: ClipboardDocumentCheckIcon,
-    nodeClassName: 'bg-zinc-500 text-white dark:bg-zinc-600',
+    kind: 'evaluated',
+    content: `Gate evaluated — ${passedChecks} of ${gate.checks.length} checks passing, status`,
+    target: gate.overallStatus,
+    date: formatTimestamp(gate.lastEvaluatedAt),
+    datetime: gate.lastEvaluatedAt,
   })
   if (gate.approvedAt && gate.approver) {
     historyEvents.push({
       id: 'approved',
-      title: `Approved by ${gate.approver}`,
-      detail: 'Human sign-off recorded on the gate.',
-      at: gate.approvedAt,
-      Icon: CheckIcon,
-      nodeClassName: 'bg-green-500 text-white',
+      // Recorded sign-off is a success → green treatment ('promoted' kind).
+      kind: 'promoted',
+      content: 'Human sign-off recorded on the gate — approved by',
+      target: gate.approver,
+      date: formatTimestamp(gate.approvedAt),
+      datetime: gate.approvedAt,
     })
   } else if (approvalCheck && approvalCheck.status === 'pending') {
     historyEvents.push({
       id: 'approval-requested',
-      title: 'Human approval requested',
-      detail: `${approvalCheck.observed} — required: ${approvalCheck.required}.`,
-      at: gate.lastEvaluatedAt,
-      Icon: ClockIcon,
-      nodeClassName: 'bg-amber-500 text-amber-950',
+      kind: 'approval',
+      content: `Human approval requested — ${approvalCheck.observed}, required:`,
+      target: approvalCheck.required,
+      date: formatTimestamp(gate.lastEvaluatedAt),
+      datetime: gate.lastEvaluatedAt,
     })
   }
   if (candidateVersion) {
     historyEvents.push({
       id: 'candidate-entered',
-      title: (
-        <>
-          Candidate <span className="font-mono tabular-nums">{candidateVersion.label}</span> entered the gate
-        </>
-      ),
-      detail: `Created by ${candidateVersion.createdBy}.`,
-      at: candidateVersion.createdAt,
-      Icon: ArrowUpCircleIcon,
-      nodeClassName: 'bg-zinc-500 text-white dark:bg-zinc-600',
+      kind: 'entered',
+      content: `Candidate created by ${candidateVersion.createdBy} entered the gate —`,
+      target: candidateVersion.label,
+      date: formatTimestamp(candidateVersion.createdAt),
+      datetime: candidateVersion.createdAt,
     })
   }
   if (productionVersion) {
     historyEvents.push({
       id: 'last-promotion',
-      title: (
-        <>
-          <span className="font-mono tabular-nums">{productionVersion.label}</span> promoted to production
-        </>
-      ),
-      detail: 'Currently serving production traffic.',
-      at: productionVersion.createdAt,
-      Icon: RocketLaunchIcon,
-      nodeClassName: 'bg-green-500 text-white',
+      kind: 'promoted',
+      content: 'Promoted to production, currently serving traffic —',
+      target: productionVersion.label,
+      date: formatTimestamp(productionVersion.createdAt),
+      datetime: productionVersion.createdAt,
     })
   }
 
+  const failingChecks = gate.checks.filter((check) => check.status === 'fail').length
+  const pendingChecks = gate.checks.filter((check) => check.status === 'pending').length
+  const gateStatusLabel =
+    gate.overallStatus === 'ready' ? 'Ready' : gate.overallStatus === 'blocked' ? 'Blocked' : 'Pending approval'
+
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      <div className="space-y-6 lg:col-span-2">
-        <PromotionGateCard gate={gate} candidateVersion={candidateVersion} />
+    <div className="space-y-8">
+      <PromotionPipelineSteps gate={gate} />
+
+      <AgentKpiBand
+        stats={[
+          {
+            name: 'Gate status',
+            value: gateStatusLabel,
+            changeType: gate.overallStatus === 'blocked' ? 'negative' : 'positive',
+            hint: `Candidate ${candidateLabel} → ${gate.targetStage}`,
+          },
+          {
+            name: 'Checks passing',
+            value: `${passedChecks} / ${gate.checks.length}`,
+            change: failingChecks > 0 ? `${failingChecks} failing` : pendingChecks > 0 ? `${pendingChecks} pending` : undefined,
+            changeType: failingChecks > 0 ? 'negative' : undefined,
+            hint: failingChecks > 0 ? 'Blocking promotion' : pendingChecks > 0 ? 'Awaiting signal' : 'All green',
+          },
+          {
+            name: 'Benchmark score',
+            value: candidateVersion ? `${candidateVersion.scores.benchmarkScore} / 100` : '—',
+            hint: candidateVersion
+              ? `${formatPercent(candidateVersion.scores.testPassRate)} test pass`
+              : 'No candidate scores',
+          },
+          {
+            name: 'Unsafe actions',
+            value: candidateVersion ? String(candidateVersion.scores.unsafeActionCount) : '—',
+            changeType:
+              candidateVersion && candidateVersion.scores.unsafeActionCount > 0 ? 'negative' : undefined,
+            hint:
+              candidateVersion && candidateVersion.scores.unsafeActionCount > 0
+                ? 'Must be zero to promote'
+                : 'Clean candidate',
+          },
+        ]}
+      />
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          <PromotionGateCard gate={gate} candidateVersion={candidateVersion} />
 
         <AgentSectionCard title="History" description="Recent gate activity for this candidate.">
-          <HistoryFeed events={historyEvents} />
+          <GateHistoryFeed events={historyEvents} />
         </AgentSectionCard>
       </div>
 
@@ -234,6 +230,7 @@ export default async function PublishPage({ params }: { params: Promise<{ id: st
             rollbackVersionLabel={rollbackVersion?.label ?? null}
           />
         </AgentSectionCard>
+        </div>
       </div>
     </div>
   )

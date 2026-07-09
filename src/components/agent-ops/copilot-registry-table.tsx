@@ -1,20 +1,16 @@
 'use client'
 
 import { MagnifyingGlassIcon } from '@heroicons/react/16/solid'
-import clsx from 'clsx'
 import { useMemo, useState } from 'react'
 
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
-import { passRateClassName } from '@/components/agent-ops/health-format'
-import { RuntimeBadge } from '@/components/agent-ops/runtime-badge'
 import { StatusBadge } from '@/components/agent-ops/status-badge'
+import { Avatar } from '@/components/catalyst/avatar'
 import { Button } from '@/components/catalyst/button'
 import { Field, Label } from '@/components/catalyst/fieldset'
 import { Input, InputGroup } from '@/components/catalyst/input'
 import { Link } from '@/components/catalyst/link'
 import { Select } from '@/components/catalyst/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
-import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import { AGENT_RUNTIME_LABELS } from '@/lib/agent-mission-control/mock-data'
 import type { AgentRuntime, Copilot, CopilotStatus, Project } from '@/lib/agent-mission-control/types'
 
@@ -29,30 +25,67 @@ const STATUS_LABELS: Record<CopilotStatus, string> = {
 const RUNTIME_OPTIONS = Object.keys(AGENT_RUNTIME_LABELS) as AgentRuntime[]
 const STATUS_OPTIONS = Object.keys(STATUS_LABELS) as CopilotStatus[]
 
-/** No test signal yet: draft/archived copilots, or zero pass rate with zero runs. */
-function isUntested(copilot: Copilot): boolean {
+/** Two-letter initials from a copilot name, for the generated avatar. */
+function initialsFor(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+/**
+ * One copilot row — the Tailwind Plus "users" table pattern mapped onto copilot
+ * data: generated avatar + name/slug, runtime/model, status pill, owner, and an
+ * Open link.
+ */
+function CopilotRow({ copilot }: { copilot: Copilot }) {
+  const href = `/admin/agents/${copilot.id}`
   return (
-    copilot.health.testPassRate === 0 &&
-    (copilot.status === 'draft' || copilot.status === 'archived' || copilot.health.runsLast24h === 0)
+    <tr className="transition-colors duration-150 hover:bg-white/2.5">
+      <td className="py-5 pr-3 pl-4 text-sm whitespace-nowrap sm:pl-0">
+        <div className="flex items-center">
+          <Avatar
+            initials={initialsFor(copilot.name)}
+            alt=""
+            className="size-11 shrink-0 bg-zinc-800 text-white"
+          />
+          <div className="ml-4 min-w-0">
+            <div className="truncate font-medium text-white">
+              <Link href={href} title={copilot.name} className="hover:underline">
+                {copilot.name}
+              </Link>
+            </div>
+            <div className="mt-1 truncate font-mono text-xs text-zinc-500">{copilot.slug}</div>
+          </div>
+        </div>
+      </td>
+      <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-400">
+        <div className="text-white">{AGENT_RUNTIME_LABELS[copilot.runtime]}</div>
+        <div className="mt-1 font-mono text-xs tabular-nums text-zinc-500">{copilot.model}</div>
+      </td>
+      <td className="px-3 py-5 text-sm whitespace-nowrap">
+        <StatusBadge status={copilot.status} />
+      </td>
+      <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-400">{copilot.owner}</td>
+      <td className="py-5 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap sm:pr-0">
+        <Link href={href} className="text-green-400 hover:text-green-300">
+          Open<span className="sr-only">, {copilot.name}</span>
+        </Link>
+      </td>
+    </tr>
   )
 }
 
 /**
- * Filterable copilot registry table. Each row carries a keyboard-focusable
- * "Preview" button (sr-only label, cell-overlay — same pattern as the Catalyst
- * row link) that selects the copilot for the preview panel; clicking anywhere
- * on the row also selects it, and the name deep-links to the copilot overview.
+ * Filterable copilot registry table on the Tailwind Plus users layout: avatar +
+ * name/slug, runtime/model, status pill, owner, Open link. Paused copilots are
+ * pulled out of the main list into a separate section at the bottom.
  */
 export function CopilotRegistryTable({
   copilots,
   projects,
-  selectedId,
-  onSelect,
 }: {
   copilots: Copilot[]
   projects: Project[]
-  selectedId?: string | null
-  onSelect?: (copilot: Copilot) => void
 }) {
   const [query, setQuery] = useState('')
   const [projectId, setProjectId] = useState<string>('all')
@@ -72,6 +105,10 @@ export function CopilotRegistryTable({
       return true
     })
   }, [copilots, query, projectId, runtime, status])
+
+  // Pull paused copilots out of the main list into a separate section.
+  const activeRows = filtered.filter((copilot) => copilot.status !== 'paused')
+  const pausedRows = filtered.filter((copilot) => copilot.status === 'paused')
 
   function resetFilters() {
     setQuery('')
@@ -149,129 +186,55 @@ export function CopilotRegistryTable({
 
       <div className="mt-6">
         {filtered.length > 0 ? (
-          <Table bleed dense className="[--gutter:--spacing(6)]">
-            <TableHead>
-              <TableRow>
-                <TableHeader>Name</TableHeader>
-                <TableHeader>Runtime</TableHeader>
-                <TableHeader>Status</TableHeader>
-                <TableHeader className="text-right" title="Test pass rate">
-                  Tests<span className="sr-only"> pass rate</span>
-                </TableHeader>
-                <TableHeader className="text-right" title="Runs last 24h">
-                  Runs<span className="sr-only"> last 24h</span>
-                </TableHeader>
-                <TableHeader className="text-right" title="Cost last 24h">
-                  Cost<span className="sr-only"> last 24h</span>
-                </TableHeader>
-                <TableHeader className="text-right" title="Open warnings">
-                  Warn.<span className="sr-only"> Open warnings</span>
-                </TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filtered.map((copilot) => {
-                const isSelected = copilot.id === selectedId
-                const untested = isUntested(copilot)
-                const noRuns = copilot.health.runsLast24h === 0
-                return (
-                  <TableRow
-                    key={copilot.id}
-                    onClick={() => onSelect?.(copilot)}
-                    className={clsx(
-                      'cursor-pointer transition-colors duration-150',
-                      'hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5',
-                      'has-[[data-row-select]:focus-visible]:outline-2 has-[[data-row-select]:focus-visible]:-outline-offset-2 has-[[data-row-select]:focus-visible]:outline-blue-500',
-                      isSelected && 'bg-zinc-950/2.5 dark:bg-white/2.5'
-                    )}
-                  >
-                    <TableCell>
-                      <button
-                        type="button"
-                        data-row-select
-                        aria-pressed={isSelected}
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          onSelect?.(copilot)
-                        }}
-                        className="absolute inset-0 cursor-pointer focus:outline-hidden"
-                      >
-                        <span className="sr-only">Preview {copilot.name}</span>
-                      </button>
-                      <Link
-                        href={`/admin/agents/${copilot.id}`}
-                        onClick={(event) => event.stopPropagation()}
-                        title={copilot.name}
-                        className="relative block max-w-44 truncate font-medium text-zinc-950 hover:underline dark:text-white"
-                      >
-                        {copilot.name}
-                      </Link>
-                      <span className="block max-w-44 truncate font-mono text-xs text-zinc-500">{copilot.slug}</span>
-                    </TableCell>
-                    <TableCell>
-                      <RuntimeBadge runtime={copilot.runtime} />
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={copilot.status} />
-                    </TableCell>
-                    <TableCell
-                      className={clsx(
-                        'text-right font-mono tabular-nums',
-                        untested ? 'text-zinc-500' : passRateClassName(copilot.health.testPassRate)
-                      )}
-                    >
-                      {untested ? (
-                        <>
-                          <span aria-hidden="true">—</span>
-                          <span className="sr-only">not tested</span>
-                        </>
-                      ) : (
-                        formatPercent(copilot.health.testPassRate)
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-zinc-700 tabular-nums dark:text-zinc-300">
-                      {copilot.health.runsLast24h}
-                    </TableCell>
-                    <TableCell
-                      className={clsx(
-                        'text-right font-mono tabular-nums',
-                        noRuns ? 'text-zinc-500' : 'text-zinc-700 dark:text-zinc-300'
-                      )}
-                    >
-                      {noRuns ? (
-                        <>
-                          <span aria-hidden="true">—</span>
-                          <span className="sr-only">no runs</span>
-                        </>
-                      ) : (
-                        formatUsd(copilot.health.costLast24hUsd)
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="inline-flex items-center gap-x-1.5 tabular-nums">
-                        {copilot.health.openWarnings > 0 ? (
-                          <span
-                            aria-hidden="true"
-                            className="size-1.5 shrink-0 rounded-full bg-amber-500 dark:bg-amber-400"
-                          />
-                        ) : null}
-                        <span
-                          className={
-                            copilot.health.openWarnings > 0
-                              ? 'text-amber-600 dark:text-amber-400'
-                              : 'text-zinc-500'
-                          }
+          <div className="flow-root">
+            <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+              <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+                <table className="relative min-w-full divide-y divide-white/15">
+                  <thead>
+                    <tr>
+                      <th scope="col" className="py-3.5 pr-3 pl-4 text-left text-sm font-semibold text-white sm:pl-0">
+                        Name
+                      </th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
+                        Runtime
+                      </th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
+                        Status
+                      </th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
+                        Owner
+                      </th>
+                      <th scope="col" className="py-3.5 pr-4 pl-3 sm:pr-0">
+                        <span className="sr-only">Open</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/10">
+                    {activeRows.map((copilot) => (
+                      <CopilotRow key={copilot.id} copilot={copilot} />
+                    ))}
+                  </tbody>
+
+                  {pausedRows.length > 0 ? (
+                    <tbody className="divide-y divide-white/10 border-t border-white/15">
+                      <tr>
+                        <th
+                          scope="colgroup"
+                          colSpan={5}
+                          className="py-2 pr-3 pl-4 text-left text-xs font-medium tracking-wide text-zinc-500 uppercase sm:pl-0"
                         >
-                          {copilot.health.openWarnings}
-                        </span>
-                        <span className="sr-only">open warnings</span>
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
+                          Paused
+                        </th>
+                      </tr>
+                      {pausedRows.map((copilot) => (
+                        <CopilotRow key={copilot.id} copilot={copilot} />
+                      ))}
+                    </tbody>
+                  ) : null}
+                </table>
+              </div>
+            </div>
+          </div>
         ) : (
           <div className="flex flex-col items-center px-6 py-12 text-center">
             <span className="flex size-10 items-center justify-center rounded-lg bg-zinc-950/5 ring-1 ring-zinc-950/10 dark:bg-white/5 dark:ring-white/10">

@@ -1,17 +1,15 @@
 import { notFound } from 'next/navigation'
 
 import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
-import { AgentMetricCard } from '@/components/agent-ops/agent-metric-card'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { BenchmarkComparisonTable } from '@/components/agent-ops/benchmark-comparison-table'
+import { BenchmarkRunSteps } from '@/components/agent-ops/benchmark-run-steps'
 import { BenchmarkScoreCard } from '@/components/agent-ops/benchmark-score-card'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Subheading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
-import { formatUsd } from '@/lib/agent-mission-control/format'
 import {
-  MODEL_PROVIDER_LABELS,
   getBenchmarkResultForRun,
   getBenchmarkRunsForSuite,
   getBenchmarkSuitesForCopilot,
@@ -21,8 +19,7 @@ import type { BenchmarkResult, BenchmarkRun } from '@/lib/agent-mission-control/
 
 type ScoredRow = { run: BenchmarkRun; result: BenchmarkResult }
 
-async function scoredRowsForSuite(suiteId: string): Promise<ScoredRow[]> {
-  const runs = await getBenchmarkRunsForSuite(suiteId)
+async function scoreRuns(runs: BenchmarkRun[]): Promise<ScoredRow[]> {
   const rows = await Promise.all(runs.map(async (run) => ({ run, result: await getBenchmarkResultForRun(run.id) })))
   return rows
     .filter((row): row is ScoredRow => row.result !== undefined)
@@ -55,43 +52,15 @@ export default async function BenchmarksPage({ params }: { params: Promise<{ id:
   }
 
   const suiteRows = await Promise.all(
-    suites.map(async (suite) => ({ suite, rows: await scoredRowsForSuite(suite.id) }))
+    suites.map(async (suite) => {
+      const runs = await getBenchmarkRunsForSuite(suite.id)
+      return { suite, runs, rows: await scoreRuns(runs) }
+    })
   )
-  const allRows = suiteRows.flatMap(({ rows }) => rows)
-
-  const best =
-    allRows.length > 0 ? allRows.reduce((acc, row) => (row.result.score > acc.result.score ? row : acc)) : null
-  const viable = allRows.filter((row) => row.result.unsafeActionCount === 0)
-  const cheapestViable =
-    viable.length > 0
-      ? viable.reduce((acc, row) => (row.result.avgCostPerTaskUsd < acc.result.avgCostPerTaskUsd ? row : acc))
-      : null
 
   return (
     <div className="space-y-8">
-      <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
-        <AgentMetricCard
-          label="Best score"
-          value={best ? `${best.result.score} / 100` : '—'}
-          hint={best ? `${best.run.model} · ${MODEL_PROVIDER_LABELS[best.run.modelProvider]}` : 'No completed benchmark runs'}
-        />
-        <AgentMetricCard
-          label="Cheapest viable candidate"
-          value={cheapestViable ? `${formatUsd(cheapestViable.result.avgCostPerTaskUsd)} / task` : '—'}
-          hint={
-            cheapestViable
-              ? `${cheapestViable.run.model} · 0 unsafe actions`
-              : 'No candidate without unsafe actions'
-          }
-        />
-        <AgentMetricCard
-          label="Runs compared"
-          value={String(allRows.length)}
-          hint={`Across ${suites.length} ${suites.length === 1 ? 'suite' : 'suites'}`}
-        />
-      </div>
-
-      {suiteRows.map(({ suite, rows }) => (
+      {suiteRows.map(({ suite, runs, rows }) => (
         <section key={suite.id} aria-label={suite.name} className="space-y-6">
           <AgentSectionCard
             title={suite.name}
@@ -103,13 +72,16 @@ export default async function BenchmarksPage({ params }: { params: Promise<{ id:
             }
             contentClassName="px-6 py-4"
           >
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-medium text-zinc-500">Dimensions</span>
-              {suite.dimensions.map((dimension) => (
-                <Badge key={dimension} color="zinc" className="font-mono">
-                  {dimension}
-                </Badge>
-              ))}
+            <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium text-zinc-500">Dimensions</span>
+                {suite.dimensions.map((dimension) => (
+                  <Badge key={dimension} color="zinc" className="font-mono">
+                    {dimension}
+                  </Badge>
+                ))}
+              </div>
+              <BenchmarkRunSteps runs={runs} />
             </div>
           </AgentSectionCard>
 

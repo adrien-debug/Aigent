@@ -1,10 +1,8 @@
 import { notFound } from 'next/navigation'
-import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
+import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { CopilotTabs } from '@/components/agent-ops/copilot-tabs'
-import { RuntimeBadge } from '@/components/agent-ops/runtime-badge'
-import { StatusBadge } from '@/components/agent-ops/status-badge'
-import { Button } from '@/components/catalyst/button'
-import { getCopilot, getProject } from '@/lib/agent-mission-control/data'
+import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
+import { getCopilot } from '@/lib/agent-mission-control/data'
 
 export default async function CopilotLayout({
   children,
@@ -17,31 +15,43 @@ export default async function CopilotLayout({
   const copilot = await getCopilot(id)
   if (!copilot) notFound()
 
-  const project = await getProject(copilot.projectId)
+  const { health } = copilot
+  const untested = health.testPassRate === 0
+  const noRuns = health.runsLast24h === 0
 
   return (
     <div>
-      <AgentPageHeader
-        title={copilot.name}
-        description={copilot.description}
-        meta={
-          <>
-            <StatusBadge status={copilot.status} />
-            <RuntimeBadge runtime={copilot.runtime} />
-            <span className="font-mono text-xs tabular-nums text-zinc-400">{copilot.model}</span>
-            {project ? <span className="text-xs text-zinc-500">{project.name}</span> : null}
-          </>
-        }
-        actions={
-          /* No tracing dashboard in V1 — visibly inert, never a dead '#' link. */
-          <Button outline disabled title="Tracing dashboard ships in V2">
-            View traces
-            <span className="sr-only"> (coming soon)</span>
-          </Button>
-        }
+      {/* KPI au-dessus des menus ; marge au-dessus = petit header (directive Adrien 2026-07-10) */}
+      <AgentKpiBand
+        className="mt-2"
+        stats={[
+          {
+            name: 'Test pass rate',
+            value: untested ? '—' : formatPercent(health.testPassRate),
+            hint: untested ? 'Not tested' : undefined,
+          },
+          {
+            name: 'Benchmark score',
+            value: health.benchmarkScore === 0 ? '—' : String(health.benchmarkScore),
+            hint: health.benchmarkScore === 0 ? 'Never benchmarked' : 'Best composite, out of 100',
+          },
+          {
+            name: 'Runs (24h)',
+            value: String(health.runsLast24h),
+            hint: noRuns ? undefined : `${formatPercent(health.errorRateLast24h)} error rate`,
+          },
+          {
+            name: 'Cost (24h)',
+            value: noRuns ? '—' : formatUsd(health.costLast24hUsd),
+            hint: noRuns
+              ? 'No runs'
+              : `≈ ${formatUsd(health.costLast24hUsd / health.runsLast24h)} per run`,
+          },
+        ]}
       />
 
-      <div className="mt-6">
+      {/* Menus sous les KPI */}
+      <div className="mt-0">
         <CopilotTabs copilotId={id} />
       </div>
 

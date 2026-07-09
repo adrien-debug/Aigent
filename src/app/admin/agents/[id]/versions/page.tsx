@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 
-import { AgentMetricCard } from '@/components/agent-ops/agent-metric-card'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { ReleasePathSteps } from '@/components/agent-ops/release-path-steps'
 import { VersionComparisonCard, VersionStageBadge, versionNeverTested } from '@/components/agent-ops/version-comparison-card'
 import { Button } from '@/components/catalyst/button'
 import { Subheading } from '@/components/catalyst/heading'
@@ -43,11 +43,6 @@ export default async function VersionsPage({ params }: { params: Promise<{ id: s
           null
         )
     : null
-  const bestBenchmark = sorted.reduce<CopilotVersion | null>(
-    (best, version) =>
-      best === null || version.scores.benchmarkScore > best.scores.benchmarkScore ? version : best,
-    null
-  )
 
   const emptyState = sorted.length === 0 || (sorted.length === 1 && sorted[0].stage === 'draft')
 
@@ -83,29 +78,18 @@ export default async function VersionsPage({ params }: { params: Promise<{ id: s
     )
   }
 
+  // Release path candidate: the highest non-production version in flight
+  // (beta > draft). No draft/beta candidate → everything shipped, all steps
+  // complete.
+  const candidateStage = sorted.some((version) => version.stage === 'beta')
+    ? ('beta' as const)
+    : sorted.some((version) => version.stage === 'draft')
+      ? ('draft' as const)
+      : ('production' as const)
+
   return (
     <div className="space-y-8">
-      <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
-        <AgentMetricCard
-          label="Production version"
-          value={productionVersion ? productionVersion.label : 'None'}
-          hint={productionVersion ? `Serving traffic on ${productionVersion.model}` : 'No version promoted yet'}
-        />
-        <AgentMetricCard
-          label="Total versions"
-          value={String(sorted.length)}
-          hint={rollbackTarget ? `Rollback target: ${rollbackTarget.label}` : 'No rollback target available'}
-        />
-        <AgentMetricCard
-          label="Best benchmark score"
-          value={bestBenchmark && bestBenchmark.scores.benchmarkScore > 0 ? `${bestBenchmark.scores.benchmarkScore} / 100` : '—'}
-          hint={
-            bestBenchmark && bestBenchmark.scores.benchmarkScore > 0
-              ? `Held by ${bestBenchmark.label}`
-              : 'No benchmark run recorded'
-          }
-        />
-      </div>
+      <ReleasePathSteps candidateStage={candidateStage} />
 
       <AgentSectionCard
         title="Score comparison"

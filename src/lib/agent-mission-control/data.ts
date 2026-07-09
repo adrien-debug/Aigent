@@ -117,7 +117,9 @@ export async function getToolsForCopilot(copilotId: string): Promise<ToolDefinit
   if (!isGpu1Backed()) return mock.getToolsForCopilot(copilotId)
   const rows = await rest<RawRow[]>(`tools?select=*&copilot_id=eq.${copilotId}&order=risk_level,name`)
   // copilot_id est une colonne DB, absente du type ToolDefinition — on la retire.
-  return camelRows<ToolDefinition & { copilotId?: string }>(rows).map(({ copilotId: _c, ...t }) => t as ToolDefinition)
+  return camelRows<ToolDefinition>(
+    rows.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => k !== 'copilot_id')))
+  )
 }
 
 export async function getTestSuitesForCopilot(copilotId: string): Promise<TestSuite[]> {

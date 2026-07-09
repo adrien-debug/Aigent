@@ -1,7 +1,9 @@
 import { notFound } from 'next/navigation'
 
+import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ReplayCandidatePicker, type ReplayCandidateItem } from '@/components/agent-ops/replay-candidate-picker'
+import { ReplayProgressDots } from '@/components/agent-ops/replay-progress-dots'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Field, Label } from '@/components/catalyst/fieldset'
@@ -9,7 +11,7 @@ import { Subheading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
 import { Select } from '@/components/catalyst/select'
 import { Text } from '@/components/catalyst/text'
-import { formatTimestamp } from '@/lib/agent-mission-control/format'
+import { formatPercent, formatTimestamp } from '@/lib/agent-mission-control/format'
 import {
   getCopilot,
   getReplayComparisonsForCopilot,
@@ -55,8 +57,49 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     ])
   ).sort()
 
+  // KPI aggregates across every replay comparison for this copilot.
+  const allCandidates = comparisons.flatMap((comparison) => comparison.candidates)
+  const matchRates = allCandidates
+    .map((candidate) => candidate.matchRate)
+    .filter((rate): rate is number => rate !== null)
+  const bestMatchRate = matchRates.length > 0 ? Math.max(...matchRates) : null
+  const divergedCount = allCandidates.filter(
+    (candidate) => candidate.outcome === 'diverged' || candidate.outcome === 'unsafe'
+  ).length
+  const unsafeCount = allCandidates.filter((candidate) => candidate.outcome === 'unsafe').length
+
   return (
     <div className="space-y-8">
+      <AgentKpiBand
+        stats={[
+          {
+            name: 'Replays',
+            value: String(comparisons.length),
+            hint:
+              comparisons.length > 0
+                ? `${allCandidates.length} candidate${allCandidates.length === 1 ? '' : 's'} compared`
+                : 'No replays yet',
+          },
+          {
+            name: 'Best match rate',
+            value: bestMatchRate !== null ? formatPercent(bestMatchRate) : '—',
+            hint: bestMatchRate !== null ? 'Closest candidate to production' : 'No completed replays',
+          },
+          {
+            name: 'Divergences',
+            value: String(divergedCount),
+            changeType: divergedCount > 0 ? 'negative' : undefined,
+            hint: divergedCount > 0 ? 'Behaviour differs from production' : 'All candidates aligned',
+          },
+          {
+            name: 'Unsafe proposals',
+            value: String(unsafeCount),
+            changeType: unsafeCount > 0 ? 'negative' : undefined,
+            hint: unsafeCount > 0 ? 'Blocks promotion' : 'None flagged',
+          },
+        ]}
+      />
+
       <AgentSectionCard
         title="Replay lab"
         description="Re-run historical production runs against candidate versions and models — no live side effects."
@@ -146,7 +189,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                         <dd className="mt-1 font-mono text-sm tabular-nums text-zinc-700 dark:text-zinc-300">{comparison.caseCount}</dd>
                       </div>
                     </dl>
-                    <div className="mt-4 shrink-0 sm:mt-0">
+                    <div className="mt-4 flex shrink-0 flex-wrap items-center gap-x-6 gap-y-3 sm:mt-0">
+                      <ReplayProgressDots status={comparison.status} />
                       <Badge color={status.color}>{status.label}</Badge>
                     </div>
                   </div>

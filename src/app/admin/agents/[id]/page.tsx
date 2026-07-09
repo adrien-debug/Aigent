@@ -3,9 +3,9 @@ import clsx from 'clsx'
 import { notFound } from 'next/navigation'
 
 import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
-import { AgentMetricCard } from '@/components/agent-ops/agent-metric-card'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ArchitectureStrip } from '@/components/agent-ops/architecture-strip'
+import { OnboardingSteps } from '@/components/agent-ops/onboarding-steps'
 import { RuntimeBadge } from '@/components/agent-ops/runtime-badge'
 import { StatusBadge } from '@/components/agent-ops/status-badge'
 import { TestResultBadge } from '@/components/agent-ops/test-result-badge'
@@ -43,17 +43,6 @@ import type {
   BenchmarkRun,
   BenchmarkSuite,
 } from '@/lib/agent-mission-control/types'
-
-// ---------------------------------------------------------------------------
-// Deterministic formatters (no Date.now, no locale)
-// ---------------------------------------------------------------------------
-
-function formatPoints(points: number): string {
-  const rounded = Math.round(points * 10) / 10
-  const abs = Math.abs(rounded)
-  const label = Number.isInteger(abs) ? abs.toFixed(0) : abs.toFixed(1)
-  return `${rounded > 0 ? '+' : rounded < 0 ? '-' : '±'}${label} pts`
-}
 
 // ---------------------------------------------------------------------------
 // Semantic maps (doctrine: color never alone, always a text label)
@@ -107,8 +96,8 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
     tools,
     productionVersion,
     latestVersion,
-    testSuites,
     allTestRuns,
+    testSuites,
     allRuns,
     benchmarkSuites,
     shadowExperiments,
@@ -119,8 +108,8 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
     getToolsForCopilot(copilot.id),
     copilot.productionVersionId ? getVersion(copilot.productionVersionId) : undefined,
     getVersion(copilot.latestVersionId),
-    getTestSuitesForCopilot(copilot.id),
     getTestRunsForCopilot(copilot.id),
+    getTestSuitesForCopilot(copilot.id),
     getRunsForCopilot(copilot.id),
     getBenchmarkSuitesForCopilot(copilot.id),
     getShadowExperimentsForCopilot(copilot.id),
@@ -135,15 +124,6 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
   const passCount = latestTestResults.filter((r) => r.status === 'pass').length
   const failCount = latestTestResults.filter((r) => r.status === 'fail').length
   const errorCount = latestTestResults.filter((r) => r.status === 'error').length
-
-  // Delta vs the production baseline (same copilot-level quantity as the value shown),
-  // never a cross-suite run comparison.
-  const passRateDelta =
-    productionVersion && productionVersion.scores.testPassRate > 0 && copilot.health.testPassRate > 0
-      ? (copilot.health.testPassRate - productionVersion.scores.testPassRate) * 100
-      : null
-  const passRateTrend: 'up' | 'down' | 'flat' =
-    passRateDelta === null || Math.abs(passRateDelta) < 0.5 ? 'flat' : passRateDelta > 0 ? 'up' : 'down'
 
   // Runs — last 5, newest first
   const runs = [...allRuns].sort((a, b) => b.startedAt.localeCompare(a.startedAt))
@@ -279,78 +259,8 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
     },
   ]
 
-  // -------------------------------------------------------------------------
-  // Onboarding checklist for the sparse draft copilot
-  // -------------------------------------------------------------------------
-
-  const onboardingSteps: { title: string; detail: string; done: boolean }[] = [
-    {
-      title: 'Define the manifest',
-      detail: 'Scope allowed routes, forbidden actions and the output contract.',
-      done: Boolean(manifest),
-    },
-    {
-      title: 'Wire the tools',
-      detail: 'Connect the read and write tools the copilot needs, with risk levels.',
-      done: enabledTools.length > 0,
-    },
-    {
-      title: 'Write a test suite',
-      detail: 'Cover the core behaviors and safety cases before any traffic.',
-      done: false,
-    },
-    {
-      title: 'Run a benchmark',
-      detail: 'Compare candidate models on representative tasks.',
-      done: false,
-    },
-    {
-      title: 'Promote to beta',
-      detail: 'Open the promotion gate once every check passes.',
-      done: false,
-    },
-  ]
-
   return (
     <div className="space-y-8">
-      {/* 1 — KPI strip */}
-      <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-4">
-        <AgentMetricCard
-          label="Test pass rate"
-          value={testRuns.length > 0 || copilot.health.testPassRate > 0 ? formatPercent(copilot.health.testPassRate) : '—'}
-          delta={passRateDelta !== null ? formatPoints(passRateDelta) : undefined}
-          trend={passRateTrend}
-          hint={
-            testRuns.length > 0
-              ? `Across ${testSuites.length} suite${testSuites.length === 1 ? '' : 's'}`
-              : 'No test runs yet'
-          }
-        />
-        <AgentMetricCard
-          label="Benchmark score"
-          value={bestCandidate ? String(bestCandidate.result.score) : '—'}
-          hint={bestCandidate ? 'Best composite, out of 100' : 'No benchmark runs yet'}
-        />
-        <AgentMetricCard
-          label="Runs (24h)"
-          value={String(copilot.health.runsLast24h)}
-          hint={
-            copilot.health.runsLast24h > 0
-              ? `${formatPercent(copilot.health.errorRateLast24h)} error rate`
-              : 'No traffic yet'
-          }
-        />
-        <AgentMetricCard
-          label="Cost (24h)"
-          value={formatUsd(copilot.health.costLast24hUsd)}
-          hint={
-            copilot.health.runsLast24h > 0
-              ? `≈ ${formatUsd(copilot.health.costLast24hUsd / copilot.health.runsLast24h)} per run`
-              : 'No spend yet'
-          }
-        />
-      </div>
-
       {/* 2 — Bento grid */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Identity — 2 cols. No duplicated title/description: the page header already carries them. */}
@@ -484,30 +394,16 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                 for beta.
               </p>
 
-              {/* Flat rows separated by dividers — no box-in-box (doctrine: surfaces). */}
-              <ol className="mx-auto mt-8 max-w-md divide-y divide-zinc-950/5 text-left dark:divide-white/5">
-                {onboardingSteps.map((step, index) => (
-                  <li key={step.title} className="flex items-start gap-3 py-3">
-                    {step.done ? (
-                      <CheckCircleIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-green-600 dark:text-green-400" />
-                    ) : (
-                      <span
-                        aria-hidden="true"
-                        className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-zinc-950/5 font-mono text-xs text-zinc-500 tabular-nums ring-1 ring-zinc-950/10 dark:bg-white/5 dark:text-zinc-400 dark:ring-white/10"
-                      >
-                        {index + 1}
-                      </span>
-                    )}
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium text-zinc-950 dark:text-white">
-                        {step.title}
-                        {step.done ? <span className="ml-2 text-xs font-normal text-green-700 dark:text-green-400">Done</span> : null}
-                      </span>
-                      <span className="mt-0.5 block text-xs text-zinc-500">{step.detail}</span>
-                    </span>
-                  </li>
-                ))}
-              </ol>
+              {/* Vertical stepper — each step links to its real tab route. */}
+              <div className="mx-auto mt-8 max-w-md text-left">
+                <OnboardingSteps
+                  copilotId={copilot.id}
+                  hasManifest={Boolean(manifest)}
+                  toolCount={enabledTools.length}
+                  testSuiteCount={testSuites.length}
+                  hasProductionVersion={Boolean(productionVersion)}
+                />
+              </div>
 
               <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
                 <Button color="green" href={`${base}/manifest`}>

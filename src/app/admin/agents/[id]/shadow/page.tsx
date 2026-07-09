@@ -1,13 +1,13 @@
 import { notFound } from 'next/navigation'
 
 import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
-import { AgentMetricCard } from '@/components/agent-ops/agent-metric-card'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ShadowExperimentCard } from '@/components/agent-ops/shadow-experiment-card'
+import { ShadowLifecycleSteps } from '@/components/agent-ops/shadow-lifecycle-steps'
 import { Badge } from '@/components/catalyst/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Text } from '@/components/catalyst/text'
-import { formatPercent, formatTimestamp } from '@/lib/agent-mission-control/format'
+import { formatTimestamp } from '@/lib/agent-mission-control/format'
 import { getCopilot, getShadowExperimentsForCopilot, getVersion } from '@/lib/agent-mission-control/data'
 import type { ShadowMismatch } from '@/lib/agent-mission-control/types'
 
@@ -41,13 +41,6 @@ export default async function ShadowPage({ params }: { params: Promise<{ id: str
     )
   }
 
-  const current = sorted.find((e) => e.status === 'running') ?? latest
-  const totalSampled = experiments.reduce((sum, e) => sum + e.sampledRunCount, 0)
-  const totalUnsafe = experiments.reduce((sum, e) => sum + e.unsafeProposalCount, 0)
-
-  const diffPts = (current.agreementRate - current.agreementThreshold) * 100
-  const agreementTrend = diffPts > 0 ? 'up' : diffPts < 0 ? 'down' : 'flat'
-
   const mismatches = experiments
     .flatMap((e) => e.mismatches)
     .sort((a, b) => (a.occurredAt < b.occurredAt ? 1 : -1))
@@ -64,35 +57,16 @@ export default async function ShadowPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="space-y-8">
-      {/* Overview strip */}
-      <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
-        <AgentMetricCard
-          label="Agreement rate"
-          value={formatPercent(current.agreementRate)}
-          delta={`${diffPts >= 0 ? '+' : ''}${diffPts.toFixed(1)} pts vs threshold`}
-          trend={agreementTrend}
-          hint={current.name}
-        />
-        <AgentMetricCard
-          label="Sampled runs"
-          value={totalSampled.toLocaleString('en-US')}
-          hint={`Across ${experiments.length} ${experiments.length === 1 ? 'experiment' : 'experiments'}`}
-        />
-        <AgentMetricCard
-          label="Unsafe proposals"
-          value={totalUnsafe.toLocaleString('en-US')}
-          hint={totalUnsafe > 0 ? 'Blocks promotion until reviewed' : 'None across all shadow traffic'}
-        />
-      </div>
-
       {/* Experiments */}
       {experimentCards.map(({ experiment, productionVersion, candidateVersion }) => (
-        <ShadowExperimentCard
-          key={experiment.id}
-          experiment={experiment}
-          productionVersion={productionVersion}
-          candidateVersion={candidateVersion}
-        />
+        <section key={experiment.id} className="space-y-4">
+          <ShadowLifecycleSteps experiment={experiment} />
+          <ShadowExperimentCard
+            experiment={experiment}
+            productionVersion={productionVersion}
+            candidateVersion={candidateVersion}
+          />
+        </section>
       ))}
 
       {/* Mismatches */}
