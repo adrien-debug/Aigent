@@ -30,7 +30,7 @@ function StatusBanner({ gate, candidateLabel }: { gate: PromotionGate; candidate
 
   if (gate.overallStatus === 'ready') {
     return (
-      <div className="rounded-lg bg-green-500/10 p-4 outline outline-green-500/20">
+      <div className="-mx-6 -mt-5 border-b border-green-500/20 bg-green-500/10 px-6 py-4">
         <div className="flex gap-3">
           <CheckCircleIcon aria-hidden="true" className="size-5 shrink-0 text-green-600 dark:text-green-400" />
           <div className="min-w-0">
@@ -47,7 +47,7 @@ function StatusBanner({ gate, candidateLabel }: { gate: PromotionGate; candidate
 
   if (gate.overallStatus === 'blocked') {
     return (
-      <div className="rounded-lg bg-rose-500/10 p-4 outline outline-rose-500/20">
+      <div className="-mx-6 -mt-5 border-b border-rose-500/20 bg-rose-500/10 px-6 py-4">
         <div className="flex gap-3">
           <XCircleIcon aria-hidden="true" className="size-5 shrink-0 text-rose-600 dark:text-rose-400" />
           <div className="min-w-0">
@@ -65,7 +65,7 @@ function StatusBanner({ gate, candidateLabel }: { gate: PromotionGate; candidate
   }
 
   return (
-    <div className="rounded-lg bg-amber-500/10 p-4 outline outline-amber-500/20">
+    <div className="-mx-6 -mt-5 border-b border-amber-500/20 bg-amber-500/10 px-6 py-4">
       <div className="flex gap-3">
         <ClockIcon aria-hidden="true" className="size-5 shrink-0 text-amber-600 dark:text-amber-400" />
         <div className="min-w-0">

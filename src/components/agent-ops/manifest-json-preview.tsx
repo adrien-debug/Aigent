@@ -70,19 +70,20 @@ function HighlightedValue({ raw }: { raw: string }) {
 }
 
 /**
- * Read-only raw manifest preview on a doctrine nested surface.
+ * Read-only raw manifest preview rendered flat on the section card — the card
+ * is the box; a hairline divider separates the header row from the JSON.
  * Server-safe: the JSON is serialized once at render time.
  */
 export function ManifestJsonPreview({ manifest }: { manifest: AgentManifest }) {
   const lines = JSON.stringify(manifest, null, 2).split('\n')
 
   return (
-    <div className="overflow-hidden rounded-lg bg-zinc-50 ring-1 ring-zinc-950/5 dark:bg-zinc-950/50 dark:ring-white/5">
-      <div className="flex items-center justify-between gap-4 border-b border-zinc-950/5 dark:border-white/5 px-4 py-3">
+    <div>
+      <div className="flex items-center justify-between gap-4 border-b border-zinc-950/5 pb-3 dark:border-white/5">
         <span className="font-mono text-xs text-zinc-700 dark:text-zinc-300">manifest.json</span>
         <span className="font-mono text-xs tabular-nums text-zinc-500">{manifest.version}</span>
       </div>
-      <pre className="whitespace-pre-wrap break-words p-4 font-mono text-xs/5 text-zinc-600 dark:text-zinc-300">
+      <pre className="mt-3 whitespace-pre-wrap break-words font-mono text-xs/5 text-zinc-600 dark:text-zinc-300">
         <code>
           {lines.map((line, index) => (
             <HighlightedLine key={index} line={line} />

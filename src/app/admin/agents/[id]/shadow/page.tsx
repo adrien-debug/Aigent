@@ -8,7 +8,7 @@ import { Badge } from '@/components/catalyst/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Text } from '@/components/catalyst/text'
 import { formatPercent, formatTimestamp } from '@/lib/agent-mission-control/format'
-import { getCopilot, getShadowExperimentsForCopilot, getVersion } from '@/lib/agent-mission-control/mock-data'
+import { getCopilot, getShadowExperimentsForCopilot, getVersion } from '@/lib/agent-mission-control/data'
 import type { ShadowMismatch } from '@/lib/agent-mission-control/types'
 
 const severityConfig: Record<ShadowMismatch['severity'], { label: string; color: 'zinc' | 'amber' | 'rose' }> = {
@@ -24,10 +24,10 @@ function SeverityBadge({ severity }: { severity: ShadowMismatch['severity'] }) {
 
 export default async function ShadowPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const copilot = getCopilot(id)
+  const copilot = await getCopilot(id)
   if (!copilot) notFound()
 
-  const experiments = getShadowExperimentsForCopilot(id)
+  const experiments = await getShadowExperimentsForCopilot(id)
   const sorted = [...experiments].sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1))
   const [latest] = sorted
 
@@ -52,10 +52,20 @@ export default async function ShadowPage({ params }: { params: Promise<{ id: str
     .flatMap((e) => e.mismatches)
     .sort((a, b) => (a.occurredAt < b.occurredAt ? 1 : -1))
 
+  const experimentCards = await Promise.all(
+    sorted.map(async (experiment) => {
+      const [productionVersion, candidateVersion] = await Promise.all([
+        getVersion(experiment.productionVersionId),
+        getVersion(experiment.candidateVersionId),
+      ])
+      return { experiment, productionVersion, candidateVersion }
+    })
+  )
+
   return (
     <div className="space-y-8">
       {/* Overview strip */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
         <AgentMetricCard
           label="Agreement rate"
           value={formatPercent(current.agreementRate)}
@@ -76,12 +86,12 @@ export default async function ShadowPage({ params }: { params: Promise<{ id: str
       </div>
 
       {/* Experiments */}
-      {sorted.map((experiment) => (
+      {experimentCards.map(({ experiment, productionVersion, candidateVersion }) => (
         <ShadowExperimentCard
           key={experiment.id}
           experiment={experiment}
-          productionVersion={getVersion(experiment.productionVersionId)}
-          candidateVersion={getVersion(experiment.candidateVersionId)}
+          productionVersion={productionVersion}
+          candidateVersion={candidateVersion}
         />
       ))}
 

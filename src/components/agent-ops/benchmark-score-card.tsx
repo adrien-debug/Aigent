@@ -53,7 +53,7 @@ export function BenchmarkScoreCard({
   return (
     <article
       className={clsx(
-        'overflow-hidden rounded-xl bg-white dark:bg-zinc-900',
+        'overflow-hidden rounded-xl bg-white dark:bg-zinc-950',
         isBest ? 'ring-2 ring-green-500/40' : 'ring-1 ring-zinc-950/5 dark:ring-white/10'
       )}
     >

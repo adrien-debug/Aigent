@@ -15,7 +15,7 @@ import {
   getReplayComparisonsForCopilot,
   getVersion,
   getVersionsForCopilot,
-} from '@/lib/agent-mission-control/mock-data'
+} from '@/lib/agent-mission-control/data'
 import type { ReplayComparison } from '@/lib/agent-mission-control/types'
 
 const statusConfig: Record<ReplayComparison['status'], { label: string; color: 'zinc' | 'green' | 'amber' }> = {
@@ -27,11 +27,26 @@ const statusConfig: Record<ReplayComparison['status'], { label: string; color: '
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const copilot = getCopilot(id)
+  const copilot = await getCopilot(id)
   if (!copilot) notFound()
 
-  const comparisons = getReplayComparisonsForCopilot(id)
-  const versions = getVersionsForCopilot(id)
+  const [comparisons, versions] = await Promise.all([
+    getReplayComparisonsForCopilot(id),
+    getVersionsForCopilot(id),
+  ])
+  const comparisonItems = await Promise.all(
+    comparisons.map(async (comparison) => ({
+      comparison,
+      items: await Promise.all(
+        comparison.candidates.map(
+          async (candidate): Promise<ReplayCandidateItem> => ({
+            candidate,
+            versionLabel: (await getVersion(candidate.versionId))?.label ?? candidate.versionId,
+          })
+        )
+      ),
+    }))
+  )
   const models = Array.from(
     new Set([
       copilot.model,
@@ -83,7 +98,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       </AgentSectionCard>
 
       {comparisons.length === 0 ? (
-        <section className="rounded-xl bg-white px-6 py-12 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <section className="rounded-xl bg-white px-6 py-12 ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
           <div className="mx-auto max-w-md text-center">
             <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Replay lab</p>
             <Subheading level={3} className="mt-2">
@@ -102,15 +117,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </section>
       ) : (
         <div className="space-y-8">
-          {comparisons.map((comparison) => {
+          {comparisonItems.map(({ comparison, items }) => {
             const status = statusConfig[comparison.status]
-            const items: ReplayCandidateItem[] = comparison.candidates.map((candidate) => ({
-              candidate,
-              versionLabel: getVersion(candidate.versionId)?.label ?? candidate.versionId,
-            }))
 
             return (
-              <section key={comparison.id} className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+              <section key={comparison.id} className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
                 <h3 className="sr-only">Replay of run {comparison.sourceRunId}</h3>
                 <div className="border-b border-zinc-950/5 dark:border-white/5 px-6 py-4">
                   <div className="sm:flex sm:items-start sm:justify-between sm:gap-6">

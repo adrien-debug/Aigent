@@ -23,7 +23,7 @@ export function AgentBentoCard({
   return (
     <div
       className={clsx(
-        'relative overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10',
+        'relative overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10',
         className
       )}
     >

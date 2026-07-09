@@ -9,7 +9,7 @@ import { Button } from '@/components/catalyst/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Text } from '@/components/catalyst/text'
 import { formatDurationMs, formatPercent, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
-import { getCopilot, getRunsForCopilot, getStepsForRun, getToolCallsForRun } from '@/lib/agent-mission-control/mock-data'
+import { getCopilot, getRunsForCopilot, getStepsForRun, getToolCallsForRun } from '@/lib/agent-mission-control/data'
 import type { ToolCall } from '@/lib/agent-mission-control/types'
 
 const toolCallStatuses = [
@@ -28,16 +28,21 @@ export default async function RunsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   const { id } = await params
-  const copilot = getCopilot(id)
+  const copilot = await getCopilot(id)
   if (!copilot) notFound()
 
   const sp = await searchParams
-  const runs = [...getRunsForCopilot(id)].sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1))
+  const runs = [...(await getRunsForCopilot(id))].sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1))
 
   const requestedRunId = typeof sp.run === 'string' ? sp.run : undefined
   const selectedRun = runs.find((run) => run.id === requestedRunId) ?? runs[0]
 
-  const allToolCalls = runs.flatMap((run) => getToolCallsForRun(run.id))
+  const [allToolCallsByRun, selectedSteps, selectedToolCalls] = await Promise.all([
+    Promise.all(runs.map((run) => getToolCallsForRun(run.id))),
+    selectedRun ? getStepsForRun(selectedRun.id) : [],
+    selectedRun ? getToolCallsForRun(selectedRun.id) : [],
+  ])
+  const allToolCalls = allToolCallsByRun.flat()
   const toolCallCounts = allToolCalls.reduce<Record<ToolCall['status'], number>>(
     (acc, call) => {
       acc[call.status] += 1
@@ -50,7 +55,7 @@ export default async function RunsPage({
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-4">
         <AgentMetricCard label="Runs 24h" value={String(health.runsLast24h)} hint="Production traffic" />
         <AgentMetricCard
           label="Error rate"
@@ -62,7 +67,7 @@ export default async function RunsPage({
       </div>
 
       {runs.length === 0 || !selectedRun ? (
-        <div className="rounded-xl bg-white px-6 py-12 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div className="rounded-xl bg-white px-6 py-12 ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
           <div className="mx-auto max-w-md text-center">
             <SignalIcon aria-hidden="true" className="mx-auto size-8 text-zinc-400 dark:text-zinc-600" />
             <h2 className="mt-4 text-base font-semibold text-zinc-950 dark:text-white">No runs yet</h2>
@@ -126,12 +131,10 @@ export default async function RunsPage({
             </AgentSectionCard>
 
             <AgentSectionCard title="Tool calls" description="Outcomes across the runs above.">
-              <dl className="flex flex-wrap gap-2">
+              {/* Flat stat pairs — no boxed sub-surfaces inside a card (doctrine: surfaces). */}
+              <dl className="flex flex-wrap gap-x-6 gap-y-2">
                 {toolCallStatuses.map(({ status, label, dotClassName }) => (
-                  <div
-                    key={status}
-                    className="inline-flex items-baseline gap-2 rounded-lg bg-zinc-50 px-3 py-2 ring-1 ring-zinc-950/5 dark:bg-zinc-950/50 dark:ring-white/5"
-                  >
+                  <div key={status} className="flex items-baseline gap-2">
                     <span aria-hidden="true" className={clsx('size-1.5 shrink-0 self-center rounded-full', dotClassName)} />
                     <dt className="text-xs text-zinc-500 dark:text-zinc-400">{label}</dt>
                     <dd className="font-mono text-sm font-semibold tabular-nums text-zinc-950 dark:text-white">
@@ -144,11 +147,7 @@ export default async function RunsPage({
           </div>
 
           <div className="lg:col-span-3">
-            <RunDetailPanel
-              run={selectedRun}
-              steps={getStepsForRun(selectedRun.id)}
-              toolCalls={getToolCallsForRun(selectedRun.id)}
-            />
+            <RunDetailPanel run={selectedRun} steps={selectedSteps} toolCalls={selectedToolCalls} />
           </div>
         </div>
       )}

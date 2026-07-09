@@ -16,7 +16,7 @@ import {
   getTestResultsForRun,
   getTestRunsForCopilot,
   getTestSuitesForCopilot,
-} from '@/lib/agent-mission-control/mock-data'
+} from '@/lib/agent-mission-control/data'
 import type { TestResult, TestResultStatus, TestRun, TestSuite } from '@/lib/agent-mission-control/types'
 
 const suiteKindConfig: Record<TestSuite['kind'], { label: string; color: 'zinc' | 'amber' }> = {
@@ -35,25 +35,30 @@ const runStatusConfig: Record<TestRun['status'], { label: string; color: 'green'
 
 export default async function CopilotTestsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const copilot = getCopilot(id)
+  const copilot = await getCopilot(id)
   if (!copilot) notFound()
 
-  const suites = getTestSuitesForCopilot(id)
-  const runsById = new Map(getTestRunsForCopilot(id).map((run) => [run.id, run]))
+  const [suites, testRuns] = await Promise.all([getTestSuitesForCopilot(id), getTestRunsForCopilot(id)])
+  const runsById = new Map(testRuns.map((run) => [run.id, run]))
 
-  const suiteViews = suites.map((suite) => {
-    const lastRun = suite.lastRunId ? runsById.get(suite.lastRunId) : undefined
-    const results = lastRun ? getTestResultsForRun(lastRun.id) : []
+  const suiteViews = await Promise.all(
+    suites.map(async (suite) => {
+      const lastRun = suite.lastRunId ? runsById.get(suite.lastRunId) : undefined
+      const [results, cases] = await Promise.all([
+        lastRun ? getTestResultsForRun(lastRun.id) : ([] as TestResult[]),
+        getTestCasesForSuite(suite.id),
+      ])
 
-    const resultsByCase: Record<string, TestResult | undefined> = {}
-    const counts: Record<TestResultStatus, number> = { pass: 0, fail: 0, error: 0, skip: 0, running: 0 }
-    for (const result of results) {
-      resultsByCase[result.caseId] = result
-      counts[result.status] += 1
-    }
+      const resultsByCase: Record<string, TestResult | undefined> = {}
+      const counts: Record<TestResultStatus, number> = { pass: 0, fail: 0, error: 0, skip: 0, running: 0 }
+      for (const result of results) {
+        resultsByCase[result.caseId] = result
+        counts[result.status] += 1
+      }
 
-    return { suite, lastRun, results, resultsByCase, counts, cases: getTestCasesForSuite(suite.id) }
-  })
+      return { suite, lastRun, results, resultsByCase, counts, cases }
+    })
+  )
 
   const totalCases = suiteViews.reduce((sum, view) => sum + view.cases.length, 0)
   const totalResults = suiteViews.reduce((sum, view) => sum + view.results.length, 0)
@@ -63,7 +68,7 @@ export default async function CopilotTestsPage({ params }: { params: Promise<{ i
 
   if (suites.length === 0) {
     return (
-      <section className="rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+      <section className="rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
         <div className="px-6 py-12 sm:px-12">
           <div className="max-w-xl">
             <Subheading>No test suites yet</Subheading>
@@ -104,7 +109,7 @@ export default async function CopilotTestsPage({ params }: { params: Promise<{ i
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
           <AgentMetricCard
             label="Last run pass rate"
             value={totalResults > 0 ? formatPercent(totalPass / totalResults) : '—'}

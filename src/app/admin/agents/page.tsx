@@ -10,12 +10,11 @@ import NextLink from 'next/link'
 import { Button } from '@/components/catalyst/button'
 import { formatPercent, formatRelative, formatUsd } from '@/lib/agent-mission-control/format'
 import {
-  getCopilot,
   getCopilots,
   getProjects,
   getRecentWarnings,
   getRegistryKpis,
-} from '@/lib/agent-mission-control/mock-data'
+} from '@/lib/agent-mission-control/data'
 import type { RegistryWarning } from '@/lib/agent-mission-control/types'
 
 export const metadata: Metadata = {
@@ -41,7 +40,13 @@ const severityConfig: Record<
   },
 }
 
-function RecentWarningsCard({ warnings }: { warnings: RegistryWarning[] }) {
+function RecentWarningsCard({
+  warnings,
+  copilotNameById,
+}: {
+  warnings: RegistryWarning[]
+  copilotNameById: Map<string, string>
+}) {
   return (
     <AgentSectionCard
       title="Recent warnings"
@@ -52,7 +57,7 @@ function RecentWarningsCard({ warnings }: { warnings: RegistryWarning[] }) {
         <ul role="list" className="divide-y divide-zinc-950/5 dark:divide-white/5">
           {warnings.map((warning) => {
             const severity = severityConfig[warning.severity]
-            const copilotName = getCopilot(warning.copilotId)?.name
+            const copilotName = copilotNameById.get(warning.copilotId)
             return (
               <li key={warning.id} className="flex gap-x-3 py-4">
                 <span
@@ -92,11 +97,14 @@ function RecentWarningsCard({ warnings }: { warnings: RegistryWarning[] }) {
   )
 }
 
-export default function AgentsRegistryPage() {
-  const copilots = getCopilots()
-  const projects = getProjects()
-  const kpis = getRegistryKpis()
-  const warnings = getRecentWarnings(6)
+export default async function AgentsRegistryPage() {
+  const [copilots, projects, kpis, warnings] = await Promise.all([
+    getCopilots(),
+    getProjects(),
+    getRegistryKpis(),
+    getRecentWarnings(6),
+  ])
+  const copilotNameById = new Map(copilots.map((copilot) => [copilot.id, copilot.name]))
 
   return (
     <div className="space-y-8">
@@ -113,7 +121,7 @@ export default function AgentsRegistryPage() {
         }
       />
 
-      <section aria-label="Registry key metrics" className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+      <section aria-label="Registry key metrics" className="grid gap-8 sm:grid-cols-2 xl:grid-cols-6">
         <AgentMetricCard label="Copilots" value={String(kpis.totalCopilots)} hint={`${kpis.activeCopilots} active`} />
         <AgentMetricCard label="Active" value={String(kpis.activeCopilots)} hint="Serving traffic" />
         <AgentMetricCard
@@ -130,7 +138,11 @@ export default function AgentsRegistryPage() {
         />
       </section>
 
-      <RegistryView copilots={copilots} projects={projects} warningsSlot={<RecentWarningsCard warnings={warnings} />} />
+      <RegistryView
+        copilots={copilots}
+        projects={projects}
+        warningsSlot={<RecentWarningsCard warnings={warnings} copilotNameById={copilotNameById} />}
+      />
     </div>
   )
 }

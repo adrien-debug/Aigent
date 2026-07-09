@@ -1,16 +1,12 @@
-import { ArrowDownIcon, ArrowUpIcon, MinusIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
 
-const trendStyles = {
-  up: 'text-green-700 dark:text-green-400',
-  down: 'text-rose-600 dark:text-rose-400',
-  flat: 'text-zinc-500 dark:text-zinc-400',
-} as const
+import { Badge } from '@/components/catalyst/badge'
+import { Divider } from '@/components/catalyst/divider'
 
-const trendIcons = {
-  up: ArrowUpIcon,
-  down: ArrowDownIcon,
-  flat: MinusIcon,
+const trendColors = {
+  up: 'green',
+  down: 'rose',
+  flat: 'zinc',
 } as const
 
 const trendLabels = {
@@ -19,36 +15,45 @@ const trendLabels = {
   flat: 'Flat',
 } as const
 
+/**
+ * Catalyst demo "Stat" rhythm: a thin top divider, label, big value, delta
+ * badge — no card chrome (doctrine: KPI strips are trait-separated stats,
+ * not boxes).
+ */
 export function AgentMetricCard({
   label,
   value,
   delta,
   trend = 'flat',
   hint,
+  className,
 }: {
   label: string
   value: string
   delta?: string
   trend?: 'up' | 'down' | 'flat'
   hint?: string
+  className?: string
 }) {
-  const TrendIcon = trendIcons[trend]
-
   return (
-    <div className="rounded-xl bg-white px-4 py-5 ring-1 ring-zinc-950/5 sm:px-6 dark:bg-zinc-900 dark:ring-white/10">
-      <dl className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <dt className="text-xs font-medium tracking-wide text-zinc-500 uppercase">{label}</dt>
-        {delta ? (
-          <dd className={clsx('flex items-baseline gap-x-1 text-xs font-medium tabular-nums', trendStyles[trend])}>
-            <TrendIcon aria-hidden="true" className="size-3 shrink-0 self-center" />
-            <span className="sr-only">{trendLabels[trend]}:</span>
-            {delta}
-          </dd>
-        ) : null}
-        <dd className="w-full flex-none font-mono text-2xl font-semibold text-zinc-950 tabular-nums dark:text-white">
+    <div className={clsx(className)}>
+      <Divider />
+      <dl>
+        <dt className="mt-6 text-sm/6 font-medium text-zinc-500 sm:text-xs/6 dark:text-zinc-400">{label}</dt>
+        <dd className="mt-3 font-mono text-3xl/8 font-semibold text-zinc-950 tabular-nums sm:text-2xl/8 dark:text-white">
           {value}
         </dd>
-        {hint ? <dd className="w-full flex-none text-xs text-zinc-500">{hint}</dd> : null}
+        {delta || hint ? (
+          <dd className="mt-3 flex items-baseline gap-x-2 text-sm/6 sm:text-xs/6">
+            {delta ? (
+              <>
+                <span className="sr-only">{trendLabels[trend]}:</span>
+                <Badge color={trendColors[trend]}>{delta}</Badge>
+              </>
+            ) : null}
+            {hint ? <span className="text-zinc-500">{hint}</span> : null}
+          </dd>
+        ) : null}
       </dl>
     </div>
   )

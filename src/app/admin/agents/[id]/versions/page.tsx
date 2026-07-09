@@ -8,15 +8,15 @@ import { Subheading } from '@/components/catalyst/heading'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Text } from '@/components/catalyst/text'
 import { formatPercent } from '@/lib/agent-mission-control/format'
-import { getCopilot, getVersionsForCopilot } from '@/lib/agent-mission-control/mock-data'
+import { getCopilot, getVersionsForCopilot } from '@/lib/agent-mission-control/data'
 import type { CopilotVersion } from '@/lib/agent-mission-control/types'
 
 export default async function VersionsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const copilot = getCopilot(id)
+  const copilot = await getCopilot(id)
   if (!copilot) notFound()
 
-  const versions = getVersionsForCopilot(id)
+  const versions = await getVersionsForCopilot(id)
 
   const isProduction = (version: CopilotVersion) =>
     copilot.productionVersionId !== null
@@ -54,7 +54,7 @@ export default async function VersionsPage({ params }: { params: Promise<{ id: s
   if (emptyState) {
     return (
       <div className="space-y-8">
-        <div className="rounded-xl bg-white px-6 py-12 text-center ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div className="rounded-xl bg-white px-6 py-12 text-center ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
           <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Versions</p>
           <Subheading className="mt-2">Nothing to compare yet</Subheading>
           <Text className="mx-auto mt-2 max-w-md">
@@ -85,7 +85,7 @@ export default async function VersionsPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
         <AgentMetricCard
           label="Production version"
           value={productionVersion ? productionVersion.label : 'None'}

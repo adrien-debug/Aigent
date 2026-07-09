@@ -33,7 +33,7 @@ export function ArchitectureStrip({
           const status = step.status ?? 'off'
           return (
             <li key={`${step.name}-${index}`} className="flex items-center gap-3">
-              <div className="flex h-full min-w-32 flex-col justify-center rounded-lg bg-zinc-50 px-4 py-3 ring-1 ring-zinc-950/5 dark:bg-zinc-950/50 dark:ring-white/5">
+              <div className="flex h-full min-w-32 flex-col justify-center rounded-lg px-4 py-3 ring-1 ring-zinc-950/10 dark:ring-white/10">
                 <div className="flex items-center gap-2">
                   <span aria-hidden="true" className={clsx('size-1.5 shrink-0 rounded-full', statusDots[status])} />
                   <span className="text-sm font-medium whitespace-nowrap text-zinc-950 dark:text-white">

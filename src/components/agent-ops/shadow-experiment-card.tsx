@@ -2,6 +2,7 @@ import { CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/16/so
 import clsx from 'clsx'
 
 import { Badge } from '@/components/catalyst/badge'
+import { Divider } from '@/components/catalyst/divider'
 import { Subheading } from '@/components/catalyst/heading'
 import { formatDate, formatPercent } from '@/lib/agent-mission-control/format'
 import type { CopilotVersion, ShadowExperiment, VersionStage } from '@/lib/agent-mission-control/types'
@@ -86,7 +87,7 @@ export function ShadowExperimentCard({
   const thresholdPercent = Math.min(100, Math.max(0, experiment.agreementThreshold * 100))
 
   return (
-    <section className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+    <section className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
       {/* Header: name + window left, status right */}
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-zinc-950/5 dark:border-white/5 px-6 py-4">
         <div className="min-w-0">
@@ -101,15 +102,17 @@ export function ShadowExperimentCard({
       </div>
 
       <div className="px-6 py-5">
-        {/* Production vs candidate */}
-        <div className="grid grid-cols-1 items-center gap-4 rounded-lg bg-zinc-50 p-4 ring-1 ring-zinc-950/5 dark:bg-zinc-950/50 dark:ring-white/5 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        {/* Production vs candidate — flat two-column row, no box chrome */}
+        <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
           <VersionCell role="Production" version={productionVersion} versionId={experiment.productionVersionId} />
           <span className="text-xs font-semibold tracking-wide text-zinc-400 uppercase sm:px-2 dark:text-zinc-600">vs</span>
           <VersionCell role="Candidate" version={candidateVersion} versionId={experiment.candidateVersionId} />
         </div>
 
+        <Divider soft className="my-6" />
+
         {/* Agreement */}
-        <div className="mt-6">
+        <div>
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
             <p className="flex items-baseline gap-x-2">
               <span className="text-3xl font-semibold tracking-tight text-zinc-950 tabular-nums dark:text-white">

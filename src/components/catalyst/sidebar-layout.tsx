@@ -71,11 +71,10 @@ export function SidebarLayout({
         <div className="min-w-0 flex-1">{navbar}</div>
       </header>
 
-      {/* Content */}
-      <main className="flex flex-1 flex-col pb-2 lg:min-w-0 lg:pt-2 lg:pr-2 lg:pl-64">
-        <div className="grow p-6 lg:rounded-lg lg:bg-white lg:p-10 lg:shadow-xs lg:ring-1 lg:ring-zinc-950/5 dark:lg:bg-zinc-900 dark:lg:ring-white/10">
-          <div className="mx-auto max-w-6xl">{children}</div>
-        </div>
+      {/* Content — flush: no floating panel, no gutters, full width. Grey field,
+          black boxes inside (directive Adrien 2026-07-10) */}
+      <main className="flex flex-1 flex-col lg:min-w-0 lg:pl-64">
+        <div className="grow bg-zinc-100 p-4 lg:p-6 dark:bg-zinc-900">{children}</div>
       </main>
     </div>
   )

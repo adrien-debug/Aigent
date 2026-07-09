@@ -16,24 +16,25 @@ import {
   getBenchmarkRunsForSuite,
   getBenchmarkSuitesForCopilot,
   getCopilot,
-} from '@/lib/agent-mission-control/mock-data'
+} from '@/lib/agent-mission-control/data'
 import type { BenchmarkResult, BenchmarkRun } from '@/lib/agent-mission-control/types'
 
 type ScoredRow = { run: BenchmarkRun; result: BenchmarkResult }
 
-function scoredRowsForSuite(suiteId: string): ScoredRow[] {
-  return getBenchmarkRunsForSuite(suiteId)
-    .map((run) => ({ run, result: getBenchmarkResultForRun(run.id) }))
+async function scoredRowsForSuite(suiteId: string): Promise<ScoredRow[]> {
+  const runs = await getBenchmarkRunsForSuite(suiteId)
+  const rows = await Promise.all(runs.map(async (run) => ({ run, result: await getBenchmarkResultForRun(run.id) })))
+  return rows
     .filter((row): row is ScoredRow => row.result !== undefined)
     .sort((a, b) => b.result.score - a.result.score)
 }
 
 export default async function BenchmarksPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const copilot = getCopilot(id)
+  const copilot = await getCopilot(id)
   if (!copilot) notFound()
 
-  const suites = getBenchmarkSuitesForCopilot(id)
+  const suites = await getBenchmarkSuitesForCopilot(id)
 
   if (suites.length === 0) {
     return (
@@ -53,7 +54,9 @@ export default async function BenchmarksPage({ params }: { params: Promise<{ id:
     )
   }
 
-  const suiteRows = suites.map((suite) => ({ suite, rows: scoredRowsForSuite(suite.id) }))
+  const suiteRows = await Promise.all(
+    suites.map(async (suite) => ({ suite, rows: await scoredRowsForSuite(suite.id) }))
+  )
   const allRows = suiteRows.flatMap(({ rows }) => rows)
 
   const best =
@@ -66,7 +69,7 @@ export default async function BenchmarksPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
         <AgentMetricCard
           label="Best score"
           value={best ? `${best.result.score} / 100` : '—'}
@@ -111,7 +114,7 @@ export default async function BenchmarksPage({ params }: { params: Promise<{ id:
           </AgentSectionCard>
 
           {rows.length === 0 ? (
-            <div className="rounded-xl bg-white px-6 py-5 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+            <div className="rounded-xl bg-white px-6 py-5 ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
               <Text>No completed benchmark runs for this suite yet.</Text>
             </div>
           ) : (

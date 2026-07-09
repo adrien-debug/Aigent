@@ -5,14 +5,14 @@ import { AgentMetricCard } from '@/components/agent-ops/agent-metric-card'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ToolPermissionMatrix } from '@/components/agent-ops/tool-permission-matrix'
 import { formatPercent } from '@/lib/agent-mission-control/format'
-import { getCopilot, getToolsForCopilot } from '@/lib/agent-mission-control/mock-data'
+import { getCopilot, getToolsForCopilot } from '@/lib/agent-mission-control/data'
 
 export default async function ToolsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const copilot = getCopilot(id)
+  const copilot = await getCopilot(id)
   if (!copilot) notFound()
 
-  const tools = getToolsForCopilot(id)
+  const tools = await getToolsForCopilot(id)
 
   if (tools.length === 0) {
     return (
@@ -40,7 +40,7 @@ export default async function ToolsPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
         <AgentMetricCard
           label="Enabled tools"
           value={`${enabledCount}`}

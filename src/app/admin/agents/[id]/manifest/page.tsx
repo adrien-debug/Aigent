@@ -6,14 +6,14 @@ import { ManifestJsonPreview } from '@/components/agent-ops/manifest-json-previe
 import { ManifestSummaryCard } from '@/components/agent-ops/manifest-summary-card'
 import { ManifestVersionSelect } from '@/components/agent-ops/manifest-version-select'
 import { Button } from '@/components/catalyst/button'
-import { getCopilot, getManifestForCopilot, getVersionsForCopilot } from '@/lib/agent-mission-control/mock-data'
+import { getCopilot, getManifestForCopilot, getVersionsForCopilot } from '@/lib/agent-mission-control/data'
 
 export default async function ManifestPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const copilot = getCopilot(id)
+  const copilot = await getCopilot(id)
   if (!copilot) notFound()
 
-  const manifest = getManifestForCopilot(copilot.id)
+  const manifest = await getManifestForCopilot(copilot.id)
 
   if (!manifest) {
     return (
@@ -36,7 +36,7 @@ export default async function ManifestPage({ params }: { params: Promise<{ id: s
     )
   }
 
-  const versions = getVersionsForCopilot(copilot.id)
+  const versions = await getVersionsForCopilot(copilot.id)
   // V1 serves a single compiled manifest: only the version matching
   // manifest.version is selectable — the others are listed but disabled.
   const availableVersionId = versions.find((version) => version.label === manifest.version)?.id

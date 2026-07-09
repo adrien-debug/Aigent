@@ -4,7 +4,7 @@ import { CopilotTabs } from '@/components/agent-ops/copilot-tabs'
 import { RuntimeBadge } from '@/components/agent-ops/runtime-badge'
 import { StatusBadge } from '@/components/agent-ops/status-badge'
 import { Button } from '@/components/catalyst/button'
-import { getCopilot, getProject } from '@/lib/agent-mission-control/mock-data'
+import { getCopilot, getProject } from '@/lib/agent-mission-control/data'
 
 export default async function CopilotLayout({
   children,
@@ -14,10 +14,10 @@ export default async function CopilotLayout({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const copilot = getCopilot(id)
+  const copilot = await getCopilot(id)
   if (!copilot) notFound()
 
-  const project = getProject(copilot.projectId)
+  const project = await getProject(copilot.projectId)
 
   return (
     <div>

@@ -18,7 +18,7 @@ import {
   getPromotionGateForCopilot,
   getVersion,
   getVersionsForCopilot,
-} from '@/lib/agent-mission-control/mock-data'
+} from '@/lib/agent-mission-control/data'
 import type { CopilotVersion, IsoTimestamp } from '@/lib/agent-mission-control/types'
 
 interface HistoryEvent {
@@ -41,7 +41,7 @@ function HistoryFeed({ events }: { events: HistoryEvent[] }) {
           <div className="relative flex gap-3">
             <span
               className={clsx(
-                'flex size-8 shrink-0 items-center justify-center rounded-full ring-8 ring-white dark:ring-zinc-900',
+                'flex size-8 shrink-0 items-center justify-center rounded-full ring-8 ring-white dark:ring-zinc-950',
                 event.nodeClassName
               )}
             >
@@ -65,14 +65,14 @@ function HistoryFeed({ events }: { events: HistoryEvent[] }) {
 
 export default async function PublishPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const copilot = getCopilot(id)
+  const copilot = await getCopilot(id)
   if (!copilot) notFound()
 
-  const gate = getPromotionGateForCopilot(id)
+  const gate = await getPromotionGateForCopilot(id)
 
   if (!gate) {
     return (
-      <div className="rounded-xl bg-white px-6 py-12 ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+      <div className="rounded-xl bg-white px-6 py-12 ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
         <div className="mx-auto max-w-md text-center">
           <ArrowUpCircleIcon aria-hidden="true" className="mx-auto size-10 text-zinc-400 dark:text-zinc-600" />
           <Subheading className="mt-4">No candidate in the gate</Subheading>
@@ -89,15 +89,18 @@ export default async function PublishPage({ params }: { params: Promise<{ id: st
     )
   }
 
-  const candidateVersion = getVersion(gate.candidateVersionId)
-  const productionVersion = copilot.productionVersionId ? getVersion(copilot.productionVersionId) : undefined
+  const [candidateVersion, productionVersion, allVersions] = await Promise.all([
+    getVersion(gate.candidateVersionId),
+    copilot.productionVersionId ? getVersion(copilot.productionVersionId) : undefined,
+    getVersionsForCopilot(id),
+  ])
   const candidateLabel = candidateVersion?.label ?? gate.candidateVersionId
 
   // Rollback target: the previous production version — the newest archived
   // version created before the one currently serving production. Same
   // semantics as the Versions page. No previous production → no rollback.
   const rollbackVersion = productionVersion
-    ? getVersionsForCopilot(id)
+    ? allVersions
         .filter((version) => version.stage === 'archived' && version.createdAt < productionVersion.createdAt)
         .reduce<CopilotVersion | null>(
           (newest, version) => (newest === null || version.createdAt > newest.createdAt ? version : newest),

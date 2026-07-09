@@ -17,10 +17,22 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
   architecture strip — TOUJOURS re-tonalisé dark admin, jamais un look landing page.
 - Jamais 3 familles visuelles dans une même section. Jamais de placeholder/texte/image des packs.
 
-## Surfaces & profondeur (graphite/zinc, élévation par couches)
-- Fond app : `bg-zinc-950`
-- Carte / panneau : `bg-zinc-900 ring-1 ring-white/10 rounded-xl`
-- Surface imbriquée / code / matrice : `bg-zinc-950/50 ring-1 ring-white/5 rounded-lg`
+## Surfaces & profondeur (noir mission control — directive Adrien 2026-07-10)
+- **Fond du contenu (body) : GRIS `dark:bg-zinc-900`, flush** — zéro marge entre le contenu
+  et la sidebar / le bord droit du navigateur, zéro panneau flottant, zéro `max-w` centré.
+- **Carte / panneau : FOND NOIR comme la sidebar** — `dark:bg-zinc-950 ring-1 ring-white/10
+  rounded-xl`. Le contraste vient du champ gris du body : boxes noires SUR fond gris,
+  jamais l'inverse.
+- **Tables : JAMAIS de scroll latéral.** Une table tient dans sa colonne en pleine largeur ;
+  on retire des colonnes ou on tronque avant d'accepter un scroll horizontal.
+- **INTERDIT : box dans une box.** Aucune sous-surface encadrée (`bg-* + ring + rounded`) à
+  l'intérieur d'une carte. À l'intérieur d'une carte on sépare par `Divider` / `border-t
+  border-white/5` / espacement — jamais par une boîte imbriquée. Exceptions UNIQUEMENT :
+  cartes sélectionnables interactives (le ring est l'affordance de sélection) et les pistes
+  de meters/progress (ce ne sont pas des boîtes).
+- **KPI / stat strips : style stat Catalyst, PAS de box** — trait fin `Divider` en haut,
+  label, grosse valeur, `Badge` de delta (le composant `AgentMetricCard` implémente ce
+  rythme ; grille `grid gap-8 sm:grid-cols-2 xl:grid-cols-4`, jamais de carte autour).
 - Header de carte : `border-b border-white/5 px-6 py-4`, corps `px-6 py-5` (ou `p-6`)
 - Hover ligne de table : `hover:bg-white/2.5`
 - Pas de glassmorphism, pas d'ombres lourdes, pas de néon.

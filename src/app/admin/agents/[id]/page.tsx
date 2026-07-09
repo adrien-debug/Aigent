@@ -36,7 +36,7 @@ import {
   getToolsForCopilot,
   getVersion,
   MODEL_PROVIDER_LABELS,
-} from '@/lib/agent-mission-control/mock-data'
+} from '@/lib/agent-mission-control/data'
 import type {
   AgentRunStatus,
   BenchmarkResult,
@@ -97,23 +97,41 @@ function SectionLink({ href, children }: { href: string; children: React.ReactNo
 
 export default async function CopilotOverviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const copilot = getCopilot(id)
+  const copilot = await getCopilot(id)
   if (!copilot) notFound()
 
   const base = `/admin/agents/${copilot.id}`
-  const project = getProject(copilot.projectId)
-  const manifest = getManifestForCopilot(copilot.id)
-  const tools = getToolsForCopilot(copilot.id)
+  const [
+    project,
+    manifest,
+    tools,
+    productionVersion,
+    latestVersion,
+    testSuites,
+    allTestRuns,
+    allRuns,
+    benchmarkSuites,
+    shadowExperiments,
+    gate,
+  ] = await Promise.all([
+    getProject(copilot.projectId),
+    getManifestForCopilot(copilot.id),
+    getToolsForCopilot(copilot.id),
+    copilot.productionVersionId ? getVersion(copilot.productionVersionId) : undefined,
+    getVersion(copilot.latestVersionId),
+    getTestSuitesForCopilot(copilot.id),
+    getTestRunsForCopilot(copilot.id),
+    getRunsForCopilot(copilot.id),
+    getBenchmarkSuitesForCopilot(copilot.id),
+    getShadowExperimentsForCopilot(copilot.id),
+    getPromotionGateForCopilot(copilot.id),
+  ])
   const enabledTools = tools.filter((tool) => tool.enabled)
 
-  const productionVersion = copilot.productionVersionId ? getVersion(copilot.productionVersionId) : undefined
-  const latestVersion = getVersion(copilot.latestVersionId)
-
   // Tests — latest run + result breakdown
-  const testSuites = getTestSuitesForCopilot(copilot.id)
-  const testRuns = [...getTestRunsForCopilot(copilot.id)].sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+  const testRuns = [...allTestRuns].sort((a, b) => b.startedAt.localeCompare(a.startedAt))
   const latestTestRun = testRuns[0]
-  const latestTestResults = latestTestRun ? getTestResultsForRun(latestTestRun.id) : []
+  const latestTestResults = latestTestRun ? await getTestResultsForRun(latestTestRun.id) : []
   const passCount = latestTestResults.filter((r) => r.status === 'pass').length
   const failCount = latestTestResults.filter((r) => r.status === 'fail').length
   const errorCount = latestTestResults.filter((r) => r.status === 'error').length
@@ -128,26 +146,31 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
     passRateDelta === null || Math.abs(passRateDelta) < 0.5 ? 'flat' : passRateDelta > 0 ? 'up' : 'down'
 
   // Runs — last 5, newest first
-  const runs = [...getRunsForCopilot(copilot.id)].sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+  const runs = [...allRuns].sort((a, b) => b.startedAt.localeCompare(a.startedAt))
   const lastRuns = runs.slice(0, 5)
 
   // Benchmarks — best candidate across all suites
-  const benchmarkCandidates: { suite: BenchmarkSuite; run: BenchmarkRun; result: BenchmarkResult }[] =
-    getBenchmarkSuitesForCopilot(copilot.id).flatMap((suite) =>
-      getBenchmarkRunsForSuite(suite.id).flatMap((run) => {
-        const result = getBenchmarkResultForRun(run.id)
-        return result ? [{ suite, run, result }] : []
+  const benchmarkCandidates: { suite: BenchmarkSuite; run: BenchmarkRun; result: BenchmarkResult }[] = (
+    await Promise.all(
+      benchmarkSuites.map(async (suite) => {
+        const suiteRuns = await getBenchmarkRunsForSuite(suite.id)
+        const candidates = await Promise.all(
+          suiteRuns.map(async (run) => ({ suite, run, result: await getBenchmarkResultForRun(run.id) }))
+        )
+        return candidates.filter(
+          (candidate): candidate is { suite: BenchmarkSuite; run: BenchmarkRun; result: BenchmarkResult } =>
+            candidate.result !== undefined
+        )
       })
     )
+  ).flat()
   const bestCandidate = benchmarkCandidates.reduce<(typeof benchmarkCandidates)[number] | null>(
     (best, candidate) => (best === null || candidate.result.score > best.result.score ? candidate : best),
     null
   )
 
   // Shadow + gate → next actions
-  const shadowExperiments = getShadowExperimentsForCopilot(copilot.id)
   const runningShadow = shadowExperiments.find((experiment) => experiment.status === 'running')
-  const gate = getPromotionGateForCopilot(copilot.id)
 
   const isSparseDraft = copilot.status === 'draft' && runs.length === 0 && testRuns.length === 0
 
@@ -158,7 +181,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
   const nextActions: { key: string; title: string; reason: string; href: string }[] = []
 
   if (gate && gate.overallStatus !== 'ready') {
-    const candidate = getVersion(gate.candidateVersionId)
+    const candidate = await getVersion(gate.candidateVersionId)
     const failing = gate.checks.filter((check) => check.status === 'fail').length
     const pending = gate.checks.filter((check) => check.status === 'pending').length
     nextActions.push({
@@ -291,7 +314,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
   return (
     <div className="space-y-8">
       {/* 1 — KPI strip */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-4">
         <AgentMetricCard
           label="Test pass rate"
           value={testRuns.length > 0 || copilot.health.testPassRate > 0 ? formatPercent(copilot.health.testPassRate) : '—'}
@@ -444,7 +467,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
 
         {isSparseDraft ? (
           /* Onboarding empty state — replaces test / benchmark / runs cards */
-          <div className="relative isolate overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 lg:col-span-3 dark:bg-zinc-900 dark:ring-white/10">
+          <div className="relative isolate overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 lg:col-span-3 dark:bg-zinc-950 dark:ring-white/10">
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 bg-radial-[at_top] from-green-500/[0.04] dark:from-green-500/[0.06] via-transparent to-transparent"
@@ -461,12 +484,10 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                 for beta.
               </p>
 
-              <ol className="mx-auto mt-8 max-w-md space-y-3 text-left">
+              {/* Flat rows separated by dividers — no box-in-box (doctrine: surfaces). */}
+              <ol className="mx-auto mt-8 max-w-md divide-y divide-zinc-950/5 text-left dark:divide-white/5">
                 {onboardingSteps.map((step, index) => (
-                  <li
-                    key={step.title}
-                    className="flex items-start gap-3 rounded-lg bg-zinc-50 px-4 py-3 ring-1 ring-zinc-950/5 dark:bg-zinc-950/50 dark:ring-white/5"
-                  >
+                  <li key={step.title} className="flex items-start gap-3 py-3">
                     {step.done ? (
                       <CheckCircleIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-green-600 dark:text-green-400" />
                     ) : (

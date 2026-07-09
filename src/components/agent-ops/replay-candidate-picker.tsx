@@ -60,8 +60,8 @@ export function ReplayCandidatePicker({ items }: { items: ReplayCandidateItem[] 
                 'rounded-lg p-4 text-left transition-colors duration-150',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-500',
                 isSelected
-                  ? 'bg-zinc-100 ring-2 ring-green-500/60 dark:bg-zinc-950/60'
-                  : 'bg-zinc-50 ring-1 ring-zinc-950/5 hover:bg-zinc-100 hover:ring-zinc-950/10 dark:bg-zinc-950/40 dark:ring-white/5 dark:hover:bg-zinc-950/60 dark:hover:ring-white/10'
+                  ? 'bg-zinc-100 ring-2 ring-green-500/60 dark:bg-zinc-950'
+                  : 'bg-zinc-50 ring-1 ring-zinc-950/5 hover:bg-zinc-100 hover:ring-zinc-950/10 dark:bg-zinc-950 dark:ring-white/10 dark:hover:ring-white/20'
               )}
             >
               <span className="flex flex-wrap items-center justify-between gap-2">
@@ -116,7 +116,7 @@ export function ReplayCandidatePicker({ items }: { items: ReplayCandidateItem[] 
           </h4>
           <p className="text-xs text-zinc-500">Expected = production run · Actual = candidate replay</p>
         </div>
-        <div className="mt-3 overflow-hidden rounded-lg bg-zinc-50 px-4 py-2 ring-1 ring-zinc-950/5 dark:bg-zinc-950/50 dark:ring-white/5">
+        <div className="mt-3 border-t border-zinc-950/5 pt-2 dark:border-white/5">
           <ReplayComparisonTable candidate={selected.candidate} />
         </div>
       </div>

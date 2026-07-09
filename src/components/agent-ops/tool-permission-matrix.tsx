@@ -17,10 +17,10 @@ function isConfirmationForced(tool: ToolDefinition): boolean {
 }
 
 /**
- * Tool permission matrix — one row per tool, with UI-only enable/confirmation
- * switches (local state, no persistence). High & critical risk tools have
- * confirmation locked on. Designed to sit flush inside an AgentSectionCard
- * with `contentClassName="p-0"`.
+ * Tool permission matrix — one row per tool. Optimistic switches persisted via
+ * PATCH /api/agent-ops/tools/:id (gpu1) ; revert on failure. High & critical
+ * risk tools have confirmation locked on. Designed to sit flush inside an
+ * AgentSectionCard with `contentClassName="p-0"`.
  */
 export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
   const [enabledState, setEnabledState] = useState<Record<string, boolean>>(() =>
@@ -29,6 +29,26 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
   const [confirmationState, setConfirmationState] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(tools.map((tool) => [tool.id, tool.requiresConfirmation]))
   )
+
+  function persist(toolId: string, patch: { enabled?: boolean; requiresConfirmation?: boolean }) {
+    void fetch(`/api/agent-ops/tools/${encodeURIComponent(toolId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(String(res.status))
+      })
+      .catch(() => {
+        // revert optimiste en cas d'échec réseau/serveur
+        if (typeof patch.enabled === 'boolean') {
+          setEnabledState((prev) => ({ ...prev, [toolId]: !patch.enabled }))
+        }
+        if (typeof patch.requiresConfirmation === 'boolean') {
+          setConfirmationState((prev) => ({ ...prev, [toolId]: !patch.requiresConfirmation }))
+        }
+      })
+  }
 
   return (
     <div className="px-6 [--gutter:--spacing(6)]">
@@ -78,7 +98,10 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
                     <Switch
                       color="green"
                       checked={enabled}
-                      onChange={(checked) => setEnabledState((prev) => ({ ...prev, [tool.id]: checked }))}
+                      onChange={(checked) => {
+                        setEnabledState((prev) => ({ ...prev, [tool.id]: checked }))
+                        persist(tool.id, { enabled: checked })
+                      }}
                       aria-label={`Enable ${tool.name}`}
                     />
                     <span className="text-xs text-zinc-500">{enabled ? 'On' : 'Off'}</span>
@@ -91,7 +114,10 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
                       checked={requiresConfirmation}
                       disabled={forced}
                       onChange={(checked) => {
-                        if (!forced) setConfirmationState((prev) => ({ ...prev, [tool.id]: checked }))
+                        if (!forced) {
+                          setConfirmationState((prev) => ({ ...prev, [tool.id]: checked }))
+                          persist(tool.id, { requiresConfirmation: checked })
+                        }
                       }}
                       // A locked-on switch must LOOK on (doctrine): keep the green track, just dim it.
                       className={

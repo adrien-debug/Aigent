@@ -69,7 +69,7 @@ function ToolCallSummary({ call }: { call: ToolCall }) {
   const danger = call.status === 'blocked' || call.status === 'rejected' || call.status === 'error'
 
   return (
-    <div className="mt-2 rounded-lg bg-zinc-50 px-3 py-2 ring-1 ring-zinc-950/5 dark:bg-zinc-950/50 dark:ring-white/5">
+    <div className="mt-2 border-l-2 border-zinc-950/10 pl-3 dark:border-white/10">
       <div className="flex min-w-0 items-center gap-2">
         <Badge color={status.color}>{status.label}</Badge>
         <span
@@ -125,7 +125,7 @@ export function RunTimeline({
               <div className="relative flex gap-3">
                 <div
                   className={clsx(
-                    'flex size-8 shrink-0 items-center justify-center rounded-full ring-8 ring-white dark:ring-zinc-900',
+                    'flex size-8 shrink-0 items-center justify-center rounded-full ring-8 ring-white dark:ring-zinc-950',
                     statusStyle.node
                   )}
                 >

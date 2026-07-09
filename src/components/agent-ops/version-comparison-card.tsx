@@ -1,5 +1,3 @@
-import clsx from 'clsx'
-
 import { VersionStageBadge } from '@/components/agent-ops/version-stage-badge'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
@@ -27,17 +25,9 @@ function NotMeasured() {
   )
 }
 
-function ScoreCell({
-  label,
-  className,
-  children,
-}: {
-  label: string
-  className?: string
-  children: React.ReactNode
-}) {
+function ScoreCell({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className={clsx('px-4 py-3', className)}>
+    <div>
       <dt className="text-xs text-zinc-500">{label}</dt>
       <dd className="mt-1 text-sm">{children}</dd>
     </div>
@@ -58,7 +48,7 @@ export function VersionComparisonCard({
   const neverTested = versionNeverTested(version)
 
   return (
-    <article className="flex flex-col overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+    <article className="flex flex-col overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
       <div className="border-b border-zinc-950/5 dark:border-white/5 px-6 py-4">
         <div className="flex flex-wrap items-center gap-3">
           <h3 className="font-mono text-sm font-semibold tabular-nums text-zinc-950 dark:text-white">{version.label}</h3>
@@ -72,17 +62,17 @@ export function VersionComparisonCard({
       </div>
 
       <div className="flex flex-1 flex-col px-6 py-5">
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">{version.changelog}</p>
+        <p className="mb-6 text-sm text-zinc-500 dark:text-zinc-400">{version.changelog}</p>
 
-        <dl className="mt-auto grid grid-cols-2 overflow-hidden rounded-lg bg-zinc-50 ring-1 ring-zinc-950/5 dark:bg-zinc-950/50 dark:ring-white/5 [&>div]:border-zinc-950/5 dark:[&>div]:border-white/5">
-          <ScoreCell label="Test pass" className="border-r border-b">
+        <dl className="mt-auto grid grid-cols-2 gap-x-6 gap-y-4 border-t border-zinc-950/5 pt-4 dark:border-white/5">
+          <ScoreCell label="Test pass">
             {neverTested ? (
               <NotMeasured />
             ) : (
               <span className="font-mono tabular-nums text-zinc-950 dark:text-white">{formatPercent(scores.testPassRate)}</span>
             )}
           </ScoreCell>
-          <ScoreCell label="Benchmark" className="border-b">
+          <ScoreCell label="Benchmark">
             {neverTested ? (
               <NotMeasured />
             ) : (
@@ -92,7 +82,7 @@ export function VersionComparisonCard({
               </>
             )}
           </ScoreCell>
-          <ScoreCell label="Shadow agreement" className="border-r">
+          <ScoreCell label="Shadow agreement">
             {scores.shadowAgreement === null ? (
               <span className="text-zinc-500">Never shadowed</span>
             ) : (
