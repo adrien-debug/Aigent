@@ -43,7 +43,7 @@ export function OnboardingSteps({
     {
       name: 'Enable tools',
       description: 'Connect the read and write tools the copilot needs.',
-      href: `${base}/tools`,
+      href: `${base}/manifest#tools`,
       status: 'upcoming',
     },
     {

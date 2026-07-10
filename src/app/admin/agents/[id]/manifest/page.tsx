@@ -209,30 +209,37 @@ export default async function ConfigPage({ params }: { params: Promise<{ id: str
           />
         </div>
 
-        <div className="space-y-6 lg:sticky lg:top-6 lg:col-span-2 lg:self-start">
-          <div className="flex flex-col items-center gap-1 py-2">
+        <div className="lg:col-span-2 lg:sticky lg:top-6 lg:self-start">
+          {/* Completeness ring + the compiled source, expanded to fill the
+              column beside the (tall) manifest panel — no empty gutter. */}
+          <div className="flex items-center gap-5 pb-5">
             <RadialMeter
               value={complete}
               max={5}
               segments={5}
-              size={120}
+              size={96}
               strokeWidth={8}
               centerText={`${complete}/5`}
-              caption="sections complete"
               ariaLabel={`Manifest completeness: ${complete} of 5 sections`}
             />
+            <div>
+              <p className="text-sm font-semibold text-zinc-950 dark:text-white">Completeness</p>
+              <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                {complete} of 5 manifest sections defined.
+                {complete < 5 ? ' Fill the rest before promoting.' : ' Ready for the gate.'}
+              </p>
+            </div>
           </div>
 
-          <details className="group">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 border-t border-white/5 py-3 text-sm font-medium text-zinc-500 hover:text-zinc-950 dark:hover:text-white">
-              <span>View manifest source</span>
-              <span className="font-mono text-xs tabular-nums text-zinc-500 group-open:hidden">show</span>
-              <span className="hidden font-mono text-xs tabular-nums text-zinc-500 group-open:inline">hide</span>
-            </summary>
-            <div className="mt-3">
+          <div className="border-t border-zinc-950/5 pt-5 dark:border-white/5">
+            <div className="mb-3 flex items-baseline justify-between gap-2">
+              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Manifest source</p>
+              <span className="font-mono text-xs text-zinc-500 tabular-nums">read-only</span>
+            </div>
+            <div className="max-h-[32rem] overflow-auto">
               <ManifestJsonPreview manifest={manifest} />
             </div>
-          </details>
+          </div>
         </div>
       </div>
 

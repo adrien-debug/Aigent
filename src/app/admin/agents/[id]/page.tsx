@@ -6,6 +6,7 @@ import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ArchitectureStrip } from '@/components/agent-ops/architecture-strip'
 import { OnboardingSteps } from '@/components/agent-ops/onboarding-steps'
+import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
 import { RuntimeBadge } from '@/components/agent-ops/runtime-badge'
 import { StatusBadge } from '@/components/agent-ops/status-badge'
 import { TestResultBadge } from '@/components/agent-ops/test-result-badge'
@@ -164,6 +165,13 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
   const runningShadow = shadowExperiments.find((experiment) => experiment.status === 'running')
 
   const isSparseDraft = copilot.status === 'draft' && runs.length === 0 && testRuns.length === 0
+  // Onboarding progress (mirrors OnboardingSteps): manifest → tools → tests → promote.
+  const onboardingDone = [
+    Boolean(manifest),
+    enabledTools.length > 0,
+    testSuites.length > 0,
+    Boolean(productionVersion),
+  ].filter(Boolean).length
 
   // -------------------------------------------------------------------------
   // Next actions — derived from data, capped at 4
@@ -403,26 +411,49 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
         </AgentBentoCard>
 
         {isSparseDraft ? (
-          /* Onboarding empty state — replaces test / benchmark / runs cards */
+          /* Onboarding empty state — two columns fill the width: a progress
+             ring + narrative on the left, the actionable stepper on the right
+             (hairline divider, not a nested box). No wasted center gutter. */
           <div className="relative isolate overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 lg:col-span-3 dark:bg-zinc-950 dark:ring-white/10">
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-radial-[at_top] from-accent-500/[0.04] dark:from-accent-500/[0.06] via-transparent to-transparent"
+              className="pointer-events-none absolute inset-0 bg-radial-[at_top_left] from-accent-500/[0.05] dark:from-accent-500/[0.07] via-transparent to-transparent"
             />
-            <div className="relative mx-auto max-w-2xl px-6 py-12 text-center sm:px-8">
-              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Draft copilot</p>
-              <Subheading level={2} className="mt-2 text-balance">
-                Ship your first version
-              </Subheading>
-              <p className="mt-2 text-sm text-pretty text-zinc-500 dark:text-zinc-400">
-                {copilot.name} has a manifest and a skeleton graph, but no test runs, no benchmark and no
-                production traffic yet. Work through the checklist to get{' '}
-                <span className="font-mono tabular-nums">{latestVersion?.label ?? 'the first version'}</span> ready
-                for beta.
-              </p>
+            <div className="relative grid gap-x-10 gap-y-8 px-6 py-8 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center">
+              <div>
+                <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Draft copilot</p>
+                <Subheading level={2} className="mt-2 text-balance">
+                  Ship your first version
+                </Subheading>
+                <div className="mt-5 flex items-center gap-5">
+                  <RadialMeter
+                    value={onboardingDone}
+                    max={4}
+                    segments={4}
+                    size={104}
+                    centerText={`${onboardingDone}/4`}
+                    caption="steps done"
+                    ariaLabel={`Onboarding progress: ${onboardingDone} of 4 steps complete`}
+                  />
+                  <p className="max-w-xs text-sm text-pretty text-zinc-500 dark:text-zinc-400">
+                    {copilot.name} has a manifest and a skeleton graph, but no test runs, benchmark or production
+                    traffic yet. Finish the checklist to get{' '}
+                    <span className="font-mono tabular-nums">{latestVersion?.label ?? 'the first version'}</span> ready
+                    for beta.
+                  </p>
+                </div>
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <Button color="accent" href={`${base}/manifest`}>
+                    Review the manifest
+                  </Button>
+                  <Button outline href={`${base}/tests`}>
+                    Set up tests
+                  </Button>
+                </div>
+              </div>
 
-              {/* Vertical stepper — each step links to its real tab route. */}
-              <div className="mx-auto mt-8 max-w-md text-left">
+              {/* Actionable stepper — each step links to its real tab route. */}
+              <div className="lg:border-l lg:border-zinc-950/5 lg:pl-10 lg:dark:border-white/5">
                 <OnboardingSteps
                   copilotId={copilot.id}
                   hasManifest={Boolean(manifest)}
@@ -430,15 +461,6 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                   testSuiteCount={testSuites.length}
                   hasProductionVersion={Boolean(productionVersion)}
                 />
-              </div>
-
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-                <Button color="accent" href={`${base}/manifest`}>
-                  Review the manifest
-                </Button>
-                <Button outline href={`${base}/tests`}>
-                  Set up tests
-                </Button>
               </div>
             </div>
           </div>
