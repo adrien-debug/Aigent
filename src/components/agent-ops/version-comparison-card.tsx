@@ -44,7 +44,7 @@ export function VersionComparisonCard({
   isRollbackTarget?: boolean
 }) {
   const { scores } = version
-  const publishHref = `/admin/agents/${version.copilotId}/publish`
+  const publishHref = `/admin/agents/${version.copilotId}/versions#publish`
   const neverTested = versionNeverTested(version)
 
   return (

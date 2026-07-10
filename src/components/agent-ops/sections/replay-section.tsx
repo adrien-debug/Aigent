@@ -1,4 +1,3 @@
-import { notFound } from 'next/navigation'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
@@ -27,10 +26,10 @@ const statusConfig: Record<ReplayComparison['status'], { label: string; color: '
   diverged: { label: 'Diverged', color: 'accentStrong' },
 }
 
-export default async function Page({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+export async function ReplaySection({ copilotId }: { copilotId: string }) {
+  const id = copilotId
   const copilot = await getCopilot(id)
-  if (!copilot) notFound()
+  if (!copilot) return null
 
   const [comparisons, versions] = await Promise.all([
     getReplayComparisonsForCopilot(id),

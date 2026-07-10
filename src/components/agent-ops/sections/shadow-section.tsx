@@ -1,4 +1,3 @@
-import { notFound } from 'next/navigation'
 
 import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
@@ -22,10 +21,10 @@ function SeverityBadge({ severity }: { severity: ShadowMismatch['severity'] }) {
   return <Badge color={config.color}>{config.label}</Badge>
 }
 
-export default async function ShadowPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+export async function ShadowSection({ copilotId }: { copilotId: string }) {
+  const id = copilotId
   const copilot = await getCopilot(id)
-  if (!copilot) notFound()
+  if (!copilot) return null
 
   const experiments = await getShadowExperimentsForCopilot(id)
   const sorted = [...experiments].sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1))

@@ -179,7 +179,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
       key: 'gate',
       title: 'Open the promotion gate',
       reason: `${candidate?.label ?? gate.candidateVersionId} → ${versionStageLabels[gate.targetStage]}: ${failing} failing and ${pending} pending of ${gate.checks.length} checks.`,
-      href: `${base}/publish`,
+      href: `${base}/versions#publish`,
     })
   }
 
@@ -188,7 +188,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
       key: 'shadow',
       title: 'Review shadow mismatches',
       reason: `Agreement at ${formatPercent(runningShadow.agreementRate)}, below the ${formatPercent(runningShadow.agreementThreshold)} threshold, with ${runningShadow.unsafeProposalCount} unsafe proposal${runningShadow.unsafeProposalCount === 1 ? '' : 's'}.`,
-      href: `${base}/shadow`,
+      href: `${base}/tests#shadow`,
     })
   }
 
@@ -216,7 +216,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
       key: 'tools',
       title: 'Check failing tools',
       reason: `${failingTool.name} is at ${formatPercent(failingTool.errorRateLast7d)} error rate over 7 days.`,
-      href: `${base}/tools`,
+      href: `${base}/manifest#tools`,
     })
   }
 
@@ -510,7 +510,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                   <p className="text-sm text-zinc-500 dark:text-zinc-400">No benchmark runs yet for this copilot.</p>
                 )}
                 <div className="mt-6">
-                  <SectionLink href={`${base}/benchmarks`}>View benchmarks</SectionLink>
+                  <SectionLink href={`${base}/tests#benchmarks`}>View benchmarks</SectionLink>
                 </div>
               </AgentBentoCard>
             </div>

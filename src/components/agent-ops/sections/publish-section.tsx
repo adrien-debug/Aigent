@@ -1,5 +1,4 @@
 import { ArrowUpCircleIcon } from '@heroicons/react/24/outline'
-import { notFound } from 'next/navigation'
 import clsx from 'clsx'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
@@ -23,10 +22,10 @@ import {
 } from '@/lib/agent-mission-control/data'
 import type { CopilotVersion } from '@/lib/agent-mission-control/types'
 
-export default async function PublishPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+export async function PublishSection({ copilotId }: { copilotId: string }) {
+  const id = copilotId
   const copilot = await getCopilot(id)
-  if (!copilot) notFound()
+  if (!copilot) return null
 
   const gate = await getPromotionGateForCopilot(id)
 

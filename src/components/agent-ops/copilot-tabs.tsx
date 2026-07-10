@@ -4,17 +4,15 @@ import clsx from 'clsx'
 import { usePathname } from 'next/navigation'
 import { Link } from '@/components/catalyst/link'
 
+// Five grouped tabs. Each groups related pages as sections of one host page:
+//   Config  = manifest + tools        Quality = tests + benchmarks + shadow + replay
+//   Release = versions + publish
 const TABS = [
   { label: 'Overview', segment: '' },
-  { label: 'Manifest', segment: 'manifest' },
-  { label: 'Tools', segment: 'tools' },
-  { label: 'Tests', segment: 'tests' },
+  { label: 'Config', segment: 'manifest' },
   { label: 'Runs', segment: 'runs' },
-  { label: 'Benchmarks', segment: 'benchmarks' },
-  { label: 'Replay', segment: 'replay' },
-  { label: 'Shadow', segment: 'shadow' },
-  { label: 'Versions', segment: 'versions' },
-  { label: 'Publish', segment: 'publish' },
+  { label: 'Quality', segment: 'tests' },
+  { label: 'Release', segment: 'versions' },
 ] as const
 
 export function CopilotTabs({ copilotId }: { copilotId: string }) {
