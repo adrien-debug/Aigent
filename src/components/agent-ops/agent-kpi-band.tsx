@@ -6,6 +6,8 @@ export interface AgentKpiStat {
   change?: string
   changeType?: 'positive' | 'negative'
   hint?: string
+  /** Optional inline visualization (meter/gauge/bar) rendered under the value. */
+  viz?: React.ReactNode
 }
 
 /**
@@ -51,6 +53,7 @@ export function AgentKpiBand({ stats, className }: { stats: AgentKpiStat[]; clas
           <dd className="w-full flex-none text-2xl/8 font-medium tracking-tight text-zinc-950 dark:text-white">
             {stat.value}
           </dd>
+          {stat.viz ? <dd className="mt-3 w-full flex-none">{stat.viz}</dd> : null}
           {stat.hint ? <dd className="w-full flex-none text-xs text-zinc-500">{stat.hint}</dd> : null}
         </div>
       ))}

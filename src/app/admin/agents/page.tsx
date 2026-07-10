@@ -3,8 +3,11 @@ import type { Metadata } from 'next'
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { RegistryView } from '@/components/agent-ops/registry-view'
-import NextLink from 'next/link'
-import { formatPercent, formatRelative } from '@/lib/agent-mission-control/format'
+import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
+import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
+import { SeverityFeedRow, SeverityTally } from '@/components/agent-ops/widgets/severity-feed-row'
+import { SplitBar } from '@/components/agent-ops/widgets/split-bar'
+import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import {
   getCopilots,
   getProjects,
@@ -20,22 +23,6 @@ export const metadata: Metadata = {
 /** Fixed reference point matching the mock dataset window (no Date.now()). */
 const REFERENCE_NOW_ISO = '2026-07-09T12:00:00Z'
 
-const severityConfig: Record<
-  RegistryWarning['severity'],
-  { label: string; dotClassName: string; textClassName: string }
-> = {
-  warning: {
-    label: 'Warning',
-    dotClassName: 'bg-accent-500 dark:bg-accent-400',
-    textClassName: 'text-accent-600 dark:text-accent-400',
-  },
-  danger: {
-    label: 'Danger',
-    dotClassName: 'bg-accent-500 dark:bg-accent-400',
-    textClassName: 'text-accent-600 dark:text-accent-400',
-  },
-}
-
 function RecentWarningsCard({
   warnings,
   copilotNameById,
@@ -43,49 +30,31 @@ function RecentWarningsCard({
   warnings: RegistryWarning[]
   copilotNameById: Map<string, string>
 }) {
+  const warningCount = warnings.filter((w) => w.severity === 'warning').length
+  const dangerCount = warnings.filter((w) => w.severity === 'danger').length
+
   return (
     <AgentSectionCard
       title="Recent warnings"
       description="Latest signals across the registry."
+      actions={warnings.length > 0 ? <SeverityTally warning={warningCount} danger={dangerCount} /> : undefined}
       contentClassName="px-6 py-2"
     >
       {warnings.length > 0 ? (
-        <ul role="list" className="divide-y divide-zinc-950/5 dark:divide-white/5">
-          {warnings.map((warning) => {
-            const severity = severityConfig[warning.severity]
-            const copilotName = copilotNameById.get(warning.copilotId)
-            return (
-              <li key={warning.id} className="flex gap-x-3 py-4">
-                <span
-                  aria-hidden="true"
-                  className={`mt-2 size-1.5 shrink-0 rounded-full ${severity.dotClassName}`}
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm/6 text-zinc-700 dark:text-zinc-300">{warning.message}</p>
-                  <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
-                    <span className={`font-medium ${severity.textClassName}`}>{severity.label}</span>
-                    {copilotName ? (
-                      <>
-                        <span aria-hidden="true">&middot;</span>
-                        <span>{copilotName}</span>
-                      </>
-                    ) : null}
-                    <span aria-hidden="true">&middot;</span>
-                    <time dateTime={warning.occurredAt}>{formatRelative(warning.occurredAt, REFERENCE_NOW_ISO)}</time>
-                    <span aria-hidden="true">&middot;</span>
-                    <NextLink
-                      href={warning.href}
-                      className="font-medium text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white"
-                    >
-                      Investigate
-                      <span className="sr-only"> {copilotName ?? warning.copilotId} warning</span>
-                    </NextLink>
-                  </p>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+        <div role="list" className="divide-y divide-zinc-950/5 dark:divide-white/5">
+          {warnings.map((warning) => (
+            <div role="listitem" key={warning.id}>
+              <SeverityFeedRow
+                severity={warning.severity}
+                message={warning.message}
+                copilotName={copilotNameById.get(warning.copilotId)}
+                occurredAt={warning.occurredAt}
+                referenceNow={REFERENCE_NOW_ISO}
+                href={warning.href}
+              />
+            </div>
+          ))}
+        </div>
       ) : (
         <p className="py-4 text-sm text-zinc-500 dark:text-zinc-400">No open warnings. All copilots are healthy.</p>
       )}
@@ -110,10 +79,56 @@ export default async function AgentsRegistryPage() {
       <AgentKpiBand
         className="mt-2"
         stats={[
-          { name: 'On bench', value: String(onBenchCount), hint: 'Awaiting validation' },
-          { name: 'Assigned', value: String(assignedCount), hint: 'Validated onto projects' },
-          { name: 'Avg test pass', value: formatPercent(kpis.avgTestPassRate), hint: 'Measured copilots' },
-          { name: 'Runs 24h', value: kpis.runsLast24h.toLocaleString('en-US'), hint: 'All projects' },
+          {
+            name: 'Fleet',
+            value: String(kpis.totalCopilots),
+            viz: (
+              <SplitBar
+                segments={[
+                  { key: 'bench', label: 'On bench', value: onBenchCount, tone: 'zinc' },
+                  { key: 'assigned', label: 'Assigned', value: assignedCount, tone: 'accent-500' },
+                ]}
+              />
+            ),
+          },
+          {
+            name: 'Active share',
+            value: String(kpis.activeCopilots),
+            viz: (
+              <RadialMeter
+                value={kpis.activeCopilots}
+                max={Math.max(kpis.totalCopilots, 1)}
+                size={64}
+                strokeWidth={5}
+                caption={`of ${kpis.totalCopilots}`}
+                ariaLabel={`${kpis.activeCopilots} of ${kpis.totalCopilots} copilots active`}
+              />
+            ),
+          },
+          {
+            name: 'Avg test pass',
+            value: formatPercent(kpis.avgTestPassRate),
+            viz: (
+              <LinearMeter
+                value={kpis.avgTestPassRate}
+                valueText={formatPercent(kpis.avgTestPassRate)}
+                ariaLabel="Average test pass rate"
+              />
+            ),
+          },
+          {
+            name: 'Cost 24h',
+            value: formatUsd(kpis.totalCostLast24hUsd),
+            viz: (
+              <LinearMeter
+                value={kpis.openWarnings}
+                max={Math.max(kpis.totalCopilots, 1)}
+                tone="accentSolid"
+                valueText={`${kpis.openWarnings} open warning${kpis.openWarnings === 1 ? '' : 's'}`}
+                ariaLabel="Open warnings across the fleet"
+              />
+            ),
+          },
         ]}
       />
 

@@ -3,9 +3,10 @@ import clsx from 'clsx'
 import { Badge } from '@/components/catalyst/badge'
 import { Divider } from '@/components/catalyst/divider'
 
+// Monochrome: trend meaning rides on the LABEL + accent intensity, never a hue.
 const trendColors = {
-  up: 'green',
-  down: 'rose',
+  up: 'accent',
+  down: 'accentSolid',
   flat: 'zinc',
 } as const
 
@@ -26,6 +27,7 @@ export function AgentMetricCard({
   delta,
   trend = 'flat',
   hint,
+  viz,
   className,
 }: {
   label: string
@@ -33,6 +35,8 @@ export function AgentMetricCard({
   delta?: string
   trend?: 'up' | 'down' | 'flat'
   hint?: string
+  /** Optional inline visualization (meter/gauge/bar) rendered under the value. */
+  viz?: React.ReactNode
   className?: string
 }) {
   return (
@@ -43,6 +47,7 @@ export function AgentMetricCard({
         <dd className="mt-3 font-mono text-3xl/8 font-semibold text-zinc-950 tabular-nums sm:text-2xl/8 dark:text-white">
           {value}
         </dd>
+        {viz ? <dd className="mt-3">{viz}</dd> : null}
         {delta || hint ? (
           <dd className="mt-3 flex items-baseline gap-x-2 text-sm/6 sm:text-xs/6">
             {delta ? (

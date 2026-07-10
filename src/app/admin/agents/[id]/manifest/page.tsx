@@ -4,11 +4,14 @@ import { notFound } from 'next/navigation'
 import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
-import { ManifestCompleteness } from '@/components/agent-ops/manifest-completeness'
 import { ManifestJsonPreview } from '@/components/agent-ops/manifest-json-preview'
 import { ManifestSummaryCard } from '@/components/agent-ops/manifest-summary-card'
 import { ManifestVersionSelect } from '@/components/agent-ops/manifest-version-select'
 import { ToolPermissionMatrix } from '@/components/agent-ops/tool-permission-matrix'
+import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
+import { PolicyStateIndicator } from '@/components/agent-ops/widgets/policy-state-indicator'
+import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
+import { SplitBar } from '@/components/agent-ops/widgets/split-bar'
 import { Button } from '@/components/catalyst/button'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import {
@@ -17,6 +20,27 @@ import {
   getToolsForCopilot,
   getVersionsForCopilot,
 } from '@/lib/agent-mission-control/data'
+import type { AgentManifest, ToolRiskLevel } from '@/lib/agent-mission-control/types'
+
+const RISK_ORDER: ToolRiskLevel[] = ['low', 'medium', 'high', 'critical']
+const RISK_TONE = {
+  low: 'accent-400',
+  medium: 'accent-500',
+  high: 'accent-600',
+  critical: 'accent-700',
+} as const
+
+/** The 5 manifest sections scored by the completeness ring (mirrors deriveSteps). */
+function completeSectionCount(manifest: AgentManifest): number {
+  const checks = [
+    manifest.allowedRoutes.length > 0,
+    manifest.forbiddenActions.length > 0,
+    manifest.confirmationPolicy !== 'never' || manifest.alwaysConfirmActions.length > 0,
+    manifest.memorySources.length > 0,
+    Boolean(manifest.outputContract.schemaName) || manifest.outputContract.invariants.length > 0,
+  ]
+  return checks.filter(Boolean).length
+}
 
 /** Config tab — the agent's definition: its compiled manifest and its tool permissions. */
 export default async function ConfigPage({ params }: { params: Promise<{ id: string }> }) {
@@ -26,13 +50,14 @@ export default async function ConfigPage({ params }: { params: Promise<{ id: str
 
   const [manifest, tools] = await Promise.all([getManifestForCopilot(copilot.id), getToolsForCopilot(id)])
 
-  // Tool permissions section — rendered under the manifest (or on its own when
-  // there is no manifest yet). Same content as the former standalone Tools tab.
+  // Tool permissions section — a real table (legitimate box). A risk-mix
+  // SplitBar heads the card; the safety rule folds into its description.
+  const riskCounts = RISK_ORDER.map((risk) => tools.filter((t) => t.riskLevel === risk).length)
   const toolsSection = (
-    <section id="tools" className="scroll-mt-6 space-y-3">
+    <section id="tools" className="scroll-mt-6">
       <AgentSectionCard
         title="Tool permissions"
-        description="Which tools this copilot may call, and under which confirmation rules."
+        description="Which tools this copilot may call, and under which confirmation rules. High & critical risk tools always require human confirmation — this lock cannot be removed per tool."
         contentClassName={tools.length === 0 ? undefined : 'p-0'}
       >
         {tools.length === 0 ? (
@@ -45,19 +70,22 @@ export default async function ConfigPage({ params }: { params: Promise<{ id: str
             </p>
           </div>
         ) : (
-          <ToolPermissionMatrix tools={tools} />
+          <>
+            <div className="border-b border-zinc-950/5 px-6 py-4 dark:border-white/5">
+              <SplitBar
+                segments={RISK_ORDER.map((risk, i) => ({
+                  key: risk,
+                  label: risk,
+                  value: riskCounts[i],
+                  tone: RISK_TONE[risk],
+                }))}
+                caption={`${tools.length} tool${tools.length === 1 ? '' : 's'} by risk level`}
+              />
+            </div>
+            <ToolPermissionMatrix tools={tools} />
+          </>
         )}
       </AgentSectionCard>
-      {tools.length > 0 ? (
-        <p className="flex items-center gap-2 px-1 text-xs text-zinc-500">
-          <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-accent-500 dark:bg-accent-400" />
-          <span>
-            <span className="font-medium text-accent-600 dark:text-accent-400">Safety rule</span>
-            {' — '}high &amp; critical risk tools always require human confirmation. This lock cannot be removed per
-            tool.
-          </span>
-        </p>
-      ) : null}
     </section>
   )
 
@@ -96,60 +124,115 @@ export default async function ConfigPage({ params }: { params: Promise<{ id: str
     disabled: version.id !== availableVersionId,
   }))
 
+  const readWriteCount = manifest.memorySources.filter((s) => !s.readOnly).length
+  const readOnlyCount = manifest.memorySources.length - readWriteCount
+  const complete = completeSectionCount(manifest)
+
   return (
     <div className="space-y-8">
       <AgentKpiBand
         stats={[
           {
-            name: 'Allowed routes',
+            name: 'Scope',
             value: String(manifest.allowedRoutes.length),
-            hint: `${manifest.forbiddenActions.length} forbidden action${manifest.forbiddenActions.length === 1 ? '' : 's'}`,
+            viz: (
+              <SplitBar
+                segments={[
+                  { key: 'allowed', label: 'Allowed', value: manifest.allowedRoutes.length, tone: 'accent-400' },
+                  { key: 'forbidden', label: 'Forbidden', value: manifest.forbiddenActions.length, tone: 'accent-700' },
+                ]}
+              />
+            ),
           },
           {
-            name: 'Tools wired',
+            name: 'Tools & memory',
             value: String(manifest.toolIds.length),
-            hint: `${manifest.memorySources.length} memory source${manifest.memorySources.length === 1 ? '' : 's'}`,
+            viz: (
+              <SplitBar
+                segments={[
+                  { key: 'ro', label: 'Read-only', value: readOnlyCount, tone: 'zinc' },
+                  { key: 'rw', label: 'Read & write', value: readWriteCount, tone: 'accent-600' },
+                ]}
+              />
+            ),
           },
           {
-            name: 'Confirmation policy',
+            name: 'Confirmation',
             value:
               manifest.confirmationPolicy === 'risky-only'
                 ? 'Risky only'
                 : manifest.confirmationPolicy === 'always'
                   ? 'Always'
                   : 'Never',
-            hint: `${manifest.alwaysConfirmActions.length} always-confirm`,
+            viz: (
+              <PolicyStateIndicator
+                policy={manifest.confirmationPolicy}
+                alwaysConfirmCount={manifest.alwaysConfirmActions.length}
+              />
+            ),
           },
           {
             name: 'Per-run budget',
             value: formatUsd(manifest.maxCostPerRunUsd),
-            hint: `${manifest.maxStepsPerRun} steps max`,
+            viz: (
+              <div className="space-y-2">
+                <LinearMeter
+                  value={manifest.maxCostPerRunUsd}
+                  max={Math.max(manifest.maxCostPerRunUsd, 1)}
+                  valueText={formatUsd(manifest.maxCostPerRunUsd)}
+                  label="Cost ceiling"
+                  ariaLabel="Per-run cost ceiling"
+                />
+                <LinearMeter
+                  value={manifest.maxStepsPerRun}
+                  max={Math.max(manifest.maxStepsPerRun, 1)}
+                  tone="zinc"
+                  valueText={`${manifest.maxStepsPerRun} steps`}
+                  label="Steps ceiling"
+                  ariaLabel="Per-run steps ceiling"
+                />
+              </div>
+            ),
           },
         ]}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5 lg:items-start">
         <div className="lg:col-span-3">
-          <ManifestSummaryCard manifest={manifest} />
+          <ManifestSummaryCard
+            manifest={manifest}
+            actions={
+              availableVersionId ? (
+                <ManifestVersionSelect versions={versionOptions} initialVersionId={availableVersionId} />
+              ) : undefined
+            }
+          />
         </div>
 
         <div className="space-y-6 lg:sticky lg:top-6 lg:col-span-2 lg:self-start">
-          {availableVersionId ? (
-            <AgentSectionCard title="Version">
-              <ManifestVersionSelect versions={versionOptions} initialVersionId={availableVersionId} />
-            </AgentSectionCard>
-          ) : null}
+          <div className="flex flex-col items-center gap-1 py-2">
+            <RadialMeter
+              value={complete}
+              max={5}
+              segments={5}
+              size={120}
+              strokeWidth={8}
+              centerText={`${complete}/5`}
+              caption="sections complete"
+              ariaLabel={`Manifest completeness: ${complete} of 5 sections`}
+            />
+          </div>
 
-          <AgentSectionCard title="Completeness">
-            <ManifestCompleteness manifest={manifest} />
-          </AgentSectionCard>
-
-          <AgentSectionCard
-            title="Manifest source"
-            description="Compiled manifest served to the runtime gate. Read-only."
-          >
-            <ManifestJsonPreview manifest={manifest} />
-          </AgentSectionCard>
+          <details className="group">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 border-t border-white/5 py-3 text-sm font-medium text-zinc-500 hover:text-zinc-950 dark:hover:text-white">
+              <span>View manifest source</span>
+              <span className="font-mono text-xs tabular-nums text-zinc-500 group-open:hidden">show</span>
+              <span className="hidden font-mono text-xs tabular-nums text-zinc-500 group-open:inline">hide</span>
+            </summary>
+            <div className="mt-3">
+              <ManifestJsonPreview manifest={manifest} />
+            </div>
+          </details>
         </div>
       </div>
 
