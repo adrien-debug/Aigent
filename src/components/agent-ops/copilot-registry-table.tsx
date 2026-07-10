@@ -181,7 +181,13 @@ function AllRow({
                 <DropdownItem onClick={() => onUnassign(copilot)}>Unassign…</DropdownItem>
               </DropdownMenu>
             </Dropdown>
-          ) : null}
+          ) : (
+            // Reserve the menu's exact footprint so "Open" stays column-aligned
+            // across rows that have no row menu (unassigned copilots).
+            <Button plain aria-hidden="true" tabIndex={-1} className="pointer-events-none invisible">
+              <EllipsisVerticalIcon />
+            </Button>
+          )}
         </div>
       </td>
     </tr>

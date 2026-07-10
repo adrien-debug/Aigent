@@ -1,0 +1,237 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - navigation [ref=f1e4]:
+      - generic [ref=f1e12]:
+        - generic [ref=f1e13]: Agent Mission Control
+        - generic [ref=f1e14]: Copilot operations
+      - generic [ref=f1e15]:
+        - link "Copilots" [ref=f1e19] [cursor=pointer]:
+          - /url: /admin/agents
+        - generic [ref=f1e24]:
+          - heading "Platform" [level=3] [ref=f1e25]
+          - link "Projects" [ref=f1e27] [cursor=pointer]:
+            - /url: /admin/projects
+          - link "Settings" [ref=f1e32] [cursor=pointer]:
+            - /url: /admin/settings
+      - generic [ref=f1e38]:
+        - img [ref=f1e40]:
+          - generic [ref=f1e41]: AD
+        - generic [ref=f1e42]:
+          - generic [ref=f1e43]: Adrien
+          - generic [ref=f1e44]: Platform Admin
+    - main [ref=f1e45]:
+      - generic [ref=f1e47]:
+        - generic [ref=f1e48]:
+          - generic [ref=f1e49]:
+            - term [ref=f1e50]: On bench
+            - definition [ref=f1e51]: "2"
+            - definition [ref=f1e52]: Awaiting validation
+          - generic [ref=f1e53]:
+            - term [ref=f1e54]: Assigned
+            - definition [ref=f1e55]: "4"
+            - definition [ref=f1e56]: Validated onto projects
+          - generic [ref=f1e57]:
+            - term [ref=f1e58]: Avg test pass
+            - definition [ref=f1e59]: 86.7%
+            - definition [ref=f1e60]: Measured copilots
+          - generic [ref=f1e61]:
+            - term [ref=f1e62]: Runs 24h
+            - definition [ref=f1e63]: "201"
+            - definition [ref=f1e64]: All projects
+        - generic [ref=f1e65]:
+          - generic [ref=f1e66]:
+            - group "Registry view" [ref=f1e67]:
+              - button "Validation bench (2)" [pressed] [ref=f1e68]
+              - button "All copilots (6)" [ref=f1e69]
+            - generic [ref=f1e70]:
+              - generic [ref=f1e72]:
+                - generic [ref=f1e73]:
+                  - heading "Validation bench" [level=2] [ref=f1e74]
+                  - paragraph [ref=f1e75]: Copilots being tested and tuned — assigning one to a project is the validation act.
+                - generic [ref=f1e76]: 2 of 2
+              - generic [ref=f1e78]:
+                - generic [ref=f1e79]:
+                  - generic [ref=f1e80]:
+                    - text: Search
+                    - searchbox "Search" [ref=f1e83]
+                  - generic [ref=f1e84]:
+                    - text: Runtime
+                    - combobox "Runtime" [ref=f1e86]:
+                      - option "All runtimes" [selected]
+                      - option "LangGraph"
+                      - option "OpenAI Assistants"
+                      - option "Anthropic SDK"
+                      - option "Gemini"
+                      - option "Custom runtime"
+                  - generic [ref=f1e87]:
+                    - text: Status
+                    - combobox "Status" [ref=f1e89]:
+                      - option "All statuses" [selected]
+                      - option "Active"
+                      - option "Degraded"
+                      - option "Paused"
+                      - option "Draft"
+                      - option "Archived"
+                - table [ref=f1e94]:
+                  - rowgroup [ref=f1e95]:
+                    - row [ref=f1e96]:
+                      - columnheader "Name" [ref=f1e97]
+                      - columnheader "Runtime" [ref=f1e98]
+                      - columnheader "Status" [ref=f1e99]
+                      - columnheader "Tests" [ref=f1e100]
+                      - columnheader "Runs 24h" [ref=f1e101]
+                      - columnheader "Destination" [ref=f1e102]
+                      - columnheader "Actions" [ref=f1e103]
+                  - rowgroup [ref=f1e105]:
+                    - row [ref=f1e106]:
+                      - cell "Docs Drafter docs-drafter" [ref=f1e107]:
+                        - generic [ref=f1e108]:
+                          - img [ref=f1e110]:
+                            - generic [ref=f1e111]: DD
+                          - generic [ref=f1e112]:
+                            - link "Docs Drafter" [ref=f1e114] [cursor=pointer]:
+                              - /url: /admin/agents/cp-docs-drafter
+                            - generic [ref=f1e115]: docs-drafter
+                      - cell "Gemini gemini-2.5-pro" [ref=f1e116]:
+                        - generic [ref=f1e117]: Gemini
+                        - generic [ref=f1e118]: gemini-2.5-pro
+                      - cell [ref=f1e119]
+                      - cell "not tested bench —" [ref=f1e122]:
+                        - generic [ref=f1e123]:
+                          - text: —
+                          - generic [ref=f1e124]: not tested
+                        - generic [ref=f1e125]: bench —
+                      - cell "0" [ref=f1e126]
+                      - cell "Hearst Studio" [ref=f1e127]
+                      - cell [ref=f1e130]:
+                        - generic [ref=f1e131]:
+                          - button "Assign… Docs Drafter to a project" [ref=f1e132]:
+                            - text: Assign…
+                            - generic [ref=f1e133]: Docs Drafter to a project
+                          - link "Open , Docs Drafter" [ref=f1e134] [cursor=pointer]:
+                            - /url: /admin/agents/cp-docs-drafter
+                            - text: Open
+                            - generic [ref=f1e135]: ", Docs Drafter"
+                  - rowgroup [ref=f1e136]:
+                    - row [ref=f1e137]:
+                      - columnheader "Paused" [ref=f1e138]
+                    - row [ref=f1e139]:
+                      - cell "API Triage api-triage" [ref=f1e140]:
+                        - generic [ref=f1e141]:
+                          - img [ref=f1e143]:
+                            - generic [ref=f1e144]: AT
+                          - generic [ref=f1e145]:
+                            - link "API Triage" [ref=f1e147] [cursor=pointer]:
+                              - /url: /admin/agents/cp-api-triage
+                            - generic [ref=f1e148]: api-triage
+                      - cell "Custom runtime mistral-large-2508" [ref=f1e149]:
+                        - generic [ref=f1e150]: Custom runtime
+                        - generic [ref=f1e151]: mistral-large-2508
+                      - cell [ref=f1e152]
+                      - cell "not tested bench —" [ref=f1e155]:
+                        - generic [ref=f1e156]:
+                          - text: —
+                          - generic [ref=f1e157]: not tested
+                        - generic [ref=f1e158]: bench —
+                      - cell "0" [ref=f1e159]
+                      - cell "Hearst Gateway" [ref=f1e160]
+                      - cell [ref=f1e163]:
+                        - generic [ref=f1e164]:
+                          - button "Assign… API Triage to a project" [ref=f1e165]:
+                            - text: Assign…
+                            - generic [ref=f1e166]: API Triage to a project
+                          - link "Open , API Triage" [ref=f1e167] [cursor=pointer]:
+                            - /url: /admin/agents/cp-api-triage
+                            - text: Open
+                            - generic [ref=f1e168]: ", API Triage"
+          - generic [ref=f1e169]:
+            - generic [ref=f1e172]:
+              - heading "Recent warnings" [level=2] [ref=f1e173]
+              - paragraph [ref=f1e174]: Latest signals across the registry.
+            - list [ref=f1e176]:
+              - listitem [ref=f1e177]:
+                - generic [ref=f1e179]:
+                  - paragraph [ref=f1e180]: Error rate over the last 24h is 18%, above the 5% alert threshold.
+                  - paragraph [ref=f1e181]:
+                    - generic [ref=f1e182]: Warning
+                    - generic [ref=f1e183]: ·
+                    - generic [ref=f1e184]: Billing Sentinel
+                    - generic [ref=f1e185]: ·
+                    - time [ref=f1e186]: 5h ago
+                    - generic [ref=f1e187]: ·
+                    - link "Investigate Billing Sentinel warning" [ref=f1e188] [cursor=pointer]:
+                      - /url: /admin/agents/cp-billing-sentinel
+                      - text: Investigate
+                      - generic [ref=f1e189]: Billing Sentinel warning
+              - listitem [ref=f1e190]:
+                - generic [ref=f1e192]:
+                  - paragraph [ref=f1e193]: Test pass rate dropped to 33% on the anomaly-detection suite (proration regression).
+                  - paragraph [ref=f1e194]:
+                    - generic [ref=f1e195]: Danger
+                    - generic [ref=f1e196]: ·
+                    - generic [ref=f1e197]: Billing Sentinel
+                    - generic [ref=f1e198]: ·
+                    - time [ref=f1e199]: 5h ago
+                    - generic [ref=f1e200]: ·
+                    - link "Investigate Billing Sentinel warning" [ref=f1e201] [cursor=pointer]:
+                      - /url: /admin/agents/cp-billing-sentinel/tests
+                      - text: Investigate
+                      - generic [ref=f1e202]: Billing Sentinel warning
+              - listitem [ref=f1e203]:
+                - generic [ref=f1e205]:
+                  - paragraph [ref=f1e206]: "Nightly sweep failed: invoice_lookup timing out on shard eu-2 (error rate 21% over 7 days)."
+                  - paragraph [ref=f1e207]:
+                    - generic [ref=f1e208]: Danger
+                    - generic [ref=f1e209]: ·
+                    - generic [ref=f1e210]: Billing Sentinel
+                    - generic [ref=f1e211]: ·
+                    - time [ref=f1e212]: 9h ago
+                    - generic [ref=f1e213]: ·
+                    - link "Investigate Billing Sentinel warning" [ref=f1e214] [cursor=pointer]:
+                      - /url: /admin/agents/cp-billing-sentinel/runs
+                      - text: Investigate
+                      - generic [ref=f1e215]: Billing Sentinel warning
+              - listitem [ref=f1e216]:
+                - generic [ref=f1e218]:
+                  - paragraph [ref=f1e219]: Shadow experiment agreement at 94.0%, below the 95% promotion threshold, with 1 unsafe proposal.
+                  - paragraph [ref=f1e220]:
+                    - generic [ref=f1e221]: Warning
+                    - generic [ref=f1e222]: ·
+                    - generic [ref=f1e223]: Support Navigator
+                    - generic [ref=f1e224]: ·
+                    - time [ref=f1e225]: 16h ago
+                    - generic [ref=f1e226]: ·
+                    - link "Investigate Support Navigator warning" [ref=f1e227] [cursor=pointer]:
+                      - /url: /admin/agents/cp-support-navigator/shadow
+                      - text: Investigate
+                      - generic [ref=f1e228]: Support Navigator warning
+              - listitem [ref=f1e229]:
+                - generic [ref=f1e231]:
+                  - paragraph [ref=f1e232]: schedule_publish has not been exercised by tests since the v1.2.0-beta.1 build.
+                  - paragraph [ref=f1e233]:
+                    - generic [ref=f1e234]: Warning
+                    - generic [ref=f1e235]: ·
+                    - generic [ref=f1e236]: Release Pilot
+                    - generic [ref=f1e237]: ·
+                    - time [ref=f1e238]: 2d ago
+                    - generic [ref=f1e239]: ·
+                    - link "Investigate Release Pilot warning" [ref=f1e240] [cursor=pointer]:
+                      - /url: /admin/agents/cp-release-pilot/tests
+                      - text: Investigate
+                      - generic [ref=f1e241]: Release Pilot warning
+              - listitem [ref=f1e242]:
+                - generic [ref=f1e244]:
+                  - paragraph [ref=f1e245]: Copilot paused for 7 days; quota_read credentials expire on 2026-07-20.
+                  - paragraph [ref=f1e246]:
+                    - generic [ref=f1e247]: Warning
+                    - generic [ref=f1e248]: ·
+                    - generic [ref=f1e249]: API Triage
+                    - generic [ref=f1e250]: ·
+                    - time [ref=f1e251]: 3d ago
+                    - generic [ref=f1e252]: ·
+                    - link "Investigate API Triage warning" [ref=f1e253] [cursor=pointer]:
+                      - /url: /admin/agents/cp-api-triage
+                      - text: Investigate
+                      - generic [ref=f1e254]: API Triage warning
+  - button "Open Next.js Dev Tools" [ref=f1e260] [cursor=pointer]
+  - alert [ref=f1e264]
