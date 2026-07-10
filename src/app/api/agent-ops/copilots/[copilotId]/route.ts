@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
  * (banc de validation) : `projectId` (null = retour sur le banc) et/ou
  * `targetProjectIds` (destinations de développement, 2 max).
  * Écrit dans la base gpu1 via PostgREST (service_role, serveur uniquement).
- * En mode mock (AMC_DATA_SOURCE ≠ gpu1) : no-op accepté, l'UI reste locale.
+ * Live-only : sans backend gpu1 configuré, on refuse (503) — jamais de faux succès.
  */
 export async function PATCH(
   request: Request,
@@ -41,14 +41,10 @@ export async function PATCH(
     return NextResponse.json({ error: 'nothing to update' }, { status: 400 })
   }
 
-  if (process.env.AMC_DATA_SOURCE !== 'gpu1') {
-    return NextResponse.json({ ok: true, persisted: false })
-  }
-
   const base = process.env.AMC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!base || !key) {
-    return NextResponse.json({ error: 'backend not configured' }, { status: 503 })
+  if (process.env.AMC_DATA_SOURCE !== 'gpu1' || !base || !key) {
+    return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
   }
 
   const res = await fetch(`${base}/rest/v1/copilots?id=eq.${encodeURIComponent(copilotId)}`, {

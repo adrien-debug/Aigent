@@ -224,6 +224,10 @@ export default async function PublishPage({ params }: { params: Promise<{ id: st
           <Divider soft className="my-4" />
 
           <PublishActions
+            copilotId={id}
+            candidateVersionId={gate.candidateVersionId}
+            productionVersionId={copilot.productionVersionId}
+            rollbackVersionId={rollbackVersion?.id ?? null}
             overallStatus={gate.overallStatus}
             targetStage={gate.targetStage}
             blockingCheckLabels={blockingCheckLabels}
