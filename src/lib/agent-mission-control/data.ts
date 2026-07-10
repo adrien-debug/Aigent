@@ -196,6 +196,25 @@ export async function getRecentRuns(limit = 30): Promise<AgentRun[]> {
   })
 }
 
+/** Traces d'un projet : les runs de SES copilotes (menu Traces par projet). */
+export async function getRecentRunsForProject(projectId: string, limit = 30): Promise<AgentRun[]> {
+  if (!isGpu1Backed()) {
+    return [...mock.agentRuns]
+      .filter((r) => r.projectId === projectId)
+      .sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1))
+      .slice(0, limit)
+  }
+  const rows = await rest<RawRow[]>(
+    `agent_runs?select=*,agent_run_steps(id)&project_id=eq.${encodeURIComponent(projectId)}&order=started_at.desc&limit=${limit}`
+  )
+  return rows.map((r) => {
+    const { agent_run_steps, ...rest_ } = r as RawRow & { agent_run_steps: { id: string }[] }
+    const run = camelRow<AgentRun>(rest_)
+    run.stepIds = (agent_run_steps ?? []).map((s) => s.id)
+    return run
+  })
+}
+
 export async function getStepsForRun(runId: string): Promise<AgentRunStep[]> {
   if (!isGpu1Backed()) return mock.getStepsForRun(runId)
   return camelRows<AgentRunStep>(

@@ -42,6 +42,7 @@ import type {
   BenchmarkResult,
   BenchmarkRun,
   BenchmarkSuite,
+  Project,
 } from '@/lib/agent-mission-control/types'
 
 // ---------------------------------------------------------------------------
@@ -103,7 +104,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
     shadowExperiments,
     gate,
   ] = await Promise.all([
-    getProject(copilot.projectId),
+    copilot.projectId ? getProject(copilot.projectId) : undefined,
     getManifestForCopilot(copilot.id),
     getToolsForCopilot(copilot.id),
     copilot.productionVersionId ? getVersion(copilot.productionVersionId) : undefined,
@@ -116,6 +117,16 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
     getPromotionGateForCopilot(copilot.id),
   ])
   const enabledTools = tools.filter((tool) => tool.enabled)
+
+  // Validation bench — projectId null means not yet validated; targetProjectIds are the
+  // intended dev destination(s) once the copilot graduates.
+  const onBench = copilot.projectId === null
+  const targetProjects: Project[] =
+    onBench && copilot.targetProjectIds.length > 0
+      ? (await Promise.all(copilot.targetProjectIds.map((projectId) => getProject(projectId)))).filter(
+          (candidate): candidate is Project => candidate !== undefined
+        )
+      : []
 
   // Tests — latest run + result breakdown
   const testRuns = [...allTestRuns].sort((a, b) => b.startedAt.localeCompare(a.startedAt))
@@ -270,7 +281,23 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
             <DescriptionDetails className="font-mono text-sm">{copilot.owner}</DescriptionDetails>
 
             <DescriptionTerm>Project</DescriptionTerm>
-            <DescriptionDetails>{project ? project.name : 'Unassigned'}</DescriptionDetails>
+            <DescriptionDetails>
+              {onBench ? (
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="font-medium text-amber-600 dark:text-amber-400">
+                    Validation bench
+                    <span className="sr-only"> — not yet validated</span>
+                  </span>
+                  {targetProjects.length > 0 ? (
+                    <span className="text-zinc-500 dark:text-zinc-400">
+                      → {targetProjects.map((target) => target.name).join(', ')}
+                    </span>
+                  ) : null}
+                </span>
+              ) : (
+                (project?.name ?? '—')
+              )}
+            </DescriptionDetails>
 
             <DescriptionTerm>Model</DescriptionTerm>
             <DescriptionDetails className="font-mono text-sm tabular-nums">{copilot.model}</DescriptionDetails>

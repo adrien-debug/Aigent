@@ -39,10 +39,15 @@ const EMPTY_ROLLUP: ProjectRollup = {
   openWarnings: 0,
 }
 
-/** Aggregate copilot health per project — one pass over the registry. */
+/**
+ * Aggregate copilot health per project — one pass over the registry.
+ * `projectId: null` = bench copilot (not yet validated) → excluded from
+ * per-project counts.
+ */
 function rollupByProject(copilots: Copilot[]): Map<string, ProjectRollup> {
   const byProject = new Map<string, ProjectRollup>()
   for (const copilot of copilots) {
+    if (copilot.projectId === null) continue
     const current = byProject.get(copilot.projectId) ?? { ...EMPTY_ROLLUP }
     current.copilotCount += 1
     if (copilot.status === 'active') current.activeCount += 1
@@ -58,8 +63,10 @@ export default async function ProjectsPage() {
   const [projects, copilots] = await Promise.all([getProjects(), getCopilots()])
   const rollups = rollupByProject(copilots)
 
-  const totalRuns = copilots.reduce((sum, copilot) => sum + copilot.health.runsLast24h, 0)
-  const totalCost = copilots.reduce((sum, copilot) => sum + copilot.health.costLast24hUsd, 0)
+  // Bench copilots (projectId null) are excluded — this page counts validated agents only.
+  const validated = copilots.filter((copilot) => copilot.projectId !== null)
+  const totalRuns = validated.reduce((sum, copilot) => sum + copilot.health.runsLast24h, 0)
+  const totalCost = validated.reduce((sum, copilot) => sum + copilot.health.costLast24hUsd, 0)
 
   return (
     <div className="space-y-8">
@@ -68,7 +75,7 @@ export default async function ProjectsPage() {
         className="mt-2"
         stats={[
           { name: 'Projects', value: String(projects.length) },
-          { name: 'Copilots', value: String(copilots.length), hint: 'across all projects' },
+          { name: 'Copilots', value: String(validated.length), hint: 'validated — excl. bench' },
           { name: 'Runs 24h', value: totalRuns.toLocaleString('en-US') },
           { name: 'Cost 24h', value: formatUsd(totalCost) },
         ]}
@@ -103,7 +110,11 @@ export default async function ProjectsPage() {
                       <TableCell>
                         <div className="min-w-0">
                           <div className="truncate font-medium text-zinc-950 dark:text-white">
-                            <Link href="/admin/agents" title={project.name} className="hover:underline">
+                            <Link
+                              href={`/admin/projects/${project.id}`}
+                              title={project.name}
+                              className="hover:underline"
+                            >
                               {project.name}
                             </Link>
                           </div>

@@ -89,6 +89,7 @@ export const copilots: Copilot[] = [
   {
     id: 'cp-support-navigator',
     projectId: 'proj-console',
+    targetProjectIds: [],
     name: 'Support Navigator',
     slug: 'support-navigator',
     description:
@@ -116,6 +117,7 @@ export const copilots: Copilot[] = [
   {
     id: 'cp-billing-sentinel',
     projectId: 'proj-console',
+    targetProjectIds: [],
     name: 'Billing Sentinel',
     slug: 'billing-sentinel',
     description:
@@ -142,7 +144,8 @@ export const copilots: Copilot[] = [
   },
   {
     id: 'cp-docs-drafter',
-    projectId: 'proj-studio',
+    projectId: null,
+    targetProjectIds: ['proj-studio'],
     name: 'Docs Drafter',
     slug: 'docs-drafter',
     description:
@@ -170,6 +173,7 @@ export const copilots: Copilot[] = [
   {
     id: 'cp-release-pilot',
     projectId: 'proj-studio',
+    targetProjectIds: [],
     name: 'Release Pilot',
     slug: 'release-pilot',
     description:
@@ -196,7 +200,8 @@ export const copilots: Copilot[] = [
   },
   {
     id: 'cp-api-triage',
-    projectId: 'proj-gateway',
+    projectId: null,
+    targetProjectIds: ['proj-gateway'],
     name: 'API Triage',
     slug: 'api-triage',
     description:
@@ -226,6 +231,7 @@ export const copilots: Copilot[] = [
   {
     id: 'cp-quota-advisor',
     projectId: 'proj-gateway',
+    targetProjectIds: [],
     name: 'Quota Advisor',
     slug: 'quota-advisor',
     description:

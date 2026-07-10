@@ -1,6 +1,6 @@
 'use client'
 
-import { Cog6ToothIcon, CpuChipIcon, FolderIcon, Square3Stack3DIcon } from '@heroicons/react/20/solid'
+import { Cog6ToothIcon, CpuChipIcon, FolderIcon } from '@heroicons/react/20/solid'
 import { usePathname } from 'next/navigation'
 import { Avatar } from '@/components/catalyst/avatar'
 import { Navbar, NavbarLabel, NavbarSection, NavbarSpacer } from '@/components/catalyst/navbar'
@@ -33,9 +33,10 @@ function LogoMark() {
   )
 }
 
+// Traces global retiré : les traces vivent au niveau copilote (Runs) et par
+// projet (menu Traces de chaque projet) — directive Adrien 2026-07-10.
 const PLATFORM_ITEMS = [
   { label: 'Projects', icon: FolderIcon, href: '/admin/projects' },
-  { label: 'Traces', icon: Square3Stack3DIcon, href: '/admin/traces' },
   { label: 'Settings', icon: Cog6ToothIcon, href: '/admin/settings' },
 ] as const
 

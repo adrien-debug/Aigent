@@ -101,6 +101,8 @@ export default async function AgentsRegistryPage() {
     getRecentWarnings(6),
   ])
   const copilotNameById = new Map(copilots.map((copilot) => [copilot.id, copilot.name]))
+  const onBenchCount = copilots.filter((copilot) => copilot.projectId === null).length
+  const assignedCount = copilots.length - onBenchCount
 
   return (
     <div className="space-y-8">
@@ -108,8 +110,8 @@ export default async function AgentsRegistryPage() {
       <AgentKpiBand
         className="mt-2"
         stats={[
-          { name: 'Copilots', value: String(kpis.totalCopilots), hint: `${kpis.activeCopilots} active` },
-          { name: 'Active', value: String(kpis.activeCopilots), hint: 'Serving traffic' },
+          { name: 'On bench', value: String(onBenchCount), hint: 'Awaiting validation' },
+          { name: 'Assigned', value: String(assignedCount), hint: 'Validated onto projects' },
           { name: 'Avg test pass', value: formatPercent(kpis.avgTestPassRate), hint: 'Measured copilots' },
           { name: 'Runs 24h', value: kpis.runsLast24h.toLocaleString('en-US'), hint: 'All projects' },
         ]}

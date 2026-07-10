@@ -1,10 +1,16 @@
-import { CopilotRegistryTable } from '@/components/agent-ops/copilot-registry-table'
+'use client'
+
+import clsx from 'clsx'
+import { useState } from 'react'
+
+import { CopilotRegistryTable, type RegistryTableView } from '@/components/agent-ops/copilot-registry-table'
 import type { Copilot, Project } from '@/lib/agent-mission-control/types'
 
 /**
- * Registry main area: the full-width filterable table stacked above the
- * server-rendered warnings feed (injected via `warningsSlot`). No detail
- * preview panel — the copilot name deep-links to its overview.
+ * Registry main area. The registry IS the validation bench: the default view
+ * shows unassigned copilots (projectId === null, being tested/tuned) and a
+ * segmented toggle switches to the full fleet. The server-rendered warnings
+ * feed is injected via `warningsSlot`.
  */
 export function RegistryView({
   copilots,
@@ -15,9 +21,41 @@ export function RegistryView({
   projects: Project[]
   warningsSlot?: React.ReactNode
 }) {
+  const [view, setView] = useState<RegistryTableView>('bench')
+  const benchCount = copilots.filter((copilot) => copilot.projectId === null).length
+
+  const options: { value: RegistryTableView; label: string }[] = [
+    { value: 'bench', label: `Validation bench (${benchCount})` },
+    { value: 'all', label: `All copilots (${copilots.length})` },
+  ]
+
   return (
     <div className="space-y-8">
-      <CopilotRegistryTable copilots={copilots} projects={projects} />
+      <div className="space-y-4">
+        <div
+          role="group"
+          aria-label="Registry view"
+          className="inline-flex rounded-lg bg-zinc-950/5 p-1 dark:bg-white/5"
+        >
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={view === option.value}
+              onClick={() => setView(option.value)}
+              className={clsx(
+                'rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500',
+                view === option.value
+                  ? 'bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-950/10 dark:bg-zinc-950 dark:text-white dark:ring-white/10'
+                  : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <CopilotRegistryTable copilots={copilots} projects={projects} view={view} />
+      </div>
       {warningsSlot}
     </div>
   )

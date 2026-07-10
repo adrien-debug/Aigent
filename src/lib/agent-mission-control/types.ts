@@ -46,7 +46,14 @@ export type ModelProvider = 'openai' | 'anthropic' | 'google' | 'mistral' | 'loc
 
 export interface Copilot {
   id: string
-  projectId: string
+  /**
+   * Projet d'affectation. `null` = copilote sur le BANC DE VALIDATION :
+   * il se teste/rode et n'a pas encore été validé. L'affectation à un
+   * projet est l'acte de validation.
+   */
+  projectId: string | null
+  /** Destination(s) de développement pendant le rodage (0..2 projets visés). */
+  targetProjectIds: string[]
   name: string
   slug: string
   description: string
