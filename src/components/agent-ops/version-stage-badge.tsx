@@ -9,8 +9,8 @@ export const versionStageLabels: Record<VersionStage, string> = {
   archived: 'Archived',
 }
 
-const versionStageStyles: Record<VersionStage, { color: 'green' | 'zinc'; className?: string }> = {
-  production: { color: 'green' },
+const versionStageStyles: Record<VersionStage, { color: 'accent' | 'zinc'; className?: string }> = {
+  production: { color: 'accent' },
   beta: { color: 'zinc' },
   draft: { color: 'zinc', className: 'opacity-75' },
   archived: { color: 'zinc', className: 'opacity-50' },

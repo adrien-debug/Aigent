@@ -92,13 +92,13 @@ export function VersionComparisonCard({
           <ScoreCell label="Unsafe actions">
             {scores.unsafeActionCount === 0 ? (
               <>
-                <span className="font-mono tabular-nums text-green-700 dark:text-green-400">0</span>
+                <span className="font-mono tabular-nums text-accent-700 dark:text-accent-400">0</span>
                 <span className="text-xs text-zinc-500"> · none</span>
               </>
             ) : (
               <>
-                <span className="font-mono tabular-nums text-rose-600 dark:text-rose-400">{scores.unsafeActionCount}</span>
-                <span className="text-xs text-rose-600 dark:text-rose-400"> · flagged</span>
+                <span className="font-mono tabular-nums text-accent-600 dark:text-accent-400">{scores.unsafeActionCount}</span>
+                <span className="text-xs text-accent-600 dark:text-accent-400"> · flagged</span>
               </>
             )}
           </ScoreCell>
@@ -111,12 +111,12 @@ export function VersionComparisonCard({
       <footer className="flex min-h-17 flex-wrap items-center justify-between gap-3 border-t border-zinc-950/5 dark:border-white/5 px-6 py-4">
         <div className="flex flex-wrap items-center gap-3">
           {isProduction ? (
-            <Badge color="green">
-              <span aria-hidden="true" className="size-1.5 rounded-full bg-green-400" />
+            <Badge color="accent">
+              <span aria-hidden="true" className="size-1.5 rounded-full bg-accent-400" />
               Serving production
             </Badge>
           ) : isRollbackTarget ? (
-            <Badge color="amber">Rollback target</Badge>
+            <Badge color="accentStrong">Rollback target</Badge>
           ) : null}
         </div>
         {!isProduction ? (

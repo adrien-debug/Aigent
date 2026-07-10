@@ -3,11 +3,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Text } from '@/components/catalyst/text'
 import type { ReplayCandidate, ReplayStepDiff } from '@/lib/agent-mission-control/types'
 
-const verdictConfig: Record<ReplayStepDiff['verdict'], { label: string; color: 'green' | 'zinc' | 'amber' | 'rose' }> = {
-  match: { label: 'Match', color: 'green' },
+const verdictConfig: Record<ReplayStepDiff['verdict'], { label: string; color: 'accent' | 'zinc' | 'accentStrong' | 'accentSolid' }> = {
+  match: { label: 'Match', color: 'accent' },
   'acceptable-diff': { label: 'Acceptable diff', color: 'zinc' },
-  divergence: { label: 'Divergence', color: 'amber' },
-  unsafe: { label: 'Unsafe', color: 'rose' },
+  divergence: { label: 'Divergence', color: 'accentStrong' },
+  unsafe: { label: 'Unsafe', color: 'accentSolid' },
 }
 
 /**

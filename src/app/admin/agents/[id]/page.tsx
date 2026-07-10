@@ -52,17 +52,17 @@ import type {
 const runStatusConfig: Record<AgentRunStatus, { label: string; dot: string; text: string }> = {
   completed: {
     label: 'Completed',
-    dot: 'bg-green-500 dark:bg-green-400',
-    text: 'text-green-700 dark:text-green-400',
+    dot: 'bg-accent-500 dark:bg-accent-400',
+    text: 'text-accent-700 dark:text-accent-400',
   },
-  running: { label: 'Running', dot: 'bg-blue-500 dark:bg-blue-400', text: 'text-blue-600 dark:text-blue-400' },
+  running: { label: 'Running', dot: 'bg-accent-500 dark:bg-accent-400', text: 'text-accent-600 dark:text-accent-400' },
   'needs-confirmation': {
     label: 'Needs confirmation',
-    dot: 'bg-amber-500 dark:bg-amber-400',
-    text: 'text-amber-600 dark:text-amber-400',
+    dot: 'bg-accent-500 dark:bg-accent-400',
+    text: 'text-accent-600 dark:text-accent-400',
   },
-  blocked: { label: 'Blocked', dot: 'bg-rose-500 dark:bg-rose-400', text: 'text-rose-600 dark:text-rose-400' },
-  failed: { label: 'Failed', dot: 'bg-rose-500 dark:bg-rose-400', text: 'text-rose-600 dark:text-rose-400' },
+  blocked: { label: 'Blocked', dot: 'bg-accent-500 dark:bg-accent-400', text: 'text-accent-600 dark:text-accent-400' },
+  failed: { label: 'Failed', dot: 'bg-accent-500 dark:bg-accent-400', text: 'text-accent-600 dark:text-accent-400' },
 }
 
 // ---------------------------------------------------------------------------
@@ -73,7 +73,7 @@ function SectionLink({ href, children }: { href: string; children: React.ReactNo
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-1 text-sm font-medium text-green-700 hover:text-green-600 dark:text-green-400 dark:hover:text-green-300"
+      className="inline-flex items-center gap-1 text-sm font-medium text-accent-700 hover:text-accent-600 dark:text-accent-400 dark:hover:text-accent-300"
     >
       {children}
       <ArrowRightIcon aria-hidden="true" className="size-3.5" />
@@ -284,7 +284,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
             <DescriptionDetails>
               {onBench ? (
                 <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="font-medium text-amber-600 dark:text-amber-400">
+                  <span className="font-medium text-accent-600 dark:text-accent-400">
                     Validation bench
                     <span className="sr-only"> — not yet validated</span>
                   </span>
@@ -362,7 +362,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
               <dd
                 className={clsx(
                   'font-mono tabular-nums',
-                  copilot.health.errorRateLast24h > 0.05 ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-700 dark:text-zinc-300'
+                  copilot.health.errorRateLast24h > 0.05 ? 'text-accent-600 dark:text-accent-400' : 'text-zinc-700 dark:text-zinc-300'
                 )}
               >
                 {formatPercent(copilot.health.errorRateLast24h)}
@@ -392,7 +392,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
               <dd
                 className={clsx(
                   'font-mono tabular-nums',
-                  copilot.health.openWarnings > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-700 dark:text-zinc-300'
+                  copilot.health.openWarnings > 0 ? 'text-accent-600 dark:text-accent-400' : 'text-zinc-700 dark:text-zinc-300'
                 )}
               >
                 {copilot.health.openWarnings}
@@ -407,7 +407,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
           <div className="relative isolate overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 lg:col-span-3 dark:bg-zinc-950 dark:ring-white/10">
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-radial-[at_top] from-green-500/[0.04] dark:from-green-500/[0.06] via-transparent to-transparent"
+              className="pointer-events-none absolute inset-0 bg-radial-[at_top] from-accent-500/[0.04] dark:from-accent-500/[0.06] via-transparent to-transparent"
             />
             <div className="relative mx-auto max-w-2xl px-6 py-12 text-center sm:px-8">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Draft copilot</p>
@@ -433,7 +433,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
               </div>
 
               <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-                <Button color="green" href={`${base}/manifest`}>
+                <Button color="accent" href={`${base}/manifest`}>
                   Review the manifest
                 </Button>
                 <Button outline href={`${base}/tests`}>
@@ -605,7 +605,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
             ))
           ) : (
             <p className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
-              <CheckCircleIcon aria-hidden="true" className="size-4 shrink-0 text-green-600 dark:text-green-400" />
+              <CheckCircleIcon aria-hidden="true" className="size-4 shrink-0 text-accent-600 dark:text-accent-400" />
               No pending actions — the gate, tests and live traffic look healthy.
             </p>
           )}

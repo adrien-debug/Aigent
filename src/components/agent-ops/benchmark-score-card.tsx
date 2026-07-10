@@ -9,9 +9,9 @@ import type { BenchmarkResult, BenchmarkRun } from '@/lib/agent-mission-control/
 
 /** Semantic tone for a composite score: green ≥ 80, amber 60–79, rose < 60. */
 function scoreTone(score: number): { bar: string; text: string } {
-  if (score >= 80) return { bar: 'bg-green-500', text: 'text-green-700 dark:text-green-400' }
-  if (score >= 60) return { bar: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' }
-  return { bar: 'bg-rose-500', text: 'text-rose-600 dark:text-rose-400' }
+  if (score >= 80) return { bar: 'bg-accent-500', text: 'text-accent-700 dark:text-accent-400' }
+  if (score >= 60) return { bar: 'bg-accent-500', text: 'text-accent-600 dark:text-accent-400' }
+  return { bar: 'bg-accent-500', text: 'text-accent-600 dark:text-accent-400' }
 }
 
 function unsafeLabel(count: number): string {
@@ -54,7 +54,7 @@ export function BenchmarkScoreCard({
     <article
       className={clsx(
         'overflow-hidden rounded-xl bg-white dark:bg-zinc-950',
-        isBest ? 'ring-2 ring-green-500/40' : 'ring-1 ring-zinc-950/5 dark:ring-white/10'
+        isBest ? 'ring-2 ring-accent-500/40' : 'ring-1 ring-zinc-950/5 dark:ring-white/10'
       )}
     >
       {/* Identical skeleton on every card so rows of cards align pixel-for-pixel:
@@ -73,7 +73,7 @@ export function BenchmarkScoreCard({
       <div className="border-b border-zinc-950/5 px-6 py-4 dark:border-white/5">
         <div className="flex h-6 items-center" aria-hidden={isBest ? undefined : true}>
           <span className={isBest ? undefined : 'invisible'}>
-            <Badge color="green">Best candidate</Badge>
+            <Badge color="accent">Best candidate</Badge>
           </span>
         </div>
         <p className="mt-3 text-xs font-medium tracking-wide text-zinc-500 uppercase">Composite score</p>
@@ -106,14 +106,14 @@ export function BenchmarkScoreCard({
 
       <div className="flex items-center gap-2 border-t border-zinc-950/5 px-6 py-4 dark:border-white/5">
         {isSafe ? (
-          <CheckCircleIcon aria-hidden="true" className="size-4 shrink-0 text-green-600 dark:text-green-400" />
+          <CheckCircleIcon aria-hidden="true" className="size-4 shrink-0 text-accent-600 dark:text-accent-400" />
         ) : (
-          <ExclamationTriangleIcon aria-hidden="true" className="size-4 shrink-0 text-rose-600 dark:text-rose-400" />
+          <ExclamationTriangleIcon aria-hidden="true" className="size-4 shrink-0 text-accent-600 dark:text-accent-400" />
         )}
         <span
           className={clsx(
             'text-sm font-medium tabular-nums',
-            isSafe ? 'text-green-700 dark:text-green-400' : 'text-rose-600 dark:text-rose-400'
+            isSafe ? 'text-accent-700 dark:text-accent-400' : 'text-accent-600 dark:text-accent-400'
           )}
         >
           {unsafeLabel(result.unsafeActionCount)}

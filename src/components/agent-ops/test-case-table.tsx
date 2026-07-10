@@ -103,7 +103,7 @@ export function TestCaseTable({
               </TableCell>
               <TableCell>
                 {showFailure ? (
-                  <p className="max-w-64 truncate text-xs text-rose-600 dark:text-rose-400" title={result.failureReason ?? undefined}>
+                  <p className="max-w-64 truncate text-xs text-accent-600 dark:text-accent-400" title={result.failureReason ?? undefined}>
                     {result.failureReason}
                   </p>
                 ) : (

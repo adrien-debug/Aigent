@@ -96,7 +96,7 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Switch
-                      color="green"
+                      color="accent"
                       checked={enabled}
                       onChange={(checked) => {
                         setEnabledState((prev) => ({ ...prev, [tool.id]: checked }))
@@ -110,7 +110,7 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Switch
-                      color={forced ? 'green' : 'amber'}
+                      color="accent"
                       checked={requiresConfirmation}
                       disabled={forced}
                       onChange={(checked) => {
@@ -177,7 +177,7 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
                       {tool.lastUsedAt ? formatTimestamp(tool.lastUsedAt) : 'Never used'}
                     </span>
                     {tool.lastErrorMessage ? (
-                      <span className="flex items-center gap-1 text-xs text-rose-600 dark:text-rose-400">
+                      <span className="flex items-center gap-1 text-xs text-accent-600 dark:text-accent-400">
                         <ExclamationTriangleIcon aria-hidden="true" className="size-3.5 shrink-0" />
                         <span className="sr-only">Last error: </span>
                         <span className="max-w-48 truncate" title={tool.lastErrorMessage}>

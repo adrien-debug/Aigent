@@ -26,13 +26,13 @@ const severityConfig: Record<
 > = {
   warning: {
     label: 'Warning',
-    dotClassName: 'bg-amber-500 dark:bg-amber-400',
-    textClassName: 'text-amber-600 dark:text-amber-400',
+    dotClassName: 'bg-accent-500 dark:bg-accent-400',
+    textClassName: 'text-accent-600 dark:text-accent-400',
   },
   danger: {
     label: 'Danger',
-    dotClassName: 'bg-rose-500 dark:bg-rose-400',
-    textClassName: 'text-rose-600 dark:text-rose-400',
+    dotClassName: 'bg-accent-500 dark:bg-accent-400',
+    textClassName: 'text-accent-600 dark:text-accent-400',
   },
 }
 

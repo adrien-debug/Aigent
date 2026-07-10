@@ -147,10 +147,10 @@ export default async function ProjectsPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         {rollup.openWarnings > 0 ? (
-                          <span className="inline-flex items-baseline gap-1.5 font-medium text-amber-600 dark:text-amber-400">
+                          <span className="inline-flex items-baseline gap-1.5 font-medium text-accent-600 dark:text-accent-400">
                             <span
                               aria-hidden="true"
-                              className="size-1.5 shrink-0 self-center rounded-full bg-amber-500 dark:bg-amber-400"
+                              className="size-1.5 shrink-0 self-center rounded-full bg-accent-500 dark:bg-accent-400"
                             />
                             <span className="font-mono tabular-nums">{numberFormat.format(rollup.openWarnings)}</span>
                             <span className="sr-only"> open warnings</span>

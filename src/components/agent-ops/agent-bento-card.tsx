@@ -36,7 +36,7 @@ export function AgentBentoCard({
           <p
             className={clsx(
               'text-xs font-medium tracking-wide uppercase',
-              eyebrowTone === 'positive' ? 'text-green-700 dark:text-green-400' : 'text-zinc-500'
+              eyebrowTone === 'positive' ? 'text-accent-700 dark:text-accent-400' : 'text-zinc-500'
             )}
           >
             {eyebrow}

@@ -73,7 +73,7 @@ export function OnboardingSteps({
                 aria-hidden="true"
                 className={clsx(
                   'absolute top-4 left-4 mt-0.5 -ml-px h-full w-0.5',
-                  step.status === 'complete' ? 'bg-green-500' : 'bg-zinc-950/15 dark:bg-white/15'
+                  step.status === 'complete' ? 'bg-accent-500' : 'bg-zinc-950/15 dark:bg-white/15'
                 )}
               />
             ) : null}
@@ -84,12 +84,12 @@ export function OnboardingSteps({
             >
               <span aria-hidden="true" className="flex h-9 items-center">
                 {step.status === 'complete' ? (
-                  <span className="relative z-10 flex size-8 items-center justify-center rounded-full bg-green-600 transition-colors duration-150 group-hover:bg-green-500 dark:bg-green-500 dark:group-hover:bg-green-400">
+                  <span className="relative z-10 flex size-8 items-center justify-center rounded-full bg-accent-600 transition-colors duration-150 group-hover:bg-accent-500 dark:bg-accent-500 dark:group-hover:bg-accent-400">
                     <CheckIcon aria-hidden="true" className="size-5 text-white" />
                   </span>
                 ) : step.status === 'current' ? (
-                  <span className="relative z-10 flex size-8 items-center justify-center rounded-full border-2 border-green-600 bg-white dark:border-green-500 dark:bg-zinc-950">
-                    <span className="size-2.5 rounded-full bg-green-600 dark:bg-green-500" />
+                  <span className="relative z-10 flex size-8 items-center justify-center rounded-full border-2 border-accent-600 bg-white dark:border-accent-500 dark:bg-zinc-950">
+                    <span className="size-2.5 rounded-full bg-accent-600 dark:bg-accent-500" />
                   </span>
                 ) : (
                   <span className="relative z-10 flex size-8 items-center justify-center rounded-full border-2 border-zinc-950/15 bg-white dark:border-white/15 dark:bg-zinc-950">
@@ -102,7 +102,7 @@ export function OnboardingSteps({
                   className={clsx(
                     'text-sm font-medium',
                     step.status === 'complete' && 'text-zinc-950 dark:text-white',
-                    step.status === 'current' && 'text-green-700 dark:text-green-400',
+                    step.status === 'current' && 'text-accent-700 dark:text-accent-400',
                     step.status === 'upcoming' && 'text-zinc-500 dark:text-zinc-400'
                   )}
                 >

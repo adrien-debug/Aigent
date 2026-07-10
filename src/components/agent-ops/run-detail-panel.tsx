@@ -9,12 +9,12 @@ import { formatDurationMs, formatTimestamp, formatUsd } from '@/lib/agent-missio
 import { getVersion } from '@/lib/agent-mission-control/mock-data'
 import type { AgentRun, AgentRunStatus, AgentRunStep, ToolCall } from '@/lib/agent-mission-control/types'
 
-const runStatusConfig: Record<AgentRunStatus, { label: string; color: 'green' | 'rose' | 'amber' | 'blue' }> = {
-  completed: { label: 'Completed', color: 'green' },
-  failed: { label: 'Failed', color: 'rose' },
-  blocked: { label: 'Blocked', color: 'rose' },
-  'needs-confirmation': { label: 'Needs confirmation', color: 'amber' },
-  running: { label: 'Running', color: 'blue' },
+const runStatusConfig: Record<AgentRunStatus, { label: string; color: 'accent' | 'accentSolid' | 'accentStrong' | 'zinc' }> = {
+  completed: { label: 'Completed', color: 'accent' },
+  failed: { label: 'Failed', color: 'accentSolid' },
+  blocked: { label: 'Blocked', color: 'accentSolid' },
+  'needs-confirmation': { label: 'Needs confirmation', color: 'accentStrong' },
+  running: { label: 'Running', color: 'zinc' },
 }
 
 /** Run lifecycle badge — always-visible text label, never color alone. */
@@ -78,7 +78,7 @@ export function RunDetailPanel({
           <DescriptionDetails
             className={clsx(
               'font-mono text-sm tabular-nums',
-              run.unsafeAttemptCount > 0 && 'font-semibold text-rose-600 dark:text-rose-400'
+              run.unsafeAttemptCount > 0 && 'font-semibold text-accent-600 dark:text-accent-400'
             )}
           >
             {run.unsafeAttemptCount}
@@ -97,7 +97,7 @@ export function RunDetailPanel({
                 href={run.traceUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-md bg-violet-500/10 px-2 py-1 text-xs font-medium text-violet-600 hover:bg-violet-500/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500 dark:text-violet-400"
+                className="inline-flex items-center gap-1.5 rounded-md bg-accent-500/10 px-2 py-1 text-xs font-medium text-accent-600 hover:bg-accent-500/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-400"
               >
                 Open in LangSmith
                 <ArrowTopRightOnSquareIcon aria-hidden="true" className="size-3.5" />

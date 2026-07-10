@@ -1,12 +1,12 @@
 import { Badge } from '@/components/catalyst/badge'
 import type { ToolRiskLevel } from '@/lib/agent-mission-control/types'
 
-/** Doctrine risk scale: lime → amber → orange → rose (low → critical). */
-const riskConfig: Record<ToolRiskLevel, { label: string; color: 'lime' | 'amber' | 'orange' | 'rose' }> = {
-  low: { label: 'Low', color: 'lime' },
-  medium: { label: 'Medium', color: 'amber' },
-  high: { label: 'High', color: 'orange' },
-  critical: { label: 'Critical', color: 'rose' },
+/** Monochrome risk ladder: accent soft → strong → solid (low → critical). */
+const riskConfig: Record<ToolRiskLevel, { label: string; color: 'accent' | 'accentStrong' | 'accentSolid' }> = {
+  low: { label: 'Low', color: 'accent' },
+  medium: { label: 'Medium', color: 'accent' },
+  high: { label: 'High', color: 'accentStrong' },
+  critical: { label: 'Critical', color: 'accentSolid' },
 }
 
 /** Tool risk level badge — always-visible text label, never color alone. */

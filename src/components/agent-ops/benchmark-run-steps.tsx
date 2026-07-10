@@ -59,21 +59,21 @@ export function BenchmarkRunSteps({ runs }: { runs: BenchmarkRun[] }) {
               <div
                 className={clsx(
                   'h-0.5 w-full',
-                  step.status === 'complete' ? 'bg-green-500' : 'bg-zinc-950/15 dark:bg-white/15'
+                  step.status === 'complete' ? 'bg-accent-500' : 'bg-zinc-950/15 dark:bg-white/15'
                 )}
               />
             </div>
             {step.status === 'complete' ? (
-              <span className="relative flex size-8 items-center justify-center rounded-full bg-green-500">
+              <span className="relative flex size-8 items-center justify-center rounded-full bg-accent-500">
                 <CheckIcon aria-hidden="true" className="size-5 text-white" />
                 <span className="sr-only">{step.name}</span>
               </span>
             ) : step.status === 'current' ? (
               <span
                 aria-current="step"
-                className="relative flex size-8 items-center justify-center rounded-full border-2 border-green-500 bg-white dark:bg-zinc-950"
+                className="relative flex size-8 items-center justify-center rounded-full border-2 border-accent-500 bg-white dark:bg-zinc-950"
               >
-                <span aria-hidden="true" className="size-2.5 rounded-full bg-green-500" />
+                <span aria-hidden="true" className="size-2.5 rounded-full bg-accent-500" />
                 <span className="sr-only">{step.name}</span>
               </span>
             ) : (

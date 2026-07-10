@@ -9,6 +9,25 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Accent — THE single hue of the design system. One vermilion (#f54927 = 500)
+   rendered as a full 50→950 ramp; every chromatic surface (badges, states,
+   charts, meters) is a shade of THIS color. `zinc` is the only neutral.
+   Registered in @theme so `bg-accent-*`, `text-accent-*`, `bg-accent-500/15`,
+   `ring-accent-500` … all generate with opacity support. */
+@theme {
+  --color-accent-50: #fef3f0;
+  --color-accent-100: #fde3dd;
+  --color-accent-200: #fac4b7;
+  --color-accent-300: #f79882;
+  --color-accent-400: #f56f52;
+  --color-accent-500: #f54927;
+  --color-accent-600: #e03a15;
+  --color-accent-700: #b82d14;
+  --color-accent-800: #972817;
+  --color-accent-900: #7c2518;
+  --color-accent-950: #491309;
+}
+
 /* Chart tokens — SINGLE source of truth for every Recharts surface.
    Recharts wants concrete color strings, so charts pass `var(--chart-*)`
    instead of re-hardcoding hex. Solid inks map to Tailwind's color scale;
@@ -17,8 +36,8 @@
    Semantics follow DESIGN-DOCTRINE.md (green = success, zinc = neutral). */
 :root {
   --chart-series: var(--color-zinc-500);        /* neutral line/area — a measure, not a status */
-  --chart-success: var(--color-green-500);       /* pass rate, winning score, dots */
-  --chart-success-muted: var(--color-green-600); /* non-winning bars on the same hue ramp */
+  --chart-success: var(--color-accent-500);      /* pass rate, winning score, dots — the accent hue */
+  --chart-success-muted: var(--color-accent-600); /* non-winning bars on the same hue ramp */
   --chart-label: var(--color-zinc-900);          /* direct value labels at bar ends */
   --chart-axis: var(--color-zinc-600);           /* category axis text (model names) */
   --chart-tick: var(--color-zinc-500);           /* numeric axis ticks */
@@ -30,8 +49,8 @@
 
 .dark {
   --chart-series: var(--color-zinc-400);
-  --chart-success: var(--color-green-400);
-  --chart-success-muted: var(--color-green-600);
+  --chart-success: var(--color-accent-400);
+  --chart-success-muted: var(--color-accent-600);
   --chart-label: var(--color-zinc-100);
   --chart-axis: var(--color-zinc-400);
   --chart-tick: var(--color-zinc-500);

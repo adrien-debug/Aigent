@@ -9,12 +9,12 @@ import type { CopilotVersion, ShadowExperiment, VersionStage } from '@/lib/agent
 
 const experimentStatusConfig: Record<
   ShadowExperiment['status'],
-  { label: string; color: 'blue' | 'zinc'; dotClassName: string }
+  { label: string; color: 'zinc' | 'zinc'; dotClassName: string }
 > = {
   running: {
     label: 'Running',
-    color: 'blue',
-    dotClassName: 'bg-blue-500 motion-safe:animate-pulse dark:bg-blue-400',
+    color: 'zinc',
+    dotClassName: 'bg-accent-500 motion-safe:animate-pulse dark:bg-accent-400',
   },
   completed: {
     label: 'Completed',
@@ -28,8 +28,8 @@ const experimentStatusConfig: Record<
   },
 }
 
-const stageConfig: Record<VersionStage, { label: string; color: 'green' | 'zinc' }> = {
-  production: { label: 'Production', color: 'green' },
+const stageConfig: Record<VersionStage, { label: string; color: 'accent' | 'zinc' }> = {
+  production: { label: 'Production', color: 'accent' },
   beta: { label: 'Beta', color: 'zinc' },
   draft: { label: 'Draft', color: 'zinc' },
   archived: { label: 'Archived', color: 'zinc' },
@@ -128,7 +128,7 @@ export function ShadowExperimentCard({
           <div aria-hidden="true" className="relative mt-3">
             <div className="h-2 overflow-hidden rounded-full bg-zinc-950/10 dark:bg-zinc-800">
               <div
-                className={clsx('h-2 rounded-full', meetsThreshold ? 'bg-green-500' : 'bg-amber-500')}
+                className={clsx('h-2 rounded-full', meetsThreshold ? 'bg-accent-500' : 'bg-accent-500')}
                 style={{ width: `${fillPercent}%` }}
               />
             </div>
@@ -148,7 +148,7 @@ export function ShadowExperimentCard({
               <dd
                 className={clsx(
                   'font-mono font-medium tabular-nums',
-                  experiment.unsafeProposalCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-zinc-950 dark:text-white'
+                  experiment.unsafeProposalCount > 0 ? 'text-accent-600 dark:text-accent-400' : 'text-zinc-950 dark:text-white'
                 )}
               >
                 {experiment.unsafeProposalCount.toLocaleString('en-US')}
@@ -162,12 +162,12 @@ export function ShadowExperimentCard({
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-zinc-950/5 dark:border-white/5 px-6 py-4">
         <p className="text-sm font-medium text-zinc-950 dark:text-white">Promotion readiness</p>
         {meetsThreshold ? (
-          <p className="flex items-center gap-x-1.5 text-sm font-medium text-green-700 dark:text-green-400">
+          <p className="flex items-center gap-x-1.5 text-sm font-medium text-accent-700 dark:text-accent-400">
             <CheckCircleIcon aria-hidden="true" className="size-4 shrink-0" />
             Meets agreement threshold
           </p>
         ) : (
-          <p className="flex items-center gap-x-1.5 text-sm font-medium text-amber-600 dark:text-amber-400">
+          <p className="flex items-center gap-x-1.5 text-sm font-medium text-accent-600 dark:text-accent-400">
             <ExclamationTriangleIcon aria-hidden="true" className="size-4 shrink-0" />
             Below threshold (needs ≥ {formatPercent(experiment.agreementThreshold, 0)})
           </p>

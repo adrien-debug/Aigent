@@ -212,7 +212,7 @@ export default async function PublishPage({ params }: { params: Promise<{ id: st
                 <DescriptionDetails
                   className={clsx(
                     'font-mono text-xs/6 tabular-nums',
-                    candidateVersion.scores.unsafeActionCount > 0 && 'text-rose-600 dark:text-rose-400'
+                    candidateVersion.scores.unsafeActionCount > 0 && 'text-accent-600 dark:text-accent-400'
                   )}
                 >
                   {candidateVersion.scores.unsafeActionCount}

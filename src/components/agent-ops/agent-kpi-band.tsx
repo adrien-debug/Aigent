@@ -40,7 +40,7 @@ export function AgentKpiBand({ stats, className }: { stats: AgentKpiStat[]; clas
             <dd
               className={clsx(
                 stat.changeType === 'negative'
-                  ? 'text-rose-600 dark:text-rose-400'
+                  ? 'text-accent-600 dark:text-accent-400'
                   : 'text-zinc-600 dark:text-zinc-300',
                 'text-xs font-medium'
               )}

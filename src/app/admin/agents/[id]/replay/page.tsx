@@ -20,11 +20,11 @@ import {
 } from '@/lib/agent-mission-control/data'
 import type { ReplayComparison } from '@/lib/agent-mission-control/types'
 
-const statusConfig: Record<ReplayComparison['status'], { label: string; color: 'zinc' | 'green' | 'amber' }> = {
+const statusConfig: Record<ReplayComparison['status'], { label: string; color: 'zinc' | 'accent' | 'accentStrong' }> = {
   draft: { label: 'Draft', color: 'zinc' },
   ready: { label: 'Ready', color: 'zinc' },
-  matched: { label: 'Matched', color: 'green' },
-  diverged: { label: 'Diverged', color: 'amber' },
+  matched: { label: 'Matched', color: 'accent' },
+  diverged: { label: 'Diverged', color: 'accentStrong' },
 }
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {

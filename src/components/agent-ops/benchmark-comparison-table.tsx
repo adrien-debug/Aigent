@@ -32,10 +32,10 @@ function ViolationChip({
       className={clsx(
         'inline-flex items-center gap-1 font-mono text-sm font-medium tabular-nums',
         clean
-          ? 'text-green-700 dark:text-green-400'
+          ? 'text-accent-700 dark:text-accent-400'
           : tone === 'amber'
-            ? 'text-amber-600 dark:text-amber-400'
-            : 'text-rose-600 dark:text-rose-400'
+            ? 'text-accent-600 dark:text-accent-400'
+            : 'text-accent-600 dark:text-accent-400'
       )}
     >
       <Icon aria-hidden="true" className="size-4 shrink-0" />

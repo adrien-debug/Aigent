@@ -52,7 +52,7 @@ export function ManifestCompleteness({ manifest }: { manifest: AgentManifest }) 
             {step.status === 'complete' ? (
               <div className="flex items-start">
                 <span className="relative flex size-5 shrink-0 items-center justify-center">
-                  <CheckCircleIcon aria-hidden="true" className="size-5 text-green-600 dark:text-green-400" />
+                  <CheckCircleIcon aria-hidden="true" className="size-5 text-accent-600 dark:text-accent-400" />
                 </span>
                 <span className="ml-3 text-sm font-medium text-zinc-500 dark:text-zinc-400">
                   {step.name}
@@ -62,10 +62,10 @@ export function ManifestCompleteness({ manifest }: { manifest: AgentManifest }) 
             ) : step.status === 'current' ? (
               <div aria-current="step" className="flex items-start">
                 <span aria-hidden="true" className="relative flex size-5 shrink-0 items-center justify-center">
-                  <span className="absolute size-4 rounded-full bg-green-500/25" />
-                  <span className="relative block size-2 rounded-full bg-green-600 dark:bg-green-400" />
+                  <span className="absolute size-4 rounded-full bg-accent-500/25" />
+                  <span className="relative block size-2 rounded-full bg-accent-600 dark:bg-accent-400" />
                 </span>
-                <span className="ml-3 text-sm font-medium text-green-700 dark:text-green-400">
+                <span className="ml-3 text-sm font-medium text-accent-700 dark:text-accent-400">
                   {step.name}
                   <span className="sr-only"> — {statusLabels[step.status]}</span>
                 </span>

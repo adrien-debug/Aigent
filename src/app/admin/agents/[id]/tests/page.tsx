@@ -19,18 +19,18 @@ import {
 } from '@/lib/agent-mission-control/data'
 import type { TestResult, TestResultStatus, TestRun, TestSuite } from '@/lib/agent-mission-control/types'
 
-const suiteKindConfig: Record<TestSuite['kind'], { label: string; color: 'zinc' | 'amber' }> = {
+const suiteKindConfig: Record<TestSuite['kind'], { label: string; color: 'zinc' | 'accentStrong' }> = {
   behavior: { label: 'Behavior', color: 'zinc' },
-  safety: { label: 'Safety', color: 'amber' },
+  safety: { label: 'Safety', color: 'accentStrong' },
   regression: { label: 'Regression', color: 'zinc' },
   'output-contract': { label: 'Output contract', color: 'zinc' },
 }
 
-const runStatusConfig: Record<TestRun['status'], { label: string; color: 'green' | 'blue' | 'zinc' | 'rose' }> = {
-  completed: { label: 'Completed', color: 'green' },
-  running: { label: 'Running', color: 'blue' },
+const runStatusConfig: Record<TestRun['status'], { label: string; color: 'accent' | 'zinc' | 'zinc' | 'accentSolid' }> = {
+  completed: { label: 'Completed', color: 'accent' },
+  running: { label: 'Running', color: 'zinc' },
   queued: { label: 'Queued', color: 'zinc' },
-  aborted: { label: 'Aborted', color: 'rose' },
+  aborted: { label: 'Aborted', color: 'accentSolid' },
 }
 
 export default async function CopilotTestsPage({ params }: { params: Promise<{ id: string }> }) {

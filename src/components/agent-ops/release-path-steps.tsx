@@ -38,7 +38,7 @@ export function ReleasePathSteps({ candidateStage }: { candidateStage: ReleaseSt
               {status === 'complete' ? (
                 <div className="flex w-full items-center">
                   <span className="flex items-center px-6 py-4 text-sm font-medium">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-green-600 dark:bg-green-500">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-600 dark:bg-accent-500">
                       <CheckIcon aria-hidden="true" className="size-6 text-white" />
                     </span>
                     <span className="ml-4 text-sm font-medium text-zinc-950 dark:text-white">{step.name}</span>
@@ -46,10 +46,10 @@ export function ReleasePathSteps({ candidateStage }: { candidateStage: ReleaseSt
                 </div>
               ) : status === 'current' ? (
                 <div aria-current="step" className="flex items-center px-6 py-4 text-sm font-medium">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-green-600 dark:border-green-400">
-                    <span className="text-green-600 dark:text-green-400">{step.id}</span>
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-accent-600 dark:border-accent-400">
+                    <span className="text-accent-600 dark:text-accent-400">{step.id}</span>
                   </span>
-                  <span className="ml-4 text-sm font-medium text-green-600 dark:text-green-400">{step.name}</span>
+                  <span className="ml-4 text-sm font-medium text-accent-600 dark:text-accent-400">{step.name}</span>
                 </div>
               ) : (
                 <div className="flex items-center">

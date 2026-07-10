@@ -4,8 +4,8 @@ import clsx from 'clsx'
 type StripStatus = 'ok' | 'warn' | 'off'
 
 const statusDots: Record<StripStatus, string> = {
-  ok: 'bg-green-500 dark:bg-green-400',
-  warn: 'bg-amber-500 dark:bg-amber-400',
+  ok: 'bg-accent-500 dark:bg-accent-400',
+  warn: 'bg-accent-500 dark:bg-accent-400',
   off: 'bg-zinc-400 dark:bg-zinc-500',
 }
 
@@ -17,7 +17,7 @@ const statusLabels: Record<StripStatus, string> = {
 
 const statusLabelClasses: Record<StripStatus, string> = {
   ok: '',
-  warn: 'text-amber-600 dark:text-amber-400',
+  warn: 'text-accent-600 dark:text-accent-400',
   off: 'text-zinc-500',
 }
 

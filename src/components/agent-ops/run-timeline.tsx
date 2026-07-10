@@ -40,28 +40,28 @@ const stepStatusStyles: Record<AgentRunStep['status'], { node: string; label: st
       labelClassName: '',
     },
     warning: {
-      node: 'bg-amber-400/10 text-amber-600 inset-ring inset-ring-amber-400/30 dark:text-amber-400',
+      node: 'bg-accent-400/10 text-accent-600 inset-ring inset-ring-accent-400/30 dark:text-accent-400',
       label: 'Warning',
-      labelClassName: 'text-amber-600 dark:text-amber-400',
+      labelClassName: 'text-accent-600 dark:text-accent-400',
     },
     blocked: {
-      node: 'bg-rose-400/10 text-rose-600 inset-ring inset-ring-rose-400/30 dark:text-rose-400',
+      node: 'bg-accent-400/10 text-accent-600 inset-ring inset-ring-accent-400/30 dark:text-accent-400',
       label: 'Blocked',
-      labelClassName: 'text-rose-600 dark:text-rose-400',
+      labelClassName: 'text-accent-600 dark:text-accent-400',
     },
     error: {
-      node: 'bg-rose-400/10 text-rose-600 inset-ring inset-ring-rose-400/30 dark:text-rose-400',
+      node: 'bg-accent-400/10 text-accent-600 inset-ring inset-ring-accent-400/30 dark:text-accent-400',
       label: 'Error',
-      labelClassName: 'text-rose-600 dark:text-rose-400',
+      labelClassName: 'text-accent-600 dark:text-accent-400',
     },
   }
 
-const toolCallStatusConfig: Record<ToolCall['status'], { label: string; color: 'green' | 'rose' | 'zinc' }> = {
+const toolCallStatusConfig: Record<ToolCall['status'], { label: string; color: 'accent' | 'accentSolid' | 'zinc' }> = {
   ok: { label: 'OK', color: 'zinc' },
-  confirmed: { label: 'Confirmed', color: 'green' },
-  error: { label: 'Error', color: 'rose' },
-  blocked: { label: 'Blocked', color: 'rose' },
-  rejected: { label: 'Rejected', color: 'rose' },
+  confirmed: { label: 'Confirmed', color: 'accent' },
+  error: { label: 'Error', color: 'accentSolid' },
+  blocked: { label: 'Blocked', color: 'accentSolid' },
+  rejected: { label: 'Rejected', color: 'accentSolid' },
 }
 
 function ToolCallSummary({ call }: { call: ToolCall }) {
@@ -75,7 +75,7 @@ function ToolCallSummary({ call }: { call: ToolCall }) {
         <span
           className={clsx(
             'min-w-0 flex-1 truncate font-mono text-xs tabular-nums',
-            danger ? 'text-rose-600 dark:text-rose-400' : 'text-zinc-500 dark:text-zinc-400'
+            danger ? 'text-accent-600 dark:text-accent-400' : 'text-zinc-500 dark:text-zinc-400'
           )}
         >
           {call.argumentsSummary} <span aria-hidden="true">&rarr;</span> {call.resultSummary}

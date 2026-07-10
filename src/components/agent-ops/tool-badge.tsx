@@ -1,12 +1,12 @@
 import { Badge } from '@/components/catalyst/badge'
 import type { ToolRiskLevel } from '@/lib/agent-mission-control/types'
 
-/** Risk dot hues follow the doctrine scale: lime → amber → orange → rose. */
+/** Risk dot on the monochrome accent ramp: faint → solid (low → critical). */
 const riskDotConfig: Record<ToolRiskLevel, { label: string; dotClassName: string }> = {
-  low: { label: 'low', dotClassName: 'bg-lime-500 dark:bg-lime-400' },
-  medium: { label: 'medium', dotClassName: 'bg-amber-500 dark:bg-amber-400' },
-  high: { label: 'high', dotClassName: 'bg-orange-500 dark:bg-orange-400' },
-  critical: { label: 'critical', dotClassName: 'bg-rose-500 dark:bg-rose-400' },
+  low: { label: 'low', dotClassName: 'bg-accent-300 dark:bg-accent-300' },
+  medium: { label: 'medium', dotClassName: 'bg-accent-400 dark:bg-accent-400' },
+  high: { label: 'high', dotClassName: 'bg-accent-500 dark:bg-accent-500' },
+  critical: { label: 'critical', dotClassName: 'bg-accent-600 dark:bg-accent-600' },
 }
 
 /**

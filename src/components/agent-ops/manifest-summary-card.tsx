@@ -10,7 +10,7 @@ import type { AgentManifest, ConfirmationPolicy, MemorySource } from '@/lib/agen
 
 const confirmationPolicyConfig: Record<
   ConfirmationPolicy,
-  { label: string; color: 'zinc' | 'amber' | 'green'; detail: string }
+  { label: string; color: 'zinc' | 'accentStrong' | 'accent'; detail: string }
 > = {
   never: {
     label: 'Never',
@@ -19,12 +19,12 @@ const confirmationPolicyConfig: Record<
   },
   'risky-only': {
     label: 'Risky actions only',
-    color: 'amber',
+    color: 'accentStrong',
     detail: 'High-risk tool calls pause and wait for human confirmation before executing.',
   },
   always: {
     label: 'Always',
-    color: 'green',
+    color: 'accent',
     detail: 'Every action requires human confirmation before it executes.',
   },
 }
@@ -108,7 +108,7 @@ export function ManifestSummaryCard({ manifest }: { manifest: AgentManifest }) {
           <ul className="mt-3 space-y-2">
             {manifest.forbiddenActions.map((action) => (
               <li key={action} className="flex gap-3 text-sm/6 text-zinc-700 dark:text-zinc-300">
-                <XMarkIcon aria-hidden="true" className="mt-1 size-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                <XMarkIcon aria-hidden="true" className="mt-1 size-4 shrink-0 text-accent-600 dark:text-accent-400" />
                 <span className="sr-only">Forbidden:</span>
                 <span>{action}</span>
               </li>
@@ -166,7 +166,7 @@ export function ManifestSummaryCard({ manifest }: { manifest: AgentManifest }) {
                     {source.readOnly ? (
                       <Badge color="zinc">Read-only</Badge>
                     ) : (
-                      <Badge color="amber">Read &amp; write</Badge>
+                      <Badge color="accentStrong">Read &amp; write</Badge>
                     )}
                   </TableCell>
                 </TableRow>

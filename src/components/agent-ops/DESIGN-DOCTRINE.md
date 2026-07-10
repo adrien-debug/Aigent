@@ -37,14 +37,20 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
 - Hover ligne de table : `hover:bg-white/2.5`
 - Pas de glassmorphism, pas d'ombres lourdes, pas de néon.
 
-## Couleur — sémantique STRICTE (la couleur n'est JAMAIS le seul indicateur : toujours un label)
-- **green/emerald** : actif, succès, pass, prod healthy (`text-green-400`, Badge color="green")
-- **amber** : warning, dégradé, attention requise
-- **rose/red** : danger, fail, action destructive, unsafe
-- **blue / violet / indigo** : UNIQUEMENT runtime & tracing (runtime badges, liens LangSmith)
-- **zinc** : neutre, draft, paused, skip
-- **lime → amber → orange → rose** : échelle de risque low → medium → high → critical
-- Texte : titres `text-white`, corps `text-zinc-300/400`, méta `text-zinc-500`. Jamais de hex en dur.
+## Couleur — MONOCHROME accent (une seule teinte, la couleur n'est JAMAIS le seul indicateur : toujours un label)
+- **UNE seule teinte chromatique** : `accent` (vermillon `#f54927` = 500), échelle `accent-50…950`
+  enregistrée dans `globals.css` (`@theme`). TOUT surface de couleur (badges, états, charts,
+  meters, boutons) est une **nuance de cette teinte**. `zinc` est le SEUL neutre.
+- **Zéro autre teinte** : jamais green/amber/rose/blue/violet/lime/orange/emerald… Le sens
+  (pass/fail/warn/actif) est porté par le **LABEL** + l'**intensité** de la nuance, pas par le hue.
+- **Échelle d'intensité des badges** (clés Catalyst) : `accent` (soft) → `accentStrong` → `accentSolid`.
+  - actif / pass / prod healthy → `accent` ; attention/dégradé → `accentStrong` ; fail/critical/danger → `accentSolid`.
+  - risque low→critical : `accent → accent → accentStrong → accentSolid` (escalade par remplissage).
+  - neutre (draft/paused/skip/running/archived) **et métadonnée runtime** (quel moteur) → `zinc`.
+- **Boutons** : action primaire ET destructive = `<Button color="accent">` (solide accent) ; le label dit l'action.
+- **Charts** : succès/mesure positive = tokens `--chart-success*` (repointés sur accent) ; série neutre = zinc.
+- Texte : titres `text-white`, corps `text-zinc-300/400`, méta `text-zinc-500`. Jamais de hex en dur,
+  jamais de teinte hors `accent`/`zinc`. Accent via classes (`bg-accent-500/15`, `text-accent-400`) ou tokens.
 
 ## Typo & espacement
 - Échelle d'espace : 4/8/12/16/24/32/48 uniquement (`gap-2/3/4/6/8`, `p-4/6`, `space-y-6/8`).

@@ -149,8 +149,8 @@ export default async function VersionsPage({ params }: { params: Promise<{ id: s
                   <span
                     className={
                       version.scores.unsafeActionCount === 0
-                        ? 'font-mono tabular-nums text-green-700 dark:text-green-400'
-                        : 'font-mono tabular-nums text-rose-600 dark:text-rose-400'
+                        ? 'font-mono tabular-nums text-accent-700 dark:text-accent-400'
+                        : 'font-mono tabular-nums text-accent-600 dark:text-accent-400'
                     }
                   >
                     {version.scores.unsafeActionCount}

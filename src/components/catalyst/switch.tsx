@@ -88,6 +88,11 @@ const colors = {
     '[--switch-bg-ring:var(--color-green-700)]/90 [--switch-bg:var(--color-green-600)] dark:[--switch-bg-ring:transparent]',
     '[--switch:white] [--switch-ring:var(--color-green-700)]/90 [--switch-shadow:var(--color-green-900)]/20',
   ],
+  // The single brand accent switch track (design-system monochrome).
+  accent: [
+    '[--switch-bg-ring:var(--color-accent-700)]/90 [--switch-bg:var(--color-accent-600)] dark:[--switch-bg-ring:transparent]',
+    '[--switch:white] [--switch-ring:var(--color-accent-700)]/90 [--switch-shadow:var(--color-accent-900)]/20',
+  ],
   emerald: [
     '[--switch-bg-ring:var(--color-emerald-600)]/90 [--switch-bg:var(--color-emerald-500)] dark:[--switch-bg-ring:transparent]',
     '[--switch:white] [--switch-ring:var(--color-emerald-600)]/90 [--switch-shadow:var(--color-emerald-900)]/20',

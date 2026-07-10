@@ -20,17 +20,17 @@ export function ReplayProgressDots({ status }: { status: ReplayComparison['statu
         {steps.map((name, index) => (
           <li key={name}>
             {index < currentIndex ? (
-              <span className="block size-2.5 rounded-full bg-green-500 dark:bg-green-400">
+              <span className="block size-2.5 rounded-full bg-accent-500 dark:bg-accent-400">
                 <span className="sr-only">{name}</span>
               </span>
             ) : index === currentIndex ? (
               <span aria-current="step" className="relative flex items-center justify-center">
                 <span aria-hidden="true" className="absolute flex size-5 p-1">
-                  <span className="size-full rounded-full bg-green-500/25" />
+                  <span className="size-full rounded-full bg-accent-500/25" />
                 </span>
                 <span
                   aria-hidden="true"
-                  className="relative block size-2.5 rounded-full bg-green-500 dark:bg-green-400"
+                  className="relative block size-2.5 rounded-full bg-accent-500 dark:bg-accent-400"
                 />
                 <span className="sr-only">{name}</span>
               </span>

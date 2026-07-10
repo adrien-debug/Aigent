@@ -44,7 +44,7 @@ export function RegistryView({
               aria-pressed={view === option.value}
               onClick={() => setView(option.value)}
               className={clsx(
-                'rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500',
+                'rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
                 view === option.value
                   ? 'bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-950/10 dark:bg-zinc-950 dark:text-white dark:ring-white/10'
                   : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'

@@ -24,7 +24,7 @@ export function RunTestsButton() {
   }
 
   return (
-    <Button color="green" disabled={queued} onClick={handleClick}>
+    <Button color="accent" disabled={queued} onClick={handleClick}>
       {queued ? 'Queued…' : 'Run tests'}
     </Button>
   )

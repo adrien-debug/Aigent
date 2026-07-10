@@ -138,7 +138,7 @@ export function AssignProjectDialog({
                   <button
                     type="button"
                     onClick={() => removeTarget(targetId)}
-                    className="rounded-sm p-0.5 text-zinc-500 hover:text-zinc-950 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-500 dark:hover:text-white"
+                    className="rounded-sm p-0.5 text-zinc-500 hover:text-zinc-950 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-500 dark:hover:text-white"
                   >
                     <XMarkIcon aria-hidden="true" className="size-3.5" />
                     <span className="sr-only">Remove destination {projectNameById.get(targetId) ?? targetId}</span>
@@ -170,13 +170,13 @@ export function AssignProjectDialog({
           ) : null}
         </div>
 
-        {error ? <p className="mt-4 text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
+        {error ? <p className="mt-4 text-sm text-accent-600 dark:text-accent-400">{error}</p> : null}
       </DialogBody>
       <DialogActions>
         <Button plain onClick={onClose}>
           Cancel
         </Button>
-        <Button color="green" disabled={saving || !selectedProjectId} onClick={validateAndAssign}>
+        <Button color="accent" disabled={saving || !selectedProjectId} onClick={validateAndAssign}>
           {saving ? 'Assigning…' : 'Validate & assign'}
         </Button>
       </DialogActions>
@@ -229,18 +229,18 @@ export function UnassignCopilotDialog({
       </DialogDescription>
       {servingProduction ? (
         <DialogBody>
-          <p className="text-sm font-medium text-rose-600 dark:text-rose-400">
+          <p className="text-sm font-medium text-accent-600 dark:text-accent-400">
             Warning: this copilot is active and serving a production version. Unassigning pulls a
             live copilot off its project.
           </p>
         </DialogBody>
       ) : null}
-      {error ? <p className="mt-4 text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
+      {error ? <p className="mt-4 text-sm text-accent-600 dark:text-accent-400">{error}</p> : null}
       <DialogActions>
         <Button plain onClick={onClose}>
           Cancel
         </Button>
-        <Button color="red" disabled={saving} onClick={unassign}>
+        <Button color="accent" disabled={saving} onClick={unassign}>
           {saving ? 'Unassigning…' : 'Unassign'}
         </Button>
       </DialogActions>

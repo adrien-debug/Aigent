@@ -35,7 +35,7 @@ export function PublishActions({
           Promote to {targetStage}
         </Button>
       ) : (
-        <Button color="green" className="w-full">
+        <Button color="accent" className="w-full">
           Promote to {targetStage}
         </Button>
       )}
@@ -51,7 +51,7 @@ export function PublishActions({
 
       {rollbackVersionLabel ? (
         <Button plain className="w-full" onClick={() => setRollbackOpen(true)}>
-          <span className="text-rose-600 dark:text-rose-400">
+          <span className="text-accent-600 dark:text-accent-400">
             Rollback to <span className="font-mono tabular-nums">{rollbackVersionLabel}</span>
           </span>
         </Button>
@@ -68,7 +68,7 @@ export function PublishActions({
           <Button plain onClick={() => setRollbackOpen(false)}>
             Cancel
           </Button>
-          <Button color="red" onClick={() => setRollbackOpen(false)}>
+          <Button color="accent" onClick={() => setRollbackOpen(false)}>
             Confirm rollback
           </Button>
         </DialogActions>

@@ -3,17 +3,17 @@ import type { CopilotStatus } from '@/lib/agent-mission-control/types'
 
 const statusConfig: Record<
   CopilotStatus,
-  { label: string; color: 'green' | 'amber' | 'zinc'; dotClassName: string; badgeClassName?: string }
+  { label: string; color: 'accent' | 'accentStrong' | 'zinc'; dotClassName: string; badgeClassName?: string }
 > = {
   active: {
     label: 'Active',
-    color: 'green',
-    dotClassName: 'bg-green-500 dark:bg-green-400',
+    color: 'accent',
+    dotClassName: 'bg-accent-500 dark:bg-accent-400',
   },
   degraded: {
     label: 'Degraded',
-    color: 'amber',
-    dotClassName: 'bg-amber-500 dark:bg-amber-400',
+    color: 'accentStrong',
+    dotClassName: 'bg-accent-500 dark:bg-accent-300',
   },
   paused: {
     label: 'Paused',

@@ -32,11 +32,11 @@ function groupFullyPassed(checks: PromotionCheck[], checkIds: PromotionCheckId[]
 
 const checkStatusConfig: Record<
   PromotionCheck['status'],
-  { label: string; badgeColor: 'green' | 'rose' | 'amber' | 'zinc'; Icon: typeof CheckCircleIcon; iconClassName: string }
+  { label: string; badgeColor: 'accent' | 'accentSolid' | 'accentStrong' | 'zinc'; Icon: typeof CheckCircleIcon; iconClassName: string }
 > = {
-  pass: { label: 'Pass', badgeColor: 'green', Icon: CheckCircleIcon, iconClassName: 'text-green-600 dark:text-green-400' },
-  fail: { label: 'Fail', badgeColor: 'rose', Icon: XCircleIcon, iconClassName: 'text-rose-600 dark:text-rose-400' },
-  pending: { label: 'Pending', badgeColor: 'amber', Icon: ClockIcon, iconClassName: 'text-amber-600 dark:text-amber-400' },
+  pass: { label: 'Pass', badgeColor: 'accent', Icon: CheckCircleIcon, iconClassName: 'text-accent-600 dark:text-accent-400' },
+  fail: { label: 'Fail', badgeColor: 'accentSolid', Icon: XCircleIcon, iconClassName: 'text-accent-600 dark:text-accent-400' },
+  pending: { label: 'Pending', badgeColor: 'accentStrong', Icon: ClockIcon, iconClassName: 'text-accent-600 dark:text-accent-400' },
   waived: { label: 'Waived', badgeColor: 'zinc', Icon: MinusCircleIcon, iconClassName: 'text-zinc-500' },
 }
 
@@ -45,12 +45,12 @@ function StatusBanner({ gate, candidateLabel }: { gate: PromotionGate; candidate
 
   if (gate.overallStatus === 'ready') {
     return (
-      <div className="-mx-6 -mt-5 border-b border-green-500/20 bg-green-500/10 px-6 py-4">
+      <div className="-mx-6 -mt-5 border-b border-accent-500/20 bg-accent-500/10 px-6 py-4">
         <div className="flex gap-3">
-          <CheckCircleIcon aria-hidden="true" className="size-5 shrink-0 text-green-600 dark:text-green-400" />
+          <CheckCircleIcon aria-hidden="true" className="size-5 shrink-0 text-accent-600 dark:text-accent-400" />
           <div className="min-w-0">
-            <p className="text-sm font-medium text-green-800 dark:text-green-200">Ready to promote</p>
-            <p className="mt-1 text-xs text-green-800/80 dark:text-green-200/85">
+            <p className="text-sm font-medium text-accent-800 dark:text-accent-200">Ready to promote</p>
+            <p className="mt-1 text-xs text-accent-800/80 dark:text-accent-200/85">
               Every gate check passes — <span className="font-mono tabular-nums">{candidateLabel}</span> can be promoted
               to {gate.targetStage}.
             </p>
@@ -62,14 +62,14 @@ function StatusBanner({ gate, candidateLabel }: { gate: PromotionGate; candidate
 
   if (gate.overallStatus === 'blocked') {
     return (
-      <div className="-mx-6 -mt-5 border-b border-rose-500/20 bg-rose-500/10 px-6 py-4">
+      <div className="-mx-6 -mt-5 border-b border-accent-500/20 bg-accent-500/10 px-6 py-4">
         <div className="flex gap-3">
-          <XCircleIcon aria-hidden="true" className="size-5 shrink-0 text-rose-600 dark:text-rose-400" />
+          <XCircleIcon aria-hidden="true" className="size-5 shrink-0 text-accent-600 dark:text-accent-400" />
           <div className="min-w-0">
-            <p className="text-sm font-medium text-rose-800 dark:text-rose-200">
+            <p className="text-sm font-medium text-accent-800 dark:text-accent-200">
               Blocked — {failingCount} {failingCount === 1 ? 'check' : 'checks'} failing
             </p>
-            <p className="mt-1 text-xs text-rose-800/80 dark:text-rose-200/85">
+            <p className="mt-1 text-xs text-accent-800/80 dark:text-accent-200/85">
               <span className="font-mono tabular-nums">{candidateLabel}</span> cannot reach {gate.targetStage} until
               every failing check passes or is explicitly waived.
             </p>
@@ -80,12 +80,12 @@ function StatusBanner({ gate, candidateLabel }: { gate: PromotionGate; candidate
   }
 
   return (
-    <div className="-mx-6 -mt-5 border-b border-amber-500/20 bg-amber-500/10 px-6 py-4">
+    <div className="-mx-6 -mt-5 border-b border-accent-500/20 bg-accent-500/10 px-6 py-4">
       <div className="flex gap-3">
-        <ClockIcon aria-hidden="true" className="size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+        <ClockIcon aria-hidden="true" className="size-5 shrink-0 text-accent-600 dark:text-accent-400" />
         <div className="min-w-0">
-          <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Awaiting human approval</p>
-          <p className="mt-1 text-xs text-amber-800/80 dark:text-amber-200/85">
+          <p className="text-sm font-medium text-accent-800 dark:text-accent-200">Awaiting human approval</p>
+          <p className="mt-1 text-xs text-accent-800/80 dark:text-accent-200/85">
             All automated checks pass — a sign-off is still required before{' '}
             <span className="font-mono tabular-nums">{candidateLabel}</span> ships to {gate.targetStage}.
           </p>
@@ -118,7 +118,7 @@ export function PromotionGateCard({
       actions={
         <>
           <span className="font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-300">{candidateLabel}</span>
-          <Badge color={gate.targetStage === 'production' ? 'green' : 'zinc'}>target: {gate.targetStage}</Badge>
+          <Badge color={gate.targetStage === 'production' ? 'accent' : 'zinc'}>target: {gate.targetStage}</Badge>
         </>
       }
       contentClassName="px-6 py-5"
@@ -142,7 +142,7 @@ export function PromotionGateCard({
             aria-valuetext={`${passedChecks} of ${totalChecks} checks passing`}
             className="overflow-hidden rounded-full bg-zinc-950/10 dark:bg-white/10"
           >
-            <div style={{ width: `${progressPct}%` }} className="h-2 rounded-full bg-green-500" />
+            <div style={{ width: `${progressPct}%` }} className="h-2 rounded-full bg-accent-500" />
           </div>
           <div className="mt-6 hidden grid-cols-4 text-sm font-medium text-zinc-500 sm:grid dark:text-zinc-400">
             {CHECK_GROUPS.map((group, groupIdx) => (
@@ -154,7 +154,7 @@ export function PromotionGateCard({
                     : groupIdx !== 0
                       ? 'text-center'
                       : undefined,
-                  groupFullyPassed(gate.checks, group.checkIds) && 'text-green-600 dark:text-green-400'
+                  groupFullyPassed(gate.checks, group.checkIds) && 'text-accent-600 dark:text-accent-400'
                 )}
               >
                 {group.label}

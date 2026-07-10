@@ -124,7 +124,7 @@ function BenchRow({
           <Button outline onClick={() => onAssign(copilot)}>
             Assign…<span className="sr-only"> {copilot.name} to a project</span>
           </Button>
-          <Link href={href} className="text-green-400 hover:text-green-300">
+          <Link href={href} className="text-accent-400 hover:text-accent-300">
             Open<span className="sr-only">, {copilot.name}</span>
           </Link>
         </div>
@@ -161,7 +161,7 @@ function AllRow({
       </td>
       <td className="px-3 py-5 text-sm whitespace-nowrap">
         {copilot.projectId === null ? (
-          <Badge color="amber">On bench</Badge>
+          <Badge color="accentStrong">On bench</Badge>
         ) : (
           <span className="text-zinc-300">{projectNameById.get(copilot.projectId) ?? copilot.projectId}</span>
         )}
@@ -169,7 +169,7 @@ function AllRow({
       <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-400">{copilot.owner}</td>
       <td className="py-5 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap sm:pr-0">
         <div className="flex items-center justify-end gap-2">
-          <Link href={href} className="text-green-400 hover:text-green-300">
+          <Link href={href} className="text-accent-400 hover:text-accent-300">
             Open<span className="sr-only">, {copilot.name}</span>
           </Link>
           {copilot.projectId !== null ? (

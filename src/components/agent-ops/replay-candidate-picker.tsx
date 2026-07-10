@@ -16,12 +16,12 @@ export interface ReplayCandidateItem {
 
 const outcomeConfig: Record<
   ReplayCandidate['outcome'],
-  { label: string; color: 'green' | 'amber' | 'rose' | 'zinc'; meterClassName: string }
+  { label: string; color: 'accent' | 'accentStrong' | 'accentSolid' | 'zinc'; meterClassName: string }
 > = {
-  matched: { label: 'Matched', color: 'green', meterClassName: 'bg-green-400' },
-  improved: { label: 'Improved', color: 'green', meterClassName: 'bg-green-400' },
-  diverged: { label: 'Diverged', color: 'amber', meterClassName: 'bg-amber-400' },
-  unsafe: { label: 'Unsafe', color: 'rose', meterClassName: 'bg-rose-400' },
+  matched: { label: 'Matched', color: 'accent', meterClassName: 'bg-accent-400' },
+  improved: { label: 'Improved', color: 'accent', meterClassName: 'bg-accent-400' },
+  diverged: { label: 'Diverged', color: 'accentStrong', meterClassName: 'bg-accent-400' },
+  unsafe: { label: 'Unsafe', color: 'accentSolid', meterClassName: 'bg-accent-400' },
   pending: { label: 'Pending', color: 'zinc', meterClassName: 'bg-zinc-500' },
 }
 
@@ -58,9 +58,9 @@ export function ReplayCandidatePicker({ items }: { items: ReplayCandidateItem[] 
               onClick={() => setSelectedId(candidate.id)}
               className={clsx(
                 'rounded-lg p-4 text-left transition-colors duration-150',
-                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-500',
+                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
                 isSelected
-                  ? 'bg-zinc-100 ring-2 ring-green-500/60 dark:bg-zinc-950'
+                  ? 'bg-zinc-100 ring-2 ring-accent-500/60 dark:bg-zinc-950'
                   : 'bg-zinc-50 ring-1 ring-zinc-950/5 hover:bg-zinc-100 hover:ring-zinc-950/10 dark:bg-zinc-950 dark:ring-white/10 dark:hover:ring-white/20'
               )}
             >
@@ -88,12 +88,12 @@ export function ReplayCandidatePicker({ items }: { items: ReplayCandidateItem[] 
               <span
                 className={clsx(
                   'mt-3 flex items-center gap-1.5 text-xs font-medium',
-                  isSelected ? 'text-green-700 dark:text-green-400' : 'text-zinc-500'
+                  isSelected ? 'text-accent-700 dark:text-accent-400' : 'text-zinc-500'
                 )}
               >
                 {isSelected ? (
                   <>
-                    <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-green-500" />
+                    <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-accent-500" />
                     Viewing step diff
                   </>
                 ) : (

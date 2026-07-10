@@ -11,10 +11,10 @@ import { formatTimestamp } from '@/lib/agent-mission-control/format'
 import { getCopilot, getShadowExperimentsForCopilot, getVersion } from '@/lib/agent-mission-control/data'
 import type { ShadowMismatch } from '@/lib/agent-mission-control/types'
 
-const severityConfig: Record<ShadowMismatch['severity'], { label: string; color: 'zinc' | 'amber' | 'rose' }> = {
+const severityConfig: Record<ShadowMismatch['severity'], { label: string; color: 'zinc' | 'accentStrong' | 'accentSolid' }> = {
   info: { label: 'Info', color: 'zinc' },
-  warning: { label: 'Warning', color: 'amber' },
-  unsafe: { label: 'Unsafe', color: 'rose' },
+  warning: { label: 'Warning', color: 'accentStrong' },
+  unsafe: { label: 'Unsafe', color: 'accentSolid' },
 }
 
 function SeverityBadge({ severity }: { severity: ShadowMismatch['severity'] }) {

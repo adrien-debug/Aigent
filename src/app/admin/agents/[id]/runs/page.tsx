@@ -14,10 +14,10 @@ import type { ToolCall } from '@/lib/agent-mission-control/types'
 
 const toolCallStatuses = [
   { status: 'ok', label: 'OK', dotClassName: 'bg-zinc-500' },
-  { status: 'confirmed', label: 'Confirmed', dotClassName: 'bg-green-400' },
-  { status: 'error', label: 'Error', dotClassName: 'bg-rose-400' },
-  { status: 'blocked', label: 'Blocked', dotClassName: 'bg-rose-400' },
-  { status: 'rejected', label: 'Rejected', dotClassName: 'bg-rose-400' },
+  { status: 'confirmed', label: 'Confirmed', dotClassName: 'bg-accent-400' },
+  { status: 'error', label: 'Error', dotClassName: 'bg-accent-400' },
+  { status: 'blocked', label: 'Blocked', dotClassName: 'bg-accent-400' },
+  { status: 'rejected', label: 'Rejected', dotClassName: 'bg-accent-400' },
 ] satisfies { status: ToolCall['status']; label: string; dotClassName: string }[]
 
 export default async function RunsPage({

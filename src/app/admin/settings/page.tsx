@@ -40,7 +40,7 @@ export default function SettingsPage() {
           <DescriptionList>
             <DescriptionTerm>Source</DescriptionTerm>
             <DescriptionDetails>
-              {isGpu1 ? <Badge color="green">GPU1 · PostgREST</Badge> : <Badge color="zinc">Mock dataset</Badge>}
+              {isGpu1 ? <Badge color="accent">GPU1 · PostgREST</Badge> : <Badge color="zinc">Mock dataset</Badge>}
             </DescriptionDetails>
             <DescriptionTerm>Endpoint</DescriptionTerm>
             <DescriptionDetails>
@@ -67,7 +67,7 @@ export default function SettingsPage() {
             </p>
           </div>
           <Button outline disabled title="Ships in V2">
-            <span className="text-rose-600 dark:text-rose-400">Archive workspace</span>
+            <span className="text-accent-600 dark:text-accent-400">Archive workspace</span>
           </Button>
         </div>
       </AgentSectionCard>

@@ -43,7 +43,7 @@ function TooltipRow({ label, value, tone = 'default' }: { label: string; value: 
   return (
     <div className="flex items-baseline justify-between gap-x-4">
       <dt className="text-zinc-400">{label}</dt>
-      <dd className={tone === 'danger' ? 'font-mono tabular-nums text-rose-400' : 'font-mono text-zinc-100 tabular-nums'}>
+      <dd className={tone === 'danger' ? 'font-mono tabular-nums text-accent-400' : 'font-mono text-zinc-100 tabular-nums'}>
         {value}
       </dd>
     </div>

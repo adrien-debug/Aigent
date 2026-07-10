@@ -177,7 +177,7 @@ function ProjectTracesTable({
                     href={run.traceUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-md bg-violet-500/10 px-2 py-1 text-xs font-medium text-violet-600 hover:bg-violet-500/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500 dark:text-violet-400"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-accent-500/10 px-2 py-1 text-xs font-medium text-accent-600 hover:bg-accent-500/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-400"
                   >
                     Open
                     <ArrowTopRightOnSquareIcon aria-hidden="true" className="size-3.5" />
@@ -241,7 +241,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
             No validated agents yet — validate copilots from{' '}
             <Link
               href="/admin/agents"
-              className="font-medium text-green-700 hover:text-green-600 dark:text-green-400 dark:hover:text-green-300"
+              className="font-medium text-accent-700 hover:text-accent-600 dark:text-accent-400 dark:hover:text-accent-300"
             >
               the bench
             </Link>

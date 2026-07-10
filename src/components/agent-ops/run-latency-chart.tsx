@@ -51,7 +51,7 @@ function LatencyTooltip({ active, payload }: TooltipContentProps) {
         </div>
         <div className="flex items-baseline justify-between gap-6">
           <dt className="text-zinc-400">Status</dt>
-          <dd className={isFailedOrBlocked(point.status) ? 'text-rose-400' : 'text-zinc-300'}>
+          <dd className={isFailedOrBlocked(point.status) ? 'text-accent-400' : 'text-zinc-300'}>
             {statusLabel(point.status)}
           </dd>
         </div>

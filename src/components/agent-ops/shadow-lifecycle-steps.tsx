@@ -49,13 +49,13 @@ function deriveSteps(experiment: ShadowExperiment): LifecycleStep[] {
 
 const stepClasses: Record<StepStatus, { border: string; id: string; name: string }> = {
   complete: {
-    border: 'border-green-500',
-    id: 'text-green-600 dark:text-green-400',
+    border: 'border-accent-500',
+    id: 'text-accent-600 dark:text-accent-400',
     name: 'text-zinc-950 dark:text-white',
   },
   current: {
-    border: 'border-green-400',
-    id: 'text-green-600 dark:text-green-400',
+    border: 'border-accent-400',
+    id: 'text-accent-600 dark:text-accent-400',
     name: 'text-zinc-950 dark:text-white',
   },
   upcoming: {

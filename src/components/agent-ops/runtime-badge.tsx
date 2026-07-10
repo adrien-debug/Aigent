@@ -3,19 +3,11 @@ import { AGENT_RUNTIME_LABELS } from '@/lib/agent-mission-control/mock-data'
 import type { AgentRuntime } from '@/lib/agent-mission-control/types'
 
 /**
- * Doctrine: the blue / violet / indigo family is reserved for runtime & tracing.
- * Labels come from AGENT_RUNTIME_LABELS (single source) and are always visible,
- * so shared hues across runtimes stay unambiguous.
+ * Runtime is neutral metadata (which engine), not a status — so it wears the
+ * one neutral (zinc), keeping the accent hue reserved for states. Labels come
+ * from AGENT_RUNTIME_LABELS (single source) and are always visible.
  */
-const runtimeColors: Record<AgentRuntime, 'blue' | 'violet' | 'indigo'> = {
-  langgraph: 'blue',
-  'openai-assistants': 'violet',
-  'anthropic-sdk': 'indigo',
-  gemini: 'indigo',
-  custom: 'blue',
-}
-
-/** Agent runtime badge — human-readable label, runtime color family only. */
+/** Agent runtime badge — human-readable label, neutral zinc. */
 export function RuntimeBadge({ runtime }: { runtime: AgentRuntime }) {
-  return <Badge color={runtimeColors[runtime]}>{AGENT_RUNTIME_LABELS[runtime]}</Badge>
+  return <Badge color="zinc">{AGENT_RUNTIME_LABELS[runtime]}</Badge>
 }

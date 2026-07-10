@@ -5,11 +5,12 @@
  */
 
 /**
- * Doctrine color semantics for a test pass rate:
- * green = healthy (>= 90%), amber = attention (75–90%), rose = failing (< 75%).
+ * Monochrome pass-rate ink: brightness on the single accent hue signals health.
+ * Failing (< 75%) reads brightest/strongest, attention (75–90%) mid, healthy
+ * (>= 90%) softest — the accompanying label always states the actual value.
  */
 export function passRateClassName(rate: number): string {
-  if (rate < 0.75) return 'text-rose-600 dark:text-rose-400'
-  if (rate < 0.9) return 'text-amber-600 dark:text-amber-400'
-  return 'text-green-700 dark:text-green-400'
+  if (rate < 0.75) return 'text-accent-700 dark:text-accent-300'
+  if (rate < 0.9) return 'text-accent-600 dark:text-accent-400'
+  return 'text-accent-700 dark:text-accent-500'
 }

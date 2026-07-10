@@ -37,9 +37,9 @@ export function CopilotTabs({ copilotId }: { copilotId: string }) {
                 aria-current={current ? 'page' : undefined}
                 className={clsx(
                   'border-b-2 px-1 py-3 text-sm font-medium whitespace-nowrap transition-colors',
-                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-500',
+                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
                   current
-                    ? 'border-green-500 text-zinc-950 dark:text-white'
+                    ? 'border-accent-500 text-zinc-950 dark:text-white'
                     : 'border-transparent text-zinc-500 hover:border-zinc-950/20 hover:text-zinc-700 dark:text-zinc-400 dark:hover:border-white/20 dark:hover:text-zinc-200'
                 )}
               >

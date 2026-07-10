@@ -87,6 +87,11 @@ const styles = {
       'dark:[--btn-hover-overlay:var(--color-white)]/5',
       '[--btn-icon:var(--color-zinc-400)] data-active:[--btn-icon:var(--color-zinc-300)] data-hover:[--btn-icon:var(--color-zinc-300)]',
     ],
+    // The single brand accent solid button (design-system monochrome).
+    accent: [
+      'text-white [--btn-hover-overlay:var(--color-white)]/10 [--btn-bg:var(--color-accent-600)] [--btn-border:var(--color-accent-700)]/90',
+      '[--btn-icon:var(--color-accent-200)] data-active:[--btn-icon:var(--color-accent-100)] data-hover:[--btn-icon:var(--color-accent-100)]',
+    ],
     indigo: [
       'text-white [--btn-hover-overlay:var(--color-white)]/10 [--btn-bg:var(--color-indigo-500)] [--btn-border:var(--color-indigo-600)]/90',
       '[--btn-icon:var(--color-indigo-300)] data-active:[--btn-icon:var(--color-indigo-200)] data-hover:[--btn-icon:var(--color-indigo-200)]',

@@ -86,7 +86,7 @@ export function PromotionPipelineSteps({ gate }: { gate: PromotionGate }) {
                 aria-hidden="true"
                 className={clsx(
                   'absolute top-0 left-0 h-full w-1 lg:top-auto lg:bottom-0 lg:h-1 lg:w-full',
-                  step.status === 'current' ? 'bg-green-600 dark:bg-green-500' : 'bg-transparent'
+                  step.status === 'current' ? 'bg-accent-600 dark:bg-accent-500' : 'bg-transparent'
                 )}
               />
               <span
@@ -94,7 +94,7 @@ export function PromotionPipelineSteps({ gate }: { gate: PromotionGate }) {
               >
                 <span className="shrink-0">
                   {step.status === 'complete' ? (
-                    <span className="flex size-10 items-center justify-center rounded-full bg-green-600 dark:bg-green-500">
+                    <span className="flex size-10 items-center justify-center rounded-full bg-accent-600 dark:bg-accent-500">
                       <CheckIcon aria-hidden="true" className="size-6 text-white" />
                     </span>
                   ) : (
@@ -102,14 +102,14 @@ export function PromotionPipelineSteps({ gate }: { gate: PromotionGate }) {
                       className={clsx(
                         'flex size-10 items-center justify-center rounded-full border-2',
                         step.status === 'current'
-                          ? 'border-green-600 dark:border-green-500'
+                          ? 'border-accent-600 dark:border-accent-500'
                           : 'border-zinc-950/15 dark:border-white/15'
                       )}
                     >
                       <span
                         className={clsx(
                           step.status === 'current'
-                            ? 'text-green-600 dark:text-green-400'
+                            ? 'text-accent-600 dark:text-accent-400'
                             : 'text-zinc-500 dark:text-zinc-400'
                         )}
                       >
@@ -123,7 +123,7 @@ export function PromotionPipelineSteps({ gate }: { gate: PromotionGate }) {
                     className={clsx(
                       'text-sm font-medium',
                       step.status === 'complete' && 'text-zinc-950 dark:text-white',
-                      step.status === 'current' && 'text-green-600 dark:text-green-400',
+                      step.status === 'current' && 'text-accent-600 dark:text-accent-400',
                       step.status === 'upcoming' && 'text-zinc-500 dark:text-zinc-400'
                     )}
                   >

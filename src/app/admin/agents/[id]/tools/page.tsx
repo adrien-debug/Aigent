@@ -41,9 +41,9 @@ export default async function ToolsPage({ params }: { params: Promise<{ id: stri
       </AgentSectionCard>
 
       <p className="flex items-center gap-2 px-1 text-xs text-zinc-500">
-        <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-amber-500 dark:bg-amber-400" />
+        <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-accent-500 dark:bg-accent-400" />
         <span>
-          <span className="font-medium text-amber-600 dark:text-amber-400">Safety rule</span>
+          <span className="font-medium text-accent-600 dark:text-accent-400">Safety rule</span>
           {' — '}high &amp; critical risk tools always require human confirmation. This lock cannot be removed per
           tool.
         </span>
