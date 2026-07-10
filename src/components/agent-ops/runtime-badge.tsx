@@ -1,5 +1,5 @@
 import { Badge } from '@/components/catalyst/badge'
-import { AGENT_RUNTIME_LABELS } from '@/lib/agent-mission-control/mock-data'
+import { AGENT_RUNTIME_LABELS } from '@/lib/agent-mission-control/labels'
 import type { AgentRuntime } from '@/lib/agent-mission-control/types'
 
 /**

@@ -15,7 +15,7 @@ import { Input, InputGroup } from '@/components/catalyst/input'
 import { Link } from '@/components/catalyst/link'
 import { Select } from '@/components/catalyst/select'
 import { formatPercent } from '@/lib/agent-mission-control/format'
-import { AGENT_RUNTIME_LABELS } from '@/lib/agent-mission-control/mock-data'
+import { AGENT_RUNTIME_LABELS } from '@/lib/agent-mission-control/labels'
 import type { AgentRuntime, Copilot, CopilotStatus, Project } from '@/lib/agent-mission-control/types'
 
 export type RegistryTableView = 'bench' | 'all'

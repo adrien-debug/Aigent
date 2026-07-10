@@ -9,7 +9,13 @@ import { Button } from '@/components/catalyst/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Text } from '@/components/catalyst/text'
 import { formatTimestamp } from '@/lib/agent-mission-control/format'
-import { getCopilot, getRunsForCopilot, getStepsForRun, getToolCallsForRun } from '@/lib/agent-mission-control/data'
+import {
+  getCopilot,
+  getRunsForCopilot,
+  getStepsForRun,
+  getToolCallsForRun,
+  getVersion,
+} from '@/lib/agent-mission-control/data'
 import type { ToolCall } from '@/lib/agent-mission-control/types'
 
 const toolCallStatuses = [
@@ -37,10 +43,11 @@ export default async function RunsPage({
   const requestedRunId = typeof sp.run === 'string' ? sp.run : undefined
   const selectedRun = runs.find((run) => run.id === requestedRunId) ?? runs[0]
 
-  const [allToolCallsByRun, selectedSteps, selectedToolCalls] = await Promise.all([
+  const [allToolCallsByRun, selectedSteps, selectedToolCalls, selectedVersion] = await Promise.all([
     Promise.all(runs.map((run) => getToolCallsForRun(run.id))),
     selectedRun ? getStepsForRun(selectedRun.id) : [],
     selectedRun ? getToolCallsForRun(selectedRun.id) : [],
+    selectedRun ? getVersion(selectedRun.versionId) : undefined,
   ])
   // Chart data: chronological (oldest → newest), plain serializable objects only.
   const latencyPoints = [...runs].reverse().map((run) => ({
@@ -148,7 +155,12 @@ export default async function RunsPage({
             </div>
 
             <div className="lg:col-span-3">
-              <RunDetailPanel run={selectedRun} steps={selectedSteps} toolCalls={selectedToolCalls} />
+              <RunDetailPanel
+                run={selectedRun}
+                steps={selectedSteps}
+                toolCalls={selectedToolCalls}
+                versionLabel={selectedVersion?.label}
+              />
             </div>
           </div>
         </>

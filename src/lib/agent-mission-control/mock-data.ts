@@ -10,13 +10,11 @@ import type {
   AgentManifest,
   AgentRun,
   AgentRunStep,
-  AgentRuntime,
   BenchmarkResult,
   BenchmarkRun,
   BenchmarkSuite,
   Copilot,
   CopilotVersion,
-  ModelProvider,
   Project,
   PromotionGate,
   RegistryWarning,
@@ -30,25 +28,8 @@ import type {
   ToolDefinition,
 } from './types'
 
-// ---------------------------------------------------------------------------
-// Display labels
-// ---------------------------------------------------------------------------
-
-export const AGENT_RUNTIME_LABELS: Record<AgentRuntime, string> = {
-  langgraph: 'LangGraph',
-  'openai-assistants': 'OpenAI Assistants',
-  'anthropic-sdk': 'Anthropic SDK',
-  gemini: 'Gemini',
-  custom: 'Custom runtime',
-}
-
-export const MODEL_PROVIDER_LABELS: Record<ModelProvider, string> = {
-  openai: 'OpenAI',
-  anthropic: 'Anthropic',
-  google: 'Google',
-  mistral: 'Mistral',
-  local: 'Local',
-}
+// Display labels — single source lives in ./labels (UI constants, not data).
+export { AGENT_RUNTIME_LABELS, MODEL_PROVIDER_LABELS } from './labels'
 
 // ---------------------------------------------------------------------------
 // Projects

@@ -56,11 +56,20 @@ function contrast(a, b) {
   return (hi + 0.05) / (lo + 0.05)
 }
 
+// Live-only: nothing in the running app may import the mock dataset. mock-data.ts
+// stays (used by scripts/seed-amc.ts to seed the real DB) but the app is severed.
+const MOCK_IMPORT_RE = /from\s+['"](?:@\/lib\/agent-mission-control\/mock-data|\.{1,2}(?:\/[^'"]*)?\/mock-data|\.\/mock-data)['"]/
+const mockImports = []
+
 async function main() {
   const violations = []
   for await (const file of walk(SRC)) {
-    if (relative(SRC, file).includes(EXCLUDE_DIR)) continue
+    const rel = relative(SRC, file)
+    if (rel.includes(EXCLUDE_DIR)) continue
     const text = await readFile(file, 'utf8')
+    if (rel !== 'lib/agent-mission-control/mock-data.ts' && MOCK_IMPORT_RE.test(text)) {
+      mockImports.push(relative(ROOT, file))
+    }
     text.split('\n').forEach((line, i) => {
       for (const re of [CLASS_RE, PROP_RE, VAR_RE]) {
         re.lastIndex = 0
@@ -90,12 +99,17 @@ async function main() {
     console.error('\n✗ WCAG AA contrast failures:\n')
     for (const [name, ratio] of contrastFails) console.error(`  ${name}: ${ratio.toFixed(2)}:1 (< ${AA})`)
   }
+  if (mockImports.length > 0) {
+    failed = true
+    console.error('\n✗ mock dataset imported by the app (live-only — use the data layer):\n')
+    for (const f of mockImports) console.error('  ' + f)
+  }
 
   if (failed) {
     console.error('\nDesign-system guard FAILED.\n')
     process.exit(1)
   }
-  console.log('✓ Design-system guard passed — monochrome accent + zinc, contrasts AA.')
+  console.log('✓ Design-system guard passed — monochrome accent + zinc, contrasts AA, no mock in app.')
   for (const [name, ratio] of contrastChecks) console.log(`  ${name}: ${ratio.toFixed(2)}:1`)
 }
 

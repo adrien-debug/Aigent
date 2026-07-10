@@ -98,6 +98,12 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
   (jamais un solid vert cliquable sous un statut "Blocked") ; un switch verrouillé-ON se rend
   checked + disabled, pas éteint ; une donnée absente s'affiche `—` zinc, jamais `0.0%` rose.
 
-## Data
-- Tout vient de `@/lib/agent-mission-control/mock-data` (typé par `types.ts`). Zéro fetch,
-  zéro appel externe, zéro `Math.random()` dans le rendu.
+## Data — LIVE uniquement (plus aucun mock dans l'app)
+- Toute donnée vient de `@/lib/agent-mission-control/data` (async, server-only, PostgREST gpu1
+  base `aigent`). **Fail-closed** : sans backend configuré, les getters *throw* et le
+  boundary `/admin/error.tsx` propose un retry — l'app ne fabrique JAMAIS de donnée.
+- L'app **n'importe jamais** `mock-data` (garde CI `check:ds`). `mock-data.ts` ne sert plus
+  qu'au script de seed (`scripts/seed-amc.ts`) pour peupler la vraie base.
+- Labels d'affichage (enum → texte) dans `./labels` (constantes UI, pas de la data).
+- Les pages (server components) fetchent et passent des props sérialisables. Zéro `Math.random()`
+  dans le rendu ; jamais importer `data.ts` depuis un composant client (clé service_role).

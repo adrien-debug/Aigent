@@ -4,7 +4,7 @@ import clsx from 'clsx'
 import { RuntimeBadge } from '@/components/agent-ops/runtime-badge'
 import { Badge } from '@/components/catalyst/badge'
 import { formatDurationMs, formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
-import { MODEL_PROVIDER_LABELS } from '@/lib/agent-mission-control/mock-data'
+import { MODEL_PROVIDER_LABELS } from '@/lib/agent-mission-control/labels'
 import type { BenchmarkResult, BenchmarkRun } from '@/lib/agent-mission-control/types'
 
 /** Semantic tone for a composite score: green ≥ 80, amber 60–79, rose < 60. */

@@ -4,7 +4,7 @@ import clsx from 'clsx'
 import { RuntimeBadge } from '@/components/agent-ops/runtime-badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { formatDurationMs, formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
-import { MODEL_PROVIDER_LABELS } from '@/lib/agent-mission-control/mock-data'
+import { MODEL_PROVIDER_LABELS } from '@/lib/agent-mission-control/labels'
 import type { BenchmarkResult, BenchmarkRun } from '@/lib/agent-mission-control/types'
 
 const numericCell = 'text-right font-mono tabular-nums'

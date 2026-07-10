@@ -6,7 +6,6 @@ import { Badge } from '@/components/catalyst/badge'
 import { DescriptionDetails, DescriptionList, DescriptionTerm } from '@/components/catalyst/description-list'
 import { Link } from '@/components/catalyst/link'
 import { formatDurationMs, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
-import { getVersion } from '@/lib/agent-mission-control/mock-data'
 import type { AgentRun, AgentRunStatus, AgentRunStep, ToolCall } from '@/lib/agent-mission-control/types'
 
 const runStatusConfig: Record<AgentRunStatus, { label: string; color: 'accent' | 'accentSolid' | 'accentStrong' | 'zinc' }> = {
@@ -32,12 +31,14 @@ export function RunDetailPanel({
   run,
   steps,
   toolCalls,
+  versionLabel,
 }: {
   run: AgentRun
   steps: AgentRunStep[]
   toolCalls: ToolCall[]
+  /** Human label for run.versionId, resolved live by the page (falls back to the id). */
+  versionLabel?: string | null
 }) {
-  const version = getVersion(run.versionId)
   const toolCallsById: Record<string, ToolCall | undefined> = Object.fromEntries(
     toolCalls.map((call) => [call.id, call])
   )
@@ -87,7 +88,7 @@ export function RunDetailPanel({
 
           <DescriptionTerm>Version</DescriptionTerm>
           <DescriptionDetails className="font-mono text-sm tabular-nums">
-            {version?.label ?? run.versionId}
+            {versionLabel ?? run.versionId}
           </DescriptionDetails>
 
           <DescriptionTerm>Trace</DescriptionTerm>
