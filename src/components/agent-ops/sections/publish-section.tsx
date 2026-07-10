@@ -1,5 +1,4 @@
 import { ArrowUpCircleIcon } from '@heroicons/react/24/outline'
-import clsx from 'clsx'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
@@ -7,10 +6,10 @@ import { GateHistoryFeed, type GateHistoryEvent } from '@/components/agent-ops/g
 import { PromotionGateCard } from '@/components/agent-ops/promotion-gate-card'
 import { PromotionPipelineSteps } from '@/components/agent-ops/promotion-pipeline-steps'
 import { PublishActions } from '@/components/agent-ops/publish-actions'
+import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
+import { SplitBar } from '@/components/agent-ops/widgets/split-bar'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
-import { DescriptionDetails, DescriptionList, DescriptionTerm } from '@/components/catalyst/description-list'
-import { Divider } from '@/components/catalyst/divider'
 import { Subheading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
 import { formatPercent, formatTimestamp } from '@/lib/agent-mission-control/format'
@@ -146,11 +145,28 @@ export async function PublishSection({ copilotId }: { copilotId: string }) {
             value: `${passedChecks} / ${gate.checks.length}`,
             change: failingChecks > 0 ? `${failingChecks} failing` : pendingChecks > 0 ? `${pendingChecks} pending` : undefined,
             changeType: failingChecks > 0 ? 'negative' : undefined,
+            viz: (
+              <SplitBar
+                showLegend={false}
+                segments={[
+                  { key: 'pass', label: 'Passing', value: passedChecks, tone: 'accent-500' },
+                  { key: 'pending', label: 'Pending', value: pendingChecks, tone: 'accent-300' },
+                  { key: 'fail', label: 'Failing', value: failingChecks, tone: 'accent-700' },
+                ]}
+              />
+            ),
             hint: failingChecks > 0 ? 'Blocking promotion' : pendingChecks > 0 ? 'Awaiting signal' : 'All green',
           },
           {
             name: 'Benchmark score',
             value: candidateVersion ? `${candidateVersion.scores.benchmarkScore} / 100` : '—',
+            viz: candidateVersion ? (
+              <LinearMeter
+                value={candidateVersion.scores.benchmarkScore}
+                max={100}
+                ariaLabel="Candidate benchmark score"
+              />
+            ) : undefined,
             hint: candidateVersion
               ? `${formatPercent(candidateVersion.scores.testPassRate)} test pass`
               : 'No candidate scores',
@@ -172,67 +188,39 @@ export async function PublishSection({ copilotId }: { copilotId: string }) {
         <div className="space-y-6 lg:col-span-2">
           <PromotionGateCard gate={gate} candidateVersion={candidateVersion} />
 
-        <AgentSectionCard title="History" description="Recent gate activity for this candidate.">
-          <GateHistoryFeed events={historyEvents} />
-        </AgentSectionCard>
-      </div>
+          <AgentSectionCard title="History" description="Recent gate activity for this candidate.">
+            <GateHistoryFeed events={historyEvents} />
+          </AgentSectionCard>
+        </div>
 
-      <div>
-        <AgentSectionCard title="Decision" description="Promote, request approval, or roll back.">
-          <DescriptionList>
-            <DescriptionTerm>Candidate</DescriptionTerm>
-            <DescriptionDetails className="font-mono text-xs/6 tabular-nums">{candidateLabel}</DescriptionDetails>
+        <div>
+          <AgentSectionCard title="Decision" description="Promote, request approval, or roll back.">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-300">{candidateLabel}</span>
+              <span aria-hidden="true" className="text-zinc-400 dark:text-zinc-600">
+                &rarr;
+              </span>
+              <Badge color={gate.targetStage === 'production' ? 'accent' : 'zinc'}>{gate.targetStage}</Badge>
+              {rollbackVersion ? (
+                <Badge color="accentStrong">
+                  rollback&nbsp;<span className="font-mono tabular-nums">{rollbackVersion.label}</span>
+                </Badge>
+              ) : null}
+            </div>
 
-            <DescriptionTerm>Target stage</DescriptionTerm>
-            <DescriptionDetails>
-              <Badge color={gate.targetStage === 'production' ? 'green' : 'zinc'}>{gate.targetStage}</Badge>
-            </DescriptionDetails>
-
-            {candidateVersion ? (
-              <>
-                <DescriptionTerm>Test pass rate</DescriptionTerm>
-                <DescriptionDetails className="font-mono text-xs/6 tabular-nums">
-                  {formatPercent(candidateVersion.scores.testPassRate)}
-                </DescriptionDetails>
-
-                <DescriptionTerm>Benchmark score</DescriptionTerm>
-                <DescriptionDetails className="font-mono text-xs/6 tabular-nums">
-                  {candidateVersion.scores.benchmarkScore} / 100
-                </DescriptionDetails>
-
-                <DescriptionTerm>Shadow agreement</DescriptionTerm>
-                <DescriptionDetails className="font-mono text-xs/6 tabular-nums">
-                  {candidateVersion.scores.shadowAgreement !== null
-                    ? formatPercent(candidateVersion.scores.shadowAgreement)
-                    : 'never shadowed'}
-                </DescriptionDetails>
-
-                <DescriptionTerm>Unsafe actions</DescriptionTerm>
-                <DescriptionDetails
-                  className={clsx(
-                    'font-mono text-xs/6 tabular-nums',
-                    candidateVersion.scores.unsafeActionCount > 0 && 'text-accent-600 dark:text-accent-400'
-                  )}
-                >
-                  {candidateVersion.scores.unsafeActionCount}
-                </DescriptionDetails>
-              </>
-            ) : null}
-          </DescriptionList>
-
-          <Divider soft className="my-4" />
-
-          <PublishActions
-            copilotId={id}
-            candidateVersionId={gate.candidateVersionId}
-            productionVersionId={copilot.productionVersionId}
-            rollbackVersionId={rollbackVersion?.id ?? null}
-            overallStatus={gate.overallStatus}
-            targetStage={gate.targetStage}
-            blockingCheckLabels={blockingCheckLabels}
-            rollbackVersionLabel={rollbackVersion?.label ?? null}
-          />
-        </AgentSectionCard>
+            <div className="mt-6">
+              <PublishActions
+                copilotId={id}
+                candidateVersionId={gate.candidateVersionId}
+                productionVersionId={copilot.productionVersionId}
+                rollbackVersionId={rollbackVersion?.id ?? null}
+                overallStatus={gate.overallStatus}
+                targetStage={gate.targetStage}
+                blockingCheckLabels={blockingCheckLabels}
+                rollbackVersionLabel={rollbackVersion?.label ?? null}
+              />
+            </div>
+          </AgentSectionCard>
         </div>
       </div>
     </div>

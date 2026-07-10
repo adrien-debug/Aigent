@@ -1,3 +1,5 @@
+import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
+import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
 import { VersionStageBadge } from '@/components/agent-ops/version-stage-badge'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
@@ -8,32 +10,21 @@ import type { CopilotVersion } from '@/lib/agent-mission-control/types'
 export { VersionStageBadge } from '@/components/agent-ops/version-stage-badge'
 
 /**
- * A draft with all-zero test/benchmark scores was never run: render "—"
- * (not measured), never a scary "0.0%". Shared with the versions page so the
- * cards and the score comparison table agree.
+ * A draft with all-zero test/benchmark scores was never run: render a muted
+ * "Not measured yet" line (never a scary "0.0%" or an empty gauge). Shared with
+ * the versions page so the cards and the score comparison table agree.
  */
 export function versionNeverTested(version: CopilotVersion): boolean {
   return version.stage === 'draft' && version.scores.testPassRate === 0 && version.scores.benchmarkScore === 0
 }
 
-function NotMeasured() {
-  return (
-    <span className="text-zinc-500">
-      <span aria-hidden="true">—</span>
-      <span className="sr-only">not measured</span>
-    </span>
-  )
-}
-
-function ScoreCell({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <dt className="text-xs text-zinc-500">{label}</dt>
-      <dd className="mt-1 text-sm">{children}</dd>
-    </div>
-  )
-}
-
+/**
+ * Version card — carries IDENTITY (label, stage, model, author, changelog) plus
+ * the decision-critical quality/safety signal as live gauges: a benchmark
+ * RadialMeter hero, a test-pass LinearMeter and an unsafe-actions chip. The
+ * four-way cross-version comparison lives ONLY in the score table (no
+ * duplication). Server-safe.
+ */
 export function VersionComparisonCard({
   version,
   isProduction,
@@ -49,7 +40,7 @@ export function VersionComparisonCard({
 
   return (
     <article className="flex flex-col overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
-      <div className="border-b border-zinc-950/5 dark:border-white/5 px-6 py-4">
+      <div className="border-b border-zinc-950/5 px-6 py-4 dark:border-white/5">
         <div className="flex flex-wrap items-center gap-3">
           <h3 className="font-mono text-sm font-semibold tabular-nums text-zinc-950 dark:text-white">{version.label}</h3>
           <VersionStageBadge stage={version.stage} />
@@ -62,53 +53,49 @@ export function VersionComparisonCard({
       </div>
 
       <div className="flex flex-1 flex-col px-6 py-5">
-        <p className="mb-6 text-sm text-zinc-500 dark:text-zinc-400">{version.changelog}</p>
+        <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">{version.changelog}</p>
 
-        <dl className="mt-auto grid grid-cols-2 gap-x-6 gap-y-4 border-t border-zinc-950/5 pt-4 dark:border-white/5">
-          <ScoreCell label="Test pass">
-            {neverTested ? (
-              <NotMeasured />
-            ) : (
-              <span className="font-mono tabular-nums text-zinc-950 dark:text-white">{formatPercent(scores.testPassRate)}</span>
-            )}
-          </ScoreCell>
-          <ScoreCell label="Benchmark">
-            {neverTested ? (
-              <NotMeasured />
-            ) : (
-              <>
-                <span className="font-mono tabular-nums text-zinc-950 dark:text-white">{scores.benchmarkScore}</span>
-                <span className="text-xs text-zinc-500"> / 100</span>
-              </>
-            )}
-          </ScoreCell>
-          <ScoreCell label="Shadow agreement">
-            {scores.shadowAgreement === null ? (
-              <span className="text-zinc-500">Never shadowed</span>
-            ) : (
-              <span className="font-mono tabular-nums text-zinc-950 dark:text-white">{formatPercent(scores.shadowAgreement)}</span>
-            )}
-          </ScoreCell>
-          <ScoreCell label="Unsafe actions">
-            {scores.unsafeActionCount === 0 ? (
-              <>
-                <span className="font-mono tabular-nums text-accent-700 dark:text-accent-400">0</span>
-                <span className="text-xs text-zinc-500"> · none</span>
-              </>
-            ) : (
-              <>
-                <span className="font-mono tabular-nums text-accent-600 dark:text-accent-400">{scores.unsafeActionCount}</span>
-                <span className="text-xs text-accent-600 dark:text-accent-400"> · flagged</span>
-              </>
-            )}
-          </ScoreCell>
-        </dl>
+        {neverTested ? (
+          <p className="mt-auto border-t border-zinc-950/5 pt-4 text-sm text-zinc-500 dark:border-white/5">
+            Not measured yet — run its tests and a benchmark to compare.
+          </p>
+        ) : (
+          <div className="mt-auto flex items-center gap-6 border-t border-zinc-950/5 pt-4 dark:border-white/5">
+            <RadialMeter
+              value={scores.benchmarkScore}
+              max={100}
+              size={72}
+              strokeWidth={6}
+              centerText={String(scores.benchmarkScore)}
+              caption="benchmark"
+              ariaLabel={`Benchmark score for ${version.label}`}
+            />
+            <div className="flex-1 space-y-3">
+              <LinearMeter
+                size="xs"
+                value={scores.testPassRate}
+                max={1}
+                label="Test pass"
+                valueText={formatPercent(scores.testPassRate)}
+                ariaLabel={`Test pass rate for ${version.label}`}
+              />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-zinc-500">Unsafe actions</span>
+                {scores.unsafeActionCount === 0 ? (
+                  <Badge color="accent">0 · none</Badge>
+                ) : (
+                  <Badge color="accentSolid">{scores.unsafeActionCount} · flagged</Badge>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Twin-card skeleton: every footer is the same fixed-min-height row —
-          chip zone left, actions zone right — so footers align across the grid
-          even when a card (production) has no actions. */}
-      <footer className="flex min-h-17 flex-wrap items-center justify-between gap-3 border-t border-zinc-950/5 dark:border-white/5 px-6 py-4">
+          chip zone left, action right — so footers align across the grid even
+          when a card (production) has no action. */}
+      <footer className="flex min-h-14 flex-wrap items-center justify-between gap-3 border-t border-zinc-950/5 px-6 py-4 dark:border-white/5">
         <div className="flex flex-wrap items-center gap-3">
           {isProduction ? (
             <Badge color="accent">
@@ -120,16 +107,9 @@ export function VersionComparisonCard({
           ) : null}
         </div>
         {!isProduction ? (
-          <div className="flex flex-wrap items-center gap-3">
-            {!isRollbackTarget ? (
-              <Button plain disabled title="Rollback targeting ships in V2">
-                Set as rollback target
-              </Button>
-            ) : null}
-            <Button outline href={publishHref}>
-              Promote&hellip;
-            </Button>
-          </div>
+          <Button outline href={publishHref}>
+            Promote&hellip;
+          </Button>
         ) : null}
       </footer>
     </article>

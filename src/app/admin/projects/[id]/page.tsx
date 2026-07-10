@@ -4,10 +4,12 @@ import { notFound } from 'next/navigation'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
-import { passRateClassName } from '@/components/agent-ops/health-format'
 import { RunStatusBadge } from '@/components/agent-ops/run-detail-panel'
-import { RuntimeBadge } from '@/components/agent-ops/runtime-badge'
 import { StatusBadge } from '@/components/agent-ops/status-badge'
+import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
+import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
+import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
+import { SplitBar, type SplitSegment, type SplitTone } from '@/components/agent-ops/widgets/split-bar'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { getCopilots, getProject, getRecentRunsForProject } from '@/lib/agent-mission-control/data'
@@ -17,7 +19,8 @@ import {
   formatTimestamp,
   formatUsd,
 } from '@/lib/agent-mission-control/format'
-import type { AgentRun, Copilot } from '@/lib/agent-mission-control/types'
+import { AGENT_RUNTIME_LABELS } from '@/lib/agent-mission-control/labels'
+import type { AgentRun, Copilot, CopilotStatus } from '@/lib/agent-mission-control/types'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
@@ -41,8 +44,48 @@ function EmDash({ srLabel }: { srLabel: string }) {
   )
 }
 
-/** The project's validated copilots — Name / Runtime / Status / Tests / Runs 24h / Cost 24h. */
-function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
+/**
+ * Test pass rate → accent-ramp meter fill (escalation by INTENSITY, per the
+ * Badge ladder soft → strong → solid): failing draws the eye, healthy recedes.
+ */
+function passRateMeterTone(rate: number): 'accent' | 'accentStrong' | 'accentSolid' {
+  if (rate < 0.75) return 'accentSolid'
+  if (rate < 0.9) return 'accentStrong'
+  return 'accent'
+}
+
+/**
+ * This project's fleet status composition as one accent-ramp SplitBar
+ * (active → brightest, inactive → zinc). Deterministic lifecycle order.
+ */
+function statusMixSegments(copilots: Copilot[]): SplitSegment[] {
+  const order: { status: CopilotStatus; label: string; tone: SplitTone }[] = [
+    { status: 'active', label: 'Active', tone: 'accent-500' },
+    { status: 'degraded', label: 'Degraded', tone: 'accent-600' },
+    { status: 'paused', label: 'Paused', tone: 'zinc' },
+    { status: 'draft', label: 'Draft', tone: 'zinc' },
+    { status: 'archived', label: 'Archived', tone: 'zinc' },
+  ]
+  return order
+    .map(({ status, label, tone }) => ({
+      key: status,
+      label,
+      value: copilots.filter((copilot) => copilot.status === status).length,
+      tone,
+    }))
+    .filter((segment) => segment.value > 0)
+}
+
+/** The project's validated copilots — Name (slug · runtime · model) / Status / Tests / Runs 24h / Cost 24h. */
+function ValidatedAgentsTable({
+  copilots,
+  maxRuns,
+  maxCost,
+}: {
+  copilots: Copilot[]
+  maxRuns: number
+  maxCost: number
+}) {
   return (
     <div className="px-6 [--gutter:--spacing(6)]">
       <Table bleed>
@@ -51,11 +94,10 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
         <TableHead>
           <TableRow>
             <TableHeader>Name</TableHeader>
-            <TableHeader>Runtime</TableHeader>
             <TableHeader>Status</TableHeader>
-            <TableHeader className="text-right">Tests</TableHeader>
-            <TableHeader className="text-right">Runs 24h</TableHeader>
-            <TableHeader className="text-right">Cost 24h</TableHeader>
+            <TableHeader>Tests</TableHeader>
+            <TableHeader>Runs 24h</TableHeader>
+            <TableHeader>Cost 24h</TableHeader>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -68,35 +110,58 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
                       {copilot.name}
                     </Link>
                   </div>
-                  <div className="mt-1 truncate font-mono text-xs text-zinc-500">{copilot.slug}</div>
+                  <div className="mt-1 truncate font-mono text-xs text-zinc-500">
+                    {copilot.slug} · {AGENT_RUNTIME_LABELS[copilot.runtime]} · {copilot.model}
+                  </div>
                 </div>
-              </TableCell>
-              <TableCell>
-                <RuntimeBadge runtime={copilot.runtime} />
               </TableCell>
               <TableCell>
                 <StatusBadge status={copilot.status} />
               </TableCell>
-              <TableCell className="text-right font-mono tabular-nums">
-                {copilot.health.testPassRate > 0 ? (
-                  <span className={passRateClassName(copilot.health.testPassRate)}>
-                    {formatPercent(copilot.health.testPassRate)}
-                  </span>
-                ) : (
-                  <EmDash srLabel="Untested" />
-                )}
+              <TableCell>
+                <div className="w-24">
+                  {copilot.health.testPassRate > 0 ? (
+                    <LinearMeter
+                      value={copilot.health.testPassRate}
+                      size="xs"
+                      tone={passRateMeterTone(copilot.health.testPassRate)}
+                      valueText={formatPercent(copilot.health.testPassRate)}
+                      ariaLabel={`${formatPercent(copilot.health.testPassRate)} test pass rate for ${copilot.name}`}
+                    />
+                  ) : (
+                    <div className="text-right font-mono tabular-nums">
+                      <EmDash srLabel="Untested" />
+                    </div>
+                  )}
+                </div>
               </TableCell>
-              <TableCell className="text-right font-mono text-zinc-700 tabular-nums dark:text-zinc-300">
-                {numberFormat.format(copilot.health.runsLast24h)}
+              <TableCell>
+                <div className="w-24">
+                  <LinearMeter
+                    value={copilot.health.runsLast24h}
+                    max={maxRuns}
+                    size="xs"
+                    valueText={numberFormat.format(copilot.health.runsLast24h)}
+                    ariaLabel={`${copilot.health.runsLast24h} runs in the last 24h for ${copilot.name}`}
+                  />
+                </div>
               </TableCell>
-              <TableCell className="text-right font-mono tabular-nums">
-                {copilot.health.runsLast24h > 0 ? (
-                  <span className="text-zinc-700 dark:text-zinc-300">
-                    {formatUsd(copilot.health.costLast24hUsd)}
-                  </span>
-                ) : (
-                  <EmDash srLabel="No runs in the last 24 hours" />
-                )}
+              <TableCell>
+                <div className="w-24">
+                  {copilot.health.runsLast24h > 0 ? (
+                    <LinearMeter
+                      value={copilot.health.costLast24hUsd}
+                      max={maxCost}
+                      size="xs"
+                      valueText={formatUsd(copilot.health.costLast24hUsd)}
+                      ariaLabel={`${formatUsd(copilot.health.costLast24hUsd)} spent in the last 24h for ${copilot.name}`}
+                    />
+                  ) : (
+                    <div className="text-right font-mono tabular-nums">
+                      <EmDash srLabel="No runs in the last 24 hours" />
+                    </div>
+                  )}
+                </div>
               </TableCell>
             </TableRow>
           ))}
@@ -109,7 +174,8 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
 /**
  * Recent traces table — ported from the retired global /admin/traces page
  * (same RunStatusBadge treatment, LangSmith violet Open link, flush Catalyst
- * Table), scoped to this project's runs.
+ * Table), scoped to this project's runs. The run id folds into the Copilot
+ * cell as a mono sub-line (NameCell slug idiom) so the table stays at 7 columns.
  */
 function ProjectTracesTable({
   runs,
@@ -125,7 +191,6 @@ function ProjectTracesTable({
         <caption className="sr-only">Recent traced runs for this project</caption>
         <TableHead>
           <TableRow>
-            <TableHeader>Run</TableHeader>
             <TableHeader>Copilot</TableHeader>
             <TableHeader>Status</TableHeader>
             <TableHeader>Input</TableHeader>
@@ -138,19 +203,17 @@ function ProjectTracesTable({
         <TableBody>
           {runs.map((run) => (
             <TableRow key={run.id}>
-              <TableCell>
-                <span className="font-mono text-xs font-medium tabular-nums text-zinc-950 dark:text-white">
-                  {run.id}
-                </span>
-              </TableCell>
               <TableCell className="whitespace-nowrap">
-                <Link
-                  href={`/admin/agents/${run.copilotId}/runs?run=${run.id}`}
-                  className="text-sm font-medium text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white"
-                >
-                  {copilotNameById.get(run.copilotId) ?? run.copilotId}
-                  <span className="sr-only"> — inspect run {run.id}</span>
-                </Link>
+                <div className="min-w-0">
+                  <Link
+                    href={`/admin/agents/${run.copilotId}/runs?run=${run.id}`}
+                    className="text-sm font-medium text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white"
+                  >
+                    {copilotNameById.get(run.copilotId) ?? run.copilotId}
+                    <span className="sr-only"> — inspect run {run.id}</span>
+                  </Link>
+                  <div className="mt-1 font-mono text-xs tabular-nums text-zinc-500">{run.id}</div>
+                </div>
               </TableCell>
               <TableCell>
                 <RunStatusBadge status={run.status} />
@@ -212,30 +275,79 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   const runsLast24h = validated.reduce((sum, copilot) => sum + copilot.health.runsLast24h, 0)
   const costLast24hUsd = validated.reduce((sum, copilot) => sum + copilot.health.costLast24hUsd, 0)
 
+  // Per-agent series/ceilings for the fleet-composition band and the ranking bars.
+  const runsSeries = validated.map((copilot) => copilot.health.runsLast24h)
+  const costSeries = validated.map((copilot) => copilot.health.costLast24hUsd)
+  const maxAgentRuns = Math.max(1, ...runsSeries)
+  const maxAgentCost = Math.max(1, ...costSeries)
+
   return (
     <div className="space-y-8">
       {/* KPI en haut, marge au-dessus = petit header (directive Adrien 2026-07-10) */}
       <AgentKpiBand
         className="mt-2"
         stats={[
-          { name: 'Agents', value: String(validated.length), hint: 'validated on this project' },
-          { name: 'Active', value: String(activeCount) },
-          { name: 'Runs 24h', value: runsLast24h.toLocaleString('en-US') },
+          {
+            name: 'Agents',
+            value: String(validated.length),
+            hint: 'validated on this project',
+            viz: validated.length > 0 ? <SplitBar segments={statusMixSegments(validated)} /> : undefined,
+          },
+          {
+            name: 'Active',
+            value: String(activeCount),
+            viz: (
+              <RadialMeter
+                value={activeCount}
+                max={Math.max(validated.length, 1)}
+                size={64}
+                strokeWidth={5}
+                caption={`of ${validated.length}`}
+                ariaLabel={`${activeCount} of ${validated.length} agents active`}
+              />
+            ),
+          },
+          {
+            name: 'Runs 24h',
+            value: runsLast24h.toLocaleString('en-US'),
+            viz:
+              validated.length > 0 ? (
+                <Sparkline
+                  points={runsSeries}
+                  kind="bar"
+                  tone="accent"
+                  width={112}
+                  height={28}
+                  ariaLabel="Runs in the last 24h, per agent"
+                />
+              ) : undefined,
+          },
           {
             name: 'Cost 24h',
             value: runsLast24h > 0 ? formatUsd(costLast24hUsd) : '—',
             hint: runsLast24h > 0 ? undefined : 'No runs in the last 24 hours',
+            viz:
+              runsLast24h > 0 ? (
+                <Sparkline
+                  points={costSeries}
+                  kind="bar"
+                  tone="accent"
+                  width={112}
+                  height={28}
+                  ariaLabel="Cost in the last 24h, per agent"
+                />
+              ) : undefined,
           },
         ]}
       />
 
       <AgentSectionCard
         title="Agents"
-        description={`Validated copilots assigned to ${project.name} — assignment is the act of validation.`}
+        actions={<span className="text-xs text-zinc-500 tabular-nums">{validated.length}</span>}
         contentClassName="p-0"
       >
         {validated.length > 0 ? (
-          <ValidatedAgentsTable copilots={validated} />
+          <ValidatedAgentsTable copilots={validated} maxRuns={maxAgentRuns} maxCost={maxAgentCost} />
         ) : (
           <p className="px-6 py-5 text-sm text-zinc-500 dark:text-zinc-400">
             No validated agents yet — validate copilots from{' '}
@@ -252,7 +364,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
       <AgentSectionCard
         title="Traces"
-        description="Runs from this project's agents — deep links open in LangSmith."
+        actions={<span className="text-xs text-zinc-500 tabular-nums">{runs.length}</span>}
         contentClassName="p-0"
       >
         {runs.length > 0 ? (

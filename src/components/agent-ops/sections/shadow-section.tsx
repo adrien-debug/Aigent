@@ -1,12 +1,14 @@
 
 import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
+import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ShadowExperimentCard } from '@/components/agent-ops/shadow-experiment-card'
-import { ShadowLifecycleSteps } from '@/components/agent-ops/shadow-lifecycle-steps'
+import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
+import { SplitBar, type SplitSegment } from '@/components/agent-ops/widgets/split-bar'
 import { Badge } from '@/components/catalyst/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Text } from '@/components/catalyst/text'
-import { formatTimestamp } from '@/lib/agent-mission-control/format'
+import { formatPercent, formatTimestamp } from '@/lib/agent-mission-control/format'
 import { getCopilot, getShadowExperimentsForCopilot, getVersion } from '@/lib/agent-mission-control/data'
 import type { ShadowMismatch } from '@/lib/agent-mission-control/types'
 
@@ -44,6 +46,18 @@ export async function ShadowSection({ copilotId }: { copilotId: string }) {
     .flatMap((e) => e.mismatches)
     .sort((a, b) => (a.occurredAt < b.occurredAt ? 1 : -1))
 
+  // KPI aggregates derived from the already-fetched experiments (serializable numbers).
+  const bestAgreement = Math.max(...experiments.map((e) => e.agreementRate))
+  const belowThresholdCount = experiments.filter((e) => e.agreementRate < e.agreementThreshold).length
+  const unsafeTotal = experiments.reduce((sum, e) => sum + e.unsafeProposalCount, 0)
+
+  // Severity mix across every sampled mismatch → one dense split bar.
+  const severitySegments: SplitSegment[] = [
+    { key: 'info', label: 'Info', value: mismatches.filter((m) => m.severity === 'info').length, tone: 'zinc' },
+    { key: 'warning', label: 'Warning', value: mismatches.filter((m) => m.severity === 'warning').length, tone: 'accent-500' },
+    { key: 'unsafe', label: 'Unsafe', value: mismatches.filter((m) => m.severity === 'unsafe').length, tone: 'accent-700' },
+  ]
+
   const experimentCards = await Promise.all(
     sorted.map(async (experiment) => {
       const [productionVersion, candidateVersion] = await Promise.all([
@@ -56,22 +70,55 @@ export async function ShadowSection({ copilotId }: { copilotId: string }) {
 
   return (
     <div className="space-y-8">
+      <AgentKpiBand
+        stats={[
+          {
+            name: 'Experiments',
+            value: String(experiments.length),
+            hint: `${latest.status === 'running' ? 'Latest sampling live' : 'Latest complete'}`,
+          },
+          {
+            name: 'Best agreement',
+            value: formatPercent(bestAgreement),
+            hint: 'Closest candidate to production',
+            viz: <LinearMeter value={bestAgreement} ariaLabel="Best shadow agreement across experiments" />,
+          },
+          {
+            name: 'Below threshold',
+            value: String(belowThresholdCount),
+            changeType: belowThresholdCount > 0 ? 'negative' : undefined,
+            hint: belowThresholdCount > 0 ? 'Not yet promotable' : 'All experiments meet the gate',
+          },
+          {
+            name: 'Unsafe proposals',
+            value: String(unsafeTotal),
+            changeType: unsafeTotal > 0 ? 'negative' : undefined,
+            hint: unsafeTotal > 0 ? 'Blocks promotion' : 'None flagged',
+          },
+        ]}
+      />
+
       {/* Experiments */}
       {experimentCards.map(({ experiment, productionVersion, candidateVersion }) => (
-        <section key={experiment.id} className="space-y-4">
-          <ShadowLifecycleSteps experiment={experiment} />
-          <ShadowExperimentCard
-            experiment={experiment}
-            productionVersion={productionVersion}
-            candidateVersion={candidateVersion}
-          />
-        </section>
+        <ShadowExperimentCard
+          key={experiment.id}
+          experiment={experiment}
+          productionVersion={productionVersion}
+          candidateVersion={candidateVersion}
+        />
       ))}
 
       {/* Mismatches */}
       <AgentSectionCard
         title="Mismatches"
         description="Runs where the candidate proposed a different action than production."
+        actions={
+          mismatches.length > 0 ? (
+            <div className="w-full sm:w-72">
+              <SplitBar segments={severitySegments} />
+            </div>
+          ) : undefined
+        }
         contentClassName="px-6 py-2"
       >
         {mismatches.length === 0 ? (
@@ -87,8 +134,7 @@ export async function ShadowSection({ copilotId }: { copilotId: string }) {
                 </TableHeader>
                 <TableHeader className="w-0">Severity</TableHeader>
                 <TableHeader>Summary</TableHeader>
-                <TableHeader>Production action</TableHeader>
-                <TableHeader>Candidate action</TableHeader>
+                <TableHeader title="Production action → candidate action">Divergence</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -108,24 +154,27 @@ export async function ShadowSection({ copilotId }: { copilotId: string }) {
                     <SeverityBadge severity={mismatch.severity} />
                   </TableCell>
                   <TableCell className="text-zinc-700 dark:text-zinc-300">
-                    <span className="block max-w-80 truncate" title={mismatch.summary}>
+                    <span className="block max-w-72 truncate" title={mismatch.summary}>
                       {mismatch.summary}
                     </span>
                   </TableCell>
                   <TableCell>
-                    <span
-                      className="block max-w-56 truncate font-mono text-xs text-zinc-500 dark:text-zinc-400"
-                      title={mismatch.productionAction}
-                    >
-                      {mismatch.productionAction}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className="block max-w-56 truncate font-mono text-xs text-zinc-500 dark:text-zinc-400"
-                      title={mismatch.candidateAction}
-                    >
-                      {mismatch.candidateAction}
+                    <span className="flex max-w-80 items-center gap-1.5 font-mono text-xs">
+                      <span
+                        className="min-w-0 flex-1 truncate text-zinc-500 dark:text-zinc-400"
+                        title={mismatch.productionAction}
+                      >
+                        {mismatch.productionAction}
+                      </span>
+                      <span aria-hidden="true" className="shrink-0 text-zinc-400 dark:text-zinc-600">
+                        →
+                      </span>
+                      <span
+                        className="min-w-0 flex-1 truncate text-zinc-700 dark:text-zinc-300"
+                        title={mismatch.candidateAction}
+                      >
+                        {mismatch.candidateAction}
+                      </span>
                     </span>
                   </TableCell>
                 </TableRow>

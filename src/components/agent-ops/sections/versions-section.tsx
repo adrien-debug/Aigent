@@ -2,6 +2,8 @@
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ReleasePathSteps } from '@/components/agent-ops/release-path-steps'
 import { VersionComparisonCard, VersionStageBadge, versionNeverTested } from '@/components/agent-ops/version-comparison-card'
+import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
+import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Subheading } from '@/components/catalyst/heading'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
@@ -9,6 +11,16 @@ import { Text } from '@/components/catalyst/text'
 import { formatPercent } from '@/lib/agent-mission-control/format'
 import { getCopilot, getVersionsForCopilot } from '@/lib/agent-mission-control/data'
 import type { CopilotVersion } from '@/lib/agent-mission-control/types'
+
+/** A version that was never run renders "—" (not measured), never a scary 0.0%. */
+function NotMeasuredDash() {
+  return (
+    <span className="text-zinc-500">
+      <span aria-hidden="true">—</span>
+      <span className="sr-only">not measured</span>
+    </span>
+  )
+}
 
 export async function VersionsSection({ copilotId }: { copilotId: string }) {
   const id = copilotId
@@ -68,7 +80,7 @@ export async function VersionsSection({ copilotId }: { copilotId: string }) {
         {sorted.length === 1 ? (
           <section>
             <Subheading>Draft in progress</Subheading>
-            <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6">
               <VersionComparisonCard version={sorted[0]} />
             </div>
           </section>
@@ -115,45 +127,51 @@ export async function VersionsSection({ copilotId }: { copilotId: string }) {
                 <TableCell>
                   <VersionStageBadge stage={version.stage} />
                 </TableCell>
-                <TableCell className="text-right font-mono tabular-nums text-zinc-700 dark:text-zinc-300">
+                <TableCell className="w-40">
                   {versionNeverTested(version) ? (
-                    <span className="text-zinc-500">
-                      <span aria-hidden="true">—</span>
-                      <span className="sr-only">not measured</span>
-                    </span>
+                    <NotMeasuredDash />
                   ) : (
-                    formatPercent(version.scores.testPassRate)
+                    <LinearMeter
+                      size="xs"
+                      value={version.scores.testPassRate}
+                      max={1}
+                      valueText={formatPercent(version.scores.testPassRate)}
+                      ariaLabel={`Test pass rate for ${version.label}`}
+                    />
                   )}
                 </TableCell>
-                <TableCell className="text-right font-mono tabular-nums text-zinc-700 dark:text-zinc-300">
+                <TableCell className="w-40">
                   {versionNeverTested(version) ? (
-                    <span className="text-zinc-500">
-                      <span aria-hidden="true">—</span>
-                      <span className="sr-only">not measured</span>
-                    </span>
+                    <NotMeasuredDash />
                   ) : (
-                    version.scores.benchmarkScore
+                    <LinearMeter
+                      size="xs"
+                      value={version.scores.benchmarkScore}
+                      max={100}
+                      valueText={String(version.scores.benchmarkScore)}
+                      ariaLabel={`Benchmark score for ${version.label}`}
+                    />
                   )}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="w-40">
                   {version.scores.shadowAgreement === null ? (
                     <span className="text-xs text-zinc-500">Never shadowed</span>
                   ) : (
-                    <span className="font-mono tabular-nums text-zinc-700 dark:text-zinc-300">
-                      {formatPercent(version.scores.shadowAgreement)}
-                    </span>
+                    <LinearMeter
+                      size="xs"
+                      value={version.scores.shadowAgreement}
+                      max={1}
+                      valueText={formatPercent(version.scores.shadowAgreement)}
+                      ariaLabel={`Shadow agreement for ${version.label}`}
+                    />
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  <span
-                    className={
-                      version.scores.unsafeActionCount === 0
-                        ? 'font-mono tabular-nums text-accent-700 dark:text-accent-400'
-                        : 'font-mono tabular-nums text-accent-600 dark:text-accent-400'
-                    }
-                  >
-                    {version.scores.unsafeActionCount}
-                  </span>
+                  {version.scores.unsafeActionCount === 0 ? (
+                    <Badge color="accent">0 · none</Badge>
+                  ) : (
+                    <Badge color="accentSolid">{version.scores.unsafeActionCount} · flagged</Badge>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -163,7 +181,7 @@ export async function VersionsSection({ copilotId }: { copilotId: string }) {
 
       <section>
         <Subheading>All versions</Subheading>
-        <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6">
           {sorted.map((version) => (
             <VersionComparisonCard
               key={version.id}

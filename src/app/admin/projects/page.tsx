@@ -3,6 +3,10 @@ import type { Metadata } from 'next'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
+import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
+import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
+import { SplitBar, type SplitSegment, type SplitTone } from '@/components/agent-ops/widgets/split-bar'
 import { Badge } from '@/components/catalyst/badge'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
@@ -59,14 +63,46 @@ function rollupByProject(copilots: Copilot[]): Map<string, ProjectRollup> {
   return byProject
 }
 
+/**
+ * Platform mix as one accent-ramp SplitBar (severity/magnitude by INTENSITY,
+ * never a second hue): biggest bucket = brightest accent, tail bucket = zinc.
+ * Deterministic order (by count desc). Fills the KPI `viz` slot.
+ */
+function platformMixSegments(projects: Project[]): SplitSegment[] {
+  const counts: Record<Project['platform'], number> = { web: 0, desktop: 0, mobile: 0, api: 0 }
+  for (const project of projects) counts[project.platform] += 1
+
+  const ramp: SplitTone[] = ['accent-500', 'accent-600', 'accent-700']
+  const present = (Object.keys(counts) as Project['platform'][])
+    .filter((platform) => counts[platform] > 0)
+    .sort((a, b) => counts[b] - counts[a])
+
+  return present.map((platform, index) => ({
+    key: platform,
+    label: PLATFORM_LABELS[platform],
+    value: counts[platform],
+    tone:
+      present.length > 1 && index === present.length - 1
+        ? 'zinc'
+        : ramp[Math.min(index, ramp.length - 1)],
+  }))
+}
+
 export default async function ProjectsPage() {
   const [projects, copilots] = await Promise.all([getProjects(), getCopilots()])
   const rollups = rollupByProject(copilots)
 
   // Bench copilots (projectId null) are excluded — this page counts validated agents only.
   const validated = copilots.filter((copilot) => copilot.projectId !== null)
+  const totalActive = validated.filter((copilot) => copilot.status === 'active').length
   const totalRuns = validated.reduce((sum, copilot) => sum + copilot.health.runsLast24h, 0)
   const totalCost = validated.reduce((sum, copilot) => sum + copilot.health.costLast24hUsd, 0)
+
+  // Per-project series in a stable order — traffic/spend concentration at a glance.
+  const runsSeries = projects.map((project) => (rollups.get(project.id) ?? EMPTY_ROLLUP).runsLast24h)
+  const costSeries = projects.map((project) => (rollups.get(project.id) ?? EMPTY_ROLLUP).costLast24hUsd)
+  const maxRuns = Math.max(1, ...runsSeries)
+  const maxCost = Math.max(1, ...costSeries)
 
   return (
     <div className="space-y-8">
@@ -74,16 +110,62 @@ export default async function ProjectsPage() {
       <AgentKpiBand
         className="mt-2"
         stats={[
-          { name: 'Projects', value: String(projects.length) },
-          { name: 'Copilots', value: String(validated.length), hint: 'validated — excl. bench' },
-          { name: 'Runs 24h', value: totalRuns.toLocaleString('en-US') },
-          { name: 'Cost 24h', value: formatUsd(totalCost) },
+          {
+            name: 'Projects',
+            value: String(projects.length),
+            viz: projects.length > 0 ? <SplitBar segments={platformMixSegments(projects)} /> : undefined,
+          },
+          {
+            name: 'Copilots',
+            value: String(validated.length),
+            hint: 'validated — excl. bench',
+            viz: (
+              <RadialMeter
+                value={totalActive}
+                max={Math.max(validated.length, 1)}
+                size={64}
+                strokeWidth={5}
+                caption={`of ${validated.length}`}
+                ariaLabel={`${totalActive} of ${validated.length} validated copilots active`}
+              />
+            ),
+          },
+          {
+            name: 'Runs 24h',
+            value: totalRuns.toLocaleString('en-US'),
+            viz:
+              projects.length > 0 ? (
+                <Sparkline
+                  points={runsSeries}
+                  kind="bar"
+                  tone="accent"
+                  width={112}
+                  height={28}
+                  ariaLabel="Runs in the last 24h, per project"
+                />
+              ) : undefined,
+          },
+          {
+            name: 'Cost 24h',
+            value: formatUsd(totalCost),
+            viz:
+              projects.length > 0 ? (
+                <Sparkline
+                  points={costSeries}
+                  kind="bar"
+                  tone="accent"
+                  width={112}
+                  height={28}
+                  ariaLabel="Cost in the last 24h, per project"
+                />
+              ) : undefined,
+          },
         ]}
       />
 
       <AgentSectionCard
         title="Projects"
-        description="Every product surface a copilot ships on — copilot fleet, traffic and spend per project."
+        actions={<span className="text-xs text-zinc-500 tabular-nums">{projects.length}</span>}
         contentClassName="p-0"
       >
         {projects.length > 0 ? (
@@ -94,11 +176,9 @@ export default async function ProjectsPage() {
               <TableHead>
                 <TableRow>
                   <TableHeader>Project</TableHeader>
-                  <TableHeader>Platform</TableHeader>
-                  <TableHeader className="text-right">Copilots</TableHeader>
-                  <TableHeader className="text-right">Active</TableHeader>
-                  <TableHeader className="text-right">Runs 24h</TableHeader>
-                  <TableHeader className="text-right">Cost 24h</TableHeader>
+                  <TableHeader>Fleet</TableHeader>
+                  <TableHeader>Runs 24h</TableHeader>
+                  <TableHeader>Cost 24h</TableHeader>
                   <TableHeader className="text-right">Warnings</TableHeader>
                 </TableRow>
               </TableHead>
@@ -118,43 +198,57 @@ export default async function ProjectsPage() {
                               {project.name}
                             </Link>
                           </div>
-                          <div className="mt-1 truncate font-mono text-xs text-zinc-500">{project.slug}</div>
+                          <div className="mt-1 truncate font-mono text-xs text-zinc-500">
+                            {project.slug} · {PLATFORM_LABELS[project.platform]}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge color="zinc">{PLATFORM_LABELS[project.platform]}</Badge>
+                        <div className="w-28">
+                          <LinearMeter
+                            value={rollup.activeCount}
+                            max={Math.max(rollup.copilotCount, 1)}
+                            size="xs"
+                            valueText={`${rollup.activeCount}/${rollup.copilotCount}`}
+                            ariaLabel={`${rollup.activeCount} of ${rollup.copilotCount} copilots active on ${project.name}`}
+                          />
+                        </div>
                       </TableCell>
-                      <TableCell className="text-right font-mono text-zinc-700 tabular-nums dark:text-zinc-300">
-                        {numberFormat.format(rollup.copilotCount)}
+                      <TableCell>
+                        <div className="w-24">
+                          <LinearMeter
+                            value={rollup.runsLast24h}
+                            max={maxRuns}
+                            size="xs"
+                            valueText={numberFormat.format(rollup.runsLast24h)}
+                            ariaLabel={`${rollup.runsLast24h} runs in the last 24h on ${project.name}`}
+                          />
+                        </div>
                       </TableCell>
-                      <TableCell className="text-right font-mono text-zinc-700 tabular-nums dark:text-zinc-300">
-                        {numberFormat.format(rollup.activeCount)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-zinc-700 tabular-nums dark:text-zinc-300">
-                        {numberFormat.format(rollup.runsLast24h)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono tabular-nums">
-                        {rollup.runsLast24h > 0 ? (
-                          <span className="text-zinc-700 dark:text-zinc-300">
-                            {formatUsd(rollup.costLast24hUsd)}
-                          </span>
-                        ) : (
-                          <span className="text-zinc-500">
-                            <span aria-hidden="true">&mdash;</span>
-                            <span className="sr-only">No runs in the last 24 hours</span>
-                          </span>
-                        )}
+                      <TableCell>
+                        <div className="w-24">
+                          {rollup.runsLast24h > 0 ? (
+                            <LinearMeter
+                              value={rollup.costLast24hUsd}
+                              max={maxCost}
+                              size="xs"
+                              valueText={formatUsd(rollup.costLast24hUsd)}
+                              ariaLabel={`${formatUsd(rollup.costLast24hUsd)} spent in the last 24h on ${project.name}`}
+                            />
+                          ) : (
+                            <div className="text-right font-mono text-zinc-500 tabular-nums">
+                              <span aria-hidden="true">&mdash;</span>
+                              <span className="sr-only">No runs in the last 24 hours</span>
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         {rollup.openWarnings > 0 ? (
-                          <span className="inline-flex items-baseline gap-1.5 font-medium text-accent-600 dark:text-accent-400">
-                            <span
-                              aria-hidden="true"
-                              className="size-1.5 shrink-0 self-center rounded-full bg-accent-500 dark:bg-accent-400"
-                            />
-                            <span className="font-mono tabular-nums">{numberFormat.format(rollup.openWarnings)}</span>
+                          <Badge color="accentStrong" className="font-mono tabular-nums">
+                            {numberFormat.format(rollup.openWarnings)}
                             <span className="sr-only"> open warnings</span>
-                          </span>
+                          </Badge>
                         ) : (
                           <span className="font-mono text-zinc-500 tabular-nums">0</span>
                         )}

@@ -6,10 +6,12 @@ import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ArchitectureStrip } from '@/components/agent-ops/architecture-strip'
 import { OnboardingSteps } from '@/components/agent-ops/onboarding-steps'
+import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
+import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
+import { SplitBar } from '@/components/agent-ops/widgets/split-bar'
 import { RuntimeBadge } from '@/components/agent-ops/runtime-badge'
 import { StatusBadge } from '@/components/agent-ops/status-badge'
-import { TestResultBadge } from '@/components/agent-ops/test-result-badge'
 import { VersionStageBadge, versionStageLabels } from '@/components/agent-ops/version-stage-badge'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
@@ -95,6 +97,48 @@ function SectionLink({ href, children }: { href: string; children: React.ReactNo
   )
 }
 
+/** Naked stat cell (no box) — AgentMetricCard rhythm: uppercase label + mono value. */
+function RuntimeStat({
+  label,
+  value,
+  accent = false,
+  children,
+}: {
+  label: string
+  value: React.ReactNode
+  accent?: boolean
+  children?: React.ReactNode
+}) {
+  return (
+    <div>
+      <dt className="text-xs font-medium tracking-wide text-zinc-500 uppercase">{label}</dt>
+      <dd
+        className={clsx(
+          'mt-1 font-mono text-lg tabular-nums',
+          accent ? 'text-accent-600 dark:text-accent-400' : 'text-zinc-950 dark:text-white'
+        )}
+      >
+        {value}
+      </dd>
+      {children}
+    </div>
+  )
+}
+
+/**
+ * Priority encoding for the Next actions feed — intensity carries urgency, the
+ * label carries meaning (monochrome-safe). gate/errors/shadow = solid (act now),
+ * tests/tools = strong (attention), untested-draft = zinc (informational).
+ */
+const nextActionPriority: Record<string, { tone: 'accentSolid' | 'accentStrong' | 'zinc'; label: string }> = {
+  gate: { tone: 'accentSolid', label: 'Gate' },
+  errors: { tone: 'accentSolid', label: 'Errors' },
+  shadow: { tone: 'accentSolid', label: 'Shadow' },
+  tests: { tone: 'accentStrong', label: 'Tests' },
+  tools: { tone: 'accentStrong', label: 'Tools' },
+  'untested-draft': { tone: 'zinc', label: 'Draft' },
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -153,6 +197,10 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
   // Runs — last 5, newest first
   const runs = [...allRuns].sort((a, b) => b.startedAt.localeCompare(a.startedAt))
   const lastRuns = runs.slice(0, 5)
+  // Latency in chronological order (oldest → newest) for sparklines, and the
+  // window max so per-row meters read relative to the busiest run.
+  const latencySeries = [...lastRuns].reverse().map((run) => run.latencyMs)
+  const maxRunLatency = Math.max(...lastRuns.map((run) => run.latencyMs), 1)
 
   // Benchmarks — best candidate across all suites
   const benchmarkCandidates: { suite: BenchmarkSuite; run: BenchmarkRun; result: BenchmarkResult }[] = (
@@ -350,13 +398,15 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
           </dl>
         </AgentBentoCard>
 
-        {/* Runtime & status — 1 col */}
+        {/* Runtime & status — 1 col. Gauge + mini-stats instead of a dash column. */}
         <AgentBentoCard title="Runtime & status" level={2}>
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={copilot.status} />
             <RuntimeBadge runtime={copilot.runtime} />
           </div>
-          <dl className="mt-6 space-y-3 text-sm">
+
+          {/* Version rows — two tight labelled rows (real labels, not dashes). */}
+          <dl className="mt-6 space-y-2.5 border-t border-zinc-950/5 pt-5 text-sm dark:border-white/5">
             <div className="flex items-baseline justify-between gap-4">
               <dt className="text-zinc-500">Production</dt>
               <dd className="flex items-center gap-2 text-right">
@@ -379,53 +429,62 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                     <VersionStageBadge stage={latestVersion.stage} />
                   </>
                 ) : (
-                  <span className="text-zinc-500 dark:text-zinc-400">—</span>
+                  <span className="text-zinc-500 dark:text-zinc-400">Not created yet</span>
                 )}
-              </dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-zinc-500">Error rate (24h)</dt>
-              <dd
-                className={clsx(
-                  'font-mono tabular-nums',
-                  copilot.health.errorRateLast24h > 0.05 ? 'text-accent-600 dark:text-accent-400' : 'text-zinc-700 dark:text-zinc-300'
-                )}
-              >
-                {formatPercent(copilot.health.errorRateLast24h)}
-                {copilot.health.errorRateLast24h > 0.05 ? ' · elevated' : ''}
-              </dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-zinc-500">Avg latency</dt>
-              <dd className="font-mono text-zinc-700 tabular-nums dark:text-zinc-300">
-                {copilot.health.avgLatencyMs > 0 ? formatDurationMs(copilot.health.avgLatencyMs) : '—'}
-              </dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-zinc-500">Runs (24h)</dt>
-              <dd className="font-mono text-zinc-700 tabular-nums dark:text-zinc-300">
-                {copilot.health.runsLast24h > 0 ? copilot.health.runsLast24h : '—'}
-              </dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-zinc-500">Cost (24h)</dt>
-              <dd className="font-mono text-zinc-700 tabular-nums dark:text-zinc-300">
-                {copilot.health.runsLast24h > 0 ? formatUsd(copilot.health.costLast24hUsd) : '—'}
-              </dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-zinc-500">Open warnings</dt>
-              <dd
-                className={clsx(
-                  'font-mono tabular-nums',
-                  copilot.health.openWarnings > 0 ? 'text-accent-600 dark:text-accent-400' : 'text-zinc-700 dark:text-zinc-300'
-                )}
-              >
-                {copilot.health.openWarnings}
-                {copilot.health.openWarnings > 0 ? ' · needs review' : ''}
               </dd>
             </div>
           </dl>
+
+          {copilot.health.runsLast24h > 0 ? (
+            /* Live: error ring on the left, 2×2 stat grid on the right — no empty gutter. */
+            <div className="mt-6 flex items-center gap-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
+              <RadialMeter
+                value={copilot.health.errorRateLast24h}
+                max={1}
+                size={104}
+                centerText={formatPercent(copilot.health.errorRateLast24h)}
+                caption="errors · 24h"
+                tone={copilot.health.errorRateLast24h > 0.05 ? 'accentSolid' : 'accent'}
+                ariaLabel={`Error rate over the last 24 hours: ${formatPercent(copilot.health.errorRateLast24h)}`}
+              />
+              <dl className="grid flex-1 grid-cols-2 gap-x-6 gap-y-5">
+                <RuntimeStat label="Runs · 24h" value={copilot.health.runsLast24h} />
+                <RuntimeStat
+                  label="Avg latency"
+                  value={copilot.health.avgLatencyMs > 0 ? formatDurationMs(copilot.health.avgLatencyMs) : '—'}
+                >
+                  {latencySeries.length > 1 ? (
+                    <div className="mt-1.5">
+                      <Sparkline
+                        points={latencySeries}
+                        kind="bar"
+                        tone="accent"
+                        width={72}
+                        height={18}
+                        ariaLabel="Latency across the last runs"
+                      />
+                    </div>
+                  ) : null}
+                </RuntimeStat>
+                <RuntimeStat label="Cost · 24h" value={formatUsd(copilot.health.costLast24hUsd)} />
+                <RuntimeStat
+                  label="Open warnings"
+                  value={copilot.health.openWarnings}
+                  accent={copilot.health.openWarnings > 0}
+                />
+              </dl>
+            </div>
+          ) : (
+            /* No traffic yet — compact draft state, zero dashes. */
+            <div className="mt-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
+              <p className="text-sm text-zinc-700 dark:text-zinc-300">No production traffic yet</p>
+              <p className="mt-1 text-xs text-zinc-500">
+                Live error and latency meters appear once{' '}
+                <span className="font-mono tabular-nums">{latestVersion?.label ?? 'the first version'}</span> ships to
+                beta.
+              </p>
+            </div>
+          )}
         </AgentBentoCard>
 
         {isSparseDraft ? (
@@ -484,82 +543,95 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
           </div>
         ) : (
           <>
-            {/* Test score + benchmark — stacked, 1 col */}
-            <div className="flex flex-col gap-4">
-              <AgentBentoCard title="Tests" className="flex-1" level={2}>
-                <p className="text-3xl font-semibold tracking-tight text-zinc-950 tabular-nums dark:text-white">
-                  {formatPercent(copilot.health.testPassRate)}
-                </p>
-                <p className="mt-1 text-xs text-zinc-500">Pass rate across all suites</p>
-
-                {latestTestRun ? (
-                  <div className="mt-4 space-y-2">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                      <span className="flex items-center gap-1.5">
-                        <span className="font-mono text-sm text-zinc-950 tabular-nums dark:text-white">{passCount}</span>
-                        <TestResultBadge result="pass" />
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="font-mono text-sm text-zinc-950 tabular-nums dark:text-white">{failCount}</span>
-                        <TestResultBadge result="fail" />
-                      </span>
-                      {errorCount > 0 ? (
-                        <span className="flex items-center gap-1.5">
-                          <span className="font-mono text-sm text-zinc-950 tabular-nums dark:text-white">{errorCount}</span>
-                          <TestResultBadge result="error" />
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="text-xs text-zinc-500 tabular-nums">
-                      Latest run · {formatTimestamp(latestTestRun.startedAt)}
-                    </p>
+            {/* Tests & benchmarks — ONE card, two gauge rows split by a hairline. */}
+            <AgentBentoCard title="Tests & benchmarks" level={2}>
+              {/* Tests row — pass-rate ring + pass/fail/error split bar. */}
+              <div className="flex items-start gap-5">
+                <RadialMeter
+                  value={copilot.health.testPassRate}
+                  max={1}
+                  size={92}
+                  centerText={formatPercent(copilot.health.testPassRate)}
+                  caption="pass rate"
+                  ariaLabel={`Test pass rate: ${formatPercent(copilot.health.testPassRate)}`}
+                />
+                <div className="min-w-0 flex-1">
+                  {latestTestRun ? (
+                    <SplitBar
+                      segments={[
+                        { key: 'pass', label: 'Pass', value: passCount, tone: 'accent-500' },
+                        { key: 'fail', label: 'Fail', value: failCount, tone: 'accent-700' },
+                        ...(errorCount > 0
+                          ? [{ key: 'error', label: 'Error', value: errorCount, tone: 'accent-600' as const }]
+                          : []),
+                      ]}
+                      caption={`Latest run · ${formatTimestamp(latestTestRun.startedAt)}`}
+                    />
+                  ) : (
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">No recorded test runs for this copilot.</p>
+                  )}
+                  <div className="mt-4">
+                    <SectionLink href={`${base}/tests`}>View tests</SectionLink>
                   </div>
-                ) : (
-                  <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">No recorded test runs for this copilot.</p>
-                )}
-
-                <div className="mt-6">
-                  <SectionLink href={`${base}/tests`}>View tests</SectionLink>
                 </div>
-              </AgentBentoCard>
+              </div>
 
-              <AgentBentoCard title="Benchmarks" className="flex-1" level={2}>
+              {/* Benchmarks row — best-score ring + task-success meter + model. */}
+              <div className="mt-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
                 {bestCandidate ? (
-                  <>
-                    <div className="flex items-baseline gap-2">
-                      <p className="text-3xl font-semibold tracking-tight text-zinc-950 tabular-nums dark:text-white">
-                        {bestCandidate.result.score}
-                      </p>
-                      <p className="text-xs text-zinc-500">/ 100</p>
+                  <div className="flex items-start gap-5">
+                    <RadialMeter
+                      value={bestCandidate.result.score}
+                      max={100}
+                      size={92}
+                      centerText={String(bestCandidate.result.score)}
+                      caption={`best · ${bestCandidate.suite.name}`}
+                      ariaLabel={`Best benchmark score: ${bestCandidate.result.score} of 100 on ${bestCandidate.suite.name}`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <LinearMeter
+                        value={bestCandidate.result.taskSuccessRate}
+                        max={1}
+                        label="Task success"
+                        valueText={formatPercent(bestCandidate.result.taskSuccessRate)}
+                        ariaLabel={`Task success rate: ${formatPercent(bestCandidate.result.taskSuccessRate)}`}
+                      />
+                      <div className="mt-3 flex items-center gap-2">
+                        <span className="text-xs text-zinc-500">Model</span>
+                        <Badge color="zinc" className="font-mono">
+                          {bestCandidate.run.model}
+                        </Badge>
+                      </div>
+                      <div className="mt-4">
+                        <SectionLink href={`${base}/tests#benchmarks`}>View benchmarks</SectionLink>
+                      </div>
                     </div>
-                    <p className="mt-1 text-xs text-zinc-500">Best candidate · {bestCandidate.suite.name}</p>
-                    <dl className="mt-4 space-y-2 text-sm">
-                      <div className="flex items-baseline justify-between gap-4">
-                        <dt className="text-zinc-500">Model</dt>
-                        <dd className="font-mono text-zinc-700 tabular-nums dark:text-zinc-300">{bestCandidate.run.model}</dd>
-                      </div>
-                      <div className="flex items-baseline justify-between gap-4">
-                        <dt className="text-zinc-500">Task success</dt>
-                        <dd className="font-mono text-zinc-700 tabular-nums dark:text-zinc-300">
-                          {formatPercent(bestCandidate.result.taskSuccessRate)}
-                        </dd>
-                      </div>
-                    </dl>
-                  </>
+                  </div>
                 ) : (
                   <p className="text-sm text-zinc-500 dark:text-zinc-400">No benchmark runs yet for this copilot.</p>
                 )}
-                <div className="mt-6">
-                  <SectionLink href={`${base}/tests#benchmarks`}>View benchmarks</SectionLink>
-                </div>
-              </AgentBentoCard>
-            </div>
+              </div>
+            </AgentBentoCard>
 
             {/* Last runs — 2 cols */}
             <AgentSectionCard
               title="Last runs"
               description="Most recent production traffic"
-              actions={<SectionLink href={`${base}/runs`}>View all runs</SectionLink>}
+              actions={
+                <>
+                  {latencySeries.length > 1 ? (
+                    <Sparkline
+                      points={latencySeries}
+                      kind="bar"
+                      tone="accent"
+                      width={72}
+                      height={20}
+                      ariaLabel="Latency trend across the last runs"
+                    />
+                  ) : null}
+                  <SectionLink href={`${base}/runs`}>View all runs</SectionLink>
+                </>
+              }
               className="lg:col-span-2"
               contentClassName="p-0"
             >
@@ -590,10 +662,21 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                                 {formatTimestamp(run.startedAt)}
                               </time>
                             </span>
-                            <span className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs">
+                            <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                               <span className={clsx('font-medium', statusConfig.text)}>{statusConfig.label}</span>
-                              <span className="font-mono text-zinc-500 tabular-nums">
-                                {formatDurationMs(run.latencyMs)}
+                              <span className="inline-flex items-center gap-2">
+                                <span className="w-16">
+                                  <LinearMeter
+                                    value={run.latencyMs}
+                                    max={maxRunLatency}
+                                    size="xs"
+                                    tone="accent"
+                                    ariaLabel={`Latency ${formatDurationMs(run.latencyMs)}`}
+                                  />
+                                </span>
+                                <span className="font-mono text-zinc-500 tabular-nums">
+                                  {formatDurationMs(run.latencyMs)}
+                                </span>
                               </span>
                               <span className="font-mono text-zinc-500 tabular-nums">{formatUsd(run.costUsd)}</span>
                               <span className="truncate text-zinc-500">{run.userLabel}</span>
@@ -614,8 +697,8 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
         )}
       </div>
 
-      {/* 3 — Architecture strip (no box: flows directly on the body surface) */}
-      <section>
+      {/* 3 — Architecture strip, on a black card panel (the strip stays flat inside) */}
+      <section className="rounded-xl bg-white px-6 py-5 ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
         <Subheading>Architecture</Subheading>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Execution path enforced on every run</p>
         <div className="mt-5">
@@ -628,25 +711,38 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
         <AgentSectionCard
           title="Next actions"
           description="Derived from the promotion gate, tests, shadow traffic and live errors"
+          actions={
+            visibleActions.length > 0 ? (
+              <Badge color="zinc" className="font-mono tabular-nums">
+                {visibleActions.length}
+              </Badge>
+            ) : undefined
+          }
           contentClassName={visibleActions.length > 0 ? 'divide-y divide-zinc-950/5 dark:divide-white/5' : 'px-6 py-5'}
         >
           {visibleActions.length > 0 ? (
-            visibleActions.map((action) => (
-              <Link
-                key={action.key}
-                href={action.href}
-                className="group flex items-center justify-between gap-4 px-6 py-4 hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5"
-              >
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium text-zinc-950 dark:text-white">{action.title}</span>
-                  <span className="mt-1 block max-w-xl truncate text-sm text-zinc-500 dark:text-zinc-400">{action.reason}</span>
-                </span>
-                <ArrowRightIcon
-                  aria-hidden="true"
-                  className="size-4 shrink-0 text-zinc-500 transition-colors duration-150 group-hover:text-zinc-300"
-                />
-              </Link>
-            ))
+            visibleActions.map((action) => {
+              const priority = nextActionPriority[action.key] ?? { tone: 'zinc' as const, label: 'Action' }
+              return (
+                <Link
+                  key={action.key}
+                  href={action.href}
+                  className="group flex items-start gap-4 px-6 py-4 hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5"
+                >
+                  <Badge color={priority.tone} className="mt-0.5 shrink-0">
+                    {priority.label}
+                  </Badge>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-zinc-950 dark:text-white">{action.title}</span>
+                    <span className="mt-1 block max-w-xl truncate text-sm text-zinc-500 dark:text-zinc-400">{action.reason}</span>
+                  </span>
+                  <ArrowRightIcon
+                    aria-hidden="true"
+                    className="mt-0.5 size-4 shrink-0 text-zinc-500 transition-colors duration-150 group-hover:text-zinc-300"
+                  />
+                </Link>
+              )
+            })
           ) : (
             <p className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
               <CheckCircleIcon aria-hidden="true" className="size-4 shrink-0 text-accent-600 dark:text-accent-400" />

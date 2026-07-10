@@ -2,6 +2,7 @@ import { CheckCircleIcon, ExclamationTriangleIcon, XCircleIcon } from '@heroicon
 import clsx from 'clsx'
 
 import { RuntimeBadge } from '@/components/agent-ops/runtime-badge'
+import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { formatDurationMs, formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import { MODEL_PROVIDER_LABELS } from '@/lib/agent-mission-control/labels'
@@ -65,8 +66,9 @@ export function BenchmarkComparisonTable({
           <TableHeader className="text-right">Score</TableHeader>
           <TableHeader className="text-right">Accuracy</TableHeader>
           <TableHeader className="text-right">Success</TableHeader>
-          <TableHeader className="text-right">Avg</TableHeader>
-          <TableHeader className="text-right">P95</TableHeader>
+          <TableHeader className="text-right">
+            Latency<span className="sr-only"> average / p95</span>
+          </TableHeader>
           <TableHeader className="text-right">Cost / task</TableHeader>
           <TableHeader className="text-right">Total</TableHeader>
           <TableHeader className="text-right">Violations</TableHeader>
@@ -82,13 +84,29 @@ export function BenchmarkComparisonTable({
             <TableCell>
               <RuntimeBadge runtime={run.runtime} />
             </TableCell>
-            <TableCell className={clsx(numericCell, 'font-semibold text-zinc-950 dark:text-white')}>{result.score}</TableCell>
+            <TableCell className={clsx(numericCell, 'text-zinc-950 dark:text-white')}>
+              <div className="font-semibold">{result.score}</div>
+              <div className="mt-1">
+                <LinearMeter
+                  value={result.score}
+                  max={100}
+                  size="xs"
+                  tone="accent"
+                  ariaLabel={`Composite score ${result.score} of 100`}
+                />
+              </div>
+            </TableCell>
             <TableCell className={clsx(numericCell, 'text-zinc-700 dark:text-zinc-300')}>{formatPercent(result.accuracy)}</TableCell>
             <TableCell className={clsx(numericCell, 'text-zinc-700 dark:text-zinc-300')}>
               {formatPercent(result.taskSuccessRate)}
             </TableCell>
-            <TableCell className={clsx(numericCell, 'text-zinc-700 dark:text-zinc-300')}>{formatDurationMs(result.avgLatencyMs)}</TableCell>
-            <TableCell className={clsx(numericCell, 'text-zinc-700 dark:text-zinc-300')}>{formatDurationMs(result.p95LatencyMs)}</TableCell>
+            <TableCell className={clsx(numericCell, 'text-zinc-700 dark:text-zinc-300')}>
+              <div>{formatDurationMs(result.avgLatencyMs)}</div>
+              <div className="text-xs text-zinc-500">
+                {formatDurationMs(result.p95LatencyMs)}
+                <span className="sr-only"> p95</span>
+              </div>
+            </TableCell>
             <TableCell className={clsx(numericCell, 'text-zinc-700 dark:text-zinc-300')}>
               {formatUsd(result.avgCostPerTaskUsd)}
             </TableCell>

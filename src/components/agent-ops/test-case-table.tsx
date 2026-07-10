@@ -27,7 +27,6 @@ export function TestCaseTable({
           <TableHeader>Case</TableHeader>
           <TableHeader>Result</TableHeader>
           <TableHeader>Input</TableHeader>
-          <TableHeader>Expected</TableHeader>
           <TableHeader>Tools</TableHeader>
           <TableHeader>
             Latency<span className="sr-only"> and cost</span>
@@ -46,6 +45,14 @@ export function TestCaseTable({
             <TableRow key={testCase.id}>
               <TableCell>
                 <p className="font-medium text-zinc-950 dark:text-white">{testCase.name}</p>
+                {testCase.expectedBehavior ? (
+                  <p
+                    className="mt-0.5 max-w-xs truncate text-xs text-zinc-500 dark:text-zinc-400"
+                    title={testCase.expectedBehavior}
+                  >
+                    Expects: {testCase.expectedBehavior}
+                  </p>
+                ) : null}
                 {testCase.tags.length > 0 ? (
                   <div className="mt-1 flex flex-wrap gap-1">
                     {testCase.tags.map((tag) => (
@@ -65,11 +72,6 @@ export function TestCaseTable({
               <TableCell>
                 <p className="max-w-56 truncate text-zinc-500 dark:text-zinc-400" title={testCase.input}>
                   {testCase.input}
-                </p>
-              </TableCell>
-              <TableCell>
-                <p className="max-w-64 truncate text-zinc-500 dark:text-zinc-400" title={testCase.expectedBehavior}>
-                  {testCase.expectedBehavior}
                 </p>
               </TableCell>
               <TableCell>

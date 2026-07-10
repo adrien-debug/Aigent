@@ -1,15 +1,14 @@
-import { CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
 
+import { ThresholdMeter } from '@/components/agent-ops/widgets/threshold-meter'
 import { Badge } from '@/components/catalyst/badge'
-import { Divider } from '@/components/catalyst/divider'
 import { Subheading } from '@/components/catalyst/heading'
 import { formatDate, formatPercent } from '@/lib/agent-mission-control/format'
 import type { CopilotVersion, ShadowExperiment, VersionStage } from '@/lib/agent-mission-control/types'
 
 const experimentStatusConfig: Record<
   ShadowExperiment['status'],
-  { label: string; color: 'zinc' | 'zinc'; dotClassName: string }
+  { label: string; color: 'zinc'; dotClassName: string }
 > = {
   running: {
     label: 'Running',
@@ -46,7 +45,8 @@ function ExperimentStatusBadge({ status }: { status: ShadowExperiment['status'] 
   )
 }
 
-function VersionCell({
+/** One row of the matchup field grid: role label left, version identity right. */
+function VersionRow({
   role,
   version,
   versionId,
@@ -56,22 +56,27 @@ function VersionCell({
   versionId: string
 }) {
   return (
-    <div className="min-w-0">
-      <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">{role}</p>
-      <div className="mt-2 flex items-center gap-2">
-        <span className="truncate font-mono text-sm font-medium text-zinc-950 tabular-nums dark:text-white">
-          {version?.label ?? versionId}
-        </span>
-        {version ? <Badge color={stageConfig[version.stage].color}>{stageConfig[version.stage].label}</Badge> : null}
-      </div>
-      {version ? <p className="mt-1 truncate font-mono text-xs text-zinc-500">{version.model}</p> : null}
+    <div className="flex items-start justify-between gap-4">
+      <dt className="pt-0.5 text-xs font-medium tracking-wide text-zinc-500 uppercase">{role}</dt>
+      <dd className="min-w-0 text-right">
+        <div className="flex items-center justify-end gap-2">
+          <span className="truncate font-mono text-sm font-medium text-zinc-950 tabular-nums dark:text-white">
+            {version?.label ?? versionId}
+          </span>
+          {version ? <Badge color={stageConfig[version.stage].color}>{stageConfig[version.stage].label}</Badge> : null}
+        </div>
+        {version ? <p className="mt-1 truncate font-mono text-xs text-zinc-500">{version.model}</p> : null}
+      </dd>
     </div>
   )
 }
 
 /**
  * Shadow experiment summary card: candidate version mirrored against
- * production traffic, agreement vs the promotion threshold, and readiness.
+ * production traffic. One card = header + two-column body — the matchup and
+ * sampled counts on the left, the agreement-vs-gate ThresholdMeter as the hero
+ * on the right. No stepper, no readiness footer: the meter's tick + state line
+ * carry the promotion signal that used to be triplicated.
  */
 export function ShadowExperimentCard({
   experiment,
@@ -82,14 +87,12 @@ export function ShadowExperimentCard({
   productionVersion: CopilotVersion | undefined
   candidateVersion: CopilotVersion | undefined
 }) {
-  const meetsThreshold = experiment.agreementRate >= experiment.agreementThreshold
-  const fillPercent = Math.min(100, Math.max(0, experiment.agreementRate * 100))
-  const thresholdPercent = Math.min(100, Math.max(0, experiment.agreementThreshold * 100))
+  const thresholdText = formatPercent(experiment.agreementThreshold, 0)
 
   return (
     <section className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
       {/* Header: name + window left, status right */}
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-zinc-950/5 dark:border-white/5 px-6 py-4">
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-zinc-950/5 px-6 py-4 dark:border-white/5">
         <div className="min-w-0">
           <Subheading className="truncate">{experiment.name}</Subheading>
           <p className="mt-1 text-xs text-zinc-500 tabular-nums">
@@ -101,77 +104,59 @@ export function ShadowExperimentCard({
         <ExperimentStatusBadge status={experiment.status} />
       </div>
 
-      <div className="px-6 py-5">
-        {/* Production vs candidate — flat two-column row, no box chrome */}
-        <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-          <VersionCell role="Production" version={productionVersion} versionId={experiment.productionVersionId} />
-          <span className="text-xs font-semibold tracking-wide text-zinc-400 uppercase sm:px-2 dark:text-zinc-600">vs</span>
-          <VersionCell role="Candidate" version={candidateVersion} versionId={experiment.candidateVersionId} />
-        </div>
-
-        <Divider soft className="my-6" />
-
-        {/* Agreement */}
+      {/* Body: matchup + counts left, agreement meter (hero) right */}
+      <div className="grid gap-8 px-6 py-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] lg:items-center">
         <div>
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <p className="flex items-baseline gap-x-2">
-              <span className="text-3xl font-semibold tracking-tight text-zinc-950 tabular-nums dark:text-white">
-                {formatPercent(experiment.agreementRate)}
-              </span>
-              <span className="text-sm text-zinc-500 dark:text-zinc-400">agreement</span>
-            </p>
-            <p className="text-xs text-zinc-500 tabular-nums">
-              Threshold ≥ {formatPercent(experiment.agreementThreshold, 0)}
-            </p>
-          </div>
-
-          <div aria-hidden="true" className="relative mt-3">
-            <div className="h-2 overflow-hidden rounded-full bg-zinc-950/10 dark:bg-zinc-800">
-              <div
-                className={clsx('h-2 rounded-full', meetsThreshold ? 'bg-accent-500' : 'bg-accent-500')}
-                style={{ width: `${fillPercent}%` }}
-              />
+          {/* Production → candidate matchup, two rows split by a hairline */}
+          <dl>
+            <VersionRow role="Production" version={productionVersion} versionId={experiment.productionVersionId} />
+            <div className="mt-3 border-t border-zinc-950/5 pt-3 dark:border-white/5">
+              <VersionRow role="Candidate" version={candidateVersion} versionId={experiment.candidateVersionId} />
             </div>
-            {/* Threshold tick */}
-            <div className="absolute -top-1 -bottom-1 w-px bg-zinc-950/40 dark:bg-white/40" style={{ left: `${thresholdPercent}%` }} />
-          </div>
+          </dl>
 
-          <dl className="mt-4 flex flex-wrap gap-y-2 divide-x divide-zinc-950/10 dark:divide-white/10 text-sm">
-            <div className="flex items-baseline gap-x-2 pr-4">
-              <dt className="text-zinc-500">Sampled runs</dt>
-              <dd className="font-mono font-medium text-zinc-950 tabular-nums dark:text-white">
+          {/* Sampled counts as inline stats — whitespace-separated, no box */}
+          <div className="mt-6 flex flex-wrap gap-x-10 gap-y-3">
+            <div>
+              <dt className="text-xs text-zinc-500">Sampled runs</dt>
+              <dd className="mt-1 font-mono text-lg font-semibold text-zinc-950 tabular-nums dark:text-white">
                 {experiment.sampledRunCount.toLocaleString('en-US')}
               </dd>
             </div>
-            <div className="flex items-baseline gap-x-2 pl-4">
-              <dt className="text-zinc-500">Unsafe proposals</dt>
+            <div>
+              <dt className="text-xs text-zinc-500">Unsafe proposals</dt>
               <dd
                 className={clsx(
-                  'font-mono font-medium tabular-nums',
-                  experiment.unsafeProposalCount > 0 ? 'text-accent-600 dark:text-accent-400' : 'text-zinc-950 dark:text-white'
+                  'mt-1 font-mono text-lg font-semibold tabular-nums',
+                  experiment.unsafeProposalCount > 0
+                    ? 'text-accent-600 dark:text-accent-400'
+                    : 'text-zinc-950 dark:text-white'
                 )}
               >
                 {experiment.unsafeProposalCount.toLocaleString('en-US')}
               </dd>
             </div>
-          </dl>
+          </div>
         </div>
-      </div>
 
-      {/* Promotion readiness */}
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-zinc-950/5 dark:border-white/5 px-6 py-4">
-        <p className="text-sm font-medium text-zinc-950 dark:text-white">Promotion readiness</p>
-        {meetsThreshold ? (
-          <p className="flex items-center gap-x-1.5 text-sm font-medium text-accent-700 dark:text-accent-400">
-            <CheckCircleIcon aria-hidden="true" className="size-4 shrink-0" />
-            Meets agreement threshold
-          </p>
-        ) : (
-          <p className="flex items-center gap-x-1.5 text-sm font-medium text-accent-600 dark:text-accent-400">
-            <ExclamationTriangleIcon aria-hidden="true" className="size-4 shrink-0" />
-            Below threshold (needs ≥ {formatPercent(experiment.agreementThreshold, 0)})
-          </p>
-        )}
+        {/* Agreement hero: big value + threshold-gated meter */}
+        <div>
+          <div className="flex items-baseline justify-between gap-x-4">
+            <span className="text-3xl font-semibold tracking-tight text-zinc-950 tabular-nums dark:text-white">
+              {formatPercent(experiment.agreementRate)}
+            </span>
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">agreement</span>
+          </div>
+          <div className="mt-4">
+            <ThresholdMeter
+              value={experiment.agreementRate}
+              threshold={experiment.agreementThreshold}
+              thresholdText={thresholdText}
+              label={`Threshold ≥ ${thresholdText}`}
+              ariaLabel="Shadow agreement versus promotion threshold"
+            />
+          </div>
+        </div>
       </div>
     </section>
   )

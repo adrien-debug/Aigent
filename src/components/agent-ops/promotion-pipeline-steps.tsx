@@ -76,11 +76,12 @@ export function PromotionPipelineSteps({ gate }: { gate: PromotionGate }) {
           <li
             key={step.id}
             className={clsx(
-              stepIdx !== 0 && 'border-t border-zinc-950/15 lg:border-t-0 dark:border-white/15',
+              stepIdx !== 0 && 'border-t border-zinc-950/5 lg:border-t-0 dark:border-white/5',
               'relative overflow-hidden lg:flex-1'
             )}
           >
-            <div aria-current={step.status === 'current' ? 'step' : undefined}>
+            {/* Description folds into the tooltip — the strip stays one row tall. */}
+            <div aria-current={step.status === 'current' ? 'step' : undefined} title={step.description}>
               {/* Status accent bar: left edge on mobile, bottom edge on lg. */}
               <span
                 aria-hidden="true"
@@ -90,17 +91,17 @@ export function PromotionPipelineSteps({ gate }: { gate: PromotionGate }) {
                 )}
               />
               <span
-                className={clsx(stepIdx !== 0 && 'lg:pl-9', 'flex items-start px-6 py-5 text-sm font-medium')}
+                className={clsx(stepIdx !== 0 && 'lg:pl-9', 'flex items-center gap-3 px-6 py-2.5 text-sm font-medium')}
               >
                 <span className="shrink-0">
                   {step.status === 'complete' ? (
-                    <span className="flex size-10 items-center justify-center rounded-full bg-accent-600 dark:bg-accent-500">
-                      <CheckIcon aria-hidden="true" className="size-6 text-white" />
+                    <span className="flex size-7 items-center justify-center rounded-full bg-accent-600 dark:bg-accent-500">
+                      <CheckIcon aria-hidden="true" className="size-4 text-white" />
                     </span>
                   ) : (
                     <span
                       className={clsx(
-                        'flex size-10 items-center justify-center rounded-full border-2',
+                        'flex size-7 items-center justify-center rounded-full border-2 text-xs tabular-nums',
                         step.status === 'current'
                           ? 'border-accent-600 dark:border-accent-500'
                           : 'border-zinc-950/15 dark:border-white/15'
@@ -118,20 +119,15 @@ export function PromotionPipelineSteps({ gate }: { gate: PromotionGate }) {
                     </span>
                   )}
                 </span>
-                <span className="mt-0.5 ml-4 flex min-w-0 flex-col">
-                  <span
-                    className={clsx(
-                      'text-sm font-medium',
-                      step.status === 'complete' && 'text-zinc-950 dark:text-white',
-                      step.status === 'current' && 'text-accent-600 dark:text-accent-400',
-                      step.status === 'upcoming' && 'text-zinc-500 dark:text-zinc-400'
-                    )}
-                  >
-                    {step.name}
-                  </span>
-                  <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                    {step.description}
-                  </span>
+                <span
+                  className={clsx(
+                    'min-w-0 truncate text-sm font-medium',
+                    step.status === 'complete' && 'text-zinc-950 dark:text-white',
+                    step.status === 'current' && 'text-accent-600 dark:text-accent-400',
+                    step.status === 'upcoming' && 'text-zinc-500 dark:text-zinc-400'
+                  )}
+                >
+                  {step.name}
                 </span>
               </span>
 

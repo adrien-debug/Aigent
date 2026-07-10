@@ -4,8 +4,8 @@ import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { BenchmarkComparisonTable } from '@/components/agent-ops/benchmark-comparison-table'
 import { BenchmarkRunSteps } from '@/components/agent-ops/benchmark-run-steps'
 import { BenchmarkScoreCard } from '@/components/agent-ops/benchmark-score-card'
-import { BenchmarkScoreChart } from '@/components/agent-ops/benchmark-score-chart'
-import { Badge } from '@/components/catalyst/badge'
+import { ChipCluster } from '@/components/agent-ops/widgets/chip-cluster'
+import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
 import { Button } from '@/components/catalyst/button'
 import { Subheading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
@@ -73,15 +73,23 @@ export async function BenchmarksSection({ copilotId }: { copilotId: string }) {
             contentClassName="px-6 py-4"
           >
             <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-medium text-zinc-500">Dimensions</span>
-                {suite.dimensions.map((dimension) => (
-                  <Badge key={dimension} color="zinc" className="font-mono">
-                    {dimension}
-                  </Badge>
-                ))}
+              <ChipCluster
+                label="Dimensions"
+                items={suite.dimensions.map((dimension) => ({ key: dimension, text: dimension }))}
+              />
+              <div className="flex items-center gap-6">
+                {rows.length > 0 ? (
+                  <Sparkline
+                    kind="bar"
+                    points={rows.map((row) => row.result.score)}
+                    tone="accent"
+                    width={88}
+                    height={28}
+                    ariaLabel="Composite score spread across candidates"
+                  />
+                ) : null}
+                <BenchmarkRunSteps runs={runs} />
               </div>
-              <BenchmarkRunSteps runs={runs} />
             </div>
           </AgentSectionCard>
 
@@ -105,20 +113,6 @@ export async function BenchmarksSection({ copilotId }: { copilotId: string }) {
                   ))}
                 </div>
               </div>
-
-              <AgentSectionCard title="Score comparison" description="Composite score by candidate.">
-                {/* Serializable plain objects only — this crosses the server → client boundary. */}
-                <BenchmarkScoreChart
-                  data={rows.map((row, index) => ({
-                    model: row.run.model,
-                    score: row.result.score,
-                    accuracy: row.result.accuracy,
-                    costPerTask: row.result.avgCostPerTaskUsd,
-                    unsafe: row.result.unsafeActionCount,
-                    isBest: index === 0,
-                  }))}
-                />
-              </AgentSectionCard>
 
               <AgentSectionCard
                 title="Model comparison"

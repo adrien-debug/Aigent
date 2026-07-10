@@ -8,6 +8,7 @@ import {
 } from '@heroicons/react/20/solid'
 import clsx from 'clsx'
 
+import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { Badge } from '@/components/catalyst/badge'
 import { formatDurationMs } from '@/lib/agent-mission-control/format'
 import type { AgentRunStep, AgentRunStepKind, ToolCall } from '@/lib/agent-mission-control/types'
@@ -105,6 +106,12 @@ export function RunTimeline({
     return <p className="text-sm text-zinc-500">No steps recorded for this run.</p>
   }
 
+  // Duration is a neutral MEASURE (zinc), not a status — a slim per-step bar
+  // against the slowest step so "which step was slow" reads at a glance. Only
+  // worth drawing when there is more than one step to compare against.
+  const maxDurationMs = Math.max(...ordered.map((step) => step.durationMs), 1)
+  const showDurationMeter = ordered.length > 1
+
   return (
     <div className="flow-root">
       <ul role="list" className="-mb-8">
@@ -147,6 +154,17 @@ export function RunTimeline({
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{step.detail}</p>
+                  {showDurationMeter ? (
+                    <div className="mt-2 max-w-xs">
+                      <LinearMeter
+                        value={step.durationMs}
+                        max={maxDurationMs}
+                        size="xs"
+                        tone="zinc"
+                        ariaLabel={`${stepKindLabels[step.kind]} took ${formatDurationMs(step.durationMs)}`}
+                      />
+                    </div>
+                  ) : null}
                   {toolCall ? <ToolCallSummary call={toolCall} /> : null}
                 </div>
               </div>

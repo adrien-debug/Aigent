@@ -5,10 +5,12 @@ import { notFound } from 'next/navigation'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { RunDetailPanel, RunStatusBadge } from '@/components/agent-ops/run-detail-panel'
 import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
+import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
+import { SplitBar, type SplitTone } from '@/components/agent-ops/widgets/split-bar'
 import { Button } from '@/components/catalyst/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Text } from '@/components/catalyst/text'
-import { formatTimestamp } from '@/lib/agent-mission-control/format'
+import { formatDurationMs, formatTimestamp } from '@/lib/agent-mission-control/format'
 import {
   getCopilot,
   getRunsForCopilot,
@@ -18,13 +20,17 @@ import {
 } from '@/lib/agent-mission-control/data'
 import type { ToolCall } from '@/lib/agent-mission-control/types'
 
-const toolCallStatuses = [
-  { status: 'ok', label: 'OK', dotClassName: 'bg-zinc-500' },
-  { status: 'confirmed', label: 'Confirmed', dotClassName: 'bg-accent-400' },
-  { status: 'error', label: 'Error', dotClassName: 'bg-accent-400' },
-  { status: 'blocked', label: 'Blocked', dotClassName: 'bg-accent-400' },
-  { status: 'rejected', label: 'Rejected', dotClassName: 'bg-accent-400' },
-] satisfies { status: ToolCall['status']; label: string; dotClassName: string }[]
+/**
+ * Tool-call outcome ramp — one accent intensity per outcome (severity by fill,
+ * never a second hue), ordered calm → hot so the SplitBar reads as an escalation.
+ */
+const toolCallRamp = [
+  { status: 'ok', label: 'OK', tone: 'zinc' },
+  { status: 'confirmed', label: 'Confirmed', tone: 'accent-400' },
+  { status: 'rejected', label: 'Rejected', tone: 'accent-500' },
+  { status: 'blocked', label: 'Blocked', tone: 'accent-600' },
+  { status: 'error', label: 'Error', tone: 'accent-700' },
+] satisfies { status: ToolCall['status']; label: string; tone: SplitTone }[]
 
 export default async function RunsPage({
   params,
@@ -67,6 +73,9 @@ export default async function RunsPage({
     { ok: 0, error: 0, blocked: 0, confirmed: 0, rejected: 0 }
   )
 
+  // Per-row latency meters read against the slowest run in the window.
+  const windowMaxLatencyMs = Math.max(...runs.map((run) => run.latencyMs), 1)
+
   return (
     <div className="space-y-8">
       {runs.length === 0 || !selectedRun ? (
@@ -104,7 +113,7 @@ export default async function RunsPage({
                       <TableHeader>Run</TableHeader>
                       <TableHeader>Status</TableHeader>
                       <TableHeader>Input</TableHeader>
-                      <TableHeader>Started</TableHeader>
+                      <TableHeader className="text-right">Latency</TableHeader>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -118,7 +127,12 @@ export default async function RunsPage({
                           className={clsx(selected && 'bg-zinc-950/5 dark:bg-white/5')}
                         >
                           <TableCell>
-                            <span className="font-mono text-xs font-medium tabular-nums text-zinc-950 dark:text-white">{run.id}</span>
+                            <span className="block font-mono text-xs font-medium tabular-nums text-zinc-950 dark:text-white">
+                              {run.id}
+                            </span>
+                            <span className="block font-mono text-xs tabular-nums text-zinc-500">
+                              {formatTimestamp(run.startedAt).replace(' UTC', '')}
+                            </span>
                           </TableCell>
                           <TableCell>
                             <RunStatusBadge status={run.status} />
@@ -128,8 +142,19 @@ export default async function RunsPage({
                               {run.inputSummary}
                             </span>
                           </TableCell>
-                          <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums text-zinc-500">
-                            {formatTimestamp(run.startedAt).replace(' UTC', '')}
+                          <TableCell className="w-32">
+                            <div className="flex flex-col items-end gap-1">
+                              <span className="font-mono text-xs tabular-nums text-zinc-950 dark:text-white">
+                                {formatDurationMs(run.latencyMs)}
+                              </span>
+                              <LinearMeter
+                                value={run.latencyMs}
+                                max={windowMaxLatencyMs}
+                                size="xs"
+                                tone="zinc"
+                                ariaLabel={`Latency ${formatDurationMs(run.latencyMs)}`}
+                              />
+                            </div>
                           </TableCell>
                         </TableRow>
                       )
@@ -139,18 +164,18 @@ export default async function RunsPage({
               </AgentSectionCard>
 
               <AgentSectionCard title="Tool calls" description="Outcomes across the runs above.">
-                {/* Flat stat pairs — no boxed sub-surfaces inside a card (doctrine: surfaces). */}
-                <dl className="flex flex-wrap gap-x-6 gap-y-2">
-                  {toolCallStatuses.map(({ status, label, dotClassName }) => (
-                    <div key={status} className="flex items-baseline gap-2">
-                      <span aria-hidden="true" className={clsx('size-1.5 shrink-0 self-center rounded-full', dotClassName)} />
-                      <dt className="text-xs text-zinc-500 dark:text-zinc-400">{label}</dt>
-                      <dd className="font-mono text-sm font-semibold tabular-nums text-zinc-950 dark:text-white">
-                        {toolCallCounts[status]}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
+                {/* One mix bar (severity by fill), not five disconnected counts. */}
+                {allToolCalls.length > 0 ? (
+                  <SplitBar
+                    height="md"
+                    segments={toolCallRamp
+                      .map(({ status, label, tone }) => ({ key: status, label, value: toolCallCounts[status], tone }))
+                      .filter((segment) => segment.value > 0)}
+                    caption={`${allToolCalls.length} tool call${allToolCalls.length === 1 ? '' : 's'} across ${runs.length} run${runs.length === 1 ? '' : 's'}`}
+                  />
+                ) : (
+                  <p className="text-sm text-zinc-500">No tool calls recorded across these runs.</p>
+                )}
               </AgentSectionCard>
             </div>
 

@@ -3,6 +3,8 @@
 import clsx from 'clsx'
 import { useState } from 'react'
 
+import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
+import { SplitBar, type SplitSegment } from '@/components/agent-ops/widgets/split-bar'
 import { Badge } from '@/components/catalyst/badge'
 import { Text } from '@/components/catalyst/text'
 import type { ReplayCandidate } from '@/lib/agent-mission-control/types'
@@ -16,14 +18,23 @@ export interface ReplayCandidateItem {
 
 const outcomeConfig: Record<
   ReplayCandidate['outcome'],
-  { label: string; color: 'accent' | 'accentStrong' | 'accentSolid' | 'zinc'; meterClassName: string }
+  { label: string; color: 'accent' | 'accentStrong' | 'accentSolid' | 'zinc'; meterTone: 'accent' | 'accentStrong' | 'accentSolid' | 'zinc'; splitTone: SplitSegment['tone'] }
 > = {
-  matched: { label: 'Matched', color: 'accent', meterClassName: 'bg-accent-400' },
-  improved: { label: 'Improved', color: 'accent', meterClassName: 'bg-accent-400' },
-  diverged: { label: 'Diverged', color: 'accentStrong', meterClassName: 'bg-accent-400' },
-  unsafe: { label: 'Unsafe', color: 'accentSolid', meterClassName: 'bg-accent-400' },
-  pending: { label: 'Pending', color: 'zinc', meterClassName: 'bg-zinc-500' },
+  matched: { label: 'Matched', color: 'accent', meterTone: 'accent', splitTone: 'accent-400' },
+  improved: { label: 'Improved', color: 'accent', meterTone: 'accent', splitTone: 'accent-500' },
+  diverged: { label: 'Diverged', color: 'accentStrong', meterTone: 'accentStrong', splitTone: 'accent-600' },
+  unsafe: { label: 'Unsafe', color: 'accentSolid', meterTone: 'accentSolid', splitTone: 'accent-700' },
+  pending: { label: 'Pending', color: 'zinc', meterTone: 'zinc', splitTone: 'zinc' },
 }
+
+const OUTCOME_ORDER: ReplayCandidate['outcome'][] = ['matched', 'improved', 'diverged', 'unsafe', 'pending']
+
+const verdictOrder = [
+  { key: 'match', label: 'Match', tone: 'accent-400' as const },
+  { key: 'acceptable-diff', label: 'Acceptable diff', tone: 'zinc' as const },
+  { key: 'divergence', label: 'Divergence', tone: 'accent-600' as const },
+  { key: 'unsafe', label: 'Unsafe', tone: 'accent-700' as const },
+]
 
 /**
  * Selectable row of candidate sub-cards; renders the step diff table
@@ -38,8 +49,31 @@ export function ReplayCandidatePicker({ items }: { items: ReplayCandidateItem[] 
 
   const selected = items.find((item) => item.candidate.id === selectedId) ?? items[0]
 
+  // Candidate-outcome mix for this comparison (derived from props, no fetch).
+  const outcomeSegments: SplitSegment[] = OUTCOME_ORDER.map((outcome) => ({
+    key: outcome,
+    label: outcomeConfig[outcome].label,
+    value: items.filter((item) => item.candidate.outcome === outcome).length,
+    tone: outcomeConfig[outcome].splitTone,
+  })).filter((segment) => segment.value > 0)
+
+  // Verdict mix of the selected candidate's replayed steps.
+  const verdictSegments: SplitSegment[] = verdictOrder.map((verdict) => ({
+    key: verdict.key,
+    label: verdict.label,
+    value: selected.candidate.steps.filter((step) => step.verdict === verdict.key).length,
+    tone: verdict.tone,
+  }))
+
   return (
     <div>
+      {/* Divergence-as-split-bar: how this comparison's candidates landed */}
+      {items.length > 1 ? (
+        <div className="mb-4">
+          <SplitBar segments={outcomeSegments} />
+        </div>
+      ) : null}
+
       <div
         role="group"
         aria-label="Replay candidates"
@@ -71,35 +105,16 @@ export function ReplayCandidatePicker({ items }: { items: ReplayCandidateItem[] 
                 </span>
                 <Badge color={outcome.color}>{outcome.label}</Badge>
               </span>
-              <span className="mt-3 flex items-center gap-3">
-                <span aria-hidden="true" className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-950/10 dark:bg-zinc-800">
-                  {matchPct !== null ? (
-                    <span
-                      className={clsx('block h-full rounded-full', outcome.meterClassName)}
-                      style={{ width: `${matchPct}%` }}
-                    />
-                  ) : null}
-                </span>
-                <span className="shrink-0 font-mono text-xs tabular-nums text-zinc-300">
-                  {matchPct !== null ? `${matchPct}% match` : 'Pending'}
-                </span>
+              <span className="mt-3 block">
+                <LinearMeter
+                  value={candidate.matchRate ?? 0}
+                  max={1}
+                  tone={outcome.meterTone}
+                  valueText={matchPct !== null ? `${matchPct}% match` : 'Pending'}
+                  ariaLabel={`Match rate for ${versionLabel}`}
+                />
               </span>
               <span className="mt-3 block text-xs text-zinc-500">{candidate.notes}</span>
-              <span
-                className={clsx(
-                  'mt-3 flex items-center gap-1.5 text-xs font-medium',
-                  isSelected ? 'text-accent-700 dark:text-accent-400' : 'text-zinc-500'
-                )}
-              >
-                {isSelected ? (
-                  <>
-                    <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-accent-500" />
-                    Viewing step diff
-                  </>
-                ) : (
-                  <span className="underline decoration-zinc-400/50 underline-offset-2">View step diff</span>
-                )}
-              </span>
             </button>
           )
         })}
@@ -116,6 +131,11 @@ export function ReplayCandidatePicker({ items }: { items: ReplayCandidateItem[] 
           </h4>
           <p className="text-xs text-zinc-500">Expected = production run · Actual = candidate replay</p>
         </div>
+        {selected.candidate.steps.length > 0 ? (
+          <div className="mt-3">
+            <SplitBar segments={verdictSegments} />
+          </div>
+        ) : null}
         <div className="mt-3 border-t border-zinc-950/5 pt-2 dark:border-white/5">
           <ReplayComparisonTable candidate={selected.candidate} />
         </div>

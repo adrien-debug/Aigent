@@ -1,4 +1,5 @@
 import { CheckIcon } from '@heroicons/react/24/solid'
+import clsx from 'clsx'
 
 type ReleaseStage = 'draft' | 'beta' | 'production'
 type StepStatus = 'complete' | 'current' | 'upcoming'
@@ -10,21 +11,22 @@ const STEPS: { id: string; name: string; stage: ReleaseStage }[] = [
 ]
 
 /**
- * Release path panel stepper: Draft → Beta → Production. Stages before the
- * candidate are complete, the candidate stage is current, later stages are
- * upcoming. A 'production' candidate means nothing is in flight — the path
- * is fully shipped, so every step renders complete (no current step).
- * Non-interactive status indicator (no links), server-safe.
+ * Release path strip: Draft → Beta → Production, slimmed to a single-row
+ * stepper on the doctrine card surface. Stages before the candidate are
+ * complete, the candidate stage is current, later stages upcoming. A
+ * 'production' candidate means nothing is in flight — the path is fully
+ * shipped, so every step renders complete (no current step).
+ * Non-interactive (no links), server-safe.
  */
 export function ReleasePathSteps({ candidateStage }: { candidateStage: ReleaseStage }) {
   const candidateIndex = STEPS.findIndex((step) => step.stage === candidateStage)
 
   return (
-    <nav aria-label="Release progress">
-      <ol
-        role="list"
-        className="divide-y divide-zinc-950/10 rounded-md border border-zinc-950/10 bg-white md:flex md:divide-y-0 dark:divide-white/15 dark:border-white/15 dark:bg-zinc-950"
-      >
+    <nav
+      aria-label="Release progress"
+      className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10"
+    >
+      <ol role="list" className="divide-y divide-zinc-950/5 md:flex md:divide-y-0 dark:divide-white/5">
         {STEPS.map((step, stepIdx) => {
           const status: StepStatus =
             stepIdx < candidateIndex || candidateStage === 'production'
@@ -35,32 +37,36 @@ export function ReleasePathSteps({ candidateStage }: { candidateStage: ReleaseSt
 
           return (
             <li key={step.id} className="relative md:flex md:flex-1">
-              {status === 'complete' ? (
-                <div className="flex w-full items-center">
-                  <span className="flex items-center px-6 py-4 text-sm font-medium">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-600 dark:bg-accent-500">
-                      <CheckIcon aria-hidden="true" className="size-6 text-white" />
-                    </span>
-                    <span className="ml-4 text-sm font-medium text-zinc-950 dark:text-white">{step.name}</span>
+              <div
+                aria-current={status === 'current' ? 'step' : undefined}
+                className="flex items-center gap-3 px-6 py-2.5 text-sm font-medium"
+              >
+                {status === 'complete' ? (
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-600 dark:bg-accent-500">
+                    <CheckIcon aria-hidden="true" className="size-4 text-white" />
                   </span>
-                </div>
-              ) : status === 'current' ? (
-                <div aria-current="step" className="flex items-center px-6 py-4 text-sm font-medium">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-accent-600 dark:border-accent-400">
-                    <span className="text-accent-600 dark:text-accent-400">{step.id}</span>
+                ) : (
+                  <span
+                    className={clsx(
+                      'flex size-7 shrink-0 items-center justify-center rounded-full border-2 text-xs tabular-nums',
+                      status === 'current'
+                        ? 'border-accent-600 text-accent-600 dark:border-accent-400 dark:text-accent-400'
+                        : 'border-zinc-950/15 text-zinc-500 dark:border-white/15 dark:text-zinc-400'
+                    )}
+                  >
+                    {step.id}
                   </span>
-                  <span className="ml-4 text-sm font-medium text-accent-600 dark:text-accent-400">{step.name}</span>
-                </div>
-              ) : (
-                <div className="flex items-center">
-                  <span className="flex items-center px-6 py-4 text-sm font-medium">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-zinc-950/10 dark:border-white/15">
-                      <span className="text-zinc-500 dark:text-zinc-400">{step.id}</span>
-                    </span>
-                    <span className="ml-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">{step.name}</span>
-                  </span>
-                </div>
-              )}
+                )}
+                <span
+                  className={clsx(
+                    status === 'complete' && 'text-zinc-950 dark:text-white',
+                    status === 'current' && 'text-accent-600 dark:text-accent-400',
+                    status === 'upcoming' && 'text-zinc-500 dark:text-zinc-400'
+                  )}
+                >
+                  {step.name}
+                </span>
+              </div>
 
               {stepIdx !== STEPS.length - 1 ? (
                 <div aria-hidden="true" className="absolute top-0 right-0 hidden h-full w-5 md:block">

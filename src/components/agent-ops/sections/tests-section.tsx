@@ -1,14 +1,16 @@
 
+import { AgentMetricCard } from '@/components/agent-ops/agent-metric-card'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { RunTestsButton } from '@/components/agent-ops/run-tests-button'
 import { TestCaseTable } from '@/components/agent-ops/test-case-table'
-import { TestPassTrendChart } from '@/components/agent-ops/test-pass-trend-chart'
-import { TestResultBadge } from '@/components/agent-ops/test-result-badge'
+import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
+import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
+import { SplitBar, type SplitSegment } from '@/components/agent-ops/widgets/split-bar'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Subheading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
-import { formatDate, formatPercent } from '@/lib/agent-mission-control/format'
+import { formatDate, formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import {
   getCopilot,
   getTestCasesForSuite,
@@ -25,7 +27,7 @@ const suiteKindConfig: Record<TestSuite['kind'], { label: string; color: 'zinc' 
   'output-contract': { label: 'Output contract', color: 'zinc' },
 }
 
-const runStatusConfig: Record<TestRun['status'], { label: string; color: 'accent' | 'zinc' | 'zinc' | 'accentSolid' }> = {
+const runStatusConfig: Record<TestRun['status'], { label: string; color: 'accent' | 'zinc' | 'accentSolid' }> = {
   completed: { label: 'Completed', color: 'accent' },
   running: { label: 'Running', color: 'zinc' },
   queued: { label: 'Queued', color: 'zinc' },
@@ -40,18 +42,15 @@ export async function TestsSection({ copilotId }: { copilotId: string }) {
   const [suites, testRuns] = await Promise.all([getTestSuitesForCopilot(id), getTestRunsForCopilot(id)])
   const runsById = new Map(testRuns.map((run) => [run.id, run]))
 
-  // Serializable plain objects for the client chart — completed runs, oldest → newest.
-  const passTrendData = testRuns
+  // Pass-rate trend series (completed runs, oldest → newest) — folded into the
+  // KPI strip as an inline server Sparkline, no client chart boundary.
+  const passRateSeries = testRuns
     .filter((run) => run.status === 'completed')
     .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
-    .map((run) => ({
-      runId: run.id,
-      startedAt: run.startedAt,
-      label: formatDate(run.startedAt),
-      passRate: run.passRate,
-      costUsd: run.totalCostUsd,
-      triggeredBy: run.triggeredBy,
-    }))
+    .map((run) => run.passRate)
+
+  // Most recent run overall (any status) drives the "Last run cost" cell.
+  const latestRun = [...testRuns].sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0]
 
   const suiteViews = await Promise.all(
     suites.map(async (suite) => {
@@ -101,74 +100,131 @@ export async function TestsSection({ copilotId }: { copilotId: string }) {
     )
   }
 
+  // Cross-suite aggregates — one dense stat band replacing the standalone trend
+  // panel and the per-suite scatter.
+  const casesTotal = suiteViews.reduce((sum, view) => sum + view.cases.length, 0)
+  const agg: Record<TestResultStatus, number> = { pass: 0, fail: 0, error: 0, skip: 0, running: 0 }
+  for (const view of suiteViews) {
+    for (const status of Object.keys(agg) as TestResultStatus[]) agg[status] += view.counts[status]
+  }
+  const evaluated = agg.pass + agg.fail + agg.error
+  const overallPassRate = evaluated > 0 ? agg.pass / evaluated : null
+  const suitesFailing = suiteViews.filter((view) => view.counts.fail > 0 || view.counts.error > 0).length
+
   return (
     <div className="space-y-8">
-      {passTrendData.length >= 2 ? (
-        <AgentSectionCard title="Pass rate trend" description="Across test runs, oldest to newest.">
-          <TestPassTrendChart data={passTrendData} />
-        </AgentSectionCard>
-      ) : null}
-
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <Subheading>Test suites</Subheading>
-        <div className="flex flex-wrap items-center gap-3">
-          <RunTestsButton />
-          {/* V1 stub — visibly inert until suite-scoped runs ship. */}
-          <Button outline disabled title="Suite-scoped runs ship in V2">
-            Run safety suite only
-          </Button>
-        </div>
+      <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-4">
+        <AgentMetricCard
+          label="Suites"
+          value={String(suiteViews.length)}
+          hint={suitesFailing > 0 ? `${suitesFailing} with failures` : 'All suites green'}
+        />
+        <AgentMetricCard label="Test cases" value={String(casesTotal)} hint="Across all suites" />
+        <AgentMetricCard
+          label="Overall pass rate"
+          value={overallPassRate !== null ? formatPercent(overallPassRate) : '—'}
+          hint={overallPassRate !== null ? `${agg.pass} / ${evaluated} evaluated` : 'No runs yet'}
+          viz={
+            overallPassRate !== null ? (
+              <div className="space-y-2">
+                <LinearMeter value={overallPassRate} max={1} tone="accent" ariaLabel="Overall pass rate" />
+                {passRateSeries.length >= 2 ? (
+                  <Sparkline
+                    points={passRateSeries}
+                    tone="accent"
+                    width={132}
+                    height={24}
+                    ariaLabel="Pass rate trend across runs"
+                  />
+                ) : null}
+              </div>
+            ) : undefined
+          }
+        />
+        <AgentMetricCard
+          label="Last run cost"
+          value={latestRun ? formatUsd(latestRun.totalCostUsd) : '—'}
+          hint={latestRun ? `${formatDate(latestRun.startedAt)} · ${latestRun.triggeredBy}` : 'No runs yet'}
+        />
       </div>
 
-      {suiteViews.map(({ suite, lastRun, results, resultsByCase, counts, cases }) => {
-        const kind = suiteKindConfig[suite.kind]
-        const runStatus = lastRun ? runStatusConfig[lastRun.status] : null
+      <AgentSectionCard
+        title="Test suites"
+        actions={
+          <>
+            <RunTestsButton />
+            {/* V1 stub — visibly inert until suite-scoped runs ship. */}
+            <Button outline disabled title="Suite-scoped runs ship in V2">
+              Run safety suite only
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-8">
+          {suiteViews.map(({ suite, lastRun, results, resultsByCase, counts, cases }) => {
+            const kind = suiteKindConfig[suite.kind]
+            const runStatus = lastRun ? runStatusConfig[lastRun.status] : null
 
-        const totalStatuses: TestResultStatus[] = ['pass', 'fail', 'skip']
-        if (counts.error > 0) totalStatuses.splice(2, 0, 'error')
+            const segments: SplitSegment[] = [
+              { key: 'pass', label: 'Pass', value: counts.pass, tone: 'accent-400' },
+              { key: 'error', label: 'Error', value: counts.error, tone: 'accent-600' },
+              { key: 'fail', label: 'Fail', value: counts.fail, tone: 'accent-700' },
+              { key: 'skip', label: 'Skip', value: counts.skip, tone: 'zinc' },
+            ]
 
-        return (
-          <AgentSectionCard
-            key={suite.id}
-            title={suite.name}
-            description={suite.description}
-            actions={
-              <>
-                <Badge color={kind.color}>{kind.label}</Badge>
-                {lastRun && runStatus ? (
-                  <>
-                    <Badge color={runStatus.color}>{runStatus.label}</Badge>
-                    <span className="font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
-                      {formatPercent(lastRun.passRate)} pass
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-xs text-zinc-500">Never run</span>
-                )}
-              </>
-            }
-          >
-            <div className="space-y-4">
-              {results.length > 0 ? (
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                  {totalStatuses.map((status) => (
-                    <div key={status} className="flex items-center gap-2">
-                      <span className="font-mono text-sm font-medium tabular-nums text-zinc-950 dark:text-white">{counts[status]}</span>
-                      <TestResultBadge result={status} />
+            return (
+              <div
+                key={suite.id}
+                className="border-t border-zinc-950/5 pt-8 first:border-0 first:pt-0 dark:border-white/5"
+              >
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0 lg:flex-1">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                      <h3 className="text-sm font-semibold text-zinc-950 dark:text-white">{suite.name}</h3>
+                      <Badge color={kind.color}>{kind.label}</Badge>
+                      {runStatus ? (
+                        <Badge color={runStatus.color}>{runStatus.label}</Badge>
+                      ) : (
+                        <span className="text-xs text-zinc-500">Never run</span>
+                      )}
+                      {lastRun ? (
+                        <span className="font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+                          {formatDate(lastRun.startedAt)}
+                        </span>
+                      ) : null}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-zinc-500">
-                  This suite has never been run — expected columns are defined, results are pending a first run.
-                </p>
-              )}
+                    {suite.description ? (
+                      <p className="mt-1 max-w-prose text-sm text-zinc-500 dark:text-zinc-400">{suite.description}</p>
+                    ) : null}
+                  </div>
 
-              <TestCaseTable cases={cases} resultsByCase={resultsByCase} />
-            </div>
-          </AgentSectionCard>
-        )
-      })}
+                  {results.length > 0 && lastRun ? (
+                    <div className="w-full shrink-0 space-y-3 lg:w-96">
+                      <SplitBar segments={segments} />
+                      <LinearMeter
+                        value={lastRun.passRate}
+                        max={1}
+                        label="Pass rate"
+                        valueText={formatPercent(lastRun.passRate)}
+                        tone="accent"
+                        ariaLabel={`Pass rate for ${suite.name}`}
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-xs text-zinc-500 lg:w-96 lg:shrink-0">
+                      Never run — expected columns are defined, results pending a first run.
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-6">
+                  <TestCaseTable cases={cases} resultsByCase={resultsByCase} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </AgentSectionCard>
     </div>
   )
 }
