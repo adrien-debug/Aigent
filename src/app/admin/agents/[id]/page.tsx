@@ -13,11 +13,6 @@ import { TestResultBadge } from '@/components/agent-ops/test-result-badge'
 import { VersionStageBadge, versionStageLabels } from '@/components/agent-ops/version-stage-badge'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
-import {
-  DescriptionDetails,
-  DescriptionList,
-  DescriptionTerm,
-} from '@/components/catalyst/description-list'
 import { Subheading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
 import { formatDurationMs, formatPercent, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
@@ -69,6 +64,24 @@ const runStatusConfig: Record<AgentRunStatus, { label: string; dot: string; text
 // ---------------------------------------------------------------------------
 // Small shared pieces
 // ---------------------------------------------------------------------------
+
+/** One label/value cell in the dense Identity grid. */
+function IdentityField({
+  label,
+  className,
+  children,
+}: {
+  label: string
+  className?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className={className}>
+      <dt className="text-xs font-medium tracking-wide text-zinc-500 uppercase">{label}</dt>
+      <dd className="mt-1 text-sm">{children}</dd>
+    </div>
+  )
+}
 
 function SectionLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
@@ -284,12 +297,14 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Identity — 2 cols. No duplicated title/description: the page header already carries them. */}
         <AgentBentoCard title="Identity" className="lg:col-span-2" level={2}>
-          <DescriptionList>
-            <DescriptionTerm>Owner</DescriptionTerm>
-            <DescriptionDetails className="font-mono text-sm">{copilot.owner}</DescriptionDetails>
+          {/* Two-column field grid — pairs fill the width instead of a wide
+              empty right gutter. Tags span the full row. */}
+          <dl className="grid grid-cols-1 gap-x-10 gap-y-5 sm:grid-cols-2">
+            <IdentityField label="Owner">
+              <span className="font-mono text-sm text-zinc-950 dark:text-white">{copilot.owner}</span>
+            </IdentityField>
 
-            <DescriptionTerm>Project</DescriptionTerm>
-            <DescriptionDetails>
+            <IdentityField label="Project">
               {onBench ? (
                 <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="font-medium text-accent-600 dark:text-accent-400">
@@ -303,24 +318,27 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                   ) : null}
                 </span>
               ) : (
-                (project?.name ?? '—')
+                <span className="text-zinc-950 dark:text-white">{project?.name ?? '—'}</span>
               )}
-            </DescriptionDetails>
+            </IdentityField>
 
-            <DescriptionTerm>Model</DescriptionTerm>
-            <DescriptionDetails className="font-mono text-sm tabular-nums">{copilot.model}</DescriptionDetails>
+            <IdentityField label="Model">
+              <span className="font-mono text-sm tabular-nums text-zinc-950 dark:text-white">{copilot.model}</span>
+            </IdentityField>
 
-            <DescriptionTerm>Provider</DescriptionTerm>
-            <DescriptionDetails>{MODEL_PROVIDER_LABELS[copilot.modelProvider]}</DescriptionDetails>
+            <IdentityField label="Provider">
+              <span className="text-zinc-950 dark:text-white">{MODEL_PROVIDER_LABELS[copilot.modelProvider]}</span>
+            </IdentityField>
 
-            <DescriptionTerm>Created</DescriptionTerm>
-            <DescriptionDetails className="tabular-nums">{formatTimestamp(copilot.createdAt)}</DescriptionDetails>
+            <IdentityField label="Created">
+              <span className="tabular-nums text-zinc-950 dark:text-white">{formatTimestamp(copilot.createdAt)}</span>
+            </IdentityField>
 
-            <DescriptionTerm>Updated</DescriptionTerm>
-            <DescriptionDetails className="tabular-nums">{formatTimestamp(copilot.updatedAt)}</DescriptionDetails>
+            <IdentityField label="Updated">
+              <span className="tabular-nums text-zinc-950 dark:text-white">{formatTimestamp(copilot.updatedAt)}</span>
+            </IdentityField>
 
-            <DescriptionTerm>Tags</DescriptionTerm>
-            <DescriptionDetails>
+            <IdentityField label="Tags" className="sm:col-span-2">
               <span className="flex flex-wrap gap-2">
                 {copilot.tags.map((tag) => (
                   <Badge key={tag} color="zinc" className="font-mono">
@@ -328,8 +346,8 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                   </Badge>
                 ))}
               </span>
-            </DescriptionDetails>
-          </DescriptionList>
+            </IdentityField>
+          </dl>
         </AgentBentoCard>
 
         {/* Runtime & status — 1 col */}
