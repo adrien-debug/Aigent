@@ -1,9 +1,11 @@
+import { ExclamationTriangleIcon } from '@heroicons/react/16/solid'
+
 import { Badge } from '@/components/catalyst/badge'
 import type { CopilotStatus } from '@/lib/agent-mission-control/types'
 
 const statusConfig: Record<
   CopilotStatus,
-  { label: string; color: 'accent' | 'accentStrong' | 'zinc'; dotClassName: string; badgeClassName?: string }
+  { label: string; color: 'accent' | 'accentStrong' | 'zinc'; dotClassName: string; badgeClassName?: string; warn?: boolean }
 > = {
   active: {
     label: 'Active',
@@ -14,6 +16,7 @@ const statusConfig: Record<
     label: 'Degraded',
     color: 'accentStrong',
     dotClassName: 'bg-accent-500 dark:bg-accent-300',
+    warn: true,
   },
   paused: {
     label: 'Paused',
@@ -42,7 +45,11 @@ export function StatusBadge({ status }: { status: CopilotStatus }) {
 
   return (
     <Badge color={config.color} className={config.badgeClassName}>
-      <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${config.dotClassName}`} />
+      {config.warn ? (
+        <ExclamationTriangleIcon aria-hidden="true" className="-ml-0.5 size-3.5 shrink-0" />
+      ) : (
+        <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${config.dotClassName}`} />
+      )}
       {config.label}
     </Badge>
   )

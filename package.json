@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:ds": "node scripts/check-palette.mjs",
+    "check": "npm run typecheck && npm run lint && npm run check:ds"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",

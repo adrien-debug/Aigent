@@ -39,7 +39,7 @@ const colors = {
   accentStrong:
     'bg-accent-500/25 text-accent-800 group-data-hover:bg-accent-500/35 dark:bg-accent-500/25 dark:text-accent-200 dark:group-data-hover:bg-accent-500/35',
   accentSolid:
-    'bg-accent-600 text-white group-data-hover:bg-accent-500 dark:bg-accent-600 dark:text-white dark:group-data-hover:bg-accent-500',
+    'bg-accent-700 text-white group-data-hover:bg-accent-600 dark:bg-accent-700 dark:text-white dark:group-data-hover:bg-accent-600',
 }
 
 type BadgeProps = { color?: keyof typeof colors }
@@ -71,7 +71,7 @@ export const BadgeButton = forwardRef(function BadgeButton(
 ) {
   let classes = clsx(
     className,
-    'group relative inline-flex rounded-md focus:not-data-focus:outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-blue-500'
+    'group relative inline-flex rounded-md focus:not-data-focus:outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-accent-500'
   )
 
   return typeof props.href === 'string' ? (
