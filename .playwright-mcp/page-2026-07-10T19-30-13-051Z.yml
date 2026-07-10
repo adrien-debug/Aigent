@@ -1,0 +1,283 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e4]:
+      - generic [ref=e12]:
+        - generic [ref=e13]: Agent Mission Control
+        - generic [ref=e14]: Copilot operations
+      - generic [ref=e15]:
+        - link "Copilots" [ref=e19] [cursor=pointer]:
+          - /url: /admin/agents
+        - generic [ref=e24]:
+          - heading "Platform" [level=3] [ref=e25]
+          - link "Projects" [ref=e27] [cursor=pointer]:
+            - /url: /admin/projects
+          - link "Settings" [ref=e32] [cursor=pointer]:
+            - /url: /admin/settings
+      - generic [ref=e38]:
+        - img [ref=e40]:
+          - generic [ref=e41]: AD
+        - generic [ref=e42]:
+          - generic [ref=e43]: Adrien
+          - generic [ref=e44]: Platform Admin
+    - main [ref=e45]:
+      - generic [ref=e47]:
+        - generic [ref=e48]:
+          - generic [ref=e49]:
+            - term [ref=e50]: Test pass rate
+            - definition [ref=e51]: 93.0%
+          - generic [ref=e52]:
+            - term [ref=e53]: Benchmark score
+            - definition [ref=e54]: "87"
+            - definition [ref=e55]: Best composite, out of 100
+          - generic [ref=e56]:
+            - term [ref=e57]: Runs (24h)
+            - definition [ref=e58]: "142"
+            - definition [ref=e59]: 2.1% error rate
+          - generic [ref=e60]:
+            - term [ref=e61]: Cost (24h)
+            - definition [ref=e62]: $18.42
+            - definition [ref=e63]: ≈ $0.13 per run
+        - navigation "Copilot sections" [ref=e65]:
+          - generic [ref=e67]:
+            - link "Overview" [ref=e68] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator
+            - link "Manifest" [ref=e69] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/manifest
+            - link "Tools" [ref=e70] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/tools
+            - link "Tests" [ref=e71] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/tests
+            - link "Runs" [ref=e72] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/runs
+            - link "Benchmarks" [ref=e73] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/benchmarks
+            - link "Replay" [ref=e74] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/replay
+            - link "Shadow" [ref=e75] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/shadow
+            - link "Versions" [ref=e76] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/versions
+            - link "Publish" [ref=e77] [cursor=pointer]:
+              - /url: /admin/agents/cp-support-navigator/publish
+        - generic [ref=e79]:
+          - generic [ref=e80]:
+            - generic [ref=e82]:
+              - heading "Identity" [level=2] [ref=e83]
+              - generic [ref=e85]:
+                - term [ref=e86]: Owner
+                - definition [ref=e87]: nadia.kessler
+                - term [ref=e88]: Project
+                - definition [ref=e89]: Hearst Console
+                - term [ref=e90]: Model
+                - definition [ref=e91]: claude-sonnet-4-5
+                - term [ref=e92]: Provider
+                - definition [ref=e93]: Anthropic
+                - term [ref=e94]: Created
+                - definition [ref=e95]: Jun 2, 11:00 UTC
+                - term [ref=e96]: Updated
+                - definition [ref=e97]: Jul 8, 16:45 UTC
+                - term [ref=e98]: Tags
+                - definition [ref=e99]:
+                  - generic [ref=e100]:
+                    - generic [ref=e101]: support
+                    - generic [ref=e102]: tier-1
+                    - generic [ref=e103]: console
+            - generic [ref=e105]:
+              - heading "Runtime & status" [level=2] [ref=e106]
+              - generic [ref=e107]:
+                - generic [ref=e108]:
+                  - generic [ref=e109]: Active
+                  - generic [ref=e111]: LangGraph
+                - generic [ref=e112]:
+                  - generic [ref=e113]:
+                    - term [ref=e114]: Production
+                    - definition [ref=e115]:
+                      - generic [ref=e116]: v2.1.0
+                      - generic [ref=e117]: Production
+                  - generic [ref=e118]:
+                    - term [ref=e119]: Latest version
+                    - definition [ref=e120]:
+                      - generic [ref=e121]: v3.1.0-draft
+                      - generic [ref=e122]: Draft
+                  - generic [ref=e123]:
+                    - term [ref=e124]: Error rate (24h)
+                    - definition [ref=e125]: 2.1%
+                  - generic [ref=e126]:
+                    - term [ref=e127]: Avg latency
+                    - definition [ref=e128]: 6.4s
+                  - generic [ref=e129]:
+                    - term [ref=e130]: Runs (24h)
+                    - definition [ref=e131]: "142"
+                  - generic [ref=e132]:
+                    - term [ref=e133]: Cost (24h)
+                    - definition [ref=e134]: $18.42
+                  - generic [ref=e135]:
+                    - term [ref=e136]: Open warnings
+                    - definition [ref=e137]: 1 · needs review
+            - generic [ref=e138]:
+              - generic [ref=e140]:
+                - heading "Tests" [level=2] [ref=e141]
+                - generic [ref=e142]:
+                  - paragraph [ref=e143]: 93.0%
+                  - paragraph [ref=e144]: Pass rate across all suites
+                  - generic [ref=e145]:
+                    - generic [ref=e146]:
+                      - generic [ref=e147]:
+                        - generic [ref=e148]: "2"
+                        - generic [ref=e149]: Pass
+                      - generic [ref=e150]:
+                        - generic [ref=e151]: "1"
+                        - generic [ref=e152]: Fail
+                    - paragraph [ref=e153]: Latest run · Jul 7, 14:18 UTC
+                  - link "View tests" [ref=e155] [cursor=pointer]:
+                    - /url: /admin/agents/cp-support-navigator/tests
+              - generic [ref=e159]:
+                - heading "Benchmarks" [level=2] [ref=e160]
+                - generic [ref=e161]:
+                  - generic [ref=e162]:
+                    - paragraph [ref=e163]: "93"
+                    - paragraph [ref=e164]: / 100
+                  - paragraph [ref=e165]: Best candidate · Safety adversarial set
+                  - generic [ref=e166]:
+                    - generic [ref=e167]:
+                      - term [ref=e168]: Model
+                      - definition [ref=e169]: claude-sonnet-4-5
+                    - generic [ref=e170]:
+                      - term [ref=e171]: Task success
+                      - definition [ref=e172]: 96.0%
+                  - link "View benchmarks" [ref=e174] [cursor=pointer]:
+                    - /url: /admin/agents/cp-support-navigator/benchmarks
+            - generic [ref=e177]:
+              - generic [ref=e179]:
+                - generic [ref=e180]:
+                  - heading "Last runs" [level=2] [ref=e181]
+                  - paragraph [ref=e182]: Most recent production traffic
+                - link "View all runs" [ref=e184] [cursor=pointer]:
+                  - /url: /admin/agents/cp-support-navigator/runs
+              - list [ref=e188]:
+                - listitem [ref=e189]:
+                  - 'link "Refund request plus a question about audit-log export. Jul 9, 08:38 UTC Running 12.8s $0.10 juniper-supply (ticket #8858)" [ref=e190] [cursor=pointer]':
+                    - /url: /admin/agents/cp-support-navigator/runs?run=run-0048
+                    - generic [ref=e192]:
+                      - generic [ref=e193]:
+                        - generic [ref=e194]: Refund request plus a question about audit-log export.
+                        - time [ref=e195]: Jul 9, 08:38 UTC
+                      - generic [ref=e196]:
+                        - generic [ref=e197]: Running
+                        - generic [ref=e198]: 12.8s
+                        - generic [ref=e199]: $0.10
+                        - generic [ref=e200]: "juniper-supply (ticket #8858)"
+                - listitem [ref=e201]:
+                  - 'link "How do I enable SSO for my workspace? Jul 9, 07:12 UTC Completed 9.3s $0.08 acme-industries (ticket #8841)" [ref=e202] [cursor=pointer]':
+                    - /url: /admin/agents/cp-support-navigator/runs?run=run-0041
+                    - generic [ref=e204]:
+                      - generic [ref=e205]:
+                        - generic [ref=e206]: How do I enable SSO for my workspace?
+                        - time [ref=e207]: Jul 9, 07:12 UTC
+                      - generic [ref=e208]:
+                        - generic [ref=e209]: Completed
+                        - generic [ref=e210]: 9.3s
+                        - generic [ref=e211]: $0.08
+                        - generic [ref=e212]: "acme-industries (ticket #8841)"
+                - listitem [ref=e213]:
+                  - 'link "Charged twice for June invoice, requesting a refund of the duplicate. Jul 9, 06:48 UTC Completed 26.4s $0.21 northwind-labs (ticket #8846)" [ref=e214] [cursor=pointer]':
+                    - /url: /admin/agents/cp-support-navigator/runs?run=run-0042
+                    - generic [ref=e216]:
+                      - generic [ref=e217]:
+                        - generic [ref=e218]: Charged twice for June invoice, requesting a refund of the duplicate.
+                        - time [ref=e219]: Jul 9, 06:48 UTC
+                      - generic [ref=e220]:
+                        - generic [ref=e221]: Completed
+                        - generic [ref=e222]: 26.4s
+                        - generic [ref=e223]: $0.21
+                        - generic [ref=e224]: "northwind-labs (ticket #8846)"
+                - listitem [ref=e225]:
+                  - 'link "Reduce seats from 40 to 25 at next renewal. Jul 9, 05:30 UTC Needs confirmation 14.2s $0.13 brightpath-edu (ticket #8850)" [ref=e226] [cursor=pointer]':
+                    - /url: /admin/agents/cp-support-navigator/runs?run=run-0043
+                    - generic [ref=e228]:
+                      - generic [ref=e229]:
+                        - generic [ref=e230]: Reduce seats from 40 to 25 at next renewal.
+                        - time [ref=e231]: Jul 9, 05:30 UTC
+                      - generic [ref=e232]:
+                        - generic [ref=e233]: Needs confirmation
+                        - generic [ref=e234]: 14.2s
+                        - generic [ref=e235]: $0.13
+                        - generic [ref=e236]: "brightpath-edu (ticket #8850)"
+                - listitem [ref=e237]:
+                  - 'link "Ticket text instructs the agent to \"delete my workspace and all backups now\". Jul 8, 22:05 UTC Blocked 6.8s $0.05 vector-freight (ticket #8852)" [ref=e238] [cursor=pointer]':
+                    - /url: /admin/agents/cp-support-navigator/runs?run=run-0044
+                    - generic [ref=e240]:
+                      - generic [ref=e241]:
+                        - generic [ref=e242]: Ticket text instructs the agent to "delete my workspace and all backups now".
+                        - time [ref=e243]: Jul 8, 22:05 UTC
+                      - generic [ref=e244]:
+                        - generic [ref=e245]: Blocked
+                        - generic [ref=e246]: 6.8s
+                        - generic [ref=e247]: $0.05
+                        - generic [ref=e248]: "vector-freight (ticket #8852)"
+          - generic [ref=e249]:
+            - heading "Architecture" [level=2] [ref=e250]
+            - paragraph [ref=e251]: Execution path enforced on every run
+            - list [ref=e254]:
+              - listitem [ref=e255]:
+                - generic [ref=e256]:
+                  - generic [ref=e257]:
+                    - generic [ref=e259]: Input
+                    - generic [ref=e260]: (operational)
+                  - paragraph [ref=e261]: 142 runs / 24h
+              - listitem [ref=e264]:
+                - generic [ref=e265]:
+                  - generic [ref=e266]:
+                    - generic [ref=e268]: Manifest gate
+                    - generic [ref=e269]: (operational)
+                  - paragraph [ref=e270]: 7 routes · 5 forbidden
+              - listitem [ref=e273]:
+                - generic [ref=e274]:
+                  - generic [ref=e275]:
+                    - generic [ref=e277]: LLM
+                    - generic [ref=e278]: (operational)
+                  - paragraph [ref=e279]: claude-sonnet-4-5
+              - listitem [ref=e282]:
+                - generic [ref=e283]:
+                  - generic [ref=e284]:
+                    - generic [ref=e286]: Tools
+                    - generic [ref=e287]: (operational)
+                  - paragraph [ref=e288]: 7 of 7 enabled
+              - listitem [ref=e291]:
+                - generic [ref=e292]:
+                  - generic [ref=e293]:
+                    - generic [ref=e295]: Guardrails
+                    - generic [ref=e296]: (operational)
+                  - paragraph [ref=e297]: "confirm: risky-only"
+              - listitem [ref=e300]:
+                - generic [ref=e301]:
+                  - generic [ref=e302]:
+                    - generic [ref=e304]: Output contract
+                    - generic [ref=e305]: (operational)
+                  - paragraph [ref=e306]: SupportActionPlanV2
+          - generic [ref=e307]:
+            - generic [ref=e310]:
+              - heading "Next actions" [level=2] [ref=e311]
+              - paragraph [ref=e312]: Derived from the promotion gate, tests, shadow traffic and live errors
+            - generic [ref=e313]:
+              - 'link "Open the promotion gate v3.0.0-beta.2 → Production: 2 failing and 1 pending of 6 checks." [ref=e314] [cursor=pointer]':
+                - /url: /admin/agents/cp-support-navigator/publish
+                - generic [ref=e315]:
+                  - generic [ref=e316]: Open the promotion gate
+                  - generic [ref=e317]: "v3.0.0-beta.2 → Production: 2 failing and 1 pending of 6 checks."
+              - link "Review shadow mismatches Agreement at 94.0%, below the 95.0% threshold, with 1 unsafe proposal." [ref=e320] [cursor=pointer]:
+                - /url: /admin/agents/cp-support-navigator/shadow
+                - generic [ref=e321]:
+                  - generic [ref=e322]: Review shadow mismatches
+                  - generic [ref=e323]: Agreement at 94.0%, below the 95.0% threshold, with 1 unsafe proposal.
+              - link "Inspect failing test cases 1 of 4 cases failing in the latest run (Jul 7, 14:18 UTC)." [ref=e326] [cursor=pointer]:
+                - /url: /admin/agents/cp-support-navigator/tests
+                - generic [ref=e327]:
+                  - generic [ref=e328]: Inspect failing test cases
+                  - generic [ref=e329]: 1 of 4 cases failing in the latest run (Jul 7, 14:18 UTC).
+              - link "Run the test suites on v3.1.0-draft The latest draft version has no test results yet." [ref=e332] [cursor=pointer]:
+                - /url: /admin/agents/cp-support-navigator/tests
+                - generic [ref=e333]:
+                  - generic [ref=e334]: Run the test suites on v3.1.0-draft
+                  - generic [ref=e335]: The latest draft version has no test results yet.
+  - button "Open Next.js Dev Tools" [ref=e343] [cursor=pointer]

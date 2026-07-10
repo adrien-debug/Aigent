@@ -574,10 +574,14 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
         )}
       </div>
 
-      {/* 3 — Architecture strip */}
-      <AgentSectionCard title="Architecture" description="Execution path enforced on every run">
-        <ArchitectureStrip steps={architectureSteps} />
-      </AgentSectionCard>
+      {/* 3 — Architecture strip (no box: flows directly on the body surface) */}
+      <section>
+        <Subheading>Architecture</Subheading>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Execution path enforced on every run</p>
+        <div className="mt-5">
+          <ArchitectureStrip steps={architectureSteps} />
+        </div>
+      </section>
 
       {/* 4 — Next actions (the onboarding checklist covers the sparse draft) */}
       {!isSparseDraft ? (

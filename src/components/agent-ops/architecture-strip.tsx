@@ -1,4 +1,3 @@
-import { ArrowLongRightIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
 
 type StripStatus = 'ok' | 'warn' | 'off'
@@ -21,6 +20,11 @@ const statusLabelClasses: Record<StripStatus, string> = {
   off: 'text-zinc-500',
 }
 
+/**
+ * Execution-path flow. Flat steps (no box per step, no box around) separated by
+ * a tall arrow chevron — the strip lives directly on the body surface. Accent
+ * dot + name + optional status label + detail; the label carries the status.
+ */
 export function ArchitectureStrip({
   steps,
 }: {
@@ -28,12 +32,12 @@ export function ArchitectureStrip({
 }) {
   return (
     <div className="overflow-x-auto">
-      <ol className="flex min-w-max items-stretch gap-3 py-1">
+      <ol className="flex min-w-max items-stretch">
         {steps.map((step, index) => {
           const status = step.status ?? 'off'
           return (
-            <li key={`${step.name}-${index}`} className="flex items-center gap-3">
-              <div className="flex h-full min-w-32 flex-col justify-center rounded-lg px-4 py-3 ring-1 ring-zinc-950/10 dark:ring-white/10">
+            <li key={`${step.name}-${index}`} className="flex flex-1 items-center">
+              <div className="flex min-w-32 flex-col justify-center py-1">
                 <div className="flex items-center gap-2">
                   <span aria-hidden="true" className={clsx('size-1.5 shrink-0 rounded-full', statusDots[status])} />
                   <span className="text-sm font-medium whitespace-nowrap text-zinc-950 dark:text-white">
@@ -48,11 +52,24 @@ export function ArchitectureStrip({
                   )}
                 </div>
                 {step.detail ? (
-                  <p className="mt-1 text-xs whitespace-nowrap text-zinc-500">{step.detail}</p>
+                  <p className="mt-1 ml-3.5 text-xs whitespace-nowrap text-zinc-500">{step.detail}</p>
                 ) : null}
               </div>
               {index < steps.length - 1 ? (
-                <ArrowLongRightIcon aria-hidden="true" className="size-4 shrink-0 text-zinc-400 dark:text-zinc-600" />
+                <svg
+                  aria-hidden="true"
+                  fill="none"
+                  viewBox="0 0 22 80"
+                  preserveAspectRatio="none"
+                  className="mx-4 h-8 w-4 shrink-0 text-zinc-300 dark:text-white/15"
+                >
+                  <path
+                    d="M0 -2L20 40L0 82"
+                    stroke="currentColor"
+                    vectorEffect="non-scaling-stroke"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               ) : null}
             </li>
           )
