@@ -12,8 +12,8 @@ import type { Project } from '@/lib/agent-mission-control/types'
  * (right column) to the manual creation form (left column) via shared state:
  * when the assistant proposes a manifest, it flows straight into the form.
  *
- * The form is remounted (via `key`) when a manifest arrives so its internal
- * state picks up the new defaults instead of merging with stale state.
+ * The form stays MOUNTED when a manifest arrives (no `key` remount): it merges
+ * the manifest into its existing state, so anything already typed is kept.
  */
 export function NewCopilotWorkbench({ projects }: { projects: Project[] }) {
   const [manifest, setManifest] = useState<GeneratedManifest | null>(null)
@@ -26,11 +26,7 @@ export function NewCopilotWorkbench({ projects }: { projects: Project[] }) {
             Manifest applied from the assistant — review and create.
           </div>
         ) : null}
-        <CreateAgentForm
-          projects={projects}
-          initialManifest={manifest ?? undefined}
-          key={manifest ? 'with-manifest' : 'empty'}
-        />
+        <CreateAgentForm projects={projects} manifest={manifest ?? undefined} />
       </div>
       <div>
         <ArchitectChat onManifest={setManifest} />

@@ -35,17 +35,19 @@ export function Spinner({ className }: { className?: string }) {
   )
 }
 
-interface ManifestSummaryCardProps {
+interface ManifestRecapProps {
   manifest: GeneratedManifest
   showLimits?: boolean
 }
 
 /**
- * Shared manifest summary: header, truncated system-prompt preview, and a
- * small stat row (routes / tools / confirmation policy — plus max steps and
- * max cost per run when `showLimits` is set).
+ * Shared manifest recap (plain block, no card chrome): header, truncated
+ * system-prompt preview, and a small stat row (routes / tools / confirmation
+ * policy — plus max steps and max cost per run when `showLimits` is set).
+ * Distinct from `ManifestSummaryCard` (manifest-summary-card.tsx), which is
+ * a full standalone card.
  */
-export function ManifestSummaryCard({ manifest, showLimits }: ManifestSummaryCardProps) {
+export function ManifestRecap({ manifest, showLimits }: ManifestRecapProps) {
   return (
     <div>
       <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">

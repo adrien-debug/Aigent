@@ -46,7 +46,7 @@ function NameCell({ copilot }: { copilot: Copilot }) {
         className="size-11 shrink-0 bg-zinc-800 text-white"
       />
       <div className="ml-4 min-w-0">
-        <div className="truncate font-medium text-white">
+        <div className="truncate font-medium text-zinc-950 dark:text-white">
           <Link href={href} title={copilot.name} className="hover:underline">
             {copilot.name}
           </Link>
@@ -72,15 +72,15 @@ function BenchRow({
 }) {
   const href = `/admin/agents/${copilot.id}`
   return (
-    <tr className="transition-colors duration-150 hover:bg-white/2.5">
+    <tr className="transition-colors duration-150 hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
       <td className="py-5 pr-3 pl-4 text-sm whitespace-nowrap">
         <NameCell copilot={copilot} />
       </td>
-      <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-400">
-        <div className="text-white">{AGENT_RUNTIME_LABELS[copilot.runtime]}</div>
+      <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
+        <div className="text-zinc-950 dark:text-white">{AGENT_RUNTIME_LABELS[copilot.runtime]}</div>
         <div className="mt-1 font-mono text-xs tabular-nums text-zinc-500">{copilot.model}</div>
       </td>
-      <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-400">
+      <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
         {STATUS_LABELS[copilot.status]}
       </td>
       <td className="px-3 py-5 text-sm whitespace-nowrap">
@@ -90,14 +90,14 @@ function BenchRow({
             <span className="sr-only">not tested</span>
           </div>
         ) : (
-          <div className="font-mono text-white tabular-nums">{formatPercent(copilot.health.testPassRate)}</div>
+          <div className="font-mono text-zinc-950 tabular-nums dark:text-white">{formatPercent(copilot.health.testPassRate)}</div>
         )}
         <div className="mt-1 font-mono text-xs tabular-nums text-zinc-500">
           {copilot.health.benchmarkScore === 0 ? 'bench —' : `bench ${copilot.health.benchmarkScore}`}
         </div>
       </td>
       <td className="px-3 py-5 text-right text-sm whitespace-nowrap">
-        <span className="font-mono text-zinc-300 tabular-nums">
+        <span className="font-mono text-zinc-700 dark:text-zinc-300 tabular-nums">
           {copilot.health.runsLast24h.toLocaleString('en-US')}
         </span>
       </td>
@@ -108,7 +108,7 @@ function BenchRow({
             <span className="sr-only">No destination project</span>
           </span>
         ) : (
-          <span className="text-zinc-300">
+          <span className="text-zinc-700 dark:text-zinc-300">
             {copilot.targetProjectIds.map((projectId) => projectNameById.get(projectId) ?? projectId).join(' · ')}
           </span>
         )}
@@ -142,25 +142,25 @@ function AllRow({
 }) {
   const href = `/admin/agents/${copilot.id}`
   return (
-    <tr className="transition-colors duration-150 hover:bg-white/2.5">
+    <tr className="transition-colors duration-150 hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
       <td className="py-5 pr-3 pl-4 text-sm whitespace-nowrap">
         <NameCell copilot={copilot} />
       </td>
-      <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-400">
-        <div className="text-white">{AGENT_RUNTIME_LABELS[copilot.runtime]}</div>
+      <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
+        <div className="text-zinc-950 dark:text-white">{AGENT_RUNTIME_LABELS[copilot.runtime]}</div>
         <div className="mt-1 font-mono text-xs tabular-nums text-zinc-500">{copilot.model}</div>
       </td>
-      <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-400">
+      <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
         {STATUS_LABELS[copilot.status]}
       </td>
       <td className="px-3 py-5 text-sm whitespace-nowrap">
         {copilot.projectId === null ? (
           <span className="text-zinc-500">On bench</span>
         ) : (
-          <span className="text-zinc-300">{projectNameById.get(copilot.projectId) ?? copilot.projectId}</span>
+          <span className="text-zinc-700 dark:text-zinc-300">{projectNameById.get(copilot.projectId) ?? copilot.projectId}</span>
         )}
       </td>
-      <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-400">{copilot.owner}</td>
+      <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">{copilot.owner}</td>
       <td className="py-5 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap">
         <div className="flex items-center justify-end gap-2">
           <Link href={href} className="text-accent-400 hover:text-accent-300">
@@ -338,36 +338,36 @@ export function CopilotRegistryTable({
       <div className="mt-6">
         {filtered.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="relative min-w-full divide-y divide-white/15">
-              <thead>
+            <table className="relative min-w-full divide-y divide-zinc-950/10 dark:divide-white/15">
+              <thead className="bg-zinc-950/[0.025] dark:bg-white/[0.04]">
                 <tr>
-                  <th scope="col" className="py-3.5 pr-3 pl-4 text-left text-sm font-semibold text-white">
+                  <th scope="col" className="py-3.5 pr-3 pl-4 text-left text-sm font-semibold text-zinc-950 dark:text-white">
                     Name
                   </th>
-                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
+                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-zinc-950 dark:text-white">
                     Runtime
                   </th>
-                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
+                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-zinc-950 dark:text-white">
                     Status
                   </th>
                   {view === 'bench' ? (
                     <>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-zinc-950 dark:text-white">
                         Tests
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-right text-sm font-semibold text-white">
+                      <th scope="col" className="px-3 py-3.5 text-right text-sm font-semibold text-zinc-950 dark:text-white">
                         Runs 24h
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-zinc-950 dark:text-white">
                         Destination
                       </th>
                     </>
                   ) : (
                     <>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-zinc-950 dark:text-white">
                         Project
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-zinc-950 dark:text-white">
                         Owner
                       </th>
                     </>
@@ -377,10 +377,10 @@ export function CopilotRegistryTable({
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/10 [&>tr:nth-child(even)]:bg-white/[0.055]">{activeRows.map(renderRow)}</tbody>
+              <tbody className="divide-y divide-zinc-950/5 dark:divide-white/5 [&>tr:nth-child(even)]:bg-zinc-950/[0.025] dark:[&>tr:nth-child(even)]:bg-white/[0.055]">{activeRows.map(renderRow)}</tbody>
 
               {pausedRows.length > 0 ? (
-                <tbody className="divide-y divide-white/10 border-t border-white/15 [&>tr:nth-child(even)]:bg-white/[0.055]">
+                <tbody className="divide-y divide-zinc-950/5 dark:divide-white/5 border-t border-zinc-950/10 dark:border-white/15 [&>tr:nth-child(even)]:bg-zinc-950/[0.025] dark:[&>tr:nth-child(even)]:bg-white/[0.055]">
                   <tr>
                     <th
                       scope="colgroup"

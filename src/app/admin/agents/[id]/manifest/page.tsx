@@ -71,7 +71,7 @@ export default async function ConfigPage({ params }: { params: Promise<{ id: str
           </div>
         ) : (
           <>
-            <div className="border-b border-zinc-950/5 px-6 py-4 dark:border-white/5">
+            <div className="border-b border-zinc-950/5 bg-zinc-950/[0.025] px-6 py-4 dark:border-white/5 dark:bg-white/[0.04]">
               <SplitBar
                 segments={RISK_ORDER.map((risk, i) => ({
                   key: risk,
@@ -212,7 +212,7 @@ export default async function ConfigPage({ params }: { params: Promise<{ id: str
         <div className="lg:col-span-2 lg:sticky lg:top-6 lg:self-start">
           {/* Completeness ring + the compiled source, expanded to fill the
               column beside the (tall) manifest panel — no empty gutter. */}
-          <div className="flex items-center gap-5 pb-5">
+          <div className="flex items-center gap-4 pb-5">
             <RadialMeter
               value={complete}
               max={5}

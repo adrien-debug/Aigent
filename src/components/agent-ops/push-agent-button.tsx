@@ -8,6 +8,7 @@ import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Link } from '@/components/catalyst/link'
 import { Text } from '@/components/catalyst/text'
+import { messageForResponse } from '@/lib/agent-mission-control/client-errors'
 import type { AgentPushStatus } from '@/lib/agent-mission-control/types'
 
 interface PushAgentButtonProps {
@@ -64,8 +65,7 @@ export function PushAgentButton({ projectId, copilotId, hasRepo, initialStatus }
       })
 
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null
-        setError(body?.error ?? `Push failed (${response.status}).`)
+        setError(await messageForResponse(response, `Push failed (${response.status}).`))
         return
       }
 

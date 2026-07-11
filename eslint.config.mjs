@@ -19,6 +19,20 @@ const eslintConfig = defineConfig([
     // (see DESIGN-DOCTRINE.md). Excluded from lint like any vendored code.
     "src/components/catalyst/**",
   ]),
+  {
+    rules: {
+      // `_`-prefixed vars/args are intentional discards, and `{ key: _k, ...rest }`
+      // destructuring is the idiomatic "omit key" — none of these should warn.
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          varsIgnorePattern: "^_",
+          argsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

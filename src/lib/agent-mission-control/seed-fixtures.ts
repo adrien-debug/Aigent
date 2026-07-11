@@ -2384,7 +2384,7 @@ export const registryWarnings: RegistryWarning[] = [
     severity: 'warning',
     message: 'Shadow experiment agreement at 94.0%, below the 95% promotion threshold, with 1 unsafe proposal.',
     occurredAt: '2026-07-08T20:00:00Z',
-    href: '/admin/agents/cp-support-navigator/shadow',
+    href: '/admin/agents/cp-support-navigator/tests#shadow',
   },
   {
     id: 'warn-0005',
@@ -2408,7 +2408,7 @@ export const registryWarnings: RegistryWarning[] = [
     severity: 'warning',
     message: 'change_subscription_plan hit an upstream 502 on July 5; retry policy under review.',
     occurredAt: '2026-07-05T14:25:00Z',
-    href: '/admin/agents/cp-support-navigator/tools',
+    href: '/admin/agents/cp-support-navigator/manifest#tools',
   },
 ]
 

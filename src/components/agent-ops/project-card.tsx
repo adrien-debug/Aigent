@@ -1,7 +1,9 @@
 import { CodeBracketIcon } from '@heroicons/react/16/solid'
+import Image from 'next/image'
 
 import { Avatar } from '@/components/catalyst/avatar'
 import { Badge } from '@/components/catalyst/badge'
+import { Subheading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { Project } from '@/lib/agent-mission-control/types'
@@ -43,11 +45,17 @@ function initialsFor(name: string): string {
 
 export function ProjectCard({ project, rollup, href }: ProjectCardProps) {
   return (
-    <div className="overflow-hidden rounded-xl ring-1 ring-white/10 dark:bg-zinc-950">
+    <div className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
       {/* Landscape photo header — real image or a zinc-only gradient fallback. */}
       <div className="relative h-28">
         {project.imageUrl ? (
-          <img src={project.imageUrl} alt={project.name} className="size-full object-cover" />
+          <Image
+            src={project.imageUrl}
+            alt={project.name}
+            fill
+            sizes="(min-width: 1024px) 33vw, 100vw"
+            className="object-cover"
+          />
         ) : (
           <div
             aria-hidden="true"
@@ -72,17 +80,17 @@ export function ProjectCard({ project, rollup, href }: ProjectCardProps) {
           src={project.logoUrl ?? undefined}
           initials={initialsFor(project.name)}
           alt={project.name}
-          className="size-14 bg-zinc-900 ring-2 ring-zinc-950"
+          className="size-14 bg-zinc-900 ring-2 ring-white dark:ring-zinc-950"
         />
       </div>
 
       {/* Body — title, meta line, description. */}
       <div className="px-6 pt-3 pb-6">
-        <div className="truncate font-medium text-white">
+        <Subheading level={3} className="truncate">
           <Link href={href} title={project.name} className="hover:underline">
             {project.name}
           </Link>
-        </div>
+        </Subheading>
         <div className="mt-1 truncate font-mono text-xs text-zinc-500">
           {project.slug} · {PLATFORM_LABELS[project.platform]}
         </div>
@@ -92,32 +100,32 @@ export function ProjectCard({ project, rollup, href }: ProjectCardProps) {
             target="_blank"
             rel="noreferrer"
             title={project.repoFullName}
-            className="mt-1 inline-flex max-w-full items-center gap-1.5 font-mono text-xs text-zinc-500 hover:text-zinc-300"
+            className="mt-1 inline-flex max-w-full items-center gap-1.5 font-mono text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
           >
             <CodeBracketIcon aria-hidden="true" className="size-3.5 shrink-0" />
             <span className="truncate">{project.repoFullName}</span>
             <span className="sr-only">GitHub repository (opens in a new tab)</span>
           </Link>
         ) : null}
-        <p className="mt-3 line-clamp-2 text-sm text-zinc-400">{project.description}</p>
+        <p className="mt-3 line-clamp-2 text-sm text-zinc-500 dark:text-zinc-400">{project.description}</p>
 
         {/* Footer — three mini-stats, identical slots across twin cards. */}
-        <div className="mt-6 grid grid-cols-3 gap-4 border-t border-white/5 pt-4">
+        <div className="mt-6 grid grid-cols-3 gap-4 border-t border-zinc-950/5 pt-4 dark:border-white/5">
           <div>
             <div className="text-xs text-zinc-500">Fleet</div>
-            <div className="mt-1 font-mono text-zinc-200 tabular-nums">
+            <div className="mt-1 font-mono text-zinc-700 tabular-nums dark:text-zinc-200">
               {rollup.activeCount}/{rollup.copilotCount}
             </div>
           </div>
           <div>
             <div className="text-xs text-zinc-500">Runs 24h</div>
-            <div className="mt-1 font-mono text-zinc-200 tabular-nums">
+            <div className="mt-1 font-mono text-zinc-700 tabular-nums dark:text-zinc-200">
               {numberFormat.format(rollup.runsLast24h)}
             </div>
           </div>
           <div>
             <div className="text-xs text-zinc-500">Cost 24h</div>
-            <div className="mt-1 font-mono text-zinc-200 tabular-nums">
+            <div className="mt-1 font-mono text-zinc-700 tabular-nums dark:text-zinc-200">
               {rollup.runsLast24h > 0 ? (
                 formatUsd(rollup.costLast24hUsd)
               ) : (

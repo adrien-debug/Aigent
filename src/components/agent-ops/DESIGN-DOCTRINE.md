@@ -5,10 +5,11 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
 `dark:` de Catalyst (les composants Catalyst gèrent light+dark ; l'app force dark).
 
 ## Sources (doctrine stricte)
-- **Catalyst** (`@/components/catalyst/*`) = primitives UNIQUES : Button, Badge, Table, Dialog,
-  Dropdown, Fieldset, Input, Textarea, Select, Switch, Checkbox, DescriptionList, SidebarLayout,
-  Sidebar, Navbar, Heading/Subheading, Text, Alert, Pagination, Divider, Avatar, Link.
-  INTERDIT de recréer une primitive qui existe dans Catalyst.
+- **Catalyst** (`@/components/catalyst/*`) = primitives UNIQUES : Avatar, Badge, Button, Dialog,
+  Divider, Dropdown, Fieldset, Heading/Subheading, Input, Link, Select, Switch, Table, Text,
+  Textarea. INTERDIT de recréer une primitive qui existe dans Catalyst. (Le reste du kit vendored
+  — Alert, Checkbox, Radio, Combobox, Listbox, Pagination, DescriptionList, Sidebar*, Navbar,
+  AuthLayout — a été retiré car jamais consommé ; le restaurer depuis le kit source si besoin.)
 - **application-ui-v4** = patterns admin (shells, tables, stats, tabs, feeds, action panels,
   page headings) → à ADAPTER, jamais coller brut.
 - **ecommerce-v4** = uniquement rythmes transactionnels (order detail/summary, progress,
@@ -33,7 +34,10 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
 - **KPI / stat strips : style stat Catalyst, PAS de box** — trait fin `Divider` en haut,
   label, grosse valeur, `Badge` de delta (le composant `AgentMetricCard` implémente ce
   rythme ; grille `grid gap-8 sm:grid-cols-2 xl:grid-cols-4`, jamais de carte autour).
-- Header de carte : `border-b border-white/5 px-6 py-4`, corps `px-6 py-5` (ou `p-6`)
+- Header de carte : `border-b border-white/5 bg-zinc-950/[0.025] dark:bg-white/[0.04] px-6 py-4`,
+  corps `px-6 py-5` (ou `p-6`). Le même voile teinté s'applique aux `<thead>` de tables — c'est
+  LA couche qui marque la structuration (header vs corps), toujours en zinc translucide, jamais
+  une nouvelle teinte.
 - Hover ligne de table : `hover:bg-white/2.5`
 - Pas de glassmorphism, pas d'ombres lourdes, pas de néon.
 
@@ -59,17 +63,16 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
 - Dense mais lisible : tables `text-sm`, méta `text-xs`.
 
 ## Composants — API partagée (contrat, importer depuis `@/components/agent-ops/...`)
-- `StatusBadge { status: CopilotStatus }` — dot + label
-- `RuntimeBadge { runtime: AgentRuntime }` — famille blue/violet uniquement
-- `RiskBadge { risk: ToolRiskLevel }` — lime/amber/orange/rose
-- `ToolBadge { name: string; risk?: ToolRiskLevel }` — zinc, `font-mono`
-- `TestResultBadge { result: TestResultStatus }` — pass=green, fail=rose, error=orange, skip=zinc, running=blue
+- Statuts lifecycle/stage (copilot status, version stage, run status) = **texte muet zinc**, jamais
+  de pilule : `VersionStageText { stage }` (version-stage-text) et `RunStatusText { status }`
+  (run-detail-panel) sont les références du pattern ; les labels de statut copilot vivent inline.
+- `RuntimeBadge { runtime: AgentRuntime }` — `Badge zinc`
+- `ToolBadge { name: string; risk?: ToolRiskLevel }` — zinc, `font-mono`, dot accent-300→600 selon risque
 - `AgentSectionCard { title, description?, actions?, children, className?, contentClassName? }`
 - `AgentMetricCard { label, value, delta?, trend?: 'up'|'down'|'flat', hint? }`
 - `AgentBentoCard { eyebrow?, title, description?, children?, className? }`
-- `AgentPageHeader { title, description?, meta?, actions? }`
 - `ArchitectureStrip { steps: { name, detail?, status?: 'ok'|'warn'|'off' }[] }`
-- `AgentControlShell { children }` — SidebarLayout Catalyst, UN SEUL shell pour tout /admin.
+- `AgentControlShell { children }` — shell custom (rail étroit), UN SEUL shell pour tout /admin.
 
 ## États & accessibilité (non négociable)
 - Chaque écran gère : loading n/a (mocks), **empty state** (marketing feature/CTA re-tonalisé),

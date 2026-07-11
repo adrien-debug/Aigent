@@ -65,7 +65,7 @@ export function BenchmarkComparisonTable({
           <TableRow key={run.id}>
             <TableCell>
               <div className="font-mono text-sm font-medium text-zinc-950 dark:text-white">{run.model}</div>
-              <div className="mt-0.5 text-xs text-zinc-500">{MODEL_PROVIDER_LABELS[run.modelProvider]}</div>
+              <div className="mt-1 text-xs text-zinc-500">{MODEL_PROVIDER_LABELS[run.modelProvider]}</div>
             </TableCell>
             <TableCell>
               <RuntimeBadge runtime={run.runtime} />

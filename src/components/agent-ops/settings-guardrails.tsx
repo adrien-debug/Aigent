@@ -12,6 +12,12 @@ import { Switch } from '@/components/catalyst/switch'
 
 type ConfirmationPolicy = 'never' | 'risky-only' | 'always'
 
+const POLICY_CAPTIONS: Record<ConfirmationPolicy, string> = {
+  never: 'No confirmation gate — copilots act autonomously.',
+  'risky-only': 'Copilots pause for confirmation on risky tool calls only.',
+  always: 'Every tool call pauses for a human confirmation.',
+}
+
 /**
  * Guardrail defaults — UI-only in V1: values live in local state, nothing is
  * persisted. The high/critical confirmation switch is locked platform-wide, so
@@ -45,7 +51,9 @@ export function SettingsGuardrails() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-x-8 gap-y-6 border-t border-white/5 pt-6 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-8 gap-y-6 border-t border-zinc-950/5 pt-6 dark:border-white/5 sm:grid-cols-2">
+        {/* Twin columns share ONE skeleton: label → control → meter row (bar +
+            right-hand value) → caption. Rows align across the grid. */}
         <Field>
           <Label>Default confirmation policy</Label>
           <Select
@@ -59,6 +67,7 @@ export function SettingsGuardrails() {
           </Select>
           <div className="mt-3">
             <PolicyStateIndicator policy={confirmationPolicy} />
+            <p className="mt-1.5 text-xs text-zinc-500">{POLICY_CAPTIONS[confirmationPolicy]}</p>
           </div>
         </Field>
 
@@ -73,14 +82,19 @@ export function SettingsGuardrails() {
             onChange={(event) => setAgreementThreshold(event.target.value)}
           />
           <div className="mt-3">
-            <LinearMeter
-              value={Number.isFinite(thresholdNum) ? thresholdNum : 0}
-              max={100}
-              label="Shadow agreement"
-              valueText={`${agreementThreshold}%`}
-              tone={thresholdNum >= 90 ? 'accentSolid' : 'accentStrong'}
-              ariaLabel="Shadow agreement threshold"
-            />
+            <div className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <LinearMeter
+                  value={Number.isFinite(thresholdNum) ? thresholdNum : 0}
+                  max={100}
+                  tone={thresholdNum >= 90 ? 'accentSolid' : 'accentStrong'}
+                  ariaLabel="Shadow agreement threshold"
+                />
+              </div>
+              <span className="font-mono text-xs font-medium text-accent-600 tabular-nums dark:text-accent-400">
+                {agreementThreshold}%
+              </span>
+            </div>
             <p className="mt-1.5 text-xs text-zinc-500">Floor 50% — stricter promotes fewer shadow runs.</p>
           </div>
         </Field>

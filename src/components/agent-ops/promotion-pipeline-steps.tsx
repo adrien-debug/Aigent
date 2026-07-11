@@ -1,4 +1,4 @@
-import { CheckIcon } from '@heroicons/react/24/solid'
+import { CheckIcon } from '@heroicons/react/20/solid'
 import clsx from 'clsx'
 
 import type { PromotionCheck, PromotionCheckId, PromotionGate } from '@/lib/agent-mission-control/types'
@@ -95,13 +95,13 @@ export function PromotionPipelineSteps({ gate }: { gate: PromotionGate }) {
               >
                 <span className="shrink-0">
                   {step.status === 'complete' ? (
-                    <span className="flex size-7 items-center justify-center rounded-full bg-accent-600 dark:bg-accent-500">
+                    <span className="flex size-8 items-center justify-center rounded-full bg-accent-600 dark:bg-accent-500">
                       <CheckIcon aria-hidden="true" className="size-4 text-white" />
                     </span>
                   ) : (
                     <span
                       className={clsx(
-                        'flex size-7 items-center justify-center rounded-full border-2 text-xs tabular-nums',
+                        'flex size-8 items-center justify-center rounded-full border-2 text-xs tabular-nums',
                         step.status === 'current'
                           ? 'border-accent-600 dark:border-accent-500'
                           : 'border-zinc-950/15 dark:border-white/15'

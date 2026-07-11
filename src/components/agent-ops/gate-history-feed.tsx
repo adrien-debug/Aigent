@@ -7,7 +7,7 @@ import clsx from 'clsx'
  * - evaluated / entered → zinc (neutral)
  * - approval            → amber (attention required)
  * - promoted            → green (success — also used for recorded human sign-off)
- * The ring-8 mask simulates the card surface (dark:bg-zinc-950).
+ * The ring-8 mask simulates the card surface (bg-white dark:bg-zinc-950).
  */
 
 export type GateHistoryEventKind = 'evaluated' | 'approval' | 'entered' | 'promoted'
@@ -51,7 +51,7 @@ export function GateHistoryFeed({ events }: { events: GateHistoryEvent[] }) {
                     <span
                       className={clsx(
                         iconBackground,
-                        'flex size-8 items-center justify-center rounded-full ring-8 ring-zinc-50 dark:ring-zinc-950'
+                        'flex size-8 items-center justify-center rounded-full ring-8 ring-white dark:ring-zinc-950'
                       )}
                     >
                       <Icon aria-hidden="true" className={clsx('size-5', iconColor)} />

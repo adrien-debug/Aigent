@@ -1,9 +1,9 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { ManifestSummaryCard } from '@/components/agent-ops/authoring-primitives'
+import { ManifestRecap } from '@/components/agent-ops/authoring-primitives'
 import { Button } from '@/components/catalyst/button'
 import { Field, Fieldset, Label } from '@/components/catalyst/fieldset'
 import { Input } from '@/components/catalyst/input'
@@ -16,7 +16,31 @@ import type { AgentRuntime, ModelProvider, Project } from '@/lib/agent-mission-c
 const RUNTIME_OPTIONS: AgentRuntime[] = ['langgraph', 'openai-assistants', 'anthropic-sdk', 'gemini', 'custom']
 const PROVIDER_OPTIONS: ModelProvider[] = ['anthropic', 'openai', 'google', 'mistral', 'local']
 
+/** Known model ids per provider (values already used across the app fixtures). */
+const SUGGESTED_MODELS: Record<ModelProvider, string[]> = {
+  anthropic: ['claude-sonnet-4-5', 'claude-opus-4-1', 'claude-sonnet-4'],
+  openai: ['gpt-5.2', 'gpt-4.1'],
+  google: ['gemini-2.5-pro'],
+  mistral: ['mistral-large-2508'],
+  local: [],
+}
+
 const BENCH_VALUE = '__bench__'
+
+const DEFAULT_RUNTIME: AgentRuntime = 'anthropic-sdk'
+const DEFAULT_PROVIDER: ModelProvider = 'anthropic'
+const DEFAULT_MODEL = SUGGESTED_MODELS[DEFAULT_PROVIDER][0]
+
+/** Same key as ArchitectChat's session draft — purged after a successful creation. */
+const ARCHITECT_DRAFT_STORAGE_KEY = 'amc-architect-draft'
+
+/** True when `model` matches another provider's known models but not `provider`'s. */
+function modelBelongsToAnotherProvider(model: string, provider: ModelProvider): boolean {
+  const trimmed = model.trim()
+  if (trimmed.length === 0) return false
+  if (SUGGESTED_MODELS[provider].includes(trimmed)) return false
+  return PROVIDER_OPTIONS.some((other) => other !== provider && SUGGESTED_MODELS[other].includes(trimmed))
+}
 
 function defaultManifest(description: string): GeneratedManifest {
   return {
@@ -35,18 +59,20 @@ function defaultManifest(description: string): GeneratedManifest {
 /**
  * Create-agent form: identity fields (name/slug/description/runtime/model/
  * modelProvider/owner/tags/project) are LOCAL state — the manifest contract
- * (authoring-types.ts) has no identity fields. When `initialManifest` comes
- * from the architect, it is used as-is and shown as a read-only summary;
- * otherwise a minimal default manifest is built from the description on
- * submit. POSTs CreateCopilotInput to /api/agent-ops/copilots, then routes
- * to the new copilot on success.
+ * (authoring-types.ts) has no identity fields. When `manifest` comes from the
+ * architect, it is used as-is, shown as a read-only summary, and MERGED into
+ * the form without remounting: only fields still empty or never touched by
+ * the user are prefilled — manual input is never overwritten. Otherwise a
+ * minimal default manifest is built from the description on submit. POSTs
+ * CreateCopilotInput to /api/agent-ops/copilots, then routes to the new
+ * copilot on success.
  */
 export function CreateAgentForm({
   projects,
-  initialManifest,
+  manifest,
 }: {
   projects: Project[]
-  initialManifest?: GeneratedManifest
+  manifest?: GeneratedManifest
 }) {
   const router = useRouter()
 
@@ -54,9 +80,9 @@ export function CreateAgentForm({
   const [slug, setSlug] = useState('')
   const [slugTouched, setSlugTouched] = useState(false)
   const [description, setDescription] = useState('')
-  const [runtime, setRuntime] = useState<AgentRuntime>('anthropic-sdk')
-  const [model, setModel] = useState('claude-sonnet-4-5')
-  const [modelProvider, setModelProvider] = useState<ModelProvider>('anthropic')
+  const [runtime, setRuntime] = useState<AgentRuntime>(DEFAULT_RUNTIME)
+  const [model, setModel] = useState(DEFAULT_MODEL)
+  const [modelProvider, setModelProvider] = useState<ModelProvider>(DEFAULT_PROVIDER)
   const [owner, setOwner] = useState('')
   const [tagsInput, setTagsInput] = useState('')
   const [projectId, setProjectId] = useState<string>(BENCH_VALUE)
@@ -64,20 +90,86 @@ export function CreateAgentForm({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const manifest = useMemo(
-    () => initialManifest ?? defaultManifest(description),
-    [initialManifest, description]
+  /** Fields the user edited by hand — a manifest merge never overwrites these. */
+  const dirtyFields = useRef(new Set<string>())
+  /** True once the user typed a model manually — disables the auto provider swap. */
+  const [modelDirty, setModelDirty] = useState(false)
+
+  // Merge an incoming architect manifest into the EXISTING state (no remount):
+  // prefill only fields still empty or never touched by the user.
+  const appliedManifestRef = useRef<GeneratedManifest | null>(null)
+  useEffect(() => {
+    if (!manifest || appliedManifestRef.current === manifest) return
+    appliedManifestRef.current = manifest
+    if (manifest.systemPromptSummary) {
+      setDescription((prev) =>
+        prev.trim().length === 0 || !dirtyFields.current.has('description')
+          ? manifest.systemPromptSummary
+          : prev
+      )
+    }
+  }, [manifest])
+
+  const effectiveManifest = useMemo(
+    () => manifest ?? defaultManifest(description),
+    [manifest, description]
   )
 
+  // Warn before refresh/close/external navigation once the form is dirty
+  // (at least one field differs from its default).
+  const isDirty =
+    name.length > 0 ||
+    slug.length > 0 ||
+    description.length > 0 ||
+    owner.length > 0 ||
+    tagsInput.length > 0 ||
+    runtime !== DEFAULT_RUNTIME ||
+    model !== DEFAULT_MODEL ||
+    modelProvider !== DEFAULT_PROVIDER ||
+    projectId !== BENCH_VALUE
+  useEffect(() => {
+    if (!isDirty) return
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault()
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isDirty])
+
   function handleNameChange(value: string) {
+    dirtyFields.current.add('name')
     setName(value)
     if (!slugTouched) setSlug(slugify(value))
   }
 
   function handleSlugChange(value: string) {
+    dirtyFields.current.add('slug')
     setSlugTouched(true)
     setSlug(value)
   }
+
+  function handleModelChange(value: string) {
+    dirtyFields.current.add('model')
+    setModelDirty(true)
+    setModel(value)
+  }
+
+  function handleProviderChange(next: ModelProvider) {
+    dirtyFields.current.add('modelProvider')
+    setModelProvider(next)
+    // If the current model clearly belongs to ANOTHER provider and was never
+    // typed manually, swap it for the new provider's default. A manually
+    // entered model is left alone (the soft hint below flags the mismatch).
+    setModel((prev) => {
+      const fallback = SUGGESTED_MODELS[next][0]
+      if (!modelDirty && fallback && modelBelongsToAnotherProvider(prev, next)) {
+        return fallback
+      }
+      return prev
+    })
+  }
+
+  const modelLooksForeign = modelBelongsToAnotherProvider(model, modelProvider)
 
   const canSubmit = name.trim().length > 0 && slug.trim().length > 0 && owner.trim().length > 0 && !saving
 
@@ -104,7 +196,7 @@ export function CreateAgentForm({
       tags,
       projectId: projectId === BENCH_VALUE ? null : projectId,
       targetProjectIds: [],
-      manifest,
+      manifest: effectiveManifest,
     }
 
     try {
@@ -129,6 +221,13 @@ export function CreateAgentForm({
         return
       }
 
+      // Creation succeeded — the architect draft (if any) is no longer unsaved work.
+      try {
+        window.sessionStorage.removeItem(ARCHITECT_DRAFT_STORAGE_KEY)
+      } catch {
+        // Storage unavailable — nothing to purge.
+      }
+
       router.push(`/admin/agents/${created.id}`)
     } catch {
       setError('Network error — the copilot was not created.')
@@ -139,7 +238,7 @@ export function CreateAgentForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      {initialManifest ? <ManifestSummaryCard manifest={initialManifest} showLimits /> : null}
+      {manifest ? <ManifestRecap manifest={manifest} showLimits /> : null}
 
       <Fieldset>
         <div className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-2">
@@ -170,7 +269,10 @@ export function CreateAgentForm({
             <Textarea
               name="description"
               value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              onChange={(event) => {
+                dirtyFields.current.add('description')
+                setDescription(event.target.value)
+              }}
               rows={3}
               placeholder="What this copilot does and why it exists."
             />
@@ -181,7 +283,10 @@ export function CreateAgentForm({
             <Select
               name="runtime"
               value={runtime}
-              onChange={(event) => setRuntime(event.target.value as AgentRuntime)}
+              onChange={(event) => {
+                dirtyFields.current.add('runtime')
+                setRuntime(event.target.value as AgentRuntime)
+              }}
             >
               {RUNTIME_OPTIONS.map((option) => (
                 <option key={option} value={option}>
@@ -196,7 +301,7 @@ export function CreateAgentForm({
             <Select
               name="modelProvider"
               value={modelProvider}
-              onChange={(event) => setModelProvider(event.target.value as ModelProvider)}
+              onChange={(event) => handleProviderChange(event.target.value as ModelProvider)}
             >
               {PROVIDER_OPTIONS.map((option) => (
                 <option key={option} value={option}>
@@ -211,10 +316,21 @@ export function CreateAgentForm({
             <Input
               name="model"
               value={model}
-              onChange={(event) => setModel(event.target.value)}
-              placeholder="claude-sonnet-4-5"
+              onChange={(event) => handleModelChange(event.target.value)}
+              placeholder={DEFAULT_MODEL}
+              list="create-agent-model-suggestions"
               required
             />
+            <datalist id="create-agent-model-suggestions">
+              {SUGGESTED_MODELS[modelProvider].map((suggestion) => (
+                <option key={suggestion} value={suggestion} />
+              ))}
+            </datalist>
+            {modelLooksForeign ? (
+              <p className="mt-1 text-xs text-accent-600 dark:text-accent-400">
+                {`Model doesn't look like a ${modelProvider} model.`}
+              </p>
+            ) : null}
           </Field>
 
           <Field>
@@ -222,7 +338,10 @@ export function CreateAgentForm({
             <Input
               name="owner"
               value={owner}
-              onChange={(event) => setOwner(event.target.value)}
+              onChange={(event) => {
+                dirtyFields.current.add('owner')
+                setOwner(event.target.value)
+              }}
               placeholder="you@company.com"
               required
             />
@@ -233,14 +352,24 @@ export function CreateAgentForm({
             <Input
               name="tags"
               value={tagsInput}
-              onChange={(event) => setTagsInput(event.target.value)}
+              onChange={(event) => {
+                dirtyFields.current.add('tags')
+                setTagsInput(event.target.value)
+              }}
               placeholder="support, tier-1"
             />
           </Field>
 
           <Field>
             <Label>Project</Label>
-            <Select name="projectId" value={projectId} onChange={(event) => setProjectId(event.target.value)}>
+            <Select
+              name="projectId"
+              value={projectId}
+              onChange={(event) => {
+                dirtyFields.current.add('projectId')
+                setProjectId(event.target.value)
+              }}
+            >
               <option value={BENCH_VALUE}>Validation bench (no project)</option>
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
@@ -255,6 +384,9 @@ export function CreateAgentForm({
       {error ? <p className="text-sm text-accent-600 dark:text-accent-400">{error}</p> : null}
 
       <div className="flex items-center justify-end gap-3">
+        <Button plain href="/admin/agents">
+          Cancel
+        </Button>
         <Button type="submit" color="accent" disabled={!canSubmit}>
           {saving ? 'Creating…' : 'Create copilot'}
         </Button>

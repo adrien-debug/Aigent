@@ -92,7 +92,7 @@ export function ShadowExperimentCard({
   return (
     <section className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
       {/* Header: name + window left, status right */}
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-zinc-950/5 px-6 py-4 dark:border-white/5">
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-zinc-950/5 bg-zinc-950/[0.025] px-6 py-4 dark:border-white/5 dark:bg-white/[0.04]">
         <div className="min-w-0">
           <Subheading className="truncate">{experiment.name}</Subheading>
           <p className="mt-1 text-xs text-zinc-500 tabular-nums">
@@ -142,7 +142,7 @@ export function ShadowExperimentCard({
         {/* Agreement hero: big value + threshold-gated meter */}
         <div>
           <div className="flex items-baseline justify-between gap-x-4">
-            <span className="text-3xl font-semibold tracking-tight text-zinc-950 tabular-nums dark:text-white">
+            <span className="font-mono text-3xl/8 font-semibold text-zinc-950 tabular-nums dark:text-white">
               {formatPercent(experiment.agreementRate)}
             </span>
             <span className="text-sm text-zinc-500 dark:text-zinc-400">agreement</span>

@@ -42,13 +42,13 @@ export function ReleasePathSteps({ candidateStage }: { candidateStage: ReleaseSt
                 className="flex items-center gap-3 px-6 py-2.5 text-sm font-medium"
               >
                 {status === 'complete' ? (
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-600 dark:bg-accent-500">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-600 dark:bg-accent-500">
                     <CheckIcon aria-hidden="true" className="size-4 text-white" />
                   </span>
                 ) : (
                   <span
                     className={clsx(
-                      'flex size-7 shrink-0 items-center justify-center rounded-full border-2 text-xs tabular-nums',
+                      'flex size-8 shrink-0 items-center justify-center rounded-full border-2 text-xs tabular-nums',
                       status === 'current'
                         ? 'border-accent-600 text-accent-600 dark:border-accent-400 dark:text-accent-400'
                         : 'border-zinc-950/15 text-zinc-500 dark:border-white/15 dark:text-zinc-400'

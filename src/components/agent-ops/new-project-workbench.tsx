@@ -339,6 +339,7 @@ export function NewProjectWorkbench() {
                     <li
                       key={`${entry.type}:${entry.path}`}
                       className="flex items-center gap-2 py-0.5"
+                      // Dynamic tree indentation — depth is unbounded, no static class possible; 16px step stays on the spacing scale.
                       style={{ paddingLeft: `${depth * 16}px` }}
                     >
                       {isDir ? (
@@ -428,7 +429,10 @@ export function NewProjectWorkbench() {
               <p className="mt-6 text-sm text-accent-600 dark:text-accent-400">{formError}</p>
             ) : null}
 
-            <div className="mt-8 flex items-center justify-end">
+            <div className="mt-8 flex items-center justify-end gap-3">
+              <Button plain href="/admin/projects">
+                Cancel
+              </Button>
               <Button type="submit" color="accent" disabled={!canSubmit}>
                 {saving ? 'Creating…' : 'Create project'}
               </Button>

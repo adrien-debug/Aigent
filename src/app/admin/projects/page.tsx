@@ -97,7 +97,7 @@ export default async function ProjectsPage() {
       />
 
       {projects.length > 0 ? (
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6 lg:grid-cols-3">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6">
           {projects.map((project) => (
             <ProjectCard
               key={project.id}

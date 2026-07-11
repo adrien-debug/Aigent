@@ -1,9 +1,11 @@
+import { ChevronLeftIcon, CodeBracketIcon } from '@heroicons/react/16/solid'
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { Subheading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { getCopilots, getProject, getRecentRunsForProject } from '@/lib/agent-mission-control/data'
@@ -14,7 +16,7 @@ import {
   formatUsd,
 } from '@/lib/agent-mission-control/format'
 import { AGENT_RUNTIME_LABELS } from '@/lib/agent-mission-control/labels'
-import type { AgentRun, Copilot } from '@/lib/agent-mission-control/types'
+import type { AgentRun, Copilot, Project } from '@/lib/agent-mission-control/types'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
@@ -27,6 +29,14 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 }
 
 const numberFormat = new Intl.NumberFormat('en-US')
+
+/** Enum plateforme → label humain (même table que project-card.tsx). */
+const PLATFORM_LABELS: Record<Project['platform'], string> = {
+  web: 'Web',
+  desktop: 'Desktop',
+  mobile: 'Mobile',
+  api: 'API',
+}
 
 /** "—" zinc placeholder with an sr-only explanation — absent data is never rendered as 0. */
 function EmDash({ srLabel }: { srLabel: string }) {
@@ -107,7 +117,7 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
 
 /**
  * Recent traces table — ported from the retired global /admin/traces page
- * (same RunStatusBadge treatment, LangSmith violet Open link, flush Catalyst
+ * (same RunStatusText treatment, LangSmith violet Open link, flush Catalyst
  * Table), scoped to this project's runs. The run id folds into the Copilot
  * cell as a mono sub-line (NameCell slug idiom) so the table stays at 7 columns.
  */
@@ -211,31 +221,71 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="space-y-8">
-      {/* KPI en haut, marge au-dessus = petit header (directive Adrien 2026-07-10) */}
-      <AgentKpiBand
-        className="mt-2"
-        stats={[
-          {
-            name: 'Agents',
-            value: String(validated.length),
-            hint: 'validated on this project',
-          },
-          {
-            name: 'Active',
-            value: String(activeCount),
-            hint: `of ${validated.length}`,
-          },
-          {
-            name: 'Runs 24h',
-            value: runsLast24h.toLocaleString('en-US'),
-          },
-          {
-            name: 'Cost 24h',
-            value: runsLast24h > 0 ? formatUsd(costLast24hUsd) : '—',
-            hint: runsLast24h > 0 ? undefined : 'No runs in the last 24 hours',
-          },
-        ]}
-      />
+      <div>
+        {/* Ligne d'orientation compacte — back-link + nom du projet + méta. Breadcrumb discret,
+            la doctrine reste KPI-first : une seule ligne, pas de gros header. */}
+        <nav aria-label="Breadcrumb" className="mt-2 flex min-w-0 items-center gap-2 text-xs">
+          <Link
+            href="/admin/projects"
+            className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-950 dark:hover:text-white"
+          >
+            <ChevronLeftIcon aria-hidden="true" className="size-3.5 shrink-0" />
+            Projects
+          </Link>
+          <span aria-hidden="true" className="text-zinc-500">
+            /
+          </span>
+          <Subheading className="truncate">{project.name}</Subheading>
+          <span aria-hidden="true" className="text-zinc-500">
+            ·
+          </span>
+          <span className="font-mono text-zinc-500">{PLATFORM_LABELS[project.platform]}</span>
+          {project.repoUrl && project.repoFullName ? (
+            <>
+              <span aria-hidden="true" className="text-zinc-500">
+                ·
+              </span>
+              <Link
+                href={project.repoUrl}
+                target="_blank"
+                rel="noreferrer"
+                title={project.repoFullName}
+                className="inline-flex min-w-0 items-center gap-1.5 font-mono text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+              >
+                <CodeBracketIcon aria-hidden="true" className="size-3.5 shrink-0" />
+                <span className="truncate">{project.repoFullName}</span>
+                <span className="sr-only">GitHub repository (opens in a new tab)</span>
+              </Link>
+            </>
+          ) : null}
+        </nav>
+
+        {/* KPI en haut, marge au-dessus = petit header (directive Adrien 2026-07-10) */}
+        <AgentKpiBand
+          className="mt-4"
+          stats={[
+            {
+              name: 'Agents',
+              value: String(validated.length),
+              hint: 'validated on this project',
+            },
+            {
+              name: 'Active',
+              value: String(activeCount),
+              hint: `of ${validated.length}`,
+            },
+            {
+              name: 'Runs 24h',
+              value: runsLast24h.toLocaleString('en-US'),
+            },
+            {
+              name: 'Cost 24h',
+              value: runsLast24h > 0 ? formatUsd(costLast24hUsd) : '—',
+              hint: runsLast24h > 0 ? undefined : 'No runs in the last 24 hours',
+            },
+          ]}
+        />
+      </div>
 
       <AgentSectionCard
         title="Agents"

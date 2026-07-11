@@ -1,4 +1,5 @@
 import { ToolBadge } from '@/components/agent-ops/tool-badge'
+import { Badge } from '@/components/catalyst/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { formatDurationMs, formatUsd } from '@/lib/agent-mission-control/format'
 import type { TestCase, TestResult, TestResultStatus } from '@/lib/agent-mission-control/types'
@@ -53,7 +54,7 @@ export function TestCaseTable({
                 <p className="font-medium text-zinc-950 dark:text-white">{testCase.name}</p>
                 {testCase.expectedBehavior ? (
                   <p
-                    className="mt-0.5 max-w-xs truncate text-xs text-zinc-500 dark:text-zinc-400"
+                    className="mt-1 max-w-xs truncate text-xs text-zinc-500 dark:text-zinc-400"
                     title={testCase.expectedBehavior}
                   >
                     Expects: {testCase.expectedBehavior}
@@ -62,12 +63,9 @@ export function TestCaseTable({
                 {testCase.tags.length > 0 ? (
                   <div className="mt-1 flex flex-wrap gap-1">
                     {testCase.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center rounded-md bg-zinc-950/5 px-1.5 py-0.5 font-mono text-xs text-zinc-500 ring-1 ring-zinc-950/10 dark:bg-white/5 dark:text-zinc-400 dark:ring-white/10"
-                      >
+                      <Badge key={tag} color="zinc" className="font-mono">
                         {tag}
-                      </span>
+                      </Badge>
                     ))}
                   </div>
                 ) : null}

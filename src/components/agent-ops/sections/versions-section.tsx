@@ -2,7 +2,7 @@
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ReleasePathSteps } from '@/components/agent-ops/release-path-steps'
 import { VersionComparisonCard, versionNeverTested } from '@/components/agent-ops/version-comparison-card'
-import { versionStageLabels } from '@/components/agent-ops/version-stage-badge'
+import { versionStageLabels } from '@/components/agent-ops/version-stage-text'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { Button } from '@/components/catalyst/button'
 import { Subheading } from '@/components/catalyst/heading'

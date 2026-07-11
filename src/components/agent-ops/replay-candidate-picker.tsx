@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { SplitBar, type SplitSegment } from '@/components/agent-ops/widgets/split-bar'
 import { Badge } from '@/components/catalyst/badge'
+import { Subheading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
 import type { ReplayCandidate } from '@/lib/agent-mission-control/types'
 import { ReplayComparisonTable } from './replay-comparison-table'
@@ -122,13 +123,13 @@ export function ReplayCandidatePicker({ items }: { items: ReplayCandidateItem[] 
 
       <div className="mt-6">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h4 className="text-sm font-medium text-zinc-950 dark:text-white">
+          <Subheading level={4}>
             Step diff — <span className="font-mono tabular-nums">{selected.versionLabel}</span>
             <span className="font-normal text-zinc-500 dark:text-zinc-400">
               {' '}
               on <span className="font-mono text-xs">{selected.candidate.model}</span>
             </span>
-          </h4>
+          </Subheading>
           <p className="text-xs text-zinc-500">Expected = production run · Actual = candidate replay</p>
         </div>
         {selected.candidate.steps.length > 0 ? (

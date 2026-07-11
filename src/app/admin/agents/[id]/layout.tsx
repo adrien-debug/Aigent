@@ -1,6 +1,9 @@
+import { ChevronLeftIcon } from '@heroicons/react/16/solid'
 import { notFound } from 'next/navigation'
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { CopilotTabs } from '@/components/agent-ops/copilot-tabs'
+import { Subheading } from '@/components/catalyst/heading'
+import { Link } from '@/components/catalyst/link'
 import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import { getCopilot } from '@/lib/agent-mission-control/data'
 
@@ -21,9 +24,25 @@ export default async function CopilotLayout({
 
   return (
     <div>
+      {/* Ligne d'orientation compacte — back-link + nom du copilot. Breadcrumb discret,
+          la doctrine reste KPI-first : une seule ligne, pas de gros header. */}
+      <nav aria-label="Breadcrumb" className="mt-2 flex min-w-0 items-center gap-2 text-xs">
+        <Link
+          href="/admin/agents"
+          className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-950 dark:hover:text-white"
+        >
+          <ChevronLeftIcon aria-hidden="true" className="size-3.5 shrink-0" />
+          Copilots
+        </Link>
+        <span aria-hidden="true" className="text-zinc-500">
+          /
+        </span>
+        <Subheading className="truncate">{copilot.name}</Subheading>
+      </nav>
+
       {/* KPI au-dessus des menus ; marge au-dessus = petit header (directive Adrien 2026-07-10) */}
       <AgentKpiBand
-        className="mt-2"
+        className="mt-4"
         stats={[
           {
             name: 'Test pass rate',

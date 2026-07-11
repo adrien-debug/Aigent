@@ -5,6 +5,7 @@ import { RuntimeBadge } from '@/components/agent-ops/runtime-badge'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
 import { Badge } from '@/components/catalyst/badge'
+import { Subheading } from '@/components/catalyst/heading'
 import { formatDurationMs, formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import { MODEL_PROVIDER_LABELS } from '@/lib/agent-mission-control/labels'
 import type { BenchmarkResult, BenchmarkRun } from '@/lib/agent-mission-control/types'
@@ -74,7 +75,9 @@ export function BenchmarkScoreCard({
           cards align) + runtime right. */}
       <div className="flex items-start justify-between gap-x-4">
         <div className="min-w-0">
-          <h3 className="truncate font-mono text-sm font-medium text-zinc-950 dark:text-white">{run.model}</h3>
+          <Subheading level={3} className="truncate font-mono">
+            {run.model}
+          </Subheading>
           <p className="mt-1 text-xs text-zinc-500">{MODEL_PROVIDER_LABELS[run.modelProvider]}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">

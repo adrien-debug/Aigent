@@ -20,7 +20,7 @@ const SERIES_STROKE = 'var(--chart-series)'
 
 const tickStyle = { fontSize: 12, fill: 'var(--chart-tick)' } as const
 
-/** Status is signaled by TEXT; rose is only an accent on the tooltip status text. */
+/** Status is signaled by TEXT; the accent hue only tints the tooltip status text. */
 function isFailedOrBlocked(status: string): boolean {
   return status === 'failed' || status === 'blocked'
 }

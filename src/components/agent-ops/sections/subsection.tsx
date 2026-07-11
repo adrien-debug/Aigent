@@ -6,7 +6,7 @@
 export function Subsection({ id, label }: { id: string; label: string }) {
   return (
     <div id={id} className="scroll-mt-6 flex items-center gap-4 pt-4">
-      <span className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">{label}</span>
+      <span className="text-xs font-medium tracking-wide text-zinc-500 uppercase">{label}</span>
       <span aria-hidden="true" className="h-px flex-1 bg-zinc-950/10 dark:bg-white/10" />
     </div>
   )

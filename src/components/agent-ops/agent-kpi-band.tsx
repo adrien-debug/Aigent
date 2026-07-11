@@ -50,7 +50,7 @@ export function AgentKpiBand({ stats, className }: { stats: AgentKpiStat[]; clas
               {stat.change}
             </dd>
           ) : null}
-          <dd className="text-2xl/8 font-medium tracking-tight text-zinc-950 dark:text-white">
+          <dd className="font-mono text-2xl/8 font-semibold text-zinc-950 tabular-nums dark:text-white">
             {stat.value}
           </dd>
           {stat.viz ? <dd className="mt-3 w-full flex-none">{stat.viz}</dd> : null}

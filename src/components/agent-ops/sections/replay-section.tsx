@@ -152,6 +152,7 @@ export async function ReplaySection({ copilotId }: { copilotId: string }) {
             <Button type="button" outline disabled title="Replay queueing ships in V2">
               Queue replay
             </Button>
+            <p className="mt-1.5 text-xs text-zinc-500">Replay queueing ships in V2.</p>
           </div>
         </div>
         <p className="mt-4 text-xs text-zinc-500">
@@ -189,7 +190,7 @@ export async function ReplaySection({ copilotId }: { copilotId: string }) {
                 className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10"
               >
                 <h3 className="sr-only">Replay of run {comparison.sourceRunId}</h3>
-                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-zinc-950/5 px-6 py-4 dark:border-white/5">
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-zinc-950/5 bg-zinc-950/[0.025] px-6 py-4 dark:border-white/5 dark:bg-white/[0.04]">
                   <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
                     <Link
                       href={`/admin/agents/${id}/runs?run=${comparison.sourceRunId}`}

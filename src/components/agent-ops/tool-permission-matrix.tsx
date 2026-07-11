@@ -35,6 +35,8 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
   const [confirmationState, setConfirmationState] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(tools.map((tool) => [tool.id, tool.requiresConfirmation]))
   )
+  // Global save-failure notice — cleared by the next toggle that persists.
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   function persist(toolId: string, patch: { enabled?: boolean; requiresConfirmation?: boolean }) {
     void fetch(`/api/agent-ops/tools/${encodeURIComponent(toolId)}`, {
@@ -44,15 +46,17 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
     })
       .then((res) => {
         if (!res.ok) throw new Error(String(res.status))
+        setSaveError(null)
       })
       .catch(() => {
-        // revert optimiste en cas d'échec réseau/serveur
+        // revert optimiste en cas d'échec réseau/serveur — et on le DIT.
         if (typeof patch.enabled === 'boolean') {
           setEnabledState((prev) => ({ ...prev, [toolId]: !patch.enabled }))
         }
         if (typeof patch.requiresConfirmation === 'boolean') {
           setConfirmationState((prev) => ({ ...prev, [toolId]: !patch.requiresConfirmation }))
         }
+        setSaveError('Change not saved — permission unchanged.')
       })
   }
 
@@ -163,12 +167,9 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
                   ) : (
                     <div className="flex items-center gap-1">
                       {visibleRoutes.map((route) => (
-                        <span
-                          key={route}
-                          className="rounded-md bg-zinc-950/5 px-1.5 py-0.5 font-mono text-xs text-zinc-500 ring-1 ring-zinc-950/10 dark:bg-white/5 dark:text-zinc-400 dark:ring-white/10"
-                        >
+                        <Badge key={route} color="zinc" className="font-mono">
                           {route}
-                        </span>
+                        </Badge>
                       ))}
                       {hiddenRouteCount > 0 ? (
                         <span
@@ -206,6 +207,11 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
           })}
         </TableBody>
       </Table>
+      <div aria-live="polite">
+        {saveError ? (
+          <p className="py-3 text-xs text-accent-600 dark:text-accent-400">{saveError}</p>
+        ) : null}
+      </div>
     </div>
   )
 }

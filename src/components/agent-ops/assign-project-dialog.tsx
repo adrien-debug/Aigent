@@ -2,12 +2,14 @@
 
 import { XMarkIcon } from '@heroicons/react/16/solid'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/catalyst/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/catalyst/dialog'
 import { Field, Fieldset, Label } from '@/components/catalyst/fieldset'
+import { Link } from '@/components/catalyst/link'
 import { Select } from '@/components/catalyst/select'
+import { messageForResponse } from '@/lib/agent-mission-control/client-errors'
 import { formatPercent } from '@/lib/agent-mission-control/format'
 import type { Copilot, Project } from '@/lib/agent-mission-control/types'
 
@@ -46,6 +48,25 @@ export function AssignProjectDialog({
   const [targets, setTargets] = useState<string[]>(() => copilot.targetProjectIds)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current !== null) clearTimeout(closeTimerRef.current)
+    }
+  }, [])
+
+  // Re-opening the dialog starts a fresh attempt — clear the previous receipt.
+  // (Render-time state adjustment, per React's "you might not need an effect".)
+  const [prevOpen, setPrevOpen] = useState(open)
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    if (open) {
+      setSuccess(null)
+      setError(null)
+    }
+  }
 
   const projectNameById = new Map(projects.map((project) => [project.id, project.name]))
   const addableProjects = projects.filter((project) => !targets.includes(project.id))
@@ -56,10 +77,12 @@ export function AssignProjectDialog({
     void persistCopilot(copilot.id, { targetProjectIds: next })
       .then((res) => {
         if (!res.ok) throw new Error(String(res.status))
+        setError(null)
       })
       .catch(() => {
-        // revert optimiste en cas d'échec réseau/serveur
+        // revert optimiste en cas d'échec réseau/serveur — et on le DIT.
         setTargets(previous)
+        setError('Destination not saved — try again.')
       })
   }
 
@@ -80,9 +103,17 @@ export function AssignProjectDialog({
     setError(null)
     try {
       const res = await persistCopilot(copilot.id, { projectId: selectedProjectId })
-      if (!res.ok) throw new Error(String(res.status))
+      if (!res.ok) {
+        setError(await messageForResponse(res, 'Assignment failed — the copilot stays on the bench.'))
+        return
+      }
+      // Affirm the success inline before closing — the dialog closing alone is
+      // not a receipt.
+      setSuccess(`Assigned to ${projectNameById.get(selectedProjectId) ?? selectedProjectId} ✓`)
       router.refresh()
-      onClose()
+      closeTimerRef.current = setTimeout(() => {
+        onClose()
+      }, 1200)
     } catch {
       setError('Assignment failed — the copilot stays on the bench.')
     } finally {
@@ -100,22 +131,34 @@ export function AssignProjectDialog({
         <span className="font-mono tabular-nums">{copilot.health.benchmarkScore}</span>/100.
       </DialogDescription>
       <DialogBody>
-        <Fieldset>
-          <Field>
-            <Label>Assign to project</Label>
-            <Select
-              name="assign-project"
-              value={selectedProjectId}
-              onChange={(event) => setSelectedProjectId(event.target.value)}
+        {projects.length === 0 ? (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            No projects yet — create one first.{' '}
+            <Link
+              href="/admin/projects/new"
+              className="font-medium text-zinc-950 underline decoration-zinc-950/30 hover:decoration-zinc-950 dark:text-white dark:decoration-white/30 dark:hover:decoration-white"
             >
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </Fieldset>
+              New project
+            </Link>
+          </p>
+        ) : (
+          <Fieldset>
+            <Field>
+              <Label>Assign to project</Label>
+              <Select
+                name="assign-project"
+                value={selectedProjectId}
+                onChange={(event) => setSelectedProjectId(event.target.value)}
+              >
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </Fieldset>
+        )}
 
         <div className="mt-6 border-t border-zinc-950/5 pt-5 dark:border-white/5">
           <p className="text-sm font-medium text-zinc-950 dark:text-white">Destination (dev target)</p>
@@ -170,13 +213,22 @@ export function AssignProjectDialog({
           ) : null}
         </div>
 
+        <div aria-live="polite">
+          {success ? (
+            <p className="mt-4 text-sm font-medium text-zinc-950 dark:text-white">{success}</p>
+          ) : null}
+        </div>
         {error ? <p className="mt-4 text-sm text-accent-600 dark:text-accent-400">{error}</p> : null}
       </DialogBody>
       <DialogActions>
         <Button plain onClick={onClose}>
           Cancel
         </Button>
-        <Button color="accent" disabled={saving || !selectedProjectId} onClick={validateAndAssign}>
+        <Button
+          color="accent"
+          disabled={saving || success !== null || projects.length === 0 || !selectedProjectId}
+          onClick={validateAndAssign}
+        >
           {saving ? 'Assigning…' : 'Validate & assign'}
         </Button>
       </DialogActions>
@@ -210,7 +262,10 @@ export function UnassignCopilotDialog({
     setError(null)
     try {
       const res = await persistCopilot(copilot.id, { projectId: null })
-      if (!res.ok) throw new Error(String(res.status))
+      if (!res.ok) {
+        setError(await messageForResponse(res, 'Unassign failed — the copilot keeps its project.'))
+        return
+      }
       router.refresh()
       onClose()
     } catch {

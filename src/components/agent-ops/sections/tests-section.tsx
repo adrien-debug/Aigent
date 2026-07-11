@@ -153,9 +153,12 @@ export async function TestsSection({ copilotId }: { copilotId: string }) {
           <>
             <RunTestsButton />
             {/* V1 stub — visibly inert until suite-scoped runs ship. */}
-            <Button outline disabled title="Suite-scoped runs ship in V2">
-              Run safety suite only
-            </Button>
+            <div className="flex flex-col items-start gap-1">
+              <Button outline disabled title="Suite-scoped runs ship in V2">
+                Run safety suite only
+              </Button>
+              <p className="text-xs text-zinc-500">Suite-scoped runs ship in V2.</p>
+            </div>
           </>
         }
       >
@@ -179,7 +182,7 @@ export async function TestsSection({ copilotId }: { copilotId: string }) {
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0 lg:flex-1">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                      <h3 className="text-sm font-semibold text-zinc-950 dark:text-white">{suite.name}</h3>
+                      <Subheading level={3}>{suite.name}</Subheading>
                       <span className="text-xs text-zinc-500 dark:text-zinc-400">{kind.label}</span>
                       {runStatus ? (
                         <span className="text-xs text-zinc-500 dark:text-zinc-400">{runStatus.label}</span>

@@ -8,6 +8,7 @@ import { RunDetailPanel } from '@/components/agent-ops/run-detail-panel'
 import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
 import { SplitBar, type SplitTone } from '@/components/agent-ops/widgets/split-bar'
 import { Button } from '@/components/catalyst/button'
+import { Subheading } from '@/components/catalyst/heading'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Text } from '@/components/catalyst/text'
 import { formatDurationMs, formatTimestamp } from '@/lib/agent-mission-control/format'
@@ -88,10 +89,11 @@ export default async function RunsPage({
         <div className="overflow-hidden rounded-xl bg-white px-6 py-12 ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
           <div className="mx-auto max-w-md text-center">
             <SignalIcon aria-hidden="true" className="mx-auto size-8 text-zinc-400 dark:text-zinc-600" />
-            <h2 className="mt-4 text-base font-semibold text-zinc-950 dark:text-white">No runs yet</h2>
+            <Subheading className="mt-4">No runs yet</Subheading>
             <Text className="mt-2">
-              This copilot hasn&apos;t served any production traffic. Run its test suites to validate behavior, then
-              activate it to see live runs, steps and tool calls here.
+              This copilot hasn&apos;t served any production traffic. Send it a real ad hoc run from the &ldquo;Run{' '}
+              {copilot.name}&rdquo; panel above to see runs, steps and tool calls here — automated test suites ship
+              in V2.
             </Text>
             <div className="mt-6 flex justify-center">
               <Button outline href={`/admin/agents/${id}/tests`}>

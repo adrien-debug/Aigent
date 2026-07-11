@@ -4,9 +4,10 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
-import { RunStatusBadge } from '@/components/agent-ops/run-detail-panel'
+import { RunStatusText } from '@/components/agent-ops/run-detail-panel'
 import { Button } from '@/components/catalyst/button'
 import { Field, Label } from '@/components/catalyst/fieldset'
+import { Subheading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
 import { Textarea } from '@/components/catalyst/textarea'
 import { formatDurationMs, formatUsd } from '@/lib/agent-mission-control/format'
@@ -69,8 +70,8 @@ export function RunCopilotPanel({ copilotId, copilotName }: RunCopilotPanelProps
 
   return (
     <section className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
-      <div className="border-b border-zinc-950/5 px-6 py-4 dark:border-white/5">
-        <h2 className="text-sm font-semibold text-zinc-950 dark:text-white">Run {copilotName}</h2>
+      <div className="border-b border-zinc-950/5 bg-zinc-950/[0.025] px-6 py-4 dark:border-white/5 dark:bg-white/[0.04]">
+        <Subheading>Run {copilotName}</Subheading>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           Send a task to this copilot and get a real, Anthropic-backed run back.
         </p>
@@ -109,7 +110,7 @@ export function RunCopilotPanel({ copilotId, copilotName }: RunCopilotPanelProps
           <div className="mt-4 border-t border-zinc-950/5 pt-4 dark:border-white/5">
             <div className="flex items-center justify-between gap-4">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Result</p>
-              <RunStatusBadge status={result.status} />
+              <RunStatusText status={result.status} />
             </div>
             <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">{result.outputSummary}</p>
             <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-2">

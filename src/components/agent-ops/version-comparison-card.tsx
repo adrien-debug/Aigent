@@ -1,12 +1,13 @@
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
-import { versionStageLabels } from '@/components/agent-ops/version-stage-badge'
+import { versionStageLabels } from '@/components/agent-ops/version-stage-text'
 import { Button } from '@/components/catalyst/button'
+import { Subheading } from '@/components/catalyst/heading'
 import { formatDate, formatPercent } from '@/lib/agent-mission-control/format'
 import type { CopilotVersion } from '@/lib/agent-mission-control/types'
 
 // Moved to its own module so pages can use the badge without pulling this card.
-export { VersionStageBadge } from '@/components/agent-ops/version-stage-badge'
+export { VersionStageText } from '@/components/agent-ops/version-stage-text'
 
 /**
  * A draft with all-zero test/benchmark scores was never run: render a muted
@@ -39,9 +40,11 @@ export function VersionComparisonCard({
 
   return (
     <article className="flex flex-col overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
-      <div className="border-b border-zinc-950/5 px-6 py-4 dark:border-white/5">
+      <div className="border-b border-zinc-950/5 bg-zinc-950/[0.025] px-6 py-4 dark:border-white/5 dark:bg-white/[0.04]">
         <div className="flex flex-wrap items-center gap-3">
-          <h3 className="font-mono text-sm font-semibold tabular-nums text-zinc-950 dark:text-white">{version.label}</h3>
+          <Subheading level={3} className="font-mono tabular-nums">
+            {version.label}
+          </Subheading>
           <span className="text-xs text-zinc-500 dark:text-zinc-400">{versionStageLabels[version.stage]}</span>
         </div>
         <p className="mt-1 text-xs text-zinc-500">

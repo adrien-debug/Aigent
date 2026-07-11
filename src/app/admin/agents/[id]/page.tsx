@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ArchitectureStrip } from '@/components/agent-ops/architecture-strip'
+import { CopilotProjectActions } from '@/components/agent-ops/copilot-project-actions'
 import { OnboardingSteps } from '@/components/agent-ops/onboarding-steps'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
@@ -21,6 +22,7 @@ import {
   getCopilot,
   getManifestForCopilot,
   getProject,
+  getProjects,
   getPromotionGateForCopilot,
   getRunsForCopilot,
   getShadowExperimentsForCopilot,
@@ -155,6 +157,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
   const base = `/admin/agents/${copilot.id}`
   const [
     project,
+    allProjects,
     manifest,
     tools,
     productionVersion,
@@ -167,6 +170,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
     gate,
   ] = await Promise.all([
     copilot.projectId ? getProject(copilot.projectId) : undefined,
+    getProjects(),
     getManifestForCopilot(copilot.id),
     getToolsForCopilot(copilot.id),
     copilot.productionVersionId ? getVersion(copilot.productionVersionId) : undefined,
@@ -357,21 +361,28 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
             </IdentityField>
 
             <IdentityField label="Project">
-              {onBench ? (
-                <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="font-medium text-accent-600 dark:text-accent-400">
-                    Validation bench
-                    <span className="sr-only"> — not yet validated</span>
-                  </span>
-                  {targetProjects.length > 0 ? (
-                    <span className="text-zinc-500 dark:text-zinc-400">
-                      → {targetProjects.map((target) => target.name).join(', ')}
+              <span className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+                {onBench ? (
+                  <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="font-medium text-accent-600 dark:text-accent-400">
+                      Validation bench
+                      <span className="sr-only"> — not yet validated</span>
                     </span>
-                  ) : null}
-                </span>
-              ) : (
-                <span className="text-zinc-950 dark:text-white">{project?.name ?? '—'}</span>
-              )}
+                    {targetProjects.length > 0 ? (
+                      <span className="text-zinc-500 dark:text-zinc-400">
+                        → {targetProjects.map((target) => target.name).join(', ')}
+                      </span>
+                    ) : null}
+                  </span>
+                ) : (
+                  <span className="min-w-0 truncate text-zinc-950 dark:text-white">{project?.name ?? '—'}</span>
+                )}
+                <CopilotProjectActions
+                  copilot={copilot}
+                  projects={allProjects}
+                  projectName={project?.name ?? null}
+                />
+              </span>
             </IdentityField>
 
             <IdentityField label="Model">
@@ -483,7 +494,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
           ) : (
             /* No traffic yet — compact draft state, zero dashes. */
             <div className="mt-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
-              <p className="text-sm text-zinc-700 dark:text-zinc-300">No production traffic yet</p>
+              <p className="text-sm text-zinc-700 dark:text-zinc-300">No production traffic yet.</p>
               <p className="mt-1 text-xs text-zinc-500">
                 Live error and latency meters appear once{' '}
                 <span className="font-mono tabular-nums">{latestVersion?.label ?? 'the first version'}</span> ships to
@@ -509,7 +520,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
             <div className="relative grid gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center">
               <div>
                 <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Draft copilot</p>
-                <div className="mt-5 flex items-center gap-5">
+                <div className="mt-5 flex items-center gap-4">
                   <RadialMeter
                     value={onboardingDone}
                     max={4}
@@ -553,7 +564,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
             {/* Tests & benchmarks — ONE card, two gauge rows split by a hairline. */}
             <AgentBentoCard title="Tests & benchmarks" level={2}>
               {/* Tests row — pass-rate ring + pass/fail/error split bar. */}
-              <div className="flex items-start gap-5">
+              <div className="flex items-start gap-6">
                 <RadialMeter
                   value={copilot.health.testPassRate}
                   max={1}
@@ -586,7 +597,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
               {/* Benchmarks row — best-score ring + task-success meter + model. */}
               <div className="mt-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
                 {bestCandidate ? (
-                  <div className="flex items-start gap-5">
+                  <div className="flex items-start gap-6">
                     <RadialMeter
                       value={bestCandidate.result.score}
                       max={100}

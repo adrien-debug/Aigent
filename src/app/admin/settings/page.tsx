@@ -25,7 +25,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8">
       <AgentSectionCard title="Control plane" description="Identity of this control plane.">
-        <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
           <Kv label="Workspace name">Hearst — Agent Mission Control</Kv>
           <Kv label="Owner">
             <span className="font-mono tabular-nums">adrien@hearstcorporation.io</span>

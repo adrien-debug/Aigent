@@ -3,6 +3,7 @@ import clsx from 'clsx'
 
 import { RunTimeline } from '@/components/agent-ops/run-timeline'
 import { SplitBar, type SplitSegment, type SplitTone } from '@/components/agent-ops/widgets/split-bar'
+import { Subheading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
 import { formatDurationMs, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 import type { AgentRun, AgentRunStatus, AgentRunStep, ToolCall } from '@/lib/agent-mission-control/types'
@@ -16,7 +17,7 @@ const runStatusLabels: Record<AgentRunStatus, string> = {
 }
 
 /** Run lifecycle status — plain muted text label, no colored badge. */
-export function RunStatusBadge({ status }: { status: AgentRunStatus }) {
+export function RunStatusText({ status }: { status: AgentRunStatus }) {
   return <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{runStatusLabels[status]}</span>
 }
 
@@ -94,10 +95,10 @@ export function RunDetailPanel({
 
   return (
     <section className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
-      <div className="border-b border-zinc-950/5 px-6 py-4 dark:border-white/5">
+      <div className="border-b border-zinc-950/5 bg-zinc-950/[0.025] px-6 py-4 dark:border-white/5 dark:bg-white/[0.04]">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <h2 className="font-mono text-sm font-semibold tabular-nums text-zinc-950 dark:text-white">{run.id}</h2>
-          <RunStatusBadge status={run.status} />
+          <Subheading className="font-mono tabular-nums">{run.id}</Subheading>
+          <RunStatusText status={run.status} />
         </div>
         <p className="mt-1 truncate text-sm text-zinc-500 dark:text-zinc-400">{run.inputSummary}</p>
       </div>
@@ -178,7 +179,7 @@ export function RunDetailPanel({
         </dl>
 
         <div className="mt-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
-          <h3 className="text-sm font-semibold text-zinc-950 dark:text-white">Timeline</h3>
+          <Subheading level={3}>Timeline</Subheading>
           <p className="mt-1 text-xs text-zinc-500">
             {steps.length} step{steps.length === 1 ? '' : 's'} &middot; {toolCalls.length} tool call
             {toolCalls.length === 1 ? '' : 's'}

@@ -55,7 +55,7 @@ export function OnboardingSteps({
     {
       name: 'Promote a version',
       description: 'Open the promotion gate and ship to production.',
-      href: `${base}/publish`,
+      href: `${base}/versions#publish`,
       status: 'upcoming',
     },
   ].map((step, index) => ({
@@ -67,7 +67,7 @@ export function OnboardingSteps({
     <nav aria-label="Onboarding progress">
       <ol role="list" className="overflow-hidden">
         {steps.map((step, stepIdx) => (
-          <li key={step.name} className={clsx(stepIdx !== steps.length - 1 && 'pb-10', 'relative')}>
+          <li key={step.name} className={clsx(stepIdx !== steps.length - 1 && 'pb-8', 'relative')}>
             {stepIdx !== steps.length - 1 ? (
               <div
                 aria-hidden="true"

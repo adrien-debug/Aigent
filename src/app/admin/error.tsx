@@ -4,6 +4,8 @@ import { ExclamationTriangleIcon } from '@heroicons/react/16/solid'
 import { useEffect } from 'react'
 
 import { Button } from '@/components/catalyst/button'
+import { Heading } from '@/components/catalyst/heading'
+import { Text } from '@/components/catalyst/text'
 
 /**
  * Route error boundary for /admin. The data layer (PostgREST on gpu1) can
@@ -20,10 +22,10 @@ export default function AdminError({ error, reset }: { error: Error & { digest?:
       <span className="flex size-11 items-center justify-center rounded-xl bg-accent-500/15 text-accent-400 ring-1 ring-accent-500/25">
         <ExclamationTriangleIcon aria-hidden="true" className="size-5" />
       </span>
-      <h1 className="mt-5 text-base font-semibold text-white">Something went wrong</h1>
-      <p className="mt-1 max-w-sm text-sm text-zinc-400">
+      <Heading className="mt-5">Something went wrong</Heading>
+      <Text className="mt-1 max-w-sm">
         The data source didn&apos;t respond. This is usually transient — retry, or fall back to the mock dataset.
-      </p>
+      </Text>
       {error.digest ? <p className="mt-2 font-mono text-xs text-zinc-600">ref: {error.digest}</p> : null}
       <Button color="accent" className="mt-6" onClick={reset}>
         Retry

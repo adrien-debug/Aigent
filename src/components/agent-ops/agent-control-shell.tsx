@@ -1,6 +1,6 @@
 'use client'
 
-import { Cog6ToothIcon, CpuChipIcon, FolderIcon } from '@heroicons/react/20/solid'
+import { Cog6ToothIcon, CpuChipIcon, FolderIcon, Squares2X2Icon } from '@heroicons/react/20/solid'
 import clsx from 'clsx'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -29,6 +29,7 @@ function LogoMark({ className }: { className?: string }) {
  * empilés verticalement. Remplace la SidebarLayout large de Catalyst.
  */
 const NAV_ITEMS = [
+  { label: 'Dashboard', icon: Squares2X2Icon, href: '/admin', match: (p: string) => p === '/admin' },
   { label: 'Copilots', icon: CpuChipIcon, href: '/admin/agents', match: (p: string) => p === '/admin/agents' || p.startsWith('/admin/agents/') },
   { label: 'Projects', icon: FolderIcon, href: '/admin/projects', match: (p: string) => p.startsWith('/admin/projects') },
   { label: 'Settings', icon: Cog6ToothIcon, href: '/admin/settings', match: (p: string) => p.startsWith('/admin/settings') },
@@ -58,7 +59,7 @@ function RailItem({
       )}
     >
       <Icon aria-hidden="true" className="size-5 shrink-0" />
-      <span className="text-[10px] font-medium leading-tight">{label}</span>
+      <span className="text-xs font-medium leading-tight">{label}</span>
     </Link>
   )
 }
@@ -72,7 +73,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-20 flex-col items-center border-r border-zinc-950/5 bg-white py-4 lg:flex dark:border-white/10 dark:bg-zinc-950">
         {/* Brand mark */}
         <Link
-          href="/admin/agents"
+          href="/admin"
           aria-label="Agent Mission Control"
           className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-zinc-950/5 ring-1 ring-zinc-950/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:bg-white/5 dark:ring-white/10"
         >
@@ -94,7 +95,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
 
       {/* Mobile top bar — brand + inline nav (rail collapses on small screens) */}
       <header className="flex items-center gap-2 border-b border-zinc-950/5 bg-white px-4 py-2 lg:hidden dark:border-white/10 dark:bg-zinc-950">
-        <Link href="/admin/agents" aria-label="Agent Mission Control" className="flex size-8 items-center justify-center rounded-lg bg-zinc-950/5 dark:bg-white/5">
+        <Link href="/admin" aria-label="Agent Mission Control" className="flex size-8 items-center justify-center rounded-lg bg-zinc-950/5 dark:bg-white/5">
           <LogoMark className="size-4" />
         </Link>
         <nav className="flex items-center gap-1">

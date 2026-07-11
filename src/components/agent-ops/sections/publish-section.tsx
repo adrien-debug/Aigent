@@ -37,7 +37,7 @@ export async function PublishSection({ copilotId }: { copilotId: string }) {
       <div className="rounded-xl bg-white px-6 py-12 ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
         <div className="mx-auto max-w-md text-center">
           <ArrowUpCircleIcon aria-hidden="true" className="mx-auto size-10 text-zinc-400 dark:text-zinc-600" />
-          <Subheading className="mt-4">No candidate in the gate</Subheading>
+          <Subheading className="mt-4">No candidate in the gate.</Subheading>
           <Text className="mt-2">
             Nothing is queued for promotion yet. Promote a version from Versions to start a gate evaluation.
           </Text>
@@ -89,7 +89,7 @@ export async function PublishSection({ copilotId }: { copilotId: string }) {
   if (gate.approvedAt && gate.approver) {
     historyEvents.push({
       id: 'approved',
-      // Recorded sign-off is a success → green treatment ('promoted' kind).
+      // Recorded sign-off is a success → accent treatment ('promoted' kind).
       kind: 'promoted',
       content: 'Human sign-off recorded on the gate — approved by',
       target: gate.approver,
