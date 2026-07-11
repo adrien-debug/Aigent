@@ -73,7 +73,7 @@ function BenchRow({
   const href = `/admin/agents/${copilot.id}`
   return (
     <tr className="transition-colors duration-150 hover:bg-white/2.5">
-      <td className="py-5 pr-3 pl-4 text-sm whitespace-nowrap sm:pl-0">
+      <td className="py-5 pr-3 pl-4 text-sm whitespace-nowrap">
         <NameCell copilot={copilot} />
       </td>
       <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-400">
@@ -113,7 +113,7 @@ function BenchRow({
           </span>
         )}
       </td>
-      <td className="py-5 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap sm:pr-0">
+      <td className="py-5 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap">
         <div className="flex items-center justify-end gap-4">
           <Button outline onClick={() => onAssign(copilot)}>
             Assign…<span className="sr-only"> {copilot.name} to a project</span>
@@ -143,7 +143,7 @@ function AllRow({
   const href = `/admin/agents/${copilot.id}`
   return (
     <tr className="transition-colors duration-150 hover:bg-white/2.5">
-      <td className="py-5 pr-3 pl-4 text-sm whitespace-nowrap sm:pl-0">
+      <td className="py-5 pr-3 pl-4 text-sm whitespace-nowrap">
         <NameCell copilot={copilot} />
       </td>
       <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-400">
@@ -161,7 +161,7 @@ function AllRow({
         )}
       </td>
       <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-400">{copilot.owner}</td>
-      <td className="py-5 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap sm:pr-0">
+      <td className="py-5 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap">
         <div className="flex items-center justify-end gap-2">
           <Link href={href} className="text-accent-400 hover:text-accent-300">
             Open<span className="sr-only">, {copilot.name}</span>
@@ -337,67 +337,63 @@ export function CopilotRegistryTable({
 
       <div className="mt-6">
         {filtered.length > 0 ? (
-          <div className="flow-root">
-            <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-              <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-                <table className="relative min-w-full divide-y divide-white/15">
-                  <thead>
-                    <tr>
-                      <th scope="col" className="py-3.5 pr-3 pl-4 text-left text-sm font-semibold text-white sm:pl-0">
-                        Name
+          <div className="overflow-x-auto">
+            <table className="relative min-w-full divide-y divide-white/15">
+              <thead>
+                <tr>
+                  <th scope="col" className="py-3.5 pr-3 pl-4 text-left text-sm font-semibold text-white">
+                    Name
+                  </th>
+                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
+                    Runtime
+                  </th>
+                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
+                    Status
+                  </th>
+                  {view === 'bench' ? (
+                    <>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
+                        Tests
+                      </th>
+                      <th scope="col" className="px-3 py-3.5 text-right text-sm font-semibold text-white">
+                        Runs 24h
                       </th>
                       <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
-                        Runtime
+                        Destination
+                      </th>
+                    </>
+                  ) : (
+                    <>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
+                        Project
                       </th>
                       <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
-                        Status
+                        Owner
                       </th>
-                      {view === 'bench' ? (
-                        <>
-                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
-                            Tests
-                          </th>
-                          <th scope="col" className="px-3 py-3.5 text-right text-sm font-semibold text-white">
-                            Runs 24h
-                          </th>
-                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
-                            Destination
-                          </th>
-                        </>
-                      ) : (
-                        <>
-                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
-                            Project
-                          </th>
-                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
-                            Owner
-                          </th>
-                        </>
-                      )}
-                      <th scope="col" className="py-3.5 pr-4 pl-3 sm:pr-0">
-                        <span className="sr-only">Actions</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/10 [&>tr:nth-child(even)]:bg-white/[0.055]">{activeRows.map(renderRow)}</tbody>
+                    </>
+                  )}
+                  <th scope="col" className="py-3.5 pr-4 pl-3">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10 [&>tr:nth-child(even)]:bg-white/[0.055]">{activeRows.map(renderRow)}</tbody>
 
-                  {pausedRows.length > 0 ? (
-                    <tbody className="divide-y divide-white/10 border-t border-white/15 [&>tr:nth-child(even)]:bg-white/[0.055]">
-                      <tr>
-                        <th
-                          scope="colgroup"
-                          colSpan={columnCount}
-                          className="py-2 pr-3 pl-4 text-left text-xs font-medium tracking-wide text-zinc-500 uppercase sm:pl-0"
-                        >
-                          Paused
-                        </th>
-                      </tr>
-                      {pausedRows.map(renderRow)}
-                    </tbody>
-                  ) : null}
-                </table>
-              </div>
-            </div>
+              {pausedRows.length > 0 ? (
+                <tbody className="divide-y divide-white/10 border-t border-white/15 [&>tr:nth-child(even)]:bg-white/[0.055]">
+                  <tr>
+                    <th
+                      scope="colgroup"
+                      colSpan={columnCount}
+                      className="py-2 pr-3 pl-4 text-left text-xs font-medium tracking-wide text-zinc-500 uppercase"
+                    >
+                      Paused
+                    </th>
+                  </tr>
+                  {pausedRows.map(renderRow)}
+                </tbody>
+              ) : null}
+            </table>
           </div>
         ) : (
           <div className="flex flex-col items-center px-6 py-12 text-center">
