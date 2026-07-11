@@ -57,9 +57,9 @@ function contrast(a, b) {
   return (hi + 0.05) / (lo + 0.05)
 }
 
-// Live-only: nothing in the running app may import the mock dataset. mock-data.ts
+// Live-only: nothing in the running app may import the seed fixtures. seed-fixtures.ts
 // stays (used by scripts/seed-amc.ts to seed the real DB) but the app is severed.
-const MOCK_IMPORT_RE = /from\s+['"](?:@\/lib\/agent-mission-control\/mock-data|\.{1,2}(?:\/[^'"]*)?\/mock-data|\.\/mock-data)['"]/
+const MOCK_IMPORT_RE = /from\s+['"](?:@\/lib\/agent-mission-control\/seed-fixtures|\.{1,2}(?:\/[^'"]*)?\/seed-fixtures|\.\/seed-fixtures)['"]/
 const mockImports = []
 
 async function main() {
@@ -68,7 +68,7 @@ async function main() {
     const rel = relative(SRC, file)
     if (rel.includes(EXCLUDE_DIR)) continue
     const text = await readFile(file, 'utf8')
-    if (rel !== 'lib/agent-mission-control/mock-data.ts' && MOCK_IMPORT_RE.test(text)) {
+    if (rel !== 'lib/agent-mission-control/seed-fixtures.ts' && MOCK_IMPORT_RE.test(text)) {
       mockImports.push(relative(ROOT, file))
     }
     text.split('\n').forEach((line, i) => {

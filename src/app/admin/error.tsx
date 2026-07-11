@@ -24,7 +24,7 @@ export default function AdminError({ error, reset }: { error: Error & { digest?:
       </span>
       <Heading className="mt-5">Something went wrong</Heading>
       <Text className="mt-1 max-w-sm">
-        The data source didn&apos;t respond. This is usually transient — retry, or fall back to the mock dataset.
+        The data source didn&apos;t respond. This is usually transient — retry in a moment.
       </Text>
       {error.digest ? <p className="mt-2 font-mono text-xs text-zinc-600">ref: {error.digest}</p> : null}
       <Button color="accent" className="mt-6" onClick={reset}>
