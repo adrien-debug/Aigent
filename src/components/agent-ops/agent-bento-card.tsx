@@ -31,7 +31,7 @@ export function AgentBentoCard({
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-radial-[at_top_left] from-zinc-950/[0.02] via-transparent to-transparent dark:from-white/[0.04]"
       />
-      <div className="relative p-6 sm:p-8">
+      <div className="relative p-6">
         {eyebrow ? (
           <p
             className={clsx(
