@@ -5,9 +5,7 @@ import { useMemo, useState } from 'react'
 
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { AssignProjectDialog, UnassignCopilotDialog } from '@/components/agent-ops/assign-project-dialog'
-import { StatusBadge } from '@/components/agent-ops/status-badge'
 import { Avatar } from '@/components/catalyst/avatar'
-import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Dropdown, DropdownButton, DropdownItem, DropdownMenu } from '@/components/catalyst/dropdown'
 import { Field, Label } from '@/components/catalyst/fieldset'
@@ -82,8 +80,8 @@ function BenchRow({
         <div className="text-white">{AGENT_RUNTIME_LABELS[copilot.runtime]}</div>
         <div className="mt-1 font-mono text-xs tabular-nums text-zinc-500">{copilot.model}</div>
       </td>
-      <td className="px-3 py-5 text-sm whitespace-nowrap">
-        <StatusBadge status={copilot.status} />
+      <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-400">
+        {STATUS_LABELS[copilot.status]}
       </td>
       <td className="px-3 py-5 text-sm whitespace-nowrap">
         {copilot.health.testPassRate === 0 ? (
@@ -110,13 +108,9 @@ function BenchRow({
             <span className="sr-only">No destination project</span>
           </span>
         ) : (
-          <div className="flex flex-wrap items-center gap-1">
-            {copilot.targetProjectIds.map((projectId) => (
-              <Badge key={projectId} color="zinc">
-                {projectNameById.get(projectId) ?? projectId}
-              </Badge>
-            ))}
-          </div>
+          <span className="text-zinc-300">
+            {copilot.targetProjectIds.map((projectId) => projectNameById.get(projectId) ?? projectId).join(' · ')}
+          </span>
         )}
       </td>
       <td className="py-5 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap sm:pr-0">
@@ -156,12 +150,12 @@ function AllRow({
         <div className="text-white">{AGENT_RUNTIME_LABELS[copilot.runtime]}</div>
         <div className="mt-1 font-mono text-xs tabular-nums text-zinc-500">{copilot.model}</div>
       </td>
-      <td className="px-3 py-5 text-sm whitespace-nowrap">
-        <StatusBadge status={copilot.status} />
+      <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-400">
+        {STATUS_LABELS[copilot.status]}
       </td>
       <td className="px-3 py-5 text-sm whitespace-nowrap">
         {copilot.projectId === null ? (
-          <Badge color="accentStrong">On bench</Badge>
+          <span className="text-zinc-500">On bench</span>
         ) : (
           <span className="text-zinc-300">{projectNameById.get(copilot.projectId) ?? copilot.projectId}</span>
         )}
