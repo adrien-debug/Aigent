@@ -121,6 +121,19 @@ export default async function AgentsRegistryPage() {
             value: formatUsd(kpis.totalCostLast24hUsd),
             viz: (
               <LinearMeter
+                value={Math.min(kpis.totalCostLast24hUsd, 100)}
+                max={100}
+                tone="zinc"
+                valueText={formatUsd(kpis.totalCostLast24hUsd)}
+                ariaLabel="Total cost in past 24 hours"
+              />
+            ),
+          },
+          {
+            name: 'Warnings',
+            value: String(kpis.openWarnings),
+            viz: (
+              <LinearMeter
                 value={kpis.openWarnings}
                 max={Math.max(kpis.totalCopilots, 1)}
                 tone="accentSolid"
