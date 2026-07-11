@@ -133,7 +133,9 @@ export function RunDetailPanel({
           />
         </dl>
 
-        {/* Tool-call outcome mix for THIS run — one bar, not disconnected counts. */}
+        {/* Tool-call outcome mix for THIS run — one bar, not disconnected counts.
+            When the run made no tool calls, say so plainly (never imply a call
+            happened that didn't). */}
         {outcomeSegments.length > 0 ? (
           <div className="mt-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
             <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Tool-call outcomes</p>
@@ -145,7 +147,12 @@ export function RunDetailPanel({
               />
             </div>
           </div>
-        ) : null}
+        ) : (
+          <div className="mt-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
+            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Tool calls</p>
+            <p className="mt-2 text-sm text-zinc-500">No tool calls recorded for this run.</p>
+          </div>
+        )}
 
         {/* Meta — 2-col field grid, stacked label/value, no empty center gutter. */}
         <dl className="mt-6 grid grid-cols-1 gap-x-6 gap-y-4 border-t border-zinc-950/5 pt-6 sm:grid-cols-2 dark:border-white/5">
@@ -172,7 +179,7 @@ export function RunDetailPanel({
                   <ArrowTopRightOnSquareIcon aria-hidden="true" className="size-3.5" />
                 </Link>
               ) : (
-                <span className="text-zinc-500">No trace recorded</span>
+                <span className="text-zinc-500">No external trace recorded</span>
               )
             }
           />

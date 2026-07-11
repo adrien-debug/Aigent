@@ -21,45 +21,66 @@ function Kv({ label, children }: { label: string; children: React.ReactNode }) {
 }
 
 export default async function SettingsPage() {
-  // Server component: env is read server-side only, nothing leaks to the client.
-  const isGpu1 = process.env.AMC_DATA_SOURCE === 'gpu1'
-  const endpoint = process.env.AMC_SUPABASE_URL ?? '— (mock)'
+  // Server component. Env is read server-side ONLY to derive a boolean posture
+  // — the raw endpoint URL, host/IP, env-var names and secrets are NEVER sent to
+  // the browser. The UI shows an operator-safe status, not the infrastructure.
+  const backendConfigured = process.env.AMC_DATA_SOURCE === 'gpu1' && Boolean(process.env.AMC_SUPABASE_URL)
 
   const [copilots, projects] = await Promise.all([getCopilots(), getProjects()])
-  const managedTools = copilots.reduce((sum, copilot) => sum + copilot.health.openWarnings, 0)
+  const openWarnings = copilots.reduce((sum, copilot) => sum + copilot.health.openWarnings, 0)
 
   return (
     <div className="space-y-8">
       {/* Header uniforme sur les 5 pages /admin (directive Adrien 2026-07-11). */}
-      <AgentPageHeader title="Settings" description="Control plane identity and platform-wide guardrails." className="mt-2" />
+      <AgentPageHeader title="Settings" description="Control-plane posture and platform-wide guardrails." className="mt-2" />
 
       <AgentKpiBand
         stats={[
           { name: 'Copilots', value: String(copilots.length), hint: 'registered' },
           { name: 'Projects', value: String(projects.length), hint: 'product surfaces' },
-          { name: 'Data source', value: isGpu1 ? 'GPU1' : 'Mock', hint: isGpu1 ? 'PostgREST' : 'no backend' },
-          { name: 'Open warnings', value: String(managedTools), hint: 'across the fleet' },
+          {
+            name: 'Backend',
+            value: backendConfigured ? 'Connected' : 'Not configured',
+            hint: backendConfigured ? 'live perimeter' : 'fail-closed',
+          },
+          { name: 'Open warnings', value: String(openWarnings), hint: 'across the fleet' },
         ]}
       />
 
-      <AgentSectionCard title="Control plane" description="Identity of this control plane.">
+      {/* Control plane — identity + posture, ZERO infrastructure detail. No raw
+          endpoint, host, IP, env-var name or file path is rendered. */}
+      <AgentSectionCard title="Control plane" description="Identity and connection posture of this control plane.">
         <dl className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
-          <Kv label="Workspace name">Hearst — Agent Mission Control</Kv>
-          <Kv label="Owner">
-            <span className="font-mono tabular-nums">adrien@hearstcorporation.io</span>
-          </Kv>
-          <Kv label="Data source">
-            {isGpu1 ? (
-              <span className="text-sm text-zinc-950 dark:text-white">GPU1 · PostgREST</span>
+          <Kv label="Workspace">Hearst — Agent Mission Control</Kv>
+          <Kv label="Operated by">Platform admin</Kv>
+          <Kv label="Mode">Live-only</Kv>
+          <Kv label="Backend">
+            {backendConfigured ? (
+              <span className="text-sm text-zinc-950 dark:text-white">Connected · private perimeter</span>
             ) : (
-              <span className="text-sm text-zinc-500 dark:text-zinc-400">Mock dataset</span>
+              <span className="text-sm text-zinc-500 dark:text-zinc-400">Not configured · fail-closed</span>
             )}
           </Kv>
-          <Kv label="Endpoint">
-            <span className="font-mono tabular-nums break-all">{endpoint}</span>
-          </Kv>
         </dl>
-        <p className="mt-4 text-xs text-zinc-500">Managed by the platform · .env.local, never committed.</p>
+        <p className="mt-4 text-xs text-zinc-500">
+          Live backend reached through a private PostgREST perimeter. Secrets stay server-side and are never
+          exposed to the browser.
+        </p>
+      </AgentSectionCard>
+
+      {/* Runtime posture — how runs are executed, in operator terms. */}
+      <AgentSectionCard title="Runtime posture" description="How copilots execute and how failures are handled.">
+        <dl className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
+          <Kv label="Model routing">Multi-provider</Kv>
+          <Kv label="Fallbacks">Explicit · opt-in only</Kv>
+          <Kv label="External traces">
+            <span className="text-zinc-500">Not configured — no external trace recorded</span>
+          </Kv>
+          <Kv label="Tool calls">No external write without confirmation</Kv>
+        </dl>
+        <p className="mt-4 text-xs text-zinc-500">
+          Fail-closed: with no backend the app never fabricates data — every read surfaces a retry instead.
+        </p>
       </AgentSectionCard>
 
       <AgentSectionCard
