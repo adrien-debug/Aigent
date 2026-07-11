@@ -5,22 +5,14 @@ import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ShadowExperimentCard } from '@/components/agent-ops/shadow-experiment-card'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { SplitBar, type SplitSegment } from '@/components/agent-ops/widgets/split-bar'
-import { Badge } from '@/components/catalyst/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Text } from '@/components/catalyst/text'
 import { formatPercent, formatTimestamp } from '@/lib/agent-mission-control/format'
 import { getCopilot, getShadowExperimentsForCopilot, getVersion } from '@/lib/agent-mission-control/data'
-import type { ShadowMismatch } from '@/lib/agent-mission-control/types'
 
-const severityConfig: Record<ShadowMismatch['severity'], { label: string; color: 'zinc' | 'accentStrong' | 'accentSolid' }> = {
-  info: { label: 'Info', color: 'zinc' },
-  warning: { label: 'Warning', color: 'accentStrong' },
-  unsafe: { label: 'Unsafe', color: 'accentSolid' },
-}
-
-function SeverityBadge({ severity }: { severity: ShadowMismatch['severity'] }) {
-  const config = severityConfig[severity]
-  return <Badge color={config.color}>{config.label}</Badge>
+function statusLabel(s: string) {
+  const t = s.replace(/-/g, ' ')
+  return t.charAt(0).toUpperCase() + t.slice(1)
 }
 
 export async function ShadowSection({ copilotId }: { copilotId: string }) {
@@ -151,7 +143,7 @@ export async function ShadowSection({ copilotId }: { copilotId: string }) {
                     {formatTimestamp(mismatch.occurredAt).replace(' UTC', '')}
                   </TableCell>
                   <TableCell>
-                    <SeverityBadge severity={mismatch.severity} />
+                    <span className="text-zinc-500 dark:text-zinc-400">{statusLabel(mismatch.severity)}</span>
                   </TableCell>
                   <TableCell className="text-zinc-700 dark:text-zinc-300">
                     <span className="block max-w-72 truncate" title={mismatch.summary}>
