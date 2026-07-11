@@ -28,10 +28,12 @@ import {
   type ModelRouterTool,
   type ModelRouterToolCall,
 } from './model-router'
+import { runLangGraph } from './langgraph-engine'
 import { pgrest } from './postgrest'
 import { startTrace, toDbStepKind, type TraceStep } from './run-trace'
 import { TOOL_HANDLERS, type ToolHandlerResult } from './tool-handlers'
 import type {
+  AgentRuntime,
   AgentRunStatus,
   AgentRunStepKind,
   DurationMs,
@@ -77,6 +79,13 @@ export interface ExecuteCopilotRunArgs {
    * never need this.
    */
   confirmedToolNames?: string[]
+  /**
+   * The copilot's runtime. When 'langgraph', the run executes through the real
+   * LangGraph StateGraph engine (langgraph-engine.ts) instead of the direct
+   * model-router loop. When omitted, the runner loads it from the copilot row;
+   * any non-'langgraph' value uses the direct loop.
+   */
+  runtime?: AgentRuntime
 }
 
 export interface ExecuteCopilotRunStep {
@@ -144,6 +153,12 @@ async function loadToolsForVersion(versionId: string): Promise<RunnerTool[]> {
   }))
 }
 
+/** Load the copilot's runtime (to decide the execution engine). */
+async function loadRuntime(copilotId: string): Promise<AgentRuntime | null> {
+  const rows = await pgrest<RawRow[]>('GET', `copilots?id=eq.${encodeURIComponent(copilotId)}&select=runtime`)
+  return (rows[0]?.runtime as AgentRuntime | undefined) ?? null
+}
+
 /** Map a RunnerTool to the router's tool schema (permissive object args). */
 function toRouterTool(t: RunnerTool): ModelRouterTool {
   return {
@@ -196,6 +211,160 @@ function guardrailCheck(
 }
 
 // ---------------------------------------------------------------------------
+// LangGraph execution path — runs the real StateGraph engine, then persists
+// with the SAME shape as the direct loop (agent_runs + agent_run_steps +
+// tool_calls). Kept as a sibling so executeCopilotRun stays a thin selector.
+// ---------------------------------------------------------------------------
+
+interface ViaLangGraphArgs {
+  copilotId: string
+  versionId: string
+  projectId: string
+  model: string
+  systemPromptSummary: string
+  userInput: string
+  maxSteps: number
+  tools: RunnerTool[]
+  confirmed: Set<string>
+}
+
+async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopilotRunResult> {
+  const { copilotId, versionId, projectId, model, systemPromptSummary, userInput, maxSteps, tools, confirmed } = args
+
+  const startedAtMs = Date.now()
+  const startedAt: IsoTimestamp = new Date(startedAtMs).toISOString()
+  const runId = randomUUID()
+
+  const trace = startTrace(
+    { runId, copilotId, versionId, projectId, mode: 'run', provider: 'openai', model },
+    startedAtMs
+  )
+
+  let status: AgentRunStatus = 'completed'
+  let outputSummary: string
+  let costUsd = 0
+  let toolCallCount = 0
+  let blockedToolCount = 0
+  let resolvedModel = model
+  const toolCallRows: RawRow[] = []
+
+  try {
+    const result = await runLangGraph({
+      copilotId,
+      model,
+      systemPromptSummary,
+      userInput,
+      maxSteps,
+      tools,
+      confirmedToolNames: confirmed,
+    })
+    costUsd = result.costUsd
+    toolCallCount = result.toolCallCount
+    blockedToolCount = result.blockedToolCount
+    resolvedModel = result.resolvedModel
+    trace.resolve('openai', result.resolvedModel, false)
+
+    // Replay the engine's steps into the trace (kinds are DB-valid).
+    for (const s of result.steps) {
+      trace.step({ kind: s.kind, title: s.title, detail: s.detail, status: s.status, durationMs: s.durationMs, toolCallId: s.toolCallId }, Date.now())
+    }
+    // Carry the engine's tool-call rows into DB rows.
+    for (const r of result.toolCallRows) {
+      toolCallRows.push({
+        id: randomUUID(),
+        run_id: runId,
+        tool_id: r.toolId,
+        tool_name: r.toolName,
+        arguments_summary: r.argumentsSummary,
+        result_summary: r.resultSummary,
+        status: r.status,
+        risk_level: r.riskLevel,
+        required_confirmation: r.requiredConfirmation,
+        latency_ms: r.latencyMs,
+      })
+    }
+    outputSummary = summarize(result.finalText || '(empty response)')
+  } catch (err) {
+    status = 'failed'
+    const message = err instanceof Error ? err.message : String(err)
+    outputSummary = summarize(`LangGraph run failed: ${message}`)
+    trace.step({ kind: 'llm-call', title: 'LangGraph run failed', detail: outputSummary, status: 'error', durationMs: 0 }, Date.now())
+  }
+
+  const finishedAtMs = Date.now()
+  const finishedAt: IsoTimestamp = new Date(finishedAtMs).toISOString()
+  const latencyMs: DurationMs = finishedAtMs - startedAtMs
+
+  const traceResult = await trace.finishAndExport(
+    { userInput: summarize(userInput) },
+    { output: outputSummary, status },
+    startedAt,
+    finishedAt
+  )
+
+  await pgrest('POST', 'agent_runs', {
+    id: runId,
+    copilot_id: copilotId,
+    version_id: versionId,
+    project_id: projectId,
+    user_label: 'authoring-session',
+    started_at: startedAt,
+    finished_at: finishedAt,
+    status,
+    input_summary: summarize(userInput),
+    output_summary: outputSummary,
+    tool_call_count: toolCallCount,
+    unsafe_attempt_count: blockedToolCount,
+    latency_ms: latencyMs,
+    cost_usd: costUsd,
+    trace_url: traceResult.traceUrl,
+    created_via: 'authoring',
+  })
+  for (const s of traceResult.steps) {
+    await pgrest('POST', 'agent_run_steps', {
+      id: randomUUID(),
+      run_id: runId,
+      index: s.index,
+      kind: toDbStepKind(s.kind) satisfies AgentRunStepKind,
+      title: s.title,
+      detail: s.detail,
+      status: s.status,
+      started_at: s.startedAt,
+      duration_ms: s.durationMs,
+      tool_call_id: s.toolCallId,
+    })
+  }
+  for (const row of toolCallRows) {
+    await pgrest('POST', 'tool_calls', row)
+  }
+
+  const steps: ExecuteCopilotRunStep[] = traceResult.steps.map((s: TraceStep) => ({
+    index: s.index,
+    kind: toDbStepKind(s.kind),
+    title: s.title,
+    detail: s.detail,
+    status: s.status,
+    startedAt: s.startedAt,
+    durationMs: s.durationMs,
+  }))
+
+  return {
+    runId,
+    status,
+    outputSummary,
+    latencyMs,
+    costUsd,
+    steps,
+    toolCallCount,
+    blockedToolCount,
+    traceUrl: traceResult.traceUrl,
+    resolvedProvider: 'openai',
+    resolvedModel,
+    fallbackUsed: false,
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Runner
 // ---------------------------------------------------------------------------
 
@@ -217,6 +386,23 @@ export async function executeCopilotRun(
   // Resolve the tool set: explicit list wins; otherwise load from the manifest.
   const tools = args.tools ?? (await loadToolsForVersion(versionId))
   const routerTools = tools.map(toRouterTool)
+
+  // Resolve the runtime: explicit wins, else load from the copilot row. A
+  // 'langgraph' runtime executes through the real LangGraph StateGraph engine.
+  const runtime = args.runtime ?? (await loadRuntime(copilotId))
+  if (runtime === 'langgraph') {
+    return executeViaLangGraph({
+      copilotId,
+      versionId,
+      projectId,
+      model,
+      systemPromptSummary,
+      userInput,
+      maxSteps,
+      tools,
+      confirmed,
+    })
+  }
 
   const startedAtMs = Date.now()
   const startedAt: IsoTimestamp = new Date(startedAtMs).toISOString()

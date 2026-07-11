@@ -31,13 +31,12 @@ export const AGENT_BUILDER_SLUG = 'agent-builder-copilot'
 /**
  * The copilot definition, ready for `createCopilotFromManifest`.
  *
- * Runtime/model reuse existing, accessible infrastructure: the primary
- * provider is OpenAI (`gpt-5.4`), already priced/routed by the model router
- * (model-pricing.ts / model-router.ts) and backed by the live OPENAI_API_KEY,
- * so runs execute directly on the primary provider with no cross-provider
- * fallback needed. `projectId: null` keeps it on the validation bench — it is
- * NOT assigned to a project (assignment is the human act of validation),
- * which is exactly the controlled posture required.
+ * Runtime: the real LangGraph StateGraph engine (langgraph-engine.ts) — the
+ * runner routes runtime==='langgraph' runs through a genuine agent↔tools graph
+ * (@langchain/langgraph + ChatOpenAI). Model provider is OpenAI (`gpt-5.4`),
+ * priced by model-pricing.ts and backed by the live OPENAI_API_KEY.
+ * `projectId: null` keeps it on the validation bench — it is NOT assigned to a
+ * project (assignment is the human act of validation), the controlled posture.
  */
 export const AGENT_BUILDER_COPILOT: CreateCopilotInput = {
   name: 'Agent Builder Copilot',
@@ -46,7 +45,7 @@ export const AGENT_BUILDER_COPILOT: CreateCopilotInput = {
     'Helps create, configure, test and prepare future copilots inside Agent Mission Control. ' +
     'Proposes specs, manifests, tools, tests and benchmarks; drafts controlled — never promotes ' +
     'to production, never pushes external repos, never bypasses human approval.',
-  runtime: 'openai-assistants',
+  runtime: 'langgraph',
   model: 'gpt-5.4',
   modelProvider: 'openai',
   owner: 'platform',
