@@ -170,73 +170,16 @@ export async function createCopilotFromManifest(input: CreateCopilotInput): Prom
   const uniqueSuffix = crypto.randomUUID().slice(0, 8)
   const slug = input.slug || slugify(input.name)
 
-  // 1. manifest
-  const manifestPayload: RawRow = {
-    id: makeId('manifest', `${slug}-${uniqueSuffix}`),
-    copilot_id: null,
-    version: 'v0.1.0-draft',
-    system_prompt_summary: input.manifest.systemPromptSummary,
-    allowed_routes: input.manifest.allowedRoutes,
-    forbidden_actions: input.manifest.forbiddenActions,
-    confirmation_policy: input.manifest.confirmationPolicy,
-    always_confirm_actions: input.manifest.alwaysConfirmActions,
-    memory_sources: [],
-    output_contract: input.manifest.outputContract,
-    tool_ids: [],
-    max_steps_per_run: input.manifest.maxStepsPerRun,
-    max_cost_per_run_usd: input.manifest.maxCostPerRunUsd,
-    updated_at: now,
-  }
-  const manifestRows = await restWrite('POST', 'manifests', manifestPayload)
-  const manifestId = manifestRows[0].id as string
-
-  // 2. tools (from proposedTools)
-  const toolIds: string[] = []
-  for (const proposed of input.manifest.proposedTools) {
-    const toolPayload: RawRow = {
-      id: makeId('tool', `${slugify(proposed.name)}-${crypto.randomUUID().slice(0, 8)}`),
-      copilot_id: null,
-      name: proposed.name,
-      description: proposed.description,
-      provider: proposed.provider,
-      risk_level: proposed.riskLevel,
-      enabled: true,
-      requires_confirmation: proposed.requiresConfirmation,
-      scoped_routes: [],
-    }
-    const toolRows = await restWrite('POST', 'tools', toolPayload)
-    toolIds.push(toolRows[0].id as string)
-  }
-
-  // 3. backfill manifest.tool_ids now that tools exist
-  await restWrite('PATCH', `manifests?id=eq.${encodeURIComponent(manifestId)}`, {
-    tool_ids: toolIds,
-  })
-
-  // 4. copilot_versions
-  const versionPayload: RawRow = {
-    id: makeId('version', `${slug}-${uniqueSuffix}`),
-    copilot_id: null,
-    label: 'v0.1.0-draft',
-    stage: 'draft',
-    manifest_id: manifestId,
-    model: input.model,
-    model_provider: input.modelProvider,
-    changelog: 'Created via authoring assistant',
-    created_at: now,
-    created_by: input.owner,
-    scores: {
-      testPassRate: 0,
-      benchmarkScore: 0,
-      shadowAgreement: null,
-      unsafeActionCount: 0,
-    },
-  }
-  const versionRows = await restWrite('POST', 'copilot_versions', versionPayload)
-  const versionId = versionRows[0].id as string
-
-  // 5. copilots
+  // manifests.copilot_id, tools.copilot_id and copilot_versions.copilot_id are
+  // all NOT NULL + FK → copilots(id), so the copilot row must exist FIRST. All
+  // ids are deterministic (computed up front) so we can point rows at each other
+  // before the referenced row is written, then create in FK-safe order.
   const copilotId = makeId('copilot', `${slug}-${uniqueSuffix}`)
+  const manifestId = makeId('manifest', `${slug}-${uniqueSuffix}`)
+  const versionId = makeId('version', `${slug}-${uniqueSuffix}`)
+
+  // 1. copilots (created first so every child FK resolves). latest_version_id
+  //    points at the version we create in step 4.
   const copilotPayload: RawRow = {
     id: copilotId,
     project_id: input.projectId,
@@ -265,6 +208,70 @@ export async function createCopilotFromManifest(input: CreateCopilotInput): Prom
     },
     created_via: 'authoring',
   }
-  const copilotRows = await restWrite('POST', 'copilots', copilotPayload)
-  return copilotRows[0].id as string
+  await restWrite('POST', 'copilots', copilotPayload)
+
+  // 2. manifest (copilot_id now resolves)
+  const manifestPayload: RawRow = {
+    id: manifestId,
+    copilot_id: copilotId,
+    version: 'v0.1.0-draft',
+    system_prompt_summary: input.manifest.systemPromptSummary,
+    allowed_routes: input.manifest.allowedRoutes,
+    forbidden_actions: input.manifest.forbiddenActions,
+    confirmation_policy: input.manifest.confirmationPolicy,
+    always_confirm_actions: input.manifest.alwaysConfirmActions,
+    memory_sources: [],
+    output_contract: input.manifest.outputContract,
+    tool_ids: [],
+    max_steps_per_run: input.manifest.maxStepsPerRun,
+    max_cost_per_run_usd: input.manifest.maxCostPerRunUsd,
+    updated_at: now,
+  }
+  await restWrite('POST', 'manifests', manifestPayload)
+
+  // 3. tools (from proposedTools), collect their ids, backfill manifest.tool_ids
+  const toolIds: string[] = []
+  for (const proposed of input.manifest.proposedTools) {
+    const toolPayload: RawRow = {
+      id: makeId('tool', `${slugify(proposed.name)}-${crypto.randomUUID().slice(0, 8)}`),
+      copilot_id: copilotId,
+      name: proposed.name,
+      description: proposed.description,
+      provider: proposed.provider,
+      risk_level: proposed.riskLevel,
+      enabled: true,
+      requires_confirmation: proposed.requiresConfirmation,
+      scoped_routes: [],
+    }
+    const toolRows = await restWrite('POST', 'tools', toolPayload)
+    toolIds.push(toolRows[0].id as string)
+  }
+  if (toolIds.length > 0) {
+    await restWrite('PATCH', `manifests?id=eq.${encodeURIComponent(manifestId)}`, {
+      tool_ids: toolIds,
+    })
+  }
+
+  // 4. copilot_versions (draft stage, pointing at the manifest)
+  const versionPayload: RawRow = {
+    id: versionId,
+    copilot_id: copilotId,
+    label: 'v0.1.0-draft',
+    stage: 'draft',
+    manifest_id: manifestId,
+    model: input.model,
+    model_provider: input.modelProvider,
+    changelog: 'Created via authoring assistant',
+    created_at: now,
+    created_by: input.owner,
+    scores: {
+      testPassRate: 0,
+      benchmarkScore: 0,
+      shadowAgreement: null,
+      unsafeActionCount: 0,
+    },
+  }
+  await restWrite('POST', 'copilot_versions', versionPayload)
+
+  return copilotId
 }
