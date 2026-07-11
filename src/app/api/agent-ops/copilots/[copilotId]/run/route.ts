@@ -29,7 +29,7 @@ export async function POST(
 ) {
   const { copilotId } = await params
 
-  let body: { userInput?: string }
+  let body: { userInput?: string; allowFallback?: boolean }
   try {
     body = await request.json()
   } catch {
@@ -37,6 +37,9 @@ export async function POST(
   }
   if (typeof body.userInput !== 'string' || body.userInput.trim().length === 0) {
     return NextResponse.json({ error: 'userInput is required' }, { status: 400 })
+  }
+  if (body.allowFallback !== undefined && typeof body.allowFallback !== 'boolean') {
+    return NextResponse.json({ error: 'allowFallback must be a boolean' }, { status: 400 })
   }
   const userInput = body.userInput
 
@@ -118,6 +121,7 @@ export async function POST(
       systemPromptSummary,
       userInput,
       maxSteps: maxStepsPerRun,
+      allowFallback: body.allowFallback,
     })
 
     return NextResponse.json({
@@ -127,6 +131,10 @@ export async function POST(
       outputSummary: result.outputSummary,
       latencyMs: result.latencyMs,
       costUsd: result.costUsd,
+      traceUrl: result.traceUrl,
+      resolvedProvider: result.resolvedProvider,
+      resolvedModel: result.resolvedModel,
+      fallbackUsed: result.fallbackUsed,
     })
   } catch (err) {
     return NextResponse.json(

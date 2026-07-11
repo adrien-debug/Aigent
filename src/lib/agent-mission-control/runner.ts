@@ -15,6 +15,7 @@ import { randomUUID } from 'node:crypto'
 
 import { routeCompletion } from './model-router'
 import { pgrest } from './postgrest'
+import { startTrace, toDbStepKind, type TraceStep } from './run-trace'
 import type {
   AgentRunStatus,
   AgentRunStepKind,
@@ -38,6 +39,8 @@ export interface ExecuteCopilotRunArgs {
   systemPromptSummary: string
   userInput: string
   maxSteps: number
+  /** Per-request opt-in to run model fallbacks (OR-ed with the env flag). */
+  allowFallback?: boolean
 }
 
 export interface ExecuteCopilotRunStep {
@@ -57,6 +60,12 @@ export interface ExecuteCopilotRunResult {
   latencyMs: DurationMs
   costUsd: UsdAmount
   steps: ExecuteCopilotRunStep[]
+  /** LangSmith deep-link, or null when LangSmith isn't configured (honest). */
+  traceUrl: string | null
+  /** Provider/model actually used (differs from requested on fallback). */
+  resolvedProvider: ModelProvider
+  resolvedModel: string
+  fallbackUsed: boolean
 }
 
 /** Truncate long text to a single-line summary for input_summary/output_summary columns. */
@@ -79,13 +88,37 @@ export async function executeCopilotRun(
 
   const startedAtMs = Date.now()
   const startedAt: IsoTimestamp = new Date(startedAtMs).toISOString()
+  const runId = randomUUID()
+
+  // A structured trace assembles the real timeline: resolve-model → llm-call →
+  // (fallback marker) → output. Kinds map to DB-valid values on persist.
+  const trace = startTrace(
+    { runId, copilotId, versionId, projectId, mode: 'run', provider: modelProvider, model },
+    startedAtMs
+  )
+
+  // Step 1 — model resolution (deterministic, ~0ms). Records the requested
+  // provider/model before the call; the resolved pair is filled in after.
+  trace.step(
+    {
+      kind: 'guardrail-check',
+      title: 'Resolve model',
+      detail: `Requested ${modelProvider}/${model || '(default)'} under the copilot manifest.`,
+      status: 'ok',
+      startedAt,
+      durationMs: 0,
+    },
+    startedAtMs
+  )
 
   let status: AgentRunStatus
   let outputSummary: string
   let costUsd: UsdAmount = 0
-  let stepStatus: 'ok' | 'error' = 'ok'
-  let stepDetail: string
+  let resolvedProvider: ModelProvider = modelProvider
+  let resolvedModel: string = model
+  let fallbackUsed = false
 
+  const callStartMs = Date.now()
   try {
     // Route through the provider-aware model router (fallback-aware); cost is
     // normalised per provider/model by the router.
@@ -93,6 +126,7 @@ export async function executeCopilotRun(
       purpose: 'run',
       modelProvider,
       model,
+      allowFallback: args.allowFallback,
       messages: [
         { role: 'system', content: systemPromptSummary },
         { role: 'user', content: userInput },
@@ -102,27 +136,80 @@ export async function executeCopilotRun(
 
     const replyText = res.text
     costUsd = res.costUsd
-    // Prefix the fallback trace so it survives summarize() truncation.
-    const fallbackNote = res.fallbackUsed ? `[${res.fallbackReason}] ` : ''
-    outputSummary = summarize(fallbackNote + replyText)
+    resolvedProvider = res.resolvedProvider
+    resolvedModel = res.resolvedModel
+    fallbackUsed = res.fallbackUsed
+    trace.resolve(res.resolvedProvider, res.resolvedModel, res.fallbackUsed)
 
+    // Step 2 — fallback marker (only when a fallback actually fired).
+    if (res.fallbackUsed) {
+      trace.step(
+        {
+          kind: 'fallback',
+          title: 'Model fallback applied',
+          detail: summarize(res.fallbackReason ?? 'primary model unavailable'),
+          status: 'warning',
+          durationMs: 0,
+        },
+        Date.now()
+      )
+    }
+
+    // Step 3 — the LLM call itself.
+    trace.step(
+      {
+        kind: 'llm-call',
+        title: `LLM call · ${res.resolvedProvider}/${res.resolvedModel}`,
+        detail: summarize(
+          `in ${res.inputTokens} tok, out ${res.outputTokens} tok, finish ${res.rawFinishReason ?? 'stop'}`
+        ),
+        status: 'ok',
+        durationMs: res.latencyMs,
+      },
+      Date.now()
+    )
+
+    // Step 4 — output.
     status = 'completed'
-    stepDetail = summarize(fallbackNote + (replyText || '(empty response)'))
+    outputSummary = summarize(replyText)
+    trace.step(
+      {
+        kind: 'output',
+        title: 'Model response',
+        detail: summarize(replyText || '(empty response)'),
+        status: 'ok',
+        durationMs: 0,
+      },
+      Date.now()
+    )
   } catch (err) {
     status = 'failed'
-    stepStatus = 'error'
     const message = err instanceof Error ? err.message : String(err)
     outputSummary = summarize(`Model call failed: ${message}`)
-    stepDetail = outputSummary
+    trace.step(
+      {
+        kind: 'llm-call',
+        title: 'Model call failed',
+        detail: outputSummary,
+        status: 'error',
+        durationMs: Date.now() - callStartMs,
+      },
+      Date.now()
+    )
   }
+
+  // maxSteps is the manifest ceiling; this runner emits a bounded, honest
+  // timeline (resolve → [fallback] → llm-call → output) — no invented tool
+  // calls. It never exceeds the cap.
+  void maxSteps
 
   const finishedAtMs = Date.now()
   const finishedAt: IsoTimestamp = new Date(finishedAtMs).toISOString()
   const latencyMs: DurationMs = finishedAtMs - startedAtMs
 
-  const runId = randomUUID()
+  const traceResult = trace.finish()
 
-  // Persist agent_runs row.
+  // Persist agent_runs row (trace_url is real only if LangSmith is configured).
   await pgrest('POST', 'agent_runs', {
     id: runId,
     copilot_id: copilotId,
@@ -138,42 +225,35 @@ export async function executeCopilotRun(
     unsafe_attempt_count: 0,
     latency_ms: latencyMs,
     cost_usd: costUsd,
-    trace_url: null,
+    trace_url: traceResult.traceUrl,
     created_via: 'authoring',
   })
 
-  // Persist a single output step describing the LLM call outcome.
-  const stepStartedAt = startedAt
-  const stepDurationMs = latencyMs
-  await pgrest('POST', 'agent_run_steps', {
-    id: randomUUID(),
-    run_id: runId,
-    index: 0,
-    kind: 'output' satisfies AgentRunStepKind,
-    title: status === 'completed' ? 'Model response' : 'Model call failed',
-    detail: stepDetail,
-    status: stepStatus,
-    started_at: stepStartedAt,
-    duration_ms: stepDurationMs,
-    tool_call_id: null,
-  })
+  // Persist every trace step as an agent_run_steps row (DB-valid kind).
+  for (const s of traceResult.steps) {
+    await pgrest('POST', 'agent_run_steps', {
+      id: randomUUID(),
+      run_id: runId,
+      index: s.index,
+      kind: toDbStepKind(s.kind) satisfies AgentRunStepKind,
+      title: s.title,
+      detail: s.detail,
+      status: s.status,
+      started_at: s.startedAt,
+      duration_ms: s.durationMs,
+      tool_call_id: s.toolCallId,
+    })
+  }
 
-  // maxSteps is accepted for interface parity with future multi-step runs
-  // (tool calls, guardrail checks, etc.); this V1 runner always performs a
-  // single LLM-call step and never exceeds the cap.
-  void maxSteps
-
-  const steps: ExecuteCopilotRunStep[] = [
-    {
-      index: 0,
-      kind: 'output',
-      title: status === 'completed' ? 'Model response' : 'Model call failed',
-      detail: stepDetail,
-      status: stepStatus,
-      startedAt: stepStartedAt,
-      durationMs: stepDurationMs,
-    },
-  ]
+  const steps: ExecuteCopilotRunStep[] = traceResult.steps.map((s: TraceStep) => ({
+    index: s.index,
+    kind: toDbStepKind(s.kind),
+    title: s.title,
+    detail: s.detail,
+    status: s.status,
+    startedAt: s.startedAt,
+    durationMs: s.durationMs,
+  }))
 
   return {
     runId,
@@ -182,5 +262,9 @@ export async function executeCopilotRun(
     latencyMs,
     costUsd,
     steps,
+    traceUrl: traceResult.traceUrl,
+    resolvedProvider,
+    resolvedModel,
+    fallbackUsed,
   }
 }

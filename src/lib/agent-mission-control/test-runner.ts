@@ -18,6 +18,7 @@ import 'server-only'
 
 import { randomUUID } from 'node:crypto'
 
+import { getTraceUrl, newTraceId } from './langsmith'
 import { routeCompletion } from './model-router'
 import { pgrest } from './postgrest'
 import { NotFoundError } from './runner-errors'
@@ -163,6 +164,8 @@ interface CaseOutcome {
   failureReason: string | null
   latencyMs: number
   costUsd: UsdAmount
+  /** LangSmith deep-link, or null when LangSmith isn't configured (honest). */
+  traceUrl: string | null
 }
 
 /**
@@ -180,6 +183,8 @@ async function runCase(
   const startedMs = Date.now()
   let costUsd = 0
   let fallbackNote = ''
+  // Per-case trace id → deep-link only if LangSmith is configured (else null).
+  const traceUrl = getTraceUrl(newTraceId())
 
   try {
     // 1) The copilot answers the case input under its real system prompt,
@@ -235,6 +240,7 @@ async function runCase(
         failureReason: 'grader returned unparseable output',
         latencyMs,
         costUsd,
+        traceUrl,
       }
     }
 
@@ -262,6 +268,7 @@ async function runCase(
       failureReason,
       latencyMs,
       costUsd,
+      traceUrl,
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
@@ -272,6 +279,7 @@ async function runCase(
       failureReason: summarize(message),
       latencyMs: Date.now() - startedMs,
       costUsd,
+      traceUrl,
     }
   }
 }
@@ -352,7 +360,7 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
         failure_reason: outcome.failureReason,
         latency_ms: outcome.latencyMs,
         cost_usd: outcome.costUsd,
-        trace_url: null,
+        trace_url: outcome.traceUrl,
       })
     }
   } catch (err) {
