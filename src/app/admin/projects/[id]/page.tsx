@@ -131,7 +131,9 @@ function ProjectTracesTable({
             <TableHeader className="text-right">Latency</TableHeader>
             <TableHeader className="text-right">Cost</TableHeader>
             <TableHeader className="text-right">Started</TableHeader>
-            <TableHeader>Trace</TableHeader>
+            <TableHeader>
+              <span className="sr-only">Trace</span>
+            </TableHeader>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -167,21 +169,19 @@ function ProjectTracesTable({
               <TableCell className="whitespace-nowrap text-right font-mono text-xs tabular-nums text-zinc-500">
                 {formatTimestamp(run.startedAt).replace(' UTC', '')}
               </TableCell>
-              <TableCell className="whitespace-nowrap">
+              <TableCell className="whitespace-nowrap text-right">
                 {run.traceUrl ? (
-                  // Famille violet/blue = runtime & tracing UNIQUEMENT — ici c'est le cas légitime (lien LangSmith).
                   <Link
                     href={run.traceUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-accent-600 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-400"
+                    className="inline-flex items-center justify-center rounded-md p-1 text-accent-600 hover:bg-accent-500/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-400"
                   >
-                    Open
-                    <ArrowTopRightOnSquareIcon aria-hidden="true" className="size-3.5" />
-                    <span className="sr-only"> trace for run {run.id} in LangSmith</span>
+                    <ArrowTopRightOnSquareIcon aria-hidden="true" className="size-4" />
+                    <span className="sr-only">Open trace for run {run.id} in LangSmith</span>
                   </Link>
                 ) : (
-                  <span className="text-xs text-zinc-500">No trace</span>
+                  <span className="sr-only">No trace</span>
                 )}
               </TableCell>
             </TableRow>
