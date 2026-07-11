@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-import { Badge } from '@/components/catalyst/badge'
+import { ErrorBanner, ManifestSummaryCard, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { Button } from '@/components/catalyst/button'
 import { Field, Label } from '@/components/catalyst/fieldset'
 import { Text } from '@/components/catalyst/text'
@@ -18,10 +18,8 @@ interface ArchitectResponseBody {
   manifest: GeneratedManifest | null
 }
 
-const SYSTEM_PROMPT_PREVIEW_LENGTH = 220
-
 /**
- * Conversational "architect" surface — chat with Claude to design a copilot's
+ * Conversational "architect" surface — chat with the model to design a copilot's
  * manifest. Posts the running conversation to `/api/agent-ops/architect` and
  * appends the assistant's reply. Once the model emits a structured manifest,
  * a "Manifest ready" card surfaces a summary with a primary action to hand
@@ -81,10 +79,6 @@ export function ArchitectChat({ onManifest }: ArchitectChatProps) {
     }
   }
 
-  const proposedTools = manifest?.proposedTools ?? []
-  const visibleTools = proposedTools.slice(0, 4)
-  const remainingToolCount = proposedTools.length - visibleTools.length
-
   return (
     <section className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
       <div className="border-b border-zinc-950/5 px-6 py-4 dark:border-white/5">
@@ -128,14 +122,7 @@ export function ArchitectChat({ onManifest }: ArchitectChatProps) {
             <div className="flex justify-start">
               <div className="max-w-[85%] rounded-2xl rounded-bl-sm bg-zinc-100 px-4 py-2 text-sm text-zinc-500 dark:bg-white/5 dark:text-zinc-400">
                 <span className="inline-flex items-center gap-2">
-                  <svg className="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                    />
-                  </svg>
+                  <Spinner className="size-4" />
                   Thinking…
                 </span>
               </div>
@@ -164,56 +151,15 @@ export function ArchitectChat({ onManifest }: ArchitectChatProps) {
           </div>
         </div>
 
-        {error ? (
-          <div className="mt-4 rounded-lg bg-accent-500/10 px-4 py-3 text-sm text-accent-700 dark:text-accent-400">
-            {error}
-          </div>
-        ) : null}
+        {error ? <ErrorBanner message={error} /> : null}
 
         {manifest ? (
           <div className="mt-4 rounded-lg bg-accent-500/5 p-4 ring-1 ring-accent-500/20">
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
-                Manifest ready
-              </p>
-              <Badge color="accent">{manifest.confirmationPolicy}</Badge>
-            </div>
-
-            <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
-              {manifest.systemPromptSummary.length > SYSTEM_PROMPT_PREVIEW_LENGTH
-                ? `${manifest.systemPromptSummary.slice(0, SYSTEM_PROMPT_PREVIEW_LENGTH)}…`
-                : manifest.systemPromptSummary}
+            <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
+              Manifest ready
             </p>
 
-            <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
-              <div>
-                <dt className="inline text-xs font-medium tracking-wide text-zinc-500 uppercase">
-                  Allowed routes
-                </dt>
-                <dd className="ml-1.5 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
-                  {manifest.allowedRoutes.length}
-                </dd>
-              </div>
-              <div>
-                <dt className="inline text-xs font-medium tracking-wide text-zinc-500 uppercase">
-                  Proposed tools
-                </dt>
-                <dd className="ml-1.5 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
-                  {proposedTools.length}
-                </dd>
-              </div>
-            </dl>
-
-            {visibleTools.length > 0 ? (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {visibleTools.map((tool) => (
-                  <Badge key={tool.name} color="zinc">
-                    {tool.name}
-                  </Badge>
-                ))}
-                {remainingToolCount > 0 ? <Badge color="zinc">+{remainingToolCount} more</Badge> : null}
-              </div>
-            ) : null}
+            <ManifestSummaryCard manifest={manifest} />
 
             <div className="mt-4">
               <Button color="accent" onClick={() => onManifest?.(manifest)}>

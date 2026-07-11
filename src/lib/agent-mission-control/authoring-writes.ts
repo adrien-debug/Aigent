@@ -64,24 +64,6 @@ async function restWrite(
   return JSON.parse(text) as RawRow[]
 }
 
-/** snake_case → camelCase (top-level only; jsonb payloads are already camelCase). */
-function camelRow<T>(row: RawRow): T {
-  const out: RawRow = {}
-  for (const [k, v] of Object.entries(row)) {
-    out[k.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase())] = v
-  }
-  return out as T
-}
-
-/** camelCase → snake_case (top-level only; nested objects/arrays pass through untouched). */
-function snakeRow(row: RawRow): RawRow {
-  const out: RawRow = {}
-  for (const [k, v] of Object.entries(row)) {
-    out[k.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)] = v
-  }
-  return out
-}
-
 // ---------------------------------------------------------------------------
 // createCopilotFromManifest — materialize a ready draft into a real copilot
 // ---------------------------------------------------------------------------
