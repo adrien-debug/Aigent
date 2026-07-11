@@ -6,7 +6,6 @@ import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { RunCopilotPanel } from '@/components/agent-ops/run-copilot-panel'
 import { RunDetailPanel } from '@/components/agent-ops/run-detail-panel'
 import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
-import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { SplitBar, type SplitTone } from '@/components/agent-ops/widgets/split-bar'
 import { Button } from '@/components/catalyst/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
@@ -80,7 +79,6 @@ export default async function RunsPage({
   )
 
   // Per-row latency meters read against the slowest run in the window.
-  const windowMaxLatencyMs = Math.max(...runs.map((run) => run.latencyMs), 1)
 
   return (
     <div className="space-y-8">
@@ -108,86 +106,9 @@ export default async function RunsPage({
             <RunLatencyChart data={latencyPoints} />
           </AgentSectionCard>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-5 lg:items-start">
-            <div className="space-y-6 lg:col-span-2">
-              <AgentSectionCard
-                title="Recent runs"
-                description="Newest first. Select a run to inspect its timeline."
-                contentClassName="px-6 py-4"
-              >
-                <Table dense bleed className="[--gutter:--spacing(6)]">
-                  <TableHead>
-                    <TableRow>
-                      <TableHeader>Run</TableHeader>
-                      <TableHeader>Status</TableHeader>
-                      <TableHeader>Input</TableHeader>
-                      <TableHeader className="text-right">Latency</TableHeader>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {runs.map((run) => {
-                      const selected = run.id === selectedRun.id
-                      return (
-                        <TableRow
-                          key={run.id}
-                          href={`/admin/agents/${id}/runs?run=${run.id}`}
-                          title={`Inspect run ${run.id}`}
-                          className={clsx(selected && 'bg-zinc-950/5 dark:bg-white/5')}
-                        >
-                          <TableCell>
-                            <span className="block font-mono text-xs font-medium tabular-nums text-zinc-950 dark:text-white">
-                              {run.id}
-                            </span>
-                            <span className="block font-mono text-xs tabular-nums text-zinc-500">
-                              {formatTimestamp(run.startedAt).replace(' UTC', '')}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-zinc-500 dark:text-zinc-400">{statusLabel(run.status)}</span>
-                          </TableCell>
-                          <TableCell className="max-w-0 w-full">
-                            <span title={run.inputSummary} className="block truncate text-zinc-500 dark:text-zinc-400">
-                              {run.inputSummary}
-                            </span>
-                          </TableCell>
-                          <TableCell className="w-32 text-right">
-                            <div className="flex flex-col items-end gap-1">
-                              <span className="font-mono text-xs tabular-nums text-zinc-950 dark:text-white">
-                                {formatDurationMs(run.latencyMs)}
-                              </span>
-                              <LinearMeter
-                                value={run.latencyMs}
-                                max={windowMaxLatencyMs}
-                                size="xs"
-                                tone="zinc"
-                                ariaLabel={`Latency ${formatDurationMs(run.latencyMs)}`}
-                              />
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </AgentSectionCard>
-
-              <AgentSectionCard title="Tool calls" description="Outcomes across the runs above.">
-                {/* One mix bar (severity by fill), not five disconnected counts. */}
-                {allToolCalls.length > 0 ? (
-                  <SplitBar
-                    height="md"
-                    segments={toolCallRamp
-                      .map(({ status, label, tone }) => ({ key: status, label, value: toolCallCounts[status], tone }))
-                      .filter((segment) => segment.value > 0)}
-                    caption={`${allToolCalls.length} tool call${allToolCalls.length === 1 ? '' : 's'} across ${runs.length} run${runs.length === 1 ? '' : 's'}`}
-                  />
-                ) : (
-                  <p className="text-sm text-zinc-500">No tool calls recorded across these runs.</p>
-                )}
-              </AgentSectionCard>
-            </div>
-
-            <div className="lg:col-span-3">
+          {/* Selected run: timeline dominant on the LEFT, tool-call mix on the right. */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
+            <div className="lg:col-span-2">
               <RunDetailPanel
                 run={selectedRun}
                 steps={selectedSteps}
@@ -195,7 +116,73 @@ export default async function RunsPage({
                 versionLabel={selectedVersion?.label}
               />
             </div>
+
+            <AgentSectionCard title="Tool calls" description="Outcomes across the runs above.">
+              {/* One mix bar (severity by fill), not five disconnected counts. */}
+              {allToolCalls.length > 0 ? (
+                <SplitBar
+                  height="md"
+                  segments={toolCallRamp
+                    .map(({ status, label, tone }) => ({ key: status, label, value: toolCallCounts[status], tone }))
+                    .filter((segment) => segment.value > 0)}
+                  caption={`${allToolCalls.length} tool call${allToolCalls.length === 1 ? '' : 's'} across ${runs.length} run${runs.length === 1 ? '' : 's'}`}
+                />
+              ) : (
+                <p className="text-sm text-zinc-500">No tool calls recorded across these runs.</p>
+              )}
+            </AgentSectionCard>
           </div>
+
+          {/* Recent runs — FULL WIDTH below everything. No lateral scroll: run id truncates. */}
+          <AgentSectionCard
+            title="Recent runs"
+            description="Newest first. Select a run to inspect its timeline."
+            contentClassName="px-6 py-4"
+          >
+            <Table dense bleed className="[--gutter:--spacing(6)]">
+              <TableHead>
+                <TableRow>
+                  <TableHeader>Run</TableHeader>
+                  <TableHeader>Status</TableHeader>
+                  <TableHeader>Input</TableHeader>
+                  <TableHeader className="text-right">Latency</TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {runs.map((run) => {
+                  const selected = run.id === selectedRun.id
+                  return (
+                    <TableRow
+                      key={run.id}
+                      href={`/admin/agents/${id}/runs?run=${run.id}`}
+                      title={`Inspect run ${run.id}`}
+                      className={clsx(selected && 'bg-zinc-950/5 dark:bg-white/5')}
+                    >
+                      <TableCell className="max-w-[16rem]">
+                        <span className="block truncate font-mono text-xs font-medium tabular-nums text-zinc-950 dark:text-white">
+                          {run.id}
+                        </span>
+                        <span className="block font-mono text-xs tabular-nums text-zinc-500">
+                          {formatTimestamp(run.startedAt).replace(' UTC', '')}
+                        </span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <span className="text-zinc-500 dark:text-zinc-400">{statusLabel(run.status)}</span>
+                      </TableCell>
+                      <TableCell className="w-full max-w-0">
+                        <span title={run.inputSummary} className="block truncate text-zinc-500 dark:text-zinc-400">
+                          {run.inputSummary}
+                        </span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-right font-mono text-xs tabular-nums text-zinc-950 dark:text-white">
+                        {formatDurationMs(run.latencyMs)}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </AgentSectionCard>
         </>
       )}
     </div>
