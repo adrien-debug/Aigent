@@ -19,7 +19,10 @@ export function truncate(text: string, len: number): string {
 /** Inline error banner — the exact shape used across the authoring surface. */
 export function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="mt-4 rounded-lg bg-accent-500/10 px-4 py-3 text-sm text-accent-700 dark:text-accent-400">
+    <div
+      role="alert"
+      className="mt-4 rounded-lg bg-accent-500/10 px-4 py-3 text-sm text-accent-700 dark:text-accent-400"
+    >
       {message}
     </div>
   )

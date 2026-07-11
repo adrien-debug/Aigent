@@ -82,6 +82,26 @@ export async function POST(
     return NextResponse.json({ error: 'run has no resumable thread' }, { status: 409 })
   }
 
+  // Resolve the copilot's tools (name → id/risk/confirmation) so resumed
+  // tool_calls carry real metadata, not hardcoded 'low'/false — the audit trail
+  // (unsafe_attempt_count, risk) depends on this being accurate.
+  const toolByName = new Map<string, { id: string; risk: string; requiresConfirmation: boolean }>()
+  try {
+    const toolRows = await pgrest<Record<string, unknown>[]>(
+      'GET',
+      `tools?copilot_id=eq.${encodeURIComponent(copilotId)}&select=id,name,risk_level,requires_confirmation`
+    )
+    for (const t of toolRows) {
+      toolByName.set(t.name as string, {
+        id: t.id as string,
+        risk: (t.risk_level as string) ?? 'low',
+        requiresConfirmation: t.requires_confirmation === true,
+      })
+    }
+  } catch {
+    // Non-fatal — fall back to name-based tool_id below.
+  }
+
   // 2) Continue the thread with the operator's decision, then persist the
   //    resumed steps/tool calls and close the run. Any failure here is a 502.
   try {
@@ -112,19 +132,20 @@ export async function POST(
       nextIndex += 1
     }
 
-    // Append the resumed tool calls (tool_id falls back to the tool name — a
-    // NOT NULL column; the Agent Server reports names, not ids).
+    // Append the resumed tool calls with the REAL tool_id/risk/confirmation.
     for (const tc of result.toolCalls) {
+      const dbTool = toolByName.get(tc.toolName)
       await pgrest('POST', 'tool_calls', {
         id: randomUUID(),
         run_id: runId,
-        tool_id: tc.toolName,
+        tool_id: dbTool?.id ?? tc.toolName,
         tool_name: tc.toolName,
         arguments_summary: tc.argumentsSummary || '{}',
         result_summary: tc.resultSummary,
         status: tc.status,
-        risk_level: 'low',
-        required_confirmation: tc.status === 'blocked',
+        risk_level: dbTool?.risk ?? 'low',
+        // A tool that went through this approval path required confirmation.
+        required_confirmation: dbTool?.requiresConfirmation ?? true,
         latency_ms: 0,
       })
     }
@@ -136,10 +157,22 @@ export async function POST(
     const status = allBlocked && approved === false ? 'blocked' : 'completed'
     const outputSummary = summarize(result.finalText || '(empty response)')
 
+    // Re-aggregate the run's counters from the full tool_calls table so
+    // tool_call_count / unsafe_attempt_count reflect the resumed rows (they were
+    // 0 at pause). Re-read after the inserts above.
+    const allCalls = await pgrest<Record<string, unknown>[]>(
+      'GET',
+      `tool_calls?run_id=eq.${encodeURIComponent(runId)}&select=status`
+    )
+    const toolCallCount = allCalls.length
+    const unsafeAttemptCount = allCalls.filter((c) => c.status === 'blocked').length
+
     await pgrest('PATCH', `agent_runs?id=eq.${encodeURIComponent(runId)}`, {
       status,
       output_summary: outputSummary,
       finished_at: new Date().toISOString(),
+      tool_call_count: toolCallCount,
+      unsafe_attempt_count: unsafeAttemptCount,
     })
 
     return NextResponse.json({
@@ -150,9 +183,16 @@ export async function POST(
       approved,
     })
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'run resume failed' },
-      { status: 502 }
-    )
+    const message = err instanceof Error ? err.message : 'run resume failed'
+    // The dev Agent Server keeps thread state in memory; a restart drops it and
+    // resuming a lost thread 404s. Surface that as an actionable 409 (the run is
+    // unrecoverable — relaunch it) rather than a raw 502.
+    if (/\b404\b|not found/i.test(message)) {
+      return NextResponse.json(
+        { error: 'the approval thread was lost (Agent Server restarted) — relaunch the run', threadLost: true },
+        { status: 409 }
+      )
+    }
+    return NextResponse.json({ error: message }, { status: 502 })
   }
 }

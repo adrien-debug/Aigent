@@ -53,6 +53,8 @@ export interface LangGraphServerResult {
   interrupted: boolean
   /** Human-facing prompt when interrupted (the approval question). */
   interruptMessage: string | null
+  /** The tool awaiting approval (only set when interrupted) — name + args for the operator. */
+  pendingTool?: { name: string; argumentsSummary: string; risk?: string }
   finalText: string
   steps: LangGraphServerStep[]
   toolCalls: LangGraphServerToolCall[]
@@ -77,6 +79,25 @@ function interruptMessage(interrupts: unknown): string | null {
   const v = (interrupts[0] as { value?: unknown }).value
   if (v && typeof v === 'object' && 'message' in v) return String((v as { message: unknown }).message)
   return typeof v === 'string' ? v : JSON.stringify(v)
+}
+
+/**
+ * Extract the tool awaiting approval from the interrupt payload, so the operator
+ * sees exactly what would run. Payload shape: `[{ value: { action, risk, proposed } }]`.
+ */
+function pendingToolFromInterrupt(
+  interrupts: unknown
+): { name: string; argumentsSummary: string; risk?: string } | undefined {
+  if (!Array.isArray(interrupts) || interrupts.length === 0) return undefined
+  const v = (interrupts[0] as { value?: unknown }).value
+  if (!v || typeof v !== 'object') return undefined
+  const { action, risk, proposed } = v as { action?: unknown; risk?: unknown; proposed?: unknown }
+  if (typeof action !== 'string' || action.length === 0) return undefined
+  return {
+    name: action,
+    argumentsSummary: JSON.stringify(proposed ?? {}),
+    risk: typeof risk === 'string' ? risk : undefined,
+  }
 }
 
 /** Turn the graph's message history into normalized steps + tool-call rows. */
@@ -172,7 +193,9 @@ export async function runOnAgentServer(args: {
   const finalText = typeof lastAi?.content === 'string' ? lastAi.content : ''
 
   if (interrupted) {
-    const msg = interruptMessage(result.__interrupt__ ?? interrupts)
+    const payload = result.__interrupt__ ?? interrupts
+    const msg = interruptMessage(payload)
+    const pendingTool = pendingToolFromInterrupt(payload)
     steps.push({
       kind: 'confirmation',
       title: 'Awaiting human approval',
@@ -180,7 +203,7 @@ export async function runOnAgentServer(args: {
       status: 'blocked',
       durationMs: 0,
     })
-    return { threadId, interrupted: true, interruptMessage: msg, finalText, steps, toolCalls, costUsd: 0 }
+    return { threadId, interrupted: true, interruptMessage: msg, pendingTool, finalText, steps, toolCalls, costUsd: 0 }
   }
 
   steps.push({

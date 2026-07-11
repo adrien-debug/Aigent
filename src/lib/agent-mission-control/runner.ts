@@ -124,6 +124,8 @@ export interface ExecuteCopilotRunResult {
   interrupted: boolean
   /** The human-facing approval prompt when interrupted (else null). */
   interruptMessage: string | null
+  /** The tool awaiting approval when interrupted (name + args for the operator), else null. */
+  pendingTool: { name: string; argumentsSummary: string; risk?: string } | null
 }
 
 type UsdAmount = number
@@ -258,6 +260,7 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
   let threadId: string | null = null
   let interrupted = false
   let interruptMessage: string | null = null
+  let pendingTool: { name: string; argumentsSummary: string; risk?: string } | null = null
   const resolvedModel = model
   const toolCallRows: RawRow[] = []
 
@@ -310,6 +313,7 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
       status = 'needs-confirmation'
       interrupted = true
       interruptMessage = result.interruptMessage
+      pendingTool = result.pendingTool ?? null
       outputSummary = summarize(result.interruptMessage ?? 'Awaiting human approval for a tool call.')
     } else {
       outputSummary = summarize(result.finalText || '(empty response)')
@@ -324,6 +328,9 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
   const finishedAtMs = Date.now()
   const finishedAt: IsoTimestamp = new Date(finishedAtMs).toISOString()
   const latencyMs: DurationMs = finishedAtMs - startedAtMs
+  // A run paused for approval is NOT finished — leave finished_at null so
+  // duration/latency metrics don't count a pending run as complete.
+  const isPaused = status === 'needs-confirmation'
 
   const traceResult = await trace.finishAndExport(
     { userInput: summarize(userInput) },
@@ -339,7 +346,7 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
     project_id: projectId,
     user_label: 'authoring-session',
     started_at: startedAt,
-    finished_at: finishedAt,
+    finished_at: isPaused ? null : finishedAt,
     status,
     input_summary: summarize(userInput),
     output_summary: outputSummary,
@@ -395,6 +402,7 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
     threadId,
     interrupted,
     interruptMessage,
+    pendingTool,
   }
 }
 
@@ -746,5 +754,6 @@ export async function executeCopilotRun(
     threadId: null,
     interrupted: false,
     interruptMessage: null,
+    pendingTool: null,
   }
 }

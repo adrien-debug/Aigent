@@ -5,13 +5,23 @@ import { useRouter } from 'next/navigation'
 
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { RunStatusText } from '@/components/agent-ops/run-detail-panel'
+import { ToolBadge } from '@/components/agent-ops/tool-badge'
 import { Button } from '@/components/catalyst/button'
 import { Field, Label } from '@/components/catalyst/fieldset'
 import { Subheading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
 import { Textarea } from '@/components/catalyst/textarea'
 import { formatDurationMs, formatUsd } from '@/lib/agent-mission-control/format'
-import type { AgentRun } from '@/lib/agent-mission-control/types'
+import type { AgentRun, ToolRiskLevel } from '@/lib/agent-mission-control/types'
+
+const TOOL_RISK_LEVELS: readonly ToolRiskLevel[] = ['low', 'medium', 'high', 'critical']
+
+/** Narrow the interrupt payload's free-form risk string to a known level (else undefined). */
+function asToolRisk(risk: string | undefined): ToolRiskLevel | undefined {
+  return risk !== undefined && (TOOL_RISK_LEVELS as readonly string[]).includes(risk)
+    ? (risk as ToolRiskLevel)
+    : undefined
+}
 
 interface RunCopilotPanelProps {
   copilotId: string
@@ -25,6 +35,8 @@ type RunResult = Pick<AgentRun, 'status' | 'outputSummary' | 'latencyMs' | 'cost
   interrupted?: boolean
   /** The approval question shown in the human-in-the-loop block. */
   interruptMessage?: string | null
+  /** The tool awaiting approval — name + proposed args, so the operator isn't blind. */
+  pendingTool?: { name: string; argumentsSummary: string; risk?: string } | null
 }
 
 /**
@@ -173,7 +185,10 @@ export function RunCopilotPanel({ copilotId, copilotName }: RunCopilotPanelProps
             {result.status === 'needs-confirmation' || result.interrupted ? (
               // Human-in-the-loop: the LangGraph run paused before a tool and is
               // waiting on an operator decision — surfaced automatically, no reveal.
-              <div className="mt-4 rounded-lg bg-accent-500/5 p-4 ring-1 ring-accent-500/20 dark:bg-accent-500/10">
+              <div
+                role="alert"
+                className="mt-4 rounded-lg bg-accent-500/5 p-4 ring-1 ring-accent-500/20 dark:bg-accent-500/10"
+              >
                 <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
                   Human approval required
                 </p>
@@ -181,6 +196,17 @@ export function RunCopilotPanel({ copilotId, copilotName }: RunCopilotPanelProps
                   {result.interruptMessage ??
                     'This run paused for human approval before running a tool.'}
                 </p>
+                {result.pendingTool ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                    <ToolBadge
+                      name={result.pendingTool.name}
+                      risk={asToolRisk(result.pendingTool.risk)}
+                    />
+                    <code className="line-clamp-2 max-w-full rounded-md bg-zinc-950/5 px-1.5 py-0.5 font-mono text-xs break-words text-zinc-500 dark:bg-white/5 dark:text-zinc-400">
+                      {result.pendingTool.argumentsSummary}
+                    </code>
+                  </div>
+                ) : null}
                 <div className="mt-4 flex flex-wrap items-center gap-3">
                   <Button color="accent" onClick={() => handleResume(true)} disabled={resuming}>
                     {resuming ? (

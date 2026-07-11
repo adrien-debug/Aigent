@@ -139,6 +139,9 @@ export async function POST(
       // Approve/Reject prompt and calls the resume route with this runId.
       interrupted: result.interrupted,
       interruptMessage: result.interruptMessage,
+      // The tool awaiting approval (name + args) so the operator approves with
+      // full context instead of blind — only meaningful when interrupted.
+      pendingTool: result.interrupted ? result.pendingTool ?? null : null,
     })
   } catch (err) {
     return NextResponse.json(
