@@ -1,6 +1,5 @@
 import NextLink from 'next/link'
 
-import { Badge } from '@/components/catalyst/badge'
 import { formatRelative } from '@/lib/agent-mission-control/format'
 
 type Severity = 'warning' | 'danger'
@@ -11,10 +10,9 @@ const severityLabel: Record<Severity, string> = {
 }
 
 /**
- * SeverityFeedRow — one dense line for the overview warnings feed. A FILLED
- * severity pill whose INTENSITY (accentStrong vs accentSolid) distinguishes
- * warning from danger — the label text is ALWAYS present, so colour is never
- * the sole signal. Server-safe (no hooks).
+ * SeverityFeedRow — one dense line for the overview warnings feed. Severity
+ * is a plain muted text label — the label text is ALWAYS present, so colour
+ * is never the sole signal. Server-safe (no hooks).
  */
 export function SeverityFeedRow({
   severity,
@@ -33,15 +31,15 @@ export function SeverityFeedRow({
 }) {
   return (
     <div className="flex items-center gap-3 py-2">
-      <Badge color={severity === 'danger' ? 'accentSolid' : 'accentStrong'}>
+      <span className="shrink-0 text-xs font-medium text-zinc-500 dark:text-zinc-400">
         {severityLabel[severity]}
-      </Badge>
+      </span>
       <span className="min-w-0 flex-1 truncate text-sm text-zinc-700 dark:text-zinc-300" title={message}>
         {message}
       </span>
       {copilotName ? (
-        <span className="hidden shrink-0 sm:inline">
-          <Badge color="zinc">{copilotName}</Badge>
+        <span className="hidden shrink-0 text-xs text-zinc-500 dark:text-zinc-400 sm:inline">
+          {copilotName}
         </span>
       ) : null}
       <time
@@ -62,19 +60,14 @@ export function SeverityFeedRow({
 }
 
 /**
- * SeverityTally — companion header cluster for the warnings feed: two filled
- * Badges whose intensity matches the rows (Warning = accentStrong, Danger =
- * accentSolid).
+ * SeverityTally — companion header cluster for the warnings feed: plain
+ * muted text counts, no colored background.
  */
 export function SeverityTally({ warning, danger }: { warning: number; danger: number }) {
   return (
-    <div className="flex items-center gap-2">
-      <Badge color="accentStrong" className="font-mono tabular-nums">
-        Warning · {warning}
-      </Badge>
-      <Badge color="accentSolid" className="font-mono tabular-nums">
-        Danger · {danger}
-      </Badge>
+    <div className="flex items-center gap-2 font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+      <span>Warning · {warning}</span>
+      <span>Danger · {danger}</span>
     </div>
   )
 }

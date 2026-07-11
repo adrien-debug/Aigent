@@ -1,9 +1,15 @@
 import { ToolBadge } from '@/components/agent-ops/tool-badge'
-import { TestResultBadge } from '@/components/agent-ops/test-result-badge'
-import { Badge } from '@/components/catalyst/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { formatDurationMs, formatUsd } from '@/lib/agent-mission-control/format'
-import type { TestCase, TestResult } from '@/lib/agent-mission-control/types'
+import type { TestCase, TestResult, TestResultStatus } from '@/lib/agent-mission-control/types'
+
+const resultLabel: Record<TestResultStatus, string> = {
+  pass: 'Pass',
+  fail: 'Fail',
+  error: 'Error',
+  skip: 'Skip',
+  running: 'Running',
+}
 
 /**
  * Test case table — one row per case, joined with the result of the suite's
@@ -28,7 +34,7 @@ export function TestCaseTable({
           <TableHeader>Result</TableHeader>
           <TableHeader>Input</TableHeader>
           <TableHeader>Tools</TableHeader>
-          <TableHeader>
+          <TableHeader className="text-right">
             Latency<span className="sr-only"> and cost</span>
           </TableHeader>
           <TableHeader>Failure</TableHeader>
@@ -67,7 +73,9 @@ export function TestCaseTable({
                 ) : null}
               </TableCell>
               <TableCell>
-                {result ? <TestResultBadge result={result.status} /> : <Badge color="zinc">Not run</Badge>}
+                <span className="text-zinc-500 dark:text-zinc-400">
+                  {result ? resultLabel[result.status] : 'Not run'}
+                </span>
               </TableCell>
               <TableCell>
                 <p className="max-w-56 truncate text-zinc-500 dark:text-zinc-400" title={testCase.input}>
@@ -89,7 +97,7 @@ export function TestCaseTable({
                   <span className="text-xs text-zinc-500">none</span>
                 )}
               </TableCell>
-              <TableCell>
+              <TableCell className="text-right">
                 {result ? (
                   <span className="font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
                     {formatDurationMs(result.latencyMs)} · {formatUsd(result.costUsd, 3)}
