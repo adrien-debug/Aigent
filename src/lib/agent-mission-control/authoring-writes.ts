@@ -13,56 +13,10 @@
 import 'server-only'
 
 import type { CreateCopilotInput } from './authoring-types'
+import { pgrest } from './postgrest'
 import { makeId, slugify } from './slug'
 
-// ---------------------------------------------------------------------------
-// PostgREST minimal write client (fetch, service_role, zero deps) — fail-closed
-// ---------------------------------------------------------------------------
-
-function requireBackend(): { base: string; key: string } {
-  const base = process.env.AMC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (process.env.AMC_DATA_SOURCE !== 'gpu1' || !base || !key) {
-    throw new Error(
-      'Agent Mission Control is live-only: set AMC_DATA_SOURCE=gpu1, AMC_SUPABASE_URL and ' +
-        'SUPABASE_SERVICE_ROLE_KEY. No mock dataset is bundled.'
-    )
-  }
-  return { base, key }
-}
-
 type RawRow = Record<string, unknown>
-
-/**
- * POST/PATCH/GET against a PostgREST table, service_role, `Prefer:
- * return=representation` so inserts/updates hand back the persisted row(s).
- * Fail-closed: throws (never fabricates data) if the backend isn't live or
- * PostgREST returns a non-OK status.
- */
-async function restWrite(
-  method: 'POST' | 'PATCH' | 'GET',
-  pathAndQuery: string,
-  body?: unknown
-): Promise<RawRow[]> {
-  const { base, key } = requireBackend()
-  const res = await fetch(`${base}/rest/v1/${pathAndQuery}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation',
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    cache: 'no-store',
-  })
-  if (!res.ok) {
-    throw new Error(`PostgREST ${res.status} on ${method} ${pathAndQuery}: ${(await res.text()).slice(0, 200)}`)
-  }
-  if (method === 'GET' && res.status === 204) return []
-  const text = await res.text()
-  if (!text) return []
-  return JSON.parse(text) as RawRow[]
-}
 
 // ---------------------------------------------------------------------------
 // createCopilotFromManifest — materialize a ready draft into a real copilot
@@ -126,7 +80,7 @@ export async function createCopilotFromManifest(input: CreateCopilotInput): Prom
     },
     created_via: 'authoring',
   }
-  await restWrite('POST', 'copilots', copilotPayload)
+  await pgrest<RawRow[]>('POST', 'copilots', copilotPayload)
 
   // 2. manifest (copilot_id now resolves)
   const manifestPayload: RawRow = {
@@ -145,7 +99,7 @@ export async function createCopilotFromManifest(input: CreateCopilotInput): Prom
     max_cost_per_run_usd: input.manifest.maxCostPerRunUsd,
     updated_at: now,
   }
-  await restWrite('POST', 'manifests', manifestPayload)
+  await pgrest<RawRow[]>('POST', 'manifests', manifestPayload)
 
   // 3. tools (from proposedTools), collect their ids, backfill manifest.tool_ids
   const toolIds: string[] = []
@@ -161,11 +115,11 @@ export async function createCopilotFromManifest(input: CreateCopilotInput): Prom
       requires_confirmation: proposed.requiresConfirmation,
       scoped_routes: [],
     }
-    const toolRows = await restWrite('POST', 'tools', toolPayload)
+    const toolRows = await pgrest<RawRow[]>('POST', 'tools', toolPayload)
     toolIds.push(toolRows[0].id as string)
   }
   if (toolIds.length > 0) {
-    await restWrite('PATCH', `manifests?id=eq.${encodeURIComponent(manifestId)}`, {
+    await pgrest<RawRow[]>('PATCH', `manifests?id=eq.${encodeURIComponent(manifestId)}`, {
       tool_ids: toolIds,
     })
   }
@@ -189,7 +143,7 @@ export async function createCopilotFromManifest(input: CreateCopilotInput): Prom
       unsafeActionCount: 0,
     },
   }
-  await restWrite('POST', 'copilot_versions', versionPayload)
+  await pgrest<RawRow[]>('POST', 'copilot_versions', versionPayload)
 
   return copilotId
 }
