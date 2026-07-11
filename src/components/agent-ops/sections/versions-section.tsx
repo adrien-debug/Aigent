@@ -1,9 +1,9 @@
 
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ReleasePathSteps } from '@/components/agent-ops/release-path-steps'
-import { VersionComparisonCard, VersionStageBadge, versionNeverTested } from '@/components/agent-ops/version-comparison-card'
+import { VersionComparisonCard, versionNeverTested } from '@/components/agent-ops/version-comparison-card'
+import { versionStageLabels } from '@/components/agent-ops/version-stage-badge'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
-import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Subheading } from '@/components/catalyst/heading'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
@@ -125,7 +125,7 @@ export async function VersionsSection({ copilotId }: { copilotId: string }) {
                   <span className="font-mono text-xs tabular-nums text-zinc-950 dark:text-white">{version.label}</span>
                 </TableCell>
                 <TableCell>
-                  <VersionStageBadge stage={version.stage} />
+                  <span className="text-zinc-500 dark:text-zinc-400">{versionStageLabels[version.stage]}</span>
                 </TableCell>
                 <TableCell className="w-40">
                   {versionNeverTested(version) ? (
@@ -166,11 +166,13 @@ export async function VersionsSection({ copilotId }: { copilotId: string }) {
                     />
                   )}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right tabular-nums">
                   {version.scores.unsafeActionCount === 0 ? (
-                    <Badge color="accent">0 · none</Badge>
+                    <span className="text-zinc-500 dark:text-zinc-400">0 · none</span>
                   ) : (
-                    <Badge color="accentSolid">{version.scores.unsafeActionCount} · flagged</Badge>
+                    <span className="text-zinc-300">
+                      {version.scores.unsafeActionCount} · flagged
+                    </span>
                   )}
                 </TableCell>
               </TableRow>
