@@ -13,6 +13,7 @@
  */
 import 'server-only'
 
+import { camelRow, camelRows, pgrest } from './postgrest'
 import type {
   AgentManifest,
   AgentRun,
@@ -35,44 +36,8 @@ import type {
   ToolDefinition,
 } from './types'
 
-// ---------------------------------------------------------------------------
-// PostgREST minimal client (fetch, service_role, zero deps) — fail-closed
-// ---------------------------------------------------------------------------
-
-function requireBackend(): { base: string; key: string } {
-  const base = process.env.AMC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (process.env.AMC_DATA_SOURCE !== 'gpu1' || !base || !key) {
-    throw new Error(
-      'Agent Mission Control is live-only: set AMC_DATA_SOURCE=gpu1, AMC_SUPABASE_URL and ' +
-        'SUPABASE_SERVICE_ROLE_KEY. No mock dataset is bundled.'
-    )
-  }
-  return { base, key }
-}
-
-async function rest<T>(pathAndQuery: string): Promise<T> {
-  const { base, key } = requireBackend()
-  const res = await fetch(`${base}/rest/v1/${pathAndQuery}`, {
-    headers: { Authorization: `Bearer ${key}` },
-    cache: 'no-store',
-  })
-  if (!res.ok) {
-    throw new Error(`PostgREST ${res.status} on ${pathAndQuery}: ${(await res.text()).slice(0, 200)}`)
-  }
-  return (await res.json()) as T
-}
-
-/** snake_case → camelCase (top-level only; jsonb payloads are already camelCase). */
-function camelRow<T>(row: Record<string, unknown>): T {
-  const out: Record<string, unknown> = {}
-  for (const [k, v] of Object.entries(row)) {
-    out[k.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase())] = v
-  }
-  return out as T
-}
-
-const camelRows = <T>(rows: Record<string, unknown>[]): T[] => rows.map((r) => camelRow<T>(r))
+// PostgREST transport + case conversion come from the shared server-only client.
+const rest = <T>(pathAndQuery: string): Promise<T> => pgrest<T>('GET', pathAndQuery)
 
 type RawRow = Record<string, unknown>
 

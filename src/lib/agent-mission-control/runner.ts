@@ -14,6 +14,7 @@ import 'server-only'
 import { randomUUID } from 'node:crypto'
 
 import { getOpenAIClient, RUNNER_MODEL } from './llm-client'
+import { pgrest } from './postgrest'
 import type { AgentRunStatus, AgentRunStepKind, DurationMs, IsoTimestamp, UsdAmount } from './types'
 
 // ---------------------------------------------------------------------------
@@ -31,45 +32,6 @@ function computeCostUsd(inputTokens: number, outputTokens: number): UsdAmount {
   return Math.round(cost * 1e6) / 1e6
 }
 
-// ---------------------------------------------------------------------------
-// Minimal inline PostgREST write helper (this file's own copy — restWrite from
-// data.ts is out of scope: single-owner file boundaries forbid importing it).
-// ---------------------------------------------------------------------------
-
-function requireBackend(): { base: string; key: string } {
-  const base = process.env.AMC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (process.env.AMC_DATA_SOURCE !== 'gpu1' || !base || !key) {
-    throw new Error(
-      'Agent Mission Control is live-only: set AMC_DATA_SOURCE=gpu1, AMC_SUPABASE_URL and ' +
-        'SUPABASE_SERVICE_ROLE_KEY. No mock dataset is bundled.'
-    )
-  }
-  return { base, key }
-}
-
-/** POST a row to a PostgREST table and return the inserted representation. */
-async function insertRow<T extends Record<string, unknown>>(
-  table: string,
-  body: Record<string, unknown>
-): Promise<T> {
-  const { base, key } = requireBackend()
-  const res = await fetch(`${base}/rest/v1/${table}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${key}`,
-      apikey: key,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation',
-    },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) {
-    throw new Error(`PostgREST POST ${res.status} on ${table}: ${(await res.text()).slice(0, 300)}`)
-  }
-  const rows = (await res.json()) as T[]
-  return rows[0]
-}
 
 // ---------------------------------------------------------------------------
 // Runner
@@ -165,7 +127,7 @@ export async function executeCopilotRun(
   const runId = randomUUID()
 
   // Persist agent_runs row.
-  await insertRow('agent_runs', {
+  await pgrest('POST', 'agent_runs', {
     id: runId,
     copilot_id: copilotId,
     version_id: versionId,
@@ -187,7 +149,7 @@ export async function executeCopilotRun(
   // Persist a single output step describing the LLM call outcome.
   const stepStartedAt = startedAt
   const stepDurationMs = latencyMs
-  await insertRow('agent_run_steps', {
+  await pgrest('POST', 'agent_run_steps', {
     id: randomUUID(),
     run_id: runId,
     index: 0,
