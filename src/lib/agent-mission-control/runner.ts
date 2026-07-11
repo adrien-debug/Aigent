@@ -1,34 +1,57 @@
 /**
  * Agent Mission Control — execution runner (server only).
  *
- * LIVE ONLY. Executes a copilot run against the real OpenAI API and
+ * LIVE ONLY. Executes a copilot run against the real model provider and
  * persists the result to the gpu1 PostgREST perimeter (agent_runs +
- * agent_run_steps). There is no mock/dry-run mode: every call here either
- * produces a real completion + a real DB row, or throws.
+ * agent_run_steps + tool_calls). There is no mock/dry-run mode: every call
+ * here either produces a real completion + real DB rows, or throws.
+ *
+ * TOOL-USE: when the copilot's manifest declares tools, the runner drives a
+ * real agentic loop — the model may request a tool, the runner runs a
+ * guardrail check (allowed? risky? requires confirmation?), executes the tool
+ * handler for real (read-only DB reads), feeds the result back, and loops
+ * until the model produces a final answer or the manifest step budget is hit.
+ * A write/confirmation-required tool is BLOCKED (never auto-executed) unless
+ * the caller explicitly confirms it. No tool call is ever fabricated.
  *
  * Required env: AMC_DATA_SOURCE=gpu1, AMC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
- * OPENAI_API_KEY (the latter is read inside ./llm-client).
+ * OPENAI_API_KEY (the latter is read inside the model router).
  */
 import 'server-only'
 
 import { randomUUID } from 'node:crypto'
 
 import { summarize } from './format'
-import { routeCompletion } from './model-router'
+import {
+  routeCompletion,
+  type ModelRouterMessage,
+  type ModelRouterTool,
+  type ModelRouterToolCall,
+} from './model-router'
 import { pgrest } from './postgrest'
 import { startTrace, toDbStepKind, type TraceStep } from './run-trace'
+import { TOOL_HANDLERS, type ToolHandlerResult } from './tool-handlers'
 import type {
   AgentRunStatus,
   AgentRunStepKind,
   DurationMs,
   IsoTimestamp,
   ModelProvider,
-  UsdAmount,
+  ToolRiskLevel,
 } from './types'
 
 // ---------------------------------------------------------------------------
 // Runner
 // ---------------------------------------------------------------------------
+
+/** One tool the copilot may call, as resolved from its manifest + tools rows. */
+export interface RunnerTool {
+  id: string
+  name: string
+  description: string
+  riskLevel: ToolRiskLevel
+  requiresConfirmation: boolean
+}
 
 export interface ExecuteCopilotRunArgs {
   copilotId: string
@@ -42,6 +65,18 @@ export interface ExecuteCopilotRunArgs {
   maxSteps: number
   /** Per-request opt-in to run model fallbacks (OR-ed with the env flag). */
   allowFallback?: boolean
+  /**
+   * Tools the copilot may call. When omitted, the runner loads them from the
+   * manifest of `versionId` (so every caller gets tool-use without threading
+   * the list through). Pass an explicit [] to force a tool-less run.
+   */
+  tools?: RunnerTool[]
+  /**
+   * Tool NAMES the caller has explicitly confirmed for this run. A tool with
+   * requiresConfirmation is BLOCKED unless its name is here. Read-only tools
+   * never need this.
+   */
+  confirmedToolNames?: string[]
 }
 
 export interface ExecuteCopilotRunStep {
@@ -61,6 +96,10 @@ export interface ExecuteCopilotRunResult {
   latencyMs: DurationMs
   costUsd: UsdAmount
   steps: ExecuteCopilotRunStep[]
+  /** Tool calls actually attempted (executed, blocked or errored). */
+  toolCallCount: number
+  /** Tool calls blocked by the confirmation gate. */
+  blockedToolCount: number
   /** LangSmith deep-link, or null when LangSmith isn't configured (honest). */
   traceUrl: string | null
   /** Provider/model actually used (differs from requested on fallback). */
@@ -69,37 +108,131 @@ export interface ExecuteCopilotRunResult {
   fallbackUsed: boolean
 }
 
+type UsdAmount = number
+
+// ---------------------------------------------------------------------------
+// Tool loading — resolve the manifest's tools into RunnerTool[] (server-only).
+// ---------------------------------------------------------------------------
+
+type RawRow = Record<string, unknown>
 
 /**
- * Execute one copilot run: call OpenAI with the copilot's system prompt +
- * user input, persist an agent_runs row and a matching agent_run_steps row,
- * and return the structured result. On OpenAI failure, still persists a
- * `failed` run so the run history stays complete.
+ * Load the tools the copilot may call from the manifest tied to `versionId`.
+ * Returns [] when the version has no manifest or the manifest declares no
+ * tools — a tool-less run (identical to the previous runner behaviour).
+ */
+async function loadToolsForVersion(versionId: string): Promise<RunnerTool[]> {
+  const versionRows = await pgrest<RawRow[]>('GET', `copilot_versions?id=eq.${encodeURIComponent(versionId)}&select=manifest_id`)
+  const manifestId = versionRows[0]?.manifest_id as string | null | undefined
+  if (!manifestId) return []
+
+  const manifestRows = await pgrest<RawRow[]>('GET', `manifests?id=eq.${encodeURIComponent(manifestId)}&select=tool_ids`)
+  const toolIds = (manifestRows[0]?.tool_ids as string[] | null | undefined) ?? []
+  if (toolIds.length === 0) return []
+
+  const inList = toolIds.map((id) => `"${id}"`).join(',')
+  const toolRows = await pgrest<RawRow[]>(
+    'GET',
+    `tools?id=in.(${encodeURIComponent(inList)})&select=id,name,description,risk_level,requires_confirmation`
+  )
+  return toolRows.map((r) => ({
+    id: r.id as string,
+    name: r.name as string,
+    description: (r.description as string) ?? '',
+    riskLevel: (r.risk_level as ToolRiskLevel) ?? 'low',
+    requiresConfirmation: r.requires_confirmation === true,
+  }))
+}
+
+/** Map a RunnerTool to the router's tool schema (permissive object args). */
+function toRouterTool(t: RunnerTool): ModelRouterTool {
+  return {
+    name: t.name,
+    description: t.description,
+    parameters: {
+      type: 'object',
+      properties: {},
+      additionalProperties: true,
+    },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Guardrail — decide whether a requested tool may execute.
+// ---------------------------------------------------------------------------
+
+type GuardrailVerdict =
+  | { allow: true; tool: RunnerTool }
+  | { allow: false; reason: string; blocked: boolean; tool?: RunnerTool }
+
+/**
+ * Gate a model-requested tool call against the manifest:
+ *  - unknown tool (not in the allowlist) → denied (not blocked, just refused)
+ *  - no registered handler → denied
+ *  - requiresConfirmation and not confirmed → BLOCKED (safety), never executed
+ *  - otherwise → allowed
+ */
+function guardrailCheck(
+  call: ModelRouterToolCall,
+  tools: RunnerTool[],
+  confirmed: Set<string>
+): GuardrailVerdict {
+  const tool = tools.find((t) => t.name === call.name)
+  if (!tool) {
+    return { allow: false, reason: `tool '${call.name}' is not in the manifest allowlist`, blocked: false }
+  }
+  if (!TOOL_HANDLERS[tool.name]) {
+    return { allow: false, reason: `tool '${tool.name}' has no registered handler`, blocked: false, tool }
+  }
+  if (tool.requiresConfirmation && !confirmed.has(tool.name)) {
+    return {
+      allow: false,
+      reason: `tool '${tool.name}' requires human confirmation (${tool.riskLevel} risk) — blocked pending approval`,
+      blocked: true,
+      tool,
+    }
+  }
+  return { allow: true, tool }
+}
+
+// ---------------------------------------------------------------------------
+// Runner
+// ---------------------------------------------------------------------------
+
+/**
+ * Execute one copilot run: call the model with the copilot's system prompt +
+ * user input and its tool set, drive the real tool-use loop, persist an
+ * agent_runs row plus one agent_run_steps row per trace step and one
+ * tool_calls row per attempted tool, and return the structured result. On
+ * model failure, still persists a `failed` run so the run history stays
+ * complete.
  */
 export async function executeCopilotRun(
   args: ExecuteCopilotRunArgs
 ): Promise<ExecuteCopilotRunResult> {
   const { copilotId, versionId, projectId, model, systemPromptSummary, userInput, maxSteps } = args
   const modelProvider: ModelProvider = args.modelProvider ?? 'openai'
+  const confirmed = new Set(args.confirmedToolNames ?? [])
+
+  // Resolve the tool set: explicit list wins; otherwise load from the manifest.
+  const tools = args.tools ?? (await loadToolsForVersion(versionId))
+  const routerTools = tools.map(toRouterTool)
 
   const startedAtMs = Date.now()
   const startedAt: IsoTimestamp = new Date(startedAtMs).toISOString()
   const runId = randomUUID()
 
-  // A structured trace assembles the real timeline: resolve-model → llm-call →
-  // (fallback marker) → output. Kinds map to DB-valid values on persist.
   const trace = startTrace(
     { runId, copilotId, versionId, projectId, mode: 'run', provider: modelProvider, model },
     startedAtMs
   )
 
-  // Step 1 — model resolution (deterministic, ~0ms). Records the requested
-  // provider/model before the call; the resolved pair is filled in after.
+  // Step 1 — model resolution.
   trace.step(
     {
       kind: 'guardrail-check',
       title: 'Resolve model',
-      detail: `Requested ${modelProvider}/${model || '(default)'} under the copilot manifest.`,
+      detail: `Requested ${modelProvider}/${model || '(default)'} · ${tools.length} tool${tools.length === 1 ? '' : 's'} available.`,
       status: 'ok',
       startedAt,
       durationMs: 0,
@@ -113,71 +246,198 @@ export async function executeCopilotRun(
   let resolvedProvider: ModelProvider = modelProvider
   let resolvedModel: string = model
   let fallbackUsed = false
+  let toolCallCount = 0
+  let blockedToolCount = 0
+  // tool_calls rows to persist after the run row exists.
+  const toolCallRows: RawRow[] = []
 
-  const callStartMs = Date.now()
+  // Conversation state for the agentic loop.
+  const messages: ModelRouterMessage[] = [
+    { role: 'system', content: systemPromptSummary },
+    { role: 'user', content: userInput },
+  ]
+
+  // maxSteps is the manifest ceiling on model turns. Guarantee at least 1.
+  const maxTurns = Math.max(1, maxSteps)
+
   try {
-    // Route through the provider-aware model router (fallback-aware); cost is
-    // normalised per provider/model by the router.
-    const res = await routeCompletion({
-      purpose: 'run',
-      modelProvider,
-      model,
-      allowFallback: args.allowFallback,
-      messages: [
-        { role: 'system', content: systemPromptSummary },
-        { role: 'user', content: userInput },
-      ],
-      maxOutputTokens: 4096,
-    })
+    let finalText = ''
+    let turn = 0
+    let resolvedThisRun = false
 
-    const replyText = res.text
-    costUsd = res.costUsd
-    resolvedProvider = res.resolvedProvider
-    resolvedModel = res.resolvedModel
-    fallbackUsed = res.fallbackUsed
-    trace.resolve(res.resolvedProvider, res.resolvedModel, res.fallbackUsed)
+    for (; turn < maxTurns; turn += 1) {
+      const res = await routeCompletion({
+        purpose: 'run',
+        modelProvider,
+        model,
+        allowFallback: args.allowFallback,
+        messages,
+        maxOutputTokens: 4096,
+        tools: routerTools.length > 0 ? routerTools : undefined,
+        toolChoice: routerTools.length > 0 ? 'auto' : undefined,
+      })
 
-    // Step 2 — fallback marker (only when a fallback actually fired).
-    if (res.fallbackUsed) {
+      costUsd += res.costUsd
+      if (!resolvedThisRun) {
+        resolvedProvider = res.resolvedProvider
+        resolvedModel = res.resolvedModel
+        fallbackUsed = res.fallbackUsed
+        trace.resolve(res.resolvedProvider, res.resolvedModel, res.fallbackUsed)
+        resolvedThisRun = true
+
+        if (res.fallbackUsed) {
+          trace.step(
+            {
+              kind: 'fallback',
+              title: 'Model fallback applied',
+              detail: summarize(res.fallbackReason ?? 'primary model unavailable'),
+              status: 'warning',
+              durationMs: 0,
+            },
+            Date.now()
+          )
+        }
+      }
+
+      // The llm-call step for this turn.
       trace.step(
         {
-          kind: 'fallback',
-          title: 'Model fallback applied',
-          detail: summarize(res.fallbackReason ?? 'primary model unavailable'),
+          kind: 'llm-call',
+          title: `LLM call · ${res.resolvedProvider}/${res.resolvedModel}`,
+          detail: summarize(
+            `turn ${turn + 1}/${maxTurns} · in ${res.inputTokens} tok, out ${res.outputTokens} tok, finish ${res.rawFinishReason ?? 'stop'}`
+          ),
+          status: 'ok',
+          durationMs: res.latencyMs,
+        },
+        Date.now()
+      )
+
+      const requestedCalls = res.toolCalls ?? []
+      if (requestedCalls.length === 0) {
+        // No tool requested → this is the final answer.
+        finalText = res.text
+        break
+      }
+
+      // Record the assistant turn (content + the tool calls it requested) so
+      // the next turn's history is well-formed for the provider.
+      messages.push({ role: 'assistant', content: res.text, toolCalls: requestedCalls })
+
+      // Execute each requested tool through the guardrail.
+      for (const call of requestedCalls) {
+        toolCallCount += 1
+        const verdict = guardrailCheck(call, tools, confirmed)
+
+        if (!verdict.allow) {
+          if (verdict.blocked) blockedToolCount += 1
+          // guardrail-check step (blocked or denied — both are safety outcomes).
+          trace.step(
+            {
+              kind: verdict.blocked ? 'confirmation' : 'guardrail-check',
+              title: verdict.blocked ? `Blocked · ${call.name}` : `Denied · ${call.name}`,
+              detail: summarize(verdict.reason),
+              status: 'blocked',
+              durationMs: 0,
+            },
+            Date.now()
+          )
+          toolCallRows.push({
+            id: randomUUID(),
+            run_id: runId,
+            tool_id: verdict.tool?.id ?? null,
+            tool_name: call.name,
+            arguments_summary: summarize(call.argumentsJson || '{}'),
+            result_summary: summarize(verdict.reason),
+            status: verdict.blocked ? 'blocked' : 'rejected',
+            risk_level: verdict.tool?.riskLevel ?? 'low',
+            required_confirmation: verdict.tool?.requiresConfirmation ?? false,
+            latency_ms: 0,
+          })
+          // Feed the refusal back so the model can adapt (e.g. explain to user).
+          messages.push({
+            role: 'tool',
+            toolCallId: call.id,
+            content: JSON.stringify({ ok: false, blocked: verdict.blocked, reason: verdict.reason }),
+          })
+          continue
+        }
+
+        // Allowed → execute the real handler.
+        const tool = verdict.tool
+        const callStart = Date.now()
+        let result: ToolHandlerResult
+        try {
+          result = await TOOL_HANDLERS[tool.name](call.argumentsJson, { copilotId })
+        } catch (err) {
+          result = {
+            ok: false,
+            data: { error: err instanceof Error ? err.message : String(err) },
+            summary: `tool ${tool.name} threw`,
+          }
+        }
+        const callLatency = Date.now() - callStart
+
+        trace.step(
+          {
+            kind: 'tool-call',
+            title: `Tool · ${tool.name}`,
+            detail: summarize(result.summary),
+            status: result.ok ? 'ok' : 'error',
+            durationMs: callLatency,
+            toolCallId: call.id,
+          },
+          Date.now()
+        )
+        toolCallRows.push({
+          id: randomUUID(),
+          run_id: runId,
+          tool_id: tool.id,
+          tool_name: tool.name,
+          arguments_summary: summarize(call.argumentsJson || '{}'),
+          result_summary: summarize(result.summary),
+          status: result.ok ? 'ok' : 'error',
+          risk_level: tool.riskLevel,
+          required_confirmation: tool.requiresConfirmation,
+          latency_ms: callLatency,
+        })
+        messages.push({
+          role: 'tool',
+          toolCallId: call.id,
+          content: JSON.stringify({ ok: result.ok, data: result.data }),
+        })
+      }
+      // Loop: next turn lets the model use the tool results (or finish).
+    }
+
+    if (turn >= maxTurns && finalText === '') {
+      // Hit the step budget without a final answer.
+      status = 'completed'
+      outputSummary = summarize('Reached the manifest step budget before a final answer.')
+      trace.step(
+        {
+          kind: 'output',
+          title: 'Step budget reached',
+          detail: outputSummary,
           status: 'warning',
           durationMs: 0,
         },
         Date.now()
       )
+    } else {
+      status = 'completed'
+      outputSummary = summarize(finalText || '(empty response)')
+      trace.step(
+        {
+          kind: 'output',
+          title: 'Model response',
+          detail: outputSummary,
+          status: 'ok',
+          durationMs: 0,
+        },
+        Date.now()
+      )
     }
-
-    // Step 3 — the LLM call itself.
-    trace.step(
-      {
-        kind: 'llm-call',
-        title: `LLM call · ${res.resolvedProvider}/${res.resolvedModel}`,
-        detail: summarize(
-          `in ${res.inputTokens} tok, out ${res.outputTokens} tok, finish ${res.rawFinishReason ?? 'stop'}`
-        ),
-        status: 'ok',
-        durationMs: res.latencyMs,
-      },
-      Date.now()
-    )
-
-    // Step 4 — output.
-    status = 'completed'
-    outputSummary = summarize(replyText)
-    trace.step(
-      {
-        kind: 'output',
-        title: 'Model response',
-        detail: summarize(replyText || '(empty response)'),
-        status: 'ok',
-        durationMs: 0,
-      },
-      Date.now()
-    )
   } catch (err) {
     status = 'failed'
     const message = err instanceof Error ? err.message : String(err)
@@ -188,23 +448,17 @@ export async function executeCopilotRun(
         title: 'Model call failed',
         detail: outputSummary,
         status: 'error',
-        durationMs: Date.now() - callStartMs,
+        durationMs: 0,
       },
       Date.now()
     )
   }
 
-  // maxSteps is the manifest ceiling; this runner emits a bounded, honest
-  // timeline (resolve → [fallback] → llm-call → output) — no invented tool
-  // calls. It never exceeds the cap.
-  void maxSteps
-
   const finishedAtMs = Date.now()
   const finishedAt: IsoTimestamp = new Date(finishedAtMs).toISOString()
   const latencyMs: DurationMs = finishedAtMs - startedAtMs
 
-  // Freeze + (maybe) export to LangSmith. Fail-open: a no-op/error export never
-  // affects the run; trace_url stays null unless a real deep-link resolves.
+  // Freeze + (maybe) export to LangSmith. Fail-open.
   const traceResult = await trace.finishAndExport(
     { userInput: summarize(userInput) },
     { output: outputSummary, status },
@@ -224,8 +478,8 @@ export async function executeCopilotRun(
     status,
     input_summary: summarize(userInput),
     output_summary: outputSummary,
-    tool_call_count: 0,
-    unsafe_attempt_count: 0,
+    tool_call_count: toolCallCount,
+    unsafe_attempt_count: blockedToolCount,
     latency_ms: latencyMs,
     cost_usd: costUsd,
     trace_url: traceResult.traceUrl,
@@ -248,6 +502,11 @@ export async function executeCopilotRun(
     })
   }
 
+  // Persist tool_calls rows (real attempts — executed, blocked or errored).
+  for (const row of toolCallRows) {
+    await pgrest('POST', 'tool_calls', row)
+  }
+
   const steps: ExecuteCopilotRunStep[] = traceResult.steps.map((s: TraceStep) => ({
     index: s.index,
     kind: toDbStepKind(s.kind),
@@ -265,6 +524,8 @@ export async function executeCopilotRun(
     latencyMs,
     costUsd,
     steps,
+    toolCallCount,
+    blockedToolCount,
     traceUrl: traceResult.traceUrl,
     resolvedProvider,
     resolvedModel,

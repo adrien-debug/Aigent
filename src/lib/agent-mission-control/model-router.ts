@@ -24,9 +24,27 @@ import { computeCostUsd, estimateTokens } from './model-pricing'
 import { ModelAccessError, ModelRouterError, ProviderUnavailableError } from './runner-errors'
 import type { ModelProvider } from './types'
 
+/** A tool the model may call (provider-agnostic; JSON Schema `parameters`). */
+export interface ModelRouterTool {
+  name: string
+  description: string
+  parameters: Record<string, unknown> // JSON Schema object
+}
+
+/** A tool call the model requested (id + name + raw JSON arguments). */
+export interface ModelRouterToolCall {
+  id: string
+  name: string
+  argumentsJson: string // raw JSON string of arguments the model chose
+}
+
 export interface ModelRouterMessage {
-  role: 'system' | 'user' | 'assistant'
+  role: 'system' | 'user' | 'assistant' | 'tool'
   content: string
+  /** Set on `role: 'tool'` messages — the tool call this result answers. */
+  toolCallId?: string
+  /** Set on an assistant message that requested tools (to replay in history). */
+  toolCalls?: ModelRouterToolCall[]
 }
 
 export interface ModelRouterRequest {
@@ -39,6 +57,10 @@ export interface ModelRouterRequest {
   maxOutputTokens?: number
   /** Per-request opt-in to run/benchmark fallbacks (OR-ed with the env flag). */
   allowFallback?: boolean
+  /** Tools the model may call (OpenAI only in this lot; ignored elsewhere). */
+  tools?: ModelRouterTool[]
+  /** How the model may use tools. Mapped to the provider's `tool_choice`. */
+  toolChoice?: 'auto' | 'none' | 'required'
 }
 
 export interface ModelRouterResponse {
@@ -57,6 +79,8 @@ export interface ModelRouterResponse {
   costUsd: number
   latencyMs: number
   rawFinishReason?: string
+  /** Tool calls the model requested this turn (empty/undefined if none). */
+  toolCalls?: ModelRouterToolCall[]
 }
 
 // ---------------------------------------------------------------------------
@@ -85,29 +109,84 @@ interface RawCall {
   inputTokens: number
   outputTokens: number
   finishReason?: string
+  toolCalls?: ModelRouterToolCall[]
 }
 
 // ---------------------------------------------------------------------------
 // Provider adapters — each returns raw text + token usage, or throws typed.
 // ---------------------------------------------------------------------------
 
+/** Map a router message to the OpenAI chat message param (all four roles). */
+function toOpenAiMessage(m: ModelRouterMessage): OpenAI.Chat.Completions.ChatCompletionMessageParam {
+  if (m.role === 'tool') {
+    return { role: 'tool', tool_call_id: m.toolCallId ?? '', content: m.content }
+  }
+  if (m.role === 'assistant' && m.toolCalls && m.toolCalls.length > 0) {
+    return {
+      role: 'assistant',
+      content: m.content,
+      tool_calls: m.toolCalls.map((tc) => ({
+        id: tc.id,
+        type: 'function' as const,
+        function: { name: tc.name, arguments: tc.argumentsJson },
+      })),
+    }
+  }
+  // system | user | assistant (no tool calls)
+  return { role: m.role, content: m.content }
+}
+
+/** Map the router's tool-choice to the OpenAI `tool_choice` option. */
+function toOpenAiToolChoice(
+  choice: ModelRouterRequest['toolChoice']
+): OpenAI.Chat.Completions.ChatCompletionToolChoiceOption | undefined {
+  switch (choice) {
+    case 'auto':
+      return 'auto'
+    case 'none':
+      return 'none'
+    case 'required':
+      return 'required'
+    default:
+      return undefined
+  }
+}
+
 async function callOpenAI(req: ModelRouterRequest): Promise<RawCall> {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) throw new ProviderUnavailableError('OpenAI not configured (OPENAI_API_KEY missing)')
   const client = new OpenAI({ apiKey })
 
+  const tools: OpenAI.Chat.Completions.ChatCompletionTool[] | undefined =
+    req.tools && req.tools.length > 0
+      ? req.tools.map((t) => ({
+          type: 'function' as const,
+          function: { name: t.name, description: t.description, parameters: t.parameters },
+        }))
+      : undefined
+  const toolChoice = tools ? toOpenAiToolChoice(req.toolChoice) : undefined
+
   try {
     const completion = await client.chat.completions.create({
       model: req.model,
-      messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
+      messages: req.messages.map(toOpenAiMessage),
       max_completion_tokens: req.maxOutputTokens ?? 2048,
       ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
+      ...(tools ? { tools } : {}),
+      ...(toolChoice !== undefined ? { tool_choice: toolChoice } : {}),
     })
+    const message = completion.choices[0]?.message
+    const toolCalls: ModelRouterToolCall[] = (message?.tool_calls ?? [])
+      .filter((tc): tc is OpenAI.Chat.Completions.ChatCompletionMessageFunctionToolCall => tc.type === 'function')
+      .map((tc) => ({ id: tc.id, name: tc.function.name, argumentsJson: tc.function.arguments }))
     return {
-      text: (completion.choices[0]?.message?.content ?? '').trim(),
+      // Keep any assistant content, but never trim it away to '' when tools are
+      // called — the runner may want the (possibly empty) content verbatim.
+      text: (message?.content ?? '').trim(),
       inputTokens: completion.usage?.prompt_tokens ?? 0,
       outputTokens: completion.usage?.completion_tokens ?? 0,
       finishReason: completion.choices[0]?.finish_reason ?? undefined,
+      ...(toolCalls.length > 0 ? { toolCalls } : {}),
     }
   } catch (err) {
     if (isAccessError(err)) {
@@ -125,11 +204,13 @@ async function callAnthropic(req: ModelRouterRequest): Promise<RawCall> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) throw new ProviderUnavailableError('Anthropic not configured (ANTHROPIC_API_KEY missing)')
 
-  // Anthropic wants system as a top-level field, not a message.
+  // Anthropic wants system as a top-level field, not a message. Tool-use is not
+  // wired for Anthropic in this lot: keep only user/assistant text turns so a
+  // `role: 'tool'` message can't slip through and get mislabelled.
   const system = req.messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n')
   const turns = req.messages
-    .filter((m) => m.role !== 'system')
-    .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+    .filter((m): m is ModelRouterMessage & { role: 'user' | 'assistant' } => m.role === 'user' || m.role === 'assistant')
+    .map((m) => ({ role: m.role, content: m.content }))
 
   let res: Response
   try {
@@ -182,9 +263,11 @@ async function callGemini(req: ModelRouterRequest): Promise<RawCall> {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
   if (!apiKey) throw new ProviderUnavailableError('Gemini not configured (GEMINI_API_KEY missing)')
 
+  // Tool-use is not wired for Gemini in this lot: keep only user/assistant text
+  // turns so a `role: 'tool'` message can't slip through mislabelled as a user.
   const system = req.messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n')
   const contents = req.messages
-    .filter((m) => m.role !== 'system')
+    .filter((m) => m.role === 'user' || m.role === 'assistant')
     .map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }))
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
@@ -307,6 +390,7 @@ export async function routeCompletion(req: ModelRouterRequest): Promise<ModelRou
       costUsd,
       latencyMs: Date.now() - startedMs,
       rawFinishReason: raw.finishReason,
+      toolCalls: raw.toolCalls,
     }
   }
 
