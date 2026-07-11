@@ -1,6 +1,5 @@
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { SplitBar } from '@/components/agent-ops/widgets/split-bar'
-import { Badge } from '@/components/catalyst/badge'
 import { formatTimestamp } from '@/lib/agent-mission-control/format'
 import type { CopilotVersion, PromotionCheck, PromotionGate } from '@/lib/agent-mission-control/types'
 
@@ -13,29 +12,26 @@ function observedValueOnly(observed: string): string {
   return observed.replace(/\s*[≥≤<>]\s*\S+$/u, '')
 }
 
-const checkStatusConfig: Record<
-  PromotionCheck['status'],
-  { label: string; badgeColor: 'accent' | 'accentSolid' | 'accentStrong' | 'zinc' }
-> = {
-  pass: { label: 'Pass', badgeColor: 'accent' },
-  fail: { label: 'Fail', badgeColor: 'accentSolid' },
-  pending: { label: 'Pending', badgeColor: 'accentStrong' },
-  waived: { label: 'Waived', badgeColor: 'zinc' },
+const checkStatusLabel: Record<PromotionCheck['status'], string> = {
+  pass: 'Pass',
+  fail: 'Fail',
+  pending: 'Pending',
+  waived: 'Waived',
 }
 
-const statusConfig: Record<PromotionGate['overallStatus'], { label: string; badgeColor: 'accent' | 'accentSolid' | 'accentStrong' }> = {
-  ready: { label: 'Ready', badgeColor: 'accent' },
-  blocked: { label: 'Blocked', badgeColor: 'accentSolid' },
-  'pending-approval': { label: 'Pending approval', badgeColor: 'accentStrong' },
+const overallStatusLabel: Record<PromotionGate['overallStatus'], string> = {
+  ready: 'Ready',
+  blocked: 'Blocked',
+  'pending-approval': 'Pending approval',
 }
 
 /**
  * Promotion gate panel: a single pass/fail SplitBar meter (passing / pending /
  * failing across one accent ramp) plus a dense two-column checklist — one line
- * per check, status Badge + label left, `observed → required` mono right, the
- * description demoted to the row's tooltip. The overall verdict rides a single
- * header Badge (no full-bleed status banner; the KPI band already carries it).
- * Server-safe.
+ * per check, plain-text status label + name left, `observed → required` mono
+ * right, the description demoted to the row's tooltip. The overall verdict
+ * rides a plain-text label in the header (no full-bleed status banner; the
+ * KPI band already carries it). Server-safe.
  */
 export function PromotionGateCard({
   gate,
@@ -49,7 +45,7 @@ export function PromotionGateCard({
   const passedChecks = gate.checks.filter((check) => check.status === 'pass').length
   const pendingChecks = gate.checks.filter((check) => check.status === 'pending').length
   const failingChecks = gate.checks.filter((check) => check.status === 'fail').length
-  const status = statusConfig[gate.overallStatus]
+  const statusLabel = overallStatusLabel[gate.overallStatus]
 
   const caption =
     failingChecks > 0
@@ -65,7 +61,7 @@ export function PromotionGateCard({
       actions={
         <>
           <span className="font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-300">{candidateLabel}</span>
-          <Badge color={status.badgeColor}>{status.label}</Badge>
+          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{statusLabel}</span>
         </>
       }
       contentClassName="px-6 py-5"
@@ -83,7 +79,7 @@ export function PromotionGateCard({
 
       <ul role="list" className="mt-6 grid gap-x-8 lg:grid-cols-2">
         {gate.checks.map((check) => {
-          const config = checkStatusConfig[check.status]
+          const label = checkStatusLabel[check.status]
           return (
             <li
               key={check.id}
@@ -91,7 +87,7 @@ export function PromotionGateCard({
               className="flex items-center justify-between gap-3 border-t border-zinc-950/5 py-2.5 dark:border-white/5"
             >
               <div className="flex min-w-0 items-center gap-2">
-                <Badge color={config.badgeColor}>{config.label}</Badge>
+                <span className="w-14 shrink-0 text-sm text-zinc-500 dark:text-zinc-400">{label}</span>
                 <span className="truncate text-sm text-zinc-950 dark:text-white">{check.label}</span>
               </div>
               <p className="shrink-0 font-mono text-xs tabular-nums text-zinc-500">
