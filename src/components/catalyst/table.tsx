@@ -65,8 +65,8 @@ export function TableRow({
           className,
           href &&
             'has-[[data-row-link][data-focus]]:outline-2 has-[[data-row-link][data-focus]]:-outline-offset-2 has-[[data-row-link][data-focus]]:outline-accent-500 dark:focus-within:bg-white/2.5',
-          striped && 'even:bg-zinc-950/2.5 dark:even:bg-white/2.5',
-          href && striped && 'hover:bg-zinc-950/5 dark:hover:bg-white/5',
+          striped && 'even:bg-zinc-950/[0.055] dark:even:bg-white/[0.055]',
+          href && striped && 'hover:bg-zinc-950/10 dark:hover:bg-white/10',
           href && !striped && 'hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5'
         )}
       />

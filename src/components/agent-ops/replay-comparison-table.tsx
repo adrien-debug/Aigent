@@ -19,7 +19,7 @@ export function ReplayComparisonTable({ candidate }: { candidate: ReplayCandidat
   }
 
   return (
-    <Table className="[--gutter:--spacing(4)]">
+    <Table striped className="[--gutter:--spacing(4)]">
       <TableHead>
         <TableRow>
           <TableHeader className="w-0 text-right">Step</TableHeader>

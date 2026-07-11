@@ -1,14 +1,6 @@
 import clsx from 'clsx'
 
-import { Badge } from '@/components/catalyst/badge'
 import { Divider } from '@/components/catalyst/divider'
-
-// Monochrome: trend meaning rides on the LABEL + accent intensity, never a hue.
-const trendColors = {
-  up: 'accent',
-  down: 'accentSolid',
-  flat: 'zinc',
-} as const
 
 const trendLabels = {
   up: 'Trending up',
@@ -53,7 +45,15 @@ export function AgentMetricCard({
             {delta ? (
               <>
                 <span className="sr-only">{trendLabels[trend]}:</span>
-                <Badge color={trendColors[trend]}>{delta}</Badge>
+                <span
+                  className={
+                    trend === 'down'
+                      ? 'font-medium text-accent-600 dark:text-accent-400'
+                      : 'font-medium text-zinc-600 dark:text-zinc-300'
+                  }
+                >
+                  {delta}
+                </span>
               </>
             ) : null}
             {hint ? <span className="text-zinc-500">{hint}</span> : null}

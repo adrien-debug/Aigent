@@ -107,7 +107,7 @@ export async function VersionsSection({ copilotId }: { copilotId: string }) {
         description="Every version side by side — test pass rate, benchmark score, shadow agreement and unsafe actions."
         contentClassName="px-6 py-4"
       >
-        <Table dense bleed className="[--gutter:--spacing(6)]">
+        <Table striped dense bleed className="[--gutter:--spacing(6)]">
           <TableHead>
             <TableRow>
               <TableHeader>Version</TableHeader>

@@ -379,10 +379,10 @@ export function CopilotRegistryTable({
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/10">{activeRows.map(renderRow)}</tbody>
+                  <tbody className="divide-y divide-white/10 [&>tr:nth-child(even)]:bg-white/[0.055]">{activeRows.map(renderRow)}</tbody>
 
                   {pausedRows.length > 0 ? (
-                    <tbody className="divide-y divide-white/10 border-t border-white/15">
+                    <tbody className="divide-y divide-white/10 border-t border-white/15 [&>tr:nth-child(even)]:bg-white/[0.055]">
                       <tr>
                         <th
                           scope="colgroup"

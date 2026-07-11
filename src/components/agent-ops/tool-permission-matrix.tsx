@@ -58,7 +58,7 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
 
   return (
     <div className="px-6 [--gutter:--spacing(6)]">
-      <Table bleed dense>
+      <Table striped bleed dense>
         {/* Accessible name must land on the <table> itself — Catalyst spreads props on its scroll wrapper. */}
         <caption className="sr-only">Tool permissions</caption>
         <TableHead>

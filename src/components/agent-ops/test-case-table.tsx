@@ -27,7 +27,7 @@ export function TestCaseTable({
   }
 
   return (
-    <Table dense bleed className="[--gutter:--spacing(6)]">
+    <Table striped dense bleed className="[--gutter:--spacing(6)]">
       <TableHead>
         <TableRow>
           <TableHeader>Case</TableHeader>

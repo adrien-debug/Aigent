@@ -50,7 +50,7 @@ const copilotStatusLabel = statusLabel
 function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
   return (
     <div className="px-6 [--gutter:--spacing(6)]">
-      <Table bleed>
+      <Table striped bleed>
         {/* Accessible name must land on the <table> itself — Catalyst spreads props on its scroll wrapper. */}
         <caption className="sr-only">Validated agents on this project</caption>
         <TableHead>
@@ -120,7 +120,7 @@ function ProjectTracesTable({
 }) {
   return (
     <div className="px-6 [--gutter:--spacing(6)]">
-      <Table bleed dense>
+      <Table striped bleed dense>
         {/* Accessible name must land on the <table> itself — Catalyst spreads props on its scroll wrapper. */}
         <caption className="sr-only">Recent traced runs for this project</caption>
         <TableHead>

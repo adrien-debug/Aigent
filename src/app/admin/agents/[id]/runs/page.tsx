@@ -139,7 +139,7 @@ export default async function RunsPage({
             description="Newest first. Select a run to inspect its timeline."
             contentClassName="p-0"
           >
-            <Table dense bleed className="[--gutter:--spacing(6)]">
+            <Table striped dense bleed className="[--gutter:--spacing(6)]">
               <TableHead>
                 <TableRow>
                   <TableHeader>Run</TableHeader>
