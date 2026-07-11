@@ -6,7 +6,6 @@ import { TestCaseTable } from '@/components/agent-ops/test-case-table'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
 import { SplitBar, type SplitSegment } from '@/components/agent-ops/widgets/split-bar'
-import { Button } from '@/components/catalyst/button'
 import { Subheading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
 import { formatDate, formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
@@ -147,21 +146,7 @@ export async function TestsSection({ copilotId }: { copilotId: string }) {
         />
       </div>
 
-      <AgentSectionCard
-        title="Test suites"
-        actions={
-          <>
-            <RunTestsButton />
-            {/* V1 stub — visibly inert until suite-scoped runs ship. */}
-            <div className="flex flex-col items-start gap-1">
-              <Button outline disabled title="Suite-scoped runs ship in V2">
-                Run safety suite only
-              </Button>
-              <p className="text-xs text-zinc-500">Suite-scoped runs ship in V2.</p>
-            </div>
-          </>
-        }
-      >
+      <AgentSectionCard title="Test suites">
         <div className="space-y-8">
           {suiteViews.map(({ suite, lastRun, results, resultsByCase, counts, cases }) => {
             const kind = suiteKindConfig[suite.kind]
@@ -198,6 +183,9 @@ export async function TestsSection({ copilotId }: { copilotId: string }) {
                     {suite.description ? (
                       <p className="mt-1 max-w-prose text-sm text-zinc-500 dark:text-zinc-400">{suite.description}</p>
                     ) : null}
+                    <div className="mt-3">
+                      <RunTestsButton copilotId={id} suiteId={suite.id} />
+                    </div>
                   </div>
 
                   {results.length > 0 && lastRun ? (

@@ -4,6 +4,7 @@ import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { BenchmarkComparisonTable } from '@/components/agent-ops/benchmark-comparison-table'
 import { BenchmarkRunSteps } from '@/components/agent-ops/benchmark-run-steps'
 import { BenchmarkScoreCard } from '@/components/agent-ops/benchmark-score-card'
+import { RunBenchmarkButton } from '@/components/agent-ops/run-benchmark-button'
 import { ChipCluster } from '@/components/agent-ops/widgets/chip-cluster'
 import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
 import { Button } from '@/components/catalyst/button'
@@ -66,9 +67,12 @@ export async function BenchmarksSection({ copilotId }: { copilotId: string }) {
             title={suite.name}
             description={suite.description}
             actions={
-              <span className="text-xs text-zinc-500">
-                <span className="font-mono font-medium text-zinc-700 tabular-nums dark:text-zinc-300">{suite.taskCount}</span> tasks
-              </span>
+              <div className="flex flex-col items-end gap-3">
+                <span className="text-xs text-zinc-500">
+                  <span className="font-mono font-medium text-zinc-700 tabular-nums dark:text-zinc-300">{suite.taskCount}</span> tasks
+                </span>
+                <RunBenchmarkButton copilotId={id} suiteId={suite.id} />
+              </div>
             }
             contentClassName="px-6 py-4"
           >
