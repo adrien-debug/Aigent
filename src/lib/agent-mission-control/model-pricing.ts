@@ -31,10 +31,6 @@ const MODEL_PRICING: Record<string, ModelPricing> = {
   'gpt-4.1': { inputUsdPer1M: 2, outputUsdPer1M: 8 },
   'gpt-4o': { inputUsdPer1M: 2.5, outputUsdPer1M: 10 },
   'gpt-4o-mini': { inputUsdPer1M: 0.15, outputUsdPer1M: 0.6 },
-  // Anthropic
-  'claude-sonnet-4-5': { inputUsdPer1M: 3, outputUsdPer1M: 15 },
-  'claude-opus-4-5': { inputUsdPer1M: 5, outputUsdPer1M: 25 },
-  'claude-opus-4-1': { inputUsdPer1M: 15, outputUsdPer1M: 75 },
   // Google
   'gemini-2.5-pro': { inputUsdPer1M: 1.25, outputUsdPer1M: 10 },
   'gemini-2.5-flash': { inputUsdPer1M: 0.3, outputUsdPer1M: 2.5 },
@@ -43,7 +39,6 @@ const MODEL_PRICING: Record<string, ModelPricing> = {
 // Per-provider fallback estimates when a model id is unknown.
 const PROVIDER_DEFAULT_PRICING: Record<ModelProvider, ModelPricing> = {
   openai: { inputUsdPer1M: 1.25, outputUsdPer1M: 10, estimated: true },
-  anthropic: { inputUsdPer1M: 3, outputUsdPer1M: 15, estimated: true },
   google: { inputUsdPer1M: 1.25, outputUsdPer1M: 10, estimated: true },
   mistral: { inputUsdPer1M: 2, outputUsdPer1M: 6, estimated: true },
   local: { inputUsdPer1M: 0, outputUsdPer1M: 0, estimated: true },

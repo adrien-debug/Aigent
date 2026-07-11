@@ -30,7 +30,7 @@ export class ModelRouterError extends Error {
   }
 }
 
-/** The provider's SDK/env isn't configured (e.g. ANTHROPIC_API_KEY missing). */
+/** The provider's SDK/env isn't configured (e.g. OPENAI_API_KEY missing). */
 export class ProviderUnavailableError extends ModelRouterError {
   constructor(message: string) {
     super(message)

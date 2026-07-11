@@ -4,8 +4,8 @@ import { runBenchmarkSuite } from '@/lib/agent-mission-control/benchmark-runner'
 import { NotFoundError, ProviderUnavailableError } from '@/lib/agent-mission-control/runner-errors'
 import type { AgentRuntime, BenchmarkRun, ModelProvider } from '@/lib/agent-mission-control/types'
 
-const MODEL_PROVIDERS: ModelProvider[] = ['openai', 'anthropic', 'google', 'mistral', 'local']
-const RUNTIMES: AgentRuntime[] = ['langgraph', 'openai-assistants', 'anthropic-sdk', 'gemini', 'custom']
+const MODEL_PROVIDERS: ModelProvider[] = ['openai', 'google', 'mistral', 'local']
+const RUNTIMES: AgentRuntime[] = ['langgraph', 'openai-assistants', 'gemini', 'custom']
 
 /**
  * POST /api/agent-ops/copilots/:copilotId/benchmarks/run — run a REAL V1

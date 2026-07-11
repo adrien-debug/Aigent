@@ -372,50 +372,6 @@ export async function handle({ input }: AgentInput): Promise<AgentResult> {
 `
 }
 
-function anthropicHandler(copilot: Copilot, manifest: AgentManifest): string {
-  const sys = forTemplate(manifest.systemPromptSummary)
-  return `${handlerHeader(copilot)}
-${SHARED_TYPES}
-const SYSTEM_PROMPT = \`${sys}\`
-const MODEL = ${JSON.stringify(copilot.model)}
-const MAX_STEPS = ${manifest.maxStepsPerRun}
-
-/**
- * Anthropic Messages runtime. Calls the Claude Messages API directly.
- * Requires: process.env.ANTHROPIC_API_KEY.
- */
-export async function handle({ input }: AgentInput): Promise<AgentResult> {
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set')
-
-  void MAX_STEPS
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: input }],
-    }),
-  })
-  if (!res.ok) throw new Error(\`Anthropic \${res.status}: \${(await res.text()).slice(0, 200)}\`)
-
-  const data = (await res.json()) as { content?: { type: string; text?: string }[] }
-  const text = (data.content ?? [])
-    .filter((b) => b.type === 'text')
-    .map((b) => b.text ?? '')
-    .join('')
-    .trim()
-  return { output: text }
-}
-`
-}
-
 function geminiHandler(copilot: Copilot, manifest: AgentManifest): string {
   const sys = forTemplate(manifest.systemPromptSummary)
   return `${handlerHeader(copilot)}
@@ -506,8 +462,6 @@ function handlerForRuntime(copilot: Copilot, manifest: AgentManifest): string {
       return langgraphHandler(copilot, manifest)
     case 'openai-assistants':
       return openaiAssistantsHandler(copilot, manifest)
-    case 'anthropic-sdk':
-      return anthropicHandler(copilot, manifest)
     case 'gemini':
       return geminiHandler(copilot, manifest)
     case 'custom':
@@ -526,8 +480,6 @@ function runtimeEnvVar(copilot: Copilot): string {
     case 'langgraph':
     case 'openai-assistants':
       return 'OPENAI_API_KEY'
-    case 'anthropic-sdk':
-      return 'ANTHROPIC_API_KEY'
     case 'gemini':
       return 'GEMINI_API_KEY'
     case 'custom':

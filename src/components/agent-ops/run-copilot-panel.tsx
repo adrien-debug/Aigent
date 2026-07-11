@@ -73,7 +73,7 @@ export function RunCopilotPanel({ copilotId, copilotName }: RunCopilotPanelProps
       <div className="border-b border-zinc-950/5 bg-zinc-950/[0.025] px-6 py-4 dark:border-white/5 dark:bg-white/[0.04]">
         <Subheading>Run {copilotName}</Subheading>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Send a task to this copilot and get a real, Anthropic-backed run back.
+          Send a task to this copilot and get a real, OpenAI-backed run back.
         </p>
       </div>
 

@@ -13,13 +13,12 @@ import type { CreateCopilotInput, GeneratedManifest } from '@/lib/agent-mission-
 import { slugify } from '@/lib/agent-mission-control/slug'
 import type { AgentRuntime, ModelProvider, Project } from '@/lib/agent-mission-control/types'
 
-const RUNTIME_OPTIONS: AgentRuntime[] = ['langgraph', 'openai-assistants', 'anthropic-sdk', 'gemini', 'custom']
-const PROVIDER_OPTIONS: ModelProvider[] = ['anthropic', 'openai', 'google', 'mistral', 'local']
+const RUNTIME_OPTIONS: AgentRuntime[] = ['langgraph', 'openai-assistants', 'gemini', 'custom']
+const PROVIDER_OPTIONS: ModelProvider[] = ['openai', 'google', 'mistral', 'local']
 
 /** Known model ids per provider (values already used across the app fixtures). */
 const SUGGESTED_MODELS: Record<ModelProvider, string[]> = {
-  anthropic: ['claude-sonnet-4-5', 'claude-opus-4-1', 'claude-sonnet-4'],
-  openai: ['gpt-5.2', 'gpt-4.1'],
+  openai: ['gpt-5.4', 'gpt-5.4-mini', 'gpt-4.1'],
   google: ['gemini-2.5-pro'],
   mistral: ['mistral-large-2508'],
   local: [],
@@ -27,8 +26,8 @@ const SUGGESTED_MODELS: Record<ModelProvider, string[]> = {
 
 const BENCH_VALUE = '__bench__'
 
-const DEFAULT_RUNTIME: AgentRuntime = 'anthropic-sdk'
-const DEFAULT_PROVIDER: ModelProvider = 'anthropic'
+const DEFAULT_RUNTIME: AgentRuntime = 'openai-assistants'
+const DEFAULT_PROVIDER: ModelProvider = 'openai'
 const DEFAULT_MODEL = SUGGESTED_MODELS[DEFAULT_PROVIDER][0]
 
 /** Same key as ArchitectChat's session draft — purged after a successful creation. */

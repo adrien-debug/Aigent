@@ -44,7 +44,6 @@ export interface Project {
 export type AgentRuntime =
   | 'langgraph'
   | 'openai-assistants'
-  | 'anthropic-sdk'
   | 'gemini'
   | 'custom'
 
@@ -52,7 +51,7 @@ export type CopilotStatus = 'active' | 'paused' | 'draft' | 'degraded' | 'archiv
 
 export type AgentPushStatus = 'never' | 'pushing' | 'pushed' | 'failed'
 
-export type ModelProvider = 'openai' | 'anthropic' | 'google' | 'mistral' | 'local'
+export type ModelProvider = 'openai' | 'google' | 'mistral' | 'local'
 
 export interface Copilot {
   id: string

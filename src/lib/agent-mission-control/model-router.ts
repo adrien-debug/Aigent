@@ -1,15 +1,13 @@
 /**
  * Agent Mission Control — model provider router (server only).
  *
- * One entry point the runners call instead of touching OpenAI/Anthropic/Gemini
+ * One entry point the runners call instead of touching OpenAI/Gemini
  * directly. It resolves the provider, checks env is configured (fail-closed),
  * calls the provider, normalises tokens + cost + latency, and applies the
  * fallback policy (model-fallbacks.ts) when the primary call is unavailable.
  *
  * Providers in V1:
  *   - openai    : official SDK (already used elsewhere), key OPENAI_API_KEY.
- *   - anthropic : direct server-only fetch (no heavy dep added — mirrors the
- *                 repo's fetch-based github.ts/postgrest.ts), key ANTHROPIC_API_KEY.
  *   - google    : direct server-only fetch to the Gemini REST API, key GEMINI_API_KEY.
  *   - mistral/local : not wired → ProviderUnavailableError (fallback if allowed).
  *
@@ -89,9 +87,6 @@ export interface ModelRouterResponse {
 
 function openAiAvailable(): boolean {
   return Boolean(process.env.OPENAI_API_KEY)
-}
-function anthropicAvailable(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY)
 }
 function geminiAvailable(): boolean {
   return Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY)
@@ -200,65 +195,6 @@ async function callOpenAI(req: ModelRouterRequest): Promise<RawCall> {
   }
 }
 
-async function callAnthropic(req: ModelRouterRequest): Promise<RawCall> {
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) throw new ProviderUnavailableError('Anthropic not configured (ANTHROPIC_API_KEY missing)')
-
-  // Anthropic wants system as a top-level field, not a message. Tool-use is not
-  // wired for Anthropic in this lot: keep only user/assistant text turns so a
-  // `role: 'tool'` message can't slip through and get mislabelled.
-  const system = req.messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n')
-  const turns = req.messages
-    .filter((m): m is ModelRouterMessage & { role: 'user' | 'assistant' } => m.role === 'user' || m.role === 'assistant')
-    .map((m) => ({ role: m.role, content: m.content }))
-
-  let res: Response
-  try {
-    res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: req.model,
-        max_tokens: req.maxOutputTokens ?? 2048,
-        ...(system ? { system } : {}),
-        ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
-        messages: turns,
-      }),
-    })
-  } catch (err) {
-    throw new ModelRouterError(`anthropic/${req.model}: ${err instanceof Error ? err.message : 'network error'}`)
-  }
-
-  if (!res.ok) {
-    const body = (await res.text()).slice(0, 300)
-    if (res.status === 403 || res.status === 404 || /model/i.test(body)) {
-      throw new ModelAccessError(`anthropic/${req.model}: ${res.status} ${body}`)
-    }
-    throw new ModelRouterError(`anthropic/${req.model}: ${res.status} ${body}`)
-  }
-
-  const data = (await res.json()) as {
-    content?: { type: string; text?: string }[]
-    usage?: { input_tokens?: number; output_tokens?: number }
-    stop_reason?: string
-  }
-  const text = (data.content ?? [])
-    .filter((b) => b.type === 'text')
-    .map((b) => b.text ?? '')
-    .join('')
-    .trim()
-  return {
-    text,
-    inputTokens: data.usage?.input_tokens ?? estimateTokens(req.messages.map((m) => m.content).join(' ')),
-    outputTokens: data.usage?.output_tokens ?? estimateTokens(text),
-    finishReason: data.stop_reason,
-  }
-}
-
 async function callGemini(req: ModelRouterRequest): Promise<RawCall> {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
   if (!apiKey) throw new ProviderUnavailableError('Gemini not configured (GEMINI_API_KEY missing)')
@@ -321,8 +257,6 @@ function callProvider(provider: ModelProvider, req: ModelRouterRequest): Promise
   switch (provider) {
     case 'openai':
       return callOpenAI(req)
-    case 'anthropic':
-      return callAnthropic(req)
     case 'google':
       return callGemini(req)
     case 'mistral':
@@ -337,8 +271,6 @@ function providerAvailable(provider: ModelProvider): boolean {
   switch (provider) {
     case 'openai':
       return openAiAvailable()
-    case 'anthropic':
-      return anthropicAvailable()
     case 'google':
       return geminiAvailable()
     default:

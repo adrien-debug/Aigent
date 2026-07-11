@@ -16,7 +16,7 @@ versions, promotion gate, etc. — see `AGENTS.md` / `types.ts` for that surface
   copilot exists, so operators can iterate without creating a real record.
 - **Real runner**: once a copilot + manifest exist, `/admin/agents/[id]` (or
   the run panel on the copilot detail page) can trigger a real execution —
-  a live Anthropic call, not a mock/fixture. Output lands in `agent_runs` /
+  a live OpenAI call, not a mock/fixture. Output lands in `agent_runs` /
   `agent_run_steps` exactly like production traffic, so a hand-run test looks
   identical to a real run in the trace UI.
 
@@ -37,28 +37,28 @@ reads `AMC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` from env, 503s if
 
 ### `POST /api/agent-ops/architect`
 Takes the operator's natural-language description (and current draft
-conversation state) and calls Anthropic (`claude-sonnet-4-5` via
-`@anthropic-ai/sdk`) to generate/refine a structured manifest. Uses a tool
+conversation state) and calls OpenAI (`gpt-5.4` via the OpenAI SDK
+(`openai`)) to generate/refine a structured manifest. Uses a tool
 definition + `tool_choice` to force structured JSON output matching the
 `AgentManifest` shape (`systemPromptSummary`, `allowedRoutes`,
 `forbiddenActions`, `confirmationPolicy`, `alwaysConfirmActions`, `toolIds`,
 `maxStepsPerRun`, `maxCostPerRunUsd`, etc. — see `src/lib/agent-mission-control/types.ts`).
 Persists progress into `agent_drafts.generated_manifest` and
 `agent_drafts.conversation` after each turn, so the assistant is resumable.
-This is an LLM call — it consumes Anthropic API credits per turn.
+This is an LLM call — it consumes OpenAI API credits per turn.
 
 ### `POST /api/agent-ops/copilots/[id]/run`
 Executes the copilot for real: loads its active manifest + tools, calls
-Anthropic with the manifest's system prompt and tool set, and records the
+OpenAI with the manifest's system prompt and tool set, and records the
 execution as a normal `agent_runs` row with its `agent_run_steps` (kind:
 `llm-call`, `tool-call`, `guardrail-check`, `output`, etc.). This is a real
-Anthropic call, not a fixture — a manual "test run" from the admin UI shows
+OpenAI call, not a fixture — a manual "test run" from the admin UI shows
 up in the same run history as production traffic, tagged via `created_via`.
 
 All three routes are server components / route handlers only. The service
 role key never reaches the client; the architect and run endpoints are the
-only places in this flow allowed to call Anthropic (server-side, using
-`ANTHROPIC_API_KEY`).
+only places in this flow allowed to call OpenAI (server-side, using
+`OPENAI_API_KEY`).
 
 ## 3. Data
 
@@ -78,7 +78,7 @@ New table, migration `0003` on GPU1 (following `0001_agent_mission_control.sql`,
 
 ## 4. Env
 
-`ANTHROPIC_API_KEY` is required for both the architect endpoint and the real
+`OPENAI_API_KEY` is required for both the architect endpoint and the real
 runner. Both fail closed: if the key (or `AMC_DATA_SOURCE=gpu1` / Supabase
 env) is missing, the route returns an error rather than falling back to a
 mock. There is no mock path for agent authoring — same fail-closed contract
@@ -86,8 +86,8 @@ as the rest of Agent Mission Control's data layer (`src/lib/agent-mission-contro
 
 ## 5. Cost note
 
-Both the **architect assistant** (one Anthropic call per conversation turn
-while drafting a manifest) and the **real runner** (one or more Anthropic
-calls per execution, depending on tool-call loops) consume Anthropic API
+Both the **architect assistant** (one OpenAI call per conversation turn
+while drafting a manifest) and the **real runner** (one or more OpenAI
+calls per execution, depending on tool-call loops) consume OpenAI API
 credits. Iterating on a draft or hand-testing a copilot repeatedly is not
 free — treat both as real usage, not sandboxed/mocked interactions.
