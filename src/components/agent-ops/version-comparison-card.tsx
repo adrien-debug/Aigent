@@ -1,7 +1,6 @@
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
-import { VersionStageBadge } from '@/components/agent-ops/version-stage-badge'
-import { Badge } from '@/components/catalyst/badge'
+import { versionStageLabels, VersionStageBadge } from '@/components/agent-ops/version-stage-badge'
 import { Button } from '@/components/catalyst/button'
 import { formatDate, formatPercent } from '@/lib/agent-mission-control/format'
 import type { CopilotVersion } from '@/lib/agent-mission-control/types'
@@ -43,7 +42,7 @@ export function VersionComparisonCard({
       <div className="border-b border-zinc-950/5 px-6 py-4 dark:border-white/5">
         <div className="flex flex-wrap items-center gap-3">
           <h3 className="font-mono text-sm font-semibold tabular-nums text-zinc-950 dark:text-white">{version.label}</h3>
-          <VersionStageBadge stage={version.stage} />
+          <span className="text-xs text-zinc-500 dark:text-zinc-400">{versionStageLabels[version.stage]}</span>
         </div>
         <p className="mt-1 text-xs text-zinc-500">
           Created <time dateTime={version.createdAt}>{formatDate(version.createdAt)}</time> by {version.createdBy}
@@ -81,11 +80,9 @@ export function VersionComparisonCard({
               />
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-zinc-500">Unsafe actions</span>
-                {scores.unsafeActionCount === 0 ? (
-                  <Badge color="accent">0 · none</Badge>
-                ) : (
-                  <Badge color="accentSolid">{scores.unsafeActionCount} · flagged</Badge>
-                )}
+                <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+                  {scores.unsafeActionCount === 0 ? '0 unsafe' : `${scores.unsafeActionCount} flagged`}
+                </span>
               </div>
             </div>
           </div>
@@ -93,17 +90,14 @@ export function VersionComparisonCard({
       </div>
 
       {/* Twin-card skeleton: every footer is the same fixed-min-height row —
-          chip zone left, action right — so footers align across the grid even
+          label zone left, action right — so footers align across the grid even
           when a card (production) has no action. */}
       <footer className="flex min-h-14 flex-wrap items-center justify-between gap-3 border-t border-zinc-950/5 px-6 py-4 dark:border-white/5">
         <div className="flex flex-wrap items-center gap-3">
           {isProduction ? (
-            <Badge color="accent">
-              <span aria-hidden="true" className="size-1.5 rounded-full bg-accent-400" />
-              Serving production
-            </Badge>
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">Serving production</span>
           ) : isRollbackTarget ? (
-            <Badge color="accentStrong">Rollback target</Badge>
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">Rollback target</span>
           ) : null}
         </div>
         {!isProduction ? (
