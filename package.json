@@ -12,6 +12,7 @@
     "check": "npm run typecheck && npm run lint && npm run check:ds"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.111.0",
     "@headlessui/react": "^2.2.10",
     "@heroicons/react": "^2.2.0",
     "clsx": "^2.1.1",
