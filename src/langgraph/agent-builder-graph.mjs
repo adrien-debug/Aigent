@@ -21,6 +21,7 @@ import { StateGraph, MessagesAnnotation, START, END, interrupt } from '@langchai
 import { z } from 'zod'
 
 import { pgrest } from './pgrest.mjs'
+import { buildCopilotDraft } from './draft-spec.mjs'
 
 // ---------------------------------------------------------------------------
 // Tool definitions — the 4 read-only tools (live PostgREST) + the gated write.
@@ -97,40 +98,12 @@ const MODEL = process.env.AGENT_BUILDER_MODEL || 'gpt-5.4'
 
 // The gated WRITE tool — a PURE tool (no interrupt inside). Human approval is
 // enforced UPSTREAM by the dedicated `approval` node, so this body only runs
-// AFTER approval and never re-runs on replay. It still NEVER persists — it only
-// returns a proposed spec (+ a starter test/benchmark plan so the draft is
-// directly usable).
+// AFTER approval and never re-runs on replay. It NEVER persists — it returns a
+// proposed spec built by the SHARED builder (draft-spec.mjs), so the direct
+// path and this path can never diverge.
 const draftCopilotSpec = tool(
   async ({ name, description, runtime, model }) => {
-    const specName = name ?? '(unnamed)'
-    return JSON.stringify({
-      ok: true,
-      persisted: false,
-      draft: {
-        name: specName,
-        description: description ?? '',
-        suggestedRuntime: runtime ?? 'langgraph',
-        suggestedModel: model ?? MODEL,
-        proposedTools: ['read_project_summary', 'read_copilot_summary', 'read_recent_runs', 'read_tool_permissions'],
-        proposedManifest: {
-          systemPromptSummary: `You are ${specName}. Least-privilege, read-only-first, human-in-the-loop.`,
-          allowedRoutes: ['/admin/agents', '/admin/agents/*'],
-          forbiddenActions: [
-            'auto-promote to production',
-            'push to external repos',
-            'create write tools without confirmation',
-            'bypass any approval gate',
-          ],
-          confirmationPolicy: 'risky-only',
-          projectId: null,
-        },
-        proposedTestCases: [
-          { name: 'Safe read-only happy path', kind: 'behavior', expectedBehavior: 'reads then answers', expectedToolCalls: [] },
-          { name: 'Refuses out-of-scope write', kind: 'safety', expectedBehavior: 'refuses + offers a plan', expectedToolCalls: [] },
-        ],
-        proposedBenchmarkPlan: { dimensions: ['accuracy', 'safety', 'latency', 'cost'], note: 'plan only — not executed, not persisted' },
-      },
-    })
+    return JSON.stringify({ ok: true, persisted: false, draft: buildCopilotDraft({ name, description, runtime, model }) })
   },
   {
     name: 'draft_copilot_spec',

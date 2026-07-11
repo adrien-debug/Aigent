@@ -10,19 +10,34 @@ versions, promotion gate, etc. — see `AGENTS.md` / `types.ts` for that surface
 - **Creation surface**: `/admin/agents/new`. A form + chat-style assistant
   where an operator describes the agent they want in natural language.
 - **Architect assistant**: an LLM-backed step that takes the operator's
-  description and produces a structured `AgentManifest` draft (system prompt
+  description and produces a structured `GeneratedManifest` draft (system prompt
   summary, allowed routes, forbidden actions, confirmation policy, tool ids,
-  cost/step limits) — not just prose. The draft is persisted before the
-  copilot exists, so operators can iterate without creating a real record.
+  cost/step limits) — not just prose.
 - **Real runner**: once a copilot + manifest exist, `/admin/agents/[id]` (or
-  the run panel on the copilot detail page) can trigger a real execution —
-  a live OpenAI call, not a mock/fixture. Output lands in `agent_runs` /
+  the run panel on the copilot detail page) can trigger a real execution — a
+  live OpenAI call, not a mock/fixture. Output lands in `agent_runs` /
   `agent_run_steps` exactly like production traffic, so a hand-run test looks
   identical to a real run in the trace UI.
+- **Human-in-the-loop**: a copilot on the `langgraph` runtime runs on the
+  official LangGraph Agent Server. A confirmation-required tool PAUSES the graph
+  for human approval; the run is persisted as `needs-confirmation` and resumed
+  by a dedicated route once the operator approves or rejects (see §4).
 
-This flow has three server-only write points, all under
+**Provider**: OpenAI throughout. The architect uses `gpt-5.4`
+(`ARCHITECT_MODEL` in `src/lib/agent-mission-control/llm-client.ts`); the
+LangGraph graph uses `AGENT_BUILDER_MODEL` (default `gpt-5.4`). OpenAI is the
+only provider — migration `0005` tightened the `model_provider` / `runtime`
+CHECK constraints down to the OpenAI/Google/Mistral/local set (no external LLM
+vendor beyond those).
+
+This flow has **four** server-only write points, all under
 `app/api/agent-ops/`, following the existing PATCH pattern in
-`app/api/agent-ops/copilots/[copilotId]/route.ts`.
+`app/api/agent-ops/copilots/[copilotId]/route.ts`:
+
+1. `POST /api/agent-ops/copilots`
+2. `POST /api/agent-ops/architect`
+3. `POST /api/agent-ops/copilots/[copilotId]/run`
+4. `POST /api/agent-ops/copilots/[copilotId]/runs/[runId]/resume`
 
 ## 2. Architecture
 
@@ -33,61 +48,178 @@ reads `AMC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` from env, 503s if
 `AMC_DATA_SOURCE !== 'gpu1'`, calls PostgREST (`fetch(`${base}/rest/v1/copilots`,
 { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type':
 'application/json', Prefer: 'return=representation' }, body })`). Sets
-`created_via` on the new row (see §3).
+`created_via` on the new row.
 
 ### `POST /api/agent-ops/architect`
-Takes the operator's natural-language description (and current draft
-conversation state) and calls OpenAI (`gpt-5.4` via the OpenAI SDK
-(`openai`)) to generate/refine a structured manifest. Uses a tool
-definition + `tool_choice` to force structured JSON output matching the
-`AgentManifest` shape (`systemPromptSummary`, `allowedRoutes`,
-`forbiddenActions`, `confirmationPolicy`, `alwaysConfirmActions`, `toolIds`,
-`maxStepsPerRun`, `maxCostPerRunUsd`, etc. — see `src/lib/agent-mission-control/types.ts`).
-Persists progress into `agent_drafts.generated_manifest` and
-`agent_drafts.conversation` after each turn, so the assistant is resumable.
-This is an LLM call — it consumes OpenAI API credits per turn.
+Takes the operator's natural-language description (the running
+`ArchitectMessage[]` conversation) and calls OpenAI (`gpt-5.4` via the OpenAI
+SDK) to generate/refine a structured manifest. Uses a tool definition
+(`emit_manifest`) with `tool_choice: 'auto'` so the model returns structured
+JSON matching the `GeneratedManifest` shape (`systemPromptSummary`,
+`allowedRoutes`, `forbiddenActions`, `confirmationPolicy`,
+`alwaysConfirmActions`, `toolIds`, `maxStepsPerRun`, `maxCostPerRunUsd`, etc. —
+see `src/lib/agent-mission-control/authoring-types.ts`). The endpoint is
+**stateless**: it takes the conversation in and returns `{ reply, manifest }`;
+it does not itself write a draft row per turn. Fail-closed 503 without
+`OPENAI_API_KEY` / `AMC_DATA_SOURCE=gpu1`. This is an LLM call — it consumes
+OpenAI API credits per turn.
 
-### `POST /api/agent-ops/copilots/[id]/run`
-Executes the copilot for real: loads its active manifest + tools, calls
-OpenAI with the manifest's system prompt and tool set, and records the
-execution as a normal `agent_runs` row with its `agent_run_steps` (kind:
-`llm-call`, `tool-call`, `guardrail-check`, `output`, etc.). This is a real
-OpenAI call, not a fixture — a manual "test run" from the admin UI shows
-up in the same run history as production traffic, tagged via `created_via`.
+### `POST /api/agent-ops/copilots/[copilotId]/run`
+Executes the copilot for real and records it as a normal `agent_runs` row with
+its `agent_run_steps` and `tool_calls`. Loads the copilot (model, serving
+version, project) + that version's manifest, then delegates to the shared
+runner `executeCopilotRun` (`src/lib/agent-mission-control/runner.ts`). The
+runner **splits on runtime** (see §3). The response echoes the run outcome and,
+for a paused LangGraph run, `interrupted` / `interruptMessage` / `pendingTool`
+so the client can show an Approve/Reject prompt (see §4). Fail-closed 503
+without the gpu1 backend + `OPENAI_API_KEY`; never fabricates a run
+(persists a `failed` row on model failure).
 
-All three routes are server components / route handlers only. The service
-role key never reaches the client; the architect and run endpoints are the
-only places in this flow allowed to call OpenAI (server-side, using
+### `POST /api/agent-ops/copilots/[copilotId]/runs/[runId]/resume`
+The human-in-the-loop resume for a LangGraph run that paused for approval.
+Body `{ approved: boolean }`. Gates the run (must exist, belong to this copilot,
+be `needs-confirmation`, carry a resumable `thread_id`), resumes the graph on
+the Agent Server with the decision, appends the resumed steps + tool calls,
+then PATCHes the run to `completed` (or `blocked` when a rejection left every
+tool call blocked). See §4 for the full lifecycle.
+
+All four routes are route handlers only. The service role key never reaches the
+client; the architect, run and resume endpoints are the only places in this
+flow allowed to talk to OpenAI / the Agent Server (server-side, using
 `OPENAI_API_KEY`).
 
-## 3. Data
+## 3. Two execution paths (runtime split)
 
-New table, migration `0003` on GPU1 (following `0001_agent_mission_control.sql`,
-`0002_validation_bench.sql`):
+`executeCopilotRun` resolves the copilot's `runtime` (explicit arg, else loaded
+from the copilot row) and picks one of two engines:
 
-- **`agent_drafts`** — holds in-progress agent creation before a `copilots`
-  row exists: `id, name, description, runtime, model, model_provider, owner,
-  status (drafting|ready|created), generated_manifest jsonb, conversation
-  jsonb, created_copilot_id, created_at, updated_at`. A draft moves
-  `drafting → ready → created`; `created_copilot_id` links it to the
-  resulting `copilots` row once `POST /api/agent-ops/copilots` runs.
-- **`created_via` provenance columns** — added to the existing authoring
-  path so every copilot/run can be traced back to how it was made (e.g.
-  `architect-assistant` vs. manual/API creation). Same migration adds these
-  alongside `agent_drafts`.
+### (a) `runtime === 'langgraph'` → official LangGraph Agent Server
+Delegates to `executeViaLangGraph`, which calls
+`src/lib/agent-mission-control/langgraph-server.ts`
+(`runOnAgentServer` / `resumeOnAgentServer`). The app **does not embed a
+LangGraph engine**: runs go to the official LangGraph Agent Server
+(`langgraphjs dev` on `:2024` — the same server LangSmith Studio connects to)
+via the official SDK (`@langchain/langgraph-sdk`). That server owns the graph,
+checkpointing, streaming and interrupt/resume; this module is a thin client
+(create a thread → run → surface an interrupt or the final answer → hand back a
+normalized shape the runner persists into `agent_runs` / `agent_run_steps` /
+`tool_calls`).
 
-## 4. Env
+The graph itself is a real, standard `StateGraph` in
+`src/langgraph/agent-builder-graph.mjs` (exported as `graph`, declared in
+`langgraph.json` under the id `agent_builder`). Shape:
+**agent → approval → tools → agent** (loop), with `agent` a `ChatOpenAI` bound
+to five tools — four read-only PostgREST reads (`read_project_summary`,
+`read_copilot_summary`, `read_recent_runs`, `read_tool_permissions`) plus the
+gated write `draft_copilot_spec` (which only proposes a spec; it never
+persists). `parallel_tool_calls: false` forces one tool per turn so the
+approval gate lands deterministically on a single call.
 
-`OPENAI_API_KEY` is required for both the architect endpoint and the real
-runner. Both fail closed: if the key (or `AMC_DATA_SOURCE=gpu1` / Supabase
-env) is missing, the route returns an error rather than falling back to a
-mock. There is no mock path for agent authoring — same fail-closed contract
-as the rest of Agent Mission Control's data layer (`src/lib/agent-mission-control/data.ts`).
+### (b) any other runtime → direct model-router loop
+The runner runs the agentic loop itself against OpenAI via the model router
+(`src/lib/agent-mission-control/model-router.ts`): resolve the manifest's tool
+set, call the model, run each requested tool through the guardrail
+(allowed? risky? requires confirmation?), execute allowed read-only handlers,
+feed results back, loop until a final answer or the manifest step budget. A
+confirmation-required tool is BLOCKED here (never auto-executed) unless its name
+is passed in `confirmedToolNames`. This path has no Agent Server thread and
+never interrupts for approval.
 
-## 5. Cost note
+## 4. Human-in-the-loop (LangGraph path)
 
-Both the **architect assistant** (one OpenAI call per conversation turn
-while drafting a manifest) and the **real runner** (one or more OpenAI
-calls per execution, depending on tool-call loops) consume OpenAI API
-credits. Iterating on a draft or hand-testing a copilot repeatedly is not
-free — treat both as real usage, not sandboxed/mocked interactions.
+The canonical interrupt/resume flow, provided by the runtime — not hand-rolled:
+
+1. The graph's `approval` node inspects the agent's single requested tool. Read
+   tools fall straight through to `tools`. A confirmation-required tool
+   (`draft_copilot_spec`, in the graph's `CONFIRM_REQUIRED` set) calls
+   `interrupt(...)` with a human-facing payload (`action`, `risk`, `proposed`,
+   `message`). The graph PAUSES — no side effect runs before the pause, so
+   replay is free.
+2. `runOnAgentServer` detects the interrupt, extracts the approval message + the
+   pending tool, and returns `interrupted: true` with the Agent Server
+   `threadId`. The runner persists the run as **`needs-confirmation`** with
+   `thread_id` set (nullable column added by
+   `0006_agent_run_thread.sql`) and `finished_at` left null (a paused run is
+   not finished). `POST …/run` returns `interrupted` / `interruptMessage` /
+   `pendingTool` to the client.
+3. The operator approves or rejects. `POST …/runs/[runId]/resume { approved }`
+   validates the run is `needs-confirmation` with a resumable `thread_id`, then
+   calls `resumeOnAgentServer({ threadId, approved })`, which continues the
+   graph with `Command({ resume: { approved } })`. **Approve** → the gated tool
+   runs and the graph finishes (run → `completed`). **Reject** → the approval
+   node emits a blocked `ToolMessage` so the tool never runs (run → `blocked`
+   when every tool call ended blocked). The route appends the resumed steps +
+   tool calls, re-aggregates the run counters, and stamps `finished_at`.
+
+## 5. Data
+
+Live schema on GPU1 (base `aigent`), migrations in `supabase/migrations/`:
+
+- **`0001_agent_mission_control.sql`** — initial schema: `projects`, `copilots`,
+  `copilot_versions`, `manifests`, `tools`, test/benchmark tables, and the run
+  tables `agent_runs` / `agent_run_steps` / `tool_calls`. RLS on, service_role
+  only (internal console, zero anon policy).
+- **`0002_validation_bench.sql`** — makes `copilots.project_id` nullable
+  (null = on the validation bench, not yet assigned) and adds
+  `target_project_ids`.
+- **`0003_project_images.sql`** — adds `image_url` / `logo_url` to `projects`.
+- **`0004_project_github.sql`** — adds the GitHub repo link (`repo_url`,
+  `repo_full_name`) and per-copilot push state (`last_push_status`,
+  `last_pushed_at`, `last_push_commit_url`).
+- **`0005`** (`0005_drop_…_provider.sql`) — tightens the `runtime` /
+  `model_provider` CHECK constraints down to the supported set
+  (`openai` / `google` / `mistral` / `local`; runtimes `langgraph` /
+  `openai-assistants` / `gemini` / `custom`). The product runs on OpenAI.
+- **`0006_agent_run_thread.sql`** — adds the nullable `agent_runs.thread_id`,
+  the Agent Server thread persisted on a `needs-confirmation` run so it can be
+  resumed (§4). Only LangGraph runs set it.
+
+> The architect's in-progress draft type (`agent_drafts` /
+> `GeneratedManifest`) lives in
+> `src/lib/agent-mission-control/authoring-types.ts`. There is **no**
+> `agent_drafts` migration in this tree — no SQL file creates that table. Do not
+> assume a persisted drafts table exists from this doc; the architect endpoint
+> (§2) is stateless and returns the manifest to the caller.
+
+## 6. Running it locally
+
+`npm run dev` starts **both** servers concurrently:
+
+- **Next.js** (`next dev`) — the app.
+- **LangGraph Agent Server** (`langgraphjs dev --host 127.0.0.1 --port 2024`) —
+  serves the `agent_builder` graph. (`npm run langgraph` runs it alone;
+  `npm run langgraph:studio` opens LangSmith Studio pointed at it.)
+
+LangSmith Studio connects to `http://127.0.0.1:2024` to visualise / debug the
+graph and its interrupt/resume flow.
+
+## 7. Env
+
+- **`OPENAI_API_KEY`** — required for the architect endpoint, the real runner,
+  and the Agent Server (which reads it from `.env.local`). Every OpenAI path is
+  fail-closed: a missing key (or missing `AMC_DATA_SOURCE=gpu1` / Supabase env)
+  returns an error rather than a mock. There is no mock path for agent authoring
+  — same fail-closed contract as the rest of Agent Mission Control's data layer
+  (`src/lib/agent-mission-control/data.ts`).
+- **`LANGGRAPH_API_URL`** — base URL of the Agent Server, default
+  `http://127.0.0.1:2024`. Override to point at a remote deployment.
+- **`AGENT_BUILDER_MODEL`** — the model the LangGraph graph binds, default
+  `gpt-5.4`.
+
+## 8. Cost note
+
+Both the **architect assistant** (one OpenAI call per conversation turn while
+drafting a manifest) and the **real runner / resume** (one or more OpenAI calls
+per execution, depending on tool-call loops) consume OpenAI API credits.
+Iterating on a draft or hand-testing a copilot repeatedly is not free — treat
+both as real usage, not sandboxed/mocked interactions.
+
+## 9. Known limitation — in-memory thread state
+
+The dev LangGraph Agent Server (`langgraphjs dev`) keeps thread state **in
+memory**. Restarting it drops all threads, so a run left in
+`needs-confirmation` becomes unresumable: `POST …/runs/[runId]/resume` detects
+the lost thread (a 404 from the server) and returns **409** with
+`threadLost: true` and the message *"the approval thread was lost (Agent Server
+restarted) — relaunch the run"*. Relaunch the run to get a fresh, resumable
+thread.

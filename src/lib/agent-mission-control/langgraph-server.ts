@@ -19,11 +19,37 @@ import 'server-only'
 
 import { Client } from '@langchain/langgraph-sdk'
 
+import { computeCostUsd, estimateTokens } from './model-pricing'
 import type { DurationMs } from './types'
 
 /** Base URL of the local Agent Server (overridable for a remote deployment). */
 export function agentServerUrl(): string {
   return process.env.LANGGRAPH_API_URL || 'http://127.0.0.1:2024'
+}
+
+/** The model the Agent Server graph runs on (mirrors AGENT_BUILDER_MODEL). */
+function graphModel(): string {
+  return process.env.AGENT_BUILDER_MODEL || 'gpt-5.4'
+}
+
+/**
+ * Sum the run's USD cost from the AI messages' usage_metadata. The graph runs
+ * on OpenAI (graphModel), so cost is normalized via model-pricing. When a
+ * message lacks usage, its tokens are estimated from content — never NaN,
+ * never silently zero (unlike the previous hardcoded 0).
+ */
+function costFromMessages(messages: AnyMsg[]): number {
+  const model = graphModel()
+  let total = 0
+  for (const m of messages) {
+    const type = m.type ?? m.role
+    if (type !== 'ai' && type !== 'assistant') continue
+    const usage = m.usage_metadata
+    const inTok = usage?.input_tokens ?? 0
+    const outTok = usage?.output_tokens ?? estimateTokens(String(m.content ?? ''))
+    total += computeCostUsd('openai', model, inTok, outTok)
+  }
+  return Math.round(total * 1e6) / 1e6
 }
 
 const client = (): Client => new Client({ apiUrl: agentServerUrl() })
@@ -203,7 +229,7 @@ export async function runOnAgentServer(args: {
       status: 'blocked',
       durationMs: 0,
     })
-    return { threadId, interrupted: true, interruptMessage: msg, pendingTool, finalText, steps, toolCalls, costUsd: 0 }
+    return { threadId, interrupted: true, interruptMessage: msg, pendingTool, finalText, steps, toolCalls, costUsd: costFromMessages(messages) }
   }
 
   steps.push({
@@ -213,7 +239,7 @@ export async function runOnAgentServer(args: {
     status: 'ok',
     durationMs: 0,
   })
-  return { threadId, interrupted: false, interruptMessage: null, finalText, steps, toolCalls, costUsd: 0 }
+  return { threadId, interrupted: false, interruptMessage: null, finalText, steps, toolCalls, costUsd: costFromMessages(messages) }
 }
 
 /**
@@ -244,5 +270,5 @@ export async function resumeOnAgentServer(args: {
     status: 'ok',
     durationMs: 0,
   })
-  return { threadId: args.threadId, interrupted: false, interruptMessage: null, finalText, steps, toolCalls, costUsd: 0 }
+  return { threadId: args.threadId, interrupted: false, interruptMessage: null, finalText, steps, toolCalls, costUsd: costFromMessages(messages) }
 }

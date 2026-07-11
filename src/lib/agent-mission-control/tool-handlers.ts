@@ -26,6 +26,7 @@
  */
 import 'server-only'
 
+import { buildCopilotDraft } from '../../langgraph/draft-spec.mjs'
 import {
   getCopilot,
   getCopilots,
@@ -291,52 +292,18 @@ const readToolPermissions: ToolHandler = async (argsJson, ctx) => {
 const draftCopilotSpec: ToolHandler = async (argsJson) => {
   try {
     const args = parseArgs(argsJson)
-    const name = optString(args, 'name') ?? 'Untitled Copilot'
-    const description =
-      optString(args, 'description') ??
-      'A new copilot drafted by Agent Builder Copilot, awaiting human review.'
-    // Optional caller hints — used verbatim only if provided, else safe defaults.
-    const suggestedRuntime = optString(args, 'runtime') ?? 'openai-assistants'
-    const suggestedModel = optString(args, 'model') ?? 'gpt-5.4'
-
-    // A least-privilege, read-only-first proposal. Never a write tool by default.
-    const draft = {
-      name,
-      description,
-      suggestedRuntime,
-      suggestedModel,
-      // Start read-only: no write/destructive tools proposed by default.
-      proposedTools: [
-        { name: 'read_project_summary', riskLevel: 'low', requiresConfirmation: false, provider: 'internal' },
-        { name: 'read_copilot_summary', riskLevel: 'low', requiresConfirmation: false, provider: 'internal' },
-        { name: 'read_recent_runs', riskLevel: 'low', requiresConfirmation: false, provider: 'internal' },
-      ],
-      // Manifest skeleton — controlled posture spelled out for the gate.
-      proposedManifest: {
-        systemPromptSummary:
-          `${name}: ${description} Operates read-only and human-in-the-loop; refuses forbidden actions.`,
-        allowedRoutes: [] as string[],
-        confirmationPolicy: 'risky-only' as const,
-        forbiddenActions: [
-          'auto-promote to production',
-          'push to external repos',
-          'create write-capable tools without requiresConfirmation and a risk flag',
-          'bypass any confirmation prompt or promotion gate',
-        ],
-        // On the validation bench, unassigned — assignment is the human act of validation.
-        projectId: null as string | null,
-        maxStepsPerRun: 12,
-        maxCostPerRunUsd: 0.5,
-      },
-      // Explicit reminder for downstream consumers.
-      persisted: false as const,
-      note: 'Draft proposal only — not persisted. A human must confirm before anything is created.',
-    }
-
+    // Shared builder (draft-spec.mjs) — same draft shape as the LangGraph path,
+    // so the two can never diverge. Pure, never persists.
+    const draft = buildCopilotDraft({
+      name: optString(args, 'name'),
+      description: optString(args, 'description'),
+      runtime: optString(args, 'runtime'),
+      model: optString(args, 'model'),
+    })
     return {
       ok: true,
       data: draft,
-      summary: `Drafted a spec proposal for "${name}" (not persisted — awaiting human confirmation)`,
+      summary: `Drafted a spec proposal for "${draft.name}" (not persisted — awaiting human confirmation)`,
     }
   } catch (e) {
     return fail('draft_copilot_spec', e)

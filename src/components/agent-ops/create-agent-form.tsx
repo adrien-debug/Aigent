@@ -26,7 +26,9 @@ const SUGGESTED_MODELS: Record<ModelProvider, string[]> = {
 
 const BENCH_VALUE = '__bench__'
 
-const DEFAULT_RUNTIME: AgentRuntime = 'openai-assistants'
+// langgraph is the only runtime with a real execution engine (the Agent
+// Server); default to it so a new copilot is runnable out of the box.
+const DEFAULT_RUNTIME: AgentRuntime = 'langgraph'
 const DEFAULT_PROVIDER: ModelProvider = 'openai'
 const DEFAULT_MODEL = SUGGESTED_MODELS[DEFAULT_PROVIDER][0]
 
