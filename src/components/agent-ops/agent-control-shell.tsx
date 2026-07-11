@@ -60,7 +60,8 @@ function RailItem({
       )}
     >
       <Icon aria-hidden="true" className="size-5 shrink-0" />
-      <span className="text-xs font-medium leading-tight">{label}</span>
+      {/* Label réduit + contraint à la largeur du bouton (ne dépasse plus). */}
+      <span className="w-full truncate text-center text-[10px] font-medium leading-tight">{label}</span>
     </Link>
   )
 }
@@ -81,8 +82,10 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
           <LogoMark className="size-5 text-accent-700 dark:text-accent-300" />
         </Link>
 
-        {/* Nav — square icon+label buttons */}
-        <nav className="mt-6 flex w-full flex-1 flex-col gap-2 px-2">
+        {/* Nav — square icon+label buttons, centrés sur l'axe vertical du rail
+            (directive Adrien) : flex-1 prend toute la hauteur entre le logo et
+            l'avatar, justify-center groupe les boutons au centre. */}
+        <nav className="mt-6 flex w-full flex-1 flex-col justify-center gap-2 px-2">
           {NAV_ITEMS.map(({ label, icon, href, match }) => (
             <RailItem key={label} label={label} icon={icon} href={href} current={match(pathname)} />
           ))}
