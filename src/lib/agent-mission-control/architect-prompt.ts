@@ -1,9 +1,9 @@
 import 'server-only'
 
-import type Anthropic from '@anthropic-ai/sdk'
+import type OpenAI from 'openai'
 
 /**
- * Agent Architect — system prompt + tool-use schema.
+ * Agent Architect — system prompt + tool-call schema.
  *
  * Turns a natural-language description of a desired copilot into a
  * structured, safety-reviewed manifest (`GeneratedManifest`, see
@@ -29,7 +29,7 @@ import type Anthropic from '@anthropic-ai/sdk'
 
 export const ARCHITECT_SYSTEM_PROMPT = `You are an expert AI agent architect embedded in Agent Mission Control, an internal platform for designing, deploying, and governing production AI copilots.
 
-Your job: take a natural-language description of a desired copilot (its purpose, audience, and the systems it should touch) and turn it into a structured, safe manifest by calling the \`emit_manifest\` tool. You never respond in prose — you always respond by invoking \`emit_manifest\` with a complete, valid payload.
+Your job: take a natural-language description of a desired copilot (its purpose, audience, and the systems it should touch) and turn it into a structured, safe manifest by calling the \`emit_manifest\` tool. You never respond in prose — you always respond by calling \`emit_manifest\` with a complete, valid payload.
 
 ## Design process
 
@@ -62,117 +62,120 @@ Your job: take a natural-language description of a desired copilot (its purpose,
 Always respond by calling \`emit_manifest\` exactly once, with a single JSON object matching its input schema. Do not include any prose outside the tool call.`
 
 /**
- * Tool-use definition for the Agent Architect. Claude must call this tool
- * to return a structured `GeneratedManifest` (see
+ * Tool-call definition for the Agent Architect. The model must call this
+ * tool to return a structured `GeneratedManifest` (see
  * `agent-drafts.generated_manifest` jsonb / architect API route).
  */
-export const ARCHITECT_TOOL: Anthropic.Tool = {
-  name: 'emit_manifest',
-  description:
-    'Emit the complete, safety-reviewed manifest for a newly designed copilot. Must be called exactly once with a fully populated payload — no partial manifests.',
-  input_schema: {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-      systemPromptSummary: {
-        type: 'string',
-        description:
-          "Concise summary of the copilot's core job and scope, suitable as the basis for its system prompt. Should make the single core responsibility unambiguous.",
-      },
-      allowedRoutes: {
-        type: 'array',
-        items: { type: 'string' },
-        description:
-          'Minimal least-privilege allowlist of route/domain prefixes the copilot may operate on. Never a wildcard.',
-      },
-      forbiddenActions: {
-        type: 'array',
-        items: { type: 'string' },
-        description:
-          'Explicit fail-closed list of destructive, financial, external-communication, or out-of-scope actions the copilot must never perform.',
-      },
-      confirmationPolicy: {
-        type: 'string',
-        enum: ['never', 'risky-only', 'always'],
-        description:
-          'Global confirmation policy. Defaults to risky-only unless the copilot is trivially low-risk (never) or primarily high-stakes (always).',
-      },
-      alwaysConfirmActions: {
-        type: 'array',
-        items: { type: 'string' },
-        description:
-          'Specific actions that always require human confirmation regardless of confirmationPolicy.',
-      },
-      outputContract: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          format: {
-            type: 'string',
-            enum: ['json', 'markdown', 'text', 'ui-actions'],
-          },
-          schemaName: {
-            type: ['string', 'null'],
-            description: 'Name of a registered output schema, or null if none applies.',
-          },
-          invariants: {
-            type: 'array',
-            items: { type: 'string' },
-            description:
-              'Human-readable invariants the output must always satisfy. Must include at least one safety invariant (e.g. never echoes raw PII).',
-          },
+export const ARCHITECT_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'emit_manifest',
+    description:
+      'Emit the complete, safety-reviewed manifest for a newly designed copilot. Must be called exactly once with a fully populated payload — no partial manifests.',
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        systemPromptSummary: {
+          type: 'string',
+          description:
+            "Concise summary of the copilot's core job and scope, suitable as the basis for its system prompt. Should make the single core responsibility unambiguous.",
         },
-        required: ['format', 'schemaName', 'invariants'],
-        description: 'The contract the copilot output must satisfy.',
-      },
-      proposedTools: {
-        type: 'array',
-        items: {
+        allowedRoutes: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Minimal least-privilege allowlist of route/domain prefixes the copilot may operate on. Never a wildcard.',
+        },
+        forbiddenActions: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Explicit fail-closed list of destructive, financial, external-communication, or out-of-scope actions the copilot must never perform.',
+        },
+        confirmationPolicy: {
+          type: 'string',
+          enum: ['never', 'risky-only', 'always'],
+          description:
+            'Global confirmation policy. Defaults to risky-only unless the copilot is trivially low-risk (never) or primarily high-stakes (always).',
+        },
+        alwaysConfirmActions: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Specific actions that always require human confirmation regardless of confirmationPolicy.',
+        },
+        outputContract: {
           type: 'object',
           additionalProperties: false,
           properties: {
-            name: { type: 'string' },
-            description: { type: 'string' },
-            provider: {
+            format: {
               type: 'string',
-              enum: ['internal', 'composio', 'mcp', 'http'],
+              enum: ['json', 'markdown', 'text', 'ui-actions'],
             },
-            riskLevel: {
-              type: 'string',
-              enum: ['low', 'medium', 'high', 'critical'],
+            schemaName: {
+              type: ['string', 'null'],
+              description: 'Name of a registered output schema, or null if none applies.',
             },
-            requiresConfirmation: {
-              type: 'boolean',
+            invariants: {
+              type: 'array',
+              items: { type: 'string' },
               description:
-                'Must be true whenever riskLevel is high or critical — non-negotiable.',
+                'Human-readable invariants the output must always satisfy. Must include at least one safety invariant (e.g. never echoes raw PII).',
             },
           },
-          required: ['name', 'description', 'provider', 'riskLevel', 'requiresConfirmation'],
+          required: ['format', 'schemaName', 'invariants'],
+          description: 'The contract the copilot output must satisfy.',
         },
-        description:
-          'Minimal set of tools proposed for this copilot, least-privilege first.',
+        proposedTools: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              name: { type: 'string' },
+              description: { type: 'string' },
+              provider: {
+                type: 'string',
+                enum: ['internal', 'composio', 'mcp', 'http'],
+              },
+              riskLevel: {
+                type: 'string',
+                enum: ['low', 'medium', 'high', 'critical'],
+              },
+              requiresConfirmation: {
+                type: 'boolean',
+                description:
+                  'Must be true whenever riskLevel is high or critical — non-negotiable.',
+              },
+            },
+            required: ['name', 'description', 'provider', 'riskLevel', 'requiresConfirmation'],
+          },
+          description:
+            'Minimal set of tools proposed for this copilot, least-privilege first.',
+        },
+        maxStepsPerRun: {
+          type: 'integer',
+          minimum: 1,
+          description: 'Conservative ceiling on reasoning/tool-call steps per run.',
+        },
+        maxCostPerRunUsd: {
+          type: 'number',
+          minimum: 0,
+          description: 'Conservative USD cost ceiling per run. Never left unbounded.',
+        },
       },
-      maxStepsPerRun: {
-        type: 'integer',
-        minimum: 1,
-        description: 'Conservative ceiling on reasoning/tool-call steps per run.',
-      },
-      maxCostPerRunUsd: {
-        type: 'number',
-        minimum: 0,
-        description: 'Conservative USD cost ceiling per run. Never left unbounded.',
-      },
+      required: [
+        'systemPromptSummary',
+        'allowedRoutes',
+        'forbiddenActions',
+        'confirmationPolicy',
+        'alwaysConfirmActions',
+        'outputContract',
+        'proposedTools',
+        'maxStepsPerRun',
+        'maxCostPerRunUsd',
+      ],
     },
-    required: [
-      'systemPromptSummary',
-      'allowedRoutes',
-      'forbiddenActions',
-      'confirmationPolicy',
-      'alwaysConfirmActions',
-      'outputContract',
-      'proposedTools',
-      'maxStepsPerRun',
-      'maxCostPerRunUsd',
-    ],
   },
 }
