@@ -3,14 +3,20 @@
 import { ExclamationTriangleIcon } from '@heroicons/react/16/solid'
 import { useState } from 'react'
 
-import { RiskBadge } from '@/components/agent-ops/risk-badge'
 import { Badge } from '@/components/catalyst/badge'
 import { Switch } from '@/components/catalyst/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { formatTimestamp } from '@/lib/agent-mission-control/format'
-import type { ToolDefinition } from '@/lib/agent-mission-control/types'
+import type { ToolDefinition, ToolRiskLevel } from '@/lib/agent-mission-control/types'
 
 const numberFormat = new Intl.NumberFormat('en-US')
+
+const riskLabels: Record<ToolRiskLevel, string> = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+  critical: 'Critical',
+}
 
 function isConfirmationForced(tool: ToolDefinition): boolean {
   return tool.riskLevel === 'high' || tool.riskLevel === 'critical'
@@ -91,7 +97,12 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <RiskBadge risk={tool.riskLevel} />
+                  <span className="flex items-center gap-1 text-zinc-500 dark:text-zinc-400">
+                    {tool.riskLevel === 'critical' ? (
+                      <ExclamationTriangleIcon aria-hidden="true" className="size-3.5 shrink-0" />
+                    ) : null}
+                    {riskLabels[tool.riskLevel]}
+                  </span>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
