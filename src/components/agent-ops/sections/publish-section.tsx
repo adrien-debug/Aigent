@@ -8,7 +8,6 @@ import { PromotionPipelineSteps } from '@/components/agent-ops/promotion-pipelin
 import { PublishActions } from '@/components/agent-ops/publish-actions'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { SplitBar } from '@/components/agent-ops/widgets/split-bar'
-import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Subheading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
@@ -20,6 +19,11 @@ import {
   getVersionsForCopilot,
 } from '@/lib/agent-mission-control/data'
 import type { CopilotVersion } from '@/lib/agent-mission-control/types'
+
+function statusLabel(status: string) {
+  const text = status.replace(/-/g, ' ')
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
 
 export async function PublishSection({ copilotId }: { copilotId: string }) {
   const id = copilotId
@@ -200,11 +204,11 @@ export async function PublishSection({ copilotId }: { copilotId: string }) {
               <span aria-hidden="true" className="text-zinc-400 dark:text-zinc-600">
                 &rarr;
               </span>
-              <Badge color={gate.targetStage === 'production' ? 'accent' : 'zinc'}>{gate.targetStage}</Badge>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">{statusLabel(gate.targetStage)}</span>
               {rollbackVersion ? (
-                <Badge color="accentStrong">
-                  rollback&nbsp;<span className="font-mono tabular-nums">{rollbackVersion.label}</span>
-                </Badge>
+                <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Rollback target&nbsp;<span className="font-mono tabular-nums">{rollbackVersion.label}</span>
+                </span>
               ) : null}
             </div>
 
