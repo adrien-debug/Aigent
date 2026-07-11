@@ -70,7 +70,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   return (
-    <div className="relative isolate flex min-h-svh w-full bg-zinc-100 dark:bg-zinc-900">
+    <div className="relative isolate flex min-h-svh w-full flex-col bg-zinc-100 dark:bg-zinc-900">
       {/* Narrow rail — fixed, desktop. Icon-over-label square buttons. */}
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-20 flex-col items-center border-r border-zinc-950/5 bg-white py-4 lg:flex dark:border-white/10 dark:bg-zinc-950">
         {/* Brand mark */}
@@ -131,7 +131,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* Content — offset by the rail width on desktop. */}
-      <main className="flex flex-1 flex-col lg:min-w-0 lg:pl-20">
+      <main className="flex min-w-0 flex-1 flex-col lg:pl-20">
         <div className="grow bg-zinc-100 p-4 lg:p-6 dark:bg-zinc-900">{children}</div>
       </main>
     </div>
