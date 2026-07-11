@@ -23,6 +23,3 @@ export function getOpenAIClient(): OpenAI {
   }
   return new OpenAI({ apiKey })
 }
-
-/** @deprecated Use getOpenAIClient. Kept so existing imports keep working. */
-export const getAnthropicClient = getOpenAIClient
