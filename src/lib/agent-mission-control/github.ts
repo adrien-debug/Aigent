@@ -166,22 +166,25 @@ function mapRepo(r: GithubApiRepo): GithubRepoSummary {
  */
 export async function listRepos(): Promise<GithubRepoSummary[]> {
   const PER_PAGE = 100
-  const MAX_REPOS = 300
+  const MAX_REPOS = 1000
   const maxPages = Math.ceil(MAX_REPOS / PER_PAGE)
 
-  const all: GithubApiRepo[] = []
+  // Dedup by full_name: the owner/collaborator/organization_member affiliations
+  // overlap (a repo you own inside an org is returned under several), so the raw
+  // paginated batches carry duplicates — collapsing them is what restores the
+  // repos that otherwise appear "missing" from the count.
+  const byFullName = new Map<string, GithubApiRepo>()
   for (let page = 1; page <= maxPages; page += 1) {
     const batch = await gh<GithubApiRepo[]>(
       'GET',
       `user/repos?per_page=${PER_PAGE}&sort=updated&page=${page}&affiliation=owner,collaborator,organization_member`
     )
     if (!Array.isArray(batch) || batch.length === 0) break
-    all.push(...batch)
+    for (const repo of batch) byFullName.set(repo.full_name, repo)
     if (batch.length < PER_PAGE) break
   }
 
-  return all
-    .slice(0, MAX_REPOS)
+  return Array.from(byFullName.values())
     .map(mapRepo)
     .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0))
 }
