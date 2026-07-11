@@ -7,13 +7,13 @@
  * produces a real completion + a real DB row, or throws.
  *
  * Required env: AMC_DATA_SOURCE=gpu1, AMC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
- * OPENAI_API_KEY (the latter is read inside ./anthropic-client).
+ * OPENAI_API_KEY (the latter is read inside ./llm-client).
  */
 import 'server-only'
 
 import { randomUUID } from 'node:crypto'
 
-import { getOpenAIClient, RUNNER_MODEL } from './anthropic-client'
+import { getOpenAIClient, RUNNER_MODEL } from './llm-client'
 import type { AgentRunStatus, AgentRunStepKind, DurationMs, IsoTimestamp, UsdAmount } from './types'
 
 // ---------------------------------------------------------------------------

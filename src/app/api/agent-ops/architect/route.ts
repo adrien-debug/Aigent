@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { getOpenAIClient, ARCHITECT_MODEL } from '@/lib/agent-mission-control/anthropic-client'
+import { getOpenAIClient, ARCHITECT_MODEL } from '@/lib/agent-mission-control/llm-client'
 import { ARCHITECT_SYSTEM_PROMPT, ARCHITECT_TOOL } from '@/lib/agent-mission-control/architect-prompt'
 import type { ArchitectMessage, GeneratedManifest } from '@/lib/agent-mission-control/authoring-types'
 
