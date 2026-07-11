@@ -1,26 +1,16 @@
 'use client'
 
 import { Cog6ToothIcon, CpuChipIcon, FolderIcon } from '@heroicons/react/20/solid'
+import clsx from 'clsx'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+
 import { Avatar } from '@/components/catalyst/avatar'
-import { Navbar, NavbarLabel, NavbarSection, NavbarSpacer } from '@/components/catalyst/navbar'
-import {
-  Sidebar,
-  SidebarBody,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarHeading,
-  SidebarItem,
-  SidebarLabel,
-  SidebarSection,
-  SidebarSpacer,
-} from '@/components/catalyst/sidebar'
-import { SidebarLayout } from '@/components/catalyst/sidebar-layout'
 
 /** Mission-control reticle mark — inline SVG, no external asset. */
-function LogoMark() {
+function LogoMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="size-5 text-zinc-950 dark:text-white">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={clsx('text-zinc-950 dark:text-white', className)}>
       <circle cx="12" cy="12" r="7" stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
       <circle cx="12" cy="12" r="2.25" fill="currentColor" />
       <path
@@ -33,76 +23,104 @@ function LogoMark() {
   )
 }
 
-// Traces global retiré : les traces vivent au niveau copilote (Runs) et par
-// projet (menu Traces de chaque projet) — directive Adrien 2026-07-10.
-const PLATFORM_ITEMS = [
-  { label: 'Projects', icon: FolderIcon, href: '/admin/projects' },
-  { label: 'Settings', icon: Cog6ToothIcon, href: '/admin/settings' },
+/**
+ * Narrow navigation rail (directive Adrien 2026-07-11) : icône en haut, nom du
+ * menu dessous, chaque item = un bouton carré. Rail fixe ~5rem de large, items
+ * empilés verticalement. Remplace la SidebarLayout large de Catalyst.
+ */
+const NAV_ITEMS = [
+  { label: 'Copilots', icon: CpuChipIcon, href: '/admin/agents', match: (p: string) => p === '/admin/agents' || p.startsWith('/admin/agents/') },
+  { label: 'Projects', icon: FolderIcon, href: '/admin/projects', match: (p: string) => p.startsWith('/admin/projects') },
+  { label: 'Settings', icon: Cog6ToothIcon, href: '/admin/settings', match: (p: string) => p.startsWith('/admin/settings') },
 ] as const
+
+function RailItem({
+  label,
+  icon: Icon,
+  href,
+  current,
+}: {
+  label: string
+  icon: typeof CpuChipIcon
+  href: string
+  current: boolean
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={current ? 'page' : undefined}
+      className={clsx(
+        'group flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-xl px-1 text-center transition-colors',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
+        current
+          ? 'bg-accent-500/10 text-accent-700 ring-1 ring-accent-500/20 dark:text-accent-300'
+          : 'text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-950 dark:hover:bg-white/5 dark:hover:text-white'
+      )}
+    >
+      <Icon aria-hidden="true" className="size-5 shrink-0" />
+      <span className="text-[10px] font-medium leading-tight">{label}</span>
+    </Link>
+  )
+}
 
 export function AgentControlShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const copilotsCurrent = pathname === '/admin/agents' || pathname.startsWith('/admin/agents/')
 
   return (
-    <SidebarLayout
-      navbar={
-        <Navbar>
-          <NavbarSection>
-            <LogoMark />
-            <NavbarLabel className="text-sm font-semibold text-zinc-950 dark:text-white">Agent Mission Control</NavbarLabel>
-          </NavbarSection>
-          <NavbarSpacer />
-        </Navbar>
-      }
-      sidebar={
-        <Sidebar>
-          <SidebarHeader>
-            <div className="flex items-center gap-3 px-2 py-1">
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-zinc-950/5 ring-1 ring-zinc-950/10 dark:bg-white/5 dark:ring-white/10">
-                <LogoMark />
-              </div>
-              <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-zinc-950 dark:text-white">Agent Mission Control</div>
-                <div className="truncate text-xs text-zinc-500">Copilot operations</div>
-              </div>
-            </div>
-          </SidebarHeader>
+    <div className="relative isolate flex min-h-svh w-full bg-zinc-100 dark:bg-zinc-900">
+      {/* Narrow rail — fixed, desktop. Icon-over-label square buttons. */}
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-20 flex-col items-center border-r border-zinc-950/5 bg-white py-4 lg:flex dark:border-white/10 dark:bg-zinc-950">
+        {/* Brand mark */}
+        <Link
+          href="/admin/agents"
+          aria-label="Agent Mission Control"
+          className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-zinc-950/5 ring-1 ring-zinc-950/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:bg-white/5 dark:ring-white/10"
+        >
+          <LogoMark className="size-5" />
+        </Link>
 
-          <SidebarBody>
-            <SidebarSection>
-              <SidebarItem href="/admin/agents" current={copilotsCurrent}>
-                <CpuChipIcon data-slot="icon" />
-                <SidebarLabel>Copilots</SidebarLabel>
-              </SidebarItem>
-            </SidebarSection>
+        {/* Nav — square icon+label buttons */}
+        <nav className="mt-6 flex w-full flex-1 flex-col gap-2 px-2">
+          {NAV_ITEMS.map(({ label, icon, href, match }) => (
+            <RailItem key={label} label={label} icon={icon} href={href} current={match(pathname)} />
+          ))}
+        </nav>
 
-            <SidebarSection>
-              <SidebarHeading>Platform</SidebarHeading>
-              {PLATFORM_ITEMS.map(({ label, icon: Icon, href }) => (
-                <SidebarItem key={label} href={href} current={pathname.startsWith(href)}>
-                  <Icon data-slot="icon" />
-                  <SidebarLabel>{label}</SidebarLabel>
-                </SidebarItem>
-              ))}
-            </SidebarSection>
+        {/* User avatar pinned to the bottom */}
+        <div className="mt-auto pt-4">
+          <Avatar initials="AD" alt="Adrien — Platform Admin" className="size-9 bg-zinc-800 text-white" />
+        </div>
+      </aside>
 
-            <SidebarSpacer />
-          </SidebarBody>
+      {/* Mobile top bar — brand + inline nav (rail collapses on small screens) */}
+      <header className="flex items-center gap-2 border-b border-zinc-950/5 bg-white px-4 py-2 lg:hidden dark:border-white/10 dark:bg-zinc-950">
+        <Link href="/admin/agents" aria-label="Agent Mission Control" className="flex size-8 items-center justify-center rounded-lg bg-zinc-950/5 dark:bg-white/5">
+          <LogoMark className="size-4" />
+        </Link>
+        <nav className="flex items-center gap-1">
+          {NAV_ITEMS.map(({ label, icon: Icon, href, match }) => (
+            <Link
+              key={label}
+              href={href}
+              aria-current={match(pathname) ? 'page' : undefined}
+              className={clsx(
+                'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium',
+                match(pathname)
+                  ? 'bg-accent-500/10 text-accent-700 dark:text-accent-300'
+                  : 'text-zinc-500 hover:bg-zinc-950/5 dark:hover:bg-white/5'
+              )}
+            >
+              <Icon aria-hidden="true" className="size-4" />
+              {label}
+            </Link>
+          ))}
+        </nav>
+      </header>
 
-          <SidebarFooter>
-            <div className="flex items-center gap-3 px-2 py-1">
-              <Avatar initials="AD" alt="" className="size-8 shrink-0 bg-zinc-800 text-white" />
-              <div className="min-w-0">
-                <div className="truncate text-sm font-medium text-zinc-950 dark:text-white">Adrien</div>
-                <div className="truncate text-xs text-zinc-500">Platform Admin</div>
-              </div>
-            </div>
-          </SidebarFooter>
-        </Sidebar>
-      }
-    >
-      {children}
-    </SidebarLayout>
+      {/* Content — offset by the rail width on desktop. */}
+      <main className="flex flex-1 flex-col lg:min-w-0 lg:pl-20">
+        <div className="grow bg-zinc-100 p-4 lg:p-6 dark:bg-zinc-900">{children}</div>
+      </main>
+    </div>
   )
 }
