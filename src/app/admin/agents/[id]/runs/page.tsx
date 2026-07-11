@@ -85,7 +85,7 @@ export default async function RunsPage({
       <RunCopilotPanel copilotId={id} copilotName={copilot.name} />
 
       {runs.length === 0 || !selectedRun ? (
-        <div className="rounded-xl bg-white px-6 py-12 ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
+        <div className="overflow-hidden rounded-xl bg-white px-6 py-12 ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
           <div className="mx-auto max-w-md text-center">
             <SignalIcon aria-hidden="true" className="mx-auto size-8 text-zinc-400 dark:text-zinc-600" />
             <h2 className="mt-4 text-base font-semibold text-zinc-950 dark:text-white">No runs yet</h2>
@@ -137,7 +137,7 @@ export default async function RunsPage({
           <AgentSectionCard
             title="Recent runs"
             description="Newest first. Select a run to inspect its timeline."
-            contentClassName="px-6 py-4"
+            contentClassName="p-0"
           >
             <Table dense bleed className="[--gutter:--spacing(6)]">
               <TableHead>
