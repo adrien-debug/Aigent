@@ -4,7 +4,7 @@ import { executeCopilotRun } from '@/lib/agent-mission-control/runner'
 
 /**
  * POST /api/agent-ops/copilots/:copilotId/run — execute a REAL run of a
- * copilot against the live Anthropic model, persisted via the shared runner
+ * copilot against the live OpenAI model, persisted via the shared runner
  * (`executeCopilotRun`), which writes `agent_runs` + `agent_run_steps` to the
  * gpu1 PostgREST perimeter (service_role, server only).
  *
@@ -16,11 +16,11 @@ import { executeCopilotRun } from '@/lib/agent-mission-control/runner'
  *   2. Read the copilot (model, production/latest version, project) — inline,
  *      single-owner PostgREST GET, same shape as ./route.ts's PATCH handler.
  *   3. Read that version's manifest (system_prompt_summary, max_steps_per_run).
- *   4. Delegate execution + persistence to executeCopilotRun (real Anthropic
- *      call; ANTHROPIC_API_KEY is checked inside getAnthropicClient()).
+ *   4. Delegate execution + persistence to executeCopilotRun (real OpenAI
+ *      call; OPENAI_API_KEY is checked inside the runner's OpenAI client).
  *
  * Live-only: never fabricates a run — executeCopilotRun persists a `failed`
- * agent_runs row on Anthropic failure rather than swallowing the error.
+ * agent_runs row on OpenAI failure rather than swallowing the error.
  */
 export async function POST(
   request: Request,
@@ -41,7 +41,7 @@ export async function POST(
 
   const base = process.env.AMC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (process.env.AMC_DATA_SOURCE !== 'gpu1' || !base || !key) {
+  if (process.env.AMC_DATA_SOURCE !== 'gpu1' || !base || !key || !process.env.OPENAI_API_KEY) {
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
   }
 
@@ -107,7 +107,7 @@ export async function POST(
     return NextResponse.json({ error: err instanceof Error ? err.message : 'PostgREST error' }, { status: 502 })
   }
 
-  // 3) Execute — real Anthropic call + real agent_runs/agent_run_steps persistence.
+  // 3) Execute — real OpenAI call + real agent_runs/agent_run_steps persistence.
   try {
     const result = await executeCopilotRun({
       copilotId,
