@@ -29,11 +29,6 @@ import { randomUUID } from 'node:crypto'
 const DEFAULT_ENDPOINT = 'https://api.smith.langchain.com'
 const DEFAULT_PROJECT = 'agent-mission-control'
 
-/** Is the real export path enabled? (Only an API key turns it on.) */
-export function langsmithConfigured(): boolean {
-  return Boolean(process.env.LANGSMITH_API_KEY)
-}
-
 /** Mint a trace id. Always real so steps group under it; URL is separate. */
 export function newTraceId(): string {
   return randomUUID()

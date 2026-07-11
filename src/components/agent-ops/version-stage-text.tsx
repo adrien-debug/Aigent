@@ -7,12 +7,3 @@ export const versionStageLabels: Record<VersionStage, string> = {
   draft: 'Draft',
   archived: 'Archived',
 }
-
-/** The ONE version-stage indicator — plain muted text, same look on every screen (doctrine: no per-page drift). */
-export function VersionStageText({ stage }: { stage: VersionStage }) {
-  return (
-    <span className="text-zinc-500 dark:text-zinc-400">
-      {versionStageLabels[stage]}
-    </span>
-  )
-}

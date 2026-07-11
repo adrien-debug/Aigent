@@ -64,29 +64,6 @@ export interface GeneratedManifest {
 }
 
 // ---------------------------------------------------------------------------
-// Agent draft (maps 1:1 onto the `agent_drafts` table)
-// ---------------------------------------------------------------------------
-
-export type AgentDraftStatus = 'drafting' | 'ready' | 'created'
-
-export interface AgentDraft {
-  id: string
-  name: string
-  description: string
-  runtime: AgentRuntime
-  model: string
-  modelProvider: ModelProvider
-  owner: string
-  status: AgentDraftStatus
-  generatedManifest: GeneratedManifest
-  conversation: ArchitectMessage[]
-  /** Set once the draft has been materialized into a real copilot. */
-  createdCopilotId: string | null
-  createdAt: IsoTimestamp
-  updatedAt: IsoTimestamp
-}
-
-// ---------------------------------------------------------------------------
 // Create-copilot input (payload for the write API that materializes a draft
 // into a real `copilots` + `copilot_versions` + `manifests` row set)
 // ---------------------------------------------------------------------------

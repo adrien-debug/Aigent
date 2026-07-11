@@ -80,3 +80,9 @@ export function formatDurationMs(ms: number): string {
   const seconds = Math.round((ms % 60_000) / 1000)
   return `${minutes}m ${seconds}s`
 }
+
+/** Collapse whitespace and truncate to a single-line summary (for *_summary columns). */
+export function summarize(text: string, maxLen = 400): string {
+  const flat = text.replace(/\s+/g, ' ').trim()
+  return flat.length > maxLen ? `${flat.slice(0, maxLen - 1)}…` : flat
+}

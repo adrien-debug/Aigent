@@ -58,16 +58,3 @@ export function SeverityFeedRow({
     </div>
   )
 }
-
-/**
- * SeverityTally — companion header cluster for the warnings feed: plain
- * muted text counts, no colored background.
- */
-export function SeverityTally({ warning, danger }: { warning: number; danger: number }) {
-  return (
-    <div className="flex items-center gap-2 font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
-      <span>Warning · {warning}</span>
-      <span>Danger · {danger}</span>
-    </div>
-  )
-}

@@ -9,8 +9,7 @@ import { Field, Fieldset, Label } from '@/components/catalyst/fieldset'
 import { Input } from '@/components/catalyst/input'
 import { Select } from '@/components/catalyst/select'
 import { Switch } from '@/components/catalyst/switch'
-
-type ConfirmationPolicy = 'never' | 'risky-only' | 'always'
+import type { ConfirmationPolicy } from '@/lib/agent-mission-control/types'
 
 const POLICY_CAPTIONS: Record<ConfirmationPolicy, string> = {
   never: 'No confirmation gate — copilots act autonomously.',

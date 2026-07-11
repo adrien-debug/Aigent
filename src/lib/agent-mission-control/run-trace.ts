@@ -18,7 +18,7 @@
  */
 import 'server-only'
 
-import { exportTrace, getTraceUrl, newTraceId, type LangSmithExportResult } from './langsmith'
+import { exportTrace, newTraceId, type LangSmithExportResult } from './langsmith'
 import type { AgentRunStepKind, IsoTimestamp, ModelProvider } from './types'
 
 export type TraceMode = 'run' | 'test' | 'benchmark' | 'replay' | 'shadow'
@@ -136,21 +136,6 @@ export class RunTrace {
     if (this.context.fallbackUsed) parts.push('fallback')
     parts.push(`${this.steps.length} steps`)
     return parts.join(' · ')
-  }
-
-  /**
-   * Freeze the trace WITHOUT exporting (sync). traceUrl is the deep-link only if
-   * a LangSmith base is configured; `exported` is always false here.
-   */
-  finish(): TraceResult {
-    const traceId = newTraceId()
-    return {
-      traceId,
-      traceUrl: getTraceUrl(traceId),
-      steps: [...this.steps],
-      summary: this.buildSummary(),
-      exported: false,
-    }
   }
 
   /**

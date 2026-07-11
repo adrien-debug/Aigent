@@ -12,7 +12,6 @@ import 'server-only'
 import OpenAI from 'openai'
 
 export const ARCHITECT_MODEL = 'gpt-5.4'
-export const RUNNER_MODEL = 'gpt-5.4'
 
 export function getOpenAIClient(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY

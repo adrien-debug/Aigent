@@ -6,9 +6,6 @@ import { Subheading } from '@/components/catalyst/heading'
 import { formatDate, formatPercent } from '@/lib/agent-mission-control/format'
 import type { CopilotVersion } from '@/lib/agent-mission-control/types'
 
-// Moved to its own module so pages can use the badge without pulling this card.
-export { VersionStageText } from '@/components/agent-ops/version-stage-text'
-
 /**
  * A draft with all-zero test/benchmark scores was never run: render a muted
  * "Not measured yet" line (never a scary "0.0%" or an empty gauge). Shared with

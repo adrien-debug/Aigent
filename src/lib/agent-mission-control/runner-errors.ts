@@ -7,10 +7,9 @@
  *   NotFoundError            → 404  (missing/mismatched copilot, suite, version)
  *   ProviderUnavailableError → 503  (provider SDK/env not configured)
  *   ModelAccessError         → 502  (provider replied but denied model access)
- *   ModelUnavailableError    → 502  (model unknown / unroutable, provider up)
  *   ModelRouterError         → 502  (generic upstream router failure)
  *
- * ProviderUnavailableError / ModelUnavailableError extend ModelRouterError so a
+ * ProviderUnavailableError / ModelAccessError extend ModelRouterError so a
  * caller can catch the whole router family in one clause and still branch on
  * the specific subtype where it matters.
  */
@@ -36,14 +35,6 @@ export class ProviderUnavailableError extends ModelRouterError {
   constructor(message: string) {
     super(message)
     this.name = 'ProviderUnavailableError'
-  }
-}
-
-/** The provider is reachable but the requested model is unknown/unroutable. */
-export class ModelUnavailableError extends ModelRouterError {
-  constructor(message: string) {
-    super(message)
-    this.name = 'ModelUnavailableError'
   }
 }
 

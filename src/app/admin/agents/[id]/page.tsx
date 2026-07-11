@@ -11,7 +11,7 @@ import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
 import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
 import { SplitBar } from '@/components/agent-ops/widgets/split-bar'
-import { AGENT_RUNTIME_LABELS } from '@/lib/agent-mission-control/labels'
+import { AGENT_RUNTIME_LABELS, MODEL_PROVIDER_LABELS } from '@/lib/agent-mission-control/labels'
 import { Button } from '@/components/catalyst/button'
 import { Link } from '@/components/catalyst/link'
 import { formatDurationMs, formatPercent, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
@@ -31,15 +31,14 @@ import {
   getTestSuitesForCopilot,
   getToolsForCopilot,
   getVersion,
-  MODEL_PROVIDER_LABELS,
 } from '@/lib/agent-mission-control/data'
+import { versionStageLabels } from '@/components/agent-ops/version-stage-text'
 import type {
   AgentRunStatus,
   BenchmarkResult,
   BenchmarkRun,
   BenchmarkSuite,
   Project,
-  VersionStage,
 } from '@/lib/agent-mission-control/types'
 
 // ---------------------------------------------------------------------------
@@ -51,14 +50,6 @@ const copilotStatusLabels: Record<string, string> = {
   active: 'Active',
   degraded: 'Degraded',
   paused: 'Paused',
-  draft: 'Draft',
-  archived: 'Archived',
-}
-
-/** Canonical display labels for version stages — never render the raw enum. */
-const versionStageLabels: Record<VersionStage, string> = {
-  production: 'Production',
-  beta: 'Beta',
   draft: 'Draft',
   archived: 'Archived',
 }

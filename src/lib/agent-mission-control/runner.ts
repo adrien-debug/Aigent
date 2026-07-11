@@ -13,6 +13,7 @@ import 'server-only'
 
 import { randomUUID } from 'node:crypto'
 
+import { summarize } from './format'
 import { routeCompletion } from './model-router'
 import { pgrest } from './postgrest'
 import { startTrace, toDbStepKind, type TraceStep } from './run-trace'
@@ -68,11 +69,6 @@ export interface ExecuteCopilotRunResult {
   fallbackUsed: boolean
 }
 
-/** Truncate long text to a single-line summary for input_summary/output_summary columns. */
-function summarize(text: string, maxLen = 400): string {
-  const flat = text.replace(/\s+/g, ' ').trim()
-  return flat.length > maxLen ? `${flat.slice(0, maxLen - 1)}…` : flat
-}
 
 /**
  * Execute one copilot run: call OpenAI with the copilot's system prompt +

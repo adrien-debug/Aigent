@@ -18,6 +18,7 @@ import 'server-only'
 
 import { randomUUID } from 'node:crypto'
 
+import { summarize } from './format'
 import { getTraceUrl, newTraceId } from './langsmith'
 import { routeCompletion } from './model-router'
 import { pgrest } from './postgrest'
@@ -31,12 +32,6 @@ import type {
   TestRun,
   UsdAmount,
 } from './types'
-
-/** Truncate long text to a single-line summary for *_summary columns. */
-function summarize(text: string, maxLen = 400): string {
-  const flat = text.replace(/\s+/g, ' ').trim()
-  return flat.length > maxLen ? `${flat.slice(0, maxLen - 1)}…` : flat
-}
 
 export interface RunTestSuiteArgs {
   copilotId: string

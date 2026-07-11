@@ -127,15 +127,6 @@ export async function getRunsForCopilot(copilotId: string): Promise<AgentRun[]> 
   })
 }
 
-export async function getRun(id: string): Promise<AgentRun | undefined> {
-  const rows = await rest<RawRow[]>(`agent_runs?select=*,agent_run_steps(id)&id=eq.${id}`)
-  if (!rows[0]) return undefined
-  const { agent_run_steps, ...rest_ } = rows[0] as RawRow & { agent_run_steps: { id: string }[] }
-  const run = camelRow<AgentRun>(rest_)
-  run.stepIds = (agent_run_steps ?? []).map((s) => s.id)
-  return run
-}
-
 export async function getRecentRuns(limit = 30): Promise<AgentRun[]> {
   const rows = await rest<RawRow[]>(`agent_runs?select=*,agent_run_steps(id)&order=started_at.desc&limit=${limit}`)
   return rows.map((r) => {
@@ -229,6 +220,3 @@ export async function getRegistryKpis(): Promise<RegistryKpis> {
     openWarnings: copilots.reduce((s, c) => s + c.health.openWarnings, 0),
   }
 }
-
-// Static UI labels (not data) — re-export so pages import from one place.
-export { AGENT_RUNTIME_LABELS, MODEL_PROVIDER_LABELS } from './labels'
