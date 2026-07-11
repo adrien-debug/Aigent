@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { RunStatusBadge } from '@/components/agent-ops/run-detail-panel'
 import { Button } from '@/components/catalyst/button'
 import { Field, Label } from '@/components/catalyst/fieldset'
@@ -20,7 +21,7 @@ type RunResult = Pick<AgentRun, 'status' | 'outputSummary' | 'latencyMs' | 'cost
 
 /**
  * Small "run this copilot" panel — a task input + primary action that fires a
- * REAL Anthropic-backed run via the live backend, then shows the result inline.
+ * REAL OpenAI-backed run via the live backend, then shows the result inline.
  * On success the run also lands in the Runs tab (server-persisted); this panel
  * just surfaces the immediate receipt and nudges the rest of the page to catch up.
  */
@@ -42,7 +43,7 @@ export function RunCopilotPanel({ copilotId, copilotName }: RunCopilotPanelProps
       const response = await fetch(`/api/agent-ops/copilots/${copilotId}/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input }),
+        body: JSON.stringify({ userInput: input }),
       })
 
       if (response.status === 503) {
@@ -92,19 +93,7 @@ export function RunCopilotPanel({ copilotId, copilotName }: RunCopilotPanelProps
           <Button color="accent" onClick={handleRun} disabled={isRunning || input.trim().length === 0}>
             {isRunning ? (
               <>
-                <svg
-                  className="size-4 animate-spin text-white"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                  />
-                </svg>
+                <Spinner />
                 Running…
               </>
             ) : (
@@ -114,11 +103,7 @@ export function RunCopilotPanel({ copilotId, copilotName }: RunCopilotPanelProps
           {isRunning ? <Text className="!mt-0">Waiting on a live model call…</Text> : null}
         </div>
 
-        {error ? (
-          <div className="mt-4 rounded-lg bg-accent-500/10 px-4 py-3 text-sm text-accent-700 dark:text-accent-400">
-            {error}
-          </div>
-        ) : null}
+        {error ? <ErrorBanner message={error} /> : null}
 
         {result ? (
           <div className="mt-4 border-t border-zinc-950/5 pt-4 dark:border-white/5">
