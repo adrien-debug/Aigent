@@ -35,16 +35,15 @@ export function Table({
 }
 
 export function TableHead({ className, ...props }: React.ComponentPropsWithoutRef<'thead'>) {
-  // Header FRANC orange (directive Adrien) — même voile que le header de carte :
-  // accent à 30/35% sur la teinte CLAIRE (accent-400 en dark) pour que l'orange
-  // ressorte net. Le cuivre foncé à basse opacité désaturait vers le marron ;
-  // "table header" et "card header" restent unifiés, en orange franc.
+  // Header SANS bande de fond (directive Adrien) — le voile orange brunissait
+  // sur le corps noir. L'accent est porté par une hairline orange nette sous
+  // les en-têtes ; fond transparent, unifié avec le header de carte.
   return (
     <thead
       {...props}
       className={clsx(
         className,
-        'bg-accent-500/30 dark:bg-accent-400/35'
+        '[&_th]:border-b [&_th]:border-accent-500/60 dark:[&_th]:border-accent-400/60'
       )}
     />
   )

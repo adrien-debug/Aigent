@@ -18,10 +18,12 @@ export function Heading({ className, level = 1, ...props }: HeadingProps) {
 export function Subheading({ className, level = 2, ...props }: HeadingProps) {
   let Element: `h${typeof level}` = `h${level}`
 
+  // H2 (le niveau par défaut) = titre de section → orange accent (directive
+  // Adrien). Les autres niveaux (H3 sous-titres internes) restent neutres pour
+  // garder la hiérarchie — un seul levier de couleur à la fois.
+  const color = level === 2 ? 'text-accent-600 dark:text-accent-400' : 'text-zinc-950 dark:text-white'
+
   return (
-    <Element
-      {...props}
-      className={clsx(className, 'text-base/7 font-semibold text-zinc-950 sm:text-sm/6 dark:text-white')}
-    />
+    <Element {...props} className={clsx(className, 'text-base/7 font-semibold sm:text-sm/6', color)} />
   )
 }
