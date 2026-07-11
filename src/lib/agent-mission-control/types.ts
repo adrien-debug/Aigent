@@ -29,6 +29,10 @@ export interface Project {
   name: string
   slug: string
   description: string
+  /** Header/banner photo (landscape), shown at the top of the project card. */
+  imageUrl?: string
+  /** Square logo shown in the card avatar. */
+  logoUrl?: string
   platform: 'web' | 'desktop' | 'mobile' | 'api'
   createdAt: IsoTimestamp
 }
