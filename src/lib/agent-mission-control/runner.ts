@@ -1,34 +1,32 @@
 /**
  * Agent Mission Control — execution runner (server only).
  *
- * LIVE ONLY. Executes a copilot run against the real Anthropic API and
+ * LIVE ONLY. Executes a copilot run against the real OpenAI API and
  * persists the result to the gpu1 PostgREST perimeter (agent_runs +
  * agent_run_steps). There is no mock/dry-run mode: every call here either
- * produces a real Claude completion + a real DB row, or throws.
+ * produces a real completion + a real DB row, or throws.
  *
  * Required env: AMC_DATA_SOURCE=gpu1, AMC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
- * ANTHROPIC_API_KEY (the latter is read inside ./anthropic-client).
+ * OPENAI_API_KEY (the latter is read inside ./anthropic-client).
  */
 import 'server-only'
 
 import { randomUUID } from 'node:crypto'
 
-import { getAnthropicClient, RUNNER_MODEL } from './anthropic-client'
+import { getOpenAIClient, RUNNER_MODEL } from './anthropic-client'
 import type { AgentRunStatus, AgentRunStepKind, DurationMs, IsoTimestamp, UsdAmount } from './types'
 
 // ---------------------------------------------------------------------------
-// Pricing — Claude Sonnet, per-token USD cost
+// Pricing — gpt-5.4, per-token USD cost (estimated)
 // ---------------------------------------------------------------------------
-// Anthropic list pricing for the Sonnet tier used by RUNNER_MODEL:
-//   input:  $3  / 1,000,000 tokens
-//   output: $15 / 1,000,000 tokens
-// (No prompt-caching discount applied here — this runner does not use the
-// cache_control blocks, so every input token is billed at the base rate.)
-const PRICE_USD_PER_INPUT_TOKEN = 3 / 1_000_000
-const PRICE_USD_PER_OUTPUT_TOKEN = 15 / 1_000_000
+// gpt-5.4 est. pricing used by RUNNER_MODEL:
+//   input:  $1.25 / 1,000,000 tokens
+//   output: $10   / 1,000,000 tokens
+const INPUT_USD_PER_1M = 1.25
+const OUTPUT_USD_PER_1M = 10
 
 function computeCostUsd(inputTokens: number, outputTokens: number): UsdAmount {
-  const cost = inputTokens * PRICE_USD_PER_INPUT_TOKEN + outputTokens * PRICE_USD_PER_OUTPUT_TOKEN
+  const cost = (inputTokens / 1e6) * INPUT_USD_PER_1M + (outputTokens / 1e6) * OUTPUT_USD_PER_1M
   // Round to 6 decimal places (sub-cent precision) to keep numeric columns tidy.
   return Math.round(cost * 1e6) / 1e6
 }
@@ -113,9 +111,9 @@ function summarize(text: string, maxLen = 400): string {
 }
 
 /**
- * Execute one copilot run: call Claude with the copilot's system prompt +
+ * Execute one copilot run: call OpenAI with the copilot's system prompt +
  * user input, persist an agent_runs row and a matching agent_run_steps row,
- * and return the structured result. On Anthropic failure, still persists a
+ * and return the structured result. On OpenAI failure, still persists a
  * `failed` run so the run history stays complete.
  */
 export async function executeCopilotRun(
@@ -134,23 +132,20 @@ export async function executeCopilotRun(
   let stepDetail: string
 
   try {
-    const client = getAnthropicClient()
-    const completion = await client.messages.create({
+    const client = getOpenAIClient()
+    const completion = await client.chat.completions.create({
       model: model || RUNNER_MODEL,
-      max_tokens: 4096,
-      system: systemPromptSummary,
-      messages: [{ role: 'user', content: userInput }],
+      messages: [
+        { role: 'system', content: systemPromptSummary },
+        { role: 'user', content: userInput },
+      ],
+      max_completion_tokens: 4096,
     })
 
-    // Concatenate all text blocks from the completion (SDK content blocks are a
-    // union; narrow on `type === 'text'` and read `.text` off the narrowed block).
-    const replyText = completion.content
-      .map((block) => (block.type === 'text' ? block.text : ''))
-      .join('')
-      .trim()
+    const replyText = (completion.choices[0]?.message?.content ?? '').trim()
     outputSummary = summarize(replyText)
-    inputTokens = completion.usage?.input_tokens ?? 0
-    outputTokens = completion.usage?.output_tokens ?? 0
+    inputTokens = completion.usage?.prompt_tokens ?? 0
+    outputTokens = completion.usage?.completion_tokens ?? 0
 
     status = 'completed'
     stepDetail = summarize(replyText || '(empty response)')
@@ -158,7 +153,7 @@ export async function executeCopilotRun(
     status = 'failed'
     stepStatus = 'error'
     const message = err instanceof Error ? err.message : String(err)
-    outputSummary = summarize(`Anthropic call failed: ${message}`)
+    outputSummary = summarize(`OpenAI call failed: ${message}`)
     stepDetail = outputSummary
   }
 

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
-import type Anthropic from '@anthropic-ai/sdk'
 
-import { getAnthropicClient, ARCHITECT_MODEL } from '@/lib/agent-mission-control/anthropic-client'
+import { getOpenAIClient, ARCHITECT_MODEL } from '@/lib/agent-mission-control/anthropic-client'
 import { ARCHITECT_SYSTEM_PROMPT, ARCHITECT_TOOL } from '@/lib/agent-mission-control/architect-prompt'
 import type { ArchitectMessage, GeneratedManifest } from '@/lib/agent-mission-control/authoring-types'
 
@@ -9,16 +8,16 @@ import type { ArchitectMessage, GeneratedManifest } from '@/lib/agent-mission-co
  * POST /api/agent-ops/architect — the Architect assistant.
  *
  * Conversational endpoint backing the agent-authoring surface: takes the
- * running conversation, calls Claude with the `emit_manifest` tool wired in,
+ * running conversation, calls OpenAI with the `emit_manifest` tool wired in,
  * and returns the assistant's reply plus a structured `GeneratedManifest`
  * whenever the model decides the design is ready to propose.
  *
- * Live-only, fail-closed: without `ANTHROPIC_API_KEY` or with
+ * Live-only, fail-closed: without `OPENAI_API_KEY` or with
  * `AMC_DATA_SOURCE !== 'gpu1'`, refuse with 503 rather than fake a response.
- * This makes a REAL call to the Anthropic API (costs credits) — authorized
+ * This makes a REAL call to the OpenAI API (costs credits) — authorized
  * per task brief.
  *
- * Server-only: never expose ANTHROPIC_API_KEY to the client.
+ * Server-only: never expose OPENAI_API_KEY to the client.
  */
 
 interface ArchitectRequestBody {
@@ -32,7 +31,7 @@ interface ArchitectResponseBody {
 }
 
 export async function POST(request: Request) {
-  if (process.env.AMC_DATA_SOURCE !== 'gpu1' || !process.env.ANTHROPIC_API_KEY) {
+  if (process.env.AMC_DATA_SOURCE !== 'gpu1' || !process.env.OPENAI_API_KEY) {
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
   }
 
@@ -59,45 +58,50 @@ export async function POST(request: Request) {
     )
   }
 
-  let client: Anthropic
+  let client: ReturnType<typeof getOpenAIClient>
   try {
-    client = getAnthropicClient()
+    client = getOpenAIClient()
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'failed to init Anthropic client' },
+      { error: err instanceof Error ? err.message : 'failed to init OpenAI client' },
       { status: 503 }
     )
   }
 
-  let response: Anthropic.Message
+  const messages = [
+    { role: 'system' as const, content: ARCHITECT_SYSTEM_PROMPT },
+    ...body.messages.map((m) => ({ role: m.role, content: m.content })),
+  ]
+
+  let response: Awaited<ReturnType<typeof client.chat.completions.create>>
   try {
-    response = await client.messages.create({
+    response = await client.chat.completions.create({
       model: ARCHITECT_MODEL,
-      max_tokens: 2048,
-      system: ARCHITECT_SYSTEM_PROMPT,
+      messages,
       tools: [ARCHITECT_TOOL],
-      messages: body.messages.map((m) => ({ role: m.role, content: m.content })),
+      tool_choice: 'auto',
+      max_completion_tokens: 4096,
     })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Anthropic API call failed'
-    return NextResponse.json({ error: `Anthropic error: ${message}` }, { status: 502 })
+    const message = err instanceof Error ? err.message : 'OpenAI API call failed'
+    return NextResponse.json({ error: `OpenAI error: ${message}` }, { status: 502 })
   }
 
-  let replyText = ''
-  let manifest: GeneratedManifest | null = null
+  const msg = response.choices[0].message
+  const replyText = msg.content ?? ''
+  // tool_calls is a union (function | custom); narrow on type === 'function'
+  // before reading .function so the custom-tool member is excluded.
+  const toolCall = msg.tool_calls?.find(
+    (t) => t.type === 'function' && t.function.name === 'emit_manifest'
+  )
+  const manifest: GeneratedManifest | null =
+    toolCall && toolCall.type === 'function'
+      ? (JSON.parse(toolCall.function.arguments) as GeneratedManifest)
+      : null
 
-  for (const block of response.content) {
-    if (block.type === 'text') {
-      replyText += (replyText ? '\n' : '') + block.text
-    } else if (block.type === 'tool_use' && block.name === 'emit_manifest') {
-      manifest = block.input as GeneratedManifest
-    }
+  const payload: ArchitectResponseBody = {
+    reply: replyText || (manifest ? "I've drafted a manifest — review it on the right." : ''),
+    manifest,
   }
-
-  if (!replyText && manifest) {
-    replyText = 'Voici le manifeste proposé pour cet agent.'
-  }
-
-  const payload: ArchitectResponseBody = { reply: replyText, manifest }
   return NextResponse.json(payload)
 }
