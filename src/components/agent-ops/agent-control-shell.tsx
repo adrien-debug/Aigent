@@ -8,15 +8,21 @@ import { usePathname } from 'next/navigation'
 import { Avatar } from '@/components/catalyst/avatar'
 
 /**
- * Hearst brand mark — the "H" monogram, inline SVG, no external asset.
- * Draws in `currentColor` so its consumers set the hue (accent orange on the
- * rail). Single source: change here and every mount updates.
+ * Hearst "H" monogram — the exact two-polygon brand mark lifted from the
+ * hearst-connect logo. Draws in `currentColor` so consumers pick the hue
+ * (accent orange on the rail). Single source: change here, every mount
+ * updates. viewBox is cropped to the H's bounding box in the source artwork.
  */
 function LogoMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={clsx(className)}>
-      {/* Two uprights + a centered crossbar = a clean geometric H. */}
-      <path d="M4 3.5h3.25v6.75h9.5V3.5H20v17h-3.25v-6.75h-9.5V20.5H4z" />
+    <svg
+      viewBox="570.6 464.9 133.3 146.8"
+      fill="currentColor"
+      aria-hidden="true"
+      className={clsx(className)}
+    >
+      <polygon points="601.7 466.9 572.6 466.9 572.6 609.7 601.7 609.7 601.7 549.1 633.1 579.4 665.8 579.4 601.7 517.5 601.7 466.9" />
+      <polygon points="672.7 466.9 672.7 528.1 644.6 500.9 612 500.9 672.7 559.7 672.7 609.7 701.9 609.7 701.9 466.9 672.7 466.9" />
     </svg>
   )
 }
