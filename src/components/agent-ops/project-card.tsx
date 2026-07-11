@@ -9,12 +9,8 @@ import type { Project } from '@/lib/agent-mission-control/types'
  * the header, then title/meta and a three-stat footer. Server-safe (no `use client`),
  * props serialisable. Twin cards share an identical skeleton so grid rows align to
  * the pixel; absent data renders `—` zinc, never `0.0%`.
- *
- * `imageUrl`/`logoUrl` are optional on the row; typed here as a widening of `Project`
- * so the card compiles regardless of whether the shared interface has surfaced them yet.
+ * `imageUrl`/`logoUrl` are optional on the shared `Project` interface.
  */
-type ProjectWithMedia = Project & { imageUrl?: string; logoUrl?: string }
-
 interface ProjectRollup {
   copilotCount: number
   activeCount: number
@@ -24,7 +20,7 @@ interface ProjectRollup {
 }
 
 interface ProjectCardProps {
-  project: ProjectWithMedia
+  project: Project
   rollup: ProjectRollup
   href: string
 }
