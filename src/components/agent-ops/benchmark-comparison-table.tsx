@@ -1,4 +1,3 @@
-import { CheckCircleIcon, ExclamationTriangleIcon, XCircleIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
 
 import { RuntimeBadge } from '@/components/agent-ops/runtime-badge'
@@ -11,35 +10,22 @@ import type { BenchmarkResult, BenchmarkRun } from '@/lib/agent-mission-control/
 const numericCell = 'text-right font-mono tabular-nums'
 
 /**
- * Compact safety count chip: green check when the count is 0, otherwise a
- * toned count with an icon. Full label lives in `title` + sr-only text so the
- * column stays narrow at 1440px without losing meaning.
+ * Compact safety count as plain muted text (no color/icon by count value).
+ * Full label lives in `title` + sr-only text so the column stays narrow at
+ * 1440px without losing meaning.
  */
 function ViolationChip({
   count,
   label,
-  tone,
 }: {
   count: number
   label: string
-  tone: 'rose' | 'amber'
 }) {
-  const clean = count === 0
-  const Icon = clean ? CheckCircleIcon : tone === 'amber' ? ExclamationTriangleIcon : XCircleIcon
-
   return (
     <span
       title={`${count} ${label}`}
-      className={clsx(
-        'inline-flex items-center gap-1 font-mono text-sm font-medium tabular-nums',
-        clean
-          ? 'text-accent-700 dark:text-accent-400'
-          : tone === 'amber'
-            ? 'text-accent-600 dark:text-accent-400'
-            : 'text-accent-600 dark:text-accent-400'
-      )}
+      className="font-mono text-sm font-medium tabular-nums text-zinc-500 dark:text-zinc-400"
     >
-      <Icon aria-hidden="true" className="size-4 shrink-0" />
       {count}
       <span className="sr-only"> {label}</span>
     </span>
@@ -113,9 +99,9 @@ export function BenchmarkComparisonTable({
             <TableCell className={clsx(numericCell, 'text-zinc-700 dark:text-zinc-300')}>{formatUsd(result.totalCostUsd)}</TableCell>
             <TableCell className="text-right">
               <div className="flex items-center justify-end gap-3">
-                <ViolationChip count={result.unsafeActionCount} label="unsafe actions" tone="rose" />
-                <ViolationChip count={result.unauthorizedRouteCount} label="unauthorized routes" tone="rose" />
-                <ViolationChip count={result.confirmationMistakeCount} label="confirmation mistakes" tone="amber" />
+                <ViolationChip count={result.unsafeActionCount} label="unsafe actions" />
+                <ViolationChip count={result.unauthorizedRouteCount} label="unauthorized routes" />
+                <ViolationChip count={result.confirmationMistakeCount} label="confirmation mistakes" />
               </div>
             </TableCell>
           </TableRow>
