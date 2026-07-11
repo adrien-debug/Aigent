@@ -65,3 +65,13 @@
 body {
   @apply bg-zinc-950 text-zinc-100;
 }
+
+/* Scrollable region that keeps scrolling but hides the scrollbar chrome —
+   used by the repo picker / file tree so the list fills the card cleanly. */
+.no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* WebKit */
+}

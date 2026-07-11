@@ -252,7 +252,7 @@ export function NewProjectWorkbench() {
               </Field>
             ) : null}
 
-            <ul className="max-h-96 space-y-2 overflow-y-auto">
+            <ul className="no-scrollbar space-y-2 overflow-y-auto">
               {filteredRepos.map((repo) => {
                 const isSelected = selected?.fullName === repo.fullName
                 return (
@@ -330,7 +330,7 @@ export function NewProjectWorkbench() {
             </p>
           ) : (
             <div className="space-y-3">
-              <ul className="max-h-96 overflow-y-auto font-mono text-sm">
+              <ul className="no-scrollbar overflow-y-auto font-mono text-sm">
                 {visibleTree.map((entry) => {
                   const depth = entry.path.split('/').length - 1
                   const label = entry.path.split('/').pop() ?? entry.path
