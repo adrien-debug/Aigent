@@ -107,6 +107,156 @@ async function getDefaultBranch(repoFullName: string): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------
+// Read-only GitHub browsing (repos / tree / file) — server only
+// ---------------------------------------------------------------------------
+
+export interface GithubRepoSummary {
+  fullName: string
+  name: string
+  owner: string
+  private: boolean
+  defaultBranch: string
+  description: string | null
+  htmlUrl: string
+  updatedAt: string
+}
+
+export interface RepoTreeEntry {
+  path: string
+  type: 'blob' | 'tree'
+  size?: number
+}
+
+export interface RepoFileContent {
+  path: string
+  encoding: 'utf-8'
+  text: string
+  truncated: boolean
+}
+
+/** Shape of a repo object as returned by the GitHub REST API (partial). */
+interface GithubApiRepo {
+  full_name: string
+  name: string
+  owner: { login: string }
+  private: boolean
+  default_branch: string
+  description: string | null
+  html_url: string
+  updated_at: string
+}
+
+function mapRepo(r: GithubApiRepo): GithubRepoSummary {
+  return {
+    fullName: r.full_name,
+    name: r.name,
+    owner: r.owner.login,
+    private: r.private,
+    defaultBranch: r.default_branch,
+    description: r.description ?? null,
+    htmlUrl: r.html_url,
+    updatedAt: r.updated_at,
+  }
+}
+
+/**
+ * List the authenticated user's accessible repositories (owned, collaborator,
+ * org member). Paginates up to a sane cap; sorted by most-recently updated.
+ * Read-only. Fails closed via the shared `gh` helper (throws without a token).
+ */
+export async function listRepos(): Promise<GithubRepoSummary[]> {
+  const PER_PAGE = 100
+  const MAX_REPOS = 300
+  const maxPages = Math.ceil(MAX_REPOS / PER_PAGE)
+
+  const all: GithubApiRepo[] = []
+  for (let page = 1; page <= maxPages; page += 1) {
+    const batch = await gh<GithubApiRepo[]>(
+      'GET',
+      `user/repos?per_page=${PER_PAGE}&sort=updated&page=${page}&affiliation=owner,collaborator,organization_member`
+    )
+    if (!Array.isArray(batch) || batch.length === 0) break
+    all.push(...batch)
+    if (batch.length < PER_PAGE) break
+  }
+
+  return all
+    .slice(0, MAX_REPOS)
+    .map(mapRepo)
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0))
+}
+
+/**
+ * Fetch a repository's git tree recursively. Defaults to the repo's default
+ * branch when no ref is given. Returns BOTH blobs and trees, unfiltered. If the
+ * GitHub API truncates the response (very large repo), the partial listing is
+ * returned as-is — this never throws for truncation.
+ * Read-only.
+ */
+export async function getRepoTree(
+  repoFullName: string,
+  ref?: string
+): Promise<RepoTreeEntry[]> {
+  const resolvedRef = ref ?? (await getDefaultBranch(repoFullName))
+  const data = await gh<{
+    truncated?: boolean
+    tree?: { path: string; type: string; size?: number }[]
+  }>(
+    'GET',
+    `repos/${repoFullName}/git/trees/${encodeURIComponent(resolvedRef)}?recursive=1`
+  )
+
+  const tree = data.tree ?? []
+  return tree
+    .filter((e): e is { path: string; type: 'blob' | 'tree'; size?: number } =>
+      e.type === 'blob' || e.type === 'tree'
+    )
+    .map((e) => ({
+      path: e.path,
+      type: e.type,
+      ...(typeof e.size === 'number' ? { size: e.size } : {}),
+    }))
+}
+
+/**
+ * Read a single file's UTF-8 contents from a repository. Defaults to the repo's
+ * default branch when no ref is given. Files above the Contents API inline limit
+ * (~1MB — the API returns empty content plus a download_url) resolve cleanly to
+ * `{ truncated: true, text: '' }` rather than throwing. A non-file target (dir,
+ * submodule, symlink) throws.
+ * Read-only.
+ */
+export async function getRepoFile(
+  repoFullName: string,
+  path: string,
+  ref?: string
+): Promise<RepoFileContent> {
+  const cleanPath = path.replace(/^\/+/, '')
+  const encodedPath = cleanPath.split('/').map(encodeURIComponent).join('/')
+  const query = ref ? `?ref=${encodeURIComponent(ref)}` : ''
+
+  const data = await gh<{
+    type: string
+    path: string
+    content?: string
+    encoding?: string
+  }>('GET', `repos/${repoFullName}/contents/${encodedPath}${query}`)
+
+  if (data.type !== 'file') {
+    throw new Error(`not a file: ${cleanPath} (type: ${data.type})`)
+  }
+
+  // Above the inline limit, the API returns an empty content string (and a
+  // download_url); treat that as a clean truncation rather than an error.
+  if (!data.content) {
+    return { path: data.path, encoding: 'utf-8', text: '', truncated: true }
+  }
+
+  const text = Buffer.from(data.content, 'base64').toString('utf-8')
+  return { path: data.path, encoding: 'utf-8', text, truncated: false }
+}
+
+// ---------------------------------------------------------------------------
 // Scaffolding — real, runnable runtime code per runtime
 // ---------------------------------------------------------------------------
 
