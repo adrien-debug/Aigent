@@ -10,10 +10,7 @@ import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
 import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
 import { SplitBar } from '@/components/agent-ops/widgets/split-bar'
-import { RuntimeBadge } from '@/components/agent-ops/runtime-badge'
-import { StatusBadge } from '@/components/agent-ops/status-badge'
-import { VersionStageBadge, versionStageLabels } from '@/components/agent-ops/version-stage-badge'
-import { Badge } from '@/components/catalyst/badge'
+import { AGENT_RUNTIME_LABELS } from '@/lib/agent-mission-control/labels'
 import { Button } from '@/components/catalyst/button'
 import { Subheading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
@@ -41,26 +38,36 @@ import type {
   BenchmarkRun,
   BenchmarkSuite,
   Project,
+  VersionStage,
 } from '@/lib/agent-mission-control/types'
 
 // ---------------------------------------------------------------------------
-// Semantic maps (doctrine: color never alone, always a text label)
+// Semantic maps — plain text labels, no colored badges
 // ---------------------------------------------------------------------------
 
-const runStatusConfig: Record<AgentRunStatus, { label: string; dot: string; text: string }> = {
-  completed: {
-    label: 'Completed',
-    dot: 'bg-accent-500 dark:bg-accent-400',
-    text: 'text-accent-700 dark:text-accent-400',
-  },
-  running: { label: 'Running', dot: 'bg-accent-500 dark:bg-accent-400', text: 'text-accent-600 dark:text-accent-400' },
-  'needs-confirmation': {
-    label: 'Needs confirmation',
-    dot: 'bg-accent-500 dark:bg-accent-400',
-    text: 'text-accent-600 dark:text-accent-400',
-  },
-  blocked: { label: 'Blocked', dot: 'bg-accent-500 dark:bg-accent-400', text: 'text-accent-600 dark:text-accent-400' },
-  failed: { label: 'Failed', dot: 'bg-accent-500 dark:bg-accent-400', text: 'text-accent-600 dark:text-accent-400' },
+/** Copilot lifecycle status → plain text label. */
+const copilotStatusLabels: Record<string, string> = {
+  active: 'Active',
+  degraded: 'Degraded',
+  paused: 'Paused',
+  draft: 'Draft',
+  archived: 'Archived',
+}
+
+/** Canonical display labels for version stages — never render the raw enum. */
+const versionStageLabels: Record<VersionStage, string> = {
+  production: 'Production',
+  beta: 'Beta',
+  draft: 'Draft',
+  archived: 'Archived',
+}
+
+const runStatusConfig: Record<AgentRunStatus, { label: string; text: string }> = {
+  completed: { label: 'Completed', text: 'text-zinc-500 dark:text-zinc-400' },
+  running: { label: 'Running', text: 'text-zinc-500 dark:text-zinc-400' },
+  'needs-confirmation': { label: 'Needs confirmation', text: 'text-zinc-500 dark:text-zinc-400' },
+  blocked: { label: 'Blocked', text: 'text-zinc-500 dark:text-zinc-400' },
+  failed: { label: 'Failed', text: 'text-zinc-500 dark:text-zinc-400' },
 }
 
 // ---------------------------------------------------------------------------
@@ -126,17 +133,15 @@ function RuntimeStat({
 }
 
 /**
- * Priority encoding for the Next actions feed — intensity carries urgency, the
- * label carries meaning (monochrome-safe). gate/errors/shadow = solid (act now),
- * tests/tools = strong (attention), untested-draft = zinc (informational).
+ * Priority labels for the Next actions feed — plain text, no colored badges.
  */
-const nextActionPriority: Record<string, { tone: 'accentSolid' | 'accentStrong' | 'zinc'; label: string }> = {
-  gate: { tone: 'accentSolid', label: 'Gate' },
-  errors: { tone: 'accentSolid', label: 'Errors' },
-  shadow: { tone: 'accentSolid', label: 'Shadow' },
-  tests: { tone: 'accentStrong', label: 'Tests' },
-  tools: { tone: 'accentStrong', label: 'Tools' },
-  'untested-draft': { tone: 'zinc', label: 'Draft' },
+const nextActionPriority: Record<string, { label: string }> = {
+  gate: { label: 'Gate' },
+  errors: { label: 'Errors' },
+  shadow: { label: 'Shadow' },
+  tests: { label: 'Tests' },
+  tools: { label: 'Tools' },
+  'untested-draft': { label: 'Draft' },
 }
 
 // ---------------------------------------------------------------------------
@@ -387,11 +392,11 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
             </IdentityField>
 
             <IdentityField label="Tags" className="sm:col-span-2">
-              <span className="flex flex-wrap gap-2">
+              <span className="flex flex-wrap gap-x-3 gap-y-1">
                 {copilot.tags.map((tag) => (
-                  <Badge key={tag} color="zinc" className="font-mono">
+                  <span key={tag} className="font-mono text-sm text-zinc-500 dark:text-zinc-400">
                     {tag}
-                  </Badge>
+                  </span>
                 ))}
               </span>
             </IdentityField>
@@ -400,9 +405,11 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
 
         {/* Runtime & status — 1 col. Gauge + mini-stats instead of a dash column. */}
         <AgentBentoCard title="Runtime & status" level={2}>
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge status={copilot.status} />
-            <RuntimeBadge runtime={copilot.runtime} />
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            <span className="font-medium text-zinc-700 dark:text-zinc-300">
+              {copilotStatusLabels[copilot.status] ?? copilot.status}
+            </span>
+            <span className="text-zinc-500 dark:text-zinc-400">{AGENT_RUNTIME_LABELS[copilot.runtime]}</span>
           </div>
 
           {/* Version rows — two tight labelled rows (real labels, not dashes). */}
@@ -413,7 +420,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                 {productionVersion ? (
                   <>
                     <span className="font-mono text-zinc-950 tabular-nums dark:text-white">{productionVersion.label}</span>
-                    <VersionStageBadge stage={productionVersion.stage} />
+                    <span className="text-zinc-500 dark:text-zinc-400">{versionStageLabels[productionVersion.stage]}</span>
                   </>
                 ) : (
                   <span className="text-zinc-500 dark:text-zinc-400">Not in production</span>
@@ -426,7 +433,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                 {latestVersion ? (
                   <>
                     <span className="font-mono text-zinc-950 tabular-nums dark:text-white">{latestVersion.label}</span>
-                    <VersionStageBadge stage={latestVersion.stage} />
+                    <span className="text-zinc-500 dark:text-zinc-400">{versionStageLabels[latestVersion.stage]}</span>
                   </>
                 ) : (
                   <span className="text-zinc-500 dark:text-zinc-400">Not created yet</span>
@@ -598,9 +605,9 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                       />
                       <div className="mt-3 flex items-center gap-2">
                         <span className="text-xs text-zinc-500">Model</span>
-                        <Badge color="zinc" className="font-mono">
+                        <span className="font-mono text-sm text-zinc-500 dark:text-zinc-400">
                           {bestCandidate.run.model}
-                        </Badge>
+                        </span>
                       </div>
                       <div className="mt-4">
                         <SectionLink href={`${base}/tests#benchmarks`}>View benchmarks</SectionLink>
@@ -646,10 +653,6 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                           href={`${base}/runs?run=${run.id}`}
                           className="flex items-start gap-3 px-6 py-3 hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5"
                         >
-                          <span
-                            aria-hidden="true"
-                            className={clsx('mt-1.5 size-1.5 shrink-0 rounded-full', statusConfig.dot)}
-                          />
                           <span className="min-w-0 flex-1">
                             <span className="flex items-baseline justify-between gap-3">
                               <span className="truncate text-sm text-zinc-700 dark:text-zinc-300">
@@ -713,25 +716,25 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
           description="Derived from the promotion gate, tests, shadow traffic and live errors"
           actions={
             visibleActions.length > 0 ? (
-              <Badge color="zinc" className="font-mono tabular-nums">
+              <span className="font-mono text-sm text-zinc-500 tabular-nums dark:text-zinc-400">
                 {visibleActions.length}
-              </Badge>
+              </span>
             ) : undefined
           }
           contentClassName={visibleActions.length > 0 ? 'divide-y divide-zinc-950/5 dark:divide-white/5' : 'px-6 py-5'}
         >
           {visibleActions.length > 0 ? (
             visibleActions.map((action) => {
-              const priority = nextActionPriority[action.key] ?? { tone: 'zinc' as const, label: 'Action' }
+              const priority = nextActionPriority[action.key] ?? { label: 'Action' }
               return (
                 <Link
                   key={action.key}
                   href={action.href}
                   className="group flex items-start gap-4 px-6 py-4 hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5"
                 >
-                  <Badge color={priority.tone} className="mt-0.5 shrink-0">
+                  <span className="mt-0.5 shrink-0 text-sm font-medium text-zinc-500 dark:text-zinc-400">
                     {priority.label}
-                  </Badge>
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-medium text-zinc-950 dark:text-white">{action.title}</span>
                     <span className="mt-1 block max-w-xl truncate text-sm text-zinc-500 dark:text-zinc-400">{action.reason}</span>
