@@ -12,7 +12,6 @@ import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
 import { SplitBar } from '@/components/agent-ops/widgets/split-bar'
 import { AGENT_RUNTIME_LABELS } from '@/lib/agent-mission-control/labels'
 import { Button } from '@/components/catalyst/button'
-import { Subheading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
 import { formatDurationMs, formatPercent, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 import {
@@ -498,17 +497,18 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
           /* Onboarding empty state — two columns fill the width: a progress
              ring + narrative on the left, the actionable stepper on the right
              (hairline divider, not a nested box). No wasted center gutter. */
-          <div className="relative isolate overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 lg:col-span-3 dark:bg-zinc-950 dark:ring-white/10">
+          <AgentSectionCard
+            title="Ship your first version"
+            className="lg:col-span-3"
+            contentClassName="relative px-6 py-8 sm:px-8"
+          >
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 bg-radial-[at_top_left] from-accent-500/[0.05] dark:from-accent-500/[0.07] via-transparent to-transparent"
             />
-            <div className="relative grid gap-x-10 gap-y-8 px-6 py-8 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center">
+            <div className="relative grid gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center">
               <div>
                 <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Draft copilot</p>
-                <Subheading level={2} className="mt-2 text-balance">
-                  Ship your first version
-                </Subheading>
                 <div className="mt-5 flex items-center gap-5">
                   <RadialMeter
                     value={onboardingDone}
@@ -547,7 +547,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                 />
               </div>
             </div>
-          </div>
+          </AgentSectionCard>
         ) : (
           <>
             {/* Tests & benchmarks — ONE card, two gauge rows split by a hairline. */}
@@ -700,14 +700,10 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
         )}
       </div>
 
-      {/* 3 — Architecture strip, on a black card panel (the strip stays flat inside) */}
-      <section className="rounded-xl bg-white px-6 py-5 ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
-        <Subheading>Architecture</Subheading>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Execution path enforced on every run</p>
-        <div className="mt-5">
-          <ArchitectureStrip steps={architectureSteps} />
-        </div>
-      </section>
+      {/* 3 — Architecture strip, on the canonical section card */}
+      <AgentSectionCard title="Architecture" description="Execution path enforced on every run">
+        <ArchitectureStrip steps={architectureSteps} />
+      </AgentSectionCard>
 
       {/* 4 — Next actions (the onboarding checklist covers the sparse draft) */}
       {!isSparseDraft ? (
