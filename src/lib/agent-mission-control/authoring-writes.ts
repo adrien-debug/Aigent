@@ -1,19 +1,18 @@
 /**
  * Agent Mission Control — authoring write layer (server only).
  *
- * PostgREST write helpers backing the agent-authoring surface: CRUD on
- * `agent_drafts`, plus the multi-insert that materializes a ready draft
- * into a real `copilots` row (+ its `manifests`, `tools`, `copilot_versions`
- * rows). Live-only, fail-closed — mirrors data.ts's requireBackend() and
- * the write pattern already used by
- * src/app/api/agent-ops/copilots/[copilotId]/route.ts.
+ * PostgREST write helper backing the agent-authoring surface: the
+ * multi-insert that materializes a ready draft into a real `copilots` row
+ * (+ its `manifests`, `tools`, `copilot_versions` rows). Live-only,
+ * fail-closed — mirrors data.ts's requireBackend() and the write pattern
+ * already used by src/app/api/agent-ops/copilots/[copilotId]/route.ts.
  *
  * Never import this module from a client component: it reads the service
  * role key.
  */
 import 'server-only'
 
-import type { AgentDraft, CreateCopilotInput } from './authoring-types'
+import type { CreateCopilotInput } from './authoring-types'
 import { makeId, slugify } from './slug'
 
 // ---------------------------------------------------------------------------
@@ -81,69 +80,6 @@ function snakeRow(row: RawRow): RawRow {
     out[k.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)] = v
   }
   return out
-}
-
-// ---------------------------------------------------------------------------
-// agent_drafts CRUD
-// ---------------------------------------------------------------------------
-
-export interface CreateDraftInput {
-  name?: string
-  description?: string
-  runtime?: AgentDraft['runtime']
-  model?: string
-  modelProvider?: AgentDraft['modelProvider']
-  owner?: string
-}
-
-/**
- * Insert a new `agent_drafts` row. All fields optional — the authoring
- * surface starts a draft from a blank conversation and fills identity in
- * as the Architect assistant (or the user) converses.
- */
-export async function createDraft(input: CreateDraftInput): Promise<AgentDraft> {
-  const now = new Date().toISOString()
-  const payload: RawRow = {
-    name: input.name ?? '',
-    description: input.description ?? '',
-    runtime: input.runtime ?? 'anthropic-sdk',
-    model: input.model ?? '',
-    model_provider: input.modelProvider ?? 'anthropic',
-    owner: input.owner ?? '',
-    status: 'drafting',
-    generated_manifest: {},
-    conversation: [],
-    created_copilot_id: null,
-    created_at: now,
-    updated_at: now,
-  }
-  const rows = await restWrite('POST', 'agent_drafts', payload)
-  return camelRow<AgentDraft>(rows[0])
-}
-
-/**
- * PATCH an `agent_drafts` row. Accepts any subset of `AgentDraft` fields
- * (camelCase) and maps them to their snake_case columns. `updatedAt` is
- * always bumped to now server-side regardless of what's passed.
- */
-export async function updateDraft(id: string, patch: Partial<AgentDraft>): Promise<AgentDraft> {
-  const { id: _ignoredId, ...rest } = patch
-  void _ignoredId
-  const payload = snakeRow({ ...rest, updatedAt: new Date().toISOString() })
-  const rows = await restWrite('PATCH', `agent_drafts?id=eq.${encodeURIComponent(id)}`, payload)
-  if (rows.length === 0) {
-    throw new Error(`agent_drafts: no row found for id=${id}`)
-  }
-  return camelRow<AgentDraft>(rows[0])
-}
-
-/** GET a single `agent_drafts` row by id. Throws if not found. */
-export async function getDraft(id: string): Promise<AgentDraft> {
-  const rows = await restWrite('GET', `agent_drafts?id=eq.${encodeURIComponent(id)}&select=*`)
-  if (rows.length === 0) {
-    throw new Error(`agent_drafts: no row found for id=${id}`)
-  }
-  return camelRow<AgentDraft>(rows[0])
 }
 
 // ---------------------------------------------------------------------------
