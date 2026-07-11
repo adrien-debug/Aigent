@@ -7,18 +7,16 @@ import { usePathname } from 'next/navigation'
 
 import { Avatar } from '@/components/catalyst/avatar'
 
-/** Mission-control reticle mark — inline SVG, no external asset. */
+/**
+ * Hearst brand mark — the "H" monogram, inline SVG, no external asset.
+ * Draws in `currentColor` so its consumers set the hue (accent orange on the
+ * rail). Single source: change here and every mount updates.
+ */
 function LogoMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={clsx(className)}>
-      <circle cx="12" cy="12" r="7" stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
-      <circle cx="12" cy="12" r="2.25" fill="currentColor" />
-      <path
-        d="M12 1.75v3.25M12 19v3.25M1.75 12H5M19 12h3.25"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={clsx(className)}>
+      {/* Two uprights + a centered crossbar = a clean geometric H. */}
+      <path d="M4 3.5h3.25v6.75h9.5V3.5H20v17h-3.25v-6.75h-9.5V20.5H4z" />
     </svg>
   )
 }
@@ -79,7 +77,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
           aria-label="Agent Mission Control"
           className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--copper-surface)] ring-1 ring-[var(--copper-line)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
         >
-          <LogoMark className="size-5 text-accent-700 dark:text-accent-300" />
+          <LogoMark className="size-5 text-accent-500 dark:text-accent-400" />
         </Link>
 
         {/* Nav — square icon+label buttons, centrés sur l'axe vertical du rail
@@ -108,7 +106,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
       {/* Mobile top bar — brand + inline nav (rail collapses on small screens) */}
       <header className="flex items-center gap-2 border-b border-zinc-950/5 bg-white px-4 py-2 lg:hidden dark:border-white/10 dark:bg-zinc-950">
         <Link href="/admin" aria-label="Agent Mission Control" className="flex size-8 items-center justify-center rounded-lg bg-zinc-950/5 dark:bg-white/5">
-          <LogoMark className="size-4 text-accent-700 dark:text-accent-300" />
+          <LogoMark className="size-4 text-accent-500 dark:text-accent-400" />
         </Link>
         <nav className="flex items-center gap-1">
           {NAV_ITEMS.map(({ label, icon: Icon, href, match }) => (
