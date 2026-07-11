@@ -1,63 +1,70 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+import { SESSION_COOKIE, decodeSession } from '@/lib/agent-mission-control/auth'
+
 /**
- * Agent Mission Control — API guard (fail-closed). Next 16 `proxy` convention
- * (the former `middleware` file convention, renamed upstream).
+ * Agent Mission Control — identity gate (Next 16 `proxy` convention, fail-closed).
  *
- * The /api/agent-ops/** routes are unauthenticated admin primitives: they
- * trigger real (billed) LLM runs, mutate the service_role DB, and proxy GitHub.
- * There is no login system, so this middleware gates them two ways, fail-closed:
+ * Protection is now by IDENTITY, not just origin:
  *
- *  1. SAME-ORIGIN ONLY (always on). A browser attaches `sec-fetch-site` and,
- *     for cross-origin requests, an `Origin` header. We allow same-origin
- *     requests (the app's own client components) and same-origin navigations,
- *     and REJECT anything whose Origin is a different host. This blocks
- *     cross-site (CSRF) and drive-by calls from other web origins.
+ *  - /admin/**  — requires a valid admin session cookie. No session → redirect
+ *    to /login?next=<path>. (Pages.)
+ *  - /api/agent-ops/**  — requires EITHER a valid admin session cookie OR a
+ *    valid x-amc-key (server-to-server / automation). Neither → 401 JSON.
+ *    Same-origin alone is NO LONGER sufficient — that's the point of this lot.
+ *  - /login, /api/auth/**, /logout — always reachable (that's how you get in/out).
  *
- *  2. SHARED KEY (optional, opt-in via env AMC_API_KEY). When set, a caller may
- *     ALSO authorize with header `x-amc-key: <key>` — this is the path for
- *     trusted server-to-server / CLI clients that have no browser Origin. The
- *     key is read server-side only and never sent to the browser.
- *
- * A request passes if it is same-origin OR carries the valid key. Otherwise 403.
- * GET/HEAD are still guarded (the GitHub read proxy is sensitive too).
+ * The session cookie is HMAC-signed; `decodeSession` returns null on missing
+ * secret, tampering, or expiry, so a missing AMC_SESSION_SECRET denies every
+ * gate (fail-closed). Secrets are read server-side only; nothing here reaches
+ * the browser.
  */
 export function proxy(request: NextRequest) {
   const url = new URL(request.url)
-  const method = request.method
+  const path = url.pathname
 
-  // Preflight: let CORS preflights through (they carry no credentials/action).
-  if (method === 'OPTIONS') return NextResponse.next()
+  if (request.method === 'OPTIONS') return NextResponse.next()
 
-  const origin = request.headers.get('origin')
-  const fetchSite = request.headers.get('sec-fetch-site') // same-origin | same-site | cross-site | none
-
-  // Same-origin if the browser says so, or if there's no Origin header at all
-  // for a same-origin navigation (sec-fetch-site: none / same-origin).
-  const sameOrigin =
-    fetchSite === 'same-origin' ||
-    fetchSite === 'same-site' ||
-    fetchSite === 'none' ||
-    (origin !== null && origin === url.origin) ||
-    // No Origin + no sec-fetch-site → non-browser client; fall through to key.
-    (origin === null && fetchSite === null && false)
-
-  if (sameOrigin) return NextResponse.next()
-
-  // Cross-origin or non-browser: require the shared key when configured.
-  const apiKey = process.env.AMC_API_KEY
-  if (apiKey && request.headers.get('x-amc-key') === apiKey) {
+  // Always-open surfaces: login page, auth API, logout, and Next internals.
+  if (
+    path === '/login' ||
+    path.startsWith('/api/auth/') ||
+    path === '/logout' ||
+    path.startsWith('/_next/') ||
+    path === '/favicon.ico'
+  ) {
     return NextResponse.next()
   }
 
-  return NextResponse.json(
-    { error: 'forbidden: cross-origin request to a protected endpoint' },
-    { status: 403 }
-  )
+  const session = decodeSession(readSessionCookie(request))
+
+  // --- Protected API surface: session OR valid automation key ---
+  if (path.startsWith('/api/agent-ops/')) {
+    if (session) return NextResponse.next()
+    const apiKey = process.env.AMC_API_KEY
+    if (apiKey && request.headers.get('x-amc-key') === apiKey) return NextResponse.next()
+    return NextResponse.json({ ok: false, error: 'Authentication required' }, { status: 401 })
+  }
+
+  // --- Protected pages: /admin/** requires a session, else redirect to login ---
+  if (path === '/admin' || path.startsWith('/admin/')) {
+    if (session) return NextResponse.next()
+    const loginUrl = new URL('/login', request.url)
+    // Preserve the intended destination, but only as a safe internal path.
+    if (path.startsWith('/admin')) loginUrl.searchParams.set('next', path)
+    return NextResponse.redirect(loginUrl)
+  }
+
+  return NextResponse.next()
+}
+
+function readSessionCookie(request: NextRequest): string | undefined {
+  return request.cookies.get(SESSION_COOKIE)?.value
 }
 
 export const config = {
-  // Guard only the agent-ops API surface; pages and static assets are untouched.
-  matcher: ['/api/agent-ops/:path*'],
+  // Guard the admin pages and the agent-ops API. Auth routes are allow-listed
+  // inside proxy() above so they stay reachable.
+  matcher: ['/admin/:path*', '/api/agent-ops/:path*'],
 }

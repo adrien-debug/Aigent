@@ -1,6 +1,6 @@
 'use client'
 
-import { Cog6ToothIcon, CpuChipIcon, FolderIcon, Squares2X2Icon } from '@heroicons/react/20/solid'
+import { ArrowRightStartOnRectangleIcon, Cog6ToothIcon, CpuChipIcon, FolderIcon, Squares2X2Icon } from '@heroicons/react/20/solid'
 import clsx from 'clsx'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -91,9 +91,17 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
-        {/* User avatar pinned to the bottom */}
-        <div className="mt-auto pt-4">
+        {/* User avatar + discreet sign-out, pinned to the bottom */}
+        <div className="mt-auto flex flex-col items-center gap-3 pt-4">
           <Avatar initials="AD" alt="Adrien — Platform Admin" className="size-9 bg-zinc-800 text-white" />
+          <a
+            href="/logout"
+            aria-label="Sign out"
+            title="Sign out"
+            className="flex size-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-[var(--copper-soft)] hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:hover:text-accent-300"
+          >
+            <ArrowRightStartOnRectangleIcon aria-hidden="true" className="size-5" />
+          </a>
         </div>
       </aside>
 
