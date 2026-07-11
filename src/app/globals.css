@@ -41,21 +41,16 @@
    `ring-[…]` / arbitrary props where a role is clearer than a raw shade.
    Dark-first: values below are the mission-control dark tuning. */
 :root {
-  /* copper accent roles (translucent so they compose on any dark surface) */
-  --copper-soft: color-mix(in oklab, var(--color-accent-500) 12%, transparent);      /* faint wash — hover, resting nav */
-  --copper-surface: color-mix(in oklab, var(--color-accent-500) 18%, transparent);   /* selected / active tint fill */
-  --copper-strong: color-mix(in oklab, var(--color-accent-500) 30%, transparent);    /* emphasis fill — warning band */
-  --copper-line: color-mix(in oklab, var(--color-accent-500) 40%, transparent);      /* accent hairline / border */
+  /* copper accent roles (translucent so they compose on any dark surface).
+     Every token below is CONSUMED — no orphan roles: keyboard focus stays on
+     Catalyst's `outline-accent-500` (one ring already), and status meaning is
+     carried by LABEL + solid accent dots/fills per the doctrine, not by a
+     translucent state-wash. Add a token here only when a real consumer lands. */
+  --copper-soft: color-mix(in oklab, var(--color-accent-500) 12%, transparent);       /* faint wash — hover, resting nav */
+  --copper-surface: color-mix(in oklab, var(--color-accent-500) 18%, transparent);    /* selected / active tint fill */
+  --copper-line: color-mix(in oklab, var(--color-accent-500) 40%, transparent);       /* accent hairline / border */
   --copper-line-strong: color-mix(in oklab, var(--color-accent-400) 55%, transparent);/* selection ring */
-  --copper-glow: color-mix(in oklab, var(--color-accent-500) 22%, transparent);      /* subtle elevation halo */
-  /* interaction */
-  --focus-ring: var(--color-accent-500);                                             /* keyboard focus — one ring everywhere */
-  /* status intensity (semantics come from LABEL; copper carries the heat scale) */
-  --state-info: color-mix(in oklab, var(--color-zinc-400) 22%, transparent);         /* neutral info — zinc, not copper */
-  --state-progress: color-mix(in oklab, var(--color-accent-500) 20%, transparent);   /* pending / in-progress */
-  --state-success: color-mix(in oklab, var(--color-accent-500) 16%, transparent);    /* pass / complete / prod-healthy */
-  --state-warning: color-mix(in oklab, var(--color-accent-500) 30%, transparent);    /* degraded / attention */
-  --state-danger: var(--color-accent-700);                                           /* fail / blocked — solid heat */
+  --copper-glow: color-mix(in oklab, var(--color-accent-500) 22%, transparent);       /* subtle elevation halo */
 }
 
 /* Chart tokens — SINGLE source of truth for every Recharts surface.

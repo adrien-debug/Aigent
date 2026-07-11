@@ -46,11 +46,12 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
   échelle `accent-50…950` enregistrée dans `globals.css` (`@theme`) — métal chauffé sur graphite,
   signature « operator console / control plane ». TOUT surface de couleur (badges, états, charts,
   meters, nav, boutons) est une **nuance de cette teinte**. `zinc` est le SEUL neutre.
-- **Rôles cuivre nommés** (tokens dans `globals.css`, à préférer aux `bg-accent-500/15` épars) :
-  `--copper-soft` (hover/nav au repos), `--copper-surface` (sélection/actif), `--copper-strong`
-  (emphase/warning), `--copper-line` / `--copper-line-strong` (hairline/ring), `--copper-glow`
-  (halo d'élévation), `--focus-ring` (UN seul ring focus partout), `--state-*` (échelle d'intensité
-  info→danger — le sens reste porté par le LABEL, le cuivre porte la chaleur ; `--state-info` = zinc).
+- **Rôles cuivre nommés** (tokens dans `globals.css`, à préférer aux `bg-accent-500/15` épars,
+  tous consommés — zéro token orphelin) : `--copper-soft` (hover/nav au repos), `--copper-surface`
+  (sélection/actif, header de carte/table), `--copper-line` / `--copper-line-strong` (hairline /
+  ring de sélection), `--copper-glow` (halo d'élévation, ex. carte « best »). Focus clavier =
+  `outline-accent-500` de Catalyst (déjà un seul ring). Statut = **LABEL + point/fill accent solide**
+  (pas de wash translucide de fond) ; on n'ajoute un token que quand un vrai consommateur existe.
 - **Zéro autre teinte** : jamais green/amber/rose/blue/violet/lime/orange/emerald… Le sens
   (pass/fail/warn/actif) est porté par le **LABEL** + l'**intensité** de la nuance, pas par le hue.
 - **Échelle d'intensité des badges** (clés Catalyst) : `accent` (soft) → `accentStrong` → `accentSolid`.

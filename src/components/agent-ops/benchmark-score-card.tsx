@@ -68,7 +68,12 @@ export function BenchmarkScoreCard({
     <article
       className={clsx(
         'rounded-xl bg-white p-6 dark:bg-zinc-950',
-        isBest ? 'ring-2 ring-accent-500/40' : 'ring-1 ring-zinc-950/5 dark:ring-white/10'
+        // Winner card: copper selection ring (--copper-line-strong) + a subtle
+        // elevation halo (--copper-glow) — the sanctioned use of these two
+        // role tokens (selection affordance + elevation), never a second hue.
+        isBest
+          ? 'ring-2 ring-[var(--copper-line-strong)] shadow-[0_0_0_1px_var(--copper-line),0_8px_28px_-12px_var(--copper-glow)]'
+          : 'ring-1 ring-zinc-950/5 dark:ring-white/10'
       )}
     >
       {/* Identity row — model + provider left, winner slot (fixed height so twin
