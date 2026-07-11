@@ -25,12 +25,11 @@ export function AgentSectionCard({
         className
       )}
     >
-      {/* Header — copper LANGUAGE, not a heavy banner: a soft copper wash
-          (--copper-surface) capped by a bright copper hairline, with a short
-          vertical copper heat-bar flagging the section title. Reads warm and
-          premium instead of a full-fill orange block; the heat-bar + hairline
-          carry the accent so the title can stay high-contrast neutral. */}
-      <div className="relative border-b border-[var(--copper-line)] bg-[var(--copper-surface)] px-6 py-4">
+      {/* Header — FRANC orange band (directive Adrien) : voile accent à 30/35%
+          sur la teinte CLAIRE (accent-400 en dark) pour que l'orange ressorte
+          net, jamais le marron désaturé qu'un cuivre foncé à basse opacité
+          produisait. La heat-bar verticale + le titre neutre restent. */}
+      <div className="relative border-b border-accent-500/30 bg-accent-500/30 px-6 py-4 dark:border-accent-400/25 dark:bg-accent-400/35">
         <div className="-mt-2 -ml-4 flex flex-wrap items-center justify-between sm:flex-nowrap sm:items-start">
           <div className="mt-2 ml-4 flex min-w-0 items-start gap-3">
             <span aria-hidden="true" className="mt-1 h-4 w-0.5 shrink-0 rounded-full bg-accent-500 dark:bg-accent-400" />

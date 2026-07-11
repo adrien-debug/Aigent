@@ -35,16 +35,16 @@ export function Table({
 }
 
 export function TableHead({ className, ...props }: React.ComponentPropsWithoutRef<'thead'>) {
-  // Copper-surface header — same restrained language as the card header
-  // (--copper-surface wash + a bright copper hairline underline). Replaces the
-  // heavy 30% orange band, which muddied to brown on the black table body;
-  // unifies "table header" and "card header" on the copper token layer.
+  // Header FRANC orange (directive Adrien) — même voile que le header de carte :
+  // accent à 30/35% sur la teinte CLAIRE (accent-400 en dark) pour que l'orange
+  // ressorte net. Le cuivre foncé à basse opacité désaturait vers le marron ;
+  // "table header" et "card header" restent unifiés, en orange franc.
   return (
     <thead
       {...props}
       className={clsx(
         className,
-        'bg-[var(--copper-surface)] [&_th]:border-b [&_th]:border-[var(--copper-line)]'
+        'bg-accent-500/30 dark:bg-accent-400/35'
       )}
     />
   )
