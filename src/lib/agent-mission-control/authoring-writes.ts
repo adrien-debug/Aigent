@@ -13,7 +13,7 @@
 import 'server-only'
 
 import type { CreateCopilotInput } from './authoring-types'
-import { pgrest } from './postgrest'
+import { pgrest, requireBackend } from './postgrest'
 import { makeId, slugify } from './slug'
 
 type RawRow = Record<string, unknown>
@@ -146,4 +146,46 @@ export async function createCopilotFromManifest(input: CreateCopilotInput): Prom
   await pgrest<RawRow[]>('POST', 'copilot_versions', versionPayload)
 
   return copilotId
+}
+
+// ---------------------------------------------------------------------------
+// createProject — materialize a new project row
+// ---------------------------------------------------------------------------
+
+/** Identity + platform for a new `projects` row created via the authoring surface. */
+export interface CreateProjectInput {
+  name: string
+  slug?: string
+  description?: string
+  platform: 'web' | 'desktop' | 'mobile' | 'api'
+  repoUrl?: string
+  repoFullName?: string
+}
+
+/**
+ * Insert a new `projects` row. Fail-closed (mirrors createCopilotFromManifest
+ * and pgrest's requireBackend()); the id is deterministic (makeId('proj',
+ * slug)) and created_at is stamped server-side the same way as the copilot
+ * write (`new Date().toISOString()`). Returns the created project's id.
+ */
+export async function createProject(input: CreateProjectInput): Promise<string> {
+  requireBackend()
+
+  const now = new Date().toISOString()
+  const slug = input.slug?.trim() || slugify(input.name)
+  const id = makeId('proj', slug)
+
+  const payload: RawRow = {
+    id,
+    name: input.name,
+    slug,
+    description: input.description ?? '',
+    platform: input.platform,
+    repo_url: input.repoUrl ?? null,
+    repo_full_name: input.repoFullName ?? null,
+    created_at: now,
+  }
+  await pgrest<RawRow[]>('POST', 'projects', payload)
+
+  return id
 }
