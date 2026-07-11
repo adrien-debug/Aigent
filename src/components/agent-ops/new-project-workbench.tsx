@@ -14,7 +14,7 @@ import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Field, Fieldset, Label } from '@/components/catalyst/fieldset'
-import { Input } from '@/components/catalyst/input'
+import { Input, InputGroup } from '@/components/catalyst/input'
 import { Select } from '@/components/catalyst/select'
 import { Textarea } from '@/components/catalyst/textarea'
 import type { Project } from '@/lib/agent-mission-control/types'
@@ -239,15 +239,16 @@ export function NewProjectWorkbench() {
             {repos && repos.length > SEARCH_THRESHOLD ? (
               <Field>
                 <Label className="sr-only">Filter repositories</Label>
-                <Input
-                  type="search"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Filter by name…"
-                  aria-label="Filter repositories by name"
-                >
-                  <MagnifyingGlassIcon data-slot="icon" />
-                </Input>
+                <InputGroup>
+                  <MagnifyingGlassIcon />
+                  <Input
+                    type="search"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Filter by name…"
+                    aria-label="Filter repositories by name"
+                  />
+                </InputGroup>
               </Field>
             ) : null}
 
