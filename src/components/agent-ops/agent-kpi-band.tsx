@@ -35,7 +35,7 @@ export function AgentKpiBand({ stats, className }: { stats: AgentKpiStat[]; clas
       {stats.map((stat) => (
         <div
           key={stat.name}
-          className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 bg-white px-4 py-5 sm:px-6 xl:px-8 dark:bg-zinc-950"
+          className="flex flex-col items-center gap-y-1 bg-white px-4 py-5 text-center sm:px-6 xl:px-8 dark:bg-zinc-950"
         >
           <dt className="text-sm/6 font-medium text-zinc-500 dark:text-zinc-400">{stat.name}</dt>
           {stat.change ? (
@@ -50,11 +50,11 @@ export function AgentKpiBand({ stats, className }: { stats: AgentKpiStat[]; clas
               {stat.change}
             </dd>
           ) : null}
-          <dd className="w-full flex-none text-2xl/8 font-medium tracking-tight text-zinc-950 dark:text-white">
+          <dd className="text-2xl/8 font-medium tracking-tight text-zinc-950 dark:text-white">
             {stat.value}
           </dd>
           {stat.viz ? <dd className="mt-3 w-full flex-none">{stat.viz}</dd> : null}
-          {stat.hint ? <dd className="w-full flex-none text-xs text-zinc-500">{stat.hint}</dd> : null}
+          {stat.hint ? <dd className="text-xs text-zinc-500">{stat.hint}</dd> : null}
         </div>
       ))}
     </dl>
