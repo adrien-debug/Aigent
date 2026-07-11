@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { SettingsGuardrails } from '@/components/agent-ops/settings-guardrails'
-import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 
 export const metadata: Metadata = {
@@ -24,7 +23,7 @@ export default function SettingsPage() {
   const endpoint = process.env.AMC_SUPABASE_URL ?? '— (mock)'
 
   return (
-    <div className="mt-2 space-y-6">
+    <div className="space-y-8">
       <AgentSectionCard title="Control plane" description="Identity of this control plane.">
         <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
           <Kv label="Workspace name">Hearst — Agent Mission Control</Kv>
@@ -32,7 +31,11 @@ export default function SettingsPage() {
             <span className="font-mono tabular-nums">adrien@hearstcorporation.io</span>
           </Kv>
           <Kv label="Data source">
-            {isGpu1 ? <Badge color="accent">GPU1 · PostgREST</Badge> : <Badge color="zinc">Mock dataset</Badge>}
+            {isGpu1 ? (
+              <span className="text-sm text-zinc-950 dark:text-white">GPU1 · PostgREST</span>
+            ) : (
+              <span className="text-sm text-zinc-500 dark:text-zinc-400">Mock dataset</span>
+            )}
           </Kv>
           <Kv label="Endpoint">
             <span className="font-mono tabular-nums break-all">{endpoint}</span>
@@ -48,17 +51,17 @@ export default function SettingsPage() {
         <SettingsGuardrails />
       </AgentSectionCard>
 
-      <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/5 pt-6">
-        <div className="min-w-0">
-          <p className="text-sm/6 font-medium text-zinc-950 dark:text-white">Archive this workspace</p>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Stops all copilots and freezes the registry. Reversible by a platform admin.
-          </p>
-        </div>
-        <Button outline disabled title="Ships in V2">
-          <span className="text-accent-600 dark:text-accent-400">Archive workspace</span>
-        </Button>
-      </div>
+      <AgentSectionCard
+        title="Archive workspace"
+        description="Stops all copilots and freezes the registry. Reversible by a platform admin."
+        actions={
+          <Button outline disabled title="Ships in V2">
+            Archive workspace
+          </Button>
+        }
+      >
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">Not available yet — ships in V2.</p>
+      </AgentSectionCard>
     </div>
   )
 }
