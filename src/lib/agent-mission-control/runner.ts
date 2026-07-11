@@ -207,7 +207,14 @@ export async function executeCopilotRun(
   const finishedAt: IsoTimestamp = new Date(finishedAtMs).toISOString()
   const latencyMs: DurationMs = finishedAtMs - startedAtMs
 
-  const traceResult = trace.finish()
+  // Freeze + (maybe) export to LangSmith. Fail-open: a no-op/error export never
+  // affects the run; trace_url stays null unless a real deep-link resolves.
+  const traceResult = await trace.finishAndExport(
+    { userInput: summarize(userInput) },
+    { output: outputSummary, status },
+    startedAt,
+    finishedAt
+  )
 
   // Persist agent_runs row (trace_url is real only if LangSmith is configured).
   await pgrest('POST', 'agent_runs', {

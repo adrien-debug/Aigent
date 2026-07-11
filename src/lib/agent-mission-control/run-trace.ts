@@ -18,7 +18,7 @@
  */
 import 'server-only'
 
-import { getTraceUrl, newTraceId } from './langsmith'
+import { exportTrace, getTraceUrl, newTraceId, type LangSmithExportResult } from './langsmith'
 import type { AgentRunStepKind, IsoTimestamp, ModelProvider } from './types'
 
 export type TraceMode = 'run' | 'test' | 'benchmark' | 'replay' | 'shadow'
@@ -64,6 +64,8 @@ export interface TraceResult {
   traceId: string | null
   steps: TraceStep[]
   summary: string
+  /** True only if the trace was actually POSTed to LangSmith (never faked). */
+  exported: boolean
 }
 
 /**
@@ -126,19 +128,75 @@ export class RunTrace {
    * and build a one-line provider/model/fallback summary. `summary` is safe to
    * embed in output_summary / actual_behavior (no secrets).
    */
-  finish(): TraceResult {
-    const traceId = newTraceId()
+  private buildSummary(): string {
     const parts: string[] = []
     const prov = this.context.resolvedProvider ?? this.context.provider
     const model = this.context.resolvedModel ?? this.context.model
     if (prov && model) parts.push(`${prov}/${model}`)
     if (this.context.fallbackUsed) parts.push('fallback')
     parts.push(`${this.steps.length} steps`)
+    return parts.join(' · ')
+  }
+
+  /**
+   * Freeze the trace WITHOUT exporting (sync). traceUrl is the deep-link only if
+   * a LangSmith base is configured; `exported` is always false here.
+   */
+  finish(): TraceResult {
+    const traceId = newTraceId()
     return {
       traceId,
       traceUrl: getTraceUrl(traceId),
       steps: [...this.steps],
-      summary: parts.join(' · '),
+      summary: this.buildSummary(),
+      exported: false,
+    }
+  }
+
+  /**
+   * Freeze AND export to LangSmith (async). Fail-open: if the export no-ops
+   * (no key) or errors, the run is unaffected — `exported` reflects reality and
+   * `traceUrl` stays honest (null unless a deep-link base resolves). The
+   * exported id is the same id the deep-link is built from.
+   */
+  async finishAndExport(
+    inputs: Record<string, unknown>,
+    outputs: Record<string, unknown>,
+    startedAt: IsoTimestamp,
+    finishedAt: IsoTimestamp
+  ): Promise<TraceResult> {
+    const traceId = newTraceId()
+    const result: LangSmithExportResult = await exportTrace({
+      traceId,
+      name: `amc-${this.context.mode}`,
+      runType: 'chain',
+      inputs,
+      outputs,
+      metadata: {
+        mode: this.context.mode,
+        copilotId: this.context.copilotId,
+        versionId: this.context.versionId,
+        provider: this.context.resolvedProvider ?? this.context.provider,
+        model: this.context.resolvedModel ?? this.context.model,
+        fallbackUsed: this.context.fallbackUsed ?? false,
+      },
+      steps: this.steps.map((s) => ({
+        name: s.title,
+        kind: s.kind,
+        status: s.status,
+        detail: s.detail,
+        startedAt: s.startedAt,
+        durationMs: s.durationMs,
+      })),
+      startedAt,
+      finishedAt,
+    })
+    return {
+      traceId,
+      traceUrl: result.traceUrl,
+      steps: [...this.steps],
+      summary: this.buildSummary(),
+      exported: result.exported,
     }
   }
 }
