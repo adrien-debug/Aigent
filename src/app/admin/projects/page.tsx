@@ -3,13 +3,10 @@ import type { Metadata } from 'next'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
-import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
+import { ProjectCard } from '@/components/agent-ops/project-card'
 import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
 import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
 import { SplitBar, type SplitSegment, type SplitTone } from '@/components/agent-ops/widgets/split-bar'
-import { Badge } from '@/components/catalyst/badge'
-import { Link } from '@/components/catalyst/link'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { getCopilots, getProjects } from '@/lib/agent-mission-control/data'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { Copilot, Project } from '@/lib/agent-mission-control/types'
@@ -24,8 +21,6 @@ const PLATFORM_LABELS: Record<Project['platform'], string> = {
   mobile: 'Mobile',
   api: 'API',
 }
-
-const numberFormat = new Intl.NumberFormat('en-US')
 
 interface ProjectRollup {
   copilotCount: number
@@ -101,8 +96,6 @@ export default async function ProjectsPage() {
   // Per-project series in a stable order — traffic/spend concentration at a glance.
   const runsSeries = projects.map((project) => (rollups.get(project.id) ?? EMPTY_ROLLUP).runsLast24h)
   const costSeries = projects.map((project) => (rollups.get(project.id) ?? EMPTY_ROLLUP).costLast24hUsd)
-  const maxRuns = Math.max(1, ...runsSeries)
-  const maxCost = Math.max(1, ...costSeries)
 
   return (
     <div className="space-y-8">
@@ -163,112 +156,28 @@ export default async function ProjectsPage() {
         ]}
       />
 
-      <AgentSectionCard
-        title="Projects"
-        actions={<span className="text-xs text-zinc-500 tabular-nums">{projects.length}</span>}
-        contentClassName="p-0"
-      >
-        {projects.length > 0 ? (
-          <div className="px-6 [--gutter:--spacing(6)]">
-            <Table bleed>
-              {/* Accessible name must land on the <table> itself — Catalyst spreads props on its scroll wrapper. */}
-              <caption className="sr-only">Projects</caption>
-              <TableHead>
-                <TableRow>
-                  <TableHeader>Project</TableHeader>
-                  <TableHeader>Fleet</TableHeader>
-                  <TableHeader>Runs 24h</TableHeader>
-                  <TableHeader>Cost 24h</TableHeader>
-                  <TableHeader className="text-right">Warnings</TableHeader>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {projects.map((project) => {
-                  const rollup = rollups.get(project.id) ?? EMPTY_ROLLUP
-                  return (
-                    <TableRow key={project.id}>
-                      <TableCell>
-                        <div className="min-w-0">
-                          <div className="truncate font-medium text-zinc-950 dark:text-white">
-                            <Link
-                              href={`/admin/projects/${project.id}`}
-                              title={project.name}
-                              className="hover:underline"
-                            >
-                              {project.name}
-                            </Link>
-                          </div>
-                          <div className="mt-1 truncate font-mono text-xs text-zinc-500">
-                            {project.slug} · {PLATFORM_LABELS[project.platform]}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="w-28">
-                          <LinearMeter
-                            value={rollup.activeCount}
-                            max={Math.max(rollup.copilotCount, 1)}
-                            size="xs"
-                            valueText={`${rollup.activeCount}/${rollup.copilotCount}`}
-                            ariaLabel={`${rollup.activeCount} of ${rollup.copilotCount} copilots active on ${project.name}`}
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="w-24">
-                          <LinearMeter
-                            value={rollup.runsLast24h}
-                            max={maxRuns}
-                            size="xs"
-                            valueText={numberFormat.format(rollup.runsLast24h)}
-                            ariaLabel={`${rollup.runsLast24h} runs in the last 24h on ${project.name}`}
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="w-24">
-                          {rollup.runsLast24h > 0 ? (
-                            <LinearMeter
-                              value={rollup.costLast24hUsd}
-                              max={maxCost}
-                              size="xs"
-                              valueText={formatUsd(rollup.costLast24hUsd)}
-                              ariaLabel={`${formatUsd(rollup.costLast24hUsd)} spent in the last 24h on ${project.name}`}
-                            />
-                          ) : (
-                            <div className="text-right font-mono text-zinc-500 tabular-nums">
-                              <span aria-hidden="true">&mdash;</span>
-                              <span className="sr-only">No runs in the last 24 hours</span>
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {rollup.openWarnings > 0 ? (
-                          <Badge color="accentStrong" className="font-mono tabular-nums">
-                            {numberFormat.format(rollup.openWarnings)}
-                            <span className="sr-only"> open warnings</span>
-                          </Badge>
-                        ) : (
-                          <span className="font-mono text-zinc-500 tabular-nums">0</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
+      {projects.length > 0 ? (
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6 lg:grid-cols-3">
+          {projects.map((project) => (
+            <ProjectCard
+              key={project.id}
+              project={project}
+              rollup={rollups.get(project.id) ?? EMPTY_ROLLUP}
+              href={`/admin/projects/${project.id}`}
+            />
+          ))}
+        </div>
+      ) : (
+        <AgentSectionCard title="Projects">
+          <div className="flex flex-col items-center gap-2 py-12 text-center">
             <FolderIcon aria-hidden="true" className="size-8 text-zinc-400 dark:text-zinc-600" />
             <p className="text-sm font-medium text-zinc-950 dark:text-white">No projects yet</p>
             <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
               Projects appear here as soon as a copilot is registered against a product surface.
             </p>
           </div>
-        )}
-      </AgentSectionCard>
+        </AgentSectionCard>
+      )}
     </div>
   )
 }
