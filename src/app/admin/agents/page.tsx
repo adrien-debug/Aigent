@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { RegistryView } from '@/components/agent-ops/registry-view'
-import { SeverityFeedRow, SeverityTally } from '@/components/agent-ops/widgets/severity-feed-row'
+import { SeverityFeedRow } from '@/components/agent-ops/widgets/severity-feed-row'
 import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import {
   getCopilots,
@@ -34,7 +34,13 @@ function RecentWarningsCard({
     <AgentSectionCard
       title="Recent warnings"
       description="Latest signals across the registry."
-      actions={warnings.length > 0 ? <SeverityTally warning={warningCount} danger={dangerCount} /> : undefined}
+      actions={
+        warnings.length > 0 ? (
+          <span className="text-sm text-zinc-500 dark:text-zinc-400">
+            {warningCount} warning{warningCount === 1 ? '' : 's'} · {dangerCount} danger
+          </span>
+        ) : undefined
+      }
       contentClassName="px-6 py-2"
     >
       {warnings.length > 0 ? (
