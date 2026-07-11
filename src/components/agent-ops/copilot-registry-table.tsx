@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { AssignProjectDialog, UnassignCopilotDialog } from '@/components/agent-ops/assign-project-dialog'
 import { DeleteCopilotDialog } from '@/components/agent-ops/delete-copilot-dialog'
+import { SoftAccentButton } from '@/components/agent-ops/soft-accent-link'
 import { Avatar } from '@/components/catalyst/avatar'
 import { Button } from '@/components/catalyst/button'
 import { Dropdown, DropdownButton, DropdownItem, DropdownMenu } from '@/components/catalyst/dropdown'
@@ -118,9 +119,9 @@ function BenchRow({
       </td>
       <td className="py-5 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap">
         <div className="flex items-center justify-end gap-2">
-          <Button outline onClick={() => onAssign(copilot)}>
+          <SoftAccentButton onClick={() => onAssign(copilot)}>
             Assign…<span className="sr-only"> {copilot.name} to a project</span>
-          </Button>
+          </SoftAccentButton>
           <Link href={href} className="text-accent-400 hover:text-accent-300">
             Open<span className="sr-only">, {copilot.name}</span>
           </Link>

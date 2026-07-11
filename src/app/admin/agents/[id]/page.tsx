@@ -735,7 +735,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-medium text-zinc-950 dark:text-white">{action.title}</span>
-                    <span className="mt-1 block max-w-xl truncate text-sm text-zinc-500 dark:text-zinc-400">{action.reason}</span>
+                    <span className="mt-1 block truncate text-sm text-zinc-500 dark:text-zinc-400">{action.reason}</span>
                   </span>
                   <ArrowRightIcon
                     aria-hidden="true"

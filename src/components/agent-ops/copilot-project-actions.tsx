@@ -3,7 +3,7 @@
 import { useState } from 'react'
 
 import { AssignProjectDialog, UnassignCopilotDialog } from '@/components/agent-ops/assign-project-dialog'
-import { Button } from '@/components/catalyst/button'
+import { SoftAccentButton } from '@/components/agent-ops/soft-accent-link'
 import type { Copilot, Project } from '@/lib/agent-mission-control/types'
 
 /**
@@ -27,13 +27,9 @@ export function CopilotProjectActions({
   return (
     <>
       {onBench ? (
-        <Button outline onClick={() => setAssignTarget(copilot)}>
-          Assign…
-        </Button>
+        <SoftAccentButton onClick={() => setAssignTarget(copilot)}>Assign…</SoftAccentButton>
       ) : (
-        <Button plain onClick={() => setUnassignTarget(copilot)}>
-          Unassign…
-        </Button>
+        <SoftAccentButton onClick={() => setUnassignTarget(copilot)}>Unassign…</SoftAccentButton>
       )}
 
       {assignTarget ? (
