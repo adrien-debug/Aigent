@@ -3,6 +3,7 @@ import clsx from 'clsx'
 import { notFound } from 'next/navigation'
 
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { RunCopilotPanel } from '@/components/agent-ops/run-copilot-panel'
 import { RunDetailPanel, RunStatusBadge } from '@/components/agent-ops/run-detail-panel'
 import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
@@ -78,6 +79,8 @@ export default async function RunsPage({
 
   return (
     <div className="space-y-8">
+      <RunCopilotPanel copilotId={id} copilotName={copilot.name} />
+
       {runs.length === 0 || !selectedRun ? (
         <div className="rounded-xl bg-white px-6 py-12 ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
           <div className="mx-auto max-w-md text-center">

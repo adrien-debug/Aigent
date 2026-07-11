@@ -142,15 +142,18 @@ export async function executeCopilotRun(
       messages: [{ role: 'user', content: userInput }],
     })
 
-    const textBlock = completion.content.find(
-      (block): block is { type: 'text'; text: string } => block.type === 'text'
-    )
-    outputSummary = summarize(textBlock?.text ?? '')
+    // Concatenate all text blocks from the completion (SDK content blocks are a
+    // union; narrow on `type === 'text'` and read `.text` off the narrowed block).
+    const replyText = completion.content
+      .map((block) => (block.type === 'text' ? block.text : ''))
+      .join('')
+      .trim()
+    outputSummary = summarize(replyText)
     inputTokens = completion.usage?.input_tokens ?? 0
     outputTokens = completion.usage?.output_tokens ?? 0
 
     status = 'completed'
-    stepDetail = summarize(textBlock?.text ?? '(empty response)')
+    stepDetail = summarize(replyText || '(empty response)')
   } catch (err) {
     status = 'failed'
     stepStatus = 'error'
