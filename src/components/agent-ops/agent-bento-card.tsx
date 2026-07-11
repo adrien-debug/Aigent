@@ -42,7 +42,9 @@ export function AgentBentoCard({
             {eyebrow}
           </p>
         ) : null}
-        <Subheading level={level} className={clsx(eyebrow && 'mt-2')}>
+        {/* Titre de carte bento en accent orange (directive Adrien 2026-07-11).
+            `!` bat le `text-white` codé en dur dans le Subheading Catalyst. */}
+        <Subheading level={level} className={clsx('text-accent-800! dark:text-accent-300!', eyebrow && 'mt-2')}>
           {title}
         </Subheading>
         {description ? <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{description}</p> : null}

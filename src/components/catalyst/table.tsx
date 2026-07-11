@@ -35,10 +35,16 @@ export function Table({
 }
 
 export function TableHead({ className, ...props }: React.ComponentPropsWithoutRef<'thead'>) {
+  // Voile accent orange sur l'en-tête de tableau (directive Adrien 2026-07-11) :
+  // même voile à 35% que le header des cartes pour que l'orange ressorte (à 15%
+  // le noir désaturait vers le marron). Unifie « header de tableau » et « de boîte ».
   return (
     <thead
       {...props}
-      className={clsx(className, 'bg-zinc-950/[0.025] text-zinc-500 dark:bg-white/[0.04] dark:text-zinc-400')}
+      className={clsx(
+        className,
+        'bg-accent-500/30 dark:bg-accent-400/35'
+      )}
     />
   )
 }
@@ -87,7 +93,9 @@ export function TableHeader({ className, ...props }: React.ComponentPropsWithout
       {...props}
       className={clsx(
         className,
-        'border-b border-b-zinc-950/10 px-4 py-2 font-medium first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2)) dark:border-b-white/10',
+        // En-tête de colonne en BLANC/neutre (directive Adrien 2026-07-11) — le
+        // thead porte le fond orange, le libellé de colonne reste neutre.
+        'border-b border-b-zinc-950/10 px-4 py-2 font-medium text-zinc-950 first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2)) dark:border-b-white/10 dark:text-white',
         grid && 'border-l border-l-zinc-950/5 first:border-l-0 dark:border-l-white/5',
         !bleed && 'sm:first:pl-1 sm:last:pr-1'
       )}

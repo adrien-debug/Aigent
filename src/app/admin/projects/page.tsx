@@ -2,10 +2,10 @@ import { FolderIcon, PlusIcon } from '@heroicons/react/24/outline'
 import type { Metadata } from 'next'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
+import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ProjectCard } from '@/components/agent-ops/project-card'
 import { Button } from '@/components/catalyst/button'
-import { Subheading } from '@/components/catalyst/heading'
 import { getCopilots, getProjects } from '@/lib/agent-mission-control/data'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { Copilot } from '@/lib/agent-mission-control/types'
@@ -64,16 +64,19 @@ export default async function ProjectsPage() {
 
   return (
     <div className="space-y-8">
-      {/* Petit header : titre de section + action de création (directive Adrien 2026-07-10) */}
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-        <Subheading>Projects</Subheading>
-        <Button href="/admin/projects/new" color="accent">
-          <PlusIcon data-slot="icon" />
-          New project
-        </Button>
-      </div>
+      {/* Header uniforme sur les 5 pages /admin (directive Adrien 2026-07-11). */}
+      <AgentPageHeader
+        title="Projects"
+        description="Product surfaces with validated agents."
+        className="mt-2"
+        actions={
+          <Button href="/admin/projects/new" color="accent">
+            <PlusIcon data-slot="icon" />
+            New project
+          </Button>
+        }
+      />
 
-      {/* KPI en haut */}
       <AgentKpiBand
         stats={[
           {

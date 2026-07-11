@@ -25,10 +25,15 @@ export function AgentSectionCard({
         className
       )}
     >
-      <div className="border-b border-zinc-950/5 bg-zinc-950/[0.025] px-6 py-4 dark:border-white/5 dark:bg-white/[0.04]">
+      {/* Bandeau de header en voile accent orange (directive Adrien 2026-07-11) :
+          voile à 35% pour que l'orange ressorte franchement — à 15% le noir du fond
+          désaturait le vermillon vers le marron. */}
+      <div className="border-b border-accent-500/30 bg-accent-500/30 px-6 py-4 dark:border-accent-400/25 dark:bg-accent-400/35">
         <div className="-mt-2 -ml-4 flex flex-wrap items-center justify-between sm:flex-nowrap sm:items-start">
           <div className="mt-2 ml-4 min-w-0">
-            <Subheading>{title}</Subheading>
+            {/* Titre en BLANC sur le bandeau à fond orange (directive Adrien
+                2026-07-11) — le fond porte la couleur, le titre reste neutre. */}
+            <Subheading className="text-zinc-950! dark:text-white!">{title}</Subheading>
             {description ? <Text className="mt-1">{description}</Text> : null}
           </div>
           {actions ? <div className="mt-2 ml-4 flex shrink-0 items-center gap-3">{actions}</div> : null}

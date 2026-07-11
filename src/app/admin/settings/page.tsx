@@ -1,8 +1,11 @@
 import type { Metadata } from 'next'
 
+import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
+import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { SettingsGuardrails } from '@/components/agent-ops/settings-guardrails'
 import { Button } from '@/components/catalyst/button'
+import { getCopilots, getProjects } from '@/lib/agent-mission-control/data'
 
 export const metadata: Metadata = {
   title: 'Settings — Agent Mission Control',
@@ -17,13 +20,28 @@ function Kv({ label, children }: { label: string; children: React.ReactNode }) {
   )
 }
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
   // Server component: env is read server-side only, nothing leaks to the client.
   const isGpu1 = process.env.AMC_DATA_SOURCE === 'gpu1'
   const endpoint = process.env.AMC_SUPABASE_URL ?? '— (mock)'
 
+  const [copilots, projects] = await Promise.all([getCopilots(), getProjects()])
+  const managedTools = copilots.reduce((sum, copilot) => sum + copilot.health.openWarnings, 0)
+
   return (
     <div className="space-y-8">
+      {/* Header uniforme sur les 5 pages /admin (directive Adrien 2026-07-11). */}
+      <AgentPageHeader title="Settings" description="Control plane identity and platform-wide guardrails." className="mt-2" />
+
+      <AgentKpiBand
+        stats={[
+          { name: 'Copilots', value: String(copilots.length), hint: 'registered' },
+          { name: 'Projects', value: String(projects.length), hint: 'product surfaces' },
+          { name: 'Data source', value: isGpu1 ? 'GPU1' : 'Mock', hint: isGpu1 ? 'PostgREST' : 'no backend' },
+          { name: 'Open warnings', value: String(managedTools), hint: 'across the fleet' },
+        ]}
+      />
+
       <AgentSectionCard title="Control plane" description="Identity of this control plane.">
         <dl className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
           <Kv label="Workspace name">Hearst — Agent Mission Control</Kv>

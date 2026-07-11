@@ -15,8 +15,9 @@ export interface RunLatencyPoint {
   status: string
 }
 
-/** Neutral series color: latency is a measure, not a status. From globals.css. */
-const SERIES_STROKE = 'var(--chart-series)'
+/** Latency line in the brand accent (directive Adrien 2026-07-11) — the chart is
+ *  the coloured focal point of the dashboard. `--chart-success` = accent hue. */
+const SERIES_STROKE = 'var(--chart-success)'
 
 const tickStyle = { fontSize: 12, fill: 'var(--chart-tick)' } as const
 

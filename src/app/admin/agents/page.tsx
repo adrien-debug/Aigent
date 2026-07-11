@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
+import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { RegistryView } from '@/components/agent-ops/registry-view'
 import { SeverityFeedRow } from '@/components/agent-ops/widgets/severity-feed-row'
@@ -78,9 +79,10 @@ export default async function AgentsRegistryPage() {
 
   return (
     <div className="space-y-8">
-      {/* KPI en haut, marge au-dessus = petit header (directive Adrien 2026-07-10) */}
+      {/* Header uniforme sur les 5 pages /admin (directive Adrien 2026-07-11). */}
+      <AgentPageHeader title="Copilots" description="Every registered agent and the validation bench." className="mt-2" />
+
       <AgentKpiBand
-        className="mt-2"
         stats={[
           {
             name: 'Fleet',

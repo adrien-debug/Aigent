@@ -45,7 +45,7 @@ function initialsFor(name: string): string {
 
 export function ProjectCard({ project, rollup, href }: ProjectCardProps) {
   return (
-    <div className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
+    <div className="flex h-full flex-col overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
       {/* Landscape photo header — real image or a zinc-only gradient fallback. */}
       <div className="relative h-28">
         {project.imageUrl ? (
@@ -84,8 +84,9 @@ export function ProjectCard({ project, rollup, href }: ProjectCardProps) {
         />
       </div>
 
-      {/* Body — title, meta line, description. */}
-      <div className="px-6 pt-3 pb-6">
+      {/* Body — title, meta line, description. flex-col + flex-1 pousse le footer
+          au bas de la carte pour que les cartes jumelles alignent leurs stats au pixel. */}
+      <div className="flex flex-1 flex-col px-6 pt-3 pb-6">
         <Subheading level={3} className="truncate">
           <Link href={href} title={project.name} className="hover:underline">
             {project.name}
@@ -107,10 +108,13 @@ export function ProjectCard({ project, rollup, href }: ProjectCardProps) {
             <span className="sr-only">GitHub repository (opens in a new tab)</span>
           </Link>
         ) : null}
-        <p className="mt-3 line-clamp-2 text-sm text-zinc-500 dark:text-zinc-400">{project.description}</p>
+        {/* Hauteur fixe 2 lignes → toutes les cartes réservent la même place, même
+            si la description tient sur une seule ligne (sinon le footer remonte). */}
+        <p className="mt-3 line-clamp-2 min-h-10 text-sm text-zinc-500 dark:text-zinc-400">{project.description}</p>
 
-        {/* Footer — three mini-stats, identical slots across twin cards. */}
-        <div className="mt-6 grid grid-cols-3 gap-4 border-t border-zinc-950/5 pt-4 dark:border-white/5">
+        {/* Footer — three mini-stats, identical slots across twin cards.
+            mt-auto colle le footer au bas de la carte. */}
+        <div className="mt-auto grid grid-cols-3 gap-4 border-t border-zinc-950/5 pt-4 dark:border-white/5">
           <div>
             <div className="text-xs text-zinc-500">Fleet</div>
             <div className="mt-1 font-mono text-zinc-700 tabular-nums dark:text-zinc-200">
