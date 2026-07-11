@@ -1,6 +1,6 @@
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
-import { versionStageLabels, VersionStageBadge } from '@/components/agent-ops/version-stage-badge'
+import { versionStageLabels } from '@/components/agent-ops/version-stage-badge'
 import { Button } from '@/components/catalyst/button'
 import { formatDate, formatPercent } from '@/lib/agent-mission-control/format'
 import type { CopilotVersion } from '@/lib/agent-mission-control/types'
