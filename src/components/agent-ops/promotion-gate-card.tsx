@@ -19,6 +19,17 @@ const checkStatusLabel: Record<PromotionCheck['status'], string> = {
   waived: 'Waived',
 }
 
+// Copper heat-dot per check status — the LABEL still names the state (doctrine:
+// colour is never the sole indicator); the dot adds a scannable intensity cue on
+// the same accent ramp. pass = soft copper, pending = mid, fail = solid heat,
+// waived = neutral zinc.
+const checkStatusDot: Record<PromotionCheck['status'], string> = {
+  pass: 'bg-accent-500 dark:bg-accent-400',
+  pending: 'bg-accent-300 dark:bg-accent-300',
+  fail: 'bg-accent-700 dark:bg-accent-600',
+  waived: 'bg-zinc-400 dark:bg-zinc-600',
+}
+
 const overallStatusLabel: Record<PromotionGate['overallStatus'], string> = {
   ready: 'Ready',
   blocked: 'Blocked',
@@ -87,7 +98,10 @@ export function PromotionGateCard({
               className="flex items-center justify-between gap-3 border-t border-zinc-950/5 py-2.5 dark:border-white/5"
             >
               <div className="flex min-w-0 items-center gap-2">
-                <span className="w-14 shrink-0 text-sm text-zinc-500 dark:text-zinc-400">{label}</span>
+                <span className="flex w-14 shrink-0 items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400">
+                  <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${checkStatusDot[check.status]}`} />
+                  {label}
+                </span>
                 <span className="truncate text-sm text-zinc-950 dark:text-white">{check.label}</span>
               </div>
               <p className="shrink-0 font-mono text-xs tabular-nums text-zinc-500">

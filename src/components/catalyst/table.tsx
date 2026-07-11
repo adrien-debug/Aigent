@@ -35,15 +35,16 @@ export function Table({
 }
 
 export function TableHead({ className, ...props }: React.ComponentPropsWithoutRef<'thead'>) {
-  // Voile accent orange sur l'en-tête de tableau (directive Adrien 2026-07-11) :
-  // même voile à 35% que le header des cartes pour que l'orange ressorte (à 15%
-  // le noir désaturait vers le marron). Unifie « header de tableau » et « de boîte ».
+  // Copper-surface header — same restrained language as the card header
+  // (--copper-surface wash + a bright copper hairline underline). Replaces the
+  // heavy 30% orange band, which muddied to brown on the black table body;
+  // unifies "table header" and "card header" on the copper token layer.
   return (
     <thead
       {...props}
       className={clsx(
         className,
-        'bg-accent-500/30 dark:bg-accent-400/35'
+        'bg-[var(--copper-surface)] [&_th]:border-b [&_th]:border-[var(--copper-line)]'
       )}
     />
   )

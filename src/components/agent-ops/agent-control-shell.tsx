@@ -10,7 +10,7 @@ import { Avatar } from '@/components/catalyst/avatar'
 /** Mission-control reticle mark — inline SVG, no external asset. */
 function LogoMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={clsx('text-zinc-950 dark:text-white', className)}>
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={clsx(className)}>
       <circle cx="12" cy="12" r="7" stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
       <circle cx="12" cy="12" r="2.25" fill="currentColor" />
       <path
@@ -51,11 +51,12 @@ function RailItem({
       href={href}
       aria-current={current ? 'page' : undefined}
       className={clsx(
-        'group flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-xl px-1 text-center transition-colors',
+        'group relative flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-xl px-1 text-center transition-colors',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
         current
-          ? 'bg-accent-500/10 text-accent-700 ring-1 ring-accent-500/20 dark:text-accent-300'
-          : 'text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-950 dark:hover:bg-white/5 dark:hover:text-white'
+          ? // active nav — copper selected surface + left heat bar + warm ring
+            'bg-[var(--copper-surface)] text-accent-700 ring-1 ring-[var(--copper-line)] dark:text-accent-300 before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-accent-500'
+          : 'text-zinc-500 hover:bg-[var(--copper-soft)] hover:text-accent-600 dark:hover:text-accent-300'
       )}
     >
       <Icon aria-hidden="true" className="size-5 shrink-0" />
@@ -75,9 +76,9 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
         <Link
           href="/admin"
           aria-label="Agent Mission Control"
-          className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-zinc-950/5 ring-1 ring-zinc-950/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:bg-white/5 dark:ring-white/10"
+          className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--copper-surface)] ring-1 ring-[var(--copper-line)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
         >
-          <LogoMark className="size-5" />
+          <LogoMark className="size-5 text-accent-700 dark:text-accent-300" />
         </Link>
 
         {/* Nav — square icon+label buttons */}
@@ -96,7 +97,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
       {/* Mobile top bar — brand + inline nav (rail collapses on small screens) */}
       <header className="flex items-center gap-2 border-b border-zinc-950/5 bg-white px-4 py-2 lg:hidden dark:border-white/10 dark:bg-zinc-950">
         <Link href="/admin" aria-label="Agent Mission Control" className="flex size-8 items-center justify-center rounded-lg bg-zinc-950/5 dark:bg-white/5">
-          <LogoMark className="size-4" />
+          <LogoMark className="size-4 text-accent-700 dark:text-accent-300" />
         </Link>
         <nav className="flex items-center gap-1">
           {NAV_ITEMS.map(({ label, icon: Icon, href, match }) => (
@@ -107,8 +108,8 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
               className={clsx(
                 'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium',
                 match(pathname)
-                  ? 'bg-accent-500/10 text-accent-700 dark:text-accent-300'
-                  : 'text-zinc-500 hover:bg-zinc-950/5 dark:hover:bg-white/5'
+                  ? 'bg-[var(--copper-surface)] text-accent-700 ring-1 ring-[var(--copper-line)] dark:text-accent-300'
+                  : 'text-zinc-500 hover:bg-[var(--copper-soft)] hover:text-accent-600 dark:hover:text-accent-300'
               )}
             >
               <Icon aria-hidden="true" className="size-4" />

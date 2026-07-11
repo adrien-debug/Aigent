@@ -25,16 +25,19 @@ export function AgentSectionCard({
         className
       )}
     >
-      {/* Bandeau de header en voile accent orange (directive Adrien 2026-07-11) :
-          voile à 35% pour que l'orange ressorte franchement — à 15% le noir du fond
-          désaturait le vermillon vers le marron. */}
-      <div className="border-b border-accent-500/30 bg-accent-500/30 px-6 py-4 dark:border-accent-400/25 dark:bg-accent-400/35">
+      {/* Header — copper LANGUAGE, not a heavy banner: a soft copper wash
+          (--copper-surface) capped by a bright copper hairline, with a short
+          vertical copper heat-bar flagging the section title. Reads warm and
+          premium instead of a full-fill orange block; the heat-bar + hairline
+          carry the accent so the title can stay high-contrast neutral. */}
+      <div className="relative border-b border-[var(--copper-line)] bg-[var(--copper-surface)] px-6 py-4">
         <div className="-mt-2 -ml-4 flex flex-wrap items-center justify-between sm:flex-nowrap sm:items-start">
-          <div className="mt-2 ml-4 min-w-0">
-            {/* Titre en BLANC sur le bandeau à fond orange (directive Adrien
-                2026-07-11) — le fond porte la couleur, le titre reste neutre. */}
-            <Subheading className="text-zinc-950! dark:text-white!">{title}</Subheading>
-            {description ? <Text className="mt-1">{description}</Text> : null}
+          <div className="mt-2 ml-4 flex min-w-0 items-start gap-3">
+            <span aria-hidden="true" className="mt-1 h-4 w-0.5 shrink-0 rounded-full bg-accent-500 dark:bg-accent-400" />
+            <div className="min-w-0">
+              <Subheading className="text-zinc-950! dark:text-white!">{title}</Subheading>
+              {description ? <Text className="mt-1">{description}</Text> : null}
+            </div>
           </div>
           {actions ? <div className="mt-2 ml-4 flex shrink-0 items-center gap-3">{actions}</div> : null}
         </div>

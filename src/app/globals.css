@@ -9,25 +9,53 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Accent — THE single hue of the design system. One softened, cooler
-   terracotta (#e8785a = 500) rendered as a full 50→950 ramp; every chromatic
-   surface (badges, states, charts, meters) is a shade of THIS color. Paler and
-   less fiery than the old vermilion — desaturated toward a muted clay so the
-   accent reads calm, not hot. `zinc` is the only neutral. Registered in @theme
-   so `bg-accent-*`, `text-accent-*`, `bg-accent-500/15`, `ring-accent-500` …
-   all generate with opacity support. 700 stays dark enough for white text (AA). */
+/* Accent — THE single hue of the design system: BURNT COPPER / AMBER-COPPER.
+   One warm operator-console copper (#d96e2b = 500) rendered as a full 50→950
+   ramp; every chromatic surface (badges, states, charts, meters, nav, CTA) is a
+   shade of THIS color. Warmer and more molten than the old muted clay — pulled
+   toward amber-copper so the accent reads like heated metal on graphite, the
+   "control plane / operator console" signature. `zinc` is the only neutral.
+   Registered in @theme so `bg-accent-*`, `text-accent-*`, `bg-accent-500/15`,
+   `ring-accent-500` … all generate with opacity support.
+   AA verified (white text): 700 = 6.11:1, 800 = 8.32:1; accent-300/400 text on
+   zinc-950 = 9.67 / 7.19:1. See scripts/check-palette.mjs. */
 @theme {
-  --color-accent-50: #fdf4f1;
-  --color-accent-100: #fae7e0;
-  --color-accent-200: #f4cec1;
-  --color-accent-300: #eaad99;
-  --color-accent-400: #e08f74;
-  --color-accent-500: #e8785a;
-  --color-accent-600: #cf6045;
-  --color-accent-700: #ab4e39;
-  --color-accent-800: #8c4231;
-  --color-accent-900: #733a2d;
-  --color-accent-950: #3e1c15;
+  --color-accent-50: #fdf5ee;
+  --color-accent-100: #fae7d6;
+  --color-accent-200: #f3cbab;
+  --color-accent-300: #eaa675;
+  --color-accent-400: #e18446;
+  --color-accent-500: #d96e2b;
+  --color-accent-600: #c25a1e;
+  --color-accent-700: #a0481c;
+  --color-accent-800: #7f3a1c;
+  --color-accent-900: #68321b;
+  --color-accent-950: #39190c;
+}
+
+/* Copper semantic surface tokens — the accent turned into a LANGUAGE, not a
+   scattered set of `bg-accent-500/15`. These name the *roles* copper plays so
+   every panel, nav item, selection, CTA and focus ring pulls from one place.
+   All are alpha-composited copper (or zinc for neutral) so they layer correctly
+   on the graphite body and the black card surfaces. Consumed via `bg-[…]` /
+   `ring-[…]` / arbitrary props where a role is clearer than a raw shade.
+   Dark-first: values below are the mission-control dark tuning. */
+:root {
+  /* copper accent roles (translucent so they compose on any dark surface) */
+  --copper-soft: color-mix(in oklab, var(--color-accent-500) 12%, transparent);      /* faint wash — hover, resting nav */
+  --copper-surface: color-mix(in oklab, var(--color-accent-500) 18%, transparent);   /* selected / active tint fill */
+  --copper-strong: color-mix(in oklab, var(--color-accent-500) 30%, transparent);    /* emphasis fill — warning band */
+  --copper-line: color-mix(in oklab, var(--color-accent-500) 40%, transparent);      /* accent hairline / border */
+  --copper-line-strong: color-mix(in oklab, var(--color-accent-400) 55%, transparent);/* selection ring */
+  --copper-glow: color-mix(in oklab, var(--color-accent-500) 22%, transparent);      /* subtle elevation halo */
+  /* interaction */
+  --focus-ring: var(--color-accent-500);                                             /* keyboard focus — one ring everywhere */
+  /* status intensity (semantics come from LABEL; copper carries the heat scale) */
+  --state-info: color-mix(in oklab, var(--color-zinc-400) 22%, transparent);         /* neutral info — zinc, not copper */
+  --state-progress: color-mix(in oklab, var(--color-accent-500) 20%, transparent);   /* pending / in-progress */
+  --state-success: color-mix(in oklab, var(--color-accent-500) 16%, transparent);    /* pass / complete / prod-healthy */
+  --state-warning: color-mix(in oklab, var(--color-accent-500) 30%, transparent);    /* degraded / attention */
+  --state-danger: var(--color-accent-700);                                           /* fail / blocked — solid heat */
 }
 
 /* Chart tokens — SINGLE source of truth for every Recharts surface.
