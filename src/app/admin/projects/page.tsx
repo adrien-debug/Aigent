@@ -4,22 +4,12 @@ import type { Metadata } from 'next'
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ProjectCard } from '@/components/agent-ops/project-card'
-import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
-import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
-import { SplitBar, type SplitSegment, type SplitTone } from '@/components/agent-ops/widgets/split-bar'
 import { getCopilots, getProjects } from '@/lib/agent-mission-control/data'
 import { formatUsd } from '@/lib/agent-mission-control/format'
-import type { Copilot, Project } from '@/lib/agent-mission-control/types'
+import type { Copilot } from '@/lib/agent-mission-control/types'
 
 export const metadata: Metadata = {
   title: 'Projects — Agent Mission Control',
-}
-
-const PLATFORM_LABELS: Record<Project['platform'], string> = {
-  web: 'Web',
-  desktop: 'Desktop',
-  mobile: 'Mobile',
-  api: 'API',
 }
 
 interface ProjectRollup {
@@ -58,31 +48,6 @@ function rollupByProject(copilots: Copilot[]): Map<string, ProjectRollup> {
   return byProject
 }
 
-/**
- * Platform mix as one accent-ramp SplitBar (severity/magnitude by INTENSITY,
- * never a second hue): biggest bucket = brightest accent, tail bucket = zinc.
- * Deterministic order (by count desc). Fills the KPI `viz` slot.
- */
-function platformMixSegments(projects: Project[]): SplitSegment[] {
-  const counts: Record<Project['platform'], number> = { web: 0, desktop: 0, mobile: 0, api: 0 }
-  for (const project of projects) counts[project.platform] += 1
-
-  const ramp: SplitTone[] = ['accent-500', 'accent-600', 'accent-700']
-  const present = (Object.keys(counts) as Project['platform'][])
-    .filter((platform) => counts[platform] > 0)
-    .sort((a, b) => counts[b] - counts[a])
-
-  return present.map((platform, index) => ({
-    key: platform,
-    label: PLATFORM_LABELS[platform],
-    value: counts[platform],
-    tone:
-      present.length > 1 && index === present.length - 1
-        ? 'zinc'
-        : ramp[Math.min(index, ramp.length - 1)],
-  }))
-}
-
 export default async function ProjectsPage() {
   const [projects, copilots] = await Promise.all([getProjects(), getCopilots()])
   const rollups = rollupByProject(copilots)
@@ -94,8 +59,6 @@ export default async function ProjectsPage() {
   const totalCost = validated.reduce((sum, copilot) => sum + copilot.health.costLast24hUsd, 0)
 
   // Per-project series in a stable order — traffic/spend concentration at a glance.
-  const runsSeries = projects.map((project) => (rollups.get(project.id) ?? EMPTY_ROLLUP).runsLast24h)
-  const costSeries = projects.map((project) => (rollups.get(project.id) ?? EMPTY_ROLLUP).costLast24hUsd)
 
   return (
     <div className="space-y-8">
@@ -106,52 +69,19 @@ export default async function ProjectsPage() {
           {
             name: 'Projects',
             value: String(projects.length),
-            viz: projects.length > 0 ? <SplitBar segments={platformMixSegments(projects)} /> : undefined,
           },
           {
             name: 'Copilots',
             value: String(validated.length),
-            hint: 'validated — excl. bench',
-            viz: (
-              <RadialMeter
-                value={totalActive}
-                max={Math.max(validated.length, 1)}
-                size={64}
-                strokeWidth={5}
-                caption={`of ${validated.length}`}
-                ariaLabel={`${totalActive} of ${validated.length} validated copilots active`}
-              />
-            ),
+            hint: `${totalActive} active · validated, excl. bench`,
           },
           {
             name: 'Runs 24h',
             value: totalRuns.toLocaleString('en-US'),
-            viz:
-              projects.length > 0 ? (
-                <Sparkline
-                  points={runsSeries}
-                  kind="bar"
-                  tone="accent"
-                  width={112}
-                  height={28}
-                  ariaLabel="Runs in the last 24h, per project"
-                />
-              ) : undefined,
           },
           {
             name: 'Cost 24h',
             value: formatUsd(totalCost),
-            viz:
-              projects.length > 0 ? (
-                <Sparkline
-                  points={costSeries}
-                  kind="bar"
-                  tone="accent"
-                  width={112}
-                  height={28}
-                  ariaLabel="Cost in the last 24h, per project"
-                />
-              ) : undefined,
           },
         ]}
       />

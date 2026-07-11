@@ -7,9 +7,6 @@ import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { RunStatusBadge } from '@/components/agent-ops/run-detail-panel'
 import { StatusBadge } from '@/components/agent-ops/status-badge'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
-import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
-import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
-import { SplitBar, type SplitSegment, type SplitTone } from '@/components/agent-ops/widgets/split-bar'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { getCopilots, getProject, getRecentRunsForProject } from '@/lib/agent-mission-control/data'
@@ -20,7 +17,7 @@ import {
   formatUsd,
 } from '@/lib/agent-mission-control/format'
 import { AGENT_RUNTIME_LABELS } from '@/lib/agent-mission-control/labels'
-import type { AgentRun, Copilot, CopilotStatus } from '@/lib/agent-mission-control/types'
+import type { AgentRun, Copilot } from '@/lib/agent-mission-control/types'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
@@ -52,28 +49,6 @@ function passRateMeterTone(rate: number): 'accent' | 'accentStrong' | 'accentSol
   if (rate < 0.75) return 'accentSolid'
   if (rate < 0.9) return 'accentStrong'
   return 'accent'
-}
-
-/**
- * This project's fleet status composition as one accent-ramp SplitBar
- * (active → brightest, inactive → zinc). Deterministic lifecycle order.
- */
-function statusMixSegments(copilots: Copilot[]): SplitSegment[] {
-  const order: { status: CopilotStatus; label: string; tone: SplitTone }[] = [
-    { status: 'active', label: 'Active', tone: 'accent-500' },
-    { status: 'degraded', label: 'Degraded', tone: 'accent-600' },
-    { status: 'paused', label: 'Paused', tone: 'zinc' },
-    { status: 'draft', label: 'Draft', tone: 'zinc' },
-    { status: 'archived', label: 'Archived', tone: 'zinc' },
-  ]
-  return order
-    .map(({ status, label, tone }) => ({
-      key: status,
-      label,
-      value: copilots.filter((copilot) => copilot.status === status).length,
-      tone,
-    }))
-    .filter((segment) => segment.value > 0)
 }
 
 /** The project's validated copilots — Name (slug · runtime · model) / Status / Tests / Runs 24h / Cost 24h. */
@@ -291,52 +266,20 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
             name: 'Agents',
             value: String(validated.length),
             hint: 'validated on this project',
-            viz: validated.length > 0 ? <SplitBar segments={statusMixSegments(validated)} /> : undefined,
           },
           {
             name: 'Active',
             value: String(activeCount),
-            viz: (
-              <RadialMeter
-                value={activeCount}
-                max={Math.max(validated.length, 1)}
-                size={64}
-                strokeWidth={5}
-                caption={`of ${validated.length}`}
-                ariaLabel={`${activeCount} of ${validated.length} agents active`}
-              />
-            ),
+            hint: `of ${validated.length}`,
           },
           {
             name: 'Runs 24h',
             value: runsLast24h.toLocaleString('en-US'),
-            viz:
-              validated.length > 0 ? (
-                <Sparkline
-                  points={runsSeries}
-                  kind="bar"
-                  tone="accent"
-                  width={112}
-                  height={28}
-                  ariaLabel="Runs in the last 24h, per agent"
-                />
-              ) : undefined,
           },
           {
             name: 'Cost 24h',
             value: runsLast24h > 0 ? formatUsd(costLast24hUsd) : '—',
             hint: runsLast24h > 0 ? undefined : 'No runs in the last 24 hours',
-            viz:
-              runsLast24h > 0 ? (
-                <Sparkline
-                  points={costSeries}
-                  kind="bar"
-                  tone="accent"
-                  width={112}
-                  height={28}
-                  ariaLabel="Cost in the last 24h, per agent"
-                />
-              ) : undefined,
           },
         ]}
       />
