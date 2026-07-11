@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { executeCopilotRun } from '@/lib/agent-mission-control/runner'
+import { pgrest } from '@/lib/agent-mission-control/postgrest'
 
 /**
  * POST /api/agent-ops/copilots/:copilotId/run — execute a REAL run of a
@@ -45,21 +46,13 @@ export async function POST(
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
   }
 
-  async function get(pathAndQuery: string): Promise<Record<string, unknown>[]> {
-    const res = await fetch(`${base}/rest/v1/${pathAndQuery}`, {
-      headers: { Authorization: `Bearer ${key}` },
-      cache: 'no-store',
-    })
-    if (!res.ok) {
-      throw new Error(`PostgREST ${res.status} on ${pathAndQuery}: ${(await res.text()).slice(0, 200)}`)
-    }
-    return (await res.json()) as Record<string, unknown>[]
-  }
-
   // 1) Load the copilot: model, project, and which version is serving.
   let copilotRow: Record<string, unknown>
   try {
-    const rows = await get(`copilots?id=eq.${encodeURIComponent(copilotId)}&select=*`)
+    const rows = await pgrest<Record<string, unknown>[]>(
+      'GET',
+      `copilots?id=eq.${encodeURIComponent(copilotId)}&select=*`
+    )
     if (rows.length === 0) {
       return NextResponse.json({ error: 'copilot not found' }, { status: 404 })
     }
@@ -86,13 +79,19 @@ export async function POST(
   let systemPromptSummary = `You are ${copilotRow.name as string}, an autonomous agent.`
   let maxStepsPerRun = 1
   try {
-    const versionRows = await get(`copilot_versions?id=eq.${encodeURIComponent(versionId)}&select=*`)
+    const versionRows = await pgrest<Record<string, unknown>[]>(
+      'GET',
+      `copilot_versions?id=eq.${encodeURIComponent(versionId)}&select=*`
+    )
     if (versionRows.length === 0) {
       return NextResponse.json({ error: 'version not found' }, { status: 404 })
     }
     const manifestId = versionRows[0].manifest_id as string | null
     if (manifestId) {
-      const manifestRows = await get(`manifests?id=eq.${encodeURIComponent(manifestId)}&select=*`)
+      const manifestRows = await pgrest<Record<string, unknown>[]>(
+        'GET',
+        `manifests?id=eq.${encodeURIComponent(manifestId)}&select=*`
+      )
       const manifestRow = manifestRows[0]
       if (manifestRow) {
         if (typeof manifestRow.system_prompt_summary === 'string' && manifestRow.system_prompt_summary.length > 0) {
