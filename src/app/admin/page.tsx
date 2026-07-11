@@ -435,8 +435,7 @@ export default async function DashboardPage() {
         ]}
       />
 
-      {/* Un seul visuel dominant : Run activity en pleine largeur. */}
-      <RunActivityCard runs={runs} copilotNameById={copilotNameById} />
+      <ProjectsCard projects={projects} rollups={rollups} />
 
       {/* Listes sobres, densités comparables — zéro meter, zéro gauge. */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -444,7 +443,8 @@ export default async function DashboardPage() {
         <AttentionCard copilots={copilots} />
       </div>
 
-      <ProjectsCard projects={projects} rollups={rollups} />
+      {/* Un seul visuel dominant : Run activity en pleine largeur, en bas. */}
+      <RunActivityCard runs={runs} copilotNameById={copilotNameById} />
     </div>
   )
 }
