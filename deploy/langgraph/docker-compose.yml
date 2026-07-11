@@ -1,4 +1,4 @@
-# LangGraph.js Agent Server — production compose for gpu1 (Aigent / agent_builder)
+# LangGraph Agent Server — production compose for gpu1 (Aigent / agent_builder)
 #
 # Run from the REPO ROOT (the build context must be the repo root, because
 # langgraph.json + src/langgraph live there):
@@ -9,11 +9,14 @@
 # NEVER hardcode secrets here — every value below is ${VAR} indirection.
 # See README.md for where each value comes from.
 #
-# PERSISTENCE: the named volume `aigent_langgraph_state` is mounted over the
-# server's on-disk checkpoint dir (/app/.langgraph_api). This is what
-# makes runs awaiting approval survive a container restart with THIS image
-# (the OSS langgraphjs-api image checkpoints to files, not Postgres — see
-# README.md § "How persistence actually works").
+# TWO CONTAINERS:
+#   - agent-server: the free `langgraphjs dev` server (in-memory + a persistent
+#     volume over /app/.langgraph_api so runs awaiting approval survive a
+#     restart). NOT published to the host — only the caddy front reaches it.
+#   - caddy: a front proxy that hard-DENIES /internal/* (the server's
+#     unauthenticated admin routes, e.g. /internal/truncate) and forwards the
+#     rest to agent-server. Caddy is the only container published to the host
+#     (127.0.0.1:8098), and it is what the Cloudflare tunnel points at.
 
 services:
   agent-server:
@@ -24,11 +27,15 @@ services:
     image: aigent-langgraph:local
     container_name: aigent-langgraph
     restart: always
-    ports:
-      # host 8098  ->  container 8000 (fixed internal port of the base image)
-      - "127.0.0.1:8098:2024"
+    # No host `ports:` — the server is reachable only in-network, via caddy.
+    expose:
+      - "2024"
     environment:
       # --- Auth gate (fail-closed). REQUIRED or the server 503s every request. ---
+      # Note: /internal/* routes are NOT covered by this auth gate — they are
+      # instead hard-blocked at the edge by the caddy front (see the caddy
+      # service below / Caddyfile). Auth and the /internal/* block are two
+      # separate, complementary layers.
       LANGGRAPH_SERVER_SECRET: ${LANGGRAPH_SERVER_SECRET:?set LANGGRAPH_SERVER_SECRET}
 
       # --- Graph runtime needs these (tools call Supabase PostgREST). ---
@@ -46,7 +53,7 @@ services:
 
     volumes:
       # Persist checkpoints/threads/runs across restarts (the whole point — the
-      # OSS langgraphjs-api image checkpoints to files here, not to Postgres).
+      # langgraphjs dev server checkpoints to files here, not to Postgres).
       - aigent_langgraph_state:/app/.langgraph_api
 
     networks:
@@ -54,12 +61,28 @@ services:
       - nexus-net
 
     healthcheck:
-      # The base image exposes /ok for liveness (used by `langgraphjs up`).
+      # /ok is public (exempt from auth) — liveness for the dev server.
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:2024/ok').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 5
       start_period: 40s
+
+  caddy:
+    image: caddy:2
+    container_name: aigent-langgraph-caddy
+    restart: always
+    depends_on:
+      agent-server:
+        condition: service_healthy
+    # The ONLY container published to the host; the Cloudflare tunnel targets
+    # 127.0.0.1:8098. Caddy denies /internal/* and proxies the rest.
+    ports:
+      - "127.0.0.1:8098:8098"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      - nexus-net
 
 volumes:
   aigent_langgraph_state:

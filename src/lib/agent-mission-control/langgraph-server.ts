@@ -12,10 +12,11 @@
  * state — the same server LangSmith Studio connects to. There is no bespoke
  * runtime here.
  *
- * Env: LANGGRAPH_API_URL (default http://127.0.0.1:2024) and, in production,
- * LANGGRAPH_SERVER_SECRET (sent as the x-agent-key header to authenticate against
- * the public Agent Server). The server itself reads OPENAI_API_KEY + the gpu1
- * perimeter from .env.local.
+ * Env: LANGGRAPH_API_URL (default http://127.0.0.1:2024) and LANGGRAPH_SERVER_SECRET
+ * (sent as the x-agent-key header to authenticate against the Agent Server). The
+ * server is fail-closed via langgraph.json's "auth" key in BOTH local dev and
+ * production, so the secret is required in both — not just production. The
+ * server itself reads OPENAI_API_KEY + the gpu1 perimeter from .env.local.
  */
 import 'server-only'
 
@@ -55,13 +56,18 @@ function costFromMessages(messages: AnyMsg[]): number {
 }
 
 /**
- * Build the Agent Server client (server only). When LANGGRAPH_SERVER_SECRET is
- * set (production: the deployed server is public + fail-closed), the app sends
- * it as the `x-agent-key` header on every request via the SDK's `defaultHeaders`.
- * Absent (local dev without auth), the client is created bare — dev is not broken.
+ * Build the Agent Server client (server only). The server (local dev AND
+ * production) is fail-closed via langgraph.json's "auth" key, so when
+ * LANGGRAPH_SERVER_SECRET is set, the app sends it as the `x-agent-key` header
+ * on every request via the SDK's `defaultHeaders`. Absent, the client is
+ * created bare and every request will 503 — set the secret in both environments.
+ *
+ * The secret is trimmed before use: an empty or whitespace-only value (e.g. a
+ * stray " " from a misconfigured env var) is treated as absent rather than sent
+ * as a bogus header that would just get a 401 from the server.
  */
 const client = (): Client => {
-  const secret = process.env.LANGGRAPH_SERVER_SECRET
+  const secret = process.env.LANGGRAPH_SERVER_SECRET?.trim()
   return secret
     ? new Client({ apiUrl: agentServerUrl(), defaultHeaders: { 'x-agent-key': secret } })
     : new Client({ apiUrl: agentServerUrl() })

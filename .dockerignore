@@ -1,0 +1,33 @@
+# Docker build context ignore — repo root.
+#
+# The LangGraph agent-server build context is the REPO ROOT
+# (deploy/langgraph/docker-compose.yml → build.context: ../..), so this file
+# MUST live here, not next to deploy/langgraph/Dockerfile — Docker only reads
+# .dockerignore from the root of the build context.
+#
+# Without this file, `COPY . .` in deploy/langgraph/Dockerfile copies
+# .env.local (SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY,
+# LANGGRAPH_SERVER_SECRET, ...) and .git/ straight into the image. Keep this
+# in sync with anything sensitive that lands at the repo root.
+
+# --- secrets ---
+.env
+.env.*
+!.env.example
+deploy/langgraph/.env
+
+# --- vcs / editor / agent metadata ---
+.git
+.gitignore
+.claude
+.github
+
+# --- dependency / build artifacts (reinstalled/rebuilt in the image) ---
+node_modules
+.next
+.langgraph_api
+
+# --- logs / local screenshots ---
+*.log
+amc-*.png
+.playwright-mcp

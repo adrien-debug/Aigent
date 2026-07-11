@@ -1,118 +1,135 @@
 # Deploying the LangGraph.js Agent Server (Aigent) on gpu1
 
-Production deployment of the `agent_builder` graph as a standalone Docker
-container on **gpu1**, with checkpointing that **survives a container restart**
-(runs paused for human approval must not be lost).
+Production deployment of the `agent_builder` graph as a **two-container**
+Docker Compose stack on **gpu1**, with checkpointing that **survives a
+container restart** (runs paused for human approval must not be lost).
 
 This directory contains:
 
 | File | Purpose |
 |------|---------|
-| `Dockerfile` | Production image (the `langgraphjs dockerfile` output, adapted). |
-| `docker-compose.yml` | One-service compose with env, port, volume, `restart: always`. |
+| `Dockerfile` | Production image — runs the free `langgraphjs dev` server in a container. |
+| `Caddyfile` | Front-proxy config — hard-denies `/internal/*`, forwards everything else to `agent-server`. |
+| `docker-compose.yml` | Two-service compose (`agent-server` + `caddy`) with env, port, volume, `restart: always`. |
 | `README.md` | This file — exact build/run commands + how persistence works. |
 
 ---
 
-## ⚠️ How persistence ACTUALLY works (read before deploying)
+## Architecture — two containers, one exposed
 
-The investigation into the `langgraphjs` CLI turned up a fact that contradicts
-the usual "point it at Postgres" assumption. **There are two different servers**,
-and only one of them uses Postgres:
+```
+Cloudflare tunnel ──▶ 127.0.0.1:8098 ──▶ [caddy] ──▶ (nexus-net) ──▶ [agent-server:2024]
+                                            │
+                                            └── DENIES /internal/* (403), proxies everything else
+```
 
-### Two servers
+- **`agent-server`** — the free `langgraphjs dev` server. **Not published to
+  the host** (no `ports:`, only `expose: "2024"`) — it is reachable **only**
+  from other containers on the `nexus-net` network, i.e. only from `caddy`.
+- **`caddy`** — a front proxy and **the only container published to the
+  host**, on `127.0.0.1:8098`. It hard-denies `/internal/*` and proxies
+  everything else through to `agent-server:2024`. This is what the Cloudflare
+  tunnel points at.
 
-1. **OSS image `langchain/langgraphjs-api` — what `langgraphjs build` / `langgraphjs dockerfile` produce (this is what the Dockerfile here uses).**
-   Package: `@langchain/langgraph-api` v1.4.2 (verified in `node_modules`).
-   - Its checkpointer is `InMemorySaver` **persisted to a JSON file on disk** —
-     `<workdir>/.langgraph_api/.langgraphjs_api.checkpointer.json`. Threads,
-     runs and assistants are likewise stored as files under `.langgraph_api/`.
-   - There is **no `postgres`/`pg` import anywhere in that package's runtime.**
-     It does **not** connect to Postgres. `POSTGRES_URI` / `REDIS_URI` are simply
-     **ignored** by this image.
-   - **Consequence:** to make paused runs survive a restart, mount a **persistent
-     volume** over the workdir's `.langgraph_api/` directory. That is exactly what
-     the `Dockerfile` (`VOLUME`) and `docker-compose.yml` (named volume
-     `aigent_langgraph_state → /deps/Aigent/.langgraph_api`) do. **This is the
-     supported, working persistence path for this deployment.**
+### Why the Caddy sidecar exists
 
-2. **Licensed self-hosted server — what `langgraphjs up` pulls & runs via compose.**
-   This is the image whose `docker-compose` wiring sets `REDIS_URI` +
-   `POSTGRES_URI`, backs checkpoints/threads with **Postgres + Redis**, and on
-   boot **creates its own checkpoint tables** in the database. It additionally
-   **requires a license key**: `langgraphjs up` prints
-   *"For production use, requires a license key in env var
-   `LANGGRAPH_CLOUD_LICENSE_KEY`."* Without that key + the licensed image, you do
-   **not** get the Postgres-backed server.
-
-### The exact env-var answer
-
-- The variable the **Postgres-backed (licensed) server** reads is **`POSTGRES_URI`**
-  (plus `REDIS_URI` for Redis) — this is what `langgraphjs`'s own compose sets on
-  the `langgraph-api` service, and what `langgraphjs up --postgres-uri` feeds.
-- **`DATABASE_URI` is NOT what the self-hosted server reads.** It appears only in
-  the CLI's `RESERVED_ENV_VARS` list (secret-filtering for LangSmith **Cloud**
-  deploys), never as a runtime connection var for the container. The prompt's
-  hypothesis that the server wants `DATABASE_URI` is **incorrect** — it's
-  `POSTGRES_URI`.
-- The Postgres URI format (only needed for path #2) is:
-  `postgresql://<user>:<password>@host.docker.internal:5432/aigent`
-  (`host.docker.internal` = the gpu1 host, where `nexus-postgres` listens on
-  `127.0.0.1:5432`). The compose file wires this from `${POSTGRES_URI}` /
-  `${PGUSER}` / `${PGPASSWORD}` — **no secret is hardcoded**.
-
-### Which path should Aigent use?
-
-**Default: path #1 (this Dockerfile) + the persistent volume.** It needs no
-license, no Redis, no Postgres — just the volume — and it satisfies the actual
-requirement ("survive a container restart"). The `POSTGRES_URI` env is still
-wired in compose so that *if* a licensed image is later swapped in, the DB is
-ready; it is harmlessly ignored by the OSS image.
-
-> If cross-restart durability must live in the shared `aigent` Postgres (not a
-> Docker volume), that requires the **licensed** server (path #2) + a license
-> key, OR a custom graph-level Postgres checkpointer wired inside
-> `src/langgraph/*` (code change, out of scope for this deploy folder).
+The `langgraphjs dev` server mounts a set of `/internal/*` admin routes —
+notably **`/internal/truncate`, which wipes all threads/runs/checkpoints** —
+and these routes are **not covered by the server's auth gate**
+(`LANGGRAPH_SERVER_SECRET` / `src/langgraph/auth.mjs`). If `agent-server`
+were exposed directly, `/internal/truncate` would be a public,
+unauthenticated data-wipe endpoint. The Caddy sidecar exists specifically to
+block that surface **at the edge**, before it ever reaches the server: it
+denies `/internal/*` outright and only forwards the rest. Auth
+(`LANGGRAPH_SERVER_SECRET`) and the Caddy `/internal/*` block are two
+separate, complementary layers — never rely on one to cover for the other.
 
 ---
 
-## What the generated Dockerfile contains
+## What is actually deployed
 
-`langgraphjs dockerfile` for this repo emits (verbatim core):
+We run the **free `langgraphjs dev` server** in a container — **not** the
+licensed `langchain/langgraphjs-api` image (which requires a paid LangSmith
+license + Redis + Postgres). See the Dockerfile:
 
 ```dockerfile
-FROM langchain/langgraphjs-api:20
-ADD . /deps/Aigent
-ENV LANGSERVE_GRAPHS='{"agent_builder":"./src/langgraph/agent-builder-graph.mjs:graph"}'
-WORKDIR /deps/Aigent
+FROM node:22-slim
+WORKDIR /app
+COPY package.json package-lock.json ./
 RUN npm ci
-RUN (test ! -f /api/langgraph_api/js/build.mts && echo "Prebuild script not found, skipping") || tsx /api/langgraph_api/js/build.mts
+COPY . .
+VOLUME ["/app/.langgraph_api"]
+EXPOSE 2024
+CMD ["npx", "langgraphjs", "dev", "--no-browser", "--host", "0.0.0.0", "--port", "2024"]
 ```
 
-- **Base image:** `langchain/langgraphjs-api:20` (tag = `node_version` from
-  `langgraph.json`).
-- **Graph load:** whole repo copied to `/deps/Aigent`; graph registered via
-  `LANGSERVE_GRAPHS` from `langgraph.json`'s `graphs`.
-- **Internal port: `8000`** (fixed in the base image; `--port` only remaps the
-  host side). We publish it as **8098** on gpu1.
-- **DB wait:** none in the OSS image (it doesn't use a DB). The licensed compose
-  path adds `depends_on: postgres/redis (service_healthy)`.
+- **Base image:** `node:22-slim` — plain Node, no LangGraph Platform image.
+- **Graph load:** whole repo copied to `/app`; graph registered via
+  `langgraph.json`'s `graphs` key (`agent_builder`).
+- **Internal port: `2024`** (the `langgraphjs dev` default). `agent-server`
+  has **no host port mapping** — it is only `expose`d on the `nexus-net`
+  network. The public port, **`127.0.0.1:8098` on gpu1, is mapped on the
+  `caddy` service**, not on `agent-server` — see `docker-compose.yml`'s
+  `caddy.ports: 127.0.0.1:8098:8098` and the Architecture section above.
+- **Checkpoint/state dir: `/app/.langgraph_api`** — the dev server's
+  in-memory-but-file-backed checkpointer persists threads/runs/assistants
+  here. A named Docker volume is mounted over this path (see below) so it
+  **survives a container restart**.
 
-**Our `Dockerfile` adds two things the raw generation omits:**
-1. `ENV LANGGRAPH_AUTH='{"path":"./src/langgraph/auth.mjs:auth"}'` — activates the
-   repo's fail-closed shared-secret gate (see gap note below).
-2. `VOLUME ["/deps/Aigent/.langgraph_api"]` + `EXPOSE 8000` — the persistence
-   mount point and the documented port.
+### How persistence actually works
 
-### 🔴 Gap found & fixed: auth was not wired
+The `langgraphjs dev` server's checkpointer is `InMemorySaver` **persisted to
+a JSON file on disk** — `/app/.langgraph_api/.langgraphjs_api.checkpointer.json`.
+Threads, runs and assistants are likewise stored as files under
+`.langgraph_api/`. There is no Postgres/Redis involved.
 
-`src/langgraph/auth.mjs` implements a **fail-closed** shared-secret gate
-(`LANGGRAPH_SERVER_SECRET`, header `x-agent-key`), but the root
-`langgraph.json` has **no `auth` key**, so a plain `langgraphjs build` would ship
-a **public, unauthenticated** Agent Server. The `Dockerfile` here sets
-`LANGGRAPH_AUTH` explicitly to close that hole. **You must supply
-`LANGGRAPH_SERVER_SECRET`** at runtime or every request is rejected with 503 (by
-design).
+**Consequence:** to make paused runs survive a restart, mount a **persistent
+volume** over `/app/.langgraph_api`. That is exactly what the `Dockerfile`
+(`VOLUME`) and `docker-compose.yml` (named volume
+`aigent_langgraph_state → /app/.langgraph_api`) do. **This is the supported,
+working persistence path for this deployment.**
+
+> **Note — the official prod-HA path is different and unused here.** LangGraph
+> Platform ships a **licensed self-hosted server** (what `langgraphjs up`
+> pulls & runs via its own generated compose) that backs checkpoints/threads
+> with **Postgres + Redis** (`POSTGRES_URI` / `REDIS_URI`) and **requires a
+> license key** (`LANGGRAPH_CLOUD_LICENSE_KEY`). We deliberately do **not**
+> use it: no license, no Redis, no Postgres — just the containerized dev
+> server + a persistent volume, which already satisfies the actual
+> requirement ("survive a container restart"). If cross-restart durability
+> must someday live in the shared `aigent` Postgres instead of a Docker
+> volume, that means either switching to the licensed image + a license key,
+> or wiring a custom graph-level Postgres checkpointer inside
+> `src/langgraph/*` (a code change, out of scope for this deploy folder).
+
+---
+
+## Auth: fail-closed, wired via `langgraph.json`, plus the Caddy `/internal/*` block
+
+Root `langgraph.json`'s `"auth"` key wires the gate directly:
+
+```json
+{
+  "auth": { "path": "./src/langgraph/auth.mjs:auth" }
+}
+```
+
+`langgraphjs` (both the local `npm run dev` server and this container — same
+`langgraph.json`, no separate env var needed to activate it) reads that key
+and installs `src/langgraph/auth.mjs` as a **fail-closed** shared-secret gate
+(header `x-agent-key`, env `LANGGRAPH_SERVER_SECRET`). **Without
+`LANGGRAPH_SERVER_SECRET` set, every request 503s** — by design, this can
+never run as an unauthenticated public deployment. Set the same secret value
+on the app side (`x-agent-key` sender) and the server side
+(`docker-compose.yml`'s `agent-server.environment.LANGGRAPH_SERVER_SECRET`).
+
+**This auth gate does NOT cover `/internal/*`.** Those routes (see
+"Architecture" above) are admin/debug routes the `langgraphjs dev` server
+mounts unauthenticated by design — `src/langgraph/auth.mjs` never sees them.
+That is why the **Caddy front proxy** exists as a second, independent layer:
+it denies `/internal/*` outright at the edge, regardless of auth state. Do
+not treat `LANGGRAPH_SERVER_SECRET` as covering `/internal/*` — it does not;
+only Caddy does.
 
 ---
 
@@ -131,14 +148,13 @@ design).
 | `OPENAI_API_KEY` | **Yes** | `~/.claude/api-config/SERVICES.md` (`OPENAI_API_KEY`), or the app's `.env.local`. |
 | `AMC_SUPABASE_URL` | **Yes** | The app's `.env.local` (`AMC_SUPABASE_URL`) — Supabase/PostgREST base used by the graph tools. |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Yes** | `~/.claude/api-config/SERVICES.md` / app `.env.local`. Service-role key — server-side only. |
+| `AGENT_BUILDER_MODEL` | No (default `gpt-5.4`) | Model override for the graph. |
 | `AMC_DATA_SOURCE` | No (default `gpu1`) | Matches the app's data-source switch. |
-| `POSTGRES_URI` | Only path #2 | `postgresql://<user>:<pass>@host.docker.internal:5432/aigent`. Creds = the gpu1 `nexus-postgres` credentials (in the gpu1 env / infra notes). **Ignored by the OSS image.** |
-| `LANGGRAPH_CLOUD_LICENSE_KEY` | Only path #2 | LangGraph Platform license. Absent → OSS/file-checkpoint path. |
 | `LANGSMITH_API_KEY` | Optional | Tracing. Absent → no-op. |
 
 Put them in a `deploy/langgraph/.env` on gpu1 (git-ignored) or export in the shell.
 
-### Option A — docker compose (recommended)
+### Deploy — docker compose (the only supported path)
 
 From the **repo root** on gpu1:
 
@@ -148,42 +164,28 @@ From the **repo root** on gpu1:
 #    OPENAI_API_KEY=...
 #    AMC_SUPABASE_URL=...
 #    SUPABASE_SERVICE_ROLE_KEY=...
-#    # (optional, path #2) POSTGRES_URI / PGUSER / PGPASSWORD / LANGGRAPH_CLOUD_LICENSE_KEY
 
-# 2) build + run
+# 2) build + run BOTH containers (agent-server + caddy)
 docker compose -f deploy/langgraph/docker-compose.yml --env-file deploy/langgraph/.env up -d --build
 
 # 3) logs
-docker logs -f aigent-langgraph
+docker logs -f aigent-langgraph          # agent-server
+docker logs -f aigent-langgraph-caddy    # caddy front proxy
 ```
 
-### Option B — plain docker build + run
+> **Do NOT run `agent-server` standalone with `docker run ... -p 8098:2024`
+> (or any host port mapping straight onto the server).** That was a
+> previously-documented "Option B" here and it is **dangerous**: it exposes
+> the server's `/internal/*` routes — including `/internal/truncate`, which
+> **wipes all data** — directly to the host/tunnel with **no auth and no
+> Caddy in front of it**. Always deploy with `docker compose up -d`, which
+> brings up `caddy` alongside `agent-server` and keeps `/internal/*` blocked.
+> `agent-server`'s `docker-compose.yml` service intentionally has **no
+> `ports:`** for this reason — only `caddy` is published.
 
-From the **repo root** on gpu1:
-
-```bash
-# Build (context = repo root, so langgraph.json + src/langgraph are included)
-docker build -f deploy/langgraph/Dockerfile -t aigent-langgraph:local .
-
-# Run — internal 8000 published as 8098, state on a named volume, restart:always
-docker run -d \
-  --name aigent-langgraph \
-  --restart always \
-  -p 8098:8000 \
-  --add-host host.docker.internal:host-gateway \
-  -v aigent_langgraph_state:/deps/Aigent/.langgraph_api \
-  -e LANGGRAPH_SERVER_SECRET="$LANGGRAPH_SERVER_SECRET" \
-  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
-  -e AMC_SUPABASE_URL="$AMC_SUPABASE_URL" \
-  -e SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \
-  -e AMC_DATA_SOURCE=gpu1 \
-  -e POSTGRES_URI="postgresql://<user>:<pass>@host.docker.internal:5432/aigent" \
-  aigent-langgraph:local
-```
-
-> `-v aigent_langgraph_state:/deps/Aigent/.langgraph_api` is the line that makes
-> paused runs survive `docker restart` / `docker stop && docker run`. Drop it and
-> every checkpoint is lost on restart.
+> `-v aigent_langgraph_state:/app/.langgraph_api` (already wired in
+> `docker-compose.yml`) is what makes paused runs survive a restart. Never
+> remove that volume — every checkpoint would be lost.
 
 ---
 
@@ -202,6 +204,9 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8098/assistants/search
 curl -s http://localhost:8098/assistants/search \
   -X POST -H 'content-type: application/json' \
   -H "x-agent-key: $LANGGRAPH_SERVER_SECRET" -d '{}' | head -c 400
+
+# 4) /internal/* must be blocked by Caddy (data-wipe protection):
+curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8098/internal/truncate -d '{}'   # expect 403
 ```
 
 ### Verify checkpoint persistence (the actual requirement)
@@ -210,7 +215,7 @@ Because this image checkpoints to **files on a volume** (not Postgres tables):
 
 ```bash
 # The state files live on the named volume, mounted at .langgraph_api in-container:
-docker exec aigent-langgraph sh -c 'ls -la /deps/Aigent/.langgraph_api'
+docker exec aigent-langgraph sh -c 'ls -la /app/.langgraph_api'
 #   → after the first run you should see .langgraphjs_api.checkpointer.json and
 #     the threads/runs/assistants state files.
 
@@ -219,9 +224,3 @@ docker restart aigent-langgraph
 # Re-query the thread via the API (with x-agent-key) — the interrupted run and
 # its pending checkpoint are still there. If you REMOVED the volume, they'd be gone.
 ```
-
-> **If you chose path #2 (licensed image + `POSTGRES_URI` + license key)**,
-> verify Postgres instead: after boot, the server creates its checkpoint tables
-> in the `aigent` DB — `psql "$POSTGRES_URI" -c '\dt'` should list
-> checkpoint/thread tables, and paused runs survive a restart via Postgres rather
-> than the volume.

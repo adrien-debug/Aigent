@@ -1,0 +1,26 @@
+# Front proxy for the LangGraph Agent Server.
+#
+# The langgraphjs server mounts its /internal/* admin routes (e.g.
+# /internal/truncate, which wipes ALL runs/threads/checkpoints) BEFORE its auth
+# middleware, so those routes are UNAUTHENTICATED — a public data-wipe hole the
+# app-level x-agent-key gate cannot close. This proxy sits in front of the
+# container and hard-denies /internal/* at the edge, then forwards everything
+# else to the server (which still enforces the shared-secret auth on its own).
+#
+# Listens on :8098 (published to the host loopback, tunneled as agent.hearst.app).
+
+{
+	admin off
+	auto_https off
+}
+
+:8098 {
+	# Block the unauthenticated admin surface outright.
+	@internal path /internal/*
+	respond @internal "Forbidden" 403 {
+		close
+	}
+
+	# Everything else → the Agent Server (still secret-gated by auth.mjs).
+	reverse_proxy aigent-langgraph:2024
+}

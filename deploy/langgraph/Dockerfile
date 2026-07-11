@@ -7,10 +7,13 @@
 # awaiting human approval SURVIVE a container restart — which is the production
 # requirement here.
 #
-# Auth: the server reads langgraph.json's "auth" key → src/langgraph/auth.mjs,
-# a fail-closed shared-secret gate (header x-agent-key, env LANGGRAPH_SERVER_SECRET).
-# Without the secret the server 503s every request, so a public deployment is
-# never unauthenticated.
+# Auth: langgraph.json's "auth" key points at src/langgraph/auth.mjs:auth, a
+# fail-closed shared-secret gate (header x-agent-key, env LANGGRAPH_SERVER_SECRET).
+# This is the ONLY mechanism the langgraphjs dev server reads for auth — there is
+# no separate env var that wires it in. Because the key lives in langgraph.json,
+# it applies identically in this container AND to the local `npm run dev` server:
+# both are fail-closed and both 503 every request without LANGGRAPH_SERVER_SECRET
+# set. Set the same secret value on the app side and the server side.
 #
 # Build context MUST be the repo root (langgraph.json + src/langgraph live there).
 # The server listens on 2024 inside the container; published as 8098 on the host.
@@ -39,6 +42,11 @@ VOLUME ["/app/.langgraph_api"]
 # it is NOT publicly exposed directly — only via the tunnel, and gated by auth.
 EXPOSE 2024
 
-# Run the free dev server with the repo's langgraph.json (which wires the graph
-# + the auth gate). --host 0.0.0.0 to be reachable on the published port.
+# The fail-closed shared-secret auth gate is wired via langgraph.json's "auth"
+# key (copied in with `COPY . .` above) — no env var needed to activate it.
+# LANGGRAPH_SERVER_SECRET is still required at runtime (see docker-compose.yml)
+# or every request 503s.
+
+# Run the free dev server with the repo's langgraph.json, which wires both the
+# graph and the auth gate. --host 0.0.0.0 to be reachable on the published port.
 CMD ["npx", "langgraphjs", "dev", "--no-browser", "--host", "0.0.0.0", "--port", "2024"]

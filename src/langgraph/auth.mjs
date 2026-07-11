@@ -70,7 +70,12 @@ export const auth = new Auth().authenticate(async (request) => {
     // Unparseable URL → fall through to the secret gate (fail-closed).
   }
 
-  const expected = process.env.LANGGRAPH_SERVER_SECRET
+  // Trimmed on both sides: a trailing newline in the server's env value (common
+  // when the secret is provisioned via `.env` files or `$(cat file)`) would
+  // otherwise never match the header value, which cannot itself carry a
+  // newline — every request would silently 401. Trimming removes that
+  // mismatch without weakening the comparison (secretsMatch stays constant-time).
+  const expected = process.env.LANGGRAPH_SERVER_SECRET?.trim()
 
   // FAIL-CLOSED: no configured secret ⇒ reject everything. Never open by default.
   if (!expected || expected.length === 0) {
@@ -79,7 +84,7 @@ export const auth = new Auth().authenticate(async (request) => {
     })
   }
 
-  const presented = extractPresentedSecret(request)
+  const presented = extractPresentedSecret(request)?.trim()
   if (!presented) {
     throw new HTTPException(401, { message: 'Missing agent key.' })
   }
