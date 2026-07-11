@@ -6,7 +6,6 @@ import { TestCaseTable } from '@/components/agent-ops/test-case-table'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
 import { SplitBar, type SplitSegment } from '@/components/agent-ops/widgets/split-bar'
-import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Subheading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
@@ -20,18 +19,18 @@ import {
 } from '@/lib/agent-mission-control/data'
 import type { TestResult, TestResultStatus, TestRun, TestSuite } from '@/lib/agent-mission-control/types'
 
-const suiteKindConfig: Record<TestSuite['kind'], { label: string; color: 'zinc' | 'accentStrong' }> = {
-  behavior: { label: 'Behavior', color: 'zinc' },
-  safety: { label: 'Safety', color: 'accentStrong' },
-  regression: { label: 'Regression', color: 'zinc' },
-  'output-contract': { label: 'Output contract', color: 'zinc' },
+const suiteKindConfig: Record<TestSuite['kind'], { label: string }> = {
+  behavior: { label: 'Behavior' },
+  safety: { label: 'Safety' },
+  regression: { label: 'Regression' },
+  'output-contract': { label: 'Output contract' },
 }
 
-const runStatusConfig: Record<TestRun['status'], { label: string; color: 'accent' | 'zinc' | 'accentSolid' }> = {
-  completed: { label: 'Completed', color: 'accent' },
-  running: { label: 'Running', color: 'zinc' },
-  queued: { label: 'Queued', color: 'zinc' },
-  aborted: { label: 'Aborted', color: 'accentSolid' },
+const runStatusConfig: Record<TestRun['status'], { label: string }> = {
+  completed: { label: 'Completed' },
+  running: { label: 'Running' },
+  queued: { label: 'Queued' },
+  aborted: { label: 'Aborted' },
 }
 
 export async function TestsSection({ copilotId }: { copilotId: string }) {
@@ -181,9 +180,9 @@ export async function TestsSection({ copilotId }: { copilotId: string }) {
                   <div className="min-w-0 lg:flex-1">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                       <h3 className="text-sm font-semibold text-zinc-950 dark:text-white">{suite.name}</h3>
-                      <Badge color={kind.color}>{kind.label}</Badge>
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400">{kind.label}</span>
                       {runStatus ? (
-                        <Badge color={runStatus.color}>{runStatus.label}</Badge>
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400">{runStatus.label}</span>
                       ) : (
                         <span className="text-xs text-zinc-500">Never run</span>
                       )}
