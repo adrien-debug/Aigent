@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { AssignProjectDialog, UnassignCopilotDialog } from '@/components/agent-ops/assign-project-dialog'
+import { DeleteCopilotDialog } from '@/components/agent-ops/delete-copilot-dialog'
 import { Avatar } from '@/components/catalyst/avatar'
 import { Button } from '@/components/catalyst/button'
 import { Dropdown, DropdownButton, DropdownItem, DropdownMenu } from '@/components/catalyst/dropdown'
@@ -65,10 +66,12 @@ function BenchRow({
   copilot,
   projectNameById,
   onAssign,
+  onDelete,
 }: {
   copilot: Copilot
   projectNameById: Map<string, string>
   onAssign: (copilot: Copilot) => void
+  onDelete: (copilot: Copilot) => void
 }) {
   const href = `/admin/agents/${copilot.id}`
   return (
@@ -114,13 +117,21 @@ function BenchRow({
         )}
       </td>
       <td className="py-5 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap">
-        <div className="flex items-center justify-end gap-4">
+        <div className="flex items-center justify-end gap-2">
           <Button outline onClick={() => onAssign(copilot)}>
             Assign…<span className="sr-only"> {copilot.name} to a project</span>
           </Button>
           <Link href={href} className="text-accent-400 hover:text-accent-300">
             Open<span className="sr-only">, {copilot.name}</span>
           </Link>
+          <Dropdown>
+            <DropdownButton plain aria-label={`Actions for ${copilot.name}`}>
+              <EllipsisVerticalIcon />
+            </DropdownButton>
+            <DropdownMenu anchor="bottom end">
+              <DropdownItem onClick={() => onDelete(copilot)}>Delete…</DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
         </div>
       </td>
     </tr>
@@ -135,10 +146,12 @@ function AllRow({
   copilot,
   projectNameById,
   onUnassign,
+  onDelete,
 }: {
   copilot: Copilot
   projectNameById: Map<string, string>
   onUnassign: (copilot: Copilot) => void
+  onDelete: (copilot: Copilot) => void
 }) {
   const href = `/admin/agents/${copilot.id}`
   return (
@@ -166,22 +179,17 @@ function AllRow({
           <Link href={href} className="text-accent-400 hover:text-accent-300">
             Open<span className="sr-only">, {copilot.name}</span>
           </Link>
-          {copilot.projectId !== null ? (
-            <Dropdown>
-              <DropdownButton plain aria-label={`Actions for ${copilot.name}`}>
-                <EllipsisVerticalIcon />
-              </DropdownButton>
-              <DropdownMenu anchor="bottom end">
-                <DropdownItem onClick={() => onUnassign(copilot)}>Unassign…</DropdownItem>
-              </DropdownMenu>
-            </Dropdown>
-          ) : (
-            // Reserve the menu's exact footprint so "Open" stays column-aligned
-            // across rows that have no row menu (unassigned copilots).
-            <Button plain aria-hidden="true" tabIndex={-1} className="pointer-events-none invisible">
+          <Dropdown>
+            <DropdownButton plain aria-label={`Actions for ${copilot.name}`}>
               <EllipsisVerticalIcon />
-            </Button>
-          )}
+            </DropdownButton>
+            <DropdownMenu anchor="bottom end">
+              {copilot.projectId !== null ? (
+                <DropdownItem onClick={() => onUnassign(copilot)}>Unassign…</DropdownItem>
+              ) : null}
+              <DropdownItem onClick={() => onDelete(copilot)}>Delete…</DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
         </div>
       </td>
     </tr>
@@ -209,6 +217,7 @@ export function CopilotRegistryTable({
   const [status, setStatus] = useState<CopilotStatus | 'all'>('all')
   const [assignTarget, setAssignTarget] = useState<Copilot | null>(null)
   const [unassignTarget, setUnassignTarget] = useState<Copilot | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Copilot | null>(null)
 
   const projectNameById = useMemo(() => new Map(projects.map((project) => [project.id, project.name])), [projects])
   const scoped = useMemo(
@@ -249,6 +258,7 @@ export function CopilotRegistryTable({
         copilot={copilot}
         projectNameById={projectNameById}
         onAssign={setAssignTarget}
+        onDelete={setDeleteTarget}
       />
     ) : (
       <AllRow
@@ -256,6 +266,7 @@ export function CopilotRegistryTable({
         copilot={copilot}
         projectNameById={projectNameById}
         onUnassign={setUnassignTarget}
+        onDelete={setDeleteTarget}
       />
     )
   }
@@ -435,6 +446,14 @@ export function CopilotRegistryTable({
           }
           open
           onClose={() => setUnassignTarget(null)}
+        />
+      ) : null}
+      {deleteTarget ? (
+        <DeleteCopilotDialog
+          key={deleteTarget.id}
+          copilot={deleteTarget}
+          isOpen
+          onClose={() => setDeleteTarget(null)}
         />
       ) : null}
     </AgentSectionCard>

@@ -189,3 +189,39 @@ export async function createProject(input: CreateProjectInput): Promise<string> 
 
   return id
 }
+
+// ---------------------------------------------------------------------------
+// Deletes — the DB owns the cascade. Every child FK (copilot_versions,
+// manifests, tools, test_*, agent_runs, benchmark_*, replay/shadow/promotion/
+// warnings, and the copilots→versions self-reference) is ON DELETE CASCADE, so
+// deleting the parent row removes everything atomically in one statement.
+// Verified live: DELETE copilots?id=eq.X clears its manifests/versions/tools.
+// Live-only, fail-closed. Returns false if the row didn't exist.
+// ---------------------------------------------------------------------------
+
+const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`
+
+/** Delete a copilot; the DB cascades every dependent row. */
+export async function deleteCopilotCascade(copilotId: string): Promise<boolean> {
+  requireBackend()
+  const existing = await pgrest<{ id: string }[]>('GET', `copilots?select=id&${eq('id', copilotId)}`)
+  if (existing.length === 0) return false
+  await pgrest('DELETE', `copilots?${eq('id', copilotId)}`)
+  return true
+}
+
+/**
+ * Delete a project. Its assigned copilots are cascade-deleted first (so no
+ * orphan copilot points at a dead project), then the project row.
+ */
+export async function deleteProjectCascade(projectId: string): Promise<boolean> {
+  requireBackend()
+  const existing = await pgrest<{ id: string }[]>('GET', `projects?select=id&${eq('id', projectId)}`)
+  if (existing.length === 0) return false
+  const copilots = await pgrest<{ id: string }[]>('GET', `copilots?select=id&${eq('project_id', projectId)}`)
+  for (const copilot of copilots) {
+    await pgrest('DELETE', `copilots?${eq('id', copilot.id)}`)
+  }
+  await pgrest('DELETE', `projects?${eq('id', projectId)}`)
+  return true
+}

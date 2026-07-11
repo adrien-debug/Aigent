@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { ProjectDeleteAction } from '@/components/agent-ops/project-delete-action'
 import { Subheading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
@@ -258,6 +259,9 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
               </Link>
             </>
           ) : null}
+          <div className="ml-auto shrink-0">
+            <ProjectDeleteAction project={{ id: project.id, name: project.name }} />
+          </div>
         </nav>
 
         {/* KPI en haut, marge au-dessus = petit header (directive Adrien 2026-07-10) */}
