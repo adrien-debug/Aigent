@@ -3,13 +3,13 @@
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 
+import { ManifestSummaryCard } from '@/components/agent-ops/authoring-primitives'
 import { Button } from '@/components/catalyst/button'
 import { Field, Fieldset, Label } from '@/components/catalyst/fieldset'
 import { Input } from '@/components/catalyst/input'
 import { Select } from '@/components/catalyst/select'
 import { Textarea } from '@/components/catalyst/textarea'
 import type { CreateCopilotInput, GeneratedManifest } from '@/lib/agent-mission-control/authoring-types'
-import { formatUsd } from '@/lib/agent-mission-control/format'
 import { slugify } from '@/lib/agent-mission-control/slug'
 import type { AgentRuntime, ModelProvider, Project } from '@/lib/agent-mission-control/types'
 
@@ -30,11 +30,6 @@ function defaultManifest(description: string): GeneratedManifest {
     maxStepsPerRun: 12,
     maxCostPerRunUsd: 0.5,
   }
-}
-
-function truncate(text: string, max: number): string {
-  if (text.length <= max) return text
-  return `${text.slice(0, max - 1)}…`
 }
 
 /**
@@ -144,44 +139,7 @@ export function CreateAgentForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      {initialManifest ? (
-        <div className="rounded-lg bg-zinc-950/5 p-4 ring-1 ring-zinc-950/10 dark:bg-white/5 dark:ring-white/10">
-          <p className="text-sm font-medium text-zinc-950 dark:text-white">Manifest from the architect</p>
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            {truncate(initialManifest.systemPromptSummary, 220)}
-          </p>
-          <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
-            <div>
-              <dt className="text-zinc-500 dark:text-zinc-400">Routes</dt>
-              <dd className="font-mono tabular-nums text-zinc-950 dark:text-white">
-                {initialManifest.allowedRoutes.length}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-zinc-500 dark:text-zinc-400">Tools</dt>
-              <dd className="font-mono tabular-nums text-zinc-950 dark:text-white">
-                {initialManifest.proposedTools.length}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-zinc-500 dark:text-zinc-400">Confirmation</dt>
-              <dd className="text-zinc-950 dark:text-white">{initialManifest.confirmationPolicy}</dd>
-            </div>
-            <div>
-              <dt className="text-zinc-500 dark:text-zinc-400">Max steps / run</dt>
-              <dd className="font-mono tabular-nums text-zinc-950 dark:text-white">
-                {initialManifest.maxStepsPerRun}
-              </dd>
-            </div>
-          </dl>
-          <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-            Max cost per run:{' '}
-            <span className="font-mono tabular-nums text-zinc-950 dark:text-white">
-              {formatUsd(initialManifest.maxCostPerRunUsd)}
-            </span>
-          </p>
-        </div>
-      ) : null}
+      {initialManifest ? <ManifestSummaryCard manifest={initialManifest} showLimits /> : null}
 
       <Fieldset>
         <div className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-2">
