@@ -1,3 +1,5 @@
+import { CodeBracketIcon } from '@heroicons/react/16/solid'
+
 import { Avatar } from '@/components/catalyst/avatar'
 import { Badge } from '@/components/catalyst/badge'
 import { Link } from '@/components/catalyst/link'
@@ -53,8 +55,8 @@ export function ProjectCard({ project, rollup, href }: ProjectCardProps) {
           />
         )}
         {rollup.openWarnings > 0 && (
-          <div className="absolute top-3 right-3">
-            <Badge color="accentStrong" className="font-mono tabular-nums">
+          <div className="absolute top-3 right-3 z-10">
+            <Badge color="accentStrong" className="font-mono tabular-nums shadow-sm">
               {numberFormat.format(rollup.openWarnings)}
               <span className="sr-only"> open warnings</span>
             </Badge>
@@ -83,6 +85,19 @@ export function ProjectCard({ project, rollup, href }: ProjectCardProps) {
         <div className="mt-1 truncate font-mono text-xs text-zinc-500">
           {project.slug} · {PLATFORM_LABELS[project.platform]}
         </div>
+        {project.repoUrl && project.repoFullName ? (
+          <Link
+            href={project.repoUrl}
+            target="_blank"
+            rel="noreferrer"
+            title={project.repoFullName}
+            className="mt-1 inline-flex max-w-full items-center gap-1.5 font-mono text-xs text-zinc-500 hover:text-zinc-300"
+          >
+            <CodeBracketIcon aria-hidden="true" className="size-3.5 shrink-0" />
+            <span className="truncate">{project.repoFullName}</span>
+            <span className="sr-only">GitHub repository (opens in a new tab)</span>
+          </Link>
+        ) : null}
         <p className="mt-3 line-clamp-2 text-sm text-zinc-400">{project.description}</p>
 
         {/* Footer — three mini-stats, identical slots across twin cards. */}
