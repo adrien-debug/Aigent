@@ -1,0 +1,70 @@
+# LangGraph.js Agent Server — production compose for gpu1 (Aigent / agent_builder)
+#
+# Run from the REPO ROOT (the build context must be the repo root, because
+# langgraph.json + src/langgraph live there):
+#
+#   docker compose -f deploy/langgraph/docker-compose.yml up -d --build
+#
+# Provide secrets via a .env file next to this compose OR via the shell env.
+# NEVER hardcode secrets here — every value below is ${VAR} indirection.
+# See README.md for where each value comes from.
+#
+# PERSISTENCE: the named volume `aigent_langgraph_state` is mounted over the
+# server's on-disk checkpoint dir (/app/.langgraph_api). This is what
+# makes runs awaiting approval survive a container restart with THIS image
+# (the OSS langgraphjs-api image checkpoints to files, not Postgres — see
+# README.md § "How persistence actually works").
+
+services:
+  agent-server:
+    build:
+      # Build context = repo root (two levels up from this file).
+      context: ../..
+      dockerfile: deploy/langgraph/Dockerfile
+    image: aigent-langgraph:local
+    container_name: aigent-langgraph
+    restart: always
+    ports:
+      # host 8098  ->  container 8000 (fixed internal port of the base image)
+      - "127.0.0.1:8098:2024"
+    environment:
+      # --- Auth gate (fail-closed). REQUIRED or the server 503s every request. ---
+      LANGGRAPH_SERVER_SECRET: ${LANGGRAPH_SERVER_SECRET:?set LANGGRAPH_SERVER_SECRET}
+
+      # --- Graph runtime needs these (tools call Supabase PostgREST). ---
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY}
+      AGENT_BUILDER_MODEL: ${AGENT_BUILDER_MODEL:-gpt-5.4}
+      # The graph's read-only tools call ${AMC_SUPABASE_URL}/rest/v1/… . On the
+      # nexus-net network the aigent PostgREST perimeter is reached internally at
+      # http://aigent-caddy:8095 (verified: 200 with the service role).
+      AMC_SUPABASE_URL: ${AMC_SUPABASE_URL:-http://aigent-caddy:8095}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?set SUPABASE_SERVICE_ROLE_KEY}
+      AMC_DATA_SOURCE: ${AMC_DATA_SOURCE:-gpu1}
+
+      # --- OPTIONAL tracing (absent → no-op). ---
+      # LANGSMITH_API_KEY: ${LANGSMITH_API_KEY}
+
+    volumes:
+      # Persist checkpoints/threads/runs across restarts (the whole point — the
+      # OSS langgraphjs-api image checkpoints to files here, not to Postgres).
+      - aigent_langgraph_state:/app/.langgraph_api
+
+    networks:
+      # Reach the aigent PostgREST perimeter (aigent-caddy:8095) internally.
+      - nexus-net
+
+    healthcheck:
+      # The base image exposes /ok for liveness (used by `langgraphjs up`).
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:2024/ok').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+volumes:
+  aigent_langgraph_state:
+    driver: local
+
+networks:
+  nexus-net:
+    external: true

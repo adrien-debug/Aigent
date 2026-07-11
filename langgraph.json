@@ -4,5 +4,8 @@
   "graphs": {
     "agent_builder": "./src/langgraph/agent-builder-graph.mjs:graph"
   },
+  "auth": {
+    "path": "./src/langgraph/auth.mjs:auth"
+  },
   "env": ".env.local"
 }

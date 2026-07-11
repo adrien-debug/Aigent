@@ -12,8 +12,10 @@
  * state — the same server LangSmith Studio connects to. There is no bespoke
  * runtime here.
  *
- * Env: LANGGRAPH_API_URL (default http://127.0.0.1:2024), and the server itself
- * reads OPENAI_API_KEY + the gpu1 perimeter from .env.local.
+ * Env: LANGGRAPH_API_URL (default http://127.0.0.1:2024) and, in production,
+ * LANGGRAPH_SERVER_SECRET (sent as the x-agent-key header to authenticate against
+ * the public Agent Server). The server itself reads OPENAI_API_KEY + the gpu1
+ * perimeter from .env.local.
  */
 import 'server-only'
 
@@ -52,7 +54,18 @@ function costFromMessages(messages: AnyMsg[]): number {
   return Math.round(total * 1e6) / 1e6
 }
 
-const client = (): Client => new Client({ apiUrl: agentServerUrl() })
+/**
+ * Build the Agent Server client (server only). When LANGGRAPH_SERVER_SECRET is
+ * set (production: the deployed server is public + fail-closed), the app sends
+ * it as the `x-agent-key` header on every request via the SDK's `defaultHeaders`.
+ * Absent (local dev without auth), the client is created bare — dev is not broken.
+ */
+const client = (): Client => {
+  const secret = process.env.LANGGRAPH_SERVER_SECRET
+  return secret
+    ? new Client({ apiUrl: agentServerUrl(), defaultHeaders: { 'x-agent-key': secret } })
+    : new Client({ apiUrl: agentServerUrl() })
+}
 
 /** Graph id declared in langgraph.json. */
 export const AGENT_BUILDER_GRAPH_ID = 'agent_builder'
