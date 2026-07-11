@@ -175,12 +175,12 @@ export function NewProjectWorkbench() {
         setFormError(`Could not create the project (${res.status}).`)
         return
       }
-      const created = (await res.json()) as { id?: string }
-      if (!created.id) {
+      const created = (await res.json()) as { projectId?: string }
+      if (!created.projectId) {
         setFormError('Project created but no id was returned.')
         return
       }
-      router.push(`/admin/projects/${created.id}`)
+      router.push(`/admin/projects/${created.projectId}`)
     } catch {
       setFormError('Network error — the project was not created.')
     } finally {

@@ -215,8 +215,8 @@ export function CreateAgentForm({
         return
       }
 
-      const created = (await res.json()) as { id?: string }
-      if (!created.id) {
+      const created = (await res.json()) as { copilotId?: string }
+      if (!created.copilotId) {
         setError('Copilot created but no id was returned.')
         return
       }
@@ -228,7 +228,7 @@ export function CreateAgentForm({
         // Storage unavailable — nothing to purge.
       }
 
-      router.push(`/admin/agents/${created.id}`)
+      router.push(`/admin/agents/${created.copilotId}`)
     } catch {
       setError('Network error — the copilot was not created.')
     } finally {
