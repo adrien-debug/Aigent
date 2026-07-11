@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { RunCopilotPanel } from '@/components/agent-ops/run-copilot-panel'
-import { RunDetailPanel, RunStatusBadge } from '@/components/agent-ops/run-detail-panel'
+import { RunDetailPanel } from '@/components/agent-ops/run-detail-panel'
 import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { SplitBar, type SplitTone } from '@/components/agent-ops/widgets/split-bar'
@@ -32,6 +32,11 @@ const toolCallRamp = [
   { status: 'blocked', label: 'Blocked', tone: 'accent-600' },
   { status: 'error', label: 'Error', tone: 'accent-700' },
 ] satisfies { status: ToolCall['status']; label: string; tone: SplitTone }[]
+
+function statusLabel(s: string) {
+  const t = s.replace(/-/g, ' ')
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
 
 export default async function RunsPage({
   params,
@@ -138,14 +143,14 @@ export default async function RunsPage({
                             </span>
                           </TableCell>
                           <TableCell>
-                            <RunStatusBadge status={run.status} />
+                            <span className="text-zinc-500 dark:text-zinc-400">{statusLabel(run.status)}</span>
                           </TableCell>
                           <TableCell className="max-w-0 w-full">
                             <span title={run.inputSummary} className="block truncate text-zinc-500 dark:text-zinc-400">
                               {run.inputSummary}
                             </span>
                           </TableCell>
-                          <TableCell className="w-32">
+                          <TableCell className="w-32 text-right">
                             <div className="flex flex-col items-end gap-1">
                               <span className="font-mono text-xs tabular-nums text-zinc-950 dark:text-white">
                                 {formatDurationMs(run.latencyMs)}
