@@ -74,6 +74,7 @@ export async function POST(
     )
   }
   const model = (copilotRow.model as string | null) ?? ''
+  const modelProvider = (copilotRow.model_provider as string | null) ?? 'openai'
 
   // 2) Load the serving version, then its manifest.
   let systemPromptSummary = `You are ${copilotRow.name as string}, an autonomous agent.`
@@ -113,6 +114,7 @@ export async function POST(
       versionId,
       projectId,
       model,
+      modelProvider: modelProvider as import('@/lib/agent-mission-control/types').ModelProvider,
       systemPromptSummary,
       userInput,
       maxSteps: maxStepsPerRun,

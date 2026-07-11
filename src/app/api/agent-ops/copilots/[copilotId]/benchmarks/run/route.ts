@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { runBenchmarkSuite } from '@/lib/agent-mission-control/benchmark-runner'
-import { NotFoundError } from '@/lib/agent-mission-control/runner-errors'
+import { NotFoundError, ProviderUnavailableError } from '@/lib/agent-mission-control/runner-errors'
 import type { AgentRuntime, BenchmarkRun, ModelProvider } from '@/lib/agent-mission-control/types'
 
 const MODEL_PROVIDERS: ModelProvider[] = ['openai', 'anthropic', 'google', 'mistral', 'local']
@@ -27,6 +27,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     model?: string
     modelProvider?: string
     runtime?: string
+    allowFallback?: boolean
   }
   try {
     body = await request.json()
@@ -45,6 +46,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   if (body.runtime !== undefined && !RUNTIMES.includes(body.runtime as AgentRuntime)) {
     return NextResponse.json({ error: 'invalid runtime' }, { status: 400 })
   }
+  if (body.allowFallback !== undefined && typeof body.allowFallback !== 'boolean') {
+    return NextResponse.json({ error: 'allowFallback must be a boolean' }, { status: 400 })
+  }
 
   const base = process.env.AMC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -60,13 +64,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
       model: typeof body.model === 'string' ? body.model : undefined,
       modelProvider: body.modelProvider as ModelProvider | undefined,
       runtime: body.runtime as AgentRuntime | undefined,
+      allowFallback: body.allowFallback,
     })
     return NextResponse.json({ ok: true, benchmarkRun })
   } catch (err) {
-    // Missing/mismatched copilot, suite or version → 404 (typed); everything
-    // else (OpenAI / PostgREST / no runnable tasks / abort) → 502.
+    // Typed mapping: missing/mismatched resource → 404; provider env not
+    // configured → 503; everything else (model access / OpenAI / PostgREST /
+    // no runnable tasks / abort) → 502.
     if (err instanceof NotFoundError) {
       return NextResponse.json({ error: err.message }, { status: 404 })
+    }
+    if (err instanceof ProviderUnavailableError) {
+      return NextResponse.json({ error: err.message }, { status: 503 })
     }
     const message = err instanceof Error ? err.message : 'benchmark run failed'
     return NextResponse.json({ error: message }, { status: 502 })

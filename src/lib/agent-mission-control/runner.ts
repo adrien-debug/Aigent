@@ -13,25 +13,16 @@ import 'server-only'
 
 import { randomUUID } from 'node:crypto'
 
-import { getOpenAIClient, RUNNER_MODEL } from './llm-client'
+import { routeCompletion } from './model-router'
 import { pgrest } from './postgrest'
-import type { AgentRunStatus, AgentRunStepKind, DurationMs, IsoTimestamp, UsdAmount } from './types'
-
-// ---------------------------------------------------------------------------
-// Pricing — gpt-5.4, per-token USD cost (estimated)
-// ---------------------------------------------------------------------------
-// gpt-5.4 est. pricing used by RUNNER_MODEL:
-//   input:  $1.25 / 1,000,000 tokens
-//   output: $10   / 1,000,000 tokens
-const INPUT_USD_PER_1M = 1.25
-const OUTPUT_USD_PER_1M = 10
-
-function computeCostUsd(inputTokens: number, outputTokens: number): UsdAmount {
-  const cost = (inputTokens / 1e6) * INPUT_USD_PER_1M + (outputTokens / 1e6) * OUTPUT_USD_PER_1M
-  // Round to 6 decimal places (sub-cent precision) to keep numeric columns tidy.
-  return Math.round(cost * 1e6) / 1e6
-}
-
+import type {
+  AgentRunStatus,
+  AgentRunStepKind,
+  DurationMs,
+  IsoTimestamp,
+  ModelProvider,
+  UsdAmount,
+} from './types'
 
 // ---------------------------------------------------------------------------
 // Runner
@@ -42,6 +33,8 @@ export interface ExecuteCopilotRunArgs {
   versionId: string
   projectId: string
   model: string
+  /** Provider for `model`; defaults to 'openai' when the caller omits it. */
+  modelProvider?: ModelProvider
   systemPromptSummary: string
   userInput: string
   maxSteps: number
@@ -82,47 +75,50 @@ export async function executeCopilotRun(
   args: ExecuteCopilotRunArgs
 ): Promise<ExecuteCopilotRunResult> {
   const { copilotId, versionId, projectId, model, systemPromptSummary, userInput, maxSteps } = args
+  const modelProvider: ModelProvider = args.modelProvider ?? 'openai'
 
   const startedAtMs = Date.now()
   const startedAt: IsoTimestamp = new Date(startedAtMs).toISOString()
 
   let status: AgentRunStatus
   let outputSummary: string
-  let inputTokens = 0
-  let outputTokens = 0
+  let costUsd: UsdAmount = 0
   let stepStatus: 'ok' | 'error' = 'ok'
   let stepDetail: string
 
   try {
-    const client = getOpenAIClient()
-    const completion = await client.chat.completions.create({
-      model: model || RUNNER_MODEL,
+    // Route through the provider-aware model router (fallback-aware); cost is
+    // normalised per provider/model by the router.
+    const res = await routeCompletion({
+      purpose: 'run',
+      modelProvider,
+      model,
       messages: [
         { role: 'system', content: systemPromptSummary },
         { role: 'user', content: userInput },
       ],
-      max_completion_tokens: 4096,
+      maxOutputTokens: 4096,
     })
 
-    const replyText = (completion.choices[0]?.message?.content ?? '').trim()
-    outputSummary = summarize(replyText)
-    inputTokens = completion.usage?.prompt_tokens ?? 0
-    outputTokens = completion.usage?.completion_tokens ?? 0
+    const replyText = res.text
+    costUsd = res.costUsd
+    // Prefix the fallback trace so it survives summarize() truncation.
+    const fallbackNote = res.fallbackUsed ? `[${res.fallbackReason}] ` : ''
+    outputSummary = summarize(fallbackNote + replyText)
 
     status = 'completed'
-    stepDetail = summarize(replyText || '(empty response)')
+    stepDetail = summarize(fallbackNote + (replyText || '(empty response)'))
   } catch (err) {
     status = 'failed'
     stepStatus = 'error'
     const message = err instanceof Error ? err.message : String(err)
-    outputSummary = summarize(`OpenAI call failed: ${message}`)
+    outputSummary = summarize(`Model call failed: ${message}`)
     stepDetail = outputSummary
   }
 
   const finishedAtMs = Date.now()
   const finishedAt: IsoTimestamp = new Date(finishedAtMs).toISOString()
   const latencyMs: DurationMs = finishedAtMs - startedAtMs
-  const costUsd: UsdAmount = computeCostUsd(inputTokens, outputTokens)
 
   const runId = randomUUID()
 

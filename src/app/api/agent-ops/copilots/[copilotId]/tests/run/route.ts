@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { NotFoundError } from '@/lib/agent-mission-control/runner-errors'
+import { NotFoundError, ProviderUnavailableError } from '@/lib/agent-mission-control/runner-errors'
 import { runTestSuite } from '@/lib/agent-mission-control/test-runner'
 import type { TestRun } from '@/lib/agent-mission-control/types'
 
@@ -20,7 +20,7 @@ import type { TestRun } from '@/lib/agent-mission-control/types'
 export async function POST(request: Request, { params }: { params: Promise<{ copilotId: string }> }) {
   const { copilotId } = await params
 
-  let body: { suiteId?: string; versionId?: string }
+  let body: { suiteId?: string; versionId?: string; allowFallback?: boolean }
   try {
     body = await request.json()
   } catch {
@@ -31,6 +31,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   }
   if (body.versionId !== undefined && typeof body.versionId !== 'string') {
     return NextResponse.json({ error: 'versionId must be a string' }, { status: 400 })
+  }
+  if (body.allowFallback !== undefined && typeof body.allowFallback !== 'boolean') {
+    return NextResponse.json({ error: 'allowFallback must be a boolean' }, { status: 400 })
   }
 
   const base = process.env.AMC_SUPABASE_URL
@@ -44,13 +47,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
       copilotId,
       suiteId: body.suiteId,
       versionId: body.versionId,
+      allowFallback: body.allowFallback,
     })
     return NextResponse.json({ ok: true, testRun })
   } catch (err) {
-    // Missing/mismatched copilot, suite or version → 404 (typed); everything
-    // else (OpenAI / PostgREST / mid-run abort) → 502.
+    // Typed mapping: missing/mismatched resource → 404; provider env not
+    // configured → 503; everything else (model access / OpenAI / PostgREST /
+    // mid-run abort) → 502.
     if (err instanceof NotFoundError) {
       return NextResponse.json({ error: err.message }, { status: 404 })
+    }
+    if (err instanceof ProviderUnavailableError) {
+      return NextResponse.json({ error: err.message }, { status: 503 })
     }
     const message = err instanceof Error ? err.message : 'test run failed'
     return NextResponse.json({ error: message }, { status: 502 })

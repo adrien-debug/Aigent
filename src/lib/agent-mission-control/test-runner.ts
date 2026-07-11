@@ -18,26 +18,18 @@ import 'server-only'
 
 import { randomUUID } from 'node:crypto'
 
-import { getOpenAIClient, RUNNER_MODEL } from './llm-client'
+import { routeCompletion } from './model-router'
 import { pgrest } from './postgrest'
 import { NotFoundError } from './runner-errors'
 import type {
   AgentManifest,
   IsoTimestamp,
+  ModelProvider,
   TestCase,
   TestResultStatus,
   TestRun,
   UsdAmount,
 } from './types'
-
-// gpt-class per-token USD cost (same estimate as runner.ts / RUNNER_MODEL).
-const INPUT_USD_PER_1M = 1.25
-const OUTPUT_USD_PER_1M = 10
-
-function computeCostUsd(inputTokens: number, outputTokens: number): UsdAmount {
-  const cost = (inputTokens / 1e6) * INPUT_USD_PER_1M + (outputTokens / 1e6) * OUTPUT_USD_PER_1M
-  return Math.round(cost * 1e6) / 1e6
-}
 
 /** Truncate long text to a single-line summary for *_summary columns. */
 function summarize(text: string, maxLen = 400): string {
@@ -50,6 +42,8 @@ export interface RunTestSuiteArgs {
   suiteId: string
   versionId?: string
   triggeredBy?: string
+  /** Per-request opt-in to run model fallbacks (OR-ed with the env flag). */
+  allowFallback?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -179,56 +173,64 @@ interface CaseOutcome {
 async function runCase(
   systemPromptSummary: string,
   model: string,
+  modelProvider: ModelProvider,
+  allowFallback: boolean,
   testCase: TestCase
 ): Promise<CaseOutcome> {
   const startedMs = Date.now()
-  let inputTokens = 0
-  let outputTokens = 0
+  let costUsd = 0
+  let fallbackNote = ''
 
   try {
-    const client = getOpenAIClient()
-
-    // 1) The copilot answers the case input under its real system prompt.
-    const completion = await client.chat.completions.create({
-      model: model || RUNNER_MODEL,
+    // 1) The copilot answers the case input under its real system prompt,
+    //    routed through the model router (provider-aware, fallback-aware).
+    const runRes = await routeCompletion({
+      purpose: 'run',
+      modelProvider,
+      model,
+      allowFallback,
       messages: [
         { role: 'system', content: systemPromptSummary },
         { role: 'user', content: testCase.input },
       ],
-      max_completion_tokens: 2048,
+      maxOutputTokens: 2048,
     })
-    const reply = (completion.choices[0]?.message?.content ?? '').trim()
-    inputTokens += completion.usage?.prompt_tokens ?? 0
-    outputTokens += completion.usage?.completion_tokens ?? 0
+    costUsd += runRes.costUsd
+    const reply = runRes.text
+    // Prefix (not suffix) the fallback trace so it survives summarize()'s
+    // truncation — a fallback must never be hidden by a long reply.
+    if (runRes.fallbackUsed) fallbackNote = `[${runRes.fallbackReason}] `
 
-    // 2) A cheap judge grades the reply against the case's expectations.
+    // 2) A cheap judge grades the reply. The judge always routes through OpenAI
+    //    (provider-agnostic grading); the fallback policy handles that.
     const judgeInput = JSON.stringify({
       input: testCase.input,
       expectedBehavior: testCase.expectedBehavior,
       expectedToolCalls: testCase.expectedToolCalls,
       actualReply: reply,
     })
-    const judgeCompletion = await client.chat.completions.create({
-      model: model || RUNNER_MODEL,
+    const judgeRes = await routeCompletion({
+      purpose: 'judge',
+      modelProvider,
+      model,
       messages: [
         { role: 'system', content: JUDGE_SYSTEM },
         { role: 'user', content: judgeInput },
       ],
-      max_completion_tokens: 512,
+      responseFormat: 'json',
+      maxOutputTokens: 512,
     })
-    inputTokens += judgeCompletion.usage?.prompt_tokens ?? 0
-    outputTokens += judgeCompletion.usage?.completion_tokens ?? 0
+    costUsd += judgeRes.costUsd
 
-    const grade = safeParseGrade(judgeCompletion.choices[0]?.message?.content ?? '')
+    const grade = safeParseGrade(judgeRes.text)
     const latencyMs = Date.now() - startedMs
-    const costUsd = computeCostUsd(inputTokens, outputTokens)
 
     if (!grade) {
       // The judge returned something unparseable — record it honestly as an
       // error, never a silent pass.
       return {
         status: 'error',
-        actualBehavior: summarize(reply || '(empty response)'),
+        actualBehavior: summarize(fallbackNote + (reply || '(empty response)')),
         actualToolCalls: [],
         failureReason: 'grader returned unparseable output',
         latencyMs,
@@ -255,7 +257,7 @@ async function runCase(
 
     return {
       status,
-      actualBehavior: summarize(reply || '(empty response)'),
+      actualBehavior: summarize(fallbackNote + (reply || '(empty response)')),
       actualToolCalls: grade.observedToolCalls,
       failureReason,
       latencyMs,
@@ -269,7 +271,7 @@ async function runCase(
       actualToolCalls: [],
       failureReason: summarize(message),
       latencyMs: Date.now() - startedMs,
-      costUsd: computeCostUsd(inputTokens, outputTokens),
+      costUsd,
     }
   }
 }
@@ -299,6 +301,7 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
 
   const cases = await loadSuiteCases(suiteId)
   const model = (copilotRow.model as string | null) ?? ''
+  const modelProvider = ((copilotRow.model_provider as ModelProvider | null) ?? 'openai') as ModelProvider
 
   const runId = randomUUID()
   const startedAt: IsoTimestamp = new Date().toISOString()
@@ -334,7 +337,7 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
           ? `${manifest.systemPromptSummary}\n\nForbidden actions (never do these): ${forbidden.join('; ')}.`
           : manifest.systemPromptSummary
 
-      const outcome = await runCase(promptWithPolicy, model, testCase)
+      const outcome = await runCase(promptWithPolicy, model, modelProvider, args.allowFallback === true, testCase)
       totalCostUsd += outcome.costUsd
       if (outcome.status === 'pass') passCount += 1
       if (outcome.status === 'pass' || outcome.status === 'fail' || outcome.status === 'error') evaluated += 1

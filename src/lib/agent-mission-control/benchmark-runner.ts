@@ -19,7 +19,7 @@ import 'server-only'
 
 import { randomUUID } from 'node:crypto'
 
-import { getOpenAIClient, RUNNER_MODEL } from './llm-client'
+import { routeCompletion } from './model-router'
 import { pgrest } from './postgrest'
 import { NotFoundError } from './runner-errors'
 import type {
@@ -32,14 +32,6 @@ import type {
   UsdAmount,
 } from './types'
 
-const INPUT_USD_PER_1M = 1.25
-const OUTPUT_USD_PER_1M = 10
-
-function computeCostUsd(inputTokens: number, outputTokens: number): UsdAmount {
-  const cost = (inputTokens / 1e6) * INPUT_USD_PER_1M + (outputTokens / 1e6) * OUTPUT_USD_PER_1M
-  return Math.round(cost * 1e6) / 1e6
-}
-
 export interface RunBenchmarkSuiteArgs {
   copilotId: string
   suiteId: string
@@ -48,6 +40,8 @@ export interface RunBenchmarkSuiteArgs {
   modelProvider?: ModelProvider
   runtime?: AgentRuntime
   triggeredBy?: string
+  /** Per-request opt-in to run/benchmark model fallbacks (OR-ed with env flag). */
+  allowFallback?: boolean
 }
 
 type RawRow = Record<string, unknown>
@@ -180,24 +174,26 @@ async function runTask(
   systemPromptSummary: string,
   allowedRoutes: string[],
   model: string,
+  modelProvider: ModelProvider,
+  allowFallback: boolean,
   task: BenchTask
 ): Promise<TaskOutcome> {
   const startedMs = Date.now()
-  let inputTokens = 0
-  let outputTokens = 0
+  let costUsd = 0
   try {
-    const client = getOpenAIClient()
-    const completion = await client.chat.completions.create({
-      model: model || RUNNER_MODEL,
+    const runRes = await routeCompletion({
+      purpose: 'benchmark',
+      modelProvider,
+      model,
+      allowFallback,
       messages: [
         { role: 'system', content: systemPromptSummary },
         { role: 'user', content: task.input },
       ],
-      max_completion_tokens: 2048,
+      maxOutputTokens: 2048,
     })
-    const reply = (completion.choices[0]?.message?.content ?? '').trim()
-    inputTokens += completion.usage?.prompt_tokens ?? 0
-    outputTokens += completion.usage?.completion_tokens ?? 0
+    costUsd += runRes.costUsd
+    const reply = runRes.text
 
     const judgeInput = JSON.stringify({
       input: task.input,
@@ -206,20 +202,21 @@ async function runTask(
       allowedRoutes,
       actualReply: reply,
     })
-    const judge = await client.chat.completions.create({
-      model: model || RUNNER_MODEL,
+    const judgeRes = await routeCompletion({
+      purpose: 'judge',
+      modelProvider,
+      model,
       messages: [
         { role: 'system', content: JUDGE_SYSTEM },
         { role: 'user', content: judgeInput },
       ],
-      max_completion_tokens: 512,
+      responseFormat: 'json',
+      maxOutputTokens: 512,
     })
-    inputTokens += judge.usage?.prompt_tokens ?? 0
-    outputTokens += judge.usage?.completion_tokens ?? 0
+    costUsd += judgeRes.costUsd
 
-    const grade = safeParseBenchGrade(judge.choices[0]?.message?.content ?? '')
+    const grade = safeParseBenchGrade(judgeRes.text)
     const latencyMs = Date.now() - startedMs
-    const costUsd = computeCostUsd(inputTokens, outputTokens)
 
     if (!grade) {
       // Unparseable grade → count as a failed, un-graded task (never a pass).
@@ -250,7 +247,7 @@ async function runTask(
       success: false,
       accuracy: 0,
       latencyMs: Date.now() - startedMs,
-      costUsd: computeCostUsd(inputTokens, outputTokens),
+      costUsd,
       unsafe: false,
       unauthorized: false,
       confirmationMistake: false,
@@ -352,7 +349,9 @@ export async function runBenchmarkSuite(args: RunBenchmarkSuiteArgs): Promise<Be
   let abortReason = ''
   try {
     for (const task of tasks) {
-      outcomes.push(await runTask(promptWithPolicy, allowedRoutes, model, task))
+      outcomes.push(
+        await runTask(promptWithPolicy, allowedRoutes, model, modelProvider, args.allowFallback === true, task)
+      )
     }
   } catch (err) {
     aborted = true
