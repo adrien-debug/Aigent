@@ -3,24 +3,21 @@ import clsx from 'clsx'
 
 import { RunTimeline } from '@/components/agent-ops/run-timeline'
 import { SplitBar, type SplitSegment, type SplitTone } from '@/components/agent-ops/widgets/split-bar'
-import { Badge } from '@/components/catalyst/badge'
 import { Link } from '@/components/catalyst/link'
 import { formatDurationMs, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 import type { AgentRun, AgentRunStatus, AgentRunStep, ToolCall } from '@/lib/agent-mission-control/types'
 
-const runStatusConfig: Record<AgentRunStatus, { label: string; color: 'accent' | 'accentSolid' | 'accentStrong' | 'zinc' }> = {
-  completed: { label: 'Completed', color: 'accent' },
-  failed: { label: 'Failed', color: 'accentSolid' },
-  blocked: { label: 'Blocked', color: 'accentSolid' },
-  'needs-confirmation': { label: 'Needs confirmation', color: 'accentStrong' },
-  running: { label: 'Running', color: 'zinc' },
+const runStatusLabels: Record<AgentRunStatus, string> = {
+  completed: 'Completed',
+  failed: 'Failed',
+  blocked: 'Blocked',
+  'needs-confirmation': 'Needs confirmation',
+  running: 'Running',
 }
 
-/** Run lifecycle badge — always-visible text label, never color alone. */
+/** Run lifecycle status — plain muted text label, no colored badge. */
 export function RunStatusBadge({ status }: { status: AgentRunStatus }) {
-  const config = runStatusConfig[status]
-
-  return <Badge color={config.color}>{config.label}</Badge>
+  return <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{runStatusLabels[status]}</span>
 }
 
 /**
