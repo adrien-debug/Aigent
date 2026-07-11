@@ -26,8 +26,6 @@ import { pgrest } from './pgrest.mjs'
 // Tool definitions — the 4 read-only tools (live PostgREST) + the gated write.
 // ---------------------------------------------------------------------------
 
-const summarize = (s, n = 200) => (s && s.length > n ? `${s.slice(0, n - 1)}…` : s ?? '')
-
 const readProjectSummary = tool(
   async ({ projectId }) => {
     if (projectId) {

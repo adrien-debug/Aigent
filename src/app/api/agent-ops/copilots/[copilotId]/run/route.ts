@@ -135,6 +135,10 @@ export async function POST(
       resolvedProvider: result.resolvedProvider,
       resolvedModel: result.resolvedModel,
       fallbackUsed: result.fallbackUsed,
+      // Human-in-the-loop: when the LangGraph run paused, the client shows an
+      // Approve/Reject prompt and calls the resume route with this runId.
+      interrupted: result.interrupted,
+      interruptMessage: result.interruptMessage,
     })
   } catch (err) {
     return NextResponse.json(

@@ -18,7 +18,14 @@ interface RunCopilotPanelProps {
   copilotName: string
 }
 
-type RunResult = Pick<AgentRun, 'status' | 'outputSummary' | 'latencyMs' | 'costUsd'>
+type RunResult = Pick<AgentRun, 'status' | 'outputSummary' | 'latencyMs' | 'costUsd'> & {
+  /** Present once the run is persisted — the id the resume route needs. */
+  runId?: string
+  /** True when the LangGraph run paused for human approval before a tool. */
+  interrupted?: boolean
+  /** The approval question shown in the human-in-the-loop block. */
+  interruptMessage?: string | null
+}
 
 /**
  * Small "run this copilot" panel — a task input + primary action that fires a
@@ -32,12 +39,15 @@ export function RunCopilotPanel({ copilotId, copilotName }: RunCopilotPanelProps
   const [isRunning, setIsRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<RunResult | null>(null)
+  const [resuming, setResuming] = useState(false)
+  const [resumeError, setResumeError] = useState<string | null>(null)
 
   async function handleRun() {
     if (isRunning || input.trim().length === 0) return
 
     setIsRunning(true)
     setError(null)
+    setResumeError(null)
     setResult(null)
 
     try {
@@ -65,6 +75,52 @@ export function RunCopilotPanel({ copilotId, copilotName }: RunCopilotPanelProps
       setError('Live backend not configured.')
     } finally {
       setIsRunning(false)
+    }
+  }
+
+  async function handleResume(approved: boolean) {
+    if (resuming || !result?.runId) return
+
+    setResuming(true)
+    setResumeError(null)
+
+    try {
+      const response = await fetch(
+        `/api/agent-ops/copilots/${copilotId}/runs/${result.runId}/resume`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ approved }),
+        }
+      )
+
+      if (response.status === 503) {
+        setResumeError('Live backend not configured.')
+        return
+      }
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => null)
+        setResumeError(body?.error ?? `Resume failed (${response.status}).`)
+        return
+      }
+
+      const data = (await response.json()) as {
+        status: RunResult['status']
+        outputSummary: string
+      }
+      // Fold the resume outcome back into the run receipt and clear the paused
+      // flag so the approval block disappears.
+      setResult((prev) =>
+        prev
+          ? { ...prev, status: data.status, outputSummary: data.outputSummary, interrupted: false }
+          : prev
+      )
+      router.refresh()
+    } catch {
+      setResumeError('Live backend not configured.')
+    } finally {
+      setResuming(false)
     }
   }
 
@@ -113,21 +169,54 @@ export function RunCopilotPanel({ copilotId, copilotName }: RunCopilotPanelProps
               <RunStatusText status={result.status} />
             </div>
             <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">{result.outputSummary}</p>
-            <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
-              <div>
-                <dt className="inline text-xs font-medium tracking-wide text-zinc-500 uppercase">Latency</dt>
-                <dd className="ml-1.5 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
-                  {formatDurationMs(result.latencyMs)}
-                </dd>
+
+            {result.status === 'needs-confirmation' || result.interrupted ? (
+              // Human-in-the-loop: the LangGraph run paused before a tool and is
+              // waiting on an operator decision — surfaced automatically, no reveal.
+              <div className="mt-4 rounded-lg bg-accent-500/5 p-4 ring-1 ring-accent-500/20 dark:bg-accent-500/10">
+                <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
+                  Human approval required
+                </p>
+                <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
+                  {result.interruptMessage ??
+                    'This run paused for human approval before running a tool.'}
+                </p>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <Button color="accent" onClick={() => handleResume(true)} disabled={resuming}>
+                    {resuming ? (
+                      <>
+                        <Spinner />
+                        Resuming…
+                      </>
+                    ) : (
+                      'Approve'
+                    )}
+                  </Button>
+                  <Button plain onClick={() => handleResume(false)} disabled={resuming}>
+                    Reject
+                  </Button>
+                </div>
+                {resumeError ? <ErrorBanner message={resumeError} /> : null}
               </div>
-              <div>
-                <dt className="inline text-xs font-medium tracking-wide text-zinc-500 uppercase">Cost</dt>
-                <dd className="ml-1.5 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
-                  {formatUsd(result.costUsd)}
-                </dd>
-              </div>
-            </dl>
-            <Text className="mt-3 !text-xs">This run now appears in the Runs tab.</Text>
+            ) : (
+              <>
+                <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
+                  <div>
+                    <dt className="inline text-xs font-medium tracking-wide text-zinc-500 uppercase">Latency</dt>
+                    <dd className="ml-1.5 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
+                      {formatDurationMs(result.latencyMs)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="inline text-xs font-medium tracking-wide text-zinc-500 uppercase">Cost</dt>
+                    <dd className="ml-1.5 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
+                      {formatUsd(result.costUsd)}
+                    </dd>
+                  </div>
+                </dl>
+                <Text className="mt-3 !text-xs">This run now appears in the Runs tab.</Text>
+              </>
+            )}
           </div>
         ) : null}
       </div>

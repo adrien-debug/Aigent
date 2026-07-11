@@ -115,6 +115,15 @@ export interface ExecuteCopilotRunResult {
   resolvedProvider: ModelProvider
   resolvedModel: string
   fallbackUsed: boolean
+  /**
+   * LangGraph Agent Server thread id when the run went through it (else null).
+   * A `needs-confirmation` run is resumed on this thread.
+   */
+  threadId: string | null
+  /** True when the run paused for human approval (status 'needs-confirmation'). */
+  interrupted: boolean
+  /** The human-facing approval prompt when interrupted (else null). */
+  interruptMessage: string | null
 }
 
 type UsdAmount = number
@@ -246,6 +255,9 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
   let costUsd = 0
   let toolCallCount = 0
   let blockedToolCount = 0
+  let threadId: string | null = null
+  let interrupted = false
+  let interruptMessage: string | null = null
   const resolvedModel = model
   const toolCallRows: RawRow[] = []
 
@@ -290,10 +302,14 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
       })
     }
     costUsd = result.costUsd
+    threadId = result.threadId
 
     if (result.interrupted) {
-      // The graph paused for human approval — persist as needs-confirmation.
+      // The graph paused for human approval — persist as needs-confirmation,
+      // keeping the thread id so a later resume request can continue it.
       status = 'needs-confirmation'
+      interrupted = true
+      interruptMessage = result.interruptMessage
       outputSummary = summarize(result.interruptMessage ?? 'Awaiting human approval for a tool call.')
     } else {
       outputSummary = summarize(result.finalText || '(empty response)')
@@ -332,6 +348,7 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
     latency_ms: latencyMs,
     cost_usd: costUsd,
     trace_url: traceResult.traceUrl,
+    thread_id: threadId,
     created_via: 'authoring',
   })
   for (const s of traceResult.steps) {
@@ -375,6 +392,9 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
     resolvedProvider: 'openai',
     resolvedModel,
     fallbackUsed: false,
+    threadId,
+    interrupted,
+    interruptMessage,
   }
 }
 
@@ -721,5 +741,10 @@ export async function executeCopilotRun(
     resolvedProvider,
     resolvedModel,
     fallbackUsed,
+    // The direct model-router path has no Agent Server thread and never
+    // interrupts for human approval.
+    threadId: null,
+    interrupted: false,
+    interruptMessage: null,
   }
 }
