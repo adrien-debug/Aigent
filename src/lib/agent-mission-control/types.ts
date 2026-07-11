@@ -33,6 +33,10 @@ export interface Project {
   imageUrl?: string
   /** Square logo shown in the card avatar. */
   logoUrl?: string
+  /** GitHub repo lié au projet (1:1), ex. "https://github.com/hearst/console". */
+  repoUrl?: string
+  /** owner/repo, ex. "hearst/console" — dérivé/source pour l'API GitHub. */
+  repoFullName?: string
   platform: 'web' | 'desktop' | 'mobile' | 'api'
   createdAt: IsoTimestamp
 }
@@ -45,6 +49,8 @@ export type AgentRuntime =
   | 'custom'
 
 export type CopilotStatus = 'active' | 'paused' | 'draft' | 'degraded' | 'archived'
+
+export type AgentPushStatus = 'never' | 'pushing' | 'pushed' | 'failed'
 
 export type ModelProvider = 'openai' | 'anthropic' | 'google' | 'mistral' | 'local'
 
@@ -75,6 +81,10 @@ export interface Copilot {
   updatedAt: IsoTimestamp
   /** Rolled-up health signals for registry/overview surfaces. */
   health: CopilotHealth
+  /** Dernier push du code de l'agent vers le repo GitHub du projet. */
+  lastPushStatus?: AgentPushStatus
+  lastPushedAt?: IsoTimestamp
+  lastPushCommitUrl?: string
 }
 
 export interface CopilotHealth {
