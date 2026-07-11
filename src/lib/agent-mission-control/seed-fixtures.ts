@@ -1,9 +1,12 @@
 /**
- * Agent Mission Control — deterministic mock dataset.
+ * Agent Mission Control — seed fixtures for GPU1 (base `aigent`).
  *
- * Single source of data for V1 (no backend). Every foreign key resolves
- * inside this file. All timestamps are fixed ISO strings (June–July 2026);
- * no Math.random(), no Date.now().
+ * NOT used at runtime — the app reads exclusively from PostgREST on GPU1
+ * (see data.ts, fail-closed on AMC_DATA_SOURCE=gpu1). This file is the
+ * source dataset for scripts/seed-amc.ts, which generated the SQL that
+ * seeded GPU1. Kept for reference and future re-seeds. Every foreign key
+ * resolves inside this file. All timestamps are fixed ISO strings
+ * (June–July 2026); no Math.random(), no Date.now().
  */
 
 import type {

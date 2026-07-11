@@ -25,7 +25,7 @@ import {
   shadowExperiments,
   promotionGates,
   registryWarnings,
-} from '../src/lib/agent-mission-control/mock-data'
+} from '../src/lib/agent-mission-control/seed-fixtures'
 
 type Row = Record<string, unknown>
 
