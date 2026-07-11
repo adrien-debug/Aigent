@@ -28,7 +28,7 @@ import {
   type ModelRouterTool,
   type ModelRouterToolCall,
 } from './model-router'
-import { runLangGraph } from './langgraph-engine'
+import { runOnAgentServer } from './langgraph-server'
 import { pgrest } from './postgrest'
 import { startTrace, toDbStepKind, type TraceStep } from './run-trace'
 import { TOOL_HANDLERS, type ToolHandlerResult } from './tool-handlers'
@@ -80,8 +80,8 @@ export interface ExecuteCopilotRunArgs {
    */
   confirmedToolNames?: string[]
   /**
-   * The copilot's runtime. When 'langgraph', the run executes through the real
-   * LangGraph StateGraph engine (langgraph-engine.ts) instead of the direct
+   * The copilot's runtime. When 'langgraph', the run is executed by the
+   * official LangGraph Agent Server (langgraph-server.ts) instead of the direct
    * model-router loop. When omitted, the runner loads it from the copilot row;
    * any non-'langgraph' value uses the direct loop.
    */
@@ -211,9 +211,13 @@ function guardrailCheck(
 }
 
 // ---------------------------------------------------------------------------
-// LangGraph execution path — runs the real StateGraph engine, then persists
-// with the SAME shape as the direct loop (agent_runs + agent_run_steps +
-// tool_calls). Kept as a sibling so executeCopilotRun stays a thin selector.
+// LangGraph execution path — delegates to the OFFICIAL LangGraph Agent Server
+// (langgraphjs dev, the same server LangSmith Studio connects to) via the SDK.
+// No embedded engine: the server owns the graph, checkpointing, streaming and
+// interrupt/resume. We persist its result into agent_runs / agent_run_steps /
+// tool_calls with the same shape as the direct loop. A run that pauses for
+// human approval (interrupt) is persisted as `needs-confirmation`, resumable
+// on its thread id.
 // ---------------------------------------------------------------------------
 
 interface ViaLangGraphArgs {
@@ -221,15 +225,11 @@ interface ViaLangGraphArgs {
   versionId: string
   projectId: string
   model: string
-  systemPromptSummary: string
   userInput: string
-  maxSteps: number
-  tools: RunnerTool[]
-  confirmed: Set<string>
 }
 
 async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopilotRunResult> {
-  const { copilotId, versionId, projectId, model, systemPromptSummary, userInput, maxSteps, tools, confirmed } = args
+  const { copilotId, versionId, projectId, model, userInput } = args
 
   const startedAtMs = Date.now()
   const startedAt: IsoTimestamp = new Date(startedAtMs).toISOString()
@@ -239,56 +239,70 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
     { runId, copilotId, versionId, projectId, mode: 'run', provider: 'openai', model },
     startedAtMs
   )
+  trace.resolve('openai', model, false)
 
   let status: AgentRunStatus = 'completed'
   let outputSummary: string
   let costUsd = 0
   let toolCallCount = 0
   let blockedToolCount = 0
-  let resolvedModel = model
+  const resolvedModel = model
   const toolCallRows: RawRow[] = []
 
-  try {
-    const result = await runLangGraph({
-      copilotId,
-      model,
-      systemPromptSummary,
-      userInput,
-      maxSteps,
-      tools,
-      confirmedToolNames: confirmed,
-    })
-    costUsd = result.costUsd
-    toolCallCount = result.toolCallCount
-    blockedToolCount = result.blockedToolCount
-    resolvedModel = result.resolvedModel
-    trace.resolve('openai', result.resolvedModel, false)
+  trace.step(
+    {
+      kind: 'guardrail-check',
+      title: 'Dispatch to LangGraph Agent Server',
+      detail: 'Executing the copilot graph on the official langgraphjs server.',
+      status: 'ok',
+      startedAt,
+      durationMs: 0,
+    },
+    startedAtMs
+  )
 
-    // Replay the engine's steps into the trace (kinds are DB-valid).
+  // Map tool NAME → its DB row (id + risk) so persisted tool_calls carry the
+  // real tool_id (a NOT NULL column). The Agent Server reports names, not ids.
+  const copilotTools = await loadToolsForVersion(versionId)
+  const toolByName = new Map(copilotTools.map((t) => [t.name, t]))
+
+  try {
+    const result = await runOnAgentServer({ userInput })
+
     for (const s of result.steps) {
-      trace.step({ kind: s.kind, title: s.title, detail: s.detail, status: s.status, durationMs: s.durationMs, toolCallId: s.toolCallId }, Date.now())
+      trace.step({ kind: s.kind, title: s.title, detail: s.detail, status: s.status, durationMs: s.durationMs }, Date.now())
     }
-    // Carry the engine's tool-call rows into DB rows.
-    for (const r of result.toolCallRows) {
+    for (const tc of result.toolCalls) {
+      toolCallCount += 1
+      if (tc.status === 'blocked') blockedToolCount += 1
+      const dbTool = toolByName.get(tc.toolName)
       toolCallRows.push({
         id: randomUUID(),
         run_id: runId,
-        tool_id: r.toolId,
-        tool_name: r.toolName,
-        arguments_summary: r.argumentsSummary,
-        result_summary: r.resultSummary,
-        status: r.status,
-        risk_level: r.riskLevel,
-        required_confirmation: r.requiredConfirmation,
-        latency_ms: r.latencyMs,
+        tool_id: dbTool?.id ?? tc.toolName,
+        tool_name: tc.toolName,
+        arguments_summary: tc.argumentsSummary || '{}',
+        result_summary: tc.resultSummary,
+        status: tc.status,
+        risk_level: dbTool?.riskLevel ?? 'low',
+        required_confirmation: dbTool?.requiresConfirmation ?? tc.status === 'blocked',
+        latency_ms: 0,
       })
     }
-    outputSummary = summarize(result.finalText || '(empty response)')
+    costUsd = result.costUsd
+
+    if (result.interrupted) {
+      // The graph paused for human approval — persist as needs-confirmation.
+      status = 'needs-confirmation'
+      outputSummary = summarize(result.interruptMessage ?? 'Awaiting human approval for a tool call.')
+    } else {
+      outputSummary = summarize(result.finalText || '(empty response)')
+    }
   } catch (err) {
     status = 'failed'
     const message = err instanceof Error ? err.message : String(err)
-    outputSummary = summarize(`LangGraph run failed: ${message}`)
-    trace.step({ kind: 'llm-call', title: 'LangGraph run failed', detail: outputSummary, status: 'error', durationMs: 0 }, Date.now())
+    outputSummary = summarize(`LangGraph Agent Server run failed: ${message}`)
+    trace.step({ kind: 'llm-call', title: 'Agent Server run failed', detail: outputSummary, status: 'error', durationMs: 0 }, Date.now())
   }
 
   const finishedAtMs = Date.now()
@@ -383,26 +397,17 @@ export async function executeCopilotRun(
   const modelProvider: ModelProvider = args.modelProvider ?? 'openai'
   const confirmed = new Set(args.confirmedToolNames ?? [])
 
-  // Resolve the tool set: explicit list wins; otherwise load from the manifest.
-  const tools = args.tools ?? (await loadToolsForVersion(versionId))
-  const routerTools = tools.map(toRouterTool)
-
   // Resolve the runtime: explicit wins, else load from the copilot row. A
-  // 'langgraph' runtime executes through the real LangGraph StateGraph engine.
+  // 'langgraph' runtime delegates to the official LangGraph Agent Server, which
+  // owns the graph + tools — so we skip the local tool-loading entirely.
   const runtime = args.runtime ?? (await loadRuntime(copilotId))
   if (runtime === 'langgraph') {
-    return executeViaLangGraph({
-      copilotId,
-      versionId,
-      projectId,
-      model,
-      systemPromptSummary,
-      userInput,
-      maxSteps,
-      tools,
-      confirmed,
-    })
+    return executeViaLangGraph({ copilotId, versionId, projectId, model, userInput })
   }
+
+  // Direct model-router path: resolve the tool set from the manifest.
+  const tools = args.tools ?? (await loadToolsForVersion(versionId))
+  const routerTools = tools.map(toRouterTool)
 
   const startedAtMs = Date.now()
   const startedAt: IsoTimestamp = new Date(startedAtMs).toISOString()

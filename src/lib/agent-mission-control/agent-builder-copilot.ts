@@ -31,12 +31,12 @@ export const AGENT_BUILDER_SLUG = 'agent-builder-copilot'
 /**
  * The copilot definition, ready for `createCopilotFromManifest`.
  *
- * Runtime: the real LangGraph StateGraph engine (langgraph-engine.ts) — the
- * runner routes runtime==='langgraph' runs through a genuine agent↔tools graph
- * (@langchain/langgraph + ChatOpenAI). Model provider is OpenAI (`gpt-5.4`),
- * priced by model-pricing.ts and backed by the live OPENAI_API_KEY.
- * `projectId: null` keeps it on the validation bench — it is NOT assigned to a
- * project (assignment is the human act of validation), the controlled posture.
+ * Runtime: the official LangGraph Agent Server (`langgraphjs dev`, the same
+ * server LangSmith Studio connects to). The runner routes runtime==='langgraph'
+ * runs to it via the SDK; the graph lives in src/langgraph/. Model provider is
+ * OpenAI (`gpt-5.4`), backed by the live OPENAI_API_KEY. `projectId: null` keeps
+ * it on the validation bench — NOT assigned to a project (assignment is the
+ * human act of validation), the controlled posture.
  */
 export const AGENT_BUILDER_COPILOT: CreateCopilotInput = {
   name: 'Agent Builder Copilot',

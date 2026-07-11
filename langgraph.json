@@ -1,0 +1,8 @@
+{
+  "node_version": "20",
+  "dependencies": ["."],
+  "graphs": {
+    "agent_builder": "./src/langgraph/agent-builder-graph.mjs:graph"
+  },
+  "env": ".env.local"
+}
