@@ -67,11 +67,13 @@ body {
 }
 
 /* Scrollable region that keeps scrolling but hides the scrollbar chrome —
-   used by the repo picker / file tree so the list fills the card cleanly. */
-.no-scrollbar {
+   used by the repo picker / file tree. Declared with Tailwind v4 `@utility`
+   so it is emitted into the compiled bundle (a plain `.class` after
+   `@import "tailwindcss"` is not picked up in v4). */
+@utility no-scrollbar {
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* legacy Edge */
-}
-.no-scrollbar::-webkit-scrollbar {
-  display: none; /* WebKit */
+  &::-webkit-scrollbar {
+    display: none; /* WebKit */
+  }
 }
