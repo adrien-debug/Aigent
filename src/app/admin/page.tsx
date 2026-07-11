@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { ProjectCard } from '@/components/agent-ops/project-card'
 import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
 import { Badge } from '@/components/catalyst/badge'
 import { Link } from '@/components/catalyst/link'
@@ -243,6 +244,7 @@ interface ProjectRollup {
   activeCount: number
   runsLast24h: number
   costLast24hUsd: number
+  openWarnings: number
 }
 
 const EMPTY_ROLLUP: ProjectRollup = {
@@ -250,6 +252,7 @@ const EMPTY_ROLLUP: ProjectRollup = {
   activeCount: 0,
   runsLast24h: 0,
   costLast24hUsd: 0,
+  openWarnings: 0,
 }
 
 /**
@@ -265,6 +268,7 @@ function rollupByProject(copilots: Copilot[]): Map<string, ProjectRollup> {
     if (copilot.status === 'active') current.activeCount += 1
     current.runsLast24h += copilot.health.runsLast24h
     current.costLast24hUsd += copilot.health.costLast24hUsd
+    current.openWarnings += copilot.health.openWarnings
     byProject.set(copilot.projectId, current)
   }
   return byProject
@@ -277,46 +281,24 @@ function ProjectsCard({
   projects: Project[]
   rollups: Map<string, ProjectRollup>
 }) {
-  const shown = projects.slice(0, 5)
+  const shown = projects.slice(0, 6)
 
   return (
     <AgentSectionCard
       title="Projects"
       description="Product surfaces with validated agents."
       actions={<ViewAllLink href="/admin/projects" srSuffix="projects" />}
-      contentClassName={shown.length > 0 ? 'px-6 py-2' : undefined}
     >
       {shown.length > 0 ? (
-        <div role="list" className="divide-y divide-zinc-950/5 dark:divide-white/5">
-          {shown.map((project) => {
-            const rollup = rollups.get(project.id) ?? EMPTY_ROLLUP
-            return (
-              <div role="listitem" key={project.id} className="flex items-center gap-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <Link
-                    href={`/admin/projects/${project.id}`}
-                    title={project.name}
-                    className="block truncate text-sm font-medium text-zinc-950 hover:underline dark:text-white"
-                  >
-                    {project.name}
-                  </Link>
-                  <div className="mt-0.5 truncate font-mono text-xs text-zinc-500">{project.slug}</div>
-                </div>
-                <div className="flex w-40 shrink-0 items-baseline justify-end gap-4 font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
-                  <span>
-                    {rollup.activeCount}/{rollup.copilotCount} active
-                  </span>
-                  <span>
-                    {rollup.runsLast24h > 0 ? (
-                      formatUsd(rollup.costLast24hUsd)
-                    ) : (
-                      <EmDash srLabel="No runs in the last 24 hours" />
-                    )}
-                  </span>
-                </div>
-              </div>
-            )
-          })}
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6">
+          {shown.map((project) => (
+            <ProjectCard
+              key={project.id}
+              project={project}
+              rollup={rollups.get(project.id) ?? EMPTY_ROLLUP}
+              href={`/admin/projects/${project.id}`}
+            />
+          ))}
         </div>
       ) : (
         <CardEmptyState
