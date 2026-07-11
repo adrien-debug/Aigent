@@ -2,10 +2,10 @@
 
 import { PlusIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
+import Link from 'next/link'
 import { useState } from 'react'
 
 import { CopilotRegistryTable, type RegistryTableView } from '@/components/agent-ops/copilot-registry-table'
-import { Button } from '@/components/catalyst/button'
 import type { Copilot, Project } from '@/lib/agent-mission-control/types'
 
 /**
@@ -57,10 +57,15 @@ export function RegistryView({
               </button>
             ))}
           </div>
-          <Button color="accent" href="/admin/agents/new">
-            <PlusIcon data-slot="icon" />
+          {/* Softened "New copilot" — veiled pastel accent (same tone as the
+              active nav item) instead of the solid accent-700 button. */}
+          <Link
+            href="/admin/agents/new"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-accent-500/10 px-3 py-1.5 text-sm font-medium text-accent-700 ring-1 ring-accent-500/20 transition-colors hover:bg-accent-500/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300"
+          >
+            <PlusIcon aria-hidden="true" className="size-4" />
             New copilot
-          </Button>
+          </Link>
         </div>
         <CopilotRegistryTable copilots={copilots} projects={projects} view={view} />
       </div>
