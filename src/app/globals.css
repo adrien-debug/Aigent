@@ -9,28 +9,26 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Accent — THE single hue of the design system: BURNT COPPER / AMBER-COPPER.
-   One warm operator-console copper (#d96e2b = 500) rendered as a full 50→950
+/* Accent — THE single hue of the design system: NEON ORANGE.
+   One flashy, fully-saturated orange (#ff6a00 = 500) rendered as a full 50→950
    ramp; every chromatic surface (badges, states, charts, meters, nav, CTA) is a
-   shade of THIS color. Warmer and more molten than the old muted clay — pulled
-   toward amber-copper so the accent reads like heated metal on graphite, the
-   "control plane / operator console" signature. `zinc` is the only neutral.
-   Registered in @theme so `bg-accent-*`, `text-accent-*`, `bg-accent-500/15`,
-   `ring-accent-500` … all generate with opacity support.
-   AA verified (white text): 700 = 6.11:1, 800 = 8.32:1; accent-300/400 text on
-   zinc-950 = 9.67 / 7.19:1. See scripts/check-palette.mjs. */
+   shade of THIS color — no desaturated/brown copper tones. `zinc` is the only
+   neutral. Registered in @theme so `bg-accent-*`, `text-accent-*`,
+   `bg-accent-500/15`, `ring-accent-500` … all generate with opacity support.
+   AA verified (white text): 700 = 4.82:1, 800 = 6.72:1, 900 = 9.11:1.
+   See scripts/check-palette.mjs. */
 @theme {
-  --color-accent-50: #fdf5ee;
-  --color-accent-100: #fae7d6;
-  --color-accent-200: #f3cbab;
-  --color-accent-300: #eaa675;
-  --color-accent-400: #e18446;
-  --color-accent-500: #d96e2b;
-  --color-accent-600: #c25a1e;
-  --color-accent-700: #a0481c;
-  --color-accent-800: #7f3a1c;
-  --color-accent-900: #68321b;
-  --color-accent-950: #39190c;
+  --color-accent-50: #fff4ec;
+  --color-accent-100: #ffe4cc;
+  --color-accent-200: #ffc699;
+  --color-accent-300: #ffa15c;
+  --color-accent-400: #ff8324;
+  --color-accent-500: #ff6a00;
+  --color-accent-600: #e85d00;
+  --color-accent-700: #c24d00;
+  --color-accent-800: #9c3f04;
+  --color-accent-900: #7a3308;
+  --color-accent-950: #431a05;
 }
 
 /* Copper semantic surface tokens — the accent turned into a LANGUAGE, not a

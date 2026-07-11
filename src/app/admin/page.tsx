@@ -439,7 +439,7 @@ export default async function DashboardPage() {
       <RunActivityCard runs={runs} copilotNameById={copilotNameById} />
 
       {/* Listes sobres, densités comparables — zéro meter, zéro gauge. */}
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <FleetCard copilots={copilots} />
         <AttentionCard copilots={copilots} />
       </div>

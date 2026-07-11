@@ -29,6 +29,13 @@ const COLS_CLASS: Record<number, string> = {
 }
 
 export function AgentKpiBand({ stats, className }: { stats: AgentKpiStat[]; className?: string }) {
+  // A row (change / viz / hint) only takes space in the band if at least one
+  // stat uses it — reserved for every cell so all boxes share the same fixed
+  // height, but never reserved for a row nobody in this band needs.
+  const hasChange = stats.some((stat) => stat.change)
+  const hasViz = stats.some((stat) => stat.viz)
+  const hasHint = stats.some((stat) => stat.hint)
+
   return (
     <dl
       className={clsx(
@@ -37,22 +44,25 @@ export function AgentKpiBand({ stats, className }: { stats: AgentKpiStat[]; clas
         className
       )}
     >
+      {/* Every cell renders the same row set, just empty when a stat has no
+          value for a row the band uses — so every box is the same fixed
+          height, never taller because a neighbor has more data. */}
       {stats.map((stat) => (
         <div
           key={stat.name}
           className="flex flex-col items-center gap-y-1 bg-white px-4 py-5 text-center sm:px-6 xl:px-8 dark:bg-zinc-950"
         >
           <dt className="text-sm/6 font-medium text-zinc-500 dark:text-zinc-400">{stat.name}</dt>
-          {stat.change ? (
+          {hasChange ? (
             <dd
               className={clsx(
+                'h-4 text-xs font-medium',
                 stat.changeType === 'negative'
                   ? 'text-accent-600 dark:text-accent-400'
-                  : 'text-zinc-600 dark:text-zinc-300',
-                'text-xs font-medium'
+                  : 'text-zinc-600 dark:text-zinc-300'
               )}
             >
-              {stat.change}
+              {stat.change ?? ' '}
             </dd>
           ) : null}
           {/* Valeur KPI en accent orange (directive Adrien 2026-07-11) — le chiffre
@@ -60,8 +70,8 @@ export function AgentKpiBand({ stats, className }: { stats: AgentKpiStat[]; clas
           <dd className="font-mono text-2xl/8 font-semibold text-accent-700 tabular-nums dark:text-accent-400">
             {stat.value}
           </dd>
-          {stat.viz ? <dd className="mt-3 w-full flex-none">{stat.viz}</dd> : null}
-          {stat.hint ? <dd className="text-xs text-zinc-500">{stat.hint}</dd> : null}
+          {hasViz ? <dd className="mt-3 w-full flex-none">{stat.viz ?? null}</dd> : null}
+          {hasHint ? <dd className="h-4 text-xs text-zinc-500">{stat.hint ?? ' '}</dd> : null}
         </div>
       ))}
     </dl>
