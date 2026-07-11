@@ -270,7 +270,7 @@ export function NewProjectWorkbench() {
                       }
                     >
                       <div className="flex items-center gap-2">
-                        <span className="truncate font-mono text-sm text-zinc-950 dark:text-white">
+                        <span className="min-w-0 truncate font-mono text-sm text-zinc-950 dark:text-white">
                           {repo.fullName}
                         </span>
                         {repo.private ? <Badge color="zinc">private</Badge> : null}
