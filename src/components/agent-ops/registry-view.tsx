@@ -1,9 +1,11 @@
 'use client'
 
+import { PlusIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
 import { useState } from 'react'
 
 import { CopilotRegistryTable, type RegistryTableView } from '@/components/agent-ops/copilot-registry-table'
+import { Button } from '@/components/catalyst/button'
 import type { Copilot, Project } from '@/lib/agent-mission-control/types'
 
 /**
@@ -32,27 +34,33 @@ export function RegistryView({
   return (
     <div className="space-y-8">
       <div className="space-y-4">
-        <div
-          role="group"
-          aria-label="Registry view"
-          className="inline-flex rounded-lg bg-zinc-950/5 p-1 dark:bg-white/5"
-        >
-          {options.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              aria-pressed={view === option.value}
-              onClick={() => setView(option.value)}
-              className={clsx(
-                'rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
-                view === option.value
-                  ? 'bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-950/10 dark:bg-zinc-950 dark:text-white dark:ring-white/10'
-                  : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div
+            role="group"
+            aria-label="Registry view"
+            className="inline-flex rounded-lg bg-zinc-950/5 p-1 dark:bg-white/5"
+          >
+            {options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={view === option.value}
+                onClick={() => setView(option.value)}
+                className={clsx(
+                  'rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
+                  view === option.value
+                    ? 'bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-950/10 dark:bg-zinc-950 dark:text-white dark:ring-white/10'
+                    : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <Button color="accent" href="/admin/agents/new">
+            <PlusIcon data-slot="icon" />
+            New copilot
+          </Button>
         </div>
         <CopilotRegistryTable copilots={copilots} projects={projects} view={view} />
       </div>
