@@ -136,12 +136,8 @@ export default async function RunsPage({
           </div>
 
           {/* Recent runs — FULL WIDTH below everything. No lateral scroll: run id truncates. */}
-          <AgentSectionCard
-            title="Recent runs"
-            description="Newest first. Select a run to inspect its timeline."
-            contentClassName="p-0"
-          >
-            <Table striped dense bleed className="[--gutter:--spacing(6)]">
+          <AgentSectionCard title="Recent runs" description="Newest first. Select a run to inspect its timeline.">
+            <Table striped dense>
               <TableHead>
                 <TableRow>
                   <TableHeader>Run</TableHeader>
