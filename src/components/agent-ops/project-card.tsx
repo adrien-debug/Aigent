@@ -64,8 +64,9 @@ export function ProjectCard({ project, rollup, href }: ProjectCardProps) {
         )}
       </div>
 
-      {/* Square logo avatar overlapping the bottom edge of the header. */}
-      <div className="-mt-8 ml-6">
+      {/* Square logo avatar overlapping the bottom edge of the header —
+          relative z-10 so it sits ABOVE the header instead of being clipped by it. */}
+      <div className="relative z-10 -mt-8 ml-6">
         <Avatar
           square
           src={project.logoUrl ?? undefined}
