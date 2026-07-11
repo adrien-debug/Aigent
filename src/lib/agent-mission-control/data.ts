@@ -50,7 +50,7 @@ export async function getProjects(): Promise<Project[]> {
 }
 
 export async function getProject(id: string): Promise<Project | undefined> {
-  return camelRows<Project>(await rest<RawRow[]>(`projects?select=*&id=eq.${id}`))[0]
+  return camelRows<Project>(await rest<RawRow[]>(`projects?select=*&id=eq.${encodeURIComponent(id)}`))[0]
 }
 
 export async function getCopilots(): Promise<Copilot[]> {
@@ -58,27 +58,27 @@ export async function getCopilots(): Promise<Copilot[]> {
 }
 
 export async function getCopilot(id: string): Promise<Copilot | undefined> {
-  return camelRows<Copilot>(await rest<RawRow[]>(`copilots?select=*&id=eq.${id}`))[0]
+  return camelRows<Copilot>(await rest<RawRow[]>(`copilots?select=*&id=eq.${encodeURIComponent(id)}`))[0]
 }
 
 export async function getVersionsForCopilot(copilotId: string): Promise<CopilotVersion[]> {
   return camelRows<CopilotVersion>(
-    await rest<RawRow[]>(`copilot_versions?select=*&copilot_id=eq.${copilotId}&order=created_at.desc`)
+    await rest<RawRow[]>(`copilot_versions?select=*&copilot_id=eq.${encodeURIComponent(copilotId)}&order=created_at.desc`)
   )
 }
 
 export async function getVersion(id: string): Promise<CopilotVersion | undefined> {
-  return camelRows<CopilotVersion>(await rest<RawRow[]>(`copilot_versions?select=*&id=eq.${id}`))[0]
+  return camelRows<CopilotVersion>(await rest<RawRow[]>(`copilot_versions?select=*&id=eq.${encodeURIComponent(id)}`))[0]
 }
 
 export async function getManifestForCopilot(copilotId: string): Promise<AgentManifest | undefined> {
   return camelRows<AgentManifest>(
-    await rest<RawRow[]>(`manifests?select=*&copilot_id=eq.${copilotId}&order=updated_at.desc&limit=1`)
+    await rest<RawRow[]>(`manifests?select=*&copilot_id=eq.${encodeURIComponent(copilotId)}&order=updated_at.desc&limit=1`)
   )[0]
 }
 
 export async function getToolsForCopilot(copilotId: string): Promise<ToolDefinition[]> {
-  const rows = await rest<RawRow[]>(`tools?select=*&copilot_id=eq.${copilotId}&order=risk_level,name`)
+  const rows = await rest<RawRow[]>(`tools?select=*&copilot_id=eq.${encodeURIComponent(copilotId)}&order=risk_level,name`)
   // copilot_id is a DB column, absent from ToolDefinition — drop it.
   return camelRows<ToolDefinition>(
     rows.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => k !== 'copilot_id')))
@@ -86,7 +86,7 @@ export async function getToolsForCopilot(copilotId: string): Promise<ToolDefinit
 }
 
 export async function getTestSuitesForCopilot(copilotId: string): Promise<TestSuite[]> {
-  const rows = await rest<RawRow[]>(`test_suites?select=*,test_cases(id)&copilot_id=eq.${copilotId}&order=name`)
+  const rows = await rest<RawRow[]>(`test_suites?select=*,test_cases(id)&copilot_id=eq.${encodeURIComponent(copilotId)}&order=name`)
   return rows.map((r) => {
     const { test_cases, ...rest_ } = r as RawRow & { test_cases: { id: string }[] }
     const suite = camelRow<TestSuite>(rest_)
@@ -96,12 +96,12 @@ export async function getTestSuitesForCopilot(copilotId: string): Promise<TestSu
 }
 
 export async function getTestCasesForSuite(suiteId: string): Promise<TestCase[]> {
-  return camelRows<TestCase>(await rest<RawRow[]>(`test_cases?select=*&suite_id=eq.${suiteId}&order=id`))
+  return camelRows<TestCase>(await rest<RawRow[]>(`test_cases?select=*&suite_id=eq.${encodeURIComponent(suiteId)}&order=id`))
 }
 
 export async function getTestRunsForCopilot(copilotId: string): Promise<TestRun[]> {
   const rows = await rest<RawRow[]>(
-    `test_runs?select=*,test_results(id)&copilot_id=eq.${copilotId}&order=started_at.desc`
+    `test_runs?select=*,test_results(id)&copilot_id=eq.${encodeURIComponent(copilotId)}&order=started_at.desc`
   )
   return rows.map((r) => {
     const { test_results, ...rest_ } = r as RawRow & { test_results: { id: string }[] }
@@ -112,12 +112,12 @@ export async function getTestRunsForCopilot(copilotId: string): Promise<TestRun[
 }
 
 export async function getTestResultsForRun(runId: string): Promise<TestResult[]> {
-  return camelRows<TestResult>(await rest<RawRow[]>(`test_results?select=*&run_id=eq.${runId}&order=id`))
+  return camelRows<TestResult>(await rest<RawRow[]>(`test_results?select=*&run_id=eq.${encodeURIComponent(runId)}&order=id`))
 }
 
 export async function getRunsForCopilot(copilotId: string): Promise<AgentRun[]> {
   const rows = await rest<RawRow[]>(
-    `agent_runs?select=*,agent_run_steps(id)&copilot_id=eq.${copilotId}&order=started_at.desc`
+    `agent_runs?select=*,agent_run_steps(id)&copilot_id=eq.${encodeURIComponent(copilotId)}&order=started_at.desc`
   )
   return rows.map((r) => {
     const { agent_run_steps, ...rest_ } = r as RawRow & { agent_run_steps: { id: string }[] }
@@ -151,44 +151,44 @@ export async function getRecentRunsForProject(projectId: string, limit = 30): Pr
 }
 
 export async function getStepsForRun(runId: string): Promise<AgentRunStep[]> {
-  return camelRows<AgentRunStep>(await rest<RawRow[]>(`agent_run_steps?select=*&run_id=eq.${runId}&order=index`))
+  return camelRows<AgentRunStep>(await rest<RawRow[]>(`agent_run_steps?select=*&run_id=eq.${encodeURIComponent(runId)}&order=index`))
 }
 
 export async function getToolCallsForRun(runId: string): Promise<ToolCall[]> {
-  return camelRows<ToolCall>(await rest<RawRow[]>(`tool_calls?select=*&run_id=eq.${runId}&order=id`))
+  return camelRows<ToolCall>(await rest<RawRow[]>(`tool_calls?select=*&run_id=eq.${encodeURIComponent(runId)}&order=id`))
 }
 
 export async function getBenchmarkSuitesForCopilot(copilotId: string): Promise<BenchmarkSuite[]> {
   return camelRows<BenchmarkSuite>(
-    await rest<RawRow[]>(`benchmark_suites?select=*&copilot_id=eq.${copilotId}&order=name`)
+    await rest<RawRow[]>(`benchmark_suites?select=*&copilot_id=eq.${encodeURIComponent(copilotId)}&order=name`)
   )
 }
 
 export async function getBenchmarkRunsForSuite(suiteId: string): Promise<BenchmarkRun[]> {
   return camelRows<BenchmarkRun>(
-    await rest<RawRow[]>(`benchmark_runs?select=*&suite_id=eq.${suiteId}&order=started_at.desc`)
+    await rest<RawRow[]>(`benchmark_runs?select=*&suite_id=eq.${encodeURIComponent(suiteId)}&order=started_at.desc`)
   )
 }
 
 export async function getBenchmarkResultForRun(runId: string): Promise<BenchmarkResult | undefined> {
-  return camelRows<BenchmarkResult>(await rest<RawRow[]>(`benchmark_results?select=*&run_id=eq.${runId}`))[0]
+  return camelRows<BenchmarkResult>(await rest<RawRow[]>(`benchmark_results?select=*&run_id=eq.${encodeURIComponent(runId)}`))[0]
 }
 
 export async function getReplayComparisonsForCopilot(copilotId: string): Promise<ReplayComparison[]> {
   return camelRows<ReplayComparison>(
-    await rest<RawRow[]>(`replay_comparisons?select=*&copilot_id=eq.${copilotId}&order=created_at.desc`)
+    await rest<RawRow[]>(`replay_comparisons?select=*&copilot_id=eq.${encodeURIComponent(copilotId)}&order=created_at.desc`)
   )
 }
 
 export async function getShadowExperimentsForCopilot(copilotId: string): Promise<ShadowExperiment[]> {
   return camelRows<ShadowExperiment>(
-    await rest<RawRow[]>(`shadow_experiments?select=*&copilot_id=eq.${copilotId}&order=started_at.desc`)
+    await rest<RawRow[]>(`shadow_experiments?select=*&copilot_id=eq.${encodeURIComponent(copilotId)}&order=started_at.desc`)
   )
 }
 
 export async function getPromotionGateForCopilot(copilotId: string): Promise<PromotionGate | undefined> {
   return camelRows<PromotionGate>(
-    await rest<RawRow[]>(`promotion_gates?select=*&copilot_id=eq.${copilotId}&order=last_evaluated_at.desc&limit=1`)
+    await rest<RawRow[]>(`promotion_gates?select=*&copilot_id=eq.${encodeURIComponent(copilotId)}&order=last_evaluated_at.desc&limit=1`)
   )[0]
 }
 
