@@ -38,11 +38,15 @@ describe('draft_copilot_spec — pause for approval, then resume', () => {
       return
     }
 
-    const userInput =
-      'Call your draft_copilot_spec tool right now with name="Test Draft Copilot" and ' +
-      'description="temporary test draft, safe to discard". This is a direct tool-call instruction: ' +
-      'invoke draft_copilot_spec immediately as your first action. Do not ask a clarifying question, ' +
-      'do not explain what you would do — call the tool.'
+    // A NATURAL request — deliberately NOT "call draft_copilot_spec right now,
+    // don't ask a question". That coercive phrasing is what let this test pass
+    // while the gate was actually broken in production: the system prompt used to
+    // say "Ask a human to confirm before any risky tool call", and the model obeyed
+    // literally — it wrote "confirm and I'll invoke it" in prose and NEVER emitted
+    // the tool call, so approvalNode saw nothing and interrupt() never fired. The
+    // human-in-the-loop gate silently never engaged. Only a natural prompt proves
+    // the gate engages the way an operator would actually trigger it.
+    const userInput = 'Draft a copilot spec for a log triage agent.'
 
     const runRes = await fetch(`${baseUrl}/api/agent-ops/copilots/${copilot.id}/run`, {
       method: 'POST',

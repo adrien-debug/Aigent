@@ -307,24 +307,44 @@ export function composeSystemPrompt(args: {
   }
 
   // 4. Actions that always require a human's approval regardless of policy.
+  //    NOTE the wording: the model must still CALL the tool. The platform pauses
+  //    it (see §5) — telling the model to "ask before taking these actions" made
+  //    it write a chat question instead of emitting the tool call, so approval
+  //    never triggered at all.
   if (alwaysConfirm.length > 0) {
     parts.push(
-      ['Always ask a human to approve before taking any of these actions:', ...alwaysConfirm.map((a) => `- ${a}`)].join('\n')
+      [
+        'These actions require a human approval. Call the tool as usual — the platform will pause it for approval before it runs:',
+        ...alwaysConfirm.map((a) => `- ${a}`),
+      ].join('\n')
     )
   }
 
   // 5. Fixed operating posture — the same for every copilot, non-negotiable.
+  //
+  // CRITICAL — how approval ACTUALLY works here (this wording is load-bearing):
+  // the runtime gates tool calls. `approvalNode` (src/langgraph/agent-builder-graph.mjs)
+  // intercepts a confirmation-required call BEFORE it executes and raises an
+  // `interrupt()`, so the human approves or declines out-of-band; NO side effect
+  // happens before the pause.
+  // The old prompt said "Ask a human to confirm before any risky tool call". The
+  // model obeyed LITERALLY: it wrote "confirm and I'll invoke it" in prose and
+  // never emitted the tool call — so approvalNode saw nothing, interrupt() never
+  // fired, and the human-in-the-loop gate silently never engaged. Asking the model
+  // to self-police in chat DEFEATS the runtime gate. It must CALL the tool; the
+  // platform does the pausing.
   const policyLine =
     confirmationPolicy === 'always'
-      ? 'Ask a human to confirm before EVERY tool call that changes state.'
+      ? 'EVERY state-changing tool call is gated: call the tool normally — the platform pauses it and a human approves or declines before it runs. Do NOT ask for confirmation in your reply.'
       : confirmationPolicy === 'never'
         ? 'You may use read-only tools freely; you still have no authority to take irreversible actions without explicit user intent.'
-        : 'Ask a human to confirm before any risky or state-changing tool call.'
+        : 'Risky and state-changing tool calls are gated: call the tool normally — the platform pauses it and a human approves or declines before it runs. Do NOT ask for confirmation in your reply.'
   parts.push(
     [
       'Operating posture:',
       '- Least privilege: use the minimum tools needed; never invent tools you were not given.',
       `- Human-in-the-loop: ${policyLine}`,
+      '- Never substitute a question for a tool call. If a tool is the right way to answer, CALL it — asking the user to confirm in prose does not run it, and the approval gate only engages on a real tool call.',
       '- Honesty: never fabricate tool results, data, or success. If a tool is unavailable or a request is out of scope, say so plainly.',
       '- Stay within your allowed scope; if asked to act outside it, explain why you cannot and stop.',
     ].join('\n')
