@@ -179,14 +179,27 @@ function resolveToolId(rawName: string): BehaviorToolId | null {
   const has = (...words: string[]) => words.every((w) => n.includes(w))
   const any = (...words: string[]) => words.some((w) => n.includes(w))
 
-  // --- Platform reads (before repo intents: they name a platform domain object) ---
-  if (has('project') && any('summary', 'summaries', 'list', 'read', 'info', 'get')) return 'read_project_summary'
-  if (has('copilot') && any('summary', 'summaries', 'list', 'read', 'info', 'get')) return 'read_copilot_summary'
-  if (any('run', 'runs', 'execution', 'executions') && any('recent', 'run', 'runs', 'history', 'read', 'list')) {
-    return 'read_recent_runs'
-  }
-  if ((has('tool') && any('permission', 'permissions')) || has('permission', 'matrix')) {
-    return 'read_tool_permissions'
+  // --- Repo-file/tree/search intent signal — tested FIRST, before the platform
+  //     reads below. WHY: an architect name like 'read_project_file' or
+  //     'list_project_files' uses the word "project" but its intent is to read
+  //     something FROM THE REPO (file/tree/folder/source), not the platform's
+  //     project-summary object. Without this signal, the has('project') rule
+  //     below would win first and misroute a repo-file intent to
+  //     read_project_summary. When this signal is present we go straight to the
+  //     repo-tool rules and skip the platform reads entirely.
+  const signalsRepoFile = any('file', 'files', 'repo', 'tree', 'folder', 'folders', 'directory', 'directories', 'source', 'code')
+  const signalsReadIntent = any('read', 'reader', 'list', 'get', 'fetch', 'cat', 'open', 'view', 'search', 'find', 'query', 'grep', 'ls')
+
+  if (!(signalsRepoFile && signalsReadIntent)) {
+    // --- Platform reads (only when the name does NOT also signal a repo-file intent) ---
+    if (has('project') && any('summary', 'summaries', 'list', 'read', 'info', 'get')) return 'read_project_summary'
+    if (has('copilot') && any('summary', 'summaries', 'list', 'read', 'info', 'get')) return 'read_copilot_summary'
+    if (any('run', 'runs', 'execution', 'executions') && any('recent', 'run', 'runs', 'history', 'read', 'list')) {
+      return 'read_recent_runs'
+    }
+    if ((has('tool') && any('permission', 'permissions')) || has('permission', 'matrix')) {
+      return 'read_tool_permissions'
+    }
   }
 
   // --- Draft / propose-a-change intent → the only real, gated write tool.
@@ -348,10 +361,18 @@ function scopeFor(id: BehaviorToolId, repoFullName?: string | null): BehaviorToo
  * null when no intent matches (the graph can't mount it, so it must not appear in
  * the config — dropping it here matches what the registry would do anyway). The
  * resolved id — never the raw name — carries the scope.
+ *
+ * A resolved REPO tool id (read_repo_file / list_repo_tree / search_repo) is also
+ * dropped when the copilot has no repo: mounting it with scope.repoFullName ===
+ * undefined would fail at runtime ("no repoFullName in scope") — better to not
+ * mount it at all than to mount a tool that is guaranteed to error. http_get is
+ * NOT a repo tool: it is left as-is (an empty allowlist fails closed at runtime,
+ * which is the intended safe default for a network-reaching tool).
  */
 function toBehaviorTool(row: ToolRowForBehavior, repoFullName?: string | null): BehaviorTool | null {
   const id = resolveToolId(row.name)
   if (!id) return null
+  if (REPO_TOOL_IDS.has(id) && !repoFullName) return null
 
   const riskLevel: ToolRiskLevel = row.risk_level ?? 'low'
   const requiresConfirmation = row.requires_confirmation === true
@@ -415,10 +436,20 @@ function buildTools(tools: ToolRowForBehavior[], repoFullName?: string | null): 
     }
   }
 
-  // 1) Architect's declared tools (free names → real ids, scoped).
+  // 1) Architect's declared tools (free names → real ids, scoped). A row is
+  //    dropped when resolveToolId finds no matching registry intent, or when it
+  //    resolves to a repo tool but the copilot has no repo (see toBehaviorTool).
+  //    Collect the dropped names so an operator can see why a copilot's tool
+  //    list is thinner than its manifest declares — silently losing intents
+  //    here previously left no trace.
+  const droppedNames: string[] = []
   for (const row of tools) {
     const entry = toBehaviorTool(row, repoFullName)
     if (entry) add(entry)
+    else droppedNames.push(row.name)
+  }
+  if (droppedNames.length > 0) {
+    console.warn('[copilot-behavior] architect tools with no registry mapping, dropped:', droppedNames)
   }
 
   // 2) Repo-linked copilot → guarantee the scoped repo tools exist.

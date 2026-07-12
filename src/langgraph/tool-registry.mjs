@@ -29,10 +29,34 @@ import { buildCopilotDraft } from './draft-spec.mjs'
 // Keep large tool outputs bounded so a single call can't blow the context.
 const MAX_BODY_CHARS = 8000
 const HTTP_TIMEOUT_MS = 10_000
+const MAX_HTTP_REDIRECTS = 3
 
 function truncate(text, max = MAX_BODY_CHARS) {
   if (typeof text !== 'string') text = String(text)
   return text.length > max ? `${text.slice(0, max)}\n…[truncated ${text.length - max} chars]` : text
+}
+
+// Repo paths that must never be readable/listable/searchable by the model,
+// even inside a repo the copilot is otherwise scoped to — secrets, private
+// keys and credential files. Matched against the repo-relative path (and,
+// for tree listings, the bare file name too).
+const SECRET_PATH_PATTERNS = [
+  /(^|\/)\.env(\.|$)/i,
+  /\.pem$/i,
+  /(^|\/)id_(rsa|dsa|ecdsa|ed25519)$/i,
+  /(^|\/).*secret.*/i,
+  /\.key$/i,
+  /(^|\/)credentials(\.|$)/i,
+  /\.pfx$/i,
+  /\.p12$/i,
+]
+
+/**
+ * @param {string} p a repo-relative path (or file name)
+ * @returns {boolean} true if the path looks like a secret/credential file
+ */
+function isSecretPath(p) {
+  return SECRET_PATH_PATTERNS.some((re) => re.test(p))
 }
 
 function githubHeaders() {
@@ -91,7 +115,13 @@ function makeReadRepoFile(scope) {
       // Normalise "." / "/" / "./" / missing → "" (root) so the model can't 404
       // the repo root; strip leading "./" or "/" from real paths.
       const cleanPath = normalizeRepoPath(path)
-      const url = `https://api.github.com/repos/${repo}/contents/${encodeURI(cleanPath)}`
+      // Refuse secret/credential-looking paths BEFORE ever hitting GitHub —
+      // .env, *.pem, id_rsa, *secret*, *.key, credentials*, *.pfx, *.p12.
+      if (isSecretPath(cleanPath)) {
+        return JSON.stringify({ ok: false, error: 'refused: this path looks like a secret/credential file and cannot be read' })
+      }
+      const encodedPath = cleanPath.split('/').map(encodeURIComponent).join('/')
+      const url = `https://api.github.com/repos/${repo}/contents/${encodedPath}`
       try {
         const res = await fetch(url, { headers: githubHeaders(), cache: 'no-store' })
         if (!res.ok) {
@@ -138,7 +168,8 @@ function makeListRepoTree(scope) {
       // "" for the root — "." or "/" would 404 and the model would think the
       // repo root doesn't exist.
       const cleanPath = normalizeRepoPath(path)
-      const url = `https://api.github.com/repos/${repo}/contents/${encodeURI(cleanPath)}`
+      const encodedPath = cleanPath.split('/').map(encodeURIComponent).join('/')
+      const url = `https://api.github.com/repos/${repo}/contents/${encodedPath}`
       try {
         const res = await fetch(url, { headers: githubHeaders(), cache: 'no-store' })
         if (!res.ok) {
@@ -150,7 +181,11 @@ function makeListRepoTree(scope) {
         }
         const data = await res.json()
         // A single file returns an object, not an array — normalise both.
-        const entries = (Array.isArray(data) ? data : [data]).map((e) => ({ name: e.name, type: e.type, path: e.path }))
+        // Drop anything that looks like a secret/credential file so the tool
+        // doesn't even let the model discover it exists.
+        const entries = (Array.isArray(data) ? data : [data])
+          .map((e) => ({ name: e.name, type: e.type, path: e.path }))
+          .filter((e) => !isSecretPath(e.path) && !isSecretPath(e.name))
         return JSON.stringify({ ok: true, repo, path: cleanPath, count: entries.length, entries })
       } catch (e) {
         return JSON.stringify({ ok: false, error: e instanceof Error ? e.message : String(e) })
@@ -188,8 +223,25 @@ function makeSearchRepo(scope) {
           return JSON.stringify({ ok: false, status: res.status, error: `GitHub search ${res.status}` })
         }
         const data = await res.json()
-        const results = (data.items ?? []).map((i) => ({ path: i.path, url: i.html_url }))
-        return JSON.stringify({ ok: true, repo, total: data.total_count ?? results.length, results })
+        // Drop matches inside secret/credential-looking files — search must not
+        // leak their existence or content snippets either.
+        const results = (data.items ?? [])
+          .map((i) => ({ path: i.path, url: i.html_url }))
+          .filter((r) => !isSecretPath(r.path))
+        const total = data.total_count ?? results.length
+        if (total === 0) {
+          // GitHub code search frequently returns 200 + total_count 0 on private
+          // or unindexed repos — that's NOT a reliable "no matches", so don't let
+          // the model treat it as proof the code doesn't exist.
+          return JSON.stringify({
+            ok: true,
+            repo,
+            total,
+            results,
+            note: 'code search may be unavailable or unindexed on private repos; if you expected matches, use list_repo_tree + read_repo_file instead',
+          })
+        }
+        return JSON.stringify({ ok: true, repo, total, results })
       } catch (e) {
         return JSON.stringify({ ok: false, error: e instanceof Error ? e.message : String(e) })
       }
@@ -224,13 +276,36 @@ function makeHttpGet(scope) {
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS)
       try {
-        const res = await fetch(url, {
-          headers: { 'User-Agent': 'agent-builder-copilot' },
-          signal: controller.signal,
-          cache: 'no-store',
-        })
-        const body = await res.text()
-        return JSON.stringify({ ok: true, status: res.status, host, body: truncate(body) })
+        // SSRF guard, part 2: `fetch` follows redirects automatically by default,
+        // which only checks the INITIAL host against the allowlist — a 302 from an
+        // allowed host (e.g. github.com) to an internal target would bypass the
+        // guard entirely. So we disable auto-redirect and walk hops ourselves,
+        // re-validating each `location` host against `allowedHosts` before following it.
+        let current = url
+        for (let hop = 0; hop <= MAX_HTTP_REDIRECTS; hop++) {
+          if (hop === MAX_HTTP_REDIRECTS) {
+            return JSON.stringify({ ok: false, error: 'too many redirects' })
+          }
+          const res = await fetch(current, {
+            headers: { 'User-Agent': 'agent-builder-copilot' },
+            signal: controller.signal,
+            cache: 'no-store',
+            redirect: 'manual',
+          })
+          const isRedirect = [301, 302, 303, 307, 308].includes(res.status)
+          const location = res.headers.get('location')
+          if (isRedirect && location) {
+            const next = new URL(location, current)
+            if (!allowedHosts.includes(next.host)) {
+              return JSON.stringify({ ok: false, error: 'redirect to disallowed host', host: next.host })
+            }
+            current = next.toString()
+            continue
+          }
+          const body = await res.text()
+          return JSON.stringify({ ok: true, status: res.status, host, body: truncate(body) })
+        }
+        return JSON.stringify({ ok: false, error: 'too many redirects' })
       } catch (e) {
         const aborted = e instanceof Error && e.name === 'AbortError'
         return JSON.stringify({ ok: false, error: aborted ? `timeout after ${HTTP_TIMEOUT_MS}ms` : (e instanceof Error ? e.message : String(e)) })
@@ -241,7 +316,7 @@ function makeHttpGet(scope) {
     {
       name: 'http_get',
       description:
-        'HTTP GET a URL whose host is on the copilot\'s allowlist (real fetch) — read-only. Refuses any host not in scope.allowedHosts. Returns { ok, status, body } (body truncated ~8000 chars).',
+        'HTTP GET a URL whose host is on the copilot\'s allowlist (real fetch) — read-only. Refuses any host not in scope.allowedHosts, and re-checks every redirect hop\'s host too. Returns { ok, status, body } (body truncated ~8000 chars).',
       schema: z.object({
         url: z.string().describe('Absolute URL to GET. Its host must be in the copilot\'s allowedHosts, else the call is refused.'),
       }),
@@ -445,8 +520,14 @@ export function buildToolsFromConfig(configTools = []) {
   const tools = []
   const confirmRequired = new Set()
   const toolRisk = {}
+  const seenIds = new Set()
   for (const entry of Array.isArray(configTools) ? configTools : []) {
     if (!entry || typeof entry.id !== 'string') continue
+    // Dedupe by id: a stale config with two entries of the same id would
+    // otherwise mount two tools with the same name, and bindTools would be
+    // handed a duplicate. Only the first occurrence of each id mounts.
+    if (seenIds.has(entry.id)) continue
+    seenIds.add(entry.id)
     const built = buildTool(entry.id, entry.scope)
     if (!built) continue // skip unknown ids rather than crash on a stale config
     tools.push(built)

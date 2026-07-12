@@ -1,12 +1,16 @@
 /**
- * Agent Mission Control — per-project LangGraph assistant lifecycle (server only).
+ * Agent Mission Control — per-project and per-copilot LangGraph assistant
+ * lifecycle (server only).
  *
- * Every Aigent project owns a dedicated ASSISTANT on the shared `agent_builder`
- * graph of the LangGraph Agent Server. An assistant is a named, metadata-tagged
- * configuration of that one graph — so creating N projects yields N distinct
+ * Every Aigent copilot owns a dedicated ASSISTANT on the shared `agent_builder`
+ * graph of the LangGraph Agent Server (see the per-COPILOT section below); every
+ * Aigent project also owns one, as a fallback for legacy rows predating the
+ * per-copilot model. An assistant is a named, metadata-tagged configuration of
+ * that one graph — so creating N copilots (or N projects) yields N distinct
  * entities in LangGraph Studio (each inspectable on its own), while they all
- * still run the single shared graph. Runs for a copilot attached to a project
- * are dispatched against that project's assistant (see runner.ts), not the bare
+ * still run the single shared graph. Runs for a copilot are dispatched against
+ * the copilot's own dedicated assistant first, falling back to the project's
+ * assistant only for legacy rows (see resolve-run-assistant.ts), not the bare
  * graph id.
  *
  * This module owns only the assistant side. Persisting the returned id onto the
@@ -66,7 +70,10 @@ export function assistantIdForCopilot(copilotId: string): string {
 
 /**
  * Create (or reuse) the project's dedicated assistant on the shared
- * `agent_builder` graph and return its `assistant_id`.
+ * `agent_builder` graph and return its `assistant_id`. Since migration 0009,
+ * this is the fallback path for legacy rows: a run resolves the copilot's own
+ * dedicated assistant first (see ensureCopilotAssistant below and
+ * resolve-run-assistant.ts) and only falls back to the project's assistant.
  *
  * Contract:
  *  - graph_id is always the shared `agent_builder` graph (one graph, many
@@ -243,13 +250,15 @@ export async function ensureCopilotAssistant(args: { copilotId: string }): Promi
 
 /**
  * Best-effort delete of a copilot's assistant (rollback of a failed copilot
- * provisioning, and copilot deletion). Never throws — a leftover assistant is
- * inert (it only runs when a copilot points a run at it).
+ * provisioning, and copilot deletion). Takes the resolved `assistant_id` (not a
+ * copilotId) — callers must resolve it first (e.g. via assistantIdForCopilot).
+ * Never throws — a leftover assistant is inert (it only runs when a copilot
+ * points a run at it).
  */
-export async function deleteCopilotAssistant(copilotIdOrAssistantId: string): Promise<boolean> {
+export async function deleteCopilotAssistant(assistantId: string): Promise<boolean> {
   try {
     const c = agentServerClient()
-    await c.assistants.delete(copilotIdOrAssistantId)
+    await c.assistants.delete(assistantId)
     return true
   } catch {
     return false

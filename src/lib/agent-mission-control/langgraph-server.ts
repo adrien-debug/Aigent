@@ -87,6 +87,18 @@ export interface LangGraphServerResult {
 
 const short = (s: string, n = 220): string => (s && s.length > n ? `${s.slice(0, n - 1)}…` : (s ?? ''))
 
+/**
+ * Derive the SDK's `recursion_limit` from the copilot's logical step budget.
+ * Each logical step (agent turn + tool call) is ~2 graph nodes, so the
+ * recursion budget is doubled; capped so a misconfigured maxSteps can't hand
+ * the Agent Server an unbounded run. Returns undefined when maxSteps is
+ * undefined so callers keep the SDK's own default (25) unchanged.
+ */
+function recursionLimitFor(maxSteps: number | undefined): number | undefined {
+  if (maxSteps === undefined) return undefined
+  return Math.min(Math.max(1, maxSteps) * 2, 50)
+}
+
 type AnyMsg = {
   type?: string
   role?: string
@@ -192,23 +204,26 @@ function buildStepsFromMessages(messages: AnyMsg[]): {
  * resume an interrupted run.
  *
  * The run targets `assistantId` when given (the project's dedicated assistant),
- * otherwise `graphId` and otherwise the shared `agent_builder` graph — the SDK's
- * `runs.wait` accepts either an assistant id or a graph id as its 2nd argument.
+ * otherwise the shared `agent_builder` graph — the SDK's `runs.wait` accepts
+ * either an assistant id or a graph id as its 2nd argument.
  */
 export async function runOnAgentServer(args: {
-  /** Optional assistant to run against (project's dedicated assistant). Wins over graphId. */
+  /** Optional assistant to run against (project's dedicated assistant). */
   assistantId?: string
-  graphId?: string
   userInput: string
+  /** Copilot's logical step budget — derives the SDK's recursion_limit (see recursionLimitFor). Omit to keep the SDK default (25). */
+  maxSteps?: number
 }): Promise<LangGraphServerResult> {
   const c = agentServerClient()
-  const target = args.assistantId ?? args.graphId ?? AGENT_BUILDER_GRAPH_ID
+  const target = args.assistantId ?? AGENT_BUILDER_GRAPH_ID
+  const recursionLimit = recursionLimitFor(args.maxSteps)
 
   const thread = await c.threads.create()
   const threadId = thread.thread_id
 
   const result = (await c.runs.wait(threadId, target, {
     input: { messages: [{ role: 'user', content: args.userInput }] },
+    ...(recursionLimit !== undefined ? { config: { recursion_limit: recursionLimit } } : {}),
   })) as { messages?: AnyMsg[]; __interrupt__?: unknown }
 
   // Interrupt path (write/confirm tool paused for approval).
@@ -253,14 +268,16 @@ export async function runOnAgentServer(args: {
  * resuming on the assistant keeps the thread attributed to the project.
  */
 export async function resumeOnAgentServer(args: {
-  /** Optional assistant the run started on (project's dedicated assistant). Wins over graphId. */
+  /** Optional assistant the run started on (project's dedicated assistant). */
   assistantId?: string
-  graphId?: string
   threadId: string
   approved: boolean
+  /** Copilot's logical step budget — derives the SDK's recursion_limit (see recursionLimitFor). Omit to keep the SDK default (25). */
+  maxSteps?: number
 }): Promise<LangGraphServerResult> {
   const c = agentServerClient()
-  const target = args.assistantId ?? args.graphId ?? AGENT_BUILDER_GRAPH_ID
+  const target = args.assistantId ?? AGENT_BUILDER_GRAPH_ID
+  const recursionLimit = recursionLimitFor(args.maxSteps)
 
   // `runs.wait` returns the thread's FULL accumulated message history (pre-pause
   // messages included) — and those pre-pause steps/tool_calls were already
@@ -280,6 +297,7 @@ export async function resumeOnAgentServer(args: {
 
   const result = (await c.runs.wait(args.threadId, target, {
     command: { resume: { approved: args.approved } },
+    ...(recursionLimit !== undefined ? { config: { recursion_limit: recursionLimit } } : {}),
   })) as { messages?: AnyMsg[]; __interrupt__?: unknown }
 
   const allMessages = (result.messages ?? []) as AnyMsg[]

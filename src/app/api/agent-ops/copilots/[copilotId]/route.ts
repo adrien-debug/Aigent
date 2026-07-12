@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { deleteCopilotCascade } from '@/lib/agent-mission-control/authoring-writes'
+import { ensureCopilotAssistant } from '@/lib/agent-mission-control/langgraph-assistants'
 
 /**
  * DELETE /api/agent-ops/copilots/:copilotId — supprime définitivement un
@@ -91,5 +92,23 @@ export async function PATCH(
   if (rows.length === 0) {
     return NextResponse.json({ error: 'copilot not found' }, { status: 404 })
   }
+
+  // project_id changed (bench↔project attach) → the baked assistant config is
+  // now stale (wrong/missing repo tools). Re-provision best-effort: the DB
+  // write already succeeded and is the primary effect, so a re-provision
+  // failure must not fail the whole PATCH — it's surfaced instead so the
+  // operator knows the assistant may still be stale.
+  if ('projectId' in body) {
+    try {
+      await ensureCopilotAssistant({ copilotId })
+    } catch (err) {
+      return NextResponse.json({
+        ok: true,
+        persisted: true,
+        reprovisionWarning: err instanceof Error ? err.message : 'assistant re-provision failed',
+      })
+    }
+  }
+
   return NextResponse.json({ ok: true, persisted: true })
 }
