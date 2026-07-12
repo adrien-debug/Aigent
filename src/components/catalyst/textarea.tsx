@@ -41,8 +41,10 @@ export const Textarea = forwardRef(function Textarea(
           'bg-transparent dark:bg-white/5',
           // Hide default focus styles
           'focus:outline-hidden',
-          // Invalid state
-          'data-invalid:border-red-500 data-invalid:data-hover:border-red-500 dark:data-invalid:border-red-600 dark:data-invalid:data-hover:border-red-600',
+          // Invalid state — accent, not red (monochrome doctrine). Kept distinct
+          // from the neutral resting border (zinc-950/10) and from the accent
+          // focus ring (ring-accent-500) by using a stronger, saturated shade.
+          'data-invalid:border-accent-600 data-invalid:data-hover:border-accent-600 dark:data-invalid:border-accent-500 dark:data-invalid:data-hover:border-accent-500',
           // Disabled state
           'disabled:border-zinc-950/20 dark:disabled:border-white/15 dark:disabled:bg-white/2.5 dark:data-hover:disabled:border-white/15',
           // Resizable

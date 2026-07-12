@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { ManifestRecap } from '@/components/agent-ops/authoring-primitives'
 import { Button } from '@/components/catalyst/button'
-import { Field, Fieldset, Label } from '@/components/catalyst/fieldset'
+import { ErrorMessage, Field, Fieldset, Label } from '@/components/catalyst/fieldset'
 import { Input } from '@/components/catalyst/input'
 import { Select } from '@/components/catalyst/select'
 import { Textarea } from '@/components/catalyst/textarea'
@@ -383,7 +383,7 @@ export function CreateAgentForm({
         </div>
       </Fieldset>
 
-      {error ? <p className="text-sm text-accent-600 dark:text-accent-400">{error}</p> : null}
+      {error ? <ErrorMessage>{error}</ErrorMessage> : null}
 
       <div className="flex items-center justify-end gap-3">
         <Button plain href="/admin/agents">

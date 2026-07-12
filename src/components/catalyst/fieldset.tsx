@@ -85,7 +85,15 @@ export function ErrorMessage({
     <Headless.Description
       data-slot="error"
       {...props}
-      className={clsx(className, 'text-base/6 text-red-600 data-disabled:opacity-50 sm:text-sm/6 dark:text-red-500')}
+      className={clsx(
+        className,
+        // Monochrome doctrine: errors stay in the accent hue, not red. Kept
+        // visually DISTINCT from Description (text-zinc-500) by combining two
+        // levers — accent color + semibold weight — rather than color alone.
+        // accent-700/accent-400 clear WCAG AA (≥4.5:1) on white/zinc-900
+        // respectively; see scripts/check-palette.mjs for the contrast gate.
+        'text-base/6 font-semibold text-accent-700 data-disabled:opacity-50 sm:text-sm/6 dark:text-accent-400'
+      )}
     />
   )
 }
