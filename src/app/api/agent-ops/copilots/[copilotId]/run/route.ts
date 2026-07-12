@@ -3,6 +3,15 @@ import { NextResponse } from 'next/server'
 import { executeCopilotRun } from '@/lib/agent-mission-control/runner'
 import { pgrest } from '@/lib/agent-mission-control/postgrest'
 
+// Default step budget when the manifest carries no usable `max_steps_per_run`.
+// Matches DEFAULT_MAX_STEPS in src/lib/agent-mission-control/copilot-behavior.ts
+// and the legacy graph's `maxSteps: 12` (src/langgraph/agent-builder-graph.mjs).
+// A budget of 1 breaks the direct model-router path: runner.ts derives
+// `maxTurns = Math.max(1, maxSteps)` and loops `for (; turn < maxTurns; …)`,
+// so with maxTurns=1 the loop exits right after executing a tool call on the
+// first turn — the model never gets to read its own tool result.
+const DEFAULT_MAX_STEPS_PER_RUN = 12
+
 /**
  * POST /api/agent-ops/copilots/:copilotId/run — execute a REAL run of a
  * copilot against the live OpenAI model, persisted via the shared runner
@@ -81,7 +90,7 @@ export async function POST(
 
   // 2) Load the serving version, then its manifest.
   let systemPromptSummary = `You are ${copilotRow.name as string}, an autonomous agent.`
-  let maxStepsPerRun = 1
+  let maxStepsPerRun = DEFAULT_MAX_STEPS_PER_RUN
   try {
     const versionRows = await pgrest<Record<string, unknown>[]>(
       'GET',
@@ -101,8 +110,17 @@ export async function POST(
         if (typeof manifestRow.system_prompt_summary === 'string' && manifestRow.system_prompt_summary.length > 0) {
           systemPromptSummary = manifestRow.system_prompt_summary
         }
-        if (typeof manifestRow.max_steps_per_run === 'number') {
-          maxStepsPerRun = manifestRow.max_steps_per_run
+        // Don't trust the DB value blindly: only accept a finite integer >= 1.
+        // 0, negative, NaN, Infinity, or a non-numeric field all fall back to
+        // DEFAULT_MAX_STEPS_PER_RUN rather than reintroducing an absurd budget.
+        const rawMaxSteps = manifestRow.max_steps_per_run
+        if (
+          typeof rawMaxSteps === 'number' &&
+          Number.isFinite(rawMaxSteps) &&
+          Number.isInteger(rawMaxSteps) &&
+          rawMaxSteps >= 1
+        ) {
+          maxStepsPerRun = rawMaxSteps
         }
       }
     }
