@@ -16,6 +16,13 @@ export function AgentSectionCard({
   actions?: React.ReactNode
   children: React.ReactNode
   className?: string
+  /**
+   * Échappatoire au padding canon (`px-6 py-5`) — réservée aux cas où le
+   * contenu porte déjà son propre rythme horizontal, typiquement une
+   * `<Table bleed>` qui a besoin de `px-6 py-4` ou `p-0`. Ne PAS l'utiliser
+   * pour ajuster arbitrairement l'espacement d'un contenu ordinaire : le
+   * défaut `px-6 py-5` est le canon DS.
+   */
   contentClassName?: string
 }) {
   return (
