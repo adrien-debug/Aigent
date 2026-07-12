@@ -141,19 +141,13 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
                     <Switch
                       color="accent"
                       checked={requiresConfirmation}
-                      disabled={forced}
+                      locked={forced}
                       onChange={(checked) => {
                         if (!forced) {
                           setConfirmationState((prev) => ({ ...prev, [tool.id]: checked }))
                           persist(tool.id, { requiresConfirmation: checked })
                         }
                       }}
-                      // A locked-on switch must LOOK on (doctrine): keep the green track, just dim it.
-                      className={
-                        forced
-                          ? 'cursor-not-allowed! data-disabled:opacity-60! data-disabled:data-checked:bg-(--switch-bg)! data-disabled:data-checked:ring-(--switch-bg-ring)! dark:data-disabled:data-checked:bg-(--switch-bg)! dark:data-disabled:data-checked:ring-(--switch-bg-ring)!'
-                          : undefined
-                      }
                       aria-label={`Require confirmation for ${tool.name}`}
                       title={
                         forced

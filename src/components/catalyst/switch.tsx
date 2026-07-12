@@ -75,15 +75,33 @@ type Color = keyof typeof colors
 
 export function Switch({
   color = 'dark/zinc',
+  locked = false,
+  disabled,
   className,
+  title,
   ...props
 }: {
   color?: Color
+  /**
+   * Expresses a "locked-on" state: the switch is ON, non-interactive, but must
+   * NOT read as a regular disabled/dimmed control. Used for permissions that are
+   * always required (e.g. confirmation on high/critical risk tools) — the switch
+   * stays visually "on" and gains a distinct locked affordance instead of fading.
+   * Implies `disabled`; pass `checked` separately as usual.
+   */
+  locked?: boolean
   className?: string
 } & Omit<Headless.SwitchProps, 'as' | 'className' | 'children'>) {
+  const isDisabled = locked || disabled
+
   return (
     <Headless.Switch
       data-slot="control"
+      data-locked={locked ? 'true' : undefined}
+      disabled={isDisabled}
+      aria-disabled={isDisabled || undefined}
+      aria-readonly={locked || undefined}
+      title={title}
       {...props}
       className={clsx(
         className,
@@ -102,9 +120,15 @@ export function Switch({
         // Hover
         'data-hover:ring-black/15 data-hover:data-checked:ring-(--switch-bg-ring)',
         'dark:data-hover:ring-white/25 dark:data-hover:data-checked:ring-(--switch-bg-ring)',
-        // Disabled
-        'data-disabled:bg-zinc-200 data-disabled:opacity-50 data-disabled:data-checked:bg-zinc-200 data-disabled:data-checked:ring-black/5',
-        'dark:data-disabled:bg-white/15 dark:data-disabled:data-checked:bg-white/15 dark:data-disabled:data-checked:ring-white/15',
+        // Disabled (regular): fade out — reads as "off limits"
+        !locked &&
+          'data-disabled:bg-zinc-200 data-disabled:opacity-50 data-disabled:data-checked:bg-zinc-200 data-disabled:data-checked:ring-black/5',
+        !locked &&
+          'dark:data-disabled:bg-white/15 dark:data-disabled:data-checked:bg-white/15 dark:data-disabled:data-checked:ring-white/15',
+        // Locked-on: keep full color (no fade), swap the cursor, add a locked ring
+        // so it reads as "on and locked" rather than "off and unavailable".
+        locked &&
+          'cursor-not-allowed data-disabled:data-checked:bg-(--switch-bg) data-disabled:data-checked:ring-2 data-disabled:data-checked:ring-offset-1 data-disabled:data-checked:ring-(--switch-bg-ring) dark:data-disabled:data-checked:bg-(--switch-bg) dark:data-disabled:data-checked:ring-(--switch-bg-ring)',
         // Color specific styles
         colors[color]
       )}
@@ -123,8 +147,13 @@ export function Switch({
           // Checked
           'group-data-checked:bg-(--switch) group-data-checked:shadow-(--switch-shadow) group-data-checked:ring-(--switch-ring)',
           'group-data-checked:translate-x-4 sm:group-data-checked:translate-x-3',
-          // Disabled
-          'group-data-checked:group-data-disabled:bg-white group-data-checked:group-data-disabled:shadow-sm group-data-checked:group-data-disabled:ring-black/5'
+          // Disabled (regular): flatten the knob to plain white — "off limits"
+          !locked &&
+            'group-data-checked:group-data-disabled:bg-white group-data-checked:group-data-disabled:shadow-sm group-data-checked:group-data-disabled:ring-black/5',
+          // Locked-on: keep the knob in its normal "on" color, add a small lock
+          // glyph baked as a background so the affordance survives at any size.
+          locked &&
+            "group-data-checked:group-data-disabled:bg-(--switch) group-data-checked:group-data-disabled:shadow-(--switch-shadow) group-data-checked:group-data-disabled:ring-(--switch-ring) group-data-checked:group-data-disabled:after:absolute group-data-checked:group-data-disabled:after:inset-0 group-data-checked:group-data-disabled:after:m-auto group-data-checked:group-data-disabled:after:size-2 group-data-checked:group-data-disabled:after:rounded-[1px] group-data-checked:group-data-disabled:after:bg-(--switch-bg) group-data-checked:group-data-disabled:after:content-['']"
         )}
       />
     </Headless.Switch>
