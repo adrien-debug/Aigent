@@ -44,6 +44,7 @@
  * or, wired in package.json:
  *   npm run reprovision
  */
+import { setCopilotAssistantId, setProjectAssistantId } from '../src/lib/agent-mission-control/authoring-writes'
 import { agentServerClient } from '../src/lib/agent-mission-control/langgraph-client'
 import { ensureCopilotAssistant, ensureProjectAssistant } from '../src/lib/agent-mission-control/langgraph-assistants'
 import { pgrest, requireBackend } from '../src/lib/agent-mission-control/postgrest'
@@ -79,6 +80,14 @@ async function reprovisionProjects(): Promise<{ recreated: number; refreshed: nu
 
     const assistantId = await ensureProjectAssistant({ projectId: id, name })
 
+    // Persist the id when the DB doesn't have it (or has a stale one). Without
+    // this the assistant exists on the server but the row still says NULL, so
+    // the run-time cascade can't find it and silently falls back to the bare
+    // graph (no tools) — exactly the bug this script is meant to fix.
+    if (priorAssistantId !== assistantId) {
+      await setProjectAssistantId(id, assistantId)
+    }
+
     if (!priorAssistantId || !wasLive) {
       recreated += 1
       console.log(
@@ -106,6 +115,12 @@ async function reprovisionCopilots(): Promise<{ recreated: number; refreshed: nu
     const wasLive = priorAssistantId ? await assistantExists(priorAssistantId) : false
 
     const assistantId = await ensureCopilotAssistant({ copilotId: id })
+
+    // Same as projects: create the assistant AND write its id back, otherwise
+    // the row stays NULL and the run silently degrades to the bare graph.
+    if (priorAssistantId !== assistantId) {
+      await setCopilotAssistantId(id, assistantId)
+    }
 
     if (!priorAssistantId || !wasLive) {
       recreated += 1
