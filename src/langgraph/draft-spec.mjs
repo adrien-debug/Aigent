@@ -25,7 +25,12 @@ export function buildCopilotDraft(hints = {}) {
     (typeof hints.description === 'string' && hints.description.trim()) ||
     'A new copilot drafted by Agent Builder Copilot, awaiting human review.'
   // langgraph is the only runtime with a real engine — default to it.
-  const suggestedRuntime = (typeof hints.runtime === 'string' && hints.runtime.trim()) || 'langgraph'
+  // Defensive normalisation: the model sometimes hints an off-platform runtime
+  // like 'default' (the prod symptom). That value has no engine here, so coerce
+  // it to 'langgraph'. Shared by both callers (graph + tool-handlers.ts), so the
+  // fix applies to every draft path. Kept trivial: only 'default' is remapped.
+  const runtimeHint = (typeof hints.runtime === 'string' && hints.runtime.trim()) || ''
+  const suggestedRuntime = !runtimeHint || runtimeHint === 'default' ? 'langgraph' : runtimeHint
   const suggestedModel =
     (typeof hints.model === 'string' && hints.model.trim()) || process.env.AGENT_BUILDER_MODEL || DEFAULT_MODEL
 

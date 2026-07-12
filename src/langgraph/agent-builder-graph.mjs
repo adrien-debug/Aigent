@@ -38,8 +38,18 @@ const readProjectSummary = tool(
   },
   {
     name: 'read_project_summary',
-    description: 'Read an existing project summary (name, platform, linked repo) — read-only.',
-    schema: z.object({ projectId: z.string().optional() }),
+    // Behaviour spelled out because the model can't infer it from the shape:
+    // WITHOUT projectId this LISTS every project (with a count); WITH projectId
+    // it returns that one project. Prod bug: an unspecified description made the
+    // model refuse "list the projects" though no-arg already lists them all.
+    description:
+      'List or read projects (name, platform, linked repo) — read-only. Call with NO projectId to LIST ALL projects (returns { count, projects }). Pass a projectId to read just that one project.',
+    schema: z.object({
+      projectId: z
+        .string()
+        .optional()
+        .describe('Omit to list ALL projects; provide an id to read only that project.'),
+    }),
   }
 )
 
@@ -57,8 +67,19 @@ const readCopilotSummary = tool(
   },
   {
     name: 'read_copilot_summary',
-    description: 'Read an existing copilot summary (status, model, health, runtime) — read-only.',
-    schema: z.object({ copilotId: z.string().optional() }),
+    // Behaviour spelled out because the model can't infer it from the shape:
+    // WITHOUT copilotId this LISTS every copilot (with a count); WITH copilotId
+    // it returns that one copilot. Prod bug: with the old vague description the
+    // model answered "I can only read one copilot by id" and refused to list —
+    // even though no-arg lists them ALL (this is the canonical way to count them).
+    description:
+      'List or read copilots (status, model, runtime, health) — read-only. Call with NO copilotId to LIST ALL copilots (returns { count, copilots }) — this is how you enumerate or count them. Pass a copilotId to read just that one copilot.',
+    schema: z.object({
+      copilotId: z
+        .string()
+        .optional()
+        .describe('Omit to list ALL copilots (use this to enumerate/count); provide an id to read only that copilot.'),
+    }),
   }
 )
 
@@ -73,8 +94,18 @@ const readRecentRuns = tool(
   },
   {
     name: 'read_recent_runs',
-    description: "Read a copilot's recent runs (status, cost, latency) — read-only.",
-    schema: z.object({ copilotId: z.string().optional(), limit: z.number().optional() }),
+    // Behaviour spelled out: WITHOUT copilotId this returns the most recent runs
+    // ACROSS ALL copilots; WITH copilotId it returns only that copilot's runs.
+    // `limit` defaults to 5 and is clamped to [1, 20].
+    description:
+      'Read recent agent runs (status, cost, latency) — read-only. Call with NO copilotId to get the most recent runs across ALL copilots; pass a copilotId to get only that copilot\'s runs. Optional limit defaults to 5, max 20. Returns { count, runs }.',
+    schema: z.object({
+      copilotId: z
+        .string()
+        .optional()
+        .describe('Omit for recent runs across all copilots; provide an id to filter to one copilot.'),
+      limit: z.number().optional().describe('How many runs to return. Default 5, clamped to 1–20.'),
+    }),
   }
 )
 
@@ -89,8 +120,17 @@ const readToolPermissions = tool(
   },
   {
     name: 'read_tool_permissions',
-    description: 'Read the tool permission matrix for a copilot (risk, confirmation) — read-only.',
-    schema: z.object({ copilotId: z.string().optional() }),
+    // Behaviour spelled out: unlike the other read tools this one REQUIRES a
+    // copilotId (permissions are always scoped to a single copilot); with no id
+    // it returns an error, so obtain one via read_copilot_summary first.
+    description:
+      'Read the tool permission matrix (risk, enabled, requires-confirmation) for ONE copilot — read-only. REQUIRES a copilotId; without it the call returns an error. Returns { count, requiresConfirmationCount, tools }. To find an id first, call read_copilot_summary with no argument.',
+    schema: z.object({
+      copilotId: z
+        .string()
+        .optional()
+        .describe('REQUIRED — the copilot whose tool permissions to read. Omitting it returns an error.'),
+    }),
   }
 )
 
@@ -110,10 +150,21 @@ const draftCopilotSpec = tool(
     description:
       'Prepare a DRAFT copilot spec (manifest + tools + starter tests/benchmark) for human review. Requires human confirmation before it runs; never persists anything.',
     schema: z.object({
-      name: z.string().optional(),
-      description: z.string().optional(),
-      runtime: z.string().optional(),
-      model: z.string().optional(),
+      name: z.string().optional().describe('Human-readable name for the copilot to draft.'),
+      description: z.string().optional().describe('One-line description of what the copilot does.'),
+      // Field docs steer the model toward the platform's real values. The prod
+      // bug was the model volunteering "default"/"gpt-4.1" hints — off-platform —
+      // when the actual runtime is 'langgraph' and the default model is 'gpt-5.4'.
+      // These are hints only (buildCopilotDraft keeps its own safe defaults if
+      // omitted); no hard enum, so nothing breaks if the model deviates.
+      runtime: z
+        .string()
+        .optional()
+        .describe("Execution runtime. Prefer 'langgraph' (the platform runtime; the only one with a real engine). Omit to default to 'langgraph' — do NOT pass 'default'."),
+      model: z
+        .string()
+        .optional()
+        .describe("Model id. Prefer the platform default 'gpt-5.4'. Omit to use it — do NOT pass legacy ids like 'gpt-4.1'."),
     }),
   }
 )
@@ -135,8 +186,13 @@ const SYSTEM_PROMPT = [
   'You are Agent Builder Copilot, an internal assistant for Agent Mission Control.',
   'You help operators design and prepare FUTURE copilots — safely and controllably.',
   'You CAN read existing projects/copilots/runs/tool-permissions and draft specs, manifests, tools and tests.',
+  // Spell out the list-vs-one behaviour: the model previously refused to list/count
+  // copilots because it assumed an id was required. It is not — calling with no arg lists all.
+  'To enumerate or COUNT things, call the read tool with NO argument: read_project_summary lists all projects, read_copilot_summary lists all copilots, read_recent_runs returns recent runs across all copilots. Pass an id only to narrow to one. (read_tool_permissions is the exception: it REQUIRES a copilotId.)',
   'You CANNOT auto-promote to production, push to external repos, create unconfirmed write tools, or bypass approval.',
   'Prefer least-privilege, read-only proposals. When an action needs confirmation, the tool will pause for human approval.',
+  // Keep drafts on-platform: the runtime is 'langgraph' and the default model is 'gpt-5.4'.
+  "When drafting a copilot, prefer runtime 'langgraph' and model 'gpt-5.4' (the platform defaults). Do NOT propose 'default' as a runtime or legacy models like 'gpt-4.1'.",
 ].join('\n')
 
 const model = new ChatOpenAI({ model: MODEL })
