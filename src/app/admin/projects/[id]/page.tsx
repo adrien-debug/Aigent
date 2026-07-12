@@ -4,9 +4,9 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
+import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ProjectDeleteAction } from '@/components/agent-ops/project-delete-action'
-import { Subheading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { getCopilots, getProject, getRecentRunsForProject } from '@/lib/agent-mission-control/data'
@@ -215,8 +215,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   return (
     <div className="space-y-8">
       <div>
-        {/* Ligne d'orientation compacte — back-link + nom du projet + méta. Breadcrumb discret,
-            la doctrine reste KPI-first : une seule ligne, pas de gros header. */}
+        {/* Ligne d'orientation compacte — back-link + méta du projet (plateforme, repo).
+            Ne porte plus le titre : le H1 vit dans AgentPageHeader ci-dessous (canon DS). */}
         <nav aria-label="Breadcrumb" className="mt-2 flex min-w-0 items-center gap-2 text-xs">
           <Link
             href="/admin/projects"
@@ -227,10 +227,6 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           </Link>
           <span aria-hidden="true" className="text-zinc-500">
             /
-          </span>
-          <Subheading className="truncate">{project.name}</Subheading>
-          <span aria-hidden="true" className="text-zinc-500">
-            ·
           </span>
           <span className="font-mono text-zinc-500">{PROJECT_PLATFORM_LABELS[project.platform]}</span>
           {project.repoUrl && project.repoFullName ? (
@@ -251,14 +247,18 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
               </Link>
             </>
           ) : null}
-          <div className="ml-auto shrink-0">
-            <ProjectDeleteAction project={{ id: project.id, name: project.name }} />
-          </div>
         </nav>
+
+        {/* H1 canon — titre réel du projet, actions (delete) alignées à droite. */}
+        <AgentPageHeader
+          title={project.name}
+          actions={<ProjectDeleteAction project={{ id: project.id, name: project.name }} />}
+          className="mt-3"
+        />
 
         {/* KPI en haut, marge au-dessus = petit header (directive Adrien 2026-07-10) */}
         <AgentKpiBand
-          className="mt-4"
+          className="mt-6"
           stats={[
             {
               name: 'Agents',

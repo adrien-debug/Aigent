@@ -1,8 +1,8 @@
 import { ChevronLeftIcon } from '@heroicons/react/16/solid'
 import { notFound } from 'next/navigation'
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
+import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
 import { CopilotTabs } from '@/components/agent-ops/copilot-tabs'
-import { Subheading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
 import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import { getCopilot } from '@/lib/agent-mission-control/data'
@@ -24,8 +24,9 @@ export default async function CopilotLayout({
 
   return (
     <div>
-      {/* Ligne d'orientation compacte — back-link + nom du copilot. Breadcrumb discret,
-          la doctrine reste KPI-first : une seule ligne, pas de gros header. */}
+      {/* Ligne d'orientation compacte — juste un back-link vers la liste. Le titre de
+          la page vit dans AgentPageHeader ci-dessous (canon DS) : le breadcrumb ne
+          porte plus le H1. */}
       <nav aria-label="Breadcrumb" className="mt-2 flex min-w-0 items-center gap-2 text-xs">
         <Link
           href="/admin/agents"
@@ -34,15 +35,15 @@ export default async function CopilotLayout({
           <ChevronLeftIcon aria-hidden="true" className="size-3.5 shrink-0" />
           Copilots
         </Link>
-        <span aria-hidden="true" className="text-zinc-500">
-          /
-        </span>
-        <Subheading className="truncate">{copilot.name}</Subheading>
       </nav>
+
+      {/* H1 canon — une seule fois pour les 5 sous-pages (page/manifest/runs/tests/versions),
+          ce layout est leur ancêtre commun (directive Adrien 2026-07-12). */}
+      <AgentPageHeader title={copilot.name} className="mt-3" />
 
       {/* KPI au-dessus des menus ; marge au-dessus = petit header (directive Adrien 2026-07-10) */}
       <AgentKpiBand
-        className="mt-4"
+        className="mt-6"
         stats={[
           {
             name: 'Test pass rate',
