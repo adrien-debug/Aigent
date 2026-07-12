@@ -208,6 +208,24 @@ export async function POST(
     // resuming a lost thread 404s. Surface that as an actionable 409 (the run is
     // unrecoverable — relaunch it) rather than a raw 502.
     if (/\b404\b|not found/i.test(message)) {
+      // The run is unrecoverable: it can never be resumed, so it must stop
+      // reporting `needs-confirmation` forever. Close it out as `failed` (no
+      // 'abandoned'/'expired' value exists in the agent_runs status CHECK —
+      // see supabase/migrations/0001_agent_mission_control.sql:142) with an
+      // honest output_summary and a finished_at stamp, so it drops out of
+      // "awaiting approval" views and duration metrics. Best-effort: a
+      // failure to close it must not hide the actionable 409 below.
+      try {
+        await pgrest('PATCH', `agent_runs?id=eq.${encodeURIComponent(runId)}`, {
+          status: 'failed',
+          output_summary:
+            'The approval thread was lost because the Agent Server restarted (in-memory thread state). ' +
+            'This run can never be resumed — relaunch it.',
+          finished_at: new Date().toISOString(),
+        })
+      } catch {
+        // Non-fatal — the 409 below still tells the client the thread is lost.
+      }
       return NextResponse.json(
         { error: 'the approval thread was lost (Agent Server restarted) — relaunch the run', threadLost: true },
         { status: 409 }

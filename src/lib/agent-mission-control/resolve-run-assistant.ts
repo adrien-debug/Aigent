@@ -151,10 +151,18 @@ export async function resolveRunAssistantFromRow(row: {
   const copilotAssistant = nonEmpty(row.assistant_id)
   if (copilotAssistant) {
     const copilotId = nonEmpty(row.id)
-    // Should always be present (every caller loads `id` alongside assistant_id),
-    // but if a caller ever omits it, skip the liveness check rather than crash —
-    // the id is still the best answer we have from the DB cascade.
-    return copilotId ? ensureCopilotAssistantIsLive(copilotId, copilotAssistant) : copilotAssistant
+    // `id` must always be present alongside `assistant_id` — it is what proves
+    // the assistant is still LIVE on the Agent Server (see module header). A
+    // caller whose select omits `id` is a programming error: skipping the
+    // liveness check here would silently reopen the exact hallucination bug
+    // this module exists to close (bare-graph fallback, run still reports
+    // `completed`). Fail loud instead.
+    if (!copilotId) {
+      throw new Error(
+        'resolveRunAssistantFromRow: row.id is required to verify the assistant is live — the caller must select it'
+      )
+    }
+    return ensureCopilotAssistantIsLive(copilotId, copilotAssistant)
   }
 
   const projectId = nonEmpty(row.project_id)
