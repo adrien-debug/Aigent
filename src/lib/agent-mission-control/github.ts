@@ -44,6 +44,108 @@ function pushArmed(): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Defense in depth — input validation for repo / path / ref, applied to every
+// exported function that takes these from an external caller (HTTP routes,
+// future scripts/modules). Callers already catch thrown errors (502 in the
+// HTTP routes) so a thrown Error is a safe, non-breaking failure mode.
+//
+// This exists on top of (not instead of) HTTP-layer validation: even a
+// negligent caller that forgets to validate can't turn getRepoFile/getRepoTree
+// into a universal read oracle over every private repo the server token can
+// see, and can't smuggle query params / secret paths past the GitHub API.
+// ---------------------------------------------------------------------------
+
+const REPO_FULL_NAME_RE = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/
+
+/**
+ * Validate a GitHub "owner/name" full repo name. Strict allowlist charset,
+ * exactly one slash, no path traversal, no query strings, no "@" (which could
+ * be used to smuggle a different host/user in some URL contexts).
+ */
+function assertValidRepoFullName(repoFullName: string): string {
+  if (
+    typeof repoFullName !== 'string' ||
+    !REPO_FULL_NAME_RE.test(repoFullName) ||
+    repoFullName.includes('..') ||
+    repoFullName.includes('@') ||
+    repoFullName.includes('?') ||
+    repoFullName.includes('#')
+  ) {
+    throw new Error('invalid repo (expected owner/name)')
+  }
+  return repoFullName
+}
+
+// Secret/credential-looking repo paths — equivalent denylist to
+// tool-registry.mjs's SECRET_PATH_PATTERNS (kept in sync intentionally; do not
+// modify tool-registry.mjs from here).
+const SECRET_PATH_PATTERNS = [
+  /(^|\/)\.env(\.|$)/i,
+  /\.pem$/i,
+  /(^|\/)id_(rsa|dsa|ecdsa|ed25519)$/i,
+  /(^|[/._-])secrets?([/._-]|$)/i,
+  /\.key$/i,
+  /(^|\/)credentials(\.|$)/i,
+  /\.pfx$/i,
+  /\.p12$/i,
+]
+
+function isSecretPath(p: string): boolean {
+  return SECRET_PATH_PATTERNS.some((re) => re.test(p))
+}
+
+/**
+ * Validate + normalize a repo-relative path coming from an external caller.
+ * Strips a leading slash, rejects traversal ("..") and secret/credential-
+ * looking paths. Throws on rejection rather than silently coercing.
+ */
+function assertSafeRepoPath(path: string): string {
+  if (typeof path !== 'string') {
+    throw new Error('invalid path')
+  }
+  const cleanPath = path.replace(/^\/+/, '')
+  const segments = cleanPath.split('/')
+  if (segments.some((seg) => seg === '..')) {
+    throw new Error('invalid path: traversal ("..") is not allowed')
+  }
+  if (isSecretPath(cleanPath)) {
+    throw new Error('refused: this path looks like a secret/credential file and cannot be read')
+  }
+  return cleanPath
+}
+
+/**
+ * Validate an optional git ref (branch/tag/sha). Applies the same charset
+ * discipline as a repo name segment plus "/" (branches like "feat/x") and "."
+ * (tags like "v1.2.3"), while still rejecting traversal and query/fragment
+ * injection.
+ */
+function assertValidRef(ref: string): string {
+  if (
+    typeof ref !== 'string' ||
+    ref.length === 0 ||
+    ref.includes('..') ||
+    ref.includes('?') ||
+    ref.includes('#') ||
+    ref.includes('@{') ||
+    /[^A-Za-z0-9._/-]/.test(ref)
+  ) {
+    throw new Error('invalid ref')
+  }
+  return ref
+}
+
+/** Encode a repo-relative path segment-by-segment (not encodeURI: that lets
+ * `? # : @` through, which can inject query params into the Contents API). */
+function encodeRepoPath(path: string): string {
+  return path
+    .split('/')
+    .filter((seg) => seg.length > 0)
+    .map(encodeURIComponent)
+    .join('/')
+}
+
+// ---------------------------------------------------------------------------
 // Public shapes
 // ---------------------------------------------------------------------------
 
@@ -102,7 +204,8 @@ async function gh<T = unknown>(
 
 /** GET the repo's default branch name (read-only). */
 async function getDefaultBranch(repoFullName: string): Promise<string> {
-  const repo = await gh<{ default_branch: string }>('GET', `repos/${repoFullName}`)
+  const safeRepo = assertValidRepoFullName(repoFullName)
+  const repo = await gh<{ default_branch: string }>('GET', `repos/${safeRepo}`)
   return repo.default_branch
 }
 
@@ -200,13 +303,14 @@ export async function getRepoTree(
   repoFullName: string,
   ref?: string
 ): Promise<RepoTreeEntry[]> {
-  const resolvedRef = ref ?? (await getDefaultBranch(repoFullName))
+  const safeRepo = assertValidRepoFullName(repoFullName)
+  const resolvedRef = ref !== undefined ? assertValidRef(ref) : await getDefaultBranch(safeRepo)
   const data = await gh<{
     truncated?: boolean
     tree?: { path: string; type: string; size?: number }[]
   }>(
     'GET',
-    `repos/${repoFullName}/git/trees/${encodeURIComponent(resolvedRef)}?recursive=1`
+    `repos/${safeRepo}/git/trees/${encodeURIComponent(resolvedRef)}?recursive=1`
   )
 
   const tree = data.tree ?? []
@@ -234,16 +338,18 @@ export async function getRepoFile(
   path: string,
   ref?: string
 ): Promise<RepoFileContent> {
-  const cleanPath = path.replace(/^\/+/, '')
-  const encodedPath = cleanPath.split('/').map(encodeURIComponent).join('/')
-  const query = ref ? `?ref=${encodeURIComponent(ref)}` : ''
+  const safeRepo = assertValidRepoFullName(repoFullName)
+  const cleanPath = assertSafeRepoPath(path)
+  const encodedPath = encodeRepoPath(cleanPath)
+  const safeRef = ref !== undefined ? assertValidRef(ref) : undefined
+  const query = safeRef ? `?ref=${encodeURIComponent(safeRef)}` : ''
 
   const data = await gh<{
     type: string
     path: string
     content?: string
     encoding?: string
-  }>('GET', `repos/${repoFullName}/contents/${encodedPath}${query}`)
+  }>('GET', `repos/${safeRepo}/contents/${encodedPath}${query}`)
 
   if (data.type !== 'file') {
     throw new Error(`not a file: ${cleanPath} (type: ${data.type})`)
@@ -573,7 +679,7 @@ export async function pushAgentToRepo(args: PushAgentArgs): Promise<PushResult> 
 
   const scaffolded = scaffoldAgentFiles(copilot, manifest)
   const files = scaffolded.map((f) => f.path)
-  const repoFullName = project.repoFullName
+  const repoFullName = assertValidRepoFullName(project.repoFullName)
 
   // Double safety: dry-run unless explicitly disabled AND the env is armed.
   const wouldPush = !dryRun && pushArmed()
