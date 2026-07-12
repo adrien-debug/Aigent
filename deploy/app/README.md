@@ -8,7 +8,7 @@ This directory contains:
 | File | Purpose |
 |------|---------|
 | `Dockerfile` | Multi-stage build — `next build` (standalone output) then a minimal runtime image. |
-| `docker-compose.yml` | Single-service compose (`app`) with env, port, healthcheck, `restart: always`. |
+| `docker-compose.yml` | **Two services**: `app` (env, port, healthcheck, `restart: always`) and `reprovision` (see below). |
 | `README.md` | This file. |
 
 ---
@@ -63,3 +63,32 @@ Cloudflare tunnel (aigent.hearst.app) ──▶ 127.0.0.1:8099 ──▶ [app:30
 ```bash
 curl -sf http://127.0.0.1:8099/login && echo "  <- app up"
 ```
+
+## The `reprovision` service — assistants are in-memory on the Agent Server
+
+`docker-compose.yml` in this directory also brings up a second, long-running
+service: `reprovision` (container `aigent-reprovision`). It runs `npm run
+reprovision`'s underlying script once at boot, then repeats every
+`REPROVISION_INTERVAL_SECONDS` (default 900s / 15 min) for as long as the
+stack is up. Full explanation of WHY this exists (the Agent Server
+(`deploy/langgraph`) forgets every provisioned assistant on restart, silently
+degrading runs to a bare tool-less graph that hallucinates and still reports
+`completed`) lives in `deploy/langgraph/README.md`, section "Assistants are
+in-memory too — the traitorous failure mode" — read that before touching
+either compose file.
+
+Quick facts:
+- Talks to the Agent Server **directly** over `nexus-net`
+  (`http://aigent-langgraph:2024` by default, override via
+  `LANGGRAPH_REPROVISION_URL`) rather than through the public tunnel, so it
+  doesn't depend on Cloudflare being up.
+- Best-effort: a failed pass does NOT crash the loop or block `app` (`app`
+  does not `depends_on` it) — it logs loudly and retries next interval.
+- Its own Docker healthcheck goes `unhealthy` once the last successful pass
+  is older than 2× the interval — check `docker inspect aigent-reprovision
+  --format '{{.State.Health.Status}}'` (or `docker compose ps`) after any
+  deploy or Agent Server restart.
+- Built from the SAME Dockerfile/context as `app`, targeting the `builder`
+  stage (has `scripts/`, `src/`, full `node_modules`) instead of `runner`
+  (pruned standalone output, no `scripts/`) — no extra build cost beyond the
+  first build since the layers are shared.

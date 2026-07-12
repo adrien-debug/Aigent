@@ -214,12 +214,69 @@ per execution, depending on tool-call loops) consume OpenAI API credits.
 Iterating on a draft or hand-testing a copilot repeatedly is not free — treat
 both as real usage, not sandboxed/mocked interactions.
 
-## 9. Known limitation — in-memory thread state
+## 9. Known limitation — in-memory thread state AND in-memory assistants
 
-The dev LangGraph Agent Server (`langgraphjs dev`) keeps thread state **in
-memory**. Restarting it drops all threads, so a run left in
+The dev LangGraph Agent Server (`langgraphjs dev`) keeps **both** thread state
+and provisioned assistants **in memory**. These are two separate failure
+modes — read both.
+
+### 9a. Threads (loud failure — safe)
+
+Restarting the Agent Server drops all threads, so a run left in
 `needs-confirmation` becomes unresumable: `POST …/runs/[runId]/resume` detects
 the lost thread (a 404 from the server) and returns **409** with
 `threadLost: true` and the message *"the approval thread was lost (Agent Server
 restarted) — relaunch the run"*. Relaunch the run to get a fresh, resumable
-thread.
+thread. This failure is loud and correctly reported — nothing to fix here, it
+is just a UX consequence of the free `langgraphjs dev` server having no
+Postgres/Redis backing (see `deploy/langgraph/README.md`'s persistence
+section: a Docker volume over `.langgraph_api` mitigates this in production
+by persisting the checkpoint/thread files across container restarts).
+
+### 9b. Assistants (silent failure — the traitorous one)
+
+**Provisioned assistants** (per-project / per-copilot, created via
+`ensureProjectAssistant` / `ensureCopilotAssistant` in
+`src/lib/agent-mission-control/langgraph-assistants.ts`, each carrying its own
+`config.configurable` — tools, system prompt, behaviour) are **also
+in-memory-only** on the Agent Server. Unlike threads, **the persistent
+`.langgraph_api` Docker volume used in production does NOT save them either**
+— verified by inspecting its contents
+(`.langgraphjs_api.checkpointer.json`, `.langgraphjs_api.store.json`,
+`.langgraphjs_ops.json`): none contain `assistant_id`. A server restart wipes
+every assistant while the `aigent` Postgres (`projects.assistant_id` /
+`copilots.assistant_id`) keeps pointing at the now-vanished ids.
+
+**Why this is worse than 9a:** a run against a vanished assistant id does
+*not* fail loudly by default. Historically the dispatch path swallowed the
+404 and fell back to the **bare `agent_builder` graph with `config: {}`** —
+no tools mounted — and the model **hallucinated** (observed: a copilot
+invented a GitHub repo's contents from nothing) while the run still reported
+**`completed`**. No error, no failed status — just a confidently wrong
+answer nobody was warned about.
+
+**The two mitigations (already wired, do not reimplement):**
+
+1. **`src/lib/agent-mission-control/resolve-run-assistant.ts`** — the single
+   place every run path resolves "which assistant does this run target?".
+   Before returning an id, it verifies the assistant is live on the Agent
+   Server and **re-provisions it on the spot** if it's gone (same
+   deterministic id, current config). If re-provisioning itself fails, the
+   error now propagates loudly instead of falling through to the bare graph.
+   This closes the silent-hallucination hole at request time, at the cost of
+   extra latency on the first run after a restart.
+2. **`scripts/reprovision-assistants.ts`** (`npm run reprovision`) — bulk,
+   idempotent re-provisioning of every project's and copilot's assistant,
+   persisting ids back to Postgres. Safe to run any time.
+
+**Production operational procedure:** `deploy/app/docker-compose.yml` wires
+mitigation 2 to run **automatically** via its `reprovision` service — once at
+boot (after waiting for PostgREST + the Agent Server to be reachable) and then
+every `REPROVISION_INTERVAL_SECONDS` (default 15 min) for as long as the
+stack is up, with its own Docker healthcheck that goes `unhealthy` once the
+last successful pass is stale (2× the interval) — see
+`deploy/langgraph/README.md`'s "Assistants are in-memory too" section for the
+full mechanism. **If the Agent Server is ever restarted outside of a full
+app redeploy** (e.g. `docker compose -f deploy/langgraph/docker-compose.yml
+restart agent-server`), either wait for the next automatic reconciliation
+pass or run `npm run reprovision` by hand immediately to close the window.

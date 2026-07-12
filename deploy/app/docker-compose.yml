@@ -83,6 +83,150 @@ services:
       retries: 5
       start_period: 40s
 
+  # --- Boot-time + periodic re-provisioning (fixes the "assistants are
+  # in-memory on the Agent Server" problem — see docs/agent-authoring.md §9
+  # and deploy/langgraph/README.md "Assistants are in-memory too"). ---
+  #
+  # `langgraphjs dev` (deploy/langgraph) forgets every provisioned assistant
+  # on restart while the DB (`projects.assistant_id` / `copilots.assistant_id`)
+  # keeps pointing at the now-vanished ids. `resolve-run-assistant.ts` already
+  # guards this AT RUN TIME (re-provisions on the fly if the target assistant
+  # is missing), but that means the FIRST run after every restart pays the
+  # re-provision latency inline, and nobody is WARNED that a restart even
+  # happened until a run hits it. This service does the same reconciliation
+  # proactively: once right after boot, then again every
+  # REPROVISION_INTERVAL_SECONDS (default 15 min) for as long as the stack is
+  # up — so (a) steady-state runs never hit the on-the-fly path, and (b) an
+  # Agent Server restart that happens WITHOUT the app itself restarting (e.g.
+  # `docker compose -f deploy/langgraph/docker-compose.yml restart
+  # agent-server`) is caught within one interval instead of silently waiting
+  # for the next user-triggered run to notice.
+  #
+  # This doubles as the "healthcheck that detects the incoherence" (see the
+  # `healthcheck:` block below): every pass touches /tmp/reprovision-ok with
+  # the current time on SUCCESS ONLY, so the healthcheck can assert "a
+  # reconciliation pass succeeded recently" — the same signal an operator
+  # would want ("assistants are known-good as of <time>"), without building a
+  # separate DB-vs-server diff prober.
+  #
+  # Long-running, not one-shot: `restart: always`, matching `app`/`caddy`. A
+  # single FAILED pass MUST NOT crash the loop or block the app: `app` does
+  # not `depends_on` this service, and the loop itself catches a failing
+  # `npm run reprovision` and continues to the next interval instead of
+  # exiting — but it prints loudly (see scripts/reprovision-assistants.ts's
+  # own fail-closed checks) AND lets the container healthcheck go unhealthy
+  # (visible via `docker ps` / `docker inspect`), so an operator notices
+  # instead of silently limping on stale assistants.
+  reprovision:
+    build:
+      context: ../..
+      dockerfile: deploy/app/Dockerfile
+      # Target the `builder` stage, not `runner`: it's the only stage that
+      # still has scripts/, src/, and full node_modules (incl. tsx, a
+      # devDependency `npm ci` installs) — exactly what `npm run reprovision`
+      # needs. The `runner` stage is a pruned standalone build and does not
+      # carry scripts/ at all. Reuses the SAME cached layers as the `app`
+      # build (identical context + Dockerfile up to this stage), so this
+      # costs nothing extra beyond the first build.
+      target: builder
+    image: aigent-app-builder:local
+    container_name: aigent-reprovision
+    restart: always
+
+    environment:
+      # --- Live data backend (same perimeter as `app`) ---
+      AMC_DATA_SOURCE: ${AMC_DATA_SOURCE:-gpu1}
+      AMC_SUPABASE_URL: ${AMC_SUPABASE_URL:?set AMC_SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?set SUPABASE_SERVICE_ROLE_KEY}
+
+      # --- Agent Server: talk to it DIRECTLY over nexus-net (not through the
+      # Cloudflare tunnel / Caddy front) — faster and doesn't depend on the
+      # tunnel being up. This intentionally does NOT reuse `app`'s
+      # LANGGRAPH_API_URL default (https://agent.hearst.app): at boot, the
+      # in-container hostname is always reachable if the langgraph compose
+      # stack is up, whereas the public hostname depends on the tunnel too.
+      LANGGRAPH_API_URL: ${LANGGRAPH_REPROVISION_URL:-http://aigent-langgraph:2024}
+      LANGGRAPH_SERVER_SECRET: ${LANGGRAPH_SERVER_SECRET:?set LANGGRAPH_SERVER_SECRET}
+
+      # How often to re-run the reconciliation after the first (boot) pass.
+      REPROVISION_INTERVAL_SECONDS: ${REPROVISION_INTERVAL_SECONDS:-900}
+
+    networks:
+      - nexus-net
+
+    # `npm run reprovision` is `node --env-file=.env.local tsx ...` — but
+    # there is no .env.local in this image (secrets come from `environment:`
+    # above instead, same as `app`). Invoke tsx directly, skipping
+    # --env-file=.env.local (a missing file would make `node --env-file`
+    # hard-fail); process.env already has everything the script needs.
+    #
+    # Loop: wait for PostgREST (aigent-caddy:8095) + Agent Server
+    # (aigent-langgraph:2024/ok) to be reachable (up to ~5 min, 60 tries /
+    # 5s), run `npm run reprovision`, stamp /tmp/reprovision-ok on success,
+    # sleep REPROVISION_INTERVAL_SECONDS, repeat forever. A failed pass logs
+    # loudly and retries on the NEXT interval rather than exiting — the
+    # container stays up so `docker logs -f aigent-reprovision` keeps
+    # surfacing the failure, and the healthcheck below goes unhealthy once
+    # the stamp goes stale.
+    #
+    # NOTE on `$`: docker compose interpolates `$VAR`/`${VAR}` in string
+    # values BEFORE the shell ever sees them (same as the ${FOO:?...} env
+    # entries above). Every `$` meant for the shell below (not for compose)
+    # MUST be escaped as `$$`, including inside single-quoted node -e
+    # strings — compose does not know about shell quoting, it just scans the
+    # literal text. Verified with `docker compose config`.
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        set -e
+        wait_for_deps() {
+          i=0
+          until node -e "fetch('http://aigent-caddy:8095/').then(r=>process.exit(r.status?0:1)).catch(()=>process.exit(1))" >/dev/null 2>&1 \
+             && node -e "fetch('http://aigent-langgraph:2024/ok').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" >/dev/null 2>&1; do
+            i=$$((i+1))
+            if [ "$$i" -ge 60 ]; then
+              echo "[reprovision] FAILED: PostgREST and/or Agent Server never became reachable after 5 minutes." >&2
+              return 1
+            fi
+            sleep 5
+          done
+          return 0
+        }
+        echo "[reprovision] starting reconciliation loop (every $${REPROVISION_INTERVAL_SECONDS}s)..."
+        while true; do
+          echo "[reprovision] waiting for PostgREST (aigent-caddy:8095) and Agent Server (aigent-langgraph:2024/ok)..."
+          if wait_for_deps && npx -y tsx --conditions=react-server scripts/reprovision-assistants.ts; then
+            date +%s > /tmp/reprovision-ok
+            echo "[reprovision] OK — assistants reconciled."
+          else
+            echo "[reprovision] PASS FAILED — assistants were NOT re-provisioned this cycle." >&2
+            echo "[reprovision] The app may fall back to on-the-fly re-provisioning on the next run" >&2
+            echo "[reprovision] (see resolve-run-assistant.ts), or hallucinate if that guard is ever" >&2
+            echo "[reprovision] bypassed. Retrying in $${REPROVISION_INTERVAL_SECONDS}s. Run 'npm run" >&2
+            echo "[reprovision] reprovision' by hand to retry immediately." >&2
+          fi
+          sleep "$${REPROVISION_INTERVAL_SECONDS}"
+        done
+
+    healthcheck:
+      # Unhealthy when the last SUCCESSFUL pass is older than 2x the interval
+      # (default 30 min) — i.e. at least one full cycle was missed/failed.
+      # This is the "detect DB-points-at-a-dead-assistant" signal from the
+      # operational side: `docker ps` / `docker inspect
+      # aigent-reprovision --format '{{.State.Health.Status}}'` goes
+      # `unhealthy` BEFORE a user hits a hallucinated response, instead of
+      # only finding out from a bad chat reply.
+      test:
+        - CMD
+        - sh
+        - -c
+        - |
+          [ -f /tmp/reprovision-ok ] && [ $$(( $$(date +%s) - $$(cat /tmp/reprovision-ok) )) -lt $$(( ${REPROVISION_INTERVAL_SECONDS:-900} * 2 )) ]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 300s
+
 networks:
   nexus-net:
     external: true

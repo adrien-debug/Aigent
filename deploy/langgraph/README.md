@@ -80,14 +80,25 @@ CMD ["npx", "langgraphjs", "dev", "--no-browser", "--host", "0.0.0.0", "--port",
 
 The `langgraphjs dev` server's checkpointer is `InMemorySaver` **persisted to
 a JSON file on disk** — `/app/.langgraph_api/.langgraphjs_api.checkpointer.json`.
-Threads, runs and assistants are likewise stored as files under
-`.langgraph_api/`. There is no Postgres/Redis involved.
+Threads and runs are likewise stored as files under `.langgraph_api/`
+(`.langgraphjs_api.store.json`, `.langgraphjs_ops.json`). There is no
+Postgres/Redis involved.
 
 **Consequence:** to make paused runs survive a restart, mount a **persistent
 volume** over `/app/.langgraph_api`. That is exactly what the `Dockerfile`
 (`VOLUME`) and `docker-compose.yml` (named volume
 `aigent_langgraph_state → /app/.langgraph_api`) do. **This is the supported,
-working persistence path for this deployment.**
+working persistence path for this deployment — for threads/runs/checkpoints.**
+
+> **Assistants are NOT covered by this volume — verified.** Inspecting the
+> volume's contents (`.langgraphjs_api.checkpointer.json`,
+> `.langgraphjs_api.store.json`, `.langgraphjs_ops.json`) shows none of them
+> contain `assistant_id`. Assistants (the provisioned, per-project/per-copilot
+> configs created via `ensureProjectAssistant` / `ensureCopilotAssistant`) live
+> **purely in the server process's memory** — the volume does not save them,
+> so they do NOT survive a restart. See the dedicated section below
+> ("Assistants are in-memory too — the traitorous failure mode") for the
+> consequence and the two mitigations already wired for it.
 
 > **Note — the official prod-HA path is different and unused here.** LangGraph
 > Platform ships a **licensed self-hosted server** (what `langgraphjs up`
@@ -101,6 +112,97 @@ working persistence path for this deployment.**
 > volume, that means either switching to the licensed image + a license key,
 > or wiring a custom graph-level Postgres checkpointer inside
 > `src/langgraph/*` (a code change, out of scope for this deploy folder).
+
+---
+
+## Assistants are in-memory too — the traitorous failure mode
+
+This is a **separate limitation from thread/checkpoint persistence above** —
+easy to conflate, so read this even if you already know the volume persists
+threads. **Assistants do not survive an Agent Server restart, and the volume
+does nothing to help.**
+
+### The mechanism
+
+`langgraphjs dev` keeps every **provisioned assistant** (the per-project and
+per-copilot configs created via `ensureProjectAssistant` /
+`ensureCopilotAssistant` — each with a deterministic id and a
+`config.configurable` carrying its tools/behaviour) **in the server process's
+memory only**. Restarting the container (deploy, crash, `docker restart`,
+host reboot) wipes every assistant the process ever provisioned. Meanwhile the
+`aigent` Postgres (`projects.assistant_id` / `copilots.assistant_id`) still
+holds the old ids — nothing tells the DB the server forgot them.
+
+### The symptom — why this is worse than an obvious error
+
+A run against a vanished assistant id does **not** show up as an obvious
+failure. Historically (before the mitigation below existed) the dispatch path
+swallowed the 404 and silently fell back to the **bare `agent_builder` graph
+with `config: {}`** — zero tools mounted. The model then **hallucinates**
+(observed in practice: a copilot invented the contents of a GitHub repo it was
+never given access to read) and the run still reports **`completed`**. No
+error, no failed status, no log an operator would notice — just a
+confidently wrong answer. This is the traitorous case: everything LOOKS fine.
+
+### The two mitigations (already wired, do not reimplement)
+
+1. **`src/lib/agent-mission-control/resolve-run-assistant.ts`** — the single
+   place every run path (runner, test-runner, resume route) resolves "which
+   assistant does this run target?". Before handing an id back, it verifies
+   the assistant is still live on the Agent Server
+   (`client.assistants.get`), and if it's gone, **re-provisions it on the
+   spot** at the same deterministic id with the current config. If
+   re-provisioning itself fails, the error now **propagates loudly** — a run
+   can no longer silently fall through to the bare graph. This closes the
+   silent-hallucination hole at request time, but the FIRST run after every
+   restart still pays the re-provision latency inline.
+2. **`scripts/reprovision-assistants.ts`** (`npm run reprovision`) — bulk,
+   idempotent re-provisioning of every project's and copilot's assistant
+   against the live Agent Server, persisting ids back to Postgres. Safe to run
+   any time (`ifExists: 'do_nothing'` + unconditional config `update`), not
+   just after a restart.
+
+### Production operational procedure
+
+**This deploy wires mitigation 2 to run automatically — see
+`deploy/app/docker-compose.yml`'s `reprovision` service.** It:
+
+- runs `npm run reprovision`'s underlying script **once at boot**, after
+  waiting for both dependencies to be reachable (PostgREST at
+  `aigent-caddy:8095`, this Agent Server's `/ok` at `aigent-langgraph:2024`)
+  — so a restart of either stack is reconciled proactively, before the first
+  real run pays the on-the-fly latency;
+- **repeats every `REPROVISION_INTERVAL_SECONDS`** (default 900s / 15 min)
+  for as long as the stack runs, so an Agent Server restart that happens
+  *without* the app container restarting (e.g. `docker compose -f
+  deploy/langgraph/docker-compose.yml restart agent-server`) is caught within
+  one interval instead of waiting for a user to hit it;
+- exposes its own health as a **Docker healthcheck**: `docker inspect
+  aigent-reprovision --format '{{.State.Health.Status}}'` goes `unhealthy`
+  once the last successful pass is older than 2× the interval — i.e. this is
+  the closest thing to "detect DB-points-at-a-dead-assistant before a user
+  does" available without a separate DB-vs-server diff prober. Check it
+  alongside `docker compose ps` after any deploy.
+
+**Manual fallback / immediate re-sync** (bypass the interval, e.g. right after
+you notice a restart or before a demo): from the repo root, with
+`.env.local` populated (`AMC_DATA_SOURCE=gpu1`, `AMC_SUPABASE_URL`,
+`SUPABASE_SERVICE_ROLE_KEY`, `LANGGRAPH_API_URL`, `LANGGRAPH_SERVER_SECRET`):
+
+```bash
+npm run reprovision
+```
+
+or, against the running containers on gpu1 directly:
+
+```bash
+docker logs -f aigent-reprovision   # watch the reconciliation loop
+```
+
+If you ever restart `agent-server` (`deploy/langgraph`) OUTSIDE of a full
+redeploy of `deploy/app`, do not assume the app knows — either wait for the
+next `reprovision` interval, or run `npm run reprovision` by hand
+immediately.
 
 ---
 
