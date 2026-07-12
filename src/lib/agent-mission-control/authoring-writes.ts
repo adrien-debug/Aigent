@@ -13,7 +13,11 @@
 import 'server-only'
 
 import type { CreateCopilotInput } from './authoring-types'
-import { deleteProjectAssistant } from './langgraph-assistants'
+import {
+  assistantIdForCopilot,
+  deleteCopilotAssistant,
+  deleteProjectAssistant,
+} from './langgraph-assistants'
 import { pgrest, requireBackend } from './postgrest'
 import { makeId, slugify } from './slug'
 import type { TestSuite } from './types'
@@ -153,6 +157,19 @@ export async function createCopilotFromManifest(input: CreateCopilotInput): Prom
   return copilotId
 }
 
+/**
+ * Persist the copilot's dedicated LangGraph assistant id onto its row. Split
+ * from createCopilotFromManifest because the assistant is created on the Agent
+ * Server AFTER the copilot + its manifest + tools exist (the assistant's
+ * config.configurable is DERIVED from them) — the route calls
+ * createCopilotFromManifest → ensureCopilotAssistant → setCopilotAssistantId in
+ * order. Mirrors setProjectAssistantId. Fail-closed.
+ */
+export async function setCopilotAssistantId(copilotId: string, assistantId: string): Promise<void> {
+  requireBackend()
+  await pgrest<RawRow[]>('PATCH', `copilots?${eq('id', copilotId)}`, { assistant_id: assistantId })
+}
+
 // ---------------------------------------------------------------------------
 // createTestSuiteWithCases — materialize a test suite + its cases
 // ---------------------------------------------------------------------------
@@ -285,11 +302,26 @@ export async function setProjectAssistantId(projectId: string, assistantId: stri
 // (The `eq` filter helper is defined at the top of this module.)
 // ---------------------------------------------------------------------------
 
-/** Delete a copilot; the DB cascades every dependent row. */
+/**
+ * Delete a copilot; the DB cascades every dependent row. Its dedicated LangGraph
+ * assistant (0009) is torn down first (best-effort — a leftover assistant is
+ * inert but would clutter Studio). The assistant id is deterministic (v5 of the
+ * copilotId), so we can delete it even if the row's assistant_id column is null
+ * (e.g. rollback of a copilot whose id was never persisted back).
+ */
 export async function deleteCopilotCascade(copilotId: string): Promise<boolean> {
   requireBackend()
-  const existing = await pgrest<{ id: string }[]>('GET', `copilots?select=id&${eq('id', copilotId)}`)
+  const existing = await pgrest<{ id: string; assistant_id: string | null }[]>(
+    'GET',
+    `copilots?select=id,assistant_id&${eq('id', copilotId)}`
+  )
   if (existing.length === 0) return false
+
+  // Tear down the copilot's assistant. Prefer the persisted id; fall back to the
+  // deterministic v5 id so a rollback before the id was persisted still cleans up.
+  const assistantId = existing[0].assistant_id ?? assistantIdForCopilot(copilotId)
+  await deleteCopilotAssistant(assistantId)
+
   await pgrest('DELETE', `copilots?${eq('id', copilotId)}`)
   return true
 }
@@ -314,9 +346,11 @@ export async function deleteProjectCascade(projectId: string): Promise<boolean> 
   const assistantId = existing[0].assistant_id
   if (assistantId) await deleteProjectAssistant(assistantId)
 
+  // Route each copilot through deleteCopilotCascade so its dedicated assistant
+  // (0009) is torn down too — a bare DELETE would leak the assistant.
   const copilots = await pgrest<{ id: string }[]>('GET', `copilots?select=id&${eq('project_id', projectId)}`)
   for (const copilot of copilots) {
-    await pgrest('DELETE', `copilots?${eq('id', copilot.id)}`)
+    await deleteCopilotCascade(copilot.id)
   }
   await pgrest('DELETE', `projects?${eq('id', projectId)}`)
   return true

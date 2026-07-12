@@ -32,6 +32,7 @@ import { getTraceUrl, newTraceId } from './langsmith'
 import { runOnAgentServer } from './langgraph-server'
 import { routeCompletion } from './model-router'
 import { pgrest } from './postgrest'
+import { resolveRunAssistantFromRow } from './resolve-run-assistant'
 import { NotFoundError } from './runner-errors'
 import type {
   IsoTimestamp,
@@ -93,20 +94,6 @@ async function resolveVersionId(
   if (versionRows.length === 0) throw new NotFoundError(`version not found: ${versionId}`)
 
   return versionId
-}
-
-/**
- * Resolve the project's dedicated LangGraph assistant id (same PostgREST
- * perimeter). Mirrors runner.ts:loadProjectAssistantId — a short local copy is
- * kept here (rather than importing runner.ts) to avoid pulling the whole run
- * engine into the test-runner module. A copilot on the bench (project_id null)
- * or a legacy project (assistant_id null) resolves to undefined, so
- * runOnAgentServer falls back to the shared `agent_builder` graph id.
- */
-async function loadProjectAssistantId(projectId: string): Promise<string | undefined> {
-  const rows = await pgrest<RawRow[]>('GET', `projects?id=eq.${encodeURIComponent(projectId)}&select=assistant_id`)
-  const assistantId = rows[0]?.assistant_id
-  return typeof assistantId === 'string' && assistantId.length > 0 ? assistantId : undefined
 }
 
 async function loadSuiteCases(suiteId: string): Promise<TestCase[]> {
@@ -338,12 +325,12 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
   const judgeModel = (copilotRow.model as string | null) ?? ''
   const judgeProvider = ((copilotRow.model_provider as ModelProvider | null) ?? 'openai') as ModelProvider
 
-  // Resolve the project's dedicated assistant ONCE (not per case) so every case
-  // runs against the same project assistant on the shared agent_builder graph.
-  // A bench copilot (project_id null) → undefined → runOnAgentServer falls back
-  // to the shared graph id.
-  const projectId = copilotRow.project_id as string | null
-  const assistantId = projectId ? await loadProjectAssistantId(projectId) : undefined
+  // Resolve the run assistant ONCE (not per case) via the shared cascade: the
+  // copilot's OWN assistant (0009, behaviour config) first, then the project's
+  // assistant (0008), then undefined → shared agent_builder graph id inside
+  // runOnAgentServer. copilotRow was loaded with select=* so it already carries
+  // assistant_id + project_id — no extra copilots select.
+  const assistantId = await resolveRunAssistantFromRow(copilotRow)
 
   const runId = randomUUID()
   const startedAt: IsoTimestamp = new Date().toISOString()

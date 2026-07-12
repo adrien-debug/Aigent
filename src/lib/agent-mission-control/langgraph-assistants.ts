@@ -23,30 +23,45 @@ import 'server-only'
 
 import { createHash } from 'node:crypto'
 
+import { buildCopilotBehaviorConfig, type CopilotBehaviorConfig } from './copilot-behavior'
 import { agentServerClient, AGENT_BUILDER_GRAPH_ID } from './langgraph-client'
+import { pgrest } from './postgrest'
 
 /**
- * Fixed namespace UUID for deriving a project's assistant id. Any constant UUID
- * works — it only has to be stable so the same projectId always maps to the same
- * assistant id across retries.
+ * Fixed namespace UUID for deriving an assistant id from an entity id (project
+ * OR copilot). Any constant UUID works — it only has to be stable so the same
+ * entity id always maps to the same assistant id across retries.
  */
 const ASSISTANT_ID_NAMESPACE = '6ba7b811-9dad-11d1-80b4-00c04fd430c8'
 
+type RawRow = Record<string, unknown>
+
 /**
- * Deterministic RFC-4122 v5 (SHA-1) UUID from `${namespace}:${projectId}`.
- * `ensureProjectAssistant` passes this as the assistant id so that
- * `ifExists: 'do_nothing'` actually collides on a retry (same projectId → same
- * id) instead of minting a fresh UUID every call. The Agent Server keys
- * conflict on the id, so this is what makes creation idempotent per project.
+ * Deterministic RFC-4122 v5 (SHA-1) UUID from `${namespace}:${entityId}`. Passed
+ * as the assistant id on create so that `ifExists: 'do_nothing'` actually
+ * collides on a retry (same entity → same id) instead of minting a fresh UUID
+ * every call. Used for BOTH the per-project (0008) and per-copilot (0009)
+ * assistant ids — a single implementation, no duplication. A metadata match
+ * alone would NOT dedupe; only a stable id does.
  */
-function assistantIdForProject(projectId: string): string {
+function assistantIdForEntity(entityId: string): string {
   const ns = Buffer.from(ASSISTANT_ID_NAMESPACE.replace(/-/g, ''), 'hex')
-  const hash = createHash('sha1').update(ns).update(projectId).digest()
+  const hash = createHash('sha1').update(ns).update(entityId).digest()
   const bytes = hash.subarray(0, 16)
   bytes[6] = (bytes[6] & 0x0f) | 0x50 // version 5
   bytes[8] = (bytes[8] & 0x3f) | 0x80 // RFC-4122 variant
   const hex = bytes.toString('hex')
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
+/** Assistant id for a project (0008 path). Thin alias over the shared v5 fn. */
+function assistantIdForProject(projectId: string): string {
+  return assistantIdForEntity(projectId)
+}
+
+/** Assistant id for a copilot (0009 path). Thin alias over the shared v5 fn. */
+export function assistantIdForCopilot(copilotId: string): string {
+  return assistantIdForEntity(copilotId)
 }
 
 /**
@@ -97,6 +112,144 @@ export async function deleteProjectAssistant(assistantId: string): Promise<boole
   try {
     const c = agentServerClient()
     await c.assistants.delete(assistantId)
+    return true
+  } catch {
+    return false
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Per-COPILOT assistant (0009) — the primary run target.
+//
+// Each copilot owns a dedicated assistant whose config.configurable carries its
+// FULL behaviour (system prompt, model, step budget, confirmation policy, real
+// tools + scope), derived from its manifest+tools and authored originally by the
+// Architect IA. The graph reads that config and behaves accordingly. This is the
+// entity a run/test/resume targets first (runner/test-runner/resume), the
+// per-project assistant (0008) being only a fallback for legacy rows.
+// ---------------------------------------------------------------------------
+
+/**
+ * Load the copilot's behaviour inputs from the PostgREST perimeter and build its
+ * CopilotBehaviorConfig: the copilot row (name/model), its latest manifest
+ * (system prompt summary, forbidden actions, confirmation policy, output
+ * contract, step budget), its tools rows (name → id/risk/confirmation), and the
+ * repo full name of its project (to scope the repo tools). Pure translation
+ * lives in copilot-behavior.ts; this function is only the IO around it.
+ *
+ * Throws NotFoundError-shaped Error if the copilot doesn't exist (fail loud —
+ * the caller must not provision an assistant for a phantom copilot).
+ */
+async function loadCopilotBehaviorConfig(
+  copilotId: string
+): Promise<{ config: CopilotBehaviorConfig; projectId: string | null }> {
+  const copilotRows = await pgrest<RawRow[]>(
+    'GET',
+    `copilots?id=eq.${encodeURIComponent(copilotId)}&select=id,name,model,project_id`
+  )
+  const copilot = copilotRows[0]
+  if (!copilot) throw new Error(`copilot not found: ${copilotId}`)
+
+  // Latest manifest for the copilot (mirrors data.getManifestForCopilot's order).
+  const manifestRows = await pgrest<RawRow[]>(
+    'GET',
+    `manifests?copilot_id=eq.${encodeURIComponent(copilotId)}&select=system_prompt_summary,forbidden_actions,confirmation_policy,always_confirm_actions,output_contract,max_steps_per_run&order=updated_at.desc&limit=1`
+  )
+  const manifest = manifestRows[0] ?? null
+
+  // The copilot's tools (name + gating + risk).
+  const toolRows = await pgrest<RawRow[]>(
+    'GET',
+    `tools?copilot_id=eq.${encodeURIComponent(copilotId)}&select=name,risk_level,requires_confirmation&order=name`
+  )
+
+  // The project's repo, to scope the repo tools (null for a bench copilot).
+  const projectId = (copilot.project_id as string | null) ?? null
+  let repoFullName: string | null = null
+  if (projectId) {
+    const projRows = await pgrest<RawRow[]>(
+      'GET',
+      `projects?id=eq.${encodeURIComponent(projectId)}&select=repo_full_name`
+    )
+    repoFullName = (projRows[0]?.repo_full_name as string | null) ?? null
+  }
+
+  const config = buildCopilotBehaviorConfig({
+    copilot: {
+      id: copilot.id as string,
+      name: (copilot.name as string) ?? copilotId,
+      model: copilot.model as string | null,
+    },
+    manifest: manifest as never,
+    tools: toolRows.map((t) => ({
+      name: t.name as string,
+      risk_level: t.risk_level as never,
+      requires_confirmation: t.requires_confirmation as boolean | null,
+    })),
+    repoFullName,
+  })
+
+  return { config, projectId }
+}
+
+/**
+ * Create (or refresh) the copilot's dedicated assistant on the shared
+ * `agent_builder` graph, with `config.configurable` = the copilot's full
+ * CopilotBehaviorConfig, and return its assistant_id.
+ *
+ * Idempotent AND self-updating:
+ *  - assistant id is DETERMINISTIC (v5 of the copilotId), passed explicitly, so
+ *    `ifExists: 'do_nothing'` collides on a retry instead of minting duplicates.
+ *  - because `do_nothing` does NOT update the config of a pre-existing assistant,
+ *    we ALWAYS follow the create with an `assistants.update(id, {config,
+ *    metadata})`. On first create it's a harmless no-op-ish rewrite; on a
+ *    subsequent call (copilot behaviour changed — manifest/tools edited) it
+ *    pushes the NEW config so the assistant tracks the copilot. update is chosen
+ *    over delete+create so the assistant id (and any attached threads) survive.
+ *  - metadata always carries {copilotId, projectId} (the joins back to the DB).
+ *
+ * Throws (never swallows) on transport/auth failure so the caller can fail the
+ * copilot creation loudly rather than persist a half-wired copilot.
+ */
+export async function ensureCopilotAssistant(args: { copilotId: string }): Promise<string> {
+  const { copilotId } = args
+  const { config, projectId } = await loadCopilotBehaviorConfig(copilotId)
+
+  const assistantId = assistantIdForCopilot(copilotId)
+  const c = agentServerClient()
+
+  // 1) Create if absent (deterministic id → collides on retry, no duplicate).
+  await c.assistants.create({
+    assistantId,
+    graphId: AGENT_BUILDER_GRAPH_ID,
+    name: config.copilotName,
+    config: { configurable: { ...config } },
+    // copilotId last so a stray key in a future metadata source can't shadow it.
+    metadata: { projectId, copilotId },
+    ifExists: 'do_nothing',
+  })
+
+  // 2) Push the current config regardless of whether the assistant is new or
+  //    pre-existing — `do_nothing` never updates an existing assistant's config,
+  //    so this is what makes the behaviour track the copilot over time.
+  await c.assistants.update(assistantId, {
+    config: { configurable: { ...config } },
+    metadata: { projectId, copilotId },
+    name: config.copilotName,
+  })
+
+  return assistantId
+}
+
+/**
+ * Best-effort delete of a copilot's assistant (rollback of a failed copilot
+ * provisioning, and copilot deletion). Never throws — a leftover assistant is
+ * inert (it only runs when a copilot points a run at it).
+ */
+export async function deleteCopilotAssistant(copilotIdOrAssistantId: string): Promise<boolean> {
+  try {
+    const c = agentServerClient()
+    await c.assistants.delete(copilotIdOrAssistantId)
     return true
   } catch {
     return false

@@ -12,177 +12,52 @@
  * approval; a `Command({ resume: { approved } })` continues it. This is the
  * canonical human-in-the-loop pattern, provided by the runtime, not hand-rolled.
  *
+ * PARAMETRIC BY COPILOT: the platform now runs ONE assistant PER COPILOT. Each
+ * assistant carries a CopilotBehaviorConfig in `config.configurable` (see
+ * ASSISTANT_CONFIG_CONTRACT): its system prompt, model, maxSteps, and the exact
+ * set of REAL tools (with per-copilot scope + gating). The nodes read that
+ * config at RUNTIME (2nd arg) — nothing behavioural is hard-coded on the
+ * configured path. The model is instantiated PER RUN from `cfg.model`, so one
+ * compiled graph serves every copilot.
+ *
+ * LEGACY FALLBACK: if `config.configurable` is absent (an assistant created
+ * without config, or a run against the graph id directly), the nodes fall back
+ * to the EXACT previous behaviour — the hard-coded SYSTEM_PROMPT, the 5 generic
+ * tools, and CONFIRM_REQUIRED = { draft_copilot_spec } — so nothing breaks.
+ *
  * Exports `graph` (the compiled graph) — referenced by langgraph.json.
  */
 import { ChatOpenAI } from '@langchain/openai'
-import { tool } from '@langchain/core/tools'
 import { ToolMessage } from '@langchain/core/messages'
 import { StateGraph, MessagesAnnotation, START, END, interrupt } from '@langchain/langgraph'
-import { z } from 'zod'
 
-import { pgrest } from './pgrest.mjs'
-import { buildCopilotDraft } from './draft-spec.mjs'
+import { buildTool, buildToolsFromConfig } from './tool-registry.mjs'
 
 // ---------------------------------------------------------------------------
-// Tool definitions — the 4 read-only tools (live PostgREST) + the gated write.
+// LEGACY DEFAULTS — the exact pre-config behaviour, used ONLY as fallback when
+// `config.configurable` is absent. Kept verbatim so legacy copilots (assistant
+// without config, or run via the graph id) behave EXACTLY as before.
 // ---------------------------------------------------------------------------
 
-const readProjectSummary = tool(
-  async ({ projectId }) => {
-    if (projectId) {
-      const rows = await pgrest(`projects?select=id,name,platform,repo_full_name&id=eq.${encodeURIComponent(projectId)}`)
-      return JSON.stringify(rows[0] ?? { error: 'project not found' })
-    }
-    const rows = await pgrest('projects?select=id,name,platform,repo_full_name&order=created_at')
-    return JSON.stringify({ count: rows.length, projects: rows })
-  },
-  {
-    name: 'read_project_summary',
-    // Behaviour spelled out because the model can't infer it from the shape:
-    // WITHOUT projectId this LISTS every project (with a count); WITH projectId
-    // it returns that one project. Prod bug: an unspecified description made the
-    // model refuse "list the projects" though no-arg already lists them all.
-    description:
-      'List or read projects (name, platform, linked repo) — read-only. Call with NO projectId to LIST ALL projects (returns { count, projects }). Pass a projectId to read just that one project.',
-    schema: z.object({
-      projectId: z
-        .string()
-        .optional()
-        .describe('Omit to list ALL projects; provide an id to read only that project.'),
-    }),
-  }
-)
+// The 5 generic tools that were hard-coded in the graph. Built THROUGH the
+// registry (single source of truth for the impls) with no scope — repo/http
+// tools aren't in this legacy set, so scope is irrelevant here.
+const DEFAULT_TOOL_IDS = [
+  'read_project_summary',
+  'read_copilot_summary',
+  'read_recent_runs',
+  'read_tool_permissions',
+  'draft_copilot_spec',
+]
 
-const readCopilotSummary = tool(
-  async ({ copilotId }) => {
-    const id = copilotId
-    if (id) {
-      const rows = await pgrest(
-        `copilots?select=id,name,status,model,model_provider,runtime,health&id=eq.${encodeURIComponent(id)}`
-      )
-      return JSON.stringify(rows[0] ?? { error: 'copilot not found' })
-    }
-    const rows = await pgrest('copilots?select=id,name,status,model,runtime&order=name')
-    return JSON.stringify({ count: rows.length, copilots: rows })
-  },
-  {
-    name: 'read_copilot_summary',
-    // Behaviour spelled out because the model can't infer it from the shape:
-    // WITHOUT copilotId this LISTS every copilot (with a count); WITH copilotId
-    // it returns that one copilot. Prod bug: with the old vague description the
-    // model answered "I can only read one copilot by id" and refused to list —
-    // even though no-arg lists them ALL (this is the canonical way to count them).
-    description:
-      'List or read copilots (status, model, runtime, health) — read-only. Call with NO copilotId to LIST ALL copilots (returns { count, copilots }) — this is how you enumerate or count them. Pass a copilotId to read just that one copilot.',
-    schema: z.object({
-      copilotId: z
-        .string()
-        .optional()
-        .describe('Omit to list ALL copilots (use this to enumerate/count); provide an id to read only that copilot.'),
-    }),
-  }
-)
+// Tools requiring human approval before they run, in the legacy set. (Only the
+// write tool.) On the CONFIGURED path this is derived from the config instead.
+const DEFAULT_CONFIRM_REQUIRED = new Set(['draft_copilot_spec'])
+const DEFAULT_TOOL_RISK = { draft_copilot_spec: 'medium' }
 
-const readRecentRuns = tool(
-  async ({ copilotId, limit }) => {
-    const cap = Math.min(Math.max(1, limit ?? 5), 20)
-    const filter = copilotId ? `&copilot_id=eq.${encodeURIComponent(copilotId)}` : ''
-    const rows = await pgrest(
-      `agent_runs?select=id,status,started_at,latency_ms,cost_usd,input_summary,output_summary${filter}&order=started_at.desc&limit=${cap}`
-    )
-    return JSON.stringify({ count: rows.length, runs: rows })
-  },
-  {
-    name: 'read_recent_runs',
-    // Behaviour spelled out: WITHOUT copilotId this returns the most recent runs
-    // ACROSS ALL copilots; WITH copilotId it returns only that copilot's runs.
-    // `limit` defaults to 5 and is clamped to [1, 20].
-    description:
-      'Read recent agent runs (status, cost, latency) — read-only. Call with NO copilotId to get the most recent runs across ALL copilots; pass a copilotId to get only that copilot\'s runs. Optional limit defaults to 5, max 20. Returns { count, runs }.',
-    schema: z.object({
-      copilotId: z
-        .string()
-        .optional()
-        .describe('Omit for recent runs across all copilots; provide an id to filter to one copilot.'),
-      limit: z.number().optional().describe('How many runs to return. Default 5, clamped to 1–20.'),
-    }),
-  }
-)
+const DEFAULT_MODEL = process.env.AGENT_BUILDER_MODEL || 'gpt-5.4'
 
-const readToolPermissions = tool(
-  async ({ copilotId }) => {
-    if (!copilotId) return JSON.stringify({ error: 'copilotId required' })
-    const rows = await pgrest(
-      `tools?select=name,risk_level,enabled,requires_confirmation,provider&copilot_id=eq.${encodeURIComponent(copilotId)}&order=risk_level,name`
-    )
-    const needConfirm = rows.filter((r) => r.requires_confirmation).length
-    return JSON.stringify({ count: rows.length, requiresConfirmationCount: needConfirm, tools: rows })
-  },
-  {
-    name: 'read_tool_permissions',
-    // Behaviour spelled out: unlike the other read tools this one REQUIRES a
-    // copilotId (permissions are always scoped to a single copilot); with no id
-    // it returns an error, so obtain one via read_copilot_summary first.
-    description:
-      'Read the tool permission matrix (risk, enabled, requires-confirmation) for ONE copilot — read-only. REQUIRES a copilotId; without it the call returns an error. Returns { count, requiresConfirmationCount, tools }. To find an id first, call read_copilot_summary with no argument.',
-    schema: z.object({
-      copilotId: z
-        .string()
-        .optional()
-        .describe('REQUIRED — the copilot whose tool permissions to read. Omitting it returns an error.'),
-    }),
-  }
-)
-
-const MODEL = process.env.AGENT_BUILDER_MODEL || 'gpt-5.4'
-
-// The gated WRITE tool — a PURE tool (no interrupt inside). Human approval is
-// enforced UPSTREAM by the dedicated `approval` node, so this body only runs
-// AFTER approval and never re-runs on replay. It NEVER persists — it returns a
-// proposed spec built by the SHARED builder (draft-spec.mjs), so the direct
-// path and this path can never diverge.
-const draftCopilotSpec = tool(
-  async ({ name, description, runtime, model }) => {
-    return JSON.stringify({ ok: true, persisted: false, draft: buildCopilotDraft({ name, description, runtime, model }) })
-  },
-  {
-    name: 'draft_copilot_spec',
-    description:
-      'Prepare a DRAFT copilot spec (manifest + tools + starter tests/benchmark) for human review. Requires human confirmation before it runs; never persists anything.',
-    schema: z.object({
-      name: z.string().optional().describe('Human-readable name for the copilot to draft.'),
-      description: z.string().optional().describe('One-line description of what the copilot does.'),
-      // Field docs steer the model toward the platform's real values. The prod
-      // bug was the model volunteering "default"/"gpt-4.1" hints — off-platform —
-      // when the actual runtime is 'langgraph' and the default model is 'gpt-5.4'.
-      // These are hints only (buildCopilotDraft keeps its own safe defaults if
-      // omitted); no hard enum, so nothing breaks if the model deviates.
-      runtime: z
-        .string()
-        .optional()
-        .describe("Execution runtime. Prefer 'langgraph' (the platform runtime; the only one with a real engine). Omit to default to 'langgraph' — do NOT pass 'default'."),
-      model: z
-        .string()
-        .optional()
-        .describe("Model id. Prefer the platform default 'gpt-5.4'. Omit to use it — do NOT pass legacy ids like 'gpt-4.1'."),
-    }),
-  }
-)
-
-const tools = [readProjectSummary, readCopilotSummary, readRecentRuns, readToolPermissions, draftCopilotSpec]
-const toolsByName = Object.fromEntries(tools.map((t) => [t.name, t]))
-
-// Tools requiring human approval before they run. The `approval` node interrupts
-// if the agent's single requested tool is in this set. Read-only tools are
-// absent → they run without confirmation.
-const CONFIRM_REQUIRED = new Set(['draft_copilot_spec'])
-const TOOL_RISK = { draft_copilot_spec: 'medium' }
-
-// ---------------------------------------------------------------------------
-// Graph — agent ↔ tools, bounded, with a system prompt matching the copilot.
-// ---------------------------------------------------------------------------
-
-const SYSTEM_PROMPT = [
+const DEFAULT_SYSTEM_PROMPT = [
   'You are Agent Builder Copilot, an internal assistant for Agent Mission Control.',
   'You help operators design and prepare FUTURE copilots — safely and controllably.',
   'You CAN read existing projects/copilots/runs/tool-permissions and draft specs, manifests, tools and tests.',
@@ -195,15 +70,63 @@ const SYSTEM_PROMPT = [
   "When drafting a copilot, prefer runtime 'langgraph' and model 'gpt-5.4' (the platform defaults). Do NOT propose 'default' as a runtime or legacy models like 'gpt-4.1'.",
 ].join('\n')
 
-const model = new ChatOpenAI({ model: MODEL })
-// parallel_tool_calls:false → the model requests ONE tool per turn. This keeps
-// the approval gate deterministic: a confirmation-required tool is never batched
-// behind read tools, so the pause always lands cleanly on a single call.
-const modelWithTools = model.bindTools(tools, { parallel_tool_calls: false })
+// ---------------------------------------------------------------------------
+// Runtime resolution — turn `config.configurable` into everything a node needs.
+// One place that decides configured-vs-legacy, so all three nodes agree.
+// ---------------------------------------------------------------------------
 
-async function agentNode(state) {
+/**
+ * Resolve the effective behaviour for THIS run from the LangGraph config.
+ * @param {import('@langchain/langgraph').LangGraphRunnableConfig} [config]
+ * @returns {{ systemPrompt:string, model:string, maxSteps:number, tools:any[], toolsByName:Record<string,any>, confirmRequired:Set<string>, toolRisk:Record<string,string> }}
+ */
+function resolveRuntime(config) {
+  const cfg = config?.configurable ?? {}
+  // A config is "present" once it names either tools or a system prompt — that's
+  // what ensureCopilotAssistant writes. Otherwise fall back to legacy defaults.
+  const hasConfig = Array.isArray(cfg.tools) || typeof cfg.systemPrompt === 'string'
+
+  if (!hasConfig) {
+    // LEGACY PATH — exact previous behaviour, tools built through the registry.
+    const tools = DEFAULT_TOOL_IDS.map((id) => buildTool(id)).filter(Boolean)
+    return {
+      systemPrompt: DEFAULT_SYSTEM_PROMPT,
+      model: DEFAULT_MODEL,
+      maxSteps: 12,
+      tools,
+      toolsByName: Object.fromEntries(tools.map((t) => [t.name, t])),
+      confirmRequired: DEFAULT_CONFIRM_REQUIRED,
+      toolRisk: DEFAULT_TOOL_RISK,
+    }
+  }
+
+  // CONFIGURED PATH — everything derived from the CopilotBehaviorConfig.
+  const { tools, confirmRequired, toolRisk } = buildToolsFromConfig(cfg.tools ?? [])
+  return {
+    systemPrompt: typeof cfg.systemPrompt === 'string' && cfg.systemPrompt.trim() ? cfg.systemPrompt : DEFAULT_SYSTEM_PROMPT,
+    model: typeof cfg.model === 'string' && cfg.model.trim() ? cfg.model : DEFAULT_MODEL,
+    maxSteps: Number.isFinite(cfg.maxSteps) ? cfg.maxSteps : 12,
+    tools,
+    toolsByName: Object.fromEntries(tools.map((t) => [t.name, t])),
+    confirmRequired,
+    toolRisk,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Nodes — each takes (state, config) and reads `config.configurable` at runtime.
+// ---------------------------------------------------------------------------
+
+async function agentNode(state, config) {
+  const rt = resolveRuntime(config)
+  // Instantiate the model PER RUN from the config — one compiled graph serves
+  // every copilot's model. parallel_tool_calls:false → ONE tool per turn, which
+  // keeps the approval gate deterministic (a gated tool is never batched behind
+  // read tools, so the pause lands cleanly on a single call).
+  const modelWithTools = new ChatOpenAI({ model: rt.model }).bindTools(rt.tools, { parallel_tool_calls: false })
+
   const hasSystem = state.messages[0]?.getType?.() === 'system'
-  const messages = hasSystem ? state.messages : [{ role: 'system', content: SYSTEM_PROMPT }, ...state.messages]
+  const messages = hasSystem ? state.messages : [{ role: 'system', content: rt.systemPrompt }, ...state.messages]
   const response = await modelWithTools.invoke(messages)
   return { messages: [response] }
 }
@@ -211,19 +134,20 @@ async function agentNode(state) {
 /**
  * Approval node — the structural human-in-the-loop gate, BEFORE any tool runs.
  * Proven deterministic (node-dedicated interrupt + one tool per turn). If the
- * requested tool is confirmation-required, it interrupt()s once (no side effect
- * before the pause → replay is free). On decline it emits a blocked ToolMessage
- * so the tool never runs; on approve it falls through to the tools node.
+ * requested tool is confirmation-required (per THIS run's config), it interrupt()s
+ * once (no side effect before the pause → replay is free). On decline it emits a
+ * blocked ToolMessage so the tool never runs; on approve it falls through.
  */
-async function approvalNode(state) {
+async function approvalNode(state, config) {
+  const rt = resolveRuntime(config)
   const last = state.messages[state.messages.length - 1]
   const call = (last.tool_calls ?? [])[0]
-  if (!call || !CONFIRM_REQUIRED.has(call.name)) return {}
+  if (!call || !rt.confirmRequired.has(call.name)) return {}
 
   const proposed = call.args ?? {}
   const decision = interrupt({
     action: call.name,
-    risk: TOOL_RISK[call.name] ?? 'medium',
+    risk: rt.toolRisk[call.name] ?? 'medium',
     requiresConfirmation: true,
     proposed,
     message: `Approve running "${call.name}"${proposed.name ? ` for "${proposed.name}"` : ''}? This prepares a proposal; nothing is persisted.`,
@@ -242,14 +166,15 @@ async function approvalNode(state) {
   }
 }
 
-async function toolsNode(state) {
+async function toolsNode(state, config) {
+  const rt = resolveRuntime(config)
   const last = state.messages[state.messages.length - 1]
   // Skip any call already answered by the approval node (a declined tool).
   const answered = new Set(state.messages.filter((m) => (m.getType?.() ?? m.type) === 'tool').map((m) => m.tool_call_id))
   const calls = (last.tool_calls ?? []).filter((c) => !answered.has(c.id ?? c.name))
   const out = []
   for (const call of calls) {
-    const t = toolsByName[call.name]
+    const t = rt.toolsByName[call.name]
     let content
     try {
       content = t

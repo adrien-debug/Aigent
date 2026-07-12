@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 import { summarize } from '@/lib/agent-mission-control/format'
 import { resumeOnAgentServer } from '@/lib/agent-mission-control/langgraph-server'
 import { pgrest } from '@/lib/agent-mission-control/postgrest'
+import { resolveRunAssistantId } from '@/lib/agent-mission-control/resolve-run-assistant'
 
 /**
  * POST /api/agent-ops/copilots/:copilotId/runs/:runId/resume — human-in-the-loop
@@ -102,23 +103,16 @@ export async function POST(
     // Non-fatal — fall back to name-based tool_id below.
   }
 
-  // Resolve the project's dedicated assistant so the resume targets the SAME
-  // assistant the run started on (keeping the thread attributed to the project
-  // in Studio). Legacy projects (null assistant_id) resume on the shared graph
-  // id inside resumeOnAgentServer. Non-fatal: a lookup failure just falls back.
+  // Resolve the run assistant so the resume targets the SAME assistant the run
+  // started on. Shared cascade (same helper as runner/test-runner): the copilot's
+  // OWN assistant (0009) first, then the project's assistant (0008), then
+  // undefined → shared graph id inside resumeOnAgentServer. Non-fatal: a lookup
+  // failure just falls back to the shared graph id.
   let assistantId: string | undefined
-  const projectId = runRow.project_id as string | null
-  if (projectId) {
-    try {
-      const projRows = await pgrest<Record<string, unknown>[]>(
-        'GET',
-        `projects?id=eq.${encodeURIComponent(projectId)}&select=assistant_id`
-      )
-      const raw = projRows[0]?.assistant_id
-      if (typeof raw === 'string' && raw.length > 0) assistantId = raw
-    } catch {
-      // Fall back to the shared graph id below.
-    }
+  try {
+    assistantId = await resolveRunAssistantId(copilotId)
+  } catch {
+    // Fall back to the shared graph id below.
   }
 
   // 2) Continue the thread with the operator's decision, then persist the

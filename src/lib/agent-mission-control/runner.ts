@@ -30,6 +30,7 @@ import {
 } from './model-router'
 import { runOnAgentServer } from './langgraph-server'
 import { pgrest } from './postgrest'
+import { resolveRunAssistantId } from './resolve-run-assistant'
 import { startTrace, toDbStepKind, type TraceStep } from './run-trace'
 import { TOOL_HANDLERS, type ToolHandlerResult } from './tool-handlers'
 import type {
@@ -170,20 +171,6 @@ async function loadRuntime(copilotId: string): Promise<AgentRuntime | null> {
   return (rows[0]?.runtime as AgentRuntime | undefined) ?? null
 }
 
-/**
- * Load the project's dedicated LangGraph assistant id (from the same PostgREST
- * perimeter the runner already uses). A LangGraph run for a copilot attached to
- * this project is dispatched against this assistant so the project shows up as a
- * distinct entity in Studio. Returns undefined for a legacy project whose row
- * predates the assistant wiring (assistant_id null) — the caller then falls back
- * to the shared `agent_builder` graph id, preserving the old behaviour.
- */
-async function loadProjectAssistantId(projectId: string): Promise<string | undefined> {
-  const rows = await pgrest<RawRow[]>('GET', `projects?id=eq.${encodeURIComponent(projectId)}&select=assistant_id`)
-  const assistantId = rows[0]?.assistant_id
-  return typeof assistantId === 'string' && assistantId.length > 0 ? assistantId : undefined
-}
-
 /** Map a RunnerTool to the router's tool schema (permissive object args). */
 function toRouterTool(t: RunnerTool): ModelRouterTool {
   return {
@@ -278,18 +265,20 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
   const resolvedModel = model
   const toolCallRows: RawRow[] = []
 
-  // Resolve the project's dedicated assistant (if any) so the run is attributed
-  // to the project in Studio. Legacy projects (null assistant_id) fall back to
-  // the shared graph id inside runOnAgentServer.
-  const assistantId = await loadProjectAssistantId(projectId)
+  // Resolve the run's assistant via the shared cascade: the copilot's OWN
+  // assistant (0009, carries its full behaviour config) first, then the
+  // project's assistant (0008), then undefined → shared agent_builder graph id
+  // inside runOnAgentServer. One helper, used identically by runner/test-runner/
+  // resume — never re-implemented.
+  const assistantId = await resolveRunAssistantId(copilotId)
 
   trace.step(
     {
       kind: 'guardrail-check',
       title: 'Dispatch to LangGraph Agent Server',
       detail: assistantId
-        ? `Executing on the project's assistant ${assistantId} (shared agent_builder graph).`
-        : 'Executing on the shared agent_builder graph (project has no dedicated assistant yet).',
+        ? `Executing on the copilot's dedicated assistant ${assistantId} (shared agent_builder graph, behaviour from config.configurable).`
+        : 'Executing on the shared agent_builder graph (copilot has no dedicated assistant yet).',
       status: 'ok',
       startedAt,
       durationMs: 0,
