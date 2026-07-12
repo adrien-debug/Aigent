@@ -1,0 +1,88 @@
+# Agent Mission Control (Next.js app) — production compose for gpu1
+#
+# Run from the REPO ROOT (the build context must be the repo root, because
+# the standalone Next build needs package.json, src/, public/, next.config.ts
+# at the top level):
+#
+#   docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env up -d --build
+#
+# Provide secrets via a .env file next to this compose OR via the shell env.
+# NEVER hardcode secrets here — every value below is ${VAR} indirection.
+# See README.md for where each value comes from.
+#
+# Published on 127.0.0.1:8099 (loopback only) — the Cloudflare tunnel
+# (aigent.hearst.app) is what forwards public traffic to this port on gpu1.
+
+services:
+  app:
+    build:
+      # Build context = repo root (two levels up from this file).
+      context: ../..
+      dockerfile: deploy/app/Dockerfile
+    image: aigent-app:local
+    container_name: aigent-app
+    restart: always
+
+    # Published on loopback only — the Cloudflare tunnel points here.
+    ports:
+      - "127.0.0.1:8099:3000"
+
+    environment:
+      # --- Live data backend (gpu1 PostgREST perimeter) ---
+      AMC_DATA_SOURCE: ${AMC_DATA_SOURCE:-gpu1}
+      AMC_SUPABASE_URL: ${AMC_SUPABASE_URL:?set AMC_SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?set SUPABASE_SERVICE_ROLE_KEY}
+
+      # --- Model providers (fail-closed: absent → that provider is unavailable) ---
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY}
+      # Optional; enables the google route in the model router.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # Optional; allows the model router to fall back across providers.
+      AMC_ALLOW_MODEL_FALLBACKS: ${AMC_ALLOW_MODEL_FALLBACKS:-}
+
+      # --- Admin identity gate ---
+      # Session cookie signing key. Required for auth.
+      AMC_SESSION_SECRET: ${AMC_SESSION_SECRET:?set AMC_SESSION_SECRET}
+      # Prefer the HASH var (wins over the plain one if both are set).
+      AMC_ADMIN_PASSWORD: ${AMC_ADMIN_PASSWORD:-}
+      AMC_ADMIN_PASSWORD_HASH: ${AMC_ADMIN_PASSWORD_HASH:-}
+      # Optional server-to-server / automation key (header x-amc-key).
+      AMC_API_KEY: ${AMC_API_KEY:-}
+
+      # --- LangGraph Agent Server ---
+      # Default = the deployed prod server (agent.hearst.app), matching the
+      # LangGraph agent-server deployment in deploy/langgraph/.
+      LANGGRAPH_API_URL: ${LANGGRAPH_API_URL:-https://agent.hearst.app}
+      # Shared secret sent as header x-agent-key. Must match the LangGraph
+      # server's own LANGGRAPH_SERVER_SECRET or every call is rejected.
+      LANGGRAPH_SERVER_SECRET: ${LANGGRAPH_SERVER_SECRET:?set LANGGRAPH_SERVER_SECRET}
+
+      # --- GitHub (read proxy + agent scaffolding) ---
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      # Optional; required (with confirm) for a REAL agent push.
+      GITHUB_PUSH_ENABLED: ${GITHUB_PUSH_ENABLED:-}
+
+      # --- OPTIONAL LangSmith tracing (absent → no-op, traceUrl stays null) ---
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+      LANGSMITH_ENDPOINT: ${LANGSMITH_ENDPOINT:-}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-}
+      LANGSMITH_TRACE_BASE_URL: ${LANGSMITH_TRACE_BASE_URL:-}
+
+    networks:
+      # Lets the app reach aigent-caddy:8095 (the PostgREST perimeter) or any
+      # other nexus-net service internally, for consistency with the rest of
+      # the gpu1 stack (deploy/langgraph uses the same network).
+      - nexus-net
+
+    healthcheck:
+      # /login responds 200 without auth — a valid unauthenticated liveness
+      # probe for this app (mirrors the /ok pattern used in deploy/langgraph).
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+networks:
+  nexus-net:
+    external: true
