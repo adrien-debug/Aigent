@@ -1,6 +1,8 @@
 import { CheckIcon, ClipboardDocumentCheckIcon, ClockIcon, PlusIcon } from '@heroicons/react/20/solid'
 import clsx from 'clsx'
 
+import { EmptyState } from '@/components/agent-ops/empty-state'
+
 /**
  * Gate history feed — application-ui feed rhythm adapted to the doctrine.
  * Kinds map to the STRICT color semantics (never blue — reserved runtime):
@@ -32,6 +34,16 @@ const KIND_STYLES: Record<
 }
 
 export function GateHistoryFeed({ events }: { events: GateHistoryEvent[] }) {
+  if (events.length === 0) {
+    return (
+      <EmptyState
+        icon={ClipboardDocumentCheckIcon}
+        title="No gate activity yet"
+        description="This candidate hasn't been evaluated against the promotion gate. History appears here once a gate run records its first event."
+      />
+    )
+  }
+
   return (
     <div className="flow-root">
       <ul role="list" className="-mb-8">

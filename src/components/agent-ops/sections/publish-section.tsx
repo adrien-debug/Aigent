@@ -2,6 +2,7 @@ import { ArrowUpCircleIcon } from '@heroicons/react/24/outline'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { GateHistoryFeed, type GateHistoryEvent } from '@/components/agent-ops/gate-history-feed'
 import { PromotionGateCard } from '@/components/agent-ops/promotion-gate-card'
 import { PromotionPipelineSteps } from '@/components/agent-ops/promotion-pipeline-steps'
@@ -9,8 +10,6 @@ import { PublishActions } from '@/components/agent-ops/publish-actions'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { SplitBar } from '@/components/agent-ops/widgets/split-bar'
 import { Button } from '@/components/catalyst/button'
-import { Subheading } from '@/components/catalyst/heading'
-import { Text } from '@/components/catalyst/text'
 import { formatPercent, formatTimestamp } from '@/lib/agent-mission-control/format'
 import {
   getCopilot,
@@ -34,19 +33,17 @@ export async function PublishSection({ copilotId }: { copilotId: string }) {
 
   if (!gate) {
     return (
-      <div className="rounded-xl bg-white px-6 py-12 ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
-        <div className="mx-auto max-w-md text-center">
-          <ArrowUpCircleIcon aria-hidden="true" className="mx-auto size-10 text-zinc-400 dark:text-zinc-600" />
-          <Subheading className="mt-4">No candidate in the gate.</Subheading>
-          <Text className="mt-2">
-            Nothing is queued for promotion yet. Promote a version from Versions to start a gate evaluation.
-          </Text>
-          <div className="mt-6">
+      <div className="rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
+        <EmptyState
+          icon={ArrowUpCircleIcon}
+          title="No candidate in the gate."
+          description="Nothing is queued for promotion yet. Promote a version from Versions to start a gate evaluation."
+          action={
             <Button outline href={`/admin/agents/${id}/versions`}>
               Go to Versions
             </Button>
-          </div>
-        </div>
+          }
+        />
       </div>
     )
   }

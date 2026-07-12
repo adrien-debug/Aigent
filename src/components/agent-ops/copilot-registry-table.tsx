@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { AssignProjectDialog, UnassignCopilotDialog } from '@/components/agent-ops/assign-project-dialog'
 import { DeleteCopilotDialog } from '@/components/agent-ops/delete-copilot-dialog'
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { SoftAccentButton } from '@/components/agent-ops/soft-accent-link'
 import { Avatar } from '@/components/catalyst/avatar'
 import { Button } from '@/components/catalyst/button'
@@ -400,24 +401,22 @@ export function CopilotRegistryTable({
             </table>
           </div>
         ) : (
-          <div className="flex flex-col items-center px-6 py-12 text-center">
-            <span className="flex size-10 items-center justify-center rounded-lg bg-zinc-950/5 ring-1 ring-zinc-950/10 dark:bg-white/5 dark:ring-white/10">
-              <MagnifyingGlassIcon aria-hidden="true" className="size-5 text-zinc-500 dark:text-zinc-400" />
-            </span>
-            <p className="mt-4 text-sm font-semibold text-zinc-950 dark:text-white">
-              {view === 'bench' && scoped.length === 0 ? 'The bench is clear' : 'No copilots match'}
-            </p>
-            <p className="mt-1 max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
-              {view === 'bench' && scoped.length === 0
+          <EmptyState
+            icon={MagnifyingGlassIcon}
+            title={view === 'bench' && scoped.length === 0 ? 'The bench is clear' : 'No copilots match'}
+            description={
+              view === 'bench' && scoped.length === 0
                 ? 'Every copilot has been validated onto a project. New copilots land here while they are tested.'
-                : "Adjust the search or clear the filters to find the copilot you're looking for."}
-            </p>
-            {view === 'bench' && scoped.length === 0 ? null : (
-              <Button outline className="mt-6" onClick={resetFilters}>
-                Reset filters
-              </Button>
-            )}
-          </div>
+                : "Adjust the search or clear the filters to find the copilot you're looking for."
+            }
+            action={
+              view === 'bench' && scoped.length === 0 ? undefined : (
+                <Button outline onClick={resetFilters}>
+                  Reset filters
+                </Button>
+              )
+            }
+          />
         )}
       </div>
 

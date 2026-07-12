@@ -1,16 +1,15 @@
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { ReplayCandidatePicker, type ReplayCandidateItem } from '@/components/agent-ops/replay-candidate-picker'
 import { ChipCluster } from '@/components/agent-ops/widgets/chip-cluster'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { SplitBar, type SplitSegment } from '@/components/agent-ops/widgets/split-bar'
 import { Button } from '@/components/catalyst/button'
 import { Field, Label } from '@/components/catalyst/fieldset'
-import { Subheading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
 import { Select } from '@/components/catalyst/select'
-import { Text } from '@/components/catalyst/text'
 import { formatPercent, formatTimestamp } from '@/lib/agent-mission-control/format'
 import {
   getCopilot,
@@ -163,22 +162,16 @@ export async function ReplaySection({ copilotId }: { copilotId: string }) {
       </AgentSectionCard>
 
       {comparisons.length === 0 ? (
-        <section className="rounded-xl bg-white px-6 py-12 ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
-          <div className="mx-auto max-w-md text-center">
-            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Replay lab</p>
-            <Subheading level={3} className="mt-2">
-              No replays yet
-            </Subheading>
-            <Text className="mt-2">
-              Replay a production run to compare behavior before promoting. Candidates run against the recorded
-              transcript — never against live users.
-            </Text>
-            <div className="mt-6">
+        <section className="rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
+          <EmptyState
+            title="No replays yet"
+            description="Replay a production run to compare behavior before promoting. Candidates run against the recorded transcript — never against live users."
+            action={
               <Button outline href={`/admin/agents/${id}/runs`}>
                 Browse production runs
               </Button>
-            </div>
-          </div>
+            }
+          />
         </section>
       ) : (
         <div className="space-y-8">

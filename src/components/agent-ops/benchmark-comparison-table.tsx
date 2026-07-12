@@ -1,5 +1,7 @@
+import { ChartBarIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { RuntimeBadge } from '@/components/agent-ops/runtime-badge'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
@@ -41,6 +43,16 @@ export function BenchmarkComparisonTable({
 }: {
   rows: { run: BenchmarkRun; result: BenchmarkResult }[]
 }) {
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        icon={ChartBarIcon}
+        title="No completed runs to compare"
+        description="Run this benchmark suite to rank candidate models by composite score, accuracy, latency and cost."
+      />
+    )
+  }
+
   const sorted = [...rows].sort((a, b) => b.result.score - a.result.score)
 
   return (

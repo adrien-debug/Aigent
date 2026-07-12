@@ -1,8 +1,10 @@
 'use client'
 
 import { ExclamationTriangleIcon } from '@heroicons/react/16/solid'
+import { WrenchScrewdriverIcon } from '@heroicons/react/24/outline'
 import { useState } from 'react'
 
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { Badge } from '@/components/catalyst/badge'
 import { Switch } from '@/components/catalyst/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
@@ -37,6 +39,18 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
   )
   // Global save-failure notice — cleared by the next toggle that persists.
   const [saveError, setSaveError] = useState<string | null>(null)
+
+  if (tools.length === 0) {
+    return (
+      <div className="px-6">
+        <EmptyState
+          icon={WrenchScrewdriverIcon}
+          title="No tools registered"
+          description="This copilot has no tools wired up yet. Register a tool to control its permissions, enforce confirmation on risky actions and track usage here."
+        />
+      </div>
+    )
+  }
 
   function persist(toolId: string, patch: { enabled?: boolean; requiresConfirmation?: boolean }) {
     void fetch(`/api/agent-ops/tools/${encodeURIComponent(toolId)}`, {

@@ -1,5 +1,6 @@
 
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { ReleasePathSteps } from '@/components/agent-ops/release-path-steps'
 import { VersionComparisonCard, versionNeverTested } from '@/components/agent-ops/version-comparison-card'
 import { versionStageLabels } from '@/components/agent-ops/version-stage-text'
@@ -7,7 +8,6 @@ import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { Button } from '@/components/catalyst/button'
 import { Subheading } from '@/components/catalyst/heading'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
-import { Text } from '@/components/catalyst/text'
 import { formatPercent } from '@/lib/agent-mission-control/format'
 import { getCopilot, getVersionsForCopilot } from '@/lib/agent-mission-control/data'
 import type { CopilotVersion } from '@/lib/agent-mission-control/types'
@@ -60,21 +60,21 @@ export async function VersionsSection({ copilotId }: { copilotId: string }) {
   if (emptyState) {
     return (
       <div className="space-y-8">
-        <div className="rounded-xl bg-white px-6 py-12 text-center ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
-          <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Versions</p>
-          <Subheading className="mt-2">Nothing to compare yet</Subheading>
-          <Text className="mx-auto mt-2 max-w-md">
-            This copilot only has a single draft version. Build a track record — run its test suites and a
-            benchmark — before comparing or promoting anything.
-          </Text>
-          <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <Button outline href={`/admin/agents/${id}/tests`}>
-              Run tests
-            </Button>
-            <Button plain href={`/admin/agents/${id}/tests#benchmarks`}>
-              View benchmarks
-            </Button>
-          </div>
+        <div className="rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
+          <EmptyState
+            title="Nothing to compare yet"
+            description="This copilot only has a single draft version. Build a track record — run its test suites and a benchmark — before comparing or promoting anything."
+            action={
+              <>
+                <Button outline href={`/admin/agents/${id}/tests`}>
+                  Run tests
+                </Button>
+                <Button plain href={`/admin/agents/${id}/tests#benchmarks`}>
+                  View benchmarks
+                </Button>
+              </>
+            }
+          />
         </div>
 
         {sorted.length === 1 ? (
