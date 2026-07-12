@@ -163,11 +163,18 @@ export async function POST(
       })
     }
 
-    // A rejection that left every tool call blocked is a `blocked` run;
-    // anything else (including an approval) completes.
+    // Three outcomes, not two:
+    //   - every tool call blocked AND the operator rejected  → `blocked`
+    //     (the expected, safe outcome of a decline).
+    //   - every tool call blocked AND the operator APPROVED   → `failed`
+    //     (the human said yes, but the tool never ran/succeeded — an
+    //     approval whose action fails is a failure, not a success; reporting
+    //     `completed` here would tell the operator "approved, done" while
+    //     the action silently didn't happen).
+    //   - otherwise (at least one tool call actually went through)  → `completed`.
     const allBlocked =
       result.toolCalls.length > 0 && result.toolCalls.every((tc) => tc.status === 'blocked')
-    const status = allBlocked && approved === false ? 'blocked' : 'completed'
+    const status = allBlocked ? (approved ? 'failed' : 'blocked') : 'completed'
     const outputSummary = summarize(result.finalText || '(empty response)')
 
     // Re-aggregate the run's counters from the full tool_calls table so

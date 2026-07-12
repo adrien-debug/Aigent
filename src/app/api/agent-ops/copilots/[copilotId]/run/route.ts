@@ -133,8 +133,15 @@ export async function POST(
       costUsd: result.costUsd,
       traceUrl: result.traceUrl,
       resolvedProvider: result.resolvedProvider,
+      // Null when the real model couldn't be verified (see modelUnverified) —
+      // never a guess dressed up as the model that ran.
       resolvedModel: result.resolvedModel,
       fallbackUsed: result.fallbackUsed,
+      // True when resolvedModel/fallbackUsed could NOT be verified against
+      // what actually executed (LangGraph path with no readable response
+      // metadata). Callers must not treat resolvedModel/fallbackUsed as fact
+      // when this is true.
+      modelUnverified: result.modelUnverified,
       // Human-in-the-loop: when the LangGraph run paused, the client shows an
       // Approve/Reject prompt and calls the resume route with this runId.
       interrupted: result.interrupted,

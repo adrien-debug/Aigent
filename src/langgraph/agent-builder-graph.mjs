@@ -53,6 +53,14 @@ const DEFAULT_TOOL_IDS = [
 // Tools requiring human approval before they run, in the legacy set. (Only the
 // write tool.) On the CONFIGURED path this is derived from the config instead.
 const DEFAULT_CONFIRM_REQUIRED = new Set(['draft_copilot_spec'])
+
+/**
+ * Structured marker set on the final AIMessage when the copilot's step budget runs
+ * out. The runner keys off THIS flag (response_metadata) rather than string-matching
+ * the human-facing sentence — rewording that sentence must never silently turn an
+ * unfinished run back into a "completed" one.
+ */
+export const STEP_BUDGET_EXHAUSTED = 'aigent_step_budget_exhausted'
 const DEFAULT_TOOL_RISK = { draft_copilot_spec: 'medium' }
 
 const DEFAULT_MODEL = process.env.AGENT_BUILDER_MODEL || 'gpt-5.4'
@@ -148,10 +156,17 @@ async function agentNode(state, config) {
   if (turnsTaken >= rt.maxSteps) {
     return {
       messages: [
-        new AIMessage(
-          'I stopped here: this copilot’s step budget (maxSteps) is exhausted, so I could not finish the task. ' +
+        new AIMessage({
+          content:
+            'I stopped here: this copilot’s step budget (maxSteps) is exhausted, so I could not finish the task. ' +
             'Please start a new run or narrow the request so it fits within the remaining steps.',
-        ),
+          // STRUCTURED marker — the runner must NOT have to string-match the prose
+          // above to know the task was cut short (rewording the sentence would
+          // silently turn an unfinished run back into a "completed" one, which is
+          // the exact class of silent lie we're eliminating). Consumers key off
+          // this flag; the text is for humans only.
+          response_metadata: { [STEP_BUDGET_EXHAUSTED]: true },
+        }),
       ],
     }
   }

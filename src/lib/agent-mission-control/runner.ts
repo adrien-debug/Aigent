@@ -114,8 +114,23 @@ export interface ExecuteCopilotRunResult {
   traceUrl: string | null
   /** Provider/model actually used (differs from requested on fallback). */
   resolvedProvider: ModelProvider
-  resolvedModel: string
+  /**
+   * The model that ACTUALLY served the run, when it could be verified from
+   * the provider's own response. Null means the real model is unknown — see
+   * `modelUnverified`. Never a guess dressed up as a fact.
+   */
+  resolvedModel: string | null
   fallbackUsed: boolean
+  /**
+   * True when `resolvedModel` could NOT be verified against what actually ran
+   * (the LangGraph path instantiates its model inside the graph from config,
+   * with a silent env fallback — see agent-builder-graph.mjs's DEFAULT_MODEL —
+   * so the requested model string is not proof of what executed). Callers
+   * MUST NOT treat `resolvedModel`/`fallbackUsed` as ground truth when this is
+   * true. The direct model-router path always verifies (routeCompletion
+   * reports the real provider response), so it's always false there.
+   */
+  modelUnverified: boolean
   /**
    * LangGraph Agent Server thread id when the run went through it (else null).
    * A `needs-confirmation` run is resumed on this thread.
@@ -253,7 +268,13 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
     { runId, copilotId, versionId, projectId, mode: 'run', provider: 'openai', model },
     startedAtMs
   )
-  trace.resolve('openai', model, false)
+  // NOTE: we deliberately do NOT call trace.resolve() here with the requested
+  // `model` — executeViaLangGraph never routes through the model-router, so
+  // the requested model is not proof of what the graph actually ran (it
+  // instantiates its own ChatOpenAI from the assistant config, with a silent
+  // env fallback — see agent-builder-graph.mjs DEFAULT_MODEL). We resolve the
+  // trace AFTER the run, once/if the real model is readable from the graph's
+  // own response metadata (see below).
 
   let status: AgentRunStatus = 'completed'
   let outputSummary: string
@@ -264,7 +285,12 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
   let interrupted = false
   let interruptMessage: string | null = null
   let pendingTool: { name: string; argumentsSummary: string; risk?: string } | null = null
-  const resolvedModel = model
+  // Real model, verified from the graph's provider response (see
+  // langgraph-server.ts's realModelFromMessages). Null until/unless verified —
+  // never defaults to the requested `model`, which would be exactly the lie
+  // this fixes (see module header BUG A).
+  let resolvedModel: string | null = null
+  let modelUnverified = true
   const toolCallRows: RawRow[] = []
 
   // Resolve the run's assistant via the shared cascade: the copilot's OWN
@@ -319,6 +345,32 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
     costUsd = result.costUsd
     threadId = result.threadId
 
+    // Reflect the model the graph ACTUALLY ran on (see langgraph-server.ts's
+    // realModelFromMessages), never the requested `model`. When the graph
+    // produced no AI message with resolvable response metadata (e.g. it
+    // interrupted before any model call — shouldn't happen given the graph
+    // shape, but never assume), resolvedModel stays null and modelUnverified
+    // stays true rather than defaulting to a guess.
+    if (result.resolvedModel) {
+      resolvedModel = result.resolvedModel
+      modelUnverified = false
+      trace.resolve('openai', result.resolvedModel, result.resolvedModel !== model)
+      if (result.resolvedModel !== model) {
+        trace.step(
+          {
+            kind: 'fallback',
+            title: 'Graph ran on a different model than requested',
+            detail: summarize(
+              `Requested ${model || '(none configured)'}, graph actually ran ${result.resolvedModel}.`
+            ),
+            status: 'warning',
+            durationMs: 0,
+          },
+          Date.now()
+        )
+      }
+    }
+
     if (result.interrupted) {
       // The graph paused for human approval — persist as needs-confirmation,
       // keeping the thread id so a later resume request can continue it.
@@ -327,6 +379,14 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
       interruptMessage = result.interruptMessage
       pendingTool = result.pendingTool ?? null
       outputSummary = summarize(result.interruptMessage ?? 'Awaiting human approval for a tool call.')
+    } else if (result.budgetExhausted) {
+      // The graph hit its own maxSteps guard (agent-builder-graph.mjs) and said
+      // so via a STRUCTURED marker on its final message — not by prose we'd have
+      // to parse. The task was NOT finished, so `completed` would be a lie. The
+      // DB CHECK (supabase/migrations/0001_agent_mission_control.sql:142) has no
+      // `incomplete` value, so `failed` is the honest choice available.
+      status = 'failed'
+      outputSummary = summarize(result.finalText)
     } else {
       outputSummary = summarize(result.finalText || '(empty response)')
     }
@@ -410,7 +470,11 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
     traceUrl: traceResult.traceUrl,
     resolvedProvider: 'openai',
     resolvedModel,
-    fallbackUsed: false,
+    // Honest only when verified: true iff we confirmed the graph ran on a
+    // model different from what was requested. Never true/false by default
+    // when unverified — modelUnverified is the signal callers must check.
+    fallbackUsed: !modelUnverified && resolvedModel !== model,
+    modelUnverified,
     threadId,
     interrupted,
     interruptMessage,
@@ -642,8 +706,14 @@ export async function executeCopilotRun(
     }
 
     if (turn >= maxTurns && finalText === '') {
-      // Hit the step budget without a final answer.
-      status = 'completed'
+      // Hit the step budget without a final answer — the task did NOT finish.
+      // `agent_runs.status` has no dedicated "incomplete" value (its CHECK
+      // constraint only allows completed/failed/blocked/needs-confirmation/
+      // running — see supabase/migrations/0001_agent_mission_control.sql:142),
+      // so `failed` is the most honest value the DB accepts: a run that never
+      // produced a final answer is not a success, and `blocked` would falsely
+      // imply a guardrail/approval gate rather than an exhausted step budget.
+      status = 'failed'
       outputSummary = summarize('Reached the manifest step budget before a final answer.')
       trace.step(
         {
@@ -761,6 +831,9 @@ export async function executeCopilotRun(
     resolvedProvider,
     resolvedModel,
     fallbackUsed,
+    // The direct model-router path always calls the real provider through
+    // routeCompletion and reports its actual response — always verified.
+    modelUnverified: false,
     // The direct model-router path has no Agent Server thread and never
     // interrupts for human approval.
     threadId: null,

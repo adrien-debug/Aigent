@@ -36,13 +36,17 @@ function graphModel(): string {
 }
 
 /**
- * Sum the run's USD cost from the AI messages' usage_metadata. The graph runs
- * on OpenAI (graphModel), so cost is normalized via model-pricing. When a
+ * Sum the run's USD cost from the AI messages' usage_metadata. Priced against
+ * the model that ACTUALLY served the run when it's readable from the message
+ * (response_metadata.model_name — see realModelFromMessages), falling back to
+ * the env-configured graphModel() only when no message reports one (e.g. an
+ * empty run). Pricing itself stays an estimate per model-pricing.ts's own
+ * disclaimer; this only fixes WHICH model's price is looked up. When a
  * message lacks usage, its tokens are estimated from content — never NaN,
  * never silently zero (unlike the previous hardcoded 0).
  */
 function costFromMessages(messages: AnyMsg[]): number {
-  const model = graphModel()
+  const model = realModelFromMessages(messages) ?? graphModel()
   let total = 0
   for (const m of messages) {
     const type = m.type ?? m.role
@@ -83,6 +87,20 @@ export interface LangGraphServerResult {
   steps: LangGraphServerStep[]
   toolCalls: LangGraphServerToolCall[]
   costUsd: number
+  /**
+   * The model that ACTUALLY served the run, read from the provider's own
+   * response metadata (never the requested/configured model — the graph may
+   * silently fall back to DEFAULT_MODEL when the assistant config is empty).
+   * Null when no AI message carried a resolvable model — never guessed.
+   */
+  resolvedModel: string | null
+  /**
+   * True when the graph stopped because the copilot's step budget was exhausted —
+   * read from a STRUCTURED marker the graph sets, never by string-matching its
+   * human-facing message. The task was NOT finished: the caller must not persist
+   * such a run as `completed`.
+   */
+  budgetExhausted: boolean
 }
 
 const short = (s: string, n = 220): string => (s && s.length > n ? `${s.slice(0, n - 1)}…` : (s ?? ''))
@@ -121,6 +139,39 @@ type AnyMsg = {
   tool_call_id?: string
   tool_calls?: { id?: string; name: string; args?: unknown }[]
   usage_metadata?: { input_tokens?: number; output_tokens?: number }
+  response_metadata?: { model_name?: string; model?: string; [STEP_BUDGET_EXHAUSTED]?: boolean }
+}
+
+/**
+ * Structured marker the graph sets on its final AIMessage when the copilot's step
+ * budget runs out (agent-builder-graph.mjs). We key off THIS, never off the prose
+ * of the message: rewording that sentence must not silently turn an unfinished run
+ * back into a "completed" one.
+ */
+const STEP_BUDGET_EXHAUSTED = 'aigent_step_budget_exhausted'
+
+/** True when the graph stopped because the copilot's step budget was exhausted. */
+function budgetExhaustedFromMessages(messages: AnyMsg[]): boolean {
+  return messages.some((m) => m.response_metadata?.[STEP_BUDGET_EXHAUSTED] === true)
+}
+
+/**
+ * Extract the model that ACTUALLY served an AI message, as reported by the
+ * provider itself (OpenAI's raw completion `data.model`, surfaced by
+ * @langchain/openai as `response_metadata.model_name` — confirmed empirically:
+ * it is a version-pinned snapshot id like "gpt-4o-mini-2024-07-18", not an
+ * echo of the requested alias). Checks the LAST AI message first (the final
+ * answer), falling back to any earlier one, since every turn of the loop may
+ * in principle run on the same model but only the model that produced the
+ * observable result matters most.
+ */
+function realModelFromMessages(messages: AnyMsg[]): string | null {
+  const aiMessages = messages.filter((m) => (m.type ?? m.role) === 'ai' || (m.type ?? m.role) === 'assistant')
+  for (const m of [...aiMessages].reverse()) {
+    const name = m.response_metadata?.model_name ?? m.response_metadata?.model
+    if (typeof name === 'string' && name.length > 0) return name
+  }
+  return null
 }
 
 /** Extract the interrupt payload's human message, if any. */
@@ -275,7 +326,18 @@ export async function runOnAgentServer(args: {
       status: 'blocked',
       durationMs: 0,
     })
-    return { threadId, interrupted: true, interruptMessage: msg, pendingTool, finalText, steps, toolCalls, costUsd: costFromMessages(messages) }
+    return {
+      threadId,
+      interrupted: true,
+      interruptMessage: msg,
+      pendingTool,
+      finalText,
+      steps,
+      toolCalls,
+      costUsd: costFromMessages(messages),
+      resolvedModel: realModelFromMessages(messages),
+      budgetExhausted: budgetExhaustedFromMessages(messages),
+    }
   }
 
   steps.push({
@@ -285,7 +347,17 @@ export async function runOnAgentServer(args: {
     status: 'ok',
     durationMs: 0,
   })
-  return { threadId, interrupted: false, interruptMessage: null, finalText, steps, toolCalls, costUsd: costFromMessages(messages) }
+  return {
+    threadId,
+    interrupted: false,
+    interruptMessage: null,
+    finalText,
+    steps,
+    toolCalls,
+    costUsd: costFromMessages(messages),
+    resolvedModel: realModelFromMessages(messages),
+    budgetExhausted: budgetExhaustedFromMessages(messages),
+  }
 }
 
 /**
@@ -347,5 +419,18 @@ export async function resumeOnAgentServer(args: {
     status: 'ok',
     durationMs: 0,
   })
-  return { threadId: args.threadId, interrupted: false, interruptMessage: null, finalText, steps, toolCalls, costUsd: costFromMessages(messages) }
+  // Prefer the resolved model from the resumed (new) messages; fall back to the
+  // full history in the rare case the resume added no fresh AI message with
+  // resolvable metadata (mirrors the tool-name lookup-scope pattern above).
+  return {
+    threadId: args.threadId,
+    interrupted: false,
+    interruptMessage: null,
+    finalText,
+    steps,
+    toolCalls,
+    costUsd: costFromMessages(messages),
+    resolvedModel: realModelFromMessages(messages) ?? realModelFromMessages(allMessages),
+    budgetExhausted: budgetExhaustedFromMessages(allMessages),
+  }
 }
