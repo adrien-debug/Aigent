@@ -87,16 +87,30 @@ export interface LangGraphServerResult {
 
 const short = (s: string, n = 220): string => (s && s.length > n ? `${s.slice(0, n - 1)}…` : (s ?? ''))
 
+/** SDK's own default recursion limit — our floor so we never UNDER-budget a run. */
+const SDK_DEFAULT_RECURSION_LIMIT = 25
+/** Hard ceiling so a misconfigured maxSteps can't hand the server an unbounded run. */
+const RECURSION_LIMIT_CAP = 150
+/**
+ * Graph nodes consumed per logical step. The graph cycles
+ * agent → approval → tools (parallel_tool_calls:false → ONE tool per turn), so a
+ * single tool call costs ~3 super-steps, not 2 — under-counting throws
+ * GraphRecursionError mid-run.
+ */
+const NODES_PER_STEP = 3
+
 /**
  * Derive the SDK's `recursion_limit` from the copilot's logical step budget.
- * Each logical step (agent turn + tool call) is ~2 graph nodes, so the
- * recursion budget is doubled; capped so a misconfigured maxSteps can't hand
- * the Agent Server an unbounded run. Returns undefined when maxSteps is
- * undefined so callers keep the SDK's own default (25) unchanged.
+ * Budget = NODES_PER_STEP × maxSteps + 1 (the final agent turn), floored at the
+ * SDK default so we never constrain a run tighter than the out-of-the-box 25,
+ * and capped so a misconfigured maxSteps can't run unbounded. Returns undefined
+ * when maxSteps is undefined (or not a finite number) so callers keep the SDK
+ * default unchanged.
  */
 function recursionLimitFor(maxSteps: number | undefined): number | undefined {
-  if (maxSteps === undefined) return undefined
-  return Math.min(Math.max(1, maxSteps) * 2, 50)
+  if (maxSteps === undefined || !Number.isFinite(maxSteps)) return undefined
+  const derived = Math.max(1, Math.floor(maxSteps)) * NODES_PER_STEP + 1
+  return Math.min(Math.max(derived, SDK_DEFAULT_RECURSION_LIMIT), RECURSION_LIMIT_CAP)
 }
 
 type AnyMsg = {
