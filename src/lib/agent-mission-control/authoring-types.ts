@@ -11,13 +11,6 @@
 import type { AgentRuntime, ConfirmationPolicy, ModelProvider, ToolRiskLevel } from './types'
 
 // ---------------------------------------------------------------------------
-// Shared scalars (re-exported for convenience of callers of this module)
-// ---------------------------------------------------------------------------
-
-/** ISO 8601 timestamp, e.g. "2026-07-09T14:32:00Z". */
-export type IsoTimestamp = string
-
-// ---------------------------------------------------------------------------
 // Architect conversation
 // ---------------------------------------------------------------------------
 
