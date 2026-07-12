@@ -28,7 +28,7 @@
  * Exports `graph` (the compiled graph) — referenced by langgraph.json.
  */
 import { ChatOpenAI } from '@langchain/openai'
-import { ToolMessage } from '@langchain/core/messages'
+import { AIMessage, ToolMessage } from '@langchain/core/messages'
 import { StateGraph, MessagesAnnotation, START, END, interrupt } from '@langchain/langgraph'
 
 import { buildTool, buildToolsFromConfig } from './tool-registry.mjs'
@@ -117,8 +117,45 @@ function resolveRuntime(config) {
 // Nodes — each takes (state, config) and reads `config.configurable` at runtime.
 // ---------------------------------------------------------------------------
 
+/**
+ * Count completed agent turns from the STATE itself (never a module-level
+ * variable — the compiled graph is a singleton shared by every copilot/run,
+ * so any counter that lived outside `state` would be shared/racy across
+ * concurrent runs and across resumes of the same run). Each pass through
+ * agentNode appends exactly one AI message, so "number of AI messages already
+ * in state" IS "number of agent turns already taken" — a pure function of the
+ * checkpointed state, so it's correct on first run, on tool-loop continuation,
+ * and on interrupt/resume alike (the paused/resumed state still carries every
+ * prior AI message).
+ * @param {import('@langchain/langgraph').BaseMessage[]} messages
+ */
+function countAgentTurns(messages) {
+  return messages.filter((m) => (m.getType?.() ?? m.type) === 'ai').length
+}
+
 async function agentNode(state, config) {
   const rt = resolveRuntime(config)
+
+  // Step-budget guard (defense in depth): `runOnAgentServer` derives its own
+  // `recursion_limit` from this SAME `maxSteps` and passes it to the SDK, but
+  // that only protects callers who go through it. Anything that invokes this
+  // graph directly (LangSmith Studio, a bare SDK call, a future script) skips
+  // that layer entirely and would otherwise fall back to the framework's
+  // generic recursion_limit default — silently NOT honouring the copilot's
+  // configured budget. So the graph enforces its own turn count too, from
+  // state, independent of who's calling it.
+  const turnsTaken = countAgentTurns(state.messages)
+  if (turnsTaken >= rt.maxSteps) {
+    return {
+      messages: [
+        new AIMessage(
+          'I stopped here: this copilot’s step budget (maxSteps) is exhausted, so I could not finish the task. ' +
+            'Please start a new run or narrow the request so it fits within the remaining steps.',
+        ),
+      ],
+    }
+  }
+
   // Instantiate the model PER RUN from the config — one compiled graph serves
   // every copilot's model. parallel_tool_calls:false → ONE tool per turn, which
   // keeps the approval gate deterministic (a gated tool is never batched behind
