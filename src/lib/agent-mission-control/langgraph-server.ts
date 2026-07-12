@@ -1,5 +1,5 @@
 /**
- * Agent Mission Control — LangGraph Agent Server client (server only).
+ * Agent Mission Control — LangGraph Agent Server run/resume (server only).
  *
  * The app does NOT embed a LangGraph engine. Runs for a `langgraph`-runtime
  * copilot are executed by the official LangGraph Agent Server (`langgraphjs
@@ -12,23 +12,23 @@
  * state — the same server LangSmith Studio connects to. There is no bespoke
  * runtime here.
  *
- * Env: LANGGRAPH_API_URL (default http://127.0.0.1:2024) and LANGGRAPH_SERVER_SECRET
- * (sent as the x-agent-key header to authenticate against the Agent Server). The
- * server is fail-closed via langgraph.json's "auth" key in BOTH local dev and
- * production, so the secret is required in both — not just production. The
- * server itself reads OPENAI_API_KEY + the gpu1 perimeter from .env.local.
+ * A run/resume targets an ASSISTANT when one is given (a project's dedicated
+ * assistant on the shared `agent_builder` graph) — that makes each project a
+ * distinct entity in Studio. Absent (copilot on the bench, or a legacy project
+ * with no assistant yet), it falls back to the bare graph id. The client and
+ * graph id come from the shared factory (langgraph-client.ts) — no duplicated
+ * auth logic here.
+ *
+ * The server itself reads OPENAI_API_KEY + the gpu1 perimeter from .env.local.
  */
 import 'server-only'
 
-import { Client } from '@langchain/langgraph-sdk'
-
+import { agentServerClient, AGENT_BUILDER_GRAPH_ID } from './langgraph-client'
 import { computeCostUsd, estimateTokens } from './model-pricing'
 import type { DurationMs } from './types'
 
-/** Base URL of the local Agent Server (overridable for a remote deployment). */
-export function agentServerUrl(): string {
-  return process.env.LANGGRAPH_API_URL || 'http://127.0.0.1:2024'
-}
+// Re-export so existing importers of the graph id keep a stable path.
+export { AGENT_BUILDER_GRAPH_ID } from './langgraph-client'
 
 /** The model the Agent Server graph runs on (mirrors AGENT_BUILDER_MODEL). */
 function graphModel(): string {
@@ -54,27 +54,6 @@ function costFromMessages(messages: AnyMsg[]): number {
   }
   return Math.round(total * 1e6) / 1e6
 }
-
-/**
- * Build the Agent Server client (server only). The server (local dev AND
- * production) is fail-closed via langgraph.json's "auth" key, so when
- * LANGGRAPH_SERVER_SECRET is set, the app sends it as the `x-agent-key` header
- * on every request via the SDK's `defaultHeaders`. Absent, the client is
- * created bare and every request will 503 — set the secret in both environments.
- *
- * The secret is trimmed before use: an empty or whitespace-only value (e.g. a
- * stray " " from a misconfigured env var) is treated as absent rather than sent
- * as a bogus header that would just get a 401 from the server.
- */
-const client = (): Client => {
-  const secret = process.env.LANGGRAPH_SERVER_SECRET?.trim()
-  return secret
-    ? new Client({ apiUrl: agentServerUrl(), defaultHeaders: { 'x-agent-key': secret } })
-    : new Client({ apiUrl: agentServerUrl() })
-}
-
-/** Graph id declared in langgraph.json. */
-export const AGENT_BUILDER_GRAPH_ID = 'agent_builder'
 
 export interface LangGraphServerStep {
   kind: 'llm-call' | 'tool-call' | 'guardrail-check' | 'confirmation' | 'output'
@@ -211,18 +190,24 @@ function buildStepsFromMessages(messages: AnyMsg[]): {
  * to completion OR to the first interrupt (human-in-the-loop). Returns a
  * normalized result the runner persists; the threadId lets a later request
  * resume an interrupted run.
+ *
+ * The run targets `assistantId` when given (the project's dedicated assistant),
+ * otherwise `graphId` and otherwise the shared `agent_builder` graph — the SDK's
+ * `runs.wait` accepts either an assistant id or a graph id as its 2nd argument.
  */
 export async function runOnAgentServer(args: {
+  /** Optional assistant to run against (project's dedicated assistant). Wins over graphId. */
+  assistantId?: string
   graphId?: string
   userInput: string
 }): Promise<LangGraphServerResult> {
-  const c = client()
-  const graphId = args.graphId ?? AGENT_BUILDER_GRAPH_ID
+  const c = agentServerClient()
+  const target = args.assistantId ?? args.graphId ?? AGENT_BUILDER_GRAPH_ID
 
   const thread = await c.threads.create()
   const threadId = thread.thread_id
 
-  const result = (await c.runs.wait(threadId, graphId, {
+  const result = (await c.runs.wait(threadId, target, {
     input: { messages: [{ role: 'user', content: args.userInput }] },
   })) as { messages?: AnyMsg[]; __interrupt__?: unknown }
 
@@ -263,17 +248,21 @@ export async function runOnAgentServer(args: {
 
 /**
  * Resume an interrupted run on its thread with a human decision
- * (`{ approved }`). Returns the same normalized shape.
+ * (`{ approved }`). Returns the same normalized shape. Targets the same
+ * assistant the run started on (`assistantId`) when given, else the graph id —
+ * resuming on the assistant keeps the thread attributed to the project.
  */
 export async function resumeOnAgentServer(args: {
+  /** Optional assistant the run started on (project's dedicated assistant). Wins over graphId. */
+  assistantId?: string
   graphId?: string
   threadId: string
   approved: boolean
 }): Promise<LangGraphServerResult> {
-  const c = client()
-  const graphId = args.graphId ?? AGENT_BUILDER_GRAPH_ID
+  const c = agentServerClient()
+  const target = args.assistantId ?? args.graphId ?? AGENT_BUILDER_GRAPH_ID
 
-  const result = (await c.runs.wait(args.threadId, graphId, {
+  const result = (await c.runs.wait(args.threadId, target, {
     command: { resume: { approved: args.approved } },
   })) as { messages?: AnyMsg[]; __interrupt__?: unknown }
 

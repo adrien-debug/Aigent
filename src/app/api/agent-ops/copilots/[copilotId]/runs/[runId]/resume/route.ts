@@ -102,10 +102,29 @@ export async function POST(
     // Non-fatal — fall back to name-based tool_id below.
   }
 
+  // Resolve the project's dedicated assistant so the resume targets the SAME
+  // assistant the run started on (keeping the thread attributed to the project
+  // in Studio). Legacy projects (null assistant_id) resume on the shared graph
+  // id inside resumeOnAgentServer. Non-fatal: a lookup failure just falls back.
+  let assistantId: string | undefined
+  const projectId = runRow.project_id as string | null
+  if (projectId) {
+    try {
+      const projRows = await pgrest<Record<string, unknown>[]>(
+        'GET',
+        `projects?id=eq.${encodeURIComponent(projectId)}&select=assistant_id`
+      )
+      const raw = projRows[0]?.assistant_id
+      if (typeof raw === 'string' && raw.length > 0) assistantId = raw
+    } catch {
+      // Fall back to the shared graph id below.
+    }
+  }
+
   // 2) Continue the thread with the operator's decision, then persist the
   //    resumed steps/tool calls and close the run. Any failure here is a 502.
   try {
-    const result = await resumeOnAgentServer({ threadId, approved })
+    const result = await resumeOnAgentServer({ threadId, approved, assistantId })
 
     // Continue the run's step numbering from the max existing index + 1.
     const lastStepRows = await pgrest<Record<string, unknown>[]>(

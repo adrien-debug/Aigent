@@ -13,11 +13,15 @@
 import 'server-only'
 
 import type { CreateCopilotInput } from './authoring-types'
+import { deleteProjectAssistant } from './langgraph-assistants'
 import { pgrest, requireBackend } from './postgrest'
 import { makeId, slugify } from './slug'
 import type { TestSuite } from './types'
 
 type RawRow = Record<string, unknown>
+
+/** PostgREST equality filter: `col=eq.<url-encoded val>`. Shared by writes + deletes. */
+const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`
 
 // ---------------------------------------------------------------------------
 // createCopilotFromManifest — materialize a ready draft into a real copilot
@@ -259,6 +263,18 @@ export async function createProject(input: CreateProjectInput): Promise<string> 
   return id
 }
 
+/**
+ * Persist the project's dedicated LangGraph assistant id onto its row. Split
+ * from createProject because the assistant is created on the Agent Server AFTER
+ * the row exists (the assistant's metadata carries the projectId) — the route
+ * calls createProject → ensureProjectAssistant → setProjectAssistantId in order.
+ * Fail-closed (mirrors createProject).
+ */
+export async function setProjectAssistantId(projectId: string, assistantId: string): Promise<void> {
+  requireBackend()
+  await pgrest<RawRow[]>('PATCH', `projects?${eq('id', projectId)}`, { assistant_id: assistantId })
+}
+
 // ---------------------------------------------------------------------------
 // Deletes — the DB owns the cascade. Every child FK (copilot_versions,
 // manifests, tools, test_*, agent_runs, benchmark_*, replay/shadow/promotion/
@@ -266,9 +282,8 @@ export async function createProject(input: CreateProjectInput): Promise<string> 
 // deleting the parent row removes everything atomically in one statement.
 // Verified live: DELETE copilots?id=eq.X clears its manifests/versions/tools.
 // Live-only, fail-closed. Returns false if the row didn't exist.
+// (The `eq` filter helper is defined at the top of this module.)
 // ---------------------------------------------------------------------------
-
-const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`
 
 /** Delete a copilot; the DB cascades every dependent row. */
 export async function deleteCopilotCascade(copilotId: string): Promise<boolean> {
@@ -280,13 +295,25 @@ export async function deleteCopilotCascade(copilotId: string): Promise<boolean> 
 }
 
 /**
- * Delete a project. Its assigned copilots are cascade-deleted first (so no
- * orphan copilot points at a dead project), then the project row.
+ * Delete a project. Its dedicated LangGraph assistant is removed first
+ * (best-effort — a leftover assistant is inert but would clutter Studio), then
+ * its assigned copilots are cascade-deleted (so no orphan copilot points at a
+ * dead project), then the project row.
  */
 export async function deleteProjectCascade(projectId: string): Promise<boolean> {
   requireBackend()
-  const existing = await pgrest<{ id: string }[]>('GET', `projects?select=id&${eq('id', projectId)}`)
+  const existing = await pgrest<{ id: string; assistant_id: string | null }[]>(
+    'GET',
+    `projects?select=id,assistant_id&${eq('id', projectId)}`
+  )
   if (existing.length === 0) return false
+
+  // Tear down the project's assistant on the Agent Server. Best-effort: a failed
+  // assistant delete must not block deleting the project row (the assistant is
+  // inert without a project pointing runs at it).
+  const assistantId = existing[0].assistant_id
+  if (assistantId) await deleteProjectAssistant(assistantId)
+
   const copilots = await pgrest<{ id: string }[]>('GET', `copilots?select=id&${eq('project_id', projectId)}`)
   for (const copilot of copilots) {
     await pgrest('DELETE', `copilots?${eq('id', copilot.id)}`)
