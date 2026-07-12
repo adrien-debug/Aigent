@@ -238,10 +238,12 @@ interface ViaLangGraphArgs {
   projectId: string
   model: string
   userInput: string
+  /** Manifest step ceiling — bounds the Agent Server's recursion_limit. */
+  maxSteps: number
 }
 
 async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopilotRunResult> {
-  const { copilotId, versionId, projectId, model, userInput } = args
+  const { copilotId, versionId, projectId, model, userInput, maxSteps } = args
 
   const startedAtMs = Date.now()
   const startedAt: IsoTimestamp = new Date(startedAtMs).toISOString()
@@ -292,7 +294,7 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
   const toolByName = new Map(copilotTools.map((t) => [t.name, t]))
 
   try {
-    const result = await runOnAgentServer({ userInput, assistantId })
+    const result = await runOnAgentServer({ userInput, assistantId, maxSteps })
 
     for (const s of result.steps) {
       trace.step({ kind: s.kind, title: s.title, detail: s.detail, status: s.status, durationMs: s.durationMs }, Date.now())
@@ -440,7 +442,7 @@ export async function executeCopilotRun(
   // owns the graph + tools — so we skip the local tool-loading entirely.
   const runtime = args.runtime ?? (await loadRuntime(copilotId))
   if (runtime === 'langgraph') {
-    return executeViaLangGraph({ copilotId, versionId, projectId, model, userInput })
+    return executeViaLangGraph({ copilotId, versionId, projectId, model, userInput, maxSteps })
   }
 
   // Direct model-router path: resolve the tool set from the manifest.

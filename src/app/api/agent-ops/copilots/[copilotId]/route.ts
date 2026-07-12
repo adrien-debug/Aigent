@@ -101,10 +101,17 @@ export async function PATCH(
   if ('projectId' in body) {
     try {
       await ensureCopilotAssistant({ copilotId })
+      // Re-provision succeeded — the caller gets a positive signal so a UI can
+      // confirm the copilot now runs against a fresh, correctly-scoped assistant.
+      return NextResponse.json({ ok: true, persisted: true, reprovisioned: true })
     } catch (err) {
+      // The DB write already committed (primary effect) so we don't fail the
+      // PATCH, but we surface reprovisioned:false + the reason so the operator
+      // knows the baked assistant config may still be stale and can retry.
       return NextResponse.json({
         ok: true,
         persisted: true,
+        reprovisioned: false,
         reprovisionWarning: err instanceof Error ? err.message : 'assistant re-provision failed',
       })
     }

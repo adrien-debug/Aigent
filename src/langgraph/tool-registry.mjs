@@ -44,7 +44,9 @@ const SECRET_PATH_PATTERNS = [
   /(^|\/)\.env(\.|$)/i,
   /\.pem$/i,
   /(^|\/)id_(rsa|dsa|ecdsa|ed25519)$/i,
-  /(^|\/).*secret.*/i,
+  // "secret"/"secrets" as a delimited token (start, /, ., _ or -) — matches
+  // secret.json, my_secret.txt, db-secret.yaml, secrets.yml; NOT secretary.js.
+  /(^|[/._-])secrets?([/._-]|$)/i,
   /\.key$/i,
   /(^|\/)credentials(\.|$)/i,
   /\.pfx$/i,
@@ -282,10 +284,9 @@ function makeHttpGet(scope) {
         // guard entirely. So we disable auto-redirect and walk hops ourselves,
         // re-validating each `location` host against `allowedHosts` before following it.
         let current = url
-        for (let hop = 0; hop <= MAX_HTTP_REDIRECTS; hop++) {
-          if (hop === MAX_HTTP_REDIRECTS) {
-            return JSON.stringify({ ok: false, error: 'too many redirects' })
-          }
+        // Walk up to MAX_HTTP_REDIRECTS hops. The loop condition bounds the hop
+        // count so the terminal "too many redirects" return below is reachable.
+        for (let hop = 0; hop < MAX_HTTP_REDIRECTS; hop++) {
           const res = await fetch(current, {
             headers: { 'User-Agent': 'agent-builder-copilot' },
             signal: controller.signal,

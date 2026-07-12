@@ -167,7 +167,7 @@ const KNOWN_TOOL_IDS: ReadonlySet<string> = new Set<BehaviorToolId>(REGISTRY_IDS
  * ones (platform reads and tree/list before a bare "read repo", generic http_get
  * last). Deterministic: same input → same id, no IO.
  */
-function resolveToolId(rawName: string): BehaviorToolId | null {
+function resolveToolId(rawName: string, hasRepo: boolean): BehaviorToolId | null {
   const lower = (rawName ?? '').toLowerCase()
   // Collapse every non-alphanumeric run to a single space → uniform matching.
   const n = lower.replace(/[^a-z0-9]+/g, ' ').trim()
@@ -180,17 +180,22 @@ function resolveToolId(rawName: string): BehaviorToolId | null {
   const any = (...words: string[]) => words.some((w) => n.includes(w))
 
   // --- Repo-file/tree/search intent signal — tested FIRST, before the platform
-  //     reads below. WHY: an architect name like 'read_project_file' or
-  //     'list_project_files' uses the word "project" but its intent is to read
-  //     something FROM THE REPO (file/tree/folder/source), not the platform's
-  //     project-summary object. Without this signal, the has('project') rule
-  //     below would win first and misroute a repo-file intent to
-  //     read_project_summary. When this signal is present we go straight to the
-  //     repo-tool rules and skip the platform reads entirely.
+  //     reads below, but ONLY when the copilot actually HAS a repo. WHY: an
+  //     architect name like 'read_project_file' / 'list_project_files' uses the
+  //     word "project" but its intent is to read FROM THE REPO (file/tree/source).
+  //     With a repo, we route it to the repo tool. WITHOUT a repo, the repo tool
+  //     would be dropped downstream (toBehaviorTool) and the copilot would lose a
+  //     tool it could otherwise have as a platform read — so when there's no repo
+  //     we deliberately do NOT skip the platform reads, letting the name degrade
+  //     gracefully to read_project_summary / read_copilot_summary instead of
+  //     being dropped. Genuinely repo-only names (no project/copilot/run noun,
+  //     e.g. 'read_source_file') still fall through to the repo rules and are
+  //     dropped when no repo — there is no platform equivalent for them.
   const signalsRepoFile = any('file', 'files', 'repo', 'tree', 'folder', 'folders', 'directory', 'directories', 'source', 'code')
   const signalsReadIntent = any('read', 'reader', 'list', 'get', 'fetch', 'cat', 'open', 'view', 'search', 'find', 'query', 'grep', 'ls')
+  const preferRepoIntent = hasRepo && signalsRepoFile && signalsReadIntent
 
-  if (!(signalsRepoFile && signalsReadIntent)) {
+  if (!preferRepoIntent) {
     // --- Platform reads (only when the name does NOT also signal a repo-file intent) ---
     if (has('project') && any('summary', 'summaries', 'list', 'read', 'info', 'get')) return 'read_project_summary'
     if (has('copilot') && any('summary', 'summaries', 'list', 'read', 'info', 'get')) return 'read_copilot_summary'
@@ -370,7 +375,7 @@ function scopeFor(id: BehaviorToolId, repoFullName?: string | null): BehaviorToo
  * which is the intended safe default for a network-reaching tool).
  */
 function toBehaviorTool(row: ToolRowForBehavior, repoFullName?: string | null): BehaviorTool | null {
-  const id = resolveToolId(row.name)
+  const id = resolveToolId(row.name, Boolean(repoFullName))
   if (!id) return null
   if (REPO_TOOL_IDS.has(id) && !repoFullName) return null
 
