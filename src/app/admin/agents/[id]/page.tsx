@@ -21,8 +21,8 @@ import { Button } from '@/components/catalyst/button'
 import { Link } from '@/components/catalyst/link'
 import { formatDurationMs, formatPercent, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 import {
-  getBenchmarkResultForRun,
-  getBenchmarkRunsForSuite,
+  getBenchmarkResultsForRuns,
+  getBenchmarkRunsForSuites,
   getBenchmarkSuitesForCopilot,
   getCopilot,
   getManifestForCopilot,
@@ -197,21 +197,20 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
   const latencySeries = [...lastRuns].reverse().map((run) => run.latencyMs)
   const maxRunLatency = Math.max(...lastRuns.map((run) => run.latencyMs), 1)
 
-  // Benchmarks — best candidate across all suites
-  const benchmarkCandidates: { suite: BenchmarkSuite; run: BenchmarkRun; result: BenchmarkResult }[] = (
-    await Promise.all(
-      benchmarkSuites.map(async (suite) => {
-        const suiteRuns = await getBenchmarkRunsForSuite(suite.id)
-        const candidates = await Promise.all(
-          suiteRuns.map(async (run) => ({ suite, run, result: await getBenchmarkResultForRun(run.id) }))
-        )
-        return candidates.filter(
-          (candidate): candidate is { suite: BenchmarkSuite; run: BenchmarkRun; result: BenchmarkResult } =>
-            candidate.result !== undefined
-        )
-      })
-    )
-  ).flat()
+  // Benchmarks — best candidate across all suites. Two grouped PostgREST calls
+  // (all runs for all suites, then all results for all runs) instead of a
+  // suite × run cascade.
+  const suiteIds = benchmarkSuites.map((suite) => suite.id)
+  const allBenchmarkRuns = await getBenchmarkRunsForSuites(suiteIds)
+  const benchmarkResults = await getBenchmarkResultsForRuns(allBenchmarkRuns.map((run) => run.id))
+  const resultByRunId = new Map(benchmarkResults.map((result) => [result.runId, result]))
+  const suiteById = new Map(benchmarkSuites.map((suite) => [suite.id, suite]))
+  const benchmarkCandidates: { suite: BenchmarkSuite; run: BenchmarkRun; result: BenchmarkResult }[] =
+    allBenchmarkRuns.flatMap((run) => {
+      const result = resultByRunId.get(run.id)
+      const suite = suiteById.get(run.suiteId)
+      return result && suite ? [{ suite, run, result }] : []
+    })
   const bestCandidate = benchmarkCandidates.reduce<(typeof benchmarkCandidates)[number] | null>(
     (best, candidate) => (best === null || candidate.result.score > best.result.score ? candidate : best),
     null

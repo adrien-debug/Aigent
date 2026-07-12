@@ -17,6 +17,7 @@ import {
   getRunsForCopilot,
   getStepsForRun,
   getToolCallsForRun,
+  getToolCallsForRuns,
   getVersion,
 } from '@/lib/agent-mission-control/data'
 import { TOOL_CALL_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
@@ -56,8 +57,8 @@ export default async function RunsPage({
   const requestedRunId = typeof sp.run === 'string' ? sp.run : undefined
   const selectedRun = runs.find((run) => run.id === requestedRunId) ?? runs[0]
 
-  const [allToolCallsByRun, selectedSteps, selectedToolCalls, selectedVersion] = await Promise.all([
-    Promise.all(runs.map((run) => getToolCallsForRun(run.id))),
+  const [allToolCalls, selectedSteps, selectedToolCalls, selectedVersion] = await Promise.all([
+    getToolCallsForRuns(runs.map((run) => run.id)),
     selectedRun ? getStepsForRun(selectedRun.id) : [],
     selectedRun ? getToolCallsForRun(selectedRun.id) : [],
     selectedRun ? getVersion(selectedRun.versionId) : undefined,
@@ -71,7 +72,6 @@ export default async function RunsPage({
     status: run.status,
   }))
 
-  const allToolCalls = allToolCallsByRun.flat()
   const toolCallCounts = allToolCalls.reduce<Record<ToolCall['status'], number>>(
     (acc, call) => {
       acc[call.status] += 1

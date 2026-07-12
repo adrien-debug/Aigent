@@ -115,9 +115,15 @@ export async function getTestResultsForRun(runId: string): Promise<TestResult[]>
   return camelRows<TestResult>(await rest<RawRow[]>(`test_results?select=*&run_id=eq.${encodeURIComponent(runId)}&order=id`))
 }
 
-export async function getRunsForCopilot(copilotId: string): Promise<AgentRun[]> {
+/**
+ * Runs for a copilot, newest first. Bounded by `limit` (default 50) so this
+ * stays a single fast PostgREST round trip regardless of how much traffic a
+ * copilot has accumulated — callers that need the true full history should
+ * paginate explicitly rather than removing the cap.
+ */
+export async function getRunsForCopilot(copilotId: string, limit = 50): Promise<AgentRun[]> {
   const rows = await rest<RawRow[]>(
-    `agent_runs?select=*,agent_run_steps(id)&copilot_id=eq.${encodeURIComponent(copilotId)}&order=started_at.desc`
+    `agent_runs?select=*,agent_run_steps(id)&copilot_id=eq.${encodeURIComponent(copilotId)}&order=started_at.desc&limit=${limit}`
   )
   return rows.map((r) => {
     const { agent_run_steps, ...rest_ } = r as RawRow & { agent_run_steps: { id: string }[] }
@@ -158,6 +164,17 @@ export async function getToolCallsForRun(runId: string): Promise<ToolCall[]> {
   return camelRows<ToolCall>(await rest<RawRow[]>(`tool_calls?select=*&run_id=eq.${encodeURIComponent(runId)}&order=id`))
 }
 
+/**
+ * Tool calls for a batch of runs — ONE PostgREST round trip via `run_id=in.(...)`
+ * instead of one fetch per run. Use this whenever you need tool calls across a
+ * run list (e.g. a runs table); use `getToolCallsForRun` for a single run.
+ */
+export async function getToolCallsForRuns(runIds: string[]): Promise<ToolCall[]> {
+  if (runIds.length === 0) return []
+  const ids = runIds.map((id) => encodeURIComponent(id)).join(',')
+  return camelRows<ToolCall>(await rest<RawRow[]>(`tool_calls?select=*&run_id=in.(${ids})&order=id`))
+}
+
 export async function getBenchmarkSuitesForCopilot(copilotId: string): Promise<BenchmarkSuite[]> {
   return camelRows<BenchmarkSuite>(
     await rest<RawRow[]>(`benchmark_suites?select=*&copilot_id=eq.${encodeURIComponent(copilotId)}&order=name`)
@@ -170,8 +187,33 @@ export async function getBenchmarkRunsForSuite(suiteId: string): Promise<Benchma
   )
 }
 
+/**
+ * Benchmark runs across a batch of suites — ONE PostgREST round trip via
+ * `suite_id=in.(...)` instead of one fetch per suite. Use this when scanning
+ * all of a copilot's suites at once (e.g. the overview's best-candidate scan);
+ * use `getBenchmarkRunsForSuite` for a single suite.
+ */
+export async function getBenchmarkRunsForSuites(suiteIds: string[]): Promise<BenchmarkRun[]> {
+  if (suiteIds.length === 0) return []
+  const ids = suiteIds.map((id) => encodeURIComponent(id)).join(',')
+  return camelRows<BenchmarkRun>(
+    await rest<RawRow[]>(`benchmark_runs?select=*&suite_id=in.(${ids})&order=started_at.desc`)
+  )
+}
+
 export async function getBenchmarkResultForRun(runId: string): Promise<BenchmarkResult | undefined> {
   return camelRows<BenchmarkResult>(await rest<RawRow[]>(`benchmark_results?select=*&run_id=eq.${encodeURIComponent(runId)}`))[0]
+}
+
+/**
+ * Benchmark results across a batch of runs — ONE PostgREST round trip via
+ * `run_id=in.(...)` instead of one fetch per run. Use `getBenchmarkResultForRun`
+ * for a single run.
+ */
+export async function getBenchmarkResultsForRuns(runIds: string[]): Promise<BenchmarkResult[]> {
+  if (runIds.length === 0) return []
+  const ids = runIds.map((id) => encodeURIComponent(id)).join(',')
+  return camelRows<BenchmarkResult>(await rest<RawRow[]>(`benchmark_results?select=*&run_id=in.(${ids})`))
 }
 
 export async function getReplayComparisonsForCopilot(copilotId: string): Promise<ReplayComparison[]> {
