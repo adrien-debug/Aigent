@@ -117,8 +117,22 @@ const DEFAULT_CONFIRMATION_POLICY: ConfirmationPolicy = 'risky-only'
 /** Registry keys of the real repo tools — these need scope.repoFullName. */
 const REPO_TOOL_IDS: ReadonlySet<string> = new Set(['read_repo_file', 'list_repo_tree', 'search_repo'])
 
-/** Registry keys the app knows how to mount. A tool name not here is dropped. */
-const KNOWN_TOOL_IDS: ReadonlySet<string> = new Set<BehaviorToolId>([
+/**
+ * The REAL registry ids the graph can mount — the exact keys of REGISTRY in
+ * src/langgraph/tool-registry.mjs (exported there as REGISTRY_IDS). Duplicated
+ * here as a plain string list ON PURPOSE: this module is documented as pure and
+ * isomorphic ("safe to import from anywhere"), and tool-registry.mjs pulls in
+ * @langchain/core + a live PostgREST client — server-only side effects we must
+ * NOT drag into an isomorphic module just to read a list of names. The list is
+ * only strings and is guarded at build time by the `BehaviorToolId` union above
+ * (any drift makes this array literal fail to typecheck).
+ *
+ * MUST STAY IN SYNC with tool-registry.mjs REGISTRY_IDS. If a tool id is added
+ * to / removed from the registry, mirror it here AND in the BehaviorToolId
+ * union. There is no runtime import to keep them honest — the type union is the
+ * guard.
+ */
+const REGISTRY_IDS: ReadonlyArray<BehaviorToolId> = [
   'read_repo_file',
   'list_repo_tree',
   'search_repo',
@@ -128,7 +142,82 @@ const KNOWN_TOOL_IDS: ReadonlySet<string> = new Set<BehaviorToolId>([
   'read_recent_runs',
   'read_tool_permissions',
   'draft_copilot_spec',
-])
+]
+
+/** Registry keys the app knows how to mount. A tool name not here is dropped. */
+const KNOWN_TOOL_IDS: ReadonlySet<string> = new Set<BehaviorToolId>(REGISTRY_IDS)
+
+// ---------------------------------------------------------------------------
+// Semantic mapping — WHY: the Architect IA invents FREE tool names on the
+// manifest (e.g. 'github_file_reader', 'github_code_search',
+// 'github_pull_request_drafter'). Those names are NOT registry ids, so the graph
+// (which only knows REGISTRY_IDS) would IGNORE them and the copilot would end up
+// with none of the tools its prompt assumes (observed in prod: a "review repo"
+// copilot got only the 5 generic reads, zero repo tool). We therefore translate
+// each architect name to the REAL registry id whose executable tool realises
+// that intent. A name whose intent we can't recognise is DROPPED (the registry
+// would ignore it anyway) — we NEVER fabricate an id the registry doesn't know.
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve a free-form architect tool name to a REAL registry id, or null when no
+ * known intent matches. Case-insensitive and separator-tolerant (snake / kebab /
+ * space) so 'github_file_reader', 'GitHub File Reader' and 'read-file' all land
+ * on the same id. Order matters: more specific intents are tested before broader
+ * ones (platform reads and tree/list before a bare "read repo", generic http_get
+ * last). Deterministic: same input → same id, no IO.
+ */
+function resolveToolId(rawName: string): BehaviorToolId | null {
+  const lower = (rawName ?? '').toLowerCase()
+  // Collapse every non-alphanumeric run to a single space → uniform matching.
+  const n = lower.replace(/[^a-z0-9]+/g, ' ').trim()
+  if (n.length === 0) return null
+
+  // Exact registry id (the architect already used a real id) — accept as-is.
+  if ((KNOWN_TOOL_IDS as ReadonlySet<string>).has(lower)) return lower as BehaviorToolId
+
+  const has = (...words: string[]) => words.every((w) => n.includes(w))
+  const any = (...words: string[]) => words.some((w) => n.includes(w))
+
+  // --- Platform reads (before repo intents: they name a platform domain object) ---
+  if (has('project') && any('summary', 'summaries', 'list', 'read', 'info', 'get')) return 'read_project_summary'
+  if (has('copilot') && any('summary', 'summaries', 'list', 'read', 'info', 'get')) return 'read_copilot_summary'
+  if (any('run', 'runs', 'execution', 'executions') && any('recent', 'run', 'runs', 'history', 'read', 'list')) {
+    return 'read_recent_runs'
+  }
+  if ((has('tool') && any('permission', 'permissions')) || has('permission', 'matrix')) {
+    return 'read_tool_permissions'
+  }
+
+  // --- Draft / propose-a-change intent → the only real, gated write tool.
+  //     'github_pull_request_drafter' & co are an INTENTION to propose a change;
+  //     we map to draft_copilot_spec (we never push a real PR / write).
+  if (any('draft', 'drafter', 'propose', 'proposal', 'spec')) return 'draft_copilot_spec'
+  if (has('pull', 'request')) return 'draft_copilot_spec'
+
+  // --- Repo tree / directory listing (before "file", before bare "read repo") ---
+  if (any('tree', 'directory', 'directories', 'folder', 'folders') || (has('list') && any('file', 'files', 'repo', 'dir', 'tree'))) {
+    return 'list_repo_tree'
+  }
+
+  // --- Code search / grep inside the repo ---
+  if (any('grep', 'codesearch')) return 'search_repo'
+  if (has('code', 'search') || (any('search', 'find', 'query') && any('code', 'repo', 'file', 'files', 'source'))) {
+    return 'search_repo'
+  }
+
+  // --- Read a single repo file (file reader / read file / get file) ---
+  if (any('file', 'blob', 'content', 'contents', 'source') && any('read', 'reader', 'get', 'fetch', 'cat', 'open', 'view')) {
+    return 'read_repo_file'
+  }
+  if (n.includes('repo') && any('read', 'reader', 'get') && !any('search', 'tree', 'list')) return 'read_repo_file'
+
+  // --- Generic HTTP GET / URL fetch (last: broadest fetch intent) ---
+  if (any('http', 'https', 'url', 'endpoint', 'webhook') && any('get', 'fetch', 'call', 'request')) return 'http_get'
+  if (n === 'fetch' || n === 'http') return 'http_get'
+
+  return null
+}
 
 /**
  * The generic read tools every copilot gets even if its manifest declares no
@@ -242,52 +331,106 @@ function deriveAllowedHosts(repoFullName?: string | null): string[] {
 }
 
 /**
- * Map ONE tool row to a behavior entry. Returns null for a tool whose name is
- * not a known registry key (the graph can't mount it, so it must not appear in
- * the config). Repo tools get scope.repoFullName; http_get gets an allowlist.
+ * Attach the right scope to a behavior entry given its id. Repo tools get
+ * scope.repoFullName (WITHOUT it read_repo_file/list_repo_tree/search_repo fail
+ * at runtime — the registry returns "no repoFullName in scope"); http_get gets
+ * a host allowlist; the platform reads and draft_copilot_spec need no scope.
+ */
+function scopeFor(id: BehaviorToolId, repoFullName?: string | null): BehaviorTool['scope'] | undefined {
+  if (REPO_TOOL_IDS.has(id)) return { repoFullName: repoFullName ?? undefined }
+  if (id === 'http_get') return { allowedHosts: deriveAllowedHosts(repoFullName) }
+  return undefined
+}
+
+/**
+ * Map ONE architect tool row to a behavior entry. The row's `name` is a FREE
+ * architect name; we resolve it to a REAL registry id via resolveToolId. Returns
+ * null when no intent matches (the graph can't mount it, so it must not appear in
+ * the config — dropping it here matches what the registry would do anyway). The
+ * resolved id — never the raw name — carries the scope.
  */
 function toBehaviorTool(row: ToolRowForBehavior, repoFullName?: string | null): BehaviorTool | null {
-  const id = row.name as BehaviorToolId
-  if (!KNOWN_TOOL_IDS.has(id)) return null
+  const id = resolveToolId(row.name)
+  if (!id) return null
 
   const riskLevel: ToolRiskLevel = row.risk_level ?? 'low'
   const requiresConfirmation = row.requires_confirmation === true
 
   const entry: BehaviorTool = { id, riskLevel, requiresConfirmation }
-
-  if (REPO_TOOL_IDS.has(id)) {
-    entry.scope = { repoFullName: repoFullName ?? undefined }
-  } else if (id === 'http_get') {
-    entry.scope = { allowedHosts: deriveAllowedHosts(repoFullName) }
-  }
+  const scope = scopeFor(id, repoFullName)
+  if (scope) entry.scope = scope
   return entry
 }
 
+/** The scoped repo tools a repo-linked copilot must ALWAYS be able to call. */
+const REPO_INJECTED_TOOLS: ReadonlyArray<{
+  id: BehaviorToolId
+  riskLevel: ToolRiskLevel
+  requiresConfirmation: boolean
+}> = [
+  { id: 'read_repo_file', riskLevel: 'low', requiresConfirmation: false },
+  { id: 'list_repo_tree', riskLevel: 'low', requiresConfirmation: false },
+  { id: 'search_repo', riskLevel: 'low', requiresConfirmation: false },
+  { id: 'http_get', riskLevel: 'low', requiresConfirmation: false },
+]
+
 /**
- * Build the copilot's tool list. Every declared, KNOWN tool of the copilot maps
- * to an entry; unknown tool names are dropped (the graph can't mount them). The
- * five generic read/draft tools are ALWAYS present (added if not already
- * declared) so the config is complete and self-portant even for a copilot with
- * no tools of its own. Order: declared tools first (author intent), then any
- * missing generics.
+ * Build the copilot's tool list. Three layers, de-duplicated by registry id
+ * (first occurrence wins; a later layer only fills gaps / merges a missing
+ * scope):
+ *
+ *  1. The architect's declared tools, each resolved from its FREE name to a REAL
+ *     registry id (unresolvable names are dropped — the graph would ignore them).
+ *  2. If the copilot is linked to a repo (repoFullName present), the scoped repo
+ *     tools (read_repo_file / list_repo_tree / search_repo + http_get on the
+ *     GitHub host) are GUARANTEED present — a copilot attached to a repo must be
+ *     able to read it, whatever the architect happened to name. Scope is
+ *     back-filled onto any already-present repo tool that lacks it.
+ *  3. The generic platform reads + draft_copilot_spec are ALWAYS present as the
+ *     base capability set, so the config is complete and self-portant.
+ *
+ * Every produced id is a REAL registry id — the graph mounts exactly this list.
  */
 function buildTools(tools: ToolRowForBehavior[], repoFullName?: string | null): BehaviorTool[] {
   const out: BehaviorTool[] = []
-  const seen = new Set<BehaviorToolId>()
+  const byId = new Map<BehaviorToolId, BehaviorTool>()
 
-  for (const row of tools) {
-    const entry = toBehaviorTool(row, repoFullName)
-    if (entry && !seen.has(entry.id)) {
+  const add = (entry: BehaviorTool) => {
+    const existing = byId.get(entry.id)
+    if (!existing) {
       out.push(entry)
-      seen.add(entry.id)
+      byId.set(entry.id, entry)
+      return
+    }
+    // Already present: keep the first occurrence but back-fill a missing scope
+    // (a repo tool with no repoFullName would fail at runtime — merge one in).
+    if (!existing.scope && entry.scope) existing.scope = entry.scope
+    else if (existing.scope && entry.scope) {
+      if (existing.scope.repoFullName == null && entry.scope.repoFullName != null) {
+        existing.scope.repoFullName = entry.scope.repoFullName
+      }
+      if ((existing.scope.allowedHosts == null || existing.scope.allowedHosts.length === 0) && entry.scope.allowedHosts) {
+        existing.scope.allowedHosts = entry.scope.allowedHosts
+      }
     }
   }
 
-  for (const g of GENERIC_TOOL_DEFAULTS) {
-    if (!seen.has(g.id)) {
-      out.push({ id: g.id, riskLevel: g.riskLevel, requiresConfirmation: g.requiresConfirmation })
-      seen.add(g.id)
+  // 1) Architect's declared tools (free names → real ids, scoped).
+  for (const row of tools) {
+    const entry = toBehaviorTool(row, repoFullName)
+    if (entry) add(entry)
+  }
+
+  // 2) Repo-linked copilot → guarantee the scoped repo tools exist.
+  if (repoFullName && repoFullName.includes('/')) {
+    for (const t of REPO_INJECTED_TOOLS) {
+      add({ id: t.id, riskLevel: t.riskLevel, requiresConfirmation: t.requiresConfirmation, scope: scopeFor(t.id, repoFullName) })
     }
+  }
+
+  // 3) Generic platform reads + draft — the base capability set, no scope.
+  for (const g of GENERIC_TOOL_DEFAULTS) {
+    add({ id: g.id, riskLevel: g.riskLevel, requiresConfirmation: g.requiresConfirmation })
   }
 
   return out
