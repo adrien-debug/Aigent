@@ -87,17 +87,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `OpenAI error: ${message}` }, { status: 502 })
   }
 
-  const msg = response.choices[0].message
+  // Guard the completion shape: an empty `choices` array (rare, but possible on
+  // a truncated/filtered response) must surface as a clean 502, not an opaque
+  // 500 from dereferencing choices[0].
+  const msg = response.choices[0]?.message
+  if (!msg) {
+    return NextResponse.json({ error: 'OpenAI error: empty completion' }, { status: 502 })
+  }
   const replyText = msg.content ?? ''
   // tool_calls is a union (function | custom); narrow on type === 'function'
   // before reading .function so the custom-tool member is excluded.
   const toolCall = msg.tool_calls?.find(
     (t) => t.type === 'function' && t.function.name === 'emit_manifest'
   )
-  const manifest: GeneratedManifest | null =
-    toolCall && toolCall.type === 'function'
-      ? (JSON.parse(toolCall.function.arguments) as GeneratedManifest)
-      : null
+  // The model can emit a truncated/malformed arguments string (e.g. hit the
+  // token cap mid-JSON). Parse defensively so that returns a graceful 502
+  // rather than throwing an unhandled 500.
+  let manifest: GeneratedManifest | null = null
+  if (toolCall && toolCall.type === 'function') {
+    try {
+      manifest = JSON.parse(toolCall.function.arguments) as GeneratedManifest
+    } catch {
+      return NextResponse.json(
+        { error: 'OpenAI error: the model returned a malformed manifest — try again' },
+        { status: 502 }
+      )
+    }
+  }
 
   const payload: ArchitectResponseBody = {
     reply: replyText || (manifest ? "I've drafted a manifest — review it on the right." : ''),

@@ -6,6 +6,7 @@ import { Badge } from '@/components/catalyst/badge'
 import { Subheading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
 import { formatUsd } from '@/lib/agent-mission-control/format'
+import { PROJECT_PLATFORM_LABELS } from '@/lib/agent-mission-control/labels'
 import type { Project } from '@/lib/agent-mission-control/types'
 
 /**
@@ -27,13 +28,6 @@ interface ProjectCardProps {
   project: Project
   rollup: ProjectRollup
   href: string
-}
-
-const PLATFORM_LABELS: Record<Project['platform'], string> = {
-  web: 'Web',
-  desktop: 'Desktop',
-  mobile: 'Mobile',
-  api: 'API',
 }
 
 const numberFormat = new Intl.NumberFormat('en-US')
@@ -93,7 +87,7 @@ export function ProjectCard({ project, rollup, href }: ProjectCardProps) {
           </Link>
         </Subheading>
         <div className="mt-1 truncate font-mono text-xs text-zinc-500">
-          {project.slug} · {PLATFORM_LABELS[project.platform]}
+          {project.slug} · {PROJECT_PLATFORM_LABELS[project.platform]}
         </div>
         {project.repoUrl && project.repoFullName ? (
           <Link

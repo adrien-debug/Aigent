@@ -15,21 +15,13 @@ import { Input, InputGroup } from '@/components/catalyst/input'
 import { Link } from '@/components/catalyst/link'
 import { Select } from '@/components/catalyst/select'
 import { formatPercent } from '@/lib/agent-mission-control/format'
-import { AGENT_RUNTIME_LABELS } from '@/lib/agent-mission-control/labels'
+import { AGENT_RUNTIME_LABELS, COPILOT_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
 import type { AgentRuntime, Copilot, CopilotStatus, Project } from '@/lib/agent-mission-control/types'
 
 export type RegistryTableView = 'bench' | 'all'
 
-const STATUS_LABELS: Record<CopilotStatus, string> = {
-  active: 'Active',
-  degraded: 'Degraded',
-  paused: 'Paused',
-  draft: 'Draft',
-  archived: 'Archived',
-}
-
 const RUNTIME_OPTIONS = Object.keys(AGENT_RUNTIME_LABELS) as AgentRuntime[]
-const STATUS_OPTIONS = Object.keys(STATUS_LABELS) as CopilotStatus[]
+const STATUS_OPTIONS = Object.keys(COPILOT_STATUS_LABELS) as CopilotStatus[]
 
 /** Two-letter initials from a copilot name, for the generated avatar. */
 function initialsFor(name: string): string {
@@ -85,7 +77,7 @@ function BenchRow({
         <div className="mt-1 font-mono text-xs tabular-nums text-zinc-500">{copilot.model}</div>
       </td>
       <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
-        {STATUS_LABELS[copilot.status]}
+        {COPILOT_STATUS_LABELS[copilot.status]}
       </td>
       <td className="px-3 py-5 text-sm whitespace-nowrap">
         {copilot.health.testPassRate === 0 ? (
@@ -165,7 +157,7 @@ function AllRow({
         <div className="mt-1 font-mono text-xs tabular-nums text-zinc-500">{copilot.model}</div>
       </td>
       <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
-        {STATUS_LABELS[copilot.status]}
+        {COPILOT_STATUS_LABELS[copilot.status]}
       </td>
       <td className="px-3 py-5 text-sm whitespace-nowrap">
         {copilot.projectId === null ? (
@@ -340,7 +332,7 @@ export function CopilotRegistryTable({
             <option value="all">All statuses</option>
             {STATUS_OPTIONS.map((value) => (
               <option key={value} value={value}>
-                {STATUS_LABELS[value]}
+                {COPILOT_STATUS_LABELS[value]}
               </option>
             ))}
           </Select>

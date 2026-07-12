@@ -10,10 +10,6 @@
 const base = process.env.AMC_SUPABASE_URL
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-export function backendReady() {
-  return Boolean(base && key)
-}
-
 export async function pgrest(pathAndQuery) {
   if (!base || !key) {
     throw new Error('LangGraph tools: backend not configured (AMC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)')

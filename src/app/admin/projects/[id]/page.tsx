@@ -16,8 +16,8 @@ import {
   formatTimestamp,
   formatUsd,
 } from '@/lib/agent-mission-control/format'
-import { AGENT_RUNTIME_LABELS } from '@/lib/agent-mission-control/labels'
-import type { AgentRun, Copilot, Project } from '@/lib/agent-mission-control/types'
+import { AGENT_RUNTIME_LABELS, PROJECT_PLATFORM_LABELS } from '@/lib/agent-mission-control/labels'
+import type { AgentRun, Copilot } from '@/lib/agent-mission-control/types'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
@@ -30,14 +30,6 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 }
 
 const numberFormat = new Intl.NumberFormat('en-US')
-
-/** Enum plateforme → label humain (même table que project-card.tsx). */
-const PLATFORM_LABELS: Record<Project['platform'], string> = {
-  web: 'Web',
-  desktop: 'Desktop',
-  mobile: 'Mobile',
-  api: 'API',
-}
 
 /** "—" zinc placeholder with an sr-only explanation — absent data is never rendered as 0. */
 function EmDash({ srLabel }: { srLabel: string }) {
@@ -240,7 +232,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           <span aria-hidden="true" className="text-zinc-500">
             ·
           </span>
-          <span className="font-mono text-zinc-500">{PLATFORM_LABELS[project.platform]}</span>
+          <span className="font-mono text-zinc-500">{PROJECT_PLATFORM_LABELS[project.platform]}</span>
           {project.repoUrl && project.repoFullName ? (
             <>
               <span aria-hidden="true" className="text-zinc-500">

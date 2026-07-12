@@ -19,6 +19,7 @@ import {
   getToolCallsForRun,
   getVersion,
 } from '@/lib/agent-mission-control/data'
+import { TOOL_CALL_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
 import type { ToolCall } from '@/lib/agent-mission-control/types'
 
 /**
@@ -26,11 +27,11 @@ import type { ToolCall } from '@/lib/agent-mission-control/types'
  * never a second hue), ordered calm → hot so the SplitBar reads as an escalation.
  */
 const toolCallRamp = [
-  { status: 'ok', label: 'OK', tone: 'zinc' },
-  { status: 'confirmed', label: 'Confirmed', tone: 'accent-400' },
-  { status: 'rejected', label: 'Rejected', tone: 'accent-500' },
-  { status: 'blocked', label: 'Blocked', tone: 'accent-600' },
-  { status: 'error', label: 'Error', tone: 'accent-700' },
+  { status: 'ok', label: TOOL_CALL_STATUS_LABELS.ok, tone: 'zinc' },
+  { status: 'confirmed', label: TOOL_CALL_STATUS_LABELS.confirmed, tone: 'accent-400' },
+  { status: 'rejected', label: TOOL_CALL_STATUS_LABELS.rejected, tone: 'accent-500' },
+  { status: 'blocked', label: TOOL_CALL_STATUS_LABELS.blocked, tone: 'accent-600' },
+  { status: 'error', label: TOOL_CALL_STATUS_LABELS.error, tone: 'accent-700' },
 ] satisfies { status: ToolCall['status']; label: string; tone: SplitTone }[]
 
 function statusLabel(s: string) {

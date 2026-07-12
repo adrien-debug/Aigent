@@ -171,7 +171,8 @@ export async function setCopilotAssistantId(copilotId: string, assistantId: stri
 }
 
 // ---------------------------------------------------------------------------
-// createTestSuiteWithCases — materialize a test suite + its cases
+// Test-suite authoring shapes — consumed by agentBuilderTestSuite()
+// (agent-builder-copilot.ts) and materialized by the provisioning script.
 // ---------------------------------------------------------------------------
 
 /** Authoring-time shape of one test case (no ids — assigned server-side). */
@@ -191,51 +192,6 @@ export interface CreateTestSuiteInput {
   description: string
   kind: TestSuite['kind']
   cases: NewTestCaseInput[]
-}
-
-/**
- * Insert a `test_suites` row plus one `test_cases` row per case (FK-safe:
- * suite first, cases reference it). Deterministic ids
- * (makeId('ts'/'tc', …)) so a re-run against a clean perimeter produces the
- * same rows; the run keeps `last_run_id` null (nothing has run yet).
- *
- * Fail-closed (mirrors createCopilotFromManifest). Returns the suite id.
- * The suite is the runnable target for `runTestSuite` (test-runner.ts) —
- * no fabricated results are written here.
- */
-export async function createTestSuiteWithCases(input: CreateTestSuiteInput): Promise<string> {
-  requireBackend()
-
-  const uniqueSuffix = crypto.randomUUID().slice(0, 8)
-  const suiteId = makeId('ts', `${slugify(input.name)}-${uniqueSuffix}`)
-
-  // 1. suite (no last_run_id — nothing has run yet)
-  const suitePayload: RawRow = {
-    id: suiteId,
-    copilot_id: input.copilotId,
-    name: input.name,
-    description: input.description,
-    kind: input.kind,
-    last_run_id: null,
-  }
-  await pgrest<RawRow[]>('POST', 'test_suites', suitePayload)
-
-  // 2. cases (each references the suite created above)
-  for (let i = 0; i < input.cases.length; i += 1) {
-    const c = input.cases[i]
-    const casePayload: RawRow = {
-      id: makeId('tc', `${slugify(input.name)}-${uniqueSuffix}-${i + 1}`),
-      suite_id: suiteId,
-      name: c.name,
-      input: c.input,
-      expected_behavior: c.expectedBehavior,
-      expected_tool_calls: c.expectedToolCalls,
-      tags: c.tags,
-    }
-    await pgrest<RawRow[]>('POST', 'test_cases', casePayload)
-  }
-
-  return suiteId
 }
 
 // ---------------------------------------------------------------------------

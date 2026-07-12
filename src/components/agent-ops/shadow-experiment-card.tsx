@@ -4,6 +4,7 @@ import { ThresholdMeter } from '@/components/agent-ops/widgets/threshold-meter'
 import { Badge } from '@/components/catalyst/badge'
 import { Subheading } from '@/components/catalyst/heading'
 import { formatDate, formatPercent } from '@/lib/agent-mission-control/format'
+import { VERSION_STAGE_LABELS } from '@/lib/agent-mission-control/labels'
 import type { CopilotVersion, ShadowExperiment, VersionStage } from '@/lib/agent-mission-control/types'
 
 const experimentStatusConfig: Record<
@@ -28,10 +29,10 @@ const experimentStatusConfig: Record<
 }
 
 const stageConfig: Record<VersionStage, { label: string; color: 'accent' | 'zinc' }> = {
-  production: { label: 'Production', color: 'accent' },
-  beta: { label: 'Beta', color: 'zinc' },
-  draft: { label: 'Draft', color: 'zinc' },
-  archived: { label: 'Archived', color: 'zinc' },
+  production: { label: VERSION_STAGE_LABELS.production, color: 'accent' },
+  beta: { label: VERSION_STAGE_LABELS.beta, color: 'zinc' },
+  draft: { label: VERSION_STAGE_LABELS.draft, color: 'zinc' },
+  archived: { label: VERSION_STAGE_LABELS.archived, color: 'zinc' },
 }
 
 function ExperimentStatusBadge({ status }: { status: ShadowExperiment['status'] }) {

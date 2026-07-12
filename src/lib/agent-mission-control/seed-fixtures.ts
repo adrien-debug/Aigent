@@ -2472,10 +2472,6 @@ export function getRunsForCopilot(copilotId: string): AgentRun[] {
   return agentRuns.filter((r) => r.copilotId === copilotId)
 }
 
-export function getRun(id: string): AgentRun | undefined {
-  return agentRuns.find((r) => r.id === id)
-}
-
 export function getStepsForRun(runId: string): AgentRunStep[] {
   return agentRunSteps.filter((s) => s.runId === runId)
 }

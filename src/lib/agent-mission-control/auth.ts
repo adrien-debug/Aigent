@@ -20,7 +20,7 @@
  */
 import 'server-only'
 
-import { createHmac, randomBytes, timingSafeEqual, createHash } from 'node:crypto'
+import { createHmac, timingSafeEqual, createHash } from 'node:crypto'
 
 export const SESSION_COOKIE = 'amc_session'
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000 // 12 hours
@@ -138,17 +138,3 @@ function cookieString(value: string, maxAgeSeconds: number): string {
   return `${SESSION_COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSeconds}${secure}`
 }
 
-/** Read the session from a raw Cookie header (proxy / route use). */
-export function sessionFromCookieHeader(cookieHeader: string | null): AdminSession | null {
-  if (!cookieHeader) return null
-  for (const part of cookieHeader.split(';')) {
-    const [k, ...rest] = part.trim().split('=')
-    if (k === SESSION_COOKIE) return decodeSession(rest.join('='))
-  }
-  return null
-}
-
-/** Generate a strong random secret (helper for docs/CLI, not called at runtime). */
-export function generateSecret(): string {
-  return b64url(randomBytes(32))
-}

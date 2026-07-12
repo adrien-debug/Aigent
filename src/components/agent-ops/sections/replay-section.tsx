@@ -18,6 +18,7 @@ import {
   getVersion,
   getVersionsForCopilot,
 } from '@/lib/agent-mission-control/data'
+import { REPLAY_OUTCOME_LABELS } from '@/lib/agent-mission-control/labels'
 import type { ReplayCandidate, ReplayComparison } from '@/lib/agent-mission-control/types'
 
 const statusConfig: Record<ReplayComparison['status'], { label: string; color: 'zinc' | 'accent' | 'accentStrong' }> = {
@@ -28,11 +29,11 @@ const statusConfig: Record<ReplayComparison['status'], { label: string; color: '
 }
 
 const OUTCOME_MIX: { key: ReplayCandidate['outcome']; label: string; tone: SplitSegment['tone'] }[] = [
-  { key: 'matched', label: 'Matched', tone: 'accent-400' },
-  { key: 'improved', label: 'Improved', tone: 'accent-500' },
-  { key: 'diverged', label: 'Diverged', tone: 'accent-600' },
-  { key: 'unsafe', label: 'Unsafe', tone: 'accent-700' },
-  { key: 'pending', label: 'Pending', tone: 'zinc' },
+  { key: 'matched', label: REPLAY_OUTCOME_LABELS.matched, tone: 'accent-400' },
+  { key: 'improved', label: REPLAY_OUTCOME_LABELS.improved, tone: 'accent-500' },
+  { key: 'diverged', label: REPLAY_OUTCOME_LABELS.diverged, tone: 'accent-600' },
+  { key: 'unsafe', label: REPLAY_OUTCOME_LABELS.unsafe, tone: 'accent-700' },
+  { key: 'pending', label: REPLAY_OUTCOME_LABELS.pending, tone: 'zinc' },
 ]
 
 export async function ReplaySection({ copilotId }: { copilotId: string }) {

@@ -8,6 +8,7 @@ import { SplitBar, type SplitSegment } from '@/components/agent-ops/widgets/spli
 import { Badge } from '@/components/catalyst/badge'
 import { Subheading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
+import { REPLAY_OUTCOME_LABELS } from '@/lib/agent-mission-control/labels'
 import type { ReplayCandidate } from '@/lib/agent-mission-control/types'
 import { ReplayComparisonTable } from './replay-comparison-table'
 
@@ -21,11 +22,11 @@ const outcomeConfig: Record<
   ReplayCandidate['outcome'],
   { label: string; color: 'accent' | 'accentStrong' | 'accentSolid' | 'zinc'; meterTone: 'accent' | 'accentStrong' | 'accentSolid' | 'zinc'; splitTone: SplitSegment['tone'] }
 > = {
-  matched: { label: 'Matched', color: 'accent', meterTone: 'accent', splitTone: 'accent-400' },
-  improved: { label: 'Improved', color: 'accent', meterTone: 'accent', splitTone: 'accent-500' },
-  diverged: { label: 'Diverged', color: 'accentStrong', meterTone: 'accentStrong', splitTone: 'accent-600' },
-  unsafe: { label: 'Unsafe', color: 'accentSolid', meterTone: 'accentSolid', splitTone: 'accent-700' },
-  pending: { label: 'Pending', color: 'zinc', meterTone: 'zinc', splitTone: 'zinc' },
+  matched: { label: REPLAY_OUTCOME_LABELS.matched, color: 'accent', meterTone: 'accent', splitTone: 'accent-400' },
+  improved: { label: REPLAY_OUTCOME_LABELS.improved, color: 'accent', meterTone: 'accent', splitTone: 'accent-500' },
+  diverged: { label: REPLAY_OUTCOME_LABELS.diverged, color: 'accentStrong', meterTone: 'accentStrong', splitTone: 'accent-600' },
+  unsafe: { label: REPLAY_OUTCOME_LABELS.unsafe, color: 'accentSolid', meterTone: 'accentSolid', splitTone: 'accent-700' },
+  pending: { label: REPLAY_OUTCOME_LABELS.pending, color: 'zinc', meterTone: 'zinc', splitTone: 'zinc' },
 }
 
 const OUTCOME_ORDER: ReplayCandidate['outcome'][] = ['matched', 'improved', 'diverged', 'unsafe', 'pending']

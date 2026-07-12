@@ -262,11 +262,33 @@ export async function resumeOnAgentServer(args: {
   const c = agentServerClient()
   const target = args.assistantId ?? args.graphId ?? AGENT_BUILDER_GRAPH_ID
 
+  // `runs.wait` returns the thread's FULL accumulated message history (pre-pause
+  // messages included) — and those pre-pause steps/tool_calls were already
+  // persisted at the original run. Snapshot the pre-resume message count so we
+  // only rebuild steps/tool_calls for what the resume actually added; otherwise
+  // the audit trail is duplicated and tool_call_count/unsafe_attempt_count inflate.
+  let priorMessageCount = 0
+  try {
+    const preState = await c.threads.getState(args.threadId)
+    const preMessages = (preState.values as { messages?: unknown[] } | undefined)?.messages
+    if (Array.isArray(preMessages)) priorMessageCount = preMessages.length
+  } catch {
+    // If the pre-state read fails, fall back to 0 (persist everything) rather
+    // than dropping the resumed work — a duplicate is recoverable, a silent
+    // drop is not.
+  }
+
   const result = (await c.runs.wait(args.threadId, target, {
     command: { resume: { approved: args.approved } },
   })) as { messages?: AnyMsg[]; __interrupt__?: unknown }
 
-  const messages = (result.messages ?? []) as AnyMsg[]
+  const allMessages = (result.messages ?? []) as AnyMsg[]
+  // Only the messages appended by the resume are new. Guard against the count
+  // exceeding the array (shouldn't happen, but never slice negative).
+  const messages =
+    priorMessageCount > 0 && priorMessageCount <= allMessages.length
+      ? allMessages.slice(priorMessageCount)
+      : allMessages
   const { steps, toolCalls } = buildStepsFromMessages(messages)
   const lastAi = [...messages].reverse().find((m) => (m.type ?? m.role) === 'ai' || (m.type ?? m.role) === 'assistant')
   const finalText = typeof lastAi?.content === 'string' ? lastAi.content : ''

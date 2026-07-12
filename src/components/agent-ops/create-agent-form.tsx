@@ -10,6 +10,7 @@ import { Input } from '@/components/catalyst/input'
 import { Select } from '@/components/catalyst/select'
 import { Textarea } from '@/components/catalyst/textarea'
 import type { CreateCopilotInput, GeneratedManifest } from '@/lib/agent-mission-control/authoring-types'
+import { AGENT_RUNTIME_LABELS, MODEL_PROVIDER_LABELS } from '@/lib/agent-mission-control/labels'
 import { slugify } from '@/lib/agent-mission-control/slug'
 import type { AgentRuntime, ModelProvider, Project } from '@/lib/agent-mission-control/types'
 
@@ -291,7 +292,7 @@ export function CreateAgentForm({
             >
               {RUNTIME_OPTIONS.map((option) => (
                 <option key={option} value={option}>
-                  {option}
+                  {AGENT_RUNTIME_LABELS[option]}
                 </option>
               ))}
             </Select>
@@ -306,7 +307,7 @@ export function CreateAgentForm({
             >
               {PROVIDER_OPTIONS.map((option) => (
                 <option key={option} value={option}>
-                  {option}
+                  {MODEL_PROVIDER_LABELS[option]}
                 </option>
               ))}
             </Select>

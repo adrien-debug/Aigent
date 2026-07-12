@@ -11,7 +11,12 @@ import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
 import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
 import { SplitBar } from '@/components/agent-ops/widgets/split-bar'
-import { AGENT_RUNTIME_LABELS, MODEL_PROVIDER_LABELS } from '@/lib/agent-mission-control/labels'
+import {
+  AGENT_RUNTIME_LABELS,
+  AGENT_RUN_STATUS_LABELS,
+  COPILOT_STATUS_LABELS,
+  MODEL_PROVIDER_LABELS,
+} from '@/lib/agent-mission-control/labels'
 import { Button } from '@/components/catalyst/button'
 import { Link } from '@/components/catalyst/link'
 import { formatDurationMs, formatPercent, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
@@ -45,21 +50,12 @@ import type {
 // Semantic maps — plain text labels, no colored badges
 // ---------------------------------------------------------------------------
 
-/** Copilot lifecycle status → plain text label. */
-const copilotStatusLabels: Record<string, string> = {
-  active: 'Active',
-  degraded: 'Degraded',
-  paused: 'Paused',
-  draft: 'Draft',
-  archived: 'Archived',
-}
-
 const runStatusConfig: Record<AgentRunStatus, { label: string; text: string }> = {
-  completed: { label: 'Completed', text: 'text-zinc-500 dark:text-zinc-400' },
-  running: { label: 'Running', text: 'text-zinc-500 dark:text-zinc-400' },
-  'needs-confirmation': { label: 'Needs confirmation', text: 'text-zinc-500 dark:text-zinc-400' },
-  blocked: { label: 'Blocked', text: 'text-zinc-500 dark:text-zinc-400' },
-  failed: { label: 'Failed', text: 'text-zinc-500 dark:text-zinc-400' },
+  completed: { label: AGENT_RUN_STATUS_LABELS.completed, text: 'text-zinc-500 dark:text-zinc-400' },
+  running: { label: AGENT_RUN_STATUS_LABELS.running, text: 'text-zinc-500 dark:text-zinc-400' },
+  'needs-confirmation': { label: AGENT_RUN_STATUS_LABELS['needs-confirmation'], text: 'text-zinc-500 dark:text-zinc-400' },
+  blocked: { label: AGENT_RUN_STATUS_LABELS.blocked, text: 'text-zinc-500 dark:text-zinc-400' },
+  failed: { label: AGENT_RUN_STATUS_LABELS.failed, text: 'text-zinc-500 dark:text-zinc-400' },
 }
 
 // ---------------------------------------------------------------------------
@@ -408,7 +404,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
         <AgentBentoCard title="Runtime & status" level={2}>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
             <span className="font-medium text-zinc-700 dark:text-zinc-300">
-              {copilotStatusLabels[copilot.status] ?? copilot.status}
+              {COPILOT_STATUS_LABELS[copilot.status] ?? copilot.status}
             </span>
             <span className="text-zinc-500 dark:text-zinc-400">{AGENT_RUNTIME_LABELS[copilot.runtime]}</span>
           </div>

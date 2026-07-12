@@ -6,19 +6,14 @@ import { SplitBar, type SplitSegment, type SplitTone } from '@/components/agent-
 import { Subheading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
 import { formatDurationMs, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
+import { AGENT_RUN_STATUS_LABELS, TOOL_CALL_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
 import type { AgentRun, AgentRunStatus, AgentRunStep, ToolCall } from '@/lib/agent-mission-control/types'
-
-const runStatusLabels: Record<AgentRunStatus, string> = {
-  completed: 'Completed',
-  failed: 'Failed',
-  blocked: 'Blocked',
-  'needs-confirmation': 'Needs confirmation',
-  running: 'Running',
-}
 
 /** Run lifecycle status — plain muted text label, no colored badge. */
 export function RunStatusText({ status }: { status: AgentRunStatus }) {
-  return <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{runStatusLabels[status]}</span>
+  return (
+    <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{AGENT_RUN_STATUS_LABELS[status]}</span>
+  )
 }
 
 /**
@@ -26,11 +21,11 @@ export function RunStatusText({ status }: { status: AgentRunStatus }) {
  * never a second hue). Ordered calm → hot so the SplitBar reads as an escalation.
  */
 const toolOutcomeRamp: { key: ToolCall['status']; label: string; tone: SplitTone }[] = [
-  { key: 'ok', label: 'OK', tone: 'zinc' },
-  { key: 'confirmed', label: 'Confirmed', tone: 'accent-400' },
-  { key: 'rejected', label: 'Rejected', tone: 'accent-500' },
-  { key: 'blocked', label: 'Blocked', tone: 'accent-600' },
-  { key: 'error', label: 'Error', tone: 'accent-700' },
+  { key: 'ok', label: TOOL_CALL_STATUS_LABELS.ok, tone: 'zinc' },
+  { key: 'confirmed', label: TOOL_CALL_STATUS_LABELS.confirmed, tone: 'accent-400' },
+  { key: 'rejected', label: TOOL_CALL_STATUS_LABELS.rejected, tone: 'accent-500' },
+  { key: 'blocked', label: TOOL_CALL_STATUS_LABELS.blocked, tone: 'accent-600' },
+  { key: 'error', label: TOOL_CALL_STATUS_LABELS.error, tone: 'accent-700' },
 ]
 
 /** Naked KPI stat — label + big mono value, no box (doctrine: AgentMetricCard rhythm). */
