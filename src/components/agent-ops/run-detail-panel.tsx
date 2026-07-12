@@ -1,6 +1,7 @@
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid'
 import clsx from 'clsx'
 
+import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { RunTimeline } from '@/components/agent-ops/run-timeline'
 import { SplitBar, type SplitSegment, type SplitTone } from '@/components/agent-ops/widgets/split-bar'
 import { Subheading } from '@/components/catalyst/heading'
@@ -89,108 +90,104 @@ export function RunDetailPanel({
     .filter((segment) => segment.value > 0)
 
   return (
-    <section className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
-      <div className="border-b border-zinc-950/5 bg-zinc-950/[0.025] px-6 py-4 dark:border-white/5 dark:bg-white/[0.04]">
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <Subheading className="font-mono tabular-nums">{run.id}</Subheading>
-          <RunStatusText status={run.status} />
-        </div>
-        <p className="mt-1 truncate text-sm text-zinc-500 dark:text-zinc-400">{run.inputSummary}</p>
-      </div>
+    <AgentSectionCard
+      title={<span className="font-mono tabular-nums">{run.id}</span>}
+      description={run.inputSummary}
+      actions={<RunStatusText status={run.status} />}
+    >
+      {/* Headline figures — naked stats, both halves of the row earn their width. */}
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
+        <Stat
+          label="Duration"
+          value={
+            <>
+              {formatDurationMs(run.latencyMs)}
+              {run.finishedAt === null ? (
+                <span className="ml-1.5 font-sans text-xs font-normal text-zinc-500">so far</span>
+              ) : null}
+            </>
+          }
+        />
+        <Stat label="Cost" value={formatUsd(run.costUsd)} />
+        <Stat label="Tool calls" value={run.toolCallCount} />
+        <Stat
+          label="Unsafe"
+          emphasis={run.unsafeAttemptCount > 0}
+          value={
+            <>
+              {run.unsafeAttemptCount}
+              {run.unsafeAttemptCount > 0 ? (
+                <span className="ml-1.5 font-sans text-xs font-medium">flagged</span>
+              ) : null}
+            </>
+          }
+        />
+      </dl>
 
-      <div className="px-6 py-5">
-        {/* Headline figures — naked stats, both halves of the row earn their width. */}
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
-          <Stat
-            label="Duration"
-            value={
-              <>
-                {formatDurationMs(run.latencyMs)}
-                {run.finishedAt === null ? (
-                  <span className="ml-1.5 font-sans text-xs font-normal text-zinc-500">so far</span>
-                ) : null}
-              </>
-            }
-          />
-          <Stat label="Cost" value={formatUsd(run.costUsd)} />
-          <Stat label="Tool calls" value={run.toolCallCount} />
-          <Stat
-            label="Unsafe"
-            emphasis={run.unsafeAttemptCount > 0}
-            value={
-              <>
-                {run.unsafeAttemptCount}
-                {run.unsafeAttemptCount > 0 ? (
-                  <span className="ml-1.5 font-sans text-xs font-medium">flagged</span>
-                ) : null}
-              </>
-            }
-          />
-        </dl>
-
-        {/* Tool-call outcome mix for THIS run — one bar, not disconnected counts.
-            When the run made no tool calls, say so plainly (never imply a call
-            happened that didn't). */}
-        {outcomeSegments.length > 0 ? (
-          <div className="mt-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
-            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Tool-call outcomes</p>
-            <div className="mt-3">
-              <SplitBar
-                height="md"
-                segments={outcomeSegments}
-                caption={`${toolCalls.length} call${toolCalls.length === 1 ? '' : 's'} in this run`}
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="mt-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
-            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Tool calls</p>
-            <p className="mt-2 text-sm text-zinc-500">No tool calls recorded for this run.</p>
-          </div>
-        )}
-
-        {/* Meta — 2-col field grid, stacked label/value, no empty center gutter. */}
-        <dl className="mt-6 grid grid-cols-1 gap-x-6 gap-y-4 border-t border-zinc-950/5 pt-6 sm:grid-cols-2 dark:border-white/5">
-          <MetaField label="User" value={run.userLabel} />
-          <MetaField
-            label="Started"
-            value={<span className="font-mono tabular-nums">{formatTimestamp(run.startedAt)}</span>}
-          />
-          <MetaField
-            label="Version"
-            value={<span className="font-mono tabular-nums">{versionLabel ?? run.versionId}</span>}
-          />
-          <MetaField
-            label="Trace"
-            value={
-              run.traceUrl ? (
-                <Link
-                  href={run.traceUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 text-accent-600 hover:text-accent-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-400"
-                >
-                  Open in LangSmith
-                  <ArrowTopRightOnSquareIcon aria-hidden="true" className="size-3.5" />
-                </Link>
-              ) : (
-                <span className="text-zinc-500">No external trace recorded</span>
-              )
-            }
-          />
-        </dl>
-
+      {/* Tool-call outcome mix for THIS run — one bar, not disconnected counts.
+          When the run made no tool calls, say so plainly (never imply a call
+          happened that didn't). */}
+      {outcomeSegments.length > 0 ? (
         <div className="mt-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
-          <Subheading level={3}>Timeline</Subheading>
-          <p className="mt-1 text-xs text-zinc-500">
-            {steps.length} step{steps.length === 1 ? '' : 's'} &middot; {toolCalls.length} tool call
-            {toolCalls.length === 1 ? '' : 's'}
-          </p>
-          <div className="mt-4">
-            <RunTimeline steps={steps} toolCallsById={toolCallsById} />
+          <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Tool-call outcomes</p>
+          <div className="mt-3">
+            <SplitBar
+              height="md"
+              segments={outcomeSegments}
+              caption={`${toolCalls.length} call${toolCalls.length === 1 ? '' : 's'} in this run`}
+            />
           </div>
         </div>
+      ) : (
+        <div className="mt-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
+          <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Tool calls</p>
+          <p className="mt-2 text-sm text-zinc-500">No tool calls recorded for this run.</p>
+        </div>
+      )}
+
+      {/* Meta — 2-col field grid, stacked label/value, no empty center gutter. */}
+      <dl className="mt-6 grid grid-cols-1 gap-x-6 gap-y-4 border-t border-zinc-950/5 pt-6 sm:grid-cols-2 dark:border-white/5">
+        <MetaField label="User" value={run.userLabel} />
+        <MetaField
+          label="Started"
+          value={<span className="font-mono tabular-nums">{formatTimestamp(run.startedAt)}</span>}
+        />
+        <MetaField
+          label="Version"
+          value={<span className="font-mono tabular-nums">{versionLabel ?? run.versionId}</span>}
+        />
+        <MetaField
+          label="Trace"
+          value={
+            run.traceUrl ? (
+              <Link
+                href={run.traceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-accent-600 hover:text-accent-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-400"
+              >
+                Open in LangSmith
+                <ArrowTopRightOnSquareIcon aria-hidden="true" className="size-3.5" />
+              </Link>
+            ) : (
+              <span className="text-zinc-500">No external trace recorded</span>
+            )
+          }
+        />
+      </dl>
+
+      <div className="mt-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
+        <Subheading level={3} tone="neutral">
+          Timeline
+        </Subheading>
+        <p className="mt-1 text-xs text-zinc-500">
+          {steps.length} step{steps.length === 1 ? '' : 's'} &middot; {toolCalls.length} tool call
+          {toolCalls.length === 1 ? '' : 's'}
+        </p>
+        <div className="mt-4">
+          <RunTimeline steps={steps} toolCallsById={toolCallsById} />
+        </div>
       </div>
-    </section>
+    </AgentSectionCard>
   )
 }

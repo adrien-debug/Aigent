@@ -80,7 +80,7 @@ export function BenchmarkScoreCard({
           cards align) + runtime right. */}
       <div className="flex items-start justify-between gap-x-4">
         <div className="min-w-0">
-          <Subheading level={3} className="truncate font-mono">
+          <Subheading level={3} tone="neutral" className="truncate font-mono">
             {run.model}
           </Subheading>
           <p className="mt-1 text-xs text-zinc-500">{MODEL_PROVIDER_LABELS[run.modelProvider]}</p>

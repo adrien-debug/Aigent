@@ -11,8 +11,14 @@ export function AgentSectionCard({
   className,
   contentClassName,
 }: {
-  title: string
-  description?: string
+  /**
+   * ReactNode (et pas `string`) : un titre de carte peut porter un micro-style
+   * légitime — un id de run en `font-mono tabular-nums`, un label + un tag inline.
+   * Un `string` reste un ReactNode valide, donc tous les appelants existants
+   * continuent de marcher à l'identique.
+   */
+  title: React.ReactNode
+  description?: React.ReactNode
   actions?: React.ReactNode
   children: React.ReactNode
   className?: string

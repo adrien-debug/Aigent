@@ -3,12 +3,12 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { RunStatusText } from '@/components/agent-ops/run-detail-panel'
 import { ToolBadge } from '@/components/agent-ops/tool-badge'
 import { Button } from '@/components/catalyst/button'
 import { Field, Label } from '@/components/catalyst/fieldset'
-import { Subheading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
 import { Textarea } from '@/components/catalyst/textarea'
 import { formatDurationMs, formatUsd } from '@/lib/agent-mission-control/format'
@@ -137,115 +137,109 @@ export function RunCopilotPanel({ copilotId, copilotName }: RunCopilotPanelProps
   }
 
   return (
-    <section className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
-      <div className="border-b border-zinc-950/5 bg-zinc-950/[0.025] px-6 py-4 dark:border-white/5 dark:bg-white/[0.04]">
-        <Subheading>Run {copilotName}</Subheading>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Send a task to this copilot and get a real, OpenAI-backed run back.
-        </p>
+    <AgentSectionCard
+      title={`Run ${copilotName}`}
+      description="Send a task to this copilot and get a real, OpenAI-backed run back."
+    >
+      <Field>
+        <Label>Task input</Label>
+        <Textarea
+          name="run-input"
+          rows={4}
+          placeholder="Describe the task for this copilot to run…"
+          value={input}
+          onChange={(event) => setInput(event.target.value)}
+          disabled={isRunning}
+        />
+      </Field>
+
+      <div className="mt-4 flex items-center gap-3">
+        <Button color="accent" onClick={handleRun} disabled={isRunning || input.trim().length === 0}>
+          {isRunning ? (
+            <>
+              <Spinner />
+              Running…
+            </>
+          ) : (
+            'Run copilot'
+          )}
+        </Button>
+        {isRunning ? <Text className="!mt-0">Waiting on a live model call…</Text> : null}
       </div>
 
-      <div className="px-6 py-5">
-        <Field>
-          <Label>Task input</Label>
-          <Textarea
-            name="run-input"
-            rows={4}
-            placeholder="Describe the task for this copilot to run…"
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            disabled={isRunning}
-          />
-        </Field>
+      {error ? <ErrorBanner message={error} /> : null}
 
-        <div className="mt-4 flex items-center gap-3">
-          <Button color="accent" onClick={handleRun} disabled={isRunning || input.trim().length === 0}>
-            {isRunning ? (
-              <>
-                <Spinner />
-                Running…
-              </>
-            ) : (
-              'Run copilot'
-            )}
-          </Button>
-          {isRunning ? <Text className="!mt-0">Waiting on a live model call…</Text> : null}
-        </div>
-
-        {error ? <ErrorBanner message={error} /> : null}
-
-        {result ? (
-          <div className="mt-4 border-t border-zinc-950/5 pt-4 dark:border-white/5">
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Result</p>
-              <RunStatusText status={result.status} />
-            </div>
-            <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">{result.outputSummary}</p>
-
-            {result.status === 'needs-confirmation' || result.interrupted ? (
-              // Human-in-the-loop: the LangGraph run paused before a tool and is
-              // waiting on an operator decision — surfaced automatically, no reveal.
-              <div
-                role="alert"
-                className="mt-4 rounded-lg bg-accent-500/5 p-4 ring-1 ring-accent-500/20 dark:bg-accent-500/10"
-              >
-                <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
-                  Human approval required
-                </p>
-                <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
-                  {result.interruptMessage ??
-                    'This run paused for human approval before running a tool.'}
-                </p>
-                {result.pendingTool ? (
-                  <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5">
-                    <ToolBadge
-                      name={result.pendingTool.name}
-                      risk={asToolRisk(result.pendingTool.risk)}
-                    />
-                    <code className="line-clamp-2 max-w-full rounded-md bg-zinc-950/5 px-1.5 py-0.5 font-mono text-xs break-words text-zinc-500 dark:bg-white/5 dark:text-zinc-400">
-                      {result.pendingTool.argumentsSummary}
-                    </code>
-                  </div>
-                ) : null}
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <Button color="accent" onClick={() => handleResume(true)} disabled={resuming}>
-                    {resuming ? (
-                      <>
-                        <Spinner />
-                        Resuming…
-                      </>
-                    ) : (
-                      'Approve'
-                    )}
-                  </Button>
-                  <Button plain onClick={() => handleResume(false)} disabled={resuming}>
-                    Reject
-                  </Button>
-                </div>
-                {resumeError ? <ErrorBanner message={resumeError} /> : null}
-              </div>
-            ) : (
-              <>
-                <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
-                  <div>
-                    <dt className="inline text-xs font-medium tracking-wide text-zinc-500 uppercase">Latency</dt>
-                    <dd className="ml-1.5 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
-                      {formatDurationMs(result.latencyMs)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="inline text-xs font-medium tracking-wide text-zinc-500 uppercase">Cost</dt>
-                    <dd className="ml-1.5 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
-                      {formatUsd(result.costUsd)}
-                    </dd>
-                  </div>
-                </dl>
-                <Text className="mt-3 !text-xs">This run now appears in the Runs tab.</Text>
-              </>
-            )}
+      {result ? (
+        <div className="mt-4 border-t border-zinc-950/5 pt-4 dark:border-white/5">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Result</p>
+            <RunStatusText status={result.status} />
           </div>
-        ) : null}
-      </div>
-    </section>
+          <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">{result.outputSummary}</p>
+
+          {result.status === 'needs-confirmation' || result.interrupted ? (
+            // Human-in-the-loop: the LangGraph run paused before a tool and is
+            // waiting on an operator decision — surfaced automatically, no reveal.
+            <div
+              role="alert"
+              className="mt-4 rounded-lg bg-accent-500/5 p-4 ring-1 ring-accent-500/20 dark:bg-accent-500/10"
+            >
+              <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
+                Human approval required
+              </p>
+              <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
+                {result.interruptMessage ??
+                  'This run paused for human approval before running a tool.'}
+              </p>
+              {result.pendingTool ? (
+                <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                  <ToolBadge
+                    name={result.pendingTool.name}
+                    risk={asToolRisk(result.pendingTool.risk)}
+                  />
+                  <code className="line-clamp-2 max-w-full rounded-md bg-zinc-950/5 px-1.5 py-0.5 font-mono text-xs break-words text-zinc-500 dark:bg-white/5 dark:text-zinc-400">
+                    {result.pendingTool.argumentsSummary}
+                  </code>
+                </div>
+              ) : null}
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <Button color="accent" onClick={() => handleResume(true)} disabled={resuming}>
+                  {resuming ? (
+                    <>
+                      <Spinner />
+                      Resuming…
+                    </>
+                  ) : (
+                    'Approve'
+                  )}
+                </Button>
+                <Button plain onClick={() => handleResume(false)} disabled={resuming}>
+                  Reject
+                </Button>
+              </div>
+              {resumeError ? <ErrorBanner message={resumeError} /> : null}
+            </div>
+          ) : (
+            <>
+              <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
+                <div>
+                  <dt className="inline text-xs font-medium tracking-wide text-zinc-500 uppercase">Latency</dt>
+                  <dd className="ml-1.5 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
+                    {formatDurationMs(result.latencyMs)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="inline text-xs font-medium tracking-wide text-zinc-500 uppercase">Cost</dt>
+                  <dd className="ml-1.5 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
+                    {formatUsd(result.costUsd)}
+                  </dd>
+                </div>
+              </dl>
+              <Text className="mt-3 !text-xs">This run now appears in the Runs tab.</Text>
+            </>
+          )}
+        </div>
+      ) : null}
+    </AgentSectionCard>
   )
 }

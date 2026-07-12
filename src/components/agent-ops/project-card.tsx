@@ -81,7 +81,7 @@ export function ProjectCard({ project, rollup, href }: ProjectCardProps) {
       {/* Body — title, meta line, description. flex-col + flex-1 pousse le footer
           au bas de la carte pour que les cartes jumelles alignent leurs stats au pixel. */}
       <div className="flex flex-1 flex-col px-6 pt-3 pb-6">
-        <Subheading level={3} className="truncate">
+        <Subheading level={3} tone="neutral" className="truncate">
           <Link href={href} title={project.name} className="hover:underline">
             {project.name}
           </Link>

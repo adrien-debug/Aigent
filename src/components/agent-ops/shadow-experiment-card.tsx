@@ -1,8 +1,8 @@
 import clsx from 'clsx'
 
+import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ThresholdMeter } from '@/components/agent-ops/widgets/threshold-meter'
 import { Badge } from '@/components/catalyst/badge'
-import { Subheading } from '@/components/catalyst/heading'
 import { formatDate, formatPercent } from '@/lib/agent-mission-control/format'
 import { VERSION_STAGE_LABELS } from '@/lib/agent-mission-control/labels'
 import type { CopilotVersion, ShadowExperiment, VersionStage } from '@/lib/agent-mission-control/types'
@@ -89,76 +89,69 @@ export function ShadowExperimentCard({
   candidateVersion: CopilotVersion | undefined
 }) {
   const thresholdText = formatPercent(experiment.agreementThreshold, 0)
+  const windowText = experiment.endsAt
+    ? `${formatDate(experiment.startedAt)} → ${formatDate(experiment.endsAt)}`
+    : `Started ${formatDate(experiment.startedAt)}`
 
   return (
-    <section className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
-      {/* Header: name + window left, status right */}
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-zinc-950/5 bg-zinc-950/[0.025] px-6 py-4 dark:border-white/5 dark:bg-white/[0.04]">
-        <div className="min-w-0">
-          <Subheading className="truncate">{experiment.name}</Subheading>
-          <p className="mt-1 text-xs text-zinc-500 tabular-nums">
-            {experiment.endsAt
-              ? `${formatDate(experiment.startedAt)} → ${formatDate(experiment.endsAt)}`
-              : `Started ${formatDate(experiment.startedAt)}`}
-          </p>
-        </div>
-        <ExperimentStatusBadge status={experiment.status} />
-      </div>
-
-      {/* Body: matchup + counts left, agreement meter (hero) right */}
-      <div className="grid gap-8 px-6 py-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] lg:items-center">
-        <div>
-          {/* Production → candidate matchup, two rows split by a hairline */}
-          <dl>
-            <VersionRow role="Production" version={productionVersion} versionId={experiment.productionVersionId} />
-            <div className="mt-3 border-t border-zinc-950/5 pt-3 dark:border-white/5">
-              <VersionRow role="Candidate" version={candidateVersion} versionId={experiment.candidateVersionId} />
-            </div>
-          </dl>
-
-          {/* Sampled counts as inline stats — whitespace-separated, no box */}
-          <div className="mt-6 flex flex-wrap gap-x-10 gap-y-3">
-            <div>
-              <dt className="text-xs text-zinc-500">Sampled runs</dt>
-              <dd className="mt-1 font-mono text-lg font-semibold text-zinc-950 tabular-nums dark:text-white">
-                {experiment.sampledRunCount.toLocaleString('en-US')}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-zinc-500">Unsafe proposals</dt>
-              <dd
-                className={clsx(
-                  'mt-1 font-mono text-lg font-semibold tabular-nums',
-                  experiment.unsafeProposalCount > 0
-                    ? 'text-accent-600 dark:text-accent-400'
-                    : 'text-zinc-950 dark:text-white'
-                )}
-              >
-                {experiment.unsafeProposalCount.toLocaleString('en-US')}
-              </dd>
-            </div>
+    <AgentSectionCard
+      title={experiment.name}
+      description={windowText}
+      actions={<ExperimentStatusBadge status={experiment.status} />}
+      contentClassName="grid gap-8 px-6 py-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] lg:items-center"
+    >
+      <div>
+        {/* Production → candidate matchup, two rows split by a hairline */}
+        <dl>
+          <VersionRow role="Production" version={productionVersion} versionId={experiment.productionVersionId} />
+          <div className="mt-3 border-t border-zinc-950/5 pt-3 dark:border-white/5">
+            <VersionRow role="Candidate" version={candidateVersion} versionId={experiment.candidateVersionId} />
           </div>
-        </div>
+        </dl>
 
-        {/* Agreement hero: big value + threshold-gated meter */}
-        <div>
-          <div className="flex items-baseline justify-between gap-x-4">
-            <span className="font-mono text-3xl/8 font-semibold text-zinc-950 tabular-nums dark:text-white">
-              {formatPercent(experiment.agreementRate)}
-            </span>
-            <span className="text-sm text-zinc-500 dark:text-zinc-400">agreement</span>
+        {/* Sampled counts as inline stats — whitespace-separated, no box */}
+        <div className="mt-6 flex flex-wrap gap-x-10 gap-y-3">
+          <div>
+            <dt className="text-xs text-zinc-500">Sampled runs</dt>
+            <dd className="mt-1 font-mono text-lg font-semibold text-zinc-950 tabular-nums dark:text-white">
+              {experiment.sampledRunCount.toLocaleString('en-US')}
+            </dd>
           </div>
-          <div className="mt-4">
-            <ThresholdMeter
-              value={experiment.agreementRate}
-              threshold={experiment.agreementThreshold}
-              thresholdText={thresholdText}
-              label={`Threshold ≥ ${thresholdText}`}
-              ariaLabel="Shadow agreement versus promotion threshold"
-            />
+          <div>
+            <dt className="text-xs text-zinc-500">Unsafe proposals</dt>
+            <dd
+              className={clsx(
+                'mt-1 font-mono text-lg font-semibold tabular-nums',
+                experiment.unsafeProposalCount > 0
+                  ? 'text-accent-600 dark:text-accent-400'
+                  : 'text-zinc-950 dark:text-white'
+              )}
+            >
+              {experiment.unsafeProposalCount.toLocaleString('en-US')}
+            </dd>
           </div>
         </div>
       </div>
-    </section>
+
+      {/* Agreement hero: big value + threshold-gated meter. Sized to match the
+          page H1 (24px) — a stat, not a page title, never outranks the H1. */}
+      <div>
+        <div className="flex items-baseline justify-between gap-x-4">
+          <span className="font-mono text-2xl/8 font-semibold text-zinc-950 tabular-nums dark:text-white">
+            {formatPercent(experiment.agreementRate)}
+          </span>
+          <span className="text-sm text-zinc-500 dark:text-zinc-400">agreement</span>
+        </div>
+        <div className="mt-4">
+          <ThresholdMeter
+            value={experiment.agreementRate}
+            threshold={experiment.agreementThreshold}
+            thresholdText={thresholdText}
+            label={`Threshold ≥ ${thresholdText}`}
+            ariaLabel="Shadow agreement versus promotion threshold"
+          />
+        </div>
+      </div>
+    </AgentSectionCard>
   )
 }
