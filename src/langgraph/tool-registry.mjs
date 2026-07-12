@@ -48,6 +48,31 @@ function githubHeaders() {
   return headers
 }
 
+/**
+ * Normalise a repo path for the GitHub Contents API.
+ *
+ * WHY: the Contents API expects the repo ROOT as an EMPTY string
+ * (`GET /repos/{owner}/{name}/contents/`), NOT "." or "/". In prod the model
+ * kept passing path="." (or "/") to mean "the root", which hit `/contents/.`
+ * (or `/contents/%2F`) → 404, so the tool returned an error and the model gave
+ * up. This maps every "root-ish" sentinel ("", ".", "/", "./", undefined, null)
+ * to "" and strips a leading "./" or "/" from real paths, so "foo/bar",
+ * "/foo/bar" and "./foo" all resolve to the repo-relative path GitHub expects.
+ *
+ * @param {unknown} p the path the model supplied (may be undefined/null/".")
+ * @returns {string} "" for the root, else the cleaned repo-relative path
+ */
+function normalizeRepoPath(p) {
+  // Missing / non-string → root.
+  if (p === undefined || p === null) return ''
+  const s = String(p).trim()
+  // Root sentinels the model tends to invent → the empty string GitHub wants.
+  if (s === '' || s === '.' || s === '/' || s === './') return ''
+  // Strip a single leading "./" or "/" so "./foo" and "/foo/bar" become
+  // "foo" / "foo/bar". A bare dotfile like ".env" is untouched (no slash).
+  return s.replace(/^\.?\//, '')
+}
+
 // ---------------------------------------------------------------------------
 // Real tool IMPLEMENTATIONS, each a factory that closes over its config scope.
 // Every factory returns a LangChain `tool(...)` whose `name` === the registry id.
@@ -60,15 +85,26 @@ function makeReadRepoFile(scope) {
     async ({ path }) => {
       const repo = scope?.repoFullName
       if (!repo) return JSON.stringify({ ok: false, error: 'no repoFullName in scope' })
-      const url = `https://api.github.com/repos/${repo}/contents/${encodeURI(path ?? '')}`
+      if (!process.env.GITHUB_TOKEN) {
+        return JSON.stringify({ ok: false, error: 'GITHUB_TOKEN not set in the graph server env' })
+      }
+      // Normalise "." / "/" / "./" / missing → "" (root) so the model can't 404
+      // the repo root; strip leading "./" or "/" from real paths.
+      const cleanPath = normalizeRepoPath(path)
+      const url = `https://api.github.com/repos/${repo}/contents/${encodeURI(cleanPath)}`
       try {
         const res = await fetch(url, { headers: githubHeaders(), cache: 'no-store' })
         if (!res.ok) {
-          return JSON.stringify({ ok: false, status: res.status, error: `GitHub ${res.status} for ${repo}/${path}` })
+          // Include status AND a short readable message so the model understands
+          // what went wrong (and can retry with a different path) — not an opaque blob.
+          const error = res.status === 404
+            ? `path not found: '${cleanPath}' in ${repo}`
+            : `GitHub ${res.status} for ${repo}/${cleanPath}`
+          return JSON.stringify({ ok: false, status: res.status, error })
         }
         const data = await res.json()
         if (Array.isArray(data)) {
-          return JSON.stringify({ ok: false, error: `'${path}' is a directory, use list_repo_tree` })
+          return JSON.stringify({ ok: false, error: `'${cleanPath}' is a directory, use list_repo_tree` })
         }
         // Contents API returns base64 for files; decode to real text.
         const content = data.encoding === 'base64' && typeof data.content === 'string'
@@ -82,9 +118,9 @@ function makeReadRepoFile(scope) {
     {
       name: 'read_repo_file',
       description:
-        'Read a single file from the copilot\'s scoped GitHub repo (real GitHub API) — read-only. Pass the repo-relative path. Returns { ok, path, size, content } (content truncated ~8000 chars). Use list_repo_tree to discover paths.',
+        'Read a single file from the copilot\'s scoped GitHub repo (real GitHub API) — read-only. Pass the repo-relative path, e.g. "README.md" (do NOT pass "." — for the repo root use list_repo_tree with an empty/omitted path). Returns { ok, path, size, content } (content truncated ~8000 chars). Use list_repo_tree to discover paths.',
       schema: z.object({
-        path: z.string().describe('Repo-relative path to the file, e.g. "README.md" or "src/index.ts".'),
+        path: z.string().describe('Repo-relative path to the file, e.g. "README.md" or "src/index.ts". A leading "./" or "/" is stripped automatically.'),
       }),
     }
   )
@@ -95,16 +131,27 @@ function makeListRepoTree(scope) {
     async ({ path }) => {
       const repo = scope?.repoFullName
       if (!repo) return JSON.stringify({ ok: false, error: 'no repoFullName in scope' })
-      const url = `https://api.github.com/repos/${repo}/contents/${encodeURI(path ?? '')}`
+      if (!process.env.GITHUB_TOKEN) {
+        return JSON.stringify({ ok: false, error: 'GITHUB_TOKEN not set in the graph server env' })
+      }
+      // Normalise "." / "/" / "./" / missing → "" (root). The Contents API wants
+      // "" for the root — "." or "/" would 404 and the model would think the
+      // repo root doesn't exist.
+      const cleanPath = normalizeRepoPath(path)
+      const url = `https://api.github.com/repos/${repo}/contents/${encodeURI(cleanPath)}`
       try {
         const res = await fetch(url, { headers: githubHeaders(), cache: 'no-store' })
         if (!res.ok) {
-          return JSON.stringify({ ok: false, status: res.status, error: `GitHub ${res.status} for ${repo}/${path ?? ''}` })
+          // Status + short readable message so the model can retry with another path.
+          const error = res.status === 404
+            ? `path not found: '${cleanPath}' in ${repo}`
+            : `GitHub ${res.status} for ${repo}/${cleanPath}`
+          return JSON.stringify({ ok: false, status: res.status, error })
         }
         const data = await res.json()
         // A single file returns an object, not an array — normalise both.
         const entries = (Array.isArray(data) ? data : [data]).map((e) => ({ name: e.name, type: e.type, path: e.path }))
-        return JSON.stringify({ ok: true, repo, path: path ?? '', count: entries.length, entries })
+        return JSON.stringify({ ok: true, repo, path: cleanPath, count: entries.length, entries })
       } catch (e) {
         return JSON.stringify({ ok: false, error: e instanceof Error ? e.message : String(e) })
       }
@@ -112,9 +159,9 @@ function makeListRepoTree(scope) {
     {
       name: 'list_repo_tree',
       description:
-        'List the entries (files and folders) of the copilot\'s scoped GitHub repo, at the root or a sub-folder (real GitHub API) — read-only. Optional path; omit for the repo root. Returns { ok, count, entries:[{name,type,path}] }.',
+        'List the entries (files and folders) of the copilot\'s scoped GitHub repo, at the root or a sub-folder (real GitHub API) — read-only. For the repo ROOT pass an EMPTY path or omit it (do NOT pass "." or "/"). Returns { ok, count, entries:[{name,type,path}] }.',
       schema: z.object({
-        path: z.string().optional().describe('Repo-relative folder to list. Omit for the repo root.'),
+        path: z.string().optional().describe('Repo-relative folder to list. Omit (or pass "") for the repo root — do NOT pass "." or "/". A leading "./" or "/" is stripped automatically.'),
       }),
     }
   )
@@ -125,6 +172,9 @@ function makeSearchRepo(scope) {
     async ({ query }) => {
       const repo = scope?.repoFullName
       if (!repo) return JSON.stringify({ ok: false, error: 'no repoFullName in scope' })
+      if (!process.env.GITHUB_TOKEN) {
+        return JSON.stringify({ ok: false, error: 'GITHUB_TOKEN not set in the graph server env' })
+      }
       if (!query || !String(query).trim()) return JSON.stringify({ ok: false, error: 'query required' })
       const q = `${query} repo:${repo}`
       const url = `https://api.github.com/search/code?q=${encodeURIComponent(q)}&per_page=10`

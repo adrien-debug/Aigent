@@ -47,6 +47,11 @@ services:
       AMC_SUPABASE_URL: ${AMC_SUPABASE_URL:-http://aigent-caddy:8095}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?set SUPABASE_SERVICE_ROLE_KEY}
       AMC_DATA_SOURCE: ${AMC_DATA_SOURCE:-gpu1}
+      # The per-copilot repo tools (read_repo_file/list_repo_tree/search_repo,
+      # tool-registry.mjs) call the live GitHub API — they need the token in the
+      # SERVER process (this container), not just the app. Without it every repo
+      # call 404s. Optional (empty → repo tools return an auth error, not a crash).
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
 
       # --- OPTIONAL tracing (absent → no-op). ---
       # LANGSMITH_API_KEY: ${LANGSMITH_API_KEY}
