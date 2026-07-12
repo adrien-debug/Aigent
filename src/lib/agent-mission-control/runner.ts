@@ -21,6 +21,7 @@ import 'server-only'
 
 import { randomUUID } from 'node:crypto'
 
+import { resolveToolId } from './copilot-behavior'
 import { summarize } from './format'
 import {
   routeCompletion,
@@ -186,6 +187,31 @@ async function loadRuntime(copilotId: string): Promise<AgentRuntime | null> {
   return (rows[0]?.runtime as AgentRuntime | undefined) ?? null
 }
 
+/**
+ * Load the project's repo full name (owner/name), or null when the project
+ * has none. Mirrors langgraph-assistants.ts's loadCopilotBehaviorConfig — used
+ * here only to know whether resolveToolId should prefer repo-file intent
+ * (mirrors what the assistant's own config was built with) when checking for
+ * tools the graph could not mount.
+ */
+async function loadRepoFullName(projectId: string | null): Promise<string | null> {
+  if (!projectId) return null
+  const rows = await pgrest<RawRow[]>('GET', `projects?id=eq.${encodeURIComponent(projectId)}&select=repo_full_name`)
+  return (rows[0]?.repo_full_name as string | null) ?? null
+}
+
+/**
+ * Tool NAMES the manifest declares that resolve to NO real registry id (see
+ * resolveToolId in copilot-behavior.ts) — i.e. names the graph's assistant
+ * config could not have mounted a tool for. Used to raise a visible warning
+ * step in the run trace: the assistant's config.configurable was built with
+ * the exact same resolution, so a name unmapped here is guaranteed unmapped
+ * there too (same pure function, same inputs).
+ */
+function findUnmappedToolNames(tools: RunnerTool[], hasRepo: boolean): string[] {
+  return tools.filter((t) => resolveToolId(t.name, hasRepo) === null).map((t) => t.name)
+}
+
 /** Map a RunnerTool to the router's tool schema (permissive object args). */
 function toRouterTool(t: RunnerTool): ModelRouterTool {
   return {
@@ -318,6 +344,37 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
   // real tool_id (a NOT NULL column). The Agent Server reports names, not ids.
   const copilotTools = await loadToolsForVersion(versionId)
   const toolByName = new Map(copilotTools.map((t) => [t.name, t]))
+
+  // Visibility for P0-2: the manifest can declare tool NAMES that resolve to
+  // NO real registry id (buildTools in copilot-behavior.ts silently drops
+  // them into the assistant's config — same resolution, same inputs, so a
+  // name unmapped here is guaranteed unmapped in the graph's actual tool
+  // list too). Previously this only reached a server console.warn; surface it
+  // as a `warning` trace step so the operator sees, in the run timeline, that
+  // the copilot ran with fewer tools than its manifest declares. This never
+  // fails the run — most copilots run fine on the injected repo tools +
+  // platform reads even when some manifest tool names don't resolve.
+  if (copilotTools.length > 0) {
+    const repoFullName = await loadRepoFullName(projectId)
+    const unmapped = findUnmappedToolNames(copilotTools, Boolean(repoFullName))
+    if (unmapped.length > 0) {
+      trace.step(
+        {
+          kind: 'guardrail-check',
+          title: 'Manifest tools not mounted',
+          detail: summarize(
+            `${unmapped.length} tool name${unmapped.length === 1 ? '' : 's'} declared by the manifest ` +
+              `mapped to no real tool and were not mounted: ${unmapped.join(', ')}. The copilot ran with ` +
+              `platform reads${repoFullName ? ' + repo tools' : ''} only for these — its system prompt may ` +
+              `assume a capability it does not have.`
+          ),
+          status: 'warning',
+          durationMs: 0,
+        },
+        Date.now()
+      )
+    }
+  }
 
   try {
     const result = await runOnAgentServer({ userInput, assistantId, maxSteps })

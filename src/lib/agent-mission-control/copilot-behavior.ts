@@ -61,6 +61,17 @@ export interface CopilotBehaviorConfig {
   maxSteps: number
   confirmationPolicy: ConfirmationPolicy
   tools: BehaviorTool[]
+  /**
+   * Architect-proposed tool NAMES that resolved to NO registry id (see
+   * resolveToolId) and were therefore dropped from `tools` above. Non-empty
+   * means the copilot is running with FEWER tools than its manifest declares
+   * — the system prompt may assume a capability that was never mounted. The
+   * graph itself does not read this (inert extra field in config.configurable
+   * — see the frozen contract in ASSISTANT_CONFIG_CONTRACT.md); it exists so
+   * callers (runner.ts) can surface the loss to the operator instead of it
+   * only living in a server console.warn. Empty array when nothing was lost.
+   */
+  unmappedToolNames: string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -167,7 +178,7 @@ const KNOWN_TOOL_IDS: ReadonlySet<string> = new Set<BehaviorToolId>(REGISTRY_IDS
  * ones (platform reads and tree/list before a bare "read repo", generic http_get
  * last). Deterministic: same input → same id, no IO.
  */
-function resolveToolId(rawName: string, hasRepo: boolean): BehaviorToolId | null {
+export function resolveToolId(rawName: string, hasRepo: boolean): BehaviorToolId | null {
   const lower = (rawName ?? '').toLowerCase()
   // Collapse every non-alphanumeric run to a single space → uniform matching.
   const n = lower.replace(/[^a-z0-9]+/g, ' ').trim()
@@ -436,8 +447,16 @@ const REPO_INJECTED_TOOLS: ReadonlyArray<{
  *     base capability set, so the config is complete and self-portant.
  *
  * Every produced id is a REAL registry id — the graph mounts exactly this list.
+ *
+ * Returns the built tool list ALONGSIDE the architect-declared names that
+ * mapped to no registry id (`unmappedToolNames`) — the caller (the config
+ * builder) carries that list into CopilotBehaviorConfig so the loss is
+ * visible to operators, not just a server console.warn.
  */
-function buildTools(tools: ToolRowForBehavior[], repoFullName?: string | null): BehaviorTool[] {
+function buildTools(
+  tools: ToolRowForBehavior[],
+  repoFullName?: string | null
+): { tools: BehaviorTool[]; unmappedToolNames: string[] } {
   const out: BehaviorTool[] = []
   const byId = new Map<BehaviorToolId, BehaviorTool>()
 
@@ -467,6 +486,12 @@ function buildTools(tools: ToolRowForBehavior[], repoFullName?: string | null): 
   //    Collect the dropped names so an operator can see why a copilot's tool
   //    list is thinner than its manifest declares — silently losing intents
   //    here previously left no trace.
+  //
+  //    NOTE: a name that resolved to a repo-tool id but was dropped for lack
+  //    of a repo is counted here too (toBehaviorTool returns null in that
+  //    case as well). This is intentional: layer 2 below never fires without
+  //    a repo either, so that name really did lose its tool for this build —
+  //    worth surfacing, not a false positive.
   const droppedNames: string[] = []
   for (const row of tools) {
     const entry = toBehaviorTool(row, repoFullName)
@@ -489,7 +514,7 @@ function buildTools(tools: ToolRowForBehavior[], repoFullName?: string | null): 
     add({ id: g.id, riskLevel: g.riskLevel, requiresConfirmation: g.requiresConfirmation })
   }
 
-  return out
+  return { tools: out, unmappedToolNames: droppedNames }
 }
 
 // ---------------------------------------------------------------------------
@@ -508,6 +533,7 @@ export function buildCopilotBehaviorConfig(input: BuildCopilotBehaviorInput): Co
 
   const confirmationPolicy: ConfirmationPolicy =
     manifest?.confirmation_policy ?? DEFAULT_CONFIRMATION_POLICY
+  const built = buildTools(tools, repoFullName)
 
   return {
     copilotId: copilot.id,
@@ -516,6 +542,7 @@ export function buildCopilotBehaviorConfig(input: BuildCopilotBehaviorInput): Co
     model: (copilot.model && copilot.model.trim().length > 0 ? copilot.model : DEFAULT_MODEL) as string,
     maxSteps: manifest?.max_steps_per_run ?? DEFAULT_MAX_STEPS,
     confirmationPolicy,
-    tools: buildTools(tools, repoFullName),
+    tools: built.tools,
+    unmappedToolNames: built.unmappedToolNames,
   }
 }
