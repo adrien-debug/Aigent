@@ -150,8 +150,21 @@ function pendingToolFromInterrupt(
   }
 }
 
-/** Turn the graph's message history into normalized steps + tool-call rows. */
-function buildStepsFromMessages(messages: AnyMsg[]): {
+/**
+ * Turn the graph's message history into normalized steps + tool-call rows.
+ *
+ * `messages` = the messages to EMIT steps for (on a resume, only the new ones —
+ * the pre-pause ones were already persisted). `lookupScope` = the messages to
+ * RESOLVE TOOL NAMES from, which must be the FULL history: the AIMessage that
+ * *requested* a gated tool sits BEFORE the pause, while its ToolMessage answer
+ * arrives AFTER it. Resolving names from the emit-scope alone would leave the
+ * approved tool call labelled 'tool' — losing the name of the single most
+ * safety-sensitive call in the system from the audit trail.
+ */
+function buildStepsFromMessages(
+  messages: AnyMsg[],
+  lookupScope: AnyMsg[] = messages
+): {
   steps: LangGraphServerStep[]
   toolCalls: LangGraphServerToolCall[]
 } {
@@ -161,7 +174,7 @@ function buildStepsFromMessages(messages: AnyMsg[]): {
   // Map tool_call_id → { name, args } from the AI messages that requested them,
   // so a ToolMessage (which often omits the name) can be labelled correctly.
   const callById = new Map<string, { name: string; args: unknown }>()
-  for (const m of messages) {
+  for (const m of lookupScope) {
     const type = m.type ?? m.role
     if ((type === 'ai' || type === 'assistant') && Array.isArray(m.tool_calls)) {
       for (const call of m.tool_calls) {
@@ -321,7 +334,9 @@ export async function resumeOnAgentServer(args: {
     priorMessageCount > 0 && priorMessageCount <= allMessages.length
       ? allMessages.slice(priorMessageCount)
       : allMessages
-  const { steps, toolCalls } = buildStepsFromMessages(messages)
+  // Emit steps only for the NEW messages, but resolve tool names against the
+  // FULL history — the AIMessage that requested the gated tool is pre-pause.
+  const { steps, toolCalls } = buildStepsFromMessages(messages, allMessages)
   const lastAi = [...messages].reverse().find((m) => (m.type ?? m.role) === 'ai' || (m.type ?? m.role) === 'assistant')
   const finalText = typeof lastAi?.content === 'string' ? lastAi.content : ''
 
