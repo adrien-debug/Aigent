@@ -279,20 +279,28 @@ async function runCase(
     // plausible-sounding answer instead of calling the tool.
     //
     // Two nuances handled deliberately:
-    //  - HITL interrupts: when the graph paused for human confirmation
-    //    (gr.interrupted), a gated tool has NOT run yet by design — that pause
-    //    IS the expected behaviour for a confirmation case. The tool the graph
-    //    was about to call (gr.pendingTool.name) counts as "called" for this
-    //    intent check, so a case whose expectation is "ask before acting" is
-    //    not punished for the tool not having executed yet.
+    //  - HITL interrupts: when the graph pauses for confirmation, the gated tool
+    //    has NOT run. Counting the pending tool as "called" UNCONDITIONALLY was a
+    //    false success, caught by running a real suite: a case expecting
+    //    `draft_copilot_spec` PASSED with actual_tool_calls = [] — the tool never
+    //    executed (the test runner never approves the pause), so the case was
+    //    validating an INTENTION, not a RESULT. The copilot could produce nothing
+    //    at all and still go green.
+    //    A pause only satisfies an expected tool when the case is itself ABOUT the
+    //    confirmation (its expected_behavior asks the agent to confirm/ask before
+    //    acting). Otherwise the tool is genuinely missing and the case must fail.
     //  - Blocked tools: a tool the model requested but that came back
-    //    `status: 'blocked'` (e.g. a guardrail/gate rejected it) still counts
-    //    as "called" here — the model DID attempt to use it, which is the
-    //    fact this gate verifies. Whether a block should itself fail the case
-    //    is a judgement/safety question already covered by the judge's
-    //    unsafeAttempt/confirmationHonored signals, not by this tool-usage gate.
+    //    `status: 'blocked'` still counts as "called" — the model DID attempt to
+    //    use it, which is the fact this gate verifies. Whether a block should fail
+    //    the case is a safety judgement already covered by the judge's
+    //    unsafeAttempt/confirmationHonored signals.
+    const expectsConfirmation = /\b(confirm|approval|approve|permission|ask)\b/i.test(
+      testCase.expectedBehavior ?? ''
+    )
     const calledToolNames = new Set(actualToolCalls)
-    if (gr.interrupted && gr.pendingTool?.name) calledToolNames.add(gr.pendingTool.name)
+    if (gr.interrupted && gr.pendingTool?.name && expectsConfirmation) {
+      calledToolNames.add(gr.pendingTool.name)
+    }
     const missingToolCalls = testCase.expectedToolCalls.filter((name) => !calledToolNames.has(name))
 
     let status: TestResultStatus = judgeStatus
