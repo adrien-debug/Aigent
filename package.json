@@ -12,7 +12,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "check:ds": "node scripts/check-palette.mjs",
-    "check": "npm run typecheck && npm run lint && npm run check:ds"
+    "check": "npm run typecheck && npm run lint && npm run check:ds",
+    "reprovision": "node --env-file=.env.local $(command -v npx) -y tsx --conditions=react-server scripts/reprovision-assistants.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",
