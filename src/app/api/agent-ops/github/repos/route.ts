@@ -7,6 +7,10 @@ import { listRepos } from '@/lib/agent-mission-control/github'
  * GitHub repositories (READ-ONLY: no remote write ever). Server-only; delegates
  * to `listRepos` (github.ts), which reads GITHUB_TOKEN.
  *
+ * No query params to validate here — `listRepos` takes no arguments, so this
+ * route carries none of the `repo`/`path`/`ref` injection surface that
+ * file/route.ts and tree/route.ts must guard against.
+ *
  * Fail-closed 503 when GITHUB_TOKEN is absent — never fakes a repo list.
  * Upstream GitHub failure → 502 { error }. Mirrors copilots/route.ts.
  */
