@@ -81,10 +81,20 @@ export function ThresholdMeter({
         />
       </div>
 
+      {/*
+        Guard (scripts/check-palette.mjs) allows only the accent ramp + zinc —
+        no red/green. accent-600 vs accent-700 alone read as the same colour at
+        a glance, so pass/fail is no longer carried by hue-intensity alone:
+        pass = solid accent (on-target, the "good" brand colour), fail = zinc
+        + bold weight (a different colour family entirely, plus a second,
+        non-colour cue) so the two states are unambiguous even for a
+        colour-weak reader. The text label is still the primary signal either
+        way (doctrine: colour is never the sole indicator).
+      */}
       <p
         className={clsx(
           'mt-1.5 text-xs',
-          meets ? 'text-accent-600 dark:text-accent-400' : 'text-accent-700 dark:text-accent-500'
+          meets ? 'text-accent-600 dark:text-accent-400' : 'font-semibold text-zinc-700 dark:text-zinc-300'
         )}
       >
         {meets ? 'Meets threshold' : `Below (needs ≥ ${gateLabel})`}

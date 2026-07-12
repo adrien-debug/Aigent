@@ -36,7 +36,7 @@ function LatencyTooltip({ active, payload }: TooltipContentProps) {
   if (!point) return null
 
   return (
-    <div className="rounded-lg bg-zinc-900 px-3 py-2 text-xs ring-1 ring-white/10">
+    <div className="rounded-lg px-3 py-2 text-xs ring-1 ring-white/10" style={{ backgroundColor: 'var(--chart-surface)' }}>
       <p className="font-mono font-medium tabular-nums text-white">
         {point.id}
         <span className="ml-2 font-normal text-zinc-400">{point.label}</span>

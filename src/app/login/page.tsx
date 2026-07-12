@@ -92,9 +92,12 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
+  // Theme-aware like the rest of the app (see AgentControlShell): page body
+  // is bg-zinc-100/dark:bg-zinc-900, framed surfaces are bg-white/dark:bg-zinc-950.
+  // Previously this page hardcoded the dark-only look regardless of theme.
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-zinc-900 px-6 py-12">
-      <div className="w-full max-w-sm rounded-xl bg-zinc-950 p-8 ring-1 ring-white/10">
+    <main className="flex min-h-dvh items-center justify-center bg-zinc-100 px-6 py-12 dark:bg-zinc-900">
+      <div className="w-full max-w-sm rounded-xl bg-white p-8 ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
         <Heading level={1}>Agent Mission Control</Heading>
         <Text className="mt-1">Admin access</Text>
 

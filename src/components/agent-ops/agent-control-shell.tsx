@@ -64,8 +64,10 @@ function RailItem({
       )}
     >
       <Icon aria-hidden="true" className="size-5 shrink-0" />
-      {/* Label réduit + contraint à la largeur du bouton (ne dépasse plus). */}
-      <span className="w-full truncate text-center text-[10px] font-medium leading-tight">{label}</span>
+      {/* Label réduit + contraint à la largeur du bouton (ne dépasse plus).
+          text-xs = plus petite taille de l'échelle typo du repo (pas de
+          text-[10px] hors échelle) ; leading-tight compense pour rester compact. */}
+      <span className="w-full truncate text-center text-xs font-medium leading-tight">{label}</span>
     </Link>
   )
 }

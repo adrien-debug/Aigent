@@ -339,7 +339,11 @@ export function NewProjectWorkbench() {
                     <li
                       key={`${entry.type}:${entry.path}`}
                       className="flex items-center gap-2 py-0.5"
-                      // Dynamic tree indentation — depth is unbounded, no static class possible; 16px step stays on the spacing scale.
+                      // Dynamic tree indentation — depth comes from a real GitHub repo tree and is
+                      // unbounded (no fixed max nesting), so a static Tailwind class per level isn't
+                      // possible: it would need one class per depth with no upper bound. The inline
+                      // style is the legitimate escape hatch here; the step itself (16px = spacing-4)
+                      // still comes from the repo's 4px spacing scale, not a magic number.
                       style={{ paddingLeft: `${depth * 16}px` }}
                     >
                       {isDir ? (

@@ -33,6 +33,13 @@ const stepKindLabels: Record<AgentRunStepKind, string> = {
   output: 'Output',
 }
 
+// Guard (scripts/check-palette.mjs) allows only the accent ramp + zinc — no
+// second hue for "warning vs blocked vs error". The three non-ok states are
+// told apart by climbing the SAME accent ramp (soft → mid → solid, low → high
+// severity) plus weight on the label, so they no longer render identically:
+// warning = lightest wash (heads-up, not yet actionable), blocked = mid wash
+// with a stronger ring (needs action), error = solid accent fill + bold white
+// label (highest severity, reads like a filled badge rather than a tint).
 const stepStatusStyles: Record<AgentRunStep['status'], { node: string; label: string | null; labelClassName: string }> =
   {
     ok: {
@@ -41,19 +48,19 @@ const stepStatusStyles: Record<AgentRunStep['status'], { node: string; label: st
       labelClassName: '',
     },
     warning: {
-      node: 'bg-accent-400/10 text-accent-600 inset-ring inset-ring-accent-400/30 dark:text-accent-400',
+      node: 'bg-accent-400/10 text-accent-500 inset-ring inset-ring-accent-400/20 dark:text-accent-500',
       label: 'Warning',
-      labelClassName: 'text-accent-600 dark:text-accent-400',
+      labelClassName: 'text-accent-500 dark:text-accent-500',
     },
     blocked: {
-      node: 'bg-accent-400/10 text-accent-600 inset-ring inset-ring-accent-400/30 dark:text-accent-400',
+      node: 'bg-accent-500/15 text-accent-700 inset-ring inset-ring-accent-500/40 dark:text-accent-300',
       label: 'Blocked',
-      labelClassName: 'text-accent-600 dark:text-accent-400',
+      labelClassName: 'font-semibold text-accent-700 dark:text-accent-300',
     },
     error: {
-      node: 'bg-accent-400/10 text-accent-600 inset-ring inset-ring-accent-400/30 dark:text-accent-400',
+      node: 'bg-accent-700 text-white inset-ring inset-ring-accent-700 dark:bg-accent-600 dark:inset-ring-accent-600',
       label: 'Error',
-      labelClassName: 'text-accent-600 dark:text-accent-400',
+      labelClassName: 'font-semibold text-accent-800 dark:text-accent-400',
     },
   }
 
