@@ -209,6 +209,33 @@ export interface CreateProjectInput {
 }
 
 /**
+ * `owner/name` only — mirrors the regex enforced at the API boundary
+ * (src/app/api/agent-ops/projects/route.ts). Re-checked HERE, in front of the
+ * insert, as defense in depth: `repoFullName` is later interpolated verbatim
+ * into GitHub API URLs by the Agent Server's tool registry
+ * (src/langgraph/tool-registry.mjs) via copilot-behavior.ts's scope derivation,
+ * so any future caller of `createProject` (script, another route) that skips
+ * the HTTP-layer validation must not be able to persist a toxic value that
+ * lets a run escape its repo scope.
+ */
+const REPO_FULL_NAME_RE = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/
+
+function assertValidRepoFullName(repoFullName: string | undefined): void {
+  if (repoFullName === undefined) return
+  const trimmed = repoFullName.trim()
+  if (
+    trimmed.length === 0 ||
+    trimmed.length > 200 ||
+    !REPO_FULL_NAME_RE.test(trimmed) ||
+    trimmed.split('/').some((segment) => segment === '.' || segment === '..')
+  ) {
+    throw new Error(
+      `invalid repoFullName: "${repoFullName}" (expected "owner/name", no "..", extra "/", "?", "#", "@", or spaces)`
+    )
+  }
+}
+
+/**
  * Insert a new `projects` row. Fail-closed (mirrors createCopilotFromManifest
  * and pgrest's requireBackend()); the id is deterministic (makeId('proj',
  * slug)) and created_at is stamped server-side the same way as the copilot
@@ -216,6 +243,7 @@ export interface CreateProjectInput {
  */
 export async function createProject(input: CreateProjectInput): Promise<string> {
   requireBackend()
+  assertValidRepoFullName(input.repoFullName)
 
   const now = new Date().toISOString()
   const slug = input.slug?.trim() || slugify(input.name)
@@ -228,7 +256,7 @@ export async function createProject(input: CreateProjectInput): Promise<string> 
     description: input.description ?? '',
     platform: input.platform,
     repo_url: input.repoUrl ?? null,
-    repo_full_name: input.repoFullName ?? null,
+    repo_full_name: input.repoFullName?.trim() ?? null,
     created_at: now,
   }
   await pgrest<RawRow[]>('POST', 'projects', payload)

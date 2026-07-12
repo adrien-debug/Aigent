@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 
 import {
   createProject,
@@ -17,6 +18,38 @@ const PLATFORMS: ReadonlyArray<CreateProjectInput['platform']> = [
   'mobile',
   'api',
 ]
+
+/**
+ * `owner/name` only: alnum + `. _ -` per segment, exactly one `/`. Rejects
+ * `..` path-traversal segments, extra slashes, and query/fragment/whitespace
+ * injection (`?`, `#`, `@`, spaces) — this string is later interpolated
+ * verbatim into GitHub API URLs by the Agent Server's tool registry
+ * (src/langgraph/tool-registry.mjs), so anything outside this shape is a
+ * scope-escape vector, not just a cosmetic validation nicety.
+ */
+const REPO_FULL_NAME_RE = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/
+
+const repoFullNameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(200)
+  .regex(REPO_FULL_NAME_RE, 'repoFullName must look like "owner/name" (no "..", "/", "?", "#", "@", or spaces)')
+  .refine((v) => !v.split('/').some((segment) => segment === '.' || segment === '..'), {
+    message: 'repoFullName segments must not be "." or ".."',
+  })
+
+/** Body contract for POST /api/agent-ops/projects. Mirrors CreateProjectInput. */
+const createProjectBodySchema = z.object({
+  name: z.string().trim().min(1, 'name is required'),
+  slug: z.string().trim().min(1).optional(),
+  description: z.string().optional(),
+  platform: z.enum(PLATFORMS as [CreateProjectInput['platform'], ...CreateProjectInput['platform'][]], {
+    message: "platform must be one of 'web' | 'desktop' | 'mobile' | 'api'",
+  }),
+  repoUrl: z.string().trim().url().optional(),
+  repoFullName: repoFullNameSchema.optional(),
+})
 
 /**
  * POST /api/agent-ops/projects — LIVE creation of a project linked to a GitHub
@@ -38,22 +71,29 @@ const PLATFORMS: ReadonlyArray<CreateProjectInput['platform']> = [
  * hiding the failure; failing loudly is the honest choice.
  */
 export async function POST(request: Request) {
-  let body: CreateProjectInput
+  let rawBody: unknown
   try {
-    body = await request.json()
+    rawBody = await request.json()
   } catch {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
   }
 
-  if (typeof body.name !== 'string' || body.name.trim().length === 0) {
-    return NextResponse.json({ error: 'name is required' }, { status: 400 })
+  const parsed = createProjectBodySchema.safeParse(rawBody)
+  if (!parsed.success) {
+    // Preserve the exact legacy messages for the two checks callers may already
+    // depend on; fall back to the first zod issue for everything else (notably
+    // repoFullName / repoUrl shape).
+    const issues = parsed.error.issues
+    const nameIssue = issues.find((i) => i.path[0] === 'name')
+    const platformIssue = issues.find((i) => i.path[0] === 'platform')
+    const message = nameIssue
+      ? 'name is required'
+      : platformIssue
+        ? "platform must be one of 'web' | 'desktop' | 'mobile' | 'api'"
+        : (issues[0]?.message ?? 'invalid request body')
+    return NextResponse.json({ error: message }, { status: 400 })
   }
-  if (!PLATFORMS.includes(body.platform)) {
-    return NextResponse.json(
-      { error: "platform must be one of 'web' | 'desktop' | 'mobile' | 'api'" },
-      { status: 400 }
-    )
-  }
+  const body: CreateProjectInput = parsed.data
 
   // Fail-closed 503 when the live backend is not configured — never fake success.
   if (
