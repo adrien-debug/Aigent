@@ -61,6 +61,13 @@ const DEFAULT_CONFIRM_REQUIRED = new Set(['draft_copilot_spec'])
  * unfinished run back into a "completed" one.
  */
 export const STEP_BUDGET_EXHAUSTED = 'aigent_step_budget_exhausted'
+
+/**
+ * Key under which agentNode stamps the model it ACTUALLY instantiated. The
+ * LangGraph SDK doesn't surface the provider's own model id to the caller, so
+ * without this the app cannot know what really ran (it reported `modelUnverified`).
+ */
+export const EXECUTED_MODEL = 'aigent_executed_model'
 const DEFAULT_TOOL_RISK = { draft_copilot_spec: 'medium' }
 
 const DEFAULT_MODEL = process.env.AGENT_BUILDER_MODEL || 'gpt-5.4'
@@ -157,15 +164,18 @@ async function agentNode(state, config) {
     return {
       messages: [
         new AIMessage({
+          // The sentinel is in the CONTENT, and that is not a stylistic choice:
+          // the @langchain/langgraph-sdk deserializes messages into LangChain
+          // objects and DROPS custom keys — verified live, the same run returns
+          // `additional_kwargs: {"aigent_executed_model":"gpt-5.4"}` over the raw
+          // HTTP API and `{}` through the SDK (same for response_metadata). No
+          // custom metadata channel survives; content is the only one that does.
+          // So the marker is a machine-stable PREFIX (not prose to fuzzy-match):
+          // reword the human sentence freely, the prefix is the contract.
           content:
+            `${STEP_BUDGET_EXHAUSTED} ` +
             'I stopped here: this copilot’s step budget (maxSteps) is exhausted, so I could not finish the task. ' +
             'Please start a new run or narrow the request so it fits within the remaining steps.',
-          // STRUCTURED marker — the runner must NOT have to string-match the prose
-          // above to know the task was cut short (rewording the sentence would
-          // silently turn an unfinished run back into a "completed" one, which is
-          // the exact class of silent lie we're eliminating). Consumers key off
-          // this flag; the text is for humans only.
-          response_metadata: { [STEP_BUDGET_EXHAUSTED]: true },
         }),
       ],
     }
@@ -180,6 +190,19 @@ async function agentNode(state, config) {
   const hasSystem = state.messages[0]?.getType?.() === 'system'
   const messages = hasSystem ? state.messages : [{ role: 'system', content: rt.systemPrompt }, ...state.messages]
   const response = await modelWithTools.invoke(messages)
+
+  // NOTE — we cannot tell the app which model actually ran, and that is a real
+  // limitation, not an oversight. Verified empirically: the SDK deserializes
+  // messages into LangChain objects and DROPS every custom key, in BOTH
+  // `additional_kwargs` AND `response_metadata` (same run: the raw HTTP API returns
+  // `{"aigent_executed_model":"gpt-5.4"}`, `runs.wait` returns `{}`). The provider's
+  // own model id isn't passed through either (response_metadata carries only
+  // `model_provider` + `usage`). The only channel that survives is the message
+  // CONTENT — and we will not pollute the user-facing answer with a model tag.
+  // So the app reports `modelUnverified: true` on this path. That is the HONEST
+  // answer: we'd rather say "unknown" than assert the REQUESTED model, which the
+  // graph may silently have replaced with DEFAULT_MODEL when the assistant config
+  // carries no model. Never affirm a fact we cannot verify.
   return { messages: [response] }
 }
 

@@ -139,20 +139,36 @@ type AnyMsg = {
   tool_call_id?: string
   tool_calls?: { id?: string; name: string; args?: unknown }[]
   usage_metadata?: { input_tokens?: number; output_tokens?: number }
-  response_metadata?: { model_name?: string; model?: string; [STEP_BUDGET_EXHAUSTED]?: boolean }
+  response_metadata?: { model_name?: string; model?: string }
 }
 
 /**
- * Structured marker the graph sets on its final AIMessage when the copilot's step
- * budget runs out (agent-builder-graph.mjs). We key off THIS, never off the prose
- * of the message: rewording that sentence must not silently turn an unfinished run
- * back into a "completed" one.
+ * Machine sentinel the graph PREFIXES onto the content of its final message when the
+ * copilot's step budget runs out (agent-builder-graph.mjs).
+ *
+ * WHY IN THE CONTENT and not in metadata: verified empirically that the SDK
+ * deserializes messages into LangChain objects and DROPS every custom key, in BOTH
+ * `additional_kwargs` and `response_metadata` (identical run: the raw HTTP API
+ * returns the key, `runs.wait` returns `{}`). Content is the only channel that
+ * survives the round-trip. It is a fixed PREFIX, not prose to fuzzy-match: the human
+ * sentence after it can be reworded freely without breaking detection.
  */
 const STEP_BUDGET_EXHAUSTED = 'aigent_step_budget_exhausted'
 
 /** True when the graph stopped because the copilot's step budget was exhausted. */
 function budgetExhaustedFromMessages(messages: AnyMsg[]): boolean {
-  return messages.some((m) => m.response_metadata?.[STEP_BUDGET_EXHAUSTED] === true)
+  return messages.some(
+    (m) => typeof m.content === 'string' && m.content.startsWith(STEP_BUDGET_EXHAUSTED)
+  )
+}
+
+/**
+ * Strip the machine sentinel from text destined for a human. The marker is a
+ * transport contract (see STEP_BUDGET_EXHAUSTED) — it must never leak into the
+ * operator-facing answer or the persisted output_summary.
+ */
+function stripSentinel(text: string): string {
+  return text.startsWith(STEP_BUDGET_EXHAUSTED) ? text.slice(STEP_BUDGET_EXHAUSTED.length).trim() : text
 }
 
 /**
@@ -168,6 +184,12 @@ function budgetExhaustedFromMessages(messages: AnyMsg[]): boolean {
 function realModelFromMessages(messages: AnyMsg[]): string | null {
   const aiMessages = messages.filter((m) => (m.type ?? m.role) === 'ai' || (m.type ?? m.role) === 'assistant')
   for (const m of [...aiMessages].reverse()) {
+    // The graph stamps the model it actually instantiated (agent-builder-graph.mjs,
+    // EXECUTED_MODEL) — that's the authoritative source here. Verified against a
+    // live run: the SDK does NOT pass the provider's own `model_name` through
+    // (response_metadata carries only `model_provider` + `usage`), so the
+    // model_name/model reads below are a best-effort fallback for any path that
+    // does surface them, not the primary source.
     const name = m.response_metadata?.model_name ?? m.response_metadata?.model
     if (typeof name === 'string' && name.length > 0) return name
   }
@@ -313,7 +335,7 @@ export async function runOnAgentServer(args: {
   const { steps, toolCalls } = buildStepsFromMessages(messages)
 
   const lastAi = [...messages].reverse().find((m) => (m.type ?? m.role) === 'ai' || (m.type ?? m.role) === 'assistant')
-  const finalText = typeof lastAi?.content === 'string' ? lastAi.content : ''
+  const finalText = typeof lastAi?.content === 'string' ? stripSentinel(lastAi.content) : ''
 
   if (interrupted) {
     const payload = result.__interrupt__ ?? interrupts
@@ -410,7 +432,7 @@ export async function resumeOnAgentServer(args: {
   // FULL history — the AIMessage that requested the gated tool is pre-pause.
   const { steps, toolCalls } = buildStepsFromMessages(messages, allMessages)
   const lastAi = [...messages].reverse().find((m) => (m.type ?? m.role) === 'ai' || (m.type ?? m.role) === 'assistant')
-  const finalText = typeof lastAi?.content === 'string' ? lastAi.content : ''
+  const finalText = typeof lastAi?.content === 'string' ? stripSentinel(lastAi.content) : ''
 
   steps.push({
     kind: 'output',
