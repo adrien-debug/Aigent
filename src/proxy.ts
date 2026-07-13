@@ -19,7 +19,18 @@ import { SESSION_COOKIE, decodeSession } from '@/lib/agent-mission-control/auth'
  * secret, tampering, or expiry, so a missing AMC_SESSION_SECRET denies every
  * gate (fail-closed). Secrets are read server-side only; nothing here reaches
  * the browser.
+ *
+ * LOCAL DEV ESCAPE HATCH: when NODE_ENV !== 'production' AND the explicit opt-in
+ * env `AMC_DEV_BYPASS_AUTH=1` is set, /admin/** pages skip the session gate so
+ * the local dashboard opens without logging in. Double-gated on purpose — a
+ * production build (NODE_ENV=production, the value Next sets for `next build`/
+ * `next start` and every deploy) can NEVER be bypassed, and even in dev it's
+ * off unless the flag is explicitly present. The /api/agent-ops/** surface is
+ * NOT bypassed: automation still needs x-amc-key, so the escape hatch only
+ * affects interactive page access, never the data API.
  */
+const DEV_AUTH_BYPASS = process.env.NODE_ENV !== 'production' && process.env.AMC_DEV_BYPASS_AUTH === '1'
+
 export function proxy(request: NextRequest) {
   const url = new URL(request.url)
   const path = url.pathname
@@ -50,6 +61,8 @@ export function proxy(request: NextRequest) {
   // --- Protected pages: /admin/** requires a session, else redirect to login ---
   if (path === '/admin' || path.startsWith('/admin/')) {
     if (session) return NextResponse.next()
+    // Local-only escape hatch (dev + explicit flag) — never in a prod build.
+    if (DEV_AUTH_BYPASS) return NextResponse.next()
     const loginUrl = new URL('/login', request.url)
     // Preserve the intended destination, but only as a safe internal path.
     if (path.startsWith('/admin')) loginUrl.searchParams.set('next', path)
