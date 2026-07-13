@@ -80,14 +80,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   } catch (err) {
     // Typed mapping: missing/mismatched resource → 404; provider env not
     // configured → 503; everything else (model access / OpenAI / PostgREST /
-    // mid-run abort) → 502.
+    // mid-run abort) → 502. NotFoundError/ProviderUnavailableError messages
+    // are hand-authored and safe to forward; the generic fallback is NOT —
+    // runTestSuite's abort path can embed raw PostgREST response detail, so
+    // log it server-side and return a generic message instead.
     if (err instanceof NotFoundError) {
       return NextResponse.json({ error: err.message }, { status: 404 })
     }
     if (err instanceof ProviderUnavailableError) {
       return NextResponse.json({ error: err.message }, { status: 503 })
     }
-    const message = err instanceof Error ? err.message : 'test run failed'
-    return NextResponse.json({ error: message }, { status: 502 })
+    console.error('[agent-ops/copilots/tests/run] test run failed', err)
+    return NextResponse.json({ error: 'test run failed' }, { status: 502 })
   }
 }

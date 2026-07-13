@@ -83,7 +83,8 @@ export async function POST(
     }
     runRow = rows[0]
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'PostgREST error' }, { status: 502 })
+    console.error('[agent-ops/runs/resume] failed to load run', err)
+    return NextResponse.json({ error: 'failed to load run' }, { status: 502 })
   }
 
   if ((runRow.copilot_id as string | null) !== copilotId) {
@@ -131,7 +132,8 @@ export async function POST(
         : NextResponse.json({ error: 'run not found' }, { status: 404 })
     }
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'PostgREST error' }, { status: 502 })
+    console.error('[agent-ops/runs/resume] failed to claim run', err)
+    return NextResponse.json({ error: 'failed to claim run' }, { status: 502 })
   }
 
   // Resolve the copilot's tools (name → id/risk/confirmation) so resumed

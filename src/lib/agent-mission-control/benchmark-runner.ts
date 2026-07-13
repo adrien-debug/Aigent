@@ -52,7 +52,7 @@ import { randomUUID } from 'node:crypto'
 
 import { runOnAgentServer } from './langgraph-server'
 import { routeCompletion } from './model-router'
-import { pgrest } from './postgrest'
+import { pgrest, pgrestDetail } from './postgrest'
 import { resolveRunAssistantFromRow } from './resolve-run-assistant'
 import { NotFoundError } from './runner-errors'
 import type {
@@ -556,7 +556,7 @@ export async function runBenchmarkSuite(args: RunBenchmarkSuiteArgs): Promise<Be
     }
   } catch (err) {
     aborted = true
-    abortReason = err instanceof Error ? err.message : String(err)
+    abortReason = pgrestDetail(err)
   }
 
   const finishedAt: IsoTimestamp = new Date().toISOString()

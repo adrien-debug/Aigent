@@ -33,6 +33,26 @@ export function requireBackend(): { base: string; key: string } {
 }
 
 /**
+ * Thrown by pgrest() on a non-OK response. `.message` is a generic, safe
+ * summary (`PostgREST <status> on <method> <path>`) so a caller that
+ * naively forwards `err.message` straight to an HTTP client response never
+ * leaks schema/query/row details. The raw PostgREST response body (up to
+ * 200 chars) is only on `.detail`, for callers that explicitly want it —
+ * server-side logging, or an internal status persisted for the admin UI.
+ */
+export class PgrestError extends Error {
+  readonly status: number
+  readonly detail: string
+
+  constructor(status: number, method: string, pathAndQuery: string, detail: string) {
+    super(`PostgREST ${status} on ${method} ${pathAndQuery}`)
+    this.name = 'PgrestError'
+    this.status = status
+    this.detail = detail
+  }
+}
+
+/**
  * Fetch against a PostgREST table/view, service_role, `Prefer:
  * return=representation` so inserts/updates hand back the persisted row(s).
  * Fail-closed: throws (never fabricates data) if the backend isn't live or
@@ -56,12 +76,18 @@ export async function pgrest<T = Record<string, unknown>[]>(
     cache: 'no-store',
   })
   if (!res.ok) {
-    throw new Error(`PostgREST ${res.status} on ${method} ${pathAndQuery}: ${(await res.text()).slice(0, 200)}`)
+    throw new PgrestError(res.status, method, pathAndQuery, (await res.text()).slice(0, 200))
   }
   if (res.status === 204) return [] as unknown as T
   const text = await res.text()
   if (!text) return [] as unknown as T
   return JSON.parse(text) as T
+}
+
+/** Best-effort detail extraction: PgrestError.detail if available, else `.message`. */
+export function pgrestDetail(err: unknown): string {
+  if (err instanceof PgrestError) return err.detail
+  return err instanceof Error ? err.message : String(err)
 }
 
 /** snake_case → camelCase (top-level only; jsonb payloads are already camelCase). */

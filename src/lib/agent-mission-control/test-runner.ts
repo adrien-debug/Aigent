@@ -31,7 +31,7 @@ import { summarize } from './format'
 import { getTraceUrl, newTraceId } from './langsmith'
 import { runOnAgentServer } from './langgraph-server'
 import { routeCompletion } from './model-router'
-import { pgrest } from './postgrest'
+import { pgrest, pgrestDetail } from './postgrest'
 import { resolveRunAssistantFromRow } from './resolve-run-assistant'
 import { NotFoundError } from './runner-errors'
 import type {
@@ -428,7 +428,7 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
     }
   } catch (err) {
     aborted = true
-    abortReason = err instanceof Error ? err.message : String(err)
+    abortReason = pgrestDetail(err)
   }
 
   const passRate = evaluated > 0 ? passCount / evaluated : 0

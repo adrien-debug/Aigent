@@ -97,14 +97,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   } catch (err) {
     // Typed mapping: missing/mismatched resource → 404; provider env not
     // configured → 503; everything else (model access / OpenAI / PostgREST /
-    // no runnable tasks / abort) → 502.
+    // no runnable tasks / abort) → 502. NotFoundError/ProviderUnavailableError
+    // messages are hand-authored and safe to forward; the generic fallback is
+    // NOT — runBenchmarkSuite's abort path can embed raw PostgREST response
+    // detail, so log it server-side and return a generic message instead.
     if (err instanceof NotFoundError) {
       return NextResponse.json({ error: err.message }, { status: 404 })
     }
     if (err instanceof ProviderUnavailableError) {
       return NextResponse.json({ error: err.message }, { status: 503 })
     }
-    const message = err instanceof Error ? err.message : 'benchmark run failed'
-    return NextResponse.json({ error: message }, { status: 502 })
+    console.error('[agent-ops/copilots/benchmarks/run] benchmark run failed', err)
+    return NextResponse.json({ error: 'benchmark run failed' }, { status: 502 })
   }
 }
