@@ -7,6 +7,12 @@ import { resumeOnAgentServer } from '@/lib/agent-mission-control/langgraph-serve
 import { pgrest } from '@/lib/agent-mission-control/postgrest'
 import { resolveRunAssistantId } from '@/lib/agent-mission-control/resolve-run-assistant'
 
+// Default step budget when the manifest carries no usable `max_steps_per_run`.
+// Mirrors DEFAULT_MAX_STEPS_PER_RUN in ../../run/route.ts — the resume path
+// must derive the SAME recursion_limit the original run used, not the SDK's
+// unrelated default (see recursionLimitFor in langgraph-server.ts).
+const DEFAULT_MAX_STEPS_PER_RUN = 12
+
 /**
  * POST /api/agent-ops/copilots/:copilotId/runs/:runId/resume — human-in-the-loop
  * resume for a LangGraph run that paused for approval.
@@ -26,8 +32,16 @@ import { resolveRunAssistantId } from '@/lib/agent-mission-control/resolve-run-a
  *   3. Load the run; 404 if missing or copilot mismatch; 409 if it is not
  *      `needs-confirmation`.
  *   4. Require a resumable `thread_id` (409 otherwise).
- *   5. Resume on the Agent Server with the decision.
- *   6. Append the resumed steps (continuing the run's index) + tool_calls, then
+ *   5. ATOMICALLY claim the run: PATCH it to `running` conditioned on
+ *      `status=eq.needs-confirmation` (a compare-and-swap on the DB row) and
+ *      require the update to have matched a row. This closes the race where
+ *      two concurrent resume calls (or a resume racing a delete) both pass the
+ *      step-3 read and both proceed to resume the SAME Agent Server thread —
+ *      only the request that wins the claim continues; the loser gets a clean
+ *      409 before any side effect. Also doubles as the TOCTOU guard for the
+ *      run being deleted between step 3 and here (0 rows matched → 404).
+ *   6. Resume on the Agent Server with the decision.
+ *   7. Append the resumed steps (continuing the run's index) + tool_calls, then
  *      PATCH the run to `completed` (or `blocked` when the decision left every
  *      tool call blocked), stamping output_summary + finished_at.
  *
@@ -83,6 +97,43 @@ export async function POST(
     return NextResponse.json({ error: 'run has no resumable thread' }, { status: 409 })
   }
 
+  // Atomically claim the run BEFORE doing any work: flip it to `running`
+  // conditioned on it STILL being `needs-confirmation` (compare-and-swap via
+  // the PostgREST WHERE clause). This is the single source of truth for
+  // "who gets to resume this run" — the read above is just an early exit for
+  // the common case; a concurrent second resume call (double-submit) or a
+  // delete racing this request must not both proceed past this point.
+  // `Prefer: return=representation` means an empty array back means the
+  // WHERE clause matched nothing: either another request already claimed it
+  // (lost the race → 409) or the run vanished entirely (deleted → 404).
+  try {
+    const claimed = await pgrest<Record<string, unknown>[]>(
+      'PATCH',
+      `agent_runs?id=eq.${encodeURIComponent(runId)}&status=eq.needs-confirmation`,
+      { status: 'running' }
+    )
+    if (claimed.length === 0) {
+      // Distinguish "gone" from "already claimed" with one more read — best
+      // effort, not required for correctness (either way the caller cannot
+      // proceed), but it gives an honest status code instead of guessing.
+      let stillExists = true
+      try {
+        const check = await pgrest<Record<string, unknown>[]>(
+          'GET',
+          `agent_runs?id=eq.${encodeURIComponent(runId)}&select=id`
+        )
+        stillExists = check.length > 0
+      } catch {
+        // Non-fatal — fall through with the optimistic assumption below.
+      }
+      return stillExists
+        ? NextResponse.json({ error: 'run is not awaiting confirmation' }, { status: 409 })
+        : NextResponse.json({ error: 'run not found' }, { status: 404 })
+    }
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'PostgREST error' }, { status: 502 })
+  }
+
   // Resolve the copilot's tools (name → id/risk/confirmation) so resumed
   // tool_calls carry real metadata, not hardcoded 'low'/false — the audit trail
   // (unsafe_attempt_count, risk) depends on this being accurate.
@@ -115,10 +166,45 @@ export async function POST(
     // Fall back to the shared graph id below.
   }
 
+  // Resolve the SAME step budget the original run used (via version_id →
+  // manifest_id → max_steps_per_run, mirroring run/route.ts) so the resume's
+  // recursion_limit matches the copilot's configured budget instead of
+  // silently falling back to the SDK's unrelated default (25 — see
+  // recursionLimitFor in langgraph-server.ts). Non-fatal: any lookup failure
+  // just keeps the default, same posture as the assistantId resolution above.
+  let maxStepsPerRun = DEFAULT_MAX_STEPS_PER_RUN
+  try {
+    const versionId = runRow.version_id as string | null
+    if (versionId) {
+      const versionRows = await pgrest<Record<string, unknown>[]>(
+        'GET',
+        `copilot_versions?id=eq.${encodeURIComponent(versionId)}&select=manifest_id`
+      )
+      const manifestId = versionRows[0]?.manifest_id as string | null
+      if (manifestId) {
+        const manifestRows = await pgrest<Record<string, unknown>[]>(
+          'GET',
+          `manifests?id=eq.${encodeURIComponent(manifestId)}&select=max_steps_per_run`
+        )
+        const rawMaxSteps = manifestRows[0]?.max_steps_per_run
+        if (
+          typeof rawMaxSteps === 'number' &&
+          Number.isFinite(rawMaxSteps) &&
+          Number.isInteger(rawMaxSteps) &&
+          rawMaxSteps >= 1
+        ) {
+          maxStepsPerRun = rawMaxSteps
+        }
+      }
+    }
+  } catch {
+    // Non-fatal — keep DEFAULT_MAX_STEPS_PER_RUN.
+  }
+
   // 2) Continue the thread with the operator's decision, then persist the
   //    resumed steps/tool calls and close the run. Any failure here is a 502.
   try {
-    const result = await resumeOnAgentServer({ threadId, approved, assistantId })
+    const result = await resumeOnAgentServer({ threadId, approved, assistantId, maxSteps: maxStepsPerRun })
 
     // Continue the run's step numbering from the max existing index + 1.
     const lastStepRows = await pgrest<Record<string, unknown>[]>(
