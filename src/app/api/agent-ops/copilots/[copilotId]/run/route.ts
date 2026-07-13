@@ -191,9 +191,11 @@ export async function POST(
       pendingTool: result.interrupted ? result.pendingTool ?? null : null,
     })
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'run execution failed' },
-      { status: 502 }
-    )
+    // Same rationale as the two catches above: executeCopilotRun's errors can
+    // originate from pgrest (PostgREST response bodies / table & column names)
+    // or the OpenAI client — never forward raw internal error text to the
+    // client. Log server-side for debugging, return a generic message.
+    console.error('[agent-ops/copilots/run] run execution failed', err)
+    return NextResponse.json({ error: 'run execution failed' }, { status: 502 })
   }
 }
