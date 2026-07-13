@@ -11,6 +11,8 @@ import {
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
+import { ConsolePreview } from '@/components/marketing/console-preview'
+
 export const metadata: Metadata = {
   title: 'Agent Mission Control — the control plane for production AI agents',
   description:
@@ -135,28 +137,9 @@ export default function LandingPage() {
               </Link>
             </div>
           </div>
-          <div className="mx-auto mt-16 flex max-w-2xl sm:mt-24 lg:mt-0 lg:mr-0 lg:ml-10 lg:max-w-none xl:ml-32">
-            <div className="max-w-3xl flex-none sm:max-w-5xl lg:max-w-none">
-              <div className="w-304 rounded-md bg-white/5 shadow-2xl ring-1 ring-white/10">
-                <div className="flex items-center gap-1.5 border-b border-white/10 px-4 py-3">
-                  <span className="size-2.5 rounded-full bg-zinc-700" />
-                  <span className="size-2.5 rounded-full bg-zinc-700" />
-                  <span className="size-2.5 rounded-full bg-zinc-700" />
-                </div>
-                <div className="grid grid-cols-3 gap-4 p-6">
-                  <div className="col-span-2 space-y-3">
-                    <div className="h-4 w-2/3 rounded bg-white/10" />
-                    <div className="h-24 rounded-lg bg-white/5 ring-1 ring-white/10" />
-                    <div className="h-4 w-1/2 rounded bg-white/10" />
-                    <div className="h-32 rounded-lg bg-white/5 ring-1 ring-white/10" />
-                  </div>
-                  <div className="space-y-3">
-                    <div className="h-20 rounded-lg bg-accent-500/10 ring-1 ring-accent-500/25" />
-                    <div className="h-20 rounded-lg bg-white/5 ring-1 ring-white/10" />
-                    <div className="h-20 rounded-lg bg-white/5 ring-1 ring-white/10" />
-                  </div>
-                </div>
-              </div>
+          <div className="mx-auto mt-16 flex w-full max-w-2xl min-w-0 sm:mt-24 lg:mt-0 lg:ml-10 lg:max-w-none xl:ml-16">
+            <div className="w-full min-w-0 flex-1">
+              <ConsolePreview />
             </div>
           </div>
         </div>
@@ -224,8 +207,8 @@ export default function LandingPage() {
           </div>
         </div>
         <div className="relative overflow-hidden pt-16">
-          <div className="mx-auto max-w-7xl px-6 lg:px-8">
-            <div className="mb-[-12%] aspect-2432/1442 w-full rounded-xl bg-white/5 shadow-2xl ring-1 ring-white/10" />
+          <div className="mx-auto max-w-6xl px-6 lg:px-8">
+            <ConsolePreview className="mb-[-4%]" />
             <div aria-hidden="true" className="relative">
               <div className="absolute -inset-x-20 bottom-0 bg-linear-to-t from-zinc-950 pt-[7%]" />
             </div>
