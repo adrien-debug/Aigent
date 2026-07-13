@@ -107,10 +107,30 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   }
 
   try {
-    // 0) Confirm versionId (and previousProd, if given) actually belong to
-    // this copilot before mutating anything — otherwise a caller could pass
-    // a versionId from a different copilot and promote/archive it (IDOR).
-    const idsToVerify = [versionId, ...(previousProd ? [previousProd] : [])]
+    // 0) Load the copilot's ACTUAL current production_version_id from the DB
+    // rather than trusting the client-supplied previousProductionVersionId
+    // alone — the client derives that value from a page render that can be
+    // stale (another promotion/rollback landed since). If the client's value
+    // were the only source of truth and it disagreed with reality, step 2
+    // below would archive the wrong row (or none), leaving TWO
+    // `copilot_versions` rows at stage='production' for the same copilot —
+    // an in-DB state that lies about what's actually serving. The real
+    // pointer on `copilots.production_version_id` is the source of truth;
+    // the body value is only used as an extra ownership/id check below.
+    const copilotRows = await pgrestGet(
+      `copilots?id=eq.${encodeURIComponent(copilotId)}&select=id,production_version_id`
+    )
+    if (copilotRows.length === 0) {
+      return NextResponse.json({ error: 'copilot not found' }, { status: 404 })
+    }
+    const actualPreviousProd = (copilotRows[0].production_version_id as string | null) ?? null
+
+    // Confirm versionId (and previousProd, if given) actually belong to this
+    // copilot before mutating anything — otherwise a caller could pass a
+    // versionId from a different copilot and promote/archive it (IDOR).
+    const idsToVerify = Array.from(
+      new Set([versionId, ...(previousProd ? [previousProd] : []), ...(actualPreviousProd ? [actualPreviousProd] : [])])
+    )
     const ownedVersions = await pgrestGet(
       `copilot_versions?id=in.(${idsToVerify.map((id) => encodeURIComponent(id)).join(',')})&select=id,copilot_id`
     )
@@ -123,6 +143,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     if (previousProd && previousProd !== versionId && !ownedIds.has(previousProd)) {
       return NextResponse.json({ error: 'version not found' }, { status: 404 })
     }
+    // The DB-derived pointer wins over the body value whenever it names a
+    // real, owned version — this is what actually gets archived below.
+    // Falls back to the client-supplied previousProd only if the DB pointer
+    // is null/unowned (e.g. a stale/deleted id), so a legitimate call is
+    // never blocked by this hardening.
+    const previousProdToArchive =
+      actualPreviousProd && ownedIds.has(actualPreviousProd) ? actualPreviousProd : previousProd
 
     // 1) The incoming version becomes production.
     const promoted = await patch(`copilot_versions?id=eq.${encodeURIComponent(versionId)}`, { stage: 'production' })
@@ -134,9 +161,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     // concurrent promotion already moved this version elsewhere (or archived
     // it), this call matches zero rows and no-ops instead of clobbering
     // whatever stage the other request left it in.
-    if (previousProd && previousProd !== versionId) {
+    if (previousProdToArchive && previousProdToArchive !== versionId) {
       await patch(
-        `copilot_versions?id=eq.${encodeURIComponent(previousProd)}&stage=eq.production`,
+        `copilot_versions?id=eq.${encodeURIComponent(previousProdToArchive)}&stage=eq.production`,
         { stage: 'archived' }
       )
     }
