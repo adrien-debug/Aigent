@@ -153,6 +153,76 @@ export async function getThreadDetail(threadId: string): Promise<ExplorerThreadD
   }
 }
 
+/** One redacted checkpoint from a thread's history (the run replay). */
+export interface ExplorerHistoryStep {
+  index: number
+  /** The node the graph would run NEXT from this checkpoint (`next`), or null. */
+  node: string | null
+  /** Whether this checkpoint carries a pending interrupt. */
+  interrupted: boolean
+  createdAt?: string
+  /** Message count at this checkpoint (monotonic — grows through the run). */
+  messageCount: number
+  /** The last message's role + a short content preview at this checkpoint. */
+  lastRole?: string
+  lastPreview?: string
+  /** Tool names requested by the last AI message at this checkpoint. */
+  toolCalls: string[]
+  /** Interrupt payloads at this checkpoint (approval questions), redacted. */
+  interrupts: unknown[]
+}
+
+/**
+ * Read a thread's checkpoint HISTORY (the real run trail) from the Agent Server,
+ * redacted + ordered OLDEST→NEWEST. Each checkpoint's `next` is the node the
+ * graph would run from there — that reconstructs the exact path parcouru. The
+ * server returns history newest-first; we reverse it and index from 0.
+ *
+ * Redaction: only message roles/previews, tool NAMES, `next`, timestamps and the
+ * interrupt payloads are surfaced — never the checkpoint metadata (which carries
+ * the copilot systemPrompt/tools config), never a raw values blob. Read-only.
+ * Returns [] when the server has no history for this thread.
+ */
+export async function getThreadHistory(threadId: string): Promise<ExplorerHistoryStep[]> {
+  const c = agentServerClient()
+  let raw: unknown
+  try {
+    raw = await c.threads.getHistory(threadId, { limit: 40 })
+  } catch {
+    return []
+  }
+  const list = (Array.isArray(raw) ? raw : []) as Row[]
+  // Server returns newest-first; reverse to oldest-first for a natural replay.
+  const ordered = [...list].reverse()
+
+  return ordered.map((cp, index) => {
+    const values = (cp.values as { messages?: Row[] } | undefined) ?? {}
+    const messages = Array.isArray(values.messages) ? values.messages : []
+    const last = messages[messages.length - 1] as Row | undefined
+    const lastRole = last ? String(last.type ?? last.role ?? '') : undefined
+    const lastContent = last ? (typeof last.content === 'string' ? last.content : JSON.stringify(last.content ?? '')) : ''
+    const toolCalls = Array.isArray(last?.tool_calls)
+      ? (last!.tool_calls as Row[]).map((tc) => String(tc.name ?? 'tool')).filter(Boolean)
+      : []
+    const next = cp.next
+    const node = Array.isArray(next) && next.length > 0 ? String(next[0]) : null
+    const tasks = (cp.tasks as { interrupts?: unknown[] }[] | undefined) ?? []
+    const interrupts = tasks.flatMap((t) => t.interrupts ?? [])
+
+    return {
+      index,
+      node,
+      interrupted: interrupts.length > 0,
+      createdAt: str(cp.created_at),
+      messageCount: messages.length,
+      lastRole: lastRole || undefined,
+      lastPreview: lastContent ? (lastContent.length > 160 ? `${lastContent.slice(0, 160)}…` : lastContent) : undefined,
+      toolCalls,
+      interrupts,
+    }
+  })
+}
+
 /** The Agent Server URL + graph the explorer targets (for the UI header + Studio link). */
 export function explorerServerInfo(): { agentServerUrl: string; graph: string } {
   return { agentServerUrl: agentServerUrl(), graph: AGENT_BUILDER_GRAPH_ID }
