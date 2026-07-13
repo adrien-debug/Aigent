@@ -6,12 +6,10 @@ import { useRouter } from 'next/navigation'
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { LangGraphDebugPanel, type LangGraphDebugInfo } from '@/components/agent-ops/langgraph-debug-panel'
 import { ProjectBuilderPreviewPanel } from '@/components/agent-ops/project-builder-preview-panel'
-import { ProjectBuilderSuggestionsDrawer } from '@/components/agent-ops/project-builder-suggestions-drawer'
 import {
   ProjectRepoIntelligenceCompact,
   useProjectRepoIntelligence,
 } from '@/components/agent-ops/project-repo-intelligence'
-import { ToolBadge } from '@/components/agent-ops/tool-badge'
 import { Button } from '@/components/catalyst/button'
 import { Text } from '@/components/catalyst/text'
 import { Textarea } from '@/components/catalyst/textarea'
@@ -22,7 +20,6 @@ import type {
   ProjectBuilderConversationBundle,
   ProjectBuilderMessage,
 } from '@/lib/agent-mission-control/project-builder-types'
-import type { ToolRiskLevel } from '@/lib/agent-mission-control/types'
 
 interface BuilderRunState {
   runId: string
@@ -31,13 +28,6 @@ interface BuilderRunState {
   approvalMessage: string | null
   pendingTool: { name: string; argumentsSummary: string; risk?: string } | null
   langgraph?: LangGraphDebugInfo
-}
-
-const TOOL_RISK_LEVELS: readonly ToolRiskLevel[] = ['low', 'medium', 'high', 'critical']
-function asToolRisk(risk: string | undefined): ToolRiskLevel | undefined {
-  return risk !== undefined && (TOOL_RISK_LEVELS as readonly string[]).includes(risk)
-    ? (risk as ToolRiskLevel)
-    : undefined
 }
 
 const EXAMPLE =
@@ -83,7 +73,6 @@ export function ProjectAgentBuilderWorkbench({
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   const intelligenceState = useProjectRepoIntelligence(projectId, repoFullName)
-  const { intel } = intelligenceState
 
   const [conversation, setConversation] = useState<ProjectBuilderConversation | null>(null)
   const [messages, setMessages] = useState<ProjectBuilderMessage[]>([])
@@ -97,7 +86,6 @@ export function ProjectAgentBuilderWorkbench({
   const [selectingOption, setSelectingOption] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [runState, setRunState] = useState<BuilderRunState | null>(null)
-  const [suggestionsOpen, setSuggestionsOpen] = useState(false)
   const [showDebug, setShowDebug] = useState(false)
 
   const applyBundle = useCallback((bundle: ProjectBuilderConversationBundle) => {
@@ -175,7 +163,6 @@ export function ProjectAgentBuilderWorkbench({
 
   const handleDiscussRecommendation = useCallback(
     async (rec: AgentRecommendation) => {
-      setSuggestionsOpen(false)
       setInput('')
       await sendMessage(recommendationDiscussMessage(rec))
     },
@@ -273,25 +260,17 @@ export function ProjectAgentBuilderWorkbench({
 
   const chatMessages = visibleMessages(messages)
   const awaiting = runState?.status === 'awaiting_approval'
-  const recCount = intel?.recommendations.length ?? 0
   const draftBlocked = conversation?.status === 'draft_created'
   const draftReady = Boolean(preview?.readyForApproval && !createdCopilotId && !draftBlocked)
 
   return (
     <div className="flex min-h-[min(72vh,900px)] flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <ProjectRepoIntelligenceCompact
-          projectId={projectId}
-          repoFullName={repoFullName}
-          onDiscussRecommendation={(rec) => void handleDiscussRecommendation(rec)}
-          intelligenceState={intelligenceState}
-        />
-        {recCount > 0 ? (
-          <Button outline onClick={() => setSuggestionsOpen(true)} className="shrink-0 lg:hidden">
-            Suggestions ({recCount})
-          </Button>
-        ) : null}
-      </div>
+      <ProjectRepoIntelligenceCompact
+        projectId={projectId}
+        repoFullName={repoFullName}
+        onDiscussRecommendation={(rec) => void handleDiscussRecommendation(rec)}
+        intelligenceState={intelligenceState}
+      />
 
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)] xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
         <section
@@ -356,43 +335,6 @@ export function ProjectAgentBuilderWorkbench({
               </div>
             ) : null}
 
-            {awaiting ? (
-              <div
-                role="alert"
-                className="rounded-xl bg-[var(--accent-soft)] p-4 ring-1 ring-[var(--accent-line)]"
-              >
-                <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
-                  LangGraph approval — preview only, not persisted yet
-                </p>
-                <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
-                  {runState?.approvalMessage ?? 'Approve to materialize the draft, or reject to keep discussing.'}
-                </p>
-                {runState?.pendingTool ? (
-                  <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5">
-                    <ToolBadge name={runState.pendingTool.name} risk={asToolRisk(runState.pendingTool.risk)} />
-                    <code className="line-clamp-2 max-w-full rounded-md bg-zinc-950/5 px-1.5 py-0.5 font-mono text-xs break-words text-zinc-500 dark:bg-white/5 dark:text-zinc-400">
-                      {runState.pendingTool.argumentsSummary}
-                    </code>
-                  </div>
-                ) : null}
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <Button color="accent" onClick={() => void handleDecision(true)} disabled={deciding}>
-                    {deciding ? (
-                      <>
-                        <Spinner />
-                        Creating draft…
-                      </>
-                    ) : (
-                      'Approve — create draft'
-                    )}
-                  </Button>
-                  <Button plain onClick={() => void handleDecision(false)} disabled={deciding}>
-                    Keep discussing
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-
             <div ref={chatEndRef} />
           </div>
 
@@ -419,12 +361,7 @@ export function ProjectAgentBuilderWorkbench({
               <Button plain onClick={() => setInput(EXAMPLE)} disabled={running || draftBlocked}>
                 Example prompt
               </Button>
-              {recCount > 0 ? (
-                <Button plain onClick={() => setSuggestionsOpen(true)} disabled={running}>
-                  Suggestions ({recCount})
-                </Button>
-              ) : null}
-              <Text className="!mt-0 !text-xs">Enter to send · Shift+Enter for newline</Text>
+              <Text className="!mt-0 !text-xs">Enter to send · Shift+Enter for newline · Suggestions in the repo strip above</Text>
             </div>
             {error ? (
               <div className="mt-3">
@@ -445,6 +382,12 @@ export function ProjectAgentBuilderWorkbench({
             onCreateDraft={() => void handleCreateDraft()}
             creatingDraft={creatingDraft}
             draftReady={draftReady}
+            awaitingApproval={awaiting}
+            approvalMessage={runState?.approvalMessage}
+            pendingTool={runState?.pendingTool ?? null}
+            onApprove={() => void handleDecision(true)}
+            onReject={() => void handleDecision(false)}
+            deciding={deciding}
           />
         </aside>
       </div>
@@ -459,13 +402,6 @@ export function ProjectAgentBuilderWorkbench({
           </Button>
         </div>
       ) : null}
-
-      <ProjectBuilderSuggestionsDrawer
-        open={suggestionsOpen}
-        onClose={() => setSuggestionsOpen(false)}
-        recommendations={intel?.recommendations ?? []}
-        onDiscuss={(rec) => void handleDiscussRecommendation(rec)}
-      />
     </div>
   )
 }

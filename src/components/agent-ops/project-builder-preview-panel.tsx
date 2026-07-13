@@ -1,5 +1,6 @@
 'use client'
 
+import { Spinner } from '@/components/agent-ops/authoring-primitives'
 import { ToolBadge } from '@/components/agent-ops/tool-badge'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
@@ -18,7 +19,7 @@ function asToolRisk(risk: string | undefined): ToolRiskLevel | undefined {
 const DEFAULT_FLOW = ['start', 'agent', 'approval?', 'tools?', 'final'] as const
 
 /**
- * Secondary preview rail — driven by persistent conversation preview state.
+ * Secondary preview rail — spec readout + approval actions live in the header (not duplicated in chat).
  */
 export function ProjectBuilderPreviewPanel({
   preview,
@@ -30,6 +31,12 @@ export function ProjectBuilderPreviewPanel({
   onCreateDraft,
   creatingDraft,
   draftReady,
+  awaitingApproval,
+  approvalMessage,
+  pendingTool,
+  onApprove,
+  onReject,
+  deciding,
 }: {
   preview: AgentPreview | null
   conversationStatus: string | null
@@ -40,6 +47,12 @@ export function ProjectBuilderPreviewPanel({
   onCreateDraft?: () => void
   creatingDraft?: boolean
   draftReady?: boolean
+  awaitingApproval?: boolean
+  approvalMessage?: string | null
+  pendingTool?: { name: string; argumentsSummary: string; risk?: string } | null
+  onApprove?: () => void
+  onReject?: () => void
+  deciding?: boolean
 }) {
   const flow = preview?.flow?.length ? preview.flow : [...DEFAULT_FLOW]
   const tools =
@@ -51,19 +64,79 @@ export function ProjectBuilderPreviewPanel({
     }))
   const tests = preview?.testCases ?? (preview?.tests ?? []).map((name) => ({ name }))
   const hasSpec = Boolean(preview?.name || preview?.role || tools.length > 0 || preview?.options?.length)
+  const showDraftAction = Boolean(draftReady && onCreateDraft && !createdCopilotId)
+  const showLangGraphActions = Boolean(awaitingApproval && onApprove && onReject)
 
   return (
     <div className="flex h-full min-h-0 flex-col rounded-xl ring-1 ring-zinc-950/5 dark:ring-white/10">
       <div className="border-b border-zinc-950/5 px-4 py-3 dark:border-white/10">
-        <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Preview</p>
-        <p className="mt-0.5 text-sm font-medium text-zinc-950 dark:text-white">
-          {createdCopilotId ? 'Draft created' : hasSpec ? 'Spec in progress — not created yet' : 'Waiting for discussion'}
-        </p>
-        {conversationStatus ? <p className="mt-1 text-xs text-zinc-500">{conversationStatus}</p> : null}
-        {preview?.readyForApproval && !createdCopilotId ? (
-          <Badge color="accent" className="mt-2">
-            Ready for approval
-          </Badge>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Preview</p>
+            <p className="mt-0.5 text-sm font-medium text-zinc-950 dark:text-white">
+              {createdCopilotId ? 'Draft created' : hasSpec ? 'Spec in progress — not created yet' : 'Waiting for discussion'}
+            </p>
+            {conversationStatus ? <p className="mt-1 text-xs text-zinc-500">{conversationStatus}</p> : null}
+            {preview?.readyForApproval && !createdCopilotId ? (
+              <Badge color="accent" className="mt-2">
+                Ready for approval
+              </Badge>
+            ) : null}
+            {createdCopilotId ? (
+              <Link
+                href={`/admin/agents/${createdCopilotId}`}
+                className="mt-2 block text-xs font-medium text-accent-600 hover:text-accent-500 dark:text-accent-400 dark:hover:text-accent-300"
+              >
+                Open drafted agent →
+              </Link>
+            ) : null}
+          </div>
+
+          {(showDraftAction || showLangGraphActions) && (
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              {showDraftAction ? (
+                <Button color="accent" onClick={onCreateDraft} disabled={creatingDraft || deciding}>
+                  {creatingDraft ? (
+                    <>
+                      <Spinner />
+                      Starting draft…
+                    </>
+                  ) : (
+                    'Approve — create draft'
+                  )}
+                </Button>
+              ) : null}
+              {showLangGraphActions ? (
+                <>
+                  <Button color="accent" onClick={onApprove} disabled={deciding}>
+                    {deciding ? (
+                      <>
+                        <Spinner />
+                        Creating draft…
+                      </>
+                    ) : (
+                      'Confirm draft'
+                    )}
+                  </Button>
+                  <Button plain onClick={onReject} disabled={deciding}>
+                    Keep discussing
+                  </Button>
+                </>
+              ) : null}
+            </div>
+          )}
+        </div>
+
+        {awaitingApproval && approvalMessage ? (
+          <p className="mt-3 text-xs text-zinc-600 dark:text-zinc-400">{approvalMessage}</p>
+        ) : null}
+        {awaitingApproval && pendingTool ? (
+          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+            <ToolBadge name={pendingTool.name} risk={asToolRisk(pendingTool.risk)} />
+            <code className="line-clamp-2 max-w-full font-mono text-[10px] break-words text-zinc-500">
+              {pendingTool.argumentsSummary}
+            </code>
+          </div>
         ) : null}
       </div>
 
@@ -96,17 +169,15 @@ export function ProjectBuilderPreviewPanel({
         {preview?.options && preview.options.length > 0 ? (
           <div>
             <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Options</p>
-            <ul className="mt-2 space-y-2">
+            <ul className="mt-2 divide-y divide-zinc-950/5 dark:divide-white/10">
               {preview.options.map((option) => {
                 const selected = preview.selectedOptionId === option.id
                 return (
                   <li
                     key={option.id}
                     className={
-                      'rounded-lg p-3 ring-1 ' +
-                      (selected
-                        ? 'bg-[var(--accent-soft)] ring-[var(--accent-line)]'
-                        : 'ring-zinc-950/5 dark:ring-white/10')
+                      'py-3 first:pt-0 last:pb-0 ' +
+                      (selected ? 'border-l-2 border-[var(--accent-line-strong)] pl-3' : '')
                     }
                   >
                     <p className="text-sm font-medium text-zinc-950 dark:text-white">
@@ -123,8 +194,8 @@ export function ProjectBuilderPreviewPanel({
                     ) : null}
                     {!selected && onSelectOption ? (
                       <Button
-                        outline
-                        className="mt-2"
+                        plain
+                        className="mt-2 !px-0"
                         disabled={selectingOption}
                         onClick={() => onSelectOption(option.id)}
                       >
@@ -202,22 +273,8 @@ export function ProjectBuilderPreviewPanel({
           </div>
         ) : null}
 
-        {draftReady && onCreateDraft && !createdCopilotId ? (
-          <Button color="accent" onClick={onCreateDraft} disabled={creatingDraft} className="w-full">
-            {creatingDraft ? 'Starting draft…' : 'Approve — create draft'}
-          </Button>
-        ) : null}
-
         {createdCopilotId ? (
-          <div className="rounded-lg bg-zinc-950 p-3 ring-1 ring-white/10">
-            <Badge color="accent">Draft attached to {projectName}</Badge>
-            <Link
-              href={`/admin/agents/${createdCopilotId}`}
-              className="mt-2 block text-xs font-medium text-accent-400 hover:text-accent-300"
-            >
-              Open drafted agent →
-            </Link>
-          </div>
+          <p className="text-xs text-zinc-500">Draft attached to {projectName} — not in production.</p>
         ) : null}
       </div>
     </div>

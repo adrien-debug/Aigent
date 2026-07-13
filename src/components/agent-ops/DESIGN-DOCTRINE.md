@@ -119,6 +119,25 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
   (jamais un solid vert cliquable sous un statut "Blocked") ; un switch verrouillé-ON se rend
   checked + disabled, pas éteint ; une donnée absente s'affiche `—` zinc, jamais `0.0%` rose.
 
+## Project Builder — layout chat-first (contrat, 2026-07-13)
+Trois zones, **zéro duplication d'actions** entre elles :
+
+1. **Bandeau repo (haut, pleine largeur)** — `ProjectRepoIntelligenceCompact` : statut scan,
+   repo map, **Suggestions** (drawer unique), retry scan. C'est le **seul** endroit pour ouvrir
+   les suggestions et le repo map. Pas de second bouton Suggestions ailleurs.
+2. **Chat (centre)** — fil de messages + composer minimal : textarea, Send, Example prompt.
+   Pas de drawer, pas de bouton Suggestions, pas de bandeau d'approval encadré dans le scroll.
+3. **Preview (droite)** — spec évolutive (flow, options, tools, policies) + **actions d'approval
+   dans le header de la preview** : « Approve — create draft » et LangGraph HITL (Confirm /
+   Keep discussing). Pas de CTA draft en bas du scroll preview ; pas de box d'approval dans le chat.
+
+Règles :
+- Une action = un seul emplacement (menus en haut du contexte concerné).
+- Pas de box dans box dans la preview : options séparées par `divide-y`, sélection par bordure
+  accent — pas de carte ring imbriquée dans la carte preview.
+- Le page header (`AgentPageHeader`) porte titre/description ; le chat header ne les répète pas
+  au-delà d'une ligne d'aide opérateur.
+
 ## Data — LIVE uniquement (plus aucun mock dans l'app)
 - Toute donnée vient de `@/lib/agent-mission-control/data` (async, server-only, PostgREST gpu1
   base `aigent`). **Fail-closed** : sans backend configuré, les getters *throw* et le
