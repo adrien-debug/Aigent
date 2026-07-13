@@ -1,15 +1,15 @@
 /**
  * Agent Mission Control — LangSmith trace client (server only).
  *
- * HONEST STATE: this project ships NO `langsmith`/`langchain` dependency and NO
- * LANGSMITH_* env. So at runtime here this module is a strict no-op:
+ * No `langsmith`/`langchain` dependency — everything here is dependency-free
+ * fetch. Without `LANGSMITH_API_KEY` this module is a strict no-op:
  * `exportTrace()` returns `{ exported: false, traceUrl: null }` and never calls
  * out. It NEVER fabricates a smith.langchain.com URL.
  *
- * A REAL exporter IS implemented (dependency-free fetch against the documented
- * LangSmith ingest API) and activates ONLY when `LANGSMITH_API_KEY` is present.
- * It has NOT been executed against LangSmith in this environment (no key), so
- * treat the export path as wired-but-unverified until it runs with a real key.
+ * Since the Improvement Loop (0010), `.env.local` DOES carry the key of the
+ * GPU1 tracing project (`agent_builder`) — the READ side lives in
+ * improvement-loop.ts (readLangSmithRuns) and was exercised live against the
+ * LangSmith API; this export path remains wired-but-unverified.
  *
  * Env (nothing here is ever rendered to the browser):
  *   LANGSMITH_API_KEY        — enables the real export POST. Absent → no-op.
