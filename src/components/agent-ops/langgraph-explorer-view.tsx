@@ -143,6 +143,12 @@ export function LangGraphExplorerView({
         </AgentSectionCard>
         <AgentSectionCard title="Graph" description="The shared LangGraph graph">
           <p className="font-mono text-sm text-zinc-950 dark:text-white">{graph}</p>
+          <Link
+            href="/admin/langgraph/canvas"
+            className="mt-2 inline-flex text-sm font-medium text-accent-700 hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300 dark:hover:text-accent-200"
+          >
+            Open Canvas view →
+          </Link>
         </AgentSectionCard>
         <AgentSectionCard title="LangGraph Studio" description="Open the graph visually">
           <a
