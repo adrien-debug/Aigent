@@ -93,9 +93,22 @@ export async function POST(
     const result = await pushAgentToRepo({ project, copilot, manifest, dryRun })
     return NextResponse.json(result)
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'push failed' },
-      { status: 502 }
-    )
+    const message = err instanceof Error ? err.message : 'push failed'
+    // Double-submit / concurrent-push race: two real pushes read the same
+    // default-branch head commit, build two commits on top of it, then both
+    // PATCH the ref with force:false. GitHub accepts the first and rejects
+    // the second (422/409, non-fast-forward) — that's an expected outcome of
+    // a race, not a backend failure, so surface it as 409 rather than 502
+    // and tell the caller it's safe to retry (the branch has already moved).
+    if (/GitHub (409|422) on PATCH .*\/git\/refs\/heads\//.test(message)) {
+      return NextResponse.json(
+        {
+          error:
+            'push conflict: the default branch advanced during this push (concurrent push?) — retry',
+        },
+        { status: 409 }
+      )
+    }
+    return NextResponse.json({ error: message }, { status: 502 })
   }
 }
