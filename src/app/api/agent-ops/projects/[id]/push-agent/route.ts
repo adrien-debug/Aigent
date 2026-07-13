@@ -52,10 +52,11 @@ export async function POST(
   try {
     project = await getProject(id)
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'PostgREST error' },
-      { status: 502 }
-    )
+    // Never forward the raw PostgREST error text to the client: it can carry
+    // schema/query internals. Log server-side, generic message to the caller
+    // (same convention as copilots/[copilotId]/run and projects/[id] DELETE).
+    console.error('[agent-ops/push-agent] failed to load project', err)
+    return NextResponse.json({ error: 'failed to load project' }, { status: 502 })
   }
   if (!project) {
     return NextResponse.json({ error: 'project not found' }, { status: 404 })
@@ -77,10 +78,9 @@ export async function POST(
     }
     manifest = await getManifestForCopilot(copilotId)
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'PostgREST error' },
-      { status: 502 }
-    )
+    // Same rationale as above: don't leak raw PostgREST error text.
+    console.error('[agent-ops/push-agent] failed to load copilot/manifest', err)
+    return NextResponse.json({ error: 'failed to load copilot or manifest' }, { status: 502 })
   }
   if (!manifest) {
     return NextResponse.json({ error: 'copilot has no manifest' }, { status: 404 })
