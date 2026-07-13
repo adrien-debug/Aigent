@@ -223,6 +223,80 @@ export async function getThreadHistory(threadId: string): Promise<ExplorerHistor
   })
 }
 
+/** One node of a graph's topology (redacted — id + type only, no schema blob). */
+export interface TopologyNode {
+  id: string
+  label: string
+  type?: string
+}
+/** One edge of a graph's topology. */
+export interface TopologyEdge {
+  source: string
+  target: string
+  conditional?: boolean
+}
+/** A graph's node/edge topology, redacted, with an availability flag. */
+export interface GraphTopology {
+  graphId: string
+  topologyAvailable: boolean
+  nodes: TopologyNode[]
+  edges: TopologyEdge[]
+}
+
+/**
+ * Read a graph's REAL node/edge topology from the Agent Server, redacted.
+ *
+ * The dev/prod server exposes topology per-ASSISTANT (`GET /assistants/{id}/graph`,
+ * via the SDK's `assistants.getGraph`), not per-graph-id — so we resolve any
+ * assistant running `graphId` and read its serialized graph. Only node id/type
+ * and edge source/target/conditional are surfaced — never the JSON-schema `data`
+ * blob a `schema` node carries, never a secret.
+ *
+ * Returns `topologyAvailable: false` with empty nodes/edges when the server has
+ * no assistant for the graph, or the graph endpoint errors — the caller then
+ * falls back to its hard-coded topology. Read-only.
+ */
+export async function getGraphTopology(graphId: string): Promise<GraphTopology> {
+  const c = agentServerClient()
+
+  // Resolve an assistant running this graph (topology is per-assistant here).
+  let assistantId: string | undefined
+  try {
+    const assistants = (await c.assistants.search({ graphId, limit: 1 })) as unknown as Row[]
+    assistantId = str(assistants[0]?.assistant_id)
+  } catch {
+    return { graphId, topologyAvailable: false, nodes: [], edges: [] }
+  }
+  if (!assistantId) return { graphId, topologyAvailable: false, nodes: [], edges: [] }
+
+  let g: { nodes?: Row[]; edges?: Row[] }
+  try {
+    g = (await c.assistants.getGraph(assistantId)) as { nodes?: Row[]; edges?: Row[] }
+  } catch {
+    return { graphId, topologyAvailable: false, nodes: [], edges: [] }
+  }
+
+  const nodes: TopologyNode[] = (Array.isArray(g.nodes) ? g.nodes : []).map((n) => ({
+    id: String(n.id ?? ''),
+    // Prefer the runnable's own name, else the id (redacted — no data blob).
+    label: str((n.data as Row | undefined)?.name) ?? String(n.id ?? ''),
+    type: str(n.type),
+  })).filter((n) => n.id.length > 0)
+
+  const edges: TopologyEdge[] = (Array.isArray(g.edges) ? g.edges : []).map((e) => ({
+    source: String(e.source ?? ''),
+    target: String(e.target ?? ''),
+    conditional: e.conditional === true,
+  })).filter((e) => e.source.length > 0 && e.target.length > 0)
+
+  return {
+    graphId,
+    topologyAvailable: nodes.length > 0,
+    nodes,
+    edges,
+  }
+}
+
 /** The Agent Server URL + graph the explorer targets (for the UI header + Studio link). */
 export function explorerServerInfo(): { agentServerUrl: string; graph: string } {
   return { agentServerUrl: agentServerUrl(), graph: AGENT_BUILDER_GRAPH_ID }
