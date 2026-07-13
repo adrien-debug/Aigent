@@ -16,7 +16,7 @@ const PRIORITY_ORDER: Record<AgentRecommendation['priority'], number> = { high: 
 
 /**
  * Drawer listing repo-scan agent suggestions. Secondary to the Builder chat —
- * nothing here creates an agent; "Discuss with Builder" only seeds the conversation.
+ * nothing here creates an agent; "Discuss with Builder" posts a real chat message.
  */
 export function ProjectBuilderSuggestionsDrawer({
   open,

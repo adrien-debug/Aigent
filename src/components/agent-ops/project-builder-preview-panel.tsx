@@ -2,8 +2,10 @@
 
 import { ToolBadge } from '@/components/agent-ops/tool-badge'
 import { Badge } from '@/components/catalyst/badge'
+import { Button } from '@/components/catalyst/button'
 import { Link } from '@/components/catalyst/link'
 import { Text } from '@/components/catalyst/text'
+import type { AgentPreview } from '@/lib/agent-mission-control/project-builder-types'
 import type { ToolRiskLevel } from '@/lib/agent-mission-control/types'
 
 const TOOL_RISK_LEVELS: readonly ToolRiskLevel[] = ['low', 'medium', 'high', 'critical']
@@ -13,48 +15,42 @@ function asToolRisk(risk: string | undefined): ToolRiskLevel | undefined {
     : undefined
 }
 
-interface ProposedTool {
-  name: string
-  riskLevel: string
-  requiresConfirmation: boolean
-}
-interface TestCase {
-  name: string
-  expectedBehavior?: string
-}
-interface ManifestDraft {
-  name?: string
-  description?: string
-  suggestedRuntime?: string
-  suggestedModel?: string
-  systemPromptSummary?: string
-  confirmationPolicy?: string
-  maxStepsPerRun?: number
-}
-
-const FLOW_STEPS = ['start', 'agent', 'approval?', 'tools?', 'final'] as const
+const DEFAULT_FLOW = ['start', 'agent', 'approval?', 'tools?', 'final'] as const
 
 /**
- * Secondary preview rail — shows the in-progress spec without blocking the chat.
+ * Secondary preview rail — driven by persistent conversation preview state.
  */
 export function ProjectBuilderPreviewPanel({
-  draft,
-  selectedTools,
-  testCases,
-  risks,
-  status,
+  preview,
+  conversationStatus,
   createdCopilotId,
   projectName,
+  selectingOption,
+  onSelectOption,
+  onCreateDraft,
+  creatingDraft,
+  draftReady,
 }: {
-  draft: ManifestDraft | null
-  selectedTools: ProposedTool[]
-  testCases: TestCase[]
-  risks: string[]
-  status: string | null
+  preview: AgentPreview | null
+  conversationStatus: string | null
   createdCopilotId: string | null
   projectName: string
+  selectingOption?: boolean
+  onSelectOption?: (optionId: string) => void
+  onCreateDraft?: () => void
+  creatingDraft?: boolean
+  draftReady?: boolean
 }) {
-  const hasSpec = draft || selectedTools.length > 0 || testCases.length > 0
+  const flow = preview?.flow?.length ? preview.flow : [...DEFAULT_FLOW]
+  const tools =
+    preview?.proposedTools ??
+    (preview?.tools ?? []).map((name) => ({
+      name,
+      riskLevel: 'low' as const,
+      requiresConfirmation: false,
+    }))
+  const tests = preview?.testCases ?? (preview?.tests ?? []).map((name) => ({ name }))
+  const hasSpec = Boolean(preview?.name || preview?.role || tools.length > 0 || preview?.options?.length)
 
   return (
     <div className="flex h-full min-h-0 flex-col rounded-xl ring-1 ring-zinc-950/5 dark:ring-white/10">
@@ -63,8 +59,11 @@ export function ProjectBuilderPreviewPanel({
         <p className="mt-0.5 text-sm font-medium text-zinc-950 dark:text-white">
           {createdCopilotId ? 'Draft created' : hasSpec ? 'Spec in progress — not created yet' : 'Waiting for discussion'}
         </p>
-        {status ? (
-          <p className="mt-1 text-xs text-zinc-500">{status}</p>
+        {conversationStatus ? <p className="mt-1 text-xs text-zinc-500">{conversationStatus}</p> : null}
+        {preview?.readyForApproval && !createdCopilotId ? (
+          <Badge color="accent" className="mt-2">
+            Ready for approval
+          </Badge>
         ) : null}
       </div>
 
@@ -72,8 +71,8 @@ export function ProjectBuilderPreviewPanel({
         <div>
           <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Flow</p>
           <ol className="mt-2 flex flex-wrap gap-1.5">
-            {FLOW_STEPS.map((step, i) => (
-              <li key={step} className="flex items-center gap-1.5">
+            {flow.map((step, i) => (
+              <li key={`${step}-${i}`} className="flex items-center gap-1.5">
                 <span
                   className={
                     'rounded-md px-2 py-0.5 font-mono text-[10px] ring-1 ' +
@@ -84,7 +83,7 @@ export function ProjectBuilderPreviewPanel({
                 >
                   {step}
                 </span>
-                {i < FLOW_STEPS.length - 1 ? (
+                {i < flow.length - 1 ? (
                   <span aria-hidden="true" className="text-zinc-400">
                     →
                   </span>
@@ -94,26 +93,69 @@ export function ProjectBuilderPreviewPanel({
           </ol>
         </div>
 
-        {draft ? (
+        {preview?.options && preview.options.length > 0 ? (
+          <div>
+            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Options</p>
+            <ul className="mt-2 space-y-2">
+              {preview.options.map((option) => {
+                const selected = preview.selectedOptionId === option.id
+                return (
+                  <li
+                    key={option.id}
+                    className={
+                      'rounded-lg p-3 ring-1 ' +
+                      (selected
+                        ? 'bg-[var(--accent-soft)] ring-[var(--accent-line)]'
+                        : 'ring-zinc-950/5 dark:ring-white/10')
+                    }
+                  >
+                    <p className="text-sm font-medium text-zinc-950 dark:text-white">
+                      {option.title}
+                      {selected ? <span className="ml-2 text-xs text-accent-600">selected</span> : null}
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{option.summary}</p>
+                    {option.tradeoffs.length > 0 ? (
+                      <ul className="mt-2 space-y-0.5 text-[10px] text-zinc-500">
+                        {option.tradeoffs.map((t) => (
+                          <li key={t}>• {t}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    {!selected && onSelectOption ? (
+                      <Button
+                        outline
+                        className="mt-2"
+                        disabled={selectingOption}
+                        onClick={() => onSelectOption(option.id)}
+                      >
+                        Select this option
+                      </Button>
+                    ) : null}
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        ) : null}
+
+        {preview ? (
           <dl className="space-y-2 text-sm">
-            <PreviewRow label="Agent name" value={draft.name} />
-            <PreviewRow label="Role" value={draft.description} />
-            <PreviewRow label="Runtime" value={draft.suggestedRuntime} mono />
-            <PreviewRow label="Model" value={draft.suggestedModel} mono />
-            <PreviewRow label="Confirmation" value={draft.confirmationPolicy} mono />
-            {typeof draft.maxStepsPerRun === 'number' ? (
-              <PreviewRow label="Max steps" value={String(draft.maxStepsPerRun)} mono />
+            <PreviewRow label="Agent name" value={preview.name} />
+            <PreviewRow label="Role" value={preview.role ?? preview.description} />
+            <PreviewRow label="Confirmation" value={preview.confirmationPolicy} mono />
+            {typeof preview.maxStepsPerRun === 'number' ? (
+              <PreviewRow label="Max steps" value={String(preview.maxStepsPerRun)} mono />
             ) : null}
           </dl>
         ) : (
-          <Text className="!text-xs">Ask the Builder to prepare a spec — preview fills in as the conversation progresses.</Text>
+          <Text className="!text-xs">Ask the Builder about the repo — preview fills in as the conversation progresses.</Text>
         )}
 
-        {selectedTools.length > 0 ? (
+        {tools.length > 0 ? (
           <div>
             <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Tools</p>
             <ul className="mt-2 space-y-1.5">
-              {selectedTools.map((t) => (
+              {tools.map((t) => (
                 <li key={t.name} className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <ToolBadge name={t.name} risk={asToolRisk(t.riskLevel)} />
                   <span className="text-[10px] text-zinc-500">
@@ -125,31 +167,45 @@ export function ProjectBuilderPreviewPanel({
           </div>
         ) : null}
 
-        {testCases.length > 0 ? (
+        {preview?.benchmarks && preview.benchmarks.length > 0 ? (
           <div>
-            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Tests</p>
-            <ul className="mt-2 space-y-1.5 text-xs">
-              {testCases.slice(0, 4).map((c, i) => (
-                <li key={i} className="text-zinc-700 dark:text-zinc-300">
-                  {c.name}
-                </li>
+            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Benchmarks</p>
+            <ul className="mt-2 space-y-1 text-xs text-zinc-700 dark:text-zinc-300">
+              {preview.benchmarks.map((b) => (
+                <li key={b}>{b}</li>
               ))}
-              {testCases.length > 4 ? (
-                <li className="text-zinc-500">+{testCases.length - 4} more</li>
-              ) : null}
             </ul>
           </div>
         ) : null}
 
-        {risks.length > 0 ? (
+        {tests.length > 0 ? (
           <div>
-            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Risk policy</p>
-            <ul className="mt-2 space-y-1 text-xs text-zinc-600 dark:text-zinc-400">
-              {risks.slice(0, 3).map((r, i) => (
-                <li key={i}>• {r}</li>
+            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Tests</p>
+            <ul className="mt-2 space-y-1.5 text-xs">
+              {tests.slice(0, 4).map((c, i) => (
+                <li key={i} className="text-zinc-700 dark:text-zinc-300">
+                  {c.name}
+                </li>
               ))}
+              {tests.length > 4 ? <li className="text-zinc-500">+{tests.length - 4} more</li> : null}
             </ul>
           </div>
+        ) : null}
+
+        {preview?.riskPolicy || preview?.approvalPolicy ? (
+          <div>
+            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Policies</p>
+            <ul className="mt-2 space-y-1 text-xs text-zinc-600 dark:text-zinc-400">
+              {preview.riskPolicy ? <li>Risk: {preview.riskPolicy}</li> : null}
+              {preview.approvalPolicy ? <li>Approval: {preview.approvalPolicy}</li> : null}
+            </ul>
+          </div>
+        ) : null}
+
+        {draftReady && onCreateDraft && !createdCopilotId ? (
+          <Button color="accent" onClick={onCreateDraft} disabled={creatingDraft} className="w-full">
+            {creatingDraft ? 'Starting draft…' : 'Approve — create draft'}
+          </Button>
         ) : null}
 
         {createdCopilotId ? (
