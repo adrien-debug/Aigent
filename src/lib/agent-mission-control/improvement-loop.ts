@@ -33,7 +33,14 @@ import 'server-only'
 import { randomUUID } from 'node:crypto'
 
 import { summarize } from './format'
-import { diagnoseFailure, type FailureCategory, type FailureDiagnosis, type RecommendedFixType } from './improvement-diagnosis'
+import {
+  diagnoseFailure,
+  hasManifestFixableFailures,
+  nextRecommendedAction,
+  type FailureCategory,
+  type FailureDiagnosis,
+  type RecommendedFixType,
+} from './improvement-diagnosis'
 import { ensureCopilotAssistant } from './langgraph-assistants'
 import { getThreadDetail } from './langgraph-explorer'
 import { ARCHITECT_MODEL } from './llm-client'
@@ -586,6 +593,16 @@ export async function analyzeAndPropose(copilotId: string, triggeredBy: string):
   // narrative the LLM produces for the same case (see improvement-diagnosis.ts).
   const diagnoses = diagnoseSignals(signals)
 
+  // When every failing case is a non-manifest blocker (graph recursion, missing
+  // tool, judge noise, …), do NOT call the proposer or persist a bogus manifest
+  // patch — that is the Security Sentinel regression this guard closes.
+  if (diagnoses.length > 0 && !hasManifestFixableFailures(diagnoses)) {
+    const action = nextRecommendedAction(diagnoses)
+    throw new NotFoundError(
+      action?.headline ?? 'remaining failures are not fixable via a manifest patch'
+    )
+  }
+
   const res = await routeCompletion({
     purpose: 'architect',
     modelProvider: 'openai',
@@ -608,7 +625,7 @@ export async function analyzeAndPropose(copilotId: string, triggeredBy: string):
 
   const manifestChanges = validateManifestChanges(parsed.manifestChanges, signals.manifest)
   if (!manifestChanges) {
-    throw new Error('improvement proposer returned no valid manifest change')
+    throw new NotFoundError('improvement proposer returned no valid manifest change')
   }
   const summaryText = typeof parsed.summary === 'string' ? summarize(parsed.summary, 800) : ''
   const expectedImpact = typeof parsed.expectedImpact === 'string' ? summarize(parsed.expectedImpact, 300) : ''

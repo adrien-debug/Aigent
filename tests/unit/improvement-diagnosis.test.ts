@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   diagnoseFailure,
+  hasManifestFixableFailures,
   nextRecommendedAction,
   type FailureDiagnosisInput,
 } from '@/lib/agent-mission-control/improvement-diagnosis'
@@ -92,6 +93,30 @@ describe('diagnoseFailure', () => {
     const d = diagnoseFailure({ ...base, status: 'error', failureReason: 'ECONNRESET' }, [])
     expect(d.category).toBe('unknown')
     expect(d.recommendedFixType).toBe('manual_review')
+  })
+})
+
+describe('hasManifestFixableFailures', () => {
+  it('returns false when every failure is a graph/runtime blocker', () => {
+    const diagnoses = [
+      diagnoseFailure(
+        { ...base, caseId: 'tc-1', status: 'error', failureReason: SENTINEL_RECURSION_REASON },
+        []
+      ),
+      diagnoseFailure(
+        { ...base, caseId: 'tc-2', status: 'fail', actualBehavior: '[STEP_BUDGET_EXHAUSTED] maxSteps exhausted.' },
+        []
+      ),
+    ]
+    expect(hasManifestFixableFailures(diagnoses)).toBe(false)
+  })
+
+  it('returns true when at least one failure is manifest-fixable', () => {
+    const diagnoses = [
+      diagnoseFailure({ ...base, caseId: 'tc-1', status: 'error', failureReason: SENTINEL_RECURSION_REASON }, []),
+      diagnoseFailure({ ...base, caseId: 'tc-2', failureReason: 'missed secret exposure' }, []),
+    ]
+    expect(hasManifestFixableFailures(diagnoses)).toBe(true)
   })
 })
 

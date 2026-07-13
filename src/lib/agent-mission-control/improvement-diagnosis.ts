@@ -211,6 +211,22 @@ export interface NextRecommendedAction {
  * the loop owes the operator: when runtime blockers remain, say explicitly
  * that more manifest work will NOT fix them.
  */
+/** Fix types the Improvement Loop may address via a manifest patch. */
+const MANIFEST_FIXABLE_FIX_TYPES: ReadonlySet<RecommendedFixType> = new Set([
+  'manifest_patch',
+  'system_prompt_patch',
+])
+
+/**
+ * True when at least one failing case can be addressed by a manifest change.
+ * Runtime/graph blockers, missing tools, judge issues and out-of-reach test
+ * expectations are excluded — analyzeAndPropose must not mint a proposal (or
+ * call the proposer LLM) when this is false.
+ */
+export function hasManifestFixableFailures(diagnoses: FailureDiagnosis[]): boolean {
+  return diagnoses.some((d) => MANIFEST_FIXABLE_FIX_TYPES.has(d.recommendedFixType))
+}
+
 export function nextRecommendedAction(diagnoses: FailureDiagnosis[]): NextRecommendedAction | null {
   if (diagnoses.length === 0) return null
   const present = new Set(diagnoses.map((d) => d.recommendedFixType))
