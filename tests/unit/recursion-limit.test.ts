@@ -9,7 +9,8 @@
  * `@langchain/langgraph-sdk`'s `Client`, so no real network call happens.
  *
  * The formula under test (from the source comments):
- *   derived = max(1, floor(maxSteps)) * 3 + 1        (NODES_PER_STEP = 3)
+ *   derived = max(1, floor(maxSteps)) * 3 + 3 + 1    (NODES_PER_STEP = 3; the
+ *             extra +3 is headroom for the budget-guard's tool-free CLOSING turn)
  *   result  = clamp(derived, 25 /* SDK default floor *\/, 150 /* cap *\/)
  *   undefined maxSteps (or non-finite) -> undefined (caller keeps SDK default)
  *
@@ -53,18 +54,26 @@ describe('recursionLimitFor (via runOnAgentServer -> runs.wait config.recursion_
 
   it('never goes under the SDK default floor (25), even for a tiny maxSteps', async () => {
     const limit = await runWith(1)
-    // derived = 1*3+1 = 4, floored at 25.
+    // derived = 1*3+3+1 = 7, floored at 25.
     expect(limit).toBe(25)
   })
 
+  it('leaves headroom for the closing turn at maxSteps=8 (Security Sentinel)', async () => {
+    // derived = 8*3+3+1 = 28 -> above the SDK floor of 25, so the budget-guard's
+    // tool-free closing turn fits before the recursion limit. Previously this
+    // was 8*3+1 = 25 (== floor), leaving zero room -> GraphRecursionError.
+    const limit = await runWith(8)
+    expect(limit).toBe(28)
+  })
+
   it('is proportional to maxSteps within the floor/cap band', async () => {
-    // derived = 10*3+1 = 31 -> within [25,150], so exactly 31.
+    // derived = 10*3+3+1 = 34 -> within [25,150], so exactly 34.
     const limit = await runWith(10)
-    expect(limit).toBe(31)
+    expect(limit).toBe(34)
   })
 
   it('is capped at 150 for a very large maxSteps', async () => {
-    // derived = 1000*3+1 = 3001, capped at 150.
+    // derived = 1000*3+3+1 = 3004, capped at 150.
     const limit = await runWith(1000)
     expect(limit).toBe(150)
   })
@@ -80,8 +89,8 @@ describe('recursionLimitFor (via runOnAgentServer -> runs.wait config.recursion_
   })
 
   it('floors a fractional maxSteps before deriving the limit', async () => {
-    // floor(10.9) = 10 -> derived = 10*3+1 = 31.
+    // floor(10.9) = 10 -> derived = 10*3+3+1 = 34.
     const limit = await runWith(10.9)
-    expect(limit).toBe(31)
+    expect(limit).toBe(34)
   })
 })

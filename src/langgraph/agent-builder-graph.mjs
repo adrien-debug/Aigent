@@ -160,24 +160,53 @@ async function agentNode(state, config) {
   // configured budget. So the graph enforces its own turn count too, from
   // state, independent of who's calling it.
   const turnsTaken = countAgentTurns(state.messages)
+  const hasSystem = state.messages[0]?.getType?.() === 'system'
+  const baseMessages = hasSystem ? state.messages : [{ role: 'system', content: rt.systemPrompt }, ...state.messages]
+
   if (turnsTaken >= rt.maxSteps) {
-    return {
-      messages: [
-        new AIMessage({
-          // The sentinel is in the CONTENT, and that is not a stylistic choice:
-          // the @langchain/langgraph-sdk deserializes messages into LangChain
-          // objects and DROPS custom keys — verified live, the same run returns
-          // `additional_kwargs: {"aigent_executed_model":"gpt-5.4"}` over the raw
-          // HTTP API and `{}` through the SDK (same for response_metadata). No
-          // custom metadata channel survives; content is the only one that does.
-          // So the marker is a machine-stable PREFIX (not prose to fuzzy-match):
-          // reword the human sentence freely, the prefix is the contract.
+    // Budget reached. Real thread traces (Security Sentinel, exposed-secrets)
+    // showed the failure mode is NOT "no tool progress" — it's the opposite:
+    // the agent kept calling read tools every turn and NEVER wrote a synthesis,
+    // so it hit the recursion limit mid-search and the judge saw an empty
+    // answer. The old behaviour here (emit a static sentinel and stop) made
+    // that worse: it threw away everything the agent had gathered.
+    //
+    // Instead, take ONE final turn with the tools UNBOUND (no tools available →
+    // the model cannot request another one → routeAgent sends END → the graph
+    // terminates cleanly): force a bounded answer from the context already
+    // collected. The STEP_BUDGET_EXHAUSTED prefix is still prepended so the
+    // machine-stable marker survives (the SDK drops custom keys — content is
+    // the only channel), but now it precedes a REAL, judgeable review instead
+    // of a boilerplate apology.
+    try {
+      const closingModel = new ChatOpenAI({ model: rt.model })
+      const closing = await closingModel.invoke([
+        ...baseMessages,
+        {
+          role: 'user',
           content:
-            `${STEP_BUDGET_EXHAUSTED} ` +
-            'I stopped here: this copilot’s step budget (maxSteps) is exhausted, so I could not finish the task. ' +
-            'Please start a new run or narrow the request so it fits within the remaining steps.',
-        }),
-      ],
+            'You have reached your tool-step budget and cannot call any more tools. ' +
+            'Do NOT ask to run another tool. Using ONLY what you have already gathered above, ' +
+            'produce your final bounded answer now: a concise findings list (category, risk, ' +
+            'evidence or explicit limitation, and a safe read-only next check). If evidence is ' +
+            'incomplete, say so plainly rather than continuing.',
+        },
+      ])
+      const finalText = typeof closing.content === 'string' ? closing.content : JSON.stringify(closing.content)
+      return { messages: [new AIMessage({ content: `${STEP_BUDGET_EXHAUSTED} ${finalText}` })] }
+    } catch {
+      // The closing completion failed (provider down): fall back to the static
+      // sentinel so the run still terminates cleanly rather than looping.
+      return {
+        messages: [
+          new AIMessage({
+            content:
+              `${STEP_BUDGET_EXHAUSTED} ` +
+              'I stopped here: this copilot’s step budget (maxSteps) is exhausted, so I could not finish the task. ' +
+              'Please start a new run or narrow the request so it fits within the remaining steps.',
+          }),
+        ],
+      }
     }
   }
 
@@ -187,9 +216,7 @@ async function agentNode(state, config) {
   // read tools, so the pause lands cleanly on a single call).
   const modelWithTools = new ChatOpenAI({ model: rt.model }).bindTools(rt.tools, { parallel_tool_calls: false })
 
-  const hasSystem = state.messages[0]?.getType?.() === 'system'
-  const messages = hasSystem ? state.messages : [{ role: 'system', content: rt.systemPrompt }, ...state.messages]
-  const response = await modelWithTools.invoke(messages)
+  const response = await modelWithTools.invoke(baseMessages)
 
   // NOTE — we cannot tell the app which model actually ran, and that is a real
   // limitation, not an oversight. Verified empirically: the SDK deserializes

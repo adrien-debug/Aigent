@@ -119,15 +119,25 @@ const NODES_PER_STEP = 3
 
 /**
  * Derive the SDK's `recursion_limit` from the copilot's logical step budget.
- * Budget = NODES_PER_STEP × maxSteps + 1 (the final agent turn), floored at the
- * SDK default so we never constrain a run tighter than the out-of-the-box 25,
- * and capped so a misconfigured maxSteps can't run unbounded. Returns undefined
- * when maxSteps is undefined (or not a finite number) so callers keep the SDK
- * default unchanged.
+ *
+ * Budget = NODES_PER_STEP × maxSteps  (the tool-calling turns)
+ *          + NODES_PER_STEP           (headroom for the graph's own budget-guard
+ *                                       CLOSING turn — agentNode takes one extra
+ *                                       tool-free turn to synthesize a bounded
+ *                                       answer when the budget is reached; that
+ *                                       turn must fit UNDER the SDK limit or the
+ *                                       run dies with GraphRecursionError before
+ *                                       the answer is produced — the exact
+ *                                       Security Sentinel failure)
+ *          + 1                        (the terminal edge to END).
+ * Floored at the SDK default so we never constrain a run tighter than the
+ * out-of-the-box 25, and capped so a misconfigured maxSteps can't run unbounded.
+ * Returns undefined when maxSteps is undefined (or not finite) so callers keep
+ * the SDK default unchanged.
  */
 function recursionLimitFor(maxSteps: number | undefined): number | undefined {
   if (maxSteps === undefined || !Number.isFinite(maxSteps)) return undefined
-  const derived = Math.max(1, Math.floor(maxSteps)) * NODES_PER_STEP + 1
+  const derived = Math.max(1, Math.floor(maxSteps)) * NODES_PER_STEP + NODES_PER_STEP + 1
   return Math.min(Math.max(derived, SDK_DEFAULT_RECURSION_LIMIT), RECURSION_LIMIT_CAP)
 }
 
