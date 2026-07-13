@@ -4,6 +4,20 @@ import { deleteCopilotCascade } from '@/lib/agent-mission-control/authoring-writ
 import { ensureCopilotAssistant } from '@/lib/agent-mission-control/langgraph-assistants'
 
 /**
+ * Shape guard for `:copilotId` path params. Real ids are `makeId('copilot', slug)`
+ * (see slug.ts): lowercase alphanumerics/hyphens only, bounded length. Rejects
+ * empty/oversized/garbage values before they reach a live DB round-trip — a
+ * value that doesn't match this shape can never be a real copilot id, so a
+ * well-formed 400 here is strictly a fast, safe rejection (no valid id is ever
+ * refused).
+ */
+const COPILOT_ID_RE = /^[a-z0-9-]{1,200}$/
+
+function isValidCopilotId(id: string): boolean {
+  return typeof id === 'string' && COPILOT_ID_RE.test(id)
+}
+
+/**
  * DELETE /api/agent-ops/copilots/:copilotId — supprime définitivement un
  * copilote et toutes ses données (versions, manifests, tools, tests, runs,
  * benchmarks, traces), en cascade FK-safe. Live-only, fail-closed. 404 si le
@@ -11,6 +25,10 @@ import { ensureCopilotAssistant } from '@/lib/agent-mission-control/langgraph-as
  */
 export async function DELETE(_request: Request, { params }: { params: Promise<{ copilotId: string }> }) {
   const { copilotId } = await params
+
+  if (!isValidCopilotId(copilotId)) {
+    return NextResponse.json({ error: 'invalid copilotId' }, { status: 400 })
+  }
 
   if (process.env.AMC_DATA_SOURCE !== 'gpu1' || !process.env.AMC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
@@ -21,10 +39,11 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     if (!existed) return NextResponse.json({ error: 'copilot not found' }, { status: 404 })
     return NextResponse.json({ ok: true, deleted: true })
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'delete failed' },
-      { status: 502 }
-    )
+    // Don't forward raw internal error detail (pgrest embeds PostgREST
+    // response bodies / table & column names in its Error message) to the
+    // client — log server-side for operators, return a generic message.
+    console.error('[DELETE /api/agent-ops/copilots/:copilotId] cascade delete failed', err)
+    return NextResponse.json({ error: 'delete failed' }, { status: 502 })
   }
 }
 
@@ -40,6 +59,10 @@ export async function PATCH(
   { params }: { params: Promise<{ copilotId: string }> }
 ) {
   const { copilotId } = await params
+
+  if (!isValidCopilotId(copilotId)) {
+    return NextResponse.json({ error: 'invalid copilotId' }, { status: 400 })
+  }
 
   let body: { projectId?: string | null; targetProjectIds?: string[] }
   try {
@@ -106,13 +129,16 @@ export async function PATCH(
       return NextResponse.json({ ok: true, persisted: true, reprovisioned: true })
     } catch (err) {
       // The DB write already committed (primary effect) so we don't fail the
-      // PATCH, but we surface reprovisioned:false + the reason so the operator
-      // knows the baked assistant config may still be stale and can retry.
+      // PATCH, but we surface reprovisioned:false so the operator knows the
+      // baked assistant config may still be stale and can retry. The reason is
+      // logged server-side only — err can carry internal service/PostgREST
+      // detail that shouldn't be forwarded verbatim to the client.
+      console.error('[PATCH /api/agent-ops/copilots/:copilotId] assistant re-provision failed', err)
       return NextResponse.json({
         ok: true,
         persisted: true,
         reprovisioned: false,
-        reprovisionWarning: err instanceof Error ? err.message : 'assistant re-provision failed',
+        reprovisionWarning: 'assistant re-provision failed',
       })
     }
   }
