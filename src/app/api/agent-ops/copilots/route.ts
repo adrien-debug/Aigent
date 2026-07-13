@@ -48,14 +48,57 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
   }
 
-  if (typeof body.name !== 'string' || body.name.trim().length === 0) {
-    return NextResponse.json({ error: 'name is required' }, { status: 400 })
+  if (typeof body.name !== 'string' || body.name.trim().length === 0 || body.name.length > 200) {
+    return NextResponse.json({ error: 'name is required (max 200 chars)' }, { status: 400 })
   }
-  if (typeof body.slug !== 'string' || body.slug.trim().length === 0) {
-    return NextResponse.json({ error: 'slug is required' }, { status: 400 })
+  if (typeof body.slug !== 'string' || body.slug.trim().length === 0 || body.slug.length > 200) {
+    return NextResponse.json({ error: 'slug is required (max 200 chars)' }, { status: 400 })
   }
-  if (!body.manifest || typeof body.manifest !== 'object') {
+  if (!body.manifest || typeof body.manifest !== 'object' || Array.isArray(body.manifest)) {
     return NextResponse.json({ error: 'manifest is required' }, { status: 400 })
+  }
+  if (body.projectId !== null && body.projectId !== undefined && typeof body.projectId !== 'string') {
+    return NextResponse.json({ error: 'projectId must be a string or null' }, { status: 400 })
+  }
+  if (
+    body.targetProjectIds !== undefined &&
+    (!Array.isArray(body.targetProjectIds) ||
+      body.targetProjectIds.some((id) => typeof id !== 'string') ||
+      body.targetProjectIds.length > 2)
+  ) {
+    return NextResponse.json(
+      { error: 'targetProjectIds must be an array of at most 2 strings' },
+      { status: 400 }
+    )
+  }
+  if (
+    body.tags !== undefined &&
+    (!Array.isArray(body.tags) || body.tags.some((t) => typeof t !== 'string') || body.tags.length > 50)
+  ) {
+    return NextResponse.json({ error: 'tags must be an array of at most 50 strings' }, { status: 400 })
+  }
+  // proposedTools drives an unbounded per-item INSERT loop in
+  // createCopilotFromManifest — an oversized or malformed array must be
+  // rejected here (400) rather than reach that loop, where a non-array value
+  // throws a raw "is not iterable" TypeError (caught below, but as an opaque
+  // 502) and an oversized array would fire hundreds of inserts per request.
+  const proposedTools = (body.manifest as { proposedTools?: unknown }).proposedTools
+  if (
+    !Array.isArray(proposedTools) ||
+    proposedTools.length > 50 ||
+    proposedTools.some(
+      (t) =>
+        !t ||
+        typeof t !== 'object' ||
+        typeof (t as { name?: unknown }).name !== 'string' ||
+        (t as { name: string }).name.trim().length === 0 ||
+        (t as { name: string }).name.length > 200
+    )
+  ) {
+    return NextResponse.json(
+      { error: 'manifest.proposedTools must be an array of at most 50 tools, each with a non-empty name' },
+      { status: 400 }
+    )
   }
 
   // Fail-closed 503 when the live backend is not configured — never fake success.
