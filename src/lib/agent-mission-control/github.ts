@@ -221,6 +221,17 @@ async function getDefaultBranch(repoFullName: string): Promise<string> {
   return repo.default_branch
 }
 
+/**
+ * GET the HEAD commit sha of a branch (default branch when ref is omitted).
+ * Read-only. Used for staleness: a changed HEAD invalidates a cached repo scan.
+ */
+export async function getRepoHeadSha(repoFullName: string, ref?: string): Promise<string> {
+  const safeRepo = assertValidRepoFullName(repoFullName)
+  const resolvedRef = ref !== undefined ? assertValidRef(ref) : await getDefaultBranch(safeRepo)
+  const data = await gh<{ sha: string }>('GET', `repos/${safeRepo}/commits/${encodeURIComponent(resolvedRef)}`)
+  return data.sha
+}
+
 // ---------------------------------------------------------------------------
 // Read-only GitHub browsing (repos / tree / file) — server only
 // ---------------------------------------------------------------------------

@@ -90,16 +90,21 @@ export function ProjectAgentBuilderWorkbench({
   projectName,
   repoFullName,
   initialScan,
+  seedInput,
 }: {
   projectId: string
   projectName: string
   repoFullName: string | null
   initialScan: RepoScanSummary | null
+  /** Pre-fill the request box (e.g. from a "Discuss in builder" recommendation link). */
+  seedInput?: string
 }) {
   const router = useRouter()
   const [scan, setScan] = useState<RepoScanSummary | null>(initialScan)
   const [scanning, setScanning] = useState(false)
-  const [input, setInput] = useState('')
+  const [input, setInput] = useState(
+    seedInput ? `I want an agent like "${seedInput}" for this repo. Propose a spec.` : ''
+  )
   const [running, setRunning] = useState(false)
   const [deciding, setDeciding] = useState(false)
   const [error, setError] = useState<string | null>(null)

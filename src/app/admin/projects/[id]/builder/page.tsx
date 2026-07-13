@@ -17,12 +17,21 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
  * /admin/projects/[id]/builder — the repo-aware Agent Builder for a project.
  *
  * The builder scans the project's linked GitHub repo (read-only) and drafts an
- * agent contextualized to it. The initial scan is NOT run server-side on load
- * (it costs a GitHub round-trip and the operator may not want it yet) — the
- * workbench exposes a "Scan repo" button.
+ * agent contextualized to it. Repo intelligence is auto-scanned on the project
+ * overview; here the workbench still exposes an explicit "Scan repo" button for
+ * the builder's own bounded summary. A `?seed=<title>` query (from a "Discuss in
+ * builder" recommendation link) pre-fills the request box. Nothing is created
+ * before the human approves the drafted spec.
  */
-export default async function ProjectBuilderPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProjectBuilderPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ seed?: string }>
+}) {
   const { id } = await params
+  const { seed } = await searchParams
   const project = await getProject(id)
   if (!project) notFound()
 
@@ -46,6 +55,7 @@ export default async function ProjectBuilderPage({ params }: { params: Promise<{
           projectName={project.name}
           repoFullName={project.repoFullName ?? null}
           initialScan={null}
+          seedInput={typeof seed === 'string' ? seed.slice(0, 200) : undefined}
         />
       </div>
     </div>

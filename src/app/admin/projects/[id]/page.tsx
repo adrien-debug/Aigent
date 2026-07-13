@@ -7,6 +7,7 @@ import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ProjectDeleteAction } from '@/components/agent-ops/project-delete-action'
+import { ProjectRepoIntelligence } from '@/components/agent-ops/project-repo-intelligence'
 import { Button } from '@/components/catalyst/button'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
@@ -179,7 +180,7 @@ function ProjectTracesTable({
                     href={run.traceUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center justify-center rounded-md p-1 text-accent-600 hover:bg-accent-500/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-400"
+                    className="inline-flex items-center justify-center rounded-md p-1 text-accent-600 hover:bg-[var(--accent-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-400"
                   >
                     <ArrowTopRightOnSquareIcon aria-hidden="true" className="size-4" />
                     <span className="sr-only">Open trace for run {run.id} in LangSmith</span>
@@ -290,6 +291,10 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           ]}
         />
       </div>
+
+      {/* Repo intelligence — auto-scans the linked repo READ-ONLY on open
+          (stack, routes, agentic footprint, residue, agent recommendations). */}
+      <ProjectRepoIntelligence projectId={project.id} repoFullName={project.repoFullName ?? null} />
 
       <AgentSectionCard
         title="Agents"
