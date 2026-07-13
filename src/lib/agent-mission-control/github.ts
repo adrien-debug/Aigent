@@ -175,23 +175,35 @@ export interface PushAgentArgs {
 // Low-level GitHub fetch (fail-closed on non-2xx)
 // ---------------------------------------------------------------------------
 
+/** Hard ceiling so a stalled GitHub API can't hang a request indefinitely. */
+const GITHUB_FETCH_TIMEOUT_MS = 15_000
+
 async function gh<T = unknown>(
   method: 'GET' | 'POST' | 'PATCH',
   path: string,
   body?: unknown
 ): Promise<T> {
   const { token } = requireGithub()
-  const res = await fetch(`${GITHUB_API}/${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    cache: 'no-store',
-  })
+  let res: Response
+  try {
+    res = await fetch(`${GITHUB_API}/${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      cache: 'no-store',
+      signal: AbortSignal.timeout(GITHUB_FETCH_TIMEOUT_MS),
+    })
+  } catch (err) {
+    if (err instanceof Error && err.name === 'TimeoutError') {
+      throw new Error(`GitHub request timed out after ${GITHUB_FETCH_TIMEOUT_MS}ms on ${method} ${path}`)
+    }
+    throw err
+  }
   if (res.status < 200 || res.status >= 300) {
     throw new Error(
       `GitHub ${res.status} on ${method} ${path}: ${(await res.text()).slice(0, 300)}`
