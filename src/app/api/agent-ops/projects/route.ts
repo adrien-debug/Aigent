@@ -130,7 +130,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
   }
 
-  // 1) Create the project row. A failure here is a plain 502 (nothing to undo).
+  // 1) Create the project row. A failure here is a plain 502 (nothing to undo),
+  //    EXCEPT a unique-violation on the row's id: ids are deterministic
+  //    (`makeId('proj', slug)`, see slug.ts), so a name/slug that collides with
+  //    an existing project makes PostgREST reject the insert with 409 — a
+  //    client-caused conflict, not an upstream failure. Detect it from the
+  //    thrown message the same way projects/[id]/push-agent/route.ts does for
+  //    GitHub's ref race, and surface 409 instead of a misleading 502.
   //    Internal errors (PostgREST status/path/body, stack traces) are logged
   //    server-side only — the client gets a generic message so no DB/table/
   //    query detail ever leaks over the wire.
@@ -139,6 +145,13 @@ export async function POST(request: Request) {
     projectId = await createProject(body)
   } catch (err) {
     console.error('[agent-ops/projects] createProject failed:', err)
+    const message = err instanceof Error ? err.message : ''
+    if (/PostgREST 409 on POST projects/.test(message)) {
+      return NextResponse.json(
+        { error: 'a project with this name/slug already exists' },
+        { status: 409 }
+      )
+    }
     return NextResponse.json({ error: 'project creation failed' }, { status: 502 })
   }
 
