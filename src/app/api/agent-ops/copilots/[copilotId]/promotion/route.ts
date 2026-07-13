@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 
+import { evaluateReleaseGate } from '@/lib/agent-mission-control/release-gate'
+
 /**
  * Shape guard for ids used by this route (`:copilotId` path param and the
  * `versionId` / `previousProductionVersionId` body fields). Real ids are
@@ -74,6 +76,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (process.env.AMC_DATA_SOURCE !== 'gpu1' || !base || !key) {
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
+  }
+
+  // --- Server-side release gate (fail-closed) ---
+  // A PROMOTE to production re-evaluates the controlled release gate from live
+  // data HERE, before any write — the UI enabling the button is a courtesy, not
+  // the control. If any check is fail/missing, refuse with 422 and the blocking
+  // reasons. Rollback is exempt (it restores a previously-shipped version, which
+  // by definition already passed a gate) and beta promotion is exempt (the gate
+  // guards production only).
+  if (body.action === 'promote') {
+    try {
+      const gate = await evaluateReleaseGate(copilotId, versionId)
+      if (!gate) {
+        return NextResponse.json({ error: 'copilot or candidate version not found' }, { status: 404 })
+      }
+      if (!gate.promotable) {
+        const blocking = gate.checks.filter((c) => c.status !== 'pass').map((c) => `${c.label}: ${c.observed}`)
+        return NextResponse.json(
+          { error: 'release gate not green — promotion blocked', blocking },
+          { status: 422 }
+        )
+      }
+    } catch (err) {
+      console.error('[promotion] release gate evaluation failed', err instanceof Error ? err.message : err)
+      return NextResponse.json({ error: 'release gate evaluation failed' }, { status: 502 })
+    }
   }
 
   async function pgrestGet(pathAndQuery: string): Promise<Record<string, unknown>[]> {

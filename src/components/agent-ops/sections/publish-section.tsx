@@ -7,6 +7,7 @@ import { GateHistoryFeed, type GateHistoryEvent } from '@/components/agent-ops/g
 import { PromotionGateCard } from '@/components/agent-ops/promotion-gate-card'
 import { PromotionPipelineSteps } from '@/components/agent-ops/promotion-pipeline-steps'
 import { PublishActions } from '@/components/agent-ops/publish-actions'
+import { ReleaseCandidateCard } from '@/components/agent-ops/release-candidate-card'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { SplitBar } from '@/components/agent-ops/widgets/split-bar'
 import { Button } from '@/components/catalyst/button'
@@ -17,6 +18,7 @@ import {
   getVersion,
   getVersionsForCopilot,
 } from '@/lib/agent-mission-control/data'
+import { evaluateReleaseGate } from '@/lib/agent-mission-control/release-gate'
 import type { CopilotVersion } from '@/lib/agent-mission-control/types'
 
 function statusLabel(status: string) {
@@ -29,21 +31,49 @@ export async function PublishSection({ copilotId }: { copilotId: string }) {
   const copilot = await getCopilot(id)
   if (!copilot) return null
 
+  // The controlled release gate — evaluated live from the candidate's real
+  // test run + benchmark + tool policy (single source of truth, shared with the
+  // promotion route). This is the primary Release surface now.
+  const [releaseGate, allVersionsForRelease] = await Promise.all([
+    evaluateReleaseGate(id),
+    getVersionsForCopilot(id),
+  ])
+  const releaseCandidateCard =
+    releaseGate && releaseGate.candidateVersionId !== copilot.productionVersionId ? (
+      <ReleaseCandidateCard
+        copilotId={id}
+        checks={releaseGate.checks}
+        promotable={releaseGate.promotable}
+        evidence={releaseGate.evidence}
+        currentProductionLabel={
+          releaseGate.evidence.currentProductionVersionId
+            ? (allVersionsForRelease.find((v) => v.id === releaseGate.evidence.currentProductionVersionId)?.label ?? null)
+            : null
+        }
+      />
+    ) : null
+
   const gate = await getPromotionGateForCopilot(id)
 
+  // No legacy promotion_gates row: the release-candidate card IS the gate now.
+  // Show it alone (or an empty state if there's no candidate distinct from prod).
   if (!gate) {
     return (
-      <div className="rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
-        <EmptyState
-          icon={ArrowUpCircleIcon}
-          title="No candidate in the gate."
-          description="Nothing is queued for promotion yet. Promote a version from Versions to start a gate evaluation."
-          action={
-            <Button outline href={`/admin/agents/${id}/versions`}>
-              Go to Versions
-            </Button>
-          }
-        />
+      <div className="space-y-8">
+        {releaseCandidateCard ?? (
+          <div className="rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
+            <EmptyState
+              icon={ArrowUpCircleIcon}
+              title="No release candidate."
+              description="Run an improvement cycle to produce a candidate version, then its release gate appears here."
+              action={
+                <Button outline href={`/admin/agents/${id}/improve`}>
+                  Go to Improve
+                </Button>
+              }
+            />
+          </div>
+        )}
       </div>
     )
   }
@@ -131,6 +161,8 @@ export async function PublishSection({ copilotId }: { copilotId: string }) {
 
   return (
     <div className="space-y-8">
+      {releaseCandidateCard}
+
       <PromotionPipelineSteps gate={gate} />
 
       <AgentKpiBand
