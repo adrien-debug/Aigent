@@ -15,15 +15,21 @@ const TABS = [
   { label: 'Release', segment: 'versions' },
 ] as const
 
-export function CopilotTabs({ copilotId }: { copilotId: string }) {
+// The Builder tab is exclusive to the Agent Builder Copilot (the meta copilot
+// that drafts other copilots) — a normal copilot has no builder flow, so this
+// tab is appended only when `showBuilder` is set (see the [id] layout).
+const BUILDER_TAB = { label: 'Builder', segment: 'builder' } as const
+
+export function CopilotTabs({ copilotId, showBuilder = false }: { copilotId: string; showBuilder?: boolean }) {
   const pathname = usePathname()
   const base = `/admin/agents/${copilotId}`
+  const tabs = showBuilder ? [...TABS, BUILDER_TAB] : TABS
 
   return (
     <nav aria-label="Copilot sections" className="overflow-x-auto">
       <div className="w-max min-w-full border-b border-zinc-950/10 dark:border-white/10">
         <div className="-mb-px flex gap-6">
-          {TABS.map(({ label, segment }) => {
+          {tabs.map(({ label, segment }) => {
             const href = segment ? `${base}/${segment}` : base
             const current = segment
               ? pathname === href || pathname.startsWith(`${href}/`)

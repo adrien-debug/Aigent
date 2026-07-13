@@ -3,8 +3,10 @@ import type { Metadata } from 'next'
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { ProvisionAgentBuilderBanner } from '@/components/agent-ops/provision-agent-builder-banner'
 import { RegistryView } from '@/components/agent-ops/registry-view'
 import { SeverityFeedRow } from '@/components/agent-ops/widgets/severity-feed-row'
+import { AGENT_BUILDER_SLUG } from '@/lib/agent-mission-control/agent-builder-copilot'
 import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import {
   getCopilots,
@@ -76,11 +78,16 @@ export default async function AgentsRegistryPage() {
   const copilotNameById = new Map(copilots.map((copilot) => [copilot.id, copilot.name]))
   const onBenchCount = copilots.filter((copilot) => copilot.projectId === null).length
   const assignedCount = copilots.length - onBenchCount
+  // Show the one-click provisioning banner only when the Agent Builder Copilot
+  // isn't in the registry yet (so it never depends on a manual script run).
+  const hasAgentBuilder = copilots.some((copilot) => copilot.slug === AGENT_BUILDER_SLUG)
 
   return (
     <div className="space-y-8">
       {/* Header uniforme sur les 5 pages /admin (directive Adrien 2026-07-11). */}
       <AgentPageHeader title="Copilots" description="Every registered agent and the validation bench." className="mt-2" />
+
+      {hasAgentBuilder ? null : <ProvisionAgentBuilderBanner />}
 
       <AgentKpiBand
         stats={[

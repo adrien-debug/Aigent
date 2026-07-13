@@ -4,6 +4,7 @@ import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
 import { CopilotTabs } from '@/components/agent-ops/copilot-tabs'
 import { Link } from '@/components/catalyst/link'
+import { AGENT_BUILDER_SLUG } from '@/lib/agent-mission-control/agent-builder-copilot'
 import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import { getCopilot } from '@/lib/agent-mission-control/data'
 
@@ -70,9 +71,9 @@ export default async function CopilotLayout({
         ]}
       />
 
-      {/* Menus sous les KPI */}
+      {/* Menus sous les KPI — l'onglet Builder n'apparaît que sur l'Agent Builder Copilot */}
       <div className="mt-0">
-        <CopilotTabs copilotId={id} />
+        <CopilotTabs copilotId={id} showBuilder={copilot.slug === AGENT_BUILDER_SLUG} />
       </div>
 
       <div className="mt-6 lg:mt-8">{children}</div>

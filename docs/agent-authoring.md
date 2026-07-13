@@ -39,6 +39,50 @@ This flow has **four** server-only write points, all under
 3. `POST /api/agent-ops/copilots/[copilotId]/run`
 4. `POST /api/agent-ops/copilots/[copilotId]/runs/[runId]/resume`
 
+## 1b. Agent Builder Copilot — the meta copilot (activated)
+
+The **Agent Builder Copilot** (slug `agent-builder-copilot`) is a real,
+provisioned copilot whose job is to draft OTHER copilots, human-in-the-loop. It
+lives on the validation bench (`project_id: null`) and runs on the LangGraph
+`agent_builder` graph. It is now **visible and operable from the UI** — no
+manual script required:
+
+- **Provisioning** — `POST /api/agent-ops/copilots/provision-agent-builder`
+  (idempotent: creates it if absent, returns the existing row untouched
+  otherwise). The `/admin/agents` page shows a one-click provision banner when
+  it is missing. The `npm run provision:agent-builder` script (→
+  `scripts/provision-agent-builder.ts`) is the CLI fallback.
+- **Workbench** — `/admin/agents/[id]/builder` (a Builder tab shown ONLY on the
+  Agent Builder copilot). A textarea → **Run Agent Builder** → LangGraph node
+  timeline → drafted manifest / tools / tests / risks → **Approve & create
+  draft** / **Reject**, plus a link to the created copilot.
+- **Builder routes** (real LangGraph runs — the bench copilot can't go through
+  `executeCopilotRun`, which requires a project, so these call
+  `runOnAgentServer`/`resumeOnAgentServer` directly; the Agent Server THREAD is
+  the runId, and no `agent_runs` row is written for a bench builder run):
+  - `POST /api/agent-ops/architect/run` `{ userInput }` → runs the graph to the
+    first human-approval interrupt; returns the normalized `BuilderRunState`
+    (`runId`, `status`, `currentNode`, `events[]`, `manifestDraft`,
+    `selectedTools`, `testCases`, `risks`, `approvalRequired`, `createdCopilotId?`).
+    The graph PAUSES at `draft_copilot_spec` BEFORE producing the draft, so a
+    run reaching that step returns `status: 'awaiting_approval'` and creates
+    NOTHING.
+  - `POST /api/agent-ops/architect/resume` `{ runId, approved }` → continues the
+    thread. On **approve** the gated tool runs (the draft is produced) and the
+    approved side-effect is persisted: a real **draft copilot** on the bench
+    (`status: 'draft'`, `project_id: null`, never production) via
+    `createCopilotFromManifest`; `createdCopilotId` is returned. On **reject**
+    the tool is blocked, nothing is created, and the run ends `blocked`.
+  - `GET /api/agent-ops/architect/runs/[id]` → reads the run's current state
+    from its LangGraph thread (source of truth). 404 if the thread is unknown
+    (dev Agent Server restarted — see §9a).
+
+  The normalization lives in `src/lib/agent-mission-control/agent-builder-run.ts`
+  (server-only): it maps the thread's messages + the `draft_copilot_spec`
+  ToolMessage into the `BuilderRunState` shape. It never mocks a run and never
+  persists a draft without the human approval the graph's `approval` node
+  enforces.
+
 ## 2. Architecture
 
 ### `POST /api/agent-ops/copilots`
