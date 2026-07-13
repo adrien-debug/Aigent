@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { pgrest } from '@/lib/agent-mission-control/postgrest'
 import { NotFoundError, ProviderUnavailableError } from '@/lib/agent-mission-control/runner-errors'
 import { runTestSuite } from '@/lib/agent-mission-control/test-runner'
 import type { TestRun } from '@/lib/agent-mission-control/types'
@@ -14,8 +15,9 @@ import type { TestRun } from '@/lib/agent-mission-control/types'
  * Response: { ok: true; testRun: TestRun }
  *
  * Errors: 400 (missing suiteId / bad body), 404 (copilot/suite/version not
- * found), 503 (backend/env not configured), 502 (runner/OpenAI/PostgREST).
- * Mirrors the run/promotion routes' fail-closed style.
+ * found), 409 (a test run is already in progress for this suite), 503
+ * (backend/env not configured), 502 (in-flight check / runner / OpenAI /
+ * PostgREST). Mirrors the sibling benchmarks/run route's fail-closed style.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ copilotId: string }> }) {
   const { copilotId } = await params
@@ -40,6 +42,31 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (process.env.AMC_DATA_SOURCE !== 'gpu1' || !base || !key || !process.env.OPENAI_API_KEY) {
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
+  }
+
+  // Double-submit / concurrent-run guard (same read-then-branch shape as the
+  // sibling benchmarks/run route): a test run for this suite persists as
+  // `running` until runTestSuite finishes it `completed`/`aborted`. If one is
+  // already in flight for this suite, reject the duplicate instead of
+  // silently kicking off a second concurrent run against the same
+  // copilot/suite (double cost, double writes, and two runs racing to PATCH
+  // the same suite's last_run_id). This narrows — but, being check-then-act,
+  // does not fully close — the race between two requests arriving at nearly
+  // the same instant.
+  try {
+    const runningRows = await pgrest<Record<string, unknown>[]>(
+      'GET',
+      `test_runs?suite_id=eq.${encodeURIComponent(body.suiteId)}&copilot_id=eq.${encodeURIComponent(copilotId)}&status=eq.running&select=id&limit=1`
+    )
+    if (runningRows.length > 0) {
+      return NextResponse.json(
+        { error: 'a test run is already in progress for this suite', runId: runningRows[0].id },
+        { status: 409 }
+      )
+    }
+  } catch (err) {
+    console.error('[agent-ops/copilots/tests/run] failed to check for an in-flight run', err)
+    return NextResponse.json({ error: 'failed to check for an in-flight run' }, { status: 502 })
   }
 
   try {
