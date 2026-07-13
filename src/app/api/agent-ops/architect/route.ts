@@ -25,6 +25,20 @@ interface ArchitectRequestBody {
   draftId?: string
 }
 
+// Hard caps on the inbound conversation so a malformed/abusive payload can't
+// be forwarded straight into a paid OpenAI call: an unbounded message count
+// or unbounded per-message content would still pass the shape checks below
+// (array of {role, content:string}) while blowing up token cost/latency, or
+// in the extreme tying up server memory building the request body.
+const MAX_MESSAGES = 200
+const MAX_MESSAGE_CONTENT_LENGTH = 32_000
+
+// Per-call timeout for the OpenAI request. The SDK's own default (10 minutes,
+// see openai/client.d.ts) is far longer than an interactive chat endpoint
+// should ever hold a request open for — without this, a slow/hung upstream
+// leaves the route (and the caller) blocked well past any reasonable budget.
+const OPENAI_REQUEST_TIMEOUT_MS = 60_000
+
 interface ArchitectResponseBody {
   reply: string
   manifest: GeneratedManifest | null
@@ -45,15 +59,24 @@ export async function POST(request: Request) {
   if (!Array.isArray(body.messages) || body.messages.length === 0) {
     return NextResponse.json({ error: 'messages must be a non-empty array' }, { status: 400 })
   }
+  if (body.messages.length > MAX_MESSAGES) {
+    return NextResponse.json(
+      { error: `messages array too large (max ${MAX_MESSAGES})` },
+      { status: 400 }
+    )
+  }
   const invalidMessage = body.messages.some(
     (m) =>
       !m ||
       (m.role !== 'user' && m.role !== 'assistant') ||
-      typeof m.content !== 'string'
+      typeof m.content !== 'string' ||
+      m.content.length > MAX_MESSAGE_CONTENT_LENGTH
   )
   if (invalidMessage) {
     return NextResponse.json(
-      { error: 'each message must have role "user"|"assistant" and string content' },
+      {
+        error: `each message must have role "user"|"assistant" and string content (max ${MAX_MESSAGE_CONTENT_LENGTH} chars)`,
+      },
       { status: 400 }
     )
   }
@@ -75,13 +98,16 @@ export async function POST(request: Request) {
 
   let response: Awaited<ReturnType<typeof client.chat.completions.create>>
   try {
-    response = await client.chat.completions.create({
-      model: ARCHITECT_MODEL,
-      messages,
-      tools: [ARCHITECT_TOOL],
-      tool_choice: 'auto',
-      max_completion_tokens: 4096,
-    })
+    response = await client.chat.completions.create(
+      {
+        model: ARCHITECT_MODEL,
+        messages,
+        tools: [ARCHITECT_TOOL],
+        tool_choice: 'auto',
+        max_completion_tokens: 4096,
+      },
+      { timeout: OPENAI_REQUEST_TIMEOUT_MS }
+    )
   } catch (err) {
     const message = err instanceof Error ? err.message : 'OpenAI API call failed'
     return NextResponse.json({ error: `OpenAI error: ${message}` }, { status: 502 })
