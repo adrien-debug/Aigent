@@ -70,7 +70,12 @@ export async function POST(
     }
     copilotRow = rows[0]
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'PostgREST error' }, { status: 502 })
+    // Never forward the raw PostgREST error text to the client: it can
+    // contain schema/constraint details or query internals. Log server-side
+    // for debugging, return a generic message (same status code, same
+    // `error` field contract as before).
+    console.error('[agent-ops/copilots/run] failed to load copilot', err)
+    return NextResponse.json({ error: 'failed to load copilot' }, { status: 502 })
   }
 
   const versionId =
@@ -125,7 +130,9 @@ export async function POST(
       }
     }
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'PostgREST error' }, { status: 502 })
+    // Same rationale as above: don't leak raw PostgREST error text.
+    console.error('[agent-ops/copilots/run] failed to load version/manifest', err)
+    return NextResponse.json({ error: 'failed to load version or manifest' }, { status: 502 })
   }
 
   // 3) Execute — real OpenAI call + real agent_runs/agent_run_steps persistence.
