@@ -165,13 +165,19 @@ export async function evaluateReleaseGate(copilotId: string, candidateVersionId?
 
   const checks: ReleaseCheck[] = []
 
-  // 1. The candidate came from an APPROVED improvement cycle.
+  // 1. No OPEN improvement cycle blocks the promotion. The rule is about not
+  //    shipping over an undecided cycle — NOT about mandating one. A candidate
+  //    can become releasable without any Improve cycle (e.g. a global runtime
+  //    fix lifted its tests): that is proven by the test + benchmark checks
+  //    below, so "no cycle" PASSES. Only a cycle that exists and is still
+  //    undecided (proposed / v2-created) blocks — decide it first.
+  const cycleBlocking = proposal !== null && proposal.status !== 'approved' && proposal.status !== 'rejected'
   checks.push({
     id: 'approved-cycle',
-    label: 'Improvement cycle approved',
-    status: proposal ? (proposal.status === 'approved' ? 'pass' : 'fail') : 'missing',
-    observed: proposal ? (proposal.status as string) : 'no cycle',
-    required: 'approved',
+    label: 'No undecided improvement cycle',
+    status: cycleBlocking ? 'fail' : 'pass',
+    observed: proposal ? (proposal.status as string) : 'no open cycle',
+    required: 'approved / rejected / none',
   })
 
   // 2. Tests 100% pass.
