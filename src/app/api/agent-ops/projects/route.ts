@@ -105,14 +105,15 @@ export async function POST(request: Request) {
   }
 
   // 1) Create the project row. A failure here is a plain 502 (nothing to undo).
+  //    Internal errors (PostgREST status/path/body, stack traces) are logged
+  //    server-side only — the client gets a generic message so no DB/table/
+  //    query detail ever leaks over the wire.
   let projectId: string
   try {
     projectId = await createProject(body)
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'project creation failed' },
-      { status: 502 }
-    )
+    console.error('[agent-ops/projects] createProject failed:', err)
+    return NextResponse.json({ error: 'project creation failed' }, { status: 502 })
   }
 
   // 2) Create the project's dedicated assistant and persist its id. On failure,
@@ -126,13 +127,10 @@ export async function POST(request: Request) {
       metadata: { repoFullName: body.repoFullName ?? null },
     })
   } catch (err) {
+    console.error('[agent-ops/projects] ensureProjectAssistant failed:', err)
     await deleteProjectCascade(projectId).catch(() => {})
     return NextResponse.json(
-      {
-        error: `project assistant provisioning failed: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      },
+      { error: 'project assistant provisioning failed' },
       { status: 502 }
     )
   }
@@ -142,14 +140,11 @@ export async function POST(request: Request) {
   } catch (err) {
     // The row exists but couldn't be linked to its assistant — undo both so the
     // caller can retry cleanly rather than inherit an unlinked project.
+    console.error('[agent-ops/projects] setProjectAssistantId failed:', err)
     await deleteProjectAssistant(assistantId).catch(() => {})
     await deleteProjectCascade(projectId).catch(() => {})
     return NextResponse.json(
-      {
-        error: `failed to link project to its assistant: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      },
+      { error: 'failed to link project to its assistant' },
       { status: 502 }
     )
   }
