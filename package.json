@@ -14,6 +14,7 @@
     "check:ds": "node scripts/check-palette.mjs",
     "check:catalyst": "node scripts/check-catalyst.mjs",
     "check": "npm run typecheck && npm run lint && npm run check:ds && npm run check:catalyst",
+    "verify": "npm run typecheck && npm run lint && npm run check:ds && npm run check:catalyst && npm run test && npm run build",
     "reprovision": "node --env-file=.env.local $(command -v npx) -y tsx --conditions=react-server scripts/reprovision-assistants.ts",
     "test": "vitest run tests/unit",
     "test:live": "vitest run tests/live"

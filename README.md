@@ -53,11 +53,19 @@ paths fail closed with `503`.
 ## Checks
 
 ```bash
-npm run check      # typecheck + lint + design-system guard
+npm run verify     # full release gate: typecheck + lint + check:ds + check:catalyst + unit tests + build
+npm run check      # fast gate (no build/tests): typecheck + lint + check:ds + check:catalyst
 npm run typecheck  # tsc --noEmit
 npm run lint       # eslint
 npm run check:ds   # monochrome-accent + zinc palette / contrast guard
+npm run test       # vitest — offline unit suite (tests/unit/**)
+npm run test:live  # vitest — LIVE suite (tests/live/**), opt-in, hits gpu1 + OpenAI, costs money
 ```
+
+`npm run verify` is the release gate — it adds `next build` and the offline unit
+suite on top of `check`. The live suite (`test:live`) is never part of `verify`:
+it needs the real `npm run dev` stack + gpu1 PostgREST + OpenAI and self-skips
+when unreachable.
 
 The DS guard (`scripts/check-palette.mjs`) enforces the palette doctrine in
 `src/components/agent-ops/DESIGN-DOCTRINE.md` — token-only colors, WCAG AA

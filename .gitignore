@@ -49,3 +49,6 @@ next-env.d.ts
 # LangGraph API
 .langgraph_api
 .sweep/
+
+# Scratch — dumps, screenshots, ad-hoc working files (rm -rf safe, never committed)
+.scratch/
