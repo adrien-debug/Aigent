@@ -17,7 +17,8 @@ const RUNTIMES: AgentRuntime[] = ['langgraph', 'openai-assistants', 'gemini', 'c
  *         modelProvider?: ModelProvider; runtime?: AgentRuntime }
  * Response: { ok: true; benchmarkRun: BenchmarkRun }
  *
- * Errors mirror the test-runner route: 400 / 404 / 503 / 502.
+ * Errors mirror the test-runner route (400 / 404 / 503 / 502), plus a 409 when
+ * a benchmark run is already in progress for this suite/copilot.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ copilotId: string }> }) {
   const { copilotId } = await params
