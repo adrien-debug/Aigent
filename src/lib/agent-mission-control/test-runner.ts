@@ -77,10 +77,14 @@ async function loadCopilotRow(copilotId: string): Promise<RawRow> {
  * copilot is driven by the LangGraph graph (which owns its own system prompt
  * and tool gating), so those manifest fields are never injected into a test.
  */
-async function resolveVersionId(
+// Matches DEFAULT_MAX_STEPS_PER_RUN in run/route.ts and resume/route.ts — the
+// same fallback budget applies wherever a manifest doesn't specify one.
+const DEFAULT_MAX_STEPS_PER_RUN = 12
+
+async function resolveVersionIdAndMaxSteps(
   copilotRow: RawRow,
   explicitVersionId: string | undefined
-): Promise<string> {
+): Promise<{ versionId: string; maxStepsPerRun: number }> {
   const versionId =
     explicitVersionId ??
     (copilotRow.production_version_id as string | null) ??
@@ -89,11 +93,32 @@ async function resolveVersionId(
 
   const versionRows = await pgrest<RawRow[]>(
     'GET',
-    `copilot_versions?id=eq.${encodeURIComponent(versionId)}&select=id`
+    `copilot_versions?id=eq.${encodeURIComponent(versionId)}&select=id,manifest_id`
   )
   if (versionRows.length === 0) throw new NotFoundError(`version not found: ${versionId}`)
 
-  return versionId
+  let maxStepsPerRun = DEFAULT_MAX_STEPS_PER_RUN
+  const manifestId = versionRows[0].manifest_id as string | null
+  if (manifestId) {
+    const manifestRows = await pgrest<RawRow[]>(
+      'GET',
+      `manifests?id=eq.${encodeURIComponent(manifestId)}&select=max_steps_per_run`
+    )
+    // Don't trust the DB value blindly: only accept a finite integer >= 1,
+    // same guard as run/route.ts — 0/negative/NaN/Infinity/non-numeric all
+    // fall back to DEFAULT_MAX_STEPS_PER_RUN rather than an absurd budget.
+    const rawMaxSteps = manifestRows[0]?.max_steps_per_run
+    if (
+      typeof rawMaxSteps === 'number' &&
+      Number.isFinite(rawMaxSteps) &&
+      Number.isInteger(rawMaxSteps) &&
+      rawMaxSteps >= 1
+    ) {
+      maxStepsPerRun = rawMaxSteps
+    }
+  }
+
+  return { versionId, maxStepsPerRun }
 }
 
 async function loadSuiteCases(suiteId: string): Promise<TestCase[]> {
@@ -183,7 +208,8 @@ async function runCase(
   assistantId: string | undefined,
   judgeModel: string,
   judgeProvider: ModelProvider,
-  testCase: TestCase
+  testCase: TestCase,
+  maxSteps: number
 ): Promise<CaseOutcome> {
   const startedMs = Date.now()
   let costUsd = 0
@@ -196,7 +222,7 @@ async function runCase(
     //    An interrupt is the CORRECT behaviour for a case whose expectation is
     //    "ask for confirmation before acting" — we do NOT auto-approve; we
     //    observe the pause and let the judge grade it.
-    const gr = await runOnAgentServer({ userInput: testCase.input, assistantId })
+    const gr = await runOnAgentServer({ userInput: testCase.input, assistantId, maxSteps })
     costUsd += gr.costUsd
 
     // The graph's tool calls are ground truth (real names + status). Use them
@@ -354,7 +380,7 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
   // Pin the run to a real version row. The manifest's systemPromptSummary is NO
   // LONGER injected as a prompt — the LangGraph graph owns the copilot's system
   // prompt now — so we only need the version id.
-  const versionId = await resolveVersionId(copilotRow, args.versionId)
+  const { versionId, maxStepsPerRun } = await resolveVersionIdAndMaxSteps(copilotRow, args.versionId)
 
   // Confirm the suite belongs to this copilot before running anything.
   const suiteRows = await pgrest<RawRow[]>('GET', `test_suites?id=eq.${encodeURIComponent(suiteId)}&select=*`)
@@ -408,7 +434,7 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
       // runOnAgentServer on the project assistant). The manifest's forbidden
       // actions / system prompt are enforced by the graph itself, not injected
       // here — this test exercises the true deployed runtime.
-      const outcome = await runCase(assistantId, judgeModel, judgeProvider, testCase)
+      const outcome = await runCase(assistantId, judgeModel, judgeProvider, testCase, maxStepsPerRun)
       totalCostUsd += outcome.costUsd
       if (outcome.status === 'pass') passCount += 1
       if (outcome.status === 'pass' || outcome.status === 'fail' || outcome.status === 'error') evaluated += 1

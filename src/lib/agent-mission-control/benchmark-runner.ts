@@ -79,6 +79,10 @@ export interface RunBenchmarkSuiteArgs {
 
 type RawRow = Record<string, unknown>
 
+// Matches DEFAULT_MAX_STEPS_PER_RUN in run/route.ts and resume/route.ts — the
+// same fallback budget applies wherever a manifest doesn't specify one.
+const DEFAULT_MAX_STEPS_PER_RUN = 12
+
 // ---------------------------------------------------------------------------
 // Loaders (inline single-owner PostgREST GETs)
 // ---------------------------------------------------------------------------
@@ -92,7 +96,11 @@ async function loadCopilotRow(copilotId: string): Promise<RawRow> {
 async function resolveVersionAndManifest(
   copilotRow: RawRow,
   explicitVersionId: string | undefined
-): Promise<{ versionId: string; manifest: Partial<AgentManifest> & { systemPromptSummary: string } }> {
+): Promise<{
+  versionId: string
+  manifest: Partial<AgentManifest> & { systemPromptSummary: string }
+  maxStepsPerRun: number
+}> {
   const versionId =
     explicitVersionId ??
     (copilotRow.production_version_id as string | null) ??
@@ -107,6 +115,7 @@ async function resolveVersionAndManifest(
 
   let systemPromptSummary = `You are ${copilotRow.name as string}, an autonomous agent.`
   const manifest: Partial<AgentManifest> & { systemPromptSummary: string } = { systemPromptSummary }
+  let maxStepsPerRun = DEFAULT_MAX_STEPS_PER_RUN
   const manifestId = versionRows[0].manifest_id as string | null
   if (manifestId) {
     const manifestRows = await pgrest<RawRow[]>('GET', `manifests?id=eq.${encodeURIComponent(manifestId)}&select=*`)
@@ -122,9 +131,22 @@ async function resolveVersionAndManifest(
         manifest.confirmationPolicy = row.confirmation_policy as AgentManifest['confirmationPolicy']
       if (Array.isArray(row.always_confirm_actions))
         manifest.alwaysConfirmActions = row.always_confirm_actions as string[]
+      // Don't trust the DB value blindly: only accept a finite integer >= 1,
+      // same guard as run/route.ts — 0/negative/NaN/Infinity/non-numeric all
+      // fall back to DEFAULT_MAX_STEPS_PER_RUN rather than an absurd budget.
+      const rawMaxSteps = row.max_steps_per_run
+      if (
+        typeof rawMaxSteps === 'number' &&
+        Number.isFinite(rawMaxSteps) &&
+        Number.isInteger(rawMaxSteps) &&
+        rawMaxSteps >= 1
+      ) {
+        maxStepsPerRun = rawMaxSteps
+        manifest.maxStepsPerRun = rawMaxSteps
+      }
     }
   }
-  return { versionId, manifest }
+  return { versionId, manifest, maxStepsPerRun }
 }
 
 interface BenchTask {
@@ -220,12 +242,13 @@ async function runTaskOnGraph(
   allowedRoutes: string[],
   judgeModel: string,
   judgeProvider: ModelProvider,
-  task: BenchTask
+  task: BenchTask,
+  maxSteps: number
 ): Promise<TaskOutcome> {
   const startedMs = Date.now()
   let costUsd = 0
   try {
-    const gr = await runOnAgentServer({ userInput: task.input, assistantId })
+    const gr = await runOnAgentServer({ userInput: task.input, assistantId, maxSteps })
     costUsd += gr.costUsd
 
     const actualToolCalls = gr.toolCalls.map((t) => t.toolName)
@@ -486,7 +509,7 @@ export async function runBenchmarkSuite(args: RunBenchmarkSuiteArgs): Promise<Be
   const { copilotId, suiteId } = args
 
   const copilotRow = await loadCopilotRow(copilotId)
-  const { versionId, manifest } = await resolveVersionAndManifest(copilotRow, args.versionId)
+  const { versionId, manifest, maxStepsPerRun } = await resolveVersionAndManifest(copilotRow, args.versionId)
 
   const suiteRows = await pgrest<RawRow[]>('GET', `benchmark_suites?id=eq.${encodeURIComponent(suiteId)}&select=*`)
   if (suiteRows.length === 0) throw new NotFoundError(`benchmark suite not found: ${suiteId}`)
@@ -543,7 +566,7 @@ export async function runBenchmarkSuite(args: RunBenchmarkSuiteArgs): Promise<Be
     for (const task of tasks) {
       outcomes.push(
         usesRealGraph
-          ? await runTaskOnGraph(assistantId, allowedRoutes, model, modelProvider, task)
+          ? await runTaskOnGraph(assistantId, allowedRoutes, model, modelProvider, task, maxStepsPerRun)
           : await runTaskViaCompletion(
               promptWithPolicy,
               allowedRoutes,
