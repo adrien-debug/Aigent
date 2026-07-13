@@ -20,9 +20,10 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     if (!existed) return NextResponse.json({ error: 'project not found' }, { status: 404 })
     return NextResponse.json({ ok: true, deleted: true })
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'delete failed' },
-      { status: 502 }
-    )
+    // Log the full error server-side only — the underlying message can carry
+    // PostgREST internals (table/query shape, raw response body), which must
+    // never reach the client. The public contract stays a generic message.
+    console.error('[agent-ops] DELETE /projects/:id cascade failed:', err)
+    return NextResponse.json({ error: 'delete failed' }, { status: 502 })
   }
 }
