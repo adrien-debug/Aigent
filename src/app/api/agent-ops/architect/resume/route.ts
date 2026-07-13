@@ -1,5 +1,7 @@
+import { after } from 'next/server'
 import { NextResponse } from 'next/server'
 
+import { prepareAutoEval } from '@/lib/agent-mission-control/agent-autoeval'
 import { AGENT_BUILDER_SLUG } from '@/lib/agent-mission-control/agent-builder-copilot'
 import { resumeAgentBuilderRun, draftToCreateInput } from '@/lib/agent-mission-control/agent-builder-run'
 import { createCopilotFromManifest, setCopilotAssistantId } from '@/lib/agent-mission-control/authoring-writes'
@@ -116,6 +118,10 @@ export async function POST(request: Request) {
   try {
     const assistantId = await ensureCopilotAssistant({ copilotId: createdCopilotId })
     await setCopilotAssistantId(createdCopilotId, assistantId)
+    // Auto-evaluate: generate suites now, run them after the response (see the
+    // project builder resume for the rationale). Zero clicks to a first score.
+    const runEval = await prepareAutoEval(createdCopilotId)
+    after(runEval)
     return NextResponse.json({ ...state, createdCopilotId, assistantId })
   } catch (err) {
     console.error('[agent-ops/architect/resume] assistant provisioning failed', err)

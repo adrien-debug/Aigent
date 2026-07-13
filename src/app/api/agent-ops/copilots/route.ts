@@ -1,5 +1,7 @@
+import { after } from 'next/server'
 import { NextResponse } from 'next/server'
 
+import { prepareAutoEval } from '@/lib/agent-mission-control/agent-autoeval'
 import {
   createCopilotFromManifest,
   deleteCopilotCascade,
@@ -148,6 +150,11 @@ export async function POST(request: Request) {
       { status: 502 }
     )
   }
+
+  // Auto-evaluate the new agent: generate its suites now, run them after the
+  // response via after() so its pass rate + score appear without a manual run.
+  const runEval = await prepareAutoEval(copilotId)
+  after(runEval)
 
   // assistantId is additive (non-breaking): existing clients read only copilotId.
   return NextResponse.json({ ok: true, copilotId, assistantId }, { status: 201 })

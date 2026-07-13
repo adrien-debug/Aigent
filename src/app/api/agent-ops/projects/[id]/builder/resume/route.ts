@@ -1,5 +1,7 @@
+import { after } from 'next/server'
 import { NextResponse } from 'next/server'
 
+import { prepareAutoEval } from '@/lib/agent-mission-control/agent-autoeval'
 import { AGENT_BUILDER_SLUG } from '@/lib/agent-mission-control/agent-builder-copilot'
 import { resumeAgentBuilderRun, draftToCreateInput } from '@/lib/agent-mission-control/agent-builder-run'
 import { createCopilotFromManifest, setCopilotAssistantId } from '@/lib/agent-mission-control/authoring-writes'
@@ -140,6 +142,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const assistantId = await ensureCopilotAssistant({ copilotId: createdCopilotId })
     await setCopilotAssistantId(createdCopilotId, assistantId)
+    // Auto-evaluate the new agent: generate its test + benchmark suites now
+    // (synchronous, so the Quality tab is populated on this response), then run
+    // them AFTER the response via after() so the agent's pass rate + score fill
+    // in on their own — the operator never clicks "run".
+    const runEval = await prepareAutoEval(createdCopilotId)
+    after(runEval)
     return NextResponse.json({ ...state, createdCopilotId, assistantId })
   } catch (err) {
     console.error('[agent-ops/projects/builder/resume] assistant provisioning failed', err)
