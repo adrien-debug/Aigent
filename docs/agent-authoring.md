@@ -52,6 +52,29 @@ manual script required:
   otherwise). The `/admin/agents` page shows a one-click provision banner when
   it is missing. The `npm run provision:agent-builder` script (→
   `scripts/provision-agent-builder.ts`) is the CLI fallback.
+### Repo-aware project flow
+
+From a **project** the builder can read the project's linked GitHub repo and
+draft an agent contextualized to it:
+
+- **Repo scan** — `POST /api/agent-ops/projects/[id]/repo/scan` → a read-only
+  `RepoScanSummary` (stack, npm scripts, page/api routes, components, tests,
+  design-system signals, risk notes) via `src/lib/agent-mission-control/repo-scan.ts`
+  (which reads the repo tree + key files through `github.ts` — validated paths,
+  secret files denied, timeout-bounded). NEVER writes to GitHub, NEVER returns a
+  secret value.
+- **Project builder** — `/admin/projects/[id]/builder` (a "Open Agent Builder"
+  button on the project page). `POST …/projects/[id]/builder/run` scans the repo,
+  hands the summary to the graph as context, and runs to the approval interrupt.
+  On approve, `POST …/projects/[id]/builder/resume` persists the draft **attached
+  to the project** (`project_id` set, status draft, never production).
+- **Release proposal** — the run state carries a `releaseProposal`: proposed
+  scaffold files, validation commands (the repo's REAL npm gates from the scan),
+  a proposed branch, and a PR title/body. `prCreation: 'ships-next'` — NO code is
+  pushed and NO PR is created in this flow.
+
+### Bench flow
+
 - **Workbench** — `/admin/agents/[id]/builder` (a Builder tab shown ONLY on the
   Agent Builder copilot). A textarea → **Run Agent Builder** → LangGraph node
   timeline → drafted manifest / tools / tests / risks → **Approve & create

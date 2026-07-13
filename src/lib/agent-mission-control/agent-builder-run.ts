@@ -24,9 +24,14 @@
  */
 import 'server-only'
 
+import { randomUUID } from 'node:crypto'
+
+import type { CreateCopilotInput, ProposedTool } from './authoring-types'
 import { agentServerClient } from './langgraph-client'
 import { runOnAgentServer, resumeOnAgentServer, type LangGraphServerStep } from './langgraph-server'
 import { resolveRunAssistantId } from './resolve-run-assistant'
+import { slugify } from './slug'
+import type { ConfirmationPolicy, ToolRiskLevel } from './types'
 
 /** The Agent Builder's own step budget (mirrors its manifest maxStepsPerRun). */
 const AGENT_BUILDER_MAX_STEPS = 12
@@ -71,6 +76,25 @@ export interface BuilderEvent {
   status: LangGraphServerStep['status']
 }
 
+/**
+ * A repo-aware release proposal: what the drafted agent proposes to add, why,
+ * the risks, the validation commands (derived from the repo's real scripts), and
+ * a PR title/body — WITHOUT ever pushing. PR creation is deliberately deferred
+ * (`prCreation: 'ships-next'`): this lot never writes to GitHub.
+ */
+export interface BuilderReleaseProposal {
+  /** Files the agent would add on approval + push (scaffold — not written here). */
+  proposedFiles: { path: string; why: string }[]
+  risks: string[]
+  /** Validation commands to run before shipping — real repo scripts when scanned. */
+  validationCommands: string[]
+  branch: string
+  prTitle: string
+  prBody: string
+  /** Always 'ships-next' in this lot — no GitHub write route is armed here. */
+  prCreation: 'ships-next'
+}
+
 /** The complete normalized state of a builder run for the UI. */
 export interface BuilderRunState {
   runId: string
@@ -89,6 +113,10 @@ export interface BuilderRunState {
   finalText: string
   /** Set ONLY after a successful approve+resume materializes a draft copilot. */
   createdCopilotId: string | null
+  /** The project this run is scoped to (repo-aware flow), else null. */
+  projectId: string | null
+  /** Repo-aware release proposal, present once a draft exists. Never pushes. */
+  releaseProposal: BuilderReleaseProposal | null
 }
 
 type AnyMsg = {
@@ -108,6 +136,12 @@ type AnyMsg = {
 export async function startAgentBuilderRun(args: {
   copilotId: string
   userInput: string
+  /** When set, the run is scoped to this project (repo-aware flow). */
+  projectId?: string
+  /** Read-only repo scan context (from repoScanToContext) prepended to the ask. */
+  repoContext?: string
+  /** The structured scan (repo/branch/scripts) — drives the release proposal's real gates. */
+  repoScan?: { repo: string; branch: string; scripts: Record<string, string> } | null
 }): Promise<BuilderRunState> {
   // Resolve the copilot's OWN assistant (its config carries the builder's tools
   // + system prompt); falls back to the shared graph id inside runOnAgentServer.
@@ -118,9 +152,16 @@ export async function startAgentBuilderRun(args: {
     // Non-fatal — the shared graph id is used, which still runs the builder.
   }
 
+  // Prepend the repo context (if any) so the graph reasons about the REAL repo:
+  // its stack, scripts/gates, routes. The context is a bounded, secret-free
+  // summary (repo-scan.ts), never the raw tree.
+  const userInput = args.repoContext
+    ? `${args.repoContext}\n\nUsing the repo context above, ${args.userInput}`
+    : args.userInput
+
   const result = await runOnAgentServer({
     assistantId,
-    userInput: args.userInput,
+    userInput,
     maxSteps: AGENT_BUILDER_MAX_STEPS,
   })
 
@@ -135,6 +176,8 @@ export async function startAgentBuilderRun(args: {
     pendingTool: result.pendingTool ?? null,
     draft,
     createdCopilotId: null,
+    projectId: args.projectId ?? null,
+    repoScan: args.repoScan ?? null,
   })
 }
 
@@ -148,6 +191,10 @@ export async function resumeAgentBuilderRun(args: {
   copilotId: string
   runId: string
   approved: boolean
+  /** The project the run is scoped to (repo-aware flow), threaded to the state. */
+  projectId?: string
+  /** The structured scan — keeps the release proposal's gates real on resume too. */
+  repoScan?: { repo: string; branch: string; scripts: Record<string, string> } | null
 }): Promise<BuilderRunState> {
   let assistantId: string | undefined
   try {
@@ -178,6 +225,8 @@ export async function resumeAgentBuilderRun(args: {
     draft,
     forcedStatus: !args.approved && allBlocked ? 'blocked' : undefined,
     createdCopilotId: null,
+    projectId: args.projectId ?? null,
+    repoScan: args.repoScan ?? null,
   })
 }
 
@@ -261,6 +310,10 @@ interface NormalizeInput {
   } | null
   forcedStatus?: BuilderRunStatus
   createdCopilotId: string | null
+  /** Project scope (repo-aware flow), else null. */
+  projectId?: string | null
+  /** Repo scan the run was seeded with — drives the release proposal's real scripts. */
+  repoScan?: { repo: string; branch: string; scripts: Record<string, string> } | null
 }
 
 function normalizeState(input: NormalizeInput): BuilderRunState {
@@ -312,6 +365,12 @@ function normalizeState(input: NormalizeInput): BuilderRunState {
       }
     : null
 
+  // Release proposal — only meaningful once a draft exists. Never pushes; PR
+  // creation is deferred (ships-next) since no GitHub write route is armed here.
+  const releaseProposal: BuilderReleaseProposal | null = manifestDraft
+    ? buildReleaseProposal(manifestDraft, risks, input.repoScan ?? null)
+    : null
+
   return {
     runId: input.runId,
     status,
@@ -326,7 +385,143 @@ function normalizeState(input: NormalizeInput): BuilderRunState {
     pendingTool: input.pendingTool,
     finalText: input.finalText,
     createdCopilotId: input.createdCopilotId,
+    projectId: input.projectId ?? null,
+    releaseProposal,
   }
+}
+
+/**
+ * Derive a repo-aware release proposal from the drafted manifest + the repo
+ * scan. The validation commands are the repo's REAL npm scripts when a scan is
+ * present (verify/typecheck/lint/check:ds/check:catalyst/test/build in run
+ * order), else a sensible default set. It proposes the SAME scaffold files
+ * github.ts would push (handler.ts / manifest.json / README.md under
+ * agents/<slug>) — but NOTHING is written: prCreation is 'ships-next'.
+ */
+function buildReleaseProposal(
+  draft: BuilderManifestDraft,
+  risks: string[],
+  scan: { repo: string; branch: string; scripts: Record<string, string> } | null
+): BuilderReleaseProposal {
+  const slug = (draft.name ?? 'drafted-copilot')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  const dir = `agents/${slug || 'drafted-copilot'}`
+
+  // Prefer the repo's real gate order when scanned; else a safe default.
+  const GATE_ORDER = ['verify', 'typecheck', 'lint', 'check:ds', 'check:catalyst', 'test', 'build']
+  const scriptNames = scan ? Object.keys(scan.scripts) : []
+  const validationCommands =
+    scriptNames.length > 0
+      ? GATE_ORDER.filter((g) => scriptNames.includes(g)).map((g) => `npm run ${g}`)
+      : ['npm run verify']
+  if (validationCommands.length === 0) validationCommands.push('npm run verify')
+
+  const branch = `agent/${slug || 'drafted-copilot'}`
+
+  return {
+    proposedFiles: [
+      { path: `${dir}/handler.ts`, why: 'Runnable agent entry point (reads OPENAI_API_KEY at runtime; no secret embedded).' },
+      { path: `${dir}/manifest.json`, why: 'Serialized manifest — prompt, guardrails, allowed routes, cost/step limits.' },
+      { path: `${dir}/README.md`, why: 'How to run the agent + its guardrails, for repo contributors.' },
+    ],
+    risks:
+      risks.length > 0
+        ? risks
+        : ['Read-only agent — no destructive actions proposed. Human approval required before any push.'],
+    validationCommands,
+    branch,
+    prTitle: `feat(agents): add ${draft.name ?? 'drafted copilot'}`,
+    prBody: [
+      `Adds the **${draft.name ?? 'drafted copilot'}** agent scaffold under \`${dir}\`.`,
+      '',
+      draft.description ? `> ${draft.description}` : '',
+      '',
+      scan ? `Scoped to \`${scan.repo}\` (branch \`${scan.branch}\`).` : '',
+      '',
+      '## Validation',
+      validationCommands.map((c) => `- [ ] \`${c}\` passes`).join('\n'),
+      '',
+      '## Guardrails',
+      '- Read-only tools only; no destructive/write tool without confirmation.',
+      '- Never auto-promotes to production; never force-pushes.',
+      '',
+      '_Prepared by Agent Builder. No code was pushed — this PR ships on explicit approval._',
+    ]
+      .filter((l) => l !== '')
+      .join('\n'),
+    prCreation: 'ships-next',
+  }
+}
+
+/**
+ * Map a builder draft into the authoring `CreateCopilotInput`. Shared by the
+ * bench flow (architect/resume — projectId null) and the repo-aware flow
+ * (projects/[id]/builder/resume — projectId set so the draft is ATTACHED to the
+ * project). Always a DRAFT: never production, never auto-assigned targets. A
+ * random-suffixed slug avoids colliding with an earlier draft of the same name.
+ */
+export function draftToCreateInput(
+  draft: BuilderManifestDraft,
+  tools: BuilderProposedTool[],
+  projectId: string | null = null
+): CreateCopilotInput {
+  const name = draft.name?.trim() || 'Drafted Copilot'
+  const proposedTools: ProposedTool[] = tools.map((t) => ({
+    name: t.name,
+    description: `${t.name} — proposed by Agent Builder`,
+    provider: normalizeProvider(t.provider),
+    riskLevel: normalizeRisk(t.riskLevel),
+    requiresConfirmation: t.requiresConfirmation === true,
+  }))
+
+  return {
+    name,
+    slug: `${slugify(name)}-draft-${randomUUID().replace(/-/g, '').slice(0, 8)}`,
+    description: draft.description?.trim() || 'Drafted by Agent Builder Copilot, awaiting human review.',
+    runtime: 'langgraph',
+    model: draft.suggestedModel?.trim() || 'gpt-5.4',
+    modelProvider: 'openai',
+    owner: 'agent-builder',
+    // 'bench' tag only when unattached; a project-scoped draft is not on the bench.
+    tags: projectId ? ['drafted', 'agent-builder', 'repo-aware'] : ['drafted', 'agent-builder', 'bench'],
+    // Attach to the project when repo-aware; else stay on the bench. Never production.
+    projectId,
+    targetProjectIds: [],
+    manifest: {
+      systemPromptSummary:
+        draft.systemPromptSummary?.trim() || `${name}: ${draft.description ?? ''} Operates read-only, human-in-the-loop.`,
+      allowedRoutes: draft.allowedRoutes ?? ['/admin/agents', '/admin/agents/*'],
+      forbiddenActions: draft.forbiddenActions ?? [
+        'auto-promote to production',
+        'push to external repos',
+        'create write-capable tools without requiresConfirmation and a risk flag',
+        'bypass any confirmation prompt or promotion gate',
+      ],
+      confirmationPolicy: normalizePolicy(draft.confirmationPolicy),
+      alwaysConfirmActions: ['create a draft copilot', 'run a benchmark', 'prepare a production promotion'],
+      outputContract: {
+        format: 'markdown',
+        schemaName: null,
+        invariants: ['never promotes to production autonomously', 'prefers read-only, least-privilege proposals'],
+      },
+      proposedTools,
+      maxStepsPerRun: draft.maxStepsPerRun ?? 12,
+      maxCostPerRunUsd: draft.maxCostPerRunUsd ?? 0.5,
+    },
+  }
+}
+
+function normalizeRisk(r: string | undefined): ToolRiskLevel {
+  return r === 'low' || r === 'medium' || r === 'high' || r === 'critical' ? r : 'medium'
+}
+function normalizeProvider(p: string | undefined): ProposedTool['provider'] {
+  return p === 'internal' || p === 'composio' || p === 'mcp' || p === 'http' ? p : 'internal'
+}
+function normalizePolicy(p: string | undefined): ConfirmationPolicy {
+  return p === 'always' || p === 'risky-only' || p === 'never' ? p : 'risky-only'
 }
 
 /**

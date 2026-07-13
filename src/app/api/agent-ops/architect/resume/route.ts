@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server'
 
 import { AGENT_BUILDER_SLUG } from '@/lib/agent-mission-control/agent-builder-copilot'
-import { resumeAgentBuilderRun, type BuilderManifestDraft, type BuilderProposedTool } from '@/lib/agent-mission-control/agent-builder-run'
-import type { CreateCopilotInput, ProposedTool } from '@/lib/agent-mission-control/authoring-types'
+import { resumeAgentBuilderRun, draftToCreateInput } from '@/lib/agent-mission-control/agent-builder-run'
 import { createCopilotFromManifest } from '@/lib/agent-mission-control/authoring-writes'
 import { pgrest } from '@/lib/agent-mission-control/postgrest'
-import { slugify } from '@/lib/agent-mission-control/slug'
-import type { ConfirmationPolicy, ToolRiskLevel } from '@/lib/agent-mission-control/types'
 
 /**
  * POST /api/agent-ops/architect/resume — the human-in-the-loop decision for a
@@ -103,77 +100,4 @@ export async function POST(request: Request) {
       { status: 502 }
     )
   }
-}
-
-/**
- * Map the graph's parsed draft into the authoring `CreateCopilotInput`. The new
- * copilot is a DRAFT on the bench: status is forced to draft by the write layer,
- * project_id stays null, runtime/model default to the platform's (langgraph /
- * gpt-5.4). A random-suffixed slug avoids colliding with an earlier draft of the
- * same name.
- */
-function draftToCreateInput(draft: BuilderManifestDraft, tools: BuilderProposedTool[]): CreateCopilotInput {
-  const name = draft.name?.trim() || 'Drafted Copilot'
-  const proposedTools: ProposedTool[] = (tools.length > 0 ? tools : []).map((t) => ({
-    name: t.name,
-    description: `${t.name} — proposed by Agent Builder`,
-    provider: normalizeProvider(t.provider),
-    riskLevel: normalizeRisk(t.riskLevel),
-    requiresConfirmation: t.requiresConfirmation === true,
-  }))
-
-  return {
-    name,
-    // Unique slug so repeated approvals of a same-named draft don't collide.
-    slug: `${slugify(name)}-draft-${randSuffix()}`,
-    description: draft.description?.trim() || 'Drafted by Agent Builder Copilot, awaiting human review.',
-    runtime: 'langgraph',
-    model: draft.suggestedModel?.trim() || 'gpt-5.4',
-    modelProvider: 'openai',
-    owner: 'agent-builder',
-    tags: ['drafted', 'agent-builder', 'bench'],
-    // On the bench — a human validates before assignment. Never production.
-    projectId: null,
-    targetProjectIds: [],
-    manifest: {
-      systemPromptSummary:
-        draft.systemPromptSummary?.trim() || `${name}: ${draft.description ?? ''} Operates read-only, human-in-the-loop.`,
-      allowedRoutes: draft.allowedRoutes ?? ['/admin/agents', '/admin/agents/*'],
-      forbiddenActions: draft.forbiddenActions ?? [
-        'auto-promote to production',
-        'push to external repos',
-        'create write-capable tools without requiresConfirmation and a risk flag',
-        'bypass any confirmation prompt or promotion gate',
-      ],
-      confirmationPolicy: normalizePolicy(draft.confirmationPolicy),
-      alwaysConfirmActions: ['create a draft copilot', 'run a benchmark', 'prepare a production promotion'],
-      outputContract: {
-        format: 'markdown',
-        schemaName: null,
-        invariants: ['never promotes to production autonomously', 'prefers read-only, least-privilege proposals'],
-      },
-      proposedTools,
-      maxStepsPerRun: draft.maxStepsPerRun ?? 12,
-      maxCostPerRunUsd: draft.maxCostPerRunUsd ?? 0.5,
-    },
-  }
-}
-
-/** 8 hex chars of non-predictable slug suffix (crypto, never Math.random). */
-function randSuffix(): string {
-  return crypto.randomUUID().replace(/-/g, '').slice(0, 8)
-}
-
-function normalizeRisk(r: string | undefined): ToolRiskLevel {
-  // Never DOWNGRADE an unknown/higher risk to low — default unknown to 'medium'
-  // so a mislabelled tool errs toward more caution, not less.
-  return r === 'low' || r === 'medium' || r === 'high' || r === 'critical' ? r : 'medium'
-}
-
-function normalizeProvider(p: string | undefined): ProposedTool['provider'] {
-  return p === 'internal' || p === 'composio' || p === 'mcp' || p === 'http' ? p : 'internal'
-}
-
-function normalizePolicy(p: string | undefined): ConfirmationPolicy {
-  return p === 'always' || p === 'risky-only' || p === 'never' ? p : 'risky-only'
 }
