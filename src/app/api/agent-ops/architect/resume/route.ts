@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 
 import { AGENT_BUILDER_SLUG } from '@/lib/agent-mission-control/agent-builder-copilot'
 import { resumeAgentBuilderRun, draftToCreateInput } from '@/lib/agent-mission-control/agent-builder-run'
-import { createCopilotFromManifest } from '@/lib/agent-mission-control/authoring-writes'
+import { createCopilotFromManifest, setCopilotAssistantId } from '@/lib/agent-mission-control/authoring-writes'
+import { ensureCopilotAssistant } from '@/lib/agent-mission-control/langgraph-assistants'
 import { pgrest } from '@/lib/agent-mission-control/postgrest'
 
 /**
@@ -87,10 +88,10 @@ export async function POST(request: Request) {
   // APPROVED + a draft exists → persist it as a real draft copilot on the bench.
   // This is the approved side-effect: a materialized draft the operator can then
   // inspect, test and (separately, later, with its own approval) promote.
+  let createdCopilotId: string
   try {
     const createInput = draftToCreateInput(state.manifestDraft, state.selectedTools)
-    const createdCopilotId = await createCopilotFromManifest(createInput)
-    return NextResponse.json({ ...state, createdCopilotId })
+    createdCopilotId = await createCopilotFromManifest(createInput)
   } catch (err) {
     // The draft was approved but persistence failed — report it honestly rather
     // than claiming a copilot was created. The run itself succeeded.
@@ -99,5 +100,30 @@ export async function POST(request: Request) {
       { ...state, createdCopilotId: null, persistError: 'the draft was approved but could not be saved — retry' },
       { status: 502 }
     )
+  }
+
+  // Provision the draft's DEDICATED LangGraph assistant (config.configurable
+  // derived from the manifest + tools just written) and persist its id — the
+  // SAME step the standalone copilot path runs (copilots/route.ts, fix b540512)
+  // and the project builder path (fix for the null assistant_id). Without it the
+  // bench draft has a null assistant_id and its runs fall back to the shared
+  // graph instead of its own behaviour config.
+  //
+  // On a provisioning failure the draft is KEPT (it is a full agent that merely
+  // lacks its live assistant; ensureCopilotAssistant is idempotent on the
+  // deterministic id, so reprovision recovers it) with an honest warning —
+  // rather than discarding the operator's approved work.
+  try {
+    const assistantId = await ensureCopilotAssistant({ copilotId: createdCopilotId })
+    await setCopilotAssistantId(createdCopilotId, assistantId)
+    return NextResponse.json({ ...state, createdCopilotId, assistantId })
+  } catch (err) {
+    console.error('[agent-ops/architect/resume] assistant provisioning failed', err)
+    return NextResponse.json({
+      ...state,
+      createdCopilotId,
+      assistantId: null,
+      assistantError: 'the draft was created but its LangGraph assistant could not be provisioned — reprovision it from the agent page',
+    })
   }
 }
