@@ -15,6 +15,7 @@ import { Field, Label } from '@/components/catalyst/fieldset'
 import { Input, InputGroup } from '@/components/catalyst/input'
 import { Link } from '@/components/catalyst/link'
 import { Select } from '@/components/catalyst/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { formatPercent } from '@/lib/agent-mission-control/format'
 import { AGENT_RUNTIME_LABELS, COPILOT_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
 import type { AgentRuntime, Copilot, CopilotStatus, Project } from '@/lib/agent-mission-control/types'
@@ -69,18 +70,18 @@ function BenchRow({
 }) {
   const href = `/admin/agents/${copilot.id}`
   return (
-    <tr className="transition-colors duration-150 hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
-      <td className="py-5 pr-3 pl-4 text-sm whitespace-nowrap">
+    <TableRow className="transition-colors duration-150 hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
+      <TableCell className="py-5 text-sm whitespace-nowrap">
         <NameCell copilot={copilot} />
-      </td>
-      <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
+      </TableCell>
+      <TableCell className="py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
         <div className="text-zinc-950 dark:text-white">{AGENT_RUNTIME_LABELS[copilot.runtime]}</div>
         <div className="mt-1 font-mono text-xs tabular-nums text-zinc-500">{copilot.model}</div>
-      </td>
-      <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
+      </TableCell>
+      <TableCell className="py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
         {COPILOT_STATUS_LABELS[copilot.status]}
-      </td>
-      <td className="px-3 py-5 text-sm whitespace-nowrap">
+      </TableCell>
+      <TableCell className="py-5 text-sm whitespace-nowrap">
         {copilot.health.testPassRate === 0 ? (
           <div className="font-mono text-zinc-500 tabular-nums">
             <span aria-hidden="true">—</span>
@@ -92,13 +93,13 @@ function BenchRow({
         <div className="mt-1 font-mono text-xs tabular-nums text-zinc-500">
           {copilot.health.benchmarkScore === 0 ? 'bench —' : `bench ${copilot.health.benchmarkScore}`}
         </div>
-      </td>
-      <td className="px-3 py-5 text-right text-sm whitespace-nowrap">
+      </TableCell>
+      <TableCell className="py-5 text-right text-sm whitespace-nowrap">
         <span className="font-mono text-zinc-700 dark:text-zinc-300 tabular-nums">
           {copilot.health.runsLast24h.toLocaleString('en-US')}
         </span>
-      </td>
-      <td className="px-3 py-5 text-sm">
+      </TableCell>
+      <TableCell className="py-5 text-sm">
         {copilot.targetProjectIds.length === 0 ? (
           <span className="text-zinc-500">
             <span aria-hidden="true">—</span>
@@ -109,8 +110,8 @@ function BenchRow({
             {copilot.targetProjectIds.map((projectId) => projectNameById.get(projectId) ?? projectId).join(' · ')}
           </span>
         )}
-      </td>
-      <td className="py-5 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap">
+      </TableCell>
+      <TableCell className="py-5 text-right text-sm font-medium whitespace-nowrap">
         <div className="flex items-center justify-end gap-2">
           <SoftAccentButton onClick={() => onAssign(copilot)}>
             Assign…<span className="sr-only"> {copilot.name} to a project</span>
@@ -127,8 +128,8 @@ function BenchRow({
             </DropdownMenu>
           </Dropdown>
         </div>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   )
 }
 
@@ -149,26 +150,26 @@ function AllRow({
 }) {
   const href = `/admin/agents/${copilot.id}`
   return (
-    <tr className="transition-colors duration-150 hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
-      <td className="py-5 pr-3 pl-4 text-sm whitespace-nowrap">
+    <TableRow className="transition-colors duration-150 hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
+      <TableCell className="py-5 text-sm whitespace-nowrap">
         <NameCell copilot={copilot} />
-      </td>
-      <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
+      </TableCell>
+      <TableCell className="py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
         <div className="text-zinc-950 dark:text-white">{AGENT_RUNTIME_LABELS[copilot.runtime]}</div>
         <div className="mt-1 font-mono text-xs tabular-nums text-zinc-500">{copilot.model}</div>
-      </td>
-      <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
+      </TableCell>
+      <TableCell className="py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
         {COPILOT_STATUS_LABELS[copilot.status]}
-      </td>
-      <td className="px-3 py-5 text-sm whitespace-nowrap">
+      </TableCell>
+      <TableCell className="py-5 text-sm whitespace-nowrap">
         {copilot.projectId === null ? (
           <span className="text-zinc-500">On bench</span>
         ) : (
           <span className="text-zinc-700 dark:text-zinc-300">{projectNameById.get(copilot.projectId) ?? copilot.projectId}</span>
         )}
-      </td>
-      <td className="px-3 py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">{copilot.owner}</td>
-      <td className="py-5 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap">
+      </TableCell>
+      <TableCell className="py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">{copilot.owner}</TableCell>
+      <TableCell className="py-5 text-right text-sm font-medium whitespace-nowrap">
         <div className="flex items-center justify-end gap-2">
           <Link href={href} className="text-accent-400 hover:text-accent-300">
             Open<span className="sr-only">, {copilot.name}</span>
@@ -185,8 +186,8 @@ function AllRow({
             </DropdownMenu>
           </Dropdown>
         </div>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   )
 }
 
@@ -342,64 +343,48 @@ export function CopilotRegistryTable({
 
       <div className="mt-6">
         {filtered.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="relative min-w-full divide-y divide-zinc-950/10 dark:divide-white/15">
-              <thead className="bg-zinc-950/[0.025] dark:bg-white/[0.04]">
-                <tr>
-                  <th scope="col" className="py-3.5 pr-3 pl-4 text-left text-sm font-semibold text-zinc-950 dark:text-white">
-                    Name
-                  </th>
-                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-zinc-950 dark:text-white">
-                    Runtime
-                  </th>
-                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-zinc-950 dark:text-white">
-                    Status
-                  </th>
-                  {view === 'bench' ? (
-                    <>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-zinc-950 dark:text-white">
-                        Tests
-                      </th>
-                      <th scope="col" className="px-3 py-3.5 text-right text-sm font-semibold text-zinc-950 dark:text-white">
-                        Runs 24h
-                      </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-zinc-950 dark:text-white">
-                        Destination
-                      </th>
-                    </>
-                  ) : (
-                    <>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-zinc-950 dark:text-white">
-                        Project
-                      </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-zinc-950 dark:text-white">
-                        Owner
-                      </th>
-                    </>
-                  )}
-                  <th scope="col" className="py-3.5 pr-4 pl-3">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-950/5 dark:divide-white/5 [&>tr:nth-child(even)]:bg-zinc-950/[0.025] dark:[&>tr:nth-child(even)]:bg-white/[0.055]">{activeRows.map(renderRow)}</tbody>
+          <Table>
+            <TableHead className="bg-zinc-950/[0.025] dark:bg-white/[0.04]">
+              <TableRow>
+                <TableHeader>Name</TableHeader>
+                <TableHeader>Runtime</TableHeader>
+                <TableHeader>Status</TableHeader>
+                {view === 'bench' ? (
+                  <>
+                    <TableHeader>Tests</TableHeader>
+                    <TableHeader className="text-right">Runs 24h</TableHeader>
+                    <TableHeader>Destination</TableHeader>
+                  </>
+                ) : (
+                  <>
+                    <TableHeader>Project</TableHeader>
+                    <TableHeader>Owner</TableHeader>
+                  </>
+                )}
+                <TableHeader>
+                  <span className="sr-only">Actions</span>
+                </TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody className="divide-y divide-zinc-950/5 dark:divide-white/5 [&>tr:nth-child(even)]:bg-zinc-950/[0.025] dark:[&>tr:nth-child(even)]:bg-white/[0.055]">
+              {activeRows.map(renderRow)}
+            </TableBody>
 
-              {pausedRows.length > 0 ? (
-                <tbody className="divide-y divide-zinc-950/5 dark:divide-white/5 border-t border-zinc-950/10 dark:border-white/15 [&>tr:nth-child(even)]:bg-zinc-950/[0.025] dark:[&>tr:nth-child(even)]:bg-white/[0.055]">
-                  <tr>
-                    <th
-                      scope="colgroup"
-                      colSpan={columnCount}
-                      className="py-2 pr-3 pl-4 text-left text-xs font-medium tracking-wide text-zinc-500 uppercase"
-                    >
-                      Paused
-                    </th>
-                  </tr>
-                  {pausedRows.map(renderRow)}
-                </tbody>
-              ) : null}
-            </table>
-          </div>
+            {pausedRows.length > 0 ? (
+              <TableBody className="divide-y divide-zinc-950/5 dark:divide-white/5 border-t border-zinc-950/10 dark:border-white/15 [&>tr:nth-child(even)]:bg-zinc-950/[0.025] dark:[&>tr:nth-child(even)]:bg-white/[0.055]">
+                <TableRow>
+                  <TableHeader
+                    scope="colgroup"
+                    colSpan={columnCount}
+                    className="py-2 text-xs font-medium tracking-wide text-zinc-500 uppercase"
+                  >
+                    Paused
+                  </TableHeader>
+                </TableRow>
+                {pausedRows.map(renderRow)}
+              </TableBody>
+            ) : null}
+          </Table>
         ) : (
           <EmptyState
             icon={MagnifyingGlassIcon}

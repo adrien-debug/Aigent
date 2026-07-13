@@ -1,6 +1,7 @@
 'use client'
 
 import { XMarkIcon } from '@heroicons/react/16/solid'
+import * as Headless from '@headlessui/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 
@@ -178,14 +179,13 @@ export function AssignProjectDialog({
                   className="inline-flex items-center gap-1 rounded-md bg-zinc-950/5 py-0.5 pr-1 pl-2 text-xs text-zinc-700 ring-1 ring-zinc-950/10 dark:bg-white/5 dark:text-zinc-300 dark:ring-white/10"
                 >
                   {projectNameById.get(targetId) ?? targetId}
-                  <button
-                    type="button"
+                  <Headless.Button
                     onClick={() => removeTarget(targetId)}
                     className="rounded-sm p-0.5 text-zinc-500 hover:text-zinc-950 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-500 dark:hover:text-white"
                   >
                     <XMarkIcon aria-hidden="true" className="size-3.5" />
                     <span className="sr-only">Remove destination {projectNameById.get(targetId) ?? targetId}</span>
-                  </button>
+                  </Headless.Button>
                 </span>
               ))
             )}

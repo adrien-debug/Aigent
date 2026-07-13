@@ -1,3 +1,5 @@
+import * as Headless from '@headlessui/react'
+
 import { Link } from '@/components/catalyst/link'
 
 /**
@@ -27,10 +29,10 @@ export function SoftAccentButton({
   onClick,
   children,
   ...props
-}: { onClick: () => void } & Omit<React.ComponentPropsWithoutRef<'button'>, 'className' | 'onClick'>) {
+}: { onClick: () => void } & Omit<Headless.ButtonProps, 'className' | 'onClick'>) {
   return (
-    <button type="button" onClick={onClick} className={softAccentClass} {...props}>
+    <Headless.Button onClick={onClick} className={softAccentClass} {...props}>
       {children}
-    </button>
+    </Headless.Button>
   )
 }

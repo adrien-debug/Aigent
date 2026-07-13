@@ -1,6 +1,7 @@
 'use client'
 
 import { PlusIcon } from '@heroicons/react/16/solid'
+import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
 import { useState } from 'react'
 
@@ -41,9 +42,8 @@ export function RegistryView({
             className="inline-flex rounded-lg bg-zinc-950/5 p-1 dark:bg-white/5"
           >
             {options.map((option) => (
-              <button
+              <Headless.Button
                 key={option.value}
-                type="button"
                 aria-pressed={view === option.value}
                 onClick={() => setView(option.value)}
                 className={clsx(
@@ -54,7 +54,7 @@ export function RegistryView({
                 )}
               >
                 {option.label}
-              </button>
+              </Headless.Button>
             ))}
           </div>
           <SoftAccentLink href="/admin/agents/new">

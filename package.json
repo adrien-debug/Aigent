@@ -12,7 +12,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "check:ds": "node scripts/check-palette.mjs",
-    "check": "npm run typecheck && npm run lint && npm run check:ds",
+    "check:catalyst": "node scripts/check-catalyst.mjs",
+    "check": "npm run typecheck && npm run lint && npm run check:ds && npm run check:catalyst",
     "reprovision": "node --env-file=.env.local $(command -v npx) -y tsx --conditions=react-server scripts/reprovision-assistants.ts",
     "test": "vitest run tests/unit",
     "test:live": "vitest run tests/live"
@@ -26,6 +27,7 @@
     "@langchain/langgraph-sdk": "^1.9.25",
     "@langchain/openai": "^1.5.5",
     "clsx": "^2.1.1",
+    "motion": "^12.42.2",
     "next": "16.2.10",
     "openai": "^6.46.0",
     "react": "19.2.4",

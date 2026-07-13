@@ -7,6 +7,7 @@ import {
   FolderIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline'
+import * as Headless from '@headlessui/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 
@@ -257,8 +258,7 @@ export function NewProjectWorkbench() {
                 const isSelected = selected?.fullName === repo.fullName
                 return (
                   <li key={repo.fullName}>
-                    <button
-                      type="button"
+                    <Headless.Button
                       onClick={() => void selectRepo(repo)}
                       aria-pressed={isSelected}
                       className={
@@ -283,7 +283,7 @@ export function NewProjectWorkbench() {
                       <p className="mt-1 text-xs text-zinc-500 tabular-nums dark:text-zinc-500">
                         Updated {formatUpdated(repo.updatedAt)}
                       </p>
-                    </button>
+                    </Headless.Button>
                   </li>
                 )
               })}

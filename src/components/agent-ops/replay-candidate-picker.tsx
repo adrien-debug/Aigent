@@ -1,5 +1,6 @@
 'use client'
 
+import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
 import { useState } from 'react'
 
@@ -87,13 +88,12 @@ export function ReplayCandidatePicker({ items }: { items: ReplayCandidateItem[] 
           const matchPct = candidate.matchRate === null ? null : Math.round(candidate.matchRate * 100)
 
           return (
-            <button
+            <Headless.Button
               key={candidate.id}
-              type="button"
               aria-pressed={isSelected}
               onClick={() => setSelectedId(candidate.id)}
               className={clsx(
-                'rounded-lg p-4 text-left transition-colors duration-150',
+                'w-full rounded-lg p-4 text-left transition-colors duration-150',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
                 isSelected
                   ? 'bg-zinc-100 ring-2 ring-accent-500/60 dark:bg-zinc-950'
@@ -117,7 +117,7 @@ export function ReplayCandidatePicker({ items }: { items: ReplayCandidateItem[] 
                 />
               </span>
               <span className="mt-3 block text-xs text-zinc-500">{candidate.notes}</span>
-            </button>
+            </Headless.Button>
           )
         })}
       </div>
