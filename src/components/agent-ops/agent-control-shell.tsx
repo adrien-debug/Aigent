@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowRightStartOnRectangleIcon, Cog6ToothIcon, CpuChipIcon, FolderIcon, Squares2X2Icon } from '@heroicons/react/20/solid'
+import { ArrowRightStartOnRectangleIcon, Cog6ToothIcon, CpuChipIcon, FolderIcon, ShareIcon, Squares2X2Icon } from '@heroicons/react/20/solid'
 import clsx from 'clsx'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -36,6 +36,7 @@ const NAV_ITEMS = [
   { label: 'Dashboard', icon: Squares2X2Icon, href: '/admin', match: (p: string) => p === '/admin' },
   { label: 'Copilots', icon: CpuChipIcon, href: '/admin/agents', match: (p: string) => p === '/admin/agents' || p.startsWith('/admin/agents/') },
   { label: 'Projects', icon: FolderIcon, href: '/admin/projects', match: (p: string) => p.startsWith('/admin/projects') },
+  { label: 'LangGraph', icon: ShareIcon, href: '/admin/langgraph', match: (p: string) => p.startsWith('/admin/langgraph') },
   { label: 'Settings', icon: Cog6ToothIcon, href: '/admin/settings', match: (p: string) => p.startsWith('/admin/settings') },
 ] as const
 

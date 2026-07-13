@@ -1,6 +1,7 @@
 'use client'
 
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { Link } from '@/components/catalyst/link'
 import { Text } from '@/components/catalyst/text'
 
 /** The LangGraph debug metadata a builder run carries (mirror of BuilderRunState.langgraph). */
@@ -16,16 +17,19 @@ export interface LangGraphDebugInfo {
  * correspondence explicit: which graph ran, on which Agent Server, under which
  * assistant, and the thread id (= the run id) that keys the run's state.
  *
- * It also builds the LangGraph Studio deep-link (the hosted Studio at
- * smith.langchain.com pointed at THIS Agent Server) — the way to open the run's
- * graph visually. Shows only non-secret values: the Agent Server URL is the
- * localhost dev address; no token/secret is ever rendered.
+ * It builds the LangGraph Studio deep-link (hosted Studio at smith.langchain.com
+ * pointed at THIS Agent Server — works for the local dev server AND the prod
+ * server agent.hearst.app), plus in-app links to the LangGraph run explorer and
+ * this exact thread. Shows only non-secret values — the Agent Server URL and ids
+ * are safe; no token/`x-agent-key`/header is ever rendered.
  */
 export function LangGraphDebugPanel({ info, status }: { info: LangGraphDebugInfo; status: string }) {
   const studioUrl = `https://smith.langchain.com/studio/?baseUrl=${encodeURIComponent(info.agentServerUrl)}`
-  // Only surface a Studio deep-link for a local Agent Server — a remote/public
-  // base URL is not exposed here (dev/operator convenience only).
-  const isLocal = /(^https?:\/\/)(127\.0\.0\.1|localhost)(:|\/|$)/.test(info.agentServerUrl)
+  // Offer the Studio deep-link for any real http(s) Agent Server — the local dev
+  // server (127.0.0.1/localhost) OR the prod server (agent.hearst.app). Studio
+  // just needs a reachable baseUrl; there's no reason to hide it for prod.
+  const hasServer = /^https?:\/\/.+/.test(info.agentServerUrl)
+  const runsHref = info.threadId ? `/admin/langgraph?threadId=${encodeURIComponent(info.threadId)}` : '/admin/langgraph'
 
   return (
     <AgentSectionCard
@@ -39,23 +43,30 @@ export function LangGraphDebugPanel({ info, status }: { info: LangGraphDebugInfo
         <Row label="Assistant id" value={info.assistantId ?? 'bare graph (no dedicated assistant)'} mono />
         <Row label="Agent Server" value={info.agentServerUrl} mono />
       </dl>
-      {isLocal ? (
-        <div className="mt-4 space-y-1.5">
+
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+        <Link
+          href={runsHref}
+          className="text-sm font-medium text-accent-700 hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300 dark:hover:text-accent-200"
+        >
+          {info.threadId ? 'Open thread in LangGraph Runs →' : 'Open LangGraph Runs →'}
+        </Link>
+        {hasServer ? (
           <a
             href={studioUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex text-sm font-medium text-accent-700 hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300 dark:hover:text-accent-200"
+            className="text-sm font-medium text-accent-700 hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300 dark:hover:text-accent-200"
           >
             Open in LangGraph Studio →
           </a>
-          <Text className="!text-xs">
-            The <code className="font-mono">langgraphjs dev</code> server keeps threads/runs in memory only — a run is
-            reachable by its thread id within the same server session, and drops on restart. Aigent is the durable
-            source of truth for a run&apos;s state.
-          </Text>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
+
+      <Text className="mt-3 !text-xs">
+        Runs execute on the Agent Server above (the prod server in production). Aigent is the durable operator view;
+        LangGraph Runs lists the live threads, and Studio opens the graph visually.
+      </Text>
     </AgentSectionCard>
   )
 }
