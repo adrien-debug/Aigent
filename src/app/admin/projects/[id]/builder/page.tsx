@@ -47,7 +47,11 @@ export default async function ProjectBuilderPage({
         </Link>
       </nav>
 
-      <AgentPageHeader title="Agent Builder" description="Draft a repo-aware agent for this project." className="mt-3" />
+      <AgentPageHeader
+        title="Agent Builder"
+        description="Discuss repo-aware agent options with the architect — prepare a draft only after explicit approval."
+        className="mt-3"
+      />
 
       <div className="mt-6 lg:mt-8">
         <ProjectAgentBuilderWorkbench

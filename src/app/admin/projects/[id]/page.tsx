@@ -257,7 +257,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           actions={
             <div className="flex items-center gap-3">
               <Button href={`/admin/projects/${project.id}/builder`} color="accent">
-                Open Agent Builder
+                Discuss with Builder
               </Button>
               <ProjectDeleteAction project={{ id: project.id, name: project.name }} />
             </div>
