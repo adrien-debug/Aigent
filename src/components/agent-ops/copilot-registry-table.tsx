@@ -1,21 +1,21 @@
 'use client'
 
 import { EllipsisVerticalIcon, MagnifyingGlassIcon } from '@heroicons/react/16/solid'
+import * as Headless from '@headlessui/react'
 import { useMemo, useState } from 'react'
 
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { AssignProjectDialog, UnassignCopilotDialog } from '@/components/agent-ops/assign-project-dialog'
 import { DeleteCopilotDialog } from '@/components/agent-ops/delete-copilot-dialog'
 import { EmptyState } from '@/components/agent-ops/empty-state'
-import { SoftAccentButton } from '@/components/agent-ops/soft-accent-link'
 import { Avatar } from '@/components/catalyst/avatar'
+import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Dropdown, DropdownButton, DropdownItem, DropdownMenu } from '@/components/catalyst/dropdown'
 import { Field, Label } from '@/components/catalyst/fieldset'
 import { Input, InputGroup } from '@/components/catalyst/input'
 import { Link } from '@/components/catalyst/link'
 import { Select } from '@/components/catalyst/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { formatPercent } from '@/lib/agent-mission-control/format'
 import { AGENT_RUNTIME_LABELS, COPILOT_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
 import type { AgentRuntime, Copilot, CopilotStatus, Project } from '@/lib/agent-mission-control/types'
@@ -25,6 +25,16 @@ export type RegistryTableView = 'bench' | 'all'
 const RUNTIME_OPTIONS = Object.keys(AGENT_RUNTIME_LABELS) as AgentRuntime[]
 const STATUS_OPTIONS = Object.keys(COPILOT_STATUS_LABELS) as CopilotStatus[]
 
+// Mono-accent ladder only (see badge.tsx) — 'active' is the one state that
+// earns the solid accent, everything else stays on the zinc/soft rungs.
+const STATUS_BADGE_COLOR: Record<CopilotStatus, 'accentSolid' | 'accentStrong' | 'zinc'> = {
+  active: 'accentSolid',
+  degraded: 'accentStrong',
+  draft: 'zinc',
+  paused: 'zinc',
+  archived: 'zinc',
+}
+
 /** Two-letter initials from a copilot name, for the generated avatar. */
 function initialsFor(name: string): string {
   const parts = name.trim().split(/\s+/)
@@ -32,32 +42,11 @@ function initialsFor(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-function NameCell({ copilot }: { copilot: Copilot }) {
-  const href = `/admin/agents/${copilot.id}`
-  return (
-    <div className="flex items-center">
-      <Avatar
-        initials={initialsFor(copilot.name)}
-        alt=""
-        className="size-11 shrink-0 bg-zinc-800 text-white"
-      />
-      <div className="ml-4 min-w-0">
-        <div className="truncate font-medium text-zinc-950 dark:text-white">
-          <Link href={href} title={copilot.name} className="hover:underline">
-            {copilot.name}
-          </Link>
-        </div>
-        <div className="mt-1 truncate font-mono text-xs text-zinc-500">{copilot.slug}</div>
-      </div>
-    </div>
-  )
-}
-
 /**
- * Bench row — readiness first: tests, runs, destination target chips, and the
- * "Assign…" action that validates the copilot onto a project.
+ * Bench card — readiness first: tests, runs, destination target chips, and
+ * the "Assign…" action that validates the copilot onto a project.
  */
-function BenchRow({
+function BenchCard({
   copilot,
   projectNameById,
   onAssign,
@@ -70,57 +59,82 @@ function BenchRow({
 }) {
   const href = `/admin/agents/${copilot.id}`
   return (
-    <TableRow className="transition-colors duration-150 hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
-      <TableCell className="py-5 text-sm whitespace-nowrap">
-        <NameCell copilot={copilot} />
-      </TableCell>
-      <TableCell className="py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
-        <div className="text-zinc-950 dark:text-white">{AGENT_RUNTIME_LABELS[copilot.runtime]}</div>
-        <div className="mt-1 font-mono text-xs tabular-nums text-zinc-500">{copilot.model}</div>
-      </TableCell>
-      <TableCell className="py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
-        {COPILOT_STATUS_LABELS[copilot.status]}
-      </TableCell>
-      <TableCell className="py-5 text-sm whitespace-nowrap">
-        {copilot.health.testPassRate === 0 ? (
-          <div className="font-mono text-zinc-500 tabular-nums">
-            <span aria-hidden="true">—</span>
-            <span className="sr-only">not tested</span>
+    <li className="col-span-1 divide-y divide-zinc-950/10 rounded-lg bg-zinc-950/2.5 ring-1 ring-zinc-950/10 dark:divide-white/10 dark:bg-white/2.5 dark:ring-white/10">
+      <div className="flex w-full items-center justify-between gap-x-6 p-6">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-x-3">
+            <Link href={href} title={copilot.name} className="truncate text-sm font-medium text-zinc-950 hover:underline dark:text-white">
+              {copilot.name}
+            </Link>
+            <Badge color={STATUS_BADGE_COLOR[copilot.status]}>{COPILOT_STATUS_LABELS[copilot.status]}</Badge>
           </div>
-        ) : (
-          <div className="font-mono text-zinc-950 tabular-nums dark:text-white">{formatPercent(copilot.health.testPassRate)}</div>
-        )}
-        <div className="mt-1 font-mono text-xs tabular-nums text-zinc-500">
-          {copilot.health.benchmarkScore === 0 ? 'bench —' : `bench ${copilot.health.benchmarkScore}`}
+          <p className="mt-1 truncate font-mono text-xs text-zinc-500">{copilot.slug}</p>
+          <p className="mt-1 truncate text-sm text-zinc-500 dark:text-zinc-400">
+            {AGENT_RUNTIME_LABELS[copilot.runtime]} · {copilot.model}
+          </p>
         </div>
-      </TableCell>
-      <TableCell className="py-5 text-right text-sm whitespace-nowrap">
-        <span className="font-mono text-zinc-700 dark:text-zinc-300 tabular-nums">
-          {copilot.health.runsLast24h.toLocaleString('en-US')}
-        </span>
-      </TableCell>
-      <TableCell className="py-5 text-sm">
-        {copilot.targetProjectIds.length === 0 ? (
-          <span className="text-zinc-500">
-            <span aria-hidden="true">—</span>
-            <span className="sr-only">No destination project</span>
-          </span>
-        ) : (
-          <span className="text-zinc-700 dark:text-zinc-300">
-            {copilot.targetProjectIds.map((projectId) => projectNameById.get(projectId) ?? projectId).join(' · ')}
-          </span>
-        )}
-      </TableCell>
-      <TableCell className="py-5 text-right text-sm font-medium whitespace-nowrap">
-        <div className="flex items-center justify-end gap-2">
-          <SoftAccentButton onClick={() => onAssign(copilot)}>
-            Assign…<span className="sr-only"> {copilot.name} to a project</span>
-          </SoftAccentButton>
-          <Link href={href} className="text-accent-400 hover:text-accent-300">
-            Open<span className="sr-only">, {copilot.name}</span>
-          </Link>
+        <Avatar initials={initialsFor(copilot.name)} alt="" className="size-10 shrink-0 bg-zinc-800 text-white" />
+      </div>
+      <div className="grid grid-cols-2 gap-px divide-x divide-zinc-950/10 border-t border-zinc-950/10 text-center dark:divide-white/10 dark:border-white/10">
+        <div className="px-4 py-3">
+          <div className="text-xs text-zinc-500">Tests</div>
+          {copilot.health.testPassRate === 0 ? (
+            <div className="mt-0.5 font-mono text-sm text-zinc-500 tabular-nums">
+              <span aria-hidden="true">—</span>
+              <span className="sr-only">not tested</span>
+            </div>
+          ) : (
+            <div className="mt-0.5 font-mono text-sm text-zinc-950 tabular-nums dark:text-white">
+              {formatPercent(copilot.health.testPassRate)}
+            </div>
+          )}
+        </div>
+        <div className="px-4 py-3">
+          <div className="text-xs text-zinc-500">Runs 24h</div>
+          <div className="mt-0.5 font-mono text-sm text-zinc-950 tabular-nums dark:text-white">
+            {copilot.health.runsLast24h.toLocaleString('en-US')}
+          </div>
+        </div>
+      </div>
+      <div className="px-6 py-3">
+        <div className="text-xs text-zinc-500">Destination</div>
+        <div className="mt-0.5 truncate text-sm">
+          {copilot.targetProjectIds.length === 0 ? (
+            <span className="text-zinc-500">
+              <span aria-hidden="true">—</span>
+              <span className="sr-only">No destination project</span>
+            </span>
+          ) : (
+            <span className="text-zinc-700 dark:text-zinc-300">
+              {copilot.targetProjectIds.map((projectId) => projectNameById.get(projectId) ?? projectId).join(' · ')}
+            </span>
+          )}
+        </div>
+      </div>
+      <div>
+        <div className="-mt-px flex divide-x divide-zinc-950/10 dark:divide-white/10">
+          <div className="flex w-0 flex-1">
+            <Headless.Button
+              onClick={() => onAssign(copilot)}
+              className="relative -mr-px inline-flex w-0 flex-1 items-center justify-center rounded-bl-lg border border-transparent py-3 text-sm font-semibold text-accent-400 hover:text-accent-300"
+            >
+              Assign…<span className="sr-only"> {copilot.name} to a project</span>
+            </Headless.Button>
+          </div>
+          <div className="-ml-px flex w-0 flex-1">
+            <Link
+              href={href}
+              className="relative inline-flex w-0 flex-1 items-center justify-center gap-x-2 border border-transparent py-3 text-sm font-semibold text-accent-400 hover:text-accent-300"
+            >
+              Open<span className="sr-only">, {copilot.name}</span>
+            </Link>
+          </div>
           <Dropdown>
-            <DropdownButton plain aria-label={`Actions for ${copilot.name}`}>
+            <DropdownButton
+              plain
+              aria-label={`Actions for ${copilot.name}`}
+              className="relative -ml-px inline-flex w-12 items-center justify-center rounded-none rounded-br-lg border border-transparent"
+            >
               <EllipsisVerticalIcon />
             </DropdownButton>
             <DropdownMenu anchor="bottom end">
@@ -128,16 +142,16 @@ function BenchRow({
             </DropdownMenu>
           </Dropdown>
         </div>
-      </TableCell>
-    </TableRow>
+      </div>
+    </li>
   )
 }
 
 /**
- * All-copilots row — project column (amber "On bench" when unassigned) and,
- * for assigned copilots only, a row menu carrying the guarded Unassign action.
+ * All-copilots card — project line (amber "On bench" when unassigned) and,
+ * for assigned copilots only, a menu carrying the guarded Unassign action.
  */
-function AllRow({
+function AllCard({
   copilot,
   projectNameById,
   onUnassign,
@@ -150,32 +164,56 @@ function AllRow({
 }) {
   const href = `/admin/agents/${copilot.id}`
   return (
-    <TableRow className="transition-colors duration-150 hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
-      <TableCell className="py-5 text-sm whitespace-nowrap">
-        <NameCell copilot={copilot} />
-      </TableCell>
-      <TableCell className="py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
-        <div className="text-zinc-950 dark:text-white">{AGENT_RUNTIME_LABELS[copilot.runtime]}</div>
-        <div className="mt-1 font-mono text-xs tabular-nums text-zinc-500">{copilot.model}</div>
-      </TableCell>
-      <TableCell className="py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
-        {COPILOT_STATUS_LABELS[copilot.status]}
-      </TableCell>
-      <TableCell className="py-5 text-sm whitespace-nowrap">
-        {copilot.projectId === null ? (
-          <span className="text-zinc-500">On bench</span>
-        ) : (
-          <span className="text-zinc-700 dark:text-zinc-300">{projectNameById.get(copilot.projectId) ?? copilot.projectId}</span>
-        )}
-      </TableCell>
-      <TableCell className="py-5 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">{copilot.owner}</TableCell>
-      <TableCell className="py-5 text-right text-sm font-medium whitespace-nowrap">
-        <div className="flex items-center justify-end gap-2">
-          <Link href={href} className="text-accent-400 hover:text-accent-300">
-            Open<span className="sr-only">, {copilot.name}</span>
-          </Link>
+    <li className="col-span-1 divide-y divide-zinc-950/10 rounded-lg bg-zinc-950/2.5 ring-1 ring-zinc-950/10 dark:divide-white/10 dark:bg-white/2.5 dark:ring-white/10">
+      <div className="flex w-full items-center justify-between gap-x-6 p-6">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-x-3">
+            <Link href={href} title={copilot.name} className="truncate text-sm font-medium text-zinc-950 hover:underline dark:text-white">
+              {copilot.name}
+            </Link>
+            <Badge color={STATUS_BADGE_COLOR[copilot.status]}>{COPILOT_STATUS_LABELS[copilot.status]}</Badge>
+          </div>
+          <p className="mt-1 truncate font-mono text-xs text-zinc-500">{copilot.slug}</p>
+          <p className="mt-1 truncate text-sm text-zinc-500 dark:text-zinc-400">
+            {AGENT_RUNTIME_LABELS[copilot.runtime]} · {copilot.model}
+          </p>
+        </div>
+        <Avatar initials={initialsFor(copilot.name)} alt="" className="size-10 shrink-0 bg-zinc-800 text-white" />
+      </div>
+      <div className="grid grid-cols-2 gap-px divide-x divide-zinc-950/10 border-t border-zinc-950/10 text-center dark:divide-white/10 dark:border-white/10">
+        <div className="px-4 py-3">
+          <div className="text-xs text-zinc-500">Project</div>
+          <div className="mt-0.5 truncate text-sm">
+            {copilot.projectId === null ? (
+              <span className="text-zinc-500">On bench</span>
+            ) : (
+              <span className="text-zinc-700 dark:text-zinc-300">
+                {projectNameById.get(copilot.projectId) ?? copilot.projectId}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="px-4 py-3">
+          <div className="text-xs text-zinc-500">Owner</div>
+          <div className="mt-0.5 truncate text-sm text-zinc-700 dark:text-zinc-300">{copilot.owner}</div>
+        </div>
+      </div>
+      <div>
+        <div className="-mt-px flex divide-x divide-zinc-950/10 dark:divide-white/10">
+          <div className="flex w-0 flex-1">
+            <Link
+              href={href}
+              className="relative inline-flex w-0 flex-1 items-center justify-center gap-x-2 rounded-bl-lg border border-transparent py-3 text-sm font-semibold text-accent-400 hover:text-accent-300"
+            >
+              Open<span className="sr-only">, {copilot.name}</span>
+            </Link>
+          </div>
           <Dropdown>
-            <DropdownButton plain aria-label={`Actions for ${copilot.name}`}>
+            <DropdownButton
+              plain
+              aria-label={`Actions for ${copilot.name}`}
+              className="relative -ml-px inline-flex w-12 items-center justify-center rounded-none rounded-br-lg border border-transparent"
+            >
               <EllipsisVerticalIcon />
             </DropdownButton>
             <DropdownMenu anchor="bottom end">
@@ -186,8 +224,8 @@ function AllRow({
             </DropdownMenu>
           </Dropdown>
         </div>
-      </TableCell>
-    </TableRow>
+      </div>
+    </li>
   )
 }
 
@@ -237,7 +275,6 @@ export function CopilotRegistryTable({
   // Pull paused copilots out of the main list into a separate section.
   const activeRows = filtered.filter((copilot) => copilot.status !== 'paused')
   const pausedRows = filtered.filter((copilot) => copilot.status === 'paused')
-  const columnCount = view === 'bench' ? 7 : 6
 
   function resetFilters() {
     setQuery('')
@@ -246,9 +283,9 @@ export function CopilotRegistryTable({
     setStatus('all')
   }
 
-  function renderRow(copilot: Copilot) {
+  function renderCard(copilot: Copilot) {
     return view === 'bench' ? (
-      <BenchRow
+      <BenchCard
         key={copilot.id}
         copilot={copilot}
         projectNameById={projectNameById}
@@ -256,7 +293,7 @@ export function CopilotRegistryTable({
         onDelete={setDeleteTarget}
       />
     ) : (
-      <AllRow
+      <AllCard
         key={copilot.id}
         copilot={copilot}
         projectNameById={projectNameById}
@@ -343,48 +380,20 @@ export function CopilotRegistryTable({
 
       <div className="mt-6">
         {filtered.length > 0 ? (
-          <Table>
-            <TableHead className="bg-zinc-950/[0.025] dark:bg-white/[0.04]">
-              <TableRow>
-                <TableHeader>Name</TableHeader>
-                <TableHeader>Runtime</TableHeader>
-                <TableHeader>Status</TableHeader>
-                {view === 'bench' ? (
-                  <>
-                    <TableHeader>Tests</TableHeader>
-                    <TableHeader className="text-right">Runs 24h</TableHeader>
-                    <TableHeader>Destination</TableHeader>
-                  </>
-                ) : (
-                  <>
-                    <TableHeader>Project</TableHeader>
-                    <TableHeader>Owner</TableHeader>
-                  </>
-                )}
-                <TableHeader>
-                  <span className="sr-only">Actions</span>
-                </TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody className="divide-y divide-zinc-950/5 dark:divide-white/5 [&>tr:nth-child(even)]:bg-zinc-950/[0.025] dark:[&>tr:nth-child(even)]:bg-white/[0.055]">
-              {activeRows.map(renderRow)}
-            </TableBody>
+          <div className="space-y-8">
+            <ul role="list" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {activeRows.map(renderCard)}
+            </ul>
 
             {pausedRows.length > 0 ? (
-              <TableBody className="divide-y divide-zinc-950/5 dark:divide-white/5 border-t border-zinc-950/10 dark:border-white/15 [&>tr:nth-child(even)]:bg-zinc-950/[0.025] dark:[&>tr:nth-child(even)]:bg-white/[0.055]">
-                <TableRow>
-                  <TableHeader
-                    scope="colgroup"
-                    colSpan={columnCount}
-                    className="py-2 text-xs font-medium tracking-wide text-zinc-500 uppercase"
-                  >
-                    Paused
-                  </TableHeader>
-                </TableRow>
-                {pausedRows.map(renderRow)}
-              </TableBody>
+              <div>
+                <h3 className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Paused</h3>
+                <ul role="list" className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {pausedRows.map(renderCard)}
+                </ul>
+              </div>
             ) : null}
-          </Table>
+          </div>
         ) : (
           <EmptyState
             icon={MagnifyingGlassIcon}
