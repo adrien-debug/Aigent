@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { deleteCopilotCascade } from '@/lib/agent-mission-control/authoring-writes'
+import { deleteCopilotCascade, setCopilotAssistantId } from '@/lib/agent-mission-control/authoring-writes'
 import { ensureCopilotAssistant } from '@/lib/agent-mission-control/langgraph-assistants'
 
 /**
@@ -132,7 +132,14 @@ export async function PATCH(
   // operator knows the assistant may still be stale.
   if ('projectId' in body) {
     try {
-      await ensureCopilotAssistant({ copilotId })
+      const assistantId = await ensureCopilotAssistant({ copilotId })
+      // Persist the assistant id onto the copilot row. ensureCopilotAssistant
+      // creates/updates the assistant on the Agent Server and returns its
+      // deterministic id, but without this write the DB column stays null — the
+      // run path then re-resolves + re-provisions it on every run (correct but
+      // wasteful, and the row misleadingly reads "no assistant"). This is the
+      // real assistant id it just provisioned, never a fabricated value.
+      await setCopilotAssistantId(copilotId, assistantId)
       // Re-provision succeeded — the caller gets a positive signal so a UI can
       // confirm the copilot now runs against a fresh, correctly-scoped assistant.
       return NextResponse.json({ ok: true, persisted: true, reprovisioned: true })
