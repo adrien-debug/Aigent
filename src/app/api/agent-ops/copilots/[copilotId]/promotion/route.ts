@@ -1,6 +1,24 @@
 import { NextResponse } from 'next/server'
 
 /**
+ * Shape guard for ids used by this route (`:copilotId` path param and the
+ * `versionId` / `previousProductionVersionId` body fields). Real ids are
+ * `makeId(prefix, slug)` (see slug.ts): lowercase alphanumerics/hyphens only,
+ * bounded length — same shape family enforced by the sibling
+ * `[copilotId]/route.ts`. Rejecting anything else before it reaches a live DB
+ * round-trip does two things: (1) fast, safe 400 on garbage/oversized input —
+ * no valid id is ever refused; (2) closes a PostgREST `in.(...)` list-filter
+ * hazard, since that filter splits its value on literal commas — an id
+ * containing a comma (or other filter-syntax character) could otherwise be
+ * misparsed into extra/different id tokens for the ownership check below.
+ */
+const ID_RE = /^[a-z0-9-]{1,200}$/
+
+function isValidId(id: string): boolean {
+  return typeof id === 'string' && ID_RE.test(id)
+}
+
+/**
  * POST /api/agent-ops/copilots/:copilotId/promotion — promote a candidate to
  * production, or roll production back to a previous version. Writes gpu1 via
  * PostgREST (service_role, server only). Live-only: 503 without a backend.
@@ -14,9 +32,19 @@ import { NextResponse } from 'next/server'
  *   copilot_versions[versionId].stage         = 'production'
  *   copilot_versions[previousProd].stage       = 'archived'   (if provided, ≠ versionId)
  *   copilots[copilotId].production_version_id  = versionId
+ *
+ * Concurrency: the archive-previous step is conditioned on `stage=eq.production`
+ * at patch time (optimistic concurrency), so two overlapping promotions can't
+ * stomp on a version that a concurrent call already moved elsewhere — the
+ * later request simply archives nothing for that id instead of clobbering
+ * whatever stage it ended up in.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ copilotId: string }> }) {
   const { copilotId } = await params
+
+  if (!isValidId(copilotId)) {
+    return NextResponse.json({ error: 'invalid copilotId' }, { status: 400 })
+  }
 
   let body: { action?: string; versionId?: string; previousProductionVersionId?: string | null }
   try {
@@ -28,8 +56,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   if (body.action !== 'promote' && body.action !== 'rollback') {
     return NextResponse.json({ error: "action must be 'promote' or 'rollback'" }, { status: 400 })
   }
-  if (typeof body.versionId !== 'string' || body.versionId.length === 0) {
+  if (typeof body.versionId !== 'string' || !isValidId(body.versionId)) {
     return NextResponse.json({ error: 'versionId is required' }, { status: 400 })
+  }
+  if (
+    body.previousProductionVersionId !== undefined &&
+    body.previousProductionVersionId !== null &&
+    (typeof body.previousProductionVersionId !== 'string' || !isValidId(body.previousProductionVersionId))
+  ) {
+    return NextResponse.json({ error: 'previousProductionVersionId must be a valid version id or null' }, { status: 400 })
   }
   const versionId = body.versionId
   const previousProd =
@@ -95,8 +130,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
       return NextResponse.json({ error: 'version not found' }, { status: 404 })
     }
     // 2) Archive the version that was serving production (if distinct).
+    // Conditioned on it still being `production` at patch time: if a
+    // concurrent promotion already moved this version elsewhere (or archived
+    // it), this call matches zero rows and no-ops instead of clobbering
+    // whatever stage the other request left it in.
     if (previousProd && previousProd !== versionId) {
-      await patch(`copilot_versions?id=eq.${encodeURIComponent(previousProd)}`, { stage: 'archived' })
+      await patch(
+        `copilot_versions?id=eq.${encodeURIComponent(previousProd)}&stage=eq.production`,
+        { stage: 'archived' }
+      )
     }
     // 3) Point the copilot at the new production version.
     const copilot = await patch(`copilots?id=eq.${encodeURIComponent(copilotId)}`, {
