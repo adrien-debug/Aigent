@@ -249,7 +249,14 @@ export async function POST(
       })
     }
 
-    // Three outcomes, not two:
+    // Four outcomes, not two:
+    //   - the graph hit its own maxSteps guard after resuming (structured
+    //     marker, same as the original run path in runner.ts) → `failed`.
+    //     The task was NOT finished — reporting `completed` here would be
+    //     exactly the lie this route exists to avoid. Checked FIRST: a
+    //     budget-exhausted resume must not be masked by the blocked-tool-call
+    //     logic below (the graph can exhaust its budget with no tool calls
+    //     blocked at all).
     //   - every tool call blocked AND the operator rejected  → `blocked`
     //     (the expected, safe outcome of a decline).
     //   - every tool call blocked AND the operator APPROVED   → `failed`
@@ -260,7 +267,11 @@ export async function POST(
     //   - otherwise (at least one tool call actually went through)  → `completed`.
     const allBlocked =
       result.toolCalls.length > 0 && result.toolCalls.every((tc) => tc.status === 'blocked')
-    const status = allBlocked ? (approved ? 'failed' : 'blocked') : 'completed'
+    const status = result.budgetExhausted
+      ? 'failed'
+      : allBlocked
+        ? (approved ? 'failed' : 'blocked')
+        : 'completed'
     const outputSummary = summarize(result.finalText || '(empty response)')
 
     // Re-aggregate the run's counters from the full tool_calls table so
