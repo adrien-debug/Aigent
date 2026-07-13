@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { runBenchmarkSuite } from '@/lib/agent-mission-control/benchmark-runner'
+import { pgrest } from '@/lib/agent-mission-control/postgrest'
 import { NotFoundError, ProviderUnavailableError } from '@/lib/agent-mission-control/runner-errors'
 import type { AgentRuntime, BenchmarkRun, ModelProvider } from '@/lib/agent-mission-control/types'
 
@@ -54,6 +55,31 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (process.env.AMC_DATA_SOURCE !== 'gpu1' || !base || !key || !process.env.OPENAI_API_KEY) {
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
+  }
+
+  // Double-submit / concurrent-run guard (same read-then-branch shape as the
+  // resume route's `needs-confirmation` gate): a benchmark run for this
+  // suite persists as `running` until it finishes (runBenchmarkSuite marks
+  // it `completed`/`aborted`). If one is already in flight for this suite,
+  // reject the duplicate instead of silently kicking off a second concurrent
+  // run against the same copilot/suite (double cost, double writes, and two
+  // runs racing to PATCH the same suite's last state). This narrows — but,
+  // being check-then-act, does not fully close — the race between two
+  // requests arriving at nearly the same instant.
+  try {
+    const runningRows = await pgrest<Record<string, unknown>[]>(
+      'GET',
+      `benchmark_runs?suite_id=eq.${encodeURIComponent(body.suiteId)}&copilot_id=eq.${encodeURIComponent(copilotId)}&status=eq.running&select=id&limit=1`
+    )
+    if (runningRows.length > 0) {
+      return NextResponse.json(
+        { error: 'a benchmark run is already in progress for this suite', runId: runningRows[0].id },
+        { status: 409 }
+      )
+    }
+  } catch (err) {
+    console.error('[agent-ops/copilots/benchmarks/run] failed to check for an in-flight run', err)
+    return NextResponse.json({ error: 'failed to check for an in-flight run' }, { status: 502 })
   }
 
   try {

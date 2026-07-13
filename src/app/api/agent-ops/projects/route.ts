@@ -39,17 +39,39 @@ const repoFullNameSchema = z
     message: 'repoFullName segments must not be "." or ".."',
   })
 
+/**
+ * Mirrors slugify()'s core reduction (slug.ts): lowercase, collapse any run of
+ * non-alphanumerics to nothing. Used only to detect the degenerate case here
+ * (name/slug with zero alphanumeric characters — e.g. "!!!", emoji-only, or
+ * CJK/unicode-only input) BEFORE createProject derives an empty slug from it.
+ * `projects.slug` is `not null unique`: an empty-string slug is not null, so
+ * it silently inserts once and then throws an opaque 502 (unique violation)
+ * on the very next malformed name — a self-inflicted, hard-to-debug failure
+ * mode with no clear validation error. Reject it here instead, with a plain
+ * 400, before it ever reaches the DB.
+ */
+const hasSlugifiableContent = (v: string) => /[a-z0-9]/i.test(v)
+
 /** Body contract for POST /api/agent-ops/projects. Mirrors CreateProjectInput. */
-const createProjectBodySchema = z.object({
-  name: z.string().trim().min(1, 'name is required'),
-  slug: z.string().trim().min(1).optional(),
-  description: z.string().optional(),
-  platform: z.enum(PLATFORMS as [CreateProjectInput['platform'], ...CreateProjectInput['platform'][]], {
-    message: "platform must be one of 'web' | 'desktop' | 'mobile' | 'api'",
-  }),
-  repoUrl: z.string().trim().url().optional(),
-  repoFullName: repoFullNameSchema.optional(),
-})
+const createProjectBodySchema = z
+  .object({
+    name: z.string().trim().min(1, 'name is required'),
+    slug: z.string().trim().min(1).optional(),
+    description: z.string().optional(),
+    platform: z.enum(PLATFORMS as [CreateProjectInput['platform'], ...CreateProjectInput['platform'][]], {
+      message: "platform must be one of 'web' | 'desktop' | 'mobile' | 'api'",
+    }),
+    repoUrl: z.string().trim().url().optional(),
+    repoFullName: repoFullNameSchema.optional(),
+  })
+  .refine((v) => v.slug === undefined || hasSlugifiableContent(v.slug), {
+    message: 'slug must contain at least one letter or digit',
+    path: ['slug'],
+  })
+  .refine((v) => v.slug !== undefined || hasSlugifiableContent(v.name), {
+    message: 'name must contain at least one letter or digit (used to derive slug)',
+    path: ['name'],
+  })
 
 /**
  * POST /api/agent-ops/projects — LIVE creation of a project linked to a GitHub
@@ -84,7 +106,11 @@ export async function POST(request: Request) {
     // depend on; fall back to the first zod issue for everything else (notably
     // repoFullName / repoUrl shape).
     const issues = parsed.error.issues
-    const nameIssue = issues.find((i) => i.path[0] === 'name')
+    // Only the base "name" shape check (empty/missing) keeps the legacy
+    // hardcoded message; the "name has no alphanumeric content" custom refine
+    // (path also ['name'], but code 'custom') must surface its own message —
+    // it's a different failure (non-empty name that can't derive a slug).
+    const nameIssue = issues.find((i) => i.path[0] === 'name' && i.code !== 'custom')
     const platformIssue = issues.find((i) => i.path[0] === 'platform')
     const message = nameIssue
       ? 'name is required'

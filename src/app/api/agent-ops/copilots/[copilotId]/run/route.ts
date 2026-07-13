@@ -12,6 +12,15 @@ import { pgrest } from '@/lib/agent-mission-control/postgrest'
 // first turn — the model never gets to read its own tool result.
 const DEFAULT_MAX_STEPS_PER_RUN = 12
 
+// Hard ceiling on the request body's `userInput`. Nothing downstream (this
+// route, the runner's message array, model-router) truncates or bounds it
+// before it's shipped to the live OpenAI call — an unbounded string is a
+// real cost/DoS surface (and, for the LangGraph path, an unbounded
+// recursion_limit input). 32k chars is far beyond any real chat turn while
+// still rejecting pathological payloads outright (400, not a silent
+// truncation that would quietly change what the model sees).
+const MAX_USER_INPUT_LENGTH = 32_000
+
 /**
  * POST /api/agent-ops/copilots/:copilotId/run — execute a REAL run of a
  * copilot against the live OpenAI model, persisted via the shared runner
@@ -46,6 +55,12 @@ export async function POST(
   }
   if (typeof body.userInput !== 'string' || body.userInput.trim().length === 0) {
     return NextResponse.json({ error: 'userInput is required' }, { status: 400 })
+  }
+  if (body.userInput.length > MAX_USER_INPUT_LENGTH) {
+    return NextResponse.json(
+      { error: `userInput exceeds the ${MAX_USER_INPUT_LENGTH}-character limit` },
+      { status: 400 }
+    )
   }
   if (body.allowFallback !== undefined && typeof body.allowFallback !== 'boolean') {
     return NextResponse.json({ error: 'allowFallback must be a boolean' }, { status: 400 })
