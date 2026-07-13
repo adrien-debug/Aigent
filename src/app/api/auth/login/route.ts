@@ -32,14 +32,19 @@ export async function POST(request: Request) {
     )
   }
 
-  let body: { password?: string }
+  let body: unknown
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ ok: false, error: 'Invalid request.' }, { status: 400 })
   }
 
-  const ok = await verifyAdminPassword(typeof body.password === 'string' ? body.password : '')
+  const password =
+    body !== null && typeof body === 'object' && typeof (body as { password?: unknown }).password === 'string'
+      ? (body as { password: string }).password
+      : ''
+
+  const ok = await verifyAdminPassword(password)
   if (!ok) {
     recordFailedAttempt(clientKey)
     return NextResponse.json({ ok: false, error: 'Invalid password.' }, { status: 401 })
