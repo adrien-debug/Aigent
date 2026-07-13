@@ -225,7 +225,7 @@ export function AgentBuilderWorkbench() {
                 className={
                   'rounded-md px-2 py-1 font-mono text-xs ring-1 ' +
                   (reached
-                    ? 'bg-[var(--copper-soft)] text-accent-700 ring-[var(--copper-line)] dark:text-accent-300'
+                    ? 'bg-[var(--accent-soft)] text-accent-700 ring-[var(--accent-line)] dark:text-accent-300'
                     : 'text-zinc-500 ring-zinc-950/10 dark:text-zinc-400 dark:ring-white/10')
                 }
               >
@@ -268,7 +268,7 @@ export function AgentBuilderWorkbench() {
       {awaiting ? (
         <div
           role="alert"
-          className="rounded-xl bg-[var(--copper-soft)] p-5 ring-1 ring-[var(--copper-line)]"
+          className="rounded-xl bg-[var(--accent-soft)] p-5 ring-1 ring-[var(--accent-line)]"
         >
           <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
             Human approval required — nothing created yet

@@ -5,7 +5,7 @@ import clsx from 'clsx'
  * copilot registry with a run summary rail. Replaces the empty wireframe
  * placeholders that shipped with the marketing template. Pure markup, no
  * data, no interactivity: it is a product screenshot rendered in the DOM so
- * it stays crisp at any width and follows the copper/zinc token doctrine.
+ * it stays crisp at any width and follows the accent/zinc token doctrine.
  */
 
 const ROWS = [

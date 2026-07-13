@@ -182,7 +182,7 @@ export function RunCopilotPanel({ copilotId, copilotName }: RunCopilotPanelProps
             // waiting on an operator decision — surfaced automatically, no reveal.
             <div
               role="alert"
-              className="mt-4 rounded-lg bg-[var(--copper-soft)] p-4 ring-1 ring-[var(--copper-line)]"
+              className="mt-4 rounded-lg bg-[var(--accent-soft)] p-4 ring-1 ring-[var(--accent-line)]"
             >
               <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
                 Human approval required

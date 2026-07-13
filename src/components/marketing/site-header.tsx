@@ -37,7 +37,7 @@ export function SiteHeader() {
       <nav aria-label="Global" className="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8">
         <div className="flex items-center gap-x-12">
           <Link href="/" className="-m-1.5 flex items-center gap-2 p-1.5">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--copper-surface)] ring-1 ring-[var(--copper-line)]">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-surface)] ring-1 ring-[var(--accent-line)]">
               <LogoMark className="size-4 text-accent-400" />
             </span>
             <span className="text-sm font-semibold text-white">Agent Mission Control</span>
@@ -86,7 +86,7 @@ export function SiteHeader() {
         <DialogPanel className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-zinc-950 p-6 sm:max-w-sm sm:ring-1 sm:ring-white/10">
           <div className="flex items-center justify-between">
             <Link href="/" className="-m-1.5 flex items-center gap-2 p-1.5">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--copper-surface)] ring-1 ring-[var(--copper-line)]">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-surface)] ring-1 ring-[var(--accent-line)]">
                 <LogoMark className="size-4 text-accent-400" />
               </span>
               <span className="text-sm font-semibold text-white">Agent Mission Control</span>

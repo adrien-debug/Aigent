@@ -548,7 +548,7 @@ export function LangGraphCanvasView({ graph, studioUrl }: { graph: string; studi
                   onClick={() => onStepClick(s)}
                   className={
                     'flex w-full items-start gap-3 rounded-lg px-2 py-1.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 ' +
-                    (selectedStepId === s.id ? 'bg-[var(--copper-soft)] ring-1 ring-[var(--copper-line)]' : 'hover:bg-zinc-950/5 dark:hover:bg-white/5')
+                    (selectedStepId === s.id ? 'bg-[var(--accent-soft)] ring-1 ring-[var(--accent-line)]' : 'hover:bg-zinc-950/5 dark:hover:bg-white/5')
                   }
                 >
                   <span className="mt-0.5 w-6 shrink-0 text-right font-mono text-xs text-zinc-400">{s.index}</span>
@@ -591,7 +591,7 @@ function NodeInspector({ node, status, detail, graph }: { node: RenderNode; stat
         <Row label="Assistant id" value={detail.assistantId ?? 'not available'} mono />
       </dl>
       {node.id === 'approval' && detail.interrupts.length > 0 ? (
-        <div className="rounded-lg bg-[var(--copper-soft)] p-3 ring-1 ring-[var(--copper-line)]">
+        <div className="rounded-lg bg-[var(--accent-soft)] p-3 ring-1 ring-[var(--accent-line)]">
           <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">Awaiting human approval</p>
           <pre className="mt-2 overflow-x-auto text-xs whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">{redactedJson(detail.interrupts)}</pre>
         </div>
@@ -658,7 +658,7 @@ function StepInspector({ step }: { step: ReplayStep }) {
 
 /**
  * Shared SVG defs + scoped animations. Gradients per state, a soft drop shadow,
- * a copper glow for the live node, and keyframes: a gentle pulse on the
+ * an accent glow for the live node, and keyframes: a gentle pulse on the
  * active/interrupted node, a flowing dash on traversed edges, and a spring
  * fade-in on mount. All motion is disabled under prefers-reduced-motion.
  */
@@ -668,30 +668,30 @@ function CanvasDefs() {
       <defs>
         {/* Node surface gradients — subtle top-lit sheen, never flat. */}
         <linearGradient id="node-idle" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--node-idle-top, #ffffff)" />
-          <stop offset="100%" stopColor="var(--node-idle-bot, #f4f4f5)" />
+          <stop offset="0%" stopColor="rgba(113,113,122,0.08)" />
+          <stop offset="100%" stopColor="rgba(113,113,122,0.02)" />
         </linearGradient>
         <linearGradient id="node-completed" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="rgba(113,113,122,0.14)" />
           <stop offset="100%" stopColor="rgba(113,113,122,0.05)" />
         </linearGradient>
         <linearGradient id="node-hot" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--copper-soft)" />
-          <stop offset="100%" stopColor="var(--copper-surface)" />
+          <stop offset="0%" stopColor="var(--accent-soft)" />
+          <stop offset="100%" stopColor="var(--accent-surface)" />
         </linearGradient>
         {/* Soft drop shadow for elevation. */}
         <filter id="node-shadow" x="-30%" y="-30%" width="160%" height="180%">
           <feDropShadow dx="0" dy="1.5" stdDeviation="2" floodColor="rgb(24 24 27)" floodOpacity="0.12" />
         </filter>
-        {/* Copper glow for the live node. */}
+        {/* Accent glow for the live node. */}
         <filter id="node-glow" x="-60%" y="-60%" width="220%" height="220%">
-          <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="rgb(217 119 66)" floodOpacity="0.55" />
+          <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="var(--color-accent-500)" floodOpacity="0.55" />
         </filter>
         <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
           <path d="M 0 0 L 10 5 L 0 10 z" fill="rgb(161 161 170)" />
         </marker>
         <marker id="arrow-hot" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--copper-line)" />
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent-line)" />
         </marker>
       </defs>
       <style>{`
@@ -721,9 +721,9 @@ function NodeBox({ node, status, selected, onSelect, index }: { node: RenderNode
     hot ? 'url(#node-hot)' : status === 'completed' ? 'url(#node-completed)' : 'url(#node-idle)'
   const stroke =
     status === 'interrupted' || status === 'active'
-      ? 'var(--copper-line)'
+      ? 'var(--accent-line)'
       : status === 'error'
-        ? 'rgb(180 83 9)'
+        ? 'var(--color-accent-800)'
         : status === 'completed'
           ? 'rgb(113 113 122)'
           : 'rgb(212 212 216)'
@@ -745,7 +745,7 @@ function NodeBox({ node, status, selected, onSelect, index }: { node: RenderNode
     >
       {/* Pulsing glow halo behind the live node. */}
       {hot ? (
-        <rect className="lg-glow" x={-2} y={-2} width={NODE_W + 4} height={NODE_H + 4} rx={11} fill="none" stroke="var(--copper-line)" strokeWidth={1.5} filter="url(#node-glow)" />
+        <rect className="lg-glow" x={-2} y={-2} width={NODE_W + 4} height={NODE_H + 4} rx={11} fill="none" stroke="var(--accent-line)" strokeWidth={1.5} filter="url(#node-glow)" />
       ) : null}
       {/* Base card (white so the gradient reads on any bg) + gradient surface. */}
       <rect width={NODE_W} height={NODE_H} rx={9} className="fill-white dark:fill-zinc-900" filter="url(#node-shadow)" />
@@ -775,13 +775,13 @@ function Edge({ a, b, dashed, traversed, index }: { a: RenderNode; b: RenderNode
   const mx = (x1 + x2) / 2 + -uy * 14
   const my = (y1 + y2) / 2 + ux * 14
   const d = `M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`
-  const stroke = traversed ? 'var(--copper-line)' : 'rgb(212 212 216)'
+  const stroke = traversed ? 'var(--accent-line)' : 'rgb(212 212 216)'
   return (
     <g className="lg-node" style={{ animationDelay: `${index * 40}ms` }}>
       {/* Base edge. */}
       <path d={d} fill="none" stroke={stroke} strokeWidth={traversed ? 2 : 1.25} strokeDasharray={dashed && !traversed ? '4 4' : undefined} markerEnd={traversed ? 'url(#arrow-hot)' : 'url(#arrow)'} strokeLinecap="round" />
       {/* Animated flow overlay on traversed edges. */}
-      {traversed ? <path className="lg-flow" d={d} fill="none" stroke="var(--copper-line)" strokeWidth={2} strokeLinecap="round" opacity={0.7} /> : null}
+      {traversed ? <path className="lg-flow" d={d} fill="none" stroke="var(--accent-line)" strokeWidth={2} strokeLinecap="round" opacity={0.7} /> : null}
     </g>
   )
 }
@@ -795,7 +795,7 @@ function StatusDot({ status }: { status: StepStatus }) {
 function Badge({ tone, children }: { tone: 'live' | 'fallback' | 'warn'; children: React.ReactNode }) {
   const cls =
     tone === 'live'
-      ? 'bg-[var(--copper-soft)] text-accent-700 ring-[var(--copper-line)] dark:text-accent-300'
+      ? 'bg-[var(--accent-soft)] text-accent-700 ring-[var(--accent-line)] dark:text-accent-300'
       : tone === 'warn'
         ? 'bg-accent-500/10 text-accent-700 ring-accent-500/30 dark:text-accent-300'
         : 'bg-zinc-950/5 text-zinc-600 ring-zinc-950/10 dark:bg-white/5 dark:text-zinc-400 dark:ring-white/10'

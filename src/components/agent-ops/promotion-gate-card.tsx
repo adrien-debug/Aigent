@@ -19,9 +19,9 @@ const checkStatusLabel: Record<PromotionCheck['status'], string> = {
   waived: 'Waived',
 }
 
-// Copper heat-dot per check status — the LABEL still names the state (doctrine:
+// Accent heat-dot per check status — the LABEL still names the state (doctrine:
 // colour is never the sole indicator); the dot adds a scannable intensity cue on
-// the same accent ramp. pass = soft copper, pending = mid, fail = solid heat,
+// the same accent ramp. pass = soft accent, pending = mid, fail = solid heat,
 // waived = neutral zinc.
 const checkStatusDot: Record<PromotionCheck['status'], string> = {
   pass: 'bg-accent-500 dark:bg-accent-400',

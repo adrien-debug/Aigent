@@ -12,7 +12,7 @@
 /* Accent — THE single hue of the design system: NEON ORANGE.
    One flashy, fully-saturated orange (#ff6a00 = 500) rendered as a full 50→950
    ramp; every chromatic surface (badges, states, charts, meters, nav, CTA) is a
-   shade of THIS color — no desaturated/brown copper tones. `zinc` is the only
+   shade of THIS color — always fully saturated, never a muted or brown tone. `zinc` is the only
    neutral. Registered in @theme so `bg-accent-*`, `text-accent-*`,
    `bg-accent-500/15`, `ring-accent-500` … all generate with opacity support.
    AA verified (white text): 700 = 4.82:1, 800 = 6.72:1, 900 = 9.11:1.
@@ -31,24 +31,24 @@
   --color-accent-950: #431a05;
 }
 
-/* Copper semantic surface tokens — the accent turned into a LANGUAGE, not a
-   scattered set of `bg-accent-500/15`. These name the *roles* copper plays so
-   every panel, nav item, selection, CTA and focus ring pulls from one place.
-   All are alpha-composited copper (or zinc for neutral) so they layer correctly
-   on the graphite body and the black card surfaces. Consumed via `bg-[…]` /
+/* Accent semantic surface tokens — the accent turned into a LANGUAGE, not a
+   scattered set of `bg-accent-500/15`. These name the *roles* the accent plays
+   so every panel, nav item, selection, CTA and focus ring pulls from one place.
+   All are alpha-composited accent (or zinc for neutral) so they layer correctly
+   on the zinc body and the black card surfaces. Consumed via `bg-[…]` /
    `ring-[…]` / arbitrary props where a role is clearer than a raw shade.
    Dark-first: values below are the mission-control dark tuning. */
 :root {
-  /* copper accent roles (translucent so they compose on any dark surface).
-     Every token below is CONSUMED — no orphan roles: keyboard focus stays on
-     Catalyst's `outline-accent-500` (one ring already), and status meaning is
-     carried by LABEL + solid accent dots/fills per the doctrine, not by a
-     translucent state-wash. Add a token here only when a real consumer lands. */
-  --copper-soft: color-mix(in oklab, var(--color-accent-500) 12%, transparent);       /* faint wash — hover, resting nav */
-  --copper-surface: color-mix(in oklab, var(--color-accent-500) 18%, transparent);    /* selected / active tint fill */
-  --copper-line: color-mix(in oklab, var(--color-accent-500) 40%, transparent);       /* accent hairline / border */
-  --copper-line-strong: color-mix(in oklab, var(--color-accent-400) 55%, transparent);/* selection ring */
-  --copper-glow: color-mix(in oklab, var(--color-accent-500) 22%, transparent);       /* subtle elevation halo */
+  /* accent roles (translucent so they compose on any dark surface). Every token
+     below is CONSUMED — no orphan roles: keyboard focus stays on Catalyst's
+     `outline-accent-500` (one ring already), and status meaning is carried by
+     LABEL + solid accent dots/fills per the doctrine, not by a translucent
+     state-wash. Add a token here only when a real consumer lands. */
+  --accent-soft: color-mix(in oklab, var(--color-accent-500) 12%, transparent);       /* faint wash — hover, resting nav */
+  --accent-surface: color-mix(in oklab, var(--color-accent-500) 18%, transparent);    /* selected / active tint fill */
+  --accent-line: color-mix(in oklab, var(--color-accent-500) 40%, transparent);       /* accent hairline / border */
+  --accent-line-strong: color-mix(in oklab, var(--color-accent-400) 55%, transparent);/* selection ring */
+  --accent-glow: color-mix(in oklab, var(--color-accent-500) 22%, transparent);       /* subtle elevation halo */
 }
 
 /* Chart tokens — SINGLE source of truth for every Recharts surface.
@@ -56,7 +56,7 @@
    instead of re-hardcoding hex. Solid inks map to Tailwind's color scale;
    alpha overlays (grid / cursor / hover) live here once. Theme-aware:
    `:root` = light, `.dark` = the app's forced dark mission-control look.
-   Semantics follow DESIGN-DOCTRINE.md (green = success, zinc = neutral). */
+   Semantics follow DESIGN-DOCTRINE.md (accent = success, zinc = neutral). */
 :root {
   --chart-series: var(--color-zinc-500);        /* neutral line/area — a measure, not a status */
   --chart-success: var(--color-accent-500);      /* pass rate, winning score, dots — the accent hue */

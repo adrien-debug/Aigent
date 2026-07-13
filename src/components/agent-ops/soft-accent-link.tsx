@@ -9,7 +9,7 @@ import { Link } from '@/components/catalyst/link'
  * they never drift to a neutral zinc button.
  */
 export const softAccentClass =
-  'inline-flex items-center gap-1.5 rounded-lg bg-[var(--copper-soft)] px-3 py-1.5 text-sm font-medium text-accent-700 ring-1 ring-[var(--copper-line)] transition-colors hover:bg-[var(--copper-surface)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300'
+  'inline-flex items-center gap-1.5 rounded-lg bg-[var(--accent-soft)] px-3 py-1.5 text-sm font-medium text-accent-700 ring-1 ring-[var(--accent-line)] transition-colors hover:bg-[var(--accent-surface)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300'
 
 export function SoftAccentLink({
   href,

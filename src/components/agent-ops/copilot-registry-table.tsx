@@ -55,7 +55,7 @@ function initialsFor(name: string): string {
 /** Card chrome shared by both variants — accent ring + glow only for 'active'. */
 function cardShellClass(status: CopilotStatus): string {
   return status === 'active'
-    ? 'ring-accent-500/40 shadow-[0_0_0_1px_var(--copper-line)_inset,0_8px_24px_-12px_var(--copper-glow)] dark:shadow-[0_0_0_1px_var(--copper-line)_inset,0_8px_24px_-12px_var(--copper-glow)]'
+    ? 'ring-[var(--accent-line)] shadow-[0_0_0_1px_var(--accent-line)_inset,0_8px_24px_-12px_var(--accent-glow)] dark:shadow-[0_0_0_1px_var(--accent-line)_inset,0_8px_24px_-12px_var(--accent-glow)]'
     : 'ring-zinc-950/10 dark:ring-white/10'
 }
 
@@ -143,7 +143,7 @@ function BenchCard({
       <div className="flex items-center gap-2 p-3">
         <Headless.Button
           onClick={() => onAssign(copilot)}
-          className="inline-flex flex-1 items-center justify-center rounded-lg bg-[var(--copper-soft)] px-3 py-2 text-sm font-medium text-accent-700 ring-1 ring-[var(--copper-line)] transition-colors hover:bg-[var(--copper-surface)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300"
+          className="inline-flex flex-1 items-center justify-center rounded-lg bg-[var(--accent-soft)] px-3 py-2 text-sm font-medium text-accent-700 ring-1 ring-[var(--accent-line)] transition-colors hover:bg-[var(--accent-surface)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300"
         >
           Assign…<span className="sr-only"> {copilot.name} to a project</span>
         </Headless.Button>

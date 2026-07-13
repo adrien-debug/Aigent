@@ -42,24 +42,24 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
 - Pas de glassmorphism, pas d'ombres lourdes, pas de néon.
 
 ## Couleur — MONOCHROME accent (une seule teinte, la couleur n'est JAMAIS le seul indicateur : toujours un label)
-- **UNE seule teinte chromatique** : `accent` = **cuivre brûlé / burnt copper** (`#d96e2b` = 500),
-  échelle `accent-50…950` enregistrée dans `globals.css` (`@theme`) — métal chauffé sur graphite,
-  signature « operator console / control plane ». TOUT surface de couleur (badges, états, charts,
-  meters, nav, boutons) est une **nuance de cette teinte**. `zinc` est le SEUL neutre.
-- **Rôles cuivre nommés — OBLIGATOIRES, zéro opacité accent ad-hoc** (tokens dans `globals.css`,
+- **UNE seule teinte chromatique** : `accent` = **orange néon** (`#ff6a00` = 500), échelle
+  `accent-50…950` pleinement saturée, enregistrée dans `globals.css` (`@theme`) — signature
+  « operator console » du mission-control sur fond zinc sombre. TOUT surface de couleur (badges,
+  états, charts, meters, nav, boutons) est une **nuance de cette teinte**. `zinc` est le SEUL neutre.
+- **Rôles accent nommés — OBLIGATOIRES, zéro opacité accent ad-hoc** (tokens dans `globals.css`,
   tous consommés — zéro token orphelin) :
-  - `--copper-soft` (12%) — wash léger : hover, nav/état au repos.
-  - `--copper-surface` (18%) — fond d'élément sélectionné/actif, header de carte/table.
-  - `--copper-line` (40%) — hairline / bordure accent.
-  - `--copper-line-strong` (55%) — ring de sélection (état choisi).
-  - `--copper-glow` (22%) — halo d'élévation subtil (ex. carte « best »).
+  - `--accent-soft` (12%) — wash léger : hover, nav/état au repos.
+  - `--accent-surface` (18%) — fond d'élément sélectionné/actif, header de carte/table.
+  - `--accent-line` (40%) — hairline / bordure accent.
+  - `--accent-line-strong` (55%) — ring de sélection (état choisi).
+  - `--accent-glow` (22%) — halo d'élévation subtil (ex. carte « best »).
   **INTERDIT** d'écrire une opacité accent à la main (`bg-accent-500/5`, `/10`, `/15`, `/20`,
   `accent-400/10`, `ring-accent-500/20`, etc.) : si le besoin correspond à l'un des 5 rôles
-  ci-dessus, on consomme le token (`bg-[var(--copper-x)]` / `ring-[var(--copper-x)]`, cf.
+  ci-dessus, on consomme le token (`bg-[var(--accent-x)]` / `ring-[var(--accent-x)]`, cf.
   `agent-control-shell.tsx` = référence d'usage). Une opacité accent qui ne correspond à AUCUN
   rôle n'est pas improvisée : on l'ajoute comme 6ᵉ token nommé dans `globals.css` (avec son
   commentaire de rôle) plutôt que de la laisser en valeur libre dans un composant. Focus clavier
-  = `outline-accent-500` de Catalyst (déjà un seul ring, jamais un token copper). Statut =
+  = `outline-accent-500` de Catalyst (déjà un seul ring, jamais un token de rôle). Statut =
   **LABEL + point/fill accent solide** (couleur pleine, pas un wash translucide de fond).
 - **Zéro autre teinte** : jamais green/amber/rose/blue/violet/lime/orange/emerald… Le sens
   (pass/fail/warn/actif) est porté par le **LABEL** + l'**intensité** de la nuance, pas par le hue.
@@ -71,7 +71,7 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
 - **Charts** : succès/mesure positive = tokens `--chart-success*` (repointés sur accent) ; série neutre = zinc.
 - Texte : titres `text-white`, corps `text-zinc-300/400`, méta `text-zinc-500`. Jamais de hex en dur,
   jamais de teinte hors `accent`/`zinc`. Accent via classes solides (`text-accent-400`,
-  `bg-accent-500`) ou via les tokens de rôle `--copper-*` ci-dessus — jamais une opacité
+  `bg-accent-500`) ou via les tokens de rôle `--accent-*` ci-dessus — jamais une opacité
   accent écrite à la main.
 
 ## Typo & espacement

@@ -225,7 +225,7 @@ export function LangGraphExplorerView({
             </TableHead>
             <TableBody>
               {threads.map((t) => (
-                <TableRow key={t.threadId} className={selected === t.threadId ? 'bg-[var(--copper-soft)]' : undefined}>
+                <TableRow key={t.threadId} className={selected === t.threadId ? 'bg-[var(--accent-soft)]' : undefined}>
                   <TableCell>
                     <span title={t.threadId} className="font-mono text-xs text-zinc-950 dark:text-white">
                       {shortId(t.threadId)}
@@ -278,7 +278,7 @@ export function LangGraphExplorerView({
               ) : null}
 
               {detail.interrupts.length > 0 ? (
-                <div className="rounded-lg bg-[var(--copper-soft)] p-4 ring-1 ring-[var(--copper-line)]">
+                <div className="rounded-lg bg-[var(--accent-soft)] p-4 ring-1 ring-[var(--accent-line)]">
                   <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
                     Interrupt — awaiting human approval
                   </p>

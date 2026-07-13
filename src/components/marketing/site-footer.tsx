@@ -53,7 +53,7 @@ export function SiteFooter() {
         <div className="xl:grid xl:grid-cols-3 xl:gap-8">
           <div className="space-y-8">
             <span className="flex items-center gap-2">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--copper-surface)] ring-1 ring-[var(--copper-line)]">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-surface)] ring-1 ring-[var(--accent-line)]">
                 <svg viewBox="570.6 464.9 133.3 146.8" fill="currentColor" aria-hidden="true" className="size-4 text-accent-400">
                   <polygon points="601.7 466.9 572.6 466.9 572.6 609.7 601.7 609.7 601.7 549.1 633.1 579.4 665.8 579.4 601.7 517.5 601.7 466.9" />
                   <polygon points="672.7 466.9 672.7 528.1 644.6 500.9 612 500.9 672.7 559.7 672.7 609.7 701.9 609.7 701.9 466.9 672.7 466.9" />

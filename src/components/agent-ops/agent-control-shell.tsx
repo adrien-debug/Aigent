@@ -59,9 +59,9 @@ function RailItem({
         'group relative flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-xl px-1 text-center transition-colors',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
         current
-          ? // active nav — copper selected surface + left heat bar + warm ring
-            'bg-[var(--copper-surface)] text-accent-700 ring-1 ring-[var(--copper-line)] dark:text-accent-300 before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-accent-500'
-          : 'text-zinc-500 hover:bg-[var(--copper-soft)] hover:text-accent-600 dark:hover:text-accent-300'
+          ? // active nav — accent selected surface + left heat bar + warm ring
+            'bg-[var(--accent-surface)] text-accent-700 ring-1 ring-[var(--accent-line)] dark:text-accent-300 before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-accent-500'
+          : 'text-zinc-500 hover:bg-[var(--accent-soft)] hover:text-accent-600 dark:hover:text-accent-300'
       )}
     >
       <Icon aria-hidden="true" className="size-5 shrink-0" />
@@ -84,7 +84,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
         <Link
           href="/admin"
           aria-label="Agent Mission Control"
-          className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--copper-surface)] ring-1 ring-[var(--copper-line)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+          className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-surface)] ring-1 ring-[var(--accent-line)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
         >
           <LogoMark className="size-5 text-accent-500 dark:text-accent-400" />
         </Link>
@@ -105,7 +105,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
             href="/logout"
             aria-label="Sign out"
             title="Sign out"
-            className="flex size-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-[var(--copper-soft)] hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:hover:text-accent-300"
+            className="flex size-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-[var(--accent-soft)] hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:hover:text-accent-300"
           >
             <ArrowRightStartOnRectangleIcon aria-hidden="true" className="size-5" />
           </a>
@@ -117,17 +117,17 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
         <Link href="/admin" aria-label="Agent Mission Control" className="flex size-8 items-center justify-center rounded-lg bg-zinc-950/5 dark:bg-white/5">
           <LogoMark className="size-4 text-accent-500 dark:text-accent-400" />
         </Link>
-        <nav className="flex items-center gap-1">
+        <nav className="no-scrollbar flex min-w-0 items-center gap-1 overflow-x-auto">
           {NAV_ITEMS.map(({ label, icon: Icon, href, match }) => (
             <Link
               key={label}
               href={href}
               aria-current={match(pathname) ? 'page' : undefined}
               className={clsx(
-                'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium',
+                'flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium',
                 match(pathname)
-                  ? 'bg-[var(--copper-surface)] text-accent-700 ring-1 ring-[var(--copper-line)] dark:text-accent-300'
-                  : 'text-zinc-500 hover:bg-[var(--copper-soft)] hover:text-accent-600 dark:hover:text-accent-300'
+                  ? 'bg-[var(--accent-surface)] text-accent-700 ring-1 ring-[var(--accent-line)] dark:text-accent-300'
+                  : 'text-zinc-500 hover:bg-[var(--accent-soft)] hover:text-accent-600 dark:hover:text-accent-300'
               )}
             >
               <Icon aria-hidden="true" className="size-4" />

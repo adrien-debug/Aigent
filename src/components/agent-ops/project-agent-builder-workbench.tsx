@@ -292,7 +292,7 @@ export function ProjectAgentBuilderWorkbench({
 
       {/* Approval gate */}
       {awaiting ? (
-        <div role="alert" className="rounded-xl bg-[var(--copper-soft)] p-5 ring-1 ring-[var(--copper-line)]">
+        <div role="alert" className="rounded-xl bg-[var(--accent-soft)] p-5 ring-1 ring-[var(--accent-line)]">
           <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
             Human approval required — nothing created yet
           </p>
@@ -439,7 +439,7 @@ export function ProjectAgentBuilderWorkbench({
                 {release.prBody}
               </pre>
             </div>
-            <div className="rounded-lg bg-[var(--copper-soft)] px-3 py-2 ring-1 ring-[var(--copper-line)]">
+            <div className="rounded-lg bg-[var(--accent-soft)] px-3 py-2 ring-1 ring-[var(--accent-line)]">
               <p className="text-xs text-accent-700 dark:text-accent-300">
                 Create PR ships next — no direct push to main. This proposal is a plan awaiting explicit approval.
               </p>
