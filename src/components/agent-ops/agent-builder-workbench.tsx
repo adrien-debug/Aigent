@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
+import { LangGraphDebugPanel, type LangGraphDebugInfo } from '@/components/agent-ops/langgraph-debug-panel'
 import { ToolBadge } from '@/components/agent-ops/tool-badge'
 import { Button } from '@/components/catalyst/button'
 import { Field, Label } from '@/components/catalyst/fieldset'
@@ -61,6 +62,7 @@ interface BuilderRunState {
   pendingTool: { name: string; argumentsSummary: string; risk?: string } | null
   finalText: string
   createdCopilotId: string | null
+  langgraph?: LangGraphDebugInfo
 }
 
 const TOOL_RISK_LEVELS: readonly ToolRiskLevel[] = ['low', 'medium', 'high', 'critical']
@@ -258,6 +260,9 @@ export function AgentBuilderWorkbench() {
           </ul>
         ) : null}
       </AgentSectionCard>
+
+      {/* LangGraph debug — where this run runs (graph / thread / assistant / server) */}
+      {state?.langgraph ? <LangGraphDebugPanel info={state.langgraph} status={state.status} /> : null}
 
       {/* 3 — Approval gate (human-in-the-loop) */}
       {awaiting ? (

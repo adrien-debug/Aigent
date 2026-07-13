@@ -27,7 +27,7 @@ import 'server-only'
 import { randomUUID } from 'node:crypto'
 
 import type { CreateCopilotInput, ProposedTool } from './authoring-types'
-import { agentServerClient } from './langgraph-client'
+import { agentServerClient, agentServerUrl, AGENT_BUILDER_GRAPH_ID } from './langgraph-client'
 import { runOnAgentServer, resumeOnAgentServer, type LangGraphServerStep } from './langgraph-server'
 import { resolveRunAssistantId } from './resolve-run-assistant'
 import { slugify } from './slug'
@@ -117,6 +117,20 @@ export interface BuilderRunState {
   projectId: string | null
   /** Repo-aware release proposal, present once a draft exists. Never pushes. */
   releaseProposal: BuilderReleaseProposal | null
+  /**
+   * LangGraph debug metadata — where this run actually executes, so the operator
+   * can correlate the Aigent UI with the LangGraph Agent Server. All non-secret.
+   */
+  langgraph: {
+    /** The graph id in langgraph.json — always 'agent_builder'. */
+    graph: string
+    /** The assistant the run targeted, or null when it ran on the bare graph id. */
+    assistantId: string | null
+    /** The Agent Server base URL (localhost dev by default). */
+    agentServerUrl: string
+    /** The thread id — identical to runId; the run's state key on the server. */
+    threadId: string
+  }
 }
 
 type AnyMsg = {
@@ -178,6 +192,7 @@ export async function startAgentBuilderRun(args: {
     createdCopilotId: null,
     projectId: args.projectId ?? null,
     repoScan: args.repoScan ?? null,
+    assistantId: assistantId ?? null,
   })
 }
 
@@ -227,6 +242,7 @@ export async function resumeAgentBuilderRun(args: {
     createdCopilotId: null,
     projectId: args.projectId ?? null,
     repoScan: args.repoScan ?? null,
+    assistantId: assistantId ?? null,
   })
 }
 
@@ -314,6 +330,8 @@ interface NormalizeInput {
   projectId?: string | null
   /** Repo scan the run was seeded with — drives the release proposal's real scripts. */
   repoScan?: { repo: string; branch: string; scripts: Record<string, string> } | null
+  /** The assistant the run targeted (null → bare graph id). For the debug block. */
+  assistantId?: string | null
 }
 
 function normalizeState(input: NormalizeInput): BuilderRunState {
@@ -387,6 +405,12 @@ function normalizeState(input: NormalizeInput): BuilderRunState {
     createdCopilotId: input.createdCopilotId,
     projectId: input.projectId ?? null,
     releaseProposal,
+    langgraph: {
+      graph: AGENT_BUILDER_GRAPH_ID,
+      assistantId: input.assistantId ?? null,
+      agentServerUrl: agentServerUrl(),
+      threadId: input.runId,
+    },
   }
 }
 
