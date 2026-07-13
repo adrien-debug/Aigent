@@ -107,15 +107,16 @@ export async function POST(request: Request) {
   }
 
   // 1) Create the copilot (+ manifest + tools + version). A failure here is a
-  //    plain 502 (nothing to undo — the multi-insert is fail-closed).
+  //    plain 502 (nothing to undo — the multi-insert is fail-closed). Internal
+  //    errors (PostgREST status/path/body) are logged server-side only — the
+  //    client gets a generic message, matching projects/route.ts and the
+  //    sibling [copilotId]/route.ts DELETE handler.
   let copilotId: string
   try {
     copilotId = await createCopilotFromManifest(body)
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'copilot creation failed' },
-      { status: 502 }
-    )
+    console.error('[agent-ops/copilots] createCopilotFromManifest failed:', err)
+    return NextResponse.json({ error: 'copilot creation failed' }, { status: 502 })
   }
 
   // 2) Provision the copilot's dedicated assistant (config derived from the
@@ -126,13 +127,10 @@ export async function POST(request: Request) {
   try {
     assistantId = await ensureCopilotAssistant({ copilotId })
   } catch (err) {
+    console.error('[agent-ops/copilots] ensureCopilotAssistant failed:', err)
     await deleteCopilotCascade(copilotId).catch(() => {})
     return NextResponse.json(
-      {
-        error: `copilot assistant provisioning failed: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      },
+      { error: 'copilot assistant provisioning failed' },
       { status: 502 }
     )
   }
@@ -142,14 +140,11 @@ export async function POST(request: Request) {
   } catch (err) {
     // The copilot exists but couldn't be linked to its assistant — undo both so
     // the caller can retry cleanly rather than inherit an unlinked copilot.
+    console.error('[agent-ops/copilots] setCopilotAssistantId failed:', err)
     await deleteCopilotAssistant(assistantId).catch(() => {})
     await deleteCopilotCascade(copilotId).catch(() => {})
     return NextResponse.json(
-      {
-        error: `failed to link copilot to its assistant: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      },
+      { error: 'failed to link copilot to its assistant' },
       { status: 502 }
     )
   }
