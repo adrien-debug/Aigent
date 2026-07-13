@@ -2,9 +2,11 @@ import { notFound } from 'next/navigation'
 
 import { ImproveWorkbench } from '@/components/agent-ops/improve-workbench'
 import { getCopilot, getVersionsForCopilot } from '@/lib/agent-mission-control/data'
+import { nextRecommendedAction } from '@/lib/agent-mission-control/improvement-diagnosis'
 import {
   collectImprovementSignals,
   compareImprovementVersions,
+  diagnoseSignals,
   getLatestProposalForCopilot,
   type VersionComparison,
 } from '@/lib/agent-mission-control/improvement-loop'
@@ -38,6 +40,11 @@ export default async function ImprovePage({ params }: { params: Promise<{ id: st
     comparison = await compareImprovementVersions(id, proposal.baseVersionId, proposal.v2VersionId)
   }
 
+  // Deterministic diagnoses — recomputed live on every render (pure, no I/O),
+  // so even a cycle persisted before the diagnosis engine gets classified.
+  const diagnoses = diagnoseSignals(signals)
+  const nextAction = nextRecommendedAction(diagnoses)
+
   return (
     <ImproveWorkbench
       copilotId={id}
@@ -52,6 +59,8 @@ export default async function ImprovePage({ params }: { params: Promise<{ id: st
       suites={signals.suites}
       benchmarks={signals.benchmarks}
       comparison={comparison}
+      diagnoses={diagnoses}
+      nextAction={nextAction}
     />
   )
 }

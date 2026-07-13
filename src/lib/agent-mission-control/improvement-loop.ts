@@ -33,6 +33,7 @@ import 'server-only'
 import { randomUUID } from 'node:crypto'
 
 import { summarize } from './format'
+import { diagnoseFailure, type FailureCategory, type FailureDiagnosis, type RecommendedFixType } from './improvement-diagnosis'
 import { ensureCopilotAssistant } from './langgraph-assistants'
 import { getThreadDetail } from './langgraph-explorer'
 import { ARCHITECT_MODEL } from './llm-client'
@@ -53,6 +54,7 @@ const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`
 export interface FailingCaseSignal {
   suiteName: string
   caseName: string
+  caseId: string
   input: string
   expectedBehavior: string
   expectedToolCalls: string[]
@@ -107,6 +109,9 @@ export interface ImprovementSignals {
   }
   suites: SuiteSignal[]
   benchmarks: BenchmarkSignal[]
+  /** Names of the tools actually mounted on the copilot (tools table) — the
+   *  diagnosis rules need them to split "tool missing" from "tool unused". */
+  toolNames: string[]
   /** Recent real runs (DB mirror of LangGraph executions). */
   recentRuns: Array<{
     id: string
@@ -244,6 +249,7 @@ export async function collectImprovementSignals(
         failures.push({
           suiteName: (s.name as string) ?? suiteId,
           caseName: (c?.name as string) ?? (r.case_id as string),
+          caseId: r.case_id as string,
           input: (c?.input as string) ?? '',
           expectedBehavior: (c?.expected_behavior as string) ?? '',
           expectedToolCalls: (c?.expected_tool_calls as string[]) ?? [],
@@ -270,6 +276,10 @@ export async function collectImprovementSignals(
       failures,
     })
   }
+
+  // --- Mounted tools (names) — feeds the deterministic diagnosis rules.
+  const toolRows = await pgrest<RawRow[]>('GET', `tools?${eq('copilot_id', copilotId)}&select=name&order=name`)
+  const toolNames = toolRows.map((t) => t.name as string)
 
   // --- Benchmarks: per suite, the latest completed run + its result.
   const benchSuiteRows = await pgrest<RawRow[]>('GET', `benchmark_suites?${eq('copilot_id', copilotId)}&select=id,name&order=name`)
@@ -362,6 +372,7 @@ export async function collectImprovementSignals(
     },
     suites,
     benchmarks,
+    toolNames,
     recentRuns,
     langgraphThreads,
     langsmithRuns: langsmith.available ? langsmith.runs : [],
@@ -399,6 +410,37 @@ export interface FailureAnalysisEntry {
   caseName: string
   rootCause: string
   evidence: string
+  /** Deterministic classification (improvement-diagnosis.ts) — absent on
+   *  proposals persisted before the diagnosis engine existed. */
+  caseId?: string
+  category?: FailureCategory
+  confidence?: number
+  recommendedFixType?: RecommendedFixType
+}
+
+/**
+ * Deterministic diagnoses for every failing case in the collected signals —
+ * pure and cheap, so the improve PAGE recomputes them live on each render
+ * (they always describe the CURRENT failures, even for cycles persisted
+ * before the engine existed).
+ */
+export function diagnoseSignals(signals: ImprovementSignals): FailureDiagnosis[] {
+  return signals.suites.flatMap((s) =>
+    s.failures.map((f) =>
+      diagnoseFailure(
+        {
+          caseId: f.caseId,
+          status: f.status,
+          failureReason: f.failureReason,
+          actualBehavior: f.actualBehavior,
+          expectedBehavior: f.expectedBehavior,
+          expectedToolCalls: f.expectedToolCalls,
+          actualToolCalls: f.actualToolCalls,
+        },
+        signals.toolNames
+      )
+    )
+  )
 }
 
 export interface ImprovementProposal {
@@ -431,7 +473,11 @@ const PROPOSER_SYSTEM =
   '(string[]), confirmationPolicy, maxStepsPerRun (integer 1..24), outputContractInvariants (string[]). ' +
   'HARD CONSTRAINTS: tools are read-only and MUST NOT be added, removed or renamed; confirmationPolicy may ' +
   'only stay equal or get STRICTER (never → risky-only → always); never weaken safety rules; keep every ' +
-  'change grounded in an observed failure — no speculative rewrites of things that pass. Return STRICT ' +
+  'change grounded in an observed failure — no speculative rewrites of things that pass. The user payload ' +
+  'also carries `deterministicDiagnoses` (rule-based, AUTHORITATIVE): a case categorized `graph_recursion` ' +
+  'or `runtime_limit` CANNOT be fixed by manifest changes — never claim your manifest changes fix it; state ' +
+  'in the summary that it needs a runtime/graph stop-condition patch, and aim manifestChanges at the OTHER ' +
+  'failures. Return STRICT ' +
   'JSON, no prose outside it, with keys: summary (2-3 sentences, what changes and why), failureAnalysis ' +
   '(array of {caseName, rootCause, evidence}), manifestChanges (object whose keys are ONLY the fields you ' +
   'change, each value {from, to, why}), expectedImpact (1 sentence).'
@@ -536,13 +582,17 @@ export async function analyzeAndPropose(copilotId: string, triggeredBy: string):
     throw new NotFoundError('nothing to improve: no failing test case and no benchmark below 90')
   }
 
+  // Deterministic diagnoses FIRST — rule hits are authoritative over whatever
+  // narrative the LLM produces for the same case (see improvement-diagnosis.ts).
+  const diagnoses = diagnoseSignals(signals)
+
   const res = await routeCompletion({
     purpose: 'architect',
     modelProvider: 'openai',
     model: ARCHITECT_MODEL,
     messages: [
       { role: 'system', content: PROPOSER_SYSTEM },
-      { role: 'user', content: JSON.stringify(signals) },
+      { role: 'user', content: JSON.stringify({ ...signals, deterministicDiagnoses: diagnoses }) },
     ],
     responseFormat: 'json',
     maxOutputTokens: 3072,
@@ -565,6 +615,22 @@ export async function analyzeAndPropose(copilotId: string, triggeredBy: string):
   const summary = [summaryText, expectedImpact].filter(Boolean).join(' — ')
   if (!summary) throw new Error('improvement proposer returned no summary')
 
+  // Merge: one entry per REAL failing case, LLM narrative when it addressed
+  // the case, deterministic category/fix stamped on top (the rules win).
+  const llmEntries = parseFailureAnalysis(parsed.failureAnalysis)
+  const failures = signals.suites.flatMap((s) => s.failures)
+  const failureAnalysis: FailureAnalysisEntry[] = failures.map((f) => {
+    const d = diagnoses.find((x) => x.testCaseId === f.caseId)
+    const llm = llmEntries.find((e) => e.caseName === f.caseName)
+    return {
+      caseName: f.caseName,
+      caseId: f.caseId,
+      rootCause: llm?.rootCause ?? (d ? `rule-classified: ${d.category}` : 'unclassified'),
+      evidence: llm?.evidence || (d?.evidence.join(' | ') ?? ''),
+      ...(d ? { category: d.category, confidence: d.confidence, recommendedFixType: d.recommendedFixType } : {}),
+    }
+  })
+
   const proposal: ImprovementProposal = {
     id: makeId('improve', `${signals.copilot.slug}-${randomUUID().slice(0, 8)}`),
     copilotId,
@@ -573,7 +639,7 @@ export async function analyzeAndPropose(copilotId: string, triggeredBy: string):
     v2ManifestId: null,
     status: 'proposed',
     summary,
-    failureAnalysis: parseFailureAnalysis(parsed.failureAnalysis),
+    failureAnalysis,
     manifestChanges,
     sources: signals.sources,
     costUsd: res.costUsd,

@@ -11,6 +11,11 @@ import { Button } from '@/components/catalyst/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Text } from '@/components/catalyst/text'
 import { formatPercent, formatTimestamp } from '@/lib/agent-mission-control/format'
+import {
+  FIX_TYPE_LABELS,
+  type FailureDiagnosis,
+  type NextRecommendedAction,
+} from '@/lib/agent-mission-control/improvement-diagnosis'
 import type {
   BenchmarkSignal,
   ImprovementManifestChanges,
@@ -138,6 +143,22 @@ export interface ImproveWorkbenchProps {
   suites: SuiteSignal[]
   benchmarks: BenchmarkSignal[]
   comparison: VersionComparison | null
+  /** Deterministic per-failure classification, recomputed live by the page. */
+  diagnoses: FailureDiagnosis[]
+  nextAction: NextRecommendedAction | null
+}
+
+/** Compact classification line rendered under a failing case. */
+function DiagnosisLine({ diagnosis }: { diagnosis: FailureDiagnosis }) {
+  const runtime = diagnosis.recommendedFixType === 'graph_runtime_patch'
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-zinc-950/5 pt-2 dark:border-white/10">
+      <Badge color={runtime ? 'accent' : 'zinc'}>{diagnosis.category}</Badge>
+      <span className="text-xs text-zinc-500">{Math.round(diagnosis.confidence * 100)}% confidence</span>
+      <span className="text-xs text-zinc-600 dark:text-zinc-400">fix: {FIX_TYPE_LABELS[diagnosis.recommendedFixType]}</span>
+      {diagnosis.evidence[0] ? <span className="w-full text-xs text-zinc-500">{diagnosis.evidence[0]}</span> : null}
+    </div>
+  )
 }
 
 export function ImproveWorkbench({
@@ -149,7 +170,10 @@ export function ImproveWorkbench({
   suites,
   benchmarks,
   comparison,
+  diagnoses,
+  nextAction,
 }: ImproveWorkbenchProps) {
+  const diagnosisByCaseId = new Map(diagnoses.map((d) => [d.testCaseId, d]))
   const router = useRouter()
   const [analyzing, setAnalyzing] = useState(false)
   const [analyzeError, setAnalyzeError] = useState<string | null>(null)
@@ -250,6 +274,17 @@ export function ImproveWorkbench({
     <div className="space-y-8">
       <LoopStepper proposal={proposal} hasV2Results={hasV2Results} />
 
+      {/* Cycle-level verdict — the ONE next action, from the deterministic
+          diagnoses. This is where "manifest won't fix it" gets said out loud. */}
+      {nextAction ? (
+        <div className="rounded-xl bg-[var(--accent-soft)] p-4 ring-1 ring-[var(--accent-line)]">
+          <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
+            Next recommended action — {nextAction.label}
+          </p>
+          <p className="mt-1 text-sm text-zinc-800 dark:text-zinc-200">{nextAction.headline}</p>
+        </div>
+      ) : null}
+
       {/* ------------------------------------------------------------------ */}
       {/* 1. Base signals — what the loop improves FROM.                      */}
       {/* ------------------------------------------------------------------ */}
@@ -309,6 +344,9 @@ export function ImproveWorkbench({
                             expected: {f.expectedBehavior || '(none)'}
                             {f.expectedToolCalls.length > 0 ? ` · expected tools: ${f.expectedToolCalls.join(', ')}` : ''}
                           </p>
+                          {diagnosisByCaseId.has(f.caseId) ? (
+                            <DiagnosisLine diagnosis={diagnosisByCaseId.get(f.caseId)!} />
+                          ) : null}
                         </li>
                       ))}
                     </ul>
@@ -371,7 +409,12 @@ export function ImproveWorkbench({
                 <ul className="mt-2 space-y-2">
                   {proposal.failureAnalysis.map((f) => (
                     <li key={f.caseName} className="rounded-lg bg-zinc-950/[0.03] p-3 ring-1 ring-zinc-950/5 dark:bg-white/[0.03] dark:ring-white/10">
-                      <p className="text-sm font-medium text-zinc-950 dark:text-white">{f.caseName}</p>
+                      <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-zinc-950 dark:text-white">
+                        {f.caseName}
+                        {f.category ? (
+                          <Badge color={f.recommendedFixType === 'graph_runtime_patch' ? 'accent' : 'zinc'}>{f.category}</Badge>
+                        ) : null}
+                      </p>
                       <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{f.rootCause}</p>
                       {f.evidence ? <p className="mt-1 text-xs text-zinc-500">evidence: {f.evidence}</p> : null}
                     </li>
