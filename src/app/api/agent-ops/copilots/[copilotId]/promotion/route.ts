@@ -41,6 +41,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
   }
 
+  async function pgrestGet(pathAndQuery: string): Promise<Record<string, unknown>[]> {
+    const res = await fetch(`${base}/rest/v1/${pathAndQuery}`, {
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    })
+    if (!res.ok) {
+      console.error(`PostgREST ${res.status} on ${pathAndQuery}: ${(await res.text()).slice(0, 500)}`)
+      throw new Error('PostgREST error')
+    }
+    return (await res.json()) as Record<string, unknown>[]
+  }
+
   async function patch(pathAndQuery: string, patchBody: Record<string, unknown>) {
     const res = await fetch(`${base}/rest/v1/${pathAndQuery}`, {
       method: 'PATCH',
@@ -51,11 +62,33 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
       },
       body: JSON.stringify(patchBody),
     })
-    if (!res.ok) throw new Error(`PostgREST ${res.status} on ${pathAndQuery}: ${(await res.text()).slice(0, 160)}`)
+    // Never surface the raw PostgREST body to the caller — it can carry
+    // internal schema/query detail. Log server-side only, respond generically.
+    if (!res.ok) {
+      console.error(`PostgREST ${res.status} on ${pathAndQuery}: ${(await res.text()).slice(0, 500)}`)
+      throw new Error('PostgREST error')
+    }
     return (await res.json()) as unknown[]
   }
 
   try {
+    // 0) Confirm versionId (and previousProd, if given) actually belong to
+    // this copilot before mutating anything — otherwise a caller could pass
+    // a versionId from a different copilot and promote/archive it (IDOR).
+    const idsToVerify = [versionId, ...(previousProd ? [previousProd] : [])]
+    const ownedVersions = await pgrestGet(
+      `copilot_versions?id=in.(${idsToVerify.map((id) => encodeURIComponent(id)).join(',')})&select=id,copilot_id`
+    )
+    const ownedIds = new Set(
+      ownedVersions.filter((row) => row.copilot_id === copilotId).map((row) => row.id as string)
+    )
+    if (!ownedIds.has(versionId)) {
+      return NextResponse.json({ error: 'version not found' }, { status: 404 })
+    }
+    if (previousProd && previousProd !== versionId && !ownedIds.has(previousProd)) {
+      return NextResponse.json({ error: 'version not found' }, { status: 404 })
+    }
+
     // 1) The incoming version becomes production.
     const promoted = await patch(`copilot_versions?id=eq.${encodeURIComponent(versionId)}`, { stage: 'production' })
     if (promoted.length === 0) {
@@ -73,7 +106,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
       return NextResponse.json({ error: 'copilot not found' }, { status: 404 })
     }
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'PostgREST error' }, { status: 502 })
+    console.error('promotion failed', err instanceof Error ? err.message : err)
+    return NextResponse.json({ error: 'PostgREST error' }, { status: 502 })
   }
 
   return NextResponse.json({ ok: true, persisted: true, action: body.action, productionVersionId: versionId })
