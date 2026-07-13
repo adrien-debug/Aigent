@@ -66,7 +66,16 @@ export async function PATCH(
 
   let body: { projectId?: string | null; targetProjectIds?: string[] }
   try {
-    body = await request.json()
+    const parsed: unknown = await request.json()
+    // `request.json()` accepts any valid JSON value (null, a number, a string,
+    // an array, a boolean) — only a plain object is a valid patch body. The
+    // `'key' in body` checks below throw a TypeError on non-object values
+    // (e.g. `'projectId' in null`), so reject early with a clean 400 instead
+    // of a raw 500 for a malformed-but-valid-JSON body.
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return NextResponse.json({ error: 'body must be a JSON object' }, { status: 400 })
+    }
+    body = parsed as { projectId?: string | null; targetProjectIds?: string[] }
   } catch {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
   }
