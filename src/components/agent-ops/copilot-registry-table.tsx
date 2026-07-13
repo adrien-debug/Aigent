@@ -35,11 +35,28 @@ const STATUS_BADGE_COLOR: Record<CopilotStatus, 'accentSolid' | 'accentStrong' |
   archived: 'zinc',
 }
 
+// Small live-state dot next to the name — same ladder as the badge, just a
+// glance-able signal before the eye even reaches the label.
+const STATUS_DOT_COLOR: Record<CopilotStatus, string> = {
+  active: 'bg-accent-500',
+  degraded: 'bg-accent-500/70',
+  draft: 'bg-zinc-400 dark:bg-zinc-600',
+  paused: 'bg-zinc-400 dark:bg-zinc-600',
+  archived: 'bg-zinc-400 dark:bg-zinc-600',
+}
+
 /** Two-letter initials from a copilot name, for the generated avatar. */
 function initialsFor(name: string): string {
   const parts = name.trim().split(/\s+/)
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+/** Card chrome shared by both variants — accent ring + glow only for 'active'. */
+function cardShellClass(status: CopilotStatus): string {
+  return status === 'active'
+    ? 'ring-accent-500/40 shadow-[0_0_0_1px_var(--copper-line)_inset,0_8px_24px_-12px_var(--copper-glow)] dark:shadow-[0_0_0_1px_var(--copper-line)_inset,0_8px_24px_-12px_var(--copper-glow)]'
+    : 'ring-zinc-950/10 dark:ring-white/10'
 }
 
 /**
@@ -59,46 +76,58 @@ function BenchCard({
 }) {
   const href = `/admin/agents/${copilot.id}`
   return (
-    <li className="col-span-1 divide-y divide-zinc-950/10 rounded-lg bg-zinc-950/2.5 ring-1 ring-zinc-950/10 dark:divide-white/10 dark:bg-white/2.5 dark:ring-white/10">
-      <div className="flex w-full items-center justify-between gap-x-6 p-6">
+    <li
+      className={`col-span-1 divide-y divide-zinc-950/10 rounded-xl bg-zinc-950/2.5 ring-1 transition-shadow duration-150 dark:divide-white/10 dark:bg-white/2.5 ${cardShellClass(copilot.status)}`}
+    >
+      <div className="flex w-full items-start gap-x-4 p-6">
+        <Avatar
+          initials={initialsFor(copilot.name)}
+          alt=""
+          className="size-12 shrink-0 bg-zinc-800 text-base font-semibold text-white ring-1 ring-zinc-950/10 dark:ring-white/10"
+        />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-x-3">
-            <Link href={href} title={copilot.name} className="truncate text-sm font-medium text-zinc-950 hover:underline dark:text-white">
+          <div className="flex items-center gap-x-2">
+            <span className={`size-1.5 shrink-0 rounded-full ${STATUS_DOT_COLOR[copilot.status]}`} aria-hidden="true" />
+            <Link
+              href={href}
+              title={copilot.name}
+              className="truncate text-base font-semibold text-zinc-950 hover:underline dark:text-white"
+            >
               {copilot.name}
             </Link>
-            <Badge color={STATUS_BADGE_COLOR[copilot.status]}>{COPILOT_STATUS_LABELS[copilot.status]}</Badge>
           </div>
-          <p className="mt-1 truncate font-mono text-xs text-zinc-500">{copilot.slug}</p>
-          <p className="mt-1 truncate text-sm text-zinc-500 dark:text-zinc-400">
-            {AGENT_RUNTIME_LABELS[copilot.runtime]} · {copilot.model}
-          </p>
+          <p className="mt-0.5 truncate font-mono text-xs text-zinc-500">{copilot.slug}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <Badge color={STATUS_BADGE_COLOR[copilot.status]}>{COPILOT_STATUS_LABELS[copilot.status]}</Badge>
+            <Badge color="zinc">{AGENT_RUNTIME_LABELS[copilot.runtime]}</Badge>
+          </div>
+          <p className="mt-1.5 truncate font-mono text-xs text-zinc-500">{copilot.model}</p>
         </div>
-        <Avatar initials={initialsFor(copilot.name)} alt="" className="size-10 shrink-0 bg-zinc-800 text-white" />
       </div>
       <div className="grid grid-cols-2 gap-px divide-x divide-zinc-950/10 border-t border-zinc-950/10 text-center dark:divide-white/10 dark:border-white/10">
-        <div className="px-4 py-3">
+        <div className="px-4 py-3.5">
           <div className="text-xs text-zinc-500">Tests</div>
           {copilot.health.testPassRate === 0 ? (
-            <div className="mt-0.5 font-mono text-sm text-zinc-500 tabular-nums">
+            <div className="mt-1 font-mono text-sm text-zinc-500 tabular-nums">
               <span aria-hidden="true">—</span>
               <span className="sr-only">not tested</span>
             </div>
           ) : (
-            <div className="mt-0.5 font-mono text-sm text-zinc-950 tabular-nums dark:text-white">
+            <div className="mt-1 font-mono text-sm font-medium text-zinc-950 tabular-nums dark:text-white">
               {formatPercent(copilot.health.testPassRate)}
             </div>
           )}
         </div>
-        <div className="px-4 py-3">
+        <div className="px-4 py-3.5">
           <div className="text-xs text-zinc-500">Runs 24h</div>
-          <div className="mt-0.5 font-mono text-sm text-zinc-950 tabular-nums dark:text-white">
+          <div className="mt-1 font-mono text-sm font-medium text-zinc-950 tabular-nums dark:text-white">
             {copilot.health.runsLast24h.toLocaleString('en-US')}
           </div>
         </div>
       </div>
-      <div className="px-6 py-3">
+      <div className="px-6 py-3.5">
         <div className="text-xs text-zinc-500">Destination</div>
-        <div className="mt-0.5 truncate text-sm">
+        <div className="mt-1 truncate text-sm">
           {copilot.targetProjectIds.length === 0 ? (
             <span className="text-zinc-500">
               <span aria-hidden="true">—</span>
@@ -111,37 +140,24 @@ function BenchCard({
           )}
         </div>
       </div>
-      <div>
-        <div className="-mt-px flex divide-x divide-zinc-950/10 dark:divide-white/10">
-          <div className="flex w-0 flex-1">
-            <Headless.Button
-              onClick={() => onAssign(copilot)}
-              className="relative -mr-px inline-flex w-0 flex-1 items-center justify-center rounded-bl-lg border border-transparent py-3 text-sm font-semibold text-accent-400 hover:text-accent-300"
-            >
-              Assign…<span className="sr-only"> {copilot.name} to a project</span>
-            </Headless.Button>
-          </div>
-          <div className="-ml-px flex w-0 flex-1">
-            <Link
-              href={href}
-              className="relative inline-flex w-0 flex-1 items-center justify-center gap-x-2 border border-transparent py-3 text-sm font-semibold text-accent-400 hover:text-accent-300"
-            >
-              Open<span className="sr-only">, {copilot.name}</span>
-            </Link>
-          </div>
-          <Dropdown>
-            <DropdownButton
-              plain
-              aria-label={`Actions for ${copilot.name}`}
-              className="relative -ml-px inline-flex w-12 items-center justify-center rounded-none rounded-br-lg border border-transparent"
-            >
-              <EllipsisVerticalIcon />
-            </DropdownButton>
-            <DropdownMenu anchor="bottom end">
-              <DropdownItem onClick={() => onDelete(copilot)}>Delete…</DropdownItem>
-            </DropdownMenu>
-          </Dropdown>
-        </div>
+      <div className="flex items-center gap-2 p-3">
+        <Headless.Button
+          onClick={() => onAssign(copilot)}
+          className="inline-flex flex-1 items-center justify-center rounded-lg bg-[var(--copper-soft)] px-3 py-2 text-sm font-medium text-accent-700 ring-1 ring-[var(--copper-line)] transition-colors hover:bg-[var(--copper-surface)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300"
+        >
+          Assign…<span className="sr-only"> {copilot.name} to a project</span>
+        </Headless.Button>
+        <Button href={href} color="accent" className="flex-1 justify-center">
+          Open<span className="sr-only">, {copilot.name}</span>
+        </Button>
+        <Dropdown>
+          <DropdownButton plain aria-label={`Actions for ${copilot.name}`} className="shrink-0">
+            <EllipsisVerticalIcon />
+          </DropdownButton>
+          <DropdownMenu anchor="bottom end">
+            <DropdownItem onClick={() => onDelete(copilot)}>Delete…</DropdownItem>
+          </DropdownMenu>
+        </Dropdown>
       </div>
     </li>
   )
@@ -164,66 +180,67 @@ function AllCard({
 }) {
   const href = `/admin/agents/${copilot.id}`
   return (
-    <li className="col-span-1 divide-y divide-zinc-950/10 rounded-lg bg-zinc-950/2.5 ring-1 ring-zinc-950/10 dark:divide-white/10 dark:bg-white/2.5 dark:ring-white/10">
-      <div className="flex w-full items-center justify-between gap-x-6 p-6">
+    <li
+      className={`col-span-1 divide-y divide-zinc-950/10 rounded-xl bg-zinc-950/2.5 ring-1 transition-shadow duration-150 dark:divide-white/10 dark:bg-white/2.5 ${cardShellClass(copilot.status)}`}
+    >
+      <div className="flex w-full items-start gap-x-4 p-6">
+        <Avatar
+          initials={initialsFor(copilot.name)}
+          alt=""
+          className="size-12 shrink-0 bg-zinc-800 text-base font-semibold text-white ring-1 ring-zinc-950/10 dark:ring-white/10"
+        />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-x-3">
-            <Link href={href} title={copilot.name} className="truncate text-sm font-medium text-zinc-950 hover:underline dark:text-white">
+          <div className="flex items-center gap-x-2">
+            <span className={`size-1.5 shrink-0 rounded-full ${STATUS_DOT_COLOR[copilot.status]}`} aria-hidden="true" />
+            <Link
+              href={href}
+              title={copilot.name}
+              className="truncate text-base font-semibold text-zinc-950 hover:underline dark:text-white"
+            >
               {copilot.name}
             </Link>
-            <Badge color={STATUS_BADGE_COLOR[copilot.status]}>{COPILOT_STATUS_LABELS[copilot.status]}</Badge>
           </div>
-          <p className="mt-1 truncate font-mono text-xs text-zinc-500">{copilot.slug}</p>
-          <p className="mt-1 truncate text-sm text-zinc-500 dark:text-zinc-400">
-            {AGENT_RUNTIME_LABELS[copilot.runtime]} · {copilot.model}
-          </p>
+          <p className="mt-0.5 truncate font-mono text-xs text-zinc-500">{copilot.slug}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <Badge color={STATUS_BADGE_COLOR[copilot.status]}>{COPILOT_STATUS_LABELS[copilot.status]}</Badge>
+            <Badge color="zinc">{AGENT_RUNTIME_LABELS[copilot.runtime]}</Badge>
+          </div>
+          <p className="mt-1.5 truncate font-mono text-xs text-zinc-500">{copilot.model}</p>
         </div>
-        <Avatar initials={initialsFor(copilot.name)} alt="" className="size-10 shrink-0 bg-zinc-800 text-white" />
       </div>
       <div className="grid grid-cols-2 gap-px divide-x divide-zinc-950/10 border-t border-zinc-950/10 text-center dark:divide-white/10 dark:border-white/10">
-        <div className="px-4 py-3">
+        <div className="px-4 py-3.5">
           <div className="text-xs text-zinc-500">Project</div>
-          <div className="mt-0.5 truncate text-sm">
+          <div className="mt-1 truncate text-sm">
             {copilot.projectId === null ? (
               <span className="text-zinc-500">On bench</span>
             ) : (
-              <span className="text-zinc-700 dark:text-zinc-300">
+              <span className="font-medium text-zinc-700 dark:text-zinc-300">
                 {projectNameById.get(copilot.projectId) ?? copilot.projectId}
               </span>
             )}
           </div>
         </div>
-        <div className="px-4 py-3">
+        <div className="px-4 py-3.5">
           <div className="text-xs text-zinc-500">Owner</div>
-          <div className="mt-0.5 truncate text-sm text-zinc-700 dark:text-zinc-300">{copilot.owner}</div>
+          <div className="mt-1 truncate text-sm font-medium text-zinc-700 dark:text-zinc-300">{copilot.owner}</div>
         </div>
       </div>
-      <div>
-        <div className="-mt-px flex divide-x divide-zinc-950/10 dark:divide-white/10">
-          <div className="flex w-0 flex-1">
-            <Link
-              href={href}
-              className="relative inline-flex w-0 flex-1 items-center justify-center gap-x-2 rounded-bl-lg border border-transparent py-3 text-sm font-semibold text-accent-400 hover:text-accent-300"
-            >
-              Open<span className="sr-only">, {copilot.name}</span>
-            </Link>
-          </div>
-          <Dropdown>
-            <DropdownButton
-              plain
-              aria-label={`Actions for ${copilot.name}`}
-              className="relative -ml-px inline-flex w-12 items-center justify-center rounded-none rounded-br-lg border border-transparent"
-            >
-              <EllipsisVerticalIcon />
-            </DropdownButton>
-            <DropdownMenu anchor="bottom end">
-              {copilot.projectId !== null ? (
-                <DropdownItem onClick={() => onUnassign(copilot)}>Unassign…</DropdownItem>
-              ) : null}
-              <DropdownItem onClick={() => onDelete(copilot)}>Delete…</DropdownItem>
-            </DropdownMenu>
-          </Dropdown>
-        </div>
+      <div className="flex items-center gap-2 p-3">
+        <Button href={href} color="accent" className="flex-1 justify-center">
+          Open<span className="sr-only">, {copilot.name}</span>
+        </Button>
+        <Dropdown>
+          <DropdownButton plain aria-label={`Actions for ${copilot.name}`} className="shrink-0">
+            <EllipsisVerticalIcon />
+          </DropdownButton>
+          <DropdownMenu anchor="bottom end">
+            {copilot.projectId !== null ? (
+              <DropdownItem onClick={() => onUnassign(copilot)}>Unassign…</DropdownItem>
+            ) : null}
+            <DropdownItem onClick={() => onDelete(copilot)}>Delete…</DropdownItem>
+          </DropdownMenu>
+        </Dropdown>
       </div>
     </li>
   )
