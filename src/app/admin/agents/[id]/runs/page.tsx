@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { RunCopilotPanel } from '@/components/agent-ops/run-copilot-panel'
 import { RunDetailPanel } from '@/components/agent-ops/run-detail-panel'
 import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
+import { surfaceCardClass } from '@/components/agent-ops/surface-card'
 import { SplitBar, type SplitTone } from '@/components/agent-ops/widgets/split-bar'
 import { formatDurationMs, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 import {
@@ -101,7 +102,7 @@ export default async function RunsPage({
         </div>
       ) : (
         <>
-          <div className="rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden">
+          <div className={surfaceCardClass}>
             <div className="flex items-center justify-between p-6 border-b border-white/5">
               <div>
                 <h2 className="text-sm font-semibold text-white">Run Latency</h2>
@@ -124,7 +125,7 @@ export default async function RunsPage({
             </div>
 
             <div className="flex flex-col gap-6">
-              <div className="rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden">
+              <div className={surfaceCardClass}>
                 <div className="p-6 border-b border-white/5">
                   <h2 className="text-sm font-semibold text-white">Tool Calls Overview</h2>
                   <p className="text-xs text-zinc-400 mt-1">Outcomes across {runs.length} runs</p>
@@ -160,7 +161,7 @@ export default async function RunsPage({
             </div>
           </div>
 
-          <div className="rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden">
+          <div className={surfaceCardClass}>
             <div className="flex items-center justify-between p-4 border-b border-white/5 bg-black/20">
               <h2 className="text-sm font-semibold text-white">Recent Runs</h2>
               <span className="text-xs text-zinc-500">{runs.length} runs</span>

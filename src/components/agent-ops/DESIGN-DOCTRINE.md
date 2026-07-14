@@ -18,12 +18,17 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
   architecture strip — TOUJOURS re-tonalisé dark admin, jamais un look landing page.
 - Jamais 3 familles visuelles dans une même section. Jamais de placeholder/texte/image des packs.
 
-## Surfaces & profondeur (noir mission control — directive Adrien 2026-07-10)
-- **Fond du contenu (body) : GRIS `dark:bg-zinc-900`, flush** — zéro marge entre le contenu
-  et la sidebar / le bord droit du navigateur, zéro panneau flottant, zéro `max-w` centré.
-- **Carte / panneau : FOND NOIR comme la sidebar** — `dark:bg-zinc-950 ring-1 ring-white/10
-  rounded-xl`. Le contraste vient du champ gris du body : boxes noires SUR fond gris,
-  jamais l'inverse.
+## Surfaces & profondeur (noir mission control — directive Adrien 2026-07-10, surface unifiée 2026-07-14)
+- **Fond du contenu (canvas) : `--color-surface-canvas` (`#000000`), flush** — zéro marge entre le
+  contenu et la sidebar / le bord droit du navigateur, zéro panneau flottant, zéro `max-w` centré.
+- **Carte / panneau : UNE seule source, la constante `surfaceCardClass`** (`surface-card.tsx`) =
+  `rounded-2xl bg-[var(--color-surface-secondary)] (#121214) border border-white/5 overflow-hidden`,
+  consommée via `<SurfaceCard>`/`<AgentSectionCard>` ou en composant la constante. L'élévation
+  vient de la couche `surface-secondary` posée SUR le canvas noir. **INTERDIT de recopier cette
+  chaîne de classes à la main** (`bg-[var(--color-surface-secondary)]` + `rounded` + `border`
+  écrit inline) : on importe `surfaceCardClass`. Un sous-fond distinct (piste, inset) = la
+  constante `surfaceInsetClass` (`rounded-xl bg-black/20 border border-white/5`), jamais une
+  nouvelle string. Washes `bg-zinc-950/5`, `/10` (hover, séparateur, code, overlay) ≠ cartes.
 - **Tables : JAMAIS de scroll latéral.** Une table tient dans sa colonne en pleine largeur ;
   on retire des colonnes ou on tronque avant d'accepter un scroll horizontal.
 - **INTERDIT : box dans une box.** Aucune sous-surface encadrée (`bg-* + ring + rounded`) à
@@ -34,10 +39,10 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
 - **KPI / stat strips : style stat Catalyst, PAS de box** — trait fin `Divider` en haut,
   label, grosse valeur, `Badge` de delta (le composant `AgentMetricCard` implémente ce
   rythme ; grille `grid gap-8 sm:grid-cols-2 xl:grid-cols-4`, jamais de carte autour).
-- Header de carte : `border-b border-white/5 bg-zinc-950/[0.025] dark:bg-white/[0.04] px-6 py-4`,
-  corps `px-6 py-5` (ou `p-6`). Le même voile teinté s'applique aux `<thead>` de tables — c'est
-  LA couche qui marque la structuration (header vs corps), toujours en zinc translucide, jamais
-  une nouvelle teinte.
+- Header de carte : constante `surfaceCardHeaderClass` = `border-b border-white/5 bg-black/20`
+  (+ `px-6 py-4`), corps `px-6 py-6` (ou `p-6`). Le même voile `bg-black/20` s'applique aux
+  `<thead>` de tables — c'est LA couche qui marque la structuration (header vs corps), toujours
+  le même voile noir translucide, jamais une nouvelle teinte.
 - Hover ligne de table : `hover:bg-white/2.5`
 - Pas de glassmorphism, pas d'ombres lourdes, pas de néon.
 

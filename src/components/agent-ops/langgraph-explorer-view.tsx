@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { ServerStackIcon, CpuChipIcon, BoltIcon, ArrowTopRightOnSquareIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline'
 
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
+import { surfaceCardClass } from '@/components/agent-ops/surface-card'
 import { Link } from '@/components/catalyst/link'
 import clsx from 'clsx'
 
@@ -113,7 +114,7 @@ export function LangGraphExplorerView({
   return (
     <div className="flex flex-col gap-6">
       {/* Topology Connection Band */}
-      <div className="flex flex-col md:flex-row items-stretch rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden">
+      <div className={clsx('flex flex-col md:flex-row items-stretch', surfaceCardClass)}>
         <div className="flex-1 p-6 flex flex-col gap-4 border-b md:border-b-0 md:border-r border-white/5">
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-xl bg-accent-500/10 ring-1 ring-accent-500/20">
@@ -168,7 +169,7 @@ export function LangGraphExplorerView({
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Threads List */}
-          <div className="flex flex-col rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden">
+          <div className={clsx('flex flex-col', surfaceCardClass)}>
             <div className="p-4 border-b border-white/5 bg-black/20">
               <h2 className="text-sm font-semibold text-white">Recent Threads</h2>
             </div>
@@ -208,7 +209,7 @@ export function LangGraphExplorerView({
           </div>
 
           {/* Thread Detail */}
-          <div className="flex flex-col rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden">
+          <div className={clsx('flex flex-col', surfaceCardClass)}>
             <div className="p-4 border-b border-white/5 bg-black/20">
               <h2 className="text-sm font-semibold text-white">Thread Detail</h2>
             </div>
