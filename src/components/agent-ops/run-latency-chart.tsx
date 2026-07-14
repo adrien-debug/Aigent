@@ -62,8 +62,8 @@ export function RunLatencyChart({ data }: { data: RunLatencyPoint[] }) {
   const tickInterval = Math.max(0, Math.ceil(data.length / 6) - 1)
 
   return (
-    <ResponsiveContainer width="100%" height={260}>
-      <AreaChart data={data} margin={{ top: 12, right: 12, bottom: 0, left: -20 }}>
+    <ResponsiveContainer width="100%" height={340}>
+      <AreaChart data={data} margin={{ top: 24, right: 16, bottom: 8, left: -12 }}>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={SERIES_STROKE} stopOpacity={0.2} />
