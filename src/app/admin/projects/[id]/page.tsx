@@ -8,7 +8,6 @@ import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ProjectDeleteAction } from '@/components/agent-ops/project-delete-action'
 import { ProjectRepoIntelligence } from '@/components/agent-ops/project-repo-intelligence'
-import { Button } from '@/components/catalyst/button'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { getCopilots, getProject, getRecentRunsForProject } from '@/lib/agent-mission-control/data'
@@ -251,17 +250,13 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           ) : null}
         </nav>
 
-        {/* H1 canon — titre réel du projet, actions (Agent Builder + delete) à droite. */}
+        {/* H1 canon — titre réel du projet. Le CTA "Discuss with Builder" vit UNE
+            seule fois, dans la carte Repo intelligence (à côté de View repo map /
+            Suggestions / Retry scan — son contexte naturel) ; le header ne porte
+            que l'action destructive. */}
         <AgentPageHeader
           title={project.name}
-          actions={
-            <div className="flex items-center gap-3">
-              <Button href={`/admin/projects/${project.id}/builder`} color="accent">
-                Discuss with Builder
-              </Button>
-              <ProjectDeleteAction project={{ id: project.id, name: project.name }} />
-            </div>
-          }
+          actions={<ProjectDeleteAction project={{ id: project.id, name: project.name }} />}
           className="mt-3"
         />
 

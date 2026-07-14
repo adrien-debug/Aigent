@@ -191,7 +191,7 @@ function ProjectRepoIntelligenceCompactView({
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             {showBuilderLink ? (
-              <Button outline href={`/admin/projects/${projectId}/builder`}>
+              <Button color="accent" href={`/admin/projects/${projectId}/builder`}>
                 Discuss with Builder
               </Button>
             ) : null}
