@@ -85,10 +85,8 @@ export async function POST(request: Request) {
   try {
     client = getOpenAIClient()
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'failed to init OpenAI client' },
-      { status: 503 }
-    )
+    console.error('[agent-ops/architect] failed to init OpenAI client', err)
+    return NextResponse.json({ error: 'failed to init OpenAI client' }, { status: 503 })
   }
 
   const messages = [
@@ -109,8 +107,8 @@ export async function POST(request: Request) {
       { timeout: OPENAI_REQUEST_TIMEOUT_MS }
     )
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'OpenAI API call failed'
-    return NextResponse.json({ error: `OpenAI error: ${message}` }, { status: 502 })
+    console.error('[agent-ops/architect] OpenAI API call failed', err)
+    return NextResponse.json({ error: 'OpenAI API call failed' }, { status: 502 })
   }
 
   // Guard the completion shape: an empty `choices` array (rare, but possible on
