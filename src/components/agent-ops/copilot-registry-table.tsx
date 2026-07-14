@@ -12,12 +12,11 @@ import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Dropdown, DropdownButton, DropdownItem, DropdownMenu } from '@/components/catalyst/dropdown'
 import { Field, Label } from '@/components/catalyst/fieldset'
-import { Subheading } from '@/components/catalyst/heading'
 import { Input, InputGroup } from '@/components/catalyst/input'
 import { Link } from '@/components/catalyst/link'
 import { Select } from '@/components/catalyst/select'
 import { formatPercent } from '@/lib/agent-mission-control/format'
-import { AGENT_RUNTIME_LABELS, COPILOT_STATUS_LABELS, MODEL_PROVIDER_LABELS } from '@/lib/agent-mission-control/labels'
+import { AGENT_RUNTIME_LABELS, COPILOT_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
 import type { AgentRuntime, Copilot, CopilotStatus, Project } from '@/lib/agent-mission-control/types'
 
 export type RegistryTableView = 'bench' | 'all'
@@ -42,54 +41,15 @@ function cardShellClass(status: CopilotStatus): string {
     : 'ring-zinc-950/10 dark:ring-white/10'
 }
 
-// Card shell — SAME skeleton as the project card (project-card.tsx): gradient
-// header, avatar overlapping its bottom edge, body with title/meta/description
-// on fixed heights, a bordered stat footer, then the action bar. Twin cards
-// align to the pixel; absent data renders "—", never 0.
+// Card shell — a COMPACT list card (4-up grid): a small avatar + name + status
+// on one row, the project pill, one condensed metric line, then the action bar.
+// No banner, no description — the detail lives on the agent's own page.
 const CARD_SHELL =
-  'col-span-1 flex h-full flex-col overflow-hidden rounded-xl bg-white ring-1 transition-shadow duration-150 dark:bg-zinc-950'
-
-/** One footer stat — label over a mono value; "—" (zinc) when unmeasured. */
-function Stat({ label, value, measured }: { label: string; value: string; measured: boolean }) {
-  return (
-    <div>
-      <div className="text-xs text-zinc-500">{label}</div>
-      <div
-        className={
-          'mt-1 font-mono tabular-nums ' + (measured ? 'text-zinc-700 dark:text-zinc-200' : 'text-zinc-500')
-        }
-      >
-        {measured ? value : <span aria-hidden="true">&mdash;</span>}
-        {!measured ? <span className="sr-only">not measured</span> : null}
-      </div>
-    </div>
-  )
-}
-
-/** The identity header: a zinc gradient banner + the round copilot avatar
- *  overlapping its bottom edge (mirrors the project card's photo + logo). */
-function CopilotBanner({ copilot }: { copilot: Copilot }) {
-  return (
-    <>
-      <div className="relative h-14">
-        <div aria-hidden="true" className="size-full bg-gradient-to-br from-zinc-800 to-zinc-950" />
-        <div className="absolute top-2.5 right-2.5 z-10">
-          <Badge color={STATUS_BADGE_COLOR[copilot.status]} className="shadow-sm">
-            {COPILOT_STATUS_LABELS[copilot.status]}
-          </Badge>
-        </div>
-      </div>
-      <div className="relative z-10 -mt-6 ml-5">
-        <CopilotAvatar copilot={copilot} className="size-12 ring-2 ring-white dark:ring-zinc-950" />
-      </div>
-    </>
-  )
-}
+  'col-span-1 flex h-full flex-col gap-2.5 rounded-xl bg-white p-4 ring-1 transition-shadow duration-150 hover:shadow-md dark:bg-zinc-950'
 
 /**
- * Card body — mirrors the project card's body exactly: title, meta line, the
- * project context, a fixed-height description, a bordered stat footer, then the
- * Open / Improve / menu action bar. `children` are the extra dropdown items.
+ * Compact card body: avatar + name + status on one line, project pill, a single
+ * tests · bench · runs metric line, then Open / menu. `children` = dropdown items.
  */
 function CopilotCardBody({
   copilot,
@@ -106,57 +66,63 @@ function CopilotCardBody({
 }) {
   const tested = copilot.health.testPassRate > 0
   const benched = copilot.health.benchmarkScore > 0
-  const hasRuns = copilot.health.runsLast24h > 0
+  const dim = 'text-zinc-400 dark:text-zinc-600'
+  const lit = 'text-zinc-700 dark:text-zinc-200'
   return (
-    <div className="flex flex-1 flex-col px-5 pt-2.5 pb-5">
-      <Subheading level={3} tone="neutral" className="truncate">
-        <Link href={href} title={copilot.name} className="hover:underline">
+    <>
+      {/* Identity row — small round avatar, name, status badge. */}
+      <div className="flex items-center gap-2.5">
+        <CopilotAvatar copilot={copilot} className="size-9 shrink-0" />
+        <Link
+          href={href}
+          title={copilot.name}
+          className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-950 hover:underline dark:text-white"
+        >
           {copilot.name}
         </Link>
-      </Subheading>
-      <div className="mt-1 truncate font-mono text-xs text-zinc-500">
-        {MODEL_PROVIDER_LABELS[copilot.modelProvider]} · {AGENT_RUNTIME_LABELS[copilot.runtime]} · {copilot.slug}
+        <Badge color={STATUS_BADGE_COLOR[copilot.status]} className="shrink-0">
+          {COPILOT_STATUS_LABELS[copilot.status]}
+        </Badge>
       </div>
-      {/* The project (or bench) — an accent folder pill so it's never lost. */}
-      <div className="mt-2">
-        <span
-          className={
-            'inline-flex max-w-full items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium ' +
-            (contextMuted
-              ? 'bg-zinc-950/5 text-zinc-500 dark:bg-white/5 dark:text-zinc-400'
-              : 'bg-[var(--accent-surface)] text-accent-700 ring-1 ring-[var(--accent-line)] dark:text-accent-300')
-          }
-        >
-          <FolderIcon aria-hidden="true" className="size-3.5 shrink-0" />
-          <span className="truncate">{contextLabel}</span>
+
+      {/* Project pill — the one context that must stay visible. */}
+      <span
+        className={
+          'inline-flex max-w-full items-center gap-1.5 self-start rounded-md px-2 py-0.5 text-xs font-medium ' +
+          (contextMuted
+            ? 'bg-zinc-950/5 text-zinc-500 dark:bg-white/5 dark:text-zinc-400'
+            : 'bg-[var(--accent-surface)] text-accent-700 ring-1 ring-[var(--accent-line)] dark:text-accent-300')
+        }
+      >
+        <FolderIcon aria-hidden="true" className="size-3 shrink-0" />
+        <span className="truncate">{contextLabel}</span>
+      </span>
+
+      {/* One condensed metric line: tests · bench (dim when unmeasured). */}
+      <div className="flex items-center gap-x-3 font-mono text-xs tabular-nums">
+        <span className={tested ? lit : dim}>{tested ? formatPercent(copilot.health.testPassRate) : '—'} tests</span>
+        <span aria-hidden="true" className="text-zinc-300 dark:text-zinc-700">·</span>
+        <span className={benched ? lit : dim}>
+          {benched ? `${copilot.health.benchmarkScore.toFixed(1)} bench` : '— bench'}
         </span>
       </div>
-      {/* Fixed 2-line description height so twin cards align their footers. */}
-      <p className="mt-3 line-clamp-2 min-h-10 text-sm text-zinc-500 dark:text-zinc-400">{copilot.description}</p>
 
-      {/* Footer — three mini-stats, same slots as the project card. */}
-      <div className="mt-auto grid grid-cols-3 gap-4 border-t border-zinc-950/5 pt-4 dark:border-white/5">
-        <Stat label="Tests" value={formatPercent(copilot.health.testPassRate)} measured={tested} />
-        <Stat label="Benchmark" value={copilot.health.benchmarkScore.toFixed(1)} measured={benched} />
-        <Stat label="Runs 24h" value={String(copilot.health.runsLast24h)} measured={hasRuns} />
-      </div>
-
-      {/* Actions. */}
-      <div className="mt-4 flex items-center gap-2">
-        <Button href={href} color="accent">
+      {/* Actions — Open + compact menu (Improve lives in the menu now). */}
+      <div className="mt-auto flex items-center gap-2 pt-1">
+        <Button href={href} color="accent" className="grow">
           Open<span className="sr-only">, {copilot.name}</span>
         </Button>
-        <Button href={`${href}/improve`} outline>
-          Improve<span className="sr-only"> {copilot.name}</span>
-        </Button>
         <Dropdown>
-          <DropdownButton plain aria-label={`More actions for ${copilot.name}`} className="ml-auto shrink-0">
+          <DropdownButton plain aria-label={`More actions for ${copilot.name}`} className="shrink-0">
             <EllipsisVerticalIcon />
           </DropdownButton>
-          <DropdownMenu anchor="bottom end">{children}</DropdownMenu>
+          <DropdownMenu anchor="bottom end">
+            <DropdownItem href={`${href}/improve`}>Improve</DropdownItem>
+            {children}
+          </DropdownMenu>
         </Dropdown>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -180,7 +146,6 @@ function BenchCard({
   const destinations = copilot.targetProjectIds.map((projectId) => projectNameById.get(projectId) ?? projectId)
   return (
     <li className={`${CARD_SHELL} ${cardShellClass(copilot.status)}`}>
-      <CopilotBanner copilot={copilot} />
       <CopilotCardBody
         copilot={copilot}
         href={href}
@@ -216,7 +181,6 @@ function AllCard({
   const href = `/admin/agents/${copilot.id}`
   return (
     <li className={`${CARD_SHELL} ${cardShellClass(copilot.status)}`}>
-      <CopilotBanner copilot={copilot} />
       <CopilotCardBody
         copilot={copilot}
         href={href}
@@ -387,14 +351,14 @@ export function CopilotRegistryTable({
       <div className="mt-6">
         {filtered.length > 0 ? (
           <div className="space-y-8">
-            <ul role="list" className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+            <ul role="list" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {activeRows.map(renderCard)}
             </ul>
 
             {pausedRows.length > 0 ? (
               <div>
                 <h3 className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Paused</h3>
-                <ul role="list" className="mt-3 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                <ul role="list" className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {pausedRows.map(renderCard)}
                 </ul>
               </div>
