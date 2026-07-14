@@ -45,7 +45,7 @@ function cardShellClass(status: CopilotStatus): string {
 // on one row, the project pill, one condensed metric line, then the action bar.
 // No banner, no description — the detail lives on the agent's own page.
 const CARD_SHELL =
-  'col-span-1 flex h-full flex-col gap-2.5 rounded-xl bg-white p-4 ring-1 transition-shadow duration-150 hover:shadow-md dark:bg-zinc-950'
+  'col-span-1 flex h-full flex-col gap-3 rounded-2xl bg-white p-5 ring-1 transition-shadow duration-150 hover:shadow-lg dark:bg-zinc-950'
 
 /**
  * Compact card body: avatar + name + status on one line, project pill, a single
@@ -70,13 +70,13 @@ function CopilotCardBody({
   const lit = 'text-zinc-700 dark:text-zinc-200'
   return (
     <>
-      {/* Identity row — small round avatar, name, status badge. */}
-      <div className="flex items-center gap-2.5">
-        <CopilotAvatar copilot={copilot} className="size-9 shrink-0" />
+      {/* Identity row — avatar, name, status badge. */}
+      <div className="flex items-center gap-3">
+        <CopilotAvatar copilot={copilot} className="size-10 shrink-0" />
         <Link
           href={href}
           title={copilot.name}
-          className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-950 hover:underline dark:text-white"
+          className="min-w-0 flex-1 truncate text-[15px] font-semibold text-zinc-950 hover:underline dark:text-white"
         >
           {copilot.name}
         </Link>
@@ -88,18 +88,18 @@ function CopilotCardBody({
       {/* Project pill — the one context that must stay visible. */}
       <span
         className={
-          'inline-flex max-w-full items-center gap-1.5 self-start rounded-md px-2 py-0.5 text-xs font-medium ' +
+          'inline-flex max-w-full items-center gap-1.5 self-start rounded-md px-2 py-1 text-xs font-medium ' +
           (contextMuted
             ? 'bg-zinc-950/5 text-zinc-500 dark:bg-white/5 dark:text-zinc-400'
             : 'bg-[var(--accent-surface)] text-accent-700 ring-1 ring-[var(--accent-line)] dark:text-accent-300')
         }
       >
-        <FolderIcon aria-hidden="true" className="size-3 shrink-0" />
+        <FolderIcon aria-hidden="true" className="size-3.5 shrink-0" />
         <span className="truncate">{contextLabel}</span>
       </span>
 
-      {/* One condensed metric line: tests · bench (dim when unmeasured). */}
-      <div className="flex items-center gap-x-3 font-mono text-xs tabular-nums">
+      {/* Metric line — tests · bench (dim when unmeasured). */}
+      <div className="flex items-center gap-x-2 font-mono text-xs tabular-nums">
         <span className={tested ? lit : dim}>{tested ? formatPercent(copilot.health.testPassRate) : '—'} tests</span>
         <span aria-hidden="true" className="text-zinc-300 dark:text-zinc-700">·</span>
         <span className={benched ? lit : dim}>
@@ -107,13 +107,13 @@ function CopilotCardBody({
         </span>
       </div>
 
-      {/* Actions — Open + compact menu (Improve lives in the menu now). */}
-      <div className="mt-auto flex items-center gap-2 pt-1">
-        <Button href={href} color="accent" className="grow">
+      {/* Actions — a large, full-width Open + a menu, on a divided footer. */}
+      <div className="mt-auto flex items-stretch gap-2 border-t border-zinc-950/5 pt-4 dark:border-white/10">
+        <Button href={href} color="accent" className="grow justify-center py-2 text-sm font-semibold">
           Open<span className="sr-only">, {copilot.name}</span>
         </Button>
         <Dropdown>
-          <DropdownButton plain aria-label={`More actions for ${copilot.name}`} className="shrink-0">
+          <DropdownButton outline aria-label={`More actions for ${copilot.name}`} className="shrink-0">
             <EllipsisVerticalIcon />
           </DropdownButton>
           <DropdownMenu anchor="bottom end">
