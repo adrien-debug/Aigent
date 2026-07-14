@@ -164,8 +164,11 @@ function ProjectRepoIntelligenceCompactView({
 
   return (
     <>
-      <div className={clsx(surfaceCardClass, 'px-4 py-3')}>
-        <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className={clsx(surfaceCardClass, 'relative overflow-hidden px-4 py-3')}>
+        {phase !== 'scanning' && intel ? (
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-(--accent-soft)" />
+        ) : null}
+        <div className="relative flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               {phase === 'scanning' ? (

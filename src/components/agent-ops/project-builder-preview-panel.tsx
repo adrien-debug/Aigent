@@ -72,7 +72,7 @@ export function ProjectBuilderPreviewPanel({
 
   return (
     <div className={clsx(surfaceCardClass, 'flex h-full min-h-0 flex-col')}>
-      <div className={clsx(surfaceCardHeaderClass, 'px-4 py-3')}>
+      <div className={clsx(surfaceCardHeaderClass, 'bg-[var(--color-surface-elevated)] px-4 py-3')}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Preview</h2>

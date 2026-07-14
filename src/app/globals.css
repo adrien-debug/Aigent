@@ -9,21 +9,22 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Accent — THE single hue of the design system: COLD INDIGO BLUE.
-   One precise, cold indigo (#6366f1 = 500) rendered as a full 50→950
-   ramp. */
+/* Accent — THE single hue of the design system: Adrien's green #A7FB90.
+   #A7FB90 is the accent everywhere it shows (400/500/600 = the exact green).
+   Only the deepest shades (700+) are darkened so white text on a solid accent
+   surface still clears WCAG AA — the visible accent is always #A7FB90. */
 @theme {
-  --color-accent-50: #eef2ff;
-  --color-accent-100: #e0e7ff;
-  --color-accent-200: #c7d2fe;
-  --color-accent-300: #a5b4fc;
-  --color-accent-400: #818cf8;
-  --color-accent-500: #6366f1;
-  --color-accent-600: #4f46e5;
-  --color-accent-700: #4338ca;
-  --color-accent-800: #3730a3;
-  --color-accent-900: #312e81;
-  --color-accent-950: #1e1b4b;
+  --color-accent-50: #a7fb90;
+  --color-accent-100: #a7fb90;
+  --color-accent-200: #a7fb90;
+  --color-accent-300: #a7fb90;
+  --color-accent-400: #a7fb90;
+  --color-accent-500: #a7fb90;
+  --color-accent-600: #a7fb90;
+  --color-accent-700: #2a7a20;
+  --color-accent-800: #236619;
+  --color-accent-900: #1c4f15;
+  --color-accent-950: #0b2809;
 
   --color-surface-canvas: #000000;
   --color-surface-primary: #09090b;
@@ -32,7 +33,7 @@
   --color-surface-elevated: #1f1f22;
   --color-surface-focus: #27272a;
   --color-surface-danger: #3f1014;
-  --color-surface-live: #1e1b4b;
+  --color-surface-live: #0c2a0a;
 }
 
 :root {
@@ -40,7 +41,6 @@
   --accent-surface: color-mix(in oklab, var(--color-accent-500) 12%, transparent);
   --accent-line: color-mix(in oklab, var(--color-accent-500) 25%, transparent);
   --accent-line-strong: color-mix(in oklab, var(--color-accent-400) 40%, transparent);
-  --accent-glow: color-mix(in oklab, var(--color-accent-500) 15%, transparent);
 }
 
 :root {

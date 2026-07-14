@@ -270,7 +270,7 @@ export function ProjectAgentBuilderWorkbench({
   const draftReady = Boolean(preview?.readyForApproval && !createdCopilotId && !draftBlocked)
 
   return (
-    <div className="flex min-h-[min(72vh,900px)] flex-col gap-4">
+    <div className="flex h-[min(82vh,960px)] flex-col gap-4">
       <ProjectRepoIntelligenceCompact
         projectId={projectId}
         repoFullName={repoFullName}
@@ -278,12 +278,12 @@ export function ProjectAgentBuilderWorkbench({
         intelligenceState={intelligenceState}
       />
 
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)] xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
+      <div className="grid min-h-0 flex-1 grid-rows-1 gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)] xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
         <section
           aria-label="Agent Builder architect chat"
-          className={clsx(surfaceCardClass, 'flex min-h-[420px] min-w-0 flex-col lg:min-h-[560px]')}
+          className={clsx(surfaceCardClass, 'flex h-full min-h-0 min-w-0 flex-col')}
         >
-          <div className={clsx(surfaceCardHeaderClass, 'px-4 py-3')}>
+          <div className={clsx(surfaceCardHeaderClass, 'relative bg-(--accent-soft) px-4 py-3')}>
             <div className="min-w-0">
               <h2 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Architect chat</h2>
               <p className="mt-1 text-xs text-zinc-500">
@@ -296,7 +296,7 @@ export function ProjectAgentBuilderWorkbench({
             role="log"
             aria-live="polite"
             aria-label="Builder conversation"
-            className="min-h-0 flex-1 overflow-y-auto"
+            className="relative min-h-0 flex-1 overflow-y-auto bg-[var(--color-surface-secondary)]"
           >
             {loading ? (
               <div className="flex items-center gap-2 p-4 text-sm text-zinc-500">
@@ -370,7 +370,7 @@ export function ProjectAgentBuilderWorkbench({
             <div ref={chatEndRef} />
           </div>
 
-          <div className={clsx(surfaceCardFooterClass, 'p-4')}>
+          <div className={clsx(surfaceCardFooterClass, 'bg-[var(--color-surface-elevated)] p-4')}>
             <Textarea
               ref={inputRef}
               name="project-builder-chat"
@@ -405,7 +405,7 @@ export function ProjectAgentBuilderWorkbench({
           </div>
         </section>
 
-        <aside className="min-h-[280px] min-w-0 lg:min-h-0">
+        <aside className="h-full min-h-0 min-w-0 overflow-hidden">
           <ProjectBuilderPreviewPanel
             preview={preview}
             conversationStatus={conversation?.status ?? null}

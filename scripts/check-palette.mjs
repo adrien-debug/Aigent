@@ -36,11 +36,11 @@ async function* walk(dir) {
 }
 
 // --- WCAG contrast -----------------------------------------------------------
-// Must mirror the solid accent shades in src/app/globals.css (indigo ramp).
+// Must mirror the solid accent shades in src/app/globals.css (green ramp, #A7FB90).
 const ACCENT = {
-  600: '#4f46e5',
-  700: '#4338ca',
-  800: '#3730a3',
+  600: '#a7fb90',
+  700: '#2a7a20',
+  800: '#236619',
 }
 function lin(c) {
   const s = c / 255

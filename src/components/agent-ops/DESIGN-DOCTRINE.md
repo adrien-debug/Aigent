@@ -47,7 +47,7 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
 - Pas de glassmorphism, pas d'ombres lourdes, pas de néon.
 
 ## Couleur — MONOCHROME accent (une seule teinte, la couleur n'est JAMAIS le seul indicateur : toujours un label)
-- **UNE seule teinte chromatique** : `accent` = **indigo premium** (`#6366f1` = 500), échelle
+- **UNE seule teinte chromatique** : `accent` = **vert tendre** (`#A7FB90` = 300), échelle
   `accent-50…950` pleinement saturée, enregistrée dans `globals.css` (`@theme`) — signature
   « operator console » du mission-control sur fond zinc sombre. TOUT surface de couleur (badges,
   états, charts, meters, nav, boutons) est une **nuance de cette teinte**. `zinc` est le SEUL neutre.
@@ -57,7 +57,6 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
   - `--accent-surface` (18%) — fond d'élément sélectionné/actif, header de carte/table.
   - `--accent-line` (40%) — hairline / bordure accent.
   - `--accent-line-strong` (55%) — ring de sélection (état choisi).
-  - `--accent-glow` (22%) — halo d'élévation subtil (ex. carte « best »).
   **INTERDIT** d'écrire une opacité accent à la main (`bg-accent-500/5`, `/10`, `/15`, `/20`,
   `accent-400/10`, `ring-accent-500/20`, etc.) : si le besoin correspond à l'un des 5 rôles
   ci-dessus, on consomme le token (`bg-[var(--accent-x)]` / `ring-[var(--accent-x)]`, cf.
@@ -66,7 +65,7 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
   commentaire de rôle) plutôt que de la laisser en valeur libre dans un composant. Focus clavier
   = `outline-accent-500` de Catalyst (déjà un seul ring, jamais un token de rôle). Statut =
   **LABEL + point/fill accent solide** (couleur pleine, pas un wash translucide de fond).
-- **Zéro autre teinte** : jamais green/amber/rose/blue/violet/lime/orange/emerald… Le sens
+- **Zéro autre teinte** : jamais indigo/amber/rose/blue/violet/lime/orange/emerald… Le sens
   (pass/fail/warn/actif) est porté par le **LABEL** + l'**intensité** de la nuance, pas par le hue.
 - **Échelle d'intensité des badges** (clés Catalyst) : `accent` (soft) → `accentStrong` → `accentSolid`.
   - actif / pass / prod healthy → `accent` ; attention/dégradé → `accentStrong` ; fail/critical/danger → `accentSolid`.

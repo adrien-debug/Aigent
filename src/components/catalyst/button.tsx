@@ -88,10 +88,11 @@ const styles = {
       '[--btn-icon:var(--color-zinc-400)] data-active:[--btn-icon:var(--color-zinc-300)] data-hover:[--btn-icon:var(--color-zinc-300)]',
     ],
     // The single brand accent solid button (design-system monochrome).
-    // bg-700 keeps white text ≥ 4.5:1 (WCAG AA) — bg-600 fails at 4.39:1.
+    // Fill is the brand green #A7FB90 (accent-500) with DARK text — on a light
+    // mint fill, zinc-950 clears WCAG AA at ~16:1 while white would be illegible.
     accent: [
-      'text-white [--btn-hover-overlay:var(--color-white)]/10 [--btn-bg:var(--color-accent-700)] [--btn-border:var(--color-accent-800)]/90',
-      '[--btn-icon:var(--color-accent-200)] data-active:[--btn-icon:var(--color-accent-100)] data-hover:[--btn-icon:var(--color-accent-100)]',
+      'text-zinc-950 [--btn-hover-overlay:var(--color-zinc-950)]/10 [--btn-bg:var(--color-accent-500)] [--btn-border:var(--color-accent-600)]/90',
+      '[--btn-icon:var(--color-zinc-900)] data-active:[--btn-icon:var(--color-zinc-950)] data-hover:[--btn-icon:var(--color-zinc-950)]',
     ],
   },
 }
