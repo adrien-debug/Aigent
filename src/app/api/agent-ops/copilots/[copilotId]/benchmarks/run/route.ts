@@ -8,6 +8,12 @@ import type { AgentRuntime, BenchmarkRun, ModelProvider } from '@/lib/agent-miss
 const MODEL_PROVIDERS: ModelProvider[] = ['openai', 'google', 'mistral', 'local']
 const RUNTIMES: AgentRuntime[] = ['langgraph', 'openai-assistants', 'gemini', 'custom']
 
+// Copilot ids are `<prefix>-<slug>-<hex>` (see slug.makeId): lowercase
+// alphanumeric + hyphens. Bound + charset-check the dynamic param before it
+// flows into the PostgREST filter and runBenchmarkSuite (same guard shape as
+// the langgraph/threads/[threadId] route).
+const COPILOT_ID_RE = /^[a-zA-Z0-9-]{1,100}$/
+
 /**
  * POST /api/agent-ops/copilots/:copilotId/benchmarks/run — run a REAL V1
  * benchmark suite. Delegates to `runBenchmarkSuite`, which executes + grades
@@ -22,6 +28,9 @@ const RUNTIMES: AgentRuntime[] = ['langgraph', 'openai-assistants', 'gemini', 'c
  */
 export async function POST(request: Request, { params }: { params: Promise<{ copilotId: string }> }) {
   const { copilotId } = await params
+  if (!COPILOT_ID_RE.test(copilotId)) {
+    return NextResponse.json({ error: 'invalid copilotId' }, { status: 400 })
+  }
 
   let body: {
     suiteId?: string
