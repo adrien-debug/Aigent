@@ -56,7 +56,8 @@ export function CommandPalette() {
               <Headless.Combobox
                 as="div"
                 className="mx-auto max-w-xl overflow-hidden rounded-2xl bg-white/90 shadow-2xl ring-1 ring-zinc-950/10 backdrop-blur-xl dark:bg-zinc-900/90 dark:ring-white/10 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_20px_40px_-10px_rgba(0,0,0,0.5)]"
-                onChange={(action: any) => {
+                onChange={(action: typeof ACTIONS[0] | null) => {
+                  if (!action) return
                   setIsOpen(false)
                   router.push(action.href)
                 }}
@@ -91,7 +92,7 @@ export function CommandPalette() {
                 {query !== '' && filtered.length === 0 && (
                   <div className="px-6 py-14 text-center text-sm sm:px-14">
                     <p className="mt-4 font-semibold text-zinc-900 dark:text-white">No results found</p>
-                    <p className="mt-2 text-zinc-500">We couldn't find anything matching your search.</p>
+                    <p className="mt-2 text-zinc-500">We couldn&apos;t find anything matching your search.</p>
                   </div>
                 )}
               </Headless.Combobox>

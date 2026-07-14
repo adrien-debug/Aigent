@@ -9,14 +9,9 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Accent — THE single hue of the design system: NEON ORANGE.
-   One flashy, fully-saturated orange (#ff6a00 = 500) rendered as a full 50→950
-   ramp; every chromatic surface (badges, states, charts, meters, nav, CTA) is a
-   shade of THIS color — always fully saturated, never a muted or brown tone. `zinc` is the only
-   neutral. Registered in @theme so `bg-accent-*`, `text-accent-*`,
-   `bg-accent-500/15`, `ring-accent-500` … all generate with opacity support.
-   AA verified (white text): 700 = 4.82:1, 800 = 6.72:1, 900 = 9.11:1.
-   See scripts/check-palette.mjs. */
+/* Accent — THE single hue of the design system: COLD INDIGO BLUE.
+   One precise, cold indigo (#6366f1 = 500) rendered as a full 50→950
+   ramp. */
 @theme {
   --color-accent-50: #eef2ff;
   --color-accent-100: #e0e7ff;
@@ -29,41 +24,32 @@
   --color-accent-800: #3730a3;
   --color-accent-900: #312e81;
   --color-accent-950: #1e1b4b;
+
+  --color-surface-canvas: #000000;
+  --color-surface-primary: #09090b;
+  --color-surface-secondary: #121214;
+  --color-surface-interactive: #18181b;
+  --color-surface-elevated: #1f1f22;
+  --color-surface-focus: #27272a;
+  --color-surface-danger: #3f1014;
+  --color-surface-live: #1e1b4b;
 }
 
-/* Accent semantic surface tokens — the accent turned into a LANGUAGE, not a
-   scattered set of `bg-accent-500/15`. These name the *roles* the accent plays
-   so every panel, nav item, selection, CTA and focus ring pulls from one place.
-   All are alpha-composited accent (or zinc for neutral) so they layer correctly
-   on the zinc body and the black card surfaces. Consumed via `bg-[…]` /
-   `ring-[…]` / arbitrary props where a role is clearer than a raw shade.
-   Dark-first: values below are the mission-control dark tuning. */
 :root {
-  /* accent roles (translucent so they compose on any dark surface). Every token
-     below is CONSUMED — no orphan roles: keyboard focus stays on Catalyst's
-     `outline-accent-500` (one ring already), and status meaning is carried by
-     LABEL + solid accent dots/fills per the doctrine, not by a translucent
-     state-wash. Add a token here only when a real consumer lands. */
-  --accent-soft: color-mix(in oklab, var(--color-accent-500) 8%, transparent);       /* faint wash — hover, resting nav */
-  --accent-surface: color-mix(in oklab, var(--color-accent-500) 12%, transparent);    /* selected / active tint fill */
-  --accent-line: color-mix(in oklab, var(--color-accent-500) 25%, transparent);       /* accent hairline / border */
-  --accent-line-strong: color-mix(in oklab, var(--color-accent-400) 40%, transparent);/* selection ring */
-  --accent-glow: color-mix(in oklab, var(--color-accent-500) 15%, transparent);       /* subtle elevation halo */
+  --accent-soft: color-mix(in oklab, var(--color-accent-500) 8%, transparent);
+  --accent-surface: color-mix(in oklab, var(--color-accent-500) 12%, transparent);
+  --accent-line: color-mix(in oklab, var(--color-accent-500) 25%, transparent);
+  --accent-line-strong: color-mix(in oklab, var(--color-accent-400) 40%, transparent);
+  --accent-glow: color-mix(in oklab, var(--color-accent-500) 15%, transparent);
 }
 
-/* Chart tokens — SINGLE source of truth for every Recharts surface.
-   Recharts wants concrete color strings, so charts pass `var(--chart-*)`
-   instead of re-hardcoding hex. Solid inks map to Tailwind's color scale;
-   alpha overlays (grid / cursor / hover) live here once. Theme-aware:
-   `:root` = light, `.dark` = the app's forced dark mission-control look.
-   Semantics follow DESIGN-DOCTRINE.md (accent = success, zinc = neutral). */
 :root {
-  --chart-series: var(--color-zinc-500);        /* neutral line/area — a measure, not a status */
-  --chart-success: var(--color-accent-500);      /* pass rate, winning score, dots — the accent hue */
-  --chart-tick: var(--color-zinc-500);           /* numeric axis ticks */
-  --chart-grid: rgba(9, 9, 11, 0.05);            /* gridlines & reference lines */
-  --chart-cursor: rgba(9, 9, 11, 0.1);           /* hover crosshair stroke */
-  --chart-surface: #ffffff;                      /* active-dot ring against the card */
+  --chart-series: var(--color-zinc-500);
+  --chart-success: var(--color-accent-500);
+  --chart-tick: var(--color-zinc-500);
+  --chart-grid: rgba(9, 9, 11, 0.05);
+  --chart-cursor: rgba(9, 9, 11, 0.1);
+  --chart-surface: #ffffff;
 }
 
 .dark {
@@ -72,21 +58,17 @@
   --chart-tick: var(--color-zinc-500);
   --chart-grid: rgba(255, 255, 255, 0.05);
   --chart-cursor: rgba(255, 255, 255, 0.1);
-  --chart-surface: #09090b;                      /* zinc-950 — the card surface */
+  --chart-surface: var(--color-surface-primary);
 }
 
 body {
-  @apply bg-zinc-950 text-zinc-100 overflow-x-hidden;
+  @apply bg-[var(--color-surface-canvas)] text-zinc-100 overflow-x-hidden antialiased;
 }
 
-/* Scrollable region that keeps scrolling but hides the scrollbar chrome —
-   used by the repo picker / file tree. Declared with Tailwind v4 `@utility`
-   so it is emitted into the compiled bundle (a plain `.class` after
-   `@import "tailwindcss"` is not picked up in v4). */
 @utility no-scrollbar {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* legacy Edge */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   &::-webkit-scrollbar {
-    display: none; /* WebKit */
+    display: none;
   }
 }

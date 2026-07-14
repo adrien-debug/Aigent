@@ -4,36 +4,33 @@ import type { Metadata } from 'next'
 import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
 import { LangGraphExplorerView } from '@/components/agent-ops/langgraph-explorer-view'
 import { explorerServerInfo } from '@/lib/agent-mission-control/langgraph-explorer'
+import { StaggerFade } from '@/components/agent-ops/stagger-fade'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: 'LangGraph Runs — Agent Mission Control',
+  title: 'LangGraph Topology — Aigent',
 }
 
-/**
- * /admin/langgraph — the LangGraph run explorer.
- *
- * Lists the real assistants + threads/runs on the Agent Server the app uses
- * (agent.hearst.app in prod), reads a thread's state on click, and deep-links to
- * LangGraph Studio pointed at that server. All data comes from the server-only
- * read routes under /api/agent-ops/langgraph/* — no secret reaches the client.
- *
- * The server URL + graph are resolved server-side (explorerServerInfo reads the
- * env); the Studio URL is built here so the client never needs the raw config.
- */
 export default function LangGraphRunsPage() {
   const { agentServerUrl, graph } = explorerServerInfo()
   const studioUrl = `https://smith.langchain.com/studio/?baseUrl=${encodeURIComponent(agentServerUrl)}`
 
   return (
-    <div className="space-y-8">
-      <AgentPageHeader
-        title="LangGraph Runs"
-        description="The real assistants, threads and runs on the Agent Server the app uses."
-        className="mt-2"
-      />
-      {/* useSearchParams (for ?threadId=) requires a Suspense boundary in Next 16. */}
+    <div className="flex flex-col h-[calc(100vh-80px)]">
+      <StaggerFade delay={0}>
+        <AgentPageHeader
+          title="LangGraph Workspace"
+          environment="Production"
+          live={true}
+          className="mb-6"
+        />
+      </StaggerFade>
+      
       <Suspense fallback={null}>
-        <LangGraphExplorerView agentServerUrl={agentServerUrl} graph={graph} studioUrl={studioUrl} />
+        <StaggerFade delay={1} className="flex-1 flex flex-col min-h-0">
+          <LangGraphExplorerView agentServerUrl={agentServerUrl} graph={graph} studioUrl={studioUrl} />
+        </StaggerFade>
       </Suspense>
     </div>
   )

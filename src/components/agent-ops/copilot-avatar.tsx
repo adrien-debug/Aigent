@@ -67,16 +67,32 @@ export function CopilotAvatar({
   copilot: Pick<Copilot, 'slug' | 'name' | 'tags'>
   className?: string
 }) {
-  const Icon = TYPE_ICON[copilotType(copilot)]
+  const type = copilotType(copilot)
+  const Icon = TYPE_ICON[type]
+  
+  // Dans le GOD MODE, on donne une identité visuelle plus forte aux avatars
+  // en utilisant des gradients subtils basés sur le type, tout en restant dans
+  // la palette sombre et premium.
+  const gradientClass = {
+    builder: 'bg-gradient-to-br from-accent-500/20 to-purple-500/10 ring-accent-500/30 text-accent-400',
+    security: 'bg-gradient-to-br from-red-500/20 to-orange-500/10 ring-red-500/30 text-red-400',
+    'qa-release': 'bg-gradient-to-br from-emerald-500/20 to-teal-500/10 ring-emerald-500/30 text-emerald-400',
+    inspector: 'bg-gradient-to-br from-blue-500/20 to-cyan-500/10 ring-blue-500/30 text-blue-400',
+    finance: 'bg-gradient-to-br from-amber-500/20 to-yellow-500/10 ring-amber-500/30 text-amber-400',
+    ops: 'bg-gradient-to-br from-zinc-500/20 to-zinc-400/10 ring-zinc-500/30 text-zinc-300',
+    default: 'bg-gradient-to-br from-accent-500/10 to-transparent ring-accent-500/20 text-accent-400'
+  }[type]
+
   return (
     <span
       aria-hidden="true"
       className={clsx(
-        'flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-surface)] text-accent-600 ring-1 ring-[var(--accent-line)] dark:text-accent-400',
-        className
+        'flex shrink-0 items-center justify-center rounded-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] ring-1',
+        gradientClass,
+        className || 'size-10'
       )}
     >
-      <Icon className="size-5" />
+      <Icon className={clsx("size-1/2 drop-shadow-[0_0_8px_currentColor]")} />
     </span>
   )
 }

@@ -2,15 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { ServerStackIcon, CpuChipIcon, BoltIcon, ArrowTopRightOnSquareIcon, ExclamationTriangleIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline'
 
-import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
-import { Button } from '@/components/catalyst/button'
 import { Link } from '@/components/catalyst/link'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
-import { Text } from '@/components/catalyst/text'
+import clsx from 'clsx'
 
-// Redacted shapes (mirror of langgraph-explorer.ts).
 interface ExplorerAssistant {
   assistantId: string
   name?: string
@@ -36,20 +33,10 @@ interface ExplorerThreadDetail {
   graph?: string
 }
 
-const AGENT_BUILDER_SLUG_HINT = 'Agent Builder'
-
-/** Short id — full ids are long UUIDs; show a readable prefix + full on hover. */
 function shortId(id: string): string {
   return id.length > 16 ? `${id.slice(0, 16)}…` : id
 }
 
-/**
- * LangGraph Runs explorer — lists the REAL assistants + threads/runs on the
- * Agent Server the app uses (agent.hearst.app in prod), and reads one thread's
- * state on click. Everything is read-only, fetched from the server-only routes
- * (no secret ever reaches this client). A `?threadId=` in the URL auto-opens
- * that thread (the link the Builder debug panel emits).
- */
 export function LangGraphExplorerView({
   agentServerUrl,
   graph,
@@ -72,263 +59,228 @@ export function LangGraphExplorerView({
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState<string | null>(null)
 
-  // Map assistantId → name, so a thread's assistant reads as a copilot name.
-  const assistantName = new Map(assistants.map((a) => [a.assistantId, a.name]))
+  const assistantName = new Map((Array.isArray(assistants) ? assistants : []).map((a) => [a.assistantId, a.name]))
 
   const loadDetail = useCallback(async (threadId: string) => {
-    setSelected(threadId)
     setDetailLoading(true)
     setDetailError(null)
-    setDetail(null)
     try {
-      const res = await fetch(`/api/agent-ops/langgraph/threads/${encodeURIComponent(threadId)}`)
-      const data = await res.json().catch(() => null)
-      if (!res.ok) {
-        setDetailError(data?.error ?? `Failed to read thread (${res.status}).`)
-        return
-      }
-      setDetail(data as ExplorerThreadDetail)
-    } catch {
-      setDetailError('LangGraph Agent Server not reachable.')
+      const res = await fetch(`/api/agent-ops/langgraph/thread?threadId=${encodeURIComponent(threadId)}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setDetail(data)
+      setSelected(threadId)
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : String(err))
     } finally {
       setDetailLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    let live = true
+    let active = true
     async function load() {
-      setLoading(true)
-      setListError(null)
       try {
         const [aRes, tRes] = await Promise.all([
           fetch('/api/agent-ops/langgraph/assistants'),
           fetch('/api/agent-ops/langgraph/threads'),
         ])
-        const aData = await aRes.json().catch(() => null)
-        const tData = await tRes.json().catch(() => null)
-        if (!live) return
-        if (!aRes.ok) {
-          setListError(aData?.error ?? `Failed to list assistants (${aRes.status}).`)
-          return
-        }
-        if (!tRes.ok) {
-          setListError(tData?.error ?? `Failed to list threads (${tRes.status}).`)
-          return
-        }
-        setAssistants((aData.assistants as ExplorerAssistant[]) ?? [])
-        setThreads((tData.threads as ExplorerThread[]) ?? [])
-        // Auto-open the thread named in the URL (the Builder debug-panel link),
-        // once the lists are in — done inside this async load, not a separate
-        // synchronous-setState effect, so it's a natural sequenced fetch.
-        if (initialThreadId) await loadDetail(initialThreadId)
-      } catch {
-        if (live) setListError('LangGraph Agent Server not reachable.')
+        if (!aRes.ok) throw new Error(`Assistants HTTP ${aRes.status}`)
+        if (!tRes.ok) throw new Error(`Threads HTTP ${tRes.status}`)
+        const [aData, tData] = await Promise.all([aRes.json(), tRes.json()])
+        if (!active) return
+        setAssistants(Array.isArray(aData) ? aData : [])
+        setThreads(Array.isArray(tData) ? tData : [])
+      } catch (err) {
+        if (active) setListError(err instanceof Error ? err.message : String(err))
       } finally {
-        if (live) setLoading(false)
+        if (active) setLoading(false)
       }
     }
     load()
-    return () => {
-      live = false
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    if (initialThreadId && selected !== initialThreadId) {
+      // Avoid calling setState synchronously by wrapping in a microtask
+      Promise.resolve().then(() => {
+        loadDetail(initialThreadId).catch(console.error)
+      })
     }
-  }, [initialThreadId, loadDetail])
+  }, [initialThreadId, loadDetail, selected])
 
   return (
-    <div className="space-y-6">
-      {/* Server + graph header cards */}
-      <div className="grid gap-6 sm:grid-cols-3">
-        <AgentSectionCard title="Agent Server" description="Where runs execute">
-          <p className="font-mono text-xs break-all text-zinc-950 dark:text-white">{agentServerUrl}</p>
-        </AgentSectionCard>
-        <AgentSectionCard title="Graph" description="The shared LangGraph graph">
-          <p className="font-mono text-sm text-zinc-950 dark:text-white">{graph}</p>
+    <div className="flex flex-col gap-6">
+      {/* Topology Connection Band */}
+      <div className="flex flex-col md:flex-row items-stretch rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden">
+        <div className="flex-1 p-6 flex flex-col gap-4 border-b md:border-b-0 md:border-r border-white/5">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-accent-500/10 ring-1 ring-accent-500/20">
+              <ServerStackIcon className="size-5 text-accent-400" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-white">Agent Server</span>
+              <span className="text-xs font-mono text-zinc-400">{agentServerUrl}</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 p-6 flex flex-col gap-4 border-b md:border-b-0 md:border-r border-white/5">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-accent-500/10 ring-1 ring-accent-500/20">
+              <CpuChipIcon className="size-5 text-accent-400" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-white">Shared Graph</span>
+              <span className="text-xs font-mono text-zinc-400">{graph}</span>
+            </div>
+          </div>
           <Link
             href="/admin/langgraph/canvas"
-            className="mt-2 inline-flex text-sm font-medium text-accent-700 hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300 dark:hover:text-accent-200"
+            className="mt-1 inline-flex text-xs font-medium text-accent-400 hover:text-accent-300 transition-colors"
           >
-            Open Canvas view →
+            Open Canvas view &rarr;
           </Link>
-        </AgentSectionCard>
-        <AgentSectionCard title="LangGraph Studio" description="Open the graph visually">
+        </div>
+        <div className="flex-1 p-6 flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-white">LangGraph Studio</span>
+            <span className="text-xs text-zinc-400">Deep-link to external UI</span>
+          </div>
           <a
             href={studioUrl}
             target="_blank"
-            rel="noreferrer"
-            className="text-sm font-medium text-accent-700 hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300 dark:hover:text-accent-200"
+            rel="noopener noreferrer"
+            className="flex size-10 items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white ring-1 ring-white/10 transition-colors"
+            title="Open LangGraph Studio"
           >
-            Open in LangGraph Studio →
+            <ArrowTopRightOnSquareIcon className="size-5" />
           </a>
-        </AgentSectionCard>
+        </div>
       </div>
 
-      {listError ? <ErrorBanner message={listError} /> : null}
-
-      {/* Assistants */}
-      <AgentSectionCard
-        title="Assistants"
-        description="One per copilot, on the shared agent_builder graph"
-        actions={<span className="text-xs text-zinc-500 tabular-nums">{assistants.length}</span>}
-      >
-        {loading ? (
-          <div className="flex items-center gap-2">
-            <Spinner /> <Text className="!mt-0">Loading…</Text>
-          </div>
-        ) : assistants.length > 0 ? (
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableHeader>Name</TableHeader>
-                <TableHeader>Assistant id</TableHeader>
-                <TableHeader>Graph</TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {assistants.map((a) => (
-                <TableRow key={a.assistantId}>
-                  <TableCell>{a.name ?? '—'}</TableCell>
-                  <TableCell>
-                    <span title={a.assistantId} className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
-                      {shortId(a.assistantId)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-zinc-500 dark:text-zinc-400">{a.graphId ?? graph}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ) : (
-          <Text>No assistants on the server.</Text>
-        )}
-      </AgentSectionCard>
-
-      {/* Threads / runs */}
-      <AgentSectionCard
-        title="Recent threads / runs"
-        description="Live LangGraph threads — click one to read its state"
-        actions={<span className="text-xs text-zinc-500 tabular-nums">{threads.length}</span>}
-      >
-        {loading ? (
-          <div className="flex items-center gap-2">
-            <Spinner /> <Text className="!mt-0">Loading…</Text>
-          </div>
-        ) : threads.length > 0 ? (
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableHeader>Thread id (= run id)</TableHeader>
-                <TableHeader>Status</TableHeader>
-                <TableHeader>Assistant</TableHeader>
-                <TableHeader>Created</TableHeader>
-                <TableHeader className="text-right">State</TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {threads.map((t) => (
-                <TableRow key={t.threadId} className={selected === t.threadId ? 'bg-[var(--accent-soft)]' : undefined}>
-                  <TableCell>
-                    <span title={t.threadId} className="font-mono text-xs text-zinc-950 dark:text-white">
-                      {shortId(t.threadId)}
-                    </span>
-                  </TableCell>
-                  <TableCell>{statusLabel(t.status)}</TableCell>
-                  <TableCell className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {t.assistantId ? assistantName.get(t.assistantId) ?? shortId(t.assistantId) : '—'}
-                  </TableCell>
-                  <TableCell className="text-xs text-zinc-500 dark:text-zinc-400">{formatWhen(t.createdAt)}</TableCell>
-                  <TableCell className="text-right">
-                    <Button plain onClick={() => loadDetail(t.threadId)}>
-                      View
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ) : (
-          <Text>No threads on the server yet — run the Agent Builder to create one.</Text>
-        )}
-      </AgentSectionCard>
-
-      {/* Thread detail */}
-      {selected ? (
-        <AgentSectionCard
-          title="Thread detail"
-          description={selected}
-        >
-          {detailLoading ? (
-            <div className="flex items-center gap-2">
-              <Spinner /> <Text className="!mt-0">Reading state…</Text>
+      {listError ? (
+        <ErrorBanner message={`Failed to load LangGraph state: ${listError}`} />
+      ) : loading ? (
+        <div className="flex items-center justify-center py-24 rounded-2xl border border-white/5 border-dashed bg-white/[0.01]">
+          <Spinner />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Threads List */}
+          <div className="flex flex-col rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden">
+            <div className="p-4 border-b border-white/5 bg-black/20">
+              <h2 className="text-sm font-semibold text-white">Recent Threads</h2>
             </div>
-          ) : detailError ? (
-            <ErrorBanner message={detailError} />
-          ) : detail ? (
-            <div className="space-y-4">
-              <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
-                <Row label="Status" value={statusLabel(detail.status)} />
-                <Row label="Current node" value={detail.currentNode ?? '— (finished)'} mono />
-                <Row label="Assistant" value={detail.assistantId ? assistantName.get(detail.assistantId) ?? detail.assistantId : '—'} />
-                <Row label="Graph" value={detail.graph ?? graph} mono />
-              </dl>
+            <div className="flex flex-col max-h-[600px] overflow-y-auto no-scrollbar">
+              {(!Array.isArray(threads) || threads.length === 0) ? (
+                <div className="p-8 text-center">
+                  <ChatBubbleLeftRightIcon className="size-8 text-zinc-600 mx-auto mb-3" />
+                  <p className="text-sm text-zinc-400">No threads found.</p>
+                </div>
+              ) : (
+                threads.map(thread => (
+                  <button
+                    key={thread.threadId}
+                    onClick={() => loadDetail(thread.threadId)}
+                    className={clsx(
+                      "flex flex-col gap-2 p-4 border-b border-white/5 text-left transition-colors",
+                      selected === thread.threadId ? "bg-[var(--color-surface-interactive)] ring-1 ring-inset ring-accent-500/50" : "hover:bg-white/5"
+                    )}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-sm font-mono text-white truncate" title={thread.threadId}>{shortId(thread.threadId)}</span>
+                      <span className={clsx(
+                        "text-[10px] font-medium uppercase tracking-widest px-2 py-0.5 rounded-md ring-1",
+                        thread.status === 'idle' ? "text-accent-400 bg-accent-400/10 ring-accent-400/20" : "text-accent-400 bg-accent-400/10 ring-accent-400/20"
+                      )}>
+                        {thread.status}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between w-full text-xs text-zinc-500">
+                      <span className="truncate">{thread.assistantId ? (assistantName.get(thread.assistantId) || shortId(thread.assistantId)) : '—'}</span>
+                      <span>{thread.updatedAt ? new Date(thread.updatedAt).toLocaleTimeString() : ''}</span>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
 
-              {detail.assistantId && (assistantName.get(detail.assistantId) ?? '').includes(AGENT_BUILDER_SLUG_HINT) ? (
-                <Link href="/admin/agents" className="inline-flex text-sm font-medium text-accent-700 hover:text-accent-600 dark:text-accent-300">
-                  Back to Agent Builder →
-                </Link>
-              ) : null}
+          {/* Thread Detail */}
+          <div className="flex flex-col rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden">
+            <div className="p-4 border-b border-white/5 bg-black/20">
+              <h2 className="text-sm font-semibold text-white">Thread Detail</h2>
+            </div>
+            <div className="flex-1 p-6 overflow-y-auto no-scrollbar">
+              {!selected ? (
+                <div className="flex flex-col items-center justify-center h-full text-center">
+                  <BoltIcon className="size-8 text-zinc-600 mb-3" />
+                  <p className="text-sm text-zinc-400">Select a thread to view its state.</p>
+                </div>
+              ) : detailLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <Spinner />
+                </div>
+              ) : detailError ? (
+                <ErrorBanner message={`Failed to load thread detail: ${detailError}`} />
+              ) : detail ? (
+                <div className="flex flex-col gap-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] uppercase tracking-widest text-zinc-500">Thread ID</span>
+                      <span className="text-sm font-mono text-white">{shortId(detail.threadId)}</span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] uppercase tracking-widest text-zinc-500">Status</span>
+                      <span className="text-sm text-white capitalize">{detail.status}</span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] uppercase tracking-widest text-zinc-500">Current Node</span>
+                      <span className="text-sm font-mono text-accent-400">{detail.currentNode || '—'}</span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] uppercase tracking-widest text-zinc-500">Graph</span>
+                      <span className="text-sm font-mono text-white">{detail.graph || '—'}</span>
+                    </div>
+                  </div>
 
-              {detail.interrupts.length > 0 ? (
-                <div className="rounded-lg bg-[var(--accent-soft)] p-4 ring-1 ring-[var(--accent-line)]">
-                  <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
-                    Interrupt — awaiting human approval
-                  </p>
-                  <pre className="mt-2 overflow-x-auto text-xs whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
-                    {JSON.stringify(detail.interrupts, null, 2)}
-                  </pre>
+                  <div className="flex flex-col gap-3">
+                    <span className="text-[10px] uppercase tracking-widest text-zinc-500 border-b border-white/5 pb-2">Messages</span>
+                    <div className="flex flex-col gap-4">
+                      {detail.messages.length === 0 ? (
+                        <p className="text-sm text-zinc-500">No messages in this thread.</p>
+                      ) : (
+                        detail.messages.map((msg, idx) => (
+                          <div key={idx} className={clsx(
+                            "flex flex-col gap-2 p-3 rounded-xl border",
+                            msg.role === 'user' ? "bg-[var(--color-surface-interactive)] border-white/5 ml-8" : "bg-accent-500/5 border-accent-500/10 mr-8"
+                          )}>
+                            <div className="flex items-center justify-between">
+                              <span className={clsx("text-[10px] font-bold uppercase tracking-widest", msg.role === 'user' ? "text-zinc-400" : "text-accent-400")}>
+                                {msg.role}
+                              </span>
+                            </div>
+                            <p className="text-sm text-zinc-300 whitespace-pre-wrap">{msg.content}</p>
+                            {msg.toolCalls && msg.toolCalls.length > 0 && (
+                              <div className="mt-2 flex flex-col gap-1">
+                                <span className="text-[10px] uppercase tracking-widest text-zinc-500">Tool Calls</span>
+                                {msg.toolCalls.map((tc, i) => (
+                                  <span key={i} className="text-xs font-mono text-accent-400">{tc}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
               ) : null}
-
-              <div>
-                <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Messages ({detail.messages.length})</p>
-                <ul className="mt-2 space-y-2">
-                  {detail.messages.map((m, i) => (
-                    <li key={i} className="border-b border-zinc-950/5 pb-2 last:border-0 dark:border-white/5">
-                      <p className="text-xs font-medium text-accent-700 dark:text-accent-300">{m.role}</p>
-                      <p className="text-sm whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">{m.content || '—'}</p>
-                      {m.toolCalls ? (
-                        <p className="mt-1 font-mono text-xs text-zinc-500 dark:text-zinc-400">tools: {m.toolCalls.join(', ')}</p>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              </div>
             </div>
-          ) : (
-            <Text>Select a thread to read its state.</Text>
-          )}
-        </AgentSectionCard>
-      ) : null}
-    </div>
-  )
-}
-
-function statusLabel(s: string): string {
-  const t = s.replace(/[-_]/g, ' ')
-  return t.charAt(0).toUpperCase() + t.slice(1)
-}
-
-/** Relative-free absolute-ish label (no Date.now() dependence for SSR safety on client). */
-function formatWhen(iso?: string): string {
-  if (!iso) return '—'
-  // Show the ISO date + time-of-day, trimmed — good enough for an ops list.
-  return iso.replace('T', ' ').slice(0, 19)
-}
-
-function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div>
-      <dt className="text-xs font-medium tracking-wide text-zinc-500 uppercase">{label}</dt>
-      <dd className={'mt-0.5 text-zinc-950 dark:text-white' + (mono ? ' font-mono text-xs break-all' : '')}>{value}</dd>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

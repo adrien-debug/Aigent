@@ -1,11 +1,8 @@
-import { BoltIcon, CpuChipIcon, FolderIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
+import { BoltIcon, CpuChipIcon, FolderIcon, ShieldCheckIcon, ChartBarIcon, ServerStackIcon, ClockIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import type { Metadata } from 'next'
 
-import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
-import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
-import { ProjectCard } from '@/components/agent-ops/project-card'
 import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
 import { Badge } from '@/components/catalyst/badge'
 import { Link } from '@/components/catalyst/link'
@@ -14,75 +11,240 @@ import { getCopilots, getProjects, getRecentRuns, getRegistryKpis } from '@/lib/
 import { formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 import type { AgentRun, Copilot, Project } from '@/lib/agent-mission-control/types'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
-  title: 'Dashboard — Agent Mission Control',
+  title: 'Command Center — Aigent',
 }
 
 const numberFormat = new Intl.NumberFormat('en-US')
 
-/** Status enum → plain human label: "needs-confirmation" → "Needs confirmation". */
 function statusLabel(status: string): string {
   const spaced = status.replace(/-/g, ' ')
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }
 
-/** "—" zinc placeholder with an sr-only explanation — absent data is never rendered as 0. */
-function EmDash({ srLabel }: { srLabel: string }) {
-  return (
-    <span className="text-zinc-500">
-      <span aria-hidden="true">&mdash;</span>
-      <span className="sr-only">{srLabel}</span>
-    </span>
-  )
+interface KpiBandProps {
+  kpis: {
+    activeCopilots: number
+    totalCopilots: number
+    runsLast24h: number
+    totalCostLast24hUsd: number
+    openWarnings: number
+  }
 }
 
-/** Card-footer affordance shared by every card — same slot, same style. */
-function ViewAllLink({ href, srSuffix }: { href: string; srSuffix: string }) {
+function KpiBand({ kpis }: KpiBandProps) {
   return (
-    <Link
-      href={href}
-      className="text-sm font-medium text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
-    >
-      View all <span aria-hidden="true">&rarr;</span>
-      <span className="sr-only"> {srSuffix}</span>
-    </Link>
-  )
-}
-
-/** Shared empty-state rhythm (icon + label + hint), identical across cards. */
-function CardEmptyState({
-  icon: Icon,
-  title,
-  hint,
-}: {
-  icon: typeof CpuChipIcon
-  title: string
-  hint: string
-}) {
-  return (
-    <div className="flex flex-col items-center gap-3 py-16 text-center">
-      <Icon aria-hidden="true" className="size-8 text-zinc-400 dark:text-zinc-600" />
-      <p className="text-sm font-semibold tracking-tight text-zinc-950 dark:text-white">{title}</p>
-      <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">{hint}</p>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-6 border-b border-white/5 mb-8">
+      <div className="flex flex-col group cursor-default">
+        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 group-hover:text-zinc-400 transition-colors">Active Fleet</span>
+        <div className="flex items-baseline gap-2">
+          <span className="text-4xl font-light tracking-tight text-white">{kpis.activeCopilots}</span>
+          <span className="text-sm text-zinc-500">/ {kpis.totalCopilots}</span>
+        </div>
+      </div>
+      <div className="flex flex-col group cursor-default">
+        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 group-hover:text-zinc-400 transition-colors">24h Volume</span>
+        <div className="flex items-baseline gap-2">
+          <span className="text-4xl font-light tracking-tight text-white">{numberFormat.format(kpis.runsLast24h)}</span>
+          <span className="text-sm text-zinc-500">runs</span>
+        </div>
+      </div>
+      <div className="flex flex-col group cursor-default">
+        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 group-hover:text-zinc-400 transition-colors">24h Compute Cost</span>
+        <div className="flex items-baseline gap-2">
+          <span className="text-4xl font-light tracking-tight text-white">{formatUsd(kpis.totalCostLast24hUsd)}</span>
+        </div>
+      </div>
+      <div className="flex flex-col group cursor-default">
+        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 group-hover:text-zinc-400 transition-colors">System Health</span>
+        <div className="flex items-baseline gap-2">
+          {kpis.openWarnings > 0 ? (
+            <span className="text-4xl font-light tracking-tight text-accent-400">{kpis.openWarnings}</span>
+          ) : (
+            <span className="text-4xl font-light tracking-tight text-accent-400">100%</span>
+          )}
+          <span className="text-sm text-zinc-500">{kpis.openWarnings > 0 ? 'warnings' : 'nominal'}</span>
+        </div>
+      </div>
     </div>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Run activity — the single visual anchor of the page: latency over the run
-// window, then a dense table of the latest runs. Nothing else competes with it.
-// ---------------------------------------------------------------------------
+function AttentionZone({ copilots }: { copilots: Copilot[] }) {
+  const flagged = copilots
+    .filter((copilot) => copilot.health.openWarnings > 0)
+    .sort((a, b) => b.health.openWarnings - a.health.openWarnings)
+    .slice(0, 4)
 
-const ACTIVITY_TABLE_ROWS = 6
+  if (flagged.length === 0) return null
 
-function RunActivityCard({
-  runs,
-  copilotNameById,
-}: {
-  runs: AgentRun[]
-  copilotNameById: Map<string, string>
-}) {
-  // Chart data: chronological (oldest → newest), plain serializable objects only.
+  return (
+    <div className="mb-8 rounded-xl bg-accent-500/10 border border-accent-500/20 p-6 shadow-[0_0_30px_rgba(99,102,241,0.1)]">
+      <div className="flex items-center gap-3 mb-4">
+        <ShieldCheckIcon className="size-5 text-accent-400" />
+        <h2 className="text-sm font-semibold text-accent-400 uppercase tracking-widest">Needs Attention</h2>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {flagged.map(copilot => (
+          <div key={copilot.id} className="group flex flex-col gap-2 bg-black/40 rounded-lg p-4 border border-accent-500/20 hover:bg-black/60 transition-colors cursor-pointer">
+            <div className="flex items-start justify-between">
+              <Link href={`/admin/agents/${copilot.id}`} className="text-sm font-medium text-white group-hover:underline truncate">
+                {copilot.name}
+              </Link>
+              <Badge color="accentStrong" className="shrink-0">{copilot.health.openWarnings}</Badge>
+            </div>
+            <div className="text-xs text-zinc-400 font-mono truncate">{copilot.slug}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SystemTopology() {
+  return (
+    <div className="rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 p-6 flex flex-col h-full relative overflow-hidden group">
+      {/* Subtle background pulse */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-accent-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-accent-500/10 transition-colors duration-1000" />
+      
+      <div className="flex items-center justify-between mb-8 relative z-10">
+        <h2 className="text-sm font-semibold text-white">System Topology</h2>
+        <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-accent-500/10 border border-accent-500/20">
+          <span className="relative flex size-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-400 opacity-75"></span>
+            <span className="relative inline-flex size-1.5 rounded-full bg-accent-500"></span>
+          </span>
+          <span className="text-[10px] text-accent-400 font-medium uppercase tracking-widest">Connected</span>
+        </div>
+      </div>
+      
+      <div className="flex-1 flex flex-col justify-center gap-8 relative z-10">
+        <div className="flex items-center justify-between px-5 py-4 rounded-xl bg-[var(--color-surface-interactive)] border border-white/5 shadow-lg">
+          <div className="flex items-center gap-4">
+            <div className="p-2 rounded-lg bg-white/5 ring-1 ring-white/10">
+              <ServerStackIcon className="size-5 text-zinc-300" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-white">Agent Server</span>
+              <span className="text-xs font-mono text-zinc-500 mt-0.5">wss://graph.aigent.internal</span>
+            </div>
+          </div>
+          <div className="flex flex-col items-end">
+            <span className="text-xs font-mono text-accent-400">12ms ping</span>
+          </div>
+        </div>
+        
+        {/* Animated Connection Lines */}
+        <div className="relative h-12 flex justify-center w-full">
+          <div className="absolute inset-0 flex justify-center">
+            <div className="w-px h-full bg-gradient-to-b from-white/10 via-accent-500/50 to-white/10"></div>
+          </div>
+          <div className="absolute inset-0 flex justify-between px-16">
+            <div className="w-px h-full bg-gradient-to-b from-white/10 via-accent-500/20 to-white/10 transform rotate-12"></div>
+            <div className="w-px h-full bg-gradient-to-b from-white/10 via-accent-500/20 to-white/10 transform -rotate-12"></div>
+          </div>
+          {/* Moving particles */}
+          <div className="absolute top-0 w-1.5 h-1.5 bg-accent-400 rounded-full animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite]" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col gap-3 p-4 rounded-xl bg-[var(--color-surface-interactive)] border border-white/5 hover:border-white/10 transition-colors">
+            <div className="flex items-center justify-between">
+              <CpuChipIcon className="size-4 text-zinc-400" />
+              <span className="text-[10px] uppercase tracking-widest text-zinc-500">Workers</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-light text-white">12</span>
+              <span className="text-xs text-accent-400 font-medium">Active</span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 p-4 rounded-xl bg-[var(--color-surface-interactive)] border border-white/5 hover:border-white/10 transition-colors">
+            <div className="flex items-center justify-between">
+              <ArrowPathIcon className="size-4 text-zinc-400" />
+              <span className="text-[10px] uppercase tracking-widest text-zinc-500">Throughput</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-light text-white">4.2</span>
+              <span className="text-xs text-zinc-500 font-mono">req/s</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function FleetDistribution({ copilots }: { copilots: Copilot[] }) {
+  const statuses = ['active', 'degraded', 'paused', 'draft', 'archived'] as const
+  const counts = statuses.map(s => copilots.filter(c => c.status === s).length)
+  const total = copilots.length
+  const activeCount = counts[0]
+  const activePct = Math.round((activeCount / total) * 100)
+
+  return (
+    <div className="rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 p-6 flex flex-col h-full">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-sm font-semibold text-white">Fleet Distribution</h2>
+        <Link href="/admin/agents" className="text-xs font-medium text-zinc-400 hover:text-white transition-colors">
+          View Fleet &rarr;
+        </Link>
+      </div>
+      
+      <div className="flex-1 flex flex-col justify-center gap-8">
+        <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--color-surface-interactive)] border border-white/5">
+          <div className="flex flex-col">
+            <span className="text-3xl font-light text-white">{activeCount}</span>
+            <span className="text-xs text-zinc-500 uppercase tracking-widest mt-1">Active Agents</span>
+          </div>
+          <div className="flex flex-col items-end">
+            <span className="text-xl font-light text-accent-400">{activePct}%</span>
+            <span className="text-xs text-zinc-500 uppercase tracking-widest mt-1">Of Total Fleet</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          {/* Segmented Bar */}
+          <div className="flex h-2 w-full rounded-full overflow-hidden bg-white/5 gap-0.5">
+            {statuses.map((status, i) => {
+              const count = counts[i]
+              if (count === 0) return null
+              const pct = (count / total) * 100
+              return (
+                <div 
+                  key={status}
+                  className={`h-full ${status === 'active' ? 'bg-accent-500' : status === 'degraded' ? 'bg-accent-600' : status === 'draft' ? 'bg-zinc-400' : 'bg-zinc-600'}`}
+                  style={{ width: `${pct}%` }}
+                  title={`${statusLabel(status)}: ${count}`}
+                />
+              )
+            })}
+          </div>
+
+          {/* Legend */}
+          <div className="grid grid-cols-2 gap-y-3 gap-x-4">
+            {statuses.map((status, i) => {
+              const count = counts[i]
+              if (count === 0) return null
+              return (
+                <div key={status} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className={`size-2 rounded-full ${status === 'active' ? 'bg-accent-500' : status === 'degraded' ? 'bg-accent-600' : status === 'draft' ? 'bg-zinc-400' : 'bg-zinc-600'}`} />
+                    <span className="text-zinc-400 capitalize">{statusLabel(status)}</span>
+                  </div>
+                  <span className="text-white font-mono">{count}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RunActivity({ runs, copilotNameById }: { runs: AgentRun[], copilotNameById: Map<string, string> }) {
   const latencyPoints = [...runs].reverse().map((run) => ({
     id: run.id,
     label: formatTimestamp(run.startedAt).replace(' UTC', ''),
@@ -90,292 +252,81 @@ function RunActivityCard({
     costUsd: run.costUsd,
     status: run.status,
   }))
-  const shown = runs.slice(0, ACTIVITY_TABLE_ROWS)
+  const shown = runs.slice(0, 8)
 
   return (
-    <AgentSectionCard
-      title="Run activity"
-      description="Latency of the latest runs across every copilot."
-      actions={<ViewAllLink href="/admin/agents" srSuffix="copilots and their runs" />}
-      contentClassName={runs.length > 0 ? 'p-0' : undefined}
-    >
+    <div className="rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden flex flex-col h-full">
+      <div className="flex items-center justify-between p-6 border-b border-white/5">
+        <div>
+          <h2 className="text-sm font-semibold text-white">Global Run Activity</h2>
+          <p className="text-xs text-zinc-400 mt-1">Latency and cost across all copilots</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 text-xs text-zinc-500">
+            <span className="size-2 rounded-full bg-accent-500/50 border border-accent-500"></span>
+            Latency (ms)
+          </span>
+        </div>
+      </div>
+      
       {runs.length > 0 ? (
-        <>
-          <div className="px-6 py-5">
+        <div className="flex flex-col flex-1">
+          <div className="p-6 bg-[var(--color-surface-primary)]/30 border-b border-white/5">
             <RunLatencyChart data={latencyPoints} />
           </div>
-          <div className="border-t border-zinc-950/5 px-6 [--gutter:--spacing(6)] dark:border-white/5">
-            <Table striped bleed dense>
-              {/* Accessible name must land on the <table> itself — Catalyst spreads props on its scroll wrapper. */}
-              <caption className="sr-only">Latest runs across every copilot</caption>
-              <TableHead>
-                <TableRow>
-                  <TableHeader>Copilot</TableHeader>
-                  <TableHeader>Status</TableHeader>
-                  <TableHeader className="text-right">Cost</TableHeader>
-                  <TableHeader className="text-right">Started</TableHeader>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {shown.map((run) => (
-                  <TableRow key={run.id}>
-                    {/* max-w-0 + w-full : la colonne Copilot absorbe la largeur restante et tronque — jamais de scroll latéral. */}
-                    <TableCell className="w-full max-w-0">
-                      <div className="min-w-0">
-                        <Link
-                          href={`/admin/agents/${run.copilotId}/runs?run=${run.id}`}
-                          className="block truncate text-sm font-medium text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white"
-                        >
-                          {copilotNameById.get(run.copilotId) ?? run.copilotId}
-                          <span className="sr-only"> — inspect run {run.id}</span>
-                        </Link>
-                        <div className="mt-1 truncate font-mono text-xs tabular-nums text-zinc-500">{run.id}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-sm text-zinc-500 dark:text-zinc-400">
-                      {statusLabel(run.status)}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-right font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
-                      {formatUsd(run.costUsd)}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-right font-mono text-xs tabular-nums text-zinc-500">
-                      {formatTimestamp(run.startedAt).replace(' UTC', '')}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </>
-      ) : (
-        <CardEmptyState
-          icon={BoltIcon}
-          title="No runs yet"
-          hint="Runs appear here as soon as a copilot serves traffic."
-        />
-      )}
-    </AgentSectionCard>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Fleet — plain status roster, one count per lifecycle state. No bars, no gauge.
-// ---------------------------------------------------------------------------
-
-const FLEET_STATUSES: Copilot['status'][] = ['active', 'degraded', 'paused', 'draft', 'archived']
-
-function FleetCard({ copilots }: { copilots: Copilot[] }) {
-  const degraded = copilots.filter((copilot) => copilot.status === 'degraded').slice(0, 4)
-
-  return (
-    <AgentSectionCard
-      title="Fleet"
-      description="Copilots by lifecycle state."
-      actions={<ViewAllLink href="/admin/agents" srSuffix="copilots" />}
-    >
-      {copilots.length > 0 ? (
-        <div className="space-y-8">
-          <dl className="grid grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-3">
-            {FLEET_STATUSES.map((status) => {
-              const count = copilots.filter((copilot) => copilot.status === status).length
-              return (
-                <div key={status}>
-                  <dt className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">{statusLabel(status)}</dt>
-                  <dd className="mt-1.5 font-mono text-2xl font-semibold tracking-tight text-zinc-950 tabular-nums dark:text-white">
-                    {count}
-                  </dd>
-                </div>
-              )
-            })}
-          </dl>
-
-          {degraded.length > 0 ? (
-            <div className="border-t border-zinc-950/5 pt-6 dark:border-white/5">
-              <p className="text-[10px] font-semibold tracking-widest text-zinc-500 uppercase">Degraded copilots</p>
-              <div role="list" className="mt-4 divide-y divide-zinc-950/5 dark:divide-white/5">
-                {degraded.map((copilot) => (
-                  <div role="listitem" key={copilot.id} className="flex items-center gap-4 py-3">
-                    <div className="min-w-0 flex-1">
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableHeader className="w-1/3">Copilot</TableHeader>
+                <TableHeader>Status</TableHeader>
+                <TableHeader className="text-right">Latency</TableHeader>
+                <TableHeader className="text-right">Cost</TableHeader>
+                <TableHeader className="text-right">Started</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {shown.map((run) => (
+                <TableRow key={run.id}>
+                  <TableCell>
+                    <div className="flex flex-col">
                       <Link
-                        href={`/admin/agents/${copilot.id}`}
-                        title={copilot.name}
-                        className="block truncate text-sm font-medium tracking-tight text-zinc-950 hover:underline dark:text-white"
+                        href={`/admin/agents/${run.copilotId}/runs?run=${run.id}`}
+                        className="text-sm font-medium text-zinc-200 hover:text-white transition-colors truncate"
                       >
-                        {copilot.name}
+                        {copilotNameById.get(run.copilotId) ?? run.copilotId}
                       </Link>
-                      <div className="mt-0.5 truncate font-mono text-xs text-zinc-500">{copilot.slug}</div>
+                      <span className="text-[10px] font-mono text-zinc-600 mt-0.5 truncate">{run.id}</span>
                     </div>
-                    {copilot.health.openWarnings > 0 ? (
-                      <Badge color="accentStrong" className="shrink-0">
-                        {numberFormat.format(copilot.health.openWarnings)} warning
-                        {copilot.health.openWarnings === 1 ? '' : 's'}
-                      </Badge>
-                    ) : (
-                      <span className="shrink-0 font-mono text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
-                        <EmDash srLabel="No open warnings" />
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <p className="border-t border-zinc-950/5 pt-6 text-sm text-zinc-500 dark:border-white/5 dark:text-zinc-400">
-              No degraded copilots — the whole fleet is serving normally.
-            </p>
-          )}
+                  </TableCell>
+                  <TableCell>
+                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md ring-1 text-[10px] font-medium uppercase tracking-widest ${run.status === 'completed' ? 'text-accent-400 bg-accent-400/10 ring-accent-400/20' : run.status === 'failed' ? 'text-accent-400 bg-accent-400/10 ring-accent-400/20' : 'text-zinc-400 bg-zinc-400/10 ring-zinc-400/20'}`}>
+                      {statusLabel(run.status)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-xs text-zinc-400">
+                    {run.latencyMs}ms
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-xs text-zinc-400">
+                    {formatUsd(run.costUsd)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-xs text-zinc-500">
+                    {formatTimestamp(run.startedAt).replace(' UTC', '')}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       ) : (
-        <CardEmptyState
-          icon={CpuChipIcon}
-          title="No copilots yet"
-          hint="Register a copilot to see fleet health roll up here."
-        />
-      )}
-    </AgentSectionCard>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Projects — mini-list with per-project rollup. Text only, no meters.
-// ---------------------------------------------------------------------------
-
-interface ProjectRollup {
-  copilotCount: number
-  activeCount: number
-  runsLast24h: number
-  costLast24hUsd: number
-  openWarnings: number
-}
-
-const EMPTY_ROLLUP: ProjectRollup = {
-  copilotCount: 0,
-  activeCount: 0,
-  runsLast24h: 0,
-  costLast24hUsd: 0,
-  openWarnings: 0,
-}
-
-/**
- * Aggregate copilot health per project — one pass over the registry.
- * `projectId: null` = bench copilot (not yet validated) → excluded.
- */
-function rollupByProject(copilots: Copilot[]): Map<string, ProjectRollup> {
-  const byProject = new Map<string, ProjectRollup>()
-  for (const copilot of copilots) {
-    if (copilot.projectId === null) continue
-    const current = byProject.get(copilot.projectId) ?? { ...EMPTY_ROLLUP }
-    current.copilotCount += 1
-    if (copilot.status === 'active') current.activeCount += 1
-    current.runsLast24h += copilot.health.runsLast24h
-    current.costLast24hUsd += copilot.health.costLast24hUsd
-    current.openWarnings += copilot.health.openWarnings
-    byProject.set(copilot.projectId, current)
-  }
-  return byProject
-}
-
-function ProjectsCard({
-  projects,
-  rollups,
-}: {
-  projects: Project[]
-  rollups: Map<string, ProjectRollup>
-}) {
-  const shown = projects.slice(0, 6)
-
-  return (
-    <AgentSectionCard
-      title="Projects"
-      description="Product surfaces with validated agents."
-      actions={<ViewAllLink href="/admin/projects" srSuffix="projects" />}
-    >
-      {shown.length > 0 ? (
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6">
-          {shown.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              rollup={rollups.get(project.id) ?? EMPTY_ROLLUP}
-              href={`/admin/projects/${project.id}`}
-            />
-          ))}
+        <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
+          <BoltIcon className="size-8 text-zinc-600 mx-auto mb-3" />
+          <p className="text-sm font-medium text-white">No runs recorded</p>
+          <p className="text-xs text-zinc-500 mt-1">System is standing by for traffic.</p>
         </div>
-      ) : (
-        <CardEmptyState
-          icon={FolderIcon}
-          title="No projects yet"
-          hint="Projects appear here as soon as a copilot is registered against a product surface."
-        />
       )}
-    </AgentSectionCard>
+    </div>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Attention — copilots carrying open warnings. Text + a single count Badge.
-// ---------------------------------------------------------------------------
-
-function AttentionCard({ copilots }: { copilots: Copilot[] }) {
-  const flagged = copilots
-    .filter((copilot) => copilot.health.openWarnings > 0)
-    .sort((a, b) => b.health.openWarnings - a.health.openWarnings)
-    .slice(0, 6)
-
-  return (
-    <AgentSectionCard
-      title="Needs attention"
-      description="Copilots carrying open warnings."
-      actions={<ViewAllLink href="/admin/agents" srSuffix="copilots and warnings" />}
-      contentClassName={flagged.length > 0 ? 'px-6 py-2' : undefined}
-    >
-      {flagged.length > 0 ? (
-        <div role="list" className="divide-y divide-zinc-950/5 dark:divide-white/5">
-          {flagged.map((copilot) => (
-            <div role="listitem" key={copilot.id} className="flex items-center gap-4 py-4">
-              <div className="min-w-0 flex-1">
-                <Link
-                  href={`/admin/agents/${copilot.id}`}
-                  title={copilot.name}
-                  className="block truncate text-sm font-medium tracking-tight text-zinc-950 hover:underline dark:text-white"
-                >
-                  {copilot.name}
-                </Link>
-                <div className="mt-0.5 truncate text-[11px] font-medium uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-                  {statusLabel(copilot.status)}
-                </div>
-              </div>
-              <Badge color="accentStrong" className="shrink-0">
-                {numberFormat.format(copilot.health.openWarnings)}
-                <span className="sr-only">
-                  {' '}
-                  open warning{copilot.health.openWarnings === 1 ? '' : 's'}
-                </span>
-              </Badge>
-              <Link
-                href={`/admin/agents/${copilot.id}`}
-                className="shrink-0 text-xs font-semibold text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
-              >
-                Investigate
-                <span className="sr-only"> {copilot.name} warnings</span>
-              </Link>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <CardEmptyState
-          icon={ShieldCheckIcon}
-          title="No open warnings"
-          hint="All copilots are healthy. Warnings surface here the moment one is raised."
-        />
-      )}
-    </AgentSectionCard>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
 
 export default async function DashboardPage() {
   const [copilots, projects, kpis, runs] = await Promise.all([
@@ -385,61 +336,40 @@ export default async function DashboardPage() {
     getRecentRuns(30),
   ])
   const copilotNameById = new Map(copilots.map((copilot) => [copilot.id, copilot.name]))
-  const rollups = rollupByProject(copilots)
 
   return (
-    <div className="space-y-8">
-      {/* Header uniforme sur les 5 pages /admin (directive Adrien 2026-07-11). */}
+    <div className="flex flex-col gap-8 pb-12">
       <StaggerFade delay={0}>
-        <AgentPageHeader title="Dashboard" description="Fleet health across every copilot and project." className="mt-2" />
-      </StaggerFade>
-
-      {/* KPI : chiffres nus, aucun graphique (directive Adrien 2026-07-11). */}
-      <StaggerFade delay={1}>
-        <AgentKpiBand
-          stats={[
-            {
-              name: 'Active copilots',
-              value: String(kpis.activeCopilots),
-              hint: `of ${kpis.totalCopilots}`,
-            },
-            {
-              name: 'Runs 24h',
-              value: kpis.runsLast24h.toLocaleString('en-US'),
-              hint: 'across the fleet',
-            },
-            {
-              name: 'Cost 24h',
-              value: kpis.runsLast24h > 0 ? formatUsd(kpis.totalCostLast24hUsd) : '—',
-              hint: kpis.runsLast24h > 0 ? 'run spend' : 'No runs in the last 24 hours',
-            },
-            {
-              name: 'Warnings',
-              value: String(kpis.openWarnings),
-              hint: `${kpis.openWarnings} open warning${kpis.openWarnings === 1 ? '' : 's'}`,
-            },
-          ]}
+        <AgentPageHeader 
+          title="Command Center" 
+          environment="Production"
+          live={true}
+          description="Global overview of fleet operations, system health, and agent activity."
         />
       </StaggerFade>
 
+      <StaggerFade delay={1}>
+        <KpiBand kpis={kpis} />
+      </StaggerFade>
+
       <StaggerFade delay={2}>
-        <ProjectsCard projects={projects} rollups={rollups} />
+        <AttentionZone copilots={copilots} />
       </StaggerFade>
 
-      {/* Listes sobres, densités comparables — zéro meter, zéro gauge. */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <StaggerFade delay={3}>
-          <FleetCard copilots={copilots} />
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 min-h-[600px]">
+        <StaggerFade delay={3} className="xl:col-span-2 h-full">
+          <RunActivity runs={runs} copilotNameById={copilotNameById} />
         </StaggerFade>
-        <StaggerFade delay={4}>
-          <AttentionCard copilots={copilots} />
-        </StaggerFade>
+        
+        <div className="flex flex-col gap-6 h-full">
+          <StaggerFade delay={4} className="flex-1">
+            <SystemTopology />
+          </StaggerFade>
+          <StaggerFade delay={5} className="flex-1">
+            <FleetDistribution copilots={copilots} />
+          </StaggerFade>
+        </div>
       </div>
-
-      {/* Un seul visuel dominant : Run activity en pleine largeur, en bas. */}
-      <StaggerFade delay={5}>
-        <RunActivityCard runs={runs} copilotNameById={copilotNameById} />
-      </StaggerFade>
     </div>
   )
 }

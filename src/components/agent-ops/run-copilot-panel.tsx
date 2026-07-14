@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { RunStatusText } from '@/components/agent-ops/run-detail-panel'
+import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
 import { ToolBadge } from '@/components/agent-ops/tool-badge'
 import { Button } from '@/components/catalyst/button'
 import { Field, Label } from '@/components/catalyst/fieldset'
@@ -26,6 +27,8 @@ function asToolRisk(risk: string | undefined): ToolRiskLevel | undefined {
 interface RunCopilotPanelProps {
   copilotId: string
   copilotName: string
+  copilotSlug?: string
+  copilotTags?: string[]
 }
 
 type RunResult = Pick<AgentRun, 'status' | 'outputSummary' | 'latencyMs' | 'costUsd'> & {
@@ -45,7 +48,7 @@ type RunResult = Pick<AgentRun, 'status' | 'outputSummary' | 'latencyMs' | 'cost
  * On success the run also lands in the Runs tab (server-persisted); this panel
  * just surfaces the immediate receipt and nudges the rest of the page to catch up.
  */
-export function RunCopilotPanel({ copilotId, copilotName }: RunCopilotPanelProps) {
+export function RunCopilotPanel({ copilotId, copilotName, copilotSlug = '', copilotTags = [] }: RunCopilotPanelProps) {
   const router = useRouter()
   const [input, setInput] = useState('')
   const [isRunning, setIsRunning] = useState(false)
@@ -138,7 +141,12 @@ export function RunCopilotPanel({ copilotId, copilotName }: RunCopilotPanelProps
 
   return (
     <AgentSectionCard
-      title={`Run ${copilotName}`}
+      title={
+        <div className="flex items-center gap-3">
+          <CopilotAvatar copilot={{ name: copilotName, slug: copilotSlug, tags: copilotTags }} className="size-8 rounded-xl" />
+          <span>Run {copilotName}</span>
+        </div>
+      }
       description="Send a task to this copilot and get a real, OpenAI-backed run back."
     >
       <Field>

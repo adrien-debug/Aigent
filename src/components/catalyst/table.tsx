@@ -26,7 +26,7 @@ export function Table({
       <div className="flow-root">
         <div {...props} className={clsx(className, '-mx-(--gutter) overflow-x-auto whitespace-nowrap')}>
           <div className={clsx('inline-block min-w-full align-middle', !bleed && 'sm:px-(--gutter)')}>
-            <table className="min-w-full text-left text-sm/6 text-zinc-950 dark:text-white">{children}</table>
+            <table className="min-w-full text-left text-sm/6 text-white">{children}</table>
           </div>
         </div>
       </div>
@@ -40,7 +40,7 @@ export function TableHead({ className, ...props }: React.ComponentPropsWithoutRe
       {...props}
       className={clsx(
         className,
-        '[&_th]:border-b [&_th]:border-zinc-950/5 dark:[&_th]:border-white/5'
+        '[&_th]:border-b [&_th]:border-white/5'
       )}
     />
   )
@@ -71,7 +71,7 @@ export function TableRow({
         {...props}
         className={clsx(
           className,
-          'transition-colors hover:bg-zinc-950/2 dark:hover:bg-white/2',
+          'transition-colors hover:bg-[var(--color-surface-interactive)]',
           href &&
             'has-[[data-row-link][data-focus]]:outline-2 has-[[data-row-link][data-focus]]:-outline-offset-2 has-[[data-row-link][data-focus]]:outline-accent-500 dark:focus-within:bg-white/2',
           striped && 'even:bg-zinc-950/2 dark:even:bg-white/2'
@@ -87,12 +87,12 @@ export function TableHeader({ className, ...props }: React.ComponentPropsWithout
   return (
     <th
       {...props}
-      className={clsx(
-        className,
-        'px-4 py-3 text-[10px] font-semibold uppercase tracking-widest text-accent-600 first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2)) dark:text-accent-400',
-        grid && 'border-l border-l-zinc-950/5 first:border-l-0 dark:border-l-white/5',
-        !bleed && 'sm:first:pl-1 sm:last:pr-1'
-      )}
+        className={clsx(
+          className,
+          'px-4 py-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-500 first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2))',
+          grid && 'border-l border-l-zinc-950/5 first:border-l-0 dark:border-l-white/5',
+          !bleed && 'sm:first:pl-1 sm:last:pr-1'
+        )}
     />
   )
 }
@@ -109,8 +109,8 @@ export function TableCell({ className, children, ...props }: React.ComponentProp
       className={clsx(
         className,
         'relative px-4 first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2))',
-        !striped && 'border-b border-zinc-950/5 dark:border-white/5',
-        grid && 'border-l border-l-zinc-950/5 first:border-l-0 dark:border-l-white/5',
+        !striped && 'border-b border-white/5',
+        grid && 'border-l border-l-white/5 first:border-l-0',
         dense ? 'py-3' : 'py-4',
         !bleed && 'sm:first:pl-1 sm:last:pr-1'
       )}

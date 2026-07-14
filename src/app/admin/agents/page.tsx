@@ -1,11 +1,10 @@
 import type { Metadata } from 'next'
+import { PlusIcon } from '@heroicons/react/16/solid'
 
-import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
-import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { StaggerFade } from '@/components/agent-ops/stagger-fade'
 import { ProvisionAgentBuilderBanner } from '@/components/agent-ops/provision-agent-builder-banner'
 import { RegistryView } from '@/components/agent-ops/registry-view'
-import { SeverityFeedRow } from '@/components/agent-ops/widgets/severity-feed-row'
 import { AGENT_BUILDER_SLUG } from '@/lib/agent-mission-control/agent-builder-copilot'
 import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import {
@@ -14,13 +13,17 @@ import {
   getRecentWarnings,
   getRegistryKpis,
 } from '@/lib/agent-mission-control/data'
-import type { RegistryWarning } from '@/lib/agent-mission-control/types'
+import { Link } from '@/components/catalyst/link'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: 'Copilots — Agent Mission Control',
+  title: 'Copilots Registry — Aigent',
 }
 
-/** Fixed reference point matching the mock dataset window (no Date.now()). */
+import { SeverityFeedRow } from '@/components/agent-ops/widgets/severity-feed-row'
+import type { RegistryWarning } from '@/lib/agent-mission-control/types'
+
 const REFERENCE_NOW_ISO = '2026-07-09T12:00:00Z'
 
 function RecentWarningsCard({
@@ -34,37 +37,91 @@ function RecentWarningsCard({
   const dangerCount = warnings.filter((w) => w.severity === 'danger').length
 
   return (
-    <AgentSectionCard
-      title="Recent warnings"
-      description="Latest signals across the registry."
-      actions={
-        warnings.length > 0 ? (
-          <span className="text-sm text-zinc-500 dark:text-zinc-400">
+    <div className="rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden">
+      <div className="flex items-center justify-between p-4 border-b border-white/5 bg-black/20">
+        <h2 className="text-sm font-semibold text-white">Recent warnings</h2>
+        {warnings.length > 0 && (
+          <span className="text-xs text-zinc-400">
             {warningCount} warning{warningCount === 1 ? '' : 's'} · {dangerCount} danger
           </span>
-        ) : undefined
-      }
-      contentClassName="px-6 py-2"
-    >
-      {warnings.length > 0 ? (
-        <div role="list" className="divide-y divide-zinc-950/5 dark:divide-white/5">
-          {warnings.map((warning) => (
-            <div role="listitem" key={warning.id}>
-              <SeverityFeedRow
-                severity={warning.severity}
-                message={warning.message}
-                copilotName={copilotNameById.get(warning.copilotId)}
-                occurredAt={warning.occurredAt}
-                referenceNow={REFERENCE_NOW_ISO}
-                href={warning.href}
-              />
-            </div>
-          ))}
+        )}
+      </div>
+      <div className="p-4">
+        {warnings.length > 0 ? (
+          <div role="list" className="divide-y divide-white/5">
+            {warnings.map((warning) => (
+              <div role="listitem" key={warning.id}>
+                <SeverityFeedRow
+                  severity={warning.severity}
+                  message={warning.message}
+                  copilotName={copilotNameById.get(warning.copilotId)}
+                  occurredAt={warning.occurredAt}
+                  referenceNow={REFERENCE_NOW_ISO}
+                  href={warning.href}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="py-4 text-sm text-zinc-400">No open warnings. All copilots are healthy.</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+interface KpiBandProps {
+  kpis: {
+    totalCopilots: number
+    avgTestPassRate: number
+    totalCostLast24hUsd: number
+    openWarnings: number
+  }
+  benchCount: number
+  assignedCount: number
+}
+
+function KpiBand({ kpis, benchCount, assignedCount }: KpiBandProps) {
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-8 py-6 border-b border-white/5 mb-8">
+      <div className="flex flex-col">
+        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">Total Fleet</span>
+        <div className="flex items-baseline gap-2">
+          <span className="text-4xl font-light tracking-tight text-white">{kpis.totalCopilots}</span>
         </div>
-      ) : (
-        <p className="py-4 text-sm text-zinc-500 dark:text-zinc-400">No open warnings. All copilots are healthy.</p>
-      )}
-    </AgentSectionCard>
+      </div>
+      <div className="flex flex-col">
+        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">Distribution</span>
+        <div className="flex flex-col gap-1 mt-1">
+          <div className="flex items-center gap-2">
+            <span className="size-1.5 rounded-full bg-accent-500"></span>
+            <span className="text-sm text-zinc-300">{assignedCount} Assigned</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="size-1.5 rounded-full bg-zinc-600"></span>
+            <span className="text-sm text-zinc-300">{benchCount} On Bench</span>
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-col">
+        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">Avg Test Pass</span>
+        <div className="flex items-baseline gap-2">
+          <span className="text-4xl font-light tracking-tight text-accent-400">{formatPercent(kpis.avgTestPassRate)}</span>
+        </div>
+      </div>
+      <div className="flex flex-col">
+        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">24h Compute</span>
+        <div className="flex items-baseline gap-2">
+          <span className="text-4xl font-light tracking-tight text-white">{formatUsd(kpis.totalCostLast24hUsd)}</span>
+        </div>
+      </div>
+      <div className="flex flex-col">
+        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">Active Warnings</span>
+        <div className="flex items-baseline gap-2">
+          <span className={`text-4xl font-light tracking-tight ${kpis.openWarnings > 0 ? 'text-accent-400' : 'text-zinc-500'}`}>{kpis.openWarnings}</span>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -75,53 +132,55 @@ export default async function AgentsRegistryPage() {
     getRegistryKpis(),
     getRecentWarnings(6),
   ])
-  const copilotNameById = new Map(copilots.map((copilot) => [copilot.id, copilot.name]))
   const onBenchCount = copilots.filter((copilot) => copilot.projectId === null).length
   const assignedCount = copilots.length - onBenchCount
-  // Show the one-click provisioning banner only when the Agent Builder Copilot
-  // isn't in the registry yet (so it never depends on a manual script run).
   const hasAgentBuilder = copilots.some((copilot) => copilot.slug === AGENT_BUILDER_SLUG)
 
+  const copilotNameById = new Map(copilots.map((copilot) => [copilot.id, copilot.name]))
+
   return (
-    <div className="space-y-8">
-      {/* Header uniforme sur les 5 pages /admin (directive Adrien 2026-07-11). */}
-      <AgentPageHeader title="Copilots" description="Every registered agent and the validation bench." className="mt-2" />
+    <div className="flex flex-col gap-8 pb-12">
+      <StaggerFade delay={0}>
+        <AgentPageHeader 
+          title="Copilots Registry" 
+          description="Central repository of all agents, their capabilities, and validation status."
+          breadcrumbs={[
+            { label: 'Platform', href: '/admin' },
+            { label: 'Copilots' }
+          ]}
+          actions={
+            <Link 
+              href="/admin/agents/new" 
+              className="inline-flex items-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white shadow-[0_0_16px_rgba(99,102,241,0.4)] transition-all hover:bg-accent-400 hover:shadow-[0_0_24px_rgba(99,102,241,0.6)]"
+            >
+              <PlusIcon className="size-4" />
+              New Copilot
+            </Link>
+          }
+        />
+      </StaggerFade>
 
-      {hasAgentBuilder ? null : <ProvisionAgentBuilderBanner />}
+      {hasAgentBuilder ? null : (
+        <StaggerFade delay={1}>
+          <ProvisionAgentBuilderBanner />
+        </StaggerFade>
+      )}
 
-      <AgentKpiBand
-        stats={[
-          {
-            name: 'Fleet',
-            value: String(kpis.totalCopilots),
-            hint: `${onBenchCount} on bench · ${assignedCount} assigned`,
-          },
-          {
-            name: 'Active share',
-            value: String(kpis.activeCopilots),
-            hint: `of ${kpis.totalCopilots}`,
-          },
-          {
-            name: 'Avg test pass',
-            value: formatPercent(kpis.avgTestPassRate),
-          },
-          {
-            name: 'Cost 24h',
-            value: formatUsd(kpis.totalCostLast24hUsd),
-          },
-          {
-            name: 'Warnings',
-            value: String(kpis.openWarnings),
-            hint: `${kpis.openWarnings} open warning${kpis.openWarnings === 1 ? '' : 's'}`,
-          },
-        ]}
-      />
+      <StaggerFade delay={2}>
+        <KpiBand kpis={kpis} benchCount={onBenchCount} assignedCount={assignedCount} />
+      </StaggerFade>
 
-      <RegistryView
-        copilots={copilots}
-        projects={projects}
-        warningsSlot={<RecentWarningsCard warnings={warnings} copilotNameById={copilotNameById} />}
-      />
+      <StaggerFade delay={3}>
+        <RecentWarningsCard warnings={warnings} copilotNameById={copilotNameById} />
+      </StaggerFade>
+
+      <StaggerFade delay={4}>
+        <RegistryView
+          copilots={copilots}
+          projects={projects}
+          warnings={warnings}
+        />
+      </StaggerFade>
     </div>
   )
 }

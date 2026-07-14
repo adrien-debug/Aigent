@@ -8,20 +8,16 @@ import { formatDurationMs, formatUsd } from '@/lib/agent-mission-control/format'
 
 export interface RunLatencyPoint {
   id: string
-  /** Short started-time label, e.g. "Jul 9, 07:12" — used for axis ticks and tooltip. */
   label: string
   latencyMs: number
   costUsd: number
   status: string
 }
 
-/** Latency line in the brand accent (directive Adrien 2026-07-11) — the chart is
- *  the coloured focal point of the dashboard. `--chart-success` = accent hue. */
-const SERIES_STROKE = 'var(--chart-success)'
+const SERIES_STROKE = 'var(--color-accent-500)'
 
-const tickStyle = { fontSize: 12, fill: 'var(--chart-tick)' } as const
+const tickStyle = { fontSize: 10, fill: '#71717a', fontFamily: 'var(--font-mono)' } as const
 
-/** Status is signaled by TEXT; the accent hue only tints the tooltip status text. */
 function isFailedOrBlocked(status: string): boolean {
   return status === 'failed' || status === 'blocked'
 }
@@ -36,22 +32,22 @@ function LatencyTooltip({ active, payload }: TooltipContentProps) {
   if (!point) return null
 
   return (
-    <div className="rounded-lg px-3 py-2 text-xs ring-1 ring-white/10" style={{ backgroundColor: 'var(--chart-surface)' }}>
-      <p className="font-mono font-medium tabular-nums text-white">
-        {point.id}
-        <span className="ml-2 font-normal text-zinc-400">{point.label}</span>
-      </p>
-      <dl className="mt-1.5 min-w-36 space-y-1">
-        <div className="flex items-baseline justify-between gap-6">
-          <dt className="text-zinc-400">Latency</dt>
-          <dd className="font-mono tabular-nums text-white">{formatDurationMs(point.latencyMs)}</dd>
+    <div className="rounded-xl px-4 py-3 text-xs bg-black/80 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+      <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
+        <span className="font-mono font-medium text-white">{point.id}</span>
+        <span className="font-mono text-zinc-500">{point.label}</span>
+      </div>
+      <dl className="min-w-[180px] space-y-2">
+        <div className="flex items-center justify-between">
+          <dt className="text-[10px] uppercase tracking-widest text-zinc-500">Latency</dt>
+          <dd className="font-mono text-accent-400">{formatDurationMs(point.latencyMs)}</dd>
         </div>
-        <div className="flex items-baseline justify-between gap-6">
-          <dt className="text-zinc-400">Cost</dt>
-          <dd className="font-mono tabular-nums text-white">{formatUsd(point.costUsd)}</dd>
+        <div className="flex items-center justify-between">
+          <dt className="text-[10px] uppercase tracking-widest text-zinc-500">Cost</dt>
+          <dd className="font-mono text-white">{formatUsd(point.costUsd)}</dd>
         </div>
-        <div className="flex items-baseline justify-between gap-6">
-          <dt className="text-zinc-400">Status</dt>
+        <div className="flex items-center justify-between">
+          <dt className="text-[10px] uppercase tracking-widest text-zinc-500">Status</dt>
           <dd className={isFailedOrBlocked(point.status) ? 'text-accent-400' : 'text-zinc-300'}>
             {statusLabel(point.status)}
           </dd>
@@ -61,41 +57,36 @@ function LatencyTooltip({ active, payload }: TooltipContentProps) {
   )
 }
 
-/**
- * Single-series latency line, oldest → newest. One axis, horizontal grid only,
- * no legend (the card title names the series), crosshair + dark tooltip panel.
- */
 export function RunLatencyChart({ data }: { data: RunLatencyPoint[] }) {
   const gradientId = useId()
-  // Category axis stays sparse: ~4 tick labels max regardless of run count.
-  const tickInterval = Math.max(0, Math.ceil(data.length / 4) - 1)
+  const tickInterval = Math.max(0, Math.ceil(data.length / 6) - 1)
 
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+    <ResponsiveContainer width="100%" height={260}>
+      <AreaChart data={data} margin={{ top: 12, right: 12, bottom: 0, left: -20 }}>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={SERIES_STROKE} stopOpacity={0.08} />
+            <stop offset="0%" stopColor={SERIES_STROKE} stopOpacity={0.2} />
             <stop offset="100%" stopColor={SERIES_STROKE} stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
+        <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.05)" strokeDasharray="4 4" />
         <XAxis
           dataKey="label"
           axisLine={false}
           tickLine={false}
           interval={tickInterval}
           tick={tickStyle}
-          tickMargin={8}
+          tickMargin={12}
         />
         <YAxis
           axisLine={false}
           tickLine={false}
-          width={44}
+          width={60}
           tick={tickStyle}
           tickFormatter={(value: number) => formatDurationMs(value)}
         />
-        <Tooltip cursor={{ stroke: 'var(--chart-cursor)' }} content={LatencyTooltip} isAnimationActive={false} />
+        <Tooltip cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1, strokeDasharray: '4 4' }} content={LatencyTooltip} isAnimationActive={false} />
         <Area
           type="monotone"
           dataKey="latencyMs"
@@ -103,8 +94,9 @@ export function RunLatencyChart({ data }: { data: RunLatencyPoint[] }) {
           strokeWidth={2}
           fill={`url(#${gradientId})`}
           dot={false}
-          activeDot={{ r: 4, fill: SERIES_STROKE, stroke: 'var(--chart-surface)', strokeWidth: 2 }}
-          isAnimationActive={false}
+          activeDot={{ r: 4, fill: SERIES_STROKE, stroke: '#000', strokeWidth: 2 }}
+          isAnimationActive={true}
+          animationDuration={1000}
         />
       </AreaChart>
     </ResponsiveContainer>

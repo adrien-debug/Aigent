@@ -81,7 +81,6 @@ export function BenchmarkScoreCard({
       {/* Background to mask the inner part of the conic gradient, leaving only the border */}
       <div className={clsx("relative z-10 h-full w-full rounded-2xl bg-white p-6 dark:bg-zinc-950", isBest ? "m-px h-[calc(100%-2px)] w-[calc(100%-2px)]" : "")}>
       
-      <MouseSpotlight />
       {/* Identity row — model + provider left, winner slot (fixed height so twin
           cards align) + runtime right. */}
       <div className="relative z-20 flex items-start justify-between gap-x-4">

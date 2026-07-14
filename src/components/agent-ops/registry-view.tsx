@@ -1,70 +1,69 @@
 'use client'
 
-import { PlusIcon } from '@heroicons/react/16/solid'
-import * as Headless from '@headlessui/react'
-import clsx from 'clsx'
 import { useState } from 'react'
+import clsx from 'clsx'
 
-import { CopilotRegistryTable, type RegistryTableView } from '@/components/agent-ops/copilot-registry-table'
-import { SoftAccentLink } from '@/components/agent-ops/soft-accent-link'
-import type { Copilot, Project } from '@/lib/agent-mission-control/types'
+import { CopilotRegistryTable } from '@/components/agent-ops/copilot-registry-table'
+import type { Copilot, Project, RegistryWarning } from '@/lib/agent-mission-control/types'
 
-/**
- * Registry main area. The registry IS the validation bench: the default view
- * shows unassigned copilots (projectId === null, being tested/tuned) and a
- * segmented toggle switches to the full fleet. The server-rendered warnings
- * feed is injected via `warningsSlot`.
- */
+export type RegistryTableView = 'bench' | 'all'
+
 export function RegistryView({
   copilots,
   projects,
-  warningsSlot,
+  warnings,
 }: {
   copilots: Copilot[]
   projects: Project[]
-  warningsSlot?: React.ReactNode
+  warnings: RegistryWarning[]
 }) {
   const [view, setView] = useState<RegistryTableView>('bench')
+  const [searchQuery, setSearchQuery] = useState('')
+
   const benchCount = copilots.filter((copilot) => copilot.projectId === null).length
 
-  const options: { value: RegistryTableView; label: string }[] = [
-    { value: 'bench', label: `Validation bench (${benchCount})` },
-    { value: 'all', label: `All copilots (${copilots.length})` },
-  ]
-
   return (
-    <div className="space-y-8">
-      <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div
-            role="group"
-            aria-label="Registry view"
-            className="inline-flex rounded-lg bg-zinc-950/5 p-1 dark:bg-white/5"
+    <div className="flex flex-col gap-8">
+      {/* Toolbar - Ultra minimal */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-6 text-[13px]">
+          <button
+            onClick={() => setView('bench')}
+            className={clsx(
+              'font-medium transition-colors',
+              view === 'bench' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+            )}
           >
-            {options.map((option) => (
-              <Headless.Button
-                key={option.value}
-                aria-pressed={view === option.value}
-                onClick={() => setView(option.value)}
-                className={clsx(
-                  'rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
-                  view === option.value
-                    ? 'bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-950/10 dark:bg-zinc-950 dark:text-white dark:ring-white/10'
-                    : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
-                )}
-              >
-                {option.label}
-              </Headless.Button>
-            ))}
-          </div>
-          <SoftAccentLink href="/admin/agents/new">
-            <PlusIcon aria-hidden="true" className="size-4" />
-            New copilot
-          </SoftAccentLink>
+            Validation Bench <span className="ml-1 text-zinc-600 font-mono">{benchCount}</span>
+          </button>
+          <button
+            onClick={() => setView('all')}
+            className={clsx(
+              'font-medium transition-colors',
+              view === 'all' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+            )}
+          >
+            All Copilots <span className="ml-1 text-zinc-600 font-mono">{copilots.length}</span>
+          </button>
         </div>
-        <CopilotRegistryTable copilots={copilots} projects={projects} view={view} />
+
+        <div className="flex items-center">
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-48 bg-transparent border-b border-white/10 pb-1 text-[13px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30 transition-colors"
+          />
+        </div>
       </div>
-      {warningsSlot}
+
+      <CopilotRegistryTable 
+        copilots={copilots} 
+        projects={projects} 
+        view={view} 
+        searchQuery={searchQuery}
+      />
     </div>
   )
 }

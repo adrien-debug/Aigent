@@ -47,11 +47,11 @@ export function Combobox<T>({
           // Background color is moved to control and shadow is removed in dark mode so hide `before` pseudo
           'dark:before:hidden',
           // Focus ring
-          'after:pointer-events-none after:absolute after:inset-0 after:rounded-lg after:ring-transparent after:ring-inset sm:focus-within:after:ring-2 sm:focus-within:after:ring-blue-500',
+          'after:pointer-events-none after:absolute after:inset-0 after:rounded-lg after:ring-transparent after:ring-inset sm:focus-within:after:ring-2 sm:focus-within:after:ring-accent-500',
           // Disabled state
           'has-data-disabled:opacity-50 has-data-disabled:before:bg-zinc-950/5 has-data-disabled:before:shadow-none',
           // Invalid state
-          'has-data-invalid:before:shadow-red-500/10',
+          'has-data-invalid:before:shadow-accent-500/10',
         ])}
       >
         <Headless.ComboboxInput
@@ -76,7 +76,7 @@ export function Combobox<T>({
             // Hide default focus styles
             'focus:outline-hidden',
             // Invalid state
-            'data-invalid:border-red-500 data-invalid:data-hover:border-red-500 dark:data-invalid:border-red-500 dark:data-invalid:data-hover:border-red-500',
+            'data-invalid:border-accent-500 data-invalid:data-hover:border-accent-500 dark:data-invalid:border-accent-500 dark:data-invalid:data-hover:border-accent-500',
             // Disabled state
             'data-disabled:border-zinc-950/20 dark:data-disabled:border-white/15 dark:data-disabled:bg-white/2.5 dark:data-hover:data-disabled:border-white/15',
             // System icons
@@ -149,7 +149,7 @@ export function ComboboxOption<T>({
         // Typography
         'text-base/6 text-zinc-950 sm:text-sm/6 dark:text-white forced-colors:text-[CanvasText]',
         // Focus
-        'outline-hidden data-focus:bg-blue-500 data-focus:text-white',
+        'outline-hidden data-focus:bg-accent-500 data-focus:text-white',
         // Forced colors mode
         'forced-color-adjust-none forced-colors:data-focus:bg-[Highlight] forced-colors:data-focus:text-[HighlightText]',
         // Disabled

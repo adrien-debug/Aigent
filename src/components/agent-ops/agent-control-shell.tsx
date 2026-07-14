@@ -6,13 +6,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 import { Avatar } from '@/components/catalyst/avatar'
+import { CommandPalette } from '@/components/agent-ops/command-palette'
 
-/**
- * Hearst "H" monogram — the exact two-polygon brand mark lifted from the
- * hearst-connect logo. Draws in `currentColor` so consumers pick the hue
- * (accent orange on the rail). Single source: change here, every mount
- * updates. viewBox is cropped to the H's bounding box in the source artwork.
- */
 function LogoMark({ className }: { className?: string }) {
   return (
     <svg
@@ -27,11 +22,6 @@ function LogoMark({ className }: { className?: string }) {
   )
 }
 
-/**
- * Narrow navigation rail (directive Adrien 2026-07-11) : icône en haut, nom du
- * menu dessous, chaque item = un bouton carré. Rail fixe ~5rem de large, items
- * empilés verticalement. Remplace la SidebarLayout large de Catalyst.
- */
 const NAV_ITEMS = [
   { label: 'Dashboard', icon: Squares2X2Icon, href: '/admin', match: (p: string) => p === '/admin' },
   { label: 'Copilots', icon: CpuChipIcon, href: '/admin/agents', match: (p: string) => p === '/admin/agents' || p.startsWith('/admin/agents/') },
@@ -56,74 +46,75 @@ function RailItem({
       href={href}
       aria-current={current ? 'page' : undefined}
       className={clsx(
-        'group relative flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-2xl px-1 text-center transition-all duration-300',
+        'group relative flex w-full items-center gap-3 rounded-md px-3 py-2 transition-all duration-200',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
         current
-          ? 'bg-zinc-950/5 text-zinc-900 dark:bg-white/10 dark:text-white'
-          : 'text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-white'
+          ? 'text-white bg-white/5'
+          : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]'
       )}
     >
+      <Icon aria-hidden="true" className={clsx("size-4 shrink-0 transition-colors duration-200", current ? "text-white" : "group-hover:text-zinc-400")} />
+      <span className="text-[13px] font-medium tracking-wide">{label}</span>
       {current && (
-        <span className="absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-(--accent-line-strong)" />
+        <span className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-r-full bg-white" />
       )}
-      <Icon aria-hidden="true" className={clsx("size-5 shrink-0 transition-transform duration-300", current ? "scale-110 text-(--accent-line-strong)" : "group-hover:scale-110")} />
-      <span className="w-full text-[9px] font-semibold uppercase tracking-wider opacity-80">{label}</span>
     </Link>
   )
 }
-
-import { CommandPalette } from '@/components/agent-ops/command-palette'
 
 export function AgentControlShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   return (
-    <div className="relative isolate flex min-h-svh w-full flex-col bg-zinc-100 dark:bg-zinc-900">
+    <div className="relative isolate flex min-h-svh w-full bg-[var(--color-surface-canvas)] text-zinc-100 font-sans selection:bg-accent-500/30">
       <CommandPalette />
-      {/* Matte Grain Overlay — adds physical texture to the background */}
-      <div 
-        className="pointer-events-none fixed inset-0 z-50 opacity-[0.03] mix-blend-overlay"
-        style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.65\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")' }}
-      />
-      {/* Narrow rail — fixed, desktop. Icon-over-label square buttons. */}
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-24 flex-col items-center border-r border-zinc-950/5 bg-white py-6 lg:flex dark:border-white/10 dark:bg-zinc-950">
-        {/* Brand mark */}
-        <Link
-          href="/admin"
-          aria-label="Agent Mission Control"
-          className="flex size-10 shrink-0 items-center justify-center rounded-xl transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
-        >
-          <LogoMark className="size-6 text-accent-500 dark:text-accent-400" />
-        </Link>
+      
+      {/* Sidebar - Ultra refined, no heavy backgrounds, just a subtle border */}
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[220px] flex-col border-r border-white/5 bg-[var(--color-surface-canvas)] py-6 lg:flex">
+        
+        {/* Brand Header */}
+        <div className="flex items-center gap-3 px-6 mb-8">
+          <Link
+            href="/admin"
+            aria-label="Agent Mission Control"
+            className="flex size-6 shrink-0 items-center justify-center transition-transform hover:scale-105"
+          >
+            <LogoMark className="size-5 text-white" />
+          </Link>
+          <span className="text-[13px] font-semibold tracking-tight text-white">Aigent</span>
+        </div>
 
-        {/* Nav — square icon+label buttons, centrés sur l'axe vertical du rail
-            (directive Adrien) : flex-1 prend toute la hauteur entre le logo et
-            l'avatar, justify-center groupe les boutons au centre. */}
-        <nav className="mt-8 flex w-full flex-1 flex-col justify-center gap-3 px-2">
+        {/* Navigation */}
+        <nav className="flex w-full flex-1 flex-col gap-0.5 px-3">
           {NAV_ITEMS.map(({ label, icon, href, match }) => (
             <RailItem key={label} label={label} icon={icon} href={href} current={match(pathname)} />
           ))}
         </nav>
 
-        {/* User avatar + discreet sign-out, pinned to the bottom */}
-        <div className="mt-auto flex flex-col items-center gap-4 pt-6">
-          <Avatar initials="AD" alt="Adrien — Platform Admin" className="size-9 bg-zinc-100 text-zinc-900 ring-1 ring-zinc-900/5 dark:bg-zinc-800 dark:text-white dark:ring-white/10" />
-          <a
-            href="/logout"
-            aria-label="Sign out"
-            title="Sign out"
-            className="flex size-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-zinc-500 dark:hover:text-zinc-100"
-          >
-            <ArrowRightStartOnRectangleIcon aria-hidden="true" className="size-5" />
-          </a>
+        {/* User Footer */}
+        <div className="mt-auto px-4 pb-2">
+          <div className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-white/5 transition-colors cursor-pointer group">
+            <Avatar initials="AD" alt="Adrien" className="size-6 bg-zinc-800 text-white text-[10px] font-medium ring-1 ring-white/10" />
+            <span className="text-[13px] font-medium text-zinc-400 group-hover:text-white transition-colors truncate flex-1">Adrien</span>
+            <a
+              href="/logout"
+              aria-label="Sign out"
+              className="flex size-6 shrink-0 items-center justify-center text-zinc-600 transition-colors hover:text-white opacity-0 group-hover:opacity-100"
+            >
+              <ArrowRightStartOnRectangleIcon aria-hidden="true" className="size-3.5" />
+            </a>
+          </div>
         </div>
       </aside>
 
-      {/* Mobile top bar — brand + inline nav (rail collapses on small screens) */}
-      <header className="flex items-center gap-3 border-b border-zinc-950/5 bg-white px-4 py-3 lg:hidden dark:border-white/10 dark:bg-zinc-950">
-        <Link href="/admin" aria-label="Agent Mission Control" className="flex size-8 items-center justify-center rounded-lg">
-          <LogoMark className="size-5 text-accent-500 dark:text-accent-400" />
-        </Link>
+      {/* Mobile top bar */}
+      <header className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between border-b border-white/5 bg-[var(--color-surface-canvas)]/80 backdrop-blur-md px-4 py-3 lg:hidden">
+        <div className="flex items-center gap-3">
+          <Link href="/admin" aria-label="Agent Mission Control" className="flex size-6 items-center justify-center">
+            <LogoMark className="size-5 text-white" />
+          </Link>
+          <span className="text-sm font-semibold text-white">Aigent</span>
+        </div>
         <nav className="no-scrollbar flex min-w-0 items-center gap-2 overflow-x-auto">
           {NAV_ITEMS.map(({ label, icon: Icon, href, match }) => (
             <Link
@@ -131,22 +122,24 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
               href={href}
               aria-current={match(pathname) ? 'page' : undefined}
               className={clsx(
-                'flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+                'flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
                 match(pathname)
-                  ? 'bg-(--accent-surface) text-accent-700 ring-1 ring-inset ring-(--accent-line) dark:text-accent-300'
-                  : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'
+                  ? 'bg-white/10 text-white'
+                  : 'text-zinc-500 hover:text-zinc-300'
               )}
             >
-              <Icon aria-hidden="true" className="size-4" />
+              <Icon aria-hidden="true" className="size-3.5" />
               {label}
             </Link>
           ))}
         </nav>
       </header>
 
-      {/* Content — offset by the rail width on desktop. */}
-      <main className="flex min-w-0 flex-1 flex-col lg:pl-24">
-        <div className="grow bg-zinc-50 p-4 lg:p-8 dark:bg-zinc-950 dark:bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(255,255,255,0.03),rgba(255,255,255,0))]">{children}</div>
+      {/* Main Content Area */}
+      <main className="flex min-w-0 flex-1 flex-col pt-16 lg:pl-[220px] lg:pt-0 relative z-10">
+        <div className="grow p-6 lg:p-10 max-w-[1400px] w-full">
+          {children}
+        </div>
       </main>
     </div>
   )

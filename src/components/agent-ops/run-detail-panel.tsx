@@ -1,43 +1,26 @@
-import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid'
+import { ArrowTopRightOnSquareIcon, ClockIcon, CpuChipIcon, ShieldCheckIcon } from '@heroicons/react/20/solid'
 import clsx from 'clsx'
 
-import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { RunTimeline } from '@/components/agent-ops/run-timeline'
-import { SplitBar, type SplitSegment, type SplitTone } from '@/components/agent-ops/widgets/split-bar'
-import { Subheading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
 import { formatDurationMs, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
-import { AGENT_RUN_STATUS_LABELS, TOOL_CALL_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
+import { AGENT_RUN_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
 import type { AgentRun, AgentRunStatus, AgentRunStep, ToolCall } from '@/lib/agent-mission-control/types'
 
-/** Run lifecycle status — plain muted text label, no colored badge. */
 export function RunStatusText({ status }: { status: AgentRunStatus }) {
   return (
     <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{AGENT_RUN_STATUS_LABELS[status]}</span>
   )
 }
 
-/**
- * Tool-call outcome ramp — one accent intensity per outcome (severity by fill,
- * never a second hue). Ordered calm → hot so the SplitBar reads as an escalation.
- */
-const toolOutcomeRamp: { key: ToolCall['status']; label: string; tone: SplitTone }[] = [
-  { key: 'ok', label: TOOL_CALL_STATUS_LABELS.ok, tone: 'zinc' },
-  { key: 'confirmed', label: TOOL_CALL_STATUS_LABELS.confirmed, tone: 'accent-400' },
-  { key: 'rejected', label: TOOL_CALL_STATUS_LABELS.rejected, tone: 'accent-500' },
-  { key: 'blocked', label: TOOL_CALL_STATUS_LABELS.blocked, tone: 'accent-600' },
-  { key: 'error', label: TOOL_CALL_STATUS_LABELS.error, tone: 'accent-700' },
-]
-
-/** Naked KPI stat — label + big mono value, no box (doctrine: AgentMetricCard rhythm). */
 function Stat({ label, value, emphasis }: { label: string; value: React.ReactNode; emphasis?: boolean }) {
   return (
-    <div>
-      <dt className="text-xs font-medium tracking-wide text-zinc-500 uppercase">{label}</dt>
+    <div className="flex flex-col gap-1 p-3 rounded-lg bg-black/20 border border-white/5">
+      <dt className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">{label}</dt>
       <dd
         className={clsx(
-          'mt-1 font-mono text-base tabular-nums',
-          emphasis ? 'font-semibold text-accent-600 dark:text-accent-400' : 'text-zinc-950 dark:text-white'
+          'font-mono text-sm',
+          emphasis ? 'font-medium text-accent-400' : 'text-white'
         )}
       >
         {value}
@@ -46,22 +29,6 @@ function Stat({ label, value, emphasis }: { label: string; value: React.ReactNod
   )
 }
 
-/** Tight meta field — stacked label + value, fills its grid cell (no wasted gutter). */
-function MetaField({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-xs font-medium tracking-wide text-zinc-500 uppercase">{label}</dt>
-      <dd className="mt-1 truncate text-sm text-zinc-700 dark:text-zinc-300">{value}</dd>
-    </div>
-  )
-}
-
-/**
- * Run detail panel — receipt header (run id + status), a dense KPI stat grid,
- * the run's tool-call outcome mix as a SplitBar, a tight meta grid, then the
- * full step timeline. One card, sections split by hairline only (no box-in-box).
- * Server-safe.
- */
 export function RunDetailPanel({
   run,
   steps,
@@ -71,123 +38,45 @@ export function RunDetailPanel({
   run: AgentRun
   steps: AgentRunStep[]
   toolCalls: ToolCall[]
-  /** Human label for run.versionId, resolved live by the page (falls back to the id). */
-  versionLabel?: string | null
+  versionLabel?: string
 }) {
-  const toolCallsById: Record<string, ToolCall | undefined> = Object.fromEntries(
-    toolCalls.map((call) => [call.id, call])
-  )
-
-  const outcomeCounts = toolCalls.reduce<Record<ToolCall['status'], number>>(
-    (acc, call) => {
-      acc[call.status] += 1
-      return acc
-    },
-    { ok: 0, error: 0, blocked: 0, confirmed: 0, rejected: 0 }
-  )
-  const outcomeSegments: SplitSegment[] = toolOutcomeRamp
-    .map(({ key, label, tone }) => ({ key, label, value: outcomeCounts[key], tone }))
-    .filter((segment) => segment.value > 0)
-
   return (
-    <AgentSectionCard
-      title={<span className="font-mono tabular-nums">{run.id}</span>}
-      description={run.inputSummary}
-      actions={<RunStatusText status={run.status} />}
-    >
-      {/* Headline figures — naked stats, both halves of the row earn their width. */}
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
-        <Stat
-          label="Duration"
-          value={
-            <>
-              {formatDurationMs(run.latencyMs)}
-              {run.finishedAt === null ? (
-                <span className="ml-1.5 font-sans text-xs font-normal text-zinc-500">so far</span>
-              ) : null}
-            </>
-          }
-        />
-        <Stat label="Cost" value={formatUsd(run.costUsd)} />
-        <Stat label="Tool calls" value={run.toolCallCount} />
-        <Stat
-          label="Unsafe"
-          emphasis={run.unsafeAttemptCount > 0}
-          value={
-            <>
-              {run.unsafeAttemptCount}
-              {run.unsafeAttemptCount > 0 ? (
-                <span className="ml-1.5 font-sans text-xs font-medium">flagged</span>
-              ) : null}
-            </>
-          }
-        />
-      </dl>
-
-      {/* Tool-call outcome mix for THIS run — one bar, not disconnected counts.
-          When the run made no tool calls, say so plainly (never imply a call
-          happened that didn't). */}
-      {outcomeSegments.length > 0 ? (
-        <div className="mt-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
-          <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Tool-call outcomes</p>
-          <div className="mt-3">
-            <SplitBar
-              height="md"
-              segments={outcomeSegments}
-              caption={`${toolCalls.length} call${toolCalls.length === 1 ? '' : 's'} in this run`}
-            />
+    <div className="rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden flex flex-col h-full">
+      <div className="p-6 border-b border-white/5 bg-black/20">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-sm font-semibold text-white">Run Detail</h2>
+            <div className="flex items-center gap-2 text-xs text-zinc-400">
+              <span className="font-mono">{run.id}</span>
+              <span>&bull;</span>
+              <span>{formatTimestamp(run.startedAt)}</span>
+            </div>
           </div>
+          {run.traceUrl && (
+            <a
+              href={run.traceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white/5 hover:bg-white/10 text-xs font-medium text-white transition-colors"
+            >
+              <ArrowTopRightOnSquareIcon className="size-4 text-zinc-400" />
+              Open Trace
+            </a>
+          )}
         </div>
-      ) : (
-        <div className="mt-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
-          <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Tool calls</p>
-          <p className="mt-2 text-sm text-zinc-500">No tool calls recorded for this run.</p>
-        </div>
-      )}
 
-      {/* Meta — 2-col field grid, stacked label/value, no empty center gutter. */}
-      <dl className="mt-6 grid grid-cols-1 gap-x-6 gap-y-4 border-t border-zinc-950/5 pt-6 sm:grid-cols-2 dark:border-white/5">
-        <MetaField label="User" value={run.userLabel} />
-        <MetaField
-          label="Started"
-          value={<span className="font-mono tabular-nums">{formatTimestamp(run.startedAt)}</span>}
-        />
-        <MetaField
-          label="Version"
-          value={<span className="font-mono tabular-nums">{versionLabel ?? run.versionId}</span>}
-        />
-        <MetaField
-          label="Trace"
-          value={
-            run.traceUrl ? (
-              <Link
-                href={run.traceUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-accent-600 hover:text-accent-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-400"
-              >
-                Open in LangSmith
-                <ArrowTopRightOnSquareIcon aria-hidden="true" className="size-3.5" />
-              </Link>
-            ) : (
-              <span className="text-zinc-500">No external trace recorded</span>
-            )
-          }
-        />
-      </dl>
-
-      <div className="mt-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
-        <Subheading level={3} tone="neutral">
-          Timeline
-        </Subheading>
-        <p className="mt-1 text-xs text-zinc-500">
-          {steps.length} step{steps.length === 1 ? '' : 's'} &middot; {toolCalls.length} tool call
-          {toolCalls.length === 1 ? '' : 's'}
-        </p>
-        <div className="mt-4">
-          <RunTimeline steps={steps} toolCallsById={toolCallsById} />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+          <Stat label="Status" value={AGENT_RUN_STATUS_LABELS[run.status]} emphasis={run.status !== 'completed'} />
+          <Stat label="Duration" value={formatDurationMs(run.latencyMs)} />
+          <Stat label="Cost" value={formatUsd(run.costUsd)} />
+          <Stat label="Version" value={versionLabel ?? <span className="text-zinc-500">—</span>} />
         </div>
       </div>
-    </AgentSectionCard>
+
+      <div className="flex-1 p-6 overflow-y-auto no-scrollbar bg-[var(--color-surface-primary)]/30">
+        <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-6">Execution Timeline</h3>
+        <RunTimeline steps={steps} toolCallsById={Object.fromEntries(toolCalls.map(tc => [tc.id, tc]))} />
+      </div>
+    </div>
   )
 }

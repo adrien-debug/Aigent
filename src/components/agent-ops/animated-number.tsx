@@ -6,17 +6,13 @@ import { useEffect, useState } from 'react'
 export function AnimatedNumber({ value }: { value: string }) {
   // Extract all non-numeric prefix/suffix (like '$' or '%') and the numeric value
   const numMatch = value.match(/[\d.,]+/)
-  if (!numMatch) return <>{value}</>
+  const numStr = numMatch ? numMatch[0] : ''
+  const rawNum = numMatch ? parseFloat(numStr.replace(/,/g, '')) : NaN
 
-  const numStr = numMatch[0]
-  const rawNum = parseFloat(numStr.replace(/,/g, ''))
-  if (isNaN(rawNum)) return <>{value}</>
-
-  const prefix = value.slice(0, numMatch.index)
-  const suffix = value.slice(numMatch.index! + numStr.length)
+  const prefix = numMatch ? value.slice(0, numMatch.index) : ''
+  const suffix = numMatch ? value.slice(numMatch.index! + numStr.length) : ''
   const hasDecimals = numStr.includes('.')
-  const isPercent = suffix.includes('%')
-
+  
   const spring = useSpring(0, {
     bounce: 0,
     duration: 1500, // 1.5 seconds smooth roll-up
@@ -33,8 +29,12 @@ export function AnimatedNumber({ value }: { value: string }) {
   })
 
   useEffect(() => {
-    spring.set(rawNum)
+    if (!isNaN(rawNum)) {
+      spring.set(rawNum)
+    }
   }, [rawNum, spring])
+
+  if (!numMatch || isNaN(rawNum)) return <>{value}</>
 
   return (
     <span className="inline-flex">

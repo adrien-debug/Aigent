@@ -1,21 +1,10 @@
-import { CodeBracketIcon } from '@heroicons/react/16/solid'
-import Image from 'next/image'
+import { CodeBracketIcon, CpuChipIcon, ShieldCheckIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import clsx from 'clsx'
 
-import { Avatar } from '@/components/catalyst/avatar'
-import { Badge } from '@/components/catalyst/badge'
-import { Subheading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
 import { formatUsd } from '@/lib/agent-mission-control/format'
-import { PROJECT_PLATFORM_LABELS } from '@/lib/agent-mission-control/labels'
 import type { Project } from '@/lib/agent-mission-control/types'
 
-/**
- * Project registry card — landscape photo header + square logo avatar overlapping
- * the header, then title/meta and a three-stat footer. Server-safe (no `use client`),
- * props serialisable. Twin cards share an identical skeleton so grid rows align to
- * the pixel; absent data renders `—` zinc, never `0.0%`.
- * `imageUrl`/`logoUrl` are optional on the shared `Project` interface.
- */
 interface ProjectRollup {
   copilotCount: number
   activeCount: number
@@ -24,116 +13,88 @@ interface ProjectRollup {
   openWarnings: number
 }
 
-interface ProjectCardProps {
+export function ProjectCard({
+  project,
+  rollup,
+  href,
+}: {
   project: Project
   rollup: ProjectRollup
   href: string
-}
-
-const numberFormat = new Intl.NumberFormat('en-US')
-
-/** First two letters of the project name, uppercased, for the avatar fallback. */
-function initialsFor(name: string): string {
-  return name.replace(/\s+/g, '').slice(0, 2).toUpperCase()
-}
-
-export function ProjectCard({ project, rollup, href }: ProjectCardProps) {
+}) {
+  const hasWarnings = rollup.openWarnings > 0
+  
   return (
-    <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:ring-zinc-950/10 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] dark:hover:ring-white/10 dark:hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.02),0_10px_40px_-10px_rgba(0,0,0,0.3)]">
-      {/* Landscape photo header — real image or a zinc-only gradient fallback. */}
-      <div className="relative h-28">
-        {project.imageUrl ? (
-          <Image
-            src={project.imageUrl}
-            alt={project.name}
-            fill
-            sizes="(min-width: 1024px) 33vw, 100vw"
-            className="object-cover"
-          />
-        ) : (
-          <div
-            aria-hidden="true"
-            className="size-full bg-gradient-to-br from-zinc-800 to-zinc-950"
-          />
-        )}
-        {rollup.openWarnings > 0 && (
-          <div className="absolute top-3 right-3 z-10">
-            <Badge color="accentStrong" className="font-mono tabular-nums shadow-sm">
-              {numberFormat.format(rollup.openWarnings)}
-              <span className="sr-only"> open warnings</span>
-            </Badge>
+    <div className="group relative flex flex-col rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 transition-all hover:bg-[var(--color-surface-interactive)] hover:border-white/10 hover:shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden">
+      
+      {/* Top Status Band */}
+      <div className={clsx(
+        "h-1 w-full",
+        hasWarnings ? "bg-accent-500/50" : "bg-accent-500/50"
+      )} />
+
+      <div className="p-6 flex flex-col gap-6">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-black/40 ring-1 ring-white/10 text-xl font-bold text-white uppercase shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
+              {project.name.slice(0, 2)}
+            </div>
+            <div className="flex flex-col min-w-0">
+              <Link href={href} className="text-lg font-semibold text-white truncate hover:underline before:absolute before:inset-0">
+                {project.name}
+              </Link>
+              <div className="flex items-center gap-2 mt-1">
+                <CodeBracketIcon className="size-3.5 text-zinc-500" />
+                <span className="text-xs text-zinc-400 font-mono truncate">{project.repoFullName}</span>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
-
-      {/* Square logo avatar overlapping the bottom edge of the header —
-          relative z-10 so it sits ABOVE the header instead of being clipped by it. */}
-      <div className="relative z-10 -mt-8 ml-6">
-        <Avatar
-          square
-          src={project.logoUrl ?? undefined}
-          initials={initialsFor(project.name)}
-          alt={project.name}
-          className="size-14 bg-zinc-900 ring-2 ring-white dark:ring-zinc-950"
-        />
-      </div>
-
-      {/* Body — title, meta line, description. flex-col + flex-1 pousse le footer
-          au bas de la carte pour que les cartes jumelles alignent leurs stats au pixel. */}
-      <div className="flex flex-1 flex-col px-6 pt-3 pb-6">
-        <Subheading level={3} tone="neutral" className="truncate">
-          <Link href={href} title={project.name} className="hover:underline">
-            {project.name}
-          </Link>
-        </Subheading>
-        <div className="mt-1 truncate font-mono text-xs text-zinc-500">
-          {project.slug} · {PROJECT_PLATFORM_LABELS[project.platform]}
+          
+          <div className="flex items-center gap-2 relative z-10">
+            {hasWarnings ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-accent-500/10 text-accent-400 ring-1 ring-accent-500/20">
+                <ExclamationTriangleIcon className="size-3.5" />
+                <span className="text-[10px] font-medium uppercase tracking-widest">{rollup.openWarnings} Alerts</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-accent-500/10 text-accent-400 ring-1 ring-accent-500/20">
+                <ShieldCheckIcon className="size-3.5" />
+                <span className="text-[10px] font-medium uppercase tracking-widest">Healthy</span>
+              </div>
+            )}
+          </div>
         </div>
-        {project.repoUrl && project.repoFullName ? (
-          <Link
-            href={project.repoUrl}
-            target="_blank"
-            rel="noreferrer"
-            title={project.repoFullName}
-            className="mt-1 inline-flex max-w-full items-center gap-1.5 font-mono text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-          >
-            <CodeBracketIcon aria-hidden="true" className="size-3.5 shrink-0" />
-            <span className="truncate">{project.repoFullName}</span>
-            <span className="sr-only">GitHub repository (opens in a new tab)</span>
-          </Link>
-        ) : null}
-        {/* Hauteur fixe 2 lignes → toutes les cartes réservent la même place, même
-            si la description tient sur une seule ligne (sinon le footer remonte). */}
-        <p className="mt-3 line-clamp-2 min-h-10 text-sm text-zinc-500 dark:text-zinc-400">{project.description}</p>
 
-        {/* Footer — three mini-stats, identical slots across twin cards.
-            mt-auto colle le footer au bas de la carte. */}
-        <div className="mt-auto grid grid-cols-3 gap-4 border-t border-zinc-950/5 pt-4 dark:border-white/5">
-          <div>
-            <div className="text-xs text-zinc-500">Fleet</div>
-            <div className="mt-1 font-mono text-zinc-700 tabular-nums dark:text-zinc-200">
-              {rollup.activeCount}/{rollup.copilotCount}
+        {/* Fleet Overview */}
+        <div className="flex items-center gap-4 p-4 rounded-xl bg-black/20 border border-white/5">
+          <div className="flex items-center gap-3 w-1/3 border-r border-white/5">
+            <CpuChipIcon className="size-5 text-accent-400" />
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-white">{rollup.activeCount} <span className="text-zinc-500 font-normal">/ {rollup.copilotCount}</span></span>
+              <span className="text-[10px] uppercase tracking-widest text-zinc-500">Active Fleet</span>
             </div>
           </div>
-          <div>
-            <div className="text-xs text-zinc-500">Runs 24h</div>
-            <div className="mt-1 font-mono text-zinc-700 tabular-nums dark:text-zinc-200">
-              {numberFormat.format(rollup.runsLast24h)}
-            </div>
+          <div className="flex flex-col w-1/3 border-r border-white/5 pl-4">
+            <span className="text-sm font-mono text-white">{rollup.runsLast24h.toLocaleString()}</span>
+            <span className="text-[10px] uppercase tracking-widest text-zinc-500">24h Runs</span>
           </div>
-          <div>
-            <div className="text-xs text-zinc-500">Cost 24h</div>
-            <div className="mt-1 font-mono text-zinc-700 tabular-nums dark:text-zinc-200">
-              {rollup.runsLast24h > 0 ? (
-                formatUsd(rollup.costLast24hUsd)
-              ) : (
-                <span className="text-zinc-500">
-                  <span aria-hidden="true">&mdash;</span>
-                  <span className="sr-only">No runs in the last 24 hours</span>
-                </span>
-              )}
-            </div>
+          <div className="flex flex-col w-1/3 pl-4">
+            <span className="text-sm font-mono text-white">{formatUsd(rollup.costLast24hUsd)}</span>
+            <span className="text-[10px] uppercase tracking-widest text-zinc-500">24h Cost</span>
           </div>
+        </div>
+
+        {/* Footer info */}
+        <div className="flex items-center justify-between text-xs text-zinc-500">
+          <div className="flex items-center gap-2">
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-400 opacity-75"></span>
+              <span className="relative inline-flex size-2 rounded-full bg-accent-500"></span>
+            </span>
+            <span>Syncing events...</span>
+          </div>
+          <span className="font-medium text-accent-400 opacity-0 group-hover:opacity-100 transition-opacity">Open Cockpit &rarr;</span>
         </div>
       </div>
     </div>
