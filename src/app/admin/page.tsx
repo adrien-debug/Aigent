@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 
 import { surfaceCardClass, surfaceInsetClass } from '@/components/agent-ops/surface-card'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
+import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
 import { Badge } from '@/components/catalyst/badge'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
@@ -22,17 +23,6 @@ const numberFormat = new Intl.NumberFormat('en-US')
 function statusLabel(status: string): string {
   const spaced = status.replace(/-/g, ' ')
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
-}
-
-/**
- * Run status → accent intensity ladder (doctrine: colour never the sole signal,
- * the LABEL carries meaning; intensity encodes escalation). completed = soft
- * accent, failed/blocked = solid accent, everything else = neutral zinc.
- */
-function runStatusBadgeColor(status: string): 'accent' | 'accentSolid' | 'zinc' {
-  if (status === 'completed') return 'accent'
-  if (status === 'failed' || status === 'blocked') return 'accentSolid'
-  return 'zinc'
 }
 
 function AttentionZone({ copilots }: { copilots: Copilot[] }) {
@@ -125,6 +115,13 @@ const DASHBOARD_KPIS = (kpis: RegistryKpis) => [
 
 function RunActivity({ runs, copilotNameById, kpis }: { runs: AgentRun[], copilotNameById: Map<string, string>, kpis: RegistryKpis }) {
   const shown = runs.slice(0, 8)
+  const latencyPoints = [...runs].reverse().map((run) => ({
+    id: run.id,
+    label: formatTimestamp(run.startedAt).replace(' UTC', ''),
+    latencyMs: run.latencyMs,
+    costUsd: run.costUsd,
+    status: run.status,
+  }))
 
   return (
     <div className={clsx(surfaceCardClass, 'flex flex-col h-full')}>
@@ -136,9 +133,12 @@ function RunActivity({ runs, copilotNameById, kpis }: { runs: AgentRun[], copilo
       <div className="grid grid-cols-2 gap-x-6 gap-y-6 border-b border-white/5 px-6 py-6 sm:grid-cols-3 lg:grid-cols-5 lg:px-8">
         {DASHBOARD_KPIS(kpis).map((kpi) => (
           <div key={kpi.name} className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500">{kpi.name}</span>
+            {/* Reserve two lines for the label so a title that wraps ("24h
+                Compute Cost") does not push its value below its one-line
+                neighbours — every value row starts on the same baseline. */}
+            <span className="flex min-h-8 items-start text-xs font-semibold uppercase tracking-widest text-zinc-500">{kpi.name}</span>
             <span className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-light tabular-nums tracking-tight text-white">{kpi.value}</span>
+              <span className="text-3xl font-light tabular-nums tracking-tight text-accent-400">{kpi.value}</span>
               {kpi.suffix ? <span className="text-sm text-zinc-500">{kpi.suffix}</span> : null}
             </span>
           </div>
@@ -147,7 +147,10 @@ function RunActivity({ runs, copilotNameById, kpis }: { runs: AgentRun[], copilo
 
       {runs.length > 0 ? (
         <div className="flex flex-col flex-1">
-          <Table className="px-6 [--gutter:--spacing(6)]">
+          <div className="p-6 bg-[var(--color-surface-primary)]/30 border-b border-white/5">
+            <RunLatencyChart data={latencyPoints} />
+          </div>
+          <Table className="px-6 [--gutter:--spacing(0)]">
             <TableHead>
               <TableRow>
                 <TableHeader className="w-1/3">Copilot</TableHeader>
@@ -172,9 +175,9 @@ function RunActivity({ runs, copilotNameById, kpis }: { runs: AgentRun[], copilo
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge color={runStatusBadgeColor(run.status)} className="uppercase tracking-widest">
+                    <span className={clsx('text-sm', run.status === 'completed' ? 'text-accent-400' : 'text-zinc-400')}>
                       {statusLabel(run.status)}
-                    </Badge>
+                    </span>
                   </TableCell>
                   <TableCell className="text-right font-mono text-xs text-zinc-400">
                     {run.latencyMs}ms

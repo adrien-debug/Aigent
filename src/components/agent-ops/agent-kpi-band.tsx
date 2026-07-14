@@ -53,10 +53,13 @@ export function AgentKpiBand({
   const hasHint = stats.some((stat) => stat.hint)
 
   const defaultValueSize = density === 'compact' ? 'compact' : 'hero'
+  // Reserve a fixed two-line height for the label so a title that wraps
+  // ("24H COMPUTE COST") does not push its value lower than its one-line
+  // neighbours — every value row then starts on the same baseline.
   const labelClass =
     density === 'compact'
-      ? 'text-[10px] font-medium uppercase tracking-widest text-zinc-600 mb-1'
-      : 'text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 group-hover:text-zinc-400 transition-colors'
+      ? 'flex min-h-8 items-start text-[10px] font-medium uppercase tracking-widest text-zinc-600 mb-1'
+      : 'flex min-h-10 items-start text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 group-hover:text-zinc-400 transition-colors'
 
   return (
     <div
