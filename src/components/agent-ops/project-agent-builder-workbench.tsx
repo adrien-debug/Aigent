@@ -75,7 +75,7 @@ export function ProjectAgentBuilderWorkbench({
   seedInput?: string
 }) {
   const router = useRouter()
-  const chatEndRef = useRef<HTMLDivElement>(null)
+  const chatLogRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   const intelligenceState = useProjectRepoIntelligence(projectId, repoFullName)
@@ -135,7 +135,11 @@ export function ProjectAgentBuilderWorkbench({
   }, [seedInput, loading])
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    // Scroll only the chat log's own scroll container to its bottom — never
+    // scrollIntoView, which walks up to the window and yanks the whole page
+    // down on every message. The box has a fixed height; its content scrolls.
+    const el = chatLogRef.current
+    if (el) el.scrollTop = el.scrollHeight
   }, [messages, running, runState?.status])
 
   const sendMessage = useCallback(
@@ -293,6 +297,7 @@ export function ProjectAgentBuilderWorkbench({
           </div>
 
           <div
+            ref={chatLogRef}
             role="log"
             aria-live="polite"
             aria-label="Builder conversation"
@@ -366,8 +371,6 @@ export function ProjectAgentBuilderWorkbench({
                 </div>
               </div>
             ) : null}
-
-            <div ref={chatEndRef} />
           </div>
 
           <div className={clsx(surfaceCardFooterClass, 'bg-[var(--color-surface-elevated)] p-4')}>

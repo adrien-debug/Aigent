@@ -17,11 +17,13 @@ import {
 } from './agent-builder-run'
 import { createCopilotFromManifest, setCopilotAssistantId } from './authoring-writes'
 import { getProject } from './data'
+import { getRepoFile, getRepoTree, searchRepoCode } from './github'
 import { ensureCopilotAssistant } from './langgraph-assistants'
 import { getOpenAIClient, ARCHITECT_MODEL } from './llm-client'
 import {
   PROJECT_BUILDER_ARCHITECT_SYSTEM,
-  PROJECT_BUILDER_PREVIEW_TOOL,
+  PROJECT_BUILDER_REPO_TOOL_NAMES,
+  PROJECT_BUILDER_TOOLS,
 } from './project-builder-architect-prompt'
 import {
   canStartDraftMaterialization,
@@ -49,6 +51,12 @@ const MAX_MESSAGES_LOAD = 80
 const MAX_MESSAGES_FOR_LLM = 24
 const MAX_MESSAGE_CHARS = 12_000
 const OPENAI_TIMEOUT_MS = 90_000
+
+/** Hard ceiling on repo-tool round-trips per architect turn — bounds cost and latency. */
+const MAX_TOOL_ITERATIONS = 8
+/** Repo tool output is truncated to this many chars before being handed back to the model. */
+const MAX_TOOL_RESULT_CHARS = 6_000
+const MAX_COMPLETION_TOKENS = 4_096
 
 function rowToConversation(row: RawRow): ProjectBuilderConversation {
   return {
@@ -180,17 +188,107 @@ function parsePreviewToolArgs(raw: string): Partial<AgentPreview> | null {
   }
 }
 
-async function generateArchitectTurn(args: {
+function truncateToolResult(text: string): string {
+  if (text.length <= MAX_TOOL_RESULT_CHARS) return text
+  return `${text.slice(0, MAX_TOOL_RESULT_CHARS)}\n…[truncated, ${text.length} chars total]`
+}
+
+/**
+ * Execute one repo-reading tool call (list_repo_tree / read_repo_file / search_repo)
+ * against the linked repo via github.ts's validated, secret-path-denying helpers.
+ * Never throws: a failure (no repo linked, no token, GitHub error, secret path)
+ * becomes a clean `{ error }` string handed back to the model as the tool result,
+ * so the architect can react ("I can't open that file") instead of the turn crashing.
+ */
+async function runRepoTool(
+  toolName: string,
+  rawArgs: string,
+  repoFullName: string | undefined
+): Promise<string> {
+  if (!repoFullName) {
+    return JSON.stringify({ error: 'repo read unavailable: this project has no linked GitHub repo' })
+  }
+  if (!process.env.GITHUB_TOKEN) {
+    return JSON.stringify({ error: 'repo read unavailable: GITHUB_TOKEN is not configured' })
+  }
+
+  let args: Record<string, unknown>
+  try {
+    args = rawArgs.trim().length > 0 ? (JSON.parse(rawArgs) as Record<string, unknown>) : {}
+  } catch {
+    return JSON.stringify({ error: 'invalid tool arguments: could not parse JSON' })
+  }
+
+  try {
+    switch (toolName) {
+      case 'list_repo_tree': {
+        const scopePath = typeof args.path === 'string' ? args.path.replace(/^\/+/, '') : ''
+        const tree = await getRepoTree(repoFullName)
+        const scoped = scopePath
+          ? tree.filter((e) => e.path === scopePath || e.path.startsWith(`${scopePath}/`))
+          : tree
+        const entries = scoped.slice(0, 300).map((e) => ({ path: e.path, type: e.type }))
+        return truncateToolResult(
+          JSON.stringify({ repo: repoFullName, path: scopePath || '(root)', count: scoped.length, entries })
+        )
+      }
+      case 'read_repo_file': {
+        const path = typeof args.path === 'string' ? args.path : ''
+        if (!path) return JSON.stringify({ error: 'missing required argument: path' })
+        const file = await getRepoFile(repoFullName, path)
+        return truncateToolResult(
+          JSON.stringify({ path: file.path, truncated: file.truncated, content: file.text })
+        )
+      }
+      case 'search_repo': {
+        const query = typeof args.query === 'string' ? args.query : ''
+        if (!query) return JSON.stringify({ error: 'missing required argument: query' })
+        const result = await searchRepoCode(repoFullName, query)
+        return truncateToolResult(
+          JSON.stringify({
+            totalCount: result.totalCount,
+            incomplete: result.incomplete,
+            matches: result.matches.slice(0, 20),
+          })
+        )
+      }
+      default:
+        return JSON.stringify({ error: `unknown repo tool: ${toolName}` })
+    }
+  } catch (err) {
+    return JSON.stringify({ error: err instanceof Error ? err.message : 'repo read failed' })
+  }
+}
+
+/**
+ * One architect turn, run as an AGENTIC LOOP: the model gets update_preview
+ * PLUS three read-only repo tools (list_repo_tree/read_repo_file/search_repo).
+ * As long as it keeps calling repo tools, we execute them against the real
+ * linked repo (via github.ts) and feed the results back as `tool` messages,
+ * then re-call the model — up to MAX_TOOL_ITERATIONS round-trips — until it
+ * produces actual prose (its framing/question/reformulation), optionally
+ * alongside an update_preview call. The bounded repo intelligence summary is
+ * still injected as an initial hint, but the model can now dig past it into
+ * real files.
+ */
+export async function generateArchitectTurn(args: {
   messages: ProjectBuilderMessage[]
   repoContext: string
   currentPreview: AgentPreview | null
+  repoFullName: string | undefined
 }): Promise<{ reply: string; previewPatch: Partial<AgentPreview> | null }> {
   const client = getOpenAIClient()
   const recent = args.messages.slice(-MAX_MESSAGES_FOR_LLM)
+
+  const repoToolsAvailable = Boolean(args.repoFullName && process.env.GITHUB_TOKEN)
+  const toolsNote = repoToolsAvailable
+    ? `Repo tools are AVAILABLE for ${args.repoFullName} — use list_repo_tree/read_repo_file/search_repo to verify claims against real files instead of relying only on the summary below.`
+    : 'Repo tools are UNAVAILABLE right now (no linked repo or no GitHub access) — be honest that you can only reason from the bounded summary below.'
+
   const openAiMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     {
       role: 'system',
-      content: `${PROJECT_BUILDER_ARCHITECT_SYSTEM}\n\n${args.repoContext}\n\nCurrent preview JSON (may be empty):\n${JSON.stringify(args.currentPreview ?? {})}`,
+      content: `${PROJECT_BUILDER_ARCHITECT_SYSTEM}\n\n${toolsNote}\n\n${args.repoContext}\n\nCurrent preview JSON (may be empty):\n${JSON.stringify(args.currentPreview ?? {})}`,
     },
     ...recent.map((m) => ({
       role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
@@ -198,38 +296,130 @@ async function generateArchitectTurn(args: {
     })),
   ]
 
-  const response = await client.chat.completions.create(
-    {
-      model: ARCHITECT_MODEL,
-      messages: openAiMessages,
-      tools: [PROJECT_BUILDER_PREVIEW_TOOL],
-      tool_choice: 'auto',
-      max_completion_tokens: 4096,
-    },
-    { timeout: OPENAI_TIMEOUT_MS }
-  )
-
-  const msg = response.choices[0]?.message
-  if (!msg) throw new Error('architect returned empty completion')
-
   let previewPatch: Partial<AgentPreview> | null = null
-  const toolCall = msg.tool_calls?.find((t) => t.type === 'function' && t.function.name === 'update_preview')
-  if (toolCall && toolCall.type === 'function') {
-    previewPatch = parsePreviewToolArgs(toolCall.function.arguments)
+  let toolBudgetExhausted = false
+
+  for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
+    const response = await client.chat.completions.create(
+      {
+        model: ARCHITECT_MODEL,
+        messages: openAiMessages,
+        tools: PROJECT_BUILDER_TOOLS,
+        tool_choice: 'auto',
+        max_completion_tokens: MAX_COMPLETION_TOKENS,
+      },
+      { timeout: OPENAI_TIMEOUT_MS }
+    )
+
+    const msg = response.choices[0]?.message
+    if (!msg) throw new Error('architect returned empty completion')
+
+    const previewCall = msg.tool_calls?.find(
+      (t) => t.type === 'function' && t.function.name === 'update_preview'
+    )
+    if (previewCall && previewCall.type === 'function') {
+      previewPatch = parsePreviewToolArgs(previewCall.function.arguments)
+    }
+
+    const repoCalls = (msg.tool_calls ?? []).filter(
+      (t) => t.type === 'function' && PROJECT_BUILDER_REPO_TOOL_NAMES.has(t.function.name)
+    )
+
+    // If the model already produced prose this turn, that IS its answer — return
+    // it even if it also queued more repo tool calls. Waiting for a turn with
+    // ZERO tool calls is what starved the loop into the fallback: gpt keeps
+    // wanting "one more file" and never lands on a tool-free turn.
+    const proseThisTurn = typeof msg.content === 'string' ? msg.content.trim() : ''
+
+    // If the model produced prose this turn, that IS its answer — return it even
+    // if it also queued repo calls. Waiting for a turn with ZERO tool calls is
+    // what starved the loop: gpt keeps wanting "one more file". We have not
+    // mutated openAiMessages yet on this iteration, so the history stays valid.
+    if (proseThisTurn.length > 0) {
+      if (previewPatch && !previewPatch.flow?.length) previewPatch.flow = defaultAgentFlow()
+      return { reply: proseThisTurn, previewPatch }
+    }
+
+    const toolCalls = (msg.tool_calls ?? []).filter((t) => t.type === 'function')
+
+    if (toolCalls.length === 0) {
+      // No prose and no tool calls at all — nothing to continue on, wrap up.
+      toolBudgetExhausted = true
+      break
+    }
+
+    // Append the assistant turn (with its tool_calls) before any tool results,
+    // as OpenAI's chat format requires.
+    openAiMessages.push({
+      role: 'assistant',
+      content: msg.content ?? null,
+      tool_calls: msg.tool_calls,
+    } as OpenAI.Chat.Completions.ChatCompletionMessageParam)
+
+    // EVERY tool_call in that assistant message MUST get a tool response, or the
+    // next request 400s. Repo calls run for real; update_preview gets an ack (it
+    // was already captured into previewPatch above). This was the bug: only repo
+    // calls were answered, leaving update_preview's id dangling.
+    const atBudget = iteration === MAX_TOOL_ITERATIONS - 1
+    for (const call of toolCalls) {
+      if (call.type !== 'function') continue
+      let content: string
+      if (PROJECT_BUILDER_REPO_TOOL_NAMES.has(call.function.name)) {
+        content = atBudget
+          ? JSON.stringify({ note: 'repo-read budget reached for this turn; answer in prose now' })
+          : await runRepoTool(call.function.name, call.function.arguments, args.repoFullName)
+      } else {
+        // update_preview (or any non-repo tool): already handled, just ack it.
+        content = JSON.stringify({ ok: true, applied: true })
+      }
+      openAiMessages.push({ role: 'tool', tool_call_id: call.id, content })
+    }
+
+    if (atBudget) {
+      toolBudgetExhausted = true
+      break
+    }
   }
 
-  const reply =
-    (typeof msg.content === 'string' && msg.content.trim().length > 0
-      ? msg.content.trim()
-      : previewPatch
-        ? "I've updated the preview panel with my latest proposal — tell me what to refine."
-        : "I'm here to help architect an agent for this repo.") ?? ''
-
-  if (previewPatch && !previewPatch.flow?.length) {
-    previewPatch.flow = defaultAgentFlow()
+  if (toolBudgetExhausted) {
+    console.warn(
+      `[project-builder] architect turn hit MAX_TOOL_ITERATIONS=${MAX_TOOL_ITERATIONS} repo-tool budget for repo ${args.repoFullName ?? '(none)'}`
+    )
+    // Force one final call with tools disabled so the model must answer in prose.
+    const finalResponse = await client.chat.completions.create(
+      {
+        model: ARCHITECT_MODEL,
+        messages: [
+          ...openAiMessages,
+          {
+            role: 'system',
+            content:
+              'Stop reading the repo now. In prose, reformulate what the operator wants, state what you found in the repo, and ask your next scoping question. Do not call any tool.',
+          },
+        ],
+        // Force a text answer — with tools still offered the model can keep
+        // trying to call one and return empty content, which is exactly what
+        // dropped us into the fallback.
+        tools: PROJECT_BUILDER_TOOLS,
+        tool_choice: 'none',
+        max_completion_tokens: MAX_COMPLETION_TOKENS,
+      },
+      { timeout: OPENAI_TIMEOUT_MS }
+    )
+    const finalMsg = finalResponse.choices[0]?.message
+    const reply = typeof finalMsg?.content === 'string' ? finalMsg.content.trim() : ''
+    if (reply.length > 0) {
+      if (previewPatch && !previewPatch.flow?.length) previewPatch.flow = defaultAgentFlow()
+      return { reply, previewPatch }
+    }
   }
 
-  return { reply, previewPatch }
+  // Fallback: should be rare given the system prompt requires prose every turn.
+  // More useful than a generic line — invites the operator to redirect.
+  const fallback =
+    "I dug into the repo but didn't land on a clear next step — could you tell me more about what this agent should do, or point me at a specific file/folder to look at?"
+  if (previewPatch && !previewPatch.flow?.length) previewPatch.flow = defaultAgentFlow()
+  return { reply: fallback, previewPatch }
 }
 
 export async function postProjectBuilderMessage(
@@ -258,10 +448,19 @@ export async function postProjectBuilderMessage(
     // Non-fatal — architect proceeds with honest uncertainty.
   }
 
+  let repoFullName: string | undefined
+  try {
+    const project = await getProject(projectId)
+    repoFullName = project?.repoFullName
+  } catch {
+    // Non-fatal — repo tools will report "unavailable" to the model.
+  }
+
   const { reply, previewPatch } = await generateArchitectTurn({
     messages,
     repoContext: intelBlock,
     currentPreview: conversation.latestPreview,
+    repoFullName,
   })
 
   await appendMessage(conversation.id, 'assistant', reply, previewPatch ? { previewUpdated: true } : undefined)

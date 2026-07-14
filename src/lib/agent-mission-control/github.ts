@@ -388,6 +388,56 @@ export async function getRepoFile(
   return { path: data.path, encoding: 'utf-8', text, truncated: false }
 }
 
+export interface RepoSearchMatch {
+  path: string
+  /** Short text fragments around the match, when GitHub returns them. */
+  fragments: string[]
+}
+
+export interface RepoSearchResult {
+  totalCount: number
+  /** True when GitHub's count is not to be trusted as exhaustive (rate-limited/degraded search index). */
+  incomplete: boolean
+  matches: RepoSearchMatch[]
+}
+
+/**
+ * Search code in a repository via the GitHub Code Search API, scoped to
+ * `repo:{repoFullName}`. Read-only. Secret/credential-looking paths are
+ * filtered out of the results (same denylist as getRepoFile).
+ * Rate-limited more aggressively by GitHub than other endpoints (search API);
+ * a 403 is surfaced as a thrown error rather than retried.
+ */
+export async function searchRepoCode(repoFullName: string, query: string): Promise<RepoSearchResult> {
+  const safeRepo = assertValidRepoFullName(repoFullName)
+  if (typeof query !== 'string' || query.trim().length === 0) {
+    throw new Error('invalid query: must be a non-empty string')
+  }
+  const q = `${query} repo:${safeRepo}`
+  const data = await gh<{
+    total_count: number
+    incomplete_results: boolean
+    items?: {
+      path: string
+      text_matches?: { fragment?: string }[]
+    }[]
+  }>('GET', `search/code?q=${encodeURIComponent(q)}&per_page=20`)
+
+  const items = data.items ?? []
+  const matches = items
+    .filter((item) => !isSecretPath(item.path))
+    .map((item) => ({
+      path: item.path,
+      fragments: (item.text_matches ?? []).map((m) => m.fragment ?? '').filter(Boolean),
+    }))
+
+  return {
+    totalCount: data.total_count,
+    incomplete: data.incomplete_results,
+    matches,
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Scaffolding — real, runnable runtime code per runtime
 // ---------------------------------------------------------------------------
