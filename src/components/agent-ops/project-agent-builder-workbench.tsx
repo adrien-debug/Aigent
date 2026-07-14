@@ -11,9 +11,10 @@ import {
   surfaceCardHeaderClass,
 } from '@/components/agent-ops/surface-card'
 import { LangGraphDebugPanel, type LangGraphDebugInfo } from '@/components/agent-ops/langgraph-debug-panel'
+import { MarkdownLite } from '@/components/agent-ops/markdown-lite'
 import { ProjectBuilderPreviewPanel } from '@/components/agent-ops/project-builder-preview-panel'
 import {
-  ProjectRepoIntelligenceCompact,
+  ProjectRepoIntelligenceActions,
   useProjectRepoIntelligence,
 } from '@/components/agent-ops/project-repo-intelligence'
 import { Button } from '@/components/catalyst/button'
@@ -59,6 +60,55 @@ function visibleMessages(messages: ProjectBuilderMessage[]): ProjectBuilderMessa
   return messages.filter((m) => m.role !== 'system')
 }
 
+/** One SSE frame as sent by the builder/message route while streaming. */
+type BuilderStreamEvent =
+  | { delta: string }
+  | {
+      done: true
+      preview: AgentPreview | null
+      conversationStatus: ProjectBuilderConversation['status']
+      createdCopilotId: string | null
+      messageId: string | null
+    }
+  | { error: string }
+
+/**
+ * Read an SSE body (`data: {...}\n\n` frames) and invoke `onEvent` for each
+ * parsed JSON payload as it arrives. Malformed frames are skipped rather than
+ * throwing, since a single bad frame should not abort an otherwise-good
+ * stream. Returns once the stream closes.
+ */
+async function consumeSSE(
+  body: ReadableStream<Uint8Array>,
+  onEvent: (event: BuilderStreamEvent) => void
+): Promise<void> {
+  const reader = body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    let sepIndex = buffer.indexOf('\n\n')
+    while (sepIndex !== -1) {
+      const frame = buffer.slice(0, sepIndex)
+      buffer = buffer.slice(sepIndex + 2)
+      const line = frame.split('\n').find((l) => l.startsWith('data:'))
+      if (line) {
+        const raw = line.slice(5).trim()
+        try {
+          onEvent(JSON.parse(raw) as BuilderStreamEvent)
+        } catch {
+          // Skip malformed frame — do not abort the whole stream over it.
+        }
+      }
+      sepIndex = buffer.indexOf('\n\n')
+    }
+  }
+}
+
 /**
  * Chat-first Project Builder with persistent backend conversation thread.
  */
@@ -93,6 +143,8 @@ export function ProjectAgentBuilderWorkbench({
   const [error, setError] = useState<string | null>(null)
   const [runState, setRunState] = useState<BuilderRunState | null>(null)
   const [showDebug, setShowDebug] = useState(false)
+  /** Assistant reply currently growing token-by-token; null when nothing is streaming. */
+  const [streamingContent, setStreamingContent] = useState<string | null>(null)
 
   const applyBundle = useCallback((bundle: ProjectBuilderConversationBundle) => {
     setConversation(bundle.conversation)
@@ -140,7 +192,25 @@ export function ProjectAgentBuilderWorkbench({
     // down on every message. The box has a fixed height; its content scrolls.
     const el = chatLogRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [messages, running, runState?.status])
+  }, [messages, running, runState?.status, streamingContent])
+
+  /** Non-streaming fallback: the original one-shot JSON round-trip. */
+  const sendMessageJSON = useCallback(
+    async (content: string) => {
+      const res = await fetch(`/api/agent-ops/projects/${projectId}/builder/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        setError(data?.error ?? `Message failed (${res.status}).`)
+        return
+      }
+      applyBundle(data as ProjectBuilderConversationBundle)
+    },
+    [projectId, applyBundle]
+  )
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -149,26 +219,71 @@ export function ProjectAgentBuilderWorkbench({
 
       setRunning(true)
       setError(null)
+      setStreamingContent('')
 
       try {
         const res = await fetch(`/api/agent-ops/projects/${projectId}/builder/message`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
           body: JSON.stringify({ content: trimmed }),
         })
-        const data = await res.json().catch(() => null)
+
         if (!res.ok) {
+          const data = await res.json().catch(() => null)
           setError(data?.error ?? `Message failed (${res.status}).`)
           return
         }
-        applyBundle(data as ProjectBuilderConversationBundle)
+
+        const isStream = (res.headers.get('content-type') ?? '').includes('text/event-stream')
+        if (!isStream || !res.body) {
+          // Server (or an intermediary) did not honor the stream request —
+          // fall back to reading the response as the classic JSON bundle.
+          const data = await res.json().catch(() => null)
+          if (data) applyBundle(data as ProjectBuilderConversationBundle)
+          return
+        }
+
+        let streamError: string | null = null
+        await consumeSSE(res.body, (event) => {
+          if ('delta' in event) {
+            setStreamingContent((prev) => (prev ?? '') + event.delta)
+          } else if ('error' in event) {
+            streamError = event.error
+          } else if ('done' in event) {
+            // Reconcile via a full reload of the conversation bundle so the
+            // persisted message list (with real ids/timestamps) replaces the
+            // locally-streamed text, keeping a single source of truth.
+          }
+        })
+
+        if (streamError) {
+          setError(streamError)
+          return
+        }
+
+        // Pull the persisted bundle now that the backend has written the
+        // final assistant message + preview patch — same data the JSON path
+        // would have returned in one shot.
+        const bundleRes = await fetch(`/api/agent-ops/projects/${projectId}/builder/conversation`)
+        const bundleData = await bundleRes.json().catch(() => null)
+        if (bundleRes.ok && bundleData) {
+          applyBundle(bundleData as ProjectBuilderConversationBundle)
+        }
       } catch {
-        setError('Live backend not reachable.')
+        // Streaming path failed outright (network hiccup, browser without
+        // ReadableStream support, aborted fetch) — retry once via the plain
+        // JSON endpoint so the message is not silently lost.
+        try {
+          await sendMessageJSON(trimmed)
+        } catch {
+          setError('Live backend not reachable.')
+        }
       } finally {
+        setStreamingContent(null)
         setRunning(false)
       }
     },
-    [projectId, running, applyBundle]
+    [projectId, running, applyBundle, sendMessageJSON]
   )
 
   const handleDiscussRecommendation = useCallback(
@@ -275,12 +390,6 @@ export function ProjectAgentBuilderWorkbench({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
-      <ProjectRepoIntelligenceCompact
-        projectId={projectId}
-        repoFullName={repoFullName}
-        onDiscussRecommendation={(rec) => void handleDiscussRecommendation(rec)}
-        intelligenceState={intelligenceState}
-      />
 
       <div className="grid min-h-0 flex-1 grid-rows-1 gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)] xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
         <section
@@ -342,8 +451,13 @@ export function ProjectAgentBuilderWorkbench({
                           {message.role === 'user' ? 'You' : 'Architect'}
                         </span>
                       </div>
-                      <div className="text-sm text-zinc-700 dark:text-zinc-300">
-                        <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                      <div
+                        className={clsx(
+                          'text-sm leading-relaxed',
+                          message.role === 'user' ? 'text-accent-400' : 'text-white'
+                        )}
+                      >
+                        <MarkdownLite content={message.content} />
                       </div>
                     </div>
                   </div>
@@ -363,10 +477,20 @@ export function ProjectAgentBuilderWorkbench({
                     <div className="mb-1 flex items-center gap-2">
                       <span className="text-xs font-medium text-zinc-900 dark:text-zinc-100">Architect</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-zinc-500">
-                      <Spinner className="size-4" />
-                      Thinking…
-                    </div>
+                    {streamingContent ? (
+                      <div className="text-sm leading-relaxed text-white">
+                        <MarkdownLite content={streamingContent} />
+                        <span
+                          aria-hidden="true"
+                          className="ml-0.5 inline-block h-3.5 w-[2px] translate-y-[2px] animate-pulse bg-accent-500"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-sm text-zinc-500">
+                        <Spinner className="size-4" />
+                        Thinking…
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -427,6 +551,17 @@ export function ProjectAgentBuilderWorkbench({
             deciding={deciding}
           />
         </aside>
+      </div>
+
+      {/* Repo actions live at the BOTTOM — they no longer steal the chat's
+          vertical space at the top. */}
+      <div className="shrink-0">
+        <ProjectRepoIntelligenceActions
+          projectId={projectId}
+          repoFullName={repoFullName}
+          onDiscussRecommendation={(rec) => void handleDiscussRecommendation(rec)}
+          intelligenceState={intelligenceState}
+        />
       </div>
 
       {runState?.langgraph && showDebug ? (

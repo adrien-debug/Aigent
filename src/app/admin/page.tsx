@@ -1,15 +1,14 @@
 import clsx from 'clsx'
-import { BoltIcon, CpuChipIcon, ShieldCheckIcon, ServerStackIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
+import { BoltIcon, CpuChipIcon, ShieldCheckIcon, ServerStackIcon } from '@heroicons/react/24/outline'
 import type { Metadata } from 'next'
 
 import { surfaceCardClass, surfaceInsetClass } from '@/components/agent-ops/surface-card'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
-import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
 import { Badge } from '@/components/catalyst/badge'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
-import { getCopilots, getRecentRuns } from '@/lib/agent-mission-control/data'
-import { formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
+import { getCopilots, getRecentRuns, getRegistryKpis, type RegistryKpis } from '@/lib/agent-mission-control/data'
+import { formatPercent, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 import type { AgentRun, Copilot } from '@/lib/agent-mission-control/types'
 
 export const dynamic = 'force-dynamic'
@@ -17,6 +16,8 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
   title: 'Command Center — Aigent',
 }
+
+const numberFormat = new Intl.NumberFormat('en-US')
 
 function statusLabel(status: string): string {
   const spaced = status.replace(/-/g, ' ')
@@ -78,76 +79,18 @@ function SystemTopology() {
         </div>
       </div>
 
-      <div className="relative z-10 flex flex-1 flex-col justify-center gap-8 p-6">
-        <div className={clsx(surfaceInsetClass, 'flex items-center justify-between px-5 py-4')}>
-          <div className="flex min-w-0 items-center gap-4">
-            <div className="shrink-0 rounded-lg bg-white/5 p-2 ring-1 ring-white/10">
-              <ServerStackIcon className="size-5 text-zinc-300" />
-            </div>
-            <div className="flex min-w-0 flex-col">
-              <span className="text-sm font-medium text-white">Agent Server</span>
-              <span className="mt-0.5 truncate font-mono text-xs text-zinc-500">wss://graph.aigent.internal</span>
-            </div>
-          </div>
-          <div className="flex shrink-0 flex-col items-end pl-4">
-            <span className="font-mono text-xs text-accent-400">12ms ping</span>
-          </div>
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+        <div className={clsx(surfaceInsetClass, 'flex size-12 items-center justify-center')}>
+          <ServerStackIcon className="size-6 text-zinc-500" />
         </div>
-
-        {/* Animated Connection Lines */}
-        <div className="relative flex h-12 w-full justify-center">
-          <div className="absolute inset-0 flex justify-center">
-            <div className="h-full w-px bg-gradient-to-b from-white/10 via-(--accent-line-strong) to-white/10"></div>
-          </div>
-          <div className="absolute inset-0 flex justify-between px-16">
-            <div className="h-full w-px rotate-12 bg-gradient-to-b from-white/10 via-(--accent-line) to-white/10"></div>
-            <div className="h-full w-px -rotate-12 bg-gradient-to-b from-white/10 via-(--accent-line) to-white/10"></div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className={clsx(surfaceInsetClass, 'flex flex-col gap-3 p-4')}>
-            <div className="flex items-center justify-between">
-              <CpuChipIcon className="size-4 text-zinc-400" />
-              <span className="text-[10px] uppercase tracking-widest text-zinc-500">Workers</span>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-light text-white">12</span>
-              <span className="text-xs font-medium text-accent-400">Active</span>
-            </div>
-          </div>
-          <div className={clsx(surfaceInsetClass, 'flex flex-col gap-3 p-4')}>
-            <div className="flex items-center justify-between">
-              <ArrowPathIcon className="size-4 text-zinc-400" />
-              <span className="text-[10px] uppercase tracking-widest text-zinc-500">Throughput</span>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-light text-white">4.2</span>
-              <span className="font-mono text-xs text-zinc-500">req/s</span>
-            </div>
-          </div>
-        </div>
+        <p className="text-sm font-medium text-zinc-300">Dynamic animated canvas</p>
+        <p className="max-w-xs text-xs text-zinc-500">Live topology visualization coming here.</p>
       </div>
     </div>
   )
 }
 
-function FleetDistribution({ copilots }: { copilots: Copilot[] }) {
-  const statuses = ['active', 'degraded', 'paused', 'draft', 'archived'] as const
-  const counts = statuses.map(s => copilots.filter(c => c.status === s).length)
-  const total = copilots.length
-  const activeCount = counts[0]
-  const activePct = total > 0 ? Math.round((activeCount / total) * 100) : null
-
-  const segmentClass = (status: (typeof statuses)[number]) =>
-    status === 'active'
-      ? 'bg-accent-500'
-      : status === 'degraded'
-        ? 'bg-accent-600'
-        : status === 'draft'
-          ? 'bg-zinc-400'
-          : 'bg-zinc-600'
-
+function FleetDistribution() {
   return (
     <div className={clsx(surfaceCardClass, 'flex flex-col h-full')}>
       <div className="flex items-center justify-between border-b border-white/5 bg-black/20 px-6 py-5">
@@ -157,72 +100,30 @@ function FleetDistribution({ copilots }: { copilots: Copilot[] }) {
         </Link>
       </div>
 
-      <div className="flex-1 flex flex-col justify-center gap-8 p-6">
-        <div className={clsx(surfaceInsetClass, 'flex items-center justify-between p-4')}>
-          <div className="flex flex-col">
-            <span className="text-3xl font-light text-white tabular-nums">{activeCount}</span>
-            <span className="text-xs text-zinc-500 uppercase tracking-widest mt-1">Active Agents</span>
-          </div>
-          <div className="flex flex-col items-end">
-            <span className="text-xl font-light text-accent-400 tabular-nums">
-              {activePct != null ? `${activePct}%` : '—'}
-            </span>
-            <span className="text-xs text-zinc-500 uppercase tracking-widest mt-1">Of Total Fleet</span>
-          </div>
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+        <div className={clsx(surfaceInsetClass, 'flex size-12 items-center justify-center')}>
+          <CpuChipIcon className="size-6 text-zinc-500" />
         </div>
-
-        {total > 0 ? (
-          <div className="flex flex-col gap-4">
-            {/* Segmented Bar */}
-            <div className="flex h-2 w-full rounded-full overflow-hidden bg-white/5 gap-0.5">
-              {statuses.map((status, i) => {
-                const count = counts[i]
-                if (count === 0) return null
-                const pct = (count / total) * 100
-                return (
-                  <div
-                    key={status}
-                    className={clsx('h-full', segmentClass(status))}
-                    style={{ width: `${pct}%` }}
-                    title={`${statusLabel(status)}: ${count}`}
-                  />
-                )
-              })}
-            </div>
-
-            {/* Legend */}
-            <div className="grid grid-cols-2 gap-y-3 gap-x-4">
-              {statuses.map((status, i) => {
-                const count = counts[i]
-                if (count === 0) return null
-                return (
-                  <div key={status} className="flex items-center justify-between text-xs">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className={clsx('size-2 shrink-0 rounded-full', segmentClass(status))} />
-                      <span className="truncate capitalize text-zinc-400">{statusLabel(status)}</span>
-                    </div>
-                    <span className="font-mono tabular-nums text-white">{count}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        ) : (
-          <p className="text-center text-xs text-zinc-500">No agents in the fleet yet.</p>
-        )}
+        <p className="text-sm font-medium text-zinc-300">Dynamic animated canvas</p>
+        <p className="max-w-xs text-xs text-zinc-500">Live fleet distribution visualization coming here.</p>
       </div>
     </div>
   )
 }
 
-function RunActivity({ runs, copilotNameById }: { runs: AgentRun[], copilotNameById: Map<string, string> }) {
-  const latencyPoints = [...runs].reverse().map((run) => ({
-    id: run.id,
-    label: formatTimestamp(run.startedAt).replace(' UTC', ''),
-    latencyMs: run.latencyMs,
-    costUsd: run.costUsd,
-    status: run.status,
-  }))
+const DASHBOARD_KPIS = (kpis: RegistryKpis) => [
+  { name: 'Active Fleet', value: String(kpis.activeCopilots), suffix: `/ ${kpis.totalCopilots}` },
+  { name: '24h Volume', value: numberFormat.format(kpis.runsLast24h), suffix: 'runs' },
+  { name: '24h Compute Cost', value: formatUsd(kpis.totalCostLast24hUsd) },
+  { name: 'Avg Test Pass', value: kpis.avgTestPassRate > 0 ? formatPercent(kpis.avgTestPassRate) : '—' },
+  {
+    name: 'System Health',
+    value: kpis.openWarnings > 0 ? String(kpis.openWarnings) : '100%',
+    suffix: kpis.openWarnings > 0 ? 'warnings' : 'nominal',
+  },
+]
+
+function RunActivity({ runs, copilotNameById, kpis }: { runs: AgentRun[], copilotNameById: Map<string, string>, kpis: RegistryKpis }) {
   const shown = runs.slice(0, 8)
 
   return (
@@ -230,24 +131,22 @@ function RunActivity({ runs, copilotNameById }: { runs: AgentRun[], copilotNameB
       <div className="border-b border-white/5 bg-black/20 px-6 py-6 lg:px-8">
         <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">Dashboard</h1>
       </div>
-      <div className="flex items-center justify-between p-6 border-b border-white/5">
-        <div>
-          <h2 className="text-sm font-semibold text-white">Global Run Activity</h2>
-          <p className="text-xs text-zinc-400 mt-1">Latency and cost across all copilots</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-xs text-zinc-500">
-            <span className="size-2 rounded-full bg-accent-500/50 border border-accent-500"></span>
-            Latency (ms)
-          </span>
-        </div>
+
+      {/* KPI band under the title */}
+      <div className="grid grid-cols-2 gap-x-6 gap-y-6 border-b border-white/5 px-6 py-6 sm:grid-cols-3 lg:grid-cols-5 lg:px-8">
+        {DASHBOARD_KPIS(kpis).map((kpi) => (
+          <div key={kpi.name} className="flex flex-col">
+            <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500">{kpi.name}</span>
+            <span className="mt-2 flex items-baseline gap-2">
+              <span className="text-3xl font-light tabular-nums tracking-tight text-white">{kpi.value}</span>
+              {kpi.suffix ? <span className="text-sm text-zinc-500">{kpi.suffix}</span> : null}
+            </span>
+          </div>
+        ))}
       </div>
-      
+
       {runs.length > 0 ? (
         <div className="flex flex-col flex-1">
-          <div className="p-6 bg-[var(--color-surface-primary)]/30 border-b border-white/5">
-            <RunLatencyChart data={latencyPoints} />
-          </div>
           <Table className="px-6 [--gutter:--spacing(6)]">
             <TableHead>
               <TableRow>
@@ -303,9 +202,10 @@ function RunActivity({ runs, copilotNameById }: { runs: AgentRun[], copilotNameB
 }
 
 export default async function DashboardPage() {
-  const [copilots, runs] = await Promise.all([
+  const [copilots, runs, kpis] = await Promise.all([
     getCopilots(),
     getRecentRuns(30),
+    getRegistryKpis(),
   ])
   const copilotNameById = new Map(copilots.map((copilot) => [copilot.id, copilot.name]))
   const hasWarnings = copilots.some((copilot) => copilot.health.openWarnings > 0)
@@ -320,7 +220,7 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 min-h-[600px]">
         <StaggerFade delay={1} className="xl:col-span-2 h-full">
-          <RunActivity runs={runs} copilotNameById={copilotNameById} />
+          <RunActivity runs={runs} copilotNameById={copilotNameById} kpis={kpis} />
         </StaggerFade>
 
         <div className="flex flex-col gap-6 h-full">
@@ -328,7 +228,7 @@ export default async function DashboardPage() {
             <SystemTopology />
           </StaggerFade>
           <StaggerFade delay={3} className="flex-1">
-            <FleetDistribution copilots={copilots} />
+            <FleetDistribution />
           </StaggerFade>
         </div>
       </div>

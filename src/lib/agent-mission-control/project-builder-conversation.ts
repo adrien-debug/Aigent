@@ -261,6 +261,82 @@ async function runRepoTool(
 }
 
 /**
+ * Result of a completions call that may or may not have been streamed — either
+ * way the loop only cares about the final assistant message shape (content +
+ * tool_calls), so both code paths converge on this before continuing.
+ */
+type CompletionOutcome = {
+  content: string | null
+  toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] | undefined
+}
+
+/**
+ * Run one `chat.completions.create` call. When `onToken` is provided, the call
+ * is made with `stream: true` and every content delta is forwarded to it as it
+ * arrives — this is the ONLY place streaming happens; tool-call arguments are
+ * still accumulated fully before being returned (repo-tool dispatch needs the
+ * complete JSON, not partial deltas). When `onToken` is omitted, behaves as a
+ * plain non-streaming call. Both paths return the same normalized shape.
+ */
+async function runCompletion(
+  client: OpenAI,
+  params: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
+  onToken?: (delta: string) => void
+): Promise<CompletionOutcome> {
+  if (!onToken) {
+    const response = await client.chat.completions.create(params, { timeout: OPENAI_TIMEOUT_MS })
+    const msg = response.choices[0]?.message
+    if (!msg) throw new Error('architect returned empty completion')
+    return { content: msg.content ?? null, toolCalls: msg.tool_calls }
+  }
+
+  const stream = await client.chat.completions.create(
+    { ...params, stream: true },
+    { timeout: OPENAI_TIMEOUT_MS }
+  )
+
+  let content = ''
+  const toolCallsByIndex = new Map<
+    number,
+    { id: string; type: 'function'; function: { name: string; arguments: string } }
+  >()
+
+  for await (const chunk of stream) {
+    const delta = chunk.choices[0]?.delta
+    if (!delta) continue
+
+    if (typeof delta.content === 'string' && delta.content.length > 0) {
+      content += delta.content
+      onToken(delta.content)
+    }
+
+    for (const tc of delta.tool_calls ?? []) {
+      const existing = toolCallsByIndex.get(tc.index)
+      if (!existing) {
+        toolCallsByIndex.set(tc.index, {
+          id: tc.id ?? '',
+          type: 'function',
+          function: { name: tc.function?.name ?? '', arguments: tc.function?.arguments ?? '' },
+        })
+      } else {
+        if (tc.id) existing.id = tc.id
+        if (tc.function?.name) existing.function.name += tc.function.name
+        if (tc.function?.arguments) existing.function.arguments += tc.function.arguments
+      }
+    }
+  }
+
+  const toolCalls =
+    toolCallsByIndex.size > 0
+      ? Array.from(toolCallsByIndex.entries())
+          .sort(([a], [b]) => a - b)
+          .map(([, v]) => v)
+      : undefined
+
+  return { content: content.length > 0 ? content : null, toolCalls }
+}
+
+/**
  * One architect turn, run as an AGENTIC LOOP: the model gets update_preview
  * PLUS three read-only repo tools (list_repo_tree/read_repo_file/search_repo).
  * As long as it keeps calling repo tools, we execute them against the real
@@ -270,13 +346,22 @@ async function runRepoTool(
  * alongside an update_preview call. The bounded repo intelligence summary is
  * still injected as an initial hint, but the model can now dig past it into
  * real files.
+ *
+ * The repo-tool-calling iterations are NEVER streamed (their output is JSON
+ * tool-call arguments, not prose a user should watch appear token by token).
+ * Only the call that actually returns prose — inside the loop the turn it
+ * stops calling tools, or the forced final wrap-up call after the tool budget
+ * is exhausted — is made with streaming when `onToken` is supplied.
  */
-export async function generateArchitectTurn(args: {
-  messages: ProjectBuilderMessage[]
-  repoContext: string
-  currentPreview: AgentPreview | null
-  repoFullName: string | undefined
-}): Promise<{ reply: string; previewPatch: Partial<AgentPreview> | null }> {
+async function runArchitectLoop(
+  args: {
+    messages: ProjectBuilderMessage[]
+    repoContext: string
+    currentPreview: AgentPreview | null
+    repoFullName: string | undefined
+  },
+  onToken?: (delta: string) => void
+): Promise<{ reply: string; previewPatch: Partial<AgentPreview> | null }> {
   const client = getOpenAIClient()
   const recent = args.messages.slice(-MAX_MESSAGES_FOR_LLM)
 
@@ -300,7 +385,14 @@ export async function generateArchitectTurn(args: {
   let toolBudgetExhausted = false
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
-    const response = await client.chat.completions.create(
+    // Tool-scouting iterations are speculative (the model may just call more
+    // repo tools) — never stream these; only the turn that actually lands on
+    // prose (handled below, before we know whether more tools follow) matters
+    // for the user-visible transport. We still pass onToken here: if the
+    // model DOES produce prose on iteration 1, that's the real final answer
+    // and should stream immediately rather than waiting for a later call.
+    const outcome = await runCompletion(
+      client,
       {
         model: ARCHITECT_MODEL,
         messages: openAiMessages,
@@ -308,15 +400,10 @@ export async function generateArchitectTurn(args: {
         tool_choice: 'auto',
         max_completion_tokens: MAX_COMPLETION_TOKENS,
       },
-      { timeout: OPENAI_TIMEOUT_MS }
+      onToken
     )
 
-    const msg = response.choices[0]?.message
-    if (!msg) throw new Error('architect returned empty completion')
-
-    const previewCall = msg.tool_calls?.find(
-      (t) => t.type === 'function' && t.function.name === 'update_preview'
-    )
+    const previewCall = outcome.toolCalls?.find((t) => t.type === 'function' && t.function.name === 'update_preview')
     if (previewCall && previewCall.type === 'function') {
       previewPatch = parsePreviewToolArgs(previewCall.function.arguments)
     }
@@ -325,7 +412,7 @@ export async function generateArchitectTurn(args: {
     // it even if it also queued more repo tool calls. Waiting for a turn with
     // ZERO tool calls is what starved the loop into the fallback: gpt keeps
     // wanting "one more file" and never lands on a tool-free turn.
-    const proseThisTurn = typeof msg.content === 'string' ? msg.content.trim() : ''
+    const proseThisTurn = typeof outcome.content === 'string' ? outcome.content.trim() : ''
 
     // If the model produced prose this turn, that IS its answer — return it even
     // if it also queued repo calls. Waiting for a turn with ZERO tool calls is
@@ -336,7 +423,7 @@ export async function generateArchitectTurn(args: {
       return { reply: proseThisTurn, previewPatch }
     }
 
-    const toolCalls = (msg.tool_calls ?? []).filter((t) => t.type === 'function')
+    const toolCalls = (outcome.toolCalls ?? []).filter((t) => t.type === 'function')
 
     if (toolCalls.length === 0) {
       // No prose and no tool calls at all — nothing to continue on, wrap up.
@@ -348,8 +435,8 @@ export async function generateArchitectTurn(args: {
     // as OpenAI's chat format requires.
     openAiMessages.push({
       role: 'assistant',
-      content: msg.content ?? null,
-      tool_calls: msg.tool_calls,
+      content: outcome.content ?? null,
+      tool_calls: outcome.toolCalls,
     } as OpenAI.Chat.Completions.ChatCompletionMessageParam)
 
     // EVERY tool_call in that assistant message MUST get a tool response, or the
@@ -382,7 +469,8 @@ export async function generateArchitectTurn(args: {
       `[project-builder] architect turn hit MAX_TOOL_ITERATIONS=${MAX_TOOL_ITERATIONS} repo-tool budget for repo ${args.repoFullName ?? '(none)'}`
     )
     // Force one final call with tools disabled so the model must answer in prose.
-    const finalResponse = await client.chat.completions.create(
+    const finalOutcome = await runCompletion(
+      client,
       {
         model: ARCHITECT_MODEL,
         messages: [
@@ -400,10 +488,9 @@ export async function generateArchitectTurn(args: {
         tool_choice: 'none',
         max_completion_tokens: MAX_COMPLETION_TOKENS,
       },
-      { timeout: OPENAI_TIMEOUT_MS }
+      onToken
     )
-    const finalMsg = finalResponse.choices[0]?.message
-    const reply = typeof finalMsg?.content === 'string' ? finalMsg.content.trim() : ''
+    const reply = typeof finalOutcome.content === 'string' ? finalOutcome.content.trim() : ''
     if (reply.length > 0) {
       if (previewPatch && !previewPatch.flow?.length) previewPatch.flow = defaultAgentFlow()
       return { reply, previewPatch }
@@ -415,13 +502,56 @@ export async function generateArchitectTurn(args: {
   const fallback =
     "I dug into the repo but didn't land on a clear next step — could you tell me more about what this agent should do, or point me at a specific file/folder to look at?"
   if (previewPatch && !previewPatch.flow?.length) previewPatch.flow = defaultAgentFlow()
+  if (onToken && fallback.length > 0) onToken(fallback)
   return { reply: fallback, previewPatch }
 }
 
-export async function postProjectBuilderMessage(
+export async function generateArchitectTurn(args: {
+  messages: ProjectBuilderMessage[]
+  repoContext: string
+  currentPreview: AgentPreview | null
+  repoFullName: string | undefined
+}): Promise<{ reply: string; previewPatch: Partial<AgentPreview> | null }> {
+  return runArchitectLoop(args)
+}
+
+/**
+ * Same agentic loop as `generateArchitectTurn`, but the call that produces the
+ * final prose is made with `stream: true` and every content delta is pushed to
+ * `onToken` as it arrives. The repo-tool-scouting round-trips are unaffected —
+ * they still run to completion internally before the model gets another turn.
+ * Returns the same `{ reply, previewPatch }` shape once the full prose has
+ * been accumulated, so callers can persist exactly as `generateArchitectTurn`
+ * callers do today.
+ */
+export async function streamArchitectTurn(
+  args: {
+    messages: ProjectBuilderMessage[]
+    repoContext: string
+    currentPreview: AgentPreview | null
+    repoFullName: string | undefined
+  },
+  onToken: (delta: string) => void
+): Promise<{ reply: string; previewPatch: Partial<AgentPreview> | null }> {
+  return runArchitectLoop(args, onToken)
+}
+
+/**
+ * Shared prep for both the non-streaming and streaming entry points: validate
+ * the incoming message, persist the user turn, load the refreshed message
+ * history, and resolve the same repo-intelligence + repoFullName context the
+ * architect loop needs. Returns everything `generateArchitectTurn` /
+ * `streamArchitectTurn` require so both callers build the identical context.
+ */
+async function prepareArchitectTurnContext(
   projectId: string,
   content: string
-): Promise<ProjectBuilderConversationBundle> {
+): Promise<{
+  conversation: ProjectBuilderConversation
+  messages: ProjectBuilderMessage[]
+  intelBlock: string
+  repoFullName: string | undefined
+}> {
   const trimmed = content.trim()
   if (trimmed.length === 0 || trimmed.length > MAX_MESSAGE_CHARS) {
     throw new Error('message must be 1–12000 characters')
@@ -452,13 +582,15 @@ export async function postProjectBuilderMessage(
     // Non-fatal — repo tools will report "unavailable" to the model.
   }
 
-  const { reply, previewPatch } = await generateArchitectTurn({
-    messages,
-    repoContext: intelBlock,
-    currentPreview: conversation.latestPreview,
-    repoFullName,
-  })
+  return { conversation, messages, intelBlock, repoFullName }
+}
 
+/** Persist the assistant reply + merged preview patch — identical for both transports. */
+async function persistArchitectTurnResult(
+  conversation: ProjectBuilderConversation,
+  reply: string,
+  previewPatch: Partial<AgentPreview> | null
+): Promise<void> {
   await appendMessage(conversation.id, 'assistant', reply, previewPatch ? { previewUpdated: true } : undefined)
 
   const merged = mergePreview(conversation.latestPreview, previewPatch)
@@ -469,6 +601,54 @@ export async function postProjectBuilderMessage(
     status,
     updated_at: new Date().toISOString(),
   })
+}
+
+export async function postProjectBuilderMessage(
+  projectId: string,
+  content: string
+): Promise<ProjectBuilderConversationBundle> {
+  const { conversation, messages, intelBlock, repoFullName } = await prepareArchitectTurnContext(projectId, content)
+
+  const { reply, previewPatch } = await generateArchitectTurn({
+    messages,
+    repoContext: intelBlock,
+    currentPreview: conversation.latestPreview,
+    repoFullName,
+  })
+
+  await persistArchitectTurnResult(conversation, reply, previewPatch)
+
+  return getProjectBuilderConversationBundle(projectId)
+}
+
+/**
+ * Streaming counterpart of `postProjectBuilderMessage`: persists the user
+ * turn and resolves the same context, but runs the architect loop with
+ * `streamArchitectTurn` so `onToken` fires for every prose delta as it
+ * arrives. Persistence of the final assistant message + preview patch happens
+ * ONCE, after the full reply has been accumulated — identical write pattern
+ * to the non-streaming path, so both leave the conversation in the same
+ * state. Returns the full bundle so the route can send a final SSE event with
+ * the resolved preview/messageId, matching what the JSON endpoint returns.
+ */
+export async function postProjectBuilderMessageStream(
+  projectId: string,
+  content: string,
+  onToken: (delta: string) => void
+): Promise<ProjectBuilderConversationBundle> {
+  const { conversation, messages, intelBlock, repoFullName } = await prepareArchitectTurnContext(projectId, content)
+
+  const { reply, previewPatch } = await streamArchitectTurn(
+    {
+      messages,
+      repoContext: intelBlock,
+      currentPreview: conversation.latestPreview,
+      repoFullName,
+    },
+    onToken
+  )
+
+  await persistArchitectTurnResult(conversation, reply, previewPatch)
 
   return getProjectBuilderConversationBundle(projectId)
 }
