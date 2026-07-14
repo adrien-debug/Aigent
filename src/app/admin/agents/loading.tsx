@@ -1,5 +1,7 @@
 import clsx from 'clsx'
 
+import { surfaceCardClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
+
 export default function AgentsRegistryLoading() {
   return (
     <div aria-busy="true" aria-live="polite" className="space-y-8 motion-safe:animate-pulse">
@@ -12,12 +14,11 @@ export default function AgentsRegistryLoading() {
       </div>
 
       {/* AgentKpiBand — 5 stats */}
-      <div className="-mx-4 grid grid-cols-1 gap-px bg-zinc-950/5 sm:grid-cols-2 lg:-mx-8 lg:grid-cols-3 xl:grid-cols-5 dark:bg-white/[0.02]">
+      <div className="grid grid-cols-2 gap-8 border-b border-white/5 py-6 md:grid-cols-3 xl:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="flex flex-col items-start gap-y-2 bg-white px-6 py-6 sm:px-8 xl:px-10 dark:bg-zinc-950 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-            <div className="h-3 w-16 rounded bg-zinc-950/10 dark:bg-white/10" />
-            <div className="h-9 w-20 rounded-lg bg-zinc-950/10 dark:bg-white/10" />
-            <div className="h-3 w-28 rounded bg-zinc-950/5 dark:bg-white/5" />
+          <div key={i} className="flex flex-col gap-y-2">
+            <div className="h-3 w-16 rounded bg-white/10" />
+            <div className="h-9 w-20 rounded-lg bg-white/10" />
           </div>
         ))}
       </div>
@@ -30,8 +31,8 @@ export default function AgentsRegistryLoading() {
             <div className="h-8 w-32 rounded-lg bg-zinc-950/10 dark:bg-white/10" />
           </div>
 
-          <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-            <div className="border-b border-zinc-950/5 bg-zinc-50/50 px-6 py-4 dark:border-white/5 dark:bg-white/[0.01]">
+          <div className={surfaceCardClass}>
+            <div className={clsx(surfaceCardHeaderClass, 'px-6 py-4')}>
               <div className="h-5 w-40 rounded bg-zinc-950/10 dark:bg-white/10" />
               <div className="mt-2 h-3.5 w-64 rounded bg-zinc-950/5 dark:bg-white/5" />
             </div>
@@ -44,7 +45,7 @@ export default function AgentsRegistryLoading() {
               </div>
               <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+                  <div key={i} className={clsx(surfaceCardClass, 'flex h-full flex-col')}>
                     <div className="flex grow flex-col p-6">
                       <div className="flex items-start gap-4">
                         <div className="size-11 shrink-0 rounded-xl bg-zinc-950/10 dark:bg-white/10" />

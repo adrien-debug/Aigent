@@ -2,6 +2,7 @@ import { ArrowTopRightOnSquareIcon, ClockIcon, CpuChipIcon, ShieldCheckIcon } fr
 import clsx from 'clsx'
 
 import { RunTimeline } from '@/components/agent-ops/run-timeline'
+import { SurfaceCard, surfaceInsetClass } from '@/components/agent-ops/surface-card'
 import { Link } from '@/components/catalyst/link'
 import { formatDurationMs, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 import { AGENT_RUN_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
@@ -15,7 +16,7 @@ export function RunStatusText({ status }: { status: AgentRunStatus }) {
 
 function Stat({ label, value, emphasis }: { label: string; value: React.ReactNode; emphasis?: boolean }) {
   return (
-    <div className="flex flex-col gap-1 p-3 rounded-lg bg-black/20 border border-white/5">
+    <div className={clsx('flex flex-col gap-1 p-3', surfaceInsetClass)}>
       <dt className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">{label}</dt>
       <dd
         className={clsx(
@@ -41,7 +42,7 @@ export function RunDetailPanel({
   versionLabel?: string
 }) {
   return (
-    <div className="rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden flex flex-col h-full">
+    <SurfaceCard className="flex flex-col h-full">
       <div className="p-6 border-b border-white/5 bg-black/20">
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
@@ -77,6 +78,6 @@ export function RunDetailPanel({
         <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-6">Execution Timeline</h3>
         <RunTimeline steps={steps} toolCallsById={Object.fromEntries(toolCalls.map(tc => [tc.id, tc]))} />
       </div>
-    </div>
+    </SurfaceCard>
   )
 }

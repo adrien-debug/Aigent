@@ -1,3 +1,4 @@
+import { SurfaceCard } from '@/components/agent-ops/surface-card'
 import { ToolBadge } from '@/components/agent-ops/tool-badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Badge } from '@/components/catalyst/badge'
@@ -41,7 +42,7 @@ export function TestCaseTable({
   }
 
   return (
-    <div className="rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden">
+    <SurfaceCard>
       <div className="overflow-x-auto no-scrollbar">
         <Table className="w-full text-left border-collapse min-w-[1000px]">
           <TableHead>
@@ -122,6 +123,6 @@ export function TestCaseTable({
           </TableBody>
         </Table>
       </div>
-    </div>
+    </SurfaceCard>
   )
 }

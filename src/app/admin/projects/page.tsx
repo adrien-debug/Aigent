@@ -2,6 +2,7 @@ import { CodeBracketIcon, CpuChipIcon } from '@heroicons/react/24/outline'
 import { PlusIcon } from '@heroicons/react/16/solid'
 import type { Metadata } from 'next'
 
+import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
 import { ProjectCard } from '@/components/agent-ops/project-card'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
@@ -47,47 +48,6 @@ function rollupByProject(copilots: Copilot[]): Map<string, ProjectRollup> {
   return byProject
 }
 
-interface KpiBandProps {
-  projectsCount: number
-  validatedCount: number
-  totalActive: number
-  totalRuns: number
-  totalCost: number
-}
-
-function KpiBand({ projectsCount, validatedCount, totalActive, totalRuns, totalCost }: KpiBandProps) {
-  return (
-    <div className="flex flex-wrap gap-x-12 gap-y-6 py-4 border-b border-white/5 mb-10">
-      <div className="flex flex-col group cursor-default">
-        <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-600 mb-1">Total Projects</span>
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-2xl font-light tracking-tight text-white">{projectsCount}</span>
-        </div>
-      </div>
-      <div className="flex flex-col group cursor-default">
-        <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-600 mb-1">Assigned Copilots</span>
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-2xl font-light tracking-tight text-white">{validatedCount}</span>
-          <span className="text-xs text-zinc-600">/ {totalActive} active</span>
-        </div>
-      </div>
-      <div className="flex flex-col group cursor-default">
-        <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-600 mb-1">24h Project Volume</span>
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-2xl font-light tracking-tight text-white">{totalRuns.toLocaleString('en-US')}</span>
-          <span className="text-xs text-zinc-600">runs</span>
-        </div>
-      </div>
-      <div className="flex flex-col group cursor-default">
-        <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-600 mb-1">24h Project Cost</span>
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-2xl font-light tracking-tight text-white">{formatUsd(totalCost)}</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default async function ProjectsPage() {
   const [projects, copilots] = await Promise.all([getProjects(), getCopilots()])
   const rollups = rollupByProject(copilots)
@@ -116,12 +76,14 @@ export default async function ProjectsPage() {
       </StaggerFade>
 
       <StaggerFade delay={1}>
-        <KpiBand 
-          projectsCount={projects.length} 
-          validatedCount={validated.length} 
-          totalActive={totalActive} 
-          totalRuns={totalRuns} 
-          totalCost={totalCost} 
+        <AgentKpiBand
+          density="compact"
+          stats={[
+            { name: 'Total Projects', value: String(projects.length) },
+            { name: 'Assigned Copilots', value: String(validated.length), suffix: `/ ${totalActive} active` },
+            { name: '24h Project Volume', value: totalRuns.toLocaleString('en-US'), suffix: 'runs' },
+            { name: '24h Project Cost', value: formatUsd(totalCost) },
+          ]}
         />
       </StaggerFade>
 

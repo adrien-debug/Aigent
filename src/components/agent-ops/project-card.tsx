@@ -1,5 +1,6 @@
-import { CodeBracketIcon, CpuChipIcon, ShieldCheckIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
+import { CodeBracketIcon, CpuChipIcon, ShieldCheckIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import { surfaceCardClass } from '@/components/agent-ops/surface-card'
 
 import { Link } from '@/components/catalyst/link'
 import { formatUsd } from '@/lib/agent-mission-control/format'
@@ -25,7 +26,7 @@ export function ProjectCard({
   const hasWarnings = rollup.openWarnings > 0
   
   return (
-    <div className="group relative flex flex-col rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 transition-all hover:bg-[var(--color-surface-interactive)] hover:border-white/10 hover:shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden">
+    <div className={clsx(surfaceCardClass, 'group relative flex flex-col transition-all hover:bg-[var(--color-surface-interactive)] hover:border-white/10 hover:shadow-[0_8px_32px_rgba(0,0,0,0.4)]')}>
       
       {/* Top Status Band */}
       <div className={clsx(

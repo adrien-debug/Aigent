@@ -2,7 +2,9 @@ import { ChevronLeftIcon, CodeBracketIcon, ServerStackIcon, CpuChipIcon, ShieldC
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
+import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
+import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import { ProjectDeleteAction } from '@/components/agent-ops/project-delete-action'
 import { ProjectRepoIntelligence } from '@/components/agent-ops/project-repo-intelligence'
 import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
@@ -37,53 +39,10 @@ function statusLabel(status: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }
 
-interface KpiBandProps {
-  validatedCount: number
-  activeCount: number
-  runsLast24h: number
-  costLast24hUsd: number
-}
-
-function KpiBand({ validatedCount, activeCount, runsLast24h, costLast24hUsd }: KpiBandProps) {
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-6 border-b border-white/5 mb-8">
-      <div className="flex flex-col group cursor-default">
-        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 group-hover:text-zinc-400 transition-colors">Validated Agents</span>
-        <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-light tracking-tight text-white">{validatedCount}</span>
-        </div>
-      </div>
-      <div className="flex flex-col group cursor-default">
-        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 group-hover:text-zinc-400 transition-colors">Active Fleet</span>
-        <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-light tracking-tight text-white">{activeCount}</span>
-          <span className="text-sm text-zinc-500">/ {validatedCount}</span>
-        </div>
-      </div>
-      <div className="flex flex-col group cursor-default">
-        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 group-hover:text-zinc-400 transition-colors">24h Volume</span>
-        <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-light tracking-tight text-white">{runsLast24h.toLocaleString('en-US')}</span>
-          <span className="text-sm text-zinc-500">runs</span>
-        </div>
-      </div>
-      <div className="flex flex-col group cursor-default">
-        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 group-hover:text-zinc-400 transition-colors">24h Compute Cost</span>
-        <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-light tracking-tight text-white">{runsLast24h > 0 ? formatUsd(costLast24hUsd) : '—'}</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
   return (
-    <div className="rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden">
-      <div className="flex items-center justify-between p-4 border-b border-white/5 bg-black/20">
-        <h2 className="text-sm font-semibold text-white">Validated Agents</h2>
-        <span className="text-xs text-zinc-500">{copilots.length} total</span>
-      </div>
+    <SurfaceCard>
+      <SurfaceCardHeader title="Validated Agents" meta={<span className="text-xs text-zinc-500">{copilots.length} total</span>} />
       <div className="overflow-x-auto no-scrollbar">
         <Table className="w-full text-left border-collapse min-w-[800px]">
           <TableHead>
@@ -148,17 +107,14 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
           </TableBody>
         </Table>
       </div>
-    </div>
+    </SurfaceCard>
   )
 }
 
 function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copilotNameById: Map<string, string> }) {
   return (
-    <div className="rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden">
-      <div className="flex items-center justify-between p-4 border-b border-white/5 bg-black/20">
-        <h2 className="text-sm font-semibold text-white">Recent Traces</h2>
-        <span className="text-xs text-zinc-500">{runs.length} runs</span>
-      </div>
+    <SurfaceCard>
+      <SurfaceCardHeader title="Recent Traces" meta={<span className="text-xs text-zinc-500">{runs.length} runs</span>} />
       <div className="overflow-x-auto no-scrollbar">
         <Table className="w-full text-left border-collapse min-w-[1000px]">
           <TableHead>
@@ -225,7 +181,7 @@ function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copil
           </TableBody>
         </Table>
       </div>
-    </div>
+    </SurfaceCard>
   )
 }
 
@@ -276,11 +232,16 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         }
       />
 
-      <KpiBand 
-        validatedCount={validated.length} 
-        activeCount={activeCount} 
-        runsLast24h={runsLast24h} 
-        costLast24hUsd={costLast24hUsd} 
+      <AgentKpiBand
+        stats={[
+          { name: 'Validated Agents', value: String(validated.length) },
+          { name: 'Active Fleet', value: String(activeCount), suffix: `/ ${validated.length}` },
+          { name: '24h Volume', value: runsLast24h.toLocaleString('en-US'), suffix: 'runs' },
+          {
+            name: '24h Compute Cost',
+            value: runsLast24h > 0 ? formatUsd(costLast24hUsd) : '—',
+          },
+        ]}
       />
 
       <ProjectRepoIntelligence projectId={project.id} repoFullName={project.repoFullName ?? null} />

@@ -1,6 +1,8 @@
 import { CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
 
+import { surfaceCardClass } from '@/components/agent-ops/surface-card'
+
 import { RuntimeBadge } from '@/components/agent-ops/runtime-badge'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
@@ -67,7 +69,7 @@ export function BenchmarkScoreCard({
   return (
     <article
       className={clsx(
-        'group relative overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]',
+        surfaceCardClass,
         isBest ? 'shadow-[0_8px_28px_-12px_var(--accent-glow)]' : ''
       )}
     >
@@ -79,7 +81,7 @@ export function BenchmarkScoreCard({
       )}
       
       {/* Background to mask the inner part of the conic gradient, leaving only the border */}
-      <div className={clsx("relative z-10 h-full w-full rounded-2xl bg-white p-6 dark:bg-zinc-950", isBest ? "m-px h-[calc(100%-2px)] w-[calc(100%-2px)]" : "")}>
+      <div className={clsx('relative z-10 h-full w-full rounded-2xl bg-[var(--color-surface-secondary)] p-6', isBest ? 'm-px h-[calc(100%-2px)] w-[calc(100%-2px)]' : '')}>
       
       {/* Identity row — model + provider left, winner slot (fixed height so twin
           cards align) + runtime right. */}

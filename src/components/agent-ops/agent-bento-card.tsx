@@ -1,5 +1,6 @@
 import clsx from 'clsx'
 
+import { surfaceCardClass } from '@/components/agent-ops/surface-card'
 import { Subheading } from '@/components/catalyst/heading'
 
 export function AgentBentoCard({
@@ -12,7 +13,6 @@ export function AgentBentoCard({
   level = 3,
 }: {
   eyebrow?: string
-  /** 'positive' only when the eyebrow genuinely signals a healthy/active state (doctrine: green = success). */
   eyebrowTone?: 'neutral' | 'positive'
   title: string
   description?: string
@@ -23,33 +23,30 @@ export function AgentBentoCard({
   return (
     <div
       className={clsx(
-        'group relative overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition-all duration-300 hover:shadow-lg hover:ring-zinc-950/10 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] dark:hover:ring-white/10 dark:hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.02),0_10px_40px_-10px_rgba(0,0,0,0.3)]',
+        surfaceCardClass,
+        'group relative transition-all duration-300 hover:border-white/10 hover:shadow-[0_8px_32px_rgba(0,0,0,0.4)]',
         className
       )}
     >
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-radial-[at_top_left] from-zinc-950/[0.02] via-transparent to-transparent dark:from-white/[0.04]"
+        className="pointer-events-none absolute inset-0 bg-radial-[at_top_left] from-accent-500/[0.04] via-transparent to-transparent"
       />
       <div className="relative p-6">
         {eyebrow ? (
           <p
             className={clsx(
               'text-xs font-medium tracking-wide uppercase',
-              eyebrowTone === 'positive' ? 'text-accent-700 dark:text-accent-300' : 'text-zinc-500'
+              eyebrowTone === 'positive' ? 'text-accent-400' : 'text-zinc-500'
             )}
           >
             {eyebrow}
           </p>
         ) : null}
-        {/* Titre de carte bento en accent orange (directive Adrien 2026-07-11).
-            Couleur canon alignée sur AgentSectionCard (`tone="accent"`, pas de
-            `!important` — le Subheading Catalyst gère nativement sa couleur,
-            plus besoin de la forcer). */}
-        <Subheading level={level} tone="accent" className={clsx(eyebrow && 'mt-2')}>
+        <Subheading level={level} tone="accent" className={clsx(eyebrow && 'mt-2', 'text-white')}>
           {title}
         </Subheading>
-        {description ? <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{description}</p> : null}
+        {description ? <p className="mt-2 text-sm text-zinc-400">{description}</p> : null}
         {children ? <div className="mt-6">{children}</div> : null}
       </div>
     </div>

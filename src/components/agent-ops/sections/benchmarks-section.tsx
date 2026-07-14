@@ -1,6 +1,9 @@
 
+import clsx from 'clsx'
+
 import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { surfaceCardClass } from '@/components/agent-ops/surface-card'
 import { BenchmarkComparisonTable } from '@/components/agent-ops/benchmark-comparison-table'
 import { BenchmarkRunSteps } from '@/components/agent-ops/benchmark-run-steps'
 import { BenchmarkScoreCard } from '@/components/agent-ops/benchmark-score-card'
@@ -98,7 +101,7 @@ export async function BenchmarksSection({ copilotId }: { copilotId: string }) {
           </AgentSectionCard>
 
           {rows.length === 0 ? (
-            <div className="rounded-2xl bg-white px-6 py-5 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+            <div className={clsx(surfaceCardClass, 'px-6 py-5')}>
               <Text>No completed benchmark runs for this suite yet.</Text>
             </div>
           ) : (

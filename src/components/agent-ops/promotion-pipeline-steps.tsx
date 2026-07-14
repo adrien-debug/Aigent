@@ -1,4 +1,5 @@
 import { CheckIcon } from '@heroicons/react/20/solid'
+import { surfaceCardClass } from '@/components/agent-ops/surface-card'
 import clsx from 'clsx'
 
 import type { PromotionCheck, PromotionCheckId, PromotionGate } from '@/lib/agent-mission-control/types'
@@ -69,7 +70,7 @@ export function PromotionPipelineSteps({ gate }: { gate: PromotionGate }) {
   return (
     <nav
       aria-label="Promotion progress"
-      className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
+      className={clsx('overflow-hidden', surfaceCardClass)}
     >
       <ol role="list" className="overflow-hidden rounded-2xl lg:flex">
         {steps.map((step, stepIdx) => (

@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import { useMemo } from 'react'
 
 import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
+import { SurfaceCard } from '@/components/agent-ops/surface-card'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
@@ -111,7 +112,7 @@ export function CopilotRegistryTable({
   }
 
   return (
-    <div className="rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden">
+    <SurfaceCard>
       <div className="overflow-x-auto no-scrollbar">
         <Table className="w-full text-left border-collapse min-w-[1000px]">
           <TableHead>
@@ -136,6 +137,6 @@ export function CopilotRegistryTable({
           </TableBody>
         </Table>
       </div>
-    </div>
+    </SurfaceCard>
   )
 }

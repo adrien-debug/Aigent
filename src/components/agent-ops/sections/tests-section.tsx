@@ -1,12 +1,7 @@
-import { AgentMetricCard } from '@/components/agent-ops/agent-metric-card'
-import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { RunTestsButton } from '@/components/agent-ops/run-tests-button'
 import { TestCaseTable } from '@/components/agent-ops/test-case-table'
-import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
-import { SplitBar, type SplitSegment } from '@/components/agent-ops/widgets/split-bar'
-import { Subheading } from '@/components/catalyst/heading'
-import { Text } from '@/components/catalyst/text'
 import { formatDate, formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import {
   getCopilot,
@@ -49,40 +44,35 @@ export async function TestsSection({ copilotId }: { copilotId: string }) {
 
   return (
     <div className="space-y-8">
-      {/* Quality & Evaluation Center Header */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-8 py-6 border-b border-white/5 mb-8">
-        <div className="flex flex-col group cursor-default">
-          <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 group-hover:text-zinc-400 transition-colors">Test Suites</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-light tracking-tight text-white">{suites.length}</span>
-          </div>
-        </div>
-        <div className="flex flex-col group cursor-default">
-          <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 group-hover:text-zinc-400 transition-colors">Latest Pass Rate</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-light tracking-tight text-accent-400">
-              {latestRun && latestRun.status === 'completed' ? formatPercent(latestRun.passRate) : '—'}
-            </span>
-          </div>
-          {passRateSeries.length > 1 && (
-            <div className="h-8 w-24 mt-2">
-              <Sparkline points={passRateSeries} ariaLabel="Pass rate trend" />
-            </div>
-          )}
-        </div>
-        <div className="flex flex-col group cursor-default">
-          <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 group-hover:text-zinc-400 transition-colors">Latest Run</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-xl font-light tracking-tight text-white">
-              {latestRun ? formatDate(latestRun.startedAt) : '—'}
-            </span>
-          </div>
-          <span className="text-xs text-zinc-500 mt-1">{latestRun ? runStatusConfig[latestRun.status].label : ''}</span>
-        </div>
-        <div className="flex flex-col justify-center">
-          <RunTestsButton copilotId={id} />
-        </div>
-      </div>
+      <AgentKpiBand
+        stats={[
+          { name: 'Test Suites', value: String(suites.length) },
+          {
+            name: 'Latest Pass Rate',
+            value: latestRun && latestRun.status === 'completed' ? formatPercent(latestRun.passRate) : '—',
+            valueTone: 'accent',
+            viz: passRateSeries.length > 1 ? (
+              <div className="h-8 w-24">
+                <Sparkline points={passRateSeries} ariaLabel="Pass rate trend" />
+              </div>
+            ) : undefined,
+          },
+          {
+            name: 'Latest Run',
+            value: latestRun ? formatDate(latestRun.startedAt) : '—',
+            valueSize: 'small',
+            hint: latestRun ? runStatusConfig[latestRun.status].label : undefined,
+          },
+          {
+            name: 'Actions',
+            content: (
+              <div className="flex flex-col justify-center">
+                <RunTestsButton copilotId={id} />
+              </div>
+            ),
+          },
+        ]}
+      />
 
       {suites.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 rounded-2xl border border-white/5 border-dashed bg-white/[0.01]">

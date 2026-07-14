@@ -1,9 +1,11 @@
 'use client'
 
+import clsx from 'clsx'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
+import { surfaceCardClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
 import { LangGraphDebugPanel, type LangGraphDebugInfo } from '@/components/agent-ops/langgraph-debug-panel'
 import { ProjectBuilderPreviewPanel } from '@/components/agent-ops/project-builder-preview-panel'
 import {
@@ -275,9 +277,9 @@ export function ProjectAgentBuilderWorkbench({
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)] xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
         <section
           aria-label="Agent Builder architect chat"
-          className="flex min-h-[420px] min-w-0 flex-col rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] lg:min-h-[560px]"
+          className={clsx(surfaceCardClass, 'flex min-h-[420px] min-w-0 flex-col lg:min-h-[560px]')}
         >
-          <div className="border-b border-zinc-950/5 px-4 py-3 dark:border-white/5 bg-zinc-50/50 dark:bg-white/[0.01]">
+          <div className={clsx(surfaceCardHeaderClass, 'px-4 py-3')}>
             <h2 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Architect chat</h2>
             <p className="mt-1 text-xs text-zinc-500">
               Persistent thread — discuss the repo, compare options, create draft only after explicit approval.
@@ -310,7 +312,7 @@ export function ProjectAgentBuilderWorkbench({
                 {chatMessages.map((message) => (
                   <div
                     key={message.id}
-                    className="group relative flex gap-4 px-4 py-5 hover:bg-zinc-50/50 dark:hover:bg-white/[0.01]"
+                    className="group relative flex gap-4 px-4 py-5 hover:bg-[var(--color-surface-interactive)] transition-colors"
                   >
                     <div className="flex-none pt-0.5">
                       {message.role === 'user' ? (
@@ -362,7 +364,7 @@ export function ProjectAgentBuilderWorkbench({
             <div ref={chatEndRef} />
           </div>
 
-          <div className="border-t border-zinc-950/5 p-4 dark:border-white/5 bg-zinc-50/50 dark:bg-white/[0.01]">
+          <div className="border-t border-white/5 bg-black/20 p-4">
             <Textarea
               ref={inputRef}
               name="project-builder-chat"

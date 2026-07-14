@@ -1,8 +1,10 @@
 'use client'
 
+import clsx from 'clsx'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { surfaceCardClass, surfaceInsetClass } from '@/components/agent-ops/surface-card'
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { ProjectBuilderSuggestionsDrawer } from '@/components/agent-ops/project-builder-suggestions-drawer'
 import { Badge } from '@/components/catalyst/badge'
@@ -150,7 +152,7 @@ function ProjectRepoIntelligenceCompactView({
 
   if (!repoFullName) {
     return (
-      <div className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+      <div className={clsx(surfaceCardClass, 'px-4 py-3')}>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           Link a GitHub repo to enable read-only intelligence and Builder suggestions.
         </p>
@@ -162,7 +164,7 @@ function ProjectRepoIntelligenceCompactView({
 
   return (
     <>
-      <div className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+      <div className={clsx(surfaceCardClass, 'px-4 py-3')}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -388,7 +390,7 @@ function ResidueView({ findings }: { findings: ResidueFinding[] }) {
           {sorted.slice(0, 8).map((f, i) => (
             <li
               key={`${f.path}-${i}`}
-              className="rounded-lg bg-zinc-950/[0.03] p-2.5 text-xs ring-1 ring-zinc-950/5 dark:bg-white/[0.03] dark:ring-white/10"
+              className={clsx(surfaceInsetClass, 'p-2.5 text-xs')}
             >
               <span className="font-mono text-zinc-700 dark:text-zinc-300">{f.path}</span>
               <span className="text-zinc-500"> — {f.evidence}</span>

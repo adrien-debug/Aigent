@@ -1,6 +1,9 @@
 'use client'
 
+import clsx from 'clsx'
+
 import { Spinner } from '@/components/agent-ops/authoring-primitives'
+import { surfaceCardClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
 import { ToolBadge } from '@/components/agent-ops/tool-badge'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
@@ -68,8 +71,8 @@ export function ProjectBuilderPreviewPanel({
   const showLangGraphActions = Boolean(awaitingApproval && onApprove && onReject)
 
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-      <div className="border-b border-zinc-950/5 px-4 py-3 dark:border-white/5 bg-zinc-50/50 dark:bg-white/[0.01]">
+    <div className={clsx(surfaceCardClass, 'flex h-full min-h-0 flex-col')}>
+      <div className={clsx(surfaceCardHeaderClass, 'px-4 py-3')}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Preview</h2>

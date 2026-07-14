@@ -1,5 +1,7 @@
 import clsx from 'clsx'
 
+import { surfaceCardClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
+
 /**
  * Reusable skeleton block for the AgentSectionCard.
  */
@@ -15,8 +17,8 @@ function SectionSkeleton({
   children?: React.ReactNode
 }) {
   return (
-    <div className={clsx("overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]", className)}>
-      <div className="border-b border-zinc-950/5 bg-zinc-50/50 px-6 py-4 dark:border-white/5 dark:bg-white/[0.01]">
+    <div className={clsx(surfaceCardClass, className)}>
+      <div className={clsx(surfaceCardHeaderClass, 'px-6 py-4')}>
         <div className={clsx("h-5 rounded bg-zinc-950/10 dark:bg-white/10", headerWidth)} />
         <div className={clsx("mt-2 h-3.5 rounded bg-zinc-950/5 dark:bg-white/5", descWidth)} />
       </div>
@@ -37,12 +39,11 @@ export default function AdminDashboardLoading() {
       </div>
 
       {/* AgentKpiBand — 4 stats */}
-      <div className="-mx-4 grid grid-cols-1 gap-px bg-zinc-950/5 sm:grid-cols-2 lg:-mx-8 lg:grid-cols-4 dark:bg-white/[0.02]">
+      <div className="grid grid-cols-2 gap-8 border-b border-white/5 py-6 md:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="flex flex-col items-start gap-y-2 bg-white px-6 py-6 sm:px-8 xl:px-10 dark:bg-zinc-950 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-            <div className="h-3 w-16 rounded bg-zinc-950/10 dark:bg-white/10" />
-            <div className="h-9 w-24 rounded-lg bg-zinc-950/10 dark:bg-white/10" />
-            <div className="h-3 w-28 rounded bg-zinc-950/5 dark:bg-white/5" />
+          <div key={i} className="flex flex-col gap-y-2">
+            <div className="h-3 w-16 rounded bg-white/10" />
+            <div className="h-9 w-24 rounded-lg bg-white/10" />
           </div>
         ))}
       </div>
@@ -51,7 +52,7 @@ export default function AdminDashboardLoading() {
       <SectionSkeleton headerWidth="w-24" descWidth="w-64">
         <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="flex h-full flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+            <div key={i} className={clsx(surfaceCardClass, 'flex h-full flex-col')}>
               <div className="relative h-28 bg-zinc-950/5 dark:bg-white/5" />
               <div className="relative z-10 -mt-8 ml-6 size-14 rounded bg-zinc-200 ring-2 ring-white dark:bg-zinc-800 dark:ring-zinc-950" />
               <div className="flex flex-1 flex-col px-6 pt-3 pb-6">

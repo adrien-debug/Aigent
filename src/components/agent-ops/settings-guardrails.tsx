@@ -1,7 +1,9 @@
 'use client'
 
+import clsx from 'clsx'
 import { useState } from 'react'
 
+import { surfaceInsetClass } from '@/components/agent-ops/surface-card'
 import { PolicyStateIndicator } from '@/components/agent-ops/widgets/policy-state-indicator'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { Badge } from '@/components/catalyst/badge'
@@ -53,7 +55,7 @@ export function SettingsGuardrails() {
       <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6">
         {/* Twin columns share ONE skeleton: label → control → meter row (bar +
             right-hand value) → caption. Rows align across the grid. */}
-        <Field className="rounded-2xl bg-zinc-50/50 p-6 ring-1 ring-zinc-950/5 dark:bg-white/[0.01] dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+        <Field className={clsx(surfaceInsetClass, 'p-6')}>
           <Label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Default confirmation policy</Label>
           <Select
             name="default_confirmation_policy"
@@ -71,7 +73,7 @@ export function SettingsGuardrails() {
           </div>
         </Field>
 
-        <Field className="rounded-2xl bg-zinc-50/50 p-6 ring-1 ring-zinc-950/5 dark:bg-white/[0.01] dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+        <Field className={clsx(surfaceInsetClass, 'p-6')}>
           <Label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Shadow agreement threshold (%)</Label>
           <Input
             type="number"

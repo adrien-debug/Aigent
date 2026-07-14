@@ -2,6 +2,7 @@ import { ArrowUpCircleIcon } from '@heroicons/react/24/outline'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { SurfaceCard } from '@/components/agent-ops/surface-card'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { GateHistoryFeed, type GateHistoryEvent } from '@/components/agent-ops/gate-history-feed'
 import { PromotionGateCard } from '@/components/agent-ops/promotion-gate-card'
@@ -61,7 +62,7 @@ export async function PublishSection({ copilotId }: { copilotId: string }) {
     return (
       <div className="space-y-8">
         {releaseCandidateCard ?? (
-          <div className="rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+          <SurfaceCard>
             <EmptyState
               icon={ArrowUpCircleIcon}
               title="No release candidate."
@@ -72,7 +73,7 @@ export async function PublishSection({ copilotId }: { copilotId: string }) {
                 </Button>
               }
             />
-          </div>
+          </SurfaceCard>
         )}
       </div>
     )

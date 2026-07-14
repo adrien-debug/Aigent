@@ -1,7 +1,10 @@
+import clsx from 'clsx'
 import { BoltIcon, CpuChipIcon, FolderIcon, ShieldCheckIcon, ChartBarIcon, ServerStackIcon, ClockIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import type { Metadata } from 'next'
 
+import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
+import { surfaceCardClass } from '@/components/agent-ops/surface-card'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
 import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
 import { Badge } from '@/components/catalyst/badge'
@@ -22,54 +25,6 @@ const numberFormat = new Intl.NumberFormat('en-US')
 function statusLabel(status: string): string {
   const spaced = status.replace(/-/g, ' ')
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
-}
-
-interface KpiBandProps {
-  kpis: {
-    activeCopilots: number
-    totalCopilots: number
-    runsLast24h: number
-    totalCostLast24hUsd: number
-    openWarnings: number
-  }
-}
-
-function KpiBand({ kpis }: KpiBandProps) {
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-6 border-b border-white/5 mb-8">
-      <div className="flex flex-col group cursor-default">
-        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 group-hover:text-zinc-400 transition-colors">Active Fleet</span>
-        <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-light tracking-tight text-white">{kpis.activeCopilots}</span>
-          <span className="text-sm text-zinc-500">/ {kpis.totalCopilots}</span>
-        </div>
-      </div>
-      <div className="flex flex-col group cursor-default">
-        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 group-hover:text-zinc-400 transition-colors">24h Volume</span>
-        <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-light tracking-tight text-white">{numberFormat.format(kpis.runsLast24h)}</span>
-          <span className="text-sm text-zinc-500">runs</span>
-        </div>
-      </div>
-      <div className="flex flex-col group cursor-default">
-        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 group-hover:text-zinc-400 transition-colors">24h Compute Cost</span>
-        <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-light tracking-tight text-white">{formatUsd(kpis.totalCostLast24hUsd)}</span>
-        </div>
-      </div>
-      <div className="flex flex-col group cursor-default">
-        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 group-hover:text-zinc-400 transition-colors">System Health</span>
-        <div className="flex items-baseline gap-2">
-          {kpis.openWarnings > 0 ? (
-            <span className="text-4xl font-light tracking-tight text-accent-400">{kpis.openWarnings}</span>
-          ) : (
-            <span className="text-4xl font-light tracking-tight text-accent-400">100%</span>
-          )}
-          <span className="text-sm text-zinc-500">{kpis.openWarnings > 0 ? 'warnings' : 'nominal'}</span>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 function AttentionZone({ copilots }: { copilots: Copilot[] }) {
@@ -105,7 +60,7 @@ function AttentionZone({ copilots }: { copilots: Copilot[] }) {
 
 function SystemTopology() {
   return (
-    <div className="rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 p-6 flex flex-col h-full relative overflow-hidden group">
+    <div className={clsx(surfaceCardClass, 'p-6 flex flex-col h-full relative group')}>
       {/* Subtle background pulse */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-accent-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-accent-500/10 transition-colors duration-1000" />
       
@@ -184,7 +139,7 @@ function FleetDistribution({ copilots }: { copilots: Copilot[] }) {
   const activePct = Math.round((activeCount / total) * 100)
 
   return (
-    <div className="rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 p-6 flex flex-col h-full">
+    <div className={clsx(surfaceCardClass, 'p-6 flex flex-col h-full')}>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-sm font-semibold text-white">Fleet Distribution</h2>
         <Link href="/admin/agents" className="text-xs font-medium text-zinc-400 hover:text-white transition-colors">
@@ -255,7 +210,7 @@ function RunActivity({ runs, copilotNameById }: { runs: AgentRun[], copilotNameB
   const shown = runs.slice(0, 8)
 
   return (
-    <div className="rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden flex flex-col h-full">
+    <div className={clsx(surfaceCardClass, 'flex flex-col h-full')}>
       <div className="flex items-center justify-between p-6 border-b border-white/5">
         <div>
           <h2 className="text-sm font-semibold text-white">Global Run Activity</h2>
@@ -349,7 +304,19 @@ export default async function DashboardPage() {
       </StaggerFade>
 
       <StaggerFade delay={1}>
-        <KpiBand kpis={kpis} />
+        <AgentKpiBand
+          stats={[
+            { name: 'Active Fleet', value: String(kpis.activeCopilots), suffix: `/ ${kpis.totalCopilots}` },
+            { name: '24h Volume', value: numberFormat.format(kpis.runsLast24h), suffix: 'runs' },
+            { name: '24h Compute Cost', value: formatUsd(kpis.totalCostLast24hUsd) },
+            {
+              name: 'System Health',
+              value: kpis.openWarnings > 0 ? String(kpis.openWarnings) : '100%',
+              valueTone: 'accent',
+              suffix: kpis.openWarnings > 0 ? 'warnings' : 'nominal',
+            },
+          ]}
+        />
       </StaggerFade>
 
       <StaggerFade delay={2}>

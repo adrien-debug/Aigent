@@ -1,6 +1,9 @@
 
+import clsx from 'clsx'
+
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { surfaceCardClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { ReplayCandidatePicker, type ReplayCandidateItem } from '@/components/agent-ops/replay-candidate-picker'
 import { ChipCluster } from '@/components/agent-ops/widgets/chip-cluster'
@@ -162,7 +165,7 @@ export async function ReplaySection({ copilotId }: { copilotId: string }) {
       </AgentSectionCard>
 
       {comparisons.length === 0 ? (
-        <section className="rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+        <section className={surfaceCardClass}>
           <EmptyState
             title="No replays yet"
             description="Replay a production run to compare behavior before promoting. Candidates run against the recorded transcript — never against live users."
@@ -181,10 +184,10 @@ export async function ReplaySection({ copilotId }: { copilotId: string }) {
             return (
               <section
                 key={comparison.id}
-                className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
+                className={clsx('overflow-hidden', surfaceCardClass)}
               >
                 <h3 className="sr-only">Replay of run {comparison.sourceRunId}</h3>
-                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-zinc-950/5 bg-zinc-950/[0.025] px-6 py-4 dark:border-white/5 dark:bg-white/[0.04]">
+                <div className={clsx(surfaceCardHeaderClass, 'flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-6 py-4')}>
                   <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
                     <Link
                       href={`/admin/agents/${id}/runs?run=${comparison.sourceRunId}`}

@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import { PlusIcon } from '@heroicons/react/16/solid'
 
+import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
+import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
 import { ProvisionAgentBuilderBanner } from '@/components/agent-ops/provision-agent-builder-banner'
 import { RegistryView } from '@/components/agent-ops/registry-view'
@@ -37,15 +39,17 @@ function RecentWarningsCard({
   const dangerCount = warnings.filter((w) => w.severity === 'danger').length
 
   return (
-    <div className="rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden">
-      <div className="flex items-center justify-between p-4 border-b border-white/5 bg-black/20">
-        <h2 className="text-sm font-semibold text-white">Recent warnings</h2>
-        {warnings.length > 0 && (
-          <span className="text-xs text-zinc-400">
-            {warningCount} warning{warningCount === 1 ? '' : 's'} · {dangerCount} danger
-          </span>
-        )}
-      </div>
+    <SurfaceCard>
+      <SurfaceCardHeader
+        title="Recent warnings"
+        meta={
+          warnings.length > 0 ? (
+            <span className="text-xs text-zinc-400">
+              {warningCount} warning{warningCount === 1 ? '' : 's'} · {dangerCount} danger
+            </span>
+          ) : undefined
+        }
+      />
       <div className="p-4">
         {warnings.length > 0 ? (
           <div role="list" className="divide-y divide-white/5">
@@ -66,62 +70,7 @@ function RecentWarningsCard({
           <p className="py-4 text-sm text-zinc-400">No open warnings. All copilots are healthy.</p>
         )}
       </div>
-    </div>
-  )
-}
-
-interface KpiBandProps {
-  kpis: {
-    totalCopilots: number
-    avgTestPassRate: number
-    totalCostLast24hUsd: number
-    openWarnings: number
-  }
-  benchCount: number
-  assignedCount: number
-}
-
-function KpiBand({ kpis, benchCount, assignedCount }: KpiBandProps) {
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-5 gap-8 py-6 border-b border-white/5 mb-8">
-      <div className="flex flex-col">
-        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">Total Fleet</span>
-        <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-light tracking-tight text-white">{kpis.totalCopilots}</span>
-        </div>
-      </div>
-      <div className="flex flex-col">
-        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">Distribution</span>
-        <div className="flex flex-col gap-1 mt-1">
-          <div className="flex items-center gap-2">
-            <span className="size-1.5 rounded-full bg-accent-500"></span>
-            <span className="text-sm text-zinc-300">{assignedCount} Assigned</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="size-1.5 rounded-full bg-zinc-600"></span>
-            <span className="text-sm text-zinc-300">{benchCount} On Bench</span>
-          </div>
-        </div>
-      </div>
-      <div className="flex flex-col">
-        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">Avg Test Pass</span>
-        <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-light tracking-tight text-accent-400">{formatPercent(kpis.avgTestPassRate)}</span>
-        </div>
-      </div>
-      <div className="flex flex-col">
-        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">24h Compute</span>
-        <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-light tracking-tight text-white">{formatUsd(kpis.totalCostLast24hUsd)}</span>
-        </div>
-      </div>
-      <div className="flex flex-col">
-        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">Active Warnings</span>
-        <div className="flex items-baseline gap-2">
-          <span className={`text-4xl font-light tracking-tight ${kpis.openWarnings > 0 ? 'text-accent-400' : 'text-zinc-500'}`}>{kpis.openWarnings}</span>
-        </div>
-      </div>
-    </div>
+    </SurfaceCard>
   )
 }
 
@@ -167,7 +116,33 @@ export default async function AgentsRegistryPage() {
       )}
 
       <StaggerFade delay={2}>
-        <KpiBand kpis={kpis} benchCount={onBenchCount} assignedCount={assignedCount} />
+        <AgentKpiBand
+          stats={[
+            { name: 'Total Fleet', value: String(kpis.totalCopilots) },
+            {
+              name: 'Distribution',
+              content: (
+                <div className="flex flex-col gap-1 mt-1">
+                  <div className="flex items-center gap-2">
+                    <span className="size-1.5 rounded-full bg-accent-500" />
+                    <span className="text-sm text-zinc-300">{assignedCount} Assigned</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="size-1.5 rounded-full bg-zinc-600" />
+                    <span className="text-sm text-zinc-300">{onBenchCount} On Bench</span>
+                  </div>
+                </div>
+              ),
+            },
+            { name: 'Avg Test Pass', value: formatPercent(kpis.avgTestPassRate), valueTone: 'accent' },
+            { name: '24h Compute', value: formatUsd(kpis.totalCostLast24hUsd) },
+            {
+              name: 'Active Warnings',
+              value: String(kpis.openWarnings),
+              valueTone: kpis.openWarnings > 0 ? 'accent' : 'muted',
+            },
+          ]}
+        />
       </StaggerFade>
 
       <StaggerFade delay={3}>
