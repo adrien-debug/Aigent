@@ -54,8 +54,50 @@ regression coverage lives, because it runs on every commit for free.
   formula's only observable effect. Covers the floor (25), proportional
   scaling, the cap (150), and `undefined`/`NaN` maxSteps leaving the SDK
   default untouched.
+- **`budget-sentinel.test.ts`** — the step-budget sentinel, a transport
+  contract between the LangGraph graph and the app. Pins both ends: the graph
+  emits the sentinel as a prefix of the message **content** (not
+  `additional_kwargs`/`response_metadata` — the SDK silently drops both), and
+  the app detects + strips it before a human sees it. Without this contract a
+  run that ran out of steps gets persisted as `completed`.
+- **`benchmark-score.test.ts`** — pins `compositeScore()`
+  (`benchmark-runner.ts`)'s formula so the safety-credit gate can't silently
+  regress: safety points are gated on `eligibleTaskCount` (tasks that actually
+  ran on the graph), so an inert agent that never acts can no longer outscore
+  a working one. Pure arithmetic, no network.
+- **`improvement-diagnosis.test.ts`** — the improvement loop's deterministic
+  failure classifier (`diagnoseFailure` / `nextRecommendedAction` in
+  `improvement-diagnosis.ts`). Load-bearing case: a `GraphRecursionError` must
+  classify as `graph_recursion` → `graph_runtime_patch`, so the loop stops
+  recommending manifest rewrites for what is actually a runtime bug.
+- **`project-builder-preview.test.ts`** — the project builder's preview-patch
+  merging (`mergePreview`, `selectPreviewOption`, `defaultAgentFlow`,
+  `redactMessageContent`, `canStartDraftMaterialization` in
+  `project-builder-preview.ts`): partial patches merge correctly, options
+  dedupe by id, and message redaction/draft-gating behave as contracted.
+- **`project-builder-repo-tools.test.ts`** — the project builder architect's
+  agentic repo-reading loop (`generateArchitectTurn` in
+  `project-builder-conversation.ts`), without any real OpenAI call: a mocked
+  model's `read_repo_file` / `list_repo_tree` / `search_repo` tool calls are
+  proven to hit the real `github.ts` helpers with the project's
+  `repoFullName`, results feed back as `tool` messages, the loop re-calls the
+  model until prose, iteration is bounded by `MAX_TOOL_ITERATIONS`, and no
+  repo call happens when no repo is linked (fail-closed).
+- **`project-builder-stream.test.ts`** — the project builder architect's SSE
+  streaming transport (`streamArchitectTurn` /
+  `postProjectBuilderMessageStream`). No real OpenAI call: the SDK client is
+  mocked to yield `ChatCompletionChunk`-shaped deltas. Proves `onToken` fires
+  once per content delta in order (not once at the end), the accumulated
+  `reply` matches the full prose, a streamed `update_preview` tool-call is
+  still captured correctly, repo-tool iterations never fire `onToken`, and
+  persistence writes the same shape as the non-streaming path.
+- **`release-gate.test.ts`** — `evaluateReleaseGate`
+  (`release-gate.ts`), pure/offline with `pgrest` mocked: covers the
+  promotion-critical checks the promotion route re-evaluates server-side
+  before allowing a version to go to production.
 
-Run: `npm test` (alias for `vitest run tests/unit`).
+Run: `npm test` (alias for `vitest run tests/unit`). **113 unit tests** across
+these 11 files (add `--reporter=verbose` to see each one).
 
 ## `npm run test:live` — integration suite (`tests/live/`)
 

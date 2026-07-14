@@ -82,13 +82,16 @@ contrast, no mock data in the app. It runs in CI and must stay green.
 | `src/components/agent-ops/` | The console UI. |
 | `src/components/catalyst/` | Vendored Catalyst UI kit. |
 | `supabase/migrations/` | Schema for the `aigent` perimeter. |
-| `scripts/` | `seed-amc.ts`, `provision-agent-builder.ts`, `check-palette.mjs`. |
+| `scripts/` | `seed-amc.ts`, `provision-agent-builder.ts`, `reprovision-assistants.ts`, `check-palette.mjs`, `check-catalyst.mjs`. |
 | `deploy/` | Container/Caddy config for the app and the Agent Server. |
 
 ## Docs
 
 - **`docs/agent-authoring.md`** — how a copilot gets created (architect flow),
   the two execution paths (LangGraph vs. direct model-router), and the
-  human-in-the-loop interrupt/resume lifecycle.
+  human-in-the-loop interrupt/resume lifecycle. Also covers the project
+  builder — a full-screen **modal** (not a page), whose architect replies are
+  **streamed over SSE** token-by-token — and the post-creation
+  **improvement loop** (analyze → create-v2 → decision).
 - **`docs/BACKEND-GPU1.md`** — the `aigent` Postgres/PostgREST perimeter on GPU1.
 - **`AGENTS.md`** — Next.js 16 caveat for agents working in this repo.

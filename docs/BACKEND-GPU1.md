@@ -14,7 +14,7 @@ Base Postgres dédiée sur le serveur partagé de gpu1, exposée via PostgREST
 | Caddy | conteneur `aigent-caddy`, port `:8095`, config `gpu1:~/aigent-db/Caddyfile` |
 | Accès dev | `http://100.88.191.49:8095` (Tailscale gpu1) — utilisé par `.env.local` |
 | URL publique | `aigent-db.hearst.app` → tunnel `hearst-prod` :8095 (posée, voir ⚠️) |
-| Schéma | `supabase/migrations/0001_agent_mission_control.sql` (19 tables, RLS deny-by-default, accès via `service_role` uniquement) |
+| Schéma | `supabase/migrations/0001_agent_mission_control.sql` (19 tables) + `0010_improvement_proposals.sql` + `0012_project_builder_conversations.sql` (2 tables) → **22 tables au total**, RLS deny-by-default, accès via `service_role` uniquement |
 | Seed | `npx -y tsx scripts/seed-amc.ts > /tmp/seed-amc.sql` puis psql sur gpu1 (idempotent, TRUNCATE+INSERT) |
 
 ## ⚠️ URL publique interceptée à l'edge
@@ -37,7 +37,10 @@ wildcard. En attendant, `.env.local` pointe le Tailscale gpu1.
 - Couche data : `src/lib/agent-mission-control/postgrest.ts` (client PostgREST
   partagé, `requireBackend()`) + `data.ts` (lectures async, mapping
   snake↔camel), service_role serveur uniquement, `server-only`.
-- Mutations : `PATCH /api/agent-ops/tools/:id` (switchs enabled/confirmation persistés).
+- Mutations : des dizaines de routes sous `app/api/agent-ops/**` écrivent en base
+  (copilots, projects, builder/*, improve/*, promotion, push-agent…) —
+  `PATCH /api/agent-ops/tools/:id` (switchs enabled/confirmation persistés) n'en
+  est qu'un exemple. Inventaire complet audité : `.sweep/securite-routes-api.md`.
 - JWT anon/service re-signés avec le secret du périmètre (HS256) — les clés d'un
   autre workspace ne valent rien ici.
 
