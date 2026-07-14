@@ -2,14 +2,13 @@ import clsx from 'clsx'
 import { BoltIcon, CpuChipIcon, ShieldCheckIcon, ServerStackIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import type { Metadata } from 'next'
 
-import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { surfaceCardClass, surfaceInsetClass } from '@/components/agent-ops/surface-card'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
 import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
 import { Badge } from '@/components/catalyst/badge'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
-import { getCopilots, getRecentRuns, getRegistryKpis } from '@/lib/agent-mission-control/data'
+import { getCopilots, getRecentRuns } from '@/lib/agent-mission-control/data'
 import { formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 import type { AgentRun, Copilot } from '@/lib/agent-mission-control/types'
 
@@ -18,8 +17,6 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
   title: 'Command Center — Aigent',
 }
-
-const numberFormat = new Intl.NumberFormat('en-US')
 
 function statusLabel(status: string): string {
   const spaced = status.replace(/-/g, ' ')
@@ -46,7 +43,7 @@ function AttentionZone({ copilots }: { copilots: Copilot[] }) {
   if (flagged.length === 0) return null
 
   return (
-    <div className="mb-8 rounded-xl border border-(--accent-line) bg-(--accent-soft) p-6">
+    <div className="rounded-xl border border-(--accent-line) bg-(--accent-soft) p-6">
       <div className="flex items-center gap-3 mb-4">
         <ShieldCheckIcon className="size-5 text-accent-400" />
         <h2 className="text-sm font-semibold text-accent-400 uppercase tracking-widest">Needs Attention</h2>
@@ -70,9 +67,9 @@ function AttentionZone({ copilots }: { copilots: Copilot[] }) {
 
 function SystemTopology() {
   return (
-    <div className={clsx(surfaceCardClass, 'group relative flex h-full flex-col p-6')}>
-      <div className="relative z-10 mb-8 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-white">System Topology</h2>
+    <div className={clsx(surfaceCardClass, 'group relative flex h-full flex-col')}>
+      <div className="relative z-10 flex items-center justify-between border-b border-white/5 bg-black/20 px-6 py-5">
+        <h2 className="text-xl font-semibold tracking-tight text-white">System Topology</h2>
         <div className="flex items-center gap-2 rounded-full border border-(--accent-line) bg-(--accent-soft) px-2.5 py-1">
           <span className="relative flex size-1.5">
             <span className="relative inline-flex size-1.5 rounded-full bg-accent-500"></span>
@@ -81,7 +78,7 @@ function SystemTopology() {
         </div>
       </div>
 
-      <div className="relative z-10 flex flex-1 flex-col justify-center gap-8">
+      <div className="relative z-10 flex flex-1 flex-col justify-center gap-8 p-6">
         <div className={clsx(surfaceInsetClass, 'flex items-center justify-between px-5 py-4')}>
           <div className="flex min-w-0 items-center gap-4">
             <div className="shrink-0 rounded-lg bg-white/5 p-2 ring-1 ring-white/10">
@@ -152,15 +149,15 @@ function FleetDistribution({ copilots }: { copilots: Copilot[] }) {
           : 'bg-zinc-600'
 
   return (
-    <div className={clsx(surfaceCardClass, 'p-6 flex flex-col h-full')}>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-sm font-semibold text-white">Fleet Distribution</h2>
+    <div className={clsx(surfaceCardClass, 'flex flex-col h-full')}>
+      <div className="flex items-center justify-between border-b border-white/5 bg-black/20 px-6 py-5">
+        <h2 className="text-xl font-semibold tracking-tight text-white">Fleet Distribution</h2>
         <Link href="/admin/agents" className="text-xs font-medium text-zinc-400 hover:text-white transition-colors">
           View Fleet &rarr;
         </Link>
       </div>
 
-      <div className="flex-1 flex flex-col justify-center gap-8">
+      <div className="flex-1 flex flex-col justify-center gap-8 p-6">
         <div className={clsx(surfaceInsetClass, 'flex items-center justify-between p-4')}>
           <div className="flex flex-col">
             <span className="text-3xl font-light text-white tabular-nums">{activeCount}</span>
@@ -230,6 +227,9 @@ function RunActivity({ runs, copilotNameById }: { runs: AgentRun[], copilotNameB
 
   return (
     <div className={clsx(surfaceCardClass, 'flex flex-col h-full')}>
+      <div className="border-b border-white/5 bg-black/20 px-6 py-6 lg:px-8">
+        <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">Dashboard</h1>
+      </div>
       <div className="flex items-center justify-between p-6 border-b border-white/5">
         <div>
           <h2 className="text-sm font-semibold text-white">Global Run Activity</h2>
@@ -248,7 +248,7 @@ function RunActivity({ runs, copilotNameById }: { runs: AgentRun[], copilotNameB
           <div className="p-6 bg-[var(--color-surface-primary)]/30 border-b border-white/5">
             <RunLatencyChart data={latencyPoints} />
           </div>
-          <Table>
+          <Table className="px-6 [--gutter:--spacing(6)]">
             <TableHead>
               <TableRow>
                 <TableHeader className="w-1/3">Copilot</TableHeader>
@@ -303,45 +303,31 @@ function RunActivity({ runs, copilotNameById }: { runs: AgentRun[], copilotNameB
 }
 
 export default async function DashboardPage() {
-  const [copilots, kpis, runs] = await Promise.all([
+  const [copilots, runs] = await Promise.all([
     getCopilots(),
-    getRegistryKpis(),
     getRecentRuns(30),
   ])
   const copilotNameById = new Map(copilots.map((copilot) => [copilot.id, copilot.name]))
+  const hasWarnings = copilots.some((copilot) => copilot.health.openWarnings > 0)
 
   return (
     <div className="flex flex-col gap-8 pb-12">
-      <StaggerFade delay={0}>
-        <AgentKpiBand
-          stats={[
-            { name: 'Active Fleet', value: String(kpis.activeCopilots), suffix: `/ ${kpis.totalCopilots}` },
-            { name: '24h Volume', value: numberFormat.format(kpis.runsLast24h), suffix: 'runs' },
-            { name: '24h Compute Cost', value: formatUsd(kpis.totalCostLast24hUsd) },
-            {
-              name: 'System Health',
-              value: kpis.openWarnings > 0 ? String(kpis.openWarnings) : '100%',
-              valueTone: 'accent',
-              suffix: kpis.openWarnings > 0 ? 'warnings' : 'nominal',
-            },
-          ]}
-        />
-      </StaggerFade>
-
-      <StaggerFade delay={1}>
-        <AttentionZone copilots={copilots} />
-      </StaggerFade>
+      {hasWarnings ? (
+        <StaggerFade delay={0}>
+          <AttentionZone copilots={copilots} />
+        </StaggerFade>
+      ) : null}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 min-h-[600px]">
-        <StaggerFade delay={2} className="xl:col-span-2 h-full">
+        <StaggerFade delay={1} className="xl:col-span-2 h-full">
           <RunActivity runs={runs} copilotNameById={copilotNameById} />
         </StaggerFade>
 
         <div className="flex flex-col gap-6 h-full">
-          <StaggerFade delay={3} className="flex-1">
+          <StaggerFade delay={2} className="flex-1">
             <SystemTopology />
           </StaggerFade>
-          <StaggerFade delay={4} className="flex-1">
+          <StaggerFade delay={3} className="flex-1">
             <FleetDistribution copilots={copilots} />
           </StaggerFade>
         </div>

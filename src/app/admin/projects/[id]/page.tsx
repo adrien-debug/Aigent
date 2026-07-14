@@ -2,7 +2,6 @@ import { CodeBracketIcon, ServerStackIcon, CpuChipIcon, BoltIcon, ArrowTopRightO
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
-import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import { ProjectDeleteAction } from '@/components/agent-ops/project-delete-action'
 import { ProjectRepoIntelligence } from '@/components/agent-ops/project-repo-intelligence'
@@ -216,10 +215,6 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   const validated = copilots.filter((copilot) => copilot.projectId === project.id)
   const copilotNameById = new Map(copilots.map((copilot) => [copilot.id, copilot.name]))
 
-  const activeCount = validated.filter((copilot) => copilot.status === 'active').length
-  const runsLast24h = validated.reduce((sum, copilot) => sum + copilot.health.runsLast24h, 0)
-  const costLast24hUsd = validated.reduce((sum, copilot) => sum + copilot.health.costLast24hUsd, 0)
-
   return (
     <div className="flex flex-col gap-8 pb-12">
       <div className="flex items-center justify-between gap-4">
@@ -242,18 +237,6 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         </div>
         <ProjectDeleteAction project={{ id: project.id, name: project.name }} />
       </div>
-
-      <AgentKpiBand
-        stats={[
-          { name: 'Validated Agents', value: String(validated.length) },
-          { name: 'Active Fleet', value: String(activeCount), suffix: `/ ${validated.length}` },
-          { name: '24h Volume', value: runsLast24h.toLocaleString('en-US'), suffix: 'runs' },
-          {
-            name: '24h Compute Cost',
-            value: runsLast24h > 0 ? formatUsd(costLast24hUsd) : '—',
-          },
-        ]}
-      />
 
       <ProjectRepoIntelligence projectId={project.id} repoFullName={project.repoFullName ?? null} />
 

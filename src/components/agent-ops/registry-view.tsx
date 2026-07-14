@@ -6,6 +6,7 @@ import { useState } from 'react'
 import clsx from 'clsx'
 
 import { CopilotRegistryTable } from '@/components/agent-ops/copilot-registry-table'
+import { SurfaceCard, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
 import { Input, InputGroup } from '@/components/catalyst/input'
 import type { Copilot, Project } from '@/lib/agent-mission-control/types'
 
@@ -39,34 +40,41 @@ function ViewTab({
 export function RegistryView({
   copilots,
   projects,
+  action,
 }: {
   copilots: Copilot[]
   projects: Project[]
+  action?: React.ReactNode
 }) {
-  const [view, setView] = useState<RegistryTableView>('bench')
+  const [view, setView] = useState<RegistryTableView>('all')
   const [searchQuery, setSearchQuery] = useState('')
 
   const benchCount = copilots.filter((copilot) => copilot.projectId === null).length
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <SurfaceCard>
+      <div className={clsx(surfaceCardHeaderClass, 'px-6 py-6')}>
+        <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">Copilots</h1>
+        {action ? <div className="shrink-0">{action}</div> : null}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 px-6 py-3">
         <div className="flex items-center gap-6">
-          <ViewTab
-            active={view === 'bench'}
-            onClick={() => setView('bench')}
-            label="Validation Bench"
-            count={benchCount}
-          />
           <ViewTab
             active={view === 'all'}
             onClick={() => setView('all')}
             label="All Copilots"
             count={copilots.length}
           />
+          <ViewTab
+            active={view === 'bench'}
+            onClick={() => setView('bench')}
+            label="Validation Bench"
+            count={benchCount}
+          />
         </div>
 
-        <div className="w-full sm:w-64">
+        <div className="min-w-0 flex-1 sm:w-64 sm:flex-none">
           <InputGroup>
             <MagnifyingGlassIcon data-slot="icon" />
             <Input
@@ -81,6 +89,6 @@ export function RegistryView({
       </div>
 
       <CopilotRegistryTable copilots={copilots} projects={projects} view={view} searchQuery={searchQuery} />
-    </div>
+    </SurfaceCard>
   )
 }

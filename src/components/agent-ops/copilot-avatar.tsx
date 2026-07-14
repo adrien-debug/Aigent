@@ -15,11 +15,13 @@ import type { Copilot } from '@/lib/agent-mission-control/types'
 /**
  * Per-copilot visual identity. There is NO `type`/`kind`/`role` field on a
  * Copilot (see types.ts), so the type is a *derived visual cue* — never a
- * business fact rendered as data. Differentiation is by GLYPH only: the design
- * system is strictly mono-accent (neon-orange) + zinc, so every avatar shares
- * the same accent surface/ring and only the icon changes. When in doubt →
- * `default`. This keeps copilots (operators, round icon avatar) visually
- * distinct from projects (workspaces, square photo/logo avatar).
+ * business fact rendered as data. Differentiation is by GLYPH first: the
+ * design system is strictly mono-accent (indigo) + zinc, so no avatar may use
+ * a chromatic hue outside `accent`/`zinc`. The `builder` type (the one
+ * first-class agent) gets the sole accent surface; every other type is
+ * differentiated by a zinc-shade step, never by a competing hue. When in
+ * doubt → `default`. This keeps copilots (operators, round icon avatar)
+ * visually distinct from projects (workspaces, square photo/logo avatar).
  */
 export type CopilotType = 'builder' | 'security' | 'qa-release' | 'inspector' | 'finance' | 'ops' | 'default'
 
@@ -69,16 +71,18 @@ export function CopilotAvatar({
 }) {
   const type = copilotType(copilot)
   const Icon = TYPE_ICON[type]
-  
-  // Dans le GOD MODE, on donne une identité visuelle plus forte aux avatars
-  // en utilisant des gradients subtils basés sur le type, tout en restant dans
-  // la palette sombre et premium.
+
+  // Visual identity stays mono-accent + zinc (design-system doctrine): the
+  // `builder` type is the one first-class agent and is the only one that
+  // earns the accent surface. Every other type is told apart by a zinc-shade
+  // step (never a competing hue) — the icon already carries the semantic
+  // meaning, the tint is just texture.
   const gradientClass = {
-    builder: 'bg-gradient-to-br from-accent-500/20 to-purple-500/10 ring-accent-500/30 text-accent-400',
-    security: 'bg-gradient-to-br from-red-500/20 to-orange-500/10 ring-red-500/30 text-red-400',
-    'qa-release': 'bg-gradient-to-br from-emerald-500/20 to-teal-500/10 ring-emerald-500/30 text-emerald-400',
-    inspector: 'bg-gradient-to-br from-blue-500/20 to-cyan-500/10 ring-blue-500/30 text-blue-400',
-    finance: 'bg-gradient-to-br from-amber-500/20 to-yellow-500/10 ring-amber-500/30 text-amber-400',
+    builder: 'bg-gradient-to-br from-accent-500/20 to-accent-500/10 ring-accent-500/30 text-accent-400',
+    security: 'bg-gradient-to-br from-zinc-600/40 to-zinc-700/20 ring-zinc-400/30 text-zinc-100',
+    'qa-release': 'bg-gradient-to-br from-zinc-500/30 to-zinc-600/15 ring-zinc-400/25 text-zinc-200',
+    inspector: 'bg-gradient-to-br from-zinc-700/40 to-zinc-800/20 ring-zinc-500/25 text-zinc-300',
+    finance: 'bg-gradient-to-br from-zinc-600/30 to-zinc-500/15 ring-zinc-400/20 text-zinc-200',
     ops: 'bg-gradient-to-br from-zinc-500/20 to-zinc-400/10 ring-zinc-500/30 text-zinc-300',
     default: 'bg-gradient-to-br from-accent-500/10 to-transparent ring-accent-500/20 text-accent-400'
   }[type]

@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react'
 
 import { Avatar } from '@/components/catalyst/avatar'
 import { CommandPalette } from '@/components/agent-ops/command-palette'
+import { surfaceCardClass } from '@/components/agent-ops/surface-card'
 
 function LogoMark({ className }: { className?: string }) {
   return (
@@ -49,18 +50,15 @@ function RailItem({
       href={href}
       aria-current={current ? 'page' : undefined}
       className={clsx(
-        'group relative flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-xl transition-all duration-200',
+        'group relative flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-xl border transition-all duration-200',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
         current
-          ? 'text-white bg-white/5'
-          : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]'
+          ? 'border-[var(--accent-line-strong)] bg-[var(--accent-surface)] text-white'
+          : 'border-transparent text-zinc-500 hover:border-white/5 hover:bg-black/20 hover:text-zinc-300'
       )}
     >
-      <Icon aria-hidden="true" className={clsx('size-5 shrink-0 transition-colors duration-200', current ? 'text-white' : 'group-hover:text-zinc-400')} />
-      <span className="text-[10px] font-medium tracking-wide leading-none">{label}</span>
-      {current && (
-        <span className="absolute left-0 top-1/2 h-6 w-[2px] -translate-y-1/2 rounded-r-full bg-white" />
-      )}
+      <Icon aria-hidden="true" className={clsx('size-6 shrink-0 transition-colors duration-200', current ? 'text-accent-300' : 'group-hover:text-zinc-400')} />
+      <span className="text-[11px] font-medium tracking-wide leading-none">{label}</span>
     </Link>
   )
 }
@@ -129,16 +127,16 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
     <div className="relative isolate flex min-h-svh w-full bg-[var(--color-surface-canvas)] text-zinc-100 font-sans selection:bg-accent-500/30">
       <CommandPalette />
 
-      {/* Sidebar - tight icon rail: square tiles, icon over label, centered on the vertical axis */}
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-20 flex-col items-center border-r border-white/5 bg-[var(--color-surface-canvas)] py-6 lg:flex">
+      {/* Sidebar - floating surface-card rail (same DS as body cards): square tiles, icon over label, centered */}
+      <aside className={clsx(surfaceCardClass, 'fixed inset-y-3 left-3 z-20 hidden w-24 flex-col items-center py-6 lg:flex')}>
 
         {/* Brand Header */}
         <Link
           href="/admin"
           aria-label="Agent Mission Control"
-          className="mb-8 flex size-9 shrink-0 items-center justify-center transition-transform hover:scale-105"
+          className="mb-8 flex size-12 shrink-0 items-center justify-center transition-transform hover:scale-105"
         >
-          <LogoMark className="size-5 text-white" />
+          <LogoMark className="size-10 text-white" />
         </Link>
 
         {/* Navigation — centered on the rail's vertical axis */}
@@ -247,8 +245,8 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
       </AnimatePresence>
 
       {/* Main Content Area */}
-      <main className="flex min-w-0 flex-1 flex-col pt-16 lg:pl-20 lg:pt-0 relative z-10">
-        <div className="grow p-6 lg:p-10 max-w-[1400px] w-full">
+      <main className="flex min-w-0 flex-1 flex-col pt-16 lg:pl-[7.5rem] lg:pt-0 relative z-10">
+        <div className="grow p-6 lg:p-8 w-full">
           {children}
         </div>
       </main>

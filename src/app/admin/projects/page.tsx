@@ -1,13 +1,13 @@
 import { PlusIcon } from '@heroicons/react/16/solid'
+import clsx from 'clsx'
 import type { Metadata } from 'next'
 
-import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { ProjectCard } from '@/components/agent-ops/project-card'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
+import { surfaceCardClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
+import { Button } from '@/components/catalyst/button'
 import { getCopilots, getProjects } from '@/lib/agent-mission-control/data'
-import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { Copilot } from '@/lib/agent-mission-control/types'
-import { Link } from '@/components/catalyst/link'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,63 +50,47 @@ export default async function ProjectsPage() {
   const [projects, copilots] = await Promise.all([getProjects(), getCopilots()])
   const rollups = rollupByProject(copilots)
 
-  const validated = copilots.filter((copilot) => copilot.projectId !== null)
-  const totalActive = validated.filter((copilot) => copilot.status === 'active').length
-  const totalRuns = validated.reduce((sum, copilot) => sum + copilot.health.runsLast24h, 0)
-  const totalCost = validated.reduce((sum, copilot) => sum + copilot.health.costLast24hUsd, 0)
-
   return (
     <div className="flex flex-col gap-8 pb-12">
       <StaggerFade delay={0}>
-        <div className="flex justify-end">
-          <Link
-            href="/admin/projects/new"
-            className="inline-flex items-center gap-2 rounded-md bg-white/10 px-3 py-1.5 text-[13px] font-medium text-white hover:bg-white/20 transition-colors"
-          >
-            <PlusIcon className="size-3.5" />
-            New Project
-          </Link>
-        </div>
-      </StaggerFade>
-
-      <StaggerFade delay={1}>
-        <AgentKpiBand
-          stats={[
-            { name: 'Total Projects', value: String(projects.length) },
-            { name: 'Assigned Copilots', value: String(validated.length), suffix: `/ ${totalActive} active` },
-            { name: '24h Project Volume', value: totalRuns.toLocaleString('en-US'), suffix: 'runs' },
-            { name: '24h Project Cost', value: formatUsd(totalCost) },
-          ]}
-        />
-      </StaggerFade>
-
-      <StaggerFade delay={2}>
-        {projects.length > 0 ? (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
-            {projects.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                rollup={rollups.get(project.id) ?? EMPTY_ROLLUP}
-                href={`/admin/projects/${project.id}`}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/5 bg-white/[0.01] py-24 text-center">
-            <p className="text-sm font-medium text-white">No projects yet</p>
-            <p className="text-xs text-zinc-500">
-              Register the first product surface to start assigning copilots.
-            </p>
-            <Link
-              href="/admin/projects/new"
-              className="mt-2 inline-flex items-center gap-2 rounded-md bg-white/10 px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-white/20"
-            >
-              <PlusIcon className="size-3.5" />
+        <div className={clsx(surfaceCardClass, 'flex min-h-[600px] flex-col')}>
+          <div className={clsx(surfaceCardHeaderClass, 'px-6 py-6 lg:px-8')}>
+            <div className="min-w-0">
+              <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">Projects</h1>
+              <p className="mt-2 text-sm text-zinc-400">
+                Product surfaces you operate — copilots, 24h volume and cost roll up per project.
+              </p>
+            </div>
+            <Button href="/admin/projects/new" color="accent" className="shrink-0">
+              <PlusIcon />
               New Project
-            </Link>
+            </Button>
           </div>
-        )}
+
+          {projects.length > 0 ? (
+            <div className="grid flex-1 grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4 p-6">
+              {projects.map((project) => (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  rollup={rollups.get(project.id) ?? EMPTY_ROLLUP}
+                  href={`/admin/projects/${project.id}`}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+              <p className="text-sm font-medium text-white">No projects yet</p>
+              <p className="text-xs text-zinc-500">
+                Register the first product surface to start assigning copilots.
+              </p>
+              <Button href="/admin/projects/new" color="accent" className="mt-2">
+                <PlusIcon />
+                New Project
+              </Button>
+            </div>
+          )}
+        </div>
       </StaggerFade>
     </div>
   )

@@ -1,4 +1,4 @@
-import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
 import { versionStageLabels } from '@/components/agent-ops/version-stage-text'

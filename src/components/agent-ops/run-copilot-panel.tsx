@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { RunStatusText } from '@/components/agent-ops/run-detail-panel'
 import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'

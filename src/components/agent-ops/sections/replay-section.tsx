@@ -2,7 +2,7 @@
 import clsx from 'clsx'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
-import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { surfaceCardClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { ReplayCandidatePicker, type ReplayCandidateItem } from '@/components/agent-ops/replay-candidate-picker'

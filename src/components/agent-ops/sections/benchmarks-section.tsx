@@ -2,7 +2,7 @@
 import clsx from 'clsx'
 
 import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
-import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { surfaceCardClass } from '@/components/agent-ops/surface-card'
 import { BenchmarkComparisonTable } from '@/components/agent-ops/benchmark-comparison-table'
 import { BenchmarkRunSteps } from '@/components/agent-ops/benchmark-run-steps'

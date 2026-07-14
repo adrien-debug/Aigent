@@ -27,9 +27,6 @@ import { agentServerClient, AGENT_BUILDER_GRAPH_ID } from './langgraph-client'
 import { computeCostUsd, estimateTokens } from './model-pricing'
 import type { DurationMs } from './types'
 
-// Re-export so existing importers of the graph id keep a stable path.
-export { AGENT_BUILDER_GRAPH_ID } from './langgraph-client'
-
 /** The model the Agent Server graph runs on (mirrors AGENT_BUILDER_MODEL). */
 function graphModel(): string {
   return process.env.AGENT_BUILDER_MODEL || 'gpt-5.4'

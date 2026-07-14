@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { ErrorBanner, ManifestRecap, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { Button } from '@/components/catalyst/button'
 import { Field, Label } from '@/components/catalyst/fieldset'

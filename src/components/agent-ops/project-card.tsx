@@ -38,7 +38,7 @@ export function ProjectCard({
     <div
       className={clsx(
         surfaceCardClass,
-        'group relative flex flex-col transition-colors hover:bg-[var(--color-surface-interactive)] hover:border-white/10'
+        'group relative flex flex-col bg-[var(--color-surface-elevated)]'
       )}
     >
       {/* Top accent band */}
@@ -100,7 +100,7 @@ export function ProjectCard({
         {/* Footer */}
         <div className="flex items-center justify-between text-xs text-zinc-500">
           <span>{rollup.copilotCount} copilot{rollup.copilotCount === 1 ? '' : 's'} assigned</span>
-          <span className="font-medium text-accent-400 opacity-0 transition-opacity group-hover:opacity-100">
+          <span className="font-medium text-accent-400">
             Open cockpit &rarr;
           </span>
         </div>

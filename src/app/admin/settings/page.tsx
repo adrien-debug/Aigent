@@ -2,11 +2,9 @@ import clsx from 'clsx'
 import type { Metadata } from 'next'
 import { ShieldCheckIcon, ServerStackIcon, LockClosedIcon, CogIcon } from '@heroicons/react/24/outline'
 
-import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { SurfaceCard, SurfaceCardHeader, surfaceInsetClass } from '@/components/agent-ops/surface-card'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
 import { SettingsGuardrails } from '@/components/agent-ops/settings-guardrails'
-import { getCopilots, getProjects } from '@/lib/agent-mission-control/data'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,31 +24,17 @@ function Kv({ label, children, icon: Icon }: { label: string; children: React.Re
   )
 }
 
-export default async function SettingsPage() {
+export default function SettingsPage() {
   const backendConfigured = process.env.AMC_DATA_SOURCE === 'gpu1' && Boolean(process.env.AMC_SUPABASE_URL)
-
-  const [copilots, projects] = await Promise.all([getCopilots(), getProjects()])
-  const openWarnings = copilots.reduce((sum, copilot) => sum + copilot.health.openWarnings, 0)
 
   return (
     <div className="flex flex-col gap-8 pb-12">
-      <StaggerFade delay={0}>
-        <AgentKpiBand
-          stats={[
-            { name: 'Registered Copilots', value: String(copilots.length) },
-            { name: 'Product Surfaces', value: String(projects.length) },
-            {
-              name: 'Backend Posture',
-              value: backendConfigured ? 'Connected' : 'Offline',
-              valueTone: backendConfigured ? 'accent' : 'muted',
-            },
-            {
-              name: 'Active Warnings',
-              value: String(openWarnings),
-              valueTone: openWarnings > 0 ? 'accent' : 'muted',
-            },
-          ]}
-        />
+      <StaggerFade delay={1}>
+        <SurfaceCard>
+          <div className="px-6 lg:px-8 py-6">
+            <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">Settings</h1>
+          </div>
+        </SurfaceCard>
       </StaggerFade>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

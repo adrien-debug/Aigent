@@ -4,7 +4,6 @@ import clsx from 'clsx'
 import { useMemo } from 'react'
 
 import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
-import { SurfaceCard } from '@/components/agent-ops/surface-card'
 import { Badge } from '@/components/catalyst/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
@@ -126,28 +125,25 @@ export function CopilotRegistryTable({
 
   if (filtered.length === 0) {
     return (
-      <SurfaceCard>
-        <div className="flex flex-col items-center justify-center gap-2 px-6 py-24 text-center">
-          <p className="text-[13px] text-zinc-400">
-            {searchQuery ? 'No copilots match your search.' : 'No copilots yet.'}
-          </p>
-          <p className="text-xs text-zinc-600">
-            {searchQuery
-              ? 'Try a different name or slug.'
-              : view === 'bench'
-                ? 'Every copilot is assigned to a project.'
-                : 'Provision a copilot to see it here.'}
-          </p>
-        </div>
-      </SurfaceCard>
+      <div className="flex flex-col items-center justify-center gap-2 px-6 py-24 text-center">
+        <p className="text-[13px] text-zinc-400">
+          {searchQuery ? 'No copilots match your search.' : 'No copilots yet.'}
+        </p>
+        <p className="text-xs text-zinc-600">
+          {searchQuery
+            ? 'Try a different name or slug.'
+            : view === 'bench'
+              ? 'Every copilot is assigned to a project.'
+              : 'Provision a copilot to see it here.'}
+        </p>
+      </div>
     )
   }
 
   return (
-    <SurfaceCard className="[--gutter:--spacing(6)]">
+    <div className="px-6 py-2">
       <Table
-        bleed
-        className="[--gutter:--spacing(6)]"
+        className="[--gutter:--spacing(0)]"
         aria-label={view === 'bench' ? 'Copilots on the validation bench' : 'All copilots'}
       >
         <TableHead>
@@ -170,6 +166,6 @@ export function CopilotRegistryTable({
           ))}
         </TableBody>
       </Table>
-    </SurfaceCard>
+    </div>
   )
 }

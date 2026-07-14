@@ -29,9 +29,14 @@ wildcard. En attendant, `.env.local` pointe le Tailscale gpu1.
 
 ## App
 
-- Sélecteur : `AMC_DATA_SOURCE=gpu1|mock` (`.env.local`, gitignoré). Sans env → mock.
-- Couche data : `src/lib/agent-mission-control/data.ts` (async, fetch PostgREST,
-  service_role serveur uniquement, mapping snake↔camel, `server-only`).
+- Live-only, fail-closed : `AMC_DATA_SOURCE=gpu1` + `AMC_SUPABASE_URL` +
+  `SUPABASE_SERVICE_ROLE_KEY` (`.env.local`, gitignoré). Sans ces 3 vars (ou
+  `AMC_DATA_SOURCE` différent de `gpu1`), `requireBackend()` (`postgrest.ts`)
+  **throw** — aucun mock, aucune donnée fabriquée. Les routes traduisent en
+  **503**.
+- Couche data : `src/lib/agent-mission-control/postgrest.ts` (client PostgREST
+  partagé, `requireBackend()`) + `data.ts` (lectures async, mapping
+  snake↔camel), service_role serveur uniquement, `server-only`.
 - Mutations : `PATCH /api/agent-ops/tools/:id` (switchs enabled/confirmation persistés).
 - JWT anon/service re-signés avec le secret du périmètre (HS256) — les clés d'un
   autre workspace ne valent rien ici.

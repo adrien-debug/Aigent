@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 
-import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { ThresholdMeter } from '@/components/agent-ops/widgets/threshold-meter'
 import { Badge } from '@/components/catalyst/badge'
 import { formatDate, formatPercent } from '@/lib/agent-mission-control/format'

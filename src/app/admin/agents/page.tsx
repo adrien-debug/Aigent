@@ -1,18 +1,15 @@
 import type { Metadata } from 'next'
 import { PlusIcon } from '@heroicons/react/16/solid'
 
-import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
 import { ProvisionAgentBuilderBanner } from '@/components/agent-ops/provision-agent-builder-banner'
 import { RegistryView } from '@/components/agent-ops/registry-view'
 import { AGENT_BUILDER_SLUG } from '@/lib/agent-mission-control/agent-builder-copilot'
-import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import {
   getCopilots,
   getProjects,
   getRecentWarnings,
-  getRegistryKpis,
 } from '@/lib/agent-mission-control/data'
 import { Button } from '@/components/catalyst/button'
 
@@ -74,10 +71,9 @@ function RecentWarningsCard({
 }
 
 export default async function AgentsRegistryPage() {
-  const [copilots, projects, kpis, warnings] = await Promise.all([
+  const [copilots, projects, warnings] = await Promise.all([
     getCopilots(),
     getProjects(),
-    getRegistryKpis(),
     getRecentWarnings(6),
   ])
   const hasAgentBuilder = copilots.some((copilot) => copilot.slug === AGENT_BUILDER_SLUG)
@@ -86,45 +82,27 @@ export default async function AgentsRegistryPage() {
 
   return (
     <div className="flex flex-col gap-8 pb-12">
-      <StaggerFade delay={0}>
-        <div className="flex justify-end">
-          <Button href="/admin/agents/new" color="accent">
-            <PlusIcon data-slot="icon" />
-            New Copilot
-          </Button>
-        </div>
-      </StaggerFade>
-
-      <StaggerFade delay={1}>
-        <AgentKpiBand
-          stats={[
-            { name: 'Total Fleet', value: String(kpis.totalCopilots) },
-            { name: 'Avg Test Pass', value: formatPercent(kpis.avgTestPassRate), valueTone: 'accent' },
-            { name: '24h Compute', value: formatUsd(kpis.totalCostLast24hUsd) },
-            {
-              name: 'Active Warnings',
-              value: String(kpis.openWarnings),
-              valueTone: kpis.openWarnings > 0 ? 'accent' : 'muted',
-            },
-          ]}
-        />
-      </StaggerFade>
-
       {hasAgentBuilder ? null : (
-        <StaggerFade delay={2}>
+        <StaggerFade delay={0}>
           <ProvisionAgentBuilderBanner />
         </StaggerFade>
       )}
 
-      <StaggerFade delay={3}>
-        <RecentWarningsCard warnings={warnings} copilotNameById={copilotNameById} />
-      </StaggerFade>
-
-      <StaggerFade delay={4}>
+      <StaggerFade delay={1}>
         <RegistryView
           copilots={copilots}
           projects={projects}
+          action={
+            <Button href="/admin/agents/new" color="accent">
+              <PlusIcon data-slot="icon" />
+              New Copilot
+            </Button>
+          }
         />
+      </StaggerFade>
+
+      <StaggerFade delay={2}>
+        <RecentWarningsCard warnings={warnings} copilotNameById={copilotNameById} />
       </StaggerFade>
     </div>
   )

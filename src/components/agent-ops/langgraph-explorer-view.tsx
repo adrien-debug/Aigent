@@ -66,7 +66,7 @@ export function LangGraphExplorerView({
     setDetailLoading(true)
     setDetailError(null)
     try {
-      const res = await fetch(`/api/agent-ops/langgraph/thread?threadId=${encodeURIComponent(threadId)}`)
+      const res = await fetch(`/api/agent-ops/langgraph/threads/${encodeURIComponent(threadId)}`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       setDetail(data)

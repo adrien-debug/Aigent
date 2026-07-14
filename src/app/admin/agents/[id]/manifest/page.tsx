@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 
 import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
-import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { ManifestJsonPreview } from '@/components/agent-ops/manifest-json-preview'
 import { ManifestSummaryCard } from '@/components/agent-ops/manifest-summary-card'
 import { ManifestVersionSelect } from '@/components/agent-ops/manifest-version-select'

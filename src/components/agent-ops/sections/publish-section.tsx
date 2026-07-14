@@ -1,7 +1,7 @@
 import { ArrowUpCircleIcon } from '@heroicons/react/24/outline'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
-import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { SurfaceCard } from '@/components/agent-ops/surface-card'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { GateHistoryFeed, type GateHistoryEvent } from '@/components/agent-ops/gate-history-feed'

@@ -1,6 +1,6 @@
 import { XMarkIcon } from '@heroicons/react/16/solid'
 
-import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { ChipCluster } from '@/components/agent-ops/widgets/chip-cluster'
 import { Badge } from '@/components/catalyst/badge'
 import { Divider } from '@/components/catalyst/divider'

@@ -1,5 +1,5 @@
 
-import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { SurfaceCard } from '@/components/agent-ops/surface-card'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { ReleasePathSteps } from '@/components/agent-ops/release-path-steps'

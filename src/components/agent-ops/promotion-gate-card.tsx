@@ -1,4 +1,4 @@
-import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { SplitBar } from '@/components/agent-ops/widgets/split-bar'
 import { formatTimestamp } from '@/lib/agent-mission-control/format'
 import type { CopilotVersion, PromotionCheck, PromotionGate } from '@/lib/agent-mission-control/types'

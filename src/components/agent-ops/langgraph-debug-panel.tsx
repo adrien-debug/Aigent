@@ -1,6 +1,6 @@
 'use client'
 
-import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { Link } from '@/components/catalyst/link'
 import { Text } from '@/components/catalyst/text'
 

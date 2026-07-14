@@ -1,7 +1,7 @@
 
 import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
-import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { ShadowExperimentCard } from '@/components/agent-ops/shadow-experiment-card'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { SplitBar, type SplitSegment } from '@/components/agent-ops/widgets/split-bar'

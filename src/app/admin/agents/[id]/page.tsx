@@ -3,7 +3,7 @@ import clsx from 'clsx'
 import { notFound } from 'next/navigation'
 
 import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
-import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { ArchitectureStrip } from '@/components/agent-ops/architecture-strip'
 import { CopilotProjectActions } from '@/components/agent-ops/copilot-project-actions'
 import { OnboardingSteps } from '@/components/agent-ops/onboarding-steps'
