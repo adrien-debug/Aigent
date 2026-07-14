@@ -24,14 +24,10 @@ export function AgentBentoCard({
     <div
       className={clsx(
         surfaceCardClass,
-        'group relative transition-all duration-300 hover:border-white/10 hover:shadow-[0_8px_32px_rgba(0,0,0,0.4)]',
+        'group relative transition-colors duration-200 hover:border-white/10',
         className
       )}
     >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-radial-[at_top_left] from-accent-500/[0.04] via-transparent to-transparent"
-      />
       <div className="relative p-6">
         {eyebrow ? (
           <p

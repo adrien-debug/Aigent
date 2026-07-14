@@ -244,9 +244,12 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
         )}
       </AnimatePresence>
 
-      {/* Main Content Area */}
-      <main className="flex min-w-0 flex-1 flex-col pt-16 lg:pl-[7.5rem] lg:pt-0 relative z-10">
-        <div className="grow p-6 lg:p-8 w-full">
+      {/* Main Content Area — the body is overflow:hidden (set above), so main
+          owns the scroll: it fills the viewport height and scrolls its OWN
+          content. Long pages scroll inside main; fixed-height pages (the
+          builder at 82vh) sit without pushing the whole page taller. */}
+      <main className="flex h-svh min-h-0 min-w-0 flex-1 flex-col overflow-y-auto pt-16 lg:pl-[7.5rem] lg:pt-0 relative z-10">
+        <div className="flex min-h-0 flex-1 flex-col p-6 lg:p-8 w-full">
           {children}
         </div>
       </main>

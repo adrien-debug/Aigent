@@ -4,6 +4,26 @@
    class is set on <html> in the root layout. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Screen-reader-only text must be fully clipped and pulled out of layout.
+   Without an explicit `clip`, these absolutely-positioned spans (e.g. the
+   "(low risk)" labels on every tool badge) stack down the page and inflate
+   an ancestor's scrollHeight — creating a phantom scroll behind the chat.
+   `clip-path: inset(50%)` + a zeroed clip rect guarantees zero layout impact. */
+.sr-only {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border-width: 0;
+}
+
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);

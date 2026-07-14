@@ -2,7 +2,6 @@ import { ChevronLeftIcon } from '@heroicons/react/16/solid'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
-import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
 import { ProjectAgentBuilderWorkbench } from '@/components/agent-ops/project-agent-builder-workbench'
 import { Link } from '@/components/catalyst/link'
 import { getProject } from '@/lib/agent-mission-control/data'
@@ -36,33 +35,37 @@ export default async function ProjectBuilderPage({
   if (!project) notFound()
 
   return (
-    <div className="relative">
-      <div className="relative">
-        <nav aria-label="Breadcrumb" className="mt-2 flex min-w-0 items-center gap-2 text-xs">
-          <Link
-            href={`/admin/projects/${id}`}
-            className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-950 dark:hover:text-white"
-          >
-            <ChevronLeftIcon aria-hidden="true" className="size-3.5 shrink-0" />
-            {project.name}
-          </Link>
-        </nav>
+    // Fill main's height and lay out as a column: fixed-height header rows, then
+    // the workbench takes the REST (flex-1). Nothing here exceeds the screen, so
+    // main never grows a second scrollbar behind the chat — the only scroll is
+    // inside the chat/preview panes themselves.
+    <div className="flex h-full min-h-0 flex-col">
+      {/* One compact header line — breadcrumb + title + description inline —
+          so the chat gets the vertical space, not the chrome. */}
+      <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2 text-xs">
+        <Link
+          href={`/admin/projects/${id}`}
+          className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-950 dark:hover:text-white"
+        >
+          <ChevronLeftIcon aria-hidden="true" className="size-3.5 shrink-0" />
+          {project.name}
+        </Link>
+        <span className="text-zinc-700">/</span>
+        <h1 className="text-sm font-medium text-white">Agent Builder</h1>
+        <span className="text-zinc-600">·</span>
+        <span className="truncate text-zinc-500">
+          Discuss repo-aware agent options — draft only after explicit approval.
+        </span>
+      </div>
 
-        <AgentPageHeader
-          title="Agent Builder"
-          description="Discuss repo-aware agent options with the architect — prepare a draft only after explicit approval."
-          className="mt-3"
+      <div className="mt-4 min-h-0 flex-1 rounded-2xl bg-[var(--color-surface-primary)] p-3 lg:p-4">
+        <ProjectAgentBuilderWorkbench
+          projectId={id}
+          projectName={project.name}
+          repoFullName={project.repoFullName ?? null}
+          initialScan={null}
+          seedInput={typeof seed === 'string' ? seed.slice(0, 200) : undefined}
         />
-
-        <div className="mt-6 rounded-2xl bg-[var(--color-surface-primary)] p-4 lg:mt-8 lg:p-6">
-          <ProjectAgentBuilderWorkbench
-            projectId={id}
-            projectName={project.name}
-            repoFullName={project.repoFullName ?? null}
-            initialScan={null}
-            seedInput={typeof seed === 'string' ? seed.slice(0, 200) : undefined}
-          />
-        </div>
       </div>
     </div>
   )

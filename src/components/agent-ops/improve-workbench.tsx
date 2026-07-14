@@ -492,7 +492,9 @@ export function ImproveWorkbench({
           description="Latest completed run per suite and per version — recomputed from the database, never cached on the proposal."
           contentClassName="px-6 py-4"
         >
-          <Table bleed dense>
+          {/* Parent AgentSectionCard content already has px-6 — gutter 0 (no bleed)
+              keeps header + body columns aligned to the card edge. */}
+          <Table dense className="[--gutter:--spacing(0)]">
             <TableHead>
               <TableRow>
                 <TableHeader>Suite</TableHeader>

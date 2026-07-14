@@ -499,10 +499,6 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
             className="lg:col-span-3"
             contentClassName="relative px-6 py-8 sm:px-8"
           >
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-radial-[at_top_left] from-accent-500/[0.05] dark:from-accent-500/[0.07] via-transparent to-transparent"
-            />
             <div className="relative grid gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center">
               <div>
                 <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Draft copilot</p>

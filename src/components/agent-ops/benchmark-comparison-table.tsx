@@ -36,7 +36,7 @@ function ViolationChip({
 
 /**
  * Every completed benchmark run for a suite, ranked by composite score
- * (descending). Rendered flush inside a card via Catalyst Table bleed.
+ * (descending). Rendered flush inside a card (px-6, gutter 0, no bleed).
  */
 export function BenchmarkComparisonTable({
   rows,
@@ -56,7 +56,7 @@ export function BenchmarkComparisonTable({
   const sorted = [...rows].sort((a, b) => b.result.score - a.result.score)
 
   return (
-    <Table dense bleed className="[--gutter:--spacing(6)]">
+    <Table dense className="[--gutter:--spacing(0)]">
       <TableHead>
         <TableRow>
           <TableHeader>Model</TableHeader>

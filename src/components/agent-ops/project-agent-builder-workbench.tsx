@@ -274,7 +274,7 @@ export function ProjectAgentBuilderWorkbench({
   const draftReady = Boolean(preview?.readyForApproval && !createdCopilotId && !draftBlocked)
 
   return (
-    <div className="flex h-[min(82vh,960px)] flex-col gap-4">
+    <div className="flex h-full min-h-0 flex-col gap-4">
       <ProjectRepoIntelligenceCompact
         projectId={projectId}
         repoFullName={repoFullName}
@@ -301,7 +301,7 @@ export function ProjectAgentBuilderWorkbench({
             role="log"
             aria-live="polite"
             aria-label="Builder conversation"
-            className="relative min-h-0 flex-1 overflow-y-auto bg-[var(--color-surface-secondary)]"
+            className="no-scrollbar relative min-h-0 flex-1 overflow-y-auto bg-[var(--color-surface-secondary)]"
           >
             {loading ? (
               <div className="flex items-center gap-2 p-4 text-sm text-zinc-500">

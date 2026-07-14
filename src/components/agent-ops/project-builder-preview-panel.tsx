@@ -143,7 +143,7 @@ export function ProjectBuilderPreviewPanel({
         ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4">
+      <div className="no-scrollbar min-h-0 flex-1 space-y-6 overflow-y-auto p-4">
         <div>
           <h3 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Flow</h3>
           <ol className="mt-3 flex flex-wrap gap-1.5">

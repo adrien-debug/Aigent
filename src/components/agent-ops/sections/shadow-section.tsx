@@ -118,7 +118,7 @@ export async function ShadowSection({ copilotId }: { copilotId: string }) {
             <Text>No mismatches recorded — production and candidate agreed on every sampled run.</Text>
           </div>
         ) : (
-          <Table striped bleed className="[--gutter:--spacing(6)]">
+          <Table striped className="px-6 [--gutter:--spacing(0)]">
             <TableHead>
               <TableRow>
                 <TableHeader className="w-0" title="Times in UTC">

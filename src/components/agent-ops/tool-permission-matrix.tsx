@@ -75,8 +75,10 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
   }
 
   return (
-    <div className="px-6 [--gutter:--spacing(6)]">
-      <Table striped bleed dense>
+    <div>
+      {/* Table padded to the card's px-6 gutter (no bleed) so header + body
+          columns stay aligned to the card edge. */}
+      <Table striped dense className="px-6 [--gutter:--spacing(0)]">
         {/* Accessible name must land on the <table> itself — Catalyst spreads props on its scroll wrapper. */}
         <caption className="sr-only">Tool permissions</caption>
         <TableHead>

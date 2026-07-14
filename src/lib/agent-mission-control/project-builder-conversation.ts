@@ -321,10 +321,6 @@ export async function generateArchitectTurn(args: {
       previewPatch = parsePreviewToolArgs(previewCall.function.arguments)
     }
 
-    const repoCalls = (msg.tool_calls ?? []).filter(
-      (t) => t.type === 'function' && PROJECT_BUILDER_REPO_TOOL_NAMES.has(t.function.name)
-    )
-
     // If the model already produced prose this turn, that IS its answer — return
     // it even if it also queued more repo tool calls. Waiting for a turn with
     // ZERO tool calls is what starved the loop into the fallback: gpt keeps

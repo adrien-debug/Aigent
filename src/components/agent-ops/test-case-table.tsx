@@ -82,10 +82,9 @@ export function TestCaseTable({
 
   return (
     <div className={surfaceCardClass}>
-      {/* Catalyst Table self-scrolls inside its own gutter (bleed) — the table
-          never pushes the page body. Columns are sized + truncated so the whole
-          table fits within its card at 1440px. */}
-      <Table dense bleed className="[--gutter:--spacing(6)]">
+      {/* Table padded to the card's px-6 gutter (no bleed) so header + body
+          columns stay aligned to the card edge. */}
+      <Table dense className="px-6 [--gutter:--spacing(0)]">
         <TableHead>
           <TableRow className={surfaceCardHeaderClass}>
             <TableHeader>Case</TableHeader>
