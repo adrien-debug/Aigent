@@ -77,16 +77,16 @@ function SystemTopology() {
       
       <div className="flex-1 flex flex-col justify-center gap-8 relative z-10">
         <div className="flex items-center justify-between px-5 py-4 rounded-xl bg-[var(--color-surface-interactive)] border border-white/5 shadow-lg">
-          <div className="flex items-center gap-4">
-            <div className="p-2 rounded-lg bg-white/5 ring-1 ring-white/10">
+          <div className="flex min-w-0 items-center gap-4">
+            <div className="p-2 rounded-lg bg-white/5 ring-1 ring-white/10 shrink-0">
               <ServerStackIcon className="size-5 text-zinc-300" />
             </div>
-            <div className="flex flex-col">
+            <div className="flex min-w-0 flex-col">
               <span className="text-sm font-medium text-white">Agent Server</span>
-              <span className="text-xs font-mono text-zinc-500 mt-0.5">wss://graph.aigent.internal</span>
+              <span className="truncate text-xs font-mono text-zinc-500 mt-0.5">wss://graph.aigent.internal</span>
             </div>
           </div>
-          <div className="flex flex-col items-end">
+          <div className="flex shrink-0 flex-col items-end pl-4">
             <span className="text-xs font-mono text-accent-400">12ms ping</span>
           </div>
         </div>
