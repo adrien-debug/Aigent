@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 
 import { AGENT_BUILDER_SLUG } from '@/lib/agent-mission-control/agent-builder-copilot'
 import { startAgentBuilderRun } from '@/lib/agent-mission-control/agent-builder-run'
@@ -25,6 +26,31 @@ import { repoScanToContext, scanProjectRepo } from '@/lib/agent-mission-control/
 const MAX_USER_INPUT_LENGTH = 32_000
 const PROJECT_ID_RE = /^[a-z0-9-]{1,200}$/
 
+/**
+ * A client-supplied `scan` (reused from POST …/repo/scan) is UNTRUSTED: it flows
+ * into repoScanToContext (which .join/.slice/Object.keys its fields) and into the
+ * run's repoScan. Validate its shape + bound its sizes here so a malformed object
+ * can't crash the run or inject unbounded attacker text into the graph context.
+ * Mirrors RepoScanSummary; unknown extra keys are stripped.
+ */
+const strList = z.array(z.string().max(2_000)).max(200)
+const repoScanSchema = z
+  .object({
+    projectId: z.string().max(200),
+    repo: z.string().max(200),
+    branch: z.string().max(200),
+    stack: strList,
+    scripts: z.record(z.string().max(200), z.string().max(4_000)),
+    routes: strList,
+    apiRoutes: strList,
+    components: strList,
+    tests: strList,
+    designSystemSignals: strList,
+    riskNotes: strList,
+    scannedAt: z.string().max(64),
+  })
+  .strip()
+
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   if (!PROJECT_ID_RE.test(id)) {
@@ -48,6 +74,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   if (body.userInput.length > MAX_USER_INPUT_LENGTH) {
     return NextResponse.json({ error: `userInput exceeds the ${MAX_USER_INPUT_LENGTH}-character limit` }, { status: 400 })
+  }
+
+  // A provided `scan` is untrusted client input — validate its shape/bounds
+  // BEFORE it reaches repoScanToContext / the run, else a malformed object
+  // crashes the run (misreported as 502) or injects unbounded text.
+  let providedScan: z.infer<typeof repoScanSchema> | undefined
+  if (body.scan !== undefined) {
+    const parsedScan = repoScanSchema.safeParse(body.scan)
+    if (!parsedScan.success) {
+      return NextResponse.json({ error: 'invalid scan payload' }, { status: 400 })
+    }
+    providedScan = parsedScan.data
   }
 
   // Load the project (must exist + have a repo).
@@ -83,10 +121,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   let scan
   if (process.env.GITHUB_TOKEN) {
     try {
-      scan =
-        body.scan && typeof body.scan === 'object'
-          ? (body.scan as Awaited<ReturnType<typeof scanProjectRepo>>)
-          : await scanProjectRepo(project)
+      scan = providedScan ?? (await scanProjectRepo(project))
     } catch (err) {
       console.error('[agent-ops/projects/builder/run] repo scan failed', err)
       // Non-fatal: the builder can still draft without repo context, just less
