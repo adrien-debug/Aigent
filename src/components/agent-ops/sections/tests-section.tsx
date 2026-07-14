@@ -71,7 +71,7 @@ export async function TestsSection({ copilotId }: { copilotId: string }) {
 
   if (suites.length === 0) {
     return (
-      <section className="rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
+      <section className="rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
         <div className="px-6 py-12 sm:px-12">
           <div className="max-w-xl">
             <Subheading>No test suites yet</Subheading>

@@ -61,7 +61,7 @@ export async function PublishSection({ copilotId }: { copilotId: string }) {
     return (
       <div className="space-y-8">
         {releaseCandidateCard ?? (
-          <div className="rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
+          <div className="rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
             <EmptyState
               icon={ArrowUpCircleIcon}
               title="No release candidate."

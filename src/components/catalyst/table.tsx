@@ -35,15 +35,12 @@ export function Table({
 }
 
 export function TableHead({ className, ...props }: React.ComponentPropsWithoutRef<'thead'>) {
-  // Header SANS bande de fond (directive Adrien) — le voile orange brunissait
-  // sur le corps noir. L'accent est porté par une hairline orange nette sous
-  // les en-têtes ; fond transparent, unifié avec le header de carte.
   return (
     <thead
       {...props}
       className={clsx(
         className,
-        '[&_th]:border-b [&_th]:border-accent-500/60 dark:[&_th]:border-accent-400/60'
+        '[&_th]:border-b [&_th]:border-zinc-950/5 dark:[&_th]:border-white/5'
       )}
     />
   )
@@ -74,11 +71,10 @@ export function TableRow({
         {...props}
         className={clsx(
           className,
+          'transition-colors hover:bg-zinc-950/2 dark:hover:bg-white/2',
           href &&
-            'has-[[data-row-link][data-focus]]:outline-2 has-[[data-row-link][data-focus]]:-outline-offset-2 has-[[data-row-link][data-focus]]:outline-accent-500 dark:focus-within:bg-white/2.5',
-          striped && 'even:bg-zinc-950/[0.055] dark:even:bg-white/[0.055]',
-          href && striped && 'hover:bg-zinc-950/10 dark:hover:bg-white/10',
-          href && !striped && 'hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5'
+            'has-[[data-row-link][data-focus]]:outline-2 has-[[data-row-link][data-focus]]:-outline-offset-2 has-[[data-row-link][data-focus]]:outline-accent-500 dark:focus-within:bg-white/2',
+          striped && 'even:bg-zinc-950/2 dark:even:bg-white/2'
         )}
       />
     </TableRowContext.Provider>
@@ -93,9 +89,7 @@ export function TableHeader({ className, ...props }: React.ComponentPropsWithout
       {...props}
       className={clsx(
         className,
-        // En-tête de colonne en BLANC/neutre (directive Adrien 2026-07-11) — le
-        // thead porte le fond orange, le libellé de colonne reste neutre.
-        'border-b border-b-zinc-950/10 px-4 py-2 font-medium text-zinc-950 first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2)) dark:border-b-white/10 dark:text-white',
+        'px-4 py-3 text-[10px] font-semibold uppercase tracking-widest text-accent-600 first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2)) dark:text-accent-400',
         grid && 'border-l border-l-zinc-950/5 first:border-l-0 dark:border-l-white/5',
         !bleed && 'sm:first:pl-1 sm:last:pr-1'
       )}
@@ -117,7 +111,7 @@ export function TableCell({ className, children, ...props }: React.ComponentProp
         'relative px-4 first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2))',
         !striped && 'border-b border-zinc-950/5 dark:border-white/5',
         grid && 'border-l border-l-zinc-950/5 first:border-l-0 dark:border-l-white/5',
-        dense ? 'py-2.5' : 'py-4',
+        dense ? 'py-3' : 'py-4',
         !bleed && 'sm:first:pl-1 sm:last:pr-1'
       )}
     >

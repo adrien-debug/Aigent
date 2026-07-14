@@ -1,6 +1,7 @@
 'use client'
 
-import { EllipsisVerticalIcon, FolderIcon, MagnifyingGlassIcon } from '@heroicons/react/16/solid'
+import clsx from 'clsx'
+import { EllipsisVerticalIcon, FolderIcon, MagnifyingGlassIcon, ArrowRightIcon, CheckCircleIcon, ExclamationTriangleIcon, PauseCircleIcon, DocumentTextIcon, ArchiveBoxIcon } from '@heroicons/react/16/solid'
 import { type ReactNode, useMemo, useState } from 'react'
 
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
@@ -26,26 +27,34 @@ const STATUS_OPTIONS = Object.keys(COPILOT_STATUS_LABELS) as CopilotStatus[]
 
 // Mono-accent ladder only (see badge.tsx) — 'active' is the one state that
 // earns the solid accent, everything else stays on the zinc/soft rungs.
-const STATUS_BADGE_COLOR: Record<CopilotStatus, 'accentSolid' | 'accentStrong' | 'zinc'> = {
-  active: 'accentSolid',
-  degraded: 'accentStrong',
-  draft: 'zinc',
-  paused: 'zinc',
-  archived: 'zinc',
+const STATUS_ICONS: Record<CopilotStatus, React.ElementType> = {
+  active: CheckCircleIcon,
+  degraded: ExclamationTriangleIcon,
+  paused: PauseCircleIcon,
+  draft: DocumentTextIcon,
+  archived: ArchiveBoxIcon,
+}
+
+const STATUS_ICON_CLASS: Record<CopilotStatus, string> = {
+  active: 'flex items-center justify-center text-accent-500 dark:text-accent-400 drop-shadow-[0_0_8px_var(--accent-glow)]',
+  degraded: 'flex items-center justify-center text-zinc-600 dark:text-zinc-400',
+  draft: 'flex items-center justify-center text-zinc-400 dark:text-zinc-600',
+  paused: 'flex items-center justify-center text-zinc-400 dark:text-zinc-600',
+  archived: 'flex items-center justify-center text-zinc-400 dark:text-zinc-600',
 }
 
 /** Card chrome shared by both variants — accent ring + glow only for 'active'. */
 function cardShellClass(status: CopilotStatus): string {
   return status === 'active'
-    ? 'ring-[var(--accent-line)] shadow-[0_0_0_1px_var(--accent-line)_inset,0_8px_24px_-12px_var(--accent-glow)] dark:shadow-[0_0_0_1px_var(--accent-line)_inset,0_8px_24px_-12px_var(--accent-glow)]'
-    : 'ring-zinc-950/10 dark:ring-white/10'
+    ? 'ring-1 ring-(--accent-line) shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_20px_-5px_var(--accent-glow)] dark:ring-(--accent-line) dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_20px_-5px_var(--accent-glow)]'
+    : ''
 }
 
 // Card shell — a COMPACT list card (4-up grid): a small avatar + name + status
 // on one row, the project pill, one condensed metric line, then the action bar.
 // No banner, no description — the detail lives on the agent's own page.
 const CARD_SHELL =
-  'col-span-1 flex h-full flex-col gap-3 rounded-2xl bg-white p-5 ring-1 transition-shadow duration-150 hover:shadow-lg dark:bg-zinc-950'
+  'group relative col-span-1 flex h-[190px] flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition-all duration-300 hover:shadow-lg hover:ring-zinc-950/10 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] dark:hover:ring-white/10 dark:hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.02),0_10px_40px_-10px_rgba(0,0,0,0.3)]'
 
 /**
  * Compact card body: avatar + name + status on one line, project pill, a single
@@ -66,63 +75,109 @@ function CopilotCardBody({
 }) {
   const tested = copilot.health.testPassRate > 0
   const benched = copilot.health.benchmarkScore > 0
-  const dim = 'text-zinc-400 dark:text-zinc-600'
-  const lit = 'text-zinc-700 dark:text-zinc-200'
+  const runs = copilot.health.runsLast24h
+  
+  // Custom abstract visual representation per copilot ID
+  const seed = parseInt(copilot.id.replace(/\D/g, '').slice(0, 8) || '1')
+  const variant = seed % 3
+  const isHealthy = copilot.status === 'active'
+  
   return (
-    <>
-      {/* Identity row — avatar, name, status badge. */}
-      <div className="flex items-center gap-3">
-        <CopilotAvatar copilot={copilot} className="size-10 shrink-0" />
-        <Link
-          href={href}
-          title={copilot.name}
-          className="min-w-0 flex-1 truncate text-[15px] font-semibold text-zinc-950 hover:underline dark:text-white"
-        >
-          {copilot.name}
-        </Link>
-        <Badge color={STATUS_BADGE_COLOR[copilot.status]} className="shrink-0">
-          {COPILOT_STATUS_LABELS[copilot.status]}
-        </Badge>
+    <div className="relative flex h-full flex-col p-5">
+
+        {/* Holographic background (always visible, not just hover) but constrained to top area */}
+      <div className="absolute left-0 top-0 h-[100px] w-full overflow-hidden rounded-t-2xl pointer-events-none opacity-[0.10] dark:opacity-[0.03]">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:12px_12px] [mask-image:linear-gradient(to_bottom,black_0%,transparent_100%)]" />
+        <div className={clsx(
+          "absolute -top-12 right-0 size-40 blur-3xl rounded-full mix-blend-plus-lighter",
+          variant === 0 ? "bg-accent-500/20" : variant === 1 ? "bg-cyan-500/20" : "bg-fuchsia-500/20"
+        )} />
       </div>
 
-      {/* Project pill — the one context that must stay visible. */}
-      <span
-        className={
-          'inline-flex max-w-full items-center gap-1.5 self-start rounded-md px-2 py-1 text-xs font-medium ' +
-          (contextMuted
-            ? 'bg-zinc-950/5 text-zinc-500 dark:bg-white/5 dark:text-zinc-400'
-            : 'bg-[var(--accent-surface)] text-accent-700 ring-1 ring-[var(--accent-line)] dark:text-accent-300')
-        }
-      >
-        <FolderIcon aria-hidden="true" className="size-3.5 shrink-0" />
-        <span className="truncate">{contextLabel}</span>
-      </span>
+      {/* Main Identity Deck */}
+      <div className="relative z-10 flex grow flex-col">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-4">
+            <div className="relative group/avatar">
+              <div className={clsx(
+                "absolute -inset-1 rounded-[14px] opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-700",
+                isHealthy ? "bg-accent-500/20 dark:bg-accent-400/20" : "bg-zinc-500/20"
+              )} />
+              <div className="absolute -inset-1 rounded-[14px] bg-white dark:bg-zinc-950 m-px" />
+              <CopilotAvatar copilot={copilot} className="relative z-10 size-11 shrink-0 rounded-xl ring-1 ring-zinc-900/10 dark:ring-white/10 transition-transform duration-500 group-hover/avatar:scale-105" />
+            </div>
+            <div>
+              <Link href={href} title={copilot.name} className="truncate text-base font-semibold tracking-tight text-zinc-900 before:absolute before:inset-0 dark:text-white">
+                {copilot.name}
+              </Link>
+              <div className="mt-1 flex items-center gap-1.5">
+                <div 
+                  title={COPILOT_STATUS_LABELS[copilot.status]} 
+                  className={STATUS_ICON_CLASS[copilot.status]}
+                >
+                  {(() => {
+                    const StatusIcon = STATUS_ICONS[copilot.status]
+                    return <StatusIcon className="size-3.5" />
+                  })()}
+                </div>
+                <span className="font-mono text-[10px] text-zinc-500">{copilot.slug}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="relative z-20 shrink-0">
+            <Dropdown>
+              <DropdownButton plain aria-label={`Actions for ${copilot.name}`}>
+                <EllipsisVerticalIcon className="size-5" />
+              </DropdownButton>
+              <DropdownMenu anchor="bottom end">
+                <DropdownItem href={`${href}/improve`}>Improve</DropdownItem>
+                {children}
+              </DropdownMenu>
+            </Dropdown>
+          </div>
+        </div>
 
-      {/* Metric line — tests · bench (dim when unmeasured). */}
-      <div className="flex items-center gap-x-2 font-mono text-xs tabular-nums">
-        <span className={tested ? lit : dim}>{tested ? formatPercent(copilot.health.testPassRate) : '—'} tests</span>
-        <span aria-hidden="true" className="text-zinc-300 dark:text-zinc-700">·</span>
-        <span className={benched ? lit : dim}>
-          {benched ? `${copilot.health.benchmarkScore.toFixed(1)} bench` : '— bench'}
-        </span>
+        {/* Project Target */}
+        <div className="mt-6 flex items-center gap-2">
+          <div className={clsx(
+            "flex h-6 items-center gap-1.5 rounded-full px-2.5 text-[10px] font-medium tracking-wide border",
+            contextMuted 
+              ? "border-transparent bg-zinc-100 text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400" 
+              : "border-accent-500/10 bg-accent-500/5 text-accent-700 dark:border-accent-400/10 dark:bg-accent-400/5 dark:text-accent-400"
+          )}>
+            <FolderIcon className="size-3" />
+            <span className="truncate">{contextLabel}</span>
+          </div>
+        </div>
       </div>
 
-      {/* Actions — a large, full-width Open + a menu, on a divided footer. */}
-      <div className="mt-auto flex items-stretch gap-2 border-t border-zinc-950/5 pt-4 dark:border-white/10">
-        <Button href={href} color="accent" className="grow justify-center py-2 text-sm font-semibold">
-          Open<span className="sr-only">, {copilot.name}</span>
-        </Button>
-        <Dropdown>
-          <DropdownButton outline aria-label={`More actions for ${copilot.name}`} className="shrink-0">
-            <EllipsisVerticalIcon />
-          </DropdownButton>
-          <DropdownMenu anchor="bottom end">
-            <DropdownItem href={`${href}/improve`}>Improve</DropdownItem>
-            {children}
-          </DropdownMenu>
-        </Dropdown>
+      {/* Telemetry Strip (Inset box instead of full bleed footer) */}
+      <div className="relative z-10 mt-auto grid grid-cols-3 gap-2 rounded-xl bg-zinc-50 p-3 ring-1 ring-inset ring-zinc-950/5 dark:bg-zinc-900/40 dark:ring-white/5">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[9px] font-medium uppercase tracking-widest text-zinc-400">Tests</span>
+          <span className={clsx("font-mono text-xs", tested ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400")}>
+            {tested ? formatPercent(copilot.health.testPassRate) : '—'}
+          </span>
+        </div>
+        <div className="flex flex-col gap-0.5 border-l border-zinc-950/10 pl-3 dark:border-white/10">
+          <span className="text-[9px] font-medium uppercase tracking-widest text-zinc-400">Bench</span>
+          <span className={clsx("font-mono text-xs", benched ? "text-accent-600 dark:text-accent-400" : "text-zinc-400")}>
+            {benched ? copilot.health.benchmarkScore.toFixed(1) : '—'}
+          </span>
+        </div>
+        <div className="flex flex-col gap-0.5 border-l border-zinc-950/10 pl-3 dark:border-white/10">
+          <span className="text-[9px] font-medium uppercase tracking-widest text-zinc-400">Runs</span>
+          <span className={clsx("font-mono text-xs", runs > 0 ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400")}>
+            {runs > 0 ? runs : '0'}
+          </span>
+        </div>
+        
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-accent-500 opacity-0 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-100">
+          <ArrowRightIcon className="size-4" />
+        </div>
       </div>
-    </>
+    </div>
   )
 }
 
@@ -246,6 +301,17 @@ export function CopilotRegistryTable({
   const activeRows = filtered.filter((copilot) => copilot.status !== 'paused')
   const pausedRows = filtered.filter((copilot) => copilot.status === 'paused')
 
+  // Group by project for "All" view to show them by category
+  const activeByProject = useMemo(() => {
+    const groups = new Map<string | null, Copilot[]>()
+    for (const copilot of activeRows) {
+      const pid = copilot.projectId
+      if (!groups.has(pid)) groups.set(pid, [])
+      groups.get(pid)!.push(copilot)
+    }
+    return groups
+  }, [activeRows])
+
   function resetFilters() {
     setQuery('')
     setProjectId('all')
@@ -350,15 +416,47 @@ export function CopilotRegistryTable({
 
       <div className="mt-6">
         {filtered.length > 0 ? (
-          <div className="space-y-8">
-            <ul role="list" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {activeRows.map(renderCard)}
-            </ul>
+          <div className="space-y-12">
+            {view === 'bench' ? (
+              <ul role="list" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {activeRows.map(renderCard)}
+              </ul>
+            ) : (
+              <div className="space-y-10">
+                {Array.from(activeByProject.entries())
+                  .sort(([a], [b]) => {
+                    if (a === null) return 1 // Bench at the bottom
+                    if (b === null) return -1
+                    const nameA = projectNameById.get(a) || ''
+                    const nameB = projectNameById.get(b) || ''
+                    return nameA.localeCompare(nameB)
+                  })
+                  .map(([projectId, projectCopilots]) => {
+                    const categoryName = projectId === null ? 'Validation bench' : (projectNameById.get(projectId) || projectId)
+                    return (
+                      <div key={projectId ?? 'bench'} className="space-y-4">
+                        <div className="flex items-center gap-4">
+                          <h3 className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-white">
+                            {categoryName}
+                          </h3>
+                          <div className="h-px flex-1 bg-zinc-950/5 dark:bg-white/5" />
+                        </div>
+                        <ul role="list" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                          {projectCopilots.map(renderCard)}
+                        </ul>
+                      </div>
+                    )
+                  })}
+              </div>
+            )}
 
             {pausedRows.length > 0 ? (
-              <div>
-                <h3 className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Paused</h3>
-                <ul role="list" className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="pt-4">
+                <div className="flex items-center gap-4 mb-4">
+                  <h3 className="text-sm font-semibold tracking-tight text-zinc-500">Paused Copilots</h3>
+                  <div className="h-px flex-1 bg-zinc-950/5 dark:bg-white/5" />
+                </div>
+                <ul role="list" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {pausedRows.map(renderCard)}
                 </ul>
               </div>

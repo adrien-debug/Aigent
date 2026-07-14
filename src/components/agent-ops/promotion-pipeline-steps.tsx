@@ -69,9 +69,9 @@ export function PromotionPipelineSteps({ gate }: { gate: PromotionGate }) {
   return (
     <nav
       aria-label="Promotion progress"
-      className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10"
+      className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
     >
-      <ol role="list" className="overflow-hidden rounded-xl lg:flex">
+      <ol role="list" className="overflow-hidden rounded-2xl lg:flex">
         {steps.map((step, stepIdx) => (
           <li
             key={step.id}

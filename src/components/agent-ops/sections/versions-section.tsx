@@ -60,7 +60,7 @@ export async function VersionsSection({ copilotId }: { copilotId: string }) {
   if (emptyState) {
     return (
       <div className="space-y-8">
-        <div className="rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
+        <div className="rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
           <EmptyState
             title="Nothing to compare yet"
             description="This copilot only has a single draft version. Build a track record — run its test suites and a benchmark — before comparing or promoting anything."

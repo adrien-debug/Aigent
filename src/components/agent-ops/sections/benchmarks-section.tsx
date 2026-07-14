@@ -98,7 +98,7 @@ export async function BenchmarksSection({ copilotId }: { copilotId: string }) {
           </AgentSectionCard>
 
           {rows.length === 0 ? (
-            <div className="rounded-xl bg-white px-6 py-5 ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
+            <div className="rounded-2xl bg-white px-6 py-5 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
               <Text>No completed benchmark runs for this suite yet.</Text>
             </div>
           ) : (

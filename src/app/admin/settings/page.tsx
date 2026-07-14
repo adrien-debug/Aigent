@@ -14,8 +14,8 @@ export const metadata: Metadata = {
 function Kv({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <dt className="text-xs text-zinc-500">{label}</dt>
-      <dd className="mt-1 text-sm text-zinc-950 dark:text-white">{children}</dd>
+      <dt className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">{label}</dt>
+      <dd className="mt-1.5 text-sm font-medium text-zinc-950 dark:text-white">{children}</dd>
     </div>
   )
 }
@@ -50,19 +50,19 @@ export default async function SettingsPage() {
       {/* Control plane — identity + posture, ZERO infrastructure detail. No raw
           endpoint, host, IP, env-var name or file path is rendered. */}
       <AgentSectionCard title="Control plane" description="Identity and connection posture of this control plane.">
-        <dl className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-x-8 gap-y-8 sm:grid-cols-2">
           <Kv label="Workspace">Hearst — Agent Mission Control</Kv>
           <Kv label="Operated by">Platform admin</Kv>
           <Kv label="Mode">Live-only</Kv>
           <Kv label="Backend">
             {backendConfigured ? (
-              <span className="text-sm text-zinc-950 dark:text-white">Connected · private perimeter</span>
+              <span className="text-sm font-medium text-zinc-950 dark:text-white">Connected · private perimeter</span>
             ) : (
-              <span className="text-sm text-zinc-500 dark:text-zinc-400">Not configured · fail-closed</span>
+              <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Not configured · fail-closed</span>
             )}
           </Kv>
         </dl>
-        <p className="mt-4 text-xs text-zinc-500">
+        <p className="mt-8 text-xs text-zinc-500">
           Live backend reached through a private PostgREST perimeter. Secrets stay server-side and are never
           exposed to the browser.
         </p>
@@ -70,15 +70,15 @@ export default async function SettingsPage() {
 
       {/* Runtime posture — how runs are executed, in operator terms. */}
       <AgentSectionCard title="Runtime posture" description="How copilots execute and how failures are handled.">
-        <dl className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-x-8 gap-y-8 sm:grid-cols-2">
           <Kv label="Model routing">Multi-provider</Kv>
           <Kv label="Fallbacks">Explicit · opt-in only</Kv>
           <Kv label="External traces">
-            <span className="text-zinc-500">Not configured — no external trace recorded</span>
+            <span className="font-medium text-zinc-500">Not configured — no external trace recorded</span>
           </Kv>
           <Kv label="Tool calls">No external write without confirmation</Kv>
         </dl>
-        <p className="mt-4 text-xs text-zinc-500">
+        <p className="mt-8 text-xs text-zinc-500">
           Fail-closed: with no backend the app never fabricates data — every read surfaces a retry instead.
         </p>
       </AgentSectionCard>
@@ -86,6 +86,7 @@ export default async function SettingsPage() {
       <AgentSectionCard
         title="Guardrail defaults"
         description="Baseline applied to new copilots — each copilot can override per tool."
+        contentClassName="px-6 py-6"
       >
         <SettingsGuardrails />
       </AgentSectionCard>

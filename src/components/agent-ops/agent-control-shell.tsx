@@ -56,56 +56,63 @@ function RailItem({
       href={href}
       aria-current={current ? 'page' : undefined}
       className={clsx(
-        'group relative flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-xl px-1 text-center transition-colors',
+        'group relative flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-2xl px-1 text-center transition-all duration-300',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
         current
-          ? // active nav — accent selected surface + left heat bar + warm ring
-            'bg-[var(--accent-surface)] text-accent-700 ring-1 ring-[var(--accent-line)] dark:text-accent-300 before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-accent-500'
-          : 'text-zinc-500 hover:bg-[var(--accent-soft)] hover:text-accent-600 dark:hover:text-accent-300'
+          ? 'bg-zinc-950/5 text-zinc-900 dark:bg-white/10 dark:text-white'
+          : 'text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-white'
       )}
     >
-      <Icon aria-hidden="true" className="size-5 shrink-0" />
-      {/* Label réduit + contraint à la largeur du bouton (ne dépasse plus).
-          text-xs = plus petite taille de l'échelle typo du repo (pas de
-          text-[10px] hors échelle) ; leading-tight compense pour rester compact. */}
-      <span className="w-full truncate text-center text-xs font-medium leading-tight">{label}</span>
+      {current && (
+        <span className="absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-(--accent-line-strong)" />
+      )}
+      <Icon aria-hidden="true" className={clsx("size-5 shrink-0 transition-transform duration-300", current ? "scale-110 text-(--accent-line-strong)" : "group-hover:scale-110")} />
+      <span className="w-full text-[9px] font-semibold uppercase tracking-wider opacity-80">{label}</span>
     </Link>
   )
 }
+
+import { CommandPalette } from '@/components/agent-ops/command-palette'
 
 export function AgentControlShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   return (
     <div className="relative isolate flex min-h-svh w-full flex-col bg-zinc-100 dark:bg-zinc-900">
+      <CommandPalette />
+      {/* Matte Grain Overlay — adds physical texture to the background */}
+      <div 
+        className="pointer-events-none fixed inset-0 z-50 opacity-[0.03] mix-blend-overlay"
+        style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.65\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")' }}
+      />
       {/* Narrow rail — fixed, desktop. Icon-over-label square buttons. */}
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-20 flex-col items-center border-r border-zinc-950/5 bg-white py-4 lg:flex dark:border-white/10 dark:bg-zinc-950">
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-24 flex-col items-center border-r border-zinc-950/5 bg-white py-6 lg:flex dark:border-white/10 dark:bg-zinc-950">
         {/* Brand mark */}
         <Link
           href="/admin"
           aria-label="Agent Mission Control"
-          className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-surface)] ring-1 ring-[var(--accent-line)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+          className="flex size-10 shrink-0 items-center justify-center rounded-xl transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
         >
-          <LogoMark className="size-5 text-accent-500 dark:text-accent-400" />
+          <LogoMark className="size-6 text-accent-500 dark:text-accent-400" />
         </Link>
 
         {/* Nav — square icon+label buttons, centrés sur l'axe vertical du rail
             (directive Adrien) : flex-1 prend toute la hauteur entre le logo et
             l'avatar, justify-center groupe les boutons au centre. */}
-        <nav className="mt-6 flex w-full flex-1 flex-col justify-center gap-2 px-2">
+        <nav className="mt-8 flex w-full flex-1 flex-col justify-center gap-3 px-2">
           {NAV_ITEMS.map(({ label, icon, href, match }) => (
             <RailItem key={label} label={label} icon={icon} href={href} current={match(pathname)} />
           ))}
         </nav>
 
         {/* User avatar + discreet sign-out, pinned to the bottom */}
-        <div className="mt-auto flex flex-col items-center gap-3 pt-4">
-          <Avatar initials="AD" alt="Adrien — Platform Admin" className="size-9 bg-zinc-800 text-white" />
+        <div className="mt-auto flex flex-col items-center gap-4 pt-6">
+          <Avatar initials="AD" alt="Adrien — Platform Admin" className="size-9 bg-zinc-100 text-zinc-900 ring-1 ring-zinc-900/5 dark:bg-zinc-800 dark:text-white dark:ring-white/10" />
           <a
             href="/logout"
             aria-label="Sign out"
             title="Sign out"
-            className="flex size-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-[var(--accent-soft)] hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:hover:text-accent-300"
+            className="flex size-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-zinc-500 dark:hover:text-zinc-100"
           >
             <ArrowRightStartOnRectangleIcon aria-hidden="true" className="size-5" />
           </a>
@@ -113,21 +120,21 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Mobile top bar — brand + inline nav (rail collapses on small screens) */}
-      <header className="flex items-center gap-2 border-b border-zinc-950/5 bg-white px-4 py-2 lg:hidden dark:border-white/10 dark:bg-zinc-950">
-        <Link href="/admin" aria-label="Agent Mission Control" className="flex size-8 items-center justify-center rounded-lg bg-zinc-950/5 dark:bg-white/5">
-          <LogoMark className="size-4 text-accent-500 dark:text-accent-400" />
+      <header className="flex items-center gap-3 border-b border-zinc-950/5 bg-white px-4 py-3 lg:hidden dark:border-white/10 dark:bg-zinc-950">
+        <Link href="/admin" aria-label="Agent Mission Control" className="flex size-8 items-center justify-center rounded-lg">
+          <LogoMark className="size-5 text-accent-500 dark:text-accent-400" />
         </Link>
-        <nav className="no-scrollbar flex min-w-0 items-center gap-1 overflow-x-auto">
+        <nav className="no-scrollbar flex min-w-0 items-center gap-2 overflow-x-auto">
           {NAV_ITEMS.map(({ label, icon: Icon, href, match }) => (
             <Link
               key={label}
               href={href}
               aria-current={match(pathname) ? 'page' : undefined}
               className={clsx(
-                'flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium',
+                'flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
                 match(pathname)
-                  ? 'bg-[var(--accent-surface)] text-accent-700 ring-1 ring-[var(--accent-line)] dark:text-accent-300'
-                  : 'text-zinc-500 hover:bg-[var(--accent-soft)] hover:text-accent-600 dark:hover:text-accent-300'
+                  ? 'bg-(--accent-surface) text-accent-700 ring-1 ring-inset ring-(--accent-line) dark:text-accent-300'
+                  : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'
               )}
             >
               <Icon aria-hidden="true" className="size-4" />
@@ -138,8 +145,8 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* Content — offset by the rail width on desktop. */}
-      <main className="flex min-w-0 flex-1 flex-col lg:pl-20">
-        <div className="grow bg-zinc-100 p-4 lg:p-6 dark:bg-zinc-900">{children}</div>
+      <main className="flex min-w-0 flex-1 flex-col lg:pl-24">
+        <div className="grow bg-zinc-50 p-4 lg:p-8 dark:bg-zinc-950 dark:bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(255,255,255,0.03),rgba(255,255,255,0))]">{children}</div>
       </main>
     </div>
   )

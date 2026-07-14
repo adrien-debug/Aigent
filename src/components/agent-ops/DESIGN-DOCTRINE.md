@@ -42,7 +42,7 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
 - Pas de glassmorphism, pas d'ombres lourdes, pas de néon.
 
 ## Couleur — MONOCHROME accent (une seule teinte, la couleur n'est JAMAIS le seul indicateur : toujours un label)
-- **UNE seule teinte chromatique** : `accent` = **orange néon** (`#ff6a00` = 500), échelle
+- **UNE seule teinte chromatique** : `accent` = **indigo premium** (`#6366f1` = 500), échelle
   `accent-50…950` pleinement saturée, enregistrée dans `globals.css` (`@theme`) — signature
   « operator console » du mission-control sur fond zinc sombre. TOUT surface de couleur (badges,
   états, charts, meters, nav, boutons) est une **nuance de cette teinte**. `zinc` est le SEUL neutre.

@@ -38,7 +38,7 @@ const SESSION_TTL_MS = 12 * 60 * 60 * 1000 // 12 hours
 // Password matches the .env.local default (hearst-agent-mc-2026) so both
 // paths log in with the same password.
 const DEV_FALLBACK_SESSION_SECRET = 'aigent-local-dev-session-secret-hearst-2026'
-const DEV_FALLBACK_ADMIN_PASSWORD = 'hearst-agent-mc-2026'
+const DEV_FALLBACK_ADMIN_PASSWORD = 'Admin'
 
 function isDev(): boolean {
   return process.env.NODE_ENV !== 'production'

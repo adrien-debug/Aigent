@@ -7,6 +7,7 @@ import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
 import { ProjectCard } from '@/components/agent-ops/project-card'
 import { SoftAccentLink } from '@/components/agent-ops/soft-accent-link'
+import { StaggerFade } from '@/components/agent-ops/stagger-fade'
 import { getCopilots, getProjects } from '@/lib/agent-mission-control/data'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { Copilot } from '@/lib/agent-mission-control/types'
@@ -66,62 +67,68 @@ export default async function ProjectsPage() {
   return (
     <div className="space-y-8">
       {/* Header uniforme sur les 5 pages /admin (directive Adrien 2026-07-11). */}
-      <AgentPageHeader
-        title="Projects"
-        description="Product surfaces with validated agents."
-        className="mt-2"
-        actions={
-          <SoftAccentLink href="/admin/projects/new">
-            <PlusIcon aria-hidden="true" className="size-4" />
-            New project
-          </SoftAccentLink>
-        }
-      />
+      <StaggerFade delay={0}>
+        <AgentPageHeader
+          title="Projects"
+          description="Product surfaces with validated agents."
+          className="mt-2"
+          actions={
+            <SoftAccentLink href="/admin/projects/new">
+              <PlusIcon aria-hidden="true" className="size-4" />
+              New project
+            </SoftAccentLink>
+          }
+        />
+      </StaggerFade>
 
-      <AgentKpiBand
-        stats={[
-          {
-            name: 'Projects',
-            value: String(projects.length),
-          },
-          {
-            name: 'Copilots',
-            value: String(validated.length),
-            hint: `${totalActive} active · validated, excl. bench`,
-          },
-          {
-            name: 'Runs 24h',
-            value: totalRuns.toLocaleString('en-US'),
-          },
-          {
-            name: 'Cost 24h',
-            value: formatUsd(totalCost),
-          },
-        ]}
-      />
+      <StaggerFade delay={1}>
+        <AgentKpiBand
+          stats={[
+            {
+              name: 'Projects',
+              value: String(projects.length),
+            },
+            {
+              name: 'Copilots',
+              value: String(validated.length),
+              hint: `${totalActive} active · validated, excl. bench`,
+            },
+            {
+              name: 'Runs 24h',
+              value: totalRuns.toLocaleString('en-US'),
+            },
+            {
+              name: 'Cost 24h',
+              value: formatUsd(totalCost),
+            },
+          ]}
+        />
+      </StaggerFade>
 
-      {projects.length > 0 ? (
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6">
-          {projects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              rollup={rollups.get(project.id) ?? EMPTY_ROLLUP}
-              href={`/admin/projects/${project.id}`}
-            />
-          ))}
-        </div>
-      ) : (
-        <AgentSectionCard title="Projects">
-          <div className="flex flex-col items-center gap-2 py-12 text-center">
-            <FolderIcon aria-hidden="true" className="size-8 text-zinc-400 dark:text-zinc-600" />
-            <p className="text-sm font-medium text-zinc-950 dark:text-white">No projects yet</p>
-            <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
-              Projects appear here as soon as a copilot is registered against a product surface.
-            </p>
+      <StaggerFade delay={2}>
+        {projects.length > 0 ? (
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6">
+            {projects.map((project) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                rollup={rollups.get(project.id) ?? EMPTY_ROLLUP}
+                href={`/admin/projects/${project.id}`}
+              />
+            ))}
           </div>
-        </AgentSectionCard>
-      )}
+        ) : (
+          <AgentSectionCard title="Projects">
+            <div className="flex flex-col items-center gap-2 py-12 text-center">
+              <FolderIcon aria-hidden="true" className="size-8 text-zinc-400 dark:text-zinc-600" />
+              <p className="text-sm font-medium text-zinc-950 dark:text-white">No projects yet</p>
+              <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
+                Projects appear here as soon as a copilot is registered against a product surface.
+              </p>
+            </div>
+          </AgentSectionCard>
+        )}
+      </StaggerFade>
     </div>
   )
 }

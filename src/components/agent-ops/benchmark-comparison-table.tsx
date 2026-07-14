@@ -56,7 +56,7 @@ export function BenchmarkComparisonTable({
   const sorted = [...rows].sort((a, b) => b.result.score - a.result.score)
 
   return (
-    <Table striped dense bleed className="[--gutter:--spacing(6)]">
+    <Table dense bleed className="[--gutter:--spacing(6)]">
       <TableHead>
         <TableRow>
           <TableHeader>Model</TableHeader>

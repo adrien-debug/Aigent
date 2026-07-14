@@ -1,4 +1,5 @@
 import clsx from 'clsx'
+import { AnimatedNumber } from '@/components/agent-ops/animated-number'
 
 export interface AgentKpiStat {
   name: string
@@ -25,7 +26,7 @@ export interface AgentKpiStat {
 const COLS_CLASS: Record<number, string> = {
   3: 'lg:grid-cols-3',
   4: 'lg:grid-cols-4',
-  5: 'lg:grid-cols-5',
+  5: 'lg:grid-cols-3 xl:grid-cols-5',
 }
 
 export function AgentKpiBand({ stats, className }: { stats: AgentKpiStat[]; className?: string }) {
@@ -37,9 +38,11 @@ export function AgentKpiBand({ stats, className }: { stats: AgentKpiStat[]; clas
   const hasHint = stats.some((stat) => stat.hint)
 
   return (
-    <dl
+    <div
       className={clsx(
-        '-mx-4 grid grid-cols-1 gap-px bg-zinc-950/10 sm:grid-cols-2 lg:-mx-6 dark:bg-white/10',
+        // Very subtle hairlines (white/5 equivalent). We keep gap-px instead of divide-x
+        // because this grid wraps (2 cols on tablet) and divide-x fails on wrapped rows.
+        '-mx-4 grid grid-cols-1 gap-px bg-zinc-950/5 sm:grid-cols-2 lg:-mx-8 dark:bg-white/[0.02]',
         COLS_CLASS[stats.length] ?? (stats.length >= 6 ? 'lg:grid-cols-3 xl:grid-cols-6' : 'lg:grid-cols-4'),
         className
       )}
@@ -50,16 +53,16 @@ export function AgentKpiBand({ stats, className }: { stats: AgentKpiStat[]; clas
       {stats.map((stat) => (
         <div
           key={stat.name}
-          className="flex flex-col items-center gap-y-1 bg-white px-4 py-5 text-center sm:px-6 xl:px-8 dark:bg-zinc-950"
+          className="flex flex-col items-start gap-y-2 bg-white px-6 py-6 sm:px-8 xl:px-10 dark:bg-zinc-950 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
         >
-          <dt className="text-sm/6 font-medium text-zinc-500 dark:text-zinc-400">{stat.name}</dt>
+          <dt className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">{stat.name}</dt>
           {hasChange ? (
             <dd
               className={clsx(
-                'h-4 text-xs font-medium',
+                'h-4 text-xs font-medium tracking-tight tabular-nums',
                 stat.changeType === 'negative'
                   ? 'text-accent-600 dark:text-accent-400'
-                  : 'text-zinc-600 dark:text-zinc-300'
+                  : 'text-zinc-600 dark:text-zinc-400'
               )}
             >
               {stat.change ?? ' '}
@@ -67,13 +70,13 @@ export function AgentKpiBand({ stats, className }: { stats: AgentKpiStat[]; clas
           ) : null}
           {/* Valeur KPI en accent orange (directive Adrien 2026-07-11) — le chiffre
               est le point focal coloré de la bande ; label et hint restent gris. */}
-          <dd className="font-mono text-2xl/8 font-semibold text-accent-700 tabular-nums dark:text-accent-400">
-            {stat.value}
+          <dd className="text-3xl font-semibold tracking-tighter tabular-nums text-accent-600 dark:text-accent-400">
+            <AnimatedNumber value={stat.value} />
           </dd>
           {hasViz ? <dd className="mt-3 w-full flex-none">{stat.viz ?? null}</dd> : null}
-          {hasHint ? <dd className="h-4 text-xs text-zinc-500">{stat.hint ?? ' '}</dd> : null}
+          {hasHint ? <dd className="h-4 text-[11px] tracking-tight text-zinc-500">{stat.hint ?? ' '}</dd> : null}
         </div>
       ))}
-    </dl>
+    </div>
   )
 }

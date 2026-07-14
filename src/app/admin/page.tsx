@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
 import { AgentSectionCard } from '@/components/agent-ops/agent-section-card'
+import { StaggerFade } from '@/components/agent-ops/stagger-fade'
 import { ProjectCard } from '@/components/agent-ops/project-card'
 import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
 import { Badge } from '@/components/catalyst/badge'
@@ -59,9 +60,9 @@ function CardEmptyState({
   hint: string
 }) {
   return (
-    <div className="flex flex-col items-center gap-2 py-12 text-center">
+    <div className="flex flex-col items-center gap-3 py-16 text-center">
       <Icon aria-hidden="true" className="size-8 text-zinc-400 dark:text-zinc-600" />
-      <p className="text-sm font-medium text-zinc-950 dark:text-white">{title}</p>
+      <p className="text-sm font-semibold tracking-tight text-zinc-950 dark:text-white">{title}</p>
       <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">{hint}</p>
     </div>
   )
@@ -173,14 +174,14 @@ function FleetCard({ copilots }: { copilots: Copilot[] }) {
       actions={<ViewAllLink href="/admin/agents" srSuffix="copilots" />}
     >
       {copilots.length > 0 ? (
-        <div className="space-y-6">
-          <dl className="grid grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-3">
+        <div className="space-y-8">
+          <dl className="grid grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-3">
             {FLEET_STATUSES.map((status) => {
               const count = copilots.filter((copilot) => copilot.status === status).length
               return (
                 <div key={status}>
-                  <dt className="text-xs text-zinc-500">{statusLabel(status)}</dt>
-                  <dd className="mt-1 font-mono text-2xl font-semibold text-zinc-950 tabular-nums dark:text-white">
+                  <dt className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">{statusLabel(status)}</dt>
+                  <dd className="mt-1.5 font-mono text-2xl font-semibold tracking-tight text-zinc-950 tabular-nums dark:text-white">
                     {count}
                   </dd>
                 </div>
@@ -189,16 +190,16 @@ function FleetCard({ copilots }: { copilots: Copilot[] }) {
           </dl>
 
           {degraded.length > 0 ? (
-            <div className="border-t border-zinc-950/5 pt-4 dark:border-white/5">
-              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Degraded copilots</p>
-              <div role="list" className="mt-2 divide-y divide-zinc-950/5 dark:divide-white/5">
+            <div className="border-t border-zinc-950/5 pt-6 dark:border-white/5">
+              <p className="text-[10px] font-semibold tracking-widest text-zinc-500 uppercase">Degraded copilots</p>
+              <div role="list" className="mt-4 divide-y divide-zinc-950/5 dark:divide-white/5">
                 {degraded.map((copilot) => (
-                  <div role="listitem" key={copilot.id} className="flex items-center gap-3 py-2">
+                  <div role="listitem" key={copilot.id} className="flex items-center gap-4 py-3">
                     <div className="min-w-0 flex-1">
                       <Link
                         href={`/admin/agents/${copilot.id}`}
                         title={copilot.name}
-                        className="block truncate text-sm font-medium text-zinc-950 hover:underline dark:text-white"
+                        className="block truncate text-sm font-medium tracking-tight text-zinc-950 hover:underline dark:text-white"
                       >
                         {copilot.name}
                       </Link>
@@ -219,7 +220,7 @@ function FleetCard({ copilots }: { copilots: Copilot[] }) {
               </div>
             </div>
           ) : (
-            <p className="border-t border-zinc-950/5 pt-4 text-sm text-zinc-500 dark:border-white/5 dark:text-zinc-400">
+            <p className="border-t border-zinc-950/5 pt-6 text-sm text-zinc-500 dark:border-white/5 dark:text-zinc-400">
               No degraded copilots — the whole fleet is serving normally.
             </p>
           )}
@@ -331,16 +332,16 @@ function AttentionCard({ copilots }: { copilots: Copilot[] }) {
       {flagged.length > 0 ? (
         <div role="list" className="divide-y divide-zinc-950/5 dark:divide-white/5">
           {flagged.map((copilot) => (
-            <div role="listitem" key={copilot.id} className="flex items-center gap-4 py-3">
+            <div role="listitem" key={copilot.id} className="flex items-center gap-4 py-4">
               <div className="min-w-0 flex-1">
                 <Link
                   href={`/admin/agents/${copilot.id}`}
                   title={copilot.name}
-                  className="block truncate text-sm font-medium text-zinc-950 hover:underline dark:text-white"
+                  className="block truncate text-sm font-medium tracking-tight text-zinc-950 hover:underline dark:text-white"
                 >
                   {copilot.name}
                 </Link>
-                <div className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
+                <div className="mt-0.5 truncate text-[11px] font-medium uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
                   {statusLabel(copilot.status)}
                 </div>
               </div>
@@ -353,7 +354,7 @@ function AttentionCard({ copilots }: { copilots: Copilot[] }) {
               </Badge>
               <Link
                 href={`/admin/agents/${copilot.id}`}
-                className="shrink-0 text-xs font-medium text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
+                className="shrink-0 text-xs font-semibold text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
               >
                 Investigate
                 <span className="sr-only"> {copilot.name} warnings</span>
@@ -389,44 +390,56 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8">
       {/* Header uniforme sur les 5 pages /admin (directive Adrien 2026-07-11). */}
-      <AgentPageHeader title="Dashboard" description="Fleet health across every copilot and project." className="mt-2" />
+      <StaggerFade delay={0}>
+        <AgentPageHeader title="Dashboard" description="Fleet health across every copilot and project." className="mt-2" />
+      </StaggerFade>
 
       {/* KPI : chiffres nus, aucun graphique (directive Adrien 2026-07-11). */}
-      <AgentKpiBand
-        stats={[
-          {
-            name: 'Active copilots',
-            value: String(kpis.activeCopilots),
-            hint: `of ${kpis.totalCopilots}`,
-          },
-          {
-            name: 'Runs 24h',
-            value: kpis.runsLast24h.toLocaleString('en-US'),
-            hint: 'across the fleet',
-          },
-          {
-            name: 'Cost 24h',
-            value: kpis.runsLast24h > 0 ? formatUsd(kpis.totalCostLast24hUsd) : '—',
-            hint: kpis.runsLast24h > 0 ? 'run spend' : 'No runs in the last 24 hours',
-          },
-          {
-            name: 'Warnings',
-            value: String(kpis.openWarnings),
-            hint: `${kpis.openWarnings} open warning${kpis.openWarnings === 1 ? '' : 's'}`,
-          },
-        ]}
-      />
+      <StaggerFade delay={1}>
+        <AgentKpiBand
+          stats={[
+            {
+              name: 'Active copilots',
+              value: String(kpis.activeCopilots),
+              hint: `of ${kpis.totalCopilots}`,
+            },
+            {
+              name: 'Runs 24h',
+              value: kpis.runsLast24h.toLocaleString('en-US'),
+              hint: 'across the fleet',
+            },
+            {
+              name: 'Cost 24h',
+              value: kpis.runsLast24h > 0 ? formatUsd(kpis.totalCostLast24hUsd) : '—',
+              hint: kpis.runsLast24h > 0 ? 'run spend' : 'No runs in the last 24 hours',
+            },
+            {
+              name: 'Warnings',
+              value: String(kpis.openWarnings),
+              hint: `${kpis.openWarnings} open warning${kpis.openWarnings === 1 ? '' : 's'}`,
+            },
+          ]}
+        />
+      </StaggerFade>
 
-      <ProjectsCard projects={projects} rollups={rollups} />
+      <StaggerFade delay={2}>
+        <ProjectsCard projects={projects} rollups={rollups} />
+      </StaggerFade>
 
       {/* Listes sobres, densités comparables — zéro meter, zéro gauge. */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <FleetCard copilots={copilots} />
-        <AttentionCard copilots={copilots} />
+        <StaggerFade delay={3}>
+          <FleetCard copilots={copilots} />
+        </StaggerFade>
+        <StaggerFade delay={4}>
+          <AttentionCard copilots={copilots} />
+        </StaggerFade>
       </div>
 
       {/* Un seul visuel dominant : Run activity en pleine largeur, en bas. */}
-      <RunActivityCard runs={runs} copilotNameById={copilotNameById} />
+      <StaggerFade delay={5}>
+        <RunActivityCard runs={runs} copilotNameById={copilotNameById} />
+      </StaggerFade>
     </div>
   )
 }

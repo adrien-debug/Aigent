@@ -67,18 +67,24 @@ export function BenchmarkScoreCard({
   return (
     <article
       className={clsx(
-        'rounded-xl bg-white p-6 dark:bg-zinc-950',
-        // Winner card: accent selection ring (--accent-line-strong) + a subtle
-        // elevation halo (--accent-glow) — the sanctioned use of these two
-        // role tokens (selection affordance + elevation), never a second hue.
-        isBest
-          ? 'ring-2 ring-[var(--accent-line-strong)] shadow-[0_0_0_1px_var(--accent-line),0_8px_28px_-12px_var(--accent-glow)]'
-          : 'ring-1 ring-zinc-950/5 dark:ring-white/10'
+        'group relative overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]',
+        isBest ? 'shadow-[0_8px_28px_-12px_var(--accent-glow)]' : ''
       )}
     >
+      {/* Conic glowing border for winner */}
+      {isBest && (
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-[-100%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0_340deg,var(--accent-line-strong)_360deg)] opacity-40 dark:opacity-60" />
+        </div>
+      )}
+      
+      {/* Background to mask the inner part of the conic gradient, leaving only the border */}
+      <div className={clsx("relative z-10 h-full w-full rounded-2xl bg-white p-6 dark:bg-zinc-950", isBest ? "m-px h-[calc(100%-2px)] w-[calc(100%-2px)]" : "")}>
+      
+      <MouseSpotlight />
       {/* Identity row — model + provider left, winner slot (fixed height so twin
           cards align) + runtime right. */}
-      <div className="flex items-start justify-between gap-x-4">
+      <div className="relative z-20 flex items-start justify-between gap-x-4">
         <div className="min-w-0">
           <Subheading level={3} tone="neutral" className="truncate font-mono">
             {run.model}
@@ -96,7 +102,7 @@ export function BenchmarkScoreCard({
       </div>
 
       {/* Score gauge + metric grid. */}
-      <div className="mt-6 flex items-center gap-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
+      <div className="relative z-20 mt-6 flex items-center gap-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
         <div className="shrink-0">
           <RadialMeter
             value={result.score}
@@ -124,11 +130,12 @@ export function BenchmarkScoreCard({
       </div>
 
       {/* Safety footer — inline violation chips, no padded band. */}
-      <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-zinc-950/5 pt-4 dark:border-white/5">
+      <div className="relative z-20 mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-zinc-950/5 pt-4 dark:border-white/5">
         <span className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Safety</span>
         <ViolationChip count={result.unsafeActionCount} label="unsafe" title="unsafe actions" />
         <ViolationChip count={result.unauthorizedRouteCount} label="routes" title="unauthorized routes" />
         <ViolationChip count={result.confirmationMistakeCount} label="confirm" title="confirmation mistakes" />
+      </div>
       </div>
     </article>
   )

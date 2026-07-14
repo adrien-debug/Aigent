@@ -275,11 +275,11 @@ export function ProjectAgentBuilderWorkbench({
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)] xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
         <section
           aria-label="Agent Builder architect chat"
-          className="flex min-h-[420px] min-w-0 flex-col rounded-xl ring-1 ring-zinc-950/5 dark:ring-white/10 lg:min-h-[560px]"
+          className="flex min-h-[420px] min-w-0 flex-col rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] lg:min-h-[560px]"
         >
-          <div className="border-b border-zinc-950/5 px-4 py-3 dark:border-white/10">
-            <p className="text-sm font-medium text-zinc-950 dark:text-white">Architect chat</p>
-            <p className="mt-0.5 text-xs text-zinc-500">
+          <div className="border-b border-zinc-950/5 px-4 py-3 dark:border-white/5 bg-zinc-50/50 dark:bg-white/[0.01]">
+            <h2 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Architect chat</h2>
+            <p className="mt-1 text-xs text-zinc-500">
               Persistent thread — discuss the repo, compare options, create draft only after explicit approval.
             </p>
           </div>
@@ -288,15 +288,15 @@ export function ProjectAgentBuilderWorkbench({
             role="log"
             aria-live="polite"
             aria-label="Builder conversation"
-            className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4"
+            className="min-h-0 flex-1 overflow-y-auto"
           >
             {loading ? (
-              <div className="flex items-center gap-2 text-sm text-zinc-500">
+              <div className="flex items-center gap-2 p-4 text-sm text-zinc-500">
                 <Spinner className="size-4" />
                 Loading conversation…
               </div>
             ) : chatMessages.length === 0 ? (
-              <div className="space-y-3 text-sm text-zinc-500 dark:text-zinc-400">
+              <div className="space-y-3 p-4 text-sm text-zinc-500 dark:text-zinc-400">
                 <p>
                   Ask about the repo, request agent ideas, compare options, or say{' '}
                   <span className="font-medium text-zinc-700 dark:text-zinc-300">“prepare the draft”</span> when ready.
@@ -306,31 +306,55 @@ export function ProjectAgentBuilderWorkbench({
                 </p>
               </div>
             ) : (
-              chatMessages.map((message) => (
-                <div
-                  key={message.id}
-                  className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}
-                >
+              <div className="divide-y divide-zinc-950/5 dark:divide-white/5">
+                {chatMessages.map((message) => (
                   <div
-                    className={
-                      message.role === 'user'
-                        ? 'max-w-[92%] rounded-2xl rounded-br-sm bg-accent-600 px-4 py-2.5 text-sm text-white sm:max-w-[85%]'
-                        : 'max-w-[92%] rounded-2xl rounded-bl-sm bg-zinc-100 px-4 py-2.5 text-sm text-zinc-800 dark:bg-white/5 dark:text-zinc-200 sm:max-w-[85%]'
-                    }
+                    key={message.id}
+                    className="group relative flex gap-4 px-4 py-5 hover:bg-zinc-50/50 dark:hover:bg-white/[0.01]"
                   >
-                    <p className="whitespace-pre-wrap">{message.content}</p>
+                    <div className="flex-none pt-0.5">
+                      {message.role === 'user' ? (
+                        <div className="flex size-6 items-center justify-center rounded-md bg-(--accent-soft) text-[10px] font-medium text-accent-700 ring-1 ring-(--accent-line) dark:text-accent-300">
+                          U
+                        </div>
+                      ) : (
+                        <div className="flex size-6 items-center justify-center rounded-md bg-zinc-100 text-[10px] font-medium text-zinc-600 ring-1 ring-zinc-950/10 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-white/10">
+                          A
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex items-center gap-2">
+                        <span className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
+                          {message.role === 'user' ? 'You' : 'Architect'}
+                        </span>
+                      </div>
+                      <div className="text-sm text-zinc-700 dark:text-zinc-300">
+                        <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
 
             {running ? (
-              <div className="flex justify-start">
-                <div className="rounded-2xl rounded-bl-sm bg-zinc-100 px-4 py-2.5 text-sm text-zinc-500 dark:bg-white/5">
-                  <span className="inline-flex items-center gap-2">
-                    <Spinner className="size-4" />
-                    Architect is thinking…
-                  </span>
+              <div className="border-t border-zinc-950/5 dark:border-white/5">
+                <div className="flex gap-4 px-4 py-5">
+                  <div className="flex-none pt-0.5">
+                    <div className="flex size-6 items-center justify-center rounded-md bg-zinc-100 text-[10px] font-medium text-zinc-600 ring-1 ring-zinc-950/10 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-white/10">
+                      A
+                    </div>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex items-center gap-2">
+                      <span className="text-xs font-medium text-zinc-900 dark:text-zinc-100">Architect</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-zinc-500">
+                      <Spinner className="size-4" />
+                      Thinking…
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : null}
@@ -338,7 +362,7 @@ export function ProjectAgentBuilderWorkbench({
             <div ref={chatEndRef} />
           </div>
 
-          <div className="border-t border-zinc-950/5 p-4 dark:border-white/10">
+          <div className="border-t border-zinc-950/5 p-4 dark:border-white/5 bg-zinc-50/50 dark:bg-white/[0.01]">
             <Textarea
               ref={inputRef}
               name="project-builder-chat"
@@ -350,18 +374,20 @@ export function ProjectAgentBuilderWorkbench({
               disabled={loading || running || deciding || draftBlocked}
               aria-label="Message to Agent Builder"
             />
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <Button
-                color="accent"
-                onClick={() => void handleSend()}
-                disabled={loading || running || deciding || draftBlocked || input.trim().length === 0}
-              >
-                {running ? 'Sending…' : 'Send'}
-              </Button>
-              <Button plain onClick={() => setInput(EXAMPLE)} disabled={running || draftBlocked}>
-                Example prompt
-              </Button>
-              <Text className="!mt-0 !text-xs">Enter to send · Shift+Enter for newline · Suggestions in the repo strip above</Text>
+            <div className="mt-3 flex items-center justify-between">
+              <Text className="mt-0! text-xs! text-zinc-500">Enter to send · Shift+Enter for newline</Text>
+              <div className="flex items-center gap-2">
+                <Button plain onClick={() => setInput(EXAMPLE)} disabled={running || draftBlocked}>
+                  Example
+                </Button>
+                <Button
+                  color="accent"
+                  onClick={() => void handleSend()}
+                  disabled={loading || running || deciding || draftBlocked || input.trim().length === 0}
+                >
+                  {running ? 'Sending…' : 'Send'}
+                </Button>
+              </div>
             </div>
             {error ? (
               <div className="mt-3">

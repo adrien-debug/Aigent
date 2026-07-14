@@ -24,7 +24,7 @@ export function ReleasePathSteps({ candidateStage }: { candidateStage: ReleaseSt
   return (
     <nav
       aria-label="Release progress"
-      className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10"
+      className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
     >
       <ol role="list" className="divide-y divide-zinc-950/5 md:flex md:divide-y-0 dark:divide-white/5">
         {STEPS.map((step, stepIdx) => {

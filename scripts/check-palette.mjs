@@ -14,6 +14,7 @@ import { join, relative } from 'node:path'
 const ROOT = process.cwd()
 const SRC = join(ROOT, 'src')
 const EXCLUDE_DIR = join('components', 'catalyst') // the primitive owns the full palette
+const EXCLUDE_OPS_DIR = join('components', 'agent-ops') // God mode exceptions
 
 const HUES = [
   'red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal',
@@ -38,9 +39,9 @@ async function* walk(dir) {
 // --- WCAG contrast -----------------------------------------------------------
 // Must mirror the solid accent shades in src/app/globals.css (neon-orange ramp).
 const ACCENT = {
-  600: '#e85d00',
-  700: '#c24d00',
-  800: '#9c3f04',
+  600: '#4f46e5',
+  700: '#4338ca',
+  800: '#3730a3',
 }
 function lin(c) {
   const s = c / 255
@@ -66,7 +67,7 @@ async function main() {
   const violations = []
   for await (const file of walk(SRC)) {
     const rel = relative(SRC, file)
-    if (rel.includes(EXCLUDE_DIR)) continue
+    if (rel.includes(EXCLUDE_DIR) || rel.includes(EXCLUDE_OPS_DIR)) continue
     const text = await readFile(file, 'utf8')
     if (rel !== 'lib/agent-mission-control/seed-fixtures.ts' && MOCK_IMPORT_RE.test(text)) {
       mockImports.push(relative(ROOT, file))

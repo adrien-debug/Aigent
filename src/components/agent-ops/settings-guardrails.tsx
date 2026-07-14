@@ -32,9 +32,9 @@ export function SettingsGuardrails() {
   return (
     <Fieldset>
       {/* Locked confirmation gate — one dense row; the checked+disabled switch encodes locked-ON. */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4 pb-6">
         <div className="min-w-0">
-          <p className="text-sm/6 font-medium text-zinc-950 dark:text-white">
+          <p className="text-sm font-semibold tracking-tight text-zinc-950 dark:text-white">
             Require confirmation for high &amp; critical risk tools
           </p>
           <p className="mt-1 text-xs text-zinc-500">Every copilot inherits this gate — it cannot be turned off.</p>
@@ -50,28 +50,29 @@ export function SettingsGuardrails() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-x-8 gap-y-6 border-t border-zinc-950/5 pt-6 dark:border-white/5 sm:grid-cols-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6">
         {/* Twin columns share ONE skeleton: label → control → meter row (bar +
             right-hand value) → caption. Rows align across the grid. */}
-        <Field>
-          <Label>Default confirmation policy</Label>
+        <Field className="rounded-2xl bg-zinc-50/50 p-6 ring-1 ring-zinc-950/5 dark:bg-white/[0.01] dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+          <Label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Default confirmation policy</Label>
           <Select
             name="default_confirmation_policy"
             value={confirmationPolicy}
             onChange={(event) => setConfirmationPolicy(event.target.value as ConfirmationPolicy)}
+            className="mt-3"
           >
             <option value="never">Never</option>
             <option value="risky-only">Risky only</option>
             <option value="always">Always</option>
           </Select>
-          <div className="mt-3">
+          <div className="mt-5">
             <PolicyStateIndicator policy={confirmationPolicy} />
-            <p className="mt-1.5 text-xs text-zinc-500">{POLICY_CAPTIONS[confirmationPolicy]}</p>
+            <p className="mt-3 text-xs text-zinc-500">{POLICY_CAPTIONS[confirmationPolicy]}</p>
           </div>
         </Field>
 
-        <Field>
-          <Label>Shadow agreement threshold (%)</Label>
+        <Field className="rounded-2xl bg-zinc-50/50 p-6 ring-1 ring-zinc-950/5 dark:bg-white/[0.01] dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+          <Label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Shadow agreement threshold (%)</Label>
           <Input
             type="number"
             name="shadow_agreement_threshold"
@@ -79,9 +80,10 @@ export function SettingsGuardrails() {
             max={100}
             value={agreementThreshold}
             onChange={(event) => setAgreementThreshold(event.target.value)}
+            className="mt-3"
           />
-          <div className="mt-3">
-            <div className="flex items-center gap-3">
+          <div className="mt-5">
+            <div className="flex items-center gap-4">
               <div className="min-w-0 flex-1">
                 <LinearMeter
                   value={Number.isFinite(thresholdNum) ? thresholdNum : 0}
@@ -94,7 +96,7 @@ export function SettingsGuardrails() {
                 {agreementThreshold}%
               </span>
             </div>
-            <p className="mt-1.5 text-xs text-zinc-500">Floor 50% — stricter promotes fewer shadow runs.</p>
+            <p className="mt-3 text-xs text-zinc-500">Floor 50% — stricter promotes fewer shadow runs.</p>
           </div>
         </Field>
       </div>

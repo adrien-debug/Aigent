@@ -162,7 +162,7 @@ export async function ReplaySection({ copilotId }: { copilotId: string }) {
       </AgentSectionCard>
 
       {comparisons.length === 0 ? (
-        <section className="rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
+        <section className="rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
           <EmptyState
             title="No replays yet"
             description="Replay a production run to compare behavior before promoting. Candidates run against the recorded transcript — never against live users."
@@ -181,7 +181,7 @@ export async function ReplaySection({ copilotId }: { copilotId: string }) {
             return (
               <section
                 key={comparison.id}
-                className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10"
+                className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
               >
                 <h3 className="sr-only">Replay of run {comparison.sourceRunId}</h3>
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-zinc-950/5 bg-zinc-950/[0.025] px-6 py-4 dark:border-white/5 dark:bg-white/[0.04]">

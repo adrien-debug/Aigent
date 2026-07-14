@@ -28,13 +28,13 @@ export function AgentPageHeader({
   return (
     <div
       className={clsx(
-        'flex flex-wrap items-start justify-between gap-x-6 gap-y-3 border-b border-zinc-950/5 pb-5 dark:border-white/10',
+        'flex flex-wrap items-end justify-between gap-x-6 gap-y-4 border-b border-zinc-950/5 pb-6 dark:border-white/5 dark:shadow-[0_1px_0_rgba(255,255,255,0.02)]',
         className
       )}
     >
       <div className="min-w-0">
-        <Heading level={1}>{title}</Heading>
-        {description ? <Text className="mt-1">{description}</Text> : null}
+        <Heading level={1} className="tracking-tight">{title}</Heading>
+        {description ? <Text className="mt-1.5 tracking-tight">{description}</Text> : null}
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-3">{actions}</div> : null}
     </div>

@@ -39,7 +39,7 @@ function initialsFor(name: string): string {
 
 export function ProjectCard({ project, rollup, href }: ProjectCardProps) {
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-xl bg-white ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/10">
+    <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:ring-zinc-950/10 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] dark:hover:ring-white/10 dark:hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.02),0_10px_40px_-10px_rgba(0,0,0,0.3)]">
       {/* Landscape photo header — real image or a zinc-only gradient fallback. */}
       <div className="relative h-28">
         {project.imageUrl ? (

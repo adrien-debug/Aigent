@@ -68,12 +68,12 @@ export function ProjectBuilderPreviewPanel({
   const showLangGraphActions = Boolean(awaitingApproval && onApprove && onReject)
 
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-xl ring-1 ring-zinc-950/5 dark:ring-white/10">
-      <div className="border-b border-zinc-950/5 px-4 py-3 dark:border-white/10">
+    <div className="flex h-full min-h-0 flex-col rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-950 dark:ring-white/5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+      <div className="border-b border-zinc-950/5 px-4 py-3 dark:border-white/5 bg-zinc-50/50 dark:bg-white/[0.01]">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Preview</p>
-            <p className="mt-0.5 text-sm font-medium text-zinc-950 dark:text-white">
+            <h2 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Preview</h2>
+            <p className="mt-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">
               {createdCopilotId ? 'Draft created' : hasSpec ? 'Spec in progress — not created yet' : 'Waiting for discussion'}
             </p>
             {conversationStatus ? <p className="mt-1 text-xs text-zinc-500">{conversationStatus}</p> : null}
@@ -133,31 +133,31 @@ export function ProjectBuilderPreviewPanel({
         {awaitingApproval && pendingTool ? (
           <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
             <ToolBadge name={pendingTool.name} risk={asToolRisk(pendingTool.risk)} />
-            <code className="line-clamp-2 max-w-full font-mono text-[10px] break-words text-zinc-500">
+            <code className="line-clamp-2 max-w-full font-mono text-[10px] wrap-break-word text-zinc-500">
               {pendingTool.argumentsSummary}
             </code>
           </div>
         ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4">
         <div>
-          <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Flow</p>
-          <ol className="mt-2 flex flex-wrap gap-1.5">
+          <h3 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Flow</h3>
+          <ol className="mt-3 flex flex-wrap gap-1.5">
             {flow.map((step, i) => (
               <li key={`${step}-${i}`} className="flex items-center gap-1.5">
                 <span
                   className={
                     'rounded-md px-2 py-0.5 font-mono text-[10px] ring-1 ' +
                     (hasSpec || createdCopilotId
-                      ? 'bg-[var(--accent-soft)] text-accent-700 ring-[var(--accent-line)] dark:text-accent-300'
-                      : 'text-zinc-500 ring-zinc-950/10 dark:ring-white/10')
+                      ? 'bg-(--accent-soft) text-accent-700 ring-(--accent-line) dark:text-accent-300'
+                      : 'text-zinc-500 ring-zinc-950/5 dark:ring-white/5')
                   }
                 >
                   {step}
                 </span>
                 {i < flow.length - 1 ? (
-                  <span aria-hidden="true" className="text-zinc-400">
+                  <span aria-hidden="true" className="text-zinc-400 dark:text-zinc-600">
                     →
                   </span>
                 ) : null}
@@ -168,8 +168,8 @@ export function ProjectBuilderPreviewPanel({
 
         {preview?.options && preview.options.length > 0 ? (
           <div>
-            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Options</p>
-            <ul className="mt-2 divide-y divide-zinc-950/5 dark:divide-white/10">
+            <h3 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Options</h3>
+            <ul className="mt-3 divide-y divide-zinc-950/5 dark:divide-white/5">
               {preview.options.map((option) => {
                 const selected = preview.selectedOptionId === option.id
                 return (
@@ -177,16 +177,16 @@ export function ProjectBuilderPreviewPanel({
                     key={option.id}
                     className={
                       'py-3 first:pt-0 last:pb-0 ' +
-                      (selected ? 'border-l-2 border-[var(--accent-line-strong)] pl-3' : '')
+                      (selected ? 'border-l-2 border-(--accent-line-strong) pl-3' : '')
                     }
                   >
-                    <p className="text-sm font-medium text-zinc-950 dark:text-white">
+                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                       {option.title}
-                      {selected ? <span className="ml-2 text-xs text-accent-600">selected</span> : null}
+                      {selected ? <span className="ml-2 text-[10px] font-medium text-accent-600 dark:text-accent-400">selected</span> : null}
                     </p>
                     <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{option.summary}</p>
                     {option.tradeoffs.length > 0 ? (
-                      <ul className="mt-2 space-y-0.5 text-[10px] text-zinc-500">
+                      <ul className="mt-2 space-y-1 text-xs text-zinc-500">
                         {option.tradeoffs.map((t) => (
                           <li key={t}>• {t}</li>
                         ))}
@@ -195,7 +195,7 @@ export function ProjectBuilderPreviewPanel({
                     {!selected && onSelectOption ? (
                       <Button
                         plain
-                        className="mt-2 !px-0"
+                        className="mt-2 px-0! text-xs!"
                         disabled={selectingOption}
                         onClick={() => onSelectOption(option.id)}
                       >
@@ -210,7 +210,7 @@ export function ProjectBuilderPreviewPanel({
         ) : null}
 
         {preview ? (
-          <dl className="space-y-2 text-sm">
+          <dl className="space-y-3 text-sm">
             <PreviewRow label="Agent name" value={preview.name} />
             <PreviewRow label="Role" value={preview.role ?? preview.description} />
             <PreviewRow label="Confirmation" value={preview.confirmationPolicy} mono />
@@ -219,13 +219,13 @@ export function ProjectBuilderPreviewPanel({
             ) : null}
           </dl>
         ) : (
-          <Text className="!text-xs">Ask the Builder about the repo — preview fills in as the conversation progresses.</Text>
+          <Text className="text-xs! text-zinc-500">Ask the Builder about the repo — preview fills in as the conversation progresses.</Text>
         )}
 
         {tools.length > 0 ? (
           <div>
-            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Tools</p>
-            <ul className="mt-2 space-y-1.5">
+            <h3 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Tools</h3>
+            <ul className="mt-3 space-y-2">
               {tools.map((t) => (
                 <li key={t.name} className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <ToolBadge name={t.name} risk={asToolRisk(t.riskLevel)} />
@@ -240,8 +240,8 @@ export function ProjectBuilderPreviewPanel({
 
         {preview?.benchmarks && preview.benchmarks.length > 0 ? (
           <div>
-            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Benchmarks</p>
-            <ul className="mt-2 space-y-1 text-xs text-zinc-700 dark:text-zinc-300">
+            <h3 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Benchmarks</h3>
+            <ul className="mt-3 space-y-1.5 text-xs text-zinc-700 dark:text-zinc-300">
               {preview.benchmarks.map((b) => (
                 <li key={b}>{b}</li>
               ))}
@@ -251,8 +251,8 @@ export function ProjectBuilderPreviewPanel({
 
         {tests.length > 0 ? (
           <div>
-            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Tests</p>
-            <ul className="mt-2 space-y-1.5 text-xs">
+            <h3 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Tests</h3>
+            <ul className="mt-3 space-y-1.5 text-xs">
               {tests.slice(0, 4).map((c, i) => (
                 <li key={i} className="text-zinc-700 dark:text-zinc-300">
                   {c.name}
@@ -265,8 +265,8 @@ export function ProjectBuilderPreviewPanel({
 
         {preview?.riskPolicy || preview?.approvalPolicy ? (
           <div>
-            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Policies</p>
-            <ul className="mt-2 space-y-1 text-xs text-zinc-600 dark:text-zinc-400">
+            <h3 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Policies</h3>
+            <ul className="mt-3 space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400">
               {preview.riskPolicy ? <li>Risk: {preview.riskPolicy}</li> : null}
               {preview.approvalPolicy ? <li>Approval: {preview.approvalPolicy}</li> : null}
             </ul>
@@ -285,8 +285,8 @@ function PreviewRow({ label, value, mono }: { label: string; value?: string; mon
   if (!value) return null
   return (
     <div>
-      <dt className="text-[10px] font-medium tracking-wide text-zinc-500 uppercase">{label}</dt>
-      <dd className={'mt-0.5 text-zinc-950 dark:text-white' + (mono ? ' font-mono text-xs break-all' : ' text-sm')}>
+      <dt className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">{label}</dt>
+      <dd className={'mt-1 text-zinc-900 dark:text-zinc-100' + (mono ? ' font-mono text-xs break-all' : ' text-sm')}>
         {value}
       </dd>
     </div>
