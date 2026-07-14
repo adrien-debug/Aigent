@@ -27,32 +27,39 @@ export function CopilotTabs({ copilotId, showBuilder = false }: { copilotId: str
   const tabs = showBuilder ? [...TABS, BUILDER_TAB] : TABS
 
   return (
-    <nav aria-label="Copilot sections" className="overflow-x-auto">
-      <div className="w-max min-w-full border-b border-zinc-950/10 dark:border-white/10">
-        <div className="-mb-px flex gap-6">
-          {tabs.map(({ label, segment }) => {
-            const href = segment ? `${base}/${segment}` : base
-            const current = segment
-              ? pathname === href || pathname.startsWith(`${href}/`)
-              : pathname === base
-            return (
-              <Link
-                key={label}
-                href={href}
-                aria-current={current ? 'page' : undefined}
-                className={clsx(
-                  'border-b-2 px-1 py-3 text-sm font-medium whitespace-nowrap transition-colors',
-                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
-                  current
-                    ? 'border-accent-500 text-zinc-950 dark:text-white'
-                    : 'border-transparent text-zinc-500 hover:border-zinc-950/20 hover:text-zinc-700 dark:text-zinc-400 dark:hover:border-white/20 dark:hover:text-zinc-200'
-                )}
-              >
-                {label}
-              </Link>
-            )
-          })}
-        </div>
+    // The hairline underline must span the FULL width even when the tab row is
+    // narrower than the viewport, so it lives on the nav (block-level, 100% wide)
+    // rather than on the inline scroll track. The scroll track carries only the
+    // tab links; on mobile it scrolls horizontally inside this bounded box —
+    // never the page body. `no-scrollbar` keeps the affordance clean; the
+    // clipped last tab signals there is more to scroll.
+    <nav
+      aria-label="Copilot sections"
+      className="no-scrollbar -mb-px overflow-x-auto border-b border-zinc-950/10 dark:border-white/10"
+    >
+      <div className="flex w-max min-w-full gap-6">
+        {tabs.map(({ label, segment }) => {
+          const href = segment ? `${base}/${segment}` : base
+          const current = segment
+            ? pathname === href || pathname.startsWith(`${href}/`)
+            : pathname === base
+          return (
+            <Link
+              key={label}
+              href={href}
+              aria-current={current ? 'page' : undefined}
+              className={clsx(
+                'shrink-0 border-b-2 px-1 py-3 text-sm font-medium whitespace-nowrap transition-colors',
+                'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-500',
+                current
+                  ? 'border-accent-500 text-zinc-950 dark:text-white'
+                  : 'border-transparent text-zinc-500 hover:border-zinc-950/20 hover:text-zinc-700 dark:text-zinc-400 dark:hover:border-white/20 dark:hover:text-zinc-200'
+              )}
+            >
+              {label}
+            </Link>
+          )
+        })}
       </div>
     </nav>
   )

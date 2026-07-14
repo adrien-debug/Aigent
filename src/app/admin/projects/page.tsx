@@ -2,7 +2,6 @@ import { PlusIcon } from '@heroicons/react/16/solid'
 import type { Metadata } from 'next'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
-import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
 import { ProjectCard } from '@/components/agent-ops/project-card'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
 import { getCopilots, getProjects } from '@/lib/agent-mission-control/data'
@@ -57,26 +56,21 @@ export default async function ProjectsPage() {
   const totalCost = validated.reduce((sum, copilot) => sum + copilot.health.costLast24hUsd, 0)
 
   return (
-    <div className="flex flex-col gap-4 pb-12">
+    <div className="flex flex-col gap-8 pb-12">
       <StaggerFade delay={0}>
-        <AgentPageHeader
-          title="Projects"
-          description="Product surfaces and repositories managed by the agent fleet."
-          actions={
-            <Link 
-              href="/admin/projects/new" 
-              className="inline-flex items-center gap-2 rounded-md bg-white/10 px-3 py-1.5 text-[13px] font-medium text-white hover:bg-white/20 transition-colors"
-            >
-              <PlusIcon className="size-3.5" />
-              New Project
-            </Link>
-          }
-        />
+        <div className="flex justify-end">
+          <Link
+            href="/admin/projects/new"
+            className="inline-flex items-center gap-2 rounded-md bg-white/10 px-3 py-1.5 text-[13px] font-medium text-white hover:bg-white/20 transition-colors"
+          >
+            <PlusIcon className="size-3.5" />
+            New Project
+          </Link>
+        </div>
       </StaggerFade>
 
       <StaggerFade delay={1}>
         <AgentKpiBand
-          density="compact"
           stats={[
             { name: 'Total Projects', value: String(projects.length) },
             { name: 'Assigned Copilots', value: String(validated.length), suffix: `/ ${totalActive} active` },
@@ -88,29 +82,29 @@ export default async function ProjectsPage() {
 
       <StaggerFade delay={2}>
         {projects.length > 0 ? (
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-6 py-2 border-b border-white/10 text-[10px] font-medium text-zinc-600 font-mono">
-              <div className="w-[300px]">Project</div>
-              <div className="w-[120px]">Status</div>
-              <div className="w-[140px]">Fleet</div>
-              <div className="w-[120px]">Volume</div>
-              <div className="w-[120px]">Cost</div>
-              <div className="ml-auto"></div>
-            </div>
-            <div className="flex flex-col gap-4">
-              {projects.map((project) => (
-                <ProjectCard
-                  key={project.id}
-                  project={project}
-                  rollup={rollups.get(project.id) ?? EMPTY_ROLLUP}
-                  href={`/admin/projects/${project.id}`}
-                />
-              ))}
-            </div>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
+            {projects.map((project) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                rollup={rollups.get(project.id) ?? EMPTY_ROLLUP}
+                href={`/admin/projects/${project.id}`}
+              />
+            ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <p className="text-[13px] text-zinc-500">No projects yet.</p>
+          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/5 bg-white/[0.01] py-24 text-center">
+            <p className="text-sm font-medium text-white">No projects yet</p>
+            <p className="text-xs text-zinc-500">
+              Register the first product surface to start assigning copilots.
+            </p>
+            <Link
+              href="/admin/projects/new"
+              className="mt-2 inline-flex items-center gap-2 rounded-md bg-white/10 px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-white/20"
+            >
+              <PlusIcon className="size-3.5" />
+              New Project
+            </Link>
           </div>
         )}
       </StaggerFade>

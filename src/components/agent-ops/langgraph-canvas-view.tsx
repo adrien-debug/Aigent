@@ -683,10 +683,6 @@ function CanvasDefs() {
         <filter id="node-shadow" x="-30%" y="-30%" width="160%" height="180%">
           <feDropShadow dx="0" dy="1.5" stdDeviation="2" floodColor="rgb(24 24 27)" floodOpacity="0.12" />
         </filter>
-        {/* Accent glow for the live node. */}
-        <filter id="node-glow" x="-60%" y="-60%" width="220%" height="220%">
-          <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="var(--color-accent-500)" floodOpacity="0.55" />
-        </filter>
         <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
           <path d="M 0 0 L 10 5 L 0 10 z" fill="rgb(161 161 170)" />
         </marker>
@@ -701,14 +697,12 @@ function CanvasDefs() {
         .lg-node { opacity: 0; animation: lg-in 340ms ease-out forwards; }
         .lg-node rect { transition: stroke-width 180ms ease, filter 200ms ease; }
         .lg-node:hover rect.lg-surface { filter: url(#node-shadow) brightness(1.03); }
-        .lg-glow { animation: lg-pulse 2.4s ease-in-out infinite; }
         .lg-flow { stroke-dasharray: 5 7; animation: lg-dash 1.1s linear infinite; }
         @keyframes lg-in { to { opacity: 1; } }
-        @keyframes lg-pulse { 0%,100% { opacity: 0.9; } 50% { opacity: 0.3; } }
         @keyframes lg-dash { to { stroke-dashoffset: -24; } }
         @media (prefers-reduced-motion: reduce) {
           .lg-node { opacity: 1; animation: none; }
-          .lg-glow, .lg-flow { animation: none; }
+          .lg-flow { animation: none; }
         }
       `}</style>
     </>
@@ -743,10 +737,6 @@ function NodeBox({ node, status, selected, onSelect, index }: { node: RenderNode
       }}
       aria-label={`${node.label} — ${status}`}
     >
-      {/* Pulsing glow halo behind the live node. */}
-      {hot ? (
-        <rect className="lg-glow" x={-2} y={-2} width={NODE_W + 4} height={NODE_H + 4} rx={11} fill="none" stroke="var(--accent-line)" strokeWidth={1.5} filter="url(#node-glow)" />
-      ) : null}
       {/* Base card (white so the gradient reads on any bg) + gradient surface. */}
       <rect width={NODE_W} height={NODE_H} rx={9} className="fill-white dark:fill-zinc-900" filter="url(#node-shadow)" />
       <rect className="lg-surface" width={NODE_W} height={NODE_H} rx={9} fill={fillId} stroke={stroke} strokeWidth={selected ? 2 : 1.25} />

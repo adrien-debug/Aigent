@@ -3,8 +3,7 @@ import { BoltIcon, CpuChipIcon, ShieldCheckIcon, ServerStackIcon, ArrowPathIcon 
 import type { Metadata } from 'next'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
-import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
-import { surfaceCardClass } from '@/components/agent-ops/surface-card'
+import { surfaceCardClass, surfaceInsetClass } from '@/components/agent-ops/surface-card'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
 import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
 import { Badge } from '@/components/catalyst/badge'
@@ -27,6 +26,17 @@ function statusLabel(status: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }
 
+/**
+ * Run status → accent intensity ladder (doctrine: colour never the sole signal,
+ * the LABEL carries meaning; intensity encodes escalation). completed = soft
+ * accent, failed/blocked = solid accent, everything else = neutral zinc.
+ */
+function runStatusBadgeColor(status: string): 'accent' | 'accentSolid' | 'zinc' {
+  if (status === 'completed') return 'accent'
+  if (status === 'failed' || status === 'blocked') return 'accentSolid'
+  return 'zinc'
+}
+
 function AttentionZone({ copilots }: { copilots: Copilot[] }) {
   const flagged = copilots
     .filter((copilot) => copilot.health.openWarnings > 0)
@@ -36,21 +46,21 @@ function AttentionZone({ copilots }: { copilots: Copilot[] }) {
   if (flagged.length === 0) return null
 
   return (
-    <div className="mb-8 rounded-xl bg-accent-500/10 border border-accent-500/20 p-6 shadow-[0_0_30px_rgba(99,102,241,0.1)]">
+    <div className="mb-8 rounded-xl border border-(--accent-line) bg-(--accent-soft) p-6">
       <div className="flex items-center gap-3 mb-4">
         <ShieldCheckIcon className="size-5 text-accent-400" />
         <h2 className="text-sm font-semibold text-accent-400 uppercase tracking-widest">Needs Attention</h2>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {flagged.map(copilot => (
-          <div key={copilot.id} className="group flex flex-col gap-2 bg-black/40 rounded-lg p-4 border border-accent-500/20 hover:bg-black/60 transition-colors cursor-pointer">
-            <div className="flex items-start justify-between">
-              <Link href={`/admin/agents/${copilot.id}`} className="text-sm font-medium text-white group-hover:underline truncate">
+          <div key={copilot.id} className="group relative flex flex-col gap-2 rounded-lg border border-(--accent-line) bg-black/40 p-4 transition-colors hover:bg-black/60">
+            <div className="flex items-start justify-between gap-2">
+              <Link href={`/admin/agents/${copilot.id}`} className="min-w-0 truncate text-sm font-medium text-white group-hover:underline before:absolute before:inset-0">
                 {copilot.name}
               </Link>
               <Badge color="accentStrong" className="shrink-0">{copilot.health.openWarnings}</Badge>
             </div>
-            <div className="text-xs text-zinc-400 font-mono truncate">{copilot.slug}</div>
+            <div className="truncate font-mono text-xs text-zinc-400">{copilot.slug}</div>
           </div>
         ))}
       </div>
@@ -60,69 +70,63 @@ function AttentionZone({ copilots }: { copilots: Copilot[] }) {
 
 function SystemTopology() {
   return (
-    <div className={clsx(surfaceCardClass, 'p-6 flex flex-col h-full relative group')}>
-      {/* Subtle background pulse */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-accent-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-accent-500/10 transition-colors duration-1000" />
-      
-      <div className="flex items-center justify-between mb-8 relative z-10">
+    <div className={clsx(surfaceCardClass, 'group relative flex h-full flex-col p-6')}>
+      <div className="relative z-10 mb-8 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-white">System Topology</h2>
-        <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-accent-500/10 border border-accent-500/20">
+        <div className="flex items-center gap-2 rounded-full border border-(--accent-line) bg-(--accent-soft) px-2.5 py-1">
           <span className="relative flex size-1.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-400 opacity-75"></span>
             <span className="relative inline-flex size-1.5 rounded-full bg-accent-500"></span>
           </span>
-          <span className="text-[10px] text-accent-400 font-medium uppercase tracking-widest">Connected</span>
+          <span className="text-[10px] font-medium uppercase tracking-widest text-accent-400">Connected</span>
         </div>
       </div>
-      
-      <div className="flex-1 flex flex-col justify-center gap-8 relative z-10">
-        <div className="flex items-center justify-between px-5 py-4 rounded-xl bg-[var(--color-surface-interactive)] border border-white/5 shadow-lg">
+
+      <div className="relative z-10 flex flex-1 flex-col justify-center gap-8">
+        <div className={clsx(surfaceInsetClass, 'flex items-center justify-between px-5 py-4')}>
           <div className="flex min-w-0 items-center gap-4">
-            <div className="p-2 rounded-lg bg-white/5 ring-1 ring-white/10 shrink-0">
+            <div className="shrink-0 rounded-lg bg-white/5 p-2 ring-1 ring-white/10">
               <ServerStackIcon className="size-5 text-zinc-300" />
             </div>
             <div className="flex min-w-0 flex-col">
               <span className="text-sm font-medium text-white">Agent Server</span>
-              <span className="truncate text-xs font-mono text-zinc-500 mt-0.5">wss://graph.aigent.internal</span>
+              <span className="mt-0.5 truncate font-mono text-xs text-zinc-500">wss://graph.aigent.internal</span>
             </div>
           </div>
           <div className="flex shrink-0 flex-col items-end pl-4">
-            <span className="text-xs font-mono text-accent-400">12ms ping</span>
+            <span className="font-mono text-xs text-accent-400">12ms ping</span>
           </div>
         </div>
-        
+
         {/* Animated Connection Lines */}
-        <div className="relative h-12 flex justify-center w-full">
+        <div className="relative flex h-12 w-full justify-center">
           <div className="absolute inset-0 flex justify-center">
-            <div className="w-px h-full bg-gradient-to-b from-white/10 via-accent-500/50 to-white/10"></div>
+            <div className="h-full w-px bg-gradient-to-b from-white/10 via-(--accent-line-strong) to-white/10"></div>
           </div>
           <div className="absolute inset-0 flex justify-between px-16">
-            <div className="w-px h-full bg-gradient-to-b from-white/10 via-accent-500/20 to-white/10 transform rotate-12"></div>
-            <div className="w-px h-full bg-gradient-to-b from-white/10 via-accent-500/20 to-white/10 transform -rotate-12"></div>
+            <div className="h-full w-px rotate-12 bg-gradient-to-b from-white/10 via-(--accent-line) to-white/10"></div>
+            <div className="h-full w-px -rotate-12 bg-gradient-to-b from-white/10 via-(--accent-line) to-white/10"></div>
           </div>
-          {/* Moving particles */}
-          <div className="absolute top-0 w-1.5 h-1.5 bg-accent-400 rounded-full animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite]" />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-3 p-4 rounded-xl bg-[var(--color-surface-interactive)] border border-white/5 hover:border-white/10 transition-colors">
+          <div className={clsx(surfaceInsetClass, 'flex flex-col gap-3 p-4')}>
             <div className="flex items-center justify-between">
               <CpuChipIcon className="size-4 text-zinc-400" />
               <span className="text-[10px] uppercase tracking-widest text-zinc-500">Workers</span>
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-light text-white">12</span>
-              <span className="text-xs text-accent-400 font-medium">Active</span>
+              <span className="text-xs font-medium text-accent-400">Active</span>
             </div>
           </div>
-          <div className="flex flex-col gap-3 p-4 rounded-xl bg-[var(--color-surface-interactive)] border border-white/5 hover:border-white/10 transition-colors">
+          <div className={clsx(surfaceInsetClass, 'flex flex-col gap-3 p-4')}>
             <div className="flex items-center justify-between">
               <ArrowPathIcon className="size-4 text-zinc-400" />
               <span className="text-[10px] uppercase tracking-widest text-zinc-500">Throughput</span>
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-light text-white">4.2</span>
-              <span className="text-xs text-zinc-500 font-mono">req/s</span>
+              <span className="font-mono text-xs text-zinc-500">req/s</span>
             </div>
           </div>
         </div>
@@ -136,7 +140,16 @@ function FleetDistribution({ copilots }: { copilots: Copilot[] }) {
   const counts = statuses.map(s => copilots.filter(c => c.status === s).length)
   const total = copilots.length
   const activeCount = counts[0]
-  const activePct = Math.round((activeCount / total) * 100)
+  const activePct = total > 0 ? Math.round((activeCount / total) * 100) : null
+
+  const segmentClass = (status: (typeof statuses)[number]) =>
+    status === 'active'
+      ? 'bg-accent-500'
+      : status === 'degraded'
+        ? 'bg-accent-600'
+        : status === 'draft'
+          ? 'bg-zinc-400'
+          : 'bg-zinc-600'
 
   return (
     <div className={clsx(surfaceCardClass, 'p-6 flex flex-col h-full')}>
@@ -146,54 +159,60 @@ function FleetDistribution({ copilots }: { copilots: Copilot[] }) {
           View Fleet &rarr;
         </Link>
       </div>
-      
+
       <div className="flex-1 flex flex-col justify-center gap-8">
-        <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--color-surface-interactive)] border border-white/5">
+        <div className={clsx(surfaceInsetClass, 'flex items-center justify-between p-4')}>
           <div className="flex flex-col">
-            <span className="text-3xl font-light text-white">{activeCount}</span>
+            <span className="text-3xl font-light text-white tabular-nums">{activeCount}</span>
             <span className="text-xs text-zinc-500 uppercase tracking-widest mt-1">Active Agents</span>
           </div>
           <div className="flex flex-col items-end">
-            <span className="text-xl font-light text-accent-400">{activePct}%</span>
+            <span className="text-xl font-light text-accent-400 tabular-nums">
+              {activePct != null ? `${activePct}%` : '—'}
+            </span>
             <span className="text-xs text-zinc-500 uppercase tracking-widest mt-1">Of Total Fleet</span>
           </div>
         </div>
 
-        <div className="flex flex-col gap-4">
-          {/* Segmented Bar */}
-          <div className="flex h-2 w-full rounded-full overflow-hidden bg-white/5 gap-0.5">
-            {statuses.map((status, i) => {
-              const count = counts[i]
-              if (count === 0) return null
-              const pct = (count / total) * 100
-              return (
-                <div 
-                  key={status}
-                  className={`h-full ${status === 'active' ? 'bg-accent-500' : status === 'degraded' ? 'bg-accent-600' : status === 'draft' ? 'bg-zinc-400' : 'bg-zinc-600'}`}
-                  style={{ width: `${pct}%` }}
-                  title={`${statusLabel(status)}: ${count}`}
-                />
-              )
-            })}
-          </div>
+        {total > 0 ? (
+          <div className="flex flex-col gap-4">
+            {/* Segmented Bar */}
+            <div className="flex h-2 w-full rounded-full overflow-hidden bg-white/5 gap-0.5">
+              {statuses.map((status, i) => {
+                const count = counts[i]
+                if (count === 0) return null
+                const pct = (count / total) * 100
+                return (
+                  <div
+                    key={status}
+                    className={clsx('h-full', segmentClass(status))}
+                    style={{ width: `${pct}%` }}
+                    title={`${statusLabel(status)}: ${count}`}
+                  />
+                )
+              })}
+            </div>
 
-          {/* Legend */}
-          <div className="grid grid-cols-2 gap-y-3 gap-x-4">
-            {statuses.map((status, i) => {
-              const count = counts[i]
-              if (count === 0) return null
-              return (
-                <div key={status} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className={`size-2 rounded-full ${status === 'active' ? 'bg-accent-500' : status === 'degraded' ? 'bg-accent-600' : status === 'draft' ? 'bg-zinc-400' : 'bg-zinc-600'}`} />
-                    <span className="text-zinc-400 capitalize">{statusLabel(status)}</span>
+            {/* Legend */}
+            <div className="grid grid-cols-2 gap-y-3 gap-x-4">
+              {statuses.map((status, i) => {
+                const count = counts[i]
+                if (count === 0) return null
+                return (
+                  <div key={status} className="flex items-center justify-between text-xs">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className={clsx('size-2 shrink-0 rounded-full', segmentClass(status))} />
+                      <span className="truncate capitalize text-zinc-400">{statusLabel(status)}</span>
+                    </div>
+                    <span className="font-mono tabular-nums text-white">{count}</span>
                   </div>
-                  <span className="text-white font-mono">{count}</span>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
-        </div>
+        ) : (
+          <p className="text-center text-xs text-zinc-500">No agents in the fleet yet.</p>
+        )}
       </div>
     </div>
   )
@@ -254,9 +273,9 @@ function RunActivity({ runs, copilotNameById }: { runs: AgentRun[], copilotNameB
                     </div>
                   </TableCell>
                   <TableCell>
-                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md ring-1 text-[10px] font-medium uppercase tracking-widest ${run.status === 'completed' ? 'text-accent-400 bg-accent-400/10 ring-accent-400/20' : run.status === 'failed' ? 'text-accent-400 bg-accent-400/10 ring-accent-400/20' : 'text-zinc-400 bg-zinc-400/10 ring-zinc-400/20'}`}>
+                    <Badge color={runStatusBadgeColor(run.status)} className="uppercase tracking-widest">
                       {statusLabel(run.status)}
-                    </span>
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-right font-mono text-xs text-zinc-400">
                     {run.latencyMs}ms
@@ -294,15 +313,6 @@ export default async function DashboardPage() {
   return (
     <div className="flex flex-col gap-8 pb-12">
       <StaggerFade delay={0}>
-        <AgentPageHeader 
-          title="Command Center" 
-          environment="Production"
-          live={true}
-          description="Global overview of fleet operations, system health, and agent activity."
-        />
-      </StaggerFade>
-
-      <StaggerFade delay={1}>
         <AgentKpiBand
           stats={[
             { name: 'Active Fleet', value: String(kpis.activeCopilots), suffix: `/ ${kpis.totalCopilots}` },
@@ -318,20 +328,20 @@ export default async function DashboardPage() {
         />
       </StaggerFade>
 
-      <StaggerFade delay={2}>
+      <StaggerFade delay={1}>
         <AttentionZone copilots={copilots} />
       </StaggerFade>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 min-h-[600px]">
-        <StaggerFade delay={3} className="xl:col-span-2 h-full">
+        <StaggerFade delay={2} className="xl:col-span-2 h-full">
           <RunActivity runs={runs} copilotNameById={copilotNameById} />
         </StaggerFade>
-        
+
         <div className="flex flex-col gap-6 h-full">
-          <StaggerFade delay={4} className="flex-1">
+          <StaggerFade delay={3} className="flex-1">
             <SystemTopology />
           </StaggerFade>
-          <StaggerFade delay={5} className="flex-1">
+          <StaggerFade delay={4} className="flex-1">
             <FleetDistribution copilots={copilots} />
           </StaggerFade>
         </div>

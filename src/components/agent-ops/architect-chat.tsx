@@ -230,7 +230,7 @@ export function ArchitectChat({ onManifest }: ArchitectChatProps) {
       {error ? <ErrorBanner message={error} /> : null}
 
       {manifest ? (
-        <div className="mt-4 rounded-lg bg-accent-500/5 p-4 ring-1 ring-accent-500/20">
+        <div className="mt-4 rounded-lg bg-(--accent-soft) p-4 ring-1 ring-(--accent-line)">
           <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
             Manifest ready
           </p>

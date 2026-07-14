@@ -91,25 +91,29 @@ export async function TestsSection({ copilotId }: { copilotId: string }) {
 
             return (
               <div key={suite.id} className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="flex size-8 items-center justify-center rounded-lg bg-accent-500/10 ring-1 ring-accent-500/20">
-                      <BeakerIcon className="size-4 text-accent-400" />
+                    <div className="flex size-8 items-center justify-center rounded-lg bg-[var(--accent-soft)] ring-1 ring-[var(--accent-line)]">
+                      <BeakerIcon aria-hidden="true" className="size-4 text-accent-400" />
                     </div>
                     <div className="flex flex-col">
                       <h3 className="text-sm font-semibold text-white">{suite.name}</h3>
-                      <span className="text-xs text-zinc-500">{suiteKindConfig[suite.kind].label} &bull; {cases.length} cases</span>
+                      <span className="text-xs text-zinc-500">
+                        {suiteKindConfig[suite.kind].label} &bull; {cases.length} cases
+                      </span>
                     </div>
                   </div>
                   {run && (
-                    <div className="flex items-center gap-4 text-xs">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
                       <div className="flex items-center gap-1.5 text-zinc-400">
-                        <CheckCircleIcon className="size-4 text-accent-400" />
-                        <span>{Math.round(run.passRate * run.resultIds.length)} passed</span>
+                        <CheckCircleIcon aria-hidden="true" className="size-4 text-accent-400" />
+                        <span className="tabular-nums">{Math.round(run.passRate * run.resultIds.length)} passed</span>
                       </div>
                       <div className="flex items-center gap-1.5 text-zinc-400">
-                        <XCircleIcon className="size-4 text-accent-400" />
-                        <span>{run.resultIds.length - Math.round(run.passRate * run.resultIds.length)} failed</span>
+                        <XCircleIcon aria-hidden="true" className="size-4 text-accent-600" />
+                        <span className="tabular-nums">
+                          {run.resultIds.length - Math.round(run.passRate * run.resultIds.length)} failed
+                        </span>
                       </div>
                       <span className="text-zinc-600">|</span>
                       <span className="text-zinc-400">{formatDate(run.startedAt)}</span>

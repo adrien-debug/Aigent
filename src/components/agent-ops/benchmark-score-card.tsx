@@ -70,18 +70,10 @@ export function BenchmarkScoreCard({
     <article
       className={clsx(
         surfaceCardClass,
-        isBest ? 'shadow-[0_8px_28px_-12px_var(--accent-glow)]' : ''
+        isBest ? 'ring-1 ring-(--accent-line-strong)' : ''
       )}
     >
-      {/* Conic glowing border for winner */}
-      {isBest && (
-        <div className="absolute inset-0 z-0">
-          <div className="absolute inset-[-100%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0_340deg,var(--accent-line-strong)_360deg)] opacity-40 dark:opacity-60" />
-        </div>
-      )}
-      
-      {/* Background to mask the inner part of the conic gradient, leaving only the border */}
-      <div className={clsx('relative z-10 h-full w-full rounded-2xl bg-[var(--color-surface-secondary)] p-6', isBest ? 'm-px h-[calc(100%-2px)] w-[calc(100%-2px)]' : '')}>
+      <div className="relative z-10 h-full w-full rounded-2xl bg-[var(--color-surface-secondary)] p-6">
       
       {/* Identity row — model + provider left, winner slot (fixed height so twin
           cards align) + runtime right. */}

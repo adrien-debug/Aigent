@@ -10,6 +10,9 @@ export const surfaceCardClass =
 export const surfaceCardHeaderClass =
   'flex items-center justify-between border-b border-white/5 bg-black/20'
 
+/** Sticky bottom bar of a surface card (composer, action bar) — same structural wash as the header, on the top edge. */
+export const surfaceCardFooterClass = 'border-t border-white/5 bg-black/20'
+
 export const surfaceInsetClass = 'rounded-xl bg-black/20 border border-white/5'
 
 export function SurfaceCard({

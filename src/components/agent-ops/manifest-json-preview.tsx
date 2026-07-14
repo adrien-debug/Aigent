@@ -83,13 +83,17 @@ export function ManifestJsonPreview({ manifest }: { manifest: AgentManifest }) {
         <span className="font-mono text-xs text-zinc-700 dark:text-zinc-300">manifest.json</span>
         <span className="font-mono text-xs tabular-nums text-zinc-500">{manifest.version}</span>
       </div>
-      <pre className="mt-3 whitespace-pre-wrap break-words font-mono text-xs/5 text-zinc-600 dark:text-zinc-300">
-        <code>
-          {lines.map((line, index) => (
-            <HighlightedLine key={index} line={line} />
-          ))}
-        </code>
-      </pre>
+      {/* The JSON scrolls horizontally inside its OWN container — long lines
+          never push the page body. whitespace-pre keeps the source faithful. */}
+      <div className="mt-3 overflow-x-auto">
+        <pre className="whitespace-pre font-mono text-xs/5 text-zinc-600 dark:text-zinc-300">
+          <code>
+            {lines.map((line, index) => (
+              <HighlightedLine key={index} line={line} />
+            ))}
+          </code>
+        </pre>
+      </div>
     </div>
   )
 }

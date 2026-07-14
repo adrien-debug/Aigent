@@ -42,49 +42,44 @@ export function ProjectBuilderSuggestionsDrawer({
         {sorted.length === 0 ? (
           <Text>No suggestion stood out from this scan — you can still describe any agent in the chat.</Text>
         ) : (
-          <ul className="space-y-4">
+          <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
             {sorted.map((rec) => (
-              <li
-                key={rec.id}
-                className="rounded-xl ring-1 ring-zinc-950/5 dark:ring-white/10"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-950/5 px-4 py-2.5 dark:border-white/10">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <Badge color={rec.priority === 'high' ? 'accent' : 'zinc'}>{rec.priority}</Badge>
-                    <span className="truncate text-sm font-medium text-zinc-950 dark:text-white">{rec.title}</span>
-                  </div>
+              <li key={rec.id} className="space-y-2 py-4 first:pt-0 last:pb-0">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <Badge color={rec.priority === 'high' ? 'accent' : 'zinc'}>{rec.priority}</Badge>
+                  <span className="min-w-0 truncate text-sm font-medium text-zinc-950 dark:text-white">
+                    {rec.title}
+                  </span>
                 </div>
-                <div className="space-y-2 px-4 py-3">
-                  <p className="text-sm text-zinc-700 dark:text-zinc-300">{rec.why}</p>
-                  <p className="text-xs text-zinc-500">Role: {rec.proposedRole}</p>
-                  <div className="grid gap-1 text-xs text-zinc-500 sm:grid-cols-2">
-                    <p>
-                      <span className="font-medium text-zinc-600 dark:text-zinc-400">Tools:</span>{' '}
-                      {rec.toolsNeeded.join(', ') || '—'}
-                    </p>
-                    <p>
-                      <span className="font-medium text-zinc-600 dark:text-zinc-400">Tests:</span>{' '}
-                      {rec.testsNeeded.join('; ') || '—'}
-                    </p>
-                  </div>
-                  {rec.risks.length > 0 ? (
-                    <p className="text-xs text-zinc-500">
-                      <span className="font-medium text-zinc-600 dark:text-zinc-400">Risks:</span>{' '}
-                      {rec.risks.join(' · ')}
-                    </p>
-                  ) : null}
-                  <p className="text-xs text-zinc-500">{rec.releaseValue}</p>
-                  <Button
-                    outline
-                    className="mt-1"
-                    onClick={() => {
-                      onDiscuss(rec)
-                      onClose()
-                    }}
-                  >
-                    Discuss this with Builder
-                  </Button>
+                <p className="text-sm text-zinc-700 dark:text-zinc-300">{rec.why}</p>
+                <p className="text-xs text-zinc-500">Role: {rec.proposedRole}</p>
+                <div className="grid gap-1 text-xs text-zinc-500 sm:grid-cols-2">
+                  <p>
+                    <span className="font-medium text-zinc-600 dark:text-zinc-400">Tools:</span>{' '}
+                    {rec.toolsNeeded.join(', ') || '—'}
+                  </p>
+                  <p>
+                    <span className="font-medium text-zinc-600 dark:text-zinc-400">Tests:</span>{' '}
+                    {rec.testsNeeded.join('; ') || '—'}
+                  </p>
                 </div>
+                {rec.risks.length > 0 ? (
+                  <p className="text-xs text-zinc-500">
+                    <span className="font-medium text-zinc-600 dark:text-zinc-400">Risks:</span>{' '}
+                    {rec.risks.join(' · ')}
+                  </p>
+                ) : null}
+                <p className="text-xs text-zinc-500">{rec.releaseValue}</p>
+                <Button
+                  outline
+                  className="mt-1"
+                  onClick={() => {
+                    onDiscuss(rec)
+                    onClose()
+                  }}
+                >
+                  Discuss this with Builder
+                </Button>
               </li>
             ))}
           </ul>

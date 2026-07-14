@@ -5,11 +5,13 @@ import { EmptyState } from '@/components/agent-ops/empty-state'
 
 /**
  * Gate history feed — application-ui feed rhythm adapted to the doctrine.
- * Kinds map to the STRICT color semantics (never blue — reserved runtime):
- * - evaluated / entered → zinc (neutral)
- * - approval            → amber (attention required)
- * - promoted            → green (success — also used for recorded human sign-off)
- * The ring-8 mask simulates the card surface (bg-white dark:bg-zinc-950).
+ * Monochrome accent + zinc only (never a second hue); meaning is carried by the
+ * icon + label, colour is only intensity:
+ * - evaluated / entered → zinc (neutral lifecycle events)
+ * - approval            → accent (attention: a human decision is pending/recorded)
+ * - promoted            → accent (the affirmative sign-off event)
+ * The ring-8 mask simulates the card surface (dark: zinc-950) so nodes read as
+ * sitting on the connector line, not floating.
  */
 
 export type GateHistoryEventKind = 'evaluated' | 'approval' | 'entered' | 'promoted'

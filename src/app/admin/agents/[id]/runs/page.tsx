@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation'
 import { RunCopilotPanel } from '@/components/agent-ops/run-copilot-panel'
 import { RunDetailPanel } from '@/components/agent-ops/run-detail-panel'
 import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
-import { surfaceCardClass } from '@/components/agent-ops/surface-card'
+import { surfaceCardClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
 import { SplitBar, type SplitTone } from '@/components/agent-ops/widgets/split-bar'
 import { formatDurationMs, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 import {
@@ -103,13 +103,13 @@ export default async function RunsPage({
       ) : (
         <>
           <div className={surfaceCardClass}>
-            <div className="flex items-center justify-between p-6 border-b border-white/5">
+            <div className={clsx(surfaceCardHeaderClass, 'px-6 py-4')}>
               <div>
                 <h2 className="text-sm font-semibold text-white">Run Latency</h2>
-                <p className="text-xs text-zinc-400 mt-1">Performance trend over the last {runs.length} runs</p>
+                <p className="mt-1 text-xs text-zinc-400">Performance trend over the last {runs.length} runs</p>
               </div>
             </div>
-            <div className="p-6 bg-[var(--color-surface-primary)]/30">
+            <div className="bg-[var(--color-surface-primary)]/30 p-6">
               <RunLatencyChart data={latencyPoints} />
             </div>
           </div>
@@ -126,9 +126,11 @@ export default async function RunsPage({
 
             <div className="flex flex-col gap-6">
               <div className={surfaceCardClass}>
-                <div className="p-6 border-b border-white/5">
-                  <h2 className="text-sm font-semibold text-white">Tool Calls Overview</h2>
-                  <p className="text-xs text-zinc-400 mt-1">Outcomes across {runs.length} runs</p>
+                <div className={clsx(surfaceCardHeaderClass, 'px-6 py-4')}>
+                  <div>
+                    <h2 className="text-sm font-semibold text-white">Tool Calls Overview</h2>
+                    <p className="mt-1 text-xs text-zinc-400">Outcomes across {runs.length} runs</p>
+                  </div>
                 </div>
                 <div className="p-6">
                   {allToolCalls.length > 0 ? (
@@ -140,14 +142,14 @@ export default async function RunsPage({
                           .filter((segment) => segment.value > 0)}
                         caption={`${allToolCalls.length} total tool calls`}
                       />
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3">
                         {toolCallRamp.map(({ status, label }) => {
                           const count = toolCallCounts[status]
                           if (count === 0) return null
                           return (
-                            <div key={status} className="flex flex-col gap-1 p-3 rounded-lg bg-black/20 border border-white/5">
+                            <div key={status} className="flex flex-col gap-1 border-t border-white/5 pt-3">
                               <span className="text-[10px] uppercase tracking-widest text-zinc-500">{label}</span>
-                              <span className="text-lg font-light text-white">{count}</span>
+                              <span className="font-mono text-lg font-light tabular-nums text-white">{count}</span>
                             </div>
                           )
                         })}
@@ -162,7 +164,7 @@ export default async function RunsPage({
           </div>
 
           <div className={surfaceCardClass}>
-            <div className="flex items-center justify-between p-4 border-b border-white/5 bg-black/20">
+            <div className={clsx(surfaceCardHeaderClass, 'px-4 py-4')}>
               <h2 className="text-sm font-semibold text-white">Recent Runs</h2>
               <span className="text-xs text-zinc-500">{runs.length} runs</span>
             </div>
@@ -183,7 +185,9 @@ export default async function RunsPage({
                     <TableRow
                       key={run.id}
                       className={clsx(
-                        selected ? "bg-[var(--color-surface-interactive)] ring-1 ring-inset ring-accent-500/50" : ""
+                        selected
+                          ? 'bg-[var(--color-surface-interactive)] ring-1 ring-inset ring-[var(--accent-line-strong)]'
+                          : ''
                       )}
                     >
                       <TableCell>

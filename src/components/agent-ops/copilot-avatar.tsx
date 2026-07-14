@@ -92,7 +92,7 @@ export function CopilotAvatar({
         className || 'size-10'
       )}
     >
-      <Icon className={clsx("size-1/2 drop-shadow-[0_0_8px_currentColor]")} />
+      <Icon className={clsx("size-1/2")} />
     </span>
   )
 }

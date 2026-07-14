@@ -152,7 +152,7 @@ export interface ImproveWorkbenchProps {
 function DiagnosisLine({ diagnosis }: { diagnosis: FailureDiagnosis }) {
   const runtime = diagnosis.recommendedFixType === 'graph_runtime_patch'
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-zinc-950/5 pt-2 dark:border-white/10">
+    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-white/5 pt-2">
       <Badge color={runtime ? 'accent' : 'zinc'}>{diagnosis.category}</Badge>
       <span className="text-xs text-zinc-500">{Math.round(diagnosis.confidence * 100)}% confidence</span>
       <span className="text-xs text-zinc-600 dark:text-zinc-400">fix: {FIX_TYPE_LABELS[diagnosis.recommendedFixType]}</span>
@@ -331,16 +331,16 @@ export function ImproveWorkbench({
                     )}
                   </div>
                   {s.failures.length > 0 ? (
-                    <ul className="mt-2 space-y-2">
+                    <ul className="mt-3 divide-y divide-white/5 border-t border-white/5">
                       {s.failures.map((f) => (
-                        <li key={f.caseName} className="rounded-lg bg-zinc-950/[0.03] p-3 ring-1 ring-zinc-950/5 dark:bg-white/[0.03] dark:ring-white/10">
+                        <li key={f.caseName} className="py-3 first:pt-3">
                           <p className="text-sm font-medium text-zinc-950 dark:text-white">
                             {f.caseName} <span className="font-normal text-zinc-500">— {f.status}</span>
                           </p>
                           {f.failureReason ? (
                             <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{f.failureReason}</p>
                           ) : null}
-                          <p className="mt-1 text-xs text-zinc-500">
+                          <p className="mt-1 text-xs break-words text-zinc-500">
                             expected: {f.expectedBehavior || '(none)'}
                             {f.expectedToolCalls.length > 0 ? ` · expected tools: ${f.expectedToolCalls.join(', ')}` : ''}
                           </p>
@@ -356,7 +356,7 @@ export function ImproveWorkbench({
             </ul>
           )}
           {benchmarks.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-2 border-t border-zinc-950/5 pt-4 dark:border-white/10">
+            <div className="flex flex-wrap items-center gap-2 border-t border-white/5 pt-4">
               {benchmarks.map((b) => (
                 <Badge key={b.suiteId} color="zinc">
                   {b.suiteName}: {b.lastRun ? `${Math.round(b.lastRun.score * 10) / 10} / 100` : 'never run'}
@@ -406,17 +406,17 @@ export function ImproveWorkbench({
             {proposal.failureAnalysis.length > 0 ? (
               <div>
                 <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Root causes</p>
-                <ul className="mt-2 space-y-2">
+                <ul className="mt-3 divide-y divide-white/5 border-t border-white/5">
                   {proposal.failureAnalysis.map((f) => (
-                    <li key={f.caseName} className="rounded-lg bg-zinc-950/[0.03] p-3 ring-1 ring-zinc-950/5 dark:bg-white/[0.03] dark:ring-white/10">
+                    <li key={f.caseName} className="py-3 first:pt-3">
                       <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-zinc-950 dark:text-white">
                         {f.caseName}
                         {f.category ? (
                           <Badge color={f.recommendedFixType === 'graph_runtime_patch' ? 'accent' : 'zinc'}>{f.category}</Badge>
                         ) : null}
                       </p>
-                      <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{f.rootCause}</p>
-                      {f.evidence ? <p className="mt-1 text-xs text-zinc-500">evidence: {f.evidence}</p> : null}
+                      <p className="mt-1 text-xs break-words text-zinc-600 dark:text-zinc-400">{f.rootCause}</p>
+                      {f.evidence ? <p className="mt-1 text-xs break-words text-zinc-500">evidence: {f.evidence}</p> : null}
                     </li>
                   ))}
                 </ul>
@@ -425,15 +425,15 @@ export function ImproveWorkbench({
 
             <div>
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Manifest changes (V1 → V2)</p>
-              <ul className="mt-2 space-y-3">
+              <ul className="mt-3 divide-y divide-white/5 border-t border-white/5">
                 {changeEntries.map(([field, change]) => (
-                  <li key={field} className="rounded-lg bg-[var(--accent-soft)] p-3 ring-1 ring-[var(--accent-line)]">
+                  <li key={field} className="border-l-2 border-[var(--accent-line)] py-3 pl-3 first:pt-3">
                     <p className="text-sm font-medium text-zinc-950 dark:text-white">{CHANGE_FIELD_LABELS[field]}</p>
-                    <p className="mt-1.5 text-xs text-zinc-500 line-through decoration-zinc-400/60">
+                    <p className="mt-1.5 text-xs break-words text-zinc-500 line-through decoration-zinc-400/60">
                       {renderValue(change.from)}
                     </p>
-                    <p className="mt-1 text-xs text-zinc-800 dark:text-zinc-200">{renderValue(change.to)}</p>
-                    {change.why ? <p className="mt-1.5 text-xs text-zinc-500">why: {change.why}</p> : null}
+                    <p className="mt-1 text-xs break-words text-zinc-800 dark:text-zinc-200">{renderValue(change.to)}</p>
+                    {change.why ? <p className="mt-1.5 text-xs break-words text-zinc-500">why: {change.why}</p> : null}
                   </li>
                 ))}
               </ul>

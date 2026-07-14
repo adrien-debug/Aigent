@@ -16,7 +16,7 @@ export interface RunLatencyPoint {
 
 const SERIES_STROKE = 'var(--color-accent-500)'
 
-const tickStyle = { fontSize: 10, fill: '#71717a', fontFamily: 'var(--font-mono)' } as const
+const tickStyle = { fontSize: 10, fill: 'var(--chart-tick)', fontFamily: 'var(--font-mono)' } as const
 
 function isFailedOrBlocked(status: string): boolean {
   return status === 'failed' || status === 'blocked'
@@ -70,7 +70,7 @@ export function RunLatencyChart({ data }: { data: RunLatencyPoint[] }) {
             <stop offset="100%" stopColor={SERIES_STROKE} stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.05)" strokeDasharray="4 4" />
+        <CartesianGrid vertical={false} stroke="var(--chart-grid)" strokeDasharray="4 4" />
         <XAxis
           dataKey="label"
           axisLine={false}
@@ -86,7 +86,7 @@ export function RunLatencyChart({ data }: { data: RunLatencyPoint[] }) {
           tick={tickStyle}
           tickFormatter={(value: number) => formatDurationMs(value)}
         />
-        <Tooltip cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1, strokeDasharray: '4 4' }} content={LatencyTooltip} isAnimationActive={false} />
+        <Tooltip cursor={{ stroke: 'var(--chart-grid)', strokeWidth: 1, strokeDasharray: '4 4' }} content={LatencyTooltip} isAnimationActive={false} />
         <Area
           type="monotone"
           dataKey="latencyMs"
@@ -94,7 +94,7 @@ export function RunLatencyChart({ data }: { data: RunLatencyPoint[] }) {
           strokeWidth={2}
           fill={`url(#${gradientId})`}
           dot={false}
-          activeDot={{ r: 4, fill: SERIES_STROKE, stroke: '#000', strokeWidth: 2 }}
+          activeDot={{ r: 4, fill: SERIES_STROKE, stroke: 'var(--color-surface-canvas)', strokeWidth: 2 }}
           isAnimationActive={true}
           animationDuration={1000}
         />

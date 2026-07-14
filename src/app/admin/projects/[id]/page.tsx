@@ -3,7 +3,6 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
-import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import { ProjectDeleteAction } from '@/components/agent-ops/project-delete-action'
 import { ProjectRepoIntelligence } from '@/components/agent-ops/project-repo-intelligence'
@@ -39,6 +38,24 @@ function statusLabel(status: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }
 
+const STATUS_PILL_BASE =
+  'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md ring-1 text-[10px] font-medium uppercase tracking-widest'
+
+/** Accent = live/attention (label carries meaning), zinc = neutral/inactive. */
+function StatusPill({ label, tone }: { label: string; tone: 'accent' | 'zinc' }) {
+  return (
+    <span
+      className={`${STATUS_PILL_BASE} ${
+        tone === 'accent'
+          ? 'text-accent-300 bg-[var(--accent-surface)] ring-[var(--accent-line)]'
+          : 'text-zinc-400 bg-white/5 ring-white/10'
+      }`}
+    >
+      {label}
+    </span>
+  )
+}
+
 function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
   return (
     <SurfaceCard>
@@ -70,9 +87,10 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
                   </div>
                 </TableCell>
                 <TableCell className="py-4 px-6">
-                  <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md ring-1 text-[10px] font-medium uppercase tracking-widest ${copilot.status === 'active' ? 'text-accent-400 bg-accent-400/10 ring-accent-400/20' : copilot.status === 'degraded' ? 'text-accent-400 bg-accent-400/10 ring-accent-400/20' : 'text-zinc-400 bg-zinc-400/10 ring-zinc-400/20'}`}>
-                    {statusLabel(copilot.status)}
-                  </span>
+                  <StatusPill
+                    label={statusLabel(copilot.status)}
+                    tone={copilot.status === 'active' || copilot.status === 'degraded' ? 'accent' : 'zinc'}
+                  />
                 </TableCell>
                 <TableCell className="py-4 px-6">
                   <div className="flex flex-col">
@@ -143,9 +161,10 @@ function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copil
                   </div>
                 </TableCell>
                 <TableCell className="py-3 px-6">
-                  <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md ring-1 text-[10px] font-medium uppercase tracking-widest ${run.status === 'completed' ? 'text-accent-400 bg-accent-400/10 ring-accent-400/20' : run.status === 'failed' ? 'text-accent-400 bg-accent-400/10 ring-accent-400/20' : 'text-zinc-400 bg-zinc-400/10 ring-zinc-400/20'}`}>
-                    {statusLabel(run.status)}
-                  </span>
+                  <StatusPill
+                    label={statusLabel(run.status)}
+                    tone={run.status === 'completed' || run.status === 'failed' ? 'accent' : 'zinc'}
+                  />
                 </TableCell>
                 <TableCell className="py-3 px-6">
                   <span className="block text-xs text-zinc-400 truncate max-w-md" title={run.inputSummary}>
@@ -167,7 +186,7 @@ function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copil
                       href={run.traceUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center justify-center p-1.5 rounded-md text-zinc-500 hover:text-accent-400 hover:bg-accent-500/10 transition-colors"
+                      className="inline-flex items-center justify-center p-1.5 rounded-md text-zinc-500 transition-colors hover:text-accent-400 hover:bg-[var(--accent-soft)]"
                       title="Open trace in LangSmith"
                     >
                       <ArrowTopRightOnSquareIcon className="size-4" />
@@ -203,34 +222,26 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="flex flex-col gap-8 pb-12">
-      <AgentPageHeader
-        title={project.name}
-        breadcrumbs={[
-          { label: 'Platform', href: '/admin' },
-          { label: 'Projects', href: '/admin/projects' },
-          { label: project.name }
-        ]}
-        actions={<ProjectDeleteAction project={{ id: project.id, name: project.name }} />}
-        filters={
-          <div className="flex items-center gap-4 text-xs">
-            <div className="flex items-center gap-1.5 text-zinc-400">
-              <ServerStackIcon className="size-4" />
-              <span className="font-mono">{PROJECT_PLATFORM_LABELS[project.platform]}</span>
-            </div>
-            {project.repoUrl && project.repoFullName && (
-              <a
-                href={project.repoUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1.5 text-zinc-400 hover:text-white transition-colors"
-              >
-                <CodeBracketIcon className="size-4" />
-                <span className="font-mono">{project.repoFullName}</span>
-              </a>
-            )}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4 text-xs">
+          <div className="flex items-center gap-1.5 text-zinc-400">
+            <ServerStackIcon className="size-4" />
+            <span className="font-mono">{PROJECT_PLATFORM_LABELS[project.platform]}</span>
           </div>
-        }
-      />
+          {project.repoUrl && project.repoFullName && (
+            <a
+              href={project.repoUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 text-zinc-400 hover:text-white transition-colors"
+            >
+              <CodeBracketIcon className="size-4" />
+              <span className="font-mono">{project.repoFullName}</span>
+            </a>
+          )}
+        </div>
+        <ProjectDeleteAction project={{ id: project.id, name: project.name }} />
+      </div>
 
       <AgentKpiBand
         stats={[

@@ -236,7 +236,7 @@ export default async function ConfigPage({ params }: { params: Promise<{ id: str
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Manifest source</p>
               <span className="font-mono text-xs text-zinc-500 tabular-nums">read-only</span>
             </div>
-            <div className="max-h-[32rem] overflow-auto">
+            <div className="max-h-[32rem] overflow-y-auto">
               <ManifestJsonPreview manifest={manifest} />
             </div>
           </div>

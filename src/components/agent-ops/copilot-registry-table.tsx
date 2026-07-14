@@ -5,7 +5,7 @@ import { useMemo } from 'react'
 
 import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
 import { SurfaceCard } from '@/components/agent-ops/surface-card'
-import { Link } from '@/components/catalyst/link'
+import { Badge } from '@/components/catalyst/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import { COPILOT_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
@@ -13,60 +13,81 @@ import type { Copilot, CopilotStatus, Project } from '@/lib/agent-mission-contro
 
 export type RegistryTableView = 'bench' | 'all'
 
-function statusColor(status: CopilotStatus) {
+/**
+ * Status → Catalyst badge intensity on the mono-accent ladder.
+ * `active` is the healthy default (neutral zinc); anything needing attention
+ * escalates on the accent ramp. The label always carries the meaning.
+ */
+function statusBadgeColor(status: CopilotStatus): 'zinc' | 'accent' | 'accentStrong' {
   switch (status) {
-    case 'active': return 'text-zinc-300'
-    case 'degraded': return 'text-accent-400'
-    case 'draft': return 'text-zinc-500'
-    default: return 'text-zinc-600'
+    case 'active':
+      return 'zinc'
+    case 'degraded':
+      return 'accentStrong'
+    case 'paused':
+      return 'accent'
+    default:
+      // draft, archived — quiet neutral
+      return 'zinc'
   }
 }
 
-function ListRow({ copilot, project }: { copilot: Copilot, project?: Project }) {
+function ListRow({ copilot, project }: { copilot: Copilot; project?: Project }) {
   return (
-    <TableRow className="group transition-colors hover:bg-[var(--color-surface-interactive)]">
-      <TableCell className="py-4 px-6">
-        <div className="flex items-center gap-4">
+    <TableRow href={`/admin/agents/${copilot.id}`} title={copilot.name} className="group">
+      {/* Copilot — takes the flexible space, truncates */}
+      <TableCell className="py-4">
+        <div className="flex items-center gap-3">
           <CopilotAvatar copilot={copilot} className="size-8 rounded-xl" />
-          <div className="flex flex-col min-w-0">
-            <Link href={`/admin/agents/${copilot.id}`} className="text-[13px] text-zinc-200 truncate group-hover:text-white transition-colors before:absolute before:inset-0">
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate text-[13px] text-zinc-200 transition-colors group-hover:text-white">
               {copilot.name}
-            </Link>
-            <span className="text-[10px] text-zinc-600 font-mono truncate">{copilot.slug}</span>
+            </span>
+            <span className="truncate font-mono text-[10px] text-zinc-600">{copilot.slug}</span>
           </div>
         </div>
       </TableCell>
 
-      <TableCell className="py-4 px-6">
-        <span className={clsx('text-[11px]', statusColor(copilot.status))}>
+      {/* Status — real Catalyst badge, never clips */}
+      <TableCell className="py-4">
+        <Badge color={statusBadgeColor(copilot.status)} className="whitespace-nowrap">
           {COPILOT_STATUS_LABELS[copilot.status]}
-        </span>
+        </Badge>
       </TableCell>
 
-      <TableCell className="py-4 px-6">
+      {/* Project — hidden on mobile (carried by detail), truncates */}
+      <TableCell className="hidden py-4 sm:table-cell">
         {project ? (
-          <span className="text-[13px] text-zinc-400 truncate">{project.name}</span>
+          <span className="block max-w-[16ch] truncate text-[13px] text-zinc-400 lg:max-w-[22ch]">
+            {project.name}
+          </span>
         ) : (
           <span className="text-[13px] text-zinc-600">—</span>
         )}
       </TableCell>
 
-      <TableCell className="py-4 px-6 text-right">
-        <span className="text-[13px] font-mono text-zinc-300">{copilot.health.runsLast24h.toLocaleString()}</span>
-      </TableCell>
-
-      <TableCell className="py-4 px-6 text-right">
-        <span className="text-[13px] font-mono text-zinc-400">{formatUsd(copilot.health.costLast24hUsd)}</span>
-      </TableCell>
-
-      <TableCell className="py-4 px-6 text-right">
-        <span className={clsx("text-[13px] font-mono", copilot.health.testPassRate >= 0.9 ? 'text-zinc-300' : 'text-accent-400')}>
-          {formatPercent(copilot.health.testPassRate)}
+      {/* Volume — lg+ only */}
+      <TableCell className="hidden py-4 text-right lg:table-cell">
+        <span className="font-mono text-[13px] text-zinc-300">
+          {copilot.health.runsLast24h.toLocaleString()}
         </span>
       </TableCell>
 
-      <TableCell className="py-4 px-6 text-right">
-        <span className="text-[11px] text-zinc-500 group-hover:text-white transition-colors">Open &rarr;</span>
+      {/* Cost — xl+ only */}
+      <TableCell className="hidden py-4 text-right xl:table-cell">
+        <span className="font-mono text-[13px] text-zinc-400">{formatUsd(copilot.health.costLast24hUsd)}</span>
+      </TableCell>
+
+      {/* Quality — always visible, right edge */}
+      <TableCell className="py-4 text-right">
+        <span
+          className={clsx(
+            'font-mono text-[13px]',
+            copilot.health.testPassRate >= 0.9 ? 'text-zinc-300' : 'text-accent-400'
+          )}
+        >
+          {formatPercent(copilot.health.testPassRate)}
+        </span>
       </TableCell>
     </TableRow>
   )
@@ -94,49 +115,61 @@ export function CopilotRegistryTable({
         (c) => c.name.toLowerCase().includes(q) || c.slug.toLowerCase().includes(q)
       )
     }
-    return result.sort((a, b) => {
+    return [...result].sort((a, b) => {
       if (a.status === 'active' && b.status !== 'active') return -1
       if (b.status === 'active' && a.status !== 'active') return 1
       return b.health.runsLast24h - a.health.runsLast24h
     })
   }, [copilots, view, searchQuery])
 
-  const projectMap = useMemo(() => new Map(projects.map(p => [p.id, p])), [projects])
+  const projectMap = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects])
 
   if (filtered.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-center">
-        <p className="text-[13px] text-zinc-500">No copilots found.</p>
-      </div>
+      <SurfaceCard>
+        <div className="flex flex-col items-center justify-center gap-2 px-6 py-24 text-center">
+          <p className="text-[13px] text-zinc-400">
+            {searchQuery ? 'No copilots match your search.' : 'No copilots yet.'}
+          </p>
+          <p className="text-xs text-zinc-600">
+            {searchQuery
+              ? 'Try a different name or slug.'
+              : view === 'bench'
+                ? 'Every copilot is assigned to a project.'
+                : 'Provision a copilot to see it here.'}
+          </p>
+        </div>
+      </SurfaceCard>
     )
   }
 
   return (
-    <SurfaceCard>
-      <div className="overflow-x-auto no-scrollbar">
-        <Table className="w-full text-left border-collapse min-w-[1000px]">
-          <TableHead>
-            <TableRow className="border-b border-white/5 bg-black/40">
-              <TableHeader>Copilot</TableHeader>
-              <TableHeader>Status</TableHeader>
-              <TableHeader>Project</TableHeader>
-              <TableHeader className="text-right">Volume</TableHeader>
-              <TableHeader className="text-right">Cost</TableHeader>
-              <TableHeader className="text-right">Quality</TableHeader>
-              <TableHeader></TableHeader>
-            </TableRow>
-          </TableHead>
-          <TableBody className="divide-y divide-white/5">
-            {filtered.map(copilot => (
-              <ListRow 
-                key={copilot.id} 
-                copilot={copilot} 
-                project={copilot.projectId ? projectMap.get(copilot.projectId) : undefined} 
-              />
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+    <SurfaceCard className="[--gutter:--spacing(6)]">
+      <Table
+        bleed
+        className="[--gutter:--spacing(6)]"
+        aria-label={view === 'bench' ? 'Copilots on the validation bench' : 'All copilots'}
+      >
+        <TableHead>
+          <TableRow>
+            <TableHeader>Copilot</TableHeader>
+            <TableHeader>Status</TableHeader>
+            <TableHeader className="hidden sm:table-cell">Project</TableHeader>
+            <TableHeader className="hidden text-right lg:table-cell">Volume</TableHeader>
+            <TableHeader className="hidden text-right xl:table-cell">Cost</TableHeader>
+            <TableHeader className="text-right">Quality</TableHeader>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {filtered.map((copilot) => (
+            <ListRow
+              key={copilot.id}
+              copilot={copilot}
+              project={copilot.projectId ? projectMap.get(copilot.projectId) : undefined}
+            />
+          ))}
+        </TableBody>
+      </Table>
     </SurfaceCard>
   )
 }

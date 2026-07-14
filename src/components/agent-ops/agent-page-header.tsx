@@ -30,10 +30,10 @@ export function AgentPageHeader({
   return (
     <div className={clsx('flex flex-col gap-3 mb-10', className)}>
       {/* Top row: Breadcrumbs & Environment (ultra minimal) */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         {breadcrumbs && breadcrumbs.length > 0 ? (
-          <nav className="flex" aria-label="Breadcrumb">
-            <ol role="list" className="flex items-center space-x-1.5">
+          <nav className="no-scrollbar flex min-w-0 overflow-x-auto" aria-label="Breadcrumb">
+            <ol role="list" className="flex items-center space-x-1.5 whitespace-nowrap">
               {breadcrumbs.map((crumb, idx) => (
                 <li key={crumb.label}>
                   <div className="flex items-center">
@@ -60,7 +60,7 @@ export function AgentPageHeader({
         ) : <div />}
 
         {environment && (
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <span className="text-[10px] uppercase tracking-widest text-zinc-600 font-medium">{environment}</span>
           </div>
         )}
@@ -76,7 +76,6 @@ export function AgentPageHeader({
             {live && (
               <div className="flex items-center gap-1.5">
                 <span className="relative flex size-1.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-400 opacity-75"></span>
                   <span className="relative inline-flex size-1.5 rounded-full bg-accent-500"></span>
                 </span>
                 <span className="text-[10px] font-medium uppercase tracking-widest text-accent-400">Live</span>

@@ -52,10 +52,10 @@ export function SettingsGuardrails() {
         </div>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(320px,100%),1fr))] gap-6">
         {/* Twin columns share ONE skeleton: label → control → meter row (bar +
             right-hand value) → caption. Rows align across the grid. */}
-        <Field className={clsx(surfaceInsetClass, 'p-6')}>
+        <Field className={clsx(surfaceInsetClass, 'p-4 sm:p-6')}>
           <Label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Default confirmation policy</Label>
           <Select
             name="default_confirmation_policy"
@@ -73,7 +73,7 @@ export function SettingsGuardrails() {
           </div>
         </Field>
 
-        <Field className={clsx(surfaceInsetClass, 'p-6')}>
+        <Field className={clsx(surfaceInsetClass, 'p-4 sm:p-6')}>
           <Label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Shadow agreement threshold (%)</Label>
           <Input
             type="number"

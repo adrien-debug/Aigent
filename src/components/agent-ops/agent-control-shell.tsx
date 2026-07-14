@@ -1,9 +1,12 @@
 'use client'
 
-import { ArrowRightStartOnRectangleIcon, Cog6ToothIcon, CpuChipIcon, FolderIcon, ShareIcon, Squares2X2Icon } from '@heroicons/react/20/solid'
+import { ArrowRightStartOnRectangleIcon, Bars3Icon, Cog6ToothIcon, CpuChipIcon, FolderIcon, ShareIcon, Squares2X2Icon, XMarkIcon } from '@heroicons/react/20/solid'
+import * as Headless from '@headlessui/react'
+import { AnimatePresence, motion } from 'motion/react'
 import clsx from 'clsx'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 import { Avatar } from '@/components/catalyst/avatar'
 import { CommandPalette } from '@/components/agent-ops/command-palette'
@@ -46,17 +49,52 @@ function RailItem({
       href={href}
       aria-current={current ? 'page' : undefined}
       className={clsx(
-        'group relative flex w-full items-center gap-3 rounded-md px-3 py-2 transition-all duration-200',
+        'group relative flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-xl transition-all duration-200',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
         current
           ? 'text-white bg-white/5'
           : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]'
       )}
     >
-      <Icon aria-hidden="true" className={clsx("size-4 shrink-0 transition-colors duration-200", current ? "text-white" : "group-hover:text-zinc-400")} />
-      <span className="text-[13px] font-medium tracking-wide">{label}</span>
+      <Icon aria-hidden="true" className={clsx('size-5 shrink-0 transition-colors duration-200', current ? 'text-white' : 'group-hover:text-zinc-400')} />
+      <span className="text-[10px] font-medium tracking-wide leading-none">{label}</span>
       {current && (
-        <span className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-r-full bg-white" />
+        <span className="absolute left-0 top-1/2 h-6 w-[2px] -translate-y-1/2 rounded-r-full bg-white" />
+      )}
+    </Link>
+  )
+}
+
+function MobileNavItem({
+  label,
+  icon: Icon,
+  href,
+  current,
+  onNavigate,
+}: {
+  label: string
+  icon: typeof CpuChipIcon
+  href: string
+  current: boolean
+  onNavigate: () => void
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={current ? 'page' : undefined}
+      onClick={onNavigate}
+      className={clsx(
+        'flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-colors',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
+        current
+          ? 'bg-white/[0.06] text-white'
+          : 'text-zinc-400 hover:bg-white/[0.03] hover:text-zinc-200'
+      )}
+    >
+      <Icon aria-hidden="true" className={clsx('size-5 shrink-0', current ? 'text-white' : 'text-zinc-500')} />
+      <span className="text-sm font-medium tracking-wide">{label}</span>
+      {current && (
+        <span className="ml-auto size-1.5 rounded-full bg-accent-500" aria-hidden="true" />
       )}
     </Link>
   )
@@ -64,79 +102,152 @@ function RailItem({
 
 export function AgentControlShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [lastPath, setLastPath] = useState(pathname)
+
+  // Close the mobile drawer on route change (derived during render — the
+  // official React pattern, no setState-in-effect). Covers back/forward and
+  // programmatic navigation in addition to in-drawer clicks.
+  if (pathname !== lastPath) {
+    setLastPath(pathname)
+    if (mobileOpen) setMobileOpen(false)
+  }
+
+  // Lock body scroll while the mobile drawer is open.
+  useEffect(() => {
+    if (!mobileOpen) return
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previous
+    }
+  }, [mobileOpen])
+
+  const activeItem = NAV_ITEMS.find((item) => item.match(pathname))
 
   return (
     <div className="relative isolate flex min-h-svh w-full bg-[var(--color-surface-canvas)] text-zinc-100 font-sans selection:bg-accent-500/30">
       <CommandPalette />
-      
-      {/* Sidebar - Ultra refined, no heavy backgrounds, just a subtle border */}
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[220px] flex-col border-r border-white/5 bg-[var(--color-surface-canvas)] py-6 lg:flex">
-        
-        {/* Brand Header */}
-        <div className="flex items-center gap-3 px-6 mb-8">
-          <Link
-            href="/admin"
-            aria-label="Agent Mission Control"
-            className="flex size-6 shrink-0 items-center justify-center transition-transform hover:scale-105"
-          >
-            <LogoMark className="size-5 text-white" />
-          </Link>
-          <span className="text-[13px] font-semibold tracking-tight text-white">Aigent</span>
-        </div>
 
-        {/* Navigation */}
-        <nav className="flex w-full flex-1 flex-col gap-0.5 px-3">
+      {/* Sidebar - tight icon rail: square tiles, icon over label, centered on the vertical axis */}
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-20 flex-col items-center border-r border-white/5 bg-[var(--color-surface-canvas)] py-6 lg:flex">
+
+        {/* Brand Header */}
+        <Link
+          href="/admin"
+          aria-label="Agent Mission Control"
+          className="mb-8 flex size-9 shrink-0 items-center justify-center transition-transform hover:scale-105"
+        >
+          <LogoMark className="size-5 text-white" />
+        </Link>
+
+        {/* Navigation — centered on the rail's vertical axis */}
+        <nav className="flex w-full flex-1 flex-col items-center justify-center gap-1 px-2">
           {NAV_ITEMS.map(({ label, icon, href, match }) => (
             <RailItem key={label} label={label} icon={icon} href={href} current={match(pathname)} />
           ))}
         </nav>
 
         {/* User Footer */}
-        <div className="mt-auto px-4 pb-2">
-          <div className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-white/5 transition-colors cursor-pointer group">
-            <Avatar initials="AD" alt="Adrien" className="size-6 bg-zinc-800 text-white text-[10px] font-medium ring-1 ring-white/10" />
-            <span className="text-[13px] font-medium text-zinc-400 group-hover:text-white transition-colors truncate flex-1">Adrien</span>
-            <a
-              href="/logout"
-              aria-label="Sign out"
-              className="flex size-6 shrink-0 items-center justify-center text-zinc-600 transition-colors hover:text-white opacity-0 group-hover:opacity-100"
-            >
-              <ArrowRightStartOnRectangleIcon aria-hidden="true" className="size-3.5" />
-            </a>
-          </div>
+        <div className="mt-auto flex w-full flex-col items-center px-2 pb-1">
+          <Avatar initials="AD" alt="Adrien" className="size-8 bg-zinc-800 text-white text-[11px] font-medium ring-1 ring-white/10" />
+          <a
+            href="/logout"
+            aria-label="Sign out"
+            className="mt-2 flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-white/5 hover:text-white"
+          >
+            <ArrowRightStartOnRectangleIcon aria-hidden="true" className="size-4" />
+          </a>
         </div>
       </aside>
 
       {/* Mobile top bar */}
-      <header className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between border-b border-white/5 bg-[var(--color-surface-canvas)]/80 backdrop-blur-md px-4 py-3 lg:hidden">
-        <div className="flex items-center gap-3">
-          <Link href="/admin" aria-label="Agent Mission Control" className="flex size-6 items-center justify-center">
-            <LogoMark className="size-5 text-white" />
-          </Link>
-          <span className="text-sm font-semibold text-white">Aigent</span>
+      <header className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between gap-3 border-b border-white/5 bg-[var(--color-surface-canvas)]/80 backdrop-blur-md px-4 py-3 lg:hidden">
+        <Link href="/admin" aria-label="Agent Mission Control" className="flex min-w-0 items-center gap-2.5">
+          <LogoMark className="size-5 shrink-0 text-white" />
+          <span className="truncate text-sm font-semibold text-white">Aigent</span>
+        </Link>
+
+        <div className="flex shrink-0 items-center gap-2">
+          {activeItem && (
+            <span className="hidden max-w-[9rem] truncate text-xs font-medium text-zinc-500 sm:inline">
+              {activeItem.label}
+            </span>
+          )}
+          <Headless.Button
+            onClick={() => setMobileOpen((open) => !open)}
+            aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-nav-drawer"
+            className={clsx(
+              'flex size-11 items-center justify-center rounded-lg text-zinc-300 transition-colors',
+              'hover:bg-white/5 hover:text-white active:bg-white/10',
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500'
+            )}
+          >
+            {mobileOpen ? (
+              <XMarkIcon aria-hidden="true" className="size-5" />
+            ) : (
+              <Bars3Icon aria-hidden="true" className="size-5" />
+            )}
+          </Headless.Button>
         </div>
-        <nav className="no-scrollbar flex min-w-0 items-center gap-2 overflow-x-auto">
-          {NAV_ITEMS.map(({ label, icon: Icon, href, match }) => (
-            <Link
-              key={label}
-              href={href}
-              aria-current={match(pathname) ? 'page' : undefined}
-              className={clsx(
-                'flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-                match(pathname)
-                  ? 'bg-white/10 text-white'
-                  : 'text-zinc-500 hover:text-zinc-300'
-              )}
-            >
-              <Icon aria-hidden="true" className="size-3.5" />
-              {label}
-            </Link>
-          ))}
-        </nav>
       </header>
 
+      {/* Mobile navigation drawer */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <div className="fixed inset-0 z-40 lg:hidden">
+            <motion.button
+              type="button"
+              aria-label="Close navigation menu"
+              onClick={() => setMobileOpen(false)}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm"
+            />
+            <motion.nav
+              id="mobile-nav-drawer"
+              aria-label="Primary"
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+3.75rem)] overflow-hidden rounded-2xl border border-white/10 bg-[var(--color-surface-primary)] p-2 shadow-2xl shadow-black/40"
+            >
+              <div className="flex flex-col gap-1">
+                {NAV_ITEMS.map(({ label, icon, href, match }) => (
+                  <MobileNavItem
+                    key={label}
+                    label={label}
+                    icon={icon}
+                    href={href}
+                    current={match(pathname)}
+                    onNavigate={() => setMobileOpen(false)}
+                  />
+                ))}
+              </div>
+
+              <div className="mt-2 flex items-center gap-3 border-t border-white/5 px-3 pb-1 pt-3">
+                <Avatar initials="AD" alt="Adrien" className="size-7 bg-zinc-800 text-white text-[10px] font-medium ring-1 ring-white/10" />
+                <span className="flex-1 truncate text-sm font-medium text-zinc-300">Adrien</span>
+                <a
+                  href="/logout"
+                  aria-label="Sign out"
+                  className="flex size-11 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+                >
+                  <ArrowRightStartOnRectangleIcon aria-hidden="true" className="size-4" />
+                </a>
+              </div>
+            </motion.nav>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Main Content Area */}
-      <main className="flex min-w-0 flex-1 flex-col pt-16 lg:pl-[220px] lg:pt-0 relative z-10">
+      <main className="flex min-w-0 flex-1 flex-col pt-16 lg:pl-20 lg:pt-0 relative z-10">
         <div className="grow p-6 lg:p-10 max-w-[1400px] w-full">
           {children}
         </div>

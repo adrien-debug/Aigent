@@ -3,7 +3,6 @@ import type { Metadata } from 'next'
 import { ShieldCheckIcon, ServerStackIcon, LockClosedIcon, CogIcon } from '@heroicons/react/24/outline'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
-import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
 import { SurfaceCard, SurfaceCardHeader, surfaceInsetClass } from '@/components/agent-ops/surface-card'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
 import { SettingsGuardrails } from '@/components/agent-ops/settings-guardrails'
@@ -36,17 +35,6 @@ export default async function SettingsPage() {
   return (
     <div className="flex flex-col gap-8 pb-12">
       <StaggerFade delay={0}>
-        <AgentPageHeader
-          title="Settings"
-          description="Control-plane posture, security policies, and platform-wide guardrails."
-          breadcrumbs={[
-            { label: 'Platform', href: '/admin' },
-            { label: 'Settings' }
-          ]}
-        />
-      </StaggerFade>
-
-      <StaggerFade delay={1}>
         <AgentKpiBand
           stats={[
             { name: 'Registered Copilots', value: String(copilots.length) },
@@ -54,7 +42,6 @@ export default async function SettingsPage() {
             {
               name: 'Backend Posture',
               value: backendConfigured ? 'Connected' : 'Offline',
-              valueSize: 'compact',
               valueTone: backendConfigured ? 'accent' : 'muted',
             },
             {
@@ -70,7 +57,7 @@ export default async function SettingsPage() {
         <StaggerFade delay={2}>
           <SurfaceCard className="flex h-full flex-col">
             <SurfaceCardHeader
-              className="p-6"
+              className="p-4 sm:p-6"
               title={
                 <span className="inline-flex items-center gap-3">
                   <ServerStackIcon className="size-5 text-accent-400" />
@@ -79,7 +66,7 @@ export default async function SettingsPage() {
               }
               description="Identity and connection posture of this control plane."
             />
-            <div className="p-6 flex-1 flex flex-col justify-between">
+            <div className="p-4 sm:p-6 flex-1 flex flex-col justify-between">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Kv label="Workspace" icon={CogIcon}>Aigent — Command Center</Kv>
                 <Kv label="Operated by" icon={ShieldCheckIcon}>Platform Admin</Kv>
@@ -105,7 +92,7 @@ export default async function SettingsPage() {
         <StaggerFade delay={3}>
           <SurfaceCard className="flex h-full flex-col">
             <SurfaceCardHeader
-              className="p-6"
+              className="p-4 sm:p-6"
               title={
                 <span className="inline-flex items-center gap-3">
                   <ShieldCheckIcon className="size-5 text-accent-400" />
@@ -114,7 +101,7 @@ export default async function SettingsPage() {
               }
               description="How copilots execute and how failures are handled."
             />
-            <div className="p-6 flex-1 flex flex-col justify-between">
+            <div className="p-4 sm:p-6 flex-1 flex flex-col justify-between">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Kv label="Model routing">Multi-provider</Kv>
                 <Kv label="Fallbacks">Explicit · opt-in only</Kv>
@@ -136,11 +123,11 @@ export default async function SettingsPage() {
       <StaggerFade delay={4}>
         <SurfaceCard>
           <SurfaceCardHeader
-            className="p-6"
+            className="p-4 sm:p-6"
             title="Guardrail Defaults"
             description="Baseline applied to new copilots — each copilot can override per tool."
           />
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <SettingsGuardrails />
           </div>
         </SurfaceCard>

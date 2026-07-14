@@ -5,7 +5,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
-import { surfaceCardClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
+import {
+  surfaceCardClass,
+  surfaceCardFooterClass,
+  surfaceCardHeaderClass,
+} from '@/components/agent-ops/surface-card'
 import { LangGraphDebugPanel, type LangGraphDebugInfo } from '@/components/agent-ops/langgraph-debug-panel'
 import { ProjectBuilderPreviewPanel } from '@/components/agent-ops/project-builder-preview-panel'
 import {
@@ -280,10 +284,12 @@ export function ProjectAgentBuilderWorkbench({
           className={clsx(surfaceCardClass, 'flex min-h-[420px] min-w-0 flex-col lg:min-h-[560px]')}
         >
           <div className={clsx(surfaceCardHeaderClass, 'px-4 py-3')}>
-            <h2 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Architect chat</h2>
-            <p className="mt-1 text-xs text-zinc-500">
-              Persistent thread — discuss the repo, compare options, create draft only after explicit approval.
-            </p>
+            <div className="min-w-0">
+              <h2 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Architect chat</h2>
+              <p className="mt-1 text-xs text-zinc-500">
+                Persistent thread — discuss the repo, compare options, create draft only after explicit approval.
+              </p>
+            </div>
           </div>
 
           <div
@@ -364,7 +370,7 @@ export function ProjectAgentBuilderWorkbench({
             <div ref={chatEndRef} />
           </div>
 
-          <div className="border-t border-white/5 bg-black/20 p-4">
+          <div className={clsx(surfaceCardFooterClass, 'p-4')}>
             <Textarea
               ref={inputRef}
               name="project-builder-chat"

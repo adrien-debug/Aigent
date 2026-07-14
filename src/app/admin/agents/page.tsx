@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { PlusIcon } from '@heroicons/react/16/solid'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
-import { AgentPageHeader } from '@/components/agent-ops/agent-page-header'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
 import { ProvisionAgentBuilderBanner } from '@/components/agent-ops/provision-agent-builder-banner'
@@ -15,7 +14,7 @@ import {
   getRecentWarnings,
   getRegistryKpis,
 } from '@/lib/agent-mission-control/data'
-import { Link } from '@/components/catalyst/link'
+import { Button } from '@/components/catalyst/button'
 
 export const dynamic = 'force-dynamic'
 
@@ -81,8 +80,6 @@ export default async function AgentsRegistryPage() {
     getRegistryKpis(),
     getRecentWarnings(6),
   ])
-  const onBenchCount = copilots.filter((copilot) => copilot.projectId === null).length
-  const assignedCount = copilots.length - onBenchCount
   const hasAgentBuilder = copilots.some((copilot) => copilot.slug === AGENT_BUILDER_SLUG)
 
   const copilotNameById = new Map(copilots.map((copilot) => [copilot.id, copilot.name]))
@@ -90,50 +87,18 @@ export default async function AgentsRegistryPage() {
   return (
     <div className="flex flex-col gap-8 pb-12">
       <StaggerFade delay={0}>
-        <AgentPageHeader 
-          title="Copilots Registry" 
-          description="Central repository of all agents, their capabilities, and validation status."
-          breadcrumbs={[
-            { label: 'Platform', href: '/admin' },
-            { label: 'Copilots' }
-          ]}
-          actions={
-            <Link 
-              href="/admin/agents/new" 
-              className="inline-flex items-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white shadow-[0_0_16px_rgba(99,102,241,0.4)] transition-all hover:bg-accent-400 hover:shadow-[0_0_24px_rgba(99,102,241,0.6)]"
-            >
-              <PlusIcon className="size-4" />
-              New Copilot
-            </Link>
-          }
-        />
+        <div className="flex justify-end">
+          <Button href="/admin/agents/new" color="accent">
+            <PlusIcon data-slot="icon" />
+            New Copilot
+          </Button>
+        </div>
       </StaggerFade>
 
-      {hasAgentBuilder ? null : (
-        <StaggerFade delay={1}>
-          <ProvisionAgentBuilderBanner />
-        </StaggerFade>
-      )}
-
-      <StaggerFade delay={2}>
+      <StaggerFade delay={1}>
         <AgentKpiBand
           stats={[
             { name: 'Total Fleet', value: String(kpis.totalCopilots) },
-            {
-              name: 'Distribution',
-              content: (
-                <div className="flex flex-col gap-1 mt-1">
-                  <div className="flex items-center gap-2">
-                    <span className="size-1.5 rounded-full bg-accent-500" />
-                    <span className="text-sm text-zinc-300">{assignedCount} Assigned</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="size-1.5 rounded-full bg-zinc-600" />
-                    <span className="text-sm text-zinc-300">{onBenchCount} On Bench</span>
-                  </div>
-                </div>
-              ),
-            },
             { name: 'Avg Test Pass', value: formatPercent(kpis.avgTestPassRate), valueTone: 'accent' },
             { name: '24h Compute', value: formatUsd(kpis.totalCostLast24hUsd) },
             {
@@ -144,6 +109,12 @@ export default async function AgentsRegistryPage() {
           ]}
         />
       </StaggerFade>
+
+      {hasAgentBuilder ? null : (
+        <StaggerFade delay={2}>
+          <ProvisionAgentBuilderBanner />
+        </StaggerFade>
+      )}
 
       <StaggerFade delay={3}>
         <RecentWarningsCard warnings={warnings} copilotNameById={copilotNameById} />
