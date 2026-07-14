@@ -1,4 +1,4 @@
-import { ChevronLeftIcon, CodeBracketIcon, ServerStackIcon, CpuChipIcon, ShieldCheckIcon, ExclamationTriangleIcon, BoltIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline'
+import { CodeBracketIcon, ServerStackIcon, CpuChipIcon, BoltIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 

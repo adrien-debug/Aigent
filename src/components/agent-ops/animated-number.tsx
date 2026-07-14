@@ -1,7 +1,7 @@
 'use client'
 
 import { motion, useSpring, useTransform } from 'motion/react'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 
 export function AnimatedNumber({ value }: { value: string }) {
   // Extract all non-numeric prefix/suffix (like '$' or '%') and the numeric value

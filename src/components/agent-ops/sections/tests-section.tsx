@@ -2,7 +2,7 @@ import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { RunTestsButton } from '@/components/agent-ops/run-tests-button'
 import { TestCaseTable } from '@/components/agent-ops/test-case-table'
 import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
-import { formatDate, formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
+import { formatDate, formatPercent } from '@/lib/agent-mission-control/format'
 import {
   getCopilot,
   getTestCasesForSuite,
@@ -10,8 +10,8 @@ import {
   getTestRunsForCopilot,
   getTestSuitesForCopilot,
 } from '@/lib/agent-mission-control/data'
-import type { TestResult, TestResultStatus, TestRun, TestSuite } from '@/lib/agent-mission-control/types'
-import { BeakerIcon, PlayIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
+import type { TestRun, TestSuite } from '@/lib/agent-mission-control/types'
+import { BeakerIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
 
 const suiteKindConfig: Record<TestSuite['kind'], { label: string }> = {
   behavior: { label: 'Behavior' },

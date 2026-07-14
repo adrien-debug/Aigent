@@ -4,18 +4,16 @@ import { useState } from 'react'
 import clsx from 'clsx'
 
 import { CopilotRegistryTable } from '@/components/agent-ops/copilot-registry-table'
-import type { Copilot, Project, RegistryWarning } from '@/lib/agent-mission-control/types'
+import type { Copilot, Project } from '@/lib/agent-mission-control/types'
 
 export type RegistryTableView = 'bench' | 'all'
 
 export function RegistryView({
   copilots,
   projects,
-  warnings,
 }: {
   copilots: Copilot[]
   projects: Project[]
-  warnings: RegistryWarning[]
 }) {
   const [view, setView] = useState<RegistryTableView>('bench')
   const [searchQuery, setSearchQuery] = useState('')

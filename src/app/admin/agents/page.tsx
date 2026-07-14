@@ -153,7 +153,6 @@ export default async function AgentsRegistryPage() {
         <RegistryView
           copilots={copilots}
           projects={projects}
-          warnings={warnings}
         />
       </StaggerFade>
     </div>

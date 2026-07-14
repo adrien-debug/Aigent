@@ -1,4 +1,3 @@
-import { CodeBracketIcon, CpuChipIcon } from '@heroicons/react/24/outline'
 import { PlusIcon } from '@heroicons/react/16/solid'
 import type { Metadata } from 'next'
 

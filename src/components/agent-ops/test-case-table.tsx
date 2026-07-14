@@ -1,7 +1,6 @@
 import { SurfaceCard } from '@/components/agent-ops/surface-card'
 import { ToolBadge } from '@/components/agent-ops/tool-badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
-import { Badge } from '@/components/catalyst/badge'
 import { formatDurationMs, formatUsd } from '@/lib/agent-mission-control/format'
 import type { TestCase, TestResult, TestResultStatus } from '@/lib/agent-mission-control/types'
 import { CheckCircleIcon, ExclamationTriangleIcon, XCircleIcon, MinusCircleIcon, ArrowPathIcon } from '@heroicons/react/20/solid'

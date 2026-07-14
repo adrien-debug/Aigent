@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { ServerStackIcon, CpuChipIcon, BoltIcon, ArrowTopRightOnSquareIcon, ExclamationTriangleIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline'
+import { ServerStackIcon, CpuChipIcon, BoltIcon, ArrowTopRightOnSquareIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline'
 
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { Link } from '@/components/catalyst/link'

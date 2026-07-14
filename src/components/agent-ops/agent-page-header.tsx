@@ -1,6 +1,5 @@
 import clsx from 'clsx'
 import Link from 'next/link'
-import { ChevronRightIcon } from '@heroicons/react/20/solid'
 
 export interface Breadcrumb {
   label: string

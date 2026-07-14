@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'motion/react'
 import * as Headless from '@headlessui/react'
-import { MagnifyingGlassIcon, ArrowRightIcon, Squares2X2Icon, PlusIcon } from '@heroicons/react/20/solid'
-import { CpuChipIcon, FolderIcon, Cog6ToothIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
+import { MagnifyingGlassIcon, Squares2X2Icon, PlusIcon } from '@heroicons/react/20/solid'
+import { CpuChipIcon, FolderIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'
 
 const ACTIONS = [
   { id: 'dashboard', name: 'Go to Dashboard', icon: Squares2X2Icon, href: '/admin', section: 'Navigation' },

@@ -8,7 +8,7 @@ import { SurfaceCard } from '@/components/agent-ops/surface-card'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
-import { AGENT_RUNTIME_LABELS, COPILOT_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
+import { COPILOT_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
 import type { Copilot, CopilotStatus, Project } from '@/lib/agent-mission-control/types'
 
 export type RegistryTableView = 'bench' | 'all'

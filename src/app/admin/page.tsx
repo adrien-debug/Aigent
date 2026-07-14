@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { BoltIcon, CpuChipIcon, FolderIcon, ShieldCheckIcon, ChartBarIcon, ServerStackIcon, ClockIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
+import { BoltIcon, CpuChipIcon, ShieldCheckIcon, ServerStackIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import type { Metadata } from 'next'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
@@ -10,9 +10,9 @@ import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
 import { Badge } from '@/components/catalyst/badge'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
-import { getCopilots, getProjects, getRecentRuns, getRegistryKpis } from '@/lib/agent-mission-control/data'
+import { getCopilots, getRecentRuns, getRegistryKpis } from '@/lib/agent-mission-control/data'
 import { formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
-import type { AgentRun, Copilot, Project } from '@/lib/agent-mission-control/types'
+import type { AgentRun, Copilot } from '@/lib/agent-mission-control/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -284,9 +284,8 @@ function RunActivity({ runs, copilotNameById }: { runs: AgentRun[], copilotNameB
 }
 
 export default async function DashboardPage() {
-  const [copilots, projects, kpis, runs] = await Promise.all([
+  const [copilots, kpis, runs] = await Promise.all([
     getCopilots(),
-    getProjects(),
     getRegistryKpis(),
     getRecentRuns(30),
   ])

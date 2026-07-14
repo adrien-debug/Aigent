@@ -1,9 +1,8 @@
-import { ArrowTopRightOnSquareIcon, ClockIcon, CpuChipIcon, ShieldCheckIcon } from '@heroicons/react/20/solid'
+import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid'
 import clsx from 'clsx'
 
 import { RunTimeline } from '@/components/agent-ops/run-timeline'
 import { SurfaceCard, surfaceInsetClass } from '@/components/agent-ops/surface-card'
-import { Link } from '@/components/catalyst/link'
 import { formatDurationMs, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 import { AGENT_RUN_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
 import type { AgentRun, AgentRunStatus, AgentRunStep, ToolCall } from '@/lib/agent-mission-control/types'
