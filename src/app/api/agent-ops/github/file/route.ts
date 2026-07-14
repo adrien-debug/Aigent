@@ -97,9 +97,11 @@ export async function GET(request: Request) {
   try {
     return NextResponse.json(await getRepoFile(repoResult.data, path, ref ?? undefined))
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'GitHub error' },
-      { status: 502 }
-    )
+    // Log the full error server-side only — getRepoFile's message can carry the
+    // GitHub API path and up to 300 chars of the raw upstream response body
+    // (github.ts), which must never reach the client. Public contract stays
+    // generic. Mirrors the neighboring agent-ops routes.
+    console.error('[agent-ops/github/file] read failed', err)
+    return NextResponse.json({ error: 'failed to read file' }, { status: 502 })
   }
 }

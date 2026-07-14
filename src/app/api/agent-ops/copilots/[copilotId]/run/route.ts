@@ -21,6 +21,16 @@ const DEFAULT_MAX_STEPS_PER_RUN = 12
 // truncation that would quietly change what the model sees).
 const MAX_USER_INPUT_LENGTH = 32_000
 
+// Shape guard for the `:copilotId` path param. Real ids are `makeId('copilot',
+// slug)` (see slug.ts): lowercase alphanumerics/hyphens only, bounded length —
+// same shape family enforced by every sibling copilot route
+// (`[copilotId]/route.ts`, `promotion`, `improve/*`). Rejecting anything else
+// before a live DB round-trip is a fast, safe 400 (no valid id is ever refused)
+// and closes the PostgREST filter-syntax hazard: this id is used raw in
+// `eq.`/`in.(...)` filters here AND inside executeCopilotRun, where a value
+// carrying a comma or filter-syntax character could otherwise be misparsed.
+const COPILOT_ID_RE = /^[a-z0-9-]{1,200}$/
+
 /**
  * POST /api/agent-ops/copilots/:copilotId/run — execute a REAL run of a
  * copilot against the live OpenAI model, persisted via the shared runner
@@ -46,6 +56,10 @@ export async function POST(
   { params }: { params: Promise<{ copilotId: string }> }
 ) {
   const { copilotId } = await params
+
+  if (!COPILOT_ID_RE.test(copilotId)) {
+    return NextResponse.json({ error: 'invalid copilotId' }, { status: 400 })
+  }
 
   let body: { userInput?: string; allowFallback?: boolean }
   try {
