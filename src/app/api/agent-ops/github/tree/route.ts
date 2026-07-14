@@ -62,9 +62,10 @@ export async function GET(request: Request) {
       entries: await getRepoTree(repoResult.data, ref ?? undefined),
     })
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'GitHub error' },
-      { status: 502 }
-    )
+    // Log the detail (which can embed the internal GitHub API path + up to 300
+    // chars of raw upstream response body) server-side only; return a generic
+    // 502 so nothing internal leaks to the client. Mirrors copilots/route.ts.
+    console.error('[agent-ops/github/tree] getRepoTree failed:', err)
+    return NextResponse.json({ error: 'GitHub error' }, { status: 502 })
   }
 }

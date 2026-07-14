@@ -14,11 +14,23 @@ import { getAgentBuilderRunState } from '@/lib/agent-mission-control/agent-build
  * Auth: enforced by src/proxy.ts. Fail-closed 503 without the Agent Server
  * configured. Read-only — never mutates the run.
  */
+
+// The run/thread id is a LangGraph thread_id — always a randomUUID() minted
+// server-side. It flows straight into the Agent Server URL path
+// (`threads/{id}/state`) via the SDK client, so constrain its shape to a UUID
+// BEFORE it leaves for the upstream: an unvalidated segment (path traversal,
+// scheme/host injection) must never reach that fetch. Anything else → 400.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
   if (process.env.AMC_DATA_SOURCE !== 'gpu1') {
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
+  }
+
+  if (!UUID_RE.test(id)) {
+    return NextResponse.json({ error: 'invalid run id' }, { status: 400 })
   }
 
   try {
