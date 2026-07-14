@@ -4,6 +4,19 @@ import { getProject, getCopilot, getManifestForCopilot } from '@/lib/agent-missi
 import { pushAgentToRepo } from '@/lib/agent-mission-control/github'
 
 /**
+ * Shape guard for the `:id` path param and the body `copilotId`. Real ids are
+ * `makeId(prefix, slug)` (slug.ts): lowercase alphanumerics/hyphens, bounded
+ * length. Rejects empty/oversized/garbage before any live DB round-trip —
+ * mirrors projects/[id]/route.ts's isValidProjectId and
+ * copilots/[copilotId]/route.ts's isValidCopilotId. No valid id is ever refused.
+ */
+const ID_RE = /^[a-z0-9-]{1,200}$/
+
+function isValidId(id: unknown): id is string {
+  return typeof id === 'string' && ID_RE.test(id)
+}
+
+/**
  * POST /api/agent-ops/projects/:id/push-agent — push a copilot's agent artifacts
  * to the project's linked GitHub repository.
  *
@@ -26,13 +39,17 @@ export async function POST(
 ) {
   const { id } = await params
 
+  if (!isValidId(id)) {
+    return NextResponse.json({ error: 'invalid id' }, { status: 400 })
+  }
+
   let body: { copilotId?: string; confirm?: boolean }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
   }
-  if (typeof body.copilotId !== 'string' || body.copilotId.trim().length === 0) {
+  if (!isValidId(body.copilotId)) {
     return NextResponse.json({ error: 'copilotId is required' }, { status: 400 })
   }
   const copilotId = body.copilotId
