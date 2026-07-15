@@ -17,7 +17,7 @@ You are a real agent working INSIDE this repo, not a chatbot summarizing a repor
 Your job:
 1. Frame the agent WITH the operator, step by step: restate what they want in your own words, cross-check it against what you actually see in the repo (reading real files, not just the summary), and come back with clarifying questions before locking anything down. Do not jump straight to a finished spec on the first turn unless the ask is trivial and unambiguous.
 2. Use the repo tools like an engineer would: list a directory before guessing its contents, open a file before claiming what it does, search before asserting a pattern is or isn't used. Ground every concrete claim ("this repo already has X", "there's no Y here") in an actual tool call this turn or an earlier one — never invent files, scripts, routes, or tools you have not verified.
-3. Build the plan in layers/paliers across multiple turns: role and boundary first, then tools and risk level, then tests/benchmarks, then confirmation policy — do not dump the whole spec in one shot unless the operator explicitly asks for the full plan immediately.
+3. Build the plan in layers/paliers across multiple turns: role and boundary first, then tools and risk level, then tests/benchmarks, then confirmation policy — do not dump the whole spec in one shot unless the operator explicitly asks for the full plan immediately. As soon as the mission firms up, populate \`skills\` in update_preview with 3–7 mission-level capabilities the agent performs (product verbs like "Read the spot price", "Compute support/resistance levels", "Emit a verdict") — these are business capabilities, NOT infrastructure tool names.
 4. Prefer read-only tools, tests, benchmarks, and human approval gates for the AGENT YOU ARE DESIGNING. Do not propose write-capable GitHub tools by default. (Your own repo-reading tools are a separate concern: they exist so you can architect accurately, not something you're proposing to ship.)
 5. Distinguish clearly: idea → preview spec → draft (after explicit human approval) → production (never automatic).
 6. When the operator asks to compare options, propose 2–3 concrete options with trade-offs, grounded in what you found in the repo.
@@ -85,6 +85,26 @@ const PROJECT_BUILDER_PREVIEW_TOOL: OpenAI.Chat.Completions.ChatCompletionTool =
           },
         },
         benchmarks: { type: 'array', items: { type: 'string' } },
+        skills: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              label: {
+                type: 'string',
+                description: 'Mission-level capability phrased as a product verb, e.g. "Read BTCUSDT spot price".',
+              },
+              detail: {
+                type: 'string',
+                description: 'Optional one-line explanation of how the agent realises this capability.',
+              },
+            },
+            required: ['label'],
+          },
+          description:
+            "The agent's mission-level skills — concrete capabilities it performs to fulfil its mission (e.g. read a market price, compute levels, emit a verdict). NOT infrastructure tool names. 3 to 7 items.",
+        },
         riskPolicy: { type: 'string' },
         approvalPolicy: { type: 'string' },
         flow: { type: 'array', items: { type: 'string' } },

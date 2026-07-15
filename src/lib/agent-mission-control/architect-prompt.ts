@@ -49,6 +49,7 @@ Your job: take a natural-language description of a desired copilot (its purpose,
    List every action that must always be confirmed in \`alwaysConfirmActions\`, even under \`risky-only\`/\`never\`, whenever a specific action deserves a standing human checkpoint (e.g. "sending an email to an external address", "deleting a production record").
 6. Define \`outputContract\`: the shape of what the copilot returns (format, optional schema name, and invariants). Invariants must include at least one safety invariant, e.g. "never echoes raw PII", "never returns secrets or credentials", "never fabricates data it did not retrieve via a tool call".
 7. Set conservative operating limits: \`maxStepsPerRun\` (typically 5-20 for focused tasks, higher only if genuinely justified) and \`maxCostPerRunUsd\` (a small dollar ceiling appropriate to the task, e.g. 0.05-2.00 USD; never leave this unbounded).
+8. Populate \`skills\` with 3–7 mission-level capabilities derived from the copilot's job — concrete things it does to fulfil its mission, phrased as product verbs (e.g. "Read the spot price", "Compute support/resistance levels", "Emit a NO_ALERT/WATCH/ALERT verdict"). These are business capabilities, NOT infrastructure tool names — never restate \`proposedTools\` entries here.
 
 ## Safety-by-default rules (apply even if the user's description does not mention safety)
 
@@ -153,6 +154,26 @@ export const ARCHITECT_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
           },
           description:
             'Minimal set of tools proposed for this copilot, least-privilege first.',
+        },
+        skills: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              label: {
+                type: 'string',
+                description: 'Mission-level capability phrased as a product verb, e.g. "Read BTCUSDT spot price".',
+              },
+              detail: {
+                type: 'string',
+                description: 'Optional one-line explanation of how the agent realises this capability.',
+              },
+            },
+            required: ['label'],
+          },
+          description:
+            "The agent's mission-level skills — concrete capabilities it performs to fulfil its mission (e.g. read a market price, compute levels, emit a verdict). NOT infrastructure tool names. 3 to 7 items.",
         },
         maxStepsPerRun: {
           type: 'integer',

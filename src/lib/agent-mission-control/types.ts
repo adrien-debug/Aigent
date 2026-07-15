@@ -138,6 +138,8 @@ export interface AgentManifest {
   alwaysConfirmActions: string[]
   memorySources: MemorySource[]
   outputContract: OutputContract
+  /** Mission-level capabilities the agent performs to fulfil its job. */
+  skills: AgentSkill[]
   toolIds: string[]
   maxStepsPerRun: number
   maxCostPerRunUsd: UsdAmount
@@ -157,6 +159,13 @@ export interface OutputContract {
   schemaName: string | null
   /** Human-readable invariants, e.g. "never returns raw SQL". */
   invariants: string[]
+}
+
+export interface AgentSkill {
+  /** Mission-level capability, phrased as a product verb, e.g. "Read BTCUSDT spot price". */
+  label: string
+  /** Optional one-line explanation of how the agent realises it. */
+  detail?: string
 }
 
 // ---------------------------------------------------------------------------

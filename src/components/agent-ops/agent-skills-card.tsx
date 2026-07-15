@@ -1,16 +1,19 @@
 import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
-import { ToolBadge } from '@/components/agent-ops/tool-badge'
 import type { AgentManifest, ToolDefinition } from '@/lib/agent-mission-control/types'
 
 /**
- * Skills — an at-a-glance recap of what the agent can do, aggregating the
- * manifest role, the enabled tools and the guardrail counters that otherwise
- * live scattered across the manifest and tools views. Pure presentation:
- * every field is passed in, no fetch happens here.
+ * Skills — an at-a-glance recap of what the agent can actually DO for its
+ * mission. Shows the manifest role, then the business skills the Agent Builder
+ * derived from that mission (e.g. "Read spot price", "Emit a verdict"), plus the
+ * guardrail counters. Pure presentation: every field is passed in, no fetch.
+ *
+ * `enabledTools` is still accepted (page.tsx passes it) but no longer rendered —
+ * this card surfaces mission skills, not infra tools. It is intentionally not
+ * destructured so it produces no unused-variable warning; drop it from the
+ * call-site once page.tsx is updated.
  */
 export function AgentSkillsCard({
   manifest,
-  enabledTools,
   className,
 }: {
   manifest: AgentManifest | undefined
@@ -28,21 +31,17 @@ export function AgentSkillsCard({
     )
   }
 
-  const gatedCount = enabledTools.filter((tool) => tool.requiresConfirmation).length
+  const skills = manifest.skills
 
   return (
     <AgentBentoCard title="Skills" className={className}>
       {/* Role — the manifest's one-line framing of what the agent is for */}
       <p className="text-sm text-zinc-700 dark:text-zinc-300">{manifest.systemPromptSummary}</p>
 
-      {/* Compact meta line: capability count · gated count · confirmation policy */}
+      {/* Compact meta line: skill count · confirmation policy */}
       <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
         <span>
-          <span className="font-mono tabular-nums">{enabledTools.length}</span> capabilities
-        </span>
-        <span aria-hidden="true">·</span>
-        <span>
-          <span className="font-mono tabular-nums">{gatedCount}</span> gated
+          <span className="font-mono tabular-nums">{skills.length}</span> skills
         </span>
         <span aria-hidden="true">·</span>
         <span>
@@ -50,23 +49,32 @@ export function AgentSkillsCard({
         </span>
       </p>
 
-      {/* Capabilities — one row per enabled tool */}
-      {enabledTools.length > 0 ? (
+      {/* Mission skills — one row per business skill the agent was given */}
+      {skills.length > 0 ? (
         <ul className="mt-6 divide-y divide-zinc-950/5 dark:divide-white/5">
-          {enabledTools.map((tool) => (
-            <li key={tool.id} className="flex items-center gap-3 py-3">
-              <ToolBadge name={tool.name} risk={tool.riskLevel} />
-              <span className="min-w-0 flex-1 truncate text-sm text-zinc-600 dark:text-zinc-400">
-                {tool.description}
-              </span>
-              <span className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">
-                {tool.requiresConfirmation ? 'gated' : 'read-only'}
+          {skills.map((skill, index) => (
+            <li key={`${skill.label}-${index}`} className="flex items-start gap-3 py-3">
+              <span
+                aria-hidden="true"
+                className="mt-1.5 size-1 shrink-0 rounded-full bg-accent-500"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                  {skill.label}
+                </span>
+                {skill.detail ? (
+                  <span className="mt-0.5 block text-xs text-zinc-500 line-clamp-2 dark:text-zinc-400">
+                    {skill.detail}
+                  </span>
+                ) : null}
               </span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="mt-6 text-sm text-zinc-500 dark:text-zinc-400">No tools enabled yet.</p>
+        <p className="mt-6 text-sm text-zinc-500 dark:text-zinc-400">
+          No skills defined yet — the Agent Builder derives them from the mission.
+        </p>
       )}
 
       {/* Guardrails — count only, the full list lives in the manifest view */}

@@ -103,6 +103,7 @@ export async function createCopilotFromManifest(input: CreateCopilotInput): Prom
     always_confirm_actions: input.manifest.alwaysConfirmActions,
     memory_sources: [],
     output_contract: input.manifest.outputContract,
+    skills: input.manifest.skills ?? [],
     tool_ids: [],
     max_steps_per_run: input.manifest.maxStepsPerRun,
     max_cost_per_run_usd: input.manifest.maxCostPerRunUsd,

@@ -8,7 +8,7 @@
  * the DB CHECK constraints and by `./types.ts`.
  */
 
-import type { AgentRuntime, ConfirmationPolicy, ModelProvider, ToolRiskLevel } from './types'
+import type { AgentRuntime, AgentSkill, ConfirmationPolicy, ModelProvider, ToolRiskLevel } from './types'
 
 // ---------------------------------------------------------------------------
 // Architect conversation
@@ -52,6 +52,8 @@ export interface GeneratedManifest {
     invariants: string[]
   }
   proposedTools: ProposedTool[]
+  /** Mission-level capabilities the architect derived from the copilot's job. */
+  skills?: AgentSkill[]
   maxStepsPerRun: number
   maxCostPerRunUsd: number
 }

@@ -725,6 +725,7 @@ function previewToManifestDraft(preview: AgentPreview): BuilderManifestDraft {
     suggestedModel: 'gpt-5.4',
     systemPromptSummary: preview.systemPromptSummary ?? preview.role ?? preview.description,
     confirmationPolicy: preview.confirmationPolicy ?? 'risky-only',
+    skills: preview.skills,
     maxStepsPerRun: preview.maxStepsPerRun ?? 12,
     forbiddenActions: [
       'auto-promote to production',

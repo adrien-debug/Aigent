@@ -31,7 +31,7 @@ import { agentServerClient, agentServerUrl, AGENT_BUILDER_GRAPH_ID } from './lan
 import { runOnAgentServer, resumeOnAgentServer, type LangGraphServerStep } from './langgraph-server'
 import { resolveRunAssistantId } from './resolve-run-assistant'
 import { slugify } from './slug'
-import type { ConfirmationPolicy, ToolRiskLevel } from './types'
+import type { AgentSkill, ConfirmationPolicy, ToolRiskLevel } from './types'
 
 /** The Agent Builder's own step budget (mirrors its manifest maxStepsPerRun). */
 const AGENT_BUILDER_MAX_STEPS = 12
@@ -64,6 +64,7 @@ export interface BuilderManifestDraft {
   allowedRoutes?: string[]
   forbiddenActions?: string[]
   confirmationPolicy?: string
+  skills?: AgentSkill[]
   maxStepsPerRun?: number
   maxCostPerRunUsd?: number
 }
@@ -378,6 +379,7 @@ function normalizeState(input: NormalizeInput): BuilderRunState {
         allowedRoutes: draft.allowedRoutes,
         forbiddenActions: draft.forbiddenActions,
         confirmationPolicy: draft.confirmationPolicy,
+        skills: draft.skills,
         maxStepsPerRun: draft.maxStepsPerRun,
         maxCostPerRunUsd: draft.maxCostPerRunUsd,
       }
@@ -532,6 +534,7 @@ export function draftToCreateInput(
         invariants: ['never promotes to production autonomously', 'prefers read-only, least-privilege proposals'],
       },
       proposedTools,
+      skills: draft.skills ?? [],
       maxStepsPerRun: draft.maxStepsPerRun ?? 12,
       maxCostPerRunUsd: draft.maxCostPerRunUsd ?? 0.5,
     },
@@ -604,6 +607,7 @@ function extractDraft(messages: AnyMsg[]): NormalizeInput['draft'] {
       allowedRoutes: strArray(pm.allowedRoutes),
       forbiddenActions: strArray(pm.forbiddenActions),
       confirmationPolicy: str(pm.confirmationPolicy),
+      skills: skillArray(pm.skills),
       maxStepsPerRun: num(pm.maxStepsPerRun),
       maxCostPerRunUsd: num(pm.maxCostPerRunUsd),
       proposedTools: toolArray(d.proposedTools),
@@ -679,6 +683,16 @@ function num(v: unknown): number | undefined {
 }
 function strArray(v: unknown): string[] | undefined {
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : undefined
+}
+function skillArray(v: unknown): AgentSkill[] | undefined {
+  if (!Array.isArray(v)) return undefined
+  return v
+    .filter((s): s is Record<string, unknown> => !!s && typeof s === 'object')
+    .map((s) => ({
+      label: String(s.label ?? ''),
+      ...(typeof s.detail === 'string' && s.detail.length > 0 ? { detail: s.detail } : {}),
+    }))
+    .filter((s) => s.label.length > 0)
 }
 function toolArray(v: unknown): BuilderProposedTool[] {
   if (!Array.isArray(v)) return []

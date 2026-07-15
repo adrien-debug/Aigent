@@ -751,6 +751,8 @@ export async function createImprovementV2(copilotId: string, proposalId: string)
     always_confirm_actions: changes.alwaysConfirmActions?.to ?? baseManifest.always_confirm_actions,
     memory_sources: baseManifest.memory_sources,
     output_contract: { ...baseContract, invariants: changes.outputContractInvariants?.to ?? baseContract.invariants ?? [] },
+    // Skills are reported V1→V2 unchanged — the Improvement Loop never rewrites them.
+    skills: baseManifest.skills ?? [],
     tool_ids: baseManifest.tool_ids,
     max_steps_per_run: changes.maxStepsPerRun?.to ?? baseManifest.max_steps_per_run,
     max_cost_per_run_usd: baseManifest.max_cost_per_run_usd,

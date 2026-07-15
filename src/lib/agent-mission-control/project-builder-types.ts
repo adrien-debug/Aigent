@@ -2,6 +2,7 @@
  * Project Builder — persistent conversation types (shared server + client).
  */
 import type { BuilderRunState } from './agent-builder-run'
+import type { AgentSkill } from './types'
 
 export type ProjectBuilderConversationStatus = 'active' | 'draft_ready' | 'draft_created' | 'archived'
 
@@ -42,6 +43,8 @@ export interface AgentPreview {
   systemPromptSummary?: string
   confirmationPolicy?: string
   maxStepsPerRun?: number
+  /** Mission-level capabilities, populated by the architect as the mission firms up. */
+  skills?: AgentSkill[]
   /** Set after draft materialization — not part of architect tool schema. */
   createdCopilotId?: string | null
 }
