@@ -123,12 +123,24 @@ export function RunCopilotPanel({ copilotId, copilotName, copilotSlug = '', copi
       const data = (await response.json()) as {
         status: RunResult['status']
         outputSummary: string
+        interrupted?: boolean
+        interruptMessage?: string | null
+        pendingTool?: RunResult['pendingTool']
       }
-      // Fold the resume outcome back into the run receipt and clear the paused
-      // flag so the approval block disappears.
+      // Fold the resume outcome back into the run receipt. A re-interrupted
+      // run (approval led straight into another tool call) reports
+      // interrupted:true here — propagate it so the approval block
+      // re-renders instead of silently going quiet on a needs-confirmation run.
       setResult((prev) =>
         prev
-          ? { ...prev, status: data.status, outputSummary: data.outputSummary, interrupted: false }
+          ? {
+              ...prev,
+              status: data.status,
+              outputSummary: data.outputSummary,
+              interrupted: data.interrupted ?? false,
+              interruptMessage: data.interruptMessage,
+              pendingTool: data.pendingTool,
+            }
           : prev
       )
       router.refresh()
