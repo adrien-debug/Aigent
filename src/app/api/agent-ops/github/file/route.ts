@@ -3,6 +3,12 @@ import { z } from 'zod'
 
 import { getRepoFile } from '@/lib/agent-mission-control/github'
 
+// NOT-WIRED au front (volontaire, à garder) : aucun composant ne fetch cet
+// endpoint HTTP. La lecture de fichier repo (`getRepoFile`) est consommée en
+// DIRECT par la lib (github.ts / tool-registry) sans passer par HTTP. La route
+// reste exposée comme capacité (utilisée par les tests live + appelable via
+// x-amc-key) — ce n'est pas du code mort.
+
 // `repo`/`path`/`ref` are attacker-controlled query params that flow straight
 // into a GitHub API URL fetched with the server's GITHUB_TOKEN (see
 // github.ts). Unlike this route, the agent-facing tool in

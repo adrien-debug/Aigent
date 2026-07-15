@@ -3,6 +3,11 @@ import { NextResponse } from 'next/server'
 import { getProject } from '@/lib/agent-mission-control/data'
 import { scanProjectRepo } from '@/lib/agent-mission-control/repo-scan'
 
+// NOT-WIRED au front (volontaire, à garder) : scan repo "léger" original
+// (RepoScanSummary). Le front utilise `repo/intelligence` à la place (scan plus
+// riche, déterministe, avec cache). Endpoint superseded conservé comme capacité
+// (utilisable via x-amc-key) — pas du code mort.
+
 /**
  * POST /api/agent-ops/projects/:id/repo/scan — read-only scan of a project's
  * linked GitHub repo.

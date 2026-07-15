@@ -3,6 +3,11 @@ import { NextResponse } from 'next/server'
 
 import { prepareAutoEval } from '@/lib/agent-mission-control/agent-autoeval'
 import { AGENT_BUILDER_SLUG } from '@/lib/agent-mission-control/agent-builder-copilot'
+
+// NOT-WIRED au front (volontaire, à garder) : pendant HITL de `builder/run`
+// (chemin granulaire). Le front passe par `builder/create-draft` (endpoint
+// condensé qui gère run+resume). Conservé comme capacité de contrôle fin,
+// doublon assumé de create-draft — pas du code mort.
 import { resumeAgentBuilderRun, draftToCreateInput } from '@/lib/agent-mission-control/agent-builder-run'
 import { createCopilotFromManifest, setCopilotAssistantId } from '@/lib/agent-mission-control/authoring-writes'
 import { getProject } from '@/lib/agent-mission-control/data'

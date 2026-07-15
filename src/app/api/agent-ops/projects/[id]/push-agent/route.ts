@@ -3,6 +3,11 @@ import { NextResponse } from 'next/server'
 import { getProject, getCopilot, getManifestForCopilot } from '@/lib/agent-mission-control/data'
 import { pushAgentToRepo } from '@/lib/agent-mission-control/github'
 
+// NOT-WIRED au front (volontaire, à garder) : aucun bouton UI ne déclenche le
+// push. Conçue pour un usage HORS dashboard (script / API externe via x-amc-key)
+// — d'où le garde-fou dry-run par défaut (écriture GitHub réelle seulement si
+// `confirm:true` + GITHUB_PUSH_ENABLED=1). Pas du code mort.
+
 /**
  * Shape guard for the `:id` path param and the body `copilotId`. Real ids are
  * `makeId(prefix, slug)` (slug.ts): lowercase alphanumerics/hyphens, bounded

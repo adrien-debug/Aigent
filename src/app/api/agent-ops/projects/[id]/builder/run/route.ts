@@ -3,6 +3,12 @@ import { z } from 'zod'
 
 import { AGENT_BUILDER_SLUG } from '@/lib/agent-mission-control/agent-builder-copilot'
 import { startAgentBuilderRun } from '@/lib/agent-mission-control/agent-builder-run'
+
+// NOT-WIRED au front (volontaire, à garder) : chemin HITL GRANULAIRE (run puis
+// resume séparés). Le front utilise `builder/create-draft`, qui appelle les
+// mêmes fonctions lib (start/resumeAgentBuilderRun) en un seul endpoint condensé.
+// Cette route reste comme capacité de contrôle fin (utilisable via x-amc-key),
+// doublon assumé de create-draft — pas du code mort.
 import { getProject } from '@/lib/agent-mission-control/data'
 import { pgrest } from '@/lib/agent-mission-control/postgrest'
 import { repoScanToContext, scanProjectRepo } from '@/lib/agent-mission-control/repo-scan'

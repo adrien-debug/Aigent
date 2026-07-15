@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server'
 
 import { getAgentBuilderRunState } from '@/lib/agent-mission-control/agent-builder-run'
 
+// NOT-WIRED (volontaire, à garder) : aucun composant front ne fetch cette route.
+// C'est un endpoint de polling d'état de run ; le flow réel gère l'état via
+// architect/run + architect/resume, sans avoir besoin d'un GET séparé. Conservé
+// comme capacité de lecture (utilisable via x-amc-key), pas du code mort.
+
 /**
  * GET /api/agent-ops/architect/runs/:id — read the current state of an Agent
  * Builder run from its LangGraph thread (the Agent Server is the source of
