@@ -539,7 +539,7 @@ export function ImproveWorkbench({
           actions={
             proposal.status === 'v2-created' ? (
               <div className="flex items-center gap-2">
-                <Button outline onClick={() => setConfirming('rejected')} disabled={deciding !== null}>
+                <Button outline onClick={() => setConfirming('rejected')} disabled={deciding !== null || rerunning !== null}>
                   {deciding === 'rejected' ? (
                     <span className="inline-flex items-center gap-2">
                       <Spinner className="size-4" /> Rejecting…
@@ -548,7 +548,7 @@ export function ImproveWorkbench({
                     'Reject V2'
                   )}
                 </Button>
-                <Button color="accent" onClick={() => setConfirming('approved')} disabled={deciding !== null || !hasV2Results}>
+                <Button color="accent" onClick={() => setConfirming('approved')} disabled={deciding !== null || !hasV2Results || rerunning !== null}>
                   {deciding === 'approved' ? (
                     <span className="inline-flex items-center gap-2">
                       <Spinner className="size-4" /> Approving…
