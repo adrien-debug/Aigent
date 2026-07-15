@@ -8,7 +8,7 @@ import {
 import clsx from 'clsx'
 
 import { EmptyState } from '@/components/agent-ops/empty-state'
-import { surfaceCardClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
+import { surfaceCardClass } from '@/components/agent-ops/surface-card'
 import { ToolBadge } from '@/components/agent-ops/tool-badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { formatDurationMs, formatUsd } from '@/lib/agent-mission-control/format'
@@ -86,7 +86,7 @@ export function TestCaseTable({
           columns stay aligned to the card edge. */}
       <Table dense className="px-6 [--gutter:--spacing(0)]">
         <TableHead>
-          <TableRow className={surfaceCardHeaderClass}>
+          <TableRow>
             <TableHeader>Case</TableHeader>
             <TableHeader>Result</TableHeader>
             <TableHeader>Input</TableHeader>
