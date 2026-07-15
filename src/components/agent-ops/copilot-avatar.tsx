@@ -47,7 +47,7 @@ const TYPE_RULES: { type: CopilotType; keywords: string[] }[] = [
 ]
 
 /** Derive a copilot's visual type from its slug/name/tags. Never authoritative. */
-export function copilotType(copilot: Pick<Copilot, 'slug' | 'name' | 'tags'>): CopilotType {
+function copilotType(copilot: Pick<Copilot, 'slug' | 'name' | 'tags'>): CopilotType {
   if (copilot.slug === AGENT_BUILDER_SLUG) return 'builder'
   const haystack = [copilot.slug, copilot.name, ...(copilot.tags ?? [])].join(' ').toLowerCase()
   for (const rule of TYPE_RULES) {

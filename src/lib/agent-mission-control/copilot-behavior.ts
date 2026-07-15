@@ -40,7 +40,7 @@ export type BehaviorToolId =
   | 'draft_copilot_spec'
 
 /** One tool entry in the behavior config: registry key + per-copilot gating + scope. */
-export interface BehaviorTool {
+interface BehaviorTool {
   id: BehaviorToolId
   requiresConfirmation: boolean
   riskLevel: ToolRiskLevel

@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import Link from 'next/link'
 
-export interface Breadcrumb {
+interface Breadcrumb {
   label: string
   href?: string
 }

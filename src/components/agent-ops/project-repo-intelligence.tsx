@@ -115,7 +115,7 @@ export function useProjectRepoIntelligence(projectId: string, repoFullName: stri
  * (e.g. the Builder workbench renders this strip at the top of the chat
  * and the actions bar at the bottom).
  */
-export function ProjectRepoIntelligenceCompact(
+function ProjectRepoIntelligenceCompact(
   props: {
     projectId: string
     repoFullName: string | null

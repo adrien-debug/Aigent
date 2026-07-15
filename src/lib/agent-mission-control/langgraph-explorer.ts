@@ -224,13 +224,13 @@ export async function getThreadHistory(threadId: string): Promise<ExplorerHistor
 }
 
 /** One node of a graph's topology (redacted — id + type only, no schema blob). */
-export interface TopologyNode {
+interface TopologyNode {
   id: string
   label: string
   type?: string
 }
 /** One edge of a graph's topology. */
-export interface TopologyEdge {
+interface TopologyEdge {
   source: string
   target: string
   conditional?: boolean

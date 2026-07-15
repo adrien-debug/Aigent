@@ -291,8 +291,7 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
   const runId = randomUUID()
 
   const trace = startTrace(
-    { runId, copilotId, versionId, projectId, mode: 'run', provider: 'openai', model },
-    startedAtMs
+    { runId, copilotId, versionId, projectId, mode: 'run', provider: 'openai', model }
   )
   // NOTE: we deliberately do NOT call trace.resolve() here with the requested
   // `model` — executeViaLangGraph never routes through the model-router, so
@@ -575,8 +574,7 @@ export async function executeCopilotRun(
   const runId = randomUUID()
 
   const trace = startTrace(
-    { runId, copilotId, versionId, projectId, mode: 'run', provider: modelProvider, model },
-    startedAtMs
+    { runId, copilotId, versionId, projectId, mode: 'run', provider: modelProvider, model }
   )
 
   // Step 1 — model resolution.

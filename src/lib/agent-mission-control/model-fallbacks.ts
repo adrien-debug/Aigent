@@ -21,13 +21,13 @@ import 'server-only'
 
 import type { ModelProvider } from './types'
 
-export const OPENAI_JUDGE_FALLBACK_MODEL = 'gpt-5.4-nano'
-export const OPENAI_RUN_FALLBACK_MODEL = 'gpt-5.4-nano'
+const OPENAI_JUDGE_FALLBACK_MODEL = 'gpt-5.4-nano'
+const OPENAI_RUN_FALLBACK_MODEL = 'gpt-5.4-nano'
 
 export type RouterPurpose = 'run' | 'judge' | 'architect' | 'benchmark'
 
 /** True if run/benchmark fallbacks are enabled by env. */
-export function fallbacksAllowedByEnv(): boolean {
+function fallbacksAllowedByEnv(): boolean {
   return process.env.AMC_ALLOW_MODEL_FALLBACKS === '1'
 }
 

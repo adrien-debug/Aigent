@@ -21,7 +21,7 @@ import 'server-only'
 import { exportTrace, newTraceId, type LangSmithExportResult } from './langsmith'
 import type { AgentRunStepKind, IsoTimestamp, ModelProvider } from './types'
 
-export type TraceMode = 'run' | 'test' | 'benchmark' | 'replay' | 'shadow'
+type TraceMode = 'run' | 'test' | 'benchmark' | 'replay' | 'shadow'
 
 export interface TraceContext {
   runId?: string
@@ -93,11 +93,9 @@ export function toDbStepKind(kind: TraceStepKind): AgentRunStepKind {
 export class RunTrace {
   readonly context: TraceContext
   private readonly steps: TraceStep[] = []
-  private readonly startedMs: number
 
-  constructor(context: TraceContext, startedMs: number) {
+  constructor(context: TraceContext) {
     this.context = context
-    this.startedMs = startedMs
   }
 
   /** Append a step. Missing startedAt/durationMs are stamped from `nowMs`. */
@@ -186,7 +184,7 @@ export class RunTrace {
   }
 }
 
-/** Start a trace, stamping the run's start time. */
-export function startTrace(context: TraceContext, startedMs: number): RunTrace {
-  return new RunTrace(context, startedMs)
+/** Start a trace for a run. */
+export function startTrace(context: TraceContext): RunTrace {
+  return new RunTrace(context)
 }

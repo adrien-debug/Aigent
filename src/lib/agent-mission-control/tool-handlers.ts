@@ -42,7 +42,7 @@ import type { AgentRun, Copilot, Project, ToolDefinition } from './types'
 // Contract
 // ---------------------------------------------------------------------------
 
-export interface ToolHandlerContext {
+interface ToolHandlerContext {
   /** The copilot this run belongs to (for scoping/defaults). */
   copilotId: string
 }

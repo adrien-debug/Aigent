@@ -14,7 +14,7 @@ import 'server-only'
 
 import type { ModelProvider } from './types'
 
-export interface ModelPricing {
+interface ModelPricing {
   inputUsdPer1M: number
   outputUsdPer1M: number
   /** True when this row is a provider default, not a model-specific figure. */
@@ -45,7 +45,7 @@ const PROVIDER_DEFAULT_PRICING: Record<ModelProvider, ModelPricing> = {
 }
 
 /** Resolve pricing for a model id, falling back to the provider default. */
-export function pricingFor(provider: ModelProvider, model: string): ModelPricing {
+function pricingFor(provider: ModelProvider, model: string): ModelPricing {
   return MODEL_PRICING[model] ?? PROVIDER_DEFAULT_PRICING[provider]
 }
 

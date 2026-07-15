@@ -30,7 +30,7 @@ import type { AgentManifest, Copilot, Project } from './types'
 const GITHUB_API = 'https://api.github.com'
 
 /** Resolve the GitHub token, or throw (fail-closed, no fallback). */
-export function requireGithub(): { token: string } {
+function requireGithub(): { token: string } {
   const token = process.env.GITHUB_TOKEN
   if (!token) {
     throw new Error('GitHub not configured: set GITHUB_TOKEN')
@@ -149,7 +149,7 @@ function encodeRepoPath(path: string): string {
 // Public shapes
 // ---------------------------------------------------------------------------
 
-export interface ScaffoldedFile {
+interface ScaffoldedFile {
   path: string
   content: string
 }
@@ -388,7 +388,7 @@ export async function getRepoFile(
   return { path: data.path, encoding: 'utf-8', text, truncated: false }
 }
 
-export interface RepoSearchMatch {
+interface RepoSearchMatch {
   path: string
   /** Short text fragments around the match, when GitHub returns them. */
   fragments: string[]
@@ -713,7 +713,7 @@ _Regenerate by re-pushing from Agent Mission Control; do not hand-edit._
  * `copilot.runtime`. Returns at least handler.ts, manifest.json and README.md.
  * No secret is ever inlined — handlers read process.env.
  */
-export function scaffoldAgentFiles(
+function scaffoldAgentFiles(
   copilot: Copilot,
   manifest: AgentManifest
 ): ScaffoldedFile[] {

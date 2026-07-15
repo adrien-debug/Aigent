@@ -29,7 +29,7 @@ Respond in clear prose (markdown allowed), and ALWAYS end your turn with a real,
 
 If repo tools are unavailable (no linked repo, or repo reads failing), say so honestly and fall back to the bounded summary — do not pretend exhaustive repo coverage you don't have.`
 
-export const PROJECT_BUILDER_PREVIEW_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
+const PROJECT_BUILDER_PREVIEW_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
   type: 'function',
   function: {
     name: 'update_preview',
@@ -103,7 +103,7 @@ export const PROJECT_BUILDER_PREVIEW_TOOL: OpenAI.Chat.Completions.ChatCompletio
  * summary. Handlers live in project-builder-conversation.ts and call the
  * validated, secret-path-denying helpers in github.ts. Never write access.
  */
-export const PROJECT_BUILDER_LIST_TREE_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
+const PROJECT_BUILDER_LIST_TREE_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
   type: 'function',
   function: {
     name: 'list_repo_tree',
@@ -123,7 +123,7 @@ export const PROJECT_BUILDER_LIST_TREE_TOOL: OpenAI.Chat.Completions.ChatComplet
   },
 }
 
-export const PROJECT_BUILDER_READ_FILE_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
+const PROJECT_BUILDER_READ_FILE_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
   type: 'function',
   function: {
     name: 'read_repo_file',
@@ -143,7 +143,7 @@ export const PROJECT_BUILDER_READ_FILE_TOOL: OpenAI.Chat.Completions.ChatComplet
   },
 }
 
-export const PROJECT_BUILDER_SEARCH_REPO_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
+const PROJECT_BUILDER_SEARCH_REPO_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
   type: 'function',
   function: {
     name: 'search_repo',

@@ -40,7 +40,7 @@ export function requireBackend(): { base: string; key: string } {
  * 200 chars) is only on `.detail`, for callers that explicitly want it —
  * server-side logging, or an internal status persisted for the admin UI.
  */
-export class PgrestError extends Error {
+class PgrestError extends Error {
   readonly status: number
   readonly detail: string
 

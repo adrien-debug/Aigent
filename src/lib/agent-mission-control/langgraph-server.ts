@@ -64,7 +64,7 @@ export interface LangGraphServerStep {
   durationMs: DurationMs
 }
 
-export interface LangGraphServerToolCall {
+interface LangGraphServerToolCall {
   toolName: string
   argumentsSummary: string
   resultSummary: string

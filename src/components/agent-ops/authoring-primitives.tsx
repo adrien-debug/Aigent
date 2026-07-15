@@ -9,10 +9,10 @@ import type { GeneratedManifest } from '@/lib/agent-mission-control/authoring-ty
  * JSX. Pure presentation, accent+zinc only.
  */
 
-export const MANIFEST_PREVIEW_LENGTH = 220
+const MANIFEST_PREVIEW_LENGTH = 220
 
 /** Truncate `text` to `len` characters, appending an ellipsis when cut. */
-export function truncate(text: string, len: number): string {
+function truncate(text: string, len: number): string {
   return text.length > len ? `${text.slice(0, len)}…` : text
 }
 

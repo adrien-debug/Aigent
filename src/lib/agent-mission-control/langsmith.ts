@@ -46,7 +46,7 @@ export function getTraceUrl(traceId: string | null): string | null {
   return `${base.replace(/\/$/, '')}/${traceId}`
 }
 
-export interface LangSmithTraceStep {
+interface LangSmithTraceStep {
   name: string
   kind: string
   status: string

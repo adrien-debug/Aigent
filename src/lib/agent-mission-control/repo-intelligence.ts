@@ -61,8 +61,8 @@ export interface AgenticFootprint {
   residueSignals: string[]
 }
 
-export type ResidueSeverity = 'low' | 'medium' | 'high'
-export type ResidueType =
+type ResidueSeverity = 'low' | 'medium' | 'high'
+type ResidueType =
   | 'dead_component'
   | 'dead_route'
   | 'dead_tool'
@@ -81,7 +81,7 @@ export interface ResidueFinding {
   recommendedAction: string
 }
 
-export type RecommendationPriority = 'high' | 'medium' | 'low'
+type RecommendationPriority = 'high' | 'medium' | 'low'
 export interface AgentRecommendation {
   id: string
   title: string
@@ -524,7 +524,7 @@ function recommendAgents(map: RepoMap, footprint: AgenticFootprint, residue: Res
 // ---------------------------------------------------------------------------
 
 /** A cached intelligence older than this is stale and should be re-scanned. */
-export const INTELLIGENCE_TTL_MS = 24 * 60 * 60 * 1000
+const INTELLIGENCE_TTL_MS = 24 * 60 * 60 * 1000
 
 export type StalenessReason = 'missing' | 'age' | 'commit-changed' | 'fresh'
 

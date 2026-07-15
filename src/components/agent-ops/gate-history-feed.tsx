@@ -14,7 +14,7 @@ import { EmptyState } from '@/components/agent-ops/empty-state'
  * sitting on the connector line, not floating.
  */
 
-export type GateHistoryEventKind = 'evaluated' | 'approval' | 'entered' | 'promoted'
+type GateHistoryEventKind = 'evaluated' | 'approval' | 'entered' | 'promoted'
 
 export interface GateHistoryEvent {
   id: string
