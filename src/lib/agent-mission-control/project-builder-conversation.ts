@@ -15,10 +15,14 @@ import {
   type BuilderManifestDraft,
   type BuilderProposedTool,
 } from './agent-builder-run'
-import { createCopilotFromManifest, setCopilotAssistantId } from './authoring-writes'
+import {
+  createCopilotFromManifest,
+  deleteCopilotCascade,
+  setCopilotAssistantId,
+} from './authoring-writes'
 import { getProject } from './data'
 import { getRepoFile, getRepoTree, searchRepoCode } from './github'
-import { ensureCopilotAssistant } from './langgraph-assistants'
+import { deleteCopilotAssistant, ensureCopilotAssistant } from './langgraph-assistants'
 import { getOpenAIClient, ARCHITECT_MODEL } from './llm-client'
 import {
   PROJECT_BUILDER_ARCHITECT_SYSTEM,
@@ -823,8 +827,29 @@ export async function confirmProjectBuilderDraftMaterialization(
 
   const createInput = draftToCreateInput(draft, tools, projectId)
   const createdCopilotId = await createCopilotFromManifest(createInput)
-  const assistantId = await ensureCopilotAssistant({ copilotId: createdCopilotId })
-  await setCopilotAssistantId(createdCopilotId, assistantId)
+
+  // Provision the copilot's dedicated assistant and persist its id. On failure,
+  // roll back best-effort (assistant then copilot cascade) so no half-wired
+  // copilot survives — mirrors POST /api/agent-ops/copilots.
+  let assistantId: string
+  try {
+    assistantId = await ensureCopilotAssistant({ copilotId: createdCopilotId })
+  } catch (err) {
+    console.error('[project-builder] ensureCopilotAssistant failed:', err)
+    await deleteCopilotCascade(createdCopilotId).catch(() => {})
+    throw err
+  }
+
+  try {
+    await setCopilotAssistantId(createdCopilotId, assistantId)
+  } catch (err) {
+    // The copilot exists but couldn't be linked to its assistant — undo both so
+    // no orphan/unlinked copilot survives.
+    console.error('[project-builder] setCopilotAssistantId failed:', err)
+    await deleteCopilotAssistant(assistantId).catch(() => {})
+    await deleteCopilotCascade(createdCopilotId).catch(() => {})
+    throw err
+  }
 
   const now = new Date().toISOString()
   await pgrest('PATCH', `project_builder_conversations?${eq('id', conversation.id)}`, {
