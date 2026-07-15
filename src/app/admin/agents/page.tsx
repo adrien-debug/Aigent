@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { PlusIcon } from '@heroicons/react/16/solid'
+import { PlusIcon, SparklesIcon } from '@heroicons/react/16/solid'
 
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
@@ -77,6 +77,7 @@ export default async function AgentsRegistryPage() {
     getRecentWarnings(6),
   ])
   const hasAgentBuilder = copilots.some((copilot) => copilot.slug === AGENT_BUILDER_SLUG)
+  const agentBuilder = copilots.find((copilot) => copilot.slug === AGENT_BUILDER_SLUG)
 
   const copilotNameById = new Map(copilots.map((copilot) => [copilot.id, copilot.name]))
 
@@ -93,10 +94,18 @@ export default async function AgentsRegistryPage() {
           copilots={copilots}
           projects={projects}
           action={
-            <Button href="/admin/agents/new" color="accent">
-              <PlusIcon data-slot="icon" />
-              New Copilot
-            </Button>
+            <div className="flex gap-3">
+              {agentBuilder ? (
+                <Button outline href={`/admin/agents/${agentBuilder.id}/builder`}>
+                  <SparklesIcon data-slot="icon" />
+                  Open Builder
+                </Button>
+              ) : null}
+              <Button href="/admin/agents/new" color="accent">
+                <PlusIcon data-slot="icon" />
+                New Copilot
+              </Button>
+            </div>
           }
         />
       </StaggerFade>

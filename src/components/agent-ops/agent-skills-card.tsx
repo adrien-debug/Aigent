@@ -38,15 +38,10 @@ export function AgentSkillsCard({
       {/* Role — the manifest's one-line framing of what the agent is for */}
       <p className="text-sm text-zinc-700 dark:text-zinc-300">{manifest.systemPromptSummary}</p>
 
-      {/* Compact meta line: skill count · confirmation policy */}
-      <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
-        <span>
-          <span className="font-mono tabular-nums">{skills.length}</span> skills
-        </span>
-        <span aria-hidden="true">·</span>
-        <span>
-          confirm: <span className="font-mono">{manifest.confirmationPolicy}</span>
-        </span>
+      {/* Compact meta line: skill count. Confirmation policy + guardrails live in
+          the Architecture strip (execution path) — not duplicated here. */}
+      <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+        <span className="font-mono tabular-nums">{skills.length}</span> skills
       </p>
 
       {/* Mission skills — one row per business skill the agent was given */}
@@ -77,13 +72,6 @@ export function AgentSkillsCard({
         </p>
       )}
 
-      {/* Guardrails — count only, the full list lives in the manifest view */}
-      {manifest.forbiddenActions.length > 0 ? (
-        <p className="mt-6 text-xs text-zinc-500 dark:text-zinc-400">
-          Guardrails: <span className="font-mono tabular-nums">{manifest.forbiddenActions.length}</span> forbidden
-          action(s)
-        </p>
-      ) : null}
     </AgentBentoCard>
   )
 }
