@@ -109,6 +109,20 @@ export async function POST(
     return NextResponse.json({ error: 'copilot has no manifest' }, { status: 404 })
   }
 
+  // Maturity gate: only a promoted production version may be pushed to a repo.
+  // productionVersionId is written solely by a successful promotion, which
+  // itself re-checks the live release-gate (tests 100% + benchmark + safety).
+  // A draft that never passed tests must never land in a real repo.
+  if (copilot.productionVersionId === null) {
+    return NextResponse.json(
+      {
+        error:
+          'copilot has no promoted production version — run its tests and promote a version before pushing to a repo',
+      },
+      { status: 422 }
+    )
+  }
+
   // Outbound safeguard: real push needs confirm:true AND GITHUB_PUSH_ENABLED=1.
   const dryRun = !(body.confirm === true && process.env.GITHUB_PUSH_ENABLED === '1')
 

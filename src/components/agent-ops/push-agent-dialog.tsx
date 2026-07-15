@@ -78,7 +78,14 @@ export function PushAgentDialog({
         body: JSON.stringify({ copilotId: copilot.id, confirm: true }),
       })
       if (!res.ok) {
-        setError(await messageForResponse(res, 'Push failed — nothing was written to the repo.'))
+        // 422 = the copilot has no promoted production version yet. The server sends
+        // its own `error`, but pass a maturity-specific fallback so an empty-body 422
+        // still reads clearly instead of the generic push-failure copy.
+        const fallback =
+          res.status === 422
+            ? 'This agent needs a promoted production version before it can be pushed.'
+            : 'Push failed — nothing was written to the repo.'
+        setError(await messageForResponse(res, fallback))
         return
       }
       const payload = (await res.json()) as PushResult

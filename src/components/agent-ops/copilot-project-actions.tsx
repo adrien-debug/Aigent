@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { AssignProjectDialog, UnassignCopilotDialog } from '@/components/agent-ops/assign-project-dialog'
 import { PushAgentDialog } from '@/components/agent-ops/push-agent-dialog'
 import { SoftAccentButton } from '@/components/agent-ops/soft-accent-link'
+import { Text } from '@/components/catalyst/text'
 import type { Copilot, Project } from '@/lib/agent-mission-control/types'
 
 /**
@@ -25,6 +26,10 @@ export function CopilotProjectActions({
   const [unassignTarget, setUnassignTarget] = useState<Copilot | null>(null)
   const [pushTarget, setPushTarget] = useState<Copilot | null>(null)
   const onBench = copilot.projectId === null
+  // Maturity gate mirrored from the push route (which now returns 422 when this
+  // is null): we only publish tested-and-released runtime, so a copilot without
+  // a promoted production version cannot be pushed. Gate the CTA before the click.
+  const isReleased = copilot.productionVersionId !== null
   // Only an assigned copilot has a repo target; a bench copilot cannot push.
   const linkedProjectName =
     projectName ?? (copilot.projectId !== null ? projects.find((p) => p.id === copilot.projectId)?.name ?? null : null)
@@ -35,12 +40,19 @@ export function CopilotProjectActions({
         <SoftAccentButton onClick={() => setAssignTarget(copilot)}>Assign…</SoftAccentButton>
       ) : (
         <>
-          <SoftAccentButton onClick={() => setPushTarget(copilot)}>Push to repo…</SoftAccentButton>
+          {isReleased ? (
+            <SoftAccentButton onClick={() => setPushTarget(copilot)}>Push to repo…</SoftAccentButton>
+          ) : (
+            // Doctrine: we only push tested-and-released runtime. Without a promoted
+            // production version there is nothing to publish — a discreet, non-clickable
+            // hint tells the operator to release first (clearer than a mystery-disabled button).
+            <Text className="text-sm">Promote a production version to push</Text>
+          )}
           <SoftAccentButton onClick={() => setUnassignTarget(copilot)}>Unassign…</SoftAccentButton>
         </>
       )}
 
-      {pushTarget && pushTarget.projectId !== null ? (
+      {pushTarget && pushTarget.projectId !== null && isReleased ? (
         <PushAgentDialog
           key={`push-${pushTarget.id}`}
           copilot={pushTarget}
