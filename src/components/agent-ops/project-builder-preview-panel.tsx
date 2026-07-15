@@ -67,8 +67,11 @@ export function ProjectBuilderPreviewPanel({
     }))
   const tests = preview?.testCases ?? (preview?.tests ?? []).map((name) => ({ name }))
   const hasSpec = Boolean(preview?.name || preview?.role || tools.length > 0 || preview?.options?.length)
-  const showDraftAction = Boolean(draftReady && onCreateDraft && !createdCopilotId)
+  // A run in progress ("awaiting approval") takes over: show Confirm/Keep
+  // discussing, never the initial "Approve — create draft" at the same time —
+  // the two sets are mutually exclusive.
   const showLangGraphActions = Boolean(awaitingApproval && onApprove && onReject)
+  const showDraftAction = Boolean(draftReady && onCreateDraft && !createdCopilotId && !showLangGraphActions)
 
   return (
     <div className={clsx(surfaceCardClass, 'flex h-full min-h-0 flex-col')}>
