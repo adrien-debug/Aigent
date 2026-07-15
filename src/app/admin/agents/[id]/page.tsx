@@ -437,6 +437,35 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                 )}
               </dd>
             </div>
+            {/* Push receipt — the proof this copilot's runtime actually shipped to
+                the repo. Only rendered once a real push landed (`pushed`); the
+                timestamp comes straight from the stored lastPushedAt, the commit
+                link (accent) is the destination. */}
+            {copilot.lastPushStatus === 'pushed' ? (
+              <div className="flex items-baseline justify-between gap-4">
+                <dt className="text-zinc-500">Deployed to repo</dt>
+                <dd className="flex flex-wrap items-baseline justify-end gap-x-2 gap-y-1 text-right">
+                  {copilot.lastPushedAt ? (
+                    <span className="tabular-nums text-zinc-950 dark:text-white">
+                      {formatTimestamp(copilot.lastPushedAt)}
+                    </span>
+                  ) : (
+                    <span className="text-zinc-950 dark:text-white">Pushed</span>
+                  )}
+                  {copilot.lastPushCommitUrl ? (
+                    <Link
+                      href={copilot.lastPushCommitUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 font-medium text-accent-700 hover:text-accent-600 dark:text-accent-400 dark:hover:text-accent-300"
+                    >
+                      View commit
+                      <ArrowRightIcon aria-hidden="true" className="size-3.5" />
+                    </Link>
+                  ) : null}
+                </dd>
+              </div>
+            ) : null}
           </dl>
 
           {copilot.health.runsLast24h > 0 ? (
@@ -618,21 +647,10 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
             <AgentSectionCard
               title="Last runs"
               description="Most recent production traffic"
-              actions={
-                <>
-                  {latencySeries.length > 1 ? (
-                    <Sparkline
-                      points={latencySeries}
-                      kind="bar"
-                      tone="accent"
-                      width={72}
-                      height={20}
-                      ariaLabel="Latency trend across the last runs"
-                    />
-                  ) : null}
-                  <SectionLink href={`${base}/runs`}>View all runs</SectionLink>
-                </>
-              }
+              // The latency sparkline lives once, next to "Avg latency" in Runtime &
+              // status; here each row already carries its own per-run latency meter,
+              // so a second trend sparkline would only duplicate the same series.
+              actions={<SectionLink href={`${base}/runs`}>View all runs</SectionLink>}
               className="lg:col-span-2"
               contentClassName="p-0"
             >

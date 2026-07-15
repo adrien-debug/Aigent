@@ -41,21 +41,27 @@ export function ReleaseCandidateCard({
   promotable,
   evidence,
   currentProductionLabel,
+  rollbackVersionId,
+  rollbackVersionLabel,
 }: {
   copilotId: string
   checks: ReleaseCheck[]
   promotable: boolean
   evidence: ReleaseEvidence
   currentProductionLabel: string | null
+  /** Previous production version to roll back to — null when there's none. */
+  rollbackVersionId?: string | null
+  rollbackVersionLabel?: string | null
 }) {
   const router = useRouter()
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [pending, setPending] = useState(false)
+  const [rollbackOpen, setRollbackOpen] = useState(false)
+  const [pending, setPending] = useState<'promote' | 'rollback' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
   async function promote() {
-    setPending(true)
+    setPending('promote')
     setError(null)
     try {
       const res = await fetch(`/api/agent-ops/copilots/${encodeURIComponent(copilotId)}/promotion`, {
@@ -76,7 +82,34 @@ export function ReleaseCandidateCard({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Promotion failed')
     } finally {
-      setPending(false)
+      setPending(null)
+    }
+  }
+
+  async function rollback() {
+    if (!rollbackVersionId) return
+    setPending('rollback')
+    setError(null)
+    try {
+      const res = await fetch(`/api/agent-ops/copilots/${encodeURIComponent(copilotId)}/promotion`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'rollback',
+          versionId: rollbackVersionId,
+          previousProductionVersionId: evidence.currentProductionVersionId,
+        }),
+      })
+      if (!res.ok) {
+        throw new Error(await messageForResponse(res, `Rollback failed (${res.status})`))
+      }
+      setRollbackOpen(false)
+      setSuccess(`Rolled back to ${rollbackVersionLabel ?? rollbackVersionId} ✓`)
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Rollback failed')
+    } finally {
+      setPending(null)
     }
   }
 
@@ -153,10 +186,11 @@ export function ReleaseCandidateCard({
             : 'No version is in production yet — this would be the first production version.'}
         </p>
 
-        {/* Action. */}
+        {/* Action — the single Promote button for this copilot, plus rollback
+            when a previous production version exists. */}
         <div className="flex flex-wrap items-center gap-3">
           {promotable ? (
-            <Button color="accent" disabled={pending} onClick={() => setConfirmOpen(true)}>
+            <Button color="accent" disabled={pending !== null} onClick={() => setConfirmOpen(true)}>
               Promote {evidence.candidateLabel} to production
             </Button>
           ) : (
@@ -164,6 +198,13 @@ export function ReleaseCandidateCard({
               Promote to production
             </Button>
           )}
+          {rollbackVersionId && rollbackVersionLabel ? (
+            <Button plain disabled={pending !== null} onClick={() => setRollbackOpen(true)}>
+              <span className="text-accent-600 dark:text-accent-400">
+                Rollback to <span className="font-mono tabular-nums">{rollbackVersionLabel}</span>
+              </span>
+            </Button>
+          ) : null}
           {!promotable ? (
             <span className="text-xs text-zinc-500">Blocked by: {blocking.join(', ')}.</span>
           ) : null}
@@ -191,11 +232,33 @@ export function ReleaseCandidateCard({
           </p>
         </DialogBody>
         <DialogActions>
-          <Button plain disabled={pending} onClick={() => setConfirmOpen(false)}>
+          <Button plain disabled={pending !== null} onClick={() => setConfirmOpen(false)}>
             Cancel
           </Button>
-          <Button color="accent" disabled={pending} onClick={promote}>
-            {pending ? 'Promoting…' : 'Confirm promotion'}
+          <Button color="accent" disabled={pending !== null} onClick={promote}>
+            {pending === 'promote' ? 'Promoting…' : 'Confirm promotion'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={rollbackOpen} onClose={setRollbackOpen} size="lg">
+        <DialogTitle>Rollback production?</DialogTitle>
+        <DialogDescription>
+          All production traffic would be routed back to{' '}
+          <span className="font-mono tabular-nums">{rollbackVersionLabel ?? rollbackVersionId}</span>.
+        </DialogDescription>
+        <DialogBody>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            This restores a previously-shipped version (which already passed the gate) and does not push GitHub or
+            change any external system. The current candidate stays here and can be promoted again later.
+          </p>
+        </DialogBody>
+        <DialogActions>
+          <Button plain disabled={pending !== null} onClick={() => setRollbackOpen(false)}>
+            Cancel
+          </Button>
+          <Button color="accent" disabled={pending !== null || !rollbackVersionId} onClick={rollback}>
+            {pending === 'rollback' ? 'Rolling back…' : 'Confirm rollback'}
           </Button>
         </DialogActions>
       </Dialog>

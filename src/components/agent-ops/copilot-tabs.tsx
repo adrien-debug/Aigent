@@ -5,26 +5,22 @@ import { usePathname } from 'next/navigation'
 import { Link } from '@/components/catalyst/link'
 
 // Grouped tabs. Each groups related pages as sections of one host page:
-//   Config  = manifest + tools        Quality = tests + benchmarks + shadow + replay
-//   Improve = the improvement loop    Release = versions + publish
+//   Manifest = manifest + tools        Quality = tests + benchmarks + shadow + replay
+//   Improve  = the improvement loop    Release  = versions + publish
+// Order follows the copilot lifecycle: frame (Overview/Manifest) → verify
+// (Quality) → observe (Runs) → iterate (Improve) → ship (Release).
 const TABS = [
   { label: 'Overview', segment: '' },
-  { label: 'Config', segment: 'manifest' },
-  { label: 'Runs', segment: 'runs' },
+  { label: 'Manifest', segment: 'manifest' },
   { label: 'Quality', segment: 'tests' },
+  { label: 'Runs', segment: 'runs' },
   { label: 'Improve', segment: 'improve' },
   { label: 'Release', segment: 'versions' },
 ] as const
 
-// The Builder tab is exclusive to the Agent Builder Copilot (the meta copilot
-// that drafts other copilots) — a normal copilot has no builder flow, so this
-// tab is appended only when `showBuilder` is set (see the [id] layout).
-const BUILDER_TAB = { label: 'Builder', segment: 'builder' } as const
-
-export function CopilotTabs({ copilotId, showBuilder = false }: { copilotId: string; showBuilder?: boolean }) {
+export function CopilotTabs({ copilotId }: { copilotId: string }) {
   const pathname = usePathname()
   const base = `/admin/agents/${copilotId}`
-  const tabs = showBuilder ? [...TABS, BUILDER_TAB] : TABS
 
   return (
     // The hairline underline must span the FULL width even when the tab row is
@@ -38,7 +34,7 @@ export function CopilotTabs({ copilotId, showBuilder = false }: { copilotId: str
       className="no-scrollbar -mb-px overflow-x-auto border-b border-zinc-950/10 dark:border-white/10"
     >
       <div className="flex w-max min-w-full gap-6">
-        {tabs.map(({ label, segment }) => {
+        {TABS.map(({ label, segment }) => {
           const href = segment ? `${base}/${segment}` : base
           const current = segment
             ? pathname === href || pathname.startsWith(`${href}/`)

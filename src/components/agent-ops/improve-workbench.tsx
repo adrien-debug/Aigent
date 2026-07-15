@@ -46,34 +46,81 @@ function currentStage(proposal: ImprovementProposal | null, hasV2Results: boolea
   return 'decision'
 }
 
+/**
+ * The single IMMEDIATE thing to do at the current step — the "do Y now" half of
+ * the guidance line. Points at the action the operator can take on THIS screen,
+ * not the type of fix (that's carried by `nextAction`). `null` once the cycle is
+ * closed (approved/rejected) — nothing left to do here.
+ */
+function stageGuidance(
+  proposal: ImprovementProposal | null,
+  hasV2Results: boolean
+): { step: string; action: string } | null {
+  if (proposal && (proposal.status === 'approved' || proposal.status === 'rejected')) return null
+  switch (currentStage(proposal, hasV2Results)) {
+    case 'analyze':
+      return { step: 'Analyze', action: 'Run “Analyze & propose” to turn the failing cases below into a root-cause proposal.' }
+    case 'v2':
+      return { step: 'Proposal', action: 'Review the manifest diff, then “Create V2 draft” to materialize it as a testable version.' }
+    case 'rerun':
+      return { step: 'Re-run & compare', action: 'Re-run each suite pinned to V2 so the V1 vs V2 comparison has real evidence.' }
+    case 'decision':
+      return { step: 'Human decision', action: 'Read the V1 vs V2 delta, then approve or reject this cycle. Promotion stays separate.' }
+    default:
+      return null
+  }
+}
+
+/** Tiny check glyph for completed steps — meaning is carried by the mark, not colour. */
+function CheckMark({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 12 12" fill="none" className={className}>
+      <path d="M2.5 6.5 5 9l4.5-5" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 function LoopStepper({ proposal, hasV2Results }: { proposal: ImprovementProposal | null; hasV2Results: boolean }) {
   const stage = currentStage(proposal, hasV2Results)
+  const closed = proposal !== null && (proposal.status === 'approved' || proposal.status === 'rejected')
   const activeIndex = LOOP_STEPS.findIndex((s) => s.id === stage)
   return (
     <nav aria-label="Improvement loop progress" className="no-scrollbar overflow-x-auto">
       <ol className="flex w-max min-w-full items-center gap-2">
         {LOOP_STEPS.map((step, i) => {
-          const done = i < activeIndex || (proposal && (proposal.status === 'approved' || proposal.status === 'rejected'))
-          const active = i === activeIndex
+          const done = i < activeIndex || closed
+          const active = i === activeIndex && !closed
           return (
-            <li key={step.id} className="flex shrink-0 items-center gap-2">
-              {i > 0 ? <span aria-hidden="true" className="h-px w-6 bg-zinc-950/10 dark:bg-white/10" /> : null}
+            <li key={step.id} className="flex shrink-0 items-center gap-2" aria-current={active ? 'step' : undefined}>
+              {i > 0 ? (
+                <span
+                  aria-hidden="true"
+                  className={'h-px w-6 ' + (i <= activeIndex || closed ? 'bg-[var(--accent-line)]' : 'bg-zinc-950/10 dark:bg-white/10')}
+                />
+              ) : null}
               <span
                 className={
-                  'flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium ' +
+                  'flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs ' +
                   (active
-                    ? 'bg-[var(--accent-surface)] text-accent-700 ring-1 ring-[var(--accent-line)] dark:text-accent-300'
+                    ? 'bg-[var(--accent-surface)] font-semibold text-accent-700 ring-1 ring-[var(--accent-line-strong)] dark:text-accent-300'
                     : done
-                      ? 'text-zinc-700 dark:text-zinc-300'
-                      : 'text-zinc-500')
+                      ? 'font-medium text-zinc-700 dark:text-zinc-300'
+                      : 'font-medium text-zinc-400 dark:text-zinc-600')
                 }
               >
                 <span
                   aria-hidden="true"
                   className={
-                    'size-1.5 rounded-full ' + (active ? 'bg-accent-500' : done ? 'bg-zinc-400' : 'bg-zinc-300 dark:bg-zinc-600')
+                    'flex size-4 items-center justify-center rounded-full text-[10px] font-semibold ' +
+                    (active
+                      ? 'bg-accent-500 text-zinc-950'
+                      : done
+                        ? 'bg-[var(--accent-surface)] text-accent-700 ring-1 ring-[var(--accent-line)] dark:text-accent-300'
+                        : 'bg-zinc-200 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500')
                   }
-                />
+                >
+                  {done ? <CheckMark className="size-2.5" /> : i + 1}
+                </span>
                 {step.label}
               </span>
             </li>
@@ -190,6 +237,12 @@ export function ImproveWorkbench({
     comparison && (comparison.tests.some((t) => t.v2 !== null) || comparison.benchmarks.some((b) => b.v2 !== null))
   )
   const cycleOpen = proposal !== null && (proposal.status === 'proposed' || proposal.status === 'v2-created')
+  const guidance = stageGuidance(proposal, hasV2Results)
+  // At the re-run step the re-runs ARE the primary action — the first test
+  // re-run is promoted to a solid accent button so it can't be mistaken for a
+  // secondary control. Once V2 results exist we're at the decision step, so the
+  // re-runs drop back to outline (refresh, not the headline).
+  const atRerunStep = currentStage(proposal, hasV2Results) === 'rerun'
 
   async function post(path: string, body: Record<string, unknown>, onError: (msg: string) => void): Promise<boolean> {
     try {
@@ -274,14 +327,28 @@ export function ImproveWorkbench({
     <div className="space-y-8">
       <LoopStepper proposal={proposal} hasV2Results={hasV2Results} />
 
-      {/* Cycle-level verdict — the ONE next action, from the deterministic
-          diagnoses. This is where "manifest won't fix it" gets said out loud. */}
-      {nextAction ? (
+      {/* Guidance banner — "you are at step X, do Y now". The step line always
+          names the IMMEDIATE action of the current step (from stageGuidance);
+          nextAction adds the deterministic verdict ("manifest won't fix it")
+          when the diagnoses have one to say. */}
+      {guidance || nextAction ? (
         <div className="rounded-xl bg-[var(--accent-soft)] p-4 ring-1 ring-[var(--accent-line)]">
-          <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
-            Next recommended action — {nextAction.label}
-          </p>
-          <p className="mt-1 text-sm text-zinc-800 dark:text-zinc-200">{nextAction.headline}</p>
+          {guidance ? (
+            <>
+              <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
+                Next step — {guidance.step}
+              </p>
+              <p className="mt-1 text-sm text-zinc-800 dark:text-zinc-200">{guidance.action}</p>
+            </>
+          ) : null}
+          {nextAction ? (
+            <div className={guidance ? 'mt-3 border-t border-[var(--accent-line)] pt-3' : ''}>
+              <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
+                Recommended fix — {nextAction.label}
+              </p>
+              <p className="mt-1 text-sm text-zinc-800 dark:text-zinc-200">{nextAction.headline}</p>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -452,18 +519,35 @@ export function ImproveWorkbench({
         >
           <div className="space-y-4">
             {rerunError ? <ErrorBanner message={rerunError} /> : null}
+            {atRerunStep ? (
+              <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
+                This step — re-run the suites on V2
+              </p>
+            ) : null}
             <div className="flex flex-wrap items-center gap-2">
-              {suites.map((s) => (
-                <Button key={s.suiteId} outline onClick={() => handleRerunTests(s.suiteId)} disabled={rerunning !== null}>
-                  {rerunning === `test:${s.suiteId}` ? (
+              {suites.map((s, i) => {
+                // Promote the first test re-run to solid accent while re-running
+                // is the step's job; keep the rest outline so one clear primary
+                // reads as THE action, not a wall of equal buttons.
+                const primary = atRerunStep && i === 0
+                const label =
+                  rerunning === `test:${s.suiteId}` ? (
                     <span className="inline-flex items-center gap-2">
                       <Spinner className="size-4" /> Running {s.suiteName}…
                     </span>
                   ) : (
                     `Re-run tests: ${s.suiteName}`
-                  )}
-                </Button>
-              ))}
+                  )
+                return primary ? (
+                  <Button key={s.suiteId} color="accent" onClick={() => handleRerunTests(s.suiteId)} disabled={rerunning !== null}>
+                    {label}
+                  </Button>
+                ) : (
+                  <Button key={s.suiteId} outline onClick={() => handleRerunTests(s.suiteId)} disabled={rerunning !== null}>
+                    {label}
+                  </Button>
+                )
+              })}
               {benchmarks.map((b) => (
                 <Button key={b.suiteId} outline onClick={() => handleRerunBenchmark(b.suiteId)} disabled={rerunning !== null}>
                   {rerunning === `bench:${b.suiteId}` ? (
@@ -478,6 +562,8 @@ export function ImproveWorkbench({
             </div>
             {rerunning ? (
               <Text>Real suite in progress against the Agent Server — each case runs the live graph, then a judge grades it.</Text>
+            ) : atRerunStep ? (
+              <Text>No V2 result yet — a re-run must finish before you can approve or reject the cycle below.</Text>
             ) : null}
           </div>
         </AgentSectionCard>
@@ -563,8 +649,12 @@ export function ImproveWorkbench({
         >
           <div className="space-y-3">
             {decisionError ? <ErrorBanner message={decisionError} /> : null}
-            {proposal.status === 'v2-created' && !hasV2Results ? (
-              <Text>Approve unlocks after at least one V2 re-run exists — decide on evidence, not intention.</Text>
+            {/* Never a mute disabled button: say WHY approve/reject is greyed out,
+                highest-priority cause first (a run in flight, else no evidence). */}
+            {proposal.status === 'v2-created' && rerunning !== null ? (
+              <Text>Approve and reject are paused while a re-run is in progress — wait for the current run to finish.</Text>
+            ) : proposal.status === 'v2-created' && !hasV2Results ? (
+              <Text>Approve unlocks after at least one V2 re-run exists — re-run the tests on V2 first, then decide on evidence.</Text>
             ) : null}
             {proposal.status === 'approved' || proposal.status === 'rejected' ? (
               <div className="flex flex-wrap items-center gap-3">

@@ -1,10 +1,12 @@
 'use client'
 
+import * as Headless from '@headlessui/react'
 import { useState } from 'react'
 
 import { AssignProjectDialog, UnassignCopilotDialog } from '@/components/agent-ops/assign-project-dialog'
 import { PushAgentDialog } from '@/components/agent-ops/push-agent-dialog'
 import { SoftAccentButton } from '@/components/agent-ops/soft-accent-link'
+import { Link } from '@/components/catalyst/link'
 import { Text } from '@/components/catalyst/text'
 import type { Copilot, Project } from '@/lib/agent-mission-control/types'
 
@@ -30,6 +32,11 @@ export function CopilotProjectActions({
   // is null): we only publish tested-and-released runtime, so a copilot without
   // a promoted production version cannot be pushed. Gate the CTA before the click.
   const isReleased = copilot.productionVersionId !== null
+  // Already-shipped state: once a real push lands, the copilot carries `pushed`.
+  // The bare "Push to repo…" CTA no longer reads true — swap the primary action
+  // for a "Pushed" acknowledgement (with the commit link) and demote the push
+  // itself to a discreet "Push again" for re-publishing a newer version.
+  const isPushed = copilot.lastPushStatus === 'pushed'
   // Only an assigned copilot has a repo target; a bench copilot cannot push.
   const linkedProjectName =
     projectName ?? (copilot.projectId !== null ? projects.find((p) => p.id === copilot.projectId)?.name ?? null : null)
@@ -41,7 +48,32 @@ export function CopilotProjectActions({
       ) : (
         <>
           {isReleased ? (
-            <SoftAccentButton onClick={() => setPushTarget(copilot)}>Push to repo…</SoftAccentButton>
+            isPushed ? (
+              // Shipped — acknowledge it, link the commit (accent), keep re-push discreet.
+              <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  Pushed
+                  {copilot.lastPushCommitUrl ? (
+                    <Link
+                      href={copilot.lastPushCommitUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-accent-700 hover:text-accent-600 dark:text-accent-400 dark:hover:text-accent-300"
+                    >
+                      view commit
+                    </Link>
+                  ) : null}
+                </span>
+                <Headless.Button
+                  onClick={() => setPushTarget(copilot)}
+                  className="rounded text-sm text-zinc-500 transition-colors hover:text-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-zinc-400 dark:hover:text-zinc-200"
+                >
+                  Push again…
+                </Headless.Button>
+              </span>
+            ) : (
+              <SoftAccentButton onClick={() => setPushTarget(copilot)}>Push to repo…</SoftAccentButton>
+            )
           ) : (
             // Doctrine: we only push tested-and-released runtime. Without a promoted
             // production version there is nothing to publish — a discreet, non-clickable
