@@ -3,7 +3,7 @@
 import clsx from 'clsx'
 
 import { Spinner } from '@/components/agent-ops/authoring-primitives'
-import { surfaceCardClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
+import { surfaceCardClass } from '@/components/agent-ops/surface-card'
 import { ToolBadge } from '@/components/agent-ops/tool-badge'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
@@ -72,7 +72,7 @@ export function ProjectBuilderPreviewPanel({
 
   return (
     <div className={clsx(surfaceCardClass, 'flex h-full min-h-0 flex-col')}>
-      <div className={clsx(surfaceCardHeaderClass, 'flex flex-col gap-4 bg-[var(--color-surface-elevated)] px-4 py-3')}>
+      <div className="flex flex-col items-stretch gap-4 border-b border-white/5 bg-[var(--color-surface-elevated)] px-4 py-3">
         <div className="min-w-0">
           <h2 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Preview</h2>
           <p className="mt-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">
