@@ -68,7 +68,8 @@ export async function TestsSection({ copilotId }: { copilotId: string }) {
             name: 'Actions',
             content: (
               <div className="flex flex-col justify-center">
-                <RunTestsButton copilotId={id} />
+                {/* Run the first suite; the button is disabled until one exists. */}
+                <RunTestsButton copilotId={id} suiteId={suites[0]?.id} />
               </div>
             ),
           },
