@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 
-import { ensureRepoIntelligence } from '@/lib/agent-mission-control/repo-intelligence-store'
+import {
+  ensureRepoIntelligence,
+  RepoIntelligenceBackendError,
+  RepoIntelligenceGithubError,
+} from '@/lib/agent-mission-control/repo-intelligence-store'
 
 /**
  * GET  /api/agent-ops/projects/:id/repo/intelligence — the "auto-scan on open"
@@ -12,8 +16,10 @@ import { ensureRepoIntelligence } from '@/lib/agent-mission-control/repo-intelli
  * Returns { ok, hasRepo, rescanned, staleness, scannedAt, intelligence }.
  * READ-ONLY GitHub throughout — never writes to GitHub, never returns a secret
  * (github.ts refuses secret/credential paths). Auth: src/proxy.ts. Fail-closed
- * 503 without the gpu1 backend + GITHUB_TOKEN; 404 unknown project; 200 with
- * hasRepo:false when the project has no linked repo; 502 on a GitHub error
+ * 503 without the gpu1 backend + GITHUB_TOKEN configured up front; 503 also if
+ * the backend (gpu1/PostgREST — project lookup or cache read/write) fails at
+ * request time; 404 unknown project; 200 with hasRepo:false when the project
+ * has no linked repo; 502 on a GitHub error
  * (generic message — no internal detail forwarded).
  */
 const PROJECT_ID_RE = /^[a-z0-9-]{1,200}$/
@@ -38,13 +44,23 @@ async function handle(id: string, force: boolean) {
     const result = await ensureRepoIntelligence(id, { force })
     return NextResponse.json({ ok: true, ...result })
   } catch (err) {
+    if (err instanceof RepoIntelligenceBackendError) {
+      // Project lookup / cache read-write against gpu1 PostgREST failed —
+      // this is a backend/DB outage, never a GitHub problem. Log detail
+      // server-side, return a generic backend-unavailable message.
+      console.error('[agent-ops/projects/repo/intelligence] backend unavailable', err)
+      return NextResponse.json({ error: 'backend unavailable (gpu1/PostgREST)' }, { status: 503 })
+    }
+    if (err instanceof RepoIntelligenceGithubError) {
+      console.error('[agent-ops/projects/repo/intelligence] GitHub scan failed', err)
+      return NextResponse.json({ error: 'repo intelligence scan failed (GitHub unreachable or repo inaccessible)' }, { status: 502 })
+    }
     const message = err instanceof Error ? err.message : String(err)
     if (/project not found/.test(message)) {
       return NextResponse.json({ error: 'project not found' }, { status: 404 })
     }
-    // GitHub errors carry rate-limit/repo detail — log server-side, return generic.
     console.error('[agent-ops/projects/repo/intelligence] scan failed', err)
-    return NextResponse.json({ error: 'repo intelligence scan failed (GitHub unreachable or repo inaccessible)' }, { status: 502 })
+    return NextResponse.json({ error: 'repo intelligence scan failed' }, { status: 502 })
   }
 }
 

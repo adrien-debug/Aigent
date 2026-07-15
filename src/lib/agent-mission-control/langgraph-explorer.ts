@@ -62,6 +62,17 @@ function str(v: unknown): string | undefined {
   return typeof v === 'string' && v.length > 0 ? v : undefined
 }
 
+/**
+ * True when `err` is the SDK's HTTPError (or any error carrying a numeric
+ * `status`) for HTTP 404 specifically — "the resource doesn't exist" as
+ * opposed to a transport failure / 5xx ("the server is down"). The SDK's
+ * HTTPError class isn't exported by name, so this duck-types on `.status`
+ * the same way the SDK itself duck-types Response objects internally.
+ */
+function isNotFoundError(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && 'status' in err && (err as { status: unknown }).status === 404
+}
+
 /** List the assistants on the Agent Server (redacted). Read-only. */
 export async function listAssistants(): Promise<ExplorerAssistant[]> {
   const c = agentServerClient()
@@ -181,15 +192,18 @@ export interface ExplorerHistoryStep {
  * Redaction: only message roles/previews, tool NAMES, `next`, timestamps and the
  * interrupt payloads are surfaced — never the checkpoint metadata (which carries
  * the copilot systemPrompt/tools config), never a raw values blob. Read-only.
- * Returns [] when the server has no history for this thread.
+ * Returns [] only when the server confirms the thread doesn't exist (404) — a
+ * transport failure or 5xx (server down) is NOT swallowed here, it's rethrown
+ * so the caller gets an honest 502 instead of a silent empty 200.
  */
 export async function getThreadHistory(threadId: string): Promise<ExplorerHistoryStep[]> {
   const c = agentServerClient()
   let raw: unknown
   try {
     raw = await c.threads.getHistory(threadId, { limit: 40 })
-  } catch {
-    return []
+  } catch (err) {
+    if (isNotFoundError(err)) return []
+    throw err
   }
   const list = (Array.isArray(raw) ? raw : []) as Row[]
   // Server returns newest-first; reverse to oldest-first for a natural replay.
@@ -252,9 +266,12 @@ export interface GraphTopology {
  * and edge source/target/conditional are surfaced — never the JSON-schema `data`
  * blob a `schema` node carries, never a secret.
  *
- * Returns `topologyAvailable: false` with empty nodes/edges when the server has
- * no assistant for the graph, or the graph endpoint errors — the caller then
- * falls back to its hard-coded topology. Read-only.
+ * Returns `topologyAvailable: false` with empty nodes/edges when the server
+ * confirms there's no assistant for the graph (404) — a legitimate "nothing to
+ * show" case, the caller then falls back to its hard-coded topology. A
+ * transport failure or 5xx (server down) is NOT mapped to this empty shape —
+ * it's rethrown so the caller gets an honest 502 instead of a silent empty 200.
+ * Read-only.
  */
 export async function getGraphTopology(graphId: string): Promise<GraphTopology> {
   const c = agentServerClient()
@@ -264,16 +281,18 @@ export async function getGraphTopology(graphId: string): Promise<GraphTopology> 
   try {
     const assistants = (await c.assistants.search({ graphId, limit: 1 })) as unknown as Row[]
     assistantId = str(assistants[0]?.assistant_id)
-  } catch {
-    return { graphId, topologyAvailable: false, nodes: [], edges: [] }
+  } catch (err) {
+    if (isNotFoundError(err)) return { graphId, topologyAvailable: false, nodes: [], edges: [] }
+    throw err
   }
   if (!assistantId) return { graphId, topologyAvailable: false, nodes: [], edges: [] }
 
   let g: { nodes?: Row[]; edges?: Row[] }
   try {
     g = (await c.assistants.getGraph(assistantId)) as { nodes?: Row[]; edges?: Row[] }
-  } catch {
-    return { graphId, topologyAvailable: false, nodes: [], edges: [] }
+  } catch (err) {
+    if (isNotFoundError(err)) return { graphId, topologyAvailable: false, nodes: [], edges: [] }
+    throw err
   }
 
   const nodes: TopologyNode[] = (Array.isArray(g.nodes) ? g.nodes : []).map((n) => ({
