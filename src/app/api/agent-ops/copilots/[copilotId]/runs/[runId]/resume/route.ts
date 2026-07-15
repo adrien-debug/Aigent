@@ -330,6 +330,10 @@ export async function POST(
         { status: 409 }
       )
     }
-    return NextResponse.json({ error: message }, { status: 502 })
+    // Never forward the raw error text to the client: it can carry Agent
+    // Server/internal detail. Log server-side, generic message to the caller
+    // (same convention as architect/resume, builder/resume, create-draft).
+    console.error('[agent-ops/runs/resume] resume failed', err)
+    return NextResponse.json({ error: 'run resume failed' }, { status: 502 })
   }
 }

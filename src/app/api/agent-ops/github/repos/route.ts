@@ -23,9 +23,11 @@ export async function GET() {
   try {
     return NextResponse.json({ repos: await listRepos() })
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'GitHub error' },
-      { status: 502 }
-    )
+    // Log the detail (which can embed the internal GitHub API path + up to 300
+    // chars of raw upstream response body) server-side only; return a generic
+    // 502 so nothing internal leaks to the client. Mirrors ../tree/route.ts and
+    // ../file/route.ts.
+    console.error('[agent-ops/github/repos] listRepos failed:', err)
+    return NextResponse.json({ error: 'GitHub error' }, { status: 502 })
   }
 }

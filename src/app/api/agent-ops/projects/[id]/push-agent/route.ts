@@ -131,6 +131,11 @@ export async function POST(
         { status: 409 }
       )
     }
-    return NextResponse.json({ error: message }, { status: 502 })
+    // Never forward the raw error text to the client: pushAgentToRepo's message
+    // can carry the internal GitHub API path + upstream response body. Log
+    // server-side, generic message to the caller (same convention as the loads
+    // above and the neighboring agent-ops routes).
+    console.error('[agent-ops/push-agent] push failed', err)
+    return NextResponse.json({ error: 'push failed' }, { status: 502 })
   }
 }
