@@ -72,73 +72,75 @@ export function ProjectBuilderPreviewPanel({
 
   return (
     <div className={clsx(surfaceCardClass, 'flex h-full min-h-0 flex-col')}>
-      <div className={clsx(surfaceCardHeaderClass, 'bg-[var(--color-surface-elevated)] px-4 py-3')}>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Preview</h2>
-            <p className="mt-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-              {createdCopilotId ? 'Draft created' : hasSpec ? 'Spec in progress — not created yet' : 'Waiting for discussion'}
-            </p>
-            {conversationStatus ? <p className="mt-1 text-xs text-zinc-500">{conversationStatus}</p> : null}
-            {preview?.readyForApproval && !createdCopilotId ? (
-              <Badge color="accent" className="mt-2">
-                Ready for approval
-              </Badge>
-            ) : null}
-            {createdCopilotId ? (
-              <Link
-                href={`/admin/agents/${createdCopilotId}`}
-                className="mt-2 block text-xs font-medium text-accent-600 hover:text-accent-500 dark:text-accent-400 dark:hover:text-accent-300"
-              >
-                Open drafted agent →
-              </Link>
-            ) : null}
-          </div>
-
-          {(showDraftAction || showLangGraphActions) && (
-            <div className="flex shrink-0 flex-col items-end gap-2">
-              {showDraftAction ? (
-                <Button color="accent" onClick={onCreateDraft} disabled={creatingDraft || deciding}>
-                  {creatingDraft ? (
-                    <>
-                      <Spinner />
-                      Starting draft…
-                    </>
-                  ) : (
-                    'Approve — create draft'
-                  )}
-                </Button>
-              ) : null}
-              {showLangGraphActions ? (
-                <>
-                  <Button color="accent" onClick={onApprove} disabled={deciding}>
-                    {deciding ? (
-                      <>
-                        <Spinner />
-                        Creating draft…
-                      </>
-                    ) : (
-                      'Confirm draft'
-                    )}
-                  </Button>
-                  <Button plain onClick={onReject} disabled={deciding}>
-                    Keep discussing
-                  </Button>
-                </>
-              ) : null}
-            </div>
-          )}
+      <div className={clsx(surfaceCardHeaderClass, 'flex flex-col gap-4 bg-[var(--color-surface-elevated)] px-4 py-3')}>
+        <div className="min-w-0">
+          <h2 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Preview</h2>
+          <p className="mt-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+            {createdCopilotId ? 'Draft created' : hasSpec ? 'Spec in progress — not created yet' : 'Waiting for discussion'}
+          </p>
+          {conversationStatus ? <p className="mt-1 text-xs text-zinc-500">{conversationStatus}</p> : null}
+          {preview?.readyForApproval && !createdCopilotId ? (
+            <Badge color="accent" className="mt-2">
+              Ready for approval
+            </Badge>
+          ) : null}
+          {createdCopilotId ? (
+            <Link
+              href={`/admin/agents/${createdCopilotId}`}
+              className="mt-2 block text-xs font-medium text-accent-600 hover:text-accent-500 dark:text-accent-400 dark:hover:text-accent-300"
+            >
+              Open drafted agent →
+            </Link>
+          ) : null}
         </div>
 
-        {awaitingApproval && approvalMessage ? (
-          <p className="mt-3 text-xs text-zinc-600 dark:text-zinc-400">{approvalMessage}</p>
+        {(awaitingApproval && approvalMessage) || (awaitingApproval && pendingTool) ? (
+          <div className="flex flex-col gap-2 border-t border-white/5 pt-4">
+            {awaitingApproval && approvalMessage ? (
+              <p className="text-xs text-zinc-600 dark:text-zinc-400">{approvalMessage}</p>
+            ) : null}
+            {awaitingApproval && pendingTool ? (
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                <ToolBadge name={pendingTool.name} risk={asToolRisk(pendingTool.risk)} />
+                <code className="line-clamp-2 max-w-full font-mono text-[10px] wrap-break-word text-zinc-500">
+                  {pendingTool.argumentsSummary}
+                </code>
+              </div>
+            ) : null}
+          </div>
         ) : null}
-        {awaitingApproval && pendingTool ? (
-          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
-            <ToolBadge name={pendingTool.name} risk={asToolRisk(pendingTool.risk)} />
-            <code className="line-clamp-2 max-w-full font-mono text-[10px] wrap-break-word text-zinc-500">
-              {pendingTool.argumentsSummary}
-            </code>
+
+        {showDraftAction || showLangGraphActions ? (
+          <div className="flex flex-col gap-2 border-t border-white/5 pt-4">
+            {showDraftAction ? (
+              <Button color="accent" className="w-full" onClick={onCreateDraft} disabled={creatingDraft || deciding}>
+                {creatingDraft ? (
+                  <>
+                    <Spinner />
+                    Starting draft…
+                  </>
+                ) : (
+                  'Approve — create draft'
+                )}
+              </Button>
+            ) : null}
+            {showLangGraphActions ? (
+              <>
+                <Button color="accent" className="w-full" onClick={onApprove} disabled={deciding}>
+                  {deciding ? (
+                    <>
+                      <Spinner />
+                      Creating draft…
+                    </>
+                  ) : (
+                    'Confirm draft'
+                  )}
+                </Button>
+                <Button plain className="w-full" onClick={onReject} disabled={deciding}>
+                  Keep discussing
+                </Button>
+              </>
+            ) : null}
           </div>
         ) : null}
       </div>
