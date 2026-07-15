@@ -1,6 +1,6 @@
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { GenerateSuiteButton } from '@/components/agent-ops/generate-suite-button'
-import { RunTestsButton } from '@/components/agent-ops/run-tests-button'
+import { LiveTestRunPanel } from '@/components/agent-ops/live-test-run-panel'
 import { TestCaseTable } from '@/components/agent-ops/test-case-table'
 import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
 import { formatDate, formatPercent } from '@/lib/agent-mission-control/format'
@@ -64,17 +64,13 @@ export async function TestsSection({ copilotId }: { copilotId: string }) {
             valueSize: 'small',
             hint: latestRun ? runStatusConfig[latestRun.status].label : undefined,
           },
-          {
-            name: 'Actions',
-            content: (
-              <div className="flex flex-col justify-center">
-                {/* Run the first suite; the button is disabled until one exists. */}
-                <RunTestsButton copilotId={id} suiteId={suites[0]?.id} />
-              </div>
-            ),
-          },
         ]}
       />
+
+      {/* Live run — trigger + the agent_builder canvas executing case by case
+          (2/3 canvas · 1/3 live detail), driven over SSE. Runs the first suite;
+          the trigger is disabled until one exists. */}
+      <LiveTestRunPanel copilotId={id} suiteId={suites[0]?.id} />
 
       {suites.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 rounded-2xl border border-white/5 border-dashed bg-white/[0.01]">
