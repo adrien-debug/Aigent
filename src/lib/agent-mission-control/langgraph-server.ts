@@ -428,6 +428,14 @@ export async function resumeOnAgentServer(args: {
     ...(recursionLimit !== undefined ? { config: { recursion_limit: recursionLimit } } : {}),
   })) as { messages?: AnyMsg[]; __interrupt__?: unknown }
 
+  // Interrupt path (a resumed run may hit ANOTHER gated tool and pause again —
+  // same detection as runOnAgentServer: re-read the thread state rather than
+  // trusting only `__interrupt__` on the wait() result, since the SDK surfaces
+  // a pending interrupt through the thread's task list too).
+  const state = await c.threads.getState(args.threadId)
+  const interrupts = (state.tasks ?? []).flatMap((t) => (t as { interrupts?: unknown[] }).interrupts ?? [])
+  const interrupted = Boolean(result.__interrupt__) || interrupts.length > 0
+
   const allMessages = (result.messages ?? []) as AnyMsg[]
   // Only the messages appended by the resume are new. Guard against the count
   // exceeding the array (shouldn't happen, but never slice negative).
@@ -440,6 +448,31 @@ export async function resumeOnAgentServer(args: {
   const { steps, toolCalls } = buildStepsFromMessages(messages, allMessages)
   const lastAi = [...messages].reverse().find((m) => (m.type ?? m.role) === 'ai' || (m.type ?? m.role) === 'assistant')
   const finalText = typeof lastAi?.content === 'string' ? stripSentinel(lastAi.content) : ''
+
+  if (interrupted) {
+    const payload = result.__interrupt__ ?? interrupts
+    const msg = interruptMessage(payload)
+    const pendingTool = pendingToolFromInterrupt(payload)
+    steps.push({
+      kind: 'confirmation',
+      title: 'Awaiting human approval',
+      detail: short(msg ?? 'A tool requires human confirmation before it can run.'),
+      status: 'blocked',
+      durationMs: 0,
+    })
+    return {
+      threadId: args.threadId,
+      interrupted: true,
+      interruptMessage: msg,
+      pendingTool,
+      finalText,
+      steps,
+      toolCalls,
+      costUsd: costFromMessages(messages),
+      resolvedModel: realModelFromMessages(messages) ?? realModelFromMessages(allMessages),
+      budgetExhausted: budgetExhaustedFromMessages(allMessages),
+    }
+  }
 
   steps.push({
     kind: 'output',

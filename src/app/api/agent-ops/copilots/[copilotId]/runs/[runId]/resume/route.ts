@@ -42,8 +42,14 @@ const DEFAULT_MAX_STEPS_PER_RUN = 12
  *      run being deleted between step 3 and here (0 rows matched → 404).
  *   6. Resume on the Agent Server with the decision.
  *   7. Append the resumed steps (continuing the run's index) + tool_calls, then
- *      PATCH the run to `completed` (or `blocked` when the decision left every
- *      tool call blocked), stamping output_summary + finished_at.
+ *      either:
+ *        - the resume hit ANOTHER gated tool (re-interrupted) → PATCH back to
+ *          `needs-confirmation`, finished_at stays null, thread_id untouched —
+ *          same non-terminal shape as the original run's pending approval
+ *          (runner.ts), and the response carries `interrupted`/
+ *          `interruptMessage`/`pendingTool` so the operator can approve again.
+ *        - otherwise → PATCH the run to `completed`/`failed`/`blocked`,
+ *          stamping output_summary + finished_at (terminal).
  *
  * Live-only: never fabricates a resume — a resume/persist failure surfaces as 502.
  */
@@ -251,6 +257,48 @@ export async function POST(
       })
     }
 
+    // Re-aggregate the run's counters from the full tool_calls table so
+    // tool_call_count / unsafe_attempt_count reflect the resumed rows (they were
+    // 0 at pause). Re-read after the inserts above — needed for BOTH the
+    // re-interrupted and terminal branches below.
+    const allCalls = await pgrest<Record<string, unknown>[]>(
+      'GET',
+      `tool_calls?run_id=eq.${encodeURIComponent(runId)}&select=status`
+    )
+    const toolCallCount = allCalls.length
+    const unsafeAttemptCount = allCalls.filter((c) => c.status === 'blocked').length
+
+    // Re-interrupted during resume: the graph called ANOTHER gated tool right
+    // after this one was approved (same runs.wait, new interrupt()). This is
+    // NOT a terminal outcome — mirror EXACTLY how the original run persists a
+    // pending approval (runner.ts:430-488): status 'needs-confirmation',
+    // finished_at left null (not "finished", still awaiting a human decision),
+    // thread_id untouched (already correct — this route never overwrote it).
+    // Checked FIRST, before the terminal status logic below, so a fresh
+    // interrupt can never be mis-scored as completed/failed/blocked from stale
+    // toolCalls/budgetExhausted reasoning that assumed the run had ended.
+    if (result.interrupted) {
+      const outputSummary = summarize(result.interruptMessage ?? 'Awaiting human approval for a tool call.')
+      await pgrest('PATCH', `agent_runs?id=eq.${encodeURIComponent(runId)}`, {
+        status: 'needs-confirmation',
+        output_summary: outputSummary,
+        finished_at: null,
+        tool_call_count: toolCallCount,
+        unsafe_attempt_count: unsafeAttemptCount,
+      })
+
+      return NextResponse.json({
+        ok: true,
+        runId,
+        status: 'needs-confirmation',
+        outputSummary,
+        approved,
+        interrupted: true,
+        interruptMessage: result.interruptMessage,
+        pendingTool: result.pendingTool ?? null,
+      })
+    }
+
     // Four outcomes, not two:
     //   - the graph hit its own maxSteps guard after resuming (structured
     //     marker, same as the original run path in runner.ts) → `failed`.
@@ -275,16 +323,6 @@ export async function POST(
         ? (approved ? 'failed' : 'blocked')
         : 'completed'
     const outputSummary = summarize(result.finalText || '(empty response)')
-
-    // Re-aggregate the run's counters from the full tool_calls table so
-    // tool_call_count / unsafe_attempt_count reflect the resumed rows (they were
-    // 0 at pause). Re-read after the inserts above.
-    const allCalls = await pgrest<Record<string, unknown>[]>(
-      'GET',
-      `tool_calls?run_id=eq.${encodeURIComponent(runId)}&select=status`
-    )
-    const toolCallCount = allCalls.length
-    const unsafeAttemptCount = allCalls.filter((c) => c.status === 'blocked').length
 
     await pgrest('PATCH', `agent_runs?id=eq.${encodeURIComponent(runId)}`, {
       status,
