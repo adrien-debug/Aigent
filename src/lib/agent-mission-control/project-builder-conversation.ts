@@ -22,6 +22,7 @@ import {
 } from './authoring-writes'
 import { getProject } from './data'
 import { getRepoFile, getRepoTree, searchRepoCode } from './github'
+import { agentServerClient } from './langgraph-client'
 import { deleteCopilotAssistant, ensureCopilotAssistant } from './langgraph-assistants'
 import { getOpenAIClient, ARCHITECT_MODEL } from './llm-client'
 import {
@@ -735,10 +736,57 @@ async function resolveBuilderCopilotId(): Promise<string> {
   return rows[0].id
 }
 
+/**
+ * True when `err` is the LangGraph SDK's HTTPError (or any error carrying a
+ * numeric `status`) for HTTP 404 specifically — "the resource doesn't exist"
+ * as opposed to a transport failure / 5xx ("the server is down"). Same
+ * duck-typing as langgraph-explorer.ts's isNotFoundError / resolve-run-
+ * assistant.ts's isNotFound — kept local since this module doesn't otherwise
+ * import either of those.
+ */
+function isNotFoundError(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && 'status' in err && (err as { status: unknown }).status === 404
+}
+
+/**
+ * Liveness check for a conversation's stored `langgraph_thread_id` — the SAME
+ * pattern as resolve-run-assistant.ts's ensureCopilotAssistantIsLive, applied
+ * to threads instead of assistants. The `langgraphjs dev` Agent Server keeps
+ * threads IN MEMORY; a server restart (crash, redeploy) wipes them while the
+ * DB still holds the thread id, and the conversation looks like it has a
+ * materialization "in progress" forever. Before trusting a stored thread id
+ * as proof of an in-flight run, verify it still exists on the Agent Server:
+ *  - thread found → truly in progress, caller should refuse to start another.
+ *  - 404 → stale/orphaned id from a wiped in-memory store: clear it in DB and
+ *    tell the caller it's safe to re-arm.
+ *  - any other error (network/5xx — the server itself is unreachable) →
+ *    propagate; we don't know the thread's real state, so don't guess by
+ *    clearing it.
+ */
+async function ensureConversationThreadIsLive(conversation: ProjectBuilderConversation): Promise<boolean> {
+  const threadId = conversation.langgraphThreadId
+  if (!threadId) return false
+
+  try {
+    await agentServerClient().threads.get(threadId)
+    return true
+  } catch (err) {
+    if (!isNotFoundError(err)) throw err
+    console.warn(
+      `[project-builder] stale langgraph_thread_id ${threadId} on conversation ${conversation.id} (404 on Agent Server) — clearing and re-arming`
+    )
+    await pgrest('PATCH', `project_builder_conversations?${eq('id', conversation.id)}`, {
+      langgraph_thread_id: null,
+      updated_at: new Date().toISOString(),
+    })
+    return false
+  }
+}
+
 /** Start LangGraph materialization from an approved preview (no DB copilot yet). */
 export async function startProjectBuilderDraftMaterialization(projectId: string) {
   const conversation = await ensureActiveProjectBuilderConversation(projectId)
-  if (conversation.langgraphThreadId) {
+  if (await ensureConversationThreadIsLive(conversation)) {
     throw new Error('draft materialization already in progress')
   }
   const guard = canStartDraftMaterialization(conversation.latestPreview)
