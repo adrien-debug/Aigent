@@ -83,7 +83,7 @@ contrast, no mock data in the app. It runs in CI and must stay green.
 | `src/components/catalyst/` | Vendored Catalyst UI kit. |
 | `supabase/migrations/` | Schema for the `aigent` perimeter. |
 | `scripts/` | `seed-amc.ts`, `provision-agent-builder.ts`, `reprovision-assistants.ts`, `check-palette.mjs`, `check-catalyst.mjs`. |
-| `deploy/` | Container/Caddy config for the app and the Agent Server. |
+| `deploy/` | Container/Caddy config: `app/` (the Next.js app), `db/` (the data layer — PostgREST + Caddy over the `aigent` database), `langgraph/` (the Agent Server). |
 
 ## Docs
 

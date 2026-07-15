@@ -1,9 +1,9 @@
 /**
- * Seed GPU1 (base `aigent`) depuis le dataset mock.
+ * Seed GPU1 (base `aigent`) depuis les fixtures de seed (`seed-fixtures.ts`).
  * Génère du SQL idempotent (TRUNCATE + INSERT) sur stdout :
  *   npx -y tsx scripts/seed-amc.ts > /tmp/seed-amc.sql
- * Puis appliquer sur gpu1 :
- *   scp /tmp/seed-amc.sql gpu1:~/aigent-db/ && ssh gpu1 'docker exec -i nexus-postgres psql -U postgres -d aigent -v ON_ERROR_STOP=1 < ~/aigent-db/seed-amc.sql'
+ * Puis appliquer sur gpu1 (psql via stdin, aucun fichier à déposer sur l'hôte) :
+ *   ssh gpu1 'docker exec -i nexus-postgres psql -U postgres -d aigent -v ON_ERROR_STOP=1' < /tmp/seed-amc.sql
  */
 import {
   projects,

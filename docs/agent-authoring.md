@@ -342,6 +342,9 @@ Live schema on GPU1 (base `aigent`), migrations in `supabase/migrations/`:
 - **`0012_project_builder_conversations.sql`** — adds
   `project_builder_conversations` and `project_builder_messages`, the
   persistent store backing the project builder modal's chat (§1b).
+- **`0013_manifest_skills.sql`** — adds `manifests.skills` (jsonb, default
+  `[]`) — no new table, the agent's mission-level skills derived by the Agent
+  Builder, surfaced on the copilot overview's Skills card.
 
 > The architect's in-progress draft type (`agent_drafts` /
 > `GeneratedManifest`) lives in

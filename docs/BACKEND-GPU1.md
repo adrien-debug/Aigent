@@ -76,7 +76,8 @@ ssh gpu1 'docker ps | grep aigent'                          # conteneurs up
 curl -s http://100.88.191.49:8095/rest/v1/ | head -c 80      # PostgREST (Tailscale)
 ssh gpu1 'docker exec nexus-postgres psql -U postgres -d aigent -tc "select count(*) from copilots;"'
 
-# Recréer la couche data à l'identique (si aigent-postgrest / aigent-caddy meurent) :
+# Recréer la couche data à l'identique (si aigent-postgrest / aigent-caddy meurent).
+# ~/aigent-app = copie synchronisée du repo sur gpu1 (contient deploy/db/, avec son .env chmod 600).
 ssh gpu1 'cd ~/aigent-app && docker compose -f deploy/db/docker-compose.yml --env-file deploy/db/.env up -d'
 
 # Vérifier l'isolation (attendu : authenticator_aigent + postgres uniquement) :
