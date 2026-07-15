@@ -38,6 +38,26 @@ function shortId(id: string): string {
   return id.length > 16 ? `${id.slice(0, 16)}…` : id
 }
 
+// Thread status → badge classes. Differentiate by INTENSITY within the
+// accent/zinc doctrine, not by hue: error/interrupted get the strongest
+// accent treatment (attention), running/busy get a plain accent surface
+// (in progress), idle/finished states fall back to neutral zinc — mirrors
+// the completed/active/interrupted/error/idle vocabulary already used by
+// the canvas view's StatusDot/NodeBox for the same graph.
+function statusClass(status: string): string {
+  switch (status) {
+    case 'error':
+    case 'interrupted':
+      return 'text-accent-300 bg-[var(--accent-surface)] ring-[var(--accent-line-strong)]'
+    case 'running':
+    case 'busy':
+      return 'text-accent-400 bg-[var(--accent-soft)] ring-[var(--accent-line)]'
+    case 'idle':
+    default:
+      return 'text-zinc-400 bg-white/5 ring-white/10'
+  }
+}
+
 export function LangGraphExplorerView({
   agentServerUrl,
   graph,
@@ -117,7 +137,7 @@ export function LangGraphExplorerView({
       <div className={clsx('flex flex-col md:flex-row items-stretch', surfaceCardClass)}>
         <div className="flex-1 p-6 flex flex-col gap-4 border-b md:border-b-0 md:border-r border-white/5">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-accent-500/10 ring-1 ring-accent-500/20">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-[var(--accent-soft)] ring-1 ring-[var(--accent-line)]">
               <ServerStackIcon className="size-5 text-accent-400" />
             </div>
             <div className="flex flex-col">
@@ -128,7 +148,7 @@ export function LangGraphExplorerView({
         </div>
         <div className="flex-1 p-6 flex flex-col gap-4 border-b md:border-b-0 md:border-r border-white/5">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-accent-500/10 ring-1 ring-accent-500/20">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-[var(--accent-soft)] ring-1 ring-[var(--accent-line)]">
               <CpuChipIcon className="size-5 text-accent-400" />
             </div>
             <div className="flex flex-col">
@@ -186,14 +206,14 @@ export function LangGraphExplorerView({
                     onClick={() => loadDetail(thread.threadId)}
                     className={clsx(
                       "flex flex-col gap-2 p-4 border-b border-white/5 text-left transition-colors",
-                      selected === thread.threadId ? "bg-[var(--color-surface-interactive)] ring-1 ring-inset ring-accent-500/50" : "hover:bg-white/5"
+                      selected === thread.threadId ? "bg-[var(--color-surface-interactive)] ring-1 ring-inset ring-[var(--accent-line-strong)]" : "hover:bg-white/5"
                     )}
                   >
                     <div className="flex items-center justify-between w-full">
                       <span className="text-sm font-mono text-white truncate" title={thread.threadId}>{shortId(thread.threadId)}</span>
                       <span className={clsx(
                         "text-[10px] font-medium uppercase tracking-widest px-2 py-0.5 rounded-md ring-1",
-                        thread.status === 'idle' ? "text-accent-400 bg-accent-400/10 ring-accent-400/20" : "text-accent-400 bg-accent-400/10 ring-accent-400/20"
+                        statusClass(thread.status)
                       )}>
                         {thread.status}
                       </span>
@@ -255,7 +275,7 @@ export function LangGraphExplorerView({
                         detail.messages.map((msg, idx) => (
                           <div key={idx} className={clsx(
                             "flex flex-col gap-2 p-3 rounded-xl border",
-                            msg.role === 'user' ? "bg-[var(--color-surface-interactive)] border-white/5 ml-8" : "bg-accent-500/5 border-accent-500/10 mr-8"
+                            msg.role === 'user' ? "bg-[var(--color-surface-interactive)] border-white/5 ml-8" : "bg-[var(--accent-soft)] border-[var(--accent-line)] mr-8"
                           )}>
                             <div className="flex items-center justify-between">
                               <span className={clsx("text-[10px] font-bold uppercase tracking-widest", msg.role === 'user' ? "text-zinc-400" : "text-accent-400")}>
