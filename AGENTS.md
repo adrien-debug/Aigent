@@ -20,8 +20,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Besoin d'une section/écran dashboard ? → **lis** `~/.claude/tailwind-blocks/application-ui/`
   pour la structure, puis monte-la avec les primitives Catalyst. Ne colle jamais le JSX brut d'un
   bloc dans le dashboard.
-- 27 primitives disponibles dans `src/components/catalyst/` (avatar, badge, button, checkbox,
-  combobox, description-list, dialog, divider, dropdown, fieldset, heading, input, link, listbox,
-  navbar, pagination, radio, select, sidebar, sidebar-layout, stacked-layout, switch, table, text,
-  textarea, alert, auth-layout).
+- 23 primitives disponibles dans `src/components/catalyst/` (alert, auth-layout, avatar, badge,
+  button, description-list, dialog, divider, dropdown, fieldset, heading, input, link, listbox,
+  navbar, pagination, select, sidebar-layout, stacked-layout, switch, table, text, textarea).
 <!-- END:catalyst-ui-rules -->

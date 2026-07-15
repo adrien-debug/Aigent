@@ -109,10 +109,12 @@ export function LangGraphExplorerView({
         ])
         if (!aRes.ok) throw new Error(`Assistants HTTP ${aRes.status}`)
         if (!tRes.ok) throw new Error(`Threads HTTP ${tRes.status}`)
-        const [aData, tData] = await Promise.all([aRes.json(), tRes.json()])
+        const [aData, tData]: [unknown, unknown] = await Promise.all([aRes.json(), tRes.json()])
         if (!active) return
-        setAssistants(Array.isArray(aData) ? aData : [])
-        setThreads(Array.isArray(tData) ? tData : [])
+        const assistantsList = (aData as { assistants?: unknown } | null)?.assistants
+        const threadsList = (tData as { threads?: unknown } | null)?.threads
+        setAssistants(Array.isArray(assistantsList) ? assistantsList : [])
+        setThreads(Array.isArray(threadsList) ? threadsList : [])
       } catch (err) {
         if (active) setListError(err instanceof Error ? err.message : String(err))
       } finally {

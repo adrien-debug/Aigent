@@ -43,6 +43,30 @@ import type {
   UsdAmount,
 } from './types'
 
+/**
+ * A single progress event emitted by `runTestSuite` while a suite runs, so a
+ * streaming caller (the SSE route behind the "Run tests" button) can show the
+ * run advancing case-by-case in real time instead of blocking ~68s on the final
+ * result. Discriminated on `type`. Emitted ONLY when `onEvent` is passed — the
+ * JSON route omits it and the run behaves exactly as before (no events).
+ *
+ * These describe PER-CASE granularity (started → completed), which is enough to
+ * see where a run is and which case is stalling/failing. Intra-case token
+ * streaming is out of scope for this pass — each case still runs to completion
+ * via `.wait()` inside `runCase`.
+ */
+export type TestRunEvent =
+  | { type: 'run-started'; runId: string; total: number }
+  | { type: 'case-started'; caseId: string; name: string; index: number; total: number }
+  | {
+      type: 'case-completed'
+      caseId: string
+      status: TestResultStatus
+      failureReason: string | null
+      latencyMs: number
+    }
+  | { type: 'run-finished'; status: TestRun['status']; passRate: number }
+
 export interface RunTestSuiteArgs {
   copilotId: string
   suiteId: string
@@ -54,6 +78,14 @@ export interface RunTestSuiteArgs {
    * a direct completion, so there is no per-run model fallback to opt into here.
    */
   allowFallback?: boolean
+  /**
+   * OPTIONAL progress sink. When provided, `runTestSuite` emits a `TestRunEvent`
+   * at each milestone (run start, each case start/complete, run finish) so the
+   * caller can stream progress. When ABSENT (the existing JSON route), no events
+   * are emitted and execution is byte-for-byte identical to before — a pure
+   * additive parameter, the blocking `.wait()` path is untouched.
+   */
+  onEvent?: (event: TestRunEvent) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -373,7 +405,7 @@ async function runCase(
  * computed over pass/fail/error, never fabricated.
  */
 export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
-  const { copilotId, suiteId } = args
+  const { copilotId, suiteId, onEvent } = args
   const triggeredBy = args.triggeredBy?.trim() || 'authoring-session'
 
   const copilotRow = await loadCopilotRow(copilotId)
@@ -419,6 +451,10 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
     total_cost_usd: 0,
   })
 
+  // The run row now exists — tell a streaming caller it started and how many
+  // cases to expect, so it can lay out one row per case before any runs.
+  onEvent?.({ type: 'run-started', runId, total: cases.length })
+
   // 2) Run every case, persisting a result row each. Guard the whole loop so a
   //    catastrophic failure finishes the run as `aborted` rather than leaving
   //    it stuck on `running`.
@@ -429,7 +465,18 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
   let abortReason = ''
 
   try {
-    for (const testCase of cases) {
+    for (const [index, testCase] of cases.entries()) {
+      // Announce the case is about to run (index/total 1-based for display) so a
+      // streaming caller can flip its row to a spinner before the ~seconds-long
+      // graph + judge round-trip.
+      onEvent?.({
+        type: 'case-started',
+        caseId: testCase.id,
+        name: testCase.name,
+        index: index + 1,
+        total: cases.length,
+      })
+
       // The copilot's reply comes from the real graph (via runCase →
       // runOnAgentServer on the project assistant). The manifest's forbidden
       // actions / system prompt are enforced by the graph itself, not injected
@@ -451,6 +498,16 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
         cost_usd: outcome.costUsd,
         trace_url: outcome.traceUrl,
       })
+
+      // The result row is persisted — emit the case's final verdict so the
+      // streaming caller can flip its row from spinner to pass/fail/error.
+      onEvent?.({
+        type: 'case-completed',
+        caseId: testCase.id,
+        status: outcome.status,
+        failureReason: outcome.failureReason,
+        latencyMs: outcome.latencyMs,
+      })
     }
   } catch (err) {
     aborted = true
@@ -469,6 +526,13 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
     total_cost_usd: Math.round(totalCostUsd * 1e6) / 1e6,
   })
   await pgrest('PATCH', `test_suites?id=eq.${encodeURIComponent(suiteId)}`, { last_run_id: runId })
+
+  const persistedPassRate = (finishedRows[0]?.pass_rate as number) ?? passRate
+  // Terminal event — the run is finished and persisted. Emitted for both a
+  // clean `completed` run and an `aborted` one (before the abort throw below),
+  // so a streaming caller always sees the run's final status/pass rate even
+  // when a case crashed the loop.
+  onEvent?.({ type: 'run-finished', status: finalStatus, passRate: persistedPassRate })
 
   if (aborted) {
     // Surface the failure to the caller (the API route maps it to a 502) while
