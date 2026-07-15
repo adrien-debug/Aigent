@@ -3,6 +3,7 @@ import clsx from 'clsx'
 import { notFound } from 'next/navigation'
 
 import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
+import { AgentSkillsCard } from '@/components/agent-ops/agent-skills-card'
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { ArchitectureStrip } from '@/components/agent-ops/architecture-strip'
 import { CopilotProjectActions } from '@/components/agent-ops/copilot-project-actions'
@@ -697,6 +698,9 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
       <AgentSectionCard title="Architecture" description="Execution path enforced on every run">
         <ArchitectureStrip steps={architectureSteps} />
       </AgentSectionCard>
+
+      {/* 3b — Skills, aggregating role + enabled tools + guardrails */}
+      <AgentSkillsCard manifest={manifest} enabledTools={enabledTools} />
 
       {/* 4 — Next actions (the onboarding checklist covers the sparse draft) */}
       {!isSparseDraft ? (
