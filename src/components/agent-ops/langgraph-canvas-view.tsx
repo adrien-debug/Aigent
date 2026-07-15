@@ -6,6 +6,19 @@ import * as Headless from '@headlessui/react'
 
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
+import {
+  GraphCanvasSvg,
+  buildLayout,
+  FALLBACK_EDGES,
+  FALLBACK_NODES,
+  NODE_IDS,
+  type NodeId,
+  type RenderEdge,
+  type RenderNode,
+  type StepStatus,
+  type TopologyEdge,
+  type TopologyNode,
+} from '@/components/agent-ops/graph-canvas-svg'
 import { Button } from '@/components/catalyst/button'
 import { Link } from '@/components/catalyst/link'
 import { Select } from '@/components/catalyst/select'
@@ -39,94 +52,14 @@ interface HistoryStep {
   interrupts: unknown[]
 }
 
-// --- agent_builder topology: KNOWN layout + hard-coded FALLBACK --------------
-// The replay/status logic keys on the KNOWN node ids (a stable union). The
-// canvas RENDERS from the live topology API when available, else this fallback.
-type NodeId = '__start__' | 'agent' | 'approval' | 'tools' | '__end__'
-const NODE_IDS: NodeId[] = ['__start__', 'agent', 'approval', 'tools', '__end__']
-
-/** A node ready to draw: string id (may be an unknown/new topology node) + layout. */
-interface RenderNode {
-  id: string
-  label: string
-  role: string
-  type?: string
-  x: number
-  y: number
-}
-/** A drawable edge. */
-interface RenderEdge {
-  source: string
-  target: string
-  conditional: boolean
-}
-
-// Fixed positions + roles for the KNOWN agent_builder nodes. A topology node not
-// in here is laid out automatically (see buildLayout). Tuned for a compact,
-// centred diamond that fills the viewBox without dead space.
-const KNOWN_POSITIONS: Record<NodeId, { x: number; y: number }> = {
-  __start__: { x: 300, y: 34 },
-  agent: { x: 300, y: 120 },
-  approval: { x: 148, y: 210 },
-  tools: { x: 300, y: 300 },
-  __end__: { x: 452, y: 210 },
-}
-const NODE_ROLES: Record<NodeId, string> = {
-  __start__: 'Entry point — the run begins here.',
-  agent: 'ChatOpenAI bound to the copilot tools. Decides the next tool call or the final answer.',
-  approval: 'Human-in-the-loop gate. interrupt()s before a confirmation-required tool.',
-  tools: 'Executes the approved tool call, then loops back to agent.',
-  __end__: 'Terminal node — the run finished (final answer produced).',
-}
-
-// Hard-coded FALLBACK topology (used when the server doesn't expose one).
-const FALLBACK_NODES: { id: NodeId; type: string }[] = [
-  { id: '__start__', type: 'schema' },
-  { id: 'agent', type: 'runnable' },
-  { id: 'approval', type: 'runnable' },
-  { id: 'tools', type: 'runnable' },
-  { id: '__end__', type: 'schema' },
-]
-const FALLBACK_EDGES: RenderEdge[] = [
-  { source: '__start__', target: 'agent', conditional: false },
-  { source: 'agent', target: 'approval', conditional: true },
-  { source: 'agent', target: '__end__', conditional: true },
-  { source: 'approval', target: 'tools', conditional: true },
-  { source: 'approval', target: 'agent', conditional: true },
-  { source: 'tools', target: 'agent', conditional: false },
-]
-
-interface TopologyNode {
-  id: string
-  label: string
-  type?: string
-}
-interface TopologyEdge {
-  source: string
-  target: string
-  conditional?: boolean
-}
-
-/** Build the render nodes with layout: known ids get fixed positions; any extra
- * topology node is auto-placed in a spare column so it's visible but never
- * fabricated onto a known spot. */
-function buildLayout(nodes: TopologyNode[]): RenderNode[] {
-  let extra = 0
-  return nodes.map((n) => {
-    const known = KNOWN_POSITIONS[n.id as NodeId]
-    const pos = known ?? { x: 520, y: 40 + extra++ * 80 }
-    return {
-      id: n.id,
-      label: n.label || n.id,
-      role: NODE_ROLES[n.id as NodeId] ?? `Graph node "${n.id}" (${n.type ?? 'node'}).`,
-      type: n.type,
-      x: pos.x,
-      y: pos.y,
-    }
-  })
-}
-
-type StepStatus = 'completed' | 'active' | 'interrupted' | 'error' | 'idle' | 'unknown'
+// --- agent_builder topology + SVG canvas -------------------------------------
+// The topology (node ids, fixed positions, hard-coded fallback), the layout, the
+// status/step types AND the low-level SVG rendering all live in the PURE
+// presentational module `./graph-canvas-svg` — reusable by any consumer that can
+// hand it a `nodeStatus` / `traversedEdges` (e.g. a live test panel). This view
+// keeps ONLY the data layer: it derives that state from the run history and
+// delegates the rendering. Imported symbols: NODE_IDS, buildLayout,
+// FALLBACK_NODES, FALLBACK_EDGES, GraphCanvasSvg + the types.
 
 /** A derived replay step for the timeline + overlay. Never fabricated. */
 interface ReplayStep {
@@ -138,11 +71,6 @@ interface ReplayStep {
   timestamp?: string
   summary?: string
 }
-
-const NODE_W = 96
-const NODE_H = 34
-const VB_W = 600
-const VB_H = 344
 
 /**
  * PURE mapping: history checkpoints (+ thread detail) → ordered replay steps.
@@ -381,10 +309,14 @@ export function LangGraphCanvasView({ graph, studioUrl }: { graph: string; studi
   }, [replaySteps])
 
   // Render nodes/edges: from the live topology when available, else fallback.
-  const renderNodes = useMemo<RenderNode[]>(() => {
-    const nodes = topologyLive && topologyNodes ? topologyNodes : FALLBACK_NODES.map((n) => ({ id: n.id, label: n.id, type: n.type }))
-    return buildLayout(nodes)
-  }, [topologyLive, topologyNodes])
+  // `canvasNodes` is the raw topology (pre-layout) handed to the pure canvas,
+  // which runs `buildLayout` itself; `renderNodes` is the laid-out copy this
+  // view needs locally (inspector lookup, unknown-node detection).
+  const canvasNodes = useMemo<TopologyNode[]>(
+    () => (topologyLive && topologyNodes ? topologyNodes : FALLBACK_NODES.map((n) => ({ id: n.id, label: n.id, type: n.type }))),
+    [topologyLive, topologyNodes],
+  )
+  const renderNodes = useMemo<RenderNode[]>(() => buildLayout(canvasNodes), [canvasNodes])
   const renderEdges = useMemo<RenderEdge[]>(() => {
     if (topologyLive && topologyEdges) {
       return topologyEdges.map((e) => ({ source: e.source, target: e.target, conditional: e.conditional === true }))
@@ -483,27 +415,15 @@ export function LangGraphCanvasView({ graph, studioUrl }: { graph: string; studi
             </div>
           }
         >
-          <div className="overflow-x-auto rounded-xl bg-gradient-to-b from-zinc-50 to-zinc-100/60 p-2 dark:from-zinc-900 dark:to-zinc-950/60">
-            <svg viewBox={`0 0 ${VB_W} ${VB_H}`} className="h-auto w-full min-w-[520px]" role="img" aria-label={`${graph} graph`}>
-              <CanvasDefs />
-              {renderEdges.map((e, i) => {
-                const a = renderNodeById.get(e.source)
-                const b = renderNodeById.get(e.target)
-                if (!a || !b) return null
-                return <Edge key={i} a={a} b={b} dashed={e.conditional} traversed={traversedEdges.has(`${e.source}→${e.target}`)} index={i} />
-              })}
-              {renderNodes.map((n, i) => (
-                <NodeBox key={n.id} node={n} status={statusOf(n.id)} selected={effectiveNodeId === n.id} onSelect={() => onNodeClick(n.id)} index={i} />
-              ))}
-            </svg>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
-            <LegendDot className="bg-zinc-700 dark:bg-zinc-300" label="completed" />
-            <LegendDot className="bg-accent-500" label="active" />
-            <LegendDot className="bg-accent-600" label="interrupted" />
-            <LegendDot className="bg-accent-700" label="error" />
-            <LegendDot className="bg-zinc-400 dark:bg-zinc-500" label="idle / unknown" />
-          </div>
+          <GraphCanvasSvg
+            nodeStatus={nodeStatus}
+            traversedEdges={traversedEdges}
+            onNodeClick={onNodeClick}
+            selectedNodeId={effectiveNodeId}
+            nodes={canvasNodes}
+            edges={renderEdges}
+            ariaLabel={`${graph} graph`}
+          />
         </AgentSectionCard>
 
         {/* Inspector — 2 tabs */}
@@ -654,127 +574,7 @@ function StepInspector({ step }: { step: ReplayStep }) {
   )
 }
 
-// --- SVG pieces ------------------------------------------------------------
-
-/**
- * Shared SVG defs + scoped animations. Gradients per state, a soft drop shadow,
- * an accent glow for the live node, and keyframes: a gentle pulse on the
- * active/interrupted node, a flowing dash on traversed edges, and a spring
- * fade-in on mount. All motion is disabled under prefers-reduced-motion.
- */
-function CanvasDefs() {
-  return (
-    <>
-      <defs>
-        {/* Node surface gradients — subtle top-lit sheen, never flat. */}
-        <linearGradient id="node-idle" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(113,113,122,0.08)" />
-          <stop offset="100%" stopColor="rgba(113,113,122,0.02)" />
-        </linearGradient>
-        <linearGradient id="node-completed" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(113,113,122,0.14)" />
-          <stop offset="100%" stopColor="rgba(113,113,122,0.05)" />
-        </linearGradient>
-        <linearGradient id="node-hot" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--accent-soft)" />
-          <stop offset="100%" stopColor="var(--accent-surface)" />
-        </linearGradient>
-        {/* Soft drop shadow for elevation. */}
-        <filter id="node-shadow" x="-30%" y="-30%" width="160%" height="180%">
-          <feDropShadow dx="0" dy="1.5" stdDeviation="2" floodColor="rgb(24 24 27)" floodOpacity="0.12" />
-        </filter>
-        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="rgb(161 161 170)" />
-        </marker>
-        <marker id="arrow-hot" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent-line)" />
-        </marker>
-      </defs>
-      <style>{`
-        /* Fade-in ONLY on opacity — the group's transform carries the node's
-           position, so animating transform here would stack every node at the
-           origin. */
-        .lg-node { opacity: 0; animation: lg-in 340ms ease-out forwards; }
-        .lg-node rect { transition: stroke-width 180ms ease, filter 200ms ease; }
-        .lg-node:hover rect.lg-surface { filter: url(#node-shadow) brightness(1.03); }
-        .lg-flow { stroke-dasharray: 5 7; animation: lg-dash 1.1s linear infinite; }
-        @keyframes lg-in { to { opacity: 1; } }
-        @keyframes lg-dash { to { stroke-dashoffset: -24; } }
-        @media (prefers-reduced-motion: reduce) {
-          .lg-node { opacity: 1; animation: none; }
-          .lg-flow { animation: none; }
-        }
-      `}</style>
-    </>
-  )
-}
-
-function NodeBox({ node, status, selected, onSelect, index }: { node: RenderNode; status: StepStatus; selected: boolean; onSelect: () => void; index: number }) {
-  const hot = status === 'interrupted' || status === 'active'
-  const fillId =
-    hot ? 'url(#node-hot)' : status === 'completed' ? 'url(#node-completed)' : 'url(#node-idle)'
-  const stroke =
-    status === 'interrupted' || status === 'active'
-      ? 'var(--accent-line)'
-      : status === 'error'
-        ? 'var(--color-accent-800)'
-        : status === 'completed'
-          ? 'rgb(113 113 122)'
-          : 'rgb(212 212 216)'
-  return (
-    <g
-      className="lg-node cursor-pointer focus:outline-none"
-      style={{ animationDelay: `${index * 55}ms` }}
-      transform={`translate(${node.x - NODE_W / 2}, ${node.y - NODE_H / 2})`}
-      onClick={onSelect}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onSelect()
-        }
-      }}
-      aria-label={`${node.label} — ${status}`}
-    >
-      {/* Base card (white so the gradient reads on any bg) + gradient surface. */}
-      <rect width={NODE_W} height={NODE_H} rx={9} className="fill-white dark:fill-zinc-900" filter="url(#node-shadow)" />
-      <rect className="lg-surface" width={NODE_W} height={NODE_H} rx={9} fill={fillId} stroke={stroke} strokeWidth={selected ? 2 : 1.25} />
-      <text x={NODE_W / 2} y={NODE_H / 2 - 2} textAnchor="middle" dominantBaseline="middle" className="fill-zinc-950 font-mono text-[10px] font-medium dark:fill-white">
-        {node.label}
-      </text>
-      <text x={NODE_W / 2} y={NODE_H / 2 + 9} textAnchor="middle" dominantBaseline="middle" className="fill-zinc-500 text-[6.5px] font-semibold tracking-wider uppercase dark:fill-zinc-400">
-        {status}
-      </text>
-    </g>
-  )
-}
-
-function Edge({ a, b, dashed, traversed, index }: { a: RenderNode; b: RenderNode; dashed: boolean; traversed: boolean; index: number }) {
-  const dx = b.x - a.x
-  const dy = b.y - a.y
-  const len = Math.hypot(dx, dy) || 1
-  const ux = dx / len
-  const uy = dy / len
-  const x1 = a.x + ux * (NODE_H / 2 + 3)
-  const y1 = a.y + uy * (NODE_H / 2 + 3)
-  const x2 = b.x - ux * (NODE_H / 2 + 8)
-  const y2 = b.y - uy * (NODE_H / 2 + 8)
-  // Gentle curve: bow the line perpendicular to its direction so parallel edges
-  // (agent↔approval, agent↔tools) don't overlap and it reads softer.
-  const mx = (x1 + x2) / 2 + -uy * 14
-  const my = (y1 + y2) / 2 + ux * 14
-  const d = `M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`
-  const stroke = traversed ? 'var(--accent-line)' : 'rgb(212 212 216)'
-  return (
-    <g className="lg-node" style={{ animationDelay: `${index * 40}ms` }}>
-      {/* Base edge. */}
-      <path d={d} fill="none" stroke={stroke} strokeWidth={traversed ? 2 : 1.25} strokeDasharray={dashed && !traversed ? '4 4' : undefined} markerEnd={traversed ? 'url(#arrow-hot)' : 'url(#arrow)'} strokeLinecap="round" />
-      {/* Animated flow overlay on traversed edges. */}
-      {traversed ? <path className="lg-flow" d={d} fill="none" stroke="var(--accent-line)" strokeWidth={2} strokeLinecap="round" opacity={0.7} /> : null}
-    </g>
-  )
-}
+// --- Timeline / badges (view-local) ----------------------------------------
 
 function StatusDot({ status }: { status: StepStatus }) {
   const c =
@@ -790,15 +590,6 @@ function Badge({ tone, children }: { tone: 'live' | 'fallback' | 'warn'; childre
         ? 'bg-accent-500/10 text-accent-700 ring-accent-500/30 dark:text-accent-300'
         : 'bg-zinc-950/5 text-zinc-600 ring-zinc-950/10 dark:bg-white/5 dark:text-zinc-400 dark:ring-white/10'
   return <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ${cls}`}>{children}</span>
-}
-
-function LegendDot({ className, label }: { className: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span aria-hidden="true" className={`size-2 rounded-full ${className}`} />
-      {label}
-    </span>
-  )
 }
 
 function TabButton({ active, onClick, disabled, children }: { active: boolean; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {

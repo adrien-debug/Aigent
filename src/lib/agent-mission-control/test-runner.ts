@@ -29,7 +29,7 @@ import { randomUUID } from 'node:crypto'
 
 import { summarize } from './format'
 import { getTraceUrl, newTraceId } from './langsmith'
-import { runOnAgentServer } from './langgraph-server'
+import { streamOnAgentServer } from './langgraph-server'
 import { routeCompletion } from './model-router'
 import { pgrest, pgrestDetail } from './postgrest'
 import { resolveRunAssistantFromRow } from './resolve-run-assistant'
@@ -50,14 +50,21 @@ import type {
  * result. Discriminated on `type`. Emitted ONLY when `onEvent` is passed — the
  * JSON route omits it and the run behaves exactly as before (no events).
  *
- * These describe PER-CASE granularity (started → completed), which is enough to
- * see where a run is and which case is stalling/failing. Intra-case token
- * streaming is out of scope for this pass — each case still runs to completion
- * via `.wait()` inside `runCase`.
+ * These describe PER-CASE granularity (started → completed), enough to see where
+ * a run is and which case is stalling/failing. Within a case, `case-thread` (the
+ * graph thread id, emitted as soon as the run's thread is created) and
+ * `case-node` (each graph node the run traverses — agent / approval / tools) let
+ * a caller animate a live canvas of the graph executing. These node events come
+ * from running the case through `streamOnAgentServer` instead of the blocking
+ * `.wait()` — the FINAL per-case result is reconstructed identically, so only
+ * the observability changes, not the graded outcome. Intra-case token streaming
+ * (LLM deltas) is still out of scope for this pass.
  */
 export type TestRunEvent =
   | { type: 'run-started'; runId: string; total: number }
   | { type: 'case-started'; caseId: string; name: string; index: number; total: number }
+  | { type: 'case-thread'; caseId: string; threadId: string }
+  | { type: 'case-node'; caseId: string; node: string }
   | {
       type: 'case-completed'
       caseId: string
@@ -226,22 +233,30 @@ interface CaseOutcome {
 
 /**
  * Run a single test case. The copilot's reply is produced by running the case
- * input THROUGH THE LANGGRAPH AGENT SERVER (runOnAgentServer) — the real
+ * input THROUGH THE LANGGRAPH AGENT SERVER (streamOnAgentServer) — the real
  * deployed runtime — never a direct completion. Only the judge is a direct
  * OpenAI completion. Never throws: a technical failure (e.g. Agent Server down)
  * returns an `error` outcome so the run keeps going and the failure is persisted.
  *
  * `assistantId` targets the copilot's project assistant (resolved once by
- * runTestSuite); undefined → runOnAgentServer falls back to the shared graph id.
- * `judgeModel`/`judgeProvider` drive ONLY the judge completion (the copilot is
- * driven by the graph's own prompt/model).
+ * runTestSuite); undefined → streamOnAgentServer falls back to the shared graph
+ * id. `judgeModel`/`judgeProvider` drive ONLY the judge completion (the copilot
+ * is driven by the graph's own prompt/model).
+ *
+ * `onNode`/`onThread` are optional live-progress sinks forwarded to
+ * `streamOnAgentServer`: the graph thread id (once) and each node the graph
+ * traverses (agent / approval / tools). They are purely observational — the
+ * graded outcome is reconstructed from the terminal thread state, identical to
+ * the blocking `.wait()` path, so passing them changes nothing about the result.
  */
 async function runCase(
   assistantId: string | undefined,
   judgeModel: string,
   judgeProvider: ModelProvider,
   testCase: TestCase,
-  maxSteps: number
+  maxSteps: number,
+  onNode?: (node: string) => void,
+  onThread?: (threadId: string) => void
 ): Promise<CaseOutcome> {
   const startedMs = Date.now()
   let costUsd = 0
@@ -249,12 +264,14 @@ async function runCase(
   const traceUrl = getTraceUrl(newTraceId())
 
   try {
-    // 1) The copilot answers the case input by running the REAL graph on the
-    //    Agent Server (same path as a live copilot run). No direct completion.
-    //    An interrupt is the CORRECT behaviour for a case whose expectation is
-    //    "ask for confirmation before acting" — we do NOT auto-approve; we
-    //    observe the pause and let the judge grade it.
-    const gr = await runOnAgentServer({ userInput: testCase.input, assistantId, maxSteps })
+    // 1) The copilot answers the case input by STREAMING the REAL graph on the
+    //    Agent Server (same path as a live copilot run, emitting node events for
+    //    a live canvas). No direct completion. The final result is reconstructed
+    //    from the terminal thread state, identical to the blocking `.wait()`
+    //    path. An interrupt is the CORRECT behaviour for a case whose
+    //    expectation is "ask for confirmation before acting" — we do NOT
+    //    auto-approve; we observe the pause and let the judge grade it.
+    const gr = await streamOnAgentServer({ userInput: testCase.input, assistantId, maxSteps, onNode, onThread })
     costUsd += gr.costUsd
 
     // The graph's tool calls are ground truth (real names + status). Use them
@@ -478,10 +495,25 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
       })
 
       // The copilot's reply comes from the real graph (via runCase →
-      // runOnAgentServer on the project assistant). The manifest's forbidden
+      // streamOnAgentServer on the project assistant). The manifest's forbidden
       // actions / system prompt are enforced by the graph itself, not injected
       // here — this test exercises the true deployed runtime.
-      const outcome = await runCase(assistantId, judgeModel, judgeProvider, testCase, maxStepsPerRun)
+      //
+      // Bind the live-progress sinks to THIS case's id so the streaming caller
+      // can attribute each node/thread event to the right case row. Both are
+      // no-ops when `onEvent` is absent (the JSON route) — the run behaves
+      // exactly as the blocking path did, minus the observability.
+      const onNode = (node: string) => onEvent?.({ type: 'case-node', caseId: testCase.id, node })
+      const onThread = (threadId: string) => onEvent?.({ type: 'case-thread', caseId: testCase.id, threadId })
+      const outcome = await runCase(
+        assistantId,
+        judgeModel,
+        judgeProvider,
+        testCase,
+        maxStepsPerRun,
+        onNode,
+        onThread
+      )
       totalCostUsd += outcome.costUsd
       if (outcome.status === 'pass') passCount += 1
       if (outcome.status === 'pass' || outcome.status === 'fail' || outcome.status === 'error') evaluated += 1

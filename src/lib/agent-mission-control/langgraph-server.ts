@@ -23,9 +23,14 @@
  */
 import 'server-only'
 
+import type { StreamMode } from '@langchain/langgraph-sdk'
+
 import { agentServerClient, AGENT_BUILDER_GRAPH_ID } from './langgraph-client'
 import { computeCostUsd, estimateTokens } from './model-pricing'
 import type { DurationMs } from './types'
+
+/** The Agent Server SDK client type (the shared factory's return). */
+type AgentServerClient = ReturnType<typeof agentServerClient>
 
 /** The model the Agent Server graph runs on (mirrors AGENT_BUILDER_MODEL). */
 function graphModel(): string {
@@ -305,47 +310,53 @@ function buildStepsFromMessages(
 }
 
 /**
- * Run the copilot's graph on the Agent Server. Creates a fresh thread and runs
- * to completion OR to the first interrupt (human-in-the-loop). Returns a
- * normalized result the runner persists; the threadId lets a later request
- * resume an interrupted run.
+ * Reconstruct the normalized `LangGraphServerResult` from a finished (or
+ * interrupted) run's terminal thread state — the SINGLE source of truth for how
+ * `runOnAgentServer` (`.wait()`) and `streamOnAgentServer` (`.stream()`) turn a
+ * completed run into the shape the runner persists. Both paths converge here so
+ * the persisted result is byte-for-byte identical regardless of HOW the run was
+ * driven: streaming only changes when nodes are OBSERVED, never what the final
+ * result is.
  *
- * The run targets `assistantId` when given (the project's dedicated assistant),
- * otherwise the shared `agent_builder` graph — the SDK's `runs.wait` accepts
- * either an assistant id or a graph id as its 2nd argument.
+ * Reads `c.threads.getState(threadId)` once for the interrupt tasks (the graph
+ * surfaces a pending interrupt through the thread's task list — the same
+ * detection `runOnAgentServer` always used). The messages the steps/tool-calls
+ * are built from come from `messagesOverride` when supplied (the `.wait()` path
+ * passes `result.messages`, preserving its exact prior behaviour byte-for-byte),
+ * falling back to the terminal state's own `state.values.messages` (the
+ * `.stream()` path, whose generator does not itself return the final values).
+ * Both are the SAME terminal checkpoint state, so the reconstruction is
+ * equivalent — `runOnAgentServer` already read this state for its interrupt
+ * detection.
+ *
+ * `waitInterrupt` is the `__interrupt__` marker `.wait()` puts on its return
+ * value; the streaming path has no such marker and relies solely on the task
+ * list. Interrupt detection is `Boolean(waitInterrupt) || tasks[].interrupts`,
+ * identical to the original inline logic.
  */
-export async function runOnAgentServer(args: {
-  /** Optional assistant to run against (project's dedicated assistant). */
-  assistantId?: string
-  userInput: string
-  /** Copilot's logical step budget — derives the SDK's recursion_limit (see recursionLimitFor). Omit to keep the SDK default (25). */
-  maxSteps?: number
+async function finalizeRunFromState(args: {
+  c: AgentServerClient
+  threadId: string
+  /** Messages to build steps/tool-calls from. Omit to read `state.values.messages`. */
+  messagesOverride?: AnyMsg[]
+  /** The `.wait()` result's `__interrupt__` marker, if any (undefined on the stream path). */
+  waitInterrupt?: unknown
 }): Promise<LangGraphServerResult> {
-  const c = agentServerClient()
-  const target = args.assistantId ?? AGENT_BUILDER_GRAPH_ID
-  const recursionLimit = recursionLimitFor(args.maxSteps)
+  const { c, threadId } = args
 
-  const thread = await c.threads.create()
-  const threadId = thread.thread_id
-
-  const result = (await c.runs.wait(threadId, target, {
-    input: { messages: [{ role: 'user', content: args.userInput }] },
-    ...(recursionLimit !== undefined ? { config: { recursion_limit: recursionLimit } } : {}),
-  })) as { messages?: AnyMsg[]; __interrupt__?: unknown }
-
-  // Interrupt path (write/confirm tool paused for approval).
   const state = await c.threads.getState(threadId)
   const interrupts = (state.tasks ?? []).flatMap((t) => (t as { interrupts?: unknown[] }).interrupts ?? [])
-  const interrupted = Boolean(result.__interrupt__) || interrupts.length > 0
+  const interrupted = Boolean(args.waitInterrupt) || interrupts.length > 0
 
-  const messages = (result.messages ?? []) as AnyMsg[]
+  const messages =
+    args.messagesOverride ?? (((state.values as { messages?: AnyMsg[] } | undefined)?.messages ?? []) as AnyMsg[])
   const { steps, toolCalls } = buildStepsFromMessages(messages)
 
   const lastAi = [...messages].reverse().find((m) => (m.type ?? m.role) === 'ai' || (m.type ?? m.role) === 'assistant')
   const finalText = typeof lastAi?.content === 'string' ? stripSentinel(lastAi.content) : ''
 
   if (interrupted) {
-    const payload = result.__interrupt__ ?? interrupts
+    const payload = args.waitInterrupt ?? interrupts
     const msg = interruptMessage(payload)
     const pendingTool = pendingToolFromInterrupt(payload)
     steps.push({
@@ -387,6 +398,119 @@ export async function runOnAgentServer(args: {
     resolvedModel: realModelFromMessages(messages),
     budgetExhausted: budgetExhaustedFromMessages(messages),
   }
+}
+
+/**
+ * Run the copilot's graph on the Agent Server. Creates a fresh thread and runs
+ * to completion OR to the first interrupt (human-in-the-loop). Returns a
+ * normalized result the runner persists; the threadId lets a later request
+ * resume an interrupted run.
+ *
+ * The run targets `assistantId` when given (the project's dedicated assistant),
+ * otherwise the shared `agent_builder` graph — the SDK's `runs.wait` accepts
+ * either an assistant id or a graph id as its 2nd argument.
+ *
+ * The result is reconstructed by the shared `finalizeRunFromState` helper (the
+ * same one `streamOnAgentServer` uses) — this path passes `result.messages` and
+ * the `.wait()`-only `__interrupt__` marker, so its behaviour is unchanged.
+ */
+export async function runOnAgentServer(args: {
+  /** Optional assistant to run against (project's dedicated assistant). */
+  assistantId?: string
+  userInput: string
+  /** Copilot's logical step budget — derives the SDK's recursion_limit (see recursionLimitFor). Omit to keep the SDK default (25). */
+  maxSteps?: number
+}): Promise<LangGraphServerResult> {
+  const c = agentServerClient()
+  const target = args.assistantId ?? AGENT_BUILDER_GRAPH_ID
+  const recursionLimit = recursionLimitFor(args.maxSteps)
+
+  const thread = await c.threads.create()
+  const threadId = thread.thread_id
+
+  const result = (await c.runs.wait(threadId, target, {
+    input: { messages: [{ role: 'user', content: args.userInput }] },
+    ...(recursionLimit !== undefined ? { config: { recursion_limit: recursionLimit } } : {}),
+  })) as { messages?: AnyMsg[]; __interrupt__?: unknown }
+
+  // Reconstruct via the shared helper. The `.wait()` path keeps its exact prior
+  // behaviour: messages come from `result.messages`, and the interrupt marker
+  // from `result.__interrupt__` is OR-ed with the thread's task list (the helper
+  // reads getState for the task list, as this function always did).
+  return finalizeRunFromState({
+    c,
+    threadId,
+    messagesOverride: (result.messages ?? []) as AnyMsg[],
+    waitInterrupt: result.__interrupt__,
+  })
+}
+
+/**
+ * Stream the copilot's graph on the Agent Server, emitting a callback for each
+ * NODE the graph traverses (agent / approval / tools) so a caller can animate a
+ * live canvas as the run advances — THEN reconstruct the final result via the
+ * exact same `finalizeRunFromState` helper `runOnAgentServer` uses, so the
+ * persisted result is identical to the blocking `.wait()` path down to the byte.
+ *
+ * Streaming is purely observational: it changes WHEN the caller learns a node
+ * ran, never WHAT the run produced. The final `LangGraphServerResult` is read
+ * back from the thread's terminal state (`getState().values.messages` +
+ * `getState().tasks` for the interrupt), not assembled from the stream.
+ *
+ * `onThread` fires immediately with the fresh thread id (before any node runs)
+ * so a caller can persist/resume the thread even if the stream later fails.
+ * `onNode` fires once per node key in each `updates` event — the graph emits
+ * real graph nodes here (agent/approval/tools), never `__start__`/`__end__`.
+ *
+ * `streamMode: ['updates','messages']` mirrors `runs.wait`'s accepted payload
+ * (RunsStreamPayload extends RunsInvokePayload, same `input`/`config`). The
+ * `messages` mode is requested but ignored for now — this pass emits nodes only,
+ * not token-by-token deltas; keeping the mode wired costs nothing and leaves the
+ * door open for a future token-streaming extension.
+ *
+ * Failure semantics mirror `runOnAgentServer`: if the stream throws, it
+ * propagates; if the post-stream `getState` finalize throws, that propagates too
+ * (the caller — e.g. the test runner — turns it into an honest error outcome).
+ */
+export async function streamOnAgentServer(args: {
+  /** Optional assistant to run against (project's dedicated assistant). */
+  assistantId?: string
+  userInput: string
+  /** Copilot's logical step budget — derives the SDK's recursion_limit (see recursionLimitFor). Omit to keep the SDK default (25). */
+  maxSteps?: number
+  /** Called once per graph node traversed (agent / approval / tools). */
+  onNode?: (node: string) => void
+  /** Called once with the fresh thread id, immediately after thread creation. */
+  onThread?: (threadId: string) => void
+}): Promise<LangGraphServerResult> {
+  const c = agentServerClient()
+  const target = args.assistantId ?? AGENT_BUILDER_GRAPH_ID
+  const recursionLimit = recursionLimitFor(args.maxSteps)
+
+  const thread = await c.threads.create()
+  const threadId = thread.thread_id
+  // Surface the thread id up front — a caller can persist/resume it even if the
+  // stream throws mid-run.
+  args.onThread?.(threadId)
+
+  const streamMode: StreamMode[] = ['updates', 'messages']
+  for await (const ev of c.runs.stream(threadId, target, {
+    input: { messages: [{ role: 'user', content: args.userInput }] },
+    streamMode,
+    ...(recursionLimit !== undefined ? { config: { recursion_limit: recursionLimit } } : {}),
+  })) {
+    // `updates` events carry `{ [node]: update }` — one key per node that just
+    // ran. `messages` events (token/message deltas) are ignored this pass.
+    if (ev.event === 'updates' && ev.data && typeof ev.data === 'object') {
+      for (const node of Object.keys(ev.data)) args.onNode?.(node)
+    }
+  }
+
+  // The stream is drained; the run is at its terminal state. Reconstruct the
+  // result EXACTLY as `.wait()` would — read messages from the terminal state
+  // (the stream generator doesn't return them) and detect the interrupt from the
+  // thread's task list (no `.wait()`-only `__interrupt__` marker on this path).
+  return finalizeRunFromState({ c, threadId })
 }
 
 /**
