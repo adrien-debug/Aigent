@@ -97,7 +97,7 @@ export function PromotionPipelineSteps({ gate }: { gate: PromotionGate }) {
                 <span className="shrink-0">
                   {step.status === 'complete' ? (
                     <span className="flex size-8 items-center justify-center rounded-full bg-accent-600 dark:bg-accent-500">
-                      <CheckIcon aria-hidden="true" className="size-4 text-white" />
+                      <CheckIcon aria-hidden="true" className="size-4 text-zinc-950" />
                     </span>
                   ) : (
                     <span

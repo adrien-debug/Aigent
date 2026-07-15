@@ -58,7 +58,7 @@ const stepStatusStyles: Record<AgentRunStep['status'], { node: string; label: st
       labelClassName: 'font-semibold text-accent-700 dark:text-accent-300',
     },
     error: {
-      node: 'bg-accent-700 text-white inset-ring inset-ring-accent-700 dark:bg-accent-600 dark:inset-ring-accent-600',
+      node: 'bg-accent-700 text-white dark:text-zinc-950 inset-ring inset-ring-accent-700 dark:bg-accent-600 dark:inset-ring-accent-600',
       label: 'Error',
       labelClassName: 'font-semibold text-accent-800 dark:text-accent-400',
     },

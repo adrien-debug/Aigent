@@ -32,7 +32,7 @@ const KIND_STYLES: Record<
   evaluated: { Icon: ClipboardDocumentCheckIcon, iconBackground: 'bg-zinc-600', iconColor: 'text-white' },
   approval: { Icon: ClockIcon, iconBackground: 'bg-accent-500', iconColor: 'text-accent-950' },
   entered: { Icon: PlusIcon, iconBackground: 'bg-zinc-600', iconColor: 'text-white' },
-  promoted: { Icon: CheckIcon, iconBackground: 'bg-accent-500', iconColor: 'text-white' },
+  promoted: { Icon: CheckIcon, iconBackground: 'bg-accent-500', iconColor: 'text-zinc-950' },
 }
 
 export function GateHistoryFeed({ events }: { events: GateHistoryEvent[] }) {

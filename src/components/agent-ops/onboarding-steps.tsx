@@ -85,7 +85,7 @@ export function OnboardingSteps({
               <span aria-hidden="true" className="flex h-9 items-center">
                 {step.status === 'complete' ? (
                   <span className="relative z-10 flex size-8 items-center justify-center rounded-full bg-accent-600 transition-colors duration-150 group-hover:bg-accent-500 dark:bg-accent-500 dark:group-hover:bg-accent-400">
-                    <CheckIcon aria-hidden="true" className="size-5 text-white" />
+                    <CheckIcon aria-hidden="true" className="size-5 text-zinc-950" />
                   </span>
                 ) : step.status === 'current' ? (
                   <span className="relative z-10 flex size-8 items-center justify-center rounded-full border-2 border-accent-600 bg-white dark:border-accent-500 dark:bg-zinc-950">

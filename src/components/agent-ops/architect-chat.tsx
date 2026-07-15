@@ -185,7 +185,7 @@ export function ArchitectChat({ onManifest }: ArchitectChatProps) {
               <div
                 className={
                   message.role === 'user'
-                    ? 'max-w-[85%] rounded-2xl rounded-br-sm bg-accent-600 px-4 py-2 text-sm text-white'
+                    ? 'max-w-[85%] rounded-2xl rounded-br-sm bg-accent-600 px-4 py-2 text-sm text-zinc-950'
                     : 'max-w-[85%] rounded-2xl rounded-bl-sm bg-zinc-100 px-4 py-2 text-sm text-zinc-800 dark:bg-white/5 dark:text-zinc-200'
                 }
               >
