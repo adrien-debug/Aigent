@@ -391,7 +391,7 @@ export function ProjectAgentBuilderWorkbench({
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
 
-      <div className="grid min-h-0 flex-1 grid-rows-1 gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)] xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
+      <div className="grid min-h-0 flex-1 grid-rows-1 gap-4 overflow-hidden lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <section
           aria-label="Agent Builder architect chat"
           className={clsx(surfaceCardClass, 'flex h-full min-h-0 min-w-0 flex-col')}

@@ -20,7 +20,7 @@ import {
   deleteCopilotCascade,
   setCopilotAssistantId,
 } from './authoring-writes'
-import { getProject } from './data'
+import { getCopilot, getProject } from './data'
 import { getRepoFile, getRepoTree, searchRepoCode } from './github'
 import { agentServerClient } from './langgraph-client'
 import { deleteCopilotAssistant, ensureCopilotAssistant } from './langgraph-assistants'
@@ -139,12 +139,45 @@ async function loadMessages(conversationId: string): Promise<ProjectBuilderMessa
   return rows.map(rowToMessage)
 }
 
+/**
+ * A `draft_created` conversation points at a copilot row that can disappear
+ * afterwards (manual delete, cascade). Nothing re-checks that reference, so the
+ * conversation freezes: chat refuses new turns on `draft_created`, the preview
+ * links to an agent that 404s, and "Approve — create draft" never comes back —
+ * the spec is agreed but unreachable. Verify the reference before trusting it:
+ *  - copilot found → the draft is real, leave the conversation untouched.
+ *  - row gone → drop ONLY the dead id and unblock the status. The thread and the
+ *    agreed spec survive, so the user re-approves instead of re-discussing.
+ *  - PostgREST error → propagate; an unreachable backend is not proof of a
+ *    deletion, and clearing on a network blip would strip a live draft's link.
+ */
+async function reconcileStaleDraftReference(
+  conversation: ProjectBuilderConversation
+): Promise<ProjectBuilderConversation> {
+  const preview = conversation.latestPreview
+  const draftedId = preview?.createdCopilotId
+  if (!preview || !draftedId) return conversation
+  if (await getCopilot(draftedId)) return conversation
+
+  console.warn(
+    `[project-builder] stale createdCopilotId ${draftedId} on conversation ${conversation.id} (copilot row gone) — clearing and re-arming draft creation`
+  )
+  const { createdCopilotId: _deleted, ...survivingPreview } = preview
+  const status: ProjectBuilderConversation['status'] = survivingPreview.readyForApproval ? 'draft_ready' : 'active'
+  await pgrest('PATCH', `project_builder_conversations?${eq('id', conversation.id)}`, {
+    latest_preview: survivingPreview,
+    status,
+    updated_at: new Date().toISOString(),
+  })
+  return { ...conversation, status, latestPreview: survivingPreview }
+}
+
 export async function ensureActiveProjectBuilderConversation(projectId: string): Promise<ProjectBuilderConversation> {
   const rows = await pgrest<RawRow[]>(
     'GET',
     `project_builder_conversations?${eq('project_id', projectId)}&status=in.(active,draft_ready,draft_created)&select=*&order=updated_at.desc&limit=1`
   )
-  if (rows[0]) return rowToConversation(rows[0])
+  if (rows[0]) return reconcileStaleDraftReference(rowToConversation(rows[0]))
 
   const now = new Date().toISOString()
   const id = makeId('pbconv', `${projectId}-${randomUUID().slice(0, 8)}`)
