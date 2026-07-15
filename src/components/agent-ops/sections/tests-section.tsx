@@ -43,6 +43,16 @@ export async function TestsSection({ copilotId }: { copilotId: string }) {
 
   const latestRun = testRuns.length > 0 ? testRuns.reduce((latest, run) => (run.startedAt > latest.startedAt ? run : latest)) : null
 
+  // The suite the Live run panel executes = the first one. Load ITS cases +
+  // persisted results here so the panel owns the SINGLE cases table for that
+  // suite (canvas + live-aware table together). The remaining suites keep their
+  // own server-driven tables in the loop below — no table is rendered twice.
+  const liveSuite = suites[0]
+  const liveSuiteCases = liveSuite ? await getTestCasesForSuite(liveSuite.id) : []
+  const liveSuiteRun = liveSuite?.lastRunId ? runsById.get(liveSuite.lastRunId) : undefined
+  const liveSuiteResults = liveSuiteRun ? await getTestResultsForRun(liveSuiteRun.id) : []
+  const liveSuiteResultsByCase = Object.fromEntries(liveSuiteResults.map((r) => [r.caseId, r]))
+
   return (
     <div className="space-y-8">
       <AgentKpiBand
@@ -68,9 +78,17 @@ export async function TestsSection({ copilotId }: { copilotId: string }) {
       />
 
       {/* Live run — trigger + the agent_builder canvas executing case by case
-          (2/3 canvas · 1/3 live detail), driven over SSE. Runs the first suite;
-          the trigger is disabled until one exists. */}
-      <LiveTestRunPanel copilotId={id} suiteId={suites[0]?.id} />
+          (2/3 canvas · 1/3 live detail), driven over SSE, followed by the SINGLE
+          cases table for this suite. Runs the first suite; the trigger is
+          disabled until one exists. The table resets on launch and fills
+          running→pass/fail live, then falls back to the persisted results on
+          refresh — TestsSection renders no separate table for this suite. */}
+      <LiveTestRunPanel
+        copilotId={id}
+        suiteId={liveSuite?.id}
+        cases={liveSuiteCases}
+        resultsByCase={liveSuiteResultsByCase}
+      />
 
       {suites.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 rounded-2xl border border-white/5 border-dashed bg-white/[0.01]">
@@ -81,7 +99,10 @@ export async function TestsSection({ copilotId }: { copilotId: string }) {
         </div>
       ) : (
         <div className="space-y-12">
-          {suites.map(async (suite) => {
+          {/* The first suite is fully presented by the Live run panel above
+              (its canvas + its single cases table); render only the REST here so
+              no suite's table appears twice. */}
+          {suites.slice(1).map(async (suite) => {
             const cases = await getTestCasesForSuite(suite.id)
             const latestRunId = suite.lastRunId
             const run = latestRunId ? runsById.get(latestRunId) : undefined

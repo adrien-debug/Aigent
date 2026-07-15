@@ -1,3 +1,5 @@
+'use client'
+
 import {
   ArrowPathIcon,
   CheckCircleIcon,
@@ -61,12 +63,37 @@ function ResultIcon({ status }: { status: TestResultStatus }) {
   }
 }
 
+/**
+ * Live per-case override, driven by the run stream while `LiveTestRunPanel` runs
+ * a suite. `status` is a strict subset of `TestResultStatus` (no `skip` — a live
+ * case is `running` then pass/fail/error). `failureReason` is only carried by the
+ * stream's `case-completed` frame; latency/cost are NOT available live (they are
+ * persisted, read back on refresh) so those columns stay `—` during a run.
+ */
+export type LiveCaseState = {
+  status: 'running' | 'pass' | 'fail' | 'error'
+  failureReason: string | null
+}
+
+/**
+ * The cases table for a suite. Server-driven by default (`resultsByCase` = the
+ * last persisted run). When `liveByCase` is supplied (only `LiveTestRunPanel`
+ * passes it, and only while a run is streaming), each entry OVERRIDES that case's
+ * Result + Failure columns with the live verdict — the table resets and fills in
+ * running→pass/fail in real time. A case absent from `liveByCase` during a live
+ * run reads as `—` (its turn hasn't come, or the run just reset). When the run
+ * ends, the panel clears `liveByCase` and `router.refresh()` reloads the same
+ * verdicts from the persisted `resultsByCase`, so the display is seamless.
+ */
 export function TestCaseTable({
   cases,
   resultsByCase,
+  liveByCase,
 }: {
   cases: TestCase[]
   resultsByCase: Record<string, TestResult | undefined>
+  /** Present only during a live run (from `LiveTestRunPanel`); overrides results. */
+  liveByCase?: Record<string, LiveCaseState | undefined>
 }) {
   if (cases.length === 0) {
     return (
@@ -98,10 +125,23 @@ export function TestCaseTable({
         <TableBody>
           {cases.map((testCase) => {
             const result = resultsByCase[testCase.id]
+            // A live run OVERRIDES the persisted result: while `liveByCase` is
+            // present the Result/Failure columns follow the stream, and Latency
+            // (persisted-only) shows `—` until the refresh. `isLive` gates the
+            // whole run so a reset (all cases dropped from the map) blanks every
+            // Result cell, not just the ones already started.
+            const isLive = liveByCase != null
+            const live = liveByCase?.[testCase.id]
+            const effectiveStatus: TestResultStatus | null = isLive
+              ? (live?.status ?? null)
+              : (result?.status ?? null)
+            const effectiveFailure: string | null = isLive
+              ? (live?.failureReason ?? null)
+              : (result?.failureReason ?? null)
             const showFailure =
-              result != null &&
-              (result.status === 'fail' || result.status === 'error') &&
-              result.failureReason != null
+              (effectiveStatus === 'fail' || effectiveStatus === 'error') && effectiveFailure != null
+            // Latency/cost are persisted-only — never available mid-run.
+            const showTiming = !isLive && result != null
             const [firstTool, ...restTools] = testCase.expectedToolCalls
 
             return (
@@ -112,11 +152,11 @@ export function TestCaseTable({
                   </span>
                 </TableCell>
                 <TableCell>
-                  {result ? (
+                  {effectiveStatus ? (
                     <div className="flex items-center gap-2">
-                      <ResultIcon status={result.status} />
-                      <span className={clsx('text-xs font-medium', resultTextClass[result.status])}>
-                        {resultLabel[result.status]}
+                      <ResultIcon status={effectiveStatus} />
+                      <span className={clsx('text-xs font-medium', resultTextClass[effectiveStatus])}>
+                        {resultLabel[effectiveStatus]}
                       </span>
                     </div>
                   ) : (
@@ -141,7 +181,7 @@ export function TestCaseTable({
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  {result ? (
+                  {showTiming && result ? (
                     <div className="flex flex-col items-end">
                       <span className="font-mono text-xs text-zinc-300 tabular-nums">
                         {formatDurationMs(result.latencyMs)}
@@ -154,8 +194,8 @@ export function TestCaseTable({
                 </TableCell>
                 <TableCell>
                   {showFailure ? (
-                    <span className="block max-w-[11rem] truncate text-xs text-accent-400" title={result.failureReason!}>
-                      {result.failureReason}
+                    <span className="block max-w-[11rem] truncate text-xs text-accent-400" title={effectiveFailure!}>
+                      {effectiveFailure}
                     </span>
                   ) : (
                     <span className="text-xs text-zinc-600">—</span>
