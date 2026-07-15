@@ -1,0 +1,41 @@
+# Aigent — data layer (PostgREST + Caddy) for gpu1
+#
+#   docker compose -f deploy/db/docker-compose.yml --env-file deploy/db/.env up -d
+#
+# Provide secrets via a .env file next to this compose OR via the shell env.
+# NEVER hardcode secrets here — every value below is ${VAR} indirection.
+# See README.md for where each value comes from.
+#
+# Published on 0.0.0.0:8095 — the Cloudflare tunnel (aigent-db.hearst.app)
+# forwards public HTTPS traffic to this port on gpu1. The `aigent` database
+# lives in the shared cluster nexus-postgres, reached over the external
+# nexus-net network.
+
+services:
+  postgrest:
+    image: postgrest/postgrest
+    container_name: aigent-postgrest
+    restart: unless-stopped
+    environment:
+      # authenticator_aigent is the ONLY login role granted CONNECT on the
+      # `aigent` database (see README, "Database isolation").
+      PGRST_DB_URI: postgres://authenticator_aigent:${PGRST_DB_PASSWORD:?set PGRST_DB_PASSWORD}@nexus-postgres:5432/aigent
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+    networks: [nexus-net]
+
+  caddy:
+    image: caddy:2
+    container_name: aigent-caddy
+    restart: unless-stopped
+    # Published on all interfaces — the Cloudflare tunnel points here.
+    ports: ["8095:8095"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    networks: [nexus-net]
+
+networks:
+  nexus-net:
+    external: true
