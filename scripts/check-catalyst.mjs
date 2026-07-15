@@ -27,7 +27,7 @@ const SRC = join(ROOT, 'src')
 const DASHBOARD_DIRS = [join('app', 'admin'), join('components', 'agent-ops')]
 const EXCLUDE_DIRS = [join('components', 'catalyst')]
 
-const NATIVE_TAG_RE = /<(button|input|select|textarea|table)(?:\s|>)/g
+const NATIVE_TAG_RE = /<(button|input|select|textarea|table)(?=\s|>|$)/g
 // Comments (JSX {/* ... */} or // ...) mentioning the tag are not violations —
 // only skip a match if the tag name appears after a comment marker on the
 // same line, checked separately below rather than baked into the regex.

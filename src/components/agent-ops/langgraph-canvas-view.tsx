@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import * as Headless from '@headlessui/react'
 
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
@@ -543,8 +544,7 @@ export function LangGraphCanvasView({ graph, studioUrl }: { graph: string; studi
           <ol className="space-y-2">
             {replaySteps.map((s) => (
               <li key={s.id}>
-                <button
-                  type="button"
+                <Headless.Button
                   onClick={() => onStepClick(s)}
                   className={
                     'flex w-full items-start gap-3 rounded-lg px-2 py-1.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 ' +
@@ -559,7 +559,7 @@ export function LangGraphCanvasView({ graph, studioUrl }: { graph: string; studi
                     {s.summary ? <span className="block truncate text-xs text-zinc-500 dark:text-zinc-400">{s.summary}</span> : null}
                   </span>
                   {s.timestamp ? <span className="shrink-0 font-mono text-xs text-zinc-400">{s.timestamp.slice(11, 19)}</span> : null}
-                </button>
+                </Headless.Button>
               </li>
             ))}
           </ol>
@@ -803,8 +803,7 @@ function LegendDot({ className, label }: { className: string; label: string }) {
 
 function TabButton({ active, onClick, disabled, children }: { active: boolean; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
   return (
-    <button
-      type="button"
+    <Headless.Button
       onClick={onClick}
       disabled={disabled}
       className={
@@ -817,7 +816,7 @@ function TabButton({ active, onClick, disabled, children }: { active: boolean; o
       }
     >
       {children}
-    </button>
+    </Headless.Button>
   )
 }
 

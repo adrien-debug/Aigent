@@ -1,5 +1,6 @@
 'use client'
 
+import * as Headless from '@headlessui/react'
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ServerStackIcon, CpuChipIcon, BoltIcon, ArrowTopRightOnSquareIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline'
@@ -201,7 +202,7 @@ export function LangGraphExplorerView({
                 </div>
               ) : (
                 threads.map(thread => (
-                  <button
+                  <Headless.Button
                     key={thread.threadId}
                     onClick={() => loadDetail(thread.threadId)}
                     className={clsx(
@@ -222,7 +223,7 @@ export function LangGraphExplorerView({
                       <span className="truncate">{thread.assistantId ? (assistantName.get(thread.assistantId) || shortId(thread.assistantId)) : '—'}</span>
                       <span>{thread.updatedAt ? new Date(thread.updatedAt).toLocaleTimeString() : ''}</span>
                     </div>
-                  </button>
+                  </Headless.Button>
                 ))
               )}
             </div>
