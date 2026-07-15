@@ -41,6 +41,7 @@ import {
   type FailureDiagnosis,
   type RecommendedFixType,
 } from './improvement-diagnosis'
+import { runBenchmarkSuite } from './benchmark-runner'
 import { ensureCopilotAssistant } from './langgraph-assistants'
 import { getThreadDetail } from './langgraph-explorer'
 import { ARCHITECT_MODEL } from './llm-client'
@@ -48,6 +49,7 @@ import { routeCompletion } from './model-router'
 import { pgrest } from './postgrest'
 import { NotFoundError } from './runner-errors'
 import { makeId, slugify } from './slug'
+import { runTestSuite } from './test-runner'
 import type { ConfirmationPolicy, IsoTimestamp } from './types'
 
 type RawRow = Record<string, unknown>
@@ -923,4 +925,252 @@ export async function decideProposal(
     decided_by: decidedBy,
     decided_at: new Date().toISOString(),
   })
+}
+
+// ---------------------------------------------------------------------------
+// Auto-improvement orchestrator — chains the EXISTING bricks (analyze →
+// create-v2 → re-run tests+benchmarks → compare) until the copilot converges
+// (every test suite at pass rate 1.0), plateaus (a V2 that doesn't beat its
+// base), or hits a hard iteration/budget ceiling.
+//
+// DOCTRINE (non-negotiable, enforced here):
+//   • NEVER approves and NEVER promotes. `decideProposal('approved')` and the
+//     promotion route are NEVER called. The loop always stops leaving the HEAD
+//     proposal in `v2-created` with a measured V2 draft; approval + production
+//     promotion stay 100% HUMAN (forbiddenActions: auto-promote to production).
+//   • Bounded by MAX_ITERATIONS and a USD budget with STRICT defaults — without
+//     them the loop would burn gpt-5.4. The budget is checked BEFORE each
+//     create-v2 so a proposal that would blow the budget is never materialized.
+//   • Fail-soft: any error inside an iteration emits an `error` event and stops
+//     cleanly (never leaves the orchestrator mid-flight silently).
+//
+// OPEN-CYCLE GUARD — how the chain stays legal between iterations:
+//   The "one open cycle at a time" rule lives in the HTTP analyze route, NOT in
+//   `analyzeAndPropose` itself, so calling the FUNCTIONS directly bypasses the
+//   409. But we must not leave a TRAIL of undecided `v2-created` proposals that
+//   would then 409 the human UI. The chain is linear: each iteration's V2
+//   becomes the next iteration's base (after create-v2, `latest_version_id`
+//   already points at the V2, so the next `analyzeAndPropose` naturally analyzes
+//   it). When a further iteration supersedes a prior V2, that prior proposal is
+//   closed as `rejected` (the ONLY available non-promoting terminal state — the
+//   DB CHECK allows only proposed/v2-created/approved/rejected, there is no
+//   `superseded`). This is honest: the prior proposal is NOT the one to promote
+//   because a better V2 already supersedes it — and it keeps EXACTLY ONE open
+//   cycle (the current head) at every moment, so the human UI stays consistent.
+//   The head proposal (last `v2-created`) is NEVER touched — it awaits the human.
+// ---------------------------------------------------------------------------
+
+const AUTO_IMPROVE_MAX_ITERATIONS = 5
+const AUTO_IMPROVE_MAX_COST_USD = 2.0
+
+export interface AutoImproveEvent {
+  type: 'iteration-start' | 'analyzed' | 'v2-created' | 'reran' | 'converged' | 'plateau' | 'exhausted' | 'error'
+  iteration: number
+  /** Cumulative USD spent across analyze completions so far (present from the
+   *  first `analyzed` event onward). */
+  costUsd?: number
+  /** Aggregate V2 pass rate (min across test suites) — on `reran`/`converged`/`plateau`. */
+  passRate?: number
+  /** Proposal id — on `analyzed` (and the events that follow it that iteration). */
+  proposalId?: string
+  /** V2 draft version id — on `v2-created` onward. */
+  v2VersionId?: string
+  /** Human-readable note (the stop reason, the error message, …). */
+  detail?: string
+}
+
+/** Aggregate a comparison's V2 side into a single pass rate: the WORST suite
+ *  (min). Convergence requires EVERY suite at 1.0, so the min is the honest
+ *  headline. No V2 test run at all → 0 (nothing measured passes). */
+function aggregateV2PassRate(cmp: VersionComparison): number {
+  const rates = cmp.tests.map((t) => t.v2?.passRate ?? 0)
+  return rates.length === 0 ? 0 : Math.min(...rates)
+}
+
+/** Same aggregate for the V1/base side of a comparison. */
+function aggregateV1PassRate(cmp: VersionComparison): number {
+  const rates = cmp.tests.map((t) => t.v1?.passRate ?? 0)
+  return rates.length === 0 ? 0 : Math.min(...rates)
+}
+
+/** True when every test suite in the comparison has a V2 run at pass rate 1.0
+ *  (and there is at least one suite to converge). */
+function allSuitesConverged(cmp: VersionComparison): boolean {
+  return cmp.tests.length > 0 && cmp.tests.every((t) => (t.v2?.passRate ?? 0) === 1)
+}
+
+export interface AutoImprovementResult {
+  iterations: number
+  finalPassRate: number
+  stoppedBy: 'converged' | 'plateau' | 'max-iterations' | 'budget' | 'nothing-to-improve'
+  lastProposalId: string | null
+  lastV2VersionId: string | null
+}
+
+/**
+ * Drive the improvement loop automatically until convergence / plateau / limit /
+ * budget, STOPPING BEFORE the human approval step (never approves, never
+ * promotes). Calls the existing bricks directly:
+ *   analyzeAndPropose → createImprovementV2 → runTestSuite/runBenchmarkSuite on
+ *   the V2 → compareImprovementVersions → decide to continue or stop.
+ *
+ * @param copilotId  the copilot to improve.
+ * @param opts.maxIterations  hard iteration ceiling (default 5).
+ * @param opts.maxCostUsd     cumulative analyze-completion budget (default 2.0).
+ * @param opts.onEvent        progress sink (each milestone is emitted).
+ * @returns a terminal summary; `stoppedBy` says WHY it stopped. The head V2
+ *          proposal (if any) is left `v2-created` for a human to decide.
+ */
+export async function runAutoImprovementCycle(
+  copilotId: string,
+  opts: { maxIterations?: number; maxCostUsd?: number; onEvent?: (ev: AutoImproveEvent) => void } = {}
+): Promise<AutoImprovementResult> {
+  const maxIterations = Math.max(1, Math.trunc(opts.maxIterations ?? AUTO_IMPROVE_MAX_ITERATIONS))
+  const maxCostUsd = opts.maxCostUsd ?? AUTO_IMPROVE_MAX_COST_USD
+  const emit = (ev: AutoImproveEvent) => {
+    try {
+      opts.onEvent?.(ev)
+    } catch {
+      // A misbehaving sink must never break the loop.
+    }
+  }
+
+  // Suite ids to re-run the V2 against (resolved once — suites don't change
+  // mid-loop; the loop only touches manifest behaviour, never test/bench rows).
+  const testSuiteRows = await pgrest<RawRow[]>('GET', `test_suites?${eq('copilot_id', copilotId)}&select=id&order=name`)
+  const benchSuiteRows = await pgrest<RawRow[]>('GET', `benchmark_suites?${eq('copilot_id', copilotId)}&select=id&order=name`)
+  const testSuiteIds = testSuiteRows.map((r) => r.id as string)
+  const benchSuiteIds = benchSuiteRows.map((r) => r.id as string)
+
+  let cumulativeCostUsd = 0
+  let finalPassRate = 0
+  let lastProposalId: string | null = null
+  let lastV2VersionId: string | null = null
+  // The proposal from the PREVIOUS iteration that got superseded by a new head;
+  // it is closed `rejected` (non-promoting) so only one open cycle survives.
+  let supersededProposalId: string | null = null
+
+  for (let iteration = 1; iteration <= maxIterations; iteration++) {
+    emit({ type: 'iteration-start', iteration })
+
+    // 1. ANALYZE — collect live signals, propose a validated manifest patch.
+    //    `analyzeAndPropose` throws NotFoundError('nothing to improve…') when the
+    //    copilot has converged — that is a CLEAN STOP, not a failure.
+    let proposal: ImprovementProposal
+    try {
+      const analysis = await analyzeAndPropose(copilotId, 'auto-improve')
+      proposal = analysis.proposal
+    } catch (err) {
+      if (err instanceof NotFoundError) {
+        emit({ type: 'converged', iteration, passRate: finalPassRate, detail: err.message })
+        return { iterations: iteration - 1, finalPassRate, stoppedBy: 'nothing-to-improve', lastProposalId, lastV2VersionId }
+      }
+      emit({ type: 'error', iteration, detail: err instanceof Error ? err.message : 'analysis failed' })
+      return { iterations: iteration - 1, finalPassRate, stoppedBy: 'plateau', lastProposalId, lastV2VersionId }
+    }
+
+    // 2. BUDGET — the analyze completion already spent tokens; if the running
+    //    total is over budget, stop BEFORE materializing (create-v2 provisions
+    //    an assistant + re-runs, we don't spend more on a run we can't afford).
+    //    The proposal stays `proposed` for a human to inspect.
+    cumulativeCostUsd += proposal.costUsd
+    emit({ type: 'analyzed', iteration, proposalId: proposal.id, costUsd: cumulativeCostUsd })
+    lastProposalId = proposal.id
+    if (cumulativeCostUsd > maxCostUsd) {
+      emit({
+        type: 'exhausted',
+        iteration,
+        costUsd: cumulativeCostUsd,
+        detail: `budget exhausted: $${cumulativeCostUsd.toFixed(4)} > $${maxCostUsd.toFixed(2)}`,
+      })
+      return { iterations: iteration, finalPassRate, stoppedBy: 'budget', lastProposalId, lastV2VersionId }
+    }
+
+    // 3. MATERIALIZE V2 — new manifest + draft version, assistant re-provisioned.
+    let v2VersionId: string
+    try {
+      const v2 = await createImprovementV2(copilotId, proposal.id)
+      v2VersionId = v2.v2VersionId
+    } catch (err) {
+      emit({ type: 'error', iteration, proposalId: proposal.id, detail: err instanceof Error ? err.message : 'create-v2 failed' })
+      return { iterations: iteration, finalPassRate, stoppedBy: 'plateau', lastProposalId, lastV2VersionId }
+    }
+    lastV2VersionId = v2VersionId
+    emit({ type: 'v2-created', iteration, proposalId: proposal.id, v2VersionId, costUsd: cumulativeCostUsd })
+
+    // A new head exists — close the previous head (if any) as `rejected`: it is
+    // superseded by this V2, non-promoting, keeping exactly one open cycle.
+    if (supersededProposalId) {
+      try {
+        await decideProposal(copilotId, supersededProposalId, 'rejected', 'auto-improve:superseded')
+      } catch (err) {
+        // Non-fatal: the head is still correct; a stale prior row only matters
+        // for the human UI's open-cycle count. Surface it, keep going.
+        emit({
+          type: 'error',
+          iteration,
+          proposalId: supersededProposalId,
+          detail: `failed to close superseded proposal: ${err instanceof Error ? err.message : 'unknown'}`,
+        })
+      }
+    }
+
+    // 4. RE-RUN — the EXISTING runners, pinned to the V2 version id, on every
+    //    test suite (and benchmark suite) so the comparison has V2 rows.
+    try {
+      for (const suiteId of testSuiteIds) {
+        await runTestSuite({ copilotId, suiteId, versionId: v2VersionId, triggeredBy: 'auto-improve' })
+      }
+      for (const suiteId of benchSuiteIds) {
+        await runBenchmarkSuite({ copilotId, suiteId, versionId: v2VersionId })
+      }
+    } catch (err) {
+      emit({ type: 'error', iteration, proposalId: proposal.id, v2VersionId, detail: err instanceof Error ? err.message : 're-run failed' })
+      return { iterations: iteration, finalPassRate, stoppedBy: 'plateau', lastProposalId, lastV2VersionId }
+    }
+
+    // 5. COMPARE — recomputed live from the runs just written.
+    let cmp: VersionComparison
+    try {
+      cmp = await compareImprovementVersions(copilotId, proposal.baseVersionId, v2VersionId)
+    } catch (err) {
+      emit({ type: 'error', iteration, proposalId: proposal.id, v2VersionId, detail: err instanceof Error ? err.message : 'compare failed' })
+      return { iterations: iteration, finalPassRate, stoppedBy: 'plateau', lastProposalId, lastV2VersionId }
+    }
+
+    const v2PassRate = aggregateV2PassRate(cmp)
+    const basePassRate = aggregateV1PassRate(cmp)
+    finalPassRate = v2PassRate
+    emit({ type: 'reran', iteration, proposalId: proposal.id, v2VersionId, passRate: v2PassRate, costUsd: cumulativeCostUsd })
+
+    // 6a. CONVERGED — every suite at 1.0. Stop; head V2 awaits the human.
+    if (allSuitesConverged(cmp)) {
+      emit({ type: 'converged', iteration, proposalId: proposal.id, v2VersionId, passRate: v2PassRate })
+      return { iterations: iteration, finalPassRate: v2PassRate, stoppedBy: 'converged', lastProposalId, lastV2VersionId }
+    }
+
+    // 6b. PLATEAU — the V2 didn't beat its base. Stop; leave the head V2 open
+    //     for human decision (it might still be a lateral fix worth keeping).
+    if (v2PassRate <= basePassRate) {
+      emit({
+        type: 'plateau',
+        iteration,
+        proposalId: proposal.id,
+        v2VersionId,
+        passRate: v2PassRate,
+        detail: `no improvement: V2 ${v2PassRate.toFixed(3)} <= base ${basePassRate.toFixed(3)}`,
+      })
+      return { iterations: iteration, finalPassRate: v2PassRate, stoppedBy: 'plateau', lastProposalId, lastV2VersionId }
+    }
+
+    // 6c. IMPROVED — advance: this V2 is the next base. Its proposal becomes the
+    //     one to supersede on the NEXT iteration (so only one open cycle at a
+    //     time). `latest_version_id` already points at it, so the next
+    //     `analyzeAndPropose` analyzes it as base with no extra plumbing.
+    supersededProposalId = proposal.id
+  }
+
+  // Ran out of iterations without converging — the head V2 is left open.
+  emit({ type: 'exhausted', iteration: maxIterations, costUsd: cumulativeCostUsd, passRate: finalPassRate, detail: `reached max iterations (${maxIterations})` })
+  return { iterations: maxIterations, finalPassRate, stoppedBy: 'max-iterations', lastProposalId, lastV2VersionId }
 }

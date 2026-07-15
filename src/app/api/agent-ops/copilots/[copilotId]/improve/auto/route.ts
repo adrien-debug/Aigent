@@ -1,0 +1,152 @@
+import { NextResponse } from 'next/server'
+
+import {
+  runAutoImprovementCycle,
+  type AutoImproveEvent,
+  type AutoImprovementResult,
+} from '@/lib/agent-mission-control/improvement-loop'
+
+/** The SSE frames this route emits: the per-step events + a terminal done/error. */
+type AutoFrame =
+  | AutoImproveEvent
+  | ({ type: 'done' } & AutoImprovementResult)
+  | { type: 'error'; error: string }
+
+/**
+ * POST /api/agent-ops/copilots/:copilotId/improve/auto — the streaming driver
+ * for the AUTO improvement loop. It runs `runAutoImprovementCycle`, which loops
+ * analyze → create-V2 → re-run → compare until convergence / plateau / limit /
+ * budget, STOPPING BEFORE the human approval step (never approves, never
+ * promotes). The whole cycle can take SEVERAL MINUTES (N iterations × real
+ * LangGraph runs + OpenAI completions), so it is delivered as a
+ * `text/event-stream`: each `AutoImproveEvent` is pushed the instant the loop
+ * emits it (via the `onEvent` sink), never batched — the operator watches
+ * iteration-start / analyzed / v2-created / reran / converged / plateau /
+ * exhausted advance live instead of blocking on the final JSON.
+ *
+ * Body (optional): { maxIterations?: number; maxCostUsd?: number }
+ *   maxIterations bounded 1..10, maxCostUsd bounded 0.1..10; absent → the
+ *   function's own defaults (5 iterations, $2.0).
+ *
+ * SSE frames (`data: {...}\n\n`):
+ *   - the `AutoImproveEvent` union as each is emitted, then
+ *   - a terminal `{ type: 'done', ...result }` (result = iterations /
+ *     finalPassRate / stoppedBy / lastProposalId / lastV2VersionId), OR
+ *   - `{ type: 'error' }` if the loop throws (generic — no raw error forwarded).
+ *
+ * Same fail-closed gate as the sibling improve/analyze + tests/run/stream
+ * routes (env + live gpu1 backend + OpenAI). Auth is enforced upstream by
+ * `src/proxy.ts` — no auth added here, none removed.
+ */
+
+// Same id shape family as the sibling improve/promotion routes — fast 400 on
+// garbage, and it closes the PostgREST filter-syntax hazard.
+const ID_RE = /^[a-z0-9-]{1,200}$/
+
+function sseEvent(payload: AutoFrame): string {
+  return `data: ${JSON.stringify(payload)}\n\n`
+}
+
+/** Parse + bound an optional numeric body field; returns the clamped value, or
+ *  `undefined` when absent (defer to the function default), or an error string
+ *  when present-but-invalid. */
+function parseBoundedNumber(
+  raw: unknown,
+  name: string,
+  min: number,
+  max: number
+): { value: number | undefined } | { error: string } {
+  if (raw === undefined) return { value: undefined }
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) {
+    return { error: `${name} must be a finite number` }
+  }
+  if (raw < min || raw > max) {
+    return { error: `${name} must be between ${min} and ${max}` }
+  }
+  return { value: raw }
+}
+
+export async function POST(request: Request, { params }: { params: Promise<{ copilotId: string }> }) {
+  const { copilotId } = await params
+  if (!ID_RE.test(copilotId)) {
+    return NextResponse.json({ error: 'invalid copilotId' }, { status: 400 })
+  }
+
+  // Body is optional — a POST with no/empty body means "use the defaults".
+  let body: { maxIterations?: unknown; maxCostUsd?: unknown } = {}
+  try {
+    const text = await request.text()
+    if (text.trim().length > 0) {
+      body = JSON.parse(text)
+    }
+  } catch {
+    return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
+  }
+
+  const iters = parseBoundedNumber(body.maxIterations, 'maxIterations', 1, 10)
+  if ('error' in iters) {
+    return NextResponse.json({ error: iters.error }, { status: 400 })
+  }
+  const cost = parseBoundedNumber(body.maxCostUsd, 'maxCostUsd', 0.1, 10)
+  if ('error' in cost) {
+    return NextResponse.json({ error: cost.error }, { status: 400 })
+  }
+  const maxIterations = iters.value
+  const maxCostUsd = cost.value
+
+  const base = process.env.AMC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (process.env.AMC_DATA_SOURCE !== 'gpu1' || !base || !key || !process.env.OPENAI_API_KEY) {
+    return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
+  }
+
+  const encoder = new TextEncoder()
+  let closed = false
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const push = (payload: AutoFrame) => {
+        if (closed) return
+        try {
+          controller.enqueue(encoder.encode(sseEvent(payload)))
+        } catch {
+          // Controller already closed client-side (e.g. aborted) — ignore.
+        }
+      }
+
+      try {
+        const result = await runAutoImprovementCycle(copilotId, {
+          maxIterations,
+          maxCostUsd,
+          // Push each milestone as it happens. `AutoImproveEvent` is forwarded
+          // verbatim as its own SSE frame — no batching, so a multi-minute run
+          // streams live iteration-by-iteration.
+          onEvent: (ev: AutoImproveEvent) => push(ev),
+        })
+        // Terminal frame — the loop's summary so the client can reconcile
+        // (stopped reason + head V2 to decide) without a second round-trip.
+        push({ type: 'done', ...result })
+      } catch (err) {
+        // Never forward raw error detail — log server-side, emit a generic frame.
+        console.error('[agent-ops/improve/auto] auto-improvement cycle failed', err)
+        push({ type: 'error', error: 'auto-improvement cycle failed' })
+      } finally {
+        closed = true
+        controller.close()
+      }
+    },
+    cancel() {
+      closed = true
+    },
+  })
+
+  return new Response(stream, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    },
+  })
+}

@@ -10,19 +10,63 @@ import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Text } from '@/components/catalyst/text'
-import { formatPercent, formatTimestamp } from '@/lib/agent-mission-control/format'
+import { consumeSSE } from '@/lib/agent-mission-control/sse-client'
+import { formatPercent, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 import {
   FIX_TYPE_LABELS,
   type FailureDiagnosis,
   type NextRecommendedAction,
 } from '@/lib/agent-mission-control/improvement-diagnosis'
 import type {
+  AutoImproveEvent,
+  AutoImprovementResult,
   BenchmarkSignal,
   ImprovementManifestChanges,
   ImprovementProposal,
   SuiteSignal,
   VersionComparison,
 } from '@/lib/agent-mission-control/improvement-loop'
+
+/** SSE frames from the auto-improve route: the per-step events + a terminal `done`. */
+type AutoImproveFrame = AutoImproveEvent | ({ type: 'done' } & AutoImprovementResult)
+
+/** One-line human label for a live auto-improve frame. */
+function autoFrameLabel(ev: AutoImproveEvent): string {
+  switch (ev.type) {
+    case 'iteration-start':
+      return `Iteration ${ev.iteration} — starting`
+    case 'analyzed':
+      return `Iteration ${ev.iteration} — analyzed${ev.costUsd != null ? ` · ${formatUsd(ev.costUsd)}` : ''}`
+    case 'v2-created':
+      return `Iteration ${ev.iteration} — V2 created`
+    case 'reran':
+      return `Iteration ${ev.iteration} — re-ran V2${ev.passRate != null ? ` · ${formatPercent(ev.passRate)} pass` : ''}${ev.costUsd != null ? ` · ${formatUsd(ev.costUsd)}` : ''}`
+    case 'converged':
+      return `Iteration ${ev.iteration} — converged`
+    case 'plateau':
+      return `Iteration ${ev.iteration} — plateau`
+    case 'exhausted':
+      return `Iteration ${ev.iteration} — ${ev.detail ?? 'budget or max iterations reached'}`
+    case 'error':
+      return `Iteration ${ev.iteration} — ${ev.detail ?? 'error'}`
+  }
+}
+
+/** Terminal summary line, keyed on why the loop stopped. */
+function autoResultLabel(r: AutoImprovementResult): string {
+  switch (r.stoppedBy) {
+    case 'converged':
+      return `Converged at 100% after ${r.iterations} iteration(s) — review & approve below.`
+    case 'plateau':
+      return `Plateau at ${formatPercent(r.finalPassRate)} — no further gain. Review below.`
+    case 'budget':
+      return `Budget reached after ${r.iterations} iteration(s) — review below.`
+    case 'max-iterations':
+      return `Max iterations reached (${r.iterations}) — review below.`
+    case 'nothing-to-improve':
+      return 'Nothing left to improve — the agent already passes its suites.'
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Loop stepper — where the current cycle stands. Meaning is carried by the
@@ -231,6 +275,12 @@ export function ImproveWorkbench({
   const [deciding, setDeciding] = useState<'approved' | 'rejected' | null>(null)
   const [decisionError, setDecisionError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState<'approved' | 'rejected' | null>(null)
+  // Auto-improve: the loop runs analyze→create-v2→re-run→compare on its own and
+  // STOPS before approval (never auto-approves — the human still approves below).
+  const [autoRunning, setAutoRunning] = useState(false)
+  const [autoFrames, setAutoFrames] = useState<AutoImproveEvent[]>([])
+  const [autoResult, setAutoResult] = useState<AutoImprovementResult | null>(null)
+  const [autoError, setAutoError] = useState<string | null>(null)
 
   const totalFailures = suites.reduce((n, s) => n + s.failures.length, 0)
   const hasV2Results = Boolean(
@@ -270,6 +320,40 @@ export function ImproveWorkbench({
     setAnalyzeError(null)
     await post(`/api/agent-ops/copilots/${copilotId}/improve/analyze`, {}, setAnalyzeError)
     setAnalyzing(false)
+  }
+
+  async function handleAutoImprove() {
+    if (autoRunning) return
+    setAutoRunning(true)
+    setAutoFrames([])
+    setAutoResult(null)
+    setAutoError(null)
+    try {
+      const res = await fetch(`/api/agent-ops/copilots/${copilotId}/improve/auto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+        body: '{}',
+      })
+      if (!res.ok || !res.body) {
+        setAutoError('Auto-improve could not start — live backend not configured.')
+        return
+      }
+      await consumeSSE<AutoImproveFrame>(res.body, (ev) => {
+        if (ev.type === 'done') {
+          setAutoResult(ev)
+        } else {
+          if (ev.type === 'error') setAutoError(ev.detail ?? 'Auto-improve failed.')
+          setAutoFrames((prev) => [...prev, ev])
+        }
+      })
+    } catch {
+      setAutoError('Auto-improve failed — the backend is unreachable.')
+    } finally {
+      setAutoRunning(false)
+      // Reload so the proposal + V1/V2 comparison + Approve buttons reflect the
+      // V2 the loop just produced. The loop NEVER approves — the human does.
+      router.refresh()
+    }
   }
 
   async function handleCreateV2() {
@@ -360,19 +444,67 @@ export function ImproveWorkbench({
         description={`Latest real test and benchmark results for ${copilotName}. The proposal is grounded in these failures — nothing is fabricated.`}
         actions={
           !cycleOpen ? (
-            <Button color="accent" onClick={handleAnalyze} disabled={analyzing || totalFailures === 0}>
-              {analyzing ? (
-                <span className="inline-flex items-center gap-2">
-                  <Spinner className="size-4" /> Analyzing…
-                </span>
-              ) : (
-                'Analyze & propose'
-              )}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                color="accent"
+                onClick={handleAutoImprove}
+                disabled={autoRunning || analyzing || totalFailures === 0}
+              >
+                {autoRunning ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Spinner className="size-4" /> Auto-improving…
+                  </span>
+                ) : (
+                  'Auto-improve'
+                )}
+              </Button>
+              <Button outline onClick={handleAnalyze} disabled={analyzing || autoRunning || totalFailures === 0}>
+                {analyzing ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Spinner className="size-4" /> Analyzing…
+                  </span>
+                ) : (
+                  'Analyze & propose'
+                )}
+              </Button>
+            </div>
           ) : null
         }
       >
         <div className="space-y-5">
+          {/* Auto-improve: it loops until 100% or plateau, then STOPS for your
+              approval — it never promotes on its own. */}
+          {!cycleOpen ? (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Auto-improve runs the loop until 100% or a plateau — you still approve the result.
+            </p>
+          ) : null}
+          {autoFrames.length > 0 || autoResult || autoRunning ? (
+            <div className="rounded-xl bg-[var(--accent-soft)] p-4 ring-1 ring-[var(--accent-line)]">
+              <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
+                Auto-improve progress
+              </p>
+              <ul className="mt-2 space-y-1">
+                {autoFrames.map((ev, i) => (
+                  <li key={i} className="flex items-center gap-2 font-mono text-xs text-zinc-700 tabular-nums dark:text-zinc-300">
+                    <span aria-hidden="true" className="size-1 shrink-0 rounded-full bg-accent-500" />
+                    {autoFrameLabel(ev)}
+                  </li>
+                ))}
+                {autoRunning ? (
+                  <li className="flex items-center gap-2 text-xs text-zinc-500">
+                    <Spinner className="size-3.5" /> running…
+                  </li>
+                ) : null}
+              </ul>
+              {autoResult ? (
+                <p className="mt-3 border-t border-[var(--accent-line)] pt-3 text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                  {autoResultLabel(autoResult)}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {autoError ? <ErrorBanner message={autoError} /> : null}
           {analyzeError ? <ErrorBanner message={analyzeError} /> : null}
           {analyzing ? (
             <Text>
