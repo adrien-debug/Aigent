@@ -10,10 +10,12 @@ import type OpenAI from 'openai'
 import { AGENT_BUILDER_SLUG } from './agent-builder-copilot'
 import {
   draftToCreateInput,
+  getAgentBuilderRunState,
   resumeAgentBuilderRun,
   startAgentBuilderRun,
   type BuilderManifestDraft,
   type BuilderProposedTool,
+  type BuilderRunState,
 } from './agent-builder-run'
 import {
   createCopilotFromManifest,
@@ -214,8 +216,9 @@ export async function getProjectBuilderConversationBundle(projectId: string): Pr
   }
 
   const createdCopilotId = conversation.latestPreview?.createdCopilotId ?? null
+  const runState = await reconstructRunState(conversation)
 
-  return { conversation, messages, repoSummary, createdCopilotId }
+  return { conversation, messages, repoSummary, createdCopilotId, runState }
 }
 
 function parsePreviewToolArgs(raw: string): Partial<AgentPreview> | null {
@@ -813,6 +816,74 @@ async function ensureConversationThreadIsLive(conversation: ProjectBuilderConver
       updated_at: new Date().toISOString(),
     })
     return false
+  }
+}
+
+/**
+ * Reconstruct the run state for the bundle handed to the workbench on
+ * load/reload. This is the fix for the reload race: "Approve — create draft"
+ * starts a LangGraph run and stores its thread id, but a page reload had no
+ * way to know a run was already paused at the interrupt — it re-showed
+ * "Approve", the operator re-clicked it, and `startProjectBuilderDraftMaterialization`
+ * threw "draft materialization already in progress" (the guard IS correct;
+ * the UI just never learned the true state to avoid hitting it).
+ *
+ * Three outcomes, matching `ensureConversationThreadIsLive`'s cases so the
+ * two never disagree about the same thread:
+ *  - no `langgraphThreadId` at all → nothing running, `null`.
+ *  - thread is dead (404 on the Agent Server, e.g. server restart wiped its
+ *    in-memory store) → `ensureConversationThreadIsLive` already clears the
+ *    stale id in the DB and re-arms the conversation; this function mirrors
+ *    that same mutation onto the in-memory `conversation` it was handed (the
+ *    caller's copy predates the PATCH) so the returned bundle can't show a
+ *    stale non-null `langgraphThreadId` next to a `null` runState. Returns
+ *    `null` runState so the UI falls back to "Approve" (correct: the run
+ *    really is gone).
+ *  - thread is live → read its normalized state via `getAgentBuilderRunState`
+ *    (same source of truth `startProjectBuilderDraftMaterialization` /
+ *    `confirmProjectBuilderDraftMaterialization` produce) so the UI can show
+ *    "Confirm draft" when `status === 'awaiting_approval'`.
+ *  - liveness check itself fails (5xx/network — Agent Server unreachable) →
+ *    swallow and return `null`. We don't know the thread's real state; a
+ *    transient outage must not make the bundle load fail, and guessing
+ *    "awaiting" would let the UI show "Confirm" for a run that may not exist,
+ *    while guessing "not running" risks the same double-click 502 this fix
+ *    targets. `null` is the conservative choice already used elsewhere in
+ *    this file for non-fatal lookups (repo intelligence, project lookup).
+ *
+ * Mutates `conversation` in place (single-owner local object, not shared) so
+ * the caller's copy reflects the same clear-on-404 the DB just received.
+ */
+async function reconstructRunState(conversation: ProjectBuilderConversation): Promise<BuilderRunState | null> {
+  if (!conversation.langgraphThreadId) return null
+  const threadId = conversation.langgraphThreadId
+
+  let live: boolean
+  try {
+    live = await ensureConversationThreadIsLive(conversation)
+  } catch (err) {
+    console.warn(
+      `[project-builder] could not verify langgraph_thread_id ${threadId} liveness for conversation ${conversation.id} (Agent Server unreachable) — reporting no run state`,
+      err
+    )
+    return null
+  }
+  if (!live) {
+    // ensureConversationThreadIsLive already cleared the stale id in the DB on
+    // 404 — mirror that here so the bundle's `conversation` doesn't disagree
+    // with its own `runState: null`.
+    conversation.langgraphThreadId = null
+    return null
+  }
+
+  try {
+    return await getAgentBuilderRunState(threadId)
+  } catch (err) {
+    console.warn(
+      `[project-builder] getAgentBuilderRunState failed for thread ${threadId} on conversation ${conversation.id}`,
+      err
+    )
+    return null
   }
 }
 

@@ -151,6 +151,11 @@ export function ProjectAgentBuilderWorkbench({
     setMessages(bundle.messages)
     setPreview(bundle.conversation.latestPreview)
     setCreatedCopilotId(bundle.createdCopilotId)
+    // Rehydrate the run state from the bundle: on a page reload while a run is
+    // paused at its HITL interrupt, this is what lets the UI show "Confirm
+    // draft" instead of a stale "Approve — create draft". null clears any local
+    // run state (thread died / no run in progress) so the button set is correct.
+    setRunState((bundle.runState as BuilderRunState | null) ?? null)
   }, [])
 
   useEffect(() => {

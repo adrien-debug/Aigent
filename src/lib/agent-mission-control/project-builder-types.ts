@@ -1,6 +1,7 @@
 /**
  * Project Builder — persistent conversation types (shared server + client).
  */
+import type { BuilderRunState } from './agent-builder-run'
 
 export type ProjectBuilderConversationStatus = 'active' | 'draft_ready' | 'draft_created' | 'archived'
 
@@ -69,4 +70,14 @@ export interface ProjectBuilderConversationBundle {
   messages: ProjectBuilderMessage[]
   repoSummary: string | null
   createdCopilotId: string | null
+  /**
+   * Reconstructed LangGraph run state when `conversation.langgraphThreadId`
+   * points at a still-live thread awaiting human approval — lets a page reload
+   * show "Confirm draft" instead of re-offering "Approve — create draft" (which
+   * would 502 on a run that is already in flight). `null` when there is no
+   * thread, the thread is dead (server restart wiped it), or its liveness
+   * couldn't be determined (server unreachable) — callers should render as if
+   * no run is in progress in all three cases.
+   */
+  runState?: BuilderRunState | null
 }
