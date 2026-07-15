@@ -111,7 +111,7 @@ function DeltaText({ v1, v2, unit }: { v1: number | null; v2: number | null; uni
   return (
     <span className={'inline-flex items-center gap-1.5 font-medium ' + (up ? 'text-accent-700 dark:text-accent-300' : 'text-zinc-600 dark:text-zinc-400')}>
       <span aria-hidden="true" className={'size-1.5 rounded-full ' + (up ? 'bg-accent-500' : 'bg-zinc-400')} />
-      {flat ? '±0' : `${up ? '+' : '−'}${Math.abs(delta)}`} {unit === 'pct' ? 'pts' : 'pts'}
+      {flat ? '±0' : `${up ? '+' : '−'}${Math.abs(delta)}`} pts
     </span>
   )
 }

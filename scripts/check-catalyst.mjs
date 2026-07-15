@@ -31,7 +31,13 @@ const NATIVE_TAG_RE = /<(button|input|select|textarea|table)(?=\s|>|$)/g
 // Comments (JSX {/* ... */} or // ...) mentioning the tag are not violations —
 // only skip a match if the tag name appears after a comment marker on the
 // same line, checked separately below rather than baked into the regex.
-const ARBITRARY_SPACING_RE = /\b(?:p|m|gap|space-[xy])-(?:[trblxy]-)?\[[0-9.]+(?:px|rem|em)\]/g
+// Matches both bare (p-, m-, gap-, space-x-) and directional-glued
+// (pt-, pl-, mt-, mx-, space-x- …) Tailwind spacing utilities. Tailwind
+// glues the direction letter straight onto p/m (pt-, pl-, mx-, my-, …) —
+// there is no intermediate hyphen — so the axis/direction group must be
+// optional letters immediately before the utility's own hyphen, not a
+// separate `letter-` segment.
+const ARBITRARY_SPACING_RE = /\b(?:p|m)[trblxy]?-\[[0-9.]+(?:px|rem|em)\]|\bgap(?:-[xy])?-\[[0-9.]+(?:px|rem|em)\]|\bspace-[xy]-\[[0-9.]+(?:px|rem|em)\]/g
 // Inline recomposition of the canon card surface: bg-[var(--color-surface-secondary)]
 // hand-written alongside a rounded + border on the same line = a card recopied
 // instead of using the `surfaceCardClass` constant. surface-card.tsx owns the
