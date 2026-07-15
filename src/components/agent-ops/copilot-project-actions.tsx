@@ -3,6 +3,7 @@
 import { useState } from 'react'
 
 import { AssignProjectDialog, UnassignCopilotDialog } from '@/components/agent-ops/assign-project-dialog'
+import { PushAgentDialog } from '@/components/agent-ops/push-agent-dialog'
 import { SoftAccentButton } from '@/components/agent-ops/soft-accent-link'
 import type { Copilot, Project } from '@/lib/agent-mission-control/types'
 
@@ -22,15 +23,33 @@ export function CopilotProjectActions({
 }) {
   const [assignTarget, setAssignTarget] = useState<Copilot | null>(null)
   const [unassignTarget, setUnassignTarget] = useState<Copilot | null>(null)
+  const [pushTarget, setPushTarget] = useState<Copilot | null>(null)
   const onBench = copilot.projectId === null
+  // Only an assigned copilot has a repo target; a bench copilot cannot push.
+  const linkedProjectName =
+    projectName ?? (copilot.projectId !== null ? projects.find((p) => p.id === copilot.projectId)?.name ?? null : null)
 
   return (
     <>
       {onBench ? (
         <SoftAccentButton onClick={() => setAssignTarget(copilot)}>Assign…</SoftAccentButton>
       ) : (
-        <SoftAccentButton onClick={() => setUnassignTarget(copilot)}>Unassign…</SoftAccentButton>
+        <>
+          <SoftAccentButton onClick={() => setPushTarget(copilot)}>Push to repo…</SoftAccentButton>
+          <SoftAccentButton onClick={() => setUnassignTarget(copilot)}>Unassign…</SoftAccentButton>
+        </>
       )}
+
+      {pushTarget && pushTarget.projectId !== null ? (
+        <PushAgentDialog
+          key={`push-${pushTarget.id}`}
+          copilot={pushTarget}
+          projectId={pushTarget.projectId}
+          projectName={linkedProjectName}
+          open
+          onClose={() => setPushTarget(null)}
+        />
+      ) : null}
 
       {assignTarget ? (
         <AssignProjectDialog

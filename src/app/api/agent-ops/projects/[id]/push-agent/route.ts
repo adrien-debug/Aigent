@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { setCopilotPushStatus } from '@/lib/agent-mission-control/authoring-writes'
 import { getProject, getCopilot, getManifestForCopilot } from '@/lib/agent-mission-control/data'
 import { pushAgentToRepo } from '@/lib/agent-mission-control/github'
 
@@ -113,6 +114,24 @@ export async function POST(
 
   try {
     const result = await pushAgentToRepo({ project, copilot, manifest, dryRun })
+
+    // Persist the push outcome onto the copilot row — but ONLY for a REAL push
+    // (pushed:true && dryRun:false). A dry-run mutates nothing remotely, so
+    // there's no status to record. Best-effort: the GitHub push already
+    // succeeded, so a failure to write the (secondary) status must NOT fail the
+    // response — log server-side and still return the push result.
+    if (result.pushed === true && result.dryRun === false) {
+      try {
+        await setCopilotPushStatus(copilotId, {
+          lastPushStatus: 'pushed',
+          lastPushedAt: new Date().toISOString(),
+          lastPushCommitUrl: result.commitUrl ?? null,
+        })
+      } catch (statusErr) {
+        console.error('[agent-ops/push-agent] failed to persist push status', statusErr)
+      }
+    }
+
     return NextResponse.json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'push failed'

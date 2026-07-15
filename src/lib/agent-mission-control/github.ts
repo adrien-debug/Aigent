@@ -726,6 +726,164 @@ function scaffoldAgentFiles(
 }
 
 // ---------------------------------------------------------------------------
+// Host registry — turns the target repo into a readable "agent host"
+//
+// Beyond the per-agent scaffold, a push also maintains two index files at the
+// `agents/` root that list EVERY agent hosted in the repo (the one being pushed
+// plus those already present). These are aggregate files, so — unlike the pure
+// per-agent scaffold — they can't be computed in isolation: a push must first
+// READ the repo's current registry and MERGE, otherwise each push would clobber
+// the entries of sibling agents. See `mergeRegistryEntry` / `readHostRegistry`.
+//
+//   agents/_registry.json — MACHINE index (array of AgentRegistryEntry)
+//   agents/README.md       — HUMAN index (markdown table)
+// ---------------------------------------------------------------------------
+
+const REGISTRY_JSON_PATH = 'agents/_registry.json'
+const REGISTRY_README_PATH = 'agents/README.md'
+
+/**
+ * One row of the host registry: pure metadata for a single hosted agent. Never
+ * carries a secret — only slug/name/version/model/runtime plus provenance.
+ */
+export interface AgentRegistryEntry {
+  slug: string
+  name: string
+  version: string
+  model: string
+  runtime: string
+  /** Provenance marker: every entry this platform writes is `"aigent"`. */
+  source: 'aigent'
+  /** ISO-8601 timestamp of the push that (re)wrote this entry. */
+  pushedAt: string
+  /** Repo-relative path to this agent's serialized manifest. */
+  manifestPath: string
+}
+
+/** Narrowing type guard: is `v` a well-formed AgentRegistryEntry row? */
+function isRegistryEntry(v: unknown): v is AgentRegistryEntry {
+  if (typeof v !== 'object' || v === null) return false
+  const e = v as Record<string, unknown>
+  return (
+    typeof e.slug === 'string' &&
+    typeof e.name === 'string' &&
+    typeof e.version === 'string' &&
+    typeof e.model === 'string' &&
+    typeof e.runtime === 'string' &&
+    e.source === 'aigent' &&
+    typeof e.pushedAt === 'string' &&
+    typeof e.manifestPath === 'string'
+  )
+}
+
+/**
+ * Read + parse the repo's current `agents/_registry.json`. Fail-SOFT by design:
+ *   - a 404 "file absent" (first agent hosted here) → empty registry, normal;
+ *   - a genuine network/API error → log + empty registry, NEVER blocks the push
+ *     (a later re-push re-aggregates from the surviving on-disk entries);
+ *   - malformed / non-array JSON → empty registry.
+ * Read-only: this only ever issues the GET already available via `getRepoFile`.
+ */
+async function readHostRegistry(
+  repoFullName: string,
+  ref: string
+): Promise<AgentRegistryEntry[]> {
+  let raw: string
+  try {
+    const file = await getRepoFile(repoFullName, REGISTRY_JSON_PATH, ref)
+    raw = file.text
+  } catch (err) {
+    // A 404 surfaces as "GitHub 404 on GET …" from the shared `gh` helper: that
+    // is the expected "no registry yet" case, not an error worth logging loud.
+    const msg = err instanceof Error ? err.message : String(err)
+    if (!/GitHub 404 /.test(msg)) {
+      console.error(`[github] failed to read ${REGISTRY_JSON_PATH} from ${repoFullName}: ${msg}`)
+    }
+    return []
+  }
+
+  if (!raw.trim()) return []
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(isRegistryEntry)
+  } catch {
+    // Corrupt/hand-edited registry: start clean rather than propagate garbage.
+    return []
+  }
+}
+
+/**
+ * Merge the pushed agent's entry into the existing registry: drop any prior row
+ * for the same slug (re-push = update, not duplicate), append the fresh entry,
+ * and sort by slug for a stable diff on every push.
+ */
+function mergeRegistryEntry(
+  existing: AgentRegistryEntry[],
+  next: AgentRegistryEntry
+): AgentRegistryEntry[] {
+  return existing
+    .filter((e) => e.slug !== next.slug)
+    .concat(next)
+    .sort((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0))
+}
+
+/** Serialize the machine index: pretty JSON, trailing newline (stable diff). */
+function renderRegistryJson(entries: AgentRegistryEntry[]): string {
+  return `${JSON.stringify(entries, null, 2)}\n`
+}
+
+/** Render the human index: a markdown table of every hosted agent. */
+function renderRegistryReadme(entries: AgentRegistryEntry[]): string {
+  const rows = entries
+    .map(
+      (e) =>
+        `| \`${e.slug}\` | ${e.name} | \`${e.version}\` | \`${e.runtime}\` |`
+    )
+    .join('\n')
+  const table = entries.length
+    ? `| Slug | Name | Version | Runtime |\n|---|---|---|---|\n${rows}\n`
+    : '_No agents hosted yet._\n'
+
+  return `# Hosted agents
+
+These agents are deployed from the **Agent Mission Control (Aigent)** platform
+and must not be hand-edited — re-push from the platform to update them.
+
+${table}`
+}
+
+/**
+ * Build the two host-registry index files for this push, merged with whatever
+ * agents the target repo already hosts. Read-only network work (via
+ * `readHostRegistry`), fail-soft: a genuine read failure degrades to an empty
+ * base registry rather than aborting the push.
+ */
+async function scaffoldHostRegistry(
+  repoFullName: string,
+  ref: string,
+  copilot: Copilot,
+  manifest: AgentManifest
+): Promise<ScaffoldedFile[]> {
+  const existing = await readHostRegistry(repoFullName, ref)
+  const entry: AgentRegistryEntry = {
+    slug: copilot.slug,
+    name: copilot.name,
+    version: manifest.version,
+    model: copilot.model,
+    runtime: copilot.runtime,
+    source: 'aigent',
+    pushedAt: new Date().toISOString(),
+    manifestPath: `agents/${copilot.slug}/manifest.json`,
+  }
+  const merged = mergeRegistryEntry(existing, entry)
+  return [
+    { path: REGISTRY_JSON_PATH, content: renderRegistryJson(merged) },
+    { path: REGISTRY_README_PATH, content: renderRegistryReadme(merged) },
+  ]
+}
+
+// ---------------------------------------------------------------------------
 // Push
 // ---------------------------------------------------------------------------
 
@@ -750,14 +908,20 @@ export async function pushAgentToRepo(args: PushAgentArgs): Promise<PushResult> 
   // the read-only GET below).
   requireGithub()
 
-  const scaffolded = scaffoldAgentFiles(copilot, manifest)
-  const files = scaffolded.map((f) => f.path)
   const repoFullName = assertValidRepoFullName(project.repoFullName)
 
   // Double safety: dry-run unless explicitly disabled AND the env is armed.
   const wouldPush = !dryRun && pushArmed()
 
   const branch = await getDefaultBranch(repoFullName)
+
+  // Per-agent scaffold PLUS the two host-registry index files, merged with the
+  // agents the repo already hosts. The registry read is read-only, so it is
+  // safe to run even in dry-run — and it MUST run there too, so PushResult.files
+  // lists exactly the 5 paths the real push would write.
+  const registryFiles = await scaffoldHostRegistry(repoFullName, branch, copilot, manifest)
+  const scaffolded = [...scaffoldAgentFiles(copilot, manifest), ...registryFiles]
+  const files = scaffolded.map((f) => f.path)
 
   if (!wouldPush) {
     return {

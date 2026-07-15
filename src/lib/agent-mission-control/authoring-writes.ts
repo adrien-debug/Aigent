@@ -171,6 +171,26 @@ export async function setCopilotAssistantId(copilotId: string, assistantId: stri
   await pgrest<RawRow[]>('PATCH', `copilots?${eq('id', copilotId)}`, { assistant_id: assistantId })
 }
 
+/**
+ * Persist the outcome of a REAL agent push (push-agent route) onto the copilot
+ * row — the `last_push_*` columns exist since migration 0004 but were never
+ * written until now. Called best-effort AFTER a successful non-dry-run push, so
+ * the registry can surface when/where each copilot was last shipped. Mirrors
+ * setCopilotAssistantId (requireBackend + a single parameterized PATCH via the
+ * `eq` filter helper). Fail-closed; snake_case columns.
+ */
+export async function setCopilotPushStatus(
+  copilotId: string,
+  status: { lastPushStatus: string; lastPushedAt: string; lastPushCommitUrl: string | null }
+): Promise<void> {
+  requireBackend()
+  await pgrest<RawRow[]>('PATCH', `copilots?${eq('id', copilotId)}`, {
+    last_push_status: status.lastPushStatus,
+    last_pushed_at: status.lastPushedAt,
+    last_push_commit_url: status.lastPushCommitUrl,
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Test-suite authoring shapes — consumed by agentBuilderTestSuite()
 // (agent-builder-copilot.ts) and materialized by the provisioning script.
