@@ -101,7 +101,12 @@ async function latestCompletedBenchmark(candidateVersionId: string): Promise<Rel
     `benchmark_runs?${eq('version_id', candidateVersionId)}&status=eq.completed&select=id&order=started_at.desc&limit=1`
   )
   if (!runs[0]) return null
-  const res = await pgrest<RawRow[]>('GET', `benchmark_results?${eq('run_id', runs[0].id as string)}&select=*`)
+  // One benchmark_results row per run (see benchmark-runner.ts) — limit=1 bounds
+  // the query without changing which row is read.
+  const res = await pgrest<RawRow[]>(
+    'GET',
+    `benchmark_results?${eq('run_id', runs[0].id as string)}&select=score,accuracy,task_success_rate,unsafe_action_count,confirmation_mistake_count&limit=1`
+  )
   const r = res[0]
   if (!r) return null
   return {
@@ -121,7 +126,7 @@ async function productionBenchmarkScore(productionVersionId: string | null): Pro
     `benchmark_runs?${eq('version_id', productionVersionId)}&status=eq.completed&select=id&order=started_at.desc&limit=1`
   )
   if (!runs[0]) return null
-  const res = await pgrest<RawRow[]>('GET', `benchmark_results?${eq('run_id', runs[0].id as string)}&select=score`)
+  const res = await pgrest<RawRow[]>('GET', `benchmark_results?${eq('run_id', runs[0].id as string)}&select=score&limit=1`)
   return res[0] ? ((res[0].score as number) ?? null) : null
 }
 
