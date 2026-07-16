@@ -2,6 +2,7 @@ import { SignalIcon, BoltIcon, ExclamationTriangleIcon, CheckCircleIcon, PauseCi
 import clsx from 'clsx'
 import { notFound } from 'next/navigation'
 
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { RunCopilotPanel } from '@/components/agent-ops/run-copilot-panel'
 import { RunDetailPanel } from '@/components/agent-ops/run-detail-panel'
 import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
@@ -18,6 +19,7 @@ import {
 } from '@/lib/agent-mission-control/data'
 import { TOOL_CALL_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
 import type { ToolCall } from '@/lib/agent-mission-control/types'
+import { Button } from '@/components/catalyst/button'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 
@@ -88,17 +90,18 @@ export default async function RunsPage({
       <RunCopilotPanel copilotId={id} copilotName={copilot.name} copilotSlug={copilot.slug} copilotTags={copilot.tags} />
 
       {runs.length === 0 || !selectedRun ? (
-        <div className="flex flex-col items-center justify-center py-24 rounded-2xl border border-white/5 border-dashed bg-white/[0.01]">
-          <SignalIcon className="size-12 text-zinc-700 mb-4" />
-          <h3 className="text-sm font-medium text-white">No runs yet</h3>
-          <p className="text-sm text-zinc-500 mt-1 max-w-md text-center">
-            This copilot hasn&apos;t served any production traffic. Send it a real ad hoc run from the &quot;Run {copilot.name}&quot; panel above.
-          </p>
-          <div className="mt-6">
-            <Link href={`/admin/agents/${id}/tests`} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-white/5 px-4 py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors">
-              Go to tests
-            </Link>
-          </div>
+        <div className="rounded-2xl border border-white/5 border-dashed bg-white/[0.01]">
+          <EmptyState
+            icon={SignalIcon}
+            title="No runs yet"
+            description={`This copilot hasn't served any production traffic. Send it a real ad hoc run from the "Run ${copilot.name}" panel above.`}
+            action={
+              <Button outline href={`/admin/agents/${id}/tests`}>
+                Go to tests
+              </Button>
+            }
+            className="py-24"
+          />
         </div>
       ) : (
         <>
