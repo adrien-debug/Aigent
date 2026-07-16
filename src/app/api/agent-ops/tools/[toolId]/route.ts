@@ -57,20 +57,36 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ to
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
   }
 
-  const res = await fetch(`${base}/rest/v1/tools?id=eq.${encodeURIComponent(toolId)}`, {
-    method: 'PATCH',
-    headers: {
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation',
-    },
-    body: JSON.stringify(patch),
-  })
+  // fetch() rejects on network failure (gpu1 unreachable, DNS, reset) and
+  // res.json() can throw on a truncated body — without this try/catch those
+  // escape the handler as a raw framework 500 instead of the repo's pattern
+  // (server-side log + generic 502, mirrors copilots/[copilotId]/route.ts).
+  // The 30s cap mirrors postgrest.ts's PGREST_TIMEOUT_MS: a hung PostgREST is
+  // aborted and reported as a 504 (upstream timeout), never an open socket.
+  let rows: unknown[]
+  try {
+    const res = await fetch(`${base}/rest/v1/tools?id=eq.${encodeURIComponent(toolId)}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify(patch),
+      signal: AbortSignal.timeout(30_000),
+    })
 
-  if (!res.ok) {
-    return NextResponse.json({ error: `PostgREST ${res.status}` }, { status: 502 })
+    if (!res.ok) {
+      return NextResponse.json({ error: `PostgREST ${res.status}` }, { status: 502 })
+    }
+    rows = (await res.json()) as unknown[]
+  } catch (err) {
+    console.error('[PATCH /api/agent-ops/tools/:toolId] PostgREST write failed', err)
+    if (err instanceof Error && err.name === 'TimeoutError') {
+      return NextResponse.json({ error: 'backend timeout' }, { status: 504 })
+    }
+    return NextResponse.json({ error: 'update failed' }, { status: 502 })
   }
-  const rows = (await res.json()) as unknown[]
   if (rows.length === 0) {
     return NextResponse.json({ error: 'tool not found' }, { status: 404 })
   }
