@@ -237,6 +237,10 @@ export function ProjectMissionOrchestrator({
         {error && <ErrorBanner message={error} />}
 
         {showReport && <MissionReportPanel report={report} />}
+
+        {phase === 'idle' && !report && !error && !hydrateWarning && (
+          <p className="text-sm text-zinc-500">No mission run yet — set an objective and run one.</p>
+        )}
       </div>
     </AgentSectionCard>
   )
