@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import { useMemo } from 'react'
 
 import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { Badge } from '@/components/catalyst/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
@@ -138,18 +139,17 @@ export function CopilotRegistryTable({
 
   if (filtered.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-2 px-6 py-24 text-center">
-        <p className="text-[13px] text-zinc-400">
-          {searchQuery ? 'No copilots match your search.' : 'No copilots yet.'}
-        </p>
-        <p className="text-xs text-zinc-600">
-          {searchQuery
+      <EmptyState
+        className="py-24"
+        title={searchQuery ? 'No copilots match your search.' : 'No copilots yet.'}
+        description={
+          searchQuery
             ? 'Try a different name or slug.'
             : view === 'bench'
               ? 'Every copilot is assigned to a project.'
-              : 'Provision a copilot to see it here.'}
-        </p>
-      </div>
+              : 'Provision a copilot to see it here.'
+        }
+      />
     )
   }
 
