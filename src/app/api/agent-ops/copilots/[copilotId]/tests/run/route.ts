@@ -38,7 +38,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
 
   let body: { suiteId?: string; versionId?: string; allowFallback?: boolean }
   try {
-    body = await request.json()
+    const parsed: unknown = await request.json()
+    // `request.json()` accepts any valid JSON value (null, a number, a string,
+    // an array, a boolean) — only a plain object is a valid body here. Without
+    // this guard a literal `null` body crashes the `body.suiteId` access below
+    // into a 500 for what is a client fault — mirrors the tools/[toolId] and
+    // projects/[id]/push-agent body-shape guard.
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return NextResponse.json({ error: 'body must be a JSON object' }, { status: 400 })
+    }
+    body = parsed as { suiteId?: string; versionId?: string; allowFallback?: boolean }
   } catch {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
   }
