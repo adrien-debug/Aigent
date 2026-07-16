@@ -39,7 +39,7 @@ export function AgentBentoCard({
             {eyebrow}
           </p>
         ) : null}
-        <Subheading level={level} tone="accent" className={clsx(eyebrow && 'mt-2', 'text-white')}>
+        <Subheading level={level} tone="accent" className={clsx(eyebrow && 'mt-2')}>
           {title}
         </Subheading>
         {description ? <p className="mt-2 text-sm text-zinc-400">{description}</p> : null}
