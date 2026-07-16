@@ -27,6 +27,15 @@ services:
     ports:
       - "127.0.0.1:8099:3000"
 
+    # The Docker embedded resolver (127.0.0.11) on nexus-net forwards to
+    # invalid upstream servers (confirmed 2026-07-16: every external lookup
+    # SERVFAILs/EAI_AGAINs from any container on this network, host DNS is
+    # unaffected). Explicit public resolvers bypass the broken embedded
+    # forwarder — verified with a throwaway container on this same network.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+
     environment:
       # --- Live data backend (gpu1 PostgREST perimeter) ---
       AMC_DATA_SOURCE: ${AMC_DATA_SOURCE:-gpu1}
