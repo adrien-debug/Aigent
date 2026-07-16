@@ -67,7 +67,11 @@ export function SiteFooter() {
             </p>
             <div className="flex gap-x-6">
               {NAVIGATION.social.map((item) => (
-                <a key={item.name} href={item.href} className="text-zinc-400 hover:text-zinc-300">
+                <a
+                  key={item.name}
+                  href={item.href}
+                  className="-m-2.5 flex size-11 items-center justify-center text-zinc-400 hover:text-zinc-300"
+                >
                   <span className="sr-only">{item.name}</span>
                   <item.icon aria-hidden="true" className="size-6" />
                 </a>
