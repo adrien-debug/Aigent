@@ -201,7 +201,7 @@ export function ReleaseCandidateCard({
           {rollbackVersionId && rollbackVersionLabel ? (
             <Button plain disabled={pending !== null} onClick={() => setRollbackOpen(true)}>
               <span className="text-accent-600 dark:text-accent-400">
-                Rollback to <span className="font-mono tabular-nums">{rollbackVersionLabel}</span>
+                Rollback to <span className="font-mono tabular-nums break-all">{rollbackVersionLabel}</span>
               </span>
             </Button>
           ) : null}
@@ -219,8 +219,8 @@ export function ReleaseCandidateCard({
       <Dialog open={confirmOpen} onClose={setConfirmOpen} size="lg">
         <DialogTitle>Promote {evidence.candidateLabel} to production?</DialogTitle>
         <DialogDescription>
-          This sets <span className="font-mono tabular-nums">production_version_id</span> to{' '}
-          <span className="font-mono tabular-nums">{evidence.candidateVersionId}</span>.
+          This sets <span className="font-mono tabular-nums break-all">production_version_id</span> to{' '}
+          <span className="font-mono tabular-nums break-all">{evidence.candidateVersionId}</span>.
         </DialogDescription>
         <DialogBody>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -245,7 +245,7 @@ export function ReleaseCandidateCard({
         <DialogTitle>Rollback production?</DialogTitle>
         <DialogDescription>
           All production traffic would be routed back to{' '}
-          <span className="font-mono tabular-nums">{rollbackVersionLabel ?? rollbackVersionId}</span>.
+          <span className="font-mono tabular-nums break-all">{rollbackVersionLabel ?? rollbackVersionId}</span>.
         </DialogDescription>
         <DialogBody>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
