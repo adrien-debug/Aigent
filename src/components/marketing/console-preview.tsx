@@ -48,7 +48,7 @@ export function ConsolePreview({ className }: { className?: string }) {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[20rem] text-left text-xs">
               <thead>
-                <tr className="border-b border-white/10 text-[0.65rem] tracking-wide text-zinc-500 uppercase">
+                <tr className="border-b border-white/10 text-xs tracking-wide text-zinc-500 uppercase">
                   <th className="pb-2 pr-3 font-medium">Name</th>
                   <th className="pb-2 pr-3 font-medium">Stage</th>
                   <th className="hidden pb-2 pr-3 text-right font-medium sm:table-cell">Runs</th>
@@ -92,13 +92,13 @@ export function ConsolePreview({ className }: { className?: string }) {
         <div className="flex flex-col gap-4 bg-zinc-900/80 p-5">
           {STATS.map((stat) => (
             <div key={stat.label} className="flex flex-col gap-0.5 border-l border-accent-500/40 pl-3">
-              <span className="text-[0.65rem] tracking-wide text-zinc-500 uppercase">{stat.label}</span>
+              <span className="text-xs tracking-wide text-zinc-500 uppercase">{stat.label}</span>
               <span className="font-mono text-lg font-semibold text-white tabular-nums">{stat.value}</span>
             </div>
           ))}
           <div className="mt-auto rounded-md bg-accent-500/10 px-3 py-2 ring-1 ring-accent-500/25">
-            <span className="text-[0.65rem] font-semibold text-accent-400">Promotion gate</span>
-            <p className="mt-0.5 text-[0.7rem] leading-snug text-zinc-400">1 copilot awaits sign-off.</p>
+            <span className="text-xs font-semibold text-accent-400">Promotion gate</span>
+            <p className="mt-0.5 text-xs leading-snug text-zinc-400">1 copilot awaits sign-off.</p>
           </div>
         </div>
       </div>
