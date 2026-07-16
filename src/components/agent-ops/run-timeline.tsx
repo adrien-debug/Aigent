@@ -8,6 +8,7 @@ import {
 } from '@heroicons/react/20/solid'
 import clsx from 'clsx'
 
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { Badge } from '@/components/catalyst/badge'
 import { formatDurationMs } from '@/lib/agent-mission-control/format'
@@ -110,7 +111,13 @@ export function RunTimeline({
   const ordered = [...steps].sort((a, b) => a.index - b.index)
 
   if (ordered.length === 0) {
-    return <p className="text-sm text-zinc-500">No steps recorded for this run.</p>
+    return (
+      <EmptyState
+        icon={CircleStackIcon}
+        title="No steps recorded"
+        description="This run has no recorded steps yet."
+      />
+    )
   }
 
   // Duration is a neutral MEASURE (zinc), not a status — a slim per-step bar
