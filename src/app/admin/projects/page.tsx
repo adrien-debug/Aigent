@@ -2,6 +2,7 @@ import { PlusIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
 import type { Metadata } from 'next'
 
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { ProjectCard } from '@/components/agent-ops/project-card'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
 import { surfaceCardClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
@@ -79,15 +80,17 @@ export default async function ProjectsPage() {
               ))}
             </div>
           ) : (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-              <p className="text-sm font-medium text-white">No projects yet</p>
-              <p className="text-xs text-zinc-500">
-                Register the first product surface to start assigning copilots.
-              </p>
-              <Button href="/admin/projects/new" color="accent" className="mt-2">
-                <PlusIcon />
-                New Project
-              </Button>
+            <div className="flex flex-1 items-center justify-center">
+              <EmptyState
+                title="No projects yet"
+                description="Register the first product surface to start assigning copilots."
+                action={
+                  <Button href="/admin/projects/new" color="accent">
+                    <PlusIcon />
+                    New Project
+                  </Button>
+                }
+              />
             </div>
           )}
         </div>
