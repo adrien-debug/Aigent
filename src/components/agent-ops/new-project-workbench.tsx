@@ -322,7 +322,7 @@ export function NewProjectWorkbench() {
             <EmptyState icon={FolderIcon} title="This repository is empty." />
           ) : (
             <div className="space-y-3">
-              <ul className="no-scrollbar max-h-[28rem] overflow-y-auto font-mono text-sm">
+              <ul className="no-scrollbar max-h-[28rem] overflow-x-auto overflow-y-auto font-mono text-sm">
                 {visibleTree.map((entry) => {
                   const depth = entry.path.split('/').length - 1
                   const label = entry.path.split('/').pop() ?? entry.path
