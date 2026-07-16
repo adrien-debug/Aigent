@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { ensureAgentSuites } from '@/lib/agent-mission-control/agent-suite-generator'
+import { pgrest } from '@/lib/agent-mission-control/postgrest'
 
 /**
  * POST /api/agent-ops/copilots/:copilotId/tests/generate — generate the test +
@@ -14,16 +15,16 @@ import { ensureAgentSuites } from '@/lib/agent-mission-control/agent-suite-gener
  * This route ONLY generates the suite — it does NOT run the tests. Running is
  * the existing "Run tests" button, which activates once the suite exists.
  *
- * Response: { ok: true; testSuiteId; benchmarkSuiteId } when a suite was
- * created, or { ok: true; alreadyExists: true } when `ensureAgentSuites`
- * skipped (a suite already exists, or the manifest context was not found — the
- * UI refreshes and reads the real state either way).
+ * Response: { ok: true; testSuiteId; benchmarkSuiteId; suiteSource; repoFit }
+ * when a suite was created, or { ok: true; alreadyExists: true } when
+ * `ensureAgentSuites` skipped because a suite already exists (idempotent
+ * success — the UI refreshes and reads the real state).
  *
- * Errors: 400 (malformed copilotId), 409 (a generation is already in flight for
- * this copilot), 503 (backend/env not configured), 502 (LLM / PostgREST
- * failure). Mirrors the sibling tests/run route's fail-closed style. Auth is
- * enforced upstream by src/proxy.ts (admin session OR x-amc-key) for all
- * /api/agent-ops.
+ * Errors: 400 (malformed copilotId), 404 (copilot not found), 409 (a
+ * generation is already in flight for this copilot), 503 (backend/env not
+ * configured), 502 (LLM / PostgREST failure). Mirrors the sibling tests/run
+ * route's fail-closed style. Auth is enforced upstream by src/proxy.ts (admin
+ * session OR x-amc-key) for all /api/agent-ops.
  */
 
 /**
@@ -68,11 +69,20 @@ export async function POST(_request: Request, { params }: { params: Promise<{ co
   inFlight.add(copilotId)
 
   try {
-    // Returns the created suite ids, or null when it skipped (a suite already
-    // exists, or the manifest context was not found). Null is not an error —
-    // the UI refreshes and renders whatever state actually persisted.
+    // Returns the created suite ids, or null when it skipped. Null conflates
+    // two cases the HTTP contract must keep apart: "a suite already exists"
+    // (idempotent success → 200 alreadyExists) and "the copilot does not
+    // exist" (→ 404, like every sibling copilot route). Disambiguate with an
+    // existence check — only on the rare null path, never on the happy path.
     const suites = await ensureAgentSuites(copilotId)
     if (!suites) {
+      const rows = await pgrest<Record<string, unknown>[]>(
+        'GET',
+        `copilots?id=eq.${encodeURIComponent(copilotId)}&select=id&limit=1`
+      )
+      if (rows.length === 0) {
+        return NextResponse.json({ error: 'copilot not found' }, { status: 404 })
+      }
       return NextResponse.json({ ok: true, alreadyExists: true })
     }
     return NextResponse.json({ ok: true, ...suites })
