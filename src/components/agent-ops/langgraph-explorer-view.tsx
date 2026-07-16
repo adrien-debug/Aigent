@@ -142,7 +142,7 @@ export function LangGraphExplorerView({
         <div className="flex-1 p-6 flex flex-col gap-4 border-b md:border-b-0 md:border-r border-white/5">
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-xl bg-[var(--accent-soft)] ring-1 ring-[var(--accent-line)]">
-              <ServerStackIcon className="size-5 text-accent-400" />
+              <ServerStackIcon className="size-5 text-accent-400" aria-hidden="true" />
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-white">Agent Server</span>
@@ -153,7 +153,7 @@ export function LangGraphExplorerView({
         <div className="flex-1 p-6 flex flex-col gap-4 border-b md:border-b-0 md:border-r border-white/5">
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-xl bg-[var(--accent-soft)] ring-1 ring-[var(--accent-line)]">
-              <CpuChipIcon className="size-5 text-accent-400" />
+              <CpuChipIcon className="size-5 text-accent-400" aria-hidden="true" />
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-white">Shared Graph</span>
@@ -176,10 +176,11 @@ export function LangGraphExplorerView({
             href={studioUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex size-11 items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white ring-1 ring-white/10 transition-colors"
+            className="flex size-11 items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white ring-1 ring-white/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-line-strong)]"
             title="Open LangGraph Studio"
+            aria-label="Open LangGraph Studio (opens in a new tab)"
           >
-            <ArrowTopRightOnSquareIcon className="size-5" />
+            <ArrowTopRightOnSquareIcon className="size-5" aria-hidden="true" />
           </a>
         </div>
       </div>
@@ -237,7 +238,7 @@ export function LangGraphExplorerView({
             <div className="flex-1 p-6 max-h-[600px] overflow-y-auto">
               {!selected ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
-                  <BoltIcon className="size-8 text-zinc-600 mb-3" />
+                  <BoltIcon className="size-8 text-zinc-600 mb-3" aria-hidden="true" />
                   <p className="text-sm text-zinc-400">Select a thread to view its state.</p>
                 </div>
               ) : detailLoading ? (
