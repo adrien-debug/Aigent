@@ -43,7 +43,7 @@ export function AgentPageHeader({
                     {crumb.href ? (
                       <Link
                         href={crumb.href}
-                        className="text-[13px] text-zinc-500 hover:text-white transition-colors"
+                        className="-my-2 -mx-1 inline-flex items-center px-1 py-2 text-[13px] text-zinc-500 transition-colors hover:text-white"
                       >
                         {crumb.label}
                       </Link>
