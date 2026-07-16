@@ -204,7 +204,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent-500"
             />
             <motion.nav
               id="mobile-nav-drawer"
