@@ -32,6 +32,13 @@ import { scanProjectRepo } from '@/lib/agent-mission-control/repo-scan'
  */
 const PROJECT_ID_RE = /^[a-z0-9-]{1,200}$/
 
+// The runId is a LangGraph thread_id — always a randomUUID() minted server-side
+// (startAgentBuilderRun returns result.threadId). It flows straight into the
+// Agent Server URL path (`threads/{id}/state`, `threads/{id}/runs/wait`) via
+// the SDK client which does NOT encode it, so constrain its shape to a UUID
+// BEFORE it leaves for the upstream (same guard as architect/runs/[id]).
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   if (!PROJECT_ID_RE.test(id)) {
@@ -52,6 +59,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   if (typeof body.runId !== 'string' || body.runId.trim().length === 0) {
     return NextResponse.json({ error: 'runId is required' }, { status: 400 })
+  }
+  if (!UUID_RE.test(body.runId)) {
+    return NextResponse.json({ error: 'invalid runId' }, { status: 400 })
   }
   if (typeof body.approved !== 'boolean') {
     return NextResponse.json({ error: 'approved must be a boolean' }, { status: 400 })
