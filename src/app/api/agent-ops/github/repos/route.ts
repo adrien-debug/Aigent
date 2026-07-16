@@ -12,7 +12,8 @@ import { listRepos } from '@/lib/agent-mission-control/github'
  * file/route.ts and tree/route.ts must guard against.
  *
  * Fail-closed 503 when GITHUB_TOKEN is absent — never fakes a repo list.
- * Upstream GitHub failure → 502 { error }. Mirrors copilots/route.ts.
+ * Upstream GitHub failure → 502 { error } ; upstream timeout → 504 { error }.
+ * Mirrors copilots/route.ts.
  */
 export async function GET() {
   // Fail-closed 503 when GitHub is not configured — never fabricate repos.
@@ -28,6 +29,12 @@ export async function GET() {
     // 502 so nothing internal leaks to the client. Mirrors ../tree/route.ts and
     // ../file/route.ts.
     console.error('[agent-ops/github/repos] listRepos failed:', err)
+    // gh() (github.ts) remaps AbortSignal timeouts into an Error whose message
+    // reads "GitHub request timed out after <n>ms on <method> <path>" — that is
+    // a gateway timeout, not a generic upstream failure: surface it as 504.
+    if (err instanceof Error && err.message.includes('timed out after')) {
+      return NextResponse.json({ error: 'GitHub timeout' }, { status: 504 })
+    }
     return NextResponse.json({ error: 'GitHub error' }, { status: 502 })
   }
 }
