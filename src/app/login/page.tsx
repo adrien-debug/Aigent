@@ -78,7 +78,7 @@ function LoginForm() {
         </Field>
 
         {error ? (
-          <p className="mt-3 text-sm/6 text-accent-400" role="alert" aria-live="polite">
+          <p className="mt-3 text-sm/6 font-semibold text-accent-700 dark:text-accent-400" role="alert" aria-live="polite">
             {error}
           </p>
         ) : null}
