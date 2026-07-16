@@ -55,18 +55,18 @@ export function RunDetailPanel({
           </div>
           {run.traceUrl && (
             <Button href={run.traceUrl} target="_blank" rel="noreferrer" outline className="shrink-0">
-              <ArrowTopRightOnSquareIcon data-slot="icon" />
+              <ArrowTopRightOnSquareIcon data-slot="icon" aria-hidden="true" />
               Open Trace
             </Button>
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Stat label="Status" value={AGENT_RUN_STATUS_LABELS[run.status]} emphasis={run.status !== 'completed'} />
           <Stat label="Duration" value={formatDurationMs(run.latencyMs)} />
           <Stat label="Cost" value={formatUsd(run.costUsd)} />
           <Stat label="Version" value={versionLabel ?? <span className="text-zinc-500">—</span>} />
-        </div>
+        </dl>
       </div>
 
       <div className="flex-1 p-6 overflow-y-auto no-scrollbar bg-[var(--color-surface-primary)]/30">
