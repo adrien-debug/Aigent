@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import OpenAI from 'openai'
 
 import { getOpenAIClient, ARCHITECT_MODEL } from '@/lib/agent-mission-control/llm-client'
 import { ARCHITECT_SYSTEM_PROMPT, ARCHITECT_TOOL } from '@/lib/agent-mission-control/architect-prompt'
@@ -108,6 +109,11 @@ export async function POST(request: Request) {
     )
   } catch (err) {
     console.error('[agent-ops/architect] OpenAI API call failed', err)
+    // Contract: upstream failure → 502, upstream timeout → 504. The SDK throws
+    // APIConnectionTimeoutError when OPENAI_REQUEST_TIMEOUT_MS elapses.
+    if (err instanceof OpenAI.APIConnectionTimeoutError) {
+      return NextResponse.json({ error: 'OpenAI request timed out' }, { status: 504 })
+    }
     return NextResponse.json({ error: 'OpenAI API call failed' }, { status: 502 })
   }
 
