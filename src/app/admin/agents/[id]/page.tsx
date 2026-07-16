@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 
 import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
 import { AgentSkillsCard } from '@/components/agent-ops/agent-skills-card'
+import { DeliveryScorecardCard } from '@/components/agent-ops/delivery-scorecard-card'
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { ArchitectureStrip } from '@/components/agent-ops/architecture-strip'
 import { CopilotProjectActions } from '@/components/agent-ops/copilot-project-actions'
@@ -732,6 +733,10 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
       <AgentSectionCard title="Architecture" description="Execution path enforced on every run">
         <ArchitectureStrip steps={architectureSteps} />
       </AgentSectionCard>
+
+      {/* 3a — Delivery scorecard (repo-fit + run-backed signals, non-blocking).
+          Skipped on a sparse draft — nothing measured yet to aggregate. */}
+      {!isSparseDraft ? <DeliveryScorecardCard copilotId={copilot.id} /> : null}
 
       {/* 3b — Skills, aggregating role + enabled tools + guardrails */}
       <AgentSkillsCard manifest={manifest} enabledTools={enabledTools} />
