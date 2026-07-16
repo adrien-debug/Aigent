@@ -65,6 +65,21 @@ import type {
   UsdAmount,
 } from './types'
 
+/**
+ * The suite has no tasks to execute — in V1 the corpus is sourced from the
+ * copilot's test cases, so an empty corpus is a client/data state ("add test
+ * cases first"), not an upstream failure. Typed sentinel (same philosophy as
+ * runner-errors.ts) so the route can map it to 409 — the status this family
+ * uses for "current state doesn't allow the operation" — instead of the
+ * generic 502.
+ */
+export class NoRunnableTasksError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'NoRunnableTasksError'
+  }
+}
+
 export interface RunBenchmarkSuiteArgs {
   copilotId: string
   suiteId: string
@@ -603,10 +618,10 @@ export async function runBenchmarkSuite(args: RunBenchmarkSuiteArgs): Promise<Be
       finished_at: finishedAt,
       status: 'aborted',
     })
-    const why = aborted
-      ? `benchmark run aborted: ${abortReason}`
-      : 'benchmark suite has no runnable tasks (no test cases to source from in V1)'
-    throw new Error(why)
+    if (aborted) throw new Error(`benchmark run aborted: ${abortReason}`)
+    throw new NoRunnableTasksError(
+      'benchmark suite has no runnable tasks — add test cases to this copilot first (V1 sources benchmark tasks from its test cases)'
+    )
   }
 
   // 2) Aggregate into a BenchmarkResult.

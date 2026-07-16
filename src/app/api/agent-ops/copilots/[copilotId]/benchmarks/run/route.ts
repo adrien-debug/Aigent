@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { runBenchmarkSuite } from '@/lib/agent-mission-control/benchmark-runner'
+import { NoRunnableTasksError, runBenchmarkSuite } from '@/lib/agent-mission-control/benchmark-runner'
 import { pgrest } from '@/lib/agent-mission-control/postgrest'
 import { NotFoundError, ProviderUnavailableError } from '@/lib/agent-mission-control/runner-errors'
 import type { AgentRuntime, BenchmarkRun, ModelProvider } from '@/lib/agent-mission-control/types'
@@ -30,7 +30,9 @@ const MAX_ID_LENGTH = 200
  * Response: { ok: true; benchmarkRun: BenchmarkRun }
  *
  * Errors mirror the test-runner route (400 / 404 / 503 / 502), plus a 409 when
- * a benchmark run is already in progress for this suite/copilot.
+ * a benchmark run is already in progress for this suite/copilot or when the
+ * suite has no runnable tasks (empty corpus — a data state, not an upstream
+ * failure).
  */
 export async function POST(request: Request, { params }: { params: Promise<{ copilotId: string }> }) {
   const { copilotId } = await params
@@ -123,14 +125,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     })
     return NextResponse.json({ ok: true, benchmarkRun })
   } catch (err) {
-    // Typed mapping: missing/mismatched resource → 404; provider env not
-    // configured → 503; everything else (model access / OpenAI / PostgREST /
-    // no runnable tasks / abort) → 502. NotFoundError/ProviderUnavailableError
-    // messages are hand-authored and safe to forward; the generic fallback is
-    // NOT — runBenchmarkSuite's abort path can embed raw PostgREST response
-    // detail, so log it server-side and return a generic message instead.
+    // Typed mapping: missing/mismatched resource → 404; empty corpus (no
+    // runnable tasks — a client/data state, same 409 family as the in-flight
+    // guard above and the improve routes' state conflicts) → 409; provider env
+    // not configured → 503; everything else (model access / OpenAI / PostgREST
+    // / abort) → 502. NotFoundError/NoRunnableTasksError/
+    // ProviderUnavailableError messages are hand-authored and safe to forward;
+    // the generic fallback is NOT — runBenchmarkSuite's abort path can embed
+    // raw PostgREST response detail, so log it server-side and return a
+    // generic message instead.
     if (err instanceof NotFoundError) {
       return NextResponse.json({ error: err.message }, { status: 404 })
+    }
+    if (err instanceof NoRunnableTasksError) {
+      return NextResponse.json({ error: err.message }, { status: 409 })
     }
     if (err instanceof ProviderUnavailableError) {
       return NextResponse.json({ error: err.message }, { status: 503 })
