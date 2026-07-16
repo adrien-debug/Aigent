@@ -47,6 +47,13 @@ export async function POST() {
   } catch (err) {
     // Never forward raw PostgREST error text (schema/constraint internals).
     console.error('[agent-ops/provision-agent-builder] provisioning failed', err)
-    return NextResponse.json({ error: 'failed to provision Agent Builder' }, { status: 502 })
+    // pgrest() rethrows its 30s abort as PgrestError(504) — keep that
+    // distinction on the wire: 504 = backend timed out, 502 = backend failed.
+    const timedOut =
+      err instanceof Error && err.name === 'PgrestError' && (err as Error & { status?: number }).status === 504
+    return NextResponse.json(
+      { error: timedOut ? 'Agent Builder provisioning timed out' : 'failed to provision Agent Builder' },
+      { status: timedOut ? 504 : 502 }
+    )
   }
 }
