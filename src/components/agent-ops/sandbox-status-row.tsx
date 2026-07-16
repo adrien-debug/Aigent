@@ -101,7 +101,7 @@ export function SandboxStatusRow({
           <span className="text-zinc-500 dark:text-zinc-400">· {formatTimestamp(delivery.createdAt)}</span>
         </div>
       ) : null}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="text-zinc-500 dark:text-zinc-400">Target repo sandbox</span>
           {latest ? (
@@ -121,7 +121,7 @@ export function SandboxStatusRow({
             <span className="font-mono text-zinc-500 dark:text-zinc-400">not run</span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button plain onClick={() => run('dry_run')} disabled={running !== null}>
             {running === 'dry_run' ? (
               <span className="inline-flex items-center gap-2">
