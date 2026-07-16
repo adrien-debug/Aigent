@@ -114,13 +114,15 @@ export async function TestsSection({ copilotId }: { copilotId: string }) {
             return (
               <div key={suite.id} className="flex flex-col gap-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex size-8 items-center justify-center rounded-lg bg-[var(--accent-soft)] ring-1 ring-[var(--accent-line)]">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-soft)] ring-1 ring-[var(--accent-line)]">
                       <BeakerIcon aria-hidden="true" className="size-4 text-accent-400" />
                     </div>
-                    <div className="flex flex-col">
-                      <h3 className="text-sm font-semibold text-white">{suite.name}</h3>
-                      <span className="text-xs text-zinc-500">
+                    <div className="flex min-w-0 flex-col">
+                      <h3 className="truncate text-sm font-semibold text-white" title={suite.name}>
+                        {suite.name}
+                      </h3>
+                      <span className="truncate text-xs text-zinc-500">
                         {suiteKindConfig[suite.kind].label} &bull; {cases.length} cases
                       </span>
                     </div>
