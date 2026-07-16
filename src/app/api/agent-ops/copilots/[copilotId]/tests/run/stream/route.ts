@@ -19,16 +19,26 @@ import type { TestRun } from '@/lib/agent-mission-control/types'
  *   - a terminal `{ type: 'done', testRun }` once the run resolves, OR
  *   - `{ type: 'error' }` if it throws (generic — no raw error forwarded).
  *
- * Same fail-closed gates as the JSON route (id-implicit via PostgREST, env/live
- * backend 503, double-submit 409). Auth is enforced upstream by `src/proxy.ts`
- * — no auth added here, none removed.
+ * Same fail-closed gates as the JSON route (env/live backend 503, double-submit
+ * 409), plus every dynamic id (copilotId, suiteId, versionId) is bounded +
+ * charset-checked (400) before reaching PostgREST/runTestSuite. Auth is
+ * enforced upstream by `src/proxy.ts` — no auth added here, none removed.
  */
 function sseEvent(payload: Record<string, unknown>): string {
   return `data: ${JSON.stringify(payload)}\n\n`
 }
 
+// Copilot/suite/version ids are makeId() slugs (`cp-…`, `ts-…`, `ver-…`):
+// lowercase alphanumeric + hyphens. Bound + charset-check every dynamic id
+// before it flows into the PostgREST filter and runTestSuite (same guard
+// shape as the sibling benchmarks/run and improve/decision routes).
+const ID_RE = /^[a-z0-9-]{1,200}$/
+
 export async function POST(request: Request, { params }: { params: Promise<{ copilotId: string }> }) {
   const { copilotId } = await params
+  if (!ID_RE.test(copilotId)) {
+    return NextResponse.json({ error: 'invalid copilotId' }, { status: 400 })
+  }
 
   let body: { suiteId?: string; versionId?: string; allowFallback?: boolean }
   try {
@@ -36,10 +46,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   } catch {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
   }
-  if (typeof body.suiteId !== 'string' || body.suiteId.trim().length === 0) {
+  if (typeof body.suiteId !== 'string' || !ID_RE.test(body.suiteId)) {
     return NextResponse.json({ error: 'suiteId is required' }, { status: 400 })
   }
-  if (body.versionId !== undefined && typeof body.versionId !== 'string') {
+  if (body.versionId !== undefined && (typeof body.versionId !== 'string' || !ID_RE.test(body.versionId))) {
     return NextResponse.json({ error: 'versionId must be a string' }, { status: 400 })
   }
   if (body.allowFallback !== undefined && typeof body.allowFallback !== 'boolean') {
@@ -110,8 +120,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
         console.error('[agent-ops/copilots/tests/run/stream] test run failed', err)
         push({ type: 'error', error: 'test run failed' })
       } finally {
+        // If the client aborted mid-run, cancel() already released the
+        // controller and close() throws — guard it like push() guards enqueue.
+        const wasClosed = closed
         closed = true
-        controller.close()
+        if (!wasClosed) {
+          try {
+            controller.close()
+          } catch {
+            // Controller already closed client-side — ignore.
+          }
+        }
       }
     },
     cancel() {
