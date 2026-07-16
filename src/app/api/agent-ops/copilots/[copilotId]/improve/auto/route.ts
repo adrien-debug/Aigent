@@ -5,6 +5,7 @@ import {
   type AutoImproveEvent,
   type AutoImprovementResult,
 } from '@/lib/agent-mission-control/improvement-loop'
+import { pgrest } from '@/lib/agent-mission-control/postgrest'
 
 /** The SSE frames this route emits: the per-step events + a terminal done/error. */
 type AutoFrame =
@@ -36,8 +37,11 @@ type AutoFrame =
  *
  * Same fail-closed gate as the sibling improve/analyze + tests/run/stream
  * routes (env + live gpu1 backend + OpenAI). Auth is enforced upstream by
- * `src/proxy.ts` — no auth added here, none removed. A cycle already running
- * for the same copilot (double-submission) → 409 before anything mutates.
+ * `src/proxy.ts` — no auth added here, none removed. Pre-stream errors are
+ * HTTP statuses: 400 (bad id/body), 503 (backend/OpenAI env missing),
+ * 404 (copilot not found), 502 (existence check failed upstream), 409 (a
+ * cycle already running for the same copilot — double-submission) — all
+ * before anything mutates; only mid-stream failures are SSE frames.
  */
 
 // Same id shape family as the sibling improve/promotion routes — fast 400 on
@@ -115,6 +119,28 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (process.env.AMC_DATA_SOURCE !== 'gpu1' || !base || !key || !process.env.OPENAI_API_KEY) {
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
+  }
+
+  // Existence check BEFORE the stream opens: an unknown copilot must be an
+  // HTTP 404 (family contract — run/promotion/delivery-loop/analyze), never a
+  // 200 stream. Without this, the loop's first analyzeAndPropose throws
+  // NotFoundError('copilot not found'), which the cycle treats as a CLEAN
+  // "nothing to improve" stop — i.e. a fake converged/done success frame for
+  // a copilot that does not exist. Pre-stream errors are HTTP statuses; only
+  // mid-stream failures belong in frames.
+  try {
+    const rows = await pgrest<Record<string, unknown>[]>(
+      'GET',
+      `copilots?id=eq.${encodeURIComponent(copilotId)}&select=id&limit=1`
+    )
+    if (rows.length === 0) {
+      return NextResponse.json({ error: 'copilot not found' }, { status: 404 })
+    }
+  } catch (err) {
+    // Never forward raw PostgREST detail — log server-side, generic 502
+    // (same shape as the sibling stream route's pre-stream pgrest check).
+    console.error('[agent-ops/improve/auto] failed to load copilot', err)
+    return NextResponse.json({ error: 'failed to load copilot' }, { status: 502 })
   }
 
   if (inFlight.has(copilotId)) {
