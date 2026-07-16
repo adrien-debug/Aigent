@@ -57,7 +57,7 @@ export function ManifestRecap({ manifest, showLimits }: ManifestRecapProps) {
         Manifest summary
       </p>
 
-      <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
+      <p className="mt-2 text-sm break-words text-zinc-700 dark:text-zinc-300">
         {truncate(manifest.systemPromptSummary, MANIFEST_PREVIEW_LENGTH)}
       </p>
 
