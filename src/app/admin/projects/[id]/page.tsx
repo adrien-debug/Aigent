@@ -192,8 +192,9 @@ function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copil
                       href={run.traceUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center justify-center size-11 -my-3.5 rounded-md text-zinc-500 transition-colors hover:text-accent-400 hover:bg-[var(--accent-soft)]"
+                      aria-label={`Open trace for run ${run.id} in LangSmith`}
                       title="Open trace in LangSmith"
+                      className="inline-flex items-center justify-center size-11 -my-3.5 rounded-md text-zinc-500 outline-offset-2 transition-colors hover:text-accent-400 hover:bg-[var(--accent-soft)] focus-visible:outline-2 focus-visible:outline-accent-500"
                     >
                       <ArrowTopRightOnSquareIcon className="size-4" />
                     </a>
