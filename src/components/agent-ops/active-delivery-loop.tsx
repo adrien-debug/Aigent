@@ -31,7 +31,7 @@ function StepPill({ label, state }: { label: string; state: DeliveryStepState })
       )}
     >
       <span className="inline-flex items-center gap-1">
-        {state === 'failed' ? <ExclamationTriangleIcon className="size-3 text-zinc-400" /> : null}
+        {state === 'failed' ? <ExclamationTriangleIcon aria-hidden="true" className="size-3 text-zinc-400" /> : null}
         {label}
       </span>
     </span>
