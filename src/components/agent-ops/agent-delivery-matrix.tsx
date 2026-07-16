@@ -34,7 +34,7 @@ export function AgentDeliveryMatrix({ rows }: { rows: DeliveryMatrixRow[] }) {
         <div className="overflow-x-auto no-scrollbar">
           <Table className="min-w-[960px]">
             <TableHead>
-              <TableRow className="border-b border-white/5 bg-black/40">
+              <TableRow className="border-b border-white/5 bg-black/20">
                 <TableHeader>Agent</TableHeader>
                 <TableHeader>Target Repo</TableHeader>
                 <TableHeader className="text-right">RepoFit</TableHeader>
