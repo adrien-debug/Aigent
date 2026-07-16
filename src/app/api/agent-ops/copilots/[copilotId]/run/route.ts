@@ -90,9 +90,11 @@ export async function POST(
   // 1) Load the copilot: model, project, and which version is serving.
   let copilotRow: Record<string, unknown>
   try {
+    // Narrow select (repo pattern — see promotion/route.ts, resume/route.ts):
+    // only the columns this handler reads, never `*`.
     const rows = await pgrest<Record<string, unknown>[]>(
       'GET',
-      `copilots?id=eq.${encodeURIComponent(copilotId)}&select=*`
+      `copilots?id=eq.${encodeURIComponent(copilotId)}&select=name,model,model_provider,project_id,production_version_id,latest_version_id`
     )
     if (rows.length === 0) {
       return NextResponse.json({ error: 'copilot not found' }, { status: 404 })
@@ -128,7 +130,7 @@ export async function POST(
   try {
     const versionRows = await pgrest<Record<string, unknown>[]>(
       'GET',
-      `copilot_versions?id=eq.${encodeURIComponent(versionId)}&select=*`
+      `copilot_versions?id=eq.${encodeURIComponent(versionId)}&select=manifest_id`
     )
     if (versionRows.length === 0) {
       return NextResponse.json({ error: 'version not found' }, { status: 404 })
@@ -137,7 +139,7 @@ export async function POST(
     if (manifestId) {
       const manifestRows = await pgrest<Record<string, unknown>[]>(
         'GET',
-        `manifests?id=eq.${encodeURIComponent(manifestId)}&select=*`
+        `manifests?id=eq.${encodeURIComponent(manifestId)}&select=system_prompt_summary,max_steps_per_run`
       )
       const manifestRow = manifestRows[0]
       if (manifestRow) {
