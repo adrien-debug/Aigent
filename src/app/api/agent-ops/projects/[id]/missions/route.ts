@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 
 import { runMission } from '@/lib/agent-mission-control/mission-orchestrator-server'
 
@@ -8,6 +9,23 @@ import { runMission } from '@/lib/agent-mission-control/mission-orchestrator-ser
  * Never writes to GitHub, never merges, never opens PRs.
  */
 const PROJECT_ID_RE = /^[a-z0-9-]{1,200}$/
+const MAX_OBJECTIVE_LENGTH = 4_000
+const MAX_BRANCH_LENGTH = 200
+
+/**
+ * Body is untrusted: `objective` and `branch` are persisted to DB
+ * (mission_runs) and echoed in the report, so both are bounded; `mode` is a
+ * closed enum (only evidence_v1 exists) so an unknown mode is a 400 rather
+ * than silently running the default. Absent/empty body keeps the historical
+ * defaults (the route is callable without a body via x-amc-key).
+ */
+const bodySchema = z
+  .object({
+    objective: z.string().max(MAX_OBJECTIVE_LENGTH).optional(),
+    mode: z.literal('evidence_v1').optional(),
+    branch: z.string().max(MAX_BRANCH_LENGTH).optional(),
+  })
+  .strip()
 
 function envReady(): boolean {
   return (
@@ -27,19 +45,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   let objective = 'Mission objective'
-  let mode = 'evidence_v1' as const
+  const mode = 'evidence_v1' as const
   let branch: string | undefined
-  try {
-    const body = (await request.json().catch(() => null)) as
-      | { objective?: unknown; mode?: unknown; branch?: unknown }
-      | null
-    if (typeof body?.objective === 'string' && body.objective.trim()) {
-      objective = body.objective.trim()
+  const raw: unknown = await request.json().catch(() => null)
+  if (raw !== null && raw !== undefined) {
+    const parsed = bodySchema.safeParse(raw)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'invalid body' }, { status: 400 })
     }
-    if (body?.mode === 'evidence_v1') mode = 'evidence_v1'
-    if (typeof body?.branch === 'string' && body.branch.trim()) branch = body.branch.trim()
-  } catch {
-    // defaults
+    const trimmedObjective = parsed.data.objective?.trim()
+    if (trimmedObjective) objective = trimmedObjective
+    const trimmedBranch = parsed.data.branch?.trim()
+    if (trimmedBranch) branch = trimmedBranch
   }
 
   try {
