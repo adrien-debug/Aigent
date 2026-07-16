@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { getProject } from '@/lib/agent-mission-control/data'
 import {
   postProjectBuilderMessage,
   postProjectBuilderMessageStream,
@@ -45,6 +46,14 @@ function sseEvent(payload: Record<string, unknown>): string {
   return `data: ${JSON.stringify(payload)}\n\n`
 }
 
+/**
+ * PgrestError(504) from the shared postgrest client (30s cap) — an upstream
+ * TIMEOUT the client should see as 504, not folded into the generic 502.
+ */
+function isUpstreamTimeout(err: unknown): boolean {
+  return err instanceof Error && err.name === 'PgrestError' && (err as Error & { status?: unknown }).status === 504
+}
+
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   if (!PROJECT_ID_RE.test(id)) {
@@ -68,6 +77,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   const content = body.content
 
+  // The project must exist for a builder conversation to attach to it —
+  // project_builder_conversations has a FK on projects(id), so an unknown or
+  // just-deleted project id would otherwise surface as a PostgREST FK
+  // violation → generic 502 instead of the 404 the client can act on.
+  // Same pre-check as the ../resume sister route. Runs BEFORE the transport
+  // branch so the SSE path answers with a real HTTP 404 pre-stream too.
+  try {
+    if (!(await getProject(id))) {
+      return NextResponse.json({ error: 'project not found' }, { status: 404 })
+    }
+  } catch (err) {
+    console.error('[agent-ops/projects/builder/message] failed to check project', err)
+    return NextResponse.json({ error: 'failed to check project' }, { status: isUpstreamTimeout(err) ? 504 : 502 })
+  }
+
   if (!wantsStream(request)) {
     try {
       const bundle = await postProjectBuilderMessage(id, content)
@@ -78,7 +102,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         return NextResponse.json({ error: message }, { status: 409 })
       }
       console.error('[agent-ops/projects/builder/message] POST failed', err)
-      return NextResponse.json({ error: 'architect message failed' }, { status: 502 })
+      return NextResponse.json({ error: 'architect message failed' }, { status: isUpstreamTimeout(err) ? 504 : 502 })
     }
   }
 
