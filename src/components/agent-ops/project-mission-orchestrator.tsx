@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { surfaceInsetClass } from '@/components/agent-ops/surface-card'
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Textarea } from '@/components/catalyst/textarea'
@@ -239,7 +240,7 @@ export function ProjectMissionOrchestrator({
         {showReport && <MissionReportPanel report={report} />}
 
         {phase === 'idle' && !report && !error && !hydrateWarning && (
-          <p className="text-sm text-zinc-500">No mission run yet — set an objective and run one.</p>
+          <EmptyState title="No mission run yet" description="Set an objective and run one." className="px-0 py-6" />
         )}
       </div>
     </AgentSectionCard>
