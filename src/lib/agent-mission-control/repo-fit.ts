@@ -138,8 +138,47 @@ function routeIsKnown(cited: string, known: string[]): boolean {
 
 // Coverage keyword sets — a signal is "covered" if any case text hits one.
 const DS_KEYWORDS = ['design system', 'design-system', 'catalyst', 'check:ds', 'check:catalyst', 'tokens', 'palette', 'accent color', 'ds gate']
-const SECRET_KEYWORDS = ['secret', 'process.env', 'api key', 'api_key', 'service role', 'service_role', 'credential', 'token', 'redact', 'leak']
-const RISK_KEYWORDS = ['review before delete', 'do not auto-delete', 'not auto-delete', "don't delete", 'flag', 'residue', 'dead code', 'evidence', 'recommend review', 'risk']
+const SECRET_KEYWORDS = [
+  'secret',
+  'process.env',
+  'api key',
+  'api_key',
+  'service role',
+  'service_role',
+  'credential',
+  'token',
+  'redact',
+  'leak',
+  '.env tracked',
+  'tracked .env',
+  'tracked in the repo',
+  'secret exposure',
+]
+const RISK_KEYWORDS = [
+  'review before delete',
+  'do not auto-delete',
+  'not auto-delete',
+  "don't delete",
+  'flag',
+  'residue',
+  'dead code',
+  'evidence',
+  'recommend review',
+  'risk',
+]
+const API_ROUTE_KEYWORDS = [
+  'invent',
+  'hallucinat',
+  'real route',
+  'absent route',
+  'does not exist',
+  'only cite',
+  'never invent',
+  'no route',
+  'route scope',
+]
+
+const MANY_API_ROUTES_THRESHOLD = 5
 
 function anyCaseHits(text: string, keywords: string[]): string | null {
   for (const k of keywords) if (text.includes(k)) return k
@@ -224,13 +263,23 @@ export function computeRepoFit(input: RepoFitInput): RepoFitResult {
   if (!repoAware || !map) {
     checks.push({ id: 'coverage', label: 'Repo signals covered', status: 'skip', evidence: 'no repo signals' })
   } else {
+    const hasTrackedEnv = (map.riskNotes ?? []).some((n) => /\.env.*tracked|tracked.*\.env/i.test(n))
     const expected: { key: string; present: boolean; hit: string | null }[] = [
       { key: 'design_system', present: (map.designSystemSignals ?? []).length > 0, hit: anyCaseHits(text, DS_KEYWORDS) },
-      { key: 'secrets', present: (map.envSignals ?? []).length > 0, hit: anyCaseHits(text, SECRET_KEYWORDS) },
+      {
+        key: 'secrets',
+        present: (map.envSignals ?? []).length > 0 || hasTrackedEnv,
+        hit: anyCaseHits(text, SECRET_KEYWORDS),
+      },
       {
         key: 'repo_risks',
         present: (map.riskNotes ?? []).length > 0 || (input.residueCount ?? 0) > 0,
         hit: anyCaseHits(text, RISK_KEYWORDS),
+      },
+      {
+        key: 'api_routes',
+        present: (map.apiRoutes ?? []).length >= MANY_API_ROUTES_THRESHOLD,
+        hit: anyCaseHits(text, API_ROUTE_KEYWORDS),
       },
     ]
     const relevant = expected.filter((e) => e.present)

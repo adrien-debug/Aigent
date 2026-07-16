@@ -143,7 +143,9 @@ describe('buildGeneratorRequest — repo-aware path', () => {
     expect(req.system).toContain('REPO CONTEXT')
     expect(req.system).toContain('never invent routes, scripts')
     expect(req.system).toContain('design-system gate')
-    expect(req.system).toContain('never leaks or requests a secret')
+    expect(req.system).toContain('REFUSES to read/display .env values')
+    expect(req.system).toContain('tracked .env')
+    expect(req.system).toContain('review-before-delete')
   })
 
   it('repoContextPayload carries only bounded, secret-free signal lists', () => {

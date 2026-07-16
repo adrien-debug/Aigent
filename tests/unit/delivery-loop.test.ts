@@ -186,4 +186,33 @@ describe('evaluateReadiness', () => {
     expect(r.ready).toBe(false)
     expect(r.unmet).toContain('delivery scorecard below delivery_ready')
   })
+
+  it('tool-fit fail blocks readiness', () => {
+    const r = evaluateReadiness({
+      deliveryMode: 'pull_request',
+      prUrl: 'https://github.com/owner/repo/pull/2',
+      report: greenReport(),
+      reportPersisted: true,
+      scorecardLevel: 'excellent',
+      executeStatus: 'passed',
+      toolFitStatus: 'fail',
+    })
+    expect(r.ready).toBe(false)
+    expect(r.unmet.some((u) => u.includes('tool-fit'))).toBe(true)
+  })
+
+  it('risk coverage missing blocks readiness', () => {
+    const r = evaluateReadiness({
+      deliveryMode: 'pull_request',
+      prUrl: 'https://github.com/owner/repo/pull/2',
+      report: greenReport(),
+      reportPersisted: true,
+      scorecardLevel: 'excellent',
+      executeStatus: 'passed',
+      toolFitStatus: 'pass',
+      repoFitMissingCoverage: ['secrets', 'repo_risks'],
+    })
+    expect(r.ready).toBe(false)
+    expect(r.unmet.some((u) => u.includes('risk coverage missing'))).toBe(true)
+  })
 })

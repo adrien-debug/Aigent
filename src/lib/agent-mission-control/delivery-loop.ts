@@ -188,6 +188,10 @@ export interface ReadinessInput {
   scorecardLevel: 'not_ready' | 'safe' | 'delivery_ready' | 'excellent' | null
   /** Was execute run, or explicitly skipped with an accepted reason? */
   executeStatus: 'passed' | 'skipped_accepted' | 'not_run' | 'failed'
+  /** Repo-fit tool-fit check — fail blocks manual test readiness. */
+  toolFitStatus?: 'pass' | 'warn' | 'fail' | 'skip' | null
+  /** Repo-fit missing coverage keys (e.g. secrets, repo_risks). */
+  repoFitMissingCoverage?: string[]
 }
 
 export interface ReadinessResult {
@@ -234,6 +238,14 @@ export function evaluateReadiness(input: ReadinessInput): ReadinessResult {
   // scorecard must be at least delivery_ready.
   if (input.scorecardLevel !== 'delivery_ready' && input.scorecardLevel !== 'excellent') {
     unmet.push('delivery scorecard below delivery_ready')
+  }
+
+  // tool-fit must not be fail for repo-linked inspection agents.
+  if (input.toolFitStatus === 'fail') unmet.push('repo-fit tool-fit is fail (inspection role without repo-read tools)')
+
+  // Critical repo risk coverage must be present when repo-fit was computed.
+  if (input.repoFitMissingCoverage && input.repoFitMissingCoverage.length > 0) {
+    unmet.push(`repo risk coverage missing: ${input.repoFitMissingCoverage.join(', ')}`)
   }
 
   return {

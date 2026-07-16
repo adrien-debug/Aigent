@@ -28,6 +28,7 @@ import {
 } from './data'
 import { evaluateReleaseGate } from './release-gate'
 import { computeRepoFit, type RepoFitCase, type RepoFitResult } from './repo-fit'
+import { effectiveToolNamesForRepoFit } from './repo-read-tools'
 import { loadRepoIntelligence } from './repo-intelligence-store'
 import { buildRepoSuiteContext } from './repo-suite-context'
 
@@ -61,7 +62,11 @@ async function resolveRepoFit(
     return computeRepoFit({
       suiteSource: repoAware ? 'repo_aware' : 'manifest_only',
       cases,
-      toolNames,
+      toolNames: effectiveToolNamesForRepoFit({
+        toolNames,
+        roleText,
+        hasRepo: stored.intelligence.map !== null,
+      }),
       repoMap: stored.intelligence.map,
       residueCount: stored.intelligence.residue?.length ?? 0,
       roleText,

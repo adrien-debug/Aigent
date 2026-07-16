@@ -19,6 +19,7 @@ import {
   deleteProjectAssistant,
 } from './langgraph-assistants'
 import { pgrest, requireBackend } from './postgrest'
+import { augmentProposedToolsWithRepoRead } from './repo-read-tools'
 import { makeId, slugify } from './slug'
 import type { TestSuite } from './types'
 
@@ -112,8 +113,14 @@ export async function createCopilotFromManifest(input: CreateCopilotInput): Prom
   await pgrest<RawRow[]>('POST', 'manifests', manifestPayload)
 
   // 3. tools (from proposedTools), collect their ids, backfill manifest.tool_ids
+  const roleText = `${input.manifest.systemPromptSummary} ${input.description}`
+  const proposedTools = augmentProposedToolsWithRepoRead(
+    input.manifest.proposedTools,
+    roleText,
+    input.projectId !== null
+  )
   const toolIds: string[] = []
-  for (const proposed of input.manifest.proposedTools) {
+  for (const proposed of proposedTools) {
     const toolPayload: RawRow = {
       id: makeId('tool', `${slugify(proposed.name)}-${crypto.randomUUID().slice(0, 8)}`),
       copilot_id: copilotId,

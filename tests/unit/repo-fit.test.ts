@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest'
 
 import { computeRepoFit, routeFilePathToUrl, type RepoFitCase } from '@/lib/agent-mission-control/repo-fit'
 import type { RepoMap } from '@/lib/agent-mission-control/repo-intelligence'
+import { effectiveToolNamesForRepoFit } from '@/lib/agent-mission-control/repo-read-tools'
 
 function repoMap(overrides: Partial<RepoMap> = {}): RepoMap {
   return {
@@ -106,16 +107,58 @@ describe('computeRepoFit', () => {
     expect(r.missingCoverage).toContain('secrets')
   })
 
-  it('7 — inspection role with no read tool → tool-fit fail', () => {
+  it('6b — tracked .env riskNote triggers secrets coverage requirement', () => {
+    const cases = [c('Answers', 'Summarize', 'Answers safely.', ['behavior'])]
+    const r = computeRepoFit({
+      suiteSource: 'repo_aware',
+      cases,
+      toolNames: READ_TOOLS,
+      repoMap: repoMap({ envSignals: [], riskNotes: ['a real .env file appears tracked in the repo'] }),
+      residueCount: 0,
+    })
+    expect(r.missingCoverage).toContain('secrets')
+  })
+
+  it('6c — many API routes without route-scope case → missingCoverage api_routes', () => {
+    const manyRoutes = Array.from({ length: 60 }, (_, i) => `src/app/api/r${i}/route.ts`)
+    const cases = [c('Answers', 'Summarize', 'Answers safely.', ['behavior'])]
+    const r = computeRepoFit({
+      suiteSource: 'repo_aware',
+      cases,
+      toolNames: READ_TOOLS,
+      repoMap: repoMap({ apiRoutes: manyRoutes, designSystemSignals: [], envSignals: [], riskNotes: [] }),
+      residueCount: 0,
+    })
+    expect(r.missingCoverage).toContain('api_routes')
+  })
+
+  it('7 — inspection role with no read tool → tool-fit fail (unless effective tools applied)', () => {
     const r = computeRepoFit({
       suiteSource: 'repo_aware',
       cases: goodCases(),
-      toolNames: [], // no repo-read tool
+      toolNames: [], // no repo-read tool in DB
       repoMap: repoMap(),
       residueCount: 1,
       roleText: 'Inspect and analyze the repo codebase',
     })
     expect(r.checks.find((k) => k.id === 'tool-fit')!.status).toBe('fail')
+  })
+
+  it('7b — BTC inspection with effective repo-read tools → tool-fit pass', () => {
+    const toolNames = effectiveToolNamesForRepoFit({
+      toolNames: [],
+      roleText: 'BTC Alert sentinel — inspect levels and read repo context',
+      hasRepo: true,
+    })
+    const r = computeRepoFit({
+      suiteSource: 'repo_aware',
+      cases: goodCases(),
+      toolNames,
+      repoMap: repoMap(),
+      residueCount: 1,
+      roleText: 'BTC Alert sentinel — inspect levels',
+    })
+    expect(r.checks.find((k) => k.id === 'tool-fit')!.status).toBe('pass')
   })
 
   it('8 — complete repo-aware suite → score >= 80', () => {

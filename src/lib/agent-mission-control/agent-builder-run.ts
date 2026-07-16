@@ -31,6 +31,7 @@ import { agentServerClient, agentServerUrl, AGENT_BUILDER_GRAPH_ID } from './lan
 import { runOnAgentServer, resumeOnAgentServer, type LangGraphServerStep } from './langgraph-server'
 import { resolveRunAssistantId } from './resolve-run-assistant'
 import { slugify } from './slug'
+import { augmentProposedToolsWithRepoRead } from './repo-read-tools'
 import type { AgentSkill, ConfirmationPolicy, ToolRiskLevel } from './types'
 
 /** The Agent Builder's own step budget (mirrors its manifest maxStepsPerRun). */
@@ -495,13 +496,15 @@ export function draftToCreateInput(
   projectId: string | null = null
 ): CreateCopilotInput {
   const name = draft.name?.trim() || 'Drafted Copilot'
-  const proposedTools: ProposedTool[] = tools.map((t) => ({
+  const roleText = `${draft.systemPromptSummary ?? ''} ${draft.description ?? ''}`
+  const rawProposed: ProposedTool[] = tools.map((t) => ({
     name: t.name,
     description: `${t.name} — proposed by Agent Builder`,
     provider: normalizeProvider(t.provider),
     riskLevel: normalizeRisk(t.riskLevel),
     requiresConfirmation: t.requiresConfirmation === true,
   }))
+  const proposedTools = augmentProposedToolsWithRepoRead(rawProposed, roleText, projectId !== null)
 
   return {
     name,

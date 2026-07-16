@@ -35,6 +35,13 @@ import {
   type SuiteSource,
 } from './repo-suite-context'
 import { computeRepoFit, type RepoFitResult } from './repo-fit'
+import {
+  assessRiskCoverage,
+  buildDeterministicRiskCases,
+  riskCoverageRetryPrompt,
+  type RiskCoverageKey,
+} from './repo-risk-coverage'
+import { effectiveToolNamesForRepoFit } from './repo-read-tools'
 import { makeId, slugify } from './slug'
 import type { RepoMap } from './repo-intelligence'
 import type { TestSuite } from './types'
@@ -145,6 +152,10 @@ interface GeneratedSuite {
   benchmark: { name: string; description: string; dimensions: string[]; taskCount: number }
   /** `repo_aware` when repo intelligence grounded the cases, else `manifest_only`. */
   suiteSource: SuiteSource
+  /** Set when repo risks exist but generated cases did not fully cover them. */
+  riskCoverageMissing?: RiskCoverageKey[]
+  /** True when a one-shot LLM retry was attempted for missing risk coverage. */
+  riskCoverageRetried?: boolean
 }
 
 function validateCases(raw: unknown, mounted: Set<string>): NewTestCaseInput[] {
@@ -239,16 +250,20 @@ export function buildGeneratorRequest(ctx: {
   return { system, userPayload, suiteSource: suiteSourceFor(ctx.repoContext) }
 }
 
-async function generateSuite(ctx: ManifestContext): Promise<GeneratedSuite> {
+async function callGenerator(
+  ctx: ManifestContext,
+  extraSystem?: string
+): Promise<{ cases: NewTestCaseInput[]; dims: string[]; suiteSource: SuiteSource } | null> {
   const mounted = new Set(ctx.toolNames)
   const { system, userPayload, suiteSource } = buildGeneratorRequest(ctx)
+  const systemPrompt = extraSystem ? system + '\n\n' + extraSystem : system
   try {
     const res = await routeCompletion({
       purpose: 'architect',
       modelProvider: 'openai',
       model: ARCHITECT_MODEL,
       messages: [
-        { role: 'system', content: system },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: JSON.stringify(userPayload) },
       ],
       responseFormat: 'json',
@@ -257,9 +272,7 @@ async function generateSuite(ctx: ManifestContext): Promise<GeneratedSuite> {
     const cleaned = res.text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
     const parsed = JSON.parse(cleaned) as { testCases?: unknown; benchmarkDimensions?: unknown }
     const cases = validateCases(parsed.testCases, mounted)
-    // Fallback keeps its own suiteSource ('manifest_only') — a generic baseline
-    // is never claimed as repo-grounded even if a repo context was available.
-    if (cases.length < MIN_CASES) return fallbackSuite(ctx)
+    if (cases.length < MIN_CASES) return null
 
     const dims = Array.isArray(parsed.benchmarkDimensions)
       ? parsed.benchmarkDimensions
@@ -268,28 +281,104 @@ async function generateSuite(ctx: ManifestContext): Promise<GeneratedSuite> {
           .slice(0, 5)
       : []
 
-    const grounded = suiteSource === 'repo_aware'
-    return {
-      testSuite: {
-        copilotId: ctx.copilotId,
-        name: `${ctx.name} — behaviour & safety`,
-        description: grounded
-          ? `Auto-generated from the manifest and the project's repo intelligence: core behaviour, safety and repo fit for ${ctx.name}.`
-          : `Auto-generated from the manifest: core behaviour and safety for ${ctx.name}.`,
-        kind: 'safety' as TestSuite['kind'],
-        cases,
-      },
-      benchmark: {
-        name: `${ctx.name} — readiness`,
-        description: `Auto-generated readiness benchmark for ${ctx.name}.`,
-        dimensions: dims.length >= 3 ? dims : ['correctness', 'safety', 'refusal-discipline', 'read-only-posture'],
-        taskCount: 4,
-      },
-      suiteSource,
-    }
+    return { cases, dims, suiteSource }
   } catch {
-    return fallbackSuite(ctx)
+    return null
   }
+}
+
+function finalizeSuite(
+  ctx: ManifestContext,
+  cases: NewTestCaseInput[],
+  dims: string[],
+  suiteSource: SuiteSource,
+  meta: { riskCoverageMissing?: RiskCoverageKey[]; riskCoverageRetried?: boolean }
+): GeneratedSuite {
+  const grounded = suiteSource === 'repo_aware'
+  return {
+    testSuite: {
+      copilotId: ctx.copilotId,
+      name: `${ctx.name} — behaviour & safety`,
+      description: grounded
+        ? `Auto-generated from the manifest and the project's repo intelligence: core behaviour, safety and repo fit for ${ctx.name}.`
+        : `Auto-generated from the manifest: core behaviour and safety for ${ctx.name}.`,
+      kind: 'safety' as TestSuite['kind'],
+      cases,
+    },
+    benchmark: {
+      name: `${ctx.name} — readiness`,
+      description: `Auto-generated readiness benchmark for ${ctx.name}.`,
+      dimensions: dims.length >= 3 ? dims : ['correctness', 'safety', 'refusal-discipline', 'read-only-posture'],
+      taskCount: 4,
+    },
+    suiteSource,
+    ...meta,
+  }
+}
+
+async function generateSuite(ctx: ManifestContext): Promise<GeneratedSuite> {
+  const mounted = new Set(ctx.toolNames)
+  const first = await callGenerator(ctx)
+  if (!first) return fallbackSuite(ctx)
+
+  let cases = first.cases
+  let dims = first.dims
+  let suiteSource = first.suiteSource
+  let riskCoverageRetried = false
+  let riskCoverageMissing: RiskCoverageKey[] | undefined
+
+  if (suiteSource === 'repo_aware' && ctx.repoContext) {
+    let coverage = assessRiskCoverage({
+      cases,
+      repoCtx: ctx.repoContext,
+      repoMap: ctx.repoMap,
+      residueCount: ctx.residueCount,
+    })
+
+    // One-shot LLM retry when essential repo risks are not covered.
+    if (coverage.missing.length > 0) {
+      const retry = await callGenerator(ctx, riskCoverageRetryPrompt(coverage.missing))
+      riskCoverageRetried = true
+      if (retry && retry.cases.length >= MIN_CASES) {
+        cases = retry.cases
+        dims = retry.dims
+        suiteSource = retry.suiteSource
+        coverage = assessRiskCoverage({
+          cases,
+          repoCtx: ctx.repoContext,
+          repoMap: ctx.repoMap,
+          residueCount: ctx.residueCount,
+        })
+      }
+    }
+
+    // Deterministic fallback for any still-missing dimensions (honest, bounded).
+    if (coverage.missing.length > 0) {
+      const fallbacks = buildDeterministicRiskCases({
+        agentName: ctx.name,
+        missing: coverage.missing,
+        mountedTools: mounted,
+        repoCtx: ctx.repoContext,
+      })
+      if (fallbacks.length > 0) {
+        const merged = [...cases]
+        for (const fb of fallbacks) {
+          if (merged.length >= MAX_CASES) break
+          merged.push(fb)
+        }
+        cases = merged
+        coverage = assessRiskCoverage({
+          cases,
+          repoCtx: ctx.repoContext,
+          repoMap: ctx.repoMap,
+          residueCount: ctx.residueCount,
+        })
+      }
+      if (coverage.missing.length > 0) riskCoverageMissing = coverage.missing
+    }
+  }
+
+  return finalizeSuite(ctx, cases, dims, suiteSource, { riskCoverageMissing, riskCoverageRetried })
 }
 
 // ---------------------------------------------------------------------------
@@ -310,16 +399,18 @@ async function generateSuite(ctx: ManifestContext): Promise<GeneratedSuite> {
  * a test) can score a suite without re-generating it.
  */
 export function repoFitForSuite(
-  ctx: Pick<ManifestContext, 'toolNames' | 'repoMap' | 'residueCount' | 'systemPromptSummary' | 'description'>,
+  ctx: Pick<ManifestContext, 'toolNames' | 'repoMap' | 'residueCount' | 'systemPromptSummary' | 'description' | 'repoContext'>,
   suite: GeneratedSuite
 ): RepoFitResult {
+  const roleText = `${ctx.systemPromptSummary} ${ctx.description}`
+  const hasRepo = ctx.repoMap !== null
   return computeRepoFit({
     suiteSource: suite.suiteSource,
     cases: suite.testSuite.cases,
-    toolNames: ctx.toolNames,
+    toolNames: effectiveToolNamesForRepoFit({ toolNames: ctx.toolNames, roleText, hasRepo }),
     repoMap: ctx.repoMap,
     residueCount: ctx.residueCount,
-    roleText: `${ctx.systemPromptSummary} ${ctx.description}`,
+    roleText,
   })
 }
 
@@ -341,7 +432,9 @@ export async function ensureAgentSuites(
   // metadata (no DB column / migration) so it survives without schema change.
   const testSuiteId = makeId('ts', `${slugify(ctx.name)}-${rand}`)
   const fitNote =
-    suite.suiteSource === 'repo_aware' ? ` [repo-fit ${repoFit.score}/100 · ${repoFit.level}]` : ''
+    suite.suiteSource === 'repo_aware'
+      ? ` [repo-fit ${repoFit.score}/100 · ${repoFit.level}${suite.riskCoverageMissing?.length ? ` · risk_coverage_missing:${suite.riskCoverageMissing.join(',')}` : ''}]`
+      : ''
   await pgrest('POST', 'test_suites', {
     id: testSuiteId,
     copilot_id: copilotId,

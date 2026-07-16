@@ -143,9 +143,14 @@ async function computeLoopState(
 
   // Latest scorecard level (production target — the served version).
   let scorecardLevel: 'not_ready' | 'safe' | 'delivery_ready' | 'excellent' | null = null
+  let toolFitStatus: 'pass' | 'warn' | 'fail' | 'skip' | null = null
+  let repoFitMissingCoverage: string[] = []
   try {
     const card = await getDeliveryScorecard(copilotId)
     scorecardLevel = card?.level ?? null
+    const toolFit = card?.evidence.repoFit?.checks.find((c) => c.id === 'tool-fit')
+    toolFitStatus = toolFit?.status ?? null
+    repoFitMissingCoverage = card?.evidence.repoFit?.missingCoverage ?? []
   } catch {
     scorecardLevel = null
   }
@@ -164,6 +169,8 @@ async function computeLoopState(
     reportPersisted: latestSandbox !== null,
     scorecardLevel,
     executeStatus,
+    toolFitStatus,
+    repoFitMissingCoverage,
   })
 
   // Decide status + next action.
