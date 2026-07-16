@@ -209,7 +209,7 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
                       {tool.lastUsedAt ? formatTimestamp(tool.lastUsedAt) : 'Never used'}
                     </span>
                     {tool.lastErrorMessage ? (
-                      <span className="flex items-center gap-1 text-xs text-accent-600 dark:text-accent-400">
+                      <span className="flex items-center gap-1 text-xs text-accent-700 dark:text-accent-400">
                         <ExclamationTriangleIcon aria-hidden="true" className="size-3.5 shrink-0" />
                         <span className="sr-only">Last error: </span>
                         <span className="max-w-48 truncate" title={tool.lastErrorMessage}>
@@ -229,7 +229,7 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
       </Table>
       <div aria-live="polite">
         {saveError ? (
-          <p className="py-3 text-xs text-accent-600 dark:text-accent-400">{saveError}</p>
+          <p className="py-3 text-xs text-accent-700 dark:text-accent-400">{saveError}</p>
         ) : null}
       </div>
     </div>
