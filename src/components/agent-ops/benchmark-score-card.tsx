@@ -95,7 +95,7 @@ export function BenchmarkScoreCard({
       </div>
 
       {/* Score gauge + metric grid. */}
-      <div className="relative z-20 mt-6 flex items-center gap-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
+      <div className="relative z-20 mt-6 flex flex-wrap items-center gap-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
         <div className="shrink-0">
           <RadialMeter
             value={result.score}
@@ -108,7 +108,7 @@ export function BenchmarkScoreCard({
             ariaLabel={`Composite score ${result.score} of 100`}
           />
         </div>
-        <dl className="grid flex-1 grid-cols-2 gap-x-6 gap-y-3">
+        <dl className="grid min-w-0 flex-1 grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
           <Field label="Accuracy" value={formatPercent(result.accuracy)}>
             <LinearMeter value={result.accuracy} max={1} size="xs" tone="accent" ariaLabel="Accuracy" />
           </Field>
