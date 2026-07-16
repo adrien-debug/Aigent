@@ -111,7 +111,7 @@ export default function PricingPage() {
               <div className="grid grid-cols-2 gap-x-1 rounded-full p-1 text-center text-xs/5 font-semibold ring-1 ring-white/10">
                 <label
                   className={clsx(
-                    'cursor-pointer rounded-full px-2.5 py-1 transition-colors',
+                    'cursor-pointer rounded-full px-2.5 py-1 transition-colors has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent-500',
                     !annual ? 'bg-accent-500 text-zinc-950' : 'text-zinc-400'
                   )}
                 >
@@ -126,7 +126,7 @@ export default function PricingPage() {
                 </label>
                 <label
                   className={clsx(
-                    'cursor-pointer rounded-full px-2.5 py-1 transition-colors',
+                    'cursor-pointer rounded-full px-2.5 py-1 transition-colors has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent-500',
                     annual ? 'bg-accent-500 text-zinc-950' : 'text-zinc-400'
                   )}
                 >
@@ -204,7 +204,7 @@ export default function PricingPage() {
               {faqs.map((faq) => (
                 <Disclosure key={faq.question} as="div" className="py-6 first:pt-0 last:pb-0">
                   <dt>
-                    <DisclosureButton className="group flex min-h-11 w-full items-center justify-between text-left text-white">
+                    <DisclosureButton className="group flex min-h-11 w-full items-center justify-between text-left text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500">
                       <span className="text-base/7 font-semibold">{faq.question}</span>
                       <span className="ml-6 flex h-7 items-center">
                         <PlusSmallIcon aria-hidden="true" className="size-6 group-data-open:hidden" />
