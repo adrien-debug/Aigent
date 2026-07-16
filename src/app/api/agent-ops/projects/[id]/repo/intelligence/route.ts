@@ -16,11 +16,11 @@ import {
  * Returns { ok, hasRepo, rescanned, staleness, scannedAt, intelligence }.
  * READ-ONLY GitHub throughout — never writes to GitHub, never returns a secret
  * (github.ts refuses secret/credential paths). Auth: src/proxy.ts. Fail-closed
- * 503 without the gpu1 backend + GITHUB_TOKEN configured up front; 503 also if
- * the backend (gpu1/PostgREST — project lookup or cache read/write) fails at
- * request time; 404 unknown project; 200 with hasRepo:false when the project
- * has no linked repo; 502 on a GitHub error
- * (generic message — no internal detail forwarded).
+ * 503 without the gpu1 backend + GITHUB_TOKEN configured up front; 502 if the
+ * backend (gpu1/PostgREST — project lookup or cache read/write) fails at
+ * request time (504 when that failure is the PostgREST timeout); 404 unknown
+ * project; 200 with hasRepo:false when the project has no linked repo; 502 on
+ * a GitHub error (generic message — no internal detail forwarded).
  */
 const PROJECT_ID_RE = /^[a-z0-9-]{1,200}$/
 
@@ -65,9 +65,15 @@ async function handle(id: string, force: boolean) {
     if (err instanceof RepoIntelligenceBackendError) {
       // Project lookup / cache read-write against gpu1 PostgREST failed —
       // this is a backend/DB outage, never a GitHub problem. Log detail
-      // server-side, return a generic backend-unavailable message.
+      // server-side, return a generic backend-unavailable message. 502 like
+      // every request-time upstream failure in this API (503 is reserved for
+      // "not configured"); the PostgREST 30s timeout (PgrestError 504, see
+      // postgrest.ts) passes through as 504.
       console.error('[agent-ops/projects/repo/intelligence] backend unavailable', err)
-      return NextResponse.json({ error: 'backend unavailable (gpu1/PostgREST)' }, { status: 503 })
+      const cause = err.cause
+      const timedOut = cause instanceof Error && cause.name === 'PgrestError' &&
+        (cause as unknown as { status?: unknown }).status === 504
+      return NextResponse.json({ error: 'backend unavailable (gpu1/PostgREST)' }, { status: timedOut ? 504 : 502 })
     }
     if (err instanceof RepoIntelligenceGithubError) {
       console.error('[agent-ops/projects/repo/intelligence] GitHub scan failed', err)
