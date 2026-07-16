@@ -65,6 +65,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ ok: true, persisted: result.persisted, report: result.report })
   } catch (err) {
     console.error('[agent-ops/projects/missions] run failed', err instanceof Error ? err.message : err)
-    return NextResponse.json({ error: 'mission run failed' }, { status: 502 })
+    // A hung PostgREST round-trip is rethrown by postgrest.ts as
+    // PgrestError(504) (name set in its constructor); surface it as 504
+    // Gateway Timeout so callers can tell "backend slow" from "backend
+    // errored". Every other upstream failure stays a generic 502.
+    const timedOut =
+      err instanceof Error && err.name === 'PgrestError' && (err as { status?: unknown }).status === 504
+    return NextResponse.json({ error: 'mission run failed' }, { status: timedOut ? 504 : 502 })
   }
 }
