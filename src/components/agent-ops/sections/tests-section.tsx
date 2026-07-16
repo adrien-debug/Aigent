@@ -1,4 +1,5 @@
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { GenerateSuiteButton } from '@/components/agent-ops/generate-suite-button'
 import { LiveTestRunPanel } from '@/components/agent-ops/live-test-run-panel'
 import { TestCaseTable } from '@/components/agent-ops/test-case-table'
@@ -91,12 +92,13 @@ export async function TestsSection({ copilotId }: { copilotId: string }) {
       />
 
       {suites.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 rounded-2xl border border-white/5 border-dashed bg-white/[0.01]">
-          <BeakerIcon className="size-12 text-zinc-700 mb-4" />
-          <h3 className="text-sm font-medium text-white">No test suites configured</h3>
-          <p className="text-sm text-zinc-500 mt-1">Add test suites to evaluate this copilot&apos;s behavior.</p>
-          <GenerateSuiteButton copilotId={id} />
-        </div>
+        <EmptyState
+          icon={BeakerIcon}
+          title="No test suites configured"
+          description="Add test suites to evaluate this copilot's behavior."
+          action={<GenerateSuiteButton copilotId={id} />}
+          className="py-24"
+        />
       ) : (
         <div className="space-y-12">
           {/* The first suite is fully presented by the Live run panel above
