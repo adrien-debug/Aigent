@@ -61,6 +61,16 @@ export interface SandboxCollectOptions {
 }
 
 /**
+ * A TargetRepoSandboxReport plus resolution context the collector already paid
+ * for. Purely additive over the report — callers that only want the report can
+ * keep treating the value as a `TargetRepoSandboxReport`.
+ */
+export interface CollectedTargetRepoSandbox extends TargetRepoSandboxReport {
+  /** The copilot's project id resolved during collection — spares callers a second `getCopilot`. */
+  projectId: string | null
+}
+
+/**
  * Collect + evaluate a target-repo sandbox report for a copilot. Read-only.
  * `null` only when the copilot is not found. When the copilot has no linked
  * project repo, or the agent was never pushed, the returned report carries the
@@ -69,7 +79,7 @@ export interface SandboxCollectOptions {
 export async function collectTargetRepoSandbox(
   copilotId: string,
   opts: SandboxCollectOptions
-): Promise<TargetRepoSandboxReport | null> {
+): Promise<CollectedTargetRepoSandbox | null> {
   const copilot = await getCopilot(copilotId)
   if (!copilot) return null
 
@@ -90,23 +100,26 @@ export async function collectTargetRepoSandbox(
   // failed report (evaluateSandbox raises agent_not_pushed_to_target_repo from
   // the null registry), never a throw.
   if (!repo) {
-    return evaluateSandbox({
-      runId: opts.runId,
-      agentSlug: slug,
-      copilotId,
-      versionId: copilot.productionVersionId ?? copilot.latestVersionId,
-      repo: 'none',
-      branch: 'none',
-      commit: null,
-      repoFitScore,
-      registryText: null,
-      manifestText: null,
-      handlerPresent: false,
-      readmePresent: false,
-      targetScripts: null,
-      artifactTexts: {},
-      createdAt: opts.createdAt,
-    })
+    return {
+      ...evaluateSandbox({
+        runId: opts.runId,
+        agentSlug: slug,
+        copilotId,
+        versionId: copilot.productionVersionId ?? copilot.latestVersionId,
+        repo: 'none',
+        branch: 'none',
+        commit: null,
+        repoFitScore,
+        registryText: null,
+        manifestText: null,
+        handlerPresent: false,
+        readmePresent: false,
+        targetScripts: null,
+        artifactTexts: {},
+        createdAt: opts.createdAt,
+      }),
+      projectId: copilot.projectId ?? null,
+    }
   }
 
   // Resolve the target head commit for the branch under evaluation (a PR
@@ -168,28 +181,31 @@ export async function collectTargetRepoSandbox(
     }
   }
 
-  return evaluateSandbox({
-    runId: opts.runId,
-    agentSlug: slug,
-    copilotId,
-    versionId: copilot.productionVersionId ?? copilot.latestVersionId,
-    repo,
-    branch,
-    commit,
-    repoFitScore,
-    registryText,
-    manifestText,
-    handlerPresent: handlerText !== null,
-    readmePresent: readmeText !== null,
-    // Prefer the scripts seen in the CLONE (execute) over the API-read one.
-    targetScripts: runnerScripts ?? parsePackageScripts(pkgText),
-    artifactTexts,
-    createdAt: opts.createdAt,
-    executionMode,
-    installMode,
-    sandboxKept: opts.keepSandbox ?? false,
-    sandboxPath,
-    scriptResults,
-    coveredByVerify,
-  })
+  return {
+    ...evaluateSandbox({
+      runId: opts.runId,
+      agentSlug: slug,
+      copilotId,
+      versionId: copilot.productionVersionId ?? copilot.latestVersionId,
+      repo,
+      branch,
+      commit,
+      repoFitScore,
+      registryText,
+      manifestText,
+      handlerPresent: handlerText !== null,
+      readmePresent: readmeText !== null,
+      // Prefer the scripts seen in the CLONE (execute) over the API-read one.
+      targetScripts: runnerScripts ?? parsePackageScripts(pkgText),
+      artifactTexts,
+      createdAt: opts.createdAt,
+      executionMode,
+      installMode,
+      sandboxKept: opts.keepSandbox ?? false,
+      sandboxPath,
+      scriptResults,
+      coveredByVerify,
+    }),
+    projectId: copilot.projectId ?? null,
+  }
 }

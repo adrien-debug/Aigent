@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto'
 
 import { NextResponse } from 'next/server'
 
-import { getCopilot } from '@/lib/agent-mission-control/data'
 import { persistSandboxReport } from '@/lib/agent-mission-control/sandbox-reports-store'
 import { collectTargetRepoSandbox } from '@/lib/agent-mission-control/target-repo-sandbox-server'
 
@@ -94,15 +93,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   const createdAt = new Date().toISOString()
 
   try {
-    const report = await collectTargetRepoSandbox(copilotId, { runId, createdAt, mode, installMode, keepSandbox })
-    if (!report) {
+    const collected = await collectTargetRepoSandbox(copilotId, { runId, createdAt, mode, installMode, keepSandbox })
+    if (!collected) {
       return NextResponse.json({ error: 'copilot not found' }, { status: 404 })
     }
+    // The collector already resolved the copilot — reuse its projectId instead
+    // of a second getCopilot round-trip. Destructured OFF the report so the
+    // HTTP response body and the persisted jsonb keep their exact prior shape.
+    const { projectId, ...report } = collected
 
     if (persist) {
       try {
-        const copilot = await getCopilot(copilotId)
-        await persistSandboxReport(report, copilot?.projectId ?? null)
+        await persistSandboxReport(report, projectId)
       } catch (err) {
         // Persistence is best-effort — a DB hiccup must not fail the eval; the
         // report is still returned in the response.
