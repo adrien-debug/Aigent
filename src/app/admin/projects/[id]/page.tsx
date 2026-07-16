@@ -192,7 +192,7 @@ function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copil
                       href={run.traceUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center justify-center p-1.5 rounded-md text-zinc-500 transition-colors hover:text-accent-400 hover:bg-[var(--accent-soft)]"
+                      className="inline-flex items-center justify-center size-11 -my-3.5 rounded-md text-zinc-500 transition-colors hover:text-accent-400 hover:bg-[var(--accent-soft)]"
                       title="Open trace in LangSmith"
                     >
                       <ArrowTopRightOnSquareIcon className="size-4" />
@@ -224,9 +224,9 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="flex flex-col gap-8 pb-12">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4 text-xs">
-          <div className="flex items-center gap-1.5 text-zinc-400">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-4 text-xs min-w-0">
+          <div className="flex items-center gap-1.5 text-zinc-400 shrink-0">
             <ServerStackIcon className="size-4" />
             <span className="font-mono">{PROJECT_PLATFORM_LABELS[project.platform]}</span>
           </div>
@@ -235,10 +235,10 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
               href={project.repoUrl}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-1.5 text-zinc-400 hover:text-white transition-colors"
+              className="flex items-center gap-1.5 min-w-0 text-zinc-400 hover:text-white transition-colors"
             >
-              <CodeBracketIcon className="size-4" />
-              <span className="font-mono">{project.repoFullName}</span>
+              <CodeBracketIcon className="size-4 shrink-0" />
+              <span className="font-mono truncate max-w-[50vw] sm:max-w-xs">{project.repoFullName}</span>
             </a>
           )}
         </div>
