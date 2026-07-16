@@ -128,6 +128,34 @@ function LoopStepper({ proposal, hasV2Results }: { proposal: ImprovementProposal
   const stage = currentStage(proposal, hasV2Results)
   const closed = proposal !== null && (proposal.status === 'approved' || proposal.status === 'rejected')
   const activeIndex = LOOP_STEPS.findIndex((s) => s.id === stage)
+
+  // Cycle closed → the stepper must NOT read as "in progress" with 5 live ✓
+  // above a screen that invites a fresh cycle. Show a terminal summary instead,
+  // so the state matches the Auto-improve / Analyze actions below.
+  if (closed) {
+    const approved = proposal!.status === 'approved'
+    return (
+      <div
+        aria-label="Improvement loop status"
+        className="flex flex-wrap items-center gap-2 rounded-lg bg-[var(--accent-surface)] px-3 py-2 text-xs ring-1 ring-[var(--accent-line)]"
+      >
+        <span
+          aria-hidden="true"
+          className={
+            'flex size-4 items-center justify-center rounded-full ' +
+            (approved ? 'bg-accent-500 text-zinc-950' : 'bg-zinc-300 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300')
+          }
+        >
+          <CheckMark className="size-2.5" />
+        </span>
+        <span className="font-semibold text-zinc-700 dark:text-zinc-200">
+          Last cycle {approved ? 'approved' : 'rejected'}
+        </span>
+        <span className="text-zinc-500 dark:text-zinc-400">— start a new one below to keep improving.</span>
+      </div>
+    )
+  }
+
   return (
     <nav aria-label="Improvement loop progress" className="no-scrollbar overflow-x-auto">
       <ol className="flex w-max min-w-full items-center gap-2">

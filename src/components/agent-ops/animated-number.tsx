@@ -34,7 +34,11 @@ export function AnimatedNumber({ value }: { value: string }) {
     }
   }, [rawNum, spring])
 
-  if (!numMatch || isNaN(rawNum)) return <>{value}</>
+  // Only animate real metrics ("$18.42", "92.7%", "1,204"). A value with letters
+  // around the number is a formatted string like a date ("Jul 15, 2026") — animating
+  // it splits it into inline-flex spans that collapse the spaces → "Jul152026".
+  const isPlainMetric = /^[^A-Za-z]*$/.test(prefix) && /^[^A-Za-z]*$/.test(suffix)
+  if (!numMatch || isNaN(rawNum) || !isPlainMetric) return <>{value}</>
 
   return (
     <span className="inline-flex">
