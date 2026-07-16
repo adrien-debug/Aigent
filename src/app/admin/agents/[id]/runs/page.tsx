@@ -95,7 +95,7 @@ export default async function RunsPage({
             This copilot hasn&apos;t served any production traffic. Send it a real ad hoc run from the &quot;Run {copilot.name}&quot; panel above.
           </p>
           <div className="mt-6">
-            <Link href={`/admin/agents/${id}/tests`} className="inline-flex items-center gap-2 rounded-lg bg-white/5 px-4 py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors">
+            <Link href={`/admin/agents/${id}/tests`} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-white/5 px-4 py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors">
               Go to tests
             </Link>
           </div>
