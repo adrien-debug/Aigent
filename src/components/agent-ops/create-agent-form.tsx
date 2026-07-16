@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { ManifestRecap } from '@/components/agent-ops/authoring-primitives'
 import { Button } from '@/components/catalyst/button'
-import { ErrorMessage, Field, Fieldset, Label } from '@/components/catalyst/fieldset'
+import { Description, ErrorMessage, Field, Fieldset, Label } from '@/components/catalyst/fieldset'
 import { Input } from '@/components/catalyst/input'
 import { Select } from '@/components/catalyst/select'
 import { Textarea } from '@/components/catalyst/textarea'
@@ -329,9 +329,9 @@ export function CreateAgentForm({
               ))}
             </datalist>
             {modelLooksForeign ? (
-              <p className="mt-1 text-xs text-accent-600 dark:text-accent-400">
+              <Description className="text-accent-600 dark:text-accent-400">
                 {`Model doesn't look like a ${modelProvider} model.`}
-              </p>
+              </Description>
             ) : null}
           </Field>
 
