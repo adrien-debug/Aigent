@@ -196,17 +196,18 @@ export interface ExplorerHistoryStep {
  * Redaction: only message roles/previews, tool NAMES, `next`, timestamps and the
  * interrupt payloads are surfaced — never the checkpoint metadata (which carries
  * the copilot systemPrompt/tools config), never a raw values blob. Read-only.
- * Returns [] only when the server confirms the thread doesn't exist (404) — a
- * transport failure or 5xx (server down) is NOT swallowed here, it's rethrown
- * so the caller gets an honest 502 instead of a silent empty 200.
+ * Returns null ONLY when the server confirms the thread is unknown (404 — same
+ * contract as getThreadDetail, the caller maps it to its own 404); [] means the
+ * thread exists but has no checkpoints yet. A transport failure or 5xx (server
+ * down) is NOT swallowed here, it's rethrown so the caller gets an honest 502.
  */
-export async function getThreadHistory(threadId: string): Promise<ExplorerHistoryStep[]> {
+export async function getThreadHistory(threadId: string): Promise<ExplorerHistoryStep[] | null> {
   const c = agentServerClient()
   let raw: unknown
   try {
     raw = await c.threads.getHistory(threadId, { limit: 40 })
   } catch (err) {
-    if (isNotFoundError(err)) return []
+    if (isNotFoundError(err)) return null
     throw err
   }
   const list = (Array.isArray(raw) ? raw : []) as Row[]

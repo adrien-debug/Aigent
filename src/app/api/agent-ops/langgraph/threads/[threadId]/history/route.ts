@@ -9,8 +9,9 @@ import { getThreadHistory } from '@/lib/agent-mission-control/langgraph-explorer
  * timestamp, message/tool summary and interrupts — never a secret, never a
  * header, never the checkpoint metadata (systemPrompt/tools config).
  *
- * Auth: src/proxy.ts. Fail-closed 503 without the Agent Server secret. 400 on a
- * malformed id. 502 on transport. Empty history → `{ ok:true, history:[] }`
+ * Auth: src/proxy.ts. Fail-closed 503 without the Agent Server secret. 404 when
+ * the thread is unknown on the server (aligned on GET /threads/:threadId). 400
+ * on a malformed id. 502 on transport. Empty history → `{ ok:true, history:[] }`
  * (the client then falls back to state/messages).
  */
 const THREAD_ID_RE = /^[a-zA-Z0-9-]{1,100}$/
@@ -25,6 +26,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ thr
   }
   try {
     const history = await getThreadHistory(threadId)
+    if (history === null) {
+      return NextResponse.json({ error: 'thread not found on the Agent Server' }, { status: 404 })
+    }
     return NextResponse.json({ ok: true, threadId, history })
   } catch (err) {
     console.error('[agent-ops/langgraph/threads/:id/history] read failed', err)
