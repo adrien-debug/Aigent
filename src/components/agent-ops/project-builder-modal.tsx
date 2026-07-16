@@ -58,7 +58,7 @@ export function ProjectBuilderModal({
             <Headless.Button
               onClick={close}
               aria-label="Close Agent Builder"
-              className="flex shrink-0 items-center justify-center rounded-md p-1.5 text-zinc-500 hover:bg-white/5 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-500"
+              className="flex size-11 shrink-0 items-center justify-center rounded-md text-zinc-500 hover:bg-white/5 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-500"
             >
               <XMarkIcon aria-hidden="true" className="size-5" />
             </Headless.Button>
