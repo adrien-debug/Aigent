@@ -38,10 +38,10 @@ function statusLabel(s: string) {
 
 function RunStatusIcon({ status }: { status: string }) {
   switch (status) {
-    case 'completed': return <CheckCircleIcon className="size-4 text-accent-400" />
-    case 'failed': return <ExclamationTriangleIcon className="size-4 text-accent-400" />
-    case 'blocked': return <PauseCircleIcon className="size-4 text-accent-400" />
-    default: return <BoltIcon className="size-4 text-zinc-500" />
+    case 'completed': return <CheckCircleIcon aria-hidden="true" className="size-4 text-accent-400" />
+    case 'failed': return <ExclamationTriangleIcon aria-hidden="true" className="size-4 text-accent-400" />
+    case 'blocked': return <PauseCircleIcon aria-hidden="true" className="size-4 text-accent-400" />
+    default: return <BoltIcon aria-hidden="true" className="size-4 text-zinc-500" />
   }
 }
 
