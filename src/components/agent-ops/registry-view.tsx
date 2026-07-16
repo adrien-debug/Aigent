@@ -53,8 +53,8 @@ export function RegistryView({
 
   return (
     <SurfaceCard>
-      <div className={clsx(surfaceCardHeaderClass, 'px-6 py-6')}>
-        <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">Copilots</h1>
+      <div className={clsx(surfaceCardHeaderClass, 'flex-wrap gap-4 px-6 py-6')}>
+        <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">Copilots</h1>
         {action ? <div className="shrink-0">{action}</div> : null}
       </div>
 
