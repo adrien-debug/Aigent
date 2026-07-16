@@ -176,7 +176,7 @@ export function LangGraphExplorerView({
             href={studioUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex size-10 items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white ring-1 ring-white/10 transition-colors"
+            className="flex size-11 items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white ring-1 ring-white/10 transition-colors"
             title="Open LangGraph Studio"
           >
             <ArrowTopRightOnSquareIcon className="size-5" />
@@ -210,18 +210,18 @@ export function LangGraphExplorerView({
                       selected === thread.threadId ? "bg-[var(--color-surface-interactive)] ring-1 ring-inset ring-[var(--accent-line-strong)]" : "hover:bg-white/5"
                     )}
                   >
-                    <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center justify-between gap-2 w-full">
                       <span className="text-sm font-mono text-white truncate" title={thread.threadId}>{shortId(thread.threadId)}</span>
                       <span className={clsx(
-                        "text-[10px] font-medium uppercase tracking-widest px-2 py-0.5 rounded-md ring-1",
+                        "shrink-0 text-[10px] font-medium uppercase tracking-widest px-2 py-0.5 rounded-md ring-1",
                         statusClass(thread.status)
                       )}>
                         {thread.status}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between w-full text-xs text-zinc-500">
+                    <div className="flex items-center justify-between gap-2 w-full text-xs text-zinc-500">
                       <span className="truncate">{thread.assistantId ? (assistantName.get(thread.assistantId) || shortId(thread.assistantId)) : '—'}</span>
-                      <span>{thread.updatedAt ? new Date(thread.updatedAt).toLocaleTimeString() : ''}</span>
+                      <span className="shrink-0">{thread.updatedAt ? new Date(thread.updatedAt).toLocaleTimeString() : ''}</span>
                     </div>
                   </Headless.Button>
                 ))
@@ -248,7 +248,7 @@ export function LangGraphExplorerView({
                 <ErrorBanner message={`Failed to load thread detail: ${detailError}`} />
               ) : detail ? (
                 <div className="flex flex-col gap-6">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
                       <span className="text-[10px] uppercase tracking-widest text-zinc-500">Thread ID</span>
                       <span className="text-sm font-mono text-white">{shortId(detail.threadId)}</span>
