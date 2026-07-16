@@ -22,6 +22,7 @@ import 'server-only'
 import { randomUUID } from 'node:crypto'
 
 import { getCopilot, getProject } from './data'
+import type { Copilot } from './types'
 import { getDeliveryScorecard } from './delivery-scorecard-server'
 import { getLatestDeliveryEvent, persistDeliveryEvent, type DeliveryEvent } from './delivery-events-store'
 import {
@@ -60,9 +61,9 @@ export interface RunLoopOptions {
   whatToTest?: string
 }
 
-/** Count delivery attempts for a copilot (cheap — one PostgREST count). */
-async function countAttempts(copilotId: string): Promise<number> {
-  const latest = await getLatestDeliveryEvent(copilotId)
+/** Count delivery attempts for a copilot (cheap — one PostgREST count). Reuses a preloaded latest event when provided (undefined = not loaded yet). */
+async function countAttempts(copilotId: string, preloadedLatest?: DeliveryEvent | null): Promise<number> {
+  const latest = preloadedLatest !== undefined ? preloadedLatest : await getLatestDeliveryEvent(copilotId)
   return latest ? 1 : 0 // best-effort; the store keeps full history, this is a display hint
 }
 
@@ -120,21 +121,30 @@ export async function runDeliveryLoop(copilotId: string, opts: RunLoopOptions): 
     persistEvent: true,
     runId: opts.runId,
     whatToTest: opts.whatToTest,
+    copilot: copilot0,
+    latestDelivery: latestDelivery0,
   })
 }
 
-/** Shared assessment core — reads state, classifies, evaluates readiness, and (optionally) persists a status event. */
+/** Shared assessment core — reads state, classifies, evaluates readiness, and (optionally) persists a status event. Accepts preloaded copilot/latestDelivery to avoid refetching (undefined = not loaded yet). */
 async function computeLoopState(
   copilotId: string,
-  opts: { latestSandbox: TargetRepoSandboxReport | null; persistEvent: boolean; runId: string; whatToTest?: string }
+  opts: {
+    latestSandbox: TargetRepoSandboxReport | null
+    persistEvent: boolean
+    runId: string
+    whatToTest?: string
+    copilot?: Copilot
+    latestDelivery?: DeliveryEvent | null
+  }
 ): Promise<DeliveryLoopState | null> {
-  const copilot = await getCopilot(copilotId)
+  const copilot = opts.copilot ?? (await getCopilot(copilotId))
   if (!copilot) return null
 
   const project = copilot.projectId ? await getProject(copilot.projectId) : undefined
   const repo = project?.repoFullName ?? null
 
-  const latestDelivery = await getLatestDeliveryEvent(copilotId)
+  const latestDelivery = opts.latestDelivery !== undefined ? opts.latestDelivery : await getLatestDeliveryEvent(copilotId)
   let latestSandbox = opts.latestSandbox
   if (!latestSandbox) latestSandbox = await getLatestSandboxReport(copilotId)
 
@@ -255,7 +265,7 @@ async function computeLoopState(
     agentName: copilot.name,
     repo,
     status,
-    attempts: (await countAttempts(copilotId)) + 1,
+    attempts: (await countAttempts(copilotId, latestDelivery)) + 1,
     latestDelivery,
     latestSandbox,
     classification,
