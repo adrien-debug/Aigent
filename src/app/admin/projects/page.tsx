@@ -54,7 +54,7 @@ export default async function ProjectsPage() {
   return (
     <div className="flex flex-col gap-8 pb-12">
       <StaggerFade delay={0}>
-        <div className={clsx(surfaceCardClass, 'flex min-h-[600px] flex-col')}>
+        <div className={clsx(surfaceCardClass, 'flex min-h-160 flex-col')}>
           <div className={clsx(surfaceCardHeaderClass, 'px-6 py-6 lg:px-8')}>
             <div className="min-w-0">
               <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">Projects</h1>
