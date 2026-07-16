@@ -66,7 +66,11 @@ export function RunBenchmarkButton({ copilotId, suiteId, versionId }: RunBenchma
   return (
     <div className="flex flex-col items-end gap-2">
       <div className="flex flex-wrap items-center gap-3">
-        {done ? <Badge color="accent">{done}</Badge> : null}
+        {done ? (
+          <Badge color="accent" role="status" aria-live="polite">
+            {done}
+          </Badge>
+        ) : null}
         <Button color="accent" onClick={handleRun} disabled={isRunning}>
           {isRunning ? (
             <>
@@ -78,7 +82,11 @@ export function RunBenchmarkButton({ copilotId, suiteId, versionId }: RunBenchma
           )}
         </Button>
       </div>
-      {error ? <Text className="!mt-0 !text-xs !text-accent-400">{error}</Text> : null}
+      {error ? (
+        <Text role="alert" className="!mt-0 !text-xs !text-accent-400">
+          {error}
+        </Text>
+      ) : null}
     </div>
   )
 }
