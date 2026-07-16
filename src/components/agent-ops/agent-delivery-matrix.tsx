@@ -71,7 +71,7 @@ export function AgentDeliveryMatrix({ rows }: { rows: DeliveryMatrixRow[] }) {
                     {row.sandboxStatus ? (
                       <Badge color={statusBadge(row.sandboxStatus)}>{formatStatus(row.sandboxStatus)}</Badge>
                     ) : (
-                      <span className="text-xs text-zinc-600">No sandbox report yet</span>
+                      <span className="text-xs text-zinc-400">No sandbox report yet</span>
                     )}
                   </TableCell>
                   <TableCell className="py-3">
