@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import { ProjectDeleteAction } from '@/components/agent-ops/project-delete-action'
+import { ProjectMissionOrchestrator } from '@/components/agent-ops/project-mission-orchestrator'
 import { ProjectRepoIntelligence } from '@/components/agent-ops/project-repo-intelligence'
 import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
 import { Link } from '@/components/catalyst/link'
@@ -245,6 +246,17 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       </div>
 
       <ProjectRepoIntelligence projectId={project.id} repoFullName={project.repoFullName ?? null} />
+
+      {project.repoFullName ? (
+        <ProjectMissionOrchestrator
+          projectId={project.id}
+          defaultObjective={
+            validated.length > 0
+              ? `Validate ${validated[0].name} after merged delivery`
+              : 'Validate agent delivery readiness for this project'
+          }
+        />
+      ) : null}
 
       {validated.length > 0 ? (
         <ValidatedAgentsTable copilots={validated} />
