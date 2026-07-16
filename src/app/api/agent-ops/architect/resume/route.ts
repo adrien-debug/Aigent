@@ -68,7 +68,11 @@ export async function POST(request: Request) {
       `copilots?select=id&slug=eq.${encodeURIComponent(AGENT_BUILDER_SLUG)}&limit=1`
     )
     if (!rows[0]) {
-      return NextResponse.json({ error: 'Agent Builder is not provisioned' }, { status: 409 })
+      // `notProvisioned: true` = the same machine-readable discriminator the
+      // sister run routes emit (architect/run, projects/builder/run) so a client
+      // can tell this 409 apart from the `threadLost: true` 409 below without
+      // parsing the message.
+      return NextResponse.json({ error: 'Agent Builder is not provisioned', notProvisioned: true }, { status: 409 })
     }
     copilotId = rows[0].id
   } catch (err) {
