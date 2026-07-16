@@ -20,6 +20,14 @@ import { provisionAgentBuilderCopilot } from '@/lib/agent-mission-control/provis
  * Fail-closed 503 without the gpu1 backend, mirroring the sibling write routes.
  * Never fabricates a copilot id.
  */
+// Double-submission guard: concurrent POSTs (e.g. a double-clicked empty-state
+// banner) are serialized in-process. Without this, both racers pass the
+// existence check in provisionAgentBuilderCopilot(); the DB `copilots.slug`
+// UNIQUE constraint blocks the duplicate, but the loser would surface as a 502
+// instead of the promised idempotent no-op. Serialized, the second call runs
+// after the first and correctly observes the existing row (created: false).
+let chain: Promise<unknown> = Promise.resolve()
+
 export async function POST() {
   const base = process.env.AMC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -28,7 +36,13 @@ export async function POST() {
   }
 
   try {
-    const result = await provisionAgentBuilderCopilot()
+    const run = chain.then(() => provisionAgentBuilderCopilot())
+    // Keep the chain alive on failure so the next request retries cleanly.
+    chain = run.then(
+      () => undefined,
+      () => undefined
+    )
+    const result = await run
     return NextResponse.json(result, { status: result.created ? 201 : 200 })
   } catch (err) {
     // Never forward raw PostgREST error text (schema/constraint internals).
