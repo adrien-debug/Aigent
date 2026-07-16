@@ -11,6 +11,7 @@ import {
   deleteProjectAssistant,
   ensureProjectAssistant,
 } from '@/lib/agent-mission-control/langgraph-assistants'
+import { slugify } from '@/lib/agent-mission-control/slug'
 
 const PLATFORMS: ReadonlyArray<CreateProjectInput['platform']> = [
   'web',
@@ -52,16 +53,37 @@ const repoFullNameSchema = z
  */
 const hasSlugifiableContent = (v: string) => /[a-z0-9]/i.test(v)
 
+/**
+ * Length/shape bounds, aligned on the sibling routes' guards:
+ *  - the project id is `proj-<slug>` and every child route
+ *    (projects/[id]/**, push-agent) gates it with /^[a-z0-9-]{1,200}$/ —
+ *    so slug (client-supplied OR slugify(name)-derived, which never grows
+ *    the input) is capped at 195 chars ("proj-" eats 5) and a client slug
+ *    must already be id-safe lowercase [a-z0-9-]. Without the shape check,
+ *    createProject stores the slug VERBATIM: "My Slug!!" yields an id the
+ *    child routes all 400 on — a project created but unreachable.
+ *  - description/repoUrl land in the DB (and the name on the LangGraph
+ *    assistant): bounded like builder/run/route.ts bounds its strings.
+ */
+const NAME_MAX = 195
+const SLUG_RE = /^[a-z0-9-]+$/
+
 /** Body contract for POST /api/agent-ops/projects. Mirrors CreateProjectInput. */
 const createProjectBodySchema = z
   .object({
-    name: z.string().trim().min(1, 'name is required'),
-    slug: z.string().trim().min(1).optional(),
-    description: z.string().optional(),
+    name: z.string().trim().min(1, 'name is required').max(NAME_MAX, `name must be at most ${NAME_MAX} characters`),
+    slug: z
+      .string()
+      .trim()
+      .min(1)
+      .max(NAME_MAX, `slug must be at most ${NAME_MAX} characters`)
+      .regex(SLUG_RE, 'slug must contain only lowercase letters, digits, and hyphens')
+      .optional(),
+    description: z.string().max(4_000, 'description must be at most 4000 characters').optional(),
     platform: z.enum(PLATFORMS as [CreateProjectInput['platform'], ...CreateProjectInput['platform'][]], {
       message: "platform must be one of 'web' | 'desktop' | 'mobile' | 'api'",
     }),
-    repoUrl: z.string().trim().url().optional(),
+    repoUrl: z.string().trim().max(2_000, 'repoUrl must be at most 2000 characters').url().optional(),
     repoFullName: repoFullNameSchema.optional(),
   })
   .refine((v) => v.slug === undefined || hasSlugifiableContent(v.slug), {
@@ -70,6 +92,15 @@ const createProjectBodySchema = z
   })
   .refine((v) => v.slug !== undefined || hasSlugifiableContent(v.name), {
     message: 'name must contain at least one letter or digit (used to derive slug)',
+    path: ['name'],
+  })
+  // Derived-slug length: slugify() can GROW exotic Unicode input (lowercase
+  // expansion, e.g. "İ" → "i" + combining dot → "i-"), so a ≤195-char name
+  // does not guarantee a ≤195-char derived slug. Check with the REAL slugify
+  // (the one createProject uses) so the resulting `proj-<slug>` id always
+  // passes the child routes' /^[a-z0-9-]{1,200}$/ guards.
+  .refine((v) => v.slug !== undefined || slugify(v.name).length <= NAME_MAX, {
+    message: `name derives a slug longer than ${NAME_MAX} characters — provide a shorter name or an explicit slug`,
     path: ['name'],
   })
 
@@ -107,10 +138,12 @@ export async function POST(request: Request) {
     // repoFullName / repoUrl shape).
     const issues = parsed.error.issues
     // Only the base "name" shape check (empty/missing) keeps the legacy
-    // hardcoded message; the "name has no alphanumeric content" custom refine
-    // (path also ['name'], but code 'custom') must surface its own message —
-    // it's a different failure (non-empty name that can't derive a slug).
-    const nameIssue = issues.find((i) => i.path[0] === 'name' && i.code !== 'custom')
+    // hardcoded message; other name failures (too long — 'too_big' — and the
+    // "no alphanumeric content" custom refine) must surface their own message,
+    // they are different failures, not an absent name.
+    const nameIssue = issues.find(
+      (i) => i.path[0] === 'name' && (i.code === 'too_small' || i.code === 'invalid_type')
+    )
     const platformIssue = issues.find((i) => i.path[0] === 'platform')
     const message = nameIssue
       ? 'name is required'
