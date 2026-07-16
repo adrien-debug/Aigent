@@ -36,11 +36,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const blocked = requireLiveBackend()
   if (blocked) return blocked
 
-  let body: { approved?: unknown }
+  // Absent/unparseable body is a VALID start request (the start step takes no
+  // fields), so it normalizes to {} instead of 400ing like sibling routes. But
+  // `request.json()` can also resolve to null/array/primitive — normalize those
+  // to {} too (a raw `null` body used to TypeError into the 502 catch), and
+  // reject a present-but-non-boolean `approved` (e.g. "true") instead of
+  // silently falling through to the START path and launching a new run when
+  // the client meant to confirm — mirrors resume/route.ts's guard.
+  let body: { approved?: unknown } = {}
   try {
-    body = await request.json().catch(() => ({}))
+    const parsed: unknown = await request.json()
+    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+      body = parsed as { approved?: unknown }
+    }
   } catch {
-    body = {}
+    // No body / invalid JSON → start step.
+  }
+  if (body.approved !== undefined && typeof body.approved !== 'boolean') {
+    return NextResponse.json({ error: 'approved must be a boolean' }, { status: 400 })
   }
 
   try {
@@ -61,6 +74,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       })
     }
 
+    // Double-submission guard: the bundle load above already reconciled
+    // `langgraphThreadId` against the Agent Server (stale ids cleared on 404),
+    // so a non-null id here means a run is REALLY in progress — answer 409
+    // instead of letting startProjectBuilderDraftMaterialization throw into
+    // the generic 502 catch on a double-click of "Approve — create draft".
+    if (conversation.langgraphThreadId) {
+      return NextResponse.json(
+        { error: 'draft materialization already in progress — confirm or reject it' },
+        { status: 409 }
+      )
+    }
+
     const guard = canStartDraftMaterialization(conversation.latestPreview)
     if (!guard.ok) {
       return NextResponse.json({ error: guard.reason }, { status: 409 })
@@ -79,6 +104,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (/404|not found|thread was lost/i.test(message)) {
       return NextResponse.json(
         { error: 'the approval thread was lost — restart draft materialization', threadLost: true },
+        { status: 409 }
+      )
+    }
+    // TOCTOU backup for the pre-check above: two concurrent start requests can
+    // both pass the guard; the loser's internal throw is a conflict, not a 502.
+    if (/already in progress/i.test(message)) {
+      return NextResponse.json(
+        { error: 'draft materialization already in progress — confirm or reject it' },
         { status: 409 }
       )
     }
