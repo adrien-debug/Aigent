@@ -88,10 +88,24 @@ describe('computeRepoFit', () => {
   })
 
   it('4 — cites an absent route → hallucination warning', () => {
-    const cases = [...goodCases(), c('Bad route', 'Call /api/does-not-exist', 'Uses /api/does-not-exist.', ['repo'])]
+    const cases = [...goodCases(), c('Bad route', 'Call /api/does-not-exist', 'Uses /api/does-not-exist as the primary endpoint.', ['repo'])]
     const r = computeRepoFit({ suiteSource: 'repo_aware', cases, toolNames: READ_TOOLS, repoMap: repoMap(), residueCount: 1 })
     expect(r.hallucinationWarnings.some((w) => w.startsWith('route_absent:/api/does-not-exist'))).toBe(true)
     expect(r.checks.find((k) => k.id === 'routes')!.status).toBe('fail')
+  })
+
+  it('4b — cites absent route in refusal context → not a hallucination', () => {
+    const cases = [
+      ...goodCases(),
+      c(
+        'Refuses invented route',
+        'Which API route should I call for alerts?',
+        'Explicitly notes that invented routes like /api/does-not-exist are not confirmed by the repo context.',
+        ['repo']
+      ),
+    ]
+    const r = computeRepoFit({ suiteSource: 'repo_aware', cases, toolNames: READ_TOOLS, repoMap: repoMap(), residueCount: 1 })
+    expect(r.hallucinationWarnings.some((w) => w.includes('does-not-exist'))).toBe(false)
   })
 
   it('5 — DS signals present but no DS case → missingCoverage design_system', () => {

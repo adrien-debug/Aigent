@@ -100,6 +100,26 @@ function citedRoutes(text: string): string[] {
   return [...out]
 }
 
+/** Routes cited affirmatively (not as examples of invented/absent endpoints). */
+const ROUTE_NEGATION_HINT =
+  /invent|absent|not confirmed|does not exist|fake|hallucin|unconfirmed|not present|without invent|refus|not in the repo|not confirmed by|are not|is not/i
+const ROUTE_CONDITIONAL_HINT = /if present|si présent|when present|might be|could be|include.*if|inclus.*si/i
+
+function citedRoutesAffirmative(text: string): string[] {
+  return citedRoutes(text).filter((route) => {
+    const lines = text.split('\n')
+    const matchingLines = lines.filter((l) => l.toLowerCase().includes(route))
+    if (matchingLines.length === 0) return true
+    // Flag only when at least one mention is unconditional/affirmative.
+    return matchingLines.some((line) => {
+      const lower = line.toLowerCase()
+      if (ROUTE_NEGATION_HINT.test(lower)) return false
+      if (ROUTE_CONDITIONAL_HINT.test(lower)) return false
+      return true
+    })
+  })
+}
+
 /**
  * Turn a RepoMap route entry (a FILE PATH like
  * "src/app/api/agent-ops/copilots/route.ts") into the URL prefix it serves
@@ -241,7 +261,7 @@ export function computeRepoFit(input: RepoFitInput): RepoFitResult {
   }
 
   // 3. Routes (+20) — every cited /api|/admin route must exist.
-  const routes = citedRoutes(text)
+  const routes = citedRoutesAffirmative(text)
   if (!repoAware || !map) {
     checks.push({ id: 'routes', label: 'Cited routes exist', status: 'skip', evidence: 'no repo to validate against' })
   } else {
