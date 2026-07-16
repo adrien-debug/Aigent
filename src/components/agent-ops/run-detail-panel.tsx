@@ -16,11 +16,11 @@ export function RunStatusText({ status }: { status: AgentRunStatus }) {
 
 function Stat({ label, value, emphasis }: { label: string; value: React.ReactNode; emphasis?: boolean }) {
   return (
-    <div className={clsx('flex flex-col gap-1 p-3', surfaceInsetClass)}>
+    <div className={clsx('flex min-w-0 flex-col gap-1 p-3', surfaceInsetClass)}>
       <dt className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">{label}</dt>
       <dd
         className={clsx(
-          'font-mono text-sm',
+          'truncate font-mono text-sm',
           emphasis ? 'font-medium text-accent-400' : 'text-white'
         )}
       >
