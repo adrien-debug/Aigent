@@ -181,6 +181,7 @@ export function LangGraphCanvasView({ graph, studioUrl }: { graph: string; studi
   // Refresh state.
   const [autoRefresh, setAutoRefresh] = useState(false)
   const [lastRefreshed, setLastRefreshed] = useState<string | null>(null)
+  const [manualRefreshing, setManualRefreshing] = useState(false)
 
   const loadDetail = useCallback(async (threadId: string, opts?: { silent?: boolean }) => {
     const silent = opts?.silent === true
@@ -380,8 +381,26 @@ export function LangGraphCanvasView({ graph, studioUrl }: { graph: string; studi
                 ))}
               </Select>
             </div>
-            <Button outline onClick={() => selectedThread && loadDetail(selectedThread, { silent: true })} disabled={!selectedThread || detailLoading}>
-              Refresh thread
+            <Button
+              outline
+              onClick={async () => {
+                if (!selectedThread) return
+                setManualRefreshing(true)
+                try {
+                  await loadDetail(selectedThread, { silent: true })
+                } finally {
+                  setManualRefreshing(false)
+                }
+              }}
+              disabled={!selectedThread || detailLoading || manualRefreshing}
+            >
+              {manualRefreshing ? (
+                <>
+                  <Spinner className="size-4 animate-spin" /> Refreshing…
+                </>
+              ) : (
+                'Refresh thread'
+              )}
             </Button>
             <label className="inline-flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
               <Switch checked={autoRefresh} onChange={setAutoRefresh} aria-label="Auto-refresh" color="accent" />
