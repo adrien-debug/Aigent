@@ -32,7 +32,7 @@ const VALUE_SIZE_CLASS = {
 const VALUE_TONE_CLASS = {
   default: 'text-white',
   accent: 'text-accent-400',
-  muted: 'text-zinc-500',
+  muted: 'text-zinc-400',
 } as const
 
 /**
@@ -58,8 +58,8 @@ export function AgentKpiBand({
   // neighbours — every value row then starts on the same baseline.
   const labelClass =
     density === 'compact'
-      ? 'flex min-h-8 items-start text-[10px] font-medium uppercase tracking-widest text-zinc-600 mb-1'
-      : 'flex min-h-10 items-start text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2 group-hover:text-zinc-400 transition-colors'
+      ? 'flex min-h-8 items-start text-[10px] font-medium uppercase tracking-widest text-zinc-400 mb-1'
+      : 'flex min-h-10 items-start text-xs font-semibold uppercase tracking-widest text-zinc-400 mb-2 group-hover:text-zinc-300 transition-colors'
 
   return (
     <div
@@ -83,11 +83,7 @@ export function AgentKpiBand({
               <span
                 className={clsx(
                   'mb-1 h-4 text-xs font-medium tracking-tight tabular-nums',
-                  stat.changeType === 'negative'
-                    ? 'text-accent-400'
-                    : stat.changeType === 'positive'
-                      ? 'text-zinc-400'
-                      : 'text-zinc-500'
+                  stat.changeType === 'negative' ? 'text-accent-400' : 'text-zinc-400'
                 )}
               >
                 {stat.change ?? ' '}
@@ -105,13 +101,13 @@ export function AgentKpiBand({
                 >
                   {stat.value != null ? <AnimatedNumber value={stat.value} /> : null}
                 </span>
-                {stat.suffix ? <span className="text-sm text-zinc-500">{stat.suffix}</span> : null}
+                {stat.suffix ? <span className="text-sm text-zinc-400">{stat.suffix}</span> : null}
               </div>
             )}
 
             {hasViz ? <div className="mt-2 w-full flex-none">{stat.viz ?? null}</div> : null}
             {hasHint ? (
-              <span className="mt-1 text-xs text-zinc-500">{stat.hint ?? ' '}</span>
+              <span className="mt-1 text-xs text-zinc-400">{stat.hint ?? ' '}</span>
             ) : null}
           </div>
         )
