@@ -9,6 +9,7 @@ import { ReplayCandidatePicker, type ReplayCandidateItem } from '@/components/ag
 import { ChipCluster } from '@/components/agent-ops/widgets/chip-cluster'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { SplitBar, type SplitSegment } from '@/components/agent-ops/widgets/split-bar'
+import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Field, Label } from '@/components/catalyst/fieldset'
 import { Link } from '@/components/catalyst/link'
@@ -202,7 +203,7 @@ export async function ReplaySection({ copilotId }: { copilotId: string }) {
                       ]}
                     />
                   </div>
-                  <span className="text-sm text-zinc-500 dark:text-zinc-400">{status.label}</span>
+                  <Badge color={status.color}>{status.label}</Badge>
                 </div>
                 <div className="px-6 py-5">
                   <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Candidates</p>
