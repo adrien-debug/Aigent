@@ -11,7 +11,10 @@ import { listThreads } from '@/lib/agent-mission-control/langgraph-explorer'
  * server/transport error.
  */
 export async function GET() {
-  if (!process.env.LANGGRAPH_SERVER_SECRET) {
+  // Mirror agentServerClient()'s definition of "absent": a whitespace-only
+  // secret is not configured — answer 503 here rather than letting the bare
+  // client hit the server unauthenticated and misreport the config fault as 502.
+  if (!process.env.LANGGRAPH_SERVER_SECRET?.trim()) {
     return NextResponse.json({ error: 'LangGraph Agent Server not configured' }, { status: 503 })
   }
   try {
