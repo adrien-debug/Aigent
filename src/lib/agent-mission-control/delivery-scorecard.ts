@@ -23,6 +23,11 @@ export type DeliveryLevel = 'not_ready' | 'safe' | 'delivery_ready' | 'excellent
 export type DeliveryStatus = 'pass' | 'warn' | 'fail'
 export type DimensionStatus = 'pass' | 'warn' | 'fail' | 'missing'
 
+/** Which version the scorecard reflects. Set by the server collector. */
+export type ScorecardTargetKind = 'production' | 'candidate'
+/** Caller-requested target mode. `auto` = production if served, else candidate. */
+export type DeliveryScorecardTarget = 'auto' | 'production' | 'candidate'
+
 export interface DeliveryDimension {
   id: string
   label: string
@@ -39,6 +44,15 @@ export interface AgentDeliveryScorecard {
   dimensions: DeliveryDimension[]
   blockers: string[]
   warnings: string[]
+  /** Which version this scorecard reflects. */
+  target: ScorecardTargetKind
+  targetVersionId: string | null
+  productionVersionId: string | null
+  candidateVersionId: string | null
+  /** True when a production version is actually served (production_version_id set). */
+  isProductionServed: boolean
+  /** True when the latest candidate differs from the served production version. */
+  hasDifferentCandidate: boolean
   evidence: {
     repoFit?: RepoFitResult | null
     latestTestRunId?: string | null
@@ -65,6 +79,16 @@ export interface DeliveryScorecardInput {
   toolRiskWrites: string[]
   /** Release gate promotable flag (source of truth), or null if not evaluated. */
   releaseGatePromotable: boolean | null
+  /**
+   * Which version is scored. `production` = a version already serving prod:
+   * it PASSED the gate at promotion time, so a live gate that refuses to
+   * re-promote an already-production stage is NOT a blocker here. `candidate` =
+   * a draft/beta under review: a red gate IS a blocker.
+   */
+  target: ScorecardTargetKind
+  targetVersionId: string | null
+  productionVersionId: string | null
+  candidateVersionId: string | null
 }
 
 // Weights (sum 100). Transparent, not magic.
@@ -188,8 +212,25 @@ export function computeDeliveryScorecard(input: DeliveryScorecardInput): AgentDe
     evidence: readOnly ? 'read-only' : `write-capable: ${input.toolRiskWrites.join(', ')}`,
   })
 
-  // 7. Release gate (5%) — a RED gate is a BLOCKER; null = not yet evaluated.
-  if (input.releaseGatePromotable === true) {
+  // 7. Release gate (5%).
+  //   candidate: a RED gate is a BLOCKER (this version must pass to ship).
+  //   production: the served version ALREADY passed the gate at promotion time.
+  //     The live gate refuses to re-promote a stage='production' version (its
+  //     `is-draft` check fails by design), so a red flag here is NOT a real
+  //     defect — we credit it as informational, never a blocker. This is the
+  //     whole point of this change: a served prod agent must not read Not ready
+  //     just because its own already-shipped version can't be re-promoted.
+  if (input.target === 'production') {
+    score += W_GATE
+    dimensions.push({
+      id: 'release-gate',
+      label: 'Release gate',
+      score: 100,
+      status: 'pass',
+      evidence: 'served in production — passed the gate at promotion',
+    })
+    if (input.releaseGatePromotable === false) warnings.push('release_gate_not_recomputable_on_production')
+  } else if (input.releaseGatePromotable === true) {
     score += W_GATE
     dimensions.push({ id: 'release-gate', label: 'Release gate', score: 100, status: 'pass', evidence: 'promotable' })
   } else if (input.releaseGatePromotable === false) {
@@ -208,6 +249,11 @@ export function computeDeliveryScorecard(input: DeliveryScorecardInput): AgentDe
   const status: DeliveryStatus = blockers.length > 0 ? 'fail' : warnings.length > 0 ? 'warn' : 'pass'
   const level: DeliveryLevel = blockers.length > 0 ? 'not_ready' : LEVEL_FOR(score)
 
+  const hasDifferentCandidate =
+    input.productionVersionId !== null &&
+    input.candidateVersionId !== null &&
+    input.candidateVersionId !== input.productionVersionId
+
   return {
     score,
     level,
@@ -215,6 +261,12 @@ export function computeDeliveryScorecard(input: DeliveryScorecardInput): AgentDe
     dimensions,
     blockers,
     warnings,
+    target: input.target,
+    targetVersionId: input.targetVersionId,
+    productionVersionId: input.productionVersionId,
+    candidateVersionId: input.candidateVersionId,
+    isProductionServed: input.productionVersionId !== null,
+    hasDifferentCandidate,
     evidence: {
       repoFit: input.repoFit,
       latestTestRunId: input.testRun?.id ?? null,

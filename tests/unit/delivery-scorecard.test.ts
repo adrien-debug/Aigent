@@ -25,6 +25,11 @@ function base(overrides: Partial<DeliveryScorecardInput> = {}): DeliveryScorecar
     benchmark: cleanBenchmark,
     toolRiskWrites: [],
     releaseGatePromotable: true,
+    // Default view: a candidate under review (a red gate IS a blocker).
+    target: 'candidate',
+    targetVersionId: 'v-candidate',
+    productionVersionId: null,
+    candidateVersionId: 'v-candidate',
     ...overrides,
   }
 }
@@ -90,13 +95,7 @@ describe('computeDeliveryScorecard', () => {
   })
 
   it('8 — no evidence at all → not_ready', () => {
-    const card = computeDeliveryScorecard({
-      repoFit: null,
-      testRun: null,
-      benchmark: null,
-      toolRiskWrites: [],
-      releaseGatePromotable: null,
-    })
+    const card = computeDeliveryScorecard(base({ repoFit: null, testRun: null, benchmark: null, releaseGatePromotable: null }))
     expect(card.level).toBe('not_ready')
     expect(card.dimensions.find((d) => d.id === 'tests')!.status).toBe('missing')
     expect(card.warnings).toContain('no_test_run')
@@ -110,14 +109,57 @@ describe('computeDeliveryScorecard', () => {
 
   it('separates safe from delivery_ready: safe band is 50-69', () => {
     // Weak-but-clean agent: repo-fit weak, no benchmark, tests pass, gate null.
-    const card = computeDeliveryScorecard({
-      repoFit: repoFit(20, 'weak'),
-      testRun: passTestRun,
-      benchmark: null,
-      toolRiskWrites: [],
-      releaseGatePromotable: null,
-    })
+    const card = computeDeliveryScorecard(base({ repoFit: repoFit(20, 'weak'), benchmark: null, releaseGatePromotable: null }))
     expect(card.blockers).toEqual([])
     expect(card.score).toBeLessThan(70) // not delivery_ready
+  })
+})
+
+describe('computeDeliveryScorecard — target version mode', () => {
+  it('production target: a red gate is NOT a blocker (already served)', () => {
+    const card = computeDeliveryScorecard(
+      base({
+        target: 'production',
+        targetVersionId: 'v-prod',
+        productionVersionId: 'v-prod',
+        candidateVersionId: 'v-prod',
+        releaseGatePromotable: false, // live gate refuses to re-promote a prod stage
+      })
+    )
+    expect(card.blockers).not.toContain('release_gate_red')
+    expect(card.dimensions.find((d) => d.id === 'release-gate')!.status).toBe('pass')
+    expect(card.target).toBe('production')
+    expect(card.isProductionServed).toBe(true)
+    expect(card.warnings).toContain('release_gate_not_recomputable_on_production')
+  })
+
+  it('candidate target: a red gate STAYS a blocker', () => {
+    const card = computeDeliveryScorecard(
+      base({ target: 'candidate', targetVersionId: 'v-cand', candidateVersionId: 'v-cand', releaseGatePromotable: false })
+    )
+    expect(card.blockers).toContain('release_gate_red')
+    expect(card.level).toBe('not_ready')
+  })
+
+  it('production served with a different candidate → hasDifferentCandidate=true', () => {
+    const card = computeDeliveryScorecard(
+      base({
+        target: 'production',
+        targetVersionId: 'v-prod',
+        productionVersionId: 'v-prod',
+        candidateVersionId: 'v-new-candidate',
+        releaseGatePromotable: false,
+      })
+    )
+    expect(card.hasDifferentCandidate).toBe(true)
+    expect(card.productionVersionId).toBe('v-prod')
+    expect(card.candidateVersionId).toBe('v-new-candidate')
+  })
+
+  it('production served, candidate identical → hasDifferentCandidate=false', () => {
+    const card = computeDeliveryScorecard(
+      base({ target: 'production', targetVersionId: 'v-prod', productionVersionId: 'v-prod', candidateVersionId: 'v-prod' })
+    )
+    expect(card.hasDifferentCandidate).toBe(false)
   })
 })

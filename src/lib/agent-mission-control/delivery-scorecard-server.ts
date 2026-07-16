@@ -17,6 +17,8 @@ import 'server-only'
 import {
   computeDeliveryScorecard,
   type AgentDeliveryScorecard,
+  type DeliveryScorecardTarget,
+  type ScorecardTargetKind,
 } from './delivery-scorecard'
 import {
   getCopilot,
@@ -70,25 +72,47 @@ async function resolveRepoFit(
 }
 
 /**
- * Build the full delivery scorecard for a copilot's candidate version. `null`
- * only when the copilot itself is not found. All numeric evidence is run-backed
- * via the Release Gate; repo-fit is recomputed over persisted cases.
+ * Build the delivery scorecard for a copilot, targeting a specific version.
+ *
+ *   auto (default): score the SERVED production version when one exists
+ *     (production_version_id), else the latest candidate.
+ *   production: score the served production version; if none, a missing/not_ready
+ *     scorecard with a `no_production_version` warning (never lies).
+ *   candidate: score the latest candidate / latest_version_id.
+ *
+ * A production scorecard reflects the version already serving traffic — it does
+ * NOT block on the live gate refusing to re-promote an already-production stage
+ * (see the pure helper). `null` only when the copilot is not found.
  */
 export async function getDeliveryScorecard(
   copilotId: string,
-  candidateVersionId?: string
+  opts: { target?: DeliveryScorecardTarget } = {}
 ): Promise<AgentDeliveryScorecard | null> {
   const copilot = await getCopilot(copilotId)
   if (!copilot) return null
 
-  // The gate carries the run-backed test/benchmark/tool evidence in one call.
-  // Fail-soft: a gate evaluation error must not break the scorecard — we fall
-  // back to null evidence (which the pure scorecard renders as `missing`).
-  let gate: Awaited<ReturnType<typeof evaluateReleaseGate>> = null
-  try {
-    gate = await evaluateReleaseGate(copilotId, candidateVersionId)
-  } catch {
-    gate = null
+  const productionVersionId = copilot.productionVersionId
+  const candidateVersionId = copilot.latestVersionId
+  const requested: DeliveryScorecardTarget = opts.target ?? 'auto'
+
+  // Resolve which version to score + whether it's a production or candidate view.
+  let targetKind: ScorecardTargetKind
+  let targetVersionId: string | null
+  if (requested === 'production') {
+    targetKind = 'production'
+    targetVersionId = productionVersionId
+  } else if (requested === 'candidate') {
+    targetKind = 'candidate'
+    targetVersionId = candidateVersionId
+  } else {
+    // auto: production if served, else candidate.
+    if (productionVersionId) {
+      targetKind = 'production'
+      targetVersionId = productionVersionId
+    } else {
+      targetKind = 'candidate'
+      targetVersionId = candidateVersionId
+    }
   }
 
   // Real mounted tool names so repo-fit's tool check sees the read tools.
@@ -100,8 +124,41 @@ export async function getDeliveryScorecard(
     `${copilot.description} ${copilot.tags.join(' ')}`
   )
 
-  return computeDeliveryScorecard({
+  const baseFields = {
     repoFit,
+    productionVersionId,
+    candidateVersionId,
+    target: targetKind,
+    targetVersionId,
+  }
+
+  // production explicitly requested but nothing served → honest not_ready.
+  if (requested === 'production' && !productionVersionId) {
+    const card = computeDeliveryScorecard({
+      ...baseFields,
+      testRun: null,
+      benchmark: null,
+      toolRiskWrites: [],
+      releaseGatePromotable: null,
+    })
+    card.warnings = ['no_production_version', ...card.warnings]
+    card.level = 'not_ready'
+    card.status = 'fail'
+    return card
+  }
+
+  // The gate carries the run-backed evidence PINNED to the target version. Even
+  // when its `is-draft` check fails on a production stage, testRun/benchmark/
+  // toolRiskWrites are still resolved for that exact version. Fail-soft.
+  let gate: Awaited<ReturnType<typeof evaluateReleaseGate>> = null
+  try {
+    gate = targetVersionId ? await evaluateReleaseGate(copilotId, targetVersionId) : await evaluateReleaseGate(copilotId)
+  } catch {
+    gate = null
+  }
+
+  return computeDeliveryScorecard({
+    ...baseFields,
     testRun: gate?.evidence.testRun
       ? { id: gate.evidence.testRun.id, passRate: gate.evidence.testRun.passRate, hasRecursionError: gate.evidence.testRun.hasRecursionError }
       : null,

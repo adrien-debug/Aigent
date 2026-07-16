@@ -39,14 +39,19 @@ export async function DeliveryScorecardCard({ copilotId }: { copilotId: string }
 
   const levelLabel = DELIVERY_LEVEL_LABELS[card.level]
 
+  const targetLabel = card.target === 'production' ? 'Production version' : 'Candidate version'
+
   return (
     <AgentSectionCard
       title="Delivery scorecard"
-      description="Repo fit aggregated with the run-backed quality & safety signals — decision support, not a gate."
+      description={`Repo fit aggregated with the run-backed quality & safety signals — decision support, not a gate. Target: ${targetLabel}.`}
       actions={
-        <Badge color={card.status === 'fail' ? 'accentStrong' : card.status === 'warn' ? 'zinc' : 'accent'}>
-          {levelLabel}
-        </Badge>
+        <span className="flex items-center gap-2">
+          {card.target === 'production' ? <Badge color="accent">Production</Badge> : null}
+          <Badge color={card.status === 'fail' ? 'accentStrong' : card.status === 'warn' ? 'zinc' : 'accent'}>
+            {levelLabel}
+          </Badge>
+        </span>
       }
       contentClassName="px-6 py-5"
     >
@@ -74,6 +79,14 @@ export async function DeliveryScorecardCard({ copilotId }: { copilotId: string }
           ))}
         </dl>
       </div>
+
+      {/* When the scorecard reflects production but a newer candidate is in
+          flight, say so — informational, it does NOT pollute the prod score. */}
+      {card.target === 'production' && card.hasDifferentCandidate ? (
+        <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
+          A newer candidate version differs from production — score it on the Release tab before shipping it.
+        </p>
+      ) : null}
 
       {card.blockers.length > 0 ? (
         <div className="mt-5 border-t border-zinc-950/5 pt-4 dark:border-white/5">
