@@ -65,7 +65,7 @@ export function SiteHeader() {
         <div className="flex lg:hidden">
           <HeadlessButton
             onClick={() => setMobileMenuOpen(true)}
-            className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-zinc-300 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+            className="-m-3 inline-flex items-center justify-center rounded-md p-3 text-zinc-300 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
           >
             <span className="sr-only">Open main menu</span>
             <Bars3Icon aria-hidden="true" className="size-6" />
@@ -92,7 +92,7 @@ export function SiteHeader() {
             </Link>
             <HeadlessButton
               onClick={() => setMobileMenuOpen(false)}
-              className="-m-2.5 rounded-md p-2.5 text-zinc-300 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+              className="-m-3 rounded-md p-3 text-zinc-300 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
             >
               <span className="sr-only">Close menu</span>
               <XMarkIcon aria-hidden="true" className="size-6" />
@@ -116,7 +116,7 @@ export function SiteHeader() {
                 <Link
                   href="/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold text-white hover:bg-white/5"
+                  className="-mx-3 block rounded-lg px-3 py-3 text-base/7 font-semibold text-white hover:bg-white/5"
                 >
                   Sign in
                 </Link>
