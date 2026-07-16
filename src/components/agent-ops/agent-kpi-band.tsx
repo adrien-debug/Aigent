@@ -64,7 +64,7 @@ export function AgentKpiBand({
   return (
     <div
       className={clsx(
-        'grid grid-cols-2 border-b border-white/5',
+        'grid grid-cols-1 border-b border-white/5 sm:grid-cols-2',
         density === 'compact' ? 'mb-10 gap-x-12 gap-y-6 py-4' : 'mb-8 gap-8 py-6',
         COLS_CLASS[stats.length] ??
           (stats.length >= 6 ? 'md:grid-cols-3 xl:grid-cols-6' : 'md:grid-cols-4'),
