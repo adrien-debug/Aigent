@@ -59,7 +59,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
 
   let body: { action?: string; versionId?: string; previousProductionVersionId?: string | null }
   try {
-    body = await request.json()
+    const parsed: unknown = await request.json()
+    // `request.json()` accepts any valid JSON value (null, a number, a string,
+    // an array, a boolean) — only a plain object is a valid body here. `null`
+    // in particular would throw a TypeError on the `body.action` read below
+    // (raw 500), so reject early with a clean 400 — same guard as the sibling
+    // `[copilotId]/route.ts` PATCH.
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return NextResponse.json({ error: 'body must be a JSON object' }, { status: 400 })
+    }
+    body = parsed as { action?: string; versionId?: string; previousProductionVersionId?: string | null }
   } catch {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
   }
