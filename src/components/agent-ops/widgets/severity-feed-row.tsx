@@ -50,7 +50,7 @@ export function SeverityFeedRow({
       </time>
       <NextLink
         href={href}
-        className="shrink-0 text-xs font-medium text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
+        className="-my-3 shrink-0 py-3 text-xs font-medium text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
       >
         Investigate
         <span className="sr-only"> {copilotName ?? 'this'} warning</span>
