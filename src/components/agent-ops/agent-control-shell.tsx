@@ -152,7 +152,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
           <a
             href="/logout"
             aria-label="Sign out"
-            className="mt-2 flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-white/5 hover:text-white"
+            className="mt-2 flex size-11 shrink-0 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
           >
             <ArrowRightStartOnRectangleIcon aria-hidden="true" className="size-4" />
           </a>
