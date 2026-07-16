@@ -44,7 +44,7 @@ export default function ContactPage() {
                 type="text"
                 autoComplete="given-name"
                 required
-                className="block w-full rounded-md bg-white/5 px-3.5 py-2 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-zinc-500 focus:outline-2 focus:-outline-offset-2 focus:outline-accent-500"
+                className="block min-h-11 w-full rounded-md bg-white/5 px-3.5 py-2 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-zinc-500 focus:outline-2 focus:-outline-offset-2 focus:outline-accent-500"
               />
             </div>
           </div>
@@ -59,7 +59,7 @@ export default function ContactPage() {
                 type="text"
                 autoComplete="family-name"
                 required
-                className="block w-full rounded-md bg-white/5 px-3.5 py-2 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-zinc-500 focus:outline-2 focus:-outline-offset-2 focus:outline-accent-500"
+                className="block min-h-11 w-full rounded-md bg-white/5 px-3.5 py-2 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-zinc-500 focus:outline-2 focus:-outline-offset-2 focus:outline-accent-500"
               />
             </div>
           </div>
@@ -73,7 +73,7 @@ export default function ContactPage() {
                 name="company"
                 type="text"
                 autoComplete="organization"
-                className="block w-full rounded-md bg-white/5 px-3.5 py-2 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-zinc-500 focus:outline-2 focus:-outline-offset-2 focus:outline-accent-500"
+                className="block min-h-11 w-full rounded-md bg-white/5 px-3.5 py-2 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-zinc-500 focus:outline-2 focus:-outline-offset-2 focus:outline-accent-500"
               />
             </div>
           </div>
@@ -88,7 +88,7 @@ export default function ContactPage() {
                 type="email"
                 autoComplete="email"
                 required
-                className="block w-full rounded-md bg-white/5 px-3.5 py-2 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-zinc-500 focus:outline-2 focus:-outline-offset-2 focus:outline-accent-500"
+                className="block min-h-11 w-full rounded-md bg-white/5 px-3.5 py-2 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-zinc-500 focus:outline-2 focus:-outline-offset-2 focus:outline-accent-500"
               />
             </div>
           </div>
@@ -101,7 +101,7 @@ export default function ContactPage() {
                 id="copilots"
                 name="copilots"
                 defaultValue="none"
-                className="block w-full appearance-none rounded-md bg-white/5 px-3.5 py-2 text-base text-white outline-1 -outline-offset-1 outline-white/10 focus:outline-2 focus:-outline-offset-2 focus:outline-accent-500"
+                className="block min-h-11 w-full appearance-none rounded-md bg-white/5 px-3.5 py-2 text-base text-white outline-1 -outline-offset-1 outline-white/10 focus:outline-2 focus:-outline-offset-2 focus:outline-accent-500"
               >
                 <option value="none">Not yet — evaluating</option>
                 <option value="1-3">1–3</option>
@@ -120,7 +120,7 @@ export default function ContactPage() {
                 name="message"
                 rows={4}
                 required
-                className="block w-full rounded-md bg-white/5 px-3.5 py-2 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-zinc-500 focus:outline-2 focus:-outline-offset-2 focus:outline-accent-500"
+                className="block min-h-11 w-full rounded-md bg-white/5 px-3.5 py-2 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-zinc-500 focus:outline-2 focus:-outline-offset-2 focus:outline-accent-500"
               />
             </div>
           </div>
@@ -128,7 +128,7 @@ export default function ContactPage() {
         <div className="mt-10">
           <button
             type="submit"
-            className="block w-full rounded-md bg-accent-500 px-3.5 py-2.5 text-center text-sm font-semibold text-zinc-950 shadow-xs hover:bg-accent-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+            className="block min-h-11 w-full rounded-md bg-accent-500 px-3.5 py-2.5 text-center text-sm font-semibold text-zinc-950 shadow-xs hover:bg-accent-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
           >
             Send message
           </button>
