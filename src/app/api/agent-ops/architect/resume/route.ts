@@ -28,6 +28,14 @@ import { pgrest } from '@/lib/agent-mission-control/postgrest'
  * OPENAI_API_KEY. Never fabricates a resume, never creates on reject.
  */
 
+// The runId is a LangGraph thread_id — always a randomUUID() minted server-side.
+// It flows straight into the Agent Server URL path (`threads/{id}/state`,
+// `threads/{id}/runs/wait`) via the SDK client, so constrain its shape to a UUID
+// BEFORE it leaves for the upstream (same guard as architect/runs/[id]): an
+// unvalidated segment (path traversal, scheme/host injection) must never reach
+// that fetch. Anything else → 400.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export async function POST(request: Request) {
   const base = process.env.AMC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -43,6 +51,9 @@ export async function POST(request: Request) {
   }
   if (typeof body.runId !== 'string' || body.runId.trim().length === 0) {
     return NextResponse.json({ error: 'runId is required' }, { status: 400 })
+  }
+  if (!UUID_RE.test(body.runId)) {
+    return NextResponse.json({ error: 'invalid runId' }, { status: 400 })
   }
   if (typeof body.approved !== 'boolean') {
     return NextResponse.json({ error: 'approved must be a boolean' }, { status: 400 })
