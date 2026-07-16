@@ -155,6 +155,12 @@ interface BenchTask {
   expectedToolCalls: string[]
 }
 
+// Safety bounds on the two V1 task-source reads (a copilot realistically has
+// a handful of suites and dozens of cases) — keeps an unexpectedly large
+// corpus from being pulled unbounded from PostgREST.
+const MAX_TASK_SOURCE_SUITES = 100
+const MAX_TASK_SOURCE_CASES = 500
+
 /**
  * V1 task source: the copilot's own test cases (see file header). Capped at
  * the suite's task_count so the run size matches what the UI advertises.
@@ -162,19 +168,24 @@ interface BenchTask {
 async function loadBenchmarkTasks(copilotId: string, taskCount: number): Promise<BenchTask[]> {
   const suiteRows = await pgrest<RawRow[]>(
     'GET',
-    `test_suites?copilot_id=eq.${encodeURIComponent(copilotId)}&select=id`
+    `test_suites?copilot_id=eq.${encodeURIComponent(copilotId)}&select=id&order=id&limit=${MAX_TASK_SOURCE_SUITES}`
   )
   const suiteIds = suiteRows.map((r) => r.id as string)
   if (suiteIds.length === 0) return []
 
   const inList = suiteIds.map((s) => encodeURIComponent(s)).join(',')
-  const caseRows = await pgrest<RawRow[]>('GET', `test_cases?suite_id=in.(${inList})&select=*&order=id`)
-  const tasks = caseRows.map((r) => ({
+  // Bound pushed down to PostgREST (instead of truncating in JS) and select
+  // narrowed to the three columns actually consumed below.
+  const limit = taskCount > 0 ? Math.min(taskCount, MAX_TASK_SOURCE_CASES) : MAX_TASK_SOURCE_CASES
+  const caseRows = await pgrest<RawRow[]>(
+    'GET',
+    `test_cases?suite_id=in.(${inList})&select=input,expected_behavior,expected_tool_calls&order=id&limit=${limit}`
+  )
+  return caseRows.map((r) => ({
     input: (r.input as string) ?? '',
     expectedBehavior: (r.expected_behavior as string) ?? '',
     expectedToolCalls: (r.expected_tool_calls as string[]) ?? [],
   }))
-  return taskCount > 0 ? tasks.slice(0, taskCount) : tasks
 }
 
 // ---------------------------------------------------------------------------
