@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { ProjectDeleteAction } from '@/components/agent-ops/project-delete-action'
 import { ProjectMissionOrchestrator } from '@/components/agent-ops/project-mission-orchestrator'
 import { ProjectRepoIntelligence } from '@/components/agent-ops/project-repo-intelligence'
@@ -258,32 +259,41 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           }
         />
       ) : (
-        <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-white/5 border-dashed bg-white/[0.01]">
-          <ServerStackIcon className="size-8 text-zinc-700 mb-3" />
-          <p className="text-sm font-medium text-white">No repo linked</p>
-          <p className="text-xs text-zinc-500 mt-1">Link a GitHub repo to this project to run mission orchestration.</p>
+        <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
+          <EmptyState
+            icon={ServerStackIcon}
+            title="No repo linked"
+            description="Link a GitHub repo to this project to run mission orchestration."
+          />
         </div>
       )}
 
       {validated.length > 0 ? (
         <ValidatedAgentsTable copilots={validated} />
       ) : (
-        <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-white/5 border-dashed bg-white/[0.01]">
-          <CpuChipIcon className="size-8 text-zinc-700 mb-3" />
-          <p className="text-sm font-medium text-white">No validated agents</p>
-          <p className="text-xs text-zinc-500 mt-1">
-            Validate copilots from <Link href="/admin/agents" className="text-accent-400 hover:underline">the bench</Link>.
-          </p>
+        <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
+          <EmptyState
+            icon={CpuChipIcon}
+            title="No validated agents"
+            description="Validate copilots from the bench to see them here."
+            action={
+              <Link href="/admin/agents" className="text-xs text-accent-400 hover:underline">
+                Go to the bench
+              </Link>
+            }
+          />
         </div>
       )}
 
       {runs.length > 0 ? (
         <ProjectTracesTable runs={runs} copilotNameById={copilotNameById} />
       ) : (
-        <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-white/5 border-dashed bg-white/[0.01]">
-          <BoltIcon className="size-8 text-zinc-700 mb-3" />
-          <p className="text-sm font-medium text-white">No runs recorded</p>
-          <p className="text-xs text-zinc-500 mt-1">Traces appear here as soon as this project&apos;s agents serve traffic.</p>
+        <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
+          <EmptyState
+            icon={BoltIcon}
+            title="No runs recorded"
+            description="Traces appear here as soon as this project's agents serve traffic."
+          />
         </div>
       )}
     </div>
