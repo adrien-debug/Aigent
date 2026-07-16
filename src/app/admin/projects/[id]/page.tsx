@@ -256,7 +256,13 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
               : 'Validate agent delivery readiness for this project'
           }
         />
-      ) : null}
+      ) : (
+        <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-white/5 border-dashed bg-white/[0.01]">
+          <ServerStackIcon className="size-8 text-zinc-700 mb-3" />
+          <p className="text-sm font-medium text-white">No repo linked</p>
+          <p className="text-xs text-zinc-500 mt-1">Link a GitHub repo to this project to run mission orchestration.</p>
+        </div>
+      )}
 
       {validated.length > 0 ? (
         <ValidatedAgentsTable copilots={validated} />
