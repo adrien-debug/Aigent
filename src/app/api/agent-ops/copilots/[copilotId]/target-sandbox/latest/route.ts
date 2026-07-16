@@ -12,8 +12,10 @@ const COPILOT_ID_RE = /^[a-z0-9-]{1,200}$/
 /**
  * GET /api/agent-ops/copilots/:copilotId/target-sandbox/latest — return the most
  * recent PERSISTED sandbox report for this copilot. NO network run: a pure DB
- * read of `sandbox_reports` (migration 0014). Returns `{ report: null }` when
- * none has been run/persisted yet.
+ * read of `sandbox_reports` (migration 0014). Success is `{ ok: true, report }`
+ * (same shape as the sibling POST ../target-sandbox); `report` is null when
+ * none has been run/persisted yet — including for a well-formed copilotId that
+ * doesn't exist (deliberate: no extra copilot lookup on this read path).
  *
  * Auth is enforced upstream by src/proxy.ts (admin session OR x-amc-key) for all
  * /api/agent-ops. Read-only — never runs a sandbox, never writes GitHub.
@@ -35,6 +37,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cop
     return NextResponse.json({ ok: true, report })
   } catch (err) {
     console.error('[target-sandbox/latest] read failed', err instanceof Error ? err.message : err)
-    return NextResponse.json({ error: 'failed to read sandbox report' }, { status: 502 })
+    // pgrest() rethrows an aborted round-trip as PgrestError(status 504):
+    // surface an upstream TIMEOUT as HTTP 504, any other backend failure as
+    // 502. Same generic body either way — no internal detail leaks.
+    const timedOut =
+      err instanceof Error && err.name === 'PgrestError' && (err as unknown as { status?: unknown }).status === 504
+    return NextResponse.json({ error: 'failed to read sandbox report' }, { status: timedOut ? 504 : 502 })
   }
 }
