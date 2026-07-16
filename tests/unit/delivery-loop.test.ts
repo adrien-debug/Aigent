@@ -108,15 +108,24 @@ describe('evaluateReadiness', () => {
     })
   }
 
-  it('6 — all green → ready_for_manual_test', () => {
-    const r = evaluateReadiness({
-      deliveryMode: 'pull_request',
+  function greenReadinessInput(overrides: Partial<Parameters<typeof evaluateReadiness>[0]> = {}) {
+    return {
+      deliveryMode: 'pull_request' as const,
       prUrl: 'https://github.com/owner/repo/pull/7',
       report: greenReport(),
       reportPersisted: true,
-      scorecardLevel: 'excellent',
-      executeStatus: 'passed',
-    })
+      scorecardLevel: 'excellent' as const,
+      executeStatus: 'passed' as const,
+      testPassRate: 1,
+      benchmarkUnsafeActions: 0,
+      releaseGatePromotable: true,
+      repoFitScore: 100,
+      ...overrides,
+    }
+  }
+
+  it('6 — all green → ready_for_manual_test', () => {
+    const r = evaluateReadiness(greenReadinessInput())
     expect(r.ready).toBe(true)
     expect(r.status).toBe('ready_for_manual_test')
     expect(r.unmet).toEqual([])
@@ -202,16 +211,9 @@ describe('evaluateReadiness', () => {
   })
 
   it('risk coverage missing blocks readiness', () => {
-    const r = evaluateReadiness({
-      deliveryMode: 'pull_request',
-      prUrl: 'https://github.com/owner/repo/pull/2',
-      report: greenReport(),
-      reportPersisted: true,
-      scorecardLevel: 'excellent',
-      executeStatus: 'passed',
-      toolFitStatus: 'pass',
-      repoFitMissingCoverage: ['secrets', 'repo_risks'],
-    })
+    const r = evaluateReadiness(
+      greenReadinessInput({ toolFitStatus: 'pass', repoFitMissingCoverage: ['secrets', 'repo_risks'] })
+    )
     expect(r.ready).toBe(false)
     expect(r.unmet.some((u) => u.includes('risk coverage missing'))).toBe(true)
   })

@@ -145,12 +145,31 @@ async function computeLoopState(
   let scorecardLevel: 'not_ready' | 'safe' | 'delivery_ready' | 'excellent' | null = null
   let toolFitStatus: 'pass' | 'warn' | 'fail' | 'skip' | null = null
   let repoFitMissingCoverage: string[] = []
+  let testPassRate: number | null = null
+  let benchmarkUnsafeActions: number | null = null
+  let releaseGatePromotable: boolean | null = null
+  let repoFitScore: number | null = null
   try {
-    const card = await getDeliveryScorecard(copilotId)
+    const card = await getDeliveryScorecard(copilotId, { target: 'candidate' })
     scorecardLevel = card?.level ?? null
     const toolFit = card?.evidence.repoFit?.checks.find((c) => c.id === 'tool-fit')
     toolFitStatus = toolFit?.status ?? null
     repoFitMissingCoverage = card?.evidence.repoFit?.missingCoverage ?? []
+    repoFitScore = card?.evidence.repoFit?.score ?? null
+    const testDim = card?.dimensions.find((d) => d.id === 'tests')
+    testPassRate = testDim?.score != null ? testDim.score / 100 : null
+    const benchDim = card?.dimensions.find((d) => d.id === 'safety')
+    if (card?.blockers.some((b) => b.startsWith('unsafe_actions:'))) {
+      const m = card.blockers.find((b) => b.startsWith('unsafe_actions:'))?.match(/unsafe_actions:(\d+)/)
+      benchmarkUnsafeActions = m ? Number(m[1]) : 1
+    } else if (benchDim?.status === 'pass') {
+      benchmarkUnsafeActions = 0
+    }
+    releaseGatePromotable = card?.blockers.includes('release_gate_red')
+      ? false
+      : card?.dimensions.find((d) => d.id === 'release-gate')?.status === 'pass'
+        ? true
+        : null
   } catch {
     scorecardLevel = null
   }
@@ -171,6 +190,10 @@ async function computeLoopState(
     executeStatus,
     toolFitStatus,
     repoFitMissingCoverage,
+    testPassRate,
+    benchmarkUnsafeActions,
+    releaseGatePromotable,
+    repoFitScore,
   })
 
   // Decide status + next action.

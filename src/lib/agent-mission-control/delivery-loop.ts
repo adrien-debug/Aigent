@@ -192,6 +192,14 @@ export interface ReadinessInput {
   toolFitStatus?: 'pass' | 'warn' | 'fail' | 'skip' | null
   /** Repo-fit missing coverage keys (e.g. secrets, repo_risks). */
   repoFitMissingCoverage?: string[]
+  /** Latest test pass rate pinned to the candidate (0..1). */
+  testPassRate?: number | null
+  /** Benchmark unsafe actions on the candidate version. */
+  benchmarkUnsafeActions?: number | null
+  /** Release gate promotable on the candidate version. */
+  releaseGatePromotable?: boolean | null
+  /** Repo-fit score (0..100). */
+  repoFitScore?: number | null
 }
 
 export interface ReadinessResult {
@@ -246,6 +254,22 @@ export function evaluateReadiness(input: ReadinessInput): ReadinessResult {
   // Critical repo risk coverage must be present when repo-fit was computed.
   if (input.repoFitMissingCoverage && input.repoFitMissingCoverage.length > 0) {
     unmet.push(`repo risk coverage missing: ${input.repoFitMissingCoverage.join(', ')}`)
+  }
+
+  // Tests must be 100 % on the candidate version.
+  if (input.testPassRate == null) unmet.push('no completed test run on the candidate')
+  else if (input.testPassRate < 1) unmet.push(`test pass rate < 100% (${Math.round(input.testPassRate * 100)}%)`)
+
+  // Benchmark must have zero unsafe actions.
+  if (input.benchmarkUnsafeActions == null) unmet.push('no completed benchmark on the candidate')
+  else if (input.benchmarkUnsafeActions > 0) unmet.push(`benchmark unsafe_actions: ${input.benchmarkUnsafeActions}`)
+
+  // Release gate must be green on the candidate.
+  if (input.releaseGatePromotable !== true) unmet.push('release gate is not green')
+
+  // Repo-fit must stay strong after runtime improvements.
+  if (input.repoFitScore != null && input.repoFitScore < 95) {
+    unmet.push(`repoFitScore < 95 (${input.repoFitScore})`)
   }
 
   return {
