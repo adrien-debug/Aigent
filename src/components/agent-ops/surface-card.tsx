@@ -8,7 +8,7 @@ export const surfaceCardClass =
   'rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden'
 
 export const surfaceCardHeaderClass =
-  'flex items-center justify-between border-b border-white/5 bg-black/20'
+  'flex flex-wrap items-center justify-between gap-3 border-b border-white/5 bg-black/20'
 
 /** Sticky bottom bar of a surface card (composer, action bar) — same structural wash as the header, on the top edge. */
 export const surfaceCardFooterClass = 'border-t border-white/5 bg-black/20'
