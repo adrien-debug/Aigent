@@ -107,8 +107,8 @@ export async function DeliveryScorecardCard({ copilotId }: { copilotId: string }
         <dl className="grid flex-1 grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
           {card.dimensions.map((d) => (
             <div key={d.id} className="flex items-baseline justify-between gap-3">
-              <dt className="text-sm text-zinc-700 dark:text-zinc-300">{d.label}</dt>
-              <dd className="flex items-center gap-2 text-right">
+              <dt className="min-w-0 truncate text-sm text-zinc-700 dark:text-zinc-300">{d.label}</dt>
+              <dd className="flex shrink-0 items-center gap-2 text-right">
                 {d.score !== null ? (
                   <span className="font-mono text-sm tabular-nums text-zinc-950 dark:text-white">{d.score}</span>
                 ) : null}
