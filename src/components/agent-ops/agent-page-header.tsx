@@ -38,12 +38,12 @@ export function AgentPageHeader({
                 <li key={crumb.label}>
                   <div className="flex items-center">
                     {idx > 0 && (
-                      <span className="text-zinc-700 mr-1.5">/</span>
+                      <span aria-hidden="true" className="text-zinc-700 mr-1.5">/</span>
                     )}
                     {crumb.href ? (
                       <Link
                         href={crumb.href}
-                        className="-my-2 -mx-1 inline-flex items-center px-1 py-2 text-[13px] text-zinc-500 transition-colors hover:text-white"
+                        className="-my-2 -mx-1 inline-flex items-center rounded px-1 py-2 text-[13px] text-zinc-500 outline-offset-2 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-accent-400"
                       >
                         {crumb.label}
                       </Link>
