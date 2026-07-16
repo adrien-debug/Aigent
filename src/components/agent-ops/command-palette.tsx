@@ -79,7 +79,7 @@ export function CommandPalette() {
                       <Headless.ComboboxOption
                         key={action.id}
                         value={action}
-                        className="group flex cursor-default select-none items-center rounded-xl px-3 py-2 data-[focus]:bg-(--accent-surface) data-[focus]:text-accent-700 dark:data-[focus]:text-accent-300"
+                        className="group flex min-h-11 cursor-default select-none items-center rounded-xl px-3 py-2 data-[focus]:bg-(--accent-surface) data-[focus]:text-accent-700 dark:data-[focus]:text-accent-300"
                       >
                         <action.icon className="size-5 flex-none text-zinc-400 group-data-[focus]:text-accent-600 dark:group-data-[focus]:text-accent-400" aria-hidden="true" />
                         <span className="ml-3 flex-auto truncate font-medium">{action.name}</span>
