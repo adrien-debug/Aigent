@@ -55,6 +55,7 @@ import type { ConfirmationPolicy, IsoTimestamp } from './types'
 type RawRow = Record<string, unknown>
 
 const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`
+const inList = (ids: string[]) => ids.map((id) => encodeURIComponent(id)).join(',')
 
 // ---------------------------------------------------------------------------
 // Signal collection — everything the proposer is allowed to reason from.
@@ -234,26 +235,63 @@ export async function collectImprovementSignals(
   const outputContract = (m.output_contract as { invariants?: string[] } | null) ?? {}
 
   // --- Tests: per suite, the latest completed run + the failing/error cases.
-  const suiteRows = await pgrest<RawRow[]>('GET', `test_suites?${eq('copilot_id', copilotId)}&select=*&order=name`)
+  // Batched: ONE request per table via `suite_id=in.(...)` / `run_id=in.(...)`
+  // (agent-health.ts pattern) instead of 3 requests per suite, and the
+  // previously-unbounded lists are bounded.
+  const suiteRows = await pgrest<RawRow[]>('GET', `test_suites?${eq('copilot_id', copilotId)}&select=*&order=name&limit=100`)
+  const suiteIds = suiteRows.map((s) => s.id as string)
+
+  const caseRows = suiteIds.length
+    ? await pgrest<RawRow[]>(
+        'GET',
+        `test_cases?suite_id=in.(${inList(suiteIds)})&select=id,suite_id,name,input,expected_behavior,expected_tool_calls`
+      )
+    : []
+  const casesBySuite = new Map<string, RawRow[]>()
+  for (const c of caseRows) {
+    const sid = c.suite_id as string
+    const bucket = casesBySuite.get(sid)
+    if (bucket) bucket.push(c)
+    else casesBySuite.set(sid, [c])
+  }
+
+  // Pinned to the BASE version: after a V2 re-run exists, "base signals"
+  // must keep describing the version under analysis, not the newest run.
+  // Newest-first ordering, first row per suite wins (a version's runs per
+  // suite are few, so the bound never hides a suite's latest run in practice).
+  const testRunRows = suiteIds.length
+    ? await pgrest<RawRow[]>(
+        'GET',
+        `test_runs?suite_id=in.(${inList(suiteIds)})&${eq('version_id', baseVersion.id)}&status=eq.completed&select=id,suite_id,pass_rate,version_id,finished_at&order=started_at.desc&limit=500`
+      )
+    : []
+  const lastRunBySuite = new Map<string, RawRow>()
+  for (const r of testRunRows) {
+    const sid = r.suite_id as string
+    if (!lastRunBySuite.has(sid)) lastRunBySuite.set(sid, r) // newest-first → first seen wins
+  }
+
+  const lastRunIds = [...lastRunBySuite.values()].map((r) => r.id as string)
+  const resultRows = lastRunIds.length
+    ? await pgrest<RawRow[]>('GET', `test_results?run_id=in.(${inList(lastRunIds)})&status=in.(fail,error)&select=*`)
+    : []
+  const failResultsByRun = new Map<string, RawRow[]>()
+  for (const r of resultRows) {
+    const rid = r.run_id as string
+    const bucket = failResultsByRun.get(rid)
+    if (bucket) bucket.push(r)
+    else failResultsByRun.set(rid, [r])
+  }
+
   const suites: SuiteSignal[] = []
   for (const s of suiteRows) {
     const suiteId = s.id as string
-    const caseRows = await pgrest<RawRow[]>('GET', `test_cases?${eq('suite_id', suiteId)}&select=id,name,input,expected_behavior,expected_tool_calls`)
-    const caseById = new Map(caseRows.map((c) => [c.id as string, c]))
-    // Pinned to the BASE version: after a V2 re-run exists, "base signals"
-    // must keep describing the version under analysis, not the newest run.
-    const runRows = await pgrest<RawRow[]>(
-      'GET',
-      `test_runs?${eq('suite_id', suiteId)}&${eq('version_id', baseVersion.id)}&status=eq.completed&select=id,pass_rate,version_id,finished_at&order=started_at.desc&limit=1`
-    )
-    const lastRunRow = runRows[0]
+    const suiteCases = casesBySuite.get(suiteId) ?? []
+    const caseById = new Map(suiteCases.map((c) => [c.id as string, c]))
+    const lastRunRow = lastRunBySuite.get(suiteId)
     const failures: FailingCaseSignal[] = []
     if (lastRunRow) {
-      const resultRows = await pgrest<RawRow[]>(
-        'GET',
-        `test_results?${eq('run_id', lastRunRow.id as string)}&status=in.(fail,error)&select=*`
-      )
-      for (const r of resultRows) {
+      for (const r of failResultsByRun.get(lastRunRow.id as string) ?? []) {
         const c = caseById.get(r.case_id as string)
         failures.push({
           suiteName: (s.name as string) ?? suiteId,
@@ -273,7 +311,7 @@ export async function collectImprovementSignals(
       suiteId,
       suiteName: (s.name as string) ?? suiteId,
       kind: (s.kind as string) ?? 'behavior',
-      caseCount: caseRows.length,
+      caseCount: suiteCases.length,
       lastRun: lastRunRow
         ? {
             id: lastRunRow.id as string,
@@ -287,35 +325,51 @@ export async function collectImprovementSignals(
   }
 
   // --- Mounted tools (names) — feeds the deterministic diagnosis rules.
-  const toolRows = await pgrest<RawRow[]>('GET', `tools?${eq('copilot_id', copilotId)}&select=name&order=name`)
+  const toolRows = await pgrest<RawRow[]>('GET', `tools?${eq('copilot_id', copilotId)}&select=name&order=name&limit=200`)
   const toolNames = toolRows.map((t) => t.name as string)
 
   // --- Benchmarks: per suite, the latest completed run + its result.
-  const benchSuiteRows = await pgrest<RawRow[]>('GET', `benchmark_suites?${eq('copilot_id', copilotId)}&select=id,name&order=name`)
-  const benchmarks: BenchmarkSignal[] = []
-  for (const b of benchSuiteRows) {
-    const runRows = await pgrest<RawRow[]>(
-      'GET',
-      `benchmark_runs?${eq('suite_id', b.id as string)}&${eq('version_id', baseVersion.id)}&status=eq.completed&select=id,version_id&order=started_at.desc&limit=1`
-    )
-    let lastRun: BenchmarkSignal['lastRun'] = null
-    if (runRows[0]) {
-      const resultRows = await pgrest<RawRow[]>('GET', `benchmark_results?${eq('run_id', runRows[0].id as string)}&select=*`)
-      const res = resultRows[0]
-      if (res) {
-        lastRun = {
-          id: runRows[0].id as string,
-          versionId: (runRows[0].version_id as string) ?? '',
-          score: (res.score as number) ?? 0,
-          accuracy: (res.accuracy as number) ?? 0,
-          taskSuccessRate: (res.task_success_rate as number) ?? 0,
-          unsafeActionCount: (res.unsafe_action_count as number) ?? 0,
-          confirmationMistakeCount: (res.confirmation_mistake_count as number) ?? 0,
-        }
-      }
-    }
-    benchmarks.push({ suiteId: b.id as string, suiteName: (b.name as string) ?? (b.id as string), lastRun })
+  // Same batching: one request per table instead of 2 per suite.
+  const benchSuiteRows = await pgrest<RawRow[]>('GET', `benchmark_suites?${eq('copilot_id', copilotId)}&select=id,name&order=name&limit=100`)
+  const benchSuiteIds = benchSuiteRows.map((b) => b.id as string)
+  const benchRunRows = benchSuiteIds.length
+    ? await pgrest<RawRow[]>(
+        'GET',
+        `benchmark_runs?suite_id=in.(${inList(benchSuiteIds)})&${eq('version_id', baseVersion.id)}&status=eq.completed&select=id,suite_id,version_id&order=started_at.desc&limit=500`
+      )
+    : []
+  const lastBenchRunBySuite = new Map<string, RawRow>()
+  for (const r of benchRunRows) {
+    const sid = r.suite_id as string
+    if (!lastBenchRunBySuite.has(sid)) lastBenchRunBySuite.set(sid, r)
   }
+  const benchRunIds = [...lastBenchRunBySuite.values()].map((r) => r.id as string)
+  const benchResultRows = benchRunIds.length
+    ? await pgrest<RawRow[]>('GET', `benchmark_results?run_id=in.(${inList(benchRunIds)})&select=*`)
+    : []
+  const benchResultByRun = new Map<string, RawRow>()
+  for (const r of benchResultRows) {
+    const rid = r.run_id as string
+    if (!benchResultByRun.has(rid)) benchResultByRun.set(rid, r) // mirrors the old resultRows[0]
+  }
+
+  const benchmarks: BenchmarkSignal[] = benchSuiteRows.map((b) => {
+    const runRow = lastBenchRunBySuite.get(b.id as string)
+    const res = runRow ? benchResultByRun.get(runRow.id as string) : undefined
+    const lastRun: BenchmarkSignal['lastRun'] =
+      runRow && res
+        ? {
+            id: runRow.id as string,
+            versionId: (runRow.version_id as string) ?? '',
+            score: (res.score as number) ?? 0,
+            accuracy: (res.accuracy as number) ?? 0,
+            taskSuccessRate: (res.task_success_rate as number) ?? 0,
+            unsafeActionCount: (res.unsafe_action_count as number) ?? 0,
+            confirmationMistakeCount: (res.confirmation_mistake_count as number) ?? 0,
+          }
+        : null
+    return { suiteId: b.id as string, suiteName: (b.name as string) ?? (b.id as string), lastRun }
+  })
 
   // --- Recent real runs (DB) + their LangGraph threads (sampled, fail-soft).
   const runRows = await pgrest<RawRow[]>(
@@ -714,6 +768,8 @@ export async function createImprovementV2(copilotId: string, proposalId: string)
   if ((proposal.copilot_id as string) !== copilotId) {
     throw new NotFoundError(`proposal ${proposalId} does not belong to copilot ${copilotId}`)
   }
+  // Fast path only — the AUTHORITATIVE status gate is the atomic claim below
+  // (a plain read-then-check races a concurrent call on the same proposal).
   if ((proposal.status as string) !== 'proposed') {
     throw new Error(`proposal is ${proposal.status as string}, expected 'proposed'`)
   }
@@ -739,56 +795,89 @@ export async function createImprovementV2(copilotId: string, proposalId: string)
   const v2VersionId = makeId('version', `${slug}-v2-${suffix}`)
   const label = bumpLabel((baseVersion.label as string) ?? 'v0.1.0-draft')
 
-  // 1. V2 manifest = V1 columns + validated changes. output_contract keeps its
-  //    V1 shape with only `invariants` swapped when proposed.
-  const baseContract = (baseManifest.output_contract as Record<string, unknown> | null) ?? {}
-  await pgrest('POST', 'manifests', {
-    id: v2ManifestId,
-    copilot_id: copilotId,
-    version: label,
-    system_prompt_summary: changes.systemPromptSummary?.to ?? (baseManifest.system_prompt_summary as string),
-    allowed_routes: baseManifest.allowed_routes,
-    forbidden_actions: changes.forbiddenActions?.to ?? baseManifest.forbidden_actions,
-    confirmation_policy: changes.confirmationPolicy?.to ?? baseManifest.confirmation_policy,
-    always_confirm_actions: changes.alwaysConfirmActions?.to ?? baseManifest.always_confirm_actions,
-    memory_sources: baseManifest.memory_sources,
-    output_contract: { ...baseContract, invariants: changes.outputContractInvariants?.to ?? baseContract.invariants ?? [] },
-    // Skills are reported V1→V2 unchanged — the Improvement Loop never rewrites them.
-    skills: baseManifest.skills ?? [],
-    tool_ids: baseManifest.tool_ids,
-    max_steps_per_run: changes.maxStepsPerRun?.to ?? baseManifest.max_steps_per_run,
-    max_cost_per_run_usd: baseManifest.max_cost_per_run_usd,
-    updated_at: now,
-  })
+  // 0. ATOMIC CLAIM — the conditional PATCH (`status=eq.proposed`) is the real
+  //    concurrency gate: two concurrent calls both pass the read above, but
+  //    PostgREST updates the row for exactly ONE of them; the loser gets zero
+  //    rows back and fails with the same classifiable message as the fast path
+  //    (the create-v2 route maps it to 409). The V2 ids are stamped in step 5,
+  //    AFTER the rows they reference exist.
+  const claimed = await pgrest<RawRow[]>(
+    'PATCH',
+    `improvement_proposals?${eq('id', proposalId)}&status=eq.proposed`,
+    { status: 'v2-created' }
+  )
+  if (claimed.length === 0) {
+    const nowRows = await pgrest<RawRow[]>('GET', `improvement_proposals?${eq('id', proposalId)}&select=status`)
+    if (nowRows.length === 0) throw new NotFoundError(`proposal not found: ${proposalId}`)
+    throw new Error(`proposal is ${nowRows[0].status as string}, expected 'proposed'`)
+  }
 
-  // 2. Draft V2 version.
-  await pgrest('POST', 'copilot_versions', {
-    id: v2VersionId,
-    copilot_id: copilotId,
-    label,
-    stage: 'draft',
-    manifest_id: v2ManifestId,
-    model: copilotRow.model,
-    model_provider: copilotRow.model_provider,
-    changelog: summarize((proposal.summary as string) ?? 'Improvement Loop V2', 800),
-    created_at: now,
-    created_by: 'improvement-loop',
-    scores: { testPassRate: 0, benchmarkScore: 0, shadowAgreement: null, unsafeActionCount: 0 },
-  })
+  try {
+    // 1. V2 manifest = V1 columns + validated changes. output_contract keeps its
+    //    V1 shape with only `invariants` swapped when proposed.
+    const baseContract = (baseManifest.output_contract as Record<string, unknown> | null) ?? {}
+    await pgrest('POST', 'manifests', {
+      id: v2ManifestId,
+      copilot_id: copilotId,
+      version: label,
+      system_prompt_summary: changes.systemPromptSummary?.to ?? (baseManifest.system_prompt_summary as string),
+      allowed_routes: baseManifest.allowed_routes,
+      forbidden_actions: changes.forbiddenActions?.to ?? baseManifest.forbidden_actions,
+      confirmation_policy: changes.confirmationPolicy?.to ?? baseManifest.confirmation_policy,
+      always_confirm_actions: changes.alwaysConfirmActions?.to ?? baseManifest.always_confirm_actions,
+      memory_sources: baseManifest.memory_sources,
+      output_contract: { ...baseContract, invariants: changes.outputContractInvariants?.to ?? baseContract.invariants ?? [] },
+      // Skills are reported V1→V2 unchanged — the Improvement Loop never rewrites them.
+      skills: baseManifest.skills ?? [],
+      tool_ids: baseManifest.tool_ids,
+      max_steps_per_run: changes.maxStepsPerRun?.to ?? baseManifest.max_steps_per_run,
+      max_cost_per_run_usd: baseManifest.max_cost_per_run_usd,
+      updated_at: now,
+    })
 
-  // 3. The copilot's latest version is now the V2 draft.
-  await pgrest('PATCH', `copilots?${eq('id', copilotId)}`, { latest_version_id: v2VersionId, updated_at: now })
+    // 2. Draft V2 version.
+    await pgrest('POST', 'copilot_versions', {
+      id: v2VersionId,
+      copilot_id: copilotId,
+      label,
+      stage: 'draft',
+      manifest_id: v2ManifestId,
+      model: copilotRow.model,
+      model_provider: copilotRow.model_provider,
+      changelog: summarize((proposal.summary as string) ?? 'Improvement Loop V2', 800),
+      created_at: now,
+      created_by: 'improvement-loop',
+      scores: { testPassRate: 0, benchmarkScore: 0, shadowAgreement: null, unsafeActionCount: 0 },
+    })
 
-  // 4. Push the V2 behaviour to the copilot's assistant (config derives from
-  //    the latest manifest — this is what makes the V2 actually RUN).
-  await ensureCopilotAssistant({ copilotId })
+    // 3. The copilot's latest version is now the V2 draft.
+    await pgrest('PATCH', `copilots?${eq('id', copilotId)}`, { latest_version_id: v2VersionId, updated_at: now })
 
-  // 5. Stamp the proposal.
-  await pgrest('PATCH', `improvement_proposals?${eq('id', proposalId)}`, {
-    status: 'v2-created',
-    v2_version_id: v2VersionId,
-    v2_manifest_id: v2ManifestId,
-  })
+    // 4. Push the V2 behaviour to the copilot's assistant (config derives from
+    //    the latest manifest — this is what makes the V2 actually RUN).
+    await ensureCopilotAssistant({ copilotId })
+
+    // 5. Stamp the V2 ids on the claimed proposal (status already 'v2-created').
+    await pgrest('PATCH', `improvement_proposals?${eq('id', proposalId)}`, {
+      v2_version_id: v2VersionId,
+      v2_manifest_id: v2ManifestId,
+    })
+  } catch (err) {
+    // Best-effort claim release so a mid-way failure keeps the pre-claim
+    // behaviour: the proposal returns to 'proposed' and stays retryable.
+    // Earlier rows still stay for operator cleanup (PostgREST has no
+    // cross-table transaction) — the original error is what surfaces.
+    try {
+      await pgrest('PATCH', `improvement_proposals?${eq('id', proposalId)}&status=eq.v2-created`, {
+        status: 'proposed',
+        v2_version_id: null,
+        v2_manifest_id: null,
+      })
+    } catch {
+      // Release failed — the claim stays; the thrown error below is the signal.
+    }
+    throw err
+  }
 
   return { v2VersionId, v2ManifestId, label }
 }
@@ -913,6 +1002,8 @@ export async function decideProposal(
   if ((rows[0].copilot_id as string) !== copilotId) {
     throw new NotFoundError(`proposal ${proposalId} does not belong to copilot ${copilotId}`)
   }
+  // Fast path only — the AUTHORITATIVE gate is the conditional PATCH below
+  // (a plain read-then-check races a concurrent decision on the same row).
   const status = rows[0].status as string
   if (status === 'approved' || status === 'rejected') {
     throw new Error(`proposal already decided: ${status}`)
@@ -920,11 +1011,24 @@ export async function decideProposal(
   if (decision === 'approved' && status !== 'v2-created') {
     throw new Error('a proposal can only be approved after its V2 draft exists')
   }
-  await pgrest('PATCH', `improvement_proposals?${eq('id', proposalId)}`, {
+  // ATOMIC transition: the PATCH itself re-checks the allowed FROM status, so
+  // exactly one concurrent decision wins; the loser gets zero rows back.
+  const allowedFrom = decision === 'approved' ? 'status=eq.v2-created' : 'status=in.(proposed,v2-created)'
+  const updated = await pgrest<RawRow[]>('PATCH', `improvement_proposals?${eq('id', proposalId)}&${allowedFrom}`, {
     status: decision,
     decided_by: decidedBy,
     decided_at: new Date().toISOString(),
   })
+  if (updated.length === 0) {
+    // Lost the race — re-read to classify with the same errors as the fast path.
+    const nowRows = await pgrest<RawRow[]>('GET', `improvement_proposals?${eq('id', proposalId)}&select=status`)
+    if (nowRows.length === 0) throw new NotFoundError(`proposal not found: ${proposalId}`)
+    const nowStatus = nowRows[0].status as string
+    if (nowStatus === 'approved' || nowStatus === 'rejected') {
+      throw new Error(`proposal already decided: ${nowStatus}`)
+    }
+    throw new Error('a proposal can only be approved after its V2 draft exists')
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1018,15 +1122,31 @@ export interface AutoImprovementResult {
  * @param opts.maxIterations  hard iteration ceiling (default 5).
  * @param opts.maxCostUsd     cumulative analyze-completion budget (default 2.0).
  * @param opts.onEvent        progress sink (each milestone is emitted).
+ * @param opts.signal         optional abort signal, checked BETWEEN steps
+ *                            (analyze / create-v2 / each re-run / compare): an
+ *                            aborted caller (e.g. a closed SSE client) stops
+ *                            the loop at the next boundary via an AbortError
+ *                            instead of burning more OpenAI/LangGraph spend.
+ *                            Never interrupts a step mid-flight, so no row is
+ *                            left half-written by the abort itself.
  * @returns a terminal summary; `stoppedBy` says WHY it stopped. The head V2
  *          proposal (if any) is left `v2-created` for a human to decide.
  */
 export async function runAutoImprovementCycle(
   copilotId: string,
-  opts: { maxIterations?: number; maxCostUsd?: number; onEvent?: (ev: AutoImproveEvent) => void } = {}
+  opts: {
+    maxIterations?: number
+    maxCostUsd?: number
+    onEvent?: (ev: AutoImproveEvent) => void
+    signal?: AbortSignal
+  } = {}
 ): Promise<AutoImprovementResult> {
   const maxIterations = Math.max(1, Math.trunc(opts.maxIterations ?? AUTO_IMPROVE_MAX_ITERATIONS))
   const maxCostUsd = opts.maxCostUsd ?? AUTO_IMPROVE_MAX_COST_USD
+  // Throws DOMException('AbortError') when the caller aborted — checked at
+  // every step boundary so the loop never starts a new expensive step for a
+  // caller that is gone.
+  const checkAborted = () => opts.signal?.throwIfAborted()
   const emit = (ev: AutoImproveEvent) => {
     try {
       opts.onEvent?.(ev)
@@ -1051,6 +1171,7 @@ export async function runAutoImprovementCycle(
   let supersededProposalId: string | null = null
 
   for (let iteration = 1; iteration <= maxIterations; iteration++) {
+    checkAborted()
     emit({ type: 'iteration-start', iteration })
 
     // 1. ANALYZE — collect live signals, propose a validated manifest patch.
@@ -1087,6 +1208,7 @@ export async function runAutoImprovementCycle(
     }
 
     // 3. MATERIALIZE V2 — new manifest + draft version, assistant re-provisioned.
+    checkAborted()
     let v2VersionId: string
     try {
       const v2 = await createImprovementV2(copilotId, proposal.id)
@@ -1119,17 +1241,23 @@ export async function runAutoImprovementCycle(
     //    test suite (and benchmark suite) so the comparison has V2 rows.
     try {
       for (const suiteId of testSuiteIds) {
+        checkAborted()
         await runTestSuite({ copilotId, suiteId, versionId: v2VersionId, triggeredBy: 'auto-improve' })
       }
       for (const suiteId of benchSuiteIds) {
+        checkAborted()
         await runBenchmarkSuite({ copilotId, suiteId, versionId: v2VersionId })
       }
     } catch (err) {
+      // An abort is the CALLER stopping the loop, not a re-run failure —
+      // propagate it instead of mislabelling it a plateau.
+      if (opts.signal?.aborted) throw err
       emit({ type: 'error', iteration, proposalId: proposal.id, v2VersionId, detail: err instanceof Error ? err.message : 're-run failed' })
       return { iterations: iteration, finalPassRate, stoppedBy: 'plateau', lastProposalId, lastV2VersionId }
     }
 
     // 5. COMPARE — recomputed live from the runs just written.
+    checkAborted()
     let cmp: VersionComparison
     try {
       cmp = await compareImprovementVersions(copilotId, proposal.baseVersionId, v2VersionId)

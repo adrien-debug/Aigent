@@ -48,8 +48,9 @@ const ID_RE = /^[a-z0-9-]{1,200}$/
 // `latest_version_id` + proposal rows for several minutes — two concurrent
 // loops on the same copilot would race each other's V2 chain and double the
 // LLM spend. Double-submission → 409 (same family as the sibling analyze
-// route's open-cycle 409); released when the loop settles, even after a
-// client abort (the loop runs to completion server-side).
+// route's open-cycle 409); released when the loop settles. A client abort
+// (`request.signal`) is forwarded to the loop, which stops at the next step
+// boundary instead of burning the remaining OpenAI/LangGraph budget.
 const inFlight = new Set<string>()
 
 function sseEvent(payload: AutoFrame): string {
@@ -142,6 +143,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
         const result = await runAutoImprovementCycle(copilotId, {
           maxIterations,
           maxCostUsd,
+          // A client abort stops the loop at the next step boundary (checked
+          // between analyze / create-v2 / each re-run / compare) instead of
+          // letting it run — and spend — to completion server-side.
+          signal: request.signal,
           // Push each milestone as it happens. `AutoImproveEvent` is forwarded
           // verbatim as its own SSE frame — no batching, so a multi-minute run
           // streams live iteration-by-iteration.
@@ -151,9 +156,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
         // (stopped reason + head V2 to decide) without a second round-trip.
         push({ type: 'done', ...result })
       } catch (err) {
-        // Never forward raw error detail — log server-side, emit a generic frame.
-        console.error('[agent-ops/improve/auto] auto-improvement cycle failed', err)
-        push({ type: 'error', error: 'auto-improvement cycle failed' })
+        if (request.signal.aborted) {
+          // The CLIENT stopped the cycle — nobody is listening and nothing
+          // failed, so no error frame and no failure log.
+        } else {
+          // Never forward raw error detail — log server-side, emit a generic frame.
+          console.error('[agent-ops/improve/auto] auto-improvement cycle failed', err)
+          push({ type: 'error', error: 'auto-improvement cycle failed' })
+        }
       } finally {
         closed = true
         inFlight.delete(copilotId)
