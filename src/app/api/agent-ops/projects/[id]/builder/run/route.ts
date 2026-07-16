@@ -46,7 +46,11 @@ const repoScanSchema = z
     repo: z.string().max(200),
     branch: z.string().max(200),
     stack: strList,
-    scripts: z.record(z.string().max(200), z.string().max(4_000)),
+    scripts: z
+      .record(z.string().max(200), z.string().max(4_000))
+      // Records have no built-in size cap — bound the entry count like every
+      // other list in this schema, else a huge scripts map slips through.
+      .refine((r) => Object.keys(r).length <= 200, { message: 'too many scripts' }),
     routes: strList,
     apiRoutes: strList,
     components: strList,
@@ -105,6 +109,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!project) return NextResponse.json({ error: 'project not found' }, { status: 404 })
   if (!project.repoFullName) {
     return NextResponse.json({ error: 'project has no linked GitHub repo', noRepo: true }, { status: 409 })
+  }
+
+  // A reused scan must belong to THIS project and its CURRENT repo — a stale or
+  // mispasted scan would silently feed the graph the wrong repo's context.
+  if (providedScan && (providedScan.projectId !== id || providedScan.repo !== project.repoFullName)) {
+    return NextResponse.json({ error: 'scan does not match this project' }, { status: 400 })
   }
 
   // Resolve the Agent Builder copilot (the assistant that runs the graph).
