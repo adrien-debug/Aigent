@@ -63,6 +63,43 @@ function RailItem({
   )
 }
 
+/** Shared avatar + sign-out control — identical between the desktop rail
+    footer and the mobile drawer footer, sized/colored per placement. */
+function UserFooter({
+  avatarSize,
+  iconWrapClassName,
+  iconIdleColorClassName,
+  children,
+}: {
+  avatarSize: 'size-8' | 'size-7'
+  iconWrapClassName: string
+  iconIdleColorClassName: string
+  /** Optional content between the avatar and the sign-out button (e.g. the user's name in the mobile drawer). */
+  children?: React.ReactNode
+}) {
+  return (
+    <>
+      <Avatar
+        initials="AD"
+        alt="Adrien"
+        className={clsx(avatarSize, 'bg-zinc-800 text-white font-medium ring-1 ring-white/10', avatarSize === 'size-8' ? 'text-[11px]' : 'text-[10px]')}
+      />
+      {children}
+      <a
+        href="/logout"
+        aria-label="Sign out"
+        className={clsx(
+          'flex items-center justify-center rounded-lg transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
+          iconIdleColorClassName,
+          iconWrapClassName
+        )}
+      >
+        <ArrowRightStartOnRectangleIcon aria-hidden="true" className="size-4" />
+      </a>
+    </>
+  )
+}
+
 function MobileNavItem({
   label,
   icon: Icon,
@@ -148,14 +185,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
 
         {/* User Footer */}
         <div className="mt-auto flex w-full flex-col items-center px-2 pb-1">
-          <Avatar initials="AD" alt="Adrien" className="size-8 bg-zinc-800 text-white text-[11px] font-medium ring-1 ring-white/10" />
-          <a
-            href="/logout"
-            aria-label="Sign out"
-            className="mt-2 flex size-11 shrink-0 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
-          >
-            <ArrowRightStartOnRectangleIcon aria-hidden="true" className="size-4" />
-          </a>
+          <UserFooter avatarSize="size-8" iconWrapClassName="mt-2 size-11 shrink-0" iconIdleColorClassName="text-zinc-600" />
         </div>
       </aside>
 
@@ -229,15 +259,9 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
               </div>
 
               <div className="mt-2 flex items-center gap-3 border-t border-white/5 px-3 pb-1 pt-3">
-                <Avatar initials="AD" alt="Adrien" className="size-7 bg-zinc-800 text-white text-[10px] font-medium ring-1 ring-white/10" />
-                <span className="flex-1 truncate text-sm font-medium text-zinc-300">Adrien</span>
-                <a
-                  href="/logout"
-                  aria-label="Sign out"
-                  className="flex size-11 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
-                >
-                  <ArrowRightStartOnRectangleIcon aria-hidden="true" className="size-4" />
-                </a>
+                <UserFooter avatarSize="size-7" iconWrapClassName="size-11" iconIdleColorClassName="text-zinc-500">
+                  <span className="flex-1 truncate text-sm font-medium text-zinc-300">Adrien</span>
+                </UserFooter>
               </div>
             </motion.nav>
           </div>
