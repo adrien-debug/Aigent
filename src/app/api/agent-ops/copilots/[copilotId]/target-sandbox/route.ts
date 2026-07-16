@@ -38,12 +38,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     return NextResponse.json({ error: 'GitHub not configured (GITHUB_TOKEN missing)' }, { status: 503 })
   }
 
+  // Body: mode is `dry_run` unless EXPLICITLY `execute` — execution is never the
+  // default. installMode defaults to `skip`. keepSandbox is debug-only.
   let persist = false
+  let mode: 'dry_run' | 'execute' = 'dry_run'
+  let installMode: 'skip' | 'auto' = 'skip'
+  let keepSandbox = false
   try {
-    const body = (await request.json().catch(() => null)) as { persist?: unknown } | null
+    const body = (await request.json().catch(() => null)) as
+      | { persist?: unknown; mode?: unknown; installMode?: unknown; keepSandbox?: unknown }
+      | null
     persist = body?.persist === true
+    mode = body?.mode === 'execute' ? 'execute' : 'dry_run'
+    installMode = body?.installMode === 'auto' ? 'auto' : 'skip'
+    keepSandbox = body?.keepSandbox === true
   } catch {
-    persist = false
+    // keep the safe defaults
   }
 
   // Deterministic stamps generated at the route boundary — the sandbox modules
@@ -52,7 +62,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   const createdAt = new Date().toISOString()
 
   try {
-    const report = await collectTargetRepoSandbox(copilotId, { runId, createdAt })
+    const report = await collectTargetRepoSandbox(copilotId, { runId, createdAt, mode, installMode, keepSandbox })
     if (!report) {
       return NextResponse.json({ error: 'copilot not found' }, { status: 404 })
     }

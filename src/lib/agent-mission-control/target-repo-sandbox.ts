@@ -24,6 +24,20 @@ export const SANDBOX_SCHEMA_VERSION = 1 as const
 
 export type SandboxCheckStatus = 'passed' | 'warning' | 'failed' | 'skipped'
 export type SandboxStatus = 'passed' | 'warning' | 'failed'
+/** dry_run = detect scripts only; execute = run them in a disposable clone. */
+export type SandboxExecutionMode = 'dry_run' | 'execute'
+/** skip = don't install deps (fast, some scripts may fail); auto = install per lockfile. */
+export type SandboxInstallMode = 'skip' | 'auto'
+
+/** Result of actually running a repo script in the clone (execute mode). */
+export interface ScriptExecResult {
+  status: 'passed' | 'failed'
+  durationMs: number
+  /** Bounded + sanitized output (never full, never a secret value). */
+  outputExcerpt: string
+  /** Set when the script was killed by the per-command timeout. */
+  timedOut?: boolean
+}
 
 export interface SandboxCheck {
   id: string
@@ -45,6 +59,11 @@ export interface TargetRepoSandboxReport {
   branch: string
   commit: string | null
   sandboxPath?: string
+  /** How the checks were produced. */
+  executionMode: SandboxExecutionMode
+  installMode: SandboxInstallMode
+  /** Whether the disposable clone was kept (debug) rather than cleaned up. */
+  sandboxKept: boolean
   status: SandboxStatus
   /** Aigent control-plane repo-fit score (0..100), if available. */
   repoFitScore: number | null
@@ -123,6 +142,43 @@ export interface SandboxEvalInput {
   artifactTexts: Record<string, string>
   /** Stamp for createdAt — passed in (module stays pure, no Date.now()). */
   createdAt: string
+  /** How the report was produced (defaults dry_run). */
+  executionMode?: SandboxExecutionMode
+  installMode?: SandboxInstallMode
+  sandboxKept?: boolean
+  sandboxPath?: string
+  /**
+   * Real script results from the runner (execute mode), keyed by script name.
+   * When present for a script, they REPLACE the dry_run placeholder. Absent →
+   * the script stays skipped/dry_run (Prompt 48 behaviour, unchanged).
+   */
+  scriptResults?: Record<string, ScriptExecResult>
+  /**
+   * Scripts intentionally not run because `verify` already covered them
+   * (execute mode, option A). Reported as skipped/covered_by_verify.
+   */
+  coveredByVerify?: string[]
+}
+
+/** Max chars kept from any command output — the excerpt, never the full log. */
+export const OUTPUT_EXCERPT_MAX = 4000
+
+/**
+ * Sanitize command output before it enters a report: mask a value following any
+ * KEY/TOKEN/SECRET/PASSWORD assignment, mask credentials embedded in URLs, and
+ * hard-cap the length. PURE. Applied by the runner AND re-applied here as a
+ * belt-and-braces guard so a report can never carry a raw secret.
+ */
+export function sanitizeOutput(raw: string): string {
+  let out = raw
+  // URLs with inline credentials: https://user:pass@host → https://***:***@host
+  out = out.replace(/(\bhttps?:\/\/)[^\s/@:]+:[^\s/@]+@/gi, '$1***:***@')
+  // KEY/TOKEN/SECRET/PASSWORD (+ optional suffix) = <value>  →  = ***
+  out = out.replace(/((?:[A-Z0-9_]*)?(?:KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*\s*[:=]\s*)['"`]?[^\s'"`]+/gi, '$1***')
+  // Bearer tokens.
+  out = out.replace(/\b(Bearer\s+)[A-Za-z0-9._-]+/gi, '$1***')
+  if (out.length > OUTPUT_EXCERPT_MAX) out = out.slice(0, OUTPUT_EXCERPT_MAX) + '\n…[truncated]'
+  return out
 }
 
 /**
@@ -257,21 +313,43 @@ export function evaluateSandbox(input: SandboxEvalInput): TargetRepoSandboxRepor
   })
   if (leaks.length > 0) blockers.push('secret_in_artifacts')
 
-  // --- Repo gate script detection (NEVER invents a script) ------------------
-  // Read-only default: we DETECT which repo scripts exist and report the rest
-  // as skipped. Actually running them requires a disposable clone (the server
-  // collector may opt into it); by default this stays a dry-run so we never
-  // execute code from the target repo unprompted.
+  // --- Repo gate scripts (NEVER invents a script) ---------------------------
+  // dry_run: DETECT which scripts exist, report the rest skipped — never run.
+  // execute: use the runner's real results (scriptResults) for scripts that ran,
+  // covered_by_verify for those verify subsumed, and keep script_missing/
+  // no_package_json for the absent ones. A missing script is NEVER a blocker.
   const scripts = input.targetScripts
+  const scriptResults = input.scriptResults ?? {}
+  const coveredByVerify = new Set(input.coveredByVerify ?? [])
   for (const name of SANDBOX_SCRIPT_ORDER) {
     const exists = scripts !== null && Object.prototype.hasOwnProperty.call(scripts, name)
-    checks.push({
-      id: `script:${name}`,
-      label: `npm run ${name}`,
-      status: 'skipped',
-      command: exists ? `npm run ${name}` : undefined,
-      reason: scripts === null ? 'no_package_json' : exists ? 'dry_run' : 'script_missing',
-    })
+    const command = exists ? `npm run ${name}` : undefined
+    const result = scriptResults[name]
+    if (!exists) {
+      checks.push({
+        id: `script:${name}`,
+        label: `npm run ${name}`,
+        status: 'skipped',
+        reason: scripts === null ? 'no_package_json' : 'script_missing',
+      })
+    } else if (result) {
+      checks.push({
+        id: `script:${name}`,
+        label: `npm run ${name}`,
+        status: result.status,
+        command,
+        durationMs: result.durationMs,
+        outputExcerpt: sanitizeOutput(result.outputExcerpt),
+        ...(result.timedOut ? { reason: 'timeout' } : {}),
+      })
+      if (result.timedOut) blockers.push(`script_timeout:${name}`)
+    } else if (coveredByVerify.has(name)) {
+      checks.push({ id: `script:${name}`, label: `npm run ${name}`, status: 'skipped', command, reason: 'covered_by_verify' })
+    } else {
+      // exists but not run: dry_run (default), or execute where install was
+      // skipped and the script wasn't reached.
+      checks.push({ id: `script:${name}`, label: `npm run ${name}`, status: 'skipped', command, reason: 'dry_run' })
+    }
   }
 
   // --- Score & status --------------------------------------------------------
@@ -293,6 +371,10 @@ export function evaluateSandbox(input: SandboxEvalInput): TargetRepoSandboxRepor
     repo: input.repo,
     branch: input.branch,
     commit: input.commit,
+    ...(input.sandboxPath ? { sandboxPath: input.sandboxPath } : {}),
+    executionMode: input.executionMode ?? 'dry_run',
+    installMode: input.installMode ?? 'skip',
+    sandboxKept: input.sandboxKept ?? false,
     status,
     repoFitScore: input.repoFitScore ?? null,
     sandboxFitScore,

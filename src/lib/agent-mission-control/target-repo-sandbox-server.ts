@@ -17,8 +17,11 @@ import 'server-only'
 import { getCopilot, getProject } from './data'
 import { getRepoFile, getRepoHeadSha } from './github'
 import { getDeliveryScorecard } from './delivery-scorecard-server'
+import { runTargetRepoSandbox } from './target-repo-sandbox-runner'
 import {
   evaluateSandbox,
+  type SandboxExecutionMode,
+  type SandboxInstallMode,
   type TargetRepoSandboxReport,
 } from './target-repo-sandbox'
 
@@ -47,6 +50,12 @@ export interface SandboxCollectOptions {
   /** Deterministic ids/timestamps supplied by the caller (route) — module stays pure of Date/random. */
   runId: string
   createdAt: string
+  /** dry_run (default, no execution) or execute (clone + run scripts). */
+  mode?: SandboxExecutionMode
+  /** In execute mode: skip (default) or auto (install deps per lockfile). */
+  installMode?: SandboxInstallMode
+  /** Keep the disposable clone for debug (default false). */
+  keepSandbox?: boolean
 }
 
 /**
@@ -124,6 +133,38 @@ export async function collectTargetRepoSandbox(
   if (handlerText !== null) artifactTexts[`${dir}/handler.ts`] = handlerText
   if (readmeText !== null) artifactTexts[`${dir}/README.md`] = readmeText
 
+  const mode: SandboxExecutionMode = opts.mode ?? 'dry_run'
+  const installMode: SandboxInstallMode = opts.installMode ?? 'skip'
+
+  // Execute mode: clone the repo (disposable) and run its gate scripts. Only
+  // when the agent was actually delivered (registry present) — no point cloning
+  // to run scripts if the delivery itself is broken. Fail-soft: a clone/runner
+  // failure degrades to a dry-run report rather than throwing.
+  let scriptResults: Record<string, import('./target-repo-sandbox').ScriptExecResult> | undefined
+  let coveredByVerify: string[] | undefined
+  let sandboxPath: string | undefined
+  let executionMode: SandboxExecutionMode = 'dry_run'
+  let runnerScripts: Record<string, string> | null = null
+
+  if (mode === 'execute' && registryText !== null) {
+    try {
+      const run = await runTargetRepoSandbox({
+        runId: opts.runId,
+        repo,
+        branch,
+        installMode,
+        keepSandbox: opts.keepSandbox ?? false,
+      })
+      scriptResults = run.scriptResults
+      coveredByVerify = run.coveredByVerify
+      runnerScripts = run.targetScripts
+      executionMode = 'execute'
+      if (opts.keepSandbox) sandboxPath = run.sandboxPath
+    } catch (err) {
+      console.error('[target-sandbox] execute run failed, degrading to dry_run', err instanceof Error ? err.message : err)
+    }
+  }
+
   return evaluateSandbox({
     runId: opts.runId,
     agentSlug: slug,
@@ -137,8 +178,15 @@ export async function collectTargetRepoSandbox(
     manifestText,
     handlerPresent: handlerText !== null,
     readmePresent: readmeText !== null,
-    targetScripts: parsePackageScripts(pkgText),
+    // Prefer the scripts seen in the CLONE (execute) over the API-read one.
+    targetScripts: runnerScripts ?? parsePackageScripts(pkgText),
     artifactTexts,
     createdAt: opts.createdAt,
+    executionMode,
+    installMode,
+    sandboxKept: opts.keepSandbox ?? false,
+    sandboxPath,
+    scriptResults,
+    coveredByVerify,
   })
 }

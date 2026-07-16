@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest'
 import {
   evaluateSandbox,
   parseSandboxReport,
+  sanitizeOutput,
   scanSecrets,
   SANDBOX_SCHEMA_VERSION,
   type SandboxEvalInput,
@@ -160,5 +161,95 @@ describe('evaluateSandbox — artifacts', () => {
     const r = evaluateSandbox(base({ registryText: registry([SLUG], 'other') }))
     expect(r.warnings).toContain('registry_source_not_aigent')
     expect(r.blockers).toEqual([])
+  })
+})
+
+describe('evaluateSandbox — execute mode (script results injected)', () => {
+  it('dry_run default: scripts stay skipped/dry_run (Prompt 48 unchanged)', () => {
+    const r = evaluateSandbox(base())
+    expect(r.executionMode).toBe('dry_run')
+    expect(r.installMode).toBe('skip')
+    expect(r.sandboxKept).toBe(false)
+    expect(r.checks.find((c) => c.id === 'script:typecheck')!.reason).toBe('dry_run')
+  })
+
+  it('execute: a present script with a passed result → passed + durationMs + excerpt', () => {
+    const r = evaluateSandbox(
+      base({
+        executionMode: 'execute',
+        installMode: 'auto',
+        scriptResults: { typecheck: { status: 'passed', durationMs: 1234, outputExcerpt: 'ok' } },
+      })
+    )
+    const check = r.checks.find((c) => c.id === 'script:typecheck')!
+    expect(check.status).toBe('passed')
+    expect(check.durationMs).toBe(1234)
+    expect(check.outputExcerpt).toBe('ok')
+    expect(r.executionMode).toBe('execute')
+  })
+
+  it('execute: a failed result → failed check', () => {
+    const r = evaluateSandbox(
+      base({ executionMode: 'execute', scriptResults: { typecheck: { status: 'failed', durationMs: 5, outputExcerpt: 'error TS1' } } })
+    )
+    expect(r.checks.find((c) => c.id === 'script:typecheck')!.status).toBe('failed')
+  })
+
+  it('execute: a timed-out result → failed + script_timeout blocker + status failed', () => {
+    const r = evaluateSandbox(
+      base({ executionMode: 'execute', scriptResults: { build: { status: 'failed', durationMs: 120000, outputExcerpt: '', timedOut: true } } })
+    )
+    expect(r.checks.find((c) => c.id === 'script:build')!.reason).toBe('timeout')
+    expect(r.blockers).toContain('script_timeout:build')
+    expect(r.status).toBe('failed')
+  })
+
+  it('execute: coveredByVerify scripts are skipped/covered_by_verify', () => {
+    const r = evaluateSandbox(
+      base({
+        executionMode: 'execute',
+        targetScripts: { verify: 'x', typecheck: 'tsc', build: 'next build' },
+        scriptResults: { verify: { status: 'passed', durationMs: 100, outputExcerpt: 'all green' } },
+        coveredByVerify: ['typecheck', 'build'],
+      })
+    )
+    expect(r.checks.find((c) => c.id === 'script:verify')!.status).toBe('passed')
+    expect(r.checks.find((c) => c.id === 'script:typecheck')!.reason).toBe('covered_by_verify')
+  })
+
+  it('execute: a secret VALUE in output is masked in the excerpt', () => {
+    const r = evaluateSandbox(
+      base({
+        executionMode: 'execute',
+        scriptResults: { typecheck: { status: 'passed', durationMs: 1, outputExcerpt: 'GITHUB_TOKEN=ghp_supersecretvalue123' } },
+      })
+    )
+    const excerpt = r.checks.find((c) => c.id === 'script:typecheck')!.outputExcerpt!
+    expect(excerpt).not.toContain('ghp_supersecretvalue123')
+    expect(excerpt).toContain('***')
+  })
+
+  it('absent scripts stay skipped even in execute mode', () => {
+    const r = evaluateSandbox(base({ executionMode: 'execute', targetScripts: { typecheck: 'tsc' }, scriptResults: { typecheck: { status: 'passed', durationMs: 1, outputExcerpt: 'ok' } } }))
+    expect(r.checks.find((c) => c.id === 'script:build')!.reason).toBe('script_missing')
+  })
+})
+
+describe('sanitizeOutput', () => {
+  it('masks a KEY/TOKEN/SECRET/PASSWORD assigned value', () => {
+    expect(sanitizeOutput('OPENAI_API_KEY=sk-realvalue123')).not.toContain('sk-realvalue123')
+    expect(sanitizeOutput('PASSWORD: hunter2secret')).toContain('***')
+  })
+  it('masks credentials embedded in a URL', () => {
+    expect(sanitizeOutput('cloning https://user:tok3nvalue@github.com/x/y')).not.toContain('tok3nvalue')
+  })
+  it('masks a Bearer token', () => {
+    expect(sanitizeOutput('Authorization: Bearer abc123def456')).not.toContain('abc123def456')
+  })
+  it('truncates beyond the excerpt cap', () => {
+    const long = 'x'.repeat(9000)
+    const out = sanitizeOutput(long)
+    expect(out.length).toBeLessThan(9000)
+    expect(out).toContain('truncated')
   })
 })
