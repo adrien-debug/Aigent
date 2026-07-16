@@ -13,6 +13,15 @@ import { getThreadDetail } from '@/lib/agent-mission-control/langgraph-explorer'
 // Thread ids are UUIDv7-ish (hyphenated hex). Bound + charset-check before use.
 const THREAD_ID_RE = /^[a-zA-Z0-9-]{1,100}$/
 
+/**
+ * Cap on messages returned per thread (keep the most recent). The helper maps
+ * the WHOLE thread state (each message already truncated to 4000 chars, but
+ * unbounded in count) — a long-running thread would otherwise serialize a
+ * multi-MB JSON response. Aligned on the repo's other bounds (threads 50,
+ * assistants 100, history 40).
+ */
+const MESSAGES_LIMIT = 200
+
 export async function GET(_request: Request, { params }: { params: Promise<{ threadId: string }> }) {
   const { threadId } = await params
   if (!THREAD_ID_RE.test(threadId)) {
@@ -26,7 +35,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ thr
     if (!detail) {
       return NextResponse.json({ error: 'thread not found on the Agent Server' }, { status: 404 })
     }
-    return NextResponse.json({ ok: true, ...detail })
+    return NextResponse.json({
+      ok: true,
+      ...detail,
+      messages: detail.messages.slice(-MESSAGES_LIMIT),
+    })
   } catch (err) {
     console.error('[agent-ops/langgraph/threads/:id] read failed', err)
     return NextResponse.json({ error: 'failed to read thread' }, { status: 502 })
