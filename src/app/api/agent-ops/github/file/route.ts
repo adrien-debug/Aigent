@@ -73,8 +73,11 @@ function isRefusedPath(p: string): boolean {
  *
  * `repo`/`path` missing → 400. `repo`/`ref` malformed or over-long → 400.
  * `path` over-long → 400. `path` targeting
- * a secret/credential file or attempting traversal → 403. Fail-closed 503
- * when GITHUB_TOKEN is absent. Upstream GitHub failure → 502 { error }.
+ * a secret/credential file or attempting traversal → 403. Inputs rejected by
+ * github.ts's stricter validators (e.g. ".." inside repo/ref segments) → 400.
+ * Fail-closed 503 when GITHUB_TOKEN is absent. Unknown repo/path/ref (GitHub
+ * 404) or a non-file target (dir, submodule, symlink) → 404 { error }. GitHub
+ * timeout → 504 { error }. Any other upstream GitHub failure → 502 { error }.
  * Mirrors copilots/route.ts.
  */
 export async function GET(request: Request) {
@@ -122,6 +125,27 @@ export async function GET(request: Request) {
     // (github.ts), which must never reach the client. Public contract stays
     // generic. Mirrors the neighboring agent-ops routes.
     console.error('[agent-ops/github/file] read failed', err)
+    const message = err instanceof Error ? err.message : ''
+    // Classify by the exact messages github.ts emits (gh() + getRepoFile):
+    // an unknown repo/path/ref is the CLIENT naming a resource that doesn't
+    // exist (404), not GitHub being down (502); a stalled GitHub API is a
+    // gateway timeout (504). Keep these anchors in sync with github.ts.
+    if (/^invalid (repo|path|ref)/.test(message)) {
+      // github.ts's own validators are stricter than this route's schemas
+      // (e.g. they reject ".." inside repo/ref segments) — that's still a
+      // client-input fault, never an upstream failure.
+      return NextResponse.json({ error: 'invalid repo, path or ref' }, { status: 400 })
+    }
+    if (/^GitHub 404 on /.test(message)) {
+      return NextResponse.json({ error: 'file not found' }, { status: 404 })
+    }
+    if (/^not a file: /.test(message)) {
+      // The path exists but is a dir/submodule/symlink — no file resource here.
+      return NextResponse.json({ error: 'not a file' }, { status: 404 })
+    }
+    if (/^GitHub request timed out after /.test(message)) {
+      return NextResponse.json({ error: 'GitHub timeout' }, { status: 504 })
+    }
     return NextResponse.json({ error: 'failed to read file' }, { status: 502 })
   }
 }
