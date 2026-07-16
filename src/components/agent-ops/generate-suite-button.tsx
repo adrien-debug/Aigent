@@ -66,7 +66,9 @@ export function GenerateSuiteButton({ copilotId }: GenerateSuiteButtonProps) {
         )}
       </Button>
 
-      {error ? <Text className="!mt-0 !text-xs !text-zinc-500">{error}</Text> : null}
+      {error ? (
+        <Text className="!mt-0 max-w-xs text-center !text-xs !text-zinc-500 break-words">{error}</Text>
+      ) : null}
     </div>
   )
 }
