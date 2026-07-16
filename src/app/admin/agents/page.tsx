@@ -94,7 +94,7 @@ export default async function AgentsRegistryPage() {
           copilots={copilots}
           projects={projects}
           action={
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               {agentBuilder ? (
                 <Button outline href={`/admin/agents/${agentBuilder.id}/builder`}>
                   <SparklesIcon data-slot="icon" />
