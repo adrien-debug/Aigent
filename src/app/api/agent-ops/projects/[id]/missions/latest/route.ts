@@ -32,6 +32,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ ok: true, mission: { ...run, findings } })
   } catch (err) {
     console.error('[agent-ops/projects/missions/latest] read failed', err instanceof Error ? err.message : err)
-    return NextResponse.json({ error: 'mission read failed' }, { status: 502 })
+    // postgrest.ts aborts a hung round-trip as PgrestError(504): surface the
+    // timeout as 504 Gateway Timeout instead of flattening it into 502.
+    const timedOut = err instanceof Error && err.name === 'PgrestError' && 'status' in err && err.status === 504
+    return NextResponse.json({ error: 'mission read failed' }, { status: timedOut ? 504 : 502 })
   }
 }
