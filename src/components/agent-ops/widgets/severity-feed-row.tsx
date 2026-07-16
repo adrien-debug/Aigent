@@ -44,7 +44,7 @@ export function SeverityFeedRow({
       ) : null}
       <time
         dateTime={occurredAt}
-        className="hidden shrink-0 font-mono text-xs text-zinc-500 tabular-nums sm:inline"
+        className="hidden shrink-0 font-mono text-xs text-zinc-500 tabular-nums sm:inline dark:text-zinc-400"
       >
         {formatRelative(occurredAt, referenceNow)}
       </time>
