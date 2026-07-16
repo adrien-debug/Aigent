@@ -14,6 +14,12 @@ const RUNTIMES: AgentRuntime[] = ['langgraph', 'openai-assistants', 'gemini', 'c
 // the langgraph/threads/[threadId] route).
 const COPILOT_ID_RE = /^[a-zA-Z0-9-]{1,100}$/
 
+// Upper bound on body string fields that flow into PostgREST filter URLs and
+// are persisted on `benchmark_runs` (suite_id / version_id / model). Same
+// 200-char cap as the copilots create route and the promotion route's ID_RE —
+// an unbounded string here means an arbitrarily large upstream URL + DB row.
+const MAX_ID_LENGTH = 200
+
 /**
  * POST /api/agent-ops/copilots/:copilotId/benchmarks/run — run a REAL V1
  * benchmark suite. Delegates to `runBenchmarkSuite`, which executes + grades
@@ -45,11 +51,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   } catch {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
   }
-  if (typeof body.suiteId !== 'string' || body.suiteId.trim().length === 0) {
+  if (
+    typeof body.suiteId !== 'string' ||
+    body.suiteId.trim().length === 0 ||
+    body.suiteId.length > MAX_ID_LENGTH
+  ) {
     return NextResponse.json({ error: 'suiteId is required' }, { status: 400 })
   }
-  if (body.versionId !== undefined && typeof body.versionId !== 'string') {
+  if (
+    body.versionId !== undefined &&
+    (typeof body.versionId !== 'string' || body.versionId.length > MAX_ID_LENGTH)
+  ) {
     return NextResponse.json({ error: 'versionId must be a string' }, { status: 400 })
+  }
+  if (
+    body.model !== undefined &&
+    (typeof body.model !== 'string' || body.model.length > MAX_ID_LENGTH)
+  ) {
+    return NextResponse.json({ error: 'model must be a string' }, { status: 400 })
   }
   if (body.modelProvider !== undefined && !MODEL_PROVIDERS.includes(body.modelProvider as ModelProvider)) {
     return NextResponse.json({ error: 'invalid modelProvider' }, { status: 400 })
@@ -97,7 +116,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
       copilotId,
       suiteId: body.suiteId,
       versionId: body.versionId,
-      model: typeof body.model === 'string' ? body.model : undefined,
+      model: body.model,
       modelProvider: body.modelProvider as ModelProvider | undefined,
       runtime: body.runtime as AgentRuntime | undefined,
       allowFallback: body.allowFallback,
