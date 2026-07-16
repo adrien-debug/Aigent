@@ -222,7 +222,7 @@ export default async function ConfigPage({ params }: { params: Promise<{ id: str
               centerText={`${complete}/5`}
               ariaLabel={`Manifest completeness: ${complete} of 5 sections`}
             />
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-semibold text-zinc-950 dark:text-white">Completeness</p>
               <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
                 {complete} of 5 manifest sections defined.
