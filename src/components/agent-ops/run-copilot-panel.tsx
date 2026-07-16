@@ -173,7 +173,7 @@ export function RunCopilotPanel({ copilotId, copilotName, copilotSlug = '', copi
         />
       </Field>
 
-      <div className="mt-4 flex items-center gap-3">
+      <div className="mt-4 flex flex-wrap items-center gap-3">
         <Button color="accent" onClick={handleRun} disabled={isRunning || input.trim().length === 0}>
           {isRunning ? (
             <>
