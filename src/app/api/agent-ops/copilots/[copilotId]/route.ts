@@ -18,6 +18,17 @@ function isValidCopilotId(id: string): boolean {
 }
 
 /**
+ * Same shape guard for project ids in the PATCH body (`projectId`,
+ * `targetProjectIds[]`) — real ids are `makeId('proj', slug)`, same alphabet
+ * and bound as PROJECT_ID_RE in projects/[id]/route.ts. These values are
+ * persisted verbatim into `copilots.project_id` / `target_project_ids` and
+ * later re-interpolated into PostgREST filters, so an unbounded/garbage string
+ * must be rejected with a 400 here rather than stored (a value outside this
+ * shape can never be a real project id).
+ */
+const PROJECT_ID_RE = /^[a-z0-9-]{1,200}$/
+
+/**
  * DELETE /api/agent-ops/copilots/:copilotId — supprime définitivement un
  * copilote et toutes ses données (versions, manifests, tools, tests, runs,
  * benchmarks, traces), en cascade FK-safe. Live-only, fail-closed. 404 si le
@@ -85,6 +96,9 @@ export async function PATCH(
     if (body.projectId !== null && typeof body.projectId !== 'string') {
       return NextResponse.json({ error: 'projectId must be a string or null' }, { status: 400 })
     }
+    if (body.projectId !== null && !PROJECT_ID_RE.test(body.projectId)) {
+      return NextResponse.json({ error: 'invalid projectId' }, { status: 400 })
+    }
     patch.project_id = body.projectId
   }
   if ('targetProjectIds' in body) {
@@ -94,6 +108,9 @@ export async function PATCH(
     }
     if (targets.length > 2) {
       return NextResponse.json({ error: 'targetProjectIds: 2 destinations max' }, { status: 400 })
+    }
+    if (targets.some((id) => !PROJECT_ID_RE.test(id))) {
+      return NextResponse.json({ error: 'targetProjectIds: invalid project id' }, { status: 400 })
     }
     patch.target_project_ids = targets
   }
@@ -107,20 +124,30 @@ export async function PATCH(
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
   }
 
-  const res = await fetch(`${base}/rest/v1/copilots?id=eq.${encodeURIComponent(copilotId)}`, {
-    method: 'PATCH',
-    headers: {
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation',
-    },
-    body: JSON.stringify(patch),
-  })
+  // fetch() rejects on network failure (gpu1 unreachable, DNS, reset) and
+  // res.json() can throw on a truncated body — without this try/catch those
+  // escape the handler as a raw framework 500 instead of the repo's pattern
+  // (server-side log + generic 502, mirrors the DELETE handler above).
+  let rows: unknown[]
+  try {
+    const res = await fetch(`${base}/rest/v1/copilots?id=eq.${encodeURIComponent(copilotId)}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify(patch),
+    })
 
-  if (!res.ok) {
-    return NextResponse.json({ error: `PostgREST ${res.status}` }, { status: 502 })
+    if (!res.ok) {
+      return NextResponse.json({ error: `PostgREST ${res.status}` }, { status: 502 })
+    }
+    rows = (await res.json()) as unknown[]
+  } catch (err) {
+    console.error('[PATCH /api/agent-ops/copilots/:copilotId] PostgREST write failed', err)
+    return NextResponse.json({ error: 'update failed' }, { status: 502 })
   }
-  const rows = (await res.json()) as unknown[]
   if (rows.length === 0) {
     return NextResponse.json({ error: 'copilot not found' }, { status: 404 })
   }
