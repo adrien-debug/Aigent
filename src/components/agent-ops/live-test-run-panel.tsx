@@ -80,6 +80,16 @@ const caseIconClass: Record<CaseStatus, string> = {
   running: 'text-zinc-400 animate-spin',
 }
 
+/** Screen-reader label for a case's status — the icon alone (aria-hidden) never
+ * carries the verdict; this mirrors the visible text label `test-case-table.tsx`
+ * shows in its Result column, so the same information reaches AT users here. */
+const caseStatusLabel: Record<CaseStatus, string> = {
+  pass: 'Pass',
+  fail: 'Fail',
+  error: 'Error',
+  running: 'Running',
+}
+
 function CaseIcon({ status }: { status: CaseStatus }) {
   const className = clsx('size-4 shrink-0', caseIconClass[status])
   switch (status) {
@@ -445,6 +455,7 @@ export function LiveTestRunPanel({ copilotId, suiteId, versionId, cases: suiteCa
                       )}
                     >
                       <CaseIcon status={c.status} />
+                      <span className="sr-only">{caseStatusLabel[c.status]}</span>
                       <span className="truncate text-xs text-zinc-300" title={c.name}>
                         {c.name}
                       </span>
