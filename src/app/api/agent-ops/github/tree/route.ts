@@ -18,6 +18,10 @@ const repoSchema = z
   .string()
   .max(200, 'repo too long')
   .regex(/^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/, 'repo must be "owner/name"')
+  // The charset regex lets `..` through (dots are legal), but the helper's
+  // assertValidRepoFullName rejects it with a throw — without this refine a
+  // client-input fault would surface as a 502 instead of a 400.
+  .refine((v) => !v.includes('..'), 'repo must not contain ".."')
 
 /** Git refs: branches, tags, or full SHAs — safe charset only, bounded (git
  * refs are ≤ 256 bytes in practice; a megabyte query param has no business
@@ -26,6 +30,9 @@ const refSchema = z
   .string()
   .max(256, 'ref too long')
   .regex(/^[A-Za-z0-9._/-]+$/, 'ref contains unsafe characters')
+  // Same rationale as repoSchema: assertValidRef (github.ts) throws on `..`,
+  // which must stay a 400 at the edge, never a 502.
+  .refine((v) => !v.includes('..'), 'ref must not contain ".."')
 
 /**
  * GET /api/agent-ops/github/tree?repo=<fullName>&ref=<optional> — fetch a
@@ -33,8 +40,9 @@ const refSchema = z
  * Server-only; delegates to `getRepoTree` (github.ts), which reads GITHUB_TOKEN.
  *
  * `repo` missing/malformed → 400. `ref` malformed → 400. Fail-closed 503 when
- * GITHUB_TOKEN is absent. Upstream GitHub failure → 502 { error }. Mirrors
- * copilots/route.ts.
+ * GITHUB_TOKEN is absent. Unknown repo/ref (GitHub 404, which also covers a
+ * repo the token cannot see) → 404 { error }. GitHub timeout → 504 { error }.
+ * Any other upstream GitHub failure → 502 { error }. Mirrors copilots/route.ts.
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -69,9 +77,23 @@ export async function GET(request: Request) {
     })
   } catch (err) {
     // Log the detail (which can embed the internal GitHub API path + up to 300
-    // chars of raw upstream response body) server-side only; return a generic
-    // 502 so nothing internal leaks to the client. Mirrors copilots/route.ts.
+    // chars of raw upstream response body) server-side only; the client gets a
+    // generic body so nothing internal leaks. Mirrors copilots/route.ts.
     console.error('[agent-ops/github/tree] getRepoTree failed:', err)
+    const message = err instanceof Error ? err.message : String(err)
+    // Classify by the messages `gh()` (github.ts) actually emits — the same
+    // regex-on-message pattern as push-agent/route.ts and readHostRegistry.
+    // "GitHub 404 on GET repos/…" = unknown repo or ref (both the tree fetch
+    // and the default-branch resolution are GETs): the client named a resource
+    // that does not exist for this token → 404, not an upstream failure.
+    if (/^GitHub 404 on GET repos\//.test(message)) {
+      return NextResponse.json({ error: 'repo or ref not found' }, { status: 404 })
+    }
+    // "GitHub request timed out after …" = the 15s AbortSignal ceiling → 504,
+    // consistent with the PgrestError(504) timeout remap in postgrest.ts.
+    if (/^GitHub request timed out after /.test(message)) {
+      return NextResponse.json({ error: 'GitHub timeout' }, { status: 504 })
+    }
     return NextResponse.json({ error: 'GitHub error' }, { status: 502 })
   }
 }
