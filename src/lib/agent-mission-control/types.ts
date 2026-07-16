@@ -167,6 +167,27 @@ export interface AgentManifest {
   maxStepsPerRun: number
   maxCostPerRunUsd: UsdAmount
   updatedAt: IsoTimestamp
+  /**
+   * Opt-in runtime telemetry for the DELIVERED agent (prompt 62). Absent or
+   * `enabled: false` → the generator still emits `telemetry.ts` alongside the
+   * handler whenever this field is present, but it is a runtime no-op unless
+   * the consumer repo also sets `AIGENT_TELEMETRY_ENABLED=true` at deploy time.
+   * Undefined entirely → no telemetry.ts is generated at all (back-compat).
+   */
+  telemetry?: {
+    /** Default: `false` — telemetry is opt-in, never on by generation alone. */
+    enabled: boolean
+    /** POST target; falls back to `AIGENT_TELEMETRY_ENDPOINT` env at runtime. */
+    endpoint?: string
+    projectId?: string
+    agentId?: string
+    /** Fraction of runs sampled, 0..1. Default: `1` (all runs, once enabled). */
+    sampleRate?: number
+    /** Default: `true` — strip raw input content, keep only shape/counters. */
+    redactInputs?: boolean
+    /** Default: `true` — strip raw output content, keep only shape/counters. */
+    redactOutputs?: boolean
+  }
 }
 
 export interface MemorySource {

@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
 import { AgentSkillsCard } from '@/components/agent-ops/agent-skills-card'
 import { DeliveryScorecardCard } from '@/components/agent-ops/delivery-scorecard-card'
+import { RuntimeTelemetryCard } from '@/components/agent-ops/runtime-telemetry-card'
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { ArchitectureStrip } from '@/components/agent-ops/architecture-strip'
 import { CopilotProjectActions } from '@/components/agent-ops/copilot-project-actions'
@@ -41,6 +42,8 @@ import {
   getVersion,
 } from '@/lib/agent-mission-control/data'
 import { versionStageLabels } from '@/components/agent-ops/version-stage-text'
+import { summarizeRuntimeTelemetry } from '@/lib/agent-mission-control/runtime-telemetry-store'
+import type { RuntimeTelemetrySummary } from '@/lib/agent-mission-control/runtime-telemetry-store'
 import type {
   AgentRunStatus,
   BenchmarkResult,
@@ -225,6 +228,18 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
     (best, candidate) => (best === null || candidate.result.score > best.result.score ? candidate : best),
     null
   )
+
+  // Runtime telemetry — opt-in signal reported by the delivered agent. Fail-soft:
+  // never let a telemetry read break this page (store unreachable, not configured,
+  // or copilot not yet attached to a project).
+  let runtimeTelemetry: RuntimeTelemetrySummary | null = null
+  if (copilot.projectId) {
+    try {
+      runtimeTelemetry = await summarizeRuntimeTelemetry(copilot.projectId, copilot.id)
+    } catch {
+      runtimeTelemetry = null
+    }
+  }
 
   // Shadow + gate → next actions
   const runningShadow = shadowExperiments.find((experiment) => experiment.status === 'running')
@@ -744,6 +759,10 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
       {/* 3a — Delivery scorecard (repo-fit + run-backed signals, non-blocking).
           Skipped on a sparse draft — nothing measured yet to aggregate. */}
       {!isSparseDraft ? <DeliveryScorecardCard copilotId={copilot.id} /> : null}
+
+      {/* 3a-bis — Runtime telemetry (opt-in signal from the delivered agent,
+          same non-blocking readout family as the scorecard). */}
+      {!isSparseDraft ? <RuntimeTelemetryCard summary={runtimeTelemetry} /> : null}
 
       {/* 3b — Skills, aggregating role + enabled tools + guardrails */}
       <AgentSkillsCard manifest={manifest} enabledTools={enabledTools} />

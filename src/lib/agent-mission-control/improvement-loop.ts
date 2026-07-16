@@ -48,6 +48,7 @@ import { ARCHITECT_MODEL } from './llm-client'
 import { routeCompletion } from './model-router'
 import { pgrest } from './postgrest'
 import { NotFoundError } from './runner-errors'
+import { summarizeRuntimeTelemetry, type RuntimeTelemetrySummary } from './runtime-telemetry-store'
 import { makeId, slugify } from './slug'
 import { runTestSuite } from './test-runner'
 import type { ConfirmationPolicy, IsoTimestamp } from './types'
@@ -101,9 +102,12 @@ export interface ImprovementSources {
   db: boolean
   langgraph: boolean
   langsmith: boolean
+  /** True when the deployed-agent runtime telemetry summary was read successfully. */
+  runtimeTelemetry: boolean
   /** Human-readable reason when an observability source is unavailable. */
   langgraphReason?: string
   langsmithReason?: string
+  runtimeTelemetryReason?: string
 }
 
 export interface ImprovementSignals {
@@ -136,6 +140,9 @@ export interface ImprovementSignals {
   langgraphThreads: Array<{ threadId: string; status: string; currentNode: string | null; interruptCount: number }>
   /** LangSmith root runs of the tracing project (recent, compact). */
   langsmithRuns: Array<{ name: string; status: string; error: string | null; latencyMs: number | null }>
+  /** Deployed-agent runtime telemetry summary (opt-in, best-effort pings from
+   *  generated handlers) — absent when unavailable or no data exists yet. */
+  runtimeTelemetry?: RuntimeTelemetrySummary
   sources: ImprovementSources
 }
 
@@ -392,6 +399,9 @@ export async function collectImprovementSignals(
     available: false,
     reason: 'skipped (display-only read)',
   }
+  let runtimeTelemetry: RuntimeTelemetrySummary | undefined
+  let runtimeTelemetryAvailable = false
+  let runtimeTelemetryReason: string | undefined
   if (includeObservability) {
     const threadIds = Array.from(
       new Set(runRows.map((r) => r.thread_id as string | null).filter((t): t is string => typeof t === 'string' && t.length > 0))
@@ -413,8 +423,24 @@ export async function collectImprovementSignals(
     }
     if (threadIds.length === 0) langgraphReason = 'no recent runs carry a LangGraph thread id'
     langsmith = await readLangSmithRuns()
+
+    // Runtime telemetry — same fail-soft edge as LangGraph/LangSmith above:
+    // a down/empty telemetry store must degrade the ANALYSIS INPUT, never
+    // break signal collection.
+    try {
+      const projectId = (copilotRow.project_id as string | null) ?? null
+      if (!projectId) {
+        runtimeTelemetryReason = 'copilot has no project_id'
+      } else {
+        runtimeTelemetry = await summarizeRuntimeTelemetry(projectId, copilotId)
+        runtimeTelemetryAvailable = true
+      }
+    } catch (err) {
+      runtimeTelemetryReason = err instanceof Error ? summarize(err.message, 120) : 'runtime telemetry unavailable'
+    }
   } else {
     langgraphReason = 'skipped (display-only read)'
+    runtimeTelemetryReason = 'skipped (display-only read)'
   }
 
   return {
@@ -439,12 +465,15 @@ export async function collectImprovementSignals(
     recentRuns,
     langgraphThreads,
     langsmithRuns: langsmith.available ? langsmith.runs : [],
+    ...(runtimeTelemetry ? { runtimeTelemetry } : {}),
     sources: {
       db: true,
       langgraph: langgraphThreads.length > 0,
       langsmith: langsmith.available,
+      runtimeTelemetry: runtimeTelemetryAvailable,
       ...(langgraphThreads.length === 0 && langgraphReason ? { langgraphReason } : {}),
       ...(!langsmith.available ? { langsmithReason: langsmith.reason } : {}),
+      ...(!runtimeTelemetryAvailable && runtimeTelemetryReason ? { runtimeTelemetryReason } : {}),
     },
   }
 }
@@ -968,7 +997,7 @@ function rowToProposal(r: RawRow): ImprovementProposal {
     summary: (r.summary as string) ?? '',
     failureAnalysis: (r.failure_analysis as FailureAnalysisEntry[]) ?? [],
     manifestChanges: (r.manifest_changes as ImprovementManifestChanges) ?? {},
-    sources: (r.sources as ImprovementSources) ?? { db: true, langgraph: false, langsmith: false },
+    sources: (r.sources as ImprovementSources) ?? { db: true, langgraph: false, langsmith: false, runtimeTelemetry: false },
     costUsd: (r.cost_usd as number) ?? 0,
     createdAt: r.created_at as string,
     createdBy: (r.created_by as string) ?? '',
