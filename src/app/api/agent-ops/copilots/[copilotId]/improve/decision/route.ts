@@ -24,13 +24,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     return NextResponse.json({ error: 'invalid copilotId' }, { status: 400 })
   }
 
-  let body: { proposalId?: string; decision?: string; decidedBy?: string }
+  let body: { proposalId?: string; decision?: string; decidedBy?: string } | null
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
   }
-  if (typeof body.proposalId !== 'string' || !ID_RE.test(body.proposalId)) {
+  // `null` is valid JSON: reading .proposalId off it would throw → 500 instead of 400.
+  if (body === null || typeof body.proposalId !== 'string' || !ID_RE.test(body.proposalId)) {
     return NextResponse.json({ error: 'proposalId is required' }, { status: 400 })
   }
   if (body.decision !== 'approved' && body.decision !== 'rejected') {
