@@ -108,7 +108,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl px-6 pt-10 pb-24 sm:pb-32 lg:flex lg:px-8 lg:py-40">
           <div className="mx-auto max-w-2xl shrink-0 lg:mx-0 lg:pt-8">
             <div className="mt-8 sm:mt-12 lg:mt-0">
-              <Link href="/pricing" className="inline-flex space-x-6">
+              <Link href="/pricing" className="inline-flex flex-wrap items-center gap-x-6 gap-y-2">
                 <span className="rounded-full bg-accent-500/10 px-3 py-1 text-sm/6 font-semibold text-accent-400 ring-1 ring-accent-500/25 ring-inset">
                   What&apos;s new
                 </span>
