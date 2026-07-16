@@ -23,6 +23,16 @@ const DEFAULT_MAX_STEPS_PER_RUN = 12
 const COPILOT_ID_RE = /^[a-z0-9-]{1,200}$/
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+// Upstream TIMEOUT detection: postgrest.ts aborts any round-trip past 30s and
+// rethrows it as a PgrestError carrying `status: 504` (commit 10c01f9); the
+// Agent Server SDK's HTTPError carries the upstream status the same way. A
+// timeout surfaces as HTTP 504 (gateway timeout) instead of the generic 502 so
+// the caller can tell "backend hung" from "backend errored". Duck-typed on
+// `.status` — same pattern as isNotFoundError in agent-builder-run.ts
+// (PgrestError is not exported from postgrest.ts).
+const isUpstreamTimeout = (err: unknown): boolean =>
+  typeof err === 'object' && err !== null && 'status' in err && (err as { status: unknown }).status === 504
+
 /**
  * POST /api/agent-ops/copilots/:copilotId/runs/:runId/resume — human-in-the-loop
  * resume for a LangGraph run that paused for approval.
@@ -61,7 +71,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  *        - otherwise → PATCH the run to `completed`/`failed`/`blocked`,
  *          stamping output_summary + finished_at (terminal).
  *
- * Live-only: never fabricates a resume — a resume/persist failure surfaces as 502.
+ * Live-only: never fabricates a resume — a resume/persist failure surfaces as
+ * 502 (504 when the upstream call timed out).
  */
 export async function POST(
   request: Request,
@@ -107,7 +118,7 @@ export async function POST(
     runRow = rows[0]
   } catch (err) {
     console.error('[agent-ops/runs/resume] failed to load run', err)
-    return NextResponse.json({ error: 'failed to load run' }, { status: 502 })
+    return NextResponse.json({ error: 'failed to load run' }, { status: isUpstreamTimeout(err) ? 504 : 502 })
   }
 
   if ((runRow.copilot_id as string | null) !== copilotId) {
@@ -156,7 +167,7 @@ export async function POST(
     }
   } catch (err) {
     console.error('[agent-ops/runs/resume] failed to claim run', err)
-    return NextResponse.json({ error: 'failed to claim run' }, { status: 502 })
+    return NextResponse.json({ error: 'failed to claim run' }, { status: isUpstreamTimeout(err) ? 504 : 502 })
   }
 
   // Resolve the copilot's tools (name → id/risk/confirmation) so resumed
@@ -433,6 +444,6 @@ export async function POST(
     // Server/internal detail. Log server-side, generic message to the caller
     // (same convention as architect/resume, builder/resume, create-draft).
     console.error('[agent-ops/runs/resume] resume failed', err)
-    return NextResponse.json({ error: 'run resume failed' }, { status: 502 })
+    return NextResponse.json({ error: 'run resume failed' }, { status: isUpstreamTimeout(err) ? 504 : 502 })
   }
 }
