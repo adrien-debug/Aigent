@@ -5,6 +5,7 @@ import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-c
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
 import { ProvisionAgentBuilderBanner } from '@/components/agent-ops/provision-agent-builder-banner'
 import { RegistryView } from '@/components/agent-ops/registry-view'
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { AGENT_BUILDER_SLUG } from '@/lib/agent-mission-control/agent-builder-copilot'
 import {
   getCopilots,
@@ -63,7 +64,7 @@ function RecentWarningsCard({
             ))}
           </div>
         ) : (
-          <p className="py-4 text-sm text-zinc-400">No open warnings. All copilots are healthy.</p>
+          <EmptyState title="No open warnings" description="All copilots are healthy." className="py-4" />
         )}
       </div>
     </SurfaceCard>
