@@ -25,12 +25,17 @@ export async function persistMissionFindings(findings: MissionFinding[]): Promis
   })))
 }
 
+/** Hard cap per fetch — a run produces ~40 findings max by construction; aligned on the repo's limit=200 pattern. */
+const MISSION_FINDINGS_LIMIT = 200
+
 export async function getMissionFindings(missionRunId: string): Promise<MissionFinding[]> {
+  // order=created_at.desc + limit → deterministic truncation keeping the most recent rows;
+  // reversed below so callers still receive chronological (asc) order as before.
   const rows = await pgrest<RawRow[]>(
     'GET',
-    `mission_findings?${eq('mission_run_id', missionRunId)}&select=*&order=created_at.asc`
+    `mission_findings?${eq('mission_run_id', missionRunId)}&select=*&order=created_at.desc&limit=${MISSION_FINDINGS_LIMIT}`
   )
-  return rows.map((row) => ({
+  return rows.reverse().map((row) => ({
     id: row.id as string,
     missionRunId: row.mission_run_id as string,
     copilotId: (row.copilot_id as string | null) ?? null,
