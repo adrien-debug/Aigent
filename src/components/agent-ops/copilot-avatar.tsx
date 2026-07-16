@@ -16,7 +16,7 @@ import type { Copilot } from '@/lib/agent-mission-control/types'
  * Per-copilot visual identity. There is NO `type`/`kind`/`role` field on a
  * Copilot (see types.ts), so the type is a *derived visual cue* — never a
  * business fact rendered as data. Differentiation is by GLYPH first: the
- * design system is strictly mono-accent (indigo) + zinc, so no avatar may use
+ * design system is strictly mono-accent + zinc, so no avatar may use
  * a chromatic hue outside `accent`/`zinc`. The `builder` type (the one
  * first-class agent) gets the sole accent surface; every other type is
  * differentiated by a zinc-shade step, never by a competing hue. When in
