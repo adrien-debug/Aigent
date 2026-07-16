@@ -18,8 +18,10 @@ export function ActionCenter({ items }: { items: ActionItem[] }) {
             <li key={item.id} className="flex flex-col gap-3 px-6 py-4">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-white truncate">{item.title}</p>
-                  <Badge color={item.kind === 'ready_manual' ? 'accent' : 'zinc'}>{item.status}</Badge>
+                  <p className="min-w-0 flex-1 truncate text-sm font-medium text-white">{item.title}</p>
+                  <Badge color={item.kind === 'ready_manual' ? 'accent' : 'zinc'} className="shrink-0">
+                    {item.status}
+                  </Badge>
                 </div>
                 <p className="mt-1 truncate text-xs text-zinc-500">{item.meta}</p>
               </div>
