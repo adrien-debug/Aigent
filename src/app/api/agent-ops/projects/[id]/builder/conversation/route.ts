@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { getProject } from '@/lib/agent-mission-control/data'
 import { getProjectBuilderConversationBundle } from '@/lib/agent-mission-control/project-builder-conversation'
 
 /**
@@ -26,6 +27,19 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   const blocked = requireLiveBackend()
   if (blocked) return blocked
+
+  // The bundle helper CREATES a conversation row when none exists, so an
+  // unknown project id must 404 here — otherwise this GET answers 200 and
+  // persists a ghost conversation for a project that does not exist (same
+  // guard as builder/run and builder/resume).
+  let project
+  try {
+    project = await getProject(id)
+  } catch (err) {
+    console.error('[agent-ops/projects/builder/conversation] failed to load project', err)
+    return NextResponse.json({ error: 'failed to load project' }, { status: 502 })
+  }
+  if (!project) return NextResponse.json({ error: 'project not found' }, { status: 404 })
 
   try {
     const bundle = await getProjectBuilderConversationBundle(id)
