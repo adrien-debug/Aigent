@@ -86,7 +86,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       'GET',
       `copilots?select=id&slug=eq.${encodeURIComponent(AGENT_BUILDER_SLUG)}&limit=1`
     )
-    if (!rows[0]) return NextResponse.json({ error: 'Agent Builder is not provisioned' }, { status: 409 })
+    if (!rows[0]) {
+      // Same machine-readable discriminator as the sibling builder/run route,
+      // which 409s with `notProvisioned: true` on this exact condition.
+      return NextResponse.json({ error: 'Agent Builder is not provisioned', notProvisioned: true }, { status: 409 })
+    }
     builderCopilotId = rows[0].id
   } catch (err) {
     console.error('[agent-ops/projects/builder/resume] failed to resolve Agent Builder', err)
@@ -136,8 +140,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     createdCopilotId = await createCopilotFromManifest(createInput)
   } catch (err) {
     console.error('[agent-ops/projects/builder/resume] draft persistence failed', err)
+    // `error` = the canonical error key every non-2xx in agent-ops carries;
+    // `persistError` is kept as the richer, state-scoped detail clients of the
+    // builder family already read (data?.persistError ?? data?.error).
     return NextResponse.json(
-      { ...state, createdCopilotId: null, persistError: 'the draft was approved but could not be saved — retry' },
+      {
+        ...state,
+        createdCopilotId: null,
+        error: 'the draft was approved but could not be saved — retry',
+        persistError: 'the draft was approved but could not be saved — retry',
+      },
       { status: 502 }
     )
   }
