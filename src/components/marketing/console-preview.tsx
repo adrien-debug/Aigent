@@ -38,52 +38,54 @@ export function ConsolePreview({ className }: { className?: string }) {
         <span className="ml-3 text-xs font-medium text-zinc-500">Agent Mission Control — Registry</span>
       </div>
 
-      <div className="grid gap-px bg-white/5 sm:grid-cols-[1fr_theme(spacing.48)]">
+      <div className="grid gap-px bg-white/5 sm:grid-cols-[1fr_12rem]">
         {/* Registry table */}
-        <div className="bg-zinc-900/80 p-5">
+        <div className="min-w-0 bg-zinc-900/80 p-5">
           <div className="mb-4 flex items-baseline justify-between">
             <span className="text-sm font-semibold text-white">Copilots</span>
             <span className="text-xs text-zinc-500">4 of 12</span>
           </div>
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-white/10 text-[0.65rem] tracking-wide text-zinc-500 uppercase">
-                <th className="pb-2 pr-3 font-medium">Name</th>
-                <th className="pb-2 pr-3 font-medium">Stage</th>
-                <th className="hidden pb-2 pr-3 text-right font-medium sm:table-cell">Runs</th>
-                <th className="pb-2 text-right font-medium">Pass</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {ROWS.map((row) => (
-                <tr key={row.name}>
-                  <td className="py-2.5 pr-3 font-mono whitespace-nowrap text-zinc-200">{row.name}</td>
-                  <td className="py-2.5 pr-3">
-                    <span
-                      className={clsx(
-                        'inline-flex items-center gap-1.5 whitespace-nowrap',
-                        row.tone === 'draft' ? 'text-zinc-500' : 'text-zinc-300',
-                      )}
-                    >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[20rem] text-left text-xs">
+              <thead>
+                <tr className="border-b border-white/10 text-[0.65rem] tracking-wide text-zinc-500 uppercase">
+                  <th className="pb-2 pr-3 font-medium">Name</th>
+                  <th className="pb-2 pr-3 font-medium">Stage</th>
+                  <th className="hidden pb-2 pr-3 text-right font-medium sm:table-cell">Runs</th>
+                  <th className="pb-2 text-right font-medium">Pass</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {ROWS.map((row) => (
+                  <tr key={row.name}>
+                    <td className="py-2.5 pr-3 font-mono whitespace-nowrap text-zinc-200">{row.name}</td>
+                    <td className="py-2.5 pr-3">
                       <span
                         className={clsx(
-                          'size-1.5 shrink-0 rounded-full',
-                          row.tone === 'live' && 'bg-accent-400',
-                          row.tone === 'shadow' && 'bg-accent-600',
-                          row.tone === 'draft' && 'bg-zinc-600',
+                          'inline-flex items-center gap-1.5 whitespace-nowrap',
+                          row.tone === 'draft' ? 'text-zinc-500' : 'text-zinc-300',
                         )}
-                      />
-                      {row.stage}
-                    </span>
-                  </td>
-                  <td className="hidden py-2.5 pr-3 text-right font-mono text-zinc-400 tabular-nums sm:table-cell">
-                    {row.runs}
-                  </td>
-                  <td className="py-2.5 text-right font-mono text-zinc-200 tabular-nums">{row.pass}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      >
+                        <span
+                          className={clsx(
+                            'size-1.5 shrink-0 rounded-full',
+                            row.tone === 'live' && 'bg-accent-400',
+                            row.tone === 'shadow' && 'bg-accent-600',
+                            row.tone === 'draft' && 'bg-zinc-600',
+                          )}
+                        />
+                        {row.stage}
+                      </span>
+                    </td>
+                    <td className="hidden py-2.5 pr-3 text-right font-mono text-zinc-400 tabular-nums sm:table-cell">
+                      {row.runs}
+                    </td>
+                    <td className="py-2.5 text-right font-mono text-zinc-200 tabular-nums">{row.pass}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Run summary rail */}
