@@ -65,7 +65,12 @@ export async function POST(request: Request) {
     copilotId = rows[0].id
   } catch (err) {
     console.error('[agent-ops/architect/run] failed to resolve Agent Builder', err)
-    return NextResponse.json({ error: 'failed to resolve Agent Builder' }, { status: 502 })
+    // pgrest() aborts a hung PostgREST round-trip and rethrows PgrestError(504)
+    // — surface that as an honest 504 Gateway Timeout; any other upstream
+    // failure stays a generic 502. Same body shape either way.
+    const timedOut =
+      err instanceof Error && err.name === 'PgrestError' && (err as unknown as { status?: unknown }).status === 504
+    return NextResponse.json({ error: 'failed to resolve Agent Builder' }, { status: timedOut ? 504 : 502 })
   }
 
   try {
