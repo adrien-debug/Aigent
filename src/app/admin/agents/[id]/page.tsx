@@ -8,6 +8,7 @@ import { DeliveryScorecardCard } from '@/components/agent-ops/delivery-scorecard
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { ArchitectureStrip } from '@/components/agent-ops/architecture-strip'
 import { CopilotProjectActions } from '@/components/agent-ops/copilot-project-actions'
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { OnboardingSteps } from '@/components/agent-ops/onboarding-steps'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
@@ -593,17 +594,17 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
             {/* Tests & benchmarks — ONE card, two gauge rows split by a hairline. */}
             <AgentBentoCard title="Tests & benchmarks" level={2}>
               {/* Tests row — pass-rate ring + pass/fail/error split bar. */}
-              <div className="flex items-start gap-6">
-                <RadialMeter
-                  value={displayTestPassRate}
-                  max={1}
-                  size={92}
-                  centerText={formatPercent(displayTestPassRate)}
-                  caption="pass rate"
-                  ariaLabel={`Test pass rate: ${formatPercent(displayTestPassRate)}`}
-                />
-                <div className="min-w-0 flex-1">
-                  {latestTestRun ? (
+              {latestTestRun ? (
+                <div className="flex items-start gap-6">
+                  <RadialMeter
+                    value={displayTestPassRate}
+                    max={1}
+                    size={92}
+                    centerText={formatPercent(displayTestPassRate)}
+                    caption="pass rate"
+                    ariaLabel={`Test pass rate: ${formatPercent(displayTestPassRate)}`}
+                  />
+                  <div className="min-w-0 flex-1">
                     <SplitBar
                       segments={[
                         { key: 'pass', label: 'Pass', value: passCount, tone: 'accent-500' },
@@ -614,14 +615,18 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                       ]}
                       caption={`Latest run · ${formatTimestamp(latestTestRun.startedAt)}`}
                     />
-                  ) : (
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">No recorded test runs for this copilot.</p>
-                  )}
-                  <div className="mt-4">
-                    <SectionLink href={`${base}/tests`}>View tests</SectionLink>
+                    <div className="mt-4">
+                      <SectionLink href={`${base}/tests`}>View tests</SectionLink>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <EmptyState
+                  title="No recorded test runs"
+                  description="Run this copilot's test suites to see a pass rate and result breakdown here."
+                  action={<SectionLink href={`${base}/tests`}>Set up tests</SectionLink>}
+                />
+              )}
 
               {/* Benchmarks row — best-score ring + task-success meter + model. */}
               <div className="mt-6 border-t border-zinc-950/5 pt-6 dark:border-white/5">
@@ -655,7 +660,11 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">No benchmark runs yet for this copilot.</p>
+                  <EmptyState
+                    title="No benchmark runs yet"
+                    description="Run a benchmark suite to rank this copilot's candidate models by score and task success."
+                    action={<SectionLink href={`${base}/tests#benchmarks`}>Set up benchmarks</SectionLink>}
+                  />
                 )}
               </div>
             </AgentBentoCard>
@@ -720,9 +729,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                   })}
                 </ul>
               ) : (
-                <p className="px-6 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
-                  No runs recorded for this copilot yet.
-                </p>
+                <EmptyState title="No runs recorded yet" description="Production traffic for this copilot will appear here once it starts running." />
               )}
             </AgentSectionCard>
           </>
