@@ -49,6 +49,8 @@ export interface DeliveryLoopState {
   nextAction: string
   /** Populated only when ready_for_manual_test. */
   manualTestMessage: string | null
+  /** Generic signal set when a REQUESTED sandbox run produced no report this iteration (detail is logged server-side); latestSandbox then falls back to the last persisted report. */
+  sandboxError: string | null
 }
 
 export interface RunLoopOptions {
@@ -93,6 +95,7 @@ export async function runDeliveryLoop(copilotId: string, opts: RunLoopOptions): 
   // Optionally run a sandbox this iteration (on the PR delivery branch when one
   // exists, else the default branch). dry_run by default; execute is explicit.
   let ranSandbox: TargetRepoSandboxReport | null = null
+  let sandboxError: string | null = null
   if (opts.runSandbox && repo0) {
     try {
       const targetBranch = latestDelivery0?.deliveryBranch ?? undefined
@@ -111,9 +114,13 @@ export async function runDeliveryLoop(copilotId: string, opts: RunLoopOptions): 
           // persistence best-effort — the assessment still stands
         }
       }
-    } catch {
-      ranSandbox = null
+    } catch (err) {
+      console.error('[delivery-loop] requested sandbox run failed', err instanceof Error ? err.message : err)
     }
+    // The caller ASKED for a sandbox and none ran — say so (generic message,
+    // detail in the server log) instead of silently falling back to the last
+    // persisted report in computeLoopState.
+    if (!ranSandbox) sandboxError = 'sandbox run failed'
   }
 
   return computeLoopState(copilotId, {
@@ -123,6 +130,7 @@ export async function runDeliveryLoop(copilotId: string, opts: RunLoopOptions): 
     whatToTest: opts.whatToTest,
     copilot: copilot0,
     latestDelivery: latestDelivery0,
+    sandboxError,
   })
 }
 
@@ -136,6 +144,7 @@ async function computeLoopState(
     whatToTest?: string
     copilot?: Copilot
     latestDelivery?: DeliveryEvent | null
+    sandboxError?: string | null
   }
 ): Promise<DeliveryLoopState | null> {
   const copilot = opts.copilot ?? (await getCopilot(copilotId))
@@ -272,6 +281,7 @@ async function computeLoopState(
     readiness: { ready: readiness.ready, unmet: readiness.unmet },
     nextAction,
     manualTestMessage,
+    sandboxError: opts.sandboxError ?? null,
   }
 }
 
