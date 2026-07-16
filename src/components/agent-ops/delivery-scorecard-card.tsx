@@ -1,4 +1,5 @@
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
+import { DeliveryLoopCard } from '@/components/agent-ops/delivery-loop-card'
 import { SandboxStatusRow, type DeliveryRowData, type SandboxRowData } from '@/components/agent-ops/sandbox-status-row'
 import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
 import { Badge } from '@/components/catalyst/badge'
@@ -163,6 +164,9 @@ export async function DeliveryScorecardCard({ copilotId }: { copilotId: string }
 
       {/* Target-repo sandbox — latest delivery + verdict + on-demand run controls. */}
       <SandboxStatusRow copilotId={copilotId} latest={latestSandbox} delivery={latestDelivery} />
+
+      {/* Delivery loop — deliver→test→fix→redeliver→ready state (read-only assess). */}
+      <DeliveryLoopCard copilotId={copilotId} />
     </AgentSectionCard>
   )
 }
