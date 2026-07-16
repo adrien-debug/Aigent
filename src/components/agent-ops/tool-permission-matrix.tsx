@@ -39,6 +39,9 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
   )
   // Global save-failure notice — cleared by the next toggle that persists.
   const [saveError, setSaveError] = useState<string | null>(null)
+  // Per-tool in-flight PATCH tracker — disables the corresponding switch while
+  // its own request is pending, so a second click can't fire a concurrent PATCH.
+  const [pendingState, setPendingState] = useState<Record<string, boolean>>({})
 
   if (tools.length === 0) {
     return (
@@ -53,6 +56,7 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
   }
 
   function persist(toolId: string, patch: { enabled?: boolean; requiresConfirmation?: boolean }) {
+    setPendingState((prev) => ({ ...prev, [toolId]: true }))
     void fetch(`/api/agent-ops/tools/${encodeURIComponent(toolId)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -71,6 +75,9 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
           setConfirmationState((prev) => ({ ...prev, [toolId]: !patch.requiresConfirmation }))
         }
         setSaveError('Change not saved — permission unchanged.')
+      })
+      .finally(() => {
+        setPendingState((prev) => ({ ...prev, [toolId]: false }))
       })
   }
 
@@ -98,6 +105,7 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
             const forced = isConfirmationForced(tool)
             const enabled = enabledState[tool.id] ?? tool.enabled
             const requiresConfirmation = forced ? true : (confirmationState[tool.id] ?? tool.requiresConfirmation)
+            const pending = pendingState[tool.id] ?? false
             const visibleRoutes = tool.scopedRoutes.slice(0, 1)
             const hiddenRouteCount = tool.scopedRoutes.length - visibleRoutes.length
 
@@ -129,6 +137,7 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
                     <Switch
                       color="accent"
                       checked={enabled}
+                      disabled={pending}
                       onChange={(checked) => {
                         setEnabledState((prev) => ({ ...prev, [tool.id]: checked }))
                         persist(tool.id, { enabled: checked })
@@ -144,6 +153,7 @@ export function ToolPermissionMatrix({ tools }: { tools: ToolDefinition[] }) {
                       color="accent"
                       checked={requiresConfirmation}
                       locked={forced}
+                      disabled={!forced && pending}
                       onChange={(checked) => {
                         if (!forced) {
                           setConfirmationState((prev) => ({ ...prev, [tool.id]: checked }))
