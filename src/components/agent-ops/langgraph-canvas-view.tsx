@@ -486,7 +486,7 @@ export function LangGraphCanvasView({ graph, studioUrl }: { graph: string; studi
                 <Headless.Button
                   onClick={() => onStepClick(s)}
                   className={
-                    'flex w-full items-start gap-3 rounded-lg px-2 py-1.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 ' +
+                    'flex w-full min-h-11 items-start gap-3 rounded-lg px-2 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 sm:py-1.5 ' +
                     (selectedStepId === s.id ? 'bg-[var(--accent-soft)] ring-1 ring-[var(--accent-line)]' : 'hover:bg-zinc-950/5 dark:hover:bg-white/5')
                   }
                 >
@@ -617,7 +617,7 @@ function TabButton({ active, onClick, disabled, children }: { active: boolean; o
       onClick={onClick}
       disabled={disabled}
       className={
-        'border-b-2 px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 ' +
+        'min-h-11 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 sm:min-h-0 sm:py-1.5 ' +
         (disabled
           ? 'cursor-not-allowed border-transparent text-zinc-300 dark:text-zinc-600'
           : active
