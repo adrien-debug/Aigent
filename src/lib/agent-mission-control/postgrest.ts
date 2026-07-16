@@ -53,10 +53,21 @@ class PgrestError extends Error {
 }
 
 /**
+ * Hard cap on every PostgREST round-trip. These are CRUD calls against the
+ * gpu1 perimeter — 30s is already generous (the repo's longest external call,
+ * the architect OpenAI request, caps at 60s; GitHub calls cap at 15s). Without
+ * it, a hung PostgREST would block every route that shares this helper.
+ */
+const PGREST_TIMEOUT_MS = 30_000
+
+/**
  * Fetch against a PostgREST table/view, service_role, `Prefer:
  * return=representation` so inserts/updates hand back the persisted row(s).
  * Fail-closed: throws (never fabricates data) if the backend isn't live or
- * PostgREST returns a non-OK status.
+ * PostgREST returns a non-OK status. A request that exceeds
+ * PGREST_TIMEOUT_MS is aborted and rethrown as a PgrestError(504) so callers
+ * classify it exactly like any other backend failure (generic 502 at the
+ * route, detail via pgrestDetail() for server logs).
  */
 export async function pgrest<T = Record<string, unknown>[]>(
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
@@ -64,17 +75,26 @@ export async function pgrest<T = Record<string, unknown>[]>(
   body?: unknown
 ): Promise<T> {
   const { base, key } = requireBackend()
-  const res = await fetch(`${base}/rest/v1/${pathAndQuery}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${key}`,
-      apikey: key,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation',
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    cache: 'no-store',
-  })
+  let res: Response
+  try {
+    res = await fetch(`${base}/rest/v1/${pathAndQuery}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${key}`,
+        apikey: key,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      cache: 'no-store',
+      signal: AbortSignal.timeout(PGREST_TIMEOUT_MS),
+    })
+  } catch (err) {
+    if (err instanceof Error && err.name === 'TimeoutError') {
+      throw new PgrestError(504, method, pathAndQuery, `request timed out after ${PGREST_TIMEOUT_MS}ms`)
+    }
+    throw err
+  }
   if (!res.ok) {
     throw new PgrestError(res.status, method, pathAndQuery, (await res.text()).slice(0, 200))
   }
