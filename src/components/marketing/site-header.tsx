@@ -1,6 +1,6 @@
 'use client'
 
-import { Dialog, DialogPanel } from '@headlessui/react'
+import { Button as HeadlessButton, Dialog, DialogPanel } from '@headlessui/react'
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 import Link from 'next/link'
@@ -63,14 +63,13 @@ export function SiteHeader() {
           </div>
         </div>
         <div className="flex lg:hidden">
-          <button
-            type="button"
+          <HeadlessButton
             onClick={() => setMobileMenuOpen(true)}
-            className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-zinc-300 hover:text-white"
+            className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-zinc-300 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
           >
             <span className="sr-only">Open main menu</span>
             <Bars3Icon aria-hidden="true" className="size-6" />
-          </button>
+          </HeadlessButton>
         </div>
         <div className="hidden lg:flex">
           <Link
@@ -91,14 +90,13 @@ export function SiteHeader() {
               </span>
               <span className="text-sm font-semibold text-white">Agent Mission Control</span>
             </Link>
-            <button
-              type="button"
+            <HeadlessButton
               onClick={() => setMobileMenuOpen(false)}
-              className="-m-2.5 rounded-md p-2.5 text-zinc-300 hover:text-white"
+              className="-m-2.5 rounded-md p-2.5 text-zinc-300 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
             >
               <span className="sr-only">Close menu</span>
               <XMarkIcon aria-hidden="true" className="size-6" />
-            </button>
+            </HeadlessButton>
           </div>
           <div className="mt-6 flow-root">
             <div className="-my-6 divide-y divide-white/10">
