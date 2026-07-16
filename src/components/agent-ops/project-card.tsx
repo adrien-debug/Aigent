@@ -54,12 +54,12 @@ export function ProjectCard({
             <div className="flex min-w-0 flex-col">
               <Link
                 href={href}
-                className="truncate text-base font-semibold text-white hover:underline before:absolute before:inset-0"
+                className="truncate rounded-sm text-base font-semibold text-white before:absolute before:inset-0 hover:underline focus:not-data-focus:outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-accent-500"
               >
                 {project.name}
               </Link>
               <div className="mt-1 flex min-w-0 items-center gap-1.5">
-                <CodeBracketIcon className="size-3.5 shrink-0 text-zinc-500" />
+                <CodeBracketIcon aria-hidden="true" className="size-3.5 shrink-0 text-zinc-500" />
                 <span className="truncate font-mono text-xs text-zinc-400">
                   {project.repoFullName ?? 'no repo linked'}
                 </span>
@@ -70,14 +70,14 @@ export function ProjectCard({
           <div className="relative z-10 shrink-0">
             {hasWarnings ? (
               <span className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent-surface)] px-2 py-1 text-accent-300 ring-1 ring-[var(--accent-line)]">
-                <ExclamationTriangleIcon className="size-3.5" />
+                <ExclamationTriangleIcon aria-hidden="true" className="size-3.5" />
                 <span className="text-[10px] font-medium uppercase tracking-widest">
                   {rollup.openWarnings} {rollup.openWarnings === 1 ? 'Alert' : 'Alerts'}
                 </span>
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 rounded-md bg-white/5 px-2 py-1 text-zinc-300 ring-1 ring-white/10">
-                <ShieldCheckIcon className="size-3.5 text-accent-400" />
+                <ShieldCheckIcon aria-hidden="true" className="size-3.5 text-accent-400" />
                 <span className="text-[10px] font-medium uppercase tracking-widest">Healthy</span>
               </span>
             )}
@@ -87,7 +87,7 @@ export function ProjectCard({
         {/* Fleet stats — divider-separated, no nested box, wraps at narrow width */}
         <div className="mt-auto grid grid-cols-[repeat(auto-fit,minmax(90px,1fr))] gap-x-4 gap-y-4 border-t border-white/5 pt-5">
           <div className="flex min-w-0 items-center gap-2.5">
-            <CpuChipIcon className="size-5 shrink-0 text-accent-400" />
+            <CpuChipIcon aria-hidden="true" className="size-5 shrink-0 text-accent-400" />
             <Stat label="Active Fleet">
               {rollup.activeCount}
               <span className="font-normal text-zinc-500"> / {rollup.copilotCount}</span>
