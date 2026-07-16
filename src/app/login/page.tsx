@@ -91,6 +91,16 @@ function LoginForm() {
   )
 }
 
+function LoginFormSkeleton() {
+  return (
+    <div className="animate-pulse" aria-hidden="true">
+      <div className="h-4 w-16 rounded bg-zinc-950/10 dark:bg-white/10" />
+      <div className="mt-3 h-9 w-full rounded-lg bg-zinc-950/10 dark:bg-white/10" />
+      <div className="mt-8 h-9 w-full rounded-lg bg-zinc-950/10 dark:bg-white/10" />
+    </div>
+  )
+}
+
 export default function LoginPage() {
   // Theme-aware like the rest of the app (see AgentControlShell): page body
   // is bg-zinc-100/dark:bg-zinc-900, framed surfaces are bg-white/dark:bg-zinc-950.
@@ -102,7 +112,7 @@ export default function LoginPage() {
         <Text className="mt-1">Admin access</Text>
 
         <div className="mt-8">
-          <Suspense fallback={null}>
+          <Suspense fallback={<LoginFormSkeleton />}>
             <LoginForm />
           </Suspense>
         </div>
