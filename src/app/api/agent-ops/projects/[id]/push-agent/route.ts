@@ -58,6 +58,12 @@ export async function POST(
   } catch {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
   }
+  // `request.json()` happily yields `null` (body "null") or a primitive — both
+  // valid JSON but not the expected object shape; touching `.copilotId` on null
+  // would throw an uncaught TypeError (500). Same guard as copilots/route.ts.
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
+  }
   if (!isValidId(body.copilotId)) {
     return NextResponse.json({ error: 'copilotId is required' }, { status: 400 })
   }
