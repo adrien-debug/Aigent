@@ -41,7 +41,7 @@ export function ReleasePathSteps({ candidateStage }: { candidateStage: ReleaseSt
             <li key={step.id} className="relative md:flex md:flex-1">
               <div
                 aria-current={status === 'current' ? 'step' : undefined}
-                className="flex items-center gap-3 px-6 py-2.5 text-sm font-medium"
+                className="flex items-center gap-3 px-6 py-3 text-sm font-medium"
               >
                 {status === 'complete' ? (
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-600 dark:bg-accent-500">
