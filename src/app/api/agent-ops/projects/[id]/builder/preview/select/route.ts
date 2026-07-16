@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { getProject } from '@/lib/agent-mission-control/data'
 import { selectProjectBuilderPreviewOption } from '@/lib/agent-mission-control/project-builder-conversation'
 
 /**
@@ -39,6 +40,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   if (body.optionId.length > MAX_OPTION_ID_LENGTH) {
     return NextResponse.json({ error: `optionId exceeds ${MAX_OPTION_ID_LENGTH} characters` }, { status: 400 })
+  }
+
+  // selectProjectBuilderPreviewOption goes through
+  // ensureActiveProjectBuilderConversation, which CREATES a conversation row
+  // when none exists — an unknown project id must 404 here, otherwise it
+  // persists a ghost conversation (or trips the project_id FK → opaque 502).
+  // Same pre-check as the sibling builder/conversation and builder/message
+  // routes.
+  try {
+    if (!(await getProject(id))) {
+      return NextResponse.json({ error: 'project not found' }, { status: 404 })
+    }
+  } catch (err) {
+    console.error('[agent-ops/projects/builder/preview/select] failed to check project', err)
+    return NextResponse.json({ error: 'failed to check project' }, { status: 502 })
   }
 
   try {
