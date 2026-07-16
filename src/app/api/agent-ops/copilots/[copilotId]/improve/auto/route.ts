@@ -36,12 +36,21 @@ type AutoFrame =
  *
  * Same fail-closed gate as the sibling improve/analyze + tests/run/stream
  * routes (env + live gpu1 backend + OpenAI). Auth is enforced upstream by
- * `src/proxy.ts` — no auth added here, none removed.
+ * `src/proxy.ts` — no auth added here, none removed. A cycle already running
+ * for the same copilot (double-submission) → 409 before anything mutates.
  */
 
 // Same id shape family as the sibling improve/promotion routes — fast 400 on
 // garbage, and it closes the PostgREST filter-syntax hazard.
 const ID_RE = /^[a-z0-9-]{1,200}$/
+
+// In-flight guard: ONE auto cycle per copilot per process. The cycle mutates
+// `latest_version_id` + proposal rows for several minutes — two concurrent
+// loops on the same copilot would race each other's V2 chain and double the
+// LLM spend. Double-submission → 409 (same family as the sibling analyze
+// route's open-cycle 409); released when the loop settles, even after a
+// client abort (the loop runs to completion server-side).
+const inFlight = new Set<string>()
 
 function sseEvent(payload: AutoFrame): string {
   return `data: ${JSON.stringify(payload)}\n\n`
@@ -77,7 +86,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   try {
     const text = await request.text()
     if (text.trim().length > 0) {
-      body = JSON.parse(text)
+      // JSON.parse can legally return null / a primitive / an array — reading
+      // `.maxIterations` off `null` would crash into an unhandled 500, so
+      // non-object bodies are rejected as a plain 400 instead.
+      const parsed: unknown = JSON.parse(text)
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        return NextResponse.json({ error: 'body must be a JSON object' }, { status: 400 })
+      }
+      body = parsed as { maxIterations?: unknown; maxCostUsd?: unknown }
     }
   } catch {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
@@ -99,6 +115,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   if (process.env.AMC_DATA_SOURCE !== 'gpu1' || !base || !key || !process.env.OPENAI_API_KEY) {
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
   }
+
+  if (inFlight.has(copilotId)) {
+    return NextResponse.json(
+      { error: 'an auto-improvement cycle is already running for this copilot' },
+      { status: 409 }
+    )
+  }
+  inFlight.add(copilotId)
 
   const encoder = new TextEncoder()
   let closed = false
@@ -132,6 +156,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
         push({ type: 'error', error: 'auto-improvement cycle failed' })
       } finally {
         closed = true
+        inFlight.delete(copilotId)
         controller.close()
       }
     },
