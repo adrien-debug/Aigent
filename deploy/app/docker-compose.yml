@@ -39,6 +39,8 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       # Optional; allows the model router to fall back across providers.
       AMC_ALLOW_MODEL_FALLBACKS: ${AMC_ALLOW_MODEL_FALLBACKS:-}
+      # Model used by the agent builder / architect flow.
+      AGENT_BUILDER_MODEL: ${AGENT_BUILDER_MODEL:-}
 
       # --- Admin identity gate ---
       # Session cookie signing key. Required for auth.
@@ -67,6 +69,9 @@ services:
       LANGSMITH_ENDPOINT: ${LANGSMITH_ENDPOINT:-}
       LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-}
       LANGSMITH_TRACE_BASE_URL: ${LANGSMITH_TRACE_BASE_URL:-}
+
+      # --- Runtime telemetry ingestion (separate token, never AMC admin key) ---
+      AIGENT_RUNTIME_TELEMETRY_TOKEN: ${AIGENT_RUNTIME_TELEMETRY_TOKEN:-}
 
     networks:
       # Lets the app reach aigent-caddy:8095 (the PostgREST perimeter) or any
