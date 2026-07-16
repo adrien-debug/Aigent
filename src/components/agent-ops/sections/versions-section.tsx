@@ -171,7 +171,7 @@ export async function VersionsSection({ copilotId }: { copilotId: string }) {
                   {version.scores.unsafeActionCount === 0 ? (
                     <span className="text-zinc-500 dark:text-zinc-400">0 · none</span>
                   ) : (
-                    <span className="text-zinc-300">
+                    <span className="text-zinc-700 dark:text-zinc-300">
                       {version.scores.unsafeActionCount} · flagged
                     </span>
                   )}
