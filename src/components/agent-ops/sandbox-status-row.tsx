@@ -19,6 +19,15 @@ export interface SandboxRowData {
   createdAt: string
 }
 
+/** Latest delivery (PR or direct commit) for the "latest delivery" line. */
+export interface DeliveryRowData {
+  mode: 'direct_commit' | 'pull_request'
+  prNumber: number | null
+  prUrl: string | null
+  deliveryBranch: string | null
+  createdAt: string
+}
+
 function statusColor(status: SandboxStatus): 'zinc' | 'accent' | 'accentStrong' {
   return status === 'passed' ? 'accent' : status === 'failed' ? 'accentStrong' : 'zinc'
 }
@@ -28,7 +37,15 @@ function statusColor(status: SandboxStatus): 'zinc' | 'accent' | 'accentStrong' 
  * demand (a read-only GitHub read, or a disposable clone in execute mode) —
  * never at page render. execute is a distinct, clearly-labelled action.
  */
-export function SandboxStatusRow({ copilotId, latest }: { copilotId: string; latest: SandboxRowData | null }) {
+export function SandboxStatusRow({
+  copilotId,
+  latest,
+  delivery,
+}: {
+  copilotId: string
+  latest: SandboxRowData | null
+  delivery?: DeliveryRowData | null
+}) {
   const router = useRouter()
   const [running, setRunning] = useState<'dry_run' | 'execute' | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -58,6 +75,32 @@ export function SandboxStatusRow({ copilotId, latest }: { copilotId: string; lat
 
   return (
     <div className="mt-4 border-t border-zinc-950/5 pt-4 dark:border-white/5">
+      {delivery ? (
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-zinc-500 dark:text-zinc-400">Latest delivery</span>
+          {delivery.mode === 'pull_request' ? (
+            <>
+              <Badge color="accent">PR{delivery.prNumber ? ` #${delivery.prNumber}` : ''}</Badge>
+              {delivery.deliveryBranch ? (
+                <span className="font-mono text-zinc-500 tabular-nums dark:text-zinc-400">{delivery.deliveryBranch}</span>
+              ) : null}
+              {delivery.prUrl ? (
+                <a
+                  href={delivery.prUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-accent-700 hover:text-accent-600 dark:text-accent-400"
+                >
+                  Open PR →
+                </a>
+              ) : null}
+            </>
+          ) : (
+            <Badge color="zinc">direct commit</Badge>
+          )}
+          <span className="text-zinc-500 dark:text-zinc-400">· {formatTimestamp(delivery.createdAt)}</span>
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="text-zinc-500 dark:text-zinc-400">Target repo sandbox</span>

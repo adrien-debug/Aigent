@@ -154,11 +154,22 @@ interface ScaffoldedFile {
   content: string
 }
 
+/** Delivery mode: a direct commit on the default branch, or a dedicated PR branch. */
+export type PushAgentDeliveryMode = 'direct_commit' | 'pull_request'
+
 export interface PushResult {
   pushed: boolean
   dryRun: boolean
+  mode: PushAgentDeliveryMode
   commitUrl?: string
+  commitSha?: string
+  /** For direct_commit: the default branch. For pull_request: the delivery branch. */
   branch: string
+  /** The repo's default branch (PR base). */
+  baseBranch?: string
+  /** Pull-request URL/number (pull_request mode, real push only). */
+  prUrl?: string
+  prNumber?: number
   files: string[]
   message: string
 }
@@ -169,6 +180,26 @@ export interface PushAgentArgs {
   manifest: AgentManifest
   /** Defaults to true. A real push also requires GITHUB_PUSH_ENABLED=1. */
   dryRun?: boolean
+  /** Delivery mode (defaults to 'direct_commit' to preserve existing behaviour). */
+  mode?: PushAgentDeliveryMode
+  /** Short run id for the delivery branch name (pull_request mode). */
+  runId?: string
+  /** Extra PR body context (delivery scorecard / sandbox summary), never secrets. */
+  prBodyExtra?: string
+}
+
+/** Sanitize a slug into a git-branch-safe segment: lowercase, [a-z0-9-] only, bounded. */
+export function deliveryBranchName(slug: string, shortRunId: string): string {
+  const clean = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 60)
+  const base = clean(slug) || 'agent'
+  const rid = clean(shortRunId) || 'run'
+  return `agent/${base}-${rid}`
 }
 
 // ---------------------------------------------------------------------------
@@ -945,6 +976,7 @@ export async function pushAgentToRepo(args: PushAgentArgs): Promise<PushResult> 
     return {
       pushed: false,
       dryRun: true,
+      mode: 'direct_commit',
       branch,
       files,
       message: `dry-run: ${files.length} fichiers prêts, push désactivé`,
@@ -1008,9 +1040,137 @@ export async function pushAgentToRepo(args: PushAgentArgs): Promise<PushResult> 
   return {
     pushed: true,
     dryRun: false,
+    mode: 'direct_commit',
     commitUrl: commit.html_url,
+    commitSha: commit.sha,
     branch,
     files,
     message: `pushed ${files.length} fichiers sur ${branch} (${commit.sha.slice(0, 7)})`,
   }
+}
+
+/**
+ * Deliver an agent through a PULL REQUEST instead of a direct commit: create a
+ * dedicated branch off the default branch's HEAD, write the agent files THERE
+ * (never on the default branch), and open a PR back to the default branch. NEVER
+ * merges — the merge stays a manual act in the target repo.
+ *
+ * Same double safety as the direct push: DRY-RUN by default and forced unless
+ * `dryRun === false` AND `GITHUB_PUSH_ENABLED === '1'`. A dry-run only performs
+ * read-only GETs (default branch + registry) and returns the planned branch/files.
+ */
+export async function pushAgentToRepoPullRequest(args: PushAgentArgs): Promise<PushResult> {
+  const { project, copilot, manifest } = args
+  const dryRun = args.dryRun ?? true
+
+  if (!project.repoFullName) throw new Error('project has no linked GitHub repo')
+  requireGithub()
+  const repoFullName = assertValidRepoFullName(project.repoFullName)
+  const wouldPush = !dryRun && pushArmed()
+
+  const baseBranch = await getDefaultBranch(repoFullName)
+  const shortRunId = (args.runId ?? '').replace(/[^A-Za-z0-9]/g, '').slice(0, 8) || 'run'
+  const deliveryBranch = deliveryBranchName(copilot.slug, shortRunId)
+
+  const registryFiles = await scaffoldHostRegistry(repoFullName, baseBranch, copilot, manifest)
+  const scaffolded = [...scaffoldAgentFiles(copilot, manifest), ...registryFiles]
+  const files = scaffolded.map((f) => f.path)
+
+  if (!wouldPush) {
+    return {
+      pushed: false,
+      dryRun: true,
+      mode: 'pull_request',
+      branch: deliveryBranch,
+      baseBranch,
+      files,
+      message: `dry-run: PR planifiée sur ${deliveryBranch} → ${baseBranch} (${files.length} fichiers), push désactivé`,
+    }
+  }
+
+  // 1. Resolve the base branch HEAD commit + its tree.
+  const ref = await gh<{ object: { sha: string } }>('GET', `repos/${repoFullName}/git/refs/heads/${baseBranch}`)
+  const headCommitSha = ref.object.sha
+  const headCommit = await gh<{ tree: { sha: string } }>('GET', `repos/${repoFullName}/git/commits/${headCommitSha}`)
+
+  // 2. Create the dedicated delivery branch off that HEAD. A 422 means the ref
+  //    already exists — surface it as a clean, retryable branch_exists error.
+  try {
+    await gh('POST', `repos/${repoFullName}/git/refs`, {
+      ref: `refs/heads/${deliveryBranch}`,
+      sha: headCommitSha,
+    })
+  } catch (err) {
+    if (err instanceof Error && /GitHub 422 on POST .*\/git\/refs/.test(err.message)) {
+      throw new Error(`branch_exists: ${deliveryBranch}`)
+    }
+    throw err
+  }
+
+  // 3. Blobs → tree (on the base tree) → commit → advance the DELIVERY branch ref
+  //    (never the default branch).
+  const blobs = await Promise.all(
+    scaffolded.map(async (f) => {
+      const blob = await gh<{ sha: string }>('POST', `repos/${repoFullName}/git/blobs`, { content: f.content, encoding: 'utf-8' })
+      return { path: f.path, sha: blob.sha }
+    })
+  )
+  const tree = await gh<{ sha: string }>('POST', `repos/${repoFullName}/git/trees`, {
+    base_tree: headCommit.tree.sha,
+    tree: blobs.map((b) => ({ path: b.path, mode: '100644', type: 'blob', sha: b.sha })),
+  })
+  const commit = await gh<{ sha: string; html_url: string }>('POST', `repos/${repoFullName}/git/commits`, {
+    message: `agent(${copilot.slug}): deliver runtime v${manifest.version} via PR`,
+    tree: tree.sha,
+    parents: [headCommitSha],
+  })
+  await gh('PATCH', `repos/${repoFullName}/git/refs/heads/${deliveryBranch}`, { sha: commit.sha, force: false })
+
+  // 4. Open the PR back to the default branch. NEVER merged here.
+  const pr = await gh<{ html_url: string; number: number }>('POST', `repos/${repoFullName}/pulls`, {
+    title: `Deliver agent "${copilot.name}" (${copilot.slug})`,
+    head: deliveryBranch,
+    base: baseBranch,
+    body: buildPrBody(copilot, manifest, files, args.prBodyExtra),
+    maintainer_can_modify: true,
+  })
+
+  return {
+    pushed: true,
+    dryRun: false,
+    mode: 'pull_request',
+    commitUrl: commit.html_url,
+    commitSha: commit.sha,
+    branch: deliveryBranch,
+    baseBranch,
+    prUrl: pr.html_url,
+    prNumber: pr.number,
+    files,
+    message: `PR #${pr.number} ouverte: ${deliveryBranch} → ${baseBranch} (${files.length} fichiers)`,
+  }
+}
+
+/** PR body — provenance + files + validation + optional scorecard/sandbox summary. No secrets. */
+function buildPrBody(copilot: Copilot, manifest: AgentManifest, files: string[], extra?: string): string {
+  const lines = [
+    `## Agent delivery — ${copilot.name} (\`${copilot.slug}\`)`,
+    '',
+    `Delivered by **Aigent** (Agent Mission Control). Merge remains a **manual** decision in this repo — this PR is never auto-merged.`,
+    '',
+    `- **Copilot id:** \`${copilot.id}\``,
+    `- **Version:** \`${manifest.version}\``,
+    `- **Runtime:** ${copilot.runtime} · **model:** ${copilot.model}`,
+    `- **Source:** aigent`,
+    '',
+    '### Files changed',
+    ...files.map((f) => `- \`${f}\``),
+    '',
+    '### Validation',
+    'Run the target repo gate scripts (e.g. `npm run verify` / `npm run typecheck`) before merging. Aigent can validate this branch through its Target Repo Sandbox.',
+  ]
+  if (extra && extra.trim().length > 0) {
+    lines.push('', '### Aigent quality summary', extra.trim())
+  }
+  lines.push('', '> ⚠️ No secret is embedded — the handler reads credentials from `process.env` at runtime.')
+  return lines.join('\n')
 }

@@ -1,7 +1,9 @@
 'use client'
 
+import * as Headless from '@headlessui/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+import clsx from 'clsx'
 
 import { Button } from '@/components/catalyst/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/catalyst/dialog'
@@ -13,11 +15,17 @@ import type { Copilot } from '@/lib/agent-mission-control/types'
 type PushResult = {
   pushed: boolean
   dryRun: boolean
+  mode: 'direct_commit' | 'pull_request'
   commitUrl?: string
   branch: string
+  baseBranch?: string
+  prUrl?: string
+  prNumber?: number
   files: string[]
   message: string
 }
+
+type DeliveryMode = 'pull_request' | 'direct_commit'
 
 /**
  * Confirm dialog for publishing a copilot's runtime into its project's GitHub
@@ -45,6 +53,7 @@ export function PushAgentDialog({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<PushResult | null>(null)
+  const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('pull_request')
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -75,7 +84,7 @@ export function PushAgentDialog({
       const res = await fetch(`/api/agent-ops/projects/${encodeURIComponent(projectId)}/push-agent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ copilotId: copilot.id, confirm: true }),
+        body: JSON.stringify({ copilotId: copilot.id, confirm: true, deliveryMode }),
       })
       if (!res.ok) {
         // 422 = the copilot has no promoted production version yet. The server sends
@@ -126,6 +135,43 @@ export function PushAgentDialog({
           </ul>
         </div>
 
+        {/* Delivery mode — pull_request is recommended; direct commit is the
+            advanced path. Selectable tiles (Headless.Button — same keyboard/focus
+            semantics as a native control, no raw form element). */}
+        {!result ? (
+          <div className="mt-4">
+            <p className="text-sm font-medium text-zinc-950 dark:text-white">Delivery mode</p>
+            <div role="radiogroup" aria-label="Delivery mode" className="mt-2 grid gap-2 sm:grid-cols-2">
+              {(
+                [
+                  { mode: 'pull_request', label: 'Pull request', tag: 'recommended', detail: 'Opens a PR on a dedicated branch. Merge stays manual — never auto-merged.' },
+                  { mode: 'direct_commit', label: 'Direct commit', tag: 'advanced', detail: 'Commits straight to the default branch. No review step.' },
+                ] as const
+              ).map((opt) => {
+                const selected = deliveryMode === opt.mode
+                return (
+                  <Headless.Button
+                    key={opt.mode}
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setDeliveryMode(opt.mode)}
+                    className={clsx(
+                      'rounded-lg p-3 text-left ring-1 transition-colors',
+                      selected
+                        ? 'bg-[var(--accent-surface)] ring-[var(--accent-line-strong)]'
+                        : 'bg-zinc-950/2.5 ring-zinc-950/10 hover:bg-zinc-950/5 dark:bg-white/5 dark:ring-white/10 dark:hover:bg-white/10'
+                    )}
+                  >
+                    <span className="text-sm font-medium text-zinc-950 dark:text-white">{opt.label}</span>{' '}
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">({opt.tag})</span>
+                    <span className="mt-1 block text-xs text-zinc-500 dark:text-zinc-400">{opt.detail}</span>
+                  </Headless.Button>
+                )
+              })}
+            </div>
+          </div>
+        ) : null}
+
         <div aria-live="polite">
           {result ? (
             result.dryRun && !result.pushed ? (
@@ -142,6 +188,24 @@ export function PushAgentDialog({
                   ))}
                 </ul>
               </div>
+            ) : result.pushed && result.mode === 'pull_request' ? (
+              <p className="mt-4 text-sm font-medium text-zinc-950 dark:text-white">
+                PR{result.prNumber ? ` #${result.prNumber}` : ''} opened on{' '}
+                <span className="font-mono tabular-nums">{result.branch}</span> → {result.baseBranch}. Merge stays
+                manual.
+                {result.prUrl ? (
+                  <>
+                    {' '}
+                    <Link
+                      href={result.prUrl}
+                      target="_blank"
+                      className="font-medium text-zinc-950 underline decoration-zinc-950/30 hover:decoration-zinc-950 dark:text-white dark:decoration-white/30 dark:hover:decoration-white"
+                    >
+                      Open PR &rarr;
+                    </Link>
+                  </>
+                ) : null}
+              </p>
             ) : result.pushed ? (
               <p className="mt-4 text-sm font-medium text-zinc-950 dark:text-white">
                 Pushed to <span className="font-mono tabular-nums">{result.branch}</span>.
@@ -170,7 +234,13 @@ export function PushAgentDialog({
           {result ? 'Close' : 'Cancel'}
         </Button>
         <Button color="accent" disabled={saving || result !== null} onClick={pushToRepo}>
-          {saving ? 'Pushing…' : 'Push to repo'}
+          {saving
+            ? deliveryMode === 'pull_request'
+              ? 'Creating PR…'
+              : 'Pushing…'
+            : deliveryMode === 'pull_request'
+              ? 'Create PR'
+              : 'Push to repo'}
         </Button>
       </DialogActions>
     </Dialog>

@@ -19,7 +19,7 @@ Voir `deploy/db/README.md`.
 | Caddy | conteneur `aigent-caddy`, port `:8095` — source : `deploy/db/docker-compose.yml` + `deploy/db/Caddyfile` |
 | Accès dev | `http://100.88.191.49:8095` (Tailscale gpu1) — fallback si le tunnel est down |
 | URL publique | `https://aigent-db.hearst.app` → tunnel `hearst-prod` :8095 (opérationnelle) — `.env.local` la pointe |
-| Schéma | `supabase/migrations/` `0001` (19 tables) → `0014_sandbox_reports.sql`, **24 tables**, RLS deny-by-default, accès via `service_role` uniquement |
+| Schéma | `supabase/migrations/` `0001` (19 tables) → `0015_agent_delivery_events.sql`, **25 tables**, RLS deny-by-default, accès via `service_role` uniquement |
 | Seed | `npx -y tsx scripts/seed-amc.ts > /tmp/seed-amc.sql` puis psql sur gpu1 (idempotent, TRUNCATE+INSERT) |
 
 ## Isolation de la base (périmètre strict `aigent`)

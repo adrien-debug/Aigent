@@ -56,6 +56,8 @@ export interface SandboxCollectOptions {
   installMode?: SandboxInstallMode
   /** Keep the disposable clone for debug (default false). */
   keepSandbox?: boolean
+  /** Override the branch to read/clone (e.g. a PR delivery branch). Default: main. */
+  targetBranch?: string
 }
 
 /**
@@ -107,23 +109,24 @@ export async function collectTargetRepoSandbox(
     })
   }
 
-  // Resolve the target repo's head commit (best-effort — null on rate limit).
-  // Branch is the repo default the artifacts were read from.
-  const branch = 'main'
+  // Resolve the target head commit for the branch under evaluation (a PR
+  // delivery branch when overridden, else the default). Best-effort — null on
+  // rate limit. Artifacts are read from the SAME branch/ref.
+  const branch = opts.targetBranch ?? 'main'
   let commit: string | null = null
   try {
-    commit = await getRepoHeadSha(repo)
+    commit = await getRepoHeadSha(repo, branch)
   } catch {
     commit = null
   }
 
   const dir = `agents/${slug}`
   const [registryText, manifestText, handlerText, readmeText, pkgText] = await Promise.all([
-    readOrNull(repo, 'agents/_registry.json'),
-    readOrNull(repo, `${dir}/manifest.json`),
-    readOrNull(repo, `${dir}/handler.ts`),
-    readOrNull(repo, `${dir}/README.md`),
-    readOrNull(repo, 'package.json'),
+    readOrNull(repo, 'agents/_registry.json', branch),
+    readOrNull(repo, `${dir}/manifest.json`, branch),
+    readOrNull(repo, `${dir}/handler.ts`, branch),
+    readOrNull(repo, `${dir}/README.md`, branch),
+    readOrNull(repo, 'package.json', branch),
   ])
 
   // Secret-scan ONLY the delivered agent artifacts (never the whole repo).

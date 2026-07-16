@@ -1,8 +1,11 @@
+import { randomUUID } from 'node:crypto'
+
 import { NextResponse } from 'next/server'
 
 import { setCopilotPushStatus } from '@/lib/agent-mission-control/authoring-writes'
 import { getProject, getCopilot, getManifestForCopilot } from '@/lib/agent-mission-control/data'
-import { pushAgentToRepo } from '@/lib/agent-mission-control/github'
+import { persistDeliveryEvent } from '@/lib/agent-mission-control/delivery-events-store'
+import { pushAgentToRepo, pushAgentToRepoPullRequest, type PushAgentDeliveryMode } from '@/lib/agent-mission-control/github'
 
 // NOT-WIRED au front (volontaire, à garder) : aucun bouton UI ne déclenche le
 // push. Conçue pour un usage HORS dashboard (script / API externe via x-amc-key)
@@ -49,7 +52,7 @@ export async function POST(
     return NextResponse.json({ error: 'invalid id' }, { status: 400 })
   }
 
-  let body: { copilotId?: string; confirm?: boolean }
+  let body: { copilotId?: string; confirm?: boolean; deliveryMode?: string }
   try {
     body = await request.json()
   } catch {
@@ -59,6 +62,9 @@ export async function POST(
     return NextResponse.json({ error: 'copilotId is required' }, { status: 400 })
   }
   const copilotId = body.copilotId
+  // Delivery mode: pull_request is recommended; direct_commit stays available
+  // but must be requested explicitly. Anything else defaults to pull_request.
+  const deliveryMode: PushAgentDeliveryMode = body.deliveryMode === 'direct_commit' ? 'direct_commit' : 'pull_request'
 
   // Fail-closed: live gpu1 backend must be configured.
   const base = process.env.AMC_SUPABASE_URL
@@ -127,15 +133,19 @@ export async function POST(
   const dryRun = !(body.confirm === true && process.env.GITHUB_PUSH_ENABLED === '1')
 
   try {
-    const result = await pushAgentToRepo({ project, copilot, manifest, dryRun })
+    const runId = randomUUID().replace(/-/g, '').slice(0, 8)
+    const result =
+      deliveryMode === 'pull_request'
+        ? await pushAgentToRepoPullRequest({ project, copilot, manifest, dryRun, runId })
+        : await pushAgentToRepo({ project, copilot, manifest, dryRun })
 
-    // Persist the push outcome onto the copilot row — but ONLY for a REAL push
-    // (pushed:true && dryRun:false). A dry-run mutates nothing remotely, so
-    // there's no status to record. Best-effort: the GitHub push already
-    // succeeded, so a failure to write the (secondary) status must NOT fail the
-    // response — log server-side and still return the push result.
+    // Persist the delivery outcome — only for a REAL delivery (pushed && !dryRun).
+    // A dry-run mutates nothing remotely, so there is nothing to record.
+    // Best-effort: the GitHub write already succeeded, so a persistence failure
+    // must NOT fail the response.
     if (result.pushed === true && result.dryRun === false) {
       try {
+        // Legacy copilot-row status (kept for the overview's push receipt).
         await setCopilotPushStatus(copilotId, {
           lastPushStatus: 'pushed',
           lastPushedAt: new Date().toISOString(),
@@ -143,6 +153,25 @@ export async function POST(
         })
       } catch (statusErr) {
         console.error('[agent-ops/push-agent] failed to persist push status', statusErr)
+      }
+      try {
+        await persistDeliveryEvent({
+          id: `delivery_${runId}`,
+          copilotId,
+          versionId: copilot.productionVersionId ?? copilot.latestVersionId,
+          projectId: copilot.projectId ?? null,
+          mode: result.mode,
+          targetRepo: project.repoFullName ?? '',
+          targetBranch: result.baseBranch ?? result.branch,
+          deliveryBranch: result.mode === 'pull_request' ? result.branch : null,
+          commitSha: result.commitSha ?? null,
+          commitUrl: result.commitUrl ?? null,
+          prUrl: result.prUrl ?? null,
+          prNumber: result.prNumber ?? null,
+          status: 'delivered',
+        })
+      } catch (evtErr) {
+        console.error('[agent-ops/push-agent] failed to persist delivery event', evtErr)
       }
     }
 
@@ -161,6 +190,13 @@ export async function POST(
           error:
             'push conflict: the default branch advanced during this push (concurrent push?) — retry',
         },
+        { status: 409 }
+      )
+    }
+    // PR mode: the delivery branch already exists — a clean, retryable outcome.
+    if (/^branch_exists:/.test(message)) {
+      return NextResponse.json(
+        { error: 'delivery branch already exists — retry (a new short id will be used)' },
         { status: 409 }
       )
     }

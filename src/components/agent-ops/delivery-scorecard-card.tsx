@@ -1,5 +1,5 @@
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
-import { SandboxStatusRow, type SandboxRowData } from '@/components/agent-ops/sandbox-status-row'
+import { SandboxStatusRow, type DeliveryRowData, type SandboxRowData } from '@/components/agent-ops/sandbox-status-row'
 import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
 import { Badge } from '@/components/catalyst/badge'
 import {
@@ -8,6 +8,7 @@ import {
   type DimensionStatus,
 } from '@/lib/agent-mission-control/delivery-scorecard'
 import { getDeliveryScorecard } from '@/lib/agent-mission-control/delivery-scorecard-server'
+import { getLatestDeliveryEvent } from '@/lib/agent-mission-control/delivery-events-store'
 import { getLatestSandboxReport } from '@/lib/agent-mission-control/sandbox-reports-store'
 
 /** Dimension status → Catalyst badge intensity (meaning carried by the label). */
@@ -55,6 +56,23 @@ export async function DeliveryScorecardCard({ copilotId }: { copilotId: string }
     }
   } catch {
     latestSandbox = null
+  }
+
+  // Latest delivery event (PR or direct commit) — pure DB read.
+  let latestDelivery: DeliveryRowData | null = null
+  try {
+    const evt = await getLatestDeliveryEvent(copilotId)
+    if (evt) {
+      latestDelivery = {
+        mode: evt.mode,
+        prNumber: evt.prNumber,
+        prUrl: evt.prUrl,
+        deliveryBranch: evt.deliveryBranch,
+        createdAt: evt.createdAt,
+      }
+    }
+  } catch {
+    latestDelivery = null
   }
 
   const levelLabel = DELIVERY_LEVEL_LABELS[card.level]
@@ -143,8 +161,8 @@ export async function DeliveryScorecardCard({ copilotId }: { copilotId: string }
         </p>
       ) : null}
 
-      {/* Target-repo sandbox — latest verdict + on-demand run controls. */}
-      <SandboxStatusRow copilotId={copilotId} latest={latestSandbox} />
+      {/* Target-repo sandbox — latest delivery + verdict + on-demand run controls. */}
+      <SandboxStatusRow copilotId={copilotId} latest={latestSandbox} delivery={latestDelivery} />
     </AgentSectionCard>
   )
 }
