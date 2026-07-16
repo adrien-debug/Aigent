@@ -18,7 +18,7 @@ import {
   type NodeId,
   type StepStatus,
 } from '@/components/agent-ops/graph-canvas-svg'
-import { AgentSectionCard } from '@/components/agent-ops/surface-card'
+import { AgentSectionCard, surfaceInsetClass } from '@/components/agent-ops/surface-card'
 import { TestCaseTable, type LiveCaseState } from '@/components/agent-ops/test-case-table'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
@@ -418,7 +418,7 @@ export function LiveTestRunPanel({ copilotId, suiteId, versionId, cases: suiteCa
 
           {/* LIVE DETAIL — 1/3. Current case, current node, per-case verdicts. */}
           <div className="flex flex-col gap-4 lg:col-span-1">
-            <div className="rounded-xl border border-white/5 bg-black/20 px-4 py-3">
+            <div className={clsx(surfaceInsetClass, 'px-4 py-3')}>
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Current case</p>
               {currentCase ? (
                 <>
