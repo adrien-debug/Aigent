@@ -84,8 +84,8 @@ export function SplitBar({
       {showLegend ? (
         <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1" aria-hidden="true">
           {segments.map((s) => (
-            <span key={s.key} className="inline-flex items-center gap-1.5">
-              <span className={clsx('size-1.5 rounded-full', dotTone[s.tone])} />
+            <span key={s.key} className="inline-flex items-center gap-2">
+              <span className={clsx('size-2 rounded-full', dotTone[s.tone])} />
               <span className="text-xs text-zinc-500">{s.label}</span>
               <span className="font-mono text-xs text-zinc-600 tabular-nums dark:text-zinc-400">{s.value}</span>
             </span>
@@ -93,7 +93,7 @@ export function SplitBar({
         </div>
       ) : null}
 
-      {caption ? <p className="mt-1.5 text-xs text-zinc-500">{caption}</p> : null}
+      {caption ? <p className="mt-2 text-xs text-zinc-500">{caption}</p> : null}
     </div>
   )
 }
