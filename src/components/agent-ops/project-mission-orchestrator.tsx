@@ -58,7 +58,7 @@ function MissionReportPanel({ report }: { report: MissionReport }) {
       <div className="flex flex-wrap items-center gap-3">
         <Badge color={statusTone(report.status)}>{report.status.replace(/_/g, ' ')}</Badge>
         <Badge color="zinc">{report.consensus.decision.replace(/_/g, ' ')}</Badge>
-        <span className="text-xs text-zinc-500 font-mono">{report.runId}</span>
+        <span className="text-xs text-zinc-500 font-mono break-all">{report.runId}</span>
       </div>
 
       <p className="text-sm text-zinc-300">{report.consensus.summary}</p>
@@ -105,7 +105,7 @@ function MissionReportPanel({ report }: { report: MissionReport }) {
           {report.findings.map((f) => (
             <li key={f.id} className="flex gap-2">
               <Badge color={severityBadgeColor(f.severity)}>{f.severity}</Badge>
-              <span className="text-zinc-400">{f.role}: {f.title}</span>
+              <span className="min-w-0 break-words text-zinc-400">{f.role}: {f.title}</span>
             </li>
           ))}
         </ul>
