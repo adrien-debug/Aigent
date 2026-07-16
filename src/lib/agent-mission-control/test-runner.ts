@@ -160,8 +160,18 @@ async function resolveVersionIdAndMaxSteps(
   return { versionId, maxStepsPerRun }
 }
 
+// Each case is a REAL LLM run (graph + judge), so an unbounded suite would make
+// the run unbounded in duration and cost. Cap the cases per run — aligned on the
+// repo's list-bound pattern (limit=200, cf. dashboard-overview.ts).
+const MAX_CASES_PER_RUN = 200
+
 async function loadSuiteCases(suiteId: string): Promise<TestCase[]> {
-  const rows = await pgrest<RawRow[]>('GET', `test_cases?suite_id=eq.${encodeURIComponent(suiteId)}&select=*&order=id`)
+  const rows = await pgrest<RawRow[]>(
+    'GET',
+    `test_cases?suite_id=eq.${encodeURIComponent(suiteId)}` +
+      `&select=id,suite_id,name,input,expected_behavior,expected_tool_calls,tags` +
+      `&order=id&limit=${MAX_CASES_PER_RUN}`
+  )
   return rows.map((r) => ({
     id: r.id as string,
     suiteId: r.suite_id as string,
