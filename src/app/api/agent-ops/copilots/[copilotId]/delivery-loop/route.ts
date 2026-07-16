@@ -36,24 +36,44 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
   }
 
+  // Body: an ABSENT/EMPTY body keeps the safe defaults (documented
+  // optional-body contract, same as the sibling target-sandbox route); a
+  // PRESENT-but-invalid body/field is a 400, never a silent coercion — a
+  // typoed `sandboxMode: "excute"` (or `runSandbox: "true"`) must not
+  // silently downgrade an intended sandbox run to the read-only default.
   let runSandbox = false
   let sandboxMode: 'dry_run' | 'execute' = 'dry_run'
   let whatToTest: string | undefined
-  try {
-    const body = (await request.json().catch(() => null)) as
-      | { runSandbox?: unknown; sandboxMode?: unknown; whatToTest?: unknown }
-      | null
-    runSandbox = body?.runSandbox === true
-    sandboxMode = body?.sandboxMode === 'execute' ? 'execute' : 'dry_run'
-    whatToTest = typeof body?.whatToTest === 'string' ? body.whatToTest : undefined
-  } catch {
-    // safe defaults
-  }
-  if (whatToTest !== undefined && whatToTest.length > MAX_WHAT_TO_TEST_LENGTH) {
-    return NextResponse.json(
-      { error: `whatToTest must be at most ${MAX_WHAT_TO_TEST_LENGTH} chars` },
-      { status: 400 }
-    )
+  const rawBody = await request.text().catch(() => '')
+  if (rawBody.trim().length > 0) {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(rawBody)
+    } catch {
+      return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
+    }
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return NextResponse.json({ error: 'body must be a JSON object' }, { status: 400 })
+    }
+    const body = parsed as { runSandbox?: unknown; sandboxMode?: unknown; whatToTest?: unknown }
+    if (body.runSandbox !== undefined && typeof body.runSandbox !== 'boolean') {
+      return NextResponse.json({ error: 'runSandbox must be a boolean' }, { status: 400 })
+    }
+    if (body.sandboxMode !== undefined && body.sandboxMode !== 'dry_run' && body.sandboxMode !== 'execute') {
+      return NextResponse.json({ error: "sandboxMode must be 'dry_run' or 'execute'" }, { status: 400 })
+    }
+    if (body.whatToTest !== undefined && typeof body.whatToTest !== 'string') {
+      return NextResponse.json({ error: 'whatToTest must be a string' }, { status: 400 })
+    }
+    if (typeof body.whatToTest === 'string' && body.whatToTest.length > MAX_WHAT_TO_TEST_LENGTH) {
+      return NextResponse.json(
+        { error: `whatToTest must be at most ${MAX_WHAT_TO_TEST_LENGTH} chars` },
+        { status: 400 }
+      )
+    }
+    runSandbox = body.runSandbox === true
+    sandboxMode = body.sandboxMode === 'execute' ? 'execute' : 'dry_run'
+    whatToTest = typeof body.whatToTest === 'string' ? body.whatToTest : undefined
   }
 
   // Running a sandbox (esp. execute, which clones) needs GITHUB_TOKEN.
