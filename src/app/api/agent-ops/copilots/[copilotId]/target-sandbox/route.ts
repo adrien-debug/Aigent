@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, writeFile } from 'node:fs/promises'
-import path from 'node:path'
 
 import { NextResponse } from 'next/server'
 
+import { getCopilot } from '@/lib/agent-mission-control/data'
+import { persistSandboxReport } from '@/lib/agent-mission-control/sandbox-reports-store'
 import { collectTargetRepoSandbox } from '@/lib/agent-mission-control/target-repo-sandbox-server'
 
 /**
@@ -69,13 +69,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
 
     if (persist) {
       try {
-        const dir = path.join(process.cwd(), '.aigent', 'reports')
-        await mkdir(dir, { recursive: true })
-        const reportPath = path.join(dir, `${runId}.json`)
-        await writeFile(reportPath, JSON.stringify(report, null, 2), 'utf-8')
-        report.artifacts.reportPath = path.relative(process.cwd(), reportPath)
+        const copilot = await getCopilot(copilotId)
+        await persistSandboxReport(report, copilot?.projectId ?? null)
       } catch (err) {
-        // Persistence is best-effort — a read-only FS must not fail the eval.
+        // Persistence is best-effort — a DB hiccup must not fail the eval; the
+        // report is still returned in the response.
         console.error('[target-sandbox] report persistence failed', err instanceof Error ? err.message : err)
       }
     }

@@ -465,6 +465,19 @@ export interface AgentResult {
   /** Final model output for this run. */
   output: string
 }
+
+/**
+ * Read an environment variable without depending on \`@types/node\` being
+ * installed in the host repo. Referencing the global \`process\` directly fails
+ * to typecheck ("Cannot find name 'process'") in a repo that hasn't wired node
+ * types for this file; this reads it off \`globalThis\` with a local, minimal
+ * type so the handler compiles standalone in any TypeScript repo. No secret is
+ * embedded — the value is read at runtime.
+ */
+function readEnv(name: string): string | undefined {
+  const g = globalThis as { process?: { env?: Record<string, string | undefined> } }
+  return g.process?.env?.[name]
+}
 `
 
 function langgraphHandler(copilot: Copilot, manifest: AgentManifest): string {
@@ -481,7 +494,7 @@ const MAX_STEPS = ${manifest.maxStepsPerRun}
  * Requires: process.env.OPENAI_API_KEY.
  */
 export async function handle({ input }: AgentInput): Promise<AgentResult> {
-  const apiKey = process.env.OPENAI_API_KEY
+  const apiKey = readEnv('OPENAI_API_KEY')
   if (!apiKey) throw new Error('OPENAI_API_KEY not set')
 
   let steps = 0
@@ -526,7 +539,7 @@ const MAX_STEPS = ${manifest.maxStepsPerRun}
  * Requires: process.env.OPENAI_API_KEY.
  */
 export async function handle({ input }: AgentInput): Promise<AgentResult> {
-  const apiKey = process.env.OPENAI_API_KEY
+  const apiKey = readEnv('OPENAI_API_KEY')
   if (!apiKey) throw new Error('OPENAI_API_KEY not set')
 
   const res = await fetch('https://api.openai.com/v1/responses', {
@@ -564,7 +577,7 @@ const MAX_STEPS = ${manifest.maxStepsPerRun}
  * Requires: process.env.GEMINI_API_KEY.
  */
 export async function handle({ input }: AgentInput): Promise<AgentResult> {
-  const apiKey = process.env.GEMINI_API_KEY
+  const apiKey = readEnv('GEMINI_API_KEY')
   if (!apiKey) throw new Error('GEMINI_API_KEY not set')
 
   void MAX_STEPS
@@ -610,11 +623,11 @@ const MAX_STEPS = ${manifest.maxStepsPerRun}
  * e.g. process.env.AGENT_API_KEY).
  */
 export async function handle({ input }: AgentInput): Promise<AgentResult> {
-  const endpoint = process.env.AGENT_ENDPOINT
+  const endpoint = readEnv('AGENT_ENDPOINT')
   if (!endpoint) throw new Error('AGENT_ENDPOINT not set')
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  const apiKey = process.env.AGENT_API_KEY
+  const apiKey = readEnv('AGENT_API_KEY')
   if (apiKey) headers.Authorization = \`Bearer \${apiKey}\`
 
   const res = await fetch(endpoint, {
@@ -635,7 +648,12 @@ export async function handle({ input }: AgentInput): Promise<AgentResult> {
 `
 }
 
-function handlerForRuntime(copilot: Copilot, manifest: AgentManifest): string {
+/**
+ * The generated runtime handler source for a copilot, by runtime. Exported so
+ * tests can assert the generated code is TypeScript-safe and dependency-free
+ * (it compiles standalone in a host repo without `@types/node` or Aigent deps).
+ */
+export function handlerForRuntime(copilot: Copilot, manifest: AgentManifest): string {
   switch (copilot.runtime) {
     case 'langgraph':
       return langgraphHandler(copilot, manifest)

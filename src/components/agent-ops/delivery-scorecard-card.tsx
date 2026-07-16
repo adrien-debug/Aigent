@@ -1,4 +1,5 @@
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
+import { SandboxStatusRow, type SandboxRowData } from '@/components/agent-ops/sandbox-status-row'
 import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
 import { Badge } from '@/components/catalyst/badge'
 import {
@@ -7,6 +8,7 @@ import {
   type DimensionStatus,
 } from '@/lib/agent-mission-control/delivery-scorecard'
 import { getDeliveryScorecard } from '@/lib/agent-mission-control/delivery-scorecard-server'
+import { getLatestSandboxReport } from '@/lib/agent-mission-control/sandbox-reports-store'
 
 /** Dimension status → Catalyst badge intensity (meaning carried by the label). */
 function statusBadge(status: DimensionStatus): 'zinc' | 'accent' | 'accentStrong' {
@@ -36,6 +38,24 @@ export async function DeliveryScorecardCard({ copilotId }: { copilotId: string }
     return null
   }
   if (!card) return null
+
+  // Latest persisted sandbox verdict (pure DB read, no network run). Null = never run.
+  let latestSandbox: SandboxRowData | null = null
+  try {
+    const report = await getLatestSandboxReport(copilotId)
+    if (report) {
+      latestSandbox = {
+        status: report.status,
+        executionMode: report.executionMode,
+        sandboxFitScore: report.sandboxFitScore,
+        repo: report.repo,
+        commit: report.commit,
+        createdAt: report.createdAt,
+      }
+    }
+  } catch {
+    latestSandbox = null
+  }
 
   const levelLabel = DELIVERY_LEVEL_LABELS[card.level]
 
@@ -114,13 +134,17 @@ export async function DeliveryScorecardCard({ copilotId }: { copilotId: string }
         </div>
       ) : null}
 
-      {/* Target-repo sandbox — the in-situ verdict is computed on demand (a
-          read-only GitHub read of the delivered artifacts), not at page render.
-          Shown as a status line so the operator knows the deeper check exists. */}
-      <div className="mt-4 flex items-baseline justify-between gap-3 border-t border-zinc-950/5 pt-4 dark:border-white/5">
-        <span className="text-xs text-zinc-500 dark:text-zinc-400">Target repo sandbox</span>
-        <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">not run</span>
-      </div>
+      {/* An informational warning when the LATEST persisted sandbox failed — the
+          scorecard stays non-blocking (this never gates a promotion), but a
+          failed in-situ check is worth surfacing. */}
+      {latestSandbox?.status === 'failed' ? (
+        <p className="mt-4 text-xs text-accent-700 dark:text-accent-400">
+          Target repo sandbox: failed — the delivered agent did not pass the target repo&apos;s checks.
+        </p>
+      ) : null}
+
+      {/* Target-repo sandbox — latest verdict + on-demand run controls. */}
+      <SandboxStatusRow copilotId={copilotId} latest={latestSandbox} />
     </AgentSectionCard>
   )
 }
