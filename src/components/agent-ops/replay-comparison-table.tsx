@@ -1,5 +1,5 @@
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
-import { Text } from '@/components/catalyst/text'
 import type { ReplayCandidate, ReplayStepDiff } from '@/lib/agent-mission-control/types'
 
 const verdictLabels: Record<ReplayStepDiff['verdict'], string> = {
@@ -15,7 +15,7 @@ const verdictLabels: Record<ReplayStepDiff['verdict'], string> = {
  */
 export function ReplayComparisonTable({ candidate }: { candidate: ReplayCandidate }) {
   if (candidate.steps.length === 0) {
-    return <Text className="py-4">No step diffs recorded yet — this candidate is still pending.</Text>
+    return <EmptyState title="No step diffs yet" description="This candidate is still pending replay." />
   }
 
   return (
