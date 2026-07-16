@@ -34,6 +34,15 @@ function isValidId(id: string): boolean {
  *   copilot_versions[versionId].stage         = 'production'
  *   copilot_versions[previousProd].stage       = 'archived'   (if provided, ≠ versionId)
  *   copilots[copilotId].production_version_id  = versionId
+ *   copilots[copilotId].status                 = 'active'      (same PATCH — see below)
+ *
+ * Status alignment: a copilot serving a production version is `active` in the
+ * stored model (the `CopilotStatus` enum has no `production` member — that's a
+ * DISPLAY-only value derived by data.ts). The pointer and the status are set in
+ * ONE `copilots` PATCH so they can never diverge into a half-written state where
+ * production_version_id is set but status still reads draft. This is the
+ * business-data fix that pairs with the displayStatus resolver; displayStatus
+ * stays as the UI safety net for any pre-existing/inconsistent rows.
  *
  * Concurrency: the archive-previous step is conditioned on `stage=eq.production`
  * at patch time (optimistic concurrency), so two overlapping promotions can't
@@ -195,9 +204,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
         { stage: 'archived' }
       )
     }
-    // 3) Point the copilot at the new production version.
+    // 3) Point the copilot at the new production version AND align its stored
+    // status to 'active' in the SAME PATCH. Both promote and rollback land a
+    // version at stage='production', so both mean "serving production" → status
+    // 'active', never 'draft'. Rollback therefore can't leave a copilot reading
+    // draft while a production version exists. One write = pointer and status
+    // stay consistent (no partial state).
     const copilot = await patch(`copilots?id=eq.${encodeURIComponent(copilotId)}`, {
       production_version_id: versionId,
+      status: 'active',
     })
     if (copilot.length === 0) {
       return NextResponse.json({ error: 'copilot not found' }, { status: 404 })
