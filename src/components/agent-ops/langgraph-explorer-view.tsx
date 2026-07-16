@@ -196,7 +196,7 @@ export function LangGraphExplorerView({
             <div className="p-4 border-b border-white/5 bg-black/20">
               <h2 className="text-sm font-semibold text-white">Recent Threads</h2>
             </div>
-            <div className="flex flex-col max-h-[600px] overflow-y-auto no-scrollbar">
+            <div className="flex flex-col max-h-[600px] overflow-y-auto">
               {(!Array.isArray(threads) || threads.length === 0) ? (
                 <div className="p-8 text-center">
                   <ChatBubbleLeftRightIcon className="size-8 text-zinc-600 mx-auto mb-3" />
@@ -236,7 +236,7 @@ export function LangGraphExplorerView({
             <div className="p-4 border-b border-white/5 bg-black/20">
               <h2 className="text-sm font-semibold text-white">Thread Detail</h2>
             </div>
-            <div className="flex-1 p-6 overflow-y-auto no-scrollbar">
+            <div className="flex-1 p-6 overflow-y-auto">
               {!selected ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
                   <BoltIcon className="size-8 text-zinc-600 mb-3" />
