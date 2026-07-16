@@ -28,7 +28,7 @@ function ViewTab({
       onClick={onClick}
       aria-pressed={active}
       className={clsx(
-        'rounded-md text-[13px] font-medium transition-colors focus:outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-accent-500',
+        'rounded-md text-[13px] font-medium transition-colors focus:not-data-focus:outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-accent-500',
         active ? 'text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'
       )}
     >
@@ -76,7 +76,7 @@ export function RegistryView({
 
         <div className="min-w-0 flex-1 sm:w-64 sm:flex-none">
           <InputGroup>
-            <MagnifyingGlassIcon data-slot="icon" />
+            <MagnifyingGlassIcon data-slot="icon" aria-hidden="true" />
             <Input
               type="search"
               aria-label="Search copilots"
