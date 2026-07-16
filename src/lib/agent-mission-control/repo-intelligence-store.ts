@@ -142,7 +142,12 @@ export async function ensureRepoIntelligence(projectId: string, opts: { force?: 
 
   let intelligence: RepoIntelligence
   try {
-    intelligence = await scanRepoIntelligence(project)
+    // Pass the HEAD sha (already resolved above) as the explicit ref: the
+    // default branch is resolved ONCE per rescan (inside getRepoHeadSha) instead
+    // of getRepoTree re-resolving it, and the scan is pinned to the exact commit
+    // whose sha we persist. When the sha lookup failed (fail-soft), fall back to
+    // the previous behaviour: the scan resolves the default branch itself.
+    intelligence = await scanRepoIntelligence(project, currentSha ?? undefined)
   } catch (err) {
     // scanRepoIntelligence() is the actual GitHub read (tree/file contents) —
     // a failure here is genuinely a GitHub/repo-access problem.

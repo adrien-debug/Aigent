@@ -137,13 +137,19 @@ const cap = (a: string[]): string[] => uniq(a).slice(0, MAX_LIST)
 /**
  * Produce the full repo intelligence for a project's linked repo. One tree
  * fetch, then a bounded set of key-file reads. Read-only throughout.
+ *
+ * `ref` may be a branch, tag or commit sha. Passing one (ensureRepoIntelligence
+ * passes the HEAD sha it already resolved) pins every fetch to that ref and
+ * spares getRepoTree/getRepoFile from re-resolving the default branch.
  */
 export async function scanRepoIntelligence(project: Project, ref?: string): Promise<RepoIntelligence> {
   if (!project.repoFullName) {
     throw new Error('project has no linked GitHub repo (repoFullName is empty)')
   }
   const [owner, name] = project.repoFullName.split('/')
-  const branch = ref ?? 'main'
+  // A commit sha is not a branch name — keep the same 'main' label as the
+  // no-ref case so the persisted map shape is unchanged.
+  const branch = ref !== undefined && !/^[0-9a-f]{40}$/i.test(ref) ? ref : 'main'
 
   const tree = await getRepoTree(project.repoFullName, ref)
   const files = tree.filter((e) => e.type === 'blob').map((e) => e.path)
