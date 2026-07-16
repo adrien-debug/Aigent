@@ -8,6 +8,7 @@ import { ServerStackIcon, CpuChipIcon, BoltIcon, ArrowTopRightOnSquareIcon, Chat
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { surfaceCardClass } from '@/components/agent-ops/surface-card'
+import { Badge } from '@/components/catalyst/badge'
 import { Link } from '@/components/catalyst/link'
 import clsx from 'clsx'
 
@@ -40,23 +41,23 @@ function shortId(id: string): string {
   return id.length > 16 ? `${id.slice(0, 16)}…` : id
 }
 
-// Thread status → badge classes. Differentiate by INTENSITY within the
+// Thread status → Badge color. Differentiate by INTENSITY within the
 // accent/zinc doctrine, not by hue: error/interrupted get the strongest
 // accent treatment (attention), running/busy get a plain accent surface
-// (in progress), idle/finished states fall back to neutral zinc — mirrors
-// the completed/active/interrupted/error/idle vocabulary already used by
-// the canvas view's StatusDot/NodeBox for the same graph.
-function statusClass(status: string): string {
+// (in progress), idle/finished states fall back to neutral zinc — same
+// status→color vocabulary as sandbox-status-row/copilot-registry-table
+// (Catalyst `Badge`), applied here to the same graph's threads.
+function statusColor(status: string): 'accentStrong' | 'accent' | 'zinc' {
   switch (status) {
     case 'error':
     case 'interrupted':
-      return 'text-accent-300 bg-[var(--accent-surface)] ring-[var(--accent-line-strong)]'
+      return 'accentStrong'
     case 'running':
     case 'busy':
-      return 'text-accent-400 bg-[var(--accent-soft)] ring-[var(--accent-line)]'
+      return 'accent'
     case 'idle':
     default:
-      return 'text-zinc-400 bg-white/5 ring-white/10'
+      return 'zinc'
   }
 }
 
@@ -213,12 +214,9 @@ export function LangGraphExplorerView({
                   >
                     <div className="flex items-center justify-between gap-2 w-full">
                       <span className="text-sm font-mono text-white truncate" title={thread.threadId}>{shortId(thread.threadId)}</span>
-                      <span className={clsx(
-                        "shrink-0 text-[10px] font-medium uppercase tracking-widest px-2 py-0.5 rounded-md ring-1",
-                        statusClass(thread.status)
-                      )}>
+                      <Badge color={statusColor(thread.status)} className="shrink-0 uppercase tracking-widest">
                         {thread.status}
-                      </span>
+                      </Badge>
                     </div>
                     <div className="flex items-center justify-between gap-2 w-full text-xs text-zinc-500">
                       <span className="truncate">{thread.assistantId ? (assistantName.get(thread.assistantId) || shortId(thread.assistantId)) : '—'}</span>
