@@ -13,6 +13,7 @@ import {
   deleteCopilotAssistant,
   ensureCopilotAssistant,
 } from '@/lib/agent-mission-control/langgraph-assistants'
+import { pgrestDetail } from '@/lib/agent-mission-control/postgrest'
 
 /**
  * Legacy validation messages, kept VERBATIM across the zod migration (same
@@ -43,6 +44,17 @@ const LEGACY_MESSAGES = new Set<string>(Object.values(MSG))
  * fits the sibling guard.
  */
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,182}$/
+
+/**
+ * PgrestError from a PostgREST call that hit postgrest.ts's 30s AbortSignal
+ * (or a real upstream gateway timeout). The prefix is the stable, safe summary
+ * PgrestError always emits (`PostgREST <status> on <method> <path>`). A
+ * timeout surfaces as 504 — not the generic 502 — because the write may STILL
+ * have landed upstream: the caller must treat a retry as possibly conflicting
+ * (409 on the slug), which "bad gateway" does not convey.
+ */
+const isUpstreamTimeout = (err: unknown) =>
+  err instanceof Error && /^PostgREST 504 /.test(err.message)
 
 const proposedToolSchema = z.object(
   {
@@ -192,15 +204,15 @@ export async function POST(request: Request) {
   }
 
   // 1) Create the copilot (+ manifest + tools + version). A failure here is a
-  //    plain 502 (nothing to undo — the multi-insert is fail-closed), EXCEPT a
-  //    unique-violation on `copilots.slug` (`not null unique` since 0001):
-  //    re-submitting the same slug — the double-submit case — makes PostgREST
-  //    reject the insert with 409, a client-caused conflict, not an upstream
-  //    failure. Map it to 409 the same way ../projects/route.ts does for its
-  //    deterministic-id collision, instead of a misleading 502. Internal
-  //    errors (PostgREST status/path/body) are logged server-side only — the
-  //    client gets a generic message, matching projects/route.ts and the
-  //    sibling [copilotId]/route.ts DELETE handler.
+  //    plain 502 (nothing to undo — the multi-insert is fail-closed), EXCEPT:
+  //    a unique-violation on `copilots.slug` (`not null unique` since 0001) —
+  //    re-submitting the same slug, the double-submit case — is a 409
+  //    client-caused conflict (mapped the same way ../projects/route.ts maps
+  //    its deterministic-id collision); an FK violation on `project_id` (an
+  //    unknown project) is a 404; a timed-out PostgREST call is a 504.
+  //    Internal errors (PostgREST status/path/body) are logged server-side
+  //    only — the client gets a generic message, matching projects/route.ts
+  //    and the sibling [copilotId]/route.ts DELETE handler.
   let copilotId: string
   try {
     copilotId = await createCopilotFromManifest(body)
@@ -208,12 +220,23 @@ export async function POST(request: Request) {
     console.error('[agent-ops/copilots] createCopilotFromManifest failed:', err)
     const message = err instanceof Error ? err.message : ''
     if (/PostgREST 409 on POST copilots/.test(message)) {
+      // PostgREST folds BOTH unique violations (23505 — duplicate slug) and FK
+      // violations (23503 — projectId pointing at no `projects` row, the only
+      // FK on `copilots`) into HTTP 409. Only the first is a real conflict;
+      // the second is an unknown resource → 404. Classified on the code field
+      // of the (server-side only) PostgREST body — never echoed to the client.
+      if (pgrestDetail(err).includes('"code":"23503"')) {
+        return NextResponse.json({ error: 'project not found' }, { status: 404 })
+      }
       return NextResponse.json(
         { error: 'a copilot with this slug already exists' },
         { status: 409 }
       )
     }
-    return NextResponse.json({ error: 'copilot creation failed' }, { status: 502 })
+    return NextResponse.json(
+      { error: 'copilot creation failed' },
+      { status: isUpstreamTimeout(err) ? 504 : 502 }
+    )
   }
 
   // 2) Provision the copilot's dedicated assistant (config derived from the
@@ -228,7 +251,7 @@ export async function POST(request: Request) {
     await deleteCopilotCascade(copilotId).catch(() => {})
     return NextResponse.json(
       { error: 'copilot assistant provisioning failed' },
-      { status: 502 }
+      { status: isUpstreamTimeout(err) ? 504 : 502 }
     )
   }
 
@@ -242,7 +265,7 @@ export async function POST(request: Request) {
     await deleteCopilotCascade(copilotId).catch(() => {})
     return NextResponse.json(
       { error: 'failed to link copilot to its assistant' },
-      { status: 502 }
+      { status: isUpstreamTimeout(err) ? 504 : 502 }
     )
   }
 
