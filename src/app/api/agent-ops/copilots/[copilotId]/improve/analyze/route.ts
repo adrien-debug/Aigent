@@ -8,6 +8,13 @@ import { NotFoundError, ProviderUnavailableError } from '@/lib/agent-mission-con
 // and it closes the PostgREST `in.(...)`/filter-syntax hazard.
 const ID_RE = /^[a-z0-9-]{1,200}$/
 
+// One analysis in flight per copilot (per server process). The DB open-cycle
+// check below is check-then-act over a multi-second LLM window: two concurrent
+// POSTs would both pass it and open two cycles (double proposal, double LLM
+// spend). This closes the race in-process; the DB check stays as the
+// cross-restart source of truth.
+const inFlightAnalyses = new Set<string>()
+
 /**
  * POST /api/agent-ops/copilots/:copilotId/improve/analyze — run the REAL
  * Improvement Loop analysis: collect live signals (failing test cases,
@@ -30,14 +37,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     return NextResponse.json({ error: 'invalid copilotId' }, { status: 400 })
   }
 
-  let body: { triggeredBy?: string }
+  let body: { triggeredBy?: unknown }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
   }
-  if (body.triggeredBy !== undefined && typeof body.triggeredBy !== 'string') {
-    return NextResponse.json({ error: 'triggeredBy must be a string' }, { status: 400 })
+  // `null` is valid JSON: reading .triggeredBy off it would throw → 500 instead of 400.
+  if (typeof body !== 'object' || body === null) {
+    return NextResponse.json({ error: 'body must be a JSON object' }, { status: 400 })
+  }
+  // Bounded: the value is persisted as `improvement_proposals.created_by`.
+  if (body.triggeredBy !== undefined && (typeof body.triggeredBy !== 'string' || body.triggeredBy.length > 200)) {
+    return NextResponse.json({ error: 'triggeredBy must be a string of at most 200 characters' }, { status: 400 })
   }
 
   const base = process.env.AMC_SUPABASE_URL
@@ -46,33 +58,44 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
   }
 
-  try {
-    const openRows = await pgrest<Record<string, unknown>[]>(
-      'GET',
-      `improvement_proposals?copilot_id=eq.${encodeURIComponent(copilotId)}&status=in.(proposed,v2-created)&select=id&limit=1`
+  if (inFlightAnalyses.has(copilotId)) {
+    return NextResponse.json(
+      { error: 'an analysis is already running for this copilot — wait for it to finish' },
+      { status: 409 }
     )
-    if (openRows.length > 0) {
-      return NextResponse.json(
-        { error: 'an improvement cycle is already open for this copilot — decide it first', proposalId: openRows[0].id },
-        { status: 409 }
-      )
-    }
-  } catch (err) {
-    console.error('[agent-ops/improve/analyze] failed to check for an open cycle', err)
-    return NextResponse.json({ error: 'failed to check for an open cycle' }, { status: 502 })
   }
-
+  inFlightAnalyses.add(copilotId)
   try {
-    const { proposal, signals } = await analyzeAndPropose(copilotId, body.triggeredBy?.trim() || 'operator')
-    return NextResponse.json({ ok: true, proposal, sources: signals.sources })
-  } catch (err) {
-    if (err instanceof NotFoundError) {
-      return NextResponse.json({ error: err.message }, { status: 404 })
+    try {
+      const openRows = await pgrest<Record<string, unknown>[]>(
+        'GET',
+        `improvement_proposals?copilot_id=eq.${encodeURIComponent(copilotId)}&status=in.(proposed,v2-created)&select=id&limit=1`
+      )
+      if (openRows.length > 0) {
+        return NextResponse.json(
+          { error: 'an improvement cycle is already open for this copilot — decide it first', proposalId: openRows[0].id },
+          { status: 409 }
+        )
+      }
+    } catch (err) {
+      console.error('[agent-ops/improve/analyze] failed to check for an open cycle', err)
+      return NextResponse.json({ error: 'failed to check for an open cycle' }, { status: 502 })
     }
-    if (err instanceof ProviderUnavailableError) {
-      return NextResponse.json({ error: err.message }, { status: 503 })
+
+    try {
+      const { proposal, signals } = await analyzeAndPropose(copilotId, body.triggeredBy?.trim() || 'operator')
+      return NextResponse.json({ ok: true, proposal, sources: signals.sources })
+    } catch (err) {
+      if (err instanceof NotFoundError) {
+        return NextResponse.json({ error: err.message }, { status: 404 })
+      }
+      if (err instanceof ProviderUnavailableError) {
+        return NextResponse.json({ error: err.message }, { status: 503 })
+      }
+      console.error('[agent-ops/improve/analyze] analysis failed', err)
+      return NextResponse.json({ error: 'analysis failed' }, { status: 502 })
     }
-    console.error('[agent-ops/improve/analyze] analysis failed', err)
-    return NextResponse.json({ error: 'analysis failed' }, { status: 502 })
+  } finally {
+    inFlightAnalyses.delete(copilotId)
   }
 }
