@@ -52,3 +52,6 @@ next-env.d.ts
 
 # Scratch — dumps, screenshots, ad-hoc working files (rm -rf safe, never committed)
 .scratch/
+
+# Target-repo sandbox evaluation reports (local, disposable, never committed)
+.aigent/

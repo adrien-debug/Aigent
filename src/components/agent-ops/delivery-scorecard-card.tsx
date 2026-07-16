@@ -113,6 +113,14 @@ export async function DeliveryScorecardCard({ copilotId }: { copilotId: string }
           </ul>
         </div>
       ) : null}
+
+      {/* Target-repo sandbox — the in-situ verdict is computed on demand (a
+          read-only GitHub read of the delivered artifacts), not at page render.
+          Shown as a status line so the operator knows the deeper check exists. */}
+      <div className="mt-4 flex items-baseline justify-between gap-3 border-t border-zinc-950/5 pt-4 dark:border-white/5">
+        <span className="text-xs text-zinc-500 dark:text-zinc-400">Target repo sandbox</span>
+        <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">not run</span>
+      </div>
     </AgentSectionCard>
   )
 }

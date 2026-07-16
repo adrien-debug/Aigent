@@ -1,0 +1,164 @@
+/**
+ * Unit tests for the Target Repo Sandbox pure evaluator
+ * (src/lib/agent-mission-control/target-repo-sandbox.ts).
+ *
+ * Pure, offline: no GitHub, no clone, no FS. Everything is fed as already-read
+ * text. Asserts the artifact checks, secret scan (names only), script detection
+ * (never invents), sandboxFitScore, status, and report schema.
+ */
+import { describe, expect, it } from 'vitest'
+
+import {
+  evaluateSandbox,
+  parseSandboxReport,
+  scanSecrets,
+  SANDBOX_SCHEMA_VERSION,
+  type SandboxEvalInput,
+} from '@/lib/agent-mission-control/target-repo-sandbox'
+
+const SLUG = 'repo-inspector'
+
+function registry(slugs: string[], source: 'aigent' | 'other' = 'aigent'): string {
+  return JSON.stringify(
+    slugs.map((slug) => ({ slug, name: slug, version: 'v0.1.0', model: 'gpt-5.4', runtime: 'openai-assistants', source, pushedAt: '2026-07-16T00:00:00Z', manifestPath: `agents/${slug}/manifest.json` }))
+  )
+}
+
+const validManifest = JSON.stringify({ systemPromptSummary: 'read-only', confirmationPolicy: 'risky-only', toolIds: ['t1'] })
+
+function base(overrides: Partial<SandboxEvalInput> = {}): SandboxEvalInput {
+  return {
+    runId: 'sandbox_test',
+    agentSlug: SLUG,
+    copilotId: 'copilot-x',
+    versionId: 'v-x',
+    repo: 'adrien-debug/TradeAgent',
+    branch: 'main',
+    commit: 'abc123',
+    repoFitScore: 70,
+    registryText: registry([SLUG]),
+    manifestText: validManifest,
+    handlerPresent: true,
+    readmePresent: true,
+    targetScripts: { typecheck: 'tsc --noEmit', build: 'next build' },
+    artifactTexts: { 'agents/repo-inspector/manifest.json': validManifest },
+    createdAt: '2026-07-16T00:00:00Z',
+    ...overrides,
+  }
+}
+
+describe('scanSecrets', () => {
+  it('flags a hardcoded ASSIGNMENT, returning the NAME never the value', () => {
+    const hits = scanSecrets('const OPENAI_API_KEY = "sk-realvalue1234567"')
+    expect(hits).toContain('OPENAI_API_KEY')
+    expect(hits.join()).not.toContain('sk-realvalue1234567') // value never surfaced
+  })
+  it('does NOT flag a bare process.env read (correct wiring, not a leak)', () => {
+    expect(scanSecrets('const k = process.env.OPENAI_API_KEY')).toEqual([])
+  })
+  it('does NOT flag a prose mention in docs', () => {
+    expect(scanSecrets('This agent reads its OPENAI_API_KEY from the environment.')).toEqual([])
+  })
+  it('returns [] when clean', () => {
+    expect(scanSecrets('export function handle(){ return 42 }')).toEqual([])
+  })
+})
+
+describe('evaluateSandbox — artifacts', () => {
+  it('1 — registry with agent present → registry checks pass', () => {
+    const r = evaluateSandbox(base())
+    expect(r.checks.find((c) => c.id === 'artifact:registry')!.status).toBe('passed')
+    expect(r.checks.find((c) => c.id === 'artifact:registry-entry')!.status).toBe('passed')
+    expect(r.blockers).not.toContain('agent_absent_from_registry')
+  })
+
+  it('2 — registry missing agent → blocker', () => {
+    const r = evaluateSandbox(base({ registryText: registry(['some-other-agent']) }))
+    expect(r.checks.find((c) => c.id === 'artifact:registry-entry')!.status).toBe('failed')
+    expect(r.blockers).toContain('agent_absent_from_registry')
+    expect(r.status).toBe('failed')
+  })
+
+  it('2b — registry absent entirely → agent_not_pushed blocker', () => {
+    const r = evaluateSandbox(base({ registryText: null }))
+    expect(r.blockers).toContain('agent_not_pushed_to_target_repo')
+    expect(r.status).toBe('failed')
+  })
+
+  it('3 — manifest missing → blocker', () => {
+    const r = evaluateSandbox(base({ manifestText: null }))
+    expect(r.blockers).toContain('manifest_missing')
+    expect(r.status).toBe('failed')
+  })
+
+  it('3b — manifest present but invalid JSON → blocker', () => {
+    const r = evaluateSandbox(base({ manifestText: '{ not json' }))
+    expect(r.blockers).toContain('manifest_invalid_json')
+  })
+
+  it('4 — script detection does not invent scripts', () => {
+    const r = evaluateSandbox(base({ targetScripts: { typecheck: 'tsc' } }))
+    // typecheck exists → dry_run; build/lint/verify absent → script_missing.
+    expect(r.checks.find((c) => c.id === 'script:typecheck')!.reason).toBe('dry_run')
+    expect(r.checks.find((c) => c.id === 'script:build')!.reason).toBe('script_missing')
+    expect(r.checks.find((c) => c.id === 'script:check:catalyst')!.reason).toBe('script_missing')
+    // No script:* check is ever "passed" in dry-run (they're detected, not run).
+    expect(r.checks.filter((c) => c.id.startsWith('script:')).every((c) => c.status === 'skipped')).toBe(true)
+  })
+
+  it('5 — missing script → skipped with script_missing', () => {
+    const r = evaluateSandbox(base({ targetScripts: {} }))
+    expect(r.checks.find((c) => c.id === 'script:verify')!.status).toBe('skipped')
+    expect(r.checks.find((c) => c.id === 'script:verify')!.reason).toBe('script_missing')
+  })
+
+  it('6 — secret scan flags key NAMES without values', () => {
+    const leaky = 'GITHUB_TOKEN=ghp_realtokenvalue123'
+    const r = evaluateSandbox(base({ artifactTexts: { 'agents/repo-inspector/handler.ts': leaky } }))
+    const sec = r.checks.find((c) => c.id === 'security:secret-scan')!
+    expect(sec.status).toBe('failed')
+    expect(sec.reason).toContain('GITHUB_TOKEN')
+    expect(sec.reason).not.toContain('ghp_realtokenvalue123') // value never surfaced
+    expect(r.blockers).toContain('secret_in_artifacts')
+  })
+
+  it('7 — status failed when a blocker exists', () => {
+    const r = evaluateSandbox(base({ manifestText: null }))
+    expect(r.status).toBe('failed')
+  })
+
+  it('8 — status warning when only a non-critical check fails', () => {
+    const r = evaluateSandbox(base({ handlerPresent: false, readmePresent: false }))
+    expect(r.blockers).toEqual([])
+    expect(r.warnings).toContain('handler_missing')
+    expect(r.warnings).toContain('readme_missing')
+    expect(r.status).toBe('warning')
+  })
+
+  it('9 — report validates schemaVersion=1', () => {
+    const r = evaluateSandbox(base())
+    expect(r.schemaVersion).toBe(SANDBOX_SCHEMA_VERSION)
+    // Round-trips through the parser without throwing.
+    expect(() => parseSandboxReport(JSON.parse(JSON.stringify(r)))).not.toThrow()
+  })
+
+  it('9b — parseSandboxReport rejects a bad schema', () => {
+    expect(() => parseSandboxReport({ schemaVersion: 2 })).toThrow(/schemaVersion/)
+    expect(() => parseSandboxReport(null)).toThrow()
+  })
+
+  it('10 — sandboxFitScore computes from applicable (non-skipped) checks', () => {
+    const clean = evaluateSandbox(base())
+    // All artifact/security checks pass, scripts are skipped (excluded) → 100.
+    expect(clean.sandboxFitScore).toBe(100)
+    const degraded = evaluateSandbox(base({ handlerPresent: false }))
+    expect(degraded.sandboxFitScore).toBeLessThan(100)
+    expect(degraded.sandboxFitScore).toBeGreaterThan(0)
+  })
+
+  it('registry source not aigent → warning, not a blocker', () => {
+    const r = evaluateSandbox(base({ registryText: registry([SLUG], 'other') }))
+    expect(r.warnings).toContain('registry_source_not_aigent')
+    expect(r.blockers).toEqual([])
+  })
+})
