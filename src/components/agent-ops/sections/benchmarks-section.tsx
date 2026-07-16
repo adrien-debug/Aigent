@@ -1,12 +1,9 @@
-
-import clsx from 'clsx'
-
 import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
-import { AgentSectionCard } from '@/components/agent-ops/surface-card'
-import { surfaceCardClass } from '@/components/agent-ops/surface-card'
+import { AgentSectionCard, surfaceCardClass } from '@/components/agent-ops/surface-card'
 import { BenchmarkComparisonTable } from '@/components/agent-ops/benchmark-comparison-table'
 import { BenchmarkRunSteps } from '@/components/agent-ops/benchmark-run-steps'
 import { BenchmarkScoreCard } from '@/components/agent-ops/benchmark-score-card'
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { RunBenchmarkButton } from '@/components/agent-ops/run-benchmark-button'
 import { ChipCluster } from '@/components/agent-ops/widgets/chip-cluster'
 import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
@@ -101,8 +98,11 @@ export async function BenchmarksSection({ copilotId }: { copilotId: string }) {
           </AgentSectionCard>
 
           {rows.length === 0 ? (
-            <div className={clsx(surfaceCardClass, 'px-6 py-5')}>
-              <Text>No completed benchmark runs for this suite yet.</Text>
+            <div className={surfaceCardClass}>
+              <EmptyState
+                title="No completed benchmark runs yet"
+                description="Run this suite against a candidate model to start ranking results."
+              />
             </div>
           ) : (
             <>
