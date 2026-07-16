@@ -6,6 +6,17 @@ import { runTestSuite } from '@/lib/agent-mission-control/test-runner'
 import type { TestRun } from '@/lib/agent-mission-control/types'
 
 /**
+ * Shape guard for ids used by this route (`:copilotId` path param and the
+ * `suiteId` / `versionId` body fields). Real ids are `makeId(prefix, slug)`
+ * (see slug.ts): lowercase alphanumerics/hyphens only, bounded length — the
+ * same guard the sibling promotion and benchmarks/run routes apply. Rejecting
+ * anything else up front gives a fast 400 on garbage/oversized input before
+ * it flows into PostgREST filter URLs (here and inside runTestSuite), and no
+ * valid id is ever refused.
+ */
+const ID_RE = /^[a-z0-9-]{1,200}$/
+
+/**
  * POST /api/agent-ops/copilots/:copilotId/tests/run — run a REAL test suite
  * against a copilot. Delegates to `runTestSuite`, which executes a real OpenAI
  * completion + judge per case and persists `test_runs` + `test_results` to the
@@ -14,13 +25,16 @@ import type { TestRun } from '@/lib/agent-mission-control/types'
  * Body: { suiteId: string; versionId?: string }
  * Response: { ok: true; testRun: TestRun }
  *
- * Errors: 400 (missing suiteId / bad body), 404 (copilot/suite/version not
+ * Errors: 400 (bad body / malformed copilotId, suiteId or versionId), 404 (copilot/suite/version not
  * found), 409 (a test run is already in progress for this suite), 503
  * (backend/env not configured), 502 (in-flight check / runner / OpenAI /
  * PostgREST). Mirrors the sibling benchmarks/run route's fail-closed style.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ copilotId: string }> }) {
   const { copilotId } = await params
+  if (!ID_RE.test(copilotId)) {
+    return NextResponse.json({ error: 'invalid copilotId' }, { status: 400 })
+  }
 
   let body: { suiteId?: string; versionId?: string; allowFallback?: boolean }
   try {
@@ -31,8 +45,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   if (typeof body.suiteId !== 'string' || body.suiteId.trim().length === 0) {
     return NextResponse.json({ error: 'suiteId is required' }, { status: 400 })
   }
-  if (body.versionId !== undefined && typeof body.versionId !== 'string') {
-    return NextResponse.json({ error: 'versionId must be a string' }, { status: 400 })
+  if (!ID_RE.test(body.suiteId)) {
+    return NextResponse.json({ error: 'invalid suiteId' }, { status: 400 })
+  }
+  if (body.versionId !== undefined && (typeof body.versionId !== 'string' || !ID_RE.test(body.versionId))) {
+    return NextResponse.json({ error: 'versionId must be a valid id' }, { status: 400 })
   }
   if (body.allowFallback !== undefined && typeof body.allowFallback !== 'boolean') {
     return NextResponse.json({ error: 'allowFallback must be a boolean' }, { status: 400 })
