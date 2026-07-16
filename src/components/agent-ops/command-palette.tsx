@@ -62,15 +62,16 @@ export function CommandPalette() {
                   router.push(action.href)
                 }}
               >
-                <div className="relative flex items-center px-4 border-b border-zinc-950/5 dark:border-white/5">
+                <div className="relative flex items-center px-4 border-b border-zinc-950/5 dark:border-white/5 focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-accent-500">
                   <MagnifyingGlassIcon className="size-5 text-zinc-500" aria-hidden="true" />
                   <Headless.ComboboxInput
+                    aria-label="Search commands, copilots, or projects"
                     className="h-14 w-full border-0 bg-transparent pl-4 pr-4 text-sm text-zinc-900 placeholder:text-zinc-500 focus:ring-0 focus:outline-hidden dark:text-white"
                     placeholder="Search commands, copilots, or projects..."
                     onChange={(event) => setQuery(event.target.value)}
                     autoFocus
                   />
-                  <kbd className="hidden sm:inline-block font-sans text-xs text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded">ESC</kbd>
+                  <kbd className="hidden sm:inline-block font-sans text-xs text-zinc-600 bg-zinc-100 dark:text-zinc-300 dark:bg-zinc-800 px-2 py-1 rounded">ESC</kbd>
                 </div>
 
                 {filtered.length > 0 && (
