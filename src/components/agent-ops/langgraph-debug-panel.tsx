@@ -48,13 +48,13 @@ export function LangGraphDebugPanel({ info, status }: { info: LangGraphDebugInfo
       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
         <Link
           href={runsHref}
-          className="text-sm font-medium text-accent-700 hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300 dark:hover:text-accent-200"
+          className="inline-flex min-h-11 items-center py-2 text-sm font-medium text-accent-700 hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300 dark:hover:text-accent-200"
         >
           {info.threadId ? 'Open thread in LangGraph Runs →' : 'Open LangGraph Runs →'}
         </Link>
         <Link
           href={canvasHref}
-          className="text-sm font-medium text-accent-700 hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300 dark:hover:text-accent-200"
+          className="inline-flex min-h-11 items-center py-2 text-sm font-medium text-accent-700 hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300 dark:hover:text-accent-200"
         >
           Open in Canvas →
         </Link>
@@ -63,7 +63,7 @@ export function LangGraphDebugPanel({ info, status }: { info: LangGraphDebugInfo
             href={studioUrl}
             target="_blank"
             rel="noreferrer"
-            className="text-sm font-medium text-accent-700 hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300 dark:hover:text-accent-200"
+            className="inline-flex min-h-11 items-center py-2 text-sm font-medium text-accent-700 hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300 dark:hover:text-accent-200"
           >
             Open in LangGraph Studio →
           </a>
