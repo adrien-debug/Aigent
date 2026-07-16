@@ -236,7 +236,12 @@ export default async function ConfigPage({ params }: { params: Promise<{ id: str
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Manifest source</p>
               <span className="font-mono text-xs text-zinc-500 tabular-nums">read-only</span>
             </div>
-            <div className="max-h-[32rem] overflow-y-auto">
+            <div
+              tabIndex={0}
+              role="region"
+              aria-label="Manifest source, scrollable"
+              className="max-h-[32rem] overflow-y-auto rounded-md focus:outline-2 focus:outline-offset-2 focus:outline-accent-500"
+            >
               <ManifestJsonPreview manifest={manifest} />
             </div>
           </div>
