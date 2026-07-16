@@ -70,7 +70,7 @@ export async function DeliveryLoopCard({ copilotId }: { copilotId: string }) {
       </p>
 
       {state.status === 'ready_for_manual_test' && state.manualTestMessage ? (
-        <pre className="mt-3 overflow-x-auto rounded-lg bg-[var(--accent-surface)] p-3 text-xs whitespace-pre-wrap text-zinc-800 ring-1 ring-[var(--accent-line)] dark:text-zinc-200">
+        <pre className="mt-3 overflow-x-auto rounded-lg bg-(--accent-surface) p-3 text-xs whitespace-pre-wrap text-zinc-800 ring-1 ring-(--accent-line) dark:text-zinc-200">
           {state.manualTestMessage}
         </pre>
       ) : null}
