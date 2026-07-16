@@ -19,6 +19,7 @@ import {
   type TopologyEdge,
   type TopologyNode,
 } from '@/components/agent-ops/graph-canvas-svg'
+import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Link } from '@/components/catalyst/link'
 import { Select } from '@/components/catalyst/select'
@@ -429,8 +430,8 @@ export function LangGraphCanvasView({ graph, studioUrl }: { graph: string; studi
           description={`${graph} · ${detail ? statusLabel(detail.status) : 'select a thread'}`}
           actions={
             <div className="flex flex-wrap items-center gap-2">
-              <Badge tone={topologyLive ? 'live' : 'fallback'}>{topologyLive ? 'Live topology' : 'Fallback topology'}</Badge>
-              {unknownReplayNodes.size > 0 ? <Badge tone="warn">{`${unknownReplayNodes.size} unknown node(s) in replay`}</Badge> : null}
+              <Badge color={topologyLive ? 'accent' : 'zinc'}>{topologyLive ? 'Live topology' : 'Fallback topology'}</Badge>
+              {unknownReplayNodes.size > 0 ? <Badge color="accentStrong">{`${unknownReplayNodes.size} unknown node(s) in replay`}</Badge> : null}
             </div>
           }
         >
@@ -599,16 +600,6 @@ function StatusDot({ status }: { status: StepStatus }) {
   const c =
     status === 'interrupted' ? 'bg-accent-600' : status === 'active' ? 'bg-accent-500' : status === 'error' ? 'bg-accent-700' : status === 'completed' ? 'bg-zinc-700 dark:bg-zinc-300' : 'bg-zinc-400 dark:bg-zinc-500'
   return <span aria-hidden="true" className={`mt-1.5 size-2 shrink-0 rounded-full ${c}`} />
-}
-
-function Badge({ tone, children }: { tone: 'live' | 'fallback' | 'warn'; children: React.ReactNode }) {
-  const cls =
-    tone === 'live'
-      ? 'bg-[var(--accent-soft)] text-accent-700 ring-[var(--accent-line)] dark:text-accent-300'
-      : tone === 'warn'
-        ? 'bg-accent-500/10 text-accent-700 ring-accent-500/30 dark:text-accent-300'
-        : 'bg-zinc-950/5 text-zinc-600 ring-zinc-950/10 dark:bg-white/5 dark:text-zinc-400 dark:ring-white/10'
-  return <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ${cls}`}>{children}</span>
 }
 
 function TabButton({ active, onClick, disabled, children }: { active: boolean; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
