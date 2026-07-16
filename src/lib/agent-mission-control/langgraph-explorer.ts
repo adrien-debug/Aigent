@@ -104,23 +104,26 @@ export async function listThreads(): Promise<ExplorerThread[]> {
 }
 
 /**
- * Read one thread's state (redacted). Returns null when the thread is unknown
- * (404 on the server → the run isn't there / was never created). Read-only.
+ * Read one thread's state (redacted). Returns null ONLY when the server
+ * confirms the thread is unknown (404 → the run isn't there / was never
+ * created). A transport failure or 5xx (server down) is NOT swallowed — it's
+ * rethrown so the caller returns an honest 502 instead of a lying 404.
+ * Read-only.
  */
 export async function getThreadDetail(threadId: string): Promise<ExplorerThreadDetail | null> {
   const c = agentServerClient()
 
-  let thread: Row
-  try {
-    thread = (await c.threads.get(threadId)) as unknown as Row
-  } catch {
-    return null
-  }
+  // The two reads are independent — issue them in parallel. allSettled (not
+  // all) so each rejection keeps its own semantics below.
+  const [threadRes, stateRes] = await Promise.allSettled([c.threads.get(threadId), c.threads.getState(threadId)])
 
-  let state: { values?: unknown; next?: unknown; tasks?: unknown[] }
-  try {
-    state = await c.threads.getState(threadId)
-  } catch {
+  if (threadRes.status === 'rejected') {
+    if (isNotFoundError(threadRes.reason)) return null
+    throw threadRes.reason
+  }
+  const thread = threadRes.value as unknown as Row
+
+  if (stateRes.status === 'rejected') {
     // The thread row exists but state is unreadable — return a minimal detail.
     return {
       threadId,
@@ -132,6 +135,7 @@ export async function getThreadDetail(threadId: string): Promise<ExplorerThreadD
       graph: AGENT_BUILDER_GRAPH_ID,
     }
   }
+  const state: { values?: unknown; next?: unknown; tasks?: unknown[] } = stateRes.value
 
   const values = (state.values as { messages?: Row[] } | undefined) ?? {}
   const rawMessages = Array.isArray(values.messages) ? values.messages : []

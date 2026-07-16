@@ -249,17 +249,32 @@ export async function resumeAgentBuilderRun(args: {
 }
 
 /**
+ * True when `err` is the LangGraph SDK's HTTPError (or any error carrying a
+ * numeric `status`) for HTTP 404 specifically — "the thread doesn't exist" as
+ * opposed to a transport failure / 5xx ("the server is down"). Same
+ * duck-typing as langgraph-explorer.ts's isNotFoundError / resolve-run-
+ * assistant.ts's isNotFound — kept local since neither module exports it.
+ */
+function isNotFoundError(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && 'status' in err && (err as { status: unknown }).status === 404
+}
+
+/**
  * Read the current state of a builder run from its thread (source of truth on
  * the Agent Server). Rebuilds the timeline + draft from the accumulated
- * messages, and re-derives whether it is still awaiting approval.
+ * messages, and re-derives whether it is still awaiting approval. Returns null
+ * ONLY when the server confirms the thread is unknown (404) — a transport
+ * failure or 5xx (server down) is rethrown so the caller returns an honest
+ * 502 instead of a lying 404.
  */
 export async function getAgentBuilderRunState(runId: string): Promise<BuilderRunState | null> {
   const c = agentServerClient()
   let state: { values?: unknown; tasks?: unknown[] }
   try {
     state = await c.threads.getState(runId)
-  } catch {
-    return null
+  } catch (err) {
+    if (isNotFoundError(err)) return null
+    throw err
   }
 
   const messages = ((state.values as { messages?: AnyMsg[] } | undefined)?.messages ?? []) as AnyMsg[]
