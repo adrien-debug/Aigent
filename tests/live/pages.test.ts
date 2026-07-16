@@ -100,3 +100,29 @@ describe('/admin pages — without a session, redirect to /login', () => {
     expect(res.status).toBeLessThan(400)
   })
 })
+
+describe('/api/agent-ops — latest mission for TradeAgent project', () => {
+  it('GET /api/agent-ops/projects/proj-tradeagent/missions/latest returns persisted mission', async () => {
+    if (!baseUrl || !sessionCookie) {
+      console.warn('[live] skip: app not reachable or admin login unavailable')
+      return
+    }
+    const res = await fetch(`${baseUrl}/api/agent-ops/projects/proj-tradeagent/missions/latest`, {
+      headers: { Cookie: sessionCookie },
+      signal: AbortSignal.timeout(15_000),
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as {
+      ok?: boolean
+      mission?: { status?: string; report?: { runId?: string; status?: string } } | null
+    }
+    expect(body.ok).toBe(true)
+    if (!body.mission) {
+      console.warn('[live] skip: no persisted mission yet for proj-tradeagent')
+      return
+    }
+    expect(body.mission.status).toBe('completed')
+    expect(body.mission.report?.runId).toBeTruthy()
+    expect(body.mission.report?.status).toBe('completed')
+  })
+})

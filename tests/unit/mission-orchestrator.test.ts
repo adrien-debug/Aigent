@@ -12,7 +12,6 @@ import {
   buildSecurityFindings,
   computeMissionConsensus,
   selectMissionParticipants,
-  type MissionEvidenceBundle,
   type MissionFinding,
   type MissionParticipant,
 } from '@/lib/agent-mission-control/mission-orchestrator'
