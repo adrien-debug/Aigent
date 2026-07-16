@@ -50,6 +50,7 @@ export function AssignProjectDialog({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [targetsPending, setTargetsPending] = useState(false)
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -75,6 +76,7 @@ export function AssignProjectDialog({
 
   function persistTargets(next: string[], previous: string[]) {
     setTargets(next)
+    setTargetsPending(true)
     void persistCopilot(copilot.id, { targetProjectIds: next })
       .then((res) => {
         if (!res.ok) throw new Error(String(res.status))
@@ -85,9 +87,13 @@ export function AssignProjectDialog({
         setTargets(previous)
         setError('Destination not saved — try again.')
       })
+      .finally(() => {
+        setTargetsPending(false)
+      })
   }
 
   function addTarget() {
+    if (targetsPending) return
     const id = addTargetId || addableProjects[0]?.id
     if (!id || targets.includes(id) || targets.length >= MAX_TARGETS) return
     setAddTargetId('')
@@ -95,6 +101,7 @@ export function AssignProjectDialog({
   }
 
   function removeTarget(id: string) {
+    if (targetsPending) return
     persistTargets(targets.filter((targetId) => targetId !== id), targets)
   }
 
@@ -187,7 +194,8 @@ export function AssignProjectDialog({
                   {projectNameById.get(targetId) ?? targetId}
                   <Headless.Button
                     onClick={() => removeTarget(targetId)}
-                    className="rounded-sm p-0.5 text-zinc-500 hover:text-zinc-950 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-500 dark:hover:text-white"
+                    disabled={targetsPending}
+                    className="rounded-sm p-0.5 text-zinc-500 hover:text-zinc-950 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-500 disabled:opacity-50 dark:hover:text-white"
                   >
                     <XMarkIcon aria-hidden="true" className="size-3.5" />
                     <span className="sr-only">Remove destination {projectNameById.get(targetId) ?? targetId}</span>
@@ -212,8 +220,8 @@ export function AssignProjectDialog({
                   ))}
                 </Select>
               </Field>
-              <Button outline onClick={addTarget}>
-                Add
+              <Button outline onClick={addTarget} disabled={targetsPending}>
+                {targetsPending ? 'Adding…' : 'Add'}
               </Button>
             </div>
           ) : null}
