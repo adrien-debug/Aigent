@@ -146,6 +146,11 @@ function CanvasDefs() {
         .lg-node { opacity: 0; animation: lg-in 340ms ease-out forwards; }
         .lg-node rect { transition: stroke-width 180ms ease, filter 200ms ease; }
         .lg-node:hover rect.lg-surface { filter: url(#node-shadow) brightness(1.03); }
+        /* Visible keyboard focus ring — SVG has no reliable outline, so the
+           focus indicator is a dedicated rect drawn only on :focus-visible
+           (never on mouse click), matching the accent ring used elsewhere. */
+        .lg-node rect.lg-focus-ring { opacity: 0; pointer-events: none; }
+        .lg-node:focus-visible rect.lg-focus-ring { opacity: 1; }
         .lg-flow { stroke-dasharray: 5 7; animation: lg-dash 1.1s linear infinite; }
         @keyframes lg-in { to { opacity: 1; } }
         @keyframes lg-dash { to { stroke-dashoffset: -24; } }
@@ -172,7 +177,7 @@ function NodeBox({ node, status, selected, onSelect, index }: { node: RenderNode
           : 'rgb(212 212 216)'
   return (
     <g
-      className="lg-node cursor-pointer focus:outline-none"
+      className="lg-node cursor-pointer outline-hidden"
       style={{ animationDelay: `${index * 55}ms` }}
       transform={`translate(${node.x - NODE_W / 2}, ${node.y - NODE_H / 2})`}
       onClick={onSelect}
@@ -189,6 +194,18 @@ function NodeBox({ node, status, selected, onSelect, index }: { node: RenderNode
       {/* Base card (white so the gradient reads on any bg) + gradient surface. */}
       <rect width={NODE_W} height={NODE_H} rx={9} className="fill-white dark:fill-zinc-900" filter="url(#node-shadow)" />
       <rect className="lg-surface" width={NODE_W} height={NODE_H} rx={9} fill={fillId} stroke={stroke} strokeWidth={selected ? 2 : 1.25} />
+      {/* Keyboard focus ring — shown only on :focus-visible via CanvasDefs CSS. */}
+      <rect
+        className="lg-focus-ring"
+        x={-3}
+        y={-3}
+        width={NODE_W + 6}
+        height={NODE_H + 6}
+        rx={11}
+        fill="none"
+        stroke="var(--accent-line-strong, var(--accent-line))"
+        strokeWidth={2.5}
+      />
       <text x={NODE_W / 2} y={NODE_H / 2 - 2} textAnchor="middle" dominantBaseline="middle" className="fill-zinc-950 font-mono text-[10px] font-medium dark:fill-white">
         {node.label}
       </text>
