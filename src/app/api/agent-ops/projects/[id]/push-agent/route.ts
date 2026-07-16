@@ -7,10 +7,11 @@ import { getProject, getCopilot, getManifestForCopilot } from '@/lib/agent-missi
 import { persistDeliveryEvent } from '@/lib/agent-mission-control/delivery-events-store'
 import { pushAgentToRepo, pushAgentToRepoPullRequest, type PushAgentDeliveryMode } from '@/lib/agent-mission-control/github'
 
-// NOT-WIRED au front (volontaire, à garder) : aucun bouton UI ne déclenche le
-// push. Conçue pour un usage HORS dashboard (script / API externe via x-amc-key)
-// — d'où le garde-fou dry-run par défaut (écriture GitHub réelle seulement si
-// `confirm:true` + GITHUB_PUSH_ENABLED=1). Pas du code mort.
+// CONSOMMÉE PAR LE FRONT : push-agent-dialog.tsx (via copilot-project-actions)
+// poste ici avec { copilotId, confirm: true, deliveryMode } et rend le PushResult
+// (dry-run / pushed / erreur). Tout changement de la forme de succès doit rester
+// compatible avec son type PushResult client. Garde-fou dry-run par défaut
+// (écriture GitHub réelle seulement si `confirm:true` + GITHUB_PUSH_ENABLED=1).
 
 /**
  * Shape guard for the `:id` path param and the body `copilotId`. Real ids are
@@ -23,6 +24,22 @@ const ID_RE = /^[a-z0-9-]{1,200}$/
 
 function isValidId(id: unknown): id is string {
   return typeof id === 'string' && ID_RE.test(id)
+}
+
+/**
+ * True when an upstream failure is a TIMEOUT rather than a hard error, so the
+ * route can answer 504 (gateway timeout) instead of 502 (bad gateway).
+ * Classification by the helpers' safe messages — same technique as the GitHub
+ * 409/422 and branch_exists regexes below:
+ *   - postgrest.ts remaps an aborted call to PgrestError(504) whose generic
+ *     message is `PostgREST 504 on <method> <path>` (no schema/query detail);
+ *   - github.ts gh() remaps a TimeoutError to
+ *     `GitHub request timed out after <n>ms on <method> <path>`.
+ */
+function isUpstreamTimeout(err: unknown): boolean {
+  if (!(err instanceof Error)) return false
+  if (err.name === 'PgrestError' && /^PostgREST 504 /.test(err.message)) return true
+  return /^GitHub request timed out after \d+ms/.test(err.message)
 }
 
 /**
@@ -91,7 +108,10 @@ export async function POST(
     // schema/query internals. Log server-side, generic message to the caller
     // (same convention as copilots/[copilotId]/run and projects/[id] DELETE).
     console.error('[agent-ops/push-agent] failed to load project', err)
-    return NextResponse.json({ error: 'failed to load project' }, { status: 502 })
+    return NextResponse.json(
+      { error: 'failed to load project' },
+      { status: isUpstreamTimeout(err) ? 504 : 502 }
+    )
   }
   if (!project) {
     return NextResponse.json({ error: 'project not found' }, { status: 404 })
@@ -115,7 +135,10 @@ export async function POST(
   } catch (err) {
     // Same rationale as above: don't leak raw PostgREST error text.
     console.error('[agent-ops/push-agent] failed to load copilot/manifest', err)
-    return NextResponse.json({ error: 'failed to load copilot or manifest' }, { status: 502 })
+    return NextResponse.json(
+      { error: 'failed to load copilot or manifest' },
+      { status: isUpstreamTimeout(err) ? 504 : 502 }
+    )
   }
   if (!manifest) {
     return NextResponse.json({ error: 'copilot has no manifest' }, { status: 404 })
@@ -205,6 +228,12 @@ export async function POST(
         { error: 'delivery branch already exists — retry (a new short id will be used)' },
         { status: 409 }
       )
+    }
+    // GitHub call aborted on our 15s client timeout → 504 (gateway timeout),
+    // not 502: the upstream didn't refuse, it didn't answer in time.
+    if (isUpstreamTimeout(err)) {
+      console.error('[agent-ops/push-agent] push timed out', err)
+      return NextResponse.json({ error: 'push timed out' }, { status: 504 })
     }
     // Never forward the raw error text to the client: pushAgentToRepo's message
     // can carry the internal GitHub API path + upstream response body. Log
