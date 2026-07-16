@@ -23,7 +23,7 @@ export default function AgentsRegistryLoading() {
         ))}
       </div>
 
-      {/* RegistryView skeleton */}
+      {/* Copilot detail/new skeleton */}
       <div className="space-y-8">
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">

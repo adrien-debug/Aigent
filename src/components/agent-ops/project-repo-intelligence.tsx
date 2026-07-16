@@ -3,8 +3,7 @@
 import clsx from 'clsx'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { AgentSectionCard } from '@/components/agent-ops/surface-card'
-import { surfaceCardClass, surfaceInsetClass } from '@/components/agent-ops/surface-card'
+import { AgentSectionCard, surfaceInsetClass } from '@/components/agent-ops/surface-card'
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { ProjectBuilderSuggestionsDrawer } from '@/components/agent-ops/project-builder-suggestions-drawer'
 import { Badge } from '@/components/catalyst/badge'
@@ -109,107 +108,6 @@ export function useProjectRepoIntelligence(projectId: string, repoFullName: stri
 }
 
 /**
- * Compact repo-intelligence strip — scan STATUS ONLY (no action buttons).
- * Action buttons (View repo map / Suggestions / Retry scan) live in
- * `ProjectRepoIntelligenceActions` so callers can place them separately
- * (e.g. the Builder workbench renders this strip at the top of the chat
- * and the actions bar at the bottom).
- */
-function ProjectRepoIntelligenceCompact(
-  props: {
-    projectId: string
-    repoFullName: string | null
-    onDiscussRecommendation?: (rec: AgentRecommendation) => void
-    showBuilderLink?: boolean
-    intelligenceState?: ReturnType<typeof useProjectRepoIntelligence>
-  }
-) {
-  if (props.intelligenceState) {
-    return <ProjectRepoIntelligenceCompactView {...props} state={props.intelligenceState} />
-  }
-  return <ProjectRepoIntelligenceCompactWithFetch {...props} />
-}
-
-function ProjectRepoIntelligenceCompactWithFetch(
-  props: Omit<Parameters<typeof ProjectRepoIntelligenceCompactView>[0], 'state'>
-) {
-  const state = useProjectRepoIntelligence(props.projectId, props.repoFullName)
-  return <ProjectRepoIntelligenceCompactView {...props} state={state} />
-}
-
-function ProjectRepoIntelligenceCompactView({
-  projectId,
-  repoFullName,
-  showBuilderLink = false,
-  state,
-}: {
-  projectId: string
-  repoFullName: string | null
-  onDiscussRecommendation?: (rec: AgentRecommendation) => void
-  showBuilderLink?: boolean
-  state: ReturnType<typeof useProjectRepoIntelligence>
-}) {
-  const { phase, error, intel, summaryLine, scannedAtLabel } = state
-
-  if (!repoFullName) {
-    return (
-      <div className={clsx(surfaceCardClass, 'px-4 py-3')}>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Link a GitHub repo to enable read-only intelligence and Builder suggestions.
-        </p>
-      </div>
-    )
-  }
-
-  return (
-    <div className={clsx(surfaceCardClass, 'relative overflow-hidden px-4 py-3')}>
-      {phase !== 'scanning' && intel ? (
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-(--accent-soft)" />
-      ) : null}
-      <div className="relative flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            {phase === 'scanning' ? (
-              <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500">
-                <Spinner className="size-3.5" />
-                Scanning repo…
-              </span>
-            ) : (
-              <span className="text-xs font-medium text-accent-700 dark:text-accent-300">
-                Repo scanned · {scannedAtLabel}
-              </span>
-            )}
-            {intel ? (
-              <Badge color="zinc" className="!text-[10px]">
-                {intel.footprint.hasAgenticCode ? 'agentic code' : 'no agentic code'}
-              </Badge>
-            ) : null}
-          </div>
-          <p className="mt-1 truncate font-mono text-xs text-zinc-500">{repoFullName}</p>
-          {summaryLine ? (
-            <p className="mt-1 line-clamp-2 text-xs text-zinc-600 dark:text-zinc-400">{summaryLine}</p>
-          ) : phase === 'scanning' ? (
-            <p className="mt-1 text-xs text-zinc-500">Reading tree and key files read-only…</p>
-          ) : null}
-        </div>
-        {showBuilderLink ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <Button color="accent" href={`/admin/projects/${projectId}/builder`}>
-              Discuss with Builder
-            </Button>
-          </div>
-        ) : null}
-      </div>
-      {phase === 'error' ? (
-        <div className="mt-3">
-          <ErrorBanner message={error ?? 'Scan failed.'} />
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
-/**
  * Action bar for repo intelligence — View repo map / Suggestions / Retry scan
  * + their dialogs. Split out from the compact strip so a caller (e.g. the
  * Builder workbench) can render the status strip at the top of a panel and
@@ -289,8 +187,9 @@ export function ProjectRepoIntelligenceActions({
 }
 
 /**
- * Project overview — compact intelligence strip + its actions bar stacked
- * together (no recommendation wall in the body).
+ * Project overview — repo-intelligence footer strip of the ProjectHeader:
+ * scan status on the left, ALL actions (Discuss with Builder + repo map /
+ * suggestions / retry) on the right. No own card — the header hosts it.
  */
 export function ProjectRepoIntelligence({
   projectId,
@@ -300,19 +199,60 @@ export function ProjectRepoIntelligence({
   repoFullName: string | null
 }) {
   const intelligenceState = useProjectRepoIntelligence(projectId, repoFullName)
+  const { phase, error, intel, summaryLine, scannedAtLabel } = intelligenceState
+
+  if (!repoFullName) {
+    return (
+      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        Link a GitHub repo to enable read-only intelligence and Builder suggestions.
+      </p>
+    )
+  }
+
   return (
-    <div className="space-y-3">
-      <ProjectRepoIntelligenceCompact
-        projectId={projectId}
-        repoFullName={repoFullName}
-        showBuilderLink
-        intelligenceState={intelligenceState}
-      />
-      <ProjectRepoIntelligenceActions
-        projectId={projectId}
-        repoFullName={repoFullName}
-        intelligenceState={intelligenceState}
-      />
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            {phase === 'scanning' ? (
+              <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500">
+                <Spinner className="size-3.5" />
+                Scanning repo…
+              </span>
+            ) : (
+              <span className="text-xs font-medium text-accent-700 dark:text-accent-300">
+                Repo scanned · {scannedAtLabel}
+              </span>
+            )}
+            {intel ? (
+              <Badge color="zinc" className="!text-[10px]">
+                {intel.footprint.hasAgenticCode ? 'agentic code' : 'no agentic code'}
+              </Badge>
+            ) : null}
+          </div>
+          {summaryLine ? (
+            <p className="mt-1 line-clamp-2 text-xs text-zinc-600 dark:text-zinc-400">{summaryLine}</p>
+          ) : phase === 'scanning' ? (
+            <p className="mt-1 text-xs text-zinc-500">Reading tree and key files read-only…</p>
+          ) : null}
+        </div>
+
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <ProjectRepoIntelligenceActions
+            projectId={projectId}
+            repoFullName={repoFullName}
+            intelligenceState={intelligenceState}
+          />
+          <Button color="accent" href={`/admin/projects/${projectId}/builder`}>
+            Discuss with Builder
+          </Button>
+        </div>
+      </div>
+      {phase === 'error' ? (
+        <div className="mt-3">
+          <ErrorBanner message={error ?? 'Scan failed.'} />
+        </div>
+      ) : null}
     </div>
   )
 }

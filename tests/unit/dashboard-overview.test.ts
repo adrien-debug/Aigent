@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   assembleDashboardOverview,
   buildActionItems,
-  buildDeliveryMatrix,
+  buildProjectOverview,
   computeAvgRepoFit,
   computeBlockedDeliveries,
   computeProductionAgents,
@@ -118,7 +118,7 @@ describe('dashboard KPIs', () => {
   })
 })
 
-describe('action items + matrix', () => {
+describe('action items', () => {
   const projects: Project[] = [
     {
       id: 'proj-trade',
@@ -164,31 +164,6 @@ describe('action items + matrix', () => {
     expect(items[0]?.kind).toBe('ready_manual')
   })
 
-  it('7 — deliveryMatrix includes merged_validated', () => {
-    const matrix = buildDeliveryMatrix({
-      copilots: [copilot({ id: 'c-btc', name: 'BTC Alert', projectId: 'proj-trade' })],
-      projectsById,
-      latestDeliveryByCopilot: new Map([['c-btc', deliveryEvent('merged_validated')]]),
-      latestSandboxByCopilot: new Map([
-        [
-          'c-btc',
-          {
-            copilotId: 'c-btc',
-            status: 'passed',
-            sandboxFitScore: 100,
-            repoFitScore: 100,
-            repo: 'adrien-debug/TradeAgent',
-            createdAt: 't',
-          },
-        ],
-      ]),
-      scorecards: new Map([
-        ['c-btc', { score: 94, level: 'excellent', blockers: [], repoFitScore: 100, releaseGateRed: false }],
-      ]),
-    })
-    expect(matrix[0]?.deliveryStatus).toBe('merged_validated')
-    expect(matrix[0]?.repoFit).toBe(100)
-  })
 })
 
 describe('assembleDashboardOverview fail-soft', () => {
@@ -225,8 +200,62 @@ describe('assembleDashboardOverview fail-soft', () => {
     })
     expect(overview.kpis.sandboxPassRate).toBeNull()
     expect(overview.kpis.avgRepoFit).toBeNull()
-    expect(overview.deliveryLoop).toEqual([])
+    expect(overview.projects).toEqual([])
     expect(overview.actionItems).toEqual([])
+  })
+
+  it('11 — buildProjectOverview rolls copilot health up per project', () => {
+    const projects: Project[] = [
+      {
+        id: 'proj-trade',
+        name: 'TradeAgent',
+        slug: 'tradeagent',
+        description: '',
+        platform: 'web',
+        repoFullName: 'adrien-debug/TradeAgent',
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+      {
+        id: 'proj-empty',
+        name: 'Empty',
+        slug: 'empty',
+        description: '',
+        platform: 'api',
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    ]
+    const items = buildProjectOverview(projects, [
+      copilot({
+        id: 'c1',
+        name: 'BTC Alert',
+        projectId: 'proj-trade',
+        status: 'active',
+        healthEvidence: 'runs',
+        health: {
+          testPassRate: 0.8,
+          benchmarkScore: 90,
+          runsLast24h: 10,
+          errorRateLast24h: 0,
+          avgLatencyMs: 0,
+          costLast24hUsd: 2,
+          openWarnings: 1,
+        },
+      }),
+      copilot({ id: 'c2', name: 'Draft Agent', projectId: 'proj-trade' }),
+      copilot({ id: 'c3', name: 'Orphan' }),
+    ])
+
+    expect(items.map((i) => i.id)).toEqual(['proj-trade', 'proj-empty'])
+    const trade = items[0]
+    expect(trade.copilotCount).toBe(2)
+    expect(trade.activeCount).toBe(1)
+    expect(trade.runsLast24h).toBe(10)
+    expect(trade.costLast24hUsd).toBe(2)
+    expect(trade.openWarnings).toBe(1)
+    // Only run-backed copilots feed passRate — c2 has no evidence.
+    expect(trade.passRate).toBe(0.8)
+    expect(items[1].passRate).toBeNull()
+    expect(items[1].copilotCount).toBe(0)
   })
 })
 

@@ -6,7 +6,6 @@
  */
 import 'server-only'
 
-import { DELIVERY_LEVEL_LABELS } from './delivery-scorecard'
 import { getDeliveryScorecard } from './delivery-scorecard-server'
 import type { DeliveryEvent } from './delivery-events-store'
 import { getCopilots, getProjects } from './data'
@@ -27,19 +26,20 @@ export type DashboardKpis = {
   blockedDeliveries: number | null
 }
 
-export type DeliveryStepId = 'build' | 'scorecard' | 'pr' | 'sandbox' | 'manual_test' | 'merged'
-
-export type DeliveryStepState = 'past' | 'current' | 'pending' | 'failed'
-
-export type DeliveryLoopItem = {
+export type ProjectOverviewItem = {
   id: string
-  agentId: string
-  agentName: string
-  targetRepo: string | null
-  currentState: string
-  steps: Record<DeliveryStepId, DeliveryStepState>
-  lastUpdate: string
-  source: 'delivery' | 'mission'
+  name: string
+  imageUrl: string | null
+  logoUrl: string | null
+  repoFullName: string | null
+  platform: Project['platform']
+  copilotCount: number
+  activeCount: number
+  runsLast24h: number
+  costLast24hUsd: number
+  /** Mean test pass rate (0..1) across copilots with run-backed health, null when no evidence. */
+  passRate: number | null
+  openWarnings: number
 }
 
 export type ActionItemKind =
@@ -61,24 +61,10 @@ export type ActionItem = {
   priority: number
 }
 
-export type DeliveryMatrixRow = {
-  agentId: string
-  agentName: string
-  targetRepo: string | null
-  repoFit: number | null
-  scorecardScore: number | null
-  scorecardLabel: string | null
-  sandboxStatus: string | null
-  deliveryStatus: string | null
-  nextAction: { label: string; href: string }
-  updatedAt: string | null
-}
-
 export type DashboardOverview = {
   kpis: DashboardKpis
-  deliveryLoop: DeliveryLoopItem[]
+  projects: ProjectOverviewItem[]
   actionItems: ActionItem[]
-  deliveryMatrix: DeliveryMatrixRow[]
   dataWarnings: string[]
 }
 
@@ -174,122 +160,51 @@ export function computeBlockedDeliveries(
 }
 
 // ---------------------------------------------------------------------------
-// Pure — delivery loop steps
+// Pure — project overview rollup
 // ---------------------------------------------------------------------------
 
-const STEP_ORDER: DeliveryStepId[] = ['build', 'scorecard', 'pr', 'sandbox', 'manual_test', 'merged']
+export function buildProjectOverview(projects: Project[], copilots: Copilot[]): ProjectOverviewItem[] {
+  const rollups = new Map<
+    string,
+    { copilotCount: number; activeCount: number; runsLast24h: number; costLast24hUsd: number; openWarnings: number; passRates: number[] }
+  >()
 
-export function deriveDeliverySteps(input: {
-  deliveryStatus: string | null
-  hasPr: boolean
-  sandboxStatus: string | null
-}): Record<DeliveryStepId, DeliveryStepState> {
-  const status = input.deliveryStatus ?? 'created'
-  const sandboxFailed = input.sandboxStatus === 'failed'
-
-  const steps = Object.fromEntries(STEP_ORDER.map((s) => [s, 'pending' as DeliveryStepState])) as Record<
-    DeliveryStepId,
-    DeliveryStepState
-  >
-
-  const markPast = (through: DeliveryStepId) => {
-    const idx = STEP_ORDER.indexOf(through)
-    for (let i = 0; i <= idx; i += 1) steps[STEP_ORDER[i]] = 'past'
+  for (const copilot of copilots) {
+    if (copilot.projectId === null) continue
+    const current =
+      rollups.get(copilot.projectId) ??
+      { copilotCount: 0, activeCount: 0, runsLast24h: 0, costLast24hUsd: 0, openWarnings: 0, passRates: [] }
+    current.copilotCount += 1
+    if (copilot.status === 'active') current.activeCount += 1
+    current.runsLast24h += copilot.health.runsLast24h
+    current.costLast24hUsd += copilot.health.costLast24hUsd
+    current.openWarnings += copilot.health.openWarnings
+    if (copilot.healthEvidence === 'runs') current.passRates.push(copilot.health.testPassRate)
+    rollups.set(copilot.projectId, current)
   }
 
-  if (status === 'merged_validated' || status === 'completed') {
-    STEP_ORDER.forEach((s) => {
-      steps[s] = 'past'
+  return projects
+    .map((project) => {
+      const rollup = rollups.get(project.id)
+      return {
+        id: project.id,
+        name: project.name,
+        imageUrl: project.imageUrl ?? null,
+        logoUrl: project.logoUrl ?? null,
+        repoFullName: project.repoFullName ?? null,
+        platform: project.platform,
+        copilotCount: rollup?.copilotCount ?? 0,
+        activeCount: rollup?.activeCount ?? 0,
+        runsLast24h: rollup?.runsLast24h ?? 0,
+        costLast24hUsd: rollup?.costLast24hUsd ?? 0,
+        passRate:
+          rollup && rollup.passRates.length > 0
+            ? rollup.passRates.reduce((s, n) => s + n, 0) / rollup.passRates.length
+            : null,
+        openWarnings: rollup?.openWarnings ?? 0,
+      }
     })
-    return steps
-  }
-
-  if (status === 'ready_for_manual_test') {
-    markPast('sandbox')
-    steps.manual_test = 'current'
-    return steps
-  }
-
-  if (sandboxFailed || status === 'execute_failed') {
-    markPast('pr')
-    steps.sandbox = 'failed'
-    return steps
-  }
-
-  if (input.sandboxStatus === 'passed' || status === 'dry_run_passed') {
-    markPast('sandbox')
-    steps.manual_test = 'current'
-    return steps
-  }
-
-  if (input.hasPr || status === 'redelivered' || status === 'delivered') {
-    markPast('pr')
-    steps.sandbox = 'current'
-    return steps
-  }
-
-  if (status === 'fixing' || status === 'execute_running') {
-    markPast('scorecard')
-    steps.pr = 'current'
-    return steps
-  }
-
-  markPast('build')
-  steps.scorecard = 'current'
-  return steps
-}
-
-export function buildDeliveryLoopItems(input: {
-  copilotsById: Map<string, Copilot>
-  projectsById: Map<string, Project>
-  latestDeliveryByCopilot: Map<string, DeliveryEvent>
-  latestSandboxByCopilot: Map<string, SandboxSnapshot>
-  missionRuns: MissionRunSnapshot[]
-  limit?: number
-}): DeliveryLoopItem[] {
-  const items: DeliveryLoopItem[] = []
-
-  for (const [copilotId, evt] of input.latestDeliveryByCopilot) {
-    const copilot = input.copilotsById.get(copilotId)
-    if (!copilot) continue
-    const project = copilot.projectId ? input.projectsById.get(copilot.projectId) : undefined
-    const sandbox = input.latestSandboxByCopilot.get(copilotId)
-    items.push({
-      id: `delivery_${evt.id}`,
-      agentId: copilotId,
-      agentName: copilot.name,
-      targetRepo: evt.targetRepo ?? project?.repoFullName ?? null,
-      currentState: evt.status,
-      steps: deriveDeliverySteps({
-        deliveryStatus: evt.status,
-        hasPr: Boolean(evt.prUrl),
-        sandboxStatus: sandbox?.status ?? null,
-      }),
-      lastUpdate: evt.createdAt,
-      source: 'delivery',
-    })
-  }
-
-  for (const mission of input.missionRuns) {
-    items.push({
-      id: `mission_${mission.id}`,
-      agentId: mission.projectId,
-      agentName: mission.objective.slice(0, 48),
-      targetRepo: mission.repo,
-      currentState: mission.status,
-      steps: deriveDeliverySteps({
-        deliveryStatus: mission.status === 'completed' ? 'merged_validated' : mission.status,
-        hasPr: false,
-        sandboxStatus: mission.decision === 'blocked' ? 'failed' : null,
-      }),
-      lastUpdate: mission.updatedAt,
-      source: 'mission',
-    })
-  }
-
-  return items
-    .sort((a, b) => Date.parse(b.lastUpdate) - Date.parse(a.lastUpdate))
-    .slice(0, input.limit ?? 10)
+    .sort((a, b) => b.runsLast24h - a.runsLast24h || a.name.localeCompare(b.name))
 }
 
 // ---------------------------------------------------------------------------
@@ -387,7 +302,7 @@ export function buildActionItems(input: {
         title: 'Mission blocked',
         meta: `${project?.name ?? mission.projectId} · ${mission.repo ?? '—'}`,
         status: mission.status,
-        href: project ? `/admin/projects/${project.id}` : '/admin/projects',
+        href: project ? `/admin/projects/${project.id}` : '/admin',
         buttonLabel: 'View Mission',
         priority: ACTION_PRIORITY.mission_blocked,
       })
@@ -410,83 +325,6 @@ export function buildActionItems(input: {
   return items
     .sort((a, b) => a.priority - b.priority)
     .slice(0, input.limit ?? 6)
-}
-
-// ---------------------------------------------------------------------------
-// Pure — delivery matrix
-// ---------------------------------------------------------------------------
-
-export function resolveNextAction(input: {
-  agentId: string
-  projectId: string | null
-  delivery: DeliveryEvent | null
-  sandbox: SandboxSnapshot | null
-  scorecard: ScorecardSnapshot | null
-}): { label: string; href: string } {
-  if (input.delivery?.prUrl && input.delivery.status !== 'merged_validated') {
-    return { label: 'Review PR', href: input.delivery.prUrl }
-  }
-  if (input.delivery?.status === 'ready_for_manual_test') {
-    return { label: 'Review', href: `/admin/agents/${input.agentId}` }
-  }
-  if (!input.sandbox) {
-    return { label: 'Run Sandbox', href: `/admin/agents/${input.agentId}` }
-  }
-  if (input.scorecard) {
-    return { label: 'View Scorecard', href: `/admin/agents/${input.agentId}` }
-  }
-  if (input.projectId) {
-    return { label: 'View Mission', href: `/admin/projects/${input.projectId}` }
-  }
-  return { label: 'Open Agent', href: `/admin/agents/${input.agentId}` }
-}
-
-export function buildDeliveryMatrix(input: {
-  copilots: Copilot[]
-  projectsById: Map<string, Project>
-  latestDeliveryByCopilot: Map<string, DeliveryEvent>
-  latestSandboxByCopilot: Map<string, SandboxSnapshot>
-  scorecards: Map<string, ScorecardSnapshot>
-}): DeliveryMatrixRow[] {
-  const ranked = [...input.copilots].sort((a, b) => {
-    const aDelivery = input.latestDeliveryByCopilot.has(a.id) ? 1 : 0
-    const bDelivery = input.latestDeliveryByCopilot.has(b.id) ? 1 : 0
-    if (aDelivery !== bDelivery) return bDelivery - aDelivery
-    const aProd = a.productionVersionId ? 1 : 0
-    const bProd = b.productionVersionId ? 1 : 0
-    if (aProd !== bProd) return bProd - aProd
-    return a.name.localeCompare(b.name)
-  })
-
-  return ranked
-    .filter((c) => c.projectId || c.productionVersionId || input.latestDeliveryByCopilot.has(c.id))
-    .slice(0, 20)
-    .map((copilot) => {
-      const project = copilot.projectId ? input.projectsById.get(copilot.projectId) : undefined
-      const delivery = input.latestDeliveryByCopilot.get(copilot.id) ?? null
-      const sandbox = input.latestSandboxByCopilot.get(copilot.id) ?? null
-      const scorecard = input.scorecards.get(copilot.id) ?? null
-      const repoFit = scorecard?.repoFitScore ?? sandbox?.repoFitScore ?? null
-
-      return {
-        agentId: copilot.id,
-        agentName: copilot.name,
-        targetRepo: delivery?.targetRepo ?? project?.repoFullName ?? null,
-        repoFit,
-        scorecardScore: scorecard?.score ?? null,
-        scorecardLabel: scorecard ? DELIVERY_LEVEL_LABELS[scorecard.level as keyof typeof DELIVERY_LEVEL_LABELS] ?? scorecard.level : null,
-        sandboxStatus: sandbox?.status ?? null,
-        deliveryStatus: delivery?.status ?? (copilot.productionVersionId ? 'production' : null),
-        nextAction: resolveNextAction({
-          agentId: copilot.id,
-          projectId: copilot.projectId,
-          delivery,
-          sandbox,
-          scorecard,
-        }),
-        updatedAt: delivery?.createdAt ?? sandbox?.createdAt ?? copilot.updatedAt,
-      }
-    })
 }
 
 // ---------------------------------------------------------------------------
@@ -527,13 +365,7 @@ export function assembleDashboardOverview(input: {
         input.missionRuns
       ),
     },
-    deliveryLoop: buildDeliveryLoopItems({
-      copilotsById,
-      projectsById,
-      latestDeliveryByCopilot: input.latestDeliveryByCopilot,
-      latestSandboxByCopilot: input.latestSandboxByCopilot,
-      missionRuns: input.missionRuns,
-    }),
+    projects: buildProjectOverview(input.projects, input.copilots),
     actionItems: buildActionItems({
       copilotsById,
       projectsById,
@@ -542,13 +374,6 @@ export function assembleDashboardOverview(input: {
       scorecards: input.scorecards,
       missionRuns: input.missionRuns,
       dataWarnings: input.dataWarnings,
-    }),
-    deliveryMatrix: buildDeliveryMatrix({
-      copilots: input.copilots,
-      projectsById,
-      latestDeliveryByCopilot: input.latestDeliveryByCopilot,
-      latestSandboxByCopilot: input.latestSandboxByCopilot,
-      scorecards: input.scorecards,
     }),
     dataWarnings: input.dataWarnings,
   }

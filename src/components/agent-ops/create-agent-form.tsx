@@ -386,7 +386,7 @@ export function CreateAgentForm({
       {error ? <ErrorMessage>{error}</ErrorMessage> : null}
 
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <Button plain href="/admin/agents">
+        <Button plain href="/admin">
           Cancel
         </Button>
         <Button type="submit" color="accent" disabled={!canSubmit}>

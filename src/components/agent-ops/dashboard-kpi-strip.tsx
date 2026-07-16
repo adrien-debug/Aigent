@@ -1,3 +1,5 @@
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+
 import { AgentKpiBand, type AgentKpiStat } from '@/components/agent-ops/agent-kpi-band'
 import type { DashboardKpis } from '@/lib/agent-mission-control/dashboard-overview'
 
@@ -6,25 +8,50 @@ function formatKpi(value: number | null, suffix?: string): string {
   return suffix ? `${value}${suffix}` : String(value)
 }
 
+/**
+ * Command-center KPI strip — hero values on hairline-separated cells.
+ * Tone discipline: accent is reserved for the two operator signals
+ * (ready for manual test > 0, blocked > 0); metrics read white and
+ * recede to muted when absent (—) or when the signal count is zero.
+ * Hints carry the exact semantics of each aggregate — nothing invented.
+ */
 export function DashboardKpiStrip({ kpis }: { kpis: DashboardKpis }) {
   const stats: AgentKpiStat[] = [
-    { name: 'Production Agents', value: formatKpi(kpis.productionAgents), valueTone: 'accent' },
-    { name: 'Ready for Manual Test', value: formatKpi(kpis.readyForManualTest), valueTone: kpis.readyForManualTest ? 'accent' : 'muted' },
+    {
+      name: 'Production Agents',
+      value: formatKpi(kpis.productionAgents),
+      valueTone: kpis.productionAgents === null ? 'muted' : 'default',
+      hint: kpis.productionAgents === null ? undefined : 'with a live production version',
+    },
+    {
+      name: 'Ready for Manual Test',
+      value: formatKpi(kpis.readyForManualTest),
+      valueTone: kpis.readyForManualTest ? 'accent' : 'muted',
+      hint: kpis.readyForManualTest ? 'awaiting operator sign-off' : undefined,
+    },
     {
       name: 'Sandbox Pass Rate',
       value: kpis.sandboxPassRate === null ? '—' : formatKpi(kpis.sandboxPassRate),
       suffix: kpis.sandboxPassRate === null ? undefined : '%',
-      valueTone: kpis.sandboxPassRate !== null && kpis.sandboxPassRate >= 90 ? 'accent' : 'default',
+      valueTone: kpis.sandboxPassRate === null ? 'muted' : 'default',
+      hint: kpis.sandboxPassRate === null ? undefined : 'latest sandbox run per agent',
     },
-    { name: 'Avg RepoFit', value: formatKpi(kpis.avgRepoFit), suffix: kpis.avgRepoFit === null ? undefined : '/100' },
+    {
+      name: 'Avg RepoFit',
+      value: formatKpi(kpis.avgRepoFit),
+      suffix: kpis.avgRepoFit === null ? undefined : '/100',
+      valueTone: kpis.avgRepoFit === null ? 'muted' : 'default',
+      hint: kpis.avgRepoFit === null ? undefined : 'mean across scored deliveries',
+    },
     {
       name: 'Blocked Deliveries',
       value: formatKpi(kpis.blockedDeliveries),
       valueTone: kpis.blockedDeliveries && kpis.blockedDeliveries > 0 ? 'accent' : 'muted',
+      hint: kpis.blockedDeliveries && kpis.blockedDeliveries > 0 ? 'see Requires Attention' : undefined,
     },
   ]
 
-  return <AgentKpiBand stats={stats} className="px-6 lg:px-8" />
+  return <AgentKpiBand stats={stats} separators />
 }
 
 export function DashboardHeader() {
@@ -39,8 +66,9 @@ export function DashboardHeader() {
 export function DashboardDataWarnings({ warnings }: { warnings: string[] }) {
   if (warnings.length === 0) return null
   return (
-    <div className="mx-6 mb-0 rounded-lg border border-white/10 bg-black/30 px-4 py-3 lg:mx-8">
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-400">
+    <div className="flex items-start gap-2.5 border-b border-white/5 bg-black/20 px-6 py-3 lg:px-8">
+      <ExclamationTriangleIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-accent-400" />
+      <ul className="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-400">
         {warnings.map((w) => (
           <li key={w} className="font-mono">{w}</li>
         ))}

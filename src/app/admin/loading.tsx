@@ -48,17 +48,18 @@ export default function AdminDashboardLoading() {
         </div>
       </div>
 
-      {/* ActiveDeliveryLoop (xl:col-span-2) + ActionCenter */}
+      {/* DashboardProjectList (xl:col-span-2) + ActionCenter */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <SectionSkeleton className="xl:col-span-2" headerWidth="w-40" descWidth="w-64">
-          <div className="space-y-5">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex items-center justify-between gap-4">
-                <div className="flex-1 space-y-2">
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex overflow-hidden rounded-xl border border-white/5">
+                <div className="w-24 shrink-0 self-stretch bg-zinc-950/10 sm:w-40 dark:bg-white/10" />
+                <div className="flex-1 space-y-3 p-4">
                   <div className="h-4 w-40 rounded bg-zinc-950/10 dark:bg-white/10" />
                   <div className="h-3 w-24 rounded bg-zinc-950/5 dark:bg-white/5" />
+                  <div className="h-8 rounded bg-zinc-950/5 dark:bg-white/5" />
                 </div>
-                <div className="h-6 w-20 rounded-full bg-zinc-950/10 dark:bg-white/10" />
               </div>
             ))}
           </div>
@@ -71,15 +72,6 @@ export default function AdminDashboardLoading() {
           </div>
         </SectionSkeleton>
       </div>
-
-      {/* AgentDeliveryMatrix (pleine largeur) */}
-      <SectionSkeleton headerWidth="w-36" descWidth="w-64">
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-10 rounded bg-zinc-950/5 dark:bg-white/5" />
-          ))}
-        </div>
-      </SectionSkeleton>
     </div>
   )
 }

@@ -1,8 +1,7 @@
 import type { Metadata } from 'next'
 
 import { ActionCenter } from '@/components/agent-ops/action-center'
-import { ActiveDeliveryLoop } from '@/components/agent-ops/active-delivery-loop'
-import { AgentDeliveryMatrix } from '@/components/agent-ops/agent-delivery-matrix'
+import { DashboardProjectList } from '@/components/agent-ops/dashboard-project-list'
 import { DashboardDataWarnings, DashboardHeader, DashboardKpiStrip } from '@/components/agent-ops/dashboard-kpi-strip'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
 import { surfaceCardClass } from '@/components/agent-ops/surface-card'
@@ -29,16 +28,12 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <StaggerFade delay={1} className="xl:col-span-2">
-          <ActiveDeliveryLoop items={overview.deliveryLoop} />
+          <DashboardProjectList projects={overview.projects} />
         </StaggerFade>
         <StaggerFade delay={2}>
           <ActionCenter items={overview.actionItems} />
         </StaggerFade>
       </div>
-
-      <StaggerFade delay={3}>
-        <AgentDeliveryMatrix rows={overview.deliveryMatrix} />
-      </StaggerFade>
     </div>
   )
 }

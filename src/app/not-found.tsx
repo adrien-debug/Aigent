@@ -12,7 +12,7 @@ export default function NotFound() {
           This page doesn&apos;t exist, or the resource it points to is no longer in the registry.
         </Text>
         <div className="mt-6">
-          <Button href="/admin/agents">Back to copilots</Button>
+          <Button href="/admin">Back to dashboard</Button>
         </div>
       </div>
     </main>

@@ -3,9 +3,13 @@ import clsx from 'clsx'
 import { Subheading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
 
-/** Canon surface shell — Command Center premium pass. */
+/**
+ * Canon surface shell — Command Center premium pass.
+ * `inset-shadow-2xs inset-shadow-white/5` = a 1px top inner glow ("lit from
+ * above") that lifts the card off the black canvas without a heavy shadow.
+ */
 export const surfaceCardClass =
-  'rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 overflow-hidden'
+  'rounded-2xl bg-[var(--color-surface-secondary)] border border-white/5 inset-shadow-2xs inset-shadow-white/5 overflow-hidden'
 
 export const surfaceCardHeaderClass =
   'flex flex-wrap items-center justify-between gap-3 border-b border-white/5 bg-black/20'

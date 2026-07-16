@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowRightStartOnRectangleIcon, Bars3Icon, Cog6ToothIcon, CpuChipIcon, FolderIcon, ShareIcon, Squares2X2Icon, XMarkIcon } from '@heroicons/react/20/solid'
+import { ArrowRightStartOnRectangleIcon, Bars3Icon, ChartBarIcon, Cog6ToothIcon, CpuChipIcon, Squares2X2Icon, XMarkIcon } from '@heroicons/react/20/solid'
 import * as Headless from '@headlessui/react'
 import { AnimatePresence, motion } from 'motion/react'
 import clsx from 'clsx'
@@ -27,10 +27,10 @@ function LogoMark({ className }: { className?: string }) {
 }
 
 const NAV_ITEMS = [
-  { label: 'Dashboard', icon: Squares2X2Icon, href: '/admin', match: (p: string) => p === '/admin' },
-  { label: 'Copilots', icon: CpuChipIcon, href: '/admin/agents', match: (p: string) => p === '/admin/agents' || p.startsWith('/admin/agents/') },
-  { label: 'Projects', icon: FolderIcon, href: '/admin/projects', match: (p: string) => p.startsWith('/admin/projects') },
-  { label: 'LangGraph', icon: ShareIcon, href: '/admin/langgraph', match: (p: string) => p.startsWith('/admin/langgraph') },
+  // Projects & copilots live on the dashboard (project boxes → project page →
+  // its agents) — no dedicated list tabs.
+  { label: 'Dashboard', icon: Squares2X2Icon, href: '/admin', match: (p: string) => p === '/admin' || p.startsWith('/admin/projects') || p.startsWith('/admin/agents') },
+  { label: 'Performance', icon: ChartBarIcon, href: '/admin/performance', match: (p: string) => p.startsWith('/admin/performance') },
   { label: 'Settings', icon: Cog6ToothIcon, href: '/admin/settings', match: (p: string) => p.startsWith('/admin/settings') },
 ] as const
 

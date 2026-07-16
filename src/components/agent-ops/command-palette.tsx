@@ -5,12 +5,11 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'motion/react'
 import * as Headless from '@headlessui/react'
 import { MagnifyingGlassIcon, Squares2X2Icon, PlusIcon } from '@heroicons/react/20/solid'
-import { CpuChipIcon, FolderIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'
+import { ChartBarIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'
 
 const ACTIONS = [
   { id: 'dashboard', name: 'Go to Dashboard', icon: Squares2X2Icon, href: '/admin', section: 'Navigation' },
-  { id: 'copilots', name: 'Manage Copilots', icon: CpuChipIcon, href: '/admin/agents', section: 'Navigation' },
-  { id: 'projects', name: 'Manage Projects', icon: FolderIcon, href: '/admin/projects', section: 'Navigation' },
+  { id: 'performance', name: 'View Performance', icon: ChartBarIcon, href: '/admin/performance', section: 'Navigation' },
   { id: 'settings', name: 'Global Settings', icon: Cog6ToothIcon, href: '/admin/settings', section: 'Navigation' },
   { id: 'new-copilot', name: 'Provision New Copilot', icon: PlusIcon, href: '/admin/agents/new', section: 'Actions' },
   { id: 'new-project', name: 'Register New Project', icon: PlusIcon, href: '/admin/projects/new', section: 'Actions' },

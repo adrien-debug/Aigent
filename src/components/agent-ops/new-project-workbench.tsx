@@ -426,7 +426,7 @@ export function NewProjectWorkbench() {
             ) : null}
 
             <div className="mt-8 flex items-center justify-end gap-3">
-              <Button plain href="/admin/projects">
+              <Button plain href="/admin">
                 Cancel
               </Button>
               <Button type="submit" color="accent" disabled={!canSubmit}>

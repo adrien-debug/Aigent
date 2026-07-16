@@ -38,15 +38,25 @@ const VALUE_TONE_CLASS = {
 /**
  * KPI band — single canon for all dashboard pages and agent sub-tabs.
  * Naked numbers on a hairline separator; accent reserved for emphasis only.
+ *
+ * `separators` (opt-in, additive): hairline dividers between stats via the
+ * `gap-px` grid technique (1px gaps over a white/5 backdrop, opaque cells) —
+ * survives every wrap breakpoint, unlike divide-x. Padding then lives inside
+ * each cell (px-6/lg:px-8 aligns the first stat with a card header), so
+ * callers must NOT add outer horizontal padding in this mode. Cells are
+ * filled with the canon card surface — use only inside a SurfaceCard.
  */
 export function AgentKpiBand({
   stats,
   className,
   density = 'default',
+  separators = false,
 }: {
   stats: AgentKpiStat[]
   className?: string
   density?: 'default' | 'compact'
+  /** Hairline separators between stats; padding moves into the cells. */
+  separators?: boolean
 }) {
   const hasChange = stats.some((stat) => stat.change)
   const hasViz = stats.some((stat) => stat.viz)
@@ -56,16 +66,22 @@ export function AgentKpiBand({
   // Reserve a fixed two-line height for the label so a title that wraps
   // ("24H COMPUTE COST") does not push its value lower than its one-line
   // neighbours — every value row then starts on the same baseline.
-  const labelClass =
-    density === 'compact'
+  const labelClass = separators
+    ? 'flex min-h-8 items-start text-[10px] font-medium uppercase tracking-widest text-zinc-500 mb-3 transition-colors group-hover:text-zinc-400'
+    : density === 'compact'
       ? 'flex min-h-8 items-start text-[10px] font-medium uppercase tracking-widest text-zinc-400 mb-1'
       : 'flex min-h-10 items-start text-xs font-semibold uppercase tracking-widest text-zinc-400 mb-2 group-hover:text-zinc-300 transition-colors'
 
   return (
     <div
       className={clsx(
-        'grid grid-cols-1 border-b border-white/5 sm:grid-cols-2',
-        density === 'compact' ? 'mb-10 gap-x-12 gap-y-6 py-4' : 'mb-8 gap-8 py-6',
+        'grid grid-cols-1 sm:grid-cols-2',
+        separators
+          ? 'gap-px bg-white/5'
+          : [
+              'border-b border-white/5',
+              density === 'compact' ? 'mb-10 gap-x-12 gap-y-6 py-4' : 'mb-8 gap-8 py-6',
+            ],
         COLS_CLASS[stats.length] ??
           (stats.length >= 6 ? 'md:grid-cols-3 xl:grid-cols-6' : 'md:grid-cols-4'),
         className
@@ -76,7 +92,14 @@ export function AgentKpiBand({
         const valueTone = stat.valueTone ?? 'default'
 
         return (
-          <div key={stat.name || 'slot'} className="group flex flex-col cursor-default">
+          <div
+            key={stat.name || 'slot'}
+            className={clsx(
+              'group flex flex-col cursor-default',
+              // Opaque cells mask the white/5 backdrop except in the 1px gaps.
+              separators && 'bg-[var(--color-surface-secondary)] px-6 py-5 lg:px-8'
+            )}
+          >
             {stat.name ? <span className={labelClass}>{stat.name}</span> : null}
 
             {hasChange ? (
@@ -107,7 +130,9 @@ export function AgentKpiBand({
 
             {hasViz ? <div className="mt-2 w-full flex-none">{stat.viz ?? null}</div> : null}
             {hasHint ? (
-              <span className="mt-1 text-xs text-zinc-400">{stat.hint ?? ' '}</span>
+              <span className={separators ? 'mt-2 text-xs text-zinc-500' : 'mt-1 text-xs text-zinc-400'}>
+                {stat.hint ?? ' '}
+              </span>
             ) : null}
           </div>
         )

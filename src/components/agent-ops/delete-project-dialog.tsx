@@ -11,7 +11,7 @@ import type { Project } from '@/lib/agent-mission-control/types'
 /**
  * Destructive confirm: permanently deletes a project and cascade-deletes every
  * copilot assigned to it. Same shape as DeleteCopilotDialog, but on success we
- * router.push('/admin/projects') — the deleted project's detail page must not
+ * router.push('/admin') — the deleted project's detail page must not
  * stay open. Per doctrine the destructive primary is a solid accent Button.
  */
 export function DeleteProjectDialog({
@@ -38,7 +38,7 @@ export function DeleteProjectDialog({
         setError(await messageForResponse(res, 'Delete failed — the project was not removed.'))
         return
       }
-      router.push('/admin/projects')
+      router.push('/admin')
     } catch {
       setError('Delete failed — the project was not removed.')
     } finally {

@@ -12,7 +12,7 @@ export default function CopilotNotFound() {
         stale.
       </Text>
       <div className="mt-6">
-        <Button href="/admin/agents">Back to copilots</Button>
+        <Button href="/admin">Back to dashboard</Button>
       </div>
     </div>
   )

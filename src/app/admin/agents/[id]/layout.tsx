@@ -47,14 +47,15 @@ export default async function CopilotLayout({
 
   return (
     <div>
-      {/* Ligne d'orientation compacte — juste un back-link vers la liste. */}
+      {/* Ligne d'orientation compacte — back-link vers le projet du copilot
+          (les copilotes vivent dans leur projet), sinon le dashboard. */}
       <nav aria-label="Breadcrumb" className="mt-2 flex min-w-0 items-center gap-2 text-xs">
         <Link
-          href="/admin/agents"
+          href={copilot.projectId ? `/admin/projects/${copilot.projectId}` : '/admin'}
           className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-950 dark:hover:text-white"
         >
           <ChevronLeftIcon aria-hidden="true" className="size-3.5 shrink-0" />
-          Copilots
+          {copilot.projectId ? 'Project' : 'Dashboard'}
         </Link>
       </nav>
 

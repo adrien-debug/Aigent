@@ -23,11 +23,11 @@ export default async function NewCopilotPage() {
             <div className="min-w-0">
               <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2 text-xs">
                 <Link
-                  href="/admin/agents"
+                  href="/admin"
                   className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-950 dark:hover:text-white"
                 >
                   <ChevronLeftIcon aria-hidden="true" className="size-3.5 shrink-0" />
-                  Copilots
+                  Dashboard
                 </Link>
               </nav>
               <h1 className="mt-3 text-4xl font-bold tracking-tight text-white sm:text-5xl">

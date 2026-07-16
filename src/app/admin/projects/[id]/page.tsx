@@ -1,10 +1,11 @@
-import { CodeBracketIcon, ServerStackIcon, CpuChipIcon, BoltIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline'
+import { ServerStackIcon, CpuChipIcon, BoltIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { ProjectDeleteAction } from '@/components/agent-ops/project-delete-action'
+import { ProjectHeader } from '@/components/agent-ops/project-header'
 import { ProjectMissionOrchestrator } from '@/components/agent-ops/project-mission-orchestrator'
 import { ProjectRepoIntelligence } from '@/components/agent-ops/project-repo-intelligence'
 import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
@@ -17,7 +18,7 @@ import {
   formatTimestamp,
   formatUsd,
 } from '@/lib/agent-mission-control/format'
-import { AGENT_RUNTIME_LABELS, PROJECT_PLATFORM_LABELS } from '@/lib/agent-mission-control/labels'
+import { AGENT_RUNTIME_LABELS } from '@/lib/agent-mission-control/labels'
 import type { AgentRun, Copilot } from '@/lib/agent-mission-control/types'
 
 export const dynamic = 'force-dynamic'
@@ -226,28 +227,12 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="flex flex-col gap-8 pb-12">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-4 text-xs min-w-0">
-          <div className="flex items-center gap-1.5 text-zinc-400 shrink-0">
-            <ServerStackIcon className="size-4" />
-            <span className="font-mono">{PROJECT_PLATFORM_LABELS[project.platform]}</span>
-          </div>
-          {project.repoUrl && project.repoFullName && (
-            <a
-              href={project.repoUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1.5 min-w-0 text-zinc-400 hover:text-white transition-colors"
-            >
-              <CodeBracketIcon className="size-4 shrink-0" />
-              <span className="font-mono truncate max-w-[50vw] sm:max-w-xs">{project.repoFullName}</span>
-            </a>
-          )}
-        </div>
-        <ProjectDeleteAction project={{ id: project.id, name: project.name }} />
-      </div>
-
-      <ProjectRepoIntelligence projectId={project.id} repoFullName={project.repoFullName ?? null} />
+      <ProjectHeader
+        project={project}
+        actions={<ProjectDeleteAction project={{ id: project.id, name: project.name }} />}
+      >
+        <ProjectRepoIntelligence projectId={project.id} repoFullName={project.repoFullName ?? null} />
+      </ProjectHeader>
 
       {project.repoFullName ? (
         <ProjectMissionOrchestrator
@@ -275,10 +260,10 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           <EmptyState
             icon={CpuChipIcon}
             title="No validated agents"
-            description="Validate copilots from the bench to see them here."
+            description="Provision a copilot for this project to see it here."
             action={
-              <Link href="/admin/agents" className="text-xs text-accent-400 hover:underline">
-                Go to the bench
+              <Link href="/admin/agents/new" className="text-xs text-accent-400 hover:underline">
+                Provision a copilot
               </Link>
             }
           />

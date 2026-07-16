@@ -1,7 +1,6 @@
 'use client'
 
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
-import { Link } from '@/components/catalyst/link'
 import { Text } from '@/components/catalyst/text'
 
 /** The LangGraph debug metadata a builder run carries (mirror of BuilderRunState.langgraph). */
@@ -29,8 +28,6 @@ export function LangGraphDebugPanel({ info, status }: { info: LangGraphDebugInfo
   // server (127.0.0.1/localhost) OR the prod server (agent.hearst.app). Studio
   // just needs a reachable baseUrl; there's no reason to hide it for prod.
   const hasServer = /^https?:\/\/.+/.test(info.agentServerUrl)
-  const runsHref = info.threadId ? `/admin/langgraph?threadId=${encodeURIComponent(info.threadId)}` : '/admin/langgraph'
-  const canvasHref = info.threadId ? `/admin/langgraph/canvas?threadId=${encodeURIComponent(info.threadId)}` : '/admin/langgraph/canvas'
 
   return (
     <AgentSectionCard
@@ -46,18 +43,6 @@ export function LangGraphDebugPanel({ info, status }: { info: LangGraphDebugInfo
       </dl>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
-        <Link
-          href={runsHref}
-          className="inline-flex min-h-11 items-center py-2 text-sm font-medium text-accent-700 hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300 dark:hover:text-accent-200"
-        >
-          {info.threadId ? 'Open thread in LangGraph Runs →' : 'Open LangGraph Runs →'}
-        </Link>
-        <Link
-          href={canvasHref}
-          className="inline-flex min-h-11 items-center py-2 text-sm font-medium text-accent-700 hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300 dark:hover:text-accent-200"
-        >
-          Open in Canvas →
-        </Link>
         {hasServer ? (
           <a
             href={studioUrl}
