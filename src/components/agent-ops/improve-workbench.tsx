@@ -335,7 +335,13 @@ export function ImproveWorkbench({
         body: '{}',
       })
       if (!res.ok || !res.body) {
-        setAutoError('Auto-improve could not start — live backend not configured.')
+        setAutoError(
+          res.status === 401 || res.status === 403
+            ? 'Auto-improve could not start — your session expired. Sign in again.'
+            : res.status === 503
+              ? 'Auto-improve could not start — live backend not configured.'
+              : `Auto-improve could not start (${res.status}).`
+        )
         return
       }
       await consumeSSE<AutoImproveFrame>(res.body, (ev) => {
