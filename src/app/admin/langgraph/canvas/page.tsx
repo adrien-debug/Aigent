@@ -29,7 +29,7 @@ export default function LangGraphCanvasPage() {
       <nav aria-label="Breadcrumb" className="mt-2 flex min-w-0 items-center gap-2 text-xs">
         <Link
           href="/admin/langgraph"
-          className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-950 dark:hover:text-white"
+          className="inline-flex items-center gap-1 rounded text-zinc-500 hover:text-zinc-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:hover:text-white"
         >
           <ChevronLeftIcon aria-hidden="true" className="size-3.5 shrink-0" />
           LangGraph Runs
