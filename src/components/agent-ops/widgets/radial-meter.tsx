@@ -98,7 +98,14 @@ export function RadialMeter({
           {display}
         </span>
       </div>
-      {caption ? <span className="text-xs text-zinc-500">{caption}</span> : null}
+      {/* Cap the caption to the ring width so a long caption wraps instead of
+          widening this centered column — otherwise the ring shifts off-axis
+          relative to a sibling ring with a shorter caption. */}
+      {caption ? (
+        <span className="text-center text-xs text-balance text-zinc-500" style={{ maxWidth: size }}>
+          {caption}
+        </span>
+      ) : null}
     </div>
   )
 }
