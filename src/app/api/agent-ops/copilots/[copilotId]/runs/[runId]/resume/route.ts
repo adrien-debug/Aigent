@@ -13,6 +13,16 @@ import { resolveRunAssistantId } from '@/lib/agent-mission-control/resolve-run-a
 // unrelated default (see recursionLimitFor in langgraph-server.ts).
 const DEFAULT_MAX_STEPS_PER_RUN = 12
 
+// Shape guards for the two path params — same family as every sibling route:
+// copilot ids are `makeId('copilot', slug)` (lowercase alphanumerics/hyphens,
+// bounded — COPILOT_ID_RE in ../../../run/route.ts), run ids are randomUUID()
+// minted by the runner (UUID_RE in architect/runs/[id]/route.ts). Both are
+// interpolated into PostgREST `eq.` filters below; rejecting anything else up
+// front is a fast, safe 400 (no valid id is ever refused) instead of a live DB
+// round-trip on garbage, and closes the filter-syntax hazard.
+const COPILOT_ID_RE = /^[a-z0-9-]{1,200}$/
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 /**
  * POST /api/agent-ops/copilots/:copilotId/runs/:runId/resume — human-in-the-loop
  * resume for a LangGraph run that paused for approval.
@@ -58,6 +68,13 @@ export async function POST(
   { params }: { params: Promise<{ copilotId: string; runId: string }> }
 ) {
   const { copilotId, runId } = await params
+
+  if (!COPILOT_ID_RE.test(copilotId)) {
+    return NextResponse.json({ error: 'invalid copilotId' }, { status: 400 })
+  }
+  if (!UUID_RE.test(runId)) {
+    return NextResponse.json({ error: 'invalid runId' }, { status: 400 })
+  }
 
   let body: { approved?: unknown }
   try {
@@ -211,50 +228,68 @@ export async function POST(
 
   // 2) Continue the thread with the operator's decision, then persist the
   //    resumed steps/tool calls and close the run. Any failure here is a 502.
+  // True once the Agent Server resumed the thread to a TERMINAL state (not a
+  // re-interrupt) — drives the catch block's claim cleanup: a thread that ran
+  // to completion can never be resumed again, one that didn't still can.
+  let threadRanToCompletion = false
   try {
     const result = await resumeOnAgentServer({ threadId, approved, assistantId, maxSteps: maxStepsPerRun })
+    threadRanToCompletion = !result.interrupted
 
     // Continue the run's step numbering from the max existing index + 1.
     const lastStepRows = await pgrest<Record<string, unknown>[]>(
       'GET',
       `agent_run_steps?run_id=eq.${encodeURIComponent(runId)}&select=index&order=index.desc&limit=1`
     )
-    let nextIndex =
+    const nextIndex =
       typeof lastStepRows[0]?.index === 'number' ? (lastStepRows[0].index as number) + 1 : 0
 
-    // Append the resumed steps (LangGraphServerStep kinds are already DB-valid).
-    for (const step of result.steps) {
-      await pgrest('POST', 'agent_run_steps', {
-        id: randomUUID(),
-        run_id: runId,
-        index: nextIndex,
-        kind: step.kind,
-        title: step.title,
-        detail: step.detail,
-        status: step.status,
-        started_at: new Date().toISOString(),
-        duration_ms: 0,
-        tool_call_id: null,
-      })
-      nextIndex += 1
+    // Append the resumed steps in ONE bulk insert (LangGraphServerStep kinds
+    // are already DB-valid) — a per-row POST loop would be N sequential
+    // round-trips to the gpu1 perimeter for rows all known up front.
+    if (result.steps.length > 0) {
+      const startedAt = new Date().toISOString()
+      await pgrest(
+        'POST',
+        'agent_run_steps',
+        result.steps.map((step, i) => ({
+          id: randomUUID(),
+          run_id: runId,
+          index: nextIndex + i,
+          kind: step.kind,
+          title: step.title,
+          detail: step.detail,
+          status: step.status,
+          started_at: startedAt,
+          duration_ms: 0,
+          tool_call_id: null,
+        }))
+      )
     }
 
-    // Append the resumed tool calls with the REAL tool_id/risk/confirmation.
-    for (const tc of result.toolCalls) {
-      const dbTool = toolByName.get(tc.toolName)
-      await pgrest('POST', 'tool_calls', {
-        id: randomUUID(),
-        run_id: runId,
-        tool_id: dbTool?.id ?? tc.toolName,
-        tool_name: tc.toolName,
-        arguments_summary: tc.argumentsSummary || '{}',
-        result_summary: tc.resultSummary,
-        status: tc.status,
-        risk_level: dbTool?.risk ?? 'low',
-        // A tool that went through this approval path required confirmation.
-        required_confirmation: dbTool?.requiresConfirmation ?? true,
-        latency_ms: 0,
-      })
+    // Append the resumed tool calls with the REAL tool_id/risk/confirmation —
+    // same single bulk insert.
+    if (result.toolCalls.length > 0) {
+      await pgrest(
+        'POST',
+        'tool_calls',
+        result.toolCalls.map((tc) => {
+          const dbTool = toolByName.get(tc.toolName)
+          return {
+            id: randomUUID(),
+            run_id: runId,
+            tool_id: dbTool?.id ?? tc.toolName,
+            tool_name: tc.toolName,
+            arguments_summary: tc.argumentsSummary || '{}',
+            result_summary: tc.resultSummary,
+            status: tc.status,
+            risk_level: dbTool?.risk ?? 'low',
+            // A tool that went through this approval path required confirmation.
+            required_confirmation: dbTool?.requiresConfirmation ?? true,
+            latency_ms: 0,
+          }
+        })
+      )
     }
 
     // Re-aggregate the run's counters from the full tool_calls table so
@@ -367,6 +402,32 @@ export async function POST(
         { error: 'the approval thread was lost (Agent Server restarted) — relaunch the run', threadLost: true },
         { status: 409 }
       )
+    }
+    // The run was claimed (`running`) at step 5 and NOTHING else ever
+    // transitions that row — a generic failure must not leave it stuck in
+    // `running` forever (every resume retry would 409 against the claim).
+    // Best-effort, mirroring the thread-lost close-out above:
+    //   - the thread did NOT run to completion (resume call failed, or it
+    //     re-interrupted and persisting that failed) → its approval is still
+    //     pending: hand the claim back (`needs-confirmation`) so the operator
+    //     can retry.
+    //   - the thread DID run to completion but persisting the outcome failed →
+    //     it can never be resumed again: close it out honestly as `failed`.
+    try {
+      await pgrest(
+        'PATCH',
+        `agent_runs?id=eq.${encodeURIComponent(runId)}`,
+        threadRanToCompletion
+          ? {
+              status: 'failed',
+              output_summary:
+                'The thread resumed but its outcome could not be persisted — check the run trace on the Agent Server.',
+              finished_at: new Date().toISOString(),
+            }
+          : { status: 'needs-confirmation' }
+      )
+    } catch {
+      // Non-fatal — the 502 below still tells the client the resume failed.
     }
     // Never forward the raw error text to the client: it can carry Agent
     // Server/internal detail. Log server-side, generic message to the caller
