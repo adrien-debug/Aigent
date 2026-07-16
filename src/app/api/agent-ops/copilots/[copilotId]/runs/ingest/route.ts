@@ -109,6 +109,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     )
   }
 
+  // A caller-supplied versionId must belong to THIS copilot — otherwise an
+  // authenticated caller could attribute traffic to another copilot's version
+  // (the FK would accept it; the attribution would be a lie). 422, not 404:
+  // the copilot exists, the version claim is what's wrong.
+  if (parsed.versionId && parsed.versionId !== productionVersionId) {
+    let owned = false
+    try {
+      const vrows = await pgrest<{ id: string }[]>(
+        'GET',
+        `copilot_versions?select=id&id=eq.${encodeURIComponent(parsed.versionId)}&copilot_id=eq.${encodeURIComponent(copilotId)}&limit=1`
+      )
+      owned = vrows.length > 0
+    } catch (err) {
+      console.error('[agent-ops/runs/ingest] version lookup failed', err)
+      return NextResponse.json({ error: 'failed to check version' }, { status: isPgrestTimeout(err) ? 504 : 502 })
+    }
+    if (!owned) {
+      return NextResponse.json({ error: 'versionId does not belong to this copilot' }, { status: 422 })
+    }
+  }
+
   const runId = randomUUID()
   const now = new Date().toISOString()
   const startedAt = parsed.latencyMs != null ? new Date(Date.now() - parsed.latencyMs).toISOString() : now
@@ -116,7 +137,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     await pgrest('POST', 'agent_runs', {
       id: runId,
       copilot_id: copilotId,
-      // versionId from the caller only when it matches our ID shape; else the
+      // Caller versionId only after the ownership check above passed; else the
       // copilot's own production version (the honest default for prod traffic).
       version_id: parsed.versionId ?? productionVersionId,
       project_id: projectId,
@@ -124,12 +145,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
       started_at: startedAt,
       finished_at: now,
       status: parsed.status,
-      input_summary: parsed.inputSummary ?? null,
-      output_summary: parsed.outputSummary ?? null,
+      // input/output_summary, latency_ms and cost_usd are all NOT NULL in
+      // agent_runs (probed live: 23502 on null) — absent values land as the
+      // empty string / 0, matching the runner's own rows, never as null.
+      input_summary: parsed.inputSummary ?? '',
+      output_summary: parsed.outputSummary ?? '',
       tool_call_count: parsed.toolCallCount ?? 0,
       unsafe_attempt_count: parsed.unsafeAttemptCount ?? 0,
-      latency_ms: parsed.latencyMs ?? null,
-      cost_usd: parsed.costUsd ?? null,
+      latency_ms: parsed.latencyMs ?? 0,
+      cost_usd: parsed.costUsd ?? 0,
       trace_url: null,
       thread_id: null,
       created_via: 'production',

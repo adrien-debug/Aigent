@@ -587,10 +587,13 @@ export function deriveAllowedRoutesFromTools(toolNames: string[]): string[] {
     const trimmed = name.trim()
     // Route-shaped: starts with '/', at least one segment, no whitespace.
     if (!/^\/[A-Za-z0-9_\-/[\]]+$/.test(trimmed)) continue
-    routes.add(trimmed)
+    // Canonicalize on segments so '//api//x' and '/api/market/' never leak a
+    // doubled or trailing slash into the manifest — one form per route.
     const segs = trimmed.split('/').filter(Boolean)
+    if (segs.length === 0) continue
+    routes.add(`/${segs.join('/')}`)
     if (segs.length >= 2) routes.add(`/${segs[0]}/${segs[1]}/*`)
-    else if (segs.length === 1) routes.add(`/${segs[0]}/*`)
+    else routes.add(`/${segs[0]}/*`)
   }
   return [...routes]
 }
