@@ -71,14 +71,14 @@ export function GateHistoryFeed({ events }: { events: GateHistoryEvent[] }) {
                       <Icon aria-hidden="true" className={clsx('size-5', iconColor)} />
                     </span>
                   </div>
-                  <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
-                    <div>
+                  <div className="flex min-w-0 flex-1 flex-col justify-between gap-1 pt-1.5 sm:flex-row sm:gap-4">
+                    <div className="min-w-0">
                       <p className="text-sm text-zinc-500 dark:text-zinc-400">
                         {event.content}{' '}
                         <span className="font-medium text-zinc-950 dark:text-white">{event.target}</span>
                       </p>
                     </div>
-                    <div className="text-right text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
+                    <div className="text-sm whitespace-nowrap text-zinc-500 sm:text-right dark:text-zinc-400">
                       <time dateTime={event.datetime}>{event.date}</time>
                     </div>
                   </div>
