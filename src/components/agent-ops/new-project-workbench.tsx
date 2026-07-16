@@ -262,7 +262,7 @@ export function NewProjectWorkbench() {
                       aria-pressed={isSelected}
                       className={
                         'w-full rounded-lg px-4 py-3 text-left transition-colors ' +
-                        'focus:not-data-focus:outline-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 ' +
+                        'focus:not-data-focus:outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-accent-500 ' +
                         (isSelected
                           ? 'ring-1 ring-accent-500 dark:bg-white/5'
                           : 'ring-1 ring-transparent hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5')
