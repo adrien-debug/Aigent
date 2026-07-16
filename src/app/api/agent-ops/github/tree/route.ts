@@ -11,14 +11,20 @@ import { getRepoTree } from '@/lib/agent-mission-control/github'
 // schemas in ../file/route.ts (repo/ref) — no shared module because each
 // route in this trio is single-owner.
 
-/** owner/name only — no `..`, no extra `/`, no query, no `@`. */
+/** owner/name only — no `..`, no extra `/`, no query, no `@`. Bounded well
+ * above GitHub's real limits (owner ≤ 39 + "/" + repo ≤ 100), same cap as the
+ * `repo` field in projects/[id]/builder/run/route.ts. */
 const repoSchema = z
   .string()
+  .max(200, 'repo too long')
   .regex(/^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/, 'repo must be "owner/name"')
 
-/** Git refs: branches, tags, or full SHAs — safe charset only. */
+/** Git refs: branches, tags, or full SHAs — safe charset only, bounded (git
+ * refs are ≤ 256 bytes in practice; a megabyte query param has no business
+ * reaching the GitHub URL builder). */
 const refSchema = z
   .string()
+  .max(256, 'ref too long')
   .regex(/^[A-Za-z0-9._/-]+$/, 'ref contains unsafe characters')
 
 /**
