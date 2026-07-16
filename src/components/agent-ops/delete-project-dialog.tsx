@@ -55,7 +55,7 @@ export function DeleteProjectDialog({
       </DialogDescription>
       {error ? <p className="mt-4 text-sm text-accent-600 dark:text-accent-400">{error}</p> : null}
       <DialogActions>
-        <Button plain onClick={onClose}>
+        <Button plain disabled={pending} onClick={onClose}>
           Cancel
         </Button>
         <Button color="accent" disabled={pending} onClick={remove}>
