@@ -299,7 +299,7 @@ export function LiveTestRunPanel({ copilotId, suiteId, versionId, cases: suiteCa
         break
 
       case 'error':
-        setError('Test run failed — a case aborted the run.')
+        setError(frame.error ? `Test run failed — ${frame.error}` : 'Test run failed — a case aborted the run.')
         break
 
       // case-thread: threadId is not needed for the canvas; ignore it.
