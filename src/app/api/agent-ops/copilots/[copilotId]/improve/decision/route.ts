@@ -36,8 +36,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   if (body.decision !== 'approved' && body.decision !== 'rejected') {
     return NextResponse.json({ error: "decision must be 'approved' or 'rejected'" }, { status: 400 })
   }
-  if (body.decidedBy !== undefined && typeof body.decidedBy !== 'string') {
-    return NextResponse.json({ error: 'decidedBy must be a string' }, { status: 400 })
+  if (body.decidedBy !== undefined && (typeof body.decidedBy !== 'string' || body.decidedBy.length > 200)) {
+    return NextResponse.json({ error: 'decidedBy must be a string of at most 200 characters' }, { status: 400 })
   }
 
   const base = process.env.AMC_SUPABASE_URL
