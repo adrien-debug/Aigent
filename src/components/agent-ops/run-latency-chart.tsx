@@ -32,12 +32,12 @@ function LatencyTooltip({ active, payload }: TooltipContentProps) {
   if (!point) return null
 
   return (
-    <div className="rounded-xl px-4 py-3 text-xs bg-black/80 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
-      <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
-        <span className="font-mono font-medium text-white">{point.id}</span>
-        <span className="font-mono text-zinc-500">{point.label}</span>
+    <div className="max-w-[min(180px,calc(100vw-32px))] rounded-xl px-4 py-3 text-xs bg-black/80 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+      <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-white/10">
+        <span className="font-mono font-medium text-white truncate">{point.id}</span>
+        <span className="font-mono text-zinc-500 shrink-0">{point.label}</span>
       </div>
-      <dl className="min-w-[180px] space-y-2">
+      <dl className="space-y-2">
         <div className="flex items-center justify-between">
           <dt className="text-[10px] uppercase tracking-widest text-zinc-500">Latency</dt>
           <dd className="font-mono text-accent-400">{formatDurationMs(point.latencyMs)}</dd>
