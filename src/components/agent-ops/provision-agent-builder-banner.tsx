@@ -42,7 +42,7 @@ export function ProvisionAgentBuilderBanner() {
   }
 
   return (
-    <div className="rounded-xl bg-zinc-950 p-5 ring-1 ring-white/10">
+    <div className="rounded-xl bg-zinc-950 p-6 ring-1 ring-white/10">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-xs font-medium tracking-wide text-accent-300 uppercase">Agent Builder Copilot</p>
