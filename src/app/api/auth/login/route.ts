@@ -1,6 +1,16 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 
 import { authConfigured, createAdminSessionCookie, verifyAdminPassword } from '@/lib/agent-mission-control/auth'
+
+/**
+ * Body contract. `.max(1024)` bounds the only attacker-controlled string this
+ * unauthenticated route hashes — without it a multi-megabyte "password" is
+ * buffered and sha256'd on every guess. No real admin password approaches 1 KiB.
+ */
+const loginBodySchema = z.object({
+  password: z.string().min(1).max(1024),
+})
 
 /**
  * POST /api/auth/login — exchange the admin password for a signed session
@@ -39,12 +49,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'Invalid request.' }, { status: 400 })
   }
 
-  const password =
-    body !== null && typeof body === 'object' && typeof (body as { password?: unknown }).password === 'string'
-      ? (body as { password: string }).password
-      : ''
+  const parsed = loginBodySchema.safeParse(body)
+  if (!parsed.success) {
+    // Malformed shape (missing/empty/non-string/oversized password) is a 400
+    // like malformed JSON above — only a well-formed wrong password is a 401.
+    return NextResponse.json({ ok: false, error: 'Invalid request.' }, { status: 400 })
+  }
 
-  const ok = await verifyAdminPassword(password)
+  const ok = await verifyAdminPassword(parsed.data.password)
   if (!ok) {
     recordFailedAttempt(clientKey)
     return NextResponse.json({ ok: false, error: 'Invalid password.' }, { status: 401 })
@@ -68,6 +80,11 @@ export async function POST(request: Request) {
 
 const MAX_ATTEMPTS = 10
 const WINDOW_MS = 5 * 60 * 1000 // 5 minutes
+// Hard cap on distinct tracked clients: x-forwarded-for is attacker-supplied,
+// so without a bound a flood of spoofed keys grows this map without limit
+// (expired windows were only pruned when the SAME key came back).
+const MAX_TRACKED_CLIENTS = 10_000
+const MAX_KEY_LENGTH = 100 // longest valid textual IP is ~45 chars; don't store megabyte headers as keys
 
 const attempts = new Map<string, number[]>()
 
@@ -75,10 +92,10 @@ function clientIdentifier(request: Request): string {
   const forwardedFor = request.headers.get('x-forwarded-for')
   if (forwardedFor) {
     const first = forwardedFor.split(',')[0]?.trim()
-    if (first) return first
+    if (first) return first.slice(0, MAX_KEY_LENGTH)
   }
   const realIp = request.headers.get('x-real-ip')
-  if (realIp) return realIp.trim()
+  if (realIp) return realIp.trim().slice(0, MAX_KEY_LENGTH)
   return 'unknown'
 }
 
@@ -93,6 +110,18 @@ function isRateLimited(key: string): boolean {
 
 function recordFailedAttempt(key: string): void {
   const cutoff = Date.now() - WINDOW_MS
+  if (!attempts.has(key) && attempts.size >= MAX_TRACKED_CLIENTS) {
+    // Evict fully-expired windows first; if every entry is still live, drop
+    // the oldest-inserted key (Map preserves insertion order) so the map
+    // stays bounded even under a spoofed-key flood.
+    for (const [k, ts] of attempts) {
+      if (!ts.some((t) => t > cutoff)) attempts.delete(k)
+    }
+    if (attempts.size >= MAX_TRACKED_CLIENTS) {
+      const oldest = attempts.keys().next().value
+      if (oldest !== undefined) attempts.delete(oldest)
+    }
+  }
   const timestamps = (attempts.get(key) ?? []).filter((t) => t > cutoff)
   timestamps.push(Date.now())
   attempts.set(key, timestamps)
