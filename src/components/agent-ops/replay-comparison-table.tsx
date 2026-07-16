@@ -10,6 +10,18 @@ const verdictLabels: Record<ReplayStepDiff['verdict'], string> = {
 }
 
 /**
+ * Verdict semantics are carried by the LABEL + an accent-intensity nuance —
+ * never by a green/red hue (doctrine shared with TestCaseTable's resultTextClass).
+ * Match reads as a soft accent, diff/divergence/unsafe escalate.
+ */
+const verdictToneClass: Record<ReplayStepDiff['verdict'], string> = {
+  match: 'text-accent-500 dark:text-accent-400',
+  'acceptable-diff': 'text-zinc-500 dark:text-zinc-400',
+  divergence: 'text-accent-600 dark:text-accent-500',
+  unsafe: 'text-accent-700 dark:text-accent-600 font-medium',
+}
+
+/**
  * Expected vs actual behavior, per replayed step, for one candidate.
  * Server-safe: pure Catalyst table, no state, no effects.
  */
@@ -39,7 +51,7 @@ export function ReplayComparisonTable({ candidate }: { candidate: ReplayCandidat
               <TableCell className="min-w-48 align-top whitespace-normal text-zinc-500 dark:text-zinc-400">{step.expected}</TableCell>
               <TableCell className="min-w-48 align-top whitespace-normal text-zinc-700 dark:text-zinc-300">{step.actual}</TableCell>
               <TableCell className="align-top">
-                <span className="text-zinc-500 dark:text-zinc-400">{verdictLabel}</span>
+                <span className={verdictToneClass[step.verdict]}>{verdictLabel}</span>
               </TableCell>
             </TableRow>
           )
