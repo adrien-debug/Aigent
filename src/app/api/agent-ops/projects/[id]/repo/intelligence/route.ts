@@ -33,6 +33,24 @@ function envReady(): boolean {
   )
 }
 
+/**
+ * Collapse concurrent identical scans (double-click on "Retry scan", the
+ * auto-scan-on-open firing twice from parallel mounts/tabs): every concurrent
+ * caller with the same project+force awaits the SAME ensureRepoIntelligence
+ * promise instead of each running its own GitHub tree fetch + file reads +
+ * cache PATCH. Best-effort per server instance; response contract unchanged.
+ */
+const inflight = new Map<string, Promise<Awaited<ReturnType<typeof ensureRepoIntelligence>>>>()
+
+function ensureDeduped(id: string, force: boolean) {
+  const key = `${id}:${force ? 'force' : 'auto'}`
+  const existing = inflight.get(key)
+  if (existing) return existing
+  const p = ensureRepoIntelligence(id, { force }).finally(() => inflight.delete(key))
+  inflight.set(key, p)
+  return p
+}
+
 async function handle(id: string, force: boolean) {
   if (!PROJECT_ID_RE.test(id)) {
     return NextResponse.json({ error: 'invalid id' }, { status: 400 })
@@ -41,7 +59,7 @@ async function handle(id: string, force: boolean) {
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
   }
   try {
-    const result = await ensureRepoIntelligence(id, { force })
+    const result = await ensureDeduped(id, force)
     return NextResponse.json({ ok: true, ...result })
   } catch (err) {
     if (err instanceof RepoIntelligenceBackendError) {
