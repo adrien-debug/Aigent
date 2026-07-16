@@ -37,7 +37,7 @@ beforeAll(async () => {
 })
 
 describe('/admin pages — 200 with a valid admin session', () => {
-  it('GET /admin (dashboard)', async () => {
+  it('GET /admin (dashboard) — delivery command center', async () => {
     if (!baseUrl || !sessionCookie) {
       console.warn('[live] skip: app not reachable or admin login unavailable (AMC_ADMIN_PASSWORD not set)')
       return
@@ -48,6 +48,13 @@ describe('/admin pages — 200 with a valid admin session', () => {
       signal: AbortSignal.timeout(10_000),
     })
     expect(res.status).toBe(200)
+    const html = await res.text()
+    expect(html).toContain('Agent Delivery Command Center')
+    expect(html).toContain('Active Delivery Loop')
+    expect(html).toContain('Requires Attention')
+    expect(html).toContain('Agent Delivery Matrix')
+    expect(html).not.toContain('System Topology')
+    expect(html).not.toContain('RunLatencyChart')
   })
 
   it('GET /admin/agents (list)', async () => {
