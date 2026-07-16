@@ -66,7 +66,7 @@ export function CopilotProjectActions({
                 </span>
                 <Headless.Button
                   onClick={() => setPushTarget(copilot)}
-                  className="rounded text-sm text-zinc-500 transition-colors hover:text-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-zinc-400 dark:hover:text-zinc-200"
+                  className="-my-1.5 rounded px-2 py-1.5 text-sm text-zinc-500 transition-colors hover:text-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-zinc-400 dark:hover:text-zinc-200"
                 >
                   Push again…
                 </Headless.Button>
