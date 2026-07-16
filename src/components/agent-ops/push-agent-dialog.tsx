@@ -157,6 +157,7 @@ export function PushAgentDialog({
                     onClick={() => setDeliveryMode(opt.mode)}
                     className={clsx(
                       'rounded-lg p-3 text-left ring-1 transition-colors',
+                      'focus:not-data-focus:outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-accent-500',
                       selected
                         ? 'bg-[var(--accent-surface)] ring-[var(--accent-line-strong)]'
                         : 'bg-zinc-950/2.5 ring-zinc-950/10 hover:bg-zinc-950/5 dark:bg-white/5 dark:ring-white/10 dark:hover:bg-white/10'
@@ -227,7 +228,9 @@ export function PushAgentDialog({
             )
           ) : null}
         </div>
-        {error ? <p className="mt-4 text-sm text-accent-600 dark:text-accent-400">{error}</p> : null}
+        <div aria-live="assertive">
+          {error ? <p className="mt-4 text-sm text-accent-600 dark:text-accent-400">{error}</p> : null}
+        </div>
       </DialogBody>
       <DialogActions>
         <Button plain onClick={onClose}>
