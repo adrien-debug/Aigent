@@ -175,9 +175,13 @@ async function reconcileStaleDraftReference(
 }
 
 export async function ensureActiveProjectBuilderConversation(projectId: string): Promise<ProjectBuilderConversation> {
+  // `draft_created` is terminal: once a copilot has been materialized, this
+  // conversation must never be picked up again for a NEW one — that was the
+  // "New Copilot stuck on the old thread" bug. Only active/draft_ready (no
+  // draft materialized yet) are eligible for reuse.
   const rows = await pgrest<RawRow[]>(
     'GET',
-    `project_builder_conversations?${eq('project_id', projectId)}&status=in.(active,draft_ready,draft_created)&select=*&order=updated_at.desc&limit=1`
+    `project_builder_conversations?${eq('project_id', projectId)}&status=in.(active,draft_ready)&select=*&order=updated_at.desc&limit=1`
   )
   if (rows[0]) return reconcileStaleDraftReference(rowToConversation(rows[0]))
 
