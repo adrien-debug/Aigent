@@ -117,12 +117,12 @@ function CanvasDefs() {
       <defs>
         {/* Node surface gradients — subtle top-lit sheen, never flat. */}
         <linearGradient id="node-idle" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(113,113,122,0.08)" />
-          <stop offset="100%" stopColor="rgba(113,113,122,0.02)" />
+          <stop offset="0%" stopColor="color-mix(in oklab, var(--color-zinc-500) 8%, transparent)" />
+          <stop offset="100%" stopColor="color-mix(in oklab, var(--color-zinc-500) 2%, transparent)" />
         </linearGradient>
         <linearGradient id="node-completed" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(113,113,122,0.14)" />
-          <stop offset="100%" stopColor="rgba(113,113,122,0.05)" />
+          <stop offset="0%" stopColor="color-mix(in oklab, var(--color-zinc-500) 14%, transparent)" />
+          <stop offset="100%" stopColor="color-mix(in oklab, var(--color-zinc-500) 5%, transparent)" />
         </linearGradient>
         <linearGradient id="node-hot" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="var(--accent-soft)" />
@@ -130,10 +130,10 @@ function CanvasDefs() {
         </linearGradient>
         {/* Soft drop shadow for elevation. */}
         <filter id="node-shadow" x="-30%" y="-30%" width="160%" height="180%">
-          <feDropShadow dx="0" dy="1.5" stdDeviation="2" floodColor="rgb(24 24 27)" floodOpacity="0.12" />
+          <feDropShadow dx="0" dy="1.5" stdDeviation="2" floodColor="var(--color-zinc-900)" floodOpacity="0.12" />
         </filter>
         <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="rgb(161 161 170)" />
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-zinc-400)" />
         </marker>
         <marker id="arrow-hot" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
           <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent-line)" />
@@ -173,8 +173,8 @@ function NodeBox({ node, status, selected, onSelect, index }: { node: RenderNode
       : status === 'error'
         ? 'var(--color-accent-800)'
         : status === 'completed'
-          ? 'rgb(113 113 122)'
-          : 'rgb(212 212 216)'
+          ? 'var(--color-zinc-500)'
+          : 'var(--color-zinc-300)'
   return (
     <g
       className="lg-node cursor-pointer outline-hidden"
@@ -231,7 +231,7 @@ function Edge({ a, b, dashed, traversed, index }: { a: RenderNode; b: RenderNode
   const mx = (x1 + x2) / 2 + -uy * 14
   const my = (y1 + y2) / 2 + ux * 14
   const d = `M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`
-  const stroke = traversed ? 'var(--accent-line)' : 'rgb(212 212 216)'
+  const stroke = traversed ? 'var(--accent-line)' : 'var(--color-zinc-300)'
   return (
     <g className="lg-node" style={{ animationDelay: `${index * 40}ms` }}>
       {/* Base edge. */}
