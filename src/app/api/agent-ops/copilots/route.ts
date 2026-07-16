@@ -1,5 +1,6 @@
 import { after } from 'next/server'
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 
 import { prepareAutoEval } from '@/lib/agent-mission-control/agent-autoeval'
 import {
@@ -12,6 +13,129 @@ import {
   deleteCopilotAssistant,
   ensureCopilotAssistant,
 } from '@/lib/agent-mission-control/langgraph-assistants'
+
+/**
+ * Legacy validation messages, kept VERBATIM across the zod migration (same
+ * strings the previous manual checks returned) so existing callers keep seeing
+ * the exact errors they may already match on. Non-legacy issues get their
+ * field path prefixed instead (see POST) so nested manifest errors stay
+ * actionable ("manifest.maxStepsPerRun: …").
+ */
+const MSG = {
+  body: 'invalid JSON body',
+  name: 'name is required (max 200 chars)',
+  slug: 'slug is required (max 200 chars)',
+  manifest: 'manifest is required',
+  projectId: 'projectId must be a string or null',
+  targetProjectIds: 'targetProjectIds must be an array of at most 2 strings',
+  tags: 'tags must be an array of at most 50 strings',
+  proposedTools:
+    'manifest.proposedTools must be an array of at most 50 tools, each with a non-empty name',
+} as const
+const LEGACY_MESSAGES = new Set<string>(Object.values(MSG))
+
+/**
+ * `slug` becomes the copilot id (`makeId('copilot', `${slug}-<8 hex>`)`, see
+ * authoring-writes.ts) and the sibling [copilotId] route guards ids with
+ * /^[a-z0-9-]{1,200}$/ — a slug outside that charset would create a copilot
+ * whose own DELETE/PATCH route rejects its id (an unmanageable row). Max 183
+ * = 200 − 'copilot-'(8) − '-'(1) − hex suffix(8), so the derived id always
+ * fits the sibling guard.
+ */
+const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,182}$/
+
+const proposedToolSchema = z.object(
+  {
+    name: z
+      .string({ message: MSG.proposedTools })
+      .trim()
+      .min(1, MSG.proposedTools)
+      .max(200, MSG.proposedTools),
+    description: z.string().max(2000, 'must be at most 2000 chars').default(''),
+    // provider/risk_level are NOT NULL + CHECK in DB with no default — an
+    // invalid or missing value must die here as a 400, not mid-multi-insert
+    // as an opaque 502 that strands the already-created copilot + manifest.
+    provider: z.enum(['internal', 'composio', 'mcp', 'http']),
+    riskLevel: z.enum(['low', 'medium', 'high', 'critical']),
+    // Mirrors the DB default (tools.requires_confirmation not null default false).
+    requiresConfirmation: z.boolean().default(false),
+  },
+  { message: MSG.proposedTools }
+)
+
+/**
+ * Full body contract for POST /api/agent-ops/copilots — every field of
+ * CreateCopilotInput (authoring-types.ts) is type-checked AND bounded before
+ * anything reaches the multi-insert (non-atomic: a mid-flight DB rejection
+ * strands orphan rows) or the assistant's composed system prompt. Enum unions
+ * mirror the DB CHECK constraints (types.ts); defaults mirror the DB column
+ * defaults so previously-omittable fields stay omittable. proposedTools
+ * drives a per-item INSERT loop in createCopilotFromManifest — an oversized
+ * or malformed array must be rejected here (400) rather than reach that loop.
+ * Mirrors the zod pattern of ../projects/route.ts.
+ */
+const createCopilotBodySchema = z.object(
+  {
+    name: z.string({ message: MSG.name }).trim().min(1, MSG.name).max(200, MSG.name),
+    slug: z
+      .string({ message: MSG.slug })
+      .trim()
+      .min(1, MSG.slug)
+      .max(200, MSG.slug)
+      .regex(SLUG_RE, 'must be 1-183 lowercase letters, digits or hyphens (it becomes the copilot id)'),
+    description: z.string().max(4000, 'must be at most 4000 chars').default(''),
+    runtime: z.enum(['langgraph', 'openai-assistants', 'gemini', 'custom']),
+    model: z.string().max(200, 'must be at most 200 chars'),
+    modelProvider: z.enum(['openai', 'google', 'mistral', 'local']),
+    owner: z.string().max(200, 'must be at most 200 chars'),
+    tags: z
+      .array(z.string({ message: MSG.tags }).max(100, 'each tag must be at most 100 chars'), {
+        message: MSG.tags,
+      })
+      .max(50, MSG.tags)
+      .default([]),
+    projectId: z
+      .union([z.string().max(200, MSG.projectId), z.null()], { message: MSG.projectId })
+      .default(null),
+    targetProjectIds: z
+      .array(
+        z.string({ message: MSG.targetProjectIds }).max(200, 'each id must be at most 200 chars'),
+        { message: MSG.targetProjectIds }
+      )
+      .max(2, MSG.targetProjectIds)
+      .default([]),
+    manifest: z.object(
+      {
+        systemPromptSummary: z.string().max(20000, 'must be at most 20000 chars').default(''),
+        allowedRoutes: z.array(z.string().max(500)).max(100).default([]),
+        forbiddenActions: z.array(z.string().max(1000)).max(100).default([]),
+        confirmationPolicy: z.enum(['never', 'risky-only', 'always']),
+        alwaysConfirmActions: z.array(z.string().max(1000)).max(100).default([]),
+        outputContract: z.object({
+          format: z.enum(['json', 'markdown', 'text', 'ui-actions']),
+          schemaName: z.union([z.string().max(200), z.null()]).default(null),
+          invariants: z.array(z.string().max(1000)).max(100).default([]),
+        }),
+        proposedTools: z
+          .array(proposedToolSchema, { message: MSG.proposedTools })
+          .max(50, MSG.proposedTools),
+        skills: z
+          .array(
+            z.object({
+              label: z.string().max(200, 'must be at most 200 chars'),
+              detail: z.string().max(1000, 'must be at most 1000 chars').optional(),
+            })
+          )
+          .max(50)
+          .optional(),
+        maxStepsPerRun: z.number().int().min(1).max(1000),
+        maxCostPerRunUsd: z.number().min(0).max(10000),
+      },
+      { message: MSG.manifest }
+    ),
+  },
+  { message: MSG.body }
+)
 
 /**
  * POST /api/agent-ops/copilots — materialize a `CreateCopilotInput` (an
@@ -36,72 +160,31 @@ import {
  *
  * Live-only, fail-closed: without `AMC_DATA_SOURCE=gpu1` + Supabase env,
  * `createCopilotFromManifest` throws; we surface 503 rather than fake a
- * created copilot. Body validation mirrors ./[copilotId]/route.ts.
+ * created copilot. Body validated with the zod schema above (mirrors
+ * ../projects/route.ts), every field bounded, legacy error messages preserved.
  */
 export async function POST(request: Request) {
-  let body: CreateCopilotInput
+  let rawBody: unknown
   try {
-    body = await request.json()
+    rawBody = await request.json()
   } catch {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
   }
 
-  if (!body || typeof body !== 'object' || Array.isArray(body)) {
-    return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
+  const parsed = createCopilotBodySchema.safeParse(rawBody)
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    // Legacy messages are self-describing (kept verbatim for callers that may
+    // match on them); anything else gets its field path prefixed so nested
+    // manifest errors stay actionable.
+    const message = !issue
+      ? 'invalid request body'
+      : LEGACY_MESSAGES.has(issue.message) || issue.path.length === 0
+        ? issue.message
+        : `${issue.path.join('.')}: ${issue.message}`
+    return NextResponse.json({ error: message }, { status: 400 })
   }
-
-  if (typeof body.name !== 'string' || body.name.trim().length === 0 || body.name.length > 200) {
-    return NextResponse.json({ error: 'name is required (max 200 chars)' }, { status: 400 })
-  }
-  if (typeof body.slug !== 'string' || body.slug.trim().length === 0 || body.slug.length > 200) {
-    return NextResponse.json({ error: 'slug is required (max 200 chars)' }, { status: 400 })
-  }
-  if (!body.manifest || typeof body.manifest !== 'object' || Array.isArray(body.manifest)) {
-    return NextResponse.json({ error: 'manifest is required' }, { status: 400 })
-  }
-  if (body.projectId !== null && body.projectId !== undefined && typeof body.projectId !== 'string') {
-    return NextResponse.json({ error: 'projectId must be a string or null' }, { status: 400 })
-  }
-  if (
-    body.targetProjectIds !== undefined &&
-    (!Array.isArray(body.targetProjectIds) ||
-      body.targetProjectIds.some((id) => typeof id !== 'string') ||
-      body.targetProjectIds.length > 2)
-  ) {
-    return NextResponse.json(
-      { error: 'targetProjectIds must be an array of at most 2 strings' },
-      { status: 400 }
-    )
-  }
-  if (
-    body.tags !== undefined &&
-    (!Array.isArray(body.tags) || body.tags.some((t) => typeof t !== 'string') || body.tags.length > 50)
-  ) {
-    return NextResponse.json({ error: 'tags must be an array of at most 50 strings' }, { status: 400 })
-  }
-  // proposedTools drives an unbounded per-item INSERT loop in
-  // createCopilotFromManifest — an oversized or malformed array must be
-  // rejected here (400) rather than reach that loop, where a non-array value
-  // throws a raw "is not iterable" TypeError (caught below, but as an opaque
-  // 502) and an oversized array would fire hundreds of inserts per request.
-  const proposedTools = (body.manifest as { proposedTools?: unknown }).proposedTools
-  if (
-    !Array.isArray(proposedTools) ||
-    proposedTools.length > 50 ||
-    proposedTools.some(
-      (t) =>
-        !t ||
-        typeof t !== 'object' ||
-        typeof (t as { name?: unknown }).name !== 'string' ||
-        (t as { name: string }).name.trim().length === 0 ||
-        (t as { name: string }).name.length > 200
-    )
-  ) {
-    return NextResponse.json(
-      { error: 'manifest.proposedTools must be an array of at most 50 tools, each with a non-empty name' },
-      { status: 400 }
-    )
-  }
+  const body: CreateCopilotInput = parsed.data
 
   // Fail-closed 503 when the live backend is not configured — never fake success.
   if (process.env.AMC_DATA_SOURCE !== 'gpu1' || !process.env.AMC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -109,7 +192,12 @@ export async function POST(request: Request) {
   }
 
   // 1) Create the copilot (+ manifest + tools + version). A failure here is a
-  //    plain 502 (nothing to undo — the multi-insert is fail-closed). Internal
+  //    plain 502 (nothing to undo — the multi-insert is fail-closed), EXCEPT a
+  //    unique-violation on `copilots.slug` (`not null unique` since 0001):
+  //    re-submitting the same slug — the double-submit case — makes PostgREST
+  //    reject the insert with 409, a client-caused conflict, not an upstream
+  //    failure. Map it to 409 the same way ../projects/route.ts does for its
+  //    deterministic-id collision, instead of a misleading 502. Internal
   //    errors (PostgREST status/path/body) are logged server-side only — the
   //    client gets a generic message, matching projects/route.ts and the
   //    sibling [copilotId]/route.ts DELETE handler.
@@ -118,6 +206,13 @@ export async function POST(request: Request) {
     copilotId = await createCopilotFromManifest(body)
   } catch (err) {
     console.error('[agent-ops/copilots] createCopilotFromManifest failed:', err)
+    const message = err instanceof Error ? err.message : ''
+    if (/PostgREST 409 on POST copilots/.test(message)) {
+      return NextResponse.json(
+        { error: 'a copilot with this slug already exists' },
+        { status: 409 }
+      )
+    }
     return NextResponse.json({ error: 'copilot creation failed' }, { status: 502 })
   }
 
