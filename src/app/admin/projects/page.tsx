@@ -68,7 +68,7 @@ export default async function ProjectsPage() {
           </div>
 
           {projects.length > 0 ? (
-            <div className="grid flex-1 grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4 p-6">
+            <div className="grid flex-1 grid-cols-[repeat(auto-fill,minmax(min(320px,100%),1fr))] gap-4 p-6">
               {projects.map((project) => (
                 <ProjectCard
                   key={project.id}
