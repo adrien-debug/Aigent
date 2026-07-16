@@ -2,6 +2,16 @@ import { NextResponse } from 'next/server'
 
 import { newLoopRunId, runDeliveryLoop } from '@/lib/agent-mission-control/delivery-loop-server'
 
+// Copilot ids are `copilot-<slug>-<uuid8>` (lowercase alnum + hyphens) — same
+// guard as the sibling [copilotId]/route.ts. Rejecting anything else up front
+// (400) keeps malformed segments out of every downstream PostgREST/sandbox call.
+const COPILOT_ID_RE = /^[a-z0-9-]{1,200}$/
+
+// `whatToTest` only feeds the manual-test message echoed back in the response,
+// but an unbounded body string is still an easy memory/log amplifier — cap it
+// like the other free-text fields on copilot routes.
+const MAX_WHAT_TO_TEST_LENGTH = 2_000
+
 /**
  * POST /api/agent-ops/copilots/:copilotId/delivery-loop — run ONE iteration of
  * the live delivery loop: assess the latest delivery + sandbox, classify any
@@ -16,8 +26,8 @@ import { newLoopRunId, runDeliveryLoop } from '@/lib/agent-mission-control/deliv
  */
 export async function POST(request: Request, { params }: { params: Promise<{ copilotId: string }> }) {
   const { copilotId } = await params
-  if (typeof copilotId !== 'string' || copilotId.trim().length === 0) {
-    return NextResponse.json({ error: 'copilotId is required' }, { status: 400 })
+  if (typeof copilotId !== 'string' || !COPILOT_ID_RE.test(copilotId)) {
+    return NextResponse.json({ error: 'invalid copilotId' }, { status: 400 })
   }
 
   const base = process.env.AMC_SUPABASE_URL
@@ -38,6 +48,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     whatToTest = typeof body?.whatToTest === 'string' ? body.whatToTest : undefined
   } catch {
     // safe defaults
+  }
+  if (whatToTest !== undefined && whatToTest.length > MAX_WHAT_TO_TEST_LENGTH) {
+    return NextResponse.json(
+      { error: `whatToTest must be at most ${MAX_WHAT_TO_TEST_LENGTH} chars` },
+      { status: 400 }
+    )
   }
 
   // Running a sandbox (esp. execute, which clones) needs GITHUB_TOKEN.
