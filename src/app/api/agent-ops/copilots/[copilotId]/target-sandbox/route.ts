@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 
 import { NextResponse } from 'next/server'
 
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 import { persistSandboxReport } from '@/lib/agent-mission-control/sandbox-reports-store'
 import { collectTargetRepoSandbox } from '@/lib/agent-mission-control/target-repo-sandbox-server'
 
@@ -115,6 +116,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     return NextResponse.json({ ok: true, report })
   } catch (err) {
     console.error('[target-sandbox] evaluation failed', err instanceof Error ? err.message : err)
-    return NextResponse.json({ error: 'sandbox evaluation failed' }, { status: 502 })
+    // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
+    // any other upstream failure stays a generic 502. Same body either way.
+    return NextResponse.json({ error: 'sandbox evaluation failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 }

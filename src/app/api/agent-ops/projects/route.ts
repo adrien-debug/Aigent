@@ -11,6 +11,7 @@ import {
   deleteProjectAssistant,
   ensureProjectAssistant,
 } from '@/lib/agent-mission-control/langgraph-assistants'
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 import { slugify } from '@/lib/agent-mission-control/slug'
 
 const PLATFORMS: ReadonlyArray<CreateProjectInput['platform']> = [
@@ -186,10 +187,9 @@ export async function POST(request: Request) {
         { status: 409 }
       )
     }
-    // pgrest() aborts a hung round-trip after 30s and rethrows PgrestError(504)
-    // ("PostgREST 504 on <method> <path>"): surface it as a gateway TIMEOUT,
-    // not a generic upstream failure.
-    if (/^PostgREST 504 on /.test(message)) {
+    // pgrest() aborts a hung round-trip after 30s and rethrows PgrestError(504):
+    // surface it as a gateway TIMEOUT, not a generic upstream failure.
+    if (isPgrestTimeout(err)) {
       return NextResponse.json({ error: 'project creation timed out' }, { status: 504 })
     }
     return NextResponse.json({ error: 'project creation failed' }, { status: 502 })
@@ -208,9 +208,11 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error('[agent-ops/projects] ensureProjectAssistant failed:', err)
     await deleteProjectCascade(projectId).catch(() => {})
+    // Same 504-vs-502 split as the sibling catches: a pgrest() timeout inside
+    // the provisioning path is a gateway timeout, not a generic failure.
     return NextResponse.json(
       { error: 'project assistant provisioning failed' },
-      { status: 502 }
+      { status: isPgrestTimeout(err) ? 504 : 502 }
     )
   }
 
@@ -224,10 +226,9 @@ export async function POST(request: Request) {
     await deleteProjectCascade(projectId).catch(() => {})
     // Same 504-vs-502 split as the createProject catch above: a pgrest()
     // timeout is a gateway timeout, any other backend failure a generic 502.
-    const message = err instanceof Error ? err.message : ''
     return NextResponse.json(
       { error: 'failed to link project to its assistant' },
-      { status: /^PostgREST 504 on /.test(message) ? 504 : 502 }
+      { status: isPgrestTimeout(err) ? 504 : 502 }
     )
   }
 

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { executeCopilotRun } from '@/lib/agent-mission-control/runner'
-import { pgrest } from '@/lib/agent-mission-control/postgrest'
+import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 
 // Default step budget when the manifest carries no usable `max_steps_per_run`.
 // Matches DEFAULT_MAX_STEPS in src/lib/agent-mission-control/copilot-behavior.ts
@@ -36,12 +36,10 @@ const COPILOT_ID_RE = /^[a-z0-9-]{1,200}$/
  * exceeds its 30s cap and rethrows it as a PgrestError with `.status === 504`
  * (see postgrest.ts). Surface that as 504 Gateway Timeout instead of a
  * generic 502 so the client can tell "backend hung" from "backend down /
- * erroring". PgrestError isn't exported, so classify by name + status.
+ * erroring". Classified by the shared isPgrestTimeout() guard.
  */
 function upstreamFailureStatus(err: unknown): 502 | 504 {
-  return err instanceof Error && err.name === 'PgrestError' && 'status' in err && err.status === 504
-    ? 504
-    : 502
+  return isPgrestTimeout(err) ? 504 : 502
 }
 
 /**

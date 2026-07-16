@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { newLoopRunId, runDeliveryLoop } from '@/lib/agent-mission-control/delivery-loop-server'
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 
 // Copilot ids are `copilot-<slug>-<uuid8>` (lowercase alnum + hyphens) — same
 // guard as the sibling [copilotId]/route.ts. Rejecting anything else up front
@@ -88,6 +89,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     return NextResponse.json({ ok: true, state })
   } catch (err) {
     console.error('[delivery-loop] iteration failed', err instanceof Error ? err.message : err)
-    return NextResponse.json({ error: 'delivery loop iteration failed' }, { status: 502 })
+    // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
+    // any other upstream failure stays a generic 502. Same body either way.
+    return NextResponse.json({ error: 'delivery loop iteration failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { decideProposal } from '@/lib/agent-mission-control/improvement-loop'
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 import { NotFoundError } from '@/lib/agent-mission-control/runner-errors'
 
 const ID_RE = /^[a-z0-9-]{1,200}$/
@@ -58,6 +59,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
       return NextResponse.json({ error: err.message }, { status: 409 })
     }
     console.error('[agent-ops/improve/decision] decision failed', err)
-    return NextResponse.json({ error: 'decision failed' }, { status: 502 })
+    // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
+    // any other upstream failure stays a generic 502. Same body either way.
+    return NextResponse.json({ error: 'decision failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 }

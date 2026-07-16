@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { runMission } from '@/lib/agent-mission-control/mission-orchestrator-server'
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 
 /**
  * POST /api/agent-ops/projects/:id/missions — run a multi-agent mission (evidence V1).
@@ -66,11 +67,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (err) {
     console.error('[agent-ops/projects/missions] run failed', err instanceof Error ? err.message : err)
     // A hung PostgREST round-trip is rethrown by postgrest.ts as
-    // PgrestError(504) (name set in its constructor); surface it as 504
-    // Gateway Timeout so callers can tell "backend slow" from "backend
-    // errored". Every other upstream failure stays a generic 502.
-    const timedOut =
-      err instanceof Error && err.name === 'PgrestError' && (err as { status?: unknown }).status === 504
-    return NextResponse.json({ error: 'mission run failed' }, { status: timedOut ? 504 : 502 })
+    // PgrestError(504); surface it as 504 Gateway Timeout so callers can tell
+    // "backend slow" from "backend errored". Every other upstream failure
+    // stays a generic 502.
+    return NextResponse.json({ error: 'mission run failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 }

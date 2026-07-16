@@ -5,7 +5,7 @@ import {
   type AutoImproveEvent,
   type AutoImprovementResult,
 } from '@/lib/agent-mission-control/improvement-loop'
-import { pgrest } from '@/lib/agent-mission-control/postgrest'
+import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 
 /** The SSE frames this route emits: the per-step events + a terminal done/error. */
 type AutoFrame =
@@ -140,7 +140,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     // Never forward raw PostgREST detail — log server-side, generic 502
     // (same shape as the sibling stream route's pre-stream pgrest check).
     console.error('[agent-ops/improve/auto] failed to load copilot', err)
-    return NextResponse.json({ error: 'failed to load copilot' }, { status: 502 })
+    // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
+    // any other upstream failure stays a generic 502. Same body either way.
+    return NextResponse.json({ error: 'failed to load copilot' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 
   if (inFlight.has(copilotId)) {

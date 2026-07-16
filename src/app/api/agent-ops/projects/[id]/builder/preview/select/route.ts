@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { getProject } from '@/lib/agent-mission-control/data'
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 import { selectProjectBuilderPreviewOption } from '@/lib/agent-mission-control/project-builder-conversation'
 
 /**
@@ -54,7 +55,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
   } catch (err) {
     console.error('[agent-ops/projects/builder/preview/select] failed to check project', err)
-    return NextResponse.json({ error: 'failed to check project' }, { status: 502 })
+    // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
+    // any other upstream failure stays a generic 502. Same body either way.
+    return NextResponse.json({ error: 'failed to check project' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 
   try {
@@ -67,6 +70,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'preview option not found' }, { status: 404 })
     }
     console.error('[agent-ops/projects/builder/preview/select] POST failed', err)
-    return NextResponse.json({ error: 'preview select failed' }, { status: 502 })
+    return NextResponse.json({ error: 'preview select failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 }

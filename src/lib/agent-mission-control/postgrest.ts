@@ -40,7 +40,7 @@ export function requireBackend(): { base: string; key: string } {
  * 200 chars) is only on `.detail`, for callers that explicitly want it —
  * server-side logging, or an internal status persisted for the admin UI.
  */
-class PgrestError extends Error {
+export class PgrestError extends Error {
   readonly status: number
   readonly detail: string
 
@@ -65,9 +65,11 @@ const PGREST_TIMEOUT_MS = 30_000
  * return=representation` so inserts/updates hand back the persisted row(s).
  * Fail-closed: throws (never fabricates data) if the backend isn't live or
  * PostgREST returns a non-OK status. A request that exceeds
- * PGREST_TIMEOUT_MS is aborted and rethrown as a PgrestError(504) so callers
- * classify it exactly like any other backend failure (generic 502 at the
- * route, detail via pgrestDetail() for server logs).
+ * PGREST_TIMEOUT_MS is aborted and rethrown as a PgrestError(504) — the
+ * repo-wide convention is that routes map that timeout to HTTP 504 (gateway
+ * timeout, via isPgrestTimeout()) and every other upstream failure to a
+ * generic 502, same `{ error }` body either way (detail via pgrestDetail()
+ * for server logs only).
  */
 export async function pgrest<T = Record<string, unknown>[]>(
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
@@ -102,6 +104,17 @@ export async function pgrest<T = Record<string, unknown>[]>(
   const text = await res.text()
   if (!text) return [] as unknown as T
   return JSON.parse(text) as T
+}
+
+/**
+ * True when `err` is the PgrestError(504) that pgrest() rethrows after its
+ * PGREST_TIMEOUT_MS abort — i.e. an upstream TIMEOUT, to surface as HTTP 504
+ * at the route instead of the generic 502 used for every other upstream
+ * failure. Single source of truth for that classification: routes must use
+ * this guard rather than duck-typing `err.name`/`err.message` locally.
+ */
+export function isPgrestTimeout(err: unknown): err is PgrestError {
+  return err instanceof PgrestError && err.status === 504
 }
 
 /** Best-effort detail extraction: PgrestError.detail if available, else `.message`. */

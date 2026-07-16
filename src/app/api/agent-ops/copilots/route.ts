@@ -13,7 +13,7 @@ import {
   deleteCopilotAssistant,
   ensureCopilotAssistant,
 } from '@/lib/agent-mission-control/langgraph-assistants'
-import { pgrestDetail } from '@/lib/agent-mission-control/postgrest'
+import { isPgrestTimeout, pgrestDetail } from '@/lib/agent-mission-control/postgrest'
 
 /**
  * Legacy validation messages, kept VERBATIM across the zod migration (same
@@ -45,16 +45,12 @@ const LEGACY_MESSAGES = new Set<string>(Object.values(MSG))
  */
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,182}$/
 
-/**
- * PgrestError from a PostgREST call that hit postgrest.ts's 30s AbortSignal
- * (or a real upstream gateway timeout). The prefix is the stable, safe summary
- * PgrestError always emits (`PostgREST <status> on <method> <path>`). A
- * timeout surfaces as 504 — not the generic 502 — because the write may STILL
- * have landed upstream: the caller must treat a retry as possibly conflicting
- * (409 on the slug), which "bad gateway" does not convey.
- */
-const isUpstreamTimeout = (err: unknown) =>
-  err instanceof Error && /^PostgREST 504 /.test(err.message)
+// PgrestError(504) — a PostgREST call that hit postgrest.ts's 30s AbortSignal
+// (or a real upstream gateway timeout), classified by the shared
+// isPgrestTimeout() guard. A timeout surfaces as 504 — not the generic 502 —
+// because the write may STILL have landed upstream: the caller must treat a
+// retry as possibly conflicting (409 on the slug), which "bad gateway" does
+// not convey.
 
 const proposedToolSchema = z.object(
   {
@@ -235,7 +231,7 @@ export async function POST(request: Request) {
     }
     return NextResponse.json(
       { error: 'copilot creation failed' },
-      { status: isUpstreamTimeout(err) ? 504 : 502 }
+      { status: isPgrestTimeout(err) ? 504 : 502 }
     )
   }
 
@@ -251,7 +247,7 @@ export async function POST(request: Request) {
     await deleteCopilotCascade(copilotId).catch(() => {})
     return NextResponse.json(
       { error: 'copilot assistant provisioning failed' },
-      { status: isUpstreamTimeout(err) ? 504 : 502 }
+      { status: isPgrestTimeout(err) ? 504 : 502 }
     )
   }
 
@@ -265,7 +261,7 @@ export async function POST(request: Request) {
     await deleteCopilotCascade(copilotId).catch(() => {})
     return NextResponse.json(
       { error: 'failed to link copilot to its assistant' },
-      { status: isUpstreamTimeout(err) ? 504 : 502 }
+      { status: isPgrestTimeout(err) ? 504 : 502 }
     )
   }
 

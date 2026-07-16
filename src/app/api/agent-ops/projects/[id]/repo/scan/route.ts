@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { getProject } from '@/lib/agent-mission-control/data'
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 import { scanProjectRepo } from '@/lib/agent-mission-control/repo-scan'
 
 // NOT-WIRED au front (volontaire, à garder) : scan repo "léger" original
@@ -42,7 +43,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     project = await getProject(id)
   } catch (err) {
     console.error('[agent-ops/projects/repo/scan] failed to load project', err)
-    return NextResponse.json({ error: 'failed to load project' }, { status: 502 })
+    // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
+    // any other upstream failure stays a generic 502. Same body either way.
+    return NextResponse.json({ error: 'failed to load project' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
   if (!project) {
     return NextResponse.json({ error: 'project not found' }, { status: 404 })

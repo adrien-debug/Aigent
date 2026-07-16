@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { deleteProjectCascade } from '@/lib/agent-mission-control/authoring-writes'
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 
 /**
  * Shape guard for `:id` path params. Real ids are `makeId('proj', slug)` (see
@@ -45,11 +46,9 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     console.error('[agent-ops] DELETE /projects/:id cascade failed:', err)
     // pgrest() rethrows a hung round-trip as PgrestError(504) (postgrest.ts,
     // PGREST_TIMEOUT_MS) — surface it as a 504 so the client can tell "backend
-    // too slow" from "backend rejected the delete". Duck-typed on name/status
-    // because the class isn't exported; every other failure stays a 502.
-    const timedOut =
-      err instanceof Error && err.name === 'PgrestError' && (err as { status?: unknown }).status === 504
-    if (timedOut) return NextResponse.json({ error: 'delete timed out' }, { status: 504 })
+    // too slow" from "backend rejected the delete"; every other failure stays
+    // a 502.
+    if (isPgrestTimeout(err)) return NextResponse.json({ error: 'delete timed out' }, { status: 504 })
     return NextResponse.json({ error: 'delete failed' }, { status: 502 })
   }
 }

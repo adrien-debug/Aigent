@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { NoRunnableTasksError, runBenchmarkSuite } from '@/lib/agent-mission-control/benchmark-runner'
-import { pgrest } from '@/lib/agent-mission-control/postgrest'
+import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 import { NotFoundError, ProviderUnavailableError } from '@/lib/agent-mission-control/runner-errors'
 import type { AgentRuntime, BenchmarkRun, ModelProvider } from '@/lib/agent-mission-control/types'
 
@@ -110,7 +110,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     }
   } catch (err) {
     console.error('[agent-ops/copilots/benchmarks/run] failed to check for an in-flight run', err)
-    return NextResponse.json({ error: 'failed to check for an in-flight run' }, { status: 502 })
+    // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
+    // any other upstream failure stays a generic 502. Same body either way.
+    return NextResponse.json({ error: 'failed to check for an in-flight run' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 
   try {
@@ -144,6 +146,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
       return NextResponse.json({ error: err.message }, { status: 503 })
     }
     console.error('[agent-ops/copilots/benchmarks/run] benchmark run failed', err)
-    return NextResponse.json({ error: 'benchmark run failed' }, { status: 502 })
+    return NextResponse.json({ error: 'benchmark run failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 }

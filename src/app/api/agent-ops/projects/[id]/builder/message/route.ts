@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { getProject } from '@/lib/agent-mission-control/data'
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 import {
   postProjectBuilderMessage,
   postProjectBuilderMessageStream,
@@ -46,13 +47,9 @@ function sseEvent(payload: Record<string, unknown>): string {
   return `data: ${JSON.stringify(payload)}\n\n`
 }
 
-/**
- * PgrestError(504) from the shared postgrest client (30s cap) — an upstream
- * TIMEOUT the client should see as 504, not folded into the generic 502.
- */
-function isUpstreamTimeout(err: unknown): boolean {
-  return err instanceof Error && err.name === 'PgrestError' && (err as Error & { status?: unknown }).status === 504
-}
+// PgrestError(504) from the shared postgrest client (30s cap) — an upstream
+// TIMEOUT the client should see as 504, not folded into the generic 502 —
+// classified by the shared isPgrestTimeout() guard (postgrest.ts).
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -89,7 +86,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
   } catch (err) {
     console.error('[agent-ops/projects/builder/message] failed to check project', err)
-    return NextResponse.json({ error: 'failed to check project' }, { status: isUpstreamTimeout(err) ? 504 : 502 })
+    return NextResponse.json({ error: 'failed to check project' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 
   if (!wantsStream(request)) {
@@ -102,7 +99,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         return NextResponse.json({ error: message }, { status: 409 })
       }
       console.error('[agent-ops/projects/builder/message] POST failed', err)
-      return NextResponse.json({ error: 'architect message failed' }, { status: isUpstreamTimeout(err) ? 504 : 502 })
+      return NextResponse.json({ error: 'architect message failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
     }
   }
 

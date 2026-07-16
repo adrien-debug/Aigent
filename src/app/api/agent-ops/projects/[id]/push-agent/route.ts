@@ -6,6 +6,7 @@ import { setCopilotPushStatus } from '@/lib/agent-mission-control/authoring-writ
 import { getProject, getCopilot, getManifestForCopilot } from '@/lib/agent-mission-control/data'
 import { persistDeliveryEvent } from '@/lib/agent-mission-control/delivery-events-store'
 import { pushAgentToRepo, pushAgentToRepoPullRequest, type PushAgentDeliveryMode } from '@/lib/agent-mission-control/github'
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 
 // CONSOMMÉE PAR LE FRONT : push-agent-dialog.tsx (via copilot-project-actions)
 // poste ici avec { copilotId, confirm: true, deliveryMode } et rend le PushResult
@@ -29,16 +30,16 @@ function isValidId(id: unknown): id is string {
 /**
  * True when an upstream failure is a TIMEOUT rather than a hard error, so the
  * route can answer 504 (gateway timeout) instead of 502 (bad gateway).
- * Classification by the helpers' safe messages — same technique as the GitHub
- * 409/422 and branch_exists regexes below:
- *   - postgrest.ts remaps an aborted call to PgrestError(504) whose generic
- *     message is `PostgREST 504 on <method> <path>` (no schema/query detail);
+ *   - postgrest.ts remaps an aborted call to PgrestError(504) — classified by
+ *     the shared isPgrestTimeout() guard;
  *   - github.ts gh() remaps a TimeoutError to
- *     `GitHub request timed out after <n>ms on <method> <path>`.
+ *     `GitHub request timed out after <n>ms on <method> <path>` — classified
+ *     by its safe message, same technique as the GitHub 409/422 and
+ *     branch_exists regexes below.
  */
 function isUpstreamTimeout(err: unknown): boolean {
+  if (isPgrestTimeout(err)) return true
   if (!(err instanceof Error)) return false
-  if (err.name === 'PgrestError' && /^PostgREST 504 /.test(err.message)) return true
   return /^GitHub request timed out after \d+ms/.test(err.message)
 }
 

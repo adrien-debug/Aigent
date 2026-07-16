@@ -10,7 +10,7 @@ import { startAgentBuilderRun } from '@/lib/agent-mission-control/agent-builder-
 // Cette route reste comme capacité de contrôle fin (utilisable via x-amc-key),
 // doublon assumé de create-draft — pas du code mort.
 import { getProject } from '@/lib/agent-mission-control/data'
-import { pgrest } from '@/lib/agent-mission-control/postgrest'
+import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 import { repoScanToContext, scanProjectRepo, type RepoScanSummary } from '@/lib/agent-mission-control/repo-scan'
 
 /**
@@ -104,7 +104,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     project = await getProject(id)
   } catch (err) {
     console.error('[agent-ops/projects/builder/run] failed to load project', err)
-    return NextResponse.json({ error: 'failed to load project' }, { status: 502 })
+    // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
+    // any other upstream failure stays a generic 502. Same body either way.
+    return NextResponse.json({ error: 'failed to load project' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
   if (!project) return NextResponse.json({ error: 'project not found' }, { status: 404 })
   if (!project.repoFullName) {
@@ -130,7 +132,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     builderCopilotId = rows[0].id
   } catch (err) {
     console.error('[agent-ops/projects/builder/run] failed to resolve Agent Builder', err)
-    return NextResponse.json({ error: 'failed to resolve Agent Builder' }, { status: 502 })
+    return NextResponse.json({ error: 'failed to resolve Agent Builder' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 
   // Reuse a provided scan (already-scanned data — needs no GitHub access), else
@@ -160,6 +162,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ ...state, scan: scan ?? null })
   } catch (err) {
     console.error('[agent-ops/projects/builder/run] run failed', err)
-    return NextResponse.json({ error: 'Agent Builder run failed' }, { status: 502 })
+    return NextResponse.json({ error: 'Agent Builder run failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 }

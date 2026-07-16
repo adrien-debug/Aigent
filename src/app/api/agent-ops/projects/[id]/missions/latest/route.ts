@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { getLatestMissionRun } from '@/lib/agent-mission-control/mission-orchestrator-server'
 import { getMissionFindings } from '@/lib/agent-mission-control/mission-findings-store'
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 
 /**
  * GET /api/agent-ops/projects/:id/missions/latest — newest mission run for a project.
@@ -34,7 +35,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     console.error('[agent-ops/projects/missions/latest] read failed', err instanceof Error ? err.message : err)
     // postgrest.ts aborts a hung round-trip as PgrestError(504): surface the
     // timeout as 504 Gateway Timeout instead of flattening it into 502.
-    const timedOut = err instanceof Error && err.name === 'PgrestError' && 'status' in err && err.status === 504
-    return NextResponse.json({ error: 'mission read failed' }, { status: timedOut ? 504 : 502 })
+    return NextResponse.json({ error: 'mission read failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 }

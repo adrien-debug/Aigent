@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { getMissionRun } from '@/lib/agent-mission-control/mission-orchestrator-server'
 import { getMissionFindings } from '@/lib/agent-mission-control/mission-findings-store'
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 
 /**
  * GET /api/agent-ops/missions/:missionRunId — fetch one mission run + findings.
@@ -32,6 +33,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ mis
     return NextResponse.json({ ok: true, mission: { ...run, findings } })
   } catch (err) {
     console.error('[agent-ops/missions] read failed', err instanceof Error ? err.message : err)
-    return NextResponse.json({ error: 'mission read failed' }, { status: 502 })
+    // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
+    // any other upstream failure stays a generic 502. Same body either way.
+    return NextResponse.json({ error: 'mission read failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 }

@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 
 import { summarize } from '@/lib/agent-mission-control/format'
 import { resumeOnAgentServer } from '@/lib/agent-mission-control/langgraph-server'
-import { pgrest } from '@/lib/agent-mission-control/postgrest'
+import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 import { resolveRunAssistantId } from '@/lib/agent-mission-control/resolve-run-assistant'
 
 // Default step budget when the manifest carries no usable `max_steps_per_run`.
@@ -24,14 +24,14 @@ const COPILOT_ID_RE = /^[a-z0-9-]{1,200}$/
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Upstream TIMEOUT detection: postgrest.ts aborts any round-trip past 30s and
-// rethrows it as a PgrestError carrying `status: 504` (commit 10c01f9); the
-// Agent Server SDK's HTTPError carries the upstream status the same way. A
+// rethrows it as a PgrestError(504) — classified by the shared
+// isPgrestTimeout() guard; the Agent Server SDK's HTTPError carries the
+// upstream status the same way, so that one stays duck-typed on `.status`. A
 // timeout surfaces as HTTP 504 (gateway timeout) instead of the generic 502 so
-// the caller can tell "backend hung" from "backend errored". Duck-typed on
-// `.status` — same pattern as isNotFoundError in agent-builder-run.ts
-// (PgrestError is not exported from postgrest.ts).
+// the caller can tell "backend hung" from "backend errored".
 const isUpstreamTimeout = (err: unknown): boolean =>
-  typeof err === 'object' && err !== null && 'status' in err && (err as { status: unknown }).status === 504
+  isPgrestTimeout(err) ||
+  (typeof err === 'object' && err !== null && 'status' in err && (err as { status: unknown }).status === 504)
 
 /**
  * POST /api/agent-ops/copilots/:copilotId/runs/:runId/resume — human-in-the-loop

@@ -6,7 +6,7 @@ import { AGENT_BUILDER_SLUG } from '@/lib/agent-mission-control/agent-builder-co
 import { resumeAgentBuilderRun, draftToCreateInput } from '@/lib/agent-mission-control/agent-builder-run'
 import { createCopilotFromManifest, setCopilotAssistantId } from '@/lib/agent-mission-control/authoring-writes'
 import { ensureCopilotAssistant } from '@/lib/agent-mission-control/langgraph-assistants'
-import { pgrest } from '@/lib/agent-mission-control/postgrest'
+import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 
 /**
  * POST /api/agent-ops/architect/resume — the human-in-the-loop decision for a
@@ -77,7 +77,9 @@ export async function POST(request: Request) {
     copilotId = rows[0].id
   } catch (err) {
     console.error('[agent-ops/architect/resume] failed to resolve Agent Builder', err)
-    return NextResponse.json({ error: 'failed to resolve Agent Builder' }, { status: 502 })
+    // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
+    // any other upstream failure stays a generic 502. Same body either way.
+    return NextResponse.json({ error: 'failed to resolve Agent Builder' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 
   let state
@@ -94,7 +96,7 @@ export async function POST(request: Request) {
       )
     }
     console.error('[agent-ops/architect/resume] resume failed', err)
-    return NextResponse.json({ error: 'Agent Builder resume failed' }, { status: 502 })
+    return NextResponse.json({ error: 'Agent Builder resume failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 
   // On reject (or no draft produced), return the run state as-is — nothing created.
@@ -115,7 +117,7 @@ export async function POST(request: Request) {
     console.error('[agent-ops/architect/resume] draft persistence failed', err)
     return NextResponse.json(
       { ...state, createdCopilotId: null, persistError: 'the draft was approved but could not be saved — retry' },
-      { status: 502 }
+      { status: isPgrestTimeout(err) ? 504 : 502 }
     )
   }
 

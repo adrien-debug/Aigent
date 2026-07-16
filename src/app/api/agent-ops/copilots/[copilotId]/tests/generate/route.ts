@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { ensureAgentSuites } from '@/lib/agent-mission-control/agent-suite-generator'
-import { pgrest } from '@/lib/agent-mission-control/postgrest'
+import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 
 /**
  * POST /api/agent-ops/copilots/:copilotId/tests/generate — generate the test +
@@ -91,7 +91,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ co
     // safe to forward; the LLM path already falls back internally. Log server
     // side, return a generic message.
     console.error('[tests/generate] failed', err)
-    return NextResponse.json({ error: 'failed to generate test suite' }, { status: 502 })
+    // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
+    // any other upstream failure stays a generic 502. Same body either way.
+    return NextResponse.json({ error: 'failed to generate test suite' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   } finally {
     inFlight.delete(copilotId)
   }

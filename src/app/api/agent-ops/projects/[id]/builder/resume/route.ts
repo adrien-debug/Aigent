@@ -12,7 +12,7 @@ import { resumeAgentBuilderRun, draftToCreateInput } from '@/lib/agent-mission-c
 import { createCopilotFromManifest, setCopilotAssistantId } from '@/lib/agent-mission-control/authoring-writes'
 import { getProject } from '@/lib/agent-mission-control/data'
 import { ensureCopilotAssistant } from '@/lib/agent-mission-control/langgraph-assistants'
-import { pgrest } from '@/lib/agent-mission-control/postgrest'
+import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 import { scanProjectRepo } from '@/lib/agent-mission-control/repo-scan'
 
 /**
@@ -75,7 +75,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     projectExists = rows.length > 0
   } catch (err) {
     console.error('[agent-ops/projects/builder/resume] failed to check project', err)
-    return NextResponse.json({ error: 'failed to check project' }, { status: 502 })
+    // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
+    // any other upstream failure stays a generic 502. Same body either way.
+    return NextResponse.json({ error: 'failed to check project' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
   if (!projectExists) return NextResponse.json({ error: 'project not found' }, { status: 404 })
 
@@ -94,7 +96,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     builderCopilotId = rows[0].id
   } catch (err) {
     console.error('[agent-ops/projects/builder/resume] failed to resolve Agent Builder', err)
-    return NextResponse.json({ error: 'failed to resolve Agent Builder' }, { status: 502 })
+    return NextResponse.json({ error: 'failed to resolve Agent Builder' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 
   // Re-scan the repo (cheap, read-only) so the release proposal keeps the
@@ -125,7 +127,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       )
     }
     console.error('[agent-ops/projects/builder/resume] resume failed', err)
-    return NextResponse.json({ error: 'Agent Builder resume failed' }, { status: 502 })
+    return NextResponse.json({ error: 'Agent Builder resume failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 
   // Reject or no draft → nothing created.
@@ -150,7 +152,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         error: 'the draft was approved but could not be saved — retry',
         persistError: 'the draft was approved but could not be saved — retry',
       },
-      { status: 502 }
+      { status: isPgrestTimeout(err) ? 504 : 502 }
     )
   }
 

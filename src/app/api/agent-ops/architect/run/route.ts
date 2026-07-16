@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { AGENT_BUILDER_SLUG } from '@/lib/agent-mission-control/agent-builder-copilot'
 import { startAgentBuilderRun } from '@/lib/agent-mission-control/agent-builder-run'
-import { pgrest } from '@/lib/agent-mission-control/postgrest'
+import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 
 /**
  * POST /api/agent-ops/architect/run — start a REAL Agent Builder run.
@@ -68,9 +68,7 @@ export async function POST(request: Request) {
     // pgrest() aborts a hung PostgREST round-trip and rethrows PgrestError(504)
     // — surface that as an honest 504 Gateway Timeout; any other upstream
     // failure stays a generic 502. Same body shape either way.
-    const timedOut =
-      err instanceof Error && err.name === 'PgrestError' && (err as unknown as { status?: unknown }).status === 504
-    return NextResponse.json({ error: 'failed to resolve Agent Builder' }, { status: timedOut ? 504 : 502 })
+    return NextResponse.json({ error: 'failed to resolve Agent Builder' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 
   try {
@@ -79,6 +77,6 @@ export async function POST(request: Request) {
   } catch (err) {
     // The Agent Server / OpenAI errors can carry internal detail — never forward.
     console.error('[agent-ops/architect/run] run failed', err)
-    return NextResponse.json({ error: 'Agent Builder run failed' }, { status: 502 })
+    return NextResponse.json({ error: 'Agent Builder run failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 }

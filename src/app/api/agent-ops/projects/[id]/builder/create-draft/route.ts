@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { pgrest } from '@/lib/agent-mission-control/postgrest'
+import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 import {
   confirmProjectBuilderDraftMaterialization,
   getProjectBuilderConversationBundle,
@@ -67,7 +67,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     projectExists = rows.length > 0
   } catch (err) {
     console.error('[agent-ops/projects/builder/create-draft] failed to check project', err)
-    return NextResponse.json({ error: 'failed to check project' }, { status: 502 })
+    // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
+    // any other upstream failure stays a generic 502. Same body either way.
+    return NextResponse.json({ error: 'failed to check project' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
   if (!projectExists) return NextResponse.json({ error: 'project not found' }, { status: 404 })
 
@@ -150,6 +152,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'no LangGraph run in progress — start draft first' }, { status: 409 })
     }
     console.error('[agent-ops/projects/builder/create-draft] POST failed', err)
-    return NextResponse.json({ error: 'create draft failed' }, { status: 502 })
+    return NextResponse.json({ error: 'create draft failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { deleteCopilotCascade, setCopilotAssistantId } from '@/lib/agent-mission-control/authoring-writes'
 import { ensureCopilotAssistant } from '@/lib/agent-mission-control/langgraph-assistants'
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 
 /**
  * Shape guard for `:copilotId` path params. Real ids are `makeId('copilot', slug)`
@@ -54,7 +55,9 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     // response bodies / table & column names in its Error message) to the
     // client — log server-side for operators, return a generic message.
     console.error('[DELETE /api/agent-ops/copilots/:copilotId] cascade delete failed', err)
-    return NextResponse.json({ error: 'delete failed' }, { status: 502 })
+    // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
+    // any other upstream failure stays a generic 502. Same body either way.
+    return NextResponse.json({ error: 'delete failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 }
 

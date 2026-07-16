@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 import { evaluateReleaseGate } from '@/lib/agent-mission-control/release-gate'
 
 /**
@@ -118,7 +119,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
       }
     } catch (err) {
       console.error('[promotion] release gate evaluation failed', err instanceof Error ? err.message : err)
-      return NextResponse.json({ error: 'release gate evaluation failed' }, { status: 502 })
+      // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
+      // any other upstream failure stays a generic 502. Same body either way.
+      return NextResponse.json({ error: 'release gate evaluation failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
     }
   }
 

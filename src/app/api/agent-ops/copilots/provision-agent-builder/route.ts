@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 import { provisionAgentBuilderCopilot } from '@/lib/agent-mission-control/provision-agent-builder-live'
 
 /**
@@ -49,8 +50,7 @@ export async function POST() {
     console.error('[agent-ops/provision-agent-builder] provisioning failed', err)
     // pgrest() rethrows its 30s abort as PgrestError(504) — keep that
     // distinction on the wire: 504 = backend timed out, 502 = backend failed.
-    const timedOut =
-      err instanceof Error && err.name === 'PgrestError' && (err as Error & { status?: number }).status === 504
+    const timedOut = isPgrestTimeout(err)
     return NextResponse.json(
       { error: timedOut ? 'Agent Builder provisioning timed out' : 'failed to provision Agent Builder' },
       { status: timedOut ? 504 : 502 }

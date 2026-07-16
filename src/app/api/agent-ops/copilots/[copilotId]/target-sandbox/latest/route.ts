@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 import { getLatestSandboxReport } from '@/lib/agent-mission-control/sandbox-reports-store'
 
 // Shape guard for the `:copilotId` path param. Real ids are `makeId('copilot',
@@ -40,8 +41,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cop
     // pgrest() rethrows an aborted round-trip as PgrestError(status 504):
     // surface an upstream TIMEOUT as HTTP 504, any other backend failure as
     // 502. Same generic body either way — no internal detail leaks.
-    const timedOut =
-      err instanceof Error && err.name === 'PgrestError' && (err as unknown as { status?: unknown }).status === 504
-    return NextResponse.json({ error: 'failed to read sandbox report' }, { status: timedOut ? 504 : 502 })
+    return NextResponse.json({ error: 'failed to read sandbox report' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 }

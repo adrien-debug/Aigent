@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { getProject } from '@/lib/agent-mission-control/data'
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 import { getProjectBuilderConversationBundle } from '@/lib/agent-mission-control/project-builder-conversation'
 
 /**
@@ -37,7 +38,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     project = await getProject(id)
   } catch (err) {
     console.error('[agent-ops/projects/builder/conversation] failed to load project', err)
-    return NextResponse.json({ error: 'failed to load project' }, { status: 502 })
+    // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
+    // any other upstream failure stays a generic 502. Same body either way.
+    return NextResponse.json({ error: 'failed to load project' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
   if (!project) return NextResponse.json({ error: 'project not found' }, { status: 404 })
 
@@ -46,6 +49,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json(bundle)
   } catch (err) {
     console.error('[agent-ops/projects/builder/conversation] GET failed', err)
-    return NextResponse.json({ error: 'failed to load conversation' }, { status: 502 })
+    return NextResponse.json({ error: 'failed to load conversation' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 }

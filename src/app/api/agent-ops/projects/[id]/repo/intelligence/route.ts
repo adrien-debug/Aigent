@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 import {
   ensureRepoIntelligence,
   RepoIntelligenceBackendError,
@@ -70,10 +71,7 @@ async function handle(id: string, force: boolean) {
       // "not configured"); the PostgREST 30s timeout (PgrestError 504, see
       // postgrest.ts) passes through as 504.
       console.error('[agent-ops/projects/repo/intelligence] backend unavailable', err)
-      const cause = err.cause
-      const timedOut = cause instanceof Error && cause.name === 'PgrestError' &&
-        (cause as unknown as { status?: unknown }).status === 504
-      return NextResponse.json({ error: 'backend unavailable (gpu1/PostgREST)' }, { status: timedOut ? 504 : 502 })
+      return NextResponse.json({ error: 'backend unavailable (gpu1/PostgREST)' }, { status: isPgrestTimeout(err.cause) ? 504 : 502 })
     }
     if (err instanceof RepoIntelligenceGithubError) {
       console.error('[agent-ops/projects/repo/intelligence] GitHub scan failed', err)

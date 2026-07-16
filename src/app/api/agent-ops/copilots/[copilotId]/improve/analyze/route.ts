@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { analyzeAndPropose } from '@/lib/agent-mission-control/improvement-loop'
-import { pgrest } from '@/lib/agent-mission-control/postgrest'
+import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 import { NotFoundError, ProviderUnavailableError } from '@/lib/agent-mission-control/runner-errors'
 
 // Same id shape family as the sibling promotion route — fast 400 on garbage,
@@ -79,7 +79,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
       }
     } catch (err) {
       console.error('[agent-ops/improve/analyze] failed to check for an open cycle', err)
-      return NextResponse.json({ error: 'failed to check for an open cycle' }, { status: 502 })
+      // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
+      // any other upstream failure stays a generic 502. Same body either way.
+      return NextResponse.json({ error: 'failed to check for an open cycle' }, { status: isPgrestTimeout(err) ? 504 : 502 })
     }
 
     try {
@@ -93,7 +95,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
         return NextResponse.json({ error: err.message }, { status: 503 })
       }
       console.error('[agent-ops/improve/analyze] analysis failed', err)
-      return NextResponse.json({ error: 'analysis failed' }, { status: 502 })
+      return NextResponse.json({ error: 'analysis failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
     }
   } finally {
     inFlightAnalyses.delete(copilotId)
