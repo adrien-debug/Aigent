@@ -11,7 +11,7 @@ import { startAgentBuilderRun } from '@/lib/agent-mission-control/agent-builder-
 // doublon assumé de create-draft — pas du code mort.
 import { getProject } from '@/lib/agent-mission-control/data'
 import { pgrest } from '@/lib/agent-mission-control/postgrest'
-import { repoScanToContext, scanProjectRepo } from '@/lib/agent-mission-control/repo-scan'
+import { repoScanToContext, scanProjectRepo, type RepoScanSummary } from '@/lib/agent-mission-control/repo-scan'
 
 /**
  * POST /api/agent-ops/projects/:id/builder/run — start a REPO-AWARE Agent
@@ -133,11 +133,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'failed to resolve Agent Builder' }, { status: 502 })
   }
 
-  // Reuse a provided scan, else scan the repo now (read-only).
-  let scan
-  if (process.env.GITHUB_TOKEN) {
+  // Reuse a provided scan (already-scanned data — needs no GitHub access), else
+  // scan the repo now (read-only, requires GITHUB_TOKEN).
+  let scan: RepoScanSummary | undefined = providedScan
+  if (!scan && process.env.GITHUB_TOKEN) {
     try {
-      scan = providedScan ?? (await scanProjectRepo(project))
+      scan = await scanProjectRepo(project)
     } catch (err) {
       console.error('[agent-ops/projects/builder/run] repo scan failed', err)
       // Non-fatal: the builder can still draft without repo context, just less
