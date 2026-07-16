@@ -25,6 +25,15 @@ import { summarize } from './format'
 import { ARCHITECT_MODEL } from './llm-client'
 import { routeCompletion } from './model-router'
 import { pgrest } from './postgrest'
+import { loadRepoIntelligence } from './repo-intelligence-store'
+import {
+  buildRepoSuiteContext,
+  repoContextPayload,
+  suiteSourceFor,
+  REPO_AWARE_INSTRUCTIONS,
+  type RepoSuiteContext,
+  type SuiteSource,
+} from './repo-suite-context'
 import { makeId, slugify } from './slug'
 import type { TestSuite } from './types'
 
@@ -42,11 +51,35 @@ interface ManifestContext {
   systemPromptSummary: string
   forbiddenActions: string[]
   toolNames: string[]
+  /**
+   * Bounded, secret-free slice of the project's ALREADY-SCANNED repo
+   * intelligence (no new scan — read from the project cache). `null` when the
+   * copilot has no project or the project has no usable repo signal → the
+   * generator falls back to the unchanged manifest-only path.
+   */
+  repoContext: RepoSuiteContext | null
+}
+
+/**
+ * Load the project's cached repo intelligence and distil it into the bounded
+ * suite context. Fail-soft: any lookup problem (no project, backend hiccup,
+ * empty cache) resolves to `null` so suite generation is NEVER blocked by repo
+ * intelligence — a repo-aware suite is a bonus, a suite is mandatory. NEVER
+ * triggers a scan (uses `loadRepoIntelligence`, a pure cache read).
+ */
+async function loadRepoContext(projectId: string | null): Promise<RepoSuiteContext | null> {
+  if (!projectId) return null
+  try {
+    const stored = await loadRepoIntelligence(projectId)
+    return buildRepoSuiteContext(stored.intelligence)
+  } catch {
+    return null
+  }
 }
 
 /** Load the copilot's manifest + tools — the material the suites are derived from. */
 async function loadManifestContext(copilotId: string): Promise<ManifestContext | null> {
-  const copilotRows = await pgrest<RawRow[]>('GET', `copilots?${eq('id', copilotId)}&select=id,name,description,latest_version_id,production_version_id`)
+  const copilotRows = await pgrest<RawRow[]>('GET', `copilots?${eq('id', copilotId)}&select=id,name,description,project_id,latest_version_id,production_version_id`)
   const copilot = copilotRows[0]
   if (!copilot) return null
 
@@ -63,7 +96,11 @@ async function loadManifestContext(copilotId: string): Promise<ManifestContext |
     }
   }
 
-  const toolRows = await pgrest<RawRow[]>('GET', `tools?${eq('copilot_id', copilotId)}&select=name&order=name`)
+  const projectId = (copilot.project_id as string | null) ?? null
+  const [toolRows, repoContext] = await Promise.all([
+    pgrest<RawRow[]>('GET', `tools?${eq('copilot_id', copilotId)}&select=name&order=name`),
+    loadRepoContext(projectId),
+  ])
   return {
     copilotId,
     name: (copilot.name as string) ?? copilotId,
@@ -71,6 +108,7 @@ async function loadManifestContext(copilotId: string): Promise<ManifestContext |
     systemPromptSummary,
     forbiddenActions,
     toolNames: toolRows.map((t) => t.name as string),
+    repoContext,
   }
 }
 
@@ -92,6 +130,8 @@ const GENERATOR_SYSTEM =
 interface GeneratedSuite {
   testSuite: CreateTestSuiteInput
   benchmark: { name: string; description: string; dimensions: string[]; taskCount: number }
+  /** `repo_aware` when repo intelligence grounded the cases, else `manifest_only`. */
+  suiteSource: SuiteSource
 }
 
 function validateCases(raw: unknown, mounted: Set<string>): NewTestCaseInput[] {
@@ -153,28 +193,50 @@ function fallbackSuite(ctx: ManifestContext): GeneratedSuite {
       dimensions: ['correctness', 'safety', 'refusal-discipline', 'read-only-posture'],
       taskCount: 4,
     },
+    // The fallback is generic by construction — never claim it is repo-grounded.
+    suiteSource: 'manifest_only',
   }
+}
+
+/**
+ * Build the exact system prompt + user payload the generator sends. Pure over
+ * its inputs (no I/O) so a unit test can assert what the LLM receives. When a
+ * repo context is present, the system prompt gains the repo-aware instructions
+ * and the payload carries the bounded repo signals; otherwise both are the
+ * unchanged manifest-only form.
+ */
+export function buildGeneratorRequest(ctx: {
+  name: string
+  description: string
+  systemPromptSummary: string
+  forbiddenActions: string[]
+  toolNames: string[]
+  repoContext: RepoSuiteContext | null
+}): { system: string; userPayload: Record<string, unknown>; suiteSource: SuiteSource } {
+  const repoPayload = repoContextPayload(ctx.repoContext)
+  const system = repoPayload ? GENERATOR_SYSTEM + REPO_AWARE_INSTRUCTIONS : GENERATOR_SYSTEM
+  const userPayload: Record<string, unknown> = {
+    name: ctx.name,
+    description: ctx.description,
+    systemPromptSummary: ctx.systemPromptSummary,
+    forbiddenActions: ctx.forbiddenActions,
+    mountedTools: ctx.toolNames,
+  }
+  if (repoPayload) userPayload.repoContext = repoPayload
+  return { system, userPayload, suiteSource: suiteSourceFor(ctx.repoContext) }
 }
 
 async function generateSuite(ctx: ManifestContext): Promise<GeneratedSuite> {
   const mounted = new Set(ctx.toolNames)
+  const { system, userPayload, suiteSource } = buildGeneratorRequest(ctx)
   try {
     const res = await routeCompletion({
       purpose: 'architect',
       modelProvider: 'openai',
       model: ARCHITECT_MODEL,
       messages: [
-        { role: 'system', content: GENERATOR_SYSTEM },
-        {
-          role: 'user',
-          content: JSON.stringify({
-            name: ctx.name,
-            description: ctx.description,
-            systemPromptSummary: ctx.systemPromptSummary,
-            forbiddenActions: ctx.forbiddenActions,
-            mountedTools: ctx.toolNames,
-          }),
-        },
+        { role: 'system', content: system },
+        { role: 'user', content: JSON.stringify(userPayload) },
       ],
       responseFormat: 'json',
       maxOutputTokens: 2048,
@@ -182,6 +244,8 @@ async function generateSuite(ctx: ManifestContext): Promise<GeneratedSuite> {
     const cleaned = res.text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
     const parsed = JSON.parse(cleaned) as { testCases?: unknown; benchmarkDimensions?: unknown }
     const cases = validateCases(parsed.testCases, mounted)
+    // Fallback keeps its own suiteSource ('manifest_only') — a generic baseline
+    // is never claimed as repo-grounded even if a repo context was available.
     if (cases.length < MIN_CASES) return fallbackSuite(ctx)
 
     const dims = Array.isArray(parsed.benchmarkDimensions)
@@ -191,11 +255,14 @@ async function generateSuite(ctx: ManifestContext): Promise<GeneratedSuite> {
           .slice(0, 5)
       : []
 
+    const grounded = suiteSource === 'repo_aware'
     return {
       testSuite: {
         copilotId: ctx.copilotId,
         name: `${ctx.name} — behaviour & safety`,
-        description: `Auto-generated from the manifest: core behaviour and safety for ${ctx.name}.`,
+        description: grounded
+          ? `Auto-generated from the manifest and the project's repo intelligence: core behaviour, safety and repo fit for ${ctx.name}.`
+          : `Auto-generated from the manifest: core behaviour and safety for ${ctx.name}.`,
         kind: 'safety' as TestSuite['kind'],
         cases,
       },
@@ -205,6 +272,7 @@ async function generateSuite(ctx: ManifestContext): Promise<GeneratedSuite> {
         dimensions: dims.length >= 3 ? dims : ['correctness', 'safety', 'refusal-discipline', 'read-only-posture'],
         taskCount: 4,
       },
+      suiteSource,
     }
   } catch {
     return fallbackSuite(ctx)
@@ -225,7 +293,7 @@ async function generateSuite(ctx: ManifestContext): Promise<GeneratedSuite> {
  */
 export async function ensureAgentSuites(
   copilotId: string
-): Promise<{ testSuiteId: string; benchmarkSuiteId: string } | null> {
+): Promise<{ testSuiteId: string; benchmarkSuiteId: string; suiteSource: SuiteSource } | null> {
   // Skip if suites already exist (don't duplicate on a retry).
   const existing = await pgrest<RawRow[]>('GET', `test_suites?${eq('copilot_id', copilotId)}&select=id&limit=1`)
   if (existing.length > 0) return null
@@ -270,5 +338,7 @@ export async function ensureAgentSuites(
     dimensions: suite.benchmark.dimensions,
   })
 
-  return { testSuiteId, benchmarkSuiteId }
+  // suiteSource is metadata, not a DB column (no migration): it is reflected in
+  // the persisted suite description and returned here for callers/logs.
+  return { testSuiteId, benchmarkSuiteId, suiteSource: suite.suiteSource }
 }
