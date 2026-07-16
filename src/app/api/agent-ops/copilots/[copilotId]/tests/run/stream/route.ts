@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { pgrest } from '@/lib/agent-mission-control/postgrest'
+import { NotFoundError, ProviderUnavailableError } from '@/lib/agent-mission-control/runner-errors'
 import { runTestSuite, type TestRunEvent } from '@/lib/agent-mission-control/test-runner'
 import type { TestRun } from '@/lib/agent-mission-control/types'
 
@@ -17,7 +18,11 @@ import type { TestRun } from '@/lib/agent-mission-control/types'
  *   - the `TestRunEvent` union (run-started / case-started / case-completed /
  *     run-finished) as each is emitted, then
  *   - a terminal `{ type: 'done', testRun }` once the run resolves, OR
- *   - `{ type: 'error' }` if it throws (generic — no raw error forwarded).
+ *   - `{ type: 'error', error }` if it throws. NotFoundError /
+ *     ProviderUnavailableError messages are hand-authored and forwarded (the
+ *     SSE analog of the JSON twin's 404/503 mapping — the 200 is already
+ *     committed, so the frame carries the classification); anything else is
+ *     the generic 'test run failed' (no raw error forwarded).
  *
  * Same fail-closed gates as the JSON route (env/live backend 503, double-submit
  * 409), plus every dynamic id (copilotId, suiteId, versionId) is bounded +
@@ -46,11 +51,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   } catch {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
   }
-  if (typeof body.suiteId !== 'string' || !ID_RE.test(body.suiteId)) {
+  if (typeof body.suiteId !== 'string' || body.suiteId.trim().length === 0) {
     return NextResponse.json({ error: 'suiteId is required' }, { status: 400 })
   }
+  if (!ID_RE.test(body.suiteId)) {
+    return NextResponse.json({ error: 'invalid suiteId' }, { status: 400 })
+  }
   if (body.versionId !== undefined && (typeof body.versionId !== 'string' || !ID_RE.test(body.versionId))) {
-    return NextResponse.json({ error: 'versionId must be a string' }, { status: 400 })
+    return NextResponse.json({ error: 'versionId must be a valid id' }, { status: 400 })
   }
   if (body.allowFallback !== undefined && typeof body.allowFallback !== 'boolean') {
     return NextResponse.json({ error: 'allowFallback must be a boolean' }, { status: 400 })
@@ -115,10 +123,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
         // round-trip.
         push({ type: 'done', testRun })
       } catch (err) {
-        // Never forward raw error detail (runTestSuite's abort path can embed
-        // raw PostgREST response text) — log server-side, emit a generic frame.
-        console.error('[agent-ops/copilots/tests/run/stream] test run failed', err)
-        push({ type: 'error', error: 'test run failed' })
+        // Frame-level analog of the JSON twin's typed mapping (the 200 + SSE
+        // headers are already committed, so status can't change mid-stream):
+        // NotFoundError (missing/mismatched copilot, suite, version) and
+        // ProviderUnavailableError messages are hand-authored and safe to
+        // forward. The generic fallback is NOT — runTestSuite's abort path can
+        // embed raw PostgREST response text — so log it server-side and emit a
+        // generic frame instead.
+        if (err instanceof NotFoundError || err instanceof ProviderUnavailableError) {
+          push({ type: 'error', error: err.message })
+        } else {
+          console.error('[agent-ops/copilots/tests/run/stream] test run failed', err)
+          push({ type: 'error', error: 'test run failed' })
+        }
       } finally {
         // If the client aborted mid-run, cancel() already released the
         // controller and close() throws — guard it like push() guards enqueue.
