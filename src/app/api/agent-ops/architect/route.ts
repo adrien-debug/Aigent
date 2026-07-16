@@ -125,12 +125,18 @@ export async function POST(request: Request) {
     (t) => t.type === 'function' && t.function.name === 'emit_manifest'
   )
   // The model can emit a truncated/malformed arguments string (e.g. hit the
-  // token cap mid-JSON). Parse defensively so that returns a graceful 502
-  // rather than throwing an unhandled 500.
+  // token cap mid-JSON), or valid JSON that isn't an object (`null`, a bare
+  // string/number, an array) — the `as GeneratedManifest` cast alone would let
+  // that flow to the client. Parse defensively so both cases return a graceful
+  // 502 rather than an unhandled 500 or a garbage manifest.
   let manifest: GeneratedManifest | null = null
   if (toolCall && toolCall.type === 'function') {
     try {
-      manifest = JSON.parse(toolCall.function.arguments) as GeneratedManifest
+      const parsed: unknown = JSON.parse(toolCall.function.arguments)
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        throw new Error('manifest arguments did not parse to an object')
+      }
+      manifest = parsed as GeneratedManifest
     } catch {
       return NextResponse.json(
         { error: 'OpenAI error: the model returned a malformed manifest — try again' },
