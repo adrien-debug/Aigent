@@ -443,18 +443,17 @@ export async function ensureAgentSuites(
     kind: suite.testSuite.kind,
     last_run_id: null,
   })
-  for (let i = 0; i < suite.testSuite.cases.length; i += 1) {
-    const c = suite.testSuite.cases[i]
-    await pgrest('POST', 'test_cases', {
-      id: makeId('tc', `${slugify(ctx.name)}-${rand}-${i + 1}`),
-      suite_id: testSuiteId,
-      name: c.name,
-      input: c.input,
-      expected_behavior: c.expectedBehavior,
-      expected_tool_calls: c.expectedToolCalls,
-      tags: c.tags,
-    })
-  }
+  // Single bulk insert (PostgREST accepts an array body) instead of one POST per case.
+  const caseRows = suite.testSuite.cases.map((c, i) => ({
+    id: makeId('tc', `${slugify(ctx.name)}-${rand}-${i + 1}`),
+    suite_id: testSuiteId,
+    name: c.name,
+    input: c.input,
+    expected_behavior: c.expectedBehavior,
+    expected_tool_calls: c.expectedToolCalls,
+    tags: c.tags,
+  }))
+  if (caseRows.length > 0) await pgrest('POST', 'test_cases', caseRows)
 
   // Benchmark suite.
   const benchmarkSuiteId = makeId('bs', `${slugify(ctx.name)}-${rand}`)
