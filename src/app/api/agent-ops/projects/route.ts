@@ -163,7 +163,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
   }
 
-  // 1) Create the project row. A failure here is a plain 502 (nothing to undo),
+  // 1) Create the project row. A failure here is a plain 502 (nothing to undo)
+  //    — or 504 when pgrest()'s 30s timeout fired —
   //    EXCEPT a unique-violation on the row's id: ids are deterministic
   //    (`makeId('proj', slug)`, see slug.ts), so a name/slug that collides with
   //    an existing project makes PostgREST reject the insert with 409 — a
@@ -184,6 +185,12 @@ export async function POST(request: Request) {
         { error: 'a project with this name/slug already exists' },
         { status: 409 }
       )
+    }
+    // pgrest() aborts a hung round-trip after 30s and rethrows PgrestError(504)
+    // ("PostgREST 504 on <method> <path>"): surface it as a gateway TIMEOUT,
+    // not a generic upstream failure.
+    if (/^PostgREST 504 on /.test(message)) {
+      return NextResponse.json({ error: 'project creation timed out' }, { status: 504 })
     }
     return NextResponse.json({ error: 'project creation failed' }, { status: 502 })
   }
@@ -215,9 +222,12 @@ export async function POST(request: Request) {
     console.error('[agent-ops/projects] setProjectAssistantId failed:', err)
     await deleteProjectAssistant(assistantId).catch(() => {})
     await deleteProjectCascade(projectId).catch(() => {})
+    // Same 504-vs-502 split as the createProject catch above: a pgrest()
+    // timeout is a gateway timeout, any other backend failure a generic 502.
+    const message = err instanceof Error ? err.message : ''
     return NextResponse.json(
       { error: 'failed to link project to its assistant' },
-      { status: 502 }
+      { status: /^PostgREST 504 on /.test(message) ? 504 : 502 }
     )
   }
 
