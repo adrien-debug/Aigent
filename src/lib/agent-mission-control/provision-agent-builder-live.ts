@@ -26,8 +26,6 @@ import { AGENT_BUILDER_COPILOT, AGENT_BUILDER_SLUG, agentBuilderTestSuite } from
 import { pgrest } from './postgrest'
 import { makeId, slugify } from './slug'
 
-type Row = Record<string, unknown>
-
 export interface ProvisionAgentBuilderResult {
   ok: true
   /** The live copilot row id (`copilot-<slug>-<rand>`). Stable across re-runs once created. */
@@ -43,10 +41,13 @@ export interface ProvisionAgentBuilderResult {
  * existing row when present (idempotent), creates the full lot when absent.
  *
  * Non-destructive by design: unlike scripts/provision-agent-builder.ts (which
- * cascade-deletes + recreates to converge a dev bench), this NEVER deletes — an
- * operator hitting the provision action from the UI must not silently lose any
- * edits made to the copilot. Re-provisioning from scratch stays a deliberate
- * script-only operation.
+ * cascade-deletes + recreates to converge a dev bench), this NEVER deletes an
+ * existing copilot — an operator hitting the provision action from the UI must
+ * not silently lose any edits made to the copilot. Re-provisioning from scratch
+ * stays a deliberate script-only operation. The single exception is the
+ * rollback of a copilot THIS call just created when a later step fails: without
+ * it a half-provisioned row would remain and every retry would collide on the
+ * unique slug.
  */
 export async function provisionAgentBuilderCopilot(): Promise<ProvisionAgentBuilderResult> {
   const input = AGENT_BUILDER_COPILOT
@@ -99,28 +100,36 @@ export async function provisionAgentBuilderCopilot(): Promise<ProvisionAgentBuil
     created_via: 'authoring',
   })
 
-  // 2. manifest (tool_ids backfilled after tools are created).
-  await pgrest('POST', 'manifests', {
-    id: manifestId,
-    copilot_id: copilotId,
-    version: 'v0.1.0-draft',
-    system_prompt_summary: input.manifest.systemPromptSummary,
-    allowed_routes: input.manifest.allowedRoutes,
-    forbidden_actions: input.manifest.forbiddenActions,
-    confirmation_policy: input.manifest.confirmationPolicy,
-    always_confirm_actions: input.manifest.alwaysConfirmActions,
-    memory_sources: [],
-    output_contract: input.manifest.outputContract,
-    tool_ids: [],
-    max_steps_per_run: input.manifest.maxStepsPerRun,
-    max_cost_per_run_usd: input.manifest.maxCostPerRunUsd,
-    updated_at: now,
-  })
+  // Steps 2-5 run under a rollback guard: if any of them fails, the copilot row
+  // created above would remain half-provisioned in DB (no manifest/version/tools)
+  // and — because `copilots.slug` is UNIQUE — every retry would hit the
+  // idempotency check and return the broken row forever. Best-effort cleanup:
+  // DELETE the copilot we just created (the DB cascades every child row, see
+  // authoring-writes.ts), log server-side, rethrow the ORIGINAL error so the
+  // caller's error contract is unchanged.
+  try {
+    // 2. manifest (tool_ids backfilled after tools are created).
+    await pgrest('POST', 'manifests', {
+      id: manifestId,
+      copilot_id: copilotId,
+      version: 'v0.1.0-draft',
+      system_prompt_summary: input.manifest.systemPromptSummary,
+      allowed_routes: input.manifest.allowedRoutes,
+      forbidden_actions: input.manifest.forbiddenActions,
+      confirmation_policy: input.manifest.confirmationPolicy,
+      always_confirm_actions: input.manifest.alwaysConfirmActions,
+      memory_sources: [],
+      output_contract: input.manifest.outputContract,
+      tool_ids: [],
+      max_steps_per_run: input.manifest.maxStepsPerRun,
+      max_cost_per_run_usd: input.manifest.maxCostPerRunUsd,
+      updated_at: now,
+    })
 
-  // 3. tools (read-only first + one gated write tool), collect ids.
-  const toolIds: string[] = []
-  for (const t of input.manifest.proposedTools) {
-    const rows = await pgrest<Row[]>('POST', 'tools', {
+    // 3. tools (read-only first + one gated write tool) — ids are generated
+    // client-side, so ONE batch POST (PostgREST array body) replaces the
+    // previous per-row inserts.
+    const toolRows = input.manifest.proposedTools.map((t) => ({
       id: makeId('tool', `${slugify(t.name)}-${randHex()}`),
       copilot_id: copilotId,
       name: t.name,
@@ -130,40 +139,38 @@ export async function provisionAgentBuilderCopilot(): Promise<ProvisionAgentBuil
       enabled: true,
       requires_confirmation: t.requiresConfirmation,
       scoped_routes: [],
+    }))
+    if (toolRows.length > 0) await pgrest('POST', 'tools', toolRows)
+    const toolIds = toolRows.map((t) => t.id)
+    await pgrest('PATCH', `manifests?id=eq.${encodeURIComponent(manifestId)}`, { tool_ids: toolIds })
+
+    // 4. draft version (points at the manifest).
+    await pgrest('POST', 'copilot_versions', {
+      id: versionId,
+      copilot_id: copilotId,
+      label: 'v0.1.0-draft',
+      stage: 'draft',
+      manifest_id: manifestId,
+      model: input.model,
+      model_provider: input.modelProvider,
+      changelog: 'Agent Builder Copilot — initial controlled draft',
+      created_at: now,
+      created_by: input.owner,
+      scores: { testPassRate: 0, benchmarkScore: 0, shadowAgreement: null, unsafeActionCount: 0 },
     })
-    toolIds.push(rows[0].id as string)
-  }
-  await pgrest('PATCH', `manifests?id=eq.${encodeURIComponent(manifestId)}`, { tool_ids: toolIds })
 
-  // 4. draft version (points at the manifest).
-  await pgrest('POST', 'copilot_versions', {
-    id: versionId,
-    copilot_id: copilotId,
-    label: 'v0.1.0-draft',
-    stage: 'draft',
-    manifest_id: manifestId,
-    model: input.model,
-    model_provider: input.modelProvider,
-    changelog: 'Agent Builder Copilot — initial controlled draft',
-    created_at: now,
-    created_by: input.owner,
-    scores: { testPassRate: 0, benchmarkScore: 0, shadowAgreement: null, unsafeActionCount: 0 },
-  })
-
-  // 5. initial safety+behaviour test suite (+ cases).
-  const suite = agentBuilderTestSuite(copilotId)
-  const suiteId = makeId('ts', `${slugify(suite.name)}-${rand}`)
-  await pgrest('POST', 'test_suites', {
-    id: suiteId,
-    copilot_id: copilotId,
-    name: suite.name,
-    description: suite.description,
-    kind: suite.kind,
-    last_run_id: null,
-  })
-  for (let i = 0; i < suite.cases.length; i += 1) {
-    const c = suite.cases[i]
-    await pgrest('POST', 'test_cases', {
+    // 5. initial safety+behaviour test suite (+ cases, one batch POST).
+    const suite = agentBuilderTestSuite(copilotId)
+    const suiteId = makeId('ts', `${slugify(suite.name)}-${rand}`)
+    await pgrest('POST', 'test_suites', {
+      id: suiteId,
+      copilot_id: copilotId,
+      name: suite.name,
+      description: suite.description,
+      kind: suite.kind,
+      last_run_id: null,
+    })
+    const caseRows = suite.cases.map((c, i) => ({
       id: makeId('tc', `${slugify(suite.name)}-${rand}-${i + 1}`),
       suite_id: suiteId,
       name: c.name,
@@ -171,7 +178,23 @@ export async function provisionAgentBuilderCopilot(): Promise<ProvisionAgentBuil
       expected_behavior: c.expectedBehavior,
       expected_tool_calls: c.expectedToolCalls,
       tags: c.tags,
-    })
+    }))
+    if (caseRows.length > 0) await pgrest('POST', 'test_cases', caseRows)
+  } catch (err) {
+    console.error(
+      `[provision-agent-builder-live] provisioning failed after copilot insert — rolling back ${copilotId}`,
+      err
+    )
+    try {
+      // ON DELETE CASCADE on every child FK: one DELETE clears the partial lot.
+      await pgrest('DELETE', `copilots?id=eq.${encodeURIComponent(copilotId)}`)
+    } catch (cleanupErr) {
+      console.error(
+        `[provision-agent-builder-live] rollback DELETE failed for ${copilotId} — half-provisioned row may remain`,
+        cleanupErr
+      )
+    }
+    throw err
   }
 
   return { ok: true, copilotId, slug, created: true }
