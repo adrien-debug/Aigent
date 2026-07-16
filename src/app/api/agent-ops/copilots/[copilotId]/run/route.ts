@@ -32,6 +32,19 @@ const MAX_USER_INPUT_LENGTH = 32_000
 const COPILOT_ID_RE = /^[a-z0-9-]{1,200}$/
 
 /**
+ * 502 vs 504 for an upstream failure: pgrest() aborts a round-trip that
+ * exceeds its 30s cap and rethrows it as a PgrestError with `.status === 504`
+ * (see postgrest.ts). Surface that as 504 Gateway Timeout instead of a
+ * generic 502 so the client can tell "backend hung" from "backend down /
+ * erroring". PgrestError isn't exported, so classify by name + status.
+ */
+function upstreamFailureStatus(err: unknown): 502 | 504 {
+  return err instanceof Error && err.name === 'PgrestError' && 'status' in err && err.status === 504
+    ? 504
+    : 502
+}
+
+/**
  * POST /api/agent-ops/copilots/:copilotId/run — execute a REAL run of a
  * copilot against the live OpenAI model, persisted via the shared runner
  * (`executeCopilotRun`), which writes `agent_runs` + `agent_run_steps` to the
@@ -66,6 +79,11 @@ export async function POST(
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
+  }
+  // `null` is valid JSON: reading .userInput off it would throw → 500 instead
+  // of 400 (same guard as the sibling improve/analyze and promotion routes).
+  if (typeof body !== 'object' || body === null) {
+    return NextResponse.json({ error: 'body must be a JSON object' }, { status: 400 })
   }
   if (typeof body.userInput !== 'string' || body.userInput.trim().length === 0) {
     return NextResponse.json({ error: 'userInput is required' }, { status: 400 })
@@ -106,7 +124,7 @@ export async function POST(
     // for debugging, return a generic message (same status code, same
     // `error` field contract as before).
     console.error('[agent-ops/copilots/run] failed to load copilot', err)
-    return NextResponse.json({ error: 'failed to load copilot' }, { status: 502 })
+    return NextResponse.json({ error: 'failed to load copilot' }, { status: upstreamFailureStatus(err) })
   }
 
   const versionId =
@@ -163,7 +181,10 @@ export async function POST(
   } catch (err) {
     // Same rationale as above: don't leak raw PostgREST error text.
     console.error('[agent-ops/copilots/run] failed to load version/manifest', err)
-    return NextResponse.json({ error: 'failed to load version or manifest' }, { status: 502 })
+    return NextResponse.json(
+      { error: 'failed to load version or manifest' },
+      { status: upstreamFailureStatus(err) }
+    )
   }
 
   // 3) Execute — real OpenAI call + real agent_runs/agent_run_steps persistence.
@@ -212,6 +233,6 @@ export async function POST(
     // or the OpenAI client — never forward raw internal error text to the
     // client. Log server-side for debugging, return a generic message.
     console.error('[agent-ops/copilots/run] run execution failed', err)
-    return NextResponse.json({ error: 'run execution failed' }, { status: 502 })
+    return NextResponse.json({ error: 'run execution failed' }, { status: upstreamFailureStatus(err) })
   }
 }
