@@ -439,7 +439,7 @@ export function ProjectAgentBuilderWorkbench({
                     key={message.id}
                     className="group relative flex gap-4 px-4 py-5 hover:bg-[var(--color-surface-interactive)] transition-colors"
                   >
-                    <div className="flex-none pt-0.5">
+                    <div className="flex-none pt-0.5" aria-hidden="true">
                       {message.role === 'user' ? (
                         <div className="flex size-6 items-center justify-center rounded-md bg-(--accent-soft) text-[10px] font-medium text-accent-700 ring-1 ring-(--accent-line) dark:text-accent-300">
                           U
@@ -473,7 +473,7 @@ export function ProjectAgentBuilderWorkbench({
             {running ? (
               <div className="border-t border-zinc-950/5 dark:border-white/5">
                 <div className="flex gap-4 px-4 py-5">
-                  <div className="flex-none pt-0.5">
+                  <div className="flex-none pt-0.5" aria-hidden="true">
                     <div className="flex size-6 items-center justify-center rounded-md bg-zinc-100 text-[10px] font-medium text-zinc-600 ring-1 ring-zinc-950/10 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-white/10">
                       A
                     </div>
