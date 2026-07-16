@@ -29,7 +29,8 @@ const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`
 /**
  * Thrown when the failure originates in the gpu1/PostgREST backend (project
  * lookup or cache read/write) — NOT GitHub. Lets callers (the HTTP route) map
- * this to a 503 "backend unavailable" instead of a misleading GitHub message.
+ * this to a 502 "backend unavailable" (504 when the cause is the PostgREST
+ * timeout) instead of a misleading GitHub message.
  */
 export class RepoIntelligenceBackendError extends Error {
   readonly cause: unknown
