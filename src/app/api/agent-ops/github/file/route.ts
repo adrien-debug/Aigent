@@ -20,15 +20,25 @@ import { getRepoFile } from '@/lib/agent-mission-control/github'
 // repo/ref schemas in ../tree/route.ts — no shared module because each route
 // in this trio is single-owner.
 
-/** owner/name only — no `..`, no extra `/`, no query, no `@`. */
+/** owner/name only — no `..`, no extra `/`, no query, no `@`. Bounded well
+ * above GitHub's real limits (owner ≤ 39 + "/" + repo ≤ 100), same cap as the
+ * `repo` field in projects/[id]/builder/run/route.ts. */
 const repoSchema = z
   .string()
+  .max(200, 'repo too long')
   .regex(/^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/, 'repo must be "owner/name"')
 
-/** Git refs: branches, tags, or full SHAs — safe charset only. */
+/** Git refs: branches, tags, or full SHAs — safe charset only, bounded (git
+ * refs are ≤ 256 bytes in practice; a megabyte query param has no business
+ * reaching the GitHub URL builder). */
 const refSchema = z
   .string()
+  .max(256, 'ref too long')
   .regex(/^[A-Za-z0-9._/-]+$/, 'ref contains unsafe characters')
+
+/** Repo file paths: GitHub caps paths at 4096 bytes but real project files sit
+ * far below 1024 — anything longer is noise headed for the GitHub URL builder. */
+const MAX_PATH_LENGTH = 1024
 
 /**
  * Secret/credential path denylist — a local re-implementation of
@@ -61,7 +71,8 @@ function isRefusedPath(p: string): boolean {
  * write ever). Server-only; delegates to `getRepoFile` (github.ts), which reads
  * GITHUB_TOKEN.
  *
- * `repo`/`path` missing → 400. `repo`/`ref` malformed → 400. `path` targeting
+ * `repo`/`path` missing → 400. `repo`/`ref` malformed or over-long → 400.
+ * `path` over-long → 400. `path` targeting
  * a secret/credential file or attempting traversal → 403. Fail-closed 503
  * when GITHUB_TOKEN is absent. Upstream GitHub failure → 502 { error }.
  * Mirrors copilots/route.ts.
@@ -77,6 +88,9 @@ export async function GET(request: Request) {
   }
   if (!path) {
     return NextResponse.json({ error: 'path is required' }, { status: 400 })
+  }
+  if (path.length > MAX_PATH_LENGTH) {
+    return NextResponse.json({ error: 'path too long' }, { status: 400 })
   }
   const repoResult = repoSchema.safeParse(repo)
   if (!repoResult.success) {
