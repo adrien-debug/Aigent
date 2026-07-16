@@ -195,7 +195,7 @@ export function AssignProjectDialog({
                   <Headless.Button
                     onClick={() => removeTarget(targetId)}
                     disabled={targetsPending}
-                    className="rounded-sm p-0.5 text-zinc-500 hover:text-zinc-950 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-500 disabled:opacity-50 dark:hover:text-white"
+                    className="-my-2 -mr-1 rounded-sm p-2 text-zinc-500 hover:text-zinc-950 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-500 disabled:opacity-50 dark:hover:text-white"
                   >
                     <XMarkIcon aria-hidden="true" className="size-3.5" />
                     <span className="sr-only">Remove destination {projectNameById.get(targetId) ?? targetId}</span>
