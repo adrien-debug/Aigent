@@ -219,7 +219,7 @@ export function ArchitectChat({ onManifest }: ArchitectChatProps) {
             disabled={isSending}
           />
         </Field>
-        <div className="mt-3 flex items-center gap-3">
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           <Button color="accent" onClick={handleSend} disabled={isSending || input.trim().length === 0}>
             {isSending ? 'Sending…' : 'Send'}
           </Button>
