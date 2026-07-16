@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { ServerStackIcon, CpuChipIcon, BoltIcon, ArrowTopRightOnSquareIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline'
 
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { surfaceCardClass } from '@/components/agent-ops/surface-card'
 import { Link } from '@/components/catalyst/link'
 import clsx from 'clsx'
@@ -196,12 +197,9 @@ export function LangGraphExplorerView({
             <div className="p-4 border-b border-white/5 bg-black/20">
               <h2 className="text-sm font-semibold text-white">Recent Threads</h2>
             </div>
-            <div className="flex flex-col max-h-[600px] overflow-y-auto">
+            <div className="flex flex-col max-h-[600px] overflow-y-auto no-scrollbar">
               {(!Array.isArray(threads) || threads.length === 0) ? (
-                <div className="p-8 text-center">
-                  <ChatBubbleLeftRightIcon className="size-8 text-zinc-600 mx-auto mb-3" />
-                  <p className="text-sm text-zinc-400">No threads found.</p>
-                </div>
+                <EmptyState icon={ChatBubbleLeftRightIcon} title="No threads found" />
               ) : (
                 threads.map(thread => (
                   <Headless.Button
@@ -236,7 +234,7 @@ export function LangGraphExplorerView({
             <div className="p-4 border-b border-white/5 bg-black/20">
               <h2 className="text-sm font-semibold text-white">Thread Detail</h2>
             </div>
-            <div className="flex-1 p-6 overflow-y-auto">
+            <div className="flex-1 p-6 overflow-y-auto no-scrollbar">
               {!selected ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
                   <BoltIcon className="size-8 text-zinc-600 mb-3" />
@@ -273,7 +271,7 @@ export function LangGraphExplorerView({
                     <span className="text-[10px] uppercase tracking-widest text-zinc-500 border-b border-white/5 pb-2">Messages</span>
                     <div className="flex flex-col gap-4">
                       {detail.messages.length === 0 ? (
-                        <p className="text-sm text-zinc-500">No messages in this thread.</p>
+                        <EmptyState icon={ChatBubbleLeftRightIcon} title="No messages in this thread" className="px-0 py-6" />
                       ) : (
                         detail.messages.map((msg, idx) => (
                           <div key={idx} className={clsx(
