@@ -210,7 +210,14 @@ export function ProjectBuilderPreviewPanel({
                         disabled={selectingOption}
                         onClick={() => onSelectOption(option.id)}
                       >
-                        Select this option
+                        {selectingOption ? (
+                          <>
+                            <Spinner />
+                            Selecting…
+                          </>
+                        ) : (
+                          'Select this option'
+                        )}
                       </Button>
                     ) : null}
                   </li>
