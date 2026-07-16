@@ -49,7 +49,7 @@ export function LinearMeter({
       <div
         role="meter"
         aria-label={ariaLabel ?? label}
-        aria-valuenow={Math.round(value * 100) / 100}
+        aria-valuenow={Math.round(Math.min(max, Math.max(0, value)) * 100) / 100}
         aria-valuemin={0}
         aria-valuemax={max}
         className={clsx(
