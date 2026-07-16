@@ -40,6 +40,10 @@ interface BuilderRunState {
 const EXAMPLE =
   'I want an agent that watches the design system and flags oversized cards/buttons. What would you recommend for this repo?'
 
+/** Shared avatar-badge shell for the assistant ("A") glyph — chat log + streaming row. */
+const assistantAvatarBadgeClass =
+  'flex size-6 items-center justify-center rounded-md bg-zinc-100 text-[10px] font-medium text-zinc-600 ring-1 ring-zinc-950/10 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-white/10'
+
 function recommendationDiscussMessage(rec: AgentRecommendation): string {
   return (
     `Discutons de cette recommandation : "${rec.title}".\n\n` +
@@ -445,7 +449,7 @@ export function ProjectAgentBuilderWorkbench({
                           U
                         </div>
                       ) : (
-                        <div className="flex size-6 items-center justify-center rounded-md bg-zinc-100 text-[10px] font-medium text-zinc-600 ring-1 ring-zinc-950/10 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-white/10">
+                        <div className={assistantAvatarBadgeClass}>
                           A
                         </div>
                       )}
@@ -474,7 +478,7 @@ export function ProjectAgentBuilderWorkbench({
               <div className="border-t border-zinc-950/5 dark:border-white/5">
                 <div className="flex gap-4 px-4 py-5">
                   <div className="flex-none pt-0.5" aria-hidden="true">
-                    <div className="flex size-6 items-center justify-center rounded-md bg-zinc-100 text-[10px] font-medium text-zinc-600 ring-1 ring-zinc-950/10 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-white/10">
+                    <div className={assistantAvatarBadgeClass}>
                       A
                     </div>
                   </div>
