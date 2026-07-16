@@ -14,10 +14,16 @@ export function mergePreview(base: AgentPreview | null, patch: Partial<AgentPrev
   return merged
 }
 
+/**
+ * Returns the preview with `optionId` applied, or `null` when the option does
+ * not exist (unknown id, or no preview/options at all). Returning the preview
+ * unchanged on an unknown id used to mask the failure — callers persisted a
+ * "selection" that never happened. `null` is the distinguishable signal.
+ */
 export function selectPreviewOption(preview: AgentPreview | null, optionId: string): AgentPreview | null {
-  if (!preview?.options?.length) return preview
+  if (!preview?.options?.length) return null
   const option = preview.options.find((o) => o.id === optionId)
-  if (!option) return preview
+  if (!option) return null
   return applyOptionToPreview(preview, option, optionId)
 }
 

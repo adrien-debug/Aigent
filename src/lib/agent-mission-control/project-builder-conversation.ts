@@ -134,11 +134,14 @@ async function appendMessage(
 }
 
 async function loadMessages(conversationId: string): Promise<ProjectBuilderMessage[]> {
+  // Fetch the NEWEST rows (desc + limit) then reverse back to chronological
+  // order — asc + limit would keep the OLDEST 80 and silently drop the most
+  // recent turns once a conversation grows past the cap.
   const rows = await pgrest<RawRow[]>(
     'GET',
-    `project_builder_messages?${eq('conversation_id', conversationId)}&select=*&order=created_at.asc&limit=${MAX_MESSAGES_LOAD}`
+    `project_builder_messages?${eq('conversation_id', conversationId)}&select=*&order=created_at.desc&limit=${MAX_MESSAGES_LOAD}`
   )
-  return rows.map(rowToMessage)
+  return rows.map(rowToMessage).reverse()
 }
 
 /**
@@ -209,18 +212,19 @@ export async function ensureActiveProjectBuilderConversation(projectId: string):
 
 export async function getProjectBuilderConversationBundle(projectId: string): Promise<ProjectBuilderConversationBundle> {
   const conversation = await ensureActiveProjectBuilderConversation(projectId)
-  const messages = await loadMessages(conversation.id)
 
-  let repoSummary: string | null = null
-  try {
-    const cached = await loadRepoIntelligence(projectId)
-    repoSummary = repoSummaryFromIntel(cached.intelligence)
-  } catch {
-    repoSummary = null
-  }
+  // The three follow-up fetches are independent of each other (messages by
+  // conversation id, repo intelligence by project id, run state on the Agent
+  // Server) — run them in parallel instead of serially.
+  const [messages, repoSummary, runState] = await Promise.all([
+    loadMessages(conversation.id),
+    loadRepoIntelligence(projectId)
+      .then((cached) => repoSummaryFromIntel(cached.intelligence))
+      .catch(() => null),
+    reconstructRunState(conversation),
+  ])
 
   const createdCopilotId = conversation.latestPreview?.createdCopilotId ?? null
-  const runState = await reconstructRunState(conversation)
 
   return { conversation, messages, repoSummary, createdCopilotId, runState }
 }
@@ -703,6 +707,16 @@ export async function selectProjectBuilderPreviewOption(
   optionId: string
 ): Promise<ProjectBuilderConversationBundle> {
   const conversation = await ensureActiveProjectBuilderConversation(projectId)
+
+  // Idempotent re-select: this option is already the active one — skip the
+  // redundant PATCH and the duplicate system message, return the same bundle
+  // a fresh successful select would.
+  if (conversation.latestPreview?.selectedOptionId === optionId) {
+    return getProjectBuilderConversationBundle(projectId)
+  }
+
+  // `null` = option not found (or no preview/options at all) — the route maps
+  // this exact "not found" message to a generic 404.
   const next = selectPreviewOption(conversation.latestPreview, optionId)
   if (!next) throw new Error('preview option not found')
 
