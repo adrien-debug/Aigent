@@ -87,8 +87,14 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
                 </TableCell>
                 <TableCell className="py-4 px-6">
                   <StatusPill
-                    label={statusLabel(copilot.status)}
-                    tone={copilot.status === 'active' || copilot.status === 'degraded' ? 'accent' : 'zinc'}
+                    label={statusLabel(copilot.displayStatus ?? copilot.status)}
+                    tone={
+                      copilot.displayStatus === 'production' ||
+                      copilot.status === 'active' ||
+                      copilot.status === 'degraded'
+                        ? 'accent'
+                        : 'zinc'
+                    }
                   />
                 </TableCell>
                 <TableCell className="py-4 px-6">
@@ -98,7 +104,7 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
                   </div>
                 </TableCell>
                 <TableCell className="py-4 px-6 text-right">
-                  {copilot.health.testPassRate > 0 ? (
+                  {copilot.healthEvidence === 'runs' ? (
                     <div className="flex flex-col items-end gap-1">
                       <span className={`text-sm font-mono ${copilot.health.testPassRate >= 0.9 ? 'text-accent-400' : 'text-zinc-300'}`}>
                         {formatPercent(copilot.health.testPassRate)}

@@ -13,6 +13,12 @@
  */
 import 'server-only'
 
+import {
+  deriveDisplayStatus,
+  resolveCopilotHealthBatch,
+  resolveVersionScoresBatch,
+  type ResolvedAgentHealth,
+} from './agent-health'
 import { camelRow, camelRows, pgrest } from './postgrest'
 import type {
   AgentManifest,
@@ -53,22 +59,63 @@ export async function getProject(id: string): Promise<Project | undefined> {
   return camelRows<Project>(await rest<RawRow[]>(`projects?select=*&id=eq.${encodeURIComponent(id)}`))[0]
 }
 
+/**
+ * Overwrite the stale `health.testPassRate`/`benchmarkScore` blob (written to 0
+ * at creation, never recomputed) with run-backed truth, and attach the derived
+ * `displayStatus` + `healthEvidence`. When a copilot has NO completed run the
+ * resolver returns `null` and we keep the stored baseline untouched, so seeded
+ * copilots (real stored scores) and the existing "not measured" guards both
+ * still work. Every listing surface reads `.health.testPassRate` unchanged —
+ * the value is simply now true. Display-only; never touches the DB or the gate.
+ */
+function enrichCopilot(copilot: Copilot, resolved: ResolvedAgentHealth | undefined): Copilot {
+  copilot.displayStatus = deriveDisplayStatus({
+    status: copilot.status,
+    productionVersionId: copilot.productionVersionId,
+  })
+  copilot.healthEvidence = resolved?.evidenceSource ?? 'none'
+  if (resolved && resolved.testPassRate !== null) copilot.health.testPassRate = resolved.testPassRate
+  if (resolved && resolved.benchmarkScore !== null) copilot.health.benchmarkScore = resolved.benchmarkScore
+  return copilot
+}
+
 export async function getCopilots(): Promise<Copilot[]> {
-  return camelRows<Copilot>(await rest<RawRow[]>('copilots?select=*&order=name'))
+  const copilots = camelRows<Copilot>(await rest<RawRow[]>('copilots?select=*&order=name'))
+  const health = await resolveCopilotHealthBatch(copilots.map((c) => c.id))
+  return copilots.map((c) => enrichCopilot(c, health.get(c.id)))
 }
 
 export async function getCopilot(id: string): Promise<Copilot | undefined> {
-  return camelRows<Copilot>(await rest<RawRow[]>(`copilots?select=*&id=eq.${encodeURIComponent(id)}`))[0]
+  const copilot = camelRows<Copilot>(await rest<RawRow[]>(`copilots?select=*&id=eq.${encodeURIComponent(id)}`))[0]
+  if (!copilot) return undefined
+  const health = await resolveCopilotHealthBatch([copilot.id])
+  return enrichCopilot(copilot, health.get(copilot.id))
 }
 
 export async function getVersionsForCopilot(copilotId: string): Promise<CopilotVersion[]> {
-  return camelRows<CopilotVersion>(
+  const versions = camelRows<CopilotVersion>(
     await rest<RawRow[]>(`copilot_versions?select=*&copilot_id=eq.${encodeURIComponent(copilotId)}&order=created_at.desc`)
   )
+  const scores = await resolveVersionScoresBatch(versions.map((v) => v.id))
+  return versions.map((version) => {
+    const resolved = scores.get(version.id)
+    version.scoresEvidence = resolved?.evidenceSource ?? 'none'
+    // Same rule as copilots: run-backed value overwrites the stale zero blob;
+    // no run → keep the stored baseline (seeded versions, un-run drafts).
+    if (resolved && resolved.testPassRate !== null) version.scores.testPassRate = resolved.testPassRate
+    if (resolved && resolved.benchmarkScore !== null) version.scores.benchmarkScore = resolved.benchmarkScore
+    return version
+  })
 }
 
 export async function getVersion(id: string): Promise<CopilotVersion | undefined> {
-  return camelRows<CopilotVersion>(await rest<RawRow[]>(`copilot_versions?select=*&id=eq.${encodeURIComponent(id)}`))[0]
+  const version = camelRows<CopilotVersion>(await rest<RawRow[]>(`copilot_versions?select=*&id=eq.${encodeURIComponent(id)}`))[0]
+  if (!version) return undefined
+  const resolved = (await resolveVersionScoresBatch([version.id])).get(version.id)
+  version.scoresEvidence = resolved?.evidenceSource ?? 'none'
+  if (resolved && resolved.testPassRate !== null) version.scores.testPassRate = resolved.testPassRate
+  if (resolved && resolved.benchmarkScore !== null) version.scores.benchmarkScore = resolved.benchmarkScore
+  return version
 }
 
 export async function getManifestForCopilot(copilotId: string): Promise<AgentManifest | undefined> {
@@ -251,10 +298,15 @@ export interface RegistryKpis {
 
 export async function getRegistryKpis(): Promise<RegistryKpis> {
   const copilots = await getCopilots()
-  const measured = copilots.filter((c) => c.health.testPassRate > 0)
+  // "Measured" = has real run evidence (healthEvidence), NOT `testPassRate > 0`:
+  // an agent that genuinely scores 0% must count, and the enriched blob is now
+  // run-backed so the average reflects reality instead of stale zeros.
+  const measured = copilots.filter((c) => c.healthEvidence === 'runs')
   return {
     totalCopilots: copilots.length,
-    activeCopilots: copilots.filter((c) => c.status === 'active').length,
+    // Count anything serving production as active — the stored `status` column
+    // stays `draft` after promotion, so use the derived displayStatus.
+    activeCopilots: copilots.filter((c) => c.displayStatus === 'active' || c.displayStatus === 'production').length,
     avgTestPassRate:
       measured.length > 0 ? measured.reduce((s, c) => s + c.health.testPassRate, 0) / measured.length : 0,
     runsLast24h: copilots.reduce((s, c) => s + c.health.runsLast24h, 0),

@@ -84,7 +84,23 @@ export interface Copilot {
   lastPushStatus?: AgentPushStatus
   lastPushedAt?: IsoTimestamp
   lastPushCommitUrl?: string
+  /**
+   * Display status derived from the production pointer at read time (data.ts),
+   * NOT stored in DB. `'production'` when a version is serving production even
+   * though `status` still reads `draft`. Undefined outside the enriched getters.
+   * Display-only — never gates anything; the raw `status` column is untouched.
+   */
+  displayStatus?: DisplayStatus
+  /**
+   * Whether `health.testPassRate`/`benchmarkScore` came from real completed runs
+   * (`runs`) or are the stored baseline with no run yet (`none`). Set by the
+   * enriched getters; drives "not measured" vs a real number in the UI.
+   */
+  healthEvidence?: 'runs' | 'none'
 }
+
+/** See `agent-health.ts` — display status decoupled from the stored column. */
+export type DisplayStatus = CopilotStatus | 'production'
 
 export interface CopilotHealth {
   testPassRate: number // 0..1
@@ -116,6 +132,13 @@ export interface CopilotVersion {
     shadowAgreement: number | null // 0..1, null if never shadowed
     unsafeActionCount: number
   }
+  /**
+   * Whether `scores.testPassRate`/`benchmarkScore` came from real completed runs
+   * pinned to this version (`runs`) or are the stored zero baseline (`none`).
+   * Set by `getVersionsForCopilot`; lets the UI show "not measured" for a
+   * genuinely un-run version instead of a false 0.0%.
+   */
+  scoresEvidence?: 'runs' | 'none'
 }
 
 // ---------------------------------------------------------------------------

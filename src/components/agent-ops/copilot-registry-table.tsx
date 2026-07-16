@@ -8,7 +8,7 @@ import { Badge } from '@/components/catalyst/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import { COPILOT_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
-import type { Copilot, CopilotStatus, Project } from '@/lib/agent-mission-control/types'
+import type { Copilot, DisplayStatus, Project } from '@/lib/agent-mission-control/types'
 
 export type RegistryTableView = 'bench' | 'all'
 
@@ -17,8 +17,10 @@ export type RegistryTableView = 'bench' | 'all'
  * `active` is the healthy default (neutral zinc); anything needing attention
  * escalates on the accent ramp. The label always carries the meaning.
  */
-function statusBadgeColor(status: CopilotStatus): 'zinc' | 'accent' | 'accentStrong' {
+function statusBadgeColor(status: DisplayStatus): 'zinc' | 'accent' | 'accentStrong' {
   switch (status) {
+    case 'production':
+      return 'accent'
     case 'active':
       return 'zinc'
     case 'degraded':
@@ -29,6 +31,11 @@ function statusBadgeColor(status: CopilotStatus): 'zinc' | 'accent' | 'accentStr
       // draft, archived — quiet neutral
       return 'zinc'
   }
+}
+
+/** Human label including the derived `production` state (data.ts). */
+function statusLabel(status: DisplayStatus): string {
+  return status === 'production' ? 'Production' : COPILOT_STATUS_LABELS[status]
 }
 
 function ListRow({ copilot, project }: { copilot: Copilot; project?: Project }) {
@@ -47,10 +54,11 @@ function ListRow({ copilot, project }: { copilot: Copilot; project?: Project }) 
         </div>
       </TableCell>
 
-      {/* Status — real Catalyst badge, never clips */}
+      {/* Status — real Catalyst badge, never clips. Derived displayStatus so a
+          copilot serving production reads "Production", not the stale "Draft". */}
       <TableCell className="py-4">
-        <Badge color={statusBadgeColor(copilot.status)} className="whitespace-nowrap">
-          {COPILOT_STATUS_LABELS[copilot.status]}
+        <Badge color={statusBadgeColor(copilot.displayStatus ?? copilot.status)} className="whitespace-nowrap">
+          {statusLabel(copilot.displayStatus ?? copilot.status)}
         </Badge>
       </TableCell>
 
@@ -77,16 +85,21 @@ function ListRow({ copilot, project }: { copilot: Copilot; project?: Project }) 
         <span className="font-mono text-[13px] text-zinc-400">{formatUsd(copilot.health.costLast24hUsd)}</span>
       </TableCell>
 
-      {/* Quality — always visible, right edge */}
+      {/* Quality — always visible, right edge. A dash (not a false 0.0%) when no
+          run has measured this copilot yet; a real, run-backed % otherwise. */}
       <TableCell className="py-4 text-right">
-        <span
-          className={clsx(
-            'font-mono text-[13px]',
-            copilot.health.testPassRate >= 0.9 ? 'text-zinc-300' : 'text-accent-400'
-          )}
-        >
-          {formatPercent(copilot.health.testPassRate)}
-        </span>
+        {copilot.healthEvidence === 'runs' ? (
+          <span
+            className={clsx(
+              'font-mono text-[13px]',
+              copilot.health.testPassRate >= 0.9 ? 'text-zinc-300' : 'text-accent-400'
+            )}
+          >
+            {formatPercent(copilot.health.testPassRate)}
+          </span>
+        ) : (
+          <span className="font-mono text-[13px] text-zinc-600">—</span>
+        )}
       </TableCell>
     </TableRow>
   )

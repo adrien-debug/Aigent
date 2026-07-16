@@ -8,15 +8,17 @@ import { Link } from '@/components/catalyst/link'
 import { Text } from '@/components/catalyst/text'
 import { getCopilot } from '@/lib/agent-mission-control/data'
 import { COPILOT_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
-import type { CopilotStatus } from '@/lib/agent-mission-control/types'
+import type { DisplayStatus } from '@/lib/agent-mission-control/types'
 
 /**
- * Status → Catalyst badge intensity on the mono-accent ladder. Mirrors
- * copilot-registry-table.tsx's local mapping (not exported there) — kept in
- * sync by convention, not by import, since the table owns its own file.
+ * Display status → Catalyst badge intensity on the mono-accent ladder. Uses the
+ * derived `displayStatus` (data.ts) so a copilot serving a production version
+ * reads "Production" here even though its stored `status` column stays `draft`.
  */
-function statusBadgeColor(status: CopilotStatus): 'zinc' | 'accent' | 'accentStrong' {
+function statusBadgeColor(status: DisplayStatus): 'zinc' | 'accent' | 'accentStrong' {
   switch (status) {
+    case 'production':
+      return 'accent'
     case 'degraded':
       return 'accentStrong'
     case 'paused':
@@ -25,6 +27,11 @@ function statusBadgeColor(status: CopilotStatus): 'zinc' | 'accent' | 'accentStr
       // active, draft, archived — quiet neutral
       return 'zinc'
   }
+}
+
+/** Human label including the derived `production` state. */
+function statusLabel(status: DisplayStatus): string {
+  return status === 'production' ? 'Production' : COPILOT_STATUS_LABELS[status]
 }
 
 export default async function CopilotLayout({
@@ -60,7 +67,9 @@ export default async function CopilotLayout({
             <Heading level={1} className="truncate">
               {copilot.name}
             </Heading>
-            <Badge color={statusBadgeColor(copilot.status)}>{COPILOT_STATUS_LABELS[copilot.status]}</Badge>
+            <Badge color={statusBadgeColor(copilot.displayStatus ?? copilot.status)}>
+              {statusLabel(copilot.displayStatus ?? copilot.status)}
+            </Badge>
           </div>
           <Text className="mt-1 truncate font-mono !text-xs">
             {copilot.model} · {copilot.modelProvider}

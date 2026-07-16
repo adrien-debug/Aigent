@@ -189,6 +189,13 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
   const passCount = latestTestResults.filter((r) => r.status === 'pass').length
   const failCount = latestTestResults.filter((r) => r.status === 'fail').length
   const errorCount = latestTestResults.filter((r) => r.status === 'error').length
+  // The gauge shows the SAME latest run as the pass/fail bar beside it, so it's
+  // derived from that run's own results (intra-screen coherence). `health` is
+  // now run-backed too (data.ts derives it from real runs) and is the fallback
+  // when this screen has no per-result breakdown to count.
+  const latestTestTotal = passCount + failCount + errorCount
+  const displayTestPassRate =
+    latestTestTotal > 0 ? passCount / latestTestTotal : copilot.health.testPassRate
 
   // Runs — last 5, newest first
   const runs = [...allRuns].sort((a, b) => b.startedAt.localeCompare(a.startedAt))
@@ -284,7 +291,12 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
     })
   }
 
-  if (latestVersion && latestVersion.stage === 'draft' && latestVersion.scores.testPassRate === 0 && !isSparseDraft) {
+  const latestVersionUntested = latestVersion
+    ? latestVersion.scoresEvidence
+      ? latestVersion.scoresEvidence === 'none'
+      : latestVersion.scores.testPassRate === 0
+    : false
+  if (latestVersion && latestVersion.stage === 'draft' && latestVersionUntested && !isSparseDraft) {
     nextActions.push({
       key: 'untested-draft',
       title: `Run the test suites on ${latestVersion.label}`,
@@ -404,7 +416,11 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
         <AgentBentoCard title="Runtime & status" level={2}>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
             <span className="font-medium text-zinc-700 dark:text-zinc-300">
-              {COPILOT_STATUS_LABELS[copilot.status] ?? copilot.status}
+              {/* Derived displayStatus: "Production" when a version is serving prod,
+                  even though the stored status column still reads draft. */}
+              {(copilot.displayStatus ?? copilot.status) === 'production'
+                ? 'Production'
+                : (COPILOT_STATUS_LABELS[copilot.status] ?? copilot.status)}
             </span>
             <span className="text-zinc-500 dark:text-zinc-400">{AGENT_RUNTIME_LABELS[copilot.runtime]}</span>
           </div>
@@ -578,12 +594,12 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
               {/* Tests row — pass-rate ring + pass/fail/error split bar. */}
               <div className="flex items-start gap-6">
                 <RadialMeter
-                  value={copilot.health.testPassRate}
+                  value={displayTestPassRate}
                   max={1}
                   size={92}
-                  centerText={formatPercent(copilot.health.testPassRate)}
+                  centerText={formatPercent(displayTestPassRate)}
                   caption="pass rate"
-                  ariaLabel={`Test pass rate: ${formatPercent(copilot.health.testPassRate)}`}
+                  ariaLabel={`Test pass rate: ${formatPercent(displayTestPassRate)}`}
                 />
                 <div className="min-w-0 flex-1">
                   {latestTestRun ? (

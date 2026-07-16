@@ -7,11 +7,16 @@ import { formatDate, formatPercent } from '@/lib/agent-mission-control/format'
 import type { CopilotVersion } from '@/lib/agent-mission-control/types'
 
 /**
- * A draft with all-zero test/benchmark scores was never run: render a muted
- * "Not measured yet" line (never a scary "0.0%" or an empty gauge). Shared with
- * the versions page so the cards and the score comparison table agree.
+ * A version with no run-backed evidence renders a muted "Not measured yet" line
+ * (never a scary "0.0%" or an empty gauge). Uses `scoresEvidence` set by the
+ * data layer from real runs — so a genuinely-tested version that scores 0% is
+ * shown as 0% (real), and only a truly un-run version reads "not measured".
+ * Falls back to the legacy zero-blob heuristic when evidence is absent (e.g. a
+ * version object not sourced from the enriched getter). Shared with the versions
+ * page so the cards and the score comparison table agree.
  */
 export function versionNeverTested(version: CopilotVersion): boolean {
+  if (version.scoresEvidence) return version.scoresEvidence === 'none'
   return version.stage === 'draft' && version.scores.testPassRate === 0 && version.scores.benchmarkScore === 0
 }
 

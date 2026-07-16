@@ -117,11 +117,14 @@ function copilotSummary(c: Copilot) {
   return {
     id: c.id,
     name: c.name,
-    status: c.status,
+    // Derived display status (data.ts): reflects a served production version
+    // even when the stored `status` column still reads draft.
+    status: c.displayStatus ?? c.status,
     model: c.model,
     modelProvider: c.modelProvider,
     runtime: c.runtime,
     health: {
+      // Run-backed via the enriched getters — the stale zero blob is overwritten.
       testPassRate: c.health.testPassRate,
       benchmarkScore: c.health.benchmarkScore,
       runsLast24h: c.health.runsLast24h,

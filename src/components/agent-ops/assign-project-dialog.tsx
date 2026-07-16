@@ -127,9 +127,15 @@ export function AssignProjectDialog({
       <DialogTitle>Assign {copilot.name}</DialogTitle>
       <DialogDescription>
         Assigning to a project validates this copilot off the bench. Readiness:{' '}
-        <span className="font-mono tabular-nums">{formatPercent(copilot.health.testPassRate)}</span> test pass
-        {' · '}benchmark{' '}
-        <span className="font-mono tabular-nums">{copilot.health.benchmarkScore}</span>/100.
+        {copilot.healthEvidence === 'runs' ? (
+          <>
+            <span className="font-mono tabular-nums">{formatPercent(copilot.health.testPassRate)}</span> test pass
+            {' · '}benchmark{' '}
+            <span className="font-mono tabular-nums">{copilot.health.benchmarkScore}</span>/100.
+          </>
+        ) : (
+          <span className="text-zinc-500 dark:text-zinc-400">not measured yet — no completed run.</span>
+        )}
       </DialogDescription>
       <DialogBody>
         {projects.length === 0 ? (
