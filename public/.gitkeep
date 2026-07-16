@@ -1,0 +1,4 @@
+# Keeps public/ present in the repo + Docker build context. The multi-stage
+# deploy Dockerfile COPYs /app/public from the builder stage; without this the
+# directory is absent (empty dirs aren't tracked by git) and the build fails at
+# `COPY --from=builder /app/public`.
