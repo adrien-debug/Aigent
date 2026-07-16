@@ -167,7 +167,7 @@ export default async function RunsPage({
           </div>
 
           <div className={surfaceCardClass}>
-            <div className={clsx(surfaceCardHeaderClass, 'px-4 py-4')}>
+            <div className={clsx(surfaceCardHeaderClass, 'px-6 py-4')}>
               <h2 className="text-sm font-semibold text-white">Recent Runs</h2>
               <span className="text-xs text-zinc-500">{runs.length} runs</span>
             </div>
