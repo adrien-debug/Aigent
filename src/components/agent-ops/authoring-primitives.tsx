@@ -64,19 +64,19 @@ export function ManifestRecap({ manifest, showLimits }: ManifestRecapProps) {
       <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
         <div>
           <dt className="inline text-xs font-medium tracking-wide text-zinc-500 uppercase">Allowed routes</dt>
-          <dd className="ml-1.5 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
+          <dd className="ml-2 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
             {manifest.allowedRoutes.length}
           </dd>
         </div>
         <div>
           <dt className="inline text-xs font-medium tracking-wide text-zinc-500 uppercase">Proposed tools</dt>
-          <dd className="ml-1.5 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
+          <dd className="ml-2 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
             {manifest.proposedTools.length}
           </dd>
         </div>
         <div>
           <dt className="inline text-xs font-medium tracking-wide text-zinc-500 uppercase">Confirmation</dt>
-          <dd className="ml-1.5 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
+          <dd className="ml-2 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
             {manifest.confirmationPolicy}
           </dd>
         </div>
@@ -84,13 +84,13 @@ export function ManifestRecap({ manifest, showLimits }: ManifestRecapProps) {
           <>
             <div>
               <dt className="inline text-xs font-medium tracking-wide text-zinc-500 uppercase">Max steps/run</dt>
-              <dd className="ml-1.5 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
+              <dd className="ml-2 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
                 {manifest.maxStepsPerRun}
               </dd>
             </div>
             <div>
               <dt className="inline text-xs font-medium tracking-wide text-zinc-500 uppercase">Max cost/run</dt>
-              <dd className="ml-1.5 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
+              <dd className="ml-2 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
                 {formatUsd(manifest.maxCostPerRunUsd)}
               </dd>
             </div>
