@@ -119,23 +119,23 @@ export async function createCopilotFromManifest(input: CreateCopilotInput): Prom
     roleText,
     input.projectId !== null
   )
-  const toolIds: string[] = []
-  for (const proposed of proposedTools) {
-    const toolPayload: RawRow = {
-      id: makeId('tool', `${slugify(proposed.name)}-${crypto.randomUUID().slice(0, 8)}`),
-      copilot_id: copilotId,
-      name: proposed.name,
-      description: proposed.description,
-      provider: proposed.provider,
-      risk_level: proposed.riskLevel,
-      enabled: true,
-      requires_confirmation: proposed.requiresConfirmation,
-      scoped_routes: [],
-    }
-    const toolRows = await pgrest<RawRow[]>('POST', 'tools', toolPayload)
-    toolIds.push(toolRows[0].id as string)
-  }
+  // Ids are generated client-side (makeId), so the whole set inserts as ONE
+  // batch POST (PostgREST bulk insert: array payload) instead of a round-trip
+  // per tool.
+  const toolPayloads: RawRow[] = proposedTools.map((proposed) => ({
+    id: makeId('tool', `${slugify(proposed.name)}-${crypto.randomUUID().slice(0, 8)}`),
+    copilot_id: copilotId,
+    name: proposed.name,
+    description: proposed.description,
+    provider: proposed.provider,
+    risk_level: proposed.riskLevel,
+    enabled: true,
+    requires_confirmation: proposed.requiresConfirmation,
+    scoped_routes: [],
+  }))
+  const toolIds = toolPayloads.map((payload) => payload.id as string)
   if (toolIds.length > 0) {
+    await pgrest<RawRow[]>('POST', 'tools', toolPayloads)
     await pgrest<RawRow[]>('PATCH', `manifests?id=eq.${encodeURIComponent(manifestId)}`, {
       tool_ids: toolIds,
     })
@@ -248,6 +248,25 @@ export interface CreateProjectInput {
  */
 const REPO_FULL_NAME_RE = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/
 
+/**
+ * Id-safe slug shape — mirrors the POST /projects route's guard (SLUG_RE
+ * /^[a-z0-9-]+$/ + NAME_MAX 195): the project id is `proj-<slug>` and every
+ * child route gates it with /^[a-z0-9-]{1,200}$/ ("proj-" eats 5 chars).
+ * Re-checked HERE, in front of the insert, as defense in depth: createProject
+ * persists the slug verbatim, so any future caller (script, another route)
+ * that skips the HTTP-layer validation must not be able to persist a slug that
+ * yields an unreachable project id or an empty non-null unique value.
+ */
+const PROJECT_SLUG_RE = /^[a-z0-9-]{1,195}$/
+
+function assertValidProjectSlug(slug: string): void {
+  if (!PROJECT_SLUG_RE.test(slug)) {
+    throw new Error(
+      `invalid slug: "${slug}" (expected 1-195 chars of lowercase letters, digits, and hyphens)`
+    )
+  }
+}
+
 function assertValidRepoFullName(repoFullName: string | undefined): void {
   if (repoFullName === undefined) return
   const trimmed = repoFullName.trim()
@@ -275,6 +294,7 @@ export async function createProject(input: CreateProjectInput): Promise<string> 
 
   const now = new Date().toISOString()
   const slug = input.slug?.trim() || slugify(input.name)
+  assertValidProjectSlug(slug)
   const id = makeId('proj', slug)
 
   const payload: RawRow = {
@@ -358,12 +378,19 @@ export async function deleteProjectCascade(projectId: string): Promise<boolean> 
   const assistantId = existing[0].assistant_id
   if (assistantId) await deleteProjectAssistant(assistantId)
 
-  // Route each copilot through deleteCopilotCascade so its dedicated assistant
-  // (0009) is torn down too — a bare DELETE would leak the assistant.
-  const copilots = await pgrest<{ id: string }[]>('GET', `copilots?select=id&${eq('project_id', projectId)}`)
+  // Tear down each copilot's dedicated assistant (0009) directly — a bare
+  // DELETE would leak them. Prefer the persisted id; fall back to the
+  // deterministic v5 id (mirrors deleteCopilotCascade). Then batch the row
+  // deletes: ONE DELETE by project_id (the DB cascades every child row)
+  // instead of a GET + DELETE round-trip per copilot.
+  const copilots = await pgrest<{ id: string; assistant_id: string | null }[]>(
+    'GET',
+    `copilots?select=id,assistant_id&${eq('project_id', projectId)}`
+  )
   for (const copilot of copilots) {
-    await deleteCopilotCascade(copilot.id)
+    await deleteCopilotAssistant(copilot.assistant_id ?? assistantIdForCopilot(copilot.id))
   }
+  await pgrest('DELETE', `copilots?${eq('project_id', projectId)}`)
   await pgrest('DELETE', `projects?${eq('id', projectId)}`)
   return true
 }
