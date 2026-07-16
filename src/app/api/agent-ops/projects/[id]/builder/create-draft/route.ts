@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { pgrest } from '@/lib/agent-mission-control/postgrest'
 import {
   confirmProjectBuilderDraftMaterialization,
   getProjectBuilderConversationBundle,
@@ -56,6 +57,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'approved must be a boolean' }, { status: 400 })
   }
 
+  // The project must exist to materialize a draft against it — checked
+  // explicitly so an unknown id answers 404 instead of an opaque 502 when the
+  // bundle load below trips the project_id FK on project_builder_conversations.
+  // Same pre-check, same shapes as the sibling builder/resume route.
+  let projectExists = false
+  try {
+    const rows = await pgrest<{ id: string }[]>('GET', `projects?select=id&id=eq.${encodeURIComponent(id)}&limit=1`)
+    projectExists = rows.length > 0
+  } catch (err) {
+    console.error('[agent-ops/projects/builder/create-draft] failed to check project', err)
+    return NextResponse.json({ error: 'failed to check project' }, { status: 502 })
+  }
+  if (!projectExists) return NextResponse.json({ error: 'project not found' }, { status: 404 })
+
   try {
     const bundle = await getProjectBuilderConversationBundle(id)
     const conversation = bundle.conversation
@@ -101,6 +116,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'create draft failed'
+    // Race backup for the pre-check above: the helpers throw the literal
+    // 'project not found' when the project row disappears mid-request. It MUST
+    // be classified before the thread-lost regex below, whose /not found/
+    // would otherwise swallow it into a misleading 409 threadLost.
+    if (/^project not found$/i.test(message)) {
+      return NextResponse.json({ error: 'project not found' }, { status: 404 })
+    }
     if (/404|not found|thread was lost/i.test(message)) {
       return NextResponse.json(
         { error: 'the approval thread was lost — restart draft materialization', threadLost: true },
@@ -114,6 +136,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         { error: 'draft materialization already in progress — confirm or reject it' },
         { status: 409 }
       )
+    }
+    // resolveBuilderCopilotId throws this when the Agent Builder copilot row is
+    // missing — a provisioning state conflict, not an upstream failure. Same
+    // 409 + fixed literal as the sibling builder/resume route.
+    if (/is not provisioned/i.test(message)) {
+      return NextResponse.json({ error: 'Agent Builder is not provisioned' }, { status: 409 })
+    }
+    // TOCTOU backup for the confirm path's pre-check: the thread id can be
+    // cleared (run decided elsewhere, stale id reconciled) between the bundle
+    // load and the confirm call — the same conflict the pre-check answers.
+    if (/no LangGraph run in progress/i.test(message)) {
+      return NextResponse.json({ error: 'no LangGraph run in progress — start draft first' }, { status: 409 })
     }
     console.error('[agent-ops/projects/builder/create-draft] POST failed', err)
     return NextResponse.json({ error: 'create draft failed' }, { status: 502 })
