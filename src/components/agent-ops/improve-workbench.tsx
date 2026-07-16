@@ -482,7 +482,7 @@ export function ImproveWorkbench({
               <Button
                 color="accent"
                 onClick={handleAutoImprove}
-                disabled={autoRunning || analyzing || totalFailures === 0}
+                disabled={autoRunning || analyzing || rerunning !== null || deciding !== null || totalFailures === 0}
               >
                 {autoRunning ? (
                   <span className="inline-flex items-center gap-2">
@@ -492,7 +492,11 @@ export function ImproveWorkbench({
                   'Auto-improve'
                 )}
               </Button>
-              <Button outline onClick={handleAnalyze} disabled={analyzing || autoRunning || totalFailures === 0}>
+              <Button
+                outline
+                onClick={handleAnalyze}
+                disabled={analyzing || autoRunning || rerunning !== null || deciding !== null || totalFailures === 0}
+              >
                 {analyzing ? (
                   <span className="inline-flex items-center gap-2">
                     <Spinner className="size-4" /> Analyzing…
@@ -615,10 +619,14 @@ export function ImproveWorkbench({
           actions={
             proposal.status === 'proposed' ? (
               <div className="flex items-center gap-2">
-                <Button outline onClick={() => setConfirming('rejected')} disabled={creatingV2 || deciding !== null}>
+                <Button
+                  outline
+                  onClick={() => setConfirming('rejected')}
+                  disabled={creatingV2 || deciding !== null || rerunning !== null}
+                >
                   Reject
                 </Button>
-                <Button color="accent" onClick={handleCreateV2} disabled={creatingV2}>
+                <Button color="accent" onClick={handleCreateV2} disabled={creatingV2 || rerunning !== null}>
                   {creatingV2 ? (
                     <span className="inline-flex items-center gap-2">
                       <Spinner className="size-4" /> Creating V2…
@@ -704,18 +712,24 @@ export function ImproveWorkbench({
                   ) : (
                     `Re-run tests: ${s.suiteName}`
                   )
+                const rerunLocked = rerunning !== null || autoRunning || analyzing || deciding !== null
                 return primary ? (
-                  <Button key={s.suiteId} color="accent" onClick={() => handleRerunTests(s.suiteId)} disabled={rerunning !== null}>
+                  <Button key={s.suiteId} color="accent" onClick={() => handleRerunTests(s.suiteId)} disabled={rerunLocked}>
                     {label}
                   </Button>
                 ) : (
-                  <Button key={s.suiteId} outline onClick={() => handleRerunTests(s.suiteId)} disabled={rerunning !== null}>
+                  <Button key={s.suiteId} outline onClick={() => handleRerunTests(s.suiteId)} disabled={rerunLocked}>
                     {label}
                   </Button>
                 )
               })}
               {benchmarks.map((b) => (
-                <Button key={b.suiteId} outline onClick={() => handleRerunBenchmark(b.suiteId)} disabled={rerunning !== null}>
+                <Button
+                  key={b.suiteId}
+                  outline
+                  onClick={() => handleRerunBenchmark(b.suiteId)}
+                  disabled={rerunning !== null || autoRunning || analyzing || deciding !== null}
+                >
                   {rerunning === `bench:${b.suiteId}` ? (
                     <span className="inline-flex items-center gap-2">
                       <Spinner className="size-4" /> Running {b.suiteName}…
