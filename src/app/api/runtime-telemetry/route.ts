@@ -211,11 +211,11 @@ export async function POST(request: Request) {
       model: event.model ?? null,
       status: event.status,
       latency_ms: event.latencyMs ?? null,
-      input_shape: event.inputShape ?? null,
-      output_shape: event.outputShape ?? null,
-      error: event.error ?? null,
-      usage: event.usage ?? null,
-      environment: event.environment ?? null,
+      input_shape: event.inputShape ?? {},
+      output_shape: event.outputShape ?? {},
+      error: event.error ?? {},
+      usage: event.usage ?? {},
+      environment: event.environment ?? {},
     })
   } catch (err) {
     // Never forward err.message or a stack trace to the client — log
