@@ -11,6 +11,7 @@ import * as Headless from '@headlessui/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
@@ -228,13 +229,11 @@ export function NewProjectWorkbench() {
             )}
           </div>
         ) : repos && repos.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-10 text-center">
-            <FolderIcon aria-hidden="true" className="size-6 text-zinc-400 dark:text-zinc-600" />
-            <p className="text-sm font-medium text-zinc-950 dark:text-white">No repositories</p>
-            <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
-              The connected GitHub account has no accessible repositories.
-            </p>
-          </div>
+          <EmptyState
+            icon={FolderIcon}
+            title="No repositories"
+            description="The connected GitHub account has no accessible repositories."
+          />
         ) : (
           <div className="space-y-4">
             {repos && repos.length > SEARCH_THRESHOLD ? (
@@ -304,12 +303,7 @@ export function NewProjectWorkbench() {
           description={selected ? selected.fullName : 'Select a repository to preview its files.'}
         >
           {!selected ? (
-            <div className="flex flex-col items-center gap-2 py-10 text-center">
-              <FolderIcon aria-hidden="true" className="size-6 text-zinc-400 dark:text-zinc-600" />
-              <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
-                No repository selected yet.
-              </p>
-            </div>
+            <EmptyState icon={FolderIcon} title="No repository selected yet." />
           ) : treeLoading ? (
             <div className="flex items-center gap-3 py-8 text-sm text-zinc-500 dark:text-zinc-400">
               <ArrowPathIcon aria-hidden="true" className="size-4 animate-spin" />
@@ -325,9 +319,7 @@ export function NewProjectWorkbench() {
               </Button>
             </div>
           ) : tree && tree.length === 0 ? (
-            <p className="py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
-              This repository is empty.
-            </p>
+            <EmptyState icon={FolderIcon} title="This repository is empty." />
           ) : (
             <div className="space-y-3">
               <ul className="no-scrollbar max-h-[28rem] overflow-y-auto font-mono text-sm">
