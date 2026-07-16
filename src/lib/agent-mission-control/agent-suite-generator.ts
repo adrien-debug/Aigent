@@ -34,7 +34,9 @@ import {
   type RepoSuiteContext,
   type SuiteSource,
 } from './repo-suite-context'
+import { computeRepoFit, type RepoFitResult } from './repo-fit'
 import { makeId, slugify } from './slug'
+import type { RepoMap } from './repo-intelligence'
 import type { TestSuite } from './types'
 
 type RawRow = Record<string, unknown>
@@ -58,22 +60,31 @@ interface ManifestContext {
    * generator falls back to the unchanged manifest-only path.
    */
   repoContext: RepoSuiteContext | null
+  /** Full scanned RepoMap for semantic validation (repo-fit); null when absent. */
+  repoMap: RepoMap | null
+  /** Residue findings count from the intelligence bundle (risk-coverage signal). */
+  residueCount: number
 }
 
 /**
- * Load the project's cached repo intelligence and distil it into the bounded
- * suite context. Fail-soft: any lookup problem (no project, backend hiccup,
- * empty cache) resolves to `null` so suite generation is NEVER blocked by repo
- * intelligence — a repo-aware suite is a bonus, a suite is mandatory. NEVER
- * triggers a scan (uses `loadRepoIntelligence`, a pure cache read).
+ * Load the project's cached repo intelligence: the bounded suite context (for
+ * the prompt) AND the full RepoMap + residue count (for repo-fit validation).
+ * Fail-soft: any lookup problem resolves to nulls so suite generation is NEVER
+ * blocked. NEVER triggers a scan (uses `loadRepoIntelligence`, a cache read).
  */
-async function loadRepoContext(projectId: string | null): Promise<RepoSuiteContext | null> {
-  if (!projectId) return null
+async function loadRepoContext(
+  projectId: string | null
+): Promise<{ repoContext: RepoSuiteContext | null; repoMap: RepoMap | null; residueCount: number }> {
+  if (!projectId) return { repoContext: null, repoMap: null, residueCount: 0 }
   try {
     const stored = await loadRepoIntelligence(projectId)
-    return buildRepoSuiteContext(stored.intelligence)
+    return {
+      repoContext: buildRepoSuiteContext(stored.intelligence),
+      repoMap: stored.intelligence?.map ?? null,
+      residueCount: stored.intelligence?.residue?.length ?? 0,
+    }
   } catch {
-    return null
+    return { repoContext: null, repoMap: null, residueCount: 0 }
   }
 }
 
@@ -97,7 +108,7 @@ async function loadManifestContext(copilotId: string): Promise<ManifestContext |
   }
 
   const projectId = (copilot.project_id as string | null) ?? null
-  const [toolRows, repoContext] = await Promise.all([
+  const [toolRows, repo] = await Promise.all([
     pgrest<RawRow[]>('GET', `tools?${eq('copilot_id', copilotId)}&select=name&order=name`),
     loadRepoContext(projectId),
   ])
@@ -108,7 +119,9 @@ async function loadManifestContext(copilotId: string): Promise<ManifestContext |
     systemPromptSummary,
     forbiddenActions,
     toolNames: toolRows.map((t) => t.name as string),
-    repoContext,
+    repoContext: repo.repoContext,
+    repoMap: repo.repoMap,
+    residueCount: repo.residueCount,
   }
 }
 
@@ -291,9 +304,28 @@ async function generateSuite(ctx: ManifestContext): Promise<GeneratedSuite> {
  * Fail-soft: throws only on a hard DB error the caller wants surfaced; the LLM
  * path already falls back internally so a suite is always produced.
  */
+/**
+ * Score how well a generated suite is anchored in the repo (repo-fit). Pure over
+ * its inputs — validates the cases against the RepoMap. Exposed so a caller (or
+ * a test) can score a suite without re-generating it.
+ */
+export function repoFitForSuite(
+  ctx: Pick<ManifestContext, 'toolNames' | 'repoMap' | 'residueCount' | 'systemPromptSummary' | 'description'>,
+  suite: GeneratedSuite
+): RepoFitResult {
+  return computeRepoFit({
+    suiteSource: suite.suiteSource,
+    cases: suite.testSuite.cases,
+    toolNames: ctx.toolNames,
+    repoMap: ctx.repoMap,
+    residueCount: ctx.residueCount,
+    roleText: `${ctx.systemPromptSummary} ${ctx.description}`,
+  })
+}
+
 export async function ensureAgentSuites(
   copilotId: string
-): Promise<{ testSuiteId: string; benchmarkSuiteId: string; suiteSource: SuiteSource } | null> {
+): Promise<{ testSuiteId: string; benchmarkSuiteId: string; suiteSource: SuiteSource; repoFit: RepoFitResult } | null> {
   // Skip if suites already exist (don't duplicate on a retry).
   const existing = await pgrest<RawRow[]>('GET', `test_suites?${eq('copilot_id', copilotId)}&select=id&limit=1`)
   if (existing.length > 0) return null
@@ -302,15 +334,19 @@ export async function ensureAgentSuites(
   if (!ctx) return null
 
   const suite = await generateSuite(ctx)
+  const repoFit = repoFitForSuite(ctx, suite)
   const rand = crypto.randomUUID().replace(/-/g, '').slice(0, 8)
 
-  // Test suite + cases.
+  // Test suite + cases. The repo-fit score is appended to the description as
+  // metadata (no DB column / migration) so it survives without schema change.
   const testSuiteId = makeId('ts', `${slugify(ctx.name)}-${rand}`)
+  const fitNote =
+    suite.suiteSource === 'repo_aware' ? ` [repo-fit ${repoFit.score}/100 · ${repoFit.level}]` : ''
   await pgrest('POST', 'test_suites', {
     id: testSuiteId,
     copilot_id: copilotId,
     name: suite.testSuite.name,
-    description: suite.testSuite.description,
+    description: suite.testSuite.description + fitNote,
     kind: suite.testSuite.kind,
     last_run_id: null,
   })
@@ -338,7 +374,7 @@ export async function ensureAgentSuites(
     dimensions: suite.benchmark.dimensions,
   })
 
-  // suiteSource is metadata, not a DB column (no migration): it is reflected in
-  // the persisted suite description and returned here for callers/logs.
-  return { testSuiteId, benchmarkSuiteId, suiteSource: suite.suiteSource }
+  // suiteSource + repoFit are metadata, not DB columns (no migration): reflected
+  // in the persisted suite description and returned here for callers/logs.
+  return { testSuiteId, benchmarkSuiteId, suiteSource: suite.suiteSource, repoFit }
 }
