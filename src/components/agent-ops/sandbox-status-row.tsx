@@ -89,9 +89,10 @@ export function SandboxStatusRow({
                   href={delivery.prUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium text-accent-700 hover:text-accent-600 dark:text-accent-400"
+                  className="rounded-sm font-medium text-accent-700 hover:text-accent-600 focus:outline-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-400"
                 >
-                  Open PR →
+                  Open PR <span aria-hidden="true">→</span>
+                  <span className="sr-only"> (opens in a new tab)</span>
                 </a>
               ) : null}
             </>
