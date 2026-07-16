@@ -173,7 +173,7 @@ export default function PricingPage() {
                 <Link
                   href={tier.id === 'enterprise' ? '/contact' : '/admin'}
                   className={clsx(
-                    'mt-6 block w-full rounded-md px-3 py-2 text-center text-sm/6 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2',
+                    'mt-6 flex min-h-11 w-full items-center justify-center rounded-md px-3 py-2 text-center text-sm/6 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2',
                     tier.featured
                       ? 'bg-accent-500 text-zinc-950 hover:bg-accent-400 focus-visible:outline-accent-500'
                       : 'text-white ring-1 ring-white/20 hover:ring-white/30 focus-visible:outline-white'
@@ -204,7 +204,7 @@ export default function PricingPage() {
               {faqs.map((faq) => (
                 <Disclosure key={faq.question} as="div" className="py-6 first:pt-0 last:pb-0">
                   <dt>
-                    <DisclosureButton className="group flex w-full items-start justify-between text-left text-white">
+                    <DisclosureButton className="group flex min-h-11 w-full items-center justify-between text-left text-white">
                       <span className="text-base/7 font-semibold">{faq.question}</span>
                       <span className="ml-6 flex h-7 items-center">
                         <PlusSmallIcon aria-hidden="true" className="size-6 group-data-open:hidden" />
