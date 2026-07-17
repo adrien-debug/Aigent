@@ -11,8 +11,9 @@
  * the rest of the app can break on. `insertRuntimeTelemetryEvent` never
  * throws — a PostgREST error (down backend, timeout, bad row) is logged
  * server-side and swallowed so a deployed agent's handler keeps working even
- * when Aigent itself is unreachable. Reads (`listRuntimeTelemetryEvents`,
- * `summarizeRuntimeTelemetry`) DO throw on a hard PostgREST error — callers
+ * when Aigent itself is unreachable. Reads (`summarizeRuntimeTelemetry`,
+ * `listRecentRuntimeTelemetryEvents`, `summarizeFleetRuntimeTelemetry`) DO
+ * throw on a hard PostgREST error — callers
  * (improvement-loop.ts) wrap them in their own fail-soft try/catch, same
  * pattern as the LangSmith/LangGraph observability edges.
  *
@@ -121,23 +122,121 @@ export async function insertRuntimeTelemetryEvent(event: RuntimeTelemetryEvent):
   }
 }
 
-/** Recent telemetry events for a project+agent, newest first. Throws on a hard PostgREST error. */
-export async function listRuntimeTelemetryEvents(
-  projectId: string,
-  agentId: string,
-  limit = 50
-): Promise<RuntimeTelemetryEvent[]> {
-  const rows = await pgrest<RawRow[]>(
-    'GET',
-    `runtime_telemetry_events?${eq('project_id', projectId)}&${eq('agent_id', agentId)}&select=*&order=received_at.desc&limit=${limit}`
-  )
-  return rows.map(rowToEvent)
-}
-
 function percentile95(sortedAsc: number[]): number {
   if (sortedAsc.length === 0) return 0
   const idx = Math.min(sortedAsc.length - 1, Math.ceil(sortedAsc.length * 0.95) - 1)
   return sortedAsc[Math.max(0, idx)]
+}
+
+/** Rollup fields shared by every aggregation grain (single agent, fleet-wide, per-agent-in-fleet). */
+interface TelemetryRollup {
+  totalRuns: number
+  successRate: number | null
+  avgLatencyMs: number | null
+  p95LatencyMs: number | null
+  totalTokens: number | null
+  topErrorCategories: RuntimeTelemetryErrorCategory[]
+  lastSeenAt: string | null
+}
+
+/**
+ * Reduce a batch of raw telemetry rows into one rollup. The single shared
+ * implementation behind summarizeRuntimeTelemetry/summarizeFleetRuntimeTelemetry
+ * — same rules (terminal-status success rate, p95 over real latencies only,
+ * top-5 error categories) computed once instead of copy-pasted per grain.
+ */
+function reduceTelemetryRows(rows: RawRow[]): TelemetryRollup {
+  if (rows.length === 0) {
+    return {
+      totalRuns: 0,
+      successRate: null,
+      avgLatencyMs: null,
+      p95LatencyMs: null,
+      totalTokens: null,
+      topErrorCategories: [],
+      lastSeenAt: null,
+    }
+  }
+
+  let completed = 0
+  let failed = 0
+  let tokenSum = 0
+  let hasTokens = false
+  const latencies: number[] = []
+  const errorCounts = new Map<string, number>()
+  let lastSeenAt: string | null = null
+
+  for (const r of rows) {
+    const status = r.status as RuntimeTelemetryStatus
+    if (status === 'completed') completed += 1
+    else if (status === 'failed') failed += 1
+
+    const latency = r.latency_ms as number | null
+    if (typeof latency === 'number' && Number.isFinite(latency)) latencies.push(latency)
+
+    const usage = (r.usage as Record<string, unknown>) ?? {}
+    const totalTokens = usage.totalTokens
+    if (typeof totalTokens === 'number' && Number.isFinite(totalTokens)) {
+      tokenSum += totalTokens
+      hasTokens = true
+    }
+
+    if (status === 'failed') {
+      const errorField = (r.error as Record<string, unknown>) ?? {}
+      const category =
+        typeof errorField.category === 'string' && errorField.category.trim().length > 0
+          ? errorField.category
+          : 'uncategorized'
+      errorCounts.set(category, (errorCounts.get(category) ?? 0) + 1)
+    }
+
+    const receivedAt = r.received_at as string | undefined
+    if (receivedAt && (!lastSeenAt || receivedAt > lastSeenAt)) lastSeenAt = receivedAt
+  }
+
+  const sortedLatencies = [...latencies].sort((a, b) => a - b)
+  const avgLatencyMs =
+    latencies.length > 0 ? Math.round(latencies.reduce((sum, v) => sum + v, 0) / latencies.length) : null
+  const p95LatencyMs = latencies.length > 0 ? Math.round(percentile95(sortedLatencies)) : null
+
+  // Success rate over runs that reached a terminal status — 'started' pings
+  // alone don't count against it.
+  const terminalRuns = completed + failed
+  const successRate = terminalRuns > 0 ? completed / terminalRuns : null
+
+  const topErrorCategories: RuntimeTelemetryErrorCategory[] = [...errorCounts.entries()]
+    .map(([category, count]) => ({ category, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5)
+
+  return {
+    totalRuns: rows.length,
+    successRate,
+    avgLatencyMs,
+    p95LatencyMs,
+    totalTokens: hasTokens ? tokenSum : null,
+    topErrorCategories,
+    lastSeenAt,
+  }
+}
+
+/**
+ * Aggregate runtime-health summary for a project+agent pair, computed live
+ * from a bounded recent window (last 500 events — enough to be representative
+ * without an unbounded scan). Throws on a hard PostgREST error; callers
+ * wrap this in their own fail-soft try/catch (see improvement-loop.ts).
+ */
+export async function summarizeRuntimeTelemetry(projectId: string, agentId: string): Promise<RuntimeTelemetrySummary> {
+  const rows = await pgrest<RawRow[]>(
+    'GET',
+    `runtime_telemetry_events?${eq('project_id', projectId)}&${eq('agent_id', agentId)}` +
+      `&select=status,latency_ms,usage,error,received_at&order=received_at.desc&limit=500`
+  )
+  const rollup = reduceTelemetryRows(rows)
+  return {
+    ...rollup,
+    failureRate: rollup.successRate !== null ? 1 - rollup.successRate : null,
+  }
 }
 
 /** Per-(project, agent) rollup row for the fleet-wide telemetry page. */
@@ -151,15 +250,8 @@ export interface RuntimeTelemetryAgentRollup {
 }
 
 /** Fleet-wide runtime-health summary across every project/agent that has reported telemetry. */
-export interface RuntimeTelemetryFleetSummary {
-  totalRuns: number
+export interface RuntimeTelemetryFleetSummary extends TelemetryRollup {
   reportingAgents: number
-  successRate: number | null
-  avgLatencyMs: number | null
-  p95LatencyMs: number | null
-  totalTokens: number | null
-  topErrorCategories: RuntimeTelemetryErrorCategory[]
-  lastSeenAt: string | null
   byAgent: RuntimeTelemetryAgentRollup[]
 }
 
@@ -182,209 +274,32 @@ export async function summarizeFleetRuntimeTelemetry(): Promise<RuntimeTelemetry
     'runtime_telemetry_events?select=project_id,agent_id,status,latency_ms,usage,error,received_at&order=received_at.desc&limit=2000'
   )
 
-  if (rows.length === 0) {
-    return {
-      totalRuns: 0,
-      reportingAgents: 0,
-      successRate: null,
-      avgLatencyMs: null,
-      p95LatencyMs: null,
-      totalTokens: null,
-      topErrorCategories: [],
-      lastSeenAt: null,
-      byAgent: [],
-    }
-  }
-
-  let completed = 0
-  let failed = 0
-  let tokenSum = 0
-  let hasTokens = false
-  const latencies: number[] = []
-  const errorCounts = new Map<string, number>()
-  let lastSeenAt: string | null = null
-
-  interface AgentAcc {
-    projectId: string
-    agentId: string
-    totalRuns: number
-    completed: number
-    failed: number
-    latencies: number[]
-    lastSeenAt: string | null
-  }
-  const byAgentAcc = new Map<string, AgentAcc>()
-
+  const byProjectAgent = new Map<string, RawRow[]>()
   for (const r of rows) {
-    const projectId = r.project_id as string
-    const agentId = r.agent_id as string
-    const status = r.status as RuntimeTelemetryStatus
-    const latency = r.latency_ms as number | null
-    const receivedAt = r.received_at as string | undefined
-
-    if (status === 'completed') completed += 1
-    else if (status === 'failed') failed += 1
-
-    if (typeof latency === 'number' && Number.isFinite(latency)) latencies.push(latency)
-
-    const usage = (r.usage as Record<string, unknown>) ?? {}
-    const totalTokens = usage.totalTokens
-    if (typeof totalTokens === 'number' && Number.isFinite(totalTokens)) {
-      tokenSum += totalTokens
-      hasTokens = true
-    }
-
-    if (status === 'failed') {
-      const errorField = (r.error as Record<string, unknown>) ?? {}
-      const category = typeof errorField.category === 'string' && errorField.category.trim().length > 0 ? errorField.category : 'uncategorized'
-      errorCounts.set(category, (errorCounts.get(category) ?? 0) + 1)
-    }
-
-    if (receivedAt && (!lastSeenAt || receivedAt > lastSeenAt)) lastSeenAt = receivedAt
-
-    const key = `${projectId}::${agentId}`
-    const acc = byAgentAcc.get(key) ?? {
-      projectId,
-      agentId,
-      totalRuns: 0,
-      completed: 0,
-      failed: 0,
-      latencies: [],
-      lastSeenAt: null,
-    }
-    acc.totalRuns += 1
-    if (status === 'completed') acc.completed += 1
-    else if (status === 'failed') acc.failed += 1
-    if (typeof latency === 'number' && Number.isFinite(latency)) acc.latencies.push(latency)
-    if (receivedAt && (!acc.lastSeenAt || receivedAt > acc.lastSeenAt)) acc.lastSeenAt = receivedAt
-    byAgentAcc.set(key, acc)
+    const key = `${r.project_id as string}::${r.agent_id as string}`
+    const bucket = byProjectAgent.get(key)
+    if (bucket) bucket.push(r)
+    else byProjectAgent.set(key, [r])
   }
 
-  const sortedLatencies = [...latencies].sort((a, b) => a - b)
-  const avgLatencyMs = latencies.length > 0 ? Math.round(latencies.reduce((sum, v) => sum + v, 0) / latencies.length) : null
-  const p95LatencyMs = latencies.length > 0 ? Math.round(percentile95(sortedLatencies)) : null
-
-  const terminalRuns = completed + failed
-  const successRate = terminalRuns > 0 ? completed / terminalRuns : null
-
-  const topErrorCategories: RuntimeTelemetryErrorCategory[] = [...errorCounts.entries()]
-    .map(([category, count]) => ({ category, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5)
-
-  const byAgent: RuntimeTelemetryAgentRollup[] = [...byAgentAcc.values()]
-    .map((acc) => {
-      const accTerminal = acc.completed + acc.failed
+  const byAgent: RuntimeTelemetryAgentRollup[] = [...byProjectAgent.entries()]
+    .map(([key, agentRows]) => {
+      const [projectId, agentId] = key.split('::')
+      const rollup = reduceTelemetryRows(agentRows)
       return {
-        projectId: acc.projectId,
-        agentId: acc.agentId,
-        totalRuns: acc.totalRuns,
-        successRate: accTerminal > 0 ? acc.completed / accTerminal : null,
-        avgLatencyMs:
-          acc.latencies.length > 0
-            ? Math.round(acc.latencies.reduce((sum, v) => sum + v, 0) / acc.latencies.length)
-            : null,
-        lastSeenAt: acc.lastSeenAt,
+        projectId,
+        agentId,
+        totalRuns: rollup.totalRuns,
+        successRate: rollup.successRate,
+        avgLatencyMs: rollup.avgLatencyMs,
+        lastSeenAt: rollup.lastSeenAt,
       }
     })
     .sort((a, b) => (b.lastSeenAt ?? '').localeCompare(a.lastSeenAt ?? ''))
 
   return {
-    totalRuns: rows.length,
-    reportingAgents: byAgentAcc.size,
-    successRate,
-    avgLatencyMs,
-    p95LatencyMs,
-    totalTokens: hasTokens ? tokenSum : null,
-    topErrorCategories,
-    lastSeenAt,
+    ...reduceTelemetryRows(rows),
+    reportingAgents: byProjectAgent.size,
     byAgent,
-  }
-}
-
-/**
- * Aggregate runtime-health summary for a project+agent pair, computed live
- * from a bounded recent window (last 500 events — enough to be representative
- * without an unbounded scan). Throws on a hard PostgREST error; callers
- * wrap this in their own fail-soft try/catch (see improvement-loop.ts).
- */
-export async function summarizeRuntimeTelemetry(projectId: string, agentId: string): Promise<RuntimeTelemetrySummary> {
-  const rows = await pgrest<RawRow[]>(
-    'GET',
-    `runtime_telemetry_events?${eq('project_id', projectId)}&${eq('agent_id', agentId)}` +
-      `&select=status,latency_ms,usage,error,received_at&order=received_at.desc&limit=500`
-  )
-
-  if (rows.length === 0) {
-    return {
-      totalRuns: 0,
-      successRate: null,
-      failureRate: null,
-      avgLatencyMs: null,
-      p95LatencyMs: null,
-      totalTokens: null,
-      topErrorCategories: [],
-      lastSeenAt: null,
-    }
-  }
-
-  const totalRuns = rows.length
-  let completed = 0
-  let failed = 0
-  let tokenSum = 0
-  let hasTokens = false
-  const latencies: number[] = []
-  const errorCounts = new Map<string, number>()
-  let lastSeenAt: string | null = null
-
-  for (const r of rows) {
-    const status = r.status as RuntimeTelemetryStatus
-    if (status === 'completed') completed += 1
-    else if (status === 'failed') failed += 1
-
-    const latency = r.latency_ms as number | null
-    if (typeof latency === 'number' && Number.isFinite(latency)) latencies.push(latency)
-
-    const usage = (r.usage as Record<string, unknown>) ?? {}
-    const totalTokens = usage.totalTokens
-    if (typeof totalTokens === 'number' && Number.isFinite(totalTokens)) {
-      tokenSum += totalTokens
-      hasTokens = true
-    }
-
-    if (status === 'failed') {
-      const errorField = (r.error as Record<string, unknown>) ?? {}
-      const category = typeof errorField.category === 'string' && errorField.category.trim().length > 0 ? errorField.category : 'uncategorized'
-      errorCounts.set(category, (errorCounts.get(category) ?? 0) + 1)
-    }
-
-    const receivedAt = r.received_at as string | undefined
-    if (receivedAt && (!lastSeenAt || receivedAt > lastSeenAt)) lastSeenAt = receivedAt
-  }
-
-  const sortedLatencies = [...latencies].sort((a, b) => a - b)
-  const avgLatencyMs = latencies.length > 0 ? Math.round(latencies.reduce((sum, v) => sum + v, 0) / latencies.length) : null
-  const p95LatencyMs = latencies.length > 0 ? Math.round(percentile95(sortedLatencies)) : null
-
-  // Success/failure rate over the runs that reached a terminal status —
-  // 'started' pings alone don't count against either.
-  const terminalRuns = completed + failed
-  const successRate = terminalRuns > 0 ? completed / terminalRuns : null
-  const failureRate = terminalRuns > 0 ? failed / terminalRuns : null
-
-  const topErrorCategories: RuntimeTelemetryErrorCategory[] = [...errorCounts.entries()]
-    .map(([category, count]) => ({ category, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5)
-
-  return {
-    totalRuns,
-    successRate,
-    failureRate,
-    avgLatencyMs,
-    p95LatencyMs,
-    totalTokens: hasTokens ? tokenSum : null,
-    topErrorCategories,
-    lastSeenAt,
   }
 }

@@ -28,7 +28,8 @@ vi.mock('@/lib/agent-mission-control/postgrest', () => ({
 
 import {
   insertRuntimeTelemetryEvent,
-  listRuntimeTelemetryEvents,
+  listRecentRuntimeTelemetryEvents,
+  summarizeFleetRuntimeTelemetry,
   summarizeRuntimeTelemetry,
   type RuntimeTelemetryEvent,
 } from '@/lib/agent-mission-control/runtime-telemetry-store'
@@ -130,40 +131,6 @@ describe('runtime-telemetry-store', () => {
     })
   })
 
-  describe('listRuntimeTelemetryEvents', () => {
-    it('2 — filters by project_id + agent_id in the built path/query and maps rows', async () => {
-      pgrestHandler = (_method, path) => {
-        expect(path).toContain(`project_id=eq.${encodeURIComponent(PROJECT_ID)}`)
-        expect(path).toContain(`agent_id=eq.${encodeURIComponent(AGENT_ID)}`)
-        expect(path).toContain('order=received_at.desc')
-        return [
-          rawRow({ id: 'event-1', status: 'completed' }),
-          rawRow({ id: 'event-2', status: 'failed', error: { category: 'timeout' } }),
-          rawRow({ id: 'event-3', status: 'started' }),
-        ]
-      }
-
-      const events = await listRuntimeTelemetryEvents(PROJECT_ID, AGENT_ID)
-
-      expect(pgrestCalls[0].method).toBe('GET')
-      expect(events).toHaveLength(3)
-      expect(events.map((e) => e.id)).toEqual(['event-1', 'event-2', 'event-3'])
-      expect(events[1].status).toBe('failed')
-      expect(events[1].projectId).toBe(PROJECT_ID)
-      expect(events[1].agentId).toBe(AGENT_ID)
-    })
-
-    it('2b — respects a custom limit in the query', async () => {
-      pgrestHandler = (_method, path) => {
-        expect(path).toContain('limit=10')
-        return []
-      }
-
-      await listRuntimeTelemetryEvents(PROJECT_ID, AGENT_ID, 10)
-      expect(pgrestCalls).toHaveLength(1)
-    })
-  })
-
   describe('summarizeRuntimeTelemetry', () => {
     it('3 — computes success rate over terminal runs (7 completed / 3 failed ≈ 0.7)', async () => {
       const rows = [
@@ -239,6 +206,74 @@ describe('runtime-telemetry-store', () => {
       }
 
       await expect(summarizeRuntimeTelemetry(PROJECT_ID, AGENT_ID)).rejects.toThrow(/PostgREST 500/)
+    })
+  })
+
+  describe('summarizeFleetRuntimeTelemetry', () => {
+    it('7 — aggregates fleet-wide totals and groups per (project, agent)', async () => {
+      const rows = [
+        rawRow({ id: 'a1', project_id: 'proj-a', agent_id: 'agent-a', status: 'completed', latency_ms: 100 }),
+        rawRow({ id: 'a2', project_id: 'proj-a', agent_id: 'agent-a', status: 'failed', latency_ms: 200, error: { category: 'timeout' } }),
+        rawRow({ id: 'b1', project_id: 'proj-b', agent_id: 'agent-b', status: 'completed', latency_ms: 300 }),
+      ]
+      pgrestHandler = () => rows
+
+      const summary = await summarizeFleetRuntimeTelemetry()
+
+      expect(summary.totalRuns).toBe(3)
+      expect(summary.reportingAgents).toBe(2)
+      expect(summary.successRate).toBeCloseTo(2 / 3, 5)
+      expect(summary.topErrorCategories).toEqual([{ category: 'timeout', count: 1 }])
+
+      const agentA = summary.byAgent.find((a) => a.agentId === 'agent-a')
+      const agentB = summary.byAgent.find((a) => a.agentId === 'agent-b')
+      expect(agentA).toMatchObject({ projectId: 'proj-a', totalRuns: 2, successRate: 0.5 })
+      expect(agentB).toMatchObject({ projectId: 'proj-b', totalRuns: 1, successRate: 1 })
+    })
+
+    it('8 — empty event list returns zero/null metrics and an empty byAgent list, no throw', async () => {
+      pgrestHandler = () => []
+
+      const summary = await summarizeFleetRuntimeTelemetry()
+
+      expect(summary.totalRuns).toBe(0)
+      expect(summary.reportingAgents).toBe(0)
+      expect(summary.successRate).toBeNull()
+      expect(summary.byAgent).toEqual([])
+    })
+
+    it('propagates a hard PostgREST error (read edges throw; callers wrap fail-soft)', async () => {
+      pgrestHandler = () => {
+        throw new Error('PostgREST 500 on GET runtime_telemetry_events')
+      }
+
+      await expect(summarizeFleetRuntimeTelemetry()).rejects.toThrow(/PostgREST 500/)
+    })
+  })
+
+  describe('listRecentRuntimeTelemetryEvents', () => {
+    it('9 — fetches across all projects/agents, newest first, and maps rows', async () => {
+      pgrestHandler = (_method, path) => {
+        expect(path).toContain('order=received_at.desc')
+        expect(path).not.toContain('project_id=eq.')
+        expect(path).not.toContain('agent_id=eq.')
+        return [rawRow({ id: 'evt-1' }), rawRow({ id: 'evt-2', project_id: 'proj-other', agent_id: 'agent-other' })]
+      }
+
+      const events = await listRecentRuntimeTelemetryEvents()
+
+      expect(events.map((e) => e.id)).toEqual(['evt-1', 'evt-2'])
+      expect(events[1].projectId).toBe('proj-other')
+    })
+
+    it('9b — respects a custom limit in the query', async () => {
+      pgrestHandler = (_method, path) => {
+        expect(path).toContain('limit=5')
+        return []
+      }
+
+      await listRecentRuntimeTelemetryEvents(5)
+      expect(pgrestCalls).toHaveLength(1)
     })
   })
 })
