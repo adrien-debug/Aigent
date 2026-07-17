@@ -22,6 +22,7 @@
  */
 
 import { createHash } from 'node:crypto'
+import type { TradingAgentDef } from './agents/roster'
 
 export type DeliveryStatus =
   | 'DELIVERABLE-LIVE'
@@ -149,6 +150,78 @@ export interface BuildPackageInput {
   /** Injected timestamps (no clock in this pure builder). */
   builtAt: string
   pushedAt: string
+}
+
+/**
+ * Build a delivery package directly from a roster agent + its evidence.
+ * Maps the roster's config onto the TradeAgent-intake manifest shape. This is
+ * the roster → delivery bridge; the manifest here is a DRAFT (version carries
+ * `-draft`) — nothing is materialized or activated by building a package.
+ */
+export function packageForAgent(input: {
+  agent: TradingAgentDef
+  version: string
+  model: string
+  runtime: string
+  evidence: EvidenceSummary
+  sourceStatus: string[]
+  builtAt: string
+  pushedAt: string
+}): DeliveryPackage {
+  const { agent } = input
+  const manifest: DeliveredManifest = {
+    id: `manifest-${agent.slug}-${input.version}`,
+    copilotId: `copilot-${agent.slug}`,
+    version: input.version,
+    systemPromptSummary: agent.systemPromptSummary,
+    allowedRoutes: [...agent.allowedRoutes],
+    forbiddenActions: [...agent.forbiddenActions],
+    confirmationPolicy: agent.confirmationPolicy,
+    alwaysConfirmActions: [...agent.alwaysConfirmActions],
+    memorySources: [],
+    outputContract: {
+      format: agent.outputContract.format,
+      invariants: [...agent.outputContract.invariants],
+      schemaName: agent.outputContract.schemaName,
+    },
+    toolIds: [...agent.toolIds],
+    maxStepsPerRun: agent.maxStepsPerRun,
+    maxCostPerRunUsd: agent.maxCostPerRunUsd,
+    updatedAt: input.builtAt,
+    skills: agent.skills.map((s) => ({ label: s.label, ...(s.detail ? { detail: s.detail } : {}) })),
+  }
+  const readme = [
+    `# ${agent.name} — ${agent.specialty}`,
+    '',
+    '> Hosted trading assistant delivered from Aigent (AIG-TRADE-001).',
+    '> AI assistant — not a human trader. Read-only market analysis; never',
+    '> places an order, moves funds, or accesses a key. Not investment advice.',
+    '',
+    agent.description,
+    '',
+    `- Output contract: \`${agent.outputContract.schemaName}\` (mission v1.0.0)`,
+    `- Tools: ${agent.toolIds.join(', ')}`,
+    `- Universe: ETH-only executable; BTC context-only.`,
+  ].join('\n')
+  const handlerSource = `// ${agent.slug} — hosted read-only trading assistant handler (generated).\n// Materialized by the Aigent platform; do not hand-edit. Re-push to update.\nexport const AGENT_SLUG = '${agent.slug}'\n`
+
+  return buildDeliveryPackage({
+    slug: agent.slug,
+    name: agent.name,
+    version: input.version,
+    model: input.model,
+    runtime: input.runtime,
+    manifest,
+    outputContractName: agent.outputContract.schemaName,
+    requiredTools: [...agent.toolIds],
+    maxLatencyMsTarget: agent.maxLatencyMsTarget,
+    evidence: input.evidence,
+    sourceStatus: input.sourceStatus,
+    readme,
+    handlerSource,
+    builtAt: input.builtAt,
+    pushedAt: input.pushedAt,
+  })
 }
 
 export function buildDeliveryPackage(input: BuildPackageInput): DeliveryPackage {
