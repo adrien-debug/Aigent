@@ -63,7 +63,7 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
     <SurfaceCard>
       <SurfaceCardHeader title="Validated Agents" meta={<span className="text-xs text-zinc-500">{copilots.length} total</span>} />
       <div className="overflow-x-auto no-scrollbar">
-        <Table className="w-full text-left border-collapse min-w-[800px]">
+        <Table className="w-full text-left border-collapse min-w-[800px] px-6 [--gutter:--spacing(0)]">
           <TableHead>
             <TableRow className="border-b border-white/5 bg-black/40">
               <TableHeader>Agent Identity</TableHeader>
@@ -77,7 +77,7 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
           <TableBody className="divide-y divide-white/5">
             {copilots.map((copilot) => (
               <TableRow key={copilot.id} className="group hover:bg-[var(--color-surface-interactive)] transition-colors">
-                <TableCell className="py-4 px-6">
+                <TableCell className="py-4">
                   <div className="flex items-center gap-3">
                     <CopilotAvatar copilot={copilot} className="size-8 rounded-xl" />
                     <div className="flex flex-col">
@@ -88,7 +88,7 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="py-4 px-6">
+                <TableCell className="py-4">
                   <StatusPill
                     label={statusLabel(copilot.displayStatus ?? copilot.status)}
                     tone={
@@ -100,13 +100,13 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
                     }
                   />
                 </TableCell>
-                <TableCell className="py-4 px-6">
+                <TableCell className="py-4">
                   <div className="flex flex-col">
                     <span className="text-xs text-zinc-300">{copilot.model}</span>
                     <span className="text-[10px] text-zinc-500 mt-0.5">{AGENT_RUNTIME_LABELS[copilot.runtime]}</span>
                   </div>
                 </TableCell>
-                <TableCell className="py-4 px-6 text-right">
+                <TableCell className="py-4 text-right">
                   {copilot.healthEvidence === 'runs' ? (
                     <div className="flex flex-col items-end gap-1">
                       <span className={`text-sm font-mono ${copilot.health.testPassRate >= 0.9 ? 'text-accent-400' : 'text-zinc-300'}`}>
@@ -120,10 +120,10 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
                     <span className="text-xs text-zinc-600">—</span>
                   )}
                 </TableCell>
-                <TableCell className="py-4 px-6 text-right">
+                <TableCell className="py-4 text-right">
                   <span className="text-sm font-mono text-white">{numberFormat.format(copilot.health.runsLast24h)}</span>
                 </TableCell>
-                <TableCell className="py-4 px-6 text-right">
+                <TableCell className="py-4 text-right">
                   <span className="text-sm font-mono text-zinc-400">
                     {copilot.health.runsLast24h > 0 ? formatUsd(copilot.health.costLast24hUsd) : '—'}
                   </span>
@@ -142,7 +142,7 @@ function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copil
     <SurfaceCard>
       <SurfaceCardHeader title="Recent Traces" meta={<span className="text-xs text-zinc-500">{runs.length} runs</span>} />
       <div className="overflow-x-auto no-scrollbar">
-        <Table className="w-full text-left border-collapse min-w-[1000px]">
+        <Table className="w-full text-left border-collapse min-w-[1000px] px-6 [--gutter:--spacing(0)]">
           <TableHead>
             <TableRow className="border-b border-white/5 bg-black/40">
               <TableHeader>Run ID & Copilot</TableHeader>
@@ -157,7 +157,7 @@ function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copil
           <TableBody className="divide-y divide-white/5">
             {runs.map((run) => (
               <TableRow key={run.id} className="group hover:bg-[var(--color-surface-interactive)] transition-colors">
-                <TableCell className="py-3 px-6">
+                <TableCell className="py-3">
                   <div className="flex flex-col">
                     <Link
                       href={`/admin/agents/${run.copilotId}/runs?run=${run.id}`}
@@ -168,27 +168,27 @@ function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copil
                     <span className="text-[10px] font-mono text-zinc-500 mt-0.5 truncate">{run.id}</span>
                   </div>
                 </TableCell>
-                <TableCell className="py-3 px-6">
+                <TableCell className="py-3">
                   <StatusPill
                     label={statusLabel(run.status)}
                     tone={run.status === 'completed' || run.status === 'failed' ? 'accent' : 'zinc'}
                   />
                 </TableCell>
-                <TableCell className="py-3 px-6">
+                <TableCell className="py-3">
                   <span className="block text-xs text-zinc-400 truncate max-w-md" title={run.inputSummary}>
                     {run.inputSummary}
                   </span>
                 </TableCell>
-                <TableCell className="py-3 px-6 text-right">
+                <TableCell className="py-3 text-right">
                   <span className="text-xs font-mono text-zinc-300">{formatDurationMs(run.latencyMs)}</span>
                 </TableCell>
-                <TableCell className="py-3 px-6 text-right">
+                <TableCell className="py-3 text-right">
                   <span className="text-xs font-mono text-zinc-400">{formatUsd(run.costUsd)}</span>
                 </TableCell>
-                <TableCell className="py-3 px-6 text-right">
+                <TableCell className="py-3 text-right">
                   <span className="text-xs font-mono text-zinc-500">{formatTimestamp(run.startedAt).replace(' UTC', '')}</span>
                 </TableCell>
-                <TableCell className="py-3 px-6 text-center">
+                <TableCell className="py-3 text-center">
                   {run.traceUrl ? (
                     <a
                       href={run.traceUrl}
