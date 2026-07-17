@@ -24,3 +24,28 @@ This version has breaking changes — APIs, conventions, and file structure may 
   button, description-list, dialog, divider, dropdown, fieldset, heading, input, link, listbox,
   navbar, pagination, select, sidebar-layout, stacked-layout, switch, table, text, textarea).
 <!-- END:catalyst-ui-rules -->
+
+<!-- BEGIN:trading-factory -->
+## Trading Agent Factory (AIG-TRADE-001)
+
+Couche métier trading pour l'univers **ETH-only** de TradeAgent, entièrement
+**read-only et truth-aware** (aucun chemin d'écriture ordre/compte/marché). Tout
+sous `src/lib/agent-mission-control/market/` :
+
+- `truth.ts` / `snapshot.ts` / `indicators.ts` — `MarketSnapshot` normalisé avec
+  provenance+fraîcheur (LIVE/SNAPSHOT/HISTORICAL/FIXTURE/FALLBACK/UNAVAILABLE) ;
+  math ATR/stdev/régime/structure déterministe. Donnée absente → UNAVAILABLE,
+  jamais inventée. Prix = décimales lossless, jamais float.
+- `provider.ts` — `HttpMarketProvider` lit les routes **publiques** `/api/market/*`
+  de TradeAgent (`TRADEAGENT_MARKET_URL`) ; TradeAgent n'est **jamais** écrit.
+- `tools.ts` — 8 outils read-only validés Zod (jamais de throw). `read_account_risk_snapshot`
+  toujours UNAVAILABLE (capital jamais fabriqué).
+- `contracts.ts` — 6 contrats de sortie Zod versionnés (v1.0.0).
+- `agents/roster.ts` — les 6 agents (Atlas/Vector/Sentinel/Pulse/Meridian/Sage) en
+  config pure. `eval/` — corpus de tests + benchmark (gates de blocage, sécurité 100%).
+  `shadow.ts` (SNAPSHOT-only) · `council.ts` (Sentinel BLOCKED terminal) ·
+  `delivery.ts` (paquet TradeAgent checksummé, n'active rien).
+- **UI** : `/admin/trading-factory` (`src/components/agent-ops/trading/`), primitives Catalyst.
+- Docs : `docs/trading-agent-factory.md` + `docs/runbook-trading-factory.md`.
+- **Matérialisation OpenAI des 6 agents = étape facturée, non exécutée** (attend accord §8).
+<!-- END:trading-factory -->
