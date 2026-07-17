@@ -1,7 +1,6 @@
-import { BoltIcon } from '@heroicons/react/24/outline'
+import clsx from 'clsx'
 
-import { EmptyState } from '@/components/agent-ops/empty-state'
-import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
+import { SurfaceCard, SurfaceCardHeader, surfaceCardClass } from '@/components/agent-ops/surface-card'
 import type { AgentRun } from '@/lib/agent-mission-control/types'
 
 const HOUR_MS = 3_600_000
@@ -98,17 +97,10 @@ export function ActivityChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: number
 
   if (total === 0) {
     return (
-      <SurfaceCard>
-        <SurfaceCardHeader
-          title="Run Activity — 24h"
-          meta={<span className="text-xs text-zinc-500">0 runs</span>}
-        />
-        <EmptyState
-          icon={BoltIcon}
-          title="No runs in the last 24 hours"
-          description="Hourly run activity appears here as soon as agents serve traffic in any project."
-        />
-      </SurfaceCard>
+      <div className={clsx(surfaceCardClass, 'flex items-center gap-2 px-6 py-3')}>
+        <span aria-hidden="true" className="size-1.5 rounded-full bg-zinc-600" />
+        <span className="text-xs text-zinc-500">Run activity · 0 runs in last 24h</span>
+      </div>
     )
   }
 

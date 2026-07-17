@@ -1,15 +1,17 @@
 import {
   BeakerIcon,
+  ChevronRightIcon,
   CodeBracketSquareIcon,
   NoSymbolIcon,
   ShieldExclamationIcon,
   SignalSlashIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline'
+import clsx from 'clsx'
 
 import { EmptyState } from '@/components/agent-ops/empty-state'
+import { StatusPill } from '@/components/agent-ops/status-pill'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
-import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import type { ActionItem, ActionItemKind } from '@/lib/agent-mission-control/dashboard-overview'
 
@@ -27,59 +29,79 @@ const KIND_ICON: Record<ActionItemKind, React.ComponentType<React.ComponentProps
   data_unavailable: SignalSlashIcon,
 }
 
-function ActionRow({ item }: { item: ActionItem }) {
+/** Kinds where the severity earns the accent dot; everything else recedes to zinc. */
+const ACCENT_KINDS = new Set<ActionItemKind>(['ready_manual', 'mission_blocked', 'release_gate_red'])
+
+function ActionRow({ item, focus }: { item: ActionItem; focus: boolean }) {
   const Icon = KIND_ICON[item.kind]
   const external = isExternalHref(item.href)
+  const tone: 'accent' | 'zinc' = ACCENT_KINDS.has(item.kind) ? 'accent' : 'zinc'
+  const linkProps = external ? { target: '_blank', rel: 'noreferrer' } : {}
 
   return (
-    <li className="group flex gap-3 px-6 py-4 transition-colors duration-150 hover:bg-white/2.5">
+    <li
+      className={clsx(
+        'group flex gap-3 py-4 transition-colors duration-150 hover:bg-white/2.5',
+        // Top-priority row is the single foyer: a thin accent rail + the one prominent CTA.
+        focus ? 'border-l-2 border-accent-500/40 pr-6 pl-3' : 'px-6'
+      )}
+    >
       <Icon
         aria-hidden="true"
         className="mt-0.5 size-5 shrink-0 text-zinc-500 transition-colors duration-150 group-hover:text-zinc-400"
       />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-center gap-2">
           <p className="min-w-0 flex-1 truncate text-sm font-medium text-white">{item.title}</p>
-          <Badge color={item.kind === 'ready_manual' ? 'accent' : 'zinc'} className="shrink-0">
-            {item.status}
-          </Badge>
+          <StatusPill label={item.status} tone={tone} />
         </div>
-        <p className="mt-1 truncate font-mono text-xs text-zinc-500">{item.meta}</p>
-        <div className="mt-3">
-          {external ? (
-            <Button outline href={item.href} target="_blank" rel="noreferrer" className="min-h-11 w-full sm:w-auto">
+
+        {focus ? (
+          <>
+            <p className="truncate font-mono text-xs text-zinc-500">{item.meta}</p>
+            {/* The single prominent CTA — auto width, never full-bleed. */}
+            <div className="mt-2">
+              <Button outline href={item.href} {...linkProps}>
+                {item.buttonLabel}
+              </Button>
+            </div>
+          </>
+        ) : (
+          <div className="flex items-center justify-between gap-3">
+            <p className="min-w-0 truncate font-mono text-xs text-zinc-500">{item.meta}</p>
+            {/* Discreet inline affordance — a plain link + chevron, aligned right. */}
+            <Button plain href={item.href} {...linkProps} className="shrink-0">
               {item.buttonLabel}
+              <ChevronRightIcon data-slot="icon" aria-hidden="true" />
             </Button>
-          ) : (
-            <Button outline href={item.href} className="min-h-11 w-full sm:w-auto">
-              {item.buttonLabel}
-            </Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </li>
   )
 }
 
 export function ActionCenter({ items }: { items: ActionItem[] }) {
+  const sorted = [...items].sort((a, b) => a.priority - b.priority)
+
   return (
     <SurfaceCard className="flex h-full flex-col">
       <SurfaceCardHeader
         title="Requires Attention"
         meta={
-          items.length > 0 ? (
-            <span className="font-mono text-xs tabular-nums text-zinc-500">{items.length} open</span>
+          sorted.length > 0 ? (
+            <span className="font-mono text-xs tabular-nums text-zinc-500">{sorted.length} open</span>
           ) : undefined
         }
       />
-      {items.length > 0 ? (
+      {sorted.length > 0 ? (
         <ul className="divide-y divide-white/5">
-          {items.map((item) => (
-            <ActionRow key={item.id} item={item} />
+          {sorted.map((item, i) => (
+            <ActionRow key={item.id} item={item} focus={i === 0} />
           ))}
         </ul>
       ) : (
-        <EmptyState title="All clear" className="py-16" />
+        <EmptyState title="All clear" className="py-12" />
       )}
     </SurfaceCard>
   )

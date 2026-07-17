@@ -26,7 +26,7 @@ const RUNS_TABLE_SIZE = 20
  * contract as `formatScanAge` in project-repo-intelligence). The page is
  * force-dynamic and LiveRefresh re-renders it every 30s — a fresh instant per
  * request is the intended behavior, captured ONCE so every time-derived
- * surface (chart buckets, KPI sparklines, relative "Started" cells) agrees.
+ * surface (chart buckets, KPI peak/hour hint, relative "Started" cells) agrees.
  */
 function renderInstant(): { nowMs: number; nowIso: string } {
   const nowMs = Date.now()
@@ -51,15 +51,12 @@ export default async function PerformancePage() {
         <div className={surfaceCardClass}>
           <div className={`${surfaceCardHeaderClass} px-6 py-6 lg:px-8`}>
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Performance</p>
-              <h1 className="mt-1 text-3xl font-bold tracking-tight text-white sm:text-4xl">Fleet Performance</h1>
-              <p className="mt-2 text-sm text-zinc-400">
-                Averages across every run of every agent — all projects rolled together.
-              </p>
+              <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">Performance</p>
+              <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">Fleet Performance</h1>
             </div>
             <LiveRefresh initialRefreshedAt={nowIso} />
           </div>
-          <FleetKpiBand copilots={copilots} runs={runs} nowMs={nowMs} className="px-6 lg:px-8" />
+          <FleetKpiBand copilots={copilots} runs={runs} nowMs={nowMs} />
         </div>
       </StaggerFade>
 

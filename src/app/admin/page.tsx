@@ -21,8 +21,8 @@ export default async function DashboardPage() {
       <StaggerFade delay={0}>
         <div className={surfaceCardClass}>
           <DashboardHeader />
-          <DashboardDataWarnings warnings={overview.dataWarnings} />
           <DashboardKpiStrip kpis={overview.kpis} />
+          <DashboardDataWarnings warnings={overview.dataWarnings} />
         </div>
       </StaggerFade>
 

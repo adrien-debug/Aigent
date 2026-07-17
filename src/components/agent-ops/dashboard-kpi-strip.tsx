@@ -9,44 +9,54 @@ function formatKpi(value: number | null, suffix?: string): string {
 }
 
 /**
- * Command-center KPI strip — hero values on hairline-separated cells.
- * Tone discipline: accent is reserved for the two operator signals
- * (ready for manual test > 0, blocked > 0); metrics read white and
- * recede to muted when absent (—) or when the signal count is zero.
- * Hints carry the exact semantics of each aggregate — nothing invented.
+ * Command-center KPI strip — one hero anchor against three calm metrics.
+ * A single operator signal is escalated to hero size + accent (ready for
+ * manual test if any, else blocked deliveries, else production agents as a
+ * neutral fallback). Every other metric reads white or recedes to muted —
+ * never a second accent. RepoFit folds into the Sandbox Pass Rate hint;
+ * warnings drop to the card footer (DashboardDataWarnings).
  */
 export function DashboardKpiStrip({ kpis }: { kpis: DashboardKpis }) {
+  const anchor: 'ready' | 'blocked' | 'production' =
+    kpis.readyForManualTest && kpis.readyForManualTest > 0
+      ? 'ready'
+      : kpis.blockedDeliveries && kpis.blockedDeliveries > 0
+        ? 'blocked'
+        : 'production'
+
   const stats: AgentKpiStat[] = [
     {
       name: 'Production Agents',
       value: formatKpi(kpis.productionAgents),
+      valueSize: anchor === 'production' ? 'hero' : 'compact',
       valueTone: kpis.productionAgents === null ? 'muted' : 'default',
       hint: kpis.productionAgents === null ? undefined : 'with a live production version',
     },
     {
       name: 'Ready for Manual Test',
       value: formatKpi(kpis.readyForManualTest),
-      valueTone: kpis.readyForManualTest ? 'accent' : 'muted',
+      valueSize: anchor === 'ready' ? 'hero' : 'compact',
+      valueTone: anchor === 'ready' ? 'accent' : 'muted',
       hint: kpis.readyForManualTest ? 'awaiting operator sign-off' : undefined,
     },
     {
       name: 'Sandbox Pass Rate',
       value: kpis.sandboxPassRate === null ? '—' : formatKpi(kpis.sandboxPassRate),
       suffix: kpis.sandboxPassRate === null ? undefined : '%',
+      valueSize: 'compact',
       valueTone: kpis.sandboxPassRate === null ? 'muted' : 'default',
-      hint: kpis.sandboxPassRate === null ? undefined : 'latest sandbox run per agent',
-    },
-    {
-      name: 'Avg RepoFit',
-      value: formatKpi(kpis.avgRepoFit),
-      suffix: kpis.avgRepoFit === null ? undefined : '/100',
-      valueTone: kpis.avgRepoFit === null ? 'muted' : 'default',
-      hint: kpis.avgRepoFit === null ? undefined : 'mean across scored deliveries',
+      hint: kpis.avgRepoFit === null ? undefined : `RepoFit ${kpis.avgRepoFit}/100`,
     },
     {
       name: 'Blocked Deliveries',
       value: formatKpi(kpis.blockedDeliveries),
-      valueTone: kpis.blockedDeliveries && kpis.blockedDeliveries > 0 ? 'accent' : 'muted',
+      valueSize: anchor === 'blocked' ? 'hero' : 'compact',
+      valueTone:
+        anchor === 'blocked'
+          ? 'accent'
+          : kpis.blockedDeliveries && kpis.blockedDeliveries > 0
+            ? 'default'
+            : 'muted',
       hint: kpis.blockedDeliveries && kpis.blockedDeliveries > 0 ? 'see Requires Attention' : undefined,
     },
   ]
@@ -57,18 +67,19 @@ export function DashboardKpiStrip({ kpis }: { kpis: DashboardKpis }) {
 export function DashboardHeader() {
   return (
     <div className="border-b border-white/5 bg-black/20 px-6 py-6 lg:px-8">
-      <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Dashboard</p>
-      <h1 className="mt-1 text-3xl font-bold tracking-tight text-white sm:text-4xl">Agent Delivery Command Center</h1>
+      <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">Dashboard</p>
+      <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">Agent Delivery Command Center</h1>
     </div>
   )
 }
 
+/** Data-integrity note — a quiet hairline footer, never a full-width banner. */
 export function DashboardDataWarnings({ warnings }: { warnings: string[] }) {
   if (warnings.length === 0) return null
   return (
-    <div className="flex items-start gap-2.5 border-b border-white/5 bg-black/20 px-6 py-3 lg:px-8">
+    <div className="flex items-start gap-2 border-t border-white/5 px-6 py-3">
       <ExclamationTriangleIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-accent-400" />
-      <ul className="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-400">
+      <ul className="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
         {warnings.map((w) => (
           <li key={w} className="font-mono">{w}</li>
         ))}
