@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowRightStartOnRectangleIcon, Bars3Icon, ChartBarIcon, Cog6ToothIcon, CpuChipIcon, Squares2X2Icon, XMarkIcon } from '@heroicons/react/20/solid'
+import { ArrowRightStartOnRectangleIcon, Bars3Icon, ChartBarIcon, Cog6ToothIcon, CpuChipIcon, SignalIcon, Squares2X2Icon, XMarkIcon } from '@heroicons/react/20/solid'
 import * as Headless from '@headlessui/react'
 import { AnimatePresence, motion } from 'motion/react'
 import clsx from 'clsx'
@@ -31,6 +31,7 @@ const NAV_ITEMS = [
   // its agents) — no dedicated list tabs.
   { label: 'Dashboard', icon: Squares2X2Icon, href: '/admin', match: (p: string) => p === '/admin' || p.startsWith('/admin/projects') || p.startsWith('/admin/agents') },
   { label: 'Performance', icon: ChartBarIcon, href: '/admin/performance', match: (p: string) => p.startsWith('/admin/performance') },
+  { label: 'Telemetry', icon: SignalIcon, href: '/admin/telemetry', match: (p: string) => p.startsWith('/admin/telemetry') },
   { label: 'Settings', icon: Cog6ToothIcon, href: '/admin/settings', match: (p: string) => p.startsWith('/admin/settings') },
 ] as const
 
