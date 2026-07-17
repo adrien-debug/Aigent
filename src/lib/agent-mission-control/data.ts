@@ -76,6 +76,7 @@ function enrichCopilot(copilot: Copilot, resolved: ResolvedAgentHealth | undefin
   copilot.healthEvidence = resolved?.evidenceSource ?? 'none'
   if (resolved && resolved.testPassRate !== null) copilot.health.testPassRate = resolved.testPassRate
   if (resolved && resolved.benchmarkScore !== null) copilot.health.benchmarkScore = resolved.benchmarkScore
+  if (resolved && resolved.avgLatencyMs !== null) copilot.health.avgLatencyMs = resolved.avgLatencyMs
   return copilot
 }
 

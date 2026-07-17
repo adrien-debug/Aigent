@@ -41,6 +41,8 @@ export interface ResolvedAgentHealth {
   benchmarkScore: number | null
   latestBenchmarkRunId: string | null
   latestBenchmarkRunAt: IsoTimestamp | null
+  /** Mean `test_results.latency_ms` over the latest COMPLETED test_run's cases. `null` if never run. */
+  avgLatencyMs: number | null
   /** Where the numbers came from — `runs` when at least one exists, else `none`. */
   evidenceSource: 'runs' | 'none'
 }
@@ -70,6 +72,7 @@ const EMPTY: ResolvedAgentHealth = {
   benchmarkScore: null,
   latestBenchmarkRunId: null,
   latestBenchmarkRunAt: null,
+  avgLatencyMs: null,
   evidenceSource: 'none',
 }
 
@@ -89,6 +92,34 @@ async function latestTestRunByCopilot(copilotIds: string[]): Promise<Map<string,
     const cid = r.copilot_id as string
     if (out.has(cid)) continue // rows are newest-first → first seen wins
     out.set(cid, { id: r.id as string, passRate: (r.pass_rate as number) ?? 0, at: r.started_at as string })
+  }
+  return out
+}
+
+/**
+ * Mean `test_results.latency_ms` over the cases of each copilot's latest
+ * COMPLETED test_run (the same run `latestTestRunByCopilot` picked). Two
+ * round trips: resolve the winning run ids, then batch-average their cases.
+ */
+async function avgLatencyByTestRun(runIds: string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>()
+  if (runIds.length === 0) return out
+  const rows = await pgrest<RawRow[]>(
+    'GET',
+    `test_results?run_id=in.(${inList(runIds)})&select=run_id,latency_ms`
+  )
+  const sumByRun = new Map<string, { total: number; count: number }>()
+  for (const r of rows) {
+    const rid = r.run_id as string
+    const ms = r.latency_ms as number | null
+    if (ms === null || ms === undefined) continue
+    const acc = sumByRun.get(rid) ?? { total: 0, count: 0 }
+    acc.total += ms
+    acc.count += 1
+    sumByRun.set(rid, acc)
+  }
+  for (const [rid, acc] of sumByRun) {
+    if (acc.count > 0) out.set(rid, Math.round(acc.total / acc.count))
   }
   return out
 }
@@ -132,6 +163,7 @@ export async function resolveCopilotHealthBatch(copilotIds: string[]): Promise<M
     latestTestRunByCopilot(copilotIds),
     latestBenchmarkByCopilot(copilotIds),
   ])
+  const latencyByRunId = await avgLatencyByTestRun([...testByCopilot.values()].map((t) => t.id))
   for (const id of copilotIds) {
     const t = testByCopilot.get(id)
     const b = benchByCopilot.get(id)
@@ -142,6 +174,7 @@ export async function resolveCopilotHealthBatch(copilotIds: string[]): Promise<M
       benchmarkScore: b ? b.score : null,
       latestBenchmarkRunId: b ? b.id : null,
       latestBenchmarkRunAt: b ? b.at : null,
+      avgLatencyMs: t ? latencyByRunId.get(t.id) ?? null : null,
       evidenceSource: t || b ? 'runs' : 'none',
     })
   }
