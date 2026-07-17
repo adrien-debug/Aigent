@@ -92,7 +92,7 @@ const createCopilotBodySchema = z.object(
       .max(200, MSG.slug)
       .regex(SLUG_RE, 'must be 1-183 lowercase letters, digits or hyphens (it becomes the copilot id)'),
     description: z.string().max(4000, 'must be at most 4000 chars').default(''),
-    runtime: z.enum(['langgraph', 'openai-assistants', 'gemini', 'custom']),
+    runtime: z.literal('langgraph'),
     model: z.string().max(200, 'must be at most 200 chars'),
     modelProvider: z.enum(['openai', 'google', 'mistral', 'local']),
     owner: z.string().max(200, 'must be at most 200 chars'),

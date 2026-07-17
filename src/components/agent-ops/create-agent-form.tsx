@@ -14,7 +14,6 @@ import { AGENT_RUNTIME_LABELS, MODEL_PROVIDER_LABELS } from '@/lib/agent-mission
 import { slugify } from '@/lib/agent-mission-control/slug'
 import type { AgentRuntime, ModelProvider, Project } from '@/lib/agent-mission-control/types'
 
-const RUNTIME_OPTIONS: AgentRuntime[] = ['langgraph', 'openai-assistants', 'gemini', 'custom']
 const PROVIDER_OPTIONS: ModelProvider[] = ['openai', 'google', 'mistral', 'local']
 
 /** Known model ids per provider (values already used across the app fixtures). */
@@ -82,7 +81,7 @@ export function CreateAgentForm({
   const [slug, setSlug] = useState('')
   const [slugTouched, setSlugTouched] = useState(false)
   const [description, setDescription] = useState('')
-  const [runtime, setRuntime] = useState<AgentRuntime>(DEFAULT_RUNTIME)
+  const runtime: AgentRuntime = DEFAULT_RUNTIME
   const [model, setModel] = useState(DEFAULT_MODEL)
   const [modelProvider, setModelProvider] = useState<ModelProvider>(DEFAULT_PROVIDER)
   const [owner, setOwner] = useState('')
@@ -282,20 +281,10 @@ export function CreateAgentForm({
 
           <Field>
             <Label>Runtime</Label>
-            <Select
-              name="runtime"
-              value={runtime}
-              onChange={(event) => {
-                dirtyFields.current.add('runtime')
-                setRuntime(event.target.value as AgentRuntime)
-              }}
-            >
-              {RUNTIME_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {AGENT_RUNTIME_LABELS[option]}
-                </option>
-              ))}
-            </Select>
+            <Input name="runtime" value={AGENT_RUNTIME_LABELS[runtime]} disabled />
+            <Description>
+              LangGraph est le seul runtime avec un moteur d&apos;exécution réel dans Aigent.
+            </Description>
           </Field>
 
           <Field>

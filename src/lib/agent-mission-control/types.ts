@@ -47,6 +47,9 @@ export type AgentRuntime =
   | 'gemini'
   | 'custom'
 
+/** Restriction du runtime autorisé côté API/formulaire de création — voir copilots/route.ts. */
+export type CreatableAgentRuntime = Extract<AgentRuntime, 'langgraph'>
+
 export type CopilotStatus = 'active' | 'paused' | 'draft' | 'degraded' | 'archived'
 
 export type AgentPushStatus = 'never' | 'pushing' | 'pushed' | 'failed'
