@@ -45,7 +45,8 @@ sous `src/lib/agent-mission-control/market/` :
   config pure. `eval/` — corpus de tests + benchmark (gates de blocage, sécurité 100%).
   `shadow.ts` (SNAPSHOT-only) · `council.ts` (Sentinel BLOCKED terminal) ·
   `delivery.ts` (paquet TradeAgent checksummé, n'active rien).
-- **UI** : `/admin/trading-factory` (`src/components/agent-ops/trading/`), primitives Catalyst.
+- **Pas de surface UI dédiée** : les agents trading vivent dans les surfaces
+  agents existantes (`/admin/agents`), comme tous les autres copilots.
 - Docs : `docs/trading-agent-factory.md` + `docs/runbook-trading-factory.md`.
 - **Matérialisation OpenAI des 6 agents = étape facturée, non exécutée** (attend accord §8).
 <!-- END:trading-factory -->
