@@ -58,8 +58,14 @@ export function resolveProvider(args: {
 }): MarketDataProvider | null {
   if (args.fixtureScenario) return new FixtureMarketProvider(args.fixtureScenario)
   const base = args.baseUrl ?? process.env.TRADEAGENT_MARKET_URL ?? null
-  if (!base) return null
-  return new HttpMarketProvider({ baseUrl: base })
+  if (base) return new HttpMarketProvider({ baseUrl: base })
+  // EVAL-ONLY fallback: with no live URL, an operator can pin a frozen fixture
+  // scenario via AIG_MARKET_FIXTURE so agents can be benchmarked offline. Data
+  // served this way is ALWAYS truth: 'FIXTURE' (the FixtureMarketProvider tags
+  // it so) — it can never be mistaken for LIVE. Absent both → UNAVAILABLE.
+  const envFixture = process.env.AIG_MARKET_FIXTURE as ScenarioId | undefined
+  if (envFixture) return new FixtureMarketProvider(envFixture)
+  return null
 }
 
 function ctxOf(asOf?: number, maxAgeMs?: number | null): ProviderContext {

@@ -143,6 +143,13 @@ export interface ExecuteCopilotRunResult {
   interruptMessage: string | null
   /** The tool awaiting approval when interrupted (name + args for the operator), else null. */
   pendingTool: { name: string; argumentsSummary: string; risk?: string } | null
+  /**
+   * The FULL, untruncated model answer (the direct model-router path only).
+   * `outputSummary` is capped at 400 chars for display/persistence; callers that
+   * need to parse a structured (e.g. JSON) answer must use this. Null on the
+   * LangGraph path or when no final text was produced.
+   */
+  fullText: string | null
 }
 
 type UsdAmount = number
@@ -535,6 +542,9 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
     interrupted,
     interruptMessage,
     pendingTool,
+    // LangGraph path: the full answer lives in the persisted steps; expose null
+    // here (the direct model-router path is the one that carries fullText).
+    fullText: null,
   }
 }
 
@@ -610,8 +620,11 @@ export async function executeCopilotRun(
   // maxSteps is the manifest ceiling on model turns. Guarantee at least 1.
   const maxTurns = Math.max(1, maxSteps)
 
+  // Hoisted to function scope so the return can expose the untruncated answer
+  // as `fullText` (the try/catch below assigns it).
+  let finalText = ''
+
   try {
-    let finalText = ''
     let turn = 0
     let resolvedThisRun = false
 
@@ -895,5 +908,6 @@ export async function executeCopilotRun(
     interrupted: false,
     interruptMessage: null,
     pendingTool: null,
+    fullText: finalText || null,
   }
 }

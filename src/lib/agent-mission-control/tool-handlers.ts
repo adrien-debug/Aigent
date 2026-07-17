@@ -27,6 +27,7 @@
 import 'server-only'
 
 import { buildCopilotDraft } from '../../langgraph/draft-spec.mjs'
+import { TRADING_TOOL_HANDLERS } from './market/tools'
 import {
   getCopilot,
   getCopilots,
@@ -323,4 +324,14 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
   read_recent_runs: readRecentRuns,
   read_tool_permissions: readToolPermissions,
   draft_copilot_spec: draftCopilotSpec,
+  // AIG-TRADE-001 — the read-only market tools the trading gamme calls. Each
+  // trading handler is `(argsJson) => {ok,data,summary}` (ctx unused, they are
+  // stateless reads); adapted to the ToolHandler shape here so the runner can
+  // resolve them by manifest tool name exactly like the native handlers.
+  ...Object.fromEntries(
+    Object.entries(TRADING_TOOL_HANDLERS).map(([name, fn]) => [
+      name,
+      (async (argsJson: string) => fn(argsJson)) as ToolHandler,
+    ]),
+  ),
 }
