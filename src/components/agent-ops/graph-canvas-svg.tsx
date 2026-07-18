@@ -163,7 +163,7 @@ function CanvasDefs() {
   )
 }
 
-function NodeBox({ node, status, selected, onSelect, index }: { node: RenderNode; status: StepStatus; selected: boolean; onSelect: () => void; index: number }) {
+function NodeBox({ node, status, selected, onSelect, index }: { node: RenderNode; status: StepStatus; selected: boolean; onSelect?: () => void; index: number }) {
   const hot = status === 'interrupted' || status === 'active'
   const fillId =
     hot ? 'url(#node-hot)' : status === 'completed' ? 'url(#node-completed)' : 'url(#node-idle)'
@@ -175,22 +175,27 @@ function NodeBox({ node, status, selected, onSelect, index }: { node: RenderNode
         : status === 'completed'
           ? 'var(--color-zinc-500)'
           : 'var(--color-zinc-300)'
+  const interactive = Boolean(onSelect)
   return (
     <g
-      className="lg-node cursor-pointer outline-hidden"
+      className={`lg-node outline-hidden ${interactive ? 'cursor-pointer' : ''}`}
       style={{ animationDelay: `${index * 55}ms` }}
       transform={`translate(${node.x - NODE_W / 2}, ${node.y - NODE_H / 2})`}
-      onClick={onSelect}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onSelect()
-        }
-      }}
+      onClick={interactive ? onSelect : undefined}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onKeyDown={
+        interactive
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onSelect?.()
+              }
+            }
+          : undefined
+      }
       aria-label={`${node.label} — ${status}`}
-      aria-pressed={selected}
+      aria-pressed={interactive ? selected : undefined}
     >
       {/* Base card (white so the gradient reads on any bg) + gradient surface. */}
       <rect width={NODE_W} height={NODE_H} rx={9} className="fill-white dark:fill-zinc-900" filter="url(#node-shadow)" />
@@ -292,7 +297,7 @@ export function GraphCanvasSvg({
             return <Edge key={i} a={a} b={b} dashed={e.conditional} traversed={traversedEdges.has(`${e.source}→${e.target}`)} index={i} />
           })}
           {renderNodes.map((n, i) => (
-            <NodeBox key={n.id} node={n} status={statusOf(n.id)} selected={selectedNodeId === n.id} onSelect={() => onNodeClick?.(n.id)} index={i} />
+            <NodeBox key={n.id} node={n} status={statusOf(n.id)} selected={selectedNodeId === n.id} onSelect={onNodeClick ? () => onNodeClick(n.id) : undefined} index={i} />
           ))}
         </svg>
       </div>
