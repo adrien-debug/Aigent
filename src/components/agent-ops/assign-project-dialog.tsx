@@ -302,7 +302,7 @@ export function UnassignCopilotDialog({
       </DialogDescription>
       {servingProduction ? (
         <DialogBody>
-          <p className="text-sm font-medium text-accent-600 dark:text-accent-400">
+          <p role="alert" className="text-sm font-medium text-accent-600 dark:text-accent-400">
             Warning: this copilot is active and serving a production version. Unassigning pulls a
             live copilot off its project.
           </p>
