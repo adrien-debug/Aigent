@@ -61,6 +61,14 @@ function installKpiMocks() {
         return [{ id: 'tr', copilot_id: 'copilot-measured', pass_rate: 1, started_at: '2026-07-15T10:00:00Z' }]
       return []
     }
+    if (path.startsWith('test_results?')) {
+      // Cases of the measured copilot's run. getRegistryKpis does not surface
+      // latency, but resolveCopilotHealthBatch resolves it on the way through.
+      return [
+        { run_id: 'tr', latency_ms: 120 },
+        { run_id: 'tr', latency_ms: 180 },
+      ]
+    }
     if (path.startsWith('benchmark_runs?')) return []
     if (path.startsWith('benchmark_results?')) return []
     throw new Error(`Unmocked pgrest path: ${path}`)

@@ -36,6 +36,7 @@ const VERSION = 'version-health-test'
 function noRuns(): PgrestHandler {
   return (_m, path) => {
     if (path.startsWith('test_runs?')) return []
+    if (path.startsWith('test_results?')) return []
     if (path.startsWith('benchmark_runs?')) return []
     if (path.startsWith('benchmark_results?')) return []
     throw new Error(`Unmocked pgrest path: ${path}`)
@@ -59,6 +60,13 @@ describe('resolveCopilotHealth', () => {
     pgrestHandler = (_m, path) => {
       if (path.startsWith('test_runs?'))
         return [{ id: 'run-a', copilot_id: COPILOT, pass_rate: 1, started_at: '2026-07-15T10:00:00Z' }]
+      if (path.startsWith('test_results?'))
+        // Cases of run-a: mean of 100/200/300 = 200ms.
+        return [
+          { run_id: 'run-a', latency_ms: 100 },
+          { run_id: 'run-a', latency_ms: 200 },
+          { run_id: 'run-a', latency_ms: 300 },
+        ]
       if (path.startsWith('benchmark_runs?')) return []
       if (path.startsWith('benchmark_results?')) return []
       throw new Error(`Unmocked pgrest path: ${path}`)
@@ -68,6 +76,7 @@ describe('resolveCopilotHealth', () => {
     expect(health.latestTestRunId).toBe('run-a')
     expect(health.latestTestRunAt).toBe('2026-07-15T10:00:00Z')
     expect(health.evidenceSource).toBe('runs')
+    expect(health.avgLatencyMs).toBe(200)
   })
 
   it('3 — several runs → takes the most recent (rows arrive newest-first)', async () => {
@@ -78,6 +87,16 @@ describe('resolveCopilotHealth', () => {
           { id: 'run-new', copilot_id: COPILOT, pass_rate: 0.8, started_at: '2026-07-15T12:00:00Z' },
           { id: 'run-old', copilot_id: COPILOT, pass_rate: 0.2, started_at: '2026-07-15T09:00:00Z' },
         ]
+      if (path.startsWith('test_results?')) {
+        // Latency is averaged over the WINNING run only — the resolver never even
+        // asks for run-old's cases.
+        expect(path).toContain('run-new')
+        expect(path).not.toContain('run-old')
+        return [
+          { run_id: 'run-new', latency_ms: 40 },
+          { run_id: 'run-new', latency_ms: 60 },
+        ]
+      }
       if (path.startsWith('benchmark_runs?')) return []
       if (path.startsWith('benchmark_results?')) return []
       throw new Error(`Unmocked pgrest path: ${path}`)
@@ -85,11 +104,32 @@ describe('resolveCopilotHealth', () => {
     const health = await resolveCopilotHealth(COPILOT)
     expect(health.testPassRate).toBe(0.8)
     expect(health.latestTestRunId).toBe('run-new')
+    expect(health.avgLatencyMs).toBe(50)
+  })
+
+  it('3b — test run whose cases carry no latency → avgLatencyMs null, never a fabricated 0', async () => {
+    pgrestHandler = (_m, path) => {
+      if (path.startsWith('test_runs?'))
+        return [{ id: 'run-nolat', copilot_id: COPILOT, pass_rate: 1, started_at: '2026-07-15T10:00:00Z' }]
+      if (path.startsWith('test_results?'))
+        // Cases exist but latency was never recorded — a null must NOT average to 0.
+        return [
+          { run_id: 'run-nolat', latency_ms: null },
+          { run_id: 'run-nolat', latency_ms: null },
+        ]
+      if (path.startsWith('benchmark_runs?')) return []
+      if (path.startsWith('benchmark_results?')) return []
+      throw new Error(`Unmocked pgrest path: ${path}`)
+    }
+    const health = await resolveCopilotHealth(COPILOT)
+    expect(health.testPassRate).toBe(1)
+    expect(health.avgLatencyMs).toBeNull()
   })
 
   it('4 — latest benchmark → benchmarkScore from its result', async () => {
     pgrestHandler = (_m, path) => {
       if (path.startsWith('test_runs?')) return []
+      if (path.startsWith('test_results?')) return []
       if (path.startsWith('benchmark_runs?'))
         return [{ id: 'bench-1', copilot_id: COPILOT, started_at: '2026-07-15T11:00:00Z' }]
       if (path.startsWith('benchmark_results?')) return [{ run_id: 'bench-1', score: 93 }]
@@ -104,6 +144,7 @@ describe('resolveCopilotHealth', () => {
   it('4b — benchmark run without a result row → no benchmark evidence', async () => {
     pgrestHandler = (_m, path) => {
       if (path.startsWith('test_runs?')) return []
+      if (path.startsWith('test_results?')) return []
       if (path.startsWith('benchmark_runs?'))
         return [{ id: 'bench-orphan', copilot_id: COPILOT, started_at: '2026-07-15T11:00:00Z' }]
       if (path.startsWith('benchmark_results?')) return [] // no matching result
@@ -120,6 +161,11 @@ describe('resolveCopilotHealth', () => {
     pgrestHandler = (_m, path) => {
       if (path.startsWith('test_runs?'))
         return [{ id: 'r1', copilot_id: withRuns, pass_rate: 0.5, started_at: '2026-07-15T10:00:00Z' }]
+      if (path.startsWith('test_results?'))
+        return [
+          { run_id: 'r1', latency_ms: 10 },
+          { run_id: 'r1', latency_ms: 21 },
+        ]
       if (path.startsWith('benchmark_runs?')) return []
       if (path.startsWith('benchmark_results?')) return []
       throw new Error(`Unmocked pgrest path: ${path}`)
@@ -127,8 +173,12 @@ describe('resolveCopilotHealth', () => {
     const map = await resolveCopilotHealthBatch([withRuns, without])
     expect(map.get(withRuns)!.testPassRate).toBe(0.5)
     expect(map.get(withRuns)!.evidenceSource).toBe('runs')
+    // Mean of 10 and 21 is 15.5 → rounded to 16 by the resolver.
+    expect(map.get(withRuns)!.avgLatencyMs).toBe(16)
     expect(map.get(without)!.testPassRate).toBeNull()
     expect(map.get(without)!.evidenceSource).toBe('none')
+    // The run-less copilot borrows nothing from its neighbour.
+    expect(map.get(without)!.avgLatencyMs).toBeNull()
   })
 })
 
