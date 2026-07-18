@@ -198,7 +198,11 @@ export function AgentBuilderWorkbench() {
           <Button plain onClick={() => setInput(EXAMPLE)} disabled={running}>
             Use example
           </Button>
-          {running ? <Text className="!mt-0">Driving the LangGraph nodes on a live model…</Text> : null}
+          {running ? (
+            <Text className="!mt-0" role="status" aria-live="polite">
+              Driving the LangGraph nodes on a live model…
+            </Text>
+          ) : null}
         </div>
         {error ? <ErrorBanner message={error} /> : null}
       </AgentSectionCard>
@@ -237,7 +241,11 @@ export function AgentBuilderWorkbench() {
 
         {/* Live events — the actual steps the graph emitted this run. */}
         {state && state.events.length > 0 ? (
-          <ul className="mt-5 space-y-2 border-t border-zinc-950/5 pt-4 dark:border-white/5">
+          <ul
+            role="status"
+            aria-live="polite"
+            className="mt-5 space-y-2 border-t border-zinc-950/5 pt-4 dark:border-white/5"
+          >
             {state.events.map((ev, i) => (
               <li key={i} className="flex items-start gap-3">
                 <span
@@ -311,7 +319,7 @@ export function AgentBuilderWorkbench() {
 
       {/* 4 — Created-copilot receipt */}
       {state?.createdCopilotId ? (
-        <div className="rounded-xl bg-zinc-950 p-5 ring-1 ring-white/10">
+        <div role="status" aria-live="polite" className="rounded-xl bg-zinc-950 p-5 ring-1 ring-white/10">
           <p className="text-xs font-medium tracking-wide text-accent-300 uppercase">Draft copilot created</p>
           <p className="mt-2 text-sm text-zinc-300">
             A new draft copilot is now on the validation bench (not production, not assigned).
@@ -402,7 +410,13 @@ export function AgentBuilderWorkbench() {
       {/* 6 — Final text (a refusal, or the closing report) */}
       {state && !awaiting && state.finalText ? (
         <AgentSectionCard title="Agent Builder response" description={STATUS_LABEL[state.status]}>
-          <p className="text-sm whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">{state.finalText}</p>
+          <p
+            role={state.status === 'failed' || state.status === 'blocked' ? 'alert' : 'status'}
+            aria-live={state.status === 'failed' || state.status === 'blocked' ? 'assertive' : 'polite'}
+            className="text-sm whitespace-pre-wrap text-zinc-700 dark:text-zinc-300"
+          >
+            {state.finalText}
+          </p>
         </AgentSectionCard>
       ) : null}
     </div>
