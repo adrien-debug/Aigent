@@ -168,6 +168,7 @@ export function ProjectMissionOrchestrator({
   }, [projectId])
 
   const runMission = useCallback(async () => {
+    if (phase === 'running' || phase === 'loading') return
     setPhase('running')
     setError(null)
     setHydrateWarning(null)
@@ -189,7 +190,7 @@ export function ProjectMissionOrchestrator({
       setError('Live backend not configured.')
       setPhase(report ? 'ready' : 'idle')
     }
-  }, [projectId, objective, report])
+  }, [projectId, objective, report, phase])
 
   const showReport = report && (phase === 'ready' || phase === 'error')
 
