@@ -184,13 +184,21 @@ export function RunCopilotPanel({ copilotId, copilotName, copilotSlug = '', copi
             'Run copilot'
           )}
         </Button>
-        {isRunning ? <Text className="!mt-0">Waiting on a live model call…</Text> : null}
+        {isRunning ? (
+          <Text className="!mt-0" role="status" aria-live="polite">
+            Waiting on a live model call…
+          </Text>
+        ) : null}
       </div>
 
       {error ? <ErrorBanner message={error} /> : null}
 
       {result ? (
-        <div className="mt-4 border-t border-zinc-950/5 pt-4 dark:border-white/5">
+        <div
+          className="mt-4 border-t border-zinc-950/5 pt-4 dark:border-white/5"
+          role="status"
+          aria-live="polite"
+        >
           <div className="flex items-center justify-between gap-4">
             <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Result</p>
             <RunStatusText status={result.status} />
