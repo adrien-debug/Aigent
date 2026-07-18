@@ -372,7 +372,7 @@ export function CreateAgentForm({
         </div>
       </Fieldset>
 
-      {error ? <ErrorMessage>{error}</ErrorMessage> : null}
+      {error ? <ErrorMessage role="alert">{error}</ErrorMessage> : null}
 
       <div className="flex flex-wrap items-center justify-end gap-3">
         <Button plain onClick={() => router.push('/admin')} disabled={saving}>
