@@ -143,9 +143,10 @@ describe('AgentRun read-model — legacy runs stay honest (no invented model)', 
   it('a legacy row (no resolved columns) surfaces NO resolvedModel — not a guess', async () => {
     runRows = [legacyRunRow()]
     const [run] = (await getRunsForCopilot('copilot-atlas')) as RunWithResolved[]
-    // Absent column stays absent — the read-model invents nothing.
-    expect(run?.resolvedModel).toBeUndefined()
-    expect(run?.resolvedProvider).toBeUndefined()
+    // Absent column normalizes to an explicit null — the read-model invents
+    // nothing (null = known-absent, never a guessed model string).
+    expect(run?.resolvedModel).toBeNull()
+    expect(run?.resolvedProvider).toBeNull()
     // The UI must treat an unknown model as unverified, never as ground truth.
     // A legacy row carries no explicit `model_unverified:false`, so the value is
     // never the "verified" sentinel — it is undefined (unknown), i.e. NOT false.
@@ -172,7 +173,7 @@ describe('AgentRun read-model — legacy runs stay honest (no invented model)', 
     const [run] = (await getRunsForCopilot('copilot-atlas')) as RunWithResolved[]
     // A tempting-but-wrong inference source (a label that looks like a model)
     // must NOT leak into resolvedModel.
-    expect(run?.resolvedModel).toBeUndefined()
+    expect(run?.resolvedModel).toBeNull()
     expect(run?.userLabel).toBe('gpt-5.4') // proves the label was present…
     expect(run?.resolvedModel).not.toBe('gpt-5.4') // …and still not copied over
   })
@@ -183,7 +184,7 @@ describe('AgentRun read-model — legacy runs stay honest (no invented model)', 
     const byId = new Map(runs.map((r) => [r.id, r]))
     expect(byId.get('run-new-01')?.resolvedModel).toBe('gpt-5.4')
     expect(byId.get('run-new-01')?.modelUnverified).toBe(false)
-    expect(byId.get('run-legacy-01')?.resolvedModel).toBeUndefined()
+    expect(byId.get('run-legacy-01')?.resolvedModel).toBeNull()
     expect(byId.get('run-legacy-01')?.modelUnverified).not.toBe(false)
   })
 })
