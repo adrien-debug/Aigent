@@ -2,7 +2,7 @@
 
 import clsx from 'clsx'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { surfaceCardClass } from '@/components/agent-ops/surface-card'
 import type { ProjectTeamGraph } from '@/lib/agent-mission-control/project-team/types'
@@ -371,27 +371,37 @@ function ProjectTeamViewInner({
   }, [selectAgent])
 
   /**
-   * The two relation dialogs, built ONCE here and rendered by every branch
-   * below — including the unavailable and no-agents states.
+   * The two relation dialogs, built ONCE here and rendered from a SINGLE shared
+   * shell — the unified Fragment at the very end of this component — at a fixed
+   * child position common to all three render states (the unavailable card, the
+   * no-agents empty state, and the main graph).
    *
-   * They used to sit only at the bottom of the main `return`, below the two
-   * early returns, which quietly made the real mount condition
-   * `agents.length > 0 && addRelationSource !== null` instead of
-   * `addRelationSource !== null`. That undocumented second gate defeated the
-   * whole point of mounting on the payload (see `addRelationSource` above):
-   * a poll that returned a graph with zero agent nodes flipped this component
-   * to the empty state and tore a dialog down WITH ITS POST IN FLIGHT, so
-   * `setError`/`onDone` landed on a dead tree and the operator was never told
-   * whether the row was written — precisely the outcome the dialogs' own
-   * dismissal veto (`closeUnlessSaving`) exists to make unreachable. It also
-   * brought the latch back: neither piece of state is cleared by that
-   * transition, so a later poll that returned agents again sprang the dialog
-   * open unrequested, against a stale captured source or a relation id with no
-   * backing row.
+   * Rendering the dialogs in every branch is NECESSARY but was not SUFFICIENT
+   * on its own. React's reconciler pairs children by POSITION and tears a
+   * subtree down whenever the element TYPE at that position changes. The
+   * earlier shape returned a `<div>` from the main branch and a Fragment `<>`
+   * from the two early returns, so every main⟷empty flip changed the ROOT
+   * element type and rebuilt the entire tree — dialog included — no matter
+   * where inside the branch the dialog sat. A 10s poll that returned a graph
+   * with zero agent nodes (a truthful data state) therefore unmounted a dialog
+   * WITH ITS POST IN FLIGHT: the dialog-local `setError`/`onDone` then landed
+   * on an unmounted instance (a silent no-op in React 19) and the operator was
+   * never told whether the row was written — precisely the outcome the dialogs'
+   * own dismissal veto (`closeUnlessSaving`) exists to make unreachable. It
+   * also brought the latch back: neither piece of state is cleared by that
+   * transition, so a later poll that returned agents again sprang a fresh blank
+   * dialog open unrequested, against a stale captured source or a relation id
+   * with no backing row.
    *
-   * Clearing the state on that transition would NOT be a fix — it is the
-   * mid-submit unmount again, by hand. Rendering everywhere is: the payload
-   * stays the only mount condition, and only its own `onClose` ever clears it.
+   * The actual fix is the unified root: ALL three branches now return
+   * `<>{branchContent}{relationAnnouncer}{relationDialogs}</>` with identical
+   * child count and order, so `relationDialogs` sits at the same position with
+   * the same element type across every transition and React PRESERVES its
+   * subtree instead of rebuilding it — a dialog with its POST in flight is
+   * never torn down. The payload (`addRelationSource` / `pendingDelete`) stays
+   * the only mount condition, and only its own `onClose` ever clears it;
+   * clearing the state on a branch flip would just be the mid-submit unmount
+   * again, by hand.
    *
    * Everything read here (`candidateAgents` included) is derived above, so
    * nothing moved below a conditional return and no hook order changed.
@@ -483,153 +493,162 @@ function ProjectTeamViewInner({
     </div>
   )
 
+  // The three render states share ONE root shell — the Fragment at the end of
+  // this component: `<>{branchContent}{relationAnnouncer}{relationDialogs}</>`,
+  // identical in child count and order across all three. That shared shape is
+  // what actually preserves the dialog subtree across a poll-driven branch flip
+  // (see `relationDialogs` above); three separate returns with different root
+  // element types do NOT — React remounts on a root-type change and tears an
+  // in-flight dialog down. `branchContent` is a SINGLE element per branch,
+  // holding EXACTLY what that state rendered before, and the graph-derived
+  // aria-live region stays INSIDE the main branch's content so the shared child
+  // positions line up (exactly three children in every branch).
+  let branchContent: ReactNode
+
   // No graph at all = fail-closed. Either the server said why (`loadError`), or
   // the poll has not produced one yet — in both cases we state it plainly
   // rather than render an approximation.
   if (!graph) {
-    return (
-      <>
-        <div className={surfaceCardClass}>
-          <ProjectTeamUnavailableState
-            detail={
-              loadError ??
-              'No team graph could be loaded for this project. Nothing is drawn rather than an approximate graph. Refresh, and check the agent-ops backend if it persists.'
-            }
+    branchContent = (
+      <div className={surfaceCardClass}>
+        <ProjectTeamUnavailableState
+          detail={
+            loadError ??
+            'No team graph could be loaded for this project. Nothing is drawn rather than an approximate graph. Refresh, and check the agent-ops backend if it persists.'
+          }
+        />
+      </div>
+    )
+  } else if (agents.length === 0) {
+    branchContent = (
+      <div className={surfaceCardClass}>
+        <ProjectTeamNoAgentsEmptyState projectId={projectId} />
+      </div>
+    )
+  } else {
+    const filtersActive = hasActiveFilters(filters)
+    const nothingMatches = visibleAgents.length === 0
+    // A team with agents but no relation beyond plain project membership is a
+    // real, common state. We say so instead of drawing a network that isn't there.
+    const onlyMembership =
+      allEdges.length > 0 &&
+      allEdges.every((edge) => edge.relation === 'project-membership' || edge.relation === 'team-membership')
+
+    branchContent = (
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        {/* Summary + freshness on a single hairline row — uncaged, ~1 line tall,
+            so the graph below starts as high up the viewport as possible. */}
+        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-xs">
+          {stats.map((stat) => (
+            <span key={stat.name} className="flex items-baseline gap-1.5">
+              <span
+                className={clsx(
+                  'font-mono text-sm font-medium tabular-nums',
+                  stat.accent ? 'text-accent-400' : 'text-white'
+                )}
+              >
+                {stat.value}
+              </span>
+              <span className="text-zinc-500">{stat.name}</span>
+            </span>
+          ))}
+          <span className="ml-auto text-zinc-500">
+            {freshnessAge ? `Refreshed ${freshnessAge}` : 'Freshness unavailable'}
+            {stale ? ' · last refresh failed, showing the previous graph' : null}
+          </span>
+        </div>
+
+        <div className={clsx(surfaceCardClass, 'flex min-h-0 flex-1 flex-col')}>
+          <ProjectTeamToolbar
+            filters={filters}
+            onFiltersChange={setFilters}
+            statusOptions={statusOptions}
+            runtimeOptions={runtimeOptions}
+            teamOptions={teamOptions}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            onClearFilters={clearFilters}
+            onRefresh={refreshNow}
+            visibleCount={visibleAgents.length}
+            totalCount={agents.length}
+          />
+
+          {onlyMembership ? (
+            <p className="border-b border-white/5 px-4 py-2 text-xs text-zinc-500">
+              No orchestration or dependency relation is recorded for this team yet — the links below are
+              project and team membership only.
+            </p>
+          ) : null}
+
+          {/* The canvas is the dominant surface; the panel overlays it (absolute)
+              so selecting a node never reflows or shrinks the graph. */}
+          <div ref={canvasHostRef} className="relative flex min-h-0 flex-1 flex-col">
+            {nothingMatches ? (
+              <ProjectTeamNoMatchEmptyState onClearFilters={clearFilters} />
+            ) : (
+              <ProjectTeamCanvas
+                graph={graph}
+                selectedAgentId={selectedAgentId}
+                onSelectAgent={selectAgent}
+                viewMode={viewMode}
+                filteredNodeIds={filtersActive ? visibleIds : undefined}
+                // Height comes from the flex chain (main is h-svh, every ancestor
+                // is flex-1/min-h-0), NOT from an arithmetic guess about how tall
+                // the chrome above happens to be: a `calc(100svh - Nrem)` silently
+                // breaks the day the header or toolbar wraps to another line.
+                // `min-h-96` is the floor for short viewports.
+                className="min-h-96 w-full flex-1"
+              />
+            )}
+
+            {selectedAgent ? (
+              <ProjectTeamPanel
+                agent={selectedAgent}
+                incoming={incoming}
+                outgoing={outgoing}
+                nodesById={nodesById}
+                onClose={() => selectAgent(null)}
+                onAddRelation={() => setAddRelationSource(relationSource)}
+                onDeleteRelation={(relationId, description) => setPendingDelete({ relationId, description })}
+                dialogOpen={relationDialogOpen}
+                addRelationRef={addRelationRef}
+              />
+            ) : null}
+          </div>
+
+          {/* Same visible agents, as a semantic list: shown for real on small
+              viewports (the feature is never hidden on mobile), screen-reader-only
+              from `lg` up where the canvas carries the visual job. */}
+          <ProjectTeamAccessibleList
+            agents={visibleAgents}
+            selectedAgentId={selectedAgentId}
+            onSelectAgent={selectAgent}
+            className="border-t border-white/5 lg:sr-only lg:border-t-0"
           />
         </div>
-        {relationAnnouncer}
-        {relationDialogs}
-      </>
-    )
-  }
 
-  if (agents.length === 0) {
-    return (
-      <>
-        <div className={surfaceCardClass}>
-          <ProjectTeamNoAgentsEmptyState projectId={projectId} />
+        {/* The graph's own periodic update, off `summary` — main-branch only,
+            so it stays INSIDE this branch content (see `relationAnnouncer`
+            above for why it is not hoisted into the shared shell). The
+            operator's own relation write lives in the sibling
+            `relationAnnouncer` region of that shell, rendered just after this
+            content and common to all three branches, so neither string can mask
+            the other: a persistent "Relation added." must not silence the next
+            real status change, and a poll must not erase the confirmation the
+            operator just earned. */}
+        <div aria-live="polite" className="sr-only">
+          <span>{announcement}</span>
         </div>
-        {relationAnnouncer}
-        {relationDialogs}
-      </>
+      </div>
     )
   }
-
-  const filtersActive = hasActiveFilters(filters)
-  const nothingMatches = visibleAgents.length === 0
-  // A team with agents but no relation beyond plain project membership is a
-  // real, common state. We say so instead of drawing a network that isn't there.
-  const onlyMembership =
-    allEdges.length > 0 &&
-    allEdges.every((edge) => edge.relation === 'project-membership' || edge.relation === 'team-membership')
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      {/* Summary + freshness on a single hairline row — uncaged, ~1 line tall,
-          so the graph below starts as high up the viewport as possible. */}
-      <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-xs">
-        {stats.map((stat) => (
-          <span key={stat.name} className="flex items-baseline gap-1.5">
-            <span
-              className={clsx(
-                'font-mono text-sm font-medium tabular-nums',
-                stat.accent ? 'text-accent-400' : 'text-white'
-              )}
-            >
-              {stat.value}
-            </span>
-            <span className="text-zinc-500">{stat.name}</span>
-          </span>
-        ))}
-        <span className="ml-auto text-zinc-500">
-          {freshnessAge ? `Refreshed ${freshnessAge}` : 'Freshness unavailable'}
-          {stale ? ' · last refresh failed, showing the previous graph' : null}
-        </span>
-      </div>
-
-      <div className={clsx(surfaceCardClass, 'flex min-h-0 flex-1 flex-col')}>
-        <ProjectTeamToolbar
-          filters={filters}
-          onFiltersChange={setFilters}
-          statusOptions={statusOptions}
-          runtimeOptions={runtimeOptions}
-          teamOptions={teamOptions}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          onClearFilters={clearFilters}
-          onRefresh={refreshNow}
-          visibleCount={visibleAgents.length}
-          totalCount={agents.length}
-        />
-
-        {onlyMembership ? (
-          <p className="border-b border-white/5 px-4 py-2 text-xs text-zinc-500">
-            No orchestration or dependency relation is recorded for this team yet — the links below are
-            project and team membership only.
-          </p>
-        ) : null}
-
-        {/* The canvas is the dominant surface; the panel overlays it (absolute)
-            so selecting a node never reflows or shrinks the graph. */}
-        <div ref={canvasHostRef} className="relative flex min-h-0 flex-1 flex-col">
-          {nothingMatches ? (
-            <ProjectTeamNoMatchEmptyState onClearFilters={clearFilters} />
-          ) : (
-            <ProjectTeamCanvas
-              graph={graph}
-              selectedAgentId={selectedAgentId}
-              onSelectAgent={selectAgent}
-              viewMode={viewMode}
-              filteredNodeIds={filtersActive ? visibleIds : undefined}
-              // Height comes from the flex chain (main is h-svh, every ancestor
-              // is flex-1/min-h-0), NOT from an arithmetic guess about how tall
-              // the chrome above happens to be: a `calc(100svh - Nrem)` silently
-              // breaks the day the header or toolbar wraps to another line.
-              // `min-h-96` is the floor for short viewports.
-              className="min-h-96 w-full flex-1"
-            />
-          )}
-
-          {selectedAgent ? (
-            <ProjectTeamPanel
-              agent={selectedAgent}
-              incoming={incoming}
-              outgoing={outgoing}
-              nodesById={nodesById}
-              onClose={() => selectAgent(null)}
-              onAddRelation={() => setAddRelationSource(relationSource)}
-              onDeleteRelation={(relationId, description) => setPendingDelete({ relationId, description })}
-              dialogOpen={relationDialogOpen}
-              addRelationRef={addRelationRef}
-            />
-          ) : null}
-        </div>
-
-        {/* Same visible agents, as a semantic list: shown for real on small
-            viewports (the feature is never hidden on mobile), screen-reader-only
-            from `lg` up where the canvas carries the visual job. */}
-        <ProjectTeamAccessibleList
-          agents={visibleAgents}
-          selectedAgentId={selectedAgentId}
-          onSelectAgent={selectAgent}
-          className="border-t border-white/5 lg:sr-only lg:border-t-0"
-        />
-      </div>
-
-      {/* The graph's own periodic update, off `summary` — main-branch only (see
-          `relationAnnouncer` above for why). The operator's own relation
-          write lives in the sibling `relationAnnouncer` region rendered just
-          below, common to all three branches, so neither string can mask the
-          other: a persistent "Relation added." must not silence the next real
-          status change, and a poll must not erase the confirmation the
-          operator just earned. */}
-      <div aria-live="polite" className="sr-only">
-        <span>{announcement}</span>
-      </div>
-
+    <>
+      {branchContent}
       {relationAnnouncer}
       {relationDialogs}
-    </div>
+    </>
   )
 }
 
