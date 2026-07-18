@@ -8,6 +8,7 @@ import { ProjectDeleteAction } from '@/components/agent-ops/project-delete-actio
 import { ProjectHeader } from '@/components/agent-ops/project-header'
 import { ProjectMissionOrchestrator } from '@/components/agent-ops/project-mission-orchestrator'
 import { ProjectRepoIntelligence } from '@/components/agent-ops/project-repo-intelligence'
+import { ProjectTabs } from '@/components/agent-ops/project-tabs'
 import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
 import { StatusPill } from '@/components/agent-ops/status-pill'
 import { Link } from '@/components/catalyst/link'
@@ -216,6 +217,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       >
         <ProjectRepoIntelligence projectId={project.id} repoFullName={project.repoFullName ?? null} />
       </ProjectHeader>
+
+      <ProjectTabs projectId={project.id} />
 
       {project.repoFullName ? (
         <ProjectMissionOrchestrator
