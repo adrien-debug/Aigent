@@ -156,7 +156,7 @@ export function PushAgentDialog({
                     aria-checked={selected}
                     onClick={() => setDeliveryMode(opt.mode)}
                     className={clsx(
-                      'rounded-lg p-3 text-left ring-1 transition-colors',
+                      'min-h-11 rounded-lg p-3 text-left ring-1 transition-colors',
                       'focus:not-data-focus:outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-accent-500',
                       selected
                         ? 'bg-[var(--accent-surface)] ring-[var(--accent-line-strong)]'
