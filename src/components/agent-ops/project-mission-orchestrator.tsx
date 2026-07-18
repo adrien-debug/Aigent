@@ -101,7 +101,7 @@ function MissionReportPanel({ report }: { report: MissionReport }) {
       </div>
 
       <details className="text-xs text-zinc-500">
-        <summary className="cursor-pointer hover:text-zinc-300">All findings ({report.findings.length})</summary>
+        <summary className="cursor-pointer py-3 min-h-11 flex items-center hover:text-zinc-300 focus-visible:text-zinc-300">All findings ({report.findings.length})</summary>
         <ul className="mt-2 space-y-2 max-h-48 overflow-y-auto">
           {report.findings.map((f) => (
             <li key={f.id} className="flex gap-2">
