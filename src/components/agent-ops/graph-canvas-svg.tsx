@@ -197,6 +197,20 @@ function NodeBox({ node, status, selected, onSelect, index }: { node: RenderNode
       aria-label={`${node.label} — ${status}`}
       aria-pressed={interactive ? selected : undefined}
     >
+      {/* Invisible hit-target: the drawn card is only NODE_H (34px) tall, below
+          the 44px touch-target minimum. This transparent rect extends the
+          clickable/tappable area to 44px without altering the visual diagram
+          layout (KNOWN_POSITIONS / viewBox are tuned and shouldn't move). */}
+      {interactive ? (
+        <rect
+          x={0}
+          y={NODE_H / 2 - 22}
+          width={NODE_W}
+          height={44}
+          fill="transparent"
+          pointerEvents="all"
+        />
+      ) : null}
       {/* Base card (white so the gradient reads on any bg) + gradient surface. */}
       <rect width={NODE_W} height={NODE_H} rx={9} className="fill-white dark:fill-zinc-900" filter="url(#node-shadow)" />
       <rect className="lg-surface" width={NODE_W} height={NODE_H} rx={9} fill={fillId} stroke={stroke} strokeWidth={selected ? 2 : 1.25} />
