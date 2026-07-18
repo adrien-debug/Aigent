@@ -311,6 +311,7 @@ export function ProjectAgentBuilderWorkbench({
   }
 
   async function handleSelectOption(optionId: string) {
+    if (selectingOption) return
     setSelectingOption(true)
     setError(null)
     try {
@@ -333,6 +334,7 @@ export function ProjectAgentBuilderWorkbench({
   }
 
   async function handleCreateDraft() {
+    if (creatingDraft || deciding) return
     setCreatingDraft(true)
     setError(null)
     try {
@@ -356,6 +358,7 @@ export function ProjectAgentBuilderWorkbench({
   }
 
   async function handleDecision(approved: boolean) {
+    if (deciding) return
     setDeciding(true)
     setError(null)
     try {
