@@ -25,7 +25,7 @@
 import 'server-only'
 
 import { pgrest } from './postgrest'
-import type { CopilotStatus, DisplayStatus, IsoTimestamp, VersionStage } from './types'
+import type { CopilotStatus, DisplayStatus, IsoTimestamp, UsdAmount, VersionStage } from './types'
 
 type RawRow = Record<string, unknown>
 
@@ -242,4 +242,79 @@ export async function resolveVersionScoresBatch(versionIds: string[]): Promise<M
     })
   }
   return out
+}
+
+/**
+ * Rolling-24h operational metrics for one copilot, computed from the REAL
+ * `agent_runs` rows in the window — NOT the `copilots.health` blob, which is
+ * written once at creation (hard-coded 0) and never recomputed. That stale blob
+ * showed "0 runs/24h" while `agent_runs` held real runs: the lie this resolves.
+ *
+ * All three fields are always real numbers (never null): an empty window is a
+ * legitimate zero — the copilot genuinely had no run in the last 24h — which is
+ * a measured fact, not fabricated data.
+ */
+export interface Resolved24hMetrics {
+  /** Count of `agent_runs` with `started_at >= now-24h`. */
+  runsLast24h: number
+  /** Sum of `cost_usd` over the window, lossless (integer micro-USD, one divide). */
+  costLast24hUsd: UsdAmount
+  /** Fraction (0..1) of window runs that ended in a hard failure. `0` when no run. */
+  errorRateLast24h: number
+}
+
+/** A window run that ended badly counts toward the error rate. `running` / `needs-confirmation` are in-flight, not failures. */
+const ERROR_RUN_STATUSES = new Set(['failed', 'blocked'])
+
+const EMPTY_24H: Resolved24hMetrics = { runsLast24h: 0, costLast24hUsd: 0, errorRateLast24h: 0 }
+
+/**
+ * Resolve rolling-24h metrics for a BATCH of copilots in ONE PostgREST round
+ * trip: a single aggregate read of `agent_runs?started_at=gte.<now-24h>` scoped
+ * to the requested ids, grouped by `copilot_id` in memory. Returns a map keyed
+ * by copilot id; a copilot with no run in the window maps to the zero baseline.
+ *
+ * Money is summed losslessly: each `cost_usd` is rounded to micro-USD (6 dp) and
+ * accumulated as an integer, with a single final divide — no float drift from
+ * repeated addition. `null`/absent `cost_usd` contributes nothing.
+ */
+export async function resolve24hMetricsBatch(copilotIds: string[]): Promise<Map<string, Resolved24hMetrics>> {
+  const out = new Map<string, Resolved24hMetrics>()
+  if (copilotIds.length === 0) return out
+  for (const id of copilotIds) out.set(id, { ...EMPTY_24H })
+
+  const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const rows = await pgrest<RawRow[]>(
+    'GET',
+    `agent_runs?copilot_id=in.(${inList(copilotIds)})&started_at=gte.${encodeURIComponent(sinceIso)}&select=copilot_id,status,cost_usd`
+  )
+
+  // Accumulate per copilot: run count, integer micro-USD cost, error count.
+  const acc = new Map<string, { runs: number; microUsd: number; errors: number }>()
+  for (const id of copilotIds) acc.set(id, { runs: 0, microUsd: 0, errors: 0 })
+  for (const r of rows) {
+    const cid = r.copilot_id as string
+    const a = acc.get(cid)
+    if (!a) continue // defensive: PostgREST only returns the ids we asked for
+    a.runs += 1
+    const cost = r.cost_usd
+    if (typeof cost === 'number' && Number.isFinite(cost)) a.microUsd += Math.round(cost * 1_000_000)
+    if (typeof r.status === 'string' && ERROR_RUN_STATUSES.has(r.status)) a.errors += 1
+  }
+
+  for (const id of copilotIds) {
+    const a = acc.get(id)!
+    out.set(id, {
+      runsLast24h: a.runs,
+      costLast24hUsd: a.microUsd / 1_000_000,
+      errorRateLast24h: a.runs > 0 ? a.errors / a.runs : 0,
+    })
+  }
+  return out
+}
+
+/** Resolve rolling-24h metrics for a single copilot. */
+export async function resolve24hMetrics(copilotId: string): Promise<Resolved24hMetrics> {
+  const map = await resolve24hMetricsBatch([copilotId])
+  return map.get(copilotId) ?? { ...EMPTY_24H }
 }
