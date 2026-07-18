@@ -232,7 +232,11 @@ export function AssignProjectDialog({
             <p className="mt-4 text-sm font-medium text-zinc-950 dark:text-white">{success}</p>
           ) : null}
         </div>
-        {error ? <p className="mt-4 text-sm text-accent-600 dark:text-accent-400">{error}</p> : null}
+        {error ? (
+          <p role="alert" className="mt-4 text-sm text-accent-600 dark:text-accent-400">
+            {error}
+          </p>
+        ) : null}
       </DialogBody>
       <DialogActions>
         <Button plain disabled={saving} onClick={onClose}>
@@ -304,7 +308,11 @@ export function UnassignCopilotDialog({
           </p>
         </DialogBody>
       ) : null}
-      {error ? <p className="mt-4 text-sm text-accent-600 dark:text-accent-400">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="mt-4 text-sm text-accent-600 dark:text-accent-400">
+          {error}
+        </p>
+      ) : null}
       <DialogActions>
         <Button plain disabled={saving} onClick={onClose}>
           Cancel
