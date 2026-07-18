@@ -43,7 +43,7 @@ export async function BenchmarksSection({ copilotId }: { copilotId: string }) {
       >
         <div className="space-y-3">
           {/* V1 stub — visibly inert, never a dead '#' link. */}
-          <Button disabled title="Suite authoring ships in V2">
+          <Button outline disabled title="Suite authoring ships in V2">
             Create benchmark suite
           </Button>
           <p className="text-xs text-zinc-500">Benchmark suite authoring ships in V2 — disabled until then.</p>
