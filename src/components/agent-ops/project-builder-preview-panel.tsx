@@ -78,7 +78,7 @@ export function ProjectBuilderPreviewPanel({
       <div className="border-b border-white/5 bg-[var(--color-surface-elevated)] px-4 py-3">
         {/* Title + action button on one line — no separate action section. */}
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
+          <div className="min-w-0" role="status" aria-live="polite">
             <h2 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Preview</h2>
             <p className="mt-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">
               {createdCopilotId ? 'Draft created' : hasSpec ? 'Spec in progress — not created yet' : 'Waiting for discussion'}
@@ -135,7 +135,7 @@ export function ProjectBuilderPreviewPanel({
         </div>
 
         {(awaitingApproval && approvalMessage) || (awaitingApproval && pendingTool) ? (
-          <div className="mt-3 flex flex-col gap-2">
+          <div className="mt-3 flex flex-col gap-2" role="status" aria-live="polite">
             {awaitingApproval && approvalMessage ? (
               <p className="text-xs text-zinc-600 dark:text-zinc-400">{approvalMessage}</p>
             ) : null}
