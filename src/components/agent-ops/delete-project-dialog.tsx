@@ -53,7 +53,11 @@ export function DeleteProjectDialog({
         This permanently deletes <span className="font-medium text-zinc-950 dark:text-white">{project.name}</span> and
         cascade-deletes every copilot assigned to it. This cannot be undone.
       </DialogDescription>
-      {error ? <p className="mt-4 text-sm text-accent-600 dark:text-accent-400">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="mt-4 text-sm text-accent-600 dark:text-accent-400">
+          {error}
+        </p>
+      ) : null}
       <DialogActions>
         <Button plain disabled={pending} onClick={onClose}>
           Cancel
