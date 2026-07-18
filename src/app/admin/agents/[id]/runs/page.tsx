@@ -20,7 +20,6 @@ import {
 import { TOOL_CALL_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
 import type { ToolCall } from '@/lib/agent-mission-control/types'
 import { Button } from '@/components/catalyst/button'
-import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 
 const toolCallRamp = [
@@ -187,6 +186,8 @@ export default async function RunsPage({
                   return (
                     <TableRow
                       key={run.id}
+                      href={`/admin/agents/${id}/runs?run=${run.id}`}
+                      title={`View run ${run.id}`}
                       className={clsx(
                         selected
                           ? 'bg-[var(--color-surface-interactive)] ring-1 ring-inset ring-[var(--accent-line-strong)]'
@@ -195,9 +196,9 @@ export default async function RunsPage({
                     >
                       <TableCell>
                         <div className="flex flex-col">
-                          <Link href={`/admin/agents/${id}/runs?run=${run.id}`} className="font-mono text-xs font-medium text-white group-hover:underline">
+                          <span className="font-mono text-xs font-medium text-white">
                             {run.id}
-                          </Link>
+                          </span>
                           <span className="font-mono text-[10px] text-zinc-500 mt-0.5">
                             {formatTimestamp(run.startedAt).replace(' UTC', '')}
                           </span>
