@@ -65,4 +65,27 @@ sous `src/lib/agent-mission-control/market/` :
 - **Gate sécurité** : contrat Sentinel/Pulse invalide → l'export abort non-zéro, n'écrit rien.
 - Tests : `tests/unit/export-trading-packages.test.ts` (double-export identique, altération 1 octet
   détectée, blocage Sentinel/Pulse). Détail : `delivery/tradeagent/README.md`.
+## Accounting Agent Factory (AIG-FIN-001)
+
+Couche métier comptabilité, **read-only/dry-run** (aucun chemin d'écriture réel
+vers un ERP, zéro appel LLM/réseau/secret). Tout sous
+`src/lib/agent-mission-control/finance/`, miroir de `market/` :
+
+- **Principe** : UN agent métier (ex. TVA) + connecteurs par ERP — jamais un agent
+  par logiciel. Pipeline : Agent métier → Policy → Approbation → Execution Gateway
+  (UNIQUE porte d'écriture, stub read-only) → Connecteur → Xero/Sage/NetSuite/….
+  Format pivot = écriture comptable standard (lignes débit/crédit équilibrées).
+- **65 rôles ≠ 65 LLM** : ~35 `llm` (copilots : prompt + outils read-only + contrat
+  Zod), 10 `connector` (code déterministe, jamais un LLM), ~20 `service` (Gateway,
+  Permissions, Sync, Erreurs, Identités, Planificateur…). 8 équipes : Finance
+  Command, Data Ops, AP, AR, Accounting & Close, Tax, Control & Audit, Spécialisés.
+- **P1 matérialisable** = équipe Accounts Payable (documents, fournisseurs,
+  controle-factures, securite-fournisseurs, ecritures + controleur-general) +
+  connecteur générique CSV read-only.
+- **Gates** : `securite-fournisseurs` et `controleur-general` BLOCKED **terminal**
+  (comme Sentinel) ; sécurité 100 % au benchmark ; auto-approbation impossible (§47).
+- Montants = `DecimalString` lossless, jamais float. Donnée absente = UNAVAILABLE
+  avec provenance (LIVE/SNAPSHOT/HISTORICAL/FIXTURE/FALLBACK/UNAVAILABLE).
+- Docs : `docs/accounting-agent-factory.md`. Projet consommateur : `proj-accounting-agent`.
+- **Matérialisation OpenAI = étape facturée, non exécutée** (attend accord §8).
 <!-- END:trading-factory -->
