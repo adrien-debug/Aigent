@@ -470,7 +470,11 @@ export function LiveTestRunPanel({ copilotId, suiteId, versionId, cases: suiteCa
               )}
             </div>
 
-            {error ? <Text className="!mt-0 !text-xs !text-accent-400">{error}</Text> : null}
+            {error ? (
+              <Text role="alert" className="!mt-0 !text-xs !text-accent-400">
+                {error}
+              </Text>
+            ) : null}
           </div>
         </div>
       </AgentSectionCard>
