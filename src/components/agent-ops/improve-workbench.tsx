@@ -550,7 +550,7 @@ export function ImproveWorkbench({
           {autoError ? <ErrorBanner message={autoError} /> : null}
           {analyzeError ? <ErrorBanner message={analyzeError} /> : null}
           {analyzing ? (
-            <Text>
+            <Text role="status" aria-live="polite">
               Collecting live signals (tests, benchmarks, runs, LangGraph threads, LangSmith traces) and asking the
               architect model for a root-cause proposal — this takes a moment.
             </Text>
@@ -746,7 +746,9 @@ export function ImproveWorkbench({
               ))}
             </div>
             {rerunning ? (
-              <Text>Real suite in progress against the Agent Server — each case runs the live graph, then a judge grades it.</Text>
+              <Text role="status" aria-live="polite">
+                Real suite in progress against the Agent Server — each case runs the live graph, then a judge grades it.
+              </Text>
             ) : atRerunStep ? (
               <Text>No V2 result yet — a re-run must finish before you can approve or reject the cycle below.</Text>
             ) : null}
