@@ -96,7 +96,7 @@ export function VersionComparisonCard({
           ) : null}
         </div>
         {!isProduction ? (
-          <Button outline href={publishHref}>
+          <Button outline href={publishHref} aria-label={`Promote ${version.label}…`}>
             Promote&hellip;
           </Button>
         ) : null}
