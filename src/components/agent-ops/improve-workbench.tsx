@@ -518,7 +518,12 @@ export function ImproveWorkbench({
             </p>
           ) : null}
           {autoFrames.length > 0 || autoResult || autoRunning ? (
-            <div className="rounded-xl bg-[var(--accent-soft)] p-4 ring-1 ring-[var(--accent-line)]">
+            <div
+              role="status"
+              aria-live="polite"
+              aria-atomic="false"
+              className="rounded-xl bg-[var(--accent-soft)] p-4 ring-1 ring-[var(--accent-line)]"
+            >
               <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
                 Auto-improve progress
               </p>
