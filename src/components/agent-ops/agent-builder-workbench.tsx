@@ -318,7 +318,7 @@ export function AgentBuilderWorkbench() {
           </p>
           <Link
             href={`/admin/agents/${state.createdCopilotId}`}
-            className="mt-3 inline-flex text-sm font-medium text-accent-400 hover:text-accent-300"
+            className="mt-3 inline-flex min-h-11 items-center rounded-md text-sm font-medium text-accent-400 hover:text-accent-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
           >
             Open the drafted copilot →
           </Link>
