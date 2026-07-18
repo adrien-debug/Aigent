@@ -146,7 +146,11 @@ export function SandboxStatusRow({
       <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
         Execute runs the target repo&apos;s real gate scripts in a temporary clone. Read-only — no GitHub write, no push.
       </p>
-      {error ? <p className="mt-2 text-xs text-accent-700 dark:text-accent-400">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="mt-2 text-xs text-accent-700 dark:text-accent-400">
+          {error}
+        </p>
+      ) : null}
     </div>
   )
 }
