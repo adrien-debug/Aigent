@@ -61,7 +61,7 @@ function ActionRow({ item, focus }: { item: ActionItem; focus: boolean }) {
             <p className="truncate font-mono text-xs text-zinc-500">{item.meta}</p>
             {/* The single prominent CTA — auto width, never full-bleed. */}
             <div className="mt-2">
-              <Button outline href={item.href} {...linkProps}>
+              <Button outline href={item.href} aria-label={`${item.buttonLabel}: ${item.title}`} {...linkProps}>
                 {item.buttonLabel}
               </Button>
             </div>
@@ -70,7 +70,13 @@ function ActionRow({ item, focus }: { item: ActionItem; focus: boolean }) {
           <div className="flex items-center justify-between gap-3">
             <p className="min-w-0 truncate font-mono text-xs text-zinc-500">{item.meta}</p>
             {/* Discreet inline affordance — a plain link + chevron, aligned right. */}
-            <Button plain href={item.href} {...linkProps} className="shrink-0">
+            <Button
+              plain
+              href={item.href}
+              aria-label={`${item.buttonLabel}: ${item.title}`}
+              className="shrink-0"
+              {...linkProps}
+            >
               {item.buttonLabel}
               <ChevronRightIcon data-slot="icon" aria-hidden="true" />
             </Button>
