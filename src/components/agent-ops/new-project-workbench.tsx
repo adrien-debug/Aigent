@@ -222,7 +222,9 @@ export function NewProjectWorkbench() {
             <p className="text-sm font-medium text-zinc-950 dark:text-white">
               {reposError.notConfigured ? 'GitHub not configured' : 'Could not load repositories'}
             </p>
-            <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">{reposError.message}</p>
+            <p role="alert" className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
+              {reposError.message}
+            </p>
             {reposError.notConfigured ? null : (
               <Button
                 color="accent"
@@ -321,7 +323,9 @@ export function NewProjectWorkbench() {
           ) : treeError ? (
             <div className="flex flex-col items-center gap-3 py-10 text-center">
               <ExclamationTriangleIcon aria-hidden="true" className="size-6 text-accent-500" />
-              <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">{treeError}</p>
+              <p role="alert" className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
+                {treeError}
+              </p>
               <Button
                 color="accent"
                 onClick={() => void selectRepo(selected)}
@@ -436,7 +440,9 @@ export function NewProjectWorkbench() {
             </Fieldset>
 
             {formError ? (
-              <p className="mt-6 text-sm text-accent-600 dark:text-accent-400">{formError}</p>
+              <p role="alert" className="mt-6 text-sm text-accent-600 dark:text-accent-400">
+                {formError}
+              </p>
             ) : null}
 
             <div className="mt-8 flex items-center justify-end gap-3">
