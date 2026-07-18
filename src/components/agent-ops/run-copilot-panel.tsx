@@ -234,7 +234,14 @@ export function RunCopilotPanel({ copilotId, copilotName, copilotSlug = '', copi
                   )}
                 </Button>
                 <Button plain onClick={() => handleResume(false)} disabled={resuming}>
-                  Reject
+                  {resuming ? (
+                    <>
+                      <Spinner />
+                      Resuming…
+                    </>
+                  ) : (
+                    'Reject'
+                  )}
                 </Button>
               </div>
               {resumeError ? <ErrorBanner message={resumeError} /> : null}
