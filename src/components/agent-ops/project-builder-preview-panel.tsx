@@ -209,6 +209,7 @@ export function ProjectBuilderPreviewPanel({
                         className="mt-2 px-0! text-xs!"
                         disabled={selectingOption}
                         onClick={() => onSelectOption(option.id)}
+                        aria-label={selectingOption ? `Selecting ${option.title}…` : `Select this option: ${option.title}`}
                       >
                         {selectingOption ? (
                           <>
