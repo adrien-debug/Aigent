@@ -19,6 +19,7 @@
     "provision:agent-builder": "node --env-file=.env.local $(command -v npx) -y tsx scripts/provision-agent-builder.ts",
     "test": "vitest run tests/unit",
     "test:live": "vitest run tests/live",
+    "bench:finance:local": "node --env-file=.env.local $(command -v npx) -y tsx scripts/bench-finance-local.ts",
     "export:trading": "node scripts/export-trading-packages.mjs"
   },
   "dependencies": {
