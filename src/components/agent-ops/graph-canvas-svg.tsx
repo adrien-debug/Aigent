@@ -190,6 +190,7 @@ function NodeBox({ node, status, selected, onSelect, index }: { node: RenderNode
         }
       }}
       aria-label={`${node.label} — ${status}`}
+      aria-pressed={selected}
     >
       {/* Base card (white so the gradient reads on any bg) + gradient surface. */}
       <rect width={NODE_W} height={NODE_H} rx={9} className="fill-white dark:fill-zinc-900" filter="url(#node-shadow)" />
