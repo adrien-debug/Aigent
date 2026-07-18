@@ -865,11 +865,23 @@ export function ImproveWorkbench({
             : 'This closes the cycle as rejected. The V2 draft rows stay for audit; a new analysis can be started afterwards.'}
         </AlertDescription>
         <AlertActions>
-          <Button plain onClick={() => setConfirming(null)}>
+          <Button plain onClick={() => setConfirming(null)} disabled={deciding !== null}>
             Cancel
           </Button>
-          <Button color="accent" onClick={() => (confirming ? handleDecide(confirming) : undefined)}>
-            {confirming === 'approved' ? 'Approve' : 'Reject'}
+          <Button
+            color="accent"
+            onClick={() => (confirming ? handleDecide(confirming) : undefined)}
+            disabled={deciding !== null}
+          >
+            {deciding !== null ? (
+              <span className="inline-flex items-center gap-2">
+                <Spinner className="size-4" /> {deciding === 'approved' ? 'Approving…' : 'Rejecting…'}
+              </span>
+            ) : confirming === 'approved' ? (
+              'Approve'
+            ) : (
+              'Reject'
+            )}
           </Button>
         </AlertActions>
       </Alert>
