@@ -65,6 +65,40 @@ sous `src/lib/agent-mission-control/market/` :
 - **Gate sécurité** : contrat Sentinel/Pulse invalide → l'export abort non-zéro, n'écrit rien.
 - Tests : `tests/unit/export-trading-packages.test.ts` (double-export identique, altération 1 octet
   détectée, blocage Sentinel/Pulse). Détail : `delivery/tradeagent/README.md`.
+## My Team — canvas d'équipe projet (AIG-TEAM-CANVAS-002)
+
+Cartographie vivante des agents d'un projet, en graphe. Route
+`/admin/projects/[id]/team`, API `GET /api/agent-ops/projects/[id]/team`,
+sous-nav projet `Overview · Agent Builder · My Team`
+(`src/components/agent-ops/project-tabs.tsx` — n'expose QUE des routes projet
+qui existent réellement).
+
+- **Moteur** : `@xyflow/react` 12.11.2. **Pas d'elkjs** — le layout
+  (`project-team/layout.ts`) est une fonction pure déterministe, donc testable.
+  `graph-canvas-svg.tsx` (diagramme LangGraph 5 nœuds figés) n'est PAS réutilisé.
+- **Contrat unique** : `getProjectTeamGraph(projectId)` sert la page ET la route ;
+  zéro logique dupliquée. Sortie validée Zod `.strict()`.
+- **Vérité des relations** : `origin: 'explicit'` ⟺ une ligne persistée énonce
+  cette arête. Appartenance projet = `explicit` (restitue `copilots.project_id`) ;
+  groupes issus de `copilots.tags` = `derived` et rendus en pointillé. Jamais
+  d'inférence par nom, modèle, co-appartenance ou proximité temporelle.
+  `shares-tool` plafonné à `SHARED_TOOL_MAX_AGENTS = 4` (un outil commodité ne
+  porte aucun signal).
+- **Activité d'une arête** : uniquement sur un fait persisté ON the relation
+  (`mission_runs`). La co-activité de deux agents n'anime rien. Aujourd'hui
+  `orchestrator_copilot_id` est toujours NULL ⇒ aucune arête active — c'est correct.
+- **Donnée absente ≠ zéro** : compteurs d'activité `number | null` + `unavailableAgents` ;
+  `node.runHistory` (`known|unreadable|outside-window|not-applicable`) ;
+  `toolsUnavailable` ; `freshness.latestActivityState`. `totalRuns` exact via
+  `count=exact`, jamais une fenêtre tronquée. Inconnu → tiret, jamais `0` ni `"null"`.
+- **`active` n'est jamais dérivé de `copilots.status`** — il exige un run réellement `running`.
+- **Isolation projet** : requête `project_id=eq.` + re-filtre strict en mémoire.
+  Les copilots à `project_id` NULL et les `target_project_ids` n'entrent jamais.
+- Migration `0019_project_agent_relations.sql` (RLS deny-by-default, service_role).
+  Relations cross-projet rejetées **à la lecture**, pas par contrainte SQL — aucun
+  write path aujourd'hui ; un futur writer DOIT revérifier les deux `project_id`.
+- Docs : `docs/project-team-canvas.md`.
+
 ## Accounting Agent Factory (AIG-FIN-001)
 
 Couche métier comptabilité, **read-only/dry-run** (aucun chemin d'écriture réel
