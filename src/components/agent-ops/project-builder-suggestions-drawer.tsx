@@ -73,6 +73,7 @@ export function ProjectBuilderSuggestionsDrawer({
                 <Button
                   outline
                   className="mt-1"
+                  aria-label={`Discuss "${rec.title}" with Builder`}
                   onClick={() => {
                     onDiscuss(rec)
                     onClose()
