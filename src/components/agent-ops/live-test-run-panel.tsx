@@ -382,7 +382,7 @@ export function LiveTestRunPanel({ copilotId, suiteId, versionId, cases: suiteCa
         actions={
           <div className="flex items-center gap-3">
             {result ? (
-              <Badge color="accent">
+              <Badge color="accent" role="status" aria-live="polite">
                 {result.status === 'completed'
                   ? `${Math.round(result.passRate * 100)}% passed`
                   : 'Run aborted'}
@@ -418,7 +418,7 @@ export function LiveTestRunPanel({ copilotId, suiteId, versionId, cases: suiteCa
 
           {/* LIVE DETAIL — 1/3. Current case, current node, per-case verdicts. */}
           <div className="flex flex-col gap-4 lg:col-span-1">
-            <div className={clsx(surfaceInsetClass, 'px-4 py-3')}>
+            <div className={clsx(surfaceInsetClass, 'px-4 py-3')} aria-live="polite">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Current case</p>
               {currentCase ? (
                 <>
