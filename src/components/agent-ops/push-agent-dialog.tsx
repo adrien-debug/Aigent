@@ -229,7 +229,11 @@ export function PushAgentDialog({
           ) : null}
         </div>
         <div aria-live="assertive">
-          {error ? <p className="mt-4 text-sm text-accent-600 dark:text-accent-400">{error}</p> : null}
+          {error ? (
+            <p role="alert" className="mt-4 text-sm text-accent-600 dark:text-accent-400">
+              {error}
+            </p>
+          ) : null}
         </div>
       </DialogBody>
       <DialogActions>
