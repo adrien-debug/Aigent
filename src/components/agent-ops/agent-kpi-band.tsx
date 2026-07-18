@@ -24,9 +24,9 @@ const COLS_CLASS: Record<number, string> = {
 }
 
 const VALUE_SIZE_CLASS = {
-  hero: 'text-4xl font-light tracking-tight',
-  compact: 'text-2xl font-light tracking-tight',
-  small: 'text-xl font-light tracking-tight',
+  hero: 'font-mono text-4xl font-light tracking-tight',
+  compact: 'font-mono text-2xl font-light tracking-tight',
+  small: 'font-mono text-xl font-light tracking-tight',
 } as const
 
 const VALUE_TONE_CLASS = {

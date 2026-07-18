@@ -49,4 +49,20 @@ sous `src/lib/agent-mission-control/market/` :
   agents existantes (`/admin/agents`), comme tous les autres copilots.
 - Docs : `docs/trading-agent-factory.md` + `docs/runbook-trading-factory.md`.
 - **Matérialisation OpenAI des 6 agents = étape facturée, non exécutée** (attend accord §8).
+
+### Export statique des 6 agents (AIG-PACK-015)
+- `npm run export:trading` (`scripts/export-trading-packages.mjs`, node pur, zéro
+  dep, zéro appel LLM/réseau/secret) exporte les 6 agents matérialisés au commit
+  `d448441` en paquets **déterministes + checksummés** sous `delivery/tradeagent/` :
+  `<slug>/{package.json,contract.json,checksum.txt}` + `manifest.json` global (checksum global).
+- **SNAPSHOT-ONLY** : source = `delivery/tradeagent/_snapshot/db-truth.json` (vérité DB
+  gelée, lue une fois du périmètre gpu1 puis figée). Benchmark = **lu** depuis
+  `copilot_versions.scores` (global `0.985`, evidence `FIXTURE`), jamais régénéré.
+- **Reproductible** : deux exports byte-identiques (JSON canonique, clés triées, LF,
+  zéro horodatage runtime). Marchés **réconciliés au backend réel** — `backendExecutableMarkets:
+  [ETH,BTC,SOL,XAU]` ; « ETH-only » = allowlist retail runtime (`MARKET_EXECUTABLE_SYMBOLS`),
+  jamais une limite backend.
+- **Gate sécurité** : contrat Sentinel/Pulse invalide → l'export abort non-zéro, n'écrit rien.
+- Tests : `tests/unit/export-trading-packages.test.ts` (double-export identique, altération 1 octet
+  détectée, blocage Sentinel/Pulse). Détail : `delivery/tradeagent/README.md`.
 <!-- END:trading-factory -->

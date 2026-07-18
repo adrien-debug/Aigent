@@ -1,0 +1,11 @@
+{
+  "contractVersion": "v1.0.0",
+  "format": "json",
+  "invariants": [
+    "verdict is one of ALLOWED/REDUCE/BLOCKED/UNAVAILABLE",
+    "when capital is UNAVAILABLE the verdict is UNAVAILABLE — capital is never fabricated (#8)",
+    "all risk figures are lossless decimal strings, provenance-tagged (#7)",
+    "a BLOCKED verdict is authoritative and carries a justification"
+  ],
+  "schemaName": "RiskAssessment"
+}

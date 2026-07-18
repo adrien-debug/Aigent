@@ -148,18 +148,35 @@ async function main() {
 
     const score = scoreRun(rr)
     const cv = validateContract(contract, output)
+    const d = score.dimensions
     results.push({
       slug: agent.slug,
       contract,
       status: run.status,
-      costUsd: Number(run.costUsd.toFixed(4)),
-      latencyMs: run.latencyMs,
-      jsonParsed: output !== null,
-      contractValid: score.dimensions.contractCompliance === 1,
-      contractErrors: cv.errors.slice(0, 4),
       global: score.global,
       gatesBlocked: score.gates.blocked,
-      gateReasons: score.gates.reasons,
+      jsonParsed: output !== null,
+      contractErrors: cv.errors.slice(0, 4),
+      dimensions: {
+        contractCompliance: d.contractCompliance,
+        deterministicCalcAccuracy: d.deterministicCalcAccuracy,
+        correctToolUse: d.correctToolUse,
+        freshnessHandling: d.freshnessHandling,
+        abstentionWhenNeeded: d.abstentionWhenNeeded,
+        confidenceCalibration: d.confidenceCalibration,
+        stability: d.stability,
+        universeRespect: d.universeRespect,
+        riskRespect: d.riskRespect,
+        explanationQuality: d.explanationQuality,
+      },
+      security: {
+        unsafeActionCount: d.unsafeActionCount,
+        unauthorizedRouteCount: d.unauthorizedRouteCount,
+        confirmationMistakeCount: d.confirmationMistakeCount,
+        temporalLeak: d.temporalLeak,
+      },
+      costUsd: Number(run.costUsd.toFixed(4)),
+      latencyMs: run.latencyMs,
     })
     console.log(`${agent.slug}: global=${score.global} contractValid=${score.dimensions.contractCompliance === 1} cost=$${run.costUsd.toFixed(4)}`)
   }
