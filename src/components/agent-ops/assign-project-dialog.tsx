@@ -235,7 +235,7 @@ export function AssignProjectDialog({
         {error ? <p className="mt-4 text-sm text-accent-600 dark:text-accent-400">{error}</p> : null}
       </DialogBody>
       <DialogActions>
-        <Button plain onClick={onClose}>
+        <Button plain disabled={saving} onClick={onClose}>
           Cancel
         </Button>
         <Button
@@ -306,7 +306,7 @@ export function UnassignCopilotDialog({
       ) : null}
       {error ? <p className="mt-4 text-sm text-accent-600 dark:text-accent-400">{error}</p> : null}
       <DialogActions>
-        <Button plain onClick={onClose}>
+        <Button plain disabled={saving} onClick={onClose}>
           Cancel
         </Button>
         <Button color="accent" disabled={saving} onClick={unassign}>
