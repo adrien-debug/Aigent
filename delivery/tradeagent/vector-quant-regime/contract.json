@@ -1,0 +1,11 @@
+{
+  "contractVersion": "v1.0.0",
+  "format": "json",
+  "invariants": [
+    "every signal score is bounded to [-1,1] and confluence to [-1,1]",
+    "sample size and statistical limits are stated explicitly",
+    "stability and confidence are bounded to [0,1] (#12)",
+    "freshness/provenance is attached; UNAVAILABLE blocks are listed (#7/#8)"
+  ],
+  "schemaName": "QuantRegimeReport"
+}
