@@ -7,8 +7,10 @@ OpenAI model-router loop and the official **LangGraph Agent Server** for
 human-in-the-loop runs.
 
 Everything here is server-only and **fail-closed**: without the live backend and
-`OPENAI_API_KEY`, data and execution paths return `503` — there is no mock path
-for agent authoring or runs.
+the credentials for the provider a given run selects (`OPENAI_API_KEY`, and/or
+`GEMINI_API_KEY` / `VLLM_LOCAL_API_KEY` on the direct path), data and execution
+paths return `503`/`ProviderUnavailableError` — there is no mock path for agent
+authoring or runs.
 
 ## Stack
 
@@ -18,7 +20,15 @@ for agent authoring or runs.
 - **React 19**, TypeScript, Tailwind v4, Catalyst UI kit (`src/components/catalyst/`).
 - **LangGraph** (`@langchain/langgraph` + `@langchain/langgraph-sdk`) — the
   `agent_builder` graph in `src/langgraph/`, served by the LangGraph Agent Server.
-- **OpenAI** — the only LLM provider (architect + runner + graph).
+  This path is **OpenAI-only** (its `agent` node is a hardcoded `ChatOpenAI`) — a
+  known limitation, documented in `docs/agent-authoring.md` §3.
+- **Multi-provider on the direct path** — the direct model-router loop
+  (`src/lib/agent-mission-control/model-router.ts`) resolves the copilot's
+  provider and routes to **OpenAI** (`OPENAI_API_KEY`), **Gemini**
+  (`GEMINI_API_KEY`/`GOOGLE_API_KEY`), or Adrien's **local vLLM** park
+  (`VLLM_LOCAL_API_KEY`, OpenAI-compatible). Provider is per-copilot
+  (`model_provider`), not global. The 7 finance copilots (`copilot-fin-*`) run
+  **local via vLLM** on this direct path.
 - **Postgres via PostgREST** — the `aigent` perimeter on GPU1 (service-role,
   server-only). See `docs/BACKEND-GPU1.md`.
 

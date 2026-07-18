@@ -122,4 +122,21 @@ vers un ERP, zéro appel LLM/réseau/secret). Tout sous
   avec provenance (LIVE/SNAPSHOT/HISTORICAL/FIXTURE/FALLBACK/UNAVAILABLE).
 - Docs : `docs/accounting-agent-factory.md`. Projet consommateur : `proj-accounting-agent`.
 - **Matérialisation OpenAI = étape facturée, non exécutée** (attend accord §8).
+
+### Runtime multi-provider — vérité d'exécution (ne pas régresser en « OpenAI-only »)
+Aigent n'est **pas** OpenAI-only. Deux chemins d'exécution, deux réalités :
+- **Chemin model-router DIRECT** (`model-router.ts`, tout `runtime` ≠ `langgraph`) =
+  **multi-provider** : il résout le `model_provider` du copilot et route vers
+  `openai` (SDK), `google` (Gemini REST), ou `local` (parc vLLM d'Adrien,
+  OpenAI-compatible, opt-in explicite — jamais de redirection silencieuse).
+  `mistral` déclaré mais non câblé (`ProviderUnavailableError`). Aucun fallback
+  muet : provider indisponible → erreur typée.
+- **Chemin LangGraph** (`runtime === 'langgraph'`) = **OpenAI-only**, limite connue :
+  le nœud `agent` du graphe est un `ChatOpenAI` codé en dur
+  (`src/langgraph/agent-builder-graph.mjs`). Gemini/local n'y tournent pas.
+- **Les 7 AP finance** (`copilot-fin-*`) tournent en **local via vLLM** sur le
+  chemin DIRECT (`model_provider = local`, bench 16/16). Leur `runtime` peut encore
+  lire `openai-assistants` pour raisons historiques, mais l'exécution passe par le
+  model-router direct → parc local ; les assistants LangGraph pointés sont **inertes**
+  sur ce chemin. Détail : `docs/agent-authoring.md` §3.
 <!-- END:trading-factory -->

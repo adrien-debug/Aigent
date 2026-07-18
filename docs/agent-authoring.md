@@ -26,12 +26,28 @@ versions, promotion gate, etc. — see `AGENTS.md` / `types.ts` for that surface
   run/test/benchmark history — analyze → propose → materialize a V2 draft →
   compare → human decision (see §1c).
 
-**Provider**: OpenAI throughout. The architect uses `gpt-5.4`
-(`ARCHITECT_MODEL` in `src/lib/agent-mission-control/llm-client.ts`); the
-LangGraph graph uses `AGENT_BUILDER_MODEL` (default `gpt-5.4`). OpenAI is the
-only provider — migration `0005` tightened the `model_provider` / `runtime`
-CHECK constraints down to the OpenAI/Google/Mistral/local set (no external LLM
-vendor beyond those).
+**Providers**: multi-provider on the direct model-router path, OpenAI-only on
+the LangGraph path.
+
+- The **architect** uses `gpt-5.4` (`ARCHITECT_MODEL` in
+  `src/lib/agent-mission-control/llm-client.ts`) and the **LangGraph graph** uses
+  `AGENT_BUILDER_MODEL` (default `gpt-5.4`) — both **OpenAI-only** (the graph's
+  `agent` node is a hardcoded `ChatOpenAI`; see §3). This is a known limitation:
+  the LangGraph path cannot run on Gemini or local vLLM today.
+- The **direct model-router path** (§3b,
+  `src/lib/agent-mission-control/model-router.ts`) is **multi-provider**: it
+  resolves the copilot's `model_provider` and routes to `openai` (OpenAI SDK),
+  `google` (Gemini REST), or `local` (Adrien's vLLM park, OpenAI-compatible,
+  explicit opt-in — never a silent redirect of defaults). `mistral` is declared
+  but not wired (`ProviderUnavailableError`).
+- The **7 finance copilots** (`copilot-fin-*`, Accounts Payable) execute on this
+  direct path with `model_provider = local` → **local vLLM** (bench 16/16). Their
+  `runtime` may still read `openai-assistants` for historical reasons, but the
+  live execution goes through the direct model-router to the local park — the
+  LangGraph assistants those rows point at are inert on this path.
+- Migration `0005` tightened the `model_provider` / `runtime` CHECK constraints
+  down to the OpenAI/Google/Mistral/local providers (no external LLM vendor beyond
+  those).
 
 This flow has several server-only write points, all under
 `app/api/agent-ops/`, following the existing PATCH pattern in
@@ -269,8 +285,11 @@ its prose over SSE (above). This is what makes the project builder's architect
 `project-builder-conversation.ts` (tool-dispatch loop) for the implementation.
 
 ### (b) any other runtime → direct model-router loop
-The runner runs the agentic loop itself against OpenAI via the model router
-(`src/lib/agent-mission-control/model-router.ts`): resolve the manifest's tool
+The runner runs the agentic loop itself via the **multi-provider** model router
+(`src/lib/agent-mission-control/model-router.ts`), which resolves the copilot's
+`model_provider` and dispatches to **OpenAI**, **Gemini** (`google`), or the
+**local vLLM park** (`local`) — this is the path the 7 finance copilots use to
+run local. The loop: resolve the manifest's tool
 set, call the model, run each requested tool through the guardrail
 (allowed? risky? requires confirmation?), execute allowed read-only handlers,
 feed results back, loop until a final answer or the manifest step budget. A
@@ -323,7 +342,10 @@ Live schema on GPU1 (base `aigent`), migrations in `supabase/migrations/`:
   `model_provider` set, tightening the `runtime` / `model_provider` CHECK
   constraints down to the supported set (`openai` / `google` / `mistral` /
   `local`; runtimes `langgraph` / `openai-assistants` / `gemini` / `custom`).
-  The product runs on OpenAI.
+  These providers are real on the **direct** path (§3b): OpenAI, Gemini
+  (`google`), and local vLLM (`local`) all execute. The **LangGraph** path is
+  OpenAI-only regardless of `model_provider` (its `agent` node is a hardcoded
+  `ChatOpenAI`).
 - **`0006_agent_run_thread.sql`** — adds the nullable `agent_runs.thread_id`,
   the Agent Server thread persisted on a `needs-confirmation` run so it can be
   resumed (§4). Only LangGraph runs set it.
@@ -367,16 +389,25 @@ graph and its interrupt/resume flow.
 
 ## 7. Env
 
-- **`OPENAI_API_KEY`** — required for the architect endpoint, the real runner,
-  and the Agent Server (which reads it from `.env.local`). Every OpenAI path is
-  fail-closed: a missing key (or missing `AMC_DATA_SOURCE=gpu1` / Supabase env)
-  returns an error rather than a mock. There is no mock path for agent authoring
-  — same fail-closed contract as the rest of Agent Mission Control's data layer
+- **`OPENAI_API_KEY`** — required for the architect endpoint, the LangGraph
+  Agent Server (which reads it from `.env.local`), and any copilot whose
+  `model_provider = openai`. Every provider path is fail-closed: a missing
+  credential (or missing `AMC_DATA_SOURCE=gpu1` / Supabase env) returns an error
+  rather than a mock. There is no mock path for agent authoring — same
+  fail-closed contract as the rest of Agent Mission Control's data layer
   (`src/lib/agent-mission-control/data.ts`).
+- **`GEMINI_API_KEY`** (or `GOOGLE_API_KEY`) — required for copilots whose
+  `model_provider = google` on the direct path (§3b). Absent → the router raises
+  `ProviderUnavailableError`, never a silent fallback.
+- **`VLLM_LOCAL_API_KEY`** + the per-endpoint URL vars (see
+  `src/lib/agent-mission-control/model-local.ts`) — required for copilots whose
+  `model_provider = local` (Adrien's vLLM park). This is the path the 7 finance
+  copilots use. Endpoint down/unconfigured → `ProviderUnavailableError` (explicit,
+  non-silent).
 - **`LANGGRAPH_API_URL`** — base URL of the Agent Server, default
   `http://127.0.0.1:2024`. Override to point at a remote deployment.
 - **`AGENT_BUILDER_MODEL`** — the model the LangGraph graph binds, default
-  `gpt-5.4`.
+  `gpt-5.4` (OpenAI — the LangGraph path is OpenAI-only).
 
 ## 8. Cost note
 
