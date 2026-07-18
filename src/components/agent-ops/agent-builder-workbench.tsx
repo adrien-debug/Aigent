@@ -296,7 +296,14 @@ export function AgentBuilderWorkbench() {
               )}
             </Button>
             <Button plain onClick={() => handleDecision(false)} disabled={deciding}>
-              Reject
+              {deciding ? (
+                <>
+                  <Spinner />
+                  Rejecting…
+                </>
+              ) : (
+                'Reject'
+              )}
             </Button>
           </div>
         </div>
