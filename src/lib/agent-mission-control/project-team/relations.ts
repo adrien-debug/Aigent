@@ -343,6 +343,11 @@ function makeEdge(
   origin: ProjectTeamEdgeOrigin,
   source: string,
   target: string,
+  /**
+   * `project_agent_relations` row id backing this edge, or `null` when there
+   * is no row — i.e. every branch except the explicit-relation one below.
+   */
+  relationId: string | null,
   extra: { label?: string | null; active?: boolean; lastActivityAt?: string | null; weight?: number } = {}
 ): ProjectTeamEdge {
   return {
@@ -351,6 +356,7 @@ function makeEdge(
     target,
     relation,
     origin,
+    relationId,
     label: extra.label ?? null,
     active: extra.active ?? false,
     lastActivityAt: extra.lastActivityAt ?? null,
@@ -389,7 +395,7 @@ export function buildTeamEdges(input: BuildTeamEdgesInput): ProjectTeamEdge[] {
     // TEAM_TAG_RULES says so. No row anywhere states "this group belongs to
     // this project", so this edge must not render as configured either.
     edges.push(
-      makeEdge('project-membership', 'derived', group.nodeId, projectId, {
+      makeEdge('project-membership', 'derived', group.nodeId, projectId, null, {
         label: group.team,
         weight: group.agentIds.length,
       })
@@ -407,14 +413,15 @@ export function buildTeamEdges(input: BuildTeamEdgesInput): ProjectTeamEdge[] {
       // our computation. An operator never configured this membership, so it
       // renders dashed and reads "Derived", like every other computed edge.
       edges.push(
-        makeEdge('team-membership', 'derived', agent.id, group.nodeId, {
+        makeEdge('team-membership', 'derived', agent.id, group.nodeId, null, {
           label: group.team,
         })
       )
     } else {
       // The one genuinely explicit structural edge: a verbatim restatement of
-      // the persisted `copilots.project_id`.
-      edges.push(makeEdge('project-membership', 'explicit', agent.id, projectId))
+      // the persisted `copilots.project_id`. Still no `project_agent_relations`
+      // row backs it, so relationId stays null — there is nothing to delete.
+      edges.push(makeEdge('project-membership', 'explicit', agent.id, projectId, null))
     }
   }
 
@@ -436,7 +443,7 @@ export function buildTeamEdges(input: BuildTeamEdgesInput): ProjectTeamEdge[] {
     // never proof that anything travelled — on its own it must not animate.
     const eventAt = relationEventAt(row.sourceCopilotId, row.targetCopilotId)
     edges.push(
-      makeEdge(relation, 'explicit', row.sourceCopilotId, row.targetCopilotId, {
+      makeEdge(relation, 'explicit', row.sourceCopilotId, row.targetCopilotId, row.id, {
         label: row.label ?? null,
         active: row.isActive === false ? false : isRecent(eventAt, nowMs),
         lastActivityAt: eventAt,
@@ -464,7 +471,7 @@ export function buildTeamEdges(input: BuildTeamEdgesInput): ProjectTeamEdge[] {
       // activity rests on evidence of movement rather than coincidence.
       const eventAt = relationEventAt(orchestrator, participant)
       edges.push(
-        makeEdge('orchestrates', 'derived', orchestrator, participant, {
+        makeEdge('orchestrates', 'derived', orchestrator, participant, null, {
           label: 'mission',
           active: isRecent(eventAt, nowMs),
           lastActivityAt: eventAt,
@@ -513,7 +520,7 @@ export function buildTeamEdges(input: BuildTeamEdgesInput): ProjectTeamEdge[] {
     // Never active: "we declare the same tool name" is a static coincidence of
     // configuration. Nothing travels between these two agents because of it.
     edges.push(
-      makeEdge('shares-tool', 'derived', source, target, {
+      makeEdge('shares-tool', 'derived', source, target, null, {
         label: sortedNames.join(', '),
         weight: sortedNames.length,
       })

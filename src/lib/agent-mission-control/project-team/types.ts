@@ -160,6 +160,13 @@ export interface ProjectTeamEdge {
   target: string
   relation: ProjectTeamEdgeRelation
   origin: ProjectTeamEdgeOrigin
+  /**
+   * Primary key of the `project_agent_relations` row this edge was built from.
+   * NON-NULL ONLY for an edge that restates a persisted relation row — i.e. the
+   * only edges an operator can delete. Every derived edge (membership, team,
+   * shares-tool, orchestrates-from-mission) is null: there is no row behind it.
+   */
+  relationId: string | null
   label: string | null
   /**
    * A persisted event occurred ON THIS RELATION inside the recency window.

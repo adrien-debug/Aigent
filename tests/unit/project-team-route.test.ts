@@ -142,6 +142,7 @@ function graphFixture(): ProjectTeamGraph {
         target: 'copilot-atlas',
         relation: 'project-membership' as const,
         origin: 'explicit' as const,
+        relationId: null,
         label: 'Member of project',
         active: true,
         lastActivityAt: '2026-07-18T08:51:00.000Z',

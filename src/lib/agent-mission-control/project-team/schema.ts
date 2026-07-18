@@ -104,6 +104,9 @@ export const projectTeamEdgeSchema = z
     target: z.string().min(1),
     relation: projectTeamEdgeRelationSchema,
     origin: projectTeamEdgeOriginSchema,
+    // Non-null ONLY for an edge that restates a persisted `project_agent_relations`
+    // row — the only edges an operator can delete. Every derived edge is null.
+    relationId: z.string().min(1).nullable(),
     label: z.string().nullable(),
     active: z.boolean(),
     lastActivityAt: z.string().nullable(),

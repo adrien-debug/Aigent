@@ -668,7 +668,48 @@ describe('edge activity, dedup and determinism', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 
-  it('44 — dedupeEdges contract: every endpoint of every edge is a real node', () => {
+  it('45 — an explicit relation row stamps its own id as relationId', () => {
+    const edges = build({
+      agents: [agent('a'), agent('b')],
+      explicitRelations: [relation({ id: 'rel-xyz', relationType: 'reviews' })],
+    })
+    const edge = edges.find((e) => e.relation === 'reviews')
+    expect(edge?.relationId).toBe('rel-xyz')
+  })
+
+  it('46 — every derived edge has a null relationId', () => {
+    const edges = build({
+      agents: [agent('a', ['review']), agent('b', ['review']), agent('c'), agent('d')],
+      explicitRelations: [relation({ id: 'r1', sourceCopilotId: 'a', targetCopilotId: 'c' })],
+      toolNamesByAgentId: new Map([
+        ['c', ['t1']],
+        ['d', ['t1']],
+      ]),
+      missionParticipations: [
+        { orchestratorCopilotId: 'b', participantCopilotIds: ['d'], updatedAt: RECENT },
+      ],
+    })
+    const derived = edges.filter((e) => e.origin === 'derived')
+    expect(derived.length).toBeGreaterThan(0)
+    expect(derived.every((e) => e.relationId === null)).toBe(true)
+  })
+
+  it('47 — INVARIANT: origin === "derived" implies relationId === null, across the whole graph', () => {
+    const edges = build({
+      agents: [agent('a', ['review']), agent('b', ['review']), agent('c'), agent('d')],
+      explicitRelations: [relation({ id: 'r1', sourceCopilotId: 'a', targetCopilotId: 'c' })],
+      toolNamesByAgentId: new Map([
+        ['c', ['t1']],
+        ['d', ['t1']],
+      ]),
+      missionParticipations: [
+        { orchestratorCopilotId: 'b', participantCopilotIds: ['d'], updatedAt: RECENT },
+      ],
+    })
+    expect(edges.every((e) => (e.origin === 'derived' ? e.relationId === null : true))).toBe(true)
+  })
+
+  it('48 — dedupeEdges contract: every endpoint of every edge is a real node', () => {
     const edges = build({
       agents: [agent('a', ['review']), agent('b', ['review']), agent('c'), agent('d')],
       explicitRelations: [

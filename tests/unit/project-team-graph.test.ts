@@ -52,7 +52,7 @@ vi.mock('@/lib/agent-mission-control/data', () => ({
 
 import { getProjectTeamGraph } from '@/lib/agent-mission-control/project-team/data'
 import { projectNodeId } from '@/lib/agent-mission-control/project-team/relations'
-import { parseProjectTeamGraph } from '@/lib/agent-mission-control/project-team/schema'
+import { parseProjectTeamGraph, projectTeamEdgeSchema } from '@/lib/agent-mission-control/project-team/schema'
 
 const PROJECT = 'proj-test'
 const NOW = new Date('2026-07-18T12:00:00.000Z')
@@ -113,6 +113,32 @@ function routeTables(tables: {
     return value ?? []
   }
 }
+
+describe('projectTeamEdgeSchema — relationId', () => {
+  const baseEdge = {
+    id: 'depends-on::a::b',
+    source: 'a',
+    target: 'b',
+    relation: 'depends-on' as const,
+    origin: 'explicit' as const,
+    label: null,
+    active: false,
+    lastActivityAt: null,
+    weight: 1,
+  }
+
+  it('accepts a non-null relationId (persisted relation row)', () => {
+    expect(() => projectTeamEdgeSchema.parse({ ...baseEdge, relationId: 'rel-1' })).not.toThrow()
+  })
+
+  it('accepts a null relationId (derived edge)', () => {
+    expect(() => projectTeamEdgeSchema.parse({ ...baseEdge, relationId: null })).not.toThrow()
+  })
+
+  it('rejects a payload missing relationId — the .strict() schema requires the field', () => {
+    expect(() => projectTeamEdgeSchema.parse(baseEdge)).toThrow()
+  })
+})
 
 describe('getProjectTeamGraph', () => {
   beforeEach(() => {
@@ -799,6 +825,61 @@ describe('getProjectTeamGraph', () => {
     const graph = await getProjectTeamGraph(PROJECT, { now: NOW })
     expect(graph?.freshness.latestActivityAt).toBe('2026-07-18T09:30:00.000Z')
     expect(graph?.freshness.latestActivityState).toBe('known')
+  })
+
+  it('30 — an explicit relation row is exposed as its own relationId end-to-end', async () => {
+    copilotsHandler = () => [copilot({ id: 'a' }), copilot({ id: 'b' })]
+    pgrestHandler = routeTables({
+      project_agent_relations: [
+        {
+          id: 'rel-e2e-1',
+          project_id: PROJECT,
+          source_copilot_id: 'a',
+          target_copilot_id: 'b',
+          relation_type: 'sends-output-to',
+          label: 'invoice batch',
+          is_active: true,
+        },
+      ],
+    })
+    const graph = await getProjectTeamGraph(PROJECT, { now: NOW })
+    const edge = graph?.edges.find((e) => e.relation === 'sends-output-to')
+    expect(edge?.relationId).toBe('rel-e2e-1')
+    expect(() => parseProjectTeamGraph(graph)).not.toThrow()
+  })
+
+  it('31 — INVARIANT: every derived edge in the live graph has a null relationId', async () => {
+    copilotsHandler = () => [
+      copilot({ id: 'a', tags: ['review'] }),
+      copilot({ id: 'b', tags: ['review'] }),
+      copilot({ id: 'c' }),
+    ]
+    pgrestHandler = routeTables({
+      project_agent_relations: [
+        {
+          id: 'rel-e2e-2',
+          project_id: PROJECT,
+          source_copilot_id: 'a',
+          target_copilot_id: 'c',
+          relation_type: 'depends-on',
+          is_active: true,
+        },
+      ],
+      tools: [
+        { id: 't1', name: 'shared_tool', copilot_id: 'b' },
+        { id: 't2', name: 'shared_tool', copilot_id: 'c' },
+      ],
+    })
+    const graph = await getProjectTeamGraph(PROJECT, { now: NOW })
+    expect(graph?.edges.some((e) => e.origin === 'derived')).toBe(true)
+    // The whole-graph invariant this contract exists to protect: a non-null
+    // relationId is a promise that a deletable row exists.
+    expect(
+      graph?.edges.every((e) => (e.origin === 'derived' ? e.relationId === null : true))
+    ).toBe(true)
+    // And the one explicit relation row DOES carry its id through.
+    expect(graph?.edges.find((e) => e.relation === 'depends-on')?.relationId).toBe('rel-e2e-2')
+    expect(() => parseProjectTeamGraph(graph)).not.toThrow()
   })
 
   it('18 — output is deterministic across two identical calls', async () => {
