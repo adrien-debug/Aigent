@@ -109,6 +109,7 @@ export function NewProjectWorkbench() {
 
   /** Retry entry point (button): clear the error, re-enter loading, refetch. */
   async function retryRepos() {
+    if (reposLoading) return
     setReposError(null)
     setReposLoading(true)
     await fetchRepos()
@@ -124,6 +125,7 @@ export function NewProjectWorkbench() {
 
   // --- Load the tree when a repo is selected. ---
   async function selectRepo(repo: RepoSummary) {
+    if (treeLoading) return
     setSelected(repo)
     setName(repo.name)
     setDescription(repo.description ?? '')
@@ -222,9 +224,14 @@ export function NewProjectWorkbench() {
             </p>
             <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">{reposError.message}</p>
             {reposError.notConfigured ? null : (
-              <Button color="accent" onClick={() => void retryRepos()} className="mt-1">
-                <ArrowPathIcon data-slot="icon" />
-                Retry
+              <Button
+                color="accent"
+                onClick={() => void retryRepos()}
+                disabled={reposLoading}
+                className="mt-1"
+              >
+                <ArrowPathIcon data-slot="icon" className={reposLoading ? 'animate-spin' : undefined} />
+                {reposLoading ? 'Retrying…' : 'Retry'}
               </Button>
             )}
           </div>
@@ -259,10 +266,12 @@ export function NewProjectWorkbench() {
                   <li key={repo.fullName}>
                     <Headless.Button
                       onClick={() => void selectRepo(repo)}
+                      disabled={treeLoading}
                       aria-pressed={isSelected}
                       className={
                         'w-full rounded-lg px-4 py-3 text-left transition-colors ' +
                         'focus:not-data-focus:outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-accent-500 ' +
+                        'disabled:cursor-not-allowed disabled:opacity-60 ' +
                         (isSelected
                           ? 'ring-1 ring-accent-500 dark:bg-white/5'
                           : 'ring-1 ring-transparent hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5')
@@ -313,9 +322,14 @@ export function NewProjectWorkbench() {
             <div className="flex flex-col items-center gap-3 py-10 text-center">
               <ExclamationTriangleIcon aria-hidden="true" className="size-6 text-accent-500" />
               <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">{treeError}</p>
-              <Button color="accent" onClick={() => void selectRepo(selected)} className="mt-1">
-                <ArrowPathIcon data-slot="icon" />
-                Retry
+              <Button
+                color="accent"
+                onClick={() => void selectRepo(selected)}
+                disabled={treeLoading}
+                className="mt-1"
+              >
+                <ArrowPathIcon data-slot="icon" className={treeLoading ? 'animate-spin' : undefined} />
+                {treeLoading ? 'Retrying…' : 'Retry'}
               </Button>
             </div>
           ) : tree && tree.length === 0 ? (
