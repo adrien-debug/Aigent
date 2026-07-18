@@ -123,7 +123,7 @@ export function SandboxStatusRow({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button plain onClick={() => run('dry_run')} disabled={running !== null}>
+          <Button outline onClick={() => run('dry_run')} disabled={running !== null}>
             {running === 'dry_run' ? (
               <span className="inline-flex items-center gap-2">
                 <Spinner className="size-4" /> Running…
@@ -132,7 +132,7 @@ export function SandboxStatusRow({
               'Run dry-run'
             )}
           </Button>
-          <Button outline onClick={() => run('execute')} disabled={running !== null}>
+          <Button color="accent" onClick={() => run('execute')} disabled={running !== null}>
             {running === 'execute' ? (
               <span className="inline-flex items-center gap-2">
                 <Spinner className="size-4" /> Executing…
