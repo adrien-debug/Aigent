@@ -18,6 +18,7 @@
     "reprovision": "node --env-file=.env.local $(command -v npx) -y tsx --conditions=react-server scripts/reprovision-assistants.ts",
     "provision:agent-builder": "node --env-file=.env.local $(command -v npx) -y tsx scripts/provision-agent-builder.ts",
     "provision:finance-roster": "node --env-file=.env.local $(command -v npx) -y tsx scripts/provision-finance-roster.ts",
+    "rebrand:finance-local": "node --env-file=.env.local $(command -v npx) -y tsx scripts/rebrand-finance-local.ts",
     "test": "vitest run tests/unit",
     "test:live": "vitest run tests/live",
     "bench:finance:local": "node --env-file=.env.local $(command -v npx) -y tsx scripts/bench-finance-local.ts",
