@@ -57,6 +57,7 @@ export function RunDetailPanel({
             <Button href={run.traceUrl} target="_blank" rel="noreferrer" outline className="shrink-0">
               <ArrowTopRightOnSquareIcon data-slot="icon" aria-hidden="true" />
               Open Trace
+              <span className="sr-only"> (opens in a new tab)</span>
             </Button>
           )}
         </div>
