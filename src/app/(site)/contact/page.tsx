@@ -26,12 +26,7 @@ export default function ContactPage() {
           Tell us about the copilots you want to run in production. We&apos;ll follow up within one business day.
         </p>
       </div>
-      <form
-        action="mailto:hello@hearstcorporation.io"
-        method="POST"
-        encType="text/plain"
-        className="mx-auto mt-16 max-w-xl sm:mt-20"
-      >
+      <form action="mailto:hello@hearstcorporation.io" className="mx-auto mt-16 max-w-xl sm:mt-20">
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
           <div>
             <label htmlFor="first-name" className="block text-sm/6 font-semibold text-white">
