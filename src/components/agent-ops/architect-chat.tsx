@@ -106,7 +106,7 @@ export function ArchitectChat({ onManifest }: ArchitectChatProps) {
   }, [hasUnsavedWork])
 
   function handleApplyManifest() {
-    if (!manifest) return
+    if (!manifest || applied) return
     setApplied(true)
     clearDraft()
     onManifest?.(manifest)
@@ -238,8 +238,8 @@ export function ArchitectChat({ onManifest }: ArchitectChatProps) {
           <ManifestRecap manifest={manifest} />
 
           <div className="mt-4">
-            <Button color="accent" onClick={handleApplyManifest}>
-              Use this manifest →
+            <Button color="accent" onClick={handleApplyManifest} disabled={applied}>
+              {applied ? 'Applied' : 'Use this manifest →'}
             </Button>
           </div>
         </div>
