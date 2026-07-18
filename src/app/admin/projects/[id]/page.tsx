@@ -9,6 +9,7 @@ import { ProjectHeader } from '@/components/agent-ops/project-header'
 import { ProjectMissionOrchestrator } from '@/components/agent-ops/project-mission-orchestrator'
 import { ProjectRepoIntelligence } from '@/components/agent-ops/project-repo-intelligence'
 import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
+import { StatusPill } from '@/components/agent-ops/status-pill'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { getCopilots, getProject, getRecentRunsForProject } from '@/lib/agent-mission-control/data'
@@ -38,24 +39,6 @@ const numberFormat = new Intl.NumberFormat('en-US')
 function statusLabel(status: string): string {
   const spaced = status.replace(/-/g, ' ')
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
-}
-
-const STATUS_PILL_BASE =
-  'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md ring-1 text-[10px] font-medium uppercase tracking-widest'
-
-/** Accent = live/attention (label carries meaning), zinc = neutral/inactive. */
-function StatusPill({ label, tone }: { label: string; tone: 'accent' | 'zinc' }) {
-  return (
-    <span
-      className={`${STATUS_PILL_BASE} ${
-        tone === 'accent'
-          ? 'text-accent-300 bg-[var(--accent-surface)] ring-[var(--accent-line)]'
-          : 'text-zinc-400 bg-white/5 ring-white/10'
-      }`}
-    >
-      {label}
-    </span>
-  )
 }
 
 function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
