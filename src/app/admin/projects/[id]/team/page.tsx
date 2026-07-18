@@ -8,7 +8,7 @@ import { Avatar } from '@/components/catalyst/avatar'
 import { getProject } from '@/lib/agent-mission-control/data'
 import { PROJECT_PLATFORM_LABELS } from '@/lib/agent-mission-control/labels'
 import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
-import { getProjectTeamGraph } from '@/lib/agent-mission-control/project-team/data'
+import { getProjectTeamGraph, isProjectId } from '@/lib/agent-mission-control/project-team/data'
 import type { ProjectTeamGraph } from '@/lib/agent-mission-control/project-team/types'
 
 export const dynamic = 'force-dynamic'
@@ -34,6 +34,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function ProjectTeamPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
+  // Entry-point symmetry with the API route: the route rejects an id that fails
+  // PROJECT_ID_RE with a 400 before touching the backend, so this page must not
+  // hand the same function an unvalidated route param. A shape that the route
+  // calls invalid is not a project — it is a 404 here.
+  if (!isProjectId(id)) notFound()
+
   const project = await getProject(id)
   if (!project) notFound()
 
@@ -41,7 +47,6 @@ export default async function ProjectTeamPage({ params }: { params: Promise<{ id
   let loadError: string | null = null
   try {
     graph = (await getProjectTeamGraph(id)) ?? null
-    if (!graph) notFound()
   } catch (err) {
     // Detail stays server-side; the operator gets a precise but non-leaking
     // reason so they know whether to retry or to page someone.
@@ -50,6 +55,14 @@ export default async function ProjectTeamPage({ params }: { params: Promise<{ id
       ? 'The data backend did not answer in time (gateway timeout). The team graph could not be built. Retry in a moment; if it persists, check the PostgREST service on gpu1.'
       : 'The data backend is unreachable, so this project’s team graph could not be built. No graph is shown rather than an approximate one. Check the agent-ops backend, then refresh.'
   }
+
+  // OUTSIDE the try on purpose. notFound() signals by THROWING
+  // (NEXT_HTTP_ERROR_FALLBACK;404); inside the catch above it would be swallowed
+  // and a project deleted between the two reads would render "backend
+  // unreachable" — and log a backend failure that never happened. Every sibling
+  // page calls notFound() outside any try for the same reason
+  // (builder/page.tsx, [id]/page.tsx).
+  if (!graph && !loadError) notFound()
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">

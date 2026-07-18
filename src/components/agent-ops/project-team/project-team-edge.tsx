@@ -12,7 +12,7 @@ import {
   type Node,
 } from '@xyflow/react'
 import clsx from 'clsx'
-import { memo } from 'react'
+import { memo, useState } from 'react'
 
 import type {
   ProjectTeamEdgeOrigin,
@@ -98,9 +98,26 @@ export type ProjectTeamEdgeData = {
   active: boolean
   /** Animate: viewMode === 'activity' AND active AND a directed relation. */
   animateFlow: boolean
-  /** Show the label without hovering (selected / prominent edges). */
+  /**
+   * Show the label WITHOUT hovering (selected / prominent edges).
+   *
+   * Hover is deliberately NOT part of this: it is per-edge local state inside
+   * the renderer. Threading a `hoveredEdgeId` through the shared edge array
+   * meant hovering ANY edge rebuilt the whole array with fresh `data` objects,
+   * which defeated `memo` here and re-rendered EVERY edge at mousemove rate.
+   */
   showLabel: boolean
 }
+
+/**
+ * Invisible hit area. The rendered curve is 1-1.75px wide — unhittable in
+ * practice — and the canvas stylesheet sets `pointer-events: none` on the whole
+ * `.react-flow__edge` group. A descendant may re-enable hit testing for itself,
+ * so this transparent fat stroke is the edge's only interactive surface.
+ * `stroke` (not `visibleStroke`) responds regardless of paint, so a transparent
+ * stroke still receives the pointer.
+ */
+const HOVER_HIT_WIDTH = 14
 
 export type ProjectTeamFlowEdge = Edge<ProjectTeamEdgeData, 'team-edge'>
 
@@ -181,6 +198,9 @@ function ProjectTeamEdgeComponent({
 }: EdgeProps<ProjectTeamFlowEdge>) {
   const sourceNode = useInternalNode(source)
   const targetNode = useInternalNode(target)
+  // Hover lives HERE, not in the shared edge array — see `showLabel` above.
+  // Hovering this edge re-renders this edge and nothing else.
+  const [hovered, setHovered] = useState(false)
 
   const sourceBox = boxOf(sourceNode)
   const targetBox = boxOf(targetNode)
@@ -230,12 +250,23 @@ function ProjectTeamEdgeComponent({
         }}
       />
       {data.emphasis === 'faint' ? null : (
+        <path
+          d={path}
+          fill="none"
+          stroke="transparent"
+          strokeWidth={HOVER_HIT_WIDTH}
+          style={{ pointerEvents: 'stroke' }}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+        />
+      )}
+      {data.emphasis === 'faint' ? null : (
         <EdgeLabelRenderer>
           <div
             // `nodrag nopan` keeps the label from stealing canvas gestures.
             className={clsx(
               'ptc-edge-label nodrag nopan pointer-events-none absolute rounded-md bg-[var(--color-surface-elevated)] px-1.5 py-0.5 text-[10px] whitespace-nowrap text-zinc-300 ring-1 ring-white/10 transition-opacity duration-200',
-              data.showLabel ? 'opacity-100' : 'opacity-0'
+              data.showLabel || hovered ? 'opacity-100' : 'opacity-0'
             )}
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
           >

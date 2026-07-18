@@ -49,6 +49,15 @@ interface TeamStat {
   accent?: boolean
 }
 
+/**
+ * A count the backend could not read renders as an em dash, never as 0 and
+ * never as the string "null". "0 runs today" and "we don't know how many runs
+ * today" are different facts and an operator must be able to tell them apart.
+ */
+function formatCount(value: number | null | undefined): string {
+  return typeof value === 'number' ? String(value) : '—'
+}
+
 function matches(agent: TeamAgentView, filters: ProjectTeamFilters): boolean {
   // AND composition. Each clause is a no-op when its control is at "all"/empty,
   // so adding a filter can only ever shrink the visible set — never widen it.
@@ -183,14 +192,27 @@ function ProjectTeamViewInner({
   // Rendered as ONE compact inline strip, not a KPI band: on this screen the
   // canvas is the product and every pixel above it is taken from the graph. The
   // numbers stay legible and complete, they just stop being a wall of tiles.
+  // The activity counters are nullable BY DESIGN: null means "not countable"
+  // (at least one agent's runs were unreadable), which is a different fact from
+  // a measured 0. Publishing 0 would fabricate a count and publishing the
+  // countable subset would publish a floor as if it were a total — both are
+  // wrong numbers. `formatCount` renders the unknown as an em dash, never as
+  // "0" and never as the literal string "null" (`String(null)` compiles fine,
+  // so TypeScript will NOT catch that mistake here).
   const stats: TeamStat[] = summary
     ? [
         { name: 'Agents', value: String(summary.totalAgents) },
-        { name: 'Active', value: String(summary.activeAgents), accent: true },
-        { name: 'Waiting', value: String(summary.waitingAgents) },
-        { name: 'Blocked', value: String(summary.blockedAgents) },
-        { name: 'Failed', value: String(summary.failedAgents) },
-        { name: 'Runs today', value: String(summary.runsToday) },
+        { name: 'Active', value: formatCount(summary.activeAgents), accent: true },
+        { name: 'Waiting', value: formatCount(summary.waitingAgents) },
+        { name: 'Blocked', value: formatCount(summary.blockedAgents) },
+        { name: 'Failed', value: formatCount(summary.failedAgents) },
+        { name: 'Runs today', value: formatCount(summary.runsToday) },
+        // Shown only when it is non-zero: it is the number that EXPLAINS why the
+        // counters above are dashes, so hiding it would leave the dashes
+        // unexplained. At zero it is noise.
+        ...(summary.unavailableAgents > 0
+          ? [{ name: 'Unavailable', value: String(summary.unavailableAgents) }]
+          : []),
       ]
     : []
 
@@ -198,9 +220,13 @@ function ProjectTeamViewInner({
   // Derived during render, not pushed from an effect: the refresh hook only
   // swaps the graph when the payload REALLY changed (`changeToken`), so this
   // string is stable across identical polls and the live region stays silent.
+  // Never speak "null" at a screen-reader user, and never speak a fabricated
+  // zero either: when the statuses are not countable, say exactly that.
   const announcement =
     changeToken > 0 && summary
-      ? `Team updated. ${summary.activeAgents} active, ${summary.waitingAgents} waiting, ${summary.blockedAgents} blocked, ${summary.failedAgents} failed.`
+      ? summary.activeAgents === null
+        ? `Team updated. Agent statuses are unavailable for ${summary.unavailableAgents} of ${summary.totalAgents} agents.`
+        : `Team updated. ${summary.activeAgents} active, ${summary.waitingAgents} waiting, ${summary.blockedAgents} blocked, ${summary.failedAgents} failed.`
       : ''
 
   const clearFilters = useCallback(() => setFilters(EMPTY_FILTERS), [])
@@ -319,7 +345,12 @@ function ProjectTeamViewInner({
               onSelectAgent={selectAgent}
               viewMode={viewMode}
               filteredNodeIds={filtersActive ? visibleIds : undefined}
-              className="h-[60vh] min-h-96 w-full lg:h-[calc(100svh-26rem)]"
+              // Height comes from the flex chain (main is h-svh, every ancestor
+              // is flex-1/min-h-0), NOT from an arithmetic guess about how tall
+              // the chrome above happens to be: a `calc(100svh - Nrem)` silently
+              // breaks the day the header or toolbar wraps to another line.
+              // `min-h-96` is the floor for short viewports.
+              className="min-h-96 w-full flex-1"
             />
           )}
 

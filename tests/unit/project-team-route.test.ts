@@ -20,13 +20,21 @@ vi.mock('@/lib/agent-mission-control/postgrest', () => ({
   isPgrestTimeout: () => timeoutFlag,
 }))
 
-vi.mock('@/lib/agent-mission-control/project-team/data', () => ({
-  getProjectTeamGraph: vi.fn(async (projectId: string) => graphHandler(projectId)),
-}))
+// PARTIAL mock: only the graph load is faked. `isProjectId` stays REAL, because
+// the point of sharing it is that the route and the /team page validate ids
+// identically — a stubbed copy here would pass while the real guard drifted.
+vi.mock('@/lib/agent-mission-control/project-team/data', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/agent-mission-control/project-team/data')>()
+  return {
+    ...actual,
+    getProjectTeamGraph: vi.fn(async (projectId: string) => graphHandler(projectId)),
+  }
+})
 
 import { NextRequest } from 'next/server'
 
 import { GET } from '@/app/api/agent-ops/projects/[id]/team/route'
+import type { ProjectTeamGraph } from '@/lib/agent-mission-control/project-team/types'
 import { proxy, config as proxyConfig } from '@/proxy'
 
 const PROJECT_ID = 'proj-tradeagent'
@@ -45,11 +53,15 @@ function req(id: string): Request {
  * project, one derived edge. Every field is a real column-backed value — there
  * is no invented relation and no fabricated metric here.
  */
-function graphFixture() {
+function graphFixture(): ProjectTeamGraph {
   return {
     project: { id: PROJECT_ID, name: 'TradeAgent' },
     generatedAt: '2026-07-18T09:00:00.000Z',
-    freshness: { source: 'LIVE' as const, latestActivityAt: '2026-07-18T08:51:00.000Z' },
+    freshness: {
+      source: 'LIVE' as const,
+      latestActivityAt: '2026-07-18T08:51:00.000Z',
+      latestActivityState: 'known' as const,
+    },
     summary: {
       totalAgents: 2,
       activeAgents: 1,
@@ -57,6 +69,7 @@ function graphFixture() {
       blockedAgents: 1,
       failedAgents: 0,
       draftAgents: 0,
+      unavailableAgents: 0,
       runsToday: 12,
     },
     nodes: [
@@ -72,8 +85,10 @@ function graphFixture() {
         model: null,
         status: 'active' as const,
         latestRun: null,
+        runHistory: 'not-applicable' as const,
         metrics: { totalRuns: 12, runsToday: 12, successRate: 1 },
         tools: [],
+        toolsUnavailable: false,
         href: `/admin/projects/${PROJECT_ID}`,
       },
       {
@@ -95,8 +110,10 @@ function graphFixture() {
           costUsd: 0.0142,
           latencyMs: 60_000,
         },
+        runHistory: 'known' as const,
         metrics: { totalRuns: 12, runsToday: 12, successRate: 1 },
         tools: [{ id: 'tool-1', name: 'read_recent_runs' }],
+        toolsUnavailable: false,
         href: '/admin/agents/copilot-atlas',
       },
       {
@@ -111,8 +128,10 @@ function graphFixture() {
         model: 'gpt-4.1-mini',
         status: 'blocked' as const,
         latestRun: null,
+        runHistory: 'known' as const,
         metrics: { totalRuns: 0, runsToday: 0, successRate: null },
         tools: [],
+        toolsUnavailable: false,
         href: '/admin/agents/copilot-sentinel',
       },
     ],
@@ -188,14 +207,18 @@ describe('GET /api/agent-ops/projects/:id/team', () => {
     expect(await res.json()).toEqual({ error: 'live backend not configured' })
   })
 
-  it('6 — backend unavailable (data layer throws) -> 503, generic body, no leak', async () => {
+  it('6 — live backend fails at request time -> 502 (NOT 503), generic body, no leak', async () => {
+    // House convention (postgrest.ts, repo/intelligence/route.ts:71-72, and the
+    // siblings [id]/route.ts:52 + missions/route.ts:73): a request-time upstream
+    // failure is 502. 503 is RESERVED for "not configured" — test 5 — so that a
+    // 503 always means "deployment incomplete" and never "the DB fell over".
     const secret = 'ECONNREFUSED postgrest.internal:5432 role=service_role'
     graphHandler = () => {
       throw new Error(secret)
     }
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const res = await GET(req(PROJECT_ID), params(PROJECT_ID))
-    expect(res.status).toBe(503)
+    expect(res.status).toBe(502)
     const text = await res.text()
     expect(text).not.toContain(secret)
     expect(text).not.toContain('service_role')
@@ -226,13 +249,59 @@ describe('GET /api/agent-ops/projects/:id/team', () => {
     expect(Array.isArray(body.edges)).toBe(true)
   })
 
-  it('9 — a payload that violates the contract is refused (503), never shipped', async () => {
+  it('9 — a payload that violates the contract is refused (500 — OUR bug), never shipped', async () => {
+    // Not 502/503: the client was fine and the backend answered. We built a
+    // payload that breaks our own schema. Reporting that as a backend problem
+    // sends operators to check a healthy service.
     graphHandler = () => ({ nodes: 'not-an-array', edges: null, project: null })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const res = await GET(req(PROJECT_ID), params(PROJECT_ID))
-    expect(res.status).toBe(503)
+    expect(res.status).toBe(500)
     expect(await res.json()).toEqual({ error: 'team graph unavailable' })
     consoleSpy.mockRestore()
+  })
+
+  it('12 — the three failure modes are distinguishable by status code', async () => {
+    // The whole point of the convention: an operator reads the code and knows
+    // where to look. Collapsing them onto 503 destroys that signal.
+    delete process.env.AMC_SUPABASE_URL
+    expect((await GET(req(PROJECT_ID), params(PROJECT_ID))).status).toBe(503) // not configured
+
+    process.env.AMC_SUPABASE_URL = 'http://127.0.0.1:3999'
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    graphHandler = () => {
+      throw new Error('upstream down')
+    }
+    expect((await GET(req(PROJECT_ID), params(PROJECT_ID))).status).toBe(502) // backend broke
+
+    timeoutFlag = true
+    expect((await GET(req(PROJECT_ID), params(PROJECT_ID))).status).toBe(504) // backend too slow
+    timeoutFlag = false
+
+    graphHandler = () => ({ nodes: 'not-an-array' })
+    expect((await GET(req(PROJECT_ID), params(PROJECT_ID))).status).toBe(500) // our bug
+
+    consoleSpy.mockRestore()
+  })
+
+  it('13 — an unknown metric count ships as null, never as a fabricated 0', async () => {
+    // The contract must be able to CARRY "we do not know". If the schema
+    // rejected null here, the data layer would have no honest value to send and
+    // an unread count would arrive as an indistinguishable 0.
+    graphHandler = () => {
+      const graph = graphFixture()
+      graph.nodes[2].metrics = { totalRuns: null, runsToday: null, successRate: null }
+      graph.summary.runsToday = null
+      return graph
+    }
+    const res = await GET(req(PROJECT_ID), params(PROJECT_ID))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    const sentinel = body.nodes.find((n: { id: string }) => n.id === 'copilot-sentinel')
+    expect(sentinel.metrics.totalRuns).toBeNull()
+    expect(sentinel.metrics.runsToday).toBeNull()
+    expect(body.summary.runsToday).toBeNull()
   })
 
   it('10 — the route ships no agent belonging to another project', async () => {
@@ -259,11 +328,21 @@ describe('GET /api/agent-ops/projects/:id/team', () => {
     // the route ships nothing at all. Either way the secret never leaves.
     graphHandler = () => {
       const graph = graphFixture()
-      const node = graph.nodes[1] as Record<string, unknown>
-      node.systemPromptSummary = 'You are Atlas. Internal instructions: NEVER SHIP THIS.'
-      node.assistantId = 'asst_secret_value'
-      node.apiKey = 'sk-should-never-ship'
-      return graph
+      // Smuggle the extra keys by construction rather than by casting the typed
+      // node — the point is a payload the CONTRACT has never seen.
+      return {
+        ...graph,
+        nodes: graph.nodes.map((node, index) =>
+          index === 1
+            ? {
+                ...node,
+                systemPromptSummary: 'You are Atlas. Internal instructions: NEVER SHIP THIS.',
+                assistantId: 'asst_secret_value',
+                apiKey: 'sk-should-never-ship',
+              }
+            : node
+        ),
+      }
     }
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const res = await GET(req(PROJECT_ID), params(PROJECT_ID))

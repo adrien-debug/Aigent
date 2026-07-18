@@ -98,7 +98,12 @@ export interface ProjectTeamCanvasProps {
 const nodeTypes: NodeTypes = { 'team-node': ProjectTeamNodeCard }
 const edgeTypes: EdgeTypes = { 'team-edge': ProjectTeamEdgeLine }
 
-const FIT_VIEW_OPTIONS = { padding: 0.16, maxZoom: 1 } as const
+// `maxZoom` caps how far fitView may scale a graph UP. Left at 1, a small team
+// (5-10 agents) stayed pinned at its authored size and floated in a mostly
+// empty canvas — the graph must be allowed to grow into the surface it was
+// given. 1.35 fills the viewport for small rosters while staying under the 1.6
+// interactive ceiling, so fitView never lands on a zoom you cannot zoom past.
+const FIT_VIEW_OPTIONS = { padding: 0.12, maxZoom: 1.35 } as const
 const PRO_OPTIONS = { hideAttribution: false } as const
 
 // ---------------------------------------------------------------------------
@@ -145,11 +150,19 @@ const CANVAS_STYLES = `
 .ptc-canvas .react-flow__node { cursor: default; }
 .ptc-canvas .react-flow__edge { pointer-events: none; }
 
+/* Minimap: an active agent reads as a heavier, lighter STROKE — never as a hue
+   of its own. The minimap is a navigation aid; the canvas node carries the
+   authoritative icon + border style + text label for the status. */
+.ptc-canvas .react-flow__minimap-node.ptc-mini-active { stroke: var(--color-zinc-300); stroke-width: 5; }
+
+/* The built-in Controls are viewport plumbing for the toolbar, never shown. */
+.ptc-canvas .ptc-hidden-controls { display: none; }
+
 /* Chrome (Controls / MiniMap) on the app's own surfaces — zinc only. */
-.ptc-canvas .react-flow__controls { box-shadow: none; border-radius: 0.75rem; overflow: hidden; border: 1px solid rgb(255 255 255 / 6%); }
-.ptc-canvas .react-flow__controls-button { background: var(--color-surface-interactive); border-bottom: 1px solid rgb(255 255 255 / 6%); fill: var(--color-zinc-400); }
+.ptc-canvas .react-flow__controls { box-shadow: none; border-radius: 0.75rem; overflow: hidden; border: 1px solid var(--color-hairline); }
+.ptc-canvas .react-flow__controls-button { background: var(--color-surface-interactive); border-bottom: 1px solid var(--color-hairline); fill: var(--color-zinc-400); }
 .ptc-canvas .react-flow__controls-button:hover { background: var(--color-surface-elevated); fill: var(--color-zinc-200); }
-.ptc-canvas .react-flow__minimap { background: var(--color-surface-primary); border: 1px solid rgb(255 255 255 / 6%); border-radius: 0.75rem; }
+.ptc-canvas .react-flow__minimap { background: var(--color-surface-primary); border: 1px solid var(--color-hairline); border-radius: 0.75rem; }
 
 /* A derived edge is dashed at rest: a computed guess must never read as configured. */
 .ptc-canvas .ptc-derived { stroke-dasharray: 4 4; }
@@ -185,6 +198,15 @@ function edgeEmphasisForViewMode(edge: ProjectTeamEdge, viewMode: ProjectTeamVie
   // activity: real traffic first, structure kept legible behind it.
   if (edge.active) return 'prominent'
   return membership ? 'normal' : 'faint'
+}
+
+/**
+ * Minimap predicate. React Flow hands the minimap a bare `Node`, so this narrows
+ * it before reading our own payload — a foreign node type simply reads as
+ * not-active rather than throwing.
+ */
+function isActiveTeamNode(node: { type?: string }): boolean {
+  return node.type === 'team-node' && (node as ProjectTeamFlowNode).data?.node.status === 'active'
 }
 
 // ---------------------------------------------------------------------------
@@ -424,20 +446,32 @@ function ProjectTeamCanvasInner({
           color="var(--color-zinc-800)"
           bgColor="var(--color-surface-primary)"
         />
-        <Controls showInteractive={false} position="bottom-right" />
+        {/* Kept MOUNTED but fully hidden. Two visible zoom widgets on one canvas
+            is a duplicate control, and the toolbar's set is the accessible one
+            (labelled, in the tab order, outside the provider). These buttons are
+            the real viewport plumbing that toolbar drives — it resolves and
+            `.click()`s them — so they must stay in the DOM. `display:none` keeps
+            `.click()` working while removing them from BOTH the tab order and
+            the a11y tree, so a screen-reader user is not offered the same four
+            controls twice. */}
+        <Controls showInteractive={false} position="bottom-right" className="ptc-hidden-controls" />
         <MiniMap
           pannable
           zoomable
-          ariaLabel="Team graph minimap"
+          // Purely a navigation aid: it duplicates nodes that already carry an
+          // icon + border style + text label on the canvas itself, so it is
+          // deliberately NOT a status surface. Active nodes get a heavier
+          // stroke rather than a colour of their own — status here would
+          // otherwise ride on hue alone, which the doctrine forbids, and the
+          // minimap is far too small to render a legible label.
+          ariaLabel="Team graph minimap — navigation only, agent status is on the canvas"
           position="bottom-left"
-          maskColor="rgb(0 0 0 / 65%)"
+          maskColor="var(--color-minimap-mask)"
           nodeStrokeWidth={2}
-          nodeColor={(node) =>
-            node.type === 'team-node' && (node as ProjectTeamFlowNode).data?.node.status === 'active'
-              ? 'var(--color-accent-500)'
-              : 'var(--color-zinc-600)'
-          }
+          nodeColor="var(--color-zinc-600)"
           nodeStrokeColor="var(--color-zinc-700)"
+          // Active nodes are marked by STROKE, not hue — see .ptc-mini-active.
+          nodeClassName={(node) => (isActiveTeamNode(node) ? 'ptc-mini-active' : '')}
         />
       </ReactFlow>
     </div>

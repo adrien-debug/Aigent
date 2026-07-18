@@ -16,9 +16,20 @@ type PgrestHandler = (method: string, path: string, body?: unknown) => unknown
 let pgrestHandler: PgrestHandler = () => []
 let copilotsHandler: () => unknown = () => []
 let projectHandler: (id: string) => unknown = () => undefined
+/**
+ * Forces PostgREST's exact `count=exact` total to differ from the rows handed
+ * back — i.e. simulates a run set LARGER than the fetch window. `null` means
+ * "count the rows we returned", the honest non-truncated case.
+ */
+let runsCountOverride: number | null = null
 
 vi.mock('@/lib/agent-mission-control/postgrest', () => ({
   pgrest: vi.fn(async (method: string, path: string, body?: unknown) => pgrestHandler(method, path, body)),
+  pgrestWithCount: vi.fn(async (path: string) => {
+    const rows = pgrestHandler('GET', path) as Record<string, unknown>[]
+    const isRuns = path.split('?')[0] === 'agent_runs'
+    return { rows, count: isRuns && runsCountOverride !== null ? runsCountOverride : rows.length }
+  }),
   isPgrestTimeout: () => false,
   pgrestDetail: (err: unknown) => (err instanceof Error ? err.message : String(err)),
   camelRows: <T,>(rows: Record<string, unknown>[]): T[] =>
@@ -31,9 +42,12 @@ vi.mock('@/lib/agent-mission-control/postgrest', () => ({
     }),
 }))
 
+// getCopilots() is deliberately NOT mocked any more: the graph no longer reads
+// the whole copilots table through it (it would also drag in the 5-round-trip
+// health batch). Agents now come from a project-scoped `copilots` read, routed
+// through the pgrest mock like every other table.
 vi.mock('@/lib/agent-mission-control/data', () => ({
   getProject: vi.fn(async (id: string) => projectHandler(id)),
-  getCopilots: vi.fn(async () => copilotsHandler()),
 }))
 
 import { getProjectTeamGraph } from '@/lib/agent-mission-control/project-team/data'
@@ -84,7 +98,7 @@ function runRow(over: Record<string, unknown> & { id: string; copilot_id: string
   }
 }
 
-/** Route the mocked pgrest by table name. */
+/** Route the mocked pgrest by table name. `copilots` always comes from copilotsHandler. */
 function routeTables(tables: {
   agent_runs?: Record<string, unknown>[] | (() => never)
   tools?: Record<string, unknown>[] | (() => never)
@@ -92,8 +106,9 @@ function routeTables(tables: {
   mission_runs?: Record<string, unknown>[] | (() => never)
 }): PgrestHandler {
   return (_method, path) => {
-    const table = path.split('?')[0] as keyof typeof tables
-    const value = tables[table]
+    const table = path.split('?')[0] ?? ''
+    if (table === 'copilots') return copilotsHandler()
+    const value = tables[table as keyof typeof tables]
     if (typeof value === 'function') return value()
     return value ?? []
   }
@@ -104,6 +119,7 @@ describe('getProjectTeamGraph', () => {
     projectHandler = (id) => (id === PROJECT ? { id: PROJECT, name: 'Test Project', slug: 'test', description: 'd' } : undefined)
     copilotsHandler = () => []
     pgrestHandler = routeTables({})
+    runsCountOverride = null
   })
 
   afterEach(() => {
@@ -204,12 +220,43 @@ describe('getProjectTeamGraph', () => {
     const node = graph?.nodes.find((n) => n.kind === 'agent')
     expect(node?.status).toBe('unavailable')
     expect(node?.latestRun).toBeNull()
+    // EVERY count is null, not 0. An unread run set is not "0 runs", it is
+    // "unknown" — this is the exact fabricated-zero the contract exists to stop.
+    expect(node?.metrics.totalRuns).toBeNull()
+    expect(node?.metrics.runsToday).toBeNull()
     // successRate stays null — an unread run set is NOT a 0% success rate.
     expect(node?.metrics.successRate).toBeNull()
+    // Same rule at project level: no fabricated project totals either.
+    const projectNode = graph?.nodes.find((n) => n.kind === 'project')
+    expect(projectNode?.metrics.totalRuns).toBeNull()
+    expect(projectNode?.metrics.runsToday).toBeNull()
+    expect(graph?.summary.runsToday).toBeNull()
     expect(graph?.freshness.latestActivityAt).toBeNull()
     expect(() => parseProjectTeamGraph(graph)).not.toThrow()
 
     errorSpy.mockRestore()
+  })
+
+  it('6b — a REAL zero and an UNKNOWN are different values, not just different labels', async () => {
+    // The defect this pins: both used to serialize as `0`, so no consumer could
+    // tell "this agent has never run" from "we could not read the runs".
+    copilotsHandler = () => [copilot({ id: 'a' })]
+    const measured = await getProjectTeamGraph(PROJECT, { now: NOW })
+    const measuredMetrics = measured?.nodes.find((n) => n.kind === 'agent')?.metrics
+
+    pgrestHandler = routeTables({
+      agent_runs: () => {
+        throw new Error('PostgREST 504 on GET agent_runs')
+      },
+    })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const unknown = await getProjectTeamGraph(PROJECT, { now: NOW })
+    const unknownMetrics = unknown?.nodes.find((n) => n.kind === 'agent')?.metrics
+    errorSpy.mockRestore()
+
+    expect(measuredMetrics?.totalRuns).toBe(0)
+    expect(unknownMetrics?.totalRuns).toBeNull()
+    expect(measuredMetrics).not.toEqual(unknownMetrics)
   })
 
   it('7 — an agent with zero runs is idle with a null successRate (never a fabricated 0)', async () => {
@@ -256,6 +303,7 @@ describe('getProjectTeamGraph', () => {
     const toolQueries: string[] = []
     pgrestHandler = (_method, path) => {
       const table = path.split('?')[0]
+      if (table === 'copilots') return copilotsHandler()
       if (table === 'tools') {
         toolQueries.push(path)
         return [
@@ -350,6 +398,36 @@ describe('getProjectTeamGraph', () => {
     ])
     // The provenance-only agent hangs off the project directly.
     expect(graph?.nodes.find((n) => n.id === 'c')?.team).toBeNull()
+
+    // V1 END-TO-END: tag-derived grouping must reach the UI as `derived`, so it
+    // renders dashed and reads "Derived" instead of claiming to be configured.
+    const teamEdges = graph?.edges.filter((e) => e.relation === 'team-membership') ?? []
+    expect(teamEdges.every((e) => e.origin === 'derived')).toBe(true)
+    const groupEdge = graph?.edges.find(
+      (e) => e.relation === 'project-membership' && e.source === groupNode?.id
+    )
+    expect(groupEdge?.origin).toBe('derived')
+    // The ungrouped agent's own edge IS explicit: it restates copilots.project_id.
+    const directEdge = graph?.edges.find(
+      (e) => e.relation === 'project-membership' && e.source === 'c'
+    )
+    expect(directEdge?.origin).toBe('explicit')
+  })
+
+  it('14a — no edge reaching the UI claims activity without a persisted relation event', async () => {
+    // Two agents both running recently (co-activity) and sharing a tool. The
+    // canvas animates flow on `active`, so nothing here may set it.
+    copilotsHandler = () => [copilot({ id: 'a' }), copilot({ id: 'b' })]
+    pgrestHandler = routeTables({
+      agent_runs: [
+        runRow({ id: 'r1', copilot_id: 'a', status: 'completed' }),
+        runRow({ id: 'r2', copilot_id: 'b', status: 'completed' }),
+      ],
+    })
+    const graph = await getProjectTeamGraph(PROJECT, { now: NOW })
+    expect(graph?.edges.length).toBeGreaterThan(0)
+    expect(graph?.edges.every((e) => e.active === false)).toBe(true)
+    expect(graph?.edges.every((e) => e.lastActivityAt === null)).toBe(true)
   })
 
   it('15 — a 25-agent project stays coherent and contract-valid', async () => {
@@ -386,7 +464,9 @@ describe('getProjectTeamGraph', () => {
     copilotsHandler = () => [copilot({ id: 'a' })]
     const queriedTables: string[] = []
     pgrestHandler = (_method, path) => {
-      queriedTables.push(path.split('?')[0] as string)
+      const table = path.split('?')[0] as string
+      queriedTables.push(table)
+      if (table === 'copilots') return copilotsHandler()
       return []
     }
     const graph = await getProjectTeamGraph(PROJECT, { now: NOW })
@@ -397,6 +477,328 @@ describe('getProjectTeamGraph', () => {
     expect(serialized).not.toContain('system_prompt_summary')
     // `.strict()` on the schema is what keeps this true if the shape ever drifts.
     expect(() => parseProjectTeamGraph(graph)).not.toThrow()
+  })
+
+  it('19 — TRUNCATION: a windowed run set never reports its floor as a total', async () => {
+    // 2 rows in the window, but PostgREST's exact count says 4210 runs exist.
+    // The old code reported `rows.length` as "Total runs" — a silently wrong
+    // number labelled as complete.
+    copilotsHandler = () => [copilot({ id: 'a' }), copilot({ id: 'b' })]
+    pgrestHandler = routeTables({
+      agent_runs: [
+        runRow({ id: 'r1', copilot_id: 'a', started_at: '2026-07-18T09:00:00.000Z' }),
+        runRow({ id: 'r2', copilot_id: 'a', started_at: '2026-07-18T08:00:00.000Z' }),
+      ],
+    })
+    runsCountOverride = 4210
+
+    const graph = await getProjectTeamGraph(PROJECT, { now: NOW })
+
+    // Project total is EXACT — straight from count=exact, not from the window.
+    const projectNode = graph?.nodes.find((n) => n.kind === 'project')
+    expect(projectNode?.metrics.totalRuns).toBe(4210)
+
+    // The agent visible in the window has a real recent history, but its
+    // lifetime count is only a floor => unknown, never the floor itself.
+    const a = graph?.nodes.find((n) => n.id === 'a')
+    expect(a?.metrics.totalRuns).toBeNull()
+    expect(a?.metrics.runsToday).toBeNull()
+    expect(a?.metrics.successRate).toBeNull()
+    // Its latest run IS knowable: the window is globally newest-first.
+    expect(a?.latestRun?.id).toBe('r1')
+
+    // Agent 'b' is absent from the window. Under truncation that is ambiguous
+    // (never ran? or pushed out by a busier agent?) => unavailable, not `idle`.
+    const b = graph?.nodes.find((n) => n.id === 'b')
+    expect(b?.status).toBe('unavailable')
+    expect(b?.metrics.totalRuns).toBeNull()
+
+    expect(() => parseProjectTeamGraph(graph)).not.toThrow()
+  })
+
+  it('20 — an exhausted window is exact: counts stay real numbers, nothing degrades', async () => {
+    // The common case must NOT be collateral damage of the truncation fix.
+    copilotsHandler = () => [copilot({ id: 'a' })]
+    pgrestHandler = routeTables({
+      agent_runs: [runRow({ id: 'r1', copilot_id: 'a', started_at: '2026-07-18T09:00:00.000Z' })],
+    })
+    const graph = await getProjectTeamGraph(PROJECT, { now: NOW })
+    const node = graph?.nodes.find((n) => n.kind === 'agent')
+    expect(node?.status).toBe('idle')
+    expect(node?.metrics).toEqual({ totalRuns: 1, runsToday: 1, successRate: 1 })
+    expect(graph?.summary.runsToday).toBe(1)
+  })
+
+  it('21 — a group total is unknown when ANY member is unknown (never a silent undercount)', async () => {
+    copilotsHandler = () => [
+      copilot({ id: 'a', tags: ['review'] }),
+      copilot({ id: 'b', tags: ['review'] }),
+    ]
+    pgrestHandler = routeTables({
+      agent_runs: [runRow({ id: 'r1', copilot_id: 'a', started_at: '2026-07-18T09:00:00.000Z' })],
+    })
+    runsCountOverride = 900 // truncated => 'b' is unknown, 'a' is a floor
+
+    const graph = await getProjectTeamGraph(PROJECT, { now: NOW })
+    const group = graph?.nodes.find((n) => n.kind === 'group')
+    expect(group?.metrics.totalRuns).toBeNull()
+    expect(group?.metrics.runsToday).toBeNull()
+  })
+
+  it('22 — agents are read SCOPED to the project, not by scanning the whole estate', async () => {
+    // The old path read `copilots?select=*` (every copilot in the DB) and then
+    // ran a 5-round-trip health batch over ALL of them — on a ~10s poll, per
+    // open tab, to draw one project.
+    copilotsHandler = () => [copilot({ id: 'a' })]
+    const paths: string[] = []
+    pgrestHandler = (_method, path) => {
+      paths.push(path)
+      if (path.split('?')[0] === 'copilots') return copilotsHandler()
+      return []
+    }
+
+    await getProjectTeamGraph(PROJECT, { now: NOW })
+
+    const copilotQueries = paths.filter((p) => p.startsWith('copilots?'))
+    expect(copilotQueries).toHaveLength(1)
+    expect(copilotQueries[0]).toContain(`project_id=eq.${PROJECT}`)
+    // Narrow select — no `select=*`, no health/manifest/assistant columns.
+    expect(copilotQueries[0]).not.toContain('select=*')
+
+    // The health batch is gone: none of its tables is touched at all.
+    for (const table of ['test_runs', 'test_results', 'benchmark_runs', 'benchmark_results']) {
+      expect(paths.some((p) => p.startsWith(`${table}?`))).toBe(false)
+    }
+  })
+
+  it('23 — the relations read is narrow: operator-writable metadata is never pulled', async () => {
+    copilotsHandler = () => [copilot({ id: 'a' })]
+    const paths: string[] = []
+    pgrestHandler = (_method, path) => {
+      paths.push(path)
+      if (path.split('?')[0] === 'copilots') return copilotsHandler()
+      return []
+    }
+    await getProjectTeamGraph(PROJECT, { now: NOW })
+
+    const relationQuery = paths.find((p) => p.startsWith('project_agent_relations?'))
+    expect(relationQuery).toBeDefined()
+    expect(relationQuery).not.toContain('select=*')
+    expect(relationQuery).not.toContain('metadata')
+    expect(relationQuery).toContain('relation_type')
+  })
+
+  // ---------------------------------------------------------------------------
+  // Defect 1b — the summary counters must not fabricate zeros
+  // ---------------------------------------------------------------------------
+
+  it('24 — unreadable runs make the four activity counters UNKNOWN, never "0 active"', async () => {
+    // The exact defect: every agent turns `unavailable`, so countBy() returned 0
+    // four times and the UI asserted "0 Active · 0 Waiting · 0 Blocked · 0
+    // Failed" — read aloud by the aria-live region — when nothing was known.
+    copilotsHandler = () => [copilot({ id: 'a' }), copilot({ id: 'b' })]
+    pgrestHandler = routeTables({
+      agent_runs: () => {
+        throw new Error('PostgREST 504 on GET agent_runs')
+      },
+    })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const graph = await getProjectTeamGraph(PROJECT, { now: NOW })
+    errorSpy.mockRestore()
+
+    expect(graph?.summary.activeAgents).toBeNull()
+    expect(graph?.summary.waitingAgents).toBeNull()
+    expect(graph?.summary.blockedAgents).toBeNull()
+    expect(graph?.summary.failedAgents).toBeNull()
+    // Not silently vanished: the agents are counted where they actually are.
+    expect(graph?.summary.unavailableAgents).toBe(2)
+    // Still facts — these never depended on the runs read.
+    expect(graph?.summary.totalAgents).toBe(2)
+    expect(graph?.summary.draftAgents).toBe(0)
+    expect(() => parseProjectTeamGraph(graph)).not.toThrow()
+  })
+
+  it('25 — a PARTIALLY unknown roster yields unknown counters, not a floor', async () => {
+    // 'a' is visible and idle, 'b' was pushed out of the truncated window. "0
+    // active" would be a floor presented as a total: 'b' might be running.
+    copilotsHandler = () => [copilot({ id: 'a' }), copilot({ id: 'b' })]
+    pgrestHandler = routeTables({
+      agent_runs: [runRow({ id: 'r1', copilot_id: 'a', started_at: '2026-07-18T09:00:00.000Z' })],
+    })
+    runsCountOverride = 900
+
+    const graph = await getProjectTeamGraph(PROJECT, { now: NOW })
+    expect(graph?.nodes.find((n) => n.id === 'b')?.status).toBe('unavailable')
+    expect(graph?.summary.activeAgents).toBeNull()
+    expect(graph?.summary.failedAgents).toBeNull()
+    expect(graph?.summary.unavailableAgents).toBe(1)
+    expect(() => parseProjectTeamGraph(graph)).not.toThrow()
+  })
+
+  it('26 — a MEASURED zero survives: known statuses still publish real counts', async () => {
+    // The fix must not turn every count into null. With the whole roster
+    // readable, "0 failed" is a fact and must stay the number 0.
+    copilotsHandler = () => [copilot({ id: 'a' }), copilot({ id: 'b' })]
+    pgrestHandler = routeTables({
+      agent_runs: [
+        runRow({ id: 'r1', copilot_id: 'a', status: 'running', finished_at: null }),
+        runRow({ id: 'r2', copilot_id: 'b', status: 'completed' }),
+      ],
+    })
+    const graph = await getProjectTeamGraph(PROJECT, { now: NOW })
+    expect(graph?.summary.activeAgents).toBe(1)
+    expect(graph?.summary.failedAgents).toBe(0)
+    expect(graph?.summary.blockedAgents).toBe(0)
+    expect(graph?.summary.unavailableAgents).toBe(0)
+  })
+
+  it('26b — a fabricated 0 and an unknown are different VALUES on the summary', async () => {
+    copilotsHandler = () => [copilot({ id: 'a' })]
+    pgrestHandler = routeTables({
+      agent_runs: [runRow({ id: 'r1', copilot_id: 'a', status: 'completed' })],
+    })
+    const measured = await getProjectTeamGraph(PROJECT, { now: NOW })
+
+    pgrestHandler = routeTables({
+      agent_runs: () => {
+        throw new Error('PostgREST 504 on GET agent_runs')
+      },
+    })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const unknown = await getProjectTeamGraph(PROJECT, { now: NOW })
+    errorSpy.mockRestore()
+
+    expect(measured?.summary.activeAgents).toBe(0)
+    expect(unknown?.summary.activeAgents).toBeNull()
+    expect(measured?.summary).not.toEqual(unknown?.summary)
+  })
+
+  // ---------------------------------------------------------------------------
+  // Defect 1c — a null latestRun is not automatically "never ran"
+  // ---------------------------------------------------------------------------
+
+  it('27 — the THREE reasons for a null latestRun stay distinguishable', async () => {
+    // (a) genuinely never ran — the runs WERE read, and there were none.
+    copilotsHandler = () => [copilot({ id: 'a' })]
+    const neverRan = await getProjectTeamGraph(PROJECT, { now: NOW })
+    const neverRanNode = neverRan?.nodes.find((n) => n.kind === 'agent')
+    expect(neverRanNode?.latestRun).toBeNull()
+    expect(neverRanNode?.runHistory).toBe('known')
+
+    // (b) runs unreadable — nothing may be claimed about activity.
+    pgrestHandler = routeTables({
+      agent_runs: () => {
+        throw new Error('PostgREST 504 on GET agent_runs')
+      },
+    })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const unreadable = await getProjectTeamGraph(PROJECT, { now: NOW })
+    errorSpy.mockRestore()
+    const unreadableNode = unreadable?.nodes.find((n) => n.kind === 'agent')
+    expect(unreadableNode?.latestRun).toBeNull()
+    expect(unreadableNode?.runHistory).toBe('unreadable')
+
+    // (c) outside the read window — busier agents pushed it out.
+    copilotsHandler = () => [copilot({ id: 'a' }), copilot({ id: 'b' })]
+    pgrestHandler = routeTables({
+      agent_runs: [runRow({ id: 'r1', copilot_id: 'a', started_at: '2026-07-18T09:00:00.000Z' })],
+    })
+    runsCountOverride = 900
+    const truncated = await getProjectTeamGraph(PROJECT, { now: NOW })
+    const pushedOut = truncated?.nodes.find((n) => n.id === 'b')
+    expect(pushedOut?.latestRun).toBeNull()
+    expect(pushedOut?.runHistory).toBe('outside-window')
+
+    // All three carry the SAME null latestRun — the state is the only thing
+    // that tells them apart, which is exactly why the renderer needs it.
+    expect(new Set([neverRanNode, unreadableNode, pushedOut].map((n) => n?.runHistory)).size).toBe(3)
+
+    // An agent that DID run inside the window reports a real run, state `known`.
+    expect(truncated?.nodes.find((n) => n.id === 'a')?.runHistory).toBe('known')
+    expect(truncated?.nodes.find((n) => n.id === 'a')?.latestRun?.id).toBe('r1')
+  })
+
+  it('27b — container nodes report `not-applicable`, never "no run recorded"', async () => {
+    copilotsHandler = () => [copilot({ id: 'a', tags: ['review'] }), copilot({ id: 'b', tags: ['review'] })]
+    pgrestHandler = routeTables({
+      agent_runs: [runRow({ id: 'r1', copilot_id: 'a', started_at: '2026-07-18T09:00:00.000Z' })],
+    })
+    const graph = await getProjectTeamGraph(PROJECT, { now: NOW })
+    // The project hub HAS runs beneath it; claiming it "never ran" would be false.
+    expect(graph?.nodes.find((n) => n.kind === 'project')?.runHistory).toBe('not-applicable')
+    expect(graph?.nodes.find((n) => n.kind === 'group')?.runHistory).toBe('not-applicable')
+  })
+
+  // ---------------------------------------------------------------------------
+  // Defect 1d — an empty toolset must not be invented from a failed read
+  // ---------------------------------------------------------------------------
+
+  it('28 — an unreadable tools table flags unavailability instead of claiming "none declared"', async () => {
+    copilotsHandler = () => [copilot({ id: 'a' })]
+    pgrestHandler = routeTables({
+      tools: () => {
+        throw new Error('PostgREST 504 on GET tools')
+      },
+    })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const graph = await getProjectTeamGraph(PROJECT, { now: NOW })
+    errorSpy.mockRestore()
+
+    const node = graph?.nodes.find((n) => n.kind === 'agent')
+    expect(node?.toolsUnavailable).toBe(true)
+    // The array is still empty — that is deliberate, the canvas keeps drawing.
+    // The FLAG is what stops the empty array from being read as a claim.
+    expect(node?.tools).toEqual([])
+    // Derived tool edges are dropped, as before — the canvas is not blanked.
+    expect(graph?.edges.some((e) => e.relation === 'shares-tool')).toBe(false)
+    expect(graph?.edges.length).toBeGreaterThan(0)
+    expect(() => parseProjectTeamGraph(graph)).not.toThrow()
+  })
+
+  it('28b — a genuinely empty toolset is a different fact from an unreadable one', async () => {
+    copilotsHandler = () => [copilot({ id: 'a' })]
+    pgrestHandler = routeTables({ tools: [] })
+    const graph = await getProjectTeamGraph(PROJECT, { now: NOW })
+    const node = graph?.nodes.find((n) => n.kind === 'agent')
+    // Read succeeded, nothing came back: "No tool declared." is TRUE here.
+    expect(node?.tools).toEqual([])
+    expect(node?.toolsUnavailable).toBe(false)
+  })
+
+  // ---------------------------------------------------------------------------
+  // Defect 1e — freshness must not be ambiguous
+  // ---------------------------------------------------------------------------
+
+  it('29 — a null latestActivityAt says WHICH fact it states', async () => {
+    // Project that genuinely never ran.
+    copilotsHandler = () => [copilot({ id: 'a' })]
+    const neverRan = await getProjectTeamGraph(PROJECT, { now: NOW })
+    expect(neverRan?.freshness.latestActivityAt).toBeNull()
+    expect(neverRan?.freshness.latestActivityState).toBe('known')
+
+    // Same null, opposite meaning: the runs could not be read.
+    pgrestHandler = routeTables({
+      agent_runs: () => {
+        throw new Error('PostgREST 504 on GET agent_runs')
+      },
+    })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const unreadable = await getProjectTeamGraph(PROJECT, { now: NOW })
+    errorSpy.mockRestore()
+    expect(unreadable?.freshness.latestActivityAt).toBeNull()
+    expect(unreadable?.freshness.latestActivityState).toBe('unreadable')
+
+    expect(neverRan?.freshness).not.toEqual(unreadable?.freshness)
+  })
+
+  it('29b — a readable project reports its activity timestamp as known', async () => {
+    copilotsHandler = () => [copilot({ id: 'a' })]
+    pgrestHandler = routeTables({
+      agent_runs: [runRow({ id: 'r1', copilot_id: 'a', started_at: '2026-07-18T09:30:00.000Z' })],
+    })
+    const graph = await getProjectTeamGraph(PROJECT, { now: NOW })
+    expect(graph?.freshness.latestActivityAt).toBe('2026-07-18T09:30:00.000Z')
+    expect(graph?.freshness.latestActivityState).toBe('known')
   })
 
   it('18 — output is deterministic across two identical calls', async () => {

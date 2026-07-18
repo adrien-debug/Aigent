@@ -10,11 +10,32 @@
  * and NOTHING else:
  *
  *   Level 1 — EXPLICIT   rows of `project_agent_relations` (migration 0019).
- *   Level 2 — STRUCTURE  membership, a restatement of `copilots.project_id`
- *                        (+ tag-derived grouping). Marked `explicit` because
- *                        it is persisted truth, not inference.
+ *   Level 2 — STRUCTURE  `project-membership` of an AGENT to the project node:
+ *                        a verbatim restatement of the persisted
+ *                        `copilots.project_id`. That — and only that — is
+ *                        `explicit`.
  *   Level 3 — DERIVED    deterministic, explainable computation over persisted
- *                        rows: shared tool NAMES, mission participation.
+ *                        rows: tag-derived team grouping, shared tool NAMES,
+ *                        mission participation.
+ *
+ * ------------------------- PROVENANCE IS NOT COSMETIC -------------------------
+ *
+ * `origin` drives how an edge is RENDERED (solid vs dashed) and WORDED
+ * ("Configured" vs "Derived") in the inspector panel. Stamping a computed edge
+ * `explicit` therefore tells the operator "someone configured this", which is a
+ * lie when no row backs it. The rule is mechanical:
+ *
+ *   `explicit` ⟺ a persisted row states this exact edge.
+ *
+ * Team groups are the trap. `copilots.tags` is real persisted data, so the
+ * GROUPING is legitimate — but there is no teams table and no team_id column:
+ * the group node itself is a construct of TEAM_TAG_RULES below, an editable
+ * table living in this file. No operator ever configured it. Hence BOTH edges
+ * that touch a group node are `derived`:
+ *   - agent -> group   (`team-membership`)
+ *   - group -> project (`project-membership`, source node is itself derived)
+ * An agent that lands in no group attaches straight to the project, and THAT
+ * edge is `explicit` — it is `copilots.project_id` and nothing else.
  *
  * EXPLICITLY FORBIDDEN, and deliberately not implemented anywhere below:
  *   - inferring an orchestrator from an agent's NAME ("supervisor", "lead", …)
@@ -45,9 +66,11 @@ import type { ProjectTeamEdge, ProjectTeamEdgeOrigin, ProjectTeamEdgeRelation } 
 export const SHARED_TOOL_MAX_AGENTS = 4
 
 /**
- * Window in which a run counts as "recent" for `edge.active`. `active` is a
- * factual claim about traffic, not a decoration — outside this window an edge
- * is rendered as dormant.
+ * Window in which a RELATION EVENT counts as "recent" for `edge.active`.
+ *
+ * See `buildRelationEventIndex` for what may open this window. It is NOT the
+ * window in which an endpoint agent ran: endpoint runs never make an edge
+ * active (V2 doctrine below).
  */
 export const RECENT_ACTIVITY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -154,7 +177,18 @@ export interface BuildTeamEdgesInput {
   /** agentId -> tool names it declares. */
   toolNamesByAgentId?: ReadonlyMap<string, readonly string[]>
   missionParticipations?: readonly MissionParticipationInput[]
-  /** agentId -> ISO timestamp of its most recent run (`null` = never ran). */
+  /**
+   * agentId -> ISO timestamp of its most recent run (`null` = never ran).
+   *
+   * DELIBERATELY NOT CONSULTED when computing `edge.active` /
+   * `edge.lastActivityAt` — see the V2 doctrine on `buildRelationEventIndex`.
+   * An agent's own runs are a fact about the NODE, and `data.ts` already
+   * surfaces them there (`node.latestRun`, `node.metrics`). Reading them here
+   * would recreate exactly the co-activity fallacy this module now forbids.
+   *
+   * Kept on the input so callers need not change, and so the next reader finds
+   * this note instead of "helpfully" wiring it back into edge activity.
+   */
   lastActivityByAgentId?: ReadonlyMap<string, string | null>
   /** Reference instant for the recency window. Defaults to now. */
   nowMs?: number
@@ -229,6 +263,55 @@ export function buildGroupedAgentMap(groups: readonly TeamGroup[]): Map<string, 
 // Activity helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * ===================== V2 DOCTRINE: WHAT MAKES AN EDGE ACTIVE ================
+ *
+ * DECISION (option "a"): `edge.active` is true ONLY when a persisted fact
+ * records an event ON that relation. Everything else is `active: false` with
+ * `lastActivityAt: null`.
+ *
+ * What this replaced, and why it was wrong: an edge used to be marked active
+ * whenever BOTH endpoints happened to have run recently. That is CO-ACTIVITY of
+ * two agents — "these two were both busy this week" — and nothing persisted
+ * says they exchanged anything. The canvas then animated it as flow along the
+ * edge (`animateFlow = viewMode === 'activity' && edge.active && directed`), so
+ * two unrelated agents that merely ran the same afternoon rendered as a live
+ * pipeline. Motion is the strongest claim this UI can make; it must be earned
+ * by evidence of MOVEMENT, never by coincidence of timing.
+ *
+ * The ONLY fact in today's schema that records something happening *along* an
+ * edge is a mission run tying `mission_runs.orchestrator_copilot_id` to its
+ * participants: that run genuinely means the orchestrator drove the
+ * participant. Keys are UNORDERED — the run evidences an interaction between
+ * the pair, so it counts for a relation declared in either direction.
+ *
+ * NOTE: `orchestrator_copilot_id` is hardcoded NULL today
+ * (mission-orchestrator.ts), so this index is empty in practice and every edge
+ * is currently `active: false`. That is the CORRECT output, not a regression:
+ * nothing persisted evidences traffic, so the canvas claims none. When
+ * orchestrators start being recorded, real flow lights up with no change here.
+ *
+ * Membership and `shares-tool` can NEVER be active: "belongs to" and "declares
+ * the same tool name" are static statements, not channels — nothing can flow
+ * along them by definition.
+ */
+function buildRelationEventIndex(
+  missions: readonly MissionParticipationInput[],
+  agentIds: ReadonlySet<string>
+): Map<string, string | null> {
+  const index = new Map<string, string | null>()
+  for (const mission of missions) {
+    const orchestrator = mission.orchestratorCopilotId
+    if (!orchestrator || !agentIds.has(orchestrator)) continue
+    for (const participant of mission.participantCopilotIds ?? []) {
+      if (participant === orchestrator || !agentIds.has(participant)) continue
+      const key = unorderedPairKey(orchestrator, participant)
+      index.set(key, laterOf(index.get(key) ?? null, mission.updatedAt ?? null))
+    }
+  }
+  return index
+}
+
 function isRecent(iso: string | null | undefined, nowMs: number): boolean {
   if (typeof iso !== 'string' || iso.length === 0) return false
   const ms = Date.parse(iso)
@@ -285,27 +368,29 @@ export function buildTeamEdges(input: BuildTeamEdgesInput): ProjectTeamEdge[] {
   const nowMs = input.nowMs ?? Date.now()
   const agents = input.agents
   const agentIds = new Set(agents.map((a) => a.id))
-  const lastActivity = input.lastActivityByAgentId ?? new Map<string, string | null>()
   const projectId = projectNodeId(input.projectId)
 
   const edges: ProjectTeamEdge[] = []
-  const agentActive = (id: string): boolean => isRecent(lastActivity.get(id) ?? null, nowMs)
+
+  // The only persisted evidence of movement along an edge. See the doctrine on
+  // buildRelationEventIndex — endpoint runs are NOT consulted anywhere below.
+  const relationEvents = buildRelationEventIndex(input.missionParticipations ?? [], agentIds)
+  const relationEventAt = (a: string, b: string): string | null =>
+    relationEvents.get(unorderedPairKey(a, b)) ?? null
 
   // -- Level 2: STRUCTURE ---------------------------------------------------
-  // Membership restates copilots.project_id, so it is `explicit`, not inferred.
+  // Membership carries NO activity: "belongs to" is a static statement, never a
+  // channel. active:false / lastActivityAt:null on every membership edge.
   const groups = buildTeamGroups(agents)
   const groupByAgentId = buildGroupedAgentMap(groups)
 
   for (const group of groups) {
-    const groupLastActivity = group.agentIds.reduce<string | null>(
-      (acc, id) => laterOf(acc, lastActivity.get(id) ?? null),
-      null
-    )
+    // `derived`, not `explicit`: the group node exists only because
+    // TEAM_TAG_RULES says so. No row anywhere states "this group belongs to
+    // this project", so this edge must not render as configured either.
     edges.push(
-      makeEdge('project-membership', 'explicit', group.nodeId, projectId, {
+      makeEdge('project-membership', 'derived', group.nodeId, projectId, {
         label: group.team,
-        active: group.agentIds.some((id) => agentActive(id)),
-        lastActivityAt: groupLastActivity,
         weight: group.agentIds.length,
       })
     )
@@ -313,24 +398,23 @@ export function buildTeamEdges(input: BuildTeamEdgesInput): ProjectTeamEdge[] {
 
   for (const agent of agents) {
     const group = groupByAgentId.get(agent.id)
-    const activity = lastActivity.get(agent.id) ?? null
     if (group) {
       // Grouped agents attach to their group INSTEAD of the project — a single
       // membership path per agent, never both.
+      //
+      // `derived`: this edge restates a TAG, run through the TEAM_TAG_RULES
+      // table in this file. The tag is persisted truth; the team it maps to is
+      // our computation. An operator never configured this membership, so it
+      // renders dashed and reads "Derived", like every other computed edge.
       edges.push(
-        makeEdge('team-membership', 'explicit', agent.id, group.nodeId, {
+        makeEdge('team-membership', 'derived', agent.id, group.nodeId, {
           label: group.team,
-          active: agentActive(agent.id),
-          lastActivityAt: activity,
         })
       )
     } else {
-      edges.push(
-        makeEdge('project-membership', 'explicit', agent.id, projectId, {
-          active: agentActive(agent.id),
-          lastActivityAt: activity,
-        })
-      )
+      // The one genuinely explicit structural edge: a verbatim restatement of
+      // the persisted `copilots.project_id`.
+      edges.push(makeEdge('project-membership', 'explicit', agent.id, projectId))
     }
   }
 
@@ -346,17 +430,16 @@ export function buildTeamEdges(input: BuildTeamEdgesInput): ProjectTeamEdge[] {
     const relation = EXPLICIT_RELATION_TYPES.find((r) => r === row.relationType)
     if (!relation) continue
 
-    const bothRecentlyActive = agentActive(row.sourceCopilotId) && agentActive(row.targetCopilotId)
+    // Activity on an explicit relation needs BOTH: the operator must not have
+    // disabled the row, AND a persisted event must have occurred on the pair.
+    // `is_active` alone is a CONFIGURATION flag ("this relation is enabled"),
+    // never proof that anything travelled — on its own it must not animate.
+    const eventAt = relationEventAt(row.sourceCopilotId, row.targetCopilotId)
     edges.push(
       makeEdge(relation, 'explicit', row.sourceCopilotId, row.targetCopilotId, {
         label: row.label ?? null,
-        // A row flagged inactive is inactive, full stop. Otherwise `active`
-        // means real traffic on both ends inside the recency window.
-        active: row.isActive === false ? false : bothRecentlyActive,
-        lastActivityAt: laterOf(
-          lastActivity.get(row.sourceCopilotId) ?? null,
-          lastActivity.get(row.targetCopilotId) ?? null
-        ),
+        active: row.isActive === false ? false : isRecent(eventAt, nowMs),
+        lastActivityAt: eventAt,
       })
     )
     explicitPairs.add(unorderedPairKey(row.sourceCopilotId, row.targetCopilotId))
@@ -376,11 +459,15 @@ export function buildTeamEdges(input: BuildTeamEdgesInput): ProjectTeamEdge[] {
       const key = `${orchestrator}::${participant}`
       if (seenOrchestration.has(key)) continue
       seenOrchestration.add(key)
+      // The mission run IS the event on this relation: it records that the
+      // orchestrator drove this participant. This is the one edge whose
+      // activity rests on evidence of movement rather than coincidence.
+      const eventAt = relationEventAt(orchestrator, participant)
       edges.push(
         makeEdge('orchestrates', 'derived', orchestrator, participant, {
           label: 'mission',
-          active: agentActive(orchestrator) && agentActive(participant),
-          lastActivityAt: mission.updatedAt ?? null,
+          active: isRecent(eventAt, nowMs),
+          lastActivityAt: eventAt,
         })
       )
     }
@@ -423,11 +510,11 @@ export function buildTeamEdges(input: BuildTeamEdgesInput): ProjectTeamEdge[] {
 
   for (const { source, target, names } of sharedByPair.values()) {
     const sortedNames = [...names].sort()
+    // Never active: "we declare the same tool name" is a static coincidence of
+    // configuration. Nothing travels between these two agents because of it.
     edges.push(
       makeEdge('shares-tool', 'derived', source, target, {
         label: sortedNames.join(', '),
-        active: agentActive(source) && agentActive(target),
-        lastActivityAt: laterOf(lastActivity.get(source) ?? null, lastActivity.get(target) ?? null),
         weight: sortedNames.length,
       })
     )

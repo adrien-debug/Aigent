@@ -39,6 +39,20 @@ export const projectTeamEdgeRelationSchema = z.enum([
 
 export const projectTeamEdgeOriginSchema = z.enum(['explicit', 'derived'])
 
+/**
+ * Disambiguates a `null` `latestRun`. Part of the contract, not a hint: without
+ * it "never ran", "unreadable" and "outside the read window" all serialize as
+ * the same `null` and the UI turns missing data into a positive claim.
+ */
+export const projectTeamRunHistoryStateSchema = z.enum([
+  'known',
+  'unreadable',
+  'outside-window',
+  'not-applicable',
+])
+
+export const projectTeamActivityStateSchema = z.enum(['known', 'unreadable'])
+
 export const projectTeamLatestRunSchema = z
   .object({
     id: z.string().min(1),
@@ -63,14 +77,22 @@ export const projectTeamNodeSchema = z
     model: z.string().nullable(),
     status: projectTeamNodeStatusSchema,
     latestRun: projectTeamLatestRunSchema.nullable(),
+    runHistory: projectTeamRunHistoryStateSchema,
+    // `.nullable()` on the counts is load-bearing, not laxity: it is what lets
+    // "we could not read the runs" travel to the UI as UNKNOWN instead of
+    // arriving as an indistinguishable `0`.
     metrics: z
       .object({
-        totalRuns: z.number().int().min(0),
-        runsToday: z.number().int().min(0),
+        totalRuns: z.number().int().min(0).nullable(),
+        runsToday: z.number().int().min(0).nullable(),
         successRate: z.number().min(0).max(1).nullable(),
       })
       .strict(),
     tools: z.array(z.object({ id: z.string(), name: z.string() }).strict()),
+    // An empty `tools` with this flag set claims NOTHING. Without the flag the
+    // renderer reads `[]` as "no tool declared" — a factual assertion produced
+    // by an exception.
+    toolsUnavailable: z.boolean(),
     href: z.string().nullable(),
   })
   .strict()
@@ -97,17 +119,22 @@ export const projectTeamGraphSchema = z
       .object({
         source: z.literal('LIVE'),
         latestActivityAt: z.string().nullable(),
+        latestActivityState: projectTeamActivityStateSchema,
       })
       .strict(),
     summary: z
       .object({
         totalAgents: z.number().int().min(0),
-        activeAgents: z.number().int().min(0),
-        waitingAgents: z.number().int().min(0),
-        blockedAgents: z.number().int().min(0),
-        failedAgents: z.number().int().min(0),
+        // `.nullable()` here is the same load-bearing nullability the node
+        // metrics already carry: an activity count that cannot be derived
+        // travels as UNKNOWN instead of arriving as an authoritative `0`.
+        activeAgents: z.number().int().min(0).nullable(),
+        waitingAgents: z.number().int().min(0).nullable(),
+        blockedAgents: z.number().int().min(0).nullable(),
+        failedAgents: z.number().int().min(0).nullable(),
         draftAgents: z.number().int().min(0),
-        runsToday: z.number().int().min(0),
+        unavailableAgents: z.number().int().min(0),
+        runsToday: z.number().int().min(0).nullable(),
       })
       .strict(),
     nodes: z.array(projectTeamNodeSchema),

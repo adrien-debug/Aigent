@@ -119,7 +119,69 @@ describe('structural membership edges', () => {
     const membership = edges.filter((e) => e.relation === 'project-membership')
     expect(membership).toHaveLength(2)
     expect(membership.every((e) => e.target === PROJECT_NODE)).toBe(true)
+    // An UNGROUPED agent's edge to the project restates copilots.project_id
+    // verbatim — the one structural edge that is genuinely configured.
     expect(membership.every((e) => e.origin === 'explicit')).toBe(true)
+  })
+
+  // ---- V1: tag-derived grouping must never claim to be configured ---------
+
+  it('9a — PROVENANCE: team-membership is DERIVED, never explicit', () => {
+    const edges = build({ agents: [agent('a', ['review']), agent('b', ['review'])] })
+    const teamEdges = edges.filter((e) => e.relation === 'team-membership')
+    expect(teamEdges).toHaveLength(2)
+    // The tag is persisted, but the TEAM it maps to is TEAM_TAG_RULES — a table
+    // in our source, not in the database. No operator configured this, so it
+    // must render dashed and read "Derived".
+    expect(teamEdges.every((e) => e.origin === 'derived')).toBe(true)
+  })
+
+  it("9b — PROVENANCE: a group node's own edge to the project is DERIVED too", () => {
+    const edges = build({ agents: [agent('a', ['review']), agent('b', ['review'])] })
+    const groupEdge = edges.find(
+      (e) => e.relation === 'project-membership' && e.source === groupNodeId('Review')
+    )
+    expect(groupEdge).toBeDefined()
+    // Consistency: the source node is itself a derived construct, so the edge
+    // carrying it cannot claim to be configured.
+    expect(groupEdge?.origin).toBe('derived')
+  })
+
+  it('9c — PROVENANCE MATRIX: every relation kind has a pinned, non-accidental origin', () => {
+    const edges = build({
+      agents: [agent('a', ['review']), agent('b', ['review']), agent('c'), agent('d')],
+      explicitRelations: [relation({ id: 'r1', sourceCopilotId: 'a', targetCopilotId: 'c' })],
+      toolNamesByAgentId: new Map([
+        ['c', ['t1']],
+        ['d', ['t1']],
+      ]),
+      missionParticipations: [
+        { orchestratorCopilotId: 'b', participantCopilotIds: ['d'], updatedAt: RECENT },
+      ],
+    })
+    const originOf = (id: string) => edges.find((e) => e.id === id)?.origin
+
+    // Backed by a persisted row stating this exact edge:
+    expect(originOf('depends-on::a::c')).toBe('explicit')
+    expect(originOf(`project-membership::c::${PROJECT_NODE}`)).toBe('explicit')
+    expect(originOf(`project-membership::d::${PROJECT_NODE}`)).toBe('explicit')
+
+    // Computed by this module — no row states any of these:
+    expect(originOf(`team-membership::a::${groupNodeId('Review')}`)).toBe('derived')
+    expect(originOf(`team-membership::b::${groupNodeId('Review')}`)).toBe('derived')
+    expect(originOf(`project-membership::${groupNodeId('Review')}::${PROJECT_NODE}`)).toBe('derived')
+    expect(originOf('shares-tool::c::d')).toBe('derived')
+    expect(originOf('orchestrates::b::d')).toBe('derived')
+  })
+
+  it('9d — no edge touching a group node is ever explicit', () => {
+    const edges = build({
+      agents: [agent('a', ['review']), agent('b', ['review']), agent('x', ['ops']), agent('y', ['ops'])],
+    })
+    const groupIds = new Set([groupNodeId('Review'), groupNodeId('Ops')])
+    const touchingGroup = edges.filter((e) => groupIds.has(e.source) || groupIds.has(e.target))
+    expect(touchingGroup.length).toBe(6) // 4 team-membership + 2 group->project
+    expect(touchingGroup.every((e) => e.origin === 'derived')).toBe(true)
   })
 
   it('10 — grouped agents get team-membership INSTEAD of project-membership', () => {
@@ -394,6 +456,30 @@ describe('anti-fabrication guarantees', () => {
     expect(nonMembership).toEqual([])
   })
 
+  it('36a — TEMPORAL PROXIMITY: agents running at the same instant get NO edge', () => {
+    const sameInstant = '2026-07-18T11:00:00.000Z'
+    const edges = build({
+      agents: [agent('a'), agent('b'), agent('c')],
+      lastActivityByAgentId: new Map([
+        ['a', sameInstant],
+        ['b', sameInstant],
+        ['c', sameInstant],
+      ]),
+    })
+    // Three agents firing simultaneously is a coincidence, not a workflow.
+    const nonMembership = edges.filter(
+      (e) => e.relation !== 'project-membership' && e.relation !== 'team-membership'
+    )
+    expect(nonMembership).toEqual([])
+  })
+
+  it('36b — the MODEL/runtime is not even an input, so it cannot build hierarchy', () => {
+    // TeamAgentInput exposes id/name/tags only. Guard the shape so a future
+    // `model` field cannot be added and quietly consulted for edge derivation.
+    const a: TeamAgentInput = agent('a')
+    expect(Object.keys(a).sort()).toEqual(['id', 'name', 'tags'])
+  })
+
   it('37 — a "supervisor"/"lead" NAME never produces a hierarchy edge', () => {
     const edges = build({
       agents: [
@@ -419,18 +505,13 @@ describe('anti-fabrication guarantees', () => {
 })
 
 describe('edge activity, dedup and determinism', () => {
-  it('39 — an edge is active only when both endpoints ran recently', () => {
-    const edges = build({
-      agents: [agent('a'), agent('b')],
-      explicitRelations: [relation({ id: 'rel1' })],
-      lastActivityByAgentId: new Map([
-        ['a', RECENT],
-        ['b', STALE],
-      ]),
-    })
-    expect(edges.find((e) => e.relation === 'depends-on')?.active).toBe(false)
+  // ---- V2: co-activity is NOT relation traffic ----------------------------
+  // These pin the doctrine that replaced "both endpoints ran recently".
+  // `active` licenses the canvas to animate flow along the edge, so it may only
+  // ever be set by a persisted event ON that relation.
 
-    const both = build({
+  it('39 — CO-ACTIVITY IS NOT TRAFFIC: both endpoints running recently does NOT activate the edge', () => {
+    const edges = build({
       agents: [agent('a'), agent('b')],
       explicitRelations: [relation({ id: 'rel1' })],
       lastActivityByAgentId: new Map([
@@ -438,7 +519,111 @@ describe('edge activity, dedup and determinism', () => {
         ['b', RECENT],
       ]),
     })
-    expect(both.find((e) => e.relation === 'depends-on')?.active).toBe(true)
+    const edge = edges.find((e) => e.relation === 'depends-on')
+    // Two agents that merely happened to be busy the same week exchanged
+    // nothing that the schema records. Animating this would be a fabrication.
+    expect(edge?.active).toBe(false)
+    expect(edge?.lastActivityAt).toBeNull()
+  })
+
+  it('39a — a recent mission run linking the pair DOES activate the explicit edge', () => {
+    const edges = build({
+      agents: [agent('a'), agent('b')],
+      explicitRelations: [relation({ id: 'rel1' })],
+      missionParticipations: [
+        { orchestratorCopilotId: 'a', participantCopilotIds: ['b'], updatedAt: RECENT },
+      ],
+    })
+    const edge = edges.find((e) => e.relation === 'depends-on')
+    expect(edge?.active).toBe(true)
+    expect(edge?.lastActivityAt).toBe(RECENT)
+  })
+
+  it('39b — a STALE mission event leaves the edge inactive but keeps the timestamp', () => {
+    const edges = build({
+      agents: [agent('a'), agent('b')],
+      explicitRelations: [relation({ id: 'rel1' })],
+      missionParticipations: [
+        { orchestratorCopilotId: 'a', participantCopilotIds: ['b'], updatedAt: STALE },
+      ],
+    })
+    const edge = edges.find((e) => e.relation === 'depends-on')
+    expect(edge?.active).toBe(false)
+    // The event is real, just old — reporting it is honest, animating it is not.
+    expect(edge?.lastActivityAt).toBe(STALE)
+  })
+
+  it('39c — is_active=false still wins over a genuine recent relation event', () => {
+    const edges = build({
+      agents: [agent('a'), agent('b')],
+      explicitRelations: [relation({ id: 'rel1', isActive: false })],
+      missionParticipations: [
+        { orchestratorCopilotId: 'a', participantCopilotIds: ['b'], updatedAt: RECENT },
+      ],
+    })
+    expect(edges.find((e) => e.relation === 'depends-on')?.active).toBe(false)
+  })
+
+  it('39d — is_active=true alone NEVER activates: config is not evidence of movement', () => {
+    const edges = build({
+      agents: [agent('a'), agent('b')],
+      explicitRelations: [relation({ id: 'rel1', isActive: true })],
+    })
+    expect(edges.find((e) => e.relation === 'depends-on')?.active).toBe(false)
+  })
+
+  it('39e — membership and shares-tool can NEVER be active, whatever the endpoints did', () => {
+    const edges = build({
+      agents: [agent('a', ['review']), agent('b', ['review']), agent('c')],
+      toolNamesByAgentId: new Map([
+        ['a', ['t1']],
+        ['c', ['t1']],
+      ]),
+      lastActivityByAgentId: new Map([
+        ['a', RECENT],
+        ['b', RECENT],
+        ['c', RECENT],
+      ]),
+      missionParticipations: [
+        { orchestratorCopilotId: 'a', participantCopilotIds: ['c'], updatedAt: RECENT },
+      ],
+    })
+    const statics = edges.filter(
+      (e) =>
+        e.relation === 'project-membership' ||
+        e.relation === 'team-membership' ||
+        e.relation === 'shares-tool'
+    )
+    expect(statics.length).toBeGreaterThan(0)
+    // "belongs to" and "declares the same tool name" are not channels: nothing
+    // can flow along them, so no mission event may light them up either.
+    expect(statics.every((e) => e.active === false)).toBe(true)
+    expect(statics.every((e) => e.lastActivityAt === null)).toBe(true)
+  })
+
+  it('39f — the derived orchestrates edge carries the mission event as its activity', () => {
+    const edges = build({
+      agents: [agent('a'), agent('b')],
+      missionParticipations: [
+        { orchestratorCopilotId: 'a', participantCopilotIds: ['b'], updatedAt: RECENT },
+      ],
+    })
+    const edge = edges.find((e) => e.relation === 'orchestrates')
+    expect(edge).toMatchObject({ active: true, lastActivityAt: RECENT, origin: 'derived' })
+  })
+
+  it('39g — endpoint activity is never leaked into lastActivityAt', () => {
+    const edges = build({
+      agents: [agent('a'), agent('b')],
+      explicitRelations: [relation({ id: 'rel1' })],
+      lastActivityByAgentId: new Map([
+        ['a', RECENT],
+        ['b', RECENT],
+      ]),
+    })
+    // No mission event exists, so NO edge may claim a timestamp — the endpoint
+    // run timestamps belong to the nodes, not to the relation.
+    expect(edges.every((e) => e.lastActivityAt === null)).toBe(true)
   })
 
   it('40 — an agent that never ran has an inactive membership edge and a null lastActivityAt', () => {
@@ -481,5 +666,33 @@ describe('edge activity, dedup and determinism', () => {
     })
     const ids = edges.map((e) => e.id)
     expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('44 — dedupeEdges contract: every endpoint of every edge is a real node', () => {
+    const edges = build({
+      agents: [agent('a', ['review']), agent('b', ['review']), agent('c'), agent('d')],
+      explicitRelations: [
+        relation({ id: 'r1', sourceCopilotId: 'a', targetCopilotId: 'c' }),
+        // Endpoints that do not exist must never reach the output.
+        relation({ id: 'r2', sourceCopilotId: 'a', targetCopilotId: 'ghost' }),
+        relation({ id: 'r3', sourceCopilotId: 'phantom', targetCopilotId: 'b' }),
+      ],
+      toolNamesByAgentId: new Map([
+        ['c', ['t1']],
+        ['d', ['t1']],
+      ]),
+      missionParticipations: [
+        { orchestratorCopilotId: 'b', participantCopilotIds: ['d', 'vanished'], updatedAt: RECENT },
+      ],
+    })
+    const known = new Set(['a', 'b', 'c', 'd', PROJECT_NODE, groupNodeId('Review')])
+    for (const e of edges) {
+      expect(known.has(e.source)).toBe(true)
+      expect(known.has(e.target)).toBe(true)
+    }
+    expect(edges.some((e) => e.source === 'ghost' || e.target === 'ghost')).toBe(false)
+    expect(edges.some((e) => e.target === 'vanished')).toBe(false)
+    // Group nodes ARE part of the known set — the filter must not eat them.
+    expect(edges.some((e) => e.target === groupNodeId('Review'))).toBe(true)
   })
 })

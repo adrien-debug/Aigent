@@ -166,14 +166,45 @@ function EdgeAnchors() {
   )
 }
 
-function StatusMark({ status }: { status: ProjectTeamNodeStatus }) {
+/**
+ * MOTION BUDGET — the live animations are BOUNDED, not infinite.
+ *
+ * `ptc-spin` (1.8s) and `ptc-pulse` (2.4s) are declared `infinite` in the
+ * canvas stylesheet. Correctly earned by data, correctly killed by
+ * `prefers-reduced-motion` — but uncapped: a project with many simultaneously
+ * active agents ran two unbounded compositor animations PER NODE, forever.
+ *
+ * Capping the iteration count inline bounds them to ~18-19s of motion. Nothing
+ * is lost when they stop: "active" is also carried by the ArrowPath glyph, the
+ * accent border, the accent dot and the literal "ACTIVE" text label — the
+ * motion was always reinforcement, never the sole carrier (same contract the
+ * reduced-motion path already honours).
+ *
+ * The inline value overrides only `animation-iteration-count`. Under
+ * `prefers-reduced-motion` the stylesheet's `animation: none` still wins on
+ * `animation-name`, so no animation runs at all — the cap cannot resurrect it.
+ *
+ * Re-armed by `liveKey`: a new run remounts the animated element, so an agent
+ * that keeps working keeps pulsing. It settles only once the data does.
+ */
+const SPIN_ITERATIONS = 10 // 1.8s × 10 ≈ 18s
+const PULSE_ITERATIONS = 8 // 2.4s × 8 ≈ 19s
+
+/** Identity of the current run — changes when the agent starts a new one. */
+function liveKeyOf(node: ProjectTeamNode): string {
+  return `${node.latestRun?.id ?? ''}:${node.latestRun?.startedAt ?? ''}`
+}
+
+function StatusMark({ status, liveKey }: { status: ProjectTeamNodeStatus; liveKey: string }) {
   const presentation = STATUS_PRESENTATION[status]
   const Icon = presentation.icon
   return (
     <span className="inline-flex items-center gap-1">
       <Icon
+        key={presentation.live ? liveKey : 'static'}
         aria-hidden="true"
         className={clsx('size-3.5 shrink-0', presentation.tone, presentation.live && 'ptc-spin')}
+        style={presentation.live ? { animationIterationCount: SPIN_ITERATIONS } : undefined}
       />
       <span className={clsx('text-[10px] font-medium tracking-wider uppercase', presentation.tone)}>
         {presentation.label}
@@ -223,13 +254,24 @@ function GroupBody({ node, memberCount }: { node: ProjectTeamNode; memberCount: 
 
 function AgentBody({ node }: { node: ProjectTeamNode }) {
   const presentation = STATUS_PRESENTATION[node.status]
-  // `unavailable` means the runs could not be read — show that, never a zero.
+  // A `null` count means UNKNOWN (unreadable, or not exactly countable) and is
+  // driven by the metric itself, not inferred from the node status — the two
+  // can disagree. A measured `0` still renders as "0 runs": "never ran" and
+  // "we could not read the runs" must never look the same.
+  // The SAME rule applies to the daily count on its own: an unread `runsToday`
+  // must not render like a measured 0, so it is stated, not silently omitted.
+  //   5 total, 2 today → "2 today · 5 total"
+  //   5 total, 0 today → "5 runs"                    (nothing ran today)
+  //   5 total, ? today → "5 runs · today unavailable"
+  const { runsToday, totalRuns } = node.metrics
   const runsLabel =
-    node.status === 'unavailable'
+    totalRuns === null
       ? 'runs unavailable'
-      : node.metrics.runsToday > 0
-        ? `${node.metrics.runsToday} today · ${node.metrics.totalRuns} total`
-        : `${node.metrics.totalRuns} ${node.metrics.totalRuns === 1 ? 'run' : 'runs'}`
+      : runsToday === null
+        ? `${totalRuns} ${totalRuns === 1 ? 'run' : 'runs'} · today unavailable`
+        : runsToday > 0
+          ? `${runsToday} today · ${totalRuns} total`
+          : `${totalRuns} ${totalRuns === 1 ? 'run' : 'runs'}`
 
   // Secondary identity line: runtime and model are metadata, kept to ONE line.
   const secondary = [node.runtime, node.model].filter(Boolean).join(' · ')
@@ -250,15 +292,17 @@ function AgentBody({ node }: { node: ProjectTeamNode }) {
         {/* Activity indicator: shape + motion, and the text label below carries
             the same fact statically for reduced-motion / colour-blind readers. */}
         <span
+          key={presentation.live ? liveKeyOf(node) : 'static'}
           aria-hidden="true"
           className={clsx(
             'mt-1 size-2 shrink-0 rounded-full',
             presentation.live ? 'bg-accent-400 ptc-pulse' : 'bg-zinc-700'
           )}
+          style={presentation.live ? { animationIterationCount: PULSE_ITERATIONS } : undefined}
         />
       </div>
       <div className="flex items-center justify-between gap-2">
-        <StatusMark status={node.status} />
+        <StatusMark status={node.status} liveKey={liveKeyOf(node)} />
         <span className="truncate text-[10px] text-zinc-500">{runsLabel}</span>
       </div>
     </div>

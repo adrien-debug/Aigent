@@ -10,6 +10,7 @@ import {
 } from '@heroicons/react/20/solid'
 import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
+import { useEffect, useRef, useState } from 'react'
 
 import { Input, InputGroup } from '@/components/catalyst/input'
 import { Select } from '@/components/catalyst/select'
@@ -73,6 +74,35 @@ export function hasActiveFilters(filters: ProjectTeamFilters): boolean {
   )
 }
 
+/**
+ * Delay before the filter result is announced. Typing "sentinel" moves the
+ * count eight times; a live region wired straight to it interrupts the screen
+ * reader eight times and the user never hears a whole sentence. The number is
+ * announced only once the count has SETTLED, and never on first paint (the
+ * initial count is already in the accessible name of the surface, so announcing
+ * it on load would be noise, not news).
+ */
+const COUNT_SETTLE_MS = 700
+
+function useSettledCountMessage(visibleCount: number, totalCount: number): string {
+  const [settled, setSettled] = useState('')
+  const seenFirstValue = useRef(false)
+
+  useEffect(() => {
+    if (!seenFirstValue.current) {
+      seenFirstValue.current = true
+      return
+    }
+    const timer = setTimeout(
+      () => setSettled(`${visibleCount} of ${totalCount} agents shown`),
+      COUNT_SETTLE_MS
+    )
+    return () => clearTimeout(timer)
+  }, [visibleCount, totalCount])
+
+  return settled
+}
+
 export function ProjectTeamToolbar({
   filters,
   onFiltersChange,
@@ -99,6 +129,7 @@ export function ProjectTeamToolbar({
   totalCount: number
 }) {
   const filtersActive = hasActiveFilters(filters)
+  const settledCountMessage = useSettledCountMessage(visibleCount, totalCount)
 
   return (
     <div className="flex flex-col gap-3 border-b border-white/5 px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
@@ -172,8 +203,16 @@ export function ProjectTeamToolbar({
           Clear filters
         </Headless.Button>
 
-        <span aria-live="polite" className="text-xs text-zinc-500">
+        {/* The visible counter updates on every keystroke — that immediacy is
+            exactly right for a sighted user and exactly wrong for a live
+            region, so the two are split. `aria-hidden` here is not hiding
+            information: the sr-only region below states the same sentence,
+            once the count stops moving. */}
+        <span aria-hidden="true" className="text-xs text-zinc-500">
           {visibleCount} of {totalCount} agents shown
+        </span>
+        <span aria-live="polite" className="sr-only">
+          {settledCountMessage}
         </span>
       </div>
 

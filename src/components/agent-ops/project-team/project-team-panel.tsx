@@ -8,7 +8,7 @@ import {
 } from '@heroicons/react/20/solid'
 import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { StatusPill } from '@/components/agent-ops/status-pill'
 import { Badge } from '@/components/catalyst/badge'
@@ -20,6 +20,7 @@ import type {
   ProjectTeamGraph,
   ProjectTeamNode,
   ProjectTeamNodeStatus,
+  ProjectTeamRunHistoryState,
 } from '@/lib/agent-mission-control/project-team/types'
 
 /* ==========================================================================
@@ -58,8 +59,41 @@ export interface TeamAgentView {
   latestRunStatus: string | null
   metrics: TeamMetric[]
   tools: string[]
-  /** Same-day run count for this agent — feeds the page-level "Runs today". */
-  runsToday: number
+  /**
+   * The tool read failed. `tools` is then an empty array that asserts NOTHING —
+   * the renderer must say "could not be read", never "none declared".
+   */
+  toolsUnavailable: boolean
+  /**
+   * Why `lastActivityAt` is null. Without it, "never ran", "unreadable" and
+   * "outside the read window" all render as the same sentence.
+   */
+  runHistory: ProjectTeamRunHistoryState
+  /**
+   * Same-day run count for this agent. `null` = the count could not be read —
+   * NOT zero. A measured 0 and an unreadable count are different facts.
+   */
+  runsToday: number | null
+}
+
+/**
+ * What to say about last activity when there is NO timestamp to show.
+ *
+ * The absent timestamp is the same `null` in all four cases; the fact behind it
+ * is not. Only `known` licenses the positive claim that nothing ever ran.
+ */
+export function lastActivityFallback(runHistory: ProjectTeamRunHistoryState): string {
+  switch (runHistory) {
+    case 'unreadable':
+      return 'unavailable — the runs could not be read'
+    case 'outside-window':
+      return 'unavailable — outside the read window'
+    case 'not-applicable':
+      return 'no run of its own'
+    case 'known':
+      // The ONLY case where the data actually says "this agent has never run".
+      return 'no run recorded'
+  }
 }
 
 /** Flatten one contract node into what every surface in this folder renders. */
@@ -79,9 +113,20 @@ export function toTeamAgentView(node: ProjectTeamNode): TeamAgentView {
     lastActivityAt: node.latestRun?.completedAt ?? node.latestRun?.startedAt ?? null,
     latestRunId: node.latestRun?.id ?? null,
     latestRunStatus: node.latestRun?.status ?? null,
+    // Every metric is `null`-when-unknown all the way from the contract. The
+    // renderer shows "n/a" for null — so an unread count reads as unknown, and
+    // a real measured 0 still reads as 0.
     metrics: [
-      { key: 'totalRuns', label: 'Total runs', value: plainFormat.format(node.metrics.totalRuns) },
-      { key: 'runsToday', label: 'Runs today', value: plainFormat.format(node.metrics.runsToday) },
+      {
+        key: 'totalRuns',
+        label: 'Total runs',
+        value: node.metrics.totalRuns === null ? null : plainFormat.format(node.metrics.totalRuns),
+      },
+      {
+        key: 'runsToday',
+        label: 'Runs today',
+        value: node.metrics.runsToday === null ? null : plainFormat.format(node.metrics.runsToday),
+      },
       {
         key: 'successRate',
         label: 'Success rate',
@@ -90,6 +135,8 @@ export function toTeamAgentView(node: ProjectTeamNode): TeamAgentView {
       },
     ],
     tools: node.tools.map((tool) => tool.name),
+    toolsUnavailable: node.toolsUnavailable,
+    runHistory: node.runHistory,
     runsToday: node.metrics.runsToday,
   }
 }
@@ -190,6 +237,80 @@ export function formatAge(iso: string | null): string | null {
 
 /* ========================================================================== */
 
+/**
+ * Below `sm` the panel is `inset-0`: it covers the ENTIRE canvas opaquely, so
+ * it is a modal in every way that matters to a user. This query is the single
+ * definition of "full-bleed", and it drives both the focus trap and the
+ * `aria-modal` value — the two can never disagree.
+ * 639.98px because Tailwind's `sm` breakpoint is 40rem / 640px.
+ */
+const FULL_BLEED_QUERY = '(max-width: 639.98px)'
+
+/** Tab-reachable descendants. `[tabindex="-1"]` (the heading) is programmatic only. */
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',')
+
+/** True while the panel is the full-bleed variant. SSR-safe: starts false. */
+function useFullBleed(): boolean {
+  const [fullBleed, setFullBleed] = useState(false)
+  useEffect(() => {
+    const media = window.matchMedia(FULL_BLEED_QUERY)
+    const sync = () => setFullBleed(media.matches)
+    sync()
+    media.addEventListener('change', sync)
+    return () => media.removeEventListener('change', sync)
+  }, [])
+  return fullBleed
+}
+
+/**
+ * Contains Tab inside the panel while it covers the canvas. Without this, Tab
+ * walked straight out of the panel into canvas nodes that are completely
+ * hidden underneath it — focus on something invisible, again.
+ *
+ * Deliberately NOT active on `sm+`, where the panel is a 24rem side rail and
+ * the canvas beside it is genuinely visible and genuinely reachable: trapping
+ * there would be a regression, not a fix.
+ */
+function useFocusTrap(containerRef: React.RefObject<HTMLDivElement | null>, active: boolean): void {
+  useEffect(() => {
+    if (!active) return
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Tab') return
+      const container = containerRef.current
+      if (!container) return
+      const focusable = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+      if (focusable.length === 0) {
+        // Nothing to move to — keep focus where it is rather than releasing it
+        // onto the invisible canvas behind.
+        event.preventDefault()
+        return
+      }
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const active_ = document.activeElement as HTMLElement | null
+      const inside = active_ !== null && container.contains(active_)
+      if (event.shiftKey) {
+        if (!inside || active_ === first) {
+          event.preventDefault()
+          last.focus()
+        }
+      } else if (!inside || active_ === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [containerRef, active])
+}
+
 const UNAVAILABLE = <span className="text-zinc-600">— unavailable</span>
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -245,6 +366,9 @@ export function ProjectTeamPanel({
   onClose: () => void
 }) {
   const headingRef = useRef<HTMLDivElement | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const fullBleed = useFullBleed()
+  useFocusTrap(containerRef, fullBleed)
 
   // Focus moves INTO the panel on open and returns to whatever opened it on
   // close (a canvas node, a row of the accessible list) — keyboard users are
@@ -285,8 +409,12 @@ export function ProjectTeamPanel({
 
   return (
     <div
+      ref={containerRef}
       role="dialog"
-      aria-modal="false"
+      // Truthful, and derived from the SAME query as the trap: full-bleed below
+      // `sm` (covers the canvas, focus contained) → modal; side rail from `sm`
+      // up (canvas visible and reachable beside it) → not modal.
+      aria-modal={fullBleed}
       aria-label={`${agent.name} details`}
       className={clsx(
         // Overlay, never a layout column: the canvas keeps its full width
@@ -332,7 +460,9 @@ export function ProjectTeamPanel({
             {age ? (
               <span title={agent.lastActivityAt ?? undefined}>{age}</span>
             ) : (
-              <span className="text-zinc-600">— no run recorded</span>
+              // NOT an unconditional "no run recorded": that sentence is a
+              // positive claim, and it is only true when the runs were read.
+              <span className="text-zinc-600">— {lastActivityFallback(agent.runHistory)}</span>
             )}
           </Field>
         </dl>
@@ -353,7 +483,14 @@ export function ProjectTeamPanel({
 
         <div>
           <h3 className="text-[10px] font-medium tracking-widest text-zinc-500 uppercase">Tools</h3>
-          {agent.tools.length > 0 ? (
+          {/* Checked FIRST: a failed tool read also produces an empty array, so
+              testing `length === 0` alone turns an exception into the assertion
+              "No tool declared." */}
+          {agent.toolsUnavailable ? (
+            <p className="mt-2 text-sm text-zinc-600">
+              — tools could not be read. This is not a statement that none is declared.
+            </p>
+          ) : agent.tools.length > 0 ? (
             <ul className="mt-3 flex flex-wrap gap-2">
               {agent.tools.map((tool) => (
                 <li key={tool}>

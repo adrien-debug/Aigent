@@ -71,11 +71,12 @@ const PGREST_TIMEOUT_MS = 30_000
  * generic 502, same `{ error }` body either way (detail via pgrestDetail()
  * for server logs only).
  */
-export async function pgrest<T = Record<string, unknown>[]>(
+async function pgrestRaw(
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
   pathAndQuery: string,
+  prefer: string,
   body?: unknown
-): Promise<T> {
+): Promise<Response> {
   const { base, key } = requireBackend()
   let res: Response
   try {
@@ -85,7 +86,7 @@ export async function pgrest<T = Record<string, unknown>[]>(
         Authorization: `Bearer ${key}`,
         apikey: key,
         'Content-Type': 'application/json',
-        Prefer: 'return=representation',
+        Prefer: prefer,
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
       cache: 'no-store',
@@ -100,10 +101,56 @@ export async function pgrest<T = Record<string, unknown>[]>(
   if (!res.ok) {
     throw new PgrestError(res.status, method, pathAndQuery, (await res.text()).slice(0, 200))
   }
+  return res
+}
+
+async function readRows<T>(res: Response): Promise<T> {
   if (res.status === 204) return [] as unknown as T
   const text = await res.text()
   if (!text) return [] as unknown as T
   return JSON.parse(text) as T
+}
+
+export async function pgrest<T = Record<string, unknown>[]>(
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+  pathAndQuery: string,
+  body?: unknown
+): Promise<T> {
+  return readRows<T>(await pgrestRaw(method, pathAndQuery, 'return=representation', body))
+}
+
+/**
+ * Total row count of a PostgREST query, EXACT — `Prefer: count=exact` makes
+ * PostgREST run the underlying count and report it in `Content-Range`
+ * (`<from>-<to>/<total>`). This is the only way to know how many rows a filter
+ * really matches when the request itself is capped by a `limit`.
+ *
+ * Why it exists: a caller that reads `?limit=N` rows and reports `rows.length`
+ * as a total publishes a silently wrong number as soon as the table exceeds N.
+ * `null` is returned when PostgREST does not report a usable total (`*` in the
+ * range, header absent) — the caller must then treat the count as UNKNOWN, and
+ * never fall back to the truncated length.
+ */
+export function parseContentRangeTotal(header: string | null): number | null {
+  if (!header) return null
+  const total = header.split('/')[1]
+  if (total === undefined || total === '*') return null
+  const parsed = Number.parseInt(total, 10)
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null
+}
+
+/**
+ * GET rows AND their exact total. `count` is `null` when PostgREST did not
+ * report one; it is never inferred from `rows.length`.
+ *
+ * Pass `limit=0` in the query to get the count alone with no row transfer.
+ */
+export async function pgrestWithCount<T = Record<string, unknown>[]>(
+  pathAndQuery: string
+): Promise<{ rows: T; count: number | null }> {
+  const res = await pgrestRaw('GET', pathAndQuery, 'return=representation,count=exact')
+  const count = parseContentRangeTotal(res.headers.get('content-range'))
+  return { rows: await readRows<T>(res), count }
 }
 
 /**

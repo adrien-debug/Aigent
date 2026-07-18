@@ -4,7 +4,7 @@ import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
 
 import { StatusPill } from '@/components/agent-ops/status-pill'
-import { formatAge, humanizeStatus, type TeamAgentView } from './project-team-panel'
+import { formatAge, humanizeStatus, lastActivityFallback, type TeamAgentView } from './project-team-panel'
 
 /**
  * Screen-reader (and mobile) alternative to the canvas.
@@ -18,32 +18,47 @@ import { formatAge, humanizeStatus, type TeamAgentView } from './project-team-pa
  * words (StatusPill renders a text label next to its dot), so the information
  * survives greyscale, colour-blindness and a screen reader.
  *
- * `visuallyHidden` renders it off-screen (desktop, where the canvas is the
- * visual surface); on small viewports the same component is shown for real,
- * because hiding the feature on mobile is not an option.
+ * ── Why `focus-within:not-sr-only` and not plain `sr-only` ──────────────────
+ * The caller hides this list from `lg` up (`lg:sr-only`), where the canvas is
+ * the visual surface. `sr-only` removes it from SIGHT but NOT from the tab
+ * order, which broke sighted keyboard users two ways at once: they tabbed into
+ * a chain of rows with no visible focus anywhere (WCAG 2.4.7 Focus Visible),
+ * and — because the canvas mounts only the nodes inside the viewport
+ * (`onlyRenderVisibleElements`) — this invisible list was simultaneously the
+ * ONLY keyboard route to the agents scrolled off-canvas.
+ *
+ * Un-hiding on `:focus-within` fixes both ends with one rule: assistive tech
+ * still reads the full roster at any width, and the instant a keyboard user
+ * tabs in, the list becomes a real, visible, scrollable roster panel — focus is
+ * never on something invisible. `:focus-within` matches on the same frame the
+ * descendant takes focus, so there is no flash of invisible focus.
  */
 export function ProjectTeamAccessibleList({
   agents,
   selectedAgentId,
   onSelectAgent,
-  visuallyHidden = false,
   className,
 }: {
   agents: TeamAgentView[]
   selectedAgentId: string | null
   onSelectAgent: (agentId: string | null) => void
-  visuallyHidden?: boolean
   className?: string
 }) {
   return (
     <section
       aria-label="Team agents, list view"
-      className={clsx(visuallyHidden && 'sr-only', className)}
+      className={clsx(
+        // Pairs with the caller's `lg:sr-only`: hidden while nothing inside is
+        // focused, a real panel the moment something is.
+        'lg:focus-within:not-sr-only lg:focus-within:border-t lg:focus-within:border-white/5',
+        className
+      )}
     >
-      <h2 className={clsx(visuallyHidden ? undefined : 'px-4 py-3 text-sm font-semibold text-white')}>
-        Team agents
-      </h2>
-      <ul role="list" className={clsx(!visuallyHidden && 'divide-y divide-white/5')}>
+      <h2 className="px-4 py-3 text-sm font-semibold text-white">Team agents</h2>
+      {/* Bounded box, data scrolls inside it: the roster can be long and the
+          surrounding card is `overflow-hidden`, so an unbounded list would be
+          clipped instead of scrolled. Focus moves scroll the row into view. */}
+      <ul role="list" className="max-h-80 divide-y divide-white/5 overflow-y-auto">
         {agents.map((agent) => {
           const age = formatAge(agent.lastActivityAt)
           const selected = agent.id === selectedAgentId
@@ -55,7 +70,7 @@ export function ProjectTeamAccessibleList({
                 className={clsx(
                   'flex w-full min-h-11 flex-col gap-1 px-4 py-3 text-left transition-colors',
                   'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-500',
-                  !visuallyHidden && (selected ? 'bg-white/5' : 'hover:bg-white/5')
+                  selected ? 'bg-white/5' : 'hover:bg-white/5'
                 )}
               >
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -68,7 +83,10 @@ export function ProjectTeamAccessibleList({
                 <span className="text-xs text-zinc-500">
                   {agent.role ?? 'Role not documented'}
                   {' · '}
-                  {age ? `last activity ${age}` : 'no run recorded'}
+                  {/* Screen readers get the SAME distinction the panel makes:
+                      an unreadable run set must not be announced as the fact
+                      "no run recorded". */}
+                  {age ? `last activity ${age}` : lastActivityFallback(agent.runHistory)}
                 </span>
               </Headless.Button>
             </li>

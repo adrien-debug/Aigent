@@ -59,7 +59,14 @@ export function useProjectTeamRefresh(
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null)
   const [changeToken, setChangeToken] = useState(0)
 
-  const signatureRef = useRef<string>(graphSignature(initialGraph))
+  // LAZY init. `useRef(expr)` evaluates `expr` on EVERY render and throws the
+  // result away after mount — and `graphSignature` is a full map→map→sort over
+  // every node AND edge. The filter state lives in the consumer, so a plain
+  // `useRef(graphSignature(initialGraph))` re-ran that O(n log n) pass on every
+  // keystroke in the search box for nothing. Null is not a valid signature
+  // (the empty graph signature is `''`), so it is an unambiguous "not computed".
+  const signatureRef = useRef<string | null>(null)
+  if (signatureRef.current === null) signatureRef.current = graphSignature(initialGraph)
   const controllerRef = useRef<AbortController | null>(null)
   const mountedRef = useRef(true)
 

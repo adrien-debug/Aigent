@@ -10,16 +10,14 @@ import { surfaceCardClass } from '@/components/agent-ops/surface-card'
  */
 export default function ProjectTeamLoading() {
   return (
-    <div aria-busy="true" aria-live="polite" className="flex min-h-0 flex-1 flex-col gap-6 motion-safe:animate-pulse">
+    <div aria-busy="true" aria-live="polite" className="flex min-h-0 flex-1 flex-col gap-4 motion-safe:animate-pulse">
       <span className="sr-only">Loading the project team graph…</span>
 
-      {/* Identity row */}
-      <div className="flex items-center gap-4">
-        <div className="size-12 rounded-lg bg-white/10" />
-        <div>
-          <div className="h-7 w-56 rounded-lg bg-white/10" />
-          <div className="mt-2 h-3.5 w-40 rounded bg-white/5" />
-        </div>
+      {/* Identity row — one line, matching page.tsx */}
+      <div className="flex items-center gap-3">
+        <div className="size-9 rounded-lg bg-white/10" />
+        <div className="h-5 w-56 rounded-lg bg-white/10" />
+        <div className="h-3.5 w-24 rounded bg-white/5" />
       </div>
 
       {/* Tab strip */}
@@ -29,13 +27,10 @@ export default function ProjectTeamLoading() {
         <div className="h-4 w-20 rounded bg-white/5" />
       </div>
 
-      {/* KPI band — 6 naked stats */}
-      <div className="grid grid-cols-2 gap-x-12 gap-y-6 border-b border-white/5 py-4 md:grid-cols-3 xl:grid-cols-6">
+      {/* Summary strip — one compact inline row, not a KPI band */}
+      <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="flex flex-col gap-2">
-            <div className="h-3 w-20 rounded bg-white/10" />
-            <div className="h-7 w-16 rounded-lg bg-white/10" />
-          </div>
+          <div key={i} className="h-4 w-24 rounded bg-white/10" />
         ))}
       </div>
 
@@ -47,7 +42,9 @@ export default function ProjectTeamLoading() {
           <div className="h-9 w-40 rounded-lg bg-white/5" />
           <div className="ml-auto h-9 w-56 rounded-lg bg-white/5" />
         </div>
-        <div className="h-[60vh] min-h-96 w-full bg-black/20 lg:h-[calc(100svh-26rem)]" />
+        {/* Mirrors the live canvas: flex-derived height, never a calc() guess
+            about the chrome above it — the two must not drift apart. */}
+        <div className="min-h-96 w-full flex-1 bg-black/20" />
       </div>
     </div>
   )

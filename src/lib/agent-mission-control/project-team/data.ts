@@ -14,13 +14,19 @@
  *     `manifests.system_prompt_summary` is never selected, joined or returned.
  *     Only ids and tool NAMES leave this module.
  *  3. NO FABRICATION. A read that fails degrades to an explicit `unavailable`
- *     state; it never becomes a zero. `runsToday: 0` on this graph always means
- *     "we read the runs and there were none today".
+ *     state or a `null` metric; it never becomes a zero. A `0` on this graph
+ *     ALWAYS means "we read the runs and there were none" — an unknown is
+ *     `null`, and the two are distinguishable all the way to the UI.
+ *
+ *     This extends to TRUNCATION: runs are read through a bounded window, so a
+ *     count derived from it is a floor, not a total. The project total comes
+ *     from PostgREST's exact `count=exact`; per-agent counts degrade to `null`
+ *     when the window truncates rather than ship a floor labelled "Total".
  */
 import 'server-only'
 
-import { getCopilots, getProject } from '../data'
-import { camelRows, pgrest, pgrestDetail } from '../postgrest'
+import { getProject } from '../data'
+import { camelRows, pgrest, pgrestDetail, pgrestWithCount } from '../postgrest'
 import type { AgentRun, Copilot } from '../types'
 import {
   buildGroupedAgentMap,
@@ -39,16 +45,37 @@ import type {
   ProjectTeamNode,
   ProjectTeamNodeStatus,
   ProjectTeamNodeTool,
+  ProjectTeamRunHistoryState,
 } from './types'
 
 type RawRow = Record<string, unknown>
 
 /**
- * Runs pulled per project. Bounded so this stays a couple of fast round trips
- * on a project with heavy traffic (the busiest live project has 73 runs).
- * Status derivation only ever needs the recent tail.
+ * Shape of a project id (`makeId('proj', slug)`), same guard as the sibling
+ * project routes.
+ *
+ * Exported and shared ON PURPOSE: the API route and the /team page are two
+ * entry points into the SAME function, so they must trust exactly the same
+ * thing. Two local copies of this regex is how one of them quietly stops
+ * validating.
  */
-const RUNS_LIMIT = 500
+export const PROJECT_ID_RE = /^[a-z0-9-]{1,200}$/
+
+export const isProjectId = (id: unknown): id is string =>
+  typeof id === 'string' && PROJECT_ID_RE.test(id)
+
+/**
+ * Size of the run WINDOW loaded per project — the most recent N runs. Bounded
+ * so this stays a couple of fast round trips on a project with heavy traffic
+ * (the busiest live project has 73 runs). Status derivation only ever needs the
+ * recent tail.
+ *
+ * It is a WINDOW, never a total: `rows.length` on a capped query is a FLOOR.
+ * The exact total comes from PostgREST's `count=exact` (`Content-Range`), and
+ * when the window truncates, per-agent counts degrade to `null` (unknown)
+ * rather than shipping a floor labelled "Total".
+ */
+const RUNS_WINDOW = 500
 
 /**
  * Max ids per `in.(...)` filter. PostgREST passes the list through as a URL
@@ -57,6 +84,16 @@ const RUNS_LIMIT = 500
  * staying well inside the limit.
  */
 const ID_CHUNK_SIZE = 100
+
+/** Sum, or `null` if ANY term is unknown. Never treats `null` as 0. */
+function sumKnown(values: readonly (number | null)[]): number | null {
+  let total = 0
+  for (const v of values) {
+    if (v === null) return null
+    total += v
+  }
+  return total
+}
 
 function chunk<T>(items: readonly T[], size: number): T[][] {
   const out: T[][] = []
@@ -98,10 +135,19 @@ async function loadToolsForCopilots(copilotIds: readonly string[]): Promise<Tool
   return out
 }
 
+/**
+ * Explicit relations for the project. Narrow `select` on purpose, same
+ * discipline as the tool read: `metadata` is an operator-writable free-form
+ * jsonb blob that nothing on this graph consumes, and pulling it would drag
+ * arbitrary written content into a payload path that is supposed to carry ids,
+ * a relation type and a label. `created_at` is ordered on but not selected.
+ */
+const RELATION_COLUMNS = 'id,project_id,source_copilot_id,target_copilot_id,relation_type,label,is_active,updated_at'
+
 async function loadRelations(projectId: string): Promise<ProjectAgentRelationRow[]> {
   const rows = await pgrest<RawRow[]>(
     'GET',
-    `project_agent_relations?select=*&project_id=eq.${encodeURIComponent(projectId)}&order=created_at`
+    `project_agent_relations?select=${RELATION_COLUMNS}&project_id=eq.${encodeURIComponent(projectId)}&order=created_at`
   )
   return camelRows<ProjectAgentRelationRow>(rows)
 }
@@ -121,15 +167,86 @@ async function loadMissionParticipations(projectId: string): Promise<MissionPart
 }
 
 /**
- * Runs for the project. Not routed through `getRecentRunsForProject` because
- * that one joins `agent_run_steps` (unused here) and defaults to 30 rows.
+ * Copilot columns this graph actually renders. Deliberately narrow: no
+ * manifest, no assistant id, no health blob, no config. `project_id` is
+ * selected even though it is already the filter, so the isolation invariant
+ * can be RE-ASSERTED in memory rather than trusted.
  */
-async function loadRunsForProject(projectId: string): Promise<AgentRun[]> {
+const COPILOT_COLUMNS = 'id,project_id,name,slug,description,runtime,model,status,tags'
+
+/**
+ * The project's agents — scoped at the DATABASE, not filtered in memory from a
+ * full-table read.
+ *
+ * Deliberately NOT `getCopilots()`: that helper reads `copilots?select=*` (the
+ * whole estate) and then runs `resolveCopilotHealthBatch` over every copilot in
+ * the DB — five extra PostgREST round trips across test_runs/test_results/
+ * benchmark_runs/benchmark_results. This graph never reads `copilot.health`,
+ * and the refresh hook re-polls per open tab, so that work was scanning the
+ * entire estate to draw one project, every time.
+ *
+ * `deriveDisplayStatus` (the other thing getCopilots() adds) is likewise not
+ * used here: the canvas derives its own node status from RUNS in status.ts, and
+ * reads the raw `copilots.status` column only to tell `draft` from the rest.
+ * Nothing on the graph reads `displayStatus`, so there is nothing to re-apply.
+ *
+ * Indexed by `copilots_project_idx` on `copilots(project_id)`, and `eq.` on
+ * project_id is the idiom used by every other project-scoped read.
+ */
+async function loadAgentsForProject(projectId: string): Promise<Copilot[]> {
   const rows = await pgrest<RawRow[]>(
     'GET',
-    `agent_runs?select=id,copilot_id,status,started_at,finished_at,cost_usd,latency_ms&project_id=eq.${encodeURIComponent(projectId)}&order=started_at.desc&limit=${RUNS_LIMIT}`
+    `copilots?select=${COPILOT_COLUMNS}&project_id=eq.${encodeURIComponent(projectId)}&order=name`
   )
-  return camelRows<AgentRun>(rows)
+  // STRICT isolation, re-asserted client-side: a row whose project_id is not
+  // EXACTLY this project never becomes a member, whatever the filter returned.
+  return camelRows<Copilot>(rows).filter((c) => c.projectId === projectId)
+}
+
+interface ProjectRunsRead {
+  /** The most recent RUNS_WINDOW runs, newest first. */
+  runs: AgentRun[]
+  /** Exact project-wide run total, or `null` when PostgREST reported none. */
+  totalExact: number | null
+  /** True when runs exist beyond the window — every derived count is a floor. */
+  truncated: boolean
+}
+
+/**
+ * Runs for the project, plus the EXACT total. Not routed through
+ * `getRecentRunsForProject` because that one joins `agent_run_steps` (unused
+ * here) and defaults to 30 rows.
+ *
+ * `nullslast` matters: Postgres sorts NULLs FIRST on a DESC order, so without
+ * it a pile of runs with a null `started_at` would occupy the head of the
+ * window and push the actually-recent runs out of it.
+ */
+async function loadRunsForProject(projectId: string): Promise<ProjectRunsRead> {
+  const { rows, count } = await pgrestWithCount<RawRow[]>(
+    `agent_runs?select=id,copilot_id,status,started_at,finished_at,cost_usd,latency_ms&project_id=eq.${encodeURIComponent(projectId)}&order=started_at.desc.nullslast&limit=${RUNS_WINDOW}`
+  )
+  const runs = camelRows<AgentRun>(rows)
+  // A capped query that returns FEWER rows than the cap has exhausted the
+  // table: the window is then the whole set, and its length is exact.
+  const exhausted = runs.length < RUNS_WINDOW
+  return {
+    runs,
+    totalExact: count ?? (exhausted ? runs.length : null),
+    truncated: count !== null ? count > runs.length : !exhausted,
+  }
+}
+
+/**
+ * Exact count of runs started on/after `sinceIso`, with no row transfer
+ * (`limit=0` — PostgREST still computes `count=exact`). Only needed when the
+ * window truncated; otherwise the in-memory count over the full set is exact
+ * and this round trip is skipped entirely.
+ */
+async function countRunsSince(projectId: string, sinceIso: string): Promise<number | null> {
+  const { count } = await pgrestWithCount<RawRow[]>(
+    `agent_runs?select=id&project_id=eq.${encodeURIComponent(projectId)}&started_at=gte.${encodeURIComponent(sinceIso)}&limit=0`
+  )
+  return count
 }
 
 /**
@@ -163,30 +280,41 @@ export async function getProjectTeamGraph(
   const project = await getProject(projectId)
   if (!project) return undefined
 
-  // House convention: load all, filter in memory. STRICT equality on projectId —
-  // targetProjectIds and NULL-project copilots are never members.
-  const allCopilots = await getCopilots()
-  const agents: Copilot[] = allCopilots.filter((c) => c.projectId === projectId)
+  // Scoped at the DB. STRICT equality on projectId — targetProjectIds
+  // (development intent) and NULL-project copilots are never members.
+  const agents: Copilot[] = await loadAgentsForProject(projectId)
   const agentIds = agents.map((a) => a.id)
 
   let runs: AgentRun[] = []
   let runsUnavailable = false
+  let runsTruncated = false
+  let projectTotalRuns: number | null = null
   try {
-    runs = await loadRunsForProject(projectId)
+    const read = await loadRunsForProject(projectId)
+    runs = read.runs
+    runsTruncated = read.truncated
+    projectTotalRuns = read.totalExact
   } catch (err) {
     runsUnavailable = true
     logDegraded('agent_runs', err)
   }
 
   let toolRows: ToolRow[] = []
+  let toolsUnavailable = false
   try {
     toolRows = await loadToolsForCopilots(agentIds)
   } catch (err) {
     // Tools only feed the derived `shares-tool` edges and the node tool chips.
     // Missing tools must NOT invent an empty toolset claim, but they also must
     // not blank the whole canvas: we drop the derived edges instead.
+    //
+    // `toolRows = []` alone did exactly the thing the comment forbids — an
+    // empty array is indistinguishable from "this agent declares no tool", and
+    // the panel rendered it as the assertion "No tool declared." The flag is
+    // what makes the empty array claim nothing.
     logDegraded('tools', err)
     toolRows = []
+    toolsUnavailable = true
   }
 
   let relations: ProjectAgentRelationRow[] = []
@@ -246,16 +374,36 @@ export async function getProjectTeamGraph(
 
   const agentNodes: ProjectTeamNode[] = agents.map((copilot) => {
     const agentRuns = runsByAgent.get(copilot.id) ?? []
+
+    // Truncation makes "zero runs in the window" ambiguous for THIS agent: it
+    // may have never run, or it may simply have been pushed out of the window
+    // by busier agents. Unknowable => unavailable, never a fabricated `idle`.
+    // An agent that IS present in the window is safe: the window is globally
+    // newest-first, so anything newer than its oldest visible run is in there
+    // too — its recent history is complete, only its lifetime COUNT is a floor.
+    //
+    // The three cases stay SEPARATE all the way to the renderer: collapsing
+    // them into one `null` latestRun is what let the UI say "no run recorded"
+    // about runs it never managed to read.
+    const runHistory: ProjectTeamRunHistoryState = runsUnavailable
+      ? 'unreadable'
+      : runsTruncated && agentRuns.length === 0
+        ? 'outside-window'
+        : 'known'
+    const agentRunsUnavailable = runHistory !== 'known'
+    // Counts are exact only over a complete run set.
+    const countsKnown = !runsUnavailable && !runsTruncated
+
     const status = deriveAgentStatus({
       copilotStatus: copilot.status,
       runs: agentRuns,
-      runsUnavailable,
+      runsUnavailable: agentRunsUnavailable,
     })
     const terminal = agentRuns.filter(
       (r) => r.status === 'completed' || r.status === 'failed' || r.status === 'blocked'
     )
     const completed = terminal.filter((r) => r.status === 'completed').length
-    const latestRun = runsUnavailable
+    const latestRun = agentRunsUnavailable
       ? null
       : toLatestRunSummary(
           agentRuns.reduce<TeamRunInput | null>((best, r) => {
@@ -287,21 +435,45 @@ export async function getProjectTeamGraph(
       model: copilot.model ?? null,
       status,
       latestRun,
+      runHistory,
       metrics: {
-        totalRuns: runsUnavailable ? 0 : agentRuns.length,
-        runsToday: runsUnavailable
-          ? 0
-          : agentRuns.filter((r) => utcDayKey(r.startedAt) === todayKey).length,
-        // `null`, not 0: an agent with no terminal run has NO success rate.
-        successRate: runsUnavailable || terminal.length === 0 ? null : completed / terminal.length,
+        // `null`, not 0. 0 is reserved for "we read the runs and there were
+        // none" — an unreadable or truncated set has no total to report.
+        totalRuns: countsKnown ? agentRuns.length : null,
+        runsToday: countsKnown
+          ? agentRuns.filter((r) => utcDayKey(r.startedAt) === todayKey).length
+          : null,
+        // `null`, not 0: an agent with no terminal run has NO success rate, and
+        // a rate over a truncated window is a sample, not the agent's rate.
+        successRate: !countsKnown || terminal.length === 0 ? null : completed / terminal.length,
       },
       tools: toolsByAgent.get(copilot.id) ?? [],
+      toolsUnavailable,
       href: `/admin/agents/${copilot.id}`,
     }
   })
 
   // -- Aggregates -----------------------------------------------------------
-  const runsToday = runsUnavailable ? 0 : runs.filter((r) => utcDayKey(r.startedAt) === todayKey).length
+  // Project-wide `runsToday`. Over a COMPLETE run set the in-memory count is
+  // already exact and costs nothing. Only when the window truncated do we spend
+  // one extra round trip on an exact `count=exact` query (limit=0, no rows
+  // transferred) rather than publish the window's floor as a fact.
+  let runsToday: number | null
+  if (runsUnavailable) {
+    runsToday = null
+  } else if (!runsTruncated) {
+    runsToday = runs.filter((r) => utcDayKey(r.startedAt) === todayKey).length
+  } else {
+    try {
+      runsToday = await countRunsSince(projectId, `${todayKey}T00:00:00.000Z`)
+    } catch (err) {
+      logDegraded('agent_runs (runsToday exact count)', err)
+      runsToday = null
+    }
+  }
+
+  // Safe under truncation: the window is newest-first, so the most recent run
+  // of the whole project is inside it by construction.
   const latestActivityAt = runsUnavailable
     ? null
     : runs.reduce<string | null>((acc, r) => {
@@ -313,6 +485,26 @@ export async function getProjectTeamGraph(
 
   const countBy = (status: ProjectTeamNodeStatus): number =>
     agentNodes.filter((n) => n.status === status).length
+
+  // How many agents have NO derivable status. Always a fact — an `unavailable`
+  // status is directly observed, never inferred.
+  const unavailableAgents = countBy('unavailable')
+
+  /**
+   * The four activity counters are countable ONLY when every agent's status is
+   * known. With one `unavailable` agent in the set, "1 active" is a floor, and
+   * a floor published as a total is a wrong number — the same rule the per-agent
+   * metrics already follow under truncation.
+   *
+   * When the runs read fails outright, EVERY non-draft agent turns
+   * `unavailable`, so all four counters used to compute to `0` and the UI
+   * asserted "0 Active · 0 Waiting · 0 Blocked · 0 Failed" — with the aria-live
+   * region speaking those fabricated zeros aloud — when the truth was simply
+   * unknown.
+   */
+  const statusesKnown = unavailableAgents === 0
+  const countActivity = (status: ProjectTeamNodeStatus): number | null =>
+    statusesKnown ? countBy(status) : null
 
   /** Aggregate status of a container node (project or group) over its members. */
   const aggregateStatus = (members: readonly ProjectTeamNode[]): ProjectTeamNodeStatus => {
@@ -342,12 +534,21 @@ export async function getProjectTeamGraph(
       model: null,
       status: aggregateStatus(members),
       latestRun: null,
+      // A group has no run of its own — that is a structural fact, not the
+      // claim "nothing here ever ran".
+      runHistory: 'not-applicable',
+      // A sum is only a fact when every term is known. One unknown member makes
+      // the group total unknown — silently dropping it would understate the
+      // group and read as a measured number.
       metrics: {
-        totalRuns: members.reduce((s, n) => s + n.metrics.totalRuns, 0),
-        runsToday: members.reduce((s, n) => s + n.metrics.runsToday, 0),
+        totalRuns: sumKnown(members.map((n) => n.metrics.totalRuns)),
+        runsToday: sumKnown(members.map((n) => n.metrics.runsToday)),
         successRate: null,
       },
       tools: [],
+      // Containers carry no tools by construction, so there is nothing the
+      // tool read could have failed to tell us about them.
+      toolsUnavailable: false,
       href: null,
     }
   })
@@ -364,12 +565,17 @@ export async function getProjectTeamGraph(
     model: null,
     status: aggregateStatus(agentNodes),
     latestRun: null,
+    // The project hub has no run of its own; project-wide activity is reported
+    // by `freshness.latestActivityAt`, not by this node.
+    runHistory: 'not-applicable',
     metrics: {
-      totalRuns: runsUnavailable ? 0 : runs.length,
+      // EXACT: from PostgREST's `count=exact`, not from the window length.
+      totalRuns: runsUnavailable ? null : projectTotalRuns,
       runsToday,
       successRate: null,
     },
     tools: [],
+    toolsUnavailable: false,
     href: `/admin/projects/${projectId}`,
   }
 
@@ -386,14 +592,23 @@ export async function getProjectTeamGraph(
   return {
     project: { id: project.id, name: project.name },
     generatedAt: now.toISOString(),
-    freshness: { source: 'LIVE', latestActivityAt },
+    freshness: {
+      source: 'LIVE',
+      latestActivityAt,
+      // A null `latestActivityAt` means "the project never ran" ONLY when the
+      // runs were actually read. Unreadable runs say nothing either way.
+      latestActivityState: runsUnavailable ? 'unreadable' : 'known',
+    },
     summary: {
       totalAgents: agentNodes.length,
-      activeAgents: countBy('active'),
-      waitingAgents: countBy('waiting'),
-      blockedAgents: countBy('blocked'),
-      failedAgents: countBy('failed'),
+      activeAgents: countActivity('active'),
+      waitingAgents: countActivity('waiting'),
+      blockedAgents: countActivity('blocked'),
+      failedAgents: countActivity('failed'),
+      // Derived from `copilots.status`, which is read on a path that throws
+      // rather than degrades — always a fact, so never nullable.
       draftAgents: countBy('draft'),
+      unavailableAgents,
       runsToday,
     },
     nodes: [projectNode, ...groupNodes, ...agentNodes],
