@@ -220,7 +220,7 @@ export function ProjectRepoIntelligence({
     <div>
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2" aria-live="polite">
             {phase === 'scanning' ? (
               <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500">
                 <Spinner className="size-3.5" />
