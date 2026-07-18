@@ -212,7 +212,13 @@ export function ReleaseCandidateCard({
 
         <div aria-live="polite">
           {success ? <p className="text-xs font-medium text-zinc-950 dark:text-white">{success}</p> : null}
-          {error ? <p className="text-xs font-medium text-accent-600 dark:text-accent-400">{error}</p> : null}
+        </div>
+        <div aria-live="assertive">
+          {error ? (
+            <p role="alert" className="text-xs font-medium text-accent-600 dark:text-accent-400">
+              {error}
+            </p>
+          ) : null}
         </div>
       </div>
 
