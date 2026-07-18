@@ -47,6 +47,81 @@ const rest = <T>(pathAndQuery: string): Promise<T> => pgrest<T>('GET', pathAndQu
 
 type RawRow = Record<string, unknown>
 
+/**
+ * Normalise the run-time resolved-model columns on a freshly camel-cased run
+ * row. `select=*` surfaces `resolved_model` / `resolved_provider` /
+ * `model_unverified` (migration 0020) as `resolvedModel` / `resolvedProvider` /
+ * `modelUnverified`, but a run that predates the migration (or a NULL from a
+ * writer that never proved the model) leaves them `undefined`/`null`. We coerce
+ * to the AgentRun contract: unknown model/provider → `null`, and `modelUnverified`
+ * → `true` unless the DB explicitly proved otherwise (`=== false`). Absence of
+ * proof is surfaced as unverified — never fabricated into a trusted model.
+ */
+function normalizeResolvedModel(run: AgentRun): AgentRun {
+  run.resolvedModel = typeof run.resolvedModel === 'string' && run.resolvedModel.length > 0 ? run.resolvedModel : null
+  run.resolvedProvider =
+    typeof run.resolvedProvider === 'string' && run.resolvedProvider.length > 0 ? run.resolvedProvider : null
+  run.modelUnverified = run.modelUnverified === false ? false : true
+  return run
+}
+
+/** Run-backed 24h KPIs for one copilot, aggregated live from `agent_runs`. */
+interface ResolvedKpi24h {
+  runsLast24h: number
+  costLast24hUsd: number
+  errorRateLast24h: number
+}
+
+/**
+ * Recompute the 24h KPIs (`runsLast24h` / `costLast24hUsd` / `errorRateLast24h`)
+ * from REAL `agent_runs` rows, batched across a set of copilots in one PostgREST
+ * round trip (`copilot_id=in.(...)` + `started_at=gte.<now-24h>`). The stored
+ * `copilots.health` blob is written once at creation and never recomputed, so it
+ * lies (8 real runs showing "0 runs/24h"). This is the display truth `data.ts`
+ * overwrites the blob with — same pattern as testPassRate/benchmarkScore.
+ *
+ * `errorRateLast24h` = failed runs / total runs in the window (0 when no run, so
+ * a quiet copilot reads 0% error, never a fabricated non-zero). Cost is summed
+ * losslessly per row. A copilot with no 24h run maps to all-zero, which matches
+ * the "no traffic yet" UI branch. Never gates anything — display only.
+ *
+ * NOTE (owner boundary): the frozen correctif list assigns the canonical KPI-24h
+ * resolver to `agent-health.ts` (C1). C1 owns that file; this C3 pass owns
+ * `data.ts`, so the aggregation lives here as a self-contained server-only helper
+ * against agent_runs. If C1 later exports its own resolver, integration collapses
+ * the two into one — the query and semantics above are the contract.
+ */
+async function resolveKpi24hBatch(copilotIds: string[]): Promise<Map<string, ResolvedKpi24h>> {
+  const out = new Map<string, ResolvedKpi24h>()
+  if (copilotIds.length === 0) return out
+  const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const ids = copilotIds.map((id) => encodeURIComponent(id)).join(',')
+  const rows = await rest<RawRow[]>(
+    `agent_runs?select=copilot_id,status,cost_usd&copilot_id=in.(${ids})&started_at=gte.${encodeURIComponent(sinceIso)}`
+  )
+  const agg = new Map<string, { runs: number; failed: number; cost: number }>()
+  for (const r of rows) {
+    const cid = r.copilot_id as string
+    const acc = agg.get(cid) ?? { runs: 0, failed: 0, cost: 0 }
+    acc.runs += 1
+    if (r.status === 'failed') acc.failed += 1
+    // cost_usd is `numeric` — PostgREST may serialise it as a number or a string;
+    // Number() covers both without ever fabricating a value (NaN → 0 guard below).
+    const c = typeof r.cost_usd === 'string' ? Number(r.cost_usd) : (r.cost_usd as number)
+    acc.cost += Number.isFinite(c) ? c : 0
+    agg.set(cid, acc)
+  }
+  for (const id of copilotIds) {
+    const a = agg.get(id)
+    out.set(id, {
+      runsLast24h: a?.runs ?? 0,
+      costLast24hUsd: a?.cost ?? 0,
+      errorRateLast24h: a && a.runs > 0 ? a.failed / a.runs : 0,
+    })
+  }
+  return out
+}
+
 // ---------------------------------------------------------------------------
 // Getters — live PostgREST, async
 // ---------------------------------------------------------------------------
@@ -68,7 +143,11 @@ export async function getProject(id: string): Promise<Project | undefined> {
  * still work. Every listing surface reads `.health.testPassRate` unchanged —
  * the value is simply now true. Display-only; never touches the DB or the gate.
  */
-function enrichCopilot(copilot: Copilot, resolved: ResolvedAgentHealth | undefined): Copilot {
+function enrichCopilot(
+  copilot: Copilot,
+  resolved: ResolvedAgentHealth | undefined,
+  kpi24h: ResolvedKpi24h | undefined
+): Copilot {
   copilot.displayStatus = deriveDisplayStatus({
     status: copilot.status,
     productionVersionId: copilot.productionVersionId,
@@ -77,20 +156,31 @@ function enrichCopilot(copilot: Copilot, resolved: ResolvedAgentHealth | undefin
   if (resolved && resolved.testPassRate !== null) copilot.health.testPassRate = resolved.testPassRate
   if (resolved && resolved.benchmarkScore !== null) copilot.health.benchmarkScore = resolved.benchmarkScore
   if (resolved && resolved.avgLatencyMs !== null) copilot.health.avgLatencyMs = resolved.avgLatencyMs
+  // Overwrite the stale 24h blob with run-backed truth (same pattern as above).
+  // Always applied — an absence of 24h runs is a real 0, not "keep the old lie".
+  if (kpi24h) {
+    copilot.health.runsLast24h = kpi24h.runsLast24h
+    copilot.health.costLast24hUsd = kpi24h.costLast24hUsd
+    copilot.health.errorRateLast24h = kpi24h.errorRateLast24h
+  }
   return copilot
 }
 
 export async function getCopilots(): Promise<Copilot[]> {
   const copilots = camelRows<Copilot>(await rest<RawRow[]>('copilots?select=*&order=name'))
-  const health = await resolveCopilotHealthBatch(copilots.map((c) => c.id))
-  return copilots.map((c) => enrichCopilot(c, health.get(c.id)))
+  const ids = copilots.map((c) => c.id)
+  const [health, kpi24h] = await Promise.all([resolveCopilotHealthBatch(ids), resolveKpi24hBatch(ids)])
+  return copilots.map((c) => enrichCopilot(c, health.get(c.id), kpi24h.get(c.id)))
 }
 
 export async function getCopilot(id: string): Promise<Copilot | undefined> {
   const copilot = camelRows<Copilot>(await rest<RawRow[]>(`copilots?select=*&id=eq.${encodeURIComponent(id)}`))[0]
   if (!copilot) return undefined
-  const health = await resolveCopilotHealthBatch([copilot.id])
-  return enrichCopilot(copilot, health.get(copilot.id))
+  const [health, kpi24h] = await Promise.all([
+    resolveCopilotHealthBatch([copilot.id]),
+    resolveKpi24hBatch([copilot.id]),
+  ])
+  return enrichCopilot(copilot, health.get(copilot.id), kpi24h.get(copilot.id))
 }
 
 export async function getVersionsForCopilot(copilotId: string): Promise<CopilotVersion[]> {
@@ -175,7 +265,7 @@ export async function getRunsForCopilot(copilotId: string, limit = 50): Promise<
   )
   return rows.map((r) => {
     const { agent_run_steps, ...rest_ } = r as RawRow & { agent_run_steps: { id: string }[] }
-    const run = camelRow<AgentRun>(rest_)
+    const run = normalizeResolvedModel(camelRow<AgentRun>(rest_))
     run.stepIds = (agent_run_steps ?? []).map((s) => s.id)
     return run
   })
@@ -185,7 +275,7 @@ export async function getRecentRuns(limit = 30): Promise<AgentRun[]> {
   const rows = await rest<RawRow[]>(`agent_runs?select=*,agent_run_steps(id)&order=started_at.desc&limit=${limit}`)
   return rows.map((r) => {
     const { agent_run_steps, ...rest_ } = r as RawRow & { agent_run_steps: { id: string }[] }
-    const run = camelRow<AgentRun>(rest_)
+    const run = normalizeResolvedModel(camelRow<AgentRun>(rest_))
     run.stepIds = (agent_run_steps ?? []).map((s) => s.id)
     return run
   })
@@ -198,7 +288,7 @@ export async function getRecentRunsForProject(projectId: string, limit = 30): Pr
   )
   return rows.map((r) => {
     const { agent_run_steps, ...rest_ } = r as RawRow & { agent_run_steps: { id: string }[] }
-    const run = camelRow<AgentRun>(rest_)
+    const run = normalizeResolvedModel(camelRow<AgentRun>(rest_))
     run.stepIds = (agent_run_steps ?? []).map((s) => s.id)
     return run
   })

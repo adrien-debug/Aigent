@@ -314,6 +314,24 @@ export interface AgentRun {
   unsafeAttemptCount: number
   latencyMs: DurationMs
   costUsd: UsdAmount
+  /**
+   * Model actually RESOLVED at run time by the runner (`resolvedModel`), which
+   * may differ from the copilot's DECLARED `model`. `null`/`undefined` = the run
+   * predates the `agent_runs.resolved_model` column (old row) or the runner
+   * never proved it — surfaced as "unverified" in the UI, never guessed.
+   * Optional so pre-migration rows and seed fixtures need not carry it; the data
+   * layer normalises reads to `null` and `modelUnverified: true` when absent.
+   */
+  resolvedModel?: string | null
+  /** Provider actually resolved at run time. `null`/`undefined` → unverified. */
+  resolvedProvider?: string | null
+  /**
+   * Whether the resolved model above is UNVERIFIED. Defaults to `true` at the
+   * DB level (a run is presumed unverified until a writer proves it), so an old
+   * row missing the column reads as unverified — absence of proof is surfaced,
+   * never silently trusted. Absent (`undefined`) is treated as unverified too.
+   */
+  modelUnverified?: boolean
   /** LangSmith trace deep-link (placeholder in V1). */
   traceUrl: string | null
 }

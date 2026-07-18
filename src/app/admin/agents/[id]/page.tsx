@@ -103,16 +103,24 @@ function RuntimeStat({
   label,
   value,
   accent = false,
+  labelTitle,
   children,
 }: {
   label: string
   value: React.ReactNode
   accent?: boolean
+  /** Optional hover copy on the label (e.g. explaining an estimated figure). */
+  labelTitle?: string
   children?: React.ReactNode
 }) {
   return (
     <div>
-      <dt className="text-xs font-medium tracking-wide text-zinc-500 uppercase">{label}</dt>
+      <dt
+        className={clsx('text-xs font-medium tracking-wide text-zinc-500 uppercase', labelTitle && 'cursor-help')}
+        title={labelTitle}
+      >
+        {label}
+      </dt>
       <dd
         className={clsx(
           'mt-1 font-mono text-lg tabular-nums',
@@ -532,7 +540,11 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                     </div>
                   ) : null}
                 </RuntimeStat>
-                <RuntimeStat label="Cost · 24h" value={formatUsd(copilot.health.costLast24hUsd)} />
+                <RuntimeStat
+                  label="Cost · 24h (est.)"
+                  value={formatUsd(copilot.health.costLast24hUsd)}
+                  labelTitle="Estimated 24h cost: sum of each run's token×list-price estimate (model-pricing.ts). Approximate, not billing-grade."
+                />
                 <RuntimeStat
                   label="Open warnings"
                   value={copilot.health.openWarnings}

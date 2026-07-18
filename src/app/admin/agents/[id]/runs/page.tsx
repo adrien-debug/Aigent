@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { RunCopilotPanel } from '@/components/agent-ops/run-copilot-panel'
-import { RunDetailPanel } from '@/components/agent-ops/run-detail-panel'
+import { COST_ESTIMATE_TOOLTIP, RunDetailPanel, RunModelValue } from '@/components/agent-ops/run-detail-panel'
 import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
 import { surfaceCardClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
 import { SplitBar, type SplitTone } from '@/components/agent-ops/widgets/split-bar'
@@ -123,6 +123,7 @@ export default async function RunsPage({
                 steps={selectedSteps}
                 toolCalls={selectedToolCalls}
                 versionLabel={selectedVersion?.label}
+                declaredModel={copilot.model}
               />
             </div>
 
@@ -175,8 +176,13 @@ export default async function RunsPage({
                 <TableRow>
                   <TableHeader>Run ID & Time</TableHeader>
                   <TableHeader>Status</TableHeader>
+                  <TableHeader>Model</TableHeader>
                   <TableHeader>Input Summary</TableHeader>
-                  <TableHeader className="text-right">Cost</TableHeader>
+                  <TableHeader className="text-right">
+                    <span className="cursor-help" title={COST_ESTIMATE_TOOLTIP}>
+                      Cost · est.
+                    </span>
+                  </TableHeader>
                   <TableHeader className="text-right">Latency</TableHeader>
                 </TableRow>
               </TableHead>
@@ -214,6 +220,11 @@ export default async function RunsPage({
                             {statusLabel(run.status)}
                           </span>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="block max-w-[12rem] truncate font-mono text-xs text-zinc-300">
+                          <RunModelValue run={run} declaredModel={copilot.model} />
+                        </span>
                       </TableCell>
                       <TableCell>
                         <span className="block text-xs text-zinc-400 truncate max-w-md" title={run.inputSummary}>

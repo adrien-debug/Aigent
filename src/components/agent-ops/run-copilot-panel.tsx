@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
-import { RunStatusText } from '@/components/agent-ops/run-detail-panel'
+import { COST_ESTIMATE_TOOLTIP, RunStatusText } from '@/components/agent-ops/run-detail-panel'
 import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
 import { ToolBadge } from '@/components/agent-ops/tool-badge'
 import { Button } from '@/components/catalyst/button'
@@ -264,7 +264,12 @@ export function RunCopilotPanel({ copilotId, copilotName, copilotSlug = '', copi
                   </dd>
                 </div>
                 <div>
-                  <dt className="inline text-xs font-medium tracking-wide text-zinc-500 uppercase">Cost</dt>
+                  <dt
+                    className="inline cursor-help text-xs font-medium tracking-wide text-zinc-500 uppercase"
+                    title={COST_ESTIMATE_TOOLTIP}
+                  >
+                    Cost · est.
+                  </dt>
                   <dd className="ml-1.5 inline font-mono text-sm tabular-nums text-zinc-950 dark:text-white">
                     {formatUsd(result.costUsd)}
                   </dd>
