@@ -144,7 +144,14 @@ export function ProjectRepoIntelligenceActions({
           Suggestions{recCount > 0 ? ` (${recCount})` : ''}
         </Button>
         <Button outline disabled={phase === 'scanning'} onClick={() => scan(true)}>
-          Retry scan
+          {phase === 'scanning' ? (
+            <>
+              <Spinner className="size-3.5" />
+              Scanning…
+            </>
+          ) : (
+            'Retry scan'
+          )}
         </Button>
       </div>
 
