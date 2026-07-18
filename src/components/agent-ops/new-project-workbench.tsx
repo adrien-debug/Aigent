@@ -298,7 +298,7 @@ export function NewProjectWorkbench() {
                 )
               })}
               {filteredRepos.length === 0 ? (
-                <li className="py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                <li role="status" className="py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
                   No repository matches “{query}”.
                 </li>
               ) : null}
@@ -380,12 +380,12 @@ export function NewProjectWorkbench() {
                 })}
               </ul>
               {treeOverflow > 0 ? (
-                <p className="text-xs text-zinc-500 tabular-nums dark:text-zinc-500">
+                <p role="status" className="text-xs text-zinc-500 tabular-nums dark:text-zinc-500">
                   +{treeOverflow.toLocaleString('en-US')} more (showing first{' '}
                   {TREE_DISPLAY_CAP.toLocaleString('en-US')})
                 </p>
               ) : (
-                <p className="text-xs text-zinc-500 tabular-nums dark:text-zinc-500">
+                <p role="status" className="text-xs text-zinc-500 tabular-nums dark:text-zinc-500">
                   {(tree?.length ?? 0).toLocaleString('en-US')} entries
                 </p>
               )}
