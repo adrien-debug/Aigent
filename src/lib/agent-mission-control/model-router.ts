@@ -9,7 +9,13 @@
  * Providers in V1:
  *   - openai    : official SDK (already used elsewhere), key OPENAI_API_KEY.
  *   - google    : direct server-only fetch to the Gemini REST API, key GEMINI_API_KEY.
- *   - mistral/local : not wired → ProviderUnavailableError (fallback if allowed).
+ *   - local     : Adrien's vLLM park (OpenAI-compatible), key VLLM_LOCAL_API_KEY +
+ *                 one URL env var per endpoint (model-local.ts). Explicit opt-in:
+ *                 only reached when a request selects provider 'local' AND one of
+ *                 the LOCAL_VLLM_MODEL_IDS — never a silent redirect of defaults.
+ *                 Endpoint down/unconfigured → ProviderUnavailableError, so the
+ *                 standard fallback policy (model-fallbacks.ts) applies.
+ *   - mistral   : not wired → ProviderUnavailableError (fallback if allowed).
  *
  * Never import from a client component (reads provider secrets).
  */
@@ -18,6 +24,7 @@ import 'server-only'
 import OpenAI from 'openai'
 
 import { resolveFallback, type RouterPurpose } from './model-fallbacks'
+import { localVllmAvailable, resolveLocalVllmEndpoint } from './model-local'
 import { computeCostUsd, estimateTokens } from './model-pricing'
 import { ModelAccessError, ModelRouterError, ProviderUnavailableError } from './runner-errors'
 import type { ModelProvider } from './types'
@@ -91,6 +98,13 @@ function openAiAvailable(): boolean {
 function geminiAvailable(): boolean {
   return Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY)
 }
+
+// Local vLLM call bounds (the endpoints are LAN/Tailscale hosts: never retry a
+// dead host forever, and keep a generous ceiling for slow 70B generations).
+const LOCAL_VLLM_MAX_RETRIES = 1
+const LOCAL_VLLM_TIMEOUT_MS = 120_000
+/** Minimum completion room required inside a local model's context window. */
+const LOCAL_VLLM_MIN_COMPLETION_TOKENS = 64
 
 /** Is an OpenAI-style access/permission error (403 / model access denied)? */
 function isAccessError(err: unknown): boolean {
@@ -252,6 +266,84 @@ async function callGemini(req: ModelRouterRequest): Promise<RawCall> {
   }
 }
 
+/**
+ * Call one of the local vLLM endpoints (OpenAI-compatible API). The router-facing
+ * `req.model` is a LOCAL_VLLM_MODEL_IDS id; model-local.ts resolves it to the
+ * endpoint URL + upstream model id from env. Unconfigured endpoint or unreachable
+ * host → ProviderUnavailableError (routable, the fallback policy applies).
+ */
+async function callLocalVllm(req: ModelRouterRequest): Promise<RawCall> {
+  const endpoint = resolveLocalVllmEndpoint(req.model)
+  if (!endpoint) {
+    throw new ProviderUnavailableError(
+      `local/${req.model}: endpoint not configured (VLLM_LOCAL_API_KEY or its URL env var missing, or unknown local model id)`
+    )
+  }
+  const client = new OpenAI({
+    apiKey: endpoint.apiKey,
+    baseURL: endpoint.baseUrl,
+    maxRetries: LOCAL_VLLM_MAX_RETRIES,
+    timeout: LOCAL_VLLM_TIMEOUT_MS,
+  })
+
+  // Bound the completion to the endpoint's context window (prompt + completion).
+  const estimatedInput = estimateTokens(req.messages.map((m) => m.content).join(' '))
+  const contextRoom = endpoint.contextTokens - estimatedInput
+  if (contextRoom < LOCAL_VLLM_MIN_COMPLETION_TOKENS) {
+    throw new ModelRouterError(
+      `local/${req.model}: prompt (~${estimatedInput} tokens) leaves no room in the ${endpoint.contextTokens}-token context window`
+    )
+  }
+  const maxCompletionTokens = Math.min(req.maxOutputTokens ?? 2048, contextRoom)
+
+  const tools: OpenAI.Chat.Completions.ChatCompletionTool[] | undefined =
+    req.tools && req.tools.length > 0
+      ? req.tools.map((t) => ({
+          type: 'function' as const,
+          function: { name: t.name, description: t.description, parameters: t.parameters },
+        }))
+      : undefined
+  const toolChoice = tools ? toOpenAiToolChoice(req.toolChoice) : undefined
+
+  try {
+    const completion = await client.chat.completions.create({
+      model: endpoint.upstreamModel,
+      messages: req.messages.map(toOpenAiMessage),
+      max_completion_tokens: maxCompletionTokens,
+      ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
+      ...(tools ? { tools } : {}),
+      ...(toolChoice !== undefined ? { tool_choice: toolChoice } : {}),
+    })
+    const message = completion.choices[0]?.message
+    const toolCalls: ModelRouterToolCall[] = (message?.tool_calls ?? [])
+      .filter((tc): tc is OpenAI.Chat.Completions.ChatCompletionMessageFunctionToolCall => tc.type === 'function')
+      .map((tc) => ({ id: tc.id, name: tc.function.name, argumentsJson: tc.function.arguments }))
+    return {
+      text: (message?.content ?? '').trim(),
+      inputTokens: completion.usage?.prompt_tokens ?? estimatedInput,
+      outputTokens: completion.usage?.completion_tokens ?? estimateTokens(message?.content ?? ''),
+      finishReason: completion.choices[0]?.finish_reason ?? undefined,
+      ...(toolCalls.length > 0 ? { toolCalls } : {}),
+    }
+  } catch (err) {
+    // Host down / connection refused / timeout → routable so the standard
+    // fallback policy can take over (the park may be partially deployed).
+    if (err instanceof OpenAI.APIConnectionError) {
+      throw new ProviderUnavailableError(
+        `local/${req.model}: endpoint unreachable at ${endpoint.baseUrl} (${err.message})`
+      )
+    }
+    if (isAccessError(err)) {
+      throw new ModelAccessError(
+        `local/${req.model}: ${err instanceof Error ? err.message : 'model access denied'}`
+      )
+    }
+    throw new ModelRouterError(
+      `local/${req.model}: ${err instanceof Error ? err.message : 'upstream error'}`
+    )
+  }
+}
+
 /** Dispatch to a provider adapter, or throw ProviderUnavailableError. */
 function callProvider(provider: ModelProvider, req: ModelRouterRequest): Promise<RawCall> {
   switch (provider) {
@@ -259,20 +351,23 @@ function callProvider(provider: ModelProvider, req: ModelRouterRequest): Promise
       return callOpenAI(req)
     case 'google':
       return callGemini(req)
-    case 'mistral':
     case 'local':
+      return callLocalVllm(req)
+    case 'mistral':
       throw new ProviderUnavailableError(`provider '${provider}' is not wired in V1`)
     default:
       throw new ProviderUnavailableError(`unknown provider '${provider}'`)
   }
 }
 
-function providerAvailable(provider: ModelProvider): boolean {
+function providerAvailable(provider: ModelProvider, model: string): boolean {
   switch (provider) {
     case 'openai':
       return openAiAvailable()
     case 'google':
       return geminiAvailable()
+    case 'local':
+      return localVllmAvailable(model)
     default:
       return false
   }
@@ -329,7 +424,7 @@ export async function routeCompletion(req: ModelRouterRequest): Promise<ModelRou
   // Primary attempt (only if the provider's env is present — otherwise skip
   // straight to fallback resolution with a clear reason).
   let primaryError: Error | null = null
-  if (providerAvailable(req.modelProvider)) {
+  if (providerAvailable(req.modelProvider, req.model)) {
     try {
       const raw = await callProvider(req.modelProvider, req)
       return finalize(raw, req.modelProvider, req.model, false)
