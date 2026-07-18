@@ -370,12 +370,20 @@ export async function POST(
         : 'completed'
     const outputSummary = summarize(result.finalText || '(empty response)')
 
+    // Persist the model that ACTUALLY served the resumed thread (verified from
+    // the graph's provider response, else null). This is a LangGraph run, so
+    // the provider is 'openai' and model_unverified stays true unless the real
+    // model could be read from the graph — never the requested model as fact.
+    const resolvedModel = result.resolvedModel
     await pgrest('PATCH', `agent_runs?id=eq.${encodeURIComponent(runId)}`, {
       status,
       output_summary: outputSummary,
       finished_at: new Date().toISOString(),
       tool_call_count: toolCallCount,
       unsafe_attempt_count: unsafeAttemptCount,
+      resolved_model: resolvedModel,
+      resolved_provider: 'openai',
+      model_unverified: resolvedModel === null,
     })
 
     return NextResponse.json({

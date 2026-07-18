@@ -491,6 +491,13 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
     cost_usd: costUsd,
     trace_url: traceResult.traceUrl,
     thread_id: threadId,
+    // Persist the model that ACTUALLY served the run (verified from the graph's
+    // provider response, else null) + provider + the unverified flag. On the
+    // LangGraph path modelUnverified stays true unless the real model was read
+    // from the graph — never the requested `model` dressed up as fact.
+    resolved_model: resolvedModel,
+    resolved_provider: 'openai' satisfies ModelProvider,
+    model_unverified: modelUnverified,
     created_via: 'authoring',
   })
   for (const s of traceResult.steps) {
@@ -852,6 +859,12 @@ export async function executeCopilotRun(
     latency_ms: latencyMs,
     cost_usd: costUsd,
     trace_url: traceResult.traceUrl,
+    // Persist provider/model actually served by routeCompletion. The direct
+    // model-router path always verifies against the real provider response, so
+    // model_unverified is always false here.
+    resolved_model: resolvedModel,
+    resolved_provider: resolvedProvider,
+    model_unverified: false,
     created_via: 'authoring',
   })
 
