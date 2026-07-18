@@ -1,7 +1,7 @@
 'use client'
 
 import { ExclamationTriangleIcon } from '@heroicons/react/16/solid'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/catalyst/button'
 import { Heading } from '@/components/catalyst/heading'
@@ -13,9 +13,17 @@ import { Text } from '@/components/catalyst/text'
  * retry that re-runs the server render.
  */
 export default function AdminError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  const [retrying, setRetrying] = useState(false)
+
   useEffect(() => {
     console.error('[admin] route error:', error)
   }, [error])
+
+  function handleRetry() {
+    if (retrying) return
+    setRetrying(true)
+    reset()
+  }
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-6 py-16 text-center">
@@ -27,8 +35,8 @@ export default function AdminError({ error, reset }: { error: Error & { digest?:
         The data source didn&apos;t respond. This is usually transient — retry in a moment.
       </Text>
       {error.digest ? <p className="mt-2 font-mono text-xs text-zinc-600">ref: {error.digest}</p> : null}
-      <Button color="accent" className="mt-6" onClick={reset}>
-        Retry
+      <Button color="accent" className="mt-6" onClick={handleRetry} disabled={retrying}>
+        {retrying ? 'Retrying…' : 'Retry'}
       </Button>
     </div>
   )
