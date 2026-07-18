@@ -226,11 +226,13 @@ export function ProjectMissionOrchestrator({
         )}
 
         {hydrateWarning && phase !== 'running' && (
-          <p className="text-xs text-zinc-500">{hydrateWarning}</p>
+          <p role="status" aria-live="polite" className="text-xs text-zinc-500">
+            {hydrateWarning}
+          </p>
         )}
 
         {phase === 'running' && (
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
+          <div role="status" aria-live="polite" className="flex items-center gap-2 text-sm text-zinc-400">
             <Spinner />
             Collecting evidence from repo intelligence, scorecard, sandbox…
           </div>
