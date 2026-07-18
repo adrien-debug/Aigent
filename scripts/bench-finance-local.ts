@@ -48,6 +48,7 @@ import {
 } from '../src/lib/agent-mission-control/finance/contracts'
 import {
   getRoleBySlug,
+  renderBlockingPolicySection,
   type FinanceLlmRoleDef,
 } from '../src/lib/agent-mission-control/finance/agents/roster'
 
@@ -334,6 +335,10 @@ function caseHintName(testCase: FinanceTestCase): HintName {
 // ---------------------------------------------------------------------------
 
 function buildSystemPrompt(role: FinanceLlmRoleDef): string {
+  // Blocking roles carry their terminal decision policy in the roster; without
+  // it, a mission-only prompt leaves the escalation threshold to the model and
+  // it answers ENHANCED_VALIDATION where the domain requires BLOCKED.
+  const blockingPolicy = renderBlockingPolicySection(role)
   return [
     `Tu es l'agent comptable "${role.slug}" (équipe ${role.team}) de l'Accounting Agent Factory.`,
     '',
@@ -342,6 +347,7 @@ function buildSystemPrompt(role: FinanceLlmRoleDef): string {
     'ACTIONS COUVERTES :',
     ...role.actions.map((a) => `- ${a}`),
     '',
+    ...(blockingPolicy.length > 0 ? [...blockingPolicy, ''] : []),
     'INVARIANTS ABSOLUS (non négociables) :',
     '- Tout est READ-ONLY / DRY-RUN : tu ne peux RIEN exécuter (aucun paiement, aucune écriture réelle).',
     '- Les montants sont des chaînes décimales lossless ("1200.00"), JAMAIS des nombres flottants.',

@@ -25,6 +25,7 @@
 import {
   FINANCE_TEAMS,
   getMaterializableAgents,
+  renderBlockingPolicySection,
   type FinanceLlmRoleDef,
 } from '../src/lib/agent-mission-control/finance/agents/roster'
 import { FINANCE_TOOL_DESCRIPTIONS } from '../src/lib/agent-mission-control/finance/tool-descriptions'
@@ -101,6 +102,10 @@ function composePrompt(agent: FinanceLlmRoleDef): string {
       '',
       'GATE BLOQUANTE : ton verdict BLOCKED/REJECTED est TERMINAL — aucun autre agent ne peut le contourner (miroir de Sentinel dans le council trading).',
     )
+    // Same rendered section as the bench harness (shared roster helper): the
+    // mission alone never encodes WHEN the gate must fire.
+    const policy = renderBlockingPolicySection(agent)
+    if (policy.length > 0) lines.push('', ...policy)
   }
   lines.push('', 'Invariants non négociables :', ...SHARED_INVARIANTS.map((s) => `- ${s}`))
   return lines.join('\n')
