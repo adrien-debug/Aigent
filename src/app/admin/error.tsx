@@ -26,7 +26,11 @@ export default function AdminError({ error, reset }: { error: Error & { digest?:
   }
 
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center px-6 py-16 text-center">
+    <div
+      role="alert"
+      aria-live="assertive"
+      className="flex min-h-[60vh] flex-col items-center justify-center px-6 py-16 text-center"
+    >
       <span className="flex size-11 items-center justify-center rounded-xl bg-accent-500/15 text-accent-400 ring-1 ring-accent-500/25">
         <ExclamationTriangleIcon aria-hidden="true" className="size-5" />
       </span>
