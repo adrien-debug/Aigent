@@ -9,9 +9,23 @@
  *
  * Read-only doctrine end to end: `git clone --depth 1` (no write remote, no
  * push), never commits, never touches the target repo's branches. The clone is
- * a throwaway copy under a temp root — NEVER the Aigent repo itself. Secrets
- * (the token used to clone a private repo) never reach the report: the clone URL
- * is built locally and command output is sanitized before capture.
+ * a throwaway copy under a temp root — NEVER the Aigent repo itself.
+ *
+ * Secret hygiene (two layers):
+ *   1. The clone URL may embed the GITHUB_TOKEN (needed to reach a PRIVATE
+ *      repo). git PERSISTS that URL verbatim into `<clone>/.git/config`
+ *      (`[remote "origin"] url = https://x-access-token:<token>@…`), so right
+ *      after cloning we STRIP the credentials off the remote
+ *      (`git remote set-url origin <clean-url>`) and then GREP `.git/config` to
+ *      prove no token survives — a target script (or any later reader of the
+ *      clone) can never scrape the credential off disk. Failing to scrub aborts
+ *      the run rather than executing scripts against a token-bearing clone.
+ *   2. Command output is sanitized (`sanitizeOutput`) before capture, so a
+ *      token never reaches the report even if a script were to echo the URL.
+ *
+ * Target scripts are spawned with `minimalEnv()` (PATH + HOME only), so a repo
+ * cloned from GitHub never inherits the Aigent process's secret-bearing env
+ * (GITHUB_TOKEN, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY, …).
  *
  * Never import from a client component (reads GITHUB_TOKEN).
  */
@@ -73,6 +87,40 @@ async function detectInstallCommand(dir: string): Promise<{ cmd: string; args: s
   if ((await has('bun.lockb')) || (await has('bun.lock'))) return { cmd: 'bun', args: ['install', '--frozen-lockfile'] }
   if (await has('package.json')) return { cmd: 'npm', args: ['install'] }
   return null
+}
+
+/** Build the clean, credential-free clone URL for a repo (no token embedded). */
+function cleanRemoteUrl(repo: string): string {
+  return `https://github.com/${repo}.git`
+}
+
+/**
+ * Scrub any embedded credential off the freshly cloned repo. `git clone` writes
+ * the (possibly token-bearing) URL verbatim into `<clone>/.git/config`; this
+ * rewrites the `origin` remote to the credential-free URL and then reads
+ * `.git/config` back to PROVE no token survives on disk. Throws if a credential
+ * marker is still present after the rewrite — the caller aborts the run rather
+ * than executing target scripts against a token-bearing clone.
+ */
+async function scrubCloneCredentials(dir: string, repo: string): Promise<void> {
+  // Rewrite origin to the credential-free URL (drops the `x-access-token:…@` prefix).
+  await pExecFile('git', ['remote', 'set-url', 'origin', cleanRemoteUrl(repo)], {
+    cwd: dir,
+    timeout: 15_000,
+    env: minimalEnv(),
+  })
+  // Verify: read .git/config back and confirm no credential/token marker remains.
+  // A userinfo prefix ("…@github.com") or an x-access-token literal is the tell.
+  let config = ''
+  try {
+    config = await readFile(path.join(dir, '.git', 'config'), 'utf-8')
+  } catch {
+    // No config to read → nothing could carry a credential; treat as clean.
+    return
+  }
+  if (/x-access-token|:\/\/[^/\s]*@github\.com/i.test(config)) {
+    throw new Error('clone credential scrub failed: a token survived in .git/config')
+  }
 }
 
 async function readScripts(dir: string): Promise<Record<string, string> | null> {
@@ -144,16 +192,26 @@ export async function runTargetRepoSandbox(opts: RunSandboxOptions): Promise<San
   }
 
   try {
-    // Clone read-only, shallow. Token embedded only in the local URL (never
-    // logged; output is sanitized regardless). --no-tags/--depth 1 keep it light.
+    // Clone read-only, shallow. A token (private-repo access) is embedded in the
+    // clone URL, which git PERSISTS into <clone>/.git/config — so immediately
+    // after cloning we scrub the credential off the remote and prove it's gone
+    // (scrubCloneCredentials). --no-tags/--depth 1 keep it light.
     const cloneUrl = token
       ? `https://x-access-token:${token}@github.com/${opts.repo}.git`
-      : `https://github.com/${opts.repo}.git`
+      : cleanRemoteUrl(opts.repo)
     await pExecFile(
       'git',
       ['clone', '--depth', '1', '--no-tags', '--branch', opts.branch, cloneUrl, sandboxPath],
       { timeout: PER_COMMAND_TIMEOUT_MS, env: minimalEnv() }
     )
+
+    // Strip the embedded credential from the clone's git config BEFORE running
+    // any target script, so a hostile/curious script can never scrape the token
+    // out of .git/config. Only needed when a token was actually embedded; the
+    // scrub verifies no credential marker survives and throws if one does.
+    if (token) {
+      await scrubCloneCredentials(sandboxPath, opts.repo)
+    }
 
     const targetScripts = await readScripts(sandboxPath)
     const scriptResults: Record<string, ScriptExecResult> = {}

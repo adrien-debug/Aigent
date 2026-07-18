@@ -180,7 +180,13 @@ export interface PushAgentArgs {
   manifest: AgentManifest
   /** Defaults to true. A real push also requires GITHUB_PUSH_ENABLED=1. */
   dryRun?: boolean
-  /** Delivery mode (defaults to 'direct_commit' to preserve existing behaviour). */
+  /**
+   * Delivery mode, informational only. The actual mode is decided by WHICH
+   * function the caller invokes — `pushAgentToRepo` always commits directly,
+   * `pushAgentToRepoPullRequest` always opens a PR. Neither reads this field;
+   * the HTTP route (`push-agent/route.ts`) selects the function, defaulting to
+   * pull_request unless the caller explicitly asks for direct_commit.
+   */
   mode?: PushAgentDeliveryMode
   /** Short run id for the delivery branch name (pull_request mode). */
   runId?: string
