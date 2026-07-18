@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { StatusPill } from '@/components/agent-ops/status-pill'
 import { Badge } from '@/components/catalyst/badge'
+import { Button } from '@/components/catalyst/button'
 import { Divider } from '@/components/catalyst/divider'
 import { Link } from '@/components/catalyst/link'
 import { Text } from '@/components/catalyst/text'
@@ -150,6 +151,15 @@ export interface TeamEdgeView {
   label: string | null
   active: boolean
   lastActivityAt: string | null
+  /**
+   * Non-null ONLY for an edge backed by a real `project_agent_relations` row
+   * — i.e. exactly the edges a `DELETE .../relations/{relationId}` call can
+   * remove. Every derived edge (project/team membership, shares-tool) is
+   * `null`. This is the ONLY signal the UI uses to decide whether to offer a
+   * delete control — never `origin` alone, since `origin: 'explicit'` also
+   * covers project-membership rows that have no relation id to delete.
+   */
+  relationId: string | null
 }
 
 export function toTeamEdgeView(edge: ProjectTeamEdge): TeamEdgeView {
@@ -162,6 +172,7 @@ export function toTeamEdgeView(edge: ProjectTeamEdge): TeamEdgeView {
     label: edge.label,
     active: edge.active,
     lastActivityAt: edge.lastActivityAt,
+    relationId: edge.relationId,
   }
 }
 
@@ -277,6 +288,18 @@ function useFullBleed(): boolean {
  * Deliberately NOT active on `sm+`, where the panel is a 24rem side rail and
  * the canvas beside it is genuinely visible and genuinely reachable: trapping
  * there would be a regression, not a fix.
+ *
+ * ALSO deliberately suspended while a relation dialog is open (see `dialogOpen`
+ * below). A Headless `Dialog` renders in a portal at BODY level, i.e. outside
+ * `containerRef`, so `container.contains(document.activeElement)` is false for
+ * every element of that dialog (measured in Chromium). This trap would then
+ * read "focus escaped", `preventDefault()` the Tab, and try to pull focus back
+ * to the panel's first control — which Headless has already marked `inert`, so
+ * that `focus()` is a no-op (also measured: focus does not move at all). The
+ * net effect is worse than losing focus: Tab is cancelled and focus is FROZEN
+ * on whichever field it started on, so the operator can never reach the rest of
+ * the form, nor its Cancel/Submit buttons, by keyboard. Headless runs its own
+ * trap while it is open, so suspending this one leaves no gap.
  */
 function useFocusTrap(containerRef: React.RefObject<HTMLDivElement | null>, active: boolean): void {
   useEffect(() => {
@@ -326,28 +349,53 @@ function RelationRow({
   edge,
   counterpart,
   direction,
+  agentName,
+  onDelete,
 }: {
   edge: TeamEdgeView
   counterpart: TeamAgentView | undefined
   direction: 'in' | 'out'
+  /** Name of the currently-open agent, to phrase the delete confirmation. */
+  agentName: string
+  /** Absent on a graph the caller has not wired for mutation. */
+  onDelete?: (relationId: string, description: string) => void
 }) {
   const Icon = direction === 'in' ? ArrowDownLeftIcon : ArrowUpRightIcon
   const age = formatAge(edge.lastActivityAt)
+  const counterpartName = counterpart?.name ?? (direction === 'in' ? edge.source : edge.target)
+  const relationLabel = edge.label ?? RELATION_LABELS[edge.relation]
+  // Narrowed to a local `const` (not a cast): only inside this block does
+  // TypeScript know the relation id is non-null, which is also exactly the
+  // condition under which the delete control may render at all.
+  const relationId = edge.relationId
+  const description =
+    direction === 'out' ? `${relationLabel}: ${agentName} → ${counterpartName}` : `${relationLabel}: ${counterpartName} → ${agentName}`
+
   return (
     <li className="flex items-start gap-3 py-2">
       <Icon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-zinc-500" />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-zinc-200">
-          {counterpart?.name ?? (direction === 'in' ? edge.source : edge.target)}
-        </p>
+        <p className="truncate text-sm text-zinc-200">{counterpartName}</p>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
-          <span>{edge.label ?? RELATION_LABELS[edge.relation]}</span>
+          <span>{relationLabel}</span>
           {/* Provenance is load-bearing, not decoration: a relation the platform
               INFERRED must never read like something an operator configured. */}
           <Badge color="zinc">{edge.origin === 'derived' ? 'Derived' : 'Configured'}</Badge>
           {age ? <span>· {age}</span> : null}
         </p>
       </div>
+      {/* Deletable if and only if a real `project_agent_relations` row backs
+          this edge. A derived row (relationId === null) gets NO control —
+          there is no row to delete. */}
+      {relationId !== null && onDelete ? (
+        <Headless.Button
+          onClick={() => onDelete(relationId, description)}
+          className="-my-1 shrink-0 rounded-sm p-1 text-zinc-500 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-500"
+        >
+          <XMarkIcon aria-hidden="true" className="size-3.5" />
+          <span className="sr-only">Delete relation: {description}</span>
+        </Headless.Button>
+      ) : null}
     </li>
   )
 }
@@ -358,17 +406,46 @@ export function ProjectTeamPanel({
   outgoing,
   nodesById,
   onClose,
+  onAddRelation,
+  onDeleteRelation,
+  dialogOpen,
+  addRelationRef,
 }: {
   agent: TeamAgentView
   incoming: TeamEdgeView[]
   outgoing: TeamEdgeView[]
   nodesById: Map<string, TeamAgentView>
   onClose: () => void
+  /** Opens the create-relation dialog for the currently-open agent. */
+  onAddRelation: () => void
+  /** Opens the delete-relation confirm for one explicit relation. */
+  onDeleteRelation: (relationId: string, description: string) => void
+  /**
+   * True while a relation dialog (create or delete) is open on top of this
+   * panel. Those dialogs are Headless `Dialog`s rendered in a portal at BODY
+   * level, so they are NOT descendants of this panel — every DOM-scoped
+   * behaviour here has to stand down for them:
+   *   - the focus trap, which would otherwise cancel Tab and try to pull focus
+   *     into a tree Headless has marked `inert` (→ focus lands on `<body>`);
+   *   - the Escape handler, which is registered on `document` while Headless
+   *     registers on `window`; `document` comes FIRST in the bubble path, so
+   *     the panel would close before the dialog ever saw the key.
+   * An explicit flag from the owner of both, not a DOM sniff: the owner already
+   * knows the answer, and a `closest('[data-headlessui-portal]')` probe breaks
+   * the day that private attribute is renamed.
+   */
+  dialogOpen: boolean
+  /**
+   * Focus target after a relation is deleted. The row's `×` that had focus is
+   * removed by the refresh that follows, so focus would otherwise drop to
+   * `<body>`; the owner moves it here instead.
+   */
+  addRelationRef?: React.RefObject<HTMLElement | null>
 }) {
   const headingRef = useRef<HTMLDivElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const fullBleed = useFullBleed()
-  useFocusTrap(containerRef, fullBleed)
+  useFocusTrap(containerRef, fullBleed && !dialogOpen)
 
   // Focus moves INTO the panel on open and returns to whatever opened it on
   // close (a canvas node, a row of the accessible list) — keyboard users are
@@ -381,7 +458,30 @@ export function ProjectTeamPanel({
     }
   }, [agent.id])
 
+  // Escape closes the panel — but ONLY when the panel is the topmost layer.
+  //
+  // The listener is not merely guarded, it is not registered at all while a
+  // relation dialog is open. This one is on `document`, Headless's is on
+  // `window`, and `window` comes AFTER `document` on the bubble path, so this
+  // handler ran first — and its `stopPropagation()` then stopped the event
+  // before it ever reached `window`. Measured in Chromium: with both listeners
+  // attached, an Escape dispatched from an input fires `document` only and
+  // `window` never runs at all. So the panel did not merely close alongside the
+  // dialog; it closed INSTEAD of it, swallowing the key the dialog needed.
+  // `stopPropagation` is the cause here, not a possible cure — and
+  // `stopImmediatePropagation` would only make it worse. Not registering while
+  // a dialog is open is the correct fix.
+  //
+  // Consequence beyond the stray close, before the mount-on-payload fix (see
+  // `addRelationSource` in project-team-view.tsx): the dialog used to be
+  // mounted under the selected agent, so closing the panel unmounted it
+  // MID-SUBMIT — a failing request then set state on a dead component and the
+  // operator was never told the relation had not been created. Both relation
+  // dialogs are now mounted on their own captured payload, independent of
+  // `selectedAgent`, so closing the panel can no longer take a dialog down
+  // with a request in flight.
   useEffect(() => {
+    if (dialogOpen) return
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         event.stopPropagation()
@@ -390,7 +490,7 @@ export function ProjectTeamPanel({
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [onClose])
+  }, [onClose, dialogOpen])
 
   const agentLinks =
     agent.kind === 'agent'
@@ -401,6 +501,11 @@ export function ProjectTeamPanel({
           { label: 'Open configuration', href: `/admin/agents/${agent.id}/manifest` },
         ]
       : []
+
+  // Relations are agent-to-agent (`sourceCopilotId`/`targetCopilotId`) — a
+  // project hub or a tag-derived group is never a valid source, so the
+  // control is not offered at all rather than offered and rejected 422.
+  const canAddRelation = agent.kind === 'agent'
 
   const age = formatAge(agent.lastActivityAt)
   const derivedOnly =
@@ -507,6 +612,15 @@ export function ProjectTeamPanel({
 
         <Divider soft />
 
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-[10px] font-medium tracking-widest text-zinc-500 uppercase">Relations</h3>
+          {canAddRelation ? (
+            <Button ref={addRelationRef} outline onClick={onAddRelation}>
+              Add relation
+            </Button>
+          ) : null}
+        </div>
+
         {derivedOnly ? (
           <p className="text-xs text-zinc-500">
             Every relation below was <strong className="font-medium text-zinc-400">derived</strong> from
@@ -522,7 +636,14 @@ export function ProjectTeamPanel({
           {incoming.length > 0 ? (
             <ul className="mt-2 divide-y divide-white/5">
               {incoming.map((edge) => (
-                <RelationRow key={edge.id} edge={edge} counterpart={nodesById.get(edge.source)} direction="in" />
+                <RelationRow
+                  key={edge.id}
+                  edge={edge}
+                  counterpart={nodesById.get(edge.source)}
+                  direction="in"
+                  agentName={agent.name}
+                  onDelete={onDeleteRelation}
+                />
               ))}
             </ul>
           ) : (
@@ -539,7 +660,14 @@ export function ProjectTeamPanel({
           {outgoing.length > 0 ? (
             <ul className="mt-2 divide-y divide-white/5">
               {outgoing.map((edge) => (
-                <RelationRow key={edge.id} edge={edge} counterpart={nodesById.get(edge.target)} direction="out" />
+                <RelationRow
+                  key={edge.id}
+                  edge={edge}
+                  counterpart={nodesById.get(edge.target)}
+                  direction="out"
+                  agentName={agent.name}
+                  onDelete={onDeleteRelation}
+                />
               ))}
             </ul>
           ) : (

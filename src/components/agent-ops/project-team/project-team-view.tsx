@@ -25,6 +25,7 @@ import {
   type TeamAgentView,
   type TeamEdgeView,
 } from './project-team-panel'
+import { AddRelationDialog, DeleteRelationDialog } from './project-team-relation-dialogs'
 import {
   CANVAS_COMMAND_EVENT,
   EMPTY_FILTERS,
@@ -93,6 +94,51 @@ function ProjectTeamViewInner({
 
   const [filters, setFilters] = useState<ProjectTeamFilters>(EMPTY_FILTERS)
 
+  // --- Relation mutation dialogs --------------------------------------------
+  // Both dialogs own their own request/error state; this view owns only
+  // whether they are open and what they act on. AC-8: neither dialog ever
+  // mutates `graph` directly — `onDone` is always `refreshNow`, so the canvas
+  // only ever draws what the server just confirmed.
+  /**
+   * The agent the create-relation dialog was opened for — the full node, not a
+   * bare "is it open" boolean and not an id either.
+   *
+   * As a boolean it was cleared only by `onClose`, so when a 10s poll returned
+   * a graph without the selected agent the dialog unmounted with the flag still
+   * `true`, and the next click on ANY other node sprang it open unrequested.
+   * Keying it by id fixed the wrong-node part but not the latch: an id whose
+   * agent a poll had dropped still survived in state, and if that agent came
+   * back in a later poll (membership flapping, a partial backend read) the
+   * dialog re-opened on its own.
+   *
+   * Holding the NODE fixes both at once, and is the same shape as
+   * `pendingDelete` for the same reason: the dialog is mounted on this payload
+   * rather than on the selection, so it cannot be opened against a node the
+   * operator did not pick, cannot outlive its own close (nothing else clears
+   * it, and nothing else needs to), and — the point of G5 — cannot be
+   * unmounted mid-submit by a selection change. The `kind === 'agent'` gate is
+   * enforced where this is SET, from `relationSource`, so a hub or a group can
+   * never get in here.
+   */
+  const [addRelationSource, setAddRelationSource] = useState<TeamAgentView | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<{ relationId: string; description: string } | null>(null)
+  /**
+   * One-shot spoken confirmation of a relation write. It needs its own state
+   * because the graph-derived announcement below is built from `summary` AGENT
+   * counts only — creating or deleting a relation moves none of them, so that
+   * string is byte-identical before and after and a screen-reader user was told
+   * nothing at all. `seq` keys the rendered node so that two identical messages
+   * in a row (delete, undo, delete again) still re-announce.
+   */
+  const [relationNotice, setRelationNotice] = useState<{ message: string; seq: number } | null>(null)
+  const announceRelation = useCallback(
+    (message: string) => setRelationNotice((prev) => ({ message, seq: (prev?.seq ?? 0) + 1 })),
+    []
+  )
+  /** Focus lands here after a delete — the row's `×` is gone by then. */
+  const addRelationRef = useRef<HTMLElement | null>(null)
+  const [restoreFocusAfterDelete, setRestoreFocusAfterDelete] = useState(false)
+
   // --- URL is the source of truth for selection + view mode, so a copied link
   //     reopens EXACTLY the same picture. `replace` (not `push`) keeps the back
   //     button meaningful instead of stacking one entry per node click.
@@ -148,6 +194,49 @@ function ProjectTeamViewInner({
 
   const nodesById = useMemo(() => new Map(allNodes.map((node) => [node.id, node])), [allNodes])
   const selectedAgent = selectedAgentId ? nodesById.get(selectedAgentId) : undefined
+
+  /**
+   * The selected node ONLY when it is a legal relation source.
+   *
+   * Relations are agent-to-agent (`sourceCopilotId`/`targetCopilotId`), so a
+   * project hub (`project:<id>`) or a tag-derived group is never one. The panel
+   * already gates its "Add relation" button on `kind === 'agent'`, and this is
+   * the other half of that guarantee: it is the ONLY expression that can put a
+   * node into `addRelationSource`, so the dialog can never render against a hub
+   * and POST `sourceCopilotId: "project:<id>"`. The server would correctly
+   * answer 422, but "never offer what will be rejected" has to be enforced
+   * here, not left to the server.
+   */
+  const relationSource = selectedAgent?.kind === 'agent' ? selectedAgent : null
+
+  // Target picker for "Add relation": every agent of this project except the
+  // dialog's own source — self-edges are rejected server-side and are never
+  // even offered here. Derived from the LIVE `agents` list rather than
+  // snapshotted with the source, so the dialog sees an agent leave the project
+  // and can retract a selection that no longer exists.
+  const candidateAgents = useMemo(
+    () => (addRelationSource ? agents.filter((candidate) => candidate.id !== addRelationSource.id) : []),
+    [agents, addRelationSource]
+  )
+
+  /**
+   * Both dialogs are now mounted on their own payload, never on the selection.
+   *
+   * That is what lets either survive a selection change mid-submit: pressing
+   * browser Back drops the `agent` search param, but neither dialog is gated on
+   * it, so a pending `setError`/`onDone` still lands on a live component and
+   * the operator is told what happened. It also removes the latch entirely —
+   * there is no state that can outlive its dialog and re-attach to another
+   * node, because the state IS the dialog's mount condition.
+   */
+  const addRelationOpen = addRelationSource !== null
+
+  /**
+   * True exactly while a Headless portal dialog is on screen. Both DOM-scoped
+   * behaviours in the panel (focus trap, Escape) stand down on this — see the
+   * `dialogOpen` prop there for why a portal defeats each of them.
+   */
+  const relationDialogOpen = addRelationOpen || pendingDelete !== null
 
   const incoming = useMemo(
     () => (selectedAgent ? allEdges.filter((edge) => edge.target === selectedAgent.id) : []),
@@ -229,6 +318,32 @@ function ProjectTeamViewInner({
         : `Team updated. ${summary.activeAgents} active, ${summary.waitingAgents} waiting, ${summary.blockedAgents} blocked, ${summary.failedAgents} failed.`
       : ''
 
+  /**
+   * Put focus somewhere real after a delete.
+   *
+   * The element that had focus was the row's `×`, and the refresh that follows
+   * EITHER delete outcome — the row was actually removed, or the server said
+   * it was already gone — removes that row from the graph just the same;
+   * focus then falls to `<body>` and a keyboard user restarts from the top of
+   * the document. Headless restores focus to its saved trigger as it closes,
+   * but that trigger is exactly the button about to disappear, so its restore
+   * lands on `<body>` too.
+   *
+   * The rAF is what makes this win: Headless restores synchronously in its
+   * unmount cleanup (the dialog is hard-unmounted by the `pendingDelete` gate,
+   * so the leave transition never plays), while this runs after the next paint
+   * — strictly later. Guarded on the dialog actually being gone so it cannot
+   * fire while the dialog still owns focus.
+   */
+  useEffect(() => {
+    if (!restoreFocusAfterDelete || pendingDelete !== null) return
+    const frame = requestAnimationFrame(() => {
+      addRelationRef.current?.focus()
+      setRestoreFocusAfterDelete(false)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [restoreFocusAfterDelete, pendingDelete])
+
   const clearFilters = useCallback(() => setFilters(EMPTY_FILTERS), [])
 
   // --- Toolbar → canvas viewport bridge ------------------------------------
@@ -255,27 +370,148 @@ function ProjectTeamViewInner({
     return () => window.removeEventListener(CANVAS_COMMAND_EVENT, onCommand)
   }, [selectAgent])
 
+  /**
+   * The two relation dialogs, built ONCE here and rendered by every branch
+   * below — including the unavailable and no-agents states.
+   *
+   * They used to sit only at the bottom of the main `return`, below the two
+   * early returns, which quietly made the real mount condition
+   * `agents.length > 0 && addRelationSource !== null` instead of
+   * `addRelationSource !== null`. That undocumented second gate defeated the
+   * whole point of mounting on the payload (see `addRelationSource` above):
+   * a poll that returned a graph with zero agent nodes flipped this component
+   * to the empty state and tore a dialog down WITH ITS POST IN FLIGHT, so
+   * `setError`/`onDone` landed on a dead tree and the operator was never told
+   * whether the row was written — precisely the outcome the dialogs' own
+   * dismissal veto (`closeUnlessSaving`) exists to make unreachable. It also
+   * brought the latch back: neither piece of state is cleared by that
+   * transition, so a later poll that returned agents again sprang the dialog
+   * open unrequested, against a stale captured source or a relation id with no
+   * backing row.
+   *
+   * Clearing the state on that transition would NOT be a fix — it is the
+   * mid-submit unmount again, by hand. Rendering everywhere is: the payload
+   * stays the only mount condition, and only its own `onClose` ever clears it.
+   *
+   * Everything read here (`candidateAgents` included) is derived above, so
+   * nothing moved below a conditional return and no hook order changed.
+   */
+  const relationDialogs = (
+    <>
+      {/* Mounted on the captured source, NOT on the selection — a hub or a
+          group can never reach this state (see `relationSource`), and a
+          selection that changes mid-submit can no longer unmount the dialog
+          out from under its own pending request. Keyed by source id so that
+          each open is a genuinely fresh form rather than a reused instance
+          carrying the previous attempt's fields. */}
+      {addRelationSource ? (
+        <AddRelationDialog
+          key={addRelationSource.id}
+          projectId={projectId}
+          sourceAgent={addRelationSource}
+          candidates={candidateAgents}
+          open={addRelationOpen}
+          onClose={() => setAddRelationSource(null)}
+          onDone={() => {
+            // Spoken BEFORE the re-fetch, and phrased as what the server already
+            // confirmed — the dialog only calls `onDone` on a 2xx. It does not
+            // claim the canvas is redrawn; that is the refresh's job.
+            announceRelation(`Relation added from ${addRelationSource.name}. Refreshing the team graph.`)
+            refreshNow()
+          }}
+        />
+      ) : null}
+
+      {pendingDelete ? (
+        <DeleteRelationDialog
+          projectId={projectId}
+          relationId={pendingDelete.relationId}
+          description={pendingDelete.description}
+          open
+          onClose={() => setPendingDelete(null)}
+          onDone={(outcome) => {
+            // The 404 path reaches here too, and it did NOT delete anything.
+            // Announcing it as a delete contradicts the `role="alert"` the
+            // operator can see, and tells a screen-reader user their action
+            // succeeded when it removed nothing — so the wording stays split.
+            //
+            // The FOCUS restore is not split, because both outcomes end the
+            // same way for the keyboard: the refresh either drops the edge or
+            // nulls its `relationId`, so the row's `×` — the element Headless
+            // saved as its restore target when the dialog opened — is gone by
+            // the time the dialog closes, and restoring to a detached node is
+            // a no-op that drops focus to `<body>`. Arming it on the 404 does
+            // NOT latch it: the effect above early-returns while
+            // `pendingDelete !== null` (this dialog deliberately stays open
+            // there), then runs on close and clears the flag — a deferred
+            // restore, not a stuck one. Nor does it steal focus for no reason:
+            // the row it would otherwise return to no longer exists, and the
+            // only alternative is `<body>`.
+            if (outcome === 'deleted') {
+              announceRelation(`Relation deleted: ${pendingDelete.description}. Refreshing the team graph.`)
+            } else {
+              announceRelation(
+                `This relation no longer exists: ${pendingDelete.description}. It was already removed — refreshing the team graph.`
+              )
+            }
+            setRestoreFocusAfterDelete(true)
+            refreshNow()
+          }}
+        />
+      ) : null}
+    </>
+  )
+
+  /**
+   * The relation-write announcement, mounted next to `relationDialogs` for the
+   * same reason and by the same rule: a create/delete that completes its
+   * request while a poll has just flipped this component to the unavailable
+   * or no-agents branch must still reach a screen reader — `announceRelation`
+   * does not know or care which branch is about to render.
+   *
+   * The graph-derived `announcement` below (agent-status counts off `summary`)
+   * is deliberately NOT part of this region: hoisting it too would speak a
+   * count of agents in branches that render because there IS no such count
+   * (`!graph`) or because it is zero (`agents.length === 0`), which changes
+   * what those two states announce. That string stays put, alone, in the main
+   * return's own live region — this is a second, sibling region carrying only
+   * the relation string, not a replacement for it.
+   */
+  const relationAnnouncer = (
+    <div aria-live="polite" className="sr-only">
+      <span key={relationNotice?.seq ?? 0}>{relationNotice?.message ?? ''}</span>
+    </div>
+  )
+
   // No graph at all = fail-closed. Either the server said why (`loadError`), or
   // the poll has not produced one yet — in both cases we state it plainly
   // rather than render an approximation.
   if (!graph) {
     return (
-      <div className={surfaceCardClass}>
-        <ProjectTeamUnavailableState
-          detail={
-            loadError ??
-            'No team graph could be loaded for this project. Nothing is drawn rather than an approximate graph. Refresh, and check the agent-ops backend if it persists.'
-          }
-        />
-      </div>
+      <>
+        <div className={surfaceCardClass}>
+          <ProjectTeamUnavailableState
+            detail={
+              loadError ??
+              'No team graph could be loaded for this project. Nothing is drawn rather than an approximate graph. Refresh, and check the agent-ops backend if it persists.'
+            }
+          />
+        </div>
+        {relationAnnouncer}
+        {relationDialogs}
+      </>
     )
   }
 
   if (agents.length === 0) {
     return (
-      <div className={surfaceCardClass}>
-        <ProjectTeamNoAgentsEmptyState projectId={projectId} />
-      </div>
+      <>
+        <div className={surfaceCardClass}>
+          <ProjectTeamNoAgentsEmptyState projectId={projectId} />
+        </div>
+        {relationAnnouncer}
+        {relationDialogs}
+      </>
     )
   }
 
@@ -361,6 +597,10 @@ function ProjectTeamViewInner({
               outgoing={outgoing}
               nodesById={nodesById}
               onClose={() => selectAgent(null)}
+              onAddRelation={() => setAddRelationSource(relationSource)}
+              onDeleteRelation={(relationId, description) => setPendingDelete({ relationId, description })}
+              dialogOpen={relationDialogOpen}
+              addRelationRef={addRelationRef}
             />
           ) : null}
         </div>
@@ -376,9 +616,19 @@ function ProjectTeamViewInner({
         />
       </div>
 
+      {/* The graph's own periodic update, off `summary` — main-branch only (see
+          `relationAnnouncer` above for why). The operator's own relation
+          write lives in the sibling `relationAnnouncer` region rendered just
+          below, common to all three branches, so neither string can mask the
+          other: a persistent "Relation added." must not silence the next real
+          status change, and a poll must not erase the confirmation the
+          operator just earned. */}
       <div aria-live="polite" className="sr-only">
-        {announcement}
+        <span>{announcement}</span>
       </div>
+
+      {relationAnnouncer}
+      {relationDialogs}
     </div>
   )
 }

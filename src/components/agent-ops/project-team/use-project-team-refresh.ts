@@ -10,9 +10,24 @@ const REFRESH_INTERVAL_MS = 10_000
 
 /**
  * Signature of everything the UI actually reacts to (status, activity, edge
- * liveness). Two graphs with the same signature are the same picture, so the
- * state is NOT replaced — no re-render, no re-layout, no animation fired for
- * an identical payload.
+ * liveness, edge PROVENANCE). Two graphs with the same signature are the same
+ * picture, so the state is NOT replaced — no re-render, no re-layout, no
+ * animation fired for an identical payload.
+ *
+ * `origin` and `relationId` are part of the edge part on purpose, and dropping
+ * them is not a micro-optimisation — it is a correctness bug. Edge ids are
+ * `relation::source::target`, so a mission-DERIVED `orchestrates::A::B` and an
+ * EXPLICIT `project_agent_relations` row A→B collapse onto the SAME id and read
+ * the same activity: without provenance the two are byte-identical here.
+ * Creating that relation would then leave the signature unmoved, `setGraph`
+ * would be skipped, and the panel would keep showing "Derived" with no delete
+ * control while the row exists — every retry answering 409 forever. Mirror case
+ * on delete: a "Configured" edge whose delete button 404s forever. Both are
+ * only unreachable today because `mission_runs.orchestrator_copilot_id` is
+ * hardcoded NULL; they go live the day orchestrators are recorded.
+ *
+ * Both fields are already-materialised scalars on the view, so this stays the
+ * same single pass — no extra lookup, no extra allocation beyond the string.
  */
 function graphSignature(graph: ProjectTeamGraph | null): string {
   if (!graph) return ''
@@ -22,7 +37,7 @@ function graphSignature(graph: ProjectTeamGraph | null): string {
     .sort()
   const edges = readGraphEdges(graph)
     .map(toTeamEdgeView)
-    .map((e) => `${e.id}:${e.active ? '1' : '0'}:${e.lastActivityAt ?? ''}`)
+    .map((e) => `${e.id}:${e.origin}:${e.relationId ?? ''}:${e.active ? '1' : '0'}:${e.lastActivityAt ?? ''}`)
     .sort()
   return `${nodes.join('|')}#${edges.join('|')}`
 }
