@@ -1,4 +1,5 @@
 import { AgentControlShell } from '@/components/agent-ops/agent-control-shell'
+import { AdminRouteViewport } from '@/components/agent-ops/admin-route-viewport'
 
 // Live-only: every /admin route renders per-request against the gpu1 data layer.
 // Force dynamic so `next build` never prerenders them (the fail-closed data layer
@@ -6,5 +7,9 @@ import { AgentControlShell } from '@/components/agent-ops/agent-control-shell'
 export const dynamic = 'force-dynamic'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return <AgentControlShell>{children}</AgentControlShell>
+  return (
+    <AgentControlShell>
+      <AdminRouteViewport>{children}</AdminRouteViewport>
+    </AgentControlShell>
+  )
 }

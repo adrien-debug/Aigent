@@ -7,7 +7,6 @@ import { AgentLeaderboard } from '@/components/agent-ops/performance/agent-leade
 import { FleetKpiBand } from '@/components/agent-ops/performance/fleet-kpi-band'
 import { LiveRefresh } from '@/components/agent-ops/performance/live-refresh'
 import { RecentRunsTable } from '@/components/agent-ops/performance/recent-runs-table'
-import { StaggerFade } from '@/components/agent-ops/stagger-fade'
 import { surfaceCardClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
 import { getCopilots, getProjects, getRecentRuns } from '@/lib/agent-mission-control/data'
 import type { Project } from '@/lib/agent-mission-control/types'
@@ -47,55 +46,47 @@ export default async function PerformancePage() {
 
   return (
     <div className="flex flex-col gap-8 pb-12">
-      <StaggerFade delay={0}>
-        <div className={surfaceCardClass}>
-          <div className={`${surfaceCardHeaderClass} px-6 py-6 lg:px-8`}>
-            <div className="min-w-0">
-              <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">Performance</p>
-              <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">Fleet Performance</h1>
-            </div>
-            <LiveRefresh initialRefreshedAt={nowIso} />
+      <div className={surfaceCardClass}>
+        <div className={`${surfaceCardHeaderClass} px-6 py-6 lg:px-8`}>
+          <div className="min-w-0">
+            <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">Performance</p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">Fleet Performance</h1>
           </div>
-          <FleetKpiBand copilots={copilots} runs={runs} nowMs={nowMs} />
+          <LiveRefresh initialRefreshedAt={nowIso} />
         </div>
-      </StaggerFade>
+        <FleetKpiBand copilots={copilots} runs={runs} nowMs={nowMs} />
+      </div>
 
-      <StaggerFade delay={1}>
-        <ActivityChart runs={runs} nowMs={nowMs} />
-      </StaggerFade>
+      <ActivityChart runs={runs} nowMs={nowMs} />
 
-      <StaggerFade delay={2}>
-        {ranked.length > 0 ? (
-          <AgentLeaderboard copilots={ranked} projectNameById={projectNameById} />
-        ) : (
-          <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
-            <EmptyState
-              icon={CpuChipIcon}
-              title="No agents yet"
-              description="Provision copilots in your projects to see fleet performance here."
-            />
-          </div>
-        )}
-      </StaggerFade>
-
-      <StaggerFade delay={3}>
-        {recentRuns.length > 0 ? (
-          <RecentRunsTable
-            runs={recentRuns}
-            copilotById={copilotById}
-            projectNameById={projectNameById}
-            nowIso={nowIso}
+      {ranked.length > 0 ? (
+        <AgentLeaderboard copilots={ranked} projectNameById={projectNameById} />
+      ) : (
+        <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
+          <EmptyState
+            icon={CpuChipIcon}
+            title="No agents yet"
+            description="Provision copilots in your projects to see fleet performance here."
           />
-        ) : (
-          <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
-            <EmptyState
-              icon={BoltIcon}
-              title="No runs recorded"
-              description="Runs appear here as soon as agents serve traffic in any project."
-            />
-          </div>
-        )}
-      </StaggerFade>
+        </div>
+      )}
+
+      {recentRuns.length > 0 ? (
+        <RecentRunsTable
+          runs={recentRuns}
+          copilotById={copilotById}
+          projectNameById={projectNameById}
+          nowIso={nowIso}
+        />
+      ) : (
+        <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
+          <EmptyState
+            icon={BoltIcon}
+            title="No runs recorded"
+            description="Runs appear here as soon as agents serve traffic in any project."
+          />
+        </div>
+      )}
     </div>
   )
 }

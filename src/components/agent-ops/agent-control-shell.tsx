@@ -277,9 +277,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
           left-3 (12px) from the viewport edge = ends at 108px, +20px of air
           before content starts, matching the left-3 gap on the other side. */}
       <main className="flex h-svh min-h-0 min-w-0 flex-1 flex-col overflow-y-auto pt-16 lg:pl-32 lg:pt-0 relative z-10">
-        <div className="flex min-h-0 flex-1 flex-col p-6 lg:p-8 w-full">
-          {children}
-        </div>
+        {children}
       </main>
     </div>
   )

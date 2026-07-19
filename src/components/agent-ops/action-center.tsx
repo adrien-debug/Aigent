@@ -41,9 +41,8 @@ function ActionRow({ item, focus }: { item: ActionItem; focus: boolean }) {
   return (
     <li
       className={clsx(
-        'group flex gap-3 py-4 transition-colors duration-150 hover:bg-white/2.5',
-        // Top-priority row is the single foyer: a thin accent rail + the one prominent CTA.
-        focus ? 'border-l-2 border-accent-500/40 pr-6 pl-3' : 'px-6'
+        'group flex gap-3 px-6 py-4 transition-colors duration-150 hover:bg-white/2.5',
+        focus && 'border-l-2 border-accent-500/40 pl-[1.375rem]'
       )}
     >
       <Icon
@@ -55,33 +54,19 @@ function ActionRow({ item, focus }: { item: ActionItem; focus: boolean }) {
           <p className="min-w-0 flex-1 truncate text-sm font-medium text-white">{item.title}</p>
           <StatusPill label={item.status} tone={tone} />
         </div>
-
-        {focus ? (
-          <>
-            <p className="truncate font-mono text-xs text-zinc-500">{item.meta}</p>
-            {/* The single prominent CTA — auto width, never full-bleed. */}
-            <div className="mt-2">
-              <Button outline href={item.href} aria-label={`${item.buttonLabel}: ${item.title}`} {...linkProps}>
-                {item.buttonLabel}
-              </Button>
-            </div>
-          </>
-        ) : (
-          <div className="flex items-center justify-between gap-3">
-            <p className="min-w-0 truncate font-mono text-xs text-zinc-500">{item.meta}</p>
-            {/* Discreet inline affordance — a plain link + chevron, aligned right. */}
-            <Button
-              plain
-              href={item.href}
-              aria-label={`${item.buttonLabel}: ${item.title}`}
-              className="shrink-0"
-              {...linkProps}
-            >
-              {item.buttonLabel}
-              <ChevronRightIcon data-slot="icon" aria-hidden="true" />
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center justify-between gap-3">
+          <p className="min-w-0 truncate font-mono text-xs text-zinc-500">{item.meta}</p>
+          <Button
+            plain
+            href={item.href}
+            aria-label={`${item.buttonLabel}: ${item.title}`}
+            className="shrink-0"
+            {...linkProps}
+          >
+            {item.buttonLabel}
+            <ChevronRightIcon data-slot="icon" aria-hidden="true" />
+          </Button>
+        </div>
       </div>
     </li>
   )

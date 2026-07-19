@@ -30,7 +30,8 @@
     "test": "vitest run tests/unit",
     "test:live": "vitest run tests/live",
     "bench:finance:local": "node --env-file=.env.local $(command -v npx) -y tsx scripts/bench-finance-local.ts",
-    "export:trading": "node scripts/export-trading-packages.mjs"
+    "export:trading": "node scripts/export-trading-packages.mjs",
+    "verify:admin-routes": "node scripts/verify-admin-route-surface.mjs"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",
