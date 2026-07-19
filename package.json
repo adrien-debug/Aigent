@@ -40,6 +40,7 @@
     "@langchain/langgraph-cli": "^1.4.2",
     "@langchain/langgraph-sdk": "^1.9.25",
     "@langchain/openai": "^1.5.5",
+    "@xyflow/react": "^12.11.2",
     "clsx": "^2.1.1",
     "motion": "^12.42.2",
     "next": "16.2.10",
