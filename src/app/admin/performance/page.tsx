@@ -7,7 +7,7 @@ import { AgentLeaderboard } from '@/components/agent-ops/performance/agent-leade
 import { FleetKpiBand } from '@/components/agent-ops/performance/fleet-kpi-band'
 import { LiveRefresh } from '@/components/agent-ops/performance/live-refresh'
 import { RecentRunsTable } from '@/components/agent-ops/performance/recent-runs-table'
-import { surfaceCardClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
+import { AdminPageHeader } from '@/components/agent-ops/surface-card'
 import { getCopilots, getProjects, getRecentRuns } from '@/lib/agent-mission-control/data'
 import type { Project } from '@/lib/agent-mission-control/types'
 
@@ -46,16 +46,12 @@ export default async function PerformancePage() {
 
   return (
     <div className="flex flex-col gap-8 pb-12">
-      <div className={surfaceCardClass}>
-        <div className={`${surfaceCardHeaderClass} px-6 py-6 lg:px-8`}>
-          <div className="min-w-0">
-            <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">Performance</p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">Fleet Performance</h1>
-          </div>
-          <LiveRefresh initialRefreshedAt={nowIso} />
-        </div>
-        <FleetKpiBand copilots={copilots} runs={runs} nowMs={nowMs} />
-      </div>
+      <AdminPageHeader
+        eyebrow="Performance"
+        title="Fleet Performance"
+        actions={<LiveRefresh initialRefreshedAt={nowIso} />}
+      />
+      <FleetKpiBand copilots={copilots} runs={runs} nowMs={nowMs} />
 
       <ActivityChart runs={runs} nowMs={nowMs} />
 

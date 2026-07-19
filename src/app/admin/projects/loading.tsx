@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 
-import { surfaceCardClass } from '@/components/agent-ops/surface-card'
+import { surfaceItemClass } from '@/components/agent-ops/surface-card'
 
 export default function ProjectsRegistryLoading() {
   return (
@@ -29,7 +29,7 @@ export default function ProjectsRegistryLoading() {
       {/* Project Cards Grid */}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className={clsx(surfaceCardClass, 'flex h-full flex-col')}>
+          <div key={i} className={clsx(surfaceItemClass, 'flex h-full flex-col overflow-hidden')}>
             <div className="relative h-28 bg-zinc-950/5 dark:bg-white/5" />
             <div className="relative z-10 -mt-8 ml-6 size-14 rounded bg-zinc-200 ring-2 ring-white dark:bg-zinc-800 dark:ring-zinc-950" />
             <div className="flex flex-1 flex-col px-6 pt-3 pb-6">

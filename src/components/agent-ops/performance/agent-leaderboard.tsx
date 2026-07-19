@@ -128,7 +128,7 @@ export function AgentLeaderboard({
         <div className="overflow-x-auto no-scrollbar">
           <Table className="w-full text-left border-collapse min-w-[720px]">
             <TableHead>
-              <TableRow className="border-b border-white/5 bg-black/20">
+              <TableRow className="border-b border-white/5">
                 <TableHeader className="px-6 w-14">Rank</TableHeader>
                 <TableHeader className="px-6">Agent</TableHeader>
                 <TableHeader className="px-6">Status</TableHeader>

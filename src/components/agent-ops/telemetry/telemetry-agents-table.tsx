@@ -47,7 +47,7 @@ export function TelemetryAgentsTable({
         <div className="overflow-x-auto no-scrollbar">
           <Table className="w-full text-left border-collapse min-w-[760px]">
             <TableHead>
-              <TableRow className="border-b border-white/5 bg-black/20">
+              <TableRow className="border-b border-white/5">
                 <TableHeader className="px-6">Agent</TableHeader>
                 <TableHeader className="px-6">Project</TableHeader>
                 <TableHeader className="px-6 text-right">Events</TableHeader>

@@ -90,5 +90,5 @@ export function FleetKpiBand({
     },
   ]
 
-  return <AgentKpiBand stats={stats} separators className={className} />
+  return <AgentKpiBand stats={stats} className={className} />
 }

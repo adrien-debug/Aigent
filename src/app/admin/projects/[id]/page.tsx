@@ -51,7 +51,7 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
       <div className="overflow-x-auto no-scrollbar">
         <Table className="w-full text-left border-collapse min-w-[800px] px-6 [--gutter:--spacing(0)]">
           <TableHead>
-            <TableRow className="border-b border-white/5 bg-black/40">
+            <TableRow className="border-b border-white/5">
               <TableHeader>Agent Identity</TableHeader>
               <TableHeader>Status</TableHeader>
               <TableHeader>Model & Runtime</TableHeader>
@@ -130,7 +130,7 @@ function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copil
       <div className="overflow-x-auto no-scrollbar">
         <Table className="w-full text-left border-collapse min-w-[1000px] px-6 [--gutter:--spacing(0)]">
           <TableHead>
-            <TableRow className="border-b border-white/5 bg-black/40">
+            <TableRow className="border-b border-white/5">
               <TableHeader>Run ID & Copilot</TableHeader>
               <TableHeader>Status</TableHeader>
               <TableHeader className="w-1/3">Input Summary</TableHeader>

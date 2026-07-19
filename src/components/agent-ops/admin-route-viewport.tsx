@@ -1,20 +1,7 @@
 'use client'
 
-import clsx from 'clsx'
 import { usePathname } from 'next/navigation'
-import { useLayoutEffect, useState, type ReactNode } from 'react'
-
-import { surfaceCardClass } from '@/components/agent-ops/surface-card'
-
-function RoutePlaceholder() {
-  return (
-    <div aria-busy="true" aria-live="polite" className="flex flex-col gap-8 pb-12">
-      <span className="sr-only">Loading…</span>
-      <div className={clsx(surfaceCardClass, 'h-44 motion-safe:animate-pulse bg-white/[0.02]')} />
-      <div className={clsx(surfaceCardClass, 'h-96 motion-safe:animate-pulse bg-white/[0.02]')} />
-    </div>
-  )
-}
+import { useState, type ReactNode } from 'react'
 
 /**
  * Single admin route surface. On client navigation the App Router can briefly
@@ -28,17 +15,27 @@ export function AdminRouteViewport({ children }: { children: ReactNode }) {
   const [committedPath, setCommittedPath] = useState(pathname)
   const [committedChildren, setCommittedChildren] = useState(children)
 
-  // Commit before paint so stale route trees never flash during soft navigation.
-  useLayoutEffect(() => {
+  // Commit during render when the server stream for the new route lands.
+  if (children !== committedChildren) {
     setCommittedPath(pathname)
     setCommittedChildren(children)
-  }, [pathname, children])
+  }
 
   const transitioning = pathname !== committedPath
 
   return (
     <div className="flex min-h-0 flex-1 flex-col p-6 lg:p-8 w-full">
       {transitioning ? <RoutePlaceholder /> : <div key={committedPath}>{committedChildren}</div>}
+    </div>
+  )
+}
+
+function RoutePlaceholder() {
+  return (
+    <div aria-busy="true" aria-live="polite" className="flex flex-col gap-8 pb-12">
+      <span className="sr-only">Loading…</span>
+      <div className="h-44 motion-safe:animate-pulse rounded-2xl border border-white/5 bg-white/[0.02]" />
+      <div className="h-96 motion-safe:animate-pulse rounded-2xl border border-white/5 bg-white/[0.02]" />
     </div>
   )
 }

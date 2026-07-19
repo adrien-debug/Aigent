@@ -1,8 +1,9 @@
 import Image from 'next/image'
+import clsx from 'clsx'
 
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { StatusPill } from '@/components/agent-ops/status-pill'
-import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
+import { SurfaceCard, SurfaceCardHeader, surfaceItemClass } from '@/components/agent-ops/surface-card'
 import { Avatar } from '@/components/catalyst/avatar'
 import { Link } from '@/components/catalyst/link'
 import type { ProjectOverviewItem } from '@/lib/agent-mission-control/dashboard-overview'
@@ -41,7 +42,7 @@ function ProjectRow({ project }: { project: ProjectOverviewItem }) {
   const cost = project.runsLast24h > 0 ? formatUsd(project.costLast24hUsd) : '—'
 
   return (
-    <div className="group relative flex shrink-0 gap-4 rounded-xl border border-white/5 bg-[var(--color-surface-elevated)] p-4 transition duration-150 ease-out hover:-translate-y-px hover:bg-[var(--color-surface-focus)] hover:ring-1 hover:ring-[var(--accent-line)] motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+    <div className={clsx(surfaceItemClass, 'group relative flex shrink-0 gap-4 p-4 transition duration-150 ease-out hover:-translate-y-px hover:bg-[var(--color-surface-focus)] hover:ring-1 hover:ring-[var(--accent-line)] motion-reduce:transition-none motion-reduce:hover:translate-y-0')}>
       {/* Thumbnail — a 64px square, no longer a full-height left column */}
       <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-white/5 bg-black/40">
         <ProjectImage project={project} />

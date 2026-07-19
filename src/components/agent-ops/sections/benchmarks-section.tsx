@@ -1,5 +1,5 @@
 import { AgentBentoCard } from '@/components/agent-ops/agent-bento-card'
-import { AgentSectionCard, surfaceCardClass } from '@/components/agent-ops/surface-card'
+import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { BenchmarkComparisonTable } from '@/components/agent-ops/benchmark-comparison-table'
 import { BenchmarkRunSteps } from '@/components/agent-ops/benchmark-run-steps'
 import { BenchmarkScoreCard } from '@/components/agent-ops/benchmark-score-card'
@@ -98,7 +98,7 @@ export async function BenchmarksSection({ copilotId }: { copilotId: string }) {
           </AgentSectionCard>
 
           {rows.length === 0 ? (
-            <div className={surfaceCardClass}>
+            <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
               <EmptyState
                 title="No completed benchmark runs yet"
                 description="Run this suite against a candidate model to start ranking results."

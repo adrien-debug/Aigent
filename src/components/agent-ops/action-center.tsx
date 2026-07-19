@@ -42,7 +42,7 @@ function ActionRow({ item, focus }: { item: ActionItem; focus: boolean }) {
     <li
       className={clsx(
         'group flex gap-3 px-6 py-4 transition-colors duration-150 hover:bg-white/2.5',
-        focus && 'border-l-2 border-accent-500/40 pl-[1.375rem]'
+        focus && 'border-l-2 border-accent-500/40 ps-5'
       )}
     >
       <Icon

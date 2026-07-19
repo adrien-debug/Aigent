@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 
-import { surfaceCardClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
+import { surfaceSectionClass, surfaceCardHeaderClass, surfaceItemClass } from '@/components/agent-ops/surface-card'
 
 export default function AgentsRegistryLoading() {
   return (
@@ -31,7 +31,7 @@ export default function AgentsRegistryLoading() {
             <div className="h-8 w-32 rounded-lg bg-zinc-950/10 dark:bg-white/10" />
           </div>
 
-          <div className={surfaceCardClass}>
+          <div className={surfaceSectionClass}>
             <div className={clsx(surfaceCardHeaderClass, 'px-6 py-4')}>
               <div className="h-5 w-40 rounded bg-zinc-950/10 dark:bg-white/10" />
               <div className="mt-2 h-3.5 w-64 rounded bg-zinc-950/5 dark:bg-white/5" />
@@ -45,7 +45,7 @@ export default function AgentsRegistryLoading() {
               </div>
               <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className={clsx(surfaceCardClass, 'flex h-full flex-col')}>
+                  <div key={i} className={clsx(surfaceItemClass, 'flex h-full flex-col')}>
                     <div className="flex grow flex-col p-6">
                       <div className="flex items-start gap-4">
                         <div className="size-11 shrink-0 rounded-xl bg-zinc-950/10 dark:bg-white/10" />

@@ -2,8 +2,7 @@
 import clsx from 'clsx'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
-import { AgentSectionCard } from '@/components/agent-ops/surface-card'
-import { surfaceCardClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
+import { AgentSectionCard, surfaceSectionClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { ReplayCandidatePicker, type ReplayCandidateItem } from '@/components/agent-ops/replay-candidate-picker'
 import { ChipCluster } from '@/components/agent-ops/widgets/chip-cluster'
@@ -166,7 +165,7 @@ export async function ReplaySection({ copilotId }: { copilotId: string }) {
       </AgentSectionCard>
 
       {comparisons.length === 0 ? (
-        <section className={surfaceCardClass}>
+        <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
           <EmptyState
             title="No replays yet"
             description="Replay a production run to compare behavior before promoting. Candidates run against the recorded transcript — never against live users."
@@ -176,7 +175,7 @@ export async function ReplaySection({ copilotId }: { copilotId: string }) {
               </Button>
             }
           />
-        </section>
+        </div>
       ) : (
         <div className="space-y-8">
           {comparisonItems.map(({ comparison, items }) => {
@@ -185,7 +184,7 @@ export async function ReplaySection({ copilotId }: { copilotId: string }) {
             return (
               <section
                 key={comparison.id}
-                className={clsx('overflow-hidden', surfaceCardClass)}
+                className={clsx('overflow-hidden', surfaceSectionClass)}
               >
                 <h3 className="sr-only">Replay of run {comparison.sourceRunId}</h3>
                 <div className={clsx(surfaceCardHeaderClass, 'flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-6 py-4')}>

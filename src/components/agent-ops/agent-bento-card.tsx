@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 
-import { surfaceCardClass } from '@/components/agent-ops/surface-card'
+import { surfaceItemClass } from '@/components/agent-ops/surface-card'
 import { Subheading } from '@/components/catalyst/heading'
 
 export function AgentBentoCard({
@@ -23,8 +23,8 @@ export function AgentBentoCard({
   return (
     <div
       className={clsx(
-        surfaceCardClass,
-        'group relative transition-colors duration-200 hover:border-white/10',
+        surfaceItemClass,
+        'group relative transition-colors duration-200 hover:border-white/10 hover:bg-[var(--color-surface-focus)]',
         className
       )}
     >
