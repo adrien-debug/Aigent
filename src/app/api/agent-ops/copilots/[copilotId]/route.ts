@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { deleteCopilotCascade, setCopilotAssistantId } from '@/lib/agent-mission-control/authoring-writes'
 import { ensureCopilotAssistant } from '@/lib/agent-mission-control/langgraph-assistants'
 import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
+import { isValidCopilotId, isValidProjectId } from '@/lib/agent-mission-control/resource-ids'
 
 /**
  * Shape guard for `:copilotId` path params. Real ids are `makeId('copilot', slug)`
@@ -12,23 +13,6 @@ import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
  * well-formed 400 here is strictly a fast, safe rejection (no valid id is ever
  * refused).
  */
-const COPILOT_ID_RE = /^[a-z0-9-]{1,200}$/
-
-function isValidCopilotId(id: string): boolean {
-  return typeof id === 'string' && COPILOT_ID_RE.test(id)
-}
-
-/**
- * Same shape guard for project ids in the PATCH body (`projectId`,
- * `targetProjectIds[]`) — real ids are `makeId('proj', slug)`, same alphabet
- * and bound as PROJECT_ID_RE in projects/[id]/route.ts. These values are
- * persisted verbatim into `copilots.project_id` / `target_project_ids` and
- * later re-interpolated into PostgREST filters, so an unbounded/garbage string
- * must be rejected with a 400 here rather than stored (a value outside this
- * shape can never be a real project id).
- */
-const PROJECT_ID_RE = /^[a-z0-9-]{1,200}$/
-
 /**
  * DELETE /api/agent-ops/copilots/:copilotId — supprime définitivement un
  * copilote et toutes ses données (versions, manifests, tools, tests, runs,
@@ -99,7 +83,7 @@ export async function PATCH(
     if (body.projectId !== null && typeof body.projectId !== 'string') {
       return NextResponse.json({ error: 'projectId must be a string or null' }, { status: 400 })
     }
-    if (body.projectId !== null && !PROJECT_ID_RE.test(body.projectId)) {
+    if (body.projectId !== null && !isValidProjectId(body.projectId)) {
       return NextResponse.json({ error: 'invalid projectId' }, { status: 400 })
     }
     patch.project_id = body.projectId
@@ -112,7 +96,7 @@ export async function PATCH(
     if (targets.length > 2) {
       return NextResponse.json({ error: 'targetProjectIds: 2 destinations max' }, { status: 400 })
     }
-    if (targets.some((id) => !PROJECT_ID_RE.test(id))) {
+    if (targets.some((id) => !isValidProjectId(id))) {
       return NextResponse.json({ error: 'targetProjectIds: invalid project id' }, { status: 400 })
     }
     patch.target_project_ids = targets

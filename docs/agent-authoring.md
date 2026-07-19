@@ -26,20 +26,21 @@ versions, promotion gate, etc. — see `AGENTS.md` / `types.ts` for that surface
   run/test/benchmark history — analyze → propose → materialize a V2 draft →
   compare → human decision (see §1c).
 
-**Providers**: multi-provider on the direct model-router path, OpenAI-only on
-the LangGraph path.
+**Providers**: multi-provider on both the direct model-router path and the
+LangGraph `agent_builder` graph (via `model-provider.mjs`).
 
 - The **architect** uses `gpt-5.4` (`ARCHITECT_MODEL` in
-  `src/lib/agent-mission-control/llm-client.ts`) and the **LangGraph graph** uses
-  `AGENT_BUILDER_MODEL` (default `gpt-5.4`) — both **OpenAI-only** (the graph's
-  `agent` node is a hardcoded `ChatOpenAI`; see §3). This is a known limitation:
-  the LangGraph path cannot run on Gemini or local vLLM today.
+  `src/lib/agent-mission-control/llm-client.ts`).
+- The **LangGraph graph** reads `model` + `modelProvider` from each copilot's
+  `CopilotBehaviorConfig` (`src/langgraph/model-provider.mjs`) and instantiates
+  OpenAI, Gemini (OpenAI-compatible surface), or local vLLM accordingly.
 - The **direct model-router path** (§3b,
-  `src/lib/agent-mission-control/model-router.ts`) is **multi-provider**: it
-  resolves the copilot's `model_provider` and routes to `openai` (OpenAI SDK),
-  `google` (Gemini REST), or `local` (Adrien's vLLM park, OpenAI-compatible,
-  explicit opt-in — never a silent redirect of defaults). `mistral` is declared
-  but not wired (`ProviderUnavailableError`).
+  `src/lib/agent-mission-control/model-router.ts`) resolves the copilot's
+  `model_provider` and routes to `openai` (OpenAI SDK),
+  `google` (Gemini REST, including tool-use), or `local` (Adrien's vLLM park,
+  OpenAI-compatible, explicit opt-in — never a silent redirect of defaults).
+  `mistral` remains in the DB enum for legacy rows but is **not creatable**
+  from the UI/API and is not wired at runtime.
 - The **7 finance copilots** (`copilot-fin-*`, Accounts Payable) execute on this
   direct path with `model_provider = local` → **local vLLM** (bench 16/16). Their
   `runtime` may still read `openai-assistants` for historical reasons, but the
@@ -343,9 +344,9 @@ Live schema on GPU1 (base `aigent`), migrations in `supabase/migrations/`:
   constraints down to the supported set (`openai` / `google` / `mistral` /
   `local`; runtimes `langgraph` / `openai-assistants` / `gemini` / `custom`).
   These providers are real on the **direct** path (§3b): OpenAI, Gemini
-  (`google`), and local vLLM (`local`) all execute. The **LangGraph** path is
-  OpenAI-only regardless of `model_provider` (its `agent` node is a hardcoded
-  `ChatOpenAI`).
+  (`google`), and local vLLM (`local`) all execute. The **LangGraph** path reads
+  `modelProvider` from `CopilotBehaviorConfig` and routes through
+  `model-provider.mjs` (openai / google / local). `mistral` is legacy-only.
 - **`0006_agent_run_thread.sql`** — adds the nullable `agent_runs.thread_id`,
   the Agent Server thread persisted on a `needs-confirmation` run so it can be
   resumed (§4). Only LangGraph runs set it.

@@ -9,18 +9,18 @@ import { Description, ErrorMessage, Field, Fieldset, Label } from '@/components/
 import { Input } from '@/components/catalyst/input'
 import { Select } from '@/components/catalyst/select'
 import { Textarea } from '@/components/catalyst/textarea'
+import { CREATABLE_MODEL_PROVIDERS, type CreatableModelProvider } from '@/lib/agent-mission-control/resource-ids'
 import type { CreateCopilotInput, GeneratedManifest } from '@/lib/agent-mission-control/authoring-types'
 import { AGENT_RUNTIME_LABELS, MODEL_PROVIDER_LABELS } from '@/lib/agent-mission-control/labels'
 import { slugify } from '@/lib/agent-mission-control/slug'
-import type { AgentRuntime, ModelProvider, Project } from '@/lib/agent-mission-control/types'
+import type { AgentRuntime, Project } from '@/lib/agent-mission-control/types'
 
-const PROVIDER_OPTIONS: ModelProvider[] = ['openai', 'google', 'mistral', 'local']
+const PROVIDER_OPTIONS = CREATABLE_MODEL_PROVIDERS
 
 /** Known model ids per provider (values already used across the app fixtures). */
-const SUGGESTED_MODELS: Record<ModelProvider, string[]> = {
+const SUGGESTED_MODELS: Record<(typeof CREATABLE_MODEL_PROVIDERS)[number], string[]> = {
   openai: ['gpt-5.4', 'gpt-5.4-mini', 'gpt-4.1'],
-  google: ['gemini-2.5-pro'],
-  mistral: ['mistral-large-2508'],
+  google: ['gemini-2.5-pro', 'gemini-2.5-flash'],
   local: [],
 }
 
@@ -29,14 +29,14 @@ const BENCH_VALUE = '__bench__'
 // langgraph is the only runtime with a real execution engine (the Agent
 // Server); default to it so a new copilot is runnable out of the box.
 const DEFAULT_RUNTIME: AgentRuntime = 'langgraph'
-const DEFAULT_PROVIDER: ModelProvider = 'openai'
+const DEFAULT_PROVIDER: CreatableModelProvider = 'openai'
 const DEFAULT_MODEL = SUGGESTED_MODELS[DEFAULT_PROVIDER][0]
 
 /** Same key as ArchitectChat's session draft — purged after a successful creation. */
 const ARCHITECT_DRAFT_STORAGE_KEY = 'amc-architect-draft'
 
 /** True when `model` matches another provider's known models but not `provider`'s. */
-function modelBelongsToAnotherProvider(model: string, provider: ModelProvider): boolean {
+function modelBelongsToAnotherProvider(model: string, provider: CreatableModelProvider): boolean {
   const trimmed = model.trim()
   if (trimmed.length === 0) return false
   if (SUGGESTED_MODELS[provider].includes(trimmed)) return false
@@ -83,7 +83,7 @@ export function CreateAgentForm({
   const [description, setDescription] = useState('')
   const runtime: AgentRuntime = DEFAULT_RUNTIME
   const [model, setModel] = useState(DEFAULT_MODEL)
-  const [modelProvider, setModelProvider] = useState<ModelProvider>(DEFAULT_PROVIDER)
+  const [modelProvider, setModelProvider] = useState<CreatableModelProvider>(DEFAULT_PROVIDER)
   const [owner, setOwner] = useState('')
   const [tagsInput, setTagsInput] = useState('')
   const [projectId, setProjectId] = useState<string>(BENCH_VALUE)
@@ -155,7 +155,7 @@ export function CreateAgentForm({
     setModel(value)
   }
 
-  function handleProviderChange(next: ModelProvider) {
+  function handleProviderChange(next: CreatableModelProvider) {
     dirtyFields.current.add('modelProvider')
     setModelProvider(next)
     // If the current model clearly belongs to ANOTHER provider and was never
@@ -292,7 +292,7 @@ export function CreateAgentForm({
             <Select
               name="modelProvider"
               value={modelProvider}
-              onChange={(event) => handleProviderChange(event.target.value as ModelProvider)}
+              onChange={(event) => handleProviderChange(event.target.value as CreatableModelProvider)}
             >
               {PROVIDER_OPTIONS.map((option) => (
                 <option key={option} value={option}>

@@ -14,6 +14,7 @@ import {
   ensureCopilotAssistant,
 } from '@/lib/agent-mission-control/langgraph-assistants'
 import { isPgrestTimeout, pgrestDetail } from '@/lib/agent-mission-control/postgrest'
+import { CREATABLE_MODEL_PROVIDERS, PROJECT_ID_RE } from '@/lib/agent-mission-control/resource-ids'
 
 /**
  * Legacy validation messages, kept VERBATIM across the zod migration (same
@@ -94,7 +95,7 @@ const createCopilotBodySchema = z.object(
     description: z.string().max(4000, 'must be at most 4000 chars').default(''),
     runtime: z.literal('langgraph'),
     model: z.string().max(200, 'must be at most 200 chars'),
-    modelProvider: z.enum(['openai', 'google', 'mistral', 'local']),
+    modelProvider: z.enum(CREATABLE_MODEL_PROVIDERS),
     owner: z.string().max(200, 'must be at most 200 chars'),
     tags: z
       .array(z.string({ message: MSG.tags }).max(100, 'each tag must be at most 100 chars'), {
@@ -103,11 +104,17 @@ const createCopilotBodySchema = z.object(
       .max(50, MSG.tags)
       .default([]),
     projectId: z
-      .union([z.string().max(200, MSG.projectId), z.null()], { message: MSG.projectId })
+      .union([
+        z.string().regex(PROJECT_ID_RE, MSG.projectId).max(200, MSG.projectId),
+        z.null(),
+      ], { message: MSG.projectId })
       .default(null),
     targetProjectIds: z
       .array(
-        z.string({ message: MSG.targetProjectIds }).max(200, 'each id must be at most 200 chars'),
+        z
+          .string({ message: MSG.targetProjectIds })
+          .regex(PROJECT_ID_RE, MSG.targetProjectIds)
+          .max(200, 'each id must be at most 200 chars'),
         { message: MSG.targetProjectIds }
       )
       .max(2, MSG.targetProjectIds)

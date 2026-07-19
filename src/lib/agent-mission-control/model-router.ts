@@ -8,7 +8,7 @@
  *
  * Providers in V1:
  *   - openai    : official SDK (already used elsewhere), key OPENAI_API_KEY.
- *   - google    : direct server-only fetch to the Gemini REST API, key GEMINI_API_KEY.
+ *   - google    : Gemini REST API (text + tool-use).
  *   - local     : Adrien's vLLM park (OpenAI-compatible), key VLLM_LOCAL_API_KEY +
  *                 one URL env var per endpoint (model-local.ts). Explicit opt-in:
  *                 only reached when a request selects provider 'local' AND one of
@@ -62,7 +62,7 @@ export interface ModelRouterRequest {
   maxOutputTokens?: number
   /** Per-request opt-in to run/benchmark fallbacks (OR-ed with the env flag). */
   allowFallback?: boolean
-  /** Tools the model may call (OpenAI only in this lot; ignored elsewhere). */
+  /** Tools the model may call (OpenAI + local vLLM + Gemini). */
   tools?: ModelRouterTool[]
   /** How the model may use tools. Mapped to the provider's `tool_choice`. */
   toolChoice?: 'auto' | 'none' | 'required'
@@ -209,16 +209,90 @@ async function callOpenAI(req: ModelRouterRequest): Promise<RawCall> {
   }
 }
 
+type GeminiPart =
+  | { text: string }
+  | { functionCall: { name: string; args: Record<string, unknown> } }
+  | { functionResponse: { name: string; response: Record<string, unknown> } }
+
+function parseJsonRecord(text: string): Record<string, unknown> {
+  try {
+    const parsed: unknown = JSON.parse(text)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed as Record<string, unknown>
+  } catch {
+    // fall through
+  }
+  return { result: text }
+}
+
+function buildGeminiContents(messages: ModelRouterMessage[]) {
+  const nameByCallId = new Map<string, string>()
+  const contents: { role: 'user' | 'model'; parts: GeminiPart[] }[] = []
+
+  for (const message of messages) {
+    if (message.role === 'system') continue
+
+    if (message.role === 'user') {
+      contents.push({ role: 'user', parts: [{ text: message.content }] })
+      continue
+    }
+
+    if (message.role === 'assistant') {
+      const parts: GeminiPart[] = []
+      if (message.content.trim().length > 0) parts.push({ text: message.content })
+      for (const call of message.toolCalls ?? []) {
+        nameByCallId.set(call.id, call.name)
+        parts.push({ functionCall: { name: call.name, args: parseJsonRecord(call.argumentsJson) } })
+      }
+      if (parts.length > 0) contents.push({ role: 'model', parts })
+      continue
+    }
+
+    if (message.role === 'tool') {
+      const name =
+        (message.toolCallId ? nameByCallId.get(message.toolCallId) : undefined) ?? message.toolCallId ?? 'tool'
+      contents.push({
+        role: 'user',
+        parts: [{ functionResponse: { name, response: parseJsonRecord(message.content) } }],
+      })
+    }
+  }
+
+  return contents
+}
+
+function toGeminiTools(tools: ModelRouterTool[]) {
+  return [
+    {
+      functionDeclarations: tools.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      })),
+    },
+  ]
+}
+
+function toGeminiToolMode(choice: ModelRouterRequest['toolChoice']): 'AUTO' | 'ANY' | 'NONE' | undefined {
+  switch (choice) {
+    case 'auto':
+      return 'AUTO'
+    case 'required':
+      return 'ANY'
+    case 'none':
+      return 'NONE'
+    default:
+      return undefined
+  }
+}
+
 async function callGemini(req: ModelRouterRequest): Promise<RawCall> {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
   if (!apiKey) throw new ProviderUnavailableError('Gemini not configured (GEMINI_API_KEY missing)')
 
-  // Tool-use is not wired for Gemini in this lot: keep only user/assistant text
-  // turns so a `role: 'tool'` message can't slip through mislabelled as a user.
   const system = req.messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n')
-  const contents = req.messages
-    .filter((m) => m.role === 'user' || m.role === 'assistant')
-    .map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }))
+  const contents = buildGeminiContents(req.messages)
+  const tools = req.tools && req.tools.length > 0 ? toGeminiTools(req.tools) : undefined
+  const toolMode = tools ? toGeminiToolMode(req.toolChoice) : undefined
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
     req.model
@@ -232,6 +306,8 @@ async function callGemini(req: ModelRouterRequest): Promise<RawCall> {
       body: JSON.stringify({
         ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
         contents,
+        ...(tools ? { tools } : {}),
+        ...(toolMode ? { toolConfig: { functionCallingConfig: { mode: toolMode } } } : {}),
         generationConfig: {
           maxOutputTokens: req.maxOutputTokens ?? 2048,
           ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
@@ -251,27 +327,35 @@ async function callGemini(req: ModelRouterRequest): Promise<RawCall> {
   }
 
   const data = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[]
+    candidates?: {
+      content?: { parts?: { text?: string; functionCall?: { name?: string; args?: Record<string, unknown> } }[] }
+      finishReason?: string
+    }[]
     usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number }
   }
-  const text = (data.candidates?.[0]?.content?.parts ?? [])
+
+  const parts = data.candidates?.[0]?.content?.parts ?? []
+  const text = parts
     .map((p) => p.text ?? '')
     .join('')
     .trim()
+  const toolCalls: ModelRouterToolCall[] = parts
+    .filter((p) => p.functionCall?.name)
+    .map((p, index) => ({
+      id: `gemini_call_${index}`,
+      name: p.functionCall!.name!,
+      argumentsJson: JSON.stringify(p.functionCall!.args ?? {}),
+    }))
+
   return {
     text,
     inputTokens: data.usageMetadata?.promptTokenCount ?? estimateTokens(req.messages.map((m) => m.content).join(' ')),
     outputTokens: data.usageMetadata?.candidatesTokenCount ?? estimateTokens(text),
     finishReason: data.candidates?.[0]?.finishReason,
+    ...(toolCalls.length > 0 ? { toolCalls } : {}),
   }
 }
 
-/**
- * Call one of the local vLLM endpoints (OpenAI-compatible API). The router-facing
- * `req.model` is a LOCAL_VLLM_MODEL_IDS id; model-local.ts resolves it to the
- * endpoint URL + upstream model id from env. Unconfigured endpoint or unreachable
- * host → ProviderUnavailableError (routable, the fallback policy applies).
- */
 async function callLocalVllm(req: ModelRouterRequest): Promise<RawCall> {
   const endpoint = resolveLocalVllmEndpoint(req.model)
   if (!endpoint) {
