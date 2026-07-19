@@ -47,6 +47,7 @@ import type {
 } from './project-builder-types'
 import { pgrest } from './postgrest'
 import { loadRepoIntelligence } from './repo-intelligence-store'
+import { appendAgentsWantedToContext } from './agents-wanted'
 import { repoScanToContext, scanProjectRepo } from './repo-scan'
 import { makeId } from './slug'
 
@@ -631,6 +632,14 @@ async function prepareArchitectTurnContext(
     // Non-fatal — repo tools will report "unavailable" to the model.
   }
 
+  try {
+    if (repoFullName) {
+      intelBlock = (await appendAgentsWantedToContext(intelBlock, repoFullName)) ?? intelBlock
+    }
+  } catch {
+    // Non-fatal — proceed without agents-wanted context.
+  }
+
   return { conversation, messages, intelBlock, repoFullName }
 }
 
@@ -925,7 +934,7 @@ export async function startProjectBuilderDraftMaterialization(projectId: string)
     try {
       const scan = await scanProjectRepo(project)
       repoScan = { repo: scan.repo, branch: scan.branch, scripts: scan.scripts }
-      repoContext = repoScanToContext(scan)
+      repoContext = await appendAgentsWantedToContext(repoScanToContext(scan), project.repoFullName)
     } catch {
       // Non-fatal.
     }

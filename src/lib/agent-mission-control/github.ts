@@ -22,6 +22,17 @@
 import 'server-only'
 
 import type { AgentManifest, Copilot, Project } from './types'
+import {
+  buildConsumerIntakePack,
+  CONSUMER_PACK_VERSION,
+  CONSUMER_READY_PATH,
+  consumerProvisionBranchName,
+  type ConsumerReadyMarker,
+  AGENTS_WANTED_PATH,
+  BINDINGS_PATH,
+  REGISTRY_JSON_PATH,
+  REGISTRY_README_PATH,
+} from './consumer-bootstrap'
 
 // ---------------------------------------------------------------------------
 // Config / fail-closed
@@ -1128,8 +1139,7 @@ function scaffoldAgentFiles(
 //   agents/README.md       — HUMAN index (markdown table)
 // ---------------------------------------------------------------------------
 
-const REGISTRY_JSON_PATH = 'agents/_registry.json'
-const REGISTRY_README_PATH = 'agents/README.md'
+// Host registry index — paths shared with consumer-bootstrap.
 
 /**
  * One row of the host registry: pure metadata for a single hosted agent. Never
@@ -1513,4 +1523,238 @@ function buildPrBody(copilot: Copilot, manifest: AgentManifest, files: string[],
   }
   lines.push('', '> ⚠️ No secret is embedded — the handler reads credentials from `process.env` at runtime.')
   return lines.join('\n')
+}
+
+// ---------------------------------------------------------------------------
+// Consumer workspace provision — one-shot intake pack (PR by default)
+// ---------------------------------------------------------------------------
+
+export interface ProvisionConsumerArgs {
+  project: Project
+  /** Defaults to true. Real push requires GITHUB_PUSH_ENABLED=1. */
+  dryRun?: boolean
+  /** Defaults to pull_request. */
+  mode?: PushAgentDeliveryMode
+  /** Re-write scaffold even when consumer-ready exists. */
+  force?: boolean
+}
+
+export interface ConsumerProvisionStatus {
+  provisioned: boolean
+  version: string | null
+  provisionedAt: string | null
+  projectKey: string | null
+}
+
+/** Read the consumer-ready marker from the linked repo (fail-soft). */
+export async function getConsumerProvisionStatus(repoFullName: string): Promise<ConsumerProvisionStatus> {
+  const repo = assertValidRepoFullName(repoFullName)
+  try {
+    const file = await getRepoFile(repo, CONSUMER_READY_PATH)
+    const parsed = JSON.parse(file.text) as ConsumerReadyMarker
+    if (typeof parsed?.version !== 'string') {
+      return { provisioned: false, version: null, provisionedAt: null, projectKey: null }
+    }
+    return {
+      provisioned: true,
+      version: parsed.version,
+      provisionedAt: typeof parsed.provisionedAt === 'string' ? parsed.provisionedAt : null,
+      projectKey: typeof parsed.projectKey === 'string' ? parsed.projectKey : null,
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (/GitHub 404 /.test(msg)) {
+      return { provisioned: false, version: null, provisionedAt: null, projectKey: null }
+    }
+    throw err
+  }
+}
+
+async function repoFileExists(repoFullName: string, path: string, ref: string): Promise<boolean> {
+  try {
+    await getRepoFile(repoFullName, path, ref)
+    return true
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return !/GitHub 404 /.test(msg) ? Promise.reject(err) : false
+  }
+}
+
+/** Drop pack files that must not clobber an existing consumer workspace. */
+async function filterConsumerPack(
+  repoFullName: string,
+  ref: string,
+  files: ScaffoldedFile[],
+  force: boolean
+): Promise<ScaffoldedFile[]> {
+  if (force) return files
+  const skipIfExists = new Set([AGENTS_WANTED_PATH, BINDINGS_PATH, REGISTRY_JSON_PATH])
+  const kept: ScaffoldedFile[] = []
+  for (const file of files) {
+    if (skipIfExists.has(file.path) && (await repoFileExists(repoFullName, file.path, ref))) {
+      continue
+    }
+    kept.push(file)
+  }
+  return kept
+}
+
+/**
+ * Provision the standard consumer intake pack into the project's linked repo.
+ * Opens a PR by default (never auto-merges). Dry-run unless confirm + GITHUB_PUSH_ENABLED.
+ */
+export async function provisionConsumerIntake(args: ProvisionConsumerArgs): Promise<PushResult> {
+  const { project } = args
+  const dryRun = args.dryRun ?? true
+  const mode = args.mode ?? 'pull_request'
+  const force = args.force ?? false
+
+  if (!project.repoFullName) throw new Error('project has no linked GitHub repo')
+  requireGithub()
+  const repoFullName = assertValidRepoFullName(project.repoFullName)
+  const wouldPush = !dryRun && pushArmed()
+
+  const baseBranch = await getDefaultBranch(repoFullName)
+  const status = await getConsumerProvisionStatus(repoFullName)
+  if (status.provisioned && status.version === CONSUMER_PACK_VERSION && !force) {
+    return {
+      pushed: false,
+      dryRun: !wouldPush,
+      mode,
+      branch: baseBranch,
+      baseBranch,
+      files: [],
+      message: `consumer intake already provisioned (${CONSUMER_PACK_VERSION})`,
+    }
+  }
+
+  const provisionedAt = new Date().toISOString()
+  const fullPack = buildConsumerIntakePack(project, provisionedAt)
+  const scaffolded = await filterConsumerPack(repoFullName, baseBranch, fullPack, force)
+  const files = scaffolded.map((f) => f.path)
+
+  const deliveryBranch = consumerProvisionBranchName(project.slug)
+
+  if (mode === 'direct_commit') {
+    if (!wouldPush) {
+      return {
+        pushed: false,
+        dryRun: true,
+        mode: 'direct_commit',
+        branch: baseBranch,
+        files,
+        message: `dry-run: ${files.length} fichiers intake prêts, push désactivé`,
+      }
+    }
+
+    const ref = await gh<{ object: { sha: string } }>('GET', `repos/${repoFullName}/git/refs/heads/${baseBranch}`)
+    const headCommitSha = ref.object.sha
+    const headCommit = await gh<{ tree: { sha: string } }>('GET', `repos/${repoFullName}/git/commits/${headCommitSha}`)
+    const blobs = await Promise.all(
+      scaffolded.map(async (f) => {
+        const blob = await gh<{ sha: string }>('POST', `repos/${repoFullName}/git/blobs`, {
+          content: f.content,
+          encoding: 'utf-8',
+        })
+        return { path: f.path, sha: blob.sha }
+      })
+    )
+    const tree = await gh<{ sha: string }>('POST', `repos/${repoFullName}/git/trees`, {
+      base_tree: headCommit.tree.sha,
+      tree: blobs.map((b) => ({ path: b.path, mode: '100644', type: 'blob', sha: b.sha })),
+    })
+    const commit = await gh<{ sha: string; html_url: string }>('POST', `repos/${repoFullName}/git/commits`, {
+      message: `aigent: provision consumer intake (${CONSUMER_PACK_VERSION})`,
+      tree: tree.sha,
+      parents: [headCommitSha],
+    })
+    await gh('PATCH', `repos/${repoFullName}/git/refs/heads/${baseBranch}`, { sha: commit.sha, force: false })
+    return {
+      pushed: true,
+      dryRun: false,
+      mode: 'direct_commit',
+      commitUrl: commit.html_url,
+      commitSha: commit.sha,
+      branch: baseBranch,
+      files,
+      message: `consumer intake provisioned on ${baseBranch} (${files.length} fichiers)`,
+    }
+  }
+
+  // pull_request (default)
+  if (!wouldPush) {
+    return {
+      pushed: false,
+      dryRun: true,
+      mode: 'pull_request',
+      branch: deliveryBranch,
+      baseBranch,
+      files,
+      message: `dry-run: PR intake planifiée ${deliveryBranch} → ${baseBranch} (${files.length} fichiers)`,
+    }
+  }
+
+  const ref = await gh<{ object: { sha: string } }>('GET', `repos/${repoFullName}/git/refs/heads/${baseBranch}`)
+  const headCommitSha = ref.object.sha
+
+  try {
+    await gh('POST', `repos/${repoFullName}/git/refs`, { ref: `refs/heads/${deliveryBranch}`, sha: headCommitSha })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (/422/.test(msg)) throw new Error(`branch_exists: ${deliveryBranch}`)
+    throw err
+  }
+
+  const blobs = await Promise.all(
+    scaffolded.map(async (f) => {
+      const blob = await gh<{ sha: string }>('POST', `repos/${repoFullName}/git/blobs`, {
+        content: f.content,
+        encoding: 'utf-8',
+      })
+      return { path: f.path, sha: blob.sha }
+    })
+  )
+  const tree = await gh<{ sha: string }>('POST', `repos/${repoFullName}/git/trees`, {
+    tree: blobs.map((b) => ({ path: b.path, mode: '100644', type: 'blob', sha: b.sha })),
+  })
+  const commit = await gh<{ sha: string; html_url: string }>('POST', `repos/${repoFullName}/git/commits`, {
+    message: `aigent: provision consumer intake (${CONSUMER_PACK_VERSION})`,
+    tree: tree.sha,
+    parents: [headCommitSha],
+  })
+  await gh('PATCH', `repos/${repoFullName}/git/refs/heads/${deliveryBranch}`, { sha: commit.sha, force: true })
+
+  const pr = await gh<{ html_url: string; number: number }>('POST', `repos/${repoFullName}/pulls`, {
+    title: `aigent: consumer intake (${project.name})`,
+    head: deliveryBranch,
+    base: baseBranch,
+    body: [
+      `## Consumer intake — ${project.name}`,
+      '',
+      'Provisioned by **Aigent**. Merge manually after review.',
+      '',
+      `- Pack version: \`${CONSUMER_PACK_VERSION}\``,
+      `- Intake UI: \`/admin/aigent\``,
+      `- Demand file: \`AGENTS-WANTED.md\``,
+      '',
+      '### Files',
+      ...files.map((f) => `- \`${f}\``),
+      '',
+      'After merge: restyle `/admin/aigent` to your design system, then push agents from Aigent.',
+    ].join('\n'),
+  })
+
+  return {
+    pushed: true,
+    dryRun: false,
+    mode: 'pull_request',
+    commitUrl: commit.html_url,
+    commitSha: commit.sha,
+    branch: deliveryBranch,
+    baseBranch,
+    prUrl: pr.html_url,
+    prNumber: pr.number,
+    files,
+    message: `PR #${pr.number}: consumer intake → ${baseBranch} (${files.length} fichiers)`,
+  }
 }

@@ -27,7 +27,9 @@ Your job:
 
 Respond in clear prose (markdown allowed), and ALWAYS end your turn with a real, substantive message — a reformulation, a finding from the repo, or a clarifying question. Never end a turn with only a tool call and no prose. When the discussion produces or refines a spec, ALSO call update_preview with the structured fields you want reflected in the preview panel. You may call update_preview on most turns when there is something to show — options, tools, flow, policies.
 
-If repo tools are unavailable (no linked repo, or repo reads failing), say so honestly and fall back to the bounded summary — do not pretend exhaustive repo coverage you don't have.`
+If repo tools are unavailable (no linked repo, or repo reads failing), say so honestly and fall back to the bounded summary — do not pretend exhaustive repo coverage you don't have.
+
+When the context includes a "## Workspace agent demand" section (sourced from AGENTS-WANTED.md), treat its open requests as the primary signal for what to build: prioritise framing agents that directly address those listed needs before exploring other ideas. Do not invent requests that are not listed there, and do not mark a request as fulfilled unless the agent you are designing clearly covers it.`
 
 const PROJECT_BUILDER_PREVIEW_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
   type: 'function',

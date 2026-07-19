@@ -9,6 +9,7 @@ import { startAgentBuilderRun } from '@/lib/agent-mission-control/agent-builder-
 // mêmes fonctions lib (start/resumeAgentBuilderRun) en un seul endpoint condensé.
 // Cette route reste comme capacité de contrôle fin (utilisable via x-amc-key),
 // doublon assumé de create-draft — pas du code mort.
+import { appendAgentsWantedToContext } from '@/lib/agent-mission-control/agents-wanted'
 import { getProject } from '@/lib/agent-mission-control/data'
 import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 import { repoScanToContext, scanProjectRepo, type RepoScanSummary } from '@/lib/agent-mission-control/repo-scan'
@@ -149,7 +150,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
   }
 
-  const repoContext = scan ? repoScanToContext(scan) : undefined
+  let repoContext = scan ? repoScanToContext(scan) : undefined
+  repoContext = await appendAgentsWantedToContext(repoContext, project.repoFullName)
 
   try {
     const state = await startAgentBuilderRun({

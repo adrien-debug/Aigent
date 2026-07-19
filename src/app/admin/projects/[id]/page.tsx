@@ -8,12 +8,14 @@ import { ProjectDeleteAction } from '@/components/agent-ops/project-delete-actio
 import { ProjectHeader } from '@/components/agent-ops/project-header'
 import { ProjectMissionOrchestrator } from '@/components/agent-ops/project-mission-orchestrator'
 import { ProjectRepoIntelligence } from '@/components/agent-ops/project-repo-intelligence'
+import { ProvisionConsumerCard } from '@/components/agent-ops/provision-consumer-card'
 import { ProjectTabs } from '@/components/agent-ops/project-tabs'
 import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
 import { StatusPill } from '@/components/agent-ops/status-pill'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { getCopilots, getProject, getRecentRunsForProject } from '@/lib/agent-mission-control/data'
+import { getConsumerProvisionStatus } from '@/lib/agent-mission-control/github'
 import {
   formatDurationMs,
   formatPercent,
@@ -206,6 +208,10 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   ])
   if (!project) notFound()
 
+  const consumerStatus = project.repoFullName
+    ? await getConsumerProvisionStatus(project.repoFullName).catch(() => null)
+    : null
+
   const validated = copilots.filter((copilot) => copilot.projectId === project.id)
   const copilotNameById = new Map(copilots.map((copilot) => [copilot.id, copilot.name]))
 
@@ -221,14 +227,21 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       <ProjectTabs projectId={project.id} />
 
       {project.repoFullName ? (
-        <ProjectMissionOrchestrator
-          projectId={project.id}
-          defaultObjective={
-            validated.length > 0
-              ? `Validate ${validated[0].name} after merged delivery`
-              : 'Validate agent delivery readiness for this project'
-          }
-        />
+        <>
+          <ProvisionConsumerCard
+            projectId={project.id}
+            repoFullName={project.repoFullName}
+            initialStatus={consumerStatus}
+          />
+          <ProjectMissionOrchestrator
+            projectId={project.id}
+            defaultObjective={
+              validated.length > 0
+                ? `Validate ${validated[0].name} after merged delivery`
+                : 'Validate agent delivery readiness for this project'
+            }
+          />
+        </>
       ) : (
         <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
           <EmptyState
