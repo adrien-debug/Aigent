@@ -43,7 +43,7 @@ function ActionRow({ item, focus }: { item: ActionItem; focus: boolean }) {
       className={clsx(
         'group flex gap-4 p-4 transition-all duration-200 hover:-translate-y-px',
         'rounded-xl bg-[var(--color-surface-elevated)] shadow-sm shadow-black/40 ring-1 ring-white/[0.05]',
-        focus && 'ring-1 ring-accent-500/40'
+        focus && 'ring-1 ring-[var(--accent-line-strong)]'
       )}
     >
       <Icon

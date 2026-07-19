@@ -70,7 +70,7 @@ function MissionReportPanel({ report }: { report: MissionReport }) {
       </div>
 
       {report.consensus.blockers.length > 0 && (
-        <div className={`${surfaceInsetClass} ring-1 ring-accent-500/30`}>
+        <div className={`${surfaceInsetClass} ring-1 ring-[var(--accent-line)]`}>
           <p className="text-xs font-medium text-accent-300 mb-2">Blockers ({report.consensus.blockers.length})</p>
           <ul className="text-sm text-zinc-300 space-y-1">
             {report.consensus.blockers.map((f) => (

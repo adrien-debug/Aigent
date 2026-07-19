@@ -21,7 +21,7 @@ export function ErrorBanner({ message }: { message: string }) {
   return (
     <div
       role="alert"
-      className="mt-4 rounded-lg bg-accent-500/10 px-4 py-3 text-sm text-accent-700 dark:text-accent-400"
+      className="mt-4 rounded-lg bg-[var(--accent-soft)] px-4 py-3 text-sm text-accent-700 dark:text-accent-400"
     >
       {message}
     </div>

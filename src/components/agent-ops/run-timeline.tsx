@@ -49,12 +49,12 @@ const stepStatusStyles: Record<AgentRunStep['status'], { node: string; label: st
       labelClassName: '',
     },
     warning: {
-      node: 'bg-accent-400/10 text-accent-500 inset-ring inset-ring-accent-400/20 dark:text-accent-500',
+      node: 'bg-[var(--accent-soft)] text-accent-500 inset-ring inset-ring-[var(--accent-line)] dark:text-accent-500',
       label: 'Warning',
       labelClassName: 'text-accent-500 dark:text-accent-500',
     },
     blocked: {
-      node: 'bg-accent-500/15 text-accent-700 inset-ring inset-ring-accent-500/40 dark:text-accent-300',
+      node: 'bg-[var(--accent-surface)] text-accent-700 inset-ring inset-ring-[var(--accent-line-strong)] dark:text-accent-300',
       label: 'Blocked',
       labelClassName: 'font-semibold text-accent-700 dark:text-accent-300',
     },

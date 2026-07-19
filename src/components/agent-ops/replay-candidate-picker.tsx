@@ -96,8 +96,8 @@ export function ReplayCandidatePicker({ items }: { items: ReplayCandidateItem[] 
                 'w-full rounded-lg p-4 text-left transition-colors duration-150',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
                 isSelected
-                  ? 'bg-zinc-100 ring-2 ring-accent-500/60 dark:bg-zinc-950'
-                  : 'bg-zinc-50 ring-1 ring-zinc-950/5 hover:bg-zinc-100 hover:ring-zinc-950/10 dark:bg-zinc-950 dark:ring-white/10 dark:hover:ring-white/20'
+                  ? 'bg-[var(--color-surface-interactive)] ring-2 ring-[var(--accent-line-strong)]'
+                  : 'bg-[var(--color-surface-secondary)] ring-1 ring-white/5 hover:bg-[var(--color-surface-interactive)] hover:ring-white/10'
               )}
             >
               <span className="flex flex-wrap items-center justify-between gap-2">
