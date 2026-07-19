@@ -18,31 +18,25 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
   architecture strip — TOUJOURS re-tonalisé dark admin, jamais un look landing page.
 - Jamais 3 familles visuelles dans une même section. Jamais de placeholder/texte/image des packs.
 
-## Surfaces & profondeur (noir mission control — directive Adrien 2026-07-10, surface unifiée 2026-07-14)
-- **Fond du contenu (canvas) : `--color-surface-canvas` (`#000000`), flush** — zéro marge entre le
-  contenu et la sidebar / le bord droit du navigateur, zéro panneau flottant, zéro `max-w` centré.
-- **Carte / panneau : UNE seule source, la constante `surfaceCardClass`** (`surface-card.tsx`) =
-  `rounded-2xl bg-[var(--color-surface-secondary)] (#121214) border border-white/5 overflow-hidden`,
-  consommée via `<SurfaceCard>`/`<AgentSectionCard>` ou en composant la constante. L'élévation
-  vient de la couche `surface-secondary` posée SUR le canvas noir. **INTERDIT de recopier cette
-  chaîne de classes à la main** (`bg-[var(--color-surface-secondary)]` + `rounded` + `border`
-  écrit inline) : on importe `surfaceCardClass`. Un sous-fond distinct (piste, inset) = la
-  constante `surfaceInsetClass` (`rounded-xl bg-black/20 border border-white/5`), jamais une
-  nouvelle string. Washes `bg-zinc-950/5`, `/10` (hover, séparateur, code, overlay) ≠ cartes.
-- **Tables : JAMAIS de scroll latéral.** Une table tient dans sa colonne en pleine largeur ;
-  on retire des colonnes ou on tronque avant d'accepter un scroll horizontal.
-- **INTERDIT : box dans une box.** Aucune sous-surface encadrée (`bg-* + ring + rounded`) à
-  l'intérieur d'une carte. À l'intérieur d'une carte on sépare par `Divider` / `border-t
-  border-white/5` / espacement — jamais par une boîte imbriquée. Exceptions UNIQUEMENT :
-  cartes sélectionnables interactives (le ring est l'affordance de sélection) et les pistes
-  de meters/progress (ce ne sont pas des boîtes).
-- **KPI / stat strips : style stat Catalyst, PAS de box** — trait fin `Divider` en haut,
-  label, grosse valeur, `Badge` de delta (le composant `AgentMetricCard` implémente ce
-  rythme ; grille `grid gap-8 sm:grid-cols-2 xl:grid-cols-4`, jamais de carte autour).
-- Header de carte : constante `surfaceCardHeaderClass` = `border-b border-white/5 bg-black/20`
-  (+ `px-6 py-4`), corps `px-6 py-6` (ou `p-6`). Le même voile `bg-black/20` s'applique aux
-  `<thead>` de tables — c'est LA couche qui marque la structuration (header vs corps), toujours
-  le même voile noir translucide, jamais une nouvelle teinte.
+## Surfaces & profondeur (AIG-DS-SURFACE-001)
+
+Trois niveaux visuels maximum sur le canvas admin :
+
+| Niveau | Token / classe | Usage |
+|--------|----------------|-------|
+| 1 — Canvas | `--color-surface-canvas` | Fond page, `AdminPageHeader`, bandes KPI nues |
+| 2 — Section | `surfaceSectionClass` (`surfaceCardClass`) | Panneaux fonctionnels : Projects, tables, workbench |
+| 3 — Item | `surfaceItemClass` | Objets métier : ligne projet, carte agent, tuile KV |
+| Nav | `surfaceNavClass` | Sidebar rail — plus léger que les sections |
+
+Règles :
+- **Jamais** section dans section dans section (secondary × 3).
+- Headers de section : `surfaceSectionHeaderClass` — hairline seule, pas de `bg-black/20`.
+- KPI strips : nues sur le canvas (`AgentKpiBand` sans `separators`), pas dans une carte.
+- Empty states : bordure dashed légère sur canvas, pas une carte secondary pleine.
+- Tables : `border-b border-white/5` sur `<thead>`, pas de wash noir lourd.
+
+Détail : `docs/surface-usage.md`.
 - Hover ligne de table : `hover:bg-white/2.5`
 - Pas de glassmorphism, pas d'ombres lourdes, pas de néon.
 
