@@ -1,48 +1,62 @@
 #!/usr/bin/env node
 /**
  * Dead-code gate — fails CI when unreferenced components are found.
- * Run via `npm run audit:dead`.
+ * Pure Node (no ripgrep) so it runs on GitHub Actions runners too.
  */
-import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 
+const CORPUS_ROOTS = ['src', 'tests', 'scripts']
+
 function walk(dir, acc = []) {
+  if (!fs.existsSync(dir)) return acc
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name)
-    if (entry.isDirectory()) walk(full, acc)
-    else if (/\.(tsx|ts|mjs|js)$/.test(entry.name)) acc.push(full)
+    if (entry.isDirectory()) {
+      if (entry.name === 'node_modules' || entry.name === '.git') continue
+      walk(full, acc)
+    } else if (/\.(tsx|ts|mjs|js|md)$/.test(entry.name)) {
+      acc.push(full)
+    }
   }
   return acc
 }
 
-function rg(pattern, exclude = '') {
-  try {
-    const glob = exclude ? `--glob '!${exclude}'` : ''
-    const out = execSync(`rg -l ${glob} -F '${pattern.replace(/'/g, "'\\''")}' src tests scripts 2>/dev/null || true`, {
-      encoding: 'utf8',
-    }).trim()
-    return out ? out.split('\n').filter(Boolean) : []
-  } catch {
-    return []
-  }
+function loadCorpus() {
+  return CORPUS_ROOTS.flatMap((root) => walk(root)).map((file) => ({
+    rel: file.replace(/\\/g, '/'),
+    content: fs.readFileSync(file, 'utf8'),
+  }))
 }
 
-function isReferenced(file) {
-  const rel = file.replace(/\\/g, '/')
-  const noExt = rel.replace(/\.(tsx|ts|mjs|js)$/, '')
+function isReferenced(componentFile, corpus) {
+  const rel = componentFile.replace(/\\/g, '/')
+  const noExt = rel.replace(/\.(tsx|ts)$/, '')
   const base = path.basename(noExt)
   const importPath = '@/' + noExt.replace(/^src\//, '')
 
-  const patterns = [importPath, `./${base}`, `../${base}`, `/${base}'`, `/${base}"`, `/${base}.tsx`, `/${base}.ts`]
-  for (const p of patterns) {
-    if (rg(p, rel).length > 0) return true
+  const needles = [
+    importPath,
+    `./${base}`,
+    `../${base}`,
+    `'/${base}'`,
+    `"/${base}"`,
+    `'/${base}.tsx'`,
+    `'/${base}.ts'`,
+  ]
+
+  for (const { rel: fileRel, content } of corpus) {
+    if (fileRel === rel) continue
+    for (const needle of needles) {
+      if (content.includes(needle)) return true
+    }
   }
   return false
 }
 
-const componentFiles = walk('src/components')
-const deadComponents = componentFiles.filter((f) => !isReferenced(f)).map((f) => f.replace(/\\/g, '/'))
+const componentFiles = walk('src/components').filter((f) => /\.(tsx|ts)$/.test(f))
+const corpus = loadCorpus()
+const deadComponents = componentFiles.filter((f) => !isReferenced(f, corpus)).map((f) => f.replace(/\\/g, '/'))
 
 if (deadComponents.length > 0) {
   console.error(`✗ ${deadComponents.length} dead component(s):\n`)
