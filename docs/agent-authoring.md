@@ -76,8 +76,9 @@ manual script required:
 
 - **Provisioning** — `POST /api/agent-ops/copilots/provision-agent-builder`
   (idempotent: creates it if absent, returns the existing row untouched
-  otherwise). The `/admin/agents` page shows a one-click provision banner when
-  it is missing. The `npm run provision:agent-builder` script (→
+  otherwise). The dashboard (`/admin`) and project surfaces are the UI entry;
+  there is no dedicated copilots list page. The
+  `npm run provision:agent-builder` script (→
   `scripts/provision-agent-builder.ts`) is the CLI fallback.
 ### Repo-aware project flow
 

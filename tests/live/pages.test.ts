@@ -57,7 +57,7 @@ describe('/admin pages — 200 with a valid admin session', () => {
     expect(html).not.toContain('RunLatencyChart')
   })
 
-  it('GET /admin/agents (list)', async () => {
+  it('GET /admin/agents (list removed) redirects to dashboard', async () => {
     if (!baseUrl || !sessionCookie) {
       console.warn('[live] skip: app not reachable or admin login unavailable')
       return
@@ -67,7 +67,9 @@ describe('/admin pages — 200 with a valid admin session', () => {
       redirect: 'manual',
       signal: AbortSignal.timeout(10_000),
     })
-    expect(res.status).toBe(200)
+    expect(res.status).toBeGreaterThanOrEqual(300)
+    expect(res.status).toBeLessThan(400)
+    expect(res.headers.get('location')).toMatch(/\/admin\/?$/)
   })
 
   it('GET /admin/agents/:id (detail page for a real copilot)', async () => {

@@ -3,10 +3,10 @@
 // --- Pure presentational LangGraph canvas ----------------------------------
 // This module owns ONLY the low-level SVG rendering of the agent_builder graph.
 // It has ZERO data-fetching, ZERO polling, ZERO state — it draws exactly the
-// state passed in via props. Callers (the read-only explorer at /admin/langgraph
-// today, a live test panel tomorrow) derive `nodeStatus` / `traversedEdges`
-// however they like and hand them here. All the drawing constants, layout, and
-// topology fallbacks are exported so other consumers reuse the SAME diagram.
+// state passed in via props. Callers (agent builder / live test panels) derive
+// `nodeStatus` / `traversedEdges` however they like and hand them here. All the
+// drawing constants, layout, and topology fallbacks are exported so other
+// consumers reuse the SAME diagram.
 
 // --- agent_builder topology: KNOWN layout + hard-coded FALLBACK --------------
 // Consumers key their status/replay logic on the KNOWN node ids (a stable

@@ -46,7 +46,8 @@ sous `src/lib/agent-mission-control/market/` :
   `shadow.ts` (SNAPSHOT-only) · `council.ts` (Sentinel BLOCKED terminal) ·
   `delivery.ts` (paquet TradeAgent checksummé, n'active rien).
 - **Pas de surface UI dédiée** : les agents trading vivent dans les surfaces
-  agents existantes (`/admin/agents`), comme tous les autres copilots.
+  agents existantes (`/admin/agents/[id]`, projets sur `/admin`), comme tous
+  les autres copilots.
 - Docs : `docs/trading-agent-factory.md` + `docs/runbook-trading-factory.md`.
 - **Matérialisation OpenAI des 6 agents = étape facturée, non exécutée** (attend accord §8).
 

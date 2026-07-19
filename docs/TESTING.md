@@ -139,9 +139,10 @@ checking that an unauthenticated `GET /api/agent-ops/copilots` returns exactly
   resolved dynamically from the live backend (never a hardcoded guess that
   might not be reachable).
 - **`pages.test.ts`** — logs in via the real `/api/auth/login` route with
-  `AMC_ADMIN_PASSWORD`, then checks `/admin`, `/admin/agents`, and an
-  agent-detail page all return 200 with that session cookie, and that `/admin`
-  without a cookie redirects (3xx) rather than rendering.
+  `AMC_ADMIN_PASSWORD`, then checks `/admin` and an agent-detail page return
+  200 with that session cookie, that the removed list `/admin/agents` redirects
+  to `/admin`, and that `/admin` without a cookie redirects (3xx) rather than
+  rendering.
 
 Run: `npm run test:live` (alias for `vitest run tests/live`).
 

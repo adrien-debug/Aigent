@@ -9,10 +9,10 @@ import { provisionAgentBuilderCopilot } from '@/lib/agent-mission-control/provis
  *
  * The point of this route: the Agent Builder Copilot must NEVER depend on a
  * human remembering to run `scripts/provision-agent-builder.ts`. Any operator
- * (or the /admin/agents empty-state banner) can POST here to make it appear in
- * `/admin/agents`. Calling it again when it already exists is a safe no-op —
- * the existing row is returned untouched (`created: false`), never duplicated,
- * never wiped.
+ * can POST here to materialize it into the live registry (visible from the
+ * dashboard / project surfaces). Calling it again when it already exists is a
+ * safe no-op — the existing row is returned untouched (`created: false`),
+ * never duplicated, never wiped.
  *
  * Auth: enforced by the identity gate in src/proxy.ts (valid admin session OR
  * x-amc-key) — this route sits under /api/agent-ops/, so an unauthenticated

@@ -6,7 +6,6 @@
  */
 import 'server-only'
 
-import { getDeliveryScorecard } from './delivery-scorecard-server'
 import type { DeliveryEvent } from './delivery-events-store'
 import { getCopilots, getProjects } from './data'
 import type { MissionReport } from './mission-orchestrator'
@@ -479,25 +478,14 @@ async function fetchMissionRuns(): Promise<{ runs: MissionRunSnapshot[]; warning
   }
 }
 
-async function fetchScorecardsForCopilots(copilotIds: string[]): Promise<Map<string, ScorecardSnapshot>> {
-  const map = new Map<string, ScorecardSnapshot>()
-  const unique = [...new Set(copilotIds)].slice(0, 16)
-  const results = await Promise.allSettled(unique.map((id) => getDeliveryScorecard(id, { target: 'auto' })))
-  results.forEach((result, idx) => {
-    if (result.status !== 'fulfilled' || !result.value) return
-    const card = result.value
-    map.set(unique[idx], {
-      score: card.score,
-      level: card.level,
-      blockers: card.blockers,
-      repoFitScore: card.evidence.repoFit?.score ?? null,
-      releaseGateRed: card.blockers.includes('release_gate_red') || card.evidence.releaseGatePromotable === false,
-    })
-  })
-  return map
-}
-
-/** Read-only dashboard overview for /admin. Never writes, never calls GitHub. */
+/**
+ * Read-only dashboard overview for /admin. Never writes, never calls GitHub.
+ *
+ * List-friendly: one parallel PostgREST wave only. Per-agent delivery scorecards
+ * (`getDeliveryScorecard`) are intentionally omitted — each costs 10–15 remote
+ * RTTs and made /admin 12–48s. Release-gate / scorecard signals stay on the
+ * agent detail pages; blocked KPIs here use delivery + sandbox + mission facts.
+ */
 export async function getDashboardOverview(): Promise<DashboardOverview> {
   const dataWarnings: string[] = []
 
@@ -512,20 +500,12 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
 
   if (missionResult.warning) dataWarnings.push(missionResult.warning)
 
-  const scorecardCopilotIds = [
-    ...new Set([
-      ...copilots.filter((c) => c.projectId || c.productionVersionId).map((c) => c.id),
-      ...latestDeliveryByCopilot.keys(),
-    ]),
-  ]
-  const scorecards = await fetchScorecardsForCopilots(scorecardCopilotIds)
-
   return assembleDashboardOverview({
     copilots,
     projects,
     latestDeliveryByCopilot,
     latestSandboxByCopilot,
-    scorecards,
+    scorecards: new Map(),
     missionRuns: missionResult.runs,
     dataWarnings,
   })

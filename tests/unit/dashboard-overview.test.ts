@@ -259,10 +259,6 @@ describe('assembleDashboardOverview fail-soft', () => {
   })
 })
 
-vi.mock('@/lib/agent-mission-control/delivery-scorecard-server', () => ({
-  getDeliveryScorecard: vi.fn(),
-}))
-
 vi.mock('@/lib/agent-mission-control/data', () => ({
   getCopilots: vi.fn(async () => []),
   getProjects: vi.fn(async () => []),
