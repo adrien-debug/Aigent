@@ -15,6 +15,7 @@ import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Text } from '@/components/catalyst/text'
 import { messageForResponse } from '@/lib/agent-mission-control/client-errors'
+import { formatTimestamp } from '@/lib/agent-mission-control/format'
 import type { ConsumerProvisionStatus } from '@/lib/agent-mission-control/github'
 
 export function ProvisionConsumerCard({
@@ -84,7 +85,7 @@ export function ProvisionConsumerCard({
 
       {status?.provisioned && status.provisionedAt ? (
         <Text className="!mt-0 text-xs text-zinc-500">
-          Last marker: {new Date(status.provisionedAt).toLocaleString()} · project key{' '}
+          Last marker: {formatTimestamp(status.provisionedAt)} · project key{' '}
           <span className="font-mono">{status.projectKey ?? '—'}</span>
         </Text>
       ) : null}
