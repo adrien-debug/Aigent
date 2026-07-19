@@ -203,7 +203,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   const { id } = await params
   const [project, copilots, runs] = await Promise.all([
     getProject(id),
-    getCopilots(),
+    getCopilots({ health: 'list' }),
     getRecentRunsForProject(id, 20),
   ])
   if (!project) notFound()

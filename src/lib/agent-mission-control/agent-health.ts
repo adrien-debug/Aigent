@@ -152,18 +152,44 @@ async function latestBenchmarkByCopilot(copilotIds: string[]): Promise<Map<strin
   return out
 }
 
+export type ResolveCopilotHealthOptions = {
+  /**
+   * When false, skip `test_results` latency aggregation (saves one PostgREST
+   * RTT after the latest test run is known). Default true.
+   */
+  includeLatency?: boolean
+  /**
+   * When false, skip benchmark_runs + benchmark_results (saves up to two
+   * sequential RTTs). Default true. List surfaces that only need pass rate /
+   * evidence can opt out.
+   */
+  includeBenchmark?: boolean
+}
+
 /**
  * Resolve run-backed health for a BATCH of copilots. Returns a map keyed by
  * copilot id; a copilot with no completed run maps to the `none` baseline.
+ *
+ * Latency is overlapped with the benchmark fan-out when both are requested, so
+ * the slow path is max(bench depth, latency) rather than bench + latency.
  */
-export async function resolveCopilotHealthBatch(copilotIds: string[]): Promise<Map<string, ResolvedAgentHealth>> {
+export async function resolveCopilotHealthBatch(
+  copilotIds: string[],
+  options: ResolveCopilotHealthOptions = {}
+): Promise<Map<string, ResolvedAgentHealth>> {
+  const includeLatency = options.includeLatency !== false
+  const includeBenchmark = options.includeBenchmark !== false
   const out = new Map<string, ResolvedAgentHealth>()
   if (copilotIds.length === 0) return out
-  const [testByCopilot, benchByCopilot] = await Promise.all([
-    latestTestRunByCopilot(copilotIds),
-    latestBenchmarkByCopilot(copilotIds),
+
+  const testByCopilot = await latestTestRunByCopilot(copilotIds)
+  const [benchByCopilot, latencyByRunId] = await Promise.all([
+    includeBenchmark ? latestBenchmarkByCopilot(copilotIds) : Promise.resolve(new Map()),
+    includeLatency
+      ? avgLatencyByTestRun([...testByCopilot.values()].map((t) => t.id))
+      : Promise.resolve(new Map<string, number>()),
   ])
-  const latencyByRunId = await avgLatencyByTestRun([...testByCopilot.values()].map((t) => t.id))
+
   for (const id of copilotIds) {
     const t = testByCopilot.get(id)
     const b = benchByCopilot.get(id)

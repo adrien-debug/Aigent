@@ -42,7 +42,7 @@ async function loadTelemetry() {
 export default async function TelemetryPage() {
   const [{ summary, events }, copilots, projects] = await Promise.all([
     loadTelemetry(),
-    getCopilots(),
+    getCopilots({ health: 'list' }),
     getProjects(),
   ])
 

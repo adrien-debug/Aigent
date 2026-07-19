@@ -79,6 +79,39 @@ describe('resolveCopilotHealth', () => {
     expect(health.avgLatencyMs).toBe(200)
   })
 
+  it('2b — list mode skips latency + benchmark round trips', async () => {
+    const hit: string[] = []
+    pgrestHandler = (_m, path) => {
+      if (path.startsWith('test_runs?')) {
+        hit.push('test_runs')
+        return [{ id: 'run-a', copilot_id: COPILOT, pass_rate: 1, started_at: '2026-07-15T10:00:00Z' }]
+      }
+      if (path.startsWith('test_results?')) {
+        hit.push('test_results')
+        return [{ run_id: 'run-a', latency_ms: 100 }]
+      }
+      if (path.startsWith('benchmark_runs?')) {
+        hit.push('benchmark_runs')
+        return []
+      }
+      if (path.startsWith('benchmark_results?')) {
+        hit.push('benchmark_results')
+        return []
+      }
+      throw new Error(`Unmocked pgrest path: ${path}`)
+    }
+    const map = await resolveCopilotHealthBatch([COPILOT], {
+      includeLatency: false,
+      includeBenchmark: false,
+    })
+    const health = map.get(COPILOT)!
+    expect(health.testPassRate).toBe(1)
+    expect(health.evidenceSource).toBe('runs')
+    expect(health.avgLatencyMs).toBeNull()
+    expect(health.benchmarkScore).toBeNull()
+    expect(hit).toEqual(['test_runs'])
+  })
+
   it('3 — several runs → takes the most recent (rows arrive newest-first)', async () => {
     pgrestHandler = (_m, path) => {
       if (path.startsWith('test_runs?'))

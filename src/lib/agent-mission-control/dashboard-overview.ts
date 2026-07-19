@@ -491,7 +491,7 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
 
   const [copilots, projects, latestDeliveryByCopilot, latestSandboxByCopilot, missionResult] =
     await Promise.all([
-      getCopilots(),
+      getCopilots({ health: 'list' }),
       getProjects(),
       fetchLatestDeliveryEvents(),
       fetchLatestSandboxSnapshots(),

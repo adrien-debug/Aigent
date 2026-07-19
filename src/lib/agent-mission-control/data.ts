@@ -18,6 +18,7 @@ import {
   resolve24hMetricsBatch,
   resolveCopilotHealthBatch,
   resolveVersionScoresBatch,
+  type ResolveCopilotHealthOptions,
   type ResolvedAgentHealth,
 } from './agent-health'
 import { camelRow, camelRows, pgrest } from './postgrest'
@@ -117,10 +118,30 @@ function enrichCopilot(
   return copilot
 }
 
-export async function getCopilots(): Promise<Copilot[]> {
+export type GetCopilotsOptions = {
+  /**
+   * Health enrichment depth.
+   * - `full` (default): test pass rate + benchmark + avg latency + 24h KPIs —
+   *   needed by /admin/performance (fleet latency KPI).
+   * - `list`: test pass rate + 24h KPIs only — skips benchmark fan-out and
+   *   latency aggregation (~2–3 PostgREST RTTs). Use on dashboard / project /
+   *   telemetry list surfaces that do not display those fields.
+   */
+  health?: 'full' | 'list'
+}
+
+function healthResolveOptions(mode: GetCopilotsOptions['health']): ResolveCopilotHealthOptions {
+  if (mode === 'list') return { includeLatency: false, includeBenchmark: false }
+  return {}
+}
+
+export async function getCopilots(options: GetCopilotsOptions = {}): Promise<Copilot[]> {
   const copilots = camelRows<Copilot>(await rest<RawRow[]>('copilots?select=*&order=name'))
   const ids = copilots.map((c) => c.id)
-  const [health, kpi24h] = await Promise.all([resolveCopilotHealthBatch(ids), resolve24hMetricsBatch(ids)])
+  const [health, kpi24h] = await Promise.all([
+    resolveCopilotHealthBatch(ids, healthResolveOptions(options.health)),
+    resolve24hMetricsBatch(ids),
+  ])
   return copilots.map((c) => enrichCopilot(c, health.get(c.id), kpi24h.get(c.id)))
 }
 
