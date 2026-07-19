@@ -61,7 +61,8 @@ promouvoir V1 → [PUSH manuel] ──push──▶ registre (agents/_registry.j
   des events par cas, + **CANVAS LangGraph rejoué EN DIRECT** (2/3 canvas node-par-
   node + 1/3 détail live + tableau qui se remplit). `streamOnAgentServer` (stream
   au lieu de wait, résultat identique via getState). Composant pur `GraphCanvasSvg`.
-- Page **/admin/langgraph réparée** (lisait `{ok,threads}` comme array nu → fixé).
+- Page **/admin/langgraph** (explorateur) : **supprimée** avec la nav project-centric
+  (`70d357c`) — le canvas SVG vit dans le builder / panneaux de test live.
 - **Improve** = l'outil de debug : lit les tests échoués → patch le system prompt →
   V2 → re-run. LIVE et câblé. A fait passer BTC de 60% → 100%.
 - **Bouton "Auto-improve"** (`098f7fb`) : boucle `runAutoImprovementCycle`

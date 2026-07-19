@@ -50,11 +50,12 @@ describe('/admin pages — 200 with a valid admin session', () => {
     expect(res.status).toBe(200)
     const html = await res.text()
     expect(html).toContain('Agent Delivery Command Center')
-    expect(html).toContain('Active Delivery Loop')
+    expect(html).toContain('Production Agents')
+    expect(html).toContain('Projects')
     expect(html).toContain('Requires Attention')
-    expect(html).toContain('Agent Delivery Matrix')
     expect(html).not.toContain('System Topology')
-    expect(html).not.toContain('RunLatencyChart')
+    expect(html).not.toContain('Active Delivery Loop')
+    expect(html).not.toContain('Agent Delivery Matrix')
   })
 
   it('GET /admin/agents (list removed) redirects to dashboard', async () => {
