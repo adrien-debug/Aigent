@@ -119,7 +119,7 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
           height so it stretches + scrolls instead of inflating the row. Stacked
           (below xl): natural height, page scrolls. Box stays fixed, data scrolls. */}
       {projects.length > 0 ? (
-        <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-4 xl:h-0 xl:min-h-96">
+        <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-6 pb-6 xl:h-0 xl:min-h-96">
           {projects.map((project) => (
             <ProjectRow key={project.id} project={project} />
           ))}

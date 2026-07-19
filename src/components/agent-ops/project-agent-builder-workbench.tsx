@@ -6,9 +6,6 @@ import { useRouter } from 'next/navigation'
 
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import {
-  surfaceCardClass,
-  surfaceCardFooterClass,
-  surfaceCardHeaderClass,
 } from '@/components/agent-ops/surface-card'
 import { LangGraphDebugPanel, type LangGraphDebugInfo } from '@/components/agent-ops/langgraph-debug-panel'
 import { MarkdownLite } from '@/components/agent-ops/markdown-lite'
@@ -406,9 +403,9 @@ export function ProjectAgentBuilderWorkbench({
       <div className="grid min-h-0 flex-1 grid-rows-[minmax(20rem,1fr)_minmax(20rem,1fr)] gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:grid-rows-1">
         <section
           aria-label="Agent Builder architect chat"
-          className={clsx(surfaceCardClass, 'flex h-full min-h-0 min-w-0 flex-col')}
+          className="flex h-full min-h-0 min-w-0 flex-col rounded-2xl ring-1 ring-white/[0.04] overflow-hidden shadow-sm"
         >
-          <div className={clsx(surfaceCardHeaderClass, 'relative bg-(--accent-soft) px-4 py-3')}>
+          <div className="relative bg-(--accent-soft) px-4 py-3 flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Architect chat</h2>
               <p className="mt-1 text-xs text-zinc-500">
@@ -509,7 +506,7 @@ export function ProjectAgentBuilderWorkbench({
             ) : null}
           </div>
 
-          <div className={clsx(surfaceCardFooterClass, 'bg-[var(--color-surface-elevated)] p-4')}>
+          <div className="bg-[var(--color-surface-primary)] p-4 pt-3 flex flex-col gap-3">
             <Textarea
               ref={inputRef}
               name="project-builder-chat"

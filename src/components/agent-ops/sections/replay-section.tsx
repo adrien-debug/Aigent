@@ -187,7 +187,7 @@ export async function ReplaySection({ copilotId }: { copilotId: string }) {
                 className={clsx('overflow-hidden', surfaceSectionClass)}
               >
                 <h3 className="sr-only">Replay of run {comparison.sourceRunId}</h3>
-                <div className={clsx(surfaceCardHeaderClass, 'flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-6 py-4')}>
+                <div className={clsx(surfaceCardHeaderClass, 'flex flex-wrap items-center justify-between gap-x-4 gap-y-3')}>
                   <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
                     <Link
                       href={`/admin/agents/${id}/runs?run=${comparison.sourceRunId}`}

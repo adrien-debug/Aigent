@@ -84,14 +84,12 @@ await runScenario('perf → admin client nav (sample during transition)', async 
   await page.goto(`${BASE}/admin/performance`, { waitUntil: 'networkidle', timeout: 120000 })
   await page.waitForTimeout(1500)
   await page.click('a[href="/admin"]')
-  let stacked = false
   for (const ms of [50, 100, 200, 400, 800, 1500, 3000]) {
     await page.waitForTimeout(ms)
     const s = await readSurface(page)
     try {
       assertNoStack(`transition +${ms}ms`, s)
     } catch {
-      stacked = true
       await page.screenshot({ path: path.join(OUT, `03-stack-at-${ms}ms.png`), fullPage: true })
       throw new Error(`stack detected at +${ms}ms cumulative`)
     }

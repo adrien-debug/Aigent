@@ -32,7 +32,7 @@ export default function AgentsRegistryLoading() {
           </div>
 
           <div className={surfaceSectionClass}>
-            <div className={clsx(surfaceCardHeaderClass, 'px-6 py-4')}>
+            <div className={surfaceCardHeaderClass}>
               <div className="h-5 w-40 rounded bg-zinc-950/10 dark:bg-white/10" />
               <div className="mt-2 h-3.5 w-64 rounded bg-zinc-950/5 dark:bg-white/5" />
             </div>

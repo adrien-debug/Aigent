@@ -41,8 +41,9 @@ function ActionRow({ item, focus }: { item: ActionItem; focus: boolean }) {
   return (
     <li
       className={clsx(
-        'group flex gap-3 px-6 py-4 transition-colors duration-150 hover:bg-white/2.5',
-        focus && 'border-l-2 border-accent-500/40 ps-5'
+        'group flex gap-4 p-4 transition-all duration-200 hover:-translate-y-px',
+        'rounded-xl bg-[var(--color-surface-elevated)] shadow-sm shadow-black/40 ring-1 ring-white/[0.05]',
+        focus && 'ring-1 ring-accent-500/40'
       )}
     >
       <Icon
@@ -86,7 +87,7 @@ export function ActionCenter({ items }: { items: ActionItem[] }) {
         }
       />
       {sorted.length > 0 ? (
-        <ul className="divide-y divide-white/5">
+        <ul className="flex flex-col gap-3 px-6 pb-6">
           {sorted.map((item, i) => (
             <ActionRow key={item.id} item={item} focus={i === 0} />
           ))}

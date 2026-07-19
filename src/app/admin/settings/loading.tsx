@@ -1,5 +1,3 @@
-import clsx from 'clsx'
-
 import { surfaceCardClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
 
 export default function SettingsLoading() {
@@ -26,7 +24,7 @@ export default function SettingsLoading() {
       {/* Control Plane & Runtime posture cards */}
       {Array.from({ length: 2 }).map((_, i) => (
         <div key={i} className={surfaceCardClass}>
-          <div className={clsx(surfaceCardHeaderClass, 'px-6 py-4')}>
+          <div className={surfaceCardHeaderClass}>
             <div className="h-5 w-40 rounded bg-zinc-950/10 dark:bg-white/10" />
             <div className="mt-2 h-3.5 w-72 rounded bg-zinc-950/5 dark:bg-white/5" />
           </div>
@@ -46,7 +44,7 @@ export default function SettingsLoading() {
 
       {/* Guardrails card */}
       <div className={surfaceCardClass}>
-        <div className={clsx(surfaceCardHeaderClass, 'px-6 py-4')}>
+        <div className={surfaceCardHeaderClass}>
           <div className="h-5 w-48 rounded bg-zinc-950/10 dark:bg-white/10" />
           <div className="mt-2 h-3.5 w-80 rounded bg-zinc-950/5 dark:bg-white/5" />
         </div>

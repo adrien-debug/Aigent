@@ -105,13 +105,13 @@ export default async function RunsPage({
       ) : (
         <>
           <div className={surfaceCardClass}>
-            <div className={clsx(surfaceCardHeaderClass, 'px-6 py-4')}>
+            <div className={surfaceCardHeaderClass}>
               <div>
                 <h2 className="text-sm font-semibold text-white">Run Latency</h2>
                 <p className="mt-1 text-xs text-zinc-400">Performance trend over the last {runs.length} runs</p>
               </div>
             </div>
-            <div className="bg-[var(--color-surface-primary)]/30 p-6">
+            <div className="bg-[var(--color-surface-primary)]/30 p-6 rounded-2xl ring-1 ring-white/[0.02]">
               <RunLatencyChart data={latencyPoints} />
             </div>
           </div>
@@ -129,13 +129,13 @@ export default async function RunsPage({
 
             <div className="flex flex-col gap-6">
               <div className={surfaceCardClass}>
-                <div className={clsx(surfaceCardHeaderClass, 'px-6 py-4')}>
+                <div className={surfaceCardHeaderClass}>
                   <div>
                     <h2 className="text-sm font-semibold text-white">Tool Calls Overview</h2>
                     <p className="mt-1 text-xs text-zinc-400">Outcomes across {runs.length} runs</p>
                   </div>
                 </div>
-                <div className="p-6">
+                <div className="p-6 bg-[var(--color-surface-primary)]/30 rounded-2xl ring-1 ring-white/[0.02]">
                   {allToolCalls.length > 0 ? (
                     <div className="flex flex-col gap-6">
                       <SplitBar
@@ -167,7 +167,7 @@ export default async function RunsPage({
           </div>
 
           <div className={surfaceCardClass}>
-            <div className={clsx(surfaceCardHeaderClass, 'px-6 py-4')}>
+            <div className={surfaceCardHeaderClass}>
               <h2 className="text-sm font-semibold text-white">Recent Runs</h2>
               <span className="text-xs text-zinc-500">{runs.length} runs</span>
             </div>
