@@ -39,12 +39,9 @@ const VALUE_TONE_CLASS = {
  * KPI band — single canon for all dashboard pages and agent sub-tabs.
  * Naked numbers on a hairline separator; accent reserved for emphasis only.
  *
- * `separators` (opt-in, additive): hairline dividers between stats via the
- * `gap-px` grid technique (1px gaps over a white/5 backdrop, opaque cells) —
- * survives every wrap breakpoint, unlike divide-x. Padding then lives inside
- * each cell (px-6/lg:px-8 aligns the first stat with a card header), so
- * callers must NOT add outer horizontal padding in this mode. Cells are
- * filled with the canon card surface — use only inside a SurfaceCard.
+ * `separators` (opt-in): hairline dividers between stats via the `gap-px`
+ * grid technique. Cell fill defaults to canvas — use inside a section card
+ * only when the parent already provides `surface-secondary`.
  */
 export function AgentKpiBand({
   stats,
@@ -97,7 +94,7 @@ export function AgentKpiBand({
             className={clsx(
               'group flex flex-col cursor-default',
               // Opaque cells mask the white/5 backdrop except in the 1px gaps.
-              separators && 'bg-[var(--color-surface-secondary)] px-6 py-5 lg:px-8'
+              separators && 'bg-[var(--color-surface-canvas)] px-6 py-5 lg:px-8'
             )}
           >
             {stat.name ? <span className={labelClass}>{stat.name}</span> : null}

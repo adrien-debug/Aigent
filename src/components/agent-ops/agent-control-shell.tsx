@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react'
 
 import { Avatar } from '@/components/catalyst/avatar'
 import { CommandPalette } from '@/components/agent-ops/command-palette'
-import { surfaceCardClass } from '@/components/agent-ops/surface-card'
+import { surfaceNavClass } from '@/components/agent-ops/surface-card'
 
 function LogoMark({ className }: { className?: string }) {
   return (
@@ -166,7 +166,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
       <CommandPalette />
 
       {/* Sidebar - floating surface-card rail (same DS as body cards): square tiles, icon over label, centered */}
-      <aside className={clsx(surfaceCardClass, 'fixed inset-y-3 left-3 z-20 hidden w-24 flex-col items-center py-6 lg:flex')}>
+      <aside className={clsx(surfaceNavClass, 'fixed inset-y-3 left-3 z-20 hidden w-24 flex-col items-center py-6 lg:flex')}>
 
         {/* Brand Header */}
         <Link
