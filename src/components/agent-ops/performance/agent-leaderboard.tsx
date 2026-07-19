@@ -1,10 +1,9 @@
 import { TrophyIcon } from '@heroicons/react/24/outline'
-import clsx from 'clsx'
 
 import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
 import { EmptyState } from '@/components/agent-ops/empty-state'
-import { StatusPill } from '@/components/agent-ops/status-pill'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
+import { Badge } from '@/components/catalyst/badge'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
@@ -22,9 +21,6 @@ import type { Copilot } from '@/lib/agent-mission-control/types'
 
 const numberFormat = new Intl.NumberFormat('en-US')
 
-/** Pass rates at or above this read as "healthy" and take the accent tone. */
-const PASS_RATE_ACCENT_THRESHOLD = 0.9
-
 /**
  * Ranking score — volume-weighted quality.
  *
@@ -39,8 +35,9 @@ const PASS_RATE_ACCENT_THRESHOLD = 0.9
  * order they were received, and render "—".
  *
  * Display: the score itself is never shown — it only drives the row order and
- * the RankBadge (#1 solid accent, #2–3 soft accent surface, the rest zinc).
- * Pass Rate is the table's single surfaced quality metric.
+ * the RankBadge (#1 solid accent mark; every other rank is zinc). Never paint
+ * accent-soft / accent-surface on the row — that imports a second surface.
+ * Pass Rate stays zinc tabular — accent is reserved for the rank-1 mark only.
  */
 function leaderboardScore(copilot: Copilot): number | null {
   if (copilot.healthEvidence !== 'runs') return null
@@ -52,39 +49,26 @@ function statusLabel(status: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }
 
-/**
- * Round rank marker. ONE accent, escalation by intensity only (doctrine):
- * #1 = solid accent (Badge accentSolid recipe), #2–3 = soft accent surface,
- * the rest = zinc. Unranked (no run evidence) shows a muted dash.
- */
+/** Rank mark — Catalyst Badge only (#1 accentSolid, else zinc). */
 function RankBadge({ rank }: { rank: number | null }) {
   if (rank === null) {
     return (
       <>
-        <span
-          aria-hidden="true"
-          className="inline-flex size-7 items-center justify-center rounded-full bg-white/5 text-xs font-semibold text-zinc-500 ring-1 ring-white/10 ring-inset"
-        >
+        <Badge color="zinc" className="size-6 justify-center rounded-full px-0 text-[10px]" aria-hidden="true">
           —
-        </span>
+        </Badge>
         <span className="sr-only">Unranked</span>
       </>
     )
   }
 
   return (
-    <span
-      className={clsx(
-        'inline-flex size-7 items-center justify-center rounded-full text-xs font-semibold tabular-nums',
-        rank === 1
-          ? 'bg-accent-600 text-zinc-950 shadow-sm'
-          : rank <= 3
-            ? 'bg-[var(--accent-surface)] text-accent-300 ring-1 ring-[var(--accent-line)] ring-inset'
-            : 'bg-white/5 text-zinc-400 ring-1 ring-white/10 ring-inset'
-      )}
+    <Badge
+      color={rank === 1 ? 'accentSolid' : 'zinc'}
+      className="size-6 justify-center rounded-full px-0 text-[10px] tabular-nums"
     >
       {rank}
-    </span>
+    </Badge>
   )
 }
 
@@ -126,90 +110,79 @@ export function AgentLeaderboard({
         />
       ) : (
         <div className="overflow-x-auto no-scrollbar">
-          <Table className="w-full text-left border-collapse min-w-[720px]">
-            <TableHead>
-              <TableRow className="border-b border-white/5">
-                <TableHeader className="px-6 w-14">Rank</TableHeader>
-                <TableHeader className="px-6">Agent</TableHeader>
-                <TableHeader className="px-6">Status</TableHeader>
-                <TableHeader className="px-6 text-right">Pass Rate</TableHeader>
-                <TableHeader className="px-6 text-right">24h Runs</TableHeader>
-                <TableHeader className="px-6 text-right">24h Cost</TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody className="divide-y divide-white/5">
-              {rows.map(({ copilot, rank }) => (
-                <TableRow
-                  key={copilot.id}
-                  className={clsx(
-                    'group hover:bg-[var(--color-surface-interactive)] transition-colors',
-                    // Podium wash — subtle, hover still wins (pseudo-class specificity).
-                    rank !== null && rank <= 3 && 'bg-[var(--accent-soft)]'
-                  )}
-                >
-                  <TableCell className="py-4 px-6">
-                    <RankBadge rank={rank} />
-                  </TableCell>
-                  <TableCell className="py-4 px-6">
-                    <div className="flex items-center gap-3">
-                      <CopilotAvatar copilot={copilot} className="size-8 rounded-xl" />
-                      <div className="flex min-w-0 flex-col">
-                        <Link
-                          href={`/admin/agents/${copilot.id}`}
-                          className="text-sm font-medium text-white group-hover:underline rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
-                        >
-                          {copilot.name}
-                        </Link>
-                        <span className="mt-0.5 font-mono text-[10px] text-zinc-500">{copilot.slug}</span>
-                        {copilot.projectId ? (
-                          <span className="truncate text-[10px] text-zinc-500">
-                            {projectNameById.get(copilot.projectId) ?? copilot.projectId}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-4 px-6">
-                    <StatusPill
-                      label={statusLabel(copilot.displayStatus ?? copilot.status)}
-                      tone={
-                        copilot.displayStatus === 'production' ||
-                        copilot.status === 'active' ||
-                        copilot.status === 'degraded'
-                          ? 'accent'
-                          : 'zinc'
-                      }
-                    />
-                  </TableCell>
-                  <TableCell className="py-4 px-6 text-right">
-                    {copilot.healthEvidence === 'runs' ? (
-                      <span
-                        className={clsx(
-                          'text-sm font-mono tabular-nums',
-                          copilot.health.testPassRate >= PASS_RATE_ACCENT_THRESHOLD
-                            ? 'text-accent-400'
-                            : 'text-zinc-300'
-                        )}
+          {/* px-6 + gutter 0 = canon in-card Table (same as project agents). */}
+          <Table className="min-w-[720px] w-full border-collapse px-6 text-left [--gutter:--spacing(0)]">
+          <TableHead>
+            <TableRow className="border-b border-white/5">
+              <TableHeader className="w-16">Rank</TableHeader>
+              <TableHeader>Agent</TableHeader>
+              <TableHeader>Status</TableHeader>
+              <TableHeader className="text-right">Pass Rate</TableHeader>
+              <TableHeader className="text-right">24h Runs</TableHeader>
+              <TableHeader className="text-right">24h Cost</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody className="divide-y divide-white/5">
+            {rows.map(({ copilot, rank }) => (
+              <TableRow key={copilot.id} className="group">
+                <TableCell>
+                  <RankBadge rank={rank} />
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <CopilotAvatar copilot={copilot} className="size-8 rounded-xl" />
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <Link
+                        href={`/admin/agents/${copilot.id}`}
+                        className="truncate text-sm font-medium text-white group-hover:underline rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
                       >
-                        {formatPercent(copilot.health.testPassRate)}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-zinc-600">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="py-4 px-6 text-right">
-                    <span className="text-sm font-mono tabular-nums text-white">
-                      {numberFormat.format(copilot.health.runsLast24h)}
+                        {copilot.name}
+                      </Link>
+                      <span className="font-mono text-[10px] text-zinc-500">{copilot.slug}</span>
+                      {copilot.projectId ? (
+                        <span className="truncate text-[10px] text-zinc-500">
+                          {projectNameById.get(copilot.projectId) ?? copilot.projectId}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    color={
+                      copilot.displayStatus === 'production' ||
+                      copilot.status === 'active' ||
+                      copilot.status === 'degraded'
+                        ? 'accent'
+                        : 'zinc'
+                    }
+                    className="uppercase tracking-widest"
+                  >
+                    {statusLabel(copilot.displayStatus ?? copilot.status)}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  {copilot.healthEvidence === 'runs' ? (
+                    <span className="text-sm font-mono tabular-nums text-zinc-300">
+                      {formatPercent(copilot.health.testPassRate)}
                     </span>
-                  </TableCell>
-                  <TableCell className="py-4 px-6 text-right">
-                    <span className="text-sm font-mono tabular-nums text-zinc-400">
-                      {copilot.health.runsLast24h > 0 ? formatUsd(copilot.health.costLast24hUsd) : '—'}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
+                  ) : (
+                    <span className="text-xs text-zinc-600">—</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <span className="text-sm font-mono tabular-nums text-zinc-300">
+                    {numberFormat.format(copilot.health.runsLast24h)}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <span className="text-sm font-mono tabular-nums text-zinc-400">
+                    {copilot.health.runsLast24h > 0 ? formatUsd(copilot.health.costLast24hUsd) : '—'}
+                  </span>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
           </Table>
         </div>
       )}

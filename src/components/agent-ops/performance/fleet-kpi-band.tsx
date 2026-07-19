@@ -25,12 +25,9 @@ export function computeFleetKpis(copilots: Copilot[]) {
 }
 
 /**
- * FleetKpiBand — the Performance page's 5 headline stats, rendered as calm
- * naked numbers on hairline separators. ONE anchor (Total Runs 24h, hero size)
- * against four compact stats; the sole accent is Open Warnings when >0 — the
- * only actionable signal. Each stat keeps a plain-text `hint` (peak/hour, spend
- * per run, completed/failed mix) as its only context — no inline micro-charts.
- * Everything derives from getCopilots()/getRecentRuns(); nothing is fabricated.
+ * FleetKpiBand — the Performance page's 5 headline stats on the canvas (naked
+ * AgentKpiBand, never inside a section card). All five share compact size so
+ * they sit under the page H1; accent only on Open Warnings when >0.
  */
 export function FleetKpiBand({
   copilots,
@@ -53,11 +50,13 @@ export function FleetKpiBand({
 
   const agentsWithWarnings = copilots.filter((c) => c.health.openWarnings > 0).length
 
+  // Compact band — H1 owns the page scale; KPI values stay below Heading (text-xl).
+  // Accent only when Open Warnings > 0 (actionable). No hero size, no accent wash.
   const stats: AgentKpiStat[] = [
     {
       name: 'Total Runs 24h',
       value: numberFormat.format(kpis.runsLast24h),
-      valueSize: 'hero',
+      valueSize: 'compact',
       hint: windowTotal > 0 ? `peak ${peakPerHour}/h` : undefined,
     },
     {
@@ -90,5 +89,5 @@ export function FleetKpiBand({
     },
   ]
 
-  return <AgentKpiBand stats={stats} className={className} />
+  return <AgentKpiBand stats={stats} density="compact" className={className} />
 }

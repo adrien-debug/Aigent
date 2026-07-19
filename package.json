@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "concurrently -k --kill-others-on-fail -n next,langgraph -c blue,magenta \"npm:dev:next\" \"npm:langgraph\"",
+    "dev:clean": "rm -rf .next && npm run dev",
     "dev:next": "next dev",
-    "langgraph": "langgraphjs dev --no-browser --host 127.0.0.1 --port 2024",
+    "langgraph": "langgraphjs dev --no-browser --host 127.0.0.1 --port 2024 --n-jobs-per-worker 2",
     "langgraph:studio": "open 'https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024'",
     "build": "next build",
     "start": "next start",

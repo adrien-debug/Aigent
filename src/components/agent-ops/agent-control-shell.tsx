@@ -269,14 +269,13 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
         )}
       </AnimatePresence>
 
-      {/* Main Content Area — the body is overflow:hidden (set above), so main
-          owns the scroll: it fills the viewport height and scrolls its OWN
-          content. Long pages scroll inside main; fixed-height pages (the
-          builder at 82vh) sit without pushing the whole page taller. */}
+      {/* Main fills the viewport; AdminRouteViewport owns overflow-y scroll.
+          Do not put overflow-y-auto here with a flex-1/min-h-0 child that does
+          not scroll — document pages clipped their header/KPIs above the fold. */}
       {/* lg:pl-32 (8rem/128px) clears the fixed rail: w-24 (96px) rail offset
           left-3 (12px) from the viewport edge = ends at 108px, +20px of air
           before content starts, matching the left-3 gap on the other side. */}
-      <main className="flex h-svh min-h-0 min-w-0 flex-1 flex-col overflow-y-auto pt-16 lg:pl-32 lg:pt-0 relative z-10">
+      <main className="relative z-10 flex h-svh min-h-0 min-w-0 flex-1 flex-col overflow-hidden pt-16 lg:pl-32 lg:pt-0">
         {children}
       </main>
     </div>

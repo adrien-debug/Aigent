@@ -382,9 +382,12 @@ Live schema on GPU1 (base `aigent`), migrations in `supabase/migrations/`:
 `npm run dev` starts **both** servers concurrently:
 
 - **Next.js** (`next dev`) — the app.
-- **LangGraph Agent Server** (`langgraphjs dev --host 127.0.0.1 --port 2024`) —
-  serves the `agent_builder` graph. (`npm run langgraph` runs it alone;
-  `npm run langgraph:studio` opens LangSmith Studio pointed at it.)
+- **LangGraph Agent Server** (`langgraphjs dev --host 127.0.0.1 --port 2024
+  --n-jobs-per-worker 2`) — serves the `agent_builder` graph. The CLI default
+  is 10 workers; we cap at 2 for local dev CPU. (`npm run langgraph` runs it
+  alone; `npm run langgraph:studio` opens LangSmith Studio pointed at it.)
+- If Turbopack dev feels stuck or `.next/` has grown huge, `npm run dev:clean`
+  wipes the dev cache then restarts both servers.
 
 LangSmith Studio connects to `http://127.0.0.1:2024` to visualise / debug the
 graph and its interrupt/resume flow.

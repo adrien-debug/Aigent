@@ -8,9 +8,9 @@ import { renderToStaticMarkup } from 'react-dom/server'
 
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { RuntimeBadge } from '@/components/agent-ops/runtime-badge'
-import { StatusPill } from '@/components/agent-ops/status-pill'
 import { SoftAccentButton } from '@/components/agent-ops/soft-accent-link'
 import { versionStageLabels } from '@/components/agent-ops/version-stage-text'
+import { Badge } from '@/components/catalyst/badge'
 
 describe('EmptyState', () => {
   it('renders title and description', () => {
@@ -29,14 +29,14 @@ describe('RuntimeBadge', () => {
   })
 })
 
-describe('StatusPill', () => {
-  it('renders accent and zinc tones', () => {
-    const accent = renderToStaticMarkup(<StatusPill label="Active" tone="accent" />)
-    const zinc = renderToStaticMarkup(<StatusPill label="Idle" tone="zinc" />)
+describe('Badge (status)', () => {
+  it('renders accent and zinc colors', () => {
+    const accent = renderToStaticMarkup(<Badge color="accent">Active</Badge>)
+    const zinc = renderToStaticMarkup(<Badge color="zinc">Idle</Badge>)
     expect(accent).toContain('Active')
-    expect(accent).toContain('bg-accent-500')
+    expect(accent).toContain('text-accent')
     expect(zinc).toContain('Idle')
-    expect(zinc).toContain('bg-zinc-600')
+    expect(zinc).toContain('text-zinc')
   })
 })
 

@@ -3,7 +3,7 @@
 import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
 
-import { StatusPill } from '@/components/agent-ops/status-pill'
+import { Badge } from '@/components/catalyst/badge'
 import { formatAge, humanizeStatus, lastActivityFallback, type TeamAgentView } from './project-team-panel'
 
 /**
@@ -15,8 +15,8 @@ import { formatAge, humanizeStatus, lastActivityFallback, type TeamAgentView } f
  * selecting a row drives the exact same selection the canvas does.
  *
  * Status is NEVER conveyed by colour alone — every row states the status in
- * words (StatusPill renders a text label next to its dot), so the information
- * survives greyscale, colour-blindness and a screen reader.
+ * words (Catalyst Badge label), so the information survives greyscale,
+ * colour-blindness and a screen reader.
  *
  * ── Why `focus-within:not-sr-only` and not plain `sr-only` ──────────────────
  * The caller hides this list from `lg` up (`lg:sr-only`), where the canvas is
@@ -75,10 +75,12 @@ export function ProjectTeamAccessibleList({
               >
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span className="text-sm font-medium text-white">{agent.name}</span>
-                  <StatusPill
-                    label={humanizeStatus(agent.status)}
-                    tone={agent.status === 'active' ? 'accent' : 'zinc'}
-                  />
+                  <Badge
+                    color={agent.status === 'active' ? 'accent' : 'zinc'}
+                    className="uppercase tracking-widest"
+                  >
+                    {humanizeStatus(agent.status)}
+                  </Badge>
                 </span>
                 <span className="text-xs text-zinc-500">
                   {agent.role ?? 'Role not documented'}

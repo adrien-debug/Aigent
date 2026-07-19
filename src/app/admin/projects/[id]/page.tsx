@@ -11,7 +11,7 @@ import { ProjectRepoIntelligence } from '@/components/agent-ops/project-repo-int
 import { ProvisionConsumerCard } from '@/components/agent-ops/provision-consumer-card'
 import { ProjectTabs } from '@/components/agent-ops/project-tabs'
 import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
-import { StatusPill } from '@/components/agent-ops/status-pill'
+import { Badge } from '@/components/catalyst/badge'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { getCopilots, getProject, getRecentRunsForProject } from '@/lib/agent-mission-control/data'
@@ -75,16 +75,18 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
                   </div>
                 </TableCell>
                 <TableCell className="py-4">
-                  <StatusPill
-                    label={statusLabel(copilot.displayStatus ?? copilot.status)}
-                    tone={
+                  <Badge
+                    color={
                       copilot.displayStatus === 'production' ||
                       copilot.status === 'active' ||
                       copilot.status === 'degraded'
                         ? 'accent'
                         : 'zinc'
                     }
-                  />
+                    className="uppercase tracking-widest"
+                  >
+                    {statusLabel(copilot.displayStatus ?? copilot.status)}
+                  </Badge>
                 </TableCell>
                 <TableCell className="py-4">
                   <div className="flex flex-col">
@@ -155,10 +157,12 @@ function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copil
                   </div>
                 </TableCell>
                 <TableCell className="py-3">
-                  <StatusPill
-                    label={statusLabel(run.status)}
-                    tone={run.status === 'completed' || run.status === 'failed' ? 'accent' : 'zinc'}
-                  />
+                  <Badge
+                    color={run.status === 'completed' || run.status === 'failed' ? 'accent' : 'zinc'}
+                    className="uppercase tracking-widest"
+                  >
+                    {statusLabel(run.status)}
+                  </Badge>
                 </TableCell>
                 <TableCell className="py-3">
                   <span className="block text-xs text-zinc-400 truncate max-w-md" title={run.inputSummary}>

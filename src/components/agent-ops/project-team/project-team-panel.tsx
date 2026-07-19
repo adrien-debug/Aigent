@@ -10,7 +10,6 @@ import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
 import { useEffect, useRef, useState } from 'react'
 
-import { StatusPill } from '@/components/agent-ops/status-pill'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Divider } from '@/components/catalyst/divider'
@@ -544,10 +543,12 @@ export function ProjectTeamPanel({
 
       <div className="flex flex-col gap-6 px-5 py-5">
         <div className="flex flex-wrap items-center gap-2">
-          <StatusPill
-            label={humanizeStatus(agent.status)}
-            tone={agent.status === 'active' ? 'accent' : 'zinc'}
-          />
+          <Badge
+            color={agent.status === 'active' ? 'accent' : 'zinc'}
+            className="uppercase tracking-widest"
+          >
+            {humanizeStatus(agent.status)}
+          </Badge>
           {agent.team ? <Badge color="zinc">{agent.team}</Badge> : null}
         </div>
 

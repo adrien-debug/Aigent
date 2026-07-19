@@ -10,8 +10,8 @@ import {
 import clsx from 'clsx'
 
 import { EmptyState } from '@/components/agent-ops/empty-state'
-import { StatusPill } from '@/components/agent-ops/status-pill'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
+import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import type { ActionItem, ActionItemKind } from '@/lib/agent-mission-control/dashboard-overview'
 
@@ -53,7 +53,9 @@ function ActionRow({ item, focus }: { item: ActionItem; focus: boolean }) {
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-center gap-2">
           <p className="min-w-0 flex-1 truncate text-sm font-medium text-white">{item.title}</p>
-          <StatusPill label={item.status} tone={tone} />
+          <Badge color={tone} className="uppercase tracking-widest">
+            {item.status}
+          </Badge>
         </div>
         <div className="flex items-center justify-between gap-3">
           <p className="min-w-0 truncate font-mono text-xs text-zinc-500">{item.meta}</p>

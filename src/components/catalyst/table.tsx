@@ -71,10 +71,13 @@ export function TableRow({
         {...props}
         className={clsx(
           className,
-          'transition-colors hover:bg-[var(--color-surface-interactive)]',
+          // Paint <td>, not <tr>: row background on <tr> often clips to content
+          // (flush/"à ras") instead of filling the full cell box including padding.
+          '[&>td]:transition-colors [&>th]:transition-colors',
+          'hover:[&>td]:bg-[var(--color-surface-interactive)] hover:[&>th]:bg-[var(--color-surface-interactive)]',
           href &&
-            'has-[[data-row-link][data-focus]]:outline-2 has-[[data-row-link][data-focus]]:-outline-offset-2 has-[[data-row-link][data-focus]]:outline-accent-500 dark:focus-within:bg-white/2',
-          striped && 'even:bg-zinc-950/2 dark:even:bg-white/2'
+            'has-[[data-row-link][data-focus]]:outline-2 has-[[data-row-link][data-focus]]:-outline-offset-2 has-[[data-row-link][data-focus]]:outline-accent-500 dark:focus-within:[&>td]:bg-white/2',
+          striped && 'even:[&>td]:bg-zinc-950/2 dark:even:[&>td]:bg-white/2'
         )}
       />
     </TableRowContext.Provider>

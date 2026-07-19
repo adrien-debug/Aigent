@@ -2,9 +2,9 @@ import Image from 'next/image'
 import clsx from 'clsx'
 
 import { EmptyState } from '@/components/agent-ops/empty-state'
-import { StatusPill } from '@/components/agent-ops/status-pill'
 import { SurfaceCard, SurfaceCardHeader, surfaceItemClass } from '@/components/agent-ops/surface-card'
 import { Avatar } from '@/components/catalyst/avatar'
+import { Badge } from '@/components/catalyst/badge'
 import { Link } from '@/components/catalyst/link'
 import type { ProjectOverviewItem } from '@/lib/agent-mission-control/dashboard-overview'
 import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
@@ -63,14 +63,11 @@ function ProjectRow({ project }: { project: ProjectOverviewItem }) {
               >
                 {project.name}
               </Link>
-              <StatusPill
-                label={
-                  hasWarnings
-                    ? `${project.openWarnings} ${project.openWarnings === 1 ? 'Alert' : 'Alerts'}`
-                    : 'Healthy'
-                }
-                tone={hasWarnings ? 'zinc' : 'accent'}
-              />
+              <Badge color={hasWarnings ? 'zinc' : 'accent'} className="uppercase tracking-widest">
+                {hasWarnings
+                  ? `${project.openWarnings} ${project.openWarnings === 1 ? 'Alert' : 'Alerts'}`
+                  : 'Healthy'}
+              </Badge>
             </div>
             <span className="truncate font-mono text-xs text-zinc-500">
               {project.repoFullName ?? 'no repo linked'}

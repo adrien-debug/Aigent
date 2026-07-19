@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 
 import { AnimatedNumber } from '@/components/agent-ops/animated-number'
+import { surfaceKpiBandClass } from '@/components/agent-ops/surface-card'
 
 export interface AgentKpiStat {
   name: string
@@ -23,10 +24,12 @@ const COLS_CLASS: Record<number, string> = {
   5: 'md:grid-cols-5',
 }
 
+// Canon DS (`Heading`): page H1 is text-2xl/8 (24px). KPI values must never
+// exceed that — hero matches H1; compact/small sit clearly below.
 const VALUE_SIZE_CLASS = {
-  hero: 'font-mono text-4xl font-light tracking-tight',
-  compact: 'font-mono text-2xl font-light tracking-tight',
-  small: 'font-mono text-xl font-light tracking-tight',
+  hero: 'font-mono text-2xl/8 font-light tracking-tight',
+  compact: 'font-mono text-xl/7 font-light tracking-tight',
+  small: 'font-mono text-lg/6 font-light tracking-tight',
 } as const
 
 const VALUE_TONE_CLASS = {
@@ -37,7 +40,8 @@ const VALUE_TONE_CLASS = {
 
 /**
  * KPI band — single canon for all dashboard pages and agent sub-tabs.
- * Naked numbers on a hairline separator; accent reserved for emphasis only.
+ * Default: stats on `surfaceKpiBandClass` (secondary panel on canvas).
+ * Accent reserved for emphasis only.
  *
  * `separators` (opt-in): hairline dividers between stats via the `gap-px`
  * grid technique. Cell fill defaults to canvas — use inside a section card
@@ -64,20 +68,22 @@ export function AgentKpiBand({
   // ("24H COMPUTE COST") does not push its value lower than its one-line
   // neighbours — every value row then starts on the same baseline.
   const labelClass = separators
-    ? 'flex min-h-8 items-start text-[10px] font-medium uppercase tracking-widest text-zinc-500 mb-3 transition-colors group-hover:text-zinc-400'
+    ? 'flex min-h-7 items-start text-[10px] font-medium uppercase tracking-widest text-zinc-500 mb-2 transition-colors group-hover:text-zinc-400'
     : density === 'compact'
-      ? 'flex min-h-8 items-start text-[10px] font-medium uppercase tracking-widest text-zinc-400 mb-1'
-      : 'flex min-h-10 items-start text-xs font-semibold uppercase tracking-widest text-zinc-400 mb-2 group-hover:text-zinc-300 transition-colors'
+      ? 'flex min-h-7 items-start text-[10px] font-medium uppercase tracking-widest text-zinc-400 mb-1'
+      : 'flex min-h-8 items-start text-[10px] font-semibold uppercase tracking-widest text-zinc-400 mb-1.5 group-hover:text-zinc-300 transition-colors'
 
   return (
     <div
       className={clsx(
-        'grid grid-cols-1 sm:grid-cols-2',
+        // Metrics are not prose — block accent text-selection wash that reads
+        // as a false "green surface" on the first hovered/dragged columns.
+        'grid select-none grid-cols-1 sm:grid-cols-2',
         separators
           ? 'gap-px bg-white/5'
           : [
-              'border-b border-white/5',
-              density === 'compact' ? 'mb-10 gap-x-12 gap-y-6 py-4' : 'mb-8 gap-8 py-6',
+              surfaceKpiBandClass,
+              density === 'compact' ? 'mb-6 gap-x-4 gap-y-2 px-3 py-3' : 'mb-6 gap-4 px-4 py-4',
             ],
         COLS_CLASS[stats.length] ??
           (stats.length >= 6 ? 'md:grid-cols-3 xl:grid-cols-6' : 'md:grid-cols-4'),
@@ -92,9 +98,12 @@ export function AgentKpiBand({
           <div
             key={stat.name || 'slot'}
             className={clsx(
-              'group flex flex-col cursor-default',
-              // Opaque cells mask the white/5 backdrop except in the 1px gaps.
-              separators && 'bg-[var(--color-surface-canvas)] px-6 py-5 lg:px-8'
+              'group flex h-full flex-col rounded-lg',
+              // Full column hit-target: padding lives on the cell so hover fills
+              // the grid track, not a flush box around the text.
+              separators
+                ? 'bg-[var(--color-surface-canvas)] px-6 py-5 lg:px-8'
+                : 'cursor-default px-3 py-2.5 transition-colors hover:bg-[var(--color-surface-interactive)]'
             )}
           >
             {stat.name ? <span className={labelClass}>{stat.name}</span> : null}
