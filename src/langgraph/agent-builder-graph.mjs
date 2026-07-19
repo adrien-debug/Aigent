@@ -27,11 +27,11 @@
  *
  * Exports `graph` (the compiled graph) — referenced by langgraph.json.
  */
-import { ChatOpenAI } from '@langchain/openai'
 import { AIMessage, ToolMessage } from '@langchain/core/messages'
 import { StateGraph, MessagesAnnotation, START, END, interrupt } from '@langchain/langgraph'
 
 import { buildTool, buildToolsFromConfig } from './tool-registry.mjs'
+import { createChatModel } from './model-provider.mjs'
 
 // ---------------------------------------------------------------------------
 // LEGACY DEFAULTS — the exact pre-config behaviour, used ONLY as fallback when
@@ -93,7 +93,7 @@ const DEFAULT_SYSTEM_PROMPT = [
 /**
  * Resolve the effective behaviour for THIS run from the LangGraph config.
  * @param {import('@langchain/langgraph').LangGraphRunnableConfig} [config]
- * @returns {{ systemPrompt:string, model:string, maxSteps:number, tools:any[], toolsByName:Record<string,any>, confirmRequired:Set<string>, toolRisk:Record<string,string> }}
+ * @returns {{ systemPrompt:string, model:string, modelProvider:string, maxSteps:number, tools:any[], toolsByName:Record<string,any>, confirmRequired:Set<string>, toolRisk:Record<string,string> }}
  */
 function resolveRuntime(config) {
   const cfg = config?.configurable ?? {}
@@ -107,6 +107,7 @@ function resolveRuntime(config) {
     return {
       systemPrompt: DEFAULT_SYSTEM_PROMPT,
       model: DEFAULT_MODEL,
+      modelProvider: 'openai',
       maxSteps: 12,
       tools,
       toolsByName: Object.fromEntries(tools.map((t) => [t.name, t])),
@@ -120,6 +121,7 @@ function resolveRuntime(config) {
   return {
     systemPrompt: typeof cfg.systemPrompt === 'string' && cfg.systemPrompt.trim() ? cfg.systemPrompt : DEFAULT_SYSTEM_PROMPT,
     model: typeof cfg.model === 'string' && cfg.model.trim() ? cfg.model : DEFAULT_MODEL,
+    modelProvider: typeof cfg.modelProvider === 'string' && cfg.modelProvider.trim() ? cfg.modelProvider.trim() : 'openai',
     maxSteps: Number.isFinite(cfg.maxSteps) ? cfg.maxSteps : 12,
     tools,
     toolsByName: Object.fromEntries(tools.map((t) => [t.name, t])),
@@ -179,7 +181,7 @@ async function agentNode(state, config) {
     // the only channel), but now it precedes a REAL, judgeable review instead
     // of a boilerplate apology.
     try {
-      const closingModel = new ChatOpenAI({ model: rt.model })
+      const closingModel = createChatModel({ model: rt.model, modelProvider: rt.modelProvider })
       const closing = await closingModel.invoke([
         ...baseMessages,
         {
@@ -214,7 +216,9 @@ async function agentNode(state, config) {
   // every copilot's model. parallel_tool_calls:false → ONE tool per turn, which
   // keeps the approval gate deterministic (a gated tool is never batched behind
   // read tools, so the pause lands cleanly on a single call).
-  const modelWithTools = new ChatOpenAI({ model: rt.model }).bindTools(rt.tools, { parallel_tool_calls: false })
+  const modelWithTools = createChatModel({ model: rt.model, modelProvider: rt.modelProvider }).bindTools(rt.tools, {
+    parallel_tool_calls: false,
+  })
 
   const response = await modelWithTools.invoke(baseMessages)
 

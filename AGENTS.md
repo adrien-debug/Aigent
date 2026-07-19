@@ -20,9 +20,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Besoin d'une section/écran dashboard ? → **lis** `~/.claude/tailwind-blocks/application-ui/`
   pour la structure, puis monte-la avec les primitives Catalyst. Ne colle jamais le JSX brut d'un
   bloc dans le dashboard.
-- 23 primitives disponibles dans `src/components/catalyst/` (alert, auth-layout, avatar, badge,
-  button, description-list, dialog, divider, dropdown, fieldset, heading, input, link, listbox,
-  navbar, pagination, select, sidebar-layout, stacked-layout, switch, table, text, textarea).
+- 15 primitives disponibles dans `src/components/catalyst/` (alert, avatar, badge,
+  button, dialog, divider, fieldset, heading, input, link, select, switch, table,
+  text, textarea).
 <!-- END:catalyst-ui-rules -->
 
 <!-- BEGIN:trading-factory -->
@@ -131,9 +131,11 @@ Aigent n'est **pas** OpenAI-only. Deux chemins d'exécution, deux réalités :
   OpenAI-compatible, opt-in explicite — jamais de redirection silencieuse).
   `mistral` déclaré mais non câblé (`ProviderUnavailableError`). Aucun fallback
   muet : provider indisponible → erreur typée.
-- **Chemin LangGraph** (`runtime === 'langgraph'`) = **OpenAI-only**, limite connue :
-  le nœud `agent` du graphe est un `ChatOpenAI` codé en dur
-  (`src/langgraph/agent-builder-graph.mjs`). Gemini/local n'y tournent pas.
+- **Chemin LangGraph** (`runtime === 'langgraph'`) = **multi-provider** via
+  `src/langgraph/model-provider.mjs` : lit `modelProvider` du
+  `CopilotBehaviorConfig` (sourcé depuis `copilots.model_provider`) et instancie
+  `ChatOpenAI` pour `openai`, Gemini OpenAI-compat pour `google`, vLLM local pour
+  `local`. `mistral` déclaré mais non câblé (erreur explicite).
 - **Les 7 AP finance** (`copilot-fin-*`) tournent en **local via vLLM** sur le
   chemin DIRECT (`model_provider = local`, bench 16/16). Leur `runtime` peut encore
   lire `openai-assistants` pour raisons historiques, mais l'exécution passe par le

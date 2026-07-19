@@ -236,3 +236,26 @@ describe('composeSystemPrompt', () => {
     expect(prompt).not.toContain('Always ask a human to approve')
   })
 })
+
+describe('buildCopilotBehaviorConfig — modelProvider', () => {
+  it('defaults modelProvider to openai when the copilot row has none', () => {
+    const config = buildCopilotBehaviorConfig({
+      copilot: baseCopilot,
+      manifest: null,
+      tools: [],
+      repoFullName: null,
+    })
+    expect(config.modelProvider).toBe('openai')
+  })
+
+  it('carries model_provider from the copilot row into the behavior config', () => {
+    const config = buildCopilotBehaviorConfig({
+      copilot: { ...baseCopilot, model_provider: 'local', model: 'local-finance-32b' },
+      manifest: null,
+      tools: [],
+      repoFullName: null,
+    })
+    expect(config.modelProvider).toBe('local')
+    expect(config.model).toBe('local-finance-32b')
+  })
+})

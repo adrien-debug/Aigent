@@ -15,6 +15,7 @@ import 'server-only'
 
 import {
   deriveDisplayStatus,
+  resolve24hMetricsBatch,
   resolveCopilotHealthBatch,
   resolveVersionScoresBatch,
   type ResolvedAgentHealth,
@@ -65,61 +66,11 @@ function normalizeResolvedModel(run: AgentRun): AgentRun {
   return run
 }
 
-/** Run-backed 24h KPIs for one copilot, aggregated live from `agent_runs`. */
-interface ResolvedKpi24h {
+/** Run-backed 24h KPIs for one copilot — see agent-health.resolve24hMetricsBatch. */
+type ResolvedKpi24h = {
   runsLast24h: number
   costLast24hUsd: number
   errorRateLast24h: number
-}
-
-/**
- * Recompute the 24h KPIs (`runsLast24h` / `costLast24hUsd` / `errorRateLast24h`)
- * from REAL `agent_runs` rows, batched across a set of copilots in one PostgREST
- * round trip (`copilot_id=in.(...)` + `started_at=gte.<now-24h>`). The stored
- * `copilots.health` blob is written once at creation and never recomputed, so it
- * lies (8 real runs showing "0 runs/24h"). This is the display truth `data.ts`
- * overwrites the blob with — same pattern as testPassRate/benchmarkScore.
- *
- * `errorRateLast24h` = failed runs / total runs in the window (0 when no run, so
- * a quiet copilot reads 0% error, never a fabricated non-zero). Cost is summed
- * losslessly per row. A copilot with no 24h run maps to all-zero, which matches
- * the "no traffic yet" UI branch. Never gates anything — display only.
- *
- * NOTE (owner boundary): the frozen correctif list assigns the canonical KPI-24h
- * resolver to `agent-health.ts` (C1). C1 owns that file; this C3 pass owns
- * `data.ts`, so the aggregation lives here as a self-contained server-only helper
- * against agent_runs. If C1 later exports its own resolver, integration collapses
- * the two into one — the query and semantics above are the contract.
- */
-async function resolveKpi24hBatch(copilotIds: string[]): Promise<Map<string, ResolvedKpi24h>> {
-  const out = new Map<string, ResolvedKpi24h>()
-  if (copilotIds.length === 0) return out
-  const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-  const ids = copilotIds.map((id) => encodeURIComponent(id)).join(',')
-  const rows = await rest<RawRow[]>(
-    `agent_runs?select=copilot_id,status,cost_usd&copilot_id=in.(${ids})&started_at=gte.${encodeURIComponent(sinceIso)}`
-  )
-  const agg = new Map<string, { runs: number; failed: number; cost: number }>()
-  for (const r of rows) {
-    const cid = r.copilot_id as string
-    const acc = agg.get(cid) ?? { runs: 0, failed: 0, cost: 0 }
-    acc.runs += 1
-    if (r.status === 'failed') acc.failed += 1
-    // cost_usd is `numeric` — PostgREST may serialise it as a number or a string;
-    // Number() covers both without ever fabricating a value (NaN → 0 guard below).
-    const c = typeof r.cost_usd === 'string' ? Number(r.cost_usd) : (r.cost_usd as number)
-    acc.cost += Number.isFinite(c) ? c : 0
-    agg.set(cid, acc)
-  }
-  for (const id of copilotIds) {
-    const a = agg.get(id)
-    out.set(id, {
-      runsLast24h: a?.runs ?? 0,
-      costLast24hUsd: a?.cost ?? 0,
-      errorRateLast24h: a && a.runs > 0 ? a.failed / a.runs : 0,
-    })
-  }
-  return out
 }
 
 // ---------------------------------------------------------------------------
@@ -169,7 +120,7 @@ function enrichCopilot(
 export async function getCopilots(): Promise<Copilot[]> {
   const copilots = camelRows<Copilot>(await rest<RawRow[]>('copilots?select=*&order=name'))
   const ids = copilots.map((c) => c.id)
-  const [health, kpi24h] = await Promise.all([resolveCopilotHealthBatch(ids), resolveKpi24hBatch(ids)])
+  const [health, kpi24h] = await Promise.all([resolveCopilotHealthBatch(ids), resolve24hMetricsBatch(ids)])
   return copilots.map((c) => enrichCopilot(c, health.get(c.id), kpi24h.get(c.id)))
 }
 
@@ -178,7 +129,7 @@ export async function getCopilot(id: string): Promise<Copilot | undefined> {
   if (!copilot) return undefined
   const [health, kpi24h] = await Promise.all([
     resolveCopilotHealthBatch([copilot.id]),
-    resolveKpi24hBatch([copilot.id]),
+    resolve24hMetricsBatch([copilot.id]),
   ])
   return enrichCopilot(copilot, health.get(copilot.id), kpi24h.get(copilot.id))
 }

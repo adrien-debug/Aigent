@@ -71,6 +71,7 @@ function installKpiMocks() {
     }
     if (path.startsWith('benchmark_runs?')) return []
     if (path.startsWith('benchmark_results?')) return []
+    if (path.startsWith('agent_runs?')) return []
     throw new Error(`Unmocked pgrest path: ${path}`)
   }
 }

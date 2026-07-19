@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Catalyst guard — fails CI if the dashboard drifts off the 27 Catalyst
+ * Catalyst guard — fails CI if the dashboard drifts off the Catalyst
  * primitives in components/catalyst/.
  *
  * Scope: src/app/admin/** and src/components/agent-ops/** (the interactive

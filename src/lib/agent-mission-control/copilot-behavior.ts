@@ -19,7 +19,7 @@
  * is where that manifest becomes the assistant's operational identity: the
  * summary is COMPOSED into a real, complete system prompt (not passed raw).
  */
-import type { ConfirmationPolicy, ToolRiskLevel } from './types'
+import type { ConfirmationPolicy, ModelProvider, ToolRiskLevel } from './types'
 
 // ---------------------------------------------------------------------------
 // The frozen contract shape (CopilotBehaviorConfig). C1 (the graph) reads this
@@ -58,6 +58,8 @@ export interface CopilotBehaviorConfig {
   copilotName: string
   systemPrompt: string
   model: string
+  /** Provider for the LangGraph path — mirrors copilots.model_provider. */
+  modelProvider: ModelProvider
   maxSteps: number
   confirmationPolicy: ConfirmationPolicy
   tools: BehaviorTool[]
@@ -84,6 +86,8 @@ export interface CopilotRowForBehavior {
   name: string
   /** May be null on legacy rows; we default it. */
   model?: string | null
+  /** May be null on legacy rows; defaults to openai. */
+  model_provider?: ModelProvider | string | null
 }
 
 /** The latest/production `manifests` row fields this builder reads. */
@@ -122,6 +126,12 @@ export interface BuildCopilotBehaviorInput {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_MODEL = 'gpt-5.4'
+const DEFAULT_MODEL_PROVIDER: ModelProvider = 'openai'
+
+function normalizeModelProvider(raw: ModelProvider | string | null | undefined): ModelProvider {
+  if (raw === 'openai' || raw === 'google' || raw === 'mistral' || raw === 'local') return raw
+  return DEFAULT_MODEL_PROVIDER
+}
 const DEFAULT_MAX_STEPS = 12
 const DEFAULT_CONFIRMATION_POLICY: ConfirmationPolicy = 'risky-only'
 
@@ -540,6 +550,7 @@ export function buildCopilotBehaviorConfig(input: BuildCopilotBehaviorInput): Co
     copilotName: copilot.name,
     systemPrompt: composeSystemPrompt({ copilotName: copilot.name, manifest, confirmationPolicy }),
     model: (copilot.model && copilot.model.trim().length > 0 ? copilot.model : DEFAULT_MODEL) as string,
+    modelProvider: normalizeModelProvider(copilot.model_provider),
     maxSteps: manifest?.max_steps_per_run ?? DEFAULT_MAX_STEPS,
     confirmationPolicy,
     tools: built.tools,

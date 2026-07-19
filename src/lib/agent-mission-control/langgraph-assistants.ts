@@ -152,7 +152,7 @@ async function loadCopilotBehaviorConfig(
 ): Promise<{ config: CopilotBehaviorConfig; projectId: string | null }> {
   const copilotRows = await pgrest<RawRow[]>(
     'GET',
-    `copilots?id=eq.${encodeURIComponent(copilotId)}&select=id,name,model,project_id`
+    `copilots?id=eq.${encodeURIComponent(copilotId)}&select=id,name,model,model_provider,project_id`
   )
   const copilot = copilotRows[0]
   if (!copilot) throw new Error(`copilot not found: ${copilotId}`)
@@ -186,6 +186,7 @@ async function loadCopilotBehaviorConfig(
       id: copilot.id as string,
       name: (copilot.name as string) ?? copilotId,
       model: copilot.model as string | null,
+      model_provider: copilot.model_provider as never,
     },
     manifest: manifest as never,
     tools: toolRows.map((t) => ({
