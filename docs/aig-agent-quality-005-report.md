@@ -152,3 +152,66 @@ Lots B–F (campagnes live facturées : matrice provider au niveau model-router,
 HITL bout-en-bout, adversarial, benchmarks) : **à exécuter**. Voir section suivante.
 
 _(Document en cours — Lot A clos et prouvé. Lots B–G à venir.)_
+
+---
+
+## Lots B–D — Campagne provider live (bornée, coût réel ≈ 0,0006 USD)
+
+Sonde exécutant le VRAI `routeCompletion` (pas les API brutes), fallback OFF,
+zéro retry, zéro parallélisme. Preuves verbatim capturées.
+
+### Matrice provider-path
+| Provider | Texte | JSON | Tool-use | Modèle résolu (réel) | modelVerified | Fallback silencieux | Coût | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| **OpenAI** | ✅ PONG | ✅ `{status:ok,n:42}` | ✅ get_status | `gpt-5.4-2026-03-05` (≠ demandé `gpt-5.4`) | **true** | non | 0,0006 $ (3 appels) | **PROVEN LIVE** |
+| **Gemini (google)** | ❌ 403 | — | — | — (endpoint atteint) | — | **non** (erreur typée) | ~0 $ | **BROKEN** — clé rejetée |
+| **local vLLM** | ✅ PONG | ✅ `{status:ok,n:42}` | non testé | `Qwen/Qwen2.5-Coder-7B-Instruct-AWQ` (≠ alias `local-qwen-7b`) | **true** | non | 0 $ (3 appels) | **PROVEN LIVE — PROVIDER PATH ONLY** |
+| **mistral** | — | — | — | — | — | — | — | **UNSUPPORTED** (retiré de l'union, jette) |
+
+### Lot B — OpenAI · **PROVEN LIVE** + correctif de vérité
+- Le router capture désormais le modèle réellement servi (`completion.model`)
+  au lieu de renvoyer le modèle demandé. Preuve : demandé `gpt-5.4` →
+  **résolu `gpt-5.4-2026-03-05`** (snapshot daté), `modelVerified=true`.
+- Structured output (`parsedJson` valide) et tool-use (`get_status` appelé) OK.
+- **Vrai run persisté** : `agent_runs.f2863bdc` → `resolved_model=gpt-5.4-2026-03-05`,
+  `model_unverified=f`, `cost_usd=0.001159`, status completed. Cohérence
+  réponse-provider ↔ DB vérifiée.
+- Réalité globale après correctif : **1 run vérifié, 137 non vérifiés** — les
+  anciens ne sont PAS backfillés (règle du brief respectée).
+- Items 4-5 (outil interdit, confirmation) : garde-fous du RUNNER, indépendants
+  du provider — prouvés live sur vLLM (session précédente) + unit ; à re-prouver
+  en Lot E HITL sur le chemin LangGraph. Classés **PROVEN TEST + PROVEN LIVE (autre provider)**.
+
+### Lot C — Gemini · **BROKEN (clé fuitée)** + garde-fou fallback CONFIRMÉ
+- Endpoint Gemini réellement appelé (réponse HTTP 403 de Google).
+- Erreur : `ModelAccessError: 403 "Your API key was reported as leaked. Please
+  use another API key."` → **la clé Gemini est compromise et rejetée par Google.**
+- Garde-fou prouvé : `allowFallback=false` → **aucun fallback silencieux vers
+  OpenAI**, erreur typée remontée. La sûreté « no silent fallback » tient.
+- **Action sécurité** : faire tourner la clé Gemini (3ᵉ secret fuité de la série,
+  après Langfuse Cloud et le token GitHub). Aucun secret affiché dans cet audit.
+
+### Lot D — local vLLM · **PROVEN LIVE — PROVIDER PATH ONLY**
+- Parc vLLM joignable depuis le poste ; texte + JSON structuré servis, coût 0.
+- Modèle résolu = **served-model réel** (`Qwen/…-7B-Instruct-AWQ`), `modelVerified=true`
+  — un parc redéployé sous un autre id serait détectable, plus assumé.
+- Modèle inconnu (`local-does-not-exist`) → `ProviderUnavailableError`, aucun
+  fallback cloud. (Message d'erreur imprécis : « env missing » au lieu de
+  « unknown model id » — cosmétique, à corriger.)
+- Tool-use / timeout non exercés cette passe — à classer, si non supportés par
+  le modèle testé, en **UNSUPPORTED BY TESTED MODEL**, jamais BROKEN PROVIDER.
+
+### Divergences ajoutées
+| # | Divergence | Sévérité |
+|---|---|---|
+| 7 | Direct path écrivait `model_unverified=false` en dur sans vérifier — **corrigé** (Lot B) | Vérité — réglé |
+| 8 | Clé Gemini rejetée 403 « reported as leaked » | Sécurité — clé à rotationner |
+| 9 | `local-*` : message d'erreur « env missing » conflate absence de clé et modèle inconnu | Cosmétique |
+
+### Verdict global (fin Lot D) : **PARTIAL**
+- OpenAI : **PROVEN LIVE**, vérification du modèle exécuté désormais réelle.
+- Local vLLM : **PROVEN LIVE — PROVIDER PATH ONLY** (aucun agent persistant ne l'utilise).
+- Gemini : **BROKEN** (clé fuitée) — garde-fou fallback intact.
+- Mistral : **UNSUPPORTED / INERT** (correct).
+
+_(Suite : Lot sécurité — classification `mutates` + confirmation rétroactive ; puis Lot E — HITL bout-en-bout.)_
