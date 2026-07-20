@@ -6,7 +6,6 @@ import { EmptyState } from '@/components/agent-ops/empty-state'
 import { RunCopilotPanel } from '@/components/agent-ops/run-copilot-panel'
 import { COST_ESTIMATE_TOOLTIP, RunDetailPanel, RunModelValue } from '@/components/agent-ops/run-detail-panel'
 import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
-import { SurfaceCard, SurfaceCardHeader, surfaceInsetClass } from '@/components/agent-ops/surface-card'
 import { SplitBar, type SplitTone } from '@/components/agent-ops/widgets/split-bar'
 import { formatDurationMs, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 import {
@@ -104,17 +103,17 @@ export default async function RunsPage({
         </div>
       ) : (
         <>
-          <SurfaceCard>
-            <SurfaceCardHeader
-              title="Run Latency"
-              description={`Performance trend over the last ${runs.length} runs`}
-            />
-            <div className={clsx(surfaceInsetClass, 'mx-6 mb-6 p-6')}>
+          <div className="flex flex-col gap-4">
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight text-white">Run Latency</h2>
+              <p className="mt-1 text-sm text-zinc-400">Performance trend over the last {runs.length} runs</p>
+            </div>
+            <div className="py-2">
               <RunLatencyChart data={latencyPoints} />
             </div>
-          </SurfaceCard>
+          </div>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
+          <div className="grid grid-cols-1 gap-16 lg:grid-cols-3 lg:items-start pt-16 border-t border-white/[0.04]">
             <div className="lg:col-span-2">
               <RunDetailPanel
                 run={selectedRun}
@@ -126,48 +125,47 @@ export default async function RunsPage({
             </div>
 
             <div className="flex flex-col gap-6">
-              <SurfaceCard>
-                <SurfaceCardHeader
-                  title="Tool Calls Overview"
-                  description={`Outcomes across ${runs.length} runs`}
-                />
-                <div className={clsx(surfaceInsetClass, 'mx-6 mb-6 p-6')}>
-                  {allToolCalls.length > 0 ? (
-                    <div className="flex flex-col gap-6">
-                      <SplitBar
-                        height="md"
-                        segments={toolCallRamp
-                          .map(({ status, label, tone }) => ({ key: status, label, value: toolCallCounts[status], tone }))
-                          .filter((segment) => segment.value > 0)}
-                        caption={`${allToolCalls.length} total tool calls`}
-                      />
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3">
-                        {toolCallRamp.map(({ status, label }) => {
-                          const count = toolCallCounts[status]
-                          if (count === 0) return null
-                          return (
-                            <div key={status} className="flex flex-col gap-1 border-t border-white/5 pt-3">
-                              <span className="text-[10px] uppercase tracking-widest text-zinc-500">{label}</span>
-                              <span className="font-mono text-lg font-light tabular-nums text-white">{count}</span>
-                            </div>
-                          )
-                        })}
-                      </div>
+              <div>
+                <h2 className="text-xl font-semibold tracking-tight text-white">Tool Calls</h2>
+                <p className="mt-1 text-sm text-zinc-400">Outcomes across {runs.length} runs</p>
+              </div>
+              <div>
+                {allToolCalls.length > 0 ? (
+                  <div className="flex flex-col gap-6">
+                    <SplitBar
+                      height="md"
+                      segments={toolCallRamp
+                        .map(({ status, label, tone }) => ({ key: status, label, value: toolCallCounts[status], tone }))
+                        .filter((segment) => segment.value > 0)}
+                      caption={`${allToolCalls.length} total tool calls`}
+                    />
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3">
+                      {toolCallRamp.map(({ status, label }) => {
+                        const count = toolCallCounts[status]
+                        if (count === 0) return null
+                        return (
+                          <div key={status} className="flex flex-col gap-1 border-t border-white/5 pt-3">
+                            <span className="text-[10px] uppercase tracking-widest text-zinc-500">{label}</span>
+                            <span className="font-mono text-lg font-light tabular-nums text-white">{count}</span>
+                          </div>
+                        )
+                      })}
                     </div>
-                  ) : (
-                    <p className="text-sm text-zinc-500">No tool calls recorded across these runs.</p>
-                  )}
-                </div>
-              </SurfaceCard>
+                  </div>
+                ) : (
+                  <p className="text-sm text-zinc-500">No tool calls recorded across these runs.</p>
+                )}
+              </div>
             </div>
           </div>
 
-          <SurfaceCard>
-            <SurfaceCardHeader
-              title="Recent Runs"
-              meta={<span className="font-mono text-xs tabular-nums text-zinc-500">{runs.length} runs</span>}
-            />
-            <Table>
+          <div className="flex flex-col gap-6 pt-16 border-t border-white/[0.04]">
+            <div className="flex items-baseline gap-4">
+              <h2 className="text-xl font-semibold tracking-tight text-white">Recent Runs</h2>
+              <span className="font-mono text-xs tabular-nums text-zinc-500">{runs.length} total</span>
+            </div>
+            <div className="-mx-6">
+              <Table>
               <TableHead>
                 <TableRow>
                   <TableHeader>Run ID & Time</TableHeader>
@@ -238,7 +236,8 @@ export default async function RunsPage({
                 })}
               </TableBody>
             </Table>
-          </SurfaceCard>
+            </div>
+          </div>
         </>
       )}
     </div>
