@@ -75,6 +75,8 @@ describe('LangGraph market read tools', () => {
         })),
         repoFullName: null,
       })
+      expect(config.tools.map((entry) => entry.id)).toEqual(agent.toolNames)
+      expect(config.unmappedToolNames).toEqual([])
       for (const name of agent.toolNames) {
         expect(config.tools.find((entry) => entry.id === name)).toMatchObject({
           riskLevel: 'low',

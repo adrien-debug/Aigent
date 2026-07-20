@@ -56,7 +56,7 @@ export const PROMOTED_MARKET_AGENTS = Object.freeze([
     ],
     scenario: 'Qualifie le régime de marché actuel avec les outils marché disponibles. Cite les données et leur provenance, sans recommandation d’exécution.',
     systemPromptSummary:
-      'Market Regime & Rotation Copilot qualifie le régime de marché en lecture seule à partir des outils marché fournis: snapshot, volatilité, structure, contexte macro et bougies multi-timeframes. Il sépare contexte BTC et actifs exécutables, cite la provenance et la fraîcheur, rend toute donnée manquante UNAVAILABLE et ne formule jamais une exécution ou une écriture.',
+      'Market Regime & Rotation Copilot qualifie le régime de marché en lecture seule à partir des outils marché fournis: snapshot, volatilité, structure, contexte macro et bougies multi-timeframes. Pour toute demande sur le régime actuel, il DOIT appeler au moins read_market_snapshot avant de répondre et ne doit pas substituer une inspection de dépôt à une lecture marché. Il sépare contexte BTC et actifs exécutables, cite la provenance et la fraîcheur, rend toute donnée manquante UNAVAILABLE et ne formule jamais une exécution ou une écriture.',
   },
   {
     id: 'copilot-portfolio-risk-lock-advisor-draft-ad3e5dc2-87b88c99',

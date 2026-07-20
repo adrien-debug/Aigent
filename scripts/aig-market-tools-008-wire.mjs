@@ -106,6 +106,12 @@ for (const agent of PROMOTED_MARKET_AGENTS) {
     toolRows,
     'resolution=merge-duplicates,return=representation'
   )
+  await pg(
+    'PATCH',
+    `tools?copilot_id=eq.${encodeURIComponent(agent.id)}&name=not.in.(${agent.toolNames.join(',')})`,
+    { enabled: false },
+    'return=minimal'
+  )
 
   const manifests = await pg(
     'GET',
@@ -113,8 +119,7 @@ for (const agent of PROMOTED_MARKET_AGENTS) {
   )
   const manifest = manifests[0]
   if (!manifest) throw new Error(`manifest not found for ${agent.id}`)
-  const currentToolIds = Array.isArray(manifest.tool_ids) ? manifest.tool_ids : []
-  const nextToolIds = [...new Set([...currentToolIds, ...toolRows.map((row) => row.id)])]
+  const nextToolIds = toolRows.map((row) => row.id)
   await pg(
     'PATCH',
     `manifests?id=eq.${encodeURIComponent(manifestId)}`,

@@ -182,6 +182,16 @@ const DEFAULT_CONFIRMATION_POLICY: ConfirmationPolicy = 'risky-only'
 
 /** Registry keys of the real repo tools — these need scope.repoFullName. */
 const REPO_TOOL_IDS: ReadonlySet<string> = new Set(['read_repo_file', 'list_repo_tree', 'search_repo'])
+/** Market agents run least-privilege: only their explicitly enabled DB tools. */
+const MARKET_TOOL_IDS: ReadonlySet<string> = new Set([
+  'read_market_snapshot',
+  'read_volatility_state',
+  'read_market_structure',
+  'read_multi_timeframe_candles',
+  'read_liquidity_snapshot',
+  'read_macro_context',
+  'read_account_risk_snapshot',
+])
 
 /**
  * The REAL registry ids the graph can mount — the exact keys of REGISTRY in
@@ -508,6 +518,10 @@ const REPO_INJECTED_TOOLS: ReadonlyArray<{
  *  3. The generic platform reads + draft_copilot_spec are ALWAYS present as the
  *     base capability set, so the config is complete and self-portant.
  *
+ * Market agents are the deliberate exception: when an enabled market tool is
+ * declared, only layer 1 is mounted. This preserves their explicit
+ * least-privilege mapping instead of reintroducing unrelated repo/generic tools.
+ *
  * Every produced id is a REAL registry id — the graph mounts exactly this list.
  *
  * Returns the built tool list ALONGSIDE the architect-declared names that
@@ -521,6 +535,7 @@ function buildTools(
 ): { tools: BehaviorTool[]; unmappedToolNames: string[] } {
   const out: BehaviorTool[] = []
   const byId = new Map<BehaviorToolId, BehaviorTool>()
+  const strictMarketConfig = tools.some((row) => MARKET_TOOL_IDS.has(row.name))
 
   const add = (entry: BehaviorTool) => {
     const existing = byId.get(entry.id)
@@ -565,15 +580,17 @@ function buildTools(
   }
 
   // 2) Repo-linked copilot → guarantee the scoped repo tools exist.
-  if (repoFullName && repoFullName.includes('/')) {
+  if (!strictMarketConfig && repoFullName && repoFullName.includes('/')) {
     for (const t of REPO_INJECTED_TOOLS) {
       add({ id: t.id, riskLevel: t.riskLevel, requiresConfirmation: t.requiresConfirmation, scope: scopeFor(t.id, repoFullName) })
     }
   }
 
   // 3) Generic platform reads + draft — the base capability set, no scope.
-  for (const g of GENERIC_TOOL_DEFAULTS) {
-    add({ id: g.id, riskLevel: g.riskLevel, requiresConfirmation: g.requiresConfirmation })
+  if (!strictMarketConfig) {
+    for (const g of GENERIC_TOOL_DEFAULTS) {
+      add({ id: g.id, riskLevel: g.riskLevel, requiresConfirmation: g.requiresConfirmation })
+    }
   }
 
   return { tools: out, unmappedToolNames: droppedNames }
