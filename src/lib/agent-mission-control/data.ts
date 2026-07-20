@@ -213,13 +213,28 @@ export async function getManifestForCopilot(copilotId: string): Promise<AgentMan
   )[0]
 }
 
-export async function getToolsForCopilot(copilotId: string): Promise<ToolDefinition[]> {
+/**
+ * A copilot's mounted tools. Memoized per request (see `getCopilot`): the
+ * agent detail page and the async sections below it each resolve this
+ * independently, so the `select=*` read ran twice per render.
+ *
+ * Measured, not assumed: query tracing showed this query drop from 2x to 1x
+ * per render. The OTHER `tools?...` reads in the same render use a different
+ * projection (`select=name,risk_level`) from a different function — memoizing
+ * here does not and cannot touch those.
+ *
+ * Callers only read and filter (`.filter(t => t.enabled)` builds a new array),
+ * never reorder in place.
+ */
+export const getToolsForCopilot = cache(async function getToolsForCopilot(
+  copilotId: string
+): Promise<ToolDefinition[]> {
   const rows = await rest<RawRow[]>(`tools?select=*&copilot_id=eq.${encodeURIComponent(copilotId)}&order=risk_level,name`)
   // copilot_id is a DB column, absent from ToolDefinition — drop it.
   return camelRows<ToolDefinition>(
     rows.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => k !== 'copilot_id')))
   )
-}
+})
 
 export async function getTestSuitesForCopilot(copilotId: string): Promise<TestSuite[]> {
   const rows = await rest<RawRow[]>(`test_suites?select=*,test_cases(id)&copilot_id=eq.${encodeURIComponent(copilotId)}&order=name`)
