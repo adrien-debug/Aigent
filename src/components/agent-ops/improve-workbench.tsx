@@ -13,6 +13,11 @@ import { Text } from '@/components/catalyst/text'
 import { consumeSSE } from '@/lib/agent-mission-control/sse-client'
 import { formatPercent, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 import {
+  hasImproveSignal as hasImproveSignalFromCriteria,
+  IMPROVEMENT_MIN_BENCHMARK_ACCURACY,
+  IMPROVEMENT_MIN_BENCHMARK_SCORE,
+} from '@/lib/agent-mission-control/improvement-criteria'
+import {
   FIX_TYPE_LABELS,
   type FailureDiagnosis,
   type NextRecommendedAction,
@@ -29,6 +34,8 @@ import type {
 
 /** SSE frames from the auto-improve route: the per-step events + a terminal `done`. */
 type AutoImproveFrame = AutoImproveEvent | ({ type: 'done' } & AutoImprovementResult)
+const FORCE_MODE_MAX_ITERATIONS = 100
+const FORCE_MODE_MAX_COST_USD = 100
 
 /** One-line human label for a live auto-improve frame. */
 function autoFrameLabel(ev: AutoImproveEvent): string {
@@ -65,6 +72,8 @@ function autoResultLabel(r: AutoImprovementResult): string {
       return `Max iterations reached (${r.iterations}) — review below.`
     case 'nothing-to-improve':
       return 'Nothing left to improve — the agent already passes its suites.'
+    case 'blocked':
+      return `Stopped before V2 creation — ${r.stopDetail ?? 'manual review needed.'}`
   }
 }
 
@@ -311,6 +320,7 @@ export function ImproveWorkbench({
   const [autoError, setAutoError] = useState<string | null>(null)
 
   const totalFailures = suites.reduce((n, s) => n + s.failures.length, 0)
+  const hasImproveSignal = hasImproveSignalFromCriteria(totalFailures, benchmarks)
   const hasV2Results = Boolean(
     comparison && (comparison.tests.some((t) => t.v2 !== null) || comparison.benchmarks.some((b) => b.v2 !== null))
   )
@@ -351,6 +361,14 @@ export function ImproveWorkbench({
   }
 
   async function handleAutoImprove() {
+    await startAutoImprove(false)
+  }
+
+  async function handleAutoImproveForce() {
+    await startAutoImprove(true)
+  }
+
+  async function startAutoImprove(force: boolean) {
     if (autoRunning) return
     setAutoRunning(true)
     setAutoFrames([])
@@ -360,7 +378,9 @@ export function ImproveWorkbench({
       const res = await fetch(`/api/agent-ops/copilots/${copilotId}/improve/auto`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-        body: '{}',
+        body: force
+          ? JSON.stringify({ force: true, maxIterations: FORCE_MODE_MAX_ITERATIONS, maxCostUsd: FORCE_MODE_MAX_COST_USD })
+          : '{}',
       })
       if (!res.ok || !res.body) {
         setAutoError(
@@ -482,7 +502,7 @@ export function ImproveWorkbench({
               <Button
                 color="accent"
                 onClick={handleAutoImprove}
-                disabled={autoRunning || analyzing || rerunning !== null || deciding !== null || totalFailures === 0}
+                disabled={autoRunning || analyzing || rerunning !== null || deciding !== null || !hasImproveSignal}
               >
                 {autoRunning ? (
                   <span className="inline-flex items-center gap-2">
@@ -494,8 +514,15 @@ export function ImproveWorkbench({
               </Button>
               <Button
                 outline
+                onClick={handleAutoImproveForce}
+                disabled={autoRunning || analyzing || rerunning !== null || deciding !== null || !hasImproveSignal}
+              >
+                Force auto-improve
+              </Button>
+              <Button
+                outline
                 onClick={handleAnalyze}
-                disabled={analyzing || autoRunning || rerunning !== null || deciding !== null || totalFailures === 0}
+                disabled={analyzing || autoRunning || rerunning !== null || deciding !== null || !hasImproveSignal}
               >
                 {analyzing ? (
                   <span className="inline-flex items-center gap-2">
@@ -516,6 +543,18 @@ export function ImproveWorkbench({
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
               Auto-improve runs the loop until 100% or a plateau — you still approve the result.
             </p>
+          ) : null}
+          {!cycleOpen ? (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Force mode ignores plateau and pushes up to 100 iterations / $100 per run.
+            </p>
+          ) : null}
+          {!cycleOpen && !hasImproveSignal ? (
+            <Text>
+              Improve unlocks when there is at least one failing test case or a benchmark below target (score &lt;{' '}
+              {IMPROVEMENT_MIN_BENCHMARK_SCORE} or accuracy &lt;{' '}
+              {Math.round(IMPROVEMENT_MIN_BENCHMARK_ACCURACY * 100)}%).
+            </Text>
           ) : null}
           {autoFrames.length > 0 || autoResult || autoRunning ? (
             <div

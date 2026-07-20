@@ -3,6 +3,8 @@ import { CodeBracketIcon, ServerStackIcon } from '@heroicons/react/24/outline'
 
 import { surfaceCardClass, surfaceCardFooterClass } from '@/components/agent-ops/surface-card'
 import { Avatar } from '@/components/catalyst/avatar'
+import { Heading } from '@/components/catalyst/heading'
+import { Text } from '@/components/catalyst/text'
 import { PROJECT_PLATFORM_LABELS } from '@/lib/agent-mission-control/labels'
 import type { Project } from '@/lib/agent-mission-control/types'
 
@@ -26,7 +28,15 @@ export function ProjectHeader({
       {/* Cover photo — bounded banner, image covers, accent wash fallback */}
       <div className="relative h-28 sm:h-40">
         {project.imageUrl ? (
-          <Image src={project.imageUrl} alt="" fill sizes="100vw" priority className="object-cover" />
+          <Image
+            src={project.imageUrl}
+            alt=""
+            fill
+            sizes="100vw"
+            priority
+            unoptimized={project.imageUrl.startsWith('/')}
+            className="object-cover"
+          />
         ) : (
           <div
             aria-hidden="true"
@@ -50,7 +60,7 @@ export function ProjectHeader({
             className="size-14 shrink-0 bg-zinc-900 text-white ring-1 ring-white/10 sm:size-16"
           />
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold tracking-tight text-white sm:text-3xl">{project.name}</h1>
+            <Heading className="truncate tracking-tight">{project.name}</Heading>
             <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
               <span className="flex shrink-0 items-center gap-1.5 text-zinc-400">
                 <ServerStackIcon aria-hidden="true" className="size-4" />
@@ -64,7 +74,7 @@ export function ProjectHeader({
                   className="flex min-w-0 items-center gap-1.5 rounded-sm text-zinc-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
                 >
                   <CodeBracketIcon aria-hidden="true" className="size-4 shrink-0" />
-                  <span className="truncate font-mono max-w-[50vw] sm:max-w-xs">{project.repoFullName}</span>
+                  <span className="max-w-[50vw] truncate font-mono sm:max-w-xs">{project.repoFullName}</span>
                 </a>
               )}
             </div>
@@ -74,7 +84,7 @@ export function ProjectHeader({
       </div>
 
       {project.description ? (
-        <p className="-mt-2 max-w-3xl px-6 pb-5 text-sm text-zinc-400 lg:px-8">{project.description}</p>
+        <Text className="-mt-2 max-w-3xl px-6 pb-5 lg:px-8">{project.description}</Text>
       ) : null}
 
       {children ? <div className={`${surfaceCardFooterClass} px-6 py-4 lg:px-8`}>{children}</div> : null}

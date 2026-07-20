@@ -1,8 +1,14 @@
 import clsx from 'clsx'
 
-import { surfaceItemClass } from '@/components/agent-ops/surface-card'
+import { surfaceSectionClass } from '@/components/agent-ops/surface-card'
 import { Subheading } from '@/components/catalyst/heading'
+import { Text } from '@/components/catalyst/text'
 
+/**
+ * Bento / feature panel on the admin canvas — same Section paint as
+ * `SurfaceCard` / `AgentSectionCard` (`#121214`). Never Item (`#1f1f22`):
+ * that level is for rows/tiles *inside* a section, not peer panels.
+ */
 export function AgentBentoCard({
   eyebrow,
   eyebrowTone = 'neutral',
@@ -10,7 +16,7 @@ export function AgentBentoCard({
   description,
   children,
   className,
-  level = 3,
+  level = 2,
 }: {
   eyebrow?: string
   eyebrowTone?: 'neutral' | 'positive'
@@ -21,30 +27,24 @@ export function AgentBentoCard({
   level?: 1 | 2 | 3 | 4 | 5 | 6
 }) {
   return (
-    <div
-      className={clsx(
-        surfaceItemClass,
-        'group relative transition-colors duration-200 hover:border-white/10 hover:bg-[var(--color-surface-focus)]',
-        className
-      )}
-    >
+    <section className={clsx(surfaceSectionClass, className)}>
       <div className="relative p-6">
         {eyebrow ? (
           <p
             className={clsx(
-              'text-xs font-medium tracking-wide uppercase',
+              'text-[10px] font-medium uppercase tracking-widest',
               eyebrowTone === 'positive' ? 'text-accent-400' : 'text-zinc-500'
             )}
           >
             {eyebrow}
           </p>
         ) : null}
-        <Subheading level={level} tone="accent" className={clsx(eyebrow && 'mt-2')}>
+        <Subheading level={level} tone="neutral" className={clsx('tracking-tight text-white', eyebrow && 'mt-1')}>
           {title}
         </Subheading>
-        {description ? <p className="mt-2 text-sm text-zinc-400">{description}</p> : null}
+        {description ? <Text className="mt-1 tracking-tight">{description}</Text> : null}
         {children ? <div className="mt-6">{children}</div> : null}
       </div>
-    </div>
+    </section>
   )
 }

@@ -34,6 +34,11 @@ import { randomUUID } from 'node:crypto'
 
 import { summarize } from './format'
 import {
+  hasBenchmarkBelowImproveTarget,
+  IMPROVEMENT_MIN_BENCHMARK_ACCURACY,
+  IMPROVEMENT_MIN_BENCHMARK_SCORE,
+} from './improvement-criteria'
+import {
   diagnoseFailure,
   hasManifestFixableFailures,
   nextRecommendedAction,
@@ -57,6 +62,11 @@ type RawRow = Record<string, unknown>
 
 const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`
 const inList = (ids: string[]) => ids.map((id) => encodeURIComponent(id)).join(',')
+const NOTHING_TO_IMPROVE_PREFIX = 'nothing to improve:'
+
+function isNothingToImproveReason(message: string): boolean {
+  return message.startsWith(NOTHING_TO_IMPROVE_PREFIX)
+}
 
 // ---------------------------------------------------------------------------
 // Signal collection — everything the proposer is allowed to reason from.
@@ -670,8 +680,11 @@ export async function analyzeAndPropose(copilotId: string, triggeredBy: string):
   const signals = await collectImprovementSignals(copilotId)
 
   const totalFailures = signals.suites.reduce((n, s) => n + s.failures.length, 0)
-  if (totalFailures === 0 && signals.benchmarks.every((b) => !b.lastRun || b.lastRun.score >= 90)) {
-    throw new NotFoundError('nothing to improve: no failing test case and no benchmark below 90')
+  const hasWeakBenchmark = hasBenchmarkBelowImproveTarget(signals.benchmarks)
+  if (totalFailures === 0 && !hasWeakBenchmark) {
+    throw new NotFoundError(
+      `${NOTHING_TO_IMPROVE_PREFIX} no failing test case and no benchmark below target (score >= ${IMPROVEMENT_MIN_BENCHMARK_SCORE}, accuracy >= ${Math.round(IMPROVEMENT_MIN_BENCHMARK_ACCURACY * 100)}%)`
+    )
   }
 
   // Deterministic diagnoses FIRST — rule hits are authoritative over whatever
@@ -1135,9 +1148,10 @@ function allSuitesConverged(cmp: VersionComparison): boolean {
 export interface AutoImprovementResult {
   iterations: number
   finalPassRate: number
-  stoppedBy: 'converged' | 'plateau' | 'max-iterations' | 'budget' | 'nothing-to-improve'
+  stoppedBy: 'converged' | 'plateau' | 'max-iterations' | 'budget' | 'nothing-to-improve' | 'blocked'
   lastProposalId: string | null
   lastV2VersionId: string | null
+  stopDetail?: string
 }
 
 /**
@@ -1166,6 +1180,7 @@ export async function runAutoImprovementCycle(
   opts: {
     maxIterations?: number
     maxCostUsd?: number
+    force?: boolean
     onEvent?: (ev: AutoImproveEvent) => void
     signal?: AbortSignal
   } = {}
@@ -1212,8 +1227,19 @@ export async function runAutoImprovementCycle(
       proposal = analysis.proposal
     } catch (err) {
       if (err instanceof NotFoundError) {
-        emit({ type: 'converged', iteration, passRate: finalPassRate, detail: err.message })
-        return { iterations: iteration - 1, finalPassRate, stoppedBy: 'nothing-to-improve', lastProposalId, lastV2VersionId }
+        if (isNothingToImproveReason(err.message)) {
+          emit({ type: 'converged', iteration, passRate: finalPassRate, detail: err.message })
+          return { iterations: iteration - 1, finalPassRate, stoppedBy: 'nothing-to-improve', lastProposalId, lastV2VersionId }
+        }
+        emit({ type: 'error', iteration, detail: err.message })
+        return {
+          iterations: iteration - 1,
+          finalPassRate,
+          stoppedBy: 'blocked',
+          lastProposalId,
+          lastV2VersionId,
+          stopDetail: err.message,
+        }
       }
       emit({ type: 'error', iteration, detail: err instanceof Error ? err.message : 'analysis failed' })
       return { iterations: iteration - 1, finalPassRate, stoppedBy: 'plateau', lastProposalId, lastV2VersionId }
@@ -1317,7 +1343,9 @@ export async function runAutoImprovementCycle(
         passRate: v2PassRate,
         detail: `no improvement: V2 ${v2PassRate.toFixed(3)} <= base ${basePassRate.toFixed(3)}`,
       })
-      return { iterations: iteration, finalPassRate: v2PassRate, stoppedBy: 'plateau', lastProposalId, lastV2VersionId }
+      if (!opts.force) {
+        return { iterations: iteration, finalPassRate: v2PassRate, stoppedBy: 'plateau', lastProposalId, lastV2VersionId }
+      }
     }
 
     // 6c. IMPROVED — advance: this V2 is the next base. Its proposal becomes the

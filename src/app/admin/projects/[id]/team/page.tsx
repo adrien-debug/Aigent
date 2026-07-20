@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { ProjectTabs } from '@/components/agent-ops/project-tabs'
 import { ProjectTeamView } from '@/components/agent-ops/project-team/project-team-view'
 import { Avatar } from '@/components/catalyst/avatar'
+import { Heading } from '@/components/catalyst/heading'
 import { getProject } from '@/lib/agent-mission-control/data'
 import { PROJECT_PLATFORM_LABELS } from '@/lib/agent-mission-control/labels'
 import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
@@ -78,7 +79,7 @@ export default async function ProjectTeamPage({ params }: { params: Promise<{ id
           alt=""
           className="size-9 shrink-0 bg-zinc-900 text-white ring-1 ring-white/10"
         />
-        <h1 className="truncate text-lg font-semibold tracking-tight text-white">{project.name}</h1>
+        <Heading className="truncate tracking-tight">{project.name}</Heading>
         <span className="flex shrink-0 items-center gap-1.5 text-xs text-zinc-500">
           <ServerStackIcon aria-hidden="true" className="size-4" />
           <span className="font-mono">{PROJECT_PLATFORM_LABELS[project.platform]}</span>

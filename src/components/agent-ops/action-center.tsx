@@ -10,7 +10,7 @@ import {
 import clsx from 'clsx'
 
 import { EmptyState } from '@/components/agent-ops/empty-state'
-import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
+import { SurfaceCard, SurfaceCardHeader, surfaceItemClass } from '@/components/agent-ops/surface-card'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import type { ActionItem, ActionItemKind } from '@/lib/agent-mission-control/dashboard-overview'
@@ -41,9 +41,9 @@ function ActionRow({ item, focus }: { item: ActionItem; focus: boolean }) {
   return (
     <li
       className={clsx(
-        'group flex gap-4 p-4 transition-all duration-200 hover:-translate-y-px',
-        'rounded-xl bg-[var(--color-surface-elevated)] shadow-sm shadow-black/40 ring-1 ring-white/[0.05]',
-        focus && 'ring-1 ring-[var(--accent-line-strong)]'
+        surfaceItemClass,
+        'group flex gap-4 p-4 transition-all duration-200 hover:-translate-y-px hover:bg-[var(--color-surface-focus)]',
+        focus && 'ring-[var(--accent-line-strong)]'
       )}
     >
       <Icon

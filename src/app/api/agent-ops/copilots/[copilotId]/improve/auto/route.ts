@@ -25,8 +25,8 @@ type AutoFrame =
  * iteration-start / analyzed / v2-created / reran / converged / plateau /
  * exhausted advance live instead of blocking on the final JSON.
  *
- * Body (optional): { maxIterations?: number; maxCostUsd?: number }
- *   maxIterations bounded 1..10, maxCostUsd bounded 0.1..10; absent → the
+ * Body (optional): { maxIterations?: number; maxCostUsd?: number; force?: boolean }
+ *   maxIterations bounded 1..1000, maxCostUsd bounded 0.1..1000; absent → the
  *   function's own defaults (5 iterations, $2.0).
  *
  * SSE frames (`data: {...}\n\n`):
@@ -87,7 +87,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   }
 
   // Body is optional — a POST with no/empty body means "use the defaults".
-  let body: { maxIterations?: unknown; maxCostUsd?: unknown } = {}
+  let body: { maxIterations?: unknown; maxCostUsd?: unknown; force?: unknown } = {}
   try {
     const text = await request.text()
     if (text.trim().length > 0) {
@@ -98,22 +98,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
       if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
         return NextResponse.json({ error: 'body must be a JSON object' }, { status: 400 })
       }
-      body = parsed as { maxIterations?: unknown; maxCostUsd?: unknown }
+      body = parsed as { maxIterations?: unknown; maxCostUsd?: unknown; force?: unknown }
     }
   } catch {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
   }
 
-  const iters = parseBoundedNumber(body.maxIterations, 'maxIterations', 1, 10)
+  const iters = parseBoundedNumber(body.maxIterations, 'maxIterations', 1, 1000)
   if ('error' in iters) {
     return NextResponse.json({ error: iters.error }, { status: 400 })
   }
-  const cost = parseBoundedNumber(body.maxCostUsd, 'maxCostUsd', 0.1, 10)
+  const cost = parseBoundedNumber(body.maxCostUsd, 'maxCostUsd', 0.1, 1000)
   if ('error' in cost) {
     return NextResponse.json({ error: cost.error }, { status: 400 })
   }
   const maxIterations = iters.value
   const maxCostUsd = cost.value
+  if (body.force !== undefined && typeof body.force !== 'boolean') {
+    return NextResponse.json({ error: 'force must be a boolean' }, { status: 400 })
+  }
+  const force = body.force === true
 
   const base = process.env.AMC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -171,6 +175,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
         const result = await runAutoImprovementCycle(copilotId, {
           maxIterations,
           maxCostUsd,
+          force,
           // A client abort stops the loop at the next step boundary (checked
           // between analyze / create-v2 / each re-run / compare) instead of
           // letting it run — and spend — to completion server-side.

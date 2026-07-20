@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Divider } from '@/components/catalyst/divider'
+import { Subheading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
 import { Text } from '@/components/catalyst/text'
 import type {
@@ -529,7 +530,9 @@ export function ProjectTeamPanel({
     >
       <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-white/5 bg-[var(--color-surface-canvas)] px-5 py-4">
         <div ref={headingRef} tabIndex={-1} className="min-w-0 focus:outline-none">
-          <h2 className="truncate text-base font-semibold text-white">{agent.name}</h2>
+          <Subheading level={2} tone="neutral" className="truncate tracking-tight text-white">
+            {agent.name}
+          </Subheading>
           <p className="mt-0.5 truncate font-mono text-xs text-zinc-500">{agent.slug ?? agent.id}</p>
         </div>
         <Headless.Button

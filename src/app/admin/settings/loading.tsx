@@ -5,7 +5,7 @@ export default function SettingsLoading() {
     <div aria-busy="true" aria-live="polite" className="space-y-8 motion-safe:animate-pulse">
       <span className="sr-only">Loading Settings…</span>
       
-      {/* AgentPageHeader */}
+      {/* AdminPageHeader skeleton */}
       <div className="mt-2 border-b border-zinc-950/5 pb-5 dark:border-white/5">
         <div className="h-8 w-32 rounded-lg bg-zinc-950/10 dark:bg-white/10" />
         <div className="mt-2 h-4 w-64 rounded-md bg-zinc-950/5 dark:bg-white/5" />

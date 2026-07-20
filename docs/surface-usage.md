@@ -16,11 +16,23 @@ Import from `@/components/agent-ops/surface-card`:
 
 | Export | Level | When to use |
 |--------|-------|-------------|
-| `AdminPageHeader` | Canvas | Page title + eyebrow + description |
+| `AdminPageHeader` | Canvas | **Canon** page title — Catalyst `Heading` (`text-2xl/8` = 24px). Prefer this. |
+| `AgentPageHeader` | Canvas | Same H1 canon + optional breadcrumbs / live / filters. Use only when those extras are needed. |
 | `surfaceSectionClass` / `SurfaceCard` | Section | Data panels, tables, workbench shells |
+| `SurfaceCardHeader` | Section title | H2 via `Subheading` (`text-base/7 sm:text-sm/6`, `tone="neutral"`) |
 | `surfaceItemClass` | Item | Rows, cards, selectable tiles inside a section |
 | `surfaceNavClass` | Nav | Sidebar only |
 | `surfaceInsetClass` | Inset | Subtle grouping inside a section (not a full card) |
+
+### Typography canon (admin)
+
+| Role | Component | Size |
+|------|-----------|------|
+| H1 | `Heading` | `text-2xl/8` (24px) — never `text-3xl` |
+| H2 section | `Subheading` + `tone="neutral"` | `text-base/7` → `sm:text-sm/6` |
+| Body | `Text` | `text-base/6` → `sm:text-sm/6` |
+| Eyebrow / KPI label | — | `text-[10px] uppercase tracking-widest` |
+| KPI value | mono | ≤ H1 (`text-2xl/8` max) |
 
 `surfaceCardClass` is an alias for `surfaceSectionClass` (backward compatible).
 
@@ -39,6 +51,8 @@ Every admin page must answer:
 - KPI band inside a section card (use naked `AgentKpiBand` on canvas).
 - Empty state as a full `SurfaceCard` (use dashed border on canvas).
 - Sidebar using `surfaceSectionClass` (use `surfaceNavClass`).
+- Peer panels on the canvas painted as Item (`AgentBentoCard` must use Section —
+  Item is only for rows/tiles *inside* a section).
 
 ### Allowed exceptions
 

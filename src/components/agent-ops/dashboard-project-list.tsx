@@ -19,10 +19,25 @@ function InlineStat({ label, children }: { label: string; children: React.ReactN
   )
 }
 
+/** Local `/public` paths skip the optimizer — in Docker standalone it often
+ *  re-fetches itself and returns 400 ("received null"). Remote https still optimized. */
+function isLocalPublicSrc(src: string): boolean {
+  return src.startsWith('/')
+}
+
 /** Square thumbnail — cover photo, else logo, else initials. */
 function ProjectImage({ project }: { project: ProjectOverviewItem }) {
   if (project.imageUrl) {
-    return <Image src={project.imageUrl} alt="" fill sizes="64px" className="object-cover" />
+    return (
+      <Image
+        src={project.imageUrl}
+        alt=""
+        fill
+        sizes="64px"
+        unoptimized={isLocalPublicSrc(project.imageUrl)}
+        className="object-cover"
+      />
+    )
   }
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-[var(--accent-soft)]">

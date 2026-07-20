@@ -4,6 +4,7 @@ import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
 
 import { Badge } from '@/components/catalyst/badge'
+import { Subheading } from '@/components/catalyst/heading'
 import { formatAge, humanizeStatus, lastActivityFallback, type TeamAgentView } from './project-team-panel'
 
 /**
@@ -54,7 +55,9 @@ export function ProjectTeamAccessibleList({
         className
       )}
     >
-      <h2 className="px-4 py-3 text-sm font-semibold text-white">Team agents</h2>
+      <Subheading level={2} tone="neutral" className="px-4 py-3 tracking-tight text-white">
+        Team agents
+      </Subheading>
       {/* Bounded box, data scrolls inside it: the roster can be long and the
           surrounding card is `overflow-hidden`, so an unbounded list would be
           clipped instead of scrolled. Focus moves scroll the row into view. */}

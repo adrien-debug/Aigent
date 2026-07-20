@@ -6,7 +6,7 @@ import { EmptyState } from '@/components/agent-ops/empty-state'
 import { RunCopilotPanel } from '@/components/agent-ops/run-copilot-panel'
 import { COST_ESTIMATE_TOOLTIP, RunDetailPanel, RunModelValue } from '@/components/agent-ops/run-detail-panel'
 import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
-import { surfaceCardClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
+import { SurfaceCard, SurfaceCardHeader, surfaceInsetClass } from '@/components/agent-ops/surface-card'
 import { SplitBar, type SplitTone } from '@/components/agent-ops/widgets/split-bar'
 import { formatDurationMs, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 import {
@@ -104,17 +104,15 @@ export default async function RunsPage({
         </div>
       ) : (
         <>
-          <div className={surfaceCardClass}>
-            <div className={surfaceCardHeaderClass}>
-              <div>
-                <h2 className="text-sm font-semibold text-white">Run Latency</h2>
-                <p className="mt-1 text-xs text-zinc-400">Performance trend over the last {runs.length} runs</p>
-              </div>
-            </div>
-            <div className="bg-[var(--color-surface-primary)]/30 p-6 rounded-2xl ring-1 ring-white/[0.02]">
+          <SurfaceCard>
+            <SurfaceCardHeader
+              title="Run Latency"
+              description={`Performance trend over the last ${runs.length} runs`}
+            />
+            <div className={clsx(surfaceInsetClass, 'mx-6 mb-6 p-6')}>
               <RunLatencyChart data={latencyPoints} />
             </div>
-          </div>
+          </SurfaceCard>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
             <div className="lg:col-span-2">
@@ -128,14 +126,12 @@ export default async function RunsPage({
             </div>
 
             <div className="flex flex-col gap-6">
-              <div className={surfaceCardClass}>
-                <div className={surfaceCardHeaderClass}>
-                  <div>
-                    <h2 className="text-sm font-semibold text-white">Tool Calls Overview</h2>
-                    <p className="mt-1 text-xs text-zinc-400">Outcomes across {runs.length} runs</p>
-                  </div>
-                </div>
-                <div className="p-6 bg-[var(--color-surface-primary)]/30 rounded-2xl ring-1 ring-white/[0.02]">
+              <SurfaceCard>
+                <SurfaceCardHeader
+                  title="Tool Calls Overview"
+                  description={`Outcomes across ${runs.length} runs`}
+                />
+                <div className={clsx(surfaceInsetClass, 'mx-6 mb-6 p-6')}>
                   {allToolCalls.length > 0 ? (
                     <div className="flex flex-col gap-6">
                       <SplitBar
@@ -162,15 +158,15 @@ export default async function RunsPage({
                     <p className="text-sm text-zinc-500">No tool calls recorded across these runs.</p>
                   )}
                 </div>
-              </div>
+              </SurfaceCard>
             </div>
           </div>
 
-          <div className={surfaceCardClass}>
-            <div className={surfaceCardHeaderClass}>
-              <h2 className="text-sm font-semibold text-white">Recent Runs</h2>
-              <span className="text-xs text-zinc-500">{runs.length} runs</span>
-            </div>
+          <SurfaceCard>
+            <SurfaceCardHeader
+              title="Recent Runs"
+              meta={<span className="font-mono text-xs tabular-nums text-zinc-500">{runs.length} runs</span>}
+            />
             <Table>
               <TableHead>
                 <TableRow>
@@ -242,7 +238,7 @@ export default async function RunsPage({
                 })}
               </TableBody>
             </Table>
-          </div>
+          </SurfaceCard>
         </>
       )}
     </div>
