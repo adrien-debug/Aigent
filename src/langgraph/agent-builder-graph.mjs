@@ -28,7 +28,7 @@
  * Exports `graph` (the compiled graph) — referenced by langgraph.json.
  */
 import { AIMessage, ToolMessage } from '@langchain/core/messages'
-import { StateGraph, MessagesAnnotation, START, END, interrupt } from '@langchain/langgraph'
+import { StateGraph, MessagesAnnotation, Annotation, START, END, interrupt } from '@langchain/langgraph'
 
 import { buildTool, buildToolsFromConfig } from './tool-registry.mjs'
 import { createChatModel } from './model-provider.mjs'
@@ -144,6 +144,26 @@ function spentUsd(messages, pricing) {
  * without this the app cannot know what really ran (it reported `modelUnverified`).
  */
 export const EXECUTED_MODEL = 'aigent_executed_model'
+
+/**
+ * Graph state = messages + the model the graph ACTUALLY instantiated this run.
+ *
+ * The provider's own model id never survives the SDK round-trip (response_metadata
+ * is stripped — see agentNode). But the graph DOES know which model it handed to
+ * createChatModel: `rt.model`, already resolved (cfg.model, or DEFAULT_MODEL when
+ * the assistant config carries none). That resolved string is a FACT the graph
+ * owns, not a guess. We carry it in a dedicated STATE channel (custom state
+ * channels DO survive getState, unlike message metadata) so the server can read
+ * the real executed model without polluting the user-facing answer. Last write
+ * wins: every agent turn instantiates the same model, so the final value is it.
+ */
+const AgentBuilderState = Annotation.Root({
+  ...MessagesAnnotation.spec,
+  executedModel: Annotation({
+    reducer: (_prev, next) => next,
+    default: () => null,
+  }),
+})
 const DEFAULT_TOOL_RISK = { draft_copilot_spec: 'medium' }
 
 const DEFAULT_MODEL = process.env.AGENT_BUILDER_MODEL || 'gpt-5.4'
@@ -367,11 +387,15 @@ async function agentNode(state, config) {
   // own model id isn't passed through either (response_metadata carries only
   // `model_provider` + `usage`). The only channel that survives is the message
   // CONTENT — and we will not pollute the user-facing answer with a model tag.
-  // So the app reports `modelUnverified: true` on this path. That is the HONEST
-  // answer: we'd rather say "unknown" than assert the REQUESTED model, which the
-  // graph may silently have replaced with DEFAULT_MODEL when the assistant config
-  // carries no model. Never affirm a fact we cannot verify.
-  return { messages: [response] }
+  // The provider's DATED SNAPSHOT id (gpt-5.4 → gpt-5.4-2026-03-05) still doesn't
+  // survive the round-trip, so we can't report that finer granularity here. But
+  // `rt.model` IS a verified fact: it is the exact model string the graph handed
+  // to createChatModel this turn, AFTER resolving cfg.model vs DEFAULT_MODEL. That
+  // is NOT the "assert the requested model" trap the old note warned about — the
+  // resolution already happened. We stamp it into a dedicated STATE channel (which
+  // survives getState, unlike the dropped response_metadata) so the server can
+  // report the real instantiated model instead of null, without tagging the answer.
+  return { messages: [response], executedModel: rt.model }
 }
 
 /**
@@ -505,7 +529,7 @@ function routeApproval(state) {
   return pending.length > 0 ? 'tools' : 'agent'
 }
 
-export const graph = new StateGraph(MessagesAnnotation)
+export const graph = new StateGraph(AgentBuilderState)
   .addNode('agent', agentNode)
   .addNode('approval', approvalNode)
   .addNode('tools', toolsNode)

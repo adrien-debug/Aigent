@@ -98,10 +98,11 @@ export interface LangGraphServerResult {
   /** Null when the run carried no provider usage (unmeasured — never a fake 0). */
   costUsd: number | null
   /**
-   * The model that ACTUALLY served the run, read from the provider's own
-   * response metadata (never the requested/configured model — the graph may
-   * silently fall back to DEFAULT_MODEL when the assistant config is empty).
-   * Null when no AI message carried a resolvable model — never guessed.
+   * The model the graph ACTUALLY instantiated, read from its `executedModel`
+   * state channel (agent-builder-graph.mjs) — a verified fact the graph owns,
+   * already resolved (cfg.model vs DEFAULT_MODEL). Falls back to a provider
+   * response-metadata read for any path that surfaces one. Null only when the
+   * graph wrote nothing (e.g. an empty run) — never a guess.
    */
   resolvedModel: string | null
   /**
@@ -360,6 +361,14 @@ async function finalizeRunFromState(args: {
     args.messagesOverride ?? (((state.values as { messages?: AnyMsg[] } | undefined)?.messages ?? []) as AnyMsg[])
   const { steps, toolCalls } = buildStepsFromMessages(messages)
 
+  // The model the graph ACTUALLY instantiated, carried in a dedicated state
+  // channel (agent-builder-graph.mjs, executedModel) — custom state channels
+  // survive getState, unlike the message response_metadata the SDK strips. This
+  // is the primary, VERIFIED source; realModelFromMessages is the fallback for
+  // any path (a provider that does surface model_name) that never wrote it.
+  const executedModel = (state.values as { executedModel?: string | null } | undefined)?.executedModel ?? null
+  const resolvedModel = executedModel ?? realModelFromMessages(messages)
+
   const lastAi = [...messages].reverse().find((m) => (m.type ?? m.role) === 'ai' || (m.type ?? m.role) === 'assistant')
   const finalText = typeof lastAi?.content === 'string' ? stripSentinel(lastAi.content) : ''
 
@@ -383,7 +392,7 @@ async function finalizeRunFromState(args: {
       steps,
       toolCalls,
       costUsd: costFromMessages(messages),
-      resolvedModel: realModelFromMessages(messages),
+      resolvedModel,
       budgetExhausted: budgetExhaustedFromMessages(messages),
     }
   }
@@ -403,7 +412,7 @@ async function finalizeRunFromState(args: {
     steps,
     toolCalls,
     costUsd: costFromMessages(messages),
-    resolvedModel: realModelFromMessages(messages),
+    resolvedModel,
     budgetExhausted: budgetExhaustedFromMessages(messages),
   }
 }
@@ -578,6 +587,13 @@ export async function resumeOnAgentServer(args: {
   // Emit steps only for the NEW messages, but resolve tool names against the
   // FULL history — the AIMessage that requested the gated tool is pre-pause.
   const { steps, toolCalls } = buildStepsFromMessages(messages, allMessages)
+
+  // Same executed-model source as the run path: the graph's state channel, which
+  // persists across the interrupt/resume (it was stamped pre-pause). Verified fact
+  // over the message-metadata fallback.
+  const resumeExecutedModel = (state.values as { executedModel?: string | null } | undefined)?.executedModel ?? null
+  const resolvedModel =
+    resumeExecutedModel ?? realModelFromMessages(messages) ?? realModelFromMessages(allMessages)
   const lastAi = [...messages].reverse().find((m) => (m.type ?? m.role) === 'ai' || (m.type ?? m.role) === 'assistant')
   const finalText = typeof lastAi?.content === 'string' ? stripSentinel(lastAi.content) : ''
 
@@ -601,7 +617,7 @@ export async function resumeOnAgentServer(args: {
       steps,
       toolCalls,
       costUsd: costFromMessages(messages),
-      resolvedModel: realModelFromMessages(messages) ?? realModelFromMessages(allMessages),
+      resolvedModel,
       budgetExhausted: budgetExhaustedFromMessages(allMessages),
     }
   }
@@ -624,7 +640,7 @@ export async function resumeOnAgentServer(args: {
     steps,
     toolCalls,
     costUsd: costFromMessages(messages),
-    resolvedModel: realModelFromMessages(messages) ?? realModelFromMessages(allMessages),
+    resolvedModel,
     budgetExhausted: budgetExhaustedFromMessages(allMessages),
   }
 }
