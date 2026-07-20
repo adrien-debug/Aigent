@@ -343,7 +343,7 @@ const MARKET_TOOL_SPECS = {
     schema: z.object({
       pair: MARKET_PAIR_SCHEMA,
       interval: MARKET_INTERVAL_SCHEMA.optional(),
-      limit: z.number().int().min(15).max(500).optional(),
+      limit: z.number().int().min(15).max(100).optional(),
       asOf: z.number().int().optional(),
     }).strict(),
   },
@@ -353,7 +353,8 @@ const MARKET_TOOL_SPECS = {
     schema: z.object({
       pair: MARKET_PAIR_SCHEMA,
       interval: MARKET_INTERVAL_SCHEMA.optional(),
-      limit: z.number().int().min(15).max(500).optional(),
+      intervals: z.array(MARKET_INTERVAL_SCHEMA).min(1).max(6).optional(),
+      limit: z.number().int().min(15).max(100).optional(),
       asOf: z.number().int().optional(),
     }).strict(),
   },
@@ -363,7 +364,7 @@ const MARKET_TOOL_SPECS = {
     schema: z.object({
       pair: MARKET_PAIR_SCHEMA,
       intervals: z.array(MARKET_INTERVAL_SCHEMA).min(1).max(6),
-      limit: z.number().int().min(2).max(500).optional(),
+      limit: z.number().int().min(2).max(100).optional(),
       asOf: z.number().int().optional(),
     }).strict(),
   },

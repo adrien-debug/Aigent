@@ -7,9 +7,11 @@ import {
   readLiquiditySnapshot,
   readFundingOpenInterest,
   readMacroContext,
+  resolveProvider,
   TRADING_TOOL_HANDLERS,
 } from '@/lib/agent-mission-control/market/tools'
 import type { MarketSnapshot } from '@/lib/agent-mission-control/market/snapshot'
+import { BinanceMarketProvider } from '@/lib/agent-mission-control/market/binance-provider'
 
 describe('trading tools — fixture-backed, read-only, truth-aware', () => {
   it('read_market_snapshot on a trend-up fixture is SNAPSHOT-grade FIXTURE, never LIVE', async () => {
@@ -39,16 +41,8 @@ describe('trading tools — fixture-backed, read-only, truth-aware', () => {
     expect(snap.executable).toBe(false)
   })
 
-  it('no source configured → UNAVAILABLE, not a throw or a fake value', async () => {
-    const prev = process.env.TRADEAGENT_MARKET_URL
-    delete process.env.TRADEAGENT_MARKET_URL
-    try {
-      const r = await readMarketSnapshot(JSON.stringify({ pair: 'ETHUSDT' }))
-      expect(r.ok).toBe(false)
-      expect(r.summary).toMatch(/no market source/i)
-    } finally {
-      if (prev) process.env.TRADEAGENT_MARKET_URL = prev
-    }
+  it('defaults runtime reads to the public Binance provider', () => {
+    expect(resolveProvider({})).toBeInstanceOf(BinanceMarketProvider)
   })
 
   it('bad args are rejected with an error result, never a throw', async () => {
@@ -70,7 +64,11 @@ describe('trading tools — fixture-backed, read-only, truth-aware', () => {
       JSON.stringify({ pair: 'ETHUSDT', interval: '1h', fixtureScenario: 'trend-down' }),
     )
     expect(r.ok).toBe(true)
-    expect((r.data as { structure: { trend: string } }).structure.trend).toBe('down')
+    expect(
+      (r.data as { byTimeframe: { '1h': { structure: { trend: string } } } }).byTimeframe[
+        '1h'
+      ].structure.trend
+    ).toBe('down')
   })
 
   it('account risk is ALWAYS UNAVAILABLE — capital is never fabricated', async () => {
