@@ -339,3 +339,130 @@ Restent ouverts, chacun maintenant *prouvé* plutôt que supposé : clé Gemini 
 (**SECURITY BLOCKER**), aucun agent Gemini/local persistant réel, coût LangGraph faux-zéro,
 5 agents affichés opérationnels sans preuve. Le socle exécuté (OpenAI direct, HITL,
 classification outils, invariant confirmation) est désormais PROVEN, pas déclaré.
+
+---
+
+# Lot F — vérité LangGraph, validation des agents actifs, consolidation
+
+## Les cinq axes de vérité (distincts, jamais confondus)
+
+- **AGENT QUALITY** — un agent qui s'exécute ≠ un agent capable. Les 5 promus tournent mais leur toolset ne remplit pas leur rôle.
+- **PROVIDER PATH** — le router est multi-provider ; un seul provider (OpenAI) est exercé par de vrais agents.
+- **RUNTIME SAFETY** — HITL, forbidden, invariant de confirmation : prouvés.
+- **BUSINESS VALIDATION** — capacité métier réelle : absente pour les 5 promus (INVALID_CONFIGURATION).
+- **CONFIGURATION ONLY** — 22 outils métier déclarés sans handler : config, pas capacité.
+
+## F1 — coût LangGraph : faux zéro supprimé
+
+Racine : `agent_runs.cost_usd NUMERIC NOT NULL DEFAULT 0` + `costFromMessages` estimait les tokens
+depuis le contenu (0 pour un message tool-call vide) → **faux zéro**. Correctif :
+- `costFromMessages` retourne **null** quand aucun message ne porte de `usage_metadata` (plus d'estimation contenu).
+- Colonne rendue **nullable**, DEFAULT retiré (migration 0025).
+- **26 faux zéros historiques → null**, règle prouvée `cost_usd=0 AND model_unverified=true` (les 26 l'étaient tous ; aucun vrai zéro mesuré n'existe ; jamais déduit du provider).
+- `formatUsd(null) = "—"`, jamais `$0.00` ; agrégations excluent null.
+- Prouvé : `cost-truth.test.ts` **5/5**, typecheck vert, migration live (**0 zéro restant**), et 5 runs F2 récents à coût **mesuré** (usage présent → coût réel) confirmant la branche non-null.
+
+**Règle de persistance canonique** : coût mesuré → valeur réelle ; usage absent → `null` (unavailable) ;
+modèle non lisible → `resolved_model=null` + `model_unverified=true`. Jamais 0 pour un inconnu.
+
+## F2 — les 5 NEVER_RUN_MISLEADING (un run réel chacun)
+
+| Agent | Run | Provider | model résolu | cost | tool calls | effet | Verdict |
+|---|---|---|---|---|---|---|---|
+| BTC Alert & Levels Sentinel | 5db98990 | openai | null (non lisible) | mesuré | 0 | aucun | **INVALID_CONFIGURATION** |
+| Market Regime & Rotation | 6338506b | openai | null | mesuré | 0 | aucun | **INVALID_CONFIGURATION** |
+| Portfolio Risk & Lock Advisor | 0d6671ba | openai | null | mesuré | 0 | aucun | **INVALID_CONFIGURATION** |
+| Source Reliability & Price Trust | 87673d53 | openai | null | mesuré | 0 | aucun | **INVALID_CONFIGURATION** |
+| Withdrawal Review Copilot | b803301e | openai | null | mesuré | 0 | aucun | **INVALID_CONFIGURATION** |
+
+Tous **complètent sans erreur**, provider openai, **0 appel d'outil**, 0 tentative unsafe, **aucun effet**
+(copilots 38→38). Mais leur toolset = **les 7 lecteurs de repo uniquement** — aucun outil marché, retrait
+ou risque. Un « Withdrawal Review Copilot » qui ne peut que lire un repo ne peut pas réviser un retrait.
+Ils s'exécutent mécaniquement ; leur capacité métier est **absente**. Aucun n'a été supprimé ni modifié
+(l'intention produit appartient au propriétaire).
+
+**Recommandation exacte** (non appliquée — décision du propriétaire) : soit rétrograder `status`
+`active → draft` (retire la fausse apparence opérationnelle, réversible, données préservées), soit
+attacher les outils marché/risque manquants pour que le toolset corresponde au rôle. Tant que ni l'un
+ni l'autre, la vérité « 0 run » reste la seule garantie affichée.
+
+## F3 — les 7 NEVER_RUN_STALE (aucune exécution, recommandation cleanup)
+
+| Agent | Doublon | Type | Recommandation (non appliquée) |
+|---|---|---|---|
+| Design System Guardian ×3 | exact (même nom, proj-aigent-builder) | doublons exacts | garder 1 canonique, retirer 2 |
+| Design System Consistency Guard | fonctionnel (rôle DS proche) | quasi-doublon | évaluer fusion avec Guardian |
+| Google Ads Airport Strategy France | — | draft d'authoring abandonné | revue avant retrait |
+| Prix au m² Estimation Agent | — | draft d'authoring abandonné | revue avant retrait |
+| Security Sentinel | — | draft d'authoring abandonné | revue avant retrait |
+
+**Rien supprimé** (pas d'autorisation). Tous accessibles via l'UI/API mais `status=draft`, non promus.
+
+## F4 — Gemini (SECURITY BLOCKER maintenu)
+
+**SECURITY BLOCKER — ROTATE GEMINI API KEY.** Vérifié :
+- clé **absente** des fichiers suivis (`git grep AIza` = 0) et de l'historique (`git log -S` = 0) ;
+- **absente** de mes scripts committés (aucune référence `GEMINI_API_KEY`/clé) ;
+- code google **fail-closed** : `ProviderUnavailableError` si clé absente, `ModelAccessError` sur le 403, aucun fallback silencieux ;
+- unique correspondance `AIza+35` = blob base64 dans un HTML d'avatars scratchpad éphémère (non-committé, faux positif).
+
+Aucune rotation automatique (pas de credentials). Aucun nouvel appel Gemini tenté.
+
+## Matrices finales
+
+**1. Agents**
+
+| | Nombre |
+|---|---|
+| Total | 38 |
+| Réellement exécutés (≥1 run) | 12 avant mission + 5 validés cette mission = 17 |
+| Jamais exécutés | 21 restants (14 EXPECTED + 7 STALE ; les 5 MISLEADING ont désormais tourné) |
+| Validés cette mission | 5 (verdict INVALID_CONFIGURATION — exécutent mais sans capacité) |
+| Misleading corrigés | 0 muté (recommandation posée, décision propriétaire) |
+| Stale | 7 (recommandation cleanup) |
+
+**2. Providers** — OpenAI : PROVEN LIVE (agents réels) · Gemini : BROKEN (clé) · local vLLM : PROVEN LIVE — PROVIDER PATH ONLY · Mistral : UNSUPPORTED/INERT.
+
+**3. Modèles résolus** — direct : vérifié (`gpt-5.4-2026-03-05`) · LangGraph : `resolved_model=null` + `model_unverified=true` (honnête, pas de métadonnée lisible) · règle : jamais deviné.
+
+**4. Outils** — 14 READ_ONLY_PROVEN / **0 MUTATING_PROVEN** / 22 UNKNOWN_FAIL_CLOSED / 1 PROPOSES_ONLY.
+
+**5. Confirmation** — invariant `mutates OR high OR critical ⇒ requires_confirmation` : **0 violation** (migrations 0023/0024).
+
+**6. HITL** — rejet (`e37d49db` → blocked, aucun effet) + approbation (`5bd94ef5` → completed, tool exécuté) : PROVEN LIVE ; forbidden : PROVEN TEST (18/18).
+
+**7. Coûts** — direct : mesuré · LangGraph : mesuré si usage, sinon **null** · local : coût-0 fournisseur explicite · inconnus : **null**, jamais 0 · migration 0025 : 26 faux zéros → null.
+
+**8. Agents jamais exécutés** — 14 EXPECTED · 7 STALE · 5 MISLEADING (désormais exécutés → INVALID_CONFIGURATION).
+
+**9. Dettes** — `resolved_model` LangGraph non capturable (métadonnée absente) ; 5 agents à rétrograder/recâbler ; 7 stale à nettoyer ; 22 outils métier stubs.
+
+**10. Bloqueurs externes** — **clé Gemini compromise** (rotation = propriétaire) ; aucun agent persistant Gemini/local.
+
+## Ce que le rapport affirme explicitement
+
+- Aigent **a** une architecture multi-provider fonctionnelle **dans le router**.
+- **Aucun agent persistant Gemini ou local** n'existe.
+- **Seul OpenAI** est actuellement exercé par de vrais agents.
+- **local** est prouvé **seulement au niveau provider path**.
+- **Gemini** est bloqué par secret compromis.
+- Le **HITL est prouvé** (rejet + approbation, live).
+- **Aucun outil mutatif réel** n'est actuellement implémenté (`MUTATING_PROVEN = 0`).
+- **22 outils métier** sont encore des **stubs fail-closed**.
+- **Cinq agents actifs** étaient sans preuve d'exécution (désormais exécutés, INVALID_CONFIGURATION).
+
+## Gates
+
+typecheck ✅ · lint ✅ · check:ds ✅ · check:catalyst ✅ · audit:dead ✅ (125 composants) ·
+test ✅ (**1039/1039**, 86 fichiers). build/verify/health : exécutés en intégration dans `main`
+(node_modules réel ; le build échoue en worktree uniquement sur le symlink node_modules, artefact de
+worktree, pas un défaut de code).
+
+## Verdict global
+
+Le socle exécuté (OpenAI direct + vérification du modèle, HITL, classification des outils, invariant de
+confirmation, coût honnête) est **PROVEN**. La couverture provider (Gemini/local sans agent réel) et la
+qualité métier (5 agents sans capacité, 22 outils stubs) restent **incomplètes**. SUCCESS est interdit
+tant que ces conditions subsistent — et elles subsistent.
+
+AIG-AGENT-QUALITY-005: PARTIAL
