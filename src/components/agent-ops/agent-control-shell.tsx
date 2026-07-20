@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowRightStartOnRectangleIcon, Bars3Icon, ChartBarIcon, Cog6ToothIcon, CpuChipIcon, SignalIcon, Squares2X2Icon, XMarkIcon } from '@heroicons/react/20/solid'
+import { ArrowRightStartOnRectangleIcon, Bars3Icon, ChartBarIcon, Cog6ToothIcon, CpuChipIcon, MagnifyingGlassIcon, SignalIcon, Squares2X2Icon, XMarkIcon } from '@heroicons/react/20/solid'
 import * as Headless from '@headlessui/react'
 import { AnimatePresence, motion } from 'motion/react'
 import clsx from 'clsx'
@@ -51,15 +51,21 @@ function RailItem({
       href={href}
       aria-current={current ? 'page' : undefined}
       className={clsx(
-        'group relative flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-xl border transition-[color,background-color,border-color] duration-200',
+        'group relative flex size-11 items-center justify-center rounded-xl border transition-[color,background-color,border-color] duration-200',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
         current
           ? 'border-[var(--accent-line-strong)] bg-[var(--accent-surface)] text-white'
           : 'border-transparent text-zinc-500 hover:border-white/5 hover:bg-white/[0.03] hover:text-zinc-200'
       )}
     >
-      <Icon aria-hidden="true" className={clsx('size-6 shrink-0 transition-colors duration-200', current ? 'text-accent-300' : 'group-hover:text-zinc-400')} />
-      <span className="text-[11px] font-medium tracking-wide leading-none">{label}</span>
+      <Icon aria-hidden="true" className={clsx('size-5 shrink-0 transition-colors duration-200', current ? 'text-accent-300' : 'group-hover:text-zinc-400')} />
+      <span className="sr-only">{label}</span>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute left-full ml-3 hidden whitespace-nowrap rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium text-zinc-200 ring-1 ring-white/10 group-hover:block group-focus-visible:block"
+      >
+        {label}
+      </span>
     </Link>
   )
 }
@@ -165,27 +171,41 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
     <div className="relative isolate flex min-h-svh w-full bg-[var(--color-surface-canvas)] text-zinc-100 font-sans selection:bg-[var(--accent-selection)]">
       <CommandPalette />
 
-      {/* Sidebar - floating surface-card rail (same DS as body cards): square tiles, icon over label, centered */}
-      <aside className={clsx(surfaceNavClass, 'fixed inset-y-3 left-3 z-20 hidden w-24 flex-col items-center py-6 lg:flex')}>
+      {/* Sidebar - compact icon rail */}
+      <aside className={clsx(surfaceNavClass, 'fixed inset-y-3 left-3 z-20 hidden w-16 flex-col items-center py-4 lg:flex')}>
 
         {/* Brand Header */}
         <Link
           href="/admin"
           aria-label="Agent Mission Control"
-          className="mb-8 flex size-12 shrink-0 items-center justify-center transition-transform hover:scale-105"
+          className="flex size-11 shrink-0 items-center justify-center transition-transform hover:scale-105"
         >
-          <LogoMark className="size-10 text-white" />
+          <LogoMark className="size-7 text-white" />
         </Link>
 
+        <Headless.Button
+          aria-label="Search"
+          onClick={() => window.dispatchEvent(new Event('aigent:command-palette'))}
+          className="group relative mt-2 flex size-11 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-white/[0.03] hover:text-zinc-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+        >
+          <MagnifyingGlassIcon aria-hidden="true" className="size-5" />
+          <span
+            role="tooltip"
+            className="pointer-events-none absolute left-full ml-3 hidden whitespace-nowrap rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium text-zinc-200 ring-1 ring-white/10 group-hover:block group-focus-visible:block"
+          >
+            Search
+          </span>
+        </Headless.Button>
+
         {/* Navigation — centered on the rail's vertical axis */}
-        <nav className="flex w-full flex-1 flex-col items-center justify-center gap-1 px-2">
+        <nav className="flex w-full flex-1 flex-col items-center justify-center gap-1">
           {NAV_ITEMS.map(({ label, icon, href, match }) => (
             <RailItem key={label} label={label} icon={icon} href={href} current={match(pathname)} />
           ))}
         </nav>
 
         {/* User Footer */}
-        <div className="mt-auto flex w-full flex-col items-center px-2 pb-1">
+        <div className="mt-auto flex w-full flex-col items-center pb-1">
           <UserFooter avatarSize="size-8" iconWrapClassName="mt-2 size-11 shrink-0" iconIdleColorClassName="text-zinc-600" />
         </div>
       </aside>
@@ -272,10 +292,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
       {/* Main fills the viewport; AdminRouteViewport owns overflow-y scroll.
           Do not put overflow-y-auto here with a flex-1/min-h-0 child that does
           not scroll — document pages clipped their header/KPIs above the fold. */}
-      {/* lg:pl-32 (8rem/128px) clears the fixed rail: w-24 (96px) rail offset
-          left-3 (12px) from the viewport edge = ends at 108px, +20px of air
-          before content starts, matching the left-3 gap on the other side. */}
-      <main className="relative z-10 flex h-svh min-h-0 min-w-0 flex-1 flex-col overflow-hidden pt-16 lg:pl-32 lg:pt-0">
+      <main className="relative z-10 flex h-svh min-h-0 min-w-0 flex-1 flex-col overflow-hidden pt-16 lg:pl-24 lg:pt-0">
         {children}
       </main>
     </div>

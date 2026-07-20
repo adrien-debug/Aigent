@@ -52,12 +52,15 @@ export function AgentKpiBand({
   className,
   density = 'default',
   separators = false,
+  flush = false,
 }: {
   stats: AgentKpiStat[]
   className?: string
   density?: 'default' | 'compact'
   /** Hairline separators between stats; padding moves into the cells. */
   separators?: boolean
+  /** Remove the band's internal bottom margin for compact page composition. */
+  flush?: boolean
 }) {
   const hasChange = stats.some((stat) => stat.change)
   const hasViz = stats.some((stat) => stat.viz)
@@ -73,7 +76,7 @@ export function AgentKpiBand({
   const labelClass = clsx(
     'flex items-start',
     eyebrowClass,
-    separators ? 'min-h-7 mb-2' : density === 'compact' ? 'min-h-7 mb-1' : 'min-h-8 mb-1.5'
+    separators ? 'min-h-7 mb-2' : flush ? 'min-h-6 mb-0.5' : density === 'compact' ? 'min-h-7 mb-1' : 'min-h-8 mb-1.5'
   )
 
   return (
@@ -85,8 +88,8 @@ export function AgentKpiBand({
         separators
           ? 'gap-px bg-white/5'
           : density === 'compact'
-            ? 'mb-6 gap-x-4 gap-y-2'
-            : 'mb-6 gap-4',
+            ? clsx(!flush && 'mb-6', 'gap-x-4 gap-y-2')
+            : clsx(!flush && 'mb-6', 'gap-4'),
         COLS_CLASS[stats.length] ??
           (stats.length >= 6 ? 'md:grid-cols-3 xl:grid-cols-6' : 'md:grid-cols-4'),
         className
