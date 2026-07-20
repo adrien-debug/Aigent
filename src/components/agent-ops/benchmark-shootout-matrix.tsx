@@ -1,22 +1,12 @@
 import { Squares2X2Icon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 
-import { EmptyState } from '@/components/agent-ops/empty-state'
+import { EmptyState, NotMeasuredDash } from '@/components/agent-ops/empty-state'
 import { Badge } from '@/components/catalyst/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { formatDurationMs, formatPercent, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 import { MODEL_PROVIDER_LABELS } from '@/lib/agent-mission-control/labels'
 import type { BenchmarkResult, BenchmarkRun } from '@/lib/agent-mission-control/types'
-
-/** A dimension that was never measured renders "—", never a misleading 0. */
-function NotMeasuredDash() {
-  return (
-    <span className="text-zinc-500">
-      <span aria-hidden="true">—</span>
-      <span className="sr-only">not measured</span>
-    </span>
-  )
-}
 
 type ScoredRow = { run: BenchmarkRun; result: BenchmarkResult }
 

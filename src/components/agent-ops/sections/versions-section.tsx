@@ -1,7 +1,7 @@
 
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { SurfaceCard } from '@/components/agent-ops/surface-card'
-import { EmptyState } from '@/components/agent-ops/empty-state'
+import { EmptyState, NotMeasuredDash } from '@/components/agent-ops/empty-state'
 import { ReleasePathSteps } from '@/components/agent-ops/release-path-steps'
 import {
   UnverifiedNote,
@@ -16,16 +16,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatPercent } from '@/lib/agent-mission-control/format'
 import { getCopilot, getVersionsForCopilot } from '@/lib/agent-mission-control/data'
 import type { CopilotVersion } from '@/lib/agent-mission-control/types'
-
-/** A version that was never run renders "—" (not measured), never a scary 0.0%. */
-function NotMeasuredDash() {
-  return (
-    <span className="text-zinc-500">
-      <span aria-hidden="true">—</span>
-      <span className="sr-only">not measured</span>
-    </span>
-  )
-}
 
 /**
  * `unsafeActionCount` and `shadowAgreement` still read the stored
@@ -117,7 +107,7 @@ export async function VersionsSection({ copilotId }: { copilotId: string }) {
 
       <AgentSectionCard
         title="Score comparison"
-        description="Every version side by side — test pass rate and benchmark score are live (same evidence as the release gate); shadow agreement and unsafe actions are unverified against the latest run."
+        description="Every version side by side — test pass rate, benchmark score and unsafe actions are live (same evidence as the release gate); only shadow agreement is unverified against the latest run."
         contentClassName="px-6 py-4"
       >
         <Table striped dense className="px-6 [--gutter:--spacing(0)]">

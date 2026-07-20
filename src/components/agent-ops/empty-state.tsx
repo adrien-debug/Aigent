@@ -40,3 +40,20 @@ export function EmptyState({
     </div>
   )
 }
+
+/**
+ * NotMeasuredDash — the cell-level counterpart of EmptyState: a dimension that
+ * was never measured renders "—", NEVER a 0. Zero asserts "a run looked and
+ * found none"; absence of measurement asserts nothing. Any table/matrix cell
+ * fed a `null` metric must use this rather than coercing to a number.
+ *
+ * Screen readers get "not measured" — the em dash alone is silent.
+ */
+export function NotMeasuredDash() {
+  return (
+    <span className="text-zinc-500">
+      <span aria-hidden="true">—</span>
+      <span className="sr-only">not measured</span>
+    </span>
+  )
+}

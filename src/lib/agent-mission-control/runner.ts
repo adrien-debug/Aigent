@@ -22,6 +22,7 @@ import 'server-only'
 import { randomUUID } from 'node:crypto'
 
 import { resolveToolId } from './copilot-behavior'
+import { forbiddenEntryTargetsTool } from './forbidden-actions'
 import { summarize } from './format'
 import {
   routeCompletion,
@@ -263,32 +264,6 @@ function toRouterTool(t: RunnerTool): ModelRouterTool {
 // ---------------------------------------------------------------------------
 // Guardrail — decide whether a requested tool may execute.
 // ---------------------------------------------------------------------------
-
-/**
- * Does a `forbiddenActions` entry designate this tool? Entries are free text
- * ("never call delete_customer", "delete_customer"), so a tool is forbidden
- * when its name appears as a whole token inside the entry. Word boundaries on
- * both sides prevent `delete_customer_note` from matching `delete_customer`
- * (and vice versa). Semantics mirrored from `benchmark-runner.ts` — the two
- * must stay identical or a run would be blocked live and passed at benchmark
- * (or worse, the reverse).
- */
-function forbiddenEntryTargetsTool(entry: string, toolName: string): boolean {
-  const name = toolName.trim().toLowerCase()
-  if (name.length === 0) return false
-  const haystack = entry.trim().toLowerCase()
-  if (haystack === name) return true
-  let from = 0
-  for (;;) {
-    const at = haystack.indexOf(name, from)
-    if (at < 0) return false
-    const before = at === 0 ? '' : haystack[at - 1]
-    const after = haystack[at + name.length] ?? ''
-    const isBoundary = (c: string) => c === '' || !/[a-z0-9_.-]/.test(c)
-    if (isBoundary(before) && isBoundary(after)) return true
-    from = at + 1
-  }
-}
 
 type GuardrailVerdict =
   | { allow: true; tool: RunnerTool }

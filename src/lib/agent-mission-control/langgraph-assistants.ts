@@ -162,7 +162,7 @@ async function loadCopilotBehaviorConfig(
   // Latest manifest for the copilot (mirrors data.getManifestForCopilot's order).
   const manifestRows = await pgrest<RawRow[]>(
     'GET',
-    `manifests?copilot_id=eq.${encodeURIComponent(copilotId)}&select=system_prompt_summary,forbidden_actions,confirmation_policy,always_confirm_actions,output_contract,max_steps_per_run&order=updated_at.desc&limit=1`
+    `manifests?copilot_id=eq.${encodeURIComponent(copilotId)}&select=system_prompt_summary,forbidden_actions,confirmation_policy,always_confirm_actions,output_contract,max_steps_per_run,max_cost_per_run_usd&order=updated_at.desc&limit=1`
   )
   const manifest = manifestRows[0] ?? null
 

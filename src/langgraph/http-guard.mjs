@@ -102,7 +102,14 @@ export function validateHttpUrl(raw, allowedHosts = null, base = undefined) {
       host: parsed.host || null,
     }
   }
-  if (allowedHosts !== null && !allowedHosts.includes(parsed.host)) {
+  // `URL` lowercases the host it parses, but an allowlist entry typed in the
+  // dashboard may not be. Comparing raw would make an entry like
+  // `API.EXAMPLE.COM` match nothing — a silently inoperative allowlist, which
+  // fails closed but looks configured.
+  if (
+    allowedHosts !== null &&
+    !allowedHosts.some((allowed) => String(allowed).trim().toLowerCase() === parsed.host)
+  ) {
     return {
       ok: false,
       code: 'host-not-allowed',

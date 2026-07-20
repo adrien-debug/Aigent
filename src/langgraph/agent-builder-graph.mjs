@@ -73,9 +73,13 @@ export const COST_BUDGET_EXHAUSTED = 'aigent_cost_budget_exhausted'
 /**
  * Does a manifest `forbiddenActions` entry name this tool?
  *
- * THIRD COPY of one rule — keep aligned with `forbiddenEntryTargetsTool` in
- * `runner.ts` (direct path, pre-execution) and `benchmark-runner.ts` (after the
- * fact). Same semantics everywhere: trim/lowercase, direct equality, otherwise a
+ * PORT of `forbiddenEntryTargetsTool` in
+ * `src/lib/agent-mission-control/forbidden-actions.ts`, which is the single TS
+ * home shared by the direct path (`runner.ts`, pre-execution) and the benchmark
+ * (`benchmark-runner.ts`, after the fact). This process cannot import that
+ * `server-only` tree, so the rule is restated here — CHANGE ONE, CHANGE THE
+ * OTHER, or a tool gets refused on one path and waved through on another.
+ * Same semantics everywhere: trim/lowercase, direct equality, otherwise a
  * scan requiring a `[a-z0-9_.-]` word boundary on BOTH sides — so a ban on
  * `delete_customer` does not also catch `delete_customer_note`.
  * @param {string} entry

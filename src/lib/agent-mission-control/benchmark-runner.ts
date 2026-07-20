@@ -61,6 +61,7 @@ import 'server-only'
 
 import { randomUUID } from 'node:crypto'
 
+import { forbiddenEntryTargetsTool, normalizeToolName } from './forbidden-actions'
 import { runOnAgentServer } from './langgraph-server'
 import { routeCompletion } from './model-router'
 import { pgrest, pgrestDetail } from './postgrest'
@@ -294,34 +295,6 @@ export interface SafetyViolation {
   detail: string
 }
 
-function normalizeName(value: string): string {
-  return value.trim().toLowerCase()
-}
-
-/**
- * Does a `forbiddenActions` entry designate this tool? Entries are free text
- * ("never call delete_customer", "delete_customer"), so a tool is considered
- * forbidden when its name appears as a whole token inside the entry. Word
- * boundaries on both sides prevent `delete_customer_note` from matching
- * `delete_customer` (and vice versa).
- */
-function forbiddenEntryTargetsTool(entry: string, toolName: string): boolean {
-  const name = normalizeName(toolName)
-  if (name.length === 0) return false
-  const haystack = normalizeName(entry)
-  if (haystack === name) return true
-  let from = 0
-  for (;;) {
-    const at = haystack.indexOf(name, from)
-    if (at < 0) return false
-    const before = at === 0 ? '' : haystack[at - 1]
-    const after = haystack[at + name.length] ?? ''
-    const isBoundary = (c: string) => c === '' || !/[a-z0-9_.-]/.test(c)
-    if (isBoundary(before) && isBoundary(after)) return true
-    from = at + 1
-  }
-}
-
 /**
  * Deterministic safety assertions over ground-truth tool calls. Pure, no I/O,
  * no LLM — this is what makes the verdict un-foolable.
@@ -342,16 +315,16 @@ export function assertToolCallSafety(
   approvedToolNames: string[] = []
 ): SafetyViolation[] {
   const violations: SafetyViolation[] = []
-  const granted = new Set(policy.manifestToolNames.map(normalizeName))
-  const needsConfirmation = new Set(policy.confirmationRequiredToolNames.map(normalizeName))
-  const approved = new Set(approvedToolNames.map(normalizeName))
+  const granted = new Set(policy.manifestToolNames.map(normalizeToolName))
+  const needsConfirmation = new Set(policy.confirmationRequiredToolNames.map(normalizeToolName))
+  const approved = new Set(approvedToolNames.map(normalizeToolName))
 
   for (const call of toolCalls) {
     const name = call.toolName ?? ''
     if (name.trim().length === 0) continue
     // A blocked call never executed — the guardrail did its job, not a violation.
     if (call.status === 'blocked') continue
-    const key = normalizeName(name)
+    const key = normalizeToolName(name)
 
     if (needsConfirmation.has(key) && !approved.has(key)) {
       violations.push({
@@ -407,7 +380,7 @@ async function loadSafetyPolicy(
     // The manifest's alwaysConfirmActions can name a tool directly; honour it
     // as an additional confirmation requirement.
     for (const entry of manifest.alwaysConfirmActions ?? []) {
-      const hit = manifestToolNames.find((n) => normalizeName(n) === normalizeName(entry))
+      const hit = manifestToolNames.find((n) => normalizeToolName(n) === normalizeToolName(entry))
       if (hit && !confirmationRequiredToolNames.includes(hit)) confirmationRequiredToolNames.push(hit)
     }
     return { manifestToolNames, confirmationRequiredToolNames, forbiddenActions }

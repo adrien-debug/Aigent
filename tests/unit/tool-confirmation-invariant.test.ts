@@ -1,10 +1,9 @@
 /**
- * Tool confirmation invariant (security audit finding): a tool that is
- * high/critical risk OR write-capable must be created with
- * requiresConfirmation=true. The DB default is false and release-gate.ts only
- * blocks PROMOTION of high/critical tools — nothing previously stopped a
- * medium-risk write tool from being CREATED unconfirmed. Two gates are
- * exercised here: the Zod refinement at the API boundary
+ * Tool confirmation invariant: a tool that is high/critical risk OR
+ * write-capable must be created with requiresConfirmation=true. The DB default
+ * is false and release-gate.ts only blocks PROMOTION of high/critical tools, so
+ * nothing else stops a medium-risk write tool from being CREATED unconfirmed.
+ * Two gates are exercised here: the Zod refinement at the API boundary
  * (POST /api/agent-ops/copilots) and the defense-in-depth check in
  * authoring-writes.ts's createCopilotFromManifest.
  */

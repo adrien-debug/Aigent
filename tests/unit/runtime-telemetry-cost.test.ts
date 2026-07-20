@@ -1,8 +1,8 @@
 /**
- * Unit tests for the runtime-telemetry cost computation added to
+ * Unit tests for the runtime-telemetry cost computation in
  * src/lib/agent-mission-control/runtime-telemetry-store.ts.
  *
- * Covers the gap the audit flagged: the ingestion route accepts a telemetry
+ * The vocabulary gap these pin: the ingestion route accepts a telemetry
  * provider enum (openai/gemini/custom/unknown) that does NOT match the
  * internal `ModelProvider` union (openai/google/mistral/local) expected by
  * `computeCostUsd` — `gemini` !== `google`. Without an explicit mapping, cost

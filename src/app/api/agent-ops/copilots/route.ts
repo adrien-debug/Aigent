@@ -37,12 +37,12 @@ const MSG = {
 } as const
 
 /**
- * Security invariant (audit finding): nothing forced a write-capable or
- * high/critical-risk tool to carry requiresConfirmation=true — the DB default
- * is false, and release-gate.ts only blocks PROMOTION of high/critical tools,
- * not their creation. A medium-risk write tool with confirmation off would
- * sail straight through. Refused here at the 400 boundary (never silently
- * flipped to true) — same rule re-checked in authoring-writes.ts's
+ * Security invariant: a write-capable or high/critical-risk tool MUST carry
+ * requiresConfirmation=true. Nothing else enforces it — the DB default is
+ * false, and release-gate.ts only blocks PROMOTION of high/critical tools, not
+ * their creation, so a medium-risk write tool with confirmation off would sail
+ * straight through. Refused here at the 400 boundary (never silently flipped
+ * to true) — same rule re-checked in authoring-writes.ts's
  * createCopilotFromManifest as defense in depth.
  */
 const confirmationRequiredMessage = (toolName: string) =>
