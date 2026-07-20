@@ -214,4 +214,128 @@ zéro retry, zéro parallélisme. Preuves verbatim capturées.
 - Gemini : **BROKEN** (clé fuitée) — garde-fou fallback intact.
 - Mistral : **UNSUPPORTED / INERT** (correct).
 
-_(Suite : Lot sécurité — classification `mutates` + confirmation rétroactive ; puis Lot E — HITL bout-en-bout.)_
+## Lot sécurité — classification des 158 outils (preuve par implémentation)
+
+Les « 158 outils » sont **37 noms distincts** dupliqués par copilot. Classification par
+handler réel, jamais par nom. Résultat : la migration 0022 avait marqué les 158 lignes
+`mutates=true` par DEFAULT — un état faux. Corrigé.
+
+| Classification | Noms | Lignes | Preuve | mutates après | confirmation |
+|---|---|---|---|---|---|
+| **READ_ONLY_PROVEN** | 14 | 131 | handler `fetch` GET (repo), PostgREST GET (DB), provider GET public (marché) + doctrine UNAVAILABLE | `false` | non (low) |
+| **MUTATING_PROVEN** | **0** | **0** | — aucun outil n'a d'écriture réelle prouvée — | — | — |
+| **UNKNOWN_FAIL_CLOSED** | 22 | 25 | **aucun handler** — stubs proposés par l'architecte (`crm.*`, `alerts.*`, `buyers.*`, `matching.compute`, `*.read_output`, `*_bull21`…), jamais codés | `true` (conservé) | **true** (imposé) |
+| **PROPOSES_ONLY (gated)** | 1 | 2 | `draft_copilot_spec` : handler réel, **ne persiste rien**, émet une proposition à valider | `true` (conservé volontairement) | true |
+
+**Vérité de fond : `MUTATING_PROVEN = 0`.** Aucun outil du parc n'exécute d'écriture
+réelle prouvée. Les 22 noms qui *sonnent* mutants (`crm.create_lead`, `reports.publish`,
+`alerts.dispatch`…) sont des stubs sans implémentation. Fail-closed : ils restent
+`mutates=true` + confirmation obligatoire, jamais reclassés sur la foi du nom.
+
+**READ_ONLY_PROVEN — les 14 noms (131 lignes) passés `mutates=false` :**
+`read_repo_file`, `list_repo_tree`, `search_repo`, `read_project_summary`,
+`read_copilot_summary`, `read_recent_runs`, `read_tool_permissions`,
+`read_market_snapshot`, `read_volatility_state`, `read_market_structure`,
+`read_multi_timeframe_candles`, `read_liquidity_snapshot`, `read_macro_context`,
+`read_account_risk_snapshot`.
+
+### Confirmation rétroactive — invariant `mutates OR high OR critical ⇒ requires_confirmation`
+
+Appliqué en transaction live (migrations 0023 puis 0024), preuve avant/après :
+
+| Métrique | Avant | Après |
+|---|---|---|
+| `mutates=true` | 158 | **27** |
+| `mutates=false` | 0 | **131** |
+| `requires_confirmation=true` | 10 | **27** |
+| violations de l'invariant | — | **0** |
+| high/critical sans confirmation | — | **0** |
+
+Le code d'authoring (`isHighRiskOrWriteCapableTool`) imposait déjà l'invariant à
+l'écriture ; les lignes historiques n'avaient jamais été réconciliées. La migration 0024
+est **strictement additive** (ajoute 17 confirmations, n'en retire aucune). Les 14 outils
+read-only prouvés ne se voient imposer aucune confirmation.
+
+## Lot E — HITL bout-en-bout (PROVEN LIVE contre le vrai Agent Server)
+
+Deux runs réels pilotés via les routes `/run` + `/resume` (Next :3210 → LangGraph
+Agent Server :2024), copilot `Agent Builder Copilot`, outil gated `draft_copilot_spec`.
+Harnais reproductible : `scripts/aig005-hitl-proof.mjs`.
+
+**Run REJECT — `e37d49db-75f3-4d73-bf58-4858dc0e2a35`**
+
+| Étape | Observé | Preuve |
+|---|---|---|
+| run lancé | HTTP 200 | route `/run` |
+| tool call détecté | `pendingTool = draft_copilot_spec` | réponse run |
+| interruption + needs-confirmation | `status=needs-confirmation`, `interrupted=true` | réponse run |
+| aucun effet avant décision | `tool_calls = []` **avant** resume | PostgREST |
+| rejet humain | resume `{approved:false}` → HTTP 200 | route `/resume` |
+| état final blocked | `agent_runs.status = blocked` | PostgREST |
+| tool non exécuté | `tool_calls[draft_copilot_spec].status = blocked` (vrai nom, pas `tool`) | PostgREST |
+| aucune écriture | copilots `38 → 38`, delta 0 | PostgREST |
+
+**Run APPROVE — `5bd94ef5-9ca5-4970-b36d-bf18d732e205`**
+
+| Étape | Observé | Preuve |
+|---|---|---|
+| interruption | `needs-confirmation` / `interrupted` / `draft_copilot_spec` | réponse run |
+| approbation + reprise même thread | resume `{approved:true}` → `status=completed` | route `/resume` |
+| tool exécuté | `tool_calls[draft_copilot_spec].status = ok` | PostgREST |
+| aucune écriture | copilots delta 0 (le draft ne matérialise jamais un copilot) | PostgREST |
+
+**Blocage forbidden (guardrail terminal)** — prouvé PROVEN TEST, sans OpenAI :
+`tests/unit/runner-forbidden-actions.test.ts` + `tests/unit/langgraph-cost-ceiling.test.ts`,
+**18/18 passés**. `approvalNode` + `toolsNode` re-screenent l'interdiction (double
+barrière : gate + exécuteur), un forbidden n'est jamais confirmable ni exécuté.
+
+### Trou révélé par le Lot E — chemin LangGraph : coût faux-zéro
+
+Les deux runs HITL ont fait de **vrais appels OpenAI** mais persistent :
+- `resolved_model = null` + `model_unverified = true` → **honnête** : la route documente
+  (run/route.ts L216-218) que le chemin LangGraph n'a « no readable response metadata ».
+  Le fix Lot B (vérification du modèle exécuté) ne couvre **que le chemin direct** ; côté
+  LangGraph le modèle reste non vérifiable, et le code ne ment pas dessus.
+- `cost_usd = 0` (colonne NON nulle) → **FAUX ZÉRO**. Un coût réel présenté comme 0 viole
+  « donnée absente ≠ zéro ». Devrait être `null`/UNAVAILABLE. **Écart réel, non corrigé
+  ici** (correctif hors périmètre budget — nécessite de câbler l'usage tokens du stream
+  LangGraph ou d'écrire `null`). Consigné comme dette.
+
+## Audit des 26 agents jamais exécutés
+
+Classification par signaux DB (promotion, statut, draft, projet), aucun agent lancé en masse.
+
+| Classe | Nombre | Signature | Lecture |
+|---|---|---|---|
+| **NEVER_RUN_EXPECTED** | 14 | `status=draft`, non promu, projet présent | drafts en cours — correctement non opérationnels |
+| **NEVER_RUN_STALE** | 7 | `status=draft`, id `*-draft-*` (doublons) | artefacts d'authoring répétés (ex. 3× Design System Guardian) — obsolètes |
+| **NEVER_RUN_MISLEADING** | 5 | `status=active` **+ promu** (`production_version_id`), 0 run | **exposés opérationnels dans l'UI, zéro preuve d'exécution** |
+
+**Les 5 MISLEADING** (à valider ou rétrograder) : BTC Alert & Levels Sentinel,
+Market Regime & Rotation Copilot, Portfolio Risk & Lock Advisor, Source Reliability &
+Price Trust Sentinel, Withdrawal Review Copilot. Aucun supprimé (pas d'instruction).
+
+## Matrice finale — verdict AIG-AGENT-QUALITY-005
+
+| Dimension | Verdict | Preuve |
+|---|---|---|
+| OpenAI, chemin direct | **PROVEN LIVE** | run Atlas réel, modèle exécuté vérifié `gpt-5.4-2026-03-05` |
+| Vérification du modèle exécuté (direct) | **PROVEN LIVE** | 1 run vérifié ; 137 anciens non backfillés |
+| local vLLM | **PROVEN LIVE — PROVIDER PATH ONLY** | sonde router ; aucun agent persistant local |
+| Gemini | **BROKEN — clé fuitée** | 403 leaked ; garde-fou fallback intact |
+| Mistral | **UNSUPPORTED / INERT** | erreur typée |
+| Fallback silencieux | **ABSENT (prouvé)** | 3 providers, aucun basculement muet |
+| Classification outils | **PROVEN** | 14 READ_ONLY_PROVEN / 0 MUTATING_PROVEN / 23 UNKNOWN+gated |
+| Invariant de confirmation | **PROVEN — 0 violation** | migrations 0023/0024, additif |
+| HITL reject/approve | **PROVEN LIVE** | runs `e37d49db` / `5bd94ef5` |
+| Blocage forbidden | **PROVEN TEST** | 18/18 unitaires |
+| Coût chemin LangGraph | **BROKEN — faux zéro** | `cost_usd=0` sur appels OpenAI réels |
+| Modèle vérifié (LangGraph) | **UNAVAILABLE (honnête)** | `model_unverified=true`, non falsifié |
+| 26 agents jamais exécutés | **5 MISLEADING** identifiés | active+promu, 0 run |
+
+### Verdict global : **PARTIAL** (inchangé, et c'est correct)
+
+Restent ouverts, chacun maintenant *prouvé* plutôt que supposé : clé Gemini non tournée
+(**SECURITY BLOCKER**), aucun agent Gemini/local persistant réel, coût LangGraph faux-zéro,
+5 agents affichés opérationnels sans preuve. Le socle exécuté (OpenAI direct, HITL,
+classification outils, invariant confirmation) est désormais PROVEN, pas déclaré.
