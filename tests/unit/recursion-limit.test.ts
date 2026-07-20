@@ -22,11 +22,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const waitMock = vi.fn()
 const createThreadMock = vi.fn()
 const getStateMock = vi.fn()
+const getAssistantMock = vi.fn()
 
 vi.mock('@langchain/langgraph-sdk', () => {
   class FakeClient {
     threads = { create: createThreadMock, getState: getStateMock }
     runs = { wait: waitMock }
+    assistants = { get: getAssistantMock }
   }
   return { Client: FakeClient }
 })
@@ -36,6 +38,7 @@ describe('recursionLimitFor (via runOnAgentServer -> runs.wait config.recursion_
     vi.resetModules()
     createThreadMock.mockReset().mockResolvedValue({ thread_id: 'thread-1' })
     getStateMock.mockReset().mockResolvedValue({ tasks: [] })
+    getAssistantMock.mockReset().mockResolvedValue({ config: {} })
     waitMock.mockReset().mockResolvedValue({ messages: [{ type: 'ai', content: 'done' }] })
     process.env.LANGGRAPH_API_URL = 'http://127.0.0.1:2024'
     process.env.LANGGRAPH_SERVER_SECRET = 'test-secret'
@@ -92,5 +95,27 @@ describe('recursionLimitFor (via runOnAgentServer -> runs.wait config.recursion_
     // floor(10.9) = 10 -> derived = 10*3+3+1 = 34.
     const limit = await runWith(10.9)
     expect(limit).toBe(34)
+  })
+
+  it('preserves an assistant configurable block when adding recursion_limit', async () => {
+    getAssistantMock.mockResolvedValue({
+      config: {
+        configurable: {
+          systemPrompt: 'Market read-only',
+          tools: [{ id: 'read_market_snapshot' }],
+        },
+      },
+    })
+    const { runOnAgentServer } = await import('@/lib/agent-mission-control/langgraph-server')
+    await runOnAgentServer({ assistantId: 'assistant-market', userInput: 'hi', maxSteps: 10 })
+
+    const config = waitMock.mock.calls.at(-1)?.[2]?.config
+    expect(config).toMatchObject({
+      recursion_limit: 34,
+      configurable: {
+        systemPrompt: 'Market read-only',
+        tools: [{ id: 'read_market_snapshot' }],
+      },
+    })
   })
 })
