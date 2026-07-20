@@ -13,6 +13,8 @@
  */
 import 'server-only'
 
+import { cache } from 'react'
+
 import {
   deriveDisplayStatus,
   resolve24hMetricsBatch,
@@ -145,7 +147,22 @@ export async function getCopilots(options: GetCopilotsOptions = {}): Promise<Cop
   return copilots.map((c) => enrichCopilot(c, health.get(c.id), kpi24h.get(c.id)))
 }
 
-export async function getCopilot(id: string): Promise<Copilot | undefined> {
+/**
+ * One copilot, enriched with run-backed health + 24h KPIs.
+ *
+ * MEMOIZED PER REQUEST (`React.cache`): every `/admin/agents/[id]` screen calls
+ * this twice — once in `layout.tsx` for the header, once in the page itself —
+ * and each call costs 5 PostgREST round-trips (the row, plus the health and
+ * 24h-KPI batch resolvers). At ~370ms per round-trip against the gpu1
+ * perimeter that duplication alone cost ~1.8s per navigation.
+ *
+ * `React.cache` is scoped to the CURRENT REQUEST only, with no sharing between
+ * requests, so this dedupes a render pass without weakening the module's
+ * LIVE-only contract: `pgrest` still sends `cache: 'no-store'`, and the next
+ * request re-reads the backend. Outside a React render (scripts, tests) the
+ * wrapper is a passthrough — memoization needs a request scope to exist.
+ */
+export const getCopilot = cache(async function getCopilot(id: string): Promise<Copilot | undefined> {
   const copilot = camelRows<Copilot>(await rest<RawRow[]>(`copilots?select=*&id=eq.${encodeURIComponent(id)}`))[0]
   if (!copilot) return undefined
   const [health, kpi24h] = await Promise.all([
@@ -153,7 +170,7 @@ export async function getCopilot(id: string): Promise<Copilot | undefined> {
     resolve24hMetricsBatch([copilot.id]),
   ])
   return enrichCopilot(copilot, health.get(copilot.id), kpi24h.get(copilot.id))
-}
+})
 
 export async function getVersionsForCopilot(copilotId: string): Promise<CopilotVersion[]> {
   const versions = camelRows<CopilotVersion>(
@@ -171,7 +188,16 @@ export async function getVersionsForCopilot(copilotId: string): Promise<CopilotV
   })
 }
 
-export async function getVersion(id: string): Promise<CopilotVersion | undefined> {
+/**
+ * One version, with run-backed scores resolved over the stored blob.
+ *
+ * Memoized per request for the same reason as `getCopilot`: the agent detail
+ * screen resolves up to three versions (production, latest, gate candidate)
+ * and each call costs 2 round-trips. Callers treat the result as read-only —
+ * the score fields below are written onto this function's OWN freshly-fetched
+ * object before any caller sees it, so a shared instance is safe.
+ */
+export const getVersion = cache(async function getVersion(id: string): Promise<CopilotVersion | undefined> {
   const version = camelRows<CopilotVersion>(await rest<RawRow[]>(`copilot_versions?select=*&id=eq.${encodeURIComponent(id)}`))[0]
   if (!version) return undefined
   const resolved = (await resolveVersionScoresBatch([version.id])).get(version.id)
@@ -179,7 +205,7 @@ export async function getVersion(id: string): Promise<CopilotVersion | undefined
   if (resolved && resolved.testPassRate !== null) version.scores.testPassRate = resolved.testPassRate
   if (resolved && resolved.benchmarkScore !== null) version.scores.benchmarkScore = resolved.benchmarkScore
   return version
-}
+})
 
 export async function getManifestForCopilot(copilotId: string): Promise<AgentManifest | undefined> {
   return camelRows<AgentManifest>(
