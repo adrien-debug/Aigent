@@ -61,18 +61,14 @@ export function DashboardKpiStrip({ kpis }: { kpis: DashboardKpis }) {
     },
   ]
 
-  return <AgentKpiBand stats={stats} />
-}
-
-export function DashboardHeader() {
-  return null
+  return <AgentKpiBand stats={stats} flush />
 }
 
 /** Data-integrity note — a quiet hairline footer, never a full-width banner. */
 export function DashboardDataWarnings({ warnings }: { warnings: string[] }) {
   if (warnings.length === 0) return null
   return (
-    <div className="-mt-4 flex items-start gap-2 border-b border-white/5 pb-6">
+    <div className="flex items-start gap-2 border-b border-white/5 pb-3">
       <ExclamationTriangleIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-accent-400" />
       <ul className="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
         {warnings.map((w) => (

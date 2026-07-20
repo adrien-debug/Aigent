@@ -44,11 +44,6 @@ function leaderboardScore(copilot: Copilot): number | null {
   return copilot.health.testPassRate * Math.log1p(copilot.health.runsLast24h)
 }
 
-function statusLabel(status: string): string {
-  const spaced = status.replace(/-/g, ' ')
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
-}
-
 /** Rank mark — Catalyst Badge only (#1 accentSolid, else zinc). */
 function RankBadge({ rank }: { rank: number | null }) {
   if (rank === null) {
@@ -93,9 +88,10 @@ export function AgentLeaderboard({
     .map((entry, index) => ({ ...entry, rank: entry.score !== null ? index + 1 : null }))
 
   return (
-    <SurfaceCard>
+    <SurfaceCard className="h-full">
       <SurfaceCardHeader
         title="Agent Leaderboard"
+        className="px-4 pt-3 pb-2"
         meta={
           <span className="text-xs text-zinc-500">
             {copilots.length} agent{copilots.length === 1 ? '' : 's'}
@@ -109,29 +105,27 @@ export function AgentLeaderboard({
           description="Provision copilots in your projects — the leaderboard ranks them as soon as they serve traffic."
         />
       ) : (
-        <div className="overflow-x-auto no-scrollbar">
-          {/* px-6 + gutter 0 = canon in-card Table (same as project agents). */}
-          <Table className="min-w-[720px] w-full border-collapse px-6 text-left [--gutter:--spacing(0)]">
-          <TableHead>
+        <div className="max-h-[30rem] overflow-auto no-scrollbar">
+          <Table className="w-full border-collapse px-4 text-left [--gutter:--spacing(0)]">
+          <TableHead className="sticky top-0 z-10 bg-[var(--color-surface-secondary)]">
             <TableRow className="border-b border-white/5">
               <TableHeader className="w-16">Rank</TableHeader>
               <TableHeader>Agent</TableHeader>
-              <TableHeader>Status</TableHeader>
               <TableHeader className="text-right">Pass Rate</TableHeader>
-              <TableHeader className="text-right">24h Runs</TableHeader>
-              <TableHeader className="text-right">24h Cost</TableHeader>
+              <TableHeader className="text-right">Runs</TableHeader>
+              <TableHeader className="text-right">Cost</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody className="divide-y divide-white/5">
             {rows.map(({ copilot, rank }) => (
               <TableRow key={copilot.id} className="group">
-                <TableCell>
+                <TableCell className="py-2">
                   <RankBadge rank={rank} />
                 </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <CopilotAvatar copilot={copilot} className="size-8 rounded-xl" />
-                    <div className="flex min-w-0 flex-col gap-0.5">
+                <TableCell className="py-2">
+                  <div className="flex items-center gap-2.5">
+                    <CopilotAvatar copilot={copilot} className="size-7 rounded-lg" />
+                    <div className="flex min-w-0 flex-col">
                       <Link
                         href={`/admin/agents/${copilot.id}`}
                         className="truncate text-sm font-medium text-white group-hover:underline rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
@@ -140,28 +134,14 @@ export function AgentLeaderboard({
                       </Link>
                       <span className="font-mono text-[10px] text-zinc-500">{copilot.slug}</span>
                       {copilot.projectId ? (
-                        <span className="truncate text-[10px] text-zinc-500">
+                        <span className="max-w-48 truncate text-[10px] text-zinc-500">
                           {projectNameById.get(copilot.projectId) ?? copilot.projectId}
                         </span>
                       ) : null}
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>
-                  <Badge
-                    color={
-                      copilot.displayStatus === 'production' ||
-                      copilot.status === 'active' ||
-                      copilot.status === 'degraded'
-                        ? 'accent'
-                        : 'zinc'
-                    }
-                    className="uppercase tracking-widest"
-                  >
-                    {statusLabel(copilot.displayStatus ?? copilot.status)}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="py-2 text-right">
                   {copilot.healthEvidence === 'runs' ? (
                     <span className="text-sm font-mono tabular-nums text-zinc-300">
                       {formatPercent(copilot.health.testPassRate)}
@@ -170,12 +150,12 @@ export function AgentLeaderboard({
                     <span className="text-xs text-zinc-600">—</span>
                   )}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="py-2 text-right">
                   <span className="text-sm font-mono tabular-nums text-zinc-300">
                     {numberFormat.format(copilot.health.runsLast24h)}
                   </span>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="py-2 text-right">
                   <span className="text-sm font-mono tabular-nums text-zinc-400">
                     {copilot.health.runsLast24h > 0 ? formatUsd(copilot.health.costLast24hUsd) : '—'}
                   </span>

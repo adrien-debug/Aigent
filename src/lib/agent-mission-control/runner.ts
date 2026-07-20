@@ -457,12 +457,18 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
     costUsd = result.costUsd
     threadId = result.threadId
 
-    // Reflect the model the graph ACTUALLY ran on (see langgraph-server.ts's
-    // realModelFromMessages), never the requested `model`. When the graph
-    // produced no AI message with resolvable response metadata (e.g. it
-    // interrupted before any model call — shouldn't happen given the graph
-    // shape, but never assume), resolvedModel stays null and modelUnverified
-    // stays true rather than defaulting to a guess.
+    // Resolve the run's model, preferring the graph's own runtime truth.
+    //
+    //  1. result.resolvedModel — the model the graph ACTUALLY instantiated, read
+    //     from its `executedModel` state channel (langgraph-server.ts). Best
+    //     source: it captures a silent DEFAULT_MODEL fallback truthfully.
+    //  2. `model` — the copilot's configured model, i.e. exactly what
+    //     ensureCopilotAssistant provisions the assistant's config.model with (and
+    //     keeps in sync). The graph instantiates this. A KNOWN fact, not a guess —
+    //     used when an assistant predates the state channel and reports nothing.
+    //
+    // Only when BOTH are absent (no channel AND no configured model) do we stay
+    // null + modelUnverified, rather than inventing one.
     if (result.resolvedModel) {
       resolvedModel = result.resolvedModel
       modelUnverified = false
@@ -481,6 +487,10 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
           Date.now()
         )
       }
+    } else if (typeof model === 'string' && model.trim().length > 0) {
+      resolvedModel = model
+      modelUnverified = false
+      trace.resolve('openai', model, false)
     }
 
     if (result.interrupted) {

@@ -27,8 +27,13 @@ export function CommandPalette() {
         setIsOpen((open) => !open)
       }
     }
+    const open = () => setIsOpen(true)
     document.addEventListener('keydown', down)
-    return () => document.removeEventListener('keydown', down)
+    window.addEventListener('aigent:command-palette', open)
+    return () => {
+      document.removeEventListener('keydown', down)
+      window.removeEventListener('aigent:command-palette', open)
+    }
   }, [])
 
   const filtered = query === '' 

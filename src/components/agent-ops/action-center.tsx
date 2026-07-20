@@ -10,7 +10,7 @@ import {
 import clsx from 'clsx'
 
 import { EmptyState } from '@/components/agent-ops/empty-state'
-import { SurfaceCard, SurfaceCardHeader, surfaceItemClass } from '@/components/agent-ops/surface-card'
+import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import type { ActionItem, ActionItemKind } from '@/lib/agent-mission-control/dashboard-overview'
@@ -41,16 +41,15 @@ function ActionRow({ item, focus }: { item: ActionItem; focus: boolean }) {
   return (
     <li
       className={clsx(
-        surfaceItemClass,
-        'group flex gap-4 p-4 transition-[color,background-color,border-color,transform] duration-200 hover:-translate-y-px hover:bg-[var(--color-surface-focus)] motion-reduce:transition-none motion-reduce:hover:translate-y-0',
-        focus && 'ring-[var(--accent-line-strong)]'
+        'group flex gap-3 px-4 py-3 transition-colors duration-150 hover:bg-[var(--color-surface-focus)]',
+        focus && 'border-l-2 border-accent-400 bg-white/[0.02] pl-3.5'
       )}
     >
       <Icon
         aria-hidden="true"
         className="mt-0.5 size-5 shrink-0 text-zinc-500 transition-colors duration-150 group-hover:text-zinc-400"
       />
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="flex items-center gap-2">
           <p className="min-w-0 flex-1 truncate text-sm font-medium text-white">{item.title}</p>
           <Badge color={tone} className="uppercase tracking-widest">
@@ -82,6 +81,7 @@ export function ActionCenter({ items }: { items: ActionItem[] }) {
     <SurfaceCard className="flex h-full flex-col">
       <SurfaceCardHeader
         title="Requires Attention"
+        className="px-4 pt-3 pb-2"
         meta={
           sorted.length > 0 ? (
             <span className="font-mono text-xs tabular-nums text-zinc-500">{sorted.length} open</span>
@@ -89,7 +89,7 @@ export function ActionCenter({ items }: { items: ActionItem[] }) {
         }
       />
       {sorted.length > 0 ? (
-        <ul className="flex flex-col gap-3 px-6 pb-6">
+        <ul className="flex flex-col divide-y divide-white/5 pb-2">
           {sorted.map((item, i) => (
             <ActionRow key={item.id} item={item} focus={i === 0} />
           ))}
