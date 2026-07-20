@@ -51,11 +51,11 @@ function RailItem({
       href={href}
       aria-current={current ? 'page' : undefined}
       className={clsx(
-        'group relative flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-xl border transition-all duration-200',
+        'group relative flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-xl border transition-[color,background-color,border-color] duration-200',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
         current
           ? 'border-[var(--accent-line-strong)] bg-[var(--accent-surface)] text-white'
-          : 'border-transparent text-zinc-500 hover:border-white/5 hover:bg-black/20 hover:text-zinc-300'
+          : 'border-transparent text-zinc-500 hover:border-white/5 hover:bg-white/[0.03] hover:text-zinc-200'
       )}
     >
       <Icon aria-hidden="true" className={clsx('size-6 shrink-0 transition-colors duration-200', current ? 'text-accent-300' : 'group-hover:text-zinc-400')} />

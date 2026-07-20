@@ -43,7 +43,7 @@ export function ProjectBuilderModal({
     <Headless.Dialog open={open} onClose={close} className="relative z-50">
       <Headless.DialogBackdrop
         transition
-        className="fixed inset-0 bg-zinc-950/70 backdrop-blur-sm transition duration-150 data-closed:opacity-0"
+        className="fixed inset-0 bg-zinc-950/50 backdrop-blur-sm transition duration-150 data-closed:opacity-0"
       />
 
       <div className="fixed inset-0 flex w-screen items-center justify-center p-4">
