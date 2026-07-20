@@ -115,7 +115,8 @@ export interface ExecuteCopilotRunResult {
   status: AgentRunStatus
   outputSummary: string
   latencyMs: DurationMs
-  costUsd: UsdAmount
+  /** Null when the run's cost was not measurable (LangGraph with no usage). */
+  costUsd: UsdAmount | null
   steps: ExecuteCopilotRunStep[]
   /** Tool calls actually attempted (executed, blocked or errored). */
   toolCallCount: number
@@ -356,7 +357,9 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
 
   let status: AgentRunStatus = 'completed'
   let outputSummary: string
-  let costUsd = 0
+  // Null (not 0) until the graph reports real provider usage — a LangGraph run
+  // whose usage is unmeasurable persists NULL, never a fabricated zero (F1).
+  let costUsd: UsdAmount | null = null
   let toolCallCount = 0
   let blockedToolCount = 0
   let threadId: string | null = null

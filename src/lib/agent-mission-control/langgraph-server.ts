@@ -26,7 +26,7 @@ import 'server-only'
 import type { StreamMode } from '@langchain/langgraph-sdk'
 
 import { agentServerClient, AGENT_BUILDER_GRAPH_ID } from './langgraph-client'
-import { computeCostUsd, estimateTokens } from './model-pricing'
+import { computeCostUsd } from './model-pricing'
 import type { DurationMs } from './types'
 
 /** The Agent Server SDK client type (the shared factory's return). */
@@ -38,27 +38,34 @@ function graphModel(): string {
 }
 
 /**
- * Sum the run's USD cost from the AI messages' usage_metadata. Priced against
- * the model that ACTUALLY served the run when it's readable from the message
- * (response_metadata.model_name — see realModelFromMessages), falling back to
- * the env-configured graphModel() only when no message reports one (e.g. an
- * empty run). Pricing itself stays an estimate per model-pricing.ts's own
- * disclaimer; this only fixes WHICH model's price is looked up. When a
- * message lacks usage, its tokens are estimated from content — never NaN,
- * never silently zero (unlike the previous hardcoded 0).
+ * Sum the run's USD cost from the AI messages' usage_metadata, or return null
+ * when the run carried NO provider usage at all. Priced against the model that
+ * ACTUALLY served the run when readable (response_metadata.model_name — see
+ * realModelFromMessages), else the env-configured graphModel(). Pricing itself
+ * stays an estimate per model-pricing.ts's disclaimer; this only fixes WHICH
+ * model's price is looked up.
+ *
+ * TRUTH FIX (AIG-AGENT-QUALITY-005 F1): the LangGraph stream does not surface
+ * usage_metadata readably, so a run's real token usage is often unmeasurable.
+ * The previous version fell back to estimating tokens from message content —
+ * which yields 0 for a tool-call AI message (empty content), a FALSE zero that
+ * looks like a genuinely-free run. When NO AI message carries provider usage,
+ * the cost is UNMEASURED and we return null (→ persisted as NULL, unavailable),
+ * never a fabricated 0 or a content-guessed estimate.
  */
-function costFromMessages(messages: AnyMsg[]): number {
+export function costFromMessages(messages: AnyMsg[]): number | null {
   const model = realModelFromMessages(messages) ?? graphModel()
   let total = 0
+  let sawUsage = false
   for (const m of messages) {
     const type = m.type ?? m.role
     if (type !== 'ai' && type !== 'assistant') continue
     const usage = m.usage_metadata
-    const inTok = usage?.input_tokens ?? 0
-    const outTok = usage?.output_tokens ?? estimateTokens(String(m.content ?? ''))
-    total += computeCostUsd('openai', model, inTok, outTok)
+    if (!usage || (usage.input_tokens == null && usage.output_tokens == null)) continue
+    sawUsage = true
+    total += computeCostUsd('openai', model, usage.input_tokens ?? 0, usage.output_tokens ?? 0)
   }
-  return Math.round(total * 1e6) / 1e6
+  return sawUsage ? Math.round(total * 1e6) / 1e6 : null
 }
 
 export interface LangGraphServerStep {
@@ -88,7 +95,8 @@ export interface LangGraphServerResult {
   finalText: string
   steps: LangGraphServerStep[]
   toolCalls: LangGraphServerToolCall[]
-  costUsd: number
+  /** Null when the run carried no provider usage (unmeasured — never a fake 0). */
+  costUsd: number | null
   /**
    * The model that ACTUALLY served the run, read from the provider's own
    * response metadata (never the requested/configured model — the graph may

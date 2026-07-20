@@ -67,8 +67,13 @@ export function formatPercent(ratio: number, digits = 1): string {
   return `${(ratio * 100).toFixed(digits)}%`
 }
 
-/** USD amount → "$18.42". Pass `digits: 3` for sub-cent per-case costs. */
-export function formatUsd(amount: number, digits = 2): string {
+/**
+ * USD amount → "$18.42". Pass `digits: 3` for sub-cent per-case costs.
+ * `null`/`undefined` = cost not measured (e.g. a LangGraph run with no readable
+ * usage) → renders "—", never "$0.00" (a fabricated free run).
+ */
+export function formatUsd(amount: number | null | undefined, digits = 2): string {
+  if (amount == null || !Number.isFinite(amount)) return '—'
   return `$${amount.toFixed(digits)}`
 }
 

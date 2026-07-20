@@ -108,7 +108,7 @@ async function main() {
       maxSteps: 8,
       runtime: 'openai-assistants',
     })
-    totalCost += run.costUsd
+    totalCost += run.costUsd ?? 0
 
     const raw = run.fullText ?? run.outputSummary ?? ''
     const output = extractJson(raw)
@@ -143,7 +143,7 @@ async function main() {
         citesSources: true,
       },
       latencyMs: run.latencyMs,
-      costUsd: run.costUsd,
+      costUsd: run.costUsd ?? 0,
     }
 
     const score = scoreRun(rr)
@@ -175,10 +175,10 @@ async function main() {
         confirmationMistakeCount: d.confirmationMistakeCount,
         temporalLeak: d.temporalLeak,
       },
-      costUsd: Number(run.costUsd.toFixed(4)),
+      costUsd: Number((run.costUsd ?? 0).toFixed(4)),
       latencyMs: run.latencyMs,
     })
-    console.log(`${agent.slug}: global=${score.global} contractValid=${score.dimensions.contractCompliance === 1} cost=$${run.costUsd.toFixed(4)}`)
+    console.log(`${agent.slug}: global=${score.global} contractValid=${score.dimensions.contractCompliance === 1} cost=$${(run.costUsd ?? 0).toFixed(4)}`)
   }
 
   console.log(JSON.stringify({ results, totalCostUsd: Number(totalCost.toFixed(4)) }, null, 2))

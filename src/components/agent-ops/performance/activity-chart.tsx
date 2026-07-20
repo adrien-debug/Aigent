@@ -45,7 +45,8 @@ export function bucketRunsByHour(runs: AgentRun[], nowMs: number, hours = 24): H
     else if (run.status === 'failed') bucket.failed += 1
     else bucket.other += 1
     bucket.total += 1
-    bucket.costUsd += run.costUsd
+    // null = cost not measured (LangGraph, no usage): contributes nothing, never a fake 0.
+    bucket.costUsd += run.costUsd ?? 0
   }
 
   return buckets

@@ -319,7 +319,8 @@ export interface AgentRun {
   toolCallCount: number
   unsafeAttemptCount: number
   latencyMs: DurationMs
-  costUsd: UsdAmount
+  /** Null when the run's cost was not measurable (e.g. LangGraph with no usage). */
+  costUsd: UsdAmount | null
   /**
    * Model actually RESOLVED at run time by the runner (`resolvedModel`), which
    * may differ from the copilot's DECLARED `model`. `null`/`undefined` = the run
