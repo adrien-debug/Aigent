@@ -669,6 +669,11 @@ export async function executeCopilotRun(
   let costUsd: UsdAmount = 0
   let resolvedProvider: ModelProvider = modelProvider
   let resolvedModel: string = model
+  // Starts unverified and only clears when the provider reports the model it
+  // actually served (routeCompletion.modelVerified). The direct path used to
+  // hard-write model_unverified=false, asserting a verification it never did —
+  // the requested model echoed back is an intent, not proof of execution.
+  let modelUnverified = true
   let fallbackUsed = false
   let toolCallCount = 0
   let blockedToolCount = 0
@@ -722,6 +727,7 @@ export async function executeCopilotRun(
       if (!resolvedThisRun) {
         resolvedProvider = res.resolvedProvider
         resolvedModel = res.resolvedModel
+        modelUnverified = !res.modelVerified
         fallbackUsed = res.fallbackUsed
         trace.resolve(res.resolvedProvider, res.resolvedModel, res.fallbackUsed)
         resolvedThisRun = true
@@ -947,12 +953,13 @@ export async function executeCopilotRun(
     latency_ms: latencyMs,
     cost_usd: costUsd,
     trace_url: traceResult.traceUrl,
-    // Persist provider/model actually served by routeCompletion. The direct
-    // model-router path always verifies against the real provider response, so
-    // model_unverified is always false here.
+    // Persist provider/model actually served. `resolvedModel` carries the
+    // provider's OWN reported model id when it reported one; `modelUnverified`
+    // is only false in that case. A provider that returns no model field leaves
+    // the run honestly unverified rather than claiming a verification never done.
     resolved_model: resolvedModel,
     resolved_provider: resolvedProvider,
-    model_unverified: false,
+    model_unverified: modelUnverified,
     created_via: 'authoring',
   })
 
