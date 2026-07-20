@@ -58,6 +58,21 @@ export async function assembleSnapshot(
     accountRisk: null,
     sources,
     completeness: 0,
+    symbol: opts.pair,
+    provider: provider.id,
+    source_timestamp: null,
+    fetched_at: Date.now(),
+    age_ms: null,
+    last_price: null,
+    bid: null,
+    ask: null,
+    spread_bps: null,
+    volume_24h: null,
+    high_24h: null,
+    low_24h: null,
+    candles_summary: [],
+    freshness_status: 'unavailable',
+    unavailable_fields: [],
   }
 
   let attempted = 0
@@ -131,12 +146,42 @@ export async function assembleSnapshot(
   )
   snap.truth = populatedSources.length ? worstTruth(populatedSources) : 'UNAVAILABLE'
   snap.completeness = attempted > 0 ? populated / attempted : 0
+  snap.fetched_at = Date.now()
+  snap.source_timestamp = populatedSources.length
+    ? Math.max(...populatedSources.map((source) => source.provenance.dataTimestamp))
+    : null
+  snap.age_ms =
+    snap.source_timestamp === null ? null : Math.max(0, snap.fetched_at - snap.source_timestamp)
+  snap.last_price = snap.ticker?.last ?? null
+  snap.bid = snap.ticker?.bid ?? snap.liquidity?.bestBid ?? null
+  snap.ask = snap.ticker?.ask ?? snap.liquidity?.bestAsk ?? null
+  snap.spread_bps = snap.liquidity?.spreadBps ?? null
+  snap.volume_24h = snap.ticker?.volume24h ?? null
+  snap.high_24h = snap.ticker?.high24h ?? null
+  snap.low_24h = snap.ticker?.low24h ?? null
+  snap.candles_summary = Object.entries(snap.candles).map(([timeframe, candles]) =>
+    summarizeCandles(timeframe as CandleInterval, candles ?? []),
+  )
+  snap.unavailable_fields = [
+    ...new Set(
+      sources
+        .filter((source) => source.provenance.truth === 'UNAVAILABLE')
+        .map((source) => source.block),
+    ),
+  ]
+  const stale = sources.some((source) =>
+    source.provenance.unavailableReason?.startsWith('stale:'),
+  )
+  snap.freshness_status =
+    snap.truth === 'LIVE' ? 'live' : stale ? 'stale' : 'unavailable'
   return snap
 }
 
-function liquidityFromOrderBook(ob: {
+export function liquidityFromOrderBook(ob: {
   bids: [string, string][]
   asks: [string, string][]
+  sourceTimestamp?: number
+  fetchedAt?: number
 }): LiquiditySnapshot {
   const bestBid = ob.bids[0] ? Number(ob.bids[0][0]) : null
   const bestAsk = ob.asks[0] ? Number(ob.asks[0][0]) : null
@@ -161,11 +206,62 @@ function liquidityFromOrderBook(ob: {
       else quality = 'illiquid'
     }
   }
+  const totalDepth = bidDepth + askDepth
   return {
+    bestBid: bestBid === null ? null : String(ob.bids[0][0]),
+    bestAsk: bestAsk === null ? null : String(ob.asks[0][0]),
     spread,
     spreadBps,
     bidDepth: bidDepth > 0 ? bidDepth.toFixed(4) : null,
     askDepth: askDepth > 0 ? askDepth.toFixed(4) : null,
+    imbalance: totalDepth > 0 ? (bidDepth - askDepth) / totalDepth : null,
+    bookSize: ob.bids.length + ob.asks.length,
+    sourceTimestamp: ob.sourceTimestamp ?? null,
+    fetchedAt: ob.fetchedAt ?? null,
+    ageMs:
+      ob.sourceTimestamp === undefined || ob.fetchedAt === undefined
+        ? null
+        : Math.max(0, ob.fetchedAt - ob.sourceTimestamp),
     quality,
+  }
+}
+
+function summarizeCandles(
+  timeframe: CandleInterval,
+  candles: NonNullable<MarketSnapshot['candles'][CandleInterval]>,
+): MarketSnapshot['candles_summary'][number] {
+  if (candles.length === 0) {
+    return {
+      timeframe,
+      count: 0,
+      open: null,
+      high: null,
+      low: null,
+      close: null,
+      volume: null,
+      change_percent: null,
+    }
+  }
+  const first = candles[0]
+  const last = candles[candles.length - 1]
+  const highs = candles.map((candle) => Number(candle.high))
+  const lows = candles.map((candle) => Number(candle.low))
+  const volumes = candles.map((candle) => Number(candle.volume))
+  const open = Number(first.open)
+  const close = Number(last.close)
+  return {
+    timeframe,
+    count: candles.length,
+    open: first.open,
+    high: highs.every(Number.isFinite) ? String(Math.max(...highs)) : null,
+    low: lows.every(Number.isFinite) ? String(Math.min(...lows)) : null,
+    close: last.close,
+    volume: volumes.every(Number.isFinite)
+      ? String(volumes.reduce((sum, value) => sum + value, 0))
+      : null,
+    change_percent:
+      Number.isFinite(open) && Number.isFinite(close) && open !== 0
+        ? (((close - open) / open) * 100).toFixed(4)
+        : null,
   }
 }

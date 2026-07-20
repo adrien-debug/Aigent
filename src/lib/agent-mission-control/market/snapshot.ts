@@ -71,11 +71,15 @@ export interface Price {
 /** 24h ticker. All prices decimal strings. */
 export interface Ticker {
   last: string
+  bid: string | null
+  ask: string | null
   high24h: string | null
   low24h: string | null
   volume24h: string | null
   changePercent24h: string | null
   quote: AssetSymbol
+  sourceTimestamp: number
+  fetchedAt: number
 }
 
 /**
@@ -94,7 +98,7 @@ export interface VolatilityState {
   stdevReturns: string
   /** Annualized volatility percent, decimal string (e.g. "62.4"). */
   annualizedPct: string
-  regime: 'low' | 'normal' | 'elevated' | 'high'
+  regime: 'low' | 'normal' | 'high'
 }
 
 /** Multi-timeframe market structure read from candles. */
@@ -113,6 +117,8 @@ export interface MarketStructure {
 
 /** Liquidity / execution-condition snapshot. */
 export interface LiquiditySnapshot {
+  bestBid: string | null
+  bestAsk: string | null
   /** Best bid/ask spread as a decimal string, price units. */
   spread: string | null
   /** Spread in basis points relative to mid. */
@@ -120,6 +126,12 @@ export interface LiquiditySnapshot {
   /** Top-of-book depth on each side, decimal strings (base-asset qty). */
   bidDepth: string | null
   askDepth: string | null
+  /** (bid depth - ask depth) / total depth, in [-1,1]. */
+  imbalance: number | null
+  bookSize: number
+  sourceTimestamp: number | null
+  fetchedAt: number | null
+  ageMs: number | null
   /** Coarse liquidity label derived from spread + depth. */
   quality: 'deep' | 'normal' | 'thin' | 'illiquid'
 }
@@ -184,6 +196,30 @@ export interface MarketSnapshot {
   sources: SnapshotSource[]
   /** Overall data completeness in [0,1]: populated blocks / attempted blocks. */
   completeness: number
+  symbol: PairSymbol
+  provider: string
+  source_timestamp: number | null
+  fetched_at: number
+  age_ms: number | null
+  last_price: string | null
+  bid: string | null
+  ask: string | null
+  spread_bps: number | null
+  volume_24h: string | null
+  high_24h: string | null
+  low_24h: string | null
+  candles_summary: Array<{
+    timeframe: CandleInterval
+    count: number
+    open: string | null
+    high: string | null
+    low: string | null
+    close: string | null
+    volume: string | null
+    change_percent: string | null
+  }>
+  freshness_status: 'live' | 'stale' | 'unavailable'
+  unavailable_fields: string[]
 }
 
 /** Compute the worst (least trustworthy) truth across provenances. */

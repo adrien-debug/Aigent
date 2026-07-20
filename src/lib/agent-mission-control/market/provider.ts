@@ -311,11 +311,15 @@ export class HttpMarketProvider extends BaseMarketProvider {
     const v = row.value as Record<string, unknown> | undefined
     const ticker: Ticker = {
       last: String((v?.last ?? row.last) ?? ''),
+      bid: strOrNull(v?.bid ?? row.bid),
+      ask: strOrNull(v?.ask ?? row.ask),
       high24h: strOrNull(v?.high24h ?? row.high24h),
       low24h: strOrNull(v?.low24h ?? row.low24h),
       volume24h: strOrNull(v?.volume24h ?? row.volume24h),
       changePercent24h: strOrNull(v?.changePercent24h ?? row.changePercent24h),
       quote: (v?.quote as Ticker['quote']) ?? 'USDT',
+      sourceTimestamp: (row.timestamp as number) ?? ctx.asOf,
+      fetchedAt: ctx.asOf,
     }
     return {
       value: ticker,
