@@ -43,6 +43,7 @@ export type BehaviorToolId =
   | 'read_market_structure'
   | 'read_multi_timeframe_candles'
   | 'read_liquidity_snapshot'
+  | 'read_derivatives_snapshot'
   | 'read_macro_context'
   | 'read_account_risk_snapshot'
 
@@ -189,6 +190,7 @@ const MARKET_TOOL_IDS: ReadonlySet<string> = new Set([
   'read_market_structure',
   'read_multi_timeframe_candles',
   'read_liquidity_snapshot',
+  'read_derivatives_snapshot',
   'read_macro_context',
   'read_account_risk_snapshot',
 ])
@@ -223,6 +225,7 @@ const REGISTRY_IDS: ReadonlyArray<BehaviorToolId> = [
   'read_market_structure',
   'read_multi_timeframe_candles',
   'read_liquidity_snapshot',
+  'read_derivatives_snapshot',
   'read_macro_context',
   'read_account_risk_snapshot',
 ]

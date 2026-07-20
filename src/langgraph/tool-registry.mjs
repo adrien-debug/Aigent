@@ -377,6 +377,14 @@ const MARKET_TOOL_SPECS = {
       asOf: z.number().int().optional(),
     }).strict(),
   },
+  read_derivatives_snapshot: {
+    description:
+      'Read live public Binance USD-M Futures BTCUSDT funding, mark/index price, open interest and change, 24h volume, long/short ratio, spot basis, deterministic derivatives regime and freshness. Read-only and keyless.',
+    schema: z.object({
+      symbol: z.literal('BTCUSDT').optional(),
+      asOf: z.number().int().optional(),
+    }).strict(),
+  },
   read_macro_context: {
     description:
       'Read truth-aware BTC and ETH macro market context derived from real 4h candle structure. Read-only and contextual only; it never authorizes execution.',
@@ -386,15 +394,16 @@ const MARKET_TOOL_SPECS = {
   },
   read_account_risk_snapshot: {
     description:
-      'Read the account and exposure risk snapshot when a real read-only account source is available. Never invents capital or positions; currently returns UNAVAILABLE when no source exists.',
+      'Read an exact TradeAgent account snapshot and deterministic cross-market risk score. accountId is mandatory; never selects a random or first account. For withdrawal reviews, pass requestedWithdrawalUsd. Read-only and never executes a lock or withdrawal.',
     schema: z.object({
-      pair: MARKET_PAIR_SCHEMA.optional(),
+      accountId: z.string().min(1).optional(),
+      requestedWithdrawalUsd: z.number().positive().optional(),
       asOf: z.number().int().optional(),
     }).strict(),
   },
 }
 
-/** The seven canonical market tool ids mounted by the LangGraph registry. */
+/** Canonical market and risk tool ids mounted by the LangGraph registry. */
 export const MARKET_TOOL_IDS = Object.freeze(Object.keys(MARKET_TOOL_SPECS))
 
 async function invokeMarketHandler(name, args) {

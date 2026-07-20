@@ -22,6 +22,9 @@ import { BinanceMarketProvider } from './binance-provider'
 import { FixtureMarketProvider } from './fixtures/fixture-provider'
 import type { ScenarioId } from './fixtures/scenarios'
 import { assembleSnapshot, liquidityFromOrderBook } from './assembler'
+import { readConfiguredAccountRisk } from './account-risk'
+import { readLiveDerivativesSnapshot } from './derivatives'
+import { calculateRisk } from './risk-engine'
 import {
   computeMarketStructure,
   computeVolatilityState,
@@ -33,7 +36,6 @@ import {
   type CandleInterval,
   type PairSymbol,
 } from './snapshot'
-import { unavailableProvenance } from './truth'
 
 export interface TradingToolResult {
   ok: boolean
@@ -337,29 +339,95 @@ export async function readFundingOpenInterest(argsJson: string): Promise<Trading
 }
 
 // ---------------------------------------------------------------------------
-// read_account_risk_snapshot — no account-read source wired → UNAVAILABLE.
-// A real integration would read a TradeAgent read-only account endpoint; none
-// is exposed publicly, so this HONESTLY returns UNAVAILABLE rather than a fake
-// capital figure (invariant #8, Sentinel's "never fabricate capital").
+// read_derivatives_snapshot — Binance USD-M Futures public reads.
+// ---------------------------------------------------------------------------
+
+const derivativesArgs = z.object({
+  symbol: z.literal('BTCUSDT').optional(),
+  asOf: z.number().int().optional(),
+})
+export async function readDerivativesSnapshot(argsJson: string): Promise<TradingToolResult> {
+  const a = parse(derivativesArgs, argsJson)
+  if ('__err' in a) return err('read_derivatives_snapshot', a.__err)
+  try {
+    const snapshot = await readLiveDerivativesSnapshot(a.asOf)
+    return {
+      ok: snapshot.freshness_status !== 'unavailable',
+      data: { derivatives: snapshot },
+      summary: `derivatives BTCUSDT regime=${snapshot.derivatives_regime} funding=${snapshot.funding_rate ?? 'UNAVAILABLE'} OI=${snapshot.open_interest_usd ?? 'UNAVAILABLE'}USD freshness=${snapshot.freshness_status}`,
+    }
+  } catch (error) {
+    console.error(
+      '[market/tools] derivatives snapshot failed',
+      error instanceof Error ? error.message : 'unknown error',
+    )
+    return err('read_derivatives_snapshot', 'Binance Futures data unavailable')
+  }
+}
+
+// ---------------------------------------------------------------------------
+// read_account_risk_snapshot — exact account id, never first/random account.
 // ---------------------------------------------------------------------------
 
 const acctArgs = z.object({
-  pair: pairSchema.optional(),
+  accountId: z.string().min(1).optional(),
+  requestedWithdrawalUsd: z.number().positive().optional(),
   asOf: z.number().int().optional(),
 })
 export async function readAccountRiskSnapshot(argsJson: string): Promise<TradingToolResult> {
   const a = parse(acctArgs, argsJson)
   if ('__err' in a) return err('read_account_risk_snapshot', a.__err)
-  const prov = unavailableProvenance({
-    source: 'account-risk',
-    sourceType: 'composite',
-    asOf: a.asOf ?? Date.now(),
-    reason: 'no read-only account/exposure source is exposed by TradeAgent; capital is never fabricated',
+  if (!a.accountId) {
+    return {
+      ok: false,
+      data: { accountRisk: null, account_required: true },
+      summary: 'account risk unavailable: account_required',
+    }
+  }
+  const asOf = a.asOf ?? Date.now()
+  const account = readConfiguredAccountRisk(a.accountId, asOf)
+  if (!account) {
+    return {
+      ok: false,
+      data: { accountRisk: null, account_required: false, reason: 'account_not_found' },
+      summary: 'account risk unavailable: exact account not found in configured TradeAgent snapshots',
+    }
+  }
+  const provider = new BinanceMarketProvider()
+  const ctx = ctxOf(asOf, 60_000)
+  const [tickerResult, candlesResult, orderBookResult, derivatives] = await Promise.all([
+    provider.getTicker('BTCUSDT', ctx),
+    provider.getCandles('BTCUSDT', '1h', 100, ctx),
+    provider.getOrderBook('BTCUSDT', 20, ctx),
+    readLiveDerivativesSnapshot(asOf),
+  ])
+  const volatility = candlesResult.value
+    ? computeVolatilityState(candlesResult.value, { atrWindow: 14, stdevWindow: 20 })
+    : null
+  const liquidity = orderBookResult.value
+    ? liquidityFromOrderBook(orderBookResult.value)
+    : null
+  const risk = calculateRisk({
+    account,
+    spotPrice: tickerResult.value?.last ?? null,
+    volatility,
+    liquidity,
+    derivatives,
+    requestedWithdrawalUsd: a.requestedWithdrawalUsd,
   })
   return {
-    ok: false,
-    data: { accountRisk: null, truth: prov.truth, reason: prov.unavailableReason },
-    summary: 'account risk UNAVAILABLE — no account source (capital never fabricated)',
+    ok: risk.risk_score !== null,
+    data: {
+      accountRisk: account,
+      riskAssessment: risk,
+      market_inputs: {
+        spot_price: tickerResult.value?.last ?? null,
+        volatility,
+        liquidity,
+        derivatives,
+      },
+    },
+    summary: `account risk score=${risk.risk_score ?? 'UNAVAILABLE'} level=${risk.risk_level} lock=${risk.lock_recommendation} withdrawal=${risk.withdrawal_recommendation}`,
   }
 }
 
@@ -415,6 +483,7 @@ export const TRADING_TOOL_HANDLERS: Readonly<Record<string, TradingToolHandler>>
   read_market_structure: readMarketStructure,
   read_liquidity_snapshot: readLiquiditySnapshot,
   read_funding_open_interest: readFundingOpenInterest,
+  read_derivatives_snapshot: readDerivativesSnapshot,
   read_account_risk_snapshot: readAccountRiskSnapshot,
   read_macro_context: readMacroContext,
 }
