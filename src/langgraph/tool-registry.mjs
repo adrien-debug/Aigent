@@ -30,6 +30,7 @@ import { guardedFetch } from './http-guard.mjs'
 // Keep large tool outputs bounded so a single call can't blow the context.
 const MAX_BODY_CHARS = 8000
 const HTTP_TIMEOUT_MS = 10_000
+const MARKET_TOOL_TIMEOUT_MS = 15_000
 
 function truncate(text, max = MAX_BODY_CHARS) {
   if (typeof text !== 'string') text = String(text)
@@ -314,6 +315,139 @@ function makeHttpGet(scope) {
   )
 }
 
+// --- Canonical market reads via the authenticated Next server boundary -----
+// The canonical handlers live in market/tools.ts and are intentionally
+// `server-only`. The Agent Server is a separate Node process, so it calls the
+// protected internal route that dispatches to those exact handlers instead of
+// duplicating provider, truth/provenance, or indicator logic here.
+
+const MARKET_PAIR_SCHEMA = z.enum(['BTCUSDT', 'ETHUSDT', 'ETHUSDC', 'BTCUSDC'])
+const MARKET_INTERVAL_SCHEMA = z.enum(['1m', '5m', '15m', '1h', '4h', '1d'])
+
+const MARKET_TOOL_SPECS = {
+  read_market_snapshot: {
+    description:
+      'Read a truth-aware market snapshot for one supported pair, including candles, structure, volatility and source freshness when available. Read-only; missing blocks remain UNAVAILABLE/null and are never fabricated.',
+    schema: z.object({
+      pair: MARKET_PAIR_SCHEMA,
+      intervals: z.array(MARKET_INTERVAL_SCHEMA).min(1).max(6).optional(),
+      candleLimit: z.number().int().min(2).max(500).optional(),
+      volatilityInterval: MARKET_INTERVAL_SCHEMA.optional(),
+      asOf: z.number().int().optional(),
+      maxAgeMs: z.number().int().min(0).nullable().optional(),
+    }).strict(),
+  },
+  read_volatility_state: {
+    description:
+      'Read the current ATR/stdev-derived volatility state for a supported pair and interval from real market candles. Read-only; insufficient or absent candles return UNAVAILABLE.',
+    schema: z.object({
+      pair: MARKET_PAIR_SCHEMA,
+      interval: MARKET_INTERVAL_SCHEMA.optional(),
+      limit: z.number().int().min(15).max(500).optional(),
+      asOf: z.number().int().optional(),
+    }).strict(),
+  },
+  read_market_structure: {
+    description:
+      'Read deterministic market structure and trend for a supported pair and interval from real market candles. Read-only; insufficient or absent candles return UNAVAILABLE.',
+    schema: z.object({
+      pair: MARKET_PAIR_SCHEMA,
+      interval: MARKET_INTERVAL_SCHEMA.optional(),
+      limit: z.number().int().min(15).max(500).optional(),
+      asOf: z.number().int().optional(),
+    }).strict(),
+  },
+  read_multi_timeframe_candles: {
+    description:
+      'Read bounded candle series for one supported pair across one to six requested timeframes. Read-only; every timeframe carries its real truth and source provenance.',
+    schema: z.object({
+      pair: MARKET_PAIR_SCHEMA,
+      intervals: z.array(MARKET_INTERVAL_SCHEMA).min(1).max(6),
+      limit: z.number().int().min(2).max(500).optional(),
+      asOf: z.number().int().optional(),
+    }).strict(),
+  },
+  read_liquidity_snapshot: {
+    description:
+      'Read a bounded order-book liquidity snapshot for a supported pair. Read-only; when no real order-book source exists the result is explicitly UNAVAILABLE.',
+    schema: z.object({
+      pair: MARKET_PAIR_SCHEMA,
+      depth: z.number().int().min(1).max(100).optional(),
+      asOf: z.number().int().optional(),
+    }).strict(),
+  },
+  read_macro_context: {
+    description:
+      'Read truth-aware BTC and ETH macro market context derived from real 4h candle structure. Read-only and contextual only; it never authorizes execution.',
+    schema: z.object({
+      asOf: z.number().int().optional(),
+    }).strict(),
+  },
+  read_account_risk_snapshot: {
+    description:
+      'Read the account and exposure risk snapshot when a real read-only account source is available. Never invents capital or positions; currently returns UNAVAILABLE when no source exists.',
+    schema: z.object({
+      pair: MARKET_PAIR_SCHEMA.optional(),
+      asOf: z.number().int().optional(),
+    }).strict(),
+  },
+}
+
+/** The seven canonical market tool ids mounted by the LangGraph registry. */
+export const MARKET_TOOL_IDS = Object.freeze(Object.keys(MARKET_TOOL_SPECS))
+
+async function invokeMarketHandler(name, args) {
+  const appBase =
+    process.env.AIGENT_INTERNAL_URL?.replace(/\/+$/, '') ??
+    `http://127.0.0.1:${Number(process.env.AIGENT_DEV_PORT) || 3210}`
+  const apiKey = process.env.AMC_API_KEY
+  if (!apiKey) {
+    return JSON.stringify({ ok: false, error: 'market tool bridge unavailable: AMC_API_KEY not configured' })
+  }
+
+  try {
+    const response = await fetch(
+      `${appBase}/api/agent-ops/market-tools/${encodeURIComponent(name)}`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-amc-key': apiKey,
+        },
+        body: JSON.stringify({ args }),
+        cache: 'no-store',
+        signal: AbortSignal.timeout(MARKET_TOOL_TIMEOUT_MS),
+      }
+    )
+    if (!response.ok) {
+      return JSON.stringify({
+        ok: false,
+        error: `market tool bridge failed with HTTP ${response.status}`,
+      })
+    }
+    const body = await response.json()
+    return truncate(JSON.stringify(body))
+  } catch (error) {
+    const reason =
+      error instanceof Error && error.name === 'TimeoutError'
+        ? `timed out after ${MARKET_TOOL_TIMEOUT_MS}ms`
+        : 'market tool bridge unavailable'
+    return JSON.stringify({ ok: false, error: reason })
+  }
+}
+
+function makeMarketReadTool(name) {
+  const spec = MARKET_TOOL_SPECS[name]
+  return tool(
+    async (args) => invokeMarketHandler(name, args),
+    {
+      name,
+      description: spec.description,
+      schema: spec.schema,
+    }
+  )
+}
+
 // --- Live PostgREST read tools (impls now live HERE — single source) -------
 // These were previously defined inline in the graph; moved here verbatim so the
 // graph consumes them from the registry and nothing is duplicated.
@@ -481,6 +615,7 @@ const REGISTRY = {
   read_recent_runs: () => makeReadRecentRuns(),
   read_tool_permissions: () => makeReadToolPermissions(),
   draft_copilot_spec: () => makeDraftCopilotSpec(),
+  ...Object.fromEntries(MARKET_TOOL_IDS.map((id) => [id, () => makeMarketReadTool(id)])),
 }
 
 /** The set of all tool ids the registry can build. */

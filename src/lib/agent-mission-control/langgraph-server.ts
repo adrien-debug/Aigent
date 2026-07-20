@@ -152,6 +152,27 @@ function recursionLimitFor(maxSteps: number | undefined): number | undefined {
   return Math.min(Math.max(derived, SDK_DEFAULT_RECURSION_LIMIT), RECURSION_LIMIT_CAP)
 }
 
+/**
+ * The SDK replaces an assistant's stored config when a per-run config is
+ * supplied. Preserve `configurable` (prompt/model/tools) while adding the
+ * recursion limit, otherwise the graph falls back to its legacy generic tools.
+ */
+async function runConfigWithAssistantBehavior(
+  client: AgentServerClient,
+  assistantId: string | undefined,
+  recursionLimit: number | undefined
+): Promise<Record<string, unknown> | undefined> {
+  if (recursionLimit === undefined) return undefined
+  if (!assistantId) return { recursion_limit: recursionLimit }
+
+  const assistant = await client.assistants.get(assistantId)
+  const stored =
+    assistant.config && typeof assistant.config === 'object' && !Array.isArray(assistant.config)
+      ? assistant.config
+      : {}
+  return { ...stored, recursion_limit: recursionLimit }
+}
+
 type AnyMsg = {
   type?: string
   role?: string
@@ -441,13 +462,14 @@ export async function runOnAgentServer(args: {
   const c = agentServerClient()
   const target = args.assistantId ?? AGENT_BUILDER_GRAPH_ID
   const recursionLimit = recursionLimitFor(args.maxSteps)
+  const runConfig = await runConfigWithAssistantBehavior(c, args.assistantId, recursionLimit)
 
   const thread = await c.threads.create()
   const threadId = thread.thread_id
 
   const result = (await c.runs.wait(threadId, target, {
     input: { messages: [{ role: 'user', content: args.userInput }] },
-    ...(recursionLimit !== undefined ? { config: { recursion_limit: recursionLimit } } : {}),
+    ...(runConfig ? { config: runConfig } : {}),
   })) as { messages?: AnyMsg[]; __interrupt__?: unknown }
 
   // Reconstruct via the shared helper. The `.wait()` path keeps its exact prior
@@ -503,6 +525,7 @@ export async function streamOnAgentServer(args: {
   const c = agentServerClient()
   const target = args.assistantId ?? AGENT_BUILDER_GRAPH_ID
   const recursionLimit = recursionLimitFor(args.maxSteps)
+  const runConfig = await runConfigWithAssistantBehavior(c, args.assistantId, recursionLimit)
 
   const thread = await c.threads.create()
   const threadId = thread.thread_id
@@ -514,7 +537,7 @@ export async function streamOnAgentServer(args: {
   for await (const ev of c.runs.stream(threadId, target, {
     input: { messages: [{ role: 'user', content: args.userInput }] },
     streamMode,
-    ...(recursionLimit !== undefined ? { config: { recursion_limit: recursionLimit } } : {}),
+    ...(runConfig ? { config: runConfig } : {}),
   })) {
     // `updates` events carry `{ [node]: update }` — one key per node that just
     // ran. `messages` events (token/message deltas) are ignored this pass.
@@ -547,6 +570,7 @@ export async function resumeOnAgentServer(args: {
   const c = agentServerClient()
   const target = args.assistantId ?? AGENT_BUILDER_GRAPH_ID
   const recursionLimit = recursionLimitFor(args.maxSteps)
+  const runConfig = await runConfigWithAssistantBehavior(c, args.assistantId, recursionLimit)
 
   // `runs.wait` returns the thread's FULL accumulated message history (pre-pause
   // messages included) — and those pre-pause steps/tool_calls were already
@@ -566,7 +590,7 @@ export async function resumeOnAgentServer(args: {
 
   const result = (await c.runs.wait(args.threadId, target, {
     command: { resume: { approved: args.approved } },
-    ...(recursionLimit !== undefined ? { config: { recursion_limit: recursionLimit } } : {}),
+    ...(runConfig ? { config: runConfig } : {}),
   })) as { messages?: AnyMsg[]; __interrupt__?: unknown }
 
   // Interrupt path (a resumed run may hit ANOTHER gated tool and pause again —

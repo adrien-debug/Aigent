@@ -38,6 +38,13 @@ export type BehaviorToolId =
   | 'read_recent_runs'
   | 'read_tool_permissions'
   | 'draft_copilot_spec'
+  | 'read_market_snapshot'
+  | 'read_volatility_state'
+  | 'read_market_structure'
+  | 'read_multi_timeframe_candles'
+  | 'read_liquidity_snapshot'
+  | 'read_macro_context'
+  | 'read_account_risk_snapshot'
 
 /** One tool entry in the behavior config: registry key + per-copilot gating + scope. */
 interface BehaviorTool {
@@ -201,6 +208,13 @@ const REGISTRY_IDS: ReadonlyArray<BehaviorToolId> = [
   'read_recent_runs',
   'read_tool_permissions',
   'draft_copilot_spec',
+  'read_market_snapshot',
+  'read_volatility_state',
+  'read_market_structure',
+  'read_multi_timeframe_candles',
+  'read_liquidity_snapshot',
+  'read_macro_context',
+  'read_account_risk_snapshot',
 ]
 
 /** Registry keys the app knows how to mount. A tool name not here is dropped. */
