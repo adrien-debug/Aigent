@@ -125,3 +125,14 @@ describe('temporal context — .ts and .mjs twins', () => {
     expect(() => buildTemporalContextMjs(new Date('nope'))).toThrow(/invalid reference date/)
   })
 })
+
+describe('forbiddenActions — every tool call is screened, not just the first', () => {
+  it('blocks a forbidden call that arrives second in a multi-call response', async () => {
+    const { forbiddenVerdict } = await import('../../src/langgraph/agent-builder-graph.mjs')
+    const rt = { forbiddenActions: ['never call delete_customer'] }
+    // The first call is innocuous, the second is forbidden. Screening only the
+    // head of the list is exactly what used to let this reach execution.
+    expect(forbiddenVerdict(rt, { name: 'read_project_summary' })).toBeNull()
+    expect(forbiddenVerdict(rt, { name: 'delete_customer' })).toContain('blocked, never executed')
+  })
+})

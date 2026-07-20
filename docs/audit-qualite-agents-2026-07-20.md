@@ -1,10 +1,19 @@
 # Audit qualité agents — 10 axes, 10 auditeurs Opus (2026-07-20)
 
+> **⚠ INSTANTANÉ DU MATIN — NE PAS LIRE COMME L'ÉTAT COURANT.**
+> Ce document décrit le code **avant** les commits `d327ba1` et `3809415`. Une
+> grande partie de ce qu'il décrit comme manquant a été livrée le jour même, et
+> plusieurs de ses « corrections de vérité » sont devenues fausses en quelques
+> heures (Langfuse, plafond de coût, câblage finance…). Un re-audit a été mené
+> après livraison ; ses conclusions sont dans la section **« Re-audit »** en fin
+> de fichier. En cas de contradiction, c'est le re-audit qui fait foi, et le
+> code qui tranche.
+
 Audit multi-agents demandé par Adrien : « qu'est-ce qu'on peut mettre en place
 pour vraiment améliorer la qualité des agents — externe, visuel, tout ». Dix
 auditeurs Opus indépendants, lecture seule, chacun ancré dans le code réel
 (chemins cités). Ce document condense leurs rapports ; la synthèse croisée est
-en tête. Rien ici n'est implémenté — ce sont des propositions.
+en tête. À sa rédaction, rien n'était implémenté — c'étaient des propositions.
 
 ---
 
@@ -134,3 +143,60 @@ coût/débit par agent sur le canvas My Team ; KPI band qualité sur l'overview.
 lecture du code avec chemins cités ; l'axe état-de-l'art cite des sources web
 2026 datées. Les capacités d'outils externes (Langfuse, promptfoo, DeepEval,
 Braintrust, OTel GenAI) sont inférées de leur doc, non testées ici.*
+
+
+---
+
+# Re-audit après livraison (2026-07-20, commits `d327ba1` + `3809415`)
+
+Six auditeurs, lecture seule, code courant **et base live**. Ce qui suit
+remplace l'état décrit plus haut.
+
+## Livré et vérifié
+
+Plafond de coût réellement appliqué sur les deux chemins — le vrai bug était une
+colonne absente d'un `select`, qui le rendait inerte sur les 44 assistants.
+Blocage `forbiddenActions` avant exécution (prouvé par run réel : `status
+blocked`, handler jamais appelé). Invariant de confirmation fermé sur les
+chemins d'écriture applicatifs. Garde SSRF unifiée et durcie côté `http_get`.
+Exporter Langfuse branché sur l'instance self-hosted (trace réelle vérifiée :
+5 observations = 5 steps). Coût de télémétrie calculé, provider normalisé à
+l'ingestion. `unsafeActionCount` en `number | null` de bout en bout.
+Assertions de sécurité déterministes au benchmark.
+
+## Défauts trouvés APRÈS livraison, corrigés dans la foulée
+
+- **Un seul appel d'outil était contrôlé sur le chemin LangGraph.** Le nœud
+  d'approbation ne regardait que `tool_calls[0]` pendant que le nœud
+  d'exécution les lançait tous : une réponse à deux appels laissait passer le
+  second. `parallel_tool_calls: false` est une demande au fournisseur, pas une
+  garantie — les backends OpenAI-compat derrière `google` et `local` ne
+  l'honorent pas tous. Corrigé aux deux endroits, avec re-contrôle dans le nœud
+  qui exécute (le seul par lequel tout appel passe nécessairement).
+- Deux commentaires devenus faux (table des versions, énum provider).
+
+## Ce qui reste, et qui n'est PAS « en cours »
+
+1. **Drift des noms d'outils finance** : 2 résolus sur 26. Douze noms en base
+   sans handler, sept handlers que personne n'appelle. Les 7 agents AP sont
+   inexécutables, en **dégradation silencieuse** (chaque appel refusé, run
+   « réussi »). Le test livré n'assère que code↔code — il faut une assertion
+   base↔code, sinon l'écart reviendra.
+2. **`tools.mutates` : 177 lignes à `true`, aucune à `false`.** La migration
+   n'a rien backfillé, donc ~150 outils en lecture seule ont leur toggle de
+   confirmation verrouillé, sans chemin de correction (le PATCH n'accepte pas
+   `mutates`).
+3. **Télémétrie : zéro ligne en base.** La boucle est muette en fait, pas
+   seulement en risque — le chantier « prod → eval » n'a aucune matière.
+4. **Le sweep n'a aucun déclencheur d'UI.** Moteur et route livrés, inutilisables
+   depuis le dashboard.
+5. **65 versions sur 71 portent des scores à zéro posés à la création**,
+   indiscernables d'une vraie mesure, et ils alimentent KPI et release-gate.
+6. **Chantier corpus (le n°1) intact**, et plus gros qu'annoncé : aucune
+   persistance par tâche, donc la variance n'est même pas mesurable, et la
+   boucle d'amélioration lit les énoncés des cas, pas seulement les scores.
+   Piège à connaître : un holdout constitué en dupliquant les cas de test est
+   fuité dès le premier jour.
+
+Chantiers 3, 4, 5 et 6 de la section précédente sont **substantiellement
+intacts** : les replanifier comme neufs.

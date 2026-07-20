@@ -18,11 +18,11 @@ import { getCopilot, getVersionsForCopilot } from '@/lib/agent-mission-control/d
 import type { CopilotVersion } from '@/lib/agent-mission-control/types'
 
 /**
- * `unsafeActionCount` and `shadowAgreement` still read the stored
- * `copilot_versions.scores` blob — `resolveVersionScoresBatch`
- * (`agent-health.ts`) resolves only `testPassRate`/`benchmarkScore` from live
- * runs. They are labelled rather than shown as live facts; extending that
- * resolver is what removes the label.
+ * Only `shadowAgreement` still reads the stored `copilot_versions.scores` blob.
+ * `resolveVersionScoresBatch` (`agent-health.ts`) resolves test pass rate,
+ * benchmark score AND unsafe actions from live runs. Shadow keeps its label
+ * because no shadow table is pinned per version — there is nothing honest to
+ * resolve it from yet.
  */
 
 export async function VersionsSection({ copilotId }: { copilotId: string }) {

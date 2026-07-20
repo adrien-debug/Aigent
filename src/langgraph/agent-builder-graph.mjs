@@ -381,38 +381,55 @@ async function agentNode(state, config) {
  * once (no side effect before the pause → replay is free). On decline it emits a
  * blocked ToolMessage so the tool never runs; on approve it falls through.
  */
+/**
+ * The forbidden verdict for one call, or null when it is allowed. Shared by the
+ * approval node and the tools node so the interdiction is checked on the SAME
+ * terms in both places.
+ */
+export function forbiddenVerdict(rt, call) {
+  const hit = (rt.forbiddenActions ?? []).find((entry) => forbiddenEntryTargetsTool(entry, call.name))
+  if (hit === undefined) return null
+  return (
+    `tool '${call.name}' is named by a manifest forbiddenActions entry ` +
+    `("${hit}") — blocked, never executed`
+  )
+}
+
 async function approvalNode(state, config) {
   const rt = resolveRuntime(config)
   const last = state.messages[state.messages.length - 1]
-  const call = (last.tool_calls ?? [])[0]
-  if (!call) return {}
+  const calls = last.tool_calls ?? []
+  if (calls.length === 0) return {}
 
   // FORBIDDEN first, and terminal: a manifest interdiction is not confirmable,
   // so it must be checked BEFORE the confirmation gate (never surface an
   // approval dialog for something no approval can authorise). The declined-tool
   // ToolMessage keeps the tool from ever reaching toolsNode, exactly like a
   // human decline — same {blocked:true} shape the app already understands.
-  const forbiddenHit = (rt.forbiddenActions ?? []).find((entry) =>
-    forbiddenEntryTargetsTool(entry, call.name)
-  )
-  if (forbiddenHit !== undefined) {
-    return {
-      messages: [
+  //
+  // EVERY call is screened, not just the first: a model that answers with two
+  // tool calls at once used to have calls 2..n reach toolsNode ungated, because
+  // this node only ever looked at [0]. parallel_tool_calls:false is a provider
+  // request, not a guarantee — the OpenAI-compatible backends behind `google`
+  // and `local` do not all honour it.
+  const blocked = []
+  for (const call of calls) {
+    const reason = forbiddenVerdict(rt, call)
+    if (reason !== null) {
+      blocked.push(
         new ToolMessage({
-          content: JSON.stringify({
-            ok: false,
-            blocked: true,
-            reason:
-              `tool '${call.name}' is named by a manifest forbiddenActions entry ` +
-              `("${forbiddenHit}") — blocked, never executed`,
-          }),
+          content: JSON.stringify({ ok: false, blocked: true, reason }),
           tool_call_id: call.id ?? call.name,
-        }),
-      ],
+        })
+      )
     }
   }
+  if (blocked.length > 0) return { messages: blocked }
 
-  if (!rt.confirmRequired.has(call.name)) return {}
+  // Confirmation is asked for the first call that requires one; the remaining
+  // calls are re-screened by toolsNode before they execute.
+  const call = calls.find((c) => rt.confirmRequired.has(c.name))
+  if (!call) return {}
 
   const proposed = call.args ?? {}
   const decision = interrupt({
@@ -444,6 +461,20 @@ async function toolsNode(state, config) {
   const calls = (last.tool_calls ?? []).filter((c) => !answered.has(c.id ?? c.name))
   const out = []
   for (const call of calls) {
+    // Last line of defence, on the node that actually executes: re-screen the
+    // interdiction here rather than trusting that the approval node saw this
+    // call. It is the only place every executed call necessarily passes
+    // through, so a gate placed anywhere else can be routed around.
+    const forbidden = forbiddenVerdict(rt, call)
+    if (forbidden !== null) {
+      out.push(
+        new ToolMessage({
+          content: JSON.stringify({ ok: false, blocked: true, reason: forbidden }),
+          tool_call_id: call.id ?? call.name,
+        })
+      )
+      continue
+    }
     const t = rt.toolsByName[call.name]
     let content
     try {
