@@ -77,6 +77,13 @@ Détail : `docs/surface-usage.md`.
 - Échelle d'espace : 4/8/12/16/24/32/48 uniquement (`gap-2/3/4/6/8`, `p-4/6`, `space-y-6/8`).
 - 2–3 tailles de texte par écran. Titres : Catalyst `Heading`/`Subheading`. Corps `text-sm`.
 - Données chiffrées, IDs, JSON, versions : `font-mono tabular-nums`.
+- **Overline / micro-eyebrow** (label de stat KPI, eyebrow de `AdminPageHeader`, `<dt>` majuscule) :
+  toujours la constante partagée `eyebrowClass` (`surface-card.tsx`) — `text-[10px] font-medium
+  uppercase tracking-widest text-zinc-400`. `text-[10px]` est le micro-palier assumé du dashboard
+  (sous `text-xs`) ; ne jamais le réécrire à la main, ni le faire varier selon un flag de layout.
+- **Grand chiffre KPI** (`AgentKpiBand`, valeurs) : `font-mono font-light tabular-nums`, taille
+  `text-2xl/8` (hero) alignée sur le `Heading` H1, `text-xl/7` (compact), `text-lg/6` (small).
+  `font-light` est **réservé à ce seul rôle** — le « grand chiffre fin » — jamais ailleurs.
 - Dense mais lisible : tables `text-sm`, méta `text-xs`.
 
 ## Composants — API partagée (contrat, importer depuis `@/components/agent-ops/...`)

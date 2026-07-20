@@ -18,29 +18,44 @@ const EXCLUDE_DIR = join('components', 'catalyst') // the primitive owns the ful
 const HUES = [
   'red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal',
   'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose',
+  // `zinc` is the ONLY sanctioned neutral — its Tailwind rivals are contraband too.
+  'slate', 'gray', 'neutral', 'stone',
 ]
 const PREFIX = 'bg|text|ring-offset|ring|border|fill|stroke|from|to|via|decoration|outline|divide|shadow|caret|placeholder'
 const CLASS_RE = new RegExp(`\\b(${PREFIX})-(${HUES.join('|')})-[0-9]`, 'g')
 const PROP_RE = new RegExp(`(?:color|badgeColor)\\s*[:=]\\s*['"](${HUES.join('|')})['"]`, 'g')
 const VAR_RE = new RegExp(`--color-(${HUES.join('|')})-[0-9]`, 'g')
 
+// The doctrine bans hand-written accent opacities (`bg-accent-500/30`, `ring-accent-400/80`…):
+// if the need is one of the four named roles, consume the token. Scoped to the dashboard —
+// marketing keeps its own restyled blocks. Matches a numeric accent shade WITH a slash opacity;
+// `bg-[var(--accent-soft)]`, `text-accent-400`, `ring-(--accent-line)` are all clean.
+const ACCENT_OPACITY_RE = new RegExp(`\\b(${PREFIX})-accent-[0-9]{2,3}/[0-9]`, 'g')
+const DASHBOARD_DIRS = [join('app', 'admin'), join('components', 'agent-ops')]
+
 async function* walk(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name)
     if (entry.isDirectory()) {
       yield* walk(full)
-    } else if (/\.(ts|tsx)$/.test(entry.name)) {
+    } else if (/\.(ts|tsx|css)$/.test(entry.name)) {
+      // `.css` included so globals.css — the ONE file declaring `--color-*` —
+      // is actually scanned; VAR_RE was dead code while walk() skipped it.
       yield full
     }
   }
 }
 
 // --- WCAG contrast -----------------------------------------------------------
-// Must mirror the solid accent shades in src/app/globals.css (green ramp, #A7FB90).
+// Must mirror the real accent ramp in src/app/globals.css. The brand green #a7fb90
+// anchors 500 (Catalyst fills its primary button with it); 600 is the darker vivid
+// step (Badge `accentSolid`); 700 the dark solid end. Solid accent surfaces carry
+// DARK text (text-zinc-950), so those are the pairs that must clear AA.
+const ZINC_950 = '#09090b'
 const ACCENT = {
-  600: '#a7fb90',
+  500: '#a7fb90',
+  600: '#76ec55',
   700: '#2a7a20',
-  800: '#236619',
 }
 function lin(c) {
   const s = c / 255
@@ -64,9 +79,11 @@ const mockImports = []
 
 async function main() {
   const violations = []
+  const accentOpacityViolations = []
   for await (const file of walk(SRC)) {
     const rel = relative(SRC, file)
     if (rel.includes(EXCLUDE_DIR)) continue
+    const isDashboard = DASHBOARD_DIRS.some((d) => rel.startsWith(d + '/') || rel === d)
     const text = await readFile(file, 'utf8')
     if (rel !== 'lib/agent-mission-control/seed-fixtures.ts' && MOCK_IMPORT_RE.test(text)) {
       mockImports.push(relative(ROOT, file))
@@ -79,13 +96,22 @@ async function main() {
           violations.push(`${relative(ROOT, file)}:${i + 1}  ${m[0]}`)
         }
       }
+      // Hand-written accent opacity — dashboard only (marketing keeps its blocks).
+      if (isDashboard) {
+        ACCENT_OPACITY_RE.lastIndex = 0
+        let a
+        while ((a = ACCENT_OPACITY_RE.exec(line))) {
+          accentOpacityViolations.push(`${relative(ROOT, file)}:${i + 1}  ${a[0]}`)
+        }
+      }
     })
   }
 
   const AA = 4.5
   const contrastChecks = [
-    ['white on accentSolid (bg-accent-700)', contrast('#ffffff', ACCENT[700])],
-    ['white on accent button (bg-accent-700)', contrast('#ffffff', ACCENT[700])],
+    ['zinc-950 on accent-500 (Catalyst primary button)', contrast(ZINC_950, ACCENT[500])],
+    ['zinc-950 on accent-600 (Badge accentSolid)', contrast(ZINC_950, ACCENT[600])],
+    ['white on accent-700 (dark solid end)', contrast('#ffffff', ACCENT[700])],
   ]
   const contrastFails = contrastChecks.filter(([, ratio]) => ratio < AA)
 
@@ -94,6 +120,11 @@ async function main() {
     failed = true
     console.error(`\n✗ ${violations.length} non-accent hue(s) in src (only accent/zinc allowed):\n`)
     for (const v of violations) console.error('  ' + v)
+  }
+  if (accentOpacityViolations.length > 0) {
+    failed = true
+    console.error(`\n✗ ${accentOpacityViolations.length} hand-written accent opacity(ies) in the dashboard (consume a named --accent-* role token):\n`)
+    for (const v of accentOpacityViolations) console.error('  ' + v)
   }
   if (contrastFails.length > 0) {
     failed = true

@@ -162,7 +162,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
   const activeItem = NAV_ITEMS.find((item) => item.match(pathname))
 
   return (
-    <div className="relative isolate flex min-h-svh w-full bg-[var(--color-surface-canvas)] text-zinc-100 font-sans selection:bg-accent-500/30">
+    <div className="relative isolate flex min-h-svh w-full bg-[var(--color-surface-canvas)] text-zinc-100 font-sans selection:bg-[var(--accent-selection)]">
       <CommandPalette />
 
       {/* Sidebar - floating surface-card rail (same DS as body cards): square tiles, icon over label, centered */}
