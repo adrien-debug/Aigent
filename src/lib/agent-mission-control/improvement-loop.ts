@@ -1346,6 +1346,18 @@ export async function runAutoImprovementCycle(
       if (!opts.force) {
         return { iterations: iteration, finalPassRate: v2PassRate, stoppedBy: 'plateau', lastProposalId, lastV2VersionId }
       }
+
+      // `force` means "keep trying", NOT "accept a regression". Create-v2 already
+      // moved `copilots.latest_version_id` onto this V2 (step 3), so leaving it
+      // there would make the degraded version the next iteration's base — each
+      // round would then propose on top of a worse agent and monotonically
+      // decay. Roll the head back to the base and retry from it instead.
+      await pgrest('PATCH', `copilots?${eq('id', copilotId)}`, {
+        latest_version_id: proposal.baseVersionId,
+        updated_at: new Date().toISOString(),
+      })
+      finalPassRate = basePassRate
+      continue
     }
 
     // 6c. IMPROVED — advance: this V2 is the next base. Its proposal becomes the
