@@ -6,6 +6,7 @@ import { prepareAutoEval } from '@/lib/agent-mission-control/agent-autoeval'
 import {
   createCopilotFromManifest,
   deleteCopilotCascade,
+  isHighRiskOrWriteCapableTool,
   setCopilotAssistantId,
 } from '@/lib/agent-mission-control/authoring-writes'
 import type { CreateCopilotInput } from '@/lib/agent-mission-control/authoring-types'
@@ -34,6 +35,18 @@ const MSG = {
   proposedTools:
     'manifest.proposedTools must be an array of at most 50 tools, each with a non-empty name',
 } as const
+
+/**
+ * Security invariant (audit finding): nothing forced a write-capable or
+ * high/critical-risk tool to carry requiresConfirmation=true — the DB default
+ * is false, and release-gate.ts only blocks PROMOTION of high/critical tools,
+ * not their creation. A medium-risk write tool with confirmation off would
+ * sail straight through. Refused here at the 400 boundary (never silently
+ * flipped to true) — same rule re-checked in authoring-writes.ts's
+ * createCopilotFromManifest as defense in depth.
+ */
+const confirmationRequiredMessage = (toolName: string) =>
+  `tool "${toolName}" is high/critical risk or write-capable and must have requiresConfirmation=true`
 const LEGACY_MESSAGES = new Set<string>(Object.values(MSG))
 
 /**
@@ -68,6 +81,14 @@ const proposedToolSchema = z.object(
     riskLevel: z.enum(['low', 'medium', 'high', 'critical']),
     // Mirrors the DB default (tools.requires_confirmation not null default false).
     requiresConfirmation: z.boolean().default(false),
+    // The structural "this tool writes/sends/spends" fact the architect
+    // authors (tools.mutates, migration 0022). Deliberately NOT defaulted:
+    // `undefined` means "the author never said", which the confirmation
+    // invariant handles fail-closed via its keyword fallback. Defaulting it
+    // here would silently answer the question on the author's behalf — and
+    // stripping it (the schema is object-strict) would make the architect's
+    // answer never reach the check at all.
+    mutates: z.boolean().optional(),
   },
   { message: MSG.proposedTools }
 )
@@ -133,7 +154,18 @@ const createCopilotBodySchema = z.object(
         }),
         proposedTools: z
           .array(proposedToolSchema, { message: MSG.proposedTools })
-          .max(50, MSG.proposedTools),
+          .max(50, MSG.proposedTools)
+          .superRefine((tools, ctx) => {
+            tools.forEach((tool, index) => {
+              if (isHighRiskOrWriteCapableTool(tool) && !tool.requiresConfirmation) {
+                ctx.addIssue({
+                  code: z.ZodIssueCode.custom,
+                  message: confirmationRequiredMessage(tool.name),
+                  path: [index, 'requiresConfirmation'],
+                })
+              }
+            })
+          }),
         skills: z
           .array(
             z.object({

@@ -28,8 +28,10 @@ import 'server-only'
 import { createHash } from 'node:crypto'
 
 import { buildCopilotBehaviorConfig, type CopilotBehaviorConfig } from './copilot-behavior'
+import { computeCostUsd } from './model-pricing'
 import { agentServerClient, AGENT_BUILDER_GRAPH_ID } from './langgraph-client'
 import { pgrest } from './postgrest'
+import type { ModelProvider } from './types'
 
 /**
  * Fixed namespace UUID for deriving an assistant id from an entity id (project
@@ -181,6 +183,20 @@ async function loadCopilotBehaviorConfig(
     repoFullName = (projRows[0]?.repo_full_name as string | null) ?? null
   }
 
+  // Per-1M-token rates resolved HERE, server-side: copilot-behavior.ts is pure
+  // and isomorphic, and the graph runs in a separate process that cannot import
+  // `model-pricing.ts` (server-only). Without these the graph enforces NO cost
+  // ceiling rather than enforcing one against a fabricated rate — so this is
+  // what turns the transported `maxCostPerRunUsd` from inert into effective.
+  const pricingModel = (copilot.model as string | null) ?? ''
+  const pricingProvider = normalizePricingProvider(copilot.model_provider)
+  const modelPricing = pricingModel
+    ? {
+        inputUsdPer1M: computeCostUsd(pricingProvider, pricingModel, 1_000_000, 0),
+        outputUsdPer1M: computeCostUsd(pricingProvider, pricingModel, 0, 1_000_000),
+      }
+    : null
+
   const config = buildCopilotBehaviorConfig({
     copilot: {
       id: copilot.id as string,
@@ -195,6 +211,7 @@ async function loadCopilotBehaviorConfig(
       requires_confirmation: t.requires_confirmation as boolean | null,
     })),
     repoFullName,
+    modelPricing,
   })
 
   return { config, projectId }
@@ -219,6 +236,16 @@ async function loadCopilotBehaviorConfig(
  * Throws (never swallows) on transport/auth failure so the caller can fail the
  * copilot creation loudly rather than persist a half-wired copilot.
  */
+/**
+ * Narrow a raw `copilots.model_provider` to a priceable provider. An unknown or
+ * legacy value falls back to 'openai' — the same default the behavior builder
+ * applies — so the rate table is queried with a value it knows rather than
+ * silently yielding no pricing (which would disable the ceiling entirely).
+ */
+function normalizePricingProvider(raw: unknown): ModelProvider {
+  return raw === 'google' || raw === 'local' ? raw : 'openai'
+}
+
 export async function ensureCopilotAssistant(args: { copilotId: string }): Promise<string> {
   const { copilotId } = args
   const { config, projectId } = await loadCopilotBehaviorConfig(copilotId)

@@ -217,6 +217,17 @@ export async function resolveCopilotHealth(copilotId: string): Promise<ResolvedA
 export interface ResolvedVersionScores {
   testPassRate: number | null
   benchmarkScore: number | null
+  /**
+   * Unsafe actions counted by the newest COMPLETED benchmark run pinned to this
+   * version — the exact field the release gate reads
+   * (`benchmark_results.unsafe_action_count`).
+   *
+   * `null` means NEVER BENCHMARKED, and is not interchangeable with `0`: `0` is
+   * the measured claim "this version attempted no unsafe action", which would be
+   * a lie for a version nothing ever ran. Callers must branch on `null` before
+   * rendering or comparing — never coalesce it to `0`.
+   */
+  unsafeActionCount: number | null
   evidenceSource: 'runs' | 'none'
 }
 
@@ -252,19 +263,34 @@ export async function resolveVersionScoresBatch(versionIds: string[]): Promise<M
   }
   const benchRunIds = [...newestBenchRunByVersion.values()]
   const scoreByRunId = new Map<string, number>()
+  // Unsafe count comes from the SAME row as the score — widening this `select`
+  // costs no extra round trip.
+  const unsafeByRunId = new Map<string, number>()
   if (benchRunIds.length > 0) {
-    const results = await pgrest<RawRow[]>('GET', `benchmark_results?run_id=in.(${inList(benchRunIds)})&select=run_id,score`)
-    for (const r of results) scoreByRunId.set(r.run_id as string, (r.score as number) ?? 0)
+    const results = await pgrest<RawRow[]>(
+      'GET',
+      `benchmark_results?run_id=in.(${inList(benchRunIds)})&select=run_id,score,unsafe_action_count`
+    )
+    for (const r of results) {
+      const runId = r.run_id as string
+      scoreByRunId.set(runId, (r.score as number) ?? 0)
+      const unsafe = r.unsafe_action_count
+      // A completed benchmark that recorded no count is unmeasured, not zero.
+      if (typeof unsafe === 'number' && Number.isFinite(unsafe)) unsafeByRunId.set(runId, unsafe)
+    }
   }
 
   for (const vid of versionIds) {
     const testPassRate = passRateByVersion.has(vid) ? passRateByVersion.get(vid)! : null
     const benchRunId = newestBenchRunByVersion.get(vid)
     const benchmarkScore = benchRunId && scoreByRunId.has(benchRunId) ? scoreByRunId.get(benchRunId)! : null
+    const unsafeActionCount = benchRunId && unsafeByRunId.has(benchRunId) ? unsafeByRunId.get(benchRunId)! : null
     out.set(vid, {
       testPassRate,
       benchmarkScore,
-      evidenceSource: testPassRate !== null || benchmarkScore !== null ? 'runs' : 'none',
+      unsafeActionCount,
+      evidenceSource:
+        testPassRate !== null || benchmarkScore !== null || unsafeActionCount !== null ? 'runs' : 'none',
     })
   }
   return out

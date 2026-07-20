@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
+import { normalizeTelemetryProviderToModelProvider } from '@/lib/agent-mission-control/runtime-telemetry-store'
 
 /**
  * POST /api/runtime-telemetry — ingestion endpoint for the runtime telemetry
@@ -54,6 +55,11 @@ const MAX_FIELD_LENGTH = 500
 
 // --- Shape (mirrors migration 0017 runtime_telemetry_events columns) ------
 
+// Wire vocabulary reported by a deployed handler. This stays the vocabulary
+// VALIDATED here; it is NOT what gets persisted. The row stores the provider
+// already normalized onto the internal ModelProvider union (see
+// persistedProvider below) so the table holds exactly one spelling per
+// provider and reads never have to re-translate.
 const providerEnum = z.enum(['openai', 'gemini', 'custom', 'unknown'])
 const statusEnum = z.enum(['started', 'completed', 'failed'])
 const errorCategoryEnum = z.enum(['provider_error', 'timeout', 'validation', 'tool_error', 'unknown'])
@@ -160,6 +166,29 @@ function containsSuspiciousContent(value: unknown, depth = 0): boolean {
   return false
 }
 
+// --- Provider normalization (ingestion boundary) ---------------------------
+
+/**
+ * The value actually written to `runtime_telemetry_events.provider`.
+ *
+ * Normalizing HERE — once per event, at the only write path — rather than on
+ * every read is what keeps the column a single, reliable vocabulary: the day a
+ * handler starts emitting `vertex`/`google` for what another calls `gemini`,
+ * the table would otherwise hold three spellings of one provider and the
+ * historical truth would be unrecoverable without guessing.
+ *
+ * `custom`/`unknown` (and a missing provider) are NEVER guessed at: they have
+ * no knowable backing provider, so they are stored verbatim (resp. null) and
+ * will simply not be priced downstream. Storing a fabricated provider — or
+ * letting a fabricated one produce a cost of `0` — would be a lie; doctrine is
+ * that unavailable data is `null`, never `0`.
+ */
+function persistedProvider(provider: RuntimeTelemetryEvent['provider']): string | null {
+  if (!provider) return null
+  const normalized = normalizeTelemetryProviderToModelProvider(provider)
+  return normalized ?? provider
+}
+
 // --- Route -----------------------------------------------------------------
 
 export async function POST(request: Request) {
@@ -207,7 +236,7 @@ export async function POST(request: Request) {
       target_repo: event.targetRepo ?? null,
       run_id: event.runId,
       received_at: event.timestamp,
-      provider: event.provider ?? null,
+      provider: persistedProvider(event.provider),
       model: event.model ?? null,
       status: event.status,
       latency_ms: event.latencyMs ?? null,

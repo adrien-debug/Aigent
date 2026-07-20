@@ -23,7 +23,7 @@ import {
   type ResolveCopilotHealthOptions,
   type ResolvedAgentHealth,
 } from './agent-health'
-import { camelRow, camelRows, pgrest } from './postgrest'
+import { camelRow, camelRows, pgrest, pgrestWithCount } from './postgrest'
 import type {
   AgentManifest,
   AgentRun,
@@ -184,6 +184,11 @@ export async function getVersionsForCopilot(copilotId: string): Promise<CopilotV
     // no run → keep the stored baseline (seeded versions, un-run drafts).
     if (resolved && resolved.testPassRate !== null) version.scores.testPassRate = resolved.testPassRate
     if (resolved && resolved.benchmarkScore !== null) version.scores.benchmarkScore = resolved.benchmarkScore
+    // Unsafe count follows the OPPOSITE rule: the stored blob is a zero-init
+    // baseline, and "0 unsafe actions" is a safety claim no one measured. The
+    // run-backed value wins even when it is null, so an un-benchmarked version
+    // reads "not measured" instead of a reassuring zero.
+    version.scores.unsafeActionCount = resolved?.unsafeActionCount ?? null
     return version
   })
 }
@@ -204,6 +209,8 @@ export const getVersion = cache(async function getVersion(id: string): Promise<C
   version.scoresEvidence = resolved?.evidenceSource ?? 'none'
   if (resolved && resolved.testPassRate !== null) version.scores.testPassRate = resolved.testPassRate
   if (resolved && resolved.benchmarkScore !== null) version.scores.benchmarkScore = resolved.benchmarkScore
+  // See getVersionsForCopilot: null wins over the zero-init blob.
+  version.scores.unsafeActionCount = resolved?.unsafeActionCount ?? null
   return version
 })
 
@@ -417,4 +424,19 @@ export async function getRegistryKpis(): Promise<RegistryKpis> {
     totalCostLast24hUsd: copilots.reduce((s, c) => s + c.health.costLast24hUsd, 0),
     openWarnings: copilots.reduce((s, c) => s + c.health.openWarnings, 0),
   }
+}
+
+/**
+ * How many manifests actually declare a runtime-telemetry wrapper
+ * (`manifests.telemetry` non-null, migration 0018).
+ *
+ * Feeds the telemetry health diagnostic, which must distinguish three states
+ * that look identical from the outside: nobody opted in, someone opted in but
+ * nothing arrives, and everything is fine. Returns `null` when PostgREST does
+ * not report an exact count — the diagnostic then says the data is
+ * unavailable rather than claiming zero agents declared it.
+ */
+export async function countManifestsWithTelemetryDeclared(): Promise<number | null> {
+  const { count } = await pgrestWithCount('manifests?select=id&telemetry=not.is.null&limit=0')
+  return count
 }

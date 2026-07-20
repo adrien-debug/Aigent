@@ -15,7 +15,6 @@
  *                 the LOCAL_VLLM_MODEL_IDS — never a silent redirect of defaults.
  *                 Endpoint down/unconfigured → ProviderUnavailableError, so the
  *                 standard fallback policy (model-fallbacks.ts) applies.
- *   - mistral   : not wired → ProviderUnavailableError (fallback if allowed).
  *
  * Never import from a client component (reads provider secrets).
  */
@@ -437,14 +436,18 @@ function callProvider(provider: ModelProvider, req: ModelRouterRequest): Promise
       return callGemini(req)
     case 'local':
       return callLocalVllm(req)
-    case 'mistral':
-      throw new ProviderUnavailableError(`provider '${provider}' is not wired in V1`)
     default:
       throw new ProviderUnavailableError(`unknown provider '${provider}'`)
   }
 }
 
-function providerAvailable(provider: ModelProvider, model: string): boolean {
+/**
+ * Single source of truth for "is this provider/model actually configured?".
+ * Exported so pre-flight callers (the benchmark sweep) judge availability the
+ * exact same way the router will at call time — a second copy would let the
+ * sweep skip a model the router would have run.
+ */
+export function providerAvailable(provider: ModelProvider, model: string): boolean {
   switch (provider) {
     case 'openai':
       return openAiAvailable()

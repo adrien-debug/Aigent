@@ -195,6 +195,8 @@ describe('runtime-telemetry-store', () => {
         avgLatencyMs: null,
         p95LatencyMs: null,
         totalTokens: null,
+        totalCostUsd: null,
+        costEstimated: false,
         topErrorCategories: [],
         lastSeenAt: null,
       })

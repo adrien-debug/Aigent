@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
 
+import type { ProposedTool } from '@/lib/agent-mission-control/authoring-types'
+import { isHighRiskOrWriteCapableTool } from '@/lib/agent-mission-control/authoring-writes'
+
 /**
  * Shape guard for `:toolId` path params. Real ids are `makeId('tool', slug)`
  * (see slug.ts): lowercase alphanumerics/hyphens only, bounded length. Mirrors
@@ -63,6 +66,58 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ to
   // (server-side log + generic 502, mirrors copilots/[copilotId]/route.ts).
   // The 30s cap mirrors postgrest.ts's PGREST_TIMEOUT_MS: a hung PostgREST is
   // aborted and reported as a 504 (upstream timeout), never an open socket.
+
+  // Same invariant the creation paths enforce (authoring-writes.ts): a
+  // high/critical-risk or write-capable tool may not run unconfirmed. Without
+  // this check the invariant is trivially bypassable — create the tool
+  // correctly, then turn its confirmation off with one PATCH, which is exactly
+  // what the dashboard toggle does. Refuse; never silently keep the old value.
+  if (patch.requires_confirmation === false) {
+    let current:
+      | { name?: string; description?: string; risk_level?: string; mutates?: boolean }
+      | undefined
+    try {
+      const res = await fetch(
+        `${base}/rest/v1/tools?id=eq.${encodeURIComponent(toolId)}&select=name,description,risk_level,mutates`,
+        {
+          headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(30_000),
+        }
+      )
+      if (!res.ok) {
+        return NextResponse.json({ error: `PostgREST ${res.status}` }, { status: 502 })
+      }
+      current = ((await res.json()) as Array<typeof current>)[0]
+    } catch (err) {
+      console.error('[PATCH /api/agent-ops/tools/:toolId] risk lookup failed', err)
+      if (err instanceof Error && err.name === 'TimeoutError') {
+        return NextResponse.json({ error: 'backend timeout' }, { status: 504 })
+      }
+      return NextResponse.json({ error: 'update failed' }, { status: 502 })
+    }
+    if (!current) {
+      return NextResponse.json({ error: 'tool not found' }, { status: 404 })
+    }
+    // `mutates` (migration 0022) is the structural fact; a row that somehow
+    // lacks it reads `undefined`, which the invariant answers fail-closed with
+    // its keyword fallback rather than as "safe".
+    const risky = isHighRiskOrWriteCapableTool({
+      name: current.name ?? '',
+      description: current.description ?? '',
+      riskLevel: (current.risk_level as ProposedTool['riskLevel']) ?? 'low',
+      mutates: typeof current.mutates === 'boolean' ? current.mutates : undefined,
+    })
+    if (risky) {
+      return NextResponse.json(
+        {
+          error:
+            'this tool is high/critical risk or write-capable — requiresConfirmation cannot be turned off',
+        },
+        { status: 400 }
+      )
+    }
+  }
+
   let rows: unknown[]
   try {
     const res = await fetch(`${base}/rest/v1/tools?id=eq.${encodeURIComponent(toolId)}`, {

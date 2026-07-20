@@ -12,14 +12,14 @@
  */
 import 'server-only'
 
-import type { CreateCopilotInput } from './authoring-types'
+import type { CreateCopilotInput, ProposedTool } from './authoring-types'
 import {
   assistantIdForCopilot,
   deleteCopilotAssistant,
   deleteProjectAssistant,
 } from './langgraph-assistants'
 import { pgrest, requireBackend } from './postgrest'
-import { augmentProposedToolsWithRepoRead } from './repo-read-tools'
+import { augmentProposedToolsWithRepoRead, isWriteCapableToolName } from './repo-read-tools'
 import { makeId, slugify } from './slug'
 import type { TestSuite } from './types'
 
@@ -27,6 +27,98 @@ type RawRow = Record<string, unknown>
 
 /** PostgREST equality filter: `col=eq.<url-encoded val>`. Shared by writes + deletes. */
 const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`
+
+// ---------------------------------------------------------------------------
+// Tool confirmation invariant — a write-capable or high/critical-risk tool
+// created with requiresConfirmation=false is a silent gap: the release-gate
+// (release-gate.ts) only blocks a copilot's PROMOTION when it carries
+// high/critical tools; nothing today stops such a tool (or a medium-risk
+// write tool) from being CREATED with confirmation off, so it runs unconfirmed
+// long before promotion is ever attempted. Enforced here (defense in depth,
+// mirrors the Zod refinement in api/agent-ops/copilots/route.ts) so a caller
+// that bypasses the HTTP layer (a script, another route) can't persist the gap.
+//
+// THE CONTRACT (deterministic):
+//
+//   mutates === true  ||  riskLevel in (high, critical)   ⇒  requiresConfirmation
+//
+// `mutates` (ProposedTool.mutates, column `tools.mutates` — migration 0022) is
+// the structural fact: "this tool writes, sends, publishes or spends
+// something". It is authored by the architect, not guessed.
+//
+// STATUS CHANGE — the keyword heuristic below is DEMOTED. It used to BE the
+// verdict: a ~30-verb English regex over `name || description` decided whether
+// a tool was write-capable, and refused creation with no escape hatch. That was
+// an authoring heuristic dressed up as truth — it rejected `submit_report`,
+// `send_reminder_email` and `execute_query` (a SELECT), while letting a real
+// mutator named `sync_ledger` or `apporter_modification` straight through.
+//
+// It is now, and only ever, a SUGGESTION: `suggestMutates()` proposes a default
+// value of `mutates` to an author/UI. It is used as a verdict in exactly one
+// residual case — when `mutates` is `undefined` (a tool row predating the
+// migration). Unknown must not read as "safe", so we fall back to the old
+// behaviour there, which fails closed. Once every tool carries an explicit
+// `mutates`, the heuristic stops gating anything at all.
+// ---------------------------------------------------------------------------
+
+/**
+ * The verbs BEYOND repo-read-tools.ts's `WRITE_TOOL_HINT`. Kept as a delta, not
+ * a second full vocabulary: the base list stays the single place where "this
+ * name looks write-capable" is defined, so widening it there widens both
+ * checks instead of letting the two drift apart.
+ */
+const EXTRA_WRITE_CAPABLE_HINT =
+  /(update|patch|\bput\b|remove|execute|trigger|send|approve|cancel|reject|revoke|grant|reset|purge|archive|restore|rename|move|upload|submit|assign|charge|refund|pay|transfer)/i
+
+/**
+ * AUTHORING SUGGESTION ONLY — never a verdict. Guesses, from a tool's
+ * name+description, whether its author probably means `mutates: true`. Intended
+ * to pre-fill the field in the authoring UI so the author can correct it. A
+ * wrong guess costs one checkbox click, not a rejected tool.
+ */
+export function suggestMutates(tool: Pick<ProposedTool, 'name' | 'description'>): boolean {
+  const haystack = `${tool.name} ${tool.description}`
+  return isWriteCapableToolName(haystack) || EXTRA_WRITE_CAPABLE_HINT.test(haystack)
+}
+
+/**
+ * True when a tool must be created with requiresConfirmation=true:
+ *
+ *   mutates === true || riskLevel in (high, critical)
+ *
+ * When `mutates` is undefined (a tool authored before `tools.mutates` existed)
+ * we fall back to the legacy name heuristic — unknown must fail closed, so an
+ * absent field preserves exactly the previous behaviour.
+ *
+ * Shared by the Zod refinement at the API boundary and the defense-in-depth
+ * check just before the multi-insert.
+ */
+export function isHighRiskOrWriteCapableTool(
+  tool: Pick<ProposedTool, 'riskLevel' | 'name' | 'description'> & { mutates?: boolean }
+): boolean {
+  if (tool.riskLevel === 'high' || tool.riskLevel === 'critical') return true
+  if (tool.mutates !== undefined) return tool.mutates
+  return suggestMutates(tool)
+}
+
+/**
+ * Throws if any proposed tool is high/critical risk or write-capable but was
+ * NOT marked requiresConfirmation=true. We REFUSE — never silently flip the
+ * flag to true on the caller's behalf — so a caller who genuinely meant
+ * unconfirmed low-stakes access gets a clear signal instead of a silently
+ * "fixed" tool.
+ */
+export function assertToolConfirmationInvariant(tools: readonly ProposedTool[]): void {
+  for (const tool of tools) {
+    if (isHighRiskOrWriteCapableTool(tool) && !tool.requiresConfirmation) {
+      throw new Error(
+        `tool "${tool.name}" mutates state or is high/critical risk ` +
+          `(riskLevel=${tool.riskLevel}, mutates=${tool.mutates ?? 'unknown'}) ` +
+          `and must be created with requiresConfirmation=true`
+      )
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // createCopilotFromManifest — materialize a ready draft into a real copilot
@@ -48,6 +140,13 @@ const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`
  * operator clean up rather than silently retry.
  */
 export async function createCopilotFromManifest(input: CreateCopilotInput): Promise<string> {
+  // Defense in depth (mirrors the Zod refinement in the API route): refuse
+  // BEFORE any row is written, rather than mid-multi-insert, so a violation
+  // never strands a half-created copilot. augmentProposedToolsWithRepoRead
+  // (below) only ever ADDS safe, low-risk, unconfirmed-by-design repo-read
+  // tools, so checking the input's own list here is sufficient.
+  assertToolConfirmationInvariant(input.manifest.proposedTools)
+
   const now = new Date().toISOString()
   const uniqueSuffix = crypto.randomUUID().slice(0, 8)
   const slug = input.slug || slugify(input.name)
@@ -132,6 +231,10 @@ export async function createCopilotFromManifest(input: CreateCopilotInput): Prom
     enabled: true,
     requires_confirmation: proposed.requiresConfirmation,
     scoped_routes: [],
+    // Migration 0022 is applied, so the column exists. An author who never
+    // answered the question falls back to `true` — the same fail-closed
+    // default the column carries: unknown is presumed mutating, never safe.
+    mutates: proposed.mutates ?? true,
   }))
   const toolIds = toolPayloads.map((payload) => payload.id as string)
   if (toolIds.length > 0) {
@@ -157,7 +260,9 @@ export async function createCopilotFromManifest(input: CreateCopilotInput): Prom
       testPassRate: 0,
       benchmarkScore: 0,
       shadowAgreement: null,
-      unsafeActionCount: 0,
+      // Never benchmarked yet — `null`, not a `0` that would claim a run
+      // looked and found nothing.
+      unsafeActionCount: null,
     },
   }
   await pgrest<RawRow[]>('POST', 'copilot_versions', versionPayload)

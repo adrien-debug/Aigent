@@ -54,7 +54,7 @@ export type CopilotStatus = 'active' | 'paused' | 'draft' | 'degraded' | 'archiv
 
 export type AgentPushStatus = 'never' | 'pushing' | 'pushed' | 'failed'
 
-export type ModelProvider = 'openai' | 'google' | 'mistral' | 'local'
+export type ModelProvider = 'openai' | 'google' | 'local'
 
 export interface Copilot {
   id: string
@@ -133,7 +133,13 @@ export interface CopilotVersion {
     testPassRate: number // 0..1
     benchmarkScore: number // 0..100
     shadowAgreement: number | null // 0..1, null if never shadowed
-    unsafeActionCount: number
+    /**
+     * Unsafe actions counted by the latest completed benchmark run pinned to
+     * this version. `null` = never measured — NOT the same claim as `0`, which
+     * asserts a run looked and found none. A version that was never
+     * benchmarked, or whose run recorded nothing, must read `null`.
+     */
+    unsafeActionCount: number | null
   }
   /**
    * Whether `scores.testPassRate`/`benchmarkScore` came from real completed runs
@@ -527,3 +533,14 @@ export interface RegistryWarning {
   occurredAt: IsoTimestamp
   href: string
 }
+
+/**
+ * The single non-neutral accent the repo allows (green #A7FB90) plus the
+ * neutral `zinc` ramp. No agent may pick any other colour — the dashboard is
+ * mono-accent (check:catalyst / check:ds). A closed union so a wrong value
+ * fails to typecheck rather than slipping a stray hue into the UI later.
+ *
+ * Lives here, not in a roster: every gamme (market, finance, dropship, …)
+ * carries it, and the doctrine must have exactly one definition.
+ */
+export type AgentAccent = 'accent' | 'zinc'

@@ -9,6 +9,16 @@
  *     Read-only, timeout-bounded, never throws on a bad source (returns an
  *     UNAVAILABLE-shaped result). This is the LIVE/SNAPSHOT path. It writes
  *     NOTHING to TradeAgent (invariant #21/#22: no mutation of the consumer).
+ *     SSRF-gated by the SHARED guard in `src/langgraph/http-guard.mjs` — the
+ *     same module `http_get` uses, so the two paths cannot drift again: the
+ *     configured URL is validated (http/https only) at construction and its
+ *     host is PINNED as the sole allowed destination (`allowedHosts: [host]`,
+ *     the one-host case of the guard's allowlist parameter); redirects are
+ *     followed manually with scheme + host re-validated against that pin on
+ *     every hop, so a compromised/misrouted TradeAgent instance can never 302
+ *     the fetch onto an internal target (cloud metadata, admin panel, …). Any
+ *     rejection fails CLOSED — no network call, UNAVAILABLE provenance, never
+ *     a throw.
  *
  *   - FixtureMarketProvider — serves hand-authored HISTORICAL/FIXTURE series
  *     from `./fixtures`. Lab-only; every datum it returns is tagged
@@ -28,6 +38,7 @@ import type {
   PairSymbol,
   Ticker,
 } from './snapshot'
+import { guardedFetch, validateHttpUrl } from '../../../langgraph/http-guard.mjs'
 import type { MarketSourceType, Provenance, TruthStatus } from './truth'
 import { makeProvenance, unavailableProvenance } from './truth'
 
@@ -142,6 +153,11 @@ export abstract class BaseMarketProvider implements MarketDataProvider {
 
 const DEFAULT_TIMEOUT_MS = 4000
 
+/** One `fetchJson` outcome: the parsed body, or a typed reason it was refused
+ * / failed — NEVER a throw. Lets callers build a specific UNAVAILABLE reason
+ * instead of a generic "no data" message. */
+type FetchOutcome = { ok: true; body: unknown } | { ok: false; reason: string }
+
 /** TradeAgent's serialized candle shape from /api/market/candles. */
 interface WireCandle {
   openTime: number
@@ -164,31 +180,55 @@ export class HttpMarketProvider extends BaseMarketProvider {
   readonly sourceType: MarketSourceType = 'composite'
   private readonly baseUrl: string
   private readonly timeoutMs: number
+  /** SSRF pin: the ONLY host any request (including redirect hops) may ever
+   * reach. Null when the configured URL failed validation — every fetch then
+   * fails closed without touching the network. Set once at construction so
+   * the class never re-derives trust from an attacker-influenced value. */
+  private readonly allowedHost: string | null
+  private readonly configError: string | null
 
   constructor(opts: { baseUrl: string; timeoutMs?: number }) {
     super()
     this.baseUrl = opts.baseUrl.replace(/\/+$/, '')
     this.timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS
     this.id = `tradeagent:${this.baseUrl}`
+    // SSRF guard, config validation (shared module, `allowedHosts: null` = check
+    // the scheme, then let US derive the pin from the accepted URL). Rejects a
+    // bad scheme or an unparseable URL up front — never throws, just disables
+    // this instance's network path (see fetchJson) so every call resolves to
+    // UNAVAILABLE instead.
+    const validated = validateHttpUrl(this.baseUrl)
+    this.allowedHost = validated.ok ? validated.host : null
+    this.configError = validated.ok
+      ? null
+      : `invalid TRADEAGENT_MARKET_URL: ${validated.reason}`
   }
 
-  private async fetchJson(path: string): Promise<unknown | null> {
-    const controller = new AbortController()
-    const t = setTimeout(() => controller.abort(), this.timeoutMs)
-    try {
-      const res = await fetch(`${this.baseUrl}${path}`, {
-        signal: controller.signal,
-        headers: { accept: 'application/json' },
-        // read-only, never cached across truth boundaries
-        cache: 'no-store',
-      })
-      if (!res.ok) return null
-      return (await res.json()) as unknown
-    } catch {
-      return null
-    } finally {
-      clearTimeout(t)
+  private async fetchJson(path: string): Promise<FetchOutcome> {
+    // FAIL CLOSED: a rejected config never reaches the network.
+    if (!this.allowedHost) {
+      return { ok: false, reason: this.configError ?? 'invalid TRADEAGENT_MARKET_URL' }
     }
+    // SSRF guard — SHARED with `http_get` via src/langgraph/http-guard.mjs.
+    // The pin is expressed as the one-host case of the guard's allowlist:
+    // scheme + host are re-validated on every redirect hop, so a compromised
+    // or misconfigured TradeAgent instance can never 302 this fetch onto an
+    // internal target. The guard never throws — every failure below is a
+    // typed reason the caller turns into an UNAVAILABLE provenance.
+    const out = await guardedFetch(`${this.baseUrl}${path}`, {
+      allowedHosts: [this.allowedHost],
+      timeoutMs: this.timeoutMs,
+      headers: { accept: 'application/json' },
+      // Non-2xx bodies are never parsed: the status IS the answer, and an
+      // error page is rarely JSON. Keeps the reason `HTTP <status>` rather
+      // than a misleading parse error.
+      readBody: async (res) => (res.ok ? ((await res.json()) as unknown) : null),
+    })
+    if (!out.ok) return { ok: false, reason: out.reason }
+    if (!out.httpOk) {
+      return { ok: false, reason: `HTTP ${out.status} from ${this.baseUrl}${path}` }
+    }
+    return { ok: true, body: out.body }
   }
 
   async getCandles(
@@ -197,9 +237,10 @@ export class HttpMarketProvider extends BaseMarketProvider {
     limit: number,
     ctx: ProviderContext,
   ): Promise<ProviderResult<Candle[]>> {
-    const body = await this.fetchJson(
+    const fetched = await this.fetchJson(
       `/api/market/candles?symbol=${pair}&interval=${interval}&limit=${limit}`,
     )
+    const body = fetched.ok ? fetched.body : null
     const rows =
       body && typeof body === 'object' && Array.isArray((body as { candles?: unknown }).candles)
         ? ((body as { candles: WireCandle[] }).candles)
@@ -211,7 +252,9 @@ export class HttpMarketProvider extends BaseMarketProvider {
           source: `${this.id}/api/market/candles`,
           sourceType: this.sourceType,
           asOf: ctx.asOf,
-          reason: `no candles for ${pair} ${interval} from ${this.baseUrl}`,
+          reason: fetched.ok
+            ? `no candles for ${pair} ${interval} from ${this.baseUrl}`
+            : fetched.reason,
         }),
       }
     }
@@ -245,7 +288,8 @@ export class HttpMarketProvider extends BaseMarketProvider {
     pair: PairSymbol,
     ctx: ProviderContext,
   ): Promise<ProviderResult<Ticker>> {
-    const body = await this.fetchJson(`/api/market/tickers?symbols=${pair}`)
+    const fetched = await this.fetchJson(`/api/market/tickers?symbols=${pair}`)
+    const body = fetched.ok ? fetched.body : null
     const list =
       body && typeof body === 'object' && Array.isArray((body as { tickers?: unknown }).tickers)
         ? ((body as { tickers: Array<Record<string, unknown>> }).tickers)
@@ -258,7 +302,9 @@ export class HttpMarketProvider extends BaseMarketProvider {
           source: `${this.id}/api/market/tickers`,
           sourceType: this.sourceType,
           asOf: ctx.asOf,
-          reason: `no ticker for ${pair} from ${this.baseUrl}`,
+          reason: fetched.ok
+            ? `no ticker for ${pair} from ${this.baseUrl}`
+            : fetched.reason,
         }),
       }
     }

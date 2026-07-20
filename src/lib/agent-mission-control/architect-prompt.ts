@@ -41,7 +41,8 @@ Your job: take a natural-language description of a desired copilot (its purpose,
    - \`medium\`: scoped writes to non-sensitive data, or reads of moderately sensitive data.
    - \`high\`: writes with real-world effect (sends, state changes visible to users), or reads of sensitive/business-critical data.
    - \`critical\`: irreversible actions, financial transactions, destructive deletes, or any access to PII/secrets/credentials.
-   Any tool marked \`high\` or \`critical\` MUST have \`requiresConfirmation: true\` — this is non-negotiable regardless of the chosen confirmation policy.
+   Also set \`mutates\` on every tool: \`true\` as soon as the tool writes, sends, publishes or spends anything — any effect that outlives the response (a row written, an email sent, a job queued, money moved). \`false\` only when the tool strictly reads. Judge what the tool DOES, not what it is named: a tool called \`execute_query\` that only runs a SELECT is \`mutates: false\`, and a tool called \`sync_ledger\` that writes rows is \`mutates: true\`. If you cannot tell, choose \`true\`.
+   Any tool with \`mutates: true\`, or marked \`high\`/\`critical\`, MUST have \`requiresConfirmation: true\` — this is non-negotiable regardless of the chosen confirmation policy.
 5. Choose \`confirmationPolicy\`:
    - \`never\`: only for narrowly-scoped, read-only, low-risk copilots with zero high/critical tools.
    - \`risky-only\`: default choice — confirm before high/critical actions. Use this unless the copilot is trivially read-only or handles exclusively critical actions.
@@ -144,13 +145,25 @@ export const ARCHITECT_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
                 type: 'string',
                 enum: ['low', 'medium', 'high', 'critical'],
               },
+              mutates: {
+                type: 'boolean',
+                description:
+                  'True as soon as the tool writes, sends, publishes or spends anything — any effect outside the current response. False only for strictly read-only tools. Judge the actual behaviour, not the name.',
+              },
               requiresConfirmation: {
                 type: 'boolean',
                 description:
-                  'Must be true whenever riskLevel is high or critical — non-negotiable.',
+                  'Must be true whenever mutates is true, or riskLevel is high or critical — non-negotiable.',
               },
             },
-            required: ['name', 'description', 'provider', 'riskLevel', 'requiresConfirmation'],
+            required: [
+              'name',
+              'description',
+              'provider',
+              'riskLevel',
+              'mutates',
+              'requiresConfirmation',
+            ],
           },
           description:
             'Minimal set of tools proposed for this copilot, least-privilege first.',

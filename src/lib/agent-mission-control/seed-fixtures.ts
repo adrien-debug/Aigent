@@ -1479,10 +1479,10 @@ export const agentRuns: AgentRun[] = [
     startedAt: '2026-07-09T07:12:00Z',
     finishedAt: '2026-07-09T07:12:09Z',
     status: 'completed',
-    stepIds: ['step-0041-1', 'step-0041-2', 'step-0041-3', 'step-0041-4', 'step-0041-5'],
+    stepIds: ['step-0041-1', 'step-0041-2', 'step-0041-4', 'step-0041-5'],
     inputSummary: 'How do I enable SSO for my workspace?',
     outputSummary: 'Replied with SSO setup guide from KB; no account changes.',
-    toolCallCount: 3,
+    toolCallCount: 2,
     unsafeAttemptCount: 0,
     latencyMs: 9300,
     costUsd: 0.08,
@@ -1504,7 +1504,6 @@ export const agentRuns: AgentRun[] = [
       'step-0042-4',
       'step-0042-5',
       'step-0042-6',
-      'step-0042-7',
       'step-0042-8',
       'step-0042-9',
     ],
@@ -1574,7 +1573,6 @@ export const agentRuns: AgentRun[] = [
       'step-0045-3',
       'step-0045-4',
       'step-0045-5',
-      'step-0045-6',
       'step-0045-7',
     ],
     inputSummary: 'Pause payment reminders for two weeks (medical leave).',
@@ -1623,7 +1621,6 @@ export const agentRuns: AgentRun[] = [
       'step-0047-1',
       'step-0047-2',
       'step-0047-3',
-      'step-0047-4',
       'step-0047-5',
       'step-0047-6',
       'step-0047-7',
@@ -1646,10 +1643,10 @@ export const agentRuns: AgentRun[] = [
     startedAt: '2026-07-09T08:38:00Z',
     finishedAt: null,
     status: 'running',
-    stepIds: ['step-0048-1', 'step-0048-2', 'step-0048-3', 'step-0048-4', 'step-0048-5'],
+    stepIds: ['step-0048-1', 'step-0048-2', 'step-0048-3', 'step-0048-5'],
     inputSummary: 'Refund request plus a question about audit-log export.',
     outputSummary: 'In progress: diagnosis complete, drafting combined reply.',
-    toolCallCount: 3,
+    toolCallCount: 2,
     unsafeAttemptCount: 0,
     latencyMs: 12800,
     costUsd: 0.1,
@@ -1704,7 +1701,7 @@ export const agentRuns: AgentRun[] = [
     startedAt: '2026-07-08T17:38:00Z',
     finishedAt: '2026-07-08T17:38:52Z',
     status: 'completed',
-    stepIds: ['step-0061-1', 'step-0061-2', 'step-0061-3', 'step-0061-4', 'step-0061-5', 'step-0061-6'],
+    stepIds: ['step-0061-1', 'step-0061-2', 'step-0061-4', 'step-0061-5', 'step-0061-6'],
     inputSummary: 'Prepare release 2026.28 from the green pipeline.',
     outputSummary: 'Release notes drafted; publish window proposed for Thursday 10:00 UTC.',
     toolCallCount: 3,
@@ -1742,7 +1739,7 @@ export const agentRuns: AgentRun[] = [
     startedAt: '2026-07-02T11:16:00Z',
     finishedAt: '2026-07-02T11:16:07Z',
     status: 'completed',
-    stepIds: ['step-0071-1', 'step-0071-2', 'step-0071-3', 'step-0071-4', 'step-0071-5'],
+    stepIds: ['step-0071-1', 'step-0071-2', 'step-0071-3', 'step-0071-5'],
     inputSummary: 'Developer reports intermittent 429s despite low traffic.',
     outputSummary: 'Diagnosed burst-limit exhaustion; suggested token-bucket client backoff.',
     toolCallCount: 2,
@@ -1754,23 +1751,21 @@ export const agentRuns: AgentRun[] = [
 ]
 
 export const agentRunSteps: AgentRunStep[] = [
-  // run-0041 — KB answer (5 steps)
+  // run-0041 — KB answer (4 steps)
   { id: 'step-0041-1', runId: 'run-0041', index: 0, kind: 'llm-call', title: 'Classify request', detail: 'Intent: how-to question, SSO setup. No account mutation needed.', status: 'ok', startedAt: '2026-07-09T07:12:00Z', durationMs: 1800, toolCallId: null },
   { id: 'step-0041-2', runId: 'run-0041', index: 1, kind: 'tool-call', title: 'ticket_read', detail: 'Loaded ticket #8841 thread and workspace context.', status: 'ok', startedAt: '2026-07-09T07:12:02Z', durationMs: 600, toolCallId: 'call-0041-1' },
-  { id: 'step-0041-3', runId: 'run-0041', index: 2, kind: 'memory-read', title: 'KB retrieval', detail: 'Top hit: "Configure SAML SSO" (score 0.91).', status: 'ok', startedAt: '2026-07-09T07:12:03Z', durationMs: 900, toolCallId: 'call-0041-2' },
-  { id: 'step-0041-4', runId: 'run-0041', index: 3, kind: 'tool-call', title: 'reply_draft', detail: 'Drafted step-by-step SSO reply with article link.', status: 'ok', startedAt: '2026-07-09T07:12:05Z', durationMs: 2400, toolCallId: 'call-0041-3' },
-  { id: 'step-0041-5', runId: 'run-0041', index: 4, kind: 'output', title: 'Final output', detail: 'UI action: post drafted reply for agent review.', status: 'ok', startedAt: '2026-07-09T07:12:08Z', durationMs: 400, toolCallId: null },
+  { id: 'step-0041-4', runId: 'run-0041', index: 2, kind: 'tool-call', title: 'reply_draft', detail: 'Drafted step-by-step SSO reply with article link.', status: 'ok', startedAt: '2026-07-09T07:12:05Z', durationMs: 2400, toolCallId: 'call-0041-3' },
+  { id: 'step-0041-5', runId: 'run-0041', index: 3, kind: 'output', title: 'Final output', detail: 'UI action: post drafted reply for agent review.', status: 'ok', startedAt: '2026-07-09T07:12:08Z', durationMs: 400, toolCallId: null },
 
-  // run-0042 — refund with confirmation (9 steps)
+  // run-0042 — refund with confirmation (8 steps)
   { id: 'step-0042-1', runId: 'run-0042', index: 0, kind: 'llm-call', title: 'Diagnose complaint', detail: 'Intent: duplicate charge, June invoice. Plan: verify both charges.', status: 'ok', startedAt: '2026-07-09T06:48:00Z', durationMs: 2100, toolCallId: null },
   { id: 'step-0042-2', runId: 'run-0042', index: 1, kind: 'tool-call', title: 'ticket_read', detail: 'Loaded ticket #8846 and customer metadata.', status: 'ok', startedAt: '2026-07-09T06:48:02Z', durationMs: 500, toolCallId: 'call-0042-1' },
   { id: 'step-0042-3', runId: 'run-0042', index: 2, kind: 'tool-call', title: 'account_lookup', detail: 'Two settlements of $129.00 on 2026-06-30 for the same invoice.', status: 'ok', startedAt: '2026-07-09T06:48:03Z', durationMs: 1100, toolCallId: 'call-0042-2' },
   { id: 'step-0042-4', runId: 'run-0042', index: 3, kind: 'guardrail-check', title: 'Refund amount check', detail: '$129.00 ≤ invoice total $129.00 — within policy.', status: 'ok', startedAt: '2026-07-09T06:48:05Z', durationMs: 300, toolCallId: null },
   { id: 'step-0042-5', runId: 'run-0042', index: 4, kind: 'confirmation', title: 'Human confirmation', detail: 'Refund of $129.00 approved by nadia.kessler.', status: 'ok', startedAt: '2026-07-09T06:48:06Z', durationMs: 14200, toolCallId: null },
   { id: 'step-0042-6', runId: 'run-0042', index: 5, kind: 'tool-call', title: 'issue_refund', detail: 'Refund executed with idempotency key inv-8846-dup.', status: 'ok', startedAt: '2026-07-09T06:48:21Z', durationMs: 2600, toolCallId: 'call-0042-3' },
-  { id: 'step-0042-7', runId: 'run-0042', index: 6, kind: 'memory-write', title: 'Session memory update', detail: 'Recorded refund decision in ticket session memory.', status: 'ok', startedAt: '2026-07-09T06:48:24Z', durationMs: 200, toolCallId: null },
-  { id: 'step-0042-8', runId: 'run-0042', index: 7, kind: 'tool-call', title: 'reply_draft', detail: 'Drafted confirmation reply with refund reference.', status: 'ok', startedAt: '2026-07-09T06:48:24Z', durationMs: 1700, toolCallId: 'call-0042-4' },
-  { id: 'step-0042-9', runId: 'run-0042', index: 8, kind: 'output', title: 'Final output', detail: 'UI actions: refund receipt + drafted reply.', status: 'ok', startedAt: '2026-07-09T06:48:26Z', durationMs: 300, toolCallId: null },
+  { id: 'step-0042-8', runId: 'run-0042', index: 6, kind: 'tool-call', title: 'reply_draft', detail: 'Drafted confirmation reply with refund reference.', status: 'ok', startedAt: '2026-07-09T06:48:24Z', durationMs: 1700, toolCallId: 'call-0042-4' },
+  { id: 'step-0042-9', runId: 'run-0042', index: 7, kind: 'output', title: 'Final output', detail: 'UI actions: refund receipt + drafted reply.', status: 'ok', startedAt: '2026-07-09T06:48:26Z', durationMs: 300, toolCallId: null },
 
   // run-0043 — needs-confirmation (6 steps)
   { id: 'step-0043-1', runId: 'run-0043', index: 0, kind: 'llm-call', title: 'Classify request', detail: 'Intent: seat downgrade 40 → 25 at renewal.', status: 'ok', startedAt: '2026-07-09T05:30:00Z', durationMs: 1900, toolCallId: null },
@@ -1787,14 +1782,13 @@ export const agentRunSteps: AgentRunStep[] = [
   { id: 'step-0044-4', runId: 'run-0044', index: 3, kind: 'llm-call', title: 'Compose escalation', detail: 'Drafted internal escalation note explaining the block.', status: 'ok', startedAt: '2026-07-08T22:05:04Z', durationMs: 2900, toolCallId: null },
   { id: 'step-0044-5', runId: 'run-0044', index: 4, kind: 'output', title: 'Final output', detail: 'Escalated to human queue with self-serve deletion instructions.', status: 'ok', startedAt: '2026-07-08T22:05:11Z', durationMs: 400, toolCallId: null },
 
-  // run-0045 — dunning pause (7 steps)
+  // run-0045 — dunning pause (6 steps)
   { id: 'step-0045-1', runId: 'run-0045', index: 0, kind: 'llm-call', title: 'Classify request', detail: 'Intent: dunning pause, hardship context.', status: 'ok', startedAt: '2026-07-08T18:20:00Z', durationMs: 2000, toolCallId: null },
   { id: 'step-0045-2', runId: 'run-0045', index: 1, kind: 'tool-call', title: 'ticket_read', detail: 'Loaded ticket #8837.', status: 'ok', startedAt: '2026-07-08T18:20:02Z', durationMs: 500, toolCallId: 'call-0045-1' },
   { id: 'step-0045-3', runId: 'run-0045', index: 2, kind: 'tool-call', title: 'account_lookup', detail: 'One open invoice, dunning stage 2 of 4.', status: 'ok', startedAt: '2026-07-08T18:20:03Z', durationMs: 1000, toolCallId: 'call-0045-2' },
   { id: 'step-0045-4', runId: 'run-0045', index: 3, kind: 'confirmation', title: 'Human confirmation', detail: '14-day pause approved by on-call reviewer.', status: 'ok', startedAt: '2026-07-08T18:20:05Z', durationMs: 20800, toolCallId: null },
   { id: 'step-0045-5', runId: 'run-0045', index: 4, kind: 'tool-call', title: 'pause_dunning', detail: 'Dunning paused until 2026-07-22.', status: 'ok', startedAt: '2026-07-08T18:20:26Z', durationMs: 1900, toolCallId: 'call-0045-3' },
-  { id: 'step-0045-6', runId: 'run-0045', index: 5, kind: 'memory-write', title: 'Session memory update', detail: 'Recorded pause end date for follow-up.', status: 'ok', startedAt: '2026-07-08T18:20:28Z', durationMs: 200, toolCallId: null },
-  { id: 'step-0045-7', runId: 'run-0045', index: 6, kind: 'output', title: 'Final output', detail: 'Empathetic reply drafted with pause end date.', status: 'ok', startedAt: '2026-07-08T18:20:29Z', durationMs: 1600, toolCallId: null },
+  { id: 'step-0045-7', runId: 'run-0045', index: 5, kind: 'output', title: 'Final output', detail: 'Empathetic reply drafted with pause end date.', status: 'ok', startedAt: '2026-07-08T18:20:29Z', durationMs: 1600, toolCallId: null },
 
   // run-0046 — failed plan change (6 steps)
   { id: 'step-0046-1', runId: 'run-0046', index: 0, kind: 'llm-call', title: 'Classify request', detail: 'Intent: immediate upgrade to Scale plan.', status: 'ok', startedAt: '2026-07-08T14:55:00Z', durationMs: 1800, toolCallId: null },
@@ -1804,22 +1798,20 @@ export const agentRunSteps: AgentRunStep[] = [
   { id: 'step-0046-5', runId: 'run-0046', index: 4, kind: 'tool-call', title: 'change_subscription_plan', detail: 'Upstream billing API returned 502 on both attempts.', status: 'error', startedAt: '2026-07-08T14:55:15Z', durationMs: 27400, toolCallId: 'call-0046-3' },
   { id: 'step-0046-6', runId: 'run-0046', index: 5, kind: 'output', title: 'Failure output', detail: 'Run marked failed; ticket escalated with error context.', status: 'error', startedAt: '2026-07-08T14:55:43Z', durationMs: 600, toolCallId: null },
 
-  // run-0047 — bill explanation (8 steps)
+  // run-0047 — bill explanation (7 steps)
   { id: 'step-0047-1', runId: 'run-0047', index: 0, kind: 'llm-call', title: 'Classify request', detail: 'Intent: billing explanation, no invoice attached.', status: 'ok', startedAt: '2026-07-08T11:10:00Z', durationMs: 1700, toolCallId: null },
   { id: 'step-0047-2', runId: 'run-0047', index: 1, kind: 'tool-call', title: 'ticket_read', detail: 'Loaded ticket #8825.', status: 'ok', startedAt: '2026-07-08T11:10:02Z', durationMs: 500, toolCallId: 'call-0047-1' },
   { id: 'step-0047-3', runId: 'run-0047', index: 2, kind: 'tool-call', title: 'account_lookup', detail: '3 seats added on 2026-06-19 — matches the bill increase.', status: 'ok', startedAt: '2026-07-08T11:10:03Z', durationMs: 1200, toolCallId: 'call-0047-2' },
-  { id: 'step-0047-4', runId: 'run-0047', index: 3, kind: 'memory-read', title: 'Session memory read', detail: 'No prior billing conversation in this thread.', status: 'ok', startedAt: '2026-07-08T11:10:05Z', durationMs: 200, toolCallId: null },
-  { id: 'step-0047-5', runId: 'run-0047', index: 4, kind: 'llm-call', title: 'Compose breakdown', detail: 'Line-by-line comparison of May vs June invoices.', status: 'ok', startedAt: '2026-07-08T11:10:05Z', durationMs: 4200, toolCallId: null },
-  { id: 'step-0047-6', runId: 'run-0047', index: 5, kind: 'guardrail-check', title: 'PII check on draft', detail: 'No third-party PII in the drafted breakdown.', status: 'ok', startedAt: '2026-07-08T11:10:10Z', durationMs: 300, toolCallId: null },
-  { id: 'step-0047-7', runId: 'run-0047', index: 6, kind: 'tool-call', title: 'reply_draft', detail: 'Reply drafted with the breakdown table.', status: 'ok', startedAt: '2026-07-08T11:10:11Z', durationMs: 1900, toolCallId: 'call-0047-3' },
-  { id: 'step-0047-8', runId: 'run-0047', index: 7, kind: 'output', title: 'Final output', detail: 'UI action: post drafted reply for agent review.', status: 'ok', startedAt: '2026-07-08T11:10:14Z', durationMs: 300, toolCallId: null },
+  { id: 'step-0047-5', runId: 'run-0047', index: 3, kind: 'llm-call', title: 'Compose breakdown', detail: 'Line-by-line comparison of May vs June invoices.', status: 'ok', startedAt: '2026-07-08T11:10:05Z', durationMs: 4200, toolCallId: null },
+  { id: 'step-0047-6', runId: 'run-0047', index: 4, kind: 'guardrail-check', title: 'PII check on draft', detail: 'No third-party PII in the drafted breakdown.', status: 'ok', startedAt: '2026-07-08T11:10:10Z', durationMs: 300, toolCallId: null },
+  { id: 'step-0047-7', runId: 'run-0047', index: 5, kind: 'tool-call', title: 'reply_draft', detail: 'Reply drafted with the breakdown table.', status: 'ok', startedAt: '2026-07-08T11:10:11Z', durationMs: 1900, toolCallId: 'call-0047-3' },
+  { id: 'step-0047-8', runId: 'run-0047', index: 6, kind: 'output', title: 'Final output', detail: 'UI action: post drafted reply for agent review.', status: 'ok', startedAt: '2026-07-08T11:10:14Z', durationMs: 300, toolCallId: null },
 
-  // run-0048 — running (5 steps so far)
+  // run-0048 — running (4 steps so far)
   { id: 'step-0048-1', runId: 'run-0048', index: 0, kind: 'llm-call', title: 'Classify request', detail: 'Two intents detected: refund + audit-log export question.', status: 'ok', startedAt: '2026-07-09T08:38:00Z', durationMs: 2200, toolCallId: null },
   { id: 'step-0048-2', runId: 'run-0048', index: 1, kind: 'tool-call', title: 'ticket_read', detail: 'Loaded ticket #8858.', status: 'ok', startedAt: '2026-07-09T08:38:03Z', durationMs: 500, toolCallId: 'call-0048-1' },
   { id: 'step-0048-3', runId: 'run-0048', index: 2, kind: 'tool-call', title: 'account_lookup', detail: 'Located the disputed charge (June 28).', status: 'ok', startedAt: '2026-07-09T08:38:04Z', durationMs: 1100, toolCallId: 'call-0048-2' },
-  { id: 'step-0048-4', runId: 'run-0048', index: 3, kind: 'memory-read', title: 'KB retrieval', detail: 'Retrieved "Export audit logs" article for the second intent.', status: 'ok', startedAt: '2026-07-09T08:38:06Z', durationMs: 900, toolCallId: 'call-0048-3' },
-  { id: 'step-0048-5', runId: 'run-0048', index: 4, kind: 'llm-call', title: 'Compose combined reply', detail: 'Drafting a single reply covering both intents.', status: 'ok', startedAt: '2026-07-09T08:38:07Z', durationMs: 5600, toolCallId: null },
+  { id: 'step-0048-5', runId: 'run-0048', index: 3, kind: 'llm-call', title: 'Compose combined reply', detail: 'Drafting a single reply covering both intents.', status: 'ok', startedAt: '2026-07-09T08:38:07Z', durationMs: 5600, toolCallId: null },
 
   // run-0051 — Billing Sentinel failed sweep (5 steps)
   { id: 'step-0051-1', runId: 'run-0051', index: 0, kind: 'llm-call', title: 'Plan sweep', detail: 'Batching 2,140 invoices across 3 shards.', status: 'ok', startedAt: '2026-07-09T03:00:00Z', durationMs: 2600, toolCallId: null },
@@ -1836,13 +1828,12 @@ export const agentRunSteps: AgentRunStep[] = [
   { id: 'step-0052-5', runId: 'run-0052', index: 4, kind: 'tool-call', title: 'propose_credit', detail: 'Credit proposal filed to the finance queue.', status: 'ok', startedAt: '2026-07-08T03:01:16Z', durationMs: 2100, toolCallId: 'call-0052-3' },
   { id: 'step-0052-6', runId: 'run-0052', index: 5, kind: 'output', title: 'Sweep report', detail: 'JSON report with 2 anomalies and 1 proposal.', status: 'ok', startedAt: '2026-07-08T03:01:19Z', durationMs: 500, toolCallId: null },
 
-  // run-0061 — Release Pilot (6 steps)
+  // run-0061 — Release Pilot (5 steps)
   { id: 'step-0061-1', runId: 'run-0061', index: 0, kind: 'llm-call', title: 'Plan release', detail: 'Release 2026.28: 14 changes since 2026.27.', status: 'ok', startedAt: '2026-07-08T17:38:00Z', durationMs: 2400, toolCallId: null },
   { id: 'step-0061-2', runId: 'run-0061', index: 1, kind: 'tool-call', title: 'pipeline_read', detail: 'All 4 gates green.', status: 'ok', startedAt: '2026-07-08T17:38:03Z', durationMs: 3100, toolCallId: 'call-0061-1' },
-  { id: 'step-0061-3', runId: 'run-0061', index: 2, kind: 'memory-read', title: 'Pipeline state memory', detail: 'Compared against 2026.27 baseline.', status: 'ok', startedAt: '2026-07-08T17:38:06Z', durationMs: 800, toolCallId: null },
-  { id: 'step-0061-4', runId: 'run-0061', index: 3, kind: 'tool-call', title: 'release_notes_draft', detail: 'Notes drafted from 14 change summaries.', status: 'ok', startedAt: '2026-07-08T17:38:07Z', durationMs: 18600, toolCallId: 'call-0061-2' },
-  { id: 'step-0061-5', runId: 'run-0061', index: 4, kind: 'tool-call', title: 'schedule_publish (staged)', detail: 'Publish window proposed: Thursday 10:00 UTC.', status: 'ok', startedAt: '2026-07-08T17:38:26Z', durationMs: 1400, toolCallId: 'call-0061-3' },
-  { id: 'step-0061-6', runId: 'run-0061', index: 5, kind: 'output', title: 'Release plan', detail: 'ReleasePlanV1 emitted with gate citations.', status: 'ok', startedAt: '2026-07-08T17:38:28Z', durationMs: 600, toolCallId: null },
+  { id: 'step-0061-4', runId: 'run-0061', index: 2, kind: 'tool-call', title: 'release_notes_draft', detail: 'Notes drafted from 14 change summaries.', status: 'ok', startedAt: '2026-07-08T17:38:07Z', durationMs: 18600, toolCallId: 'call-0061-2' },
+  { id: 'step-0061-5', runId: 'run-0061', index: 3, kind: 'tool-call', title: 'schedule_publish (staged)', detail: 'Publish window proposed: Thursday 10:00 UTC.', status: 'ok', startedAt: '2026-07-08T17:38:26Z', durationMs: 1400, toolCallId: 'call-0061-3' },
+  { id: 'step-0061-6', runId: 'run-0061', index: 4, kind: 'output', title: 'Release plan', detail: 'ReleasePlanV1 emitted with gate citations.', status: 'ok', startedAt: '2026-07-08T17:38:28Z', durationMs: 600, toolCallId: null },
 
   // run-0062 — Release Pilot hotfix (5 steps)
   { id: 'step-0062-1', runId: 'run-0062', index: 0, kind: 'llm-call', title: 'Plan hotfix', detail: 'Single-change hotfix for 2026.27.', status: 'ok', startedAt: '2026-07-07T09:12:00Z', durationMs: 2100, toolCallId: null },
@@ -1851,18 +1842,16 @@ export const agentRunSteps: AgentRunStep[] = [
   { id: 'step-0062-4', runId: 'run-0062', index: 3, kind: 'tool-call', title: 'schedule_publish', detail: 'Hotfix scheduled for 11:00 UTC.', status: 'ok', startedAt: '2026-07-07T09:12:26Z', durationMs: 1500, toolCallId: 'call-0062-2' },
   { id: 'step-0062-5', runId: 'run-0062', index: 4, kind: 'output', title: 'Hotfix plan', detail: 'Plan emitted with rollback checklist.', status: 'ok', startedAt: '2026-07-07T09:12:28Z', durationMs: 500, toolCallId: null },
 
-  // run-0071 — API Triage (5 steps)
+  // run-0071 — API Triage (4 steps)
   { id: 'step-0071-1', runId: 'run-0071', index: 0, kind: 'llm-call', title: 'Classify error report', detail: 'Symptom: intermittent 429 at low average traffic.', status: 'ok', startedAt: '2026-07-02T11:16:00Z', durationMs: 1600, toolCallId: null },
   { id: 'step-0071-2', runId: 'run-0071', index: 1, kind: 'tool-call', title: 'log_search', detail: '429s cluster in 2-second bursts every 5 minutes.', status: 'ok', startedAt: '2026-07-02T11:16:02Z', durationMs: 2100, toolCallId: 'call-0071-1' },
   { id: 'step-0071-3', runId: 'run-0071', index: 2, kind: 'tool-call', title: 'quota_read', detail: 'Burst limit 50 rps; sustained limit far from exhausted.', status: 'ok', startedAt: '2026-07-02T11:16:04Z', durationMs: 800, toolCallId: 'call-0071-2' },
-  { id: 'step-0071-4', runId: 'run-0071', index: 3, kind: 'memory-read', title: 'Error taxonomy lookup', detail: 'Matched class: burst-limit exhaustion (cron-aligned).', status: 'ok', startedAt: '2026-07-02T11:16:05Z', durationMs: 400, toolCallId: null },
-  { id: 'step-0071-5', runId: 'run-0071', index: 4, kind: 'output', title: 'Triage verdict', detail: 'TriageVerdictV1: burst-limit, confidence 0.92, backoff suggestion.', status: 'ok', startedAt: '2026-07-02T11:16:06Z', durationMs: 500, toolCallId: null },
+  { id: 'step-0071-5', runId: 'run-0071', index: 3, kind: 'output', title: 'Triage verdict', detail: 'TriageVerdictV1: burst-limit, confidence 0.92, backoff suggestion.', status: 'ok', startedAt: '2026-07-02T11:16:06Z', durationMs: 500, toolCallId: null },
 ]
 
 export const toolCalls: ToolCall[] = [
   // run-0041
   { id: 'call-0041-1', runId: 'run-0041', toolId: 'tool-sn-ticket-read', toolName: 'ticket_read', argumentsSummary: 'ticketId: #8841', resultSummary: 'Thread (3 messages) + workspace context.', status: 'ok', riskLevel: 'low', requiredConfirmation: false, latencyMs: 600 },
-  { id: 'call-0041-2', runId: 'run-0041', toolId: 'tool-sn-kb-search', toolName: 'kb_search', argumentsSummary: 'query: "enable SAML SSO workspace"', resultSummary: '3 articles, top score 0.91.', status: 'ok', riskLevel: 'low', requiredConfirmation: false, latencyMs: 900 },
   { id: 'call-0041-3', runId: 'run-0041', toolId: 'tool-sn-reply-draft', toolName: 'reply_draft', argumentsSummary: 'ticketId: #8841, template: how-to', resultSummary: 'Draft saved to composer.', status: 'ok', riskLevel: 'medium', requiredConfirmation: false, latencyMs: 2400 },
 
   // run-0042
@@ -1898,7 +1887,6 @@ export const toolCalls: ToolCall[] = [
   // run-0048 (running)
   { id: 'call-0048-1', runId: 'run-0048', toolId: 'tool-sn-ticket-read', toolName: 'ticket_read', argumentsSummary: 'ticketId: #8858', resultSummary: 'Two-intent thread loaded.', status: 'ok', riskLevel: 'low', requiredConfirmation: false, latencyMs: 500 },
   { id: 'call-0048-2', runId: 'run-0048', toolId: 'tool-sn-account-lookup', toolName: 'account_lookup', argumentsSummary: 'accountId: juniper-supply, scope: settlements', resultSummary: 'Disputed charge located (June 28).', status: 'ok', riskLevel: 'medium', requiredConfirmation: false, latencyMs: 1100 },
-  { id: 'call-0048-3', runId: 'run-0048', toolId: 'tool-sn-kb-search', toolName: 'kb_search', argumentsSummary: 'query: "export audit logs"', resultSummary: 'Top article retrieved.', status: 'ok', riskLevel: 'low', requiredConfirmation: false, latencyMs: 900 },
 
   // run-0051
   { id: 'call-0051-1', runId: 'run-0051', toolId: 'tool-bs-invoice-lookup', toolName: 'invoice_lookup', argumentsSummary: 'shard: eu-1, window: 24h', resultSummary: '780 invoices fetched.', status: 'ok', riskLevel: 'low', requiredConfirmation: false, latencyMs: 8400 },

@@ -21,9 +21,48 @@
  */
 import 'server-only'
 
+import { computeCostUsd } from './model-pricing'
 import { pgrest } from './postgrest'
+import type { ModelProvider } from './types'
 
 type RawRow = Record<string, unknown>
+
+/**
+ * Telemetry events are emitted by generated agent handlers and carry their
+ * OWN provider vocabulary (route.ts `providerEnum`: openai/gemini/custom/
+ * unknown) — NOT the internal `ModelProvider` union (openai/google/mistral/
+ * local) that `computeCostUsd` expects. `gemini` !== `google`: a naive pass-
+ * through silently produced zero/garbage cost for every Gemini-backed agent.
+ *
+ * This is an EXPLICIT, narrow mapping — no guessing. `custom`/`unknown` (and
+ * anything unrecognized) have no knowable backing provider, so they map to
+ * `null` and MUST NOT be priced. A cost of `0` would be a lie (doctrine:
+ * unavailable data is `null`, never `0`).
+ *
+ * NORMALIZATION NOW HAPPENS AT INGESTION (POST /api/runtime-telemetry writes
+ * the already-normalized provider into the row). Keeping this function on the
+ * read path is BACKWARD COMPATIBILITY for rows persisted BEFORE that change —
+ * which still carry the raw wire vocabulary (`gemini`). It is not a second
+ * source of truth: for any row written from now on it is the identity
+ * (`openai` -> `openai`, `google` -> `google`) and costs nothing.
+ */
+export function normalizeTelemetryProviderToModelProvider(provider: string | null | undefined): ModelProvider | null {
+  switch (provider) {
+    case 'openai':
+      return 'openai'
+    // Already-normalized values (rows written at/after ingestion normalization).
+    case 'google':
+      return 'google'
+    case 'local':
+      return 'local'
+    // Legacy wire vocabulary (rows written before ingestion normalization).
+    case 'gemini':
+      return 'google'
+    default:
+      // 'custom' | 'unknown' | anything else unrecognized: not mappable.
+      return null
+  }
+}
 
 const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`
 
@@ -67,6 +106,20 @@ export interface RuntimeTelemetrySummary {
   avgLatencyMs: number | null
   p95LatencyMs: number | null
   totalTokens: number | null
+  /**
+   * Sum of USD cost across rows where provider+model+split token counts were
+   * all knowable and mappable to a `ModelProvider`. `null` — never `0` — when
+   * no row in the window had enough information to price (see doctrine note
+   * on `normalizeTelemetryProviderToModelProvider`).
+   */
+  totalCostUsd: number | null
+  /**
+   * True whenever `totalCostUsd` is non-null: `computeCostUsd` prices are
+   * conservative estimates, never billing-grade truth (see model-pricing.ts
+   * header). Mirrors that file's per-row `estimated` flag at the aggregate
+   * level so a caller never presents this figure as an exact invoice.
+   */
+  costEstimated: boolean
   topErrorCategories: RuntimeTelemetryErrorCategory[]
   lastSeenAt: string | null
 }
@@ -135,6 +188,8 @@ interface TelemetryRollup {
   avgLatencyMs: number | null
   p95LatencyMs: number | null
   totalTokens: number | null
+  totalCostUsd: number | null
+  costEstimated: boolean
   topErrorCategories: RuntimeTelemetryErrorCategory[]
   lastSeenAt: string | null
 }
@@ -153,6 +208,8 @@ function reduceTelemetryRows(rows: RawRow[]): TelemetryRollup {
       avgLatencyMs: null,
       p95LatencyMs: null,
       totalTokens: null,
+      totalCostUsd: null,
+      costEstimated: false,
       topErrorCategories: [],
       lastSeenAt: null,
     }
@@ -162,6 +219,8 @@ function reduceTelemetryRows(rows: RawRow[]): TelemetryRollup {
   let failed = 0
   let tokenSum = 0
   let hasTokens = false
+  let costSum = 0
+  let hasCost = false
   const latencies: number[] = []
   const errorCounts = new Map<string, number>()
   let lastSeenAt: string | null = null
@@ -179,6 +238,27 @@ function reduceTelemetryRows(rows: RawRow[]): TelemetryRollup {
     if (typeof totalTokens === 'number' && Number.isFinite(totalTokens)) {
       tokenSum += totalTokens
       hasTokens = true
+    }
+
+    // Cost is only computable when we know: a mappable provider, a model id,
+    // and the input/output token SPLIT (input and output are priced
+    // differently — `totalTokens` alone can't be priced accurately). Any gap
+    // means this row contributes nothing to the sum — never a guessed 0.
+    const mappedProvider = normalizeTelemetryProviderToModelProvider(r.provider as string | null)
+    const model = r.model as string | null
+    const inputTokens = usage.inputTokens
+    const outputTokens = usage.outputTokens
+    if (
+      mappedProvider &&
+      typeof model === 'string' &&
+      model.length > 0 &&
+      typeof inputTokens === 'number' &&
+      Number.isFinite(inputTokens) &&
+      typeof outputTokens === 'number' &&
+      Number.isFinite(outputTokens)
+    ) {
+      costSum += computeCostUsd(mappedProvider, model, inputTokens, outputTokens)
+      hasCost = true
     }
 
     if (status === 'failed') {
@@ -215,6 +295,8 @@ function reduceTelemetryRows(rows: RawRow[]): TelemetryRollup {
     avgLatencyMs,
     p95LatencyMs,
     totalTokens: hasTokens ? tokenSum : null,
+    totalCostUsd: hasCost ? Math.round(costSum * 1e6) / 1e6 : null,
+    costEstimated: hasCost,
     topErrorCategories,
     lastSeenAt,
   }
@@ -230,7 +312,7 @@ export async function summarizeRuntimeTelemetry(projectId: string, agentId: stri
   const rows = await pgrest<RawRow[]>(
     'GET',
     `runtime_telemetry_events?${eq('project_id', projectId)}&${eq('agent_id', agentId)}` +
-      `&select=status,latency_ms,usage,error,received_at&order=received_at.desc&limit=500`
+      `&select=status,latency_ms,usage,error,received_at,provider,model&order=received_at.desc&limit=500`
   )
   const rollup = reduceTelemetryRows(rows)
   return {
@@ -271,7 +353,7 @@ export async function listRecentRuntimeTelemetryEvents(limit = 50): Promise<Runt
 export async function summarizeFleetRuntimeTelemetry(): Promise<RuntimeTelemetryFleetSummary> {
   const rows = await pgrest<RawRow[]>(
     'GET',
-    'runtime_telemetry_events?select=project_id,agent_id,status,latency_ms,usage,error,received_at&order=received_at.desc&limit=2000'
+    'runtime_telemetry_events?select=project_id,agent_id,status,latency_ms,usage,error,received_at,provider,model&order=received_at.desc&limit=2000'
   )
 
   const byProjectAgent = new Map<string, RawRow[]>()

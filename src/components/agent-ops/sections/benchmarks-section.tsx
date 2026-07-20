@@ -3,6 +3,7 @@ import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { BenchmarkComparisonTable } from '@/components/agent-ops/benchmark-comparison-table'
 import { BenchmarkRunSteps } from '@/components/agent-ops/benchmark-run-steps'
 import { BenchmarkScoreCard } from '@/components/agent-ops/benchmark-score-card'
+import { BenchmarkShootoutMatrix } from '@/components/agent-ops/benchmark-shootout-matrix'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { RunBenchmarkButton } from '@/components/agent-ops/run-benchmark-button'
 import { ChipCluster } from '@/components/agent-ops/widgets/chip-cluster'
@@ -114,6 +115,17 @@ export async function BenchmarksSection({ copilotId }: { copilotId: string }) {
                   ))}
                 </div>
               </div>
+
+              <AgentSectionCard
+                title="Head-to-head matrix"
+                description="Metrics down, executed models across — the most recent run per provider + model. Best value per metric is highlighted."
+                contentClassName="px-6 py-4"
+              >
+                <BenchmarkShootoutMatrix
+                  rows={rows}
+                  unscoredRuns={runs.filter((run) => !rows.some((row) => row.run.id === run.id))}
+                />
+              </AgentSectionCard>
 
               <AgentSectionCard
                 title="Model comparison"

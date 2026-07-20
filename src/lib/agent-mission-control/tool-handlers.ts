@@ -27,6 +27,7 @@
 import 'server-only'
 
 import { buildCopilotDraft } from '../../langgraph/draft-spec.mjs'
+import { FINANCE_TOOL_HANDLERS } from './finance/tools'
 import { TRADING_TOOL_HANDLERS } from './market/tools'
 import {
   getCopilot,
@@ -330,6 +331,27 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
   // resolve them by manifest tool name exactly like the native handlers.
   ...Object.fromEntries(
     Object.entries(TRADING_TOOL_HANDLERS).map(([name, fn]) => [
+      name,
+      (async (argsJson: string) => fn(argsJson)) as ToolHandler,
+    ]),
+  ),
+  // AIG-FIN-001 — the read-only AP accounting tools the finance gamme calls.
+  // Same adaptation as the trading block: each finance handler is
+  // `(argsJson) => Promise<{ok,data,summary}>` (stateless read of the
+  // FIXTURE-provenance AP dataset, ctx unused), so the runner resolves them by
+  // manifest tool name exactly like the native handlers.
+  //
+  // DOCTRINE: this wiring adds NO write path. The finance layer stays
+  // read-only/dry-run — the Execution Gateway remains the single write door and
+  // is deliberately NOT reachable from here. Missing data surfaces as
+  // UNAVAILABLE with provenance, never as a fabricated value.
+  //
+  // Name collisions are impossible by construction today (the 9 finance ids are
+  // disjoint from the 5 native + 8 trading ids) and are asserted by
+  // tests/unit/finance-tools-wiring.test.ts — a future collision fails the gate
+  // rather than silently shadowing a handler.
+  ...Object.fromEntries(
+    Object.entries(FINANCE_TOOL_HANDLERS).map(([name, fn]) => [
       name,
       (async (argsJson: string) => fn(argsJson)) as ToolHandler,
     ]),

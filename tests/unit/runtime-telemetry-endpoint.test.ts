@@ -130,6 +130,50 @@ describe('POST /api/runtime-telemetry', () => {
     expect(body).toEqual({ ok: true })
   })
 
+  it('9 — normalizes the provider AT INGESTION: wire `gemini` is persisted as `google`', async () => {
+    let insertedBody: Record<string, unknown> | undefined
+    pgrestHandler = (_m, _p, body) => {
+      insertedBody = body as Record<string, unknown>
+      return [{ ok: true }]
+    }
+
+    const res = await POST(req({ ...validEvent, provider: 'gemini', model: 'gemini-2.5-pro' }, authHeaders()))
+    expect(res.status).toBe(202)
+    // The column holds ONE spelling per provider — the wire word never lands.
+    expect(insertedBody?.provider).toBe('google')
+  })
+
+  it('10 — persists `openai` unchanged (already the normalized spelling)', async () => {
+    let insertedBody: Record<string, unknown> | undefined
+    pgrestHandler = (_m, _p, body) => {
+      insertedBody = body as Record<string, unknown>
+      return [{ ok: true }]
+    }
+
+    await POST(req({ ...validEvent, provider: 'openai' }, authHeaders()))
+    expect(insertedBody?.provider).toBe('openai')
+  })
+
+  it('11 — never GUESSES: custom/unknown are stored verbatim, absent stays null', async () => {
+    const seen: unknown[] = []
+    pgrestHandler = (_m, _p, body) => {
+      seen.push((body as Record<string, unknown>).provider)
+      return [{ ok: true }]
+    }
+
+    await POST(req({ ...validEvent, provider: 'custom' }, authHeaders()))
+    await POST(req({ ...validEvent, provider: 'unknown' }, authHeaders()))
+    await POST(req(validEvent, authHeaders()))
+
+    expect(seen).toEqual(['custom', 'unknown', null])
+  })
+
+  it('12 — still rejects a provider outside the wire enum -> 400 (nothing is coerced in)', async () => {
+    const res = await POST(req({ ...validEvent, provider: 'vertex' }, authHeaders()))
+    expect(res.status).toBe(400)
+    expect(await res.json()).toEqual({ error: 'invalid payload' })
+  })
+
   it('8 — never leaks a stack trace or the raw mock error message on a simulated 500', async () => {
     const rawErrorMessage = 'ECONNREFUSED super-secret-internal-detail at postgrest.internal:5432'
     pgrestHandler = () => {

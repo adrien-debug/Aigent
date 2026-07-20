@@ -18,6 +18,11 @@
  */
 import 'server-only'
 
+import {
+  exportLangfuseTrace,
+  isLangfuseConfigured,
+  type LangfuseExportResult,
+} from './langfuse'
 import { exportTrace, newTraceId, type LangSmithExportResult } from './langsmith'
 import type { AgentRunStepKind, IsoTimestamp, ModelProvider } from './types'
 
@@ -149,7 +154,10 @@ export class RunTrace {
     finishedAt: IsoTimestamp
   ): Promise<TraceResult> {
     const traceId = newTraceId()
-    const result: LangSmithExportResult = await exportTrace({
+    const provider = this.context.resolvedProvider ?? this.context.provider
+    const model = this.context.resolvedModel ?? this.context.model
+
+    const langsmithPromise: Promise<LangSmithExportResult> = exportTrace({
       traceId,
       name: `amc-${this.context.mode}`,
       runType: 'chain',
@@ -159,8 +167,8 @@ export class RunTrace {
         mode: this.context.mode,
         copilotId: this.context.copilotId,
         versionId: this.context.versionId,
-        provider: this.context.resolvedProvider ?? this.context.provider,
-        model: this.context.resolvedModel ?? this.context.model,
+        provider,
+        model,
         fallbackUsed: this.context.fallbackUsed ?? false,
       },
       steps: this.steps.map((s) => ({
@@ -174,6 +182,48 @@ export class RunTrace {
       startedAt,
       finishedAt,
     })
+
+    // Second exporter, independent of LangSmith: a Langfuse failure must not
+    // affect the LangSmith result, and neither may fail the run.
+    //
+    // Guarded by isLangfuseConfigured() so an unconfigured install does not
+    // build (and immediately discard) a full second copy of every step on
+    // every run — the exporter would no-op on the same condition anyway.
+    const langfusePromise: Promise<LangfuseExportResult> = isLangfuseConfigured()
+      ? exportLangfuseTrace({
+          traceId,
+          name: this.context.copilotId,
+          sessionId: this.context.runId ?? null,
+          input: inputs,
+          output: outputs,
+          metadata: {
+            mode: this.context.mode,
+            copilotId: this.context.copilotId,
+            versionId: this.context.versionId,
+            projectId: this.context.projectId ?? null,
+            runtime: this.context.mode,
+            provider,
+            model,
+            fallbackUsed: this.context.fallbackUsed ?? false,
+          },
+          tags: [`mode:${this.context.mode}`],
+          steps: this.steps.map((s) => ({
+            name: s.title,
+            kind: s.kind,
+            status: s.status,
+            detail: s.detail,
+            startedAt: s.startedAt,
+            durationMs: s.durationMs,
+            model,
+            provider,
+          })),
+          startedAt,
+          finishedAt,
+        })
+      : Promise.resolve({ exported: false, eventCount: 0, traceUrl: null })
+
+    const [result] = await Promise.all([langsmithPromise, langfusePromise])
+
     return {
       traceId,
       traceUrl: result.traceUrl,

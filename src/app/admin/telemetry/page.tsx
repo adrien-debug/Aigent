@@ -7,12 +7,18 @@ import { AdminPageHeader } from '@/components/agent-ops/surface-card'
 import { TelemetryAgentsTable } from '@/components/agent-ops/telemetry/telemetry-agents-table'
 import { TelemetryErrorBreakdown } from '@/components/agent-ops/telemetry/telemetry-error-breakdown'
 import { TelemetryEventsTable } from '@/components/agent-ops/telemetry/telemetry-events-table'
+import { TelemetryHealthBanner } from '@/components/agent-ops/telemetry-health-banner'
 import { TelemetryKpiBand } from '@/components/agent-ops/telemetry/telemetry-kpi-band'
-import { getCopilots, getProjects } from '@/lib/agent-mission-control/data'
+import {
+  countManifestsWithTelemetryDeclared,
+  getCopilots,
+  getProjects,
+} from '@/lib/agent-mission-control/data'
 import {
   listRecentRuntimeTelemetryEvents,
   summarizeFleetRuntimeTelemetry,
 } from '@/lib/agent-mission-control/runtime-telemetry-store'
+import { diagnoseTelemetryHealth } from '@/lib/agent-mission-control/telemetry-health'
 import type { Project } from '@/lib/agent-mission-control/types'
 import { SignalIcon } from '@heroicons/react/24/outline'
 
@@ -24,6 +30,9 @@ export const metadata: Metadata = {
 
 /** Newest events shown in the feed table. */
 const EVENTS_TABLE_SIZE = 30
+
+/** Days without a received event before the loop counts as muted (see telemetry-health.ts). */
+const MUTE_THRESHOLD_DAYS = 7
 
 /** Fail-soft: a telemetry backend hiccup must never break the page — same contract as runtime-telemetry-card.tsx. */
 async function loadTelemetry() {
@@ -52,6 +61,20 @@ export default async function TelemetryPage() {
 
   const hasData = summary !== null && summary.totalRuns > 0
 
+  // One exact count, not an N+1: `null` here would collapse three different
+  // situations (nobody opted in / opted in but silent / healthy) into a single
+  // "unavailable", which is precisely what this banner exists to tell apart.
+  const declaredCount = await countManifestsWithTelemetryDeclared().catch(() => null)
+
+  const telemetryHealth = diagnoseTelemetryHealth({
+    ingestionTokenConfigured: Boolean(process.env.AIGENT_RUNTIME_TELEMETRY_TOKEN),
+    agentsWithTelemetryDeclared: declaredCount,
+    lastEventReceivedAt: summary?.lastSeenAt ?? null,
+    lastEventLookupFailed: summary === null,
+    now: nowIso,
+    muteThresholdDays: MUTE_THRESHOLD_DAYS,
+  })
+
   return (
     <div className="flex flex-col gap-8 pb-12">
       <StaggerFade delay={0}>
@@ -61,6 +84,7 @@ export default async function TelemetryPage() {
           description="Opt-in signal reported by delivered agents across every project — Aigent's only window into production traffic once an agent ships."
           actions={<LiveRefresh initialRefreshedAt={nowIso} />}
         />
+        <TelemetryHealthBanner diagnostic={telemetryHealth} />
         {hasData ? (
           <TelemetryKpiBand summary={summary} />
         ) : (

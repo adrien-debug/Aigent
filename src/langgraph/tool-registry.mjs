@@ -25,11 +25,11 @@ import { z } from 'zod'
 
 import { pgrest } from './pgrest.mjs'
 import { buildCopilotDraft } from './draft-spec.mjs'
+import { guardedFetch } from './http-guard.mjs'
 
 // Keep large tool outputs bounded so a single call can't blow the context.
 const MAX_BODY_CHARS = 8000
 const HTTP_TIMEOUT_MS = 10_000
-const MAX_HTTP_REDIRECTS = 3
 
 function truncate(text, max = MAX_BODY_CHARS) {
   if (typeof text !== 'string') text = String(text)
@@ -261,65 +261,54 @@ function makeSearchRepo(scope) {
 
 // --- Generic HTTP GET, gated by an explicit host allowlist -----------------
 
+/**
+ * Stable, model-facing `error` label for each guard refusal code. The tool's
+ * JSON contract is read by an LLM, so the wording is pinned here rather than
+ * passed through from the guard's internal prose.
+ */
+const HTTP_GUARD_ERROR_LABEL = {
+  'invalid-url': 'invalid url',
+  'disallowed-scheme': 'disallowed scheme',
+  'host-not-allowed': 'host not allowed',
+  'redirect-invalid-url': 'redirect target is not a parseable url',
+  'redirect-disallowed-scheme': 'redirect to disallowed scheme',
+  'redirect-host-not-allowed': 'redirect to disallowed host',
+  'too-many-redirects': 'too many redirects',
+}
+
 function makeHttpGet(scope) {
   const allowedHosts = Array.isArray(scope?.allowedHosts) ? scope.allowedHosts : []
   return tool(
     async ({ url }) => {
-      let host
-      try {
-        host = new URL(url).host
-      } catch {
-        return JSON.stringify({ ok: false, error: 'invalid url' })
+      // SSRF guard — SHARED with HttpMarketProvider via ./http-guard.mjs, so a
+      // hardening lands on both paths at once (they used to be two copies, and
+      // the scheme check existed on the market copy only). The guard validates
+      // scheme + host up front, disables auto-redirect and re-validates every
+      // hop; it never throws, so every outcome below is a plain return.
+      const out = await guardedFetch(url, {
+        allowedHosts,
+        timeoutMs: HTTP_TIMEOUT_MS,
+        headers: { 'User-Agent': 'agent-builder-copilot' },
+        readBody: (res) => res.text(),
+      })
+      if (!out.ok) {
+        const error = HTTP_GUARD_ERROR_LABEL[out.code] ?? out.reason
+        // `host not allowed` echoes the allowlist so the model can self-correct
+        // instead of retrying the same refused host.
+        return JSON.stringify(
+          out.code === 'host-not-allowed'
+            ? { ok: false, error, host: out.host, allowedHosts }
+            : { ok: false, error, host: out.host ?? undefined, reason: out.reason }
+        )
       }
-      // SSRF guard: only hosts explicitly allowed for THIS copilot may be fetched.
-      if (!allowedHosts.includes(host)) {
-        return JSON.stringify({ ok: false, error: 'host not allowed', host, allowedHosts })
-      }
-      const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS)
-      try {
-        // SSRF guard, part 2: `fetch` follows redirects automatically by default,
-        // which only checks the INITIAL host against the allowlist — a 302 from an
-        // allowed host (e.g. github.com) to an internal target would bypass the
-        // guard entirely. So we disable auto-redirect and walk hops ourselves,
-        // re-validating each `location` host against `allowedHosts` before following it.
-        let current = url
-        // Walk up to MAX_HTTP_REDIRECTS hops. The loop condition bounds the hop
-        // count so the terminal "too many redirects" return below is reachable.
-        for (let hop = 0; hop < MAX_HTTP_REDIRECTS; hop++) {
-          const res = await fetch(current, {
-            headers: { 'User-Agent': 'agent-builder-copilot' },
-            signal: controller.signal,
-            cache: 'no-store',
-            redirect: 'manual',
-          })
-          const isRedirect = [301, 302, 303, 307, 308].includes(res.status)
-          const location = res.headers.get('location')
-          if (isRedirect && location) {
-            const next = new URL(location, current)
-            if (!allowedHosts.includes(next.host)) {
-              return JSON.stringify({ ok: false, error: 'redirect to disallowed host', host: next.host })
-            }
-            current = next.toString()
-            continue
-          }
-          const body = await res.text()
-          return JSON.stringify({ ok: true, status: res.status, host, body: truncate(body) })
-        }
-        return JSON.stringify({ ok: false, error: 'too many redirects' })
-      } catch (e) {
-        const aborted = e instanceof Error && e.name === 'AbortError'
-        return JSON.stringify({ ok: false, error: aborted ? `timeout after ${HTTP_TIMEOUT_MS}ms` : (e instanceof Error ? e.message : String(e)) })
-      } finally {
-        clearTimeout(timer)
-      }
+      return JSON.stringify({ ok: true, status: out.status, host: out.host, body: truncate(out.body) })
     },
     {
       name: 'http_get',
       description:
-        'HTTP GET a URL whose host is on the copilot\'s allowlist (real fetch) — read-only. Refuses any host not in scope.allowedHosts, and re-checks every redirect hop\'s host too. Returns { ok, status, body } (body truncated ~8000 chars).',
+        'HTTP GET a URL whose host is on the copilot\'s allowlist (real fetch) — read-only. Refuses any non-http(s) scheme, any host not in scope.allowedHosts, and re-checks every redirect hop\'s scheme and host too. Returns { ok, status, body } (body truncated ~8000 chars).',
       schema: z.object({
-        url: z.string().describe('Absolute URL to GET. Its host must be in the copilot\'s allowedHosts, else the call is refused.'),
+        url: z.string().describe('Absolute http(s) URL to GET. Its host must be in the copilot\'s allowedHosts, else the call is refused.'),
       }),
     }
   )

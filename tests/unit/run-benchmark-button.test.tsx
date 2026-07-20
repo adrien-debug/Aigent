@@ -18,6 +18,7 @@ vi.mock('next/navigation', () => ({
 }))
 
 import { RunBenchmarkButton } from '@/components/agent-ops/run-benchmark-button'
+import type { ModelProvider } from '@/lib/agent-mission-control/types'
 
 function stubFetch(runStatus = 'completed') {
   const fetchMock = vi.fn(async () => ({
@@ -122,16 +123,20 @@ describe('RunBenchmarkButton', () => {
     expect(options).toEqual(['openai', 'google', 'local'])
   })
 
-  it('a mistral copilot snaps to a coherent openai pair and posts BOTH overrides untouched', async () => {
-    // mistral is a legal DB state but not creatable/wired: the fallback must
-    // never pair provider=openai with the copilot's mistral model id — that
-    // would manufacture a guaranteed model-not-found run.
+  it('a legacy out-of-union provider snaps to a coherent openai pair and posts BOTH overrides untouched', async () => {
+    // `mistral` was dropped from ModelProvider (declared, never wired), but the
+    // DB CHECK constraint still allows it until its migration lands, so a row
+    // can still carry it. The cast simulates exactly that boundary — a value
+    // the type system forbids yet the database can hand us. The fallback must
+    // never pair provider=openai with the copilot's legacy model id: that would
+    // manufacture a guaranteed model-not-found run.
+    const legacyProvider = 'mistral' as unknown as ModelProvider
     const fetchMock = stubFetch()
     render(
       <RunBenchmarkButton
         copilotId="copilot-test"
         suiteId="suite-1"
-        defaultProvider="mistral"
+        defaultProvider={legacyProvider}
         defaultModel="mistral-large-2"
       />
     )

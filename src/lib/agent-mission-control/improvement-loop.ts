@@ -889,7 +889,9 @@ export async function createImprovementV2(copilotId: string, proposalId: string)
       changelog: summarize((proposal.summary as string) ?? 'Improvement Loop V2', 800),
       created_at: now,
       created_by: 'improvement-loop',
-      scores: { testPassRate: 0, benchmarkScore: 0, shadowAgreement: null, unsafeActionCount: 0 },
+      // Fresh V2: nothing measured yet, so unsafeActionCount is null (unknown),
+      // never 0 (measured clean).
+      scores: { testPassRate: 0, benchmarkScore: 0, shadowAgreement: null, unsafeActionCount: null },
     })
 
     // 3. The copilot's latest version is now the V2 draft.

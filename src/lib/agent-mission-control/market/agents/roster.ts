@@ -27,7 +27,7 @@
  *       are correlation context, never an executable recommendation.
  */
 
-import type { AgentSkill, ConfirmationPolicy } from '../../types'
+import type { AgentAccent, AgentSkill, ConfirmationPolicy } from '../../types'
 import type { OutputContractName } from '../contracts'
 import { OUTPUT_CONTRACTS } from '../contracts'
 import { TRADING_TOOL_IDS } from '../tools'
@@ -36,13 +36,8 @@ import { TRADING_TOOL_IDS } from '../tools'
 // Types
 // ---------------------------------------------------------------------------
 
-/**
- * The single non-neutral accent the repo allows (green #A7FB90) plus the neutral
- * `zinc` ramp. No agent may pick any other colour — the dashboard is mono-accent
- * (check:catalyst / check:ds). We express it as a small closed union so a wrong
- * value fails to typecheck rather than slipping a stray hue into the UI later.
- */
-export type AgentAccent = 'accent' | 'zinc'
+/** Mono-accent constraint, defined once in ../../types. */
+export type { AgentAccent } from '../../types'
 
 /** Output-contract descriptor carried by every agent. */
 export interface TradingAgentContract {

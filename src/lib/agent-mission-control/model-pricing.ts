@@ -40,7 +40,6 @@ const MODEL_PRICING: Record<string, ModelPricing> = {
 const PROVIDER_DEFAULT_PRICING: Record<ModelProvider, ModelPricing> = {
   openai: { inputUsdPer1M: 1.25, outputUsdPer1M: 10, estimated: true },
   google: { inputUsdPer1M: 1.25, outputUsdPer1M: 10, estimated: true },
-  mistral: { inputUsdPer1M: 2, outputUsdPer1M: 6, estimated: true },
   local: { inputUsdPer1M: 0, outputUsdPer1M: 0, estimated: true },
 }
 

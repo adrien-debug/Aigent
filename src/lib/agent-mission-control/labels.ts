@@ -25,7 +25,6 @@ export const AGENT_RUNTIME_LABELS: Record<AgentRuntime, string> = {
 export const MODEL_PROVIDER_LABELS: Record<ModelProvider, string> = {
   openai: 'OpenAI',
   google: 'Google',
-  mistral: 'Mistral',
   local: 'Local',
 }
 

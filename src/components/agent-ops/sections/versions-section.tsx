@@ -3,7 +3,11 @@ import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { SurfaceCard } from '@/components/agent-ops/surface-card'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { ReleasePathSteps } from '@/components/agent-ops/release-path-steps'
-import { VersionComparisonCard, versionNeverTested } from '@/components/agent-ops/version-comparison-card'
+import {
+  UnverifiedNote,
+  VersionComparisonCard,
+  versionNeverTested,
+} from '@/components/agent-ops/version-comparison-card'
 import { versionStageLabels } from '@/components/agent-ops/version-stage-text'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { Button } from '@/components/catalyst/button'
@@ -22,6 +26,14 @@ function NotMeasuredDash() {
     </span>
   )
 }
+
+/**
+ * `unsafeActionCount` and `shadowAgreement` still read the stored
+ * `copilot_versions.scores` blob — `resolveVersionScoresBatch`
+ * (`agent-health.ts`) resolves only `testPassRate`/`benchmarkScore` from live
+ * runs. They are labelled rather than shown as live facts; extending that
+ * resolver is what removes the label.
+ */
 
 export async function VersionsSection({ copilotId }: { copilotId: string }) {
   const id = copilotId
@@ -105,7 +117,7 @@ export async function VersionsSection({ copilotId }: { copilotId: string }) {
 
       <AgentSectionCard
         title="Score comparison"
-        description="Every version side by side — test pass rate, benchmark score, shadow agreement and unsafe actions."
+        description="Every version side by side — test pass rate and benchmark score are live (same evidence as the release gate); shadow agreement and unsafe actions are unverified against the latest run."
         contentClassName="px-6 py-4"
       >
         <Table striped dense className="px-6 [--gutter:--spacing(0)]">
@@ -158,17 +170,22 @@ export async function VersionsSection({ copilotId }: { copilotId: string }) {
                   {version.scores.shadowAgreement === null ? (
                     <span className="text-xs text-zinc-500">Never shadowed</span>
                   ) : (
-                    <LinearMeter
-                      size="xs"
-                      value={version.scores.shadowAgreement}
-                      max={1}
-                      valueText={formatPercent(version.scores.shadowAgreement)}
-                      ariaLabel={`Shadow agreement for ${version.label}`}
-                    />
+                    <div className="space-y-0.5">
+                      <LinearMeter
+                        size="xs"
+                        value={version.scores.shadowAgreement}
+                        max={1}
+                        valueText={formatPercent(version.scores.shadowAgreement)}
+                        ariaLabel={`Shadow agreement for ${version.label}`}
+                      />
+                      <UnverifiedNote />
+                    </div>
                   )}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {version.scores.unsafeActionCount === 0 ? (
+                  {version.scores.unsafeActionCount === null ? (
+                    <NotMeasuredDash />
+                  ) : version.scores.unsafeActionCount === 0 ? (
                     <span className="text-zinc-500 dark:text-zinc-400">0 · none</span>
                   ) : (
                     <span className="text-zinc-700 dark:text-zinc-300">

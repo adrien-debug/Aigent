@@ -5,7 +5,7 @@ import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 import { NotFoundError, ProviderUnavailableError } from '@/lib/agent-mission-control/runner-errors'
 import type { AgentRuntime, BenchmarkRun, ModelProvider } from '@/lib/agent-mission-control/types'
 
-const MODEL_PROVIDERS: ModelProvider[] = ['openai', 'google', 'mistral', 'local']
+const MODEL_PROVIDERS: ModelProvider[] = ['openai', 'google', 'local']
 const RUNTIMES: AgentRuntime[] = ['langgraph', 'openai-assistants', 'gemini', 'custom']
 
 // Copilot ids are `<prefix>-<slug>-<hex>` (see slug.makeId): lowercase

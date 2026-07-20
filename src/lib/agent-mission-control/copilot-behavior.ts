@@ -61,6 +61,28 @@ export interface CopilotBehaviorConfig {
   /** Provider for the LangGraph path — mirrors copilots.model_provider. */
   modelProvider: ModelProvider
   maxSteps: number
+  /**
+   * Per-run USD ceiling, mirroring `manifests.max_cost_per_run_usd` — the cost
+   * twin of `maxSteps`, carried down the SAME channel so the LangGraph path is
+   * bounded by the number the UI already shows (it used to bind the direct
+   * model-router path only). `null` = no ceiling configured, budget is steps-only.
+   */
+  maxCostPerRunUsd: number | null
+  /**
+   * Price of `model` under `modelProvider`, in USD per 1M tokens, resolved HERE
+   * from the shared pricing table. It is transported because the graph runs in
+   * a SEPARATE Node process that cannot import `model-pricing.ts` (server-only).
+   * The graph must never invent a rate: no rates → no ceiling enforcement.
+   * Same caveat as the table itself: conservative ESTIMATES, not billing truth.
+   */
+  modelPricing: { inputUsdPer1M: number; outputUsdPer1M: number } | null
+  /**
+   * Manifest `forbidden_actions`, transported so the LangGraph path can REFUSE
+   * a targeted tool instead of merely describing the ban in the prompt. A
+   * forbidden tool is a terminal refusal, never a confirmation prompt — an
+   * interdiction is not something a human can approve away.
+   */
+  forbiddenActions: string[]
   confirmationPolicy: ConfirmationPolicy
   tools: BehaviorTool[]
   /**
@@ -102,6 +124,7 @@ export interface ManifestRowForBehavior {
     invariants?: string[] | null
   } | null
   max_steps_per_run?: number | null
+  max_cost_per_run_usd?: number | null
 }
 
 /** One `tools` row fed to the builder (a tool that belongs to the copilot). */
@@ -118,6 +141,16 @@ export interface BuildCopilotBehaviorInput {
   tools: ToolRowForBehavior[]
   /** The copilot's project repo, owner/name, used to scope the repo tools. */
   repoFullName?: string | null
+  /**
+   * USD-per-1M-token rates for the copilot's model, supplied by the CALLER.
+   * This module stays pure/isomorphic, so it must not import `model-pricing.ts`
+   * (`server-only`); the caller that already runs server-side resolves the rates
+   * (`computeCostUsd(provider, model, 1e6, 0)` / `(…, 0, 1e6)`) and passes them
+   * here so they can be transported to the separate LangGraph process.
+   * Omitted → `modelPricing: null` → the graph enforces NO cost ceiling rather
+   * than enforcing one against a fabricated rate.
+   */
+  modelPricing?: { inputUsdPer1M: number; outputUsdPer1M: number } | null
 }
 
 // ---------------------------------------------------------------------------
@@ -128,8 +161,13 @@ export interface BuildCopilotBehaviorInput {
 const DEFAULT_MODEL = 'gpt-5.4'
 const DEFAULT_MODEL_PROVIDER: ModelProvider = 'openai'
 
+/**
+ * `mistral` was removed from the union (declared but never wired). Legacy rows
+ * may still carry it until the CHECK-constraint migration lands, so an unknown
+ * string falls back to the default provider rather than crashing a read.
+ */
 function normalizeModelProvider(raw: ModelProvider | string | null | undefined): ModelProvider {
-  if (raw === 'openai' || raw === 'google' || raw === 'mistral' || raw === 'local') return raw
+  if (raw === 'openai' || raw === 'google' || raw === 'local') return raw
   return DEFAULT_MODEL_PROVIDER
 }
 const DEFAULT_MAX_STEPS = 12
@@ -544,14 +582,25 @@ export function buildCopilotBehaviorConfig(input: BuildCopilotBehaviorInput): Co
   const confirmationPolicy: ConfirmationPolicy =
     manifest?.confirmation_policy ?? DEFAULT_CONFIRMATION_POLICY
   const built = buildTools(tools, repoFullName)
+  const modelId = copilot.model && copilot.model.trim().length > 0 ? copilot.model : DEFAULT_MODEL
 
   return {
     copilotId: copilot.id,
     copilotName: copilot.name,
     systemPrompt: composeSystemPrompt({ copilotName: copilot.name, manifest, confirmationPolicy }),
-    model: (copilot.model && copilot.model.trim().length > 0 ? copilot.model : DEFAULT_MODEL) as string,
+    model: modelId as string,
     modelProvider: normalizeModelProvider(copilot.model_provider),
     maxSteps: manifest?.max_steps_per_run ?? DEFAULT_MAX_STEPS,
+    maxCostPerRunUsd:
+      typeof manifest?.max_cost_per_run_usd === 'number' &&
+      Number.isFinite(manifest.max_cost_per_run_usd) &&
+      manifest.max_cost_per_run_usd > 0
+        ? manifest.max_cost_per_run_usd
+        : null,
+    modelPricing: input.modelPricing ?? null,
+    forbiddenActions: (manifest?.forbidden_actions ?? []).filter(
+      (a): a is string => typeof a === 'string' && a.trim().length > 0
+    ),
     confirmationPolicy,
     tools: built.tools,
     unmappedToolNames: built.unmappedToolNames,

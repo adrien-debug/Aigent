@@ -29,6 +29,17 @@ export interface ProposedTool {
   provider: 'internal' | 'composio' | 'mcp' | 'http'
   riskLevel: ToolRiskLevel
   requiresConfirmation: boolean
+  /**
+   * Whether the tool mutates state: writes, sends, publishes or spends
+   * anything. This is the STRUCTURAL truth the confirmation invariant reads
+   * (see authoring-writes.ts) — it replaces guessing from the tool's name.
+   *
+   * OPTIONAL on purpose: `tools.mutates` (migration 0022) is not applied yet
+   * and rows created before it carry no value. `undefined` therefore means
+   * "unknown", and the invariant falls back FAIL-CLOSED onto the legacy
+   * name/description heuristic rather than assuming the tool is read-only.
+   */
+  mutates?: boolean
 }
 
 // ---------------------------------------------------------------------------

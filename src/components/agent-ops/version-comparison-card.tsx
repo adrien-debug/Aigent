@@ -15,6 +15,22 @@ import type { CopilotVersion } from '@/lib/agent-mission-control/types'
  * version object not sourced from the enriched getter). Shared with the versions
  * page so the cards and the score comparison table agree.
  */
+/**
+ * The one wording for "this figure is not re-verified against a live run".
+ * Shared so the columns and the card cannot drift into two different claims
+ * about the same data.
+ */
+export function UnverifiedNote() {
+  return (
+    <span
+      className="ml-1 text-[11px] text-zinc-500"
+      title="Recorded on the version record, not re-verified against the latest completed benchmark run for this version. See the release gate evidence for a live figure."
+    >
+      (unverified)
+    </span>
+  )
+}
+
 export function versionNeverTested(version: CopilotVersion): boolean {
   if (version.scoresEvidence) return version.scoresEvidence === 'none'
   return version.stage === 'draft' && version.scores.testPassRate === 0 && version.scores.benchmarkScore === 0
@@ -76,7 +92,11 @@ export function VersionComparisonCard({
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs text-zinc-500">Unsafe actions</span>
               <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
-                {scores.unsafeActionCount === 0 ? '0 unsafe' : `${scores.unsafeActionCount} flagged`}
+                {scores.unsafeActionCount === null
+                  ? '—'
+                  : scores.unsafeActionCount === 0
+                    ? '0 unsafe'
+                    : `${scores.unsafeActionCount} flagged`}
               </span>
             </div>
           </div>

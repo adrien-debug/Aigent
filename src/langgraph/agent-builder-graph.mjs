@@ -32,6 +32,7 @@ import { StateGraph, MessagesAnnotation, START, END, interrupt } from '@langchai
 
 import { buildTool, buildToolsFromConfig } from './tool-registry.mjs'
 import { createChatModel } from './model-provider.mjs'
+import { withTemporalContext } from './temporal-context.mjs'
 
 // ---------------------------------------------------------------------------
 // LEGACY DEFAULTS — the exact pre-config behaviour, used ONLY as fallback when
@@ -61,6 +62,77 @@ const DEFAULT_CONFIRM_REQUIRED = new Set(['draft_copilot_spec'])
  * unfinished run back into a "completed" one.
  */
 export const STEP_BUDGET_EXHAUSTED = 'aigent_step_budget_exhausted'
+
+/**
+ * Machine-stable marker for the COST ceiling (twin of STEP_BUDGET_EXHAUSTED).
+ * Same transport constraint: the SDK drops custom message keys, so the content
+ * is the only channel that survives back to the app.
+ */
+export const COST_BUDGET_EXHAUSTED = 'aigent_cost_budget_exhausted'
+
+/**
+ * Does a manifest `forbiddenActions` entry name this tool?
+ *
+ * THIRD COPY of one rule — keep aligned with `forbiddenEntryTargetsTool` in
+ * `runner.ts` (direct path, pre-execution) and `benchmark-runner.ts` (after the
+ * fact). Same semantics everywhere: trim/lowercase, direct equality, otherwise a
+ * scan requiring a `[a-z0-9_.-]` word boundary on BOTH sides — so a ban on
+ * `delete_customer` does not also catch `delete_customer_note`.
+ * @param {string} entry
+ * @param {string} toolName
+ * @returns {boolean}
+ */
+export function forbiddenEntryTargetsTool(entry, toolName) {
+  const name = String(toolName ?? '').trim().toLowerCase()
+  if (name.length === 0) return false
+  const haystack = String(entry ?? '').trim().toLowerCase()
+  if (haystack === name) return true
+  let from = 0
+  for (;;) {
+    const at = haystack.indexOf(name, from)
+    if (at < 0) return false
+    const before = at === 0 ? '' : haystack[at - 1]
+    const after = haystack[at + name.length] ?? ''
+    const isBoundary = (c) => c === '' || !/[a-z0-9_.-]/.test(c)
+    if (isBoundary(before) && isBoundary(after)) return true
+    from = at + 1
+  }
+}
+
+/**
+ * Cost already spent by THIS run, in USD, computed from state — never a
+ * module-level accumulator (the compiled graph is a singleton shared by every
+ * run; see countAgentTurns for the same reasoning).
+ *
+ * Returns `null` when cost is UNKNOWABLE here, and the caller must then enforce
+ * nothing: either no price rates were transported (`modelPricing` absent from
+ * the assistant config) or the provider returned no `usage_metadata`. A ceiling
+ * enforced against an invented rate would be worse than no ceiling.
+ * @param {import('@langchain/langgraph').BaseMessage[]} messages
+ * @param {{inputUsdPer1M:number,outputUsdPer1M:number}|null} pricing
+ * @returns {number|null}
+ */
+function spentUsd(messages, pricing) {
+  if (!pricing || !Number.isFinite(pricing.inputUsdPer1M) || !Number.isFinite(pricing.outputUsdPer1M)) {
+    return null
+  }
+  let inTok = 0
+  let outTok = 0
+  let sawUsage = false
+  for (const m of messages) {
+    if ((m.getType?.() ?? m.type) !== 'ai') continue
+    const u = m.usage_metadata ?? m.response_metadata?.usage
+    if (!u) continue
+    const i = u.input_tokens ?? u.prompt_tokens
+    const o = u.output_tokens ?? u.completion_tokens
+    if (!Number.isFinite(i) && !Number.isFinite(o)) continue
+    sawUsage = true
+    inTok += Number.isFinite(i) ? i : 0
+    outTok += Number.isFinite(o) ? o : 0
+  }
+  if (!sawUsage) return null
+  return (inTok / 1e6) * pricing.inputUsdPer1M + (outTok / 1e6) * pricing.outputUsdPer1M
+}
 
 /**
  * Key under which agentNode stamps the model it ACTUALLY instantiated. The
@@ -93,7 +165,7 @@ const DEFAULT_SYSTEM_PROMPT = [
 /**
  * Resolve the effective behaviour for THIS run from the LangGraph config.
  * @param {import('@langchain/langgraph').LangGraphRunnableConfig} [config]
- * @returns {{ systemPrompt:string, model:string, modelProvider:string, maxSteps:number, tools:any[], toolsByName:Record<string,any>, confirmRequired:Set<string>, toolRisk:Record<string,string> }}
+ * @returns {{ systemPrompt:string, model:string, modelProvider:string, maxSteps:number, maxCostPerRunUsd:number|null, modelPricing:{inputUsdPer1M:number,outputUsdPer1M:number}|null, tools:any[], toolsByName:Record<string,any>, confirmRequired:Set<string>, toolRisk:Record<string,string> }}
  */
 function resolveRuntime(config) {
   const cfg = config?.configurable ?? {}
@@ -109,6 +181,10 @@ function resolveRuntime(config) {
       model: DEFAULT_MODEL,
       modelProvider: 'openai',
       maxSteps: 12,
+      // Legacy fallback carries no manifest → no cost ceiling, no price rates.
+      maxCostPerRunUsd: null,
+      modelPricing: null,
+      forbiddenActions: [],
       tools,
       toolsByName: Object.fromEntries(tools.map((t) => [t.name, t])),
       confirmRequired: DEFAULT_CONFIRM_REQUIRED,
@@ -123,6 +199,19 @@ function resolveRuntime(config) {
     model: typeof cfg.model === 'string' && cfg.model.trim() ? cfg.model : DEFAULT_MODEL,
     modelProvider: typeof cfg.modelProvider === 'string' && cfg.modelProvider.trim() ? cfg.modelProvider.trim() : 'openai',
     maxSteps: Number.isFinite(cfg.maxSteps) ? cfg.maxSteps : 12,
+    // Cost twin of maxSteps, same transport channel (manifests.max_cost_per_run_usd
+    // → ManifestRowForBehavior → CopilotBehaviorConfig → config.configurable).
+    maxCostPerRunUsd:
+      Number.isFinite(cfg.maxCostPerRunUsd) && cfg.maxCostPerRunUsd > 0 ? cfg.maxCostPerRunUsd : null,
+    modelPricing:
+      cfg.modelPricing &&
+      Number.isFinite(cfg.modelPricing.inputUsdPer1M) &&
+      Number.isFinite(cfg.modelPricing.outputUsdPer1M)
+        ? cfg.modelPricing
+        : null,
+    forbiddenActions: Array.isArray(cfg.forbiddenActions)
+      ? cfg.forbiddenActions.filter((a) => typeof a === 'string' && a.trim().length > 0)
+      : [],
     tools,
     toolsByName: Object.fromEntries(tools.map((t) => [t.name, t])),
     confirmRequired,
@@ -163,7 +252,51 @@ async function agentNode(state, config) {
   // state, independent of who's calling it.
   const turnsTaken = countAgentTurns(state.messages)
   const hasSystem = state.messages[0]?.getType?.() === 'system'
-  const baseMessages = hasSystem ? state.messages : [{ role: 'system', content: rt.systemPrompt }, ...state.messages]
+
+  // TEMPORAL ANCHORING — injected HERE, at run time, and deliberately NOT in
+  // composeSystemPrompt: that prompt is frozen onto the assistant at
+  // provisioning, so a date baked in there would be the provisioning day
+  // forever. `withTemporalContext` is idempotent (marker check), so a resumed
+  // run whose checkpointed system message already carries a block never gets a
+  // second, contradictory clock.
+  const now = new Date()
+  let baseMessages
+  if (hasSystem) {
+    const sys = state.messages[0]
+    const sysText = typeof sys.content === 'string' ? sys.content : rt.systemPrompt
+    const anchored = withTemporalContext(sysText, now)
+    baseMessages =
+      anchored === sysText
+        ? state.messages
+        : [{ role: 'system', content: anchored }, ...state.messages.slice(1)]
+  } else {
+    baseMessages = [
+      { role: 'system', content: withTemporalContext(rt.systemPrompt, now) },
+      ...state.messages,
+    ]
+  }
+
+  // COST CEILING (twin of the step-budget guard below). Fail-closed but never
+  // fabricated: `spentUsd` returns null when no price rates were transported or
+  // the provider reported no usage, and in that case we enforce nothing rather
+  // than stopping a run on a made-up number.
+  if (rt.maxCostPerRunUsd != null) {
+    const spent = spentUsd(state.messages, rt.modelPricing)
+    if (spent != null && spent >= rt.maxCostPerRunUsd) {
+      return {
+        messages: [
+          new AIMessage({
+            content:
+              `${COST_BUDGET_EXHAUSTED} ` +
+              `I stopped here: this run reached its configured cost ceiling ` +
+              `($${rt.maxCostPerRunUsd} per run; approximately $${spent.toFixed(4)} spent, an estimate ` +
+              `from token usage and list prices, not billing truth). No further model call was made. ` +
+              `Please start a new run or narrow the request.`,
+          }),
+        ],
+      }
+    }
+  }
 
   if (turnsTaken >= rt.maxSteps) {
     // Budget reached. Real thread traces (Security Sentinel, exposed-secrets)
@@ -248,7 +381,34 @@ async function approvalNode(state, config) {
   const rt = resolveRuntime(config)
   const last = state.messages[state.messages.length - 1]
   const call = (last.tool_calls ?? [])[0]
-  if (!call || !rt.confirmRequired.has(call.name)) return {}
+  if (!call) return {}
+
+  // FORBIDDEN first, and terminal: a manifest interdiction is not confirmable,
+  // so it must be checked BEFORE the confirmation gate (never surface an
+  // approval dialog for something no approval can authorise). The declined-tool
+  // ToolMessage keeps the tool from ever reaching toolsNode, exactly like a
+  // human decline — same {blocked:true} shape the app already understands.
+  const forbiddenHit = (rt.forbiddenActions ?? []).find((entry) =>
+    forbiddenEntryTargetsTool(entry, call.name)
+  )
+  if (forbiddenHit !== undefined) {
+    return {
+      messages: [
+        new ToolMessage({
+          content: JSON.stringify({
+            ok: false,
+            blocked: true,
+            reason:
+              `tool '${call.name}' is named by a manifest forbiddenActions entry ` +
+              `("${forbiddenHit}") — blocked, never executed`,
+          }),
+          tool_call_id: call.id ?? call.name,
+        }),
+      ],
+    }
+  }
+
+  if (!rt.confirmRequired.has(call.name)) return {}
 
   const proposed = call.args ?? {}
   const decision = interrupt({

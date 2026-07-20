@@ -33,6 +33,7 @@ import { runOnAgentServer } from './langgraph-server'
 import { pgrest } from './postgrest'
 import { resolveRunAssistantId } from './resolve-run-assistant'
 import { startTrace, toDbStepKind, type TraceStep } from './run-trace'
+import { withTemporalContext } from './temporal-context'
 import { TOOL_HANDLERS, type ToolHandlerResult } from './tool-handlers'
 import type {
   AgentRuntime,
@@ -88,6 +89,14 @@ export interface ExecuteCopilotRunArgs {
    * any non-'langgraph' value uses the direct loop.
    */
   runtime?: AgentRuntime
+  /**
+   * Hard USD ceiling for this run (manifest `maxCostPerRunUsd`). Enforced
+   * fail-closed on the direct model-router path: before every model call the
+   * accumulated cost is compared to this value and the run stops as `failed`
+   * once it is exceeded. When omitted, the runner loads it from the version's
+   * manifest; a manifest without a ceiling (or <= 0) means unbounded.
+   */
+  maxCostPerRunUsd?: number
 }
 
 export interface ExecuteCopilotRunStep {
@@ -161,31 +170,50 @@ type UsdAmount = number
 type RawRow = Record<string, unknown>
 
 /**
- * Load the tools the copilot may call from the manifest tied to `versionId`.
- * Returns [] when the version has no manifest or the manifest declares no
- * tools — a tool-less run (identical to the previous runner behaviour).
+ * Load, in ONE version→manifest walk, everything a run needs from the manifest:
+ * the callable tools and the per-run USD ceiling. Reading the ceiling through
+ * its own walk cost two extra server round-trips on every run for data already
+ * in hand.
+ *
+ * No tools when the version has no manifest or declares none (a tool-less run,
+ * the historical behaviour); a null ceiling when the manifest leaves it unset.
  */
-async function loadToolsForVersion(versionId: string): Promise<RunnerTool[]> {
+async function loadManifestRunConfig(
+  versionId: string
+): Promise<{ tools: RunnerTool[]; maxCostUsd: number | null; forbiddenActions: string[] }> {
   const versionRows = await pgrest<RawRow[]>('GET', `copilot_versions?id=eq.${encodeURIComponent(versionId)}&select=manifest_id`)
   const manifestId = versionRows[0]?.manifest_id as string | null | undefined
-  if (!manifestId) return []
+  if (!manifestId) return { tools: [], maxCostUsd: null, forbiddenActions: [] }
 
-  const manifestRows = await pgrest<RawRow[]>('GET', `manifests?id=eq.${encodeURIComponent(manifestId)}&select=tool_ids`)
+  const manifestRows = await pgrest<RawRow[]>(
+    'GET',
+    `manifests?id=eq.${encodeURIComponent(manifestId)}&select=tool_ids,max_cost_per_run_usd,forbidden_actions`
+  )
+  const rawCeiling = manifestRows[0]?.max_cost_per_run_usd
+  const ceiling = typeof rawCeiling === 'string' ? Number(rawCeiling) : rawCeiling
+  const maxCostUsd = typeof ceiling === 'number' && Number.isFinite(ceiling) ? ceiling : null
+
+  const rawForbidden = manifestRows[0]?.forbidden_actions
+  const forbiddenActions = Array.isArray(rawForbidden)
+    ? (rawForbidden as unknown[]).filter((e): e is string => typeof e === 'string')
+    : []
+
   const toolIds = (manifestRows[0]?.tool_ids as string[] | null | undefined) ?? []
-  if (toolIds.length === 0) return []
+  if (toolIds.length === 0) return { tools: [], maxCostUsd, forbiddenActions }
 
   const inList = toolIds.map((id) => `"${id}"`).join(',')
   const toolRows = await pgrest<RawRow[]>(
     'GET',
     `tools?id=in.(${encodeURIComponent(inList)})&select=id,name,description,risk_level,requires_confirmation`
   )
-  return toolRows.map((r) => ({
+  const tools = toolRows.map((r) => ({
     id: r.id as string,
     name: r.name as string,
     description: (r.description as string) ?? '',
     riskLevel: (r.risk_level as ToolRiskLevel) ?? 'low',
     requiresConfirmation: r.requires_confirmation === true,
   }))
+  return { tools, maxCostUsd, forbiddenActions }
 }
 
 /** Load the copilot's runtime (to decide the execution engine). */
@@ -236,6 +264,32 @@ function toRouterTool(t: RunnerTool): ModelRouterTool {
 // Guardrail — decide whether a requested tool may execute.
 // ---------------------------------------------------------------------------
 
+/**
+ * Does a `forbiddenActions` entry designate this tool? Entries are free text
+ * ("never call delete_customer", "delete_customer"), so a tool is forbidden
+ * when its name appears as a whole token inside the entry. Word boundaries on
+ * both sides prevent `delete_customer_note` from matching `delete_customer`
+ * (and vice versa). Semantics mirrored from `benchmark-runner.ts` — the two
+ * must stay identical or a run would be blocked live and passed at benchmark
+ * (or worse, the reverse).
+ */
+function forbiddenEntryTargetsTool(entry: string, toolName: string): boolean {
+  const name = toolName.trim().toLowerCase()
+  if (name.length === 0) return false
+  const haystack = entry.trim().toLowerCase()
+  if (haystack === name) return true
+  let from = 0
+  for (;;) {
+    const at = haystack.indexOf(name, from)
+    if (at < 0) return false
+    const before = at === 0 ? '' : haystack[at - 1]
+    const after = haystack[at + name.length] ?? ''
+    const isBoundary = (c: string) => c === '' || !/[a-z0-9_.-]/.test(c)
+    if (isBoundary(before) && isBoundary(after)) return true
+    from = at + 1
+  }
+}
+
 type GuardrailVerdict =
   | { allow: true; tool: RunnerTool }
   | { allow: false; reason: string; blocked: boolean; tool?: RunnerTool }
@@ -244,13 +298,19 @@ type GuardrailVerdict =
  * Gate a model-requested tool call against the manifest:
  *  - unknown tool (not in the allowlist) → denied (not blocked, just refused)
  *  - no registered handler → denied
+ *  - named by a manifest `forbiddenActions` entry → BLOCKED, never executed
  *  - requiresConfirmation and not confirmed → BLOCKED (safety), never executed
  *  - otherwise → allowed
+ *
+ * The forbidden rule is enforced BEFORE execution here; `benchmark-runner.ts`
+ * applies the same semantics after the fact, on a finished run. Both share the
+ * word-boundary matching of `forbiddenEntryTargetsTool`.
  */
 function guardrailCheck(
   call: ModelRouterToolCall,
   tools: RunnerTool[],
-  confirmed: Set<string>
+  confirmed: Set<string>,
+  forbiddenActions: string[] = []
 ): GuardrailVerdict {
   const tool = tools.find((t) => t.name === call.name)
   if (!tool) {
@@ -258,6 +318,17 @@ function guardrailCheck(
   }
   if (!TOOL_HANDLERS[tool.name]) {
     return { allow: false, reason: `tool '${tool.name}' has no registered handler`, blocked: false, tool }
+  }
+  const forbiddenHit = forbiddenActions.find((entry) => forbiddenEntryTargetsTool(entry, tool.name))
+  if (forbiddenHit !== undefined) {
+    return {
+      allow: false,
+      reason:
+        `tool '${tool.name}' is named by a manifest forbiddenActions entry ` +
+        `("${forbiddenHit}") — blocked, never executed`,
+      blocked: true,
+      tool,
+    }
   }
   if (tool.requiresConfirmation && !confirmed.has(tool.name)) {
     return {
@@ -348,7 +419,7 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
 
   // Map tool NAME → its DB row (id + risk) so persisted tool_calls carry the
   // real tool_id (a NOT NULL column). The Agent Server reports names, not ids.
-  const copilotTools = await loadToolsForVersion(versionId)
+  const copilotTools = (await loadManifestRunConfig(versionId)).tools
   const toolByName = new Map(copilotTools.map((t) => [t.name, t]))
 
   // Visibility for P0-2: the manifest can declare tool NAMES that resolve to
@@ -582,9 +653,20 @@ export async function executeCopilotRun(
     return executeViaLangGraph({ copilotId, versionId, projectId, model, userInput, maxSteps })
   }
 
-  // Direct model-router path: resolve the tool set from the manifest.
-  const tools = args.tools ?? (await loadToolsForVersion(versionId))
+  // Direct model-router path: one manifest read gives both the tool set and
+  // the USD ceiling — reading them separately cost two extra round-trips per
+  // run for data already fetched.
+  const manifestConfig =
+    args.tools && args.maxCostPerRunUsd !== undefined
+      ? { tools: args.tools, maxCostUsd: null, forbiddenActions: [] }
+      : await loadManifestRunConfig(versionId)
+  const tools = args.tools ?? manifestConfig.tools
   const routerTools = tools.map(toRouterTool)
+
+  // Explicit arg wins; otherwise the manifest's ceiling. A null/<=0 ceiling
+  // means "unbounded" — the historical behaviour.
+  const rawCeiling = args.maxCostPerRunUsd ?? manifestConfig.maxCostUsd
+  const costCeilingUsd = typeof rawCeiling === 'number' && rawCeiling > 0 ? rawCeiling : null
 
   const startedAtMs = Date.now()
   const startedAt: IsoTimestamp = new Date(startedAtMs).toISOString()
@@ -619,8 +701,11 @@ export async function executeCopilotRun(
   const toolCallRows: RawRow[] = []
 
   // Conversation state for the agentic loop.
+  // The system prompt is anchored in time: without it the model reasons about
+  // "now" from its training data (see temporal-context.ts). Injection is
+  // idempotent — a prompt that already carries the block is left untouched.
   const messages: ModelRouterMessage[] = [
-    { role: 'system', content: systemPromptSummary },
+    { role: 'system', content: withTemporalContext(systemPromptSummary, new Date(startedAtMs)) },
     { role: 'user', content: userInput },
   ]
 
@@ -630,12 +715,23 @@ export async function executeCopilotRun(
   // Hoisted to function scope so the return can expose the untruncated answer
   // as `fullText` (the try/catch below assigns it).
   let finalText = ''
+  // Set when the run stopped because the manifest USD ceiling was crossed.
+  let costCeilingHit = false
 
   try {
     let turn = 0
     let resolvedThisRun = false
 
     for (; turn < maxTurns; turn += 1) {
+      // BUDGET — fail-closed before spending. `maxCostPerRunUsd` used to be a
+      // placebo (stored, loaded, never compared); the accumulated cost is now
+      // checked before every model call, mirroring improvement-loop.ts's
+      // cumulative budget gate. We stop BEFORE the call we cannot afford.
+      if (costCeilingUsd !== null && costUsd >= costCeilingUsd) {
+        costCeilingHit = true
+        break
+      }
+
       const res = await routeCompletion({
         purpose: 'run',
         modelProvider,
@@ -697,7 +793,7 @@ export async function executeCopilotRun(
       // Execute each requested tool through the guardrail.
       for (const call of requestedCalls) {
         toolCallCount += 1
-        const verdict = guardrailCheck(call, tools, confirmed)
+        const verdict = guardrailCheck(call, tools, confirmed, manifestConfig.forbiddenActions)
 
         if (!verdict.allow) {
           if (verdict.blocked) blockedToolCount += 1
@@ -780,7 +876,24 @@ export async function executeCopilotRun(
       // Loop: next turn lets the model use the tool results (or finish).
     }
 
-    if (turn >= maxTurns && finalText === '') {
+    if (costCeilingHit && finalText === '') {
+      // Same reasoning as the step-budget branch below: no final answer was
+      // produced, and `failed` is the most honest status the DB CHECK allows.
+      status = 'failed'
+      outputSummary = summarize(
+        `Cost ceiling reached: spent $${costUsd.toFixed(4)} of the $${(costCeilingUsd ?? 0).toFixed(4)} manifest budget (maxCostPerRunUsd) before a final answer. Run stopped before the next model call.`
+      )
+      trace.step(
+        {
+          kind: 'guardrail-check',
+          title: 'Cost ceiling reached',
+          detail: outputSummary,
+          status: 'blocked',
+          durationMs: 0,
+        },
+        Date.now()
+      )
+    } else if (turn >= maxTurns && finalText === '') {
       // Hit the step budget without a final answer — the task did NOT finish.
       // `agent_runs.status` has no dedicated "incomplete" value (its CHECK
       // constraint only allows completed/failed/blocked/needs-confirmation/

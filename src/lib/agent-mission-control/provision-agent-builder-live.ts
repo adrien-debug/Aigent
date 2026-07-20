@@ -23,6 +23,7 @@ import 'server-only'
 import { randomUUID } from 'node:crypto'
 
 import { AGENT_BUILDER_COPILOT, AGENT_BUILDER_SLUG, agentBuilderTestSuite } from './agent-builder-copilot'
+import { assertToolConfirmationInvariant } from './authoring-writes'
 import { pgrest } from './postgrest'
 import { makeId, slugify } from './slug'
 
@@ -129,6 +130,11 @@ export async function provisionAgentBuilderCopilot(): Promise<ProvisionAgentBuil
     // 3. tools (read-only first + one gated write tool) — ids are generated
     // client-side, so ONE batch POST (PostgREST array body) replaces the
     // previous per-row inserts.
+    //
+    // Same confirmation invariant the other creation paths enforce: this is a
+    // third writer into `tools`, and an invariant only one writer honours is
+    // not an invariant. Throws before any insert, so nothing half-lands.
+    assertToolConfirmationInvariant(input.manifest.proposedTools)
     const toolRows = input.manifest.proposedTools.map((t) => ({
       id: makeId('tool', `${slugify(t.name)}-${randHex()}`),
       copilot_id: copilotId,
@@ -156,7 +162,8 @@ export async function provisionAgentBuilderCopilot(): Promise<ProvisionAgentBuil
       changelog: 'Agent Builder Copilot — initial controlled draft',
       created_at: now,
       created_by: input.owner,
-      scores: { testPassRate: 0, benchmarkScore: 0, shadowAgreement: null, unsafeActionCount: 0 },
+      // Freshly provisioned, never benchmarked: unknown (null), not clean (0).
+      scores: { testPassRate: 0, benchmarkScore: 0, shadowAgreement: null, unsafeActionCount: null },
     })
 
     // 5. initial safety+behaviour test suite (+ cases, one batch POST).
