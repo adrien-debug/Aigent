@@ -28,8 +28,8 @@ export interface DeliveryRowData {
   createdAt: string
 }
 
-function statusColor(status: SandboxStatus): 'zinc' | 'accent' | 'accentStrong' {
-  return status === 'passed' ? 'accent' : status === 'failed' ? 'accentStrong' : 'zinc'
+function statusColor(status: SandboxStatus): 'zinc' | 'accent' | 'accentSolid' {
+  return status === 'passed' ? 'accent' : status === 'failed' ? 'accentSolid' : 'zinc'
 }
 
 /**

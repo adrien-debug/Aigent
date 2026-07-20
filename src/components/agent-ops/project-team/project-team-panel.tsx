@@ -10,6 +10,7 @@ import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
 import { useEffect, useRef, useState } from 'react'
 
+import { sectionLabelClass } from '@/components/agent-ops/authoring-primitives'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Divider } from '@/components/catalyst/divider'
@@ -339,7 +340,7 @@ const UNAVAILABLE = <span className="text-zinc-600">— unavailable</span>
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <dt className="text-[10px] font-medium tracking-widest text-zinc-500 uppercase">{label}</dt>
+      <dt className={sectionLabelClass}>{label}</dt>
       <dd className="text-sm text-zinc-200">{children}</dd>
     </div>
   )
@@ -390,7 +391,7 @@ function RelationRow({
       {relationId !== null && onDelete ? (
         <Headless.Button
           onClick={() => onDelete(relationId, description)}
-          className="-my-1 shrink-0 rounded-sm p-1 text-zinc-500 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-500"
+          className="-my-2 flex size-11 shrink-0 items-center justify-center rounded-md text-zinc-500 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-500"
         >
           <XMarkIcon aria-hidden="true" className="size-3.5" />
           <span className="sr-only">Delete relation: {description}</span>
@@ -577,7 +578,7 @@ export function ProjectTeamPanel({
         </dl>
 
         <div>
-          <h3 className="text-[10px] font-medium tracking-widest text-zinc-500 uppercase">Metrics</h3>
+          <h3 className={sectionLabelClass}>Metrics</h3>
           <dl className="mt-3 grid grid-cols-3 gap-4">
             {agent.metrics.map((metric) => (
               <div key={metric.key} className="flex flex-col gap-1">
@@ -591,12 +592,12 @@ export function ProjectTeamPanel({
         </div>
 
         <div>
-          <h3 className="text-[10px] font-medium tracking-widest text-zinc-500 uppercase">Tools</h3>
+          <h3 className={sectionLabelClass}>Tools</h3>
           {/* Checked FIRST: a failed tool read also produces an empty array, so
               testing `length === 0` alone turns an exception into the assertion
               "No tool declared." */}
           {agent.toolsUnavailable ? (
-            <p className="mt-2 text-sm text-zinc-600">
+            <p className="mt-2 text-sm text-zinc-400">
               — tools could not be read. This is not a statement that none is declared.
             </p>
           ) : agent.tools.length > 0 ? (
@@ -610,14 +611,14 @@ export function ProjectTeamPanel({
               ))}
             </ul>
           ) : (
-            <p className="mt-2 text-sm text-zinc-600">No tool declared.</p>
+            <p className="mt-2 text-sm text-zinc-400">No tool declared.</p>
           )}
         </div>
 
         <Divider soft />
 
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-[10px] font-medium tracking-widest text-zinc-500 uppercase">Relations</h3>
+          <h3 className={sectionLabelClass}>Relations</h3>
           {canAddRelation ? (
             <Button ref={addRelationRef} outline onClick={onAddRelation}>
               Add relation
@@ -634,7 +635,7 @@ export function ProjectTeamPanel({
         ) : null}
 
         <div>
-          <h3 className="text-[10px] font-medium tracking-widest text-zinc-500 uppercase">
+          <h3 className={sectionLabelClass}>
             Incoming relations
           </h3>
           {incoming.length > 0 ? (
@@ -651,14 +652,14 @@ export function ProjectTeamPanel({
               ))}
             </ul>
           ) : (
-            <p className="mt-2 text-sm text-zinc-600">
+            <p className="mt-2 text-sm text-zinc-400">
               No incoming relation is configured or derivable for this agent.
             </p>
           )}
         </div>
 
         <div>
-          <h3 className="text-[10px] font-medium tracking-widest text-zinc-500 uppercase">
+          <h3 className={sectionLabelClass}>
             Outgoing relations
           </h3>
           {outgoing.length > 0 ? (
@@ -675,7 +676,7 @@ export function ProjectTeamPanel({
               ))}
             </ul>
           ) : (
-            <p className="mt-2 text-sm text-zinc-600">
+            <p className="mt-2 text-sm text-zinc-400">
               No outgoing relation is configured or derivable for this agent.
             </p>
           )}
@@ -683,7 +684,7 @@ export function ProjectTeamPanel({
 
         {agent.latestRunId ? (
           <div>
-            <h3 className="text-[10px] font-medium tracking-widest text-zinc-500 uppercase">Recent run</h3>
+            <h3 className={sectionLabelClass}>Recent run</h3>
             <p className="mt-2 text-sm text-zinc-300">
               {humanizeStatus(agent.latestRunStatus ?? 'unavailable')}
               <span className="ml-2 font-mono text-xs text-zinc-500">{agent.latestRunId}</span>

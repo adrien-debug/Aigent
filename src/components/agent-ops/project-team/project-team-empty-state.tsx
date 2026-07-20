@@ -3,7 +3,7 @@
 import { FunnelIcon, UsersIcon } from '@heroicons/react/24/outline'
 
 import { EmptyState } from '@/components/agent-ops/empty-state'
-import { SoftAccentButton } from '@/components/agent-ops/soft-accent-link'
+import { SoftAccentButton, softAccentClass } from '@/components/agent-ops/soft-accent-link'
 import { Link } from '@/components/catalyst/link'
 
 /**
@@ -26,7 +26,7 @@ export function ProjectTeamNoAgentsEmptyState({ projectId }: { projectId: string
       action={
         <Link
           href={`/admin/projects/${projectId}/builder`}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--accent-soft)] px-3 py-1.5 text-sm font-medium text-accent-700 ring-1 ring-[var(--accent-line)] transition-colors hover:bg-[var(--accent-surface)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300"
+          className={softAccentClass}
         >
           Open Agent Builder
         </Link>

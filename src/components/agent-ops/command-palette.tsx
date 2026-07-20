@@ -83,7 +83,7 @@ export function CommandPalette() {
                       >
                         <action.icon className="size-5 flex-none text-zinc-400 group-data-[focus]:text-accent-600 dark:group-data-[focus]:text-accent-400" aria-hidden="true" />
                         <span className="ml-3 flex-auto truncate font-medium">{action.name}</span>
-                        <span className="hidden group-data-[focus]:inline-flex text-xs text-accent-600/70 dark:text-accent-400/70">Jump to</span>
+                        <span className="hidden group-data-[focus]:inline-flex text-xs text-accent-400">Jump to</span>
                       </Headless.ComboboxOption>
                     ))}
                   </Headless.ComboboxOptions>

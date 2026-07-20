@@ -14,7 +14,7 @@ function HighlightedLine({ line }: { line: string }) {
     return (
       <>
         {indent}
-        <span className="text-accent-700/80 dark:text-accent-400/80">{key}</span>
+        <span className="text-accent-700 dark:text-accent-400">{key}</span>
         <span className="text-zinc-500">{separator}</span>
         <HighlightedValue raw={rest} />
         {'\n'}

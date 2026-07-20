@@ -3,7 +3,7 @@ import { ArrowUpCircleIcon } from '@heroicons/react/24/outline'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { GateHistoryFeed, type GateHistoryEvent } from '@/components/agent-ops/gate-history-feed'
 import { ReleaseCandidateCard } from '@/components/agent-ops/release-candidate-card'
-import { AgentSectionCard, SurfaceCard } from '@/components/agent-ops/surface-card'
+import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { Button } from '@/components/catalyst/button'
 import { getCopilot, getVersionsForCopilot } from '@/lib/agent-mission-control/data'
 import { formatTimestamp } from '@/lib/agent-mission-control/format'
@@ -33,7 +33,7 @@ export async function PublishSection({ copilotId }: { copilotId: string }) {
   // promote. Show an honest empty state pointing at the Improve loop.
   if (!releaseGate || releaseGate.candidateVersionId === copilot.productionVersionId) {
     return (
-      <SurfaceCard>
+      <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
         <EmptyState
           icon={ArrowUpCircleIcon}
           title="No release candidate."
@@ -44,7 +44,7 @@ export async function PublishSection({ copilotId }: { copilotId: string }) {
             </Button>
           }
         />
-      </SurfaceCard>
+      </div>
     )
   }
 

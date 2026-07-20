@@ -11,6 +11,15 @@ import type { GeneratedManifest } from '@/lib/agent-mission-control/authoring-ty
 
 const MANIFEST_PREVIEW_LENGTH = 220
 
+/**
+ * Canonical uppercase micro-label (section eyebrows, `<dt>` terms, table column
+ * heads). ONE size + tracking + tone so the dashboard stops carrying three
+ * near-identical variants (`text-xs tracking-wide` / `text-[10px] tracking-wider`
+ * / `text-[10px] tracking-widest`). `zinc-500` on section surfaces; bump the
+ * consumer to `zinc-400` where the label sits on the darker canvas.
+ */
+export const sectionLabelClass = 'text-xs font-medium tracking-wide text-zinc-500 uppercase'
+
 /** Truncate `text` to `len` characters, appending an ellipsis when cut. */
 function truncate(text: string, len: number): string {
   return text.length > len ? `${text.slice(0, len)}…` : text

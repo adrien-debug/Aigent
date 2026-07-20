@@ -13,14 +13,16 @@ import { getLatestDeliveryEvent } from '@/lib/agent-mission-control/delivery-eve
 import { getLatestSandboxReport } from '@/lib/agent-mission-control/sandbox-reports-store'
 
 /** Dimension status → Catalyst badge intensity (meaning carried by the label). */
-function statusBadge(status: DimensionStatus): 'zinc' | 'accent' | 'accentStrong' {
+function statusBadge(status: DimensionStatus): 'zinc' | 'accent' | 'accentStrong' | 'accentSolid' {
   switch (status) {
     case 'pass':
       return 'accent'
     case 'fail':
+      return 'accentSolid'
+    case 'warn':
       return 'accentStrong'
     default:
-      // warn, missing — quiet neutral, the evidence text explains it.
+      // missing — quiet neutral, the evidence text explains it.
       return 'zinc'
   }
 }
@@ -87,7 +89,7 @@ export async function DeliveryScorecardCard({ copilotId }: { copilotId: string }
       actions={
         <span className="flex items-center gap-2">
           {card.target === 'production' ? <Badge color="accent">Production</Badge> : null}
-          <Badge color={card.status === 'fail' ? 'accentStrong' : card.status === 'warn' ? 'zinc' : 'accent'}>
+          <Badge color={card.status === 'fail' ? 'accentSolid' : card.status === 'warn' ? 'accentStrong' : 'accent'}>
             {levelLabel}
           </Badge>
         </span>

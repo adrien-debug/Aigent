@@ -15,7 +15,7 @@ import type { AgentRun, Copilot } from '@/lib/agent-mission-control/types'
 /**
  * RecentRunsTable — fleet-wide live traffic feed. Run status renders through
  * the canonical `RunStatusText` (mute zinc label — never a pill), the header
- * row wears the standard `bg-black/20` structural wash, and "Started" reads
+ * row is a canon `border-b border-white/5` hairline (no background wash), and "Started" reads
  * relative to the render instant (absolute UTC kept in the title). Columns are
  * truncated to fit the viewport at 1440px; horizontal scroll stays a mobile
  * safety net only.

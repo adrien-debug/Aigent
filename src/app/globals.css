@@ -52,8 +52,6 @@
   --color-surface-interactive: #18181b;
   --color-surface-elevated: #1f1f22;
   --color-surface-focus: #27272a;
-  --color-surface-danger: #3f1014;
-  --color-surface-live: #0c2a0a;
 }
 
 :root {
@@ -61,7 +59,7 @@
      Tokenised so surfaces that live outside Tailwind's class layer — third-party
      widgets styled through a raw stylesheet — reference the same hairline as
      `border-white/5` instead of restating a colour literal. */
-  --color-hairline: rgb(255 255 255 / 6%);
+  --color-hairline: rgb(255 255 255 / 5%);
 
   /* Dim wash the minimap paints over the off-viewport part of a graph. */
   --color-minimap-mask: rgb(0 0 0 / 65%);
@@ -70,6 +68,15 @@
   --accent-surface: color-mix(in oklab, var(--color-accent-500) 12%, transparent);
   --accent-line: color-mix(in oklab, var(--color-accent-500) 25%, transparent);
   --accent-line-strong: color-mix(in oklab, var(--color-accent-400) 40%, transparent);
+
+  /* Text-selection highlight (::selection) — brighter than a surface wash so
+     selected text stays legible against it. Consumed via `selection:bg-[…]`. */
+  --accent-selection: color-mix(in oklab, var(--color-accent-500) 30%, transparent);
+  /* Graph-node emphasis (project My Team canvas) — the active/selected node
+     rings must stay readable on the dark canvas, so they carry more accent than
+     the generic `--accent-line-strong` selection ring. */
+  --accent-node-active: color-mix(in oklab, var(--color-accent-500) 70%, transparent);
+  --accent-node-selected: color-mix(in oklab, var(--color-accent-400) 80%, transparent);
 }
 
 :root {
@@ -77,8 +84,6 @@
   --chart-success: var(--color-accent-500);
   --chart-tick: var(--color-zinc-500);
   --chart-grid: rgba(9, 9, 11, 0.05);
-  --chart-cursor: rgba(9, 9, 11, 0.1);
-  --chart-surface: #ffffff;
 }
 
 .dark {
@@ -86,8 +91,6 @@
   --chart-success: var(--color-accent-400);
   --chart-tick: var(--color-zinc-500);
   --chart-grid: rgba(255, 255, 255, 0.05);
-  --chart-cursor: rgba(255, 255, 255, 0.1);
-  --chart-surface: var(--color-surface-primary);
 }
 
 body {

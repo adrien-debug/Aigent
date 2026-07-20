@@ -19,6 +19,7 @@ import {
 import { TOOL_CALL_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
 import type { ToolCall } from '@/lib/agent-mission-control/types'
 import { Button } from '@/components/catalyst/button'
+import { Subheading } from '@/components/catalyst/heading'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 
 const toolCallRamp = [
@@ -105,7 +106,7 @@ export default async function RunsPage({
         <>
           <div className="flex flex-col gap-4">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight text-white">Run Latency</h2>
+              <Subheading level={2} tone="neutral" className="tracking-tight text-white">Run Latency</Subheading>
               <p className="mt-1 text-sm text-zinc-400">Performance trend over the last {runs.length} runs</p>
             </div>
             <div className="py-2">
@@ -126,7 +127,7 @@ export default async function RunsPage({
 
             <div className="flex flex-col gap-6">
               <div>
-                <h2 className="text-xl font-semibold tracking-tight text-white">Tool Calls</h2>
+                <Subheading level={2} tone="neutral" className="tracking-tight text-white">Tool Calls</Subheading>
                 <p className="mt-1 text-sm text-zinc-400">Outcomes across {runs.length} runs</p>
               </div>
               <div>
@@ -161,7 +162,7 @@ export default async function RunsPage({
 
           <div className="flex flex-col gap-6 pt-16 border-t border-white/[0.04]">
             <div className="flex items-baseline gap-4">
-              <h2 className="text-xl font-semibold tracking-tight text-white">Recent Runs</h2>
+              <Subheading level={2} tone="neutral" className="tracking-tight text-white">Recent Runs</Subheading>
               <span className="font-mono text-xs tabular-nums text-zinc-500">{runs.length} total</span>
             </div>
             <div className="-mx-6">

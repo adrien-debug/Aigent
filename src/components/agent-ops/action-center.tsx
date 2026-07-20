@@ -42,7 +42,7 @@ function ActionRow({ item, focus }: { item: ActionItem; focus: boolean }) {
     <li
       className={clsx(
         surfaceItemClass,
-        'group flex gap-4 p-4 transition-all duration-200 hover:-translate-y-px hover:bg-[var(--color-surface-focus)]',
+        'group flex gap-4 p-4 transition-[color,background-color,border-color,transform] duration-200 hover:-translate-y-px hover:bg-[var(--color-surface-focus)] motion-reduce:transition-none motion-reduce:hover:translate-y-0',
         focus && 'ring-[var(--accent-line-strong)]'
       )}
     >

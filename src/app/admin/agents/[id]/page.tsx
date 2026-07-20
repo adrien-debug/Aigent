@@ -13,7 +13,6 @@ import { EmptyState } from '@/components/agent-ops/empty-state'
 import { OnboardingSteps } from '@/components/agent-ops/onboarding-steps'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
 import { RadialMeter } from '@/components/agent-ops/widgets/radial-meter'
-import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
 import { SplitBar } from '@/components/agent-ops/widgets/split-bar'
 import {
   AGENT_RUNTIME_LABELS,
@@ -103,14 +102,12 @@ function RuntimeStat({
   value,
   accent = false,
   labelTitle,
-  children,
 }: {
   label: string
   value: React.ReactNode
   accent?: boolean
   /** Optional hover copy on the label (e.g. explaining an estimated figure). */
   labelTitle?: string
-  children?: React.ReactNode
 }) {
   return (
     <div>
@@ -128,7 +125,6 @@ function RuntimeStat({
       >
         {value}
       </dd>
-      {children}
     </div>
   )
 }
@@ -236,9 +232,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
   // Runs — last 5, newest first
   const runs = [...allRuns].sort((a, b) => b.startedAt.localeCompare(a.startedAt))
   const lastRuns = runs.slice(0, 5)
-  // Latency in chronological order (oldest → newest) for sparklines, and the
-  // window max so per-row meters read relative to the busiest run.
-  const latencySeries = [...lastRuns].reverse().map((run) => run.latencyMs)
+  // Window max so per-row meters read relative to the busiest run.
   const maxRunLatency = Math.max(...lastRuns.map((run) => run.latencyMs), 1)
 
   // Benchmarks — best candidate across all suites. Two grouped PostgREST calls
@@ -388,7 +382,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
         <AgentBentoCard title="Identity" className="lg:col-span-2" level={2}>
           {/* Two-column field grid — pairs fill the width instead of a wide
               empty right gutter. Tags span the full row. */}
-          <dl className="grid grid-cols-1 gap-x-10 gap-y-5 sm:grid-cols-2">
+          <dl className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
             <IdentityField label="Owner">
               <span className="font-mono text-sm text-zinc-950 dark:text-white">{copilot.owner}</span>
             </IdentityField>
@@ -535,20 +529,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
                 <RuntimeStat
                   label="Avg latency"
                   value={copilot.health.avgLatencyMs > 0 ? formatDurationMs(copilot.health.avgLatencyMs) : '—'}
-                >
-                  {latencySeries.length > 1 ? (
-                    <div className="mt-1.5">
-                      <Sparkline
-                        points={latencySeries}
-                        kind="bar"
-                        tone="accent"
-                        width={72}
-                        height={18}
-                        ariaLabel="Latency across the last runs"
-                      />
-                    </div>
-                  ) : null}
-                </RuntimeStat>
+                />
                 <RuntimeStat
                   label="Cost · 24h (est.)"
                   value={formatUsd(copilot.health.costLast24hUsd)}
@@ -709,9 +690,6 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
             <AgentSectionCard
               title="Last runs"
               description="Most recent production traffic"
-              // The latency sparkline lives once, next to "Avg latency" in Runtime &
-              // status; here each row already carries its own per-run latency meter,
-              // so a second trend sparkline would only duplicate the same series.
               actions={<SectionLink href={`${base}/runs`}>View all runs</SectionLink>}
               className="lg:col-span-2"
               contentClassName="p-0"

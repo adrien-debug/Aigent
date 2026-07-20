@@ -45,7 +45,7 @@ export default async function PerformancePage() {
   const recentRuns = runs.slice(0, RUNS_TABLE_SIZE)
 
   return (
-    <div className="flex flex-col gap-6 pb-10">
+    <div className="flex flex-col gap-8 pb-12">
       <AdminPageHeader
         eyebrow="Performance"
         title="Fleet Performance"

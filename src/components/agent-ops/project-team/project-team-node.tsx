@@ -57,7 +57,7 @@ const STATUS_PRESENTATION: Record<ProjectTeamNodeStatus, StatusPresentation> = {
   active: {
     label: 'Active',
     icon: ArrowPathIcon,
-    border: 'border-solid border-2 border-accent-500/70',
+    border: 'border-solid border-2 border-[var(--accent-node-active)]',
     opacity: 'opacity-100',
     tone: 'text-accent-400',
     live: true,
@@ -224,7 +224,7 @@ const shellBase =
  * Selection ring. Deliberately an OFFSET outline: no status uses one, so
  * "selected" is unmistakable without introducing a colour outside the palette.
  */
-const selectedClass = 'ring-2 ring-accent-400/80 ring-offset-2 ring-offset-[var(--color-surface-canvas)]'
+const selectedClass = 'ring-2 ring-[var(--accent-node-selected)] ring-offset-2 ring-offset-[var(--color-surface-canvas)]'
 
 function ProjectBody({ node, memberCount }: { node: ProjectTeamNode; memberCount: number | null }) {
   return (
@@ -243,7 +243,7 @@ function GroupBody({ node, memberCount }: { node: ProjectTeamNode; memberCount: 
     <div className="flex h-full items-center gap-3 px-4 py-3">
       <RectangleGroupIcon aria-hidden="true" className="size-5 shrink-0 text-zinc-500" />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium text-zinc-100">{node.name}</div>
+        <div className="truncate text-sm font-medium text-white">{node.name}</div>
         <div className="truncate text-xs text-zinc-500">
           {memberCount === null ? 'Team' : `${memberCount} ${memberCount === 1 ? 'agent' : 'agents'}`}
         </div>
@@ -286,7 +286,7 @@ function AgentBody({ node }: { node: ProjectTeamNode }) {
           {monogram(node.name)}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-medium text-zinc-100">{node.name}</div>
+          <div className="truncate text-sm font-medium text-white">{node.name}</div>
           <div className="truncate text-xs text-zinc-500">{node.role ?? (secondary || '—')}</div>
         </div>
         {/* Activity indicator: shape + motion, and the text label below carries

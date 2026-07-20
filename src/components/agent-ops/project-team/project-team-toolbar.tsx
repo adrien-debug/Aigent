@@ -38,7 +38,7 @@ export function dispatchCanvasCommand(command: CanvasCommand): void {
 }
 
 const iconButtonClass =
-  'inline-flex size-11 items-center justify-center rounded-lg border border-white/5 text-zinc-400 transition-colors hover:border-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 sm:size-9'
+  'inline-flex size-11 items-center justify-center rounded-lg border border-white/5 text-zinc-400 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 sm:size-9'
 
 function IconAction({
   label,

@@ -15,9 +15,9 @@ const STATUS_LABEL: Record<DeliveryLoopStatus, string> = {
   superseded: 'Superseded',
 }
 
-function statusColor(s: DeliveryLoopStatus): 'zinc' | 'accent' | 'accentStrong' {
+function statusColor(s: DeliveryLoopStatus): 'zinc' | 'accent' | 'accentSolid' {
   if (s === 'ready_for_manual_test') return 'accent'
-  if (s === 'execute_failed' || s === 'abandoned') return 'accentStrong'
+  if (s === 'execute_failed' || s === 'abandoned') return 'accentSolid'
   return 'zinc'
 }
 

@@ -31,7 +31,7 @@ export const surfaceNavClass =
 export const surfaceCardClass = surfaceSectionClass
 
 export const surfaceSectionHeaderClass =
-  'flex flex-wrap items-center justify-between gap-3 px-6 pt-5 pb-2'
+  'flex flex-wrap items-center justify-between gap-3 px-6 pt-4 pb-2'
 
 /** @deprecated alias */
 export const surfaceCardHeaderClass = surfaceSectionHeaderClass

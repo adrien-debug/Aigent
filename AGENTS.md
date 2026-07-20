@@ -4,6 +4,18 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+<!-- BEGIN:dev-port-rule -->
+## Port de dev — ABSOLU
+
+Le dev Aigent tourne sur le port **3210**, jamais **3000**. Cette machine fait
+tourner beaucoup d'autres serveurs Next (Kyc, Netpool, hearst-comput…) qui se
+disputent le 3000 : s'y mettre, c'est écraser le travail d'un chantier voisin ou
+se faire écraser par lui. Règle absolue : ne JAMAIS lancer le dev sur 3000, ne
+JAMAIS tuer un serveur sur 3000 (il n'est pas à nous). `dev-stack.mjs` doit
+résoudre le port depuis `AIGENT_DEV_PORT` (défaut 3210) et abandonner si le port
+est pris par un process non identifié comme le sien.
+<!-- END:dev-port-rule -->
+
 <!-- BEGIN:catalyst-ui-rules -->
 ## UI (gate : `npm run check:catalyst`)
 - **Dashboard** (`src/app/admin/`, `src/components/agent-ops/`) → **primitives Catalyst

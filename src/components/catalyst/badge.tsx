@@ -13,7 +13,7 @@ const colors = {
   accentStrong:
     'bg-accent-500/25 text-accent-800 ring-1 ring-inset ring-(--accent-line-strong) group-data-hover:bg-accent-500/35 dark:text-accent-200 dark:group-data-hover:bg-accent-500/35',
   accentSolid:
-    'bg-accent-600 text-zinc-950 shadow-sm group-data-hover:bg-accent-500 dark:bg-accent-600 dark:text-zinc-950 dark:group-data-hover:bg-accent-500',
+    'bg-accent-600 text-zinc-950 shadow-sm group-data-hover:bg-accent-700 dark:bg-accent-600 dark:text-zinc-950 dark:group-data-hover:bg-accent-700',
 }
 
 type BadgeProps = { color?: keyof typeof colors }

@@ -73,10 +73,13 @@ export function TableRow({
           className,
           // Paint <td>, not <tr>: row background on <tr> often clips to content
           // (flush/"à ras") instead of filling the full cell box including padding.
+          // Interaction feedback ONLY when the row is navigable (has an href):
+          // a read-only row — and every <thead> row — must not light up on hover,
+          // and painting the <td> unconditionally would also cover any
+          // hover:bg-* set on the <tr> itself.
           '[&>td]:transition-colors [&>th]:transition-colors',
-          'hover:[&>td]:bg-[var(--color-surface-interactive)] hover:[&>th]:bg-[var(--color-surface-interactive)]',
           href &&
-            'has-[[data-row-link][data-focus]]:outline-2 has-[[data-row-link][data-focus]]:-outline-offset-2 has-[[data-row-link][data-focus]]:outline-accent-500 dark:focus-within:[&>td]:bg-white/2',
+            'hover:[&>td]:bg-[var(--color-surface-interactive)] hover:[&>th]:bg-[var(--color-surface-interactive)] has-[[data-row-link][data-focus]]:outline-2 has-[[data-row-link][data-focus]]:-outline-offset-2 has-[[data-row-link][data-focus]]:outline-accent-500 dark:focus-within:[&>td]:bg-white/2',
           striped && 'even:[&>td]:bg-zinc-950/2 dark:even:[&>td]:bg-white/2'
         )}
       />

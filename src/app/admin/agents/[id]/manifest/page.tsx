@@ -71,7 +71,7 @@ export default async function ConfigPage({ params }: { params: Promise<{ id: str
           </div>
         ) : (
           <>
-            <div className="border-b border-zinc-950/5 bg-zinc-950/[0.025] px-6 py-4 dark:border-white/5 dark:bg-white/[0.04]">
+            <div className="border-b border-zinc-950/5 px-6 py-4 dark:border-white/5">
               <SplitBar
                 segments={RISK_ORDER.map((risk, i) => ({
                   key: risk,

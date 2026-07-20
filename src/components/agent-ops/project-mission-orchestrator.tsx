@@ -8,6 +8,7 @@ import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitive
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
+import { Field, Label } from '@/components/catalyst/fieldset'
 import { Textarea } from '@/components/catalyst/textarea'
 import {
   latestMissionUrl,
@@ -28,9 +29,9 @@ type Phase = 'loading' | 'idle' | 'running' | 'ready' | 'error'
 
 const DEFAULT_OBJECTIVE = 'Validate agent delivery readiness for this project'
 
-function severityBadgeColor(severity: string): 'zinc' | 'accent' | 'accentStrong' {
-  if (severity === 'blocker') return 'accentStrong'
-  if (severity === 'warning') return 'accent'
+function severityBadgeColor(severity: string): 'zinc' | 'accent' | 'accentStrong' | 'accentSolid' {
+  if (severity === 'blocker') return 'accentSolid'
+  if (severity === 'warning') return 'accentStrong'
   return 'zinc'
 }
 
@@ -205,8 +206,8 @@ export function ProjectMissionOrchestrator({
       }
     >
       <div className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-zinc-400 uppercase tracking-widest">Objective</span>
+        <Field disabled={phase === 'loading'}>
+          <Label>Objective</Label>
           <Textarea
             value={objective}
             onChange={(e) => setObjective(e.target.value)}
@@ -214,9 +215,8 @@ export function ProjectMissionOrchestrator({
             resizable={false}
             className="text-sm"
             placeholder={DEFAULT_OBJECTIVE}
-            disabled={phase === 'loading'}
           />
-        </label>
+        </Field>
 
         {phase === 'loading' && (
           <div className="flex items-center gap-2 text-sm text-zinc-500">

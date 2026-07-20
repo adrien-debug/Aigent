@@ -3,6 +3,7 @@
 import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
 
+import { surfaceInsetClass } from '@/components/agent-ops/surface-card'
 import { Link } from '@/components/catalyst/link'
 
 /** Client-safe mirror of `PushResult` from github.ts (server-only). */
@@ -107,7 +108,7 @@ export function GitHubDeliveryModeToggle({
 export function GitHubDeliveryReceipt({ result }: { result: GitHubDeliveryResult }) {
   if (result.dryRun && !result.pushed) {
     return (
-      <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-zinc-300">
+      <div className={clsx(surfaceInsetClass, 'px-4 py-3 text-sm text-zinc-300')}>
         <p>
           Dry-run — {result.files.length} file{result.files.length === 1 ? '' : 's'} ready. Real writes
           require <span className="font-mono">GITHUB_PUSH_ENABLED=1</span>.
@@ -126,7 +127,7 @@ export function GitHubDeliveryReceipt({ result }: { result: GitHubDeliveryResult
 
   if (result.pushed && result.mode === 'pull_request') {
     return (
-      <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-zinc-300">
+      <div className={clsx(surfaceInsetClass, 'px-4 py-3 text-sm text-zinc-300')}>
         <p>
           PR{result.prNumber ? ` #${result.prNumber}` : ''} on{' '}
           <span className="font-mono">{result.branch}</span>
@@ -143,7 +144,7 @@ export function GitHubDeliveryReceipt({ result }: { result: GitHubDeliveryResult
 
   if (result.pushed) {
     return (
-      <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-zinc-300">
+      <div className={clsx(surfaceInsetClass, 'px-4 py-3 text-sm text-zinc-300')}>
         <p>
           Pushed to <span className="font-mono">{result.branch}</span>.
         </p>
@@ -157,7 +158,7 @@ export function GitHubDeliveryReceipt({ result }: { result: GitHubDeliveryResult
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-zinc-300">
+    <div className={clsx(surfaceInsetClass, 'px-4 py-3 text-sm text-zinc-300')}>
       <p>{result.message}</p>
     </div>
   )

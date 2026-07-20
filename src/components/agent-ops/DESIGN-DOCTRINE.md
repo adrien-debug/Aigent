@@ -47,15 +47,16 @@ Détail : `docs/surface-usage.md`.
   états, charts, meters, nav, boutons) est une **nuance de cette teinte**. `zinc` est le SEUL neutre.
 - **Rôles accent nommés — OBLIGATOIRES, zéro opacité accent ad-hoc** (tokens dans `globals.css`,
   tous consommés — zéro token orphelin) :
-  - `--accent-soft` (12%) — wash léger : hover, nav/état au repos.
-  - `--accent-surface` (18%) — fond d'élément sélectionné/actif, header de carte/table.
-  - `--accent-line` (40%) — hairline / bordure accent.
-  - `--accent-line-strong` (55%) — ring de sélection (état choisi).
+  - `--accent-soft` (8%) — wash léger : hover, nav/état au repos.
+  - `--accent-surface` (12%) — fond d'élément sélectionné/actif, header de carte/table.
+  - `--accent-line` (25%) — hairline / bordure accent.
+  - `--accent-line-strong` (40%, calculé sur `accent-400` ; les 3 autres sur `accent-500`) —
+    ring de sélection (état choisi).
   **INTERDIT** d'écrire une opacité accent à la main (`bg-accent-500/5`, `/10`, `/15`, `/20`,
-  `accent-400/10`, `ring-accent-500/20`, etc.) : si le besoin correspond à l'un des 5 rôles
+  `accent-400/10`, `ring-accent-500/20`, etc.) : si le besoin correspond à l'un des 4 rôles
   ci-dessus, on consomme le token (`bg-[var(--accent-x)]` / `ring-[var(--accent-x)]`, cf.
   `agent-control-shell.tsx` = référence d'usage). Une opacité accent qui ne correspond à AUCUN
-  rôle n'est pas improvisée : on l'ajoute comme 6ᵉ token nommé dans `globals.css` (avec son
+  rôle n'est pas improvisée : on l'ajoute comme 5ᵉ token nommé dans `globals.css` (avec son
   commentaire de rôle) plutôt que de la laisser en valeur libre dans un composant. Focus clavier
   = `outline-accent-500` de Catalyst (déjà un seul ring, jamais un token de rôle). Statut =
   **LABEL + point/fill accent solide** (couleur pleine, pas un wash translucide de fond).

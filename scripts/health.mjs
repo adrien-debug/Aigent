@@ -40,7 +40,11 @@ const NEXT_TIMEOUT_MS = 10_000
 const LANGGRAPH_TIMEOUT_MS = 10_000
 const PGREST_TIMEOUT_MS = 10_000
 
-const NEXT_URL = process.env.HEALTH_NEXT_URL || 'http://127.0.0.1:3000/admin'
+// Port de dev ABSOLU 3210, jamais 3000 (voir AGENTS.md). Aligné sur dev-stack.mjs
+// via AIGENT_DEV_PORT ; HEALTH_NEXT_URL reste l'override complet si besoin.
+const NEXT_URL =
+  process.env.HEALTH_NEXT_URL ||
+  `http://127.0.0.1:${Number(process.env.AIGENT_DEV_PORT) || 3210}/admin`
 /**
  * The LOCAL supervised LangGraph — deliberately NOT `LANGGRAPH_API_URL`.
  *

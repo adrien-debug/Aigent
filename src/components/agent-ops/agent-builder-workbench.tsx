@@ -7,6 +7,7 @@ import { AgentSectionCard } from '@/components/agent-ops/surface-card'
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { LangGraphDebugPanel, type LangGraphDebugInfo } from '@/components/agent-ops/langgraph-debug-panel'
 import { ToolBadge } from '@/components/agent-ops/tool-badge'
+import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { Field, Label } from '@/components/catalyst/fieldset'
 import { Link } from '@/components/catalyst/link'
@@ -224,16 +225,10 @@ export function AgentBuilderWorkbench() {
               (state.events.length > 0 || node === 'understand_request') &&
               pipelineReached(node, state)
             return (
-              <li
-                key={node}
-                className={
-                  'rounded-md px-2 py-1 font-mono text-xs ring-1 ' +
-                  (reached
-                    ? 'bg-[var(--accent-soft)] text-accent-700 ring-[var(--accent-line)] dark:text-accent-300'
-                    : 'text-zinc-500 ring-zinc-950/10 dark:text-zinc-400 dark:ring-white/10')
-                }
-              >
-                {node}
+              <li key={node}>
+                <Badge color={reached ? 'accent' : 'zinc'} className="font-mono">
+                  {node}
+                </Badge>
               </li>
             )
           })}
@@ -276,7 +271,7 @@ export function AgentBuilderWorkbench() {
       {awaiting ? (
         <div
           role="alert"
-          className="rounded-xl bg-[var(--accent-soft)] p-5 ring-1 ring-[var(--accent-line)]"
+          className="rounded-xl bg-[var(--accent-soft)] p-4 ring-1 ring-[var(--accent-line)]"
         >
           <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
             Human approval required — nothing created yet
@@ -319,14 +314,14 @@ export function AgentBuilderWorkbench() {
 
       {/* 4 — Created-copilot receipt */}
       {state?.createdCopilotId ? (
-        <div role="status" aria-live="polite" className="rounded-xl bg-zinc-950 p-5 ring-1 ring-white/10">
+        <div role="status" aria-live="polite" className="rounded-xl bg-zinc-950 p-4 ring-1 ring-white/10">
           <p className="text-xs font-medium tracking-wide text-accent-300 uppercase">Draft copilot created</p>
           <p className="mt-2 text-sm text-zinc-300">
             A new draft copilot is now on the validation bench (not production, not assigned).
           </p>
           <Link
             href={`/admin/agents/${state.createdCopilotId}`}
-            className="mt-3 inline-flex min-h-11 items-center rounded-md text-sm font-medium text-accent-400 hover:text-accent-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+            className="mt-3 inline-flex min-h-11 items-center rounded-md text-sm font-medium text-accent-400 hover:text-accent-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
           >
             Open the drafted copilot →
           </Link>

@@ -9,6 +9,7 @@ import { SplitBar, type SplitSegment } from '@/components/agent-ops/widgets/spli
 import { Badge } from '@/components/catalyst/badge'
 import { Subheading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
+import { surfaceItemClass } from '@/components/agent-ops/surface-card'
 import { REPLAY_OUTCOME_LABELS } from '@/lib/agent-mission-control/labels'
 import type { ReplayCandidate } from '@/lib/agent-mission-control/types'
 import { ReplayComparisonTable } from './replay-comparison-table'
@@ -93,11 +94,12 @@ export function ReplayCandidatePicker({ items }: { items: ReplayCandidateItem[] 
               aria-pressed={isSelected}
               onClick={() => setSelectedId(candidate.id)}
               className={clsx(
-                'w-full rounded-lg p-4 text-left transition-colors duration-150',
+                surfaceItemClass,
+                'w-full p-4 text-left transition-colors duration-150',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
                 isSelected
-                  ? 'bg-[var(--color-surface-interactive)] ring-2 ring-[var(--accent-line-strong)]'
-                  : 'bg-[var(--color-surface-secondary)] ring-1 ring-white/5 hover:bg-[var(--color-surface-interactive)] hover:ring-white/10'
+                  ? 'ring-2 ring-[var(--accent-line-strong)]'
+                  : 'hover:bg-[var(--color-surface-focus)]'
               )}
             >
               <span className="flex flex-wrap items-center justify-between gap-2">

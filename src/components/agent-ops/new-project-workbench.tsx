@@ -273,9 +273,9 @@ export function NewProjectWorkbench() {
                       className={
                         'w-full rounded-lg px-4 py-3 text-left transition-colors ' +
                         'focus:not-data-focus:outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-accent-500 ' +
-                        'disabled:cursor-not-allowed disabled:opacity-60 ' +
+                        'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-60 ' +
                         (isSelected
-                          ? 'ring-1 ring-accent-500 dark:bg-white/5'
+                          ? 'bg-[var(--accent-surface)] ring-1 ring-[var(--accent-line-strong)]'
                           : 'ring-1 ring-transparent hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5')
                       }
                     >

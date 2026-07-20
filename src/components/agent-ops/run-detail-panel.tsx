@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import { RunTimeline } from '@/components/agent-ops/run-timeline'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
+import { Subheading } from '@/components/catalyst/heading'
 import { formatDurationMs, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 import { AGENT_RUN_STATUS_LABELS } from '@/lib/agent-mission-control/labels'
 import type { AgentRun, AgentRunStatus, AgentRunStep, ToolCall } from '@/lib/agent-mission-control/types'
@@ -99,7 +100,7 @@ export function RunDetailPanel({
     <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-center justify-between gap-3 pb-6">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight text-white">Run Detail</h2>
+          <Subheading level={2} tone="neutral" className="tracking-tight text-white">Run Detail</Subheading>
           <p className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-xs text-zinc-400">
             <span className="truncate">{run.id}</span>
             <span aria-hidden="true">&bull;</span>

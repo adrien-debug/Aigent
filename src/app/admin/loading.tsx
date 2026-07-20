@@ -10,8 +10,8 @@ export default function AdminDashboardLoading() {
         <div className="mt-3 h-8 w-80 max-w-full rounded-lg bg-zinc-950/10 dark:bg-white/10" />
       </div>
 
-      <div className="grid grid-cols-2 gap-8 border-b border-white/5 py-6 md:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, i) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 border-b border-white/5 py-6 md:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="flex flex-col gap-y-2">
             <div className="h-3 w-16 rounded bg-white/10" />
             <div className="h-9 w-20 rounded-lg bg-white/10" />

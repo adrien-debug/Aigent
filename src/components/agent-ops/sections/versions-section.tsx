@@ -1,6 +1,5 @@
 
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
-import { SurfaceCard } from '@/components/agent-ops/surface-card'
 import { EmptyState, NotMeasuredDash } from '@/components/agent-ops/empty-state'
 import { ReleasePathSteps } from '@/components/agent-ops/release-path-steps'
 import {
@@ -63,7 +62,7 @@ export async function VersionsSection({ copilotId }: { copilotId: string }) {
   if (emptyState) {
     return (
       <div className="space-y-8">
-        <SurfaceCard>
+        <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
           <EmptyState
             title="Nothing to compare yet"
             description="This copilot only has a single draft version. Build a track record — run its test suites and a benchmark — before comparing or promoting anything."
@@ -78,7 +77,7 @@ export async function VersionsSection({ copilotId }: { copilotId: string }) {
               </>
             }
           />
-        </SurfaceCard>
+        </div>
 
         {sorted.length === 1 ? (
           <section>

@@ -33,8 +33,12 @@ const execFileAsync = promisify(execFile)
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const RUNTIME_DIR = join(REPO_ROOT, '.runtime')
 
-const NEXT_PORT = 3000
-const LANGGRAPH_PORT = 2024
+// Port de dev ABSOLU : 3210, jamais 3000 (voir AGENTS.md § "Port de dev").
+// Cette machine fait tourner d'autres serveurs Next qui se battent pour le 3000 ;
+// s'y mettre écrase un chantier voisin. Surchargeable par AIGENT_DEV_PORT au cas
+// où 3210 serait lui-même pris, mais jamais un retour silencieux sur 3000.
+const NEXT_PORT = Number(process.env.AIGENT_DEV_PORT) || 3210
+const LANGGRAPH_PORT = Number(process.env.AIGENT_LANGGRAPH_PORT) || 2024
 const NEXT_URL = `http://127.0.0.1:${NEXT_PORT}`
 const LANGGRAPH_BASE_URL = `http://127.0.0.1:${LANGGRAPH_PORT}`
 /** Graph id declared in langgraph.json — mirrors health.mjs / AGENT_BUILDER_GRAPH_ID. */

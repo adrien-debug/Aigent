@@ -3,7 +3,6 @@ import { EmptyState } from '@/components/agent-ops/empty-state'
 import { GenerateSuiteButton } from '@/components/agent-ops/generate-suite-button'
 import { LiveTestRunPanel } from '@/components/agent-ops/live-test-run-panel'
 import { TestCaseTable } from '@/components/agent-ops/test-case-table'
-import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
 import { formatDate, formatPercent } from '@/lib/agent-mission-control/format'
 import {
   getCopilot,
@@ -37,11 +36,6 @@ export async function TestsSection({ copilotId }: { copilotId: string }) {
   const [suites, testRuns] = await Promise.all([getTestSuitesForCopilot(id), getTestRunsForCopilot(id)])
   const runsById = new Map(testRuns.map((run) => [run.id, run]))
 
-  const passRateSeries = testRuns
-    .filter((run) => run.status === 'completed')
-    .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
-    .map((run) => run.passRate)
-
   const latestRun = testRuns.length > 0 ? testRuns.reduce((latest, run) => (run.startedAt > latest.startedAt ? run : latest)) : null
 
   // The suite the Live run panel executes = the first one. Load ITS cases +
@@ -63,11 +57,6 @@ export async function TestsSection({ copilotId }: { copilotId: string }) {
             name: 'Latest Pass Rate',
             value: latestRun && latestRun.status === 'completed' ? formatPercent(latestRun.passRate) : '—',
             valueTone: 'accent',
-            viz: passRateSeries.length > 1 ? (
-              <div className="h-8 w-24">
-                <Sparkline points={passRateSeries} ariaLabel="Pass rate trend" />
-              </div>
-            ) : undefined,
           },
           {
             name: 'Latest Run',

@@ -73,7 +73,9 @@ export function ProjectTeamAccessibleList({
                 className={clsx(
                   'flex w-full min-h-11 flex-col gap-1 px-4 py-3 text-left transition-colors',
                   'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-500',
-                  selected ? 'bg-white/5' : 'hover:bg-white/5'
+                  selected
+                    ? 'bg-[var(--accent-surface)] ring-1 ring-inset ring-[var(--accent-line-strong)]'
+                    : 'hover:bg-white/5'
                 )}
               >
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-1">

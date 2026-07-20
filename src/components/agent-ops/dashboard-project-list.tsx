@@ -2,6 +2,7 @@ import Image from 'next/image'
 import clsx from 'clsx'
 
 import { EmptyState } from '@/components/agent-ops/empty-state'
+import { SoftAccentLink } from '@/components/agent-ops/soft-accent-link'
 import { SurfaceCard, SurfaceCardHeader, surfaceItemClass } from '@/components/agent-ops/surface-card'
 import { Avatar } from '@/components/catalyst/avatar'
 import { Badge } from '@/components/catalyst/badge'
@@ -142,9 +143,7 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
           description="Register the first product surface to see its delivery KPIs here."
           className="py-12"
           action={
-            <Link href="/admin/projects/new" className="text-xs text-accent-400 hover:underline">
-              New project
-            </Link>
+            <SoftAccentLink href="/admin/projects/new">New project</SoftAccentLink>
           }
         />
       )}

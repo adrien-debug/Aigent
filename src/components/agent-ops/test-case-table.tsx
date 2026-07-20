@@ -97,7 +97,7 @@ export function TestCaseTable({
 }) {
   if (cases.length === 0) {
     return (
-      <div className={surfaceCardClass}>
+      <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
         <EmptyState
           icon={BeakerIcon}
           title="No test cases yet"
