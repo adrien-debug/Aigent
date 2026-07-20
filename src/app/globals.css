@@ -30,17 +30,21 @@
 }
 
 /* Accent — THE single hue of the design system: Adrien's green #A7FB90.
-   #A7FB90 is the accent everywhere it shows (400/500/600 = the exact green).
-   Only the deepest shades (700+) are darkened so white text on a solid accent
-   surface still clears WCAG AA — the visible accent is always #A7FB90. */
+   A REAL ramp (single hue H≈107°), anchored so the brand green #A7FB90 IS the
+   500 shade — the one Catalyst fills its primary button with and the value used
+   everywhere the brand green shows. 50→400 are progressively lighter tints, 600
+   a darker vivid step, 700+ the dark solid end (unchanged) so white/dark text on
+   a solid accent surface still clears WCAG AA. Every step is a DISTINCT luminance
+   so intensity-encoded ladders (SplitBar buckets, ToolBadge risk) read as steps,
+   not one flat green. Contrasts (text-zinc-950): on 500 = 15.96:1, on 600 = 13.17:1. */
 @theme {
-  --color-accent-50: #a7fb90;
-  --color-accent-100: #a7fb90;
-  --color-accent-200: #a7fb90;
-  --color-accent-300: #a7fb90;
-  --color-accent-400: #a7fb90;
+  --color-accent-50: #f3fcf0;
+  --color-accent-100: #e7fbe2;
+  --color-accent-200: #dcfad3;
+  --color-accent-300: #cefac1;
+  --color-accent-400: #c0faaf;
   --color-accent-500: #a7fb90;
-  --color-accent-600: #a7fb90;
+  --color-accent-600: #76ec55;
   --color-accent-700: #2a7a20;
   --color-accent-800: #236619;
   --color-accent-900: #1c4f15;
