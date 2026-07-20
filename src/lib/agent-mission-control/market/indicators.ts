@@ -105,8 +105,7 @@ export function computeVolatilityState(
 
   let regime: VolatilityState['regime']
   if (annualized < 30) regime = 'low'
-  else if (annualized < 70) regime = 'normal'
-  else if (annualized < 120) regime = 'elevated'
+  else if (annualized < 80) regime = 'normal'
   else regime = 'high'
 
   return {

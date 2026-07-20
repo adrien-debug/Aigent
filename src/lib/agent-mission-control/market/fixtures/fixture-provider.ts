@@ -87,6 +87,8 @@ export class FixtureMarketProvider extends BaseMarketProvider {
         : 0
     const ticker: Ticker = {
       last: last.close,
+      bid: null,
+      ask: null,
       high24h: Math.max(...highs).toFixed(2),
       low24h: Math.min(...lows).toFixed(2),
       volume24h: scenario.candles
@@ -94,6 +96,8 @@ export class FixtureMarketProvider extends BaseMarketProvider {
         .toFixed(4),
       changePercent24h: changePct.toFixed(2),
       quote: pair.endsWith('USDC') ? 'USDC' : 'USDT',
+      sourceTimestamp: scenario.asOf,
+      fetchedAt: scenario.asOf,
     }
     return {
       value: ticker,

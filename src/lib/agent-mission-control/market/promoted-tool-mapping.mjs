@@ -1,22 +1,22 @@
 export const MARKET_TOOL_DEFINITIONS = Object.freeze({
   read_market_snapshot: {
-    description: 'Truth-aware market snapshot with provenance and freshness.',
+    description: 'Live Binance spot snapshot with source timestamp, provenance and freshness.',
     mutates: false,
   },
   read_volatility_state: {
-    description: 'ATR/stdev volatility state from real market candles.',
+    description: 'Deterministic ATR/realized-volatility state from fresh Binance candles.',
     mutates: false,
   },
   read_market_structure: {
-    description: 'Deterministic market structure from real market candles.',
+    description: 'Deterministic multi-timeframe structure from fresh Binance candles.',
     mutates: false,
   },
   read_multi_timeframe_candles: {
-    description: 'Bounded real candle series across requested timeframes.',
+    description: 'Bounded live Binance candle series across requested timeframes.',
     mutates: false,
   },
   read_liquidity_snapshot: {
-    description: 'Read-only order-book liquidity snapshot when available.',
+    description: 'Live Binance order-book spread, depth and imbalance snapshot.',
     mutates: false,
   },
   read_macro_context: {
@@ -42,7 +42,7 @@ export const PROMOTED_MARKET_AGENTS = Object.freeze([
     ],
     scenario: 'Analyse les niveaux, la volatilité et la liquidité actuels de BTCUSDT. Utilise les outils marché disponibles et cite la provenance. N’exécute aucune action.',
     systemPromptSummary:
-      'BTC Alert & Levels Sentinel analyse BTCUSDT en lecture seule. Pour un diagnostic actuel, il utilise les outils marché fournis afin de lire snapshot, volatilité, structure, bougies multi-timeframes et liquidité. Il distingue strictement LIVE, SNAPSHOT, FALLBACK et UNAVAILABLE, n’invente aucun niveau et ne déclenche jamais d’alerte persistée, transaction ou écriture. Sa réponse donne les sources, niveaux observables, volatilité, liquidité, incertitudes et un verdict NO_ALERT / WATCH / ALERT_CANDIDATE.',
+      'BTC Alert & Levels Sentinel analyse BTCUSDT en lecture seule. Pour un diagnostic actuel, il utilise les outils marché fournis afin de lire snapshot, volatilité, structure, bougies multi-timeframes et liquidité. Il cite le provider Binance, source_timestamp, age_ms et freshness_status de chaque lecture utilisée. Il distingue strictement LIVE, SNAPSHOT, FALLBACK et UNAVAILABLE, n’invente aucun niveau et ne déclenche jamais d’alerte persistée, transaction ou écriture. Sa réponse donne les niveaux observables, volatilité, spread, profondeur, imbalance, incertitudes et un verdict NO_ALERT / WATCH / ALERT_CANDIDATE.',
   },
   {
     id: 'copilot-market-regime-rotation-copilot-draft-3136ff83-73bb66e7',
@@ -56,7 +56,7 @@ export const PROMOTED_MARKET_AGENTS = Object.freeze([
     ],
     scenario: 'Qualifie le régime de marché actuel avec les outils marché disponibles. Cite les données et leur provenance, sans recommandation d’exécution.',
     systemPromptSummary:
-      'Market Regime & Rotation Copilot qualifie le régime de marché en lecture seule à partir des outils marché fournis: snapshot, volatilité, structure, contexte macro et bougies multi-timeframes. Pour toute demande sur le régime actuel, il DOIT appeler au moins read_market_snapshot avant de répondre et ne doit pas substituer une inspection de dépôt à une lecture marché. Il sépare contexte BTC et actifs exécutables, cite la provenance et la fraîcheur, rend toute donnée manquante UNAVAILABLE et ne formule jamais une exécution ou une écriture.',
+      'Market Regime & Rotation Copilot qualifie le régime de marché en lecture seule à partir des outils marché fournis: snapshot, volatilité, structure, contexte macro et bougies multi-timeframes. Pour toute demande sur le régime actuel, il DOIT appeler au moins read_market_snapshot avant de répondre et ne doit pas substituer une inspection de dépôt à une lecture marché. Il cite provider, source_timestamp, age_ms et freshness_status, sépare contexte BTC et actifs exécutables, rend toute donnée manquante UNAVAILABLE et ne formule jamais une exécution ou une écriture.',
   },
   {
     id: 'copilot-portfolio-risk-lock-advisor-draft-ad3e5dc2-87b88c99',
@@ -82,7 +82,7 @@ export const PROMOTED_MARKET_AGENTS = Object.freeze([
     ],
     scenario: 'Évalue la cohérence, la fraîcheur et la qualité des données de marché actuelles. Utilise les outils disponibles et distingue clairement les données indisponibles.',
     systemPromptSummary:
-      'Source Reliability & Price Trust Sentinel évalue en lecture seule la cohérence, la fraîcheur et la qualité des données via snapshot, liquidité, structure et contexte macro. Il cite chaque vérité et source, expose les divergences et blocs UNAVAILABLE, ne transforme jamais une absence en zéro et n’effectue aucune action.',
+      'Source Reliability & Price Trust Sentinel évalue en lecture seule la cohérence, la fraîcheur et la qualité des données via snapshot, liquidité, structure et contexte macro. Il compare provider, source_timestamp, fetched_at, age_ms et freshness_status, expose les divergences et blocs UNAVAILABLE, ne transforme jamais une absence en zéro et n’effectue aucune action.',
   },
   {
     id: 'copilot-withdrawal-review-copilot-draft-de7c378b-b7de98cd',

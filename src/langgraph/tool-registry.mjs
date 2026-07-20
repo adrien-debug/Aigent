@@ -327,7 +327,7 @@ const MARKET_INTERVAL_SCHEMA = z.enum(['1m', '5m', '15m', '1h', '4h', '1d'])
 const MARKET_TOOL_SPECS = {
   read_market_snapshot: {
     description:
-      'Read a truth-aware market snapshot for one supported pair, including candles, structure, volatility and source freshness when available. Read-only; missing blocks remain UNAVAILABLE/null and are never fabricated.',
+      'Read a live Binance spot snapshot for one supported pair, including bid/ask, price, 24h range/volume, candles, deterministic structure/volatility, liquidity, source timestamp and age. Read-only; missing blocks remain UNAVAILABLE/null.',
     schema: z.object({
       pair: MARKET_PAIR_SCHEMA,
       intervals: z.array(MARKET_INTERVAL_SCHEMA).min(1).max(6).optional(),
@@ -339,37 +339,38 @@ const MARKET_TOOL_SPECS = {
   },
   read_volatility_state: {
     description:
-      'Read the current ATR/stdev-derived volatility state for a supported pair and interval from real market candles. Read-only; insufficient or absent candles return UNAVAILABLE.',
+      'Read deterministic realized volatility and ATR with low/normal/high regime from fresh Binance candles. Returns timeframe, sample size, source timestamp and age.',
     schema: z.object({
       pair: MARKET_PAIR_SCHEMA,
       interval: MARKET_INTERVAL_SCHEMA.optional(),
-      limit: z.number().int().min(15).max(500).optional(),
+      limit: z.number().int().min(15).max(100).optional(),
       asOf: z.number().int().optional(),
     }).strict(),
   },
   read_market_structure: {
     description:
-      'Read deterministic market structure and trend for a supported pair and interval from real market candles. Read-only; insufficient or absent candles return UNAVAILABLE.',
+      'Read deterministic trend, range/breakout state, support/resistance and coherence across requested Binance candle timeframes.',
     schema: z.object({
       pair: MARKET_PAIR_SCHEMA,
       interval: MARKET_INTERVAL_SCHEMA.optional(),
-      limit: z.number().int().min(15).max(500).optional(),
+      intervals: z.array(MARKET_INTERVAL_SCHEMA).min(1).max(6).optional(),
+      limit: z.number().int().min(15).max(100).optional(),
       asOf: z.number().int().optional(),
     }).strict(),
   },
   read_multi_timeframe_candles: {
     description:
-      'Read bounded candle series for one supported pair across one to six requested timeframes. Read-only; every timeframe carries its real truth and source provenance.',
+      'Read up to 100 live Binance OHLCV candles per requested timeframe with source timestamp, age and freshness.',
     schema: z.object({
       pair: MARKET_PAIR_SCHEMA,
       intervals: z.array(MARKET_INTERVAL_SCHEMA).min(1).max(6),
-      limit: z.number().int().min(2).max(500).optional(),
+      limit: z.number().int().min(2).max(100).optional(),
       asOf: z.number().int().optional(),
     }).strict(),
   },
   read_liquidity_snapshot: {
     description:
-      'Read a bounded order-book liquidity snapshot for a supported pair. Read-only; when no real order-book source exists the result is explicitly UNAVAILABLE.',
+      'Read live Binance order-book best bid/ask, spread, aggregated bid/ask depth, imbalance, analyzed book size and freshness.',
     schema: z.object({
       pair: MARKET_PAIR_SCHEMA,
       depth: z.number().int().min(1).max(100).optional(),

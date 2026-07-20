@@ -18,9 +18,10 @@ import 'server-only'
 import { z } from 'zod'
 import type { MarketDataProvider, ProviderContext } from './provider'
 import { HttpMarketProvider } from './provider'
+import { BinanceMarketProvider } from './binance-provider'
 import { FixtureMarketProvider } from './fixtures/fixture-provider'
 import type { ScenarioId } from './fixtures/scenarios'
-import { assembleSnapshot } from './assembler'
+import { assembleSnapshot, liquidityFromOrderBook } from './assembler'
 import {
   computeMarketStructure,
   computeVolatilityState,
@@ -57,15 +58,12 @@ export function resolveProvider(args: {
   baseUrl?: string | null
 }): MarketDataProvider | null {
   if (args.fixtureScenario) return new FixtureMarketProvider(args.fixtureScenario)
-  const base = args.baseUrl ?? process.env.TRADEAGENT_MARKET_URL ?? null
-  if (base) return new HttpMarketProvider({ baseUrl: base })
-  // EVAL-ONLY fallback: with no live URL, an operator can pin a frozen fixture
-  // scenario via AIG_MARKET_FIXTURE so agents can be benchmarked offline. Data
-  // served this way is ALWAYS truth: 'FIXTURE' (the FixtureMarketProvider tags
-  // it so) — it can never be mistaken for LIVE. Absent both → UNAVAILABLE.
+  if (args.baseUrl) return new HttpMarketProvider({ baseUrl: args.baseUrl })
+  // EVAL-ONLY mode stays explicit. Runtime reads use Binance public spot
+  // directly, without a key and without a silent secondary provider.
   const envFixture = process.env.AIG_MARKET_FIXTURE as ScenarioId | undefined
   if (envFixture) return new FixtureMarketProvider(envFixture)
-  return null
+  return new BinanceMarketProvider()
 }
 
 function ctxOf(asOf?: number, maxAgeMs?: number | null): ProviderContext {
@@ -109,7 +107,7 @@ export async function readMarketSnapshot(argsJson: string): Promise<TradingToolR
   const a = parse(snapshotArgs, argsJson)
   if ('__err' in a) return err('read_market_snapshot', a.__err)
   const provider = resolveProvider({ fixtureScenario: a.fixtureScenario as ScenarioId | undefined })
-  if (!provider) return err('read_market_snapshot', 'no market source configured (set TRADEAGENT_MARKET_URL or pass fixtureScenario in lab)')
+  if (!provider) return err('read_market_snapshot', 'no market source configured')
 
   const intervals = (a.intervals ?? ['1h', '4h']) as CandleInterval[]
   const snap = await assembleSnapshot(provider, {
@@ -133,7 +131,7 @@ export async function readMarketSnapshot(argsJson: string): Promise<TradingToolR
 const mtfArgs = z.object({
   pair: pairSchema,
   intervals: z.array(intervalSchema).min(1).max(6),
-  limit: z.number().int().min(2).max(500).optional(),
+  limit: z.number().int().min(2).max(100).optional(),
   asOf: z.number().int().optional(),
   fixtureScenario: z.string().optional(),
 })
@@ -154,6 +152,10 @@ export async function readMultiTimeframeCandles(argsJson: string): Promise<Tradi
       count: res.value?.length ?? 0,
       truth: res.provenance.truth,
       source: res.provenance.source,
+      source_timestamp: res.provenance.dataTimestamp,
+      fetched_at: res.provenance.asOf,
+      age_ms: res.provenance.ageMs,
+      freshness_status: res.provenance.truth === 'LIVE' ? 'live' : 'unavailable',
     }
     if (res.provenance.truth !== 'UNAVAILABLE') anyLive = true
   }
@@ -190,29 +192,83 @@ export async function readVolatilityState(argsJson: string): Promise<TradingTool
   if (!vol) {
     return { ok: false, data: { volatility: null, truth: 'UNAVAILABLE', reason: 'series too short for ATR/stdev' }, summary: `volatility ${a.pair} UNAVAILABLE (short series)` }
   }
-  return { ok: true, data: { volatility: vol, truth: res.provenance.truth, source: res.provenance.source }, summary: `volatility ${a.pair} regime=${vol.regime} annualized=${vol.annualizedPct}%` }
+  return {
+    ok: true,
+    data: {
+      volatility: vol,
+      truth: res.provenance.truth,
+      source: res.provenance.source,
+      source_timestamp: res.provenance.dataTimestamp,
+      fetched_at: res.provenance.asOf,
+      age_ms: res.provenance.ageMs,
+      candles_used: vol.window,
+      freshness_status: res.provenance.truth === 'LIVE' ? 'live' : 'unavailable',
+    },
+    summary: `volatility ${a.pair} regime=${vol.regime} annualized=${vol.annualizedPct}% age=${res.provenance.ageMs}ms`,
+  }
 }
 
 // ---------------------------------------------------------------------------
 // read_market_structure
 // ---------------------------------------------------------------------------
 
-const structArgs = volArgs
+const structArgs = z.object({
+  pair: pairSchema,
+  interval: intervalSchema.optional(),
+  intervals: z.array(intervalSchema).min(1).max(6).optional(),
+  limit: z.number().int().min(15).max(100).optional(),
+  asOf: z.number().int().optional(),
+  fixtureScenario: z.string().optional(),
+})
 export async function readMarketStructure(argsJson: string): Promise<TradingToolResult> {
   const a = parse(structArgs, argsJson)
   if ('__err' in a) return err('read_market_structure', a.__err)
   const provider = resolveProvider({ fixtureScenario: a.fixtureScenario as ScenarioId | undefined })
   if (!provider) return err('read_market_structure', 'no market source configured')
-  const interval = (a.interval ?? '1h') as CandleInterval
-  const res = await provider.getCandles(a.pair, interval, a.limit ?? 100, ctxOf(a.asOf))
-  if (!res.value || res.value.length === 0) {
-    return { ok: false, data: { structure: null, truth: res.provenance.truth }, summary: `structure ${a.pair} UNAVAILABLE` }
+  const intervals = (a.intervals ?? [a.interval ?? '1h']) as CandleInterval[]
+  const ctx = ctxOf(a.asOf)
+  const byTimeframe: Record<string, unknown> = {}
+  const trends: string[] = []
+  let freshestAge: number | null = null
+  for (const interval of intervals) {
+    const res = await provider.getCandles(a.pair, interval, a.limit ?? 100, ctx)
+    const structure = res.value ? computeMarketStructure(res.value) : null
+    const state = res.value && structure ? structureState(res.value, structure.trend) : null
+    byTimeframe[interval] = {
+      structure,
+      state,
+      truth: res.provenance.truth,
+      source: res.provenance.source,
+      source_timestamp: res.provenance.dataTimestamp,
+      age_ms: res.provenance.ageMs,
+      candles_used: res.value?.length ?? 0,
+    }
+    if (structure) trends.push(structure.trend)
+    if (res.provenance.truth !== 'UNAVAILABLE') {
+      freshestAge =
+        freshestAge === null ? res.provenance.ageMs : Math.min(freshestAge, res.provenance.ageMs)
+    }
   }
-  const structure = computeMarketStructure(res.value)
-  if (!structure) {
-    return { ok: false, data: { structure: null, truth: 'UNAVAILABLE', reason: 'series too short' }, summary: `structure ${a.pair} UNAVAILABLE (short series)` }
+  if (trends.length === 0) {
+    return {
+      ok: false,
+      data: { byTimeframe, coherence_score: null, truth: 'UNAVAILABLE' },
+      summary: `structure ${a.pair} UNAVAILABLE`,
+    }
   }
-  return { ok: true, data: { structure, truth: res.provenance.truth, source: res.provenance.source }, summary: `structure ${a.pair} trend=${structure.trend}` }
+  const counts = new Map<string, number>()
+  for (const trend of trends) counts.set(trend, (counts.get(trend) ?? 0) + 1)
+  const coherence = Math.max(...counts.values()) / trends.length
+  return {
+    ok: true,
+    data: {
+      byTimeframe,
+      coherence_score: coherence,
+      freshness_status: 'live',
+      age_ms: freshestAge,
+    },
+    summary: `structure ${a.pair} timeframes=${intervals.join(',')} coherence=${coherence.toFixed(2)} age=${freshestAge}ms`,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -234,7 +290,34 @@ export async function readLiquiditySnapshot(argsJson: string): Promise<TradingTo
   if (!res.value) {
     return { ok: false, data: { liquidity: null, truth: res.provenance.truth, reason: res.provenance.unavailableReason }, summary: `liquidity ${a.pair} UNAVAILABLE (no order-book source)` }
   }
-  return { ok: true, data: { orderBook: res.value, truth: res.provenance.truth }, summary: `liquidity ${a.pair} ok` }
+  const liquidity = liquidityFromOrderBook(res.value)
+  return {
+    ok: true,
+    data: {
+      liquidity,
+      truth: res.provenance.truth,
+      source: res.provenance.source,
+      source_timestamp: res.provenance.dataTimestamp,
+      fetched_at: res.provenance.asOf,
+      age_ms: res.provenance.ageMs,
+      freshness_status: res.provenance.truth === 'LIVE' ? 'live' : 'unavailable',
+    },
+    summary: `liquidity ${a.pair} spread=${liquidity.spreadBps ?? 'UNAVAILABLE'}bps imbalance=${liquidity.imbalance ?? 'UNAVAILABLE'} age=${res.provenance.ageMs}ms`,
+  }
+}
+
+function structureState(
+  candles: Array<{ high: string; low: string; close: string }>,
+  trend: 'up' | 'down' | 'range',
+): 'range' | 'trend' | 'breakout-up' | 'breakout-down' {
+  if (candles.length < 3) return trend === 'range' ? 'range' : 'trend'
+  const history = candles.slice(-21, -1)
+  const last = Number(candles[candles.length - 1].close)
+  const highs = history.map((candle) => Number(candle.high)).filter(Number.isFinite)
+  const lows = history.map((candle) => Number(candle.low)).filter(Number.isFinite)
+  if (highs.length && last > Math.max(...highs)) return 'breakout-up'
+  if (lows.length && last < Math.min(...lows)) return 'breakout-down'
+  return trend === 'range' ? 'range' : 'trend'
 }
 
 // ---------------------------------------------------------------------------
