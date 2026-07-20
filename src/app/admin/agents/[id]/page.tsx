@@ -43,7 +43,6 @@ import {
 } from '@/lib/agent-mission-control/data'
 import { versionStageLabels } from '@/components/agent-ops/version-stage-text'
 import { summarizeRuntimeTelemetry } from '@/lib/agent-mission-control/runtime-telemetry-store'
-import type { RuntimeTelemetrySummary } from '@/lib/agent-mission-control/runtime-telemetry-store'
 import type {
   AgentRunStatus,
   BenchmarkResult,
@@ -198,7 +197,31 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
   // Tests — latest run + result breakdown
   const testRuns = [...allTestRuns].sort((a, b) => b.startedAt.localeCompare(a.startedAt))
   const latestTestRun = testRuns[0]
-  const latestTestResults = latestTestRun ? await getTestResultsForRun(latestTestRun.id) : []
+
+  // Second fetch wave. Each of these depends only on the Promise.all above, not
+  // on each other, so they run concurrently instead of in a serial chain — at
+  // ~370ms per round-trip against the gpu1 perimeter, four sequential awaits
+  // cost four full latencies for no reason. The benchmark pair stays internally
+  // serial (results are keyed by the run ids the first call returns).
+  const [latestTestResults, benchmarks, runtimeTelemetry, gateCandidate] = await Promise.all([
+    latestTestRun ? getTestResultsForRun(latestTestRun.id) : Promise.resolve([]),
+
+    (async () => {
+      const suiteIds = benchmarkSuites.map((suite) => suite.id)
+      const runs = await getBenchmarkRunsForSuites(suiteIds)
+      const results = await getBenchmarkResultsForRuns(runs.map((run) => run.id))
+      return { runs, results }
+    })(),
+
+    // Opt-in signal reported by the delivered agent. Fail-soft: never let a
+    // telemetry read break this page (store unreachable, not configured, or
+    // copilot not yet attached to a project).
+    copilot.projectId
+      ? summarizeRuntimeTelemetry(copilot.projectId, copilot.id).catch(() => null)
+      : Promise.resolve(null),
+
+    gate && gate.overallStatus !== 'ready' ? getVersion(gate.candidateVersionId) : Promise.resolve(undefined),
+  ])
   const passCount = latestTestResults.filter((r) => r.status === 'pass').length
   const failCount = latestTestResults.filter((r) => r.status === 'fail').length
   const errorCount = latestTestResults.filter((r) => r.status === 'error').length
@@ -220,11 +243,9 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
 
   // Benchmarks — best candidate across all suites. Two grouped PostgREST calls
   // (all runs for all suites, then all results for all runs) instead of a
-  // suite × run cascade.
-  const suiteIds = benchmarkSuites.map((suite) => suite.id)
-  const allBenchmarkRuns = await getBenchmarkRunsForSuites(suiteIds)
-  const benchmarkResults = await getBenchmarkResultsForRuns(allBenchmarkRuns.map((run) => run.id))
-  const resultByRunId = new Map(benchmarkResults.map((result) => [result.runId, result]))
+  // suite × run cascade; both are issued in the wave above.
+  const allBenchmarkRuns = benchmarks.runs
+  const resultByRunId = new Map(benchmarks.results.map((result) => [result.runId, result]))
   const suiteById = new Map(benchmarkSuites.map((suite) => [suite.id, suite]))
   const benchmarkCandidates: { suite: BenchmarkSuite; run: BenchmarkRun; result: BenchmarkResult }[] =
     allBenchmarkRuns.flatMap((run) => {
@@ -236,18 +257,6 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
     (best, candidate) => (best === null || candidate.result.score > best.result.score ? candidate : best),
     null
   )
-
-  // Runtime telemetry — opt-in signal reported by the delivered agent. Fail-soft:
-  // never let a telemetry read break this page (store unreachable, not configured,
-  // or copilot not yet attached to a project).
-  let runtimeTelemetry: RuntimeTelemetrySummary | null = null
-  if (copilot.projectId) {
-    try {
-      runtimeTelemetry = await summarizeRuntimeTelemetry(copilot.projectId, copilot.id)
-    } catch {
-      runtimeTelemetry = null
-    }
-  }
 
   // Shadow + gate → next actions
   const runningShadow = shadowExperiments.find((experiment) => experiment.status === 'running')
@@ -268,7 +277,7 @@ export default async function CopilotOverviewPage({ params }: { params: Promise<
   const nextActions: { key: string; title: string; reason: string; href: string }[] = []
 
   if (gate && gate.overallStatus !== 'ready') {
-    const candidate = await getVersion(gate.candidateVersionId)
+    const candidate = gateCandidate
     const failing = gate.checks.filter((check) => check.status === 'fail').length
     const pending = gate.checks.filter((check) => check.status === 'pending').length
     nextActions.push({
