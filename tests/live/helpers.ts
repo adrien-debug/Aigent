@@ -12,8 +12,12 @@
  */
 import { env } from 'node:process'
 
-/** The two ports `next dev` may bind (3000 by default, 3001 if occupied). */
-const CANDIDATE_PORTS = [3000, 3001]
+/**
+ * Ports the dev stack may bind. The stack now pins `AIGENT_DEV_PORT` (default
+ * 3210, see scripts/dev-stack.mjs); 3000/3001 are kept for back-compat with
+ * older `next dev` runs. Configured port first so a live run finds the real app.
+ */
+const CANDIDATE_PORTS = [Number(process.env.AIGENT_DEV_PORT) || 3210, 3000, 3001]
 
 let cachedBaseUrl: string | null | undefined
 
