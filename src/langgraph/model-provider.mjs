@@ -11,6 +11,7 @@ import { ChatOpenAI } from '@langchain/openai'
 
 const DEFAULT_PROVIDER = 'openai'
 const GEMINI_OPENAI_BASE = 'https://generativelanguage.googleapis.com/v1beta/openai/'
+const OPENAI_SEQUENTIAL_TOOL_OPTION_MODELS = [/^gpt-4\.1(?:-|$)/, /^gpt-4o(?:-|$)/]
 
 /** Mirror of src/lib/agent-mission-control/model-local.ts — keep env vars in sync. */
 const LOCAL_VLLM_ENDPOINTS = {
@@ -93,4 +94,27 @@ export function createChatModel({ model, modelProvider = DEFAULT_PROVIDER }) {
     default:
       throw new Error(`unknown provider '${provider}'`)
   }
+}
+
+/**
+ * Bind executable tools without leaking unsupported OpenAI request options to
+ * compatible providers or newer Responses adapters. Unknown model/provider
+ * combinations omit the option; the graph still screens every returned call.
+ *
+ * @param {{ bindTools: (tools: any[], options?: object) => any }} chatModel
+ * @param {any[]} tools
+ * @param {{ model: string, modelProvider?: string }} opts
+ */
+export function bindChatModelTools(chatModel, tools, { model, modelProvider = DEFAULT_PROVIDER }) {
+  const provider =
+    typeof modelProvider === 'string' && modelProvider.trim()
+      ? modelProvider.trim()
+      : DEFAULT_PROVIDER
+  const supportsSequentialToolOption =
+    provider === 'openai' &&
+    OPENAI_SEQUENTIAL_TOOL_OPTION_MODELS.some((pattern) => pattern.test(model))
+
+  return supportsSequentialToolOption
+    ? chatModel.bindTools(tools, { parallel_tool_calls: false })
+    : chatModel.bindTools(tools)
 }

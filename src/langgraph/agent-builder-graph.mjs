@@ -31,7 +31,7 @@ import { AIMessage, ToolMessage } from '@langchain/core/messages'
 import { StateGraph, MessagesAnnotation, Annotation, START, END, interrupt } from '@langchain/langgraph'
 
 import { buildTool, buildToolsFromConfig } from './tool-registry.mjs'
-import { createChatModel } from './model-provider.mjs'
+import { bindChatModelTools, createChatModel } from './model-provider.mjs'
 import { withTemporalContext } from './temporal-context.mjs'
 
 // ---------------------------------------------------------------------------
@@ -369,13 +369,15 @@ async function agentNode(state, config) {
     }
   }
 
-  // Instantiate the model PER RUN from the config — one compiled graph serves
-  // every copilot's model. parallel_tool_calls:false → ONE tool per turn, which
-  // keeps the approval gate deterministic (a gated tool is never batched behind
-  // read tools, so the pause lands cleanly on a single call).
-  const modelWithTools = createChatModel({ model: rt.model, modelProvider: rt.modelProvider }).bindTools(rt.tools, {
-    parallel_tool_calls: false,
-  })
+  // Instantiate and bind PER RUN from the config — one compiled graph serves
+  // every copilot's provider/model. The provider adapter only sends
+  // parallel_tool_calls:false where that request option is explicitly supported;
+  // all returned calls are still screened below.
+  const modelWithTools = bindChatModelTools(
+    createChatModel({ model: rt.model, modelProvider: rt.modelProvider }),
+    rt.tools,
+    { model: rt.model, modelProvider: rt.modelProvider }
+  )
 
   const response = await modelWithTools.invoke(baseMessages)
 

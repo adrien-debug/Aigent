@@ -3,7 +3,7 @@
 Internal control plane for authoring, testing, promoting and running LLM
 copilots. A Next.js 16 (App Router) admin console backed by a dedicated Postgres
 perimeter (`aigent`) on GPU1, with real agent execution split between a direct
-OpenAI model-router loop and the official **LangGraph Agent Server** for
+model-router loop and the official **LangGraph Agent Server** for
 human-in-the-loop runs.
 
 Everything here is server-only and **fail-closed**: without the live backend and
@@ -20,8 +20,8 @@ authoring or runs.
 - **React 19**, TypeScript, Tailwind v4, Catalyst UI kit (`src/components/catalyst/`).
 - **LangGraph** (`@langchain/langgraph` + `@langchain/langgraph-sdk`) — the
   `agent_builder` graph in `src/langgraph/`, served by the LangGraph Agent Server.
-  This path is **OpenAI-only** (its `agent` node is a hardcoded `ChatOpenAI`) — a
-  known limitation, documented in `docs/agent-authoring.md` §3.
+  It resolves the copilot provider and mounts its scoped executable tools,
+  including the seven read-only market tools through their canonical handlers.
 - **Multi-provider on the direct path** — the direct model-router loop
   (`src/lib/agent-mission-control/model-router.ts`) resolves the copilot's
   provider and routes to **OpenAI** (`OPENAI_API_KEY`), **Gemini**
@@ -46,7 +46,7 @@ Then run **both** servers together — the app and the LangGraph Agent Server:
 npm run dev
 ```
 
-- **Next.js** → http://localhost:3000 (admin console at `/admin`).
+- **Next.js** → http://localhost:3210 (admin console at `/admin`).
 - **LangGraph Agent Server** → http://127.0.0.1:2024 (serves the `agent_builder`
   graph; the same endpoint LangSmith Studio connects to).
 
@@ -57,8 +57,8 @@ with `npm run langgraph:studio`.
 
 `AMC_DATA_SOURCE=gpu1`, `AMC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
 `OPENAI_API_KEY` (see `.env.example` for the full list, including
-`LANGGRAPH_API_URL` and `AGENT_BUILDER_MODEL`). Without them the data and run
-paths fail closed with `503`.
+`LANGGRAPH_API_URL`, `AGENT_BUILDER_MODEL`, and `TRADEAGENT_MARKET_URL` for live
+market reads). Without them the relevant data and run paths fail closed.
 
 ## Checks
 

@@ -35,6 +35,11 @@
  */
 import { pathToFileURL } from 'node:url'
 
+import {
+  localAgentServerUrl,
+  resolveAgentServerUrl,
+} from '../src/langgraph/agent-server-endpoint.mjs'
+
 /** Bounded per-probe budget. A dev server slower than this is a failure. */
 const NEXT_TIMEOUT_MS = 10_000
 const LANGGRAPH_TIMEOUT_MS = 10_000
@@ -45,18 +50,12 @@ const PGREST_TIMEOUT_MS = 10_000
 const NEXT_URL =
   process.env.HEALTH_NEXT_URL ||
   `http://127.0.0.1:${Number(process.env.AIGENT_DEV_PORT) || 3210}/admin`
-/**
- * The LOCAL supervised LangGraph — deliberately NOT `LANGGRAPH_API_URL`.
- *
- * That variable is the app's pointer to whichever Agent Server it talks to, and
- * in this repo's .env.local it points at PRODUCTION (agent.hearst.app). Reading
- * it here produced a real false green during smoke testing: the local LangGraph
- * was dead and :2024 free, yet this script reported "LANGGRAPH HEALTHY" because
- * it had just probed production. `npm run health` reports on the LOCAL dev
- * stack, so it must probe the port the supervisor actually manages. Override
- * with HEALTH_LANGGRAPH_URL when you genuinely mean a different local instance.
- */
-const LANGGRAPH_URL = process.env.HEALTH_LANGGRAPH_URL || 'http://127.0.0.1:2024'
+/** The same fail-closed local endpoint resolver used by agent runs. */
+const LANGGRAPH_URL = resolveAgentServerUrl({
+  ...process.env,
+  NODE_ENV: 'development',
+  LANGGRAPH_API_URL: localAgentServerUrl(process.env),
+})
 /** Graph id declared in langgraph.json — mirrors AGENT_BUILDER_GRAPH_ID. */
 const GRAPH_ID = 'agent_builder'
 

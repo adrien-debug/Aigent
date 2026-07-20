@@ -169,7 +169,7 @@ async function loadCopilotBehaviorConfig(
   // The copilot's tools (name + gating + risk).
   const toolRows = await pgrest<RawRow[]>(
     'GET',
-    `tools?copilot_id=eq.${encodeURIComponent(copilotId)}&select=name,risk_level,requires_confirmation&order=name`
+    `tools?copilot_id=eq.${encodeURIComponent(copilotId)}&enabled=eq.true&select=name,risk_level,requires_confirmation&order=name`
   )
 
   // The project's repo, to scope the repo tools (null for a bench copilot).

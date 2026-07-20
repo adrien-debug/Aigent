@@ -22,11 +22,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const waitMock = vi.fn()
 const createThreadMock = vi.fn()
 const getStateMock = vi.fn()
+const getAssistantMock = vi.fn()
+const clientOptionsMock = vi.fn()
 
 vi.mock('@langchain/langgraph-sdk', () => {
   class FakeClient {
+    constructor(options: unknown) {
+      clientOptionsMock(options)
+    }
     threads = { create: createThreadMock, getState: getStateMock }
     runs = { wait: waitMock }
+    assistants = { get: getAssistantMock }
   }
   return { Client: FakeClient }
 })
@@ -36,6 +42,8 @@ describe('recursionLimitFor (via runOnAgentServer -> runs.wait config.recursion_
     vi.resetModules()
     createThreadMock.mockReset().mockResolvedValue({ thread_id: 'thread-1' })
     getStateMock.mockReset().mockResolvedValue({ tasks: [] })
+    getAssistantMock.mockReset().mockResolvedValue({ config: {} })
+    clientOptionsMock.mockReset()
     waitMock.mockReset().mockResolvedValue({ messages: [{ type: 'ai', content: 'done' }] })
     process.env.LANGGRAPH_API_URL = 'http://127.0.0.1:2024'
     process.env.LANGGRAPH_SERVER_SECRET = 'test-secret'
@@ -88,9 +96,72 @@ describe('recursionLimitFor (via runOnAgentServer -> runs.wait config.recursion_
     expect(limit).toBeUndefined()
   })
 
+  it('uses the same resolved local endpoint for run and resume', async () => {
+    const { resumeOnAgentServer, runOnAgentServer } = await import(
+      '@/lib/agent-mission-control/langgraph-server'
+    )
+
+    await runOnAgentServer({ userInput: 'run' })
+    await resumeOnAgentServer({ threadId: 'thread-1', approved: true })
+
+    expect(clientOptionsMock).toHaveBeenCalledTimes(2)
+    for (const [options] of clientOptionsMock.mock.calls) {
+      expect(options).toMatchObject({ apiUrl: 'http://127.0.0.1:2024' })
+    }
+  })
+
+  it('records an unavailable read result as an error, not an unsafe block', async () => {
+    waitMock.mockResolvedValue({
+      messages: [
+        {
+          type: 'ai',
+          content: '',
+          tool_calls: [{ id: 'call-1', name: 'read_market_snapshot', args: {} }],
+        },
+        {
+          type: 'tool',
+          name: 'read_market_snapshot',
+          tool_call_id: 'call-1',
+          content: JSON.stringify({ ok: false, truth: 'UNAVAILABLE' }),
+        },
+        { type: 'ai', content: 'Market data unavailable.' },
+      ],
+    })
+    const { runOnAgentServer } = await import('@/lib/agent-mission-control/langgraph-server')
+
+    const result = await runOnAgentServer({ userInput: 'market regime' })
+
+    expect(result.toolCalls).toContainEqual(
+      expect.objectContaining({ toolName: 'read_market_snapshot', status: 'error' })
+    )
+    expect(result.toolCalls.some((call) => call.status === 'blocked')).toBe(false)
+  })
+
   it('floors a fractional maxSteps before deriving the limit', async () => {
     // floor(10.9) = 10 -> derived = 10*3+3+1 = 34.
     const limit = await runWith(10.9)
     expect(limit).toBe(34)
+  })
+
+  it('preserves an assistant configurable block when adding recursion_limit', async () => {
+    getAssistantMock.mockResolvedValue({
+      config: {
+        configurable: {
+          systemPrompt: 'Market read-only',
+          tools: [{ id: 'read_market_snapshot' }],
+        },
+      },
+    })
+    const { runOnAgentServer } = await import('@/lib/agent-mission-control/langgraph-server')
+    await runOnAgentServer({ assistantId: 'assistant-market', userInput: 'hi', maxSteps: 10 })
+
+    const config = waitMock.mock.calls.at(-1)?.[2]?.config
+    expect(config).toMatchObject({
+      recursion_limit: 34,
+      configurable: {
+        systemPrompt: 'Market read-only',
+        tools: [{ id: 'read_market_snapshot' }],
+      },
+    })
   })
 })
