@@ -156,5 +156,13 @@ describe('derivatives intelligence and risk scoring', () => {
       lock_recommendation: 'reduce_exposure',
       withdrawal_recommendation: 'reduce_amount',
     })
+    expect(calculateRisk({
+      ...input,
+      account: {
+        ...account,
+        ltv: null,
+        liquidation_buffer_pct: null,
+      },
+    }).liquidation_risk).toBeNull()
   })
 })
