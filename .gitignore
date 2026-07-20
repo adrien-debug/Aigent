@@ -55,3 +55,6 @@ next-env.d.ts
 
 # Target-repo sandbox evaluation reports (local, disposable, never committed)
 .aigent/
+
+# Dev stack runtime logs + last-exit report (local, disposable, never committed)
+.runtime/
