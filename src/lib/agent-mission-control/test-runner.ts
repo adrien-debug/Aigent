@@ -282,7 +282,8 @@ async function runCase(
     //    expectation is "ask for confirmation before acting" — we do NOT
     //    auto-approve; we observe the pause and let the judge grade it.
     const gr = await streamOnAgentServer({ userInput: testCase.input, assistantId, maxSteps, onNode, onThread })
-    costUsd += gr.costUsd
+    // null = unmeasured cost (no readable usage): excluded from the sum, never a fake 0.
+    costUsd += gr.costUsd ?? 0
 
     // The graph's tool calls are ground truth (real names + status). Use them
     // directly rather than asking the judge to guess which tools ran.

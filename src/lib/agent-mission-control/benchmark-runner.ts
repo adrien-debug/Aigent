@@ -466,7 +466,8 @@ async function runTaskOnGraph(
   let costUsd = 0
   try {
     const gr = await runOnAgentServer({ userInput: task.input, assistantId, maxSteps })
-    costUsd += gr.costUsd
+    // null = unmeasured cost (no readable usage): excluded from the sum, never a fake 0.
+    costUsd += gr.costUsd ?? 0
 
     const actualToolCalls = gr.toolCalls.map((t) => t.toolName)
     const reply = gr.interrupted

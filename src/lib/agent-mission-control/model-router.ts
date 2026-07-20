@@ -73,9 +73,19 @@ export interface ModelRouterResponse {
   /** Provider/model as requested. */
   provider: ModelProvider
   model: string
-  /** Provider/model actually used (differs when a fallback fired). */
+  /**
+   * Provider/model actually used. `resolvedModel` carries the model the
+   * PROVIDER reported serving when it reported one (see `modelVerified`),
+   * otherwise it falls back to the requested model id.
+   */
   resolvedProvider: ModelProvider
   resolvedModel: string
+  /**
+   * True when `resolvedModel` is the provider's own reported model id, not the
+   * requested id echoed back. A run may only be persisted `model_unverified=false`
+   * when this is true — it is the single source of executed-model truth.
+   */
+  modelVerified: boolean
   fallbackUsed: boolean
   fallbackReason?: string
   inputTokens: number
@@ -118,6 +128,15 @@ interface RawCall {
   outputTokens: number
   finishReason?: string
   toolCalls?: ModelRouterToolCall[]
+  /**
+   * The model id the PROVIDER reported having served this call — OpenAI's
+   * `completion.model`, Gemini's `modelVersion`, vLLM's `completion.model`.
+   * This is the only independent evidence of what actually executed: the
+   * requested model is an intent, this is the provider's own report. Absent
+   * (undefined) only when the provider returned no model field, in which case
+   * the run stays `model_unverified`.
+   */
+  executedModel?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -194,6 +213,9 @@ async function callOpenAI(req: ModelRouterRequest): Promise<RawCall> {
       inputTokens: completion.usage?.prompt_tokens ?? 0,
       outputTokens: completion.usage?.completion_tokens ?? 0,
       finishReason: completion.choices[0]?.finish_reason ?? undefined,
+      // OpenAI echoes the exact served model (often a dated snapshot id) —
+      // capture it as the ground-truth executed model.
+      ...(completion.model ? { executedModel: completion.model } : {}),
       ...(toolCalls.length > 0 ? { toolCalls } : {}),
     }
   } catch (err) {
@@ -331,6 +353,8 @@ async function callGemini(req: ModelRouterRequest): Promise<RawCall> {
       finishReason?: string
     }[]
     usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number }
+    /** Gemini reports the served model version here — our executed-model proof. */
+    modelVersion?: string
   }
 
   const parts = data.candidates?.[0]?.content?.parts ?? []
@@ -351,6 +375,7 @@ async function callGemini(req: ModelRouterRequest): Promise<RawCall> {
     inputTokens: data.usageMetadata?.promptTokenCount ?? estimateTokens(req.messages.map((m) => m.content).join(' ')),
     outputTokens: data.usageMetadata?.candidatesTokenCount ?? estimateTokens(text),
     finishReason: data.candidates?.[0]?.finishReason,
+    ...(data.modelVersion ? { executedModel: data.modelVersion } : {}),
     ...(toolCalls.length > 0 ? { toolCalls } : {}),
   }
 }
@@ -406,6 +431,9 @@ async function callLocalVllm(req: ModelRouterRequest): Promise<RawCall> {
       inputTokens: completion.usage?.prompt_tokens ?? estimatedInput,
       outputTokens: completion.usage?.completion_tokens ?? estimateTokens(message?.content ?? ''),
       finishReason: completion.choices[0]?.finish_reason ?? undefined,
+      // vLLM serves under a `served-model-name`; capture what it reports so a
+      // redeployed park under a different id is detectable, not assumed.
+      ...(completion.model ? { executedModel: completion.model } : {}),
       ...(toolCalls.length > 0 ? { toolCalls } : {}),
     }
   } catch (err) {
@@ -489,14 +517,20 @@ export async function routeCompletion(req: ModelRouterRequest): Promise<ModelRou
     fallbackUsed: boolean,
     fallbackReason?: string
   ): ModelRouterResponse => {
-    const costUsd = computeCostUsd(resolvedProvider, resolvedModel, raw.inputTokens, raw.outputTokens)
+    // The executed model is the provider's own reported id when present; only
+    // then is the run verifiable. Absent → keep the requested id but mark it
+    // unverified, never dressing an assumption as a fact.
+    const verifiedModel = raw.executedModel ?? resolvedModel
+    const modelVerified = raw.executedModel != null
+    const costUsd = computeCostUsd(resolvedProvider, verifiedModel, raw.inputTokens, raw.outputTokens)
     return {
       text: raw.text,
       parsedJson: req.responseFormat === 'json' ? tryParseJson(raw.text) : undefined,
       provider: req.modelProvider,
       model: req.model,
       resolvedProvider,
-      resolvedModel,
+      resolvedModel: verifiedModel,
+      modelVerified,
       fallbackUsed,
       fallbackReason,
       inputTokens: raw.inputTokens,

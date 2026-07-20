@@ -10,7 +10,7 @@ export interface RunLatencyPoint {
   id: string
   label: string
   latencyMs: number
-  costUsd: number
+  costUsd: number | null
   status: string
 }
 
