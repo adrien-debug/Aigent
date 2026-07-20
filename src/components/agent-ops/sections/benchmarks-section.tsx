@@ -71,7 +71,12 @@ export async function BenchmarksSection({ copilotId }: { copilotId: string }) {
                 <span className="text-xs text-zinc-500">
                   <span className="font-mono font-medium text-zinc-700 tabular-nums dark:text-zinc-300">{suite.taskCount}</span> tasks
                 </span>
-                <RunBenchmarkButton copilotId={id} suiteId={suite.id} />
+                <RunBenchmarkButton
+                  copilotId={id}
+                  suiteId={suite.id}
+                  defaultProvider={copilot.modelProvider}
+                  defaultModel={copilot.model}
+                />
               </div>
             }
             contentClassName="px-6 py-4"

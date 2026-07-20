@@ -14,6 +14,8 @@
  */
 import 'server-only'
 
+import type { LocalVllmModelId } from './model-catalog'
+
 export interface LocalVllmEndpointSpec {
   /** Env var holding the OpenAI-compatible base URL (must end with /v1). */
   urlEnvVar: string
@@ -32,9 +34,11 @@ export interface LocalVllmEndpointSpec {
 
 /**
  * The five local endpoints. Keys are the router-facing model ids callers pass
- * as `model` together with `modelProvider: 'local'`.
+ * as `model` together with `modelProvider: 'local'` — typed against the
+ * client-safe id list in model-catalog.ts, so a key added or removed on one
+ * side without the other is a compile error, not a silent drift.
  */
-export const LOCAL_VLLM_ENDPOINTS: Record<string, LocalVllmEndpointSpec> = {
+export const LOCAL_VLLM_ENDPOINTS: Record<LocalVllmModelId, LocalVllmEndpointSpec> = {
   'local-reasoning-70b': {
     urlEnvVar: 'VLLM_GPU1_REASONING_URL',
     modelEnvVar: 'VLLM_GPU1_REASONING_MODEL',
@@ -76,8 +80,16 @@ export const LOCAL_VLLM_ENDPOINTS: Record<string, LocalVllmEndpointSpec> = {
   },
 }
 
-/** Router-facing model ids of the `local` provider. */
-export const LOCAL_VLLM_MODEL_IDS = Object.keys(LOCAL_VLLM_ENDPOINTS)
+/** Router-facing model ids of the `local` provider (canonical list lives in
+ *  model-catalog.ts so client forms can suggest them without touching this
+ *  server-only module). */
+export { LOCAL_VLLM_MODEL_IDS } from './model-catalog'
+
+/** Spec for a router-facing model id, or undefined for unknown ids — the `in`
+ *  guard narrows the free-string lookup without weakening the typed registry. */
+function specFor(model: string): LocalVllmEndpointSpec | undefined {
+  return model in LOCAL_VLLM_ENDPOINTS ? LOCAL_VLLM_ENDPOINTS[model as LocalVllmModelId] : undefined
+}
 
 /** Fully resolved endpoint (env applied), ready for an OpenAI-compatible call. */
 export interface ResolvedLocalVllmEndpoint {
@@ -96,7 +108,7 @@ function localApiKey(): string | undefined {
  * (shared key + endpoint URL present). Mirrors openAiAvailable/geminiAvailable.
  */
 export function localVllmAvailable(model: string): boolean {
-  const spec = LOCAL_VLLM_ENDPOINTS[model]
+  const spec = specFor(model)
   if (!spec) return false
   return Boolean(localApiKey() && process.env[spec.urlEnvVar])
 }
@@ -107,7 +119,7 @@ export function localVllmAvailable(model: string): boolean {
  * ProviderUnavailableError so the fallback policy can apply).
  */
 export function resolveLocalVllmEndpoint(model: string): ResolvedLocalVllmEndpoint | null {
-  const spec = LOCAL_VLLM_ENDPOINTS[model]
+  const spec = specFor(model)
   if (!spec) return null
   const apiKey = localApiKey()
   const baseUrl = process.env[spec.urlEnvVar]

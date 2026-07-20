@@ -12,17 +12,11 @@ import { Textarea } from '@/components/catalyst/textarea'
 import { CREATABLE_MODEL_PROVIDERS, type CreatableModelProvider } from '@/lib/agent-mission-control/resource-ids'
 import type { CreateCopilotInput, GeneratedManifest } from '@/lib/agent-mission-control/authoring-types'
 import { AGENT_RUNTIME_LABELS, MODEL_PROVIDER_LABELS } from '@/lib/agent-mission-control/labels'
+import { SUGGESTED_MODELS } from '@/lib/agent-mission-control/model-catalog'
 import { slugify } from '@/lib/agent-mission-control/slug'
 import type { AgentRuntime, Project } from '@/lib/agent-mission-control/types'
 
 const PROVIDER_OPTIONS = CREATABLE_MODEL_PROVIDERS
-
-/** Known model ids per provider (values already used across the app fixtures). */
-const SUGGESTED_MODELS: Record<(typeof CREATABLE_MODEL_PROVIDERS)[number], string[]> = {
-  openai: ['gpt-5.4', 'gpt-5.4-mini', 'gpt-4.1'],
-  google: ['gemini-2.5-pro', 'gemini-2.5-flash'],
-  local: [],
-}
 
 const BENCH_VALUE = '__bench__'
 
