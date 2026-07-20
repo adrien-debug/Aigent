@@ -6,7 +6,7 @@ import { Text } from '@/components/catalyst/text'
 /**
  * Surface hierarchy — see `docs/surface-usage.md`. Tokens are NOT interchangeable:
  *
- *   Canvas (#000)  → page bg, AdminPageHeader, AgentKpiBand (`surfaceKpiBandClass`)
+ *   Canvas (#000)  → page bg, AdminPageHeader, AgentKpiBand (naked, no wash)
  *   Section (#121214 / secondary) → SurfaceCard / AgentSectionCard / surfaceSectionClass
  *   Item (#1f1f22 / elevated) → surfaceItemClass
  *   Nav (#09090b / primary) → surfaceNavClass only
@@ -25,13 +25,23 @@ export const surfaceItemClass =
 
 /** Navigation chrome — sidebar rail; quieter than sections (primary, not secondary). */
 export const surfaceNavClass =
-  'rounded-2xl bg-[var(--color-surface-primary)] ring-1 ring-white/[0.03] shadow-xl shadow-black/50 overflow-hidden'
+  'rounded-2xl bg-[var(--color-surface-primary)] ring-1 ring-white/[0.03] overflow-hidden'
 
 /** Backward-compatible alias — prefer `surfaceSectionClass` for new code. */
 export const surfaceCardClass = surfaceSectionClass
 
 export const surfaceSectionHeaderClass =
   'flex flex-wrap items-center justify-between gap-3 px-6 pt-4 pb-2'
+
+/**
+ * Micro-eyebrow — the tiny uppercase overline shared by `AdminPageHeader` and
+ * the `AgentKpiBand` stat labels. ONE definition so the overline never drifts in
+ * size/weight/tracking/colour between the page header and the KPI strip, and so a
+ * layout flag (density/separators) can never change its TYPOGRAPHY — only its
+ * surrounding geometry (min-height, margin). `zinc-400` clears WCAG AA at this
+ * size on both the black canvas and a section fill; `zinc-500` does not.
+ */
+export const eyebrowClass = 'text-[10px] font-medium uppercase tracking-widest text-zinc-400'
 
 /** @deprecated alias */
 export const surfaceCardHeaderClass = surfaceSectionHeaderClass
@@ -41,10 +51,6 @@ export const surfaceCardFooterClass = 'pt-3'
 /** Subtle inset within a section — not a full nested card. */
 export const surfaceInsetClass =
   'rounded-xl bg-[var(--color-surface-canvas)]/40 ring-1 ring-white/[0.02]'
-
-/** KPI band on canvas — section fill without section padding/chrome. */
-export const surfaceKpiBandClass =
-  'rounded-2xl bg-[var(--color-surface-secondary)] ring-1 ring-white/[0.02]'
 
 export function SurfaceCard({
   children,
@@ -115,9 +121,7 @@ export function AdminPageHeader({
     <header className={clsx('pb-4', className)}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          {eyebrow ? (
-            <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">{eyebrow}</p>
-          ) : null}
+          {eyebrow ? <p className={eyebrowClass}>{eyebrow}</p> : null}
           {/* Canon DS: Catalyst Heading = text-2xl/8 (24px). Never text-3xl. */}
           <Heading className={clsx(eyebrow ? 'mt-1' : undefined, 'tracking-tight')}>{title}</Heading>
           {description ? (

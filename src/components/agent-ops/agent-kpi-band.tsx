@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 
 import { AnimatedNumber } from '@/components/agent-ops/animated-number'
-import { surfaceKpiBandClass } from '@/components/agent-ops/surface-card'
+import { eyebrowClass } from '@/components/agent-ops/surface-card'
 
 export interface AgentKpiStat {
   name: string
@@ -40,12 +40,12 @@ const VALUE_TONE_CLASS = {
 
 /**
  * KPI band — single canon for all dashboard pages and agent sub-tabs.
- * Default: stats on `surfaceKpiBandClass` (secondary panel on canvas).
- * Accent reserved for emphasis only.
+ * Default: stats NAKED on the black canvas (no card wash) — per doctrine a KPI
+ * strip is canvas-level chrome, never a panel. Accent reserved for emphasis only.
  *
  * `separators` (opt-in): hairline dividers between stats via the `gap-px`
- * grid technique. Cell fill defaults to canvas — use inside a section card
- * only when the parent already provides `surface-secondary`.
+ * grid technique — use inside a section card only when the parent already
+ * provides `surface-secondary`.
  */
 export function AgentKpiBand({
   stats,
@@ -67,11 +67,14 @@ export function AgentKpiBand({
   // Reserve a fixed two-line height for the label so a title that wraps
   // ("24H COMPUTE COST") does not push its value lower than its one-line
   // neighbours — every value row then starts on the same baseline.
-  const labelClass = separators
-    ? 'flex min-h-7 items-start text-[10px] font-medium uppercase tracking-widest text-zinc-500 mb-2 transition-colors group-hover:text-zinc-400'
-    : density === 'compact'
-      ? 'flex min-h-7 items-start text-[10px] font-medium uppercase tracking-widest text-zinc-400 mb-1'
-      : 'flex min-h-8 items-start text-[10px] font-semibold uppercase tracking-widest text-zinc-400 mb-1.5 group-hover:text-zinc-300 transition-colors'
+  // Typography is FIXED (the shared `eyebrowClass`); only the surrounding
+  // geometry (reserved height + bottom margin) tracks density/separators, so a
+  // layout flag can never change the label's size/weight/tracking/colour.
+  const labelClass = clsx(
+    'flex items-start',
+    eyebrowClass,
+    separators ? 'min-h-7 mb-2' : density === 'compact' ? 'min-h-7 mb-1' : 'min-h-8 mb-1.5'
+  )
 
   return (
     <div
@@ -81,10 +84,9 @@ export function AgentKpiBand({
         'grid select-none grid-cols-1 sm:grid-cols-2',
         separators
           ? 'gap-px bg-white/5'
-          : [
-              surfaceKpiBandClass,
-              density === 'compact' ? 'mb-6 gap-x-4 gap-y-2 px-3 py-3' : 'mb-6 gap-4 px-4 py-4',
-            ],
+          : density === 'compact'
+            ? 'mb-6 gap-x-4 gap-y-2'
+            : 'mb-6 gap-4',
         COLS_CLASS[stats.length] ??
           (stats.length >= 6 ? 'md:grid-cols-3 xl:grid-cols-6' : 'md:grid-cols-4'),
         className
@@ -103,7 +105,7 @@ export function AgentKpiBand({
               // the grid track, not a flush box around the text.
               separators
                 ? 'bg-[var(--color-surface-canvas)] px-6 py-5 lg:px-8'
-                : 'cursor-default px-3 py-2.5 transition-colors hover:bg-[var(--color-surface-interactive)]'
+                : 'cursor-default px-3 py-2.5'
             )}
           >
             {stat.name ? <span className={labelClass}>{stat.name}</span> : null}

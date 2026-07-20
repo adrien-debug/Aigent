@@ -191,7 +191,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Mobile top bar */}
-      <header className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between gap-3 border-b border-white/[0.04] bg-[var(--color-surface-secondary)]/80 backdrop-blur-md px-4 py-3 lg:hidden shadow-md shadow-black/50">
+      <header className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between gap-3 border-b border-white/5 bg-[var(--color-surface-secondary)] px-4 py-3 lg:hidden">
         <Link href="/admin" aria-label="Agent Mission Control" className="flex min-w-0 items-center gap-2.5">
           <LogoMark className="size-5 shrink-0 text-white" />
           <span className="truncate text-sm font-semibold text-white">Aigent</span>
@@ -244,7 +244,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+3.75rem)] overflow-hidden rounded-2xl ring-1 ring-white/[0.04] bg-[var(--color-surface-secondary)] p-2 shadow-2xl shadow-black/50"
+              className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+3.75rem)] overflow-hidden rounded-2xl ring-1 ring-white/5 bg-[var(--color-surface-secondary)] p-2"
             >
               <div className="flex flex-col gap-1">
                 {NAV_ITEMS.map(({ label, icon, href, match }) => (
