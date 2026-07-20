@@ -16,8 +16,7 @@ Import from `@/components/agent-ops/surface-card`:
 
 | Export | Level | When to use |
 |--------|-------|-------------|
-| `AdminPageHeader` | Canvas | **Canon** page title — Catalyst `Heading` (`text-2xl/8` = 24px). Prefer this. |
-| `AgentPageHeader` | Canvas | Same H1 canon + optional breadcrumbs / live / filters. Use only when those extras are needed. |
+| `AdminPageHeader` | Canvas | **Canon** page title — Catalyst `Heading` (`text-2xl/8` = 24px). The only page header. |
 | `surfaceSectionClass` / `SurfaceCard` | Section | Data panels, tables, workbench shells |
 | `SurfaceCardHeader` | Section title | H2 via `Subheading` (`text-base/7 sm:text-sm/6`, `tone="neutral"`) |
 | `surfaceItemClass` | Item | Rows, cards, selectable tiles inside a section |

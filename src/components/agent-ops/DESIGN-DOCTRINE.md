@@ -133,7 +133,7 @@ Règles :
 - Une action = un seul emplacement (menus en haut du contexte concerné).
 - Pas de box dans box dans la preview : options séparées par `divide-y`, sélection par bordure
   accent — pas de carte ring imbriquée dans la carte preview.
-- Le page header (`AdminPageHeader` / `AgentPageHeader` — H1 Catalyst `text-2xl/8`) porte
+- Le page header (`AdminPageHeader` — H1 Catalyst `text-2xl/8`) porte
   titre/description ; le chat header ne les répète pas au-delà d'une ligne d'aide opérateur.
 
 ## Data — LIVE uniquement (plus aucun mock dans l'app)
