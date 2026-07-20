@@ -312,9 +312,11 @@ function buildStepsFromMessages(
     } else if (type === 'tool') {
       const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content)
       let blocked = false
+      let failed = false
       try {
         const parsed = JSON.parse(content) as { ok?: boolean; blocked?: boolean }
-        blocked = parsed.blocked === true || parsed.ok === false
+        blocked = parsed.blocked === true
+        failed = !blocked && parsed.ok === false
       } catch {
         /* non-JSON tool result — treat as ok */
       }
@@ -323,16 +325,16 @@ function buildStepsFromMessages(
       const argsSummary = matched?.args ? short(JSON.stringify(matched.args)) : ''
       steps.push({
         kind: blocked ? 'confirmation' : 'tool-call',
-        title: `${blocked ? 'Blocked' : 'Tool'} · ${name}`,
+        title: `${blocked ? 'Blocked' : failed ? 'Failed' : 'Tool'} · ${name}`,
         detail: short(content),
-        status: blocked ? 'blocked' : 'ok',
+        status: blocked ? 'blocked' : failed ? 'error' : 'ok',
         durationMs: 0,
       })
       toolCalls.push({
         toolName: name,
         argumentsSummary: argsSummary,
         resultSummary: short(content),
-        status: blocked ? 'blocked' : 'ok',
+        status: blocked ? 'blocked' : failed ? 'error' : 'ok',
       })
     }
   }

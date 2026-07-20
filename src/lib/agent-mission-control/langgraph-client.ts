@@ -6,8 +6,7 @@
  * lifecycle (langgraph-assistants.ts) both build their client HERE so the
  * auth/URL logic exists exactly once — never copy-pasted.
  *
- * The Agent Server (local dev AND production, e.g. agent.hearst.app) is
- * fail-closed via langgraph.json's "auth" key, so when LANGGRAPH_SERVER_SECRET
+ * The Agent Server is fail-closed via langgraph.json's "auth" key, so when LANGGRAPH_SERVER_SECRET
  * is set the app sends it as the `x-agent-key` header on every request via the
  * SDK's `defaultHeaders`. Absent, the client is created bare and every request
  * 503s — the secret is required in BOTH environments, not just production.
@@ -16,7 +15,9 @@
  * stray " " from a misconfigured env var) is treated as absent rather than sent
  * as a bogus header that would just get a 401 from the server.
  *
- * Env: LANGGRAPH_API_URL (default http://127.0.0.1:2024) + LANGGRAPH_SERVER_SECRET.
+ * Endpoint resolution is centralized in agent-server-endpoint.mjs: local
+ * development is pinned to the supervised loopback server, while production
+ * requires an explicit LANGGRAPH_API_URL.
  *
  * Never import this module from a client component: it reads the server secret.
  */
@@ -24,9 +25,11 @@ import 'server-only'
 
 import { Client } from '@langchain/langgraph-sdk'
 
-/** Base URL of the Agent Server (local dev default, overridable for a remote deployment). */
+import { resolveAgentServerUrl } from '@/langgraph/agent-server-endpoint.mjs'
+
+/** Base URL of the Agent Server, resolved fail-closed for the current environment. */
 export function agentServerUrl(): string {
-  return process.env.LANGGRAPH_API_URL || 'http://127.0.0.1:2024'
+  return resolveAgentServerUrl(process.env)
 }
 
 /**

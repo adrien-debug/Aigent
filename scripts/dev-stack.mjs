@@ -27,6 +27,7 @@ import { promisify } from 'node:util'
 // Single source of truth for "is the graph actually registered". health.mjs is
 // side-effect free on import (its main() is guarded), so this costs nothing.
 import { classifyAssistantsSearch } from './health.mjs'
+import { localAgentServerUrl } from '../src/langgraph/agent-server-endpoint.mjs'
 
 const execFileAsync = promisify(execFile)
 
@@ -40,7 +41,7 @@ const RUNTIME_DIR = join(REPO_ROOT, '.runtime')
 const NEXT_PORT = Number(process.env.AIGENT_DEV_PORT) || 3210
 const LANGGRAPH_PORT = Number(process.env.AIGENT_LANGGRAPH_PORT) || 2024
 const NEXT_URL = `http://127.0.0.1:${NEXT_PORT}`
-const LANGGRAPH_BASE_URL = `http://127.0.0.1:${LANGGRAPH_PORT}`
+const LANGGRAPH_BASE_URL = localAgentServerUrl(process.env)
 /** Graph id declared in langgraph.json — mirrors health.mjs / AGENT_BUILDER_GRAPH_ID. */
 const GRAPH_ID = 'agent_builder'
 
@@ -605,7 +606,7 @@ async function main() {
     return spawn(bin, args, {
       cwd: REPO_ROOT,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: process.env,
+      env: { ...process.env, LANGGRAPH_API_URL: LANGGRAPH_BASE_URL },
       detached: true,
     })
   }
