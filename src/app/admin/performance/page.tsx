@@ -1,10 +1,11 @@
-import { BoltIcon, CpuChipIcon } from '@heroicons/react/24/outline'
+import { BoltIcon } from '@heroicons/react/24/outline'
 import type { Metadata } from 'next'
 
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { ActivityChart } from '@/components/agent-ops/performance/activity-chart'
 import { AgentLeaderboard } from '@/components/agent-ops/performance/agent-leaderboard'
 import { FleetKpiBand } from '@/components/agent-ops/performance/fleet-kpi-band'
+import { FleetWatchlist } from '@/components/agent-ops/performance/fleet-watchlist'
 import { LiveRefresh } from '@/components/agent-ops/performance/live-refresh'
 import { RecentRunsTable } from '@/components/agent-ops/performance/recent-runs-table'
 import { AdminPageHeader } from '@/components/agent-ops/surface-card'
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
 }
 
 /** Newest runs shown in the feed table; the full 200-run sample feeds the chart/KPIs. */
-const RUNS_TABLE_SIZE = 20
+const RUNS_TABLE_SIZE = 30
 
 /**
  * Explicitly impure clock read, isolated outside the component body (same
@@ -45,27 +46,22 @@ export default async function PerformancePage() {
   const recentRuns = runs.slice(0, RUNS_TABLE_SIZE)
 
   return (
-    <div className="flex flex-col gap-8 pb-12">
+    <div className="flex flex-col gap-4 pb-8">
       <AdminPageHeader
         eyebrow="Performance"
         title="Fleet Performance"
         actions={<LiveRefresh initialRefreshedAt={nowIso} />}
+        className="pb-0"
       />
       <FleetKpiBand copilots={copilots} runs={runs} nowMs={nowMs} />
 
-      <ActivityChart runs={runs} nowMs={nowMs} />
-
-      {ranked.length > 0 ? (
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(20rem,0.85fr)]">
         <AgentLeaderboard copilots={ranked} projectNameById={projectNameById} />
-      ) : (
-        <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
-          <EmptyState
-            icon={CpuChipIcon}
-            title="No agents yet"
-            description="Provision copilots in your projects to see fleet performance here."
-          />
+        <div className="flex min-w-0 flex-col gap-4">
+          <ActivityChart runs={runs} nowMs={nowMs} />
+          <FleetWatchlist copilots={copilots} />
         </div>
-      )}
+      </div>
 
       {recentRuns.length > 0 ? (
         <RecentRunsTable

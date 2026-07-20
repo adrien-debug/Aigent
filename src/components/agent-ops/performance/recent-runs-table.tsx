@@ -35,11 +35,12 @@ export function RecentRunsTable({
     <SurfaceCard>
       <SurfaceCardHeader
         title="Recent Runs"
+        className="px-4 pt-3 pb-2"
         meta={<span className="text-xs text-zinc-500">{runs.length} runs · all projects</span>}
       />
-      <div className="overflow-x-auto no-scrollbar">
-        <Table className="w-full border-collapse px-6 text-left [--gutter:--spacing(0)]">
-        <TableHead>
+      <div className="max-h-[28rem] overflow-auto no-scrollbar">
+        <Table className="min-w-[760px] w-full border-collapse px-4 text-left [--gutter:--spacing(0)]">
+        <TableHead className="sticky top-0 z-10 bg-[var(--color-surface-secondary)]">
           <TableRow className="border-b border-white/5">
             <TableHeader>Run & Copilot</TableHeader>
             <TableHeader>Project</TableHeader>
@@ -58,18 +59,18 @@ export function RecentRunsTable({
             const copilot = copilotById.get(run.copilotId)
             return (
               <TableRow key={run.id} className="group">
-                <TableCell>
+                <TableCell className="py-2">
                   <div className="flex min-w-0 flex-col">
                     <Link
                       href={`/admin/agents/${run.copilotId}/runs?run=${run.id}`}
+                      title={run.id}
                       className="truncate text-sm font-medium text-white group-hover:underline"
                     >
                       {copilot?.name ?? run.copilotId}
                     </Link>
-                    <span className="mt-0.5 max-w-40 truncate font-mono text-[10px] text-zinc-500">{run.id}</span>
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="py-2">
                   {copilot?.projectId ? (
                     <span className="text-xs text-zinc-400">
                       {projectNameById.get(copilot.projectId) ?? '—'}
@@ -78,7 +79,7 @@ export function RecentRunsTable({
                     <span className="text-xs text-zinc-600">—</span>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell className="py-2">
                   <span className="inline-flex items-center gap-2">
                     <span
                       aria-hidden="true"
@@ -93,20 +94,22 @@ export function RecentRunsTable({
                     <RunStatusText status={run.status} />
                   </span>
                 </TableCell>
-                <TableCell>
+                <TableCell className="py-2">
                   <span className="block max-w-md truncate text-xs text-zinc-400" title={run.inputSummary}>
                     {run.inputSummary}
                   </span>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="py-2 text-right">
                   <span className="font-mono text-xs text-zinc-300 tabular-nums">
                     {formatDurationMs(run.latencyMs)}
                   </span>
                 </TableCell>
-                <TableCell className="text-right">
-                  <span className="font-mono text-xs text-zinc-400 tabular-nums">{formatUsd(run.costUsd)}</span>
+                <TableCell className="py-2 text-right">
+                  <span className="font-mono text-xs text-zinc-400 tabular-nums">
+                    {run.costUsd === null ? '—' : formatUsd(run.costUsd)}
+                  </span>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="py-2 text-right">
                   <span
                     className="font-mono text-xs whitespace-nowrap text-zinc-500 tabular-nums"
                     title={formatTimestamp(run.startedAt)}
@@ -114,7 +117,7 @@ export function RecentRunsTable({
                     {formatRelative(run.startedAt, nowIso)}
                   </span>
                 </TableCell>
-                <TableCell className="text-center">
+                <TableCell className="py-2 text-center">
                   {run.traceUrl ? (
                     <a
                       href={run.traceUrl}

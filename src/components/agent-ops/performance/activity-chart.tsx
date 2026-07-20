@@ -61,11 +61,11 @@ function runCount(n: number): string {
 }
 
 // Fixed drawing space — the SVG stretches horizontally (preserveAspectRatio
-// "none") while its rendered height stays h-40 (160px = viewBox height), so
+// "none") while its rendered height stays compact, so
 // horizontal hairlines never blur and only bar widths flex with the viewport.
 const PLOT_W = 960
-const PLOT_H = 160
-const TOP_PAD = 12
+const PLOT_H = 96
+const TOP_PAD = 8
 const SLOT_W = PLOT_W / 24
 const BAR_W = 26
 const BAR_X = (SLOT_W - BAR_W) / 2
@@ -94,7 +94,6 @@ export function ActivityChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: number
   const completed = buckets.reduce((s, b) => s + b.completed, 0)
   const failed = buckets.reduce((s, b) => s + b.failed, 0)
   const other = buckets.reduce((s, b) => s + b.other, 0)
-  const peak = Math.max(...buckets.map((b) => b.total))
 
   if (total === 0) {
     return (
@@ -105,26 +104,28 @@ export function ActivityChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: number
     )
   }
 
-  const scale = (PLOT_H - TOP_PAD) / peak
+  const scale = (PLOT_H - TOP_PAD) / Math.max(...buckets.map((b) => b.total))
 
   return (
     <SurfaceCard>
       <SurfaceCardHeader
         title="Run Activity — 24h"
-        description="Hourly runs across every agent, stacked by outcome."
+        className="px-4 pt-3 pb-2"
         meta={
-          <span className="font-mono text-xs text-zinc-500 tabular-nums">
-            {runCount(total)} · peak {peak}/h
-          </span>
+          <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+            <LegendDot className="bg-accent-400" label="Completed" count={completed} />
+            <LegendDot className="bg-zinc-400" label="Failed" count={failed} />
+            {other > 0 ? <LegendDot className="bg-zinc-600" label="Other" count={other} /> : null}
+          </div>
         }
       />
-      <div className="px-6 py-6">
+      <div className="px-4 pt-2 pb-4">
         <svg
           role="img"
           aria-label={`Hourly run activity for the last 24 hours: ${runCount(total)} — ${completed} completed, ${failed} failed, ${other} other.`}
           viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}
           preserveAspectRatio="none"
-          className="block h-40 w-full"
+          className="block h-24 w-full"
         >
           {/* Hairline grid — quarter lines + baseline, chart-grid token (white/5). */}
           {[0.25, 0.5, 0.75].map((f) => {
@@ -199,10 +200,7 @@ export function ActivityChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: number
           })}
         </svg>
 
-        {/* Hour rail — HTML so labels stay crisp while the SVG stretches. 24
-            equal columns mirror the bar slots exactly; every 4th hour is
-            labelled, thinned to every 8th under `sm` so 10px labels never
-            overlap in 14px-wide mobile cells. */}
+        {/* Four UTC hour markers in equal columns under the 24 hourly slots. */}
         <div
           aria-hidden="true"
           className="mt-2 grid grid-cols-[repeat(24,minmax(0,1fr))]"
@@ -210,19 +208,11 @@ export function ActivityChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: number
           {buckets.map((bucket, i) => (
             <span
               key={bucket.startMs}
-              className={`text-center font-mono text-[10px] text-zinc-500 tabular-nums${
-                i % 4 === 0 && i % 8 !== 0 ? ' max-sm:invisible' : ''
-              }`}
+              className="text-center font-mono text-[10px] text-zinc-500 tabular-nums"
             >
-              {i % 4 === 0 ? hourLabel(bucket.startMs) : ''}
+              {i % 6 === 0 ? hourLabel(bucket.startMs) : ''}
             </span>
           ))}
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1">
-          <LegendDot className="bg-accent-400" label="Completed" count={completed} />
-          <LegendDot className="bg-zinc-400" label="Failed" count={failed} />
-          {other > 0 ? <LegendDot className="bg-zinc-600" label="Other" count={other} /> : null}
         </div>
       </div>
     </SurfaceCard>

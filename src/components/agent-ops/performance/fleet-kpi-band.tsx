@@ -89,5 +89,5 @@ export function FleetKpiBand({
     },
   ]
 
-  return <AgentKpiBand stats={stats} density="compact" className={className} />
+  return <AgentKpiBand stats={stats} density="compact" flush className={className} />
 }
