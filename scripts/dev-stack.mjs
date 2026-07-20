@@ -700,7 +700,7 @@ async function main() {
   })
 
   try {
-    attach('next', spawnChild('next', NEXT_BIN, ['dev']))
+    attach('next', spawnChild('next', NEXT_BIN, ['dev', '--port', String(NEXT_PORT)]))
     attach(
       'langgraph',
       spawnChild('langgraph', LANGGRAPH_BIN, [
