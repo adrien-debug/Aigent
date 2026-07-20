@@ -16,15 +16,18 @@ import { makeProvenance, unavailableProvenance } from './truth'
 
 const BINANCE_BASE_URL = 'https://api.binance.com'
 const BINANCE_HOST = 'api.binance.com'
+export const BINANCE_FUTURES_BASE_URL = 'https://fapi.binance.com'
+export const BINANCE_FUTURES_HOST = 'fapi.binance.com'
 const REQUEST_TIMEOUT_MS = 4_000
 const MAX_CACHE_ENTRIES = 128
 const TICKER_TTL_MS = 7_000
 const ORDER_BOOK_TTL_MS = 7_000
 
 type CachedEntry = { expiresAt: number; value: FetchOutcome }
-type FetchOutcome =
+export type BinanceFetchOutcome =
   | { ok: true; body: unknown; sourceTimestamp: number; fetchedAt: number }
   | { ok: false; reason: string }
+type FetchOutcome = BinanceFetchOutcome
 
 const responseCache = new Map<string, CachedEntry>()
 const inflight = new Map<string, Promise<FetchOutcome>>()
@@ -44,20 +47,28 @@ function cacheSet(key: string, value: FetchOutcome, ttlMs: number): void {
   responseCache.set(key, { expiresAt: Date.now() + ttlMs, value })
 }
 
-async function cachedJson(path: string, ttlMs: number): Promise<FetchOutcome> {
-  const cached = responseCache.get(path)
+export async function cachedBinanceJson(
+  path: string,
+  ttlMs: number,
+  target: { baseUrl: string; host: string } = {
+    baseUrl: BINANCE_BASE_URL,
+    host: BINANCE_HOST,
+  },
+): Promise<BinanceFetchOutcome> {
+  const cacheKey = `${target.baseUrl}${path}`
+  const cached = responseCache.get(cacheKey)
   if (cached && cached.expiresAt > Date.now()) return cached.value
-  if (cached) responseCache.delete(path)
+  if (cached) responseCache.delete(cacheKey)
 
-  const pending = inflight.get(path)
+  const pending = inflight.get(cacheKey)
   if (pending) return pending
 
   const request: Promise<FetchOutcome> = (async (): Promise<FetchOutcome> => {
     let lastReason = 'Binance request failed'
     for (let attempt = 0; attempt < 2; attempt++) {
       const fetchedAt = Date.now()
-      const result = await guardedFetch(`${BINANCE_BASE_URL}${path}`, {
-        allowedHosts: [BINANCE_HOST],
+      const result = await guardedFetch(`${target.baseUrl}${path}`, {
+        allowedHosts: [target.host],
         timeoutMs: REQUEST_TIMEOUT_MS,
         headers: { accept: 'application/json' },
         readBody: async (response) => ({
@@ -74,7 +85,7 @@ async function cachedJson(path: string, ttlMs: number): Promise<FetchOutcome> {
           sourceTimestamp: Number.isFinite(headerTimestamp) ? headerTimestamp : fetchedAt,
           fetchedAt,
         }
-        cacheSet(path, value, ttlMs)
+        cacheSet(cacheKey, value, ttlMs)
         return value
       }
       lastReason = result.ok ? `Binance HTTP ${result.status}` : result.reason
@@ -82,11 +93,11 @@ async function cachedJson(path: string, ttlMs: number): Promise<FetchOutcome> {
     return { ok: false, reason: lastReason }
   })()
 
-  inflight.set(path, request)
+  inflight.set(cacheKey, request)
   try {
     return await request
   } finally {
-    inflight.delete(path)
+    inflight.delete(cacheKey)
   }
 }
 
@@ -115,7 +126,7 @@ export class BinanceMarketProvider extends BaseMarketProvider {
   ): Promise<ProviderResult<Candle[]>> {
     const boundedLimit = Math.min(Math.max(limit, 2), 100)
     const path = `/api/v3/klines?symbol=${pair}&interval=${interval}&limit=${boundedLimit}`
-    const result = await cachedJson(path, candleTtl(interval))
+    const result = await cachedBinanceJson(path, candleTtl(interval))
     if (!result.ok) return unavailable(path, ctx, result.reason)
     if (!Array.isArray(result.body) || result.body.length === 0) {
       return unavailable(path, ctx, `Binance returned no candles for ${pair} ${interval}`)
@@ -150,7 +161,7 @@ export class BinanceMarketProvider extends BaseMarketProvider {
 
   async getTicker(pair: PairSymbol, ctx: ProviderContext): Promise<ProviderResult<Ticker>> {
     const path = `/api/v3/ticker/24hr?symbol=${pair}`
-    const result = await cachedJson(path, TICKER_TTL_MS)
+    const result = await cachedBinanceJson(path, TICKER_TTL_MS)
     if (!result.ok) return unavailable(path, ctx, result.reason)
     const row = result.body as Record<string, unknown>
     if (!row || typeof row !== 'object' || typeof row.lastPrice !== 'string') {
@@ -200,7 +211,7 @@ export class BinanceMarketProvider extends BaseMarketProvider {
   }>> {
     const boundedDepth = Math.min(Math.max(depth, 5), 100)
     const path = `/api/v3/depth?symbol=${pair}&limit=${boundedDepth}`
-    const result = await cachedJson(path, ORDER_BOOK_TTL_MS)
+    const result = await cachedBinanceJson(path, ORDER_BOOK_TTL_MS)
     if (!result.ok) return unavailable(path, ctx, result.reason)
     const row = result.body as Record<string, unknown>
     if (!Array.isArray(row?.bids) || !Array.isArray(row?.asks)) {
