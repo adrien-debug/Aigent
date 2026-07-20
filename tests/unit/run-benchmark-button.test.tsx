@@ -19,11 +19,11 @@ vi.mock('next/navigation', () => ({
 
 import { RunBenchmarkButton } from '@/components/agent-ops/run-benchmark-button'
 
-function stubFetch() {
+function stubFetch(runStatus = 'completed') {
   const fetchMock = vi.fn(async () => ({
     ok: true,
     status: 200,
-    json: async () => ({ benchmarkRun: { status: 'completed' } }),
+    json: async () => ({ benchmarkRun: { status: runStatus } }),
   }))
   vi.stubGlobal('fetch', fetchMock)
   return fetchMock
@@ -156,5 +156,57 @@ describe('RunBenchmarkButton', () => {
     await userEvent.clear(modelInput())
 
     expect(runButton()).toBeDisabled()
+  })
+
+  it('shows the per-run scope label', () => {
+    stubFetch()
+    renderButton()
+
+    expect(screen.getByText('This run only — the agent is not modified.')).toBeInTheDocument()
+  })
+
+  it('explains the blocked state and wires it to the model input via aria-describedby', async () => {
+    stubFetch()
+    renderButton()
+
+    // Not blocked yet → no hint, no describedby.
+    expect(screen.queryByText('Enter a model for Google to run.')).not.toBeInTheDocument()
+    expect(modelInput()).not.toHaveAttribute('aria-describedby')
+
+    await userEvent.selectOptions(providerSelect(), 'google')
+    await userEvent.clear(modelInput())
+
+    const hint = screen.getByText('Enter a model for Google to run.')
+    expect(hint).toHaveAttribute('id')
+    expect(modelInput()).toHaveAttribute('aria-describedby', hint.getAttribute('id'))
+  })
+
+  it('remembers what the user typed per provider across a flip and back', async () => {
+    stubFetch()
+    renderButton()
+
+    await userEvent.selectOptions(providerSelect(), 'local')
+    await userEvent.clear(modelInput())
+    await userEvent.type(modelInput(), 'my-finetune-70b')
+
+    await userEvent.selectOptions(providerSelect(), 'google')
+    expect(modelInput()).toHaveValue('gemini-2.5-pro')
+
+    await userEvent.selectOptions(providerSelect(), 'local')
+    expect(modelInput()).toHaveValue('my-finetune-70b')
+  })
+
+  it('a non-completed run reads "Finished: {status}" in zinc — no accent badge', async () => {
+    const fetchMock = stubFetch('failed')
+    renderButton()
+
+    await userEvent.click(runButton())
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    expect(screen.queryByText('Benchmark complete')).not.toBeInTheDocument()
+    const finished = screen.getByText('Finished: failed')
+    expect(finished.className).not.toMatch(/accent/)
+    // Text, not Badge: badges carry the rounded pill classes.
+    expect(finished.className).not.toMatch(/rounded-full/)
   })
 })

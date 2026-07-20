@@ -4,8 +4,9 @@ import clsx from 'clsx'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { RuntimeBadge } from '@/components/agent-ops/runtime-badge'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
+import { Badge } from '@/components/catalyst/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
-import { formatDurationMs, formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
+import { formatDurationMs, formatPercent, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 import { MODEL_PROVIDER_LABELS } from '@/lib/agent-mission-control/labels'
 import type { BenchmarkResult, BenchmarkRun } from '@/lib/agent-mission-control/types'
 
@@ -55,6 +56,16 @@ export function BenchmarkComparisonTable({
 
   const sorted = [...rows].sort((a, b) => b.result.score - a.result.score)
 
+  // Most recent run of the suite (finishedAt, falling back to startedAt),
+  // ties broken deterministically by run id.
+  const latestRunId = rows.reduce((latest, { run }) => {
+    const current = Date.parse(run.finishedAt ?? run.startedAt)
+    const best = Date.parse(latest.finishedAt ?? latest.startedAt)
+    if (current > best) return run
+    if (current === best && run.id > latest.id) return run
+    return latest
+  }, rows[0].run).id
+
   return (
     <Table dense className="[--gutter:--spacing(0)]">
       <TableHead>
@@ -78,6 +89,10 @@ export function BenchmarkComparisonTable({
             <TableCell>
               <div className="font-mono text-sm font-medium text-zinc-950 dark:text-white">{run.model}</div>
               <div className="mt-1 text-xs text-zinc-500">{MODEL_PROVIDER_LABELS[run.modelProvider]}</div>
+              <div className="mt-1 flex items-center gap-2 text-xs text-zinc-500">
+                <span>{formatTimestamp(run.finishedAt ?? run.startedAt)}</span>
+                {run.id === latestRunId ? <Badge color="accent">Latest</Badge> : null}
+              </div>
             </TableCell>
             <TableCell>
               <RuntimeBadge runtime={run.runtime} />

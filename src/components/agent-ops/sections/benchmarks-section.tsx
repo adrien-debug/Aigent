@@ -6,7 +6,6 @@ import { BenchmarkScoreCard } from '@/components/agent-ops/benchmark-score-card'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { RunBenchmarkButton } from '@/components/agent-ops/run-benchmark-button'
 import { ChipCluster } from '@/components/agent-ops/widgets/chip-cluster'
-import { Sparkline } from '@/components/agent-ops/widgets/sparkline'
 import { Button } from '@/components/catalyst/button'
 import { Subheading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
@@ -87,16 +86,6 @@ export async function BenchmarksSection({ copilotId }: { copilotId: string }) {
                 items={suite.dimensions.map((dimension) => ({ key: dimension, text: dimension }))}
               />
               <div className="flex items-center gap-6">
-                {rows.length > 0 ? (
-                  <Sparkline
-                    kind="bar"
-                    points={rows.map((row) => row.result.score)}
-                    tone="accent"
-                    width={88}
-                    height={28}
-                    ariaLabel="Composite score spread across candidates"
-                  />
-                ) : null}
                 <BenchmarkRunSteps runs={runs} />
               </div>
             </div>

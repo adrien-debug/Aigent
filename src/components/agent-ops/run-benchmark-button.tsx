@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { Spinner } from '@/components/agent-ops/authoring-primitives'
@@ -59,6 +59,7 @@ export function RunBenchmarkButton({
 }: RunBenchmarkButtonProps) {
   const router = useRouter()
   const datalistId = useId()
+  const blockedHintId = useId()
   // A non-creatable provider (mistral is declared in the DB enum but not
   // wired) cannot be offered in the Select; fall back to openai — and snap the
   // model WITH it, so the visible pair is always coherent. Running from that
@@ -72,19 +73,46 @@ export function RunBenchmarkButton({
   const [isRunning, setIsRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
+  // What a provider switch just set the model to — read out by the sr-only
+  // live region so a screen-reader user hears the silent input change.
+  const [announcement, setAnnouncement] = useState<string | null>(null)
+  // Per-provider memory of what the user actually typed: flipping providers to
+  // compare must never destroy a hand-entered model id. Ref, not state — it
+  // only matters at the moment of a provider change.
+  const typedModels = useRef<Partial<Record<CreatableModelProvider, string>>>({})
+  const modelInputRef = useRef<HTMLInputElement>(null)
 
   function handleProviderChange(next: CreatableModelProvider) {
     setProvider(next)
-    // Returning to the base provider restores the base model (so the untouched
-    // path re-arms); any other provider snaps to its first suggestion — the
-    // input always shows exactly what will run.
-    setModel(next === baseProvider ? baseModel : (SUGGESTED_MODELS[next][0] ?? ''))
+    // The provider's remembered typed value wins; otherwise the base provider
+    // restores the base model (so the untouched path re-arms) and any other
+    // provider snaps to its first suggestion — the input always shows exactly
+    // what will run.
+    const nextModel =
+      typedModels.current[next] ?? (next === baseProvider ? baseModel : (SUGGESTED_MODELS[next][0] ?? ''))
+    setModel(nextModel)
+    setAnnouncement(nextModel.length > 0 ? `Model set to ${nextModel}` : null)
+  }
+
+  function handleModelChange(value: string) {
+    setModel(value)
+    typedModels.current[provider] = value
   }
 
   // A switched provider with an emptied model would post a provider-only
   // override and run the copilot's cross-provider model — a doomed run. Block
   // it at the button rather than let the backend manufacture the failure.
   const runBlocked = provider !== baseProvider && model.trim().length === 0
+
+  // Headless.Input overwrites a passed aria-describedby with its own
+  // Field-context value (undefined here), so the blocked-hint link must be
+  // wired imperatively on the real <input>.
+  useEffect(() => {
+    const input = modelInputRef.current
+    if (!input) return
+    if (runBlocked) input.setAttribute('aria-describedby', blockedHintId)
+    else input.removeAttribute('aria-describedby')
+  }, [runBlocked, blockedHintId])
 
   async function handleRun() {
     if (isRunning) return
@@ -113,7 +141,8 @@ export function RunBenchmarkButton({
       }
 
       const data = (await response.json()) as RunBenchmarkResult
-      setDone(data.benchmarkRun?.status === 'completed' ? 'Benchmark complete' : 'Run finished')
+      // Store the RAW status: only 'completed' may ever wear the accent badge.
+      setDone(data.benchmarkRun?.status ?? 'unknown')
       router.refresh()
     } catch {
       setError('Benchmark run failed — the backend is unreachable.')
@@ -128,6 +157,12 @@ export function RunBenchmarkButton({
     // whose width the card controls — a single ~500px row is an overflow
     // hazard on narrow viewports, and stacking is the layout we want anyway.
     <div className="flex max-w-full flex-col items-end gap-2">
+      <span className="text-xs text-zinc-500">This run only — the agent is not modified.</span>
+      {!isCreatable(defaultProvider) ? (
+        <Text className="!mt-0 !text-xs">
+          Provider {MODEL_PROVIDER_LABELS[defaultProvider]} isn&apos;t runnable — using OpenAI for this run.
+        </Text>
+      ) : null}
       <div className="flex flex-wrap items-center justify-end gap-2">
         <Select
           aria-label="Model provider for this run"
@@ -143,10 +178,11 @@ export function RunBenchmarkButton({
           ))}
         </Select>
         <Input
+          ref={modelInputRef}
           aria-label="Model for this run"
           value={model}
           disabled={isRunning}
-          onChange={(event) => setModel(event.target.value)}
+          onChange={(event) => handleModelChange(event.target.value)}
           placeholder={provider === baseProvider ? baseModel : (SUGGESTED_MODELS[provider][0] ?? '')}
           list={datalistId}
           className="max-w-52"
@@ -158,10 +194,15 @@ export function RunBenchmarkButton({
         </datalist>
       </div>
       <div className="flex flex-wrap items-center justify-end gap-3">
-        {done ? (
+        {done === 'completed' ? (
           <Badge color="accent" role="status" aria-live="polite">
-            {done}
+            Benchmark complete
           </Badge>
+        ) : done ? (
+          // A non-completed run must NEVER look like success: zinc text, no badge.
+          <Text role="status" aria-live="polite" className="!mt-0 !text-xs">
+            Finished: {done}
+          </Text>
         ) : null}
         <Button color="accent" onClick={handleRun} disabled={isRunning || runBlocked}>
           {isRunning ? (
@@ -174,6 +215,14 @@ export function RunBenchmarkButton({
           )}
         </Button>
       </div>
+      {runBlocked ? (
+        <Text id={blockedHintId} className="!mt-0 !text-xs">
+          Enter a model for {MODEL_PROVIDER_LABELS[provider]} to run.
+        </Text>
+      ) : null}
+      <span aria-live="polite" role="status" className="sr-only">
+        {announcement}
+      </span>
       {error ? (
         <Text role="alert" className="!mt-0 !text-xs !text-accent-400">
           {error}
