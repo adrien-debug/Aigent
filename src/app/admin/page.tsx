@@ -24,9 +24,20 @@ export const metadata: Metadata = {
 // silently dropping older hours — raise this or label the period explicitly.
 const RECENT_RUNS_LIMIT = 500
 
+/**
+ * Explicitly impure clock read, isolated outside the component body (same
+ * contract as `renderInstant` on the Performance page). The page is
+ * force-dynamic, so a fresh instant per request is the intended behaviour —
+ * captured ONCE so every time-derived surface (the hourly buckets of the runs
+ * and cost charts) agrees on the same window.
+ */
+function renderInstantMs(): number {
+  return Date.now()
+}
+
 export default async function DashboardPage() {
   const [overview, recentRuns] = await Promise.all([getDashboardOverview(), getRecentRuns(RECENT_RUNS_LIMIT)])
-  const nowMs = Date.now()
+  const nowMs = renderInstantMs()
 
   return (
     <div className="flex flex-col gap-4 pb-8">
