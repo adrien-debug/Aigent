@@ -9,7 +9,7 @@ import {
 } from '@heroicons/react/20/solid'
 import clsx from 'clsx'
 
-import { EmptyState } from '@/components/agent-ops/empty-state'
+import { EmptyStatePanel } from '@/components/agent-ops/empty-state'
 import { surfaceCardClass } from '@/components/agent-ops/surface-card'
 import { ToolBadge } from '@/components/agent-ops/tool-badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
@@ -97,13 +97,11 @@ export function TestCaseTable({
 }) {
   if (cases.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
-        <EmptyState
-          icon={BeakerIcon}
-          title="No test cases yet"
-          description="This suite has no test cases. Add cases to evaluate this copilot's behavior."
-        />
-      </div>
+      <EmptyStatePanel
+        icon={BeakerIcon}
+        title="No test cases yet"
+        description="This suite has no test cases. Add cases to evaluate this copilot's behavior."
+      />
     )
   }
 

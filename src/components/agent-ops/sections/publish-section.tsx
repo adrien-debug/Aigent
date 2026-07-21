@@ -1,6 +1,6 @@
 import { ArrowUpCircleIcon } from '@heroicons/react/24/outline'
 
-import { EmptyState } from '@/components/agent-ops/empty-state'
+import { EmptyStatePanel } from '@/components/agent-ops/empty-state'
 import { GateHistoryFeed, type GateHistoryEvent } from '@/components/agent-ops/gate-history-feed'
 import { ReleaseCandidateCard } from '@/components/agent-ops/release-candidate-card'
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
@@ -33,18 +33,16 @@ export async function PublishSection({ copilotId }: { copilotId: string }) {
   // promote. Show an honest empty state pointing at the Improve loop.
   if (!releaseGate || releaseGate.candidateVersionId === copilot.productionVersionId) {
     return (
-      <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
-        <EmptyState
-          icon={ArrowUpCircleIcon}
-          title="No release candidate."
-          description="Run an improvement cycle to produce a candidate version, then its release gate appears here."
-          action={
-            <Button outline href={`/admin/agents/${id}/improve`}>
-              Go to Improve
-            </Button>
-          }
-        />
-      </div>
+      <EmptyStatePanel
+        icon={ArrowUpCircleIcon}
+        title="No release candidate."
+        description="Run an improvement cycle to produce a candidate version, then its release gate appears here."
+        action={
+          <Button outline href={`/admin/agents/${id}/improve`}>
+            Go to Improve
+          </Button>
+        }
+      />
     )
   }
 

@@ -3,7 +3,7 @@ import clsx from 'clsx'
 
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { AgentSectionCard, surfaceSectionClass, surfaceCardHeaderClass } from '@/components/agent-ops/surface-card'
-import { EmptyState } from '@/components/agent-ops/empty-state'
+import { EmptyStatePanel } from '@/components/agent-ops/empty-state'
 import { ReplayCandidatePicker, type ReplayCandidateItem } from '@/components/agent-ops/replay-candidate-picker'
 import { ChipCluster } from '@/components/agent-ops/widgets/chip-cluster'
 import { LinearMeter } from '@/components/agent-ops/widgets/linear-meter'
@@ -165,17 +165,15 @@ export async function ReplaySection({ copilotId }: { copilotId: string }) {
       </AgentSectionCard>
 
       {comparisons.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
-          <EmptyState
-            title="No replays yet"
-            description="Replay a production run to compare behavior before promoting. Candidates run against the recorded transcript — never against live users."
-            action={
-              <Button outline href={`/admin/agents/${id}/runs`}>
-                Browse production runs
-              </Button>
-            }
-          />
-        </div>
+        <EmptyStatePanel
+          title="No replays yet"
+          description="Replay a production run to compare behavior before promoting. Candidates run against the recorded transcript — never against live users."
+          action={
+            <Button outline href={`/admin/agents/${id}/runs`}>
+              Browse production runs
+            </Button>
+          }
+        />
       ) : (
         <div className="space-y-8">
           {comparisonItems.map(({ comparison, items }) => {

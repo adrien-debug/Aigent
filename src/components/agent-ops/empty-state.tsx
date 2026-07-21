@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 
 import { Subheading } from '@/components/catalyst/heading'
+import { surfaceRaised } from '@/components/catalyst/surface'
 import { Text } from '@/components/catalyst/text'
 
 /**
@@ -37,6 +38,33 @@ export function EmptyState({
         {description ? <Text className="mt-2 text-zinc-600">{description}</Text> : null}
         {action ? <div className="mt-6 flex flex-wrap justify-center gap-3">{action}</div> : null}
       </div>
+    </div>
+  )
+}
+
+/**
+ * EmptyStatePanel — `EmptyState` plus the surface it stands on.
+ *
+ * `EmptyState` deliberately owns no surface, which left every caller to write
+ * its own wrapper. Ten of them converged on the same hand-rolled string —
+ * `rounded-2xl border border-dashed border-white/5 bg-white/[0.01]` — a dashed
+ * hairline at 5% over a 1% fill. On the dark ground that is very close to
+ * invisible: the panel does not separate from the page, so a legitimately empty
+ * section reads as a rendering failure rather than a deliberate state.
+ *
+ * This wraps the same content in the real `surfaceRaised` plane, so an empty
+ * panel occupies the SAME visual slot as the populated panel it replaces —
+ * the page keeps its structure whether or not there is data. Use this whenever
+ * an empty state stands in for a card; use bare `EmptyState` only when the
+ * caller already provides a surface (e.g. inside an existing SurfaceCard).
+ */
+export function EmptyStatePanel({
+  className,
+  ...props
+}: React.ComponentProps<typeof EmptyState>) {
+  return (
+    <div className={surfaceRaised}>
+      <EmptyState {...props} className={className} />
     </div>
   )
 }

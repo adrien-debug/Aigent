@@ -4,7 +4,7 @@ import { BenchmarkComparisonTable } from '@/components/agent-ops/benchmark-compa
 import { BenchmarkRunSteps } from '@/components/agent-ops/benchmark-run-steps'
 import { BenchmarkScoreCard } from '@/components/agent-ops/benchmark-score-card'
 import { BenchmarkShootoutMatrix } from '@/components/agent-ops/benchmark-shootout-matrix'
-import { EmptyState } from '@/components/agent-ops/empty-state'
+import { EmptyStatePanel } from '@/components/agent-ops/empty-state'
 import { RunBenchmarkButton } from '@/components/agent-ops/run-benchmark-button'
 import { ChipCluster } from '@/components/agent-ops/widgets/chip-cluster'
 import { Button } from '@/components/catalyst/button'
@@ -93,12 +93,10 @@ export async function BenchmarksSection({ copilotId }: { copilotId: string }) {
           </AgentSectionCard>
 
           {rows.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
-              <EmptyState
-                title="No completed benchmark runs yet"
-                description="Run this suite against a candidate model to start ranking results."
-              />
-            </div>
+            <EmptyStatePanel
+              title="No completed benchmark runs yet"
+              description="Run this suite against a candidate model to start ranking results."
+            />
           ) : (
             <>
               <div>

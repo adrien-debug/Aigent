@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 
-import { EmptyState } from '@/components/agent-ops/empty-state'
 import { LiveRefresh } from '@/components/agent-ops/performance/live-refresh'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
 import { AdminPageHeader } from '@/components/agent-ops/surface-card'
@@ -9,6 +8,7 @@ import { TelemetryErrorBreakdown } from '@/components/agent-ops/telemetry/teleme
 import { TelemetryEventsTable } from '@/components/agent-ops/telemetry/telemetry-events-table'
 import { TelemetryHealthBanner } from '@/components/agent-ops/telemetry-health-banner'
 import { TelemetryKpiBand } from '@/components/agent-ops/telemetry/telemetry-kpi-band'
+import { TelemetryUnconfiguredState } from '@/components/agent-ops/telemetry/telemetry-unconfigured-state'
 import {
   countManifestsWithTelemetryDeclared,
   getCopilots,
@@ -20,7 +20,6 @@ import {
 } from '@/lib/agent-mission-control/runtime-telemetry-store'
 import { diagnoseTelemetryHealth } from '@/lib/agent-mission-control/telemetry-health'
 import type { Project } from '@/lib/agent-mission-control/types'
-import { SignalIcon } from '@heroicons/react/24/outline'
 
 export const dynamic = 'force-dynamic'
 
@@ -84,17 +83,14 @@ export default async function TelemetryPage() {
           description="Opt-in signal reported by delivered agents across every project — Aigent's only window into production traffic once an agent ships."
           actions={<LiveRefresh initialRefreshedAt={nowIso} />}
         />
-        <TelemetryHealthBanner diagnostic={telemetryHealth} />
+        {/* The banner is the one-line status; when there is no data at all the
+            unconfigured state below already carries that summary verbatim, so
+            showing both would print the same sentence twice. */}
+        {hasData ? <TelemetryHealthBanner diagnostic={telemetryHealth} /> : null}
         {hasData ? (
           <TelemetryKpiBand summary={summary} />
         ) : (
-          <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
-            <EmptyState
-              icon={SignalIcon}
-              title="No runtime telemetry yet"
-              description="Telemetry is opt-in from each delivered agent's runtime — this page fills in as soon as any agent, in any project, reports its first event."
-            />
-          </div>
+          <TelemetryUnconfiguredState diagnostic={telemetryHealth} />
         )}
       </StaggerFade>
 

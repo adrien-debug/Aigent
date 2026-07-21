@@ -1,7 +1,7 @@
 import { BoltIcon } from '@heroicons/react/24/outline'
 import type { Metadata } from 'next'
 
-import { EmptyState } from '@/components/agent-ops/empty-state'
+import { EmptyStatePanel } from '@/components/agent-ops/empty-state'
 import { ActivityChart } from '@/components/agent-ops/performance/activity-chart'
 import { AgentLeaderboard } from '@/components/agent-ops/performance/agent-leaderboard'
 import { FleetKpiBand } from '@/components/agent-ops/performance/fleet-kpi-band'
@@ -71,13 +71,13 @@ export default async function PerformancePage() {
           nowIso={nowIso}
         />
       ) : (
-        <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
-          <EmptyState
-            icon={BoltIcon}
-            title="No runs recorded"
-            description="Runs appear here as soon as agents serve traffic in any project."
-          />
-        </div>
+        // Same surface as the table it stands in for, so the page keeps its
+        // structure with or without runs.
+        <EmptyStatePanel
+          icon={BoltIcon}
+          title="No runs recorded"
+          description="Runs appear here as soon as agents serve traffic in any project. This reflects recorded runs only — it is not evidence that agents are idle."
+        />
       )}
     </div>
   )

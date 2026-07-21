@@ -2,7 +2,7 @@ import { SignalIcon, BoltIcon, ExclamationTriangleIcon, CheckCircleIcon, PauseCi
 import clsx from 'clsx'
 import { notFound } from 'next/navigation'
 
-import { EmptyState } from '@/components/agent-ops/empty-state'
+import { EmptyStatePanel } from '@/components/agent-ops/empty-state'
 import { RunCopilotPanel } from '@/components/agent-ops/run-copilot-panel'
 import { COST_ESTIMATE_TOOLTIP, RunDetailPanel, RunModelValue } from '@/components/agent-ops/run-detail-panel'
 import { RunLatencyChart } from '@/components/agent-ops/run-latency-chart'
@@ -89,19 +89,17 @@ export default async function RunsPage({
       <RunCopilotPanel copilotId={id} copilotName={copilot.name} copilotSlug={copilot.slug} copilotTags={copilot.tags} />
 
       {runs.length === 0 || !selectedRun ? (
-        <div className="rounded-2xl border border-white/5 border-dashed bg-white/[0.01]">
-          <EmptyState
-            icon={SignalIcon}
-            title="No runs yet"
-            description={`This copilot hasn't served any production traffic. Send it a real ad hoc run from the "Run ${copilot.name}" panel above.`}
-            action={
-              <Button outline href={`/admin/agents/${id}/tests`}>
-                Go to tests
-              </Button>
-            }
-            className="py-24"
-          />
-        </div>
+        <EmptyStatePanel
+          icon={SignalIcon}
+          title="No runs yet"
+          description={`This copilot hasn't served any production traffic. Send it a real ad hoc run from the "Run ${copilot.name}" panel above.`}
+          action={
+            <Button outline href={`/admin/agents/${id}/tests`}>
+              Go to tests
+            </Button>
+          }
+          className="py-24"
+        />
       ) : (
         <>
           <div className="flex flex-col gap-4">
