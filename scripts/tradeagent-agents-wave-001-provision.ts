@@ -1,13 +1,9 @@
 /**
  * TRADEAGENT-AGENTS-WAVE-001 — provision the two TradeAgent business copilots.
  *
- * Run: node --env-file=.env.local npx tsx --conditions=react-server \
+ * Run: npx tsx --env-file=.env.local --conditions=react-server \
  *        scripts/tradeagent-agents-wave-001-provision.ts
  */
-
-import { createHash } from 'node:crypto'
-
-import { Client } from '@langchain/langgraph-sdk'
 
 import { createCopilotFromManifest } from '../src/lib/agent-mission-control/authoring-writes'
 import { pgrest } from '../src/lib/agent-mission-control/postgrest'
@@ -19,8 +15,6 @@ const TARGET_PROJECT_ID = 'proj-tradeagent'
 const MODEL = 'gpt-5.4'
 const APP_BASE = `http://127.0.0.1:${Number(process.env.AIGENT_DEV_PORT) || 3210}`
 const AMC_KEY = process.env.AMC_API_KEY
-const AGENT_URL = process.env.LANGGRAPH_API_URL || 'http://127.0.0.1:2024'
-const AGENT_KEY = process.env.LANGGRAPH_SERVER_SECRET?.trim()
 
 const WAVE_AGENTS = [
   {
@@ -60,11 +54,6 @@ const WAVE_AGENTS = [
   },
 ] as const
 
-function toolId(copilotId: string, toolName: string): string {
-  const digest = createHash('sha256').update(`${copilotId}:${toolName}`).digest('hex').slice(0, 8)
-  return `tool-${toolName.replaceAll('_', '-')}-${digest}`
-}
-
 function proposedTools(toolNames: readonly string[]): ProposedTool[] {
   return toolNames.map((name) => {
     const definition = MARKET_TOOL_DEFINITIONS[name as keyof typeof MARKET_TOOL_DEFINITIONS]
@@ -95,35 +84,10 @@ async function reprovision(copilotId: string, projectId: string): Promise<void> 
   }
 }
 
-async function wireTools(copilotId: string, toolNames: readonly string[]): Promise<void> {
-  const toolRows = toolNames.map((name) => ({
-    id: toolId(copilotId, name),
-    copilot_id: copilotId,
-    name,
-    description:
-      MARKET_TOOL_DEFINITIONS[name as keyof typeof MARKET_TOOL_DEFINITIONS]?.description ??
-      TRADING_TOOL_DESCRIPTIONS[name] ??
-      `Read-only market tool ${name}.`,
-    provider: 'internal',
-    risk_level: 'low',
-    enabled: true,
-    requires_confirmation: false,
-    mutates: false,
-    scoped_routes: [],
-  }))
-  await pgrest('POST', 'tools?on_conflict=id', toolRows, 'resolution=merge-duplicates,return=representation')
-  await pgrest(
-    'PATCH',
-    `tools?copilot_id=eq.${encodeURIComponent(copilotId)}&name=not.in.(${toolNames.join(',')})`,
-    { enabled: false },
-    'return=minimal',
-  )
-}
-
 async function ensureCopilot(agent: (typeof WAVE_AGENTS)[number]): Promise<string> {
-  const existing = await pgrest<Array<{ id: string; project_id: string | null }>>(
+  const existing = await pgrest<Array<{ id: string }>>(
     'GET',
-    `copilots?slug=eq.${encodeURIComponent(agent.slug)}&select=id,project_id`,
+    `copilots?slug=eq.${encodeURIComponent(agent.slug)}&select=id`,
   )
   if (existing[0]?.id) return existing[0].id
 
@@ -159,22 +123,11 @@ async function ensureCopilot(agent: (typeof WAVE_AGENTS)[number]): Promise<strin
 }
 
 async function main() {
-  if (!AGENT_KEY) throw new Error('LANGGRAPH_SERVER_SECRET is required')
-  const client = new Client({ apiUrl: AGENT_URL, defaultHeaders: { 'x-agent-key': AGENT_KEY } })
   const results: Array<{ slug: string; copilotId: string }> = []
 
   for (const agent of WAVE_AGENTS) {
     const copilotId = await ensureCopilot(agent)
-    await wireTools(copilotId, agent.toolNames)
     await reprovision(copilotId, TARGET_PROJECT_ID)
-    const rows = await pgrest<Array<{ assistant_id: string | null }>>(
-      'GET',
-      `copilots?id=eq.${encodeURIComponent(copilotId)}&select=assistant_id`,
-    )
-    const assistantId = rows[0]?.assistant_id
-    if (assistantId) {
-      await client.assistants.get(assistantId)
-    }
     results.push({ slug: agent.slug, copilotId })
     console.log(`provisioned ${agent.slug} -> ${copilotId}`)
   }
