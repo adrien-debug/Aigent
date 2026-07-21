@@ -17,15 +17,15 @@ import { Text } from '@/components/catalyst/text'
 
 /** Level 2 — section panels (Projects, tables, workbench). MUST be secondary. */
 export const surfaceSectionClass =
-  'flex flex-col rounded-[2rem] bg-[var(--color-surface-secondary)] ring-1 ring-white/[0.02] shadow-sm overflow-hidden'
+  'flex flex-col rounded-2xl bg-[var(--color-surface-secondary)] ring-1 ring-zinc-950/5 shadow-sm overflow-hidden'
 
 /** Level 3 — interactive business objects (project row, agent card, KV tile). */
 export const surfaceItemClass =
-  'rounded-xl bg-[var(--color-surface-elevated)] ring-1 ring-white/[0.05] shadow-sm shadow-black/40'
+  'rounded-xl bg-[var(--color-surface-elevated)] ring-1 ring-zinc-950/5 shadow-sm shadow-black/5'
 
 /** Navigation chrome — sidebar rail; quieter than sections (primary, not secondary). */
 export const surfaceNavClass =
-  'rounded-2xl bg-[var(--color-surface-primary)] ring-1 ring-white/[0.03] overflow-hidden'
+  'rounded-2xl bg-[var(--color-surface-primary)] ring-1 ring-zinc-950/5 overflow-hidden'
 
 /** Backward-compatible alias — prefer `surfaceSectionClass` for new code. */
 export const surfaceCardClass = surfaceSectionClass
@@ -41,7 +41,7 @@ export const surfaceSectionHeaderClass =
  * surrounding geometry (min-height, margin). `zinc-400` clears WCAG AA at this
  * size on both the black canvas and a section fill; `zinc-500` does not.
  */
-export const eyebrowClass = 'text-[10px] font-medium uppercase tracking-widest text-zinc-400'
+export const eyebrowClass = 'text-[10px] font-medium uppercase tracking-widest text-zinc-500'
 
 /** @deprecated alias */
 export const surfaceCardHeaderClass = surfaceSectionHeaderClass
@@ -50,7 +50,7 @@ export const surfaceCardFooterClass = 'pt-3'
 
 /** Subtle inset within a section — not a full nested card. */
 export const surfaceInsetClass =
-  'rounded-xl bg-[var(--color-surface-canvas)]/40 ring-1 ring-white/[0.02]'
+  'rounded-xl bg-zinc-50 ring-1 ring-zinc-950/5'
 
 export function SurfaceCard({
   children,
@@ -85,10 +85,10 @@ export function SurfaceCardHeader({
   return (
     <div className={clsx(surfaceSectionHeaderClass, className)}>
       <div className="min-w-0">
-        <Subheading level={2} tone="neutral" className="tracking-tight text-white">
+        <Subheading level={2} tone="neutral" className="tracking-tight text-zinc-900">
           {title}
         </Subheading>
-        {description ? <Text className="mt-1 tracking-tight">{description}</Text> : null}
+        {description ? <Text className="mt-1 tracking-tight text-zinc-600">{description}</Text> : null}
       </div>
       {meta ?? actions ? (
         <div className="flex shrink-0 items-center gap-3">
@@ -123,9 +123,9 @@ export function AdminPageHeader({
         <div className="min-w-0">
           {eyebrow ? <p className={eyebrowClass}>{eyebrow}</p> : null}
           {/* Canon DS: Catalyst Heading = text-2xl/8 (24px). Never text-3xl. */}
-          <Heading className={clsx(eyebrow ? 'mt-1' : undefined, 'tracking-tight')}>{title}</Heading>
+          <Heading className={clsx(eyebrow ? 'mt-1' : undefined, 'tracking-tight text-zinc-900')}>{title}</Heading>
           {description ? (
-            <Text className="mt-1.5 max-w-3xl tracking-tight">{description}</Text>
+            <Text className="mt-1.5 max-w-3xl tracking-tight text-zinc-600">{description}</Text>
           ) : null}
         </div>
         {actions ? <div className="flex shrink-0 items-center gap-3">{actions}</div> : null}

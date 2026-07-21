@@ -42,16 +42,16 @@ function ActionRow({ item, focus }: { item: ActionItem; focus: boolean }) {
     <li
       className={clsx(
         'group flex gap-3 px-4 py-3 transition-colors duration-150 hover:bg-[var(--color-surface-focus)]',
-        focus && 'border-l-2 border-accent-400 bg-white/[0.02] pl-3.5'
+        focus && 'border-l-2 border-accent-600 bg-zinc-50 pl-3.5'
       )}
     >
       <Icon
         aria-hidden="true"
-        className="mt-0.5 size-5 shrink-0 text-zinc-500 transition-colors duration-150 group-hover:text-zinc-400"
+        className="mt-0.5 size-5 shrink-0 text-zinc-400 transition-colors duration-150 group-hover:text-zinc-500"
       />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="flex items-center gap-2">
-          <p className="min-w-0 flex-1 truncate text-sm font-medium text-white">{item.title}</p>
+          <p className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-900">{item.title}</p>
           <Badge color={tone} className="uppercase tracking-widest">
             {item.status}
           </Badge>
@@ -62,7 +62,7 @@ function ActionRow({ item, focus }: { item: ActionItem; focus: boolean }) {
             plain
             href={item.href}
             aria-label={`${item.buttonLabel}: ${item.title}`}
-            className="shrink-0"
+            className="shrink-0 text-zinc-600 hover:text-zinc-900"
             {...linkProps}
           >
             {item.buttonLabel}
@@ -89,7 +89,7 @@ export function ActionCenter({ items }: { items: ActionItem[] }) {
         }
       />
       {sorted.length > 0 ? (
-        <ul className="flex flex-col divide-y divide-white/5 pb-2">
+        <ul className="flex flex-col divide-y divide-zinc-950/5 pb-2">
           {sorted.map((item, i) => (
             <ActionRow key={item.id} item={item} focus={i === 0} />
           ))}
