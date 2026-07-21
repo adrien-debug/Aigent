@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { getAvailableAgents } from '@/lib/agent-mission-control/available-agents'
+import { getAvailableAgents, summarizeAvailableAgents } from '@/lib/agent-mission-control/available-agents'
 import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 
 /**
@@ -40,7 +40,9 @@ export async function GET() {
 
   try {
     const agents = await getAvailableAgents()
-    return NextResponse.json({ agents })
+    // Counters come from the served array itself — never a second query, so the
+    // summary cannot contradict the list it summarises.
+    return NextResponse.json({ agents, summary: summarizeAvailableAgents(agents) })
   } catch (err) {
     // Full error server-side only — the thrown message can carry PostgREST internals.
     console.error('[agent-ops/agents] catalogue load failed:', err)

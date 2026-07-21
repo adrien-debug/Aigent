@@ -340,6 +340,38 @@ export async function getAvailableAgent(copilotId: string): Promise<AvailableAge
   return agents.find((a) => a.copilotId === copilotId)
 }
 
+/**
+ * Counters derived from the SAME list the catalogue serves.
+ *
+ * This is the whole point: a metric computed from a second, independent query
+ * can silently drift from what the list shows — and a metric computed from
+ * manifests or roster files counts agents that were never provisioned. Passing
+ * the already-resolved array in makes the two structurally incapable of
+ * disagreeing.
+ *
+ * `withProvenExecutedModel` is deliberately not called "verified agents": it
+ * counts the agents whose LAST RUN proved the model it executed. Every other
+ * agent is simply unproven, which is a different claim from "wrong".
+ */
+export function summarizeAvailableAgents(agents: AvailableAgent[]): {
+  total: number
+  active: number
+  inactive: number
+  degraded: number
+  unavailable: number
+  withProvenExecutedModel: number
+} {
+  const by = (s: AvailableAgentStatus) => agents.filter((a) => a.status === s).length
+  return {
+    total: agents.length,
+    active: by('active'),
+    inactive: by('inactive'),
+    degraded: by('degraded'),
+    unavailable: by('unavailable'),
+    withProvenExecutedModel: agents.filter((a) => a.executedModel !== null).length,
+  }
+}
+
 // `RawRow` is exported-adjacent only for the transport typing above; keep the
-// module surface to the contract + the two readers.
+// module surface to the contract + the two readers + the summary.
 export type { RawRow }
