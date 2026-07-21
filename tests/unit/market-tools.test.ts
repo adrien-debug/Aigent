@@ -71,11 +71,11 @@ describe('trading tools — fixture-backed, read-only, truth-aware', () => {
     ).toBe('down')
   })
 
-  it('account risk is ALWAYS UNAVAILABLE — capital is never fabricated', async () => {
-    const r = await readAccountRiskSnapshot(JSON.stringify({ pair: 'ETHUSDT' }))
+  it('account risk requires an explicit account and never selects one implicitly', async () => {
+    const r = await readAccountRiskSnapshot('{}')
     expect(r.ok).toBe(false)
     expect((r.data as { accountRisk: null }).accountRisk).toBeNull()
-    expect(r.summary).toMatch(/never fabricated/i)
+    expect((r.data as { account_required: boolean }).account_required).toBe(true)
   })
 
   it('liquidity + funding are UNAVAILABLE on a candle-only fixture', async () => {
@@ -94,10 +94,11 @@ describe('trading tools — fixture-backed, read-only, truth-aware', () => {
     expect((r.data as { note: string }).note).toMatch(/context only/i)
   })
 
-  it('registry exposes exactly the 8 mission tools', () => {
+  it('registry exposes exactly the 9 mission tools', () => {
     expect(Object.keys(TRADING_TOOL_HANDLERS).sort()).toEqual(
       [
         'read_account_risk_snapshot',
+        'read_derivatives_snapshot',
         'read_funding_open_interest',
         'read_liquidity_snapshot',
         'read_macro_context',

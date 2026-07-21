@@ -19,12 +19,16 @@ export const MARKET_TOOL_DEFINITIONS = Object.freeze({
     description: 'Live Binance order-book spread, depth and imbalance snapshot.',
     mutates: false,
   },
+  read_derivatives_snapshot: {
+    description: 'Live public Binance Futures BTCUSDT funding, open interest, basis, volume, positioning ratio and deterministic derivatives regime.',
+    mutates: false,
+  },
   read_macro_context: {
     description: 'Read-only BTC and ETH market context with truth provenance.',
     mutates: false,
   },
   read_account_risk_snapshot: {
-    description: 'Read-only account risk snapshot; unavailable when no source exists.',
+    description: 'Exact TradeAgent account snapshot plus deterministic 0–100 risk and withdrawal impact; accountId is required.',
     mutates: false,
   },
 })
@@ -66,10 +70,11 @@ export const PROMOTED_MARKET_AGENTS = Object.freeze([
       'read_market_snapshot',
       'read_volatility_state',
       'read_liquidity_snapshot',
+      'read_derivatives_snapshot',
     ],
-    scenario: 'Produis une lecture de risque compte et marché en lecture seule. Utilise les outils disponibles, signale explicitement toute donnée compte indisponible et n’invente aucun capital.',
+    scenario: 'Analyse le risque complet du compte explicitement fourni en lecture seule. Utilise les cinq outils, explique le score déterministe et ne déclenche aucune action.',
     systemPromptSummary:
-      'Portfolio Risk & Lock Advisor produit une lecture strictement read-only du risque compte et marché avec les outils fournis. Il consulte le risque compte, le snapshot, la volatilité et la liquidité; si le capital ou les expositions sont indisponibles, il les marque UNAVAILABLE et ne les estime jamais. Il ne modifie aucun portefeuille, verrou, position ou transaction.',
+      'Portfolio Risk & Lock Advisor produit une analyse strictement read-only. Il DOIT appeler read_account_risk_snapshot avec l’accountId exact fourni, puis read_market_snapshot, read_volatility_state, read_liquidity_snapshot et read_derivatives_snapshot. Il restitue summary, risk_score, risk_level, primary_risks, market_context, account_context, lock_recommendation parmi no_action/monitor/reduce_exposure/increase_collateral/lock_withdrawals/manual_review, required_human_action et unavailable_data. Il explique le score déterministe sans le recalculer ni inventer de capital. Il ne modifie jamais portefeuille, verrou, position ou transaction et toute recommandation exige une décision humaine.',
   },
   {
     id: 'copilot-source-reliability-price-trust-sentinel-draft-bd973545-fe8f01c3',
@@ -92,9 +97,10 @@ export const PROMOTED_MARKET_AGENTS = Object.freeze([
       'read_market_snapshot',
       'read_volatility_state',
       'read_liquidity_snapshot',
+      'read_derivatives_snapshot',
     ],
-    scenario: 'Produis une revue read-only d’un retrait hypothétique de 1 ETH sans jamais l’exécuter. Utilise les outils disponibles et signale les données compte indisponibles.',
+    scenario: 'Évalue un retrait USD explicitement demandé pour le compte fourni, sans jamais l’exécuter. Utilise les cinq outils et restitue l’impact déterministe.',
     systemPromptSummary:
-      'Withdrawal Review Copilot pré-instruit un retrait en lecture seule pour revue humaine. Il utilise le risque compte, le snapshot, la volatilité et la liquidité sans jamais approuver, rejeter ou exécuter le retrait. Toute donnée compte absente reste UNAVAILABLE; aucun capital, solde ou risque n’est inventé. La réponse sépare faits, limites, risque et recommandation de revue humaine.',
+      'Withdrawal Review Copilot pré-instruit un retrait en lecture seule pour revue humaine. Il DOIT appeler read_account_risk_snapshot avec accountId et requestedWithdrawalUsd exacts, puis read_market_snapshot, read_volatility_state, read_liquidity_snapshot et read_derivatives_snapshot. Il restitue recommendation parmi approve_for_manual_execution/reduce_amount/defer/reject_for_risk/insufficient_data, requested_amount, safe_amount, impact_on_ltv, impact_on_liquidation_buffer, liquidity_impact, market_risk, reasons, unavailable_data et human_review_required=true. Il reprend le calcul déterministe sans inventer. Il ne peut jamais exécuter un retrait, signer, modifier un wallet, écrire un ledger ou appeler un outil mutatif.',
   },
 ])

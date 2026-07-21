@@ -12,7 +12,7 @@ import clsx from 'clsx'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import { Badge } from '@/components/catalyst/badge'
-import { Button } from '@/components/catalyst/button'
+import { Link } from '@/components/catalyst/link'
 import type { ActionItem, ActionItemKind } from '@/lib/agent-mission-control/dashboard-overview'
 
 function isExternalHref(href: string): boolean {
@@ -32,7 +32,7 @@ const KIND_ICON: Record<ActionItemKind, React.ComponentType<React.ComponentProps
 /** Kinds where the severity earns the accent dot; everything else recedes to zinc. */
 const ACCENT_KINDS = new Set<ActionItemKind>(['ready_manual', 'mission_blocked', 'release_gate_red'])
 
-function ActionRow({ item, focus }: { item: ActionItem; focus: boolean }) {
+function ActionRow({ item }: { item: ActionItem }) {
   const Icon = KIND_ICON[item.kind]
   const external = isExternalHref(item.href)
   const tone: 'accent' | 'zinc' = ACCENT_KINDS.has(item.kind) ? 'accent' : 'zinc'
@@ -40,34 +40,30 @@ function ActionRow({ item, focus }: { item: ActionItem; focus: boolean }) {
 
   return (
     <li
-      className={clsx(
-        'group flex gap-3 px-4 py-3 transition-colors duration-150 hover:bg-[var(--color-surface-focus)]',
-        focus && 'border-l-2 border-accent-400 bg-white/[0.02] pl-3.5'
-      )}
+      className="group flex gap-3 px-4 py-3 border-b border-zinc-950/5 last:border-b-0 transition-colors duration-150 hover:bg-[var(--color-surface-focus)]"
     >
       <Icon
         aria-hidden="true"
-        className="mt-0.5 size-5 shrink-0 text-zinc-500 transition-colors duration-150 group-hover:text-zinc-400"
+        className="mt-0.5 size-5 shrink-0 text-zinc-400 transition-colors duration-150 group-hover:text-zinc-500"
       />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="flex items-center gap-2">
-          <p className="min-w-0 flex-1 truncate text-sm font-medium text-white">{item.title}</p>
+          <p className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-900">{item.title}</p>
           <Badge color={tone} className="uppercase tracking-widest">
             {item.status}
           </Badge>
         </div>
         <div className="flex items-center justify-between gap-3">
           <p className="min-w-0 truncate font-mono text-xs text-zinc-500">{item.meta}</p>
-          <Button
-            plain
+          <Link
             href={item.href}
             aria-label={`${item.buttonLabel}: ${item.title}`}
-            className="shrink-0"
+            className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900"
             {...linkProps}
           >
             {item.buttonLabel}
-            <ChevronRightIcon data-slot="icon" aria-hidden="true" />
-          </Button>
+            <ChevronRightIcon className="size-3.5" aria-hidden="true" />
+          </Link>
         </div>
       </div>
     </li>
@@ -89,9 +85,9 @@ export function ActionCenter({ items }: { items: ActionItem[] }) {
         }
       />
       {sorted.length > 0 ? (
-        <ul className="flex flex-col divide-y divide-white/5 pb-2">
-          {sorted.map((item, i) => (
-            <ActionRow key={item.id} item={item} focus={i === 0} />
+        <ul className="flex flex-col border-t border-zinc-950/5">
+          {sorted.map((item) => (
+            <ActionRow key={item.id} item={item} />
           ))}
         </ul>
       ) : (

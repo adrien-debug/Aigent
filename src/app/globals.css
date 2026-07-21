@@ -50,55 +50,37 @@
   --color-accent-900: #1c4f15;
   --color-accent-950: #0b2809;
 
-  --color-surface-canvas: #000000;
-  --color-surface-primary: #09090b;
-  --color-surface-secondary: #121214;
-  --color-surface-interactive: #18181b;
-  --color-surface-elevated: #1f1f22;
-  --color-surface-focus: #27272a;
+  --color-surface-canvas: #f8fafc;
+  --color-surface-primary: #ffffff;
+  --color-surface-secondary: #ffffff;
+  --color-surface-interactive: #f1f5f9;
+  --color-surface-elevated: #ffffff;
+  --color-surface-focus: #f8fafc;
 }
 
 :root {
-  /* The 1px separator used on elevated chrome (canvas controls, minimap frame).
-     Tokenised so surfaces that live outside Tailwind's class layer — third-party
-     widgets styled through a raw stylesheet — reference the same hairline as
-     `border-white/5` instead of restating a colour literal. */
-  --color-hairline: rgb(255 255 255 / 5%);
+  --color-hairline: rgb(9 9 11 / 5%);
+  --color-minimap-mask: rgb(255 255 255 / 65%);
 
-  /* Dim wash the minimap paints over the off-viewport part of a graph. */
-  --color-minimap-mask: rgb(0 0 0 / 65%);
+  --accent-soft: color-mix(in oklab, var(--color-accent-600) 10%, transparent);
+  --accent-surface: color-mix(in oklab, var(--color-accent-600) 15%, transparent);
+  --accent-line: color-mix(in oklab, var(--color-accent-700) 40%, transparent);
+  --accent-line-strong: color-mix(in oklab, var(--color-accent-700) 60%, transparent);
 
-  --accent-soft: color-mix(in oklab, var(--color-accent-500) 8%, transparent);
-  --accent-surface: color-mix(in oklab, var(--color-accent-500) 12%, transparent);
-  --accent-line: color-mix(in oklab, var(--color-accent-500) 25%, transparent);
-  --accent-line-strong: color-mix(in oklab, var(--color-accent-400) 40%, transparent);
-
-  /* Text-selection highlight (::selection) — brighter than a surface wash so
-     selected text stays legible against it. Consumed via `selection:bg-[…]`. */
-  --accent-selection: color-mix(in oklab, var(--color-accent-500) 30%, transparent);
-  /* Graph-node emphasis (project My Team canvas) — the active/selected node
-     rings must stay readable on the dark canvas, so they carry more accent than
-     the generic `--accent-line-strong` selection ring. */
-  --accent-node-active: color-mix(in oklab, var(--color-accent-500) 70%, transparent);
-  --accent-node-selected: color-mix(in oklab, var(--color-accent-400) 80%, transparent);
+  --accent-selection: color-mix(in oklab, var(--color-accent-600) 30%, transparent);
+  --accent-node-active: color-mix(in oklab, var(--color-accent-600) 80%, transparent);
+  --accent-node-selected: var(--color-accent-800);
 }
 
 :root {
-  --chart-series: var(--color-zinc-500);
-  --chart-success: var(--color-accent-500);
-  --chart-tick: var(--color-zinc-500);
+  --chart-series: var(--color-zinc-400);
+  --chart-success: var(--color-accent-600);
+  --chart-tick: var(--color-zinc-400);
   --chart-grid: rgba(9, 9, 11, 0.05);
 }
 
-.dark {
-  --chart-series: var(--color-zinc-400);
-  --chart-success: var(--color-accent-400);
-  --chart-tick: var(--color-zinc-500);
-  --chart-grid: rgba(255, 255, 255, 0.05);
-}
-
 body {
-  @apply bg-[var(--color-surface-canvas)] text-zinc-100 overflow-x-hidden antialiased;
+  @apply bg-[var(--color-surface-canvas)] text-zinc-900 overflow-x-hidden antialiased;
 }
 
 @utility no-scrollbar {

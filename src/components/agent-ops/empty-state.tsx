@@ -30,11 +30,11 @@ export function EmptyState({
   return (
     <div className={clsx('px-6 py-12', className)}>
       <div className="mx-auto max-w-md text-center">
-        {Icon ? <Icon aria-hidden="true" className="mx-auto size-10 text-zinc-400 dark:text-zinc-600" /> : null}
-        <Subheading tone="neutral" className={clsx(Icon && 'mt-4')}>
+        {Icon ? <Icon aria-hidden="true" className="mx-auto size-10 text-zinc-500" /> : null}
+        <Subheading tone="neutral" className={clsx(Icon && 'mt-4', 'text-zinc-900')}>
           {title}
         </Subheading>
-        {description ? <Text className="mt-2">{description}</Text> : null}
+        {description ? <Text className="mt-2 text-zinc-600">{description}</Text> : null}
         {action ? <div className="mt-6 flex flex-wrap justify-center gap-3">{action}</div> : null}
       </div>
     </div>
@@ -51,7 +51,7 @@ export function EmptyState({
  */
 export function NotMeasuredDash() {
   return (
-    <span className="text-zinc-500">
+    <span className="text-zinc-400">
       <span aria-hidden="true">—</span>
       <span className="sr-only">not measured</span>
     </span>

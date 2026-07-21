@@ -17,6 +17,7 @@ const EXPECTED_MARKET_TOOLS = [
   'read_market_structure',
   'read_multi_timeframe_candles',
   'read_liquidity_snapshot',
+  'read_derivatives_snapshot',
   'read_macro_context',
   'read_account_risk_snapshot',
 ]
@@ -29,7 +30,7 @@ afterEach(() => {
 })
 
 describe('LangGraph market read tools', () => {
-  it('resolves all seven canonical names to executable registry tools', () => {
+  it('resolves all eight canonical names to executable registry tools', () => {
     expect([...MARKET_TOOL_IDS]).toEqual(EXPECTED_MARKET_TOOLS)
     expect(REGISTRY_IDS).toEqual(expect.arrayContaining(EXPECTED_MARKET_TOOLS))
     for (const name of EXPECTED_MARKET_TOOLS) {
@@ -117,6 +118,7 @@ describe('LangGraph market read tools', () => {
         'read_market_snapshot',
         'read_volatility_state',
         'read_liquidity_snapshot',
+        'read_derivatives_snapshot',
       ],
       'Source Reliability & Price Trust Sentinel': [
         'read_market_snapshot',
@@ -129,6 +131,7 @@ describe('LangGraph market read tools', () => {
         'read_market_snapshot',
         'read_volatility_state',
         'read_liquidity_snapshot',
+        'read_derivatives_snapshot',
       ],
     })
   })

@@ -168,7 +168,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
   const activeItem = NAV_ITEMS.find((item) => item.match(pathname))
 
   return (
-    <div className="relative isolate flex min-h-svh w-full bg-[var(--color-surface-canvas)] text-zinc-100 font-sans selection:bg-[var(--accent-selection)]">
+    <div className="relative isolate flex min-h-svh w-full bg-[var(--color-surface-canvas)] text-zinc-900 font-sans selection:bg-[var(--accent-selection)]">
       <CommandPalette />
 
       {/* Sidebar - compact icon rail */}
@@ -211,10 +211,10 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Mobile top bar */}
-      <header className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between gap-3 border-b border-white/5 bg-[var(--color-surface-secondary)] px-4 py-3 lg:hidden">
+      <header className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between gap-3 border-b border-zinc-950/5 bg-[var(--color-surface-secondary)] px-4 py-3 lg:hidden">
         <Link href="/admin" aria-label="Agent Mission Control" className="flex min-w-0 items-center gap-2.5">
-          <LogoMark className="size-5 shrink-0 text-white" />
-          <span className="truncate text-sm font-semibold text-white">Aigent</span>
+          <LogoMark className="size-5 shrink-0 text-zinc-900" />
+          <span className="truncate text-sm font-semibold text-zinc-900">Aigent</span>
         </Link>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -264,7 +264,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+3.75rem)] overflow-hidden rounded-2xl ring-1 ring-white/5 bg-[var(--color-surface-secondary)] p-2"
+              className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+3.75rem)] overflow-hidden rounded-2xl ring-1 ring-zinc-950/5 bg-[var(--color-surface-secondary)] p-2 shadow-xl"
             >
               <div className="flex flex-col gap-1">
                 {NAV_ITEMS.map(({ label, icon, href, match }) => (
@@ -279,9 +279,9 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
                 ))}
               </div>
 
-              <div className="mt-2 flex items-center gap-3 border-t border-white/[0.04] px-3 pb-1 pt-3">
+              <div className="mt-2 flex items-center gap-3 border-t border-zinc-950/5 px-3 pb-1 pt-3">
                 <UserFooter avatarSize="size-7" iconWrapClassName="size-11" iconIdleColorClassName="text-zinc-500">
-                  <span className="flex-1 truncate text-sm font-medium text-zinc-300">Adrien</span>
+                  <span className="flex-1 truncate text-sm font-medium text-zinc-900">Adrien</span>
                 </UserFooter>
               </div>
             </motion.nav>

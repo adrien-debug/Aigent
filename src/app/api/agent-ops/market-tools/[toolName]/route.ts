@@ -8,6 +8,7 @@ const LANGGRAPH_MARKET_TOOL_IDS = new Set([
   'read_market_structure',
   'read_multi_timeframe_candles',
   'read_liquidity_snapshot',
+  'read_derivatives_snapshot',
   'read_macro_context',
   'read_account_risk_snapshot',
 ])

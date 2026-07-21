@@ -68,9 +68,9 @@ export function DashboardKpiStrip({ kpis }: { kpis: DashboardKpis }) {
 export function DashboardDataWarnings({ warnings }: { warnings: string[] }) {
   if (warnings.length === 0) return null
   return (
-    <div className="flex items-start gap-2 border-b border-white/5 pb-3">
-      <ExclamationTriangleIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-accent-400" />
-      <ul className="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
+    <div className="flex items-start gap-2 border-b border-zinc-950/5 pb-3">
+      <ExclamationTriangleIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-accent-600" />
+      <ul className="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-600">
         {warnings.map((w) => (
           <li key={w} className="font-mono">{w}</li>
         ))}

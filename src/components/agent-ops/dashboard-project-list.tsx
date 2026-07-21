@@ -23,7 +23,7 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
         <div className="max-h-[34rem] overflow-auto no-scrollbar">
           <Table className="min-w-[560px] w-full border-collapse px-4 text-left [--gutter:--spacing(0)]">
             <TableHead className="sticky top-0 z-10 bg-[var(--color-surface-secondary)]">
-              <TableRow className="border-b border-white/5">
+              <TableRow className="border-b border-zinc-950/5">
                 <TableHeader>Project</TableHeader>
                 <TableHeader className="text-right">Copilots</TableHeader>
                 <TableHeader className="text-right">Success</TableHeader>
@@ -31,7 +31,7 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
                 <TableHeader className="text-right">Status</TableHeader>
               </TableRow>
             </TableHead>
-            <TableBody className="divide-y divide-white/5">
+            <TableBody className="divide-y divide-zinc-950/5">
               {projects.map((project) => {
                 const hasWarnings = project.openWarnings > 0
                 const cost = project.runsLast24h > 0 ? formatUsd(project.costLast24hUsd) : '—'
@@ -44,24 +44,24 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
                           src={project.imageUrl ?? project.logoUrl}
                           initials={project.imageUrl || project.logoUrl ? undefined : project.name.slice(0, 2)}
                           alt=""
-                          className="size-8 shrink-0 bg-black/40 text-white ring-1 ring-white/10"
+                          className="size-8 shrink-0 bg-zinc-100 text-zinc-900 ring-1 ring-zinc-950/10"
                         />
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-medium text-white group-hover:underline">{project.name}</div>
+                          <div className="truncate text-sm font-medium text-zinc-900 group-hover:underline">{project.name}</div>
                           <div className="truncate font-mono text-[10px] text-zinc-500">
                             {project.repoFullName ?? 'no repo linked'}
                           </div>
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="py-2 text-right font-mono text-xs tabular-nums text-zinc-300">
-                      {project.activeCount}<span className="text-zinc-600"> / {project.copilotCount}</span>
+                    <TableCell className="py-2 text-right font-mono text-xs tabular-nums text-zinc-600">
+                      {project.activeCount}<span className="text-zinc-400"> / {project.copilotCount}</span>
                     </TableCell>
-                    <TableCell className="py-2 text-right font-mono text-xs tabular-nums text-zinc-300">
+                    <TableCell className="py-2 text-right font-mono text-xs tabular-nums text-zinc-600">
                       {project.passRate === null ? '—' : formatPercent(project.passRate)}
                     </TableCell>
                     <TableCell className="py-2 text-right">
-                      <div className="font-mono text-xs tabular-nums text-zinc-300">{project.runsLast24h.toLocaleString()} runs</div>
+                      <div className="font-mono text-xs tabular-nums text-zinc-600">{project.runsLast24h.toLocaleString()} runs</div>
                       <div className="font-mono text-[10px] tabular-nums text-zinc-500">{cost}</div>
                     </TableCell>
                     <TableCell className="py-2 text-right">
