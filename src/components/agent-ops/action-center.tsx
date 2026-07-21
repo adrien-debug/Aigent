@@ -32,7 +32,7 @@ const KIND_ICON: Record<ActionItemKind, React.ComponentType<React.ComponentProps
 /** Kinds where the severity earns the accent dot; everything else recedes to zinc. */
 const ACCENT_KINDS = new Set<ActionItemKind>(['ready_manual', 'mission_blocked', 'release_gate_red'])
 
-function ActionRow({ item, focus }: { item: ActionItem; focus: boolean }) {
+function ActionRow({ item }: { item: ActionItem }) {
   const Icon = KIND_ICON[item.kind]
   const external = isExternalHref(item.href)
   const tone: 'accent' | 'zinc' = ACCENT_KINDS.has(item.kind) ? 'accent' : 'zinc'
@@ -40,10 +40,7 @@ function ActionRow({ item, focus }: { item: ActionItem; focus: boolean }) {
 
   return (
     <li
-      className={clsx(
-        'group flex gap-3 px-4 py-3 transition-colors duration-150 hover:bg-[var(--color-surface-focus)]',
-        focus && 'border-l-2 border-accent-600 bg-zinc-50 pl-3.5'
-      )}
+      className="group flex gap-3 px-4 py-3 border-b border-zinc-200 last:border-b-0 transition-colors duration-150 hover:bg-[var(--color-surface-focus)]"
     >
       <Icon
         aria-hidden="true"
@@ -89,9 +86,9 @@ export function ActionCenter({ items }: { items: ActionItem[] }) {
         }
       />
       {sorted.length > 0 ? (
-        <ul className="flex flex-col divide-y divide-zinc-950/5 pb-2">
-          {sorted.map((item, i) => (
-            <ActionRow key={item.id} item={item} focus={i === 0} />
+        <ul className="flex flex-col pb-2">
+          {sorted.map((item) => (
+            <ActionRow key={item.id} item={item} />
           ))}
         </ul>
       ) : (
