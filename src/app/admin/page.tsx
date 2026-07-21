@@ -45,11 +45,18 @@ export default async function DashboardPage() {
       <DashboardKpiStrip kpis={overview.kpis} />
       <DashboardDataWarnings warnings={overview.dataWarnings} />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="min-w-0 lg:col-span-2">
+      {/* ONE break column for the whole cockpit: every split row is 1/2 + 1/2, so
+          the vertical seam falls at the same x on rows 3, 4 and 5. A 2/3 + 1/3
+          row here broke at a different point and read as a misalignment against
+          the rows above and below.
+
+          `items-stretch` + a flex column per cell so both panels end on the SAME
+          baseline instead of at their own natural heights. */}
+      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
+        <div className="flex min-w-0 flex-col">
           <RunsOverTimeChart runs={recentRuns} nowMs={nowMs} />
         </div>
-        <div className="min-w-0">
+        <div className="flex min-w-0 flex-col">
           <RunStatusBreakdownChart runs={recentRuns} />
         </div>
       </div>
@@ -59,15 +66,14 @@ export default async function DashboardPage() {
         <DashboardLiveRuns />
       </div>
 
-      {/* `items-start`: these two cards have genuinely different natural heights
-          (activity-by-project has one row per ACTIVE project, often just a few).
-          Stretching them to match would pad the shorter one into a tall empty
-          box — a panel sized by its neighbour rather than by its content. */}
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-        <div className="min-w-0">
+      {/* Same rule as row 3: equal halves, equal baselines. Activity-by-project
+          has one bar per ACTIVE project so it is usually the shorter card — its
+          body centres its bars rather than leaving dead space at the bottom. */}
+      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
+        <div className="flex min-w-0 flex-col">
           <CostOverTimeChart runs={recentRuns} nowMs={nowMs} />
         </div>
-        <div className="min-w-0">
+        <div className="flex min-w-0 flex-col">
           <ActivityByProjectChart projects={overview.projects} />
         </div>
       </div>

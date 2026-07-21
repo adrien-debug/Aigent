@@ -52,13 +52,16 @@ export function RunStatusBreakdownChart({ runs }: { runs: AgentRun[] }) {
   const maxCount = Math.max(...rows.map((r) => r.count))
 
   return (
-    <SurfaceCard>
+    <SurfaceCard className="h-full">
       <SurfaceCardHeader
         title="Run status breakdown"
         className="px-4 pt-3 pb-2"
         meta={<span className="font-mono text-xs text-zinc-400 tabular-nums">{total} total</span>}
       />
-      <div className="flex flex-col gap-3 px-4 pt-1 pb-4">
+      {/* `flex-1` + `justify-center`: this card is the short one in its row, so
+          its body absorbs the leftover height and the bars sit centred instead
+          of clinging to the top with dead space under them. */}
+      <div className="flex flex-1 flex-col justify-center gap-3 px-4 pt-1 pb-4">
         {rows.map((row) => (
           <div key={row.status} className="flex items-center gap-3">
             <span className="w-32 shrink-0 truncate text-xs text-zinc-400">{STATUS_LABEL[row.status]}</span>

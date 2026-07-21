@@ -28,13 +28,13 @@ export function ActivityByProjectChart({ projects }: { projects: ProjectOverview
   const totalRuns = rows.reduce((s, r) => s + r.runsLast24h, 0)
 
   return (
-    <SurfaceCard>
+    <SurfaceCard className="h-full">
       <SurfaceCardHeader
         title="Activity by project — 24h"
         className="px-4 pt-3 pb-2"
         meta={<span className="font-mono text-xs text-zinc-400 tabular-nums">{totalRuns} runs</span>}
       />
-      <div className="flex flex-col gap-3 px-4 pt-1 pb-4">
+      <div className="flex flex-1 flex-col justify-center gap-3 px-4 pt-1 pb-4">
         {rows.map((project) => (
           <div key={project.id} className="flex items-center gap-3">
             <span className="w-32 shrink-0 truncate text-xs text-zinc-400" title={project.name}>

@@ -111,8 +111,10 @@ export function AgentKpiBand({
               // the grid track, not a flush box around the text.
               separators
                 // Cell fill = the raised plane; the 1px gap between cells is the
-                // panel's own background showing through as a divider.
-                ? 'rounded-none bg-white px-6 py-5 lg:px-8 dark:bg-surface-raised'
+                // panel's own background showing through as a divider. Padding
+                // steps down on small screens, where the cells stack and a 24px
+                // gutter eats the width the values need.
+                ? 'rounded-none bg-white px-4 py-4 sm:px-6 sm:py-5 lg:px-8 dark:bg-surface-raised'
                 : 'cursor-default px-3 py-2.5'
             )}
           >

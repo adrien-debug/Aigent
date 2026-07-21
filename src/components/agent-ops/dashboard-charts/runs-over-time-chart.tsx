@@ -61,7 +61,7 @@ export function RunsOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: nu
   const scale = (PLOT_H - TOP_PAD) / Math.max(...buckets.map((b) => b.total))
 
   return (
-    <SurfaceCard>
+    <SurfaceCard className="h-full">
       <SurfaceCardHeader
         title="Runs over time — 24h"
         className="px-4 pt-3 pb-2"

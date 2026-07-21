@@ -54,9 +54,14 @@ export function TableHead({ className, ...props }: React.ComponentPropsWithoutRe
       // Header sits on the SUNKEN plane, opaque: it must read as a distinct band
       // rather than another row, and an opaque fill is what lets a sticky header
       // cover the rows scrolling under it instead of blending with them.
+      //
+      // The fill is painted on the <th> cells, NOT on <thead>: the table is
+      // wrapped in `sm:px-(--gutter)`, so a background on <thead> stops short of
+      // the card's edges and the band visibly falls short on both sides. The
+      // cells span the full width, so painting them takes the fill edge to edge.
       className={clsx(
         className,
-        'dark:bg-surface-sunken',
+        '[&_th]:bg-zinc-50 dark:[&_th]:bg-surface-sunken',
         '[&_th]:border-b [&_th]:border-zinc-950/10 dark:[&_th]:border-[var(--surface-border-strong)]'
       )}
     />

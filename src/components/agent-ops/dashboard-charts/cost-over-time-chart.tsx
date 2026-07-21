@@ -84,7 +84,7 @@ export function CostOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: nu
   const areaPoints = `0,${PLOT_H} ${points} ${PLOT_W},${PLOT_H}`
 
   return (
-    <SurfaceCard>
+    <SurfaceCard className="h-full">
       <SurfaceCardHeader
         title="Cost over time — 24h"
         className="px-4 pt-3 pb-2"

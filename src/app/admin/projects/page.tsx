@@ -35,11 +35,14 @@ export default async function ProjectsPage() {
             <Table fixed className="w-full text-left [--gutter:--spacing(0)]">
               <TableHead>
                 <TableRow>
+                  {/* Columns drop by priority below lg — five fixed widths do not
+                      fit a 390px viewport, and `table-fixed` collides rather than
+                      shrinks. Project + Status always survive. */}
                   <TableHeader className="pl-4!">Project</TableHeader>
-                  <TableHeader className="w-28 text-right">Copilots</TableHeader>
-                  <TableHeader className="w-28 text-right">Success</TableHeader>
-                  <TableHeader className="w-36 text-right">24h runs / cost</TableHeader>
-                  <TableHeader className="w-32 pr-4! text-right">Status</TableHeader>
+                  <TableHeader className="hidden w-28 text-right md:table-cell">Copilots</TableHeader>
+                  <TableHeader className="hidden w-28 text-right lg:table-cell">Success</TableHeader>
+                  <TableHeader className="hidden w-36 text-right sm:table-cell">24h runs / cost</TableHeader>
+                  <TableHeader className="w-28 pr-4! text-right sm:w-32">Status</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -67,17 +70,22 @@ export default async function ProjectsPage() {
                             <div className="truncate font-mono text-xs text-zinc-500">
                               {project.repoFullName ?? 'no repo linked'}
                             </div>
+                            {/* Below sm the 24h column is dropped; its two values
+                                fold under the repo rather than disappearing. */}
+                            <div className="truncate font-mono text-xs tabular-nums text-zinc-500 sm:hidden">
+                              {project.runsLast24h.toLocaleString()} runs · {cost}
+                            </div>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="py-3! text-right font-mono text-sm tabular-nums text-zinc-600 dark:text-zinc-400">
+                      <TableCell className="hidden py-3! text-right font-mono text-sm tabular-nums text-zinc-600 md:table-cell dark:text-zinc-400">
                         {project.activeCount}
                         <span className="text-zinc-400"> / {project.copilotCount}</span>
                       </TableCell>
-                      <TableCell className="py-3! text-right font-mono text-sm tabular-nums text-zinc-600 dark:text-zinc-400">
+                      <TableCell className="hidden py-3! text-right font-mono text-sm tabular-nums text-zinc-600 lg:table-cell dark:text-zinc-400">
                         {project.passRate === null ? '—' : formatPercent(project.passRate)}
                       </TableCell>
-                      <TableCell className="py-3! text-right">
+                      <TableCell className="hidden py-3! text-right sm:table-cell">
                         <div className="font-mono text-sm tabular-nums text-zinc-600 dark:text-zinc-400">
                           {project.runsLast24h.toLocaleString()} runs
                         </div>

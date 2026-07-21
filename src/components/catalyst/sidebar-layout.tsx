@@ -92,7 +92,11 @@ export function SidebarLayout({
         {/* Plane 1 — the workspace card. Distinctly lighter than the app ground
             behind it, so the page reads as a sheet on a surface rather than one
             uniform black field. Panels inside it then step up again. */}
-        <div className="grow p-6 lg:rounded-xl lg:bg-white lg:p-10 lg:shadow-md lg:ring-1 lg:ring-zinc-950/[0.08] dark:lg:bg-surface-workspace dark:lg:shadow-[var(--surface-shadow)] dark:lg:ring-[var(--surface-border)]">
+        {/* Padding scales with the viewport instead of a flat p-6. At 390px a
+            24px gutter on each side left the cards — which carry their own inner
+            padding — squeezed into the middle; 16px there and 40px on desktop
+            keeps the content breathing at both ends. */}
+        <div className="grow p-4 sm:p-6 lg:rounded-xl lg:bg-white lg:p-10 lg:shadow-md lg:ring-1 lg:ring-zinc-950/[0.08] dark:lg:bg-surface-workspace dark:lg:shadow-[var(--surface-shadow)] dark:lg:ring-[var(--surface-border)]">
           <div className="w-full">{children}</div>
         </div>
       </main>

@@ -27,7 +27,7 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
         // `overflow-x-auto` when `fixed`, so the sticky head below actually sticks.
         <div className="min-h-0 flex-1 overflow-y-auto border-t border-zinc-950/5">
           <Table fixed className="w-full text-left [--gutter:--spacing(0)]">
-            <TableHead className="sticky top-0 z-10 bg-(--color-surface-secondary)">
+            <TableHead className="sticky top-0 z-10">
               <TableRow>
                 <TableHeader className="pl-4!">Project</TableHeader>
                 <TableHeader className="hidden w-24 text-right md:table-cell">Copilots</TableHeader>

@@ -43,16 +43,21 @@ export default async function AgentsPage() {
             <Table fixed className="w-full text-left [--gutter:--spacing(0)]">
               <TableHead>
                 <TableRow>
+                  {/* Eight fixed-width columns sum to ~816px, far past a 390px
+                      viewport: in a `table-fixed` layout with no scrollport they
+                      did not shrink, they COLLIDED — headers overlapping and the
+                      agent name column squeezed to nothing. Columns now drop by
+                      priority instead, so what remains always fits. */}
                   <TableHeader className="pl-4!">Agent</TableHeader>
-                  <TableHeader className="w-36">Project</TableHeader>
+                  <TableHeader className="hidden w-36 lg:table-cell">Project</TableHeader>
                   {/* w-32, not w-24: the widest status label is UNAVAILABLE, and in a
                       table-fixed layout a too-narrow column lets the badge bleed into
                       the next cell instead of widening its own. */}
-                  <TableHeader className="w-32">Status</TableHeader>
-                  <TableHeader className="w-24">Provider</TableHeader>
-                  <TableHeader className="w-40">Model</TableHeader>
-                  <TableHeader className="w-20 text-right">Tools</TableHeader>
-                  <TableHeader className="w-28 text-right">Last run</TableHeader>
+                  <TableHeader className="w-[7.5rem] sm:w-32">Status</TableHeader>
+                  <TableHeader className="hidden w-24 xl:table-cell">Provider</TableHeader>
+                  <TableHeader className="hidden w-40 lg:table-cell">Model</TableHeader>
+                  <TableHeader className="hidden w-20 text-right xl:table-cell">Tools</TableHeader>
+                  <TableHeader className="hidden w-28 text-right sm:table-cell">Last run</TableHeader>
                   <TableHeader className="w-24 pr-4! text-right">Cost</TableHeader>
                 </TableRow>
               </TableHead>
@@ -71,26 +76,34 @@ export default async function AgentsPage() {
                         <div className="truncate text-sm font-medium text-zinc-900 group-hover:underline dark:text-white">
                           {agent.name}
                         </div>
-                        <div className="truncate font-mono text-xs text-zinc-500">{agent.version ?? '—'}</div>
+                        {/* Below lg the Project and Model columns are dropped, so
+                            their values fold under the name rather than being lost. */}
+                        <div className="truncate font-mono text-xs text-zinc-500">
+                          <span className="lg:hidden">{projectName !== '—' ? `${projectName} · ` : ''}</span>
+                          {agent.version ?? '—'}
+                        </div>
                       </TableCell>
-                      <TableCell className="py-3! truncate text-sm text-zinc-600 dark:text-zinc-400">
+                      <TableCell className="hidden py-3! truncate text-sm text-zinc-600 lg:table-cell dark:text-zinc-400">
                         {projectName}
                       </TableCell>
                       <TableCell className="py-3!">
-                        <Badge color={badgeColor} className="uppercase tracking-widest">
+                        {/* Tracking drops on small screens: "UNAVAILABLE" with
+                            widest letter-spacing is the single widest cell in the
+                            table and was stealing width from the agent name. */}
+                        <Badge color={badgeColor} className="uppercase tracking-normal sm:tracking-widest">
                           {agent.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="py-3! font-mono text-sm text-zinc-600 dark:text-zinc-400">
+                      <TableCell className="hidden py-3! font-mono text-sm text-zinc-600 xl:table-cell dark:text-zinc-400">
                         {agent.provider ?? '—'}
                       </TableCell>
-                      <TableCell className="py-3! truncate font-mono text-sm text-zinc-600 dark:text-zinc-400">
+                      <TableCell className="hidden py-3! truncate font-mono text-sm text-zinc-600 lg:table-cell dark:text-zinc-400">
                         {agent.configuredModel ?? '—'}
                       </TableCell>
-                      <TableCell className="py-3! text-right font-mono text-sm tabular-nums text-zinc-600 dark:text-zinc-400">
+                      <TableCell className="hidden py-3! text-right font-mono text-sm tabular-nums text-zinc-600 xl:table-cell dark:text-zinc-400">
                         {agent.tools.length}
                       </TableCell>
-                      <TableCell className="py-3! text-right font-mono text-xs tabular-nums text-zinc-500">
+                      <TableCell className="hidden py-3! text-right font-mono text-xs tabular-nums text-zinc-500 sm:table-cell">
                         {agent.lastRunAt ? formatRelativeCompact(agent.lastRunAt, now) : '—'}
                       </TableCell>
                       <TableCell className="py-3! pr-4! text-right font-mono text-sm tabular-nums text-zinc-600 dark:text-zinc-400">
