@@ -12,7 +12,7 @@ import clsx from 'clsx'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import { Badge } from '@/components/catalyst/badge'
-import { Button } from '@/components/catalyst/button'
+import { Link } from '@/components/catalyst/link'
 import type { ActionItem, ActionItemKind } from '@/lib/agent-mission-control/dashboard-overview'
 
 function isExternalHref(href: string): boolean {
@@ -40,7 +40,7 @@ function ActionRow({ item }: { item: ActionItem }) {
 
   return (
     <li
-      className="group flex gap-3 px-4 py-3 border-b border-zinc-200 last:border-b-0 transition-colors duration-150 hover:bg-[var(--color-surface-focus)]"
+      className="group flex gap-3 px-4 py-3 border-b border-zinc-950/5 last:border-b-0 transition-colors duration-150 hover:bg-[var(--color-surface-focus)]"
     >
       <Icon
         aria-hidden="true"
@@ -55,16 +55,15 @@ function ActionRow({ item }: { item: ActionItem }) {
         </div>
         <div className="flex items-center justify-between gap-3">
           <p className="min-w-0 truncate font-mono text-xs text-zinc-500">{item.meta}</p>
-          <Button
-            plain
+          <Link
             href={item.href}
             aria-label={`${item.buttonLabel}: ${item.title}`}
-            className="shrink-0 text-zinc-600 hover:text-zinc-900"
+            className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900"
             {...linkProps}
           >
             {item.buttonLabel}
-            <ChevronRightIcon data-slot="icon" aria-hidden="true" />
-          </Button>
+            <ChevronRightIcon className="size-3.5" aria-hidden="true" />
+          </Link>
         </div>
       </div>
     </li>
@@ -86,7 +85,7 @@ export function ActionCenter({ items }: { items: ActionItem[] }) {
         }
       />
       {sorted.length > 0 ? (
-        <ul className="flex flex-col pb-2">
+        <ul className="flex flex-col border-t border-zinc-950/5">
           {sorted.map((item) => (
             <ActionRow key={item.id} item={item} />
           ))}
