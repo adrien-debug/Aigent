@@ -43,6 +43,33 @@ function upstreamFailureStatus(err: unknown): 502 | 504 {
 }
 
 /**
+ * EXTERNAL RUN STATUS CONTRACT (partner consumers, e.g. TradeAgent):
+ *   `queued | running | succeeded | failed | cancelled`.
+ *
+ * This route returns Aigent's INTERNAL `AgentRunStatus`
+ * (`completed | failed | blocked | needs-confirmation | running`) verbatim on
+ * purpose: its live in-repo consumer is the admin `run-copilot-panel.tsx` →
+ * `RunStatusText`, typed against that internal union — re-labelling the field
+ * here would break that typed consumer. Aigent's run is SYNCHRONOUS, so in
+ * practice only `completed`/`failed` (plus a paused `needs-confirmation`) are
+ * reachable; `queued`/`cancelled` never occur.
+ *
+ * A partner consumer is responsible for mapping the internal status to the
+ * external contract, honestly (mirrors the note in
+ * `projects/[id]/copilots/route.ts`):
+ *   completed          -> succeeded
+ *   failed             -> failed
+ *   blocked            -> failed      (a guardrail refused it — not a success)
+ *   needs-confirmation -> running     (paused awaiting approval, not done)
+ *   running            -> running
+ * The internal string is never re-used as a partner's own status value.
+ *
+ * NEVER leaked by this route's response: `systemPromptSummary`, raw manifest
+ * content, secrets/API keys, private traces or chain-of-thought. The response
+ * carries only run receipts (runId, status, outputSummary, latencyMs, costUsd,
+ * traceUrl, resolved provider/model, fallback/verification flags, and — when
+ * paused — the interrupt message + pending tool name/args).
+ *
  * POST /api/agent-ops/copilots/:copilotId/run — execute a REAL run of a
  * copilot against the live OpenAI model, persisted via the shared runner
  * (`executeCopilotRun`), which writes `agent_runs` + `agent_run_steps` to the
