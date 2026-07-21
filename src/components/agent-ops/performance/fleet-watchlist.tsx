@@ -12,8 +12,8 @@ function WatchRow({ copilot, value }: { copilot: Copilot; value: string }) {
         className="flex min-h-11 items-center gap-2.5 px-4 py-2 text-sm hover:bg-[var(--color-surface-focus)]"
       >
         <CopilotAvatar copilot={copilot} className="size-7 shrink-0 rounded-lg" />
-        <span className="min-w-0 flex-1 truncate font-medium text-white">{copilot.name}</span>
-        <span className="shrink-0 font-mono text-xs tabular-nums text-zinc-400">{value}</span>
+        <span className="min-w-0 flex-1 truncate font-medium text-zinc-900">{copilot.name}</span>
+        <span className="shrink-0 font-mono text-xs tabular-nums text-zinc-600">{value}</span>
       </Link>
     </li>
   )
@@ -33,11 +33,11 @@ export function FleetWatchlist({ copilots }: { copilots: Copilot[] }) {
     <SurfaceCard>
       <SurfaceCardHeader title="Fleet Watchlist" className="px-4 pt-3 pb-2" />
       <div className="pb-2">
-        <h3 className="px-4 py-2 text-[10px] font-medium uppercase tracking-widest text-zinc-400">
+        <h3 className="px-4 py-2 text-[10px] font-medium uppercase tracking-widest text-zinc-500">
           Open Warnings
         </h3>
         {warnings.length > 0 ? (
-          <ul className="divide-y divide-white/5">
+          <ul className="divide-y divide-zinc-950/5">
             {warnings.map((copilot) => (
               <WatchRow
                 key={copilot.id}
@@ -50,11 +50,11 @@ export function FleetWatchlist({ copilots }: { copilots: Copilot[] }) {
           <p className="px-4 pb-2 text-xs text-zinc-500">No open warnings.</p>
         )}
 
-        <h3 className="mt-1 border-t border-white/5 px-4 py-2 text-[10px] font-medium uppercase tracking-widest text-zinc-400">
+        <h3 className="mt-1 border-t border-zinc-950/5 px-4 py-2 text-[10px] font-medium uppercase tracking-widest text-zinc-500">
           Lowest Pass Rate
         </h3>
         {lowestPassRates.length > 0 ? (
-          <ul className="divide-y divide-white/5">
+          <ul className="divide-y divide-zinc-950/5">
             {lowestPassRates.map((copilot) => (
               <WatchRow
                 key={copilot.id}

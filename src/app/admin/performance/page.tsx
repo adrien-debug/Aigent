@@ -71,7 +71,7 @@ export default async function PerformancePage() {
           nowIso={nowIso}
         />
       ) : (
-        <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
+        <div className="rounded-2xl border border-dashed border-zinc-950/10 bg-zinc-50">
           <EmptyState
             icon={BoltIcon}
             title="No runs recorded"

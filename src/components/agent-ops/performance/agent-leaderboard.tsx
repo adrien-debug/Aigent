@@ -108,7 +108,7 @@ export function AgentLeaderboard({
         <div className="max-h-[30rem] overflow-auto no-scrollbar">
           <Table className="w-full border-collapse px-4 text-left [--gutter:--spacing(0)]">
           <TableHead className="sticky top-0 z-10 bg-[var(--color-surface-secondary)]">
-            <TableRow className="border-b border-white/5">
+            <TableRow className="border-b border-zinc-950/5">
               <TableHeader className="w-16">Rank</TableHeader>
               <TableHeader>Agent</TableHeader>
               <TableHeader className="text-right">Pass Rate</TableHeader>
@@ -116,7 +116,7 @@ export function AgentLeaderboard({
               <TableHeader className="text-right">Cost</TableHeader>
             </TableRow>
           </TableHead>
-          <TableBody className="divide-y divide-white/5">
+          <TableBody className="divide-y divide-zinc-950/5">
             {rows.map(({ copilot, rank }) => (
               <TableRow key={copilot.id} className="group">
                 <TableCell className="py-2">
@@ -128,7 +128,7 @@ export function AgentLeaderboard({
                     <div className="flex min-w-0 flex-col">
                       <Link
                         href={`/admin/agents/${copilot.id}`}
-                        className="truncate text-sm font-medium text-white group-hover:underline rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+                        className="truncate text-sm font-medium text-zinc-900 group-hover:underline rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
                       >
                         {copilot.name}
                       </Link>
@@ -143,7 +143,7 @@ export function AgentLeaderboard({
                 </TableCell>
                 <TableCell className="py-2 text-right">
                   {copilot.healthEvidence === 'runs' ? (
-                    <span className="text-sm font-mono tabular-nums text-zinc-300">
+                    <span className="text-sm font-mono tabular-nums text-zinc-700">
                       {formatPercent(copilot.health.testPassRate)}
                     </span>
                   ) : (
@@ -151,12 +151,12 @@ export function AgentLeaderboard({
                   )}
                 </TableCell>
                 <TableCell className="py-2 text-right">
-                  <span className="text-sm font-mono tabular-nums text-zinc-300">
+                  <span className="text-sm font-mono tabular-nums text-zinc-700">
                     {numberFormat.format(copilot.health.runsLast24h)}
                   </span>
                 </TableCell>
                 <TableCell className="py-2 text-right">
-                  <span className="text-sm font-mono tabular-nums text-zinc-400">
+                  <span className="text-sm font-mono tabular-nums text-zinc-500">
                     {copilot.health.runsLast24h > 0 ? formatUsd(copilot.health.costLast24hUsd) : '—'}
                   </span>
                 </TableCell>

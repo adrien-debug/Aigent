@@ -54,11 +54,11 @@ function RailItem({
         'group relative flex size-11 items-center justify-center rounded-xl border transition-[color,background-color,border-color] duration-200',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
         current
-          ? 'border-[var(--accent-line-strong)] bg-[var(--accent-surface)] text-white'
-          : 'border-transparent text-zinc-500 hover:border-white/5 hover:bg-white/[0.03] hover:text-zinc-200'
+          ? 'border-[var(--accent-line-strong)] bg-[var(--accent-surface)] text-zinc-900'
+          : 'border-transparent text-zinc-500 hover:border-zinc-950/5 hover:bg-zinc-950/5 hover:text-zinc-900'
       )}
     >
-      <Icon aria-hidden="true" className={clsx('size-5 shrink-0 transition-colors duration-200', current ? 'text-accent-300' : 'group-hover:text-zinc-400')} />
+      <Icon aria-hidden="true" className={clsx('size-5 shrink-0 transition-colors duration-200', current ? 'text-accent-700' : 'group-hover:text-zinc-700')} />
       <span className="sr-only">{label}</span>
       <span
         role="tooltip"
@@ -89,14 +89,14 @@ function UserFooter({
       <Avatar
         initials="AD"
         alt="Adrien"
-        className={clsx(avatarSize, 'bg-zinc-800 text-white font-medium ring-1 ring-white/10', avatarSize === 'size-8' ? 'text-[11px]' : 'text-[10px]')}
+        className={clsx(avatarSize, 'bg-zinc-100 text-zinc-900 font-medium ring-1 ring-zinc-950/10', avatarSize === 'size-8' ? 'text-[11px]' : 'text-[10px]')}
       />
       {children}
       <a
         href="/logout"
         aria-label="Sign out"
         className={clsx(
-          'flex items-center justify-center rounded-lg transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
+          'flex items-center justify-center rounded-lg transition-colors hover:bg-zinc-950/5 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
           iconIdleColorClassName,
           iconWrapClassName
         )}
@@ -129,11 +129,11 @@ function MobileNavItem({
         'flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-colors',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
         current
-          ? 'bg-white/[0.06] text-white'
-          : 'text-zinc-400 hover:bg-white/[0.03] hover:text-zinc-200'
+          ? 'bg-zinc-950/5 text-zinc-900'
+          : 'text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900'
       )}
     >
-      <Icon aria-hidden="true" className={clsx('size-5 shrink-0', current ? 'text-white' : 'text-zinc-500')} />
+      <Icon aria-hidden="true" className={clsx('size-5 shrink-0', current ? 'text-zinc-900' : 'text-zinc-500')} />
       <span className="text-sm font-medium tracking-wide">{label}</span>
       {current && (
         <span className="ml-auto size-1.5 rounded-full bg-accent-500" aria-hidden="true" />
@@ -180,13 +180,13 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
           aria-label="Agent Mission Control"
           className="flex size-11 shrink-0 items-center justify-center transition-transform hover:scale-105"
         >
-          <LogoMark className="size-7 text-white" />
+          <LogoMark className="size-7 text-zinc-900" />
         </Link>
 
         <Headless.Button
           aria-label="Search"
           onClick={() => window.dispatchEvent(new Event('aigent:command-palette'))}
-          className="group relative mt-2 flex size-11 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-white/[0.03] hover:text-zinc-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+          className="group relative mt-2 flex size-11 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-zinc-950/5 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
         >
           <MagnifyingGlassIcon aria-hidden="true" className="size-5" />
           <span
@@ -229,8 +229,8 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
             aria-expanded={mobileOpen}
             aria-controls="mobile-nav-drawer"
             className={clsx(
-              'flex size-11 items-center justify-center rounded-lg text-zinc-300 transition-colors',
-              'hover:bg-white/5 hover:text-white active:bg-white/10',
+              'flex size-11 items-center justify-center rounded-lg text-zinc-500 transition-colors',
+              'hover:bg-zinc-950/5 hover:text-zinc-900 active:bg-zinc-950/10',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500'
             )}
           >

@@ -41,7 +41,7 @@ export function RecentRunsTable({
       <div className="max-h-[28rem] overflow-auto no-scrollbar">
         <Table className="min-w-[760px] w-full border-collapse px-4 text-left [--gutter:--spacing(0)]">
         <TableHead className="sticky top-0 z-10 bg-[var(--color-surface-secondary)]">
-          <TableRow className="border-b border-white/5">
+          <TableRow className="border-b border-zinc-950/5">
             <TableHeader>Run & Copilot</TableHeader>
             <TableHeader>Project</TableHeader>
             <TableHeader>Status</TableHeader>
@@ -54,7 +54,7 @@ export function RecentRunsTable({
             </TableHeader>
           </TableRow>
         </TableHead>
-        <TableBody className="divide-y divide-white/5">
+        <TableBody className="divide-y divide-zinc-950/5">
           {runs.map((run) => {
             const copilot = copilotById.get(run.copilotId)
             return (
@@ -64,7 +64,7 @@ export function RecentRunsTable({
                     <Link
                       href={`/admin/agents/${run.copilotId}/runs?run=${run.id}`}
                       title={run.id}
-                      className="truncate text-sm font-medium text-white group-hover:underline"
+                      className="truncate text-sm font-medium text-zinc-900 group-hover:underline"
                     >
                       {copilot?.name ?? run.copilotId}
                     </Link>
@@ -72,7 +72,7 @@ export function RecentRunsTable({
                 </TableCell>
                 <TableCell className="py-2">
                   {copilot?.projectId ? (
-                    <span className="text-xs text-zinc-400">
+                    <span className="text-xs text-zinc-600">
                       {projectNameById.get(copilot.projectId) ?? '—'}
                     </span>
                   ) : (
@@ -95,12 +95,12 @@ export function RecentRunsTable({
                   </span>
                 </TableCell>
                 <TableCell className="py-2">
-                  <span className="block max-w-md truncate text-xs text-zinc-400" title={run.inputSummary}>
+                  <span className="block max-w-md truncate text-xs text-zinc-600" title={run.inputSummary}>
                     {run.inputSummary}
                   </span>
                 </TableCell>
                 <TableCell className="py-2 text-right">
-                  <span className="font-mono text-xs text-zinc-300 tabular-nums">
+                  <span className="font-mono text-xs text-zinc-700 tabular-nums">
                     {formatDurationMs(run.latencyMs)}
                   </span>
                 </TableCell>

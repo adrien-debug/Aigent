@@ -27,15 +27,15 @@ const COLS_CLASS: Record<number, string> = {
 // Canon DS (`Heading`): page H1 is text-2xl/8 (24px). KPI values must never
 // exceed that — hero matches H1; compact/small sit clearly below.
 const VALUE_SIZE_CLASS = {
-  hero: 'font-mono text-2xl/8 font-light tracking-tight',
-  compact: 'font-mono text-xl/7 font-light tracking-tight',
-  small: 'font-mono text-lg/6 font-light tracking-tight',
+  hero: 'font-mono text-2xl/8 font-medium tracking-tight',
+  compact: 'font-mono text-xl/7 font-medium tracking-tight',
+  small: 'font-mono text-lg/6 font-medium tracking-tight',
 } as const
 
 const VALUE_TONE_CLASS = {
-  default: 'text-white',
-  accent: 'text-accent-400',
-  muted: 'text-zinc-400',
+  default: 'text-zinc-900',
+  accent: 'text-accent-700',
+  muted: 'text-zinc-500',
 } as const
 
 /**
@@ -86,7 +86,7 @@ export function AgentKpiBand({
         // as a false "green surface" on the first hovered/dragged columns.
         'grid select-none grid-cols-1 sm:grid-cols-2',
         separators
-          ? 'gap-px bg-white/5'
+          ? 'gap-px bg-zinc-950/10'
           : density === 'compact'
             ? clsx(!flush && 'mb-6', 'gap-x-4 gap-y-2')
             : clsx(!flush && 'mb-6', 'gap-4'),
@@ -117,7 +117,7 @@ export function AgentKpiBand({
               <span
                 className={clsx(
                   'mb-1 h-4 text-xs font-medium tracking-tight tabular-nums',
-                  stat.changeType === 'negative' ? 'text-accent-400' : 'text-zinc-400'
+                  stat.changeType === 'negative' ? 'text-accent-600' : 'text-zinc-500'
                 )}
               >
                 {stat.change ?? ' '}
@@ -135,13 +135,13 @@ export function AgentKpiBand({
                 >
                   {stat.value != null ? <AnimatedNumber value={stat.value} /> : null}
                 </span>
-                {stat.suffix ? <span className="text-sm text-zinc-400">{stat.suffix}</span> : null}
+                {stat.suffix ? <span className="text-sm text-zinc-500">{stat.suffix}</span> : null}
               </div>
             )}
 
             {hasViz ? <div className="mt-2 w-full flex-none">{stat.viz ?? null}</div> : null}
             {hasHint ? (
-              <span className={separators ? 'mt-2 text-xs text-zinc-500' : 'mt-1 text-xs text-zinc-400'}>
+              <span className="mt-1 text-xs text-zinc-500">
                 {stat.hint ?? ' '}
               </span>
             ) : null}
