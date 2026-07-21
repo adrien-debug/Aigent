@@ -44,7 +44,7 @@ function ParticipantsList({ participants }: { participants: MissionParticipant[]
     <ul className="flex flex-wrap gap-2">
       {participants.map((p) => (
         <li key={p.role}>
-          <Badge color={p.status === 'missing' ? 'accent' : 'zinc'}>
+          <Badge className="font-mono text-[11px]" color={p.status === 'missing' ? 'accent' : 'zinc'}>
             {p.copilotName ?? p.role}
             {p.status === 'missing' ? ' (evidence-only)' : ''}
           </Badge>
@@ -56,24 +56,31 @@ function ParticipantsList({ participants }: { participants: MissionParticipant[]
 
 function MissionReportPanel({ report }: { report: MissionReport }) {
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Badge color={statusTone(report.status)}>{report.status.replace(/_/g, ' ')}</Badge>
-        <Badge color="zinc">{report.consensus.decision.replace(/_/g, ' ')}</Badge>
-        <span className="text-xs text-zinc-500 font-mono break-all">{report.runId}</span>
+    <div className="flex flex-col gap-6">
+      {/* Header Metadata */}
+      <div className="grid grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-x-4">
+        <Badge className="w-36 justify-center uppercase tracking-wider text-[10px]" color={statusTone(report.status)}>
+          {report.status.replace(/_/g, ' ')}
+        </Badge>
+        <Badge className="w-36 justify-center uppercase tracking-wider text-[10px]" color="zinc">
+          {report.consensus.decision.replace(/_/g, ' ')}
+        </Badge>
+        <span className="text-xs text-zinc-500 font-mono truncate">{report.runId}</span>
       </div>
 
-      <p className="text-sm text-zinc-300">{report.consensus.summary}</p>
+      <p className="text-sm text-zinc-800">{report.consensus.summary}</p>
 
+      {/* Participants */}
       <div>
-        <p className="text-xs text-zinc-500 uppercase tracking-widest mb-2">Participants</p>
+        <p className="text-xs font-semibold text-zinc-900 uppercase tracking-widest mb-3">Participants</p>
         <ParticipantsList participants={report.participants} />
       </div>
 
+      {/* Blockers */}
       {report.consensus.blockers.length > 0 && (
-        <div className={`${surfaceInsetClass} ring-1 ring-[var(--accent-line)]`}>
-          <p className="text-xs font-medium text-accent-300 mb-2">Blockers ({report.consensus.blockers.length})</p>
-          <ul className="text-sm text-zinc-300 space-y-1">
+        <div className="rounded-xl bg-accent-50/50 ring-1 ring-accent-600/20 p-4">
+          <p className="text-xs font-bold text-accent-700 uppercase tracking-widest mb-3">Blockers ({report.consensus.blockers.length})</p>
+          <ul className="text-sm text-accent-800 space-y-2">
             {report.consensus.blockers.map((f) => (
               <li key={f.id}>• {f.title}</li>
             ))}
@@ -81,10 +88,11 @@ function MissionReportPanel({ report }: { report: MissionReport }) {
         </div>
       )}
 
+      {/* Warnings */}
       {report.consensus.warnings.length > 0 && (
-        <div className={`${surfaceInsetClass} ring-1 ring-white/10`}>
-          <p className="text-xs font-medium text-zinc-300 mb-2">Warnings ({report.consensus.warnings.length})</p>
-          <ul className="text-sm text-zinc-300 space-y-1">
+        <div className="rounded-xl bg-zinc-50 ring-1 ring-zinc-950/5 p-4">
+          <p className="text-xs font-bold text-zinc-900 uppercase tracking-widest mb-3">Warnings ({report.consensus.warnings.length})</p>
+          <ul className="text-sm text-zinc-700 space-y-2">
             {report.consensus.warnings.slice(0, 8).map((f) => (
               <li key={f.id}>• {f.title}</li>
             ))}
@@ -92,25 +100,39 @@ function MissionReportPanel({ report }: { report: MissionReport }) {
         </div>
       )}
 
+      {/* Next Actions */}
       <div>
-        <p className="text-xs text-zinc-500 uppercase tracking-widest mb-2">Next actions</p>
-        <ul className="text-sm text-zinc-400 space-y-1 list-disc pl-4">
+        <p className="text-xs font-semibold text-zinc-900 uppercase tracking-widest mb-3">Next actions</p>
+        <ul className="text-sm text-zinc-700 space-y-2 list-disc pl-5">
           {report.consensus.nextActions.map((a) => (
             <li key={a}>{a}</li>
           ))}
         </ul>
       </div>
 
-      <details className="text-xs text-zinc-500">
-        <summary className="cursor-pointer py-3 min-h-11 flex items-center hover:text-zinc-300 focus-visible:text-zinc-300">All findings ({report.findings.length})</summary>
-        <ul className="mt-2 space-y-2 max-h-48 overflow-y-auto">
-          {report.findings.map((f) => (
-            <li key={f.id} className="flex gap-2">
-              <Badge color={severityBadgeColor(f.severity)}>{f.severity}</Badge>
-              <span className="min-w-0 break-words text-zinc-400">{f.role}: {f.title}</span>
-            </li>
-          ))}
-        </ul>
+      {/* Findings Table */}
+      <details className="group">
+        <summary className="cursor-pointer py-2 text-xs font-semibold text-zinc-500 uppercase tracking-widest hover:text-zinc-900 focus-visible:text-zinc-900 transition-colors">
+          All findings ({report.findings.length})
+        </summary>
+        <div className="mt-3 overflow-hidden rounded-xl border border-zinc-950/5 bg-zinc-50/50">
+          <div className="grid grid-cols-[100px_140px_minmax(0,1fr)] items-center gap-x-4 border-b border-zinc-950/5 bg-zinc-100/50 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+            <div>Severity</div>
+            <div>Source</div>
+            <div>Message</div>
+          </div>
+          <ul className="max-h-64 overflow-y-auto divide-y divide-zinc-950/5">
+            {report.findings.map((f) => (
+              <li key={f.id} className="grid grid-cols-[100px_140px_minmax(0,1fr)] items-start gap-x-4 px-4 py-3 text-sm">
+                <div>
+                  <Badge className="w-full justify-center" color={severityBadgeColor(f.severity)}>{f.severity}</Badge>
+                </div>
+                <span className="truncate font-medium text-zinc-900" title={f.role}>{f.role}</span>
+                <span className="min-w-0 break-words text-zinc-600">{f.title}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </details>
     </div>
   )
