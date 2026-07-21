@@ -58,3 +58,6 @@ next-env.d.ts
 
 # Dev stack runtime logs + last-exit report (local, disposable, never committed)
 .runtime/
+
+# Git worktrees created by tooling — never part of the tree.
+.worktrees/

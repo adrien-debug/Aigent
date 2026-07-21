@@ -40,8 +40,9 @@ export default async function ProjectsPage() {
                       shrinks. Project + Status always survive. */}
                   <TableHeader className="pl-4!">Project</TableHeader>
                   <TableHeader className="hidden w-28 text-right md:table-cell">Copilots</TableHeader>
-                  <TableHeader className="hidden w-28 text-right lg:table-cell">Success</TableHeader>
-                  <TableHeader className="hidden w-36 text-right sm:table-cell">24h runs / cost</TableHeader>
+                  <TableHeader className="hidden w-36 lg:table-cell">Success</TableHeader>
+                  <TableHeader className="hidden w-24 text-right sm:table-cell">Runs 24h</TableHeader>
+                  <TableHeader className="hidden w-24 text-right sm:table-cell">Cost 24h</TableHeader>
                   <TableHeader className="w-28 pr-4! text-right sm:w-32">Status</TableHeader>
                 </TableRow>
               </TableHead>
@@ -82,14 +83,32 @@ export default async function ProjectsPage() {
                         {project.activeCount}
                         <span className="text-zinc-400"> / {project.copilotCount}</span>
                       </TableCell>
-                      <TableCell className="hidden py-3! text-right font-mono text-sm tabular-nums text-zinc-600 lg:table-cell dark:text-zinc-400">
-                        {project.passRate === null ? '—' : formatPercent(project.passRate)}
+                      {/* Success as a meter, not just a number: the bar makes the
+                          spread across projects scannable in one pass. Absent
+                          evidence renders an em-dash and NO bar — an empty track
+                          would read as a real 0%. */}
+                      <TableCell className="hidden py-3! lg:table-cell">
+                        {project.passRate === null ? (
+                          <span className="font-mono text-sm text-zinc-500">—</span>
+                        ) : (
+                          <div className="flex items-center gap-2.5">
+                            <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-zinc-200 ring-1 ring-inset ring-zinc-950/5 dark:bg-zinc-800 dark:ring-white/5">
+                              <div
+                                className="h-full rounded-full bg-[var(--chart-success)]"
+                                style={{ width: `${Math.max(project.passRate * 100, 2)}%` }}
+                              />
+                            </div>
+                            <span className="w-12 shrink-0 text-right font-mono text-sm tabular-nums text-zinc-600 dark:text-zinc-400">
+                              {formatPercent(project.passRate)}
+                            </span>
+                          </div>
+                        )}
                       </TableCell>
-                      <TableCell className="hidden py-3! text-right sm:table-cell">
-                        <div className="font-mono text-sm tabular-nums text-zinc-600 dark:text-zinc-400">
-                          {project.runsLast24h.toLocaleString()} runs
-                        </div>
-                        <div className="font-mono text-xs tabular-nums text-zinc-500">{cost}</div>
+                      <TableCell className="hidden py-3! text-right font-mono text-sm tabular-nums text-zinc-600 sm:table-cell dark:text-zinc-400">
+                        {project.runsLast24h > 0 ? project.runsLast24h.toLocaleString() : '—'}
+                      </TableCell>
+                      <TableCell className="hidden py-3! text-right font-mono text-sm tabular-nums text-zinc-600 sm:table-cell dark:text-zinc-400">
+                        {cost}
                       </TableCell>
                       <TableCell className="py-3! pr-4! text-right">
                         {hasWarnings ? (

@@ -43,7 +43,9 @@ function MobileSidebar({ open, close, children }: React.PropsWithChildren<{ open
         transition
         className="fixed inset-y-0 w-full max-w-80 p-2 transition duration-300 ease-in-out data-closed:-translate-x-full motion-reduce:duration-0"
       >
-        <div className="flex h-full flex-col rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        {/* Plane 4: the drawer floats over the page, so it uses the overlay fill
+            and a real shadow instead of the panel colour sitting underneath. */}
+        <div className="flex h-full flex-col rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-surface-overlay dark:shadow-[var(--surface-shadow-strong)] dark:ring-[var(--surface-border-strong)]">
           <div className="-mb-3 px-4 pt-3">
             <Headless.CloseButton as={NavbarItem} aria-label="Close navigation">
               <CloseMenuIcon />

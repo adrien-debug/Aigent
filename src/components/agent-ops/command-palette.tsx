@@ -59,7 +59,10 @@ export function CommandPalette() {
             >
               <Headless.Combobox
                 as="div"
-                className="mx-auto max-w-xl overflow-hidden rounded-2xl bg-white/90 shadow-2xl ring-1 ring-zinc-950/10 backdrop-blur-xl dark:bg-zinc-900/90 dark:ring-white/10 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_20px_40px_-10px_rgba(0,0,0,0.5)]"
+                // Plane 4 (overlay): sits above every panel, so it takes the
+                // overlay fill and the strong shadow — not the panel fill, which
+                // made it read as just another card floating over the page.
+                className="mx-auto max-w-xl overflow-hidden rounded-2xl bg-white/90 shadow-2xl ring-1 ring-zinc-950/10 backdrop-blur-xl dark:bg-[color-mix(in_oklab,var(--color-surface-overlay)_92%,transparent)] dark:ring-[var(--surface-border-strong)] dark:shadow-[var(--surface-shadow-strong),var(--surface-highlight)]"
                 onChange={(action: typeof ACTIONS[0] | null) => {
                   if (!action) return
                   setIsOpen(false)

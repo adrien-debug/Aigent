@@ -38,9 +38,9 @@ export function DropdownMenu({
         // Handle scrolling when menu won't fit in viewport
         'overflow-y-auto',
         // Popover background
-        'bg-white/75 backdrop-blur-xl dark:bg-zinc-800/75',
+        'bg-white/75 backdrop-blur-xl dark:bg-[color-mix(in_oklab,var(--color-surface-overlay)_88%,transparent)]',
         // Shadows
-        'shadow-lg ring-1 ring-zinc-950/10 dark:ring-white/10 dark:ring-inset',
+        'shadow-lg ring-1 ring-zinc-950/10 dark:shadow-[var(--surface-shadow-strong)] dark:ring-[var(--surface-border-strong)] dark:ring-inset',
         // Define grid at the menu level if subgrid is supported
         'supports-[grid-template-columns:subgrid]:grid supports-[grid-template-columns:subgrid]:grid-cols-[auto_1fr_1.5rem_0.5rem_auto]',
         // Transitions

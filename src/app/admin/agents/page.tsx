@@ -1,6 +1,8 @@
+import clsx from 'clsx'
 import type { Metadata } from 'next'
 
 import { AdminPageHeader } from '@/components/agent-ops/surface-card'
+import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { SoftAccentLink } from '@/components/agent-ops/soft-accent-link'
 import { Badge } from '@/components/catalyst/badge'
@@ -21,6 +23,19 @@ const STATUS_BADGE: Record<string, 'accent' | 'zinc'> = {
   inactive: 'zinc',
   degraded: 'zinc',
   unavailable: 'zinc',
+}
+
+/**
+ * Status dot. The design system is mono-accent, so `degraded` and `unavailable`
+ * cannot be told apart from `inactive` by hue — they are separated by DENSITY
+ * instead (filled accent / ringed / hollow), and the label always carries the
+ * meaning in words. Colour is never the only channel.
+ */
+const STATUS_DOT: Record<string, string> = {
+  active: 'bg-accent-500',
+  inactive: 'bg-zinc-600',
+  degraded: 'bg-zinc-500 ring-2 ring-zinc-500/30',
+  unavailable: 'bg-transparent ring-1 ring-zinc-600',
 }
 
 export default async function AgentsPage() {
@@ -53,7 +68,10 @@ export default async function AgentsPage() {
                   {/* w-32, not w-24: the widest status label is UNAVAILABLE, and in a
                       table-fixed layout a too-narrow column lets the badge bleed into
                       the next cell instead of widening its own. */}
-                  <TableHeader className="w-[7.5rem] sm:w-32">Status</TableHeader>
+                  {/* Sized for "UNAVAILABLE" + its dot at NORMAL tracking. The
+                      widest tracking needed w-40, which then stole width from the
+                      agent name — the column that actually identifies the row. */}
+                  <TableHeader className="w-[7.5rem] sm:w-[8.5rem]">Status</TableHeader>
                   <TableHeader className="hidden w-24 xl:table-cell">Provider</TableHeader>
                   <TableHeader className="hidden w-40 lg:table-cell">Model</TableHeader>
                   <TableHeader className="hidden w-20 text-right xl:table-cell">Tools</TableHeader>
@@ -73,24 +91,39 @@ export default async function AgentsPage() {
                       className="group"
                     >
                       <TableCell className="py-3! pl-4!">
-                        <div className="truncate text-sm font-medium text-zinc-900 group-hover:underline dark:text-white">
-                          {agent.name}
-                        </div>
-                        {/* Below lg the Project and Model columns are dropped, so
-                            their values fold under the name rather than being lost. */}
-                        <div className="truncate font-mono text-xs text-zinc-500">
-                          <span className="lg:hidden">{projectName !== '—' ? `${projectName} · ` : ''}</span>
-                          {agent.version ?? '—'}
+                        <div className="flex min-w-0 items-center gap-3">
+                          {/* Reuses the existing CopilotAvatar: the glyph is derived
+                              from slug/name/capabilities and is decorative only —
+                              never a claim about the agent (there is no type field). */}
+                          <CopilotAvatar
+                            copilot={{ slug: agent.copilotId, name: agent.name, tags: agent.capabilities }}
+                            className="size-8"
+                          />
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium text-zinc-900 group-hover:underline dark:text-white">
+                              {agent.name}
+                            </div>
+                            {/* Below lg the Project and Model columns are dropped, so
+                                their values fold under the name rather than being lost. */}
+                            <div className="truncate font-mono text-xs text-zinc-500">
+                              <span className="lg:hidden">{projectName !== '—' ? `${projectName} · ` : ''}</span>
+                              {agent.version ?? '—'}
+                            </div>
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell className="hidden py-3! truncate text-sm text-zinc-600 lg:table-cell dark:text-zinc-400">
                         {projectName}
                       </TableCell>
                       <TableCell className="py-3!">
-                        {/* Tracking drops on small screens: "UNAVAILABLE" with
+                        {/* Normal tracking at every size: "UNAVAILABLE" at the
                             widest letter-spacing is the single widest cell in the
                             table and was stealing width from the agent name. */}
-                        <Badge color={badgeColor} className="uppercase tracking-normal sm:tracking-widest">
+                        <Badge color={badgeColor} className="gap-1.5 uppercase tracking-normal">
+                          <span
+                            aria-hidden="true"
+                            className={clsx('size-1.5 shrink-0 rounded-full', STATUS_DOT[agent.status])}
+                          />
                           {agent.status}
                         </Badge>
                       </TableCell>

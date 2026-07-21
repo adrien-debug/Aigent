@@ -74,28 +74,39 @@ export function AigentSidebar() {
   return (
     <Sidebar>
       <SidebarHeader>
-        <div className="flex items-center gap-2.5 px-2 py-1">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent-500 text-zinc-950">
+        <div className="flex items-center gap-3 px-2 pt-1 pb-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-500 text-zinc-950 shadow-sm ring-1 ring-[var(--accent-line-strong)]">
             <LogoMark className="size-5" />
           </span>
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-zinc-950 dark:text-white">Aigent</div>
+            <div className="truncate text-sm font-semibold tracking-tight text-zinc-950 dark:text-white">Aigent</div>
             <div className="truncate text-xs text-zinc-500 dark:text-zinc-400">Agent Operations</div>
           </div>
         </div>
 
+        {/* Search reads as a control, not a nav destination: sunken field with a
+            ⌘K affordance, so it is told apart from the routes below at a glance. */}
         <SidebarSection>
-          <SidebarItem onClick={() => window.dispatchEvent(new Event('aigent:command-palette'))}>
+          <SidebarItem
+            onClick={() => window.dispatchEvent(new Event('aigent:command-palette'))}
+            className="rounded-lg bg-zinc-950/[0.03] ring-1 ring-zinc-950/5 dark:bg-surface-sunken dark:ring-[var(--surface-border)]"
+          >
             <MagnifyingGlassIcon data-slot="icon" />
-            <SidebarLabel>Search</SidebarLabel>
+            <SidebarLabel className="text-zinc-500 dark:text-zinc-400">Search</SidebarLabel>
+            <kbd className="ml-auto font-sans text-[10px] font-medium text-zinc-400 dark:text-zinc-500">⌘K</kbd>
           </SidebarItem>
         </SidebarSection>
       </SidebarHeader>
 
-      <SidebarBody>
+      <SidebarBody className="gap-y-1">
         {NAV_SECTIONS.map((section) => (
           <SidebarSection key={section.heading}>
-            <SidebarHeading>{section.heading}</SidebarHeading>
+            {/* Same eyebrow treatment as every other section label in the app
+                (10px, uppercase, wide tracking) so the sidebar headings and the
+                panel/KPI overlines read as one typographic family. */}
+            <SidebarHeading className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-500">
+              {section.heading}
+            </SidebarHeading>
             {section.items.map((item) => (
               <SidebarItem key={item.href} href={item.href} current={isCurrent(item.href, item.exact)}>
                 <item.icon data-slot="icon" />
@@ -113,7 +124,7 @@ export function AigentSidebar() {
               slot="avatar"
               initials="AD"
               alt=""
-              className="bg-zinc-800 text-white font-medium ring-1 ring-white/10"
+              className="bg-zinc-200 text-zinc-700 font-medium ring-1 ring-zinc-950/10 dark:bg-surface-sunken dark:text-zinc-300 dark:ring-[var(--surface-border-strong)]"
             />
             <SidebarLabel>Adrien</SidebarLabel>
             <ArrowRightStartOnRectangleIcon data-slot="icon" />
