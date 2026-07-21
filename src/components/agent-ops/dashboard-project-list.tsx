@@ -41,6 +41,7 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
             <TableBody>
               {projects.map((project) => {
                 const hasWarnings = project.openWarnings > 0
+                const hasSignal = project.passRate !== null || project.runsLast24h > 0
                 const cost = project.runsLast24h > 0 ? formatUsd(project.costLast24hUsd) : '—'
                 // ONE notion of "has a logo" for both the image and the initials fallback:
                 // `??` on one side and `||` on the other made an empty-string imageUrl
@@ -87,9 +88,20 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
                       <div className="font-mono text-xs tabular-nums text-zinc-500">{cost}</div>
                     </TableCell>
                     <TableCell className="py-2! pr-4! pl-2! text-right sm:pl-4!">
-                      <Badge color={hasWarnings ? 'zinc' : 'accent'} className="uppercase tracking-widest">
-                        {hasWarnings ? `${project.openWarnings} alert${project.openWarnings === 1 ? '' : 's'}` : 'Healthy'}
-                      </Badge>
+                      {hasWarnings ? (
+                        <Badge color="zinc" className="uppercase tracking-widest">
+                          {project.openWarnings} alert{project.openWarnings === 1 ? '' : 's'}
+                        </Badge>
+                      ) : hasSignal ? (
+                        <Badge color="accent" className="uppercase tracking-widest">
+                          Healthy
+                        </Badge>
+                      ) : (
+                        // Same rule as /admin/projects: no warnings is not evidence
+                        // of health. A project with no pass rate and no runs has
+                        // produced no observation to call healthy.
+                        <span className="font-mono text-xs text-zinc-500">no signal</span>
+                      )}
                     </TableCell>
                   </TableRow>
                 )
