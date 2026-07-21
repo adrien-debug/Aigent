@@ -31,7 +31,7 @@ export function EmptyState({
     <div className={clsx('px-6 py-12', className)}>
       <div className="mx-auto max-w-md text-center">
         {Icon ? <Icon aria-hidden="true" className="mx-auto size-10 text-zinc-500" /> : null}
-        <Subheading tone="neutral" className={clsx(Icon && 'mt-4', 'text-zinc-900')}>
+        <Subheading tone="neutral" className={clsx(Icon && 'mt-4', 'text-zinc-900 dark:text-white')}>
           {title}
         </Subheading>
         {description ? <Text className="mt-2 text-zinc-600">{description}</Text> : null}

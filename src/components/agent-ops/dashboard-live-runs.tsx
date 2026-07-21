@@ -41,7 +41,7 @@ export async function DashboardLiveRuns() {
                   <Link
                     href={`/admin/agents/${run.copilotId}/runs?run=${run.id}`}
                     title={run.id}
-                    className="block truncate text-sm font-medium text-zinc-900 hover:underline"
+                    className="block truncate text-sm font-medium text-zinc-900 dark:text-white hover:underline"
                   >
                     {run.userLabel}
                   </Link>

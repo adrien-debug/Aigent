@@ -67,7 +67,7 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
                           className="size-8 shrink-0 bg-zinc-100 text-zinc-900 ring-1 ring-zinc-950/10"
                         />
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-medium text-zinc-900 group-hover:underline">{project.name}</div>
+                          <div className="truncate text-sm font-medium text-zinc-900 dark:text-white group-hover:underline">{project.name}</div>
                           <div className="truncate font-mono text-xs text-zinc-500">
                             {project.repoFullName ?? 'no repo linked'}
                           </div>
