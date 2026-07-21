@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
-import { surfaceInsetClass } from '@/components/agent-ops/surface-card'
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { Badge } from '@/components/catalyst/badge'
@@ -78,7 +77,7 @@ function MissionReportPanel({ report }: { report: MissionReport }) {
 
       {/* Blockers */}
       {report.consensus.blockers.length > 0 && (
-        <div className="rounded-xl bg-accent-50/50 ring-1 ring-accent-600/20 p-4">
+        <div className="rounded-xl bg-(--accent-soft) ring-1 ring-(--accent-line) p-4">
           <p className="text-xs font-bold text-accent-700 uppercase tracking-widest mb-3">Blockers ({report.consensus.blockers.length})</p>
           <ul className="text-sm text-accent-800 space-y-2">
             {report.consensus.blockers.map((f) => (

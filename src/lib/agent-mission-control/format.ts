@@ -60,6 +60,26 @@ export function formatRelative(iso: IsoTimestamp, referenceIso: IsoTimestamp): s
 }
 
 /**
+ * Compact age for narrow columns: "<1m" / "14m" / "2h" / "3d" (future: "in 2h").
+ * `formatRelative` renders "less than a minute ago" (22 chars) for a run younger
+ * than 60s — 158px in mono, which no compact column can hold without truncating
+ * exactly the freshest rows. Use this one wherever the width is bounded.
+ */
+export function formatRelativeCompact(iso: IsoTimestamp, referenceIso: IsoTimestamp): string {
+  const deltaMs = Date.parse(referenceIso) - Date.parse(iso)
+  const future = deltaMs < 0
+  const seconds = Math.round(Math.abs(deltaMs) / 1000)
+
+  let label: string
+  if (seconds < 60) label = '<1m'
+  else if (seconds < 3600) label = `${Math.round(seconds / 60)}m`
+  else if (seconds < 86400) label = `${Math.round(seconds / 3600)}h`
+  else label = `${Math.round(seconds / 86400)}d`
+
+  return future ? `in ${label}` : label
+}
+
+/**
  * 0..1 ratio → percent with fixed decimals (default 1), e.g. 0.927 → "92.7%".
  * Pass `digits: 0` only for coarse thresholds (e.g. "≥ 95%").
  */

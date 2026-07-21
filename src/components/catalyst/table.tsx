@@ -15,18 +15,31 @@ const TableContext = createContext<{ bleed: boolean; dense: boolean; grid: boole
 export function Table({
   bleed = false,
   dense = false,
+  fixed = false,
   grid = false,
   striped = false,
   className,
   children,
   ...props
-}: { bleed?: boolean; dense?: boolean; grid?: boolean; striped?: boolean } & React.ComponentPropsWithoutRef<'div'>) {
+}: { bleed?: boolean; dense?: boolean; fixed?: boolean; grid?: boolean; striped?: boolean } & React.ComponentPropsWithoutRef<'div'>) {
   return (
     <TableContext.Provider value={{ bleed, dense, grid, striped } as React.ContextType<typeof TableContext>}>
       <div className="flow-root">
-        <div {...props} className={clsx(className, '-mx-(--gutter) overflow-x-auto whitespace-nowrap')}>
+        {/* `fixed` tables are `w-full table-fixed`: they can never exceed the container,
+            so the horizontal scrollport is pointless — and harmful. `overflow-x: auto`
+            computes `overflow-y` to `auto` too, creating a nested vertical scrollport
+            that (a) duplicates the caller's own scroll container and (b) traps
+            `position: sticky` headers, which then never stick. Drop it when fixed. */}
+        <div {...props} className={clsx(className, '-mx-(--gutter) whitespace-nowrap', !fixed && 'overflow-x-auto')}>
           <div className={clsx('inline-block min-w-full align-middle', !bleed && 'sm:px-(--gutter)')}>
-            <table className="min-w-full text-left text-sm/6 text-white">{children}</table>
+            <table
+              className={clsx(
+                'min-w-full text-left text-sm/6 text-white',
+                fixed && 'w-full table-fixed'
+              )}
+            >
+              {children}
+            </table>
           </div>
         </div>
       </div>
