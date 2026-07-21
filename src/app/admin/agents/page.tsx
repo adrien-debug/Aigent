@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 
 import { AdminPageHeader } from '@/components/agent-ops/surface-card'
 import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
-import { EmptyState } from '@/components/agent-ops/empty-state'
+import { EmptyState, NotMeasuredDash } from '@/components/agent-ops/empty-state'
 import { SoftAccentLink } from '@/components/agent-ops/soft-accent-link'
 import { Badge } from '@/components/catalyst/badge'
 import { surfaceRaised } from '@/components/catalyst/surface'
@@ -68,12 +68,16 @@ export default async function AgentsPage() {
                   {/* w-32, not w-24: the widest status label is UNAVAILABLE, and in a
                       table-fixed layout a too-narrow column lets the badge bleed into
                       the next cell instead of widening its own. */}
-                  {/* Sized for "UNAVAILABLE" + its dot at NORMAL tracking. The
-                      widest tracking needed w-40, which then stole width from the
-                      agent name — the column that actually identifies the row. */}
+                  {/* Sized for "UNAVAILABLE" + its status dot at NORMAL tracking.
+                      The widest tracking needed w-40, which then stole width from
+                      the agent name — the column that identifies the row. */}
                   <TableHeader className="w-[7.5rem] sm:w-[8.5rem]">Status</TableHeader>
-                  <TableHeader className="hidden w-24 xl:table-cell">Provider</TableHeader>
-                  <TableHeader className="hidden w-40 lg:table-cell">Model</TableHeader>
+                  {/* Provider and model answer ONE question — "what runs this
+                      agent" — but sat in two columns with different breakpoints,
+                      so between lg and xl the model showed with no provider to
+                      qualify it. Merged into a single Runtime column that appears
+                      in one go, which also buys back the width the avatar needs. */}
+                  <TableHeader className="hidden w-44 lg:table-cell">Runtime</TableHeader>
                   <TableHeader className="hidden w-20 text-right xl:table-cell">Tools</TableHeader>
                   <TableHeader className="hidden w-28 text-right sm:table-cell">Last run</TableHeader>
                   <TableHeader className="w-24 pr-4! text-right">Cost</TableHeader>
@@ -88,9 +92,13 @@ export default async function AgentsPage() {
                       key={agent.copilotId}
                       href={`/admin/agents/${agent.copilotId}`}
                       title={`Open agent ${agent.name}`}
-                      className="group"
+                      className="group h-14"
                     >
-                      <TableCell className="py-3! pl-4!">
+                      {/* py-2! pins the row to the h-14 set above, matching the
+                          projects table on the cockpit so the two read as one
+                          rhythm instead of two densities. It must beat the
+                          primitive's own py-*, which class order alone would not do. */}
+                      <TableCell className="py-2! pl-4!">
                         <div className="flex min-w-0 items-center gap-3">
                           {/* Reuses the existing CopilotAvatar: the glyph is derived
                               from slug/name/capabilities and is decorative only —
@@ -103,7 +111,7 @@ export default async function AgentsPage() {
                             <div className="truncate text-sm font-medium text-zinc-900 group-hover:underline dark:text-white">
                               {agent.name}
                             </div>
-                            {/* Below lg the Project and Model columns are dropped, so
+                            {/* Below lg the Project and Runtime columns are dropped, so
                                 their values fold under the name rather than being lost. */}
                             <div className="truncate font-mono text-xs text-zinc-500">
                               <span className="lg:hidden">{projectName !== '—' ? `${projectName} · ` : ''}</span>
@@ -112,10 +120,10 @@ export default async function AgentsPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="hidden py-3! truncate text-sm text-zinc-600 lg:table-cell dark:text-zinc-400">
+                      <TableCell className="hidden py-2! truncate text-sm text-zinc-600 lg:table-cell dark:text-zinc-400">
                         {projectName}
                       </TableCell>
-                      <TableCell className="py-3!">
+                      <TableCell className="py-2!">
                         {/* Normal tracking at every size: "UNAVAILABLE" at the
                             widest letter-spacing is the single widest cell in the
                             table and was stealing width from the agent name. */}
@@ -127,20 +135,23 @@ export default async function AgentsPage() {
                           {agent.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="hidden py-3! font-mono text-sm text-zinc-600 xl:table-cell dark:text-zinc-400">
-                        {agent.provider ?? '—'}
+                      {/* Runtime — model on top (the identifying fact), provider as
+                          its qualifier underneath. Two lines here rather than two
+                          columns, so the pair never splits across breakpoints. */}
+                      <TableCell className="hidden py-2! lg:table-cell">
+                        <div className="truncate font-mono text-sm text-zinc-600 dark:text-zinc-400">
+                          {agent.configuredModel ?? <NotMeasuredDash />}
+                        </div>
+                        <div className="truncate font-mono text-xs text-zinc-500">{agent.provider ?? '—'}</div>
                       </TableCell>
-                      <TableCell className="hidden py-3! truncate font-mono text-sm text-zinc-600 lg:table-cell dark:text-zinc-400">
-                        {agent.configuredModel ?? '—'}
-                      </TableCell>
-                      <TableCell className="hidden py-3! text-right font-mono text-sm tabular-nums text-zinc-600 xl:table-cell dark:text-zinc-400">
+                      <TableCell className="hidden py-2! text-right font-mono text-sm tabular-nums text-zinc-600 xl:table-cell dark:text-zinc-400">
                         {agent.tools.length}
                       </TableCell>
-                      <TableCell className="hidden py-3! text-right font-mono text-xs tabular-nums text-zinc-500 sm:table-cell">
-                        {agent.lastRunAt ? formatRelativeCompact(agent.lastRunAt, now) : '—'}
+                      <TableCell className="hidden py-2! text-right font-mono text-xs tabular-nums text-zinc-500 sm:table-cell">
+                        {agent.lastRunAt ? formatRelativeCompact(agent.lastRunAt, now) : <NotMeasuredDash />}
                       </TableCell>
-                      <TableCell className="py-3! pr-4! text-right font-mono text-sm tabular-nums text-zinc-600 dark:text-zinc-400">
-                        {agent.lastRunCostUsd !== null ? formatUsd(agent.lastRunCostUsd) : '—'}
+                      <TableCell className="py-2! pr-4! text-right font-mono text-sm tabular-nums text-zinc-600 dark:text-zinc-400">
+                        {agent.lastRunCostUsd !== null ? formatUsd(agent.lastRunCostUsd) : <NotMeasuredDash />}
                       </TableCell>
                     </TableRow>
                   )
