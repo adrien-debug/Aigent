@@ -22,10 +22,10 @@ export default async function DashboardPage() {
       <DashboardKpiStrip kpis={overview.kpis} />
       <DashboardDataWarnings warnings={overview.dataWarnings} />
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ActionCenter items={overview.actionItems} />
         <DashboardLiveRuns />
-        <div className="min-w-0 xl:col-span-2">
+        <div className="min-w-0 lg:col-span-2">
           <DashboardProjectList projects={overview.projects} />
         </div>
       </div>

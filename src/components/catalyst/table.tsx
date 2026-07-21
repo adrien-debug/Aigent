@@ -25,7 +25,12 @@ export function Table({
   return (
     <TableContext.Provider value={{ bleed, dense, grid, striped } as React.ContextType<typeof TableContext>}>
       <div className="flow-root">
-        <div {...props} className={clsx(className, '-mx-(--gutter) overflow-x-auto whitespace-nowrap')}>
+        {/* `fixed` tables are `w-full table-fixed`: they can never exceed the container,
+            so the horizontal scrollport is pointless — and harmful. `overflow-x: auto`
+            computes `overflow-y` to `auto` too, creating a nested vertical scrollport
+            that (a) duplicates the caller's own scroll container and (b) traps
+            `position: sticky` headers, which then never stick. Drop it when fixed. */}
+        <div {...props} className={clsx(className, '-mx-(--gutter) whitespace-nowrap', !fixed && 'overflow-x-auto')}>
           <div className={clsx('inline-block min-w-full align-middle', !bleed && 'sm:px-(--gutter)')}>
             <table
               className={clsx(
@@ -48,7 +53,7 @@ export function TableHead({ className, ...props }: React.ComponentPropsWithoutRe
       {...props}
       className={clsx(
         className,
-        '[&_th]:border-b [&_th]:border-white/5'
+        '[&_th]:border-b [&_th]:border-zinc-950/5'
       )}
     />
   )
@@ -86,9 +91,12 @@ export function TableRow({
           // and painting the <td> unconditionally would also cover any
           // hover:bg-* set on the <tr> itself.
           '[&>td]:transition-colors [&>th]:transition-colors',
+          // No `dark:` variants here: the app is light-only — the root layout never
+          // sets the `dark` class (@custom-variant dark in globals.css), so any
+          // `dark:` utility in this file is unreachable code, not a fallback.
           href &&
-            'hover:[&>td]:bg-(--color-surface-interactive) hover:[&>th]:bg-(--color-surface-interactive) has-[[data-row-link][data-focus]]:outline-2 has-[[data-row-link][data-focus]]:-outline-offset-2 has-[[data-row-link][data-focus]]:outline-accent-500 dark:focus-within:[&>td]:bg-white/2',
-          striped && 'even:[&>td]:bg-zinc-950/2 dark:even:[&>td]:bg-white/2'
+            'hover:[&>td]:bg-(--color-surface-interactive) hover:[&>th]:bg-(--color-surface-interactive) has-[[data-row-link][data-focus]]:outline-2 has-[[data-row-link][data-focus]]:-outline-offset-2 has-[[data-row-link][data-focus]]:outline-accent-500',
+          striped && 'even:[&>td]:bg-zinc-950/2'
         )}
       />
     </TableRowContext.Provider>
@@ -104,7 +112,7 @@ export function TableHeader({ className, ...props }: React.ComponentPropsWithout
         className={clsx(
           className,
           'px-4 py-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-500 first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2))',
-          grid && 'border-l border-l-zinc-950/5 first:border-l-0 dark:border-l-white/5',
+          grid && 'border-l border-l-zinc-950/5 first:border-l-0',
           !bleed && 'sm:first:pl-1 sm:last:pr-1'
         )}
     />
@@ -123,8 +131,8 @@ export function TableCell({ className, children, ...props }: React.ComponentProp
       className={clsx(
         className,
         'relative px-4 first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2))',
-        !striped && 'border-b border-white/5',
-        grid && 'border-l border-l-white/5 first:border-l-0',
+        !striped && 'border-b border-zinc-950/5',
+        grid && 'border-l border-l-zinc-950/5 first:border-l-0',
         dense ? 'py-3' : 'py-4',
         !bleed && 'sm:first:pl-1 sm:last:pr-1'
       )}

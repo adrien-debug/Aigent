@@ -43,7 +43,7 @@ function ActionRow({ item }: { item: ActionItem }) {
         aria-hidden="true"
         className="size-5 text-zinc-400 transition-colors duration-150 group-hover:text-zinc-500"
       />
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+      <div className="flex min-w-0 flex-col gap-0.5">
         <div className="flex items-center gap-2">
           <p className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-900">{item.title}</p>
           <Badge color={tone} className="uppercase tracking-widest">
@@ -72,7 +72,7 @@ export function ActionCenter({ items }: { items: ActionItem[] }) {
     <SurfaceCard>
       <SurfaceCardHeader
         title="Requires Attention"
-        className="px-4 pt-4 pb-3"
+        density="compact"
         meta={
           sorted.length > 0 ? (
             <span className="font-mono text-xs tabular-nums text-zinc-500">{sorted.length} open</span>
