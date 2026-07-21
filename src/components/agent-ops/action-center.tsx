@@ -7,7 +7,6 @@ import {
   SignalSlashIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline'
-import clsx from 'clsx'
 
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
@@ -39,33 +38,29 @@ function ActionRow({ item }: { item: ActionItem }) {
   const linkProps = external ? { target: '_blank', rel: 'noreferrer' } : {}
 
   return (
-    <li
-      className="group flex gap-3 px-4 py-3 border-b border-zinc-950/5 last:border-b-0 transition-colors duration-150 hover:bg-[var(--color-surface-focus)]"
-    >
+    <li className="group grid min-h-14 grid-cols-[1.25rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-[var(--color-surface-focus)]">
       <Icon
         aria-hidden="true"
-        className="mt-0.5 size-5 shrink-0 text-zinc-400 transition-colors duration-150 group-hover:text-zinc-500"
+        className="size-5 text-zinc-400 transition-colors duration-150 group-hover:text-zinc-500"
       />
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+      <div className="flex min-w-0 flex-col gap-0.5">
         <div className="flex items-center gap-2">
           <p className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-900">{item.title}</p>
           <Badge color={tone} className="uppercase tracking-widest">
             {item.status}
           </Badge>
         </div>
-        <div className="flex items-center justify-between gap-3">
-          <p className="min-w-0 truncate font-mono text-xs text-zinc-500">{item.meta}</p>
-          <Link
-            href={item.href}
-            aria-label={`${item.buttonLabel}: ${item.title}`}
-            className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900"
-            {...linkProps}
-          >
-            {item.buttonLabel}
-            <ChevronRightIcon className="size-3.5" aria-hidden="true" />
-          </Link>
-        </div>
+        <p className="min-w-0 truncate font-mono text-xs text-zinc-500">{item.meta}</p>
       </div>
+      <Link
+        href={item.href}
+        aria-label={`${item.buttonLabel}: ${item.title}`}
+        className="inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 text-xs font-medium text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900"
+        {...linkProps}
+      >
+        {item.buttonLabel}
+        <ChevronRightIcon className="size-3.5" aria-hidden="true" />
+      </Link>
     </li>
   )
 }
@@ -74,10 +69,10 @@ export function ActionCenter({ items }: { items: ActionItem[] }) {
   const sorted = [...items].sort((a, b) => a.priority - b.priority)
 
   return (
-    <SurfaceCard className="flex h-full flex-col">
+    <SurfaceCard>
       <SurfaceCardHeader
         title="Requires Attention"
-        className="px-4 pt-3 pb-2"
+        density="compact"
         meta={
           sorted.length > 0 ? (
             <span className="font-mono text-xs tabular-nums text-zinc-500">{sorted.length} open</span>
@@ -85,7 +80,7 @@ export function ActionCenter({ items }: { items: ActionItem[] }) {
         }
       />
       {sorted.length > 0 ? (
-        <ul className="flex flex-col border-t border-zinc-950/5">
+        <ul className="divide-y divide-zinc-950/5 border-t border-zinc-950/5">
           {sorted.map((item) => (
             <ActionRow key={item.id} item={item} />
           ))}

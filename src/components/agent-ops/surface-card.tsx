@@ -30,8 +30,27 @@ export const surfaceNavClass =
 /** Backward-compatible alias — prefer `surfaceSectionClass` for new code. */
 export const surfaceCardClass = surfaceSectionClass
 
-export const surfaceSectionHeaderClass =
-  'flex flex-wrap items-center justify-between gap-3 px-6 pt-4 pb-2'
+/**
+ * Header geometry, split in two so padding stays DECIDABLE by the caller.
+ *
+ * A local `className="px-4"` does NOT override the default `px-6`: two utilities
+ * of the same property have the same specificity, so the winner is the one Tailwind
+ * emits LAST in the stylesheet (`.px-4` line 3232 < `.px-6` line 3240) — never the
+ * one written last in the class attribute. Passing padding through `className` was
+ * therefore a silent no-op. Choose the geometry with `density`, never with `px-*`.
+ */
+const surfaceSectionHeaderStructureClass = 'flex shrink-0 flex-wrap items-center justify-between gap-3'
+
+const SURFACE_HEADER_DENSITY = {
+  /** Section default — matches the `px-6` gutter of full-page section cards. */
+  comfortable: 'px-6 pt-4 pb-2',
+  /** Cockpit cards — 16px, aligned with the 16px content gutter of their rows/cells. */
+  compact: 'px-4 pt-4 pb-3',
+} as const
+
+export type SurfaceHeaderDensity = keyof typeof SURFACE_HEADER_DENSITY
+
+export const surfaceSectionHeaderClass = `${surfaceSectionHeaderStructureClass} ${SURFACE_HEADER_DENSITY.comfortable}`
 
 /**
  * Micro-eyebrow — the tiny uppercase overline shared by `AdminPageHeader` and
@@ -74,16 +93,20 @@ export function SurfaceCardHeader({
   description,
   actions,
   meta,
+  density = 'comfortable',
   className,
 }: {
   title: React.ReactNode
   description?: React.ReactNode
   actions?: React.ReactNode
   meta?: React.ReactNode
+  /** Horizontal gutter of the header. MUST align with the card body's own gutter. */
+  density?: SurfaceHeaderDensity
+  /** Non-padding extras only — see `surfaceSectionHeaderClass` for why `px-*` here is a no-op. */
   className?: string
 }) {
   return (
-    <div className={clsx(surfaceSectionHeaderClass, className)}>
+    <div className={clsx(surfaceSectionHeaderStructureClass, SURFACE_HEADER_DENSITY[density], className)}>
       <div className="min-w-0">
         <Subheading level={2} tone="neutral" className="tracking-tight text-zinc-900">
           {title}

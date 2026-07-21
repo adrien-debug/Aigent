@@ -10,9 +10,12 @@ import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 
 export function DashboardProjectList({ projects }: { projects: ProjectOverviewItem[] }) {
   return (
-    <SurfaceCard className="flex h-full flex-col">
+    // Bounded box, scrolling data: the card caps at 34rem and the rows scroll inside.
+    // `max-h` (not `h`) so a short list still shrinks to its content — no empty band.
+    <SurfaceCard className="max-h-[34rem]">
       <SurfaceCardHeader
         title="Projects"
+        density="compact"
         meta={
           <Link href="/admin/projects/new" className="text-xs font-medium text-accent-400 hover:underline">
             + New Project
@@ -20,51 +23,76 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
         }
       />
       {projects.length > 0 ? (
-        <div className="max-h-[34rem] overflow-auto no-scrollbar">
-          <Table className="min-w-[560px] w-full border-collapse px-4 text-left [--gutter:--spacing(0)]">
-            <TableHead className="sticky top-0 z-10 bg-[var(--color-surface-secondary)]">
-              <TableRow className="border-b border-zinc-950/5">
-                <TableHeader>Project</TableHeader>
-                <TableHeader className="text-right">Copilots</TableHeader>
-                <TableHeader className="text-right">Success</TableHeader>
-                <TableHeader className="text-right">24h</TableHeader>
-                <TableHeader className="text-right">Status</TableHeader>
+        // The ONLY vertical scrollport of this card — `Table` drops its own
+        // `overflow-x-auto` when `fixed`, so the sticky head below actually sticks.
+        <div className="min-h-0 flex-1 overflow-y-auto border-t border-zinc-950/5">
+          <Table fixed className="w-full text-left [--gutter:--spacing(0)]">
+            <TableHead className="sticky top-0 z-10 bg-(--color-surface-secondary)">
+              <TableRow>
+                <TableHeader className="pl-4!">Project</TableHeader>
+                <TableHeader className="hidden w-24 text-right md:table-cell">Copilots</TableHeader>
+                <TableHeader className="hidden w-24 text-right lg:table-cell">Success</TableHeader>
+                <TableHeader className="hidden text-right sm:table-cell sm:w-28">
+                  24h<span className="sr-only"> — runs and cost over the last 24 hours</span>
+                </TableHeader>
+                <TableHeader className="w-28 pr-4! pl-2! text-right sm:w-32 sm:pl-4!">Status</TableHeader>
               </TableRow>
             </TableHead>
-            <TableBody className="divide-y divide-zinc-950/5">
+            <TableBody>
               {projects.map((project) => {
                 const hasWarnings = project.openWarnings > 0
                 const cost = project.runsLast24h > 0 ? formatUsd(project.costLast24hUsd) : '—'
+                // ONE notion of "has a logo" for both the image and the initials fallback:
+                // `??` on one side and `||` on the other made an empty-string imageUrl
+                // render a blank <img> AND suppress the initials.
+                const logo = project.imageUrl || project.logoUrl || null
                 return (
-                  <TableRow key={project.id} href={`/admin/projects/${project.id}`} className="group h-12">
-                    <TableCell className="py-2">
+                  <TableRow
+                    key={project.id}
+                    href={`/admin/projects/${project.id}`}
+                    // Real accessible name for the full-row link (rendered as aria-label).
+                    title={`Open project ${project.name}`}
+                    className="group h-14"
+                  >
+                    {/* py-2! is load-bearing, not decoration: it holds every row at h-14
+                        (56px) including the two-line 24h cell, so it must beat the
+                        primitive's own py-*, which class order alone would not do. */}
+                    <TableCell className="py-2! pl-4!">
                       <div className="flex min-w-0 items-center gap-3">
                         <Avatar
                           square
-                          src={project.imageUrl ?? project.logoUrl}
-                          initials={project.imageUrl || project.logoUrl ? undefined : project.name.slice(0, 2)}
+                          src={logo}
+                          initials={logo ? undefined : project.name.slice(0, 2)}
                           alt=""
                           className="size-8 shrink-0 bg-zinc-100 text-zinc-900 ring-1 ring-zinc-950/10"
                         />
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium text-zinc-900 group-hover:underline">{project.name}</div>
-                          <div className="truncate font-mono text-[10px] text-zinc-500">
+                          <div className="truncate font-mono text-xs text-zinc-500">
                             {project.repoFullName ?? 'no repo linked'}
+                          </div>
+                          {/* Below sm the 24h column is dropped so Project keeps the
+                              majority of the width; its two values move here rather
+                              than being squeezed into 48px and spilling left. */}
+                          <div className="truncate font-mono text-xs tabular-nums text-zinc-500 sm:hidden">
+                            {project.runsLast24h.toLocaleString()} runs · {cost}
                           </div>
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="py-2 text-right font-mono text-xs tabular-nums text-zinc-600">
+                    <TableCell className="hidden py-2! text-right font-mono text-sm tabular-nums text-zinc-600 md:table-cell">
                       {project.activeCount}<span className="text-zinc-400"> / {project.copilotCount}</span>
                     </TableCell>
-                    <TableCell className="py-2 text-right font-mono text-xs tabular-nums text-zinc-600">
+                    <TableCell className="hidden py-2! text-right font-mono text-sm tabular-nums text-zinc-600 lg:table-cell">
                       {project.passRate === null ? '—' : formatPercent(project.passRate)}
                     </TableCell>
-                    <TableCell className="py-2 text-right">
-                      <div className="font-mono text-xs tabular-nums text-zinc-600">{project.runsLast24h.toLocaleString()} runs</div>
-                      <div className="font-mono text-[10px] tabular-nums text-zinc-500">{cost}</div>
+                    <TableCell className="hidden py-2! text-right sm:table-cell">
+                      <div className="font-mono text-sm tabular-nums text-zinc-600">
+                        {project.runsLast24h.toLocaleString()} runs
+                      </div>
+                      <div className="font-mono text-xs tabular-nums text-zinc-500">{cost}</div>
                     </TableCell>
-                    <TableCell className="py-2 text-right">
+                    <TableCell className="py-2! pr-4! pl-2! text-right sm:pl-4!">
                       <Badge color={hasWarnings ? 'zinc' : 'accent'} className="uppercase tracking-widest">
                         {hasWarnings ? `${project.openWarnings} alert${project.openWarnings === 1 ? '' : 's'}` : 'Healthy'}
                       </Badge>

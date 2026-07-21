@@ -3,7 +3,7 @@ import { RunStatusText } from '@/components/agent-ops/run-detail-panel'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import { Link } from '@/components/catalyst/link'
 import { getRecentRuns } from '@/lib/agent-mission-control/data'
-import { formatDurationMs, formatRelative, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
+import { formatDurationMs, formatRelativeCompact, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 
 export async function DashboardLiveRuns() {
   const runs = await getRecentRuns(8)
@@ -13,13 +13,19 @@ export async function DashboardLiveRuns() {
     <SurfaceCard>
       <SurfaceCardHeader
         title="Live Runs"
-        className="px-4 pt-3 pb-2"
+        density="compact"
         meta={<span className="font-mono text-xs tabular-nums text-zinc-500">{runs.length} recent</span>}
       />
       {runs.length > 0 ? (
-        <ul className="divide-y divide-zinc-950/5 pb-2">
+        <ul className="divide-y divide-zinc-950/5 border-t border-zinc-950/5">
           {runs.map((run) => (
-            <li key={run.id} className="px-4 py-2.5 hover:bg-[var(--color-surface-focus)]">
+            // Two levels on mobile (identity, then the metric strip), two columns from
+            // sm up. The metric column is `auto`: it is sized by its content, so no
+            // duration and no amount can ever be silently truncated.
+            <li
+              key={run.id}
+              className="grid gap-1 px-4 py-2.5 hover:bg-(--color-surface-focus) sm:min-h-14 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4"
+            >
               <div className="flex min-w-0 items-center gap-3">
                 <span
                   aria-hidden="true"
@@ -31,7 +37,7 @@ export async function DashboardLiveRuns() {
                         : 'bg-zinc-400'
                   }`}
                 />
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0">
                   <Link
                     href={`/admin/agents/${run.copilotId}/runs?run=${run.id}`}
                     title={run.id}
@@ -41,14 +47,26 @@ export async function DashboardLiveRuns() {
                   </Link>
                   <RunStatusText status={run.status} />
                 </div>
-                <div className="shrink-0 text-right font-mono text-[10px] tabular-nums">
-                  <div className="text-zinc-500">
-                    {formatDurationMs(run.latencyMs)} · {run.costUsd === null ? '—' : formatUsd(run.costUsd)}
-                  </div>
-                  <div className="text-zinc-400" title={formatTimestamp(run.startedAt)}>
-                    {formatRelative(run.startedAt, nowIso)}
-                  </div>
-                </div>
+              </div>
+              {/* `min-w-*` (never `w-*`) keeps the three metrics aligned column-wise
+                  while letting an unusually long value push instead of clip.
+                  Labels are sr-only text, not `title=`: a tooltip is mouse-only. */}
+              <div className="flex items-baseline justify-end gap-4 font-mono text-xs tabular-nums">
+                <span className="min-w-14 whitespace-nowrap text-right text-zinc-500">
+                  <span className="sr-only">Duration: </span>
+                  {formatDurationMs(run.latencyMs)}
+                </span>
+                <span className="min-w-16 whitespace-nowrap text-right text-zinc-500">
+                  <span className="sr-only">Cost: </span>
+                  {run.costUsd === null ? '—' : formatUsd(run.costUsd)}
+                </span>
+                <span
+                  className="min-w-10 whitespace-nowrap text-right text-zinc-400"
+                  title={formatTimestamp(run.startedAt)}
+                >
+                  <span className="sr-only">Started: </span>
+                  {formatRelativeCompact(run.startedAt, nowIso)}
+                </span>
               </div>
             </li>
           ))}
