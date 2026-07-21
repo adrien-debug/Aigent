@@ -102,7 +102,7 @@ function LoginFormSkeleton() {
 }
 
 export default function LoginPage() {
-  // Theme-aware like the rest of the app (see AgentControlShell): page body
+  // Theme-aware like the rest of the app (see SidebarLayout): page body
   // is bg-zinc-100/dark:bg-zinc-900, framed surfaces are bg-white/dark:bg-zinc-950.
   // Previously this page hardcoded the dark-only look regardless of theme.
   return (

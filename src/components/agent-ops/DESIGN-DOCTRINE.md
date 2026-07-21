@@ -96,7 +96,10 @@ Détail : `docs/surface-usage.md`.
 - `AgentMetricCard { label, value, delta?, trend?: 'up'|'down'|'flat', hint? }`
 - `AgentBentoCard { eyebrow?, title, description?, children?, className? }`
 - `ArchitectureStrip { steps: { name, detail?, status?: 'ok'|'warn'|'off' }[] }`
-- `AgentControlShell { children }` — shell custom (rail étroit), UN SEUL shell pour tout /admin.
+- **Shell** = `SidebarLayout` (`@/components/catalyst/sidebar-layout`, design system Kyc) +
+  `AigentSidebar`. UN SEUL shell pour tout `/admin`, monté dans `src/app/admin/layout.tsx`.
+  Sidebar pleine `w-64` en desktop, `Dialog` Headless en mobile, un seul `<main>`, un seul
+  scroll (celui du document). L'ancien `AgentControlShell` (rail 64px) est supprimé.
 
 ## États & accessibilité (non négociable)
 - Chaque écran gère : loading n/a (mocks), **empty state** (marketing feature/CTA re-tonalisé),
