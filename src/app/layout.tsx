@@ -26,9 +26,12 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // `dark` is what activates every `dark:` utility in the design system —
+      // globals.css binds the variant to the CLASS, not to prefers-color-scheme,
+      // so dark is the product's identity rather than the reader's OS setting.
+      className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col bg-white dark:bg-zinc-950">
         {children}
       </body>
     </html>
