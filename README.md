@@ -57,8 +57,9 @@ with `npm run langgraph:studio`.
 
 `AMC_DATA_SOURCE=gpu1`, `AMC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
 `OPENAI_API_KEY` (see `.env.example` for the full list, including
-`LANGGRAPH_API_URL`, `AGENT_BUILDER_MODEL`, and `TRADEAGENT_MARKET_URL` for live
-market reads). Without them the relevant data and run paths fail closed.
+`LANGGRAPH_API_URL`, `AGENT_BUILDER_MODEL`, `TRADEAGENT_MARKET_URL`, and
+`TRADEAGENT_PORTFOLIO_RISK_URL` + `TRADEAGENT_INTERNAL_API_KEY` for live
+market reads and portfolio risk). Without them the relevant data and run paths fail closed.
 
 ## Checks
 

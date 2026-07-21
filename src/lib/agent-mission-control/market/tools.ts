@@ -22,7 +22,7 @@ import { BinanceMarketProvider } from './binance-provider'
 import { FixtureMarketProvider } from './fixtures/fixture-provider'
 import type { ScenarioId } from './fixtures/scenarios'
 import { assembleSnapshot, liquidityFromOrderBook } from './assembler'
-import { readConfiguredAccountRisk } from './account-risk'
+import { readAccountRisk } from './account-risk'
 import { readLiveDerivativesSnapshot } from './derivatives'
 import { calculateRisk } from './risk-engine'
 import {
@@ -385,12 +385,12 @@ export async function readAccountRiskSnapshot(argsJson: string): Promise<Trading
     }
   }
   const asOf = a.asOf ?? Date.now()
-  const account = readConfiguredAccountRisk(a.accountId, asOf)
+  const account = await readAccountRisk(a.accountId, asOf)
   if (!account) {
     return {
       ok: false,
       data: { accountRisk: null, account_required: false, reason: 'account_not_found' },
-      summary: 'account risk unavailable: exact account not found in configured TradeAgent snapshots',
+      summary: 'account risk unavailable: exact account not found via TradeAgent portfolio risk route or configured snapshots',
     }
   }
   const provider = new BinanceMarketProvider()
