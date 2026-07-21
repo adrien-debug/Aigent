@@ -119,7 +119,10 @@ export function ActivityChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: number
           </div>
         }
       />
-      <div className="px-4 pt-2 pb-4">
+      <div className="px-4 pb-4">
+        {/* Plot zone on the sunken plane — the trace reads inside a well rather
+            than floating on the panel face (§11), matching the dashboard charts. */}
+        <div className="rounded-lg px-3 pt-3 pb-2 dark:bg-surface-sunken/60">
         <svg
           role="img"
           aria-label={`Hourly run activity for the last 24 hours: ${runCount(total)} — ${completed} completed, ${failed} failed, ${other} other.`}
@@ -213,6 +216,7 @@ export function ActivityChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: number
               {i % 6 === 0 ? hourLabel(bucket.startMs) : ''}
             </span>
           ))}
+        </div>
         </div>
       </div>
     </SurfaceCard>
