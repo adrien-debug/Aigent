@@ -64,7 +64,7 @@ export function SidebarLayout({
   let [showSidebar, setShowSidebar] = useState(false)
 
   return (
-    <div className="relative isolate flex min-h-svh w-full bg-white max-lg:flex-col lg:bg-zinc-200/80 dark:bg-zinc-900 dark:lg:bg-black">
+    <div className="relative isolate flex min-h-svh w-full bg-white max-lg:flex-col lg:bg-zinc-200/80 dark:bg-surface-app dark:lg:bg-surface-app">
       {/* Sidebar on desktop */}
       <div className="fixed inset-y-0 left-0 w-64 max-lg:hidden">{sidebar}</div>
 
@@ -89,7 +89,10 @@ export function SidebarLayout({
 
       {/* Content */}
       <main className="flex flex-1 flex-col pb-2 lg:min-w-0 lg:pt-2 lg:pr-2 lg:pl-64">
-        <div className="grow p-6 lg:rounded-xl lg:bg-white lg:p-10 lg:shadow-md lg:ring-1 lg:ring-zinc-950/[0.08] dark:lg:bg-zinc-900 dark:lg:ring-white/10">
+        {/* Plane 1 — the workspace card. Distinctly lighter than the app ground
+            behind it, so the page reads as a sheet on a surface rather than one
+            uniform black field. Panels inside it then step up again. */}
+        <div className="grow p-6 lg:rounded-xl lg:bg-white lg:p-10 lg:shadow-md lg:ring-1 lg:ring-zinc-950/[0.08] dark:lg:bg-surface-workspace dark:lg:shadow-[var(--surface-shadow)] dark:lg:ring-[var(--surface-border)]">
           <div className="w-full">{children}</div>
         </div>
       </main>
