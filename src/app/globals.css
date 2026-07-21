@@ -93,6 +93,18 @@ body {
   @apply bg-[var(--color-surface-canvas)] text-[var(--color-surface-foreground)] overflow-x-hidden antialiased;
 }
 
+/* Sidebar surface — ported from the Kyc design system (SHA 565f979).
+   In forced dark the page gutter is black and the bar carries no fill of its
+   own, so it dissolves into the ground and only its inner hairlines are left
+   floating. Re-detach it with a surface and a right edge. Lives here because
+   the container belongs to SidebarLayout, an unmodified Catalyst primitive. */
+@media (min-width: 1024px) {
+  .dark .fixed.inset-y-0.left-0.w-64 {
+    background-color: var(--color-zinc-950);
+    border-right: 1px solid color-mix(in oklab, white 8%, transparent);
+  }
+}
+
 @utility no-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;

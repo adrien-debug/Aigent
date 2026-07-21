@@ -1,31 +1,39 @@
 import clsx from 'clsx'
 
 import { Heading, Subheading } from '@/components/catalyst/heading'
+import { surfaceRaised, surfaceSunken } from '@/components/catalyst/surface'
 import { Text } from '@/components/catalyst/text'
 
 /**
- * Surface hierarchy — see `docs/surface-usage.md`. Tokens are NOT interchangeable:
+ * Surface hierarchy — now a THIN ALIAS over the Kyc grammar in
+ * `@/components/catalyst/surface`, which is the single implementation:
  *
- *   Canvas (#000)  → page bg, AdminPageHeader, AgentKpiBand (naked, no wash)
- *   Section (#121214 / secondary) → SurfaceCard / AgentSectionCard / surfaceSectionClass
- *   Item (#1f1f22 / elevated) → surfaceItemClass
- *   Nav (#09090b / primary) → surfaceNavClass only
+ *   surfaceSectionClass → surfaceRaised  (cards, tables, metrics, panels)
+ *   surfaceItemClass    → surfaceSunken  (rows, tiles, dense/secondary zones)
  *
- * Root bug (AIG-DS-SURFACE): section was painted `primary` and nav `secondary`
- * — inverted vs doctrine — so canvas + cards read as two muddy near-black layers.
+ * Aliased rather than deleted so the ~50 existing importers converge on the Kyc
+ * surfaces in one step instead of a 50-file rename. Prefer importing
+ * `surfaceRaised` / `surfaceSunken` / `Panel` / `Band` / `RowList` directly in
+ * new code; these names are the migration shim, not a parallel system.
+ *
+ * The `--color-surface-*` tokens these used to paint were a second, competing
+ * source of truth for the same three planes. The Kyc classes carry their own
+ * dark values, so the tokens no longer gate the look.
  */
 
-/** Level 2 — section panels (Projects, tables, workbench). MUST be secondary. */
-export const surfaceSectionClass =
-  'flex flex-col rounded-2xl bg-[var(--color-surface-secondary)] ring-1 ring-zinc-950/5 shadow-sm overflow-hidden'
+/** Level 2 — section panels (Projects, tables, workbench). */
+export const surfaceSectionClass = `flex flex-col overflow-hidden ${surfaceRaised}`
 
 /** Level 3 — interactive business objects (project row, agent card, KV tile). */
-export const surfaceItemClass =
-  'rounded-xl bg-[var(--color-surface-elevated)] ring-1 ring-zinc-950/5 shadow-sm shadow-black/5'
+export const surfaceItemClass = surfaceSunken
 
-/** Navigation chrome — sidebar rail; quieter than sections (primary, not secondary). */
-export const surfaceNavClass =
-  'rounded-2xl bg-[var(--color-surface-primary)] ring-1 ring-zinc-950/5 overflow-hidden'
+/**
+ * Navigation chrome. The sidebar is now Catalyst `SidebarLayout`, which paints
+ * its own container (see the `lg:` rule in globals.css), so this no longer has a
+ * rail to dress — kept only until the last legacy importer is gone.
+ * @deprecated
+ */
+export const surfaceNavClass = surfaceSunken
 
 /** Backward-compatible alias — prefer `surfaceSectionClass` for new code. */
 export const surfaceCardClass = surfaceSectionClass
@@ -69,7 +77,7 @@ export const surfaceCardFooterClass = 'pt-3'
 
 /** Subtle inset within a section — not a full nested card. */
 export const surfaceInsetClass =
-  'rounded-xl bg-zinc-50 ring-1 ring-zinc-950/5'
+  'rounded-xl bg-zinc-50 ring-1 ring-zinc-950/5 dark:bg-white/5 dark:ring-white/10'
 
 export function SurfaceCard({
   children,
@@ -108,10 +116,10 @@ export function SurfaceCardHeader({
   return (
     <div className={clsx(surfaceSectionHeaderStructureClass, SURFACE_HEADER_DENSITY[density], className)}>
       <div className="min-w-0">
-        <Subheading level={2} tone="neutral" className="tracking-tight text-zinc-900">
+        <Subheading level={2} tone="neutral" className="tracking-tight text-zinc-900 dark:text-white">
           {title}
         </Subheading>
-        {description ? <Text className="mt-1 tracking-tight text-zinc-600">{description}</Text> : null}
+        {description ? <Text className="mt-1 tracking-tight text-zinc-600 dark:text-zinc-400">{description}</Text> : null}
       </div>
       {meta ?? actions ? (
         <div className="flex shrink-0 items-center gap-3">
@@ -146,9 +154,11 @@ export function AdminPageHeader({
         <div className="min-w-0">
           {eyebrow ? <p className={eyebrowClass}>{eyebrow}</p> : null}
           {/* Canon DS: Catalyst Heading = text-2xl/8 (24px). Never text-3xl. */}
-          <Heading className={clsx(eyebrow ? 'mt-1' : undefined, 'tracking-tight text-zinc-900')}>{title}</Heading>
+          <Heading className={clsx(eyebrow ? 'mt-1' : undefined, 'tracking-tight text-zinc-900 dark:text-white')}>
+            {title}
+          </Heading>
           {description ? (
-            <Text className="mt-1.5 max-w-3xl tracking-tight text-zinc-600">{description}</Text>
+            <Text className="mt-1.5 max-w-3xl tracking-tight text-zinc-600 dark:text-zinc-400">{description}</Text>
           ) : null}
         </div>
         {actions ? <div className="flex shrink-0 items-center gap-3">{actions}</div> : null}

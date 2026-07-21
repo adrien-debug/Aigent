@@ -71,7 +71,7 @@ function MissionReportPanel({ report }: { report: MissionReport }) {
 
       {/* Participants */}
       <div>
-        <p className="text-xs font-semibold text-zinc-900 uppercase tracking-widest mb-3">Participants</p>
+        <p className="text-xs font-semibold text-zinc-900 dark:text-white uppercase tracking-widest mb-3">Participants</p>
         <ParticipantsList participants={report.participants} />
       </div>
 
@@ -90,7 +90,7 @@ function MissionReportPanel({ report }: { report: MissionReport }) {
       {/* Warnings */}
       {report.consensus.warnings.length > 0 && (
         <div className="rounded-xl bg-zinc-50 ring-1 ring-zinc-950/5 p-4">
-          <p className="text-xs font-bold text-zinc-900 uppercase tracking-widest mb-3">Warnings ({report.consensus.warnings.length})</p>
+          <p className="text-xs font-bold text-zinc-900 dark:text-white uppercase tracking-widest mb-3">Warnings ({report.consensus.warnings.length})</p>
           <ul className="text-sm text-zinc-700 space-y-2">
             {report.consensus.warnings.slice(0, 8).map((f) => (
               <li key={f.id}>• {f.title}</li>
@@ -101,7 +101,7 @@ function MissionReportPanel({ report }: { report: MissionReport }) {
 
       {/* Next Actions */}
       <div>
-        <p className="text-xs font-semibold text-zinc-900 uppercase tracking-widest mb-3">Next actions</p>
+        <p className="text-xs font-semibold text-zinc-900 dark:text-white uppercase tracking-widest mb-3">Next actions</p>
         <ul className="text-sm text-zinc-700 space-y-2 list-disc pl-5">
           {report.consensus.nextActions.map((a) => (
             <li key={a}>{a}</li>
@@ -111,7 +111,7 @@ function MissionReportPanel({ report }: { report: MissionReport }) {
 
       {/* Findings Table */}
       <details className="group">
-        <summary className="cursor-pointer py-2 text-xs font-semibold text-zinc-500 uppercase tracking-widest hover:text-zinc-900 focus-visible:text-zinc-900 transition-colors">
+        <summary className="cursor-pointer py-2 text-xs font-semibold text-zinc-500 uppercase tracking-widest hover:text-zinc-900 dark:hover:text-white focus-visible:text-zinc-900 dark:focus-visible:text-white transition-colors">
           All findings ({report.findings.length})
         </summary>
         <div className="mt-3 overflow-hidden rounded-xl border border-zinc-950/5 bg-zinc-50/50">
@@ -126,7 +126,7 @@ function MissionReportPanel({ report }: { report: MissionReport }) {
                 <div>
                   <Badge className="w-full justify-center" color={severityBadgeColor(f.severity)}>{f.severity}</Badge>
                 </div>
-                <span className="truncate font-medium text-zinc-900" title={f.role}>{f.role}</span>
+                <span className="truncate font-medium text-zinc-900 dark:text-white" title={f.role}>{f.role}</span>
                 <span className="min-w-0 break-words text-zinc-600">{f.title}</span>
               </li>
             ))}

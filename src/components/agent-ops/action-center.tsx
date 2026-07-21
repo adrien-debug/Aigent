@@ -45,7 +45,7 @@ function ActionRow({ item }: { item: ActionItem }) {
       />
       <div className="flex min-w-0 flex-col gap-0.5">
         <div className="flex items-center gap-2">
-          <p className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-900">{item.title}</p>
+          <p className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-900 dark:text-white">{item.title}</p>
           <Badge color={tone} className="uppercase tracking-widest">
             {item.status}
           </Badge>
@@ -55,7 +55,7 @@ function ActionRow({ item }: { item: ActionItem }) {
       <Link
         href={item.href}
         aria-label={`${item.buttonLabel}: ${item.title}`}
-        className="inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 text-xs font-medium text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900"
+        className="inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 text-xs font-medium text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900 dark:hover:text-white"
         {...linkProps}
       >
         {item.buttonLabel}
