@@ -61,7 +61,10 @@ export function DashboardKpiStrip({ kpis }: { kpis: DashboardKpis }) {
     },
   ]
 
-  return <AgentKpiBand stats={stats} flush />
+  // `separators`, not `flush`: the four KPIs read as ONE synthesis band with
+  // hairline dividers. Flush left them as bare text floating on the page with
+  // no surface of their own (§4).
+  return <AgentKpiBand stats={stats} separators />
 }
 
 /** Data-integrity note — a quiet hairline footer, never a full-width banner. */

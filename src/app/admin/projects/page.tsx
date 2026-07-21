@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
 
 import { AdminPageHeader } from '@/components/agent-ops/surface-card'
+import { ProjectAvatar } from '@/components/agent-ops/project-avatar'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { SoftAccentLink } from '@/components/agent-ops/soft-accent-link'
-import { Avatar } from '@/components/catalyst/avatar'
 import { Badge } from '@/components/catalyst/badge'
 import { surfaceRaised } from '@/components/catalyst/surface'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
@@ -59,13 +59,7 @@ export default async function ProjectsPage() {
                     >
                       <TableCell className="py-3! pl-4!">
                         <div className="flex min-w-0 items-center gap-3">
-                          <Avatar
-                            square
-                            src={logo}
-                            initials={logo ? undefined : project.name.slice(0, 2)}
-                            alt=""
-                            className="size-8 shrink-0 bg-zinc-100 text-zinc-900 ring-1 ring-zinc-950/10"
-                          />
+                          <ProjectAvatar name={project.name} src={logo} size="sm" />
                           <div className="min-w-0">
                             <div className="truncate text-sm font-medium text-zinc-900 group-hover:underline dark:text-white">
                               {project.name}

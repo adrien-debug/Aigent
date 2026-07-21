@@ -1,7 +1,7 @@
 import { EmptyState } from '@/components/agent-ops/empty-state'
+import { ProjectAvatar } from '@/components/agent-ops/project-avatar'
 import { SoftAccentLink } from '@/components/agent-ops/soft-accent-link'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
-import { Avatar } from '@/components/catalyst/avatar'
 import { Badge } from '@/components/catalyst/badge'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
@@ -59,13 +59,7 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
                         primitive's own py-*, which class order alone would not do. */}
                     <TableCell className="py-2! pl-4!">
                       <div className="flex min-w-0 items-center gap-3">
-                        <Avatar
-                          square
-                          src={logo}
-                          initials={logo ? undefined : project.name.slice(0, 2)}
-                          alt=""
-                          className="size-8 shrink-0 bg-zinc-100 text-zinc-900 ring-1 ring-zinc-950/10"
-                        />
+                        <ProjectAvatar name={project.name} src={logo} size="sm" />
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium text-zinc-900 dark:text-white group-hover:underline">{project.name}</div>
                           <div className="truncate font-mono text-xs text-zinc-500">

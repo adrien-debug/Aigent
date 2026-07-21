@@ -34,7 +34,7 @@ export function Table({
           <div className={clsx('inline-block min-w-full align-middle', !bleed && 'sm:px-(--gutter)')}>
             <table
               className={clsx(
-                'min-w-full text-left text-sm/6 text-white',
+                'min-w-full text-left text-sm/6 text-zinc-950 dark:text-white',
                 fixed && 'w-full table-fixed'
               )}
             >
@@ -51,9 +51,13 @@ export function TableHead({ className, ...props }: React.ComponentPropsWithoutRe
   return (
     <thead
       {...props}
+      // Header sits on the SUNKEN plane, opaque: it must read as a distinct band
+      // rather than another row, and an opaque fill is what lets a sticky header
+      // cover the rows scrolling under it instead of blending with them.
       className={clsx(
         className,
-        '[&_th]:border-b [&_th]:border-white/5'
+        'dark:bg-surface-sunken',
+        '[&_th]:border-b [&_th]:border-zinc-950/10 dark:[&_th]:border-[var(--surface-border-strong)]'
       )}
     />
   )
@@ -92,8 +96,8 @@ export function TableRow({
           // hover:bg-* set on the <tr> itself.
           '[&>td]:transition-colors [&>th]:transition-colors',
           href &&
-            'hover:[&>td]:bg-[var(--color-surface-interactive)] hover:[&>th]:bg-[var(--color-surface-interactive)] has-[[data-row-link][data-focus]]:outline-2 has-[[data-row-link][data-focus]]:-outline-offset-2 has-[[data-row-link][data-focus]]:outline-accent-500 dark:focus-within:[&>td]:bg-white/2',
-          striped && 'even:[&>td]:bg-zinc-950/2 dark:even:[&>td]:bg-white/2'
+            'hover:[&>td]:bg-zinc-950/[0.03] hover:[&>th]:bg-zinc-950/[0.03] dark:hover:[&>td]:bg-surface-raised-hover dark:hover:[&>th]:bg-surface-raised-hover has-[[data-row-link][data-focus]]:outline-2 has-[[data-row-link][data-focus]]:-outline-offset-2 has-[[data-row-link][data-focus]]:outline-accent-500 dark:focus-within:[&>td]:bg-surface-raised-hover',
+          striped && 'even:[&>td]:bg-zinc-950/2 dark:even:[&>td]:bg-white/[0.02]'
         )}
       />
     </TableRowContext.Provider>
@@ -128,8 +132,10 @@ export function TableCell({ className, children, ...props }: React.ComponentProp
       className={clsx(
         className,
         'relative px-4 first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2))',
-        !striped && 'border-b border-white/5',
-        grid && 'border-l border-l-white/5 first:border-l-0',
+        // white/5 was too faint to read as a separator at all; white/8 keeps the
+        // rows soft-edged but actually divided.
+        !striped && 'border-b border-zinc-950/5 dark:border-[var(--surface-border)]',
+        grid && 'border-l border-l-zinc-950/5 first:border-l-0 dark:border-l-[var(--surface-border)]',
         dense ? 'py-3' : 'py-4',
         !bleed && 'sm:first:pl-1 sm:last:pr-1'
       )}
