@@ -50,17 +50,26 @@
   --color-accent-900: #1c4f15;
   --color-accent-950: #0b2809;
 
-  --color-surface-canvas: #f8fafc;
-  --color-surface-primary: #ffffff;
-  --color-surface-secondary: #ffffff;
-  --color-surface-interactive: #f1f5f9;
-  --color-surface-elevated: #ffffff;
-  --color-surface-focus: #f8fafc;
+  /* Dark surfaces — zinc ladder. canvas = page ground, primary/secondary =
+     cards, interactive = hover/pressed, elevated = popovers/dialogs (lifted a
+     step so they read above cards), focus = focused row. Single accent stays
+     the green above; everything else is zinc. */
+  --color-surface-canvas: #09090b;
+  --color-surface-primary: #18181b;
+  --color-surface-secondary: #18181b;
+  --color-surface-interactive: #27272a;
+  --color-surface-elevated: #27272a;
+  --color-surface-focus: #18181b;
+
+  /* Foreground on the dark ground (was inherited zinc-900 from the light set). */
+  --color-surface-foreground: #fafafa;
 }
 
 :root {
-  --color-hairline: rgb(9 9 11 / 5%);
-  --color-minimap-mask: rgb(255 255 255 / 65%);
+  /* Hairlines/masks flipped for the dark ground: a black hairline is invisible
+     on zinc-950, so separators are a low-alpha white instead. */
+  --color-hairline: rgb(255 255 255 / 8%);
+  --color-minimap-mask: rgb(9 9 11 / 65%);
 
   --accent-soft: color-mix(in oklab, var(--color-accent-600) 10%, transparent);
   --accent-surface: color-mix(in oklab, var(--color-accent-600) 15%, transparent);
@@ -76,11 +85,12 @@
   --chart-series: var(--color-zinc-400);
   --chart-success: var(--color-accent-600);
   --chart-tick: var(--color-zinc-400);
-  --chart-grid: rgba(9, 9, 11, 0.05);
+  /* Grid lines on the dark ground — white at low alpha, not near-black. */
+  --chart-grid: rgba(255, 255, 255, 0.06);
 }
 
 body {
-  @apply bg-[var(--color-surface-canvas)] text-zinc-900 overflow-x-hidden antialiased;
+  @apply bg-[var(--color-surface-canvas)] text-[var(--color-surface-foreground)] overflow-x-hidden antialiased;
 }
 
 @utility no-scrollbar {

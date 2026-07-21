@@ -168,7 +168,7 @@ export function AgentControlShell({ children }: { children: React.ReactNode }) {
   const activeItem = NAV_ITEMS.find((item) => item.match(pathname))
 
   return (
-    <div className="relative isolate flex min-h-svh w-full bg-[var(--color-surface-canvas)] text-zinc-900 font-sans selection:bg-[var(--accent-selection)]">
+    <div className="relative isolate flex min-h-svh w-full bg-[var(--color-surface-canvas)] text-[var(--color-surface-foreground)] font-sans selection:bg-[var(--accent-selection)]">
       <CommandPalette />
 
       {/* Sidebar - compact icon rail */}
