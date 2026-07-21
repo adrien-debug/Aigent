@@ -10,13 +10,6 @@ const nextConfig: NextConfig = {
     // no fixed host to allowlist, hence the wildcard hostname.
     remotePatterns: [{ protocol: "https", hostname: "**" }],
   },
-  // List pages removed (project-centric nav) — exact paths only; /new and /[id] stay.
-  async redirects() {
-    return [
-      { source: '/admin/agents', destination: '/admin', permanent: false },
-      { source: '/admin/projects', destination: '/admin', permanent: false },
-    ]
-  },
 };
 
 export default nextConfig;
