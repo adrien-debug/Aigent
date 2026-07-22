@@ -1,18 +1,49 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 
+import { ErrorBanner } from '@/components/agent-ops/authoring-primitives'
 import { Button } from '@/components/catalyst/button'
-import { Dialog, DialogActions, DialogDescription, DialogTitle } from '@/components/catalyst/dialog'
+import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/catalyst/dialog'
+import { Description, Field, Label } from '@/components/catalyst/fieldset'
+import { Input } from '@/components/catalyst/input'
 import { messageForResponse } from '@/lib/agent-mission-control/client-errors'
 import type { Project } from '@/lib/agent-mission-control/types'
 
 /**
+ * Catalyst exposes no `danger` colour key and components/catalyst/ is out of
+ * scope for this pass, so the destructive fill is injected through the button's
+ * own `--btn-*` custom properties. Inline style rather than a className: the
+ * `zinc` colour array ALSO declares `--btn-bg`, and which declaration wins
+ * depends on the order Tailwind emits the two utilities into the stylesheet,
+ * not on the order clsx concatenates the class names. An inline declaration is
+ * deterministic. `zinc` is the base because it already carries white text, and
+ * white on `--state-danger-solid` measures 6.45:1 (see globals.css).
+ */
+type ButtonVars = CSSProperties & Record<'--btn-bg' | '--btn-border' | '--btn-hover-overlay', string>
+
+const dangerSolidStyle: ButtonVars = {
+  '--btn-bg': 'var(--state-danger-solid)',
+  '--btn-border': 'var(--state-danger-solid-line)',
+  '--btn-hover-overlay': 'rgb(255 255 255 / 12%)',
+}
+
+/**
  * Destructive confirm: permanently deletes a project and cascade-deletes every
- * copilot assigned to it. Same shape as DeleteCopilotDialog, but on success we
- * router.push('/admin') — the deleted project's detail page must not
- * stay open. Per doctrine the destructive primary is a solid accent Button.
+ * copilot assigned to it. On success we router.push('/admin') — the deleted
+ * project's detail page must not stay open.
+ *
+ * The dialog used to announce an irreversible cascade behind a solid accent
+ * button, i.e. the SAME control as "Run Mission" on the page underneath: the
+ * affordance for "destroy this project and all its agents" was pixel-identical
+ * to the affordance for the page's happy path. Two guards now separate them:
+ *   1. typed confirmation — the operator retypes the project name, so the act
+ *      cannot be reached by muscle memory. The primary stays disabled until the
+ *      text matches exactly;
+ *   2. the `--state-danger-*` role on the primary and on the error, so the
+ *      colour stops claiming success. The label and the typed name carry the
+ *      meaning; the colour only reinforces it.
  */
 export function DeleteProjectDialog({
   project,
@@ -26,8 +57,25 @@ export function DeleteProjectDialog({
   const router = useRouter()
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [confirmation, setConfirmation] = useState('')
+
+  // Trailing whitespace comes free with a copy/paste of the name; everything
+  // else must match character for character.
+  const confirmed = confirmation.trim() === project.name
+
+  /**
+   * This component stays mounted while the dialog is closed, so the typed
+   * confirmation would otherwise survive until the next open and re-arm the
+   * delete button before the operator has typed anything.
+   */
+  function close() {
+    setConfirmation('')
+    setError(null)
+    onClose()
+  }
 
   async function remove() {
+    if (!confirmed) return
     setPending(true)
     setError(null)
     try {
@@ -47,22 +95,36 @@ export function DeleteProjectDialog({
   }
 
   return (
-    <Dialog open={isOpen} onClose={onClose} size="md">
+    <Dialog open={isOpen} onClose={close} size="md">
       <DialogTitle>Delete project</DialogTitle>
       <DialogDescription>
         This permanently deletes <span className="font-medium text-zinc-950 dark:text-white">{project.name}</span> and
         cascade-deletes every copilot assigned to it. This cannot be undone.
       </DialogDescription>
-      {error ? (
-        <p role="alert" className="mt-4 text-sm text-accent-600 dark:text-accent-400">
-          {error}
-        </p>
-      ) : null}
+      <DialogBody>
+        <Field disabled={pending}>
+          <Label>Confirm the project name</Label>
+          <Description>
+            Type <span className="font-medium text-zinc-950 dark:text-white">{project.name}</span> exactly to enable the
+            delete button.
+          </Description>
+          <Input
+            name="confirm-project-name"
+            value={confirmation}
+            onChange={(event) => setConfirmation(event.target.value)}
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder={project.name}
+          />
+        </Field>
+      </DialogBody>
+      {error ? <ErrorBanner message={error} /> : null}
       <DialogActions>
-        <Button plain disabled={pending} onClick={onClose}>
+        <Button plain disabled={pending} onClick={close}>
           Cancel
         </Button>
-        <Button color="accent" disabled={pending} onClick={remove}>
+        <Button color="zinc" style={dangerSolidStyle} disabled={pending || !confirmed} onClick={remove}>
           {pending ? 'Deleting…' : 'Delete project'}
         </Button>
       </DialogActions>

@@ -224,7 +224,7 @@ export function RunBenchmarkButton({
         {announcement}
       </span>
       {error ? (
-        <Text role="alert" className="!mt-0 !text-xs !text-accent-400">
+        <Text role="alert" className="!mt-0 !text-xs !text-[var(--state-danger-text)]">
           {error}
         </Text>
       ) : null}

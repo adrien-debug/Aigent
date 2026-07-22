@@ -11,7 +11,6 @@ import { ProjectRepoIntelligence } from '@/components/agent-ops/project-repo-int
 import { ProvisionConsumerCard } from '@/components/agent-ops/provision-consumer-card'
 import { ProjectTabs } from '@/components/agent-ops/project-tabs'
 import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
-import { Badge } from '@/components/catalyst/badge'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { getCopilots, getProject, getRecentRunsForProject } from '@/lib/agent-mission-control/data'
@@ -22,8 +21,13 @@ import {
   formatTimestamp,
   formatUsd,
 } from '@/lib/agent-mission-control/format'
-import { AGENT_RUNTIME_LABELS } from '@/lib/agent-mission-control/labels'
-import type { AgentRun, Copilot } from '@/lib/agent-mission-control/types'
+import {
+  AGENT_RUNTIME_LABELS,
+  AGENT_RUN_STATUS_LABELS,
+  COPILOT_STATUS_LABELS,
+  VERSION_STAGE_LABELS,
+} from '@/lib/agent-mission-control/labels'
+import type { AgentRun, AgentRunStatus, Copilot, DisplayStatus } from '@/lib/agent-mission-control/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,9 +43,57 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 const numberFormat = new Intl.NumberFormat('en-US')
 
-function statusLabel(status: string): string {
-  const spaced = status.replace(/-/g, ' ')
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
+/**
+ * `DisplayStatus` is `CopilotStatus | 'production'` and labels.ts — the single
+ * home of display labels — exports no table for that union yet. Composed from
+ * the two tables it DOES export so this file holds zero literal label string.
+ * Replace with a `DISPLAY_STATUS_LABELS` export the moment labels.ts ships one.
+ */
+const DISPLAY_STATUS_LABELS: Record<DisplayStatus, string> = {
+  ...COPILOT_STATUS_LABELS,
+  production: VERSION_STAGE_LABELS.production,
+}
+
+/**
+ * Lifecycle status = muted TEXT, never a pill (DESIGN-DOCTRINE.md, "Composants";
+ * `RunStatusText` in run-detail-panel.tsx is the reference pattern). Both tables
+ * on this page used to render a `Badge`, and both put success and failure in the
+ * SAME accent branch (`completed || failed` → accent, `active || degraded` →
+ * accent): a failed run and a broken agent were painted with the colour of a
+ * healthy one.
+ *
+ * Three tones, and no green: `accent` stays out of lifecycle text per doctrine.
+ *   - failure (`failed`, `degraded`) → the `--state-danger-*` role. `degraded`
+ *     belongs here because it means the agent declares tools with no registered
+ *     handler — it cannot run (AGENTS.md), it is not a mild warning.
+ *   - resolved-and-healthy (`completed`, `active`, `production`) → full-strength
+ *     zinc, the "nothing to look at" baseline.
+ *   - everything else (`running`, `blocked`, `needs-confirmation`, `draft`,
+ *     `paused`, `archived`) → muted zinc. Not-finished and not-deployed are not
+ *     incidents.
+ * The label always states the status, so the tone is reinforcement, never the
+ * only carrier of meaning.
+ */
+const statusTextClass = 'text-xs font-medium uppercase tracking-widest'
+const STATUS_TONE = {
+  danger: 'text-[var(--state-danger-text)]',
+  resolved: 'text-zinc-300',
+  muted: 'text-zinc-500',
+} as const
+
+function RunStatusTone({ status }: { status: AgentRunStatus }) {
+  const tone = status === 'failed' ? 'danger' : status === 'completed' ? 'resolved' : 'muted'
+  return <span className={`${statusTextClass} ${STATUS_TONE[tone]}`}>{AGENT_RUN_STATUS_LABELS[status]}</span>
+}
+
+function CopilotStatusTone({ status }: { status: DisplayStatus }) {
+  const tone =
+    status === 'degraded'
+      ? 'danger'
+      : status === 'active' || status === 'production'
+        ? 'resolved'
+        : 'muted'
+  return <span className={`${statusTextClass} ${STATUS_TONE[tone]}`}>{DISPLAY_STATUS_LABELS[status]}</span>
 }
 
 function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
@@ -75,18 +127,7 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
                   </div>
                 </TableCell>
                 <TableCell className="py-4">
-                  <Badge
-                    color={
-                      copilot.displayStatus === 'production' ||
-                      copilot.status === 'active' ||
-                      copilot.status === 'degraded'
-                        ? 'accent'
-                        : 'zinc'
-                    }
-                    className="uppercase tracking-widest"
-                  >
-                    {statusLabel(copilot.displayStatus ?? copilot.status)}
-                  </Badge>
+                  <CopilotStatusTone status={copilot.displayStatus ?? copilot.status} />
                 </TableCell>
                 <TableCell className="py-4">
                   <div className="flex flex-col">
@@ -157,12 +198,7 @@ function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copil
                   </div>
                 </TableCell>
                 <TableCell className="py-3">
-                  <Badge
-                    color={run.status === 'completed' || run.status === 'failed' ? 'accent' : 'zinc'}
-                    className="uppercase tracking-widest"
-                  >
-                    {statusLabel(run.status)}
-                  </Badge>
+                  <RunStatusTone status={run.status} />
                 </TableCell>
                 <TableCell className="py-3">
                   <span className="block text-xs text-zinc-400 truncate max-w-md" title={run.inputSummary}>

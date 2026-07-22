@@ -72,8 +72,15 @@ export function DashboardDataWarnings({ warnings }: { warnings: string[] }) {
   if (warnings.length === 0) return null
   return (
     <div className="flex items-start gap-2 border-b border-zinc-950/5 pb-3">
-      <ExclamationTriangleIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-accent-600" />
-      <ul className="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-600">
+      {/* Zinc, not accent: accent is the colour of a healthy run, so a data gap
+          painted in it read as a reassurance. Not danger either — this footer is
+          deliberately quiet (see the doc above) and an unread metric is not a
+          failure. The triangle carries the warning without the hue, which is
+          what the doctrine asks of every status. `zinc-400` rather than `-600`:
+          the latter measures 2.44 against this plane, i.e. an integrity notice
+          too faint to read. */}
+      <ExclamationTriangleIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-zinc-400" />
+      <ul className="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-400">
         {warnings.map((w) => (
           <li key={w} className="font-mono">{w}</li>
         ))}

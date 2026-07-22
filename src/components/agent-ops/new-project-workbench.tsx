@@ -440,7 +440,7 @@ export function NewProjectWorkbench() {
             </Fieldset>
 
             {formError ? (
-              <p role="alert" className="mt-6 text-sm text-accent-600 dark:text-accent-400">
+              <p role="alert" className="mt-6 text-sm text-[var(--state-danger-text)]">
                 {formError}
               </p>
             ) : null}

@@ -31,7 +31,11 @@ export default function AdminError({ error, reset }: { error: Error & { digest?:
       aria-live="assertive"
       className="flex min-h-[60vh] flex-col items-center justify-center px-6 py-16 text-center"
     >
-      <span className="flex size-11 items-center justify-center rounded-xl bg-[var(--accent-surface)] text-accent-400 ring-1 ring-[var(--accent-line)]">
+      {/* The boundary that says "the data source didn't respond" was painted in
+          the accent — the same green as a healthy agent and as the Retry button
+          below it. Danger tokens instead: this IS a failure. The Retry stays
+          accent, because retrying is the constructive action, not the failure. */}
+      <span className="flex size-11 items-center justify-center rounded-xl bg-[var(--state-danger-soft)] text-[var(--state-danger-text)] ring-1 ring-[var(--state-danger-line)]">
         <ExclamationTriangleIcon aria-hidden="true" className="size-5" />
       </span>
       <Heading className="mt-5">Something went wrong</Heading>

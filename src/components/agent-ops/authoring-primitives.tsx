@@ -1,12 +1,15 @@
 'use client'
 
+import { ExclamationTriangleIcon } from '@heroicons/react/16/solid'
+
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { GeneratedManifest } from '@/lib/agent-mission-control/authoring-types'
 
 /**
  * Shared authoring-surface primitives — pulled out of `architect-chat.tsx`,
  * `create-agent-form.tsx`, and `run-copilot-panel.tsx` to kill copy-pasted
- * JSX. Pure presentation, accent+zinc only.
+ * JSX. Pure presentation, accent+zinc — plus the `--state-danger-*` role on
+ * `ErrorBanner`, the one surface here that reports a failure.
  */
 
 const MANIFEST_PREVIEW_LENGTH = 220
@@ -25,14 +28,24 @@ function truncate(text: string, len: number): string {
   return text.length > len ? `${text.slice(0, len)}…` : text
 }
 
-/** Inline error banner — the exact shape used across the authoring surface. */
+/**
+ * Inline error banner — the exact shape used across the authoring surface.
+ *
+ * Carries the `--state-danger-*` role, never the accent: this banner only ever
+ * renders a failure, and painting it green made a failed scan, a rejected run
+ * and a refused delete look exactly like a success. The triangle is the
+ * non-chromatic half of the signal — the meaning must survive for a reader who
+ * cannot separate the two hues, so shape + `role="alert"` say "error" even with
+ * the colour removed.
+ */
 export function ErrorBanner({ message }: { message: string }) {
   return (
     <div
       role="alert"
-      className="mt-4 rounded-lg bg-[var(--accent-soft)] px-4 py-3 text-sm text-accent-700 dark:text-accent-400"
+      className="mt-4 flex items-start gap-2 rounded-lg bg-[var(--state-danger-soft)] px-4 py-3 text-sm text-[var(--state-danger-text)] ring-1 ring-inset ring-[var(--state-danger-line)]"
     >
-      {message}
+      <ExclamationTriangleIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+      <span className="min-w-0 break-words">{message}</span>
     </div>
   )
 }
