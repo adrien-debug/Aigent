@@ -57,10 +57,22 @@ export const surfaceSectionHeaderClass = `${surfaceSectionHeaderStructureClass} 
  * the `AgentKpiBand` stat labels. ONE definition so the overline never drifts in
  * size/weight/tracking/colour between the page header and the KPI strip, and so a
  * layout flag (density/separators) can never change its TYPOGRAPHY — only its
- * surrounding geometry (min-height, margin). `zinc-400` clears WCAG AA at this
- * size on both the black canvas and a section fill; `zinc-500` does not.
+ * surrounding geometry (min-height, margin).
+ *
+ * The colour is `zinc-400` and the comment above it used to say so while the
+ * constant shipped `zinc-500` — a doc that described an intention nobody had
+ * encoded. Measured on the five planes this overline actually lands on (WCAG
+ * 2.x contrast, 10px ⇒ the 4.5 threshold, not the 3.0 large-text one):
+ *
+ *   plane      canvas    #111114  #1a1a1e  #0d0d10  #232327
+ *   zinc-500   4.12      3.90     3.59     4.02     3.24    ← fails all five
+ *   zinc-400   7.76      7.35     6.77     7.57     6.11    ← passes all five
+ *
+ * Because this is the ONE definition, every eyebrow rendered through it moves
+ * together. Overlines written by hand elsewhere do NOT — they have to import
+ * this constant to inherit the fix.
  */
-export const eyebrowClass = 'text-[10px] font-medium uppercase tracking-widest text-zinc-500'
+export const eyebrowClass = 'text-[10px] font-medium uppercase tracking-widest text-zinc-400'
 
 /** @deprecated alias */
 export const surfaceCardHeaderClass = surfaceSectionHeaderClass

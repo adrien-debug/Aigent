@@ -94,7 +94,7 @@ export function GitHubDeliveryModeToggle({
           onClick={() => onChange(opt.mode)}
           className={clsx(
             'rounded-lg px-2 py-1 text-xs transition-colors',
-            value === opt.mode ? 'text-accent-400' : 'text-zinc-500 hover:text-zinc-300'
+            value === opt.mode ? 'text-accent-400' : 'text-zinc-400 hover:text-zinc-200'
           )}
         >
           {opt.label}

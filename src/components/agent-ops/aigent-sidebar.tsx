@@ -93,7 +93,7 @@ export function AigentSidebar() {
           >
             <MagnifyingGlassIcon data-slot="icon" />
             <SidebarLabel className="text-zinc-500 dark:text-zinc-400">Search</SidebarLabel>
-            <kbd className="ml-auto font-sans text-[10px] font-medium text-zinc-400 dark:text-zinc-500">⌘K</kbd>
+            <kbd className="ml-auto font-sans text-[10px] font-medium text-zinc-400 dark:text-zinc-400">⌘K</kbd>
           </SidebarItem>
         </SidebarSection>
       </SidebarHeader>
@@ -103,8 +103,13 @@ export function AigentSidebar() {
           <SidebarSection key={section.heading}>
             {/* Same eyebrow treatment as every other section label in the app
                 (10px, uppercase, wide tracking) so the sidebar headings and the
-                panel/KPI overlines read as one typographic family. */}
-            <SidebarHeading className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-500">
+                panel/KPI overlines read as one typographic family — but written
+                by hand rather than imported from `eyebrowClass`, which is why it
+                did NOT inherit the AA fix applied there and had to be corrected
+                separately: `zinc-500` measured 4.12 against the sidebar plane
+                for a 4.5 threshold, on every admin route. Folding the two into
+                one import is wave-3 work. */}
+            <SidebarHeading className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-400">
               {section.heading}
             </SidebarHeading>
             {section.items.map((item) => (

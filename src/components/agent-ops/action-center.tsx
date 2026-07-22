@@ -55,7 +55,7 @@ function ActionRow({ item }: { item: ActionItem }) {
       <Link
         href={item.href}
         aria-label={`${item.buttonLabel}: ${item.title}`}
-        className="inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 text-xs font-medium text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900 dark:hover:text-white"
+        className="inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 text-xs font-medium text-zinc-400 hover:bg-zinc-950/5 hover:text-zinc-900 dark:hover:text-white"
         {...linkProps}
       >
         {item.buttonLabel}

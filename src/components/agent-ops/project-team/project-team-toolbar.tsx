@@ -190,14 +190,30 @@ export function ProjectTeamToolbar({
           ))}
         </Select>
 
+        {/* Disabled is expressed the way Catalyst's `Button` expresses it — the
+            SAME colour at `data-disabled:opacity-50` — never a darker step down
+            the zinc scale.
+
+            The previous `text-zinc-600` was the step-down idiom, and it made an
+            interactive control the least legible text on the screen: measured
+            2.24 against this toolbar's plane (`surface-raised`, #1a1a1e), i.e.
+            half the 4.5 WCAG AA minimum. Dimming to signal "unavailable" is
+            exactly backwards when the colour is already near the floor.
+
+            Measured on the same plane, composited against it (the opacity is
+            real alpha, so the ratio has to be computed on the RESULT, not on
+            `accent-300` itself): accent-300 = 14.93 at full strength, 4.63 at
+            50%. Still AA. `data-hover`, not `hover:`, because CSS `:hover`
+            fires on a disabled button too — Headless only sets the data
+            attribute while the control is actually usable. */}
         <Headless.Button
           onClick={onClearFilters}
           disabled={!filtersActive}
           className={clsx(
-            'rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
-            filtersActive
-              ? 'text-accent-300 hover:bg-white/5'
-              : 'cursor-not-allowed text-zinc-600'
+            'rounded-lg px-3 py-2 text-sm font-medium text-accent-300 transition-colors',
+            'data-hover:bg-white/5',
+            'data-disabled:cursor-not-allowed data-disabled:opacity-50',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500'
           )}
         >
           Clear filters
