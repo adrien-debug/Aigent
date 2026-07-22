@@ -1,8 +1,8 @@
 import Image from 'next/image'
 import { CodeBracketIcon, ServerStackIcon } from '@heroicons/react/24/outline'
 
+import { ProjectAvatar } from '@/components/agent-ops/project-avatar'
 import { surfaceCardClass, surfaceCardFooterClass } from '@/components/agent-ops/surface-card'
-import { Avatar } from '@/components/catalyst/avatar'
 import { Heading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
 import { PROJECT_PLATFORM_LABELS } from '@/lib/agent-mission-control/labels'
@@ -52,13 +52,7 @@ export function ProjectHeader({
       {/* Identity row — fully below the photo, nothing clipped */}
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-5 lg:px-8">
         <div className="flex min-w-0 items-center gap-4">
-          <Avatar
-            square
-            src={project.logoUrl}
-            initials={project.logoUrl ? undefined : project.name.slice(0, 2)}
-            alt=""
-            className="size-14 shrink-0 bg-zinc-900 text-white ring-1 ring-white/10 sm:size-16"
-          />
+          <ProjectAvatar name={project.name} src={project.logoUrl} size="lg" />
           <div className="min-w-0">
             <Heading className="truncate tracking-tight">{project.name}</Heading>
             <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">

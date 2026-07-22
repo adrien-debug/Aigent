@@ -25,8 +25,8 @@ export function computeFleetKpis(copilots: Copilot[]) {
 }
 
 /**
- * FleetKpiBand — the Performance page's 5 headline stats on the canvas (naked
- * AgentKpiBand, never inside a section card). All five share compact size so
+ * FleetKpiBand — the Performance page's 5 headline stats as one unified band
+ * (AgentKpiBand with hairline separators). All five share compact size so
  * they sit under the page H1; accent only on Open Warnings when >0.
  */
 export function FleetKpiBand({
@@ -89,5 +89,8 @@ export function FleetKpiBand({
     },
   ]
 
-  return <AgentKpiBand stats={stats} density="compact" flush className={className} />
+  // `separators` so the five headline stats read as ONE synthesis band, matching
+  // the dashboard KPI strip. Naked-on-canvas left them as floating text with no
+  // surface, which is exactly the flatness this page was reported for.
+  return <AgentKpiBand stats={stats} density="compact" separators className={className} />
 }

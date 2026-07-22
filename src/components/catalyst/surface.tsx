@@ -14,14 +14,28 @@ import clsx from 'clsx'
  * two repos stay diffable and a light theme remains one class-flip away.
  */
 
+/**
+ * Plane 2 — panels: charts, tables, lists, metrics.
+ *
+ * Dark mode keeps a real cast shadow plus a 1px top highlight. Kyc shipped
+ * `dark:shadow-none`, which is what made every card sit perfectly flat on the
+ * page: with no shadow AND a near-identical fill, nothing separated a panel
+ * from the ground behind it.
+ */
 export const surfaceRaised =
-  'rounded-xl bg-white shadow-lg ring-1 ring-zinc-950/10 dark:bg-zinc-900 dark:shadow-none dark:ring-white/10'
+  'rounded-xl bg-white shadow-lg ring-1 ring-zinc-950/10 dark:bg-surface-raised dark:shadow-[var(--surface-shadow),var(--surface-highlight)] dark:ring-[var(--surface-border)]'
 
+/** Plane 3 — insets: filters, table headers, legends, secondary summaries. Reads recessed: DARKER than the panel holding it. */
 export const surfaceSunken =
-  'rounded-xl bg-zinc-50/80 ring-1 ring-zinc-950/5 dark:bg-zinc-950/50 dark:ring-white/5'
+  'rounded-xl bg-zinc-50/80 ring-1 ring-zinc-950/5 dark:bg-surface-sunken dark:ring-[var(--surface-border)]'
 
+/** Page entry — a raised plane with a very subtle vertical gradient, never a decorative banner. */
 export const surfaceHero =
-  'rounded-xl bg-gradient-to-b from-zinc-50 to-white px-6 py-5 shadow-md ring-1 ring-zinc-950/10 dark:from-zinc-900 dark:to-zinc-900/60 dark:ring-white/10'
+  'rounded-xl bg-gradient-to-b from-zinc-50 to-white px-6 py-5 shadow-md ring-1 ring-zinc-950/10 dark:from-surface-raised dark:to-surface-workspace dark:shadow-[var(--surface-shadow),var(--surface-highlight)] dark:ring-[var(--surface-border)]'
+
+/** Plane 4 — dialogs, menus, tooltips. Opaque and lifted above every panel. */
+export const surfaceOverlay =
+  'rounded-xl bg-white shadow-xl ring-1 ring-zinc-950/10 dark:bg-surface-overlay dark:shadow-[var(--surface-shadow-strong)] dark:ring-[var(--surface-border-strong)]'
 
 export function Band({
   className,

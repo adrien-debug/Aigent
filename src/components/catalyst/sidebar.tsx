@@ -97,12 +97,14 @@ export const SidebarItem = forwardRef(function SidebarItem(
     // Active
     'data-active:bg-zinc-950/5 data-active:*:data-[slot=icon]:fill-zinc-950',
     // Current
-    'data-current:bg-zinc-950/5 data-current:font-semibold data-current:*:data-[slot=icon]:fill-zinc-950',
+    // Current: the brand accent tints the icon and the rail marker. The label
+    // stays zinc — one accent cue per active item, never a fully green row.
+    'data-current:bg-zinc-950/5 data-current:font-semibold data-current:*:data-[slot=icon]:fill-accent-600',
     // Dark mode
     'dark:text-white dark:*:data-[slot=icon]:fill-zinc-400',
     'dark:data-hover:bg-white/5 dark:data-hover:*:data-[slot=icon]:fill-white',
     'dark:data-active:bg-white/5 dark:data-active:*:data-[slot=icon]:fill-white',
-    'dark:data-current:bg-white/5 dark:data-current:*:data-[slot=icon]:fill-white'
+    'dark:data-current:bg-white/5 dark:data-current:*:data-[slot=icon]:fill-accent-400'
   )
 
   return (
@@ -110,7 +112,7 @@ export const SidebarItem = forwardRef(function SidebarItem(
       {current && (
         <motion.span
           layoutId="current-indicator"
-          className="absolute inset-y-2 -left-4 w-0.5 rounded-full bg-zinc-950 dark:bg-white"
+          className="absolute inset-y-2 -left-4 w-0.5 rounded-full bg-accent-600 dark:bg-accent-500"
         />
       )}
       {typeof props.href === 'string' ? (

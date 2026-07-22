@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
-import { EmptyState } from '@/components/agent-ops/empty-state'
+import { EmptyStatePanel } from '@/components/agent-ops/empty-state'
 import { ProjectDeleteAction } from '@/components/agent-ops/project-delete-action'
 import { ProjectHeader } from '@/components/agent-ops/project-header'
 import { ProjectMissionOrchestrator } from '@/components/agent-ops/project-mission-orchestrator'
@@ -247,42 +247,36 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           />
         </>
       ) : (
-        <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
-          <EmptyState
-            icon={ServerStackIcon}
-            title="No repo linked"
-            description="Link a GitHub repo to this project to run mission orchestration."
-          />
-        </div>
+        <EmptyStatePanel
+          icon={ServerStackIcon}
+          title="No repo linked"
+          description="Link a GitHub repo to this project to run mission orchestration."
+        />
       )}
 
       {validated.length > 0 ? (
         <ValidatedAgentsTable copilots={validated} />
       ) : (
-        <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
-          <EmptyState
-            icon={CpuChipIcon}
-            title="No validated agents"
-            description="Provision a copilot for this project to see it here."
-            action={
-              <Link href="/admin/agents/new" className="text-xs text-accent-400 hover:underline">
-                Provision a copilot
-              </Link>
-            }
-          />
-        </div>
+        <EmptyStatePanel
+          icon={CpuChipIcon}
+          title="No validated agents"
+          description="Provision a copilot for this project to see it here."
+          action={
+            <Link href="/admin/agents/new" className="text-xs text-accent-400 hover:underline">
+              Provision a copilot
+            </Link>
+          }
+        />
       )}
 
       {runs.length > 0 ? (
         <ProjectTracesTable runs={runs} copilotNameById={copilotNameById} />
       ) : (
-        <div className="rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
-          <EmptyState
-            icon={BoltIcon}
-            title="No runs recorded"
-            description="Traces appear here as soon as this project's agents serve traffic."
-          />
-        </div>
+        <EmptyStatePanel
+          icon={BoltIcon}
+          title="No runs recorded"
+          description="Traces appear here as soon as this project's agents serve traffic."
+        />
       )}
     </div>
   )

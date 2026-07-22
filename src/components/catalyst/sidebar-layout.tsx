@@ -43,7 +43,9 @@ function MobileSidebar({ open, close, children }: React.PropsWithChildren<{ open
         transition
         className="fixed inset-y-0 w-full max-w-80 p-2 transition duration-300 ease-in-out data-closed:-translate-x-full motion-reduce:duration-0"
       >
-        <div className="flex h-full flex-col rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        {/* Plane 4: the drawer floats over the page, so it uses the overlay fill
+            and a real shadow instead of the panel colour sitting underneath. */}
+        <div className="flex h-full flex-col rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-surface-overlay dark:shadow-[var(--surface-shadow-strong)] dark:ring-[var(--surface-border-strong)]">
           <div className="-mb-3 px-4 pt-3">
             <Headless.CloseButton as={NavbarItem} aria-label="Close navigation">
               <CloseMenuIcon />
@@ -64,7 +66,7 @@ export function SidebarLayout({
   let [showSidebar, setShowSidebar] = useState(false)
 
   return (
-    <div className="relative isolate flex min-h-svh w-full bg-white max-lg:flex-col lg:bg-zinc-200/80 dark:bg-zinc-900 dark:lg:bg-black">
+    <div className="relative isolate flex min-h-svh w-full bg-white max-lg:flex-col lg:bg-zinc-200/80 dark:bg-surface-app dark:lg:bg-surface-app">
       {/* Sidebar on desktop */}
       <div className="fixed inset-y-0 left-0 w-64 max-lg:hidden">{sidebar}</div>
 
@@ -89,7 +91,14 @@ export function SidebarLayout({
 
       {/* Content */}
       <main className="flex flex-1 flex-col pb-2 lg:min-w-0 lg:pt-2 lg:pr-2 lg:pl-64">
-        <div className="grow p-6 lg:rounded-xl lg:bg-white lg:p-10 lg:shadow-md lg:ring-1 lg:ring-zinc-950/[0.08] dark:lg:bg-zinc-900 dark:lg:ring-white/10">
+        {/* Plane 1 — the workspace card. Distinctly lighter than the app ground
+            behind it, so the page reads as a sheet on a surface rather than one
+            uniform black field. Panels inside it then step up again. */}
+        {/* Padding scales with the viewport instead of a flat p-6. At 390px a
+            24px gutter on each side left the cards — which carry their own inner
+            padding — squeezed into the middle; 16px there and 40px on desktop
+            keeps the content breathing at both ends. */}
+        <div className="grow p-4 sm:p-6 lg:rounded-xl lg:bg-white lg:p-10 lg:shadow-md lg:ring-1 lg:ring-zinc-950/[0.08] dark:lg:bg-surface-workspace dark:lg:shadow-[var(--surface-shadow)] dark:lg:ring-[var(--surface-border)]">
           <div className="w-full">{children}</div>
         </div>
       </main>

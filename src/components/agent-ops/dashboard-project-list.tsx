@@ -1,7 +1,7 @@
-import { EmptyState } from '@/components/agent-ops/empty-state'
+import { EmptyState, NotMeasuredDash } from '@/components/agent-ops/empty-state'
+import { ProjectAvatar } from '@/components/agent-ops/project-avatar'
 import { SoftAccentLink } from '@/components/agent-ops/soft-accent-link'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
-import { Avatar } from '@/components/catalyst/avatar'
 import { Badge } from '@/components/catalyst/badge'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
@@ -27,13 +27,23 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
         // `overflow-x-auto` when `fixed`, so the sticky head below actually sticks.
         <div className="min-h-0 flex-1 overflow-y-auto border-t border-zinc-950/5">
           <Table fixed className="w-full text-left [--gutter:--spacing(0)]">
-            <TableHead className="sticky top-0 z-10 bg-(--color-surface-secondary)">
+            <TableHead className="sticky top-0 z-10">
               <TableRow>
                 <TableHeader className="pl-4!">Project</TableHeader>
                 <TableHeader className="hidden w-24 text-right md:table-cell">Copilots</TableHeader>
                 <TableHeader className="hidden w-24 text-right lg:table-cell">Success</TableHeader>
-                <TableHeader className="hidden text-right sm:table-cell sm:w-28">
-                  24h<span className="sr-only"> — runs and cost over the last 24 hours</span>
+                {/* Runs and cost were stacked two-deep in a single "24h" cell,
+                    which made the row taller than every other table in the app
+                    and buried the cost under the run count. They are now two
+                    peer columns on one baseline; the shared window is stated
+                    once in the header rather than repeated per cell. */}
+                <TableHeader className="hidden w-24 text-right sm:table-cell">
+                  Runs<span className="sr-only"> over the last 24 hours</span>
+                  <span aria-hidden="true" className="ml-1 font-normal text-zinc-500">24h</span>
+                </TableHeader>
+                <TableHeader className="hidden w-24 text-right sm:table-cell">
+                  Cost<span className="sr-only"> over the last 24 hours</span>
+                  <span aria-hidden="true" className="ml-1 font-normal text-zinc-500">24h</span>
                 </TableHeader>
                 <TableHeader className="w-28 pr-4! pl-2! text-right sm:w-32 sm:pl-4!">Status</TableHeader>
               </TableRow>
@@ -41,6 +51,7 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
             <TableBody>
               {projects.map((project) => {
                 const hasWarnings = project.openWarnings > 0
+                const hasSignal = project.passRate !== null || project.runsLast24h > 0
                 const cost = project.runsLast24h > 0 ? formatUsd(project.costLast24hUsd) : '—'
                 // ONE notion of "has a logo" for both the image and the initials fallback:
                 // `??` on one side and `||` on the other made an empty-string imageUrl
@@ -54,25 +65,21 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
                     title={`Open project ${project.name}`}
                     className="group h-14"
                   >
-                    {/* py-2! is load-bearing, not decoration: it holds every row at h-14
-                        (56px) including the two-line 24h cell, so it must beat the
-                        primitive's own py-*, which class order alone would not do. */}
+                    {/* py-2! is load-bearing, not decoration: it pins every row to the
+                        h-14 (56px) set on the row itself, beating the primitive's own
+                        py-*, which class order alone would not do. Uniform row height
+                        is the point — this table sits directly under the agents table
+                        on the cockpit and the two must share one rhythm. */}
                     <TableCell className="py-2! pl-4!">
                       <div className="flex min-w-0 items-center gap-3">
-                        <Avatar
-                          square
-                          src={logo}
-                          initials={logo ? undefined : project.name.slice(0, 2)}
-                          alt=""
-                          className="size-8 shrink-0 bg-zinc-100 text-zinc-900 ring-1 ring-zinc-950/10"
-                        />
+                        <ProjectAvatar name={project.name} src={logo} size="sm" />
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium text-zinc-900 dark:text-white group-hover:underline">{project.name}</div>
                           <div className="truncate font-mono text-xs text-zinc-500">
                             {project.repoFullName ?? 'no repo linked'}
                           </div>
-                          {/* Below sm the 24h column is dropped so Project keeps the
-                              majority of the width; its two values move here rather
+                          {/* Below sm both 24h columns are dropped so Project keeps the
+                              majority of the width; their values fold here rather
                               than being squeezed into 48px and spilling left. */}
                           <div className="truncate font-mono text-xs tabular-nums text-zinc-500 sm:hidden">
                             {project.runsLast24h.toLocaleString()} runs · {cost}
@@ -86,16 +93,27 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
                     <TableCell className="hidden py-2! text-right font-mono text-sm tabular-nums text-zinc-600 lg:table-cell">
                       {project.passRate === null ? '—' : formatPercent(project.passRate)}
                     </TableCell>
-                    <TableCell className="hidden py-2! text-right sm:table-cell">
-                      <div className="font-mono text-sm tabular-nums text-zinc-600">
-                        {project.runsLast24h.toLocaleString()} runs
-                      </div>
-                      <div className="font-mono text-xs tabular-nums text-zinc-500">{cost}</div>
+                    <TableCell className="hidden py-2! text-right font-mono text-sm tabular-nums text-zinc-600 sm:table-cell dark:text-zinc-400">
+                      {project.runsLast24h > 0 ? project.runsLast24h.toLocaleString() : <NotMeasuredDash />}
+                    </TableCell>
+                    <TableCell className="hidden py-2! text-right font-mono text-sm tabular-nums text-zinc-600 sm:table-cell dark:text-zinc-400">
+                      {project.runsLast24h > 0 ? formatUsd(project.costLast24hUsd) : <NotMeasuredDash />}
                     </TableCell>
                     <TableCell className="py-2! pr-4! pl-2! text-right sm:pl-4!">
-                      <Badge color={hasWarnings ? 'zinc' : 'accent'} className="uppercase tracking-widest">
-                        {hasWarnings ? `${project.openWarnings} alert${project.openWarnings === 1 ? '' : 's'}` : 'Healthy'}
-                      </Badge>
+                      {hasWarnings ? (
+                        <Badge color="zinc" className="uppercase tracking-widest">
+                          {project.openWarnings} alert{project.openWarnings === 1 ? '' : 's'}
+                        </Badge>
+                      ) : hasSignal ? (
+                        <Badge color="accent" className="uppercase tracking-widest">
+                          Healthy
+                        </Badge>
+                      ) : (
+                        // Same rule as /admin/projects: no warnings is not evidence
+                        // of health. A project with no pass rate and no runs has
+                        // produced no observation to call healthy.
+                        <span className="font-mono text-xs text-zinc-500">no signal</span>
+                      )}
                     </TableCell>
                   </TableRow>
                 )

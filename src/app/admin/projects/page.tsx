@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
 
 import { AdminPageHeader } from '@/components/agent-ops/surface-card'
+import { ProjectAvatar } from '@/components/agent-ops/project-avatar'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { SoftAccentLink } from '@/components/agent-ops/soft-accent-link'
-import { Avatar } from '@/components/catalyst/avatar'
 import { Badge } from '@/components/catalyst/badge'
 import { surfaceRaised } from '@/components/catalyst/surface'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
@@ -35,11 +35,15 @@ export default async function ProjectsPage() {
             <Table fixed className="w-full text-left [--gutter:--spacing(0)]">
               <TableHead>
                 <TableRow>
+                  {/* Columns drop by priority below lg — five fixed widths do not
+                      fit a 390px viewport, and `table-fixed` collides rather than
+                      shrinks. Project + Status always survive. */}
                   <TableHeader className="pl-4!">Project</TableHeader>
-                  <TableHeader className="w-28 text-right">Copilots</TableHeader>
-                  <TableHeader className="w-28 text-right">Success</TableHeader>
-                  <TableHeader className="w-36 text-right">24h runs / cost</TableHeader>
-                  <TableHeader className="w-32 pr-4! text-right">Status</TableHeader>
+                  <TableHeader className="hidden w-28 text-right md:table-cell">Copilots</TableHeader>
+                  <TableHeader className="hidden w-36 lg:table-cell">Success</TableHeader>
+                  <TableHeader className="hidden w-24 text-right sm:table-cell">Runs 24h</TableHeader>
+                  <TableHeader className="hidden w-24 text-right sm:table-cell">Cost 24h</TableHeader>
+                  <TableHeader className="w-28 pr-4! text-right sm:w-32">Status</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -59,13 +63,7 @@ export default async function ProjectsPage() {
                     >
                       <TableCell className="py-3! pl-4!">
                         <div className="flex min-w-0 items-center gap-3">
-                          <Avatar
-                            square
-                            src={logo}
-                            initials={logo ? undefined : project.name.slice(0, 2)}
-                            alt=""
-                            className="size-8 shrink-0 bg-zinc-100 text-zinc-900 ring-1 ring-zinc-950/10"
-                          />
+                          <ProjectAvatar name={project.name} src={logo} size="sm" />
                           <div className="min-w-0">
                             <div className="truncate text-sm font-medium text-zinc-900 group-hover:underline dark:text-white">
                               {project.name}
@@ -73,21 +71,44 @@ export default async function ProjectsPage() {
                             <div className="truncate font-mono text-xs text-zinc-500">
                               {project.repoFullName ?? 'no repo linked'}
                             </div>
+                            {/* Below sm the 24h column is dropped; its two values
+                                fold under the repo rather than disappearing. */}
+                            <div className="truncate font-mono text-xs tabular-nums text-zinc-500 sm:hidden">
+                              {project.runsLast24h.toLocaleString()} runs · {cost}
+                            </div>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="py-3! text-right font-mono text-sm tabular-nums text-zinc-600 dark:text-zinc-400">
+                      <TableCell className="hidden py-3! text-right font-mono text-sm tabular-nums text-zinc-600 md:table-cell dark:text-zinc-400">
                         {project.activeCount}
                         <span className="text-zinc-400"> / {project.copilotCount}</span>
                       </TableCell>
-                      <TableCell className="py-3! text-right font-mono text-sm tabular-nums text-zinc-600 dark:text-zinc-400">
-                        {project.passRate === null ? '—' : formatPercent(project.passRate)}
+                      {/* Success as a meter, not just a number: the bar makes the
+                          spread across projects scannable in one pass. Absent
+                          evidence renders an em-dash and NO bar — an empty track
+                          would read as a real 0%. */}
+                      <TableCell className="hidden py-3! lg:table-cell">
+                        {project.passRate === null ? (
+                          <span className="font-mono text-sm text-zinc-500">—</span>
+                        ) : (
+                          <div className="flex items-center gap-2.5">
+                            <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-zinc-200 ring-1 ring-inset ring-zinc-950/5 dark:bg-zinc-800 dark:ring-white/5">
+                              <div
+                                className="h-full rounded-full bg-[var(--chart-success)]"
+                                style={{ width: `${Math.max(project.passRate * 100, 2)}%` }}
+                              />
+                            </div>
+                            <span className="w-12 shrink-0 text-right font-mono text-sm tabular-nums text-zinc-600 dark:text-zinc-400">
+                              {formatPercent(project.passRate)}
+                            </span>
+                          </div>
+                        )}
                       </TableCell>
-                      <TableCell className="py-3! text-right">
-                        <div className="font-mono text-sm tabular-nums text-zinc-600 dark:text-zinc-400">
-                          {project.runsLast24h.toLocaleString()} runs
-                        </div>
-                        <div className="font-mono text-xs tabular-nums text-zinc-500">{cost}</div>
+                      <TableCell className="hidden py-3! text-right font-mono text-sm tabular-nums text-zinc-600 sm:table-cell dark:text-zinc-400">
+                        {project.runsLast24h > 0 ? project.runsLast24h.toLocaleString() : '—'}
+                      </TableCell>
+                      <TableCell className="hidden py-3! text-right font-mono text-sm tabular-nums text-zinc-600 sm:table-cell dark:text-zinc-400">
+                        {cost}
                       </TableCell>
                       <TableCell className="py-3! pr-4! text-right">
                         {hasWarnings ? (

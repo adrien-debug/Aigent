@@ -38,7 +38,10 @@ export function Dialog({
             className={clsx(
               className,
               sizes[size],
-              'row-start-2 w-full min-w-0 rounded-t-3xl bg-white p-(--gutter) shadow-lg ring-1 ring-zinc-950/10 [--gutter:--spacing(8)] sm:mb-auto sm:rounded-2xl dark:bg-zinc-900 dark:ring-white/10 forced-colors:outline',
+              // Plane 4 (overlay): a dialog must read ABOVE the panels behind it,
+              // so it takes the overlay fill + strong shadow rather than the same
+              // zinc-900 the cards underneath already use.
+              'row-start-2 w-full min-w-0 rounded-t-3xl bg-white p-(--gutter) shadow-lg ring-1 ring-zinc-950/10 [--gutter:--spacing(8)] sm:mb-auto sm:rounded-2xl dark:bg-surface-overlay dark:ring-[var(--surface-border-strong)] dark:shadow-[var(--surface-shadow-strong),var(--surface-highlight)] forced-colors:outline',
               'transition duration-100 will-change-transform data-closed:translate-y-12 data-closed:opacity-0 data-enter:ease-out data-leave:ease-in sm:data-closed:translate-y-0 sm:data-closed:data-enter:scale-95'
             )}
           >

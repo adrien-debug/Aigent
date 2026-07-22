@@ -50,22 +50,66 @@
   --color-accent-900: #1c4f15;
   --color-accent-950: #0b2809;
 
-  /* Dark surfaces — zinc ladder. canvas = page ground, primary/secondary =
-     cards, interactive = hover/pressed, elevated = popovers/dialogs (lifted a
-     step so they read above cards), focus = focused row. Single accent stays
-     the green above; everything else is zinc. */
+  /* Dark surfaces — legacy names, now mapped onto the layered ladder below.
+     `primary` and `secondary` used to be the SAME value (#18181b), so a card
+     could not separate from the surface behind it and everything read as one
+     flat sheet. They are now distinct steps. Prefer the --surface-* tokens. */
   --color-surface-canvas: #09090b;
-  --color-surface-primary: #18181b;
-  --color-surface-secondary: #18181b;
-  --color-surface-interactive: #27272a;
-  --color-surface-elevated: #27272a;
-  --color-surface-focus: #18181b;
+  --color-surface-primary: #131316;
+  --color-surface-secondary: #1a1a1e;
+  --color-surface-interactive: #232327;
+  --color-surface-elevated: #232327;
+  --color-surface-focus: #1f1f23;
 
   /* Foreground on the dark ground (was inherited zinc-900 from the light set). */
   --color-surface-foreground: #fafafa;
 }
 
+/* ---------------------------------------------------------------------------
+   LAYERED SURFACE LADDER — the single source of depth (AIG-VISUAL-DEPTH).
+
+   Five planes, each a real luminance step so a panel is never the same colour
+   as the thing behind it:
+
+     0 app        #09090b  page ground, darkest
+     1 workspace  #111114  the <main> card
+     2 raised     #1a1a1e  panels: charts, tables, lists
+     3 sunken     #0d0d10  insets: filters, table headers, legends
+     4 overlay    #232327  dialogs, menus, tooltips — above everything
+
+   Depth is carried by colour FIRST; ring and shadow only reinforce it.
+   Never paint two adjacent planes the same value.
+
+   Declared in `@theme`, NOT in a bare `:root`. Tailwind v4 only emits custom
+   properties it can see referenced from scanned source files; these are used
+   from arbitrary values inside this stylesheet, which the scanner does not
+   count as a reference, so a `:root` declaration was tree-shaken away entirely
+   and every `var(--surface-*)` resolved to nothing. `@theme` tokens are always
+   emitted, and additionally generate `bg-surface-raised`-style utilities.
+   --------------------------------------------------------------------------- */
+@theme {
+  --color-surface-app: #09090b;
+  --color-surface-workspace: #111114;
+  --color-surface-raised: #1a1a1e;
+  --color-surface-raised-hover: #202024;
+  --color-surface-sunken: #0d0d10;
+  --color-surface-overlay: #232327;
+}
+
 :root {
+  /* Non-colour depth primitives. These ARE referenced from .tsx files, so they
+     survive as plain custom properties. */
+  --surface-interactive: rgb(255 255 255 / 4%);
+  --surface-border: rgb(255 255 255 / 8%);
+  --surface-border-strong: rgb(255 255 255 / 14%);
+
+  /* Dark UI still needs cast shadow — `dark:shadow-none` is what made every
+     card sit flat on the page. Black at real opacity, plus a 1px top highlight
+     that reads as a lit edge on a raised plane. */
+  --surface-shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 12px -2px rgb(0 0 0 / 35%);
+  --surface-shadow-strong: 0 2px 4px rgb(0 0 0 / 45%), 0 12px 28px -4px rgb(0 0 0 / 50%);
+  --surface-highlight: inset 0 1px 0 0 rgb(255 255 255 / 5%);
+
   /* Hairlines/masks flipped for the dark ground: a black hairline is invisible
      on zinc-950, so separators are a low-alpha white instead. */
   --color-hairline: rgb(255 255 255 / 8%);

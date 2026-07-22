@@ -40,7 +40,7 @@ export function RecentRunsTable({
       />
       <div className="max-h-[28rem] overflow-auto no-scrollbar">
         <Table className="min-w-[760px] w-full border-collapse px-4 text-left [--gutter:--spacing(0)]">
-        <TableHead className="sticky top-0 z-10 bg-[var(--color-surface-secondary)]">
+        <TableHead className="sticky top-0 z-10">
           <TableRow className="border-b border-white/5">
             <TableHeader>Run & Copilot</TableHeader>
             <TableHeader>Project</TableHeader>
