@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
-import { AgentSectionCard } from '@/components/agent-ops/surface-card'
+import { AgentSectionCard, eyebrowClass } from '@/components/agent-ops/surface-card'
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { Badge } from '@/components/catalyst/badge'
@@ -53,7 +53,8 @@ function ParticipantsList({ participants }: { participants: MissionParticipant[]
   )
 }
 
-function MissionReportPanel({ report }: { report: MissionReport }) {
+/** Exported for the surface-hierarchy test, which renders it in isolation. */
+export function MissionReportPanel({ report }: { report: MissionReport }) {
   return (
     <div className="flex flex-col gap-6">
       {/* Header Metadata */}
@@ -67,42 +68,47 @@ function MissionReportPanel({ report }: { report: MissionReport }) {
         <span className="text-xs text-zinc-500 font-mono truncate">{report.runId}</span>
       </div>
 
-      <p className="text-sm text-zinc-800">{report.consensus.summary}</p>
+      <p className="text-sm leading-6 text-zinc-300">{report.consensus.summary}</p>
 
       {/* Participants */}
       <div>
-        <p className="text-xs font-semibold text-zinc-900 dark:text-white uppercase tracking-widest mb-3">Participants</p>
-        <ParticipantsList participants={report.participants} />
+        <p className={eyebrowClass}>Participants</p>
+        <div className="mt-3">
+          <ParticipantsList participants={report.participants} />
+        </div>
       </div>
 
-      {/* Blockers */}
+      {/* Blockers — a compact accent band, not a card. The accent hairline is
+          the whole signal; wrapping it in a filled panel made a third plane
+          inside a section that is already raised. */}
       {report.consensus.blockers.length > 0 && (
-        <div className="rounded-xl bg-(--accent-soft) ring-1 ring-(--accent-line) p-4">
-          <p className="text-xs font-bold text-accent-700 uppercase tracking-widest mb-3">Blockers ({report.consensus.blockers.length})</p>
-          <ul className="text-sm text-accent-800 space-y-2">
+        <div className="border-l-2 border-[var(--accent-line-strong)] pl-4">
+          <p className={eyebrowClass}>Blockers ({report.consensus.blockers.length})</p>
+          <ul className="mt-2 flex flex-col gap-1.5 text-sm leading-6 text-zinc-300">
             {report.consensus.blockers.map((f) => (
-              <li key={f.id}>• {f.title}</li>
+              <li key={f.id}>{f.title}</li>
             ))}
           </ul>
         </div>
       )}
 
-      {/* Warnings */}
+      {/* Warnings — same band treatment. The previous `bg-zinc-50` panel was a
+          LIGHT surface rendered on a dark screen. */}
       {report.consensus.warnings.length > 0 && (
-        <div className="rounded-xl bg-zinc-50 ring-1 ring-zinc-950/5 p-4">
-          <p className="text-xs font-bold text-zinc-900 dark:text-white uppercase tracking-widest mb-3">Warnings ({report.consensus.warnings.length})</p>
-          <ul className="text-sm text-zinc-700 space-y-2">
+        <div className="border-l-2 border-white/10 pl-4">
+          <p className={eyebrowClass}>Warnings ({report.consensus.warnings.length})</p>
+          <ul className="mt-2 flex flex-col gap-1.5 text-sm leading-6 text-zinc-400">
             {report.consensus.warnings.slice(0, 8).map((f) => (
-              <li key={f.id}>• {f.title}</li>
+              <li key={f.id}>{f.title}</li>
             ))}
           </ul>
         </div>
       )}
 
-      {/* Next Actions */}
+      {/* Next Actions — no framing at all, per the target architecture. */}
       <div>
-        <p className="text-xs font-semibold text-zinc-900 dark:text-white uppercase tracking-widest mb-3">Next actions</p>
-        <ul className="text-sm text-zinc-700 space-y-2 list-disc pl-5">
+        <p className={eyebrowClass}>Next actions</p>
+        <ul className="mt-2 flex flex-col gap-1.5 text-sm leading-6 text-zinc-300">
           {report.consensus.nextActions.map((a) => (
             <li key={a}>{a}</li>
           ))}
@@ -114,20 +120,27 @@ function MissionReportPanel({ report }: { report: MissionReport }) {
         <summary className="cursor-pointer py-2 text-xs font-semibold text-zinc-500 uppercase tracking-widest hover:text-zinc-900 dark:hover:text-white focus-visible:text-zinc-900 dark:focus-visible:text-white transition-colors">
           All findings ({report.findings.length})
         </summary>
-        <div className="mt-3 overflow-hidden rounded-xl border border-zinc-950/5 bg-zinc-50/50">
-          <div className="grid grid-cols-[100px_140px_minmax(0,1fr)] items-center gap-x-4 border-b border-zinc-950/5 bg-zinc-100/50 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-            <div>Severity</div>
-            <div>Source</div>
-            <div>Message</div>
+        {/* A disclosure list, not a card: no rounded wrapper, no second
+            background, and no inner scroll — the page scrolls, the panel does
+            not. Only the header row is sunken, which is the one legitimate
+            depth step inside an already-raised section. */}
+        <div className="mt-3">
+          {/* The sunken TOKEN, not `surfaceItemClass` — that helper is a full
+              rounded card (rounded-xl + ring), which would put a third plane
+              back inside an already-raised section. */}
+          <div className="grid grid-cols-[100px_140px_minmax(0,1fr)] items-center gap-x-4 rounded-t-lg bg-[var(--color-surface-sunken)] px-4 py-2">
+            <div className={eyebrowClass}>Severity</div>
+            <div className={eyebrowClass}>Source</div>
+            <div className={eyebrowClass}>Message</div>
           </div>
-          <ul className="max-h-64 overflow-y-auto divide-y divide-zinc-950/5">
+          <ul className="divide-y divide-white/5">
             {report.findings.map((f) => (
               <li key={f.id} className="grid grid-cols-[100px_140px_minmax(0,1fr)] items-start gap-x-4 px-4 py-3 text-sm">
                 <div>
                   <Badge className="w-full justify-center" color={severityBadgeColor(f.severity)}>{f.severity}</Badge>
                 </div>
-                <span className="truncate font-medium text-zinc-900 dark:text-white" title={f.role}>{f.role}</span>
-                <span className="min-w-0 break-words text-zinc-600">{f.title}</span>
+                <span className="truncate font-medium text-zinc-200" title={f.role}>{f.role}</span>
+                <span className="min-w-0 break-words text-zinc-400">{f.title}</span>
               </li>
             ))}
           </ul>
