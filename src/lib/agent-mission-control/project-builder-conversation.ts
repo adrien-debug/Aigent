@@ -916,46 +916,66 @@ async function reconstructRunState(conversation: ProjectBuilderConversation): Pr
 }
 
 /** Start LangGraph materialization from an approved preview (no DB copilot yet). */
+/**
+ * In-process guard: ONE draft materialization start per project per process.
+ * The billed LangGraph run (startAgentBuilderRun) below happens BEFORE the
+ * thread id is persisted, so two concurrent "Approve — create draft" requests
+ * in the same process would both launch a run (double OpenAI spend) — the
+ * conversation's check-then-act reconcile can't catch a truly-simultaneous
+ * pair. This synchronous Set claim closes that same-process window; the loser
+ * throws the same "already in progress" the route maps to 409. (Same pattern as
+ * the run route's inFlightRuns and the improve/auto cycle guard.)
+ */
+const inFlightMaterializations = new Set<string>()
+
 export async function startProjectBuilderDraftMaterialization(projectId: string) {
-  const conversation = await ensureActiveProjectBuilderConversation(projectId)
-  if (await ensureConversationThreadIsLive(conversation)) {
+  if (inFlightMaterializations.has(projectId)) {
     throw new Error('draft materialization already in progress')
   }
-  const guard = canStartDraftMaterialization(conversation.latestPreview)
-  if (!guard.ok) throw new Error(guard.reason)
-
-  const preview = conversation.latestPreview!
-  const project = await getProject(projectId)
-  if (!project) throw new Error('project not found')
-
-  let repoScan: { repo: string; branch: string; scripts: Record<string, string> } | null = null
-  let repoContext: string | undefined
-  if (project.repoFullName && process.env.GITHUB_TOKEN) {
-    try {
-      const scan = await scanProjectRepo(project)
-      repoScan = { repo: scan.repo, branch: scan.branch, scripts: scan.scripts }
-      repoContext = await appendAgentsWantedToContext(repoScanToContext(scan), project.repoFullName)
-    } catch {
-      // Non-fatal.
+  inFlightMaterializations.add(projectId)
+  try {
+    const conversation = await ensureActiveProjectBuilderConversation(projectId)
+    if (await ensureConversationThreadIsLive(conversation)) {
+      throw new Error('draft materialization already in progress')
     }
+    const guard = canStartDraftMaterialization(conversation.latestPreview)
+    if (!guard.ok) throw new Error(guard.reason)
+
+    const preview = conversation.latestPreview!
+    const project = await getProject(projectId)
+    if (!project) throw new Error('project not found')
+
+    let repoScan: { repo: string; branch: string; scripts: Record<string, string> } | null = null
+    let repoContext: string | undefined
+    if (project.repoFullName && process.env.GITHUB_TOKEN) {
+      try {
+        const scan = await scanProjectRepo(project)
+        repoScan = { repo: scan.repo, branch: scan.branch, scripts: scan.scripts }
+        repoContext = await appendAgentsWantedToContext(repoScanToContext(scan), project.repoFullName)
+      } catch {
+        // Non-fatal.
+      }
+    }
+
+    const builderCopilotId = await resolveBuilderCopilotId()
+    const runState = await startAgentBuilderRun({
+      copilotId: builderCopilotId,
+      userInput: buildMaterializationPrompt(preview),
+      projectId,
+      repoContext,
+      repoScan,
+    })
+
+    await pgrest('PATCH', `project_builder_conversations?${eq('id', conversation.id)}`, {
+      langgraph_thread_id: runState.runId,
+      status: 'draft_ready',
+      updated_at: new Date().toISOString(),
+    })
+
+    return { conversationId: conversation.id, runState }
+  } finally {
+    inFlightMaterializations.delete(projectId)
   }
-
-  const builderCopilotId = await resolveBuilderCopilotId()
-  const runState = await startAgentBuilderRun({
-    copilotId: builderCopilotId,
-    userInput: buildMaterializationPrompt(preview),
-    projectId,
-    repoContext,
-    repoScan,
-  })
-
-  await pgrest('PATCH', `project_builder_conversations?${eq('id', conversation.id)}`, {
-    langgraph_thread_id: runState.runId,
-    status: 'draft_ready',
-    updated_at: new Date().toISOString(),
-  })
-
-  return { conversationId: conversation.id, runState }
 }
 
 /**

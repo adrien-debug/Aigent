@@ -179,11 +179,15 @@ function toOpenAiToolChoice(
   }
 }
 
-async function callOpenAI(req: ModelRouterRequest): Promise<RawCall> {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) throw new ProviderUnavailableError('OpenAI not configured (OPENAI_API_KEY missing)')
-  const client = new OpenAI({ apiKey })
-
+/**
+ * Assemble the OpenAI-SDK `tools` + `tool_choice` params from a router request.
+ * Shared by the OpenAI and local-vLLM call paths — vLLM speaks the OpenAI SDK,
+ * so both build these params identically.
+ */
+function toOpenAiToolsParam(req: ModelRouterRequest): {
+  tools: OpenAI.Chat.Completions.ChatCompletionTool[] | undefined
+  toolChoice: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption | undefined
+} {
   const tools: OpenAI.Chat.Completions.ChatCompletionTool[] | undefined =
     req.tools && req.tools.length > 0
       ? req.tools.map((t) => ({
@@ -192,6 +196,15 @@ async function callOpenAI(req: ModelRouterRequest): Promise<RawCall> {
         }))
       : undefined
   const toolChoice = tools ? toOpenAiToolChoice(req.toolChoice) : undefined
+  return { tools, toolChoice }
+}
+
+async function callOpenAI(req: ModelRouterRequest): Promise<RawCall> {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) throw new ProviderUnavailableError('OpenAI not configured (OPENAI_API_KEY missing)')
+  const client = new OpenAI({ apiKey })
+
+  const { tools, toolChoice } = toOpenAiToolsParam(req)
 
   try {
     const completion = await client.chat.completions.create({
@@ -404,14 +417,7 @@ async function callLocalVllm(req: ModelRouterRequest): Promise<RawCall> {
   }
   const maxCompletionTokens = Math.min(req.maxOutputTokens ?? 2048, contextRoom)
 
-  const tools: OpenAI.Chat.Completions.ChatCompletionTool[] | undefined =
-    req.tools && req.tools.length > 0
-      ? req.tools.map((t) => ({
-          type: 'function' as const,
-          function: { name: t.name, description: t.description, parameters: t.parameters },
-        }))
-      : undefined
-  const toolChoice = tools ? toOpenAiToolChoice(req.toolChoice) : undefined
+  const { tools, toolChoice } = toOpenAiToolsParam(req)
 
   try {
     const completion = await client.chat.completions.create({

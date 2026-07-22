@@ -1,11 +1,15 @@
-import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
+import {
+  ChartGrid,
+  HOUR_MS,
+  HourLabelRail,
+  PLOT_H,
+  PLOT_W,
+  TOP_PAD,
+  hourLabel,
+} from '@/components/agent-ops/dashboard-charts/chart-frame'
 import { EmptyState } from '@/components/agent-ops/empty-state'
+import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import type { AgentRun } from '@/lib/agent-mission-control/types'
-
-const HOUR_MS = 3_600_000
-const PLOT_W = 960
-const PLOT_H = 96
-const TOP_PAD = 8
 
 interface CostBucket {
   startMs: number
@@ -44,10 +48,6 @@ function bucketCostByHour(runs: AgentRun[], nowMs: number, hours = 24): CostBuck
   return buckets
 }
 
-function hourLabel(startMs: number): string {
-  return `${new Date(startMs).toISOString().slice(11, 13)}:00`
-}
-
 function formatUsd(n: number): string {
   return `$${n.toFixed(n < 1 ? 4 : 2)}`
 }
@@ -57,7 +57,8 @@ function formatUsd(n: number): string {
  * (line/area on the `--chart-*` tokens, no lib). Runs with `costUsd === null`
  * (cost never measured) contribute NOTHING to any bucket. If not a single run
  * in the window carries a measured cost, this renders the shared EmptyState —
- * never a flat zero line pretending to be real data.
+ * never a flat zero line pretending to be real data. Shared geometry / grid /
+ * hour rail live in `chart-frame.tsx`.
  */
 export function CostOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: number }) {
   const buckets = bucketCostByHour(runs, nowMs)
@@ -108,30 +109,7 @@ export function CostOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: nu
           preserveAspectRatio="none"
           className="block h-24 w-full"
         >
-          {[0.25, 0.5, 0.75].map((f) => {
-            const y = TOP_PAD + (PLOT_H - TOP_PAD) * (1 - f)
-            return (
-              <line
-                key={f}
-                x1={0}
-                x2={PLOT_W}
-                y1={y}
-                y2={y}
-                stroke="var(--chart-grid)"
-                strokeWidth={1}
-                vectorEffect="non-scaling-stroke"
-              />
-            )
-          })}
-          <line
-            x1={0}
-            x2={PLOT_W}
-            y1={PLOT_H - 0.5}
-            y2={PLOT_H - 0.5}
-            stroke="var(--chart-grid)"
-            strokeWidth={1}
-            vectorEffect="non-scaling-stroke"
-          />
+          <ChartGrid />
 
           <polygon points={areaPoints} fill="var(--chart-success)" fillOpacity={0.12} />
           <polyline
@@ -155,13 +133,7 @@ export function CostOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: nu
           ))}
         </svg>
 
-          <div aria-hidden="true" className="mt-2 grid grid-cols-[repeat(24,minmax(0,1fr))]">
-            {buckets.map((b, i) => (
-              <span key={b.startMs} className="text-center font-mono text-[10px] text-zinc-500 tabular-nums">
-                {i % 6 === 0 ? hourLabel(b.startMs) : ''}
-              </span>
-            ))}
-          </div>
+          <HourLabelRail buckets={buckets} />
         </div>
       </div>
     </SurfaceCard>

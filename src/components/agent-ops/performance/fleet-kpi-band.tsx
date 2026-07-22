@@ -1,5 +1,5 @@
 import { AgentKpiBand, type AgentKpiStat } from '@/components/agent-ops/agent-kpi-band'
-import { bucketRunsByHour } from '@/components/agent-ops/performance/activity-chart'
+import { bucketRunsByHour } from '@/components/agent-ops/dashboard-charts/chart-frame'
 import { formatDurationMs, formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import type { AgentRun, Copilot, CopilotHealthMetric } from '@/lib/agent-mission-control/types'
 

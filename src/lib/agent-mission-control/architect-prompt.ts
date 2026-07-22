@@ -2,6 +2,8 @@ import 'server-only'
 
 import type OpenAI from 'openai'
 
+import { SKILLS_TOOL_PARAMETER } from './architect-skills-schema'
+
 /**
  * Agent Architect — system prompt + tool-call schema.
  *
@@ -168,26 +170,7 @@ export const ARCHITECT_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
           description:
             'Minimal set of tools proposed for this copilot, least-privilege first.',
         },
-        skills: {
-          type: 'array',
-          items: {
-            type: 'object',
-            additionalProperties: false,
-            properties: {
-              label: {
-                type: 'string',
-                description: 'Mission-level capability phrased as a product verb, e.g. "Read BTCUSDT spot price".',
-              },
-              detail: {
-                type: 'string',
-                description: 'Optional one-line explanation of how the agent realises this capability.',
-              },
-            },
-            required: ['label'],
-          },
-          description:
-            "The agent's mission-level skills — concrete capabilities it performs to fulfil its mission (e.g. read a market price, compute levels, emit a verdict). NOT infrastructure tool names. 3 to 7 items.",
-        },
+        skills: SKILLS_TOOL_PARAMETER,
         maxStepsPerRun: {
           type: 'integer',
           minimum: 1,

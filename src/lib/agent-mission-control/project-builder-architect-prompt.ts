@@ -2,6 +2,8 @@ import 'server-only'
 
 import type OpenAI from 'openai'
 
+import { SKILLS_TOOL_PARAMETER } from './architect-skills-schema'
+
 /**
  * Project Builder Architect — conversational, repo-aware system prompt + preview tool.
  * Distinct from the bench Architect (emit_manifest only): this model DISCUSSES first,
@@ -87,26 +89,7 @@ const PROJECT_BUILDER_PREVIEW_TOOL: OpenAI.Chat.Completions.ChatCompletionTool =
           },
         },
         benchmarks: { type: 'array', items: { type: 'string' } },
-        skills: {
-          type: 'array',
-          items: {
-            type: 'object',
-            additionalProperties: false,
-            properties: {
-              label: {
-                type: 'string',
-                description: 'Mission-level capability phrased as a product verb, e.g. "Read BTCUSDT spot price".',
-              },
-              detail: {
-                type: 'string',
-                description: 'Optional one-line explanation of how the agent realises this capability.',
-              },
-            },
-            required: ['label'],
-          },
-          description:
-            "The agent's mission-level skills — concrete capabilities it performs to fulfil its mission (e.g. read a market price, compute levels, emit a verdict). NOT infrastructure tool names. 3 to 7 items.",
-        },
+        skills: SKILLS_TOOL_PARAMETER,
         riskPolicy: { type: 'string' },
         approvalPolicy: { type: 'string' },
         flow: { type: 'array', items: { type: 'string' } },

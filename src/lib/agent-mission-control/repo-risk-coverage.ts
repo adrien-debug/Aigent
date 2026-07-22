@@ -9,64 +9,18 @@
  */
 
 import type { NewTestCaseInput } from './authoring-writes'
+import {
+  API_ROUTE_KEYWORDS,
+  DS_KEYWORDS,
+  MANY_API_ROUTES_THRESHOLD,
+  RISK_KEYWORDS,
+  SECRET_KEYWORDS,
+} from './repo-coverage-keywords'
 import type { RepoMap } from './repo-intelligence'
 import type { RepoFitCase } from './repo-fit'
 import type { RepoSuiteContext } from './repo-suite-context'
 
 export type RiskCoverageKey = 'secrets' | 'repo_risks' | 'design_system' | 'api_routes'
-
-const DS_KEYWORDS = [
-  'design system',
-  'design-system',
-  'catalyst',
-  'check:ds',
-  'check:catalyst',
-  'tokens',
-  'palette',
-  'accent color',
-  'ds gate',
-]
-const SECRET_KEYWORDS = [
-  'secret',
-  'process.env',
-  'api key',
-  'api_key',
-  'service role',
-  'service_role',
-  'credential',
-  'token',
-  'redact',
-  'leak',
-  '.env tracked',
-  'tracked .env',
-  'tracked in the repo',
-  'secret exposure',
-]
-const RISK_KEYWORDS = [
-  'review before delete',
-  'do not auto-delete',
-  'not auto-delete',
-  "don't delete",
-  'flag',
-  'residue',
-  'dead code',
-  'evidence',
-  'recommend review',
-  'risk',
-]
-const API_ROUTE_KEYWORDS = [
-  'invent',
-  'hallucinat',
-  'real route',
-  'absent route',
-  'does not exist',
-  'only cite',
-  'never invent',
-  'no route',
-  'route scope',
-]
-
-const MANY_API_ROUTES_THRESHOLD = 5
 
 function caseText(c: Pick<RepoFitCase, 'name' | 'input' | 'expectedBehavior' | 'tags'>): string {
   return `${c.name}\n${c.input}\n${c.expectedBehavior}\n${c.tags.join(' ')}`.toLowerCase()

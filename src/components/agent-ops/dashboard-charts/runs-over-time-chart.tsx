@@ -1,43 +1,32 @@
 import clsx from 'clsx'
 
-import { bucketRunsByHour } from '@/components/agent-ops/performance/activity-chart'
+import {
+  BAR_W,
+  BAR_X,
+  ChartGrid,
+  HOUR_MS,
+  HourLabelRail,
+  LegendDot,
+  MIN_SEG_H,
+  PLOT_H,
+  PLOT_W,
+  SLOT_W,
+  TOP_PAD,
+  bucketRunsByHour,
+  hourLabel,
+  runCount,
+} from '@/components/agent-ops/dashboard-charts/chart-frame'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import type { AgentRun } from '@/lib/agent-mission-control/types'
-
-const HOUR_MS = 3_600_000
-const PLOT_W = 960
-const PLOT_H = 96
-const TOP_PAD = 8
-const SLOT_W = PLOT_W / 24
-const BAR_W = 26
-const BAR_X = (SLOT_W - BAR_W) / 2
-const MIN_SEG_H = 1.5
-
-function hourLabel(startMs: number): string {
-  return `${new Date(startMs).toISOString().slice(11, 13)}:00`
-}
-
-function runCount(n: number): string {
-  return `${n} run${n === 1 ? '' : 's'}`
-}
-
-function LegendDot({ className, label, count }: { className: string; label: string; count: number }) {
-  return (
-    <span className="inline-flex items-center gap-2">
-      <span aria-hidden="true" className={`size-2 rounded-full ${className}`} />
-      <span className="text-xs text-zinc-500">{label}</span>
-      <span className="font-mono text-xs text-zinc-400 tabular-nums">{count}</span>
-    </span>
-  )
-}
 
 /**
  * RunsOverTimeChart — hourly completed-vs-failed histogram over 24h. Same
  * hand-rolled server SVG approach as ActivityChart (`performance/activity-chart.tsx`),
- * reusing its `bucketRunsByHour` helper so both surfaces read the identical
- * histogram math. "Other" (running/blocked/needs-confirmation) is folded out
- * of the legend here — this chart's job is completed vs failed only; the
- * status breakdown chart carries the full split.
+ * reusing the shared `bucketRunsByHour` helper (`dashboard-charts/chart-frame.tsx`)
+ * so both surfaces read the identical histogram math. "Other"
+ * (running/blocked/needs-confirmation) is folded out of the legend here — this
+ * chart's job is completed vs failed only; the status breakdown chart carries
+ * the full split.
  */
 export function RunsOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: number }) {
   const buckets = bucketRunsByHour(runs, nowMs)
@@ -85,30 +74,7 @@ export function RunsOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: nu
           preserveAspectRatio="none"
           className="block h-24 w-full"
         >
-          {[0.25, 0.5, 0.75].map((f) => {
-            const y = TOP_PAD + (PLOT_H - TOP_PAD) * (1 - f)
-            return (
-              <line
-                key={f}
-                x1={0}
-                x2={PLOT_W}
-                y1={y}
-                y2={y}
-                stroke="var(--chart-grid)"
-                strokeWidth={1}
-                vectorEffect="non-scaling-stroke"
-              />
-            )
-          })}
-          <line
-            x1={0}
-            x2={PLOT_W}
-            y1={PLOT_H - 0.5}
-            y2={PLOT_H - 0.5}
-            stroke="var(--chart-grid)"
-            strokeWidth={1}
-            vectorEffect="non-scaling-stroke"
-          />
+          <ChartGrid />
 
           {buckets.map((bucket, i) => {
             const x = i * SLOT_W + BAR_X
@@ -156,13 +122,7 @@ export function RunsOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: nu
           })}
         </svg>
 
-          <div aria-hidden="true" className="mt-2 grid grid-cols-[repeat(24,minmax(0,1fr))]">
-            {buckets.map((bucket, i) => (
-              <span key={bucket.startMs} className="text-center font-mono text-[10px] text-zinc-500 tabular-nums">
-                {i % 6 === 0 ? hourLabel(bucket.startMs) : ''}
-              </span>
-            ))}
-          </div>
+          <HourLabelRail buckets={buckets} />
         </div>
       </div>
     </SurfaceCard>

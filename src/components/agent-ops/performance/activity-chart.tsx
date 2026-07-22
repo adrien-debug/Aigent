@@ -1,87 +1,30 @@
+import {
+  BAR_W,
+  BAR_X,
+  ChartGrid,
+  HOUR_MS,
+  HourLabelRail,
+  LegendDot,
+  MIN_SEG_H,
+  PLOT_H,
+  PLOT_W,
+  SLOT_W,
+  TOP_PAD,
+  bucketRunsByHour,
+  hourLabel,
+  runCount,
+} from '@/components/agent-ops/dashboard-charts/chart-frame'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import type { AgentRun } from '@/lib/agent-mission-control/types'
-
-const HOUR_MS = 3_600_000
-
-export interface HourBucket {
-  /** UTC start of the hour, epoch ms. */
-  startMs: number
-  completed: number
-  failed: number
-  /** running / blocked / needs-confirmation. */
-  other: number
-  total: number
-}
-
-/**
- * Bucket runs into hourly UTC slots covering the last `hours` hours (window
- * end = `nowMs` rounded UP to the next hour boundary, so the current partial
- * hour is the last bucket). Runs outside the window are dropped. Deterministic
- * from its inputs — shared by ActivityChart and FleetKpiBand so both surfaces
- * read the exact same histogram.
- */
-export function bucketRunsByHour(runs: AgentRun[], nowMs: number, hours = 24): HourBucket[] {
-  const endMs = Math.ceil(nowMs / HOUR_MS) * HOUR_MS
-  const startMs = endMs - hours * HOUR_MS
-
-  const buckets: HourBucket[] = Array.from({ length: hours }, (_, i) => ({
-    startMs: startMs + i * HOUR_MS,
-    completed: 0,
-    failed: 0,
-    other: 0,
-    total: 0,
-  }))
-
-  for (const run of runs) {
-    const t = Date.parse(run.startedAt)
-    if (Number.isNaN(t) || t < startMs || t >= endMs) continue
-    const bucket = buckets[Math.floor((t - startMs) / HOUR_MS)]
-    if (!bucket) continue
-    if (run.status === 'completed') bucket.completed += 1
-    else if (run.status === 'failed') bucket.failed += 1
-    else bucket.other += 1
-    bucket.total += 1
-  }
-
-  return buckets
-}
-
-function hourLabel(startMs: number): string {
-  return `${new Date(startMs).toISOString().slice(11, 13)}:00`
-}
-
-function runCount(n: number): string {
-  return `${n} run${n === 1 ? '' : 's'}`
-}
-
-// Fixed drawing space — the SVG stretches horizontally (preserveAspectRatio
-// "none") while its rendered height stays compact, so
-// horizontal hairlines never blur and only bar widths flex with the viewport.
-const PLOT_W = 960
-const PLOT_H = 96
-const TOP_PAD = 8
-const SLOT_W = PLOT_W / 24
-const BAR_W = 26
-const BAR_X = (SLOT_W - BAR_W) / 2
-const MIN_SEG_H = 1.5
-
-function LegendDot({ className, label, count }: { className: string; label: string; count: number }) {
-  return (
-    <span className="inline-flex items-center gap-2">
-      <span aria-hidden="true" className={`size-2 rounded-full ${className}`} />
-      <span className="text-xs text-zinc-500">{label}</span>
-      <span className="font-mono text-xs text-zinc-400 tabular-nums">{count}</span>
-    </span>
-  )
-}
 
 /**
  * ActivityChart — stacked hourly run histogram over the last 24h, hand-rolled
  * server SVG on the `--chart-*` tokens (completed = accent, failed = zinc-400,
  * other = zinc-600). No chart lib, no client JS: native `<title>` tooltips per
  * bar, sparse UTC hour labels as an HTML rail under the plot so text never
- * distorts with the stretched SVG.
+ * distorts with the stretched SVG. Shared bucketing / geometry / grid / hour
+ * rail live in `dashboard-charts/chart-frame.tsx`.
  */
 export function ActivityChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: number }) {
   const buckets = bucketRunsByHour(runs, nowMs)
@@ -124,31 +67,7 @@ export function ActivityChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: number
           preserveAspectRatio="none"
           className="block h-24 w-full"
         >
-          {/* Hairline grid — quarter lines + baseline, chart-grid token (white/5). */}
-          {[0.25, 0.5, 0.75].map((f) => {
-            const y = TOP_PAD + (PLOT_H - TOP_PAD) * (1 - f)
-            return (
-              <line
-                key={f}
-                x1={0}
-                x2={PLOT_W}
-                y1={y}
-                y2={y}
-                stroke="var(--chart-grid)"
-                strokeWidth={1}
-                vectorEffect="non-scaling-stroke"
-              />
-            )
-          })}
-          <line
-            x1={0}
-            x2={PLOT_W}
-            y1={PLOT_H - 0.5}
-            y2={PLOT_H - 0.5}
-            stroke="var(--chart-grid)"
-            strokeWidth={1}
-            vectorEffect="non-scaling-stroke"
-          />
+          <ChartGrid />
 
           {buckets.map((bucket, i) => {
             const x = i * SLOT_W + BAR_X
@@ -198,19 +117,7 @@ export function ActivityChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: number
         </svg>
 
         {/* Four UTC hour markers in equal columns under the 24 hourly slots. */}
-        <div
-          aria-hidden="true"
-          className="mt-2 grid grid-cols-[repeat(24,minmax(0,1fr))]"
-        >
-          {buckets.map((bucket, i) => (
-            <span
-              key={bucket.startMs}
-              className="text-center font-mono text-[10px] text-zinc-500 tabular-nums"
-            >
-              {i % 6 === 0 ? hourLabel(bucket.startMs) : ''}
-            </span>
-          ))}
-        </div>
+        <HourLabelRail buckets={buckets} />
         </div>
       </div>
     </SurfaceCard>
