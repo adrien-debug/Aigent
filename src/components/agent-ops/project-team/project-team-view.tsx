@@ -22,6 +22,7 @@ import {
   readGraphNodes,
   toTeamAgentView,
   toTeamEdgeView,
+  useRelativeNow,
   type TeamAgentView,
   type TeamEdgeView,
 } from './project-team-panel'
@@ -58,6 +59,14 @@ interface TeamStat {
 function formatCount(value: number | null | undefined): string {
   return typeof value === 'number' ? String(value) : '—'
 }
+
+/**
+ * How long the canvas is given to report a real paint before the shell treats
+ * it as failed and reveals the list fallback. Long enough to cover a measure +
+ * fit on a cold render, short enough that an operator staring at an empty
+ * rectangle is not left there.
+ */
+const CANVAS_PAINT_GRACE_MS = 1500
 
 function matches(agent: TeamAgentView, filters: ProjectTeamFilters): boolean {
   // AND composition. Each clause is a no-op when its control is at "all"/empty,
@@ -276,7 +285,12 @@ function ProjectTeamViewInner({
   //     band cannot drift from the graph it sits above.
   const summary = graph?.summary ?? null
   const freshness = readGraphFreshness(graph)
-  const freshnessAge = formatAge(lastSyncedAt ?? freshness)
+  // The clock arrives only AFTER mount (see `useRelativeNow`). Server and first
+  // client render therefore both print the absolute stamp, which is what killed
+  // the "Refreshed 4s ago" / "3s ago" hydration mismatch this strip used to
+  // throw on every load: the two sides were reading two different instants.
+  const now = useRelativeNow()
+  const freshnessAge = formatAge(lastSyncedAt ?? freshness, now)
 
   // Rendered as ONE compact inline strip, not a KPI band: on this screen the
   // canvas is the product and every pixel above it is taken from the graph. The
@@ -345,6 +359,25 @@ function ProjectTeamViewInner({
   }, [restoreFocusAfterDelete, pendingDelete])
 
   const clearFilters = useCallback(() => setFilters(EMPTY_FILTERS), [])
+
+  // --- Does the canvas actually draw? --------------------------------------
+  // The graph surface reports its own paint (`onPaintedChange`); nothing here
+  // guesses. Measured failure this replaces: a 1096×388 canvas rendering
+  // absolutely nothing at `lg`, while the strip above it read "4 Agents" and
+  // the accessible list — the one thing that still held the roster — was
+  // `lg:sr-only`. The desktop operator was left with a blank rectangle and no
+  // way to reach the data.
+  //
+  // The grace timer is not the signal, only its debounce: `painted` is false
+  // for the frame or two before the canvas has measured itself, and flipping
+  // the fallback on during that frame would flash a failure notice on every
+  // healthy load. After it elapses, the fallback tracks the canvas live.
+  const [canvasPainted, setCanvasPainted] = useState(false)
+  const [paintGraceElapsed, setPaintGraceElapsed] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => setPaintGraceElapsed(true), CANVAS_PAINT_GRACE_MS)
+    return () => clearTimeout(timer)
+  }, [])
 
   // --- Toolbar → canvas viewport bridge ------------------------------------
   // The canvas mounts its own ReactFlowProvider, so `useReactFlow()` here would
@@ -534,6 +567,11 @@ function ProjectTeamViewInner({
       allEdges.length > 0 &&
       allEdges.every((edge) => edge.relation === 'project-membership' || edge.relation === 'team-membership')
 
+    // The canvas is only mounted when something matches, so a filter that
+    // empties the board is NOT a canvas failure — that state has its own empty
+    // state and must not also raise a "graph could not be drawn" notice.
+    const canvasFailed = !nothingMatches && paintGraceElapsed && !canvasPainted
+
     branchContent = (
       <div className="flex min-h-0 flex-1 flex-col gap-3">
         {/* Summary + freshness on a single hairline row — uncaged, ~1 line tall,
@@ -582,7 +620,19 @@ function ProjectTeamViewInner({
 
           {/* The canvas is the dominant surface; the panel overlays it (absolute)
               so selecting a node never reflows or shrinks the graph. */}
-          <div ref={canvasHostRef} className="relative flex min-h-0 flex-1 flex-col">
+          <div
+            ref={canvasHostRef}
+            className={clsx(
+              'relative flex min-h-0 flex-col',
+              // A canvas that draws nothing must not also HOLD the page's
+              // vertical budget: it gives the space back to the list that is
+              // now carrying the roster. It stays MOUNTED and non-zero on
+              // purpose — unmounting it would remove the very element whose
+              // measurement is the recovery condition, and the failure would
+              // become permanent by construction.
+              canvasFailed ? 'shrink-0' : 'flex-1'
+            )}
+          >
             {nothingMatches ? (
               <ProjectTeamNoMatchEmptyState onClearFilters={clearFilters} />
             ) : (
@@ -592,12 +642,15 @@ function ProjectTeamViewInner({
                 onSelectAgent={selectAgent}
                 viewMode={viewMode}
                 filteredNodeIds={filtersActive ? visibleIds : undefined}
+                // Reference-stable setter, so this is a legal effect dep in the
+                // canvas and does not re-arm its reporting effect every render.
+                onPaintedChange={setCanvasPainted}
                 // Height comes from the flex chain (main is h-svh, every ancestor
                 // is flex-1/min-h-0), NOT from an arithmetic guess about how tall
                 // the chrome above happens to be: a `calc(100svh - Nrem)` silently
                 // breaks the day the header or toolbar wraps to another line.
                 // `min-h-96` is the floor for short viewports.
-                className="min-h-96 w-full flex-1"
+                className={clsx('w-full', canvasFailed ? 'h-40' : 'min-h-96 flex-1')}
               />
             )}
 
@@ -616,14 +669,31 @@ function ProjectTeamViewInner({
             ) : null}
           </div>
 
+          {/* Said out loud, and visibly: the canvas is the surface that failed,
+              so the operator has to be told why the roster moved into a list.
+              `role="status"` and not `alert` — the data is all still there,
+              this is a degraded rendering, not an error. */}
+          {canvasFailed ? (
+            <p role="status" className="border-t border-white/5 px-4 py-2 text-xs text-zinc-400">
+              The team graph could not be drawn on this screen. The same agents are listed below —
+              nothing about them is missing, only the diagram is.
+            </p>
+          ) : null}
+
           {/* Same visible agents, as a semantic list: shown for real on small
               viewports (the feature is never hidden on mobile), screen-reader-only
-              from `lg` up where the canvas carries the visual job. */}
+              from `lg` up ONLY while the canvas reports it is genuinely drawing.
+              Hiding it unconditionally at `lg` is what turned a canvas that drew
+              nothing into a page with nothing on it at all — the fallback is
+              only a fallback if it can come back. */}
           <ProjectTeamAccessibleList
             agents={visibleAgents}
             selectedAgentId={selectedAgentId}
             onSelectAgent={selectAgent}
-            className="border-t border-white/5 lg:sr-only lg:border-t-0"
+            className={clsx(
+              'border-t border-white/5',
+              !canvasFailed && 'lg:sr-only lg:border-t-0'
+            )}
           />
         </div>
 

@@ -8,7 +8,7 @@ import {
 } from '@heroicons/react/20/solid'
 import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import { sectionLabelClass } from '@/components/agent-ops/authoring-primitives'
 import { Badge } from '@/components/catalyst/badge'
@@ -230,21 +230,97 @@ const RELATION_LABELS: Record<ProjectTeamEdge['relation'], string> = {
 }
 
 /**
- * Relative age against `Date.now()`. Null when the timestamp is absent or
- * unparseable — the caller then renders the explicit unavailable affordance
- * instead of a made-up "just now".
+ * Age of a timestamp. Null when the timestamp is absent or unparseable — the
+ * caller then renders the explicit unavailable affordance instead of a made-up
+ * "just now".
+ *
+ * `now` is a PARAMETER, never `Date.now()` read inside the function. This body
+ * runs during render, on the server first: reading the clock here made the
+ * server emit "Refreshed 4s ago" and the client compute "3s ago" a moment
+ * later, which is a hydration mismatch by construction — React logged
+ * "Hydration failed because the server rendered text didn't match the client"
+ * and threw the whole subtree away to re-render it. No jitter tolerance can fix
+ * that: the two clocks are read at genuinely different instants.
+ *
+ * Same contract as `TimeAgoValue` (agent-detail/agent-value.tsx), which the
+ * architecture test already pins for exactly this reason. Without `now` the
+ * answer is the ABSOLUTE stamp — true at any instant, therefore identical on
+ * both sides of hydration. `useRelativeNow()` below is what a client surface
+ * passes to opt into the relative phrasing, and it only starts returning a
+ * clock AFTER mount.
  */
-export function formatAge(iso: string | null): string | null {
+export function formatAge(iso: string | null, now?: number): string | null {
   if (!iso) return null
   const then = Date.parse(iso)
   if (Number.isNaN(then)) return null
-  const seconds = Math.max(0, Math.round((Date.now() - then) / 1000))
+  if (now === undefined) return `${new Date(then).toISOString().slice(0, 16).replace('T', ' ')} UTC`
+  const seconds = Math.max(0, Math.round((now - then) / 1000))
   if (seconds < 60) return `${seconds}s ago`
   const minutes = Math.round(seconds / 60)
   if (minutes < 60) return `${minutes}m ago`
   const hours = Math.round(minutes / 60)
   if (hours < 48) return `${hours}h ago`
   return `${Math.round(hours / 24)}d ago`
+}
+
+/** How often the mounted clock advances. The graph itself polls on a 10s beat. */
+const RELATIVE_NOW_TICK_MS = 10_000
+
+/**
+ * The wall clock as an EXTERNAL STORE — one interval for the whole page, shared
+ * by every subscriber, so ten relation rows advance on the same tick instead of
+ * running ten timers that drift apart.
+ *
+ * `null` until something subscribes. That is deliberate and load-bearing: it is
+ * what `getServerSnapshot` and the first client snapshot both return, so the
+ * two renders hydration has to match agree by construction rather than by luck.
+ */
+let sharedNow: number | null = null
+const nowListeners = new Set<() => void>()
+let nowTimer: ReturnType<typeof setInterval> | null = null
+
+function subscribeToNow(onStoreChange: () => void): () => void {
+  nowListeners.add(onStoreChange)
+  if (nowTimer === null) {
+    // Read once here rather than notifying: React re-reads the snapshot right
+    // after `subscribe` returns and re-renders if it moved, which is exactly
+    // the "clock arrives after mount" transition we want.
+    sharedNow = Date.now()
+    nowTimer = setInterval(() => {
+      sharedNow = Date.now()
+      for (const listener of nowListeners) listener()
+    }, RELATIVE_NOW_TICK_MS)
+  }
+  return () => {
+    nowListeners.delete(onStoreChange)
+    if (nowListeners.size === 0 && nowTimer !== null) {
+      clearInterval(nowTimer)
+      nowTimer = null
+      sharedNow = null
+    }
+  }
+}
+
+const readNow = (): number | null => sharedNow
+/** The server has no clock to offer, and must not pretend to. */
+const readNowOnServer = (): number | null => null
+
+/**
+ * The wall clock, but only once the component is MOUNTED.
+ *
+ * `undefined` on the server and on the first client render — the two renders
+ * that have to agree byte for byte — so every `formatAge` call underneath
+ * produces the absolute stamp in both. The store then supplies a real clock and
+ * the labels become relative, as a normal post-mount update that hydration
+ * never sees.
+ *
+ * The interval exists because the label would otherwise freeze at its mount
+ * value: "Refreshed 0s ago" would still read "0s ago" a minute later, which is
+ * a false claim about freshness, not merely a stale one.
+ */
+export function useRelativeNow(): number | undefined {
+  const now = useSyncExternalStore(subscribeToNow, readNow, readNowOnServer)
+  return now ?? undefined
 }
 
 /* ========================================================================== */
@@ -351,6 +427,7 @@ function RelationRow({
   counterpart,
   direction,
   agentName,
+  now,
   onDelete,
 }: {
   edge: TeamEdgeView
@@ -358,11 +435,17 @@ function RelationRow({
   direction: 'in' | 'out'
   /** Name of the currently-open agent, to phrase the delete confirmation. */
   agentName: string
+  /**
+   * Mounted clock, threaded down from the panel rather than read per row: one
+   * `useRelativeNow()` for the whole panel means one interval, and every row's
+   * label advances on the same tick instead of drifting apart.
+   */
+  now: number | undefined
   /** Absent on a graph the caller has not wired for mutation. */
   onDelete?: (relationId: string, description: string) => void
 }) {
   const Icon = direction === 'in' ? ArrowDownLeftIcon : ArrowUpRightIcon
-  const age = formatAge(edge.lastActivityAt)
+  const age = formatAge(edge.lastActivityAt, now)
   const counterpartName = counterpart?.name ?? (direction === 'in' ? edge.source : edge.target)
   const relationLabel = edge.label ?? RELATION_LABELS[edge.relation]
   // Narrowed to a local `const` (not a cast): only inside this block does
@@ -445,6 +528,7 @@ export function ProjectTeamPanel({
 }) {
   const headingRef = useRef<HTMLDivElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const now = useRelativeNow()
   const fullBleed = useFullBleed()
   useFocusTrap(containerRef, fullBleed && !dialogOpen)
 
@@ -508,7 +592,7 @@ export function ProjectTeamPanel({
   // control is not offered at all rather than offered and rejected 422.
   const canAddRelation = agent.kind === 'agent'
 
-  const age = formatAge(agent.lastActivityAt)
+  const age = formatAge(agent.lastActivityAt, now)
   const derivedOnly =
     incoming.concat(outgoing).length > 0 &&
     incoming.concat(outgoing).every((edge) => edge.origin === 'derived')
@@ -647,6 +731,7 @@ export function ProjectTeamPanel({
                   counterpart={nodesById.get(edge.source)}
                   direction="in"
                   agentName={agent.name}
+                  now={now}
                   onDelete={onDeleteRelation}
                 />
               ))}
@@ -671,6 +756,7 @@ export function ProjectTeamPanel({
                   counterpart={nodesById.get(edge.target)}
                   direction="out"
                   agentName={agent.name}
+                  now={now}
                   onDelete={onDeleteRelation}
                 />
               ))}

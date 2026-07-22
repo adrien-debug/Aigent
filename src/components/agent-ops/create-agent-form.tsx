@@ -14,15 +14,26 @@ import type { CreateCopilotInput, GeneratedManifest } from '@/lib/agent-mission-
 import { AGENT_RUNTIME_LABELS, MODEL_PROVIDER_LABELS } from '@/lib/agent-mission-control/labels'
 import { SUGGESTED_MODELS } from '@/lib/agent-mission-control/model-catalog'
 import { slugify } from '@/lib/agent-mission-control/slug'
-import type { AgentRuntime, Project } from '@/lib/agent-mission-control/types'
+import type { CreatableAgentRuntime, Project } from '@/lib/agent-mission-control/types'
 
 const PROVIDER_OPTIONS = CREATABLE_MODEL_PROVIDERS
 
 const BENCH_VALUE = '__bench__'
 
-// langgraph is the only runtime with a real execution engine (the Agent
-// Server); default to it so a new copilot is runnable out of the box.
-const DEFAULT_RUNTIME: AgentRuntime = 'langgraph'
+// The runtime is NOT a user choice here, and the reason is a backend fact, not a
+// claim about which engine is real (AIGENT-UI-TRUTH-026). Aigent executes several
+// runtimes — the four TradeAgent roster agents run on `openai-assistants` through
+// the direct model-router path, and AGENTS.md forbids `langgraph` for
+// market-tool agents because that runtime short-circuits to the LangGraph Agent
+// Server, which never mounts the manifest's tools.
+//
+// What is genuinely langgraph-only is THIS CREATION PATH:
+//   - POST /api/agent-ops/copilots validates `runtime: z.literal('langgraph')`;
+//   - it then provisions a dedicated LangGraph assistant (ensureCopilotAssistant)
+//     and rolls the whole copilot back if that fails.
+// Offering another value here would 400 every submission. Widening the choice
+// means widening that route + `CreatableAgentRuntime` first — see types.ts.
+const DEFAULT_RUNTIME: CreatableAgentRuntime = 'langgraph'
 const DEFAULT_PROVIDER: CreatableModelProvider = 'openai'
 const DEFAULT_MODEL = SUGGESTED_MODELS[DEFAULT_PROVIDER][0]
 
@@ -75,7 +86,7 @@ export function CreateAgentForm({
   const [slug, setSlug] = useState('')
   const [slugTouched, setSlugTouched] = useState(false)
   const [description, setDescription] = useState('')
-  const runtime: AgentRuntime = DEFAULT_RUNTIME
+  const runtime: CreatableAgentRuntime = DEFAULT_RUNTIME
   const [model, setModel] = useState(DEFAULT_MODEL)
   const [modelProvider, setModelProvider] = useState<CreatableModelProvider>(DEFAULT_PROVIDER)
   const [owner, setOwner] = useState('')
@@ -118,7 +129,8 @@ export function CreateAgentForm({
     description.length > 0 ||
     owner.length > 0 ||
     tagsInput.length > 0 ||
-    runtime !== DEFAULT_RUNTIME ||
+    // `runtime` is not in this list: it is locked to DEFAULT_RUNTIME by the
+    // creation route, so it can never diverge and never make the form dirty.
     model !== DEFAULT_MODEL ||
     modelProvider !== DEFAULT_PROVIDER ||
     projectId !== BENCH_VALUE
@@ -275,9 +287,10 @@ export function CreateAgentForm({
 
           <Field>
             <Label>Runtime</Label>
-            <Input name="runtime" value={AGENT_RUNTIME_LABELS[runtime]} disabled />
+            <Input name="runtime" value={AGENT_RUNTIME_LABELS[runtime]} disabled readOnly />
             <Description>
-              LangGraph est le seul runtime avec un moteur d&apos;exécution réel dans Aigent.
+              Fixed for agents created here: this form provisions a dedicated LangGraph assistant.
+              Other runtimes execute in Aigent but are not creatable from this surface.
             </Description>
           </Field>
 

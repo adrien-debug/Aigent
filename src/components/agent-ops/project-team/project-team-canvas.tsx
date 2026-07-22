@@ -13,7 +13,7 @@ import {
   type NodeTypes,
 } from '@xyflow/react'
 import clsx from 'clsx'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import '@xyflow/react/dist/style.css'
 
@@ -86,6 +86,20 @@ export interface ProjectTeamCanvasProps {
    * never loses its centre.
    */
   filteredNodeIds?: readonly string[] | null
+  /**
+   * Reports whether this canvas is actually DRAWING the graph.
+   *
+   * `true` only once the viewport has been fitted against a container with a
+   * real measured size AND there is at least one node in the visible set —
+   * i.e. the two conditions under which a node can be on screen. It is not a
+   * guess and not a timer: it is the canvas answering for its own paint, so a
+   * shell can offer a real fallback instead of an empty rectangle (see the
+   * accessible list in project-team-view.tsx).
+   *
+   * MUST be reference-stable (a `useState` setter, or `useCallback`) — it is an
+   * effect dependency here.
+   */
+  onPaintedChange?: (painted: boolean) => void
   className?: string
 }
 
@@ -219,10 +233,13 @@ function ProjectTeamCanvasInner({
   onSelectAgent,
   viewMode = 'structure',
   filteredNodeIds = null,
+  onPaintedChange,
   className,
 }: ProjectTeamCanvasProps) {
   const { fitView } = useReactFlow()
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const [viewportFitted, setViewportFitted] = useState(false)
 
   // -- Visible set ----------------------------------------------------------
   // A filter genuinely changes what exists on the canvas (unlike selection,
@@ -383,14 +400,60 @@ function ProjectTeamCanvasInner({
   }, [visibleEdges, selectedAgentId, viewMode, hoveredEdgeId])
 
   // -- Viewport -------------------------------------------------------------
-  // Refit only when the composition itself changed. A status refresh, a
-  // selection or a view-mode switch must never move the camera under the user.
+  // Refit only when the composition itself changed, and only ONCE the container
+  // has a real measured size.
+  //
+  // The size gate is the whole fix. This canvas sits at the bottom of a
+  // `min-h-0 flex-1` chain, so on first paint its box is still 0-high when the
+  // effect runs; a `requestAnimationFrame(fitView)` therefore fitted against an
+  // empty rectangle and parked the viewport transform outside the box that
+  // appeared a frame later. Measured symptom: a 1096×388 canvas showing
+  // NOTHING while the DOM held five `.react-flow__node` elements and a minimap
+  // — the nodes existed, the camera was pointed away from them. No delay
+  // constant fixes that honestly; the only correct trigger is the real
+  // measurement, which is what `ResizeObserver` reports.
+  //
+  // The observer disconnects on its first usable box, so a later window resize
+  // does NOT refit: the camera must never move under a user who is reading the
+  // graph. A composition change re-runs the effect and arms a fresh observer,
+  // which is exactly the old contract (a status refresh, a selection or a
+  // view-mode switch do not touch `layoutKey`, so none of them refits).
   useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      fitView(FIT_VIEW_OPTIONS)
+    const container = containerRef.current
+    if (!container) return
+    setViewportFitted(false)
+
+    let frame = 0
+    let done = false
+    const observer = new ResizeObserver((entries) => {
+      if (done) return
+      const box = entries[entries.length - 1]?.contentRect
+      if (!box || box.width < 1 || box.height < 1) return
+      done = true
+      observer.disconnect()
+      // Still a frame late, deliberately: React Flow reads the pane size from
+      // the DOM, so the fit has to land after the browser has laid out the box
+      // the observer just told us about.
+      frame = requestAnimationFrame(() => {
+        fitView(FIT_VIEW_OPTIONS)
+        setViewportFitted(true)
+      })
     })
-    return () => cancelAnimationFrame(frame)
+    observer.observe(container)
+    return () => {
+      done = true
+      observer.disconnect()
+      cancelAnimationFrame(frame)
+    }
   }, [layoutKey, fitView])
+
+  // What the shell needs to know: a fitted viewport over a non-empty visible
+  // set is the only state in which a node can actually be on screen. Reported,
+  // never inferred by the shell from a timer or a DOM probe.
+  const painted = viewportFitted && visibleNodes.length > 0
+  useEffect(() => {
+    onPaintedChange?.(painted)
+  }, [painted, onPaintedChange])
 
   const onEdgeMouseEnter = useCallback(
     (_event: React.MouseEvent, edge: ProjectTeamFlowEdge) => setHoveredEdgeId(edge.id),
@@ -401,6 +464,7 @@ function ProjectTeamCanvasInner({
 
   return (
     <div
+      ref={containerRef}
       className={clsx(
         // Bounded box: the canvas zooms and pans INSIDE itself and can never
         // push the page body into a horizontal scroll.
