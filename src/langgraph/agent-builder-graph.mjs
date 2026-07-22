@@ -495,12 +495,19 @@ async function approvalNode(state, config) {
   return answers.length > 0 ? { messages: answers } : {}
 }
 
-async function toolsNode(state, config) {
+export async function toolsNode(state, config) {
   const rt = resolveRuntime(config)
-  const last = state.messages[state.messages.length - 1]
-  // Skip any call already answered by the approval node (a declined tool).
+  // Find the AI message carrying the tool calls — NOT the literal last message.
+  // approvalNode appends block/decline ToolMessages, so in a mixed parallel turn
+  // the last message can be a ToolMessage (no `.tool_calls`); reading it literally
+  // dropped the approved sibling call, leaving its tool_call unanswered and
+  // 400-ing the run. Reverse-find the AI message exactly like routeApproval does.
+  const lastAi = [...state.messages]
+    .reverse()
+    .find((m) => (m.getType?.() ?? m.type) === 'ai' || (m.getType?.() ?? m.type) === 'assistant')
+  // Skip any call already answered by the approval node (a declined/blocked tool).
   const answered = new Set(state.messages.filter((m) => (m.getType?.() ?? m.type) === 'tool').map((m) => m.tool_call_id))
-  const calls = (last.tool_calls ?? []).filter((c) => !answered.has(c.id ?? c.name))
+  const calls = (lastAi?.tool_calls ?? []).filter((c) => !answered.has(c.id ?? c.name))
   const out = []
   for (const call of calls) {
     // Last line of defence, on the node that actually executes: re-screen the
