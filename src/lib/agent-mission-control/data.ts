@@ -332,9 +332,12 @@ export async function getTestResultsForRun(runId: string): Promise<TestResult[]>
  * copilot has accumulated — callers that need the true full history should
  * paginate explicitly rather than removing the cap.
  */
+/** A copilot's recent OPERATIONAL runs (excludes test-case/benchmark-task eval
+ * runs, same as getRecentRuns) — feeds the agent-detail run history and the
+ * read_recent_runs tool, so "recent runs" means the same thing everywhere. */
 export async function getRunsForCopilot(copilotId: string, limit = 50): Promise<AgentRun[]> {
   const rows = await rest<RawRow[]>(
-    `agent_runs?select=*,agent_run_steps(id)&copilot_id=eq.${encodeURIComponent(copilotId)}&order=started_at.desc&limit=${limit}`
+    `agent_runs?select=*,agent_run_steps(id)&copilot_id=eq.${encodeURIComponent(copilotId)}&${NON_EVALUATION_RUN_FILTER}&order=started_at.desc&limit=${limit}`
   )
   return rows.map((r) => {
     const { agent_run_steps, ...rest_ } = r as RawRow & { agent_run_steps: { id: string }[] }

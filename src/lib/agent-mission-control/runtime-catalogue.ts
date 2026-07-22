@@ -2,7 +2,21 @@ import 'server-only'
 
 import { getAvailableAgent, getAvailableAgents, type AvailableAgent } from './available-agents'
 import { getCopilot } from './data'
-import type { PublishedAgent } from './runtime-api-types'
+import { toRuntimeRunStatus, type PublishedAgent } from './runtime-api-types'
+import type { AgentRunStatus } from './types'
+
+/** Internal run statuses the runner ever writes — the exhaustive input set. */
+const INTERNAL_RUN_STATUSES = new Set<string>(['completed', 'failed', 'blocked', 'needs-confirmation', 'running'])
+
+/**
+ * Map a copilot's last INTERNAL run status onto the published RuntimeRunStatus,
+ * so `PublishedAgent.lastRunStatus` never leaks `blocked`/`needs-confirmation`
+ * to a consumer (the same contract the run responses honour). Unknown/absent → null.
+ */
+function publishedLastRunStatus(internal: string | null): string | null {
+  if (internal === null || !INTERNAL_RUN_STATUSES.has(internal)) return null
+  return toRuntimeRunStatus(internal as AgentRunStatus)
+}
 
 /**
  * Runtime catalogue — the ONE place a canonical agent becomes a published one.
@@ -77,7 +91,8 @@ export async function toPublishedAgent(agent: AvailableAgent): Promise<Published
     readOnly: agent.readOnly,
     requiresHumanApproval: agent.requiresHumanApproval,
     lastRunAt: agent.lastRunAt,
-    lastRunStatus: agent.lastRunStatus,
+    // Published contract vocabulary, never the internal AgentRunStatus.
+    lastRunStatus: publishedLastRunStatus(agent.lastRunStatus),
     lastRunCostUsd: agent.lastRunCostUsd,
     updatedAt: copilot?.updatedAt ?? null,
   }

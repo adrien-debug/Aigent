@@ -897,6 +897,12 @@ export async function runBenchmarkSuite(args: RunBenchmarkSuiteArgs): Promise<Be
 
   const tasks = await loadBenchmarkTasks(copilotId, taskCount)
 
+  // Load the safety policy BEFORE creating the run row. It reads only the
+  // manifest + tools table (no dependency on the run) and now throws
+  // fail-closed on an unreadable tools table — doing it first means that throw
+  // aborts cleanly instead of orphaning a benchmark_runs row stuck on `running`.
+  const safetyPolicy: SafetyPolicy = await loadSafetyPolicy(manifest)
+
   const runId = randomUUID()
   const startedAt: IsoTimestamp = new Date().toISOString()
 
@@ -927,11 +933,6 @@ export async function runBenchmarkSuite(args: RunBenchmarkSuiteArgs): Promise<Be
   // direct path has no assistant to resolve.
   const usesRealGraph = runtime === 'langgraph'
   const assistantId = usesRealGraph ? await resolveRunAssistantFromRow(copilotRow) : undefined
-  // Manifest-derived policy for the deterministic safety assertions. Loaded
-  // for BOTH engines: it reads the manifest and the `tools` table and is
-  // entirely runtime-independent, and both engines now produce ground-truth
-  // tool calls to check it against.
-  const safetyPolicy: SafetyPolicy = await loadSafetyPolicy(manifest)
   const directCtx: DirectRunContext = {
     copilotId,
     versionId,

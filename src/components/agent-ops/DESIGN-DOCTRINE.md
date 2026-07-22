@@ -71,9 +71,10 @@ Détail : `docs/surface-usage.md`.
   seule teinte hors accent : le rouge, réservé à l'**échec** et à la **destruction** (bannières
   d'erreur, états terminaux `failed`/`degraded`, confirmations destructrices). Jamais une série de
   chart, jamais un hover, jamais une décoration. Consommé via les rôles nommés `--state-danger-*`
-  de `globals.css` (`--state-danger-soft/line/text/solid/solid-line`, construits en
-  `color-mix(in oklab, …, transparent)` comme les rôles accent) — jamais une opacité rouge écrite à
-  la main. Comme l'accent, **la couleur ne porte jamais le sens seule** : un LABEL (et sur la
+  de `globals.css` : `--state-danger-soft` et `--state-danger-line` sont dérivés en
+  `color-mix(in oklab, --state-danger-base …, transparent)` (comme les washes/hairlines accent) ;
+  `--state-danger-text`/`--state-danger-solid`/`--state-danger-solid-line` sont des valeurs hex
+  fixes, pinnées pour l'AA. Toujours un rôle nommé — jamais une opacité rouge écrite à la main. Comme l'accent, **la couleur ne porte jamais le sens seule** : un LABEL (et sur la
   bannière un marqueur non chromatique) le dit toujours. Le gate `check-danger-role` échoue si un
   échec ou une destruction porte l'accent au lieu du rouge.
 - **Rôles accent nommés — OBLIGATOIRES, zéro opacité accent ad-hoc.** Valeurs réelles de

@@ -146,10 +146,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
           inputSchema: null as unknown,
           outputSchema: manifest?.outputContract ?? null,
           requiresHumanApproval: manifest ? manifest.confirmationPolicy !== 'never' : null,
-          // Nature-based readOnly (tools.mutates + risk level), the SAME
-          // derivation /runtime/v1/agents uses (deriveToolNatureReadOnly), so
-          // the two catalog surfaces can never disagree about one agent. No
-          // manifest / unknown tool risk → null, never a guessed default. The
+          // Nature-based readOnly (tools.mutates + risk level) via the SAME
+          // shared derivation /runtime/v1/agents uses (deriveToolNatureReadOnly),
+          // so the two catalog surfaces apply one rule instead of two divergent
+          // ones. (They each load the tool set independently — this surface via
+          // getToolsForCopilot, the other via the resolved manifest tools — so
+          // the rule is shared, not the input; for the current roster they agree.)
+          // No manifest / unknown tool risk → null, never a guessed default. The
           // old manifest-prose heuristic read `outputContract.invariants`, a
           // field the live manifests don't carry ({fields,version}), so it was
           // both dead and divergent from this surface.

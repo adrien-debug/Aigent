@@ -439,27 +439,33 @@ async function approvalNode(state, config) {
   // request, not a guarantee — the OpenAI-compatible backends behind `google`
   // and `local` do not all honour it.
   const blocked = []
+  const blockedIds = new Set()
   for (const call of calls) {
     const reason = forbiddenVerdict(rt, call)
     if (reason !== null) {
+      const id = call.id ?? call.name
+      blockedIds.add(id)
       blocked.push(
         new ToolMessage({
           content: JSON.stringify({ ok: false, blocked: true, reason }),
-          tool_call_id: call.id ?? call.name,
+          tool_call_id: id,
         })
       )
     }
   }
-  if (blocked.length > 0) return { messages: blocked }
+  // Do NOT early-return here on a forbidden call. A forbidden sibling must not
+  // let a confirmation-required call in the SAME parallel turn skip its
+  // interrupt: if we returned now, toolsNode would run that gated call
+  // unconfirmed (it re-screens forbidden, not confirmRequired). Forbidden calls
+  // are answered below alongside declined ones; the confirmation loop still runs.
 
-  // Confirmation is asked for EVERY call that requires one — not just the first.
-  // A model can emit several tool calls in one turn (parallel tool calls), so
-  // screening only the first let a second confirmation-required call fall through
-  // and execute UNCONFIRMED (toolsNode re-screens forbidden, not confirmRequired).
-  // Each gated call is interrupted individually: LangGraph resumes this node per
-  // interrupt in a stable order, so the operator decides them one at a time.
-  const gated = calls.filter((c) => rt.confirmRequired.has(c.name))
-  if (gated.length === 0) return {}
+  // Confirmation is asked for EVERY call that requires one — not just the first,
+  // and not skipped because a sibling was forbidden. Already-forbidden calls are
+  // excluded (a block is final; no point interrupting to confirm one). LangGraph
+  // resumes this node per interrupt in a stable order, so the operator decides
+  // each gated call one at a time.
+  const gated = calls.filter((c) => rt.confirmRequired.has(c.name) && !blockedIds.has(c.id ?? c.name))
+  if (gated.length === 0) return blocked.length > 0 ? { messages: blocked } : {}
 
   const declined = []
   for (const call of gated) {
@@ -483,7 +489,10 @@ async function approvalNode(state, config) {
       )
     }
   }
-  return declined.length > 0 ? { messages: declined } : {}
+  // Answer forbidden AND declined calls together; approved gated calls and any
+  // non-gated non-forbidden calls carry no message and fall through to toolsNode.
+  const answers = [...blocked, ...declined]
+  return answers.length > 0 ? { messages: answers } : {}
 }
 
 async function toolsNode(state, config) {
