@@ -1,17 +1,14 @@
 import { NextResponse } from 'next/server'
 
-import { TRADING_TOOL_HANDLERS } from '@/lib/agent-mission-control/market/tools'
+import { TRADING_TOOL_HANDLERS, TRADING_TOOL_IDS } from '@/lib/agent-mission-control/market/tools'
 
-const LANGGRAPH_MARKET_TOOL_IDS = new Set([
-  'read_market_snapshot',
-  'read_volatility_state',
-  'read_market_structure',
-  'read_multi_timeframe_candles',
-  'read_liquidity_snapshot',
-  'read_derivatives_snapshot',
-  'read_macro_context',
-  'read_account_risk_snapshot',
-])
+// The bridge allowlist IS the handler set — derived, never a hand-maintained
+// copy. The previous hardcoded list had drifted (it omitted
+// read_funding_open_interest), so a tool the LangGraph graph mounts for the
+// model and that has a real handler 404'd here at call time: the agent looked
+// healthy and silently could not use it. Deriving from TRADING_TOOL_IDS makes
+// that class of drift structurally impossible.
+const LANGGRAPH_MARKET_TOOL_IDS = new Set(TRADING_TOOL_IDS)
 
 /**
  * Internal authenticated bridge from the separate LangGraph Agent Server

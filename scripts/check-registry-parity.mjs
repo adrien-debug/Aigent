@@ -90,7 +90,26 @@ for (const name of [...marketHandlers, ...financeHandlers]) {
 
 const staleGap = [...KNOWN_GAP].filter((n) => langgraphBuildable.has(n))
 
+// Bidirectional MARKET parity. The market-tools bridge route derives its
+// allowlist from TRADING_TOOL_HANDLERS, and the graph mounts MARKET_TOOL_SPECS.
+// If a tool is in the graph specs but NOT in the handlers (or vice versa), the
+// model can call a mounted market tool that the bridge then 404s — the exact
+// drift that hid read_funding_open_interest. Assert the two market sets match.
+const marketSpecSet = new Set(marketIds)
+const marketHandlerSet = new Set(marketHandlers)
+const specOnly = [...marketSpecSet].filter((n) => !marketHandlerSet.has(n))
+const handlerOnly = [...marketHandlerSet].filter((n) => !marketSpecSet.has(n))
+
 let failed = false
+
+if (specOnly.length > 0 || handlerOnly.length > 0) {
+  failed = true
+  console.error('\n✗ Market registry drift — the graph specs and the tool handlers disagree:\n')
+  for (const n of specOnly) console.error(`  ${n}: mounted by the graph but has NO handler (bridge 404s it)`)
+  for (const n of handlerOnly) console.error(`  ${n}: has a handler but the graph never mounts it`)
+  console.error('\n  MARKET_TOOL_SPECS (tool-registry.mjs) and TRADING_TOOL_HANDLERS (market/tools.ts)')
+  console.error('  must name the SAME market tools — the bridge allowlist is derived from the handlers.')
+}
 
 if (missing.length > 0) {
   failed = true

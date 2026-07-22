@@ -23,9 +23,19 @@
  *   2. Command output is sanitized (`sanitizeOutput`) before capture, so a
  *      token never reaches the report even if a script were to echo the URL.
  *
- * Target scripts are spawned with `minimalEnv()` (PATH + HOME only), so a repo
- * cloned from GitHub never inherits the Aigent process's secret-bearing env
- * (GITHUB_TOKEN, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY, …).
+ * ISOLATION — be precise about what this is and is NOT. This is NOT OS-level
+ * isolation: there is no container, VM or jail, and target scripts execute on
+ * the host under the same OS user as the Aigent process, bounded only by strict
+ * timeouts and a global budget. What it IS: (a) a scrubbed env — spawned scripts
+ * never inherit the parent's secret-bearing vars (GITHUB_TOKEN,
+ * SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY, …); (b) a SCRATCH HOME — HOME points
+ * at a throwaway dir inside the disposable sandbox, and git/npm global config is
+ * pinned there too, so a hostile target script or a malicious transitive
+ * dependency's install hook cannot read the operator's ~/.ssh, ~/.npmrc,
+ * ~/.gitconfig, gh CLI token or ~/.claude secrets. A determined attacker with
+ * host code-exec is still only blocked from those specific credential surfaces,
+ * not from the host filesystem generally — running a fully untrusted repo in
+ * execute mode remains a real trust decision, not a safe default.
  *
  * Never import from a client component (reads GITHUB_TOKEN).
  */
@@ -47,13 +57,25 @@ import {
 const pExecFile = promisify(execFile)
 
 /**
- * A minimal env for spawned commands: PATH + HOME only (plus optional extras),
- * deliberately WITHOUT the parent's secret-bearing vars. Typed as ProcessEnv.
+ * A minimal env for spawned commands: PATH + a SCRATCH HOME (never the operator's
+ * real $HOME), deliberately WITHOUT the parent's secret-bearing vars.
+ *
+ * `sandboxHome` MUST be a throwaway directory inside the disposable sandbox root.
+ * Pointing HOME there — instead of the real home — stops a target script (or any
+ * malicious transitive dependency's install hook) from reading ~/.ssh, ~/.npmrc,
+ * ~/.gitconfig, the gh CLI token, or ~/.claude secrets. We also pin git's and
+ * npm's global config into the scratch home so neither reads the operator's real
+ * ~/.gitconfig / ~/.npmrc. This is NOT OS-level isolation (no container/VM); it
+ * is a scrubbed env + a credential-free HOME on the host — see the module header.
  */
-function minimalEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
+function minimalEnv(sandboxHome: string, extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   const env: Record<string, string> = {}
   if (process.env.PATH) env.PATH = process.env.PATH
-  if (process.env.HOME) env.HOME = process.env.HOME
+  env.HOME = sandboxHome
+  env.GIT_CONFIG_GLOBAL = path.join(sandboxHome, '.gitconfig')
+  env.GIT_CONFIG_SYSTEM = '/dev/null'
+  env.npm_config_userconfig = path.join(sandboxHome, '.npmrc')
+  env.npm_config_cache = path.join(sandboxHome, '.npm-cache')
   return { ...env, ...extra } as NodeJS.ProcessEnv
 }
 
@@ -102,12 +124,12 @@ function cleanRemoteUrl(repo: string): string {
  * marker is still present after the rewrite — the caller aborts the run rather
  * than executing target scripts against a token-bearing clone.
  */
-async function scrubCloneCredentials(dir: string, repo: string): Promise<void> {
+async function scrubCloneCredentials(dir: string, repo: string, sandboxHome: string): Promise<void> {
   // Rewrite origin to the credential-free URL (drops the `x-access-token:…@` prefix).
   await pExecFile('git', ['remote', 'set-url', 'origin', cleanRemoteUrl(repo)], {
     cwd: dir,
     timeout: 15_000,
-    env: minimalEnv(),
+    env: minimalEnv(sandboxHome),
   })
   // Verify: read .git/config back and confirm no credential/token marker remains.
   // A userinfo prefix ("…@github.com") or an x-access-token literal is the tell.
@@ -137,7 +159,8 @@ async function runCommand(
   cmd: string,
   args: string[],
   cwd: string,
-  timeoutMs: number
+  timeoutMs: number,
+  sandboxHome: string
 ): Promise<ScriptExecResult> {
   const started = Date.now()
   try {
@@ -145,8 +168,9 @@ async function runCommand(
       cwd,
       timeout: timeoutMs,
       maxBuffer: 10 * 1024 * 1024,
-      // Never inherit the parent's secret-bearing env into the target scripts.
-      env: minimalEnv({ CI: '1' }),
+      // Never inherit the parent's secret-bearing env, and HOME points at the
+      // disposable scratch dir — never the operator's real home.
+      env: minimalEnv(sandboxHome, { CI: '1' }),
     })
     const out = sanitizeOutput(`${stdout}\n${stderr}`.slice(0, OUTPUT_CAP))
     return { status: 'passed', durationMs: Date.now() - started, outputExcerpt: out }
@@ -178,6 +202,10 @@ export async function runTargetRepoSandbox(opts: RunSandboxOptions): Promise<San
   await mkdir(root, { recursive: true })
   // Unique disposable dir per run: <tmp>/aigent-target-sandbox/<runId>-XXXXXX
   const sandboxPath = await mkdtemp(path.join(root, `${opts.runId}-`))
+  // A throwaway HOME for every spawned command, disjoint from the clone and from
+  // the operator's real ~ — so a hostile script/postinstall can't read the
+  // operator's ssh keys, npm/gh tokens or ~/.claude secrets.
+  const sandboxHome = await mkdtemp(path.join(root, `${opts.runId}-home-`))
   const deadline = Date.now() + GLOBAL_BUDGET_MS
 
   let cleanedUp = false
@@ -185,6 +213,7 @@ export async function runTargetRepoSandbox(opts: RunSandboxOptions): Promise<San
     if (opts.keepSandbox || cleanedUp) return
     try {
       await rm(sandboxPath, { recursive: true, force: true })
+      await rm(sandboxHome, { recursive: true, force: true })
       cleanedUp = true
     } catch {
       // best-effort — a leftover temp dir is not worth failing the run
@@ -202,7 +231,7 @@ export async function runTargetRepoSandbox(opts: RunSandboxOptions): Promise<San
     await pExecFile(
       'git',
       ['clone', '--depth', '1', '--no-tags', '--branch', opts.branch, cloneUrl, sandboxPath],
-      { timeout: PER_COMMAND_TIMEOUT_MS, env: minimalEnv() }
+      { timeout: PER_COMMAND_TIMEOUT_MS, env: minimalEnv(sandboxHome) }
     )
 
     // Strip the embedded credential from the clone's git config BEFORE running
@@ -210,7 +239,7 @@ export async function runTargetRepoSandbox(opts: RunSandboxOptions): Promise<San
     // out of .git/config. Only needed when a token was actually embedded; the
     // scrub verifies no credential marker survives and throws if one does.
     if (token) {
-      await scrubCloneCredentials(sandboxPath, opts.repo)
+      await scrubCloneCredentials(sandboxPath, opts.repo, sandboxHome)
     }
 
     const targetScripts = await readScripts(sandboxPath)
@@ -221,7 +250,7 @@ export async function runTargetRepoSandbox(opts: RunSandboxOptions): Promise<San
     if (opts.installMode === 'auto') {
       const install = await detectInstallCommand(sandboxPath)
       if (install && Date.now() < deadline) {
-        await runCommand(install.cmd, install.args, sandboxPath, PER_COMMAND_TIMEOUT_MS)
+        await runCommand(install.cmd, install.args, sandboxPath, PER_COMMAND_TIMEOUT_MS, sandboxHome)
       }
     }
 
@@ -233,7 +262,7 @@ export async function runTargetRepoSandbox(opts: RunSandboxOptions): Promise<San
       targetScripts !== null && Object.prototype.hasOwnProperty.call(targetScripts, name)
 
     if (present('verify')) {
-      scriptResults['verify'] = await runCommand('npm', ['run', 'verify'], sandboxPath, PER_COMMAND_TIMEOUT_MS)
+      scriptResults['verify'] = await runCommand('npm', ['run', 'verify'], sandboxPath, PER_COMMAND_TIMEOUT_MS, sandboxHome)
       for (const name of SANDBOX_SCRIPT_ORDER) {
         if (name !== 'verify' && present(name)) coveredByVerify.push(name)
       }
@@ -241,7 +270,7 @@ export async function runTargetRepoSandbox(opts: RunSandboxOptions): Promise<San
       for (const name of SANDBOX_SCRIPT_ORDER) {
         if (name === 'verify' || !present(name)) continue
         if (Date.now() >= deadline) break
-        scriptResults[name] = await runCommand('npm', ['run', name], sandboxPath, PER_COMMAND_TIMEOUT_MS)
+        scriptResults[name] = await runCommand('npm', ['run', name], sandboxPath, PER_COMMAND_TIMEOUT_MS, sandboxHome)
       }
     }
 

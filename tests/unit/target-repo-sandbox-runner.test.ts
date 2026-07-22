@@ -11,14 +11,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // --- execFile mock ---------------------------------------------------------
-type ExecCall = { cmd: string; args: string[] }
+type ExecCall = { cmd: string; args: string[]; env?: NodeJS.ProcessEnv }
 let execCalls: ExecCall[]
 let execImpl: (cmd: string, args: string[]) => { stdout: string; stderr: string }
 
 vi.mock('node:child_process', () => ({
   // promisify(execFile) calls this with (file, args, options, callback).
-  execFile: (cmd: string, args: string[], _opts: unknown, cb: (e: unknown, r?: { stdout: string; stderr: string }) => void) => {
-    execCalls.push({ cmd, args })
+  execFile: (
+    cmd: string,
+    args: string[],
+    opts: { env?: NodeJS.ProcessEnv } | undefined,
+    cb: (e: unknown, r?: { stdout: string; stderr: string }) => void
+  ) => {
+    execCalls.push({ cmd, args, env: opts?.env })
     try {
       cb(null, execImpl(cmd, args))
     } catch (err) {
@@ -129,14 +134,35 @@ describe('runTargetRepoSandbox', () => {
     expect(rmCalls).toContain(r.sandboxPath)
   })
 
+  it('10b — spawned scripts get a SCRATCH HOME, never the operator real ~ (credential isolation)', async () => {
+    const realHome = process.env.HOME
+    await runTargetRepoSandbox(OPTS)
+    // Every spawned command runs with HOME pointed at a throwaway dir inside the
+    // sandbox root, and git/npm global config pinned there — so a hostile script
+    // or postinstall can't read ~/.ssh, ~/.npmrc, ~/.gitconfig, gh/claude tokens.
+    const withEnv = execCalls.filter((c) => c.env)
+    expect(withEnv.length).toBeGreaterThan(0)
+    for (const call of withEnv) {
+      expect(call.env?.HOME).toBeTruthy()
+      expect(call.env?.HOME).not.toBe(realHome)
+      expect(call.env?.HOME).toContain('aigent-target-sandbox')
+      expect(call.env?.GIT_CONFIG_GLOBAL).toContain('aigent-target-sandbox')
+      // The parent's secret-bearing vars never leak in.
+      expect(call.env?.GITHUB_TOKEN).toBeUndefined()
+      expect(call.env?.SUPABASE_SERVICE_ROLE_KEY).toBeUndefined()
+      expect(call.env?.OPENAI_API_KEY).toBeUndefined()
+    }
+  })
+
   it('11 — cleanup fires even when the clone fails', async () => {
     execImpl = (cmd, args) => {
       if (cmd === 'git' && args[0] === 'clone') throw Object.assign(new Error('clone failed'), { stderr: 'fatal' })
       return { stdout: '', stderr: '' }
     }
     await expect(runTargetRepoSandbox(OPTS)).rejects.toThrow()
-    // The disposable dir was still removed.
-    expect(rmCalls.length).toBe(1)
+    // Both disposable dirs were still removed: the clone AND the scratch HOME
+    // (the throwaway home that isolates spawned scripts from the operator's ~).
+    expect(rmCalls.length).toBe(2)
   })
 
   it('12 — keepSandbox true → no rm, path returned', async () => {
