@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { getAvailableAgent } from '@/lib/agent-mission-control/available-agents'
 import { executeCopilotRun } from '@/lib/agent-mission-control/runner'
 import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 
@@ -128,6 +129,64 @@ export async function POST(
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (process.env.AMC_DATA_SOURCE !== 'gpu1' || !base || !key || !process.env.OPENAI_API_KEY) {
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
+  }
+
+  // 0) EXECUTION GATE — fail-closed, from the canonical catalogue.
+  //
+  // Before this gate the route only checked project/version/manifest, so a
+  // `degraded` copilot could start a real run: its declared tools resolved to
+  // no handler, every call failed at guardrail time, and the run still burned a
+  // live model call. An archived copilot was refused only as a side effect of
+  // its NULL project_id — remove that coincidence and it would have run too.
+  //
+  // The status is NOT recomputed here. getAvailableAgent() is the same
+  // derivation the catalogue, the agent detail page and the counters use, so
+  // "what the UI shows" and "what may launch" cannot drift apart. Re-read at
+  // launch time, never trusted from the request body or a cached value.
+  let canonical: Awaited<ReturnType<typeof getAvailableAgent>>
+  try {
+    canonical = await getAvailableAgent(copilotId)
+  } catch (err) {
+    // Catalogue unreachable ⇒ executability is unknown ⇒ refuse. An unknown
+    // state must never fall through to "probably fine".
+    console.error('[agent-ops/copilots/run] canonical catalogue unavailable', err)
+    return NextResponse.json({ error: 'runtime catalogue unavailable' }, { status: 503 })
+  }
+  if (canonical === undefined) {
+    return NextResponse.json({ error: 'copilot not found' }, { status: 404 })
+  }
+  if (canonical.status !== 'active' || canonical.unresolvedToolIds.length > 0) {
+    // `active` alone is not enough: a copilot can be marked active in the DB
+    // while declaring tools that resolve to nothing runnable. Both conditions
+    // must hold, and the reasons are concrete — never a bare "not allowed".
+    const reasons: string[] = []
+    if (canonical.status !== 'active') reasons.push(`status is ${canonical.status}, expected active`)
+    if (canonical.unresolvedToolIds.length > 0) {
+      // `unresolvedToolIds` carries ids by contract, but an id tells an operator
+      // nothing. Resolve them to tool names for the message; fall back to the id
+      // when the row is genuinely absent (that IS the failure, so say so).
+      let names = canonical.unresolvedToolIds
+      try {
+        const rows = await pgrest<{ id: string; name: string }[]>(
+          'GET',
+          `tools?id=in.(${canonical.unresolvedToolIds.map((id) => `"${id}"`).join(',')})&select=id,name`
+        )
+        const byId = new Map(rows.map((r) => [r.id, r.name]))
+        names = canonical.unresolvedToolIds.map((id) => byId.get(id) ?? `${id} (no tool row)`)
+      } catch {
+        // Naming is cosmetic; never let it turn a clean 409 into a 5xx.
+      }
+      reasons.push(`unresolved tools: ${names.join(', ')}`)
+    }
+    for (const field of canonical.unavailableFields) {
+      if (field === 'provider' || field === 'configuredModel' || field === 'version' || field === 'tools') {
+        reasons.push(`missing ${field}`)
+      }
+    }
+    return NextResponse.json(
+      { error: 'copilot is not executable', copilotId, status: canonical.status, reasons },
+      { status: 409 }
+    )
   }
 
   // 1) Load the copilot: model, project, and which version is serving.
