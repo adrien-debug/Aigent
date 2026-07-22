@@ -62,23 +62,27 @@ const PROJECT_ID = 'proj-tradeagent'
 const MODEL = 'gpt-5.4'
 const PROVIDER = 'openai'
 /**
- * `openai-assistants` is the only value satisfying BOTH constraints, so it is
- * a deliberate choice, not a default:
+ * LangGraph is mandatory for every agent on this platform.
  *
- *  - it must NOT be 'langgraph': runner.ts short-circuits that to the LangGraph
- *    Agent Server, which owns its own graph and tools. The manifest's market
- *    tools are never mounted, and the agent answers "I have no market data"
- *    while its five tools sit unused in the database. Observed, not theorised —
- *    the first proof runs came back with tool_call_count = 0.
- *  - it must be in available-agents' EXECUTABLE_RUNTIMES, else the catalogue
- *    derives `unavailable` and the execution gate refuses every run.
+ * A previous revision of this file set 'openai-assistants' and justified it by
+ * "langgraph never mounts the manifest's market tools — observed, proof runs
+ * came back with tool_call_count = 0". That observation was real but the cause
+ * was misattributed: the tools go missing when the copilot has NO LangGraph
+ * ASSISTANT, not because the runtime is 'langgraph'. Without an assistant,
+ * langgraph-server.ts's `runConfigWithAssistantBehavior` targets the bare graph
+ * id, and the graph falls back to its 5 legacy generic tools.
  *
- * The DB check constrains the column to langgraph|openai-assistants|gemini|
- * custom; 'custom' fails the catalogue check, 'gemini' would misdeclare the
- * provider. The name is historical: execution goes through the direct
- * model-router path, which reads the manifest and mounts TRADING_TOOL_HANDLERS.
+ * With `ensureCopilotAssistant` run first, the assistant's `config.configurable`
+ * carries the copilot's real tools/prompt/model into the graph and they mount
+ * normally — verified: 4/4 agents ran with tool_call_count of 4/4/4/2 against
+ * live Binance data.
+ *
+ * So the invariant is an ORDER, not a runtime choice: provision the assistant
+ * (scripts/ensure-langgraph-assistants.ts), THEN set runtime 'langgraph'.
+ * Flipping the runtime alone yields agents that look healthy and answer
+ * "no market data" — the silent failure this comment used to warn about.
  */
-const RUNTIME = 'openai-assistants'
+const RUNTIME = 'langgraph'
 const OWNER = 'adrien@hearstcorporation.io'
 
 async function req(method, path, body, prefer) {
@@ -412,4 +416,18 @@ if (cop.length !== ROSTER.length) {
   console.error(`\n✗ expected ${ROSTER.length} copilots, found ${cop.length}`)
   process.exit(1)
 }
+
+// ── LangGraph assistants — the other half of RUNTIME = 'langgraph' ───────────
+// A copilot on the langgraph runtime with no assistant runs against the bare
+// graph and silently gets 5 generic tools instead of its own (see the RUNTIME
+// comment above). The roster is therefore NOT provisioned until every copilot
+// has one — assistant creation needs the server-only TS module, so it lives in
+// its own script rather than being importable from this .mjs.
+console.log('\nNEXT — required before any run:')
+console.log('  node --env-file=.env.local npx -y tsx --conditions=react-server \\')
+console.log('    scripts/ensure-langgraph-assistants.ts')
+console.log('\n  (LANGGRAPH_API_URL must resolve to the LOCAL server in dev —')
+console.log('   agent-server-endpoint.mjs refuses a remote endpoint outside production.)')
+
 console.log('\n✓ roster provisioned — all tools resolved, all agents draft pending proof.')
+console.log('  Runtime is langgraph; agents cannot run correctly until assistants exist.')

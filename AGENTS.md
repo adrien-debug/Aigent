@@ -73,9 +73,16 @@ est pris par un process non identifié comme le sien.
   (dry-run par défaut).
 - **`active` signifie PROUVÉ** : `--activate` exige un run `completed`, zéro tentative unsafe,
   modèle vérifié. Jamais un simple changement de statut.
-- **Piège LangGraph** : jamais `runtime: 'langgraph'` pour un agent à outils marché — les outils
-  du manifest ne sont jamais montés (l'agent répond « pas de données » avec `tool_call_count=0`
-  en paraissant sain). Utiliser `openai-assistants`.
+- **LangGraph est OBLIGATOIRE pour tous les agents** — `runtime: 'langgraph'`, sans exception.
+- **Piège LangGraph — c'est l'ASSISTANT qui manque, pas le runtime.** Un copilot en `langgraph`
+  SANS assistant provisionné tourne contre le graphe nu et hérite des 5 outils génériques legacy :
+  il répond « pas de données » avec `tool_call_count=0` en paraissant sain. La cause n'est pas le
+  runtime (formulation antérieure, fausse) mais l'absence d'assistant. **Ordre obligatoire** :
+  `scripts/ensure-langgraph-assistants.ts` (transporte outils/prompt/modèle dans
+  `config.configurable`) PUIS `runtime: 'langgraph'`. Flipper le runtime seul recrée le bug.
+- **Endpoint LangGraph** : `agent-server-endpoint.mjs` refuse un endpoint distant hors production.
+  En dev, `LANGGRAPH_API_URL` doit viser le serveur local (`http://127.0.0.1:2024`) — `.env.local`
+  pointe sur `agent.hearst.app`, donc surcharger la variable pour tout script de provisioning.
 - **La description d'un outil EST son contrat d'entrée** : le runner l'envoie au modèle sans
   schéma JSON. Les schémas Zod attendent `pair` (pas `symbol`) — sans description explicite,
   chaque appel échoue.
