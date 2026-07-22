@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
 
+import { deriveToolNatureReadOnly } from '@/lib/agent-mission-control/available-agents'
 import { getCopilots, getManifestForCopilot, getToolsForCopilot } from '@/lib/agent-mission-control/data'
 import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 import { isValidProjectId } from '@/lib/agent-mission-control/resource-ids'
-import type { AgentManifest, Copilot, CopilotStatus } from '@/lib/agent-mission-control/types'
+import type { Copilot, CopilotStatus } from '@/lib/agent-mission-control/types'
 
 /**
  * The external COPILOT status contract exposed to a partner consumer:
@@ -72,53 +73,6 @@ export function mapCopilotStatus(status: CopilotStatus): ExternalCopilotStatus {
     case 'archived':
       return 'archived'
   }
-}
-
-/**
- * Verbs in a manifest's `forbiddenActions` that denote a WRITE / mutation. Used
- * only as corroborating evidence for `readOnly` — the primary signal is the
- * explicit `read-only` invariant (see `deriveReadOnly`).
- */
-const WRITE_VERB_RE = /\b(place|modify|execute|write|submit|cancel|delete|update|create|send|transfer|withdraw)\b/i
-
-/**
- * Derive `readOnly: boolean | null` for a copilot from its manifest, grounded
- * in what the real TradeAgent manifests ACTUALLY contain (verified live):
- *
- *   outputContract.invariants: ["read-only", "never fabricates unavailable metrics"]
- *   forbiddenActions:          ["execute withdrawals", "place orders",
- *                               "write to external systems"]
- *
- * Signal, in order of authority:
- *   1. An explicit `read-only` invariant in `outputContract.invariants` — the
- *      copilot AUTHOR asserting the contract is read-only. This is the honest,
- *      first-class signal (the previous `forbiddenActions.length > 0` heuristic
- *      was WRONG: a non-empty forbidden list means "has restrictions", which is
- *      true of almost every agent, not "read-only").
- *   2. Corroboration: `forbiddenActions` forbids every write-like verb we can
- *      see (place/modify/execute/write/…). This lets a manifest that omitted
- *      the invariant string but hard-forbids all mutations still read as
- *      read-only — but only when there IS at least one such forbidden action,
- *      never from an empty list (an empty forbidden list is not a read-only
- *      claim).
- *
- * No manifest at all → `null` (unknown), NEVER a guessed default. `false` is
- * returned only when a manifest exists and neither honest signal holds — i.e.
- * we have a manifest and it does not claim read-only.
- */
-export function deriveReadOnly(manifest: AgentManifest | undefined): boolean | null {
-  if (!manifest) return null
-
-  const invariants = manifest.outputContract?.invariants ?? []
-  const hasReadOnlyInvariant = invariants.some((inv) => /read[\s-]?only/i.test(inv))
-  if (hasReadOnlyInvariant) return true
-
-  const forbidden = manifest.forbiddenActions ?? []
-  if (forbidden.length > 0 && forbidden.every((action) => WRITE_VERB_RE.test(action))) {
-    return true
-  }
-
-  return false
 }
 
 /**
@@ -192,10 +146,14 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
           inputSchema: null as unknown,
           outputSchema: manifest?.outputContract ?? null,
           requiresHumanApproval: manifest ? manifest.confirmationPolicy !== 'never' : null,
-          // Grounded in the manifest's explicit `read-only` invariant (with a
-          // forbidden-write-verb corroboration), NOT the old wrong heuristic
-          // `forbiddenActions.length > 0`. No manifest → null, never guessed.
-          readOnly: deriveReadOnly(manifest),
+          // Nature-based readOnly (tools.mutates + risk level), the SAME
+          // derivation /runtime/v1/agents uses (deriveToolNatureReadOnly), so
+          // the two catalog surfaces can never disagree about one agent. No
+          // manifest / unknown tool risk → null, never a guessed default. The
+          // old manifest-prose heuristic read `outputContract.invariants`, a
+          // field the live manifests don't carry ({fields,version}), so it was
+          // both dead and divergent from this surface.
+          readOnly: deriveToolNatureReadOnly(tools, manifest !== undefined),
           createdAt: copilot.createdAt,
           updatedAt: copilot.updatedAt,
           lastRunAt: copilot.health?.runsLast24h ? copilot.updatedAt : null,

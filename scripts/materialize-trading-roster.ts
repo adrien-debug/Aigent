@@ -27,6 +27,11 @@ function proposedToolsFor(toolIds: readonly string[]): ProposedTool[] {
       `Read-only market tool ${name} (AIG-TRADE-001). Returns UNAVAILABLE rather than fabricating data.`,
     provider: 'internal' as const,
     riskLevel: 'low' as const,
+    // Provably read-only (market/tools.ts is GET-only). Assert it explicitly:
+    // authoring-writes defaults `mutates` to true (fail-closed), so omitting it
+    // would materialize every read tool as write-capable and break the agent's
+    // read-only classification.
+    mutates: false,
     requiresConfirmation: false,
   }))
 }

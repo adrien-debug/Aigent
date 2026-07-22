@@ -345,6 +345,13 @@ for (const a of ROSTER) {
         provider: 'internal',
         risk_level: riskOf(name),
         enabled: true,
+        // Everything mounted is a read (market/tools.ts is GET-only), so it is
+        // provably read-only. Assert `mutates: false` EXPLICITLY: the column
+        // default is `true` (migration 0022, fail-closed), so omitting it here
+        // reverted every read tool to "write-capable" on every re-provision —
+        // the copilot then rendered as NOT read-only, contradicting the whole
+        // read-only market doctrine (migration 0023 classified these false).
+        mutates: false,
         // Everything mounted is a read, so nothing needs confirmation today.
         // The manifest still declares risky-only, so a future write handler is
         // gated by default rather than inheriting a permissive setting.

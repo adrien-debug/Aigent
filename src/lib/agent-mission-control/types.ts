@@ -234,11 +234,26 @@ export interface MemorySource {
   readOnly: boolean
 }
 
+/**
+ * The persisted `manifests.output_contract` jsonb — an AUTHOR-DEFINED contract
+ * whose shape varies by authoring path, so every field is optional and nothing
+ * here may be asserted non-null at runtime:
+ *   - fixtures / create-agent-form / agent-builder write `{format, schemaName,
+ *     invariants}`;
+ *   - the live trading/architect roster writes `{fields, version}`.
+ * Declaring one rigid shape lied about half the live rows (a reader touching
+ * `.invariants` on a `{fields,version}` row got `undefined`). Readers must treat
+ * this as a loose contract blob and default every field.
+ */
 export interface OutputContract {
-  format: 'json' | 'markdown' | 'text' | 'ui-actions'
-  schemaName: string | null
+  format?: 'json' | 'markdown' | 'text' | 'ui-actions'
+  schemaName?: string | null
   /** Human-readable invariants, e.g. "never returns raw SQL". */
-  invariants: string[]
+  invariants?: string[]
+  /** Structured output field names (trading/architect shape). */
+  fields?: string[]
+  /** Contract version (trading/architect shape). */
+  version?: string
 }
 
 export interface AgentSkill {

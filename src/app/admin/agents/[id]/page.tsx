@@ -24,6 +24,19 @@ import { getAgentDetail, type AgentDetail } from '@/lib/agent-mission-control/ag
  * do, what can it do, what needs attention.
  */
 
+/**
+ * A tool's NATURE, never its confirmation policy. The old strip printed
+ * `requiresConfirmation ? 'confirm' : 'read'`, so a mutating tool with no
+ * confirmation read as "read" — the exact anti-pattern the Tools tab fixed.
+ * Same rule as tools/page.tsx `natureOf`: high/critical mutates by definition;
+ * below that only an explicit `mutates: false` proves a read; absent is unknown.
+ */
+function toolNatureLabel(tool: { riskLevel: string; mutates?: boolean }): string {
+  if (tool.riskLevel === 'high' || tool.riskLevel === 'critical') return 'can write'
+  if (tool.mutates === undefined) return 'unverified'
+  return tool.mutates ? 'can write' : 'read-only'
+}
+
 function Section({
   title,
   description,
@@ -225,9 +238,16 @@ export default async function AgentOverviewPage({ params }: { params: Promise<{ 
                 {copilot.description || 'No mission recorded for this agent.'}
               </p>
               <div className="flex flex-wrap gap-2">
-                <Badge color={agent?.readOnly ? 'accent' : 'zinc'}>
-                  {agent?.readOnly ? 'Read-only' : 'Write-capable'}
-                </Badge>
+                {agent?.unavailableFields.includes('readOnly') ? (
+                  // Nature is unproven (no manifest, or a tool with an unknown
+                  // risk level). Do NOT assert "Write-capable" — that's the same
+                  // lie the Tools tile avoids. Same signal, same three states.
+                  <Badge color="zinc">Nature unverified</Badge>
+                ) : (
+                  <Badge color={agent?.readOnly ? 'accent' : 'zinc'}>
+                    {agent?.readOnly ? 'Read-only' : 'Write-capable'}
+                  </Badge>
+                )}
                 <Badge color={agent?.requiresHumanApproval ? 'accentStrong' : 'zinc'}>
                   {agent?.requiresHumanApproval ? 'Human approval required' : 'No approval step'}
                 </Badge>
@@ -264,7 +284,7 @@ export default async function AgentOverviewPage({ params }: { params: Promise<{ 
                   <li key={tool.id} className="flex items-center justify-between gap-3">
                     <span className="truncate font-mono text-xs text-zinc-300">{tool.name}</span>
                     <span className="shrink-0 text-[10px] font-medium uppercase tracking-widest text-zinc-500">
-                      {tool.requiresConfirmation ? 'confirm' : 'read'}
+                      {toolNatureLabel(tool)}
                     </span>
                   </li>
                 ))}

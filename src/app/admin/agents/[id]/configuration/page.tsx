@@ -86,9 +86,15 @@ export default async function AgentConfigurationPage({ params }: { params: Promi
         <Section title="Permissions" description="What the agent may do, and what it may never do.">
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap gap-2">
-              <Badge color={agent?.readOnly ? 'accent' : 'zinc'}>
-                {agent?.readOnly ? 'Read-only' : 'Write-capable'}
-              </Badge>
+              {agent?.unavailableFields.includes('readOnly') ? (
+                // Unproven nature (no manifest / unknown-risk tool) → never
+                // assert "Write-capable". Same three-state signal as the Tools tab.
+                <Badge color="zinc">Nature unverified</Badge>
+              ) : (
+                <Badge color={agent?.readOnly ? 'accent' : 'zinc'}>
+                  {agent?.readOnly ? 'Read-only' : 'Write-capable'}
+                </Badge>
+              )}
               <Badge color={agent?.requiresHumanApproval ? 'accentStrong' : 'zinc'}>
                 {agent?.requiresHumanApproval ? 'Human approval required' : 'No approval step'}
               </Badge>

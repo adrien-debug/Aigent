@@ -212,6 +212,37 @@ const KNOWN_RISK_LEVELS: ReadonlySet<string> = new Set(['low', 'medium', 'high',
 /** High/critical mutates by definition — same rule as `isHighRiskOrWriteCapableTool`. */
 const MUTATING_RISK_LEVELS: ReadonlySet<string> = new Set(['high', 'critical'])
 
+/** The nature signal used to judge whether a tool is provably read-only. */
+export interface ToolNatureSignal {
+  riskLevel: string
+  /** Column default is `true` (migration 0022); only an explicit `false` proves a read. */
+  mutates?: boolean
+}
+
+/**
+ * The SINGLE, canonical `readOnly` derivation for a copilot, grounded in the
+ * NATURE of its mounted tools (risk level + `tools.mutates`), never in the
+ * confirmation policy or free-form manifest prose. Returns:
+ *   - `true`   every resolved tool is provably read-only (known risk, not
+ *              high/critical, explicit `mutates === false`), and a manifest exists.
+ *   - `null`   nature is unknowable: no manifest, or a tool with a risk level
+ *              outside the schema vocabulary. NEVER a guessed default.
+ *   - `false`  a manifest exists, nature is known, and at least one tool mutates.
+ *
+ * Both catalog surfaces (`getAvailableAgent` for /runtime/v1 and the
+ * /projects/:id/copilots route) MUST route through this so they can never
+ * disagree about the same agent.
+ */
+export function deriveToolNatureReadOnly(
+  tools: readonly ToolNatureSignal[],
+  hasManifest: boolean
+): boolean | null {
+  if (!hasManifest) return null
+  const natureUnknown = tools.some((t) => !KNOWN_RISK_LEVELS.has(t.riskLevel))
+  if (natureUnknown) return null
+  return tools.every((t) => !MUTATING_RISK_LEVELS.has(t.riskLevel) && t.mutates === false)
+}
+
 /** Providers the model-router can actually reach. `mistral` is declared but not wired. */
 const WIRED_PROVIDERS = new Set<ModelProvider | string>(['openai', 'google', 'local'])
 
@@ -313,12 +344,14 @@ function toAvailableAgent(input: {
   // `runtime-catalogue.ts`) and the field is named in `unavailableFields`, which
   // is what a view must read to render "Unknown" rather than "Read-only".
   const hasManifest = manifest !== undefined
-  const natureUnknown = resolvedTools.some((t) => !KNOWN_RISK_LEVELS.has(t.riskLevel))
-  const readOnly =
-    hasManifest &&
-    !natureUnknown &&
-    resolvedTools.every((t) => !MUTATING_RISK_LEVELS.has(t.riskLevel) && !t.mutates)
-  if (!hasManifest || natureUnknown) unavailableFields.push('readOnly')
+  // Canonical, nature-based derivation shared with the /projects/:id/copilots
+  // catalog route (deriveToolNatureReadOnly) so the two surfaces can never
+  // disagree about the same agent. `null` = unknowable → readOnly stays false
+  // (the field is non-nullable) AND is named in unavailableFields, which a view
+  // reads to render "Unknown" instead of "Read-only".
+  const readOnlyNature = deriveToolNatureReadOnly(resolvedTools, hasManifest)
+  const readOnly = readOnlyNature === true
+  if (readOnlyNature === null) unavailableFields.push('readOnly')
 
   const requiresHumanApproval = hasManifest
     ? manifest.confirmation_policy !== 'never' || resolvedTools.some((t) => t.requiresConfirmation)

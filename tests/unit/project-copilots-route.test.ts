@@ -47,10 +47,10 @@ import { NextRequest } from 'next/server'
 
 import {
   GET,
-  deriveReadOnly,
   mapCopilotStatus,
   type ExternalCopilotStatus,
 } from '@/app/api/agent-ops/projects/[id]/copilots/route'
+import { deriveToolNatureReadOnly } from '@/lib/agent-mission-control/available-agents'
 import type { CopilotStatus } from '@/lib/agent-mission-control/types'
 import { proxy, config as proxyConfig } from '@/proxy'
 
@@ -149,36 +149,45 @@ describe('mapCopilotStatus (pure)', () => {
   })
 })
 
-describe('deriveReadOnly (pure)', () => {
-  it('true for the real TradeAgent manifest (explicit read-only invariant)', () => {
-    expect(deriveReadOnly(readOnlyManifest(MARKET_ID))).toBe(true)
-  })
-
+describe('deriveToolNatureReadOnly (pure) — the SINGLE shared readOnly signal', () => {
   it('null when there is no manifest — never a guessed default', () => {
-    expect(deriveReadOnly(undefined)).toBeNull()
+    expect(deriveToolNatureReadOnly([{ riskLevel: 'low', mutates: false }], false)).toBeNull()
   })
 
-  it('true when forbiddenActions forbids every write verb even without the invariant string', () => {
-    const m = readOnlyManifest(MARKET_ID)
-    m.outputContract.invariants = ['never fabricates unavailable metrics']
-    // still: execute / place / write are all forbidden
-    expect(deriveReadOnly(m)).toBe(true)
+  it('true when a manifest exists and every tool is provably read-only (mutates===false, low/medium risk)', () => {
+    expect(
+      deriveToolNatureReadOnly(
+        [
+          { riskLevel: 'low', mutates: false },
+          { riskLevel: 'medium', mutates: false },
+        ],
+        true
+      )
+    ).toBe(true)
   })
 
-  it('false when a manifest exists but makes no read-only claim (non-empty restrictions ≠ read-only)', () => {
-    const m = readOnlyManifest(MARKET_ID)
-    m.outputContract.invariants = ['returns concise summaries']
-    // A restriction that is NOT a write verb — the old wrong heuristic
-    // (forbiddenActions.length > 0) would have called this read-only.
-    m.forbiddenActions = ['use profanity']
-    expect(deriveReadOnly(m)).toBe(false)
+  it('true (vacuously) for a manifest with zero tools — it can only answer from instructions', () => {
+    expect(deriveToolNatureReadOnly([], true)).toBe(true)
   })
 
-  it('false for a manifest with an empty forbidden list and no invariant (empty list is not a claim)', () => {
-    const m = readOnlyManifest(MARKET_ID)
-    m.outputContract.invariants = []
-    m.forbiddenActions = []
-    expect(deriveReadOnly(m)).toBe(false)
+  it('false when any tool mutates (explicit mutates===true)', () => {
+    expect(
+      deriveToolNatureReadOnly([{ riskLevel: 'low', mutates: false }, { riskLevel: 'low', mutates: true }], true)
+    ).toBe(false)
+  })
+
+  it('false when a tool nature is unproven (mutates absent) — the fail-closed default, never "read-only"', () => {
+    // The regression this closes: a read tool persisted without mutates=false
+    // (column default true) must NOT read as read-only.
+    expect(deriveToolNatureReadOnly([{ riskLevel: 'low' }], true)).toBe(false)
+  })
+
+  it('null when a tool has a risk level outside the schema vocabulary (nature unknowable)', () => {
+    expect(deriveToolNatureReadOnly([{ riskLevel: 'exotic', mutates: false }], true)).toBeNull()
+  })
+
+  it('false when a high/critical-risk tool is mounted (mutating by definition)', () => {
+    expect(deriveToolNatureReadOnly([{ riskLevel: 'high', mutates: false }], true)).toBe(false)
   })
 })
 
@@ -298,6 +307,37 @@ describe('GET /api/agent-ops/projects/:id/copilots', () => {
     expect(body.copilots[0].readOnly).toBeNull()
     expect(body.copilots[0].version).toBeNull()
     expect(body.copilots[0].requiresHumanApproval).toBeNull()
+  })
+
+  it('readOnly is nature-based: read-only tools → true, a mutating tool → false (single source, matches /runtime/v1)', async () => {
+    const toolRow = (name: string, mutates: boolean): ToolDefinition => ({
+      id: `tool-${name}`,
+      name,
+      description: name,
+      provider: 'internal',
+      riskLevel: 'low',
+      enabled: true,
+      requiresConfirmation: false,
+      mutates,
+      scopedRoutes: [],
+      lastUsedAt: null,
+      lastErrorAt: null,
+      lastErrorMessage: null,
+      callsLast7d: 0,
+      errorRateLast7d: 0,
+    })
+    copilotsHandler = () => [copilotFixture()]
+    manifestHandler = (id) => readOnlyManifest(id)
+
+    // All read → true
+    toolsHandler = () => [toolRow('read_market_snapshot', false), toolRow('read_volatility_state', false)]
+    let body = await (await GET(req(PROJECT_ID), params(PROJECT_ID))).json()
+    expect(body.copilots[0].readOnly).toBe(true)
+
+    // One mutating tool → false, no matter the manifest prose
+    toolsHandler = () => [toolRow('read_market_snapshot', false), toolRow('place_order', true)]
+    body = await (await GET(req(PROJECT_ID), params(PROJECT_ID))).json()
+    expect(body.copilots[0].readOnly).toBe(false)
   })
 
   it('never leaks the manifest system prompt into the payload', async () => {
