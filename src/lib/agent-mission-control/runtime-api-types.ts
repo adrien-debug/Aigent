@@ -29,21 +29,50 @@ import 'server-only'
 // Domain type — EXACT shape required by the contract.
 // ---------------------------------------------------------------------------
 
+/** Contract version. Consumers pin this; a breaking change bumps the major. */
+export const RUNTIME_CONTRACT_VERSION = '1.1.0'
+
+/**
+ * One agent as published to a consumer runtime.
+ *
+ * Mirrors the canonical `AvailableAgent` derivation (available-agents.ts) —
+ * the same one the catalogue, the counters and the run gate use. It is NOT a
+ * second source of truth: a consumer must never re-derive whether an agent may
+ * run, because that is exactly how two systems drift apart.
+ *
+ * `executable` is the field that predicts a run. `status` alone does not:
+ * an agent can be `active` and still declare a tool no handler backs.
+ * `nonExecutableReasons` is human-readable and safe to display — it never
+ * carries an internal id, a stack, or a secret.
+ */
 export type PublishedAgent = {
   id: string
   slug: string
   name: string
-  projectKey: string
-  version: string
-  status: 'specification' | 'draft' | 'testing' | 'production' | 'paused' | 'unavailable'
-  runtime: 'langgraph'
+  description: string | null
+  projectKey: string | null
+  version: string | null
+  /** Canonical availability, verbatim from the catalogue derivation. */
+  status: 'active' | 'inactive' | 'degraded' | 'unavailable'
+  /** True only when a run would actually be accepted right now. */
+  executable: boolean
+  /** Why not, in plain words. Empty when `executable` is true. */
+  nonExecutableReasons: string[]
+  provider: string | null
+  configuredModel: string | null
+  /** Model a real run PROVED. Null when never verified — never a guess. */
+  executedModel: string | null
+  runtime: string | null
+  toolCount: number
+  /** Declared tools with no registered handler. Non-empty ⇒ degraded. */
+  unresolvedToolCount: number
   capabilities: string[]
-  inputSchema: unknown
-  outputSchema: unknown
-  confirmationPolicy: unknown
-  assistantId: string | null
-  graphId: string
-  updatedAt: string
+  readOnly: boolean
+  requiresHumanApproval: boolean
+  lastRunAt: string | null
+  lastRunStatus: string | null
+  lastRunCostUsd: number | null
+  updatedAt: string | null
 }
 
 // ---------------------------------------------------------------------------

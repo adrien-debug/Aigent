@@ -1,14 +1,20 @@
 import { NextResponse } from 'next/server'
 
-import { isValidAgentId, requireRuntimeApiAuth } from '@/lib/agent-mission-control/runtime-api-types'
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
+import { getPublishedAgent } from '@/lib/agent-mission-control/runtime-catalogue'
+import {
+  RUNTIME_CONTRACT_VERSION,
+  isValidAgentId,
+  requireRuntimeApiAuth,
+} from '@/lib/agent-mission-control/runtime-api-types'
 
 /**
- * GET /api/runtime/v1/agents/:agentId — fetch one published agent by id.
+ * GET /api/runtime/v1/agents/:agentId — one published agent.
  *
- * Skeleton: no real agent has been materialized in the DB yet, so this
- * always returns a clean 404 (never a fabricated/mock agent) once auth +
- * shape checks pass. Wiring to the real store lands with the
- * materialization work.
+ * 404 when the id resolves to no canonical agent. That is the contract a
+ * consumer relies on to detect an agent deleted upstream, so it must be able
+ * to tell "gone" from "temporarily unreachable" — which is why a backend
+ * failure answers 503 here and never a bare 404.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ agentId: string }> }) {
   const auth = requireRuntimeApiAuth(request)
@@ -19,5 +25,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ agen
     return NextResponse.json({ error: 'invalid agentId' }, { status: 400 })
   }
 
-  return NextResponse.json({ error: 'agent not found' }, { status: 404 })
+  try {
+    const agent = await getPublishedAgent(agentId)
+    if (agent === undefined) {
+      return NextResponse.json({ error: 'agent not found' }, { status: 404 })
+    }
+    return NextResponse.json({ contractVersion: RUNTIME_CONTRACT_VERSION, agent })
+  } catch (err) {
+    // Never forward upstream text: it can carry schema or query internals.
+    console.error('[runtime/v1/agents/:id] read failed', err)
+    return NextResponse.json(
+      { error: isPgrestTimeout(err) ? 'catalogue timed out' : 'catalogue unavailable' },
+      { status: 503 }
+    )
+  }
 }
