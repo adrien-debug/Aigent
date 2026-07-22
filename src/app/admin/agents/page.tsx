@@ -11,6 +11,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { getAvailableAgents } from '@/lib/agent-mission-control/available-agents'
 import { getProjects } from '@/lib/agent-mission-control/data'
 import { formatRelativeCompact, formatUsd } from '@/lib/agent-mission-control/format'
+import {
+  AGENT_STATUS_DIMENSION_LABELS,
+  AVAILABLE_AGENT_STATUS_LABELS,
+  agentExecutableLabel,
+  copilotStatusLabel,
+  runtimeLabel,
+} from '@/lib/agent-mission-control/labels'
 
 export const dynamic = 'force-dynamic'
 
@@ -71,12 +78,18 @@ export default async function AgentsPage() {
                   {/* Sized for "UNAVAILABLE" + its status dot at NORMAL tracking.
                       The widest tracking needed w-40, which then stole width from
                       the agent name — the column that identifies the row. */}
-                  <TableHeader className="w-[7.5rem] sm:w-[8.5rem]">Status</TableHeader>
-                  {/* Provider and model answer ONE question — "what runs this
-                      agent" — but sat in two columns with different breakpoints,
-                      so between lg and xl the model showed with no provider to
-                      qualify it. Merged into a single Runtime column that appears
-                      in one go, which also buys back the width the avatar needs. */}
+                  {/* An agent carries THREE statuses at once and this column shows
+                      one of them, so the header names WHICH: the badge is runtime
+                      availability, the line under it is the stored lifecycle. A
+                      bare "Status" header is what let the same agent read ACTIVE
+                      here and IDLE on the team canvas with neither one wrong. */}
+                  <TableHeader className="w-[7.5rem] sm:w-[8.5rem]">
+                    {AGENT_STATUS_DIMENSION_LABELS.runtime} status
+                  </TableHeader>
+                  {/* Runtime = the wired execution path (`copilots.runtime`). This
+                      column used to show the model and the provider under a
+                      "Runtime" header — two real facts, neither of them the
+                      runtime. Both now sit here, each under its own name. */}
                   <TableHeader className="hidden w-44 lg:table-cell">Runtime</TableHeader>
                   <TableHeader className="hidden w-20 text-right xl:table-cell">Tools</TableHeader>
                   <TableHeader className="hidden w-28 text-right sm:table-cell">Last run</TableHeader>
@@ -91,7 +104,10 @@ export default async function AgentsPage() {
                     <TableRow
                       key={agent.copilotId}
                       href={`/admin/agents/${agent.copilotId}`}
-                      title={`Open agent ${agent.name}`}
+                      // The third status dimension. There is no room for a third
+                      // line in a row that must stay 56px, so executability rides
+                      // the row tooltip — qualified, never a bare word.
+                      title={`Open agent ${agent.name} — ${AGENT_STATUS_DIMENSION_LABELS.executable}: ${agentExecutableLabel(agent.executable)}`}
                       className="group h-14"
                     >
                       {/* py-2! pins the row to the h-14 set above, matching the
@@ -132,17 +148,28 @@ export default async function AgentsPage() {
                             aria-hidden="true"
                             className={clsx('size-1.5 shrink-0 rounded-full', STATUS_DOT[agent.status])}
                           />
-                          {agent.status}
+                          {AVAILABLE_AGENT_STATUS_LABELS[agent.status]}
                         </Badge>
-                      </TableCell>
-                      {/* Runtime — model on top (the identifying fact), provider as
-                          its qualifier underneath. Two lines here rather than two
-                          columns, so the pair never splits across breakpoints. */}
-                      <TableCell className="hidden py-2! lg:table-cell">
-                        <div className="truncate font-mono text-sm text-zinc-600 dark:text-zinc-400">
-                          {agent.configuredModel ?? <NotMeasuredDash />}
+                        {/* The operator's decision, next to what the runtime can
+                            prove. "Inactive (runtime) / Draft (lifecycle)" is one
+                            agent honestly described, not two contradictory ones. */}
+                        <div className="mt-1 truncate text-[11px] text-zinc-500">
+                          {AGENT_STATUS_DIMENSION_LABELS.lifecycle}:{' '}
+                          {copilotStatusLabel(agent.lifecycleStatus)}
                         </div>
-                        <div className="truncate font-mono text-xs text-zinc-500">{agent.provider ?? '—'}</div>
+                      </TableCell>
+                      {/* Runtime on top — the execution path that decides whether
+                          anything can run at all — then the model and its provider
+                          as the qualifier. Two lines here rather than two columns,
+                          so the pair never splits across breakpoints. */}
+                      <TableCell className="hidden py-2! lg:table-cell">
+                        <div className="truncate text-sm text-zinc-600 dark:text-zinc-400">
+                          {runtimeLabel(agent.runtime) ?? <NotMeasuredDash />}
+                        </div>
+                        <div className="truncate font-mono text-xs text-zinc-500">
+                          {agent.configuredModel ?? '—'}
+                          {agent.provider ? ` · ${agent.provider}` : ''}
+                        </div>
                       </TableCell>
                       <TableCell className="hidden py-2! text-right font-mono text-sm tabular-nums text-zinc-600 xl:table-cell dark:text-zinc-400">
                         {agent.tools.length}

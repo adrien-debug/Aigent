@@ -16,6 +16,31 @@ import type { ToolDefinition } from '@/lib/agent-mission-control/types'
  * present, so an empty category is never rendered.
  */
 
+/**
+ * A tool's NATURE — does it change anything? — never its confirmation policy.
+ *
+ * The page badged every confirmation-free tool "Read-only", so a mutating tool
+ * whose author had simply not required a confirmation read as harmless, and the
+ * "READ-ONLY 5" tile counted them. Same rule as `isHighRiskOrWriteCapableTool`
+ * (authoring-writes.ts) and as `available-agents.ts`: high/critical risk mutates
+ * by definition, and below that only an explicit `mutates: false` — an auditable
+ * act by the tool's author, migration 0022/0023 — proves a read. An absent flag
+ * is UNKNOWN, never "read-only".
+ */
+type ToolNature = 'read-only' | 'mutating' | 'unknown'
+
+function natureOf(tool: ToolDefinition): ToolNature {
+  if (tool.riskLevel === 'high' || tool.riskLevel === 'critical') return 'mutating'
+  if (tool.mutates === undefined) return 'unknown'
+  return tool.mutates ? 'mutating' : 'read-only'
+}
+
+const NATURE_LABELS: Record<ToolNature, string> = {
+  'read-only': 'Read-only',
+  mutating: 'Can write',
+  unknown: 'Nature unverified',
+}
+
 /** Group from the tool's own name — no invented taxonomy, no empty buckets. */
 function groupOf(tool: ToolDefinition): string {
   const n = tool.name
@@ -36,7 +61,12 @@ export default async function AgentToolsPage({ params }: { params: Promise<{ id:
   const { tools, agent } = detail
   const unresolved = new Set(agent?.unresolvedToolIds ?? [])
 
-  const readOnly = tools.filter((t) => !t.requiresConfirmation).length
+  // Counted by nature, not by policy. `agent.unavailableFields` carries the
+  // catalogue's own verdict on the same question: when it names `readOnly`,
+  // the agent-level claim is unproven and the tile must not assert one.
+  const readOnly = tools.filter((t) => natureOf(t) === 'read-only').length
+  const natureUnknown = tools.filter((t) => natureOf(t) === 'unknown').length
+  const readOnlyUnproven = agent?.unavailableFields.includes('readOnly') ?? true
   const confirmRequired = tools.filter((t) => t.requiresConfirmation).length
   const disabled = tools.filter((t) => !t.enabled).length
 
@@ -53,7 +83,19 @@ export default async function AgentToolsPage({ params }: { params: Promise<{ id:
       <dl className={`grid grid-cols-2 gap-px overflow-hidden rounded-xl md:grid-cols-5 ${surfaceSectionClass}`}>
         {[
           { label: 'Total', value: tools.length },
-          { label: 'Read-only', value: readOnly },
+          {
+            label: 'Read-only',
+            value: readOnly,
+            // The count of tools PROVEN read-only. The note says how much of the
+            // set that count leaves unanswered, so "Read-only 5" can never be
+            // read as "5 tools, all harmless" when the nature of some is unknown.
+            note:
+              natureUnknown > 0
+                ? `${natureUnknown} unverified`
+                : readOnlyUnproven
+                  ? 'agent-level claim unproven'
+                  : undefined,
+          },
           { label: 'Needs confirmation', value: confirmRequired },
           { label: 'Disabled', value: disabled },
           { label: 'Unresolved', value: unresolved.size },
@@ -61,6 +103,9 @@ export default async function AgentToolsPage({ params }: { params: Promise<{ id:
           <div key={cell.label} className="px-5 py-4">
             <dt className={eyebrowClass}>{cell.label}</dt>
             <dd className="mt-1 font-mono text-xl/7 font-light tabular-nums text-zinc-100">{cell.value}</dd>
+            {'note' in cell && cell.note ? (
+              <p className="mt-1 text-[11px] text-zinc-500">{cell.note}</p>
+            ) : null}
           </div>
         ))}
       </dl>
@@ -91,9 +136,16 @@ export default async function AgentToolsPage({ params }: { params: Promise<{ id:
                       ) : (
                         <Badge color="zinc">Ready</Badge>
                       )}
-                      <Badge color={tool.requiresConfirmation ? 'accentStrong' : 'zinc'}>
-                        {tool.requiresConfirmation ? 'Confirmation required' : 'Read-only'}
+                      {/* Two independent facts, two badges: what the tool DOES,
+                          then the policy applied to it. Collapsing them into one
+                          badge is what let "Read-only" stand for "nobody asked
+                          for a confirmation". */}
+                      <Badge color={natureOf(tool) === 'read-only' ? 'zinc' : 'accentStrong'}>
+                        {NATURE_LABELS[natureOf(tool)]}
                       </Badge>
+                      {tool.requiresConfirmation ? (
+                        <Badge color="accentStrong">Confirmation required</Badge>
+                      ) : null}
                       {!tool.enabled ? <Badge color="zinc">Disabled</Badge> : null}
                     </div>
                     {tool.description ? (

@@ -84,7 +84,33 @@ export const AvailableAgentSchema = z
     name: z.string().min(1),
     description: z.string().nullable(),
     version: z.string().nullable(),
+    /** RUNTIME status — what the runtime can prove today. See `labels.ts`. */
     status: z.enum(AVAILABLE_AGENT_STATUSES),
+    /**
+     * LIFECYCLE status — the raw `copilots.status` column, unaltered.
+     *
+     * Surfaced so a view can show the operator's decision (`draft`, `paused`…)
+     * NEXT TO the runtime status instead of picking one and calling it "the"
+     * status: an agent is legitimately `draft` (lifecycle) and `inactive`
+     * (runtime) at the same instant, and the catalogue used to display one
+     * vocabulary while its detail page displayed the other.
+     */
+    lifecycleStatus: z.string(),
+    /**
+     * Wired execution path (`copilots.runtime`), not the model.
+     * `null` ⇒ the column is empty, which is itself why the agent cannot run.
+     */
+    runtime: z.string().nullable(),
+    /**
+     * EXECUTABLE — would the run gate accept a launch right now?
+     *
+     * Same rule as `POST /api/agent-ops/copilots/:id/run` and
+     * `runtime-catalogue.isExecutable`: active AND every declared tool resolved.
+     * Kept as an explicit field rather than left implicit in `status` so a view
+     * can state it in words, and so a future widening of `status` cannot
+     * silently widen what the UI calls launchable.
+     */
+    executable: z.boolean(),
     provider: z.string().nullable(),
     configuredModel: z.string().nullable(),
     /** Model the runner actually proved at run time. Unverified ⇒ null. */
@@ -96,6 +122,8 @@ export const AvailableAgentSchema = z
         enabled: z.boolean(),
         riskLevel: z.string(),
         requiresConfirmation: z.boolean(),
+        /** Tool NATURE (migration 0022), fail-closed: unknown reads as `true`. */
+        mutates: z.boolean(),
       }).strict()
     ),
     capabilities: z.array(z.string()),
@@ -148,6 +176,7 @@ type ToolRow = {
   enabled: boolean | null
   risk_level: string | null
   requires_confirmation: boolean | null
+  mutates: boolean | null
 }
 
 type VersionRow = { id: string; copilot_id: string; label: string | null; stage: VersionStage | null }
@@ -163,6 +192,12 @@ type RunRow = {
 
 /** Only these runtimes have a wired execution path; anything else cannot run. */
 const EXECUTABLE_RUNTIMES = new Set(['langgraph', 'openai-assistants', 'openai-responses', 'http'])
+
+/** The risk vocabulary the `tools.risk_level` check constraint allows. */
+const KNOWN_RISK_LEVELS: ReadonlySet<string> = new Set(['low', 'medium', 'high', 'critical'])
+
+/** High/critical mutates by definition — same rule as `isHighRiskOrWriteCapableTool`. */
+const MUTATING_RISK_LEVELS: ReadonlySet<string> = new Set(['high', 'critical'])
 
 /** Providers the model-router can actually reach. `mistral` is declared but not wired. */
 const WIRED_PROVIDERS = new Set<ModelProvider | string>(['openai', 'google', 'local'])
@@ -240,6 +275,10 @@ function toAvailableAgent(input: {
       enabled: t.enabled === true,
       riskLevel: t.risk_level ?? 'unknown',
       requiresConfirmation: t.requires_confirmation === true,
+      // Fail-closed, mirroring the column default (migration 0022): only an
+      // explicit `false` — an auditable act by the tool's author — proves a
+      // tool writes nothing. A NULL is a presumption, not a proof.
+      mutates: t.mutates !== false,
     }))
   if (manifest === undefined) unavailableFields.push('tools')
 
@@ -248,13 +287,25 @@ function toAvailableAgent(input: {
     .filter((label): label is string => label !== null)
   if (manifest === undefined) unavailableFields.push('capabilities')
 
-  // `readOnly` is a claim about the mounted tools, so it can only be asserted
-  // when a manifest exists AND every resolved tool is confirmation-free and
-  // non-mutating. With no manifest we cannot claim read-only — we say false and
-  // flag the field rather than assert a reassuring default.
+  // `readOnly` is a claim about the NATURE of the mounted tools, never about
+  // the confirmation policy applied to them. The two were conflated here: the
+  // comment promised "confirmation-free AND non-mutating" while the code tested
+  // `!requiresConfirmation` alone, so a genuinely mutating tool whose author had
+  // simply not required a confirmation made the whole agent read "read-only".
+  //
+  // A tool is provably read-only only when its risk level is one the schema
+  // knows, is not high/critical, AND it carries an explicit `mutates = false`.
+  // When any resolved tool has a risk level outside that vocabulary its nature
+  // is UNKNOWN: `readOnly` stays `false` (the type is not nullable — see
+  // `runtime-catalogue.ts`) and the field is named in `unavailableFields`, which
+  // is what a view must read to render "Unknown" rather than "Read-only".
   const hasManifest = manifest !== undefined
-  const readOnly = hasManifest && resolvedTools.every((t) => !t.requiresConfirmation)
-  if (!hasManifest) unavailableFields.push('readOnly')
+  const natureUnknown = resolvedTools.some((t) => !KNOWN_RISK_LEVELS.has(t.riskLevel))
+  const readOnly =
+    hasManifest &&
+    !natureUnknown &&
+    resolvedTools.every((t) => !MUTATING_RISK_LEVELS.has(t.riskLevel) && !t.mutates)
+  if (!hasManifest || natureUnknown) unavailableFields.push('readOnly')
 
   const requiresHumanApproval = hasManifest
     ? manifest.confirmation_policy !== 'never' || resolvedTools.some((t) => t.requiresConfirmation)
@@ -270,7 +321,11 @@ function toAvailableAgent(input: {
   if (lastRunCostUsd === null) unavailableFields.push('lastRunCostUsd')
 
   // --- status, derived from the checks above and nothing else -------------
-  const executable =
+  // NOT the same claim as the exported `executable` below: this one asks "is
+  // there a wired execution path at all", the exported one asks "would the run
+  // gate accept a launch right now". Naming them alike is how a page ended up
+  // promising a launch the API refused.
+  const executionPathWired =
     projectId !== null &&
     provider !== null &&
     WIRED_PROVIDERS.has(provider) &&
@@ -285,7 +340,7 @@ function toAvailableAgent(input: {
     // It outranks every other check: an archived copilot must never surface as
     // active, and must not borrow `inactive`, which reads as "ready, just off".
     status = 'unavailable'
-  } else if (!executable) {
+  } else if (!executionPathWired) {
     status = 'unavailable'
   } else if (unresolvedToolIds.length > 0 || resolvedTools.length === 0) {
     // Declared tools that resolve to nothing registered are the concrete form of
@@ -297,6 +352,9 @@ function toAvailableAgent(input: {
     status = 'inactive'
   }
 
+  const runtime = nonEmpty(copilot.runtime)
+  if (runtime === null) unavailableFields.push('runtime')
+
   return {
     copilotId: copilot.id,
     projectId,
@@ -304,6 +362,10 @@ function toAvailableAgent(input: {
     description,
     version: versionLabel,
     status,
+    lifecycleStatus: copilot.status,
+    runtime,
+    // The run gate's rule, spelled out once: active AND nothing unresolved.
+    executable: status === 'active' && unresolvedToolIds.length === 0,
     provider,
     configuredModel,
     executedModel,
@@ -341,7 +403,7 @@ export async function getAvailableAgents(): Promise<AvailableAgent[]> {
       `manifests?select=copilot_id,tool_ids,skills,confirmation_policy,forbidden_actions,updated_at&copilot_id=in.(${inList(ids)})&order=updated_at.desc`
     ),
     rest<ToolRow[]>(
-      `tools?select=id,copilot_id,name,enabled,risk_level,requires_confirmation&copilot_id=in.(${inList(ids)})`
+      `tools?select=id,copilot_id,name,enabled,risk_level,requires_confirmation,mutates&copilot_id=in.(${inList(ids)})`
     ),
     versionIds.length > 0
       ? rest<VersionRow[]>(`copilot_versions?select=id,copilot_id,label,stage&id=in.(${inList(versionIds)})`)
