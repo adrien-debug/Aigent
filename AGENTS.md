@@ -87,6 +87,12 @@ Opération rejouable : `scripts/archive-non-tradeagent-agents.mjs` (dry-run par
 défaut, `--apply` pour écrire).
 
 `archived` n'est pas `inactive` : la retraite est une décision, la pause un état.
+
+**Garde d'exécution (AIG-…-GATE-020)** — `POST /api/agent-ops/copilots/:id/run`
+relit l'agent canonique au lancement et refuse fail-closed : seul `active` **et**
+`unresolvedToolIds` vide autorise un run. Catalogue injoignable → 503 · absent →
+404 · connu mais non exécutable → 409 avec les raisons concrètes. Ne recalcule
+jamais le statut dans une route : deux implémentations divergent toujours.
 <!-- END:tradeagent-roster -->
 
 <!-- BEGIN:trading-factory -->
