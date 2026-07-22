@@ -4,6 +4,10 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+> **Discipline de ce fichier** : invariants courts pour agents, rien d'autre. Le détail par
+> mission (roster complet, exports, canvas, accounting factory) vit dans
+> `docs/missions/AGENTS-history-2026-07.md` — le consulter AVANT de toucher un domaine listé.
+
 <!-- BEGIN:doctrine-hierarchy -->
 ## Hiérarchie de doctrine
 
@@ -31,8 +35,8 @@ Le dev Aigent tourne sur le port **3210**, jamais **3000**. Cette machine fait
 tourner beaucoup d'autres serveurs Next (Kyc, Netpool, hearst-comput…) qui se
 disputent le 3000 : s'y mettre, c'est écraser le travail d'un chantier voisin ou
 se faire écraser par lui. Règle absolue : ne JAMAIS lancer le dev sur 3000, ne
-JAMAIS tuer un serveur sur 3000 (il n'est pas à nous). `dev-stack.mjs` doit
-résoudre le port depuis `AIGENT_DEV_PORT` (défaut 3210) et abandonner si le port
+JAMAIS tuer un serveur sur 3000 (il n'est pas à nous). `scripts/dev-stack.mjs`
+résout le port depuis `AIGENT_DEV_PORT` (défaut 3210) et abandonne si le port
 est pris par un process non identifié comme le sien.
 <!-- END:dev-port-rule -->
 
@@ -48,204 +52,44 @@ est pris par un process non identifié comme le sien.
   quels, restylés sur les tokens du projet (`accent-*`/`zinc`). Pas de primitive Catalyst ici —
   convention volontaire, le marketing est une vitrine statique.
 - **Un seul accent : `accent` (vert tendre, `#A7FB90`, `src/app/globals.css`).** Tout le reste est `zinc`.
-  Les 18 autres couleurs que `<Button color>` accepte sont interdites hors `components/catalyst/`.
+  Les autres couleurs que `<Button color>` accepte sont interdites hors `components/catalyst/`.
 - Besoin d'une section/écran dashboard ? → **lis** `~/.claude/tailwind-blocks/application-ui/`
   pour la structure, puis monte-la avec les primitives Catalyst. Ne colle jamais le JSX brut d'un
   bloc dans le dashboard.
-- 19 primitives dans `src/components/catalyst/` (alert, avatar, badge, button,
-  dialog, divider, fieldset, heading, input, link, navbar, select, sidebar,
-  sidebar-layout, surface, switch, table, text, textarea). `sidebar-layout` +
-  `sidebar` + `navbar` = LE shell admin, `surface` = la grammaire de plans.
-  N'ajoute une primitive que si elle a un consommateur réel : dropdown,
-  pagination, description-list et table-fit ont été importés puis supprimés
-  faute d'usage.
+- **18 primitives** dans `src/components/catalyst/` (avatar, badge, button, dialog, divider,
+  fieldset, heading, input, link, navbar, select, sidebar, sidebar-layout, surface, switch,
+  table, text, textarea). `sidebar-layout` + `sidebar` + `navbar` = LE shell admin, `surface` =
+  la grammaire de plans. N'ajoute une primitive que si elle a un consommateur réel : alert,
+  dropdown, pagination, description-list et table-fit ont été importés puis supprimés faute
+  d'usage.
 <!-- END:catalyst-ui-rules -->
 
-<!-- BEGIN:tradeagent-roster -->
-## Roster TradeAgent canonique (AIGENT-RESET-TRADEAGENT-022)
+## Invariants agents & runtime (détail : docs/missions/AGENTS-history-2026-07.md)
 
-**Reset destructif du 2026-07-22.** Les 40 anciens copilots et leurs 2795 lignes
-enfants (runs, tool calls, benchmarks, tests, manifests, versions, tools) ont été
-supprimés. `scripts/reset-agent-platform.mjs` — dry-run par défaut, `--apply`
-pour écrire, idempotent. Il vide d'abord les 3 colonnes qui pointent un copilot
-**sans FK** (`mission_findings.copilot_id`, `mission_runs.orchestrator_copilot_id`,
-`mission_runs.participant_copilot_ids`), que la cascade ne nettoie pas.
-
-**Roster actuel** (`scripts/provision-tradeagent-roster.mjs`) — 4 agents dans
-`proj-tradeagent`, provider `openai`, modèle `gpt-5.4` :
-
-| Agent | Outils | Statut |
-|---|---|---|
-| Market Intelligence | 5 | `active` — prouvé par run |
-| Portfolio Risk Guardian | 5 | `active` — prouvé par run |
-| Execution Supervisor | 4 | `draft` |
-| Performance Analyst | 4 | `draft` |
-
-**Deux pièges à ne pas réintroduire :**
-1. **Jamais `runtime: 'langgraph'` pour un agent à outils marché.** `runner.ts`
-   court-circuite ce runtime vers le LangGraph Agent Server, qui possède son
-   propre graphe : les outils du manifest ne sont **jamais montés**. L'agent
-   répond « je n'ai pas de données marché » avec `tool_call_count = 0`, tout en
-   paraissant sain dans le catalogue. Utiliser `openai-assistants`.
-2. **La description d'un outil EST son contrat d'entrée.** Le runner l'envoie au
-   modèle sans schéma JSON. Les schémas Zod attendent `pair` (pas `symbol`) —
-   sans description explicite, le modèle devine et chaque appel échoue.
-
-**Non construits, volontairement** : Strategy Research (aucun handler de
-backtest) et Withdrawal Review (`read_account_risk_snapshot` retourne toujours
-UNAVAILABLE sans compte connecté). Pas de coquille vide.
-
-`active` signifie **prouvé** : `--activate` exige un run `completed`, zéro
-tentative unsafe et un modèle vérifié.
-
-## Historique — roster précédent (AIG-TRADEAGENT-ONLY-019)
-
-Le catalogue actif ne sert que des agents réellement exécutables. Un agent est
-`active` seulement si son `project_id` existe, son provider est câblé, sa version
-et son manifest sont présents, **et** chaque outil déclaré se résout vers un
-handler enregistré. Une ligne `tools` ne suffit pas : le runner exige un handler
-par NOM (`runner.ts` — « has no registered handler »).
-
-**Actifs (`proj-tradeagent`, zéro outil non résolu)** — BTC Alert & Levels
-Sentinel · Portfolio Risk & Lock Advisor · Source Reliability & Price Trust
-Sentinel · Withdrawal Review Copilot · Market Regime & Rotation Copilot.
-
-**Historiques non actifs** — `copilot-tradeagent-market-intelligence-b1c8c291` et
-`copilot-tradeagent-portfolio-risk-guardian-91f81963` sont `degraded` : ils
-déclarent `read_repo_file`, `list_repo_tree` et `search_repo`, absents du
-registry. Ne jamais les présenter comme actifs ou exécutables. Les rendre actifs
-suppose d'implémenter ces trois handlers, pas de changer leur statut.
-
-**Archivés** — les six copilots `aig-trade-001` sans projet (Atlas, Vector,
-Sentinel, Pulse, Meridian, Sage) sont `archived` ⇒ `unavailable`. Leurs 74 runs
-historiques restent lisibles ; on ne les réattribue jamais à `proj-tradeagent`.
-Opération rejouable : `scripts/archive-non-tradeagent-agents.mjs` (dry-run par
-défaut, `--apply` pour écrire).
-
-`archived` n'est pas `inactive` : la retraite est une décision, la pause un état.
-
-**Garde d'exécution (AIG-…-GATE-020)** — `POST /api/agent-ops/copilots/:id/run`
-relit l'agent canonique au lancement et refuse fail-closed : seul `active` **et**
-`unresolvedToolIds` vide autorise un run. Catalogue injoignable → 503 · absent →
-404 · connu mais non exécutable → 409 avec les raisons concrètes. Ne recalcule
-jamais le statut dans une route : deux implémentations divergent toujours.
-<!-- END:tradeagent-roster -->
-
-<!-- BEGIN:trading-factory -->
-## Trading Agent Factory (AIG-TRADE-001)
-
-Couche métier trading pour l'univers **ETH-only** de TradeAgent, entièrement
-**read-only et truth-aware** (aucun chemin d'écriture ordre/compte/marché). Tout
-sous `src/lib/agent-mission-control/market/` :
-
-- `truth.ts` / `snapshot.ts` / `indicators.ts` — `MarketSnapshot` normalisé avec
-  provenance+fraîcheur (LIVE/SNAPSHOT/HISTORICAL/FIXTURE/FALLBACK/UNAVAILABLE) ;
-  math ATR/stdev/régime/structure déterministe. Donnée absente → UNAVAILABLE,
-  jamais inventée. Prix = décimales lossless, jamais float.
-- `provider.ts` — `HttpMarketProvider` lit les routes **publiques** `/api/market/*`
-  de TradeAgent (`TRADEAGENT_MARKET_URL`) ; TradeAgent n'est **jamais** écrit.
-- `tools.ts` — 8 outils read-only validés Zod (jamais de throw). `read_account_risk_snapshot`
-  toujours UNAVAILABLE (capital jamais fabriqué).
-- `contracts.ts` — 6 contrats de sortie Zod versionnés (v1.0.0).
-- `agents/roster.ts` — les 6 agents (Atlas/Vector/Sentinel/Pulse/Meridian/Sage) en
-  config pure. `eval/` — corpus de tests + benchmark (gates de blocage, sécurité 100%).
-  `shadow.ts` (SNAPSHOT-only) · `council.ts` (Sentinel BLOCKED terminal) ·
-  `delivery.ts` (paquet TradeAgent checksummé, n'active rien).
-- **Pas de surface UI dédiée** : les agents trading vivent dans les surfaces
-  agents existantes (`/admin/agents/[id]`, projets sur `/admin`), comme tous
-  les autres copilots.
-- Docs : `docs/trading-agent-factory.md` + `docs/runbook-trading-factory.md`.
-- **Matérialisation OpenAI des 6 agents = étape facturée, non exécutée** (attend accord §8).
-
-### Export statique des 6 agents (AIG-PACK-015)
-- `npm run export:trading` (`scripts/export-trading-packages.mjs`, node pur, zéro
-  dep, zéro appel LLM/réseau/secret) exporte les 6 agents matérialisés au commit
-  `d448441` en paquets **déterministes + checksummés** sous `delivery/tradeagent/` :
-  `<slug>/{package.json,contract.json,checksum.txt}` + `manifest.json` global (checksum global).
-- **SNAPSHOT-ONLY** : source = `delivery/tradeagent/_snapshot/db-truth.json` (vérité DB
-  gelée, lue une fois du périmètre gpu1 puis figée). Benchmark = **lu** depuis
-  `copilot_versions.scores` (global `0.985`, evidence `FIXTURE`), jamais régénéré.
-- **Reproductible** : deux exports byte-identiques (JSON canonique, clés triées, LF,
-  zéro horodatage runtime). Marchés **réconciliés au backend réel** — `backendExecutableMarkets:
-  [ETH,BTC,SOL,XAU]` ; « ETH-only » = allowlist retail runtime (`MARKET_EXECUTABLE_SYMBOLS`),
-  jamais une limite backend.
-- **Gate sécurité** : contrat Sentinel/Pulse invalide → l'export abort non-zéro, n'écrit rien.
-- Tests : `tests/unit/export-trading-packages.test.ts` (double-export identique, altération 1 octet
-  détectée, blocage Sentinel/Pulse). Détail : `delivery/tradeagent/README.md`.
-## My Team — canvas d'équipe projet (AIG-TEAM-CANVAS-002)
-
-Cartographie vivante des agents d'un projet, en graphe. Route
-`/admin/projects/[id]/team`, API `GET /api/agent-ops/projects/[id]/team`,
-sous-nav projet `Overview · Agent Builder · My Team`
-(`src/components/agent-ops/project-tabs.tsx` — n'expose QUE des routes projet
-qui existent réellement).
-
-- **Moteur** : `@xyflow/react` 12.11.2. **Pas d'elkjs** — le layout
-  (`project-team/layout.ts`) est une fonction pure déterministe, donc testable.
-  `graph-canvas-svg.tsx` (diagramme LangGraph 5 nœuds figés) n'est PAS réutilisé.
-- **Contrat unique** : `getProjectTeamGraph(projectId)` sert la page ET la route ;
-  zéro logique dupliquée. Sortie validée Zod `.strict()`.
-- **Vérité des relations** : `origin: 'explicit'` ⟺ une ligne persistée énonce
-  cette arête. Appartenance projet = `explicit` (restitue `copilots.project_id`) ;
-  groupes issus de `copilots.tags` = `derived` et rendus en pointillé. Jamais
-  d'inférence par nom, modèle, co-appartenance ou proximité temporelle.
-  `shares-tool` plafonné à `SHARED_TOOL_MAX_AGENTS = 4` (un outil commodité ne
-  porte aucun signal).
-- **Activité d'une arête** : uniquement sur un fait persisté ON the relation
-  (`mission_runs`). La co-activité de deux agents n'anime rien. Aujourd'hui
-  `orchestrator_copilot_id` est toujours NULL ⇒ aucune arête active — c'est correct.
-- **Donnée absente ≠ zéro** : compteurs d'activité `number | null` + `unavailableAgents` ;
-  `node.runHistory` (`known|unreadable|outside-window|not-applicable`) ;
-  `toolsUnavailable` ; `freshness.latestActivityState`. `totalRuns` exact via
-  `count=exact`, jamais une fenêtre tronquée. Inconnu → tiret, jamais `0` ni `"null"`.
-- **`active` n'est jamais dérivé de `copilots.status`** — il exige un run réellement `running`.
-- **Isolation projet** : requête `project_id=eq.` + re-filtre strict en mémoire.
-  Les copilots à `project_id` NULL et les `target_project_ids` n'entrent jamais.
-- Migration `0019_project_agent_relations.sql` (RLS deny-by-default, service_role).
-  Relations cross-projet rejetées **à la lecture**, pas par contrainte SQL — aucun
-  write path aujourd'hui ; un futur writer DOIT revérifier les deux `project_id`.
-- Docs : `docs/project-team-canvas.md`.
-
-## Accounting Agent Factory (AIG-FIN-001)
-
-Couche métier comptabilité, **read-only/dry-run** (aucun chemin d'écriture réel
-vers un ERP, zéro appel LLM/réseau/secret). Tout sous
-`src/lib/agent-mission-control/finance/`, miroir de `market/` :
-
-- **Principe** : UN agent métier (ex. TVA) + connecteurs par ERP — jamais un agent
-  par logiciel. Pipeline : Agent métier → Policy → Approbation → Execution Gateway
-  (UNIQUE porte d'écriture, stub read-only) → Connecteur → Xero/Sage/NetSuite/….
-  Format pivot = écriture comptable standard (lignes débit/crédit équilibrées).
-- **65 rôles ≠ 65 LLM** : ~35 `llm` (copilots : prompt + outils read-only + contrat
-  Zod), 10 `connector` (code déterministe, jamais un LLM), ~20 `service` (Gateway,
-  Permissions, Sync, Erreurs, Identités, Planificateur…). 8 équipes : Finance
-  Command, Data Ops, AP, AR, Accounting & Close, Tax, Control & Audit, Spécialisés.
-- **P1 matérialisable** = équipe Accounts Payable (documents, fournisseurs,
-  controle-factures, securite-fournisseurs, ecritures + controleur-general) +
-  connecteur générique CSV read-only.
-- **Gates** : `securite-fournisseurs` et `controleur-general` BLOCKED **terminal**
-  (comme Sentinel) ; sécurité 100 % au benchmark ; auto-approbation impossible (§47).
-- Montants = `DecimalString` lossless, jamais float. Donnée absente = UNAVAILABLE
-  avec provenance (LIVE/SNAPSHOT/HISTORICAL/FIXTURE/FALLBACK/UNAVAILABLE).
-- Docs : `docs/accounting-agent-factory.md`. Projet consommateur : `proj-accounting-agent`.
-- **Matérialisation OpenAI = étape facturée, non exécutée** (attend accord §8).
-
-### Runtime multi-provider — vérité d'exécution (ne pas régresser en « OpenAI-only »)
-Aigent n'est **pas** OpenAI-only. Deux chemins d'exécution, deux réalités :
-- **Chemin model-router DIRECT** (`model-router.ts`, tout `runtime` ≠ `langgraph`) =
-  **multi-provider** : il résout le `model_provider` du copilot et route vers
-  `openai` (SDK), `google` (Gemini REST), ou `local` (parc vLLM d'Adrien,
-  OpenAI-compatible, opt-in explicite — jamais de redirection silencieuse).
-  `mistral` déclaré mais non câblé (`ProviderUnavailableError`). Aucun fallback
-  muet : provider indisponible → erreur typée.
-- **Chemin LangGraph** (`runtime === 'langgraph'`) = **multi-provider** via
-  `src/langgraph/model-provider.mjs` : lit `modelProvider` du
-  `CopilotBehaviorConfig` (sourcé depuis `copilots.model_provider`) et instancie
-  `ChatOpenAI` pour `openai`, Gemini OpenAI-compat pour `google`, vLLM local pour
-  `local`. `mistral` déclaré mais non câblé (erreur explicite).
-- **Les 7 AP finance** (`copilot-fin-*`) tournent en **local via vLLM** sur le
-  chemin DIRECT (`model_provider = local`, bench 16/16). Leur `runtime` peut encore
-  lire `openai-assistants` pour raisons historiques, mais l'exécution passe par le
-  model-router direct → parc local ; les assistants LangGraph pointés sont **inertes**
-  sur ce chemin. Détail : `docs/agent-authoring.md` §3.
-<!-- END:trading-factory -->
+- **Roster TradeAgent canonique** (AIGENT-RESET-022, 22/07) : 4 agents dans `proj-tradeagent`,
+  provider `openai`, modèle `gpt-5.4` — Market Intelligence + Portfolio Risk Guardian (`active`,
+  prouvés par run), Execution Supervisor + Performance Analyst (`draft`). Provisioning :
+  `scripts/provision-tradeagent-roster.mjs`. Reset : `scripts/reset-agent-platform.mjs`
+  (dry-run par défaut).
+- **`active` signifie PROUVÉ** : `--activate` exige un run `completed`, zéro tentative unsafe,
+  modèle vérifié. Jamais un simple changement de statut.
+- **Piège LangGraph** : jamais `runtime: 'langgraph'` pour un agent à outils marché — les outils
+  du manifest ne sont jamais montés (l'agent répond « pas de données » avec `tool_call_count=0`
+  en paraissant sain). Utiliser `openai-assistants`.
+- **La description d'un outil EST son contrat d'entrée** : le runner l'envoie au modèle sans
+  schéma JSON. Les schémas Zod attendent `pair` (pas `symbol`) — sans description explicite,
+  chaque appel échoue.
+- **Garde d'exécution** (AIG-…-GATE-020) : `POST /api/agent-ops/copilots/:id/run` relit l'agent
+  canonique et refuse fail-closed (seul `active` + `unresolvedToolIds` vide autorise un run ;
+  503/404/409 sinon). Ne jamais recalculer le statut dans une route.
+- **Factories métier read-only** : trading (`src/lib/agent-mission-control/market/`) et
+  accounting (`…/finance/`) n'ont AUCUN chemin d'écriture réel (ordres/comptes/ERP). Donnée
+  absente → UNAVAILABLE avec provenance, jamais inventée ; montants/prix en décimales lossless,
+  jamais float. Sentinel (trading) et `securite-fournisseurs`/`controleur-general` (finance) =
+  BLOCKED terminal.
+- **Runtime multi-provider — ne pas régresser en « OpenAI-only »** : le model-router direct route
+  vers `openai`/`google`/`local` (vLLM, opt-in explicite) ; LangGraph idem via
+  `src/langgraph/model-provider.mjs` ; `mistral` déclaré non câblé (erreur typée, jamais de
+  fallback muet). Les 7 AP finance tournent en local via vLLM sur le chemin direct. Détail :
+  `docs/agent-authoring.md` §3.
+- **Matérialisation OpenAI d'agents = étape facturée, jamais exécutée sans accord** (§8 global).
