@@ -149,12 +149,3 @@ export const projectTeamGraphSchema = z
 export function parseProjectTeamGraph(value: unknown): ProjectTeamGraph {
   return projectTeamGraphSchema.parse(value) as ProjectTeamGraph
 }
-
-/** Non-throwing variant, for callers that want to degrade rather than 500. */
-export function safeParseProjectTeamGraph(
-  value: unknown
-): { success: true; data: ProjectTeamGraph } | { success: false; error: z.ZodError } {
-  const result = projectTeamGraphSchema.safeParse(value)
-  if (result.success) return { success: true, data: result.data as ProjectTeamGraph }
-  return { success: false, error: result.error }
-}

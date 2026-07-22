@@ -1,19 +1,14 @@
 import clsx from 'clsx'
 
 import {
-  BAR_W,
-  BAR_X,
   ChartGrid,
-  HOUR_MS,
   HourLabelRail,
   LegendDot,
-  MIN_SEG_H,
   PLOT_H,
   PLOT_W,
-  SLOT_W,
+  StackedHourBars,
   TOP_PAD,
   bucketRunsByHour,
-  hourLabel,
   runCount,
 } from '@/components/agent-ops/dashboard-charts/chart-frame'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
@@ -76,50 +71,7 @@ export function RunsOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: nu
         >
           <ChartGrid />
 
-          {buckets.map((bucket, i) => {
-            const x = i * SLOT_W + BAR_X
-            const segments: { key: string; count: number; fill?: string; className?: string }[] = [
-              { key: 'completed', count: bucket.completed, fill: 'var(--chart-success)' },
-              { key: 'failed', count: bucket.failed, fill: 'var(--chart-series)' },
-              { key: 'other', count: bucket.other, className: 'fill-zinc-600' },
-            ]
-
-            let y = PLOT_H
-            const rects = segments
-              .filter((seg) => seg.count > 0)
-              .map((seg) => {
-                const h = Math.max(seg.count * scale, MIN_SEG_H)
-                y -= h
-                return (
-                  <rect
-                    key={seg.key}
-                    x={x}
-                    y={y}
-                    width={BAR_W}
-                    height={h}
-                    rx={1}
-                    fill={seg.fill}
-                    className={seg.className}
-                  />
-                )
-              })
-
-            const parts = [
-              bucket.completed > 0 ? `${bucket.completed} completed` : null,
-              bucket.failed > 0 ? `${bucket.failed} failed` : null,
-              bucket.other > 0 ? `${bucket.other} other` : null,
-            ].filter(Boolean)
-
-            return (
-              <g key={bucket.startMs}>
-                <title>
-                  {`${hourLabel(bucket.startMs)}–${hourLabel(bucket.startMs + HOUR_MS)} UTC · ${runCount(bucket.total)}${parts.length > 0 ? ` — ${parts.join(', ')}` : ''}`}
-                </title>
-                <rect x={i * SLOT_W} y={0} width={SLOT_W} height={PLOT_H} fill="transparent" />
-                {rects}
-              </g>
-            )
-          })}
+          <StackedHourBars buckets={buckets} scale={scale} />
         </svg>
 
           <HourLabelRail buckets={buckets} />

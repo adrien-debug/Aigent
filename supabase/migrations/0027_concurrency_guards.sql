@@ -43,6 +43,17 @@ language plpgsql
 security definer
 as $$
 begin
+  -- Self-defense: the candidate MUST belong to this copilot. The route already
+  -- verifies ownership, but a SECURITY DEFINER function reachable via /rpc must
+  -- not promote copilot Y's version under copilot X on a direct service_role
+  -- call that bypasses the route. Fail-closed here so the atomicity guarantee is
+  -- complete at the DB layer, independent of the caller.
+  if not exists (
+    select 1 from copilot_versions where id = p_version_id and copilot_id = p_copilot_id
+  ) then
+    raise exception 'version % does not belong to copilot %', p_version_id, p_copilot_id;
+  end if;
+
   -- Archive the version currently serving production (if distinct), conditioned
   -- on it still being production (optimistic concurrency).
   if p_previous_prod is not null and p_previous_prod <> p_version_id then
