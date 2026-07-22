@@ -14,10 +14,31 @@ import { describe, expect, it } from 'vitest'
 const ROOT = process.cwd()
 const AGENT_ROUTE = join(ROOT, 'src/app/admin/agents/[id]')
 
-/** The six canonical sections. Overview is the index route. */
-const CANONICAL_SECTIONS = ['runs', 'tools', 'configuration', 'instructions', 'observability'] as const
+/**
+ * The canonical sections. Overview is the index route.
+ *
+ * `evolution` and `release` were added by AIGENT-OPERATOR-RESTORE-028: the
+ * lifecycle FUNCTION (generate suite, run tests, benchmark, improve, promote,
+ * rollback) had no surface at all after 021 folded the legacy pages away, so a
+ * fully-built engine was unreachable from the UI. Restoring the function is not
+ * the same as restoring the old architecture — see REMOVED_SECTIONS.
+ */
+const CANONICAL_SECTIONS = [
+  'runs',
+  'tools',
+  'configuration',
+  'instructions',
+  'observability',
+  'evolution',
+  'release',
+] as const
 
-/** Legacy pages folded into the six. None may return. */
+/**
+ * Legacy pages folded into the canonical set. None may return — including now
+ * that Evolution and Release exist: `tests`, `versions` and `improve` are the
+ * FOUR-page split those two surfaces replaced, and re-adding one would restore
+ * the very fragmentation 021 removed.
+ */
 const REMOVED_SECTIONS = ['manifest', 'tests', 'versions', 'improve'] as const
 
 /** Components deleted with the legacy pages. */
