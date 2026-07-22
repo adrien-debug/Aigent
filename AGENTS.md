@@ -4,6 +4,26 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+<!-- BEGIN:doctrine-hierarchy -->
+## Hiérarchie de doctrine
+
+1. `CLAUDE.md` — git, merge, push, déploiement, sécurité opérationnelle.
+2. `AGENTS.md` (ce fichier) — workflow agent, ports, architecture, Catalyst, vérité runtime.
+3. `src/components/agent-ops/DESIGN-DOCTRINE.md` — surfaces, tokens, composants UI, iconographie,
+   responsive, tables, empty states. Portée : `src/app/admin/**` et `src/components/agent-ops/**`.
+4. Gates exécutables (`npm run check`) — arbitre final : une gate rouge gagne sur toute phrase de
+   doctrine.
+5. Mission courante.
+
+Une règle vit dans **un seul** de ces fichiers ; ailleurs on y renvoie, on ne la recopie pas.
+Contradiction entre deux fichiers → la plus récente et la plus spécifique gagne, et l'écart se
+corrige dans le fichier propriétaire. N'ouvre jamais une quatrième doctrine.
+
+**Aucune règle Cursor n'est versionnée dans ce repository** — ni `.cursor/`, ni `.cursor/rules/`,
+ni `.cursorrules`, ni `.cursorignore`. Cursor suit donc ces trois fichiers. Une règle Cursor
+ajoutée plus tard doit rester cohérente avec eux et ne peut ni les contredire ni les remplacer.
+<!-- END:doctrine-hierarchy -->
+
 <!-- BEGIN:dev-port-rule -->
 ## Port de dev — ABSOLU
 
