@@ -74,9 +74,13 @@ export function CommandPalette() {
                 <div className="relative flex items-center px-4 border-b border-zinc-950/5 dark:border-white/5 focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-accent-500">
                   <MagnifyingGlassIcon className="size-5 text-zinc-500" aria-hidden="true" />
                   <Headless.ComboboxInput
-                    aria-label="Search commands, copilots, or projects"
+                    // Copy matches what the palette actually searches: the fixed
+                    // command list below. It does NOT (yet) index copilots or
+                    // projects, so promising that told the operator to type an
+                    // agent name and get "No results" — an unkept promise.
+                    aria-label="Search commands"
                     className="h-14 w-full border-0 bg-transparent pl-4 pr-4 text-sm text-zinc-900 placeholder:text-zinc-500 focus:ring-0 focus:outline-hidden dark:text-white"
-                    placeholder="Search commands, copilots, or projects..."
+                    placeholder="Search commands…"
                     onChange={(event) => setQuery(event.target.value)}
                     autoFocus
                   />

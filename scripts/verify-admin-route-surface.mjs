@@ -3,13 +3,13 @@
  * full pages (e.g. Fleet Performance + Dashboard) in the same viewport.
  *
  * Run: node scripts/verify-admin-route-surface.mjs
- * Requires dev server on http://localhost:3000
+ * Requires dev server on http://localhost:3210 (the Aigent dev port; never 3000)
  */
 import { chromium } from 'playwright'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 
-const BASE = process.env.ADMIN_TEST_URL ?? 'http://localhost:3000'
+const BASE = process.env.ADMIN_TEST_URL ?? 'http://localhost:3210'
 const OUT = path.join(process.cwd(), 'tmp', 'admin-route-surface')
 
 async function readSurface(page) {
