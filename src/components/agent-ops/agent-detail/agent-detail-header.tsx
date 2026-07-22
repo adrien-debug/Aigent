@@ -66,8 +66,15 @@ export function AgentDetailHeader({ detail }: { detail: AgentDetail }) {
               <Badge color={executable ? 'accent' : 'zinc'}>
                 {executable ? 'Executable' : 'Not executable'}
               </Badge>
+              {/* Read-only and "approval required" are not contradictory but they
+                  read as such side by side: with every mounted tool a read, the
+                  approval policy is dormant, not active. Say which it is. */}
               {agent?.readOnly ? <Badge color="zinc">Read-only</Badge> : null}
-              {agent?.requiresHumanApproval ? <Badge color="accentStrong">Approval required</Badge> : null}
+              {agent?.requiresHumanApproval ? (
+                <Badge color="accentStrong">
+                  {agent.readOnly ? 'Approval on write' : 'Approval required'}
+                </Badge>
+              ) : null}
             </div>
 
             {copilot.description ? (
@@ -98,24 +105,41 @@ export function AgentDetailHeader({ detail }: { detail: AgentDetail }) {
           </div>
         </div>
 
-        {/* Actions stay above the fold on desktop and stack first on mobile. */}
+        {/* Actions stay above the fold on desktop and stack first on mobile.
+            A Catalyst Button given `href` renders as a Link, and a link ignores
+            `disabled` — it would stay clickable and lead to a run form the API
+            refuses. Dropping `href` makes Catalyst render a Headless.Button
+            instead, which honours `disabled`, so the affordance matches what the
+            run gate would actually do. */}
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <Button color="accent" href={executable ? `/admin/agents/${copilot.id}/runs` : undefined} disabled={!executable}>
-            Run agent
-          </Button>
-          <Button
-            outline
-            href={executable ? `/admin/agents/${copilot.id}/runs` : undefined}
-            disabled={!executable}
-          >
-            Dry run
-          </Button>
+          {executable ? (
+            <>
+              <Button color="accent" href={`/admin/agents/${copilot.id}/runs`}>
+                Run agent
+              </Button>
+              <Button outline href={`/admin/agents/${copilot.id}/runs`}>
+                Dry run
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button color="accent" disabled aria-describedby="agent-run-blockers">
+                Run agent
+              </Button>
+              <Button outline disabled aria-describedby="agent-run-blockers">
+                Dry run
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
       {/* The reason, as text. Never a tooltip — an operator on touch never sees one. */}
       {!executable && blockers.length > 0 ? (
-        <div className="mt-4 rounded-xl bg-[var(--color-surface-raised)] p-4 ring-1 ring-[var(--accent-line)] ring-inset">
+        <div
+          id="agent-run-blockers"
+          className="mt-4 rounded-xl bg-[var(--color-surface-raised)] p-4 ring-1 ring-[var(--accent-line)] ring-inset"
+        >
           <p className={eyebrowClass}>Cannot run</p>
           <ul className="mt-2 flex flex-col gap-2">
             {blockers.map((b) => (
