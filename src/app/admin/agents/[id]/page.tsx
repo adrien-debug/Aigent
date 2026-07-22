@@ -119,11 +119,10 @@ export default async function AgentOverviewPage({ params }: { params: Promise<{ 
 
   const { agent, metrics, manifest, tools, runs, blockers, executable, copilot } = detail
 
-  // Attention exists only when something is genuinely wrong — never an empty panel.
-  const attention: { label: string; detail: string }[] = blockers.map((b) => ({
-    label: b.label,
-    detail: b.detail,
-  }))
+  // Attention exists only when something is genuinely wrong — never an empty
+  // panel. Blockers are NOT repeated here: the header already states them in
+  // full, and saying the same thing twice on one screen reads as two problems.
+  const attention: { label: string; detail: string }[] = []
   if (executable && metrics.totalRuns === 0) {
     attention.push({
       label: 'No proof run yet',
@@ -139,11 +138,14 @@ export default async function AgentOverviewPage({ params }: { params: Promise<{ 
 
   return (
     <div className="flex flex-col gap-6">
+      {/* SIX stats, not eight: the band lays out on a 6-column grid, so a
+          seventh and eighth wrap onto a second row and leave four empty cells.
+          Status and tool count already appear in the header and in Capabilities;
+          what belongs here is what changes run to run. */}
       <AgentKpiBand
         separators
         flush
         stats={[
-          { name: 'Status', value: agent?.status ?? 'unavailable', valueSize: 'small' },
           { name: 'Executable', value: executable ? 'Yes' : 'No', valueSize: 'small' },
           {
             name: 'Last run',
@@ -178,7 +180,6 @@ export default async function AgentOverviewPage({ params }: { params: Promise<{ 
               </span>
             ),
           },
-          { name: 'Tools', value: String(tools.length), valueSize: 'small' },
         ]}
       />
 
