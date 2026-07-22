@@ -212,6 +212,12 @@ function renderTelemetryClient(): string {
   return `/**
  * Opt-in execution telemetry → Aigent (best-effort, non-blocking).
  * Enables real run data to flow back to the factory after branch/activate.
+ *
+ * The wire payload MUST match Aigent's ingestion contract
+ * (POST /api/runtime-telemetry, a strict Zod schema mirroring
+ * runtime_telemetry_events): required { eventId, projectId, agentId, runId,
+ * timestamp, status }, and NO unknown keys (the schema is .strict()). Keep this
+ * interface in sync with that schema.
  */
 
 export type TelemetryStatus = 'started' | 'completed' | 'failed'
@@ -219,12 +225,18 @@ export type TelemetryStatus = 'started' | 'completed' | 'failed'
 export interface RuntimeTelemetryEvent {
   eventId: string
   runId: string
-  agentSlug: string
-  projectKey: string
+  /** The agent (copilot) id, as published in the Aigent registry. */
+  agentId: string
+  /** The Aigent project key this consumer belongs to. */
+  projectId: string
+  /** ISO-8601 event time. */
+  timestamp: string
   status: TelemetryStatus
   latencyMs?: number
-  targetRoute?: string
-  errorHash?: string
+  model?: string
+  provider?: 'openai' | 'gemini' | 'custom' | 'unknown'
+  /** Hash of an error message (never the raw message). Maps to error.messageHash. */
+  errorMessageHash?: string
 }
 
 function enabled(): boolean {
@@ -237,6 +249,20 @@ export async function emitRuntimeTelemetry(event: RuntimeTelemetryEvent): Promis
   const token = process.env.AIGENT_TELEMETRY_TOKEN
   if (!endpoint || !token) return
 
+  // Build ONLY the keys Aigent's strict schema accepts.
+  const payload: Record<string, unknown> = {
+    eventId: event.eventId,
+    projectId: event.projectId,
+    agentId: event.agentId,
+    runId: event.runId,
+    timestamp: event.timestamp,
+    status: event.status,
+  }
+  if (typeof event.latencyMs === 'number') payload.latencyMs = event.latencyMs
+  if (event.model) payload.model = event.model
+  if (event.provider) payload.provider = event.provider
+  if (event.errorMessageHash) payload.error = { messageHash: event.errorMessageHash }
+
   try {
     await fetch(endpoint, {
       method: 'POST',
@@ -244,7 +270,7 @@ export async function emitRuntimeTelemetry(event: RuntimeTelemetryEvent): Promis
         'Content-Type': 'application/json',
         Authorization: \`Bearer \${token}\`,
       },
-      body: JSON.stringify(event),
+      body: JSON.stringify(payload),
       signal: AbortSignal.timeout(3_000),
     })
   } catch {
@@ -444,10 +470,10 @@ export async function POST(_req: Request, { params }: { params: Promise<{ slug: 
   void emitRuntimeTelemetry({
     eventId: crypto.randomUUID(),
     runId: \`activate-\${slug}-\${Date.now()}\`,
-    agentSlug: slug,
-    projectKey: process.env.AIGENT_PROJECT_KEY ?? 'unknown',
+    agentId: slug,
+    projectId: process.env.AIGENT_PROJECT_KEY ?? 'unknown',
+    timestamp: now,
     status: 'completed',
-    targetRoute: next.targetRoute,
   })
 
   return NextResponse.json({ ok: true, binding: next })

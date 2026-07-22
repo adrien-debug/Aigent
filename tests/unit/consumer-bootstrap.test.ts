@@ -59,4 +59,36 @@ describe('consumer-bootstrap', () => {
   it('consumerProvisionBranchName is git-safe', () => {
     expect(consumerProvisionBranchName('My Project!!')).toMatch(/^aigent\/provision-[a-z0-9-]+$/)
   })
+
+  // The scaffolded telemetry client MUST emit Aigent's strict ingestion
+  // contract (POST /api/runtime-telemetry): required { eventId, projectId,
+  // agentId, runId, timestamp, status } and NO unknown keys. The previous
+  // scaffold sent agentSlug/projectKey/targetRoute with no timestamp, which the
+  // .strict() schema rejected 400 — so nothing ever reached the dashboard.
+  describe('telemetry client contract (must match the ingestion route schema)', () => {
+    const pack = buildConsumerIntakePack(project, '2026-07-19T12:00:00Z')
+    const telemetry = pack.find((f) => f.path === 'lib/aigent/telemetry-client.ts')!
+    const activate = pack.find((f) => f.path === 'app/api/aigent/intake/[slug]/activate/route.ts')!
+
+    it('the client emits the route-required field names', () => {
+      for (const key of ['eventId', 'projectId', 'agentId', 'runId', 'timestamp', 'status']) {
+        expect(telemetry.content).toContain(key)
+      }
+    })
+
+    it('the client no longer emits the rejected legacy field names', () => {
+      // These were the exact keys the strict schema 400'd on.
+      expect(telemetry.content).not.toContain('agentSlug')
+      expect(telemetry.content).not.toContain('projectKey')
+      expect(telemetry.content).not.toContain('targetRoute')
+    })
+
+    it('the internal activate caller also uses the corrected shape', () => {
+      expect(activate.content).toContain('agentId:')
+      expect(activate.content).toContain('projectId:')
+      expect(activate.content).toContain('timestamp:')
+      expect(activate.content).not.toContain('agentSlug:')
+      expect(activate.content).not.toContain('projectKey:')
+    })
+  })
 })
