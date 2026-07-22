@@ -63,11 +63,11 @@ const secondaryFeatures = [
   },
 ]
 
-const stats = [
-  { id: 1, name: 'Copilots under management', value: '120+' },
-  { id: 2, name: 'Runs executed monthly', value: '2.4m+' },
-  { id: 3, name: 'Promotion gate pass rate', value: '99.2%' },
-  { id: 4, name: 'Median time to promote', value: '< 1 day' },
+const capabilities = [
+  { id: 1, name: 'Manifest history', value: 'Full rollback' },
+  { id: 2, name: 'Runs', value: 'Real, traced' },
+  { id: 3, name: 'Promotion', value: 'Human-gated' },
+  { id: 4, name: 'Runtime', value: 'LangGraph-native' },
 ]
 
 export default function LandingPage() {
@@ -145,23 +145,6 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Logo cloud */}
-      <div className="mx-auto mt-8 max-w-7xl px-6 sm:mt-16 lg:px-8">
-        <h2 className="text-center text-lg/8 font-semibold text-white">
-          Trusted by engineering teams running agents in production
-        </h2>
-        <div className="mx-auto mt-10 grid max-w-lg grid-cols-2 items-center gap-x-8 gap-y-10 sm:max-w-xl sm:grid-cols-3 lg:mx-0 lg:max-w-none lg:grid-cols-4">
-          {['Northwind', 'Vantage Rail', 'Halcyon Labs', 'Cordage'].map((name) => (
-            <div
-              key={name}
-              className="col-span-1 flex h-12 items-center justify-center text-center text-sm font-semibold text-zinc-500"
-            >
-              {name}
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Feature section */}
       <div id="product" className="mx-auto mt-32 max-w-7xl px-6 sm:mt-56 lg:px-8">
         <div className="mx-auto max-w-2xl lg:text-center">
@@ -229,22 +212,23 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Capabilities */}
       <div className="mx-auto mt-32 max-w-7xl px-6 sm:mt-56 lg:px-8">
         <div className="mx-auto max-w-2xl lg:mx-0 lg:max-w-xl">
-          <h2 className="text-base/8 font-semibold text-accent-400">Running today</h2>
+          <h2 className="text-base/8 font-semibold text-accent-400">Built in</h2>
           <p className="mt-2 text-4xl font-semibold tracking-tight text-pretty text-white sm:text-5xl">
-            Trusted by teams shipping agents at scale
+            What every copilot gets by default
           </p>
           <p className="mt-6 text-lg/8 text-zinc-300">
-            Every number below comes from copilots running in real production traffic through Agent Mission Control.
+            These are platform capabilities, not usage metrics — every copilot on Agent Mission Control runs
+            through the same manifest, tracing, and promotion machinery.
           </p>
         </div>
         <dl className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-x-8 gap-y-10 text-white sm:mt-20 sm:grid-cols-2 sm:gap-y-16 lg:mx-0 lg:max-w-none lg:grid-cols-4">
-          {stats.map((stat) => (
-            <div key={stat.id} className="flex flex-col gap-y-3 border-l border-white/10 pl-6">
-              <dt className="text-sm/6">{stat.name}</dt>
-              <dd className="order-first text-3xl font-semibold tracking-tight">{stat.value}</dd>
+          {capabilities.map((item) => (
+            <div key={item.id} className="flex flex-col gap-y-3 border-l border-white/10 pl-6">
+              <dt className="text-sm/6">{item.name}</dt>
+              <dd className="order-first text-3xl font-semibold tracking-tight">{item.value}</dd>
             </div>
           ))}
         </dl>

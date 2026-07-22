@@ -16,10 +16,6 @@ const NAVIGATION = {
     { name: 'About', href: '/about' },
     { name: 'Contact', href: '/contact' },
   ],
-  legal: [
-    { name: 'Terms of service', href: '/contact' },
-    { name: 'Privacy policy', href: '/contact' },
-  ],
   social: [
     {
       name: 'GitHub',
@@ -105,31 +101,17 @@ export function SiteFooter() {
                 </ul>
               </div>
             </div>
-            <div className="md:grid md:grid-cols-2 md:gap-8">
-              <div>
-                <h3 className="text-sm/6 font-semibold text-white">Company</h3>
-                <ul role="list" className="mt-6 space-y-4">
-                  {NAVIGATION.company.map((item) => (
-                    <li key={item.name}>
-                      <Link href={item.href} className="text-sm/6 text-zinc-400 hover:text-white">
-                        {item.name}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="mt-10 md:mt-0">
-                <h3 className="text-sm/6 font-semibold text-white">Legal</h3>
-                <ul role="list" className="mt-6 space-y-4">
-                  {NAVIGATION.legal.map((item) => (
-                    <li key={item.name}>
-                      <Link href={item.href} className="text-sm/6 text-zinc-400 hover:text-white">
-                        {item.name}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            <div>
+              <h3 className="text-sm/6 font-semibold text-white">Company</h3>
+              <ul role="list" className="mt-6 space-y-4">
+                {NAVIGATION.company.map((item) => (
+                  <li key={item.name}>
+                    <Link href={item.href} className="text-sm/6 text-zinc-400 hover:text-white">
+                      {item.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>

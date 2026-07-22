@@ -37,11 +37,11 @@ const timeline = [
   },
 ]
 
-const stats = [
-  { id: 1, name: 'Copilots under management', value: '120+' },
-  { id: 2, name: 'Runs executed monthly', value: '2.4m+' },
-  { id: 3, name: 'Promotion gate pass rate', value: '99.2%' },
-  { id: 4, name: 'Teams operating on the platform', value: '30+' },
+const principles = [
+  { id: 1, name: 'Manifest history', value: 'Full rollback' },
+  { id: 2, name: 'Runs', value: 'Real, traced' },
+  { id: 3, name: 'Promotion', value: 'Human-gated' },
+  { id: 4, name: 'Runtime', value: 'LangGraph-native' },
 ]
 
 export default function AboutPage() {
@@ -75,14 +75,14 @@ export default function AboutPage() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Capabilities */}
       <div className="mx-auto mt-32 max-w-7xl px-6 sm:mt-40 lg:px-8">
         <div className="mx-auto grid max-w-2xl grid-cols-1 gap-x-8 gap-y-16 text-center lg:mx-0 lg:max-w-none lg:grid-cols-4">
-          {stats.map((stat) => (
-            <div key={stat.id} className="mx-auto flex max-w-xs flex-col gap-y-4">
-              <dt className="text-base/7 text-zinc-400">{stat.name}</dt>
+          {principles.map((item) => (
+            <div key={item.id} className="mx-auto flex max-w-xs flex-col gap-y-4">
+              <dt className="text-base/7 text-zinc-400">{item.name}</dt>
               <dd className="order-first text-3xl font-semibold tracking-tight text-white sm:text-5xl">
-                {stat.value}
+                {item.value}
               </dd>
             </div>
           ))}
