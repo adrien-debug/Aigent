@@ -59,7 +59,7 @@ type RawRow = Record<string, unknown>
  * thing. Two local copies of this regex is how one of them quietly stops
  * validating.
  */
-export const PROJECT_ID_RE = /^[a-z0-9-]{1,200}$/
+const PROJECT_ID_RE = /^[a-z0-9-]{1,200}$/
 
 export const isProjectId = (id: unknown): id is string =>
   typeof id === 'string' && PROJECT_ID_RE.test(id)

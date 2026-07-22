@@ -526,7 +526,7 @@ export interface FailureAnalysisEntry {
  * (they always describe the CURRENT failures, even for cycles persisted
  * before the engine existed).
  */
-export function diagnoseSignals(signals: ImprovementSignals): FailureDiagnosis[] {
+function diagnoseSignals(signals: ImprovementSignals): FailureDiagnosis[] {
   return signals.suites.flatMap((s) =>
     s.failures.map((f) =>
       diagnoseFailure(

@@ -64,9 +64,6 @@ export type TradeAgentFreshness =
   | 'UNAVAILABLE'
   | 'ERROR'
 
-/** Truth statuses that represent a trustworthy, usable observation. */
-export const USABLE_TRUTH: readonly TruthStatus[] = ['LIVE', 'SNAPSHOT']
-
 /**
  * Provenance carried by every datum. `dataTimestamp` is when the observation
  * happened at the source; `asOf` is the point-in-time the datum answers for

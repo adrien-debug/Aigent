@@ -49,7 +49,7 @@ function sumMeasured(copilots: Copilot[], metric: CopilotHealthMetric): number |
  * skips latency entirely), so weighting one by the other's population produced
  * an average over values nobody read.
  */
-export function computeFleetKpis(copilots: Copilot[]) {
+function computeFleetKpis(copilots: Copilot[]) {
   const runsLast24h = sumMeasured(copilots, 'runsLast24h')
   const costLast24hUsd = sumMeasured(copilots, 'costLast24hUsd')
   const openWarnings = sumMeasured(copilots, 'openWarnings')

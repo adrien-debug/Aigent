@@ -581,7 +581,7 @@ export function draftToCreateInput(
  * Non-route tool names (read_repo_file, search_repo…) contribute nothing.
  * Deduplicated, order-stable. No route-shaped tools → [].
  */
-export function deriveAllowedRoutesFromTools(toolNames: string[]): string[] {
+function deriveAllowedRoutesFromTools(toolNames: string[]): string[] {
   const routes = new Set<string>()
   for (const name of toolNames) {
     const trimmed = name.trim()

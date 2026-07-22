@@ -131,7 +131,7 @@ export async function pgrest<T = Record<string, unknown>[]>(
  * range, header absent) — the caller must then treat the count as UNKNOWN, and
  * never fall back to the truncated length.
  */
-export function parseContentRangeTotal(header: string | null): number | null {
+function parseContentRangeTotal(header: string | null): number | null {
   if (!header) return null
   const total = header.split('/')[1]
   if (total === undefined || total === '*') return null

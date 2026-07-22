@@ -84,7 +84,7 @@ export function isDirectedRelation(relation: ProjectTeamEdgeRelation): boolean {
  * `RELATION_SENTENCE_LABEL` below, re-exported from here so both presentations
  * of the same enum live in one file instead of drifting apart in two.
  */
-export const RELATION_LABEL: Record<ProjectTeamEdgeRelation, string> = {
+const RELATION_LABEL: Record<ProjectTeamEdgeRelation, string> = {
   'project-membership': 'in project',
   'team-membership': 'in team',
   orchestrates: 'orchestrates',

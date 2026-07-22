@@ -414,7 +414,7 @@ async function generateSuite(ctx: ManifestContext): Promise<GeneratedSuite> {
  * its inputs — validates the cases against the RepoMap. Exposed so a caller (or
  * a test) can score a suite without re-generating it.
  */
-export function repoFitForSuite(
+function repoFitForSuite(
   ctx: Pick<ManifestContext, 'toolNames' | 'repoMap' | 'residueCount' | 'systemPromptSummary' | 'description' | 'repoContext'>,
   suite: GeneratedSuite
 ): RepoFitResult {

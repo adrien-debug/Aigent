@@ -61,7 +61,7 @@ const COPILOT_ID_RE = /^[a-z0-9-]{1,200}$/
  * `copilots/[copilotId]/runs/[runId]/resume/route.ts`, both of which mint and
  * validate bare UUIDs the same way).
  */
-export const RELATION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const RELATION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export function isValidRelationId(id: unknown): id is string {
   return typeof id === 'string' && RELATION_ID_RE.test(id)

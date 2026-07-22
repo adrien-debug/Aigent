@@ -176,7 +176,7 @@ export function classifySandbox(report: TargetRepoSandboxReport): SandboxClassif
 }
 
 /** Minimum sandbox score to be considered ready for manual test. */
-export const READINESS_MIN_SCORE = 95
+const READINESS_MIN_SCORE = 95
 
 export interface ReadinessInput {
   deliveryMode: 'direct_commit' | 'pull_request' | null

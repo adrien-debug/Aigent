@@ -33,7 +33,7 @@ export const VIEW_MODES: { value: ProjectTeamViewMode; label: string }[] = [
 export const CANVAS_COMMAND_EVENT = 'project-team-canvas-command'
 export type CanvasCommand = 'fit' | 'recenter' | 'zoom-in' | 'zoom-out'
 
-export function dispatchCanvasCommand(command: CanvasCommand): void {
+function dispatchCanvasCommand(command: CanvasCommand): void {
   window.dispatchEvent(new CustomEvent<CanvasCommand>(CANVAS_COMMAND_EVENT, { detail: command }))
 }
 

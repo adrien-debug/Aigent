@@ -178,7 +178,7 @@ async function reconcileStaleDraftReference(
   return { ...conversation, status, latestPreview: survivingPreview }
 }
 
-export async function ensureActiveProjectBuilderConversation(projectId: string): Promise<ProjectBuilderConversation> {
+async function ensureActiveProjectBuilderConversation(projectId: string): Promise<ProjectBuilderConversation> {
   // `draft_created` is terminal: once a copilot has been materialized, this
   // conversation must never be picked up again for a NEW one — that was the
   // "New Copilot stuck on the old thread" bug. Only active/draft_ready (no

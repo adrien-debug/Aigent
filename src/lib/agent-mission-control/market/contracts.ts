@@ -42,7 +42,7 @@ const pair = z.enum(PAIR_SYMBOLS as unknown as [string, ...string[]])
 const interval = z.enum(CANDLE_INTERVALS as unknown as [string, ...string[]])
 
 /** Provenance every report must carry so nothing is presented as LIVE falsely. */
-export const freshnessMetaSchema = z.object({
+const freshnessMetaSchema = z.object({
   truth: truthStatus,
   asOf: z.number().int(),
   /** Sources actually consulted, each with its own truth. */

@@ -48,7 +48,7 @@ export function formatAgentsWantedContext(section: string | null): string {
  * Fetch raw AGENTS-WANTED.md from GitHub. Fail-soft: 404 → null; other errors log + null.
  * Never logs file content.
  */
-export async function fetchAgentsWantedRaw(repoFullName: string): Promise<string | null> {
+async function fetchAgentsWantedRaw(repoFullName: string): Promise<string | null> {
   try {
     const file = await getRepoFile(repoFullName, AGENTS_WANTED_PATH)
     const text = file.text.trim()

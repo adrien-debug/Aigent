@@ -72,7 +72,7 @@ export const SHARED_TOOL_MAX_AGENTS = 4
  * window in which an endpoint agent ran: endpoint runs never make an edge
  * active (V2 doctrine below).
  */
-export const RECENT_ACTIVITY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
+const RECENT_ACTIVITY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 
 /** A team group node is only created when it holds at least this many agents. */
 export const MIN_GROUP_SIZE = 2

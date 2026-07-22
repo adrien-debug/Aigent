@@ -32,7 +32,7 @@ export const PAIR_SYMBOLS: readonly PairSymbol[] = [
  * BTC pairs are CONTEXT-ONLY here — an agent may read them for correlation but
  * must never present a BTC pair as an actionable instrument (invariant #14).
  */
-export const EXECUTABLE_PAIRS: readonly PairSymbol[] = ['ETHUSDT', 'ETHUSDC']
+const EXECUTABLE_PAIRS: readonly PairSymbol[] = ['ETHUSDT', 'ETHUSDC']
 
 export function isExecutablePair(p: PairSymbol): boolean {
   return EXECUTABLE_PAIRS.includes(p)

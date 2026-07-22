@@ -37,7 +37,7 @@
 import type { TruthStatus } from './truth'
 
 /** Truth statuses a shadow input may legitimately carry. NEVER 'LIVE'. */
-export const SHADOW_INPUT_TRUTHS: readonly TruthStatus[] = [
+const SHADOW_INPUT_TRUTHS: readonly TruthStatus[] = [
   'SNAPSHOT',
   'HISTORICAL',
   'FIXTURE',

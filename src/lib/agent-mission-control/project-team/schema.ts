@@ -14,7 +14,7 @@ import { z } from 'zod'
 
 import type { ProjectTeamGraph } from './types'
 
-export const projectTeamNodeStatusSchema = z.enum([
+const projectTeamNodeStatusSchema = z.enum([
   'active',
   'waiting',
   'blocked',
@@ -24,9 +24,9 @@ export const projectTeamNodeStatusSchema = z.enum([
   'unavailable',
 ])
 
-export const projectTeamNodeKindSchema = z.enum(['project', 'group', 'agent'])
+const projectTeamNodeKindSchema = z.enum(['project', 'group', 'agent'])
 
-export const projectTeamEdgeRelationSchema = z.enum([
+const projectTeamEdgeRelationSchema = z.enum([
   'project-membership',
   'team-membership',
   'orchestrates',

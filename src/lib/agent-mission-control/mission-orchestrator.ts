@@ -213,7 +213,7 @@ function missingParticipantFinding(
   }
 }
 
-export function buildRepoInspectorFindings(
+function buildRepoInspectorFindings(
   runId: string,
   evidence: MissionEvidenceBundle,
   participant: MissionParticipant
@@ -421,7 +421,7 @@ export function buildSecurityFindings(
   return findings
 }
 
-export function buildDesignSystemFindings(
+function buildDesignSystemFindings(
   runId: string,
   evidence: MissionEvidenceBundle,
   participant: MissionParticipant
@@ -577,7 +577,7 @@ export function buildQaReleaseFindings(
   return findings
 }
 
-export function buildDomainAgentFindings(
+function buildDomainAgentFindings(
   runId: string,
   evidence: MissionEvidenceBundle,
   participant: MissionParticipant

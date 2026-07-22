@@ -138,7 +138,7 @@ const mtfArgs = z.object({
   fixtureScenario: z.string().optional(),
 })
 
-export async function readMultiTimeframeCandles(argsJson: string): Promise<TradingToolResult> {
+async function readMultiTimeframeCandles(argsJson: string): Promise<TradingToolResult> {
   const a = parse(mtfArgs, argsJson)
   if ('__err' in a) return err('read_multi_timeframe_candles', a.__err)
   const provider = resolveProvider({ fixtureScenario: a.fixtureScenario as ScenarioId | undefined })
@@ -346,7 +346,7 @@ const derivativesArgs = z.object({
   symbol: z.literal('BTCUSDT').optional(),
   asOf: z.number().int().optional(),
 })
-export async function readDerivativesSnapshot(argsJson: string): Promise<TradingToolResult> {
+async function readDerivativesSnapshot(argsJson: string): Promise<TradingToolResult> {
   const a = parse(derivativesArgs, argsJson)
   if ('__err' in a) return err('read_derivatives_snapshot', a.__err)
   try {

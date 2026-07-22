@@ -33,7 +33,7 @@ const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`
  * caller can hand them to `runNewAgentEvaluation` inside `after()`. Safe to call
  * on every create — it no-ops if the agent already has suites.
  */
-export async function ensureAgentSuitesForNewAgent(
+async function ensureAgentSuitesForNewAgent(
   copilotId: string
 ): Promise<{ testSuiteId: string; benchmarkSuiteId: string } | null> {
   try {
@@ -50,7 +50,7 @@ export async function ensureAgentSuitesForNewAgent(
  * other. Resolves the suite ids itself when not given (so it can be called with
  * just a copilotId from `after()`). No-op if the agent has no suites.
  */
-export async function runNewAgentEvaluation(
+async function runNewAgentEvaluation(
   copilotId: string,
   suites?: { testSuiteId: string; benchmarkSuiteId: string } | null
 ): Promise<void> {

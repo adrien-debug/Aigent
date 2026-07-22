@@ -48,7 +48,7 @@ export const AGENT_RUNTIME_LABELS: Record<AgentRuntime, string> = {
  * the raw id: an unknown runtime shows its id, which is a fact, instead of a
  * blank cell.
  */
-export const RUNTIME_ID_LABELS: Record<string, string> = {
+const RUNTIME_ID_LABELS: Record<string, string> = {
   ...AGENT_RUNTIME_LABELS,
   'openai-responses': 'OpenAI Responses',
   http: 'HTTP',
@@ -110,7 +110,7 @@ export const AGENT_STATUS_DIMENSION_LABELS = {
 } as const
 
 /** EXECUTABLE — would the run gate accept a launch right now? */
-export const AGENT_EXECUTABLE_LABELS: Record<'yes' | 'no', string> = {
+const AGENT_EXECUTABLE_LABELS: Record<'yes' | 'no', string> = {
   yes: 'Yes',
   no: 'No',
 }

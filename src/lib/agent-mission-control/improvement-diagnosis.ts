@@ -189,7 +189,7 @@ const FIX_PRIORITY: RecommendedFixType[] = [
   'manual_review',
 ]
 
-export const FIX_TYPE_LABELS: Record<RecommendedFixType, string> = {
+const FIX_TYPE_LABELS: Record<RecommendedFixType, string> = {
   graph_runtime_patch: 'Runtime patch (graph stop condition / recursion budget)',
   tool_contract_patch: 'Tool contract patch (mount the missing tool)',
   judge_prompt_patch: 'Judge prompt patch (grader output unusable)',
