@@ -5,11 +5,13 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
 `dark:` de Catalyst (les composants Catalyst gèrent light+dark ; l'app force dark).
 
 ## Sources (doctrine stricte)
-- **Catalyst** (`@/components/catalyst/*`) = primitives UNIQUES : Avatar, Badge, Button, Dialog,
-  Divider, Dropdown, Fieldset, Heading/Subheading, Input, Link, Select, Switch, Table, Text,
-  Textarea. INTERDIT de recréer une primitive qui existe dans Catalyst. (Le reste du kit vendored
-  — Alert, Checkbox, Radio, Combobox, Listbox, Pagination, DescriptionList, Sidebar*, Navbar,
-  AuthLayout — a été retiré car jamais consommé ; le restaurer depuis le kit source si besoin.)
+- **Catalyst** (`@/components/catalyst/*`) = primitives UNIQUES. Liste exacte, 19 fichiers :
+  Alert, Avatar, Badge, Button, Dialog, Divider, Fieldset, Heading/Subheading, Input, Link,
+  Navbar, Select, Sidebar, SidebarLayout, Surface, Switch, Table, Text, Textarea.
+  INTERDIT de recréer une primitive qui existe dans Catalyst.
+- **Une primitive n'entre dans `catalyst/` qu'avec un consommateur réel dans le même commit.**
+  Dropdown, Pagination, DescriptionList et TableFit ont été importés puis supprimés faute d'usage :
+  ne les réintroduis pas sans l'écran qui les consomme.
 - **application-ui-v4** = patterns admin (shells, tables, stats, tabs, feeds, action panels,
   page headings) → à ADAPTER, jamais coller brut.
 - **ecommerce-v4** = uniquement rythmes transactionnels (order detail/summary, progress,
@@ -19,8 +21,6 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
 - Jamais 3 familles visuelles dans une même section. Jamais de placeholder/texte/image des packs.
 
 ## Surfaces & profondeur (AIG-DS-SURFACE-001)
-
-Trois niveaux visuels maximum sur le canvas admin :
 
 Cinq plans, chacun un vrai pas de luminance — la profondeur vient de la COULEUR
 d'abord, ring et shadow ne font que renforcer. Deux plans adjacents ne portent
@@ -33,6 +33,18 @@ jamais la même valeur.
 | 2 — Raised | `surfaceRaised` / `surfaceSectionClass` (`#1a1a1e`) | Panneaux : charts, tables, listes, KPI |
 | 3 — Sunken | `surfaceSunken` / `surfaceItemClass` (`#0d0d10`) | Insets : en-têtes de table, filtres, zones de tracé |
 | 4 — Overlay | `surfaceOverlay` (`#232327`) | Dialog, dropdown, command palette, drawer mobile |
+
+**Deux familles de tokens surface coexistent encore dans `globals.css`.** Les cinq plans ci-dessus
+sont la famille **canonique**. La famille historique — `surface-canvas`, `surface-primary`,
+`surface-secondary`, `surface-interactive`, `surface-elevated`, `surface-focus`,
+`surface-foreground` — est **encore consommée** (respectivement 3, 3, 2, 7, 4, 4 fichiers hors
+`globals.css` ; `surface-foreground` n'est lu que par la règle `body`). Elle reste donc en
+**compatibilité transitoire** :
+- Aucun nouveau composant ne l'utilise. Toute nouvelle surface prend un des cinq plans.
+- Un composant existant qui la consomme migre quand on le touche pour une autre raison, jamais
+  dans un commit dédié à la migration seule.
+- Sa suppression est une **dette ouverte**, pas un acquis : ne pas écrire qu'elle a été éliminée
+  tant que `globals.css` la déclare.
 
 Règles :
 - **Jamais** un panneau de la même couleur que la surface qui le porte.
@@ -49,22 +61,26 @@ Détail : `docs/surface-usage.md`.
 - Pas de glassmorphism, pas d'ombres lourdes, pas de néon.
 
 ## Couleur — MONOCHROME accent (une seule teinte, la couleur n'est JAMAIS le seul indicateur : toujours un label)
-- **UNE seule teinte chromatique** : `accent` = **vert tendre** (`#A7FB90` = 300), échelle
+- **UNE seule teinte chromatique** : `accent` = **vert tendre** (`#A7FB90` = **500**), échelle
   `accent-50…950` pleinement saturée, enregistrée dans `globals.css` (`@theme`) — signature
   « operator console » du mission-control sur fond zinc sombre. TOUT surface de couleur (badges,
   états, charts, meters, nav, boutons) est une **nuance de cette teinte**. `zinc` est le SEUL neutre.
-- **Rôles accent nommés — OBLIGATOIRES, zéro opacité accent ad-hoc** (tokens dans `globals.css`,
-  tous consommés — zéro token orphelin) :
-  - `--accent-soft` (8%) — wash léger : hover, nav/état au repos.
-  - `--accent-surface` (12%) — fond d'élément sélectionné/actif, header de carte/table.
-  - `--accent-line` (25%) — hairline / bordure accent.
-  - `--accent-line-strong` (40%, calculé sur `accent-400` ; les 3 autres sur `accent-500`) —
-    ring de sélection (état choisi).
+- **Rôles accent nommés — OBLIGATOIRES, zéro opacité accent ad-hoc.** Valeurs réelles de
+  `globals.css`, toutes en `color-mix(in oklab, …, transparent)` sauf mention contraire, toutes
+  consommées — zéro token orphelin :
+  - `--accent-soft` — `accent-600` à **10 %** — wash léger : hover, nav/état au repos.
+  - `--accent-surface` — `accent-600` à **15 %** — fond d'élément sélectionné/actif, header de
+    carte/table.
+  - `--accent-line` — `accent-700` à **40 %** — hairline / bordure accent.
+  - `--accent-line-strong` — `accent-700` à **60 %** — ring de sélection (état choisi).
+  - `--accent-node-active` — `accent-600` à **80 %** — bordure de nœud actif, canvas My Team.
+  - `--accent-node-selected` — `accent-800` **plein** (pas de mix) — ring de nœud sélectionné.
+  Les deux tokens `node` sont réservés au canvas `project-team/` : ne les consomme pas ailleurs.
   **INTERDIT** d'écrire une opacité accent à la main (`bg-accent-500/5`, `/10`, `/15`, `/20`,
-  `accent-400/10`, `ring-accent-500/20`, etc.) : si le besoin correspond à l'un des 4 rôles
+  `accent-400/10`, `ring-accent-500/20`, etc.) : si le besoin correspond à l'un des rôles
   ci-dessus, on consomme le token (`bg-[var(--accent-x)]` / `ring-[var(--accent-x)]`, cf.
-  `agent-control-shell.tsx` = référence d'usage). Une opacité accent qui ne correspond à AUCUN
-  rôle n'est pas improvisée : on l'ajoute comme 5ᵉ token nommé dans `globals.css` (avec son
+  `improve-workbench.tsx` = référence d'usage). Une opacité accent qui ne correspond à AUCUN
+  rôle n'est pas improvisée : on l'ajoute comme nouveau token nommé dans `globals.css` (avec son
   commentaire de rôle) plutôt que de la laisser en valeur libre dans un composant. Focus clavier
   = `outline-accent-500` de Catalyst (déjà un seul ring, jamais un token de rôle). Statut =
   **LABEL + point/fill accent solide** (couleur pleine, pas un wash translucide de fond).
@@ -86,9 +102,14 @@ Détail : `docs/surface-usage.md`.
 - 2–3 tailles de texte par écran. Titres : Catalyst `Heading`/`Subheading`. Corps `text-sm`.
 - Données chiffrées, IDs, JSON, versions : `font-mono tabular-nums`.
 - **Overline / micro-eyebrow** (label de stat KPI, eyebrow de `AdminPageHeader`, `<dt>` majuscule) :
-  toujours la constante partagée `eyebrowClass` (`surface-card.tsx`) — `text-[10px] font-medium
-  uppercase tracking-widest text-zinc-400`. `text-[10px]` est le micro-palier assumé du dashboard
-  (sous `text-xs`) ; ne jamais le réécrire à la main, ni le faire varier selon un flag de layout.
+  toujours la constante partagée `eyebrowClass` (`surface-card.tsx`) — valeur réelle aujourd'hui
+  `text-[10px] font-medium uppercase tracking-widest text-zinc-500`. `text-[10px]` est le
+  micro-palier assumé du dashboard (sous `text-xs`) ; ne jamais le réécrire à la main, ni le faire
+  varier selon un flag de layout.
+  **Contradiction ouverte** : le commentaire de `surface-card.tsx` affirme que `zinc-400` passe
+  WCAG AA à cette taille et que `zinc-500` ne passe pas — alors que la constante utilise
+  `zinc-500`. À trancher dans une mission applicative (mesurer, puis aligner code et commentaire) ;
+  ce fichier de doctrine ne fait que constater l'écart.
 - **Grand chiffre KPI** (`AgentKpiBand`, valeurs) : `font-mono font-light tabular-nums`, taille
   `text-2xl/8` (hero) alignée sur le `Heading` H1, `text-xl/7` (compact), `text-lg/6` (small).
   `font-light` est **réservé à ce seul rôle** — le « grand chiffre fin » — jamais ailleurs.
@@ -96,12 +117,12 @@ Détail : `docs/surface-usage.md`.
 
 ## Composants — API partagée (contrat, importer depuis `@/components/agent-ops/...`)
 - Statuts lifecycle/stage (copilot status, version stage, run status) = **texte muet zinc**, jamais
-  de pilule : `VersionStageText { stage }` (version-stage-text) et `RunStatusText { status }`
-  (run-detail-panel) sont les références du pattern ; les labels de statut copilot vivent inline.
+  de pilule : `RunStatusText { status }` (run-detail-panel) est la référence du pattern ; les
+  libellés de stage passent par `versionStageLabels` (version-stage-text) et les labels de statut
+  copilot vivent inline.
 - `RuntimeBadge { runtime: AgentRuntime }` — `Badge zinc`
 - `ToolBadge { name: string; risk?: ToolRiskLevel }` — zinc, `font-mono`, dot accent-300→600 selon risque
 - `AgentSectionCard { title, description?, actions?, children, className?, contentClassName? }`
-- `AgentMetricCard { label, value, delta?, trend?: 'up'|'down'|'flat', hint? }`
 - `AgentBentoCard { eyebrow?, title, description?, children?, className? }`
 - `ArchitectureStrip { steps: { name, detail?, status?: 'ok'|'warn'|'off' }[] }`
 - **Shell** = `SidebarLayout` (`@/components/catalyst/sidebar-layout`, design system Kyc) +
@@ -136,10 +157,11 @@ Détail : `docs/surface-usage.md`.
   (jamais un solid vert cliquable sous un statut "Blocked") ; un switch verrouillé-ON se rend
   checked + disabled, pas éteint ; une donnée absente s'affiche `—` zinc, jamais `0.0%` rose.
 
-## Project Builder — layout chat-first (contrat, 2026-07-13)
+## Project Builder — layout chat-first (contrat)
 Trois zones, **zéro duplication d'actions** entre elles :
 
-1. **Bandeau repo (haut, pleine largeur)** — `ProjectRepoIntelligenceCompact` : statut scan,
+1. **Bandeau repo (haut, pleine largeur)** — `ProjectRepoIntelligence` /
+   `ProjectRepoIntelligenceActions` (project-repo-intelligence) : statut scan,
    repo map, **Suggestions** (drawer unique), retry scan. C'est le **seul** endroit pour ouvrir
    les suggestions et le repo map. Pas de second bouton Suggestions ailleurs.
 2. **Chat (centre)** — fil de messages + composer minimal : textarea, Send, Example prompt.
@@ -159,8 +181,9 @@ Règles :
 - Toute donnée vient de `@/lib/agent-mission-control/data` (async, server-only, PostgREST gpu1
   base `aigent`). **Fail-closed** : sans backend configuré, les getters *throw* et le
   boundary `/admin/error.tsx` propose un retry — l'app ne fabrique JAMAIS de donnée.
-- L'app **n'importe jamais** `mock-data` (garde CI `check:ds`). `mock-data.ts` ne sert plus
-  qu'au script de seed (`scripts/seed-amc.ts`) pour peupler la vraie base.
+- L'app **n'importe jamais** `seed-fixtures` (garde CI `check:ds`, qui échoue sur tout import
+  depuis `src/app` ou `src/components`). `seed-fixtures.ts` ne sert qu'au script de seed
+  (`scripts/seed-amc.ts`) pour peupler la vraie base.
 - Labels d'affichage (enum → texte) dans `./labels` (constantes UI, pas de la data).
 - Les pages (server components) fetchent et passent des props sérialisables. Zéro `Math.random()`
   dans le rendu ; jamais importer `data.ts` depuis un composant client (clé service_role).
