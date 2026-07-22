@@ -25,11 +25,11 @@ export const metadata: Metadata = {
   title: 'Agents — Aigent',
 }
 
-const STATUS_BADGE: Record<string, 'accent' | 'zinc'> = {
+const STATUS_BADGE: Record<string, 'accent' | 'accentStrong' | 'accentSolid' | 'zinc'> = {
   active: 'accent',
   inactive: 'zinc',
-  degraded: 'zinc',
-  unavailable: 'zinc',
+  degraded: 'accentStrong',
+  unavailable: 'accentSolid',
 }
 
 /**

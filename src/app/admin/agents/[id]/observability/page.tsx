@@ -6,9 +6,10 @@ import {
   RateValue,
   TimeAgoValue,
 } from '@/components/agent-ops/agent-detail/agent-value'
-import { eyebrowClass, surfaceSectionClass } from '@/components/agent-ops/surface-card'
+import { AgentSection as Section } from '@/components/agent-ops/agent-section'
+import { RunStatusText } from '@/components/agent-ops/run-detail-panel'
+import { eyebrowClass } from '@/components/agent-ops/surface-card'
 import { Badge } from '@/components/catalyst/badge'
-import { Subheading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
 import {
   getBenchmarkRunsForSuites,
@@ -17,7 +18,6 @@ import {
 } from '@/lib/agent-mission-control/data'
 import { getAgentDetail } from '@/lib/agent-mission-control/agent-detail'
 import {
-  AGENT_RUN_STATUS_LABELS,
   AGENT_STATUS_DIMENSION_LABELS,
   AVAILABLE_AGENT_STATUS_LABELS,
   agentExecutableLabel,
@@ -31,26 +31,6 @@ import {
  * a compact honest line stating cause, impact and action — never a fake 100%,
  * never a big dashed box.
  */
-
-function Section({
-  title,
-  description,
-  children,
-}: {
-  title: string
-  description?: string
-  children: React.ReactNode
-}) {
-  return (
-    <section className={surfaceSectionClass}>
-      <div className="px-5 pt-4 pb-3">
-        <Subheading level={2}>{title}</Subheading>
-        {description ? <Text className="mt-1 !text-xs">{description}</Text> : null}
-      </div>
-      <div className="px-5 pb-5">{children}</div>
-    </section>
-  )
-}
 
 /** Compact, honest absence: cause + impact + action, on a few lines. */
 function NotConfigured({ cause, impact, action }: { cause: string; impact: string; action: string }) {
@@ -228,7 +208,7 @@ export default async function AgentObservabilityPage({ params }: { params: Promi
                 key={run.id}
                 className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-white/5 py-2.5 last:border-0"
               >
-                <Badge color="accentSolid">{AGENT_RUN_STATUS_LABELS[run.status]}</Badge>
+                <RunStatusText status={run.status} />
                 <span className="truncate text-xs text-zinc-400">{run.outputSummary || 'No output recorded'}</span>
                 <span className="shrink-0 text-[11px] text-zinc-500">
                   <TimeAgoValue value={run.startedAt} />

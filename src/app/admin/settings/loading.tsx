@@ -11,16 +11,6 @@ export default function SettingsLoading() {
         <div className="mt-2 h-4 w-64 rounded-md bg-zinc-950/5 dark:bg-white/5" />
       </div>
 
-      {/* AgentKpiBand — 4 stats */}
-      <div className="grid grid-cols-2 gap-8 border-b border-white/5 py-6 md:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="flex flex-col gap-y-2">
-            <div className="h-3 w-16 rounded bg-white/10" />
-            <div className="h-9 w-20 rounded-lg bg-white/10" />
-          </div>
-        ))}
-      </div>
-
       {/* Control Plane & Runtime posture cards */}
       {Array.from({ length: 2 }).map((_, i) => (
         <div key={i} className={surfaceCardClass}>

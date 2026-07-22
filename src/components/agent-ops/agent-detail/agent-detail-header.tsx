@@ -165,7 +165,7 @@ export function AgentDetailHeader({ detail }: { detail: AgentDetail }) {
       {!executable && blockers.length > 0 ? (
         <div
           id="agent-run-blockers"
-          className="mt-4 rounded-xl bg-[var(--color-surface-raised)] p-4 ring-1 ring-[var(--accent-line)] ring-inset"
+          className="mt-4 rounded-xl bg-surface-raised p-4 ring-1 ring-[var(--accent-line)] ring-inset"
         >
           <p className={eyebrowClass}>Cannot run</p>
           <ul className="mt-2 flex flex-col gap-2">

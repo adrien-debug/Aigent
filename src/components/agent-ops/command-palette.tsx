@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'motion/react'
 import * as Headless from '@headlessui/react'
+import clsx from 'clsx'
 import { MagnifyingGlassIcon, Squares2X2Icon, PlusIcon } from '@heroicons/react/20/solid'
 import { ChartBarIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'
+import { surfaceOverlay } from '@/components/catalyst/surface'
 
 const ACTIONS = [
   { id: 'dashboard', name: 'Go to Dashboard', icon: Squares2X2Icon, href: '/admin', section: 'Navigation' },
@@ -62,7 +64,7 @@ export function CommandPalette() {
                 // Plane 4 (overlay): sits above every panel, so it takes the
                 // overlay fill and the strong shadow — not the panel fill, which
                 // made it read as just another card floating over the page.
-                className="mx-auto max-w-xl overflow-hidden rounded-2xl bg-white/90 shadow-2xl ring-1 ring-zinc-950/10 backdrop-blur-xl dark:bg-[color-mix(in_oklab,var(--color-surface-overlay)_92%,transparent)] dark:ring-[var(--surface-border-strong)] dark:shadow-[var(--surface-shadow-strong),var(--surface-highlight)]"
+                className={clsx('mx-auto max-w-xl overflow-hidden backdrop-blur-xl', surfaceOverlay)}
                 onChange={(action: typeof ACTIONS[0] | null) => {
                   if (!action) return
                   setIsOpen(false)

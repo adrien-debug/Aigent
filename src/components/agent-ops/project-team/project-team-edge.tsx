@@ -74,7 +74,16 @@ export function isDirectedRelation(relation: ProjectTeamEdgeRelation): boolean {
   return DIRECTED_RELATIONS.has(relation)
 }
 
-/** Human label per relation — used in the hover label and the a11y description. */
+/**
+ * Human label per relation, canvas phrasing — lowercase fragment, used in the
+ * edge hover label and the a11y description of the graph.
+ *
+ * Single source of truth for `ProjectTeamEdgeRelation` → label: the panel
+ * (`project-team-panel.tsx`) needs a differently-cased, sentence-style phrasing
+ * for its relation rows ("Member of project" vs this file's "in project") — see
+ * `RELATION_SENTENCE_LABEL` below, re-exported from here so both presentations
+ * of the same enum live in one file instead of drifting apart in two.
+ */
 export const RELATION_LABEL: Record<ProjectTeamEdgeRelation, string> = {
   'project-membership': 'in project',
   'team-membership': 'in team',
@@ -84,6 +93,18 @@ export const RELATION_LABEL: Record<ProjectTeamEdgeRelation, string> = {
   reviews: 'reviews',
   triggers: 'triggers',
   'shares-tool': 'shares tools',
+}
+
+/** Human label per relation, panel phrasing — sentence-style, used in the relation-row description and delete confirmation. */
+export const RELATION_SENTENCE_LABEL: Record<ProjectTeamEdgeRelation, string> = {
+  'project-membership': 'Member of project',
+  'team-membership': 'Member of team',
+  orchestrates: 'Orchestrates',
+  'depends-on': 'Depends on',
+  'sends-output-to': 'Sends output to',
+  reviews: 'Reviews',
+  triggers: 'Triggers',
+  'shares-tool': 'Shares a tool with',
 }
 
 /** How prominent this edge is under the current view mode / selection. */

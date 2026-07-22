@@ -1,6 +1,7 @@
 'use client'
 
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
+import { Link } from '@/components/catalyst/link'
 import { Text } from '@/components/catalyst/text'
 
 /** The LangGraph debug metadata a builder run carries (mirror of BuilderRunState.langgraph). */
@@ -44,14 +45,14 @@ export function LangGraphDebugPanel({ info, status }: { info: LangGraphDebugInfo
 
       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
         {hasServer ? (
-          <a
+          <Link
             href={studioUrl}
             target="_blank"
             rel="noreferrer"
             className="inline-flex min-h-11 items-center py-2 text-sm font-medium text-accent-700 hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-300 dark:hover:text-accent-200"
           >
             Open in LangGraph Studio →
-          </a>
+          </Link>
         ) : null}
       </div>
 

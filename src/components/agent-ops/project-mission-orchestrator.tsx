@@ -34,10 +34,6 @@ function severityBadgeColor(severity: string): 'zinc' | 'accent' | 'accentStrong
   return 'zinc'
 }
 
-function statusTone(status: string): 'accent' | 'zinc' {
-  return status === 'completed' || status === 'ready_for_delivery' ? 'accent' : 'zinc'
-}
-
 function ParticipantsList({ participants }: { participants: MissionParticipant[] }) {
   return (
     <ul className="flex flex-wrap gap-2">
@@ -59,12 +55,8 @@ export function MissionReportPanel({ report }: { report: MissionReport }) {
     <div className="flex flex-col gap-6">
       {/* Header Metadata */}
       <div className="grid grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-x-4">
-        <Badge className="w-36 justify-center uppercase tracking-wider text-[10px]" color={statusTone(report.status)}>
-          {report.status.replace(/_/g, ' ')}
-        </Badge>
-        <Badge className="w-36 justify-center uppercase tracking-wider text-[10px]" color="zinc">
-          {report.consensus.decision.replace(/_/g, ' ')}
-        </Badge>
+        <span className="text-sm font-medium text-zinc-400">{report.status.replace(/_/g, ' ')}</span>
+        <span className="text-sm font-medium text-zinc-400">{report.consensus.decision.replace(/_/g, ' ')}</span>
         <span className="text-xs text-zinc-500 font-mono truncate">{report.runId}</span>
       </div>
 
@@ -128,7 +120,7 @@ export function MissionReportPanel({ report }: { report: MissionReport }) {
           {/* The sunken TOKEN, not `surfaceItemClass` — that helper is a full
               rounded card (rounded-xl + ring), which would put a third plane
               back inside an already-raised section. */}
-          <div className="grid grid-cols-[100px_140px_minmax(0,1fr)] items-center gap-x-4 rounded-t-lg bg-[var(--color-surface-sunken)] px-4 py-2">
+          <div className="grid grid-cols-[100px_140px_minmax(0,1fr)] items-center gap-x-4 rounded-t-lg bg-surface-sunken px-4 py-2">
             <div className={eyebrowClass}>Severity</div>
             <div className={eyebrowClass}>Source</div>
             <div className={eyebrowClass}>Message</div>

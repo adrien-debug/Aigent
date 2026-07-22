@@ -73,7 +73,7 @@ export function TelemetryEventsTable({
                       </div>
                     </TableCell>
                     <TableCell className="px-6 py-3">
-                      <span className="text-xs text-zinc-400">
+                      <span className="block max-w-32 truncate text-xs text-zinc-400">
                         {projectNameById.get(event.projectId) ?? event.projectId}
                       </span>
                     </TableCell>
@@ -102,7 +102,9 @@ export function TelemetryEventsTable({
                     </TableCell>
                     <TableCell className="px-6 py-3">
                       {category !== null ? (
-                        <span className="text-xs text-accent-400">{category}</span>
+                        <span className="block max-w-32 truncate text-xs text-accent-400" title={category}>
+                          {category}
+                        </span>
                       ) : (
                         <span className="text-xs text-zinc-600">—</span>
                       )}

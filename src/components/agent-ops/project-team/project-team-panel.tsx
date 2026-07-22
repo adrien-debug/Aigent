@@ -17,6 +17,7 @@ import { Divider } from '@/components/catalyst/divider'
 import { Subheading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
 import { Text } from '@/components/catalyst/text'
+import { RELATION_SENTENCE_LABEL } from './project-team-edge'
 import type {
   ProjectTeamEdge,
   ProjectTeamGraph,
@@ -190,18 +191,6 @@ export function readGraphFreshness(graph: ProjectTeamGraph | null): string | nul
   return graph?.generatedAt ?? null
 }
 
-/**
- * Operator buckets for the KPI band. The contract's seven statuses map onto
- * five buckets; `idle` and `draft` are NOT "waiting" (they are observed
- * absences of work, not queued work), and `unavailable` is its own thing —
- * counting it as anything else would be inventing a state.
- */
-export type StatusBucket = 'active' | 'waiting' | 'blocked' | 'failed' | 'idle' | 'draft' | 'unavailable'
-
-export function statusBucket(status: ProjectTeamNodeStatus): StatusBucket {
-  return status
-}
-
 const STATUS_LABELS: Record<ProjectTeamNodeStatus, string> = {
   active: 'Running',
   waiting: 'Waiting',
@@ -216,17 +205,6 @@ export function humanizeStatus(status: string): string {
   if (status in STATUS_LABELS) return STATUS_LABELS[status as ProjectTeamNodeStatus]
   const spaced = status.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').toLowerCase().trim()
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
-}
-
-const RELATION_LABELS: Record<ProjectTeamEdge['relation'], string> = {
-  'project-membership': 'Member of project',
-  'team-membership': 'Member of team',
-  orchestrates: 'Orchestrates',
-  'depends-on': 'Depends on',
-  'sends-output-to': 'Sends output to',
-  reviews: 'Reviews',
-  triggers: 'Triggers',
-  'shares-tool': 'Shares a tool with',
 }
 
 /**
@@ -447,7 +425,7 @@ function RelationRow({
   const Icon = direction === 'in' ? ArrowDownLeftIcon : ArrowUpRightIcon
   const age = formatAge(edge.lastActivityAt, now)
   const counterpartName = counterpart?.name ?? (direction === 'in' ? edge.source : edge.target)
-  const relationLabel = edge.label ?? RELATION_LABELS[edge.relation]
+  const relationLabel = edge.label ?? RELATION_SENTENCE_LABEL[edge.relation]
   // Narrowed to a local `const` (not a cast): only inside this block does
   // TypeScript know the relation id is non-null, which is also exactly the
   // condition under which the delete control may render at all.
@@ -631,12 +609,7 @@ export function ProjectTeamPanel({
 
       <div className="flex flex-col gap-6 px-5 py-5">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge
-            color={agent.status === 'active' ? 'accent' : 'zinc'}
-            className="uppercase tracking-widest"
-          >
-            {humanizeStatus(agent.status)}
-          </Badge>
+          <span className="text-sm font-medium text-zinc-400">{humanizeStatus(agent.status)}</span>
           {agent.team ? <Badge color="zinc">{agent.team}</Badge> : null}
         </div>
 

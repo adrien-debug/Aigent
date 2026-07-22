@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
+import { AgentKpiBand, type AgentKpiStat } from '@/components/agent-ops/agent-kpi-band'
 import { surfaceCardClass } from '@/components/agent-ops/surface-card'
 import type { ProjectTeamGraph } from '@/lib/agent-mission-control/project-team/types'
 import { ProjectTeamAccessibleList } from './project-team-accessible-list'
@@ -41,14 +42,6 @@ import { useProjectTeamRefresh } from './use-project-team-refresh'
 
 function isViewMode(value: string | null): value is ProjectTeamViewMode {
   return VIEW_MODES.some((mode) => mode.value === value)
-}
-
-/** One number on the compact summary strip above the canvas. */
-interface TeamStat {
-  name: string
-  value: string
-  /** Only "Active" carries the accent — the single non-neutral hue on screen. */
-  accent?: boolean
 }
 
 /**
@@ -302,10 +295,10 @@ function ProjectTeamViewInner({
   // wrong numbers. `formatCount` renders the unknown as an em dash, never as
   // "0" and never as the literal string "null" (`String(null)` compiles fine,
   // so TypeScript will NOT catch that mistake here).
-  const stats: TeamStat[] = summary
+  const stats: AgentKpiStat[] = summary
     ? [
         { name: 'Agents', value: String(summary.totalAgents) },
-        { name: 'Active', value: formatCount(summary.activeAgents), accent: true },
+        { name: 'Active', value: formatCount(summary.activeAgents), valueTone: 'accent' },
         { name: 'Waiting', value: formatCount(summary.waitingAgents) },
         { name: 'Blocked', value: formatCount(summary.blockedAgents) },
         { name: 'Failed', value: formatCount(summary.failedAgents) },
@@ -574,23 +567,11 @@ function ProjectTeamViewInner({
 
     branchContent = (
       <div className="flex min-h-0 flex-1 flex-col gap-3">
-        {/* Summary + freshness on a single hairline row — uncaged, ~1 line tall,
-            so the graph below starts as high up the viewport as possible. */}
-        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-xs">
-          {stats.map((stat) => (
-            <span key={stat.name} className="flex items-baseline gap-1.5">
-              <span
-                className={clsx(
-                  'font-mono text-sm font-medium tabular-nums',
-                  stat.accent ? 'text-accent-400' : 'text-white'
-                )}
-              >
-                {stat.value}
-              </span>
-              <span className="text-zinc-500">{stat.name}</span>
-            </span>
-          ))}
-          <span className="ml-auto text-zinc-500">
+        {/* Summary band + freshness — the graph below starts as high up the
+            viewport as possible, so the band stays compact and flush. */}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
+          <AgentKpiBand stats={stats} density="compact" separators flush className="flex-1" />
+          <span className="text-xs text-zinc-500">
             {freshnessAge ? `Refreshed ${freshnessAge}` : 'Freshness unavailable'}
             {stale ? ' · last refresh failed, showing the previous graph' : null}
           </span>

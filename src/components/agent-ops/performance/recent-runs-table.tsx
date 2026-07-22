@@ -80,19 +80,7 @@ export function RecentRunsTable({
                   )}
                 </TableCell>
                 <TableCell className="py-2">
-                  <span className="inline-flex items-center gap-2">
-                    <span
-                      aria-hidden="true"
-                      className={`size-1.5 shrink-0 rounded-full ${
-                        run.status === 'completed'
-                          ? 'bg-accent-500'
-                          : run.status === 'failed'
-                            ? 'bg-accent-700'
-                            : 'bg-zinc-600'
-                      }`}
-                    />
-                    <RunStatusText status={run.status} />
-                  </span>
+                  <RunStatusText status={run.status} />
                 </TableCell>
                 <TableCell className="py-2">
                   <span className="block max-w-md truncate text-xs text-zinc-400" title={run.inputSummary}>

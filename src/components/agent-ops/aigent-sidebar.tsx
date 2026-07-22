@@ -13,6 +13,7 @@ import { ArrowRightStartOnRectangleIcon } from '@heroicons/react/20/solid'
 import clsx from 'clsx'
 import { usePathname } from 'next/navigation'
 
+import { eyebrowClass } from '@/components/agent-ops/surface-card'
 import { Avatar } from '@/components/catalyst/avatar'
 import {
   Sidebar,
@@ -103,13 +104,9 @@ export function AigentSidebar() {
           <SidebarSection key={section.heading}>
             {/* Same eyebrow treatment as every other section label in the app
                 (10px, uppercase, wide tracking) so the sidebar headings and the
-                panel/KPI overlines read as one typographic family — but written
-                by hand rather than imported from `eyebrowClass`, which is why it
-                did NOT inherit the AA fix applied there and had to be corrected
-                separately: `zinc-500` measured 4.12 against the sidebar plane
-                for a 4.5 threshold, on every admin route. Folding the two into
-                one import is wave-3 work. */}
-            <SidebarHeading className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-400">
+                panel/KPI overlines read as one typographic family — imported
+                from `eyebrowClass` (surface-card.tsx) so the two never drift. */}
+            <SidebarHeading className={clsx('mb-1.5 px-2', eyebrowClass)}>
               {section.heading}
             </SidebarHeading>
             {section.items.map((item) => (

@@ -5,13 +5,12 @@ import {
   RateValue,
   TimestampValue,
 } from '@/components/agent-ops/agent-detail/agent-value'
+import { AgentSection as Section } from '@/components/agent-ops/agent-section'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { RunCopilotPanel } from '@/components/agent-ops/run-copilot-panel'
+import { RunStatusText } from '@/components/agent-ops/run-detail-panel'
 import { eyebrowClass, surfaceSectionClass } from '@/components/agent-ops/surface-card'
-import { Badge } from '@/components/catalyst/badge'
-import { Subheading } from '@/components/catalyst/heading'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
-import { Text } from '@/components/catalyst/text'
 import { getAgentDetail } from '@/lib/agent-mission-control/agent-detail'
 
 /**
@@ -21,32 +20,6 @@ import { getAgentDetail } from '@/lib/agent-mission-control/agent-detail'
  * Offering a form guaranteed to 409 is worse than offering none: the operator
  * writes an input, submits, and only then learns it was never launchable.
  */
-
-function Section({
-  title,
-  description,
-  children,
-}: {
-  title: string
-  description?: string
-  children: React.ReactNode
-}) {
-  return (
-    <section className={surfaceSectionClass}>
-      <div className="px-5 pt-4 pb-3">
-        <Subheading level={2}>{title}</Subheading>
-        {description ? <Text className="mt-1 !text-xs">{description}</Text> : null}
-      </div>
-      <div className="px-5 pb-5">{children}</div>
-    </section>
-  )
-}
-
-function runStatusColor(status: string): 'accent' | 'accentSolid' | 'zinc' {
-  if (status === 'completed') return 'accent'
-  if (status === 'failed' || status === 'blocked') return 'accentSolid'
-  return 'zinc'
-}
 
 export default async function AgentRunsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -125,7 +98,7 @@ export default async function AgentRunsPage({ params }: { params: Promise<{ id: 
                     <TimestampValue value={run.startedAt} />
                   </TableCell>
                   <TableCell>
-                    <Badge color={runStatusColor(run.status)}>{run.status}</Badge>
+                    <RunStatusText status={run.status} />
                   </TableCell>
                   <TableCell className="font-mono text-xs whitespace-nowrap text-zinc-400">
                     {/* An unproven model is never presented as fact. */}

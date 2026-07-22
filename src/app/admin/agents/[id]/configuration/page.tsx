@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation'
 import { TextValue, TimestampValue } from '@/components/agent-ops/agent-detail/agent-value'
+import { AgentSection as Section } from '@/components/agent-ops/agent-section'
 import { eyebrowClass, surfaceSectionClass } from '@/components/agent-ops/surface-card'
 import { Badge } from '@/components/catalyst/badge'
-import { Subheading } from '@/components/catalyst/heading'
 import { Text } from '@/components/catalyst/text'
 import { getAgentDetail } from '@/lib/agent-mission-control/agent-detail'
 
@@ -13,26 +13,6 @@ import { getAgentDetail } from '@/lib/agent-mission-control/agent-detail'
  * manifest JSON lives in Advanced, collapsed by default: it is debugging
  * material, not the first thing an operator should meet.
  */
-
-function Section({
-  title,
-  description,
-  children,
-}: {
-  title: string
-  description?: string
-  children: React.ReactNode
-}) {
-  return (
-    <section className={surfaceSectionClass}>
-      <div className="px-5 pt-4 pb-3">
-        <Subheading level={2}>{title}</Subheading>
-        {description ? <Text className="mt-1 !text-xs">{description}</Text> : null}
-      </div>
-      <div className="px-5 pb-5">{children}</div>
-    </section>
-  )
-}
 
 function Rows({ rows }: { rows: { label: string; value: React.ReactNode }[] }) {
   return (
@@ -163,7 +143,7 @@ export default async function AgentConfigurationPage({ params }: { params: Promi
         </summary>
         <div className="px-5 pb-5">
           {manifest ? (
-            <pre className="overflow-x-auto rounded-lg bg-[var(--color-surface-sunken)] p-4 font-mono text-[11px] leading-5 text-zinc-400">
+            <pre className="overflow-x-auto rounded-lg bg-surface-sunken p-4 font-mono text-[11px] leading-5 text-zinc-400">
               {JSON.stringify(manifest, null, 2)}
             </pre>
           ) : (

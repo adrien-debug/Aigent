@@ -174,9 +174,9 @@ const CANVAS_STYLES = `
 
 /* Chrome (Controls / MiniMap) on the app's own surfaces — zinc only. */
 .ptc-canvas .react-flow__controls { box-shadow: none; border-radius: 0.75rem; overflow: hidden; border: 1px solid var(--color-hairline); }
-.ptc-canvas .react-flow__controls-button { background: var(--color-surface-interactive); border-bottom: 1px solid var(--color-hairline); fill: var(--color-zinc-400); }
-.ptc-canvas .react-flow__controls-button:hover { background: var(--color-surface-elevated); fill: var(--color-zinc-200); }
-.ptc-canvas .react-flow__minimap { background: var(--color-surface-primary); border: 1px solid var(--color-hairline); border-radius: 0.75rem; }
+.ptc-canvas .react-flow__controls-button { background: var(--color-surface-overlay); border-bottom: 1px solid var(--color-hairline); fill: var(--color-zinc-400); }
+.ptc-canvas .react-flow__controls-button:hover { background: var(--color-surface-overlay); fill: var(--color-zinc-200); }
+.ptc-canvas .react-flow__minimap { background: var(--color-surface-sunken); border: 1px solid var(--color-hairline); border-radius: 0.75rem; }
 
 /* A derived edge is dashed at rest: a computed guess must never read as configured. */
 .ptc-canvas .ptc-derived { stroke-dasharray: 4 4; }

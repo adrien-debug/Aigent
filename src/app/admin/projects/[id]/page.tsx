@@ -100,68 +100,66 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
   return (
     <SurfaceCard>
       <SurfaceCardHeader title="Validated Agents" meta={<span className="text-xs text-zinc-500">{copilots.length} total</span>} />
-      <div className="overflow-x-auto no-scrollbar">
-        <Table className="w-full text-left border-collapse min-w-[800px] px-6 [--gutter:--spacing(0)]">
-          <TableHead>
-            <TableRow className="border-b border-white/5">
-              <TableHeader>Agent Identity</TableHeader>
-              <TableHeader>Status</TableHeader>
-              <TableHeader>Model & Runtime</TableHeader>
-              <TableHeader className="text-right">Pass Rate</TableHeader>
-              <TableHeader className="text-right">24h Volume</TableHeader>
-              <TableHeader className="text-right">24h Cost</TableHeader>
-            </TableRow>
-          </TableHead>
-          <TableBody className="divide-y divide-white/5">
-            {copilots.map((copilot) => (
-              <TableRow key={copilot.id} className="group hover:bg-[var(--color-surface-interactive)] transition-colors">
-                <TableCell className="py-4">
-                  <div className="flex items-center gap-3">
-                    <CopilotAvatar copilot={copilot} className="size-8 rounded-xl" />
-                    <div className="flex flex-col">
-                      <Link href={`/admin/agents/${copilot.id}`} className="text-sm font-medium text-white group-hover:underline">
-                        {copilot.name}
-                      </Link>
-                      <span className="text-[10px] font-mono text-zinc-500 mt-0.5">{copilot.slug}</span>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell className="py-4">
-                  <CopilotStatusTone status={copilot.displayStatus ?? copilot.status} />
-                </TableCell>
-                <TableCell className="py-4">
+      <Table className="w-full text-left border-collapse px-6 [--gutter:--spacing(0)]">
+        <TableHead>
+          <TableRow className="border-b border-white/5">
+            <TableHeader>Agent Identity</TableHeader>
+            <TableHeader>Status</TableHeader>
+            <TableHeader className="hidden md:table-cell">Model & Runtime</TableHeader>
+            <TableHeader className="text-right">Pass Rate</TableHeader>
+            <TableHeader className="hidden text-right lg:table-cell">24h Volume</TableHeader>
+            <TableHeader className="text-right">24h Cost</TableHeader>
+          </TableRow>
+        </TableHead>
+        <TableBody className="divide-y divide-white/5">
+          {copilots.map((copilot) => (
+            <TableRow key={copilot.id} className="group hover:bg-[var(--color-surface-interactive)] transition-colors">
+              <TableCell className="py-4">
+                <div className="flex items-center gap-3">
+                  <CopilotAvatar copilot={copilot} className="size-8 rounded-xl" />
                   <div className="flex flex-col">
-                    <span className="text-xs text-zinc-300">{copilot.model}</span>
-                    <span className="text-[10px] text-zinc-500 mt-0.5">{AGENT_RUNTIME_LABELS[copilot.runtime]}</span>
+                    <Link href={`/admin/agents/${copilot.id}`} className="text-sm font-medium text-white group-hover:underline">
+                      {copilot.name}
+                    </Link>
+                    <span className="text-[10px] font-mono text-zinc-500 mt-0.5">{copilot.slug}</span>
                   </div>
-                </TableCell>
-                <TableCell className="py-4 text-right">
-                  {copilot.healthEvidence === 'runs' ? (
-                    <div className="flex flex-col items-end gap-1">
-                      <span className={`text-sm font-mono ${copilot.health.testPassRate >= 0.9 ? 'text-accent-400' : 'text-zinc-300'}`}>
-                        {formatPercent(copilot.health.testPassRate)}
-                      </span>
-                      <div className="w-16 h-1 bg-white/5 rounded-full overflow-hidden">
-                        <div className="h-full bg-accent-500" style={{ width: `${copilot.health.testPassRate * 100}%` }} />
-                      </div>
+                </div>
+              </TableCell>
+              <TableCell className="py-4">
+                <CopilotStatusTone status={copilot.displayStatus ?? copilot.status} />
+              </TableCell>
+              <TableCell className="hidden py-4 md:table-cell">
+                <div className="flex flex-col">
+                  <span className="text-xs text-zinc-300">{copilot.model}</span>
+                  <span className="text-[10px] text-zinc-500 mt-0.5">{AGENT_RUNTIME_LABELS[copilot.runtime]}</span>
+                </div>
+              </TableCell>
+              <TableCell className="py-4 text-right">
+                {copilot.healthEvidence === 'runs' ? (
+                  <div className="flex flex-col items-end gap-1">
+                    <span className={`text-sm font-mono ${copilot.health.testPassRate >= 0.9 ? 'text-accent-400' : 'text-zinc-300'}`}>
+                      {formatPercent(copilot.health.testPassRate)}
+                    </span>
+                    <div className="w-16 h-1 bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-full bg-accent-500" style={{ width: `${copilot.health.testPassRate * 100}%` }} />
                     </div>
-                  ) : (
-                    <span className="text-xs text-zinc-600">—</span>
-                  )}
-                </TableCell>
-                <TableCell className="py-4 text-right">
-                  <span className="text-sm font-mono text-white">{numberFormat.format(copilot.health.runsLast24h)}</span>
-                </TableCell>
-                <TableCell className="py-4 text-right">
-                  <span className="text-sm font-mono text-zinc-400">
-                    {copilot.health.runsLast24h > 0 ? formatUsd(copilot.health.costLast24hUsd) : '—'}
-                  </span>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+                  </div>
+                ) : (
+                  <span className="text-xs text-zinc-600">—</span>
+                )}
+              </TableCell>
+              <TableCell className="hidden py-4 text-right lg:table-cell">
+                <span className="text-sm font-mono text-white">{numberFormat.format(copilot.health.runsLast24h)}</span>
+              </TableCell>
+              <TableCell className="py-4 text-right">
+                <span className="text-sm font-mono text-zinc-400">
+                  {copilot.health.runsLast24h > 0 ? formatUsd(copilot.health.costLast24hUsd) : '—'}
+                </span>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </SurfaceCard>
   )
 }
@@ -170,71 +168,69 @@ function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copil
   return (
     <SurfaceCard>
       <SurfaceCardHeader title="Recent Traces" meta={<span className="text-xs text-zinc-500">{runs.length} runs</span>} />
-      <div className="overflow-x-auto no-scrollbar">
-        <Table className="w-full text-left border-collapse min-w-[1000px] px-6 [--gutter:--spacing(0)]">
-          <TableHead>
-            <TableRow className="border-b border-white/5">
-              <TableHeader>Run ID & Copilot</TableHeader>
-              <TableHeader>Status</TableHeader>
-              <TableHeader className="w-1/3">Input Summary</TableHeader>
-              <TableHeader className="text-right">Latency</TableHeader>
-              <TableHeader className="text-right">Cost</TableHeader>
-              <TableHeader className="text-right">Started</TableHeader>
-              <TableHeader className="text-center">Trace</TableHeader>
+      <Table className="w-full text-left border-collapse px-6 [--gutter:--spacing(0)]">
+        <TableHead>
+          <TableRow className="border-b border-white/5">
+            <TableHeader>Run ID & Copilot</TableHeader>
+            <TableHeader>Status</TableHeader>
+            <TableHeader className="w-1/3">Input Summary</TableHeader>
+            <TableHeader className="text-right">Latency</TableHeader>
+            <TableHeader className="hidden text-right lg:table-cell">Cost</TableHeader>
+            <TableHeader className="hidden text-right md:table-cell">Started</TableHeader>
+            <TableHeader className="text-center">Trace</TableHeader>
+          </TableRow>
+        </TableHead>
+        <TableBody className="divide-y divide-white/5">
+          {runs.map((run) => (
+            <TableRow key={run.id} className="group hover:bg-[var(--color-surface-interactive)] transition-colors">
+              <TableCell className="py-3">
+                <div className="flex flex-col">
+                  <Link
+                    href={`/admin/agents/${run.copilotId}/runs?run=${run.id}`}
+                    className="text-sm font-medium text-white group-hover:underline truncate"
+                  >
+                    {copilotNameById.get(run.copilotId) ?? run.copilotId}
+                  </Link>
+                  <span className="text-[10px] font-mono text-zinc-500 mt-0.5 truncate">{run.id}</span>
+                </div>
+              </TableCell>
+              <TableCell className="py-3">
+                <RunStatusTone status={run.status} />
+              </TableCell>
+              <TableCell className="py-3">
+                <span className="block text-xs text-zinc-400 truncate max-w-md" title={run.inputSummary}>
+                  {run.inputSummary}
+                </span>
+              </TableCell>
+              <TableCell className="py-3 text-right">
+                <span className="text-xs font-mono text-zinc-300">{formatDurationMs(run.latencyMs)}</span>
+              </TableCell>
+              <TableCell className="hidden py-3 text-right lg:table-cell">
+                <span className="text-xs font-mono text-zinc-400">{formatUsd(run.costUsd)}</span>
+              </TableCell>
+              <TableCell className="hidden py-3 text-right md:table-cell">
+                <span className="text-xs font-mono text-zinc-500">{formatTimestamp(run.startedAt).replace(' UTC', '')}</span>
+              </TableCell>
+              <TableCell className="py-3 text-center">
+                {run.traceUrl ? (
+                  <a
+                    href={run.traceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Open trace for run ${run.id} in LangSmith`}
+                    title="Open trace in LangSmith"
+                    className="inline-flex items-center justify-center size-11 -my-3.5 rounded-md text-zinc-500 outline-offset-2 transition-colors hover:text-accent-400 hover:bg-[var(--accent-soft)] focus-visible:outline-2 focus-visible:outline-accent-500"
+                  >
+                    <ArrowTopRightOnSquareIcon className="size-4" />
+                  </a>
+                ) : (
+                  <span className="text-zinc-600">—</span>
+                )}
+              </TableCell>
             </TableRow>
-          </TableHead>
-          <TableBody className="divide-y divide-white/5">
-            {runs.map((run) => (
-              <TableRow key={run.id} className="group hover:bg-[var(--color-surface-interactive)] transition-colors">
-                <TableCell className="py-3">
-                  <div className="flex flex-col">
-                    <Link
-                      href={`/admin/agents/${run.copilotId}/runs?run=${run.id}`}
-                      className="text-sm font-medium text-white group-hover:underline truncate"
-                    >
-                      {copilotNameById.get(run.copilotId) ?? run.copilotId}
-                    </Link>
-                    <span className="text-[10px] font-mono text-zinc-500 mt-0.5 truncate">{run.id}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="py-3">
-                  <RunStatusTone status={run.status} />
-                </TableCell>
-                <TableCell className="py-3">
-                  <span className="block text-xs text-zinc-400 truncate max-w-md" title={run.inputSummary}>
-                    {run.inputSummary}
-                  </span>
-                </TableCell>
-                <TableCell className="py-3 text-right">
-                  <span className="text-xs font-mono text-zinc-300">{formatDurationMs(run.latencyMs)}</span>
-                </TableCell>
-                <TableCell className="py-3 text-right">
-                  <span className="text-xs font-mono text-zinc-400">{formatUsd(run.costUsd)}</span>
-                </TableCell>
-                <TableCell className="py-3 text-right">
-                  <span className="text-xs font-mono text-zinc-500">{formatTimestamp(run.startedAt).replace(' UTC', '')}</span>
-                </TableCell>
-                <TableCell className="py-3 text-center">
-                  {run.traceUrl ? (
-                    <a
-                      href={run.traceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label={`Open trace for run ${run.id} in LangSmith`}
-                      title="Open trace in LangSmith"
-                      className="inline-flex items-center justify-center size-11 -my-3.5 rounded-md text-zinc-500 outline-offset-2 transition-colors hover:text-accent-400 hover:bg-[var(--accent-soft)] focus-visible:outline-2 focus-visible:outline-accent-500"
-                    >
-                      <ArrowTopRightOnSquareIcon className="size-4" />
-                    </a>
-                  ) : (
-                    <span className="text-zinc-600">—</span>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+          ))}
+        </TableBody>
+      </Table>
     </SurfaceCard>
   )
 }

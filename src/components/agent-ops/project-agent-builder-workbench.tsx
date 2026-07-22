@@ -5,8 +5,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
-import {
-} from '@/components/agent-ops/surface-card'
 import { LangGraphDebugPanel, type LangGraphDebugInfo } from '@/components/agent-ops/langgraph-debug-panel'
 import { MarkdownLite } from '@/components/agent-ops/markdown-lite'
 import { ProjectBuilderPreviewPanel } from '@/components/agent-ops/project-builder-preview-panel'
@@ -399,6 +397,17 @@ export function ProjectAgentBuilderWorkbench({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
+      {/* Repo bandeau lives at the TOP, full-width — the sole entry point for
+          repo map / suggestions, ahead of the chat (Project Builder 3-zone
+          contract). */}
+      <div className="shrink-0">
+        <ProjectRepoIntelligenceActions
+          projectId={projectId}
+          repoFullName={repoFullName}
+          onDiscussRecommendation={(rec) => void handleDiscussRecommendation(rec)}
+          intelligenceState={intelligenceState}
+        />
+      </div>
 
       <div className="grid min-h-0 flex-1 grid-rows-[minmax(20rem,1fr)_minmax(20rem,1fr)] gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:grid-rows-1">
         <section
@@ -560,17 +569,6 @@ export function ProjectAgentBuilderWorkbench({
             deciding={deciding}
           />
         </aside>
-      </div>
-
-      {/* Repo actions live at the BOTTOM — they no longer steal the chat's
-          vertical space at the top. */}
-      <div className="shrink-0">
-        <ProjectRepoIntelligenceActions
-          projectId={projectId}
-          repoFullName={repoFullName}
-          onDiscussRecommendation={(rec) => void handleDiscussRecommendation(rec)}
-          intelligenceState={intelligenceState}
-        />
       </div>
 
       {runState?.langgraph && showDebug ? (

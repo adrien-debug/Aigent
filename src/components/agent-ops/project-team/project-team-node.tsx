@@ -382,5 +382,3 @@ function ProjectTeamNodeComponent({ data }: NodeProps<ProjectTeamFlowNode>) {
  */
 export const ProjectTeamNodeCard = memo(ProjectTeamNodeComponent)
 ProjectTeamNodeCard.displayName = 'ProjectTeamNodeCard'
-
-export { STATUS_PRESENTATION }

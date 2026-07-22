@@ -24,19 +24,9 @@ export async function DashboardLiveRuns() {
             // duration and no amount can ever be silently truncated.
             <li
               key={run.id}
-              className="grid gap-1 px-4 py-2.5 hover:bg-(--color-surface-focus) sm:min-h-14 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4"
+              className="grid gap-1 px-4 py-2.5 hover:bg-white/2.5 sm:min-h-14 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4"
             >
               <div className="flex min-w-0 items-center gap-3">
-                <span
-                  aria-hidden="true"
-                  className={`size-1.5 shrink-0 rounded-full ${
-                    run.status === 'completed'
-                      ? 'bg-accent-600'
-                      : run.status === 'failed'
-                        ? 'bg-accent-700'
-                        : 'bg-zinc-400'
-                  }`}
-                />
                 <div className="min-w-0">
                   <Link
                     href={`/admin/agents/${run.copilotId}/runs?run=${run.id}`}

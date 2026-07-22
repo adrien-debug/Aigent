@@ -314,9 +314,15 @@ export function AgentBuilderWorkbench() {
 
       {/* 4 — Created-copilot receipt */}
       {state?.createdCopilotId ? (
-        <div role="status" aria-live="polite" className="rounded-xl bg-zinc-950 p-4 ring-1 ring-white/10">
-          <p className="text-xs font-medium tracking-wide text-accent-300 uppercase">Draft copilot created</p>
-          <p className="mt-2 text-sm text-zinc-300">
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-xl bg-[var(--accent-soft)] p-4 ring-1 ring-[var(--accent-line)]"
+        >
+          <p className="text-xs font-medium tracking-wide text-accent-700 uppercase dark:text-accent-300">
+            Draft copilot created
+          </p>
+          <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
             A new draft copilot is now on the validation bench (not production, not assigned).
           </p>
           <Link

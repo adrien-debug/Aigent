@@ -7,6 +7,7 @@ import {
 } from '@/components/agent-ops/agent-detail/agent-value'
 import { AgentKpiBand } from '@/components/agent-ops/agent-kpi-band'
 import { EmptyState } from '@/components/agent-ops/empty-state'
+import { RunStatusText } from '@/components/agent-ops/run-detail-panel'
 import { eyebrowClass, surfaceItemClass, surfaceSectionClass } from '@/components/agent-ops/surface-card'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
@@ -48,12 +49,6 @@ function Section({
   )
 }
 
-function runStatusColor(status: string): 'accent' | 'accentSolid' | 'zinc' {
-  if (status === 'completed') return 'accent'
-  if (status === 'failed' || status === 'blocked') return 'accentSolid'
-  return 'zinc'
-}
-
 function LatestResult({ detail }: { detail: AgentDetail }) {
   const run = detail.metrics.lastRun
   if (!run) {
@@ -82,7 +77,7 @@ function LatestResult({ detail }: { detail: AgentDetail }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <Badge color={runStatusColor(run.status)}>{run.status}</Badge>
+        <RunStatusText status={run.status} />
         <span className="text-xs text-zinc-500">
           <TimeAgoValue value={run.startedAt} />
         </span>
@@ -117,7 +112,7 @@ export default async function AgentOverviewPage({ params }: { params: Promise<{ 
   const detail = await getAgentDetail(id)
   if (!detail) notFound()
 
-  const { agent, metrics, manifest, tools, runs, blockers, executable, copilot } = detail
+  const { agent, metrics, manifest, tools, runs, executable, copilot } = detail
 
   // Attention exists only when something is genuinely wrong — never an empty
   // panel. Blockers are NOT repeated here: the header already states them in
@@ -209,7 +204,7 @@ export default async function AgentOverviewPage({ params }: { params: Promise<{ 
                     key={run.id}
                     className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-white/5 py-2.5 last:border-0"
                   >
-                    <Badge color={runStatusColor(run.status)}>{run.status}</Badge>
+                    <RunStatusText status={run.status} />
                     <span className="truncate text-xs text-zinc-500">
                       <TimeAgoValue value={run.startedAt} /> · {run.toolCallCount} tool calls
                     </span>

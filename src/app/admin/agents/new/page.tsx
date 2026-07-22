@@ -20,7 +20,7 @@ export default async function NewCopilotPage() {
         <nav aria-label="Breadcrumb" className="mb-2 flex min-w-0 items-center gap-2 text-xs">
           <Link
             href="/admin"
-            className="inline-flex items-center gap-1 text-zinc-500 hover:text-white"
+            className="inline-flex items-center gap-1 text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
           >
             <ChevronLeftIcon aria-hidden="true" className="size-3.5 shrink-0" />
             Dashboard

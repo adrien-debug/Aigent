@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
+import { AgentSection as Section } from '@/components/agent-ops/agent-section'
 import { EmptyState } from '@/components/agent-ops/empty-state'
-import { eyebrowClass, surfaceSectionClass } from '@/components/agent-ops/surface-card'
-import { Subheading } from '@/components/catalyst/heading'
+import { eyebrowClass } from '@/components/agent-ops/surface-card'
 import { Text } from '@/components/catalyst/text'
 import { getAgentDetail } from '@/lib/agent-mission-control/agent-detail'
 
@@ -12,26 +12,6 @@ import { getAgentDetail } from '@/lib/agent-mission-control/agent-detail'
  * prose is capped at a reading measure (a system prompt stretched across 1728px
  * is unreadable), and guardrails are structured LINES, not a wall of badges.
  */
-
-function Section({
-  title,
-  description,
-  children,
-}: {
-  title: string
-  description?: string
-  children: React.ReactNode
-}) {
-  return (
-    <section className={surfaceSectionClass}>
-      <div className="px-5 pt-4 pb-3">
-        <Subheading level={2}>{title}</Subheading>
-        {description ? <Text className="mt-1 !text-xs">{description}</Text> : null}
-      </div>
-      <div className="px-5 pb-5">{children}</div>
-    </section>
-  )
-}
 
 /** Guardrails as scannable lines — never a hundred badges glued together. */
 function RuleList({ items }: { items: string[] }) {

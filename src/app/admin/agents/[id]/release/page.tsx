@@ -7,8 +7,8 @@ import {
   ReleaseGateChecks,
   ReleaseOwnership,
 } from '@/components/agent-ops/agent-detail/release-panel'
-import { eyebrowClass, surfaceSectionClass } from '@/components/agent-ops/surface-card'
-import { Subheading } from '@/components/catalyst/heading'
+import { AgentSection as Section } from '@/components/agent-ops/agent-section'
+import { eyebrowClass } from '@/components/agent-ops/surface-card'
 import { Text } from '@/components/catalyst/text'
 import { getAgentLifecycle } from '@/lib/agent-mission-control/agent-lifecycle'
 import { VERSION_STAGE_LABELS } from '@/lib/agent-mission-control/labels'
@@ -32,31 +32,6 @@ import type { CopilotVersion } from '@/lib/agent-mission-control/types'
  * pure of `Date` (see its closing comment) and stamps the empty string, so
  * printing it would show a timestamp nobody measured.
  */
-
-function Section({
-  title,
-  description,
-  meta,
-  children,
-}: {
-  title: string
-  description?: string
-  meta?: React.ReactNode
-  children: React.ReactNode
-}) {
-  return (
-    <section className={surfaceSectionClass}>
-      <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-4 pb-3">
-        <div className="min-w-0">
-          <Subheading level={2}>{title}</Subheading>
-          {description ? <Text className="mt-1 !text-xs">{description}</Text> : null}
-        </div>
-        {meta ? <div className="shrink-0">{meta}</div> : null}
-      </div>
-      <div className="px-5 pb-5">{children}</div>
-    </section>
-  )
-}
 
 /**
  * A version identity block. Stage is muted zinc text (doctrine: lifecycle

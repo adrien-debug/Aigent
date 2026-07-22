@@ -1,6 +1,5 @@
-import clsx from 'clsx'
-
-import { SurfaceCard, SurfaceCardHeader, surfaceCardClass } from '@/components/agent-ops/surface-card'
+import { EmptyState } from '@/components/agent-ops/empty-state'
+import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import type { AgentRun } from '@/lib/agent-mission-control/types'
 
 const HOUR_MS = 3_600_000
@@ -13,7 +12,6 @@ export interface HourBucket {
   /** running / blocked / needs-confirmation. */
   other: number
   total: number
-  costUsd: number
 }
 
 /**
@@ -33,7 +31,6 @@ export function bucketRunsByHour(runs: AgentRun[], nowMs: number, hours = 24): H
     failed: 0,
     other: 0,
     total: 0,
-    costUsd: 0,
   }))
 
   for (const run of runs) {
@@ -45,8 +42,6 @@ export function bucketRunsByHour(runs: AgentRun[], nowMs: number, hours = 24): H
     else if (run.status === 'failed') bucket.failed += 1
     else bucket.other += 1
     bucket.total += 1
-    // null = cost not measured (LangGraph, no usage): contributes nothing, never a fake 0.
-    bucket.costUsd += run.costUsd ?? 0
   }
 
   return buckets
@@ -97,10 +92,9 @@ export function ActivityChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: number
 
   if (total === 0) {
     return (
-      <div className={clsx(surfaceCardClass, 'flex items-center gap-2 px-6 py-3')}>
-        <span aria-hidden="true" className="size-1.5 rounded-full bg-zinc-600" />
-        <span className="text-xs text-zinc-500">Run activity · 0 runs in last 24h</span>
-      </div>
+      <SurfaceCard>
+        <EmptyState title="No run activity" description="No runs in the last 24h." />
+      </SurfaceCard>
     )
   }
 
