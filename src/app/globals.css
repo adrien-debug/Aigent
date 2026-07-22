@@ -120,7 +120,6 @@
   --accent-line: color-mix(in oklab, var(--color-accent-700) 40%, transparent);
   --accent-line-strong: color-mix(in oklab, var(--color-accent-700) 60%, transparent);
 
-  --accent-selection: color-mix(in oklab, var(--color-accent-600) 30%, transparent);
   --accent-node-active: color-mix(in oklab, var(--color-accent-600) 80%, transparent);
   --accent-node-selected: var(--color-accent-800);
 }
