@@ -112,6 +112,13 @@ export interface ExecuteCopilotRunArgs {
    * status layer exists to prevent.
    */
   userLabel?: string
+  /**
+   * Optional caller idempotency key, persisted to `agent_runs.client_run_id`.
+   * With the unique index on (copilot_id, client_run_id) (migration 0027), a
+   * retried run reusing the same key can be deduplicated by the caller before
+   * execution, and a concurrent duplicate is rejected at insert. Omitted ⇒ null.
+   */
+  clientRunId?: string
 }
 
 export interface ExecuteCopilotRunStep {
@@ -365,10 +372,12 @@ interface ViaLangGraphArgs {
   maxSteps: number
   /** See ExecuteCopilotRunArgs.userLabel — already defaulted by the caller. */
   userLabel: string
+  /** See ExecuteCopilotRunArgs.clientRunId — null when the caller omitted it. */
+  clientRunId: string | null
 }
 
 async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopilotRunResult> {
-  const { copilotId, versionId, projectId, model, userInput, maxSteps, userLabel } = args
+  const { copilotId, versionId, projectId, model, userInput, maxSteps, userLabel, clientRunId } = args
 
   const startedAtMs = Date.now()
   const startedAt: IsoTimestamp = new Date(startedAtMs).toISOString()
@@ -566,6 +575,7 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
   await pgrest('POST', 'agent_runs', {
     id: runId,
     copilot_id: copilotId,
+    client_run_id: clientRunId,
     version_id: versionId,
     project_id: projectId,
     user_label: userLabel,
@@ -665,8 +675,9 @@ export async function executeCopilotRun(
   const { copilotId, versionId, projectId, model, systemPromptSummary, userInput, maxSteps } = args
   const modelProvider: ModelProvider = args.modelProvider ?? 'openai'
   const confirmed = new Set(args.confirmedToolNames ?? [])
-  // Resolved before the runtime branch so both paths persist the same label.
+  // Resolved before the runtime branch so both paths persist the same label + key.
   const userLabel = args.userLabel ?? 'authoring-session'
+  const clientRunId = args.clientRunId ?? null
 
   // Resolve the runtime: explicit wins, else load from the copilot row. A
   // 'langgraph' runtime delegates to the official LangGraph Agent Server, which
@@ -681,6 +692,7 @@ export async function executeCopilotRun(
       userInput,
       maxSteps,
       userLabel,
+      clientRunId,
     })
   }
 
@@ -996,6 +1008,7 @@ export async function executeCopilotRun(
   await pgrest('POST', 'agent_runs', {
     id: runId,
     copilot_id: copilotId,
+    client_run_id: clientRunId,
     version_id: versionId,
     project_id: projectId,
     user_label: userLabel,

@@ -45,6 +45,11 @@ const bodySchema = z.object({
   costUsd: z.number().min(0).max(1000).optional(),
   userLabel: z.string().max(200).optional(),
   versionId: z.string().regex(ID_RE).optional(),
+  // Caller-supplied idempotency key. A retried/duplicated delivery reusing the
+  // same key never creates a second billed run row (dedup on
+  // agent_runs(copilot_id, client_run_id), migration 0027) — it gets the
+  // original run's id back. Absent → every POST is a distinct run (unchanged).
+  clientRunId: z.string().min(1).max(200).optional(),
 })
 
 function requireLiveBackend(): NextResponse | null {
@@ -130,6 +135,25 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     }
   }
 
+  // Idempotency: if the caller supplied a client_run_id and a row for this
+  // (copilot, key) already exists, return it instead of inserting a duplicate
+  // billed run. This closes the proven double-count (a retried delivery whose
+  // response timed out re-POSTing the same run).
+  if (parsed.clientRunId) {
+    try {
+      const existing = await pgrest<{ id: string }[]>(
+        'GET',
+        `agent_runs?select=id&copilot_id=eq.${encodeURIComponent(copilotId)}&client_run_id=eq.${encodeURIComponent(parsed.clientRunId)}&limit=1`
+      )
+      if (existing.length > 0) {
+        return NextResponse.json({ ok: true, runId: existing[0].id, idempotent: true })
+      }
+    } catch (err) {
+      console.error('[agent-ops/runs/ingest] idempotency lookup failed', err)
+      return NextResponse.json({ error: 'failed to check idempotency' }, { status: isPgrestTimeout(err) ? 504 : 502 })
+    }
+  }
+
   const runId = randomUUID()
   const now = new Date().toISOString()
   const startedAt = parsed.latencyMs != null ? new Date(Date.now() - parsed.latencyMs).toISOString() : now
@@ -137,6 +161,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     await pgrest('POST', 'agent_runs', {
       id: runId,
       copilot_id: copilotId,
+      client_run_id: parsed.clientRunId ?? null,
       // Caller versionId only after the ownership check above passed; else the
       // copilot's own production version (the honest default for prod traffic).
       version_id: parsed.versionId ?? productionVersionId,
@@ -159,6 +184,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
       created_via: 'production',
     })
   } catch (err) {
+    // Concurrent insert of the same client_run_id: both requests passed the
+    // pre-check, the unique index (0027) rejected the loser (409/23505). Resolve
+    // idempotently — return the winner's row instead of a 5xx.
+    const status = (err as { status?: number })?.status
+    if (parsed.clientRunId && (status === 409 || /23505|duplicate key/i.test(String((err as Error)?.message)))) {
+      try {
+        const existing = await pgrest<{ id: string }[]>(
+          'GET',
+          `agent_runs?select=id&copilot_id=eq.${encodeURIComponent(copilotId)}&client_run_id=eq.${encodeURIComponent(parsed.clientRunId)}&limit=1`
+        )
+        if (existing.length > 0) {
+          return NextResponse.json({ ok: true, runId: existing[0].id, idempotent: true })
+        }
+      } catch {
+        /* fall through to the generic error below */
+      }
+    }
     console.error('[agent-ops/runs/ingest] insert failed', err)
     return NextResponse.json({ error: 'ingest failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }

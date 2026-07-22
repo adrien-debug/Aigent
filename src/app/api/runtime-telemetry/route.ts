@@ -226,6 +226,15 @@ export async function POST(request: Request) {
       environment: event.environment ?? {},
     })
   } catch (err) {
+    // Idempotent re-delivery: eventId is the PK, so a duplicate event (a client
+    // retrying a telemetry POST whose 202 was lost) collides 23505/409. That is
+    // success from the caller's view — the event already landed — so ACK 202
+    // rather than 500, otherwise best-effort clients retry-storm on a row that
+    // is already there.
+    const status = (err as { status?: number })?.status
+    if (status === 409 || /23505|duplicate key/i.test(String((err as Error)?.message))) {
+      return NextResponse.json({ ok: true, deduplicated: true }, { status: 202 })
+    }
     // Never forward err.message or a stack trace to the client — log
     // server-side only, respond with a generic status.
     console.error('[runtime-telemetry] insert failed', err instanceof Error ? err.message : err)

@@ -70,6 +70,42 @@ export async function POST(request: Request, { params }: { params: Promise<{ age
     return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
   }
 
+  // Idempotency: a consumer may send `Idempotency-Key` (the contract's
+  // RuntimeRun.idempotencyKey). If a run for this (agent, key) already exists,
+  // return it WITHOUT executing a second billed run — this is what stops a
+  // retried POST (whose response was lost) from double-charging the model. The
+  // key is persisted on agent_runs.client_run_id (migration 0027) so a later
+  // retry finds it. NOTE: this dedups sequential retries fully; a truly
+  // simultaneous double-submit could still bill twice before either persists,
+  // but the unique index prevents a duplicate row.
+  const idempotencyKey = (request.headers.get('idempotency-key') ?? '').trim().slice(0, 200) || null
+  if (idempotencyKey) {
+    try {
+      const existing = await pgrest<Record<string, unknown>[]>(
+        'GET',
+        `agent_runs?copilot_id=eq.${encodeURIComponent(agentId)}&client_run_id=eq.${encodeURIComponent(idempotencyKey)}&select=id,status,output_summary,latency_ms,cost_usd,resolved_model,resolved_provider&limit=1`
+      )
+      const prior = existing[0]
+      if (prior) {
+        return NextResponse.json({
+          contractVersion: RUNTIME_CONTRACT_VERSION,
+          runId: prior.id as string,
+          agentId,
+          status: toRuntimeRunStatus((prior.status as import('@/lib/agent-mission-control/types').AgentRunStatus) ?? 'completed'),
+          output: (prior.output_summary as string | null) ?? null,
+          latencyMs: (prior.latency_ms as number | null) ?? null,
+          costUsd: (prior.cost_usd as number | null) ?? null,
+          resolvedProvider: (prior.resolved_provider as string | null) ?? null,
+          resolvedModel: (prior.resolved_model as string | null) ?? null,
+          idempotent: true,
+        })
+      }
+    } catch (err) {
+      console.error('[runtime/v1/agents/:id/runs] idempotency lookup failed', err)
+      return NextResponse.json({ error: 'idempotency check failed' }, { status: upstreamFailureStatus(err) })
+    }
+  }
+
   // --- The gate, re-read now ------------------------------------------------
   let agent: Awaited<ReturnType<typeof getPublishedAgent>>
   try {
@@ -159,6 +195,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ age
       systemPromptSummary,
       userInput: input,
       maxSteps,
+      clientRunId: idempotencyKey ?? undefined,
     })
 
     return NextResponse.json({

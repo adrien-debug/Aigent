@@ -131,6 +131,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     return NextResponse.json({ error: 'failed to read copilot' }, { status: isPgrestTimeout(err) ? 504 : 502 })
   }
 
+  // In-flight guard (same check-then-act shape as the sibling benchmarks/run
+  // route): a sweep is N sequential full suite runs, so two concurrent sweeps of
+  // the same suite would double the LLM spend (and queue on the single-tenant
+  // local vLLM endpoints). If a benchmark run/leg for this suite is already
+  // running, reject the duplicate 409 instead of admitting a second one.
+  try {
+    const running = await pgrest<Array<{ id: string }>>(
+      'GET',
+      `benchmark_runs?copilot_id=eq.${encodeURIComponent(copilotId)}&suite_id=eq.${encodeURIComponent(body.suiteId)}&status=eq.running&select=id&limit=1`
+    )
+    if (running.length > 0) {
+      return NextResponse.json(
+        { error: 'a benchmark run or sweep is already in progress for this suite', runId: running[0].id },
+        { status: 409 }
+      )
+    }
+  } catch (err) {
+    console.error('[agent-ops/copilots/benchmarks/sweep] in-flight check failed', err)
+    return NextResponse.json({ error: 'failed to check for an in-flight run' }, { status: isPgrestTimeout(err) ? 504 : 502 })
+  }
+
   try {
     const sweep = await runBenchmarkSweep({
       copilotId,
