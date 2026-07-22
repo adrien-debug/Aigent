@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+// ONE typeface across the whole product — Satoshi Variable, for EVERYTHING
+// including KPIs and numbers. The former rule that held numeric/tabular values
+// in a monospace face (Geist Mono) was dropped: `--font-mono` now also resolves
+// to Satoshi (globals.css), so the mono load is gone and every surface reads in
+// a single voice. See README → "Typography".
 const satoshi = localFont({
   variable: "--font-satoshi",
   src: [
@@ -15,11 +19,6 @@ const satoshi = localFont({
       style: "italic",
     },
   ],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
@@ -39,7 +38,7 @@ export default function RootLayout({
       // `dark` is what activates every `dark:` utility in the design system —
       // globals.css binds the variant to the CLASS, not to prefers-color-scheme,
       // so dark is the product's identity rather than the reader's OS setting.
-      className={`dark ${satoshi.variable} ${geistMono.variable} h-full antialiased`}
+      className={`dark ${satoshi.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-white dark:bg-zinc-950">
         {children}

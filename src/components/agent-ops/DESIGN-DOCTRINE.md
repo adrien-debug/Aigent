@@ -117,9 +117,14 @@ Détail : `docs/surface-usage.md`.
   accent écrite à la main.
 
 ## Typo & espacement
+- **UNE police pour TOUT — Satoshi Variable, chiffres et KPI compris.** La règle qui tenait les
+  valeurs chiffrées/tabulaires en monospace (Geist Mono) est **levée** : `--font-mono` résout
+  désormais vers Satoshi (globals.css), donc chaque `font-mono` du dashboard rend en Satoshi. Les
+  classes `font-mono`/`tabular-nums` restent autorisées (alignement des chiffres via font-features)
+  mais ne changent plus de famille. Détail : README → « Typography ».
 - Échelle d'espace : 4/8/12/16/24/32/48 uniquement (`gap-2/3/4/6/8`, `p-4/6`, `space-y-6/8`).
 - 2–3 tailles de texte par écran. Titres : Catalyst `Heading`/`Subheading`. Corps `text-sm`.
-- Données chiffrées, IDs, JSON, versions : `font-mono tabular-nums`.
+- Données chiffrées, IDs, JSON, versions : `font-mono tabular-nums` (rend en Satoshi Variable — cf. règle ci-dessus).
 - **Overline / micro-eyebrow** (label de stat KPI, eyebrow de `AdminPageHeader`, `<dt>` majuscule) :
   toujours la constante partagée `eyebrowClass` (`surface-card.tsx`) — valeur réelle aujourd'hui
   `text-[10px] font-medium uppercase tracking-widest text-zinc-500`. `text-[10px]` est le
@@ -129,9 +134,10 @@ Détail : `docs/surface-usage.md`.
   WCAG AA à cette taille et que `zinc-500` ne passe pas — alors que la constante utilise
   `zinc-500`. À trancher dans une mission applicative (mesurer, puis aligner code et commentaire) ;
   ce fichier de doctrine ne fait que constater l'écart.
-- **Grand chiffre KPI** (`AgentKpiBand`, valeurs) : `font-mono font-light tabular-nums`, taille
-  `text-2xl/8` (hero) alignée sur le `Heading` H1, `text-xl/7` (compact), `text-lg/6` (small).
-  `font-light` est **réservé à ce seul rôle** — le « grand chiffre fin » — jamais ailleurs.
+- **Grand chiffre KPI** (`AgentKpiBand`, valeurs) : `font-mono font-light tabular-nums` (rend en
+  Satoshi Variable, cf. règle police unique), taille `text-2xl/8` (hero) alignée sur le `Heading`
+  H1, `text-xl/7` (compact), `text-lg/6` (small). `font-light` est **réservé à ce seul rôle** — le
+  « grand chiffre fin » — jamais ailleurs.
 - Dense mais lisible : tables `text-sm`, méta `text-xs`.
 
 ## Composants — API partagée (contrat, importer depuis `@/components/agent-ops/...`)

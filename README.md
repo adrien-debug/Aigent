@@ -82,6 +82,22 @@ The DS guard (`scripts/check-palette.mjs`) enforces the palette doctrine in
 `src/components/agent-ops/DESIGN-DOCTRINE.md` — token-only colors, WCAG AA
 contrast, no mock data in the app. It runs in CI and must stay green.
 
+## Typography
+
+**One typeface across the entire product — Satoshi Variable, for everything,
+including KPIs and numbers.** The earlier rule that held numeric / tabular
+values (KPI figures, IDs, versions, costs) in a monospace face (Geist Mono) has
+been **removed**: every surface now reads in a single voice.
+
+- The font is loaded once in `src/app/layout.tsx` (`--font-satoshi`, a local
+  variable woff2). Geist Mono is no longer loaded.
+- In `src/app/globals.css`, **both** Tailwind font slots resolve to it:
+  `--font-sans: var(--font-satoshi)` and `--font-mono: var(--font-satoshi)`.
+  So any `font-mono` class in the app (KPI values, tool names, SHAs, JSON, code)
+  renders in Satoshi. `tabular-nums` is still used to keep figures aligned —
+  it's a font-feature toggle, independent of the family.
+- Doctrine: `src/components/agent-ops/DESIGN-DOCTRINE.md` → "Typo & espacement".
+
 ## Layout
 
 | Path | What |

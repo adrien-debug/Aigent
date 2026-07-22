@@ -25,8 +25,13 @@
 }
 
 @theme inline {
+  /* ONE typeface everywhere — Satoshi Variable. The mono slot resolves to the
+     same face on purpose: the rule that held numbers/KPIs in a monospace font
+     was dropped, so every `font-mono` usage (KPIs, tabular values, tool names,
+     SHAs, code) now renders in Satoshi. `tabular-nums` still aligns figures via
+     font-features; the family is single. See README → "Typography". */
   --font-sans: var(--font-satoshi);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: var(--font-satoshi);
 }
 
 /* Accent — THE single hue of the design system: Adrien's green #A7FB90.
