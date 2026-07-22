@@ -354,6 +354,35 @@ export type AgentRunStatus = 'completed' | 'failed' | 'blocked' | 'needs-confirm
  */
 export const TEST_CASE_RUN_LABEL = 'test-case'
 
+/**
+ * Same idea, one per BENCHMARK TASK (AIGENT-BENCH-RUNTIME-030: the benchmark
+ * runner drives that same engine on the direct path). Kept distinct from
+ * `TEST_CASE_RUN_LABEL` because the two are different evaluations and an
+ * operator reading `agent_runs` should be able to tell which one wrote a row.
+ *
+ * A benchmark task deliberately probes for unsafe behaviour, so counting one as
+ * production traffic would be worse than counting a test case: the evaluation
+ * would inflate the very error rate it exists to measure.
+ */
+export const BENCHMARK_TASK_RUN_LABEL = 'benchmark-task'
+
+/**
+ * Every `user_label` that marks an EVALUATION run rather than operator traffic.
+ *
+ * The readers that treat `agent_runs` as operational truth exclude this whole
+ * set, so adding a future evaluation label here is the single edit that keeps
+ * the health surfaces honest — a per-label `neq` filter would silently start
+ * counting the next one.
+ */
+export const EVALUATION_RUN_LABELS = [TEST_CASE_RUN_LABEL, BENCHMARK_TASK_RUN_LABEL] as const
+
+/**
+ * The same set as a PostgREST filter fragment (`user_label=not.in.(...)`).
+ * Built from the list above so a label can never be excluded from one health
+ * read and forgotten in the other.
+ */
+export const NON_EVALUATION_RUN_FILTER = `user_label=not.in.(${EVALUATION_RUN_LABELS.join(',')})`
+
 export interface AgentRun {
   id: string
   copilotId: string

@@ -9,15 +9,24 @@
  * Agent Server — a runtime that is not its own. A control that lies about what
  * it will do is worse than a control that is missing.
  *
- * AIGENT-RUNNER-RUNTIME-029 narrowed that gap where the engine caught up, and
- * ONLY there. `test-runner.ts` now branches on the copilot's runtime
- * (`executeCaseOnRuntime`): `langgraph` streams the graph, `openai-assistants`
- * runs `executeCopilotRun` — the same engine the manual Run button drives —
- * and anything else raises `UnsupportedRuntimeError` instead of falling back.
- * So `run-tests` is honest on both served runtimes and refuses, with the real
- * motive, on the rest. `benchmark-runner.ts` was NOT touched: its off-graph
- * path still makes no tool call, so `run-benchmark` stays `degraded` there.
- * Capability text must track the engine, never the other way round.
+ * AIGENT-RUNNER-RUNTIME-029 narrowed that gap for `run-tests`, and
+ * AIGENT-BENCH-RUNTIME-030 closed the same one for `run-benchmark`. Both
+ * engines now branch on the copilot's OWN runtime and agree on the three
+ * answers: `langgraph` streams the graph, `openai-assistants` drives
+ * `executeCopilotRun` with the manifest's real tools, and anything else raises
+ * `UnsupportedRuntimeError` up front instead of falling back onto whichever
+ * engine happens to be wired.
+ *
+ * That collapsed the last `degraded` runtime verdict in this module, and it
+ * collapsed it in BOTH directions. `run-benchmark` on `openai-assistants` is
+ * now plainly `available` — the tool-less `runTaskViaCompletion` it used to
+ * fall to is deleted, so the safety assertions have real tool calls to observe.
+ * And on an unserved runtime it is no longer `degraded` either: the runner
+ * throws before the `benchmark_runs` insert, so the action does not run in a
+ * reduced form, it does not run at all. A capability that still described the
+ * old engine would refuse an action the engine now serves — a stale detail is
+ * as harmful as a missing one. Capability text tracks the engine, never the
+ * other way round.
  *
  * So: ONE derivation, and a capability is never a bare boolean. Unavailability
  * always carries its reason (operator-facing, one line) and its detail
@@ -90,17 +99,17 @@ export type AgentLifecycle = {
 }
 
 /**
- * The runtime that resolves an assistant on the LangGraph Agent Server. It is
- * the ONLY one the graph path of `benchmark-runner.ts` can honestly serve —
- * nothing else has a graph to route to.
+ * The runtime that resolves an assistant on the LangGraph Agent Server — the
+ * graph path of both `test-runner.ts` and `benchmark-runner.ts`. Nothing else
+ * has a graph to route to.
  */
 const GRAPH_RUNTIME = 'langgraph'
 
 /**
- * The non-graph runtime `test-runner.ts` gained an engine for: the direct
- * model-router loop of `executeCopilotRun`, with the manifest's real tools,
- * confirmation gate and cost ceiling. `benchmark-runner.ts` has NO such branch,
- * which is why the two capabilities below disagree about this value.
+ * The non-graph runtime both engines serve: the direct model-router loop of
+ * `executeCopilotRun`, with the manifest's real tools, confirmation gate and
+ * cost ceiling. `run-tests` and `run-benchmark` now agree about this value —
+ * they used to disagree only because the benchmark runner had no such branch.
  */
 const DIRECT_RUNTIME = 'openai-assistants'
 
@@ -211,23 +220,46 @@ function testCapability(
 }
 
 /**
- * Benchmarks run on any runtime, but only the graph path proves anything.
- * `benchmark-runner.ts:804` sets `usesRealGraph = runtime === 'langgraph'`;
- * anything else falls to `runTaskViaCompletion`, which makes no tool call, so
- * the safety assertions have nothing to observe and `TaskOutcome.ranOnGraph`
- * withholds the safety score rather than fabricate one.
+ * The benchmark question, restated from the engine that answers it
+ * (`runBenchmarkSuite`, AIGENT-BENCH-RUNTIME-030) — the same three-way routing
+ * as `testCapability`, because the two runners now make the same three
+ * decisions.
+ *
+ * `langgraph` runs each task on the Agent Server; `openai-assistants` runs it
+ * through `executeCopilotRun` with the manifest's real tools, so
+ * `assertToolCallSafety` observes ground-truth tool calls and the safety score
+ * is earned on the same evidence as a graph agent's. There is no longer an
+ * off-graph shortfall to warn about: the tool-less `runTaskViaCompletion` this
+ * capability used to describe no longer exists.
+ *
+ * Anything else is `unavailable`, not `degraded`: `runBenchmarkSuite` raises
+ * `UnsupportedRuntimeError` before the `benchmark_runs` insert, so the action
+ * produces no run at all — nothing runs in a reduced form.
+ *
+ * The direct path carries the same project condition as the test path, for the
+ * same reason: `executeCopilotRun` persists an `agent_runs` row per TASK.
  */
-function benchmarkCapability(runtime: string | null, benchmarkError: string | null): Capability {
+function benchmarkCapability(
+  runtime: string | null,
+  projectId: string | null,
+  benchmarkError: string | null
+): Capability {
   if (benchmarkError !== null) {
     return unavailable(
       'Cannot read this agent’s benchmark history',
       `The benchmark_suites/benchmark_runs read failed (${benchmarkError}). Launching a benchmark without knowing the current state would produce a comparison against an unknown baseline.`
     )
   }
-  if (runtime !== GRAPH_RUNTIME) {
-    return degraded(
-      'Runs without tools — no safety score',
-      `benchmark-runner.ts:804 sets usesRealGraph = runtime === '${GRAPH_RUNTIME}'. This ${runtime ?? 'unset'} agent falls to runTaskViaCompletion(): a direct completion with no tool call, so unsafe-action and confirmation counts are never observed and TaskOutcome.ranOnGraph withholds the safety score. The accuracy figure describes the model’s prose, not this agent’s behaviour.`
+  if (runtime !== GRAPH_RUNTIME && runtime !== DIRECT_RUNTIME) {
+    return unavailable(
+      'No benchmark execution engine for this runtime',
+      `runBenchmarkSuite() serves '${GRAPH_RUNTIME}' (Agent Server) and '${DIRECT_RUNTIME}' (direct model-router loop) only; on a '${runtime ?? 'unset'}' copilot it throws UnsupportedRuntimeError before the benchmark_runs insert, so no run is even recorded. It no longer falls back to a tool-less completion that graded the model’s prose instead of this agent.`
+    )
+  }
+  if (runtime === DIRECT_RUNTIME && projectId === null) {
+    return unavailable(
+      'This agent is on the validation bench, with no project',
+      `The direct path persists an agent_runs row per task (executeCopilotRun owns that write) and agent_runs.project_id is NOT NULL, so runBenchmarkSuite() refuses a copilot whose project_id is null — before any benchmark_runs row is created. Assign the copilot to a project first.`
     )
   }
   return AVAILABLE
@@ -477,7 +509,7 @@ export async function getAgentLifecycle(copilotId: string): Promise<AgentLifecyc
   const capabilities: Record<LifecycleActionId, Capability> = {
     'generate-suite': generateSuiteCapability(hasManifest, suiteCount, suiteError),
     'run-tests': runTests,
-    'run-benchmark': benchmarkCapability(runtime, benchmarkError),
+    'run-benchmark': benchmarkCapability(runtime, detail.copilot.projectId, benchmarkError),
     'auto-improve':
       proposalUnreadable ?? autoImproveCapability(runTests, suiteCount, latestBenchmark, latestProposal),
     'create-v2': proposalUnreadable ?? createV2Capability(latestProposal),

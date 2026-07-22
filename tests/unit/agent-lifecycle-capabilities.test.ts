@@ -10,11 +10,14 @@
  *      streams the Agent Server, `openai-assistants` runs `executeCopilotRun`,
  *      anything else raises `UnsupportedRuntimeError`. So "Run tests" is now
  *      honest on BOTH served runtimes and refuses elsewhere with that real
- *      motive. `benchmark-runner.ts:804` was not touched: it still falls
- *      off-graph without tool calls, so a benchmark is `degraded`, not
- *      `unavailable`. Collapsing those verdicts into one boolean — or leaving a
- *      capability parroting a constraint the engine has since dropped — is the
- *      regression.
+ *      motive. AIGENT-BENCH-RUNTIME-030 gave `benchmark-runner.ts` the same
+ *      three-way routing, which moved `run-benchmark` in BOTH directions: it
+ *      became `available` on `openai-assistants` (real tools, real safety
+ *      assertions) and `unavailable` — no longer `degraded` — on an unserved
+ *      runtime, because the runner now throws before the benchmark_runs insert
+ *      rather than running a reduced form. Collapsing those verdicts into one
+ *      boolean — or leaving a capability parroting a constraint the engine has
+ *      since dropped — is the regression.
  *   2. NO AUTOMATIC PROMOTION. `available` on `promote` means a human MAY promote.
  *      Nothing in this module writes, decides, or schedules anything.
  *   3. FAIL-CLOSED. A backend read that fails yields `unavailable` WITH the error.
@@ -321,19 +324,49 @@ describe('getAgentLifecycle — runtime compatibility is explicit, never assumed
     expect(lifecycle!.suiteCount).toBe(1)
   })
 
-  it('C — benchmark off-graph is DEGRADED, not unavailable: it runs, it just proves less', async () => {
-    // benchmark-runner.ts:804 — usesRealGraph = runtime === 'langgraph'. Anything
-    // else falls to runTaskViaCompletion: no tool call, so no safety score.
-    // Marking this `unavailable` would remove a working action; marking it
-    // `available` would let the UI present an unearned safety figure.
+  it('C — benchmark on openai-assistants is AVAILABLE: the engine caught up (030)', async () => {
+    // The `degraded` verdict this replaces was true only while the off-graph
+    // path was `runTaskViaCompletion` — a tool-less completion whose safety
+    // score had to be withheld. AIGENT-BENCH-RUNTIME-030 deleted that function
+    // and routes this runtime through executeCopilotRun with the manifest's
+    // real tools, so the assertions observe ground truth and the safety score
+    // is earned. Keeping `degraded` here would warn about a shortfall that no
+    // longer exists, and a stale detail refuses what the engine now serves.
     installMocks({ detail: makeDetail({ copilot: { runtime: 'openai-assistants' } }) })
 
     const lifecycle = await getAgentLifecycle(COPILOT_ID)
     const bench = cap(lifecycle!, 'run-benchmark')
-    expect(bench.state).toBe('degraded')
-    expect(bench.state !== 'available' && bench.detail).toMatch(/runTaskViaCompletion/)
-    // The shortfall is stated in operator words, before the click.
-    expect(bench.state !== 'available' && bench.reason).toMatch(/safety score|tools/i)
+    expect(bench.state).toBe('available')
+    assertNoDeadButtons(lifecycle!)
+  })
+
+  it('C2 — an openai-assistants agent on the validation bench cannot benchmark either', async () => {
+    // The direct path persists an agent_runs row per TASK, same NOT NULL
+    // project_id constraint as the test path — a real refusal, and the only one
+    // left on this runtime.
+    installMocks({
+      detail: makeDetail({ copilot: { runtime: 'openai-assistants', projectId: null } }),
+    })
+
+    const bench = cap((await getAgentLifecycle(COPILOT_ID))!, 'run-benchmark')
+    expect(bench.state).toBe('unavailable')
+    expect(bench.state !== 'available' && bench.detail).toMatch(/agent_runs/)
+  })
+
+  it('C3 — a runtime with NO benchmark engine is UNAVAILABLE, not degraded', async () => {
+    // runBenchmarkSuite() throws UnsupportedRuntimeError before the
+    // benchmark_runs insert, so the action does not run in a reduced form — it
+    // produces no run at all. `degraded` would promise a measurement that never
+    // happens.
+    installMocks({ detail: makeDetail({ copilot: { runtime: 'gemini' as Copilot['runtime'] } }) })
+
+    const lifecycle = await getAgentLifecycle(COPILOT_ID)
+    const bench = cap(lifecycle!, 'run-benchmark')
+    expect(bench.state).toBe('unavailable')
+    expect(bench.state !== 'available' && bench.detail).toMatch(/UnsupportedRuntimeError/)
+    // The dead engine this capability used to describe must be gone.
+    expect(bench.state !== 'available' && bench.detail).not.toMatch(/runTaskViaCompletion/)
+    assertNoDeadButtons(lifecycle!)
   })
 
   it('C — benchmark on langgraph is fully available', async () => {
@@ -621,9 +654,10 @@ describe('getAgentLifecycle — the six VALIDATION cases', () => {
     expect(improve.state !== 'available' && improve.detail).toMatch(/nothing to improve/)
   })
 
-  it('T — a sub-target benchmark score is a real signal, even off-graph', async () => {
+  it('T — a sub-target benchmark score is a real signal, whatever engine produced it', async () => {
     // A recorded score below the improve target IS evidence, whatever produced
-    // it. Refusing here would hide a genuine regression behind a runtime rule.
+    // it: the signal reads a stored row, never an engine. Refusing here would
+    // hide a genuine regression behind a runtime rule.
     installMocks({
       detail: makeDetail({ copilot: { runtime: 'openai-assistants' } }),
       benchmarkResults: [{ score: 41 }],

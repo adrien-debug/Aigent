@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server'
 
 import { NoRunnableTasksError, runBenchmarkSuite } from '@/lib/agent-mission-control/benchmark-runner'
 import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
-import { NotFoundError, ProviderUnavailableError } from '@/lib/agent-mission-control/runner-errors'
+import {
+  NotFoundError,
+  ProviderUnavailableError,
+  UnsupportedRuntimeError,
+} from '@/lib/agent-mission-control/runner-errors'
 import type { AgentRuntime, BenchmarkRun, ModelProvider } from '@/lib/agent-mission-control/types'
 
 const MODEL_PROVIDERS: ModelProvider[] = ['openai', 'google', 'local']
@@ -140,6 +144,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
       return NextResponse.json({ error: err.message }, { status: 404 })
     }
     if (err instanceof NoRunnableTasksError) {
+      return NextResponse.json({ error: err.message }, { status: 409 })
+    }
+    // Same 409 family, same reasoning as the test-run routes: a runtime no
+    // engine serves is a CONFIG conflict — the suite exists and the backend is
+    // up — not a missing resource and not a transient upstream failure. The
+    // message names a runtime string the operator configured, so it is
+    // hand-authored and safe to forward.
+    if (err instanceof UnsupportedRuntimeError) {
       return NextResponse.json({ error: err.message }, { status: 409 })
     }
     if (err instanceof ProviderUnavailableError) {
