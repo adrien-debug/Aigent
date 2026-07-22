@@ -118,15 +118,20 @@ export function decodeSession(value: string | undefined | null): AdminSession | 
   const payload = value.slice(0, dot)
   const mac = value.slice(dot + 1)
 
-  // Verify signature in constant time before trusting any bytes.
-  let expected: string
+  // Verify signature in constant time before trusting any bytes. The whole
+  // verification is wrapped: fromB64url on a malformed MAC can decode to a
+  // different byte length than `expected`, and crypto.timingSafeEqual THROWS a
+  // RangeError on mismatched lengths. That throw was previously uncaught, so a
+  // crafted cookie turned the fail-closed `null` into a 500 — and, worse, the
+  // crash in the proxy preempted the valid x-amc-key fallback. Any failure here
+  // is "not a valid session" → null, never an exception.
   try {
-    expected = sign(payload)
+    const expected = sign(payload)
+    if (mac.length !== expected.length || !timingSafeEqual(fromB64url(mac), fromB64url(expected))) {
+      return null
+    }
   } catch {
-    return null // secret missing → nothing is trusted
-  }
-  if (mac.length !== expected.length || !timingSafeEqual(fromB64url(mac), fromB64url(expected))) {
-    return null
+    return null // secret missing, malformed MAC, or length mismatch → untrusted
   }
   try {
     const session = JSON.parse(fromB64url(payload).toString('utf8')) as AdminSession

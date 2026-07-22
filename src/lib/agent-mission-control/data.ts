@@ -24,6 +24,7 @@ import {
   type ResolvedAgentHealth,
 } from './agent-health'
 import { camelRow, camelRows, pgrest, pgrestWithCount } from './postgrest'
+import { NON_EVALUATION_RUN_FILTER } from './types'
 import type {
   AgentManifest,
   AgentRun,
@@ -343,8 +344,18 @@ export async function getRunsForCopilot(copilotId: string, limit = 50): Promise<
   })
 }
 
+/**
+ * Recent OPERATIONAL runs. Excludes evaluation runs (test-case + benchmark-task
+ * runs) via NON_EVALUATION_RUN_FILTER, the SAME exclusion the 24h health
+ * resolver (agent-health.ts) uses — so the dashboard/performance activity, cost
+ * and status charts count one run universe, not two. Counting eval runs here
+ * made a failing test case show as a "failed production run" and put two
+ * different "24h runs" totals on one screen.
+ */
 export async function getRecentRuns(limit = 30): Promise<AgentRun[]> {
-  const rows = await rest<RawRow[]>(`agent_runs?select=*,agent_run_steps(id)&order=started_at.desc&limit=${limit}`)
+  const rows = await rest<RawRow[]>(
+    `agent_runs?select=*,agent_run_steps(id)&${NON_EVALUATION_RUN_FILTER}&order=started_at.desc&limit=${limit}`
+  )
   return rows.map((r) => {
     const { agent_run_steps, ...rest_ } = r as RawRow & { agent_run_steps: { id: string }[] }
     const run = normalizeResolvedModel(camelRow<AgentRun>(rest_))
@@ -353,10 +364,11 @@ export async function getRecentRuns(limit = 30): Promise<AgentRun[]> {
   })
 }
 
-/** Traces for a project: the runs of ITS copilots (per-project Traces menu). */
+/** Traces for a project: the OPERATIONAL runs of ITS copilots (per-project
+ * Traces menu). Same non-evaluation exclusion as getRecentRuns. */
 export async function getRecentRunsForProject(projectId: string, limit = 30): Promise<AgentRun[]> {
   const rows = await rest<RawRow[]>(
-    `agent_runs?select=*,agent_run_steps(id)&project_id=eq.${encodeURIComponent(projectId)}&order=started_at.desc&limit=${limit}`
+    `agent_runs?select=*,agent_run_steps(id)&project_id=eq.${encodeURIComponent(projectId)}&${NON_EVALUATION_RUN_FILTER}&order=started_at.desc&limit=${limit}`
   )
   return rows.map((r) => {
     const { agent_run_steps, ...rest_ } = r as RawRow & { agent_run_steps: { id: string }[] }
