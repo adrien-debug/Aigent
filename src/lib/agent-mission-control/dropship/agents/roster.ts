@@ -10,8 +10,8 @@
  * est déclarée dans `dynamicContextSlots` au lieu d'être fabriquée ici.
  *
  * DEFINITIONS ONLY — aucun LLM contacté, rien persisté, zéro réseau/secret.
- * Le modèle d'exécution reste celui validé pour les autres gammes (trading,
- * finance) : Aigent est l'usine (authoring, bench, versioning, export) ; les
+ * Le modèle d'exécution reste celui validé pour les autres gammes (trading) :
+ * Aigent est l'usine (authoring, bench, versioning, export) ; les
  * EXECUTEURS d'outils restent dans dropship-platform (`apps/web/lib/agent/`),
  * qui garde sa boucle tool_use, son ledger `dropship_ai_runs` et ses gardes.
  * Un futur lot "materialization" transformera un `DropshipAgentDef` en

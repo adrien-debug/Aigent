@@ -36,11 +36,6 @@ const LOCAL_VLLM_ENDPOINTS = {
     modelEnvVar: 'VLLM_GPU1_QWEN7_MODEL',
     defaultUpstreamModel: 'Qwen/Qwen2.5-Coder-7B-Instruct-AWQ',
   },
-  'local-finance-32b': {
-    urlEnvVar: 'VLLM_GPU1_FINANCE_URL',
-    modelEnvVar: 'VLLM_GPU1_FINANCE_MODEL',
-    defaultUpstreamModel: 'qwen3-32b-finance',
-  },
 }
 
 function resolveLocalEndpoint(modelId) {

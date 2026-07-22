@@ -9,8 +9,8 @@
  *
  * Three checks, each on a concrete import/read, never on a vague keyword:
  *
- *  1. NO ROSTER IN THE APP. `market/agents/roster.ts`, `finance/agents/roster.ts`
- *     and `dropship/agents/roster.ts` are pure config describing agents that may
+ *  1. NO ROSTER IN THE APP. `market/agents/roster.ts` and
+ *     `dropship/agents/roster.ts` are pure config describing agents that may
  *     never have been provisioned. Importing one from `src/app` or
  *     `src/components` would publish a catalogue nobody can execute.
  *
@@ -36,7 +36,7 @@ const SRC = join(ROOT, 'src')
 const RUNTIME_DIRS = ['app', 'components']
 
 const ROSTER_IMPORT_RE =
-  /from\s+['"][^'"]*(?:market|finance|dropship)\/agents\/roster['"]/
+  /from\s+['"][^'"]*(?:market|dropship)\/agents\/roster['"]/
 const DELIVERY_READ_RE = /['"][^'"]*delivery\/tradeagent[^'"]*['"]/
 
 /**

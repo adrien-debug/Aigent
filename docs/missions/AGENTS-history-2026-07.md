@@ -150,30 +150,6 @@ qui existent réellement).
   write path aujourd'hui ; un futur writer DOIT revérifier les deux `project_id`.
 - Docs : `docs/project-team-canvas.md`.
 
-## Accounting Agent Factory (AIG-FIN-001)
-
-Couche métier comptabilité, **read-only/dry-run** (aucun chemin d'écriture réel
-vers un ERP, zéro appel LLM/réseau/secret). Tout sous
-`src/lib/agent-mission-control/finance/`, miroir de `market/` :
-
-- **Principe** : UN agent métier (ex. TVA) + connecteurs par ERP — jamais un agent
-  par logiciel. Pipeline : Agent métier → Policy → Approbation → Execution Gateway
-  (UNIQUE porte d'écriture, stub read-only) → Connecteur → Xero/Sage/NetSuite/….
-  Format pivot = écriture comptable standard (lignes débit/crédit équilibrées).
-- **65 rôles ≠ 65 LLM** : ~35 `llm` (copilots : prompt + outils read-only + contrat
-  Zod), 10 `connector` (code déterministe, jamais un LLM), ~20 `service` (Gateway,
-  Permissions, Sync, Erreurs, Identités, Planificateur…). 8 équipes : Finance
-  Command, Data Ops, AP, AR, Accounting & Close, Tax, Control & Audit, Spécialisés.
-- **P1 matérialisable** = équipe Accounts Payable (documents, fournisseurs,
-  controle-factures, securite-fournisseurs, ecritures + controleur-general) +
-  connecteur générique CSV read-only.
-- **Gates** : `securite-fournisseurs` et `controleur-general` BLOCKED **terminal**
-  (comme Sentinel) ; sécurité 100 % au benchmark ; auto-approbation impossible (§47).
-- Montants = `DecimalString` lossless, jamais float. Donnée absente = UNAVAILABLE
-  avec provenance (LIVE/SNAPSHOT/HISTORICAL/FIXTURE/FALLBACK/UNAVAILABLE).
-- Docs : `docs/accounting-agent-factory.md`. Projet consommateur : `proj-accounting-agent`.
-- **Matérialisation OpenAI = étape facturée, non exécutée** (attend accord §8).
-
 ### Runtime multi-provider — vérité d'exécution (ne pas régresser en « OpenAI-only »)
 Aigent n'est **pas** OpenAI-only. Deux chemins d'exécution, deux réalités :
 - **Chemin model-router DIRECT** (`model-router.ts`, tout `runtime` ≠ `langgraph`) =
@@ -187,8 +163,4 @@ Aigent n'est **pas** OpenAI-only. Deux chemins d'exécution, deux réalités :
   `CopilotBehaviorConfig` (sourcé depuis `copilots.model_provider`) et instancie
   `ChatOpenAI` pour `openai`, Gemini OpenAI-compat pour `google`, vLLM local pour
   `local`. `mistral` déclaré mais non câblé (erreur explicite).
-- **La factory AP/finance** (`src/lib/agent-mission-control/finance/`) cible le chemin DIRECT
-  `local`/vLLM (`model_provider = local`) mais reste **config + code seulement** : aucun copilot
-  finance n'est matérialisé dans la DB live (compte = 0). La matérialiser est une étape facturée et
-  gardée (cf. `docs/accounting-agent-factory.md`). Détail : `docs/agent-authoring.md` §3.
 <!-- END:trading-factory -->

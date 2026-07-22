@@ -71,13 +71,6 @@ export const LOCAL_VLLM_ENDPOINTS: Record<LocalVllmModelId, LocalVllmEndpointSpe
     contextTokens: 8192,
     description: 'GPU1 :8001 — Qwen2.5 Coder 7B Instruct AWQ',
   },
-  'local-finance-32b': {
-    urlEnvVar: 'VLLM_GPU1_FINANCE_URL',
-    modelEnvVar: 'VLLM_GPU1_FINANCE_MODEL',
-    defaultUpstreamModel: 'qwen3-32b-finance',
-    contextTokens: 32768,
-    description: 'GPU1 :8010 — Qwen3 32B finance (may be down while deploying)',
-  },
 }
 
 /** Router-facing model ids of the `local` provider (canonical list lives in

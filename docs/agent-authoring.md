@@ -41,11 +41,8 @@ LangGraph `agent_builder` graph (via `model-provider.mjs`).
   OpenAI-compatible, explicit opt-in — never a silent redirect of defaults).
   `mistral` remains in the DB enum for legacy rows but is **not creatable**
   from the UI/API and is not wired at runtime.
-- The **finance/AP factory** (`src/lib/agent-mission-control/finance/`) is designed for this
-  direct path with `model_provider = local` → **local vLLM**, but is **config + code only** —
-  **no finance copilot is materialized** in the live DB (count 0). Materialization is a gated,
-  billed step (see `docs/accounting-agent-factory.md`); the live catalog today is the 4 TradeAgent
-  copilots, all `runtime: 'langgraph'`.
+- The live catalog today is the 4 TradeAgent copilots, all `runtime: 'langgraph'`,
+  `model_provider = openai`, `gpt-5.4`.
 - Migration `0005` tightened the `model_provider` / `runtime` CHECK constraints
   down to the OpenAI/Google/Mistral/local providers (no external LLM vendor beyond
   those).
@@ -290,8 +287,7 @@ its prose over SSE (above). This is what makes the project builder's architect
 The runner runs the agentic loop itself via the **multi-provider** model router
 (`src/lib/agent-mission-control/model-router.ts`), which resolves the copilot's
 `model_provider` and dispatches to **OpenAI**, **Gemini** (`google`), or the
-**local vLLM park** (`local`) — the path the finance/AP factory targets once
-materialized (no finance copilot exists in the live DB today, §1). The loop: resolve the manifest's tool
+**local vLLM park** (`local`, opt-in). The loop: resolve the manifest's tool
 set, call the model, run each requested tool through the guardrail
 (allowed? risky? requires confirmation?), execute allowed read-only handlers,
 feed results back, loop until a final answer or the manifest step budget. A
@@ -406,8 +402,7 @@ graph and its interrupt/resume flow.
   `ProviderUnavailableError`, never a silent fallback.
 - **`VLLM_LOCAL_API_KEY`** + the per-endpoint URL vars (see
   `src/lib/agent-mission-control/model-local.ts`) — required for copilots whose
-  `model_provider = local` (Adrien's vLLM park). This is the path the finance/AP
-  factory targets once materialized (no finance copilot is materialized today).
+  `model_provider = local` (Adrien's vLLM park, opt-in).
   Endpoint down/unconfigured → `ProviderUnavailableError` (explicit, non-silent).
 - **`LANGGRAPH_API_URL`** — base URL of the Agent Server, default
   `http://127.0.0.1:2024`. Override to point at a remote deployment.

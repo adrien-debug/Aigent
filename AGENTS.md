@@ -5,7 +5,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 <!-- END:nextjs-agent-rules -->
 
 > **Discipline de ce fichier** : invariants courts pour agents, rien d'autre. Le détail par
-> mission (roster complet, exports, canvas, accounting factory) vit dans
+> mission (roster complet, exports, canvas) vit dans
 > `docs/missions/AGENTS-history-2026-07.md` — le consulter AVANT de toucher un domaine listé.
 
 <!-- BEGIN:doctrine-hierarchy -->
@@ -89,15 +89,12 @@ est pris par un process non identifié comme le sien.
 - **Garde d'exécution** (AIG-…-GATE-020) : `POST /api/agent-ops/copilots/:id/run` relit l'agent
   canonique et refuse fail-closed (seul `active` + `unresolvedToolIds` vide autorise un run ;
   503/404/409 sinon). Ne jamais recalculer le statut dans une route.
-- **Factories métier read-only** : trading (`src/lib/agent-mission-control/market/`) et
-  accounting (`…/finance/`) n'ont AUCUN chemin d'écriture réel (ordres/comptes/ERP). Donnée
-  absente → UNAVAILABLE avec provenance, jamais inventée ; montants/prix en décimales lossless,
-  jamais float. Sentinel (trading) et `securite-fournisseurs`/`controleur-general` (finance) =
+- **Factory métier read-only** : trading (`src/lib/agent-mission-control/market/`) n'a AUCUN
+  chemin d'écriture réel (ordres/comptes/ERP). Donnée absente → UNAVAILABLE avec provenance,
+  jamais inventée ; montants/prix en décimales lossless, jamais float. Sentinel (trading) =
   BLOCKED terminal.
 - **Runtime multi-provider — ne pas régresser en « OpenAI-only »** : le model-router direct route
   vers `openai`/`google`/`local` (vLLM, opt-in explicite) ; LangGraph idem via
   `src/langgraph/model-provider.mjs` ; `mistral` déclaré non câblé (erreur typée, jamais de
-  fallback muet). La factory AP/finance (`…/finance/`) cible le chemin `local`/vLLM mais reste
-  **config + code seulement** : aucun copilot finance n'est matérialisé (compte DB live = 0). Détail :
-  `docs/agent-authoring.md` §3.
+  fallback muet). Détail : `docs/agent-authoring.md` §3.
 - **Matérialisation OpenAI d'agents = étape facturée, jamais exécutée sans accord** (§8 global).

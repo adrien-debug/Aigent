@@ -125,7 +125,7 @@ export const copilots: Copilot[] = [
     model: 'gpt-5.2',
     modelProvider: 'openai',
     owner: 'marc.delorme',
-    tags: ['billing', 'finance', 'console'],
+    tags: ['billing', 'console'],
     createdAt: '2026-06-04T09:20:00Z',
     updatedAt: '2026-07-09T07:10:00Z',
     health: {

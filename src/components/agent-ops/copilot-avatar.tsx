@@ -1,6 +1,5 @@
 import {
   BoltIcon,
-  ChartBarIcon,
   CheckBadgeIcon,
   CpuChipIcon,
   MagnifyingGlassIcon,
@@ -23,14 +22,13 @@ import type { Copilot } from '@/lib/agent-mission-control/types'
  * doubt → `default`. This keeps copilots (operators, round icon avatar)
  * visually distinct from projects (workspaces, square photo/logo avatar).
  */
-export type CopilotType = 'builder' | 'security' | 'qa-release' | 'inspector' | 'finance' | 'ops' | 'default'
+export type CopilotType = 'builder' | 'security' | 'qa-release' | 'inspector' | 'ops' | 'default'
 
 const TYPE_ICON: Record<CopilotType, typeof CpuChipIcon> = {
   builder: SparklesIcon,
   security: ShieldCheckIcon,
   'qa-release': CheckBadgeIcon,
   inspector: MagnifyingGlassIcon,
-  finance: ChartBarIcon,
   ops: BoltIcon,
   default: CpuChipIcon,
 }
@@ -42,7 +40,6 @@ const TYPE_RULES: { type: CopilotType; keywords: string[] }[] = [
   { type: 'security', keywords: ['security', 'sentinel', 'policy', 'guard', 'audit', 'compliance'] },
   { type: 'qa-release', keywords: ['qa', 'test', 'quality', 'release', 'gate', 'pilot', 'ship', 'promote'] },
   { type: 'inspector', keywords: ['inspect', 'repo', 'doc', 'search', 'triage', 'navigator', 'explorer', 'review'] },
-  { type: 'finance', keywords: ['finance', 'billing', 'cost', 'quota', 'invoice', 'spend', 'budget'] },
   { type: 'ops', keywords: ['ops', 'gateway', 'api', 'bolt', 'power', 'infra', 'deploy', 'runtime'] },
 ]
 
@@ -82,7 +79,6 @@ export function CopilotAvatar({
     security: 'bg-gradient-to-br from-zinc-600/40 to-zinc-700/20 ring-zinc-400/30 text-zinc-100',
     'qa-release': 'bg-gradient-to-br from-zinc-500/30 to-zinc-600/15 ring-zinc-400/25 text-zinc-200',
     inspector: 'bg-gradient-to-br from-zinc-700/40 to-zinc-800/20 ring-zinc-500/25 text-zinc-300',
-    finance: 'bg-gradient-to-br from-zinc-600/30 to-zinc-500/15 ring-zinc-400/20 text-zinc-200',
     ops: 'bg-gradient-to-br from-zinc-500/20 to-zinc-400/10 ring-zinc-500/30 text-zinc-300',
     default: 'bg-gradient-to-br from-[var(--accent-soft)] to-transparent ring-[var(--accent-line)] text-accent-400'
   }[type]

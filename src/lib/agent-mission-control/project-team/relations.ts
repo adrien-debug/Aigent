@@ -98,7 +98,6 @@ export const TEAM_TAG_RULES: readonly { readonly tag: string; readonly team: str
   { tag: 'data', team: 'Data' },
   { tag: 'research', team: 'Research' },
   { tag: 'trading', team: 'Trading' },
-  { tag: 'finance', team: 'Finance' },
   { tag: 'marketing', team: 'Marketing' },
   { tag: 'support', team: 'Support' },
   { tag: 'meta', team: 'Meta' },

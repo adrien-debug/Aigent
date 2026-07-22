@@ -635,7 +635,7 @@ export interface RegistryWarning {
  * mono-accent (check:catalyst / check:ds). A closed union so a wrong value
  * fails to typecheck rather than slipping a stray hue into the UI later.
  *
- * Lives here, not in a roster: every gamme (market, finance, dropship, …)
+ * Lives here, not in a roster: every gamme (market, dropship, …)
  * carries it, and the doctrine must have exactly one definition.
  */
 export type AgentAccent = 'accent' | 'zinc'

@@ -27,7 +27,6 @@ import 'server-only'
 
 import { z } from 'zod'
 
-import { FINANCE_TOOL_HANDLERS } from './finance/tools'
 import { TRADING_TOOL_HANDLERS } from './market/tools'
 import { pgrest } from './postgrest'
 import { NON_EVALUATION_RUN_FILTER } from './types'
@@ -60,14 +59,11 @@ const NATIVE_TOOL_NAMES = [
  * tools silently never load (`buildToolsFromConfig` skips unknown ids).
  *
  * `scripts/check-registry-parity.mjs` (in `npm run check`) asserts the two
- * registries agree, so this set cannot drift into that lie unnoticed. The 9
- * finance handlers are the one known gap, allowlisted there — no finance
- * copilot exists yet, but creating one today yields a toolless agent.
+ * registries agree, so this set cannot drift into that lie unnoticed.
  */
 const RUNNABLE_TOOL_NAMES: ReadonlySet<string> = new Set<string>([
   ...NATIVE_TOOL_NAMES,
   ...Object.keys(TRADING_TOOL_HANDLERS),
-  ...Object.keys(FINANCE_TOOL_HANDLERS),
 ])
 
 type RawRow = Record<string, unknown>

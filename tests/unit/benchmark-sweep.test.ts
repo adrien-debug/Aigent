@@ -55,7 +55,7 @@ describe('runBenchmarkSweep', () => {
     let maxInFlight = 0
 
     const res = await runBenchmarkSweep(
-      { ...base, models: [L('local-qwen-7b'), L('local-qwen-32b'), L('local-finance-32b')] },
+      { ...base, models: [L('local-qwen-7b'), L('local-qwen-32b'), L('local-reasoning-70b')] },
       deps({
         runSuite: async (a) => {
           inFlight += 1
@@ -68,7 +68,7 @@ describe('runBenchmarkSweep', () => {
       })
     )
 
-    expect(order).toEqual(['local-qwen-7b', 'local-qwen-32b', 'local-finance-32b'])
+    expect(order).toEqual(['local-qwen-7b', 'local-qwen-32b', 'local-reasoning-70b'])
     expect(maxInFlight).toBe(1)
     expect(res.ranCount).toBe(3)
     expect(res.legs.map((l) => l.status)).toEqual(['ran', 'ran', 'ran'])
@@ -119,8 +119,8 @@ describe('runBenchmarkSweep', () => {
 
   it('skips an unavailable provider explicitly, without substituting', async () => {
     const res = await runBenchmarkSweep(
-      { ...base, models: [L('local-qwen-7b'), L('local-finance-32b')] },
-      deps({ isAvailable: (s) => s.model !== 'local-finance-32b' })
+      { ...base, models: [L('local-qwen-7b'), L('local-reasoning-70b')] },
+      deps({ isAvailable: (s) => s.model !== 'local-reasoning-70b' })
     )
     expect(res.legs[0].status).toBe('ran')
     const skipped = res.legs[1]

@@ -20,7 +20,6 @@ export const LOCAL_VLLM_MODEL_IDS = [
   'local-llama-70b',
   'local-qwen-32b',
   'local-qwen-7b',
-  'local-finance-32b',
 ] as const
 export type LocalVllmModelId = (typeof LOCAL_VLLM_MODEL_IDS)[number]
 

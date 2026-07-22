@@ -27,7 +27,6 @@
 import { readFileSync } from 'node:fs'
 
 const LANGGRAPH_REGISTRY = 'src/langgraph/tool-registry.mjs'
-const FINANCE_TOOLS = 'src/lib/agent-mission-control/finance/tools.ts'
 const MARKET_TOOLS = 'src/lib/agent-mission-control/market/tools.ts'
 
 /** Keys of a top-level `const NAME = { … }` object literal, one indent deep. */
@@ -61,34 +60,19 @@ if (!marketIds || !registryIds) {
 // REGISTRY spreads MARKET_TOOL_IDS, so the union is what the graph can build.
 const langgraphBuildable = new Set([...marketIds, ...registryIds])
 
-const financeSource = readFileSync(FINANCE_TOOLS, 'utf8')
 const marketSource = readFileSync(MARKET_TOOLS, 'utf8')
-const financeHandlers = handlerKeys(financeSource, 'FINANCE_TOOL_HANDLERS')
 const marketHandlers = handlerKeys(marketSource, 'TRADING_TOOL_HANDLERS')
 
-if (!financeHandlers || !marketHandlers) {
+if (!marketHandlers) {
   console.error('✗ Could not parse the direct-path handler maps — shape changed.')
   process.exit(1)
 }
 
-/**
- * Known gap, deliberately allowlisted rather than silently tolerated.
- *
- * The 9 finance handlers have no LangGraph counterpart. No finance copilot
- * exists in the database today, so nothing is broken right now — but creating
- * one would produce a silently toolless agent. Burn this down by either
- * registering the finance tools in tool-registry.mjs or removing the handlers.
- */
-const KNOWN_GAP = new Set(financeHandlers)
-
 const missing = []
-for (const name of [...marketHandlers, ...financeHandlers]) {
+for (const name of marketHandlers) {
   if (langgraphBuildable.has(name)) continue
-  if (KNOWN_GAP.has(name)) continue
   missing.push(name)
 }
-
-const staleGap = [...KNOWN_GAP].filter((n) => langgraphBuildable.has(n))
 
 // Bidirectional MARKET parity. The market-tools bridge route derives its
 // allowlist from TRADING_TOOL_HANDLERS, and the graph mounts MARKET_TOOL_SPECS.
@@ -120,12 +104,6 @@ if (missing.length > 0) {
   console.error(`  Fix: register it in ${LANGGRAPH_REGISTRY}, or drop the handler.`)
 }
 
-if (staleGap.length > 0) {
-  failed = true
-  console.error(`\n✗ ${staleGap.length} stale KNOWN_GAP entr(y/ies) — now buildable, remove from the allowlist:\n`)
-  for (const name of staleGap) console.error(`  ${name}`)
-}
-
 if (failed) {
   console.error('\nRegistry-parity guard FAILED.\n')
   process.exit(1)
@@ -134,10 +112,4 @@ if (failed) {
 console.log(
   `✓ Registry-parity guard passed — every directly-runnable tool is buildable by the LangGraph graph.`
 )
-console.log(
-  `  ${langgraphBuildable.size} buildable id(s); ${KNOWN_GAP.size} known gap(s) still allowlisted (debt, to burn down):`
-)
-console.log(
-  `    finance handlers with no LangGraph counterpart — no finance copilot exists yet,`
-)
-console.log(`    but creating one today would yield a silently toolless agent.`)
+console.log(`  ${langgraphBuildable.size} buildable id(s); no allowlisted gaps.`)

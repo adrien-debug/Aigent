@@ -250,12 +250,12 @@ describe('buildCopilotBehaviorConfig — modelProvider', () => {
 
   it('carries model_provider from the copilot row into the behavior config', () => {
     const config = buildCopilotBehaviorConfig({
-      copilot: { ...baseCopilot, model_provider: 'local', model: 'local-finance-32b' },
+      copilot: { ...baseCopilot, model_provider: 'local', model: 'local-reasoning-70b' },
       manifest: null,
       tools: [],
       repoFullName: null,
     })
     expect(config.modelProvider).toBe('local')
-    expect(config.model).toBe('local-finance-32b')
+    expect(config.model).toBe('local-reasoning-70b')
   })
 })
