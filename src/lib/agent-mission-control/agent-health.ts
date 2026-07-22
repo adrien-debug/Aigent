@@ -372,9 +372,3 @@ export async function resolve24hMetricsBatch(copilotIds: string[]): Promise<Map<
   }
   return out
 }
-
-/** Resolve rolling-24h metrics for a single copilot. */
-export async function resolve24hMetrics(copilotId: string): Promise<Resolved24hMetrics> {
-  const map = await resolve24hMetricsBatch([copilotId])
-  return map.get(copilotId) ?? { ...EMPTY_24H }
-}

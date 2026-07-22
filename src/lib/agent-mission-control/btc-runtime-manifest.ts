@@ -38,10 +38,6 @@ export const BTC_V3_OUTPUT_INVARIANTS = [
   'when listing TradeAgent API routes, cite verified routes such as /api/market/prices, /api/signals, /api/admin/signals and note absent routes are not confirmed',
 ] as const
 
-/** TradeAgent-specific grounding baked into the BTC manifest (repo is fixed for this agent). */
-export const BTC_TRADEAGENT_KNOWN_SCRIPTS = ['check', 'lint', 'test', 'build', 'doctor', 'hygiene'] as const
-export const BTC_TRADEAGENT_KNOWN_ROUTES = ['/api/market/prices', '/api/signals', '/api/admin/signals'] as const
-
 export const BTC_V3_SYSTEM_PROMPT_SUMMARY =
   'BTC Alert & Levels Sentinel — assistant strictement read-only, centré BTCUSDT. ' +
   'Principe du minimum nécessaire en outils. Diagnostic BTCUSDT basé sur le contexte projet : appelle UNIQUEMENT read_project_summary ' +

@@ -28,8 +28,6 @@ import type {
   CopilotStatus,
   ModelProvider,
   Project,
-  ReplayCandidate,
-  ToolCall,
   VersionStage,
 } from './types'
 
@@ -101,12 +99,6 @@ export const AVAILABLE_AGENT_STATUS_LABELS: Record<AvailableAgentStatus, string>
 }
 
 /**
- * Alias fixed by the AIGENT-UI-TRUTH-026 wave contract so every agent imports
- * the same table under the name it expects. Same object, not a copy.
- */
-export const availableAgentStatusLabels = AVAILABLE_AGENT_STATUS_LABELS
-
-/**
  * The three status DIMENSIONS. A badge that shows a status without naming its
  * dimension is the ambiguity this module exists to remove: use these as the
  * column header or the inline prefix.
@@ -128,12 +120,6 @@ export function agentExecutableLabel(executable: boolean): string {
   return executable ? AGENT_EXECUTABLE_LABELS.yes : AGENT_EXECUTABLE_LABELS.no
 }
 
-/**
- * The one label for "no persisted row proved this". Distinct from a measured
- * zero and distinct from a status — see `NotMeasuredDash` for the glyph form.
- */
-export const NOT_MEASURED_LABEL = 'Not measured'
-
 export const AGENT_RUN_STATUS_LABELS: Record<AgentRunStatus, string> = {
   completed: 'Completed',
   failed: 'Failed',
@@ -147,22 +133,6 @@ export const VERSION_STAGE_LABELS: Record<VersionStage, string> = {
   beta: 'Beta',
   draft: 'Draft',
   archived: 'Archived',
-}
-
-export const TOOL_CALL_STATUS_LABELS: Record<ToolCall['status'], string> = {
-  ok: 'OK',
-  error: 'Error',
-  blocked: 'Blocked',
-  confirmed: 'Confirmed',
-  rejected: 'Rejected',
-}
-
-export const REPLAY_OUTCOME_LABELS: Record<ReplayCandidate['outcome'], string> = {
-  matched: 'Matched',
-  improved: 'Improved',
-  diverged: 'Diverged',
-  unsafe: 'Unsafe',
-  pending: 'Pending',
 }
 
 export const PROJECT_PLATFORM_LABELS: Record<Project['platform'], string> = {

@@ -28,23 +28,15 @@ import { NON_EVALUATION_RUN_FILTER } from './types'
 import type {
   AgentManifest,
   AgentRun,
-  AgentRunStep,
-  BenchmarkResult,
   BenchmarkRun,
   BenchmarkSuite,
   Copilot,
   CopilotHealthMetric,
   CopilotVersion,
   Project,
-  PromotionGate,
-  RegistryWarning,
-  ReplayComparison,
-  ShadowExperiment,
   TestCase,
-  TestResult,
   TestRun,
   TestSuite,
-  ToolCall,
   ToolDefinition,
 } from './types'
 
@@ -246,27 +238,6 @@ export async function getVersionsForCopilot(copilotId: string): Promise<CopilotV
   })
 }
 
-/**
- * One version, with run-backed scores resolved over the stored blob.
- *
- * Memoized per request for the same reason as `getCopilot`: the agent detail
- * screen resolves up to three versions (production, latest, gate candidate)
- * and each call costs 2 round-trips. Callers treat the result as read-only —
- * the score fields below are written onto this function's OWN freshly-fetched
- * object before any caller sees it, so a shared instance is safe.
- */
-export const getVersion = cache(async function getVersion(id: string): Promise<CopilotVersion | undefined> {
-  const version = camelRows<CopilotVersion>(await rest<RawRow[]>(`copilot_versions?select=*&id=eq.${encodeURIComponent(id)}`))[0]
-  if (!version) return undefined
-  const resolved = (await resolveVersionScoresBatch([version.id])).get(version.id)
-  version.scoresEvidence = resolved?.evidenceSource ?? 'none'
-  if (resolved && resolved.testPassRate !== null) version.scores.testPassRate = resolved.testPassRate
-  if (resolved && resolved.benchmarkScore !== null) version.scores.benchmarkScore = resolved.benchmarkScore
-  // See getVersionsForCopilot: null wins over the zero-init blob.
-  version.scores.unsafeActionCount = resolved?.unsafeActionCount ?? null
-  return version
-})
-
 export async function getManifestForCopilot(copilotId: string): Promise<AgentManifest | undefined> {
   return camelRows<AgentManifest>(
     await rest<RawRow[]>(`manifests?select=*&copilot_id=eq.${encodeURIComponent(copilotId)}&order=updated_at.desc&limit=1`)
@@ -320,10 +291,6 @@ export async function getTestRunsForCopilot(copilotId: string): Promise<TestRun[
     run.resultIds = (test_results ?? []).map((x) => x.id)
     return run
   })
-}
-
-export async function getTestResultsForRun(runId: string): Promise<TestResult[]> {
-  return camelRows<TestResult>(await rest<RawRow[]>(`test_results?select=*&run_id=eq.${encodeURIComponent(runId)}&order=id`))
 }
 
 /**
@@ -381,87 +348,22 @@ export async function getRecentRunsForProject(projectId: string, limit = 30): Pr
   })
 }
 
-export async function getStepsForRun(runId: string): Promise<AgentRunStep[]> {
-  return camelRows<AgentRunStep>(await rest<RawRow[]>(`agent_run_steps?select=*&run_id=eq.${encodeURIComponent(runId)}&order=index`))
-}
-
-export async function getToolCallsForRun(runId: string): Promise<ToolCall[]> {
-  return camelRows<ToolCall>(await rest<RawRow[]>(`tool_calls?select=*&run_id=eq.${encodeURIComponent(runId)}&order=id`))
-}
-
-/**
- * Tool calls for a batch of runs — ONE PostgREST round trip via `run_id=in.(...)`
- * instead of one fetch per run. Use this whenever you need tool calls across a
- * run list (e.g. a runs table); use `getToolCallsForRun` for a single run.
- */
-export async function getToolCallsForRuns(runIds: string[]): Promise<ToolCall[]> {
-  if (runIds.length === 0) return []
-  const ids = runIds.map((id) => encodeURIComponent(id)).join(',')
-  return camelRows<ToolCall>(await rest<RawRow[]>(`tool_calls?select=*&run_id=in.(${ids})&order=id`))
-}
-
 export async function getBenchmarkSuitesForCopilot(copilotId: string): Promise<BenchmarkSuite[]> {
   return camelRows<BenchmarkSuite>(
     await rest<RawRow[]>(`benchmark_suites?select=*&copilot_id=eq.${encodeURIComponent(copilotId)}&order=name`)
   )
 }
 
-export async function getBenchmarkRunsForSuite(suiteId: string): Promise<BenchmarkRun[]> {
-  return camelRows<BenchmarkRun>(
-    await rest<RawRow[]>(`benchmark_runs?select=*&suite_id=eq.${encodeURIComponent(suiteId)}&order=started_at.desc`)
-  )
-}
-
 /**
  * Benchmark runs across a batch of suites — ONE PostgREST round trip via
  * `suite_id=in.(...)` instead of one fetch per suite. Use this when scanning
- * all of a copilot's suites at once (e.g. the overview's best-candidate scan);
- * use `getBenchmarkRunsForSuite` for a single suite.
+ * all of a copilot's suites at once (e.g. the overview's best-candidate scan).
  */
 export async function getBenchmarkRunsForSuites(suiteIds: string[]): Promise<BenchmarkRun[]> {
   if (suiteIds.length === 0) return []
   const ids = suiteIds.map((id) => encodeURIComponent(id)).join(',')
   return camelRows<BenchmarkRun>(
     await rest<RawRow[]>(`benchmark_runs?select=*&suite_id=in.(${ids})&order=started_at.desc`)
-  )
-}
-
-export async function getBenchmarkResultForRun(runId: string): Promise<BenchmarkResult | undefined> {
-  return camelRows<BenchmarkResult>(await rest<RawRow[]>(`benchmark_results?select=*&run_id=eq.${encodeURIComponent(runId)}`))[0]
-}
-
-/**
- * Benchmark results across a batch of runs — ONE PostgREST round trip via
- * `run_id=in.(...)` instead of one fetch per run. Use `getBenchmarkResultForRun`
- * for a single run.
- */
-export async function getBenchmarkResultsForRuns(runIds: string[]): Promise<BenchmarkResult[]> {
-  if (runIds.length === 0) return []
-  const ids = runIds.map((id) => encodeURIComponent(id)).join(',')
-  return camelRows<BenchmarkResult>(await rest<RawRow[]>(`benchmark_results?select=*&run_id=in.(${ids})`))
-}
-
-export async function getReplayComparisonsForCopilot(copilotId: string): Promise<ReplayComparison[]> {
-  return camelRows<ReplayComparison>(
-    await rest<RawRow[]>(`replay_comparisons?select=*&copilot_id=eq.${encodeURIComponent(copilotId)}&order=created_at.desc`)
-  )
-}
-
-export async function getShadowExperimentsForCopilot(copilotId: string): Promise<ShadowExperiment[]> {
-  return camelRows<ShadowExperiment>(
-    await rest<RawRow[]>(`shadow_experiments?select=*&copilot_id=eq.${encodeURIComponent(copilotId)}&order=started_at.desc`)
-  )
-}
-
-export async function getPromotionGateForCopilot(copilotId: string): Promise<PromotionGate | undefined> {
-  return camelRows<PromotionGate>(
-    await rest<RawRow[]>(`promotion_gates?select=*&copilot_id=eq.${encodeURIComponent(copilotId)}&order=last_evaluated_at.desc&limit=1`)
-  )[0]
-}
-
-export async function getRecentWarnings(limit = 6): Promise<RegistryWarning[]> {
-  return camelRows<RegistryWarning>(
-    await rest<RawRow[]>(`registry_warnings?select=*&order=occurred_at.desc&limit=${limit}`)
   )
 }
 

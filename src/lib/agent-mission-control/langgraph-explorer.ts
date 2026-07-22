@@ -16,7 +16,7 @@
  */
 import 'server-only'
 
-import { agentServerClient, agentServerUrl, AGENT_BUILDER_GRAPH_ID } from './langgraph-client'
+import { agentServerClient, AGENT_BUILDER_GRAPH_ID } from './langgraph-client'
 
 /** How many threads to list at most (bounded — this is an operator overview). */
 const THREADS_LIMIT = 50
@@ -319,9 +319,4 @@ export async function getGraphTopology(graphId: string): Promise<GraphTopology> 
     nodes,
     edges,
   }
-}
-
-/** The Agent Server URL + graph the explorer targets (for the UI header + Studio link). */
-export function explorerServerInfo(): { agentServerUrl: string; graph: string } {
-  return { agentServerUrl: agentServerUrl(), graph: AGENT_BUILDER_GRAPH_ID }
 }

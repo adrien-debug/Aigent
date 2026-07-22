@@ -73,11 +73,6 @@ export const LOCAL_VLLM_ENDPOINTS: Record<LocalVllmModelId, LocalVllmEndpointSpe
   },
 }
 
-/** Router-facing model ids of the `local` provider (canonical list lives in
- *  model-catalog.ts so client forms can suggest them without touching this
- *  server-only module). */
-export { LOCAL_VLLM_MODEL_IDS } from './model-catalog'
-
 /** Spec for a router-facing model id, or undefined for unknown ids — the `in`
  *  guard narrows the free-string lookup without weakening the typed registry. */
 function specFor(model: string): LocalVllmEndpointSpec | undefined {

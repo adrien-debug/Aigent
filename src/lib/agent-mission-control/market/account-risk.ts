@@ -210,28 +210,3 @@ export async function readAccountRisk(
   cache.set(accountId, { expiresAt: asOf + ACCOUNT_CACHE_TTL_MS, snapshot })
   return snapshot
 }
-
-export function readConfiguredAccountRisk(
-  accountId: string,
-  asOf = Date.now(),
-): AccountRiskSnapshot | null {
-  const cached = cache.get(accountId)
-  if (cached && cached.expiresAt > asOf) return cached.snapshot
-  if (cached) cache.delete(accountId)
-
-  const stored = loadConfiguredSnapshots().get(accountId)
-  if (!stored) return null
-  const snapshot = materializeAccountRiskSnapshot(stored, asOf)
-  if (cache.size >= MAX_ACCOUNT_CACHE_ENTRIES) {
-    const oldest = cache.keys().next().value as string | undefined
-    if (oldest) cache.delete(oldest)
-  }
-  cache.set(accountId, { expiresAt: asOf + ACCOUNT_CACHE_TTL_MS, snapshot })
-  return snapshot
-}
-
-export function clearAccountRiskCache(): void {
-  cache.clear()
-  cachedRaw = undefined
-  storedById.clear()
-}

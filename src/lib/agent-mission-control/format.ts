@@ -6,7 +6,6 @@ import type { IsoTimestamp } from '@/lib/agent-mission-control/types'
  *
  * One shape per concept, everywhere:
  * - event time  → `formatTimestamp`  → "Jul 9, 07:12 UTC"
- * - date only   → `formatDate`       → "Jul 9, 2026"
  * - relative    → `formatRelative`   → "2h ago" (against an explicit reference)
  * - percent     → `formatPercent`    → "92.7%" (0..1 ratio in, one decimal)
  * - USD         → `formatUsd`        → "$18.42"
@@ -33,12 +32,6 @@ function parseIsoParts(iso: IsoTimestamp): { year: string; monthLabel: string; d
 export function formatTimestamp(iso: IsoTimestamp): string {
   const { monthLabel, day, time } = parseIsoParts(iso)
   return `${monthLabel} ${day}, ${time} UTC`
-}
-
-/** "2026-07-09T07:12:00Z" → "Jul 9, 2026" — the canonical date-only shape. */
-export function formatDate(iso: IsoTimestamp): string {
-  const { year, monthLabel, day } = parseIsoParts(iso)
-  return `${monthLabel} ${day}, ${year}`
 }
 
 /**

@@ -26,15 +26,6 @@ export type MarketSourceType =
   | 'composite'
   | 'fixture'
 
-export const MARKET_SOURCE_TYPES: readonly MarketSourceType[] = [
-  'binance',
-  'the-graph',
-  'rpc',
-  'db-snapshot',
-  'composite',
-  'fixture',
-]
-
 /**
  * Truth status of a datum — the mission's canonical vocabulary (prompt §7).
  * These map onto TradeAgent's finer `Freshness` set:
@@ -73,32 +64,8 @@ export type TradeAgentFreshness =
   | 'UNAVAILABLE'
   | 'ERROR'
 
-/** Map a TradeAgent freshness onto the mission's coarser truth status. */
-export function truthFromFreshness(f: TradeAgentFreshness): TruthStatus {
-  switch (f) {
-    case 'LIVE':
-      return 'LIVE'
-    case 'INDEXED':
-    case 'CACHED':
-      return 'SNAPSHOT'
-    case 'ESTIMATED':
-      return 'FALLBACK'
-    case 'SIMULATED':
-      return 'FIXTURE'
-    case 'STALE':
-    case 'UNAVAILABLE':
-    case 'ERROR':
-      return 'UNAVAILABLE'
-  }
-}
-
 /** Truth statuses that represent a trustworthy, usable observation. */
 export const USABLE_TRUTH: readonly TruthStatus[] = ['LIVE', 'SNAPSHOT']
-
-/** A HISTORICAL datum is trustworthy for BACKTESTING only, never as "now". */
-export function isUsableNow(t: TruthStatus): boolean {
-  return USABLE_TRUTH.includes(t)
-}
 
 /**
  * Provenance carried by every datum. `dataTimestamp` is when the observation

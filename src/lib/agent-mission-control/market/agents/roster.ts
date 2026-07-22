@@ -30,7 +30,6 @@
 import type { AgentAccent, AgentSkill, ConfirmationPolicy } from '../../types'
 import type { OutputContractName } from '../contracts'
 import { OUTPUT_CONTRACTS } from '../contracts'
-import { TRADING_TOOL_IDS } from '../tools'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -504,11 +503,3 @@ export function agentContractSchema(
 ): (typeof OUTPUT_CONTRACTS)[OutputContractName] {
   return OUTPUT_CONTRACTS[agent.outputContract.schemaName]
 }
-
-/** All tool ids referenced anywhere in the roster (deduped). */
-export function rosterToolIds(): string[] {
-  return Array.from(new Set(ROSTER.flatMap((a) => [...a.toolIds])))
-}
-
-/** The canonical trading tool ids, re-exported for tests/consumers. */
-export const KNOWN_TRADING_TOOL_IDS: readonly string[] = TRADING_TOOL_IDS

@@ -15,7 +15,3 @@ export function hasBenchmarkBelowImproveTarget(benchmarks: BenchmarkSignalLike[]
       (b.lastRun.score < IMPROVEMENT_MIN_BENCHMARK_SCORE || b.lastRun.accuracy < IMPROVEMENT_MIN_BENCHMARK_ACCURACY)
   )
 }
-
-export function hasImproveSignal(totalFailures: number, benchmarks: BenchmarkSignalLike[]): boolean {
-  return totalFailures > 0 || hasBenchmarkBelowImproveTarget(benchmarks)
-}

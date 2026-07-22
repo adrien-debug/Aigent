@@ -70,15 +70,6 @@ async function countAttempts(copilotId: string, preloadedLatest?: DeliveryEvent 
 }
 
 /**
- * Assess the delivery loop state WITHOUT any write — pure read of the latest
- * delivery + sandbox + scorecard, classification, readiness, next action. Used
- * by the UI card at render time (no persisted event, no sandbox run).
- */
-export async function assessDeliveryLoop(copilotId: string): Promise<DeliveryLoopState | null> {
-  return computeLoopState(copilotId, { latestSandbox: null, persistEvent: false, runId: 'assess' })
-}
-
-/**
  * Run one iteration of the delivery loop for a copilot. Read-only unless
  * `runSandbox` is set (and even then the sandbox itself is read-only / a
  * disposable clone). Persists a delivery event snapshot. NEVER merges, NEVER

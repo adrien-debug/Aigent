@@ -275,11 +275,3 @@ export function computeDeliveryScorecard(input: DeliveryScorecardInput): AgentDe
     },
   }
 }
-
-/** Short human label for a level, for compact UI. */
-export const DELIVERY_LEVEL_LABELS: Record<DeliveryLevel, string> = {
-  not_ready: 'Not ready',
-  safe: 'Safe',
-  delivery_ready: 'Delivery ready',
-  excellent: 'Excellent',
-}

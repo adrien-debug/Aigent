@@ -33,7 +33,6 @@ export const PAIR_SYMBOLS: readonly PairSymbol[] = [
  * must never present a BTC pair as an actionable instrument (invariant #14).
  */
 export const EXECUTABLE_PAIRS: readonly PairSymbol[] = ['ETHUSDT', 'ETHUSDC']
-export const CONTEXT_ONLY_PAIRS: readonly PairSymbol[] = ['BTCUSDT', 'BTCUSDC']
 
 export function isExecutablePair(p: PairSymbol): boolean {
   return EXECUTABLE_PAIRS.includes(p)
