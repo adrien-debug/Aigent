@@ -100,11 +100,35 @@ export interface Copilot {
    * enriched getters; drives "not measured" vs a real number in the UI.
    */
   healthEvidence?: 'runs' | 'none'
+  /**
+   * Health metrics that NO persisted row proved — same channel as
+   * `AvailableAgent.unavailableFields`: a metric named here means the number
+   * sitting in `health` is a normalisation placeholder, not a measurement, and
+   * MUST render as a dash. Set by `data.ts` (`enrichCopilot`) at read time.
+   *
+   * `undefined` means the row never went through the data layer, so nothing is
+   * proven — a consumer must treat every metric as unavailable, not as measured.
+   */
+  healthUnavailableFields?: CopilotHealthMetric[]
 }
 
 /** See `agent-health.ts` — display status decoupled from the stored column. */
 export type DisplayStatus = CopilotStatus | 'production'
 
+/**
+ * Rolled-up health signals.
+ *
+ * A number here is a MEASUREMENT and `0` is a real one ("the window was read
+ * and held nothing"). The stored `copilots.health` jsonb is written PARTIAL
+ * though — `scripts/provision-tradeagent-roster.mjs` inserts `health: {}` — and
+ * `camelRows` casts the blob without validating it, so a raw row can carry
+ * `undefined` under every key. That is how the Performance page summed
+ * `undefined` into `NaN` and rendered it as a measurement.
+ *
+ * `data.ts` therefore normalises the blob at read time and names whatever it
+ * could not prove in `Copilot.healthUnavailableFields`. Never read a metric
+ * here without checking that list first.
+ */
 export interface CopilotHealth {
   testPassRate: number // 0..1
   benchmarkScore: number // 0..100
@@ -114,6 +138,9 @@ export interface CopilotHealth {
   costLast24hUsd: UsdAmount
   openWarnings: number
 }
+
+/** One rolled-up health metric — the key space of `healthUnavailableFields`. */
+export type CopilotHealthMetric = keyof CopilotHealth
 
 export type VersionStage = 'production' | 'beta' | 'draft' | 'archived'
 
@@ -235,6 +262,15 @@ export interface ToolDefinition {
   riskLevel: ToolRiskLevel
   enabled: boolean
   requiresConfirmation: boolean
+  /**
+   * Does this tool write, send, publish or spend anything? (migration 0022,
+   * `not null default true` — fail-closed.) This is the tool's NATURE and the
+   * only honest basis for calling it read-only; `requiresConfirmation` is a
+   * POLICY and a mutating tool whose author never asked for a confirmation is
+   * still mutating. Optional here because the mock fixtures predate the column:
+   * `undefined` ⇒ nature unknown, never "read-only".
+   */
+  mutates?: boolean
   /** Routes this tool is allowed to touch; subset of manifest allowedRoutes. */
   scopedRoutes: string[]
   lastUsedAt: IsoTimestamp | null

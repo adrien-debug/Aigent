@@ -33,7 +33,18 @@ interface IntelligenceResponse {
   error?: string
 }
 
-type Phase = 'idle' | 'scanning' | 'ready' | 'error' | 'no-repo'
+/**
+ * Scan phases. Every one is REACHABLE from `scan()` below — nothing here is a
+ * state the fetch cannot produce.
+ *
+ * `auth-required` and `unavailable` are split out of `error` because they are
+ * the two failures an operator acts on differently (log back in vs. wait for the
+ * backend), and because the strip used to test `phase === 'scanning'` alone:
+ * every other phase — including a real 401 — fell into the SUCCESS branch and
+ * rendered "Repo scanned · not scanned yet" in accent green, 12px above the
+ * "Authentication required" banner.
+ */
+type Phase = 'idle' | 'scanning' | 'ready' | 'error' | 'auth-required' | 'unavailable' | 'no-repo'
 
 function formatScanAge(scannedAt: string | null): string {
   if (!scannedAt) return 'not scanned yet'
@@ -46,6 +57,28 @@ function formatScanAge(scannedAt: string | null): string {
   if (hours < 48) return `${hours}h ago`
   return new Date(scannedAt).toLocaleDateString()
 }
+
+/**
+ * What the strip says in every non-success phase. Each line states the phase
+ * AND its consequence ("not scanned"), so no failure can be mistaken for a
+ * scan that simply happened a while ago.
+ *
+ * Rendered in zinc: the mono-accent system has no danger role yet, and using
+ * the accent — the success hue — for a failure is the defect this fixes. Once
+ * `--state-danger-*` lands in `globals.css`, the failure phases move onto it.
+ */
+const PHASE_STATUS_LABELS: Record<Phase, string> = {
+  idle: 'Not scanned yet',
+  scanning: 'Scanning repo…',
+  ready: 'Repo scanned',
+  error: 'Scan failed — repo not scanned',
+  'auth-required': 'Authentication required — repo not scanned',
+  unavailable: 'Repo intelligence unavailable — repo not scanned',
+  'no-repo': 'No repo resolved for this project — nothing to scan',
+}
+
+/** Phases that owe the operator a banner, not just a status line. */
+const FAILED_PHASES: ReadonlySet<Phase> = new Set<Phase>(['error', 'auth-required', 'unavailable'])
 
 function intelSummaryLine(intel: RepoIntelligence): string {
   const { map } = intel
@@ -72,6 +105,19 @@ export function useProjectRepoIntelligence(projectId: string, repoFullName: stri
         })
         const payload = (await res.json().catch(() => null)) as IntelligenceResponse | null
         if (!res.ok || !payload?.ok) {
+          // 401/403 come from the auth proxy, before the route runs at all, and
+          // 503 is the route's own "live backend not configured" — neither is a
+          // failed scan, and neither may leave the strip claiming a scan.
+          if (res.status === 401 || res.status === 403) {
+            setError('Authentication required — sign in again to scan this repo.')
+            setPhase('auth-required')
+            return
+          }
+          if (res.status === 503) {
+            setError(payload?.error ?? 'Repo intelligence backend not configured.')
+            setPhase('unavailable')
+            return
+          }
           setError(payload?.error ?? `Scan failed (${res.status}).`)
           setPhase('error')
           return
@@ -83,8 +129,9 @@ export function useProjectRepoIntelligence(projectId: string, repoFullName: stri
         setData(payload)
         setPhase('ready')
       } catch {
-        setError('Live backend not configured.')
-        setPhase('error')
+        // The request never completed: nothing was read, so nothing is known.
+        setError('Repo intelligence unreachable — the request did not complete.')
+        setPhase('unavailable')
       }
     },
     [projectId]
@@ -221,23 +268,32 @@ export function ProjectRepoIntelligence({
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2" aria-live="polite">
+            {/* Success is rendered for `ready` and NOTHING else. The accent hue
+                and the scan age are claims about a scan that completed; every
+                other phase states what actually happened, in zinc. */}
             {phase === 'scanning' ? (
               <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500">
                 <Spinner className="size-3.5" />
                 Scanning repo…
               </span>
-            ) : (
+            ) : phase === 'ready' ? (
               <span className="text-xs font-medium text-accent-700 dark:text-accent-300">
                 Repo scanned · {scannedAtLabel}
               </span>
+            ) : (
+              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                {PHASE_STATUS_LABELS[phase]}
+              </span>
             )}
-            {intel ? (
+            {phase === 'ready' && intel ? (
               <Badge color="zinc" className="!text-[10px]">
                 {intel.footprint.hasAgenticCode ? 'agentic code' : 'no agentic code'}
               </Badge>
             ) : null}
           </div>
-          {summaryLine ? (
+          {/* The summary describes the LAST successful scan; under a failed
+              rescan it would read as the current state of the repo. */}
+          {phase === 'ready' && summaryLine ? (
             <p className="mt-1 line-clamp-2 text-xs text-zinc-600 dark:text-zinc-400">{summaryLine}</p>
           ) : phase === 'scanning' ? (
             <p className="mt-1 text-xs text-zinc-500">Reading tree and key files read-only…</p>
@@ -255,9 +311,9 @@ export function ProjectRepoIntelligence({
           </Button>
         </div>
       </div>
-      {phase === 'error' ? (
+      {FAILED_PHASES.has(phase) ? (
         <div className="mt-3">
-          <ErrorBanner message={error ?? 'Scan failed.'} />
+          <ErrorBanner message={error ?? PHASE_STATUS_LABELS[phase]} />
         </div>
       ) : null}
     </div>

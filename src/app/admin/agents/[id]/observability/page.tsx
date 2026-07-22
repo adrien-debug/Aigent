@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import {
   CostValue,
+  CountValue,
   DurationValue,
   RateValue,
   TimeAgoValue,
@@ -15,6 +16,12 @@ import {
   getTestRunsForCopilot,
 } from '@/lib/agent-mission-control/data'
 import { getAgentDetail } from '@/lib/agent-mission-control/agent-detail'
+import {
+  AGENT_RUN_STATUS_LABELS,
+  AGENT_STATUS_DIMENSION_LABELS,
+  AVAILABLE_AGENT_STATUS_LABELS,
+  agentExecutableLabel,
+} from '@/lib/agent-mission-control/labels'
 
 /**
  * Observability — health, reliability, readiness (AIGENT-AGENT-PAGES-021).
@@ -78,7 +85,13 @@ export default async function AgentObservabilityPage({ params }: { params: Promi
   const testRuns = await getTestRunsForCopilot(id)
 
   const failed = runs.filter((r) => r.status === 'failed').length
-  const unsafeTotal = runs.reduce((a, r) => a + (r.unsafeAttemptCount ?? 0), 0)
+  // `agent_runs.unsafe_attempt_count` is typed `number` but arrives from an
+  // unvalidated row: coalescing a missing count to 0 published "0 unsafe
+  // attempts" — a SAFETY claim — for runs that never recorded one. Only runs
+  // that actually carry a number are counted, and none of them means unknown.
+  const unsafeCounted = runs.filter((r) => typeof r.unsafeAttemptCount === 'number')
+  const unsafeTotal =
+    unsafeCounted.length > 0 ? unsafeCounted.reduce((a, r) => a + r.unsafeAttemptCount, 0) : null
   const errorRuns = runs.filter((r) => r.status === 'failed' || r.status === 'blocked')
 
   return (
@@ -86,14 +99,28 @@ export default async function AgentObservabilityPage({ params }: { params: Promi
       <Section title="Readiness" description="Whether this agent can serve, and what stands in the way.">
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge color={executable ? 'accent' : 'zinc'}>{executable ? 'Executable' : 'Not executable'}</Badge>
-            <Badge color="zinc">Status: {agent?.status ?? 'unavailable'}</Badge>
+            <Badge color={executable ? 'accent' : 'zinc'}>
+              {AGENT_STATUS_DIMENSION_LABELS.executable}: {agentExecutableLabel(executable)}
+            </Badge>
+            {/* An agent absent from the canonical catalogue has NO runtime
+                status; `?? 'unavailable'` printed a derived status the
+                catalogue never derived, which is a fabricated measurement. */}
+            <Badge color="zinc">
+              {AGENT_STATUS_DIMENSION_LABELS.runtime}:{' '}
+              {agent ? AVAILABLE_AGENT_STATUS_LABELS[agent.status] : 'Not in catalogue'}
+            </Badge>
             <Badge color={metrics.totalRuns > 0 ? 'accent' : 'zinc'}>
               {metrics.totalRuns > 0 ? `${metrics.totalRuns} proof runs` : 'No proof run'}
             </Badge>
-            <Badge color={(agent?.unresolvedToolIds.length ?? 0) === 0 ? 'accent' : 'accentSolid'}>
-              {agent?.unresolvedToolIds.length ?? 0} unresolved tools
-            </Badge>
+            {/* No catalogue entry ⇒ nobody resolved this agent's tools. "0
+                unresolved tools" claimed a check that never ran. */}
+            {agent === undefined ? (
+              <Badge color="zinc">Unresolved tools: unknown</Badge>
+            ) : (
+              <Badge color={agent.unresolvedToolIds.length === 0 ? 'accent' : 'accentSolid'}>
+                {agent.unresolvedToolIds.length} unresolved tools
+              </Badge>
+            )}
           </div>
 
           {blockers.length > 0 ? (
@@ -123,7 +150,7 @@ export default async function AgentObservabilityPage({ params }: { params: Promi
               { label: 'Failed runs', value: String(failed) },
               { label: 'Avg duration', value: <DurationValue value={metrics.avgDurationMs} /> },
               { label: 'Cost 24h', value: <CostValue value={metrics.cost24hUsd} /> },
-              { label: 'Unsafe attempts', value: String(unsafeTotal) },
+              { label: 'Unsafe attempts', value: <CountValue value={unsafeTotal} /> },
             ].map((cell) => (
               <div key={cell.label}>
                 <dt className={eyebrowClass}>{cell.label}</dt>
@@ -133,7 +160,10 @@ export default async function AgentObservabilityPage({ params }: { params: Promi
           </dl>
         </Section>
 
-        <Section title="Tool reliability" description="Mounted tools and their execution readiness.">
+        <Section
+          title="Tool reliability"
+          description="Mounted tools and their execution readiness. Last use is not recorded by the runner today."
+        >
           {tools.length === 0 ? (
             <Text className="!text-xs">No tool mounted.</Text>
           ) : (
@@ -144,8 +174,13 @@ export default async function AgentObservabilityPage({ params }: { params: Promi
                   className="flex items-center justify-between gap-3 border-b border-white/5 py-2.5 last:border-0"
                 >
                   <span className="truncate font-mono text-xs text-zinc-300">{tool.name}</span>
+                  {/* `tools.last_used_at` exists in the schema (migration 0001)
+                      but NOTHING in `src/` ever writes it. A NULL therefore
+                      proves the column is unwritten, not that the tool was never
+                      called — "never used" turned a missing writer into a
+                      measurement, on tools that had demonstrably run. */}
                   <span className="shrink-0 text-[11px] text-zinc-500">
-                    {tool.lastUsedAt ? <TimeAgoValue value={tool.lastUsedAt} /> : 'never used'}
+                    {tool.lastUsedAt ? <TimeAgoValue value={tool.lastUsedAt} /> : 'Last use unknown'}
                   </span>
                 </li>
               ))}
@@ -193,7 +228,7 @@ export default async function AgentObservabilityPage({ params }: { params: Promi
                 key={run.id}
                 className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-white/5 py-2.5 last:border-0"
               >
-                <Badge color="accentSolid">{run.status}</Badge>
+                <Badge color="accentSolid">{AGENT_RUN_STATUS_LABELS[run.status]}</Badge>
                 <span className="truncate text-xs text-zinc-400">{run.outputSummary || 'No output recorded'}</span>
                 <span className="shrink-0 text-[11px] text-zinc-500">
                   <TimeAgoValue value={run.startedAt} />

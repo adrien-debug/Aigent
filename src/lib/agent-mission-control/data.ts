@@ -32,6 +32,7 @@ import type {
   BenchmarkRun,
   BenchmarkSuite,
   Copilot,
+  CopilotHealthMetric,
   CopilotVersion,
   Project,
   PromotionGate,
@@ -89,6 +90,44 @@ export async function getProject(id: string): Promise<Project | undefined> {
 }
 
 /**
+ * Coerce the stored `copilots.health` jsonb into the `CopilotHealth` contract
+ * and report which metrics it could NOT prove.
+ *
+ * `camelRows` casts the blob straight to `Copilot` without validating it, and
+ * `scripts/provision-tradeagent-roster.mjs` writes `health: {}`, so in practice
+ * a live row can arrive with every key `undefined`. Nothing downstream checked:
+ * the Performance band summed those `undefined`s and printed the `NaN` as if it
+ * were a measurement.
+ *
+ * The number written back for an unproven metric is a PLACEHOLDER, never a
+ * claim — it exists only because the field is typed `number`, and every metric
+ * it stands for is named in the returned list so a view renders a dash instead.
+ * Same channel as `AvailableAgent.unavailableFields`.
+ */
+function normalizeHealth(copilot: Copilot): CopilotHealthMetric[] {
+  // Spread tolerates a null/undefined blob (a copilot row whose column was
+  // never written at all) without a cast.
+  const raw: Record<string, unknown> = { ...copilot.health }
+  const unavailable: CopilotHealthMetric[] = []
+  const take = (metric: CopilotHealthMetric): number => {
+    const value = raw[metric]
+    if (typeof value === 'number' && Number.isFinite(value)) return value
+    unavailable.push(metric)
+    return 0
+  }
+  copilot.health = {
+    testPassRate: take('testPassRate'),
+    benchmarkScore: take('benchmarkScore'),
+    runsLast24h: take('runsLast24h'),
+    errorRateLast24h: take('errorRateLast24h'),
+    avgLatencyMs: take('avgLatencyMs'),
+    costLast24hUsd: take('costLast24hUsd'),
+    openWarnings: take('openWarnings'),
+  }
+  return unavailable
+}
+
+/**
  * Overwrite the stale `health.testPassRate`/`benchmarkScore` blob (written to 0
  * at creation, never recomputed) with run-backed truth, and attach the derived
  * `displayStatus` + `healthEvidence`. When a copilot has NO completed run the
@@ -96,6 +135,10 @@ export async function getProject(id: string): Promise<Project | undefined> {
  * copilots (real stored scores) and the existing "not measured" guards both
  * still work. Every listing surface reads `.health.testPassRate` unchanged —
  * the value is simply now true. Display-only; never touches the DB or the gate.
+ *
+ * A metric that neither the stored blob nor a resolver could prove stays in
+ * `healthUnavailableFields`: proving one REMOVES it from the list, so the list
+ * and the numbers can never disagree.
  */
 function enrichCopilot(
   copilot: Copilot,
@@ -107,16 +150,25 @@ function enrichCopilot(
     productionVersionId: copilot.productionVersionId,
   })
   copilot.healthEvidence = resolved?.evidenceSource ?? 'none'
-  if (resolved && resolved.testPassRate !== null) copilot.health.testPassRate = resolved.testPassRate
-  if (resolved && resolved.benchmarkScore !== null) copilot.health.benchmarkScore = resolved.benchmarkScore
-  if (resolved && resolved.avgLatencyMs !== null) copilot.health.avgLatencyMs = resolved.avgLatencyMs
+
+  const unavailable = new Set(normalizeHealth(copilot))
+  const prove = (metric: CopilotHealthMetric, value: number) => {
+    copilot.health[metric] = value
+    unavailable.delete(metric)
+  }
+
+  if (resolved && resolved.testPassRate !== null) prove('testPassRate', resolved.testPassRate)
+  if (resolved && resolved.benchmarkScore !== null) prove('benchmarkScore', resolved.benchmarkScore)
+  if (resolved && resolved.avgLatencyMs !== null) prove('avgLatencyMs', resolved.avgLatencyMs)
   // Overwrite the stale 24h blob with run-backed truth (same pattern as above).
   // Always applied — an absence of 24h runs is a real 0, not "keep the old lie".
   if (kpi24h) {
-    copilot.health.runsLast24h = kpi24h.runsLast24h
-    copilot.health.costLast24hUsd = kpi24h.costLast24hUsd
-    copilot.health.errorRateLast24h = kpi24h.errorRateLast24h
+    prove('runsLast24h', kpi24h.runsLast24h)
+    prove('costLast24hUsd', kpi24h.costLast24hUsd)
+    prove('errorRateLast24h', kpi24h.errorRateLast24h)
   }
+
+  copilot.healthUnavailableFields = [...unavailable]
   return copilot
 }
 
