@@ -22,17 +22,25 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
 
 Trois niveaux visuels maximum sur le canvas admin :
 
-| Niveau | Token / classe | Usage |
-|--------|----------------|-------|
-| 1 — Canvas | `--color-surface-canvas` | Fond page, `AdminPageHeader`, bandes KPI nues |
-| 2 — Section | `surfaceSectionClass` (`surfaceCardClass`) | Panneaux fonctionnels : Projects, tables, workbench |
-| 3 — Item | `surfaceItemClass` | Objets métier : ligne projet, carte agent, tuile KV |
-| Nav | `surfaceNavClass` | Sidebar rail — plus léger que les sections |
+Cinq plans, chacun un vrai pas de luminance — la profondeur vient de la COULEUR
+d'abord, ring et shadow ne font que renforcer. Deux plans adjacents ne portent
+jamais la même valeur.
+
+| Plan | Token / classe | Usage |
+|------|----------------|-------|
+| 0 — App | `bg-surface-app` (`#09090b`) | Fond de page, derrière le workspace |
+| 1 — Workspace | `bg-surface-workspace` (`#111114`) | La carte `<main>` du `SidebarLayout` |
+| 2 — Raised | `surfaceRaised` / `surfaceSectionClass` (`#1a1a1e`) | Panneaux : charts, tables, listes, KPI |
+| 3 — Sunken | `surfaceSunken` / `surfaceItemClass` (`#0d0d10`) | Insets : en-têtes de table, filtres, zones de tracé |
+| 4 — Overlay | `surfaceOverlay` (`#232327`) | Dialog, dropdown, command palette, drawer mobile |
 
 Règles :
-- **Jamais** section dans section dans section (secondary × 3).
-- Headers de section : `surfaceSectionHeaderClass` — hairline seule, pas de `bg-black/20`.
-- KPI strips : nues sur le canvas (`AgentKpiBand` sans `separators`), pas dans une carte.
+- **Jamais** un panneau de la même couleur que la surface qui le porte.
+- Pas de `dark:shadow-none` : le sombre a besoin d'ombre portée + highlight 1px.
+- Les tokens `--color-surface-*` sont des tokens `@theme` consommés en CLASSES
+  (`bg-surface-raised`), pas en `var()` — une recherche `var(--…)` ne les trouve pas.
+- KPI strips : `AgentKpiBand` avec `separators` — une seule surface divisée par des
+  hairlines, jamais N blocs de texte flottants.
 - Empty states : bordure dashed légère sur canvas, pas une carte secondary pleine.
 - Tables : `border-b border-white/5` sur `<thead>`, pas de wash noir lourd.
 
