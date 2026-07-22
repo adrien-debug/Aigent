@@ -61,6 +61,40 @@ est pris par un process non identifié comme le sien.
   faute d'usage.
 <!-- END:catalyst-ui-rules -->
 
+<!-- BEGIN:tradeagent-roster -->
+## Roster TradeAgent canonique (AIG-TRADEAGENT-ONLY-019)
+
+Le catalogue actif ne sert que des agents réellement exécutables. Un agent est
+`active` seulement si son `project_id` existe, son provider est câblé, sa version
+et son manifest sont présents, **et** chaque outil déclaré se résout vers un
+handler enregistré. Une ligne `tools` ne suffit pas : le runner exige un handler
+par NOM (`runner.ts` — « has no registered handler »).
+
+**Actifs (`proj-tradeagent`, zéro outil non résolu)** — BTC Alert & Levels
+Sentinel · Portfolio Risk & Lock Advisor · Source Reliability & Price Trust
+Sentinel · Withdrawal Review Copilot · Market Regime & Rotation Copilot.
+
+**Historiques non actifs** — `copilot-tradeagent-market-intelligence-b1c8c291` et
+`copilot-tradeagent-portfolio-risk-guardian-91f81963` sont `degraded` : ils
+déclarent `read_repo_file`, `list_repo_tree` et `search_repo`, absents du
+registry. Ne jamais les présenter comme actifs ou exécutables. Les rendre actifs
+suppose d'implémenter ces trois handlers, pas de changer leur statut.
+
+**Archivés** — les six copilots `aig-trade-001` sans projet (Atlas, Vector,
+Sentinel, Pulse, Meridian, Sage) sont `archived` ⇒ `unavailable`. Leurs 74 runs
+historiques restent lisibles ; on ne les réattribue jamais à `proj-tradeagent`.
+Opération rejouable : `scripts/archive-non-tradeagent-agents.mjs` (dry-run par
+défaut, `--apply` pour écrire).
+
+`archived` n'est pas `inactive` : la retraite est une décision, la pause un état.
+
+**Garde d'exécution (AIG-…-GATE-020)** — `POST /api/agent-ops/copilots/:id/run`
+relit l'agent canonique au lancement et refuse fail-closed : seul `active` **et**
+`unresolvedToolIds` vide autorise un run. Catalogue injoignable → 503 · absent →
+404 · connu mais non exécutable → 409 avec les raisons concrètes. Ne recalcule
+jamais le statut dans une route : deux implémentations divergent toujours.
+<!-- END:tradeagent-roster -->
+
 <!-- BEGIN:trading-factory -->
 ## Trading Agent Factory (AIG-TRADE-001)
 
