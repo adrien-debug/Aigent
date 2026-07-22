@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { extractBearerToken, timingSafeEqual } from './bearer-token-auth'
 import type { AgentRunStatus } from './types'
 
 /**
@@ -152,30 +153,6 @@ export type RuntimeErrorBody = {
 // Auth — service-to-service bearer token, fail-closed.
 // ---------------------------------------------------------------------------
 
-/** Longest a well-formed token is ever expected to be; bounds the compare. */
-const MAX_TOKEN_LENGTH = 512
-
-function extractBearerToken(request: Request): string | null {
-  const bearer = request.headers.get('authorization')
-  if (bearer) {
-    const match = /^Bearer\s+(.+)$/i.exec(bearer.trim())
-    if (match?.[1]) return match[1].trim().slice(0, MAX_TOKEN_LENGTH)
-  }
-  const header = request.headers.get('x-aigent-runtime-token')
-  if (header) return header.trim().slice(0, MAX_TOKEN_LENGTH)
-  return null
-}
-
-/** Constant-time compare — avoids leaking token length/prefix via timing. */
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false
-  let diff = 0
-  for (let i = 0; i < a.length; i++) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
-  }
-  return diff === 0
-}
-
 export type RuntimeAuthResult =
   | { ok: true }
   | { ok: false; status: 401 | 503; error: string }
@@ -194,7 +171,7 @@ export function requireRuntimeApiAuth(request: Request): RuntimeAuthResult {
   if (!expectedToken) {
     return { ok: false, status: 503, error: 'runtime registry API is not configured' }
   }
-  const providedToken = extractBearerToken(request)
+  const providedToken = extractBearerToken(request, 'x-aigent-runtime-token')
   if (!providedToken || !timingSafeEqual(providedToken, expectedToken)) {
     return { ok: false, status: 401, error: 'unauthorized' }
   }

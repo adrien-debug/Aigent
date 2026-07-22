@@ -37,7 +37,7 @@ let writes: WriteRecord[]
  * version ownership; PATCHes are recorded and echo back a representation row so
  * the route's `.length === 0` guards pass.
  */
-function installFetch(opts: { currentProd: string | null; stages?: Record<string, string> }) {
+function installFetch(opts: { currentProd: string | null; stages?: Record<string, string>; rpcStatus?: number }) {
   writes = []
   // Stage resolution mirrors the real DB: the current production pointer is at
   // stage 'production'; anything else defaults to 'draft' unless the test
@@ -62,9 +62,14 @@ function installFetch(opts: { currentProd: string | null; stages?: Record<string
         return jsonRes([])
       }
 
-      // PATCH — record it and echo a representation row back.
+      // POST/PATCH — record it and echo a representation row back. The
+      // transition RPC can be forced to 409 (a concurrent promote winning the
+      // single-production race) via opts.rpcStatus.
       const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {}
       writes.push({ path: u, body })
+      if (u.includes('/rpc/promote_copilot_version') && opts.rpcStatus && opts.rpcStatus !== 200) {
+        return { ok: false, status: opts.rpcStatus, json: async () => ({}), text: async () => 'conflict' } as Response
+      }
       return jsonRes([{ id: 'row', ...body }])
     })
   )
@@ -83,6 +88,11 @@ function req(body: Record<string, unknown>): Request {
 }
 
 const params = Promise.resolve({ copilotId: COPILOT_ID })
+
+/** The atomic-transition RPC call (rpc/promote_copilot_version). */
+function rpcCall(): WriteRecord | undefined {
+  return writes.find((w) => w.path.includes('/rpc/promote_copilot_version'))
+}
 
 /** The copilots PATCH (not the copilot_versions ones). */
 function copilotWrite(): WriteRecord | undefined {
@@ -110,7 +120,7 @@ describe('POST promotion — copilot.status alignment', () => {
     process.env.SUPABASE_SERVICE_ROLE_KEY = saved.key
   })
 
-  it('A — promote success sets production_version_id AND status=active in one copilots PATCH', async () => {
+  it('A — promote success drives the ATOMIC transition RPC with the candidate + previous-prod', async () => {
     installFetch({ currentProd: PREVIOUS_PROD })
 
     const res = await POST(req({ action: 'promote', versionId: CANDIDATE, previousProductionVersionId: PREVIOUS_PROD }), {
@@ -118,15 +128,15 @@ describe('POST promotion — copilot.status alignment', () => {
     })
     expect(res.status).toBe(200)
 
-    // Candidate → production
-    expect(writes.some((w) => w.path.includes(encodeURIComponent(CANDIDATE)) && w.body.stage === 'production')).toBe(true)
-    // Previous → archived
-    expect(writes.some((w) => w.path.includes(encodeURIComponent(PREVIOUS_PROD)) && w.body.stage === 'archived')).toBe(true)
-    // Copilot pointer + status in the SAME write
-    const cw = copilotWrite()
-    expect(cw).toBeDefined()
-    expect(cw!.body.production_version_id).toBe(CANDIDATE)
-    expect(cw!.body.status).toBe('active')
+    // A single atomic RPC does archive-previous + promote-candidate + repoint,
+    // instead of 3 separate PATCHes. Assert its params.
+    const rpc = rpcCall()
+    expect(rpc).toBeDefined()
+    expect(rpc!.body.p_copilot_id).toBe(COPILOT_ID)
+    expect(rpc!.body.p_version_id).toBe(CANDIDATE)
+    expect(rpc!.body.p_previous_prod).toBe(PREVIOUS_PROD)
+    // No direct copilot_versions/copilots PATCH — the writes are inside the txn.
+    expect(copilotWrite()).toBeUndefined()
   })
 
   it('B — gate red performs NO write and leaves status untouched', async () => {
@@ -153,10 +163,11 @@ describe('POST promotion — copilot.status alignment', () => {
       { params }
     )
     expect(res.status).toBe(200)
-    const cw = copilotWrite()
-    expect(cw).toBeDefined()
-    expect(cw!.body.production_version_id).toBe(PREVIOUS_PROD)
-    expect(cw!.body.status).toBe('active')
+    // Atomic RPC: restore PREVIOUS_PROD as production, archive the current (CANDIDATE).
+    const rpc = rpcCall()
+    expect(rpc).toBeDefined()
+    expect(rpc!.body.p_version_id).toBe(PREVIOUS_PROD)
+    expect(rpc!.body.p_previous_prod).toBe(CANDIDATE)
   })
 
   it('E — rollback to a NON-archived draft is refused 409 with ZERO writes (gate bypass closed)', async () => {
@@ -176,6 +187,20 @@ describe('POST promotion — copilot.status alignment', () => {
     expect(payload.observedStage).toBe('draft')
     // No version stage flipped to production, no copilot status/pointer write.
     expect(writes.length).toBe(0)
+  })
+
+  it('F — a concurrent promote losing the single-production race → 409 (RPC 23505 mapped)', async () => {
+    // The partial-unique index makes two production versions impossible; the
+    // losing writer's RPC fails 23505 → PostgREST 409 → the route surfaces 409
+    // instead of a partial write or a lying production pointer.
+    installFetch({ currentProd: PREVIOUS_PROD, rpcStatus: 409 })
+
+    const res = await POST(req({ action: 'promote', versionId: CANDIDATE, previousProductionVersionId: PREVIOUS_PROD }), {
+      params,
+    })
+    expect(res.status).toBe(409)
+    const payload = (await res.json()) as { error?: string }
+    expect(payload.error).toMatch(/concurrent/i)
   })
 
   it('D — beta is not handled by this route → production status is never forced from beta', async () => {

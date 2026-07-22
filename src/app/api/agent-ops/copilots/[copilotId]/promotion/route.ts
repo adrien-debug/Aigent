@@ -136,24 +136,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     return (await res.json()) as Record<string, unknown>[]
   }
 
-  async function patch(pathAndQuery: string, patchBody: Record<string, unknown>) {
-    const res = await fetch(`${base}/rest/v1/${pathAndQuery}`, {
-      method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${key}`,
-        'Content-Type': 'application/json',
-        Prefer: 'return=representation',
-      },
-      body: JSON.stringify(patchBody),
-    })
-    // Never surface the raw PostgREST body to the caller — it can carry
-    // internal schema/query detail. Log server-side only, respond generically.
-    if (!res.ok) {
-      console.error(`PostgREST ${res.status} on ${pathAndQuery}: ${(await res.text()).slice(0, 500)}`)
-      throw new Error('PostgREST error')
-    }
-    return (await res.json()) as unknown[]
-  }
 
   try {
     // 0) Load the copilot's ACTUAL current production_version_id from the DB
@@ -220,34 +202,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     const previousProdToArchive =
       actualPreviousProd && ownedIds.has(actualPreviousProd) ? actualPreviousProd : previousProd
 
-    // 1) The incoming version becomes production.
-    const promoted = await patch(`copilot_versions?id=eq.${encodeURIComponent(versionId)}`, { stage: 'production' })
-    if (promoted.length === 0) {
-      return NextResponse.json({ error: 'version not found' }, { status: 404 })
-    }
-    // 2) Archive the version that was serving production (if distinct).
-    // Conditioned on it still being `production` at patch time: if a
-    // concurrent promotion already moved this version elsewhere (or archived
-    // it), this call matches zero rows and no-ops instead of clobbering
-    // whatever stage the other request left it in.
-    if (previousProdToArchive && previousProdToArchive !== versionId) {
-      await patch(
-        `copilot_versions?id=eq.${encodeURIComponent(previousProdToArchive)}&stage=eq.production`,
-        { stage: 'archived' }
-      )
-    }
-    // 3) Point the copilot at the new production version AND align its stored
-    // status to 'active' in the SAME PATCH. Both promote and rollback land a
-    // version at stage='production', so both mean "serving production" → status
-    // 'active', never 'draft'. Rollback therefore can't leave a copilot reading
-    // draft while a production version exists. One write = pointer and status
-    // stay consistent (no partial state).
-    const copilot = await patch(`copilots?id=eq.${encodeURIComponent(copilotId)}`, {
-      production_version_id: versionId,
-      status: 'active',
+    // ATOMIC transition — a single-transaction Postgres function (migration
+    // 0027 `promote_copilot_version`): archive the outgoing production, promote
+    // the candidate, and repoint the copilot (production_version_id + status
+    // 'active') COMMIT together or not at all. This replaces the previous three
+    // independent PATCHes, which could leave partial state on a mid-sequence
+    // failure. The single-production partial-unique index makes a concurrent
+    // promote of a DIFFERENT candidate fail 23505 → PostgREST 409, which we
+    // surface as 409 rather than a lying pointer. copilot + version existence
+    // and ownership were already verified above, so the function's target rows
+    // are guaranteed to exist. Both promote and rollback share this transition —
+    // both land a version at stage='production' ⇒ copilot status 'active'.
+    const rpcRes = await fetch(`${base}/rest/v1/rpc/promote_copilot_version`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        p_copilot_id: copilotId,
+        p_version_id: versionId,
+        p_previous_prod: previousProdToArchive ?? null,
+      }),
     })
-    if (copilot.length === 0) {
-      return NextResponse.json({ error: 'copilot not found' }, { status: 404 })
+    if (rpcRes.status === 409) {
+      return NextResponse.json({ error: 'another version was promoted concurrently' }, { status: 409 })
+    }
+    if (!rpcRes.ok) {
+      console.error(`PostgREST ${rpcRes.status} on promote rpc: ${(await rpcRes.text()).slice(0, 500)}`)
+      return NextResponse.json({ error: 'PostgREST error' }, { status: 502 })
     }
   } catch (err) {
     console.error('promotion failed', err instanceof Error ? err.message : err)
