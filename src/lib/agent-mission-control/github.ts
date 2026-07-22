@@ -1696,6 +1696,13 @@ export async function provisionConsumerIntake(args: ProvisionConsumerArgs): Prom
 
   const ref = await gh<{ object: { sha: string } }>('GET', `repos/${repoFullName}/git/refs/heads/${baseBranch}`)
   const headCommitSha = ref.object.sha
+  // The delivery tree MUST layer the intake pack on top of the existing repo,
+  // exactly as the direct_commit path does above. Omitting base_tree makes
+  // git/trees build a tree that contains ONLY the pack entries — every other
+  // file in the repo reads as deleted, so merging the PR would wipe the
+  // consumer repo down to the pack. Read the head commit's tree sha and pass
+  // it as base_tree so the pack is an addition, not a replacement.
+  const headCommit = await gh<{ tree: { sha: string } }>('GET', `repos/${repoFullName}/git/commits/${headCommitSha}`)
 
   try {
     await gh('POST', `repos/${repoFullName}/git/refs`, { ref: `refs/heads/${deliveryBranch}`, sha: headCommitSha })
@@ -1715,6 +1722,7 @@ export async function provisionConsumerIntake(args: ProvisionConsumerArgs): Prom
     })
   )
   const tree = await gh<{ sha: string }>('POST', `repos/${repoFullName}/git/trees`, {
+    base_tree: headCommit.tree.sha,
     tree: blobs.map((b) => ({ path: b.path, mode: '100644', type: 'blob', sha: b.sha })),
   })
   const commit = await gh<{ sha: string; html_url: string }>('POST', `repos/${repoFullName}/git/commits`, {

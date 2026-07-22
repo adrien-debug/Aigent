@@ -181,16 +181,36 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
       new Set([versionId, ...(previousProd ? [previousProd] : []), ...(actualPreviousProd ? [actualPreviousProd] : [])])
     )
     const ownedVersions = await pgrestGet(
-      `copilot_versions?id=in.(${idsToVerify.map((id) => encodeURIComponent(id)).join(',')})&select=id,copilot_id`
+      `copilot_versions?id=in.(${idsToVerify.map((id) => encodeURIComponent(id)).join(',')})&select=id,copilot_id,stage`
     )
-    const ownedIds = new Set(
-      ownedVersions.filter((row) => row.copilot_id === copilotId).map((row) => row.id as string)
-    )
+    const ownedRows = ownedVersions.filter((row) => row.copilot_id === copilotId)
+    const ownedIds = new Set(ownedRows.map((row) => row.id as string))
+    const stageById = new Map(ownedRows.map((row) => [row.id as string, row.stage as string]))
     if (!ownedIds.has(versionId)) {
       return NextResponse.json({ error: 'version not found' }, { status: 404 })
     }
     if (previousProd && previousProd !== versionId && !ownedIds.has(previousProd)) {
       return NextResponse.json({ error: 'version not found' }, { status: 404 })
+    }
+
+    // --- Rollback invariant (fail-closed) ---
+    // Promote runs the full release gate above; rollback is exempt ONLY because
+    // it restores a version that already served production and thus already
+    // passed the gate once. That exemption is sound only if the target really
+    // is a previously-served version — proven by stage='archived' (the stage a
+    // promotion transition leaves on the outgoing production version). Without
+    // this check, `{action:'rollback', versionId:<any owned draft>}` would push
+    // an un-gated draft straight to production+active, bypassing the gate
+    // entirely. This mirrors the release UI, which only ever offers an
+    // `archived` version as the rollback target.
+    if (body.action === 'rollback' && stageById.get(versionId) !== 'archived') {
+      return NextResponse.json(
+        {
+          error: 'rollback target must be a previously-served (archived) version',
+          observedStage: stageById.get(versionId) ?? 'unknown',
+        },
+        { status: 409 }
+      )
     }
     // The DB-derived pointer wins over the body value whenever it names a
     // real, owned version — this is what actually gets archived below.

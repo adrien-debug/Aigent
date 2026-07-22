@@ -37,8 +37,13 @@ let writes: WriteRecord[]
  * version ownership; PATCHes are recorded and echo back a representation row so
  * the route's `.length === 0` guards pass.
  */
-function installFetch(opts: { currentProd: string | null }) {
+function installFetch(opts: { currentProd: string | null; stages?: Record<string, string> }) {
   writes = []
+  // Stage resolution mirrors the real DB: the current production pointer is at
+  // stage 'production'; anything else defaults to 'draft' unless the test
+  // overrides it (e.g. a previously-served version at 'archived').
+  const stageOf = (id: string): string =>
+    opts.currentProd && id === opts.currentProd ? 'production' : (opts.stages?.[id] ?? 'draft')
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init?: RequestInit) => {
@@ -52,7 +57,7 @@ function installFetch(opts: { currentProd: string | null }) {
         if (u.includes('copilot_versions?id=in.')) {
           // Every id in the filter belongs to this copilot.
           const ids = [CANDIDATE, PREVIOUS_PROD, ...(opts.currentProd ? [opts.currentProd] : [])]
-          return jsonRes(ids.map((id) => ({ id, copilot_id: COPILOT_ID })))
+          return jsonRes(ids.map((id) => ({ id, copilot_id: COPILOT_ID, stage: stageOf(id) })))
         }
         return jsonRes([])
       }
@@ -136,11 +141,12 @@ describe('POST promotion — copilot.status alignment', () => {
     expect(writes.length).toBe(0)
   })
 
-  it('C — rollback keeps status active (never draft) with a production version', async () => {
-    // Rollback restores PREVIOUS_PROD as the serving version. Gate is exempt for
-    // rollback, so it writes regardless of gateResult.
+  it('C — rollback to an ARCHIVED version keeps status active (never draft)', async () => {
+    // Rollback restores PREVIOUS_PROD (archived = previously served) as the
+    // serving version. Gate is exempt for rollback, so it writes regardless of
+    // gateResult — BUT only because the target already passed a gate once.
     gateResult = null
-    installFetch({ currentProd: CANDIDATE })
+    installFetch({ currentProd: CANDIDATE, stages: { [PREVIOUS_PROD]: 'archived' } })
 
     const res = await POST(
       req({ action: 'rollback', versionId: PREVIOUS_PROD, previousProductionVersionId: CANDIDATE }),
@@ -151,6 +157,25 @@ describe('POST promotion — copilot.status alignment', () => {
     expect(cw).toBeDefined()
     expect(cw!.body.production_version_id).toBe(PREVIOUS_PROD)
     expect(cw!.body.status).toBe('active')
+  })
+
+  it('E — rollback to a NON-archived draft is refused 409 with ZERO writes (gate bypass closed)', async () => {
+    // The P0: `{action:'rollback', versionId:<any owned draft>}` would push an
+    // un-gated draft straight to production+active. The server must reject any
+    // rollback whose target is not a previously-served (archived) version.
+    gateResult = null // rollback never calls the gate; the stage check is the guard
+    installFetch({ currentProd: PREVIOUS_PROD, stages: { [CANDIDATE]: 'draft' } })
+
+    const res = await POST(
+      req({ action: 'rollback', versionId: CANDIDATE, previousProductionVersionId: PREVIOUS_PROD }),
+      { params }
+    )
+    expect(res.status).toBe(409)
+    const payload = (await res.json()) as { error?: string; observedStage?: string }
+    expect(payload.error).toMatch(/archived/i)
+    expect(payload.observedStage).toBe('draft')
+    // No version stage flipped to production, no copilot status/pointer write.
+    expect(writes.length).toBe(0)
   })
 
   it('D — beta is not handled by this route → production status is never forced from beta', async () => {
