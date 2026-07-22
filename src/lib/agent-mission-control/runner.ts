@@ -98,6 +98,20 @@ export interface ExecuteCopilotRunArgs {
    * manifest; a manifest without a ceiling (or <= 0) means unbounded.
    */
   maxCostPerRunUsd?: number
+  /**
+   * Label written to `agent_runs.user_label`. Defaults to 'authoring-session'
+   * (an operator-triggered run), which is what every existing caller gets.
+   *
+   * It exists because the test runner now drives this same engine, one run per
+   * test case: without a distinct label those rows would be indistinguishable
+   * from operator runs, and the surfaces that read `agent_runs` as RUNTIME
+   * TRUTH — `resolve24hMetricsBatch` (runs/24h, error rate) and
+   * `available-agents`' "last run" — would fold graded test cases, failures
+   * included, into an agent's operational health. A failing test case is not a
+   * production incident; conflating them would be exactly the kind of lie the
+   * status layer exists to prevent.
+   */
+  userLabel?: string
 }
 
 export interface ExecuteCopilotRunStep {
@@ -120,6 +134,20 @@ export interface ExecuteCopilotRunResult {
   steps: ExecuteCopilotRunStep[]
   /** Tool calls actually attempted (executed, blocked or errored). */
   toolCallCount: number
+  /**
+   * The SAME attempted tool calls as `toolCallCount`, but named. Ground truth
+   * from the run itself (the graph's reported calls, or the direct loop's own
+   * guardrail verdicts) — never a re-read of the `tool_calls` table, which
+   * would cost an extra PostgREST round-trip per run for data already in hand.
+   *
+   * Exists because a caller grading a run (test-runner.ts) must compare the
+   * tools that were ATTEMPTED against the ones a test case expects; a count
+   * cannot answer that. `status` mirrors the persisted `tool_calls.status`:
+   * 'ok' | 'error' (executed) · 'blocked' (confirmation/forbidden gate) ·
+   * 'rejected' (not in the allowlist / no handler). A 'blocked' call still
+   * counts as attempted — the model DID request it.
+   */
+  toolCalls: { name: string; status: string }[]
   /** Tool calls blocked by the confirmation gate. */
   blockedToolCount: number
   /** LangSmith deep-link, or null when LangSmith isn't configured (honest). */
@@ -335,10 +363,12 @@ interface ViaLangGraphArgs {
   userInput: string
   /** Manifest step ceiling — bounds the Agent Server's recursion_limit. */
   maxSteps: number
+  /** See ExecuteCopilotRunArgs.userLabel — already defaulted by the caller. */
+  userLabel: string
 }
 
 async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopilotRunResult> {
-  const { copilotId, versionId, projectId, model, userInput, maxSteps } = args
+  const { copilotId, versionId, projectId, model, userInput, maxSteps, userLabel } = args
 
   const startedAtMs = Date.now()
   const startedAt: IsoTimestamp = new Date(startedAtMs).toISOString()
@@ -538,7 +568,7 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
     copilot_id: copilotId,
     version_id: versionId,
     project_id: projectId,
-    user_label: 'authoring-session',
+    user_label: userLabel,
     started_at: startedAt,
     finished_at: isPaused ? null : finishedAt,
     status,
@@ -595,6 +625,9 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
     costUsd,
     steps,
     toolCallCount,
+    // Derived from the rows we just persisted — one source of truth for the
+    // count, the DB rows and the named list; they can never disagree.
+    toolCalls: toolCallRows.map((r) => ({ name: String(r.tool_name), status: String(r.status) })),
     blockedToolCount,
     traceUrl: traceResult.traceUrl,
     resolvedProvider: 'openai',
@@ -632,13 +665,23 @@ export async function executeCopilotRun(
   const { copilotId, versionId, projectId, model, systemPromptSummary, userInput, maxSteps } = args
   const modelProvider: ModelProvider = args.modelProvider ?? 'openai'
   const confirmed = new Set(args.confirmedToolNames ?? [])
+  // Resolved before the runtime branch so both paths persist the same label.
+  const userLabel = args.userLabel ?? 'authoring-session'
 
   // Resolve the runtime: explicit wins, else load from the copilot row. A
   // 'langgraph' runtime delegates to the official LangGraph Agent Server, which
   // owns the graph + tools — so we skip the local tool-loading entirely.
   const runtime = args.runtime ?? (await loadRuntime(copilotId))
   if (runtime === 'langgraph') {
-    return executeViaLangGraph({ copilotId, versionId, projectId, model, userInput, maxSteps })
+    return executeViaLangGraph({
+      copilotId,
+      versionId,
+      projectId,
+      model,
+      userInput,
+      maxSteps,
+      userLabel,
+    })
   }
 
   // Direct model-router path: one manifest read gives both the tool set and
@@ -955,7 +998,7 @@ export async function executeCopilotRun(
     copilot_id: copilotId,
     version_id: versionId,
     project_id: projectId,
-    user_label: 'authoring-session',
+    user_label: userLabel,
     started_at: startedAt,
     finished_at: finishedAt,
     status,
@@ -1015,6 +1058,8 @@ export async function executeCopilotRun(
     costUsd,
     steps,
     toolCallCount,
+    // Same derivation as the LangGraph path: the persisted rows ARE the list.
+    toolCalls: toolCallRows.map((r) => ({ name: String(r.tool_name), status: String(r.status) })),
     blockedToolCount,
     traceUrl: traceResult.traceUrl,
     resolvedProvider,

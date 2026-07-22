@@ -22,6 +22,22 @@ export class NotFoundError extends Error {
   }
 }
 
+/**
+ * A copilot declares a runtime no execution engine can serve (neither
+ * 'langgraph' nor 'openai-assistants'). Thrown instead of silently picking an
+ * engine: running an agent on a runtime that is not its own is exactly the bug
+ * this sentinel exists to make loud (an `openai-assistants` agent executed on
+ * the LangGraph graph never mounts its manifest tools and answers "no data"
+ * while looking healthy). Routes map it to 409 — a config conflict, not a
+ * transient upstream failure.
+ */
+export class UnsupportedRuntimeError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'UnsupportedRuntimeError'
+  }
+}
+
 /** Base for every model-router failure. */
 export class ModelRouterError extends Error {
   constructor(message: string) {

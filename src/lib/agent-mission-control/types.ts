@@ -340,6 +340,20 @@ export interface TestResult {
 
 export type AgentRunStatus = 'completed' | 'failed' | 'blocked' | 'needs-confirmation' | 'running'
 
+/**
+ * `agent_runs.user_label` marking a row written by the TEST RUNNER, one per
+ * test case, rather than by an operator (AIGENT-RUNNER-RUNTIME-029: the test
+ * runner drives the same `executeCopilotRun` engine on the direct path).
+ *
+ * It lives here, in the shared vocabulary, because the producer
+ * (`test-runner.ts`) and the readers that treat `agent_runs` as OPERATIONAL
+ * truth (`agent-health.ts`, `available-agents.ts`) must agree on the exact
+ * string — importing the test runner into a health read would drag an
+ * execution engine into a metrics query. A graded test failure is the suite
+ * working, not a production incident, so those readers filter it out.
+ */
+export const TEST_CASE_RUN_LABEL = 'test-case'
+
 export interface AgentRun {
   id: string
   copilotId: string
