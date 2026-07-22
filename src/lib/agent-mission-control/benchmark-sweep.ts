@@ -30,15 +30,23 @@
  * TRUTH RESERVE — WHAT A SWEEP MEASURES ON THE `langgraph` RUNTIME
  * ---------------------------------------------------------------------------
  * Verified in `benchmark-runner.ts`:
- *   - runtime !== 'langgraph' → `runTaskViaCompletion(prompt, routes, model,
- *     modelProvider, ...)`: the override drives the agent itself. The sweep is
- *     a true model comparison.
+ *   - runtime === 'openai-assistants' → `runTaskOnDirectEngine(...)` calls
+ *     `executeCopilotRun({ model, modelProvider, ... })`, where `model` is
+ *     `args.model ?? copilotRow.model` — so the sweep's override DOES drive the
+ *     agent itself and the comparison is a true model comparison. (Before
+ *     AIGENT-BENCH-RUNTIME-030 the same conclusion held via the tool-less
+ *     `runTaskViaCompletion`; the engine changed, the reserve below did not,
+ *     but the agent now runs with its real tools rather than as bare prose.)
  *   - runtime === 'langgraph' → `runTaskOnGraph(...)` calls
  *     `runOnAgentServer({ userInput, assistantId, maxSteps })`. That call takes
  *     NO model and NO provider: the graph picks its own model from the
  *     assistant's `CopilotBehaviorConfig` (see src/langgraph/model-provider.mjs).
  *     The override then reaches ONLY the LLM judge (`routeCompletion({ purpose:
  *     'judge', model, modelProvider })`).
+ *   - any other runtime → `runBenchmarkSuite` raises `UnsupportedRuntimeError`
+ *     before it writes anything, so EVERY leg fails rather than being scored.
+ *     That is loud by design: a sweep of an unservable runtime must not read
+ *     as a model comparison that happened to go badly.
  * So on `langgraph`, a sweep compares GRADERS, not agents — the agent under
  * test is identical in every leg. That would be a dishonest "model comparison",
  * so `runBenchmarkSweep` refuses it by default: legs are reported as skipped
