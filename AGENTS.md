@@ -62,7 +62,43 @@ est pris par un process non identifié comme le sien.
 <!-- END:catalyst-ui-rules -->
 
 <!-- BEGIN:tradeagent-roster -->
-## Roster TradeAgent canonique (AIG-TRADEAGENT-ONLY-019)
+## Roster TradeAgent canonique (AIGENT-RESET-TRADEAGENT-022)
+
+**Reset destructif du 2026-07-22.** Les 40 anciens copilots et leurs 2795 lignes
+enfants (runs, tool calls, benchmarks, tests, manifests, versions, tools) ont été
+supprimés. `scripts/reset-agent-platform.mjs` — dry-run par défaut, `--apply`
+pour écrire, idempotent. Il vide d'abord les 3 colonnes qui pointent un copilot
+**sans FK** (`mission_findings.copilot_id`, `mission_runs.orchestrator_copilot_id`,
+`mission_runs.participant_copilot_ids`), que la cascade ne nettoie pas.
+
+**Roster actuel** (`scripts/provision-tradeagent-roster.mjs`) — 4 agents dans
+`proj-tradeagent`, provider `openai`, modèle `gpt-5.4` :
+
+| Agent | Outils | Statut |
+|---|---|---|
+| Market Intelligence | 5 | `active` — prouvé par run |
+| Portfolio Risk Guardian | 5 | `active` — prouvé par run |
+| Execution Supervisor | 4 | `draft` |
+| Performance Analyst | 4 | `draft` |
+
+**Deux pièges à ne pas réintroduire :**
+1. **Jamais `runtime: 'langgraph'` pour un agent à outils marché.** `runner.ts`
+   court-circuite ce runtime vers le LangGraph Agent Server, qui possède son
+   propre graphe : les outils du manifest ne sont **jamais montés**. L'agent
+   répond « je n'ai pas de données marché » avec `tool_call_count = 0`, tout en
+   paraissant sain dans le catalogue. Utiliser `openai-assistants`.
+2. **La description d'un outil EST son contrat d'entrée.** Le runner l'envoie au
+   modèle sans schéma JSON. Les schémas Zod attendent `pair` (pas `symbol`) —
+   sans description explicite, le modèle devine et chaque appel échoue.
+
+**Non construits, volontairement** : Strategy Research (aucun handler de
+backtest) et Withdrawal Review (`read_account_risk_snapshot` retourne toujours
+UNAVAILABLE sans compte connecté). Pas de coquille vide.
+
+`active` signifie **prouvé** : `--activate` exige un run `completed`, zéro
+tentative unsafe et un modèle vérifié.
+
+## Historique — roster précédent (AIG-TRADEAGENT-ONLY-019)
 
 Le catalogue actif ne sert que des agents réellement exécutables. Un agent est
 `active` seulement si son `project_id` existe, son provider est câblé, sa version
