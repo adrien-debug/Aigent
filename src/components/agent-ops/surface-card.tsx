@@ -27,14 +27,6 @@ export const surfaceSectionClass = `flex flex-col overflow-hidden ${surfaceRaise
 /** Level 3 — interactive business objects (project row, agent card, KV tile). */
 export const surfaceItemClass = surfaceSunken
 
-/**
- * Navigation chrome. The sidebar is now Catalyst `SidebarLayout`, which paints
- * its own container (see the `lg:` rule in globals.css), so this no longer has a
- * rail to dress — kept only until the last legacy importer is gone.
- * @deprecated
- */
-export const surfaceNavClass = surfaceSunken
-
 /** Backward-compatible alias — prefer `surfaceSectionClass` for new code. */
 export const surfaceCardClass = surfaceSectionClass
 

@@ -81,7 +81,11 @@ export default async function TelemetryPage() {
           eyebrow="Telemetry"
           title="Runtime Telemetry"
           description="Opt-in signal reported by delivered agents across every project — Aigent's only window into production traffic once an agent ships."
-          actions={<LiveRefresh initialRefreshedAt={nowIso} />}
+          // The LIVE pill is the auto-refresh indicator, but on a page whose whole
+          // message is "ingestion is not configured" a green LIVE badge reads as
+          // "telemetry is live". Nothing is being received, so nothing claims to
+          // be live: the indicator only appears once there is real data to refresh.
+          actions={hasData ? <LiveRefresh initialRefreshedAt={nowIso} /> : null}
         />
         {/* The banner is the one-line status; when there is no data at all the
             unconfigured state below already carries that summary verbatim, so

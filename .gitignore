@@ -61,3 +61,6 @@ next-env.d.ts
 
 # Git worktrees created by tooling — never part of the tree.
 .worktrees/
+
+# Generated output of `npm run verify:admin-routes` — regenerated on demand.
+tmp/

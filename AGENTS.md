@@ -32,9 +32,13 @@ est pris par un process non identifié comme le sien.
 - Besoin d'une section/écran dashboard ? → **lis** `~/.claude/tailwind-blocks/application-ui/`
   pour la structure, puis monte-la avec les primitives Catalyst. Ne colle jamais le JSX brut d'un
   bloc dans le dashboard.
-- 15 primitives disponibles dans `src/components/catalyst/` (alert, avatar, badge,
-  button, dialog, divider, fieldset, heading, input, link, select, switch, table,
-  text, textarea).
+- 19 primitives dans `src/components/catalyst/` (alert, avatar, badge, button,
+  dialog, divider, fieldset, heading, input, link, navbar, select, sidebar,
+  sidebar-layout, surface, switch, table, text, textarea). `sidebar-layout` +
+  `sidebar` + `navbar` = LE shell admin, `surface` = la grammaire de plans.
+  N'ajoute une primitive que si elle a un consommateur réel : dropdown,
+  pagination, description-list et table-fit ont été importés puis supprimés
+  faute d'usage.
 <!-- END:catalyst-ui-rules -->
 
 <!-- BEGIN:trading-factory -->
