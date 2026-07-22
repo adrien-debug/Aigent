@@ -225,6 +225,12 @@ export function ProjectAgentBuilderWorkbench({
       setError(null)
       setStreamingContent('')
 
+      // Once the POST is accepted, the server has committed this turn (persisted
+      // the user message + is running the architect). A later failure (a hiccup
+      // mid-stream, or the reconcile GET) must NOT re-POST — that would run a
+      // SECOND full architect turn and persist a duplicate user message. After
+      // acceptance we only ever re-READ via GET.
+      let turnAccepted = false
       try {
         const res = await fetch(`/api/agent-ops/projects/${projectId}/builder/message`, {
           method: 'POST',
@@ -237,6 +243,7 @@ export function ProjectAgentBuilderWorkbench({
           setError(data?.error ?? `Message failed (${res.status}).`)
           return
         }
+        turnAccepted = true
 
         const isStream = (res.headers.get('content-type') ?? '').includes('text/event-stream')
         if (!isStream || !res.body) {
@@ -272,15 +279,35 @@ export function ProjectAgentBuilderWorkbench({
         const bundleData = await bundleRes.json().catch(() => null)
         if (bundleRes.ok && bundleData) {
           applyBundle(bundleData as ProjectBuilderConversationBundle)
+        } else {
+          // The turn IS persisted server-side; only the reconcile read failed.
+          // Don't let the streamed reply silently vanish (finally clears it) —
+          // tell the operator their turn landed and a refresh will show it.
+          setError('Your message was sent, but the latest reply could not be loaded. Refresh to see it.')
         }
       } catch {
-        // Streaming path failed outright (network hiccup, browser without
-        // ReadableStream support, aborted fetch) — retry once via the plain
-        // JSON endpoint so the message is not silently lost.
-        try {
-          await sendMessageJSON(trimmed)
-        } catch {
-          setError('Live backend not reachable.')
+        if (turnAccepted) {
+          // The server already accepted and ran this turn — re-POSTing would
+          // duplicate it. Re-read the persisted conversation instead of resending.
+          try {
+            const bundleRes = await fetch(`/api/agent-ops/projects/${projectId}/builder/conversation`)
+            const bundleData = await bundleRes.json().catch(() => null)
+            if (bundleRes.ok && bundleData) {
+              applyBundle(bundleData as ProjectBuilderConversationBundle)
+            } else {
+              setError('Your message was sent, but the latest reply could not be loaded. Refresh to see it.')
+            }
+          } catch {
+            setError('Your message was sent, but the latest reply could not be loaded. Refresh to see it.')
+          }
+        } else {
+          // Nothing was accepted (the POST itself failed before the server
+          // committed the turn) — safe to retry once via the plain JSON endpoint.
+          try {
+            await sendMessageJSON(trimmed)
+          } catch {
+            setError('Live backend not reachable.')
+          }
         }
       } finally {
         setStreamingContent(null)

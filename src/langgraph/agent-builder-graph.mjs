@@ -452,31 +452,38 @@ async function approvalNode(state, config) {
   }
   if (blocked.length > 0) return { messages: blocked }
 
-  // Confirmation is asked for the first call that requires one; the remaining
-  // calls are re-screened by toolsNode before they execute.
-  const call = calls.find((c) => rt.confirmRequired.has(c.name))
-  if (!call) return {}
+  // Confirmation is asked for EVERY call that requires one — not just the first.
+  // A model can emit several tool calls in one turn (parallel tool calls), so
+  // screening only the first let a second confirmation-required call fall through
+  // and execute UNCONFIRMED (toolsNode re-screens forbidden, not confirmRequired).
+  // Each gated call is interrupted individually: LangGraph resumes this node per
+  // interrupt in a stable order, so the operator decides them one at a time.
+  const gated = calls.filter((c) => rt.confirmRequired.has(c.name))
+  if (gated.length === 0) return {}
 
-  const proposed = call.args ?? {}
-  const decision = interrupt({
-    action: call.name,
-    risk: rt.toolRisk[call.name] ?? 'medium',
-    requiresConfirmation: true,
-    proposed,
-    message: `Approve running "${call.name}"${proposed.name ? ` for "${proposed.name}"` : ''}? This prepares a proposal; nothing is persisted.`,
-  })
-  const approved = decision && typeof decision === 'object' ? decision.approved === true : decision === true
-  if (approved) return {} // fall through to the tools node — the gated tool runs
-
-  // Declined: answer the gated call with a blocked ToolMessage so it never runs.
-  return {
-    messages: [
-      new ToolMessage({
-        content: JSON.stringify({ ok: false, blocked: true, reason: 'human declined (confirmation not granted)' }),
-        tool_call_id: call.id ?? call.name,
-      }),
-    ],
+  const declined = []
+  for (const call of gated) {
+    const proposed = call.args ?? {}
+    const decision = interrupt({
+      action: call.name,
+      risk: rt.toolRisk[call.name] ?? 'medium',
+      requiresConfirmation: true,
+      proposed,
+      message: `Approve running "${call.name}"${proposed.name ? ` for "${proposed.name}"` : ''}? This prepares a proposal; nothing is persisted.`,
+    })
+    const approved = decision && typeof decision === 'object' ? decision.approved === true : decision === true
+    if (!approved) {
+      // Declined: answer THIS gated call with a blocked ToolMessage so it never
+      // runs. Approved gated calls carry no message and fall through to toolsNode.
+      declined.push(
+        new ToolMessage({
+          content: JSON.stringify({ ok: false, blocked: true, reason: 'human declined (confirmation not granted)' }),
+          tool_call_id: call.id ?? call.name,
+        })
+      )
+    }
   }
+  return declined.length > 0 ? { messages: declined } : {}
 }
 
 async function toolsNode(state, config) {

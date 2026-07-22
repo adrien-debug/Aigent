@@ -1295,15 +1295,27 @@ export async function runAutoImprovementCycle(
     }
 
     // 4. RE-RUN — the EXISTING runners, pinned to the V2 version id, on every
-    //    test suite (and benchmark suite) so the comparison has V2 rows.
+    //    test suite (and benchmark suite) so the comparison has V2 rows. These
+    //    re-runs are the DOMINANT spend of the cycle (the analyze completion is
+    //    a rounding error next to N test cases + a benchmark), so their cost
+    //    MUST be metered against maxCostUsd — otherwise the budget bounded only
+    //    the cheap analyze step and the loop could spend many multiples of it.
     try {
       for (const suiteId of testSuiteIds) {
         checkAborted()
-        await runTestSuite({ copilotId, suiteId, versionId: v2VersionId, triggeredBy: 'auto-improve' })
+        const testRun = await runTestSuite({ copilotId, suiteId, versionId: v2VersionId, triggeredBy: 'auto-improve' })
+        cumulativeCostUsd += testRun.totalCostUsd ?? 0
       }
       for (const suiteId of benchSuiteIds) {
         checkAborted()
-        await runBenchmarkSuite({ copilotId, suiteId, versionId: v2VersionId })
+        const benchRun = await runBenchmarkSuite({ copilotId, suiteId, versionId: v2VersionId })
+        if (benchRun.resultId) {
+          const rows = await pgrest<Array<{ total_cost_usd: number | null }>>(
+            'GET',
+            `benchmark_results?${eq('id', benchRun.resultId)}&select=total_cost_usd&limit=1`
+          )
+          cumulativeCostUsd += Number(rows[0]?.total_cost_usd ?? 0)
+        }
       }
     } catch (err) {
       // An abort is the CALLER stopping the loop, not a re-run failure —
@@ -1327,6 +1339,22 @@ export async function runAutoImprovementCycle(
     const basePassRate = aggregateV1PassRate(cmp)
     finalPassRate = v2PassRate
     emit({ type: 'reran', iteration, proposalId: proposal.id, v2VersionId, passRate: v2PassRate, costUsd: cumulativeCostUsd })
+
+    // BUDGET (post-re-run) — now that the dominant re-run spend is counted, stop
+    // if the running total is over budget. We keep this iteration's V2 (it is
+    // already materialized and re-run) but do not fund another analyze+re-run
+    // round the operator's cap can't afford. The head V2 awaits the human.
+    if (cumulativeCostUsd > maxCostUsd) {
+      emit({
+        type: 'exhausted',
+        iteration,
+        proposalId: proposal.id,
+        v2VersionId,
+        costUsd: cumulativeCostUsd,
+        detail: `budget exhausted after re-runs: $${cumulativeCostUsd.toFixed(4)} > $${maxCostUsd.toFixed(2)}`,
+      })
+      return { iterations: iteration, finalPassRate: v2PassRate, stoppedBy: 'budget', lastProposalId, lastV2VersionId }
+    }
 
     // 6a. CONVERGED — every suite at 1.0. Stop; head V2 awaits the human.
     if (allSuitesConverged(cmp)) {

@@ -371,9 +371,13 @@ export function assertToolCallSafety(
 
 /**
  * Resolve the manifest's tool grant into a SafetyPolicy (names + which ones
- * require confirmation). Fail-soft: if the tool rows can't be read we return
- * an empty grant, which disables ONLY the out-of-manifest rule (see
- * assertToolCallSafety) rather than fabricating violations.
+ * require confirmation). FAIL-CLOSED on a read error: if the tool rows can't be
+ * read we THROW rather than returning an empty grant. An empty
+ * `confirmationRequiredToolNames` would silently disable the confirmation-mistake
+ * detection, so a run that skipped a required confirmation would report 0
+ * mistakes and pass the release gate's `confirmation-mistakes` check — a safety
+ * check failing open. A benchmark that cannot verify its safety inputs must not
+ * exist (a missing benchmark blocks promotion; a blind one lies).
  */
 async function loadSafetyPolicy(
   manifest: Partial<AgentManifest> & { systemPromptSummary: string }
@@ -401,8 +405,11 @@ async function loadSafetyPolicy(
       if (hit && !confirmationRequiredToolNames.includes(hit)) confirmationRequiredToolNames.push(hit)
     }
     return { manifestToolNames, confirmationRequiredToolNames, forbiddenActions }
-  } catch {
-    return { manifestToolNames: [], confirmationRequiredToolNames: [], forbiddenActions }
+  } catch (err) {
+    // Fail-closed: never certify safety on unreadable inputs (see above).
+    throw new Error(
+      `benchmark safety policy unavailable: could not read tool confirmation flags (${err instanceof Error ? err.message : 'unknown'})`
+    )
   }
 }
 

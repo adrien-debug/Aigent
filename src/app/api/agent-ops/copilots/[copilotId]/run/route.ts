@@ -32,6 +32,15 @@ const MAX_USER_INPUT_LENGTH = 32_000
 // carrying a comma or filter-syntax character could otherwise be misparsed.
 const COPILOT_ID_RE = /^[a-z0-9-]{1,200}$/
 
+// In-flight guard: ONE synchronous run per copilot per process. executeCopilotRun
+// persists the agent_runs row atomically at the END (no `running` sentinel exists
+// mid-flight), so a DB "is one running?" check cannot see an in-progress run — an
+// in-process Set is the correct guard here, same pattern as improve/auto. It stops
+// the real double-submit cases (double-click, two tabs, a client retry) from firing
+// two billed model calls and writing two duplicate agent_runs rows. Released in a
+// finally, so a thrown run never leaves the copilot permanently blocked.
+const inFlightRuns = new Set<string>()
+
 /**
  * 502 vs 504 for an upstream failure: pgrest() aborts a round-trip that
  * exceeds its 30s cap and rethrows it as a PgrestError with `.status === 504`
@@ -189,6 +198,16 @@ export async function POST(
     )
   }
 
+  // Double-submit guard: refuse a second concurrent run for this copilot in
+  // this process (409), rather than firing a second billed model call.
+  if (inFlightRuns.has(copilotId)) {
+    return NextResponse.json(
+      { error: 'a run is already in progress for this copilot', copilotId },
+      { status: 409 }
+    )
+  }
+  inFlightRuns.add(copilotId)
+  try {
   // 1) Load the copilot: model, project, and which version is serving.
   let copilotRow: Record<string, unknown>
   try {
@@ -318,5 +337,10 @@ export async function POST(
     // client. Log server-side for debugging, return a generic message.
     console.error('[agent-ops/copilots/run] run execution failed', err)
     return NextResponse.json({ error: 'run execution failed' }, { status: upstreamFailureStatus(err) })
+  }
+  } finally {
+    // Always release the in-flight claim — a thrown run must not block the
+    // copilot for the lifetime of the process.
+    inFlightRuns.delete(copilotId)
   }
 }
