@@ -35,9 +35,9 @@ promouvoir V1 → [PUSH manuel] ──push──▶ registre (agents/_registry.j
 
 - **Aigent** : `/Users/adrienbeyondcrypto/Aigent`, branche `main`, HEAD `1f0bde4`,
   working tree **propre**, 0 worktree. Gate `npm run check` verte, 116 tests.
-  Dev : `npm run dev` (Next + LangGraph). ⚠️ Le dev **shuffle de port** :
-  TradeAgent occupe souvent `:3000`, donc **Aigent tourne sur `:3001`** (LangGraph
-  `:2024`). Toujours re-détecter le port. Login dev : mdp `hearst-agent-mc-2026`.
+  Dev : `npm run dev` (Next + LangGraph). Le dev Aigent tourne sur `:3210`
+  (`AIGENT_DEV_PORT`, défaut 3210 — jamais `:3000`/`:3001`, cf. AGENTS.md ; LangGraph
+  `:2024`). Login dev : mdp `hearst-agent-mc-2026`.
   Bypass dev (`AMC_DEV_BYPASS_AUTH=1`) ouvre les PAGES mais PAS l'API agent-ops →
   il faut une session valide (se logger) pour que les mutations marchent.
 - **TradeAgent** : `/Users/adrienbeyondcrypto/Desktop/TradeAgent/app`, `main`,

@@ -23,11 +23,14 @@ pour écrire, idempotent. Il vide d'abord les 3 colonnes qui pointent un copilot
 | Performance Analyst | 4 | `draft` |
 
 **Deux pièges à ne pas réintroduire :**
-1. **Jamais `runtime: 'langgraph'` pour un agent à outils marché.** `runner.ts`
-   court-circuite ce runtime vers le LangGraph Agent Server, qui possède son
-   propre graphe : les outils du manifest ne sont **jamais montés**. L'agent
-   répond « je n'ai pas de données marché » avec `tool_call_count = 0`, tout en
-   paraissant sain dans le catalogue. Utiliser `openai-assistants`.
+1. **LangGraph est OBLIGATOIRE — le vrai piège est un agent `langgraph` SANS assistant
+   provisionné.** `runner.ts` route `runtime: 'langgraph'` vers le LangGraph Agent Server, qui
+   possède son propre graphe. Un copilot `langgraph` sans assistant tourne contre le graphe nu et
+   hérite des outils génériques legacy : les outils marché du manifest ne sont **jamais montés**,
+   l'agent répond « je n'ai pas de données marché » avec `tool_call_count = 0` tout en paraissant
+   sain dans le catalogue. La cause n'est PAS le runtime (formulation antérieure, fausse) mais
+   l'**absence d'assistant** : provisionner l'assistant (`scripts/ensure-langgraph-assistants.ts`)
+   PUIS `runtime: 'langgraph'` — jamais flipper le runtime seul.
 2. **La description d'un outil EST son contrat d'entrée.** Le runner l'envoie au
    modèle sans schéma JSON. Les schémas Zod attendent `pair` (pas `symbol`) —
    sans description explicite, le modèle devine et chaque appel échoue.
@@ -184,9 +187,8 @@ Aigent n'est **pas** OpenAI-only. Deux chemins d'exécution, deux réalités :
   `CopilotBehaviorConfig` (sourcé depuis `copilots.model_provider`) et instancie
   `ChatOpenAI` pour `openai`, Gemini OpenAI-compat pour `google`, vLLM local pour
   `local`. `mistral` déclaré mais non câblé (erreur explicite).
-- **Les 7 AP finance** (`copilot-fin-*`) tournent en **local via vLLM** sur le
-  chemin DIRECT (`model_provider = local`, bench 16/16). Leur `runtime` peut encore
-  lire `openai-assistants` pour raisons historiques, mais l'exécution passe par le
-  model-router direct → parc local ; les assistants LangGraph pointés sont **inertes**
-  sur ce chemin. Détail : `docs/agent-authoring.md` §3.
+- **La factory AP/finance** (`src/lib/agent-mission-control/finance/`) cible le chemin DIRECT
+  `local`/vLLM (`model_provider = local`) mais reste **config + code seulement** : aucun copilot
+  finance n'est matérialisé dans la DB live (compte = 0). La matérialiser est une étape facturée et
+  gardée (cf. `docs/accounting-agent-factory.md`). Détail : `docs/agent-authoring.md` §3.
 <!-- END:trading-factory -->

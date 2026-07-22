@@ -97,6 +97,7 @@ est pris par un process non identifié comme le sien.
 - **Runtime multi-provider — ne pas régresser en « OpenAI-only »** : le model-router direct route
   vers `openai`/`google`/`local` (vLLM, opt-in explicite) ; LangGraph idem via
   `src/langgraph/model-provider.mjs` ; `mistral` déclaré non câblé (erreur typée, jamais de
-  fallback muet). Les 7 AP finance tournent en local via vLLM sur le chemin direct. Détail :
+  fallback muet). La factory AP/finance (`…/finance/`) cible le chemin `local`/vLLM mais reste
+  **config + code seulement** : aucun copilot finance n'est matérialisé (compte DB live = 0). Détail :
   `docs/agent-authoring.md` §3.
 - **Matérialisation OpenAI d'agents = étape facturée, jamais exécutée sans accord** (§8 global).

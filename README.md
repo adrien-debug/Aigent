@@ -27,8 +27,10 @@ authoring or runs.
   provider and routes to **OpenAI** (`OPENAI_API_KEY`), **Gemini**
   (`GEMINI_API_KEY`/`GOOGLE_API_KEY`), or Adrien's **local vLLM** park
   (`VLLM_LOCAL_API_KEY`, OpenAI-compatible). Provider is per-copilot
-  (`model_provider`), not global. The 7 finance copilots (`copilot-fin-*`) run
-  **local via vLLM** on this direct path.
+  (`model_provider`), not global. The finance/AP factory
+  (`src/lib/agent-mission-control/finance/`) is wired for this `local`/vLLM path but
+  is **config + code only** — **no finance copilot is materialized** (live DB count 0);
+  materialization is a gated, billed step (see `docs/accounting-agent-factory.md`).
 - **Postgres via PostgREST** — the `aigent` perimeter on GPU1 (service-role,
   server-only). See `docs/BACKEND-GPU1.md`.
 

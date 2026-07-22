@@ -5,13 +5,13 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
 `dark:` de Catalyst (les composants Catalyst gèrent light+dark ; l'app force dark).
 
 ## Sources (doctrine stricte)
-- **Catalyst** (`@/components/catalyst/*`) = primitives UNIQUES. Liste exacte, 19 fichiers :
-  Alert, Avatar, Badge, Button, Dialog, Divider, Fieldset, Heading/Subheading, Input, Link,
+- **Catalyst** (`@/components/catalyst/*`) = primitives UNIQUES. Liste exacte, 18 fichiers :
+  Avatar, Badge, Button, Dialog, Divider, Fieldset, Heading/Subheading, Input, Link,
   Navbar, Select, Sidebar, SidebarLayout, Surface, Switch, Table, Text, Textarea.
   INTERDIT de recréer une primitive qui existe dans Catalyst.
 - **Une primitive n'entre dans `catalyst/` qu'avec un consommateur réel dans le même commit.**
-  Dropdown, Pagination, DescriptionList et TableFit ont été importés puis supprimés faute d'usage :
-  ne les réintroduis pas sans l'écran qui les consomme.
+  Alert, Dropdown, Pagination, DescriptionList et TableFit ont été importés puis supprimés faute
+  d'usage : ne les réintroduis pas sans l'écran qui les consomme.
 - **application-ui-v4** = patterns admin (shells, tables, stats, tabs, feeds, action panels,
   page headings) → à ADAPTER, jamais coller brut.
 - **ecommerce-v4** = uniquement rythmes transactionnels (order detail/summary, progress,
@@ -60,11 +60,22 @@ Détail : `docs/surface-usage.md`.
 - Hover ligne de table : `hover:bg-white/2.5`
 - Pas de glassmorphism, pas d'ombres lourdes, pas de néon.
 
-## Couleur — MONOCHROME accent (une seule teinte, la couleur n'est JAMAIS le seul indicateur : toujours un label)
-- **UNE seule teinte chromatique** : `accent` = **vert tendre** (`#A7FB90` = **500**), échelle
-  `accent-50…950` pleinement saturée, enregistrée dans `globals.css` (`@theme`) — signature
-  « operator console » du mission-control sur fond zinc sombre. TOUT surface de couleur (badges,
-  états, charts, meters, nav, boutons) est une **nuance de cette teinte**. `zinc` est le SEUL neutre.
+## Couleur — accent unique + rouge danger réservé (la couleur n'est JAMAIS le seul indicateur : toujours un label)
+- **UNE seule teinte chromatique décorative** : `accent` = **vert tendre** (`#A7FB90` = **500**),
+  échelle `accent-50…950` pleinement saturée, enregistrée dans `globals.css` (`@theme`) — signature
+  « operator console » du mission-control sur fond zinc sombre. TOUTE surface de couleur décorative
+  (badges, états positifs, charts, meters, nav, boutons non destructifs) est une **nuance de cette
+  teinte**. `zinc` est le SEUL neutre. La **seule** autre teinte est le **rouge danger** ci-dessous —
+  sémantique, jamais décorative.
+- **Rouge danger — la SEULE exception, sémantique et non décorative (AIGENT-UI-TRUTH-026).** Une
+  seule teinte hors accent : le rouge, réservé à l'**échec** et à la **destruction** (bannières
+  d'erreur, états terminaux `failed`/`degraded`, confirmations destructrices). Jamais une série de
+  chart, jamais un hover, jamais une décoration. Consommé via les rôles nommés `--state-danger-*`
+  de `globals.css` (`--state-danger-soft/line/text/solid/solid-line`, construits en
+  `color-mix(in oklab, …, transparent)` comme les rôles accent) — jamais une opacité rouge écrite à
+  la main. Comme l'accent, **la couleur ne porte jamais le sens seule** : un LABEL (et sur la
+  bannière un marqueur non chromatique) le dit toujours. Le gate `check-danger-role` échoue si un
+  échec ou une destruction porte l'accent au lieu du rouge.
 - **Rôles accent nommés — OBLIGATOIRES, zéro opacité accent ad-hoc.** Valeurs réelles de
   `globals.css`, toutes en `color-mix(in oklab, …, transparent)` sauf mention contraire, toutes
   consommées — zéro token orphelin :
@@ -84,16 +95,23 @@ Détail : `docs/surface-usage.md`.
   commentaire de rôle) plutôt que de la laisser en valeur libre dans un composant. Focus clavier
   = `outline-accent-500` de Catalyst (déjà un seul ring, jamais un token de rôle). Statut =
   **LABEL + point/fill accent solide** (couleur pleine, pas un wash translucide de fond).
-- **Zéro autre teinte** : jamais indigo/amber/rose/blue/violet/lime/orange/emerald… Le sens
-  (pass/fail/warn/actif) est porté par le **LABEL** + l'**intensité** de la nuance, pas par le hue.
+- **Zéro autre teinte décorative** : jamais indigo/amber/rose/blue/violet/lime/orange/emerald… La
+  seule teinte hors accent est le **rouge danger** (`--state-danger-*`), strictement sémantique
+  (échec/destruction). Le sens (pass/warn/actif) est porté par le **LABEL** + l'**intensité** de la
+  nuance accent, pas par le hue ; seuls échec et destruction sortent vers le rouge.
 - **Échelle d'intensité des badges** (clés Catalyst) : `accent` (soft) → `accentStrong` → `accentSolid`.
-  - actif / pass / prod healthy → `accent` ; attention/dégradé → `accentStrong` ; fail/critical/danger → `accentSolid`.
+  - actif / pass / prod healthy → `accent` ; attention/dégradé → `accentStrong` ; alerte accent forte → `accentSolid`.
+    Échec et destruction ne sont PAS de l'accent : ils prennent le rouge danger (`--state-danger-*`) —
+    jamais un badge `accentSolid` vert pour un `failed`.
   - risque low→critical : `accent → accent → accentStrong → accentSolid` (escalade par remplissage).
   - neutre (draft/paused/skip/running/archived) **et métadonnée runtime** (quel moteur) → `zinc`.
-- **Boutons** : action primaire ET destructive = `<Button color="accent">` (solide accent) ; le label dit l'action.
+- **Boutons** : action primaire = `<Button color="accent">` (solide accent) ; action **destructive** =
+  rôle rouge `--state-danger-*` (fond `--state-danger-solid`, cf. `delete-project-dialog.tsx` /
+  `agent-detail/release-panel.tsx`), jamais l'accent. Le label dit toujours l'action.
 - **Charts** : succès/mesure positive = tokens `--chart-success*` (repointés sur accent) ; série neutre = zinc.
 - Texte : titres `text-white`, corps `text-zinc-300/400`, méta `text-zinc-500`. Jamais de hex en dur,
-  jamais de teinte hors `accent`/`zinc`. Accent via classes solides (`text-accent-400`,
+  jamais de teinte hors `accent`/`zinc` — sauf le rouge danger `--state-danger-text` sur un message
+  d'échec/destruction. Accent via classes solides (`text-accent-400`,
   `bg-accent-500`) ou via les tokens de rôle `--accent-*` ci-dessus — jamais une opacité
   accent écrite à la main.
 

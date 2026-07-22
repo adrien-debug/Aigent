@@ -96,14 +96,16 @@ regression coverage lives, because it runs on every commit for free.
   promotion-critical checks the promotion route re-evaluates server-side
   before allowing a version to go to production.
 
-Run: `npm test` (alias for `vitest run tests/unit`). **113 unit tests** across
-these 11 files (add `--reporter=verbose` to see each one).
+Run: `npm test` (alias for `vitest run tests/unit`). **1200 unit tests** across
+**100 files** — the highest-value ones are described above; add `--reporter=verbose`
+to see each one.
 
 ## `npm run test:live` — integration suite (`tests/live/`)
 
-Opt-in. Requires `npm run dev` running in another terminal (starts Next on
-`:3000`, falling back to `:3001` if occupied — `tests/live/helpers.ts` probes
-both) **and** the LangGraph Agent Server on `:2024`. Also requires
+Opt-in. Requires `npm run dev` running in another terminal (Next on the dev port
+`:3210` — `AIGENT_DEV_PORT`, default 3210; `tests/live/helpers.ts` probes it first,
+then `:3000`/`:3001` only for back-compat with older `next dev` runs) **and** the
+LangGraph Agent Server on `:2024`. Also requires
 `.env.local` populated with a live gpu1 backend, `OPENAI_API_KEY`, and
 `GITHUB_TOKEN` (`tests/live/setup.ts` loads `.env.local` automatically via
 Node's native `process.loadEnvFile`, same file `npm run dev` and
@@ -111,7 +113,7 @@ Node's native `process.loadEnvFile`, same file `npm run dev` and
 
 **Every test in this suite self-skips (logs a `[live] skip: …` note and
 returns, never fails) when its prerequisites aren't met** — including when
-some *other*, unrelated app happens to be listening on port 3000/3001
+some *other*, unrelated app happens to be listening on one of the candidate ports
 (`findAppBaseUrl` verifies it's actually reaching this app's `proxy.ts`, by
 checking that an unauthenticated `GET /api/agent-ops/copilots` returns exactly
 401 with this app's error shape, before treating a port as "this app").
