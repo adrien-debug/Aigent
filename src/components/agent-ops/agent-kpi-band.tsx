@@ -27,9 +27,9 @@ const COLS_CLASS: Record<number, string> = {
 // Canon DS (`Heading`): page H1 is text-2xl/8 (24px). KPI values must never
 // exceed that — hero matches H1; compact/small sit clearly below.
 const VALUE_SIZE_CLASS = {
-  hero: 'font-mono text-2xl/8 font-light tracking-tight',
-  compact: 'font-mono text-xl/7 font-light tracking-tight',
-  small: 'font-mono text-lg/6 font-light tracking-tight',
+  hero: 'text-2xl/8 font-light tracking-tight tabular-nums',
+  compact: 'text-xl/7 font-light tracking-tight tabular-nums',
+  small: 'text-lg/6 font-light tracking-tight tabular-nums',
 } as const
 
 const VALUE_TONE_CLASS = {
