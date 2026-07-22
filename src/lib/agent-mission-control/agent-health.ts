@@ -25,6 +25,7 @@
 import 'server-only'
 
 import { pgrest } from './postgrest'
+import { TEST_CASE_RUN_LABEL } from './types'
 import type { CopilotStatus, DisplayStatus, IsoTimestamp, UsdAmount, VersionStage } from './types'
 
 type RawRow = Record<string, unknown>
@@ -336,9 +337,15 @@ export async function resolve24hMetricsBatch(copilotIds: string[]): Promise<Map<
   for (const id of copilotIds) out.set(id, { ...EMPTY_24H })
 
   const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  // Test-case rows are excluded: since AIGENT-RUNNER-RUNTIME-029 the test
+  // runner drives the same engine on the direct path, so a suite of 20 cases
+  // writes 20 agent_runs. Counting them here would make "runs in the last 24h"
+  // spike from an authoring action and, worse, let a deliberately-failing test
+  // case raise the OPERATIONAL error rate — a graded failure is the suite doing
+  // its job, not an incident in production.
   const rows = await pgrest<RawRow[]>(
     'GET',
-    `agent_runs?copilot_id=in.(${inList(copilotIds)})&started_at=gte.${encodeURIComponent(sinceIso)}&select=copilot_id,status,cost_usd`
+    `agent_runs?copilot_id=in.(${inList(copilotIds)})&started_at=gte.${encodeURIComponent(sinceIso)}&user_label=neq.${TEST_CASE_RUN_LABEL}&select=copilot_id,status,cost_usd`
   )
 
   // Accumulate per copilot: run count, integer micro-USD cost, error count.

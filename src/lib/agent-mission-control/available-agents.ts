@@ -30,6 +30,7 @@ import { z } from 'zod'
 import { FINANCE_TOOL_HANDLERS } from './finance/tools'
 import { TRADING_TOOL_HANDLERS } from './market/tools'
 import { pgrest } from './postgrest'
+import { TEST_CASE_RUN_LABEL } from './types'
 import type { AgentRunStatus, ConfirmationPolicy, ModelProvider, VersionStage } from './types'
 
 /**
@@ -409,7 +410,12 @@ export async function getAvailableAgents(): Promise<AvailableAgent[]> {
       ? rest<VersionRow[]>(`copilot_versions?select=id,copilot_id,label,stage&id=in.(${inList(versionIds)})`)
       : Promise.resolve([]),
     rest<RunRow[]>(
-      `agent_runs?select=copilot_id,started_at,status,cost_usd,resolved_model,model_unverified&copilot_id=in.(${inList(ids)})&order=started_at.desc`
+      // Test-case rows excluded: the test runner writes one agent_runs row per
+      // case on the direct path (AIGENT-RUNNER-RUNTIME-029), and this read
+      // feeds an agent's LAST RUN — the evidence its runtime status rests on.
+      // A graded test case is not an operator run, so letting one become "the
+      // last run" would restate authoring activity as production truth.
+      `agent_runs?select=copilot_id,started_at,status,cost_usd,resolved_model,model_unverified&copilot_id=in.(${inList(ids)})&user_label=neq.${TEST_CASE_RUN_LABEL}&order=started_at.desc`
     ),
     rest<{ id: string }[]>('projects?select=id'),
   ])

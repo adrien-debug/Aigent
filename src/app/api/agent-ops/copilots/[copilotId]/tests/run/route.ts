@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 
 import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
-import { NotFoundError, ProviderUnavailableError } from '@/lib/agent-mission-control/runner-errors'
+import {
+  NotFoundError,
+  ProviderUnavailableError,
+  UnsupportedRuntimeError,
+} from '@/lib/agent-mission-control/runner-errors'
 import { runTestSuite } from '@/lib/agent-mission-control/test-runner'
 import type { TestRun } from '@/lib/agent-mission-control/types'
 
@@ -114,6 +118,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     // log it server-side and return a generic message instead.
     if (err instanceof NotFoundError) {
       return NextResponse.json({ error: err.message }, { status: 404 })
+    }
+    // A copilot whose runtime no engine serves is a CONFIG conflict, not a
+    // missing resource and not a transient upstream failure: the suite exists
+    // and the backend is up, but running it would execute the agent on an
+    // engine that is not its own. 409 keeps it distinguishable from both, and
+    // the message is hand-authored (a runtime string), so it is safe to forward.
+    if (err instanceof UnsupportedRuntimeError) {
+      return NextResponse.json({ error: err.message }, { status: 409 })
     }
     if (err instanceof ProviderUnavailableError) {
       return NextResponse.json({ error: err.message }, { status: 503 })

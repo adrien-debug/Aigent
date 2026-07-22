@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 
 import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
-import { NotFoundError, ProviderUnavailableError } from '@/lib/agent-mission-control/runner-errors'
+import {
+  NotFoundError,
+  ProviderUnavailableError,
+  UnsupportedRuntimeError,
+} from '@/lib/agent-mission-control/runner-errors'
 import { runTestSuite, type TestRunEvent } from '@/lib/agent-mission-control/test-runner'
 import type { TestRun } from '@/lib/agent-mission-control/types'
 
@@ -132,7 +136,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
         // forward. The generic fallback is NOT — runTestSuite's abort path can
         // embed raw PostgREST response text — so log it server-side and emit a
         // generic frame instead.
-        if (err instanceof NotFoundError || err instanceof ProviderUnavailableError) {
+        // UnsupportedRuntimeError joins them: it names a runtime string the
+        // operator configured, so the message is hand-authored and safe, and
+        // seeing WHICH runtime has no engine is the whole point of the error.
+        if (
+          err instanceof NotFoundError ||
+          err instanceof ProviderUnavailableError ||
+          err instanceof UnsupportedRuntimeError
+        ) {
           push({ type: 'error', error: err.message })
         } else {
           console.error('[agent-ops/copilots/tests/run/stream] test run failed', err)
