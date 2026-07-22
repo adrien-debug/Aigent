@@ -1,5 +1,7 @@
 import 'server-only'
 
+import type { AgentRunStatus } from './types'
+
 /**
  * Runtime Registry Contract v1 (AIG-RUNTIME-001) — shared types + auth for
  * `/api/runtime/v1/**`.
@@ -86,6 +88,35 @@ export type RuntimeRunStatus =
   | 'completed'
   | 'failed'
   | 'cancelled'
+
+/**
+ * Map Aigent's INTERNAL run status onto the published RuntimeRunStatus contract.
+ * The two vocabularies differ, and a consumer's contract-typed SDK cannot parse
+ * an internal value (`needs-confirmation`, `blocked`) — so every `/runtime/v1`
+ * response that carries a run status MUST route through this, never emit
+ * `result.status` verbatim. Exhaustive over AgentRunStatus so a new internal
+ * status fails to typecheck here rather than leaking raw.
+ *
+ *   completed          -> completed
+ *   failed             -> failed
+ *   blocked            -> failed            (a guardrail refused it — not success)
+ *   needs-confirmation -> waiting_on_input  (paused for human approval, not done)
+ *   running            -> running
+ */
+export function toRuntimeRunStatus(internal: AgentRunStatus): RuntimeRunStatus {
+  switch (internal) {
+    case 'completed':
+      return 'completed'
+    case 'failed':
+      return 'failed'
+    case 'blocked':
+      return 'failed'
+    case 'needs-confirmation':
+      return 'waiting_on_input'
+    case 'running':
+      return 'running'
+  }
+}
 
 export type RuntimeRun = {
   id: string

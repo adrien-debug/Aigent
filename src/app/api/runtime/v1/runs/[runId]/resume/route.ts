@@ -1,16 +1,18 @@
 import { NextResponse } from 'next/server'
 
+import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 import { isValidRunId, requireRuntimeApiAuth } from '@/lib/agent-mission-control/runtime-api-types'
 
 /**
  * POST /api/runtime/v1/runs/:runId/resume — resume a run that is
  * `waiting_on_input` (HITL interruption) with the caller-supplied payload.
  *
- * Skeleton: no run store is wired yet, so this always returns a clean 404
- * once auth + shape checks pass. Wiring to the real run orchestrator's
- * resume path lands with the materialization work — see
- * docs/projects/real-estate-agent/runtime-api.md for the intended
- * interruption/resume contract.
+ * The runtime/v1 run path is SYNCHRONOUS (POST /agents/:id/runs runs to
+ * completion), so there is no async resume orchestration on this surface yet.
+ * Rather than the old unconditional 404 (which lied that a real, existing run
+ * "was not found"), this reports honestly: 404 only when the run genuinely does
+ * not exist, otherwise 501 — the run exists, resume is not implemented here.
+ * Wiring the real interruption/resume path lands with the async run store.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ runId: string }> }) {
   const auth = requireRuntimeApiAuth(request)
@@ -21,5 +23,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ run
     return NextResponse.json({ error: 'invalid runId' }, { status: 400 })
   }
 
-  return NextResponse.json({ error: 'run not found' }, { status: 404 })
+  try {
+    const rows = await pgrest<Record<string, unknown>[]>(
+      'GET',
+      `agent_runs?id=eq.${encodeURIComponent(runId)}&select=id&limit=1`
+    )
+    if (!rows[0]) {
+      return NextResponse.json({ error: 'run not found' }, { status: 404 })
+    }
+    return NextResponse.json(
+      {
+        error: 'resume not supported: runtime/v1 runs are synchronous',
+        runId,
+      },
+      { status: 501 }
+    )
+  } catch (err) {
+    console.error('[runtime/v1/runs/:runId/resume] lookup failed', err)
+    return NextResponse.json({ error: 'run lookup failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
+  }
 }

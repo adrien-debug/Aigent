@@ -1,15 +1,14 @@
 import { NextResponse } from 'next/server'
 
+import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 import { isValidRunId, requireRuntimeApiAuth } from '@/lib/agent-mission-control/runtime-api-types'
 
 /**
- * GET /api/runtime/v1/runs/:runId/events — fetch the ordered event log for
- * one run (polling shape — see docs/projects/real-estate-agent/
- * runtime-api.md for the streaming-vs-polling contract).
+ * GET /api/runtime/v1/runs/:runId/events — the ordered event log for one run.
  *
- * Skeleton: no run/event store is wired yet, so this always returns a clean
- * 404 once auth + shape checks pass. Wiring to the real event log lands
- * with the materialization work.
+ * Wired to the real `agent_run_steps` store (the runner writes one row per
+ * step). Fail-closed: an unknown run → 404 (not an empty 200, which a consumer
+ * cannot tell apart from "a run with no steps"); backend unreachable → 502/504.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ runId: string }> }) {
   const auth = requireRuntimeApiAuth(request)
@@ -20,5 +19,37 @@ export async function GET(request: Request, { params }: { params: Promise<{ runI
     return NextResponse.json({ error: 'invalid runId' }, { status: 400 })
   }
 
-  return NextResponse.json({ error: 'run not found' }, { status: 404 })
+  try {
+    // Confirm the run exists first, so "no steps yet" (200 []) is never
+    // confused with "no such run" (404).
+    const runRows = await pgrest<Record<string, unknown>[]>(
+      'GET',
+      `agent_runs?id=eq.${encodeURIComponent(runId)}&select=id&limit=1`
+    )
+    if (!runRows[0]) {
+      return NextResponse.json({ error: 'run not found' }, { status: 404 })
+    }
+
+    const steps = await pgrest<Record<string, unknown>[]>(
+      'GET',
+      `agent_run_steps?run_id=eq.${encodeURIComponent(runId)}&select=id,index,kind,title,detail,status,started_at,duration_ms&order=index.asc`
+    )
+    const events = steps.map((s) => ({
+      id: s.id as string,
+      runId,
+      sequence: (s.index as number) ?? 0,
+      type: (s.kind as string | null) ?? 'step',
+      data: {
+        title: (s.title as string | null) ?? null,
+        detail: (s.detail as string | null) ?? null,
+        status: (s.status as string | null) ?? null,
+        durationMs: (s.duration_ms as number | null) ?? null,
+      },
+      createdAt: (s.started_at as string | null) ?? null,
+    }))
+    return NextResponse.json({ ok: true, runId, count: events.length, events })
+  } catch (err) {
+    console.error('[runtime/v1/runs/:runId/events] read failed', err)
+    return NextResponse.json({ error: 'events lookup failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
+  }
 }

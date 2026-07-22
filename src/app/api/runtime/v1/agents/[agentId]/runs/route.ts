@@ -7,6 +7,7 @@ import {
   RUNTIME_CONTRACT_VERSION,
   isValidAgentId,
   requireRuntimeApiAuth,
+  toRuntimeRunStatus,
 } from '@/lib/agent-mission-control/runtime-api-types'
 import type { ModelProvider } from '@/lib/agent-mission-control/types'
 
@@ -164,7 +165,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ age
       contractVersion: RUNTIME_CONTRACT_VERSION,
       runId: result.runId,
       agentId,
-      status: result.status,
+      // Published contract status, NEVER the internal AgentRunStatus verbatim —
+      // a consumer's typed SDK cannot map `needs-confirmation`/`blocked`.
+      status: toRuntimeRunStatus(result.status),
       output: result.outputSummary,
       latencyMs: result.latencyMs,
       // Null when unmeasured — an unrecorded cost is not a free run.
