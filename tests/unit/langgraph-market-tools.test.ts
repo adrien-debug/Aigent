@@ -11,6 +11,14 @@ import {
   REGISTRY_IDS,
 } from '@/langgraph/tool-registry.mjs'
 
+/**
+ * Order-sensitive: mirrors MARKET_TOOL_SPECS declaration order.
+ *
+ * `read_funding_open_interest` joined the registry when check-registry-parity
+ * caught it — its handler and description had existed on the direct path all
+ * along, but the LangGraph registry never built it, so any agent declaring it
+ * would have mounted nothing while the catalogue reported the agent healthy.
+ */
 const EXPECTED_MARKET_TOOLS = [
   'read_market_snapshot',
   'read_volatility_state',
@@ -19,6 +27,7 @@ const EXPECTED_MARKET_TOOLS = [
   'read_liquidity_snapshot',
   'read_derivatives_snapshot',
   'read_macro_context',
+  'read_funding_open_interest',
   'read_account_risk_snapshot',
 ]
 
@@ -30,7 +39,7 @@ afterEach(() => {
 })
 
 describe('LangGraph market read tools', () => {
-  it('resolves all eight canonical names to executable registry tools', () => {
+  it('resolves all nine canonical names to executable registry tools', () => {
     expect([...MARKET_TOOL_IDS]).toEqual(EXPECTED_MARKET_TOOLS)
     expect(REGISTRY_IDS).toEqual(expect.arrayContaining(EXPECTED_MARKET_TOOLS))
     for (const name of EXPECTED_MARKET_TOOLS) {

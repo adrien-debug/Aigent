@@ -52,6 +52,18 @@ const NATIVE_TOOL_NAMES = [
   'draft_copilot_spec',
 ] as const
 
+/**
+ * CAVEAT — this set describes the DIRECT path, but every agent now runs on
+ * LangGraph (`runtime: 'langgraph'` is mandatory), where tools are mounted by
+ * src/langgraph/tool-registry.mjs instead. A name present here but absent there
+ * is mounted by nothing: the catalogue would derive `active` for an agent whose
+ * tools silently never load (`buildToolsFromConfig` skips unknown ids).
+ *
+ * `scripts/check-registry-parity.mjs` (in `npm run check`) asserts the two
+ * registries agree, so this set cannot drift into that lie unnoticed. The 9
+ * finance handlers are the one known gap, allowlisted there — no finance
+ * copilot exists yet, but creating one today yields a toolless agent.
+ */
 const RUNNABLE_TOOL_NAMES: ReadonlySet<string> = new Set<string>([
   ...NATIVE_TOOL_NAMES,
   ...Object.keys(TRADING_TOOL_HANDLERS),

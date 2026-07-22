@@ -392,6 +392,14 @@ const MARKET_TOOL_SPECS = {
       asOf: z.number().int().optional(),
     }).strict(),
   },
+  read_funding_open_interest: {
+    description:
+      'Read perp funding rate and open interest for one supported pair. Read-only. Frequently UNAVAILABLE (no perpetuals source is wired) — when it is, abstain and say so; never infer a funding rate or an open-interest value from spot data.',
+    schema: z.object({
+      pair: MARKET_PAIR_SCHEMA,
+      asOf: z.number().int().optional(),
+    }).strict(),
+  },
   read_account_risk_snapshot: {
     description:
       'Read an exact TradeAgent account snapshot and deterministic cross-market risk score. accountId is mandatory; never selects a random or first account. For withdrawal reviews, pass requestedWithdrawalUsd. Read-only and never executes a lock or withdrawal.',
