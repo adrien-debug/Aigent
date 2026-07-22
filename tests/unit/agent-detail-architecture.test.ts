@@ -80,6 +80,28 @@ describe('agent detail — value rendering contract', () => {
     expect(src.includes('now?: number')).toBe(true)
   })
 
+  it('reads output_contract as unknown JSON, not as the declared type', async () => {
+    // The `OutputContract` TYPE declares {format, schemaName, invariants}, but
+    // `manifests.output_contract` is a free-form jsonb column that nothing
+    // validates on read. Rows written by the provisioning script carry
+    // {version, fields}, so `contract.invariants.length` threw and dropped the
+    // whole Instructions page into the error boundary — a 200 response showing
+    // "Something went wrong". The page must render whatever is actually stored.
+    const src = await import('node:fs/promises').then((fs) =>
+      fs.readFile(join(ROOT, 'src/app/admin/agents/[id]/instructions/page.tsx'), 'utf8')
+    )
+    // Strip comments first: the doc explaining this bug names the very
+    // expression the assertion forbids, and would otherwise fail the test that
+    // enforces the fix.
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+    // No unguarded access to a field the persisted data may not carry.
+    expect(code.includes('contract.invariants.length')).toBe(false)
+    expect(code.includes('contract.format')).toBe(false)
+    expect(code.includes('contract.schemaName')).toBe(false)
+    // Arrays are filtered to strings rather than trusted.
+    expect(code.includes('Array.isArray')).toBe(true)
+  })
+
   it('exports a distinct renderer for each unmeasured dimension', async () => {
     // 0 is a measurement ("we looked, found none"); null is the absence of one.
     // Collapsing them is how "0.0% success" appeared on an agent that never ran.

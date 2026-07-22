@@ -65,7 +65,36 @@ export default async function AgentInstructionsPage({ params }: { params: Promis
     )
   }
 
-  const contract = manifest.outputContract
+  /**
+   * The persisted `output_contract` is free-form JSON. The `OutputContract` TYPE
+   * declares `{format, schemaName, invariants}`, but rows written by
+   * scripts/provision-tradeagent-roster.mjs carry `{version, fields}` — reading
+   * `contract.invariants.length` on those threw and the whole page fell into the
+   * error boundary. Nothing validates this column on read, so the type is a
+   * claim, not a guarantee: treat it as unknown and render what is actually
+   * there. Any scalar key becomes a row; string arrays render as lists.
+   */
+  const rawContract: Record<string, unknown> =
+    manifest.outputContract && typeof manifest.outputContract === 'object'
+      ? (manifest.outputContract as unknown as Record<string, unknown>)
+      : {}
+
+  const asStringList = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []
+
+  const contractInvariants = asStringList(rawContract.invariants)
+
+  const contractRows = Object.entries(rawContract)
+    .filter(([key]) => key !== 'invariants')
+    .map(([key, value]) => ({
+      label: key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase()),
+      value: Array.isArray(value)
+        ? asStringList(value).join(', ')
+        : value === null || value === undefined
+          ? 'None declared'
+          : String(value),
+    }))
+    .filter((row) => row.value !== '')
 
   return (
     <div className="flex flex-col gap-6">
@@ -113,26 +142,25 @@ export default async function AgentInstructionsPage({ params }: { params: Promis
           </Section>
         ) : null}
 
-        {contract ? (
+        {contractRows.length > 0 || contractInvariants.length > 0 ? (
           <Section title="Output contract" description="The shape every run is expected to produce.">
-            <dl className="flex flex-col">
-              {[
-                { label: 'Format', value: contract.format },
-                { label: 'Schema', value: contract.schemaName ?? 'None declared' },
-              ].map((row) => (
-                <div
-                  key={row.label}
-                  className="grid grid-cols-1 gap-1 border-b border-white/5 py-2.5 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)] sm:gap-4"
-                >
-                  <dt className={eyebrowClass}>{row.label}</dt>
-                  <dd className="font-mono text-xs break-words text-zinc-300">{row.value}</dd>
-                </div>
-              ))}
-            </dl>
-            {contract.invariants.length > 0 ? (
+            {contractRows.length > 0 ? (
+              <dl className="flex flex-col">
+                {contractRows.map((row) => (
+                  <div
+                    key={row.label}
+                    className="grid grid-cols-1 gap-1 border-b border-white/5 py-2.5 last:border-0 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)] sm:gap-4"
+                  >
+                    <dt className={eyebrowClass}>{row.label}</dt>
+                    <dd className="font-mono text-xs break-words text-zinc-300">{row.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
+            {contractInvariants.length > 0 ? (
               <div className="mt-4">
                 <p className={eyebrowClass}>Invariants</p>
-                <RuleList items={contract.invariants} />
+                <RuleList items={contractInvariants} />
               </div>
             ) : null}
           </Section>
