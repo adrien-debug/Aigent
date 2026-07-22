@@ -27,8 +27,35 @@ import 'server-only'
 
 import { z } from 'zod'
 
+import { FINANCE_TOOL_HANDLERS } from './finance/tools'
+import { TRADING_TOOL_HANDLERS } from './market/tools'
 import { pgrest } from './postgrest'
 import type { AgentRunStatus, ConfirmationPolicy, ModelProvider, VersionStage } from './types'
+
+/**
+ * Tool names the runner can actually execute, mirroring TOOL_HANDLERS.
+ *
+ * Derived from the same registries `tool-handlers.ts` composes rather than
+ * imported from it: that module pulls in the LangGraph draft builder and the
+ * data layer, and importing it here would drag the run path into every page
+ * that renders the catalogue. The five native handlers are listed explicitly
+ * because they are defined inline in `tool-handlers.ts`;
+ * `tests/unit/tradeagent-only-roster.test.ts` pins the full set so a handler
+ * added there without updating this list fails the gate.
+ */
+const NATIVE_TOOL_NAMES = [
+  'read_project_summary',
+  'read_copilot_summary',
+  'read_recent_runs',
+  'read_tool_permissions',
+  'draft_copilot_spec',
+] as const
+
+const RUNNABLE_TOOL_NAMES: ReadonlySet<string> = new Set<string>([
+  ...NATIVE_TOOL_NAMES,
+  ...Object.keys(TRADING_TOOL_HANDLERS),
+  ...Object.keys(FINANCE_TOOL_HANDLERS),
+])
 
 type RawRow = Record<string, unknown>
 
@@ -38,11 +65,14 @@ const rest = <T>(pathAndQuery: string): Promise<T> => pgrest<T>('GET', pathAndQu
  * Runtime availability, derived — never stored, never defaulted.
  *
  * - `active`      executable AND currently serving (status active, or a version in production)
- * - `inactive`    executable but deliberately not serving (draft / paused / archived)
+ * - `inactive`    executable but deliberately not serving (draft / paused)
  * - `degraded`    executable path exists but something real is broken — today:
  *                 declared tools that resolve to no registered tool row
- * - `unavailable` NOT executable: a hard requirement is missing (project,
- *                 provider, model, version or manifest)
+ * - `unavailable` NOT executable: retired (`archived`), or a hard requirement is
+ *                 missing (project, provider, model, version or manifest)
+ *
+ * `archived` is checked first and maps to `unavailable`, never `inactive`:
+ * retirement is a decision, not a pause, and the two must not read alike.
  */
 export const AVAILABLE_AGENT_STATUSES = ['active', 'inactive', 'degraded', 'unavailable'] as const
 export type AvailableAgentStatus = (typeof AVAILABLE_AGENT_STATUSES)[number]
@@ -191,8 +221,17 @@ function toAvailableAgent(input: {
 
   const declaredToolIds = manifest?.tool_ids ?? []
   const registered = new Map(tools.map((t) => [t.id, t]))
-  const unresolvedToolIds = declaredToolIds.filter((id) => !registered.has(id))
+  // A tool is resolved only when BOTH are true: a `tools` row exists AND the
+  // runner has a handler under that row's name. Checking the row alone is what
+  // let an agent read healthy in the catalogue while every call it made failed
+  // with "has no registered handler" — the catalogue must agree with the runner.
+  const isResolved = (id: string): boolean => {
+    const row = registered.get(id)
+    return row !== undefined && RUNNABLE_TOOL_NAMES.has(row.name)
+  }
+  const unresolvedToolIds = declaredToolIds.filter((id) => !isResolved(id))
   const resolvedTools = declaredToolIds
+    .filter(isResolved)
     .map((id) => registered.get(id))
     .filter((t): t is ToolRow => t !== undefined)
     .map((t) => ({
@@ -241,7 +280,12 @@ function toAvailableAgent(input: {
     EXECUTABLE_RUNTIMES.has(copilot.runtime ?? '')
 
   let status: AvailableAgentStatus
-  if (!executable) {
+  if (copilot.status === 'archived') {
+    // Archived is a deliberate retirement, not a transient "not serving today".
+    // It outranks every other check: an archived copilot must never surface as
+    // active, and must not borrow `inactive`, which reads as "ready, just off".
+    status = 'unavailable'
+  } else if (!executable) {
     status = 'unavailable'
   } else if (unresolvedToolIds.length > 0 || resolvedTools.length === 0) {
     // Declared tools that resolve to nothing registered are the concrete form of
