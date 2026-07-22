@@ -9,6 +9,16 @@
  * Agent Server — a runtime that is not its own. A control that lies about what
  * it will do is worse than a control that is missing.
  *
+ * AIGENT-RUNNER-RUNTIME-029 narrowed that gap where the engine caught up, and
+ * ONLY there. `test-runner.ts` now branches on the copilot's runtime
+ * (`executeCaseOnRuntime`): `langgraph` streams the graph, `openai-assistants`
+ * runs `executeCopilotRun` — the same engine the manual Run button drives —
+ * and anything else raises `UnsupportedRuntimeError` instead of falling back.
+ * So `run-tests` is honest on both served runtimes and refuses, with the real
+ * motive, on the rest. `benchmark-runner.ts` was NOT touched: its off-graph
+ * path still makes no tool call, so `run-benchmark` stays `degraded` there.
+ * Capability text must track the engine, never the other way round.
+ *
  * So: ONE derivation, and a capability is never a bare boolean. Unavailability
  * always carries its reason (operator-facing, one line) and its detail
  * (technical, verifiable against the code that enforces it). A view that
@@ -80,11 +90,19 @@ export type AgentLifecycle = {
 }
 
 /**
- * The only runtime `test-runner.ts` and the graph path of `benchmark-runner.ts`
- * can honestly serve. Both resolve an assistant on the LangGraph Agent Server;
+ * The runtime that resolves an assistant on the LangGraph Agent Server. It is
+ * the ONLY one the graph path of `benchmark-runner.ts` can honestly serve —
  * nothing else has a graph to route to.
  */
 const GRAPH_RUNTIME = 'langgraph'
+
+/**
+ * The non-graph runtime `test-runner.ts` gained an engine for: the direct
+ * model-router loop of `executeCopilotRun`, with the manifest's real tools,
+ * confirmation gate and cost ceiling. `benchmark-runner.ts` has NO such branch,
+ * which is why the two capabilities below disagree about this value.
+ */
+const DIRECT_RUNTIME = 'openai-assistants'
 
 const unavailable = (reason: string, detail: string): Capability => ({ state: 'unavailable', reason, detail })
 const degraded = (reason: string, detail: string): Capability => ({ state: 'degraded', reason, detail })
@@ -145,25 +163,42 @@ async function readLatestBenchmark(
 }
 
 /**
- * The runtime gap, stated once (see AGENTS.md / benchmark-runner.ts:804).
+ * The runtime question, restated from the engine that actually answers it
+ * (`test-runner.ts` → `executeCaseOnRuntime`, AIGENT-RUNNER-RUNTIME-029).
  *
- * `test-runner.ts` has NO runtime branch: `runCase` always calls
- * `streamOnAgentServer` with an assistant resolved by `resolveRunAssistantFromRow`.
- * There is no non-graph path in that module at all. Running the suite on an
- * `openai-assistants` copilot therefore executes it on a runtime that is not
- * its own, and the resulting pass rate describes the graph, not the agent.
+ * Two runtimes have an engine, and each case runs on the copilot's OWN one:
+ * `langgraph` streams the Agent Server, `openai-assistants` drives
+ * `executeCopilotRun`. Any other value makes `runTestSuite` throw
+ * `UnsupportedRuntimeError` BEFORE the case loop — so offering the control
+ * there would promise a 409, not a measurement.
+ *
+ * The direct path carries one condition the graph path does not: it persists an
+ * `agent_runs` row per case, and `agent_runs.project_id` is required, so a
+ * copilot still on the validation bench (`project_id` null) is refused up front
+ * by `runTestSuite`. That refusal is real, so it is stated here too.
  */
-function testCapability(runtime: string | null, suiteCount: number | null, suiteError: string | null): Capability {
+function testCapability(
+  runtime: string | null,
+  projectId: string | null,
+  suiteCount: number | null,
+  suiteError: string | null
+): Capability {
   if (suiteError !== null) {
     return unavailable(
       'Cannot read this agent’s test suites',
       `The test_suites read failed (${suiteError}), so the number of suites is unknown. It is not zero — it is unread.`
     )
   }
-  if (runtime !== GRAPH_RUNTIME) {
+  if (runtime !== GRAPH_RUNTIME && runtime !== DIRECT_RUNTIME) {
     return unavailable(
-      `Test runner only executes on the ${GRAPH_RUNTIME} runtime`,
-      `test-runner.ts has no runtime branch: runCase() always calls streamOnAgentServer() with an assistant from resolveRunAssistantFromRow(). Running this ${runtime ?? 'unset'} agent’s suite would execute it on the LangGraph Agent Server — a runtime that is not its own — and the pass rate would describe the graph, not this agent.`
+      'No test execution engine for this runtime',
+      `runTestSuite() accepts '${GRAPH_RUNTIME}' and '${DIRECT_RUNTIME}' only; on a '${runtime ?? 'unset'}' copilot it throws UnsupportedRuntimeError before the first case, and runCase()’s switch has no branch to fall back to. Running the suite on an engine that is not this agent’s would measure the engine, not the agent.`
+    )
+  }
+  if (runtime === DIRECT_RUNTIME && projectId === null) {
+    return unavailable(
+      'This agent is on the validation bench, with no project',
+      `The direct path persists an agent_runs row per case (executeCopilotRun owns that write) and agent_runs.project_id is NOT NULL, so runTestSuite() refuses a copilot whose project_id is null. Assign the copilot to a project first — that assignment is the act of validation.`
     )
   }
   if (suiteCount === 0) {
@@ -235,13 +270,19 @@ function generateSuiteCapability(
  * Auto-improve needs a SIGNAL, and the signal is not the agent's opinion of
  * itself. `analyzeAndPropose` throws `nothing to improve:` unless a completed
  * test run pinned to the base version has failing cases, or a benchmark scores
- * below the improve target. On a runtime whose suite cannot be executed
- * (see `testCapability`), the first half of that signal can never exist —
- * saying so up front is more honest than letting the cycle burn an LLM call to
- * discover it.
+ * below the improve target.
+ *
+ * That signal is RUNTIME-AGNOSTIC by construction: `collectImprovementSignals`
+ * reads `test_runs?status=eq.completed&version_id=eq.<base>` plus its
+ * `test_results` in (fail,error) — rows, not graphs. It never asks which engine
+ * produced them. So the capability follows `run-tests`: wherever a suite can
+ * now complete, failing cases can be recorded and the cycle has something to
+ * read. Where the suite cannot run at all, the first half of the signal can
+ * never exist, and saying so up front is more honest than letting the cycle
+ * burn an LLM call to discover it.
  */
 function autoImproveCapability(
-  runtime: string | null,
+  testCapabilityState: Capability,
   suiteCount: number | null,
   benchmark: AgentLifecycle['latestBenchmark'],
   proposal: ImprovementProposal | null
@@ -257,16 +298,20 @@ function autoImproveCapability(
     benchmark !== null && benchmark.score !== null && benchmark.score < IMPROVEMENT_MIN_BENCHMARK_SCORE
   if (benchmarkBelowTarget) return AVAILABLE
 
-  if (runtime !== GRAPH_RUNTIME) {
-    return unavailable(
-      'No improvement signal this agent can produce',
-      `collectImprovementSignals() reads failing cases from completed test_runs and scores from benchmark_runs. This ${runtime ?? 'unset'} agent cannot run its test suite (test-runner.ts is LangGraph-only), and its benchmark path makes no tool calls, so no failing case and no sub-target score (< ${IMPROVEMENT_MIN_BENCHMARK_SCORE}) can be recorded. analyzeAndPropose() would throw "nothing to improve".`
-    )
-  }
   if (suiteCount === 0) {
     return unavailable(
       'No test suite, no benchmark below target',
       `collectImprovementSignals() has nothing to read: no test_suites row for this copilot, and no benchmark scoring under ${IMPROVEMENT_MIN_BENCHMARK_SCORE}. analyzeAndPropose() would throw "nothing to improve".`
+    )
+  }
+  // A suite exists but can never be EXECUTED (unsupported runtime, bench copilot
+  // on the direct path, unreadable suites). Its cases can therefore never reach
+  // `test_results` in (fail,error), which is the only failing-case source
+  // `collectImprovementSignals` has.
+  if (testCapabilityState.state === 'unavailable') {
+    return unavailable(
+      'No improvement signal this agent can produce',
+      `collectImprovementSignals() reads failing cases from completed test_runs; this agent cannot run its suite at all (${testCapabilityState.reason}), so no failing case can ever be recorded, and no benchmark scores under ${IMPROVEMENT_MIN_BENCHMARK_SCORE} either. analyzeAndPropose() would throw "nothing to improve".`
     )
   }
   return AVAILABLE
@@ -425,12 +470,16 @@ export async function getAgentLifecycle(copilotId: string): Promise<AgentLifecyc
           `The improvement_proposals read failed (${proposalError}), so whether a cycle is open is unknown. Acting on an unknown cycle state risks a duplicate proposal or a 409.`
         )
 
+  // Derived once: `auto-improve` restates this verdict rather than re-deriving
+  // it, so the two can never claim different things about the same engine.
+  const runTests = testCapability(runtime, detail.copilot.projectId, suiteCount, suiteError)
+
   const capabilities: Record<LifecycleActionId, Capability> = {
     'generate-suite': generateSuiteCapability(hasManifest, suiteCount, suiteError),
-    'run-tests': testCapability(runtime, suiteCount, suiteError),
+    'run-tests': runTests,
     'run-benchmark': benchmarkCapability(runtime, benchmarkError),
     'auto-improve':
-      proposalUnreadable ?? autoImproveCapability(runtime, suiteCount, latestBenchmark, latestProposal),
+      proposalUnreadable ?? autoImproveCapability(runTests, suiteCount, latestBenchmark, latestProposal),
     'create-v2': proposalUnreadable ?? createV2Capability(latestProposal),
     decide: proposalUnreadable ?? decideCapability(latestProposal),
     promote: promoteCapability(gate, gateError),

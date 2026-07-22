@@ -5,12 +5,16 @@
  * render" — it is the four invariants that made the lifecycle surfaces safe to
  * bring back at all:
  *
- *   1. RUNTIME HONESTY. `test-runner.ts` has no runtime branch; it always streams
- *      on the LangGraph Agent Server. Offering "Run tests" on an
- *      `openai-assistants` copilot therefore executes it on a runtime that is not
- *      its own. `benchmark-runner.ts:804` DOES branch, so a benchmark still runs
- *      off-graph — but without tool calls, so it is `degraded`, not `unavailable`.
- *      Collapsing those two verdicts into one boolean is the regression.
+ *   1. RUNTIME HONESTY — the capability tracks the ENGINE, never a slogan about
+ *      it. Since AIGENT-RUNNER-RUNTIME-029 `test-runner.ts` branches: `langgraph`
+ *      streams the Agent Server, `openai-assistants` runs `executeCopilotRun`,
+ *      anything else raises `UnsupportedRuntimeError`. So "Run tests" is now
+ *      honest on BOTH served runtimes and refuses elsewhere with that real
+ *      motive. `benchmark-runner.ts:804` was not touched: it still falls
+ *      off-graph without tool calls, so a benchmark is `degraded`, not
+ *      `unavailable`. Collapsing those verdicts into one boolean — or leaving a
+ *      capability parroting a constraint the engine has since dropped — is the
+ *      regression.
  *   2. NO AUTOMATIC PROMOTION. `available` on `promote` means a human MAY promote.
  *      Nothing in this module writes, decides, or schedules anything.
  *   3. FAIL-CLOSED. A backend read that fails yields `unavailable` WITH the error.
@@ -264,21 +268,48 @@ function assertNoDeadButtons(lifecycle: AgentLifecycle) {
 describe('getAgentLifecycle — runtime compatibility is explicit, never assumed', () => {
   beforeEach(() => installMocks())
 
-  it('A — an openai-assistants agent cannot run its test suite, and says why', async () => {
-    // The four roster agents are openai-assistants. test-runner.ts always calls
-    // streamOnAgentServer(), so a "Run tests" click would execute them on the
-    // LangGraph graph and report a pass rate that describes the graph.
+  it('A — an openai-assistants agent with a project CAN run its test suite', async () => {
+    // AIGENT-RUNNER-RUNTIME-029: runCase() now branches, and this runtime is
+    // served by executeCopilotRun — the same engine the manual Run button
+    // drives. The old `unavailable` verdict (and its "test-runner.ts has no
+    // runtime branch" detail) became a lie the moment that branch landed; this
+    // test exists so the capability can never drift back behind the engine.
     installMocks({ detail: makeDetail({ copilot: { runtime: 'openai-assistants' } }) })
 
     const lifecycle = await getAgentLifecycle(COPILOT_ID)
     expect(lifecycle).toBeDefined()
 
+    expect(cap(lifecycle!, 'run-tests').state).toBe('available')
+    assertNoDeadButtons(lifecycle!)
+  })
+
+  it('A2 — an openai-assistants agent on the validation bench cannot: agent_runs needs a project', async () => {
+    // The direct path persists an agent_runs row per case and
+    // agent_runs.project_id is NOT NULL, so runTestSuite() refuses up front.
+    // A real refusal, and the only one left on this runtime.
+    installMocks({
+      detail: makeDetail({ copilot: { runtime: 'openai-assistants', projectId: null } }),
+    })
+
+    const lifecycle = await getAgentLifecycle(COPILOT_ID)
     const tests = cap(lifecycle!, 'run-tests')
     expect(tests.state).toBe('unavailable')
-    expect(tests.state === 'unavailable' && tests.reason.length).toBeTruthy()
-    // The reason must name the runtime constraint, not a vague "not available".
-    expect(tests.state !== 'available' && tests.reason).toMatch(/langgraph/i)
-    expect(tests.state !== 'available' && tests.detail).toMatch(/test-runner\.ts/)
+    expect(tests.state !== 'available' && tests.detail).toMatch(/agent_runs/)
+    assertNoDeadButtons(lifecycle!)
+  })
+
+  it('A3 — a runtime with NO engine is refused, citing the real motive', async () => {
+    // `gemini` has no branch in runCase()'s switch: runTestSuite() throws
+    // UnsupportedRuntimeError before the first case. The reason must name THAT,
+    // never the obsolete "test-runner.ts has no runtime branch".
+    installMocks({ detail: makeDetail({ copilot: { runtime: 'gemini' as Copilot['runtime'] } }) })
+
+    const lifecycle = await getAgentLifecycle(COPILOT_ID)
+    const tests = cap(lifecycle!, 'run-tests')
+    expect(tests.state).toBe('unavailable')
+    expect(tests.state !== 'available' && tests.detail).toMatch(/UnsupportedRuntimeError/)
+    // The dead reason from before the engine caught up must be gone.
+    expect(tests.state !== 'available' && tests.detail).not.toMatch(/has no runtime branch/)
     assertNoDeadButtons(lifecycle!)
   })
 
@@ -568,11 +599,22 @@ describe('getAgentLifecycle — the six VALIDATION cases', () => {
     expect(rollback.state !== 'available' && rollback.detail).toMatch(/production_version_id/)
   })
 
-  it('T — openai-assistants agent: no improvement signal it could ever produce', async () => {
-    // Its suite cannot execute and its benchmark records no tool calls, so
-    // collectImprovementSignals() has nothing to read. Saying so beats burning
-    // an LLM call to discover it.
+  it('T — openai-assistants agent: the signal unblocked itself with the engine', async () => {
+    // collectImprovementSignals() reads test_runs?status=eq.completed and their
+    // test_results in (fail,error) — rows, never a graph, and it never asks
+    // which engine produced them. So the moment this runtime's suite can
+    // complete, failing cases become recordable and the cycle has a real
+    // source. Nothing was forced here: a condition simply stopped being true.
     installMocks({ detail: makeDetail({ copilot: { runtime: 'openai-assistants' } }) })
+
+    expect(cap((await getAgentLifecycle(COPILOT_ID))!, 'auto-improve').state).toBe('available')
+  })
+
+  it('T2 — a runtime whose suite can never execute still has no signal to read', async () => {
+    // The suite EXISTS but no engine can run it, so its cases can never reach
+    // test_results in (fail,error). Distinct from "no suite at all", and the
+    // detail must still end at analyzeAndPropose's own refusal.
+    installMocks({ detail: makeDetail({ copilot: { runtime: 'gemini' as Copilot['runtime'] } }) })
 
     const improve = cap((await getAgentLifecycle(COPILOT_ID))!, 'auto-improve')
     expect(improve.state).toBe('unavailable')
