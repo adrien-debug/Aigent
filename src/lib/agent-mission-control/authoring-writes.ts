@@ -19,7 +19,11 @@ import {
   deleteProjectAssistant,
 } from './langgraph-assistants'
 import { pgrest, requireBackend } from './postgrest'
-import { augmentProposedToolsWithRepoRead, isWriteCapableToolName } from './repo-read-tools'
+import {
+  augmentProposedToolsWithRepoRead,
+  isWriteCapableToolName,
+  REPO_READ_TOOL_NAMES,
+} from './repo-read-tools'
 import { makeId, slugify } from './slug'
 import type { TestSuite } from './types'
 
@@ -82,13 +86,79 @@ export function suggestMutates(tool: Pick<ProposedTool, 'name' | 'description'>)
 }
 
 /**
+ * Registry tool names that are KNOWN read-only. The scoped repo-read tools
+ * (read_repo_file, list_repo_tree, search_repo — from repo-read-tools.ts) plus
+ * the native read handlers (tool-handlers.ts: read_project_summary,
+ * read_copilot_summary, read_recent_runs, read_tool_permissions). Kept as an
+ * explicit set — the list is short, load-bearing, and pinned by
+ * tests/unit/tradeagent-only-roster.test.ts — rather than importing
+ * available-agents.ts, whose data layer would drag the run path into this
+ * write helper.
+ */
+const KNOWN_READ_ONLY_TOOL_NAMES: ReadonlySet<string> = new Set<string>([
+  ...REPO_READ_TOOL_NAMES,
+  'read_project_summary',
+  'read_copilot_summary',
+  'read_recent_runs',
+  'read_tool_permissions',
+])
+
+/**
+ * Read-only naming convention: a tool whose name is prefixed by a strictly
+ * observational verb. Deliberately narrow — only prefixes that cannot, by
+ * themselves, describe a write.
+ */
+const READ_ONLY_NAME_PREFIX =
+  /^(read|list|search|lookup|find|query|get|fetch|inspect|view|show|describe|count|scan)[_-]/i
+
+/**
+ * DEFAULT ONLY — the value written to `tools.mutates` when the ARCHITECT left
+ * `mutates` unset (a tool row predating migration 0022, or an author who never
+ * answered). NEVER overrides a declared value.
+ *
+ * The prior default was a flat `true`, which mislabeled every read-only tool
+ * whose author omitted the field as write-capable ("CAN WRITE" in the UI). This
+ * derives a RELIABLE read-only verdict instead of defaulting to write:
+ *
+ *   1. A tool in the known read-only registry (KNOWN_READ_ONLY_TOOL_NAMES) is
+ *      read-only — authoritative, it names actual read handlers.
+ *   2. A tool whose name is read-prefixed (read_/list_/search_/get_…) AND
+ *      carries NO write hint anywhere in name+description is read-only.
+ *   3. Anything else keeps the fail-closed default: if the write heuristic sees
+ *      a write signal it is `true`; a genuinely unclassifiable tool (no read
+ *      signal, no write signal) also stays `true` — unknown must never read as
+ *      "safe" when we had to guess.
+ *
+ * This is a DEFAULT, not a verdict: an architect that explicitly set
+ * `mutates: true` on a read-named tool (or `false` on a write-named one) is
+ * always honoured — see createCopilotFromManifest's `proposed.mutates ??`.
+ */
+export function defaultMutatesForTool(
+  tool: Pick<ProposedTool, 'name' | 'description'>
+): boolean {
+  if (KNOWN_READ_ONLY_TOOL_NAMES.has(tool.name)) return false
+  const writeSignalled = suggestMutates(tool)
+  if (READ_ONLY_NAME_PREFIX.test(tool.name) && !writeSignalled) return false
+  // Fail closed: a positive write signal, or no classifiable signal at all,
+  // presumes mutation. Only signals 1 and 2 above ever clear a tool to false.
+  return true
+}
+
+/**
  * True when a tool must be created with requiresConfirmation=true:
  *
  *   mutates === true || riskLevel in (high, critical)
  *
  * When `mutates` is undefined (a tool authored before `tools.mutates` existed)
- * we fall back to the legacy name heuristic — unknown must fail closed, so an
- * absent field preserves exactly the previous behaviour.
+ * we fall back to `defaultMutatesForTool` — the SAME default the multi-insert
+ * persists into `tools.mutates` (see createCopilotFromManifest). Routing both
+ * through one function guarantees the confirmation gate and the persisted
+ * `mutates` value can never disagree: a tool this gate treats as read-only
+ * (unconfirmed OK) is exactly a tool persisted with `mutates=false`, and any
+ * tool persisted `mutates=true` is one this gate requires confirmation for.
+ * `defaultMutatesForTool` is a superset of the legacy `suggestMutates` verdict
+ * (it fails closed on unclassifiable tools too), so this only tightens the
+ * gate, never loosens it.
  *
  * Shared by the Zod refinement at the API boundary and the defense-in-depth
  * check just before the multi-insert.
@@ -98,7 +168,7 @@ export function isHighRiskOrWriteCapableTool(
 ): boolean {
   if (tool.riskLevel === 'high' || tool.riskLevel === 'critical') return true
   if (tool.mutates !== undefined) return tool.mutates
-  return suggestMutates(tool)
+  return defaultMutatesForTool(tool)
 }
 
 /**
@@ -231,10 +301,14 @@ export async function createCopilotFromManifest(input: CreateCopilotInput): Prom
     enabled: true,
     requires_confirmation: proposed.requiresConfirmation,
     scoped_routes: [],
-    // Migration 0022 is applied, so the column exists. An author who never
-    // answered the question falls back to `true` — the same fail-closed
-    // default the column carries: unknown is presumed mutating, never safe.
-    mutates: proposed.mutates ?? true,
+    // Migration 0022 is applied, so the column exists. The architect's DECLARED
+    // value wins verbatim (architect-prompt.ts §4 sets mutates:false on reads,
+    // true on writes). Only when it is unset (a pre-0022 row, or an author who
+    // skipped the field) do we derive a default — and that default classifies
+    // read-only tools as read-only (defaultMutatesForTool), instead of the old
+    // flat `?? true` that mislabeled every unset read tool as "CAN WRITE".
+    // Fail-closed: an unclassifiable tool still defaults to mutating.
+    mutates: proposed.mutates ?? defaultMutatesForTool(proposed),
   }))
   const toolIds = toolPayloads.map((payload) => payload.id as string)
   if (toolIds.length > 0) {
