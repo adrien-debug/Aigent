@@ -9,11 +9,14 @@ import {
   buildProjectOverview,
   computeAvgRepoFit,
   computeBlockedDeliveries,
+  computeCost24h,
   computeProductionAgents,
   computeReadyForManualTest,
   computeSandboxPassRate,
+  computeSuccess24h,
   type DashboardOverview,
 } from '@/lib/agent-mission-control/dashboard-overview'
+import type { AgentRun } from '@/lib/agent-mission-control/types'
 import type { DeliveryEvent } from '@/lib/agent-mission-control/delivery-events-store'
 import type { Copilot, Project } from '@/lib/agent-mission-control/types'
 
@@ -175,9 +178,52 @@ describe('assembleDashboardOverview fail-soft', () => {
       scorecards: new Map(),
       missionRuns: [],
       dataWarnings: ['Mission data unavailable'],
+      availableAgents: [],
+      windowRuns: [],
     })
     expect(overview.dataWarnings).toContain('Mission data unavailable')
     expect(overview.kpis.productionAgents).toBe(0)
+    // Empty-DB honesty: proven-empty availableAgents ([]) yields 0, not null —
+    // only a FAILED load (availableAgents: null) should render '—'.
+    expect(overview.kpis.executableNow).toBe(0)
+    expect(overview.kpis.executableTotal).toBe(0)
+    expect(overview.kpis.runs24h).toBe(0)
+    expect(overview.kpis.success24h).toBeNull()
+    expect(overview.kpis.cost24h).toBeNull()
+    expect(overview.kpis.needsAction).toBe(overview.actionItems.length)
+  })
+
+  it('8b — availableAgents: null (failed load) renders executableNow/Total as null, never 0', () => {
+    const overview = assembleDashboardOverview({
+      copilots: [],
+      projects: [],
+      latestDeliveryByCopilot: new Map(),
+      latestSandboxByCopilot: new Map(),
+      scorecards: new Map(),
+      missionRuns: [],
+      dataWarnings: ['Executable-agent data unavailable'],
+      availableAgents: null,
+      windowRuns: [],
+    })
+    expect(overview.kpis.executableNow).toBeNull()
+    expect(overview.kpis.executableTotal).toBeNull()
+  })
+
+  it('12 — computeSuccess24h is null over zero terminal runs, never 0', () => {
+    expect(computeSuccess24h([])).toBeNull()
+    expect(computeSuccess24h([{ status: 'running' }, { status: 'blocked' }] as Pick<AgentRun, 'status'>[])).toBeNull()
+    expect(
+      computeSuccess24h([
+        { status: 'completed' },
+        { status: 'completed' },
+        { status: 'failed' },
+      ] as Pick<AgentRun, 'status'>[])
+    ).toBe(67)
+  })
+
+  it('13 — computeCost24h is null over an empty window, never a coalesced 0', () => {
+    expect(computeCost24h([])).toBeNull()
+    expect(computeCost24h([{ costUsd: null }, { costUsd: 1.5 }] as Pick<AgentRun, 'costUsd'>[])).toBe(1.5)
   })
 
   it('9 — no GitHub write imported in dashboard-overview module', async () => {
@@ -196,9 +242,13 @@ describe('assembleDashboardOverview fail-soft', () => {
       scorecards: new Map(),
       missionRuns: [],
       dataWarnings: [],
+      availableAgents: [],
+      windowRuns: [],
     })
     expect(overview.kpis.sandboxPassRate).toBeNull()
     expect(overview.kpis.avgRepoFit).toBeNull()
+    expect(overview.kpis.success24h).toBeNull()
+    expect(overview.kpis.cost24h).toBeNull()
     expect(overview.projects).toEqual([])
     expect(overview.actionItems).toEqual([])
   })
@@ -259,6 +309,7 @@ describe('assembleDashboardOverview fail-soft', () => {
 vi.mock('@/lib/agent-mission-control/data', () => ({
   getCopilots: vi.fn(async () => []),
   getProjects: vi.fn(async () => []),
+  getRecentRunsInWindow: vi.fn(async () => []),
 }))
 
 vi.mock('@/lib/agent-mission-control/postgrest', () => ({
@@ -273,5 +324,13 @@ describe('getDashboardOverview server collector', () => {
     const { getDashboardOverview } = await import('@/lib/agent-mission-control/dashboard-overview')
     const overview = await getDashboardOverview()
     expect(overview.dataWarnings).toContain('Mission data unavailable')
+    // getAvailableAgents() rides the same mocked (throwing) pgrest, so
+    // executableNow must degrade to null + a warning, never a fabricated 0.
+    expect(overview.dataWarnings).toContain('Executable-agent data unavailable')
+    expect(overview.kpis.executableNow).toBeNull()
+    expect(overview.kpis.executableTotal).toBeNull()
+    expect(overview.kpis.runs24h).toBe(0)
+    expect(overview.kpis.success24h).toBeNull()
+    expect(overview.kpis.cost24h).toBeNull()
   })
 })

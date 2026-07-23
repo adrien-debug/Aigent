@@ -6,12 +6,14 @@
  */
 import 'server-only'
 
+import { getAvailableAgents, type AvailableAgent } from './available-agents'
 import type { DeliveryEvent } from './delivery-events-store'
-import { getCopilots, getProjects } from './data'
+import { getCopilots, getProjects, getRecentRunsInWindow } from './data'
 import type { MissionReport } from './mission-orchestrator'
 import { pgrest } from './postgrest'
+import { isExecutable } from './runtime-catalogue'
 import { parseSandboxReport, type TargetRepoSandboxReport } from './target-repo-sandbox'
-import type { Copilot, Project } from './types'
+import type { AgentRun, Copilot, Project } from './types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -23,6 +25,22 @@ export type DashboardKpis = {
   sandboxPassRate: number | null
   avgRepoFit: number | null
   blockedDeliveries: number | null
+  /** Agents the runtime would actually accept a run for right now
+   * (isExecutable). Total agent count travels alongside for "N / total"
+   * display. Null (both) when getAvailableAgents() failed — UNAVAILABLE,
+   * never 0. */
+  executableNow: number | null
+  executableTotal: number | null
+  /** Count of operational runs with started_at in the shared 24h window. */
+  runs24h: number
+  /** Completed / (completed + failed) over TERMINAL runs in the window.
+   * Null when there are zero terminal runs — NOT_APPLICABLE, never 0. */
+  success24h: number | null
+  /** Sum of costUsd over the window's runs. Null when the window has zero
+   * runs (nothing to sum) — never coalesced to 0. */
+  cost24h: number | null
+  /** Length of the action queue (overview.actionItems). */
+  needsAction: number
 }
 
 export type ProjectOverviewItem = {
@@ -64,6 +82,10 @@ export type DashboardOverview = {
   projects: ProjectOverviewItem[]
   actionItems: ActionItem[]
   dataWarnings: string[]
+  /** The SAME 24h-window runs used to derive runs24h/success24h/cost24h, so the
+   * page can reuse them for the activity/status/cost charts instead of a second
+   * separate load — one shared window instant across the whole dashboard. */
+  windowRuns: AgentRun[]
 }
 
 type SandboxSnapshot = {
@@ -155,6 +177,26 @@ export function computeBlockedDeliveries(
   }
   count += missionRuns.filter((m) => m.status === 'blocked' || m.decision === 'blocked').length
   return count
+}
+
+/** Runs classified as terminal for a success ratio — mirrors the classification
+ * RunStatusBreakdownChart already renders (completed/failed are the only two
+ * terminal-success statuses; blocked/needs-confirmation/running are excluded
+ * from the ratio the same way they get their own bars, not folded into
+ * "failed"). */
+export function computeSuccess24h(windowRuns: Pick<AgentRun, 'status'>[]): number | null {
+  const completed = windowRuns.filter((r) => r.status === 'completed').length
+  const failed = windowRuns.filter((r) => r.status === 'failed').length
+  const terminal = completed + failed
+  if (terminal === 0) return null
+  return Math.round((completed / terminal) * 100)
+}
+
+/** Sum of costUsd over the window. Null when the window is empty — an empty
+ * sum is "nothing measured", not a measured zero cost. */
+export function computeCost24h(windowRuns: Pick<AgentRun, 'costUsd'>[]): number | null {
+  if (windowRuns.length === 0) return null
+  return windowRuns.reduce((sum, r) => sum + (r.costUsd ?? 0), 0)
 }
 
 // ---------------------------------------------------------------------------
@@ -335,6 +377,10 @@ export function assembleDashboardOverview(input: {
   scorecards: Map<string, ScorecardSnapshot>
   missionRuns: MissionRunSnapshot[]
   dataWarnings: string[]
+  /** Null when getAvailableAgents() failed — kept distinct from an empty
+   * (proven-zero) array so executableNow can render "—" rather than "0". */
+  availableAgents: AvailableAgent[] | null
+  windowRuns: AgentRun[]
 }): DashboardOverview {
   const copilotsById = new Map(input.copilots.map((c) => [c.id, c]))
   const projectsById = new Map(input.projects.map((p) => [p.id, p]))
@@ -346,6 +392,16 @@ export function assembleDashboardOverview(input: {
     ...sandboxSnapshots.map((s) => s.repoFitScore).filter((n): n is number => n != null),
     ...[...input.scorecards.values()].map((s) => s.repoFitScore).filter((n): n is number => n != null),
   ]
+
+  const actionItems = buildActionItems({
+    copilotsById,
+    projectsById,
+    latestDeliveryByCopilot: input.latestDeliveryByCopilot,
+    latestSandboxByCopilot: input.latestSandboxByCopilot,
+    scorecards: input.scorecards,
+    missionRuns: input.missionRuns,
+    dataWarnings: input.dataWarnings,
+  })
 
   return {
     kpis: {
@@ -360,18 +416,17 @@ export function assembleDashboardOverview(input: {
         input.scorecards,
         input.missionRuns
       ),
+      executableNow: input.availableAgents === null ? null : input.availableAgents.filter(isExecutable).length,
+      executableTotal: input.availableAgents === null ? null : input.availableAgents.length,
+      runs24h: input.windowRuns.length,
+      success24h: computeSuccess24h(input.windowRuns),
+      cost24h: computeCost24h(input.windowRuns),
+      needsAction: actionItems.length,
     },
     projects: buildProjectOverview(input.projects, input.copilots),
-    actionItems: buildActionItems({
-      copilotsById,
-      projectsById,
-      latestDeliveryByCopilot: input.latestDeliveryByCopilot,
-      latestSandboxByCopilot: input.latestSandboxByCopilot,
-      scorecards: input.scorecards,
-      missionRuns: input.missionRuns,
-      dataWarnings: input.dataWarnings,
-    }),
+    actionItems,
     dataWarnings: input.dataWarnings,
+    windowRuns: input.windowRuns,
   }
 }
 
@@ -483,19 +538,31 @@ async function fetchMissionRuns(): Promise<{ runs: MissionRunSnapshot[]; warning
  * RTTs and made /admin 12–48s. Release-gate / scorecard signals stay on the
  * agent detail pages; blocked KPIs here use delivery + sandbox + mission facts.
  */
-export async function getDashboardOverview(): Promise<DashboardOverview> {
+export async function getDashboardOverview(nowMs: number = Date.now()): Promise<DashboardOverview> {
   const dataWarnings: string[] = []
 
-  const [copilots, projects, latestDeliveryByCopilot, latestSandboxByCopilot, missionResult] =
-    await Promise.all([
-      getCopilots({ health: 'list' }),
-      getProjects(),
-      fetchLatestDeliveryEvents(),
-      fetchLatestSandboxSnapshots(),
-      fetchMissionRuns(),
-    ])
+  const [
+    copilots,
+    projects,
+    latestDeliveryByCopilot,
+    latestSandboxByCopilot,
+    missionResult,
+    availableAgentsResult,
+    windowRuns,
+  ] = await Promise.all([
+    getCopilots({ health: 'list' }),
+    getProjects(),
+    fetchLatestDeliveryEvents(),
+    fetchLatestSandboxSnapshots(),
+    fetchMissionRuns(),
+    getAvailableAgents()
+      .then((agents) => ({ agents, warning: null as string | null }))
+      .catch(() => ({ agents: null, warning: 'Executable-agent data unavailable' })),
+    getRecentRunsInWindow({ nowMs }).catch(() => [] as AgentRun[]),
+  ])
 
   if (missionResult.warning) dataWarnings.push(missionResult.warning)
+  if (availableAgentsResult.warning) dataWarnings.push(availableAgentsResult.warning)
 
   return assembleDashboardOverview({
     copilots,
@@ -505,5 +572,7 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
     scorecards: new Map(),
     missionRuns: missionResult.runs,
     dataWarnings,
+    availableAgents: availableAgentsResult.agents,
+    windowRuns,
   })
 }

@@ -10,7 +10,6 @@ import { DashboardProjectList } from '@/components/agent-ops/dashboard-project-l
 import { DashboardDataWarnings, DashboardKpiStrip } from '@/components/agent-ops/dashboard-kpi-strip'
 import { AdminPageHeader } from '@/components/agent-ops/surface-card'
 import { getDashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
-import { getRecentRuns } from '@/lib/agent-mission-control/data'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,26 +17,22 @@ export const metadata: Metadata = {
   title: 'Agent Delivery Command Center — Aigent',
 }
 
-// getRecentRuns has a LIMIT (most-recent-N, not "everything in 24h"). 500 is
-// comfortably above Aigent's current run volume so the 24h window isn't
-// truncated in practice; if that ever stops holding, the charts would start
-// silently dropping older hours — raise this or label the period explicitly.
-const RECENT_RUNS_LIMIT = 500
-
 /**
  * Explicitly impure clock read, isolated outside the component body (same
  * contract as `renderInstant` on the Performance page). The page is
  * force-dynamic, so a fresh instant per request is the intended behaviour —
- * captured ONCE so every time-derived surface (the hourly buckets of the runs
- * and cost charts) agrees on the same window.
+ * captured ONCE and passed into `getDashboardOverview` so the KPI window, the
+ * hourly chart buckets and the shared `windowRuns` all agree on one instant
+ * instead of drifting across two separate loads.
  */
 function renderInstantMs(): number {
   return Date.now()
 }
 
 export default async function DashboardPage() {
-  const [overview, recentRuns] = await Promise.all([getDashboardOverview(), getRecentRuns(RECENT_RUNS_LIMIT)])
   const nowMs = renderInstantMs()
+  const overview = await getDashboardOverview(nowMs)
+  const recentRuns = overview.windowRuns
 
   return (
     <div className="flex flex-col gap-4 pb-8">

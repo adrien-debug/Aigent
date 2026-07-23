@@ -8,60 +8,63 @@ function formatKpi(value: number | null, suffix?: string): string {
   return suffix ? `${value}${suffix}` : String(value)
 }
 
+function formatCost(value: number | null): string {
+  if (value === null) return '—'
+  return `$${value.toFixed(2)}`
+}
+
 /**
- * Command-center KPI strip — one hero anchor against three calm metrics.
- * A single operator signal is escalated to hero size + accent (ready for
- * manual test if any, else blocked deliveries, else production agents as a
- * neutral fallback). Every other metric reads white or recedes to muted —
- * never a second accent. RepoFit folds into the Sandbox Pass Rate hint;
- * warnings drop to the card footer (DashboardDataWarnings).
+ * Command-center KPI strip — the 5 mandated headline signals, in a fixed
+ * order: Executable now, Runs 24h, Success 24h, Cost 24h, Needs action.
+ * "Needs action" anchors the band (hero + accent when non-zero) because it is
+ * the one number that tells an operator "go do something"; every other KPI
+ * reads white or recedes to muted when unmeasured. Never a fabricated 0 —
+ * an unmeasured value renders as an em-dash via `formatKpi`/`formatCost`.
  */
 export function DashboardKpiStrip({ kpis }: { kpis: DashboardKpis }) {
-  const anchor: 'ready' | 'blocked' | 'production' =
-    kpis.readyForManualTest && kpis.readyForManualTest > 0
-      ? 'ready'
-      : kpis.blockedDeliveries && kpis.blockedDeliveries > 0
-        ? 'blocked'
-        : 'production'
+  const needsActionActive = kpis.needsAction > 0
 
   const stats: AgentKpiStat[] = [
     {
-      name: 'Production Agents',
-      value: formatKpi(kpis.productionAgents),
-      valueSize: anchor === 'production' ? 'hero' : 'compact',
-      valueTone: kpis.productionAgents === null ? 'muted' : 'default',
-      hint: kpis.productionAgents === null ? undefined : 'with a live production version',
-    },
-    {
-      name: 'Ready for Manual Test',
-      value: formatKpi(kpis.readyForManualTest),
-      valueSize: anchor === 'ready' ? 'hero' : 'compact',
-      valueTone: anchor === 'ready' ? 'accent' : 'muted',
-      hint: kpis.readyForManualTest ? 'awaiting operator sign-off' : undefined,
-    },
-    {
-      name: 'Sandbox Pass Rate',
-      value: kpis.sandboxPassRate === null ? '—' : formatKpi(kpis.sandboxPassRate),
-      suffix: kpis.sandboxPassRate === null ? undefined : '%',
+      name: 'Executable Now',
+      value: formatKpi(kpis.executableNow),
       valueSize: 'compact',
-      valueTone: kpis.sandboxPassRate === null ? 'muted' : 'default',
-      hint: kpis.avgRepoFit === null ? undefined : `RepoFit ${kpis.avgRepoFit}/100`,
+      valueTone: kpis.executableNow === null ? 'muted' : 'default',
+      hint:
+        kpis.executableNow === null || kpis.executableTotal === null
+          ? undefined
+          : `of ${kpis.executableTotal} agents`,
     },
     {
-      name: 'Blocked Deliveries',
-      value: formatKpi(kpis.blockedDeliveries),
-      valueSize: anchor === 'blocked' ? 'hero' : 'compact',
-      valueTone:
-        anchor === 'blocked'
-          ? 'accent'
-          : kpis.blockedDeliveries && kpis.blockedDeliveries > 0
-            ? 'default'
-            : 'muted',
-      hint: kpis.blockedDeliveries && kpis.blockedDeliveries > 0 ? 'see Requires Attention' : undefined,
+      name: 'Runs 24h',
+      value: String(kpis.runs24h),
+      valueSize: 'compact',
+      valueTone: kpis.runs24h === 0 ? 'muted' : 'default',
+    },
+    {
+      name: 'Success 24h',
+      value: kpis.success24h === null ? '—' : formatKpi(kpis.success24h),
+      suffix: kpis.success24h === null ? undefined : '%',
+      valueSize: 'compact',
+      valueTone: kpis.success24h === null ? 'muted' : 'default',
+      hint: kpis.success24h === null ? 'no terminal runs' : undefined,
+    },
+    {
+      name: 'Cost 24h',
+      value: formatCost(kpis.cost24h),
+      valueSize: 'compact',
+      valueTone: kpis.cost24h === null ? 'muted' : 'default',
+    },
+    {
+      name: 'Needs Action',
+      value: String(kpis.needsAction),
+      valueSize: needsActionActive ? 'hero' : 'compact',
+      valueTone: needsActionActive ? 'accent' : 'muted',
+      hint: needsActionActive ? 'see Requires Attention' : undefined,
     },
   ]
 
-  // `separators`, not `flush`: the four KPIs read as ONE synthesis band with
+  // `separators`, not `flush`: the five KPIs read as ONE synthesis band with
   // hairline dividers. Flush left them as bare text floating on the page with
   // no surface of their own (§4).
   return <AgentKpiBand stats={stats} separators />
