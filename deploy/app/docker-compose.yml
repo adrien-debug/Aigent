@@ -79,6 +79,10 @@ services:
       LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-}
       LANGSMITH_TRACE_BASE_URL: ${LANGSMITH_TRACE_BASE_URL:-}
 
+      # --- Runtime consumer API (bearer that lets consumer apps call /api/runtime/v1) ---
+      # Absent → the runtime registry API stays fail-closed (503 "not configured").
+      AIGENT_RUNTIME_API_TOKEN: ${AIGENT_RUNTIME_API_TOKEN:-}
+
       # --- Runtime telemetry ingestion (separate token, never AMC admin key) ---
       AIGENT_RUNTIME_TELEMETRY_TOKEN: ${AIGENT_RUNTIME_TELEMETRY_TOKEN:-}
 
