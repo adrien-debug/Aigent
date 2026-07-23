@@ -34,11 +34,13 @@ import type { TestRun } from '@/lib/agent-mission-control/types'
  * The rule the surface exists to enforce: a disabled control always renders its
  * reason, and a `degraded` control renders what it will NOT prove — while
  * staying clickable. The predecessor (`improve-workbench.tsx`, deleted at
- * eff7b22) offered "Run tests" on every agent; on an `openai-assistants`
- * copilot that silently executed the suite on the LangGraph Agent Server and
- * reported the graph's pass rate as the agent's. A button that lies is worse
- * than a button that is missing — so here the disabled state carries the
- * sentence that explains it.
+ * eff7b22) offered "Run tests" on every agent regardless of its actual
+ * runtime, and could silently execute a suite on an engine that is not this
+ * agent's own, reporting that engine's pass rate as the agent's. A button
+ * that lies is worse than a button that is missing — so here availability is
+ * always derived from THIS copilot's own runtime (`langgraph` or
+ * `openai-assistants`, whichever it actually is), never assumed, and a
+ * disabled state carries the sentence that explains it.
  */
 
 export interface EvolutionSuiteRef {

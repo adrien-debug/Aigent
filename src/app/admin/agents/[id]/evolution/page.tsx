@@ -20,11 +20,14 @@ import { compareImprovementVersions, type VersionComparison } from '@/lib/agent-
  * approve or reject.
  *
  * What the page does NOT do is decide anything. `getAgentLifecycle` derives
- * every capability once, server-side, and each control renders that capability
- * verbatim — including the ones that are unavailable, WITH their reason. The
- * four roster agents run on `openai-assistants`, so "Run tests" is disabled
- * here and the benchmark is flagged degraded. That is the correct rendering of
- * a real runtime gap, not an error state to hide.
+ * every capability once, server-side, from THIS copilot's own `runtime`
+ * field, and each control renders that capability verbatim — including the
+ * ones that are unavailable, WITH their reason. There is no fixed roster
+ * verdict here: a `langgraph` copilot gets "Run tests" enabled and a
+ * full-fidelity benchmark; only a copilot actually running a runtime with no
+ * execution engine (or none set) sees it disabled or degraded. That is the
+ * correct rendering of whatever this agent's real runtime is, not a claim
+ * about the roster as a whole.
  */
 export default async function AgentEvolutionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
