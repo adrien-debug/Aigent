@@ -50,7 +50,10 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
             </TableHead>
             <TableBody>
               {projects.map((project) => {
-                const hasWarnings = project.openWarnings > 0
+                const hasWarnings =
+                  project.openWarnings.state === 'MEASURED' &&
+                  project.openWarnings.value !== null &&
+                  project.openWarnings.value > 0
                 const hasSignal = project.passRate !== null || project.runsLast24h > 0
                 const cost = project.runsLast24h > 0 ? formatUsd(project.costLast24hUsd) : '—'
                 // ONE notion of "has a logo" for both the image and the initials fallback:
@@ -102,7 +105,7 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
                     <TableCell className="py-2! pr-4! pl-2! text-right sm:pl-4!">
                       {hasWarnings ? (
                         <Badge color="zinc" className="uppercase tracking-widest">
-                          {project.openWarnings} alert{project.openWarnings === 1 ? '' : 's'}
+                          {project.openWarnings.value} alert{project.openWarnings.value === 1 ? '' : 's'}
                         </Badge>
                       ) : hasSignal ? (
                         <Badge color="accent" className="uppercase tracking-widest">

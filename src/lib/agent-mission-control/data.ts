@@ -33,12 +33,28 @@ import type {
   Copilot,
   CopilotHealthMetric,
   CopilotVersion,
+  MeasuredNumber,
   Project,
   TestCase,
   TestRun,
   TestSuite,
   ToolDefinition,
 } from './types'
+
+/**
+ * The canonical operational window for every "last 24h" surface. Both the
+ * dashboard and the performance page must sample the SAME window, or their
+ * activity/cost/status charts silently disagree — see `getRecentRunsInWindow`
+ * and `resolve24hMetricsBatch` (agent-health.ts), which share this boundary.
+ */
+export const RUNS_24H_WINDOW_MS = 24 * 60 * 60 * 1000
+
+/**
+ * `openWarnings` has no producer (see `CopilotHealth.openWarnings`), so a fleet
+ * roll-up of it is never a measurement. This is the single honest value every
+ * aggregate surface publishes for it: unknown, not zero.
+ */
+const OPEN_WARNINGS_UNAVAILABLE: MeasuredNumber = { value: null, state: 'UNAVAILABLE' }
 
 // PostgREST transport + case conversion come from the shared server-only client.
 const rest = <T>(pathAndQuery: string): Promise<T> => pgrest<T>('GET', pathAndQuery)
@@ -334,6 +350,42 @@ export async function getRecentRuns(limit = 30): Promise<AgentRun[]> {
   })
 }
 
+/**
+ * Recent OPERATIONAL runs bounded by the CANONICAL 24h window
+ * (`RUNS_24H_WINDOW_MS`), not by a magic most-recent-N limit.
+ *
+ * Why this exists (FIX 2): the dashboard called `getRecentRuns(500)` and the
+ * performance page `getRecentRuns(200)` — two different most-recent-N feeds of
+ * the same stream. Both then bucket those rows into 24h hourly charts, so the
+ * moment run volume crosses 200 the two pages sample DIFFERENT run sets over the
+ * same nominal "24h" and their activity/cost/status charts diverge. This getter
+ * makes "runs in the last 24h" mean exactly one thing everywhere: a real
+ * `started_at >= now-24h` filter, the SAME boundary `resolve24hMetricsBatch`
+ * uses for the KPI numbers — so the charts and the KPI headline can no longer
+ * tell two different stories.
+ *
+ * `maxRows` is a safety cap against an unbounded window read, NOT the window
+ * definition (the time filter is). If a genuinely busy 24h ever exceeds it, the
+ * newest `maxRows` are returned (order is `started_at.desc`); callers that must
+ * prove completeness should page. Same non-evaluation exclusion as
+ * `getRecentRuns`. `nowMs` is injectable so a page can pin ONE render instant
+ * shared with its client-side hourly bucketing.
+ */
+export async function getRecentRunsInWindow(
+  { nowMs = Date.now(), maxRows = 1000 }: { nowMs?: number; maxRows?: number } = {}
+): Promise<AgentRun[]> {
+  const sinceIso = new Date(nowMs - RUNS_24H_WINDOW_MS).toISOString()
+  const rows = await rest<RawRow[]>(
+    `agent_runs?select=*,agent_run_steps(id)&started_at=gte.${encodeURIComponent(sinceIso)}&${NON_EVALUATION_RUN_FILTER}&order=started_at.desc&limit=${maxRows}`
+  )
+  return rows.map((r) => {
+    const { agent_run_steps, ...rest_ } = r as RawRow & { agent_run_steps: { id: string }[] }
+    const run = normalizeResolvedModel(camelRow<AgentRun>(rest_))
+    run.stepIds = (agent_run_steps ?? []).map((s) => s.id)
+    return run
+  })
+}
+
 /** Traces for a project: the OPERATIONAL runs of ITS copilots (per-project
  * Traces menu). Same non-evaluation exclusion as getRecentRuns. */
 export async function getRecentRunsForProject(projectId: string, limit = 30): Promise<AgentRun[]> {
@@ -373,7 +425,13 @@ export interface RegistryKpis {
   avgTestPassRate: number
   runsLast24h: number
   totalCostLast24hUsd: number
-  openWarnings: number
+  /**
+   * PHANTOM metric — no producer exists (see `CopilotHealth.openWarnings`), so
+   * this is `{ value: null, state: 'UNAVAILABLE' }`, never a summed `0`. A
+   * consumer renders a dash, not "0 warnings" (which would falsely claim the
+   * fleet was inspected and found clean). Was `number`; now `MeasuredNumber`.
+   */
+  openWarnings: MeasuredNumber
 }
 
 export async function getRegistryKpis(): Promise<RegistryKpis> {
@@ -391,7 +449,10 @@ export async function getRegistryKpis(): Promise<RegistryKpis> {
       measured.length > 0 ? measured.reduce((s, c) => s + c.health.testPassRate, 0) / measured.length : 0,
     runsLast24h: copilots.reduce((s, c) => s + c.health.runsLast24h, 0),
     totalCostLast24hUsd: copilots.reduce((s, c) => s + c.health.costLast24hUsd, 0),
-    openWarnings: copilots.reduce((s, c) => s + c.health.openWarnings, 0),
+    // No writer ever computes openWarnings from a real signal, so summing the
+    // per-copilot placeholders would fabricate a measured 0. Publish the honest
+    // "unavailable" state instead — see OPEN_WARNINGS_UNAVAILABLE.
+    openWarnings: OPEN_WARNINGS_UNAVAILABLE,
   }
 }
 

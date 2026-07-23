@@ -48,7 +48,10 @@ export default async function ProjectsPage() {
               </TableHead>
               <TableBody>
                 {projects.map((project) => {
-                  const hasWarnings = project.openWarnings > 0
+                  const hasWarnings =
+                    project.openWarnings.state === 'MEASURED' &&
+                    project.openWarnings.value !== null &&
+                    project.openWarnings.value > 0
                   // "Healthy" must rest on an observation. A pass rate or a run in the
                   // last 24h is one; an empty project is simply unobserved.
                   const hasSignal = project.passRate !== null || project.runsLast24h > 0
@@ -113,7 +116,7 @@ export default async function ProjectsPage() {
                       <TableCell className="py-3! pr-4! text-right">
                         {hasWarnings ? (
                           <Badge color="zinc" className="uppercase tracking-widest">
-                            {project.openWarnings} alert{project.openWarnings === 1 ? '' : 's'}
+                            {project.openWarnings.value} alert{project.openWarnings.value === 1 ? '' : 's'}
                           </Badge>
                         ) : hasSignal ? (
                           <Badge color="accent" className="uppercase tracking-widest">

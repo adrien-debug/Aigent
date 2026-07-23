@@ -11,7 +11,14 @@ import { getCopilots, getProjects } from './data'
 import type { MissionReport } from './mission-orchestrator'
 import { pgrest } from './postgrest'
 import { parseSandboxReport, type TargetRepoSandboxReport } from './target-repo-sandbox'
-import type { Copilot, Project } from './types'
+import type { Copilot, MeasuredNumber, Project } from './types'
+
+/**
+ * `openWarnings` has no producer (see `CopilotHealth.openWarnings`), so a
+ * per-project roll-up of it is never a measurement — publish the honest
+ * "unavailable" state instead of a summed `0`.
+ */
+const OPEN_WARNINGS_UNAVAILABLE: MeasuredNumber = { value: null, state: 'UNAVAILABLE' }
 
 // ---------------------------------------------------------------------------
 // Types
@@ -38,7 +45,12 @@ export type ProjectOverviewItem = {
   costLast24hUsd: number
   /** Mean test pass rate (0..1) across copilots with run-backed health, null when no evidence. */
   passRate: number | null
-  openWarnings: number
+  /**
+   * PHANTOM metric — no producer exists (see `CopilotHealth.openWarnings`), so
+   * this is always `{ value: null, state: 'UNAVAILABLE' }`, never a summed `0`.
+   * A consumer renders a dash, not "0 alerts". Was `number`; now `MeasuredNumber`.
+   */
+  openWarnings: MeasuredNumber
 }
 
 export type ActionItemKind =
@@ -165,19 +177,20 @@ export function computeBlockedDeliveries(
 export function buildProjectOverview(projects: Project[], copilots: Copilot[]): ProjectOverviewItem[] {
   const rollups = new Map<
     string,
-    { copilotCount: number; activeCount: number; runsLast24h: number; costLast24hUsd: number; openWarnings: number; passRates: number[] }
+    { copilotCount: number; activeCount: number; runsLast24h: number; costLast24hUsd: number; passRates: number[] }
   >()
 
   for (const copilot of copilots) {
     if (copilot.projectId === null) continue
     const current =
       rollups.get(copilot.projectId) ??
-      { copilotCount: 0, activeCount: 0, runsLast24h: 0, costLast24hUsd: 0, openWarnings: 0, passRates: [] }
+      { copilotCount: 0, activeCount: 0, runsLast24h: 0, costLast24hUsd: 0, passRates: [] }
     current.copilotCount += 1
     if (copilot.status === 'active') current.activeCount += 1
     current.runsLast24h += copilot.health.runsLast24h
     current.costLast24hUsd += copilot.health.costLast24hUsd
-    current.openWarnings += copilot.health.openWarnings
+    // openWarnings is a phantom (no producer) — never accumulated. See
+    // OPEN_WARNINGS_UNAVAILABLE, emitted per project below.
     if (copilot.healthEvidence === 'runs') current.passRates.push(copilot.health.testPassRate)
     rollups.set(copilot.projectId, current)
   }
@@ -200,7 +213,7 @@ export function buildProjectOverview(projects: Project[], copilots: Copilot[]): 
           rollup && rollup.passRates.length > 0
             ? rollup.passRates.reduce((s, n) => s + n, 0) / rollup.passRates.length
             : null,
-        openWarnings: rollup?.openWarnings ?? 0,
+        openWarnings: OPEN_WARNINGS_UNAVAILABLE,
       }
     })
     .sort((a, b) => b.runsLast24h - a.runsLast24h || a.name.localeCompare(b.name))

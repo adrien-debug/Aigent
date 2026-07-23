@@ -135,12 +135,52 @@ export interface CopilotHealth {
   runsLast24h: number
   errorRateLast24h: number // 0..1
   avgLatencyMs: DurationMs
-  costLast24hUsd: UsdAmount
+  /**
+   * PHANTOM METRIC — no producer. Grep proved (2026-07-23) that NO writer ever
+   * increments `openWarnings` from a real signal: every path that sets it writes
+   * a literal (`authoring-writes.ts` / `provision-agent-builder-live.ts` seed
+   * `0`; `seed-fixtures.ts` hard-codes static 0/1/3; the trading persist script
+   * hard-codes `0`). There is no incident/alert table it rolls up, no resolver,
+   * no run-backed recompute. So a `openWarnings: 0` in a live `health` blob is a
+   * DEFAULT, never a measurement of "the fleet is clean".
+   *
+   * `data.ts#normalizeHealth` therefore always names it in
+   * `healthUnavailableFields` (the blob is `{}` for the provisioned roster, and
+   * no resolver ever `prove()`s it), so `openWarnings` here is a placeholder for
+   * the typed shape. Read it ONLY through the `healthUnavailableFields` /
+   * `isMeasured` channel — a bare `.openWarnings` is a phantom read. Aggregate
+   * surfaces expose it as `{ value: null, state: 'UNAVAILABLE' }`
+   * (see `RegistryKpis` / `ProjectOverviewItem`), never a summed 0.
+   */
   openWarnings: number
+  costLast24hUsd: UsdAmount
 }
 
 /** One rolled-up health metric — the key space of `healthUnavailableFields`. */
 export type CopilotHealthMetric = keyof CopilotHealth
+
+/**
+ * Explicit measurement state for a value that may not be measurable. The whole
+ * point of the "doctrine des chiffres": a value nobody could measure travels as
+ * `null` + a state, NEVER as a fabricated `0`.
+ *
+ * - `MEASURED` — a real reading (including a real `0`).
+ * - `UNKNOWN` — not read this pass (skipped, e.g. a `list`-mode health fan-out).
+ * - `UNAVAILABLE` — structurally unmeasurable: no producer exists at all.
+ * - `STALE` — last reading is past its freshness window.
+ * - `NOT_APPLICABLE` — the metric does not apply to this subject.
+ */
+export type MeasurementState = 'MEASURED' | 'UNKNOWN' | 'UNAVAILABLE' | 'STALE' | 'NOT_APPLICABLE'
+
+/**
+ * A numeric metric that carries its own measurement state. `value` is `null`
+ * whenever `state !== 'MEASURED'`; a consumer must render a dash (or the state)
+ * rather than treating a missing value as `0`.
+ */
+export interface MeasuredNumber {
+  value: number | null
+  state: MeasurementState
+}
 
 export type VersionStage = 'production' | 'beta' | 'draft' | 'archived'
 
