@@ -2,8 +2,9 @@ import { ServerStackIcon, CpuChipIcon, BoltIcon, ArrowTopRightOnSquareIcon } fro
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
+import { AgentKpiBand, type AgentKpiStat } from '@/components/agent-ops/agent-kpi-band'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
-import { EmptyStatePanel } from '@/components/agent-ops/empty-state'
+import { EmptyStatePanel, NotMeasuredDash } from '@/components/agent-ops/empty-state'
 import { ProjectDeleteAction } from '@/components/agent-ops/project-delete-action'
 import { ProjectHeader } from '@/components/agent-ops/project-header'
 import { ProjectMissionOrchestrator } from '@/components/agent-ops/project-mission-orchestrator'
@@ -14,6 +15,7 @@ import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { getCopilots, getProject, getRecentRunsForProject } from '@/lib/agent-mission-control/data'
+import { getAvailableAgents } from '@/lib/agent-mission-control/available-agents'
 import { getConsumerProvisionStatus } from '@/lib/agent-mission-control/github'
 import {
   formatDurationMs,
@@ -237,10 +239,11 @@ function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copil
 
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const [project, copilots, runs] = await Promise.all([
+  const [project, copilots, runs, availableAgents] = await Promise.all([
     getProject(id),
     getCopilots({ health: 'list' }),
     getRecentRunsForProject(id, 20),
+    getAvailableAgents(),
   ])
   if (!project) notFound()
 
@@ -250,6 +253,90 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
   const validated = copilots.filter((copilot) => copilot.projectId === project.id)
   const copilotNameById = new Map(copilots.map((copilot) => [copilot.id, copilot.name]))
+
+  /**
+   * `executable` = "can the run gate actually launch it right now" — the run
+   * gate's own truth (`AvailableAgent.executable`, `runtime-catalogue.
+   * isExecutable`: active AND every declared tool resolved). Deliberately NOT
+   * `copilot.status === 'active'`: that count sits in the shared
+   * `dashboard-overview.ts` rollup (`activeCount`) and undercounts — a copilot
+   * promoted to production while its stored status still reads `draft` is
+   * executable but would not be counted there. Reported, not fixed here (out
+   * of this page's owned files) — see crossBoundaryDeps.
+   */
+  const executableByCopilotId = new Map(availableAgents.map((agent) => [agent.copilotId, agent.executable]))
+  const executableCount = validated.filter((copilot) => executableByCopilotId.get(copilot.id) === true).length
+
+  /**
+   * Success = run-weighted over this project's actual recent runs, never the
+   * unweighted mean-of-per-copilot-pass-rates that `dashboard-overview.ts`
+   * computes for the project LIST (`passRates.reduce(...) / passRates.length`
+   * — one copilot with 2 runs counts the same as one with 200). `runs` here is
+   * this project's real run rows, so a plain completed/total over them is
+   * already correctly weighted; no shared resolver involved.
+   */
+  const finishedRuns = runs.filter((run) => run.status === 'completed' || run.status === 'failed')
+  const successRate = finishedRuns.length > 0
+    ? finishedRuns.filter((run) => run.status === 'completed').length / finishedRuns.length
+    : null
+
+  const runsLast24h = validated.reduce((sum, copilot) => sum + copilot.health.runsLast24h, 0)
+  const hasRunVolumeSignal = validated.some((copilot) => copilot.healthEvidence === 'runs')
+  const costLast24hUsd = validated.reduce((sum, copilot) => sum + copilot.health.costLast24hUsd, 0)
+
+  const servedCount = validated.filter((copilot) => copilot.productionVersionId !== null).length
+
+  const kpiStats: AgentKpiStat[] = [
+    {
+      name: 'Team',
+      value: String(validated.length),
+      hint: validated.length === 1 ? '1 agent assigned' : `${validated.length} agents assigned`,
+    },
+    {
+      name: 'Executable',
+      value: `${executableCount} / ${validated.length}`,
+      valueTone: executableCount === validated.length && validated.length > 0 ? 'default' : 'muted',
+      hint: 'Active with every declared tool resolved',
+    },
+    {
+      name: 'Runs (24h)',
+      content: hasRunVolumeSignal ? (
+        <span className="text-2xl/8 font-light tracking-tight tabular-nums text-white">
+          {runsLast24h.toLocaleString()}
+        </span>
+      ) : (
+        <NotMeasuredDash />
+      ),
+    },
+    {
+      name: 'Cost (24h)',
+      content: hasRunVolumeSignal && runsLast24h > 0 ? (
+        <span className="text-2xl/8 font-light tracking-tight tabular-nums text-white">
+          {formatUsd(costLast24hUsd)}
+        </span>
+      ) : (
+        <NotMeasuredDash />
+      ),
+    },
+    {
+      name: 'Success',
+      content: successRate === null ? (
+        <NotMeasuredDash />
+      ) : (
+        <span
+          className={`text-2xl/8 font-light tracking-tight tabular-nums ${successRate >= 0.9 ? 'text-accent-400' : 'text-white'}`}
+        >
+          {formatPercent(successRate)}
+        </span>
+      ),
+      hint: finishedRuns.length > 0 ? `${finishedRuns.length} finished run${finishedRuns.length > 1 ? 's' : ''}` : undefined,
+    },
+    {
+      name: 'Version served',
+      value: `${servedCount} / ${validated.length}`,
+      hint: 'Agents with a production version pointer',
+    },
+  ]
 
   return (
     <div className="flex flex-col gap-8 pb-12">
@@ -261,6 +348,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       </ProjectHeader>
 
       <ProjectTabs projectId={project.id} />
+
+      <AgentKpiBand stats={kpiStats} />
 
       {project.repoFullName ? (
         <>
