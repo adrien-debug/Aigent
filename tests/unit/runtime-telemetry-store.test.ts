@@ -174,9 +174,12 @@ describe('runtime-telemetry-store', () => {
 
       expect(summary.topErrorCategories[0]).toEqual({ category: 'timeout', count: 5 })
       expect(summary.topErrorCategories[1]).toEqual({ category: 'auth', count: 2 })
-      // remaining single-count categories, order among ties not asserted
+      // remaining single-count categories, order among ties not asserted. The
+      // failed row with an EMPTY error object ({}) carries no real category, so
+      // it is NOT fabricated into an 'uncategorized' bucket — its absence is
+      // reflected by measurement.errorCategories, never a made-up count.
       const remaining = summary.topErrorCategories.slice(2).map((c) => c.category).sort()
-      expect(remaining).toEqual(['rate_limit', 'uncategorized'])
+      expect(remaining).toEqual(['rate_limit'])
       // counts strictly non-increasing
       for (let i = 1; i < summary.topErrorCategories.length; i++) {
         expect(summary.topErrorCategories[i].count).toBeLessThanOrEqual(summary.topErrorCategories[i - 1].count)
@@ -190,6 +193,9 @@ describe('runtime-telemetry-store', () => {
 
       expect(summary).toEqual({
         totalRuns: 0,
+        completedRuns: 0,
+        failedRuns: 0,
+        startedRuns: 0,
         successRate: null,
         failureRate: null,
         avgLatencyMs: null,
@@ -198,6 +204,18 @@ describe('runtime-telemetry-store', () => {
         totalCostUsd: null,
         costEstimated: false,
         topErrorCategories: [],
+        measurement: {
+          tokens: 'NOT_APPLICABLE',
+          cost: 'NOT_APPLICABLE',
+          errorCategories: 'NOT_APPLICABLE',
+          toolSignals: 'NOT_APPLICABLE',
+        },
+        toolSignals: {
+          state: 'NOT_APPLICABLE',
+          runsWithToolSignal: null,
+          runsExecutedWithoutTools: null,
+          runsInvokedTools: null,
+        },
         lastSeenAt: null,
       })
     })

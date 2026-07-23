@@ -251,7 +251,9 @@ describe('assembleDashboardOverview fail-soft', () => {
     expect(trade.activeCount).toBe(1)
     expect(trade.runsLast24h).toBe(10)
     expect(trade.costLast24hUsd).toBe(2)
-    expect(trade.openWarnings).toBe(1)
+    // openWarnings is a phantom metric with no producer: it must travel as a
+    // MeasuredNumber in the UNAVAILABLE state, never a rolled-up count.
+    expect(trade.openWarnings).toEqual({ value: null, state: 'UNAVAILABLE' })
     // Only run-backed copilots feed passRate — c2 has no evidence.
     expect(trade.passRate).toBe(0.8)
     expect(items[1].passRate).toBeNull()

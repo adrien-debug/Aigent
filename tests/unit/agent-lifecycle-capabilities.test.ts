@@ -136,7 +136,7 @@ function makeCopilot(overrides: Partial<Copilot> = {}): Copilot {
       errorRateLast24h: 0,
       avgLatencyMs: 0,
       costLast24hUsd: 0,
-      openWarnings: 0,
+      openWarnings: { value: null, state: 'UNAVAILABLE' },
     },
     ...overrides,
   } as Copilot
@@ -166,6 +166,8 @@ function makeDetail(overrides: { copilot?: Partial<Copilot>; hasManifest?: boole
       cost24hUsd: null,
       runsWithoutCost: 0,
       toolCallCount: null,
+      toolCallCountState: 'UNKNOWN',
+      completedRuns: 0,
       lastRun: undefined,
     },
   } as AgentDetail
