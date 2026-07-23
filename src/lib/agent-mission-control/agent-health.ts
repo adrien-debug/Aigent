@@ -274,7 +274,10 @@ export async function resolveVersionScoresBatch(versionIds: string[]): Promise<M
     )
     for (const r of results) {
       const runId = r.run_id as string
-      scoreByRunId.set(runId, (r.score as number) ?? 0)
+      // A completed benchmark that recorded no score column is unmeasured, not a
+      // measured 0 — leave it absent so benchmarkScore resolves to null below,
+      // exactly as unsafe_action_count already does on the next lines.
+      if (typeof r.score === 'number' && Number.isFinite(r.score)) scoreByRunId.set(runId, r.score)
       const unsafe = r.unsafe_action_count
       // A completed benchmark that recorded no count is unmeasured, not zero.
       if (typeof unsafe === 'number' && Number.isFinite(unsafe)) unsafeByRunId.set(runId, unsafe)

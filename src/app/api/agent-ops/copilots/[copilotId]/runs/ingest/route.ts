@@ -170,15 +170,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
       started_at: startedAt,
       finished_at: now,
       status: parsed.status,
-      // input/output_summary, latency_ms and cost_usd are all NOT NULL in
-      // agent_runs (probed live: 23502 on null) — absent values land as the
-      // empty string / 0, matching the runner's own rows, never as null.
+      // input/output_summary and latency_ms are NOT NULL in agent_runs (probed
+      // live: 23502 on null) — absent values land as the empty string / 0,
+      // matching the runner's own rows.
       input_summary: parsed.inputSummary ?? '',
       output_summary: parsed.outputSummary ?? '',
       tool_call_count: parsed.toolCallCount ?? 0,
       unsafe_attempt_count: parsed.unsafeAttemptCount ?? 0,
       latency_ms: parsed.latencyMs ?? 0,
-      cost_usd: parsed.costUsd ?? 0,
+      // cost_usd is NULLABLE since migration 0025 (coût inconnu ≠ zéro): a run
+      // whose cost the caller never measured persists NULL (unavailable), NOT a
+      // fabricated 0. `?? 0` here would re-manufacture the exact false zero that
+      // migration erased — SUM ignores NULL natively, so absence stays absence.
+      cost_usd: parsed.costUsd ?? null,
       trace_url: null,
       thread_id: null,
       created_via: 'production',

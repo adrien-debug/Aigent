@@ -53,7 +53,18 @@ export type AgentMetrics = {
   cost24hUsd: number | null
   /** Runs in the window whose cost was never recorded — makes cost24h honest. */
   runsWithoutCost: number
+  /**
+   * Total tool calls summed over runs that actually COMPLETED. `null` (UNKNOWN)
+   * only when no completed run exists to measure from — never a fabricated 0.
+   * A real `0` here is MEASURED: the agent ran to completion and mounted no
+   * tool (the "healthy catalogue / toolless execution" trap). `toolCallCountState`
+   * lets the UI render "0 outils appelés" (MEASURED) vs "non mesuré" (UNKNOWN)
+   * without re-deriving the rule.
+   */
   toolCallCount: number | null
+  toolCallCountState: 'MEASURED' | 'UNKNOWN'
+  /** Completed runs the tool-call measurement is drawn from (its denominator). */
+  completedRuns: number
   lastRun: AgentRun | undefined
 }
 
@@ -80,8 +91,18 @@ function computeMetrics(runs: AgentRun[]): AgentMetrics {
   const costed = recent.filter((r) => typeof r.costUsd === 'number' && Number.isFinite(r.costUsd))
   const cost24hUsd = costed.length > 0 ? costed.reduce((a, r) => a + (r.costUsd ?? 0), 0) : null
 
-  const counted = runs.map((r) => r.toolCallCount).filter((n): n is number => typeof n === 'number')
-  const toolCallCount = counted.length > 0 ? counted.reduce((a, b) => a + b, 0) : null
+  // Tool-call count is only a MEASUREMENT over runs that actually reached
+  // completion: an aborted/running/blocked run's `tool_call_count` reflects how
+  // far it got, not what the agent needs. With zero completed runs there is
+  // nothing to measure ⇒ null (UNKNOWN), never a fabricated 0. With ≥1 completed
+  // run the sum is MEASURED — and a genuine 0 (agent completed, mounted no tool:
+  // the "healthy catalogue / toolless execution" trap) is preserved as 0, not
+  // collapsed into "no data".
+  const completed = runs.filter((r) => r.status === 'completed')
+  const toolCallCount =
+    completed.length > 0 ? completed.reduce((a, r) => a + (r.toolCallCount ?? 0), 0) : null
+  const toolCallCountState: AgentMetrics['toolCallCountState'] =
+    toolCallCount === null ? 'UNKNOWN' : 'MEASURED'
 
   return {
     runs24h: recent.length,
@@ -91,6 +112,8 @@ function computeMetrics(runs: AgentRun[]): AgentMetrics {
     cost24hUsd,
     runsWithoutCost: recent.length - costed.length,
     toolCallCount,
+    toolCallCountState,
+    completedRuns: completed.length,
     lastRun: runs[0],
   }
 }
