@@ -6,20 +6,20 @@ import clsx from 'clsx'
  * placeholders that shipped with the marketing template. Pure markup, no
  * data, no interactivity: it is a product screenshot rendered in the DOM so
  * it stays crisp at any width and follows the accent/zinc token doctrine.
+ *
+ * Deliberately carries NO numeric values: the copilot names and stage labels
+ * are illustrative, but runs/pass columns and the summary rail render as
+ * neutral bars and dashes so nothing here can be mistaken for a live metric.
  */
 
 const ROWS = [
-  { name: 'support-triage', stage: 'Production', runs: '48.2k', pass: '99.4%', tone: 'live' },
-  { name: 'invoice-extractor', stage: 'Production', runs: '31.7k', pass: '98.9%', tone: 'live' },
-  { name: 'contract-reviewer', stage: 'Shadow', runs: '6.1k', pass: '97.2%', tone: 'shadow' },
-  { name: 'onboarding-guide', stage: 'Draft', runs: '—', pass: '—', tone: 'draft' },
+  { name: 'support-triage', stage: 'Production', tone: 'live' },
+  { name: 'invoice-extractor', stage: 'Production', tone: 'live' },
+  { name: 'contract-reviewer', stage: 'Shadow', tone: 'shadow' },
+  { name: 'onboarding-guide', stage: 'Draft', tone: 'draft' },
 ] as const
 
-const STATS = [
-  { label: 'Live copilots', value: '12' },
-  { label: 'Runs today', value: '9,204' },
-  { label: 'Gate pass rate', value: '99.1%' },
-] as const
+const STAT_LABELS = ['Live copilots', 'Runs today', 'Gate pass rate'] as const
 
 export function ConsolePreview({ className }: { className?: string }) {
   return (
@@ -43,7 +43,7 @@ export function ConsolePreview({ className }: { className?: string }) {
         <div className="min-w-0 bg-zinc-900/80 p-5">
           <div className="mb-4 flex items-baseline justify-between">
             <span className="text-sm font-semibold text-white">Copilots</span>
-            <span className="text-xs text-zinc-500">4 of 12</span>
+            <span className="text-xs text-zinc-500">Registry</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[20rem] text-left text-xs">
@@ -77,10 +77,20 @@ export function ConsolePreview({ className }: { className?: string }) {
                         {row.stage}
                       </span>
                     </td>
-                    <td className="hidden py-2.5 pr-3 text-right font-mono text-zinc-400 tabular-nums sm:table-cell">
-                      {row.runs}
+                    <td className="hidden py-2.5 pr-3 sm:table-cell">
+                      {row.tone === 'draft' ? (
+                        <div className="flex justify-end text-zinc-600">—</div>
+                      ) : (
+                        <div className="ml-auto h-1.5 w-16 rounded-full bg-zinc-700" />
+                      )}
                     </td>
-                    <td className="py-2.5 text-right font-mono text-zinc-200 tabular-nums">{row.pass}</td>
+                    <td className="py-2.5">
+                      {row.tone === 'draft' ? (
+                        <div className="flex justify-end text-zinc-600">—</div>
+                      ) : (
+                        <div className="ml-auto h-1.5 w-10 rounded-full bg-zinc-700" />
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -90,15 +100,15 @@ export function ConsolePreview({ className }: { className?: string }) {
 
         {/* Run summary rail */}
         <div className="flex flex-col gap-4 bg-zinc-900/80 p-5">
-          {STATS.map((stat) => (
-            <div key={stat.label} className="flex flex-col gap-0.5 border-l border-accent-500/40 pl-3">
-              <span className="text-xs tracking-wide text-zinc-500 uppercase">{stat.label}</span>
-              <span className="font-mono text-lg font-semibold text-white tabular-nums">{stat.value}</span>
+          {STAT_LABELS.map((label) => (
+            <div key={label} className="flex flex-col gap-1.5 border-l border-accent-500/40 pl-3">
+              <span className="text-xs tracking-wide text-zinc-500 uppercase">{label}</span>
+              <div className="h-2 w-14 rounded-full bg-zinc-700" />
             </div>
           ))}
           <div className="mt-auto rounded-md bg-accent-500/10 px-3 py-2 ring-1 ring-accent-500/25">
             <span className="text-xs font-semibold text-accent-400">Promotion gate</span>
-            <p className="mt-0.5 text-xs leading-snug text-zinc-400">1 copilot awaits sign-off.</p>
+            <p className="mt-0.5 text-xs leading-snug text-zinc-400">Copilots awaiting sign-off.</p>
           </div>
         </div>
       </div>
