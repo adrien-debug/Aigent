@@ -3,37 +3,24 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'About — Agent Mission Control',
   description:
-    'Why Agent Mission Control exists: a control plane for AI agents built by people who watched agent rollouts fail in production.',
+    'Aigent is the central platform for designing, testing, and improving AI agents across the Hearst ecosystem.',
 }
 
-const timeline = [
-  {
-    name: 'First copilot, first incident',
-    description:
-      'An unattended agent pushed a destructive change to a customer environment. No manifest history, no replay, no way to know what it had actually seen.',
-    date: 'Year 1',
-    dateTime: '2024-01',
-  },
+const principlesInPractice = [
   {
     name: 'Manifests and versioning',
     description:
-      'Every copilot became a versioned artifact — tools, prompts, and guardrails tracked like code, with instant rollback to any prior version.',
-    date: 'Year 1',
-    dateTime: '2024-06',
+      'Every copilot is a versioned artifact — tools, prompts, and guardrails tracked like code, with instant rollback to any prior version.',
   },
   {
     name: 'Benchmarks and shadow mode',
     description:
-      'Copilots started running against curated test suites and shadow traffic before a single promotion gate would open.',
-    date: 'Year 2',
-    dateTime: '2025-02',
+      'Copilots run against curated test suites and shadow traffic before a promotion gate ever opens.',
   },
   {
     name: 'Human-in-the-loop by default',
     description:
-      'Risky actions now pause for explicit confirmation before they execute — the incident that started this became structurally impossible to repeat.',
-    date: 'Year 2',
-    dateTime: '2025-09',
+      'Risky actions pause for explicit confirmation before they execute — nothing destructive runs unattended.',
   },
 ]
 
@@ -53,22 +40,19 @@ export default function AboutPage() {
             Agents that ship, not agents that surprise you
           </h1>
           <p className="mt-8 text-lg font-medium text-pretty text-zinc-400 sm:text-xl/8">
-            Agent Mission Control exists because someone had to watch an unattended agent make a call it shouldn&apos;t
-            have, and decide that would never happen again. We build the control plane we wished we had: manifests,
-            real runs, benchmarks, and a promotion process that always asks before it acts.
+            Aigent is being built as the central platform for designing, testing, and improving AI agents across
+            the Hearst ecosystem: manifests, real runs, benchmarks, and a promotion process that always asks
+            before it acts.
           </p>
         </div>
       </div>
 
-      {/* Timeline */}
+      {/* Principles in practice */}
       <div className="mx-auto -mt-8 max-w-7xl px-6 lg:px-8">
-        <div className="mx-auto grid max-w-2xl grid-cols-1 gap-8 overflow-hidden lg:mx-0 lg:max-w-none lg:grid-cols-4">
-          {timeline.map((item) => (
+        <div className="mx-auto grid max-w-2xl grid-cols-1 gap-8 overflow-hidden lg:mx-0 lg:max-w-none lg:grid-cols-3">
+          {principlesInPractice.map((item) => (
             <div key={item.name} className="border-l-2 border-l-accent-500 pl-6">
-              <dt className="text-sm/6 text-zinc-400">
-                <time dateTime={item.dateTime}>{item.date}</time>
-              </dt>
-              <dd className="mt-1 text-base font-semibold text-white">{item.name}</dd>
+              <dd className="text-base font-semibold text-white">{item.name}</dd>
               <dd className="mt-2 text-sm/6 text-zinc-400">{item.description}</dd>
             </div>
           ))}
