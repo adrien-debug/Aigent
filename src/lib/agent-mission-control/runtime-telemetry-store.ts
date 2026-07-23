@@ -98,9 +98,87 @@ export interface RuntimeTelemetryErrorCategory {
   count: number
 }
 
+/**
+ * Explicit measurement state for a scalar that may be structurally
+ * unmeasurable — NOT the same as a measured zero.
+ *
+ * DOCTRINE (the whole point of this file): the reference emitter shipped to
+ * delivered agents (consumer-bootstrap.ts `renderTelemetryClient`) sends ONLY
+ * { eventId, projectId, agentId, runId, timestamp, status, latencyMs?, model?,
+ * provider?, error.messageHash? }. It NEVER sends `usage` (tokens), never sends
+ * `error.category`, never sends `outputShape.hasToolCalls`/`toolCallCount`. So
+ * for real production traffic those measures are structurally absent, not zero.
+ *
+ * - MEASURED     : at least one row in the window carried this signal; the
+ *                  accompanying value is a real aggregate over those rows.
+ * - UNAVAILABLE  : the wire payloads in this window never carried the signal
+ *                  (the emitter does not emit it). Value MUST be null — a `0`
+ *                  here would be a fabricated measurement.
+ * - NOT_APPLICABLE: there were no rows at all to measure over (empty window).
+ */
+export type TelemetryMeasurementState = 'MEASURED' | 'UNAVAILABLE' | 'NOT_APPLICABLE'
+
+/**
+ * Per-measure provenance for the fields the reference emitter never populates.
+ * A consumer reads these to render "—" / "not reported" instead of a
+ * fabricated 0, and to tell "measured zero" apart from "never measured".
+ */
+export interface TelemetryMeasurementProvenance {
+  /** Tokens (`usage.totalTokens`). UNAVAILABLE for reference-emitter traffic. */
+  tokens: TelemetryMeasurementState
+  /** USD cost (needs mappable provider + model + input/output token SPLIT). UNAVAILABLE for reference-emitter traffic. */
+  cost: TelemetryMeasurementState
+  /**
+   * Error categories. MEASURED only when at least one failed row carried a
+   * real `error.category`; UNAVAILABLE when failures exist but none was
+   * categorized (the reference emitter sends only `messageHash`), and
+   * NOT_APPLICABLE when there were no failures at all.
+   */
+  errorCategories: TelemetryMeasurementState
+  /** Tool-call execution signal (`outputShape.hasToolCalls`/`toolCallCount`). UNAVAILABLE for reference-emitter traffic. */
+  toolSignals: TelemetryMeasurementState
+}
+
+/**
+ * Tool-execution signal rollup — exposes the "healthy catalogue vs. executed
+ * without tools" distinction at the telemetry layer.
+ *
+ * The AGENTS.md LangGraph trap: a copilot can look healthy (runs complete,
+ * success rate high) while every run reached the model with `tool_call_count=0`
+ * — i.e. it ran against the bare graph with none of its tools mounted, and
+ * answered "no data" without ever calling one. That is invisible in a plain
+ * success-rate. When the emitter reports `outputShape.toolCallCount`, we can
+ * surface it: many completed runs with zero tool calls is a red flag, not
+ * health.
+ *
+ * `null` counts mean the signal was never reported (see `state`), never zero.
+ */
+export interface RuntimeTelemetryToolSignals {
+  /** Provenance for the whole block. UNAVAILABLE ⇒ every count below is null. */
+  state: TelemetryMeasurementState
+  /** Completed runs whose payload carried a tool-call signal (hasToolCalls or toolCallCount present). */
+  runsWithToolSignal: number | null
+  /** Of those, runs that executed WITHOUT invoking any tool (toolCallCount === 0 / hasToolCalls === false). */
+  runsExecutedWithoutTools: number | null
+  /** Of those, runs that invoked at least one tool. */
+  runsInvokedTools: number | null
+}
+
 /** Aggregate runtime-health summary for a project+agent pair. */
 export interface RuntimeTelemetrySummary {
   totalRuns: number
+  /**
+   * REAL counts, tallied from terminal-status rows — NOT reconstructed from
+   * `successRate * totalRuns`. A consumer showing "N completed · M failed"
+   * MUST read these, never multiply a float rate by a denominator that
+   * includes non-terminal `started` pings (which would fabricate the split).
+   * `startedRuns` is the count of runs seen only in-flight (no terminal row in
+   * the window); `completedRuns + failedRuns` is the terminal denominator
+   * behind `successRate`.
+   */
+  completedRuns: number
+  failedRuns: number
+  startedRuns: number
   successRate: number | null
   failureRate: number | null
   avgLatencyMs: number | null
@@ -121,6 +199,14 @@ export interface RuntimeTelemetrySummary {
    */
   costEstimated: boolean
   topErrorCategories: RuntimeTelemetryErrorCategory[]
+  /**
+   * Per-measure provenance for tokens / cost / error categories / tool
+   * signals — lets a consumer distinguish "measured zero" from "the emitter
+   * never reported it" (see TelemetryMeasurementProvenance).
+   */
+  measurement: TelemetryMeasurementProvenance
+  /** Tool-execution signal (catalogue-healthy vs. executed-without-tools). */
+  toolSignals: RuntimeTelemetryToolSignals
   lastSeenAt: string | null
 }
 
@@ -184,6 +270,9 @@ function percentile95(sortedAsc: number[]): number {
 /** Rollup fields shared by every aggregation grain (single agent, fleet-wide, per-agent-in-fleet). */
 interface TelemetryRollup {
   totalRuns: number
+  completedRuns: number
+  failedRuns: number
+  startedRuns: number
   successRate: number | null
   avgLatencyMs: number | null
   p95LatencyMs: number | null
@@ -191,6 +280,8 @@ interface TelemetryRollup {
   totalCostUsd: number | null
   costEstimated: boolean
   topErrorCategories: RuntimeTelemetryErrorCategory[]
+  measurement: TelemetryMeasurementProvenance
+  toolSignals: RuntimeTelemetryToolSignals
   lastSeenAt: string | null
 }
 
@@ -204,6 +295,9 @@ function reduceTelemetryRows(rows: RawRow[]): TelemetryRollup {
   if (rows.length === 0) {
     return {
       totalRuns: 0,
+      completedRuns: 0,
+      failedRuns: 0,
+      startedRuns: 0,
       successRate: null,
       avgLatencyMs: null,
       p95LatencyMs: null,
@@ -211,24 +305,46 @@ function reduceTelemetryRows(rows: RawRow[]): TelemetryRollup {
       totalCostUsd: null,
       costEstimated: false,
       topErrorCategories: [],
+      measurement: {
+        tokens: 'NOT_APPLICABLE',
+        cost: 'NOT_APPLICABLE',
+        errorCategories: 'NOT_APPLICABLE',
+        toolSignals: 'NOT_APPLICABLE',
+      },
+      toolSignals: {
+        state: 'NOT_APPLICABLE',
+        runsWithToolSignal: null,
+        runsExecutedWithoutTools: null,
+        runsInvokedTools: null,
+      },
       lastSeenAt: null,
     }
   }
 
   let completed = 0
   let failed = 0
+  let started = 0
   let tokenSum = 0
   let hasTokens = false
   let costSum = 0
   let hasCost = false
   const latencies: number[] = []
   const errorCounts = new Map<string, number>()
+  // Error-category provenance: did ANY failed row carry a real category, or
+  // are we only ever seeing the reference emitter (messageHash, no category)?
+  let hasCategorizedError = false
+  // Tool-execution signal, only counted from rows whose payload actually
+  // reported it (`outputShape.hasToolCalls`/`toolCallCount`).
+  let toolSignalRuns = 0
+  let toolSignalWithoutTools = 0
+  let toolSignalInvoked = 0
   let lastSeenAt: string | null = null
 
   for (const r of rows) {
     const status = r.status as RuntimeTelemetryStatus
     if (status === 'completed') completed += 1
     else if (status === 'failed') failed += 1
+    else if (status === 'started') started += 1
 
     const latency = r.latency_ms as number | null
     if (typeof latency === 'number' && Number.isFinite(latency)) latencies.push(latency)
@@ -263,11 +379,35 @@ function reduceTelemetryRows(rows: RawRow[]): TelemetryRollup {
 
     if (status === 'failed') {
       const errorField = (r.error as Record<string, unknown>) ?? {}
-      const category =
-        typeof errorField.category === 'string' && errorField.category.trim().length > 0
-          ? errorField.category
-          : 'uncategorized'
-      errorCounts.set(category, (errorCounts.get(category) ?? 0) + 1)
+      // Count ONLY real categories. The reference emitter sends error.messageHash
+      // with NO category, so bucketing those as 'uncategorized' would fabricate a
+      // measured category out of a structural absence. A failure with no category
+      // signal is recorded as UNAVAILABLE provenance below, not as a phantom row.
+      if (typeof errorField.category === 'string' && errorField.category.trim().length > 0) {
+        const category = errorField.category
+        errorCounts.set(category, (errorCounts.get(category) ?? 0) + 1)
+        hasCategorizedError = true
+      }
+    }
+
+    // Tool-execution signal — read only from rows whose payload actually
+    // reported it. `outputShape.hasToolCalls` (bool) and/or
+    // `outputShape.toolCallCount` (number) are what the wire schema allows;
+    // the reference emitter sends neither, so this stays UNAVAILABLE for
+    // reference-emitter traffic instead of counting a phantom "0 tools".
+    {
+      const outputShape = (r.output_shape as Record<string, unknown>) ?? {}
+      const toolCallCount = outputShape.toolCallCount
+      const hasToolCalls = outputShape.hasToolCalls
+      const countReported = typeof toolCallCount === 'number' && Number.isFinite(toolCallCount)
+      const boolReported = typeof hasToolCalls === 'boolean'
+      if (countReported || boolReported) {
+        toolSignalRuns += 1
+        // Prefer the explicit count; fall back to the boolean when only it exists.
+        const invokedTools = countReported ? (toolCallCount as number) > 0 : (hasToolCalls as boolean)
+        if (invokedTools) toolSignalInvoked += 1
+        else toolSignalWithoutTools += 1
+      }
     }
 
     const receivedAt = r.received_at as string | undefined
@@ -289,8 +429,25 @@ function reduceTelemetryRows(rows: RawRow[]): TelemetryRollup {
     .sort((a, b) => b.count - a.count)
     .slice(0, 5)
 
+  // Error-category provenance:
+  //  - MEASURED       : at least one failure carried a real category.
+  //  - UNAVAILABLE    : failures occurred but none was categorized (reference
+  //                     emitter sends only messageHash) — a real signal gap,
+  //                     NOT "no failures".
+  //  - NOT_APPLICABLE : no failed rows at all in the window.
+  const errorCategoriesState: TelemetryMeasurementState = hasCategorizedError
+    ? 'MEASURED'
+    : failed > 0
+      ? 'UNAVAILABLE'
+      : 'NOT_APPLICABLE'
+
+  const toolSignalsState: TelemetryMeasurementState = toolSignalRuns > 0 ? 'MEASURED' : 'UNAVAILABLE'
+
   return {
     totalRuns: rows.length,
+    completedRuns: completed,
+    failedRuns: failed,
+    startedRuns: started,
     successRate,
     avgLatencyMs,
     p95LatencyMs,
@@ -298,6 +455,18 @@ function reduceTelemetryRows(rows: RawRow[]): TelemetryRollup {
     totalCostUsd: hasCost ? Math.round(costSum * 1e6) / 1e6 : null,
     costEstimated: hasCost,
     topErrorCategories,
+    measurement: {
+      tokens: hasTokens ? 'MEASURED' : 'UNAVAILABLE',
+      cost: hasCost ? 'MEASURED' : 'UNAVAILABLE',
+      errorCategories: errorCategoriesState,
+      toolSignals: toolSignalsState,
+    },
+    toolSignals: {
+      state: toolSignalsState,
+      runsWithToolSignal: toolSignalRuns > 0 ? toolSignalRuns : null,
+      runsExecutedWithoutTools: toolSignalRuns > 0 ? toolSignalWithoutTools : null,
+      runsInvokedTools: toolSignalRuns > 0 ? toolSignalInvoked : null,
+    },
     lastSeenAt,
   }
 }
@@ -312,7 +481,7 @@ export async function summarizeRuntimeTelemetry(projectId: string, agentId: stri
   const rows = await pgrest<RawRow[]>(
     'GET',
     `runtime_telemetry_events?${eq('project_id', projectId)}&${eq('agent_id', agentId)}` +
-      `&select=status,latency_ms,usage,error,received_at,provider,model&order=received_at.desc&limit=500`
+      `&select=status,latency_ms,usage,error,output_shape,received_at,provider,model&order=received_at.desc&limit=500`
   )
   const rollup = reduceTelemetryRows(rows)
   return {
@@ -326,6 +495,15 @@ export interface RuntimeTelemetryAgentRollup {
   projectId: string
   agentId: string
   totalRuns: number
+  /**
+   * REAL terminal counts for this agent — so a fleet-level consumer sums
+   * `completedRuns`/`failedRuns` directly instead of reconstructing a split
+   * from `successRate * totalRuns` (which fabricates counts by mixing in
+   * non-terminal `started` pings). `startedRuns` = in-flight-only runs.
+   */
+  completedRuns: number
+  failedRuns: number
+  startedRuns: number
   successRate: number | null
   avgLatencyMs: number | null
   lastSeenAt: string | null
@@ -353,7 +531,7 @@ export async function listRecentRuntimeTelemetryEvents(limit = 50): Promise<Runt
 export async function summarizeFleetRuntimeTelemetry(): Promise<RuntimeTelemetryFleetSummary> {
   const rows = await pgrest<RawRow[]>(
     'GET',
-    'runtime_telemetry_events?select=project_id,agent_id,status,latency_ms,usage,error,received_at,provider,model&order=received_at.desc&limit=2000'
+    'runtime_telemetry_events?select=project_id,agent_id,status,latency_ms,usage,error,output_shape,received_at,provider,model&order=received_at.desc&limit=2000'
   )
 
   const byProjectAgent = new Map<string, RawRow[]>()
@@ -372,6 +550,9 @@ export async function summarizeFleetRuntimeTelemetry(): Promise<RuntimeTelemetry
         projectId,
         agentId,
         totalRuns: rollup.totalRuns,
+        completedRuns: rollup.completedRuns,
+        failedRuns: rollup.failedRuns,
+        startedRuns: rollup.startedRuns,
         successRate: rollup.successRate,
         avgLatencyMs: rollup.avgLatencyMs,
         lastSeenAt: rollup.lastSeenAt,
