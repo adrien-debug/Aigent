@@ -152,6 +152,13 @@ services:
     restart: always
 
     environment:
+      # Production mode so agent-server-endpoint.mjs accepts the internal remote
+      # endpoint (aigent-langgraph:2024): its guard refuses a non-localhost
+      # endpoint under NODE_ENV=development, and the builder stage never sets it,
+      # so the reprovision pass otherwise fails "Refusing remote LangGraph
+      # endpoint in local development".
+      NODE_ENV: production
+
       # --- Live data backend (same perimeter as `app`) ---
       AMC_DATA_SOURCE: ${AMC_DATA_SOURCE:-gpu1}
       AMC_SUPABASE_URL: ${AMC_SUPABASE_URL:?set AMC_SUPABASE_URL}
