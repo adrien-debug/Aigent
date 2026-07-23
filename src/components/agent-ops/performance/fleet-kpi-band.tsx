@@ -30,9 +30,7 @@ function measuredOn(copilots: Copilot[], metric: CopilotHealthMetric): Copilot[]
  * Sum over the copilots that actually measured the metric.
  *
  * `null` when NOT ONE of them did: a fleet total nobody measured is unknown,
- * and printing `0` would claim the fleet ran nothing. This is what used to
- * produce `NaN` — `openWarnings` is absent from every `health: {}` blob the
- * provisioning script writes, and `undefined + undefined` is not a number.
+ * and printing `0` would claim the fleet ran nothing.
  */
 function sumMeasured(copilots: Copilot[], metric: CopilotHealthMetric): number | null {
   const contributors = measuredOn(copilots, metric)
@@ -52,7 +50,6 @@ function sumMeasured(copilots: Copilot[], metric: CopilotHealthMetric): number |
 function computeFleetKpis(copilots: Copilot[]) {
   const runsLast24h = sumMeasured(copilots, 'runsLast24h')
   const costLast24hUsd = sumMeasured(copilots, 'costLast24hUsd')
-  const openWarnings = sumMeasured(copilots, 'openWarnings')
 
   // Weight by 24h volume so a quiet agent does not distort the fleet mean; a
   // copilot whose volume was never measured cannot carry a weight, so it is
@@ -70,20 +67,15 @@ function computeFleetKpis(copilots: Copilot[]) {
   return {
     runsLast24h,
     costLast24hUsd,
-    openWarnings,
     avgPassRate: weightedAverage('testPassRate'),
     avgLatencyMs: weightedAverage('avgLatencyMs'),
-    /** How many agents actually measured `openWarnings` — qualifies the total. */
-    warningsMeasuredCount: measuredOn(copilots, 'openWarnings').length,
-    agentsWithWarnings: measuredOn(copilots, 'openWarnings').filter((c) => c.health.openWarnings > 0)
-      .length,
   }
 }
 
 /**
- * FleetKpiBand — the Performance page's 5 headline stats as one unified band
- * (AgentKpiBand with hairline separators). All five share compact size so
- * they sit under the page H1; accent only on Open Warnings when >0.
+ * FleetKpiBand — the Performance page's headline stats as one unified band
+ * (AgentKpiBand with hairline separators). All share compact size so they sit
+ * under the page H1.
  */
 export function FleetKpiBand({
   copilots,
@@ -105,7 +97,7 @@ export function FleetKpiBand({
   const peakPerHour = Math.max(...buckets.map((b) => b.total))
 
   // Compact band — H1 owns the page scale; KPI values stay below Heading (text-xl).
-  // Accent only when Open Warnings > 0 (actionable). No hero size, no accent wash.
+  // No hero size, no accent wash.
   const stats: AgentKpiStat[] = [
     {
       name: 'Total Runs 24h',
@@ -138,24 +130,9 @@ export function FleetKpiBand({
           ? `≈ ${formatUsd(kpis.costLast24hUsd / kpis.runsLast24h)}/run`
           : undefined,
     },
-    {
-      name: 'Open Warnings',
-      value: kpis.openWarnings === null ? NOT_MEASURED : numberFormat.format(kpis.openWarnings),
-      valueSize: 'compact',
-      // Accent is reserved for something to act on; an unknown is not one.
-      valueTone: kpis.openWarnings !== null && kpis.openWarnings > 0 ? 'accent' : 'muted',
-      // The hint says how many agents the total actually covers — "across 0 of
-      // 4 agents" under a NaN was the exact shape of the old lie.
-      hint:
-        kpis.openWarnings === null
-          ? copilots.length > 0
-            ? `not measured on any of ${copilots.length} agents`
-            : undefined
-          : `across ${kpis.agentsWithWarnings} of ${kpis.warningsMeasuredCount} measured agents`,
-    },
   ]
 
-  // `separators` so the five headline stats read as ONE synthesis band, matching
+  // `separators` so the headline stats read as ONE synthesis band, matching
   // the dashboard KPI strip. Naked-on-canvas left them as floating text with no
   // surface, which is exactly the flatness this page was reported for.
   return <AgentKpiBand stats={stats} density="compact" separators className={className} />

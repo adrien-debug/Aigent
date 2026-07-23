@@ -33,7 +33,6 @@ import type {
   Copilot,
   CopilotHealthMetric,
   CopilotVersion,
-  MeasuredNumber,
   Project,
   TestCase,
   TestRun,
@@ -48,13 +47,6 @@ import type {
  * and `resolve24hMetricsBatch` (agent-health.ts), which share this boundary.
  */
 export const RUNS_24H_WINDOW_MS = 24 * 60 * 60 * 1000
-
-/**
- * `openWarnings` has no producer (see `CopilotHealth.openWarnings`), so a fleet
- * roll-up of it is never a measurement. This is the single honest value every
- * aggregate surface publishes for it: unknown, not zero.
- */
-const OPEN_WARNINGS_UNAVAILABLE: MeasuredNumber = { value: null, state: 'UNAVAILABLE' }
 
 // PostgREST transport + case conversion come from the shared server-only client.
 const rest = <T>(pathAndQuery: string): Promise<T> => pgrest<T>('GET', pathAndQuery)
@@ -131,7 +123,6 @@ function normalizeHealth(copilot: Copilot): CopilotHealthMetric[] {
     errorRateLast24h: take('errorRateLast24h'),
     avgLatencyMs: take('avgLatencyMs'),
     costLast24hUsd: take('costLast24hUsd'),
-    openWarnings: take('openWarnings'),
   }
   return unavailable
 }
@@ -425,13 +416,6 @@ export interface RegistryKpis {
   avgTestPassRate: number
   runsLast24h: number
   totalCostLast24hUsd: number
-  /**
-   * PHANTOM metric — no producer exists (see `CopilotHealth.openWarnings`), so
-   * this is `{ value: null, state: 'UNAVAILABLE' }`, never a summed `0`. A
-   * consumer renders a dash, not "0 warnings" (which would falsely claim the
-   * fleet was inspected and found clean). Was `number`; now `MeasuredNumber`.
-   */
-  openWarnings: MeasuredNumber
 }
 
 export async function getRegistryKpis(): Promise<RegistryKpis> {
@@ -449,10 +433,6 @@ export async function getRegistryKpis(): Promise<RegistryKpis> {
       measured.length > 0 ? measured.reduce((s, c) => s + c.health.testPassRate, 0) / measured.length : 0,
     runsLast24h: copilots.reduce((s, c) => s + c.health.runsLast24h, 0),
     totalCostLast24hUsd: copilots.reduce((s, c) => s + c.health.costLast24hUsd, 0),
-    // No writer ever computes openWarnings from a real signal, so summing the
-    // per-copilot placeholders would fabricate a measured 0. Publish the honest
-    // "unavailable" state instead — see OPEN_WARNINGS_UNAVAILABLE.
-    openWarnings: OPEN_WARNINGS_UNAVAILABLE,
   }
 }
 

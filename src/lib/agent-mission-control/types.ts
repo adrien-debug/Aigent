@@ -135,24 +135,6 @@ export interface CopilotHealth {
   runsLast24h: number
   errorRateLast24h: number // 0..1
   avgLatencyMs: DurationMs
-  /**
-   * PHANTOM METRIC — no producer. Grep proved (2026-07-23) that NO writer ever
-   * increments `openWarnings` from a real signal: every path that sets it writes
-   * a literal (`authoring-writes.ts` / `provision-agent-builder-live.ts` seed
-   * `0`; `seed-fixtures.ts` hard-codes static 0/1/3; the trading persist script
-   * hard-codes `0`). There is no incident/alert table it rolls up, no resolver,
-   * no run-backed recompute. So a `openWarnings: 0` in a live `health` blob is a
-   * DEFAULT, never a measurement of "the fleet is clean".
-   *
-   * `data.ts#normalizeHealth` therefore always names it in
-   * `healthUnavailableFields` (the blob is `{}` for the provisioned roster, and
-   * no resolver ever `prove()`s it), so `openWarnings` here is a placeholder for
-   * the typed shape. Read it ONLY through the `healthUnavailableFields` /
-   * `isMeasured` channel — a bare `.openWarnings` is a phantom read. Aggregate
-   * surfaces expose it as `{ value: null, state: 'UNAVAILABLE' }`
-   * (see `RegistryKpis` / `ProjectOverviewItem`), never a summed 0.
-   */
-  openWarnings: number
   costLast24hUsd: UsdAmount
 }
 

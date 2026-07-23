@@ -11,14 +11,7 @@ import { getCopilots, getProjects } from './data'
 import type { MissionReport } from './mission-orchestrator'
 import { pgrest } from './postgrest'
 import { parseSandboxReport, type TargetRepoSandboxReport } from './target-repo-sandbox'
-import type { Copilot, MeasuredNumber, Project } from './types'
-
-/**
- * `openWarnings` has no producer (see `CopilotHealth.openWarnings`), so a
- * per-project roll-up of it is never a measurement — publish the honest
- * "unavailable" state instead of a summed `0`.
- */
-const OPEN_WARNINGS_UNAVAILABLE: MeasuredNumber = { value: null, state: 'UNAVAILABLE' }
+import type { Copilot, Project } from './types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -45,12 +38,6 @@ export type ProjectOverviewItem = {
   costLast24hUsd: number
   /** Mean test pass rate (0..1) across copilots with run-backed health, null when no evidence. */
   passRate: number | null
-  /**
-   * PHANTOM metric — no producer exists (see `CopilotHealth.openWarnings`), so
-   * this is always `{ value: null, state: 'UNAVAILABLE' }`, never a summed `0`.
-   * A consumer renders a dash, not "0 alerts". Was `number`; now `MeasuredNumber`.
-   */
-  openWarnings: MeasuredNumber
 }
 
 export type ActionItemKind =
@@ -189,8 +176,6 @@ export function buildProjectOverview(projects: Project[], copilots: Copilot[]): 
     if (copilot.status === 'active') current.activeCount += 1
     current.runsLast24h += copilot.health.runsLast24h
     current.costLast24hUsd += copilot.health.costLast24hUsd
-    // openWarnings is a phantom (no producer) — never accumulated. See
-    // OPEN_WARNINGS_UNAVAILABLE, emitted per project below.
     if (copilot.healthEvidence === 'runs') current.passRates.push(copilot.health.testPassRate)
     rollups.set(copilot.projectId, current)
   }
@@ -213,7 +198,6 @@ export function buildProjectOverview(projects: Project[], copilots: Copilot[]): 
           rollup && rollup.passRates.length > 0
             ? rollup.passRates.reduce((s, n) => s + n, 0) / rollup.passRates.length
             : null,
-        openWarnings: OPEN_WARNINGS_UNAVAILABLE,
       }
     })
     .sort((a, b) => b.runsLast24h - a.runsLast24h || a.name.localeCompare(b.name))

@@ -20,10 +20,6 @@ function WatchRow({ copilot, value }: { copilot: Copilot; value: string }) {
 }
 
 export function FleetWatchlist({ copilots }: { copilots: Copilot[] }) {
-  const warnings = copilots
-    .filter((copilot) => copilot.health.openWarnings > 0)
-    .sort((a, b) => b.health.openWarnings - a.health.openWarnings || a.name.localeCompare(b.name))
-    .slice(0, 4)
   const lowestPassRates = copilots
     .filter((copilot) => copilot.healthEvidence === 'runs')
     .sort((a, b) => a.health.testPassRate - b.health.testPassRate || a.name.localeCompare(b.name))
@@ -34,23 +30,6 @@ export function FleetWatchlist({ copilots }: { copilots: Copilot[] }) {
       <SurfaceCardHeader title="Fleet Watchlist" className="px-4 pt-3 pb-2" />
       <div className="pb-2">
         <h3 className="px-4 py-2 text-[10px] font-medium uppercase tracking-widest text-zinc-400">
-          Open Warnings
-        </h3>
-        {warnings.length > 0 ? (
-          <ul className="divide-y divide-white/5">
-            {warnings.map((copilot) => (
-              <WatchRow
-                key={copilot.id}
-                copilot={copilot}
-                value={`${copilot.health.openWarnings} open`}
-              />
-            ))}
-          </ul>
-        ) : (
-          <p className="px-4 pb-2 text-xs text-zinc-500">No open warnings.</p>
-        )}
-
-        <h3 className="mt-1 border-t border-white/5 px-4 py-2 text-[10px] font-medium uppercase tracking-widest text-zinc-400">
           Lowest Pass Rate
         </h3>
         {lowestPassRates.length > 0 ? (

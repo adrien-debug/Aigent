@@ -48,10 +48,6 @@ export default async function ProjectsPage() {
               </TableHead>
               <TableBody>
                 {projects.map((project) => {
-                  const hasWarnings =
-                    project.openWarnings.state === 'MEASURED' &&
-                    project.openWarnings.value !== null &&
-                    project.openWarnings.value > 0
                   // "Healthy" must rest on an observation. A pass rate or a run in the
                   // last 24h is one; an empty project is simply unobserved.
                   const hasSignal = project.passRate !== null || project.runsLast24h > 0
@@ -114,18 +110,14 @@ export default async function ProjectsPage() {
                         {cost}
                       </TableCell>
                       <TableCell className="py-3! pr-4! text-right">
-                        {hasWarnings ? (
-                          <Badge color="zinc" className="uppercase tracking-widest">
-                            {project.openWarnings.value} alert{project.openWarnings.value === 1 ? '' : 's'}
-                          </Badge>
-                        ) : hasSignal ? (
+                        {hasSignal ? (
                           <Badge color="accent" className="uppercase tracking-widest">
                             Healthy
                           </Badge>
                         ) : (
-                          // No warnings is not evidence of health: a project with no
-                          // copilots and no runs has produced no signal at all. Claiming
-                          // HEALTHY there would be a default-healthy assertion.
+                          // A project with no copilots and no runs has produced no
+                          // signal at all. Claiming HEALTHY there would be a
+                          // default-healthy assertion.
                           <span className="font-mono text-xs text-zinc-500">no signal</span>
                         )}
                       </TableCell>

@@ -107,7 +107,6 @@ export const copilots: Copilot[] = [
       errorRateLast24h: 0.021,
       avgLatencyMs: 6400,
       costLast24hUsd: 18.42,
-      openWarnings: 1,
     },
   },
   {
@@ -135,7 +134,6 @@ export const copilots: Copilot[] = [
       errorRateLast24h: 0.18,
       avgLatencyMs: 11200,
       costLast24hUsd: 6.9,
-      openWarnings: 3,
     },
   },
   {
@@ -163,7 +161,6 @@ export const copilots: Copilot[] = [
       errorRateLast24h: 0,
       avgLatencyMs: 0,
       costLast24hUsd: 0,
-      openWarnings: 0,
     },
   },
   {
@@ -191,7 +188,6 @@ export const copilots: Copilot[] = [
       errorRateLast24h: 0.014,
       avgLatencyMs: 8900,
       costLast24hUsd: 4.35,
-      openWarnings: 1,
     },
   },
   {
@@ -221,7 +217,6 @@ export const copilots: Copilot[] = [
       errorRateLast24h: 0,
       avgLatencyMs: 5200,
       costLast24hUsd: 0,
-      openWarnings: 1,
     },
   },
   {
@@ -251,7 +246,6 @@ export const copilots: Copilot[] = [
       errorRateLast24h: 0,
       avgLatencyMs: 4100,
       costLast24hUsd: 0,
-      openWarnings: 0,
     },
   },
 ]
@@ -2509,7 +2503,6 @@ export function getRegistryKpis(): {
   avgTestPassRate: number
   runsLast24h: number
   totalCostLast24hUsd: number
-  openWarnings: number
 } {
   const measured = copilots.filter((c) => c.status !== 'draft' && c.status !== 'archived')
   const avgTestPassRate =
@@ -2522,6 +2515,5 @@ export function getRegistryKpis(): {
     avgTestPassRate,
     runsLast24h: copilots.reduce((sum, c) => sum + c.health.runsLast24h, 0),
     totalCostLast24hUsd: copilots.reduce((sum, c) => sum + c.health.costLast24hUsd, 0),
-    openWarnings: copilots.reduce((sum, c) => sum + c.health.openWarnings, 0),
   }
 }

@@ -255,7 +255,6 @@ export async function createCopilotFromManifest(input: CreateCopilotInput): Prom
       errorRateLast24h: 0,
       avgLatencyMs: 0,
       costLast24hUsd: 0,
-      openWarnings: 0,
     },
     created_via: 'authoring',
   }

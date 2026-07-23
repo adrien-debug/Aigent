@@ -59,7 +59,6 @@ const METRIC_FIELDS = [
   'costLast24hUsd',
   'lastRunCostUsd',
   'totalCostLast24hUsd',
-  'openWarnings',
   'runsLast24h',
   'errorRateLast24h',
   'errorRateLast7d',

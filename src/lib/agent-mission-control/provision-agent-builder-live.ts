@@ -96,7 +96,6 @@ export async function provisionAgentBuilderCopilot(): Promise<ProvisionAgentBuil
       errorRateLast24h: 0,
       avgLatencyMs: 0,
       costLast24hUsd: 0,
-      openWarnings: 0,
     },
     created_via: 'authoring',
   })

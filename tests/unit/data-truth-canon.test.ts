@@ -112,8 +112,8 @@ describe('canon — cost: absence is null, never a fake 0', () => {
 
 // ---------------------------------------------------------------------------
 // 2. An unmeasured LATENCY / SCORE stays null with evidence 'none'.
-//    (openWarnings has no producer path here — a signal with no producer must
-//     travel UNAVAILABLE, i.e. null + 'none', never rolled up as 0.)
+//    (A signal with no producer path must travel UNAVAILABLE, i.e. null +
+//     'none', never rolled up as 0.)
 // ---------------------------------------------------------------------------
 describe('canon — latency / score / no-producer signals: null + UNAVAILABLE, never 0', () => {
   it('a copilot with no completed run → score, latency, passRate all null; evidence none', async () => {
@@ -130,17 +130,17 @@ describe('canon — latency / score / no-producer signals: null + UNAVAILABLE, n
     expect(health!.testPassRate).not.toBe(0)
   })
 
-  it('openWarnings-style rollup: an absent producer stays null, and null must not coalesce to 0', async () => {
-    // There is no wired producer of open-warning counts in the pure resolver
-    // layer: the honest value for "nobody produced this" is null (UNAVAILABLE),
-    // never 0. This pins the coalescing rule the dashboard rollup must obey —
+  it('no-producer rollup: an absent producer stays null, and null must not coalesce to 0', async () => {
+    // A signal with no wired producer in the pure resolver layer has one honest
+    // value for "nobody produced this": null (UNAVAILABLE), never 0. This pins
+    // the coalescing rule the dashboard rollup must obey —
     // `value ?? UNAVAILABLE`, never `value ?? 0`.
-    const openWarnings: number | null = null
-    expect(openWarnings ?? 'UNAVAILABLE').toBe('UNAVAILABLE')
-    // The bug this guards against: `openWarnings ?? 0` — which would fabricate a
-    // clean "0 warnings" for a copilot nobody measured.
-    expect(openWarnings ?? 0).toBe(0) // documents the WRONG coalescing…
-    expect(openWarnings).not.toBe(0) //  …the value itself is null, not 0.
+    const unproduced: number | null = null
+    expect(unproduced ?? 'UNAVAILABLE').toBe('UNAVAILABLE')
+    // The bug this guards against: `unproduced ?? 0` — which would fabricate a
+    // clean measured "0" for a copilot nobody measured.
+    expect(unproduced ?? 0).toBe(0) // documents the WRONG coalescing…
+    expect(unproduced).not.toBe(0) //  …the value itself is null, not 0.
   })
 })
 

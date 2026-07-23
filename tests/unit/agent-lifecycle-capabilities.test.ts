@@ -136,7 +136,6 @@ function makeCopilot(overrides: Partial<Copilot> = {}): Copilot {
       errorRateLast24h: 0,
       avgLatencyMs: 0,
       costLast24hUsd: 0,
-      openWarnings: { value: null, state: 'UNAVAILABLE' },
     },
     ...overrides,
   } as Copilot

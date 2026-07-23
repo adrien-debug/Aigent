@@ -83,7 +83,7 @@ async function main() {
     tags: input.tags,
     created_at: now,
     updated_at: now,
-    health: { testPassRate: 0, benchmarkScore: 0, runsLast24h: 0, errorRateLast24h: 0, avgLatencyMs: 0, costLast24hUsd: 0, openWarnings: 0 },
+    health: { testPassRate: 0, benchmarkScore: 0, runsLast24h: 0, errorRateLast24h: 0, avgLatencyMs: 0, costLast24hUsd: 0 },
     created_via: 'authoring',
   })
 

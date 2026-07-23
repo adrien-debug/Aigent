@@ -41,7 +41,6 @@ function copilot(partial: Partial<Copilot> & Pick<Copilot, 'id' | 'name' | 'slug
       costLast24hUsd: 0,
       errorRateLast24h: 0,
       avgLatencyMs: 0,
-      openWarnings: 0,
     },
     ...partial,
   }
