@@ -3,7 +3,7 @@
   "repo": "adrien-debug/Aigent",
   "branch": "feat/landing-self-improving-positioning",
   "pr": "https://github.com/adrien-debug/Aigent/pull/15",
-  "commit": "8188c8d1410b81032320f67121b2bad307f7aa0c",
+  "commit": "64db0cc84a0ca93f949556f1fb30a29e61f7f08b",
   "date": "2026-07-23",
   "browser": "Chromium via Playwright MCP",
   "buildSource": "next build + next start on a scratch port (3299), not the dev instance running on 3210 for Adrien's session — that instance was never stopped or restarted",
