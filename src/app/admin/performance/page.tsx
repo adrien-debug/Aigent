@@ -2,14 +2,12 @@ import { BoltIcon } from '@heroicons/react/24/outline'
 import type { Metadata } from 'next'
 
 import { EmptyStatePanel } from '@/components/agent-ops/empty-state'
-import { ActivityChart } from '@/components/agent-ops/performance/activity-chart'
 import { AgentLeaderboard } from '@/components/agent-ops/performance/agent-leaderboard'
-import { FleetKpiBand } from '@/components/agent-ops/performance/fleet-kpi-band'
-import { FleetWatchlist } from '@/components/agent-ops/performance/fleet-watchlist'
 import { LiveRefresh } from '@/components/agent-ops/performance/live-refresh'
 import { RecentRunsTable } from '@/components/agent-ops/performance/recent-runs-table'
 import { AdminPageHeader } from '@/components/agent-ops/surface-card'
-import { getCopilots, getProjects, getRecentRuns } from '@/lib/agent-mission-control/data'
+import { Text } from '@/components/catalyst/text'
+import { getCopilots, getProjects, getRecentRunsInWindow } from '@/lib/agent-mission-control/data'
 import type { Project } from '@/lib/agent-mission-control/types'
 
 export const dynamic = 'force-dynamic'
@@ -18,7 +16,12 @@ export const metadata: Metadata = {
   title: 'Performance — Aigent',
 }
 
-/** Newest runs shown in the feed table; the full 200-run sample feeds the chart/KPIs. */
+/**
+ * Newest runs shown in the feed table. The leaderboard ranks on each copilot's
+ * own `health` snapshot (already resolved server-side, not on this page's
+ * `runs` sample), so `RUNS_TABLE_SIZE` only bounds the trace feed's row count —
+ * it does not silently cap what the leaderboard "saw".
+ */
 const RUNS_TABLE_SIZE = 30
 
 /**
@@ -34,16 +37,31 @@ function renderInstant(): { nowMs: number; nowIso: string } {
 }
 
 export default async function PerformancePage() {
-  const [copilots, projects, runs] = await Promise.all([getCopilots(), getProjects(), getRecentRuns(200)])
-
   const { nowMs, nowIso } = renderInstant()
+
+  // Bounded by the CANONICAL 24h window (real `started_at >= now-24h`), not by
+  // a most-recent-N sample — a busy fleet no longer silently truncates the
+  // window this page reasons over (see FIX 2 on `getRecentRunsInWindow`).
+  const WINDOW_MAX_ROWS = 1000
+  const [copilots, projects, runs] = await Promise.all([
+    getCopilots(),
+    getProjects(),
+    getRecentRunsInWindow({ nowMs, maxRows: WINDOW_MAX_ROWS }),
+  ])
 
   const projectNameById = new Map<string, string>(projects.map((p: Project) => [p.id, p.name]))
   const copilotById = new Map(copilots.map((c) => [c.id, c]))
+  // Leaderboard ranks on each copilot's server-resolved `health` snapshot
+  // (testPassRate, runsLast24h) — NOT on this page's `runs` sample — so it
+  // reflects the fleet's true standing regardless of how many rows the window
+  // query capped at.
   const ranked = [...copilots].sort(
     (a, b) => b.health.runsLast24h - a.health.runsLast24h || a.name.localeCompare(b.name)
   )
   const recentRuns = runs.slice(0, RUNS_TABLE_SIZE)
+  // Explicit, visible truncation notice — never a silently-capped feed
+  // presented as complete.
+  const windowTruncated = runs.length >= WINDOW_MAX_ROWS
 
   return (
     <div className="flex flex-col gap-4 pb-8">
@@ -53,23 +71,24 @@ export default async function PerformancePage() {
         actions={<LiveRefresh initialRefreshedAt={nowIso} />}
         className="pb-0"
       />
-      <FleetKpiBand copilots={copilots} runs={runs} nowMs={nowMs} />
 
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(20rem,0.85fr)]">
-        <AgentLeaderboard copilots={ranked} projectNameById={projectNameById} />
-        <div className="flex min-w-0 flex-col gap-4">
-          <ActivityChart runs={runs} nowMs={nowMs} />
-          <FleetWatchlist copilots={copilots} />
-        </div>
-      </div>
+      <AgentLeaderboard copilots={ranked} projectNameById={projectNameById} />
 
       {recentRuns.length > 0 ? (
-        <RecentRunsTable
-          runs={recentRuns}
-          copilotById={copilotById}
-          projectNameById={projectNameById}
-          nowIso={nowIso}
-        />
+        <>
+          <RecentRunsTable
+            runs={recentRuns}
+            copilotById={copilotById}
+            projectNameById={projectNameById}
+            nowIso={nowIso}
+          />
+          {windowTruncated ? (
+            <Text className="text-xs text-zinc-500">
+              24h window capped at {WINDOW_MAX_ROWS} runs — the fleet produced more than this in the
+              last 24h; the trace feed below reflects the newest {WINDOW_MAX_ROWS}, not every run.
+            </Text>
+          ) : null}
+        </>
       ) : (
         // Same surface as the table it stands in for, so the page keeps its
         // structure with or without runs.
