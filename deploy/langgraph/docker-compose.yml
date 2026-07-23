@@ -53,6 +53,15 @@ services:
       # call 404s. Optional (empty → repo tools return an auth error, not a crash).
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
 
+      # --- Market tools bridge. The market reads (read_market_snapshot, …) in
+      # tool-registry.mjs call back into the app at
+      # ${AIGENT_INTERNAL_URL}/api/agent-ops/market-tools/<id> with AMC_API_KEY.
+      # On nexus-net the app is reachable at aigent-app:3000. Without these the
+      # market tools return "bridge unavailable: AMC_API_KEY not configured" and
+      # a langgraph run binds zero tools (parallel_tool_calls error / no data).
+      AMC_API_KEY: ${AMC_API_KEY:-}
+      AIGENT_INTERNAL_URL: ${AIGENT_INTERNAL_URL:-http://aigent-app:3000}
+
       # --- OPTIONAL tracing (absent → no-op). ---
       # LANGSMITH_API_KEY: ${LANGSMITH_API_KEY}
 
