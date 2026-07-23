@@ -43,7 +43,11 @@ export interface HourBucket {
  * read the exact same histogram.
  */
 export function bucketRunsByHour(runs: AgentRun[], nowMs: number, hours = 24): HourBucket[] {
-  const endMs = Math.ceil(nowMs / HOUR_MS) * HOUR_MS
+  // The window MUST match getRecentRunsInWindow (data.ts) exactly — [nowMs-24h,
+  // nowMs] — or the chart total silently contradicts the "Runs 24h" KPI computed
+  // from the same run set. A ceil-to-next-hour boundary shifted the window up to
+  // an hour and dropped the oldest hour the KPI counts.
+  const endMs = nowMs
   const startMs = endMs - hours * HOUR_MS
 
   const buckets: HourBucket[] = Array.from({ length: hours }, (_, i) => ({

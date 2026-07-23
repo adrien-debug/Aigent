@@ -25,12 +25,13 @@ export function TelemetryKpiBand({
   summary: RuntimeTelemetryFleetSummary
   className?: string
 }) {
-  const terminalTotal = summary.byAgent.reduce(
-    (sum, a) => sum + (a.successRate !== null ? a.totalRuns : 0),
-    0
-  )
-  const completedTotal = Math.round((summary.successRate ?? 0) * terminalTotal)
-  const failedTotal = terminalTotal - completedTotal
+  // Real terminal counts from the store's per-agent rollup. NEVER reconstruct the
+  // completed/failed split by multiplying a float success rate by a denominator
+  // that includes in-flight 'started' pings — that fabricated a split up to 10x
+  // off (the store documents completedRuns/failedRuns exactly to avoid this).
+  const completedTotal = summary.byAgent.reduce((sum, a) => sum + a.completedRuns, 0)
+  const failedTotal = summary.byAgent.reduce((sum, a) => sum + a.failedRuns, 0)
+  const terminalTotal = completedTotal + failedTotal
 
   const stats: AgentKpiStat[] = [
     {

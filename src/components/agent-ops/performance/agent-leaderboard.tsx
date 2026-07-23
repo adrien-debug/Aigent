@@ -142,11 +142,14 @@ export function AgentLeaderboard({
                   </div>
                 </TableCell>
                 <TableCell className="py-2 text-right">
-                  {copilot.healthEvidence === 'runs' ? (
+                  {copilot.health.testPassRate !== null ? (
                     <span className="text-sm font-mono tabular-nums text-zinc-300">
                       {formatPercent(copilot.health.testPassRate)}
                     </span>
                   ) : (
+                    // healthEvidence==='runs' is true for a benchmark-ONLY copilot
+                    // too, but testPassRate is null there — gating on it (not the
+                    // evidence flag) stops a fabricated "0.0%" pass rate.
                     <span className="text-xs text-zinc-600">—</span>
                   )}
                 </TableCell>

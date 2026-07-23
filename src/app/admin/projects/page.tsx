@@ -40,7 +40,7 @@ export default async function ProjectsPage() {
                       shrinks. Project + Status always survive. */}
                   <TableHeader className="pl-4!">Project</TableHeader>
                   <TableHeader className="hidden w-28 text-right md:table-cell">Copilots</TableHeader>
-                  <TableHeader className="hidden w-36 lg:table-cell">Success</TableHeader>
+                  <TableHeader className="hidden w-36 lg:table-cell">Test pass</TableHeader>
                   <TableHeader className="hidden w-24 text-right sm:table-cell">Runs 24h</TableHeader>
                   <TableHeader className="hidden w-24 text-right sm:table-cell">Cost 24h</TableHeader>
                   <TableHeader className="w-28 pr-4! text-right sm:w-32">Status</TableHeader>

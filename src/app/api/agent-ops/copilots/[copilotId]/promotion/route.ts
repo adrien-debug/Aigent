@@ -102,8 +102,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   // data HERE, before any write — the UI enabling the button is a courtesy, not
   // the control. If any check is fail/missing, refuse with 422 and the blocking
   // reasons. Rollback is exempt (it restores a previously-shipped version, which
-  // by definition already passed a gate) and beta promotion is exempt (the gate
-  // guards production only).
+  // by definition already passed a gate). Every promote — with no exception —
+  // re-runs the full gate below (there is no beta/other promote path).
   if (body.action === 'promote') {
     try {
       const gate = await evaluateReleaseGate(copilotId, versionId)

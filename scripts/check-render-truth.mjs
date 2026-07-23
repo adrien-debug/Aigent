@@ -122,8 +122,6 @@ const KNOWN_DEBT = new Set([
   // AIGENT-UI-TRUTH-026 wave 2 — a run whose tool calls were never counted is
   // not a run with zero tool calls.
   'src/app/admin/agents/[id]/runs/page.tsx',
-  // Multiplying an unmeasured success rate by a total invents a completed count.
-  'src/components/agent-ops/telemetry/telemetry-kpi-band.tsx',
 ])
 
 async function* walk(dir) {
