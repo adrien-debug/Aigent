@@ -5,6 +5,7 @@ import { ShieldCheckIcon, ServerStackIcon, LockClosedIcon, CogIcon } from '@hero
 import { SurfaceCard, SurfaceCardHeader, AdminPageHeader, surfaceItemClass } from '@/components/agent-ops/surface-card'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
 import { SettingsGuardrails } from '@/components/agent-ops/settings-guardrails'
+import { isLangfuseConfigured } from '@/lib/agent-mission-control/langfuse'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,6 +27,7 @@ function Kv({ label, children, icon: Icon }: { label: string; children: React.Re
 
 export default function SettingsPage() {
   const backendConfigured = process.env.AMC_DATA_SOURCE === 'gpu1' && Boolean(process.env.AMC_SUPABASE_URL)
+  const tracesConfigured = isLangfuseConfigured()
 
   return (
     <div className="flex flex-col gap-8 pb-12">
@@ -82,7 +84,11 @@ export default function SettingsPage() {
                 <Kv label="Model routing">Multi-provider</Kv>
                 <Kv label="Fallbacks">Explicit · opt-in only</Kv>
                 <Kv label="External traces">
-                  <span className="text-zinc-500">Not configured</span>
+                  {tracesConfigured ? (
+                    <span className="text-accent-400">Configured · Langfuse</span>
+                  ) : (
+                    <span className="text-zinc-500">Not configured</span>
+                  )}
                 </Kv>
                 <Kv label="Tool calls">No external write</Kv>
               </div>
