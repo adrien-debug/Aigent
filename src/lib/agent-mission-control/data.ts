@@ -157,9 +157,19 @@ function enrichCopilot(
     unavailable.delete(metric)
   }
 
+  // A quality score is a MEASUREMENT only when a real run backs it. A value that
+  // survives in the stored blob without run evidence is a creation placeholder
+  // (`health: { testPassRate: 0, benchmarkScore: 0, ... }` seeded at authoring),
+  // NOT a measured 0 — the only true stored scores (persist-trading-scores) were
+  // removed. So prove from run-backed truth, else FORCE the field unavailable so
+  // the view shows a dash instead of a fabricated 0%. (24h fields below are
+  // always run-backed via kpi24h, where an empty window is a real measured 0.)
   if (resolved && resolved.testPassRate !== null) prove('testPassRate', resolved.testPassRate)
+  else unavailable.add('testPassRate')
   if (resolved && resolved.benchmarkScore !== null) prove('benchmarkScore', resolved.benchmarkScore)
+  else unavailable.add('benchmarkScore')
   if (resolved && resolved.avgLatencyMs !== null) prove('avgLatencyMs', resolved.avgLatencyMs)
+  else unavailable.add('avgLatencyMs')
   // Overwrite the stale 24h blob with run-backed truth (same pattern as above).
   // Always applied — an absence of 24h runs is a real 0, not "keep the old lie".
   if (kpi24h) {
