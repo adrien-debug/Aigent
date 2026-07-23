@@ -30,6 +30,14 @@ services:
     # No host `ports:` — the server is reachable only in-network, via caddy.
     expose:
       - "2024"
+    # The Docker embedded resolver (127.0.0.11) on nexus-net forwards to invalid
+    # upstream servers (confirmed 2026-07-16): external lookups (api.openai.com)
+    # fail EAI_AGAIN, so the graph's OpenAI calls error "Connection error."
+    # intermittently. Explicit public resolvers bypass the broken embedded
+    # forwarder — the same workaround the app compose already carries.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     environment:
       # --- Auth gate (fail-closed). REQUIRED or the server 503s every request. ---
       # Note: /internal/* routes are NOT covered by this auth gate — they are
