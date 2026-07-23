@@ -1,0 +1,50 @@
+{
+  "route": "/ and /about",
+  "repo": "adrien-debug/Aigent",
+  "branch": "feat/landing-self-improving-positioning",
+  "pr": "https://github.com/adrien-debug/Aigent/pull/15",
+  "commit": "8188c8d1410b81032320f67121b2bad307f7aa0c",
+  "date": "2026-07-23",
+  "browser": "Chromium via Playwright MCP",
+  "buildSource": "next build + next start on a scratch port (3299), not the dev instance running on 3210 for Adrien's session — that instance was never stopped or restarted",
+  "testStatus": {
+    "verify": "PASS — typecheck, lint, all check:* guards, 1215 unit tests, next build",
+    "consoleErrors": "0 across every captured viewport"
+  },
+  "productCapturesSource": "docs/product-audit/aigent/ — real screenshots from the already-running local instance (port 3210, Adrien's session), not fabricated",
+  "captures": [
+    {
+      "file": "desktop-1440x900.png",
+      "route": "/",
+      "viewport": "1440x900",
+      "consoleErrors": 0
+    },
+    {
+      "file": "laptop-1280x800.png",
+      "route": "/",
+      "viewport": "1280x800",
+      "consoleErrors": 0
+    },
+    {
+      "file": "mobile-375x812.png",
+      "route": "/",
+      "viewport": "375x812",
+      "consoleErrors": 0
+    },
+    {
+      "file": "self-improving-section.png",
+      "route": "/",
+      "viewport": "1440x900 (detail crop)",
+      "consoleErrors": 0
+    },
+    {
+      "file": "multi-agent-section.png",
+      "route": "/",
+      "viewport": "1440x900 (detail crop)",
+      "consoleErrors": 0
+    }
+  ],
+  "additionalViewportsChecked": [
+    "390x844 — zero console errors, not separately screenshotted (covered by 375x812)"
+  ]
+}

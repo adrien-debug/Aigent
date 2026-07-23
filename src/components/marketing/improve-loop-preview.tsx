@@ -1,18 +1,21 @@
 import clsx from 'clsx'
 
 /**
- * A static, decorative preview of the improvement loop (analyze → propose →
- * create-v2 → compare → decide — see docs/agent-authoring.md §1c and
- * src/components/agent-ops/improve-workbench.tsx for the real screen). Pure
- * markup, no data, no interactivity, same doctrine as console-preview.tsx.
+ * A static, decorative representation of the improvement loop (analyze →
+ * propose → create V2 → compare → decide — see docs/agent-authoring.md §1c
+ * and src/components/agent-ops/improve-workbench.tsx for the real screen).
+ * Pure markup, no data, no interactivity — same approach already used by
+ * console-preview.tsx: a marketing illustration, not a product screenshot.
+ * Vertical on mobile so every label and detail stays fully readable; a row
+ * of five only above `lg`, where there is room for it.
  */
 
 const STEPS = [
   { label: 'Analyze', detail: 'Root-causes failing runs, tests, and benchmark scores' },
-  { label: 'Propose', detail: 'Strict-JSON manifest patch — never free-form prose' },
-  { label: 'Create V2', detail: 'Real draft version, re-provisioned, still unpromoted' },
-  { label: 'Compare', detail: 'Latest completed runs per version, recomputed live' },
-  { label: 'Decide', detail: 'Human approves or rejects — the only promotion gate' },
+  { label: 'Propose', detail: 'Drafts a structured change to the agent manifest' },
+  { label: 'Create V2', detail: 'A new draft version — the current one keeps running' },
+  { label: 'Compare', detail: 'Both versions, side by side, on the same evidence' },
+  { label: 'Decide', detail: 'A human approves or rejects — nothing ships on its own' },
 ] as const
 
 export function ImproveLoopPreview({ className }: { className?: string }) {
@@ -31,16 +34,16 @@ export function ImproveLoopPreview({ className }: { className?: string }) {
         <span className="ml-3 text-xs font-medium text-zinc-500">Improvement loop — market-intelligence</span>
       </div>
 
-      <div className="grid grid-cols-1 gap-px bg-white/5 sm:grid-cols-5">
+      <div className="grid grid-cols-1 gap-px bg-white/5 lg:grid-cols-5">
         {STEPS.map((step, i) => (
           <div key={step.label} className="flex flex-col gap-2 bg-zinc-900/80 p-4">
             <div className="flex items-center gap-2">
-              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-500/15 text-[10px] font-semibold text-accent-400">
+              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-500/15 text-[11px] font-semibold text-accent-400">
                 {i + 1}
               </span>
-              <span className="text-xs font-semibold text-white">{step.label}</span>
+              <span className="text-sm font-semibold text-white">{step.label}</span>
             </div>
-            <p className="text-[11px] leading-snug text-zinc-500">{step.detail}</p>
+            <p className="text-xs leading-snug text-zinc-500">{step.detail}</p>
           </div>
         ))}
       </div>

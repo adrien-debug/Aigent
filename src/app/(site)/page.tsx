@@ -21,7 +21,7 @@ import { TeamCanvasPreview } from '@/components/marketing/team-canvas-preview'
 export const metadata: Metadata = {
   title: 'Agent Mission Control — the self-improving agent platform',
   description:
-    'Build agents, orchestrate multi-agent teams, connect tools, test different models, benchmark performance, and let Aigent propose improvements — every promotion still needs your sign-off.',
+    'Aigent benchmarks every run, proposes improvements from the results, and lets you decide what ships. Build agents, orchestrate multi-agent teams, connect the tools they need, and choose the right model for each one.',
 }
 
 const primaryFeatures = [
@@ -48,17 +48,17 @@ const primaryFeatures = [
 const platformFeatures = [
   {
     name: 'Multi-agent teams.',
-    description: 'Group copilots into a team per project and see how they actually relate — who depends on whom, who shares a tool, who orchestrates the run.',
+    description: 'Group copilots into a team per project and see how they actually relate — who depends on whom, who shares a tool, who coordinates the run.',
     icon: RectangleGroupIcon,
   },
   {
-    name: 'Any model, per copilot.',
-    description: 'Route a copilot to OpenAI, Gemini, or a local vLLM deployment — provider is a per-copilot setting, not a platform-wide lock-in.',
+    name: 'Choose the right model for each agent.',
+    description: 'Route individual agents to OpenAI, Gemini, or supported local model infrastructure — without locking the whole platform to one provider.',
     icon: Squares2X2Icon,
   },
   {
-    name: 'GitHub-native.',
-    description: 'Runtime code the platform generates pushes straight to your repo, reviewed like any other change.',
+    name: 'Connect the tools your agents need.',
+    description: 'Assign tools per agent from the registry, and expand it as new integrations are added.',
     icon: CodeBracketSquareIcon,
   },
   {
@@ -140,8 +140,9 @@ export default function LandingPage() {
               The self-improving agent platform
             </h1>
             <p className="mt-8 text-lg font-medium text-pretty text-zinc-400 sm:text-xl/8">
-              Build agents, orchestrate multi-agent teams, connect tools, and test different models. Aigent
-              benchmarks every run, then proposes improvements from the results — you decide what ships.
+              Build agents, orchestrate multi-agent teams, connect the tools they need, and choose the right model
+              for each one. Aigent benchmarks every run, proposes improvements from the results, and lets you
+              decide what ships.
             </p>
             <div className="mt-10 flex items-center gap-x-6">
               <Link
@@ -199,14 +200,15 @@ export default function LandingPage() {
           <div className="mx-auto max-w-2xl sm:text-center">
             <h2 className="inline-flex items-center gap-x-2 text-base/7 font-semibold text-accent-400 sm:justify-center">
               <SparklesIcon aria-hidden="true" className="size-4" />
-              The loop that makes it self-improving
+              The loop that makes every agent better
             </h2>
             <p className="mt-2 text-4xl font-semibold tracking-tight text-pretty text-white sm:text-5xl sm:text-balance">
-              Aigent proposes the fix — you approve it
+              Analyze, propose, compare, decide
             </p>
             <p className="mt-6 text-lg/8 text-zinc-400">
-              A copilot&apos;s real runs, failing tests, and benchmark scores feed an analysis that root-causes the
-              problem and drafts a manifest patch. It only ships when a human decides it should.
+              Analyze real outcomes, propose a new version, compare the results, and promote only what you
+              approve. Aigent never replaces a running agent on its own — a new version is created alongside the
+              current one, and a person decides which one ships.
             </p>
           </div>
         </div>
@@ -239,11 +241,12 @@ export default function LandingPage() {
           <div className="mx-auto max-w-2xl sm:text-center">
             <h2 className="text-base/7 font-semibold text-accent-400">Beyond a single agent</h2>
             <p className="mt-2 text-4xl font-semibold tracking-tight text-pretty text-white sm:text-5xl sm:text-balance">
-              Orchestrate multi-agent teams, connect any tool
+              Orchestrate specialized agents as one team
             </p>
             <p className="mt-6 text-lg/8 text-zinc-400">
-              Every project has a team — agents grouped by role, with the dependencies, shared tools, and
-              orchestration between them made visible instead of assumed.
+              Every project has a team: each agent has a role, and the canvas shows how they relate — who depends
+              on whom, who shares a tool, which agent coordinates the others. Tool access and model choice are set
+              per agent; running the team is a separate step, gated the same way a single agent is.
             </p>
           </div>
         </div>
