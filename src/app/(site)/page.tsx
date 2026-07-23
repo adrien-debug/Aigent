@@ -6,17 +6,22 @@ import {
   CloudArrowUpIcon,
   CodeBracketSquareIcon,
   CpuChipIcon,
+  RectangleGroupIcon,
   ShieldCheckIcon,
+  SparklesIcon,
+  Squares2X2Icon,
 } from '@heroicons/react/20/solid'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { ConsolePreview } from '@/components/marketing/console-preview'
+import { ImproveLoopPreview } from '@/components/marketing/improve-loop-preview'
+import { TeamCanvasPreview } from '@/components/marketing/team-canvas-preview'
 
 export const metadata: Metadata = {
-  title: 'Agent Mission Control — the control plane for production AI agents',
+  title: 'Agent Mission Control — the self-improving agent platform',
   description:
-    'Configure copilots, run them for real, benchmark every change, and promote to production with human-in-the-loop confirmation — all from one console.',
+    'Build agents, orchestrate multi-agent teams, connect tools, test different models, benchmark performance, and let Aigent propose improvements — every promotion still needs your sign-off.',
 }
 
 const primaryFeatures = [
@@ -40,11 +45,16 @@ const primaryFeatures = [
   },
 ]
 
-const secondaryFeatures = [
+const platformFeatures = [
   {
-    name: 'Benchmark suites.',
-    description: 'Score copilots against curated test sets before every promotion — regressions get caught, not shipped.',
-    icon: BeakerIcon,
+    name: 'Multi-agent teams.',
+    description: 'Group copilots into a team per project and see how they actually relate — who depends on whom, who shares a tool, who orchestrates the run.',
+    icon: RectangleGroupIcon,
+  },
+  {
+    name: 'Any model, per copilot.',
+    description: 'Route a copilot to OpenAI, Gemini, or a local vLLM deployment — provider is a per-copilot setting, not a platform-wide lock-in.',
+    icon: Squares2X2Icon,
   },
   {
     name: 'GitHub-native.',
@@ -55,6 +65,14 @@ const secondaryFeatures = [
     name: 'Test suites.',
     description: 'Attach repeatable test cases to any copilot version and re-run them on every change.',
     icon: ArrowPathIcon,
+  },
+]
+
+const secondaryFeatures = [
+  {
+    name: 'Benchmark suites.',
+    description: 'Score copilots against curated test sets before every promotion — regressions get caught, not shipped.',
+    icon: BeakerIcon,
   },
   {
     name: 'Staged promotion.',
@@ -119,11 +137,11 @@ export default function LandingPage() {
               </Link>
             </div>
             <h1 className="mt-10 text-5xl font-semibold tracking-tight text-pretty text-white sm:text-7xl">
-              Ship AI agents you can trust in production
+              The self-improving agent platform
             </h1>
             <p className="mt-8 text-lg font-medium text-pretty text-zinc-400 sm:text-xl/8">
-              Agent Mission Control is the console for configuring copilots, running them against real workloads,
-              benchmarking every change, and promoting to production behind human-in-the-loop confirmation gates.
+              Build agents, orchestrate multi-agent teams, connect tools, and test different models. Aigent
+              benchmarks every run, then proposes improvements from the results — you decide what ships.
             </p>
             <div className="mt-10 flex items-center gap-x-6">
               <Link
@@ -175,23 +193,63 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Secondary feature section */}
+      {/* Self-improving loop section */}
       <div className="mt-32 sm:mt-56">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl sm:text-center">
-            <h2 className="text-base/7 font-semibold text-accent-400">Built for the whole lifecycle</h2>
+            <h2 className="inline-flex items-center gap-x-2 text-base/7 font-semibold text-accent-400 sm:justify-center">
+              <SparklesIcon aria-hidden="true" className="size-4" />
+              The loop that makes it self-improving
+            </h2>
             <p className="mt-2 text-4xl font-semibold tracking-tight text-pretty text-white sm:text-5xl sm:text-balance">
-              From first draft to production traffic
+              Aigent proposes the fix — you approve it
             </p>
             <p className="mt-6 text-lg/8 text-zinc-400">
-              Benchmarks, tests, and staged promotion gates keep every copilot accountable before it touches a real
-              user.
+              A copilot&apos;s real runs, failing tests, and benchmark scores feed an analysis that root-causes the
+              problem and drafts a manifest patch. It only ships when a human decides it should.
             </p>
           </div>
         </div>
         <div className="relative overflow-hidden pt-16">
           <div className="mx-auto max-w-6xl px-6 lg:px-8">
-            <ConsolePreview className="mb-[-4%]" />
+            <ImproveLoopPreview className="mb-[-4%]" />
+            <div aria-hidden="true" className="relative">
+              <div className="absolute -inset-x-20 bottom-0 bg-linear-to-t from-zinc-950 pt-[7%]" />
+            </div>
+          </div>
+        </div>
+        <div className="mx-auto mt-16 max-w-7xl px-6 sm:mt-20 md:mt-24 lg:px-8">
+          <dl className="mx-auto grid max-w-2xl grid-cols-1 gap-x-6 gap-y-10 text-base/7 text-zinc-400 sm:grid-cols-2 lg:mx-0 lg:max-w-none lg:gap-x-8 lg:gap-y-16">
+            {secondaryFeatures.map((feature) => (
+              <div key={feature.name} className="relative pl-9">
+                <dt className="inline font-semibold text-white">
+                  <feature.icon aria-hidden="true" className="absolute top-1 left-1 size-5 text-accent-400" />
+                  {feature.name}
+                </dt>{' '}
+                <dd className="inline">{feature.description}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </div>
+
+      {/* Orchestration & tooling section */}
+      <div className="mt-32 sm:mt-56">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl sm:text-center">
+            <h2 className="text-base/7 font-semibold text-accent-400">Beyond a single agent</h2>
+            <p className="mt-2 text-4xl font-semibold tracking-tight text-pretty text-white sm:text-5xl sm:text-balance">
+              Orchestrate multi-agent teams, connect any tool
+            </p>
+            <p className="mt-6 text-lg/8 text-zinc-400">
+              Every project has a team — agents grouped by role, with the dependencies, shared tools, and
+              orchestration between them made visible instead of assumed.
+            </p>
+          </div>
+        </div>
+        <div className="relative overflow-hidden pt-16">
+          <div className="mx-auto max-w-6xl px-6 lg:px-8">
+            <TeamCanvasPreview className="mb-[-4%]" />
             <div aria-hidden="true" className="relative">
               <div className="absolute -inset-x-20 bottom-0 bg-linear-to-t from-zinc-950 pt-[7%]" />
             </div>
@@ -199,7 +257,7 @@ export default function LandingPage() {
         </div>
         <div className="mx-auto mt-16 max-w-7xl px-6 sm:mt-20 md:mt-24 lg:px-8">
           <dl className="mx-auto grid max-w-2xl grid-cols-1 gap-x-6 gap-y-10 text-base/7 text-zinc-400 sm:grid-cols-2 lg:mx-0 lg:max-w-none lg:grid-cols-4 lg:gap-x-8 lg:gap-y-16">
-            {secondaryFeatures.map((feature) => (
+            {platformFeatures.map((feature) => (
               <div key={feature.name} className="relative pl-9">
                 <dt className="inline font-semibold text-white">
                   <feature.icon aria-hidden="true" className="absolute top-1 left-1 size-5 text-accent-400" />
