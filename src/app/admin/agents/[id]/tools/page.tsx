@@ -58,7 +58,7 @@ export default async function AgentToolsPage({ params }: { params: Promise<{ id:
   const detail = await getAgentDetail(id)
   if (!detail) notFound()
 
-  const { tools, agent } = detail
+  const { tools, agent, metrics } = detail
   const unresolved = new Set(agent?.unresolvedToolIds ?? [])
 
   // Counted by nature, not by policy. `agent.unavailableFields` carries the
@@ -70,6 +70,21 @@ export default async function AgentToolsPage({ params }: { params: Promise<{ id:
   const confirmRequired = tools.filter((t) => t.requiresConfirmation).length
   const disabled = tools.filter((t) => !t.enabled).length
 
+  // The RUNTIME dimension, distinct from "declared" (Total) and "resolved"
+  // (Total − Unresolved): did a completed run actually INVOKE any tool? A real
+  // MEASURED 0 with resolved tools present is the LangGraph "healthy catalogue /
+  // toolless execution" trap — the tools resolve to handlers but were never
+  // mounted on the assistant at run time, so the model never called them. UNKNOWN
+  // (no completed run) shows "—", never a fabricated 0.
+  const resolved = tools.length - unresolved.size
+  const toolCallsMeasured = metrics.toolCallCountState === 'MEASURED'
+  const toolCallsNote =
+    toolCallsMeasured && metrics.toolCallCount === 0 && resolved > 0
+      ? 'resolved but never invoked — may not be mounted at runtime'
+      : toolCallsMeasured
+        ? undefined
+        : 'no completed run to measure'
+
   const groups = new Map<string, ToolDefinition[]>()
   for (const tool of tools) {
     const g = groupOf(tool)
@@ -80,7 +95,7 @@ export default async function AgentToolsPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="flex flex-col gap-6">
-      <dl className={`grid grid-cols-2 gap-px overflow-hidden rounded-xl md:grid-cols-5 ${surfaceSectionClass}`}>
+      <dl className={`grid grid-cols-2 gap-px overflow-hidden rounded-xl md:grid-cols-6 ${surfaceSectionClass}`}>
         {[
           { label: 'Total', value: tools.length },
           {
@@ -99,6 +114,9 @@ export default async function AgentToolsPage({ params }: { params: Promise<{ id:
           { label: 'Needs confirmation', value: confirmRequired },
           { label: 'Disabled', value: disabled },
           { label: 'Unresolved', value: unresolved.size },
+          // The "called" dimension — a run-time fact, not a declaration. Makes
+          // the toolless-execution trap legible next to declared/resolved.
+          { label: 'Tool calls', value: toolCallsMeasured ? metrics.toolCallCount : '—', note: toolCallsNote },
         ].map((cell) => (
           <div key={cell.label} className="px-5 py-4">
             <dt className={eyebrowClass}>{cell.label}</dt>
