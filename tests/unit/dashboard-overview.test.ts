@@ -280,6 +280,9 @@ describe('assembleDashboardOverview fail-soft', () => {
         projectId: 'proj-trade',
         status: 'active',
         healthEvidence: 'runs',
+        // testPassRate is PROVEN here (not in the unavailable list) — the rollup
+        // now counts a rate only when it is proven, never the placeholder 0.
+        healthUnavailableFields: [],
         health: {
           testPassRate: 0.8,
           benchmarkScore: 90,

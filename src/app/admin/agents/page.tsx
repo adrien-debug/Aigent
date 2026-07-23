@@ -114,7 +114,12 @@ export default async function AgentsPage() {
                   // `healthEvidence === 'runs'` is the same gate the dashboard project
                   // rollup uses to trust `testPassRate`: no run-backed evidence means
                   // the stored blob is a zero-init baseline, not a real 0% score.
-                  const hasSuccessSignal = health?.healthEvidence === 'runs'
+                  // testPassRate is a PLACEHOLDER 0 when unproven (data.ts) — gate
+                  // on healthUnavailableFields, NOT healthEvidence (true for a
+                  // benchmark-only agent whose testPassRate is 0 → fabricated 0%).
+                  const hasSuccessSignal =
+                    health?.healthUnavailableFields !== undefined &&
+                    !health.healthUnavailableFields.includes('testPassRate')
                   // `runsLast24h > 0` is the same gate `DashboardProjectList` uses for
                   // `costLast24hUsd`: zero runs in the window means the cost is
                   // unmeasured, never a real $0.

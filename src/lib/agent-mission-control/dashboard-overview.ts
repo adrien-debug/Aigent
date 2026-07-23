@@ -218,7 +218,12 @@ export function buildProjectOverview(projects: Project[], copilots: Copilot[]): 
     if (copilot.status === 'active') current.activeCount += 1
     current.runsLast24h += copilot.health.runsLast24h
     current.costLast24hUsd += copilot.health.costLast24hUsd
-    if (copilot.healthEvidence === 'runs') current.passRates.push(copilot.health.testPassRate)
+    // testPassRate is a PLACEHOLDER 0 when unproven (data.ts normalizeHealth) —
+    // only push a PROVEN rate into the project mean; healthEvidence is 'runs' for
+    // a benchmark-only copilot whose testPassRate is 0, which would drag the mean.
+    if (copilot.healthUnavailableFields && !copilot.healthUnavailableFields.includes('testPassRate')) {
+      current.passRates.push(copilot.health.testPassRate)
+    }
     rollups.set(copilot.projectId, current)
   }
 

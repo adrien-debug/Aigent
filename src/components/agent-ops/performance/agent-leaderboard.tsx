@@ -40,7 +40,12 @@ const numberFormat = new Intl.NumberFormat('en-US')
  * Pass Rate stays zinc tabular — accent is reserved for the rank-1 mark only.
  */
 function leaderboardScore(copilot: Copilot): number | null {
-  if (copilot.healthEvidence !== 'runs') return null
+  // testPassRate is a PLACEHOLDER 0 when unproven (data.ts normalizeHealth) — the
+  // authoritative "is it measured" signal is healthUnavailableFields, NOT
+  // healthEvidence (true for a benchmark-only copilot whose testPassRate is 0).
+  if (!copilot.healthUnavailableFields || copilot.healthUnavailableFields.includes('testPassRate')) {
+    return null
+  }
   return copilot.health.testPassRate * Math.log1p(copilot.health.runsLast24h)
 }
 
@@ -142,14 +147,15 @@ export function AgentLeaderboard({
                   </div>
                 </TableCell>
                 <TableCell className="py-2 text-right">
-                  {copilot.health.testPassRate !== null ? (
+                  {copilot.healthUnavailableFields && !copilot.healthUnavailableFields.includes('testPassRate') ? (
                     <span className="text-sm font-mono tabular-nums text-zinc-300">
                       {formatPercent(copilot.health.testPassRate)}
                     </span>
                   ) : (
-                    // healthEvidence==='runs' is true for a benchmark-ONLY copilot
-                    // too, but testPassRate is null there — gating on it (not the
-                    // evidence flag) stops a fabricated "0.0%" pass rate.
+                    // testPassRate is a PLACEHOLDER 0 when unproven — gate on
+                    // healthUnavailableFields (authoritative), NOT healthEvidence
+                    // (true for a benchmark-only copilot) nor a null check (the
+                    // placeholder is 0, never null). Fabricated "0.0%" otherwise.
                     <span className="text-xs text-zinc-600">—</span>
                   )}
                 </TableCell>
