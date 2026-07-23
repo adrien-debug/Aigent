@@ -10,6 +10,13 @@ const numberFormat = new Intl.NumberFormat('en-US')
  * FleetKpiBand's canon (AgentKpiBand + SplitBar, one accent). Everything
  * derives from summarizeFleetRuntimeTelemetry() — a signal without data
  * renders '—', never a fabricated number.
+ *
+ * "Tool Calls" surfaces the AGENTS.md LangGraph trap at the fleet level:
+ * `invoked / signaled` runs, plus a hint calling out how many completed runs
+ * carried a tool signal but invoked zero tools — a catalogue can look
+ * healthy (runs complete) while every run reached the model with no tool
+ * mounted. Renders '—' when the emitter never reports the signal at all
+ * (`toolSignals.state !== 'MEASURED'`), never a fabricated 0.
  */
 export function TelemetryKpiBand({
   summary,
@@ -60,6 +67,27 @@ export function TelemetryKpiBand({
       name: 'Total Tokens',
       value: summary.totalTokens === null ? '—' : numberFormat.format(summary.totalTokens),
       valueTone: 'muted',
+      hint: summary.measurement.tokens === 'UNAVAILABLE' ? 'not reported by emitter' : undefined,
+    },
+    {
+      name: 'Tool Calls',
+      value:
+        summary.toolSignals.state !== 'MEASURED'
+          ? '—'
+          : `${numberFormat.format(summary.toolSignals.runsInvokedTools ?? 0)} / ${numberFormat.format(
+              summary.toolSignals.runsWithToolSignal ?? 0
+            )}`,
+      valueTone:
+        summary.toolSignals.state === 'MEASURED' &&
+        (summary.toolSignals.runsExecutedWithoutTools ?? 0) > 0
+          ? 'default'
+          : 'muted',
+      hint:
+        summary.toolSignals.state !== 'MEASURED'
+          ? 'not reported by emitter'
+          : (summary.toolSignals.runsExecutedWithoutTools ?? 0) > 0
+            ? `${numberFormat.format(summary.toolSignals.runsExecutedWithoutTools ?? 0)} ran without invoking a tool`
+            : 'every signaled run invoked a tool',
     },
   ]
 

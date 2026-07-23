@@ -63,6 +63,14 @@ const KNOWN_DEBT = new Set([
   // Summary-strip counter names, not agent statuses — but spelled with the same
   // words on the same screen, which is precisely the confusion to remove.
   'src/components/agent-ops/project-team/project-team-view.tsx',
+  // AIGENT-COCKPIT-030 — these compare a TelemetryMeasurementState value
+  // (`'MEASURED' | 'UNAVAILABLE' | 'NOT_APPLICABLE'`, telemetry provenance from
+  // runtime-telemetry-store.ts), NOT an agent status. The word collides with the
+  // agent-status `unavailable`, but the vocabulary is different and correct — a
+  // measurement's provenance is data, it never keys off labels.ts. Shrink-only:
+  // the guard fails if either file stops using the measurement-state literal.
+  'src/components/agent-ops/telemetry/telemetry-error-breakdown.tsx',
+  'src/components/agent-ops/telemetry/telemetry-kpi-band.tsx',
 ])
 
 async function* walk(dir) {

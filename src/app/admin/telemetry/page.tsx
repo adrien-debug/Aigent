@@ -109,7 +109,10 @@ export default async function TelemetryPage() {
           </StaggerFade>
 
           <StaggerFade delay={2}>
-            <TelemetryErrorBreakdown categories={summary.topErrorCategories} />
+            <TelemetryErrorBreakdown
+              categories={summary.topErrorCategories}
+              categoriesState={summary.measurement.errorCategories}
+            />
           </StaggerFade>
 
           <StaggerFade delay={3}>

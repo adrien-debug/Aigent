@@ -105,6 +105,10 @@ export function TelemetryEventsTable({
                         <span className="block max-w-32 truncate text-xs text-accent-400" title={category}>
                           {category}
                         </span>
+                      ) : event.status === 'failed' ? (
+                        <span className="text-xs text-zinc-600" title="failed, but no error.category reported">
+                          not reported
+                        </span>
                       ) : (
                         <span className="text-xs text-zinc-600">—</span>
                       )}
