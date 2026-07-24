@@ -19,6 +19,7 @@ import 'server-only'
 import { z } from 'zod'
 import { DvfHttpProvider, type DvfQuery, type ProviderContext } from './provider'
 import { ApifyListingsProvider, LISTING_PORTALS, type ListingPortal, type ListingsQuery } from './apify-provider'
+import { GeoResolver } from './geo-resolver'
 
 export interface RealEstateToolResult {
   ok: boolean
@@ -150,12 +151,53 @@ export async function readMarketListings(argsJson: string): Promise<RealEstateTo
 }
 
 // ---------------------------------------------------------------------------
+// resolve_address_to_section
+// ---------------------------------------------------------------------------
+
+const resolveArgs = z.object({
+  address: z.string().min(1).max(300),
+  asOf: z.number().int().optional(),
+})
+
+export async function resolveAddressToSection(argsJson: string): Promise<RealEstateToolResult> {
+  const a = parse(resolveArgs, argsJson)
+  if ('__err' in a) return err('resolve_address_to_section', a.__err)
+
+  const resolver = new GeoResolver()
+  const res = await resolver.resolve(a.address, { asOf: a.asOf ?? Date.now() })
+  if (!res.value) {
+    return {
+      ok: false,
+      data: { location: null, truth: 'UNAVAILABLE', reason: res.provenance.unavailableReason },
+      summary: `resolve '${a.address}' UNAVAILABLE: ${res.provenance.unavailableReason ?? 'no source'}`,
+    }
+  }
+  const v = res.value
+  return {
+    ok: true,
+    data: {
+      inseeCode: v.inseeCode,
+      section: v.section,
+      lat: v.lat,
+      lon: v.lon,
+      parcelId: v.parcelId,
+      label: v.label,
+      geocode_score: v.geocodeScore,
+      truth: res.provenance.truth,
+      source: res.provenance.source,
+    },
+    summary: `resolved '${a.address}' → INSEE ${v.inseeCode}, section ${v.section} (feed these to read_dvf_comparables)`,
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Registry — keyed by manifest tool name.
 // ---------------------------------------------------------------------------
 
 export type RealEstateToolHandler = (argsJson: string) => Promise<RealEstateToolResult>
 
 export const REALESTATE_TOOL_HANDLERS: Readonly<Record<string, RealEstateToolHandler>> = {
+  resolve_address_to_section: resolveAddressToSection,
   read_dvf_comparables: readDvfComparables,
   read_market_listings: readMarketListings,
 }

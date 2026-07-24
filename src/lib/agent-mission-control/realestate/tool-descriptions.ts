@@ -14,6 +14,13 @@
  */
 
 export const REALESTATE_TOOL_DESCRIPTIONS: Readonly<Record<string, string>> = {
+  resolve_address_to_section:
+    'Resolve a French postal address to the INSEE commune code + cadastral section that read_dvf_comparables needs, plus lat/lon. ' +
+    'Args JSON: {"address": <free-text French address, e.g. "24 Bd des Lentisques 06600 Antibes">}. ' +
+    'Example: {"address":"24 Bd des Lentisques 06600 Antibes"}. ' +
+    'Read-only, public official sources (BAN geocoding + IGN cadastre), no key. Returns {inseeCode, section, lat, lon, parcelId}. ' +
+    'CALL THIS FIRST when you have an address but not a section — then pass its inseeCode + section (and optionally lat/lon as centerLat/centerLon) to read_dvf_comparables. ' +
+    'Returns truth=UNAVAILABLE (never a guessed section) when the address does not geocode, the geocode is too ambiguous, or no cadastral parcel is found. Abstain on UNAVAILABLE.',
   read_dvf_comparables:
     'Read confirmed real estate sales (DVF — Demandes de Valeurs Foncières, French official transaction records) for a cadastral section. ' +
     'Args JSON: {"inseeCode": <5-char INSEE commune code, e.g. "06004" for Antibes>, "section": <REQUIRED cadastral section prefix, format com_abs(3)+section(2) e.g. "000AH">, "propertyType"?: "appartement"|"maison", "fromDate"?: <ISO "YYYY-MM-DD">, "toDate"?: <ISO "YYYY-MM-DD">, "centerLat"?: number, "centerLon"?: number, "radiusMeters"?: number}. ' +
