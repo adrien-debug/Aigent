@@ -31,6 +31,9 @@ import { guardedFetch } from './http-guard.mjs'
 const MAX_BODY_CHARS = 8000
 const HTTP_TIMEOUT_MS = 10_000
 const MARKET_TOOL_TIMEOUT_MS = 15_000
+// DVF (Etalab) and Apify (sync actor run) can be slow — same order of
+// magnitude as their own provider-side timeouts (6s / 120s respectively).
+const REALESTATE_TOOL_TIMEOUT_MS = 130_000
 
 function truncate(text, max = MAX_BODY_CHARS) {
   if (typeof text !== 'string') text = String(text)
@@ -466,6 +469,112 @@ function makeMarketReadTool(name) {
   )
 }
 
+// --- Canonical real-estate reads via the authenticated Next server boundary
+// Same shape as the market block above: the canonical handlers live in
+// realestate/tools.ts (`server-only`), so the Agent Server — a separate Node
+// process — calls the protected internal bridge route instead of duplicating
+// provider/truth/provenance logic here. Descriptions are copied from
+// realestate/tool-descriptions.ts (that TS module is not importable from this
+// plain .mjs process without a build step) — keep the two in sync by hand,
+// exactly the existing discipline for MARKET_TOOL_SPECS.
+
+const REALESTATE_PROPERTY_TYPE_SCHEMA = z.enum(['appartement', 'maison'])
+const REALESTATE_PORTAL_SCHEMA = z.enum(['leboncoin', 'seloger', 'bienici', 'pap'])
+
+const REALESTATE_TOOL_SPECS = {
+  read_dvf_comparables: {
+    description:
+      'Read confirmed real estate sales (DVF — Demandes de Valeurs Foncières, French official transaction records) for a cadastral section. ' +
+      'Args JSON: {"inseeCode": <5-char INSEE commune code, e.g. "06004" for Antibes>, "section": <REQUIRED cadastral section prefix, format com_abs(3)+section(2) e.g. "000AH">, "propertyType"?: "appartement"|"maison", "fromDate"?: <ISO "YYYY-MM-DD">, "toDate"?: <ISO "YYYY-MM-DD">, "centerLat"?: number, "centerLon"?: number, "radiusMeters"?: number}. ' +
+      'Example: {"inseeCode":"06004","section":"000AH","propertyType":"appartement","fromDate":"2023-01-01"}. ' +
+      'The section is REQUIRED (the endpoint is addressed by commune+section; omitting it returns UNAVAILABLE). Resolve an address to a section upstream (geocode → cadastre parcel). ' +
+      'Read-only, official public source. Prices are decimal strings, never floats; multi-lot sales are deduplicated so a price is never counted twice. ' +
+      'Every result is truth=HISTORICAL (DVF lags the signature by ~6 months — never present it as the current market price). ' +
+      'Returns truth=UNAVAILABLE (never a fabricated comparable) when: the commune is in DVF\'s coverage gap (Alsace-Moselle départements 67/68/57, Mayotte 976), the source is unreachable, or no mutation matches. Abstain on UNAVAILABLE — do NOT invent a comparable or a price.',
+    schema: z.object({
+      inseeCode: z.string().length(5),
+      section: z.string().min(1).max(10),
+      propertyType: REALESTATE_PROPERTY_TYPE_SCHEMA.optional(),
+      fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      centerLat: z.number().gte(-90).lte(90).optional(),
+      centerLon: z.number().gte(-180).lte(180).optional(),
+      radiusMeters: z.number().positive().max(50000).optional(),
+      asOf: z.number().int().optional(),
+    }).strict(),
+  },
+  read_market_listings: {
+    description:
+      'Read ACTIVE portal listings (Leboncoin, SeLoger, Bien\'ici, PAP) scraped via Apify for a location. ' +
+      'Args JSON: {"location": <free text, e.g. "Antibes 06600">, "portals"?: array of ("leboncoin"|"seloger"|"bienici"|"pap"), "propertyType"?: "appartement"|"maison", "maxItems"?: 1..500}. ' +
+      'Example: {"location":"Antibes 06600","portals":["bienici","pap"],"propertyType":"appartement"}. ' +
+      'These are ASKING prices (prix demandés), truth=FALLBACK — NEVER signed sales. Do NOT mix them with read_dvf_comparables (signed, HISTORICAL): report the asking-vs-signed gap, never confuse the two. Prices are decimal strings. ' +
+      'Returns truth=UNAVAILABLE (never a fabricated listing) when APIFY_API_TOKEN is unset, the actor fails, or no listing is scraped. Abstain on UNAVAILABLE.',
+    schema: z.object({
+      location: z.string().min(1).max(200),
+      portals: z.array(REALESTATE_PORTAL_SCHEMA).min(1).max(4).optional(),
+      propertyType: REALESTATE_PROPERTY_TYPE_SCHEMA.optional(),
+      maxItems: z.number().int().min(1).max(500).optional(),
+      asOf: z.number().int().optional(),
+    }).strict(),
+  },
+}
+
+/** Canonical real-estate tool ids mounted by the LangGraph registry. */
+export const REALESTATE_TOOL_IDS = Object.freeze(Object.keys(REALESTATE_TOOL_SPECS))
+
+async function invokeRealEstateHandler(name, args) {
+  const appBase =
+    process.env.AIGENT_INTERNAL_URL?.replace(/\/+$/, '') ??
+    `http://127.0.0.1:${Number(process.env.AIGENT_DEV_PORT) || 3210}`
+  const apiKey = process.env.AMC_API_KEY
+  if (!apiKey) {
+    return JSON.stringify({ ok: false, error: 'real-estate tool bridge unavailable: AMC_API_KEY not configured' })
+  }
+
+  try {
+    const response = await fetch(
+      `${appBase}/api/agent-ops/realestate-tools/${encodeURIComponent(name)}`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-amc-key': apiKey,
+        },
+        body: JSON.stringify({ args }),
+        cache: 'no-store',
+        signal: AbortSignal.timeout(REALESTATE_TOOL_TIMEOUT_MS),
+      }
+    )
+    if (!response.ok) {
+      return JSON.stringify({
+        ok: false,
+        error: `real-estate tool bridge failed with HTTP ${response.status}`,
+      })
+    }
+    const body = await response.json()
+    return truncate(JSON.stringify(body))
+  } catch (error) {
+    const reason =
+      error instanceof Error && error.name === 'TimeoutError'
+        ? `timed out after ${REALESTATE_TOOL_TIMEOUT_MS}ms`
+        : 'real-estate tool bridge unavailable'
+    return JSON.stringify({ ok: false, error: reason })
+  }
+}
+
+function makeRealEstateReadTool(name) {
+  const spec = REALESTATE_TOOL_SPECS[name]
+  return tool(
+    async (args) => invokeRealEstateHandler(name, args),
+    {
+      name,
+      description: spec.description,
+      schema: spec.schema,
+    }
+  )
+}
+
 // --- Live PostgREST read tools (impls now live HERE — single source) -------
 // These were previously defined inline in the graph; moved here verbatim so the
 // graph consumes them from the registry and nothing is duplicated.
@@ -634,6 +743,7 @@ const REGISTRY = {
   read_tool_permissions: () => makeReadToolPermissions(),
   draft_copilot_spec: () => makeDraftCopilotSpec(),
   ...Object.fromEntries(MARKET_TOOL_IDS.map((id) => [id, () => makeMarketReadTool(id)])),
+  ...Object.fromEntries(REALESTATE_TOOL_IDS.map((id) => [id, () => makeRealEstateReadTool(id)])),
 }
 
 /** The set of all tool ids the registry can build. */

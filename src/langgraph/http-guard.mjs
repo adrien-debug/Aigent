@@ -169,12 +169,19 @@ function asRedirectRejection(rejection, allowedHosts) {
  *   readBody: (res: Response) => Promise<unknown>,
  *   headers?: Record<string, string>,
  *   maxRedirects?: number,
+ *   method?: string,
+ *   body?: BodyInit,
  * }} options
  * @returns {Promise<HttpGuardSuccess | HttpGuardRejection>}
  */
 export async function guardedFetch(rawUrl, options) {
   const { allowedHosts, timeoutMs, readBody, headers = {} } = options
   const maxRedirects = options.maxRedirects ?? MAX_HTTP_REDIRECTS
+  // Method/body are OPT-IN and default to a plain GET, so every existing
+  // caller (all GET) is byte-for-byte unchanged. A POST caller supplies both;
+  // the body rides through every guarded redirect hop under the SAME host pin.
+  const method = options.method ?? 'GET'
+  const body = options.body
 
   // FAIL CLOSED before any socket is opened: a refused URL never reaches fetch.
   const start = validateHttpUrl(rawUrl, allowedHosts)
@@ -187,6 +194,8 @@ export async function guardedFetch(rawUrl, options) {
     let host = start.host
     for (let hop = 0; hop < maxRedirects; hop++) {
       const res = await fetch(current, {
+        method,
+        ...(body !== undefined ? { body } : {}),
         headers,
         signal: controller.signal,
         cache: 'no-store',
