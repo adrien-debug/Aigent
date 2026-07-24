@@ -18,7 +18,6 @@ import {
   getTool,
   isRuntimeCreatable,
   isRuntimeExecutable,
-  isToolCertified,
   registryFingerprintSource,
 } from '@/lib/agent-mission-control/registry'
 import { validateManifestAgainstRegistry } from '@/lib/agent-mission-control/registry/manifest-validation'

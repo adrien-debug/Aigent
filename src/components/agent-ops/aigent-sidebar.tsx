@@ -8,6 +8,7 @@ import {
   RectangleStackIcon,
   SignalIcon,
   Squares2X2Icon,
+  WrenchScrewdriverIcon,
 } from '@heroicons/react/20/solid'
 import { ArrowRightStartOnRectangleIcon } from '@heroicons/react/20/solid'
 import clsx from 'clsx'
@@ -51,6 +52,7 @@ const NAV_SECTIONS = [
       { label: 'Dashboard', href: '/admin', icon: Squares2X2Icon, exact: true },
       { label: 'Projects', href: '/admin/projects', icon: RectangleStackIcon, exact: false },
       { label: 'Agents', href: '/admin/agents', icon: CpuChipIcon, exact: false },
+      { label: 'Factory', href: '/admin/factory', icon: WrenchScrewdriverIcon, exact: false },
     ],
   },
   {

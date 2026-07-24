@@ -108,10 +108,11 @@ export function validateManifestAgainstRegistry(
   }
 
   const ok = blockers.length === 0
-  const degradable = !ok && missingRequired.length === 0 && blockers.every((b) => b.startsWith('optional'))
 
   return {
     ok,
+    // Degradable = the runtime is real, every REQUIRED tool resolves, and only
+    // OPTIONAL tools are missing — the agent can still activate, just narrower.
     degradable: missingRequired.length === 0 && missingOptional.length > 0 && rtAvail.available,
     runtime: {
       id: runtimeId,
