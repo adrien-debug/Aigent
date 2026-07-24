@@ -28,6 +28,7 @@ import 'server-only'
 import { z } from 'zod'
 
 import { TRADING_TOOL_HANDLERS } from './market/tools'
+import { REALESTATE_TOOL_HANDLERS } from './realestate/tools'
 import { pgrest } from './postgrest'
 import { NON_EVALUATION_RUN_FILTER } from './types'
 import type { AgentRunStatus, ConfirmationPolicy, ModelProvider, VersionStage } from './types'
@@ -64,6 +65,7 @@ const NATIVE_TOOL_NAMES = [
 const RUNNABLE_TOOL_NAMES: ReadonlySet<string> = new Set<string>([
   ...NATIVE_TOOL_NAMES,
   ...Object.keys(TRADING_TOOL_HANDLERS),
+  ...Object.keys(REALESTATE_TOOL_HANDLERS),
 ])
 
 type RawRow = Record<string, unknown>
