@@ -566,3 +566,71 @@ export async function summarizeFleetRuntimeTelemetry(): Promise<RuntimeTelemetry
     byAgent,
   }
 }
+
+// ---------------------------------------------------------------------------
+// INTERNAL RUN EMISSION (the return channel for Aigent's OWN executed runs).
+//
+// The public POST /api/runtime-telemetry route is for agents DEPLOYED into
+// consumer repos — they ping back over HTTP with a minimal, redacted payload.
+// But a copilot run executed INSIDE Aigent (runner.ts) never fed this table,
+// so /admin/telemetry stayed empty even though Aigent runs agents every day.
+//
+// This helper closes that gap. Because it runs inside Aigent, it has the FULL
+// truth the external reference emitter structurally cannot send — the resolved
+// model+provider, the real latency, and the tool-call count — so it populates
+// `usage`/`outputShape.toolCallCount`, which makes the read side report those
+// signals as MEASURED for internal runs instead of UNAVAILABLE.
+//
+// FAIL-SOFT, like the rest of runner.ts's observability edges: it delegates to
+// insertRuntimeTelemetryEvent (which never throws) and does no work of its own
+// that could raise. A telemetry write must never break a run.
+// ---------------------------------------------------------------------------
+
+/** A finished internal run, in the runner's own vocabulary. */
+export interface InternalRunTelemetry {
+  runId: string
+  copilotId: string
+  projectId: string | null
+  versionId: string | null
+  /** Run outcome. Anything not 'completed' is recorded as a failed lifecycle ping. */
+  status: string
+  /** The model that ACTUALLY served the run (provider-reported), or null if unverified. */
+  resolvedModel: string | null
+  /** Internal ModelProvider ('openai' | 'google' | 'local'); already the telemetry vocabulary. */
+  resolvedProvider: ModelProvider | null
+  latencyMs: number | null
+  /** Real tool-call count for this run — a signal external emitters cannot send. */
+  toolCallCount: number
+  environment?: string
+}
+
+/**
+ * Map a finished internal run to a lifecycle ping and persist it (fail-soft).
+ * `started` is never emitted here — the runner only calls this once, at the end,
+ * so a run is recorded as `completed` or `failed`. A paused/needs-confirmation
+ * run is NOT finished and must not be emitted; the caller guards that.
+ */
+export async function emitInternalRunTelemetry(run: InternalRunTelemetry): Promise<void> {
+  const status: RuntimeTelemetryStatus = run.status === 'completed' ? 'completed' : 'failed'
+  await insertRuntimeTelemetryEvent({
+    id: run.runId,
+    projectId: run.projectId ?? 'unassigned',
+    agentId: run.copilotId,
+    agentVersion: run.versionId,
+    targetRepo: null,
+    runId: run.runId,
+    provider: run.resolvedProvider,
+    model: run.resolvedModel,
+    status,
+    latencyMs: run.latencyMs,
+    inputShape: {},
+    // Internal runs know their real tool-call count — carry it so the tool-signal
+    // rollup reports MEASURED (not UNAVAILABLE) and the "completed with 0 tool
+    // calls" trap is visible for Aigent's own fleet, not just deployed agents.
+    outputShape: { hasToolCalls: run.toolCallCount > 0, toolCallCount: run.toolCallCount },
+    error: {},
+    usage: {},
+    environment: { source: 'aigent-internal-runner', env: run.environment ?? 'dev' },
+    receivedAt: new Date().toISOString(),
+  })
+}

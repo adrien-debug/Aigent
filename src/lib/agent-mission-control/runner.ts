@@ -33,6 +33,7 @@ import {
 import { runOnAgentServer } from './langgraph-server'
 import { pgrest } from './postgrest'
 import { resolveRunAssistantId } from './resolve-run-assistant'
+import { emitInternalRunTelemetry } from './runtime-telemetry-store'
 import { startTrace, toDbStepKind, type TraceStep } from './run-trace'
 import { withTemporalContext } from './temporal-context'
 import { TOOL_HANDLERS, type ToolHandlerResult } from './tool-handlers'
@@ -599,6 +600,22 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
     model_unverified: modelUnverified,
     created_via: 'authoring',
   })
+  // Return channel: feed Aigent's OWN executed run into runtime_telemetry_events
+  // so /admin/telemetry reflects internal fleet activity (fail-soft). A paused
+  // run is NOT finished, so it emits no lifecycle ping.
+  if (!isPaused) {
+    await emitInternalRunTelemetry({
+      runId,
+      copilotId,
+      projectId,
+      versionId,
+      status,
+      resolvedModel,
+      resolvedProvider: 'openai',
+      latencyMs,
+      toolCallCount,
+    })
+  }
   for (const s of traceResult.steps) {
     await pgrest('POST', 'agent_run_steps', {
       id: randomUUID(),
@@ -1030,6 +1047,21 @@ export async function executeCopilotRun(
     resolved_provider: resolvedProvider,
     model_unverified: modelUnverified,
     created_via: 'authoring',
+  })
+
+  // Return channel (direct model-router path): same internal telemetry emission
+  // as the LangGraph path. This path has no needs-confirmation pause, so every
+  // finished run is recorded. Fail-soft — never breaks the run.
+  await emitInternalRunTelemetry({
+    runId,
+    copilotId,
+    projectId,
+    versionId,
+    status,
+    resolvedModel,
+    resolvedProvider,
+    latencyMs,
+    toolCallCount,
   })
 
   // Persist every trace step as an agent_run_steps row (DB-valid kind).

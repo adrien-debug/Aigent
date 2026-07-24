@@ -27,6 +27,7 @@ vi.mock('@/lib/agent-mission-control/postgrest', () => ({
 }))
 
 import {
+  emitInternalRunTelemetry,
   insertRuntimeTelemetryEvent,
   listRecentRuntimeTelemetryEvents,
   summarizeFleetRuntimeTelemetry,
@@ -348,5 +349,78 @@ describe('collectImprovementSignals — runtime telemetry fail-soft integration'
 
     const telemetryCalls = pgrestCalls.filter((c) => c.path.startsWith('runtime_telemetry_events?'))
     expect(telemetryCalls.length).toBeGreaterThan(0)
+  })
+})
+
+describe('emitInternalRunTelemetry — the return channel for Aigent own runs', () => {
+  beforeEach(() => {
+    pgrestCalls.length = 0
+    pgrestHandler = () => []
+  })
+
+  it('maps a completed run to a completed lifecycle ping with the real tool-call signal', async () => {
+    await emitInternalRunTelemetry({
+      runId: 'run-internal-1',
+      copilotId: 'copilot-x',
+      projectId: 'proj-x',
+      versionId: 'v-2',
+      status: 'completed',
+      resolvedModel: 'gpt-5.4',
+      resolvedProvider: 'openai',
+      latencyMs: 1234,
+      toolCallCount: 3,
+    })
+    const insert = pgrestCalls.find((c) => c.method === 'POST' && c.path === 'runtime_telemetry_events')
+    expect(insert).toBeDefined()
+    const row = insert!.body as Record<string, unknown>
+    expect(row.status).toBe('completed')
+    expect(row.run_id).toBe('run-internal-1')
+    expect(row.agent_id).toBe('copilot-x')
+    expect(row.project_id).toBe('proj-x')
+    expect(row.provider).toBe('openai')
+    expect(row.model).toBe('gpt-5.4')
+    expect(row.latency_ms).toBe(1234)
+    // Internal runs carry the REAL tool-call count — a signal external emitters can't send.
+    expect(row.output_shape).toEqual({ hasToolCalls: true, toolCallCount: 3 })
+    expect((row.environment as Record<string, unknown>).source).toBe('aigent-internal-runner')
+  })
+
+  it('records any non-completed status as a failed ping (never a fake completed)', async () => {
+    await emitInternalRunTelemetry({
+      runId: 'run-internal-2',
+      copilotId: 'copilot-x',
+      projectId: null,
+      versionId: null,
+      status: 'error',
+      resolvedModel: null,
+      resolvedProvider: null,
+      latencyMs: null,
+      toolCallCount: 0,
+    })
+    const row = pgrestCalls.find((c) => c.path === 'runtime_telemetry_events')!.body as Record<string, unknown>
+    expect(row.status).toBe('failed')
+    // A null projectId is bucketed as 'unassigned', never dropped or crashed on.
+    expect(row.project_id).toBe('unassigned')
+    // Zero tool calls is a MEASURED zero here (hasToolCalls false), not absence.
+    expect(row.output_shape).toEqual({ hasToolCalls: false, toolCallCount: 0 })
+  })
+
+  it('is fail-soft: a PostgREST error is swallowed, never thrown into the runner', async () => {
+    pgrestHandler = () => {
+      throw new Error('PostgREST 503 backend down')
+    }
+    await expect(
+      emitInternalRunTelemetry({
+        runId: 'run-internal-3',
+        copilotId: 'copilot-x',
+        projectId: 'proj-x',
+        versionId: null,
+        status: 'completed',
+        resolvedModel: 'gpt-5.4',
+        resolvedProvider: 'openai',
+        latencyMs: 10,
+        toolCallCount: 1,
+      }),
+    ).resolves.toBeUndefined()
   })
 })
