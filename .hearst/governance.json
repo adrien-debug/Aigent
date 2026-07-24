@@ -1,6 +1,6 @@
 {
   "repository": "Hearst-Corporation/governance",
-  "ref": "6b7a3da97f079248c13c22a2bd9aadd1c7cc64bd",
+  "ref": "092fc7bfb3382c4da3f0728ca6575edf1603d1e0",
   "globalDoctrine": "doctrine/GLOBAL-DOCTRINE.md",
   "globalRules": "rules/GLOBAL-AGENT-RULES.md",
   "projectDoctrine": "doctrine/projects/agent-mission-control.md",
