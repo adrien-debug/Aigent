@@ -19,6 +19,7 @@
  * is where that manifest becomes the assistant's operational identity: the
  * summary is COMPOSED into a real, complete system prompt (not passed raw).
  */
+import { TOOL_IDS } from './registry/tools'
 import type { ConfirmationPolicy, ModelProvider, ToolRiskLevel } from './types'
 
 // ---------------------------------------------------------------------------
@@ -45,6 +46,7 @@ export type BehaviorToolId =
   | 'read_liquidity_snapshot'
   | 'read_derivatives_snapshot'
   | 'read_macro_context'
+  | 'read_funding_open_interest'
   | 'read_account_risk_snapshot'
   | 'resolve_address_to_section'
   | 'read_dvf_comparables'
@@ -199,42 +201,21 @@ const MARKET_TOOL_IDS: ReadonlySet<string> = new Set([
 ])
 
 /**
- * The REAL registry ids the graph can mount — the exact keys of REGISTRY in
- * src/langgraph/tool-registry.mjs (exported there as REGISTRY_IDS). Duplicated
- * here as a plain string list ON PURPOSE: this module is documented as pure and
- * isomorphic ("safe to import from anywhere"), and tool-registry.mjs pulls in
- * @langchain/core + a live PostgREST client — server-only side effects we must
- * NOT drag into an isomorphic module just to read a list of names. The list is
- * only strings and is guarded at build time by the `BehaviorToolId` union above
- * (any drift makes this array literal fail to typecheck).
+ * The REAL registry ids the graph can mount — now DERIVED from the canonical
+ * Tool Registry (registry/tools.ts), not hand-copied. That registry is pure +
+ * isomorphic (no @langchain, no PostgREST), so importing it here keeps this
+ * module isomorphic while collapsing what used to be a hand-maintained parallel
+ * list into a single authority.
  *
- * MUST STAY IN SYNC with tool-registry.mjs REGISTRY_IDS. If a tool id is added
- * to / removed from the registry, mirror it here AND in the BehaviorToolId
- * union. There is no runtime import to keep them honest — the type union is the
- * guard.
+ * The `BehaviorToolId` union above stays as the TYPE guard, and the integrity
+ * gate (check-registry-integrity.mjs) asserts the canonical `TOOL_IDS` equal
+ * both this union AND the executable REGISTRY keys in tool-registry.mjs — so a
+ * tool id can never exist in one place and be missing from another.
+ *
+ * The `as` cast is sound precisely because that gate proves the two id sets are
+ * identical; it is not a convenience cast masking a mismatch.
  */
-const REGISTRY_IDS: ReadonlyArray<BehaviorToolId> = [
-  'read_repo_file',
-  'list_repo_tree',
-  'search_repo',
-  'http_get',
-  'read_project_summary',
-  'read_copilot_summary',
-  'read_recent_runs',
-  'read_tool_permissions',
-  'draft_copilot_spec',
-  'read_market_snapshot',
-  'read_volatility_state',
-  'read_market_structure',
-  'read_multi_timeframe_candles',
-  'read_liquidity_snapshot',
-  'read_derivatives_snapshot',
-  'read_macro_context',
-  'read_account_risk_snapshot',
-  'resolve_address_to_section',
-  'read_dvf_comparables',
-  'read_market_listings',
-]
+const REGISTRY_IDS: ReadonlyArray<BehaviorToolId> = TOOL_IDS as ReadonlyArray<BehaviorToolId>
 
 /** Registry keys the app knows how to mount. A tool name not here is dropped. */
 const KNOWN_TOOL_IDS: ReadonlySet<string> = new Set<BehaviorToolId>(REGISTRY_IDS)
