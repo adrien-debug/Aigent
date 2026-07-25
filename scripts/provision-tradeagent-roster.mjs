@@ -273,9 +273,23 @@ if (activateId) {
     console.log(`DRY-RUN: would activate ${activateId} (run ${r.id}, model ${r.resolved_model})`)
     process.exit(0)
   }
-  await req('PATCH', `copilots?id=eq.${encodeURIComponent(activateId)}`, { status: 'active', updated_at: NOW })
-  console.log(`✓ activated ${activateId} — proven by run ${r.id} on ${r.resolved_model}`)
-  process.exit(0)
+  // DECISION (AIGENT-RUNTIME-PROMOTION-001, migration 0033): a copilot can no
+  // longer be flipped to status='active' by a DIRECT PATCH — the transition
+  // columns (copilots.status, production_version_id, copilot_versions.stage) are
+  // owned by the RPC's protected role and a service_role direct write is refused
+  // at the DB (permission denied). This `--activate` path bypassed the promotion
+  // gate entirely (it set active without a fresh passing gate or a production
+  // version), which is exactly what the lockdown forbids. Rather than crash on an
+  // opaque `permission denied`, fail closed with a clear pointer to the official
+  // path. Legitimate activation goes through POST /api/agent-ops/copilots/:id/
+  // promotion → evaluateAndPersistPromotionGate → promote_copilot_version.
+  console.error(
+    `✗ ${activateId}: direct activation is disabled (migration 0033).\n` +
+    `  copilots.status='active' can only be set by the official promotion RPC,\n` +
+    `  which requires a fresh PASSING promotion_gates evaluation for a candidate\n` +
+    `  version. Promote via the /promotion route (action:'promote') instead.`
+  )
+  process.exit(1)
 }
 
 // ── Provision ────────────────────────────────────────────────────────────────

@@ -146,8 +146,8 @@ existe (pas de signature historique à TTL libre) ; PostgREST n'offre aucun appe
 
 ### Frontière de confiance (garantie RPC vs garantie contre toute écriture)
 
-La garantie fermée par `0032` est : **aucune transition `active`/`production` sans passer par la
-RPC, qui exige une gate `ready/PASS` fraîche (≤3600 s) persistée pour la (copilot, candidate)
+La garantie fermée par `0032`+`0033` est : **aucune transition `active`/`production` sans passer par
+la RPC, qui exige une gate `ready/PASS` fraîche (≤3600 s) persistée pour la (copilot, candidate)
 exacte.** Elle n'est PAS « `service_role` ne peut pas forger une preuve » : `service_role` détient
 `INSERT` sur `promotion_gates` (nécessaire à `persistGateEvaluation`, le chemin légitime), donc un
 détenteur de la clé service-role peut insérer une gate PASS pour un copilot réel puis appeler la
@@ -155,3 +155,84 @@ RPC. Distinguer une insertion de preuve légitime d'une malveillante au niveau D
 **rôle d'écriture de preuves séparé** des tables de lifecycle (durcissement futur, hors scope de
 ce rework). Rôles autorisés à écrire les preuves aujourd'hui : `service_role` uniquement (INSERT
 sur `promotion_gates`), via `persistGateEvaluation`.
+
+---
+
+## Rework 2 (P0) — le GUC de 0032 était FORGEABLE → séparation de privilèges (`0033`)
+
+### ⚠️ Correction de vérité
+
+La description de `0032` ci-dessus affirmait que le marqueur `app.promotion='rpc'`, posé en
+`SET LOCAL`, « ne peut pas être pré-posé par un appelant direct ». **C'était FAUX.** `SET LOCAL` /
+`set_config(..., true)` limite la portée de la valeur à la transaction, mais **ne réserve pas la
+valeur à la RPC** : `service_role`, qui contrôle entièrement sa propre transaction, peut poser le
+marqueur lui-même. Un GUC de session est une **valeur déclarative contrôlée par l'appelant, pas une
+autorité**.
+
+**Exploit reproduit live (gpu1, rôle réel `service_role`, agent jetable) :**
+```sql
+set role service_role;
+select set_config('app.promotion','rpc',true);          -- forged = 'rpc'
+update copilot_versions set stage='production' where …;   -- AVANT 0033 : UPDATE 1
+update copilots set status='active', production_version_id=… where …; -- UPDATE 1
+```
+→ copilot `active`/`production` **sans la RPC**. Via PostgREST le vecteur direct était déjà refusé
+(chaque requête = sa propre transaction, `set_config` non exposé), mais l'accès SQL direct
+(scripts, pool) contournait la garantie. Le P0 était réel.
+
+### Correctif — une frontière que `service_role` ne peut pas simuler
+
+`0033` remplace le GUC par une **séparation de privilèges** :
+
+1. **Rôle protégé** `aigent_promotion_executor` : `NOLOGIN NOINHERIT NOBYPASSRLS`. `service_role`
+   n'en est **pas membre** (prouvé : `pg_has_role('service_role','aigent_promotion_executor','MEMBER')=f`),
+   donc — étant non-superuser — il **ne peut pas `SET ROLE`** vers lui (règle Postgres).
+2. **La RPC est OWNED par ce rôle** et reste `SECURITY DEFINER` → à l'intérieur de la RPC,
+   `current_user = aigent_promotion_executor`.
+3. **Le trigger de garde est `SECURITY INVOKER`** (défaut — surtout PAS `security definer`, qui
+   ferait de `current_user` le *propriétaire de la fonction*, piège explicite). Il observe le rôle
+   **effectif réel** de l'`UPDATE` et n'autorise que `current_user = 'aigent_promotion_executor'`.
+   **Plus aucun GUC n'est consulté.**
+4. **Défense en profondeur au niveau colonne** : `REVOKE UPDATE(status, production_version_id)` sur
+   `copilots` et `UPDATE(stage)` sur `copilot_versions` à `service_role` (re-grant de toutes les
+   autres colonnes). Un `UPDATE` direct de `service_role` sur ces colonnes → `permission denied`
+   **avant même** d'atteindre le trigger.
+5. **RLS** : ces tables ont RLS activée sans policy (deny-all pour un rôle sans BYPASSRLS).
+   `service_role` y accédait par `BYPASSRLS` ; l'executor **n'a pas `BYPASSRLS`** (interdit par la
+   mission comme sécurité) — des policies **ciblant explicitement l'executor** l'autorisent, et lui
+   seul, pour SELECT/UPDATE.
+6. **Anti-shadowing** : l'executor n'a pas `CREATE` sur `public` ; `search_path=pg_catalog, public`
+   épinglé sur la RPC et le trigger.
+
+### Preuves APRÈS 0033 (live, rôle réel `service_role`, agents jetables nettoyés)
+
+| Vecteur | Attendu | Résultat |
+|---|---|---|
+| `set_config('app.promotion','rpc',true)` **puis** UPDATE direct (SQL) | refusé | **`REFUSED: permission denied for table copilot_versions/copilots`** — état reste `draft` |
+| PATCH PostgREST `{status:active}` | refusé | `42501` (**HTTP 403**) |
+| PATCH bénin (`updated_at`, `assistant_id`) | passe | `204` |
+| RPC officielle sans gate | refusé | `check_violation` |
+| RPC officielle **avec gate fraîche** | accepté | **active/production** |
+| rollback officiel vers `archived` | accepté | production |
+| `service_role` membre de l'executor | non | `f` (ne peut pas SET ROLE) |
+| `service_role` UPDATE(status / production_version_id / stage) | retiré | `has_column_privilege = f` |
+| `service_role` / executor CREATE sur `public` | non | `f` (anti-shadowing) |
+| owner + search_path de la RPC | executor + `pg_catalog, public` | ✓ |
+
+### Sémantique TTL unique (code = tests = doc)
+
+`0033` fige la sémantique : **`NULL` / `0` / négatif → erreur dure fail-closed** (`invalid
+p_max_evidence_age_seconds`) ; **`1..3600` → utilisé tel quel** ; **`>3600` → borné à 3600**
+(l'appelant ne peut que raccourcir). Prouvé live (NULL/0/-5 → erreur ; gate 2h + `999999999` →
+refusé « within 3600 s » ; `1800` + gate fraîche → accepté). C'est un durcissement vs `0032` (qui
+retombait silencieusement sur le max pour `≤0/NULL`).
+
+### Consommateur migré / décidé
+
+`scripts/provision-tradeagent-roster.mjs` `--activate` faisait un `PATCH copilots {status:'active'}`
+**direct**, sans gate ni version production — un contournement. Depuis `0033` il échouerait
+`permission denied` : il est désormais **désactivé explicitement** avec un message renvoyant vers le
+chemin officiel (`/promotion`), au lieu de planter sur une erreur DB opaque. Aucun autre consommateur
+runtime n'écrit ces colonnes : la route de promotion passe par la RPC ; création/provisioning
+insèrent `draft`/`null` (INSERT, hors trigger) ; `seed-fixtures` s'appliquent comme `postgres`
+(seed-amc.ts), pas comme `service_role`.

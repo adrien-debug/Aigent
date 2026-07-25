@@ -63,6 +63,25 @@ gate fraîche » — PAS « service_role ne peut pas forger une preuve » (il d�
 `promotion_gates`, chemin légitime de `persistGateEvaluation`) ; un rôle d'écriture de preuves séparé
 serait le durcissement suivant. Détail complet : `docs/runtime-promotion-001.md` § Rework post-revue.
 
+### 1ter. Rework #2 (SHA `5544e32`) — le GUC de 0032 était FORGEABLE → séparation de privilèges (`0033`)
+
+La revue a démontré que le marqueur de session `app.promotion='rpc'` de `0032` est **forgeable par
+`service_role` lui-même** (`set_config('app.promotion','rpc',true)` puis UPDATE direct → `active`,
+reproduit live). Un GUC de session est une valeur déclarative de l'appelant, **pas une autorité**.
+
+| # | Défaut | Gravité | Preuve du trou (avant `0033`) | Correctif `0033` | Test |
+|---|--------|---------|-------------------------------|------------------|------|
+| 10 | **GUC forgeable** : `service_role` pose lui-même `app.promotion='rpc'` → le trigger `0032` autorise l'UPDATE direct vers `active`/`production`. | **P0** | Live SQL : `set_config(...,'rpc',true)` + `update … status='active'` → **UPDATE 1**, copilot `active` sans la RPC | Séparation de privilèges : rôle protégé `aigent_promotion_executor` (NOLOGIN/NOINHERIT/NOBYPASSRLS, dont service_role n'est pas membre) owner de la RPC ; trigger `SECURITY INVOKER` sur `current_user` (plus de GUC) ; `REVOKE UPDATE(status,production_version_id,stage)` à service_role ; policies RLS ciblant l'executor. | 14 live + 9 unit structure |
+| 11 | **TTL sémantique** divergente entre 0032 (clamp silencieux) et l'intention. | LOW | — | `0033` : `NULL`/`0`/négatif → **erreur dure** ; `1..3600` verbatim ; `>3600` borné. Code = tests = doc. | live (NULL/0/-5 → erreur) + unit |
+
+**Prouvé après `0033` (live, rôle réel `service_role`)** : GUC forgé + UPDATE direct → **refusé**
+(`permission denied`, état reste `draft`) ; PATCH PostgREST `{status:active}` → `403` ; RPC officielle
+avec gate fraîche → `active`/`production` ; `service_role` **non membre** de l'executor (`SET ROLE`
+impossible) ; `service_role` **a perdu** `UPDATE` sur les 3 colonnes critiques ; ni service_role ni
+executor n'ont `CREATE` sur `public` (anti-shadowing). **Consommateur** `provision-tradeagent-roster.mjs
+--activate` (PATCH direct `status=active`) désactivé explicitement → renvoie vers `/promotion`.
+Détail : `docs/runtime-promotion-001.md` § Rework 2 (P0).
+
 ### Méthode de revue
 
 Relecture manuelle du diff complet (20 fichiers) **plus** une revue adversariale multi-agents
@@ -189,8 +208,9 @@ npm run test (unit)     → 112 fichiers, 1340 tests ✓ (nouveaux : gate +5, rp
                           non-bypass 13, direct-write-lockdown 7)
 tests/live anti-bypass  → 5/5 ✓ contre gpu1 (promotion-antibypass.live)
 tests/live lockdown+TTL → 14/14 ✓ contre gpu1 (promotion-direct-write-lockdown.live)
+tests/live privsep      → 14/14 ✓ contre gpu1 (promotion-privilege-separation.live)
 Preuve E2E              → allOk=true (8 réel / 2 direct-write flaggés), agent nettoyé
-Migrations 0030+0031+0032 → appliquées live gpu1, fermetures re-vérifiées
+Migrations 0030..0033   → appliquées live gpu1, fermetures re-vérifiées (0033 = séparation de privilèges)
 ```
 
 ---
@@ -223,12 +243,13 @@ Migrations 0030+0031+0032 → appliquées live gpu1, fermetures re-vérifiées
    re-évalué ; le chemin route re-évalue toujours juste avant, donc seul un appel RPC direct dans la
    fenêtre est concerné — surface résiduelle faible, derrière `service_role`.
 6. **Forge de preuve par `service_role`** — l'écriture directe vers `active`/`production` est
-   désormais **impossible** hors RPC (`0032`, trigger), mais `service_role` détient encore `INSERT`
-   sur `promotion_gates` (chemin légitime de `persistGateEvaluation`). Un détenteur de la clé
-   service-role peut donc forger une gate PASS puis appeler la RPC. Fermer ceci exigerait un **rôle
-   d'écriture de preuves séparé** des tables de lifecycle — durcissement suivant, hors scope de ce
-   rework. La garantie DB actuelle est « pas de transition hors RPC-avec-gate-fraîche », pas « pas de
-   preuve forgeable par le rôle de confiance ».
+   désormais **impossible** hors RPC (`0033` : privilèges de colonne retirés à `service_role` +
+   trigger `SECURITY INVOKER` sur `current_user`, prouvé live même avec un GUC forgé), mais
+   `service_role` détient encore `INSERT` sur `promotion_gates` (chemin légitime de
+   `persistGateEvaluation`). Un détenteur de la clé service-role peut donc forger une gate PASS puis
+   appeler la RPC. Fermer ceci exigerait un **rôle d'écriture de preuves séparé** des tables de
+   lifecycle — durcissement suivant, hors scope de ce rework. La garantie DB actuelle est « pas de
+   transition hors RPC-avec-gate-fraîche », pas « pas de preuve forgeable par le rôle de confiance ».
 
 ---
 
