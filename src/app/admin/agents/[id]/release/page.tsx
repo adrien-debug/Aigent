@@ -8,10 +8,18 @@ import {
   ReleaseOwnership,
 } from '@/components/agent-ops/agent-detail/release-panel'
 import { AgentSection as Section } from '@/components/agent-ops/agent-section'
+import {
+  PromotionChecksList,
+  PromotionOverall,
+  ReplayEvidence,
+  ShadowEvidence,
+} from '@/components/agent-ops/agent-detail/promotion-evidence-panel'
 import { eyebrowClass } from '@/components/agent-ops/surface-card'
 import { Text } from '@/components/catalyst/text'
 import { getAgentLifecycle } from '@/lib/agent-mission-control/agent-lifecycle'
 import { VERSION_STAGE_LABELS } from '@/lib/agent-mission-control/labels'
+import { pgrest } from '@/lib/agent-mission-control/postgrest'
+import { evaluatePromotionGate } from '@/lib/agent-mission-control/promotion-gate'
 import type { CopilotVersion } from '@/lib/agent-mission-control/types'
 
 /**
@@ -87,6 +95,47 @@ export default async function AgentReleasePage({ params }: { params: Promise<{ i
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0]
 
   const blocking = gate ? gate.checks.filter((c) => c.status !== 'pass') : []
+
+  // Promotion evidence — the extended gate `evaluatePromotionGate` already
+  // computes for the promotion route. Read-only, same source of truth as
+  // "Promote or roll back" below; never a second gate that could disagree.
+  const candidateVersionIdForEvidence = gate?.candidateVersionId ?? candidateVersion?.id ?? null
+  const promotionGate = candidateVersionIdForEvidence
+    ? await evaluatePromotionGate(lifecycle.copilotId, candidateVersionIdForEvidence).catch(() => null)
+    : null
+
+  const shadowRows = candidateVersionIdForEvidence
+    ? await pgrest<Record<string, unknown>[]>(
+        'GET',
+        `shadow_experiments?copilot_id=eq.${encodeURIComponent(lifecycle.copilotId)}&candidate_version_id=eq.${encodeURIComponent(candidateVersionIdForEvidence)}&select=status,candidate_verdict,would_mutate_count,sampled_run_count&order=started_at.desc&limit=1`,
+      ).catch(() => [])
+    : []
+  const shadowRow = shadowRows[0] ?? null
+  const shadow = shadowRow
+    ? {
+        status: shadowRow.status as string,
+        candidateVerdict: (shadowRow.candidate_verdict as string | null) ?? null,
+        wouldMutateCount: shadowRow.would_mutate_count as number,
+        sampledRunCount: shadowRow.sampled_run_count as number,
+      }
+    : null
+
+  const replayRows = candidateVersionIdForEvidence
+    ? await pgrest<Record<string, unknown>[]>(
+        'GET',
+        `replay_comparisons?copilot_id=eq.${encodeURIComponent(lifecycle.copilotId)}&select=verdict,case_count,candidates&order=created_at.desc&limit=1`,
+      ).catch(() => [])
+    : []
+  const replayRow = replayRows[0] ?? null
+  const replay = replayRow
+    ? {
+        verdict: (replayRow.verdict as string | null) ?? null,
+        caseCount: replayRow.case_count as number,
+        divergent: ((replayRow.candidates as Array<{ comparison: string; note: string }>) ?? []).filter(
+          (c) => c.comparison === 'worse' || c.comparison === 'nondeterministic',
+        ),
+      }
+    : null
 
   return (
     <div className="flex flex-col gap-6">
@@ -168,6 +217,46 @@ export default async function AgentReleasePage({ params }: { params: Promise<{ i
                 perform one.
               </Text>
             )}
+          </div>
+        )}
+      </Section>
+
+      <Section
+        title="Promotion evidence"
+        description="The extended gate the promotion route re-evaluates: runtime, certified tools, shadow proof and replay comparison, on top of the release gate above."
+        meta={
+          promotionGate ? (
+            <span className="text-xs font-medium text-zinc-400">
+              {promotionGate.promotable ? 'All checks pass' : promotionGate.overall}
+            </span>
+          ) : null
+        }
+      >
+        {candidateVersionIdForEvidence === null ? (
+          <Text className="!mt-0 !text-xs">
+            There is no candidate to evaluate, so there is no promotion evidence either.
+          </Text>
+        ) : promotionGate === null ? (
+          <Text className="!mt-0 !text-xs">
+            The promotion gate could not be evaluated for this candidate. This is not a failing verdict —
+            no verdict exists.
+          </Text>
+        ) : (
+          <div className="flex flex-col gap-6">
+            <PromotionOverall overall={promotionGate.overall} promotable={promotionGate.promotable} />
+            <PromotionChecksList checks={promotionGate.checks} />
+            <div>
+              <p className={eyebrowClass}>Shadow experiment</p>
+              <div className="mt-2">
+                <ShadowEvidence shadow={shadow} />
+              </div>
+            </div>
+            <div>
+              <p className={eyebrowClass}>Replay comparison</p>
+              <div className="mt-2">
+                <ReplayEvidence replay={replay} />
+              </div>
+            </div>
           </div>
         )}
       </Section>
