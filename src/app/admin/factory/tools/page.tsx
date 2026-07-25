@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { AdminPageHeader, SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
 import { EmptyStatePanel } from '@/components/agent-ops/empty-state'
+import { SoftAccentLink } from '@/components/agent-ops/soft-accent-link'
 import { CertifiedToolsPanel, type FactoryToolRow } from '@/components/agent-ops/factory/certified-tools-panel'
 import { TOOL_IDS, getTool } from '@/lib/agent-mission-control/registry'
 
@@ -44,8 +45,9 @@ export default function FactoryToolsPage() {
           <SurfaceCardHeader title="Tool Builder" />
           <EmptyStatePanel
             className="border-0 bg-transparent"
-            title="Tool Builder — coming in the next brick"
-            description="The guided pipeline to draft, certify and mount a new tool is not wired yet. Below is what the registry already certifies."
+            title="No tool in progress"
+            description="Start a new build to walk the DRAFT → IMPLEMENTING → TESTING → CERTIFIED pipeline. Below is what the registry already certifies."
+            action={<SoftAccentLink href="/admin/factory/tools/new">New tool build</SoftAccentLink>}
           />
         </SurfaceCard>
       </StaggerFade>
