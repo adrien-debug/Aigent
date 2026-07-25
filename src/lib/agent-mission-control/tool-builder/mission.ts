@@ -146,3 +146,18 @@ export function deprecateMission(m: ToolBuildMission): ToolBuildMission {
 export function isCertified(m: ToolBuildMission): boolean {
   return m.state === 'CERTIFIED'
 }
+
+/**
+ * The canonical ordered lifecycle, with the one-line doctrine per state. The
+ * Tool Builder UI renders THIS — it never spells the state strings itself, the
+ * same single-source discipline the agent-status labels follow. Order is the
+ * happy path, then the two terminal off-ramps.
+ */
+export const TOOL_BUILD_STATE_STEPS: ReadonlyArray<{ state: ToolBuildState; description: string }> = [
+  { state: 'DRAFT', description: 'Spec captured, nothing generated yet. An invalid spec is rejected immediately — it never leaves DRAFT.' },
+  { state: 'IMPLEMENTING', description: 'Code/spec being produced from the validated draft.' },
+  { state: 'TESTING', description: 'Tests written and run in the sandbox, not yet proven.' },
+  { state: 'CERTIFIED', description: 'Reached only when evidence shows tests actually ran, at least one passed, and zero failed. Certification is earned by proof, never asserted.' },
+  { state: 'REJECTED', description: 'Failed a gate — invalid spec, tests never ran, a test failed, or no passing test. Not publishable.' },
+  { state: 'DEPRECATED', description: 'A previously certified tool that has been retired.' },
+]

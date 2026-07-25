@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/agent-ops/empty-state'
 import { Badge } from '@/components/catalyst/badge'
 import { Text } from '@/components/catalyst/text'
 import { getTool } from '@/lib/agent-mission-control/registry'
+import { TOOL_BUILD_STATE_STEPS } from '@/lib/agent-mission-control/tool-builder/mission'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,18 +15,11 @@ export const metadata: Metadata = {
 }
 
 /**
- * The real ToolBuildState union from tool-builder/mission.ts, with an honest
- * one-liner per state lifted from the doctrine comments in that file. Do not
- * invent states — this list must stay in lockstep with the source of truth.
+ * The pipeline states + doctrine come from the tool-builder module
+ * (TOOL_BUILD_STATE_STEPS) — the page never spells the state strings itself, so
+ * the source of truth stays single and the states can't drift from the machine.
  */
-const PIPELINE_STEPS: Array<{ state: string; description: string }> = [
-  { state: 'DRAFT', description: 'Spec captured, nothing generated yet. An invalid spec is rejected immediately — it never leaves DRAFT.' },
-  { state: 'IMPLEMENTING', description: 'Code/spec being produced from the validated DRAFT.' },
-  { state: 'TESTING', description: 'Tests written and run in the sandbox, not yet proven.' },
-  { state: 'CERTIFIED', description: 'Reached only when evidence shows tests actually ran, at least one passed, and zero failed. Certification is earned by proof, never asserted.' },
-  { state: 'REJECTED', description: 'Failed a gate — invalid spec, tests never ran, a test failed, or no passing test. Not publishable.' },
-  { state: 'DEPRECATED', description: 'A previously CERTIFIED tool that has been retired.' },
-]
+const PIPELINE_STEPS = TOOL_BUILD_STATE_STEPS
 
 export default function NewToolBuilderPage() {
   const countWords = getTool('count_words')
