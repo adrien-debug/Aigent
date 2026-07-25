@@ -16,6 +16,14 @@ Ne jamais bloquer indéfiniment un push sur une simple valeur `unknown`.
 
 ## Storybook — passage obligatoire avant toute modif UI
 
+> **STATUT (2026-07-25) : hook DÉ-ACTIVÉ tant que Storybook n'est pas installé.**
+> Le câblage était creux (aucun Storybook à consulter) et bloquait les édits UI sans
+> rien faire respecter. La règle ci-dessous redevient active après `npx storybook@latest
+> init` + réactivation du hook dans `.claude/settings.json`. **En attendant, le design
+> system reste réellement gardé par `npm run check:ds` + `npm run check:catalyst`** (ce
+> sont EUX l'outil qui fait respecter la règle, cf. doctrine « une règle ne vaut que si
+> un outil la fait respecter »).
+
 Storybook est la source de vérité visuelle du design system de CE projet (kit local,
 tokens locaux — indépendant de tout autre workspace). **Avant toute modification UI,
 frontend, composant, layout ou Design System** :

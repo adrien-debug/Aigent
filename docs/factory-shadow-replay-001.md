@@ -6,11 +6,13 @@
 > (`src/lib/agent-mission-control/shadow-live.ts` / `replay-live.ts` → route
 > `useFixture:false` → `execution_mode: 'live_langgraph'`).
 >
-> **Proof status (be precise):** a live shadow run WAS executed in-session on
-> 2026-07-25 against gpu1 and returned `execution_mode: 'live_langgraph', verdict:
-> PASS, would_mutate: 0` — but on a *disposable* copilot that was then deleted, so
-> **no committed proof artifact remains in the repo**; reproduce with a
-> `useFixture:false` run. The automated tests (`shadow-live.test.ts`,
+> **Proof status (be precise):** a live shadow run was executed against gpu1 and
+> returned `execution_mode: 'live_langgraph', verdict: PASS, would_mutate: 0` —
+> **captured in `docs/visual-reviews/AIGENT-FACTORY-SHADOW-REPLAY-001/live-shadow-proof.md`**
+> (committed artifact: the route response + the read-back `shadow_experiments` row).
+> It was run on a *disposable* copilot created + deleted through the product routes
+> (no direct SQL); reproduce with a `useFixture:false` run. The automated tests
+> (`shadow-live.test.ts`,
 > `shadow-replay-routes.test.ts`) MOCK the Agent Server (offline) — they prove the
 > wiring/classification, not a live run. Replay's live path is wired + unit-tested
 > but **not** live-executed (no copilot has a `production_version_id` baseline yet).
