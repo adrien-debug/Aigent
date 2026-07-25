@@ -195,19 +195,56 @@ export function assertToolConfirmationInvariant(tools: readonly ProposedTool[]):
 // ---------------------------------------------------------------------------
 
 /**
+ * Raised when the creation multi-insert failed AND the compensating delete of
+ * the already-created parent row ALSO failed — the one path that can leave a
+ * partial copilot behind. It is thrown LOUDLY (never swallowed) and names the
+ * orphan so an operator can run `deleteCopilotCascade(orphanCopilotId)`. The
+ * whole point is that a partial creation is never SILENT: either the row set is
+ * complete, or it is gone, or this error is raised carrying the id to clean up.
+ */
+export class PartialCreationError extends Error {
+  readonly orphanCopilotId: string
+  readonly failedStep: string
+  readonly compensationError: unknown
+  constructor(orphanCopilotId: string, failedStep: string, cause: unknown, compensationError: unknown) {
+    super(
+      `copilot creation failed at "${failedStep}" and the compensating delete of the partial ` +
+        `copilot "${orphanCopilotId}" also failed — manual cleanup required ` +
+        `(deleteCopilotCascade("${orphanCopilotId}"))`
+    )
+    this.name = 'PartialCreationError'
+    this.orphanCopilotId = orphanCopilotId
+    this.failedStep = failedStep
+    this.cause = cause
+    this.compensationError = compensationError
+  }
+}
+
+/**
  * The multi-insert that turns a `CreateCopilotInput` (identity + a
  * `GeneratedManifest`) into a real, runnable copilot:
  *
- *   1. insert `manifests` (tool_ids starts empty — filled in step 3)
- *   2. insert `tools` rows from `manifest.proposedTools`, collect their ids
- *   3. PATCH the manifest's `tool_ids` with those ids
+ *   1. insert `copilots` (latestVersionId = the version from step 4)
+ *   2. insert `manifests` (tool_ids starts empty — filled in step 3)
+ *   3. insert `tools` rows from `manifest.proposedTools`, PATCH manifest.tool_ids
  *   4. insert `copilot_versions` (draft stage, pointing at the manifest)
- *   5. insert `copilots` (latestVersionId = the version from step 4)
  *
- * Returns the created copilot's id. Fail-closed and non-atomic (PostgREST
- * has no cross-table transaction here) — if a later step throws, earlier
- * rows remain persisted; callers should surface the error and let an
- * operator clean up rather than silently retry.
+ * Returns the created copilot's id.
+ *
+ * COMPENSABLE (AIGENT-AUTONOMOUS-FACTORY-001). PostgREST has no cross-table
+ * transaction, so the four inserts are sequential — but this function now owns
+ * their all-or-nothing guarantee itself, instead of leaving orphan rows for an
+ * operator to find. Once the parent `copilots` row exists, ANY later failure
+ * triggers a single `DELETE copilots?id=eq.<id>` — every child
+ * (manifests/tools/versions) is `ON DELETE CASCADE`, so one delete removes the
+ * whole partial set. Outcomes, exhaustively:
+ *   - success                        → all rows present, id returned.
+ *   - failure before the parent row  → nothing was written; original error rethrown.
+ *   - failure after, delete succeeds → nothing persisted; original error rethrown.
+ *   - failure after, delete FAILS    → PartialCreationError (names the orphan).
+ * A partial creation is therefore never silent. The route keeps its own
+ * compensation for the one external side effect that lives outside this DB set
+ * (the LangGraph assistant, provisioned AFTER this function returns).
  */
 export async function createCopilotFromManifest(input: CreateCopilotInput): Promise<string> {
   // Defense in depth (mirrors the Zod refinement in the API route): refuse
@@ -229,118 +266,146 @@ export async function createCopilotFromManifest(input: CreateCopilotInput): Prom
   const manifestId = makeId('manifest', `${slug}-${uniqueSuffix}`)
   const versionId = makeId('version', `${slug}-${uniqueSuffix}`)
 
-  // 1. copilots (created first so every child FK resolves). latest_version_id
-  //    points at the version we create in step 4.
-  const copilotPayload: RawRow = {
-    id: copilotId,
-    project_id: input.projectId,
-    target_project_ids: input.targetProjectIds,
-    name: input.name,
-    slug,
-    description: input.description,
-    runtime: input.runtime,
-    status: 'draft',
-    production_version_id: null,
-    latest_version_id: versionId,
-    model: input.model,
-    model_provider: input.modelProvider,
-    owner: input.owner,
-    tags: input.tags,
-    created_at: now,
-    updated_at: now,
-    health: {
-      testPassRate: 0,
-      benchmarkScore: 0,
-      runsLast24h: 0,
-      errorRateLast24h: 0,
-      avgLatencyMs: 0,
-      costLast24hUsd: 0,
-    },
-    created_via: 'authoring',
-  }
-  await pgrest<RawRow[]>('POST', 'copilots', copilotPayload)
+  // `step` names the current write (for the compensation error message);
+  // `parentRowCreated` gates whether there is anything to compensate.
+  let step = 'copilots'
+  let parentRowCreated = false
+  try {
+    // 1. copilots (created first so every child FK resolves). latest_version_id
+    //    points at the version we create in step 4.
+    const copilotPayload: RawRow = {
+      id: copilotId,
+      project_id: input.projectId,
+      target_project_ids: input.targetProjectIds,
+      name: input.name,
+      slug,
+      description: input.description,
+      runtime: input.runtime,
+      status: 'draft',
+      production_version_id: null,
+      latest_version_id: versionId,
+      model: input.model,
+      model_provider: input.modelProvider,
+      owner: input.owner,
+      tags: input.tags,
+      created_at: now,
+      updated_at: now,
+      health: {
+        testPassRate: 0,
+        benchmarkScore: 0,
+        runsLast24h: 0,
+        errorRateLast24h: 0,
+        avgLatencyMs: 0,
+        costLast24hUsd: 0,
+      },
+      created_via: 'authoring',
+    }
+    await pgrest<RawRow[]>('POST', 'copilots', copilotPayload)
+    parentRowCreated = true
 
-  // 2. manifest (copilot_id now resolves)
-  const manifestPayload: RawRow = {
-    id: manifestId,
-    copilot_id: copilotId,
-    version: 'v0.1.0-draft',
-    system_prompt_summary: input.manifest.systemPromptSummary,
-    allowed_routes: input.manifest.allowedRoutes,
-    forbidden_actions: input.manifest.forbiddenActions,
-    confirmation_policy: input.manifest.confirmationPolicy,
-    always_confirm_actions: input.manifest.alwaysConfirmActions,
-    memory_sources: [],
-    output_contract: input.manifest.outputContract,
-    skills: input.manifest.skills ?? [],
-    tool_ids: [],
-    max_steps_per_run: input.manifest.maxStepsPerRun,
-    max_cost_per_run_usd: input.manifest.maxCostPerRunUsd,
-    updated_at: now,
-  }
-  await pgrest<RawRow[]>('POST', 'manifests', manifestPayload)
+    // 2. manifest (copilot_id now resolves)
+    step = 'manifests'
+    const manifestPayload: RawRow = {
+      id: manifestId,
+      copilot_id: copilotId,
+      version: 'v0.1.0-draft',
+      system_prompt_summary: input.manifest.systemPromptSummary,
+      allowed_routes: input.manifest.allowedRoutes,
+      forbidden_actions: input.manifest.forbiddenActions,
+      confirmation_policy: input.manifest.confirmationPolicy,
+      always_confirm_actions: input.manifest.alwaysConfirmActions,
+      memory_sources: [],
+      output_contract: input.manifest.outputContract,
+      skills: input.manifest.skills ?? [],
+      tool_ids: [],
+      max_steps_per_run: input.manifest.maxStepsPerRun,
+      max_cost_per_run_usd: input.manifest.maxCostPerRunUsd,
+      updated_at: now,
+    }
+    await pgrest<RawRow[]>('POST', 'manifests', manifestPayload)
 
-  // 3. tools (from proposedTools), collect their ids, backfill manifest.tool_ids
-  const roleText = `${input.manifest.systemPromptSummary} ${input.description}`
-  const proposedTools = augmentProposedToolsWithRepoRead(
-    input.manifest.proposedTools,
-    roleText,
-    input.projectId !== null
-  )
-  // Ids are generated client-side (makeId), so the whole set inserts as ONE
-  // batch POST (PostgREST bulk insert: array payload) instead of a round-trip
-  // per tool.
-  const toolPayloads: RawRow[] = proposedTools.map((proposed) => ({
-    id: makeId('tool', `${slugify(proposed.name)}-${crypto.randomUUID().slice(0, 8)}`),
-    copilot_id: copilotId,
-    name: proposed.name,
-    description: proposed.description,
-    provider: proposed.provider,
-    risk_level: proposed.riskLevel,
-    enabled: true,
-    requires_confirmation: proposed.requiresConfirmation,
-    scoped_routes: [],
-    // Migration 0022 is applied, so the column exists. The architect's DECLARED
-    // value wins verbatim (architect-prompt.ts §4 sets mutates:false on reads,
-    // true on writes). Only when it is unset (a pre-0022 row, or an author who
-    // skipped the field) do we derive a default — and that default classifies
-    // read-only tools as read-only (defaultMutatesForTool), instead of the old
-    // flat `?? true` that mislabeled every unset read tool as "CAN WRITE".
-    // Fail-closed: an unclassifiable tool still defaults to mutating.
-    mutates: proposed.mutates ?? defaultMutatesForTool(proposed),
-  }))
-  const toolIds = toolPayloads.map((payload) => payload.id as string)
-  if (toolIds.length > 0) {
-    await pgrest<RawRow[]>('POST', 'tools', toolPayloads)
-    await pgrest<RawRow[]>('PATCH', `manifests?id=eq.${encodeURIComponent(manifestId)}`, {
-      tool_ids: toolIds,
-    })
-  }
+    // 3. tools (from proposedTools), collect their ids, backfill manifest.tool_ids
+    step = 'tools'
+    const roleText = `${input.manifest.systemPromptSummary} ${input.description}`
+    const proposedTools = augmentProposedToolsWithRepoRead(
+      input.manifest.proposedTools,
+      roleText,
+      input.projectId !== null
+    )
+    // Ids are generated client-side (makeId), so the whole set inserts as ONE
+    // batch POST (PostgREST bulk insert: array payload) instead of a round-trip
+    // per tool.
+    const toolPayloads: RawRow[] = proposedTools.map((proposed) => ({
+      id: makeId('tool', `${slugify(proposed.name)}-${crypto.randomUUID().slice(0, 8)}`),
+      copilot_id: copilotId,
+      name: proposed.name,
+      description: proposed.description,
+      provider: proposed.provider,
+      risk_level: proposed.riskLevel,
+      enabled: true,
+      requires_confirmation: proposed.requiresConfirmation,
+      scoped_routes: [],
+      // Migration 0022 is applied, so the column exists. The architect's DECLARED
+      // value wins verbatim (architect-prompt.ts §4 sets mutates:false on reads,
+      // true on writes). Only when it is unset (a pre-0022 row, or an author who
+      // skipped the field) do we derive a default — and that default classifies
+      // read-only tools as read-only (defaultMutatesForTool), instead of the old
+      // flat `?? true` that mislabeled every unset read tool as "CAN WRITE".
+      // Fail-closed: an unclassifiable tool still defaults to mutating.
+      mutates: proposed.mutates ?? defaultMutatesForTool(proposed),
+    }))
+    const toolIds = toolPayloads.map((payload) => payload.id as string)
+    if (toolIds.length > 0) {
+      await pgrest<RawRow[]>('POST', 'tools', toolPayloads)
+      step = 'manifests.tool_ids'
+      await pgrest<RawRow[]>('PATCH', `manifests?id=eq.${encodeURIComponent(manifestId)}`, {
+        tool_ids: toolIds,
+      })
+    }
 
-  // 4. copilot_versions (draft stage, pointing at the manifest)
-  const versionPayload: RawRow = {
-    id: versionId,
-    copilot_id: copilotId,
-    label: 'v0.1.0-draft',
-    stage: 'draft',
-    manifest_id: manifestId,
-    model: input.model,
-    model_provider: input.modelProvider,
-    changelog: 'Created via authoring assistant',
-    created_at: now,
-    created_by: input.owner,
-    scores: {
-      testPassRate: 0,
-      benchmarkScore: 0,
-      shadowAgreement: null,
-      // Never benchmarked yet — `null`, not a `0` that would claim a run
-      // looked and found nothing.
-      unsafeActionCount: null,
-    },
-  }
-  await pgrest<RawRow[]>('POST', 'copilot_versions', versionPayload)
+    // 4. copilot_versions (draft stage, pointing at the manifest)
+    step = 'copilot_versions'
+    const versionPayload: RawRow = {
+      id: versionId,
+      copilot_id: copilotId,
+      label: 'v0.1.0-draft',
+      stage: 'draft',
+      manifest_id: manifestId,
+      model: input.model,
+      model_provider: input.modelProvider,
+      changelog: 'Created via authoring assistant',
+      created_at: now,
+      created_by: input.owner,
+      scores: {
+        testPassRate: 0,
+        benchmarkScore: 0,
+        shadowAgreement: null,
+        // Never benchmarked yet — `null`, not a `0` that would claim a run
+        // looked and found nothing.
+        unsafeActionCount: null,
+      },
+    }
+    await pgrest<RawRow[]>('POST', 'copilot_versions', versionPayload)
 
-  return copilotId
+    return copilotId
+  } catch (err) {
+    // Nothing persisted yet (the copilots insert itself failed) → nothing to
+    // undo; surface the cause unchanged.
+    if (!parentRowCreated) throw err
+    // A later step failed: compensate by removing the parent row. The DB cascades
+    // every child (manifests/tools/versions), so ONE delete makes the partial set
+    // vanish. The assistant is not provisioned until AFTER this function returns,
+    // so there is none to tear down here.
+    try {
+      await pgrest('DELETE', `copilots?${eq('id', copilotId)}`)
+    } catch (compensationError) {
+      // The only way a partial copilot can survive — raised loudly with the id.
+      throw new PartialCreationError(copilotId, step, err, compensationError)
+    }
+    // Fully compensated: no partial row remains. Rethrow the original cause so
+    // the route classifies it exactly as before (409/404/504/502).
+    throw err
+  }
 }
 
 /**

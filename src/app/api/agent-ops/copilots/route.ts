@@ -9,6 +9,7 @@ import {
   isHighRiskOrWriteCapableTool,
   setCopilotAssistantId,
 } from '@/lib/agent-mission-control/authoring-writes'
+import { describeCandidate } from '@/lib/agent-mission-control/qualification-orchestrator'
 import type { CreateCopilotInput } from '@/lib/agent-mission-control/authoring-types'
 import {
   deleteCopilotAssistant,
@@ -309,6 +310,18 @@ export async function POST(request: Request) {
   const runEval = await prepareAutoEval(copilotId)
   after(runEval)
 
-  // assistantId is additive (non-breaking): existing clients read only copilotId.
-  return NextResponse.json({ ok: true, copilotId, assistantId }, { status: 201 })
+  // The honest CREATION CONTRACT (AIGENT-AUTONOMOUS-FACTORY-001): what the create
+  // actually produced — runtime, resolved+certified tools, assistant, and the
+  // (not-yet-started) qualification readiness. Best-effort: the copilot is already
+  // created and linked, so a describe failure must not turn a 201 into an error —
+  // the client still gets copilotId/assistantId and can fetch the contract later.
+  let contract = null
+  try {
+    contract = await describeCandidate(copilotId)
+  } catch (err) {
+    console.error('[agent-ops/copilots] describeCandidate (post-create contract) failed:', err)
+  }
+
+  // assistantId + contract are additive (non-breaking): existing clients read only copilotId.
+  return NextResponse.json({ ok: true, copilotId, assistantId, contract }, { status: 201 })
 }

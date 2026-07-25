@@ -14,12 +14,17 @@ import {
   ReplayEvidence,
   ShadowEvidence,
 } from '@/components/agent-ops/agent-detail/promotion-evidence-panel'
+import { QualificationTimeline } from '@/components/agent-ops/agent-detail/qualification-timeline'
 import { eyebrowClass } from '@/components/agent-ops/surface-card'
 import { Text } from '@/components/catalyst/text'
 import { getAgentLifecycle } from '@/lib/agent-mission-control/agent-lifecycle'
 import { VERSION_STAGE_LABELS } from '@/lib/agent-mission-control/labels'
 import { pgrest } from '@/lib/agent-mission-control/postgrest'
 import { evaluatePromotionGate } from '@/lib/agent-mission-control/promotion-gate'
+import {
+  computeReadiness,
+  getLatestQualificationRun,
+} from '@/lib/agent-mission-control/qualification-orchestrator'
 import type { CopilotVersion } from '@/lib/agent-mission-control/types'
 
 /**
@@ -104,6 +109,14 @@ export default async function AgentReleasePage({ params }: { params: Promise<{ i
     ? await evaluatePromotionGate(lifecycle.copilotId, candidateVersionIdForEvidence).catch(() => null)
     : null
 
+  // Qualification workflow state — the ordered walk (tests → benchmark → shadow →
+  // replay → gate) + the recommended next action. Read-only, from the same
+  // orchestrator the product API drives; the page never runs the workflow.
+  const qualificationRun = candidateVersionIdForEvidence
+    ? await getLatestQualificationRun(lifecycle.copilotId, candidateVersionIdForEvidence).catch(() => null)
+    : null
+  const qualificationReadiness = computeReadiness(qualificationRun)
+
   const shadowRows = candidateVersionIdForEvidence
     ? await pgrest<Record<string, unknown>[]>(
         'GET',
@@ -174,6 +187,30 @@ export default async function AgentReleasePage({ params }: { params: Promise<{ i
           />
         </Section>
       </div>
+
+      <Section
+        title="Qualification workflow"
+        description="The candidate’s ordered walk — tests, benchmark, shadow, replay, gate — with the single recommended next action. The workflow never promotes; it makes a version promotable and says so honestly."
+        meta={
+          <span className="text-xs font-medium text-zinc-400">
+            {qualificationReadiness.state === 'not_started'
+              ? 'Not started'
+              : qualificationReadiness.state === 'promotable'
+                ? 'Promotion permitted'
+                : qualificationReadiness.state === 'running'
+                  ? 'In progress'
+                  : qualificationReadiness.state}
+          </span>
+        }
+      >
+        {candidateVersionIdForEvidence === null ? (
+          <Text className="!mt-0 !text-xs">
+            There is no candidate version to qualify, so the workflow has nothing to evaluate.
+          </Text>
+        ) : (
+          <QualificationTimeline readiness={qualificationReadiness} />
+        )}
+      </Section>
 
       <Section
         title="Release gate"
