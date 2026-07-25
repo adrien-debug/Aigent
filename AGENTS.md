@@ -42,8 +42,9 @@ est pris par un process non identifié comme le sien.
 
 <!-- BEGIN:catalyst-ui-rules -->
 ## UI (gate : `npm run check:catalyst`)
-- **Dashboard** (`src/app/admin/`, `src/components/agent-ops/`) → **primitives Catalyst
-  uniquement** (`src/components/catalyst/`). Zéro `<button>`/`<input>`/`<select>`/`<textarea>`/
+- **Dashboard** (`src/app/admin/`, `src/components/agent-ops/`, `src/components/views/`,
+  `src/components/shell/`) → **primitives Catalyst
+  uniquement** (`src/components/ui/`). Zéro `<button>`/`<input>`/`<select>`/`<textarea>`/
   `<table>` natif. Un contrôle au style entièrement custom (toggle, tuile sélectionnable, croix
   de suppression dans un badge) utilise `Headless.Button` (`@headlessui/react`) plutôt qu'un
   `<button>` brut — même sémantique clavier/focus/disabled que `Button` Catalyst, sans hériter
@@ -51,17 +52,21 @@ est pris par un process non identifié comme le sien.
 - **Marketing** (`src/app/(site)/`, `src/components/marketing/`) → blocs Tailwind Plus pris tels
   quels, restylés sur les tokens du projet (`accent-*`/`zinc`). Pas de primitive Catalyst ici —
   convention volontaire, le marketing est une vitrine statique.
-- **Un seul accent : `accent` (vert tendre, `#A7FB90`, `src/app/globals.css`).** Tout le reste est `zinc`.
-  Les autres couleurs que `<Button color>` accepte sont interdites hors `components/catalyst/`.
+- **Un seul accent : `accent` (vert tendre, `#A7FB90`, `src/theme.css`).** Tout le reste est `zinc`.
+  (`src/app/globals.css` n'est qu'un stub qui `@import "../theme.css"`.)
+  Les autres couleurs que `<Button color>` accepte sont interdites hors `components/ui/`.
 - Besoin d'une section/écran dashboard ? → **lis** `~/.claude/tailwind-blocks/application-ui/`
   pour la structure, puis monte-la avec les primitives Catalyst. Ne colle jamais le JSX brut d'un
   bloc dans le dashboard.
-- **18 primitives** dans `src/components/catalyst/` (avatar, badge, button, dialog, divider,
-  fieldset, heading, input, link, navbar, select, sidebar, sidebar-layout, surface, switch,
-  table, text, textarea). `sidebar-layout` + `sidebar` + `navbar` = LE shell admin, `surface` =
-  la grammaire de plans. N'ajoute une primitive que si elle a un consommateur réel : alert,
-  dropdown, pagination, description-list et table-fit ont été importés puis supprimés faute
-  d'usage.
+- **19 primitives** dans `src/components/ui/` (avatar, badge, button, dialog, divider,
+  fieldset, heading, input, link, navbar, panel, section, select, sidebar, sidebar-layout,
+  switch, table, text, textarea). Le kit a été déplacé de `components/catalyst/` vers
+  `components/ui/` par le refactor `353a1ed` (architecture en couches theme/ui/shell/views) —
+  ce chemin est celui que scanne `check:catalyst` et celui qu'épingle la doctrine projet.
+  `sidebar-layout` + `sidebar` + `navbar` = LE shell admin, `panel` + `section` = la grammaire
+  de plans (ex-`surface`, supprimé). N'ajoute une primitive que si elle a un consommateur réel :
+  alert, dropdown, pagination, description-list et table-fit ont été importés puis supprimés
+  faute d'usage.
 <!-- END:catalyst-ui-rules -->
 
 ## Invariants agents & runtime (détail : docs/missions/AGENTS-history-2026-07.md)
