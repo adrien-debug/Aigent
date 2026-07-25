@@ -195,7 +195,7 @@ export async function evaluatePromotionGate(
   //    recent shadow_experiments row for this candidate.
   const shadowRows = await pgrest<Record<string, unknown>[]>(
     'GET',
-    `shadow_experiments?${eq('copilot_id', copilotId)}&${eq('candidate_version_id', candidateVersionId)}&select=id,status,candidate_verdict,would_mutate_count&order=started_at.desc&limit=1`,
+    `shadow_experiments?${eq('copilot_id', copilotId)}&${eq('candidate_version_id', candidateVersionId)}&select=id,status,candidate_verdict,would_mutate_count,execution_mode&order=started_at.desc&limit=1`,
   )
   const shadow = shadowRows[0] ?? null
   checks.push({
@@ -215,7 +215,7 @@ export async function evaluatePromotionGate(
   //    broken); the filter binds the proof to the version being promoted.
   const replayRows = await pgrest<Record<string, unknown>[]>(
     'GET',
-    `replay_comparisons?${eq('copilot_id', copilotId)}&${eq('candidate_version_id', candidateVersionId)}&select=id,verdict,status&order=created_at.desc&limit=1`,
+    `replay_comparisons?${eq('copilot_id', copilotId)}&${eq('candidate_version_id', candidateVersionId)}&select=id,verdict,status,execution_mode&order=created_at.desc&limit=1`,
   )
   const replay = replayRows[0] ?? null
   checks.push({
@@ -240,6 +240,30 @@ export async function evaluatePromotionGate(
   }
 }
 
+/**
+ * Provenance vocabulary for shadow/replay evidence (migration 0034, added in
+ * the PR #22 rework). ONLY `live_langgraph` may satisfy a REQUIRED check — a
+ * `deterministic_fixture` proves the machinery (the gate wiring, the
+ * mutating-tool block, the persistence path) but NOT the candidate's real
+ * behavior, and `legacy_unknown` is the fail-closed default for any row whose
+ * provenance cannot be established. Before this fix, the gate read only
+ * `status`/`verdict` — a fixture row and a real run were indistinguishable to
+ * it, so a $0 simulation could satisfy a mandatory promotion check. That is
+ * fixed HERE, not by trusting the caller: the gate re-reads execution_mode
+ * live, exactly like every other signal in this function.
+ */
+type ExecutionMode = 'live_langgraph' | 'deterministic_fixture' | 'legacy_unknown'
+
+function isLiveProvenance(mode: unknown): mode is 'live_langgraph' {
+  return mode === 'live_langgraph'
+}
+
+function describeMode(mode: unknown): string {
+  if (mode === 'live_langgraph') return 'live_langgraph'
+  if (mode === 'deterministic_fixture') return 'deterministic_fixture (not a production proof)'
+  return 'legacy_unknown (provenance unrecorded)'
+}
+
 function shadowCheck(
   shadow: Record<string, unknown> | null,
   required: boolean,
@@ -251,10 +275,27 @@ function shadowCheck(
   }
   const verdict = shadow.candidate_verdict as string | null
   const status = shadow.status as string
+  const mode = shadow.execution_mode as ExecutionMode | undefined
   if (status !== 'completed') return { status: 'INSUFFICIENT_EVIDENCE', reason: `shadow ${status}, not completed` }
-  if (verdict === 'PASS') return { status: 'PASS', reason: 'shadow PASS, zero would-mutate breaches' }
+  // A hard FAIL (the candidate genuinely tried to mutate) is a real negative
+  // signal a fixture CAN prove — it never needs to claim the candidate is
+  // good, only that this run attempted a mutation. Provenance only gates the
+  // POSITIVE (PASS) path: fixture evidence can block promotion, it just
+  // cannot clear it. Checked BEFORE the provenance gate below, deliberately.
+  if (verdict !== 'PASS' && verdict !== 'INSUFFICIENT_EVIDENCE') {
+    return { status: 'FAIL', reason: `shadow verdict ${verdict}` }
+  }
   if (verdict === 'INSUFFICIENT_EVIDENCE') return { status: 'INSUFFICIENT_EVIDENCE', reason: 'shadow inconclusive' }
-  return { status: 'FAIL', reason: `shadow verdict ${verdict}` }
+  // Provenance gate: a required check needs a REAL run to PASS. A fixture or
+  // unrecorded-provenance row never satisfies a mandatory check — it never
+  // exercised the candidate, however clean its own PASS verdict looks.
+  if (required && !isLiveProvenance(mode)) {
+    return {
+      status: 'INSUFFICIENT_EVIDENCE',
+      reason: `shadow verdict is PASS but provenance is ${describeMode(mode)} — a required shadow check needs live_langgraph evidence`,
+    }
+  }
+  return { status: 'PASS', reason: `shadow PASS (${describeMode(mode)}), zero would-mutate breaches` }
 }
 
 function replayCheck(
@@ -267,10 +308,24 @@ function replayCheck(
       : { status: 'NOT_CONFIGURED', reason: 'no replay comparison (not required)' }
   }
   const verdict = replay.verdict as string | null
-  // INCONCLUSIVE can never satisfy a mandatory replay.
-  if (verdict === 'BETTER' || verdict === 'EQUIVALENT') return { status: 'PASS', reason: `replay ${verdict}` }
+  const mode = replay.execution_mode as ExecutionMode | undefined
+  // A hard FAIL-equivalent (WORSE — the candidate genuinely regressed) is a
+  // real negative signal a fixture CAN prove, same asymmetry as shadowCheck:
+  // provenance only gates the POSITIVE (PASS) path. Checked BEFORE the
+  // provenance gate below, deliberately.
+  if (verdict === 'WORSE') return { status: 'FAIL', reason: `replay ${verdict}` }
+  // INCONCLUSIVE can never satisfy a mandatory replay, whatever its provenance.
   if (verdict === 'INCONCLUSIVE' || verdict === null) return { status: 'INSUFFICIENT_EVIDENCE', reason: 'replay inconclusive' }
-  return { status: 'FAIL', reason: `replay ${verdict}` }
+  // Provenance gate: a required replay needs a REAL comparison to PASS. A
+  // fixture or unrecorded-provenance BETTER/EQUIVALENT never satisfies a
+  // mandatory check — it never exercised the candidate against production.
+  if (required && !isLiveProvenance(mode)) {
+    return {
+      status: 'INSUFFICIENT_EVIDENCE',
+      reason: `replay verdict is ${verdict} but provenance is ${describeMode(mode)} — a required replay check needs live_langgraph evidence`,
+    }
+  }
+  return { status: 'PASS', reason: `replay ${verdict} (${describeMode(mode)})` }
 }
 
 /**

@@ -299,6 +299,11 @@ export async function createCopilotFromManifest(input: CreateCopilotInput): Prom
         costLast24hUsd: 0,
       },
       created_via: 'authoring',
+      // AIGENT-FACTORY-SHADOW-REPLAY-001: every copilot created through the
+      // product path from this point on is explicitly opted into the strict
+      // promotion policy — never left NULL. NULL (migration 0035) is reserved
+      // for pre-cutover rows only; see promotion-policy.ts for the resolver.
+      requires_shadow_replay: true,
     }
     await pgrest<RawRow[]>('POST', 'copilots', copilotPayload)
     parentRowCreated = true
