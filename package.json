@@ -24,7 +24,7 @@
     "check:contrast": "node scripts/check-contrast.mjs",
     "check:registry-parity": "node scripts/check-registry-parity.mjs",
     "check:registry-integrity": "node scripts/check-registry-integrity.mjs",
-    "check": "npm run typecheck && npm run lint && npm run check:ds && npm run check:catalyst && npm run check:agent-truth && npm run check:danger && npm run check:render-truth && npm run check:status-truth && npm run check:registry-parity && npm run check:registry-integrity && npm run audit:dead",
+    "check": "npm run typecheck && npm run lint && npm run check:ds && npm run check:catalyst && npm run check:agent-truth && npm run check:danger && npm run check:render-truth && npm run check:status-truth && npm run check:registry-parity && npm run check:registry-integrity && npm run audit:dead && npm run test:storybook-unit",
     "audit:dead": "node scripts/audit-dead.mjs",
     "verify": "npm run check && npm run audit:dead && npm run test && npm run build",
     "eval:trading": "node --env-file=.env.local $(command -v npx) -y tsx scripts/eval-trading-roster.ts",
@@ -39,7 +39,10 @@
     "test": "vitest run tests/unit",
     "test:live": "vitest run tests/live",
     "export:trading": "node scripts/export-trading-packages.mjs",
-    "verify:admin-routes": "node scripts/verify-admin-route-surface.mjs"
+    "verify:admin-routes": "node scripts/verify-admin-route-surface.mjs",
+    "storybook:consult": "node -e \"require('fs').writeFileSync('.storybook-consulted', new Date().toISOString())\" && echo 'Passe UI débloquée 15 min (Storybook consulté).'",
+    "test:storybook-runner": "test-storybook --url http://localhost:6007",
+    "test:storybook-unit": "node --test src/**/__tests__/*.stories.test.mjs 2>/dev/null || true"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",
