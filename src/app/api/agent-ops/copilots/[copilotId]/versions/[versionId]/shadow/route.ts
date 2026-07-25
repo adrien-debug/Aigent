@@ -125,6 +125,11 @@ export async function POST(
       would_mutate_count: 0,
       mismatches: [],
       triggered_by: 'agent-ops-api',
+      // PR #22 rework: this route is fixture-only (useFixture:false is
+      // refused above, before this reservation) — the row MUST say so,
+      // never leave the DB default (legacy_unknown) to stand in for it, so
+      // the promotion gate's provenance check reads the true source.
+      execution_mode: 'deterministic_fixture',
     })
   } catch (err) {
     if (err instanceof PgrestError && err.status === 409) {
@@ -213,9 +218,16 @@ export async function POST(
  *   200 { ok: true, experiment: null | {
  *     id: string, status: 'queued'|'running'|'completed'|'stopped'|'failed',
  *     verdict: 'PASS'|'FAIL'|'INSUFFICIENT_EVIDENCE'|null,
+ *     executionMode: 'live_langgraph'|'deterministic_fixture'|'legacy_unknown',
  *     sampledRunCount: number, wouldMutateCount: number,
  *     startedAt: string, endsAt: string | null,
  *   }}
+ *   `executionMode` (migration 0034, PR #22 rework) is ALWAYS
+ *   'deterministic_fixture' today — this route has no live_langgraph path
+ *   yet (see the PRODUCT-READINESS NOTE above). A caller (the Release UI)
+ *   MUST label this evidence as a simulation, never as a production proof —
+ *   the promotion gate itself refuses to accept anything but
+ *   'live_langgraph' for a REQUIRED check (promotion-gate.ts shadowCheck).
  *   400 { error } invalid ids · 404 { error } version not found/IDOR ·
  *   503 { error } backend not configured · 502/504 on upstream failure.
  */
@@ -237,7 +249,7 @@ export async function GET(
   try {
     const rows = await pgrest<Record<string, unknown>[]>(
       'GET',
-      `shadow_experiments?copilot_id=eq.${encodeURIComponent(copilotId)}&candidate_version_id=eq.${encodeURIComponent(versionId)}&select=id,status,candidate_verdict,sampled_run_count,would_mutate_count,started_at,ends_at&order=started_at.desc&limit=1`
+      `shadow_experiments?copilot_id=eq.${encodeURIComponent(copilotId)}&candidate_version_id=eq.${encodeURIComponent(versionId)}&select=id,status,candidate_verdict,sampled_run_count,would_mutate_count,started_at,ends_at,execution_mode&order=started_at.desc&limit=1`
     )
     const row = rows[0] ?? null
     return NextResponse.json({
@@ -247,6 +259,7 @@ export async function GET(
             id: row.id,
             status: row.status,
             verdict: row.candidate_verdict ?? null,
+            executionMode: row.execution_mode ?? 'legacy_unknown',
             sampledRunCount: row.sampled_run_count ?? 0,
             wouldMutateCount: row.would_mutate_count ?? 0,
             startedAt: row.started_at,

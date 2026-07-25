@@ -10,13 +10,62 @@
 
 **`SHADOW_REPLAY_PRODUCT_PARTIAL`**
 
-Le code, les migrations, la policy, l'UI et 14 des tests obligatoires sont livrés et
-vérifiés offline (112 fichiers / 1357 tests, `npm run check` intégralement vert, isolé dans
-un worktree dédié). Le blocage est unique et précis : **la preuve E2E vivante contre gpu1
-n'a pas été exécutée**, pour trois raisons documentées ci-dessous, aucune contournée. Rien
-n'a été inventé pour compenser : pas de preuve fixture présentée comme preuve gate produit,
-pas de chemin runtime alternatif institutionnalisé pour se substituer à la preuve réelle
+Le code, les migrations, la policy, l'UI et les tests obligatoires sont livrés et vérifiés
+offline (112 fichiers / 1371 tests, `npm run check` intégralement vert, isolé dans un
+worktree dédié). Le blocage est unique et précis : **la preuve E2E vivante contre gpu1 n'a
+pas été exécutée**, pour trois raisons documentées ci-dessous, aucune contournée. Rien n'a
+été inventé pour compenser : pas de preuve fixture présentée comme preuve gate produit, pas
+de chemin runtime alternatif institutionnalisé pour se substituer à la preuve réelle
 manquante.
+
+## Rework (revue PR #22, 2026-07-25) — le défaut réel trouvé et sa correction
+
+La revue a confirmé un défaut BLOQUANT dans la première livraison, distinct du gap E2E
+documenté plus bas : **les routes fixture-only persistaient leurs résultats avec le MÊME
+vocabulaire (`status=completed`, `verdict PASS/BETTER/EQUIVALENT`) qu'un run réel, et
+`evaluatePromotionGate` ne vérifiait AUCUNE provenance.** Une simulation $0 pouvait donc
+satisfaire un check obligatoire de la gate de promotion — le contrat annoncé ("PARTIAL"
+signifiant "tout fonctionne sauf le live E2E") était faux : la gate elle-même était
+contournable dès la première livraison.
+
+**Correction appliquée :**
+1. Migration `0034` ajoute `execution_mode` (NOT NULL, CHECK, défaut fail-closed
+   `legacy_unknown`) sur `shadow_experiments` ET `replay_comparisons` — vocabulaire fermé
+   `live_langgraph | deterministic_fixture | legacy_unknown`. Toute ligne existante (100%
+   fixture-backed dans ce repo) bascule sur `legacy_unknown`, jamais silencieusement sur
+   `live_langgraph`.
+2. Les deux routes produit écrivent explicitement `execution_mode: 'deterministic_fixture'`
+   à la réservation de la ligne — jamais laissé au défaut DB.
+3. `promotion-gate.ts` (`shadowCheck`/`replayCheck`) exige `live_langgraph` pour qu'un check
+   **obligatoire** (`required=true`) puisse résoudre en `PASS`. `deterministic_fixture` et
+   `legacy_unknown` résolvent en `INSUFFICIENT_EVIDENCE` pour un check obligatoire — jamais
+   PASS, quel que soit le verdict fonctionnel sous-jacent. **Asymétrie délibérée** : un verdict
+   négatif (shadow FAIL — mutation tentée ; replay WORSE — régression) reste `FAIL` même en
+   provenance fixture, parce qu'une simulation PEUT prouver un problème réel — elle ne peut
+   simplement pas prouver l'absence de problème. L'ordre de vérification dans le code reflète
+   ça explicitement (le verdict négatif est vérifié AVANT la provenance).
+4. 14 tests adversariaux ajoutés (`tests/unit/promotion-gate.test.ts` +
+   `tests/unit/shadow-replay-routes.test.ts`) : shadow PASS fixture/legacy_unknown avec
+   `required=true` → `INSUFFICIENT_EVIDENCE` jamais PASS ; même chose pour replay
+   BETTER/EQUIVALENT ; shadow FAIL / replay WORSE fixture → restent FAIL ; `live_langgraph` →
+   seule provenance qui satisfait le check ; check optionnel (`required=false`) → non affecté ;
+   **test de bout en bout** : une preuve PASS produite PAR LA VRAIE ROUTE, relue par la VRAIE
+   gate avec `requireShadow=true`, résout `INSUFFICIENT_EVIDENCE` — pas seulement la gate en
+   isolation.
+5. UI : badge "Provenance" visible sur `ShadowEvidence`/`ReplayEvidence` (vert `Live LangGraph
+   run` vs rouge `Deterministic fixture ($0 simulation)`/`Provenance unrecorded`), boutons
+   `ProofActions` renommés "Run shadow experiment (fixture)"/"Run replay comparison (fixture)",
+   dialog de confirmation et message de succès étiquettent explicitement
+   `deterministic_fixture` et rappellent que cette preuve ne satisfait aucun check obligatoire.
+6. Paquet visuel complet (desktop 1440×900, laptop 1280×800, mobile 375×812 × états
+   normal/confirmation/erreur-insuffisant) + `manifest.json` + `REVIEW.md` sous
+   `docs/visual-reviews/AIGENT-FACTORY-SHADOW-REPLAY-001/`.
+7. PR retargetée sur `feat/runtime-promotion-001` (PR #19, non mergée) plutôt que `main`, pour
+   rendre la dépendance explicite tant que #19 n'est pas mergée.
+
+**Non-goals confirmés (hors scope de ce rework, sur instruction explicite)** : aucun run
+LangGraph facturé câblé ici ; aucune migration appliquée sur gpu1 ; le verdict reste
+`SHADOW_REPLAY_PRODUCT_PARTIAL` après correction, pas READY.
 
 ## Ce qui est livré
 
@@ -179,26 +228,38 @@ contrôlée, et les appels facturés explicitement autorisés — pas avant.
 `tests/unit/promotion-policy.test.ts`, `scripts/prove-shadow-replay-e2e.ts`,
 `docs/visual-reviews/AIGENT-FACTORY-SHADOW-REPLAY-001/`.
 
-**Modifiés** : `src/app/api/agent-ops/copilots/[copilotId]/promotion/route.ts` (utilise
-`resolvePromotionPolicy`), `src/lib/agent-mission-control/authoring-writes.ts` (nouveaux
-copilots → `requires_shadow_replay: true`), `src/app/admin/agents/[id]/release/page.tsx`
+**Modifiés (livraison initiale)** : `src/app/api/agent-ops/copilots/[copilotId]/promotion/route.ts`
+(utilise `resolvePromotionPolicy`), `src/lib/agent-mission-control/authoring-writes.ts`
+(nouveaux copilots → `requires_shadow_replay: true`), `src/app/admin/agents/[id]/release/page.tsx`
 (fix filtre `candidate_version_id` + intégration `ProofActions`),
 `src/components/agent-ops/agent-detail/promotion-evidence-panel.tsx` (`'use client'` +
 `ProofActions`), `tests/unit/promotion-status.test.ts` (mock ajusté).
 
+**Modifiés (rework PR #22)** : `supabase/migrations/0034_shadow_replay_lifecycle.sql`
+(ajout `execution_mode`), `src/lib/agent-mission-control/promotion-gate.ts`
+(`shadowCheck`/`replayCheck` provenance-aware), `src/app/api/agent-ops/copilots/[copilotId]/versions/[versionId]/{shadow,replay}/route.ts`
+(écrivent `execution_mode: 'deterministic_fixture'`, `executionMode` exposé par GET),
+`src/app/admin/agents/[id]/release/page.tsx` (lit `execution_mode`),
+`src/components/agent-ops/agent-detail/promotion-evidence-panel.tsx` (`ExecutionModeBadge`,
+labels fixture explicites), `tests/unit/promotion-gate.test.ts` (+10 tests provenance),
+`tests/unit/shadow-replay-routes.test.ts` (+4 tests provenance dont 1 bout-en-bout).
+
 **Non touchés** : migrations `0001`-`0033`, `release-gate.ts`, les runners tests/benchmark
 (sauf aucune modification — vérifié), tout fichier appartenant aux sessions concurrentes
 (`test-runner.ts`, `benchmark-runner.ts`, `evidence/`, `0037`, `0040` — laissés strictement
-intacts, jamais commités depuis cette branche).
+intacts, jamais commités depuis cette branche). Aucune migration appliquée sur gpu1, aucun
+déploiement.
 
 ## Preuves offline
 
-- `npx vitest run --project unit tests/unit` → 112 fichiers, 1357 tests, tous verts (worktree
+- `npx vitest run --project unit tests/unit` → 112 fichiers, 1371 tests, tous verts (worktree
   dédié `Aigent-sr001`, isolé des sessions concurrentes).
 - `npm run check` → vert intégralement (typecheck, lint, `check:ds`, `check:catalyst`,
   `check:agent-truth`, `check:danger`, `check:render-truth`, `check:status-truth`,
   `check:registry-parity`, `check:registry-integrity`, `audit:dead`).
-- `npm run check:catalyst` / `check:ds` re-vérifiés isolément après les changements UI.
+- `npm run check:catalyst` / `check:ds` re-vérifiés isolément après les changements UI (le
+  badge Provenance utilise les tokens nommés `--accent-soft`/`--accent-line`/
+  `--state-danger-soft`/`--state-danger-line`, jamais d'opacité accent écrite à la main).
 
 ## Limites connues, honnêtement listées
 

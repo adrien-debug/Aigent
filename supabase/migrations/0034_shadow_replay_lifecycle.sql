@@ -59,4 +59,60 @@ create unique index if not exists replay_comparisons_one_inflight_per_candidate
 alter table shadow_experiments add column if not exists triggered_by text;
 alter table replay_comparisons add column if not exists triggered_by text;
 
+-- ── PROVENANCE — fail-closed, REQUIRED at write time (PR #22 review rework) ──
+-- The review found the actual bypass: the API routes persist fixture-driven
+-- runs with the SAME status/verdict vocabulary a genuine LangGraph run would
+-- get (`status='completed'`, `candidate_verdict='PASS'`, `verdict='BETTER'`),
+-- and evaluatePromotionGate's shadowCheck/replayCheck read ONLY that
+-- status/verdict — never asking "who actually produced this evidence". A $0
+-- deterministic fixture run and a real, billed LangGraph run were
+-- INDISTINGUISHABLE to the gate. That is a live promotion-gate bypass, not a
+-- cosmetic gap: a required shadow/replay check could be satisfied by a
+-- simulation with zero external effect.
+--
+-- Fix: every row now carries WHO produced it, in a closed vocabulary:
+--   'live_langgraph'        — a real run through the LangGraph Agent Server,
+--                             using the candidate's OWN provisioned manifest.
+--                             The ONLY value a REQUIRED check may accept.
+--   'deterministic_fixture' — the $0, zero-network scripted fixture
+--                             (makeFixtureShadowAgent / the replay
+--                             fixtureOutcome helper). Real code, real gate
+--                             logic, zero external effect, but NOT a
+--                             production-grade proof of the candidate's real
+--                             behavior — it proves the MACHINERY, not the
+--                             CANDIDATE.
+--   'legacy_unknown'        — a pre-existing row written before this column
+--                             existed, or a row whose provenance cannot be
+--                             determined. Treated identically to a fixture:
+--                             NEVER accepted for a required check. This is
+--                             the fail-closed backstop — an ambiguous row
+--                             must never be interpreted as evidence.
+--
+-- NOT NULL with a DEFAULT: every existing row (all fixture-backed, from this
+-- same feature's proof scripts and offline tests — nothing in this repo has
+-- ever written a live LangGraph shadow/replay row) backfills to
+-- 'legacy_unknown' rather than silently becoming 'live_langgraph' by
+-- omission. A caller that forgets to pass execution_mode gets the SAFEST
+-- value, never the one that would satisfy a gate.
+alter table shadow_experiments add column if not exists execution_mode text;
+update shadow_experiments set execution_mode = 'legacy_unknown' where execution_mode is null;
+alter table shadow_experiments alter column execution_mode set default 'legacy_unknown';
+alter table shadow_experiments alter column execution_mode set not null;
+alter table shadow_experiments drop constraint if exists shadow_experiments_execution_mode_check;
+alter table shadow_experiments add constraint shadow_experiments_execution_mode_check
+  check (execution_mode in ('live_langgraph', 'deterministic_fixture', 'legacy_unknown'));
+
+alter table replay_comparisons add column if not exists execution_mode text;
+update replay_comparisons set execution_mode = 'legacy_unknown' where execution_mode is null;
+alter table replay_comparisons alter column execution_mode set default 'legacy_unknown';
+alter table replay_comparisons alter column execution_mode set not null;
+alter table replay_comparisons drop constraint if exists replay_comparisons_execution_mode_check;
+alter table replay_comparisons add constraint replay_comparisons_execution_mode_check
+  check (execution_mode in ('live_langgraph', 'deterministic_fixture', 'legacy_unknown'));
+
+comment on column shadow_experiments.execution_mode is
+  'Provenance of this evidence — live_langgraph | deterministic_fixture | legacy_unknown. Only live_langgraph may satisfy a REQUIRED promotion-gate check (see promotion-gate.ts shadowCheck). Fail-closed default legacy_unknown.';
+comment on column replay_comparisons.execution_mode is
+  'Provenance of this evidence — live_langgraph | deterministic_fixture | legacy_unknown. Only live_langgraph may satisfy a REQUIRED promotion-gate check (see promotion-gate.ts replayCheck). Fail-closed default legacy_unknown.';
+
 notify pgrst, 'reload schema';

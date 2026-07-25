@@ -65,6 +65,33 @@ function PromotionStatusText({ status }: { status: PromotionCheckStatus }) {
   )
 }
 
+/**
+ * Provenance of a shadow/replay row (migration 0034, PR #22 rework) — the
+ * exact vocabulary `promotion-gate.ts`'s shadowCheck/replayCheck use to
+ * decide whether a REQUIRED check can be satisfied. `live_langgraph` is the
+ * only value that can. This badge is deliberately loud (not a quiet caption)
+ * because the entire rework exists to prevent a reader from mistaking
+ * `deterministic_fixture` evidence for a production proof.
+ */
+type ExecutionMode = 'live_langgraph' | 'deterministic_fixture' | 'legacy_unknown'
+
+function ExecutionModeBadge({ mode }: { mode: ExecutionMode | string }) {
+  const isLive = mode === 'live_langgraph'
+  const label = isLive ? 'Live LangGraph run' : mode === 'deterministic_fixture' ? 'Deterministic fixture ($0 simulation)' : 'Provenance unrecorded'
+  return (
+    <span
+      className={
+        isLive
+          ? 'inline-flex items-center gap-1.5 rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-medium text-accent-700 ring-1 ring-inset ring-[var(--accent-line)] dark:text-accent-300'
+          : 'inline-flex items-center gap-1.5 rounded-full bg-[var(--state-danger-soft)] px-2.5 py-1 text-xs font-medium text-[var(--state-danger-text)] ring-1 ring-inset ring-[var(--state-danger-line)]'
+      }
+    >
+      <span aria-hidden="true" className={isLive ? 'size-1.5 rounded-full bg-accent-500' : 'size-1.5 rounded-full bg-[var(--state-danger-solid)]'} />
+      {label}
+    </span>
+  )
+}
+
 /** The five promotion checks, each with its own real `reason` — never a
  * generic message when the check already produced one. */
 export function PromotionChecksList({ checks }: { checks: PromotionCheck[] }) {
@@ -96,6 +123,7 @@ export function ShadowEvidence({
     candidateVerdict: string | null
     wouldMutateCount: number
     sampledRunCount: number
+    executionMode: string
   } | null
 }) {
   if (!shadow) {
@@ -108,6 +136,12 @@ export function ShadowEvidence({
   }
   return (
     <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="col-span-2 sm:col-span-4">
+        <dt className={eyebrowClass}>Provenance</dt>
+        <dd className="mt-1">
+          <ExecutionModeBadge mode={shadow.executionMode} />
+        </dd>
+      </div>
       <div>
         <dt className={eyebrowClass}>Status</dt>
         <dd className="mt-1 text-sm text-zinc-200">{shadow.status}</dd>
@@ -126,8 +160,9 @@ export function ShadowEvidence({
       </div>
       <div className="col-span-2 sm:col-span-4">
         <Text className="!mt-0 !text-xs">
-          A shadow run replays traffic against the candidate without serving it — nothing here was
-          shown to a real consumer.
+          {shadow.executionMode === 'live_langgraph'
+            ? 'A shadow run replays traffic against the candidate without serving it — nothing here was shown to a real consumer.'
+            : 'This is a deterministic $0 simulation proving the shadow machinery (the mutating-tool block, the evidence path) — it did NOT exercise the candidate’s real behavior, and cannot satisfy a required shadow-proof promotion check.'}
         </Text>
       </div>
     </dl>
@@ -142,6 +177,7 @@ export function ReplayEvidence({
     verdict: string | null
     caseCount: number
     divergent: Array<{ comparison: string; note: string }>
+    executionMode: string
   } | null
 }) {
   if (!replay) {
@@ -155,6 +191,12 @@ export function ReplayEvidence({
   return (
     <div className="flex flex-col gap-4">
       <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="col-span-2 sm:col-span-4">
+          <dt className={eyebrowClass}>Provenance</dt>
+          <dd className="mt-1">
+            <ExecutionModeBadge mode={replay.executionMode} />
+          </dd>
+        </div>
         <div>
           <dt className={eyebrowClass}>Verdict</dt>
           <dd className="mt-1 text-sm text-zinc-200">{replay.verdict ?? '—'}</dd>
@@ -168,6 +210,13 @@ export function ReplayEvidence({
           <dd className="mt-1 font-mono text-sm tabular-nums text-white">{replay.divergent.length}</dd>
         </div>
       </dl>
+      {replay.executionMode !== 'live_langgraph' ? (
+        <Text className="!mt-0 !text-xs">
+          This is a deterministic $0 simulation proving the replay machinery — it did NOT exercise
+          the candidate&apos;s real behavior, and cannot satisfy a required replay-comparison
+          promotion check.
+        </Text>
+      ) : null}
       {replay.divergent.length > 0 ? (
         <ul className="flex max-h-56 flex-col overflow-y-auto">
           {replay.divergent.map((entry, i) => (
@@ -242,7 +291,11 @@ export function ProofActions({
   const [done, setDone] = useState<string | null>(null)
 
   const isRunning = runningStatus === 'queued' || runningStatus === 'running'
-  const label = kind === 'shadow' ? 'Run shadow experiment' : 'Run replay comparison'
+  // PR #22 rework: both routes are fixture-only today (no live_langgraph path
+  // exists yet — see docs/factory-shadow-replay-001.md) — the button says so
+  // up front rather than let an operator discover it only after reading the
+  // ExecutionModeBadge on the resulting evidence.
+  const label = kind === 'shadow' ? 'Run shadow experiment (fixture)' : 'Run replay comparison (fixture)'
   const verb = kind === 'shadow' ? 'shadow experiment' : 'replay comparison'
 
   async function submit() {
@@ -281,7 +334,9 @@ export function ProofActions({
       if (body?.verdict === 'INSUFFICIENT_EVIDENCE') {
         setInsufficientEvidence('Recorded, but there was not enough evidence to reach a verdict.')
       } else {
-        setDone(`${verb} started${versionLabel ? ` for ${versionLabel}` : ''}.`)
+        setDone(
+          `${verb} (deterministic fixture, $0) recorded${versionLabel ? ` for ${versionLabel}` : ''} — this proves the machinery, not the candidate's real behavior; see the Provenance badge below.`,
+        )
       }
       setConfirming(false)
       router.refresh()
@@ -317,19 +372,21 @@ export function ProofActions({
 
       <Dialog open={confirming} onClose={() => setConfirming(false)} size="lg">
         <DialogTitle>
-          {kind === 'shadow' ? 'Run a shadow experiment' : 'Run a replay comparison'}
+          {kind === 'shadow' ? 'Run a shadow experiment (fixture)' : 'Run a replay comparison (fixture)'}
           {versionLabel ? ` for ${versionLabel}` : ''}?
         </DialogTitle>
         <DialogDescription>
           {kind === 'shadow'
-            ? 'Replays sampled traffic against the candidate without serving it to any real consumer — a simulation, never a live effect.'
-            : 'Compares the candidate against production over recorded cases and records where they diverge.'}
+            ? 'Runs a deterministic, $0 SIMULATION — not a real run of the candidate — against the certified count_words tool, proving the mutating-tool block and the evidence path without serving anything to a real consumer.'
+            : 'Runs a deterministic, $0 SIMULATION comparing scripted outcomes — not a real run of the candidate or production — and records where they diverge.'}
         </DialogDescription>
         <DialogBody>
           <Text className="!mt-0">
+            This evidence is recorded with provenance <code className="rounded bg-white/5 px-1 py-0.5 font-mono text-xs">deterministic_fixture</code>{' '}
+            and CANNOT satisfy a promotion check that requires shadow/replay proof — only a live LangGraph run can (see the Provenance badge on the resulting evidence).{' '}
             {kind === 'shadow'
-              ? 'Nothing here changes what consumers are served. The verdict feeds the promotion evidence above; it does not promote anything by itself.'
-              : 'This does not re-run the release gate or write anything to production. The comparison feeds the promotion evidence above.'}
+              ? 'Nothing here changes what consumers are served. It does not promote anything by itself.'
+              : 'This does not re-run the release gate or write anything to production.'}
           </Text>
         </DialogBody>
         <DialogActions>

@@ -1,0 +1,93 @@
+{
+  "mission": "AIGENT-FACTORY-SHADOW-REPLAY-001",
+  "pr": 22,
+  "capturedFrom": "http://localhost:3210/admin/agents/copilot-market-intelligence/release",
+  "capturedAt": "2026-07-25",
+  "copilot": {
+    "id": "copilot-market-intelligence",
+    "candidateVersionId": "version-market-intelligence-v2-cbb039af",
+    "candidateLabel": "v1.1.0-draft"
+  },
+  "screenshots": [
+    {
+      "file": "desktop-1440x900-normal.png",
+      "size": "1440x900",
+      "verifiedPixelDimensions": "1440x900",
+      "state": "normal",
+      "route": "/admin/agents/copilot-market-intelligence/release",
+      "description": "Release screen, Promotion evidence section, after a shadow experiment was run: the Shadow experiment block shows the Provenance term/value pair with the red 'Deterministic fixture ($0 simulation)' badge, plus Status=completed, Verdict=PASS. Replay comparison block still shows its empty state (no replay recorded yet at capture time)."
+    },
+    {
+      "file": "desktop-1440x900-confirmation.png",
+      "size": "1440x900",
+      "verifiedPixelDimensions": "1440x900",
+      "state": "confirmation",
+      "route": "/admin/agents/copilot-market-intelligence/release",
+      "description": "Confirmation dialog open for 'Run a replay comparison (fixture) for v1.1.0-draft?' — dialog body text explicitly names provenance `deterministic_fixture` in an inline <code> tag and states it CANNOT satisfy a required shadow/replay promotion check. The already-recorded shadow badge (red, fixture) is visible in the page behind the dialog."
+    },
+    {
+      "file": "desktop-1440x900-error.png",
+      "size": "1440x900",
+      "verifiedPixelDimensions": "1440x900",
+      "state": "error",
+      "route": "/admin/agents/copilot-market-intelligence/release",
+      "description": "Recaptured with the confirmation dialog CLOSED (Cancel clicked after the 409 was observed): a real 409 Conflict from POST .../replay surfaces as an ErrorBanner under the Replay comparison block reading 'copilot has no production version to replay against yet', shown alone with nothing overlaying it — an honestly observed structural error (this copilot has no production version, so replay has nothing to compare against), not a fabricated state."
+    },
+    {
+      "file": "laptop-1280x800-normal.png",
+      "size": "1280x800",
+      "verifiedPixelDimensions": "1280x800",
+      "state": "normal",
+      "route": "/admin/agents/copilot-market-intelligence/release",
+      "description": "Same normal state as the desktop capture, re-verified at the 1280x800 laptop breakpoint: shadow Provenance badge 'Deterministic fixture ($0 simulation)' visible, layout reflows correctly, no horizontal overflow."
+    },
+    {
+      "file": "laptop-1280x800-confirmation.png",
+      "size": "1280x800",
+      "verifiedPixelDimensions": "1280x800",
+      "state": "confirmation",
+      "route": "/admin/agents/copilot-market-intelligence/release",
+      "description": "Replay confirmation dialog open at 1280x800, same `deterministic_fixture` provenance disclosure text as the desktop capture, dialog remains fully readable at this width."
+    },
+    {
+      "file": "laptop-1280x800-error.png",
+      "size": "1280x800",
+      "verifiedPixelDimensions": "1280x800",
+      "state": "error",
+      "route": "/admin/agents/copilot-market-intelligence/release",
+      "description": "Recaptured with the confirmation dialog CLOSED (Cancel clicked after the 409 was observed): same real 409 'copilot has no production version to replay against yet' error banner, shown alone with nothing overlaying it, re-verified at 1280x800."
+    },
+    {
+      "file": "mobile-375x812-normal.png",
+      "size": "375x812",
+      "verifiedPixelDimensions": "375x812",
+      "state": "normal",
+      "route": "/admin/agents/copilot-market-intelligence/release",
+      "description": "Normal state at mobile width: Promotion evidence section stacks to a single column, shadow Provenance badge 'Deterministic fixture ($0 simulation)' still legible, no horizontal scrollbar (scrollWidth==innerWidth==375 verified)."
+    },
+    {
+      "file": "mobile-375x812-confirmation.png",
+      "size": "375x812",
+      "verifiedPixelDimensions": "375x812",
+      "state": "confirmation",
+      "route": "/admin/agents/copilot-market-intelligence/release",
+      "description": "Replay confirmation dialog at mobile width — `deterministic_fixture` provenance text wraps correctly, Cancel/Confirm buttons remain reachable, no overflow."
+    },
+    {
+      "file": "mobile-375x812-error.png",
+      "size": "375x812",
+      "verifiedPixelDimensions": "375x812",
+      "state": "error",
+      "route": "/admin/agents/copilot-market-intelligence/release",
+      "description": "Recaptured with the confirmation dialog CLOSED (Cancel clicked after the 409 was observed): same real 409 'copilot has no production version to replay against yet' error banner, shown alone with nothing overlaying it, re-verified at mobile width; layout still readable, no horizontal scroll (scrollWidth=360 <= innerWidth=375 verified after interaction)."
+    }
+  ],
+  "notes": {
+    "executionModesObserved": ["deterministic_fixture"],
+    "executionModesNotObserved": ["live_langgraph"],
+    "whyLiveLanggraphNotCaptured": "No live_langgraph shadow/replay path exists in this codebase yet (PR #22 scope is fixture-only + the provenance gate fix). No screenshot in this set shows the green 'Live LangGraph run' badge because that state has never been produced by any code path — showing it would be fabrication.",
+    "migrationCaveat": "migration 0034_shadow_replay_lifecycle.sql (execution_mode column + queued/failed statuses + concurrency indexes) was authored in this PR but had NOT been applied to the shared dev database (aigent-db.hearst.app, backed by nexus-postgres/aigent on GPU1) prior to this capture session. It was applied directly via psql (docker exec on GPU1, additive/idempotent, matches the migration file exactly, zero data loss) so the Promotion evidence section could render instead of the generic 'gate could not be evaluated' fallback. This DB change is orthogonal to the docs-only deliverable of this task but is disclosed here for full honesty about what was needed to produce these screenshots.",
+    "authNote": "The first attempt to trigger a shadow/replay run without an authenticated session produced a real 401 'Authentication required' from src/proxy.ts's fail-closed API gate. That is also a legitimate, honestly-observed error state, but the REPLAY 409 (no production version) was chosen as the canonical 'error/insufficient' capture because it is specific to this feature's domain logic rather than generic session plumbing.",
+    "reviewFinding_dialogDoesNotAutoCloseOnError": "The first capture pass (superseded) revealed that ProofActions (promotion-evidence-panel.tsx) only calls setConfirming(false) on a successful response — a failed submit (e.g. this replay's 409) leaves the confirmation dialog open, overlapping the error banner underneath. That produced a confusing first set of *-error.png captures (dialog still open, error partially hidden behind it). The captures in this package were retaken with the dialog closed manually (Cancel) after observing the error, to show the banner cleanly. This is a minor, real UX gap worth fixing separately: on a failed submit, ProofActions should probably also close the dialog (or at least not obscure the resulting ErrorBanner) so an operator sees the failure without an extra manual step. Not fixed here — out of scope for this visual-package task, disclosed for the record."
+  }
+}

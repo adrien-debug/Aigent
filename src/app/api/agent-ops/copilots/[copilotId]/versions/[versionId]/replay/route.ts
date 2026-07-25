@@ -126,6 +126,11 @@ export async function POST(
       case_count: 0,
       candidates: [],
       triggered_by: 'agent-ops-api',
+      // PR #22 rework: this route is fixture-only (useFixture:false is
+      // refused above, before this reservation) — the row MUST say so,
+      // never leave the DB default (legacy_unknown) to stand in for it, so
+      // the promotion gate's provenance check reads the true source.
+      execution_mode: 'deterministic_fixture',
     })
   } catch (err) {
     if (err instanceof PgrestError && err.status === 409) {
@@ -209,8 +214,14 @@ export async function POST(
  *   200 { ok: true, comparison: null | {
  *     id: string, status: 'draft'|'queued'|'running'|'ready'|'diverged'|'matched'|'failed',
  *     verdict: 'BETTER'|'EQUIVALENT'|'WORSE'|'INCONCLUSIVE'|null,
+ *     executionMode: 'live_langgraph'|'deterministic_fixture'|'legacy_unknown',
  *     caseCount: number, createdAt: string,
  *   }}
+ *   `executionMode` (migration 0034, PR #22 rework) is ALWAYS
+ *   'deterministic_fixture' today — see the PRODUCT-READINESS NOTE above.
+ *   The Release UI MUST label this evidence as a simulation; the promotion
+ *   gate refuses anything but 'live_langgraph' for a REQUIRED check
+ *   (promotion-gate.ts replayCheck).
  *   400/404/503/502/504 — same contract as the shadow GET.
  */
 export async function GET(
@@ -231,13 +242,20 @@ export async function GET(
   try {
     const rows = await pgrest<Record<string, unknown>[]>(
       'GET',
-      `replay_comparisons?copilot_id=eq.${encodeURIComponent(copilotId)}&candidate_version_id=eq.${encodeURIComponent(versionId)}&select=id,status,verdict,case_count,created_at&order=created_at.desc&limit=1`
+      `replay_comparisons?copilot_id=eq.${encodeURIComponent(copilotId)}&candidate_version_id=eq.${encodeURIComponent(versionId)}&select=id,status,verdict,case_count,created_at,execution_mode&order=created_at.desc&limit=1`
     )
     const row = rows[0] ?? null
     return NextResponse.json({
       ok: true,
       comparison: row
-        ? { id: row.id, status: row.status, verdict: row.verdict ?? null, caseCount: row.case_count ?? 0, createdAt: row.created_at }
+        ? {
+            id: row.id,
+            status: row.status,
+            verdict: row.verdict ?? null,
+            executionMode: row.execution_mode ?? 'legacy_unknown',
+            caseCount: row.case_count ?? 0,
+            createdAt: row.created_at,
+          }
         : null,
     })
   } catch (err) {

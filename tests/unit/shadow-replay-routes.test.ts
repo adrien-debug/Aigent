@@ -441,3 +441,43 @@ describe('telemetry hygiene', () => {
     }
   })
 })
+
+describe('provenance (PR #22 rework): the row this route actually writes carries execution_mode=deterministic_fixture', () => {
+  it('shadow POST persists execution_mode=deterministic_fixture — never defaults to a value that could satisfy a required gate check', async () => {
+    const res = await shadowPOST(req({}), ctx(COPILOT, CANDIDATE))
+    const json = await res.json()
+    expect(res.status).toBe(200)
+    const row = shadowTable.rows.find((r) => r.id === json.experimentId)
+    expect(row?.execution_mode).toBe('deterministic_fixture')
+  })
+
+  it('replay POST persists execution_mode=deterministic_fixture', async () => {
+    const res = await replayPOST(req({}), ctx(COPILOT, CANDIDATE))
+    const json = await res.json()
+    expect(res.status).toBe(200)
+    const row = replayTable.rows.find((r) => r.id === json.comparisonId)
+    expect(row?.execution_mode).toBe('deterministic_fixture')
+  })
+
+  it('GET surfaces executionMode to the client so the UI can label the evidence', async () => {
+    await shadowPOST(req({}), ctx(COPILOT, CANDIDATE))
+    const res = await shadowGET(new Request('http://x'), ctx(COPILOT, CANDIDATE))
+    const json = await res.json()
+    expect(json.experiment.executionMode).toBe('deterministic_fixture')
+  })
+
+  it('END TO END: a shadow PASS produced by THIS ROUTE, fed into the real evaluatePromotionGate with requireShadow=true, resolves INSUFFICIENT_EVIDENCE — never PASS. Proves the route + gate together close the bypass the review found, not just the gate in isolation.', async () => {
+    const res = await shadowPOST(req({}), ctx(COPILOT, CANDIDATE))
+    const json = await res.json()
+    expect(json.verdict).toBe('PASS') // the shadow engine itself is genuinely satisfied
+
+    const { evaluatePromotionGate } = await import('@/lib/agent-mission-control/promotion-gate')
+    // Re-use this test file's own pgrest mock: promotion-gate.ts's own eq()
+    // filters match the same shadow_experiments table this test already
+    // populated via the real route, so no additional wiring is needed.
+    const gateResult = await evaluatePromotionGate(COPILOT, CANDIDATE, { requireShadow: true, requireReplay: false })
+    const shadowProofCheck = gateResult?.checks.find((c) => c.id === 'shadow-proof')
+    expect(shadowProofCheck?.status).toBe('INSUFFICIENT_EVIDENCE')
+    expect(gateResult?.promotable).toBe(false)
+  })
+})

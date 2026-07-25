@@ -190,6 +190,113 @@ describe('promotion gate — every failure mode BLOCKS', () => {
   })
 })
 
+describe('promotion gate — PROVENANCE (PR #22 rework): a fixture PASS must never satisfy a required check', () => {
+  it('shadow PASS with execution_mode=deterministic_fixture, required=true → INSUFFICIENT_EVIDENCE, never PASS', async () => {
+    wireDefaultRows({
+      shadow: [{ id: 'shadow-1', status: 'completed', candidate_verdict: 'PASS', would_mutate_count: 0, execution_mode: 'deterministic_fixture' }],
+    })
+    const policy: PromotionPolicy = { requireShadow: true, requireReplay: false }
+    const r = await evaluatePromotionGate(COPILOT, VERSION, policy, FIXED_NOW)
+    const check = r?.checks.find((c) => c.id === 'shadow-proof')
+    expect(check?.status).toBe('INSUFFICIENT_EVIDENCE')
+    expect(check?.reason).toMatch(/live_langgraph/)
+    expect(r?.overall).toBe('INSUFFICIENT_EVIDENCE')
+    expect(r?.promotable).toBe(false)
+  })
+
+  it('shadow PASS with execution_mode=legacy_unknown (or absent), required=true → INSUFFICIENT_EVIDENCE — fail-closed, not fail-open on missing provenance', async () => {
+    wireDefaultRows({
+      shadow: [{ id: 'shadow-1', status: 'completed', candidate_verdict: 'PASS', would_mutate_count: 0 }], // no execution_mode field at all
+    })
+    const policy: PromotionPolicy = { requireShadow: true, requireReplay: false }
+    const r = await evaluatePromotionGate(COPILOT, VERSION, policy, FIXED_NOW)
+    expect(r?.checks.find((c) => c.id === 'shadow-proof')?.status).toBe('INSUFFICIENT_EVIDENCE')
+    expect(r?.overall).toBe('INSUFFICIENT_EVIDENCE')
+  })
+
+  it('shadow PASS with execution_mode=live_langgraph, required=true → PASS — the ONLY provenance that clears a required check', async () => {
+    wireDefaultRows({
+      shadow: [{ id: 'shadow-1', status: 'completed', candidate_verdict: 'PASS', would_mutate_count: 0, execution_mode: 'live_langgraph' }],
+    })
+    const policy: PromotionPolicy = { requireShadow: true, requireReplay: false }
+    const r = await evaluatePromotionGate(COPILOT, VERSION, policy, FIXED_NOW)
+    expect(r?.checks.find((c) => c.id === 'shadow-proof')?.status).toBe('PASS')
+    expect(r?.overall).toBe('PASS')
+  })
+
+  it('shadow FAIL (mutation attempted) with execution_mode=deterministic_fixture → still FAIL, not softened to INSUFFICIENT_EVIDENCE — a fixture CAN prove a negative', async () => {
+    wireDefaultRows({
+      shadow: [{ id: 'shadow-1', status: 'completed', candidate_verdict: 'FAIL', would_mutate_count: 1, execution_mode: 'deterministic_fixture' }],
+    })
+    const policy: PromotionPolicy = { requireShadow: true, requireReplay: false }
+    const r = await evaluatePromotionGate(COPILOT, VERSION, policy, FIXED_NOW)
+    expect(r?.checks.find((c) => c.id === 'shadow-proof')?.status).toBe('FAIL')
+    expect(r?.overall).toBe('FAIL')
+  })
+
+  it('replay BETTER with execution_mode=deterministic_fixture, required=true → INSUFFICIENT_EVIDENCE, never PASS', async () => {
+    wireDefaultRows({
+      replay: [{ id: 'replay-1', verdict: 'BETTER', status: 'ready', execution_mode: 'deterministic_fixture' }],
+    })
+    const policy: PromotionPolicy = { requireShadow: false, requireReplay: true }
+    const r = await evaluatePromotionGate(COPILOT, VERSION, policy, FIXED_NOW)
+    const check = r?.checks.find((c) => c.id === 'replay-comparison')
+    expect(check?.status).toBe('INSUFFICIENT_EVIDENCE')
+    expect(check?.reason).toMatch(/live_langgraph/)
+    expect(r?.overall).toBe('INSUFFICIENT_EVIDENCE')
+    expect(r?.promotable).toBe(false)
+  })
+
+  it('replay EQUIVALENT with execution_mode=legacy_unknown, required=true → INSUFFICIENT_EVIDENCE', async () => {
+    wireDefaultRows({
+      replay: [{ id: 'replay-1', verdict: 'EQUIVALENT', status: 'matched', execution_mode: 'legacy_unknown' }],
+    })
+    const policy: PromotionPolicy = { requireShadow: false, requireReplay: true }
+    const r = await evaluatePromotionGate(COPILOT, VERSION, policy, FIXED_NOW)
+    expect(r?.checks.find((c) => c.id === 'replay-comparison')?.status).toBe('INSUFFICIENT_EVIDENCE')
+  })
+
+  it('replay BETTER with execution_mode=live_langgraph, required=true → PASS', async () => {
+    wireDefaultRows({
+      replay: [{ id: 'replay-1', verdict: 'BETTER', status: 'ready', execution_mode: 'live_langgraph' }],
+    })
+    const policy: PromotionPolicy = { requireShadow: false, requireReplay: true }
+    const r = await evaluatePromotionGate(COPILOT, VERSION, policy, FIXED_NOW)
+    expect(r?.checks.find((c) => c.id === 'replay-comparison')?.status).toBe('PASS')
+    expect(r?.overall).toBe('PASS')
+  })
+
+  it('replay WORSE with execution_mode=deterministic_fixture → still FAIL, not softened — a fixture regression is still a real regression signal', async () => {
+    wireDefaultRows({
+      replay: [{ id: 'replay-1', verdict: 'WORSE', status: 'diverged', execution_mode: 'deterministic_fixture' }],
+    })
+    const policy: PromotionPolicy = { requireShadow: false, requireReplay: true }
+    const r = await evaluatePromotionGate(COPILOT, VERSION, policy, FIXED_NOW)
+    expect(r?.checks.find((c) => c.id === 'replay-comparison')?.status).toBe('FAIL')
+    expect(r?.overall).toBe('FAIL')
+  })
+
+  it('BOTH shadow PASS and replay BETTER fixture-backed, both required → the candidate is STILL not promotable end-to-end', async () => {
+    wireDefaultRows({
+      shadow: [{ id: 'shadow-1', status: 'completed', candidate_verdict: 'PASS', would_mutate_count: 0, execution_mode: 'deterministic_fixture' }],
+      replay: [{ id: 'replay-1', verdict: 'BETTER', status: 'ready', execution_mode: 'deterministic_fixture' }],
+    })
+    const policy: PromotionPolicy = { requireShadow: true, requireReplay: true }
+    const r = await evaluatePromotionGate(COPILOT, VERSION, policy, FIXED_NOW)
+    expect(r?.overall).toBe('INSUFFICIENT_EVIDENCE')
+    expect(r?.promotable).toBe(false)
+  })
+
+  it('optional (not required) shadow/replay: a fixture PASS/BETTER is still surfaced as PASS — provenance only gates REQUIRED checks, an informational check is unaffected', async () => {
+    wireDefaultRows({
+      shadow: [{ id: 'shadow-1', status: 'completed', candidate_verdict: 'PASS', would_mutate_count: 0, execution_mode: 'deterministic_fixture' }],
+    })
+    const policy: PromotionPolicy = { requireShadow: false, requireReplay: false }
+    const r = await evaluatePromotionGate(COPILOT, VERSION, policy, FIXED_NOW)
+    expect(r?.checks.find((c) => c.id === 'shadow-proof')?.status).toBe('PASS')
+  })
+})
+
 describe('promotion gate — persistence is what the RPC re-reads (9)', () => {
   it('persists a ready+PASS row for a green gate (the row the hardened RPC requires)', async () => {
     const r = await evaluatePromotionGate(COPILOT, VERSION, undefined, FIXED_NOW)
