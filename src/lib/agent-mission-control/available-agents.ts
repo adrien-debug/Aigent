@@ -408,8 +408,9 @@ function toAvailableAgent(input: {
     status,
     lifecycleStatus: copilot.status,
     runtime,
-    // The run gate's rule, spelled out once: active AND nothing unresolved.
-    executable: status === 'active' && unresolvedToolIds.length === 0,
+    // The run gate's rule, spelled out once: active, nothing unresolved, AND
+    // runtime is langgraph (the only executable product runtime).
+    executable: status === 'active' && unresolvedToolIds.length === 0 && runtime === 'langgraph',
     provider,
     configuredModel,
     executedModel,

@@ -35,7 +35,19 @@ import type { AgentRuntime, ModelProvider } from '../types'
  */
 export type EvidenceExecutionMode = 'live' | 'deterministic'
 
-/** The DB value each mode persists to `test_runs.execution_mode` / `benchmark_runs.execution_mode`. */
+/**
+ * The DB value each mode persists to `test_runs.execution_mode` /
+ * `benchmark_runs.execution_mode` (migration 0037).
+ *
+ * ⚠️ VOCABULARY DIVERGENCE — DO NOT CROSS-COMPARE. This column shares its NAME
+ * with `shadow_experiments`/`replay_comparisons.execution_mode` (migration 0034)
+ * but NOT its values: here it is `'live' | 'deterministic-fixture'`; there it is
+ * `'live_langgraph' | 'deterministic_fixture' | 'legacy_unknown'`. They live on
+ * different tables with different consumers (this one → release-gate test/bench
+ * evidence; the other → promotion-gate shadow/replay provenance). Any future code
+ * that reads `execution_mode` MUST know which table it came from — a string
+ * equality across the two is always wrong.
+ */
 export const EVIDENCE_MODE_DB_LABEL: Readonly<Record<EvidenceExecutionMode, string>> = {
   live: 'live',
   deterministic: 'deterministic-fixture',

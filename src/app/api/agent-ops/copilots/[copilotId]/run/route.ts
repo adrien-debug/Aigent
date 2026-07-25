@@ -165,12 +165,18 @@ export async function POST(
   if (canonical === undefined) {
     return NextResponse.json({ error: 'copilot not found' }, { status: 404 })
   }
-  if (canonical.status !== 'active' || canonical.unresolvedToolIds.length > 0) {
+  if (canonical.status !== 'active' || canonical.unresolvedToolIds.length > 0 || canonical.runtime !== 'langgraph') {
     // `active` alone is not enough: a copilot can be marked active in the DB
-    // while declaring tools that resolve to nothing runnable. Both conditions
-    // must hold, and the reasons are concrete — never a bare "not allowed".
+    // while declaring tools that resolve to nothing runnable, OR carry a
+    // non-langgraph runtime. All conditions must hold, and the reasons are
+    // concrete — never a bare "not allowed".
     const reasons: string[] = []
     if (canonical.status !== 'active') reasons.push(`status is ${canonical.status}, expected active`)
+    // LangGraph is the ONLY canonical, HITL-capable executable runtime (AGENTS.md).
+    // Refusing a non-langgraph runtime here keeps the direct model-router engine an
+    // internal component (used by test/benchmark), never a parallel PRODUCT run path.
+    if (canonical.runtime !== 'langgraph')
+      reasons.push(`runtime is ${canonical.runtime ?? 'unset'}, expected langgraph (the only executable product runtime)`)
     if (canonical.unresolvedToolIds.length > 0) {
       // `unresolvedToolIds` carries ids by contract, but an id tells an operator
       // nothing. Resolve them to tool names for the message; fall back to the id

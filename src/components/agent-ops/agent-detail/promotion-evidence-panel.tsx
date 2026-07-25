@@ -87,6 +87,7 @@ export function ShadowEvidence({
     candidateVerdict: string | null
     wouldMutateCount: number
     sampledRunCount: number
+    executionMode: string
   } | null
 }) {
   if (!shadow) {
@@ -115,10 +116,25 @@ export function ShadowEvidence({
         <dt className={eyebrowClass}>Would-mutate breaches</dt>
         <dd className="mt-1 font-mono text-sm tabular-nums text-white">{shadow.wouldMutateCount}</dd>
       </div>
+      <div>
+        <dt className={eyebrowClass}>Provenance</dt>
+        <dd
+          className={`mt-1 text-sm ${shadow.executionMode === 'live_langgraph' ? 'text-accent-700 dark:text-accent-300' : 'text-zinc-400'}`}
+        >
+          {shadow.executionMode === 'live_langgraph'
+            ? 'Live (real LangGraph)'
+            : shadow.executionMode === 'deterministic_fixture'
+              ? 'Fixture (simulation)'
+              : 'Unproven'}
+        </dd>
+      </div>
       <div className="col-span-2 sm:col-span-4">
         <Text className="!mt-0 !text-xs">
           A shadow run replays traffic against the candidate without serving it — nothing here was
-          shown to a real consumer.
+          shown to a real consumer.{' '}
+          {shadow.executionMode !== 'live_langgraph'
+            ? 'This is a $0 deterministic simulation, not a real run — the promotion gate will NOT accept it for a required check.'
+            : 'This ran the candidate on the real LangGraph runtime.'}
         </Text>
       </div>
     </dl>
@@ -133,6 +149,7 @@ export function ReplayEvidence({
     verdict: string | null
     caseCount: number
     divergent: Array<{ comparison: string; note: string }>
+    executionMode: string
   } | null
 }) {
   if (!replay) {
@@ -157,6 +174,18 @@ export function ReplayEvidence({
         <div>
           <dt className={eyebrowClass}>Divergent cases</dt>
           <dd className="mt-1 font-mono text-sm tabular-nums text-white">{replay.divergent.length}</dd>
+        </div>
+        <div>
+          <dt className={eyebrowClass}>Provenance</dt>
+          <dd
+            className={`mt-1 text-sm ${replay.executionMode === 'live_langgraph' ? 'text-accent-700 dark:text-accent-300' : 'text-zinc-400'}`}
+          >
+            {replay.executionMode === 'live_langgraph'
+              ? 'Live (real LangGraph)'
+              : replay.executionMode === 'deterministic_fixture'
+                ? 'Fixture (simulation)'
+                : 'Unproven'}
+          </dd>
         </div>
       </dl>
       {replay.divergent.length > 0 ? (

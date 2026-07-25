@@ -12,12 +12,16 @@ export interface ShadowEvidenceData {
   candidateVerdict: string | null
   wouldMutateCount: number
   sampledRunCount: number
+  /** 'live_langgraph' | 'deterministic_fixture' | 'legacy_unknown' — provenance the
+   *  promotion gate keys off (a fixture can't satisfy a required check). */
+  executionMode: string
 }
 
 export interface ReplayEvidenceData {
   verdict: string | null
   caseCount: number
   divergent: Array<{ comparison: string; note: string }>
+  executionMode: string
 }
 
 export interface AgentReleasePageData {
@@ -62,7 +66,7 @@ export async function getAgentReleasePageData(copilotId: string): Promise<AgentR
   const shadowRows = candidateVersionIdForEvidence
     ? await pgrest<Record<string, unknown>[]>(
         'GET',
-        `shadow_experiments?copilot_id=eq.${encodeURIComponent(lifecycle.copilotId)}&candidate_version_id=eq.${encodeURIComponent(candidateVersionIdForEvidence)}&select=status,candidate_verdict,would_mutate_count,sampled_run_count&order=started_at.desc&limit=1`,
+        `shadow_experiments?copilot_id=eq.${encodeURIComponent(lifecycle.copilotId)}&candidate_version_id=eq.${encodeURIComponent(candidateVersionIdForEvidence)}&select=status,candidate_verdict,would_mutate_count,sampled_run_count,execution_mode&order=started_at.desc&limit=1`,
       ).catch(() => [])
     : []
   const shadowRow = shadowRows[0] ?? null
@@ -72,13 +76,16 @@ export async function getAgentReleasePageData(copilotId: string): Promise<AgentR
         candidateVerdict: (shadowRow.candidate_verdict as string | null) ?? null,
         wouldMutateCount: shadowRow.would_mutate_count as number,
         sampledRunCount: shadowRow.sampled_run_count as number,
+        // Never defaulted to a passing/live value — an absent column reads as
+        // legacy_unknown (unproven), exactly like the gate treats it.
+        executionMode: (shadowRow.execution_mode as string | undefined) ?? 'legacy_unknown',
       }
     : null
 
   const replayRows = candidateVersionIdForEvidence
     ? await pgrest<Record<string, unknown>[]>(
         'GET',
-        `replay_comparisons?copilot_id=eq.${encodeURIComponent(lifecycle.copilotId)}&select=verdict,case_count,candidates&order=created_at.desc&limit=1`,
+        `replay_comparisons?copilot_id=eq.${encodeURIComponent(lifecycle.copilotId)}&select=verdict,case_count,candidates,execution_mode&order=created_at.desc&limit=1`,
       ).catch(() => [])
     : []
   const replayRow = replayRows[0] ?? null
@@ -89,6 +96,7 @@ export async function getAgentReleasePageData(copilotId: string): Promise<AgentR
         divergent: ((replayRow.candidates as Array<{ comparison: string; note: string }>) ?? []).filter(
           (c) => c.comparison === 'worse' || c.comparison === 'nondeterministic',
         ),
+        executionMode: (replayRow.execution_mode as string | undefined) ?? 'legacy_unknown',
       }
     : null
 

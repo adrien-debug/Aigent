@@ -20,6 +20,7 @@ type Canonical = {
   status: 'active' | 'inactive' | 'degraded' | 'unavailable'
   unresolvedToolIds: string[]
   unavailableFields: string[]
+  runtime?: string | null
 }
 
 let canonicalAgent: Canonical | undefined
@@ -29,7 +30,9 @@ const executeCopilotRun = vi.fn()
 vi.mock('@/lib/agent-mission-control/available-agents', () => ({
   getAvailableAgent: vi.fn(async () => {
     if (catalogueThrows) throw catalogueThrows
-    return canonicalAgent
+    // Default runtime to langgraph so pre-existing mocks pass the runtime gate; a
+    // test overrides `canonicalAgent.runtime` to exercise the non-langgraph refusal.
+    return canonicalAgent ? { runtime: 'langgraph', ...canonicalAgent } : undefined
   }),
 }))
 
@@ -127,6 +130,20 @@ describe('run route — fail-closed execution gate', () => {
     canonicalAgent = { copilotId: 'c', status: 'inactive', unresolvedToolIds: [], unavailableFields: [] }
     const res = await post('copilot-some-inactive-agent')
     expect(res.status).toBe(409)
+    expect(executeCopilotRun).not.toHaveBeenCalled()
+  })
+
+  it('refuses a non-langgraph runtime (LangGraph is the only executable product runtime)', async () => {
+    canonicalAgent = {
+      copilotId: 'copilot-legacy-openai-agent-11223344',
+      status: 'active',
+      unresolvedToolIds: [],
+      unavailableFields: [],
+      runtime: 'openai-assistants',
+    }
+    const res = await post('copilot-legacy-openai-agent-11223344')
+    expect(res.status).toBe(409)
+    expect((await res.json()).reasons.join(' ')).toMatch(/langgraph/i)
     expect(executeCopilotRun).not.toHaveBeenCalled()
   })
 

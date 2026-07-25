@@ -58,12 +58,17 @@ function nonExecutableReasons(agent: AvailableAgent): string[] {
     if (field === 'configuredModel') reasons.push('no model resolved')
     if (field === 'version') reasons.push('no serving version')
   }
+  if (agent.runtime !== 'langgraph') {
+    reasons.push(`runtime is ${agent.runtime ?? 'unset'}, not langgraph (the only executable product runtime)`)
+  }
   return reasons
 }
 
-/** Executable ⇔ the run gate would accept it. Same rule as the route. */
+/** Executable ⇔ the run gate would accept it. Same rule as the route: active,
+ *  every tool resolved, AND runtime is langgraph (the only executable product
+ *  runtime — the direct model-router engine stays internal to test/benchmark). */
 export function isExecutable(agent: AvailableAgent): boolean {
-  return agent.status === 'active' && agent.unresolvedToolIds.length === 0
+  return agent.status === 'active' && agent.unresolvedToolIds.length === 0 && agent.runtime === 'langgraph'
 }
 
 export async function toPublishedAgent(agent: AvailableAgent): Promise<PublishedAgent> {
