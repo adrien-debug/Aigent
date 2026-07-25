@@ -667,6 +667,9 @@ async function runTaskOnDirectEngine(
   try {
     const res = await executeCopilotRun({
       copilotId: ctx.copilotId,
+      // Test/benchmark harnesses run DRAFT candidates on purpose → skip the
+      // "version still serving" lifecycle guard (AIGENT-RUNTIME-PROMOTION-001).
+      allowNonActiveVersion: true,
       versionId: ctx.versionId,
       projectId: ctx.projectId,
       model: ctx.model,

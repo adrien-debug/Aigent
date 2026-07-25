@@ -33,6 +33,7 @@ import {
 import { runOnAgentServer } from './langgraph-server'
 import { pgrest } from './postgrest'
 import { resolveRunAssistantId } from './resolve-run-assistant'
+import { VersionNotServingError } from './runner-errors'
 import { emitInternalRunTelemetry } from './runtime-telemetry-store'
 import { startTrace, toDbStepKind, type TraceStep } from './run-trace'
 import { withTemporalContext } from './temporal-context'
@@ -72,6 +73,14 @@ export interface ExecuteCopilotRunArgs {
   maxSteps: number
   /** Per-request opt-in to run model fallbacks (OR-ed with the env flag). */
   allowFallback?: boolean
+  /**
+   * When true, skip the "version still serving" lifecycle re-read at run start
+   * (AIGENT-RUNTIME-PROMOTION-001, Phase 5). Set ONLY by harnesses that run a
+   * NON-production candidate on purpose — test-runner, benchmark-runner, shadow,
+   * replay — which evaluate drafts by design. A real production run (the run
+   * route) never sets it, so a depromoted/archived version is refused fail-closed.
+   */
+  allowNonActiveVersion?: boolean
   /**
    * Tools the copilot may call. When omitted, the runner loads them from the
    * manifest of `versionId` (so every caller gets tool-use without threading
@@ -258,6 +267,36 @@ async function loadManifestRunConfig(
 async function loadRuntime(copilotId: string): Promise<AgentRuntime | null> {
   const rows = await pgrest<RawRow[]>('GET', `copilots?id=eq.${encodeURIComponent(copilotId)}&select=runtime`)
   return (rows[0]?.runtime as AgentRuntime | undefined) ?? null
+}
+
+/**
+ * Fail-closed lifecycle re-read at run start: refuse to execute `versionId` if
+ * it is no longer serving for `copilotId` (AIGENT-RUNTIME-PROMOTION-001, Phase 5).
+ * "Serving" = the version's stage is 'production' (the live version) OR the
+ * copilot has no production version yet and this is its latest (validation-bench
+ * warm-up). A version that was rolled back / archived while the run sat in a
+ * queue is refused — an old queued run must not run a depromoted version.
+ * Throws a typed RunnerError the run route maps to a 409; harnesses that run
+ * drafts on purpose pass allowNonActiveVersion and never reach here.
+ */
+async function assertVersionStillServing(copilotId: string, versionId: string): Promise<void> {
+  const [copilotRows, versionRows] = await Promise.all([
+    pgrest<RawRow[]>('GET', `copilots?id=eq.${encodeURIComponent(copilotId)}&select=production_version_id,status`),
+    pgrest<RawRow[]>('GET', `copilot_versions?id=eq.${encodeURIComponent(versionId)}&copilot_id=eq.${encodeURIComponent(copilotId)}&select=stage`),
+  ])
+  const copilot = copilotRows[0]
+  const version = versionRows[0]
+  if (!copilot || !version) {
+    throw new VersionNotServingError(`version ${versionId} not found for copilot ${copilotId}`)
+  }
+  const productionVersionId = (copilot.production_version_id as string | null) ?? null
+  const stage = version.stage as string
+  // The live production version is always serving.
+  if (productionVersionId === versionId && stage === 'production') return
+  // Validation bench: no production version set yet → the version may run as a
+  // warm-up as long as it is not archived (a retired version never runs).
+  if (productionVersionId === null && stage !== 'archived') return
+  throw new VersionNotServingError(`version ${versionId} is no longer serving (stage=${stage}, production=${productionVersionId ?? 'none'}) — refusing a stale run`)
 }
 
 /**
@@ -695,6 +734,19 @@ export async function executeCopilotRun(
   // Resolved before the runtime branch so both paths persist the same label + key.
   const userLabel = args.userLabel ?? 'authoring-session'
   const clientRunId = args.clientRunId ?? null
+
+  // LIFECYCLE RE-READ AT RUN START (AIGENT-RUNTIME-PROMOTION-001, Phase 5).
+  // A run can sit in a queue between enqueue and execution; in that window the
+  // targeted version may have been rolled back / archived / the copilot paused.
+  // Re-read the lifecycle HERE, at the exact moment of execution, and refuse a
+  // version that is no longer serving — an old queued run must never execute a
+  // depromoted version. Fail-closed, common to both runtime paths. Skipped only
+  // when the caller explicitly runs a non-production candidate (test/benchmark/
+  // shadow set args.allowNonActiveVersion) — those harnesses run drafts on
+  // purpose and carry their own isolation.
+  if (!args.allowNonActiveVersion) {
+    await assertVersionStillServing(copilotId, versionId)
+  }
 
   // Resolve the runtime: explicit wins, else load from the copilot row. A
   // 'langgraph' runtime delegates to the official LangGraph Agent Server, which

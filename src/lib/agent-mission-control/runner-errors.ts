@@ -38,6 +38,21 @@ export class UnsupportedRuntimeError extends Error {
   }
 }
 
+/**
+ * The version a run targets is no longer serving at execution time — it was
+ * rolled back / archived (or its copilot paused) while the run sat in a queue
+ * (AIGENT-RUNTIME-PROMOTION-001, Phase 5). The runner re-reads the lifecycle at
+ * run start and throws this instead of executing a depromoted version. Routes
+ * map it to 409 (a lifecycle conflict, not a transient failure), same class as
+ * UnsupportedRuntimeError.
+ */
+export class VersionNotServingError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'VersionNotServingError'
+  }
+}
+
 /** Base for every model-router failure. */
 export class ModelRouterError extends Error {
   constructor(message: string) {

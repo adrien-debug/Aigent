@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 
 import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
-import { evaluateReleaseGate } from '@/lib/agent-mission-control/release-gate'
+import { evaluateAndPersistPromotionGate } from '@/lib/agent-mission-control/promotion-gate'
+import { emitPromotionTelemetry } from '@/lib/agent-mission-control/runtime-telemetry-store'
 
 /**
  * Shape guard for ids used by this route (`:copilotId` path param and the
@@ -106,22 +107,34 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   // re-runs the full gate below (there is no beta/other promote path).
   if (body.action === 'promote') {
     try {
-      const gate = await evaluateReleaseGate(copilotId, versionId)
-      if (!gate) {
+      // Evaluate the FULL promotion gate (release gate + runtime-executable +
+      // tools-resolved-certified + shadow + replay) AND persist it — the atomic
+      // RPC (migration 0029) re-reads this persisted row and refuses to reach
+      // ACTIVE without a fresh PASS. The UI enabling the button is a courtesy;
+      // this server evaluation + the DB re-read are the real, layered control.
+      const evaluated = await evaluateAndPersistPromotionGate(copilotId, versionId)
+      if (!evaluated) {
         return NextResponse.json({ error: 'copilot or candidate version not found' }, { status: 404 })
       }
-      if (!gate.promotable) {
-        const blocking = gate.checks.filter((c) => c.status !== 'pass').map((c) => `${c.label}: ${c.observed}`)
+      const { result, gateEvaluationId } = evaluated
+      await emitPromotionTelemetry({
+        eventType: result.promotable ? 'promotion_evaluated' : 'promotion_blocked',
+        copilotId,
+        versionId,
+        gateEvaluationId,
+        detail: { overall: result.overall, checks: result.checks.map((c) => ({ id: c.id, status: c.status })) },
+      })
+      if (!result.promotable) {
+        const blocking = result.checks.filter((c) => c.status !== 'PASS' && c.status !== 'NOT_CONFIGURED').map((c) => `${c.label}: ${c.reason}`)
         return NextResponse.json(
-          { error: 'release gate not green — promotion blocked', blocking },
+          { error: 'promotion gate not green — promotion blocked', overall: result.overall, blocking },
           { status: 422 }
         )
       }
     } catch (err) {
-      console.error('[promotion] release gate evaluation failed', err instanceof Error ? err.message : err)
-      // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
-      // any other upstream failure stays a generic 502. Same body either way.
-      return NextResponse.json({ error: 'release gate evaluation failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
+      console.error('[promotion] gate evaluation failed', err instanceof Error ? err.message : err)
+      // pgrest() timeout (PgrestError 504) → 504; any other upstream → 502.
+      return NextResponse.json({ error: 'promotion gate evaluation failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
     }
   }
 
@@ -220,13 +233,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
         p_copilot_id: copilotId,
         p_version_id: versionId,
         p_previous_prod: previousProdToArchive ?? null,
+        // Rollback restores an already-served (archived) version → exempt from
+        // the fresh-gate requirement in the RPC. Promote is NOT exempt: without
+        // a fresh persisted PASS the RPC raises (check_violation → 400 here).
+        p_is_rollback: body.action === 'rollback',
       }),
     })
     if (rpcRes.status === 409) {
       return NextResponse.json({ error: 'another version was promoted concurrently' }, { status: 409 })
     }
     if (!rpcRes.ok) {
-      console.error(`PostgREST ${rpcRes.status} on promote rpc: ${(await rpcRes.text()).slice(0, 500)}`)
+      const rpcBody = (await rpcRes.text()).slice(0, 500)
+      console.error(`PostgREST ${rpcRes.status} on promote rpc: ${rpcBody}`)
+      // The hardened RPC raises check_violation when no fresh passing gate row
+      // exists — surface that as a 422 (the promotion is refused at the DB), not
+      // a generic 502, so a bypass attempt reads as "blocked", never "server error".
+      if (/no fresh passing gate evaluation/.test(rpcBody)) {
+        return NextResponse.json({ error: 'promotion refused: gate evidence stale or absent (re-evaluate)' }, { status: 422 })
+      }
       return NextResponse.json({ error: 'PostgREST error' }, { status: 502 })
     }
   } catch (err) {
@@ -234,5 +258,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
     return NextResponse.json({ error: 'PostgREST error' }, { status: 502 })
   }
 
+  await emitPromotionTelemetry({ eventType: 'promotion_completed', copilotId, versionId, gateEvaluationId: null, detail: { action: body.action } })
   return NextResponse.json({ ok: true, persisted: true, action: body.action, productionVersionId: versionId })
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { getAvailableAgent } from '@/lib/agent-mission-control/available-agents'
 import { executeCopilotRun } from '@/lib/agent-mission-control/runner'
+import { VersionNotServingError } from '@/lib/agent-mission-control/runner-errors'
 import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 
 // Default step budget when the manifest carries no usable `max_steps_per_run`.
@@ -331,6 +332,12 @@ export async function POST(
       pendingTool: result.interrupted ? result.pendingTool ?? null : null,
     })
   } catch (err) {
+    // The version was depromoted/archived while this run was queued — the runner
+    // re-read the lifecycle at execution and refused it (Phase 5). That is a
+    // lifecycle conflict, not an upstream failure → 409, not 502.
+    if (err instanceof VersionNotServingError) {
+      return NextResponse.json({ error: 'version no longer serving — stale run refused' }, { status: 409 })
+    }
     // Same rationale as the two catches above: executeCopilotRun's errors can
     // originate from pgrest (PostgREST response bodies / table & column names)
     // or the OpenAI client — never forward raw internal error text to the

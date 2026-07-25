@@ -21,6 +21,8 @@
  */
 import 'server-only'
 
+import { randomUUID } from 'node:crypto'
+
 import { computeCostUsd } from './model-pricing'
 import { pgrest } from './postgrest'
 import type { ModelProvider } from './types'
@@ -90,7 +92,25 @@ export interface RuntimeTelemetryEvent {
   usage: { totalTokens?: number; promptTokens?: number; completionTokens?: number } | Record<string, unknown>
   environment: Record<string, unknown>
   receivedAt: string
+  /**
+   * Lifecycle event kind for NON-run events (migration 0029): shadow_started,
+   * shadow_completed, shadow_blocked_mutation, replay_started, replay_completed,
+   * promotion_evaluated, promotion_blocked, promotion_completed. Undefined for a
+   * normal run lifecycle ping (the `status` axis carries started/completed/failed).
+   */
+  eventType?: PromotionLifecycleEvent
 }
+
+/** The 8 promotion/shadow/replay lifecycle event kinds (migration 0029 event_type). */
+export type PromotionLifecycleEvent =
+  | 'shadow_started'
+  | 'shadow_completed'
+  | 'shadow_blocked_mutation'
+  | 'replay_started'
+  | 'replay_completed'
+  | 'promotion_evaluated'
+  | 'promotion_blocked'
+  | 'promotion_completed'
 
 /** One error category rollup entry (`summarizeRuntimeTelemetry`). */
 export interface RuntimeTelemetryErrorCategory {
@@ -255,6 +275,9 @@ export async function insertRuntimeTelemetryEvent(event: RuntimeTelemetryEvent):
       usage: event.usage,
       environment: event.environment,
       received_at: event.receivedAt,
+      // Lifecycle event kind for non-run events (migration 0029). Omitted for a
+      // plain run ping (column is nullable) — undefined is not sent.
+      ...(event.eventType ? { event_type: event.eventType } : {}),
     })
   } catch (err) {
     console.error('[runtime-telemetry-store] insert failed', err instanceof Error ? err.message : err)
@@ -632,5 +655,104 @@ export async function emitInternalRunTelemetry(run: InternalRunTelemetry): Promi
     usage: {},
     environment: { source: 'aigent-internal-runner', env: run.environment ?? 'dev' },
     receivedAt: new Date().toISOString(),
+  })
+}
+
+// ---------------------------------------------------------------------------
+// PROMOTION / SHADOW / REPLAY telemetry (AIGENT-RUNTIME-PROMOTION-001, Phase 7).
+//
+// The 8 lifecycle events ride the SAME runtime_telemetry_events table via the
+// `event_type` column (migration 0029). experiment_id / gate_evaluation_id live
+// in `environment` jsonb (no dedicated column). NEVER a secret, never a full
+// prompt — only ids, counts, verdicts, statuses. All fail-soft (insert never
+// throws).
+// ---------------------------------------------------------------------------
+
+/** One promotion lifecycle ping (evaluated / blocked / completed). */
+export async function emitPromotionTelemetry(args: {
+  eventType: 'promotion_evaluated' | 'promotion_blocked' | 'promotion_completed'
+  copilotId: string
+  versionId: string
+  gateEvaluationId: string | null
+  /** Small, non-sensitive summary (verdict, check statuses). Never a prompt. */
+  detail?: Record<string, unknown>
+}): Promise<void> {
+  await insertRuntimeTelemetryEvent({
+    id: `${args.eventType}-${randomUUID()}`,
+    projectId: 'promotion',
+    agentId: args.copilotId,
+    agentVersion: args.versionId,
+    targetRepo: null,
+    runId: args.gateEvaluationId ?? args.versionId,
+    provider: null,
+    model: null,
+    status: args.eventType === 'promotion_blocked' ? 'failed' : 'completed',
+    latencyMs: null,
+    inputShape: {},
+    outputShape: args.detail ?? {},
+    error: {},
+    usage: {},
+    environment: { source: 'aigent-promotion', gateEvaluationId: args.gateEvaluationId },
+    receivedAt: new Date().toISOString(),
+    eventType: args.eventType,
+  })
+}
+
+/** Shadow lifecycle ping (started / completed / blocked_mutation). */
+export async function emitShadowTelemetry(args: {
+  eventType: 'shadow_started' | 'shadow_completed' | 'shadow_blocked_mutation'
+  copilotId: string
+  candidateVersionId: string
+  experimentId: string
+  verdict?: string
+  wouldMutateCount?: number
+}): Promise<void> {
+  await insertRuntimeTelemetryEvent({
+    id: `${args.eventType}-${randomUUID()}`,
+    projectId: 'promotion',
+    agentId: args.copilotId,
+    agentVersion: args.candidateVersionId,
+    targetRepo: null,
+    runId: args.experimentId,
+    provider: null,
+    model: null,
+    status: args.eventType === 'shadow_completed' ? 'completed' : args.eventType === 'shadow_started' ? 'started' : 'failed',
+    latencyMs: null,
+    inputShape: {},
+    outputShape: { verdict: args.verdict ?? null, wouldMutateCount: args.wouldMutateCount ?? null },
+    error: {},
+    usage: {},
+    environment: { source: 'aigent-shadow', experimentId: args.experimentId },
+    receivedAt: new Date().toISOString(),
+    eventType: args.eventType,
+  })
+}
+
+/** Replay lifecycle ping (started / completed). */
+export async function emitReplayTelemetry(args: {
+  eventType: 'replay_started' | 'replay_completed'
+  copilotId: string
+  candidateVersionId: string
+  comparisonId: string
+  verdict?: string
+}): Promise<void> {
+  await insertRuntimeTelemetryEvent({
+    id: `${args.eventType}-${randomUUID()}`,
+    projectId: 'promotion',
+    agentId: args.copilotId,
+    agentVersion: args.candidateVersionId,
+    targetRepo: null,
+    runId: args.comparisonId,
+    provider: null,
+    model: null,
+    status: args.eventType === 'replay_completed' ? 'completed' : 'started',
+    latencyMs: null,
+    inputShape: {},
+    outputShape: { verdict: args.verdict ?? null },
+    error: {},
+    usage: {},
+    environment: { source: 'aigent-replay', comparisonId: args.comparisonId },
+    receivedAt: new Date().toISOString(),
+    eventType: args.eventType,
   })
 }
