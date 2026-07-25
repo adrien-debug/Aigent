@@ -70,6 +70,10 @@ function baseArgs(overrides: Record<string, unknown> = {}) {
     userInput: 'hello',
     maxSteps: 5,
     runtime: 'custom' as const,
+    // This suite tests runner MECHANICS on a candidate version, not lifecycle
+    // eligibility — skip the "version still serving" guard like the test/benchmark
+    // harnesses do (AIGENT-RUNTIME-PROMOTION-001, Phase 5).
+    allowNonActiveVersion: true,
     // No maxCostPerRunUsd → the runner reads the manifest (tools stay explicit).
     tools: [tool('delete_customer'), tool('delete_customer_note')],
     ...overrides,

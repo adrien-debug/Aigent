@@ -19,8 +19,27 @@ const PREVIOUS_PROD = 'version-previous-prod'
 
 let gateResult: { promotable: boolean; checks: { label: string; status: string; observed: string }[] } | null
 
-vi.mock('@/lib/agent-mission-control/release-gate', () => ({
-  evaluateReleaseGate: vi.fn(async () => gateResult),
+// The promotion route now uses the PromotionGate authority (evaluate + persist)
+// and emits telemetry. Mock both so this route test stays offline and drives the
+// gate decision via `gateResult` (promotable ⇔ overall PASS). persistGate is
+// implicit inside evaluateAndPersist here — we return the gateEvaluationId the
+// route needs. Telemetry is a fail-soft no-op in tests.
+vi.mock('@/lib/agent-mission-control/promotion-gate', () => ({
+  evaluateAndPersistPromotionGate: vi.fn(async () =>
+    gateResult === null
+      ? null
+      : {
+          result: {
+            overall: gateResult.promotable ? 'PASS' : 'FAIL',
+            promotable: gateResult.promotable,
+            checks: gateResult.checks.map((c) => ({ id: 'release-gate', label: c.label, status: gateResult!.promotable ? 'PASS' : 'FAIL', reason: c.observed })),
+          },
+          gateEvaluationId: 'gate-test-1',
+        },
+  ),
+}))
+vi.mock('@/lib/agent-mission-control/runtime-telemetry-store', () => ({
+  emitPromotionTelemetry: vi.fn(async () => {}),
 }))
 
 import { POST } from '@/app/api/agent-ops/copilots/[copilotId]/promotion/route'

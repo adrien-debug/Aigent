@@ -44,6 +44,9 @@ function baseArgs(overrides: Record<string, unknown> = {}) {
     userInput: 'hello',
     maxSteps: 5,
     runtime: 'custom' as const,
+    // Runner MECHANICS test on a candidate — skip the lifecycle "still serving"
+    // guard (AIGENT-RUNTIME-PROMOTION-001, Phase 5).
+    allowNonActiveVersion: true,
     tools: [],
     ...overrides,
   }

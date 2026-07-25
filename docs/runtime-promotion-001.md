@@ -31,4 +31,43 @@
 5. **Preuve sans run facturé** : `FixtureModelAdapter` déterministe (scripted tool calls → `count_words` certifié). Aucun appel OpenAI/Google.
 6. **Télémétrie** : la colonne `status` a un CHECK `(started|completed|failed)` → j'ajoute une colonne `event_type` (nullable, sans CHECK) + `experiment_id`/`gate_evaluation_id` portés dans `environment` jsonb. 8 event types émis.
 
-Détail au fil des phases ci-dessous.
+## Preuves (réel vs fixture vs non prouvé)
+
+### Anti-bypass DB — PROUVÉ LIVE (transaction rollback, zéro effet réel)
+Contre gpu1, dans une transaction annulée :
+| Cas | Résultat |
+|---|---|
+| RPC sans gate évaluation | **REFUSED** — "no fresh passing gate evaluation" |
+| RPC avec gate fraîche + PASS | **ACCEPTED** — le handshake persist→RPC fonctionne |
+| RPC avec gate périmée (2h > TTL) | **REFUSED** — le TTL est relu au moment T |
+Après rollback : version toujours `draft`, 0 ligne temporaire. Ni écriture directe,
+ni RPC, ni preuve périmée n'atteint ACTIVE.
+
+### PromotionGate — PROUVÉ LIVE (lecture seule)
+`evaluatePromotionGate('copilot-market-intelligence', <candidate>)` → overall FAIL
+(2 release checks échouent), runtime PASS (langgraph), tools PASS (5 certifiés),
+shadow/replay NOT_CONFIGURED. Honnête : bloque une version non prouvée.
+
+### Shadow — PROUVÉ LIVE (fixture déterministe, coût 0)
+`runShadowExperiment` sur `count_words` (2 inputs) → verdict PASS, 0 would-mutate,
+persisté dans `shadow_experiments` (PASS|0|2). Aucun appel LLM facturé.
+
+### Tests (fixtures déterministes, offline)
+`promotion-gate.test.ts` (23) + `runner-lifecycle-guard.test.ts` (5) = 28 tests
+non-contournement, zéro réseau : phantom tool→FAIL, engine:none→FAIL, test rouge→
+FAIL, benchmark absent→INSUFFICIENT, replay WORSE→FAIL, replay INCONCLUSIVE→
+INSUFFICIENT, shadow mutating→WOULD_MUTATE bloqué jamais exécuté, version archivée→
+run refusé, evidence_hash change quand la preuve change, télémétrie sans secret.
+
+### Distinction honnête
+- **Runtime réellement exécuté** : la RPC durcie + le PromotionGate + le shadow
+  `count_words` + la garde lifecycle — tous exécutés contre gpu1 réel.
+- **Simulation déterministe de test** : le `runAgent`/`FixtureModelAdapter` injecté
+  (count_words) pour prouver shadow/replay sans coût. C'est du vrai code d'outil,
+  mais le "modèle" est scripté, pas un LLM.
+- **Présent mais non prouvé avec un fournisseur payant** : un run agent COMPLET
+  de bout en bout (OpenAI/Google) — volontairement NON exécuté (§8, non-objectif
+  "pas de run facturé"). Le câblage runner→gate→lifecycle est prouvé par les
+  chemins ci-dessus, pas par un run LLM facturé.
+
+Détail au fil des phases ci-dessus.
