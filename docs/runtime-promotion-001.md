@@ -19,6 +19,14 @@
 
 **Le trou** : une écriture directe (service_role) ou un appel RPC direct contourne la gate applicative. La table `promotion_gates` n'est jamais écrite → aucune preuve persistée relue au moment T.
 
+> **⚠️ Correction de vérité (voir « Rework post-revue » en fin de doc).** La formulation
+> initiale « ni écriture directe ni RPC ne contourne » (plus bas) était **inexacte** pour
+> l'écriture directe : jusqu'à la migration `0032`, le rôle applicatif `service_role`
+> (`BYPASSRLS=t`, `UPDATE` direct sur `copilots`/`copilot_versions`) pouvait flipper un copilot
+> en `active`/`production` **sans passer par la RPC**, en SQL comme via PostgREST. La garantie
+> réellement prouvée avant `0032` portait sur la **RPC** (elle refuse une preuve absente/périmée),
+> pas sur **toute écriture directe**. `0032` ferme ce trou au niveau DB (trigger de transition).
+
 ## Décisions d'architecture
 
 1. **Autorité unique = `promotion-gate.ts`** (nouveau) qui ENVELOPPE et étend `evaluateReleaseGate` :
@@ -71,3 +79,79 @@ run refusé, evidence_hash change quand la preuve change, télémétrie sans sec
   chemins ci-dessus, pas par un run LLM facturé.
 
 Détail au fil des phases ci-dessus.
+
+---
+
+## Rework post-revue (SHA `74257ea` → migrations 0030–0032)
+
+La revue du SHA `74257ea` a validé la CI et la plupart des corrections, mais a trouvé **7 défauts
+anti-bypass** (fermés par `0030`+`0031`, cf. `docs/agent-factory-readiness.md`) **plus deux
+contournements DB restants**, corrigés par la migration **`0032`** et prouvés live contre gpu1.
+
+### Modèle de rôle réel (vérité de terrain)
+
+| Fait | Valeur (gpu1) |
+|---|---|
+| Rôle DB de l'app (JWT `role`) | **`service_role`** |
+| `service_role.rolsuper` / `rolbypassrls` | `f` / **`t`** (RLS inutile contre lui) |
+| Grants `service_role` sur `copilots`/`copilot_versions`/`promotion_gates` | full CRUD (dont **`UPDATE`**) |
+| Owner de la RPC `promote_copilot_version` (security definer) | `postgres` |
+| `search_path` de la RPC / du trigger (avant 0032) | **absent** (défaut) → fixé `pg_catalog, public` |
+
+### REWORK 2 — écriture directe `service_role` (P0, Cas A : elle fonctionnait)
+
+**Prouvé AVANT 0032** : `set role service_role; update copilots set status='active', production_version_id=… ` → `UPDATE 1` ; et `PATCH /copilots {status:active}` via PostgREST → **HTTP 200**, copilot `active`. L'affirmation « la DB refuse une écriture directe » était donc fausse.
+
+**Correctif (`0032`)** — un trigger `BEFORE UPDATE` sur `copilots` et `copilot_versions`
+(`enforce_promotion_via_rpc`) refuse toute transition **vers** `status='active'` /
+`stage='production'` / un repoint direct de `production_version_id`, **sauf** quand la RPC officielle
+a posé le GUC transaction-local `app.promotion='rpc'` (`SET LOCAL`, invisible hors de sa propre
+transaction). **BYPASSRLS ne contourne PAS un trigger**, donc `service_role` est bloqué en direct,
+mais la RPC (qui pose le GUC) passe. Le trigger est chirurgical : tout autre `UPDATE` (assistant_id,
+latest_version_id, updated_at, un statut non-live) passe.
+
+**Prouvé APRÈS 0032 (live gpu1, agent jetable nettoyé) :**
+
+| Cas | Attendu | Résultat |
+|---|---|---|
+| SQL direct `update … stage='production'` | refusé | `insufficient_privilege` |
+| SQL direct `update … status='active'` | refusé | `insufficient_privilege` |
+| SQL direct `production_version_id=…` | refusé | `insufficient_privilege` |
+| **PostgREST** `PATCH {status:active,…}` | refusé | `42501` (**HTTP 403**) |
+| `updated_at` bénin | passe | `UPDATE 1` |
+| RPC sans gate fraîche | refusé | `23514` (400) |
+| RPC **avec gate fraîche** | accepté | **204 → active/production** |
+| rollback officiel vers `archived` | accepté | 204 → production |
+| état après refus | cohérent | reste `draft`, 1 seule production |
+
+### REWORK 1 — TTL contrôlé par l'appelant
+
+**Avant** : `p_max_evidence_age_seconds` était utilisé verbatim → un appelant direct passant
+`999999999` réutilisait une preuve vieille de plusieurs heures.
+
+**Correctif (`0032`)** — la RPC applique une **borne serveur dure** `c_max_ttl_seconds = 3600` :
+`v_ttl := least(coalesce(nullif(p_max_evidence_age_seconds,0), 3600), 3600)`, et une valeur
+`NULL`/`≤0` retombe fail-closed sur le max. L'appelant ne peut que **raccourcir** la fenêtre.
+La comparaison utilise `now()` (horloge DB), jamais une date fournie par le client.
+
+**Prouvé APRÈS 0032 (live) :** gate vieille de 2h + `TTL=999999999` → **refusé** (« within 3600 s ») ·
+`TTL=-1` et `TTL=0` → **refusé** (fail-closed) · gate rafraîchie → **accepté**. Un seul overload
+existe (pas de signature historique à TTL libre) ; PostgREST n'offre aucun appel alternatif.
+
+### Vérifications complémentaires
+
+- **Tie-break déterministe** : la lecture de la dernière éval fait `order by last_evaluated_at desc, id desc` — deux `last_evaluated_at` égaux ne rendent pas « la dernière » ambiguë.
+- **Horloge DB** : la fraîcheur compare à `now()` DB ; aucune date client n'entre dans le calcul.
+- **`search_path` sûr** : RPC + trigger épinglés `pg_catalog, public` (anti-détournement de résolution).
+
+### Frontière de confiance (garantie RPC vs garantie contre toute écriture)
+
+La garantie fermée par `0032` est : **aucune transition `active`/`production` sans passer par la
+RPC, qui exige une gate `ready/PASS` fraîche (≤3600 s) persistée pour la (copilot, candidate)
+exacte.** Elle n'est PAS « `service_role` ne peut pas forger une preuve » : `service_role` détient
+`INSERT` sur `promotion_gates` (nécessaire à `persistGateEvaluation`, le chemin légitime), donc un
+détenteur de la clé service-role peut insérer une gate PASS pour un copilot réel puis appeler la
+RPC. Distinguer une insertion de preuve légitime d'une malveillante au niveau DB exigerait un
+**rôle d'écriture de preuves séparé** des tables de lifecycle (durcissement futur, hors scope de
+ce rework). Rôles autorisés à écrire les preuves aujourd'hui : `service_role` uniquement (INSERT
+sur `promotion_gates`), via `persistGateEvaluation`.

@@ -44,6 +44,25 @@ Défauts refutés / hors-scope à la vérification adversariale : le limb `regis
 secret/prompt/payload dans la télémétrie (vérifié : `inputShape`/`error`/`usage` vides, seuls
 ids/verdicts/statuts dans `environment`).
 
+### 1bis. Rework post-revue (SHA `74257ea`) — 2 contournements DB restants, fermés par `0032`
+
+La revue de `74257ea` a validé CI + corrections, mais a trouvé **deux bypass DB** que 0030/0031 ne
+fermaient pas. Les deux confirmés live avec le **vrai rôle applicatif** (`service_role`, `BYPASSRLS=t`,
+`UPDATE` direct), corrigés par la migration **`0032`**, re-prouvés live.
+
+| # | Défaut | Gravité | Preuve du trou (avant) | Correctif `0032` | Test |
+|---|--------|---------|------------------------|------------------|------|
+| 8 | **Écriture directe `service_role`** : `PATCH /copilots {status:active,production_version_id}` (et l'UPDATE SQL) atteignent `active`/`production` **sans la RPC**. RLS inutile (BYPASSRLS). La garantie 0029 « la DB refuse » était fausse. | **P0** | Live : `PATCH … {status:active}` → **HTTP 200**, copilot `active` ; `set role service_role; update … → UPDATE 1` | Trigger `BEFORE UPDATE` (`enforce_promotion_via_rpc`) : refuse toute transition vers `active`/`production` sauf GUC `app.promotion='rpc'` posé par la seule RPC (SET LOCAL). BYPASSRLS ne contourne pas un trigger. | live (4 refus SQL/PostgREST + RPC OK) + unit structure |
+| 9 | **TTL contrôlé par l'appelant** : `p_max_evidence_age_seconds` utilisé verbatim → un appel direct avec `999999999` réutilise une preuve ancienne. | HIGH | Lecture code : `make_interval(secs => p_max_evidence_age_seconds)` sans borne | `0032` : borne serveur dure `3600`, `least(…, 3600)`, `≤0`/`NULL` fail-closed. L'appelant ne peut que raccourcir. | live (gate 2h + TTL 999999999 → refusé ; -1/0 → refusé ; fraîche → OK) + unit structure |
+
+Vérifs complémentaires (toutes vérifiées) : tie-break `order by last_evaluated_at desc, id desc` ;
+fraîcheur via `now()` DB (jamais une date client) ; `search_path=pg_catalog, public` épinglé sur la
+RPC ET le trigger ; un seul overload de la RPC (pas de signature à TTL libre). **Frontière de
+confiance documentée** : `0032` garantit « aucune transition active/production hors RPC exigeant une
+gate fraîche » — PAS « service_role ne peut pas forger une preuve » (il détient `INSERT` sur
+`promotion_gates`, chemin légitime de `persistGateEvaluation`) ; un rôle d'écriture de preuves séparé
+serait le durcissement suivant. Détail complet : `docs/runtime-promotion-001.md` § Rework post-revue.
+
 ### Méthode de revue
 
 Relecture manuelle du diff complet (20 fichiers) **plus** une revue adversariale multi-agents
@@ -164,12 +183,14 @@ active/production) · #12 deux promotions concurrentes → exactement 1 producti
 ## 5. Validation
 
 ```
-npm run check         → exit 0 (typecheck, lint, ds, catalyst, agent-truth, danger,
-                        render-truth, status-truth, registry-parity, registry-integrity, audit:dead)
-npm run test (unit)   → 107 fichiers, 1309+ tests ✓ (dont 24 nouveaux : gate +5, rpc-antibypass 6, non-bypass 13)
-tests/live anti-bypass → 5/5 ✓ contre gpu1
-Preuve E2E            → allOk=true (8 réel / 2 direct-write flaggés), agent nettoyé
-Migrations 0030+0031  → appliquées live gpu1, fermetures vérifiées
+npm run check           → exit 0 (typecheck, lint, ds, catalyst, agent-truth, danger,
+                          render-truth, status-truth, registry-parity, registry-integrity, audit:dead)
+npm run test (unit)     → 112 fichiers, 1340 tests ✓ (nouveaux : gate +5, rpc-antibypass 6,
+                          non-bypass 13, direct-write-lockdown 7)
+tests/live anti-bypass  → 5/5 ✓ contre gpu1 (promotion-antibypass.live)
+tests/live lockdown+TTL → 14/14 ✓ contre gpu1 (promotion-direct-write-lockdown.live)
+Preuve E2E              → allOk=true (8 réel / 2 direct-write flaggés), agent nettoyé
+Migrations 0030+0031+0032 → appliquées live gpu1, fermetures re-vérifiées
 ```
 
 ---
@@ -191,11 +212,23 @@ Migrations 0030+0031  → appliquées live gpu1, fermetures vérifiées
 4. **Runtime verrouillé `langgraph` à la création** — le multi-provider existe côté runner mais la
    surface de création (`/admin/agents/new`) verrouille `langgraph` (`z.literal`). Cohérent avec la
    doctrine (langgraph obligatoire), à noter.
+4bis. **Chemin d'activation legacy hors-RPC** — `scripts/provision-tradeagent-roster.mjs:276` faisait
+   un `PATCH copilots {status:'active'}` **direct** (après ses propres checks TS). Depuis le trigger
+   `0032` ce PATCH échoue fail-closed (`42501`) : ce script devra activer via la RPC officielle. Le
+   comportement est correct (c'était un chemin d'activation hors-gate), mais le script legacy est
+   désormais à migrer — noté, non corrigé dans ce rework (hors scope promotion).
 5. **Fraîcheur gate par contenu** — la RPC exige désormais la *dernière* éval PASS fraîche (fix #5),
-   ce qui ferme le trou de la preuve contredite. Reste une fenêtre TTL (1h) où une éval PASS peut
-   théoriquement précéder un changement de config non re-évalué ; le chemin route re-évalue toujours
-   juste avant, donc seul un appel RPC direct dans la fenêtre est concerné — surface résiduelle
-   faible, derrière `service_role`.
+   et la fenêtre est **bornée serveur à 3600 s non contournable** (fix #9 / `0032`). Reste une
+   fenêtre TTL (≤1h) où une éval PASS peut théoriquement précéder un changement de config non
+   re-évalué ; le chemin route re-évalue toujours juste avant, donc seul un appel RPC direct dans la
+   fenêtre est concerné — surface résiduelle faible, derrière `service_role`.
+6. **Forge de preuve par `service_role`** — l'écriture directe vers `active`/`production` est
+   désormais **impossible** hors RPC (`0032`, trigger), mais `service_role` détient encore `INSERT`
+   sur `promotion_gates` (chemin légitime de `persistGateEvaluation`). Un détenteur de la clé
+   service-role peut donc forger une gate PASS puis appeler la RPC. Fermer ceci exigerait un **rôle
+   d'écriture de preuves séparé** des tables de lifecycle — durcissement suivant, hors scope de ce
+   rework. La garantie DB actuelle est « pas de transition hors RPC-avec-gate-fraîche », pas « pas de
+   preuve forgeable par le rôle de confiance ».
 
 ---
 
