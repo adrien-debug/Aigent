@@ -80,9 +80,14 @@ export interface ReleaseGate {
 const BENCHMARK_REGRESSION_TOLERANCE = 2
 
 async function latestCompletedTestRun(candidateVersionId: string): Promise<ReleaseEvidence['testRun']> {
+  // execution_mode=eq.live: a production promotion is satisfied ONLY by real,
+  // billed evidence. A 'deterministic-fixture' run (the $0 offline proof path,
+  // migration 0037) is deliberately invisible here, so a fixture proof can never
+  // satisfy a production gate (AIGENT-DETERMINISTIC-EVIDENCE-001). Historical
+  // rows default to 'live', so this filter changes nothing for existing evidence.
   const runs = await pgrest<RawRow[]>(
     'GET',
-    `test_runs?${eq('version_id', candidateVersionId)}&status=eq.completed&select=id,pass_rate&order=started_at.desc&limit=1`
+    `test_runs?${eq('version_id', candidateVersionId)}&status=eq.completed&execution_mode=eq.live&select=id,pass_rate&order=started_at.desc&limit=1`
   )
   const run = runs[0]
   if (!run) return null
@@ -96,9 +101,11 @@ async function latestCompletedTestRun(candidateVersionId: string): Promise<Relea
 }
 
 async function latestCompletedBenchmark(candidateVersionId: string): Promise<ReleaseEvidence['benchmark']> {
+  // execution_mode=eq.live — see latestCompletedTestRun: fixture evidence never
+  // satisfies a production promotion.
   const runs = await pgrest<RawRow[]>(
     'GET',
-    `benchmark_runs?${eq('version_id', candidateVersionId)}&status=eq.completed&select=id&order=started_at.desc&limit=1`
+    `benchmark_runs?${eq('version_id', candidateVersionId)}&status=eq.completed&execution_mode=eq.live&select=id&order=started_at.desc&limit=1`
   )
   if (!runs[0]) return null
   // One benchmark_results row per run (see benchmark-runner.ts) — limit=1 bounds
@@ -121,9 +128,11 @@ async function latestCompletedBenchmark(candidateVersionId: string): Promise<Rel
 
 async function productionBenchmarkScore(productionVersionId: string | null): Promise<number | null> {
   if (!productionVersionId) return null
+  // execution_mode=eq.live — the production baseline the candidate is compared
+  // against must itself be real evidence, never a fixture row.
   const runs = await pgrest<RawRow[]>(
     'GET',
-    `benchmark_runs?${eq('version_id', productionVersionId)}&status=eq.completed&select=id&order=started_at.desc&limit=1`
+    `benchmark_runs?${eq('version_id', productionVersionId)}&status=eq.completed&execution_mode=eq.live&select=id&order=started_at.desc&limit=1`
   )
   if (!runs[0]) return null
   const res = await pgrest<RawRow[]>('GET', `benchmark_results?${eq('run_id', runs[0].id as string)}&select=score&limit=1`)

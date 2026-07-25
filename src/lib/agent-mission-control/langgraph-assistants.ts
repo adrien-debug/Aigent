@@ -292,3 +292,168 @@ export async function deleteCopilotAssistant(assistantId: string): Promise<boole
     return false
   }
 }
+
+// ---------------------------------------------------------------------------
+// Per-CANDIDATE-VERSION ephemeral assistant (AIGENT-DETERMINISTIC-EVIDENCE-001)
+//
+// The per-copilot assistant above carries the copilot's CURRENT manifest. A
+// shadow/replay of a langgraph CANDIDATE that changed its prompt/tools/policy
+// therefore runs against a STALE config — the exact limitation documented in
+// shadow-replay-routes-shared.ts, and the reason the directive requires a way to
+// execute a precise candidate version in LangGraph WITHOUT touching the
+// production assistant.
+//
+// The fix: an EPHEMERAL assistant whose config is built from the CANDIDATE
+// version's own manifest (`copilot_versions.manifest_id`), keyed by a
+// VERSION-scoped id in a DISTINCT namespace from the copilot's assistant, so it
+// can never collide with — or mutate — the production assistant. A shadow/replay
+// run provisions it, runs against it, and deletes it.
+//
+// NOTE ON VERIFICATION: `loadCandidateBehaviorConfig` is pure of the Agent Server
+// (pgrest reads + the pure builder) and is unit-tested offline. The provisioning
+// pair (`ensureCandidateAssistant`/`deleteCandidateAssistant`) reaches the Agent
+// Server; a real billed candidate run is a separate, agreement-gated step and is
+// not exercised here.
+// ---------------------------------------------------------------------------
+
+/**
+ * Version-scoped assistant id, in a namespace DISTINCT from the copilot's
+ * (prefixing the version id) so `assistantIdForCandidate(v)` can never equal
+ * `assistantIdForCopilot(copilotId)` — the ephemeral assistant is a separate
+ * entity that leaves the production assistant untouched.
+ */
+export function assistantIdForCandidate(versionId: string): string {
+  return assistantIdForEntity(`candidate-version:${versionId}`)
+}
+
+/**
+ * Build the behaviour config for a SPECIFIC candidate VERSION from THAT version's
+ * manifest (`copilot_versions.manifest_id`), not the copilot's latest. This is
+ * the faithfulness fix for the shadow/replay langgraph limitation. Pure of the
+ * Agent Server — only pgrest reads + the pure builder — so it is unit-testable.
+ * Throws (never provisions for a phantom) if the version or its copilot is gone.
+ */
+export async function loadCandidateBehaviorConfig(
+  versionId: string
+): Promise<{ config: CopilotBehaviorConfig; copilotId: string; projectId: string | null }> {
+  const versionRows = await pgrest<RawRow[]>(
+    'GET',
+    `copilot_versions?id=eq.${encodeURIComponent(versionId)}&select=id,copilot_id,manifest_id`
+  )
+  const version = versionRows[0]
+  if (!version) throw new Error(`candidate version not found: ${versionId}`)
+  const copilotId = version.copilot_id as string
+  const manifestId = version.manifest_id as string | null
+
+  const copilotRows = await pgrest<RawRow[]>(
+    'GET',
+    `copilots?id=eq.${encodeURIComponent(copilotId)}&select=id,name,model,model_provider,project_id`
+  )
+  const copilot = copilotRows[0]
+  if (!copilot) throw new Error(`copilot not found for candidate version ${versionId}`)
+
+  // The CANDIDATE version's OWN manifest — the faithfulness fix (vs the copilot's
+  // latest). Null-safe: a candidate without a manifest yields the builder's
+  // default prompt, exactly as the per-copilot path does.
+  let manifest: RawRow | null = null
+  if (manifestId) {
+    const manifestRows = await pgrest<RawRow[]>(
+      'GET',
+      `manifests?id=eq.${encodeURIComponent(manifestId)}&select=system_prompt_summary,forbidden_actions,confirmation_policy,always_confirm_actions,output_contract,max_steps_per_run,max_cost_per_run_usd`
+    )
+    manifest = manifestRows[0] ?? null
+  }
+
+  // Tools are copilot-scoped in this schema (no per-version tool set), so the
+  // candidate inherits the copilot's enabled tools — same read as the per-copilot
+  // path. The manifest-carried behaviour (prompt/policy/budget) is what the
+  // candidate version actually changes, and that IS resolved per-version above.
+  const toolRows = await pgrest<RawRow[]>(
+    'GET',
+    `tools?copilot_id=eq.${encodeURIComponent(copilotId)}&enabled=eq.true&select=name,risk_level,requires_confirmation&order=name`
+  )
+
+  const projectId = (copilot.project_id as string | null) ?? null
+  let repoFullName: string | null = null
+  if (projectId) {
+    const projRows = await pgrest<RawRow[]>(
+      'GET',
+      `projects?id=eq.${encodeURIComponent(projectId)}&select=repo_full_name`
+    )
+    repoFullName = (projRows[0]?.repo_full_name as string | null) ?? null
+  }
+
+  const pricingModel = (copilot.model as string | null) ?? ''
+  const pricingProvider = normalizePricingProvider(copilot.model_provider)
+  const modelPricing = pricingModel
+    ? {
+        inputUsdPer1M: computeCostUsd(pricingProvider, pricingModel, 1_000_000, 0),
+        outputUsdPer1M: computeCostUsd(pricingProvider, pricingModel, 0, 1_000_000),
+      }
+    : null
+
+  const config = buildCopilotBehaviorConfig({
+    copilot: {
+      id: copilot.id as string,
+      name: (copilot.name as string) ?? copilotId,
+      model: copilot.model as string | null,
+      model_provider: copilot.model_provider as never,
+    },
+    manifest: manifest as never,
+    tools: toolRows.map((t) => ({
+      name: t.name as string,
+      risk_level: t.risk_level as never,
+      requires_confirmation: t.requires_confirmation as boolean | null,
+    })),
+    repoFullName,
+    modelPricing,
+  })
+
+  return { config, copilotId, projectId }
+}
+
+/**
+ * Provision (or refresh) the EPHEMERAL candidate assistant for `versionId` and
+ * return its assistant_id. Config = the candidate version's own manifest; id =
+ * version-scoped (never the copilot's). Same idempotent create+update pattern as
+ * ensureCopilotAssistant, so a retry collides instead of duplicating. Reaches the
+ * Agent Server — callers MUST `deleteCandidateAssistant` when the run finishes.
+ */
+export async function ensureCandidateAssistant(versionId: string): Promise<string> {
+  const { config, copilotId, projectId } = await loadCandidateBehaviorConfig(versionId)
+  const assistantId = assistantIdForCandidate(versionId)
+  const c = agentServerClient()
+  const metadata = { projectId, copilotId, candidateVersionId: versionId, ephemeral: true }
+
+  await c.assistants.create({
+    assistantId,
+    graphId: AGENT_BUILDER_GRAPH_ID,
+    name: `candidate ${versionId}`,
+    config: { configurable: { ...config } },
+    metadata,
+    ifExists: 'do_nothing',
+  })
+  // do_nothing never updates an existing config → push the candidate config so a
+  // re-provision tracks the version rather than an earlier one.
+  await c.assistants.update(assistantId, {
+    config: { configurable: { ...config } },
+    metadata,
+    name: `candidate ${versionId}`,
+  })
+  return assistantId
+}
+
+/**
+ * Best-effort delete of a candidate's ephemeral assistant (run cleanup). Never
+ * throws — a leftover assistant is inert until a run targets it, and the id is
+ * version-scoped so it can only ever be re-created by another candidate run.
+ */
+export async function deleteCandidateAssistant(versionId: string): Promise<boolean> {
+  try {
+    const c = agentServerClient()
+    await c.assistants.delete(assistantIdForCandidate(versionId))
+    return true
+  } catch {
+    return false
+  }
+}

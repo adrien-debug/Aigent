@@ -38,13 +38,12 @@ import 'server-only'
 
 import { randomUUID } from 'node:crypto'
 
+import { liveEvidenceAdapter } from './evidence/live-adapter'
+import type { EvidenceExecutionAdapter } from './evidence/execution-adapter'
 import { summarize } from './format'
 import { getTraceUrl, newTraceId } from './langsmith'
-import { streamOnAgentServer } from './langgraph-server'
-import { routeCompletion } from './model-router'
 import { pgrest, pgrestDetail } from './postgrest'
 import { resolveRunAssistantFromRow } from './resolve-run-assistant'
-import { executeCopilotRun } from './runner'
 import { NotFoundError, UnsupportedRuntimeError } from './runner-errors'
 import { TEST_CASE_RUN_LABEL } from './types'
 import type {
@@ -107,6 +106,17 @@ export interface RunTestSuiteArgs {
    * additive parameter, the blocking `.wait()` path is untouched.
    */
   onEvent?: (event: TestRunEvent) => void
+  /**
+   * OPTIONAL execution adapter. Defaults to the LIVE adapter, so an ordinary user
+   * run is byte-for-byte unchanged (real Agent Server / model-router legs, real
+   * judge). A DETERMINISTIC (fixture) adapter may be injected ONLY by trusted
+   * server-side callers (tests / proof scripts) that pass the fail-closed guard —
+   * the runners never read request data to pick one, and the public API never
+   * forces the deterministic path on a normal user (AIGENT-DETERMINISTIC-EVIDENCE-001).
+   * Whichever adapter runs, the persistence + gate path below is identical; only
+   * the two billed legs are swapped, and the run is labelled with `adapter.label`.
+   */
+  adapter?: EvidenceExecutionAdapter
 }
 
 // ---------------------------------------------------------------------------
@@ -281,146 +291,26 @@ interface CaseOutcome {
 }
 
 /**
- * What a test case needs from an execution engine, whichever one served it.
- * Both runtimes fill this; everything downstream (judge, tool-call gate,
- * persistence) is engine-agnostic and must stay that way.
- */
-interface CaseExecution {
-  /** Tool NAMES actually attempted (executed OR blocked) — ground truth. */
-  actualToolCalls: string[]
-  /** The reply the judge grades (already annotated when the agent paused). */
-  reply: string
-  /**
-   * True when the agent STOPPED and asked a human before acting. See the
-   * per-path comments in `executeCaseOnRuntime` — this is a claim about what
-   * really happened, never a convenience default.
-   */
-  pausedForConfirmation: boolean
-  /** The tool the agent was waiting on approval for, when it paused. */
-  pendingToolName: string | null
-  /** null = unmeasured (no readable usage) — never a fabricated 0. */
-  costUsd: number | null
-}
-
-/**
- * Execute one case on the copilot's OWN runtime. This is the whole point of the
- * routing: an `openai-assistants` copilot run through the LangGraph graph never
- * mounts its manifest tools and answers "no data" while looking healthy (see
- * AGENTS.md). A runtime we have no engine for is a typed error, never a silent
- * fallback onto whichever engine happens to be wired.
- */
-async function executeCaseOnRuntime(
-  runtime: AgentRuntime,
-  ctx: DirectRunContext,
-  assistantId: string | undefined,
-  testCase: TestCase,
-  maxSteps: number,
-  onNode?: (node: string) => void,
-  onThread?: (threadId: string) => void
-): Promise<CaseExecution> {
-  if (runtime === 'langgraph') {
-    // UNCHANGED PATH — the graph streams the case (same path as a live copilot
-    // run, emitting node events for a live canvas). The final result is
-    // reconstructed from the terminal thread state, identical to the blocking
-    // `.wait()` path. An interrupt is the CORRECT behaviour for a case whose
-    // expectation is "ask for confirmation before acting" — we do NOT
-    // auto-approve; we observe the pause and let the judge grade it.
-    const gr = await streamOnAgentServer({ userInput: testCase.input, assistantId, maxSteps, onNode, onThread })
-    return {
-      actualToolCalls: gr.toolCalls.map((t) => t.toolName),
-      // When the graph paused for approval, the reply reflects the pause so the
-      // judge (and the operator reading actual_behavior) sees the agent stopped
-      // to ask instead of acting.
-      reply: gr.interrupted
-        ? `[interrupted for human confirmation] ${gr.interruptMessage ?? ''}${gr.pendingTool ? ` (pending tool: ${gr.pendingTool.name})` : ''}`.trim()
-        : gr.finalText,
-      pausedForConfirmation: gr.interrupted,
-      pendingToolName: gr.pendingTool?.name ?? null,
-      costUsd: gr.costUsd,
-    }
-  }
-
-  if (runtime === 'openai-assistants') {
-    // The direct model-router loop — the SAME engine the manual run button
-    // drives (executeCopilotRun), never a re-implementation, so a test measures
-    // exactly what an operator sees in production.
-    const res = await executeCopilotRun({
-      copilotId: ctx.copilotId,
-      // Test/benchmark harnesses run DRAFT candidates on purpose → skip the
-      // "version still serving" lifecycle guard (AIGENT-RUNTIME-PROMOTION-001).
-      allowNonActiveVersion: true,
-      versionId: ctx.versionId,
-      projectId: ctx.projectId,
-      model: ctx.model,
-      modelProvider: ctx.modelProvider,
-      systemPromptSummary: ctx.systemPromptSummary,
-      userInput: testCase.input,
-      maxSteps,
-      // Deliberately NOT passing confirmedToolNames: a test must never
-      // auto-approve, exactly like the LangGraph path never resumes an
-      // interrupt. A gated tool stays blocked and is graded as such.
-      runtime,
-      // This engine persists one agent_runs row per call, and those rows are
-      // RUNTIME TRUTH for the health surfaces (resolve24hMetricsBatch's
-      // runs/24h + error rate, available-agents' "last run"). Labelling test
-      // cases distinctly keeps a graded failure from being counted as a
-      // production incident on the agent's health.
-      userLabel: TEST_CASE_RUN_LABEL,
-    })
-
-    // CONFIRMATION SEMANTICS ON THE DIRECT PATH — the decision that matters.
-    // `executeCopilotRun` returns interrupted:false here ALWAYS: the direct loop
-    // has no Agent Server interrupt to pause on. But it does have the same
-    // human-in-the-loop invariant, expressed differently: a tool requiring
-    // confirmation is BLOCKED by the guardrail and never executed, and the model
-    // is told so and answers around it. That IS "the agent stopped and did not
-    // act without approval" — the fact the judge's `agentPausedForConfirmation`
-    // is asking about. So we report a pause when, and only when, the run really
-    // blocked a tool on the confirmation gate. We never forward the runner's
-    // `interrupted` flag, which would be a hardcoded false, nor invent an
-    // interrupt that did not happen: the evidence is the blocked tool call.
-    const blocked = res.toolCalls.filter((t) => t.status === 'blocked')
-    const pausedForConfirmation = blocked.length > 0
-    const pendingToolName = blocked[0]?.name ?? null
-
-    return {
-      // Attempted tool calls, blocked ones included — same rule as the graph
-      // path (a blocked call was still requested by the model).
-      actualToolCalls: res.toolCalls.map((t) => t.name),
-      reply: pausedForConfirmation
-        ? `[blocked pending human confirmation] ${res.outputSummary}${pendingToolName ? ` (pending tool: ${pendingToolName})` : ''}`.trim()
-        : res.fullText ?? res.outputSummary,
-      pausedForConfirmation,
-      pendingToolName,
-      costUsd: res.costUsd,
-    }
-  }
-
-  throw new UnsupportedRuntimeError(
-    `no test execution engine for runtime '${runtime}' — the test runner serves 'langgraph' ` +
-      `(Agent Server) and 'openai-assistants' (direct model-router loop) only`
-  )
-}
-
-/**
- * Run a single test case on the copilot's real runtime (see
- * `executeCaseOnRuntime`). Only the judge is a direct OpenAI completion. Never
- * throws: a technical failure (Agent Server down, unsupported runtime, provider
- * error) returns an `error` outcome so the run keeps going and the failure is
- * persisted.
+ * Run a single test case on the copilot's real runtime, THROUGH the injected
+ * execution adapter (live by default; a deterministic fixture in a test/proof).
+ * Only the judge leg and the agent leg go through the adapter — everything else
+ * (the ground-truth tool-call gate, the safety escalation, persistence) is
+ * engine-agnostic and unchanged. Never throws: a technical failure (Agent Server
+ * down, unsupported runtime, provider error, or a fixture timeout) returns an
+ * `error` outcome so the run keeps going and the failure is persisted.
  *
  * `assistantId` targets the copilot's assistant on the LangGraph path (resolved
- * once by runTestSuite); undefined → streamOnAgentServer falls back to the
- * shared graph id. `judgeModel`/`judgeProvider` drive ONLY the judge completion.
+ * once by runTestSuite); undefined → the live adapter falls back to the shared
+ * graph id. `judgeModel`/`judgeProvider` drive ONLY the judge completion.
  *
- * `onNode`/`onThread` are optional live-progress sinks forwarded to
- * `streamOnAgentServer`: the graph thread id (once) and each node the graph
- * traverses (agent / approval / tools). They are purely observational — the
- * graded outcome is reconstructed from the terminal thread state, identical to
- * the blocking `.wait()` path, so passing them changes nothing about the result.
- * They stay unused on the direct path, which has neither thread nor graph nodes.
+ * `onNode`/`onThread` are optional live-progress sinks forwarded to the streaming
+ * langgraph path: the graph thread id (once) and each node the graph traverses.
+ * They are purely observational — the graded outcome is reconstructed from the
+ * terminal thread state, identical to the blocking path, so passing them changes
+ * nothing about the result. Unused on the direct and fixture paths.
  */
 async function runCase(
+  adapter: EvidenceExecutionAdapter,
   runtime: AgentRuntime,
   ctx: DirectRunContext,
   assistantId: string | undefined,
@@ -437,34 +327,48 @@ async function runCase(
   const traceUrl = getTraceUrl(newTraceId())
 
   try {
-    // 1) The copilot answers the case input on ITS OWN runtime.
-    const gr = await executeCaseOnRuntime(runtime, ctx, assistantId, testCase, maxSteps, onNode, onThread)
+    // 1) The copilot answers the case input on ITS OWN runtime, via the adapter.
+    //    The test runner streams the langgraph leg (live canvas); the fixture
+    //    ignores the stream flag and the sinks.
+    const gr = await adapter.executeAgent({
+      copilotId: ctx.copilotId,
+      runtime,
+      input: testCase.input,
+      maxSteps,
+      versionId: ctx.versionId,
+      projectId: ctx.projectId,
+      model: ctx.model,
+      modelProvider: ctx.modelProvider,
+      systemPromptSummary: ctx.systemPromptSummary,
+      // One agent_runs row per case on the direct path is RUNTIME TRUTH for the
+      // health surfaces; labelling test cases keeps a graded failure from being
+      // counted as a production incident on the agent's health.
+      userLabel: TEST_CASE_RUN_LABEL,
+      assistantId,
+      stream: true,
+      onNode,
+      onThread,
+    })
     // null = unmeasured cost (no readable usage): excluded from the sum, never a fake 0.
     costUsd += gr.costUsd ?? 0
 
-    const actualToolCalls = gr.actualToolCalls
+    const actualToolCalls = gr.toolCalls.map((t) => t.toolName)
     const reply = gr.reply
 
-    // 2) A cheap judge grades the reply. The judge always routes through the
-    //    router (OpenAI), fed the REAL interrupt signal so a "prepare a draft"
-    //    case (expected: ask first) is judged as confirmation-honored.
-    const judgeInput = JSON.stringify({
-      input: testCase.input,
-      expectedBehavior: testCase.expectedBehavior,
-      expectedToolCalls: testCase.expectedToolCalls,
-      actualReply: reply,
-      agentPausedForConfirmation: gr.pausedForConfirmation,
-    })
-    const judgeRes = await routeCompletion({
-      purpose: 'judge',
-      modelProvider: judgeProvider,
+    // 2) A cheap judge grades the reply, fed the REAL pause signal so a "prepare
+    //    a draft" case (expected: ask first) is judged as confirmation-honored.
+    const judgeRes = await adapter.judge({
+      purpose: 'test',
+      systemPrompt: JUDGE_SYSTEM,
+      payload: {
+        input: testCase.input,
+        expectedBehavior: testCase.expectedBehavior,
+        expectedToolCalls: testCase.expectedToolCalls,
+        actualReply: reply,
+        agentPausedForConfirmation: gr.pausedForConfirmation,
+      },
       model: judgeModel,
-      messages: [
-        { role: 'system', content: JUDGE_SYSTEM },
-        { role: 'user', content: judgeInput },
-      ],
-      responseFormat: 'json',
-      maxOutputTokens: 512,
+      modelProvider: judgeProvider,
     })
     costUsd += judgeRes.costUsd
 
@@ -583,6 +487,8 @@ async function runCase(
  */
 export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
   const { copilotId, suiteId, onEvent } = args
+  // Default to the LIVE adapter, so an ordinary run is byte-for-byte unchanged.
+  const adapter = args.adapter ?? liveEvidenceAdapter
   const triggeredBy = args.triggeredBy?.trim() || 'authoring-session'
 
   const copilotRow = await loadCopilotRow(copilotId)
@@ -662,6 +568,10 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
     status: 'running',
     pass_rate: 0,
     total_cost_usd: 0,
+    // Provenance (migration 0037): 'live' for a real billed run, or
+    // 'deterministic-fixture' when the injected fixture produced this evidence.
+    // The release gate refuses fixture rows for a production promotion.
+    execution_mode: adapter.label,
   })
 
   // The run row now exists — tell a streaming caller it started and how many
@@ -704,6 +614,7 @@ export async function runTestSuite(args: RunTestSuiteArgs): Promise<TestRun> {
       const onNode = (node: string) => onEvent?.({ type: 'case-node', caseId: testCase.id, node })
       const onThread = (threadId: string) => onEvent?.({ type: 'case-thread', caseId: testCase.id, threadId })
       const outcome = await runCase(
+        adapter,
         runtime,
         directCtx,
         assistantId,
