@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 
 import { isPgrestTimeout, pgrest, PgrestError } from '@/lib/agent-mission-control/postgrest'
 import { runShadowExperiment } from '@/lib/agent-mission-control/shadow'
+import { makeLiveShadowAgent } from '@/lib/agent-mission-control/shadow-live'
 import { makeFixtureShadowAgent } from '@/lib/agent-mission-control/promotion-fixtures'
 import { emitShadowTelemetry } from '@/lib/agent-mission-control/runtime-telemetry-store'
 import {
@@ -89,19 +90,16 @@ export async function POST(
     )
   }
 
-  // Refuse BEFORE reserving a row — see the PRODUCT-READINESS NOTE above.
-  // Checked here (not after the reservation below) so a refused request never
-  // leaves an orphaned queued row occupying the one-inflight-per-candidate slot.
-  if (body.useFixture === false) {
-    return NextResponse.json(
-      {
-        error:
-          'real (non-fixture) shadow execution is not wired yet — it requires the LangGraph ephemeral-assistant seam (ensureCandidateAssistant, feat/deterministic-evidence-001) wired to a per-tool-call ShadowToolGate callback. Omit useFixture (or pass true) for the deterministic $0 product proof.',
-        code: 'REAL_EXECUTION_NOT_WIRED',
-      },
-      { status: 501 }
-    )
-  }
+  // AIGENT-FACTORY-READY-001: real (non-fixture) shadow execution IS now wired.
+  //   useFixture omitted/true → deterministic $0 fixture proof (deterministic_fixture)
+  //   useFixture:false        → REAL LangGraph run of the candidate through its
+  //                             ephemeral assistant (live_langgraph) — the ONLY
+  //                             mode a REQUIRED promotion-gate shadow check accepts.
+  // Write-safety on the live path: mutating tools require confirmation and the run
+  // never confirms → they interrupt (never execute); the ShadowToolGate records
+  // them as would-mutate. See shadow-live.ts.
+  const useFixture = body.useFixture !== false
+  const executionMode = useFixture ? 'deterministic_fixture' : 'live_langgraph'
 
   // Reserve the in-progress row FIRST — this insert IS the concurrency
   // control (migration 0034's partial unique index). A concurrent duplicate
@@ -125,11 +123,10 @@ export async function POST(
       would_mutate_count: 0,
       mismatches: [],
       triggered_by: 'agent-ops-api',
-      // PR #22 rework: this route is fixture-only (useFixture:false is
-      // refused above, before this reservation) — the row MUST say so,
-      // never leave the DB default (legacy_unknown) to stand in for it, so
-      // the promotion gate's provenance check reads the true source.
-      execution_mode: 'deterministic_fixture',
+      // The row records its TRUE provenance (never the DB default legacy_unknown):
+      // 'live_langgraph' for a real candidate run, 'deterministic_fixture' for the
+      // $0 proof. The promotion gate's provenance check reads exactly this.
+      execution_mode: executionMode,
     })
   } catch (err) {
     if (err instanceof PgrestError && err.status === 409) {
@@ -141,11 +138,19 @@ export async function POST(
 
   await emitShadowTelemetry({ eventType: 'shadow_started', copilotId, candidateVersionId: versionId, experimentId })
 
+  // On the live path, provision the ephemeral candidate assistant; tear it down in
+  // `finally` no matter how the run ends.
+  let liveCleanup: (() => Promise<void>) | null = null
   try {
-    // Fixture-only today (see the PRODUCT-READINESS NOTE atop this file) — the
-    // useFixture:false request was already refused, before the row above was
-    // reserved, so this is never conditional.
-    const runAgent = makeFixtureShadowAgent()
+    // Fixture ($0, deterministic) OR a REAL LangGraph run of the candidate.
+    let runAgent
+    if (useFixture) {
+      runAgent = makeFixtureShadowAgent()
+    } else {
+      const live = await makeLiveShadowAgent(versionId)
+      runAgent = live.runAgent
+      liveCleanup = live.cleanup
+    }
 
     // Read-relate-write: re-check the candidate hasn't become archived WHILE
     // the corpus ran, before persisting evidence — a version that got
@@ -206,6 +211,9 @@ export async function POST(
       // best-effort cleanup only — never mask the original failure
     }
     return NextResponse.json({ error: 'shadow execution failed', experimentId }, { status: isPgrestTimeout(err) ? 504 : 502 })
+  } finally {
+    // Best-effort teardown of the ephemeral candidate assistant (live path only).
+    if (liveCleanup) await liveCleanup().catch(() => {})
   }
 }
 

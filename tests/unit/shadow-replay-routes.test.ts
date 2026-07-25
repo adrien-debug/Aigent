@@ -143,6 +143,16 @@ vi.mock('@/lib/agent-mission-control/postgrest', () => {
   }
 })
 
+// Real LangGraph shadow execution is mocked to a deterministic fake here — the
+// live path itself (ephemeral candidate assistant + Agent Server run + gate
+// classification) is proven in shadow-live.test.ts.
+vi.mock('@/lib/agent-mission-control/shadow-live', () => ({
+  makeLiveShadowAgent: vi.fn(async () => ({
+    runAgent: async () => ({ ok: true, output: 'ok', error: null, latencyMs: 1, costUsd: 0, toolAttempts: [] }),
+    cleanup: async () => {},
+  })),
+}))
+
 import { POST as shadowPOST, GET as shadowGET } from '@/app/api/agent-ops/copilots/[copilotId]/versions/[versionId]/shadow/route'
 import { POST as replayPOST, GET as replayGET } from '@/app/api/agent-ops/copilots/[copilotId]/versions/[versionId]/replay/route'
 
@@ -296,15 +306,15 @@ describe('shadow route', () => {
     expect(json.experiment.verdict).toBe('PASS')
   })
 
-  it('useFixture:false is refused (501) — real execution is not institutionalized onto the direct/model-router runtime, and no row is reserved (never occupies the concurrency slot)', async () => {
+  it('useFixture:false runs the REAL LangGraph path → live_langgraph evidence (not a fixture)', async () => {
     const res = await shadowPOST(req({ useFixture: false }), ctx(COPILOT, CANDIDATE))
-    expect(res.status).toBe(501)
+    expect(res.status).toBe(200)
     const json = await res.json()
-    expect(json.code).toBe('REAL_EXECUTION_NOT_WIRED')
-    expect(shadowTable.rows.length).toBe(0)
-    // Proves the refusal didn't consume the concurrency slot: a normal (fixture) POST right after still succeeds.
-    const followUp = await shadowPOST(req({}), ctx(COPILOT, CANDIDATE))
-    expect(followUp.status).toBe(200)
+    expect(json.verdict).toBe('PASS')
+    // The persisted row is stamped live_langgraph — the ONLY mode a REQUIRED
+    // promotion-gate shadow check accepts (a fixture never gates production).
+    const row = shadowTable.rows.find((r) => r.candidate_version_id === CANDIDATE)
+    expect(row?.execution_mode).toBe('live_langgraph')
   })
 })
 
