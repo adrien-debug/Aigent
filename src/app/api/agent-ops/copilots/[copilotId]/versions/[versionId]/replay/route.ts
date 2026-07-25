@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto'
 import { NextResponse } from 'next/server'
 
 import { isPgrestTimeout, pgrest, PgrestError } from '@/lib/agent-mission-control/postgrest'
-import { runReplayComparison, persistReplayComparison, type ReplayOutcome } from '@/lib/agent-mission-control/replay'
+import { runReplayComparison, persistReplayComparison, type ReplayOutcome, type ReplayRunner } from '@/lib/agent-mission-control/replay'
+import { makeLiveReplayRunner } from '@/lib/agent-mission-control/replay-live'
 import { emitReplayTelemetry } from '@/lib/agent-mission-control/runtime-telemetry-store'
 import {
   isValidId,
@@ -99,19 +100,13 @@ export async function POST(
     )
   }
 
-  // Refuse BEFORE reserving a row — see the PRODUCT-READINESS NOTE above.
-  // Checked here (not after the reservation below) so a refused request never
-  // leaves an orphaned queued row occupying the one-inflight-per-candidate slot.
-  if (body.useFixture === false) {
-    return NextResponse.json(
-      {
-        error:
-          'real (non-fixture) replay execution is not wired yet — it requires the LangGraph ephemeral-assistant seam (ensureCandidateAssistant, feat/deterministic-evidence-001) so the candidate manifest is evaluated faithfully rather than substituted onto a different runtime. Omit useFixture (or pass true) for the deterministic $0 product proof.',
-        code: 'REAL_EXECUTION_NOT_WIRED',
-      },
-      { status: 501 }
-    )
-  }
+  // AIGENT-FACTORY-READY-001: real (non-fixture) replay execution IS now wired.
+  //   useFixture omitted/true → deterministic $0 fixture proof (deterministic_fixture)
+  //   useFixture:false        → REAL LangGraph runs of BOTH the reference and the
+  //                             candidate via their ephemeral assistants (live_langgraph)
+  //                             — the ONLY mode a REQUIRED promotion-gate replay check accepts.
+  const useFixture = body.useFixture !== false
+  const executionMode = useFixture ? 'deterministic_fixture' : 'live_langgraph'
 
   const comparisonId = `replay-${randomUUID()}`
   const createdAt = new Date().toISOString()
@@ -126,11 +121,10 @@ export async function POST(
       case_count: 0,
       candidates: [],
       triggered_by: 'agent-ops-api',
-      // PR #22 rework: this route is fixture-only (useFixture:false is
-      // refused above, before this reservation) — the row MUST say so,
-      // never leave the DB default (legacy_unknown) to stand in for it, so
-      // the promotion gate's provenance check reads the true source.
-      execution_mode: 'deterministic_fixture',
+      // Records the TRUE provenance (never the DB default legacy_unknown):
+      // 'live_langgraph' for a real run of both sides, 'deterministic_fixture' for
+      // the $0 proof. The promotion gate's provenance check reads exactly this.
+      execution_mode: executionMode,
     })
   } catch (err) {
     if (err instanceof PgrestError && err.status === 409) {
@@ -142,12 +136,23 @@ export async function POST(
 
   await emitReplayTelemetry({ eventType: 'replay_started', copilotId, candidateVersionId: versionId, comparisonId })
 
+  // On the live path, provision BOTH versions' ephemeral assistants; tear them
+  // down in `finally` no matter how the run ends.
+  let liveCleanups: Array<() => Promise<void>> = []
   try {
-    // Fixture-only today (see the PRODUCT-READINESS NOTE in this file's top
-    // doc comment) — the useFixture:false request was already refused, before
-    // the row above was reserved, so this callback is never conditional.
-    const runReference = async () => fixtureOutcome(false)
-    const runCandidate = async () => fixtureOutcome(true)
+    // Fixture ($0, deterministic) OR REAL LangGraph runs of reference + candidate.
+    let runReference: ReplayRunner
+    let runCandidate: ReplayRunner
+    if (useFixture) {
+      runReference = async () => fixtureOutcome(false)
+      runCandidate = async () => fixtureOutcome(true)
+    } else {
+      const ref = await makeLiveReplayRunner(referenceVersionId)
+      const cand = await makeLiveReplayRunner(versionId)
+      runReference = ref.run
+      runCandidate = cand.run
+      liveCleanups = [ref.cleanup, cand.cleanup]
+    }
 
     const record = await runReplayComparison({
       copilotId,
@@ -203,6 +208,9 @@ export async function POST(
       // best-effort cleanup only
     }
     return NextResponse.json({ error: 'replay execution failed', comparisonId }, { status: isPgrestTimeout(err) ? 504 : 502 })
+  } finally {
+    // Best-effort teardown of both ephemeral assistants (live path only).
+    for (const cleanup of liveCleanups) await cleanup().catch(() => {})
   }
 }
 

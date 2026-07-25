@@ -37,7 +37,7 @@ import type { EvidenceToolCall } from './evidence/execution-adapter'
 const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`
 type RawRow = Record<string, unknown>
 
-interface CandidateExec {
+export interface CandidateExec {
   copilotId: string
   projectId: string
   model: string
@@ -46,8 +46,9 @@ interface CandidateExec {
   maxSteps: number
 }
 
-/** Read the candidate's execution parameters from its version + copilot + manifest rows. */
-async function loadCandidateExec(candidateVersionId: string): Promise<CandidateExec> {
+/** Read a version's execution parameters from its version + copilot + manifest rows.
+ *  Shared by the live shadow AND live replay runners. */
+export async function loadCandidateExec(candidateVersionId: string): Promise<CandidateExec> {
   const versionRows = await pgrest<RawRow[]>(
     'GET',
     `copilot_versions?${eq('id', candidateVersionId)}&select=copilot_id,model,model_provider,manifest_id`,

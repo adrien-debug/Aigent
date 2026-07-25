@@ -152,6 +152,14 @@ vi.mock('@/lib/agent-mission-control/shadow-live', () => ({
     cleanup: async () => {},
   })),
 }))
+// Real LangGraph replay execution mocked to a deterministic fake — the live path
+// (both versions' ephemeral assistants + gate) is proven in shadow-live.test.ts.
+vi.mock('@/lib/agent-mission-control/replay-live', () => ({
+  makeLiveReplayRunner: vi.fn(async () => ({
+    run: async () => ({ ok: true, outputShape: 'len:0|tools:', score: null, toolsCalled: [], unsafeActions: 0, latencyMs: 1, costUsd: 0 }),
+    cleanup: async () => {},
+  })),
+}))
 
 import { POST as shadowPOST, GET as shadowGET } from '@/app/api/agent-ops/copilots/[copilotId]/versions/[versionId]/shadow/route'
 import { POST as replayPOST, GET as replayGET } from '@/app/api/agent-ops/copilots/[copilotId]/versions/[versionId]/replay/route'
@@ -386,14 +394,15 @@ describe('replay route', () => {
     expect(json.comparison.caseCount).toBeGreaterThan(0)
   })
 
-  it('useFixture:false is refused (501) — real execution is not institutionalized onto the direct/model-router runtime, and no row is reserved', async () => {
+  it('useFixture:false runs the REAL LangGraph path on both sides → live_langgraph evidence', async () => {
     const res = await replayPOST(req({ useFixture: false }), ctx(COPILOT, CANDIDATE))
-    expect(res.status).toBe(501)
+    expect(res.status).toBe(200)
     const json = await res.json()
-    expect(json.code).toBe('REAL_EXECUTION_NOT_WIRED')
-    expect(replayTable.rows.length).toBe(0)
-    const followUp = await replayPOST(req({}), ctx(COPILOT, CANDIDATE))
-    expect(followUp.status).toBe(200)
+    expect(['BETTER', 'EQUIVALENT', 'WORSE', 'INCONCLUSIVE']).toContain(json.verdict)
+    // The persisted row is stamped live_langgraph — the ONLY mode a REQUIRED
+    // promotion-gate replay check accepts (a fixture never gates production).
+    const row = replayTable.rows.find((r) => r.candidate_version_id === CANDIDATE)
+    expect(row?.execution_mode).toBe('live_langgraph')
   })
 })
 
