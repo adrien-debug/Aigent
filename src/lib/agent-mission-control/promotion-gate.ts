@@ -108,9 +108,10 @@ export async function evaluatePromotionGate(
 
   const versionRows = await pgrest<Record<string, unknown>[]>(
     'GET',
-    `copilot_versions?${eq('id', candidateVersionId)}&${eq('copilot_id', copilotId)}&select=id,stage`,
+    `copilot_versions?${eq('id', candidateVersionId)}&${eq('copilot_id', copilotId)}&select=id,stage,manifest_id`,
   )
   if (versionRows.length === 0) return null
+  const candidateManifestId = (versionRows[0].manifest_id as string | null) ?? null
 
   const checks: PromotionCheck[] = []
 
@@ -141,22 +142,52 @@ export async function evaluatePromotionGate(
     evaluatedAt: at,
   })
 
-  // 3) Every declared tool must resolve to a CERTIFIED registry tool. A tool
-  //    row whose name is unknown to the registry, or known but not certified,
-  //    is a phantom/uncertified capability → the version must not go active.
-  const toolRows = await pgrest<Record<string, unknown>[]>('GET', `tools?${eq('copilot_id', copilotId)}&select=name`)
-  const declared = toolRows.map((t) => t.name as string)
-  const phantom = declared.filter((name) => {
+  // 3) Every tool THIS CANDIDATE WILL MOUNT must resolve to a CERTIFIED registry
+  //    tool. The set the candidate actually mounts at runtime is its manifest's
+  //    `tool_ids` (runner.ts loadManifestRunConfig reads exactly that), NOT the
+  //    copilot's whole `tools` pool — those can differ, and `manifests.tool_ids`
+  //    has no FK to `tools`, so a manifest can name a tool_id with no row at all.
+  //    Certifying the copilot pool instead of the candidate's manifest tool_ids
+  //    would (a) miss a phantom id (no matching row → invisible in the pool) and
+  //    (b) certify tools the candidate never mounts. So: read the candidate's
+  //    manifest tool_ids, resolve each to its `tools` row name, and certify THAT.
+  //    An id with no row is a phantom capability; a name unknown/uncertified in
+  //    the registry is uncertified — either blocks.
+  const manifestToolIds = candidateManifestId
+    ? ((
+        await pgrest<Record<string, unknown>[]>(
+          'GET',
+          `manifests?${eq('id', candidateManifestId)}&select=tool_ids`,
+        )
+      )[0]?.tool_ids as string[] | null) ?? []
+    : []
+  const idToName = new Map<string, string>()
+  if (manifestToolIds.length > 0) {
+    const inList = manifestToolIds.map((id) => `"${id}"`).join(',')
+    const rows = await pgrest<Record<string, unknown>[]>(
+      'GET',
+      `tools?id=in.(${encodeURIComponent(inList)})&select=id,name`,
+    )
+    for (const r of rows) idToName.set(r.id as string, r.name as string)
+  }
+  // A tool_id with no row → phantom (labelled by its id). A resolved name that
+  // is not a certified registry tool → uncertified.
+  const uncertified = manifestToolIds.filter((id) => {
+    const name = idToName.get(id)
+    if (!name) return true // phantom: manifest declares an id with no tools row
     const t = getTool(name)
     return !t || t.certification !== 'certified'
   })
   checks.push({
     id: 'tools-resolved-certified',
     label: 'All declared tools resolve to certified tools',
-    status: phantom.length === 0 ? 'PASS' : 'FAIL',
-    reason: phantom.length === 0 ? `${declared.length} tool(s), all certified` : `uncertified/phantom: ${phantom.join(', ')}`,
+    status: uncertified.length === 0 ? 'PASS' : 'FAIL',
+    reason:
+      uncertified.length === 0
+        ? `${manifestToolIds.length} manifest tool(s), all resolve to certified tools`
+        : `uncertified/phantom: ${uncertified.map((id) => idToName.get(id) ?? `${id} (no tool row)`).join(', ')}`,
     evidenceRef: null,
-    sourceOfTruth: 'registry/tools.ts vs tools table',
+    sourceOfTruth: 'registry/tools.ts vs candidate manifest.tool_ids',
     evaluatedAt: at,
   })
 
@@ -176,10 +207,15 @@ export async function evaluatePromotionGate(
     evaluatedAt: at,
   })
 
-  // 5) Replay comparison (only blocking when required). Reads the latest verdict.
+  // 5) Replay comparison (only blocking when required). Reads the latest verdict
+  //    FOR THIS EXACT CANDIDATE — filtering on candidate_version_id (migration
+  //    0030), exactly as the shadow read filters above. Without the candidate
+  //    filter, a replay produced for a DIFFERENT version of the same copilot
+  //    could satisfy this candidate's required replay (evidence↔candidate link
+  //    broken); the filter binds the proof to the version being promoted.
   const replayRows = await pgrest<Record<string, unknown>[]>(
     'GET',
-    `replay_comparisons?${eq('copilot_id', copilotId)}&select=id,verdict,status&order=created_at.desc&limit=1`,
+    `replay_comparisons?${eq('copilot_id', copilotId)}&${eq('candidate_version_id', candidateVersionId)}&select=id,verdict,status&order=created_at.desc&limit=1`,
   )
   const replay = replayRows[0] ?? null
   checks.push({

@@ -146,6 +146,11 @@ export async function persistReplayComparison(rec: ReplayComparisonRecord): Prom
     id: rec.id,
     copilot_id: rec.copilotId,
     source_run_id: rec.referenceVersionId,
+    // The candidate this replay proves. Without it the promotion gate can only
+    // read "the latest replay for the copilot" and a replay produced for
+    // version A would satisfy a required replay for version B (evidence↔candidate
+    // link broken). Migration 0030 adds the column; the gate filters on it.
+    candidate_version_id: rec.candidateVersionId,
     created_at: rec.createdAt,
     status: verdictToStatus(rec.verdict),
     case_count: rec.caseCount,

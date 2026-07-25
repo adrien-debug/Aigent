@@ -39,7 +39,7 @@ import {
   type ShadowRunAgent,
 } from '@/lib/agent-mission-control/shadow'
 import { makeFixtureShadowAgent } from '@/lib/agent-mission-control/promotion-fixtures'
-import { runReplayComparison, type ReplayOutcome } from '@/lib/agent-mission-control/replay'
+import { persistReplayComparison, runReplayComparison, type ReplayOutcome } from '@/lib/agent-mission-control/replay'
 
 const COPILOT = 'copilot-x'
 const VERSION = 'ver-candidate'
@@ -54,14 +54,31 @@ function greenRelease() {
   }
 }
 
-/** Default pgrest responses: copilot(langgraph) + version(draft) + tools(certified) + no shadow/replay. */
-function wireDefaultRows(overrides: Partial<{ runtime: string; toolNames: string[]; shadow: unknown[]; replay: unknown[] }> = {}) {
+/**
+ * Default pgrest responses: copilot(langgraph) + version(draft, manifest) +
+ * manifest(tool_ids) + tools(certified) + no shadow/replay.
+ *
+ * The gate certifies the CANDIDATE MANIFEST's tool_ids (not the copilot's whole
+ * tools pool): version → manifest_id → manifests.tool_ids → resolve each id to
+ * its tools row name → certify that. The mock mirrors that chain: each entry in
+ * `toolNames` becomes both a manifest tool_id (`tool-<name>`) and a matching
+ * tools row {id, name}. A name in `phantomToolIds` is a manifest tool_id with NO
+ * tools row (the phantom-capability case).
+ */
+function wireDefaultRows(
+  overrides: Partial<{ runtime: string; toolNames: string[]; phantomToolIds: string[]; shadow: unknown[]; replay: unknown[] }> = {},
+) {
   const runtime = overrides.runtime ?? 'langgraph'
   const toolNames = overrides.toolNames ?? ['count_words']
+  const phantomToolIds = overrides.phantomToolIds ?? []
+  const manifestToolIds = [...toolNames.map((n) => `tool-${n}`), ...phantomToolIds]
   pg = (_m, path) => {
     if (path.startsWith('copilots?')) return [{ id: COPILOT, runtime }]
-    if (path.startsWith('copilot_versions?')) return [{ id: VERSION, stage: 'draft' }]
-    if (path.startsWith('tools?')) return toolNames.map((name) => ({ name }))
+    if (path.startsWith('copilot_versions?')) return [{ id: VERSION, stage: 'draft', manifest_id: 'manifest-1' }]
+    if (path.startsWith('manifests?')) return [{ tool_ids: manifestToolIds }]
+    // Resolve manifest tool_ids to their rows — only the real (non-phantom) ones
+    // have a tools row; phantom ids resolve to nothing.
+    if (path.startsWith('tools?')) return toolNames.map((name) => ({ id: `tool-${name}`, name }))
     if (path.startsWith('shadow_experiments?')) return overrides.shadow ?? []
     if (path.startsWith('replay_comparisons?')) return overrides.replay ?? []
     return []
@@ -91,6 +108,29 @@ describe('promotion gate — every failure mode BLOCKS', () => {
     const r = await evaluatePromotionGate(COPILOT, VERSION, undefined, FIXED_NOW)
     expect(r?.overall).toBe('FAIL')
     expect(r?.checks.find((c) => c.id === 'tools-resolved-certified')?.status).toBe('FAIL')
+  })
+
+  it('1b) a manifest tool_id with NO tools row (phantom capability) → FAIL (regression: PR #19 review defect #6)', async () => {
+    // manifests.tool_ids has no FK to tools, so a candidate manifest can name an
+    // id with no row. Before the fix the gate certified the copilot's tools pool
+    // and never saw the phantom id → PASS on a capability the candidate would
+    // mount but that resolves to nothing. Now it certifies the manifest tool_ids.
+    wireDefaultRows({ toolNames: ['count_words'], phantomToolIds: ['tool-ghost'] })
+    const r = await evaluatePromotionGate(COPILOT, VERSION, undefined, FIXED_NOW)
+    const toolsCheck = r?.checks.find((c) => c.id === 'tools-resolved-certified')
+    expect(toolsCheck?.status).toBe('FAIL')
+    expect(toolsCheck?.reason).toContain('no tool row')
+    expect(r?.overall).toBe('FAIL')
+  })
+
+  it('the tools check reads the CANDIDATE MANIFEST tool_ids, not the copilot tools pool', async () => {
+    wireDefaultRows()
+    await evaluatePromotionGate(COPILOT, VERSION, undefined, FIXED_NOW)
+    // It must read the manifest to get tool_ids, then resolve ids → names.
+    expect(pgCalls.some((c) => c.path.startsWith('manifests?'))).toBe(true)
+    expect(pgCalls.some((c) => c.path.startsWith('tools?id=in.'))).toBe(true)
+    // It must NOT certify the copilot pool by copilot_id (the old, wrong read).
+    expect(pgCalls.some((c) => c.path.startsWith('tools?copilot_id='))).toBe(false)
   })
 
   it('2) runtime with engine:none → FAIL', async () => {
@@ -273,6 +313,61 @@ describe('replay — functional comparison + verdicts', () => {
   it('empty corpus → INCONCLUSIVE (never a silent pass)', async () => {
     const rec = await runReplayComparison({ copilotId: COPILOT, referenceVersionId: 'ref', candidateVersionId: VERSION, inputs: [], runReference: ref, runCandidate: ref, now: FIXED_NOW })
     expect(rec.verdict).toBe('INCONCLUSIVE')
+  })
+})
+
+describe('non-bypass — a replay is bound to its EXACT candidate (regression: PR #19 review defect #1)', () => {
+  it('the gate replay read filters on candidate_version_id, not just copilot_id', async () => {
+    // Before the fix the gate read `replay_comparisons?copilot_id=eq...` with NO
+    // candidate filter, so a replay produced for a DIFFERENT version satisfied
+    // this candidate. Pin the query shape: it MUST scope by candidate_version_id.
+    wireDefaultRows({ replay: [{ id: 'replay-1', verdict: 'BETTER', status: 'ready' }] })
+    const policy: PromotionPolicy = { requireShadow: false, requireReplay: true }
+    await evaluatePromotionGate(COPILOT, VERSION, policy, FIXED_NOW)
+    const replayGet = pgCalls.find((c) => c.method === 'GET' && c.path.startsWith('replay_comparisons?'))
+    expect(replayGet).toBeDefined()
+    expect(replayGet!.path).toContain(`candidate_version_id=eq.${VERSION}`)
+    expect(replayGet!.path).toContain(`copilot_id=eq.${COPILOT}`)
+  })
+
+  it("a replay that exists for a DIFFERENT candidate does NOT satisfy this candidate's required replay", async () => {
+    // The DB filter is what enforces this: with candidate_version_id in the WHERE,
+    // a row for another version is simply not returned → required replay missing →
+    // INSUFFICIENT_EVIDENCE (blocks). Simulate the DB honestly: the filtered read
+    // returns [] because no replay matches THIS candidate.
+    pg = (_m, path) => {
+      if (path.startsWith('copilots?')) return [{ id: COPILOT, runtime: 'langgraph' }]
+      if (path.startsWith('copilot_versions?')) return [{ id: VERSION, stage: 'draft' }]
+      if (path.startsWith('tools?')) return [{ name: 'count_words' }]
+      if (path.startsWith('shadow_experiments?')) return []
+      // A replay row exists for the copilot but for ANOTHER candidate → the
+      // candidate-scoped filter returns nothing for VERSION.
+      if (path.startsWith('replay_comparisons?')) {
+        return path.includes(`candidate_version_id=eq.${VERSION}`) ? [] : [{ id: 'replay-other', verdict: 'BETTER' }]
+      }
+      return []
+    }
+    const policy: PromotionPolicy = { requireShadow: false, requireReplay: true }
+    const r = await evaluatePromotionGate(COPILOT, VERSION, policy, FIXED_NOW)
+    expect(r?.checks.find((c) => c.id === 'replay-comparison')?.status).toBe('INSUFFICIENT_EVIDENCE')
+    expect(r?.overall).toBe('INSUFFICIENT_EVIDENCE')
+  })
+
+  it('persistReplayComparison writes candidate_version_id (so the gate can bind it)', async () => {
+    const rec = await runReplayComparison({
+      copilotId: COPILOT,
+      referenceVersionId: 'ref-ver',
+      candidateVersionId: VERSION,
+      inputs: [{ text: 'a' }],
+      runReference: async () => ({ ok: true, outputShape: '{w}', score: 0.8, toolsCalled: [], unsafeActions: 0, latencyMs: 1, costUsd: 0 }),
+      runCandidate: async () => ({ ok: true, outputShape: '{w}', score: 0.8, toolsCalled: [], unsafeActions: 0, latencyMs: 1, costUsd: 0 }),
+      now: FIXED_NOW,
+    })
+    await persistReplayComparison(rec)
+    const insert = pgCalls.find((c) => c.method === 'POST' && c.path === 'replay_comparisons')
+    expect(insert).toBeDefined()
+    const row = insert!.body as Record<string, unknown>
+    expect(row.candidate_version_id).toBe(VERSION)
   })
 })
 
