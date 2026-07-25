@@ -4,7 +4,7 @@ import { FunnelIcon, UsersIcon } from '@heroicons/react/24/outline'
 
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { SoftAccentButton, softAccentClass } from '@/components/agent-ops/soft-accent-link'
-import { Link } from '@/components/catalyst/link'
+import { Link } from '@/components/ui/link'
 
 /**
  * Two DISTINCT empty states — conflating them is the classic trap: an operator

@@ -3,9 +3,9 @@
 import { ExclamationTriangleIcon } from '@heroicons/react/16/solid'
 import { useEffect, useState } from 'react'
 
-import { Button } from '@/components/catalyst/button'
-import { Heading } from '@/components/catalyst/heading'
-import { Text } from '@/components/catalyst/text'
+import { Button } from '@/components/ui/button'
+import { Heading } from '@/components/ui/heading'
+import { Text } from '@/components/ui/text'
 
 /**
  * Route error boundary for /admin. The data layer (PostgREST on gpu1) can

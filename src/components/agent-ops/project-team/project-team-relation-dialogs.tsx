@@ -2,11 +2,11 @@
 
 import { type CSSProperties, useState } from 'react'
 
-import { Button } from '@/components/catalyst/button'
-import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/catalyst/dialog'
-import { Field, Fieldset, Label } from '@/components/catalyst/fieldset'
-import { Input } from '@/components/catalyst/input'
-import { Select } from '@/components/catalyst/select'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { Field, Fieldset, Label } from '@/components/ui/fieldset'
+import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { messageForResponse } from '@/lib/agent-mission-control/client-errors'
 import { EXPLICIT_RELATION_TYPES } from '@/lib/agent-mission-control/project-team/relations'
 import type { TeamAgentView } from './project-team-panel'

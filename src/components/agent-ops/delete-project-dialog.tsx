@@ -4,15 +4,15 @@ import { useRouter } from 'next/navigation'
 import { useState, type CSSProperties } from 'react'
 
 import { ErrorBanner } from '@/components/agent-ops/authoring-primitives'
-import { Button } from '@/components/catalyst/button'
-import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/catalyst/dialog'
-import { Description, Field, Label } from '@/components/catalyst/fieldset'
-import { Input } from '@/components/catalyst/input'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { Description, Field, Label } from '@/components/ui/fieldset'
+import { Input } from '@/components/ui/input'
 import { messageForResponse } from '@/lib/agent-mission-control/client-errors'
 import type { Project } from '@/lib/agent-mission-control/types'
 
 /**
- * Catalyst exposes no `danger` colour key and components/catalyst/ is out of
+ * Catalyst exposes no `danger` colour key and components/ui/ is out of
  * scope for this pass, so the destructive fill is injected through the button's
  * own `--btn-*` custom properties. Inline style rather than a className: the
  * `zinc` colour array ALSO declares `--btn-bg`, and which declaration wins

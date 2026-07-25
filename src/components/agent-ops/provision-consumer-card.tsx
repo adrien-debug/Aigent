@@ -11,9 +11,9 @@ import {
   type GitHubDeliveryResult,
 } from '@/components/agent-ops/github-delivery-primitives'
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
-import { Badge } from '@/components/catalyst/badge'
-import { Button } from '@/components/catalyst/button'
-import { Text } from '@/components/catalyst/text'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Text } from '@/components/ui/text'
 import { messageForResponse } from '@/lib/agent-mission-control/client-errors'
 import { formatTimestamp } from '@/lib/agent-mission-control/format'
 import type { ConsumerProvisionStatus } from '@/lib/agent-mission-control/github'

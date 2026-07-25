@@ -1,6 +1,6 @@
 import { surfaceSectionClass } from '@/components/agent-ops/surface-card'
-import { Subheading } from '@/components/catalyst/heading'
-import { Text } from '@/components/catalyst/text'
+import { Subheading } from '@/components/ui/heading'
+import { Text } from '@/components/ui/text'
 
 /**
  * Shared section wrapper for the agent detail subpages (configuration,

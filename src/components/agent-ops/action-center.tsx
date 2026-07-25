@@ -10,8 +10,8 @@ import {
 
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
-import { Badge } from '@/components/catalyst/badge'
-import { Link } from '@/components/catalyst/link'
+import { Badge } from '@/components/ui/badge'
+import { Link } from '@/components/ui/link'
 import type { ActionItem, ActionItemKind } from '@/lib/agent-mission-control/dashboard-overview'
 
 function isExternalHref(href: string): boolean {

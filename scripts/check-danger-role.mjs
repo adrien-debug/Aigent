@@ -10,9 +10,11 @@
  * is the failure mode this guard makes un-shippable. `--state-danger-*`
  * (src/app/globals.css) is the semantic channel those surfaces must consume.
  *
- * Scope: src/app/admin/** and src/components/agent-ops/** — the dashboard, same
- * scope as `check:catalyst`. NOT src/components/catalyst/** (the primitives own
- * their palette), NOT the marketing site.
+ * Scope: src/app/admin/**, src/components/agent-ops/**, src/components/views/**
+ * (the catalyst-in-layers migration moved page-level render logic here — see
+ * the migration plan) and src/components/shell/** — the dashboard, same scope
+ * as `check:catalyst`. NOT src/components/ui/** (the primitives own their
+ * palette), NOT the marketing site.
  *
  * Rules:
  *   1) alert-accent — an element carrying `role="alert"` also carries an accent
@@ -42,8 +44,13 @@ import { join, relative, sep } from 'node:path'
 const ROOT = process.cwd()
 const SRC = join(ROOT, 'src')
 
-const DASHBOARD_DIRS = [join('app', 'admin'), join('components', 'agent-ops')]
-const EXCLUDE_DIRS = [join('components', 'catalyst')]
+const DASHBOARD_DIRS = [
+  join('app', 'admin'),
+  join('components', 'agent-ops'),
+  join('components', 'views'),
+  join('components', 'shell'),
+]
+const EXCLUDE_DIRS = [join('components', 'ui')]
 
 const RULES = {
   alert: 'alert-accent',

@@ -13,12 +13,12 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
-import { Badge } from '@/components/catalyst/badge'
-import { Button } from '@/components/catalyst/button'
-import { Field, Fieldset, Label } from '@/components/catalyst/fieldset'
-import { Input, InputGroup } from '@/components/catalyst/input'
-import { Select } from '@/components/catalyst/select'
-import { Textarea } from '@/components/catalyst/textarea'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Field, Fieldset, Label } from '@/components/ui/fieldset'
+import { Input, InputGroup } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import type { Project } from '@/lib/agent-mission-control/types'
 
 // ---------------------------------------------------------------------------

@@ -1,8 +1,8 @@
-import { CommandPalette } from '@/components/agent-ops/command-palette'
-import { AigentSidebar } from '@/components/agent-ops/aigent-sidebar'
-import { Navbar, NavbarSection, NavbarSpacer } from '@/components/catalyst/navbar'
-import { SidebarLayout } from '@/components/catalyst/sidebar-layout'
-import { Avatar } from '@/components/catalyst/avatar'
+import { CommandPalette } from '@/components/shell/command-palette'
+import { AigentSidebar } from '@/components/shell/aigent-sidebar'
+import { Navbar, NavbarSection, NavbarSpacer } from '@/components/ui/navbar'
+import { SidebarLayout } from '@/components/ui/sidebar-layout'
+import { Avatar } from '@/components/ui/avatar'
 
 // Live-only: every /admin route renders per-request against the gpu1 data layer.
 // Force dynamic so `next build` never prerenders them (the fail-closed data layer

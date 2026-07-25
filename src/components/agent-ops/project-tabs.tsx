@@ -2,7 +2,7 @@
 
 import clsx from 'clsx'
 import { usePathname } from 'next/navigation'
-import { Link } from '@/components/catalyst/link'
+import { Link } from '@/components/ui/link'
 
 /**
  * Project sub-nav — same grammar as CopilotTabs (copilot-tabs.tsx): hairline

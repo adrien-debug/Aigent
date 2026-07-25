@@ -4,7 +4,7 @@ import { TrashIcon } from '@heroicons/react/16/solid'
 import { useState, type CSSProperties } from 'react'
 
 import { DeleteProjectDialog } from '@/components/agent-ops/delete-project-dialog'
-import { Button } from '@/components/catalyst/button'
+import { Button } from '@/components/ui/button'
 
 /**
  * The entry point to the destructive path must not look like every other plain

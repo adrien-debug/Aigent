@@ -1,4 +1,4 @@
-import { Badge } from '@/components/catalyst/badge'
+import { Badge } from '@/components/ui/badge'
 import type { ToolRiskLevel } from '@/lib/agent-mission-control/types'
 
 /** Risk dot on the monochrome accent ramp: faint → solid (low → critical). */

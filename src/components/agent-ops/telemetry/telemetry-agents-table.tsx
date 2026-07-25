@@ -3,8 +3,8 @@ import clsx from 'clsx'
 
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
-import { Link } from '@/components/catalyst/link'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
+import { Link } from '@/components/ui/link'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatDurationMs, formatPercent, formatTimestamp } from '@/lib/agent-mission-control/format'
 import type { RuntimeTelemetryAgentRollup } from '@/lib/agent-mission-control/runtime-telemetry-store'
 

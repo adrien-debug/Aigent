@@ -81,7 +81,7 @@ export async function scanProjectRepo(project: Project, ref?: string): Promise<R
 
   // 3. Design-system signals from path shape (no fetch).
   const dsSignals: string[] = []
-  if (files.some((p) => /components\/catalyst\//.test(p))) dsSignals.push('Catalyst primitives (components/catalyst/)')
+  if (files.some((p) => /components\/catalyst\//.test(p))) dsSignals.push('Catalyst primitives (components/ui/)')
   if (files.some((p) => /tailwind\.config/.test(p)) || files.some((p) => /globals\.css$/.test(p)))
     dsSignals.push('Tailwind config / globals.css')
   if (files.some((p) => /check-catalyst\.mjs$/.test(p))) dsSignals.push('Catalyst gate (check-catalyst.mjs)')

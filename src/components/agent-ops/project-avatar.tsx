@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 
-import { Avatar } from '@/components/catalyst/avatar'
+import { Avatar } from '@/components/ui/avatar'
 
 /**
  * Canonical project identity chip.

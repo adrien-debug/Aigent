@@ -7,7 +7,7 @@ import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
 import { MagnifyingGlassIcon, Squares2X2Icon, PlusIcon } from '@heroicons/react/20/solid'
 import { ChartBarIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'
-import { surfaceOverlay } from '@/components/catalyst/surface'
+import { surfaceOverlay } from '@/components/ui/panel'
 
 const ACTIONS = [
   { id: 'dashboard', name: 'Go to Dashboard', icon: Squares2X2Icon, href: '/admin', section: 'Navigation' },

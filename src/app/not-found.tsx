@@ -1,6 +1,6 @@
-import { Button } from '@/components/catalyst/button'
-import { Heading } from '@/components/catalyst/heading'
-import { Text } from '@/components/catalyst/text'
+import { Button } from '@/components/ui/button'
+import { Heading } from '@/components/ui/heading'
+import { Text } from '@/components/ui/text'
 
 export default function NotFound() {
   return (

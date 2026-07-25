@@ -1,7 +1,7 @@
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { RunStatusText } from '@/components/agent-ops/run-detail-panel'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
-import { Link } from '@/components/catalyst/link'
+import { Link } from '@/components/ui/link'
 import { getRecentRuns } from '@/lib/agent-mission-control/data'
 import { formatDurationMs, formatRelativeCompact, formatTimestamp, formatUsd } from '@/lib/agent-mission-control/format'
 

@@ -1,15 +1,15 @@
 'use client'
 
-import { Badge } from '@/components/catalyst/badge'
-import { Button } from '@/components/catalyst/button'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogActions,
   DialogBody,
   DialogDescription,
   DialogTitle,
-} from '@/components/catalyst/dialog'
-import { Text } from '@/components/catalyst/text'
+} from '@/components/ui/dialog'
+import { Text } from '@/components/ui/text'
 import type { AgentRecommendation } from '@/lib/agent-mission-control/repo-intelligence'
 
 const PRIORITY_ORDER: Record<AgentRecommendation['priority'], number> = { high: 0, medium: 1, low: 2 }

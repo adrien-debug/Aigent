@@ -5,7 +5,7 @@ variant Tailwind v4 `@custom-variant dark`). Toujours écrire les classes AVEC l
 `dark:` de Catalyst (les composants Catalyst gèrent light+dark ; l'app force dark).
 
 ## Sources (doctrine stricte)
-- **Catalyst** (`@/components/catalyst/*`) = primitives UNIQUES. Liste exacte, 18 fichiers :
+- **Catalyst** (`@/components/ui/*`) = primitives UNIQUES. Liste exacte, 18 fichiers :
   Avatar, Badge, Button, Dialog, Divider, Fieldset, Heading/Subheading, Input, Link,
   Navbar, Select, Sidebar, SidebarLayout, Surface, Switch, Table, Text, Textarea.
   INTERDIT de recréer une primitive qui existe dans Catalyst.
@@ -150,7 +150,7 @@ Détail : `docs/surface-usage.md`.
 - `AgentSectionCard { title, description?, actions?, children, className?, contentClassName? }`
 - `AgentBentoCard { eyebrow?, title, description?, children?, className? }`
 - `ArchitectureStrip { steps: { name, detail?, status?: 'ok'|'warn'|'off' }[] }`
-- **Shell** = `SidebarLayout` (`@/components/catalyst/sidebar-layout`, design system Kyc) +
+- **Shell** = `SidebarLayout` (`@/components/ui/sidebar-layout`, design system Kyc) +
   `AigentSidebar`. UN SEUL shell pour tout `/admin`, monté dans `src/app/admin/layout.tsx`.
   Sidebar pleine `w-64` en desktop, `Dialog` Headless en mobile, un seul `<main>`, un seul
   scroll (celui du document). L'ancien `AgentControlShell` (rail 64px) est supprimé.

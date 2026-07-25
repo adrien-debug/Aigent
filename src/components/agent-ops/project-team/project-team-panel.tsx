@@ -11,12 +11,12 @@ import clsx from 'clsx'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import { sectionLabelClass } from '@/components/agent-ops/authoring-primitives'
-import { Badge } from '@/components/catalyst/badge'
-import { Button } from '@/components/catalyst/button'
-import { Divider } from '@/components/catalyst/divider'
-import { Subheading } from '@/components/catalyst/heading'
-import { Link } from '@/components/catalyst/link'
-import { Text } from '@/components/catalyst/text'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Divider } from '@/components/ui/divider'
+import { Subheading } from '@/components/ui/heading'
+import { Link } from '@/components/ui/link'
+import { Text } from '@/components/ui/text'
 import { RELATION_SENTENCE_LABEL } from './project-team-edge'
 import type {
   ProjectTeamEdge,

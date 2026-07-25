@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 /**
- * Catalyst guard — fails CI if the dashboard drifts off the Catalyst
- * primitives in components/catalyst/.
+ * Catalyst guard — fails CI if the dashboard drifts off the Catalyst-derived
+ * primitives in components/ui/.
  *
- * Scope: src/app/admin/** and src/components/agent-ops/** (the interactive
- * dashboard). NOT src/app/(site)/** or src/components/marketing/** (the
- * marketing site is plain Tailwind blocks by design — see /catalyst docs).
- * NOT components/catalyst/** itself (the primitives own the native markup).
+ * Scope: src/app/admin/**, src/components/agent-ops/**, src/components/views/**
+ * (the catalyst-in-layers migration moved page-level render logic here — see
+ * the migration plan) and src/components/shell/** (the interactive dashboard).
+ * NOT src/app/(site)/** or src/components/marketing/** (the marketing site is
+ * plain Tailwind blocks by design — see /catalyst docs). NOT components/ui/**
+ * itself (the primitives own the native markup).
  *
  * Checks, dashboard scope only:
  *   1) Native interactive elements that have a Catalyst primitive equivalent
@@ -24,8 +26,13 @@ import { join, relative } from 'node:path'
 const ROOT = process.cwd()
 const SRC = join(ROOT, 'src')
 
-const DASHBOARD_DIRS = [join('app', 'admin'), join('components', 'agent-ops')]
-const EXCLUDE_DIRS = [join('components', 'catalyst')]
+const DASHBOARD_DIRS = [
+  join('app', 'admin'),
+  join('components', 'agent-ops'),
+  join('components', 'views'),
+  join('components', 'shell'),
+]
+const EXCLUDE_DIRS = [join('components', 'ui')]
 
 const NATIVE_TAG_RE = /<(button|input|select|textarea|table)(?=\s|>|$)/g
 // Comments (JSX {/* ... */} or // ...) mentioning the tag are not violations —

@@ -1,8 +1,8 @@
 import clsx from 'clsx'
 
-import { Subheading } from '@/components/catalyst/heading'
-import { surfaceRaised, surfaceSunken } from '@/components/catalyst/surface'
-import { Text } from '@/components/catalyst/text'
+import { Subheading } from '@/components/ui/heading'
+import { surfaceRaised, surfaceSunken } from '@/components/ui/panel'
+import { Text } from '@/components/ui/text'
 import type { TelemetryHealthDiagnostic } from '@/lib/agent-mission-control/telemetry-health'
 import { eyebrowClass } from '@/components/agent-ops/surface-card'
 import { CheckCircleIcon, SignalIcon } from '@heroicons/react/20/solid'

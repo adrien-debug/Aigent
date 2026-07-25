@@ -5,8 +5,8 @@ import { useCallback, useRef, useState } from 'react'
 
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { eyebrowClass } from '@/components/agent-ops/surface-card'
-import { Button } from '@/components/catalyst/button'
-import { Text } from '@/components/catalyst/text'
+import { Button } from '@/components/ui/button'
+import { Text } from '@/components/ui/text'
 import type { Capability, LifecycleActionId } from '@/lib/agent-mission-control/agent-lifecycle'
 import type {
   AutoImproveEvent,

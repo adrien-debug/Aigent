@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 
-import { Text } from '@/components/catalyst/text'
+import { Text } from '@/components/ui/text'
 import type { TelemetryHealthDiagnostic } from '@/lib/agent-mission-control/telemetry-health'
 import { InformationCircleIcon, SignalIcon } from '@heroicons/react/24/outline'
 

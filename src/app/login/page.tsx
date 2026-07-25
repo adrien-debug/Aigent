@@ -3,11 +3,11 @@
 import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 
-import { Button } from '@/components/catalyst/button'
-import { Field, Fieldset, Label } from '@/components/catalyst/fieldset'
-import { Heading } from '@/components/catalyst/heading'
-import { Input } from '@/components/catalyst/input'
-import { Text } from '@/components/catalyst/text'
+import { Button } from '@/components/ui/button'
+import { Field, Fieldset, Label } from '@/components/ui/fieldset'
+import { Heading } from '@/components/ui/heading'
+import { Input } from '@/components/ui/input'
+import { Text } from '@/components/ui/text'
 
 /**
  * Resolve where to land after a successful sign-in. We only ever follow an

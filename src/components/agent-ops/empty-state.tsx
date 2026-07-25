@@ -1,8 +1,8 @@
 import clsx from 'clsx'
 
-import { Subheading } from '@/components/catalyst/heading'
-import { surfaceRaised } from '@/components/catalyst/surface'
-import { Text } from '@/components/catalyst/text'
+import { Subheading } from '@/components/ui/heading'
+import { surfaceRaised } from '@/components/ui/panel'
+import { Text } from '@/components/ui/text'
 
 /**
  * EmptyState — the ONE empty-state grammar for /admin screens (canon fixed by

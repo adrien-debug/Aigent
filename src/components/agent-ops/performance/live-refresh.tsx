@@ -3,8 +3,8 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
-import { Badge } from '@/components/catalyst/badge'
-import { Text } from '@/components/catalyst/text'
+import { Badge } from '@/components/ui/badge'
+import { Text } from '@/components/ui/text'
 
 const REFRESH_INTERVAL_MS = 30_000
 const PREFLIGHT_TIMEOUT_MS = 2_500

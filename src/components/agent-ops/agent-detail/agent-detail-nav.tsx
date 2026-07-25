@@ -3,7 +3,7 @@
 import clsx from 'clsx'
 import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from '@/components/catalyst/link'
+import { Link } from '@/components/ui/link'
 
 /**
  * The canonical agent sections (AIGENT-AGENT-PAGES-021).

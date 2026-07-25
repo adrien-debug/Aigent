@@ -1,5 +1,5 @@
 import { eyebrowClass } from '@/components/agent-ops/surface-card'
-import { Text } from '@/components/catalyst/text'
+import { Text } from '@/components/ui/text'
 import type {
   QualificationReadiness,
   QualificationStepResult,

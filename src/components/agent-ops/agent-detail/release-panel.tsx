@@ -5,9 +5,9 @@ import { useState, type CSSProperties } from 'react'
 
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { eyebrowClass } from '@/components/agent-ops/surface-card'
-import { Button } from '@/components/catalyst/button'
-import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/catalyst/dialog'
-import { Text } from '@/components/catalyst/text'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { Text } from '@/components/ui/text'
 import { messageForResponse } from '@/lib/agent-mission-control/client-errors'
 import type { Capability } from '@/lib/agent-mission-control/agent-lifecycle'
 import type { GateStatus, ReleaseCheck } from '@/lib/agent-mission-control/release-gate'
@@ -37,7 +37,7 @@ import type { GateStatus, ReleaseCheck } from '@/lib/agent-mission-control/relea
  */
 
 /**
- * Catalyst exposes no `danger` colour key and `components/catalyst/` is out of
+ * Catalyst exposes no `danger` colour key and `components/ui/` is out of
  * scope here, so the destructive fill rides the button's own `--btn-*` custom
  * properties. Inline style, not a className: the `zinc` colour array ALSO
  * declares `--btn-bg`, and which declaration wins depends on the order Tailwind

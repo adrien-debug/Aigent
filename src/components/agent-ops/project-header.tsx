@@ -3,8 +3,8 @@ import { CodeBracketIcon, ServerStackIcon } from '@heroicons/react/24/outline'
 
 import { ProjectAvatar } from '@/components/agent-ops/project-avatar'
 import { surfaceCardClass, surfaceCardFooterClass } from '@/components/agent-ops/surface-card'
-import { Heading } from '@/components/catalyst/heading'
-import { Text } from '@/components/catalyst/text'
+import { Heading } from '@/components/ui/heading'
+import { Text } from '@/components/ui/text'
 import { PROJECT_PLATFORM_LABELS } from '@/lib/agent-mission-control/labels'
 import type { Project } from '@/lib/agent-mission-control/types'
 

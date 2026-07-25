@@ -5,10 +5,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { AgentSectionCard, eyebrowClass } from '@/components/agent-ops/surface-card'
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { EmptyState } from '@/components/agent-ops/empty-state'
-import { Badge } from '@/components/catalyst/badge'
-import { Button } from '@/components/catalyst/button'
-import { Field, Label } from '@/components/catalyst/fieldset'
-import { Textarea } from '@/components/catalyst/textarea'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Field, Label } from '@/components/ui/fieldset'
+import { Textarea } from '@/components/ui/textarea'
 import {
   latestMissionUrl,
   MISSION_DATA_UNAVAILABLE,

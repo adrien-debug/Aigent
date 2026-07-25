@@ -1,8 +1,8 @@
 'use client'
 
 import { AgentSectionCard } from '@/components/agent-ops/surface-card'
-import { Link } from '@/components/catalyst/link'
-import { Text } from '@/components/catalyst/text'
+import { Link } from '@/components/ui/link'
+import { Text } from '@/components/ui/text'
 
 /** The LangGraph debug metadata a builder run carries (mirror of BuilderRunState.langgraph). */
 export interface LangGraphDebugInfo {

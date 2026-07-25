@@ -15,9 +15,10 @@ const eslintConfig = defineConfig([
     // Agent worktrees: isolated copies of the repo created by workflow workers.
     // They are not source of THIS working tree and must never enter the lint gate.
     ".claude/worktrees/**",
-    // Vendored Catalyst UI kit: third-party source, never edited locally
-    // (see DESIGN-DOCTRINE.md). Excluded from lint like any vendored code.
-    "src/components/catalyst/**",
+    // Vendored Catalyst UI kit (renamed to ui/ — see migration plan): third-party
+    // source, never edited locally (see DESIGN-DOCTRINE.md). Excluded from lint
+    // like any vendored code.
+    "src/components/ui/**",
   ]),
   {
     rules: {

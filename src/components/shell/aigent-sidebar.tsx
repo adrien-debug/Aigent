@@ -14,8 +14,8 @@ import { ArrowRightStartOnRectangleIcon } from '@heroicons/react/20/solid'
 import clsx from 'clsx'
 import { usePathname } from 'next/navigation'
 
-import { eyebrowClass } from '@/components/agent-ops/surface-card'
-import { Avatar } from '@/components/catalyst/avatar'
+import { eyebrowClass } from '@/components/shell/page-header'
+import { Avatar } from '@/components/ui/avatar'
 import {
   Sidebar,
   SidebarBody,
@@ -25,7 +25,7 @@ import {
   SidebarItem,
   SidebarLabel,
   SidebarSection,
-} from '@/components/catalyst/sidebar'
+} from '@/components/ui/sidebar'
 
 function LogoMark({ className }: { className?: string }) {
   return (

@@ -19,9 +19,12 @@
  * tables, they compare against DB columns, and they are deliberately NOT
  * flagged. Comments are skipped: this guard is about what renders.
  *
- * Scope: the dashboard — `src/app/admin/**` and `src/components/agent-ops/**`.
- * `src/app/(site)/**` and `src/components/marketing/**` are a separate world by
- * doctrine (AGENTS.md: Tailwind Plus blocks, static vitrine) and are excluded.
+ * Scope: the dashboard — `src/app/admin/**`, `src/components/agent-ops/**`,
+ * `src/components/views/**` (the catalyst-in-layers migration moved
+ * page-level render logic here — see the migration plan) and
+ * `src/components/shell/**`. `src/app/(site)/**` and
+ * `src/components/marketing/**` are a separate world by doctrine (AGENTS.md:
+ * Tailwind Plus blocks, static vitrine) and are excluded.
  *
  * Exit 0 = clean, exit 1 = violation. Read-only, no network, no secret.
  */
@@ -30,7 +33,12 @@ import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const SCANNED_DIRS = [join(ROOT, 'src/app/admin'), join(ROOT, 'src/components/agent-ops')]
+const SCANNED_DIRS = [
+  join(ROOT, 'src/app/admin'),
+  join(ROOT, 'src/components/agent-ops'),
+  join(ROOT, 'src/components/views'),
+  join(ROOT, 'src/components/shell'),
+]
 
 /** The file that OWNS every status label. */
 const LABELS_MODULE = 'src/lib/agent-mission-control/labels.ts'

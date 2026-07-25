@@ -6,15 +6,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AgentSectionCard, surfaceInsetClass } from '@/components/agent-ops/surface-card'
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { ProjectBuilderSuggestionsDrawer } from '@/components/agent-ops/project-builder-suggestions-drawer'
-import { Badge } from '@/components/catalyst/badge'
-import { Button } from '@/components/catalyst/button'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogActions,
   DialogBody,
   DialogDescription,
   DialogTitle,
-} from '@/components/catalyst/dialog'
+} from '@/components/ui/dialog'
 import type {
   AgentRecommendation,
   AgenticFootprint,

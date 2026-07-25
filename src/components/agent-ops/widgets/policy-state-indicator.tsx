@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 
-import { Badge } from '@/components/catalyst/badge'
+import { Badge } from '@/components/ui/badge'
 
 type Policy = 'never' | 'risky-only' | 'always'
 

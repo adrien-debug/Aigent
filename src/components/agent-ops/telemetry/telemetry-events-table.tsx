@@ -2,8 +2,8 @@ import { BoltIcon } from '@heroicons/react/24/outline'
 
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
-import { Link } from '@/components/catalyst/link'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
+import { Link } from '@/components/ui/link'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatDurationMs, formatRelative, formatTimestamp } from '@/lib/agent-mission-control/format'
 import type { RuntimeTelemetryEvent } from '@/lib/agent-mission-control/runtime-telemetry-store'
 

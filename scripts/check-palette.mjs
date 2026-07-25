@@ -3,7 +3,8 @@
  * Design-system guard — fails CI if the monochrome contract is broken.
  *
  * 1) No chromatic hue other than `accent` / `zinc` anywhere in `src` (the
- *    Catalyst primitive keeps its full palette, so it is excluded).
+ *    Catalyst-derived primitives in `ui/` keep their full palette, so they
+ *    are excluded).
  * 2) The solid accent surfaces keep WCAG AA (≥ 4.5:1) for their white text.
  *
  * Pure Node, no deps. Run via `npm run check:ds`.
@@ -13,7 +14,7 @@ import { join, relative } from 'node:path'
 
 const ROOT = process.cwd()
 const SRC = join(ROOT, 'src')
-const EXCLUDE_DIR = join('components', 'catalyst') // the primitive owns the full palette
+const EXCLUDE_DIR = join('components', 'ui') // the primitive owns the full palette
 
 const HUES = [
   'red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal',

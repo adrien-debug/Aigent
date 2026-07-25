@@ -12,8 +12,8 @@ import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
 import { useEffect, useRef, useState } from 'react'
 
-import { Input, InputGroup } from '@/components/catalyst/input'
-import { Select } from '@/components/catalyst/select'
+import { Input, InputGroup } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 
 export type ProjectTeamViewMode = 'structure' | 'activity' | 'dependencies'
 

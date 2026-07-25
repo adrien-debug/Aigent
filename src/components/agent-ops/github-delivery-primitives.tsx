@@ -4,7 +4,7 @@ import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
 
 import { surfaceInsetClass } from '@/components/agent-ops/surface-card'
-import { Link } from '@/components/catalyst/link'
+import { Link } from '@/components/ui/link'
 
 /** Client-safe mirror of `PushResult` from github.ts (server-only). */
 export type GitHubDeliveryResult = {

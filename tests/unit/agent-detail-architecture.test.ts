@@ -108,8 +108,12 @@ describe('agent detail — value rendering contract', () => {
     // {version, fields}, so `contract.invariants.length` threw and dropped the
     // whole Instructions page into the error boundary — a 200 response showing
     // "Something went wrong". The page must render whatever is actually stored.
+    //
+    // The catalyst-in-layers migration moved this rendering logic out of
+    // page.tsx (now a thin data+View shell) into the view file — see the
+    // migration plan.
     const src = await import('node:fs/promises').then((fs) =>
-      fs.readFile(join(ROOT, 'src/app/admin/agents/[id]/instructions/page.tsx'), 'utf8')
+      fs.readFile(join(ROOT, 'src/components/views/agents/agent-instructions-view.tsx'), 'utf8')
     )
     // Strip comments first: the doc explaining this bug names the very
     // expression the assertion forbids, and would otherwise fail the test that

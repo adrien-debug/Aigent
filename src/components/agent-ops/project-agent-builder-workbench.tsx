@@ -12,9 +12,9 @@ import {
   ProjectRepoIntelligenceActions,
   useProjectRepoIntelligence,
 } from '@/components/agent-ops/project-repo-intelligence'
-import { Button } from '@/components/catalyst/button'
-import { Text } from '@/components/catalyst/text'
-import { Textarea } from '@/components/catalyst/textarea'
+import { Button } from '@/components/ui/button'
+import { Text } from '@/components/ui/text'
+import { Textarea } from '@/components/ui/textarea'
 import type { AgentRecommendation } from '@/lib/agent-mission-control/repo-intelligence'
 import type {
   AgentPreview,

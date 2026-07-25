@@ -1,6 +1,6 @@
 import { eyebrowClass } from '@/components/agent-ops/surface-card'
 import { EmptyState } from '@/components/agent-ops/empty-state'
-import { Text } from '@/components/catalyst/text'
+import { Text } from '@/components/ui/text'
 import type { PromotionCheck, PromotionCheckStatus } from '@/lib/agent-mission-control/promotion-gate'
 
 /**

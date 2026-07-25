@@ -3,7 +3,7 @@
 import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
 
-import { Subheading } from '@/components/catalyst/heading'
+import { Subheading } from '@/components/ui/heading'
 import { formatAge, humanizeStatus, lastActivityFallback, type TeamAgentView } from './project-team-panel'
 
 /**

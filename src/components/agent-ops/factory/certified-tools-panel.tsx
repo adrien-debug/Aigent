@@ -1,5 +1,5 @@
-import { Badge } from '@/components/catalyst/badge'
-import { Text } from '@/components/catalyst/text'
+import { Badge } from '@/components/ui/badge'
+import { Text } from '@/components/ui/text'
 import { surfaceItemClass } from '@/components/agent-ops/surface-card'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 

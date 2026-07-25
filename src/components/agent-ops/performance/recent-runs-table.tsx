@@ -2,8 +2,8 @@ import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline'
 
 import { RunStatusText } from '@/components/agent-ops/run-detail-panel'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
-import { Link } from '@/components/catalyst/link'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
+import { Link } from '@/components/ui/link'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   formatDurationMs,
   formatRelative,

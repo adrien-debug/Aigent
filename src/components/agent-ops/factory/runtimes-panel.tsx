@@ -1,4 +1,4 @@
-import { Text } from '@/components/catalyst/text'
+import { Text } from '@/components/ui/text'
 import { surfaceItemClass } from '@/components/agent-ops/surface-card'
 
 export interface FactoryRuntimeRow {
