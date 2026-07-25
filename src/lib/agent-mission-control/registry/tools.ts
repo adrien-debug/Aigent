@@ -67,7 +67,7 @@ export interface ToolDefinition {
    */
   secretRefs: ReadonlyArray<string>
   /** Where the tool's capability originates (for provenance/audit). */
-  provenance: 'platform' | 'trading' | 'realestate' | 'repo' | 'http'
+  provenance: 'platform' | 'trading' | 'realestate' | 'repo' | 'http' | 'builder'
   /** Runtimes that can mount this tool. Today every tool is langgraph-mountable. */
   runtimes: ReadonlyArray<AgentRuntime>
   certification: ToolCertification
@@ -146,6 +146,17 @@ export const TOOL_REGISTRY: Readonly<Record<string, ToolDefinition>> = {
     summary: 'Compose a copilot spec draft from a brief (pure, local).',
     kind: 'local-deterministic', mutates: false, risk: 'medium', requiresConfirmation: true,
     secretRefs: [], provenance: 'platform', runtimes: LG, certification: 'certified',
+  }),
+
+  // ── Tools created by the Tool Builder (provenance: 'builder') ─────────────
+  // count_words is the proof tool: authored via the Tool Builder pipeline
+  // (tool-builder/mission.ts), pure/local/deterministic, and CERTIFIED only
+  // because its sandbox tests passed — not because the literal was typed.
+  count_words: def({
+    id: 'count_words', version: '1.0.0', label: 'Count words',
+    summary: 'Count words, characters and the longest token in a text (pure, local, deterministic).',
+    kind: 'local-deterministic', mutates: false, risk: 'low', requiresConfirmation: false,
+    secretRefs: [], provenance: 'builder', runtimes: LG, certification: 'certified',
   }),
 
   // ── Market reads (TradeAgent public routes, GET, UNAVAILABLE-aware) ────────

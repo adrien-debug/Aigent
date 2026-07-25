@@ -39,6 +39,7 @@ export type BehaviorToolId =
   | 'read_recent_runs'
   | 'read_tool_permissions'
   | 'draft_copilot_spec'
+  | 'count_words'
   | 'read_market_snapshot'
   | 'read_volatility_state'
   | 'read_market_structure'

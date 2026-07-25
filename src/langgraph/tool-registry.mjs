@@ -26,6 +26,7 @@ import { z } from 'zod'
 import { pgrest } from './pgrest.mjs'
 import { buildCopilotDraft } from './draft-spec.mjs'
 import { guardedFetch } from './http-guard.mjs'
+import { countWords } from './tools/count-words.mjs'
 
 // Keep large tool outputs bounded so a single call can't blow the context.
 const MAX_BODY_CHARS = 8000
@@ -741,6 +742,28 @@ function makeDraftCopilotSpec() {
   )
 }
 
+/**
+ * count_words — a LOCAL DETERMINISTIC tool authored through the Tool Builder
+ * (the proof the pipeline yields a real, mountable, certified tool). Pure, no
+ * IO, no secret. Shares its implementation with the TS layer + tests via
+ * ./tools/count-words.mjs so behaviour can't diverge.
+ */
+function makeCountWords() {
+  return tool(
+    async ({ text }) => JSON.stringify(countWords(text ?? '')),
+    {
+      name: 'count_words',
+      description:
+        'Count the words, characters and longest token in a text. Args JSON: {"text": <string>}. ' +
+        'Pure and deterministic (same input → same output), read-only, no external call. ' +
+        'Empty/whitespace-only text returns zero words — a real measured zero, never fabricated.',
+      schema: z.object({
+        text: z.string().max(100_000).describe('The text to analyse.'),
+      }).strict(),
+    }
+  )
+}
+
 // ---------------------------------------------------------------------------
 // The registry — maps a registry `id` to a factory (scope) → real tool.
 // Repo/http tools take the per-copilot scope; the rest ignore it.
@@ -755,6 +778,7 @@ const REGISTRY = {
   read_recent_runs: () => makeReadRecentRuns(),
   read_tool_permissions: () => makeReadToolPermissions(),
   draft_copilot_spec: () => makeDraftCopilotSpec(),
+  count_words: () => makeCountWords(),
   ...Object.fromEntries(MARKET_TOOL_IDS.map((id) => [id, () => makeMarketReadTool(id)])),
   ...Object.fromEntries(REALESTATE_TOOL_IDS.map((id) => [id, () => makeRealEstateReadTool(id)])),
 }
