@@ -4,10 +4,20 @@
 > REAL_EXECUTION_NOT_WIRED` refusal for `useFixture:false` described below is
 > **lifted**: real LangGraph shadow AND replay execution are now wired
 > (`src/lib/agent-mission-control/shadow-live.ts` / `replay-live.ts` → route
-> `useFixture:false` → `execution_mode: 'live_langgraph'`, proven live for
-> shadow). Sections about "what's needed to lift the 501" are historical. The
-> anti-fixture-as-proof gate (`execution_mode` must be `live_langgraph` for a
-> required check) is preserved and still authoritative.
+> `useFixture:false` → `execution_mode: 'live_langgraph'`).
+>
+> **Proof status (be precise):** a live shadow run WAS executed in-session on
+> 2026-07-25 against gpu1 and returned `execution_mode: 'live_langgraph', verdict:
+> PASS, would_mutate: 0` — but on a *disposable* copilot that was then deleted, so
+> **no committed proof artifact remains in the repo**; reproduce with a
+> `useFixture:false` run. The automated tests (`shadow-live.test.ts`,
+> `shadow-replay-routes.test.ts`) MOCK the Agent Server (offline) — they prove the
+> wiring/classification, not a live run. Replay's live path is wired + unit-tested
+> but **not** live-executed (no copilot has a `production_version_id` baseline yet).
+> Sections below about "what's needed to lift the 501" are historical.
+>
+> The anti-fixture-as-proof gate (`execution_mode` must be `live_langgraph` for a
+> REQUIRED check) is preserved and still authoritative.
 
 > Branche `feat/factory-shadow-replay-001` · base `origin/feat/runtime-promotion-001` (tip
 > `0b91ce6`, PR #19, alors non mergée). Objectif : Shadow et Replay ne sont plus des moteurs
