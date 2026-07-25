@@ -8,17 +8,14 @@
  * archived-at-launch, corpus validation. Factoring it once keeps the two
  * routes from silently drifting on any one of these checks.
  *
- * PRODUCT-READINESS NOTE (2026-07-25): an earlier version of this file also
- * exported `buildRunCallback` (driving `executeCopilotRun` — the direct/
- * model-router runtime — as a stand-in "real" shadow/replay execution) and
- * `localDeterministicRunAgent`. Both were removed: neither route calls them
- * any more (see the PRODUCT-READINESS NOTE atop replay/route.ts) because
- * substituting the direct runtime for a langgraph candidate's own graph would
- * institutionalize a runtime that never faithfully evaluates the candidate's
- * actual manifest. Real (non-fixture) execution needs the LangGraph
- * ephemeral-assistant seam (`ensureCandidateAssistant`,
- * feat/deterministic-evidence-001) — until that lands and is wired here,
- * both routes are fixture-only by design, not by oversight.
+ * HISTORY: an earlier version exported `buildRunCallback` (driving the direct/
+ * model-router runtime as a stand-in) and `localDeterministicRunAgent`, both
+ * removed — substituting the direct runtime for a langgraph candidate's own
+ * graph would never faithfully evaluate its manifest. Real (non-fixture)
+ * execution now goes through the LangGraph ephemeral-assistant seam
+ * (`ensureCandidateAssistant`), wired at the route layer via
+ * shadow-live.ts / replay-live.ts (`useFixture:false` → `execution_mode:
+ * 'live_langgraph'`). The fixture path remains the $0 default.
  */
 import 'server-only'
 
@@ -84,8 +81,6 @@ export async function readVersionStage(versionId: string): Promise<string | null
   const rows = await pgrest<Record<string, unknown>[]>('GET', `copilot_versions?id=eq.${encodeURIComponent(versionId)}&select=stage`)
   return (rows[0]?.stage as string | undefined) ?? null
 }
-
-export const INSUFFICIENT_EVIDENCE = 'INSUFFICIENT_EVIDENCE' as const
 
 /**
  * Validate the optional request-body corpus. An explicitly EMPTY array is

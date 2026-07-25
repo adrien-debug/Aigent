@@ -1,5 +1,14 @@
 # AIGENT-FACTORY-SHADOW-REPLAY-001 — Shadow/Replay as product capabilities
 
+> **⚠️ SUPERSEDED (2026-07-25, integration `be4a715` on `main`).** The `501
+> REAL_EXECUTION_NOT_WIRED` refusal for `useFixture:false` described below is
+> **lifted**: real LangGraph shadow AND replay execution are now wired
+> (`src/lib/agent-mission-control/shadow-live.ts` / `replay-live.ts` → route
+> `useFixture:false` → `execution_mode: 'live_langgraph'`, proven live for
+> shadow). Sections about "what's needed to lift the 501" are historical. The
+> anti-fixture-as-proof gate (`execution_mode` must be `live_langgraph` for a
+> required check) is preserved and still authoritative.
+
 > Branche `feat/factory-shadow-replay-001` · base `origin/feat/runtime-promotion-001` (tip
 > `0b91ce6`, PR #19, alors non mergée). Objectif : Shadow et Replay ne sont plus des moteurs
 > appelables uniquement par script (`scripts/prove-factory-e2e.ts`) — ce sont des routes API

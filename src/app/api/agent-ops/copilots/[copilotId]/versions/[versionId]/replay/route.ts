@@ -34,24 +34,16 @@ function fixtureOutcome(better: boolean): ReplayOutcome {
  * exact candidate (candidate_version_id — migration 0030's fix, still honored
  * here: a replay produced for candidate A must never satisfy candidate B).
  *
- * Body: { inputs?: unknown[], useFixture?: boolean }. `useFixture` default
- * true (or omitted) drives the deterministic $0 fixture path — the ONLY
- * evidence this route produces today. `useFixture:false` is refused (501):
- * see the PRODUCT-READINESS NOTE below for why this is a refusal, not a
- * silent substitution.
- *
- * PRODUCT-READINESS NOTE (2026-07-25): a real (billed, non-fixture) replay
- * must evaluate the candidate's OWN manifest on its OWN runtime. The direct/
- * model-router runtime (`executeCopilotRun`) is NOT a faithful substitute for
- * a langgraph copilot — wiring `useFixture:false` to it would institutionalize
- * a different runtime as "the real evaluation" and let a langgraph candidate
- * get promotion evidence that never actually exercised its own graph. Real
- * execution requires the LangGraph ephemeral-assistant seam
- * (`ensureCandidateAssistant`, landing on `feat/deterministic-evidence-001`,
- * not merged/wired here) so the candidate manifest is what runs. Until that
- * lands, `useFixture:false` returns 501 rather than quietly running a
- * different engine — see docs/factory-shadow-replay-001.md for the full
- * writeup and what's needed to close this gap.
+ * Body: { inputs?: unknown[], useFixture?: boolean }. Two execution modes
+ * (AIGENT-FACTORY-READY-001):
+ *   - `useFixture` omitted/true → the deterministic $0 fixture path.
+ *     `execution_mode: 'deterministic_fixture'`.
+ *   - `useFixture:false` → BOTH the reference (production) and the candidate are
+ *     run through the REAL LangGraph runtime via their ephemeral assistants
+ *     (replay-live.ts `makeLiveReplayRunner`). `execution_mode: 'live_langgraph'`
+ *     — the ONLY mode a REQUIRED promotion-gate replay check accepts. Same
+ *     write-safety as live shadow (mutating tools interrupt, never execute).
+ *     Requires a production version to compare against (else 409).
  *
  * Idempotence: partial UNIQUE index (migration 0034) on
  * replay_comparisons(copilot_id, candidate_version_id) WHERE status IN
@@ -147,11 +139,14 @@ export async function POST(
       runReference = async () => fixtureOutcome(false)
       runCandidate = async () => fixtureOutcome(true)
     } else {
+      // Track each cleanup the moment its assistant is provisioned, so the
+      // reference assistant is still torn down if the candidate provision throws.
       const ref = await makeLiveReplayRunner(referenceVersionId)
+      liveCleanups = [ref.cleanup]
       const cand = await makeLiveReplayRunner(versionId)
+      liveCleanups.push(cand.cleanup)
       runReference = ref.run
       runCandidate = cand.run
-      liveCleanups = [ref.cleanup, cand.cleanup]
     }
 
     const record = await runReplayComparison({
@@ -225,10 +220,11 @@ export async function POST(
  *     executionMode: 'live_langgraph'|'deterministic_fixture'|'legacy_unknown',
  *     caseCount: number, createdAt: string,
  *   }}
- *   `executionMode` (migration 0034, PR #22 rework) is ALWAYS
- *   'deterministic_fixture' today — see the PRODUCT-READINESS NOTE above.
- *   The Release UI MUST label this evidence as a simulation; the promotion
- *   gate refuses anything but 'live_langgraph' for a REQUIRED check
+ *   `executionMode` (migration 0034/0037) reflects the LAST run's true source
+ *   ('live_langgraph' via useFixture:false, 'deterministic_fixture' default, or
+ *   'legacy_unknown' pre-migration). The Release UI MUST label a
+ *   'deterministic_fixture' result as a simulation; the promotion gate accepts
+ *   ONLY 'live_langgraph' for a REQUIRED check
  *   (promotion-gate.ts replayCheck).
  *   400/404/503/502/504 — same contract as the shadow GET.
  */

@@ -53,7 +53,7 @@ describe('makeLiveShadowAgent (real LangGraph path)', () => {
   it('provisions the ephemeral candidate assistant and runs it via the live adapter', async () => {
     const { runAgent } = await makeLiveShadowAgent('version-x')
     expect(h.ensureCandidateAssistant).toHaveBeenCalledWith('version-x')
-    h.state.toolCalls = [{ toolName: 'read_repo_file', status: 'completed' }]
+    h.state.toolCalls = [{ toolName: 'read_repo_file', status: 'ok' }]
     const r = await runAgent('summarize the readme', gate)
     expect(h.executeAgent).toHaveBeenCalledTimes(1)
     expect(h.executeAgent.mock.calls[0][0]).toMatchObject({ runtime: 'langgraph', assistantId: 'asst-candidate', versionId: 'version-x' })
@@ -64,7 +64,7 @@ describe('makeLiveShadowAgent (real LangGraph path)', () => {
   it('classifies a mutating tool as would-mutate + NOT executed, a read tool as executed', async () => {
     const { runAgent } = await makeLiveShadowAgent('version-x')
     h.state.toolCalls = [
-      { toolName: 'read_repo_file', status: 'completed' },
+      { toolName: 'read_repo_file', status: 'ok' },
       { toolName: 'write_ledger', status: 'blocked' }, // interrupted at confirmation
     ]
     const r = await runAgent('do a thing', gate)

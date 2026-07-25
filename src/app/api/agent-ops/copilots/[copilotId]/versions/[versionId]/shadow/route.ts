@@ -21,22 +21,17 @@ import {
  * effect (every mutating tool call is gated, see shadow.ts). Body:
  *   { inputs?: unknown[], useFixture?: boolean }
  *
- * `useFixture` default true (or omitted) drives the REAL runShadowExperiment
- * engine through the deterministic, $0, zero-network `makeFixtureShadowAgent`
- * (the same one prove-factory-e2e.ts uses) — the ONLY evidence this route
- * produces today. `useFixture:false` is refused (501): see the
- * PRODUCT-READINESS NOTE below.
- *
- * PRODUCT-READINESS NOTE (2026-07-25): a real (billed, non-fixture) shadow run
- * needs shadow.ts's per-tool-call `ShadowToolGate` seam wired into the
- * candidate's OWN runtime — the direct/model-router runner
- * (`executeCopilotRun`) does not expose that seam, and substituting it in for
- * a langgraph candidate would institutionalize a runtime that never evaluates
- * the candidate's actual manifest. Real execution needs the LangGraph
- * ephemeral-assistant seam (`ensureCandidateAssistant`,
- * feat/deterministic-evidence-001) wired to a `ShadowRunAgent`-shaped
- * callback — not yet done. Until it lands, this route is fixture-only by
- * design; see docs/factory-shadow-replay-001.md.
+ * Two execution modes (AIGENT-FACTORY-READY-001):
+ *   - `useFixture` omitted/true → the deterministic, $0, zero-network
+ *     `makeFixtureShadowAgent` drives the REAL runShadowExperiment engine.
+ *     Evidence is stamped `execution_mode: 'deterministic_fixture'`.
+ *   - `useFixture:false` → the REAL LangGraph run of the candidate via its
+ *     ephemeral assistant (shadow-live.ts `makeLiveShadowAgent`). Evidence is
+ *     stamped `execution_mode: 'live_langgraph'` — the ONLY mode a REQUIRED
+ *     promotion-gate shadow check accepts (a fixture never gates production).
+ *     Write-safety on the live path: mutating tools require confirmation and the
+ *     run never confirms → they interrupt (never execute); the ShadowToolGate
+ *     records them as would-mutate.
  *
  * Idempotence: a partial UNIQUE index (migration 0034) on
  * shadow_experiments(copilot_id, candidate_version_id) WHERE status IN
@@ -230,12 +225,12 @@ export async function POST(
  *     sampledRunCount: number, wouldMutateCount: number,
  *     startedAt: string, endsAt: string | null,
  *   }}
- *   `executionMode` (migration 0034, PR #22 rework) is ALWAYS
- *   'deterministic_fixture' today — this route has no live_langgraph path
- *   yet (see the PRODUCT-READINESS NOTE above). A caller (the Release UI)
- *   MUST label this evidence as a simulation, never as a production proof —
- *   the promotion gate itself refuses to accept anything but
- *   'live_langgraph' for a REQUIRED check (promotion-gate.ts shadowCheck).
+ *   `executionMode` (migration 0034/0037) reflects the LAST run's true source:
+ *   'live_langgraph' (a real candidate run via useFixture:false),
+ *   'deterministic_fixture' (the $0 default), or 'legacy_unknown' (pre-migration
+ *   rows). The Release UI MUST label a 'deterministic_fixture' result as a
+ *   simulation; the promotion gate accepts ONLY 'live_langgraph' for a REQUIRED
+ *   check (promotion-gate.ts shadowCheck).
  *   400 { error } invalid ids · 404 { error } version not found/IDOR ·
  *   503 { error } backend not configured · 502/504 on upstream failure.
  */
