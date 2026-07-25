@@ -9,6 +9,7 @@ import {
 } from '@/components/agent-ops/agent-detail/release-panel'
 import { AgentSection as Section } from '@/components/agent-ops/agent-section'
 import {
+  ProofActions,
   PromotionChecksList,
   PromotionOverall,
   ReplayEvidence,
@@ -123,7 +124,7 @@ export default async function AgentReleasePage({ params }: { params: Promise<{ i
   const replayRows = candidateVersionIdForEvidence
     ? await pgrest<Record<string, unknown>[]>(
         'GET',
-        `replay_comparisons?copilot_id=eq.${encodeURIComponent(lifecycle.copilotId)}&select=verdict,case_count,candidates&order=created_at.desc&limit=1`,
+        `replay_comparisons?copilot_id=eq.${encodeURIComponent(lifecycle.copilotId)}&candidate_version_id=eq.${encodeURIComponent(candidateVersionIdForEvidence)}&select=status,verdict,case_count,candidates&order=created_at.desc&limit=1`,
       ).catch(() => [])
     : []
   const replayRow = replayRows[0] ?? null
@@ -136,6 +137,7 @@ export default async function AgentReleasePage({ params }: { params: Promise<{ i
         ),
       }
     : null
+  const replayStatus = (replayRow?.status as string | null) ?? null
 
   return (
     <div className="flex flex-col gap-6">
@@ -250,12 +252,34 @@ export default async function AgentReleasePage({ params }: { params: Promise<{ i
               <div className="mt-2">
                 <ShadowEvidence shadow={shadow} />
               </div>
+              {candidateVersionIdForEvidence ? (
+                <div className="mt-3">
+                  <ProofActions
+                    copilotId={lifecycle.copilotId}
+                    versionId={candidateVersionIdForEvidence}
+                    versionLabel={gate?.evidence.candidateLabel ?? candidateVersion?.label ?? null}
+                    kind="shadow"
+                    runningStatus={shadow?.status ?? null}
+                  />
+                </div>
+              ) : null}
             </div>
             <div>
               <p className={eyebrowClass}>Replay comparison</p>
               <div className="mt-2">
                 <ReplayEvidence replay={replay} />
               </div>
+              {candidateVersionIdForEvidence ? (
+                <div className="mt-3">
+                  <ProofActions
+                    copilotId={lifecycle.copilotId}
+                    versionId={candidateVersionIdForEvidence}
+                    versionLabel={gate?.evidence.candidateLabel ?? candidateVersion?.label ?? null}
+                    kind="replay"
+                    runningStatus={replayStatus}
+                  />
+                </div>
+              ) : null}
             </div>
           </div>
         )}

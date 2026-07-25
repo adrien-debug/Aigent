@@ -1,6 +1,15 @@
+'use client'
+
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+
+import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { eyebrowClass } from '@/components/agent-ops/surface-card'
 import { EmptyState } from '@/components/agent-ops/empty-state'
+import { Button } from '@/components/catalyst/button'
+import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/catalyst/dialog'
 import { Text } from '@/components/catalyst/text'
+import { messageForResponse } from '@/lib/agent-mission-control/client-errors'
 import type { PromotionCheck, PromotionCheckStatus } from '@/lib/agent-mission-control/promotion-gate'
 
 /**
@@ -188,6 +197,157 @@ export function PromotionOverall({ overall, promotable }: { overall: PromotionCh
           : 'The extended promotion checks do not currently permit a promotion.'}
       </Text>
       <PromotionStatusText status={overall} />
+    </div>
+  )
+}
+
+/**
+ * Trigger a shadow experiment or a replay comparison for the candidate this
+ * page is already looking at (AIGENT-FACTORY-SHADOW-REPLAY-001).
+ *
+ * Same shape as `ReleaseActions` in release-panel.tsx: a button opens a
+ * confirmation `Dialog`, submission goes through `pending` / `error` / `done`
+ * state, and a success re-reads the server with `router.refresh()` rather than
+ * patching a local copy. This lives inside "Promotion evidence" — not a new
+ * Section — because it produces exactly the evidence that section already
+ * renders (`ShadowEvidence` / `ReplayEvidence` above); a second cockpit would
+ * duplicate that read.
+ *
+ * `runningStatus` comes from the same GET the page already used to build
+ * `shadow` / `replay` — the button disables client-side the moment the kind
+ * is `queued` or `running`, before a click can ever reach the server. The
+ * route's own 409 concurrency guard is the second line of defense, not the
+ * only one: relying on it alone would let an operator click a dead button and
+ * only learn it was pointless after a round trip.
+ */
+export function ProofActions({
+  copilotId,
+  versionId,
+  versionLabel,
+  kind,
+  runningStatus,
+}: {
+  copilotId: string
+  versionId: string
+  versionLabel: string | null
+  kind: 'shadow' | 'replay'
+  /** `experiment.status` / `comparison.status` from the matching GET, when known. */
+  runningStatus: string | null
+}) {
+  const router = useRouter()
+  const [confirming, setConfirming] = useState(false)
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [insufficientEvidence, setInsufficientEvidence] = useState<string | null>(null)
+  const [done, setDone] = useState<string | null>(null)
+
+  const isRunning = runningStatus === 'queued' || runningStatus === 'running'
+  const label = kind === 'shadow' ? 'Run shadow experiment' : 'Run replay comparison'
+  const verb = kind === 'shadow' ? 'shadow experiment' : 'replay comparison'
+
+  async function submit() {
+    setPending(true)
+    setError(null)
+    setInsufficientEvidence(null)
+    setDone(null)
+    try {
+      const response = await fetch(
+        `/api/agent-ops/copilots/${encodeURIComponent(copilotId)}/versions/${encodeURIComponent(versionId)}/${kind}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          // `useFixture` is intentionally never sent: shadow has no wired
+          // real/fixture toggle at all (the route ignores `false` and always
+          // runs its deterministic $0 fixture path), and replay's toggle is
+          // wired but not exposed here — there is no live/fixture choice in
+          // this UI, so the field is omitted rather than forced to a value
+          // the operator never chose.
+          body: JSON.stringify({}),
+        },
+      )
+      const body = (await response.json().catch(() => null)) as
+        | { error?: string; code?: string; verdict?: string; wouldMutateCount?: number }
+        | null
+      if (!response.ok) {
+        if (response.status === 422 && body?.code === 'INSUFFICIENT_EVIDENCE') {
+          setInsufficientEvidence(
+            body?.error ?? 'No corpus is available yet to run this comparison — not a failing result.',
+          )
+          return
+        }
+        setError(body?.error ?? (await messageForResponse(response, `${verb} failed (${response.status}).`)))
+        return
+      }
+      if (body?.verdict === 'INSUFFICIENT_EVIDENCE') {
+        setInsufficientEvidence('Recorded, but there was not enough evidence to reach a verdict.')
+      } else {
+        setDone(`${verb} started${versionLabel ? ` for ${versionLabel}` : ''}.`)
+      }
+      setConfirming(false)
+      router.refresh()
+    } catch {
+      setError(`${verb} failed — the backend is unreachable.`)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button outline disabled={pending || isRunning} onClick={() => setConfirming(true)}>
+          {isRunning ? (
+            <>
+              <Spinner />
+              {kind === 'shadow' ? 'Shadow experiment running…' : 'Replay comparison running…'}
+            </>
+          ) : (
+            label
+          )}
+        </Button>
+      </div>
+
+      <div aria-live="polite">
+        {done ? <Text className="!mt-0 !text-xs">{done}</Text> : null}
+        {insufficientEvidence ? (
+          <Text className="!mt-0 !text-xs">{insufficientEvidence}</Text>
+        ) : null}
+      </div>
+      {error ? <ErrorBanner message={error} /> : null}
+
+      <Dialog open={confirming} onClose={() => setConfirming(false)} size="lg">
+        <DialogTitle>
+          {kind === 'shadow' ? 'Run a shadow experiment' : 'Run a replay comparison'}
+          {versionLabel ? ` for ${versionLabel}` : ''}?
+        </DialogTitle>
+        <DialogDescription>
+          {kind === 'shadow'
+            ? 'Replays sampled traffic against the candidate without serving it to any real consumer — a simulation, never a live effect.'
+            : 'Compares the candidate against production over recorded cases and records where they diverge.'}
+        </DialogDescription>
+        <DialogBody>
+          <Text className="!mt-0">
+            {kind === 'shadow'
+              ? 'Nothing here changes what consumers are served. The verdict feeds the promotion evidence above; it does not promote anything by itself.'
+              : 'This does not re-run the release gate or write anything to production. The comparison feeds the promotion evidence above.'}
+          </Text>
+        </DialogBody>
+        <DialogActions>
+          <Button plain disabled={pending} onClick={() => setConfirming(false)}>
+            Cancel
+          </Button>
+          <Button color="accent" disabled={pending} onClick={() => void submit()}>
+            {pending ? (
+              <>
+                <Spinner />
+                Starting…
+              </>
+            ) : (
+              'Confirm'
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   )
 }

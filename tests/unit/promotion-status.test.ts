@@ -25,6 +25,11 @@ let gateResult: { promotable: boolean; checks: { label: string; status: string; 
 // implicit inside evaluateAndPersist here — we return the gateEvaluationId the
 // route needs. Telemetry is a fail-soft no-op in tests.
 vi.mock('@/lib/agent-mission-control/promotion-gate', () => ({
+  // AIGENT-FACTORY-SHADOW-REPLAY-001: promotion-policy.ts imports this
+  // constant from promotion-gate.ts as its lenient fallback — the mock must
+  // export it too or every route call throws before reaching the (also
+  // mocked) evaluateAndPersistPromotionGate.
+  DEFAULT_PROMOTION_POLICY: { requireShadow: false, requireReplay: false },
   evaluateAndPersistPromotionGate: vi.fn(async () =>
     gateResult === null
       ? null
