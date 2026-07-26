@@ -223,7 +223,7 @@ export function ArchitectChat({ onManifest }: ArchitectChatProps) {
           <Button color="accent" onClick={handleSend} disabled={isSending || input.trim().length === 0}>
             {isSending ? 'Sending…' : 'Send'}
           </Button>
-          <Text className="!mt-0 !text-xs">Enter to send, Shift+Enter for a new line.</Text>
+          <Text className="!text-xs">Enter to send, Shift+Enter for a new line.</Text>
         </div>
       </div>
 

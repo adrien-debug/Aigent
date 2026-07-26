@@ -76,7 +76,7 @@ export function QualificationTimeline({ readiness }: { readiness: QualificationR
     <div className="flex flex-col gap-4">
       {/* Recommended next action — an instruction/state, never a "READY" pill. */}
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <Text className="!mt-0 !text-xs">{readiness.nextAction}</Text>
+        <Text className="!text-xs">{readiness.nextAction}</Text>
         {readiness.candidateVersionId ? (
           <span className="font-mono text-[10px] tabular-nums break-all text-zinc-500">
             {readiness.candidateVersionId}
