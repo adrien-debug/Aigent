@@ -144,7 +144,15 @@ export function TableHeader({ className, ...props }: React.ComponentPropsWithout
           // stock Catalyst kit (font-medium at body size). That divergence is a
           // deliberate house style, not drift to repair — this file only adds
           // invisible semantics (scope, caption) and must not restyle anything.
-          'px-4 py-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-500 first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2))',
+          // `text-zinc-400`, not `-500`: this is the ONLY colour in the file that
+          // never had a `dark:` half, so on the sunken header band it painted
+          // zinc-500 on rgb(13,13,16) — measured 4.02:1 by
+          // `node scripts/check-contrast.mjs`, under the 4.5 AA floor for 10px
+          // text, on every table header cell of the dashboard. zinc-400 measures
+          // 7.40:1 on the same band (rgb(159,159,169) on rgb(13,13,16), same
+          // compositing math as the gate). Same decision, same reasoning as
+          // `agent-ops/dashboard-kpi-strip.tsx`.
+          'px-4 py-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-400 first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2))',
           grid && 'border-l border-l-zinc-950/5 first:border-l-0 dark:border-l-white/5',
           !bleed && 'sm:first:pl-1 sm:last:pr-1',
           className
