@@ -18,6 +18,12 @@
       "component": "SidebarHeading",
       "utility": "mb-1.5",
       "reason": "FAUX POSITIF MESURÉ, pas une dette de style. La gate suppose que le défaut de la primitive gagne toujours ; Tailwind ordonne en fait une famille d'espacement par VALEUR, donc le pas le plus grand est émis en dernier. Sonde Chromium sur ce build (dev worktree, /admin, 1440x900) : un nœud portant `mb-1 mb-1.5` calcule margin-bottom 6px, et `mb-1.5 mb-1` calcule 6px aussi — l'override de l'appelant PASSE. Le même protocole confirme la gate là où elle a raison : `pb-4 pb-0` et `pb-0 pb-4` calculent tous deux 16px, donc `pb-0` est bien mort. Corriger la gate (comparer les valeurs de la famille, pas la seule provenance) éteindrait cette entrée ; en attendant, retirer `mb-1.5` ferait passer les intertitres de la sidebar de 6px à 4px — une régression visuelle réelle pour satisfaire une alerte fausse."
+    },
+    {
+      "file": "src/components/agent-ops/performance/agent-leaderboard.tsx",
+      "component": "Badge",
+      "utility": "rounded-full",
+      "reason": "FAUX POSITIF MESURÉ après la migration cn(). La gate calcule bien `twMergeProtected` pour une primitive en `cn(defaults, className)` (check-class-collision.mjs ~l.667) mais ne relit JAMAIS ce drapeau au moment de rapporter : elle signale donc une collision sans variant que tailwind-merge a déjà tranchée en JS, avant que le navigateur ne voie la classe. Sonde Chromium sur ce build (worktree p3/performance, /admin/performance, 390px et 768px, données seedées) : le badge de rang rendu SANS marqueur, `<Badge size=\"xs\" className=\"size-6 justify-center rounded-full\">`, calcule border-radius 1.67772e+07px sur les 6 lignes — la pastille est ronde, `rounded-md` a bien été retiré de la liste. Le contrôle inverse est le même nœud AVANT ce lot, en `rounded-full!` : border-radius identique. L'override est donc VIVANT, et badge.tsx le dit lui-même (« Radius is NOT part of a size: a pill stays a rounded-full on the caller side, and cn now lets that override land »). Remettre `rounded-full!` réintroduirait un !important devenu inutile — exactement la dette que ce lot supprime — et bloquerait toute surcharge légitime en aval. Réparer la gate (honorer twMergeProtected hors variants) éteindra cette entrée."
     }
   ]
 }
