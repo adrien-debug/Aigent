@@ -38,12 +38,18 @@ export function PerformanceView({
             nowIso={nowIso}
           />
           {windowTruncated ? (
-            // `text-xs!`, not `text-xs`: `Text` composes `clsx(className, defaults)`,
-            // so a bare `text-xs` is beaten by the primitive's own `sm:text-sm/6`
-            // in the compiled sheet and this caption rendered at 14px, the size of
-            // body copy. The colour is dropped — the primitive already defaults to
-            // exactly the zinc it was restating.
-            <Text className="text-xs!">
+            // Plain `text-xs`. The `!` was needed while `Text` composed
+            // `clsx(className, defaults)` — the caller's class was emitted first
+            // and lost the cascade to the primitive's `sm:text-sm/6`, so this
+            // caption rendered at 14px, the size of body copy. `Text` composes
+            // `cn(defaults, className)` now: `tailwind-merge` deletes the losing
+            // default before the browser sees it. The `!` would survive that
+            // merge (v3 keys conflict groups on the important flag), leaving the
+            // dead `text-sm/6 max-sm:text-base/6` pair in the attribute and
+            // making this caption unoverridable downstream for no gain.
+            // The colour is dropped — the primitive already defaults to exactly
+            // the zinc it was restating.
+            <Text className="text-xs">
               24h window capped at {windowMaxRows} runs — the fleet produced more than this in the last
               24h; the trace feed below reflects the newest {windowMaxRows}, not every run.
             </Text>
