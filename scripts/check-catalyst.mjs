@@ -5,9 +5,14 @@
  *
  * Scope: src/app/admin/**, src/components/agent-ops/**, src/components/views/**
  * (the catalyst-in-layers migration moved page-level render logic here — see
- * the migration plan) and src/components/shell/** (the interactive dashboard).
- * NOT src/app/(site)/** or src/components/marketing/** (the marketing site is
- * plain Tailwind blocks by design — see /catalyst docs). NOT components/ui/**
+ * the migration plan), src/components/shell/** (the interactive dashboard) and
+ * src/app/login/** — plus, FILE BY FILE, src/app/layout.tsx and
+ * src/app/not-found.tsx. Those three last entries are authenticated/app-shell
+ * surfaces that happen to sit at the root of src/app/; they are listed one by
+ * one on purpose. Scoping `src/app/**` in bulk would drag src/app/(site)/**
+ * under the dashboard rules, and AGENTS.md makes marketing a DIFFERENT and
+ * deliberate convention (raw Tailwind Plus blocks, no Catalyst primitive).
+ * NOT src/app/(site)/** or src/components/marketing/**. NOT components/ui/**
  * itself (the primitives own the native markup).
  *
  * Checks, dashboard scope only:
@@ -22,29 +27,44 @@
  */
 import { readdir, readFile } from 'node:fs/promises'
 import { join, relative } from 'node:path'
+import { stripComments } from './check-render-truth.mjs'
 
 const ROOT = process.cwd()
 const SRC = join(ROOT, 'src')
 
 const DASHBOARD_DIRS = [
   join('app', 'admin'),
+  join('app', 'login'),
   join('components', 'agent-ops'),
   join('components', 'views'),
   join('components', 'shell'),
 ]
+// Root-level app files that belong to the dashboard shell. Named individually —
+// never widen this to the directory (see the scope note above).
+const DASHBOARD_FILES = [join('app', 'layout.tsx'), join('app', 'not-found.tsx')]
 const EXCLUDE_DIRS = [join('components', 'ui')]
 
 const NATIVE_TAG_RE = /<(button|input|select|textarea|table)(?=\s|>|$)/g
-// Comments (JSX {/* ... */} or // ...) mentioning the tag are not violations —
-// only skip a match if the tag name appears after a comment marker on the
-// same line, checked separately below rather than baked into the regex.
 // Matches both bare (p-, m-, gap-, space-x-) and directional-glued
-// (pt-, pl-, mt-, mx-, space-x- …) Tailwind spacing utilities. Tailwind
-// glues the direction letter straight onto p/m (pt-, pl-, mx-, my-, …) —
-// there is no intermediate hyphen — so the axis/direction group must be
+// (pt-, pl-, mt-, mx-, ps-, me-, space-x- …) Tailwind spacing utilities.
+// Tailwind glues the direction letter straight onto p/m (pt-, pl-, mx-, my-, …)
+// — there is no intermediate hyphen — so the axis/direction group must be
 // optional letters immediately before the utility's own hyphen, not a
 // separate `letter-` segment.
-const ARBITRARY_SPACING_RE = /\b(?:p|m)[trblxy]?-\[[0-9.]+(?:px|rem|em)\]|\bgap(?:-[xy])?-\[[0-9.]+(?:px|rem|em)\]|\bspace-[xy]-\[[0-9.]+(?:px|rem|em)\]/g
+//
+// The value side covers every way a magic number gets written, not just
+// px/rem/em: `p-[3ch]`, `gap-[2vh]`, `mt-[10%]`, `p-[calc(100%-4px)]` and
+// `m-[var(--gap)]` are all the same escape hatch off the fixed scale, spelled
+// differently — the narrow unit list let four of the five straight through.
+//
+// The prefix is anchored with a lookbehind, not `\b`: `\b` matches at the `p`
+// of `scroll-p-[3rem]` (a scroll-padding utility, which is not spacing), so
+// that class was reported as a violation. A leading `-` is accepted only as
+// Tailwind's negative sign (`-mt-[4px]`), never as the tail of a longer
+// utility name.
+const SPACING_UTILITY = String.raw`(?:[pm][trblxyse]?|gap(?:-[xy])?|space-[xy])`
+const SPACING_VALUE = String.raw`(?:[0-9.]+(?:px|rem|em|ch|ex|vh|vw|vmin|vmax|%)|calc\([^\]]*\)|var\(--[^)]*\)[^\]]*)`
+const ARBITRARY_SPACING_RE = new RegExp(String.raw`(?<![\w-])-?${SPACING_UTILITY}-\[${SPACING_VALUE}\]`, 'g')
 // Inline recomposition of the canon card surface: bg-[var(--color-surface-secondary)]
 // hand-written alongside a rounded + border on the same line = a card recopied
 // instead of using the `surfaceCardClass` constant. surface-card.tsx owns the
@@ -54,6 +74,7 @@ const CARD_ROUNDED_RE = /\brounded(?:-(?:lg|xl|2xl|3xl))?\b(?!-full)/
 const CARD_BORDER_RE = /\bborder(?:-white)?\b/
 
 function isDashboardFile(relPath) {
+  if (DASHBOARD_FILES.includes(relPath)) return true
   return DASHBOARD_DIRS.some((dir) => relPath.startsWith(dir + '/') || relPath === dir)
 }
 
@@ -72,11 +93,6 @@ async function* walk(dir) {
   }
 }
 
-function lineIsComment(line) {
-  const trimmed = line.trim()
-  return trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.includes('{/*')
-}
-
 async function main() {
   const nativeTagViolations = []
   const spacingViolations = []
@@ -89,11 +105,15 @@ async function main() {
     const isSurfaceSource = rel.endsWith(join('components', 'agent-ops', 'surface-card.tsx'))
 
     const text = await readFile(file, 'utf8')
-    const lines = text.split('\n')
+    // Comments are blanked, not skipped, by the ONE stripper this repo owns
+    // (scripts/check-render-truth.mjs). The former line-level skip disarmed the
+    // whole line as soon as it contained `{/*` — so `<button/> {/* why */}`, a
+    // native tag with a trailing JSX comment, walked straight past every check.
+    // stripComments() also tracks multi-line block state, which a per-line
+    // `startsWith('*')` heuristic only approximated.
+    const lines = stripComments(text)
 
     lines.forEach((line, i) => {
-      if (lineIsComment(line)) return
-
       NATIVE_TAG_RE.lastIndex = 0
       let m
       while ((m = NATIVE_TAG_RE.exec(line))) {

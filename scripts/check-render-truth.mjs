@@ -36,7 +36,7 @@
  */
 import { readFile, readdir } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SCANNED_DIRS = [
@@ -159,7 +159,7 @@ async function* walk(dir) {
  * the rule; flagging them would train everyone to stop explaining their code.
  * Covers the `{/* … *\/}` JSX blocks too.
  */
-function stripComments(text) {
+export function stripComments(text) {
   const out = []
   let inBlock = false
   for (const raw of text.split('\n')) {
@@ -235,4 +235,10 @@ async function main() {
   )
 }
 
-await main()
+// Run the scan only when this file IS the entry point. `stripComments` is
+// imported by scripts/check-catalyst.mjs (one comment-stripper for both guards,
+// not two that drift); a bare top-level `await main()` would make that guard
+// silently run this one — and inherit its process.exit(1).
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await main()
+}

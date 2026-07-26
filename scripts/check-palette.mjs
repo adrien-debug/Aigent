@@ -5,7 +5,9 @@
  * 1) No chromatic hue other than `accent` / `zinc` anywhere in `src` (the
  *    Catalyst-derived primitives in `ui/` keep their full palette, so they
  *    are excluded).
- * 2) The solid accent surfaces keep WCAG AA (≥ 4.5:1) for their white text.
+ * 2) The accent ramp DECLARED IN src/theme.css is complete, anchored on the
+ *    brand green, and monotonic.
+ * 3) The solid accent surfaces keep WCAG AA (≥ 4.5:1) for their text.
  *
  * Pure Node, no deps. Run via `npm run check:ds`.
  */
@@ -14,6 +16,11 @@ import { join, relative } from 'node:path'
 
 const ROOT = process.cwd()
 const SRC = join(ROOT, 'src')
+// The ramp lives HERE. src/app/globals.css is a one-line stub that
+// `@import "../theme.css"` — an earlier version of this guard named it as the
+// source and hard-coded the hexes, so the ramp could be repainted in theme.css
+// without moving a single number in this file. The gate now reads the ramp.
+const THEME_CSS = join(SRC, 'theme.css')
 const EXCLUDE_DIR = join('components', 'ui') // the primitive owns the full palette
 
 const HUES = [
@@ -47,17 +54,37 @@ async function* walk(dir) {
   }
 }
 
-// --- WCAG contrast -----------------------------------------------------------
-// Must mirror the real accent ramp in src/app/globals.css. The brand green #a7fb90
-// anchors 500 (Catalyst fills its primary button with it); 600 is the darker vivid
-// step (Badge `accentSolid`); 700 the dark solid end. Solid accent surfaces carry
-// DARK text (text-zinc-950), so those are the pairs that must clear AA.
+// --- the accent ramp, READ from src/theme.css --------------------------------
+// The brand green #a7fb90 anchors 500 (Catalyst fills its primary button with
+// it); 600 is the darker vivid step (Badge `accentSolid`); 700 the dark solid
+// end. Solid accent surfaces carry DARK text (text-zinc-950), so those are the
+// pairs that must clear AA.
 const ZINC_950 = '#09090b'
-const ACCENT = {
-  500: '#a7fb90',
-  600: '#76ec55',
-  700: '#2a7a20',
+// Every step theme.css promises. A missing key is a hole in the ramp: Tailwind
+// silently drops `bg-accent-300` and the class renders as nothing.
+const REQUIRED_SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]
+// The one number the doctrine pins by value (AGENTS.md, CLAUDE.md): shade 500
+// IS Adrien's green. Everything else may be retuned; this may not drift.
+const BRAND_ACCENT_500 = '#a7fb90'
+const ACCENT_DECL_RE = /--color-accent-(\d{2,3})\s*:\s*(#[0-9a-fA-F]{3,6})\s*;/g
+
+/** Expand `#abc` → `#aabbcc` and lowercase, so comparisons are on one form. */
+function normalizeHex(hex) {
+  const raw = hex.slice(1).toLowerCase()
+  if (raw.length === 3) return '#' + raw.split('').map((c) => c + c).join('')
+  return '#' + raw
 }
+
+function parseAccentRamp(css) {
+  const ramp = new Map()
+  ACCENT_DECL_RE.lastIndex = 0
+  let m
+  while ((m = ACCENT_DECL_RE.exec(css))) {
+    ramp.set(Number(m[1]), normalizeHex(m[2]))
+  }
+  return ramp
+}
+
 function lin(c) {
   const s = c / 255
   return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
@@ -79,6 +106,34 @@ const MOCK_IMPORT_RE = /from\s+['"](?:@\/lib\/agent-mission-control\/seed-fixtur
 const mockImports = []
 
 async function main() {
+  const ramp = parseAccentRamp(await readFile(THEME_CSS, 'utf8'))
+
+  // A ramp that lost a step, or that stopped being the brand green, is a
+  // design-system break the class scan below cannot see — every `accent-*`
+  // class stays spelled correctly while rendering the wrong thing (or nothing).
+  const missingShades = REQUIRED_SHADES.filter((shade) => !ramp.has(shade))
+  const anchorFails = []
+  if (ramp.has(500) && ramp.get(500) !== BRAND_ACCENT_500) {
+    anchorFails.push(
+      `--color-accent-500 is ${ramp.get(500)}, not the brand green ${BRAND_ACCENT_500}` +
+        ` (contrast with zinc-950: ${contrast(ZINC_950, ramp.get(500)).toFixed(2)}:1)`
+    )
+  }
+  // theme.css promises "every step is a DISTINCT luminance" so intensity-encoded
+  // ladders read as steps. Enforce it: strictly decreasing 50 → 950. A ramp that
+  // folds back on itself makes a "darker" shade lighter than the one before it.
+  const rampOrderFails = []
+  const declared = REQUIRED_SHADES.filter((shade) => ramp.has(shade))
+  for (let i = 1; i < declared.length; i += 1) {
+    const [prev, cur] = [declared[i - 1], declared[i]]
+    const [lp, lc] = [luminance(ramp.get(prev)), luminance(ramp.get(cur))]
+    if (lc >= lp) {
+      rampOrderFails.push(
+        `accent-${cur} (${ramp.get(cur)}, L=${lc.toFixed(4)}) is not darker than accent-${prev} (${ramp.get(prev)}, L=${lp.toFixed(4)})`
+      )
+    }
+  }
+
   const violations = []
   const accentOpacityViolations = []
   for await (const file of walk(SRC)) {
@@ -109,14 +164,33 @@ async function main() {
   }
 
   const AA = 4.5
+  // Ratios computed from the ramp actually declared in theme.css — repaint a
+  // shade there and the number printed here moves with it.
   const contrastChecks = [
-    ['zinc-950 on accent-500 (Catalyst primary button)', contrast(ZINC_950, ACCENT[500])],
-    ['zinc-950 on accent-600 (Badge accentSolid)', contrast(ZINC_950, ACCENT[600])],
-    ['white on accent-700 (dark solid end)', contrast('#ffffff', ACCENT[700])],
+    ['zinc-950 on accent-500 (Catalyst primary button)', ZINC_950, 500],
+    ['zinc-950 on accent-600 (Badge accentSolid)', ZINC_950, 600],
+    ['white on accent-700 (dark solid end)', '#ffffff', 700],
   ]
+    .filter(([, , shade]) => ramp.has(shade))
+    .map(([name, fg, shade]) => [name, contrast(fg, ramp.get(shade))])
   const contrastFails = contrastChecks.filter(([, ratio]) => ratio < AA)
 
   let failed = false
+  if (missingShades.length > 0) {
+    failed = true
+    console.error(`\n✗ ${missingShades.length} accent shade(s) missing from src/theme.css:\n`)
+    for (const shade of missingShades) console.error(`  --color-accent-${shade}`)
+  }
+  if (anchorFails.length > 0) {
+    failed = true
+    console.error('\n✗ accent anchor drifted in src/theme.css:\n')
+    for (const v of anchorFails) console.error('  ' + v)
+  }
+  if (rampOrderFails.length > 0) {
+    failed = true
+    console.error('\n✗ accent ramp is not a monotonic luminance ladder (src/theme.css):\n')
+    for (const v of rampOrderFails) console.error('  ' + v)
+  }
   if (violations.length > 0) {
     failed = true
     console.error(`\n✗ ${violations.length} non-accent hue(s) in src (only accent/zinc allowed):\n`)
@@ -142,7 +216,9 @@ async function main() {
     console.error('\nDesign-system guard FAILED.\n')
     process.exit(1)
   }
-  console.log('✓ Design-system guard passed — monochrome accent + zinc, contrasts AA, no mock in app.')
+  console.log(
+    `✓ Design-system guard passed — monochrome accent + zinc, ${ramp.size}-step accent ramp read from src/theme.css, contrasts AA, no mock in app.`
+  )
   for (const [name, ratio] of contrastChecks) console.log(`  ${name}: ${ratio.toFixed(2)}:1`)
 }
 

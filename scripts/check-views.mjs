@@ -26,6 +26,21 @@
  * "view" that doesn't use the new layout primitives isn't actually using
  * the new architecture.
  *
+ * NOT INSPECTED — the non-`page.tsx` files under src/app/admin/**. Only route
+ * entry points carry the migration criteria: `not-yet-migrated.json` is keyed
+ * by route, and the 20-line budget is about a page delegating to a view, which
+ * says nothing about a layout or a spinner. The exempt kinds are:
+ *
+ *   - `layout.tsx`   — shell wiring (SidebarLayout), no page-level render logic
+ *   - `loading.tsx`  — Suspense fallback, a skeleton
+ *   - `error.tsx`    — error boundary, a client component with its own contract
+ *   - `not-found.tsx`— 404 boundary
+ *
+ * They are NOT unguarded: `check:catalyst`, `check:ds`, `check:danger` and
+ * `check:render-truth` all scan src/app/admin/** whole, files included. The
+ * exact list of files skipped here is printed on every green run, so this
+ * comment cannot quietly stop describing reality.
+ *
  * Pure Node, no deps. Run via `npm run check:views`.
  */
 import { readdir, readFile } from 'node:fs/promises'
@@ -133,9 +148,16 @@ async function main() {
   const shouldBeRemovedFromList = []
   const missingFromList = []
 
-  for await (const file of walk(ADMIN_DIR)) {
-    if (relative(SRC, file).split('/').pop() !== 'page.tsx') continue
+  const inspectedPages = []
+  const exemptNonPageFiles = []
 
+  for await (const file of walk(ADMIN_DIR)) {
+    if (relative(SRC, file).split('/').pop() !== 'page.tsx') {
+      exemptNonPageFiles.push(relative(ROOT, file))
+      continue
+    }
+
+    inspectedPages.push(relative(ROOT, file))
     const relFromApp = relative(join(SRC, 'app'), file)
     const text = await readFile(file, 'utf8')
     const isMigrated = VIEWS_IMPORT_RE.test(text)
@@ -194,7 +216,17 @@ async function main() {
     console.error('\nViews guard FAILED.\n')
     process.exit(1)
   }
-  console.log('✓ Views guard passed — every admin route is either migrated cleanly or tracked in not-yet-migrated.json.')
+  // The old wording claimed "every admin route", which this guard never
+  // checked: it reads page.tsx files ONLY, so a route whose logic sits in a
+  // layout or an error boundary was never looked at while the line said it was.
+  // Say what was actually read, and name what was not.
+  console.log(
+    `✓ Views guard passed — ${inspectedPages.length} admin page.tsx inspected, each either migrated cleanly or tracked in not-yet-migrated.json.`
+  )
+  console.log(
+    `  ${exemptNonPageFiles.length} non-page file(s) under src/app/admin/ are outside this guard (layout/loading/error/not-found — see the header):`
+  )
+  for (const f of exemptNonPageFiles) console.log('    ' + f)
 }
 
 main().catch((err) => {
