@@ -1,4 +1,4 @@
-import clsx from 'clsx'
+import { cn } from './cn'
 
 /**
  * Surface grammar — imported from the Kyc design system (SHA 565f979,
@@ -50,12 +50,12 @@ export function Panel({
   return (
     <div
       {...props}
-      className={clsx(
-        className,
+      className={cn(
         tone === 'raised' ? surfaceRaised : surfaceSunken,
         inset === 'sm' && 'p-4',
         inset === 'md' && 'p-6',
         inset === 'lg' && 'p-8',
+        className,
       )}
     />
   )

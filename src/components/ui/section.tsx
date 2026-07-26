@@ -1,5 +1,4 @@
-import clsx from 'clsx'
-
+import { cn } from '@/components/ui/cn'
 import { Subheading } from '@/components/ui/heading'
 import { surfaceRaised } from '@/components/ui/panel'
 import { Text } from '@/components/ui/text'
@@ -17,11 +16,17 @@ export const surfaceSectionClass = `flex flex-col overflow-hidden ${surfaceRaise
 /**
  * Header geometry, split in two so padding stays DECIDABLE by the caller.
  *
- * A local `className="px-4"` does NOT override the default `px-6`: two utilities
- * of the same property have the same specificity, so the winner is the one Tailwind
- * emits LAST in the stylesheet (`.px-4` line 3232 < `.px-6` line 3240) — never the
- * one written last in the class attribute. Passing padding through `className` was
- * therefore a silent no-op. Choose the geometry with `density`, never with `px-*`.
+ * HISTORY, because the reason this split exists has changed. A local
+ * `className="px-4"` used to be a silent no-op: two utilities of the same
+ * property have the same specificity, so the winner was the one Tailwind emits
+ * LAST in the stylesheet (`.px-4` line 3232 < `.px-6` line 3240), never the one
+ * written last in the class attribute. Since `./cn` (tailwind-merge) composes
+ * every primitive, the loser is now DROPPED before the browser sees it and a
+ * caller's `px-4` does land.
+ *
+ * `density` remains the lever to use anyway: it names the two gutters the
+ * dashboard actually has and keeps a header aligned with its card body, which a
+ * one-off `px-*` at a call site cannot promise.
  */
 const surfaceSectionHeaderStructureClass = 'flex shrink-0 flex-wrap items-center justify-between gap-3'
 
@@ -47,7 +52,7 @@ function SectionSurface({
   padding?: string
 }) {
   return (
-    <section className={clsx(surfaceSectionClass, padding, className)}>
+    <section className={cn(surfaceSectionClass, padding, className)}>
       {children}
     </section>
   )
@@ -67,11 +72,11 @@ export function SectionHeader({
   meta?: React.ReactNode
   /** Horizontal gutter of the header. MUST align with the card body's own gutter. */
   density?: SurfaceHeaderDensity
-  /** Non-padding extras only — see `surfaceSectionHeaderClass` for why `px-*` here is a no-op. */
+  /** Extras. `px-*` now lands (see above), but `density` is the aligned choice. */
   className?: string
 }) {
   return (
-    <div className={clsx(surfaceSectionHeaderStructureClass, SURFACE_HEADER_DENSITY[density], className)}>
+    <div className={cn(surfaceSectionHeaderStructureClass, SURFACE_HEADER_DENSITY[density], className)}>
       <div className="min-w-0">
         <Subheading level={2} tone="neutral" className="tracking-tight text-zinc-900 dark:text-white">
           {title}

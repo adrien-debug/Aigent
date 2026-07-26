@@ -1,7 +1,7 @@
 import * as Headless from '@headlessui/react'
-import clsx from 'clsx'
 import React, { forwardRef } from 'react'
 import { TouchTarget } from './button'
+import { cn, responsiveDefault } from './cn'
 import { Link } from './link'
 
 const colors = {
@@ -26,16 +26,48 @@ const colors = {
     'bg-(--state-danger-solid) text-white shadow-sm ring-1 ring-inset ring-(--state-danger-solid-line) group-data-hover:bg-(--state-danger-base)',
 }
 
-type BadgeProps = { color?: keyof typeof colors }
+/**
+ * Geometry ladder — a PROP, for the same reason `Text` has one.
+ *
+ * Catalyst wrote the type scale `text-sm/5 sm:text-xs/5`: the desktop value sat
+ * behind a `sm:` variant, unreachable by any bare caller class, so
+ * `<Badge className="text-[10px]">` rendered 12px on every desktop viewport.
+ * `md` keeps the SAME two sizes at the SAME two widths, split into the bare rung
+ * a caller competes against and the complementary `max-sm:` half that
+ * `responsiveDefault` (./cn) withdraws once the caller declares a size.
+ *
+ * `xs` is the micro-label the leaderboard and the dense tables were reaching for
+ * with `px-0 text-[10px]`. Radius is NOT part of a size: a pill stays a
+ * `rounded-full` on the caller side, and `cn` now lets that override land.
+ */
+const BADGE_SIZES = {
+  /** Catalyst default — 14px on phones, 12px from 640px up. */
+  md: { pad: 'px-1.5 py-0.5', base: 'text-xs/5', bump: 'max-sm:text-sm/5' },
+  /** 10px flat, no horizontal padding: an inline marker inside a dense row. */
+  xs: { pad: 'px-0 py-0', base: 'text-[10px]/4' },
+} as const satisfies Record<string, { pad: string; base: string; bump?: string }>
 
-export function Badge({ color = 'zinc', className, ...props }: BadgeProps & React.ComponentPropsWithoutRef<'span'>) {
+type BadgeProps = { color?: keyof typeof colors; size?: keyof typeof BADGE_SIZES }
+
+export function Badge({
+  color = 'zinc',
+  size = 'md',
+  className,
+  ...props
+}: BadgeProps & React.ComponentPropsWithoutRef<'span'>) {
+  const { pad, base, bump } = { bump: undefined, ...BADGE_SIZES[size] }
   return (
     <span
       {...props}
-      className={clsx(
-        className,
-        'inline-flex items-center gap-x-1.5 rounded-md px-1.5 py-0.5 text-sm/5 font-medium sm:text-xs/5 forced-colors:outline',
-        colors[color]
+      // Defaults FIRST, caller LAST. `colors[color]` sits before `className` too,
+      // so a caller CAN now repaint a badge — which is exactly why `check:danger`
+      // and `check:ds` remain the gates that police which colours are legal.
+      className={cn(
+        'inline-flex items-center gap-x-1.5 rounded-md font-medium forced-colors:outline',
+        pad,
+        responsiveDefault(base, bump, className),
+        colors[color],
+        className
       )}
     />
   )
@@ -53,9 +85,9 @@ export const BadgeButton = forwardRef(function BadgeButton(
     ),
   ref: React.ForwardedRef<HTMLElement>
 ) {
-  let classes = clsx(
-    className,
-    'group relative inline-flex rounded-md focus:not-data-focus:outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-accent-500'
+  let classes = cn(
+    'group relative inline-flex rounded-md focus:not-data-focus:outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-accent-500',
+    className
   )
 
   return typeof props.href === 'string' ? (

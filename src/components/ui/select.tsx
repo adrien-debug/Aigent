@@ -1,6 +1,6 @@
 import * as Headless from '@headlessui/react'
-import clsx from 'clsx'
 import React, { forwardRef } from 'react'
+import { cn } from './cn'
 
 export const Select = forwardRef(function Select(
   { className, multiple, ...props }: { className?: string } & Omit<Headless.SelectProps, 'as' | 'className'>,
@@ -9,8 +9,7 @@ export const Select = forwardRef(function Select(
   return (
     <span
       data-slot="control"
-      className={clsx([
-        className,
+      className={cn([
         // Basic layout
         'group relative block w-full',
         // Background color + shadow applied to inset pseudo element, so shadow blends with border in light mode
@@ -21,13 +20,16 @@ export const Select = forwardRef(function Select(
         'after:pointer-events-none after:absolute after:inset-0 after:rounded-lg after:ring-transparent after:ring-inset has-data-focus:after:ring-2 has-data-focus:after:ring-accent-500',
         // Disabled state
         'has-data-disabled:opacity-50 has-data-disabled:before:bg-zinc-950/5 has-data-disabled:before:shadow-none',
+        // Caller LAST — `className` lands on this OUTER wrapper (layout/width),
+        // never on the <select> itself. Unchanged behaviour, only the order.
+        className,
       ])}
     >
       <Headless.Select
         ref={ref}
         multiple={multiple}
         {...props}
-        className={clsx([
+        className={cn([
           // Basic layout
           'relative block w-full appearance-none rounded-lg py-[calc(--spacing(2.5)-1px)] sm:py-[calc(--spacing(1.5)-1px)]',
           // Horizontal padding

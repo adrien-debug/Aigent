@@ -1,6 +1,6 @@
 import * as Headless from '@headlessui/react'
-import clsx from 'clsx'
 import React, { forwardRef } from 'react'
+import { cn } from './cn'
 
 export const Textarea = forwardRef(function Textarea(
   {
@@ -13,8 +13,7 @@ export const Textarea = forwardRef(function Textarea(
   return (
     <span
       data-slot="control"
-      className={clsx([
-        className,
+      className={cn([
         // Basic layout
         'relative block w-full',
         // Background color + shadow applied to inset pseudo element, so shadow blends with border in light mode
@@ -25,12 +24,15 @@ export const Textarea = forwardRef(function Textarea(
         'after:pointer-events-none after:absolute after:inset-0 after:rounded-lg after:ring-transparent after:ring-inset sm:focus-within:after:ring-2 sm:focus-within:after:ring-accent-500',
         // Disabled state
         'has-data-disabled:opacity-50 has-data-disabled:before:bg-zinc-950/5 has-data-disabled:before:shadow-none',
+        // Caller LAST — `className` lands on this OUTER wrapper (layout/height),
+        // never on the <textarea> itself. Unchanged behaviour, only the order.
+        className,
       ])}
     >
       <Headless.Textarea
         ref={ref}
         {...props}
-        className={clsx([
+        className={cn([
           // Basic layout
           'relative block h-full w-full appearance-none rounded-lg px-[calc(--spacing(3.5)-1px)] py-[calc(--spacing(2.5)-1px)] sm:px-[calc(--spacing(3)-1px)] sm:py-[calc(--spacing(1.5)-1px)]',
           // Typography
