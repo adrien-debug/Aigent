@@ -30,9 +30,15 @@ export function DashboardKpiStrip({ kpis }: { kpis: DashboardKpis }) {
       value: formatKpi(kpis.executableNow),
       valueSize: 'compact',
       valueTone: kpis.executableNow === null ? 'muted' : 'default',
+      // Every tile carries a hint in EVERY state. The band reserves this line
+      // unconditionally (`stat.hint ?? ' '`), so a tile that leaves it undefined
+      // does not shrink — it renders a blank strip under its value while its
+      // neighbours are captioned, which reads as a hole rather than as silence.
+      // Each string below is verifiable: none of them asserts a measurement that
+      // was not taken.
       hint:
         kpis.executableNow === null || kpis.executableTotal === null
-          ? undefined
+          ? 'not measured'
           : `of ${kpis.executableTotal} agents`,
     },
     {
@@ -40,6 +46,7 @@ export function DashboardKpiStrip({ kpis }: { kpis: DashboardKpis }) {
       value: String(kpis.runs24h),
       valueSize: 'compact',
       valueTone: kpis.runs24h === 0 ? 'muted' : 'default',
+      hint: kpis.runs24h === 0 ? 'none recorded' : 'in the last 24h',
     },
     {
       name: 'Success 24h',
@@ -47,20 +54,23 @@ export function DashboardKpiStrip({ kpis }: { kpis: DashboardKpis }) {
       suffix: kpis.success24h === null ? undefined : '%',
       valueSize: 'compact',
       valueTone: kpis.success24h === null ? 'muted' : 'default',
-      hint: kpis.success24h === null ? 'no terminal runs' : undefined,
+      hint: kpis.success24h === null ? 'no terminal runs' : 'of terminal runs',
     },
     {
       name: 'Cost 24h',
       value: formatCost(kpis.cost24h),
       valueSize: 'compact',
       valueTone: kpis.cost24h === null ? 'muted' : 'default',
+      // Not "no cost": a run without usage data reports nothing, which is not
+      // the same claim as a run that cost zero.
+      hint: kpis.cost24h === null ? 'no cost data' : 'measured usage only',
     },
     {
       name: 'Needs Action',
       value: String(kpis.needsAction),
       valueSize: needsActionActive ? 'hero' : 'compact',
       valueTone: needsActionActive ? 'accent' : 'muted',
-      hint: needsActionActive ? 'see Requires Attention' : undefined,
+      hint: needsActionActive ? 'see Requires Attention' : 'nothing pending',
     },
   ]
 

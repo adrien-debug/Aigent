@@ -27,8 +27,13 @@ export function RunsOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: nu
   const other = buckets.reduce((s, b) => s + b.other, 0)
 
   if (total === 0) {
+    // `h-full` here on the EMPTY branch too, not only on the populated one below:
+    // the grid cell stretches, but a SurfaceCard without it sizes to its own
+    // content — so an empty chart left a hole beside its full-height neighbour,
+    // which is the state a fresh install is always in. Measured on /admin before
+    // the fix: 80px against 200px in the same row.
     return (
-      <SurfaceCard>
+      <SurfaceCard className="h-full">
         <SurfaceCardHeader title="Runs over time — 24h" className="px-4 pt-3 pb-2" />
         <div className={clsx('flex items-center gap-2 px-4 pb-4')}>
           <span aria-hidden="true" className="size-1.5 rounded-full bg-zinc-600" />

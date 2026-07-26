@@ -59,8 +59,13 @@ export function CostOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: nu
   const measuredRuns = buckets.reduce((s, b) => s + b.measuredRunCount, 0)
 
   if (measuredRuns === 0) {
+    // `h-full` here on the EMPTY branch too, not only on the populated one below:
+    // the grid cell stretches, but a SurfaceCard without it sizes to its own
+    // content — so an empty chart left a hole beside its full-height neighbour,
+    // which is the state a fresh install is always in. Measured on /admin before
+    // the fix: 80px against 200px in the same row.
     return (
-      <SurfaceCard>
+      <SurfaceCard className="h-full">
         <SurfaceCardHeader title="Cost over time — 24h" className="px-4 pt-3 pb-2" />
         <EmptyState
           title="No measured cost in the last 24h"

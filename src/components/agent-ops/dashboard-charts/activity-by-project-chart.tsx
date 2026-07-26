@@ -16,8 +16,13 @@ export function ActivityByProjectChart({ projects }: { projects: ProjectOverview
     .slice(0, MAX_PROJECTS)
 
   if (rows.length === 0) {
+    // `h-full` here on the EMPTY branch too, not only on the populated one below:
+    // the grid cell stretches, but a SurfaceCard without it sizes to its own
+    // content — so an empty chart left a hole beside its full-height neighbour,
+    // which is the state a fresh install is always in. Measured on /admin before
+    // the fix: 80px against 200px in the same row.
     return (
-      <SurfaceCard>
+      <SurfaceCard className="h-full">
         <SurfaceCardHeader title="Activity by project — 24h" className="px-4 pt-3 pb-2" />
         <EmptyState title="No project activity" description="No project recorded any runs in the last 24h." />
       </SurfaceCard>
