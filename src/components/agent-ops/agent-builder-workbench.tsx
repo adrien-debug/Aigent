@@ -200,7 +200,7 @@ export function AgentBuilderWorkbench() {
             Use example
           </Button>
           {running ? (
-            <Text className="!mt-0" role="status" aria-live="polite">
+            <Text role="status" aria-live="polite">
               Driving the LangGraph nodes on a live model…
             </Text>
           ) : null}

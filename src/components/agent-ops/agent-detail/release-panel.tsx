@@ -234,7 +234,7 @@ export function ReleaseActions({
       {rollback.state !== 'available' ? <CapabilityNote capability={rollback} /> : null}
 
       <div aria-live="polite">
-        {done ? <Text className="!mt-0 !text-xs">{done}</Text> : null}
+        {done ? <Text className="!text-xs">{done}</Text> : null}
       </div>
       {error ? <ErrorBanner message={error} /> : null}
 
@@ -245,7 +245,7 @@ export function ReleaseActions({
           <span className="font-mono tabular-nums break-all">{candidateVersionId}</span>.
         </DialogDescription>
         <DialogBody>
-          <Text className="!mt-0">
+          <Text>
             The release gate is re-evaluated on the server before anything is written: if a check has
             regressed since this page loaded, the promotion is refused and nothing changes.
             {currentProductionVersionId
@@ -287,7 +287,7 @@ export function ReleaseActions({
           <span className="font-mono tabular-nums break-all">{rollbackVersionId}</span> instead.
         </DialogDescription>
         <DialogBody>
-          <Text className="!mt-0">
+          <Text>
             A rollback restores a version that already shipped, so the promotion route exempts it from
             the release gate — nothing re-checks it. The version serving production today is archived by
             the same transition; promoting it again later is a fresh gate evaluation, not an undo.

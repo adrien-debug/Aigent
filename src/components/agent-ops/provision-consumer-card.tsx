@@ -75,7 +75,7 @@ export function ProvisionConsumerCard({
     >
       <div className="flex flex-wrap items-center gap-2">
         <ServerStackIcon className="size-5 text-zinc-500" aria-hidden="true" />
-        <Text className="!mt-0 font-mono text-xs text-zinc-500">{repoFullName}</Text>
+        <Text className="font-mono text-xs text-zinc-500">{repoFullName}</Text>
         {status?.provisioned ? (
           <Badge color="accent">Intake provisioned {status.version ?? ''}</Badge>
         ) : (
@@ -84,7 +84,7 @@ export function ProvisionConsumerCard({
       </div>
 
       {status?.provisioned && status.provisionedAt ? (
-        <Text className="!mt-0 text-xs text-zinc-500">
+        <Text className="text-xs text-zinc-500">
           Last marker: {formatTimestamp(status.provisionedAt)} · project key{' '}
           <span className="font-mono">{status.projectKey ?? '—'}</span>
         </Text>
@@ -108,7 +108,7 @@ export function ProvisionConsumerCard({
 
       <GitHubDeliveryModeToggle value={deliveryMode} onChange={setDeliveryMode} />
 
-      <Text className="!mt-0 text-xs text-zinc-500">
+      <Text className="text-xs text-zinc-500">
         Real GitHub writes require <span className="font-mono">GITHUB_PUSH_ENABLED=1</span> server-side.
         Preview always works (dry-run).
       </Text>

@@ -106,7 +106,13 @@ export function AgentKpiBand({
           <div
             key={stat.name || 'slot'}
             className={clsx(
-              'group flex h-full flex-col rounded-lg',
+              // No radius here: in `separators` mode the cell is squared off by
+              // `rounded-none` below (the band's own `rounded-xl` does the
+              // corners), and in the default mode the cell has no background,
+              // ring or clipping — a radius on a fully transparent box paints
+              // nothing. The `rounded-lg` that used to sit here was inert in
+              // both branches.
+              'group flex h-full flex-col',
               // Full column hit-target: padding lives on the cell so hover fills
               // the grid track, not a flush box around the text.
               separators

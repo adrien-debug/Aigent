@@ -185,7 +185,7 @@ export function RunCopilotPanel({ copilotId, copilotName, copilotSlug = '', copi
           )}
         </Button>
         {isRunning ? (
-          <Text className="!mt-0" role="status" aria-live="polite">
+          <Text role="status" aria-live="polite">
             Waiting on a live model call…
           </Text>
         ) : null}

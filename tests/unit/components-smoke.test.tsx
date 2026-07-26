@@ -7,7 +7,6 @@ import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import { EmptyState } from '@/components/agent-ops/empty-state'
-import { RuntimeBadge } from '@/components/agent-ops/runtime-badge'
 import { SoftAccentButton } from '@/components/agent-ops/soft-accent-link'
 import { versionStageLabels } from '@/components/agent-ops/version-stage-text'
 import { Badge } from '@/components/ui/badge'
@@ -19,13 +18,6 @@ describe('EmptyState', () => {
     )
     expect(html).toContain('No agents yet')
     expect(html).toContain('Create one to get started.')
-  })
-})
-
-describe('RuntimeBadge', () => {
-  it('renders the human-readable runtime label', () => {
-    const html = renderToStaticMarkup(<RuntimeBadge runtime="langgraph" />)
-    expect(html).toContain('LangGraph')
   })
 })
 

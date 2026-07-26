@@ -46,7 +46,7 @@ import type { CopilotVersion } from '@/lib/agent-mission-control/types'
  */
 function VersionIdentity({ version, absence }: { version: CopilotVersion | undefined; absence: string }) {
   if (version === undefined) {
-    return <Text className="!mt-0 !text-xs">{absence}</Text>
+    return <Text className="!text-xs">{absence}</Text>
   }
   return (
     <dl className="flex flex-col gap-3">
@@ -151,7 +151,7 @@ export function AgentReleaseView({
         }
       >
         {candidateVersionIdForEvidence === null ? (
-          <Text className="!mt-0 !text-xs">
+          <Text className="!text-xs">
             There is no candidate version to qualify, so the workflow has nothing to evaluate.
           </Text>
         ) : (
@@ -174,7 +174,7 @@ export function AgentReleaseView({
       >
         {gate === null ? (
           <div className="max-w-prose">
-            <Text className="!mt-0 !text-xs">
+            <Text className="!text-xs">
               The gate has no candidate to evaluate, so no verdict exists — not a failing one, and not a
               passing one. Nothing here is a measurement of this agent’s quality.
             </Text>
@@ -188,7 +188,7 @@ export function AgentReleaseView({
             {/* `missing` and `fail` block identically but mean opposite things,
                 so the summary names them separately instead of totalling them. */}
             {blocking.length > 0 ? (
-              <Text className="!mt-0 !text-xs">
+              <Text className="!text-xs">
                 Blocked by {blocking.filter((c) => c.status === 'fail').length} failing check
                 {blocking.filter((c) => c.status === 'fail').length === 1 ? '' : 's'} and{' '}
                 {blocking.filter((c) => c.status === 'missing').length} unmeasured one
@@ -196,7 +196,7 @@ export function AgentReleaseView({
                 not a negative result — it is evidence nobody has produced yet.
               </Text>
             ) : (
-              <Text className="!mt-0 !text-xs">
+              <Text className="!text-xs">
                 Every check passes on {gate.evidence.candidateLabel}. That permits a promotion; it does not
                 perform one.
               </Text>
@@ -217,11 +217,11 @@ export function AgentReleaseView({
         }
       >
         {candidateVersionIdForEvidence === null ? (
-          <Text className="!mt-0 !text-xs">
+          <Text className="!text-xs">
             There is no candidate to evaluate, so there is no promotion evidence either.
           </Text>
         ) : promotionGate === null ? (
-          <Text className="!mt-0 !text-xs">
+          <Text className="!text-xs">
             The promotion gate could not be evaluated for this candidate. This is not a failing verdict —
             no verdict exists.
           </Text>
