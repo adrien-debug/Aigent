@@ -38,7 +38,12 @@ export function PerformanceView({
             nowIso={nowIso}
           />
           {windowTruncated ? (
-            <Text className="text-xs text-zinc-500">
+            // `text-xs!`, not `text-xs`: `Text` composes `clsx(className, defaults)`,
+            // so a bare `text-xs` is beaten by the primitive's own `sm:text-sm/6`
+            // in the compiled sheet and this caption rendered at 14px, the size of
+            // body copy. The colour is dropped — the primitive already defaults to
+            // exactly the zinc it was restating.
+            <Text className="text-xs!">
               24h window capped at {windowMaxRows} runs — the fleet produced more than this in the last
               24h; the trace feed below reflects the newest {windowMaxRows}, not every run.
             </Text>
