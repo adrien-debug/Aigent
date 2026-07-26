@@ -74,7 +74,11 @@ export function LegendDot({ className, label, count }: { className: string; labe
   return (
     <span className="inline-flex items-center gap-2">
       <span aria-hidden="true" className={`size-2 rounded-full ${className}`} />
-      <span className="text-xs text-zinc-500">{label}</span>
+      {/* zinc-400, not zinc-500: this legend sits in a SurfaceCard header, the
+          same raised plane rgb(26,26,30) on which `check-contrast` measured 12px
+          `text-zinc-500` at 3.59:1 against a 4.5 threshold. A legend label is
+          what names the series — it cannot be the one glyph run below AA. */}
+      <span className="text-xs text-zinc-400">{label}</span>
       <span className="font-mono text-xs text-zinc-400 tabular-nums">{count}</span>
     </span>
   )

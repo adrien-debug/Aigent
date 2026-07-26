@@ -67,7 +67,12 @@ export function CostOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: nu
     return (
       <SurfaceCard className="h-full">
         <SurfaceCardHeader title="Cost over time — 24h" className="px-4 pt-3 pb-2" />
+        {/* `flex-1` + `justify-center`: SurfaceCard is `flex flex-col` and the
+            card is stretched by its grid row, so without it the empty copy hugs
+            the header and leaves a void at the bottom — while the neighbouring
+            card in the same row centres its own. */}
         <EmptyState
+          className="flex flex-1 flex-col justify-center"
           title="No measured cost in the last 24h"
           description="Runs in this window either have no cost data (LangGraph runs without usage) or there were no runs at all."
         />
@@ -89,7 +94,11 @@ export function CostOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: nu
         meta={
           <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
             <span className="font-mono text-xs text-zinc-400 tabular-nums">{formatUsd(totalCost)} total</span>
-            <span className="text-xs text-zinc-500">
+            {/* zinc-400, not zinc-500: same class, same 12px regular weight and
+                same raised plane rgb(26,26,30) that `check-contrast` measured at
+                3.59:1 for a 4.5 threshold. This line states HOW MUCH of the
+                window is actually measured — it must be readable. */}
+            <span className="text-xs text-zinc-400">
               {measuredRuns} run{measuredRuns === 1 ? '' : 's'} measured
             </span>
           </div>
