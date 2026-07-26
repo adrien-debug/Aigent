@@ -73,7 +73,21 @@ export function AgentDetailHeader({ detail }: { detail: AgentDetail }) {
             allowed for meta — `zinc-500` measured 3.9 against this plane. */}
         <Link
           href={copilot.projectId ? `/admin/projects/${copilot.projectId}` : '/admin/agents'}
-          className="inline-flex items-center gap-1 text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
+          // Measured 55×16 at 390px — the smallest tap target on every agent
+          // route, and the only way back up the hierarchy from a phone.
+          // `min-h-11` gives it a real thumb-sized box; `-my-3.5` (14px each
+          // side, exactly the 28px the box grew) hands the height straight back
+          // to the flex row, so the breadcrumb sits where it always did and only
+          // the HIT AREA changed. Both are undone from `sm:` up, where a pointer
+          // is precise and the extra box would only push the title down.
+          // The focus ring is declared HERE because the `Link` primitive declares
+          // none: measured with `:focus-visible` confirmed true, this link painted
+          // `outline: auto 1px rgb(0,95,204)` — Chromium's default blue, the one
+          // colour this mono-accent + zinc dashboard does not own — while the
+          // section tabs 40px below it painted `solid 2px rgb(167,251,144)`.
+          // Two focus rings in two colours on one screen; this is the second one
+          // brought back onto the palette.
+          className="-my-3.5 inline-flex min-h-11 items-center gap-1 text-zinc-400 hover:text-zinc-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 sm:my-0 sm:min-h-0 dark:hover:text-white"
         >
           <ChevronLeftIcon aria-hidden="true" className="size-3.5 shrink-0" />
           {copilot.projectId ? 'Project' : 'Agents'}
@@ -105,7 +119,7 @@ export function AgentDetailHeader({ detail }: { detail: AgentDetail }) {
             </div>
 
             {copilot.description ? (
-              <Text className="mt-2 max-w-2xl !text-sm">{copilot.description}</Text>
+              <Text className="mt-2 max-w-2xl text-sm">{copilot.description}</Text>
             ) : null}
 
             <dl className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1.5">

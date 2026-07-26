@@ -217,8 +217,29 @@ function StatusMark({ status, liveKey }: { status: ProjectTeamNodeStatus; liveKe
 // Node body
 // ---------------------------------------------------------------------------
 
+/**
+ * `focus:outline-none` USED TO BE HERE, and it silently deleted the focus ring
+ * this line goes on to declare.
+ *
+ * Tailwind v4 does not write `outline-style` literally on a width utility: it
+ * writes `outline-style: var(--tw-outline-style); outline-width: 2px`, and
+ * `outline-none` sets `--tw-outline-style: none`. A keyboard focus matches BOTH
+ * `:focus` and `:focus-visible`, so the variable resolved to `none` and the
+ * declared 2px accent-400 ring was never painted.
+ *
+ * MEASURED in Chromium on /admin/projects/:id/team, node focused with
+ * `focus({focusVisible:true})`, `:focus-visible` confirmed true:
+ *   with `focus:outline-none`    → outline-style **none**, width 2px, colour accent-400
+ *   panel close button (no such class, same page) → outline-style **solid**
+ * Same page, same engine, one class apart — the control case is what identifies
+ * the culprit rather than the breakpoint or the primitive.
+ *
+ * Nothing replaces it: Chromium paints its own ring on `:focus-visible` only,
+ * so a mouse press on a node still shows no ring, which is exactly what
+ * `focus:outline-none` was there to buy.
+ */
 const shellBase =
-  'group relative flex h-full w-full flex-col justify-between rounded-xl bg-[var(--color-surface-interactive)] text-left transition-[opacity,box-shadow,border-color] duration-200 ease-out focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-400'
+  'group relative flex h-full w-full flex-col justify-between rounded-xl bg-[var(--color-surface-interactive)] text-left transition-[opacity,box-shadow,border-color] duration-200 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-400'
 
 /**
  * Selection ring. Deliberately an OFFSET outline: no status uses one, so

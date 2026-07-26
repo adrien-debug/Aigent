@@ -83,7 +83,14 @@ export function AgentDetailNav({ copilotId }: { copilotId: string }) {
                 href={href}
                 aria-current={current ? 'page' : undefined}
                 className={clsx(
-                  'shrink-0 border-b-2 px-1 py-3 text-sm font-medium whitespace-nowrap transition-colors',
+                  // `px-2` below `sm`, `px-1` above. Measured at 390px, the two
+                  // shortest labels rendered 39px and 41px wide for a 46px
+                  // height — tall enough to hit, too narrow to hit reliably.
+                  // The row already scrolls horizontally with an edge fade, so
+                  // the ~64px this adds costs nothing but a little more scroll;
+                  // widening on desktop instead would just spread eight tabs
+                  // that already fit.
+                  'shrink-0 border-b-2 px-2 py-3 text-sm font-medium whitespace-nowrap transition-colors sm:px-1',
                   'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-500',
                   current
                     ? 'border-accent-500 text-zinc-950 dark:text-white'

@@ -234,7 +234,7 @@ export function ReleaseActions({
       {rollback.state !== 'available' ? <CapabilityNote capability={rollback} /> : null}
 
       <div aria-live="polite">
-        {done ? <Text className="!text-xs">{done}</Text> : null}
+        {done ? <Text className="text-xs">{done}</Text> : null}
       </div>
       {error ? <ErrorBanner message={error} /> : null}
 
