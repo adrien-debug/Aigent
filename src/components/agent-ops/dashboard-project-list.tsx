@@ -130,10 +130,10 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="hidden py-2 text-right font-mono text-sm tabular-nums text-zinc-600 md:table-cell">
+                    <TableCell className="hidden py-2 text-right font-mono text-sm tabular-nums text-zinc-600 md:table-cell dark:text-zinc-400">
                       {project.activeCount}<span className="text-zinc-400"> / {project.copilotCount}</span>
                     </TableCell>
-                    <TableCell className="hidden py-2 text-right font-mono text-sm tabular-nums text-zinc-600 lg:table-cell">
+                    <TableCell className="hidden py-2 text-right font-mono text-sm tabular-nums text-zinc-600 lg:table-cell dark:text-zinc-400">
                       {project.passRate === null ? '—' : formatPercent(project.passRate)}
                     </TableCell>
                     <TableCell className="hidden py-2 text-right font-mono text-sm tabular-nums text-zinc-600 sm:table-cell dark:text-zinc-400">
