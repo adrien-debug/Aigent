@@ -52,15 +52,72 @@ if (!payload?.agent || !Array.isArray(payload?._meta?.agentTables)) {
 
 const TABLES = payload._meta.agentTables // already in parent-first order
 
-async function insertRows(table, rows) {
-  if (rows.length === 0) return
+/**
+ * Tables the promotion lockdown protects (migrations 0032/0033).
+ *
+ * 0033 REVOKED the table-level UPDATE on these from `service_role` and re-granted
+ * every column EXCEPT the promotion-critical ones (`copilots.status`,
+ * `copilots.production_version_id`, `copilot_versions.stage`), which only the
+ * `aigent_promotion_executor` role may write, through the gated RPC.
+ *
+ * An upsert (`resolution=merge-duplicates`) compiles to INSERT … ON CONFLICT DO
+ * UPDATE over EVERY column in the payload, so PostgreSQL checks UPDATE on the
+ * protected columns STATICALLY — even when the row does not exist and no update
+ * would ever run. Result: `POST copilots -> 403 permission denied`, and the
+ * "reversible purge" this script exists to guarantee was silently NOT reversible
+ * for the two tables that matter most. Found on 2026-07-26 restoring the Agent
+ * Builder after a full reset.
+ *
+ * The fix keeps the lockdown intact rather than working around it: on these
+ * tables a MISSING row is restored with a plain INSERT (legal — INSERT was never
+ * revoked, and a restored row carries its exported `status`/`stage`, which the
+ * 0032 trigger still refuses if it is a promoted state), and an EXISTING row is
+ * SKIPPED and reported, because overwriting a live copilot's promotion state is
+ * exactly what the lockdown forbids — that path is the RPC, never a bulk restore.
+ */
+const LOCKDOWN_TABLES = new Set(['copilots', 'copilot_versions'])
+
+/** Ids already present in `table`, looked up in one bounded request. */
+async function existingIds(table, ids) {
+  if (ids.length === 0) return new Set()
+  const inList = ids.map((id) => encodeURIComponent(id)).join(',')
+  const res = await fetch(`${base}/rest/v1/${table}?select=id&id=in.(${inList})`, {
+    headers: H,
+    signal: AbortSignal.timeout(60000),
+  })
+  if (!res.ok) throw new Error(`GET ${table} -> ${res.status}`)
+  return new Set((await res.json()).map((r) => r.id))
+}
+
+async function post(table, rows, prefer) {
   const res = await fetch(`${base}/rest/v1/${table}`, {
     method: 'POST',
-    headers: { ...H, Prefer: 'return=minimal,resolution=merge-duplicates' },
+    headers: { ...H, Prefer: prefer },
     body: JSON.stringify(rows),
     signal: AbortSignal.timeout(60000),
   })
-  if (!res.ok) throw new Error(`POST ${table} -> ${res.status}`)
+  if (!res.ok) {
+    // Never echo the raw body: it can carry schema internals.
+    throw new Error(`POST ${table} -> ${res.status}`)
+  }
+}
+
+/** Restore one table. Returns what actually happened, for honest reporting. */
+async function insertRows(table, rows) {
+  if (rows.length === 0) return { written: 0, skipped: [] }
+
+  if (!LOCKDOWN_TABLES.has(table)) {
+    // Unprotected table: the idempotent upsert is still the right tool.
+    await post(table, rows, 'return=minimal,resolution=merge-duplicates')
+    return { written: rows.length, skipped: [] }
+  }
+
+  const present = await existingIds(table, rows.map((r) => r.id))
+  const fresh = rows.filter((r) => !present.has(r.id))
+  const skipped = rows.filter((r) => present.has(r.id)).map((r) => r.id)
+  // Plain INSERT, no ON CONFLICT: never asks for UPDATE on the protected columns.
+  if (fresh.length > 0) await post(table, fresh, 'return=minimal')
+  return { written: fresh.length, skipped }
 }
 
 async function main() {
@@ -68,11 +125,19 @@ async function main() {
   for (const t of TABLES) {
     const rows = payload.agent[t] ?? []
     if (!apply) {
-      console.log(`  ${t}: ${rows.length} row(s) would be upserted`)
+      const how = LOCKDOWN_TABLES.has(t) ? 'inserted if missing (lockdown table)' : 'upserted'
+      console.log(`  ${t}: ${rows.length} row(s) would be ${how}`)
       continue
     }
-    await insertRows(t, rows)
-    console.log(`  ✓ ${t}: ${rows.length} row(s) upserted`)
+    const { written, skipped } = await insertRows(t, rows)
+    console.log(`  ✓ ${t}: ${written} row(s) written`)
+    // A skip is never silent: an operator must know a row was left as-is, or
+    // they would read "restore complete" as "everything is back".
+    if (skipped.length > 0) {
+      console.log(
+        `    ⚠ ${skipped.length} already present, left untouched (promotion state is RPC-owned): ${skipped.join(', ')}`
+      )
+    }
   }
   console.log(apply ? '✓ restore complete' : 'dry-run complete — nothing written')
 }
