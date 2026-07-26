@@ -99,14 +99,18 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
         </TableHead>
         <TableBody className="divide-y divide-white/5">
           {copilots.map((copilot) => (
-            <TableRow key={copilot.id} className="group hover:bg-surface-raised-hover transition-colors">
+            // Same shape as AgentLeaderboard: the row had a local hover fill but no
+            // `href`, so it lit up without being navigable — a promise the row could
+            // not keep. It has a single destination, so `href` moves to the row: the
+            // primitive then paints the hover AND the keyboard focus ring, and the
+            // whole row becomes the target. The inner <Link> loses its own href to
+            // avoid two tab stops on one URL.
+            <TableRow key={copilot.id} href={`/admin/agents/${copilot.id}`} title={copilot.name}>
               <TableCell className="py-4">
                 <div className="flex items-center gap-3">
                   <CopilotAvatar copilot={copilot} className="size-8 rounded-xl" />
                   <div className="flex flex-col">
-                    <Link href={`/admin/agents/${copilot.id}`} className="text-sm font-medium text-white group-hover:underline">
-                      {copilot.name}
-                    </Link>
+                    <span className="text-sm font-medium text-white">{copilot.name}</span>
                     <span className="text-[10px] font-mono text-zinc-500 mt-0.5">{copilot.slug}</span>
                   </div>
                 </div>
@@ -167,15 +171,12 @@ function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copil
         </TableHead>
         <TableBody className="divide-y divide-white/5">
           {runs.map((run) => (
-            <TableRow key={run.id} className="group hover:bg-surface-raised-hover transition-colors">
+            <TableRow key={run.id} href={`/admin/agents/${run.copilotId}/runs?run=${run.id}`} title={run.id}>
               <TableCell className="py-3">
                 <div className="flex flex-col">
-                  <Link
-                    href={`/admin/agents/${run.copilotId}/runs?run=${run.id}`}
-                    className="text-sm font-medium text-white group-hover:underline truncate"
-                  >
+                  <span className="truncate text-sm font-medium text-white">
                     {copilotNameById.get(run.copilotId) ?? run.copilotId}
-                  </Link>
+                  </span>
                   <span className="text-[10px] font-mono text-zinc-500 mt-0.5 truncate">{run.id}</span>
                 </div>
               </TableCell>
