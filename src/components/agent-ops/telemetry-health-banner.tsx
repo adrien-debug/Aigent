@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 
-import { Text } from '@/components/ui/text'
+import { Strong, Text } from '@/components/ui/text'
 import type { TelemetryHealthDiagnostic } from '@/lib/agent-mission-control/telemetry-health'
 import { InformationCircleIcon, SignalIcon } from '@heroicons/react/24/outline'
 
@@ -19,7 +19,11 @@ export function TelemetryHealthBanner({ diagnostic }: { diagnostic: TelemetryHea
     return (
       <div className="flex items-center gap-2 px-1 text-zinc-500">
         <SignalIcon aria-hidden="true" className="size-4 shrink-0 text-accent-600" />
-        <Text className="text-zinc-500">{diagnostic.summary}</Text>
+        {/* No `text-zinc-500`: it duplicated the primitive's own default and,
+            under the forced `dark`, was already overridden by
+            `dark:text-zinc-400` — a class that described a tone the line never
+            rendered. The parent row carries the tone for the icon row. */}
+        <Text>{diagnostic.summary}</Text>
       </div>
     )
   }
@@ -32,9 +36,24 @@ export function TelemetryHealthBanner({ diagnostic }: { diagnostic: TelemetryHea
       )}
     >
       <InformationCircleIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-accent-500" />
+      {/* Title/summary contrast came from two className overrides that never
+          painted: `Text` composes `clsx(className, defaults)`, so its own
+          `text-zinc-500 dark:text-zinc-400` is emitted last and wins — and the
+          app forces `dark` on <html> (app/layout.tsx), so `dark:text-zinc-400`
+          was the ONLY tone this block ever had. Title and summary therefore
+          rendered identical: the banner had no hierarchy at all.
+          Title → `Strong`, the primitive that already means "brighter, medium
+          weight" (`dark:text-white`); summary → bare `Text`, whose default is
+          the zinc-400 the dead class was asking for. No `!` needed either way. */}
       <div className="flex flex-col gap-1">
-        <Text className="font-medium text-zinc-100">{telemetryStatusLabel(diagnostic.status)}</Text>
-        <Text className="text-zinc-400">{diagnostic.summary}</Text>
+        {/* `Strong` sets no font-size, so it inherited the 16px root while the
+            `Text` under it steps down to 14px from 640px up — the two lines of
+            one banner would have shared a size on mobile and not on desktop.
+            Mirroring `Text`'s exact ramp is additive, not an override (there is
+            no default to race), so hierarchy is carried by weight and tone
+            alone, which is what the design system asks of a title. */}
+        <Strong className="text-base/6 sm:text-sm/6">{telemetryStatusLabel(diagnostic.status)}</Strong>
+        <Text>{diagnostic.summary}</Text>
       </div>
     </div>
   )

@@ -14,7 +14,7 @@ export async function DashboardLiveRuns() {
       <SurfaceCardHeader
         title="Live Runs"
         density="compact"
-        meta={<span className="font-mono text-xs tabular-nums text-zinc-500">{runs.length} recent</span>}
+        meta={<span className="font-mono text-xs tabular-nums text-zinc-400">{runs.length} recent</span>}
       />
       {runs.length > 0 ? (
         <ul className="divide-y divide-zinc-950/5 border-t border-zinc-950/5">
@@ -41,12 +41,17 @@ export async function DashboardLiveRuns() {
               {/* `min-w-*` (never `w-*`) keeps the three metrics aligned column-wise
                   while letting an unusually long value push instead of clip.
                   Labels are sr-only text, not `title=`: a tooltip is mouse-only. */}
+              {/* One tone for the three metrics. Duration and cost were zinc-500
+                  while the relative time beside them was zinc-400 — three peers
+                  on one baseline, two ranks of ink, decided by nothing. zinc-400
+                  is the survivor: zinc-500 measures 3.59:1 on this plane, below
+                  the 4.5 AA floor (`check:contrast`), everywhere it appears. */}
               <div className="flex items-baseline justify-end gap-4 font-mono text-xs tabular-nums">
-                <span className="min-w-14 whitespace-nowrap text-right text-zinc-500">
+                <span className="min-w-14 whitespace-nowrap text-right text-zinc-400">
                   <span className="sr-only">Duration: </span>
                   {formatDurationMs(run.latencyMs)}
                 </span>
-                <span className="min-w-16 whitespace-nowrap text-right text-zinc-500">
+                <span className="min-w-16 whitespace-nowrap text-right text-zinc-400">
                   <span className="sr-only">Cost: </span>
                   {run.costUsd === null ? '—' : formatUsd(run.costUsd)}
                 </span>
@@ -62,7 +67,11 @@ export async function DashboardLiveRuns() {
           ))}
         </ul>
       ) : (
-        <EmptyState title="No recent runs" className="py-8" />
+        /* `padding="compact"` replaces a `className="py-8"` that never applied:
+           probed in the browser, `px-6 py-12 py-8` computes to 48px — the card
+           was 32px taller than this file has been claiming since it was
+           written, and taller than the peer card it shares its grid row with. */
+        <EmptyState title="No recent runs" padding="compact" className="flex-1" />
       )}
     </SurfaceCard>
   )

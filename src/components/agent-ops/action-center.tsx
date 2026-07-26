@@ -68,7 +68,11 @@ function ActionRow({ item }: { item: ActionItem }) {
             {item.status}
           </Badge>
         </div>
-        <p className="min-w-0 truncate font-mono text-xs text-zinc-500">{item.meta}</p>
+        {/* zinc-400: `check:contrast` measures zinc-500 at 3.59:1 on the raised
+            card plane, under the 4.5 AA floor. This line carries the row's only
+            identifying detail (project · repo), so it is the one an operator
+            actually has to read to tell two otherwise identical rows apart. */}
+        <p className="min-w-0 truncate font-mono text-xs text-zinc-400">{item.meta}</p>
       </div>
       <Link
         href={item.href}
@@ -93,18 +97,30 @@ export function ActionCenter({ items }: { items: ActionItem[] }) {
         density="compact"
         meta={
           sorted.length > 0 ? (
-            <span className="font-mono text-xs tabular-nums text-zinc-500">{sorted.length} open</span>
+            /* zinc-400 — measured 3.59:1 at zinc-500 on this plane (AA needs 4.5).
+               This is the card's count, the header's only number. */
+            <span className="font-mono text-xs tabular-nums text-zinc-400">{sorted.length} open</span>
           ) : undefined
         }
       />
+      {/* `flex-1` on the body, both branches. `SurfaceCard` is a flex column and
+          a grid item, so the CELL always stretches to the tallest card in the
+          row — but the list did not, and the card's bottom edge sat 53px below
+          the last divider (measured at 1440x900 on /admin: card 495→667, list
+          547→614). One card in the pair painted a plane its content stopped
+          short of; the other filled it. The hairline rules now reach the bottom
+          edge in every state, so the two halves of the row read as one band.
+          The `className="py-12"` that used to sit on the empty branch is gone:
+          it merely restated the component's own default and pretended to be a
+          choice — the real padding lever is the `padding` prop. */}
       {sorted.length > 0 ? (
-        <ul className="divide-y divide-zinc-950/5 border-t border-zinc-950/5">
+        <ul className="flex-1 divide-y divide-zinc-950/5 border-t border-zinc-950/5">
           {sorted.map((item) => (
             <ActionRow key={item.id} item={item} />
           ))}
         </ul>
       ) : (
-        <EmptyState title="All clear" className="py-12" />
+        <EmptyState title="All clear" className="flex-1" />
       )}
     </SurfaceCard>
   )

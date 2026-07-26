@@ -154,7 +154,12 @@ export function AgentKpiBand({
 
             {hasViz ? <div className="mt-2 w-full flex-none">{stat.viz ?? null}</div> : null}
             {hasHint ? (
-              <span className={separators ? 'mt-2 text-xs text-zinc-500' : 'mt-1 text-xs text-zinc-400'}>
+              /* Same tone in both modes. `separators` used to darken the hint to
+                 zinc-500, which `check:contrast` measures at 3.59:1 on the raised
+                 cell fill against the 4.5 AA floor — the flush branch was already
+                 zinc-400, so the SAME sentence was legible or not depending on a
+                 layout flag. Only the margin differs between the two modes now. */
+              <span className={clsx('text-xs text-zinc-400', separators ? 'mt-2' : 'mt-1')}>
                 {stat.hint ?? ' '}
               </span>
             ) : null}

@@ -1,5 +1,6 @@
 'use client'
 
+import { ChevronRightIcon } from '@heroicons/react/20/solid'
 import { useCallback, useEffect, useState } from 'react'
 
 import { AgentSectionCard, eyebrowClass } from '@/components/agent-ops/surface-card'
@@ -41,7 +42,13 @@ function ParticipantsList({ participants }: { participants: MissionParticipant[]
     <ul className="flex flex-wrap gap-2">
       {participants.map((p) => (
         <li key={p.role}>
-          <Badge className="font-mono text-[11px]" color={p.status === 'missing' ? 'zinc' : 'accent'}>
+          {/* `text-[11px]` was dead here — `Badge` composes `clsx(className,
+              defaults)`, so its `sm:text-xs/5` is emitted last and paints. It
+              is also the tier the typography doctrine wants: 11px is reserved
+              for dense secondary metadata (IDs, hashes), never for a label the
+              operator must READ, and a participant name is read. Dropped
+              instead of forced with `!`: the default IS the correct size. */}
+          <Badge className="font-mono" color={p.status === 'missing' ? 'zinc' : 'accent'}>
             {p.copilotName ?? p.role}
             {p.status === 'missing' ? ' (evidence-only)' : ''}
           </Badge>
@@ -110,8 +117,21 @@ export function MissionReportPanel({ report }: { report: MissionReport }) {
       </div>
 
       {/* Findings Table */}
+      {/* `list-none` + the WebKit marker rule are not cosmetic polish: without
+          them this disclosure wore the USER-AGENT triangle, while the one in
+          `views/agents/agent-configuration-view.tsx` (which does set
+          `list-none`) did not. Same control, two appearances, decided by a
+          class one file happened to carry — and the triangle is drawn by the
+          browser, so it takes neither our colour nor our spacing.
+          The affordance is now ours: a chevron that rotates on open, driven by
+          the `group` class that was already on `<details>` and until now
+          controlled nothing at all. `text-zinc-400`, not `text-zinc-500`: at
+          12px uppercase on this plane, zinc-500 is the tone `check:contrast`
+          measures under AA (same call already recorded in
+          `dashboard-kpi-strip.tsx`). */}
       <details className="group">
-        <summary className="cursor-pointer py-2 text-xs font-semibold text-zinc-500 uppercase tracking-widest hover:text-zinc-900 dark:hover:text-white focus-visible:text-zinc-900 dark:focus-visible:text-white transition-colors">
+        <summary className="flex cursor-pointer list-none items-center gap-2 py-2 text-xs font-semibold text-zinc-400 uppercase tracking-widest transition-colors hover:text-white focus-visible:text-white [&::-webkit-details-marker]:hidden">
+          <ChevronRightIcon aria-hidden="true" className="size-3.5 shrink-0 transition-transform group-open:rotate-90" />
           All findings ({report.findings.length})
         </summary>
         {/* A disclosure list, not a card: no rounded wrapper, no second
@@ -254,7 +274,13 @@ export function ProjectMissionOrchestrator({
         )}
 
         {hydrateWarning && phase !== 'running' && (
-          <p role="status" aria-live="polite" className="text-xs text-zinc-500">
+          /* zinc-400, not zinc-500: `check:contrast` measured this exact node
+             ("Mission data unavailable", 12px w400 on rgb(26,26,30)) at
+             3.59:1 against the 4.5 AA threshold. Same call, same reason, as
+             the one already recorded in `dashboard-kpi-strip.tsx`. It is the
+             line that tells the operator the data is MISSING — the one string
+             on this panel that must never be the hardest to read. */
+          <p role="status" aria-live="polite" className="text-xs text-zinc-400">
             {hydrateWarning}
           </p>
         )}
@@ -271,7 +297,11 @@ export function ProjectMissionOrchestrator({
         {showReport && <MissionReportPanel report={report} />}
 
         {phase === 'idle' && !report && !error && !hydrateWarning && (
-          <EmptyState title="No mission run yet" description="Set an objective and run one." className="px-0 py-6" />
+          /* `padding="inline"` — the old `className="px-0 py-6"` was dead on
+             BOTH axes (probed: `px-6 py-12 px-0 py-6` computes to 48px/24px),
+             so this empty state was carrying the section's gutter a second
+             time and twice the vertical air it asked for. */
+          <EmptyState title="No mission run yet" description="Set an objective and run one." padding="inline" />
         )}
       </div>
     </AgentSectionCard>
