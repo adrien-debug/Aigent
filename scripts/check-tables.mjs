@@ -36,12 +36,26 @@
  *
  * Pure Node, no deps, no browser: all three are decidable from the source.
  * Run via `npm run check:tables`.
+ *
+ *   `--only=<sub>`  restricts the scan to paths containing <sub>. Meant for
+ *                   fixing one file at a time and for probing the gate on a
+ *                   fixture; CI takes no argument and scans the whole perimeter.
+ *
+ * ── What this gate does NOT guarantee ───────────────────────────────────────
+ * See scripts/README-gates.md for the full blind-spot map. In short: it reads
+ * SOURCE, so a table assembled from a variable className, a `fixed={someProp}`,
+ * or a wrapper whose overflow is decided at runtime is invisible to it. It also
+ * says nothing about whether a sticky header that IS fixed-backed actually
+ * looks right — only that the CSS precondition holds.
  */
 import { readdir, readFile } from 'node:fs/promises'
-import { join, relative } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const ROOT = process.cwd()
+const HERE = dirname(fileURLToPath(import.meta.url))
+const ROOT = resolve(HERE, '..')
 const SRC = join(ROOT, 'src')
+const ALLOWLIST_PATH = join(HERE, 'table-guard-allowlist.json')
 
 const DASHBOARD_DIRS = [
   join('app', 'admin'),
@@ -56,8 +70,14 @@ const TABLE_TAGS = new Set(['Table', 'TableHead', 'TableBody', 'TableRow', 'Tabl
 
 // A bare `fixed` prop, not the `table-fixed` utility that lives inside a
 // className: the latter is preceded by `-`, the former by whitespace or `<`.
+// Always applied to `propSlots()` output, never to the raw attribute text — see
+// there for the false NEGATIVE this closes.
 const FIXED_PROP_RE = /(?:^|\s)fixed(?![\w-])/
 const HREF_PROP_RE = /(?:^|\s)href\s*=/
+// A cell that spans several columns breaks the index-by-index comparison the
+// column rule is built on: header 3 no longer faces cell 3. The rule abstains
+// on such a row rather than invent a mismatch.
+const SPAN_PROP_RE = /(?:^|\s)(?:colSpan|rowSpan)\s*=/
 // Class tokens. Variants are allowed to prefix any of them (`dark:`, `md:`, …),
 // which is why each pattern anchors on the utility rather than on the token.
 const STICKY_CLASS_RE = /^(?:[\w[\]&>.-]+:)*sticky$/
@@ -161,6 +181,46 @@ function classTokens(attrs) {
   return attrs.split(/[\s"'`{}()[\],]+/).filter(Boolean)
 }
 
+/**
+ * The attribute text with every VALUE blanked out — quoted strings and `{…}`
+ * expressions — so only the attribute NAMES survive. Prop detection must run on
+ * this, never on the raw text: `<Table className="fixed inset-0">` contains the
+ * word `fixed` preceded by a space, which made the raw-text regex read a
+ * `fixed` prop that is not there and SILENCE a real sticky violation. Blanking
+ * preserves length (and newlines), so nothing downstream shifts.
+ */
+function propSlots(attrs) {
+  let out = ''
+  let quote = null
+  let depth = 0
+  for (let i = 0; i < attrs.length; i++) {
+    const ch = attrs[i]
+    if (quote) {
+      out += ch === '\n' ? '\n' : ' '
+      if (ch === quote && attrs[i - 1] !== '\\') quote = null
+      continue
+    }
+    if (depth > 0) {
+      if (ch === '{') depth++
+      else if (ch === '}') depth--
+      out += ch === '\n' ? '\n' : ' '
+      continue
+    }
+    if (ch === '"' || ch === "'" || ch === '`') {
+      quote = ch
+      out += ' '
+      continue
+    }
+    if (ch === '{') {
+      depth = 1
+      out += ' '
+      continue
+    }
+    out += ch
+  }
+  return out
+}
+
 /** Breakpoint at which a `hidden … <bp>:table-cell` column appears, or null when always visible. */
 function responsiveBreakpoint(node) {
   const tokens = classTokens(node.attrs)
@@ -201,15 +261,30 @@ function firstOfName(node, name) {
   return null
 }
 
+/**
+ * Stable identity of a finding: `file|rule|subject`.
+ *
+ * The subject is derived from CONTENT, never from a line number. An allowlist
+ * entry keyed on a line rots the first time somebody inserts an import above,
+ * and a rotten waiver either silences the wrong thing or re-opens a decision
+ * nobody re-took. Editing the offending classes DOES change the key, which is
+ * the intended behaviour: a different override is a different decision.
+ */
+function subjectOf(rule, node, extra) {
+  if (rule === 'responsive-column-mismatch') return `column-${extra}`
+  const tokens = classTokens(node.attrs).filter((token) => /[:-]/.test(token) || token === 'sticky')
+  return tokens.sort().join(' ') || '(no-class)'
+}
+
 function checkFile(file, text) {
-  const where = (line) => `${relative(ROOT, file)}:${line}`
+  const rel = relative(ROOT, file)
+  const findings = []
+  const add = (rule, line, subject, message) =>
+    findings.push({ rule, file: rel, line, subject, key: `${rel}|${rule}|${subject}`, message })
   const root = buildTree(scanTags(blankBlockComments(text)))
-  const sticky = []
-  const hover = []
-  const columns = []
 
   for (const table of tables(root)) {
-    const isFixed = FIXED_PROP_RE.test(table.attrs)
+    const isFixed = FIXED_PROP_RE.test(propSlots(table.attrs))
 
     for (const node of descendants(table)) {
       if (node.name !== 'TableHead') continue
@@ -217,9 +292,15 @@ function checkFile(file, text) {
       const isSticky = tokens.some((token) => STICKY_CLASS_RE.test(token))
       const hasOffset = tokens.some((token) => TOP_CLASS_RE.test(token))
       if (isSticky && hasOffset && !isFixed) {
-        sticky.push(
-          `${where(node.line)}  <TableHead sticky top-*> under a non-fixed <Table> (line ${table.line}) — ` +
-            'the Table\'s own overflow-x-auto scrollport traps the sticky header; add `fixed`'
+        add(
+          'sticky-head-needs-fixed',
+          node.line,
+          subjectOf('sticky-head-needs-fixed', node),
+          `<TableHead sticky top-*> under a non-fixed <Table> (line ${table.line}) — the Table's own ` +
+            'overflow-x-auto scrollport traps the sticky header, so it never sticks.\n' +
+            '      → sortie recommandée : passer `fixed` au <Table> (il devient `w-full table-fixed` et ' +
+            'perd le scrollport interne).\n' +
+            '      → sinon : retirer `sticky top-*`, qui ne fait rien et ment au lecteur.'
         )
       }
     }
@@ -232,18 +313,26 @@ function checkFile(file, text) {
     if (head && body) {
       const headerRow = firstOfName(head, 'TableRow')
       const headers = headerRow ? headerRow.children.filter((child) => child.name === 'TableHeader') : []
-      if (headers.length > 0) {
+      const headerSpans = headers.some((header) => SPAN_PROP_RE.test(propSlots(header.attrs)))
+      if (headers.length > 0 && !headerSpans) {
         for (const row of descendants(body)) {
           if (row.name !== 'TableRow') continue
           const cells = row.children.filter((child) => child.name === 'TableCell')
           if (cells.length !== headers.length) continue
+          if (cells.some((cell) => SPAN_PROP_RE.test(propSlots(cell.attrs)))) continue
           cells.forEach((cell, index) => {
             const headerBp = responsiveBreakpoint(headers[index])
             const cellBp = responsiveBreakpoint(cell)
             if (headerBp === cellBp) return
-            columns.push(
-              `${where(cell.line)}  column ${index + 1} appears at ${cellBp ?? 'always'} but its header ` +
-                `(line ${headers[index].line}) appears at ${headerBp ?? 'always'} — the columns shift between the two`
+            add(
+              'responsive-column-mismatch',
+              cell.line,
+              subjectOf('responsive-column-mismatch', cell, index + 1),
+              `column ${index + 1} appears at ${cellBp ?? 'always'} but its header (line ${headers[index].line}) ` +
+                `appears at ${headerBp ?? 'always'} — between the two breakpoints the body row has one more ` +
+                'cell than the header row and every column after it slides under the wrong title.\n' +
+                '      → sortie recommandée : aligner les deux sur le MÊME breakpoint ' +
+                '(`hidden <bp>:table-cell` des deux côtés), ou rendre les deux toujours visibles.'
             )
           })
         }
@@ -254,46 +343,126 @@ function checkFile(file, text) {
   for (const node of everyNode(root)) {
     if (node.name !== 'TableRow') continue
     if (!classTokens(node.attrs).some((token) => HOVER_BG_CLASS_RE.test(token))) continue
-    if (HREF_PROP_RE.test(node.attrs)) continue
-    hover.push(
-      `${where(node.line)}  <TableRow hover:bg-*> without href — a row that lights up must be navigable ` +
-        '(pass `href`, which also renders the full-cell link and the focus ring)'
+    if (HREF_PROP_RE.test(propSlots(node.attrs))) continue
+    add(
+      'hover-row-needs-href',
+      node.line,
+      subjectOf('hover-row-needs-href', node),
+      '<TableRow hover:bg-*> without href — the row lights up under the cursor and promises a click ' +
+        'target that does not exist, and offers nothing at all to the keyboard.\n' +
+        '      → sortie recommandée : passer `href` (le primitive rend alors le lien pleine cellule ET ' +
+        "l'anneau de focus).\n" +
+        '      → sinon : retirer le `hover:bg-*`, qui promet une interaction absente.'
     )
   }
 
-  return { sticky, hover, columns }
+  return findings
+}
+
+const RULE_LABELS = {
+  'sticky-head-needs-fixed': 'sticky header(s) under a non-fixed <Table> (the header never sticks)',
+  'hover-row-needs-href': 'hover-lit <TableRow>(s) with no href (interaction promised, none delivered)',
+  'responsive-column-mismatch': 'responsive column(s) whose breakpoint differs from its header (columns shift)',
+}
+
+/**
+ * Written-justification allowlist. Same contract as
+ * class-collision-allowlist.json, deliberately: an entry without a real
+ * `reason` is not a debt record, it is a silencer, and the gate refuses to
+ * START rather than honour one — a malformed waiver must never read as a pass.
+ */
+async function loadAllowlist() {
+  let raw
+  try {
+    raw = await readFile(ALLOWLIST_PATH, 'utf8')
+  } catch {
+    return new Map()
+  }
+  const entries = JSON.parse(raw).entries ?? []
+  const keys = new Map()
+  const invalid = []
+  for (const entry of entries) {
+    const knownRule = Object.hasOwn(RULE_LABELS, entry.rule)
+    if (!entry.file || !knownRule || !entry.subject || typeof entry.reason !== 'string' || entry.reason.trim().length < 15) {
+      invalid.push(entry)
+      continue
+    }
+    keys.set(`${entry.file}|${entry.rule}|${entry.subject}`, entry)
+  }
+  if (invalid.length > 0) {
+    console.error('✗ check:tables — allowlist invalide (scripts/table-guard-allowlist.json).')
+    console.error('  Chaque entrée exige file, rule ∈ {' + Object.keys(RULE_LABELS).join(', ') + '},')
+    console.error('  subject, et une justification `reason` écrite (≥ 15 caractères).\n')
+    for (const entry of invalid) console.error(`  ${JSON.stringify(entry)}`)
+    process.exit(2)
+  }
+  return keys
 }
 
 async function main() {
-  const sticky = []
-  const hover = []
-  const columns = []
+  // `--only=<substring>` restricts the scan; CI passes nothing and scans all.
+  const onlyArg = process.argv.find((arg) => arg.startsWith('--only='))
+  const only = onlyArg ? onlyArg.slice('--only='.length) : null
+
+  const allowed = await loadAllowlist()
+  const used = new Set()
+  const violations = []
 
   for await (const file of walk(SRC)) {
     const rel = relative(SRC, file)
     if (!isDashboardFile(rel) || isExcluded(rel)) continue
-    const found = checkFile(file, await readFile(file, 'utf8'))
-    sticky.push(...found.sticky)
-    hover.push(...found.hover)
-    columns.push(...found.columns)
+    if (only && !relative(ROOT, file).includes(only)) continue
+    for (const finding of checkFile(file, await readFile(file, 'utf8'))) {
+      if (allowed.has(finding.key)) {
+        used.add(finding.key)
+        continue
+      }
+      violations.push(finding)
+    }
   }
 
-  let failed = false
-  const groups = [
-    [sticky, 'sticky header(s) under a non-fixed <Table> (the header never sticks)'],
-    [hover, 'hover-lit <TableRow>(s) with no href (interaction promised, none delivered)'],
-    [columns, 'responsive column(s) whose breakpoint differs from its header (columns shift)'],
-  ]
-  for (const [violations, label] of groups) {
-    if (violations.length === 0) continue
-    failed = true
-    console.error(`\n✗ ${violations.length} ${label}:\n`)
-    for (const violation of violations) console.error('  ' + violation)
-  }
-
-  if (failed) {
-    console.error('\nTable guard FAILED.\n')
+  if (violations.length > 0) {
+    for (const [rule, label] of Object.entries(RULE_LABELS)) {
+      const group = violations.filter((violation) => violation.rule === rule)
+      if (group.length === 0) continue
+      console.error(`\n✗ ${group.length} ${label}:\n`)
+      for (const violation of group.sort((a, b) => a.line - b.line)) {
+        console.error(`  ${violation.file}:${violation.line}  [${violation.rule}]`)
+        console.error(`      ${violation.message}`)
+        // The waiver key is printed verbatim so the third exit is copy-pasteable
+        // — and so that taking it is a visible, reviewable act rather than a
+        // quiet edit nobody can diff against the violation it hides.
+        console.error(
+          `      → dette assumée (dernier recours) : {"file":"${violation.file}","rule":"${violation.rule}",` +
+            `"subject":"${violation.subject}","reason":"…"} dans scripts/table-guard-allowlist.json\n`
+        )
+      }
+    }
+    console.error('Table guard FAILED.\n')
     process.exit(1)
+  }
+
+  // Under `--only` most of the perimeter was never read, so an unused entry
+  // proves nothing — only a full scan can call an allowlist entry stale.
+  if (!only) {
+    const stale = [...allowed.keys()].filter((key) => !used.has(key))
+    if (stale.length > 0) {
+      console.warn('⚠ check:tables — entrées d’allowlist devenues inutiles (le défaut a disparu) :')
+      for (const key of stale) console.warn(`    ${key.split('|').join('  ')}`)
+      console.warn('  → les retirer de scripts/table-guard-allowlist.json.\n')
+    }
+  }
+
+  // A green run must never hide the debt it is standing on: every active waiver
+  // is reprinted on SUCCESS. This is the difference between a gate that passes
+  // and a gate that has been talked into passing.
+  if (used.size > 0) {
+    console.log(`⚠ ${used.size} défaut(s) de table éteint(s) par allowlist — la gate passe MALGRÉ eux :`)
+    for (const key of used) {
+      const entry = allowed.get(key)
+      console.log(`    ${entry.file}  [${entry.rule}]  ${entry.subject}`)
+      console.log(`      ${entry.reason}`)
+    }
   }
   console.log('✓ Table guard passed — sticky heads are fixed-backed, hover rows are navigable, columns line up.')
 }
