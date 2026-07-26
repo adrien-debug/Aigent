@@ -40,19 +40,29 @@ const plainFormat = new Intl.NumberFormat('en-US')
 /**
  * `sectionLabelClass` in `Subheading` form. The panel's section titles were raw
  * `<h3>` tags, which the dashboard is not entitled to — it renders primitives
- * only — but `Subheading` hard-codes `text-base/7 sm:text-sm/6 font-semibold`
- * and `text-zinc-950 dark:text-white`, and Tailwind settles a same-utility
- * clash by the order of the GENERATED CSS (`.text-base` after `.text-xs`,
- * `.font-semibold` after `.font-medium`, `.text-zinc-950` after
- * `.text-zinc-500`), never by the order of the class attribute. So every
- * property the primitive also sets is re-asserted with `!`; drop the `!` and
- * the primitive silently wins, turning every caption into semibold body text.
+ * only — but `Subheading` hard-codes a size, `font-semibold` and
+ * `text-zinc-950 dark:text-white`.
+ *
+ * The `!important` this string used to carry on all three (`text-xs!`,
+ * `font-medium!`, `text-zinc-500!`) is gone: `Subheading` now composes with
+ * `cn()` (caller LAST), so `tailwind-merge` deletes the primitive's own
+ * `text-sm/6` and `font-semibold` before the browser ever sees them. Measured
+ * on /admin/projects/:id/team with the panel open, both before and after the
+ * removal: 12px / 16px / weight 500 — identical.
+ *
+ * `dark:text-zinc-500` is NOT redundant and must stay. `tailwind-merge` will
+ * not let a bare `text-zinc-500` displace a `dark:text-white` — different
+ * variant set, different conflict — and this app forces `.dark` on <html>, so
+ * without the dark half the primitive repaints every caption white. That is
+ * the second trap `cn.ts` documents, and the reason the colour is stated twice
+ * here instead of once with a `!`.
  *
  * `sectionLabelClass` itself stays the source of truth for the non-heading uses
  * (`<dt>` in `Field`) — this constant only exists because those two cannot share
- * one string once one of them has to fight the primitive.
+ * one string once one of them has to out-specify the primitive.
  */
-const panelSectionTitleClass = 'text-xs! font-medium! tracking-wide text-zinc-500! uppercase'
+const panelSectionTitleClass =
+  'text-xs font-medium tracking-wide text-zinc-500 dark:text-zinc-500 uppercase'
 
 export interface TeamMetric {
   key: string
@@ -617,7 +627,12 @@ export function ProjectTeamPanel({
         <Headless.Button
           onClick={onClose}
           aria-label="Close agent details"
-          className="shrink-0 rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+          // Measured 32×32 at 390px, where this panel is the FULL-BLEED modal
+          // (see `FULL_BLEED_QUERY`) and this button is the only way out of it
+          // by touch — the one control on this screen that must not be missable.
+          // `size-11` on touch, `sm:size-8` to keep the side-rail header exactly
+          // as tight as it was (32px, unchanged) once the panel is a rail.
+          className="flex size-11 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 sm:size-8"
         >
           <XMarkIcon aria-hidden="true" className="size-5" />
         </Headless.Button>
@@ -791,7 +806,11 @@ export function ProjectTeamPanel({
               <Link
                 key={label}
                 href={href}
-                className="flex items-center justify-between rounded-lg border border-white/5 px-3 py-2 text-sm text-zinc-300 transition-colors hover:border-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+                // 38px tall as measured at 390px. These four rows are stacked
+                // with `gap-2` (8px), so a mis-tap lands on the neighbouring
+                // route, not on empty space — `min-h-11` on touch widths is the
+                // cheapest way to make them separable by thumb.
+                className="flex min-h-11 items-center justify-between rounded-lg border border-white/5 px-3 py-2 text-sm text-zinc-300 transition-colors hover:border-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 sm:min-h-0"
               >
                 {label}
                 <ArrowTopRightOnSquareIcon aria-hidden="true" className="size-4 text-zinc-500" />

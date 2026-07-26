@@ -143,7 +143,7 @@ export function ShadowEvidence({
         </dd>
       </div>
       <div className="col-span-2 sm:col-span-4">
-        <Text className="!text-xs">
+        <Text className="text-xs">
           A shadow run replays traffic against the candidate without serving it — nothing here was
           shown to a real consumer.{' '}
           {shadow.executionMode !== 'live_langgraph'
@@ -215,7 +215,7 @@ export function ReplayEvidence({
           ))}
         </ul>
       ) : (
-        <Text className="!text-xs">No case compared worse or non-deterministic against production.</Text>
+        <Text className="text-xs">No case compared worse or non-deterministic against production.</Text>
       )}
     </div>
   )
@@ -225,7 +225,7 @@ export function ReplayEvidence({
 export function PromotionOverall({ overall, promotable }: { overall: PromotionCheckStatus; promotable: boolean }) {
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-      <Text className="!text-xs">
+      <Text className="text-xs">
         {promotable
           ? 'Every extended promotion check passes.'
           : 'The extended promotion checks do not currently permit a promotion.'}

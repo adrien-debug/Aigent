@@ -176,7 +176,7 @@ function Block({
   return (
     <section className="rounded-xl bg-white/[0.02] p-4 ring-1 ring-inset ring-white/10 sm:p-5">
       <p className={eyebrowClass}>{title}</p>
-      {description ? <Text className="mt-1 !text-xs">{description}</Text> : null}
+      {description ? <Text className="mt-1 text-xs">{description}</Text> : null}
       <div className="mt-3">{children}</div>
     </section>
   )
@@ -495,7 +495,7 @@ export function EvolutionWorkbench({
           <div>
             <CapabilityNote capability={testCap} />
             {testSuites.length === 0 ? (
-              <Text className="!text-xs">No test suite is persisted for this agent.</Text>
+              <Text className="text-xs">No test suite is persisted for this agent.</Text>
             ) : (
               <ul className="flex flex-col">
                 {testSuites.map((suite) => (
@@ -529,7 +529,7 @@ export function EvolutionWorkbench({
       <Block title="Benchmarks" description="A scored evaluation of this agent, pinned to the version it ran on.">
         <CapabilityNote capability={benchCap} />
         {benchmarkSuites.length === 0 ? (
-          <Text className="!text-xs">No benchmark suite is persisted for this agent.</Text>
+          <Text className="text-xs">No benchmark suite is persisted for this agent.</Text>
         ) : (
           <ul className="flex flex-col">
             {benchmarkSuites.map((suite) => (
@@ -607,7 +607,7 @@ export function EvolutionWorkbench({
         description="The improvement architect's reading of the observed failures, and the manifest changes it proposes."
       >
         {latestProposal === null ? (
-          <Text className="!text-xs">
+          <Text className="text-xs">
             No improvement proposal exists for this agent. Auto-improve or a single analysis writes one.
           </Text>
         ) : (
@@ -663,7 +663,7 @@ export function EvolutionWorkbench({
                 </ul>
               </div>
             ) : (
-              <Text className="!text-xs">This proposal changes no manifest field.</Text>
+              <Text className="text-xs">This proposal changes no manifest field.</Text>
             )}
 
             <div>
@@ -687,13 +687,13 @@ export function EvolutionWorkbench({
         }
       >
         {comparison === null ? (
-          <Text className="!text-xs">No V2 exists yet, so there is nothing to compare.</Text>
+          <Text className="text-xs">No V2 exists yet, so there is nothing to compare.</Text>
         ) : (
           <div className="flex flex-col gap-4">
             <div>
               <p className={eyebrowClass}>Tests</p>
               {comparison.tests.length === 0 ? (
-                <Text className="!text-xs">No test suite to compare.</Text>
+                <Text className="text-xs">No test suite to compare.</Text>
               ) : (
                 <ul className="mt-2 flex flex-col">
                   {comparison.tests.map((row) => (
@@ -712,7 +712,7 @@ export function EvolutionWorkbench({
             <div>
               <p className={eyebrowClass}>Benchmarks</p>
               {comparison.benchmarks.length === 0 ? (
-                <Text className="!text-xs">No benchmark suite to compare.</Text>
+                <Text className="text-xs">No benchmark suite to compare.</Text>
               ) : (
                 <ul className="mt-2 flex flex-col">
                   {comparison.benchmarks.map((row) => (

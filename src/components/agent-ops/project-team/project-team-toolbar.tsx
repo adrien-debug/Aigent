@@ -210,7 +210,12 @@ export function ProjectTeamToolbar({
           onClick={onClearFilters}
           disabled={!filtersActive}
           className={clsx(
-            'rounded-lg px-3 py-2 text-sm font-medium text-accent-300 transition-colors',
+            // `min-h-11` below `sm`, natural height above: measured 96×36 at
+            // 390px, i.e. a touch target 8px short on its smallest axis. Same
+            // mobile-first shape as `iconButtonClass` above (`size-11 sm:size-9`)
+            // rather than a taller control everywhere — a pointer does not need
+            // 44px and the toolbar has no room to spare on desktop.
+            'min-h-11 rounded-lg px-3 py-2 text-sm font-medium text-accent-300 transition-colors sm:min-h-0',
             'data-hover:bg-white/5',
             'data-disabled:cursor-not-allowed data-disabled:opacity-50',
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500'
@@ -248,7 +253,11 @@ export function ProjectTeamToolbar({
                 onClick={() => onViewModeChange(mode.value)}
                 aria-pressed={active}
                 className={clsx(
-                  'rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
+                  // 74×28 / 63×28 / 101×28 measured at 390px — the shortest
+                  // targets on the whole team screen, and the ones that switch
+                  // what the canvas draws. `min-h-11` on touch widths only, so
+                  // the segmented control keeps its compact desktop height.
+                  'min-h-11 rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 sm:min-h-0',
                   active
                     ? 'bg-white/10 text-white ring-1 ring-white/10'
                     : 'text-zinc-400 hover:text-zinc-200'
