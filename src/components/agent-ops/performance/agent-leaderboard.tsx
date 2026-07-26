@@ -51,23 +51,32 @@ function leaderboardScore(copilot: Copilot): number | null {
 /**
  * Rank mark — Catalyst Badge only (#1 accentSolid, else zinc).
  *
- * The three geometry utilities carry an explicit `!`: `Badge` composes
- * `clsx(className, defaults)`, so a bare `rounded-full` / `px-0` / `text-[10px]`
- * loses to the primitive's own `rounded-md` / `px-1.5` / `text-sm/5` —
- * Tailwind settles a same-property clash by the order of the COMPILED sheet, not
- * by the order of the class attribute (DESIGN-DOCTRINE §Cascade). The badge was
- * therefore rendering as a 24px rounded-md box with 6px side padding and 14px
- * digits, i.e. not the circular medallion this file describes. `Badge` exposes
- * no shape/size prop, so the documented escape hatch — a visible `!` — is the
- * only honest way to make the intent real instead of leaving three dead classes.
- * `size-6` / `justify-center` / `tabular-nums` need no marker: the primitive sets
- * none of those properties, so they ADD rather than replace.
+ * NO `!important` here any more. The three geometry utilities used to carry one
+ * (`rounded-full!` / `px-0!` / `text-[10px]!`) because `Badge` composed
+ * `clsx(className, defaults)`: two utilities writing the same property have the
+ * same specificity, so the winner was whichever Tailwind emitted LAST in the
+ * COMPILED sheet — never the caller. The primitives now compose
+ * `cn(defaults, className)` (tailwind-merge drops the losing class in JS), and
+ * `Badge` grew the `size` prop this component was hand-rolling:
+ * `size="xs"` IS `px-0` + the 10px rung, straight from BADGE_SIZES.
+ *
+ * `rounded-full` stays a bare caller class on purpose — radius is deliberately
+ * not part of a size rung (badge.tsx), and `cn` lets it beat the primitive's
+ * `rounded-md` without a marker. Measured on /admin/performance before/after:
+ * box 24×24 unchanged, border-radius still fully round, padding-inline still 0,
+ * font-size still 10px. Only `line-height` moves 20px → 16px, which is the
+ * `xs` rung's own value and cannot move the glyph: the box is `size-6` with
+ * `items-center justify-center`, so the line box is centred either way (text
+ * origin measured identical to the hundredth of a pixel).
+ *
+ * `size-6` / `justify-center` / `tabular-nums` set properties the primitive
+ * never writes, so they ADD rather than replace — they never needed a marker.
  */
 function RankBadge({ rank }: { rank: number | null }) {
   if (rank === null) {
     return (
       <>
-        <Badge color="zinc" className="size-6 justify-center rounded-full! px-0! text-[10px]!" aria-hidden="true">
+        <Badge color="zinc" size="xs" className="size-6 justify-center rounded-full" aria-hidden="true">
           —
         </Badge>
         <span className="sr-only">Unranked</span>
@@ -78,7 +87,8 @@ function RankBadge({ rank }: { rank: number | null }) {
   return (
     <Badge
       color={rank === 1 ? 'accentSolid' : 'zinc'}
-      className="size-6 justify-center rounded-full! px-0! text-[10px]! tabular-nums"
+      size="xs"
+      className="size-6 justify-center rounded-full tabular-nums"
     >
       {rank}
     </Badge>
@@ -159,12 +169,14 @@ export function AgentLeaderboard({
               it was doing nothing (Tailwind preflight already collapses tables).
 
               `dense` replaces the `py-2` every TableCell below used to carry.
-              Same cascade defect as the badge: `TableCell` composes
-              `clsx(className, …, dense ? 'py-3' : 'py-4')`, so `py-2` lost to
+              Same cascade defect as the badge: back when `TableCell` composed
+              `clsx(className, …, dense ? 'py-3' : 'py-4')`, `py-2` lost to
               `py-4` and every row rendered a full 16px tall — the compact
-              standings this component describes never existed. `dense` is the
-              primitive's own prop for exactly this, so the value is emitted
-              ONCE and there is no race left to lose. */}
+              standings this component describes never existed. The primitives
+              now compose `cn(defaults, className)`, so a per-cell `py-*` WOULD
+              land today; `dense` is kept anyway because density belongs to the
+              whole table, not to each of its cells, and it emits the value once
+              instead of repeating it on every `TableCell`. */}
           <Table fixed dense className="px-4 text-left [--gutter:--spacing(0)]">
           <TableHead className="sticky top-0 z-10">
             <TableRow className="border-b border-white/5">

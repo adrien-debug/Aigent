@@ -74,10 +74,13 @@ export function RecentRunsTable({
             different x on every render. Every column but "Run & Copilot" now
             declares its width and that one absorbs the remainder.
 
-            `dense` replaces the `py-2` every TableCell carried: `TableCell`
-            composes `clsx(className, …, dense ? 'py-3' : 'py-4')`, so `py-2` lost
-            to `py-4` and the rows rendered 16px tall — the compact feed described
-            above never existed. `dense` emits the value once, so nothing races.
+            `dense` replaces the `py-2` every TableCell carried: back when
+            `TableCell` composed `clsx(className, …, dense ? 'py-3' : 'py-4')`,
+            `py-2` lost to `py-4` and the rows rendered 16px tall — the compact
+            feed described above never existed. The primitives now compose
+            `cn(defaults, className)` and a per-cell `py-*` would land, but
+            density is a property of the TABLE: `dense` still emits it once
+            instead of repeating it on every cell.
 
             `border-collapse` dropped: `className` lands on a DIV here, and the
             property means nothing outside a table box (Tailwind preflight already
@@ -112,10 +115,19 @@ export function RecentRunsTable({
               <TableRow key={run.id}>
                 <TableCell>
                   <div className="flex min-w-0 flex-col">
+                    {/* `-my-3 py-3`: this link is the ONLY way into a run — the row
+                        is deliberately not navigable (see above) — and it measured
+                        99×20px, i.e. 20px of touch height against the 44px floor.
+                        The padding grows the hit box to 44px and the equal negative
+                        margin gives the space straight back, so the row keeps the
+                        49px it had and the text does not move by a pixel (measured
+                        on /admin/performance at 390px, before/after). `block` +
+                        `truncate` are preserved: a flex box would kill the ellipsis
+                        the fixed column layout depends on. */}
                     <Link
                       href={`/admin/agents/${run.copilotId}/runs?run=${run.id}`}
                       title={run.id}
-                      className="truncate rounded text-sm font-medium text-white hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+                      className="-my-3 block truncate rounded py-3 text-sm font-medium text-white hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
                     >
                       {copilot?.name ?? run.copilotId}
                     </Link>
@@ -124,9 +136,11 @@ export function RecentRunsTable({
                 {/* `truncate` on the CELL, not on the span inside it: under
                     `table-fixed` a cell no longer grows to fit its content, so
                     without an ellipsis a long project name simply painted over the
-                    Status column. `overflow`/`text-overflow` are properties
-                    `TableCell` sets nowhere, so these ADD to the defaults instead
-                    of racing them — no `!` needed. */}
+                    Status column. Nothing here needs an `!`: `overflow` /
+                    `text-overflow` are properties `TableCell` sets nowhere, so
+                    they ADD rather than replace — and since the primitives moved
+                    to `cn(defaults, className)` even a REPLACING class would win
+                    on its own (tailwind-merge drops the loser). */}
                 <TableCell className="truncate">
                   {copilot?.projectId ? (
                     <span className="text-xs text-zinc-400">
