@@ -34,10 +34,21 @@ import { twMerge } from 'tailwind-merge'
  *      to restyle a colour must pass the `dark:` half too, or use `tone`.
  *
  * IMPORTANT MARKERS. `tailwind-merge` v3 reads the Tailwind v4 SUFFIX form
- * (`text-xs!`) and ignores the v3 PREFIX form (`!text-xs`), of which this repo
- * still has ~36. Neither is dropped by `twMerge`, and `!important` beats
- * stylesheet order on its own, so both remain safe — but only the suffix form
- * participates in merging.
+ * (`text-xs!`) and ignores the v3 PREFIX form (`!text-xs`). Tailwind v4 compiles
+ * both, and `!important` beats stylesheet order on its own, so both are safe —
+ * but only the suffix form participates in merging, which makes the prefix form
+ * a dead end for anyone downstream trying to override it. Write the suffix form.
+ *
+ * No running count is kept here on purpose. The previous wording pinned a number
+ * ("~36") that was already stale when read, because the census lives in files
+ * this one does not own. Count it when you need it rather than trusting a
+ * comment. `src/components/ui/**`, `src/components/shell/**` and
+ * `src/theme.css` carry ZERO of either dialect — verified by grep, the only two
+ * hits under those paths being the two examples written above.
+ *
+ * That zero is the point of this file: every escape that used to be needed here
+ * was there to force an override past `clsx(className, defaults)`, and the
+ * override now lands on its own.
  */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))

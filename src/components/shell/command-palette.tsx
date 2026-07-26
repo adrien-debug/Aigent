@@ -88,7 +88,14 @@ export function CommandPalette() {
                       have squeaked past SC 1.4.11 at 3.0, but it shares a row
                       with the placeholder — which does NOT — and two different
                       greys inside one control read as a rendering accident. */}
-                  <MagnifyingGlassIcon className="size-5 text-zinc-400" aria-hidden="true" />
+                  {/* Stated as a PAIR. The dark half is the measured one and is
+                      unchanged; the light half only existed by omission before,
+                      and zinc-400 on white is 2.6:1 — under the 3.0 floor a
+                      meaningful glyph owes. See the light-mode block in
+                      src/theme.css: light is dormant, but a colour written here
+                      with one half is a colour nobody can ever repair by
+                      repainting a token. */}
+                  <MagnifyingGlassIcon className="size-5 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
                   <Headless.ComboboxInput
                     // Copy matches what the palette actually searches: the fixed
                     // command list below. It does NOT (yet) index copilots or
@@ -119,7 +126,11 @@ export function CommandPalette() {
                       >
                         <action.icon className="size-5 flex-none text-zinc-400 group-data-[focus]:text-accent-600 dark:group-data-[focus]:text-accent-400" aria-hidden="true" />
                         <span className="ml-3 flex-auto truncate font-medium">{action.name}</span>
-                        <span className="hidden group-data-[focus]:inline-flex text-xs text-accent-400">Jump to</span>
+                        {/* Same pairing as the option label two lines up
+                            (`accent-700` / `accent-300`): accent-400 is a pale
+                            mint that measures 1.2:1 on white. Dark half kept
+                            exactly as measured. */}
+                        <span className="hidden group-data-[focus]:inline-flex text-xs text-accent-700 dark:text-accent-400">Jump to</span>
                       </Headless.ComboboxOption>
                     ))}
                   </Headless.ComboboxOptions>
@@ -135,8 +146,9 @@ export function CommandPalette() {
                   <div className="px-6 py-14 text-center text-sm sm:px-14">
                     <p className="font-semibold text-zinc-900 dark:text-white">No results found</p>
                     {/* zinc-400: same overlay plane, same 3.24 → 5.97 story as
-                        the placeholder above. */}
-                    <p className="mt-2 text-zinc-400">We couldn&apos;t find anything matching your search.</p>
+                        the placeholder above. Light half added for the same
+                        reason as the search glyph — dark value untouched. */}
+                    <p className="mt-2 text-zinc-500 dark:text-zinc-400">We couldn&apos;t find anything matching your search.</p>
                   </div>
                 )}
               </Headless.Combobox>

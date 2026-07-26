@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 
-import { PADDING_BOTTOM_FAMILIES, callerSets } from '@/components/shell/class-defaults'
+import { cn } from '@/components/ui/cn'
 import { Heading } from '@/components/ui/heading'
 import { Text } from '@/components/ui/text'
 
@@ -45,12 +45,12 @@ export function PageHeader({
 }) {
   // `pb-4` is a DEFAULT, not a floor: `<PageHeader className="pb-0" />` used to
   // render 16px anyway because Tailwind resolves `pb-0` vs `pb-4` by compiled
-  // sheet order, not by the class attribute. Suppressing the default instead of
-  // layering it is what makes the caller's value real — see class-defaults.ts.
-  const ownsBottomPadding = callerSets(className, PADDING_BOTTOM_FAMILIES)
-
+  // sheet order, not by the class attribute. `cn` (tailwind-merge) drops the
+  // default in JS when the caller states the family, so the override is real.
+  // This replaced `class-defaults.ts`, a hand-rolled version of the same idea
+  // written before the repo had a merge library — see page-layout.tsx.
   return (
-    <header className={clsx(!ownsBottomPadding && 'pb-4', className)}>
+    <header className={cn('pb-4', className)}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           {eyebrow ? <p className={eyebrowClass}>{eyebrow}</p> : null}

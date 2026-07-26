@@ -20,8 +20,11 @@ export const Textarea = forwardRef(function Textarea(
         'before:absolute before:inset-px before:rounded-[calc(var(--radius-lg)-1px)] before:bg-white before:shadow-sm',
         // Background color is moved to control and shadow is removed in dark mode so hide `before` pseudo
         'dark:before:hidden',
-        // Focus ring
-        'after:pointer-events-none after:absolute after:inset-0 after:rounded-lg after:ring-transparent after:ring-inset sm:focus-within:after:ring-2 sm:focus-within:after:ring-accent-500',
+        // Focus ring — UNCONDITIONAL. Same defect and same measurement as
+        // `Input` (see input.tsx for the numbers): the `sm:` gate plus
+        // `focus:outline-hidden` on the control left a focused textarea with no
+        // focus indicator whatsoever below 640px.
+        'after:pointer-events-none after:absolute after:inset-0 after:rounded-lg after:ring-transparent after:ring-inset focus-within:after:ring-2 focus-within:after:ring-accent-500',
         // Disabled state
         'has-data-disabled:opacity-50 has-data-disabled:before:bg-zinc-950/5 has-data-disabled:before:shadow-none',
         // Caller LAST — `className` lands on this OUTER wrapper (layout/height),

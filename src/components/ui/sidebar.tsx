@@ -93,6 +93,18 @@ export const SidebarItem = forwardRef(function SidebarItem(
     '*:last:data-[slot=icon]:ml-auto *:last:data-[slot=icon]:size-5 sm:*:last:data-[slot=icon]:size-4',
     // Avatar
     '*:data-[slot=avatar]:-m-0.5 *:data-[slot=avatar]:size-7 sm:*:data-[slot=avatar]:size-6',
+    // Focus — the SAME treatment `Button`, `Badge` and `Avatar` already ship.
+    //
+    // The kit left SidebarItem with no focus rule at all, so Chromium fell back
+    // to its own ring. Measured by tabbing the real /admin rail: every one of the
+    // nine stops (Search + 7 routes + the account row) painted
+    // `outline: auto 1px rgb(0, 95, 204)` — the UA blue. Three things wrong with
+    // that, in order of severity: it is a THIRD hue in a design system whose one
+    // rule is accent-green + zinc (AGENTS.md); it contradicts every other
+    // focusable primitive, so the keyboard ring changes colour as you tab out of
+    // the rail; and #005FCC on the near-black rail (#09090b) computes 3.29:1,
+    // barely over the 3.0 non-text floor, where accent-500 computes 15.99:1.
+    'focus:not-data-focus:outline-hidden data-focus:outline-2 data-focus:-outline-offset-2 data-focus:outline-accent-500',
     // Hover
     'data-hover:bg-zinc-950/5 data-hover:*:data-[slot=icon]:fill-zinc-950',
     // Active
@@ -101,11 +113,19 @@ export const SidebarItem = forwardRef(function SidebarItem(
     // Current: the brand accent tints the icon and the rail marker. The label
     // stays zinc — one accent cue per active item, never a fully green row.
     'data-current:bg-zinc-950/5 data-current:font-semibold data-current:*:data-[slot=icon]:fill-accent-600',
+    // Current + hover — a DISTINCT step, not a repeat of the resting fill.
+    // `data-current:bg-white/5` and `data-hover:bg-white/5` were the same value,
+    // so hovering the open route changed nothing: measured on /admin, the
+    // Dashboard row read `oklab(… / 0.05)` at rest AND under the pointer, while
+    // every other row went transparent → 0.05. The one row you are most likely
+    // to point at was the only one that did not answer.
+    'data-current:data-hover:bg-zinc-950/10 data-current:data-active:bg-zinc-950/10',
     // Dark mode
     'dark:text-white dark:*:data-[slot=icon]:fill-zinc-400',
     'dark:data-hover:bg-white/5 dark:data-hover:*:data-[slot=icon]:fill-white',
     'dark:data-active:bg-white/5 dark:data-active:*:data-[slot=icon]:fill-white',
-    'dark:data-current:bg-white/5 dark:data-current:*:data-[slot=icon]:fill-accent-400'
+    'dark:data-current:bg-white/5 dark:data-current:*:data-[slot=icon]:fill-accent-400',
+    'dark:data-current:data-hover:bg-white/10 dark:data-current:data-active:bg-white/10'
   )
 
   return (
