@@ -14,6 +14,7 @@ const TableContext = createContext<{ bleed: boolean; dense: boolean; grid: boole
 
 export function Table({
   bleed = false,
+  caption,
   dense = false,
   fixed = false,
   grid = false,
@@ -21,7 +22,19 @@ export function Table({
   className,
   children,
   ...props
-}: { bleed?: boolean; dense?: boolean; fixed?: boolean; grid?: boolean; striped?: boolean } & React.ComponentPropsWithoutRef<'div'>) {
+}: {
+  bleed?: boolean
+  /* Accessible name for the table, announced by screen readers before the rows.
+     Rendered `sr-only` so it costs ZERO pixels — a <caption> is the only way to
+     name a <table> without an extra visible heading, and `aria-label` on a
+     <table> is ignored by several screen readers. Optional and undefined by
+     default: with no caption the markup is byte-identical to before. */
+  caption?: string
+  dense?: boolean
+  fixed?: boolean
+  grid?: boolean
+  striped?: boolean
+} & React.ComponentPropsWithoutRef<'div'>) {
   return (
     <TableContext.Provider value={{ bleed, dense, grid, striped } as React.ContextType<typeof TableContext>}>
       <div className="flow-root">
@@ -38,6 +51,10 @@ export function Table({
                 fixed && 'w-full table-fixed'
               )}
             >
+              {/* <caption> must be the FIRST child of <table> — the HTML parser
+                  hoists it there anyway, so emitting it anywhere else desyncs
+                  React's client tree from the parsed DOM and trips hydration. */}
+              {caption ? <caption className="sr-only">{caption}</caption> : null}
               {children}
             </table>
           </div>
@@ -114,9 +131,20 @@ export function TableHeader({ className, ...props }: React.ComponentPropsWithout
 
   return (
     <th
+      // `scope="col"` states the association a screen reader cannot infer from a
+      // bare <th>: every cell below this one is described by it. Declared BEFORE
+      // the spread on purpose — a <th> that spans several columns (colSpan) is a
+      // group header, and `scope="colgroup"` (or none) is then correct; putting
+      // the default first lets such a caller override it instead of being locked
+      // into a wrong scope. No dashboard table spans header cells today.
+      scope="col"
       {...props}
         className={clsx(
           className,
+          // NOTE: the 10px/uppercase/tracking-widest header type DIVERGES from the
+          // stock Catalyst kit (font-medium at body size). That divergence is a
+          // deliberate house style, not drift to repair — this file only adds
+          // invisible semantics (scope, caption) and must not restyle anything.
           'px-4 py-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-500 first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2))',
           grid && 'border-l border-l-zinc-950/5 first:border-l-0 dark:border-l-white/5',
           !bleed && 'sm:first:pl-1 sm:last:pr-1'
