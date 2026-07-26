@@ -15,7 +15,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <CommandPalette />
       <SidebarLayout
         navbar={
-          <Navbar>
+          // Second `navigation` landmark of the shell, next to the sidebar
+          // rail (labelled "Main"). It carries the account affordance only, so
+          // it is named for what it holds — the two are told apart in a screen
+          // reader's landmark list instead of both reading "navigation".
+          <Navbar aria-label="Account">
             <NavbarSpacer />
             <NavbarSection>
               <Avatar
