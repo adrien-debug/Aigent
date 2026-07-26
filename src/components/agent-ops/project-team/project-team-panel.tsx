@@ -16,7 +16,6 @@ import { Button } from '@/components/ui/button'
 import { Divider } from '@/components/ui/divider'
 import { Subheading } from '@/components/ui/heading'
 import { Link } from '@/components/ui/link'
-import { Text } from '@/components/ui/text'
 import { RELATION_SENTENCE_LABEL } from './project-team-edge'
 import type {
   ProjectTeamEdge,
@@ -630,7 +629,17 @@ export function ProjectTeamPanel({
           {agent.team ? <Badge color="zinc">{agent.team}</Badge> : null}
         </div>
 
-        {agent.description ? <Text className="text-sm text-zinc-400">{agent.description}</Text> : null}
+        {/* A `<p>`, not `Text`. `Text` composes `clsx(className, 'text-base/6
+            text-zinc-500 sm:text-sm/6 dark:text-zinc-400')`, so the caller's
+            `text-sm text-zinc-400` was a silent no-op — Tailwind settles two
+            utilities of one property by the order of the GENERATED CSS, never by
+            the class attribute (`check-class-collision` flagged both). The
+            description therefore rendered at 16px below 640px while every other
+            paragraph of this panel ("No tool declared.", "No incoming
+            relation…") is a plain `<p className="text-sm text-zinc-400">`, i.e.
+            14px at every width. Dropping the primitive makes the override REAL
+            instead of decorative and puts the panel's body type on one size. */}
+        {agent.description ? <p className="text-sm text-zinc-400">{agent.description}</p> : null}
 
         <dl className="grid grid-cols-2 gap-4">
           <Field label="Role">

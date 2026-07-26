@@ -96,8 +96,13 @@ export function QualificationTimeline({ readiness }: { readiness: QualificationR
               <div className="min-w-0">
                 <span className="text-sm text-zinc-200">{label}</span>
                 <p className="mt-0.5 text-xs text-zinc-400">{result?.reason ?? blurb}</p>
+                {/* `zinc-400`, not `-500`: same 10px provenance line as
+                    `PromotionChecksList`, on the same raised plane of the same
+                    page — `check-contrast.mjs` measured that one at 3.59
+                    against a 4.5 AA floor. The two must not diverge, they are
+                    read as one column. */}
                 {result?.sourceOfTruth ? (
-                  <p className="mt-0.5 text-[10px] text-zinc-500">{result.sourceOfTruth}</p>
+                  <p className="mt-0.5 text-[10px] text-zinc-400">{result.sourceOfTruth}</p>
                 ) : null}
               </div>
               <StepStatusText status={status} />
