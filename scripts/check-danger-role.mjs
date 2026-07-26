@@ -36,6 +36,16 @@
  * danger channel and lives outside the pass that introduced this guard. The
  * count is printed on every green run so it stays visible and shrinks.
  *
+ * An entry that no longer matches anything FAILS the guard. A permission that
+ * outlives the violation it covered is a dormant permission: the file gets
+ * repaired, nobody deletes the line, and the next accent painted into that same
+ * file is waved through by an exemption written for a bug that no longer exists.
+ * Five entries had already rotted that way and the guard stayed green:
+ * run-benchmark-button, new-project-workbench and project-team-relation-dialogs
+ * (×2) now consume --state-danger-*, and dashboard-kpi-strip repainted its
+ * warning triangle zinc — deliberately neither accent nor danger.
+ * Same contract as KNOWN_DEBT in scripts/check-render-truth.mjs.
+ *
  * Pure Node, no deps. Run via `node scripts/check-danger-role.mjs`.
  */
 import { readdir, readFile } from 'node:fs/promises'
@@ -62,29 +72,10 @@ const RULES = {
  * Pre-existing violations, each one a real finding still to be burned down.
  * Matched on file + rule, never on a line number — line numbers rot on the
  * first edit and an allowlist that silently stops matching is worse than none.
- * Removing an entry must be a code fix, never a convenience.
+ * Removing an entry must be a code fix, never a convenience — and once the fix
+ * lands, deleting the entry is MANDATORY: an unmatched entry fails the guard.
  */
 const ALLOWLIST = [
-  {
-    file: 'src/components/agent-ops/run-benchmark-button.tsx',
-    rule: RULES.alert,
-    reason: 'benchmark error text is `!text-accent-400` — move to --state-danger-text',
-  },
-  {
-    file: 'src/components/agent-ops/new-project-workbench.tsx',
-    rule: RULES.alert,
-    reason: 'form error is accent-600/400 — move to --state-danger-text',
-  },
-  {
-    file: 'src/components/agent-ops/project-team/project-team-relation-dialogs.tsx',
-    rule: RULES.alert,
-    reason: 'both relation dialogs render their error in accent — move to --state-danger-text',
-  },
-  {
-    file: 'src/components/agent-ops/project-team/project-team-relation-dialogs.tsx',
-    rule: RULES.destructive,
-    reason: 'remove-relation confirm is a solid accent Button, identical to the create confirm',
-  },
   {
     file: 'src/components/agent-ops/run-copilot-panel.tsx',
     rule: RULES.alert,
@@ -96,11 +87,6 @@ const ALLOWLIST = [
     rule: RULES.alert,
     reason:
       'HITL approval gate: same as run-copilot-panel — `role="alert"` misapplied to a pending decision',
-  },
-  {
-    file: 'src/components/agent-ops/dashboard-kpi-strip.tsx',
-    rule: RULES.named,
-    reason: 'DashboardDataWarnings paints its warning triangle `text-accent-600`',
   },
 ]
 
@@ -265,6 +251,7 @@ function findDestructiveViolations(text) {
 async function main() {
   const violations = []
   const suppressed = []
+  const matchedAllowlist = new Set()
 
   for await (const file of walk(SRC)) {
     const rel = relative(SRC, file)
@@ -275,16 +262,30 @@ async function main() {
     const hits = [...findAlertViolations(text), ...findNamedViolations(text), ...findDestructiveViolations(text)]
     for (const hit of hits) {
       const allowed = ALLOWLIST.find((a) => a.file === repoRel && a.rule === hit.rule)
-      if (allowed) suppressed.push({ ...hit, file: repoRel, reason: allowed.reason })
-      else violations.push({ ...hit, file: repoRel })
+      if (allowed) {
+        matchedAllowlist.add(allowed)
+        suppressed.push({ ...hit, file: repoRel, reason: allowed.reason })
+      } else violations.push({ ...hit, file: repoRel })
     }
   }
+
+  // Dormant permissions. Not a warning: an exemption whose violation is gone
+  // still exempts the NEXT one written into the same file under the same rule.
+  const deadAllowlist = ALLOWLIST.filter((entry) => !matchedAllowlist.has(entry))
 
   if (violations.length > 0) {
     console.error(`\n✗ ${violations.length} surface(s) using the accent to report failure or destruction:\n`)
     for (const v of violations) console.error(`  ${v.file}:${v.line}  [${v.rule}] ${v.detail}`)
-    console.error('\n  The accent means success. Failure and destruction consume --state-danger-* (src/app/globals.css),')
+    console.error('\n  The accent means success. Failure and destruction consume --state-danger-* (src/theme.css),')
     console.error('  and the colour never carries the meaning alone — keep the label.')
+  }
+  if (deadAllowlist.length > 0) {
+    console.error(`\n✗ ${deadAllowlist.length} dead ALLOWLIST entry(ies) — the violation is gone, the permission is not:\n`)
+    for (const a of deadAllowlist) console.error(`  ${a.file}  [${a.rule}] ${a.reason}`)
+    console.error('\n  Delete them from ALLOWLIST in this file. A permission nobody needs is a permission')
+    console.error('  nobody notices being reused.')
+  }
+  if (violations.length > 0 || deadAllowlist.length > 0) {
     console.error('\nDanger-role guard FAILED.\n')
     process.exit(1)
   }
