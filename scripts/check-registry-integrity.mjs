@@ -13,7 +13,8 @@
  *   - a runtime declared executable (engine ≠ none) with no real engine mapping
  *   - a duplicate id in any set
  *   - a tool declaring a secretRef that is not an UPPER_SNAKE env reference
- *   - a tool published/certified with a missing required field
+ *   - a tool with a missing/invalid classification field (kind, risk, mutates,
+ *     requiresConfirmation, certification) — WHATEVER its certification state
  *   - the RUNTIME_REGISTRY key set ≠ the AgentRuntime union
  *
  * These are exactly the "sync N lists by hand" failures the reconstruction
@@ -22,18 +23,61 @@
  *
  * The gate imports the canonical TS registry through a tiny compiled shim
  * (registry-snapshot) rather than parsing source, so it checks the REAL values.
+ *
+ * ── SONDE DU 26/07/2026 ─────────────────────────────────────────────────────
+ * Sondée dans les deux sens : elle rougit bien sur un id fantôme du .mjs et sur
+ * un membre retiré de l'union BehaviorToolId. Deux écarts corrigés ici :
+ *   - L'en-tête annonçait « a tool published/certified » alors que le code ne
+ *     testait QUE `certification === 'certified'`, et seulement kind/risk. Pire,
+ *     le snapshot extrayait `mutates` et `requiresConfirmation` pour ne JAMAIS
+ *     s'en servir : un outil destructeur sans confirmation passait. La règle est
+ *     maintenant appliquée à tous les outils — le code rejoint l'en-tête.
+ *   - Toutes les comparaisons étaient des boucles sur des ensembles : si l'un
+ *     d'eux tombait à 0 (registre vide, union illisible, tsx renvoyant un
+ *     JSON vide), les boucles devenaient vides et la gate sortait 0 « ✓ » sans
+ *     avoir comparé quoi que ce soit. Chaque ensemble a désormais un compte
+ *     minimal, et 0 élément ÉCHOUE.
  */
 import { readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+// Racine déduite du script : une gate doit mesurer LE repo qu'elle garde, pas
+// le dossier depuis lequel on l'a lancée.
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const readSrc = (rel) => readFileSync(join(ROOT, rel), 'utf8')
 
 const fail = (msg) => {
   console.error(`✗ ${msg}`)
   process.exitCode = 1
 }
 
+/**
+ * Garde-fou anti-cécité. Un ensemble vide (ou plus petit que le minimum connu)
+ * ne prouve rien : toutes les vérifications de cette gate sont des boucles, et
+ * une boucle sur ∅ est verte par construction. On échoue AVANT de conclure.
+ */
+const MINIMUMS = { canonical: 22, executable: 22, behaviorUnion: 22, runtimes: 4, runtimeUnion: 4 }
+const requireCount = (label, size) => {
+  const min = MINIMUMS[label]
+  if (size >= min) return true
+  fail(
+    `${label}: ${size} élément(s) indexé(s), minimum attendu ${min} — la gate ne mesure plus rien. ` +
+      'Une gate qui indexe 0 élément doit ÉCHOUER, jamais passer en silence ' +
+      '(mets le minimum à jour si un retrait est délibéré).'
+  )
+  return false
+}
+
 // ── 1. Load the executable registry ids (the real .mjs authority) ────────────
 const { REGISTRY_IDS: MJS_IDS } = await import('../src/langgraph/tool-registry.mjs')
+if (!Array.isArray(MJS_IDS)) {
+  console.error('✗ src/langgraph/tool-registry.mjs n\'exporte plus REGISTRY_IDS — rien à comparer.')
+  process.exit(1)
+}
 const mjsIds = new Set(MJS_IDS)
+requireCount('executable', mjsIds.size)
 
 // ── 2. Load the canonical TS registry values via tsx (real evaluation) ───────
 // A one-shot script prints the canonical sets as JSON so we compare values, not
@@ -53,6 +97,7 @@ process.stdout.write(JSON.stringify({ toolIds: TOOL_IDS, tools, runtimeIds: RUNT
 let snapshot
 try {
   const out = execFileSync('npx', ['tsx', '--eval', snapshotSrc], {
+    cwd: ROOT,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   })
@@ -64,6 +109,8 @@ try {
 }
 
 const canonicalIds = new Set(snapshot.toolIds)
+requireCount('canonical', canonicalIds.size)
+requireCount('runtimes', snapshot.runtimeIds.length)
 
 // ── 3. Tool id parity: canonical ⟺ executable .mjs ───────────────────────────
 for (const id of snapshot.toolIds) {
@@ -74,12 +121,15 @@ for (const id of mjsIds) {
 }
 
 // ── 4. Tool id parity: canonical ⟺ BehaviorToolId union (source scan) ─────────
-const behaviorSrc = readFileSync('src/lib/agent-mission-control/copilot-behavior.ts', 'utf8')
+const behaviorSrc = readSrc('src/lib/agent-mission-control/copilot-behavior.ts')
 const unionBlock = behaviorSrc.match(/export type BehaviorToolId =([\s\S]*?)\n\n/)
 if (!unionBlock) {
   fail('could not locate the BehaviorToolId union in copilot-behavior.ts')
 } else {
   const unionIds = new Set([...unionBlock[1].matchAll(/'([a-z_0-9]+)'/g)].map((m) => m[1]))
+  // Un bloc trouvé mais VIDE (union réécrite en `= string`, membres déplacés)
+  // rendrait les deux boucles ci-dessous vacuously true dans un sens.
+  requireCount('behaviorUnion', unionIds.size)
   for (const id of snapshot.toolIds) {
     if (!unionIds.has(id)) fail(`canonical tool "${id}" is missing from the BehaviorToolId union`)
   }
@@ -94,14 +144,31 @@ if (new Set(snapshot.runtimeIds).size !== snapshot.runtimeIds.length) fail('dupl
 
 // ── 6. Per-tool field integrity ──────────────────────────────────────────────
 const SECRET_REF = /^[A-Z][A-Z0-9_]*$/
+const RISKS = new Set(['low', 'medium', 'high'])
+const CERTIFICATIONS = new Set(['certified', 'draft', 'deprecated'])
 for (const t of snapshot.tools) {
   if (!t.version || !/^\d+\.\d+\.\d+$/.test(t.version)) fail(`tool "${t.id}" has a non-semver version "${t.version}"`)
   if (!Array.isArray(t.runtimes) || t.runtimes.length === 0) fail(`tool "${t.id}" declares no runtime`)
   for (const s of t.secretRefs || []) {
     if (!SECRET_REF.test(s)) fail(`tool "${t.id}" secretRef "${s}" is not an UPPER_SNAKE env reference`)
   }
-  if (t.certification === 'certified' && (!t.kind || !t.risk)) {
-    fail(`certified tool "${t.id}" is missing kind/risk`)
+  // La classification vaut pour TOUS les outils, pas seulement les certifiés :
+  // c'est elle qui décide de la confirmation et de l'affichage du risque. Un
+  // outil `draft` mal classé devient certifié plus tard sans que rien ne le relise.
+  if (!t.kind) fail(`tool "${t.id}" has no kind`)
+  if (!RISKS.has(t.risk)) fail(`tool "${t.id}" has an invalid risk "${t.risk}"`)
+  if (typeof t.mutates !== 'boolean') fail(`tool "${t.id}" has a non-boolean mutates "${t.mutates}"`)
+  if (typeof t.requiresConfirmation !== 'boolean') {
+    fail(`tool "${t.id}" has a non-boolean requiresConfirmation "${t.requiresConfirmation}"`)
+  }
+  if (!CERTIFICATIONS.has(t.certification)) {
+    fail(`tool "${t.id}" has an unknown certification "${t.certification}"`)
+  }
+  // Un outil qui ÉCRIT sans confirmation est la définition d'une action
+  // destructive silencieuse. `mutates` et `requiresConfirmation` étaient tous
+  // deux extraits par le snapshot et jamais lus — cette règle les utilise enfin.
+  if (t.mutates === true && t.requiresConfirmation !== true) {
+    fail(`tool "${t.id}" mutates state but does NOT require confirmation — a write with no human gate`)
   }
 }
 
@@ -115,12 +182,13 @@ for (const r of snapshot.runtimes) {
     fail(`runtime "${r.id}" is creatable but has no engine (would let a phantom runtime be selected)`)
   }
 }
-const runtimeUnion = readFileSync('src/lib/agent-mission-control/types.ts', 'utf8')
+const runtimeUnion = readSrc('src/lib/agent-mission-control/types.ts')
 const rtBlock = runtimeUnion.match(/export type AgentRuntime =([\s\S]*?)\n\n/)
 if (!rtBlock) {
   fail('could not locate the AgentRuntime union in types.ts')
 } else {
   const rtIds = new Set([...rtBlock[1].matchAll(/'([a-z-]+)'/g)].map((m) => m[1]))
+  requireCount('runtimeUnion', rtIds.size)
   for (const id of snapshot.runtimeIds) {
     if (!rtIds.has(id)) fail(`RUNTIME_REGISTRY id "${id}" is not in the AgentRuntime union`)
   }

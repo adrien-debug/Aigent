@@ -67,7 +67,7 @@ volontaire** : aucune de ces gates ne le scanne, et ce n'est pas un oubli.
 | `check:danger` | un échec / une destruction porte `--state-danger-*`, jamais l'accent | que le rouge soit *lisible*, ni qu'un vrai échec soit signalé quelque part | peindre un `role="alert"` en `accent-500` → rouge |
 | `check:tables` | une `<TableHead sticky top-*>` est adossée à un `<Table fixed>` ; une `<TableRow hover:bg-*>` est navigable (`href`) ; une colonne responsive partage le breakpoint de son en-tête | **la lecture SOURCE seulement.** Un `fixed={someProp}`, un className construit à l'exécution, un wrapper dont l'`overflow` est décidé au runtime lui sont invisibles. Et une sticky correctement adossée n'est pas pour autant *jolie* | §3 |
 | `check:class-collision` | aucun `className` LITTÉRAL d'appelant n'est écrasé par un défaut inline de la primitive (`clsx(className, …)`) | **les pixels.** Elle raisonne sur des familles CSS, jamais sur la feuille compilée. Aveugle aux className calculés, aux maps par prop (`colors[color]` de Badge/Button) et aux défauts venant d'une **const de module** (les `rounded-xl`/`bg-white`/`ring-1` de `surfaceRaised` ne sont pas indexés, donc un `<Panel className="rounded-lg">` — mort en fait — n'est pas signalé) | §3 |
-| `check:charts` | aucun moteur de graphique SVG maison ne réapparaît dans le dashboard | que les graphiques Recharts soient justes, lisibles, ou même montés | coller un `<polyline>` dans un composant dashboard → rouge |
+| `check:charts` | aucun marqueur de tracé **calculé** (`points={…}`, `d={…}`, `x/cx/x1={…}`) dans les 4 surfaces dashboard, extensions `.tsx/.jsx/.ts/.js/.mjs` ; **et que ces 4 surfaces ont bien été lues** (132 fichiers au 26/07) ; **et que les 2 dispenses d'ALLOWLIST désignent des fichiers existants** | que les graphiques Recharts soient justes, lisibles, ou même **montés** — un `<AreaChart>` avec `data={[]}` passe. Ni les coordonnées **littérales** (une icône dessinée à la main reste permise, c'est voulu), ni un moteur maison vivant hors des 4 surfaces (`src/lib/**`), ni un SVG assemblé par concaténation de chaînes | §3bis — rouge sur `<polyline points={…}>` injecté, rouge sur surface déplacée, rouge sur dispense périmée, vert restauré |
 | `check:rsc-boundary` | aucun Server Component ne passe une prop **fonction** à un Client Component | les autres valeurs non sérialisables ; et il ne résout les identifiants que localement | passer `format={fn}` d'un serveur à un `'use client'` → rouge |
 | `check:surfaces` (navigateur) | dans le DOM composé, aucun plan ne contient un élément du **même** plan (card dans card) | tout le reste du visuel. Et il ne voit que les 9 routes de sa liste | monter un `EmptyStatePanel` dans une `Section` → rouge |
 | `check:headings` (navigateur) | l'outline rendu est légal : un `h1` par page, aucun saut de rang, pas d'empty state au rang d'une section | que les titres soient *justes* ou utiles | `--static-only` ne teste QUE la règle 3 : un `check:headings:static` vert ne dit rien de l'outline |
@@ -76,9 +76,9 @@ volontaire** : aucune de ces gates ne le scanne, et ce n'est pas un oubli.
 | `check:legacy-bridge` | aucun **nouvel** importeur du pont `surface-card.tsx` / des tokens `--color-surface-*` | rien sur les importeurs déjà inscrits ; les allowlists sont monotones décroissantes, jamais purgées automatiquement |
 | `check:status-truth` | un libellé de statut affiché vient de `labels.ts`, jamais d'une chaîne écrite sur place | que le statut affiché soit **vrai** — seulement qu'il soit dit dans un seul vocabulaire |
 | `check:render-truth` | aucune absence de mesure n'est rendue comme un 0 / `NaN` / une phrase affirmative | que la donnée présente soit juste |
-| `check:agent-truth` | aucun roster de config ni package figé n'est servi par l'app | que les agents servis soient exécutables |
-| `check:registry-parity` | tout outil « runnable » côté direct existe aussi dans le registre LangGraph | que l'outil fonctionne |
-| `check:registry-integrity` | les énumérations d'ids outils/runtimes dérivent toutes du registre canonique | que les **lignes `tools`** en base soient conformes (c'est `check:tool-rows`) |
+| `check:agent-truth` | aucun import de `market/dropship/agents/roster` et aucune lecture de `delivery/tradeagent/**` depuis `src/app`/`src/components` ; aucun provider/modèle littéral **assigné** (`=`, `:`) **ni retombé par `??`/`\|\|`** dans `available-agents.ts` ; **et que les 236 fichiers runtime + le contrat canonique + les 4 cibles protégées ont bien été ouverts** | que les agents servis soient **exécutables**. Elle lit **ligne à ligne** : un défaut fabriqué via une fonction, un ternaire, une constante déclarée ailleurs, ou une chaîne concaténée reste invisible. Elle ne regarde le check 3 que dans **un seul fichier** — le même défaut ailleurs dans `src/lib` passe | §3bis — rouge sur roster importé, rouge sur lecture `delivery/`, rouge sur `model: 'gpt-5.4'`, rouge sur `provider ?? 'openai'`, rouge si le contrat canonique disparaît, vert restauré |
+| `check:registry-parity` | **les 3** familles composant `RUNNABLE_TOOL_NAMES` (5 natifs + 9 market + 3 realestate) sont buildables par `REGISTRY_IDS` — valeurs **importées** du `.mjs`, plus regex ; parité **bidirectionnelle** market ET realestate ; **et que la composition de `RUNNABLE_TOOL_NAMES` n'a pas gagné une 4ᵉ source non couverte** ; **et qu'aucun ensemble parsé n'est tombé sous son minimum** | que l'outil **fonctionne** (handler juste, provider joignable, description exploitable par le modèle). Ni que l'assistant LangGraph existe — c'est l'absence d'assistant, pas le runtime, qui produit `tool_call_count=0`. Les handlers TS restent lus **en source** : leur forme est bornée par un compte minimal, pas comprise | §3bis — rouge sur handler realestate fantôme (**passait vert avant**), rouge sur handler market retiré, rouge sur ré-indentation (**passait vert avant**), rouge sur 4ᵉ source, vert restauré |
+| `check:registry-integrity` | canonique ⟺ `.mjs` exécutable ⟺ union `BehaviorToolId` ⟺ union `AgentRuntime` (22 outils, 4 runtimes, **valeurs réelles** via `tsx`) ; semver, `secretRefs` UPPER_SNAKE, `kind`/`risk`/`mutates`/`requiresConfirmation`/`certification` valides **sur tous les outils** ; **`mutates: true` ⇒ `requiresConfirmation: true`** ; **et qu'aucun ensemble n'est vide** | que les **lignes `tools`** en base soient conformes (c'est `check:tool-rows`) ; que la classification déclarée soit **vraie** (`mutates: false` est une affirmation humaine, rien ne la vérifie contre le handler) ; que l'outil s'exécute | §3bis — rouge sur id fantôme dans le `.mjs`, rouge sur membre retiré de l'union, rouge sur `mutates:true` sans confirmation, rouge si l'union est effacée, vert restauré |
 | `check:tool-rows` | les lignes `tools` réellement provisionnées ne contredisent pas le registre canonique | rien quand la base est vide ou injoignable |
 | `check:secrets` | `gitleaks` sur tout l'historique + hook `pre-commit` sur l'index | un secret qu'aucune règle gitleaks ne décrit |
 | `audit:dead` | aucun composant non référencé | le code mort *à l'exécution* (une branche jamais atteinte reste « référencée ») |
@@ -130,6 +130,94 @@ chaîne.
 **exit 2**, message nommant l'URL et le remède), puis délégation sondée contre un
 serveur réel (exit 1, 35 glyph runs sous AA sur `/admin` seul).
 
+### 3bis. Les 4 gates métier — jamais LUES avant le 26/07/2026
+
+`check:agent-truth`, `check:registry-parity`, `check:registry-integrity` et
+`check:charts` étaient dans `npm run check` depuis des semaines, **exécutées et jamais
+relues**. Elles passaient. Deux d'entre elles passaient pour de mauvaises raisons.
+
+**Méthode** : pour chaque garantie annoncée, casser réellement la chose gardée dans un
+fichier du repo, exiger **exit 1** avec un message qui nomme le coupable, restaurer,
+exiger **exit 0**. Aucune sonde n'a été jugée sur la lecture du code seule.
+
+#### Les deux défauts de premier ordre trouvés
+
+**1. `check:registry-parity` était aveugle à une famille d'outils entière.**
+`RUNNABLE_TOOL_NAMES` (`available-agents.ts`) est l'union de `NATIVE_TOOL_NAMES` +
+`TRADING_TOOL_HANDLERS` + `REALESTATE_TOOL_HANDLERS`. La gate ne comparait que les
+handlers **trading**, contre un ensemble « buildable » qu'elle recomposait à la main
+(`MARKET_TOOL_SPECS` ∪ clés littérales de `REGISTRY`) — en **oubliant** les ids étalés par
+`...REALESTATE_TOOL_IDS`. Preuve mesurée : un handler `read_flood_risk` ajouté aux
+handlers immobiliers — donc *runnable* pour le catalogue, monté par **rien** côté graphe —
+laissait la gate **verte**. C'est mot pour mot la panne qu'elle existe pour empêcher
+(agent `active`, `tool_call_count = 0`, « pas de données »), sur toute une famille.
+Le commentaire d'`available-agents.ts` qui promet « cette liste ne peut pas dériver dans
+ce mensonge sans qu'on le remarque » était donc **faux pour l'immobilier**.
+→ Corrigé : l'ensemble buildable est maintenant **importé** (`REGISTRY_IDS`, valeurs
+réelles), les trois familles sont comparées, et une 4ᵉ source ajoutée à
+`RUNNABLE_TOOL_NAMES` fait échouer la gate tant que personne ne l'a couverte.
+
+**2. `check:charts` sortait 0 sans avoir lu un seul fichier.** Sa racine venait de
+`process.cwd()` ; lancée d'ailleurs que la racine du repo, `walk()` avalait l'`ENOENT` et
+elle imprimait son ✓. Mesuré : `cd src && node ../scripts/check-charts.mjs` → **exit 0**.
+Même silence si une des 4 surfaces était renommée — et ce repo a déjà déplacé un
+périmètre entier (`components/catalyst` → `components/ui`).
+→ Corrigé : racine déduite du script, échec si une surface est illisible/vide, échec si
+une dispense d'ALLOWLIST pointe sur un fichier disparu, volume scanné imprimé.
+
+#### Cécité par parsing — la panne `check:class-collision` rejouée
+
+`check:registry-parity` scrapait ses ids avec `^\s{2}([a-z_0-9]+):`. Ses helpers
+renvoyaient `[]` — et non `null` — quand l'indentation changeait : **∅ comparé à ∅ passe
+pour de la parité**. Preuve : les mêmes ids ré-indentés d'un cran faisaient tomber le
+compte affiché de 19 à **10 buildable ids**… avec un ✓ vert.
+Même famille de trou dans `check-agent-truth` (le check 3 est ancré sur un chemin en dur :
+renommer `available-agents.ts` le supprimait, gate verte — mesuré) et dans
+`check-registry-integrity` (toutes ses vérifications sont des boucles ; une boucle sur ∅
+est verte par construction).
+→ Corrigé partout : **compte minimal obligatoire** sur chaque ensemble indexé, et un
+message qui dit explicitement « une gate qui indexe 0 élément doit ÉCHOUER ».
+
+#### Table des sondes (26/07/2026, toutes rejouées après correction)
+
+| Gate | Ce qu'on a cassé | AVANT correctif | APRÈS correctif |
+| --- | --- | --- | --- |
+| `agent-truth` | `import … from '…/market/agents/roster'` dans `src/app/admin/page.tsx` | exit 1 ✓ | exit 1 ✓ |
+| `agent-truth` | lecture `'delivery/tradeagent/latest.json'` dans un fichier runtime | exit 1 ✓ | exit 1 ✓ |
+| `agent-truth` | `const m = { model: "gpt-5.4" }` dans `available-agents.ts` | exit 1 ✓ | exit 1 ✓ |
+| `agent-truth` | `const p = resolved.provider ?? "openai"` (même fichier) | **exit 0 — raté** | exit 1 ✓ |
+| `agent-truth` | `available-agents.ts` renommé (le check 3 disparaît) | **exit 0 — aveugle** | exit 1, « le contrat canonique n'a pas été rencontré » |
+| `registry-parity` | handler `read_flood_risk` ajouté à `REALESTATE_TOOL_HANDLERS` | **exit 0 — aveugle** | exit 1, dérive REALESTATE + non-buildable |
+| `registry-parity` | `read_macro_context` retiré de `TRADING_TOOL_HANDLERS` | exit 1 ✓ | exit 1 ✓ (+ compte sous le minimum) |
+| `registry-parity` | ids ré-indentés d'un cran (mêmes ids, forme changée) | **exit 0 — 19 → 10 buildable, ✓ vert** | exit 1, « 0 id(s) indexé(s), minimum 9 » |
+| `registry-parity` | 4ᵉ source `FUTURE_TOOL_HANDLERS` dans `RUNNABLE_TOOL_NAMES` | **exit 0 — non couverte** | exit 1, « source NON couverte par la gate » |
+| `registry-integrity` | `phantom_tool` ajouté au `REGISTRY` du `.mjs` | exit 1 ✓ | exit 1 ✓ |
+| `registry-integrity` | `'read_macro_context'` retiré de l'union `BehaviorToolId` | exit 1 ✓ | exit 1 ✓ |
+| `registry-integrity` | `mutates: true` + `requiresConfirmation: false` sur un outil | **exit 0 — champs extraits, jamais lus** | exit 1, « a write with no human gate » |
+| `registry-integrity` | union `BehaviorToolId` remplacée par `= string` | non sondé | exit 1, « 0 élément(s) indexé(s), minimum 22 » |
+| `registry-integrity` | lancée depuis `src/` | exit 1 (bruyant, pas aveugle) | exit 0 — racine ancrée sur le script |
+| `charts` | `<polyline points={data.map(…)}>` dans `chart-frame.tsx` | exit 1 ✓ | exit 1 ✓ |
+| `charts` | lancée depuis `src/` | **exit 0 — 0 fichier lu** | exit 0, **132 fichiers lus** |
+| `charts` | `src/components/views` déplacé | **exit 0 — aveugle** | exit 1, « src/components/views — illisible (ENOENT) » |
+| `charts` | fichier d'ALLOWLIST supprimé | **exit 0 — dispense fantôme** | exit 1, « dispense périmée » |
+
+Toutes les mutations ont été restaurées ; `git status` propre après chaque sonde, et les
+quatre gates repassent **vert** sur le repo réel.
+
+#### Ce que ces 4 gates ne garantiront jamais
+
+Elles sont **statiques**. Aucune ne lance un agent, aucune n'appelle un outil, aucune ne
+touche la base. En particulier :
+
+- un outil parfaitement enregistré des deux côtés peut **échouer à chaque appel** — c'est
+  le piège documenté dans `AGENTS.md` : sans assistant provisionné, un copilot `langgraph`
+  tourne contre le graphe nu. **Aucune de ces gates ne détecte l'assistant manquant** ;
+- `mutates: false` est une **affirmation humaine** : rien ne la confronte au handler ;
+- `check:charts` prouve l'absence de moteur maison, jamais qu'un graphique **rend une
+  donnée vraie** — un `<AreaChart data={[]}>` la traverse sans bruit ;
+- `check:agent-truth` prouve qu'aucun roster n'est *importé*, pas que ce qui est servi est
+  exécutable.
+
 ### Sonder les gates navigateur
 
 `check:headings`, `check:surfaces` et `check:a11y` partagent `--emit` / `--input` :
@@ -175,4 +263,11 @@ ce repo a déjà supprimé une fois.
 - **le focus visible, la taille des cibles tactiles, l'ordre de tabulation, les noms
   accessibles** — hors périmètre de toutes les gates a11y présentes ;
 - **le comportement responsive réel** — `check:tables` vérifie la *cohérence* des
-  breakpoints entre en-tête et cellule, pas que la table soit utilisable à 390 px.
+  breakpoints entre en-tête et cellule, pas que la table soit utilisable à 390 px ;
+- **qu'un agent puisse réellement exécuter ses outils** — `check:registry-parity` et
+  `check:registry-integrity` prouvent que les *listes* s'accordent, jamais qu'un assistant
+  LangGraph est provisionné. Le symptôme documenté (`tool_call_count = 0`, « pas de
+  données », agent d'apparence saine) reste possible avec les deux gates vertes ;
+- **que les classifications du registre canonique soient vraies** — `mutates`, `risk`,
+  `kind` sont déclarés à la main ; la gate vérifie leur *forme* et leur *cohérence*
+  interne, jamais leur correspondance avec ce que le handler fait vraiment.
