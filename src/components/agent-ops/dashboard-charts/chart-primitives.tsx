@@ -97,19 +97,24 @@ export interface HourlyCostPoint {
 }
 
 /**
+ * USD formatting lives HERE, not in the Server Component.
+ *
+ * A formatter cannot cross the server/client boundary: React refuses to
+ * serialize a function prop, and the whole chart falls into its error boundary
+ * at runtime (invisible to build, typecheck and the DOM tests — caught only by
+ * loading the page). Keep it in the client module and pass data, never
+ * behaviour.
+ */
+function formatUsd(n: number): string {
+  return `$${n.toFixed(n < 1 ? 4 : 2)}`
+}
+
+/**
  * Hourly measured-cost area. Replaces the hand-rolled `<polygon>` + `<polyline>`
  * pair. The caller renders an EmptyState when NO run in the window carries a
  * measured cost, so a flat zero line never stands in for missing data.
  */
-export function HourlyCostChart({
-  data,
-  ariaLabel,
-  formatUsd,
-}: {
-  data: HourlyCostPoint[]
-  ariaLabel: string
-  formatUsd: (n: number) => string
-}) {
+export function HourlyCostChart({ data, ariaLabel }: { data: HourlyCostPoint[]; ariaLabel: string }) {
   return (
     <div role="img" aria-label={ariaLabel} style={{ height: PLOT_HEIGHT }}>
       <ResponsiveContainer width="100%" height="100%">

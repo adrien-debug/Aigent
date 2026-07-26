@@ -94,9 +94,10 @@ export function CostOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: nu
         {/* Plot zone sits on the sunken plane: the trace reads inside a well,
             not floating on the panel face (§11). */}
         <div className="rounded-lg px-3 pt-3 pb-2 dark:bg-surface-sunken/60">
+          {/* No function props: a formatter cannot cross the server/client
+              boundary. HourlyCostChart formats USD itself. */}
           <HourlyCostChart
             data={data}
-            formatUsd={formatUsd}
             ariaLabel={`Hourly measured cost for the last 24 hours: ${formatUsd(totalCost)} total across ${measuredRuns} measured runs.`}
           />
         </div>
