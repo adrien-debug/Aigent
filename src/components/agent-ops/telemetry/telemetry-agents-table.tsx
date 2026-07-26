@@ -91,9 +91,20 @@ export function TelemetryAgentsTable({
                 // hover:underline and focus ring.
                 <TableRow key={`${row.projectId}::${row.agentId}`}>
                   <TableCell>
+                    {/* `pointer-coarse:` only — measured on an emulated iPhone 14
+                        (390px, `(pointer: coarse)` matching), this anchor's tap box
+                        was 170x17px; WCAG 2.5.5 / the platform floor is 44px, and
+                        every in-table link on this page failed it (31/31). The
+                        link is inline, so padding would not grow the line box and
+                        would spill its hit area over the neighbouring rows —
+                        `inline-flex` + the repo's `min-h-11` convention (sidebar.tsx,
+                        command-palette.tsx) grows the BOX honestly instead, and the
+                        row grows with it. Guarded on coarse pointers so the desktop
+                        density this page is built on is untouched: with a mouse the
+                        44px floor does not apply and a 17px link is precise enough. */}
                     <Link
                       href={`/admin/agents/${row.agentId}`}
-                      className="text-sm font-medium text-white hover:underline rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+                      className="text-sm font-medium text-white hover:underline rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 pointer-coarse:inline-flex pointer-coarse:min-h-11 pointer-coarse:items-center"
                     >
                       {copilotNameById.get(row.agentId) ?? row.agentId}
                     </Link>
@@ -101,7 +112,7 @@ export function TelemetryAgentsTable({
                   <TableCell>
                     <Link
                       href={`/admin/projects/${row.projectId}`}
-                      className="text-xs text-zinc-300 hover:underline rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+                      className="text-xs text-zinc-300 hover:underline rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 pointer-coarse:inline-flex pointer-coarse:min-h-11 pointer-coarse:items-center"
                     >
                       {projectNameById.get(row.projectId) ?? row.projectId}
                     </Link>
