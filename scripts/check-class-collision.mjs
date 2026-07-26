@@ -637,24 +637,45 @@ async function collectPrimitiveDefaults() {
     let d
     while ((d = declRe.exec(source))) decls.push({ name: d[1] ?? d[2], at: d.index })
 
-    const clsxRe = /\bclsx\s*\(/g
+    // TWO shapes are indexed, and they are NOT judged alike.
+    //
+    //   clsx(className, defaults)  — the broken shape. Nothing resolves the
+    //     conflict: both classes reach the sheet and the LAST DECLARED wins,
+    //     which the caller cannot influence. Every collision is real.
+    //
+    //   cn(defaults, className)    — the fixed shape (tailwind-merge). It drops
+    //     the earlier class of a same-group pair BEFORE the browser sees it, so
+    //     the caller genuinely wins... but ONLY within one variant set. twMerge
+    //     compares `text-xs` against `text-sm` and resolves it; it does NOT
+    //     compare `text-xs` against `sm:text-sm/6`, because disjoint variants
+    //     are not a conflict to it. So the variant cases survive the fix and
+    //     MUST still be reported — otherwise this gate goes green the very day
+    //     the primitives are migrated, while the defects it was written for are
+    //     still on screen. A gate that stops looking is worse than no gate.
+    const callRe = /\b(clsx|cn)\s*\(/g
     let m
-    while ((m = clsxRe.exec(source))) {
+    while ((m = callRe.exec(source))) {
+      const fn = m[1]
       const open = m.index + m[0].length - 1
       const body = readCall(source, open)
       if (body === null) continue
-      // Only `clsx(className, …)` is vulnerable. `clsx('defaults', className)`
-      // puts the caller last and is the SAFE shape — skip it entirely, so the
-      // day a primitive is fixed its callers stop being reported.
-      if (!/^\s*className\s*,/.test(body)) continue
+
+      const callerFirst = /^\s*className\s*,/.test(body)
+      const callerLast = /,\s*className\s*$/.test(body)
+      // `cn(defaults, className)` is only twMerge-protected; any other `cn`
+      // shape (className first) is as broken as the clsx one.
+      const twMergeProtected = fn === 'cn' && callerLast && !callerFirst
+      if (!callerFirst && !twMergeProtected) continue
 
       const owner = [...decls].reverse().find((x) => x.at < m.index)
       if (!owner) continue
 
       const entry =
         byComponent.get(owner.name) ??
-        { file: `src/components/ui/${file}`, source, baseEnv, argGroups: [], cache: new Map() }
-      entry.argGroups.push(splitArgs(body).slice(1)) // arg 0 is `className` itself
+        { file: `src/components/ui/${file}`, source, baseEnv, argGroups: [], cache: new Map(), twMergeProtected: true }
+      // A component keeps protection only while EVERY one of its calls is protected.
+      entry.twMergeProtected = entry.twMergeProtected && twMergeProtected
+      entry.argGroups.push(twMergeProtected ? splitArgs(body).slice(0, -1) : splitArgs(body).slice(1))
       byComponent.set(owner.name, entry)
     }
   }
