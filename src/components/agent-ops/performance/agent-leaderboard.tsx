@@ -1,10 +1,9 @@
 import { TrophyIcon } from '@heroicons/react/24/outline'
 
 import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
-import { EmptyState } from '@/components/agent-ops/empty-state'
+import { EmptyState, NotMeasuredDash } from '@/components/agent-ops/empty-state'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import { Badge } from '@/components/ui/badge'
-import { Link } from '@/components/ui/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import type { Copilot } from '@/lib/agent-mission-control/types'
@@ -110,7 +109,13 @@ export function AgentLeaderboard({
           description="Provision copilots in your projects — the leaderboard ranks them as soon as they serve traffic."
         />
       ) : (
-        <div className="max-h-[30rem] overflow-auto no-scrollbar">
+        // Scrollbar deliberately NOT hidden: `max-h-[30rem]` caps the standings, so
+        // past ~10 agents the rest of the ranking is off-screen and `no-scrollbar`
+        // removed the only sign that the list continues — a leaderboard that looks
+        // complete but is not. The fade+ResizeObserver affordance (agent-detail-nav)
+        // is horizontal-only and needs a client boundary; this table is a server
+        // component, so the native bar is the honest answer.
+        <div className="max-h-[30rem] overflow-auto">
           <Table className="w-full border-collapse px-4 text-left [--gutter:--spacing(0)]">
           <TableHead className="sticky top-0 z-10">
             <TableRow className="border-b border-white/5">
@@ -123,7 +128,21 @@ export function AgentLeaderboard({
           </TableHead>
           <TableBody className="divide-y divide-white/5">
             {rows.map(({ copilot, rank }) => (
-              <TableRow key={copilot.id} className="group">
+              // The row IS navigable, so it says so through the primitive instead of
+              // faking it: `group-hover:underline` on a row with no `href` underlined
+              // the agent name from anywhere in the row while only the name itself was
+              // clickable. This row has exactly one destination and no competing action
+              // (rank badge, avatar and the three metric cells are inert), so handing
+              // `href`/`title` to TableRow makes the whole row the target and buys the
+              // primitive's hover fill AND its keyboard focus ring — same shape as
+              // ProjectsListView. The inner <Link> is dropped: the primitive already
+              // renders the row link, and keeping both put two tab stops on the same URL.
+              <TableRow
+                key={copilot.id}
+                href={`/admin/agents/${copilot.id}`}
+                title={`Open agent ${copilot.name}`}
+                className="group"
+              >
                 <TableCell className="py-2">
                   <RankBadge rank={rank} />
                 </TableCell>
@@ -131,12 +150,9 @@ export function AgentLeaderboard({
                   <div className="flex items-center gap-2.5">
                     <CopilotAvatar copilot={copilot} className="size-7 rounded-lg" />
                     <div className="flex min-w-0 flex-col">
-                      <Link
-                        href={`/admin/agents/${copilot.id}`}
-                        className="truncate text-sm font-medium text-white group-hover:underline rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
-                      >
+                      <div className="truncate text-sm font-medium text-white group-hover:underline">
                         {copilot.name}
-                      </Link>
+                      </div>
                       <span className="font-mono text-[10px] text-zinc-500">{copilot.slug}</span>
                       {copilot.projectId ? (
                         <span className="max-w-48 truncate text-[10px] text-zinc-500">
@@ -156,7 +172,7 @@ export function AgentLeaderboard({
                     // healthUnavailableFields (authoritative), NOT healthEvidence
                     // (true for a benchmark-only copilot) nor a null check (the
                     // placeholder is 0, never null). Fabricated "0.0%" otherwise.
-                    <span className="text-xs text-zinc-600">—</span>
+                    <NotMeasuredDash />
                   )}
                 </TableCell>
                 <TableCell className="py-2 text-right">
@@ -166,7 +182,7 @@ export function AgentLeaderboard({
                 </TableCell>
                 <TableCell className="py-2 text-right">
                   <span className="text-sm font-mono tabular-nums text-zinc-400">
-                    {copilot.health.runsLast24h > 0 ? formatUsd(copilot.health.costLast24hUsd) : '—'}
+                    {copilot.health.runsLast24h > 0 ? formatUsd(copilot.health.costLast24hUsd) : <NotMeasuredDash />}
                   </span>
                 </TableCell>
               </TableRow>
