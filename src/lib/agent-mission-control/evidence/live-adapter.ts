@@ -17,6 +17,7 @@
  */
 import 'server-only'
 
+import { JUDGE_TEMPERATURE } from '../judge-calibration'
 import { runOnAgentServer, streamOnAgentServer } from '../langgraph-server'
 import { routeCompletion } from '../model-router'
 import { executeCopilotRun } from '../runner'
@@ -115,6 +116,11 @@ async function judge(request: JudgeLegRequest): Promise<JudgeLegResult> {
     ],
     responseFormat: 'json',
     maxOutputTokens: 512,
+    // A verdict is a MEASUREMENT, so it must not be sampled: at the provider
+    // default, the same reply passed in one run and failed in the next, which
+    // reported an improvement as a regression (judge-calibration.ts). This binds
+    // the JUDGE leg only — the agent leg above keeps its own runtime's sampling.
+    temperature: JUDGE_TEMPERATURE,
   })
   return { text: judgeRes.text, costUsd: judgeRes.costUsd }
 }
