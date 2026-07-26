@@ -77,8 +77,29 @@ function LoginForm() {
           />
         </Field>
 
+        {/* A REJECTED sign-in used to render in `accent-400` — measured
+            rgb(192,250,175) on the card, i.e. the exact green this design system
+            reserves for "healthy / primary / done". The interface said success
+            while it reported a failure. `--state-danger-*` is the semantic
+            channel for failure (src/theme.css), and `src/app/admin/error.tsx`
+            already applies that arbitration to the /admin error boundary; this
+            page is the same situation, one segment higher.
+
+            WHY THE GATE DIDN'T CATCH IT: `check:danger` rule 1 (`alert-accent`)
+            is exactly this pattern — `role="alert"` plus an accent class in the
+            opening tag — but its DASHBOARD_DIRS scope is
+            app/admin + components/{agent-ops,views,shell}. `src/app/login/` is
+            in none of them, so the one violation the rule was written for lived
+            in the one file the rule could not see. Widening that scope belongs
+            to whoever owns scripts/, not to this lot; it is reported instead.
+
+            No light-mode pair: <html> is hard-set to `dark` in
+            `src/app/layout.tsx`, so a `dark:` variant here would be the only
+            branch that ever renders. `--state-danger-text` #f87171 on the card
+            plane zinc-950 measures 7.11:1 — checked in the browser, not
+            inferred. */}
         {error ? (
-          <p className="mt-3 text-sm/6 font-semibold text-accent-700 dark:text-accent-400" role="alert" aria-live="polite">
+          <p className="mt-3 text-sm/6 font-semibold text-[var(--state-danger-text)]" role="alert" aria-live="polite">
             {error}
           </p>
         ) : null}
