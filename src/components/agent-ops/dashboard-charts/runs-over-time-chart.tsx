@@ -1,27 +1,23 @@
 import clsx from 'clsx'
 
+import { HourlyRunsChart } from '@/components/agent-ops/dashboard-charts/chart-primitives'
 import {
-  ChartGrid,
-  HourLabelRail,
   LegendDot,
-  PLOT_H,
-  PLOT_W,
-  StackedHourBars,
-  TOP_PAD,
   bucketRunsByHour,
+  hourLabel,
   runCount,
 } from '@/components/agent-ops/dashboard-charts/chart-frame'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import type { AgentRun } from '@/lib/agent-mission-control/types'
 
 /**
- * RunsOverTimeChart — hourly completed-vs-failed histogram over 24h. Same
- * hand-rolled server SVG approach as ActivityChart (`performance/activity-chart.tsx`),
- * reusing the shared `bucketRunsByHour` helper (`dashboard-charts/chart-frame.tsx`)
- * so both surfaces read the identical histogram math. "Other"
- * (running/blocked/needs-confirmation) is folded out of the legend here — this
- * chart's job is completed vs failed only; the status breakdown chart carries
- * the full split.
+ * RunsOverTimeChart — hourly completed-vs-failed histogram over 24h, rendered
+ * with Recharts (the doctrine's standard engine). Bucketing stays SERVER-side
+ * via the shared `bucketRunsByHour` helper, so this surface and FleetKpiBand
+ * still read the identical histogram math; only the plot is a client island.
+ * "Other" (running/blocked/needs-confirmation) is folded out of the legend here
+ * — this chart's job is completed vs failed; the status breakdown carries the
+ * full split.
  */
 export function RunsOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: number }) {
   const buckets = bucketRunsByHour(runs, nowMs)
@@ -42,7 +38,12 @@ export function RunsOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: nu
     )
   }
 
-  const scale = (PLOT_H - TOP_PAD) / Math.max(...buckets.map((b) => b.total))
+  const data = buckets.map((b) => ({
+    label: hourLabel(b.startMs),
+    completed: b.completed,
+    failed: b.failed,
+    other: b.other,
+  }))
 
   return (
     <SurfaceCard className="h-full">
@@ -62,19 +63,10 @@ export function RunsOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: nu
         {/* Plot zone sits on the sunken plane: the trace reads inside a well,
             not floating on the panel face (§11). */}
         <div className="rounded-lg px-3 pt-3 pb-2 dark:bg-surface-sunken/60">
-        <svg
-          role="img"
-          aria-label={`Hourly runs for the last 24 hours: ${runCount(total)} — ${completed} completed, ${failed} failed, ${other} other.`}
-          viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}
-          preserveAspectRatio="none"
-          className="block h-24 w-full"
-        >
-          <ChartGrid />
-
-          <StackedHourBars buckets={buckets} scale={scale} />
-        </svg>
-
-          <HourLabelRail buckets={buckets} />
+          <HourlyRunsChart
+            data={data}
+            ariaLabel={`Hourly runs for the last 24 hours: ${runCount(total)} — ${completed} completed, ${failed} failed, ${other} other.`}
+          />
         </div>
       </div>
     </SurfaceCard>

@@ -1,12 +1,5 @@
-import {
-  ChartGrid,
-  HOUR_MS,
-  HourLabelRail,
-  PLOT_H,
-  PLOT_W,
-  TOP_PAD,
-  hourLabel,
-} from '@/components/agent-ops/dashboard-charts/chart-frame'
+import { HourlyCostChart } from '@/components/agent-ops/dashboard-charts/chart-primitives'
+import { HOUR_MS, hourLabel } from '@/components/agent-ops/dashboard-charts/chart-frame'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import type { AgentRun } from '@/lib/agent-mission-control/types'
@@ -22,7 +15,7 @@ interface CostBucket {
  * Buckets runs into hourly slots like `bucketRunsByHour`, but sums ONLY
  * measured cost (`costUsd !== null`). Runs with a null cost (LangGraph, no
  * usage reported) contribute nothing to the sum and are not counted as
- * "measured" — so a hard with zero measured runs stays visually empty rather
+ * "measured" — so an hour with zero measured runs stays visually empty rather
  * than a fake flat zero.
  */
 function bucketCostByHour(runs: AgentRun[], nowMs: number, hours = 24): CostBucket[] {
@@ -53,12 +46,12 @@ function formatUsd(n: number): string {
 }
 
 /**
- * CostOverTimeChart — hourly measured spend over 24h, hand-rolled server SVG
- * (line/area on the `--chart-*` tokens, no lib). Runs with `costUsd === null`
- * (cost never measured) contribute NOTHING to any bucket. If not a single run
- * in the window carries a measured cost, this renders the shared EmptyState —
- * never a flat zero line pretending to be real data. Shared geometry / grid /
- * hour rail live in `chart-frame.tsx`.
+ * CostOverTimeChart — hourly measured spend over 24h, rendered with Recharts
+ * (the doctrine's standard engine). Runs with `costUsd === null` (cost never
+ * measured) contribute NOTHING to any bucket. If not a single run in the window
+ * carries a measured cost, this renders the shared EmptyState — never a flat
+ * zero line pretending to be real data. Bucketing stays server-side; only the
+ * plot is a client island.
  */
 export function CostOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: number }) {
   const buckets = bucketCostByHour(runs, nowMs)
@@ -77,12 +70,11 @@ export function CostOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: nu
     )
   }
 
-  const maxCost = Math.max(...buckets.map((b) => b.costUsd), 0.0001)
-  const scaleY = (v: number) => PLOT_H - (v / maxCost) * (PLOT_H - TOP_PAD)
-  const stepX = PLOT_W / (buckets.length - 1 || 1)
-
-  const points = buckets.map((b, i) => `${i * stepX},${scaleY(b.costUsd)}`).join(' ')
-  const areaPoints = `0,${PLOT_H} ${points} ${PLOT_W},${PLOT_H}`
+  const data = buckets.map((b) => ({
+    label: hourLabel(b.startMs),
+    costUsd: b.costUsd,
+    measuredRunCount: b.measuredRunCount,
+  }))
 
   return (
     <SurfaceCard className="h-full">
@@ -102,38 +94,11 @@ export function CostOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: nu
         {/* Plot zone sits on the sunken plane: the trace reads inside a well,
             not floating on the panel face (§11). */}
         <div className="rounded-lg px-3 pt-3 pb-2 dark:bg-surface-sunken/60">
-        <svg
-          role="img"
-          aria-label={`Hourly measured cost for the last 24 hours: ${formatUsd(totalCost)} total across ${measuredRuns} measured runs.`}
-          viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}
-          preserveAspectRatio="none"
-          className="block h-24 w-full"
-        >
-          <ChartGrid />
-
-          <polygon points={areaPoints} fill="var(--chart-success)" fillOpacity={0.12} />
-          <polyline
-            points={points}
-            fill="none"
-            stroke="var(--chart-success)"
-            strokeWidth={2}
-            vectorEffect="non-scaling-stroke"
+          <HourlyCostChart
+            data={data}
+            formatUsd={formatUsd}
+            ariaLabel={`Hourly measured cost for the last 24 hours: ${formatUsd(totalCost)} total across ${measuredRuns} measured runs.`}
           />
-
-          {buckets.map((b, i) => (
-            <g key={b.startMs}>
-              <title>
-                {`${hourLabel(b.startMs)}–${hourLabel(b.startMs + HOUR_MS)} UTC · ${formatUsd(b.costUsd)}${b.measuredRunCount > 0 ? ` across ${b.measuredRunCount} run${b.measuredRunCount === 1 ? '' : 's'}` : ' — no measured runs'}`}
-              </title>
-              <rect x={i * stepX - stepX / 2} y={0} width={stepX} height={PLOT_H} fill="transparent" />
-              {b.costUsd > 0 ? (
-                <circle cx={i * stepX} cy={scaleY(b.costUsd)} r={2.5} fill="var(--chart-success)" />
-              ) : null}
-            </g>
-          ))}
-        </svg>
-
-          <HourLabelRail buckets={buckets} />
         </div>
       </div>
     </SurfaceCard>

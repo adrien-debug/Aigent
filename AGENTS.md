@@ -58,6 +58,12 @@ est pris par un process non identifié comme le sien.
 - Besoin d'une section/écran dashboard ? → **lis** `~/.claude/tailwind-blocks/application-ui/`
   pour la structure, puis monte-la avec les primitives Catalyst. Ne colle jamais le JSX brut d'un
   bloc dans le dashboard.
+- **Graphiques : Recharts, jamais de SVG maison.** Doctrine globale §Graphiques — Recharts est le
+  moteur standard, ECharts l'étage data-science (gros volumes, heatmap/sankey/treemap, zoom-brush).
+  Les wrappers vivent dans `src/components/agent-ops/dashboard-charts/chart-primitives.tsx`
+  (`'use client'` — Recharts mesure le DOM) ; le bucketing reste SERVEUR dans `chart-frame.tsx`.
+  Couleurs via les tokens `--chart-*` de `src/theme.css`, jamais un hex littéral. Une barre de
+  progression HTML (`<div>` à largeur %) n'est pas un graphique et n'a pas besoin de Recharts.
 - **19 primitives** dans `src/components/ui/` (avatar, badge, button, dialog, divider,
   fieldset, heading, input, link, navbar, panel, section, select, sidebar, sidebar-layout,
   switch, table, text, textarea). Le kit a été déplacé de `components/catalyst/` vers
