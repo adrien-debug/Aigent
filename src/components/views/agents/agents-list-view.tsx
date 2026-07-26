@@ -69,24 +69,51 @@ export function AgentsListView({ agents, projectNameById, healthByCopilotId, now
                       runtime, model, served version) are folded into the Agent
                       cell or responsive-hidden columns rather than heading the
                       table. Below their breakpoint columns drop by priority so
-                      what remains always fits — no horizontal page scroll. */}
+                      what remains always fits — no horizontal page scroll.
+
+                      Two measured fixes, same root cause: the six secondary
+                      widths were CONSTANT across every breakpoint, and under
+                      `table-fixed` a declared px width is served first, so the
+                      Agent column — the only one with no declared width — took
+                      the whole shortfall. At 1024px (table 680px) the six kept
+                      their full 656px, Agent measured 24px and the name box 0px:
+                      the agent name was not truncated, it was INVISIBLE.
+                        1. The secondary widths step DOWN one notch below xl and
+                           return to their previous value at xl and above, so
+                           >=1280px renders exactly as before (Agent 280px at
+                           1280, 600px at 1600). Each shrunk width still clears
+                           its header's intrinsic width, measured.
+                        2. Success and Cost 24h move lg -> xl. Seven columns do
+                           not fit 680px whatever the widths: even at their
+                           measured minima the six secondaries need ~512px and
+                           leave Agent 168px. They return at 1280px, where the
+                           table is wide enough to carry all seven.
+                      Percentages were tried first and rejected on evidence: a
+                      `%` inside `min()` is not resolvable during the fixed-table
+                      sizing pass and Chromium dropped every width back to an
+                      equal 1/7 share. */}
                   <TableHeader className="pl-4!">Agent</TableHeader>
                   {/* STATE — the operator's lifecycle decision. Distinct from
                       Executable: an agent can be `active` (state) and still not
                       executable (an unresolved tool), and the two columns must
                       never be collapsed into one or that contradiction becomes
                       unreadable. */}
-                  <TableHeader className="w-28 sm:w-32">{AGENT_STATUS_DIMENSION_LABELS.lifecycle}</TableHeader>
+                  <TableHeader className="w-24 sm:w-28 xl:w-32">
+                    {AGENT_STATUS_DIMENSION_LABELS.lifecycle}
+                  </TableHeader>
                   <TableHeader className="hidden w-24 sm:table-cell">
                     {AGENT_STATUS_DIMENSION_LABELS.executable}
                   </TableHeader>
-                  <TableHeader className="hidden w-28 text-right md:table-cell">Last run</TableHeader>
-                  <TableHeader className="hidden w-20 text-right lg:table-cell">Success</TableHeader>
-                  <TableHeader className="hidden w-24 text-right lg:table-cell">
+                  <TableHeader className="hidden w-24 text-right md:table-cell xl:w-28">Last run</TableHeader>
+                  <TableHeader className="hidden w-20 text-right xl:table-cell">Success</TableHeader>
+                  <TableHeader className="hidden w-24 text-right xl:table-cell">
                     Cost<span className="sr-only"> over the last 24 hours</span>
-                    <span aria-hidden="true" className="ml-1 font-normal text-zinc-500">24h</span>
+                    {/* zinc-400, not -500: the header plane is the sunken band
+                        (rgb(13,13,16)) where check-contrast measures -500 at
+                        4.02:1 against a 4.5 threshold. */}
+                    <span aria-hidden="true" className="ml-1 font-normal text-zinc-400">24h</span>
                   </TableHeader>
-                  <TableHeader className="w-28 pr-4! text-right sm:w-36">Action</TableHeader>
+                  <TableHeader className="w-28 pr-4! text-right sm:w-32 xl:w-36">Action</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -154,7 +181,13 @@ export function AgentsListView({ agents, projectNameById, healthByCopilotId, now
                             {/* Secondary facts demoted here: project, runtime, model,
                                 served version — headline columns are State/Executable/
                                 Last run/Success/Cost 24h/Action, not these. */}
-                            <div className="truncate font-mono text-xs text-zinc-500">
+                            {/* zinc-400, not -500: check-contrast measures -500 at
+                                3.59:1 on this raised plane (rgb(26,26,30)) for a
+                                4.5 threshold. Same call, same reason as
+                                dashboard-kpi-strip.tsx; the shell is hard-dark
+                                (`class="dark"` on <html>) so a bare zinc-400 has
+                                no light-mode counterpart to break. */}
+                            <div className="truncate font-mono text-xs text-zinc-400">
                               {projectName !== '—' ? `${projectName} · ` : ''}
                               {runtimeLabel(agent.runtime) ?? '—'}
                               {agent.configuredModel ? ` · ${agent.configuredModel}` : ''}
@@ -179,7 +212,7 @@ export function AgentsListView({ agents, projectNameById, healthByCopilotId, now
                         <span
                           className={clsx(
                             'font-mono text-xs tabular-nums',
-                            agent.executable ? 'text-accent-500' : 'text-zinc-500'
+                            agent.executable ? 'text-accent-500' : 'text-zinc-400'
                           )}
                         >
                           {agentExecutableLabel(agent.executable)}
@@ -191,30 +224,37 @@ export function AgentsListView({ agents, projectNameById, healthByCopilotId, now
                             <div className="font-mono text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
                               {formatRelativeCompact(agent.lastRunAt, now)}
                             </div>
+                            {/* Same zinc-400 as its sibling below. This branch
+                                renders on no agent in the current database, so
+                                the gate cannot see it — but the ratio depends on
+                                the colour pair alone, and zinc-500 on the raised
+                                plane is 3.59:1 at ANY size under 24px. Leaving it
+                                at -500 would ship a sub-AA label the day the
+                                first run lands. */}
                             {lastRunLabel ? (
-                              <div className="truncate text-[11px] text-zinc-500">{lastRunLabel}</div>
+                              <div className="truncate text-[11px] text-zinc-400">{lastRunLabel}</div>
                             ) : null}
                           </>
                         ) : (
-                          <span className="text-xs text-zinc-500">Never</span>
+                          <span className="text-xs text-zinc-400">Never</span>
                         )}
                       </TableCell>
                       {/* Success — health.testPassRate, run-backed only. No test
                           evidence (no runs ever) renders NotMeasuredDash, never 0%. */}
-                      <TableCell className="hidden py-2! text-right font-mono text-sm tabular-nums text-zinc-600 lg:table-cell dark:text-zinc-400">
+                      <TableCell className="hidden py-2! text-right font-mono text-sm tabular-nums text-zinc-600 xl:table-cell dark:text-zinc-400">
                         {hasSuccessSignal ? formatPercent(health!.health.testPassRate) : <NotMeasuredDash />}
                       </TableCell>
                       {/* Cost 24h — health.costLast24hUsd, gated on runsLast24h > 0
                           (same rule as the dashboard project table): zero runs in the
                           window is an absent measurement, not a real $0. */}
-                      <TableCell className="hidden py-2! text-right font-mono text-sm tabular-nums text-zinc-600 lg:table-cell dark:text-zinc-400">
+                      <TableCell className="hidden py-2! text-right font-mono text-sm tabular-nums text-zinc-600 xl:table-cell dark:text-zinc-400">
                         {hasCost24hSignal ? formatUsd(health!.health.costLast24hUsd) : <NotMeasuredDash />}
                       </TableCell>
                       <TableCell className="py-2! pr-4! text-right">
                         <span
                           className={clsx(
                             'font-mono text-xs tabular-nums',
-                            agent.executable ? 'text-accent-500' : 'text-zinc-500'
+                            agent.executable ? 'text-accent-500' : 'text-zinc-400'
                           )}
                         >
                           {actionText}
