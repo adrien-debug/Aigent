@@ -1,9 +1,17 @@
 import { surfaceSectionClass, surfaceSectionHeaderClass } from '@/components/agent-ops/surface-card'
 
-export default function AdminDashboardLoading() {
+/**
+ * Fallback for the WHOLE /admin subtree — Next.js reuses the nearest `loading`
+ * boundary, so this one also covers Telemetry, Factory, Agents, Projects and
+ * Performance. It therefore cannot name a page: announcing "Loading Dashboard…"
+ * while Telemetry is being fetched is a lie told to the only users who depend
+ * on that announcement. Segment-level `loading.tsx` files (settings, project
+ * team) sit closer to their route and do name it — correctly.
+ */
+export default function AdminSectionLoading() {
   return (
     <div aria-busy="true" aria-live="polite" className="flex flex-col gap-8 pb-12 motion-safe:animate-pulse">
-      <span className="sr-only">Loading Dashboard…</span>
+      <span className="sr-only">Loading…</span>
 
       <div className="mt-2 border-b border-zinc-950/5 pb-5 dark:border-white/5">
         <div className="h-3 w-20 rounded bg-zinc-950/10 dark:bg-white/10" />

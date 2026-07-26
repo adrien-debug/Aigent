@@ -75,7 +75,11 @@ export function AigentSidebar() {
     exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`)
 
   return (
-    <Sidebar>
+    // Every admin page exposes TWO `navigation` landmarks (this rail + the
+    // top Navbar in admin/layout.tsx). Unnamed, a screen reader's landmark
+    // list shows two identical "navigation" entries. The label deliberately
+    // omits the word "navigation" — the role is already announced.
+    <Sidebar aria-label="Main">
       <SidebarHeader>
         <div className="flex items-center gap-3 px-2 pt-1 pb-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-500 text-zinc-950 shadow-sm ring-1 ring-[var(--accent-line-strong)]">

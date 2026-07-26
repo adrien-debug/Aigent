@@ -121,6 +121,10 @@ export const SidebarItem = forwardRef(function SidebarItem(
           {...props}
           className={classes}
           data-current={current ? 'true' : undefined}
+          // `data-current` only drives CSS — it says nothing to the a11y tree.
+          // Without `aria-current` a screen reader reads every nav entry the
+          // same way and the user has no way to tell which route is open.
+          aria-current={current ? 'page' : undefined}
           ref={ref}
         >
           <TouchTarget>{children}</TouchTarget>
@@ -130,6 +134,9 @@ export const SidebarItem = forwardRef(function SidebarItem(
           {...props}
           className={clsx('cursor-pointer', classes)}
           data-current={current ? 'true' : undefined}
+          // Same exposure on the button variant: `current` must mean the same
+          // thing to assistive tech whether the item navigates or dispatches.
+          aria-current={current ? 'page' : undefined}
           ref={ref}
         >
           <TouchTarget>{children}</TouchTarget>
