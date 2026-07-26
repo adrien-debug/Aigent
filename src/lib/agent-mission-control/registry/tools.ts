@@ -192,7 +192,13 @@ export const TOOL_REGISTRY: Readonly<Record<string, ToolDefinition>> = {
   }),
   read_derivatives_snapshot: def({
     id: 'read_derivatives_snapshot', version: '1.0.0', label: 'Read derivatives snapshot',
-    summary: 'Read funding/open-interest/derivatives snapshot (read-only).',
+    // The description IS the input contract (AGENTS.md): the runner ships it to
+    // the model without a JSON schema, so an unstated coverage limit becomes a
+    // wrong-instrument answer. BTCUSDT-only is stated here, not just enforced.
+    summary:
+      'Read funding/open-interest/derivatives snapshot (read-only). Covers BTCUSDT ONLY — ' +
+      'Args JSON: {"pair":"BTCUSDT"}. Any other instrument returns UNAVAILABLE; it is never ' +
+      'substituted with BTC data.',
     kind: 'http-get', mutates: false, risk: 'low', requiresConfirmation: false,
     secretRefs: [], provenance: 'trading', runtimes: LG, certification: 'certified',
   }),

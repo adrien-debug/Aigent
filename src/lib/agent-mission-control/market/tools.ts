@@ -342,19 +342,61 @@ export async function readFundingOpenInterest(argsJson: string): Promise<Trading
 // read_derivatives_snapshot — Binance USD-M Futures public reads.
 // ---------------------------------------------------------------------------
 
+/**
+ * The derivatives provider (derivatives.ts) is BTCUSDT-only — every Binance
+ * futures URL it builds hardcodes that symbol. The tool's argument schema
+ * therefore accepts `symbol: 'BTCUSDT'` and nothing else.
+ *
+ * That schema silently swallowed the wrong question. Zod's default is to STRIP
+ * unknown keys, so `{"pair":"ETHUSDT"}` parsed clean, `symbol` stayed undefined,
+ * and the handler answered with BTC data under a summary that says "BTCUSDT" —
+ * an ETH-specialist agent asking for ETH derivatives got BTC funding and open
+ * interest, with no error and nothing in the reply marking the substitution.
+ * Measured 2026-07-26 while validating ETH tool coverage: requested ETHUSDT,
+ * received `symbol: BTCUSDT`, `ok: true`.
+ *
+ * This is the failure mode AGENTS.md names: "donnée absente → UNAVAILABLE avec
+ * provenance, jamais inventée". Answering a different instrument than the one
+ * asked for is worse than answering nothing, because it reads as an answer.
+ *
+ * `pair` is accepted (it is the field name EVERY other market tool uses, which
+ * is precisely why a model reaches for it here) and any non-BTCUSDT value is
+ * refused as UNAVAILABLE with the reason, instead of being quietly discarded.
+ */
 const derivativesArgs = z.object({
   symbol: z.literal('BTCUSDT').optional(),
+  pair: z.string().optional(),
   asOf: z.number().int().optional(),
 })
+const DERIVATIVES_SUPPORTED_SYMBOL = 'BTCUSDT'
+
 async function readDerivativesSnapshot(argsJson: string): Promise<TradingToolResult> {
   const a = parse(derivativesArgs, argsJson)
   if ('__err' in a) return err('read_derivatives_snapshot', a.__err)
+  // A caller that named an instrument must get THAT instrument or an explicit
+  // refusal — never a silent substitution.
+  const requested = a.pair ?? a.symbol
+  if (requested !== undefined && requested !== DERIVATIVES_SUPPORTED_SYMBOL) {
+    return {
+      ok: false,
+      data: {
+        derivatives: null,
+        truth: 'UNAVAILABLE',
+        requested,
+        supported: [DERIVATIVES_SUPPORTED_SYMBOL],
+        reason: 'derivatives-coverage-limited',
+      },
+      summary:
+        `derivatives UNAVAILABLE for ${requested} — this tool covers ${DERIVATIVES_SUPPORTED_SYMBOL} only ` +
+        `(Binance USD-M futures reads are BTC-only here). No substitute instrument is returned.`,
+    }
+  }
   try {
     const snapshot = await readLiveDerivativesSnapshot(a.asOf)
     return {
       ok: snapshot.freshness_status !== 'unavailable',
       data: { derivatives: snapshot },
-      summary: `derivatives BTCUSDT regime=${snapshot.derivatives_regime} funding=${snapshot.funding_rate ?? 'UNAVAILABLE'} OI=${snapshot.open_interest_usd ?? 'UNAVAILABLE'}USD freshness=${snapshot.freshness_status}`,
+      summary: `derivatives ${DERIVATIVES_SUPPORTED_SYMBOL} regime=${snapshot.derivatives_regime} funding=${snapshot.funding_rate ?? 'UNAVAILABLE'} OI=${snapshot.open_interest_usd ?? 'UNAVAILABLE'}USD freshness=${snapshot.freshness_status}`,
     }
   } catch (error) {
     console.error(
