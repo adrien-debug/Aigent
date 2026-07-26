@@ -69,7 +69,13 @@ export function PromotionChecksList({ checks }: { checks: PromotionCheck[] }) {
           <div className="min-w-0">
             <span className="text-sm text-zinc-200">{check.label}</span>
             <p className="mt-0.5 text-xs text-zinc-400">{check.reason}</p>
-            <p className="mt-0.5 text-[10px] text-zinc-500">{check.sourceOfTruth}</p>
+            {/* `zinc-400`, not `-500`: measured 3.59 against this plane
+                (`surface-raised`, #1a1a1e) by `check-contrast.mjs` on
+                /admin/agents/:id/release, i.e. below the 4.5 AA floor, on all
+                five checks. The provenance line is the ONLY thing that lets an
+                operator verify a verdict against the code — quieter than the
+                reason above it, never unreadable. */}
+            <p className="mt-0.5 text-[10px] text-zinc-400">{check.sourceOfTruth}</p>
           </div>
           <PromotionStatusText status={check.status} />
         </li>
@@ -116,7 +122,15 @@ export function ShadowEvidence({
         <dt className={eyebrowClass}>Would-mutate breaches</dt>
         <dd className="mt-1 font-mono text-sm tabular-nums text-white">{shadow.wouldMutateCount}</dd>
       </div>
-      <div>
+      {/* Full-width row, NOT a fifth cell. Five items in a four-column grid put
+          Provenance alone on row 2 and left the other three columns empty:
+          measured 866px of hole (row 2 spanned x=0..278 of a 1160px track) at
+          1440x900, directly above the note and directly above `ReplayEvidence`,
+          whose four cells DO fill their row. Spanning the row closes the gap and
+          keeps the two evidence blocks on the same four-column rhythm — they are
+          stacked in one section and must align column for column. Provenance is
+          also the only sentence here, so it is the one that wants the width. */}
+      <div className="col-span-2 sm:col-span-4">
         <dt className={eyebrowClass}>Provenance</dt>
         <dd
           className={`mt-1 text-sm ${shadow.executionMode === 'live_langgraph' ? 'text-accent-700 dark:text-accent-300' : 'text-zinc-400'}`}
