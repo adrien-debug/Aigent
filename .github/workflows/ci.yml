@@ -37,3 +37,12 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Preuve — proof.json
+        if: always()
+        env: { JOB_STATUS: "${{ job.status }}" }
+        run: |
+          node -e 'const fs=require("fs");fs.writeFileSync("proof.json",JSON.stringify({repo:process.env.GITHUB_REPOSITORY,sha:process.env.GITHUB_SHA,run_url:`${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,status:process.env.JOB_STATUS,generated_by:"ci (jamais par un agent)",ts:new Date().toISOString()},null,2))'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: proof, path: proof.json, retention-days: 30 }
