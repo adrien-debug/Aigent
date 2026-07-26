@@ -86,18 +86,38 @@ export function TelemetryEventsTable({
                   <TableRow key={event.id}>
                     <TableCell>
                       <div className="flex min-w-0 flex-col">
+                        {/* `pointer-coarse:py-3` only — measured 306x20px on an
+                            emulated iPhone 14, under the 44px touch floor. Padding
+                            rather than the `min-h-11`/`inline-flex` pair used in
+                            the agents table: this anchor is a flex ITEM of the
+                            column above, so it is already blockified and `flex`
+                            here would break its `truncate` ellipsis (text-overflow
+                            does not apply to a flex container). 20px line + 2x12px
+                            padding = 44px exactly, text still optically centred,
+                            and the run id below stays selectable — an overlay hit
+                            area would have covered the one string an operator is
+                            expected to copy. No effect with a mouse. */}
                         <Link
                           href={`/admin/agents/${event.agentId}`}
-                          className="truncate rounded text-sm font-medium text-white hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+                          className="truncate rounded text-sm font-medium text-white hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 pointer-coarse:py-3"
                         >
                           {copilotNameById.get(event.agentId) ?? event.agentId}
                         </Link>
                         {/* zinc-400: at 10px mono the run id measured 3.59:1 on
                             the raised plane — an identifier an operator is
-                            expected to COPY must clear AA, not merely hint. */}
-                        <span className="mt-0.5 max-w-40 truncate font-mono text-[10px] text-zinc-400">
-                          {event.runId}
-                        </span>
+                            expected to COPY must clear AA, not merely hint.
+                            `max-w-40 truncate` is GONE for the same reason. It
+                            clipped 100% of the rows at EVERY width measured (390
+                            to 1440): a bare uuid overflowed the 160px cap by 20px,
+                            a prefixed one (`shadow-…`, `gate-…`) by up to 74px, so
+                            the ellipsis ate the tail of the id in all 15 rows and
+                            no `title` offered it back. A contrast fix on a string
+                            the reader can neither finish nor select is wasted —
+                            the id is now printed whole. The column widens by ~74px
+                            worst case; the table is already a horizontal scrollport
+                            with a fade affordance, and the page body still does not
+                            overflow at 390px (re-measured). */}
+                        <span className="mt-0.5 font-mono text-[10px] text-zinc-400">{event.runId}</span>
                       </div>
                     </TableCell>
                     <TableCell>

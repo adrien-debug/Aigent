@@ -87,8 +87,19 @@ export function TelemetryUnconfiguredState({
                 <span className="sr-only">{step.done ? '— done' : '— pending'}</span>
               </div>
               <p className="text-xs/5 text-zinc-400">{step.detail}</p>
+              {/* `break-words`, NOT `truncate`. This <code> is a flex item of the
+                  column above, so it IS blockified and `truncate` really clipped:
+                  measured at 768px the three-column ladder gives each step 213px
+                  while `AIGENT_TELEMETRY_ENABLED · _ENDPOINT · _TOKEN` needs 275px,
+                  so 62px of it — the variable names this state exists to hand the
+                  operator — were replaced by an ellipsis on the exact breakpoint
+                  where the grid turns 3-up. An env var the reader has to guess is
+                  worse than one that costs a second line. `break-words` (not
+                  `break-all`) only splits a token when it cannot fit, so
+                  `AIGENT_RUNTIME_TELEMETRY_TOKEN` still wraps as one word wherever
+                  there is room. */}
               {step.env ? (
-                <code className="mt-0.5 truncate font-mono text-[11px] text-zinc-400">{step.env}</code>
+                <code className="mt-0.5 font-mono text-[11px] break-words text-zinc-400">{step.env}</code>
               ) : null}
             </li>
           ))}
