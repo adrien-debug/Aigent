@@ -14,6 +14,16 @@ const colors = {
     'bg-accent-500/25 text-accent-800 ring-1 ring-inset ring-(--accent-line-strong) group-data-hover:bg-accent-500/35 dark:text-accent-200 dark:group-data-hover:bg-accent-500/35',
   accentSolid:
     'bg-accent-600 text-zinc-950 shadow-sm group-data-hover:bg-accent-700 dark:bg-accent-600 dark:text-zinc-950 dark:group-data-hover:bg-accent-700',
+  // Danger — the ONE non-accent hue, on the `--state-danger-*` roles already
+  // declared in theme.css as "the only deliberate exception" to the mono-accent
+  // rule. It exists because the accent ladder above encodes ESCALATION, not
+  // OUTCOME: applied to a failure it says "most intense" in the colour that
+  // everywhere else means success, so `failed` and `completed` differ only by
+  // their label. A state whose colour IS its meaning gets this key.
+  danger:
+    'bg-(--state-danger-soft) text-(--state-danger-text) ring-1 ring-inset ring-(--state-danger-line) group-data-hover:bg-(--state-danger-line)',
+  dangerSolid:
+    'bg-(--state-danger-solid) text-white shadow-sm ring-1 ring-inset ring-(--state-danger-solid-line) group-data-hover:bg-(--state-danger-base)',
 }
 
 type BadgeProps = { color?: keyof typeof colors }

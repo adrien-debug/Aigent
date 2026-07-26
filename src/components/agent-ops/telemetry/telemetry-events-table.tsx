@@ -85,7 +85,7 @@ export function TelemetryEventsTable({
                             event.status === 'completed'
                               ? 'bg-accent-500'
                               : event.status === 'failed'
-                                ? 'bg-accent-700'
+                                ? 'bg-[var(--state-danger-solid)]'
                                 : 'bg-zinc-600'
                           }`}
                         />
@@ -102,7 +102,7 @@ export function TelemetryEventsTable({
                     </TableCell>
                     <TableCell className="px-6 py-3">
                       {category !== null ? (
-                        <span className="block max-w-32 truncate text-xs text-accent-400" title={category}>
+                        <span className="block max-w-32 truncate text-xs text-[var(--state-danger-text)]" title={category}>
                           {category}
                         </span>
                       ) : event.status === 'failed' ? (

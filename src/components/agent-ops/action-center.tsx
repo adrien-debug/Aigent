@@ -28,13 +28,31 @@ const KIND_ICON: Record<ActionItemKind, React.ComponentType<React.ComponentProps
   data_unavailable: SignalSlashIcon,
 }
 
-/** Kinds where the severity earns the accent dot; everything else recedes to zinc. */
-const ACCENT_KINDS = new Set<ActionItemKind>(['ready_manual', 'mission_blocked', 'release_gate_red'])
+/**
+ * Tone per kind. Three values, not two: the previous split was accent-vs-zinc,
+ * which forced every "important" row into the accent — so `release_gate_red` and
+ * `mission_blocked` came out in the brand GREEN, the only vivid badge in the
+ * list, while `sandbox_failed` receded to zinc. The row shouting success was the
+ * blocked one, and the actual failure was the quietest: priority order and
+ * visual order said the opposite of each other.
+ *
+ * Now: a failure is danger, an action waiting on a human is accent, the rest is
+ * zinc. `data_unavailable` stays zinc on purpose — an unmeasured dimension is an
+ * absence, not a failure, and must never be dressed as one.
+ */
+const KIND_TONE: Record<ActionItemKind, 'accent' | 'danger' | 'zinc'> = {
+  ready_manual: 'accent',
+  sandbox_failed: 'danger',
+  release_gate_red: 'danger',
+  mission_blocked: 'danger',
+  pr_open: 'zinc',
+  data_unavailable: 'zinc',
+}
 
 function ActionRow({ item }: { item: ActionItem }) {
   const Icon = KIND_ICON[item.kind]
   const external = isExternalHref(item.href)
-  const tone: 'accent' | 'zinc' = ACCENT_KINDS.has(item.kind) ? 'accent' : 'zinc'
+  const tone = KIND_TONE[item.kind] ?? 'zinc'
   const linkProps = external ? { target: '_blank', rel: 'noreferrer' } : {}
 
   return (

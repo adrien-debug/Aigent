@@ -218,7 +218,7 @@ export function NewProjectWorkbench() {
           </div>
         ) : reposError ? (
           <div className="flex flex-col items-center gap-3 py-10 text-center">
-            <ExclamationTriangleIcon aria-hidden="true" className="size-6 text-accent-500" />
+            <ExclamationTriangleIcon aria-hidden="true" className="size-6 text-[var(--state-danger-text)]" />
             <p className="text-sm font-medium text-zinc-950 dark:text-white">
               {reposError.notConfigured ? 'GitHub not configured' : 'Could not load repositories'}
             </p>
@@ -322,7 +322,7 @@ export function NewProjectWorkbench() {
             </div>
           ) : treeError ? (
             <div className="flex flex-col items-center gap-3 py-10 text-center">
-              <ExclamationTriangleIcon aria-hidden="true" className="size-6 text-accent-500" />
+              <ExclamationTriangleIcon aria-hidden="true" className="size-6 text-[var(--state-danger-text)]" />
               <p role="alert" className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
                 {treeError}
               </p>

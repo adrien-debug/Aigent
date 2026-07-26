@@ -28,8 +28,10 @@ type Phase = 'loading' | 'idle' | 'running' | 'ready' | 'error'
 
 const DEFAULT_OBJECTIVE = 'Validate agent delivery readiness for this project'
 
-function severityBadgeColor(severity: string): 'zinc' | 'accent' | 'accentStrong' | 'accentSolid' {
-  if (severity === 'blocker') return 'accentSolid'
+function severityBadgeColor(severity: string): 'zinc' | 'accentStrong' | 'danger' {
+  // A blocker is a failure, not the top rung of an escalation ladder: it used to
+  // wear accentSolid, the most saturated GREEN badge in the system.
+  if (severity === 'blocker') return 'danger'
   if (severity === 'warning') return 'accentStrong'
   return 'zinc'
 }
@@ -39,7 +41,7 @@ function ParticipantsList({ participants }: { participants: MissionParticipant[]
     <ul className="flex flex-wrap gap-2">
       {participants.map((p) => (
         <li key={p.role}>
-          <Badge className="font-mono text-[11px]" color={p.status === 'missing' ? 'accent' : 'zinc'}>
+          <Badge className="font-mono text-[11px]" color={p.status === 'missing' ? 'zinc' : 'accent'}>
             {p.copilotName ?? p.role}
             {p.status === 'missing' ? ' (evidence-only)' : ''}
           </Badge>

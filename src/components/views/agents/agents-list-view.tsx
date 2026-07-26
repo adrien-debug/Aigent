@@ -32,7 +32,12 @@ const STATE_BADGE: Record<string, 'accent' | 'accentStrong' | 'accentSolid' | 'z
   degraded: 'accentStrong',
   paused: 'zinc',
   draft: 'zinc',
-  archived: 'accentSolid',
+  // DESIGN-DOCTRINE.md:108 puts archived in the neutral group with draft/paused.
+  // It was the single most saturated badge of the whole list — an archived agent,
+  // i.e. one deliberately taken out of service, shouted louder than an active
+  // one. The dot on the same row was already `ring-zinc-600`, so the two channels
+  // of the same row contradicted each other.
+  archived: 'zinc',
 }
 
 const STATE_DOT: Record<string, string> = {
