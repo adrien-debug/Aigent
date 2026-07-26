@@ -1,6 +1,6 @@
 import * as Headless from '@headlessui/react'
-import clsx from 'clsx'
 import type React from 'react'
+import { cn, responsiveDefault } from './cn'
 
 export function Fieldset({
   className,
@@ -9,7 +9,7 @@ export function Fieldset({
   return (
     <Headless.Fieldset
       {...props}
-      className={clsx(className, '*:data-[slot=text]:mt-1 [&>*+[data-slot=control]]:mt-6')}
+      className={cn('*:data-[slot=text]:mt-1 [&>*+[data-slot=control]]:mt-6', className)}
     />
   )
 }
@@ -22,30 +22,31 @@ export function Legend({
     <Headless.Legend
       data-slot="legend"
       {...props}
-      className={clsx(
-        className,
-        'text-base/6 font-semibold text-zinc-950 data-disabled:opacity-50 sm:text-sm/6 dark:text-white'
+      className={cn(
+        'font-semibold text-zinc-950 data-disabled:opacity-50 dark:text-white',
+        responsiveDefault('text-sm/6', 'max-sm:text-base/6', className),
+        className
       )}
     />
   )
 }
 
 export function FieldGroup({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
-  return <div data-slot="control" {...props} className={clsx(className, 'space-y-8')} />
+  return <div data-slot="control" {...props} className={cn('space-y-8', className)} />
 }
 
 export function Field({ className, ...props }: { className?: string } & Omit<Headless.FieldProps, 'as' | 'className'>) {
   return (
     <Headless.Field
       {...props}
-      className={clsx(
-        className,
+      className={cn(
         '[&>[data-slot=label]+[data-slot=control]]:mt-3',
         '[&>[data-slot=label]+[data-slot=description]]:mt-1',
         '[&>[data-slot=description]+[data-slot=control]]:mt-3',
         '[&>[data-slot=control]+[data-slot=description]]:mt-3',
         '[&>[data-slot=control]+[data-slot=error]]:mt-3',
-        '*:data-[slot=label]:font-medium'
+        '*:data-[slot=label]:font-medium',
+        className
       )}
     />
   )
@@ -56,9 +57,10 @@ export function Label({ className, ...props }: { className?: string } & Omit<Hea
     <Headless.Label
       data-slot="label"
       {...props}
-      className={clsx(
-        className,
-        'text-base/6 text-zinc-950 select-none data-disabled:opacity-50 sm:text-sm/6 dark:text-white'
+      className={cn(
+        'text-zinc-950 select-none data-disabled:opacity-50 dark:text-white',
+        responsiveDefault('text-sm/6', 'max-sm:text-base/6', className),
+        className
       )}
     />
   )
@@ -72,7 +74,16 @@ export function Description({
     <Headless.Description
       data-slot="description"
       {...props}
-      className={clsx(className, 'text-base/6 text-zinc-500 data-disabled:opacity-50 sm:text-sm/6 dark:text-zinc-400')}
+      // Same split as Text (see `responsiveDefault` in ./cn): the desktop size is
+      // the BARE rung so a caller's `text-xs` merges against it, and the phone
+      // bump withdraws when the caller declares a size. `dark:text-zinc-400`
+      // stays a variant, so a caller repainting this Description must pass its
+      // own `dark:` half — the two callers that do already get it right.
+      className={cn(
+        'text-zinc-500 data-disabled:opacity-50 dark:text-zinc-400',
+        responsiveDefault('text-sm/6', 'max-sm:text-base/6', className),
+        className
+      )}
     />
   )
 }
@@ -85,14 +96,15 @@ export function ErrorMessage({
     <Headless.Description
       data-slot="error"
       {...props}
-      className={clsx(
-        className,
+      className={cn(
         // Monochrome doctrine: errors stay in the accent hue, not red. Kept
         // visually DISTINCT from Description (text-zinc-500) by combining two
         // levers — accent color + semibold weight — rather than color alone.
         // accent-700/accent-400 clear WCAG AA (≥4.5:1) on white/zinc-900
         // respectively; see scripts/check-palette.mjs for the contrast gate.
-        'text-base/6 font-semibold text-accent-700 data-disabled:opacity-50 sm:text-sm/6 dark:text-accent-400'
+        'font-semibold text-accent-700 data-disabled:opacity-50 dark:text-accent-400',
+        responsiveDefault('text-sm/6', 'max-sm:text-base/6', className),
+        className
       )}
     />
   )

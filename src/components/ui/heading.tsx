@@ -1,4 +1,4 @@
-import clsx from 'clsx'
+import { cn, responsiveDefault } from './cn'
 
 type HeadingProps = { level?: 1 | 2 | 3 | 4 | 5 | 6 } & React.ComponentPropsWithoutRef<
   'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
@@ -13,7 +13,7 @@ export function Heading({ className, level = 1, ...props }: HeadingProps) {
       // H1 = 24px FIXE (canon DS). Ne rétrécit PAS en ≥sm : sur desktop, les
       // valeurs de KPI (24px) ne doivent jamais dépasser le titre de page en
       // taille — le rétrécissement `sm:text-xl/8` inversait cette hiérarchie.
-      className={clsx(className, 'text-2xl/8 font-semibold text-zinc-950 dark:text-white')}
+      className={cn('text-2xl/8 font-semibold text-zinc-950 dark:text-white', className)}
     />
   )
 }
@@ -39,6 +39,14 @@ export function Subheading({ className, level = 2, tone, ...props }: SubheadingP
   const color = resolvedTone === 'accent' ? 'text-accent-600 dark:text-accent-400' : 'text-zinc-950 dark:text-white'
 
   return (
-    <Element {...props} className={clsx(className, 'text-base/7 font-semibold sm:text-sm/6', color)} />
+    <Element
+      {...props}
+      // Same two sizes at the same two widths as the kit's `text-base/7
+      // sm:text-sm/6`, split so the DESKTOP value is the bare rung a caller's
+      // `text-*` competes against (see `responsiveDefault` in ./cn).
+      // Defaults first, `className` last, `color` before it: `tone` stays the
+      // documented lever, but a caller-supplied colour is no longer swallowed.
+      className={cn('font-semibold', responsiveDefault('text-sm/6', 'max-sm:text-base/7', className), color, className)}
+    />
   )
 }

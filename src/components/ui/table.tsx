@@ -1,8 +1,8 @@
 'use client'
 
-import clsx from 'clsx'
 import type React from 'react'
 import { createContext, useContext, useState } from 'react'
+import { cn } from './cn'
 import { Link } from './link'
 
 const TableContext = createContext<{ bleed: boolean; dense: boolean; grid: boolean; striped: boolean }>({
@@ -43,10 +43,10 @@ export function Table({
             computes `overflow-y` to `auto` too, creating a nested vertical scrollport
             that (a) duplicates the caller's own scroll container and (b) traps
             `position: sticky` headers, which then never stick. Drop it when fixed. */}
-        <div {...props} className={clsx(className, '-mx-(--gutter) whitespace-nowrap', !fixed && 'overflow-x-auto')}>
-          <div className={clsx('inline-block min-w-full align-middle', !bleed && 'sm:px-(--gutter)')}>
+        <div {...props} className={cn('-mx-(--gutter) whitespace-nowrap', !fixed && 'overflow-x-auto', className)}>
+          <div className={cn('inline-block min-w-full align-middle', !bleed && 'sm:px-(--gutter)')}>
             <table
-              className={clsx(
+              className={cn(
                 'min-w-full text-left text-sm/6 text-zinc-950 dark:text-white',
                 fixed && 'w-full table-fixed'
               )}
@@ -76,10 +76,10 @@ export function TableHead({ className, ...props }: React.ComponentPropsWithoutRe
       // wrapped in `sm:px-(--gutter)`, so a background on <thead> stops short of
       // the card's edges and the band visibly falls short on both sides. The
       // cells span the full width, so painting them takes the fill edge to edge.
-      className={clsx(
-        className,
+      className={cn(
         '[&_th]:bg-zinc-50 dark:[&_th]:bg-surface-sunken',
-        '[&_th]:border-b [&_th]:border-zinc-950/10 dark:[&_th]:border-[var(--surface-border-strong)]'
+        '[&_th]:border-b [&_th]:border-zinc-950/10 dark:[&_th]:border-[var(--surface-border-strong)]',
+        className
       )}
     />
   )
@@ -108,8 +108,7 @@ export function TableRow({
     <TableRowContext.Provider value={{ href, target, title } as React.ContextType<typeof TableRowContext>}>
       <tr
         {...props}
-        className={clsx(
-          className,
+        className={cn(
           // Paint <td>, not <tr>: row background on <tr> often clips to content
           // (flush/"à ras") instead of filling the full cell box including padding.
           // Interaction feedback ONLY when the row is navigable (has an href):
@@ -119,7 +118,8 @@ export function TableRow({
           '[&>td]:transition-colors [&>th]:transition-colors',
           href &&
             'hover:[&>td]:bg-zinc-950/[0.03] hover:[&>th]:bg-zinc-950/[0.03] dark:hover:[&>td]:bg-surface-raised-hover dark:hover:[&>th]:bg-surface-raised-hover has-[[data-row-link][data-focus]]:outline-2 has-[[data-row-link][data-focus]]:-outline-offset-2 has-[[data-row-link][data-focus]]:outline-accent-500 dark:focus-within:[&>td]:bg-surface-raised-hover',
-          striped && 'even:[&>td]:bg-zinc-950/2 dark:even:[&>td]:bg-white/[0.02]'
+          striped && 'even:[&>td]:bg-zinc-950/2 dark:even:[&>td]:bg-white/[0.02]',
+          className
         )}
       />
     </TableRowContext.Provider>
@@ -139,15 +139,15 @@ export function TableHeader({ className, ...props }: React.ComponentPropsWithout
       // into a wrong scope. No dashboard table spans header cells today.
       scope="col"
       {...props}
-        className={clsx(
-          className,
+        className={cn(
           // NOTE: the 10px/uppercase/tracking-widest header type DIVERGES from the
           // stock Catalyst kit (font-medium at body size). That divergence is a
           // deliberate house style, not drift to repair — this file only adds
           // invisible semantics (scope, caption) and must not restyle anything.
           'px-4 py-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-500 first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2))',
           grid && 'border-l border-l-zinc-950/5 first:border-l-0 dark:border-l-white/5',
-          !bleed && 'sm:first:pl-1 sm:last:pr-1'
+          !bleed && 'sm:first:pl-1 sm:last:pr-1',
+          className
         )}
     />
   )
@@ -162,15 +162,18 @@ export function TableCell({ className, children, ...props }: React.ComponentProp
     <td
       ref={href ? setCellRef : undefined}
       {...props}
-      className={clsx(
-        className,
+      className={cn(
         'relative px-4 first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2))',
         // white/5 was too faint to read as a separator at all; white/8 keeps the
         // rows soft-edged but actually divided.
         !striped && 'border-b border-zinc-950/5 dark:border-[var(--surface-border)]',
         grid && 'border-l border-l-zinc-950/5 first:border-l-0 dark:border-l-[var(--surface-border)]',
         dense ? 'py-3' : 'py-4',
-        !bleed && 'sm:first:pl-1 sm:last:pr-1'
+        !bleed && 'sm:first:pl-1 sm:last:pr-1',
+        // Caller LAST: `<TableCell className="py-3">` used to render py-4 in 40
+        // places across the dashboard. `dense` on <Table> remains the way to set
+        // the density of a WHOLE table; this only stops a per-cell override lying.
+        className
       )}
     >
       {href && (

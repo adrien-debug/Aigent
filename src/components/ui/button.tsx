@@ -1,6 +1,6 @@
 import * as Headless from '@headlessui/react'
-import clsx from 'clsx'
 import React, { forwardRef } from 'react'
+import { cn } from './cn'
 import { Link } from './link'
 
 const styles = {
@@ -110,10 +110,12 @@ export const Button = forwardRef(function Button(
   { color, outline, plain, className, children, ...props }: ButtonProps,
   ref: React.ForwardedRef<HTMLElement>
 ) {
-  let classes = clsx(
-    className,
+  let classes = cn(
     styles.base,
-    outline ? styles.outline : plain ? styles.plain : clsx(styles.solid, styles.colors[color ?? 'dark/zinc'])
+    outline ? styles.outline : plain ? styles.plain : [styles.solid, styles.colors[color ?? 'dark/zinc']],
+    // Caller LAST. `styles.base` carries the padding scale and `text-base/6
+    // sm:text-sm/6`; before this, a `className="px-2"` on a Button was inert.
+    className
   )
 
   return typeof props.href === 'string' ? (
@@ -121,7 +123,9 @@ export const Button = forwardRef(function Button(
       <TouchTarget>{children}</TouchTarget>
     </Link>
   ) : (
-    <Headless.Button {...props} className={clsx(classes, 'cursor-default')} ref={ref}>
+    // `cursor-default` FIRST: it is a fallback, not an override — a caller that
+    // asks for `cursor-pointer` (inside `classes`) must still win.
+    <Headless.Button {...props} className={cn('cursor-default', classes)} ref={ref}>
       <TouchTarget>{children}</TouchTarget>
     </Headless.Button>
   )
