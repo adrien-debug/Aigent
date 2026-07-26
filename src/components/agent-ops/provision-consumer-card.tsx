@@ -75,13 +75,19 @@ export function ProvisionConsumerCard({
     >
       <div className="flex flex-wrap items-center gap-2">
         <ServerStackIcon className="size-5 text-zinc-500" aria-hidden="true" />
-        {/* `text-xs` needs the `!`: `Text` composes `clsx(className, defaults)`,
-            so its `sm:text-sm/6` is emitted later in the sheet and won — these
-            three meta lines rendered at 14px while claiming 12px. `!` is the
-            escape hatch the cascade doctrine allows, and it is visible in the
-            diff. The `text-zinc-500` that sat here is gone: it was dead too
-            (the app forces `dark`, so `dark:text-zinc-400` always painted). */}
-        <Text className="font-mono text-xs!">{repoFullName}</Text>
+        {/* The `!` these three meta lines carried is GONE, and nothing moved.
+            It was posted when `Text` composed `clsx(className, defaults)`: its
+            `sm:text-sm/6` was emitted later in the sheet and won, so the lines
+            rendered 14px while claiming 12px. `Text` now composes `cn(defaults,
+            className)` and withdraws its `max-sm:` bump the moment the caller
+            names a size, so a bare `text-xs` lands on its own. Measured on
+            /admin/projects/proj-tradeagent @1440, with `!` and without:
+            12px/16px both times, box unchanged. An `!` that changes nothing is
+            not a safety net — it is a lie to the next reader and a lock on any
+            downstream override. The `text-zinc-500` that sat here is also gone:
+            it was dead too (the app forces `dark`, so `dark:text-zinc-400`
+            always painted). */}
+        <Text className="font-mono text-xs">{repoFullName}</Text>
         {status?.provisioned ? (
           <Badge color="accent">Intake provisioned {status.version ?? ''}</Badge>
         ) : (
@@ -90,7 +96,7 @@ export function ProvisionConsumerCard({
       </div>
 
       {status?.provisioned && status.provisionedAt ? (
-        <Text className="text-xs!">
+        <Text className="text-xs">
           Last marker: {formatTimestamp(status.provisionedAt)} · project key{' '}
           <span className="font-mono">{status.projectKey ?? '—'}</span>
         </Text>
@@ -114,7 +120,7 @@ export function ProvisionConsumerCard({
 
       <GitHubDeliveryModeToggle value={deliveryMode} onChange={setDeliveryMode} />
 
-      <Text className="text-xs!">
+      <Text className="text-xs">
         Real GitHub writes require <span className="font-mono">GITHUB_PUSH_ENABLED=1</span> server-side.
         Preview always works (dry-run).
       </Text>

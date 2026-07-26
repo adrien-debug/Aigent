@@ -4,6 +4,7 @@ import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
 
 import { surfaceInsetClass } from '@/components/agent-ops/surface-card'
+import { TouchTarget } from '@/components/ui/button'
 import { Link } from '@/components/ui/link'
 
 /** Client-safe mirror of `PushResult` from github.ts (server-only). */
@@ -53,17 +54,34 @@ export function GitHubDeliveryModeToggle({
   return (
     <div className="flex flex-wrap gap-2 text-xs">
       {DELIVERY_OPTIONS.map((opt) => (
+        // These two are a REAL choice (how the pack reaches GitHub), and at 24px tall they
+        // were the smallest decision surface on the project page. `TouchTarget` — the kit's
+        // own, the one `Button` wraps its children in — raises the hit area to 44px on a
+        // coarse pointer without repainting anything on a fine one. Measured at 390×844 with
+        // `hasTouch`: 123×24 → 123×44 and 90×24 → 90×44.
+        // `aria-pressed` states the selection to anything that is not an eye. Measured, the
+        // ONLY difference between the chosen chip and the other one was `text-accent-400` vs
+        // `text-zinc-400` — colour alone, which the doctrine forbids as a sole carrier of
+        // meaning and which a screen reader cannot see at all. The visual stays exactly as
+        // it was; this only stops the control lying by omission.
+        //
+        // Focus ring: these buttons declared none, so keyboard focus fell back to the UA
+        // `1px auto rgb(0, 95, 204)` — browser blue, off-palette, low contrast on this
+        // plane. Same accent ring as every other focusable in this file's neighbours.
         <Headless.Button
           key={opt.mode}
           type="button"
+          aria-pressed={value === opt.mode}
           onClick={() => onChange(opt.mode)}
           className={clsx(
-            'rounded-lg px-2 py-1 text-xs transition-colors',
+            'relative rounded-lg px-2 py-1 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500',
             value === opt.mode ? 'text-accent-400' : 'text-zinc-400 hover:text-zinc-200'
           )}
         >
-          {opt.label}
-          {opt.mode === 'pull_request' ? ' (default)' : ''}
+          <TouchTarget>
+            {opt.label}
+            {opt.mode === 'pull_request' ? ' (default)' : ''}
+          </TouchTarget>
         </Headless.Button>
       ))}
     </div>

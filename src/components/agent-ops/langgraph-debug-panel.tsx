@@ -56,7 +56,12 @@ export function LangGraphDebugPanel({ info, status }: { info: LangGraphDebugInfo
         ) : null}
       </div>
 
-      <Text className="mt-3 !text-xs">
+      {/* `!` dropped. This panel only mounts on a live builder run, so it was measured the
+          honest way instead of claimed: the exact class list `Text`'s `cn()` emits for
+          `mt-3 !text-xs` / `mt-3 text-xs` / `mt-3 text-xs!` was mounted against the running
+          app's compiled stylesheet at 1440 AND 390 (the width where `Text`'s `max-sm:` bump
+          would bite). All three: 12px/16px, margin-top 12px, height 16px, same colour. */}
+      <Text className="mt-3 text-xs">
         Runs execute on the Agent Server above (the prod server in production). Aigent is the durable operator view;
         LangGraph Runs lists the live threads, and Studio opens the graph visually.
       </Text>

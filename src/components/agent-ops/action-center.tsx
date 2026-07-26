@@ -11,6 +11,7 @@ import {
 import { EmptyState } from '@/components/agent-ops/empty-state'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import { Badge } from '@/components/ui/badge'
+import { TouchTarget } from '@/components/ui/button'
 import { Link } from '@/components/ui/link'
 import type { ActionItem, ActionItemKind } from '@/lib/agent-mission-control/dashboard-overview'
 
@@ -74,14 +75,37 @@ function ActionRow({ item }: { item: ActionItem }) {
             actually has to read to tell two otherwise identical rows apart. */}
         <p className="min-w-0 truncate font-mono text-xs text-zinc-400">{item.meta}</p>
       </div>
+      {/* `TouchTarget` — the kit's own answer, the one `Button` and `BadgeButton` already
+          use, rather than a second mechanism invented here. The painted chip stays 28px
+          (h-7) so nothing moves on a mouse machine; on a COARSE pointer the invisible
+          `size-[max(100%,2.75rem)]` child raises the hit area to 44×44, which is what a
+          thumb needs. `relative` is not decoration — the pad is absolutely positioned and
+          without it it would anchor to the nearest positioned ancestor instead of this
+          link. Measured at 390×844 with `hasTouch`: 104×28 before, 104×44 after. */}
       <Link
         href={item.href}
         aria-label={`${item.buttonLabel}: ${item.title}`}
-        className="inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 text-xs font-medium text-zinc-400 hover:bg-zinc-950/5 hover:text-zinc-900 dark:hover:text-white"
+        // Two states measured and repaired here (nothing else on this chip changes):
+        //
+        // HOVER — `hover:bg-zinc-950/5` had no `dark:` half, so on this dark console it
+        // computed to near-black at 5% opacity: a DARKENING wash, on a plane that is
+        // already almost black, inside a row that LIGHTENS to rgb(31,31,35) at the same
+        // moment. The chip was moving against its own row. `dark:hover:bg-white/10` is the
+        // value `Button plain` already uses for exactly this (kit `styles.plain`), so the
+        // chip now lightens like everything else instead of inventing a third behaviour.
+        //
+        // FOCUS — this `Link` declared no focus style at all, so keyboard focus fell back
+        // to the UA ring: measured `1px auto rgb(0, 95, 204)`, a browser blue that exists
+        // nowhere in this palette and sits at low contrast on the raised plane. The
+        // accent ring below is the one `project-header.tsx` and `soft-accent-link.tsx`
+        // already declare — measured `2px solid rgb(167, 251, 144)`, i.e. accent-500.
+        className="relative inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 text-xs font-medium text-zinc-400 hover:bg-zinc-950/5 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:hover:bg-white/10 dark:hover:text-white"
         {...linkProps}
       >
-        {item.buttonLabel}
-        <ChevronRightIcon className="size-3.5" aria-hidden="true" />
+        <TouchTarget>
+          {item.buttonLabel}
+          <ChevronRightIcon className="size-3.5" aria-hidden="true" />
+        </TouchTarget>
       </Link>
     </li>
   )
