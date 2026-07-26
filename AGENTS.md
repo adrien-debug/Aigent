@@ -13,8 +13,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 1. `CLAUDE.md` — git, merge, push, déploiement, sécurité opérationnelle.
 2. `AGENTS.md` (ce fichier) — workflow agent, ports, architecture, Catalyst, vérité runtime.
-3. `src/components/agent-ops/DESIGN-DOCTRINE.md` — surfaces, tokens, composants UI, iconographie,
-   responsive, tables, empty states. Portée : `src/app/admin/**` et `src/components/agent-ops/**`.
+3. `src/components/agent-ops/DESIGN-DOCTRINE.md` — surfaces, tokens, composants UI, échelle typo,
+   règle de cascade des `className`, responsive, tables, empty states, et les **arbitrages design
+   non tranchés**. Portée : le périmètre dashboard complet, celui que scanne `check:catalyst` —
+   `src/app/admin/**`, `src/components/agent-ops/**`, `src/components/views/**`,
+   `src/components/shell/**`.
 4. Gates exécutables (`npm run check`) — arbitre final : une gate rouge gagne sur toute phrase de
    doctrine.
 5. Mission courante.
@@ -64,15 +67,14 @@ est pris par un process non identifié comme le sien.
   (`'use client'` — Recharts mesure le DOM) ; le bucketing reste SERVEUR dans `chart-frame.tsx`.
   Couleurs via les tokens `--chart-*` de `src/theme.css`, jamais un hex littéral. Une barre de
   progression HTML (`<div>` à largeur %) n'est pas un graphique et n'a pas besoin de Recharts.
-- **19 primitives** dans `src/components/ui/` (avatar, badge, button, dialog, divider,
-  fieldset, heading, input, link, navbar, panel, section, select, sidebar, sidebar-layout,
-  switch, table, text, textarea). Le kit a été déplacé de `components/catalyst/` vers
-  `components/ui/` par le refactor `353a1ed` (architecture en couches theme/ui/shell/views) —
-  ce chemin est celui que scanne `check:catalyst` et celui qu'épingle la doctrine projet.
-  `sidebar-layout` + `sidebar` + `navbar` = LE shell admin, `panel` + `section` = la grammaire
-  de plans (ex-`surface`, supprimé). N'ajoute une primitive que si elle a un consommateur réel :
-  alert, dropdown, pagination, description-list et table-fit ont été importés puis supprimés
-  faute d'usage.
+- **Les primitives vivent dans `src/components/ui/`** — le kit a été déplacé de
+  `components/catalyst/` (qui n'existe plus) vers `components/ui/` par le refactor `353a1ed`
+  (architecture en couches theme/ui/shell/views) ; c'est ce chemin, et lui seul, que scanne
+  `check:catalyst`. `sidebar-layout` + `sidebar` + `navbar` = LE shell admin ; `panel` + `section`
+  = la grammaire de plans (primitives maison, ex-`surface` supprimé). **La liste exacte, la règle
+  du consommateur réel et le contrat de chaque primitive vivent dans
+  `src/components/agent-ops/DESIGN-DOCTRINE.md` §Sources** — ne les recopie pas ici, c'est
+  précisément la duplication qui avait laissé ce fichier annoncer un compte périmé.
 <!-- END:catalyst-ui-rules -->
 
 ## Invariants agents & runtime (détail : docs/missions/AGENTS-history-2026-07.md)
