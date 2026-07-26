@@ -1,15 +1,43 @@
 import clsx from 'clsx'
 
-import { Subheading } from '@/components/ui/heading'
 import { surfaceRaised } from '@/components/ui/panel'
 import { Text } from '@/components/ui/text'
+
+/**
+ * An empty-state title is a LABEL, not a sentence — "No drafts yet", never
+ * "No drafts yet.". Callers drifted both ways ("No repository selected yet.",
+ * "This repository is empty." against "No runs yet", "All clear"), so the
+ * terminal period is stripped HERE, in the component that owns the grammar,
+ * rather than trusted to ~20 call sites that already proved they diverge.
+ * A middle period is untouched: only a trailing one is punctuation drift.
+ */
+function asLabel(title: string): string {
+  return title.replace(/\s*\.+$/, '')
+}
 
 /**
  * EmptyState — the ONE empty-state grammar for /admin screens (canon fixed by
  * DS audit: 5 different copy-pasted empty-state markups were found across the
  * repo). Centered, generous padding, discrete zinc icon, NEUTRAL title (this
- * is an empty state, not a section title — no accent orange), zinc-500
- * description, optional action slot for a follow-up button/link.
+ * is an empty state, not a section title — no accent), zinc-500 description,
+ * optional action slot for a follow-up button/link.
+ *
+ * The title is a `role="status"` LABEL, not a heading. It used to render a
+ * `Subheading`, i.e. an `<h2>` — the exact rank that `Section`/`AgentSection`
+ * give the card the empty state sits INSIDE (`components/ui/section.tsx:76`,
+ * `agent-ops/agent-section.tsx:31` both render `Subheading level={2}`). So
+ * "No runs yet" was published as a SIBLING section of "Runs" rather than as
+ * its content: heading navigation announced a section that does not exist,
+ * and the document outline claimed a structure the page does not have. 14
+ * dashboard files pair the two components, across /admin, /admin/agents,
+ * /admin/projects and /admin/factory.
+ *
+ * `role="status"` is the honest role: this is a transient state of a region,
+ * and it earns something a heading never gave — when a client filter or a
+ * refresh empties a populated list, the swap is announced instead of silently
+ * replacing rows. No accessible name is lost in the trade: no `aria-labelledby`
+ * exists anywhere in `src/`, and this heading carried no `id`, so no region
+ * ever drew its name from it.
  *
  * Callers own the surrounding surface (card/section wrapper); this component
  * only lays out the centered content block, matching the `px-6 py-12` rhythm
@@ -29,12 +57,24 @@ export function EmptyState({
   className?: string
 }) {
   return (
-    <div className={clsx('px-6 py-12', className)}>
+    <div role="status" className={clsx('px-6 py-12', className)}>
       <div className="mx-auto max-w-md text-center">
         {Icon ? <Icon aria-hidden="true" className="mx-auto size-10 text-zinc-500" /> : null}
-        <Subheading tone="neutral" className={clsx(Icon && 'mt-4', 'text-zinc-900 dark:text-white')}>
-          {title}
-        </Subheading>
+        {/* Byte-for-byte the classes the neutral `Subheading` actually resolved
+            to: its own `text-base/7 font-semibold sm:text-sm/6` plus the neutral
+            tone's `text-zinc-950 dark:text-white` — which beat the caller's
+            `text-zinc-900`, since Tailwind settles a same-utility clash by the
+            order of the generated CSS (`.text-zinc-950` is emitted last), not by
+            the order of the class attribute. Only the tag (and therefore the
+            document outline) changes; nothing moves on screen. */}
+        <p
+          className={clsx(
+            Icon && 'mt-4',
+            'text-base/7 font-semibold text-zinc-950 sm:text-sm/6 dark:text-white'
+          )}
+        >
+          {asLabel(title)}
+        </p>
         {description ? <Text className="mt-2 text-zinc-600">{description}</Text> : null}
         {action ? <div className="mt-6 flex flex-wrap justify-center gap-3">{action}</div> : null}
       </div>

@@ -7,12 +7,16 @@ import { useRouter } from 'next/navigation'
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { LangGraphDebugPanel, type LangGraphDebugInfo } from '@/components/agent-ops/langgraph-debug-panel'
 import { MarkdownLite } from '@/components/agent-ops/markdown-lite'
-import { ProjectBuilderPreviewPanel } from '@/components/agent-ops/project-builder-preview-panel'
+import {
+  builderSectionTitleClass,
+  ProjectBuilderPreviewPanel,
+} from '@/components/agent-ops/project-builder-preview-panel'
 import {
   ProjectRepoIntelligenceActions,
   useProjectRepoIntelligence,
 } from '@/components/agent-ops/project-repo-intelligence'
 import { Button } from '@/components/ui/button'
+import { Subheading } from '@/components/ui/heading'
 import { Text } from '@/components/ui/text'
 import { Textarea } from '@/components/ui/textarea'
 import type { AgentRecommendation } from '@/lib/agent-mission-control/repo-intelligence'
@@ -443,7 +447,9 @@ export function ProjectAgentBuilderWorkbench({
         >
           <div className="relative bg-(--accent-soft) px-4 py-3 flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Architect chat</h2>
+              <Subheading level={2} tone="neutral" className={builderSectionTitleClass}>
+                Architect chat
+              </Subheading>
               <p className="mt-1 text-xs text-zinc-500">
                 Persistent thread — discuss the repo, compare options, create draft only after explicit approval.
               </p>
@@ -577,7 +583,10 @@ export function ProjectAgentBuilderWorkbench({
           </div>
         </section>
 
-        <aside className="h-full min-h-0 min-w-0 overflow-hidden">
+        {/* Named like the chat pane beside it: the builder's two regions are
+            peers, so both must be reachable from a landmark list — an unnamed
+            `<aside>` is not. */}
+        <aside aria-label="Agent Builder preview" className="h-full min-h-0 min-w-0 overflow-hidden">
           <ProjectBuilderPreviewPanel
             preview={preview}
             conversationStatus={conversation?.status ?? null}

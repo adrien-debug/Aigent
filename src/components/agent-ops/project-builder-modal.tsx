@@ -52,7 +52,14 @@ export function ProjectBuilderModal({
           className="flex h-[90vh] w-full max-w-[1600px] min-h-0 flex-col overflow-hidden rounded-2xl bg-[var(--color-surface-primary)] ring-1 ring-white/10 transition duration-150 data-closed:scale-95 data-closed:opacity-0"
         >
           <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/5 bg-black/20 px-6 py-4">
-            <Headless.DialogTitle className="min-w-0 truncate text-sm font-medium text-white">
+            {/* `as="h1"`: /admin/projects/[id]/builder renders NOTHING but this
+                dialog (`project-builder-view.tsx` — the project overview is not
+                behind it, it is a route of its own), so `DialogTitle`'s default
+                `h2` left the route with zero `h1` and a heading tree that began
+                at rank 2. This title IS the page title — it already mirrors the
+                route's `generateMetadata` — and being the only h1 keeps the
+                workbench's own section titles at a coherent rank 2. */}
+            <Headless.DialogTitle as="h1" className="min-w-0 truncate text-sm font-medium text-white">
               Agent Builder — {projectName}
             </Headless.DialogTitle>
             <Headless.Button
