@@ -14,29 +14,30 @@ Ne jamais bloquer indéfiniment un push sur une simple valeur `unknown`.
 
 @AGENTS.md
 
-## Storybook — passage obligatoire avant toute modif UI
+## UI — ce qui garde réellement le design system
 
-> **STATUT (2026-07-25) : hook DÉ-ACTIVÉ tant que Storybook n'est pas installé.**
-> Le câblage était creux (aucun Storybook à consulter) et bloquait les édits UI sans
-> rien faire respecter. La règle ci-dessous redevient active après `npx storybook@latest
-> init` + réactivation du hook dans `.claude/settings.json`. **En attendant, le design
-> system reste réellement gardé par `npm run check:ds` + `npm run check:catalyst`** (ce
-> sont EUX l'outil qui fait respecter la règle, cf. doctrine « une règle ne vaut que si
-> un outil la fait respecter »).
+> **Storybook n'est PAS installé dans ce workspace (26/07/2026).** Le câblage précédent
+> était creux de bout en bout — hook PreToolUse désactivé, 0 story, 0 test, et un
+> `test:storybook-unit` qui se terminait par `|| true` donc ne pouvait pas échouer tout
+> en occupant une ligne de `npm run check`. Le tout a été **supprimé**, pas caché :
+> scripts, hook et marqueur `.storybook-consulted` n'existent plus.
 
-Storybook est la source de vérité visuelle du design system de CE projet (kit local,
-tokens locaux — indépendant de tout autre workspace). **Avant toute modification UI,
-frontend, composant, layout ou Design System** :
+Le design system est gardé par des outils qui échouent pour de vrai :
 
-1. lancer Storybook (`npm run storybook`) ;
-2. identifier la story concernée + le vrai composant React + le token source ;
-3. reproduire le problème dans Storybook ;
-4. modifier la SOURCE produit, jamais uniquement la story ;
-5. vérifier variantes + viewports ;
-6. `npm run storybook:consult` (débloque la passe UI 15 min pour le hook) ;
-7. `npm run test:storybook` (a11y en `error` = bloquant) avant de livrer.
+- `npm run check:ds` — mono-accent (`#A7FB90`) + zinc, contrastes AA vérifiés.
+- `npm run check:catalyst` — primitives `src/components/ui/` obligatoires sur
+  `src/app/admin/**`, `src/components/agent-ops/**`, `src/components/views/**`,
+  `src/components/shell/**`. Zéro natif, spacing sur l'échelle fixe.
+- `npm run check:views`, `check:render-truth`, `check:status-truth` — vérité affichée.
 
-Le hook `scripts/hooks/storybook-gate.mjs` (PreToolUse) REFUSE toute édition d'un fichier
-UI tant que Storybook n'a pas été consulté — la règle passe par un outil, pas par la bonne
-volonté. Le design system de ce workspace lui est PROPRE : ne pas importer les tokens/palette
-d'un autre projet.
+Le design system de ce workspace lui est PROPRE : ne pas importer les tokens/palette
+d'un autre projet. Si Storybook est installé un jour, il faudra de vraies stories et une
+gate a11y bloquante **avant** de réécrire une règle ici — une règle ne vaut que si un
+outil la fait respecter.
+
+## Anti-fuite de secrets — pre-commit actif
+
+`npm run hooks:install` câble `core.hooksPath=scripts/hooks` : le hook `pre-commit`
+lance `gitleaks protect --staged --redact` et **refuse** le commit si un secret est
+détecté (vérifié par sonde : commit bloqué, HEAD inchangé). `npm run check:secrets`
+rejoue le scan sur tout l'historique. À faire une fois après un clone.

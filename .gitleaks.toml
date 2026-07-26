@@ -5,4 +5,8 @@ useDefault = true
 [allowlist]
 description = "Faux positifs assumés"
 paths = ['''\.env\.example$''', '''pnpm-lock\.yaml$''', '''package-lock\.json$''']
-regexes = ['''placeholder''']
+
+# `ghp_secret123` est un littéral INVENTÉ dans tests/unit/project-builder-preview.test.ts :
+# le test vérifie justement que la redaction masque ce motif. On allowliste la VALEUR exacte,
+# jamais le fichier entier — un vrai secret introduit dans ce test resterait détecté.
+regexes = ['''placeholder''', '''ghp_secret123''']

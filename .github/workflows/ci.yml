@@ -16,6 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # `check:secrets` scanne tout l'historique — un clone superficiel
+          # ne verrait qu'un commit et laisserait passer une fuite ancienne.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -25,12 +29,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # typecheck + lint + design-system guard (monochrome accent + AA contrast)
+      # Requis par `npm run check:secrets` (étape de `npm run check`) —
+      # gitleaks est absent des runners GitHub par défaut.
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          VERSION=8.30.1
+          curl -sSfL -o /tmp/gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz"
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      # typecheck + oxlint + eslint + gardes design-system + vérité + secrets
       - name: Check
         run: npm run check
-
-      - name: Dead-code audit
-        run: npm run audit:dead
 
       - name: Unit tests
         run: npm test

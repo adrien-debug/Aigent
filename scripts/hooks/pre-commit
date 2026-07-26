@@ -1,0 +1,21 @@
+#!/bin/sh
+# Pre-commit Hearst — anti-fuite de secrets (doctrine globale §Sécurité :
+# « gitleaks en pre-commit partout »). Bloquant : un secret détecté arrête le
+# commit. Sortie masquée (--redact) : une valeur en clair ne doit JAMAIS
+# apparaître dans un log de terminal.
+#
+# Installé par `npm run hooks:install` (core.hooksPath=scripts/hooks).
+# Contournement d'urgence assumé et tracé : `git commit --no-verify`.
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "✗ pre-commit: gitleaks introuvable — installe-le (brew install gitleaks)." >&2
+  echo "  Le scan anti-secret est obligatoire ; commit refusé." >&2
+  exit 1
+fi
+
+gitleaks protect --staged --no-banner --redact --config .gitleaks.toml || {
+  echo "" >&2
+  echo "✗ pre-commit: secret potentiel dans les fichiers stagés — commit refusé." >&2
+  echo "  Retire la valeur, passe par process.env, puis recommence." >&2
+  exit 1
+}

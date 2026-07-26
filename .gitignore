@@ -64,6 +64,3 @@ next-env.d.ts
 
 # Generated output of `npm run verify:admin-routes` — regenerated on demand.
 tmp/
-
-# Marqueur local de la gate Storybook (hook PreToolUse)
-.storybook-consulted

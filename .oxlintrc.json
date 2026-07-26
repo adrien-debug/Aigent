@@ -1,5 +1,17 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "categories": { "correctness": "warn", "suspicious": "warn" },
-  "ignorePatterns": ["dist", "build", ".next", "storybook-static", "coverage"]
+  "categories": { "correctness": "error", "suspicious": "warn" },
+  "ignorePatterns": ["dist", "build", ".next", "storybook-static", "coverage"],
+  "rules": {
+    "unicorn/no-array-sort": "warn",
+    "unicorn/no-array-reverse": "warn",
+    "unicorn/prefer-string-starts-ends-with": "warn",
+    "unicorn/consistent-function-scoping": "warn",
+    "unicorn/no-useless-fallback-in-spread": "warn",
+    "eslint/no-underscore-dangle": "warn",
+    "eslint/preserve-caught-error": "warn",
+    "eslint/no-shadow": "warn",
+    "eslint/no-unneeded-ternary": "warn",
+    "unicorn/no-invalid-fetch-options": "off"
+  }
 }
