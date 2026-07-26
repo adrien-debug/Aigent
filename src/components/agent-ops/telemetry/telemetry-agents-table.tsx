@@ -3,6 +3,7 @@ import clsx from 'clsx'
 
 import { EmptyState, NotMeasuredDash } from '@/components/agent-ops/empty-state'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
+import { TelemetryScrollAffordance } from '@/components/agent-ops/telemetry/telemetry-scroll-affordance'
 import { Link } from '@/components/ui/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatDurationMs, formatPercent, formatTimestamp } from '@/lib/agent-mission-control/format'
@@ -32,7 +33,10 @@ export function TelemetryAgentsTable({
       <SurfaceCardHeader
         title="Agents Reporting"
         meta={
-          <span className="text-xs text-zinc-500">
+          // zinc-400, not zinc-500: measured 3.59:1 on the raised plane
+          // (#1a1a1e) for a 4.5 threshold — under AA. Same call and same ratio
+          // as dashboard-kpi-strip's integrity footer.
+          <span className="text-xs text-zinc-400">
             {rows.length} agent{rows.length === 1 ? '' : 's'}
           </span>
         }
@@ -44,24 +48,38 @@ export function TelemetryAgentsTable({
           description="Runtime telemetry is opt-in from the delivered runtime — agents appear here as soon as they report their first event."
         />
       ) : (
-        // Scrollbar deliberately NOT hidden: the table is `min-w-[760px]`, so under
-        // 760px real columns sit off-screen. `no-scrollbar` removed the only hint
-        // that they exist at all. The fade+ResizeObserver affordance
-        // (agent-detail-nav) needs a client boundary; this table is a server
-        // component, and the native bar costs nothing and is understood everywhere.
-        <div className="overflow-x-auto">
-          <Table className="w-full text-left border-collapse min-w-[760px]">
+        // `min-w-[760px]` USED to sit here, and it landed on the scrollport (Table
+        // forwards className to its own `overflow-x-auto` div), not on the table:
+        // a scroll container as wide as its content can never scroll, so under
+        // 760px the last columns were simply clipped by the card's
+        // `overflow-hidden` and unreachable by any gesture. The table already
+        // carries `min-w-full` + inherited `whitespace-nowrap`, so its natural
+        // content width is the right minimum — and now it actually scrolls.
+        //
+        // `bleed` + `[--gutter:0]` + `px-6`: the 24px gutter is paid ONCE, by the
+        // scrollport, so the first glyph lines up exactly with the card header
+        // title. Without `bleed` the primitive adds `sm:first:pl-1`, which pushed
+        // the first column 4px past the header — the per-cell `px-6` written here
+        // before never fixed it, it was a dead override (check:class-collision).
+        <TelemetryScrollAffordance>
+          <Table bleed dense data-scrollport className="px-6 [--gutter:--spacing(0)]">
+            {/* No local rules on the head row or the body: under the collapsed
+                border model the cell edge wins over the row edge, so
+                `border-b border-white/5` here and `divide-y divide-white/5` on
+                the body never painted a pixel — TableHead's own
+                `[&_th]:border-b` and TableCell's `border-b` already draw the two
+                separators, at the ONE weight the design system picked. */}
             <TableHead>
-              <TableRow className="border-b border-white/5">
-                <TableHeader className="px-6">Agent</TableHeader>
-                <TableHeader className="px-6">Project</TableHeader>
-                <TableHeader className="px-6 text-right">Events</TableHeader>
-                <TableHeader className="px-6 text-right">Success Rate</TableHeader>
-                <TableHeader className="px-6 text-right">Avg Latency</TableHeader>
-                <TableHeader className="px-6 text-right">Last Seen</TableHeader>
+              <TableRow>
+                <TableHeader>Agent</TableHeader>
+                <TableHeader>Project</TableHeader>
+                <TableHeader className="text-right">Events</TableHeader>
+                <TableHeader className="text-right">Success Rate</TableHeader>
+                <TableHeader className="text-right">Avg Latency</TableHeader>
+                <TableHeader className="text-right">Last Seen</TableHeader>
               </TableRow>
             </TableHead>
-            <TableBody className="divide-y divide-white/5">
+            <TableBody>
               {rows.map((row) => (
                 // No row-level hover: the row is NOT navigable and cannot be — it
                 // carries TWO distinct destinations (agent, project), so there is no
@@ -72,7 +90,7 @@ export function TelemetryAgentsTable({
                 // hover for rows with an `href`; both links already carry their own
                 // hover:underline and focus ring.
                 <TableRow key={`${row.projectId}::${row.agentId}`}>
-                  <TableCell className="py-4 px-6">
+                  <TableCell>
                     <Link
                       href={`/admin/agents/${row.agentId}`}
                       className="text-sm font-medium text-white hover:underline rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
@@ -80,7 +98,7 @@ export function TelemetryAgentsTable({
                       {copilotNameById.get(row.agentId) ?? row.agentId}
                     </Link>
                   </TableCell>
-                  <TableCell className="py-4 px-6">
+                  <TableCell>
                     <Link
                       href={`/admin/projects/${row.projectId}`}
                       className="text-xs text-zinc-300 hover:underline rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
@@ -88,12 +106,12 @@ export function TelemetryAgentsTable({
                       {projectNameById.get(row.projectId) ?? row.projectId}
                     </Link>
                   </TableCell>
-                  <TableCell className="py-4 px-6 text-right">
+                  <TableCell className="text-right">
                     <span className="text-sm font-mono tabular-nums text-white">
                       {numberFormat.format(row.totalRuns)}
                     </span>
                   </TableCell>
-                  <TableCell className="py-4 px-6 text-right">
+                  <TableCell className="text-right">
                     {row.successRate !== null ? (
                       <span
                         className={clsx(
@@ -107,12 +125,12 @@ export function TelemetryAgentsTable({
                       <NotMeasuredDash />
                     )}
                   </TableCell>
-                  <TableCell className="py-4 px-6 text-right">
+                  <TableCell className="text-right">
                     <span className="text-sm font-mono tabular-nums text-zinc-300">
                       {row.avgLatencyMs !== null ? formatDurationMs(row.avgLatencyMs) : <NotMeasuredDash />}
                     </span>
                   </TableCell>
-                  <TableCell className="py-4 px-6 text-right">
+                  <TableCell className="text-right">
                     <span className="text-xs font-mono tabular-nums text-zinc-400">
                       {row.lastSeenAt !== null ? formatTimestamp(row.lastSeenAt) : <NotMeasuredDash />}
                     </span>
@@ -121,7 +139,7 @@ export function TelemetryAgentsTable({
               ))}
             </TableBody>
           </Table>
-        </div>
+        </TelemetryScrollAffordance>
       )}
     </SurfaceCard>
   )

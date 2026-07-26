@@ -49,14 +49,24 @@ export function TelemetryUnconfiguredState({
             {headline(diagnostic)}
           </Subheading>
           {/* Rendered verbatim: the diagnostic module already words this to avoid
-              implying agents are inactive. Do not paraphrase it in the view. */}
-          <Text className="mt-2 text-zinc-400">{diagnostic.summary}</Text>
+              implying agents are inactive. Do not paraphrase it in the view.
+              No colour override: `text-zinc-400` here was dead — Text already
+              defaults to `dark:text-zinc-400` and a caller class cannot beat a
+              default of the same property (check:class-collision). */}
+          <Text className="mt-2">{diagnostic.summary}</Text>
         </div>
       </div>
 
       {/* The activation ladder — the "what to do to turn it on" half of the state.
           Sunken so it reads as an inset reference panel inside the card, not a
           second stacked card. */}
+      {/* zinc-400 on both the step number and the step detail below, not
+          zinc-500. This ladder sits on the SUNKEN plane (#0d0d10) and
+          check:contrast measured that exact pair — zinc-500 foreground on
+          rgb(13,13,16) — at 4.02:1 against a 4.5 floor on this same page (the
+          table <th> band, same fill). The gate cannot reach this branch itself
+          because it only renders when the fleet has no data at all, so the
+          number is transitive from a real measurement, not an estimate. */}
       <div className={clsx(surfaceSunken, 'rounded-none border-t border-zinc-950/10 px-6 py-6 dark:border-[var(--surface-border)]')}>
         <p className={clsx(eyebrowClass, 'mb-4')}>Activation — three independent opt-ins</p>
         <ol className="grid gap-4 sm:grid-cols-3">
@@ -68,7 +78,7 @@ export function TelemetryUnconfiguredState({
                 ) : (
                   <span
                     aria-hidden="true"
-                    className="flex size-4 shrink-0 items-center justify-center rounded-full font-mono text-[10px] text-zinc-500 ring-1 ring-white/15"
+                    className="flex size-4 shrink-0 items-center justify-center rounded-full font-mono text-[10px] text-zinc-400 ring-1 ring-white/15"
                   >
                     {index + 1}
                   </span>
@@ -76,7 +86,7 @@ export function TelemetryUnconfiguredState({
                 <span className="text-sm font-medium text-zinc-200">{step.title}</span>
                 <span className="sr-only">{step.done ? '— done' : '— pending'}</span>
               </div>
-              <p className="text-xs/5 text-zinc-500">{step.detail}</p>
+              <p className="text-xs/5 text-zinc-400">{step.detail}</p>
               {step.env ? (
                 <code className="mt-0.5 truncate font-mono text-[11px] text-zinc-400">{step.env}</code>
               ) : null}
