@@ -1,7 +1,7 @@
 import { SignalIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 
-import { EmptyState } from '@/components/agent-ops/empty-state'
+import { EmptyState, NotMeasuredDash } from '@/components/agent-ops/empty-state'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import { Link } from '@/components/ui/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -44,7 +44,12 @@ export function TelemetryAgentsTable({
           description="Runtime telemetry is opt-in from the delivered runtime — agents appear here as soon as they report their first event."
         />
       ) : (
-        <div className="overflow-x-auto no-scrollbar">
+        // Scrollbar deliberately NOT hidden: the table is `min-w-[760px]`, so under
+        // 760px real columns sit off-screen. `no-scrollbar` removed the only hint
+        // that they exist at all. The fade+ResizeObserver affordance
+        // (agent-detail-nav) needs a client boundary; this table is a server
+        // component, and the native bar costs nothing and is understood everywhere.
+        <div className="overflow-x-auto">
           <Table className="w-full text-left border-collapse min-w-[760px]">
             <TableHead>
               <TableRow className="border-b border-white/5">
@@ -58,10 +63,15 @@ export function TelemetryAgentsTable({
             </TableHead>
             <TableBody className="divide-y divide-white/5">
               {rows.map((row) => (
-                <TableRow
-                  key={`${row.projectId}::${row.agentId}`}
-                  className="hover:bg-[var(--color-surface-interactive)] transition-colors"
-                >
+                // No row-level hover: the row is NOT navigable and cannot be — it
+                // carries TWO distinct destinations (agent, project), so there is no
+                // single href to hand the primitive. The local
+                // `hover:bg-[var(--color-surface-interactive)]` lit the whole row and
+                // promised a click target that never existed (and was one of three
+                // different hover values across these tables). The primitive reserves
+                // hover for rows with an `href`; both links already carry their own
+                // hover:underline and focus ring.
+                <TableRow key={`${row.projectId}::${row.agentId}`}>
                   <TableCell className="py-4 px-6">
                     <Link
                       href={`/admin/agents/${row.agentId}`}
@@ -94,17 +104,17 @@ export function TelemetryAgentsTable({
                         {formatPercent(row.successRate)}
                       </span>
                     ) : (
-                      <span className="text-xs text-zinc-600">—</span>
+                      <NotMeasuredDash />
                     )}
                   </TableCell>
                   <TableCell className="py-4 px-6 text-right">
                     <span className="text-sm font-mono tabular-nums text-zinc-300">
-                      {row.avgLatencyMs !== null ? formatDurationMs(row.avgLatencyMs) : '—'}
+                      {row.avgLatencyMs !== null ? formatDurationMs(row.avgLatencyMs) : <NotMeasuredDash />}
                     </span>
                   </TableCell>
                   <TableCell className="py-4 px-6 text-right">
                     <span className="text-xs font-mono tabular-nums text-zinc-400">
-                      {row.lastSeenAt !== null ? formatTimestamp(row.lastSeenAt) : '—'}
+                      {row.lastSeenAt !== null ? formatTimestamp(row.lastSeenAt) : <NotMeasuredDash />}
                     </span>
                   </TableCell>
                 </TableRow>

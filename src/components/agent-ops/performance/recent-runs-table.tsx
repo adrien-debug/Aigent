@@ -1,5 +1,6 @@
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline'
 
+import { NotMeasuredDash } from '@/components/agent-ops/empty-state'
 import { RunStatusText } from '@/components/agent-ops/run-detail-panel'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import { Link } from '@/components/ui/link'
@@ -38,7 +39,13 @@ export function RecentRunsTable({
         className="px-4 pt-3 pb-2"
         meta={<span className="text-xs text-zinc-500">{runs.length} runs · all projects</span>}
       />
-      <div className="max-h-[28rem] overflow-auto no-scrollbar">
+      {/* Scrollbar deliberately NOT hidden. This scrollport clips on BOTH axes —
+          `max-h-[28rem]` hides rows, `min-w-[760px]` hides columns under 760px — and
+          `no-scrollbar` removed every hint that either was happening. The
+          fade+ResizeObserver affordance (agent-detail-nav) is horizontal-only and
+          needs a client boundary; this table is a server component, so the native
+          bar is the cheaper honest answer and it covers both axes at once. */}
+      <div className="max-h-[28rem] overflow-auto">
         <Table className="min-w-[760px] w-full border-collapse px-4 text-left [--gutter:--spacing(0)]">
         <TableHead className="sticky top-0 z-10">
           <TableRow className="border-b border-white/5">
@@ -58,13 +65,21 @@ export function RecentRunsTable({
           {runs.map((run) => {
             const copilot = copilotById.get(run.copilotId)
             return (
-              <TableRow key={run.id} className="group">
+              // No `group` / no row-level hover: the row is NOT navigable and cannot
+              // be — the last cell holds an INDEPENDENT external action (the trace
+              // link), which a full-row overlay link would swallow, and several cells
+              // carry their own `title` tooltip. `group-hover:underline` underlined
+              // the run link from anywhere in the row, promising a row-wide click
+              // target that does not exist; the underline now follows the pointer
+              // only over the link itself, which also gets the focus ring the row no
+              // longer provides.
+              <TableRow key={run.id}>
                 <TableCell className="py-2">
                   <div className="flex min-w-0 flex-col">
                     <Link
                       href={`/admin/agents/${run.copilotId}/runs?run=${run.id}`}
                       title={run.id}
-                      className="truncate text-sm font-medium text-white group-hover:underline"
+                      className="truncate rounded text-sm font-medium text-white hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
                     >
                       {copilot?.name ?? run.copilotId}
                     </Link>
@@ -73,10 +88,10 @@ export function RecentRunsTable({
                 <TableCell className="py-2">
                   {copilot?.projectId ? (
                     <span className="text-xs text-zinc-400">
-                      {projectNameById.get(copilot.projectId) ?? '—'}
+                      {projectNameById.get(copilot.projectId) ?? <NotMeasuredDash />}
                     </span>
                   ) : (
-                    <span className="text-xs text-zinc-600">—</span>
+                    <NotMeasuredDash />
                   )}
                 </TableCell>
                 <TableCell className="py-2">
@@ -94,7 +109,7 @@ export function RecentRunsTable({
                 </TableCell>
                 <TableCell className="py-2 text-right">
                   <span className="font-mono text-xs text-zinc-400 tabular-nums">
-                    {run.costUsd === null ? '—' : formatUsd(run.costUsd)}
+                    {run.costUsd === null ? <NotMeasuredDash /> : formatUsd(run.costUsd)}
                   </span>
                 </TableCell>
                 <TableCell className="py-2 text-right">
@@ -118,7 +133,11 @@ export function RecentRunsTable({
                       <ArrowTopRightOnSquareIcon className="size-4" />
                     </a>
                   ) : (
-                    <span className="text-zinc-600">—</span>
+                    // The run produced no trace URL — an observability artefact that
+                    // was never captured, so "not measured" is the truthful reading.
+                    // The bare dash was silent: in an icon-only column the screen
+                    // reader announced an empty cell with no clue why.
+                    <NotMeasuredDash />
                   )}
                 </TableCell>
               </TableRow>

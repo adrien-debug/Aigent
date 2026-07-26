@@ -1,4 +1,4 @@
-import { EmptyState } from '@/components/agent-ops/empty-state'
+import { EmptyState, NotMeasuredDash } from '@/components/agent-ops/empty-state'
 import { ProjectAvatar } from '@/components/agent-ops/project-avatar'
 import { SoftAccentLink } from '@/components/agent-ops/soft-accent-link'
 import { PageHeader } from '@/components/shell/page-header'
@@ -43,7 +43,10 @@ export function ProjectsListView({ projects }: { projects: Project[] }) {
                   // "Healthy" must rest on an observation. A pass rate or a run in the
                   // last 24h is one; an empty project is simply unobserved.
                   const hasSignal = project.passRate !== null || project.runsLast24h > 0
-                  const cost = project.runsLast24h > 0 ? formatUsd(project.costLast24hUsd) : '—'
+                  // ReactNode, not a string: with no run in the window there is no
+                  // cost to report, and the bare em dash was silent to a screen
+                  // reader. NotMeasuredDash carries the "not measured" label.
+                  const cost = project.runsLast24h > 0 ? formatUsd(project.costLast24hUsd) : <NotMeasuredDash />
                   const logo = project.imageUrl || project.logoUrl || null
                   return (
                     <TableRow
@@ -80,7 +83,7 @@ export function ProjectsListView({ projects }: { projects: Project[] }) {
                           would read as a real 0%. */}
                       <TableCell className="hidden py-3! lg:table-cell">
                         {project.passRate === null ? (
-                          <span className="font-mono text-sm text-zinc-500">—</span>
+                          <NotMeasuredDash />
                         ) : (
                           <div className="flex items-center gap-2.5">
                             <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-zinc-200 ring-1 ring-inset ring-zinc-950/5 dark:bg-zinc-800 dark:ring-white/5">
@@ -96,7 +99,7 @@ export function ProjectsListView({ projects }: { projects: Project[] }) {
                         )}
                       </TableCell>
                       <TableCell className="hidden py-3! text-right font-mono text-sm tabular-nums text-zinc-600 sm:table-cell dark:text-zinc-400">
-                        {project.runsLast24h > 0 ? project.runsLast24h.toLocaleString() : '—'}
+                        {project.runsLast24h > 0 ? project.runsLast24h.toLocaleString() : <NotMeasuredDash />}
                       </TableCell>
                       <TableCell className="hidden py-3! text-right font-mono text-sm tabular-nums text-zinc-600 sm:table-cell dark:text-zinc-400">
                         {cost}
