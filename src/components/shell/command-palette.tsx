@@ -82,14 +82,26 @@ export function CommandPalette() {
                 }}
               >
                 <div className="relative flex items-center px-4 border-b border-zinc-950/5 dark:border-white/5 focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-accent-500">
-                  <MagnifyingGlassIcon className="size-5 text-zinc-500" aria-hidden="true" />
+                  {/* zinc-400, not zinc-500: measured on the overlay plane
+                      (#232327, the only plane this dialog ever sits on) zinc-500
+                      is 3.24:1 and zinc-400 is 5.97:1. The glyph alone would
+                      have squeaked past SC 1.4.11 at 3.0, but it shares a row
+                      with the placeholder — which does NOT — and two different
+                      greys inside one control read as a rendering accident. */}
+                  <MagnifyingGlassIcon className="size-5 text-zinc-400" aria-hidden="true" />
                   <Headless.ComboboxInput
                     // Copy matches what the palette actually searches: the fixed
                     // command list below. It does NOT (yet) index copilots or
                     // projects, so promising that told the operator to type an
                     // agent name and get "No results" — an unkept promise.
                     aria-label="Search commands"
-                    className="h-14 w-full border-0 bg-transparent pl-4 pr-4 text-sm text-zinc-900 placeholder:text-zinc-500 focus:ring-0 focus:outline-hidden dark:text-white"
+                    // Placeholder at zinc-400: 14px body text on the overlay
+                    // plane, so it owes the 4.5 threshold, and zinc-500 pays
+                    // 3.24. `scripts/check-contrast.mjs` can never catch this
+                    // one — it probes the six reference routes with the dialog
+                    // CLOSED — so the number here comes from a hand-driven
+                    // Chromium probe of this exact node, not from the gate.
+                    className="h-14 w-full border-0 bg-transparent pl-4 pr-4 text-sm text-zinc-900 placeholder:text-zinc-400 focus:ring-0 focus:outline-hidden dark:text-white"
                     placeholder="Search commands…"
                     onChange={(event) => setQuery(event.target.value)}
                     autoFocus
@@ -114,9 +126,17 @@ export function CommandPalette() {
                 )}
 
                 {query !== '' && filtered.length === 0 && (
+                  // `py-14` is the whole vertical rhythm of this block. The
+                  // title used to carry `mt-4` on top of it — a leftover from
+                  // the icon that once sat above it — so the measured gaps were
+                  // 72px above and 56px below: the copy sat visibly low in its
+                  // own box. Margin removed, not compensated on the other side;
+                  // the padding is symmetric again (56/56, re-measured).
                   <div className="px-6 py-14 text-center text-sm sm:px-14">
-                    <p className="mt-4 font-semibold text-zinc-900 dark:text-white">No results found</p>
-                    <p className="mt-2 text-zinc-500">We couldn&apos;t find anything matching your search.</p>
+                    <p className="font-semibold text-zinc-900 dark:text-white">No results found</p>
+                    {/* zinc-400: same overlay plane, same 3.24 → 5.97 story as
+                        the placeholder above. */}
+                    <p className="mt-2 text-zinc-400">We couldn&apos;t find anything matching your search.</p>
                   </div>
                 )}
               </Headless.Combobox>

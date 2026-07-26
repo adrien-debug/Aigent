@@ -1,5 +1,6 @@
 import clsx from 'clsx'
 
+import { PADDING_BOTTOM_FAMILIES, callerSets } from '@/components/shell/class-defaults'
 import { Heading } from '@/components/ui/heading'
 import { Text } from '@/components/ui/text'
 
@@ -42,17 +43,28 @@ export function PageHeader({
   actions?: React.ReactNode
   className?: string
 }) {
+  // `pb-4` is a DEFAULT, not a floor: `<PageHeader className="pb-0" />` used to
+  // render 16px anyway because Tailwind resolves `pb-0` vs `pb-4` by compiled
+  // sheet order, not by the class attribute. Suppressing the default instead of
+  // layering it is what makes the caller's value real — see class-defaults.ts.
+  const ownsBottomPadding = callerSets(className, PADDING_BOTTOM_FAMILIES)
+
   return (
-    <header className={clsx('pb-4', className)}>
+    <header className={clsx(!ownsBottomPadding && 'pb-4', className)}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           {eyebrow ? <p className={eyebrowClass}>{eyebrow}</p> : null}
-          {/* Canon DS: Catalyst Heading = text-2xl/8 (24px). Never text-3xl. */}
-          <Heading className={clsx(eyebrow ? 'mt-1' : undefined, 'tracking-tight text-zinc-900 dark:text-white')}>
-            {title}
-          </Heading>
+          {/* Canon DS: Catalyst Heading = text-2xl/8 (24px). Never text-3xl.
+              No colour here: `Heading` already ships `text-zinc-950 dark:text-white`
+              and composes `clsx(className, defaults)`, so the `text-zinc-900
+              dark:text-white` that used to sit on this line was a pair of dead
+              classes — one overridden by the default, one identical to it. */}
+          <Heading className={clsx(eyebrow ? 'mt-1' : undefined, 'tracking-tight')}>{title}</Heading>
           {description ? (
-            <Text className="mt-1.5 max-w-3xl tracking-tight text-zinc-600 dark:text-zinc-400">{description}</Text>
+            // Same story: `Text` ships `text-zinc-500 dark:text-zinc-400`, which
+            // is exactly what the removed override asked for in dark (the only
+            // mode /admin ever paints) and what it could never win in light.
+            <Text className="mt-1.5 max-w-3xl tracking-tight">{description}</Text>
           ) : null}
         </div>
         {actions ? <div className="flex shrink-0 items-center gap-3">{actions}</div> : null}

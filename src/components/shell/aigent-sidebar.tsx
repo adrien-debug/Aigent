@@ -33,7 +33,7 @@ function LogoMark({ className }: { className?: string }) {
       viewBox="570.6 464.9 133.3 146.8"
       fill="currentColor"
       aria-hidden="true"
-      className={clsx(className)}
+      className={className}
     >
       <polygon points="601.7 466.9 572.6 466.9 572.6 609.7 601.7 609.7 601.7 549.1 633.1 579.4 665.8 579.4 601.7 517.5 601.7 466.9" />
       <polygon points="672.7 466.9 672.7 528.1 644.6 500.9 612 500.9 672.7 559.7 672.7 609.7 701.9 609.7 701.9 466.9 672.7 466.9" />
@@ -111,10 +111,21 @@ export function AigentSidebar() {
             {/* Same eyebrow treatment as every other section label in the app
                 (10px, uppercase, wide tracking) so the sidebar headings and the
                 panel/KPI overlines read as one typographic family — imported
-                from `eyebrowClass` (surface-card.tsx) so the two never drift. */}
-            <SidebarHeading className={clsx('mb-1.5 px-2', eyebrowClass)}>
-              {section.heading}
-            </SidebarHeading>
+                from `eyebrowClass` (page-header.tsx) so the two never drift.
+
+                `mb-1.5` is KEPT and is NOT dead, contrary to what
+                check-class-collision flags here — measured in Chromium against
+                this build: a node carrying both `mb-1` (the SidebarHeading
+                default) and `mb-1.5` computes margin-bottom 6px in EITHER
+                attribute order. Tailwind orders a spacing family by VALUE, so
+                the larger step is emitted last and wins; the gate assumes the
+                primitive default always wins, which holds for `pb-0` vs `pb-4`
+                (0 loses) and breaks here. Filed as debt in
+                scripts/class-collision-allowlist.json with the measurement.
+
+                `px-2` was dropped: SidebarHeading already ships `px-2`, so the
+                copy restated the default (8px measured, unchanged). */}
+            <SidebarHeading className={clsx('mb-1.5', eyebrowClass)}>{section.heading}</SidebarHeading>
             {section.items.map((item) => (
               <SidebarItem key={item.href} href={item.href} current={isCurrent(item.href, item.exact)}>
                 <item.icon data-slot="icon" />
