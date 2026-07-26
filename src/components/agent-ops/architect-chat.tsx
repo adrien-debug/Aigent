@@ -223,7 +223,11 @@ export function ArchitectChat({ onManifest }: ArchitectChatProps) {
           <Button color="accent" onClick={handleSend} disabled={isSending || input.trim().length === 0}>
             {isSending ? 'Sending…' : 'Send'}
           </Button>
-          <Text className="!text-xs">Enter to send, Shift+Enter for a new line.</Text>
+          {/* `!text-xs` dropped: `Text` now merges caller-last, so the bare class wins on its
+              own. Measured on /admin/agents/new @1440 — 12px/16px, box 212x16, before and
+              after. (The v3 prefix form was doubly wrong here: `tailwind-merge` v3 only reads
+              the v4 suffix, so `!text-xs` never even entered the merge.) */}
+          <Text className="text-xs">Enter to send, Shift+Enter for a new line.</Text>
         </div>
       </div>
 

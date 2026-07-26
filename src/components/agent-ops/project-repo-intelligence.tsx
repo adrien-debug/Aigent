@@ -285,8 +285,17 @@ export function ProjectRepoIntelligence({
                 {PHASE_STATUS_LABELS[phase]}
               </span>
             )}
+            {/* The `!` below is KEPT — the only one in this file's sweep that could not simply
+                be deleted — and moved to the v4 suffix dialect. `Badge`'s size rung is
+                `text-xs/5`, ONE utility writing font-size AND line-height. A bare `text-[10px]`
+                is an arbitrary size: it writes font-size only, and `tailwind-merge` then drops
+                `text-xs/5` whole, taking the 20px line box with it. Measured against the live
+                sheet (this badge needs a completed repo scan, so it was mounted synthetically):
+                `!text-[10px]` and `text-[10px]!` both give 10px/20px, box 24px high; bare
+                `text-[10px]` gives 10px/15px, box 19px — a 5px collapse. The suffix is the
+                dialect this Tailwind v4 codebase writes everywhere else. */}
             {phase === 'ready' && intel ? (
-              <Badge color="zinc" className="!text-[10px]">
+              <Badge color="zinc" className="text-[10px]!">
                 {intel.footprint.hasAgenticCode ? 'agentic code' : 'no agentic code'}
               </Badge>
             ) : null}

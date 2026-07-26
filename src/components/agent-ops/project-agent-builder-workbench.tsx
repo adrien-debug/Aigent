@@ -561,7 +561,19 @@ export function ProjectAgentBuilderWorkbench({
               aria-label="Message to Agent Builder"
             />
             <div className="mt-3 flex items-center justify-between">
-              <Text className="mt-0! text-xs! text-zinc-500">Enter to send · Shift+Enter for newline</Text>
+              {/* Was `mt-0! text-xs! text-zinc-500`. All three were dead weight, measured on
+                  /admin/projects/proj-tradeagent/builder @1440 (12px/16px, margin-top 0px,
+                  colour zinc-400 — identical before and after):
+                    · `text-xs!` — `Text` merges caller-last now, the bare class wins alone.
+                    · `mt-0!` — `Text` sets no margin and preflight zeroes <p>; it forced a
+                      value that was already the computed one.
+                    · `text-zinc-500` — never painted, with `!` or without. `Text`'s default
+                      tone is `text-zinc-500 dark:text-zinc-400`; the merge drops the light
+                      half against a caller class but a `dark:` rule is out of its reach, and
+                      this app pins `dark`. Deleted rather than "fixed": zinc-400 IS the tone
+                      the design wants here, so the honest spelling is the primitive's own
+                      default. A caller that really needs another colour passes `tone`. */}
+              <Text className="text-xs">Enter to send · Shift+Enter for newline</Text>
               <div className="flex items-center gap-2">
                 <Button plain onClick={() => setInput(EXAMPLE)} disabled={running || draftBlocked}>
                   Example

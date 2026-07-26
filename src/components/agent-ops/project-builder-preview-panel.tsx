@@ -30,12 +30,26 @@ const DEFAULT_FLOW = ['start', 'agent', 'approval?', 'tools?', 'final'] as const
  * These titles were raw `<h2>`/`<h3>` tags, which the dashboard is not entitled
  * to: it renders primitives only. `Subheading` is the primitive, but it
  * hard-codes `text-base/7 sm:text-sm/6 font-semibold` + `text-zinc-950
- * dark:text-white`, and Tailwind settles a same-utility clash by the order of
- * the GENERATED CSS (`.text-base`, `.font-semibold` and `.text-zinc-950` are
- * all emitted after their smaller/lighter/dimmer counterparts), never by the
- * order of the class attribute. The overline scale therefore has to carry `!`
- * on every property the primitive also sets — without it the primitive silently
- * wins and a 10px medium caption renders as semibold body text.
+ * dark:text-white`.
+ *
+ * This scale used to carry `!` on all THREE properties. `Subheading` composes
+ * `cn(defaults, className)` now, so two of the three are gone — and exactly one
+ * had to stay. The asymmetry is the whole lesson of `cn`, so it is written out:
+ *
+ *   - `text-[10px]/[inherit]` and `font-medium` fight BARE defaults (`text-sm/6`
+ *     via `responsiveDefault`, `font-semibold`). Same conflict group, same
+ *     (empty) variant set → `tailwind-merge` drops the default outright and the
+ *     caller class is the only rule emitted. The `!` bought nothing.
+ *   - `text-zinc-500!` fights `text-zinc-950 dark:text-white`. `tailwind-merge`
+ *     drops `text-zinc-950` — same group, same variant set — but CANNOT touch
+ *     `dark:text-white`: a variant boundary is a hard wall for the merge, and
+ *     this app pins `dark` on <html>, so the surviving half paints every one of
+ *     these captions. Only `!important` crosses that wall.
+ *
+ * MEASURED on /admin/projects/proj-tradeagent/builder @1440, "Architect chat" /
+ * "Preview" / "Flow": dropping all three `!` left 10px/15px/500 untouched and
+ * flipped the colour from zinc-500 to rgb(255,255,255). Restoring the colour
+ * marker alone restores the original three-property result.
  *
  * `/[inherit]` is not decoration either: a bare `text-[10px]` sets font-size and
  * NOTHING else (an arbitrary size has no paired line-height), so `Subheading`'s
@@ -45,7 +59,7 @@ const DEFAULT_FLOW = ['start', 'agent', 'approval?', 'tools?', 'final'] as const
  * change is semantics-only and moves no pixel.
  */
 export const builderSectionTitleClass =
-  'text-[10px]/[inherit]! font-medium! tracking-wider text-zinc-500! uppercase'
+  'text-[10px]/[inherit] font-medium tracking-wider text-zinc-500! uppercase'
 
 /**
  * Secondary preview rail — spec readout + approval actions live in the header (not duplicated in chat).
@@ -244,6 +258,14 @@ export function ProjectBuilderPreviewPanel({
                     {!selected && onSelectOption ? (
                       <Button
                         plain
+                        // Both markers STAY, and the reason is `sm:`. `Button`'s base declares
+                        // its padding and type scale twice — bare (`px-[calc(…3.5…)]`,
+                        // `text-base/6`) and again under `sm:` (`sm:px-[calc(…3…)]`,
+                        // `sm:text-sm/6`). `cn()` kills the bare halves, never the `sm:` ones,
+                        // so above 640px the primitive would win back. Measured against the
+                        // live sheet at 1440 (synthetic mount — this button only renders once
+                        // the Builder proposes options): with `!` 12px/16px and 0px side
+                        // padding, without it 14px/24px and 11px — a 28px control turning 36px.
                         className="mt-2 px-0! text-xs!"
                         disabled={selectingOption}
                         onClick={() => onSelectOption(option.id)}
@@ -276,7 +298,7 @@ export function ProjectBuilderPreviewPanel({
             ) : null}
           </dl>
         ) : (
-          <Text className="text-xs! text-zinc-500">Ask the Builder about the repo — preview fills in as the conversation progresses.</Text>
+          <Text className="text-xs text-zinc-500">Ask the Builder about the repo — preview fills in as the conversation progresses.</Text>
         )}
 
         {tools.length > 0 ? (

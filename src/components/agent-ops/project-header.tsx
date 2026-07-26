@@ -3,6 +3,7 @@ import { CodeBracketIcon, ServerStackIcon } from '@heroicons/react/24/outline'
 
 import { ProjectAvatar } from '@/components/agent-ops/project-avatar'
 import { surfaceCardClass, surfaceCardFooterClass } from '@/components/agent-ops/surface-card'
+import { TouchTarget } from '@/components/ui/button'
 import { Heading } from '@/components/ui/heading'
 import { Text } from '@/components/ui/text'
 import { PROJECT_PLATFORM_LABELS } from '@/lib/agent-mission-control/labels'
@@ -61,14 +62,22 @@ export function ProjectHeader({
                 <span className="font-mono">{PROJECT_PLATFORM_LABELS[project.platform]}</span>
               </span>
               {project.repoUrl && project.repoFullName && (
+                // 16px tall — the header's only outbound link, and the hardest thing on the
+                // page to hit with a thumb. `TouchTarget` (kit primitive, same one `Button`
+                // uses) makes it 44px on a coarse pointer and nothing at all on a fine one,
+                // so the header keeps its exact desktop rhythm. `relative` anchors the pad;
+                // truncation stays on the inner span, which already had it — putting an
+                // `overflow:hidden` on the anchor itself would clip the pad away.
                 <a
                   href={project.repoUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex min-w-0 items-center gap-1.5 rounded-sm text-zinc-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+                  className="relative flex min-w-0 items-center gap-1.5 rounded-sm text-zinc-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
                 >
-                  <CodeBracketIcon aria-hidden="true" className="size-4 shrink-0" />
-                  <span className="max-w-[50vw] truncate font-mono sm:max-w-xs">{project.repoFullName}</span>
+                  <TouchTarget>
+                    <CodeBracketIcon aria-hidden="true" className="size-4 shrink-0" />
+                    <span className="max-w-[50vw] truncate font-mono sm:max-w-xs">{project.repoFullName}</span>
+                  </TouchTarget>
                 </a>
               )}
             </div>

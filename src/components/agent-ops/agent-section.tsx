@@ -29,7 +29,13 @@ export function AgentSection({
       <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-4 pb-3">
         <div className="min-w-0">
           <Subheading level={2}>{title}</Subheading>
-          {description ? <Text className="mt-1 !text-xs">{description}</Text> : null}
+          {/* Was `!text-xs` — the v3 prefix dialect, which `tailwind-merge` v3 does not even
+              read, so it never participated in the merge and only won by `!important`. `Text`
+              composes `cn(defaults, className)` now and withdraws its `max-sm:` bump as soon as
+              the caller names a size, so the bare class lands at every width on its own.
+              Measured on /admin/agents/<id>/instructions @1440 across the five section
+              descriptions: 12px/16px before and after, boxes byte-identical. */}
+          {description ? <Text className="mt-1 text-xs">{description}</Text> : null}
         </div>
         {meta ? <div className="shrink-0">{meta}</div> : null}
       </div>

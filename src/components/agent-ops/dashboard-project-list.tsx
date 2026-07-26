@@ -3,6 +3,7 @@ import { ProjectAvatar } from '@/components/agent-ops/project-avatar'
 import { SoftAccentLink } from '@/components/agent-ops/soft-accent-link'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import { Badge } from '@/components/ui/badge'
+import { TouchTarget } from '@/components/ui/button'
 import { Link } from '@/components/ui/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { ProjectOverviewItem } from '@/lib/agent-mission-control/dashboard-overview'
@@ -17,8 +18,18 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
         title="Projects"
         density="compact"
         meta={
-          <Link href="/admin/projects/new" className="text-xs font-medium text-accent-400 hover:underline">
-            + New Project
+          // 77×16 was the entire tap target for this card's only action. Same kit
+          // `TouchTarget` as `Button` uses: invisible and inert on a fine pointer, 44px
+          // tall on a coarse one. `inline-flex` is what makes the anchor a box the pad
+          // can size against (an inline anchor has no height of its own to take 100% of).
+          <Link
+            href="/admin/projects/new"
+            // Focus ring added for the same measured reason as the Live Runs link: no focus
+            // style was declared, so the UA blue `1px auto rgb(0, 95, 204)` was the whole
+            // keyboard affordance for this card's only action.
+            className="relative inline-flex items-center rounded-sm text-xs font-medium text-accent-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 hover:underline"
+          >
+            <TouchTarget>+ New Project</TouchTarget>
           </Link>
         }
       />
@@ -29,6 +40,13 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
           <Table fixed className="w-full text-left [--gutter:--spacing(0)]">
             <TableHead className="sticky top-0 z-10">
               <TableRow>
+                {/* `pl-4!` — one of the FOUR markers that survived the post-`cn()` sweep here.
+                    `cn()` now merges bare-vs-bare, so `py-2`/`pl-2` no longer need an escape;
+                    this one still does. The primitive's competing default is
+                    `first:pl-(--gutter,--spacing(2))` + `sm:first:pl-1`, and a `first:`/`sm:`
+                    variant is BOTH outside `tailwind-merge`'s conflict group (different
+                    variant set) AND higher specificity than a bare `.pl-4`. Measured on
+                    /admin @1440: with `!` 16px, without it 4px. */}
                 <TableHeader className="pl-4!">Project</TableHeader>
                 <TableHeader className="hidden w-24 text-right md:table-cell">Copilots</TableHeader>
                 <TableHeader className="hidden w-24 text-right lg:table-cell">Success</TableHeader>
@@ -45,6 +63,25 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
                   Cost<span className="sr-only"> over the last 24 hours</span>
                   <span aria-hidden="true" className="ml-1 font-normal text-zinc-400">24h</span>
                 </TableHeader>
+                {/* Trailing edge. `pr-4!` fights a variant (`last:pr-(--gutter)` +
+                    `sm:last:pr-1`) and keeps its marker for the same reason as `pl-4!` above.
+                    `pl-2!`/`sm:pl-4!` are a DIFFERENT case, and the honest version is this:
+                    they are redundant at runtime and they stay anyway.
+                      · Measured: `pl-2` bare renders 8px at 390 and `sm:pl-4` renders 16px at
+                        1440 — the intended values, with or without `!`. The only competing
+                        default is the primitive's bare `px-4`, and `.px-4` (sheet line 3041)
+                        is emitted BEFORE `.pl-2` (3249), so the caller already wins.
+                      · `check:class-collision` disagrees and fails the build without them. It
+                        is not being silly: `tailwind-merge` does NOT treat `px-*` and `pl-*`
+                        as one conflict group (verified — `twMerge('px-4','pl-2')` returns
+                        both), so the gate cannot resolve the pair and falls back to assuming
+                        the default wins. It has no view of the compiled sheet order that in
+                        fact decides.
+                      · The gate offers an allowlist for measured false positives (there is
+                        already one such entry, for `aigent-sidebar.tsx`), but that file is
+                        outside this lot and shared with other agents in flight. Keeping the
+                        two markers costs nothing on screen and keeps the gate green; the
+                        allowlist entry is the follow-up, not a change to smuggle in here. */}
                 <TableHeader className="w-28 pr-4! pl-2! text-right sm:w-32 sm:pl-4!">Status</TableHeader>
               </TableRow>
             </TableHead>
@@ -64,12 +101,13 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
                     title={`Open project ${project.name}`}
                     className="group h-14"
                   >
-                    {/* py-2! is load-bearing, not decoration: it pins every row to the
-                        h-14 (56px) set on the row itself, beating the primitive's own
-                        py-*, which class order alone would not do. Uniform row height
-                        is the point — this table sits directly under the agents table
-                        on the cockpit and the two must share one rhythm. */}
-                    <TableCell className="py-2! pl-4!">
+                    {/* `py-2` pins every row to the h-14 (56px) set on the row itself — still
+                        load-bearing as a VALUE, no longer as an ESCAPE. It used to be written
+                        `py-2!` because the primitive's `py-4` won on stylesheet order; `cn()`
+                        drops that default now (bare-vs-bare, same conflict group), so the `!`
+                        bought nothing and only blocked any override downstream. Measured
+                        8px/8px with and without on /admin @1440, row height 56px unchanged. */}
+                    <TableCell className="py-2 pl-4!">
                       <div className="flex min-w-0 items-center gap-3">
                         <ProjectAvatar name={project.name} src={logo} size="sm" />
                         <div className="min-w-0">
@@ -92,19 +130,19 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="hidden py-2! text-right font-mono text-sm tabular-nums text-zinc-600 md:table-cell">
+                    <TableCell className="hidden py-2 text-right font-mono text-sm tabular-nums text-zinc-600 md:table-cell">
                       {project.activeCount}<span className="text-zinc-400"> / {project.copilotCount}</span>
                     </TableCell>
-                    <TableCell className="hidden py-2! text-right font-mono text-sm tabular-nums text-zinc-600 lg:table-cell">
+                    <TableCell className="hidden py-2 text-right font-mono text-sm tabular-nums text-zinc-600 lg:table-cell">
                       {project.passRate === null ? '—' : formatPercent(project.passRate)}
                     </TableCell>
-                    <TableCell className="hidden py-2! text-right font-mono text-sm tabular-nums text-zinc-600 sm:table-cell dark:text-zinc-400">
+                    <TableCell className="hidden py-2 text-right font-mono text-sm tabular-nums text-zinc-600 sm:table-cell dark:text-zinc-400">
                       {project.runsLast24h > 0 ? project.runsLast24h.toLocaleString() : <NotMeasuredDash />}
                     </TableCell>
-                    <TableCell className="hidden py-2! text-right font-mono text-sm tabular-nums text-zinc-600 sm:table-cell dark:text-zinc-400">
+                    <TableCell className="hidden py-2 text-right font-mono text-sm tabular-nums text-zinc-600 sm:table-cell dark:text-zinc-400">
                       {project.runsLast24h > 0 ? formatUsd(project.costLast24hUsd) : <NotMeasuredDash />}
                     </TableCell>
-                    <TableCell className="py-2! pr-4! pl-2! text-right sm:pl-4!">
+                    <TableCell className="py-2 pr-4! pl-2 text-right sm:pl-4">
                       {hasSignal ? (
                         <Badge color="accent" className="uppercase tracking-widest">
                           Healthy

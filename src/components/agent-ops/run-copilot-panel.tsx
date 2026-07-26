@@ -275,7 +275,11 @@ export function RunCopilotPanel({ copilotId, copilotName, copilotSlug = '', copi
                   </dd>
                 </div>
               </dl>
-              <Text className="mt-3 !text-xs">This run now appears in the Runs tab.</Text>
+              {/* `!` dropped — same construction, same proof as langgraph-debug-panel: this
+                  line only exists after a completed run, so the three candidate class lists
+                  were mounted against the running app's sheet at 1440 and 390 and came back
+                  identical (12px/16px, mt 12px, h 16px). */}
+              <Text className="mt-3 text-xs">This run now appears in the Runs tab.</Text>
             </>
           )}
         </div>
