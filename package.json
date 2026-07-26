@@ -44,7 +44,10 @@
     "verify:admin-routes": "node scripts/verify-admin-route-surface.mjs",
     "storybook:consult": "node -e \"require('fs').writeFileSync('.storybook-consulted', new Date().toISOString())\" && echo 'Passe UI débloquée 15 min (Storybook consulté).'",
     "test:storybook-runner": "test-storybook --url http://localhost:6007",
-    "test:storybook-unit": "node --test src/**/__tests__/*.stories.test.mjs 2>/dev/null || true"
+    "test:storybook-unit": "node --test src/**/__tests__/*.stories.test.mjs 2>/dev/null || true",
+    "lint:fast": "oxlint src",
+    "quality:dead": "knip",
+    "quality:dup": "jscpd src --threshold 100 --reporters consoleFull"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",
@@ -76,6 +79,9 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "happy-dom": "^20.11.0",
+    "jscpd": "^5.0.12",
+    "knip": "^6.29.0",
+    "oxlint": "^1.75.0",
     "playwright": "^1.52.0",
     "tailwindcss": "^4",
     "typescript": "^5",

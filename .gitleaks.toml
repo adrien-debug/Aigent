@@ -1,0 +1,8 @@
+# Config gitleaks Hearst (standard) — étend les règles par défaut.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Faux positifs assumés"
+paths = ['''\.env\.example$''', '''pnpm-lock\.yaml$''', '''package-lock\.json$''']
+regexes = ['''placeholder''']

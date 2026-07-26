@@ -1,5 +1,17 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "_storybook_gate": "DE-ACTIVATED 2026-07-25: the PreToolUse storybook-gate hook is off until Storybook is actually installed (npx storybook init) — it was hollow (no Storybook to consult) and blocked UI edits for no enforcement. The design system stays enforced by `npm run check:ds` + `check:catalyst`. To reactivate: restore the PreToolUse block below (the hook file scripts/hooks/storybook-gate.mjs + the npm scripts are kept).",
-  "hooks": {}
+  "hooks": {},
+  "extraKnownMarketplaces": {
+    "hearst": {
+      "source": {
+        "source": "github",
+        "repo": "Hearst-Corporation/hearst-claude"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "hearst-core@hearst": true,
+    "hearst-secops@hearst": true
+  }
 }
