@@ -10,6 +10,22 @@ import { Section } from '@/components/ui/section'
 import { Text } from '@/components/ui/text'
 import type { FactoryPageData } from '@/lib/agent-mission-control/factory-page-data'
 
+/**
+ * Meta counter of a section header.
+ *
+ * `text-xs!` and not `text-xs`: `Text` composes `clsx(className, defaults)`, so a
+ * bare `text-xs` loses to the primitive's own `sm:text-sm/6` in the compiled
+ * sheet and every one of these counters actually rendered at 14px from 640px up.
+ * `Text` exposes no size prop, and this file may not touch the primitive, so the
+ * override is made real with an explicit `!` — visible in the diff, unlike the
+ * no-op it replaces. The colour is dropped entirely: the primitive's own default
+ * already IS zinc-500/zinc-400, so restating it only invited the reader to
+ * believe a colour decision was being made here.
+ */
+function SectionCount({ children }: { children: React.ReactNode }) {
+  return <Text className="font-mono text-xs!">{children}</Text>
+}
+
 export function FactoryView({ runtimes, certifiedTools, agentDraftCount, registryHash }: FactoryPageData) {
   return (
     <PageLayout className="gap-8 pb-12">
@@ -20,7 +36,10 @@ export function FactoryView({ runtimes, certifiedTools, agentDraftCount, registr
           description="Build agents from certified tools. One registry, one truth."
           actions={
             <div className="flex items-center gap-3">
-              <SoftAccentLink href="/admin/factory/tools">Build a tool</SoftAccentLink>
+              {/* Names the screen it opens ("Tool Builder"), not an action it does
+                  not perform: /admin/factory/tools is a status screen, and the
+                  build itself has no UI entry point yet. */}
+              <SoftAccentLink href="/admin/factory/tools">Tool Builder</SoftAccentLink>
               <Button color="accent" href="/admin/agents/new">
                 Create an agent
               </Button>
@@ -33,7 +52,7 @@ export function FactoryView({ runtimes, certifiedTools, agentDraftCount, registr
         <Section
           title="Certified tools"
           description="Tools the registry currently certifies as mountable."
-          actions={<Text className="font-mono text-xs text-zinc-500">{certifiedTools.length} certified</Text>}
+          actions={<SectionCount>{certifiedTools.length} certified</SectionCount>}
         >
           <CertifiedToolsPanel tools={certifiedTools} />
         </Section>
@@ -45,14 +64,19 @@ export function FactoryView({ runtimes, certifiedTools, agentDraftCount, registr
         </Section>
       </StaggerFade>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <StaggerFade delay={4}>
+      {/* Four sections, four empty states of DIFFERENT sentence lengths: their
+          natural heights only agreed at 1440px by chance (232/232 there, 256/256
+          at 1100px — measured), and one extra word in any description would have
+          broken the row. `h-full` on the animated cell AND on the section makes
+          the fill structural instead of accidental: grid stretching stops at the
+          motion wrapper, the section inside it stays auto-height without it. */}
+      <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
+        <StaggerFade className="h-full" delay={4}>
           <Section
+            className="h-full"
             title="Agent drafts"
             actions={
-              <Text className="font-mono text-xs text-zinc-500">
-                {agentDraftCount === null ? <NotMeasuredDash /> : agentDraftCount}
-              </Text>
+              <SectionCount>{agentDraftCount === null ? <NotMeasuredDash /> : agentDraftCount}</SectionCount>
             }
           >
             <EmptyState
@@ -62,16 +86,17 @@ export function FactoryView({ runtimes, certifiedTools, agentDraftCount, registr
           </Section>
         </StaggerFade>
 
-        <StaggerFade delay={5}>
+        <StaggerFade className="h-full" delay={5}>
           <Section
+            className="h-full"
             title="Tool build missions"
             actions={
-              <Text className="font-mono text-xs text-zinc-500">
+              <SectionCount>
                 {/* No tool-build-mission store exists yet (next brick). Never
                     borrow the tools-table count here — that would read as
                     "33 missions" when there are none. Honest dash. */}
                 <NotMeasuredDash />
-              </Text>
+              </SectionCount>
             }
           >
             <EmptyState
@@ -81,8 +106,8 @@ export function FactoryView({ runtimes, certifiedTools, agentDraftCount, registr
           </Section>
         </StaggerFade>
 
-        <StaggerFade delay={6}>
-          <Section title="Missing capabilities">
+        <StaggerFade className="h-full" delay={6}>
+          <Section className="h-full" title="Missing capabilities">
             <EmptyState
               title="No missing capabilities reported"
               description="Gaps between what agents request and what the registry can mount will surface here."
@@ -90,8 +115,8 @@ export function FactoryView({ runtimes, certifiedTools, agentDraftCount, registr
           </Section>
         </StaggerFade>
 
-        <StaggerFade delay={7}>
-          <Section title="Blockers requiring human action">
+        <StaggerFade className="h-full" delay={7}>
+          <Section className="h-full" title="Blockers requiring human action">
             <EmptyState
               title="No blockers"
               description="Anything the Factory cannot resolve on its own will appear here for review."
@@ -102,7 +127,10 @@ export function FactoryView({ runtimes, certifiedTools, agentDraftCount, registr
 
       <StaggerFade delay={8}>
         <div className="pt-3">
-          <Text className="font-mono text-[11px] text-zinc-500">Registry {registryHash}</Text>
+          {/* Was `text-[11px]`, dead against the primitive's `sm:text-sm/6` and
+              therefore rendering at 14px. Revived on the documented meta step
+              (`text-xs`) rather than on an off-scale 11px nobody else uses. */}
+          <Text className="font-mono text-xs!">Registry {registryHash}</Text>
         </div>
       </StaggerFade>
     </PageLayout>

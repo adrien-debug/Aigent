@@ -8,6 +8,14 @@ import { Text } from '@/components/ui/text'
 import type { getTool } from '@/lib/agent-mission-control/registry'
 import type { TOOL_BUILD_STATE_STEPS } from '@/lib/agent-mission-control/tool-builder/mission'
 
+/**
+ * /admin/factory/tools/new — reference documentation of the build pipeline.
+ *
+ * This screen starts nothing: it explains the states a tool passes through and
+ * shows the one tool that has actually walked them. It shared its title with
+ * /admin/factory/tools ("Build a tool"), which made a documentation page look
+ * like a second, duplicate builder. The title now states what the page is.
+ */
 export function ToolNewView({
   pipelineSteps,
   countWords,
@@ -19,9 +27,9 @@ export function ToolNewView({
     <PageLayout className="gap-8 pb-12">
       <StaggerFade delay={1}>
         <PageHeader
-          eyebrow="Factory"
-          title="Build a tool"
-          description="The lifecycle a tool build passes through before it can be trusted by an agent."
+          eyebrow="Tool Builder"
+          title="How a tool build works"
+          description="Reference only — this page starts nothing. It documents the lifecycle a tool build passes through before an agent is allowed to mount it."
         />
       </StaggerFade>
 
@@ -31,15 +39,23 @@ export function ToolNewView({
           description="DRAFT → IMPLEMENTING → TESTING → CERTIFIED, with REJECTED/DEPRECATED as the failure and retirement branches."
           contentClassName="max-h-96 overflow-y-auto px-6 py-4"
         >
+          {/* Step number and its badge sat on two different centres — 277 against
+              283 measured, on every row: the badge is an inline-flex inside a
+              24px line box, which pushes it 2px down, while the number was pinned
+              to the top of a stretched column. `flex-col items-start` on the body
+              makes the badge a flex item (no baseline shift), and `h-6` on the
+              number column gives it the same 24px box, so both centre at the same
+              y. `text-zinc-400`, not `-500`: the same 12px/zinc-500 pairing on
+              this raised plane measured 3.59:1 against the 4.5 AA threshold. */}
           <ol className="flex flex-col gap-4">
             {pipelineSteps.map((step, index) => (
               <li key={step.state} className="flex gap-4">
-                <div className="flex w-6 shrink-0 flex-col items-center">
-                  <span className="font-mono text-xs tabular-nums text-zinc-500">{index + 1}</span>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center">
+                  <span className="font-mono text-xs tabular-nums text-zinc-400">{index + 1}</span>
                 </div>
-                <div className="min-w-0">
+                <div className="flex min-w-0 flex-col items-start">
                   <Badge color={step.state === 'CERTIFIED' ? 'accent' : 'zinc'}>{step.state}</Badge>
-                  <Text className="mt-1.5 text-zinc-400">{step.description}</Text>
+                  <Text className="mt-1.5">{step.description}</Text>
                 </div>
               </li>
             ))}
@@ -57,24 +73,29 @@ export function ToolNewView({
             <>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-mono text-sm tabular-nums text-white">{countWords.id}</span>
-                <span className="font-mono text-xs tabular-nums text-zinc-500">v{countWords.version}</span>
+                {/* zinc-400: this span measured 3.59:1 at 12px on the raised plane. */}
+                <span className="font-mono text-xs tabular-nums text-zinc-400">v{countWords.version}</span>
                 <Badge color={countWords.certification === 'certified' ? 'accent' : 'zinc'}>
                   {countWords.certification}
                 </Badge>
                 <Badge color="zinc">risk: {countWords.risk}</Badge>
               </div>
-              <Text className="mt-2 text-zinc-400">{countWords.summary}</Text>
-              <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3">
+              <Text className="mt-2">{countWords.summary}</Text>
+              {/* `grid-cols-2` for three items left a hole in the second row under
+                  640px. One column below sm cannot leave one, and the row is
+                  exactly full at sm and up. `text-zinc-400` on the terms: the
+                  three `dt` measured 3.59:1 at 12px, under the 4.5 AA threshold. */}
+              <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-3">
                 <div>
-                  <dt className="text-xs text-zinc-500">kind</dt>
+                  <dt className="text-xs text-zinc-400">kind</dt>
                   <dd className="font-mono text-sm tabular-nums text-zinc-300">{countWords.kind}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-zinc-500">mutates</dt>
+                  <dt className="text-xs text-zinc-400">mutates</dt>
                   <dd className="font-mono text-sm tabular-nums text-zinc-300">{String(countWords.mutates)}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-zinc-500">provenance</dt>
+                  <dt className="text-xs text-zinc-400">provenance</dt>
                   <dd className="font-mono text-sm tabular-nums text-zinc-300">{countWords.provenance}</dd>
                 </div>
               </dl>
@@ -87,7 +108,9 @@ export function ToolNewView({
 
       <StaggerFade delay={4}>
         <Section title="What the builder supports today" contentClassName="px-6 py-4">
-          <Text className="text-zinc-400">
+          {/* No colour class: `Text` already defaults to zinc-500/zinc-400, so the
+              one written here was a dead override of the identical value. */}
+          <Text>
             Only <span className="font-mono text-zinc-300">local-deterministic</span> tools can be generated
             and certified through this pipeline today: spec → validation → sandbox tests → certification.
             Tools of kind <span className="font-mono text-zinc-300">http</span>,{' '}
@@ -95,7 +118,9 @@ export function ToolNewView({
             <span className="font-mono text-zinc-300">repo</span> need adapters and secrets the sandbox
             cannot safely run, and are not generable here yet.
           </Text>
-          <Text className="mt-2 font-mono text-xs text-zinc-500">
+          {/* `text-xs!`: a bare `text-xs` loses to the primitive's `sm:text-sm/6`
+              in the compiled sheet, so this source path rendered at 14px. */}
+          <Text className="mt-2 font-mono text-xs!">
             src/lib/agent-mission-control/tool-builder/mission.ts
           </Text>
         </Section>
