@@ -47,7 +47,18 @@ export function ProjectsListView({ projects }: { projects: Project[] }) {
                       Percentages were tried first and rejected on evidence: a
                       `%` inside `min()` is not resolvable during the fixed-table
                       sizing pass, and Chromium silently dropped ALL six widths
-                      back to an equal 1/6 share. */}
+                      back to an equal 1/6 share.
+
+                      `pl-4!` here and `pr-4!` on Status are the only two markers
+                      of this file that are NOT redundant, MEASURED both ways.
+                      The primitive's edge padding is `first:pl-(--gutter,
+                      --spacing(2))` plus `sm:first:pl-1` — both behind variants.
+                      tailwind-merge only merges classes sharing the SAME variant
+                      set, so a bare `pl-4` never replaces them, and it also
+                      loses the cascade to a `:first-child` selector, which is
+                      one specificity step higher. Removing the marker measured
+                      16px -> 4px at 1440 and 768, and 16px -> 0px at 390, on
+                      both edge columns. They stay, in the v4 suffix form. */}
                   <TableHeader className="pl-4!">Project</TableHeader>
                   <TableHeader className="hidden w-20 text-right md:table-cell xl:w-28">Copilots</TableHeader>
                   {/* lg -> xl, same call as Success/Cost on agents-list-view:
@@ -64,7 +75,18 @@ export function ProjectsListView({ projects }: { projects: Project[] }) {
                   <TableHeader className="hidden w-36 xl:table-cell">Test pass</TableHeader>
                   <TableHeader className="hidden w-20 text-right sm:table-cell xl:w-24">Runs 24h</TableHeader>
                   <TableHeader className="hidden w-20 text-right sm:table-cell xl:w-24">Cost 24h</TableHeader>
-                  <TableHeader className="w-24 pr-4! text-right sm:w-28 xl:w-32">Status</TableHeader>
+                  {/* The base rung is WIDER than the sm one, on purpose. `Badge`
+                      types one step larger below 640px, so the same "HEALTHY"
+                      pill measures 82px there against 72px from sm up — and
+                      `w-24` left it a 64px content box (96px column minus the
+                      primitive's px-4). Under `table-fixed` the pill is not
+                      shrunk to fit: it escapes the column and paints over the
+                      cell's right padding, 18px past its own box, measured at
+                      390px on every project with a live signal. `w-32` (box
+                      96px) clears the 82px maximum. From sm up the previous
+                      widths measured fine (72px in an 80px box) and are kept, so
+                      >=640px renders exactly as before. */}
+                  <TableHeader className="w-32 pr-4! text-right sm:w-28 xl:w-32">Status</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -76,6 +98,12 @@ export function ProjectsListView({ projects }: { projects: Project[] }) {
                   // cost to report, and the bare em dash was silent to a screen
                   // reader. NotMeasuredDash carries the "not measured" label.
                   const cost = project.runsLast24h > 0 ? formatUsd(project.costLast24hUsd) : <NotMeasuredDash />
+                  // Same gate as the Runs 24h cell, hoisted so the cell and the
+                  // sub-sm fold cannot drift apart. They HAD drifted: the column
+                  // rendered NotMeasuredDash for a zero-run window while the fold
+                  // printed "0 runs" for the same project, so the phone read a
+                  // measurement the desktop refused to assert.
+                  const runs = project.runsLast24h > 0 ? `${project.runsLast24h.toLocaleString()} runs` : null
                   const logo = project.imageUrl || project.logoUrl || null
                   return (
                     <TableRow
@@ -84,7 +112,13 @@ export function ProjectsListView({ projects }: { projects: Project[] }) {
                       title={`Open project ${project.name}`}
                       className="group"
                     >
-                      <TableCell className="py-3! pl-4!">
+                      {/* `py-3` carries no `!` any more: `TableCell` composes
+                          `cn(defaults…, className)`, so tailwind-merge drops the
+                          primitive's `py-4` in JS before the browser arbitrates
+                          anything. MEASURED both ways at 1440/768/390 — 12px|12px
+                          of cell padding and a 61px row, identical with and
+                          without the marker, on all six cells of the row. */}
+                      <TableCell className="py-3 pl-4!">
                         <div className="flex min-w-0 items-center gap-3">
                           <ProjectAvatar name={project.name} src={logo} size="sm" />
                           <div className="min-w-0">
@@ -100,15 +134,30 @@ export function ProjectsListView({ projects }: { projects: Project[] }) {
                             <div className="truncate font-mono text-xs text-zinc-400">
                               {project.repoFullName ?? 'no repo linked'}
                             </div>
-                            {/* Below sm the 24h column is dropped; its two values
-                                fold under the repo rather than disappearing. */}
-                            <div className="truncate font-mono text-xs tabular-nums text-zinc-400 sm:hidden">
-                              {project.runsLast24h.toLocaleString()} runs · {cost}
+                            {/* Columns dropped by the responsive plan fold here
+                                rather than disappearing. Two breakpoints, so two
+                                scopes on one line:
+                                  - Copilots leaves at md, so the active/total
+                                    pair is shown below md. It had NO fallback
+                                    before this pass: between 0 and 767px the
+                                    only count of a project's agents simply was
+                                    not on the page.
+                                  - Runs 24h and Cost 24h leave at sm, so they
+                                    join below sm.
+                                Test pass is the deliberate exception, unchanged:
+                                it is a meter, it needs width to mean anything,
+                                and the project page carries it one click away. */}
+                            <div className="truncate font-mono text-xs tabular-nums text-zinc-400 md:hidden">
+                              {project.activeCount} / {project.copilotCount} active
+                              <span className="sm:hidden">
+                                {' · '}
+                                {runs ?? <NotMeasuredDash />} · {cost}
+                              </span>
                             </div>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="hidden py-3! text-right font-mono text-sm tabular-nums text-zinc-600 md:table-cell dark:text-zinc-400">
+                      <TableCell className="hidden py-3 text-right font-mono text-sm tabular-nums text-zinc-600 md:table-cell dark:text-zinc-400">
                         {project.activeCount}
                         <span className="text-zinc-400"> / {project.copilotCount}</span>
                       </TableCell>
@@ -116,7 +165,7 @@ export function ProjectsListView({ projects }: { projects: Project[] }) {
                           spread across projects scannable in one pass. Absent
                           evidence renders an em-dash and NO bar — an empty track
                           would read as a real 0%. */}
-                      <TableCell className="hidden py-3! xl:table-cell">
+                      <TableCell className="hidden py-3 xl:table-cell">
                         {project.passRate === null ? (
                           <NotMeasuredDash />
                         ) : (
@@ -133,13 +182,13 @@ export function ProjectsListView({ projects }: { projects: Project[] }) {
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="hidden py-3! text-right font-mono text-sm tabular-nums text-zinc-600 sm:table-cell dark:text-zinc-400">
+                      <TableCell className="hidden py-3 text-right font-mono text-sm tabular-nums text-zinc-600 sm:table-cell dark:text-zinc-400">
                         {project.runsLast24h > 0 ? project.runsLast24h.toLocaleString() : <NotMeasuredDash />}
                       </TableCell>
-                      <TableCell className="hidden py-3! text-right font-mono text-sm tabular-nums text-zinc-600 sm:table-cell dark:text-zinc-400">
+                      <TableCell className="hidden py-3 text-right font-mono text-sm tabular-nums text-zinc-600 sm:table-cell dark:text-zinc-400">
                         {cost}
                       </TableCell>
-                      <TableCell className="py-3! pr-4! text-right">
+                      <TableCell className="py-3 pr-4! text-right">
                         {hasSignal ? (
                           <Badge color="accent" className="uppercase tracking-widest">
                             Healthy

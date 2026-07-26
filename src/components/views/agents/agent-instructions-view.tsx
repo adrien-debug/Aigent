@@ -88,7 +88,7 @@ export function AgentInstructionsView({ detail }: { detail: AgentDetail }) {
             {manifest.systemPromptSummary}
           </p>
         ) : (
-          <Text className="!text-xs">No system prompt recorded.</Text>
+          <Text className="text-xs">No system prompt recorded.</Text>
         )}
       </Section>
 

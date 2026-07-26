@@ -91,14 +91,54 @@ export function AgentsListView({ agents, projectNameById, healthByCopilotId, now
                       Percentages were tried first and rejected on evidence: a
                       `%` inside `min()` is not resolvable during the fixed-table
                       sizing pass and Chromium dropped every width back to an
-                      equal 1/7 share. */}
+                      equal 1/7 share.
+
+                        3. State drops below sm too, so 390px carries Agent +
+                           Action only. Before that, the table was Agent(150) +
+                           State(96) + Action(112) on a 358px table: the agent
+                           name box measured 74px — about eight characters — and
+                           every lifecycle badge overflowed its column. Agent now
+                           measures 230px there, and the state folds into the
+                           agent cell in words.
+
+                      `pl-4!` and `pr-4!` on this header row are the two markers
+                      of this file that are NOT redundant, MEASURED both ways:
+                      the primitive's own edge padding is `first:pl-(--gutter,
+                      --spacing(2))` plus `sm:first:pl-1`, i.e. behind variants.
+                      tailwind-merge only merges classes sharing the SAME variant
+                      set, so a bare `pl-4` does not replace them, and it loses
+                      the cascade to a `:first-child` selector on specificity.
+                      Dropping the marker measured 16px -> 4px (>=sm) and
+                      16px -> 0px (<sm) on both edge columns, at every width
+                      tested. They stay, and they stay in the v4 suffix form. */}
                   <TableHeader className="pl-4!">Agent</TableHeader>
                   {/* STATE — the operator's lifecycle decision. Distinct from
                       Executable: an agent can be `active` (state) and still not
                       executable (an unresolved tool), and the two columns must
                       never be collapsed into one or that contradiction becomes
-                      unreadable. */}
-                  <TableHeader className="w-24 sm:w-28 xl:w-32">
+                      unreadable.
+
+                      Width comes from the WIDEST badge, measured, not from the
+                      header word. Under `table-fixed` a declared width is served
+                      first and the content is NOT shrunk to fit — it escapes the
+                      column and paints over the next one. Measured badge widths
+                      against the cell's content box (column width minus the
+                      primitive's px-4):
+                        <sm  box 64px — Draft 68, Active 72, Paused 77,
+                                        Archived 94, Degraded 100 → ALL six spill
+                        sm-lg box 80px — Degraded 89, Archived 84 → 2 spill
+                        xl    box 96px — nothing spills
+                      So `sm:w-28` (box 80) was too narrow for the two longest
+                      lifecycle labels at every width from 640 to 1279, and the
+                      overflow was invisible in review because it lands on the
+                      neighbouring column, not on the page edge.
+                      `sm:w-32` (box 96) clears the measured 89px maximum with
+                      7px to spare, which is also the xl value — one width from
+                      640px up, no step. Below sm the column is DROPPED and the
+                      state folds into the Agent cell (see there): at 358px of
+                      table, no width both fits a 100px badge and leaves the
+                      agent name a readable box. */}
+                  <TableHeader className="hidden w-32 sm:table-cell">
                     {AGENT_STATUS_DIMENSION_LABELS.lifecycle}
                   </TableHeader>
                   <TableHeader className="hidden w-24 sm:table-cell">
@@ -113,7 +153,13 @@ export function AgentsListView({ agents, projectNameById, healthByCopilotId, now
                         4.02:1 against a 4.5 threshold. */}
                     <span aria-hidden="true" className="ml-1 font-normal text-zinc-400">24h</span>
                   </TableHeader>
-                  <TableHeader className="w-28 pr-4! text-right sm:w-32 xl:w-36">Action</TableHeader>
+                  {/* Same measured rule as State. The widest action label in
+                      this database is "1 tool unresolved" at 92px; the base
+                      `w-28` gave it a 80px box, so it spilled 12px into the
+                      cell's own right padding below 640px. `w-32` (box 96)
+                      clears it. From sm up the column was already 128px, which
+                      measured fine, so only the base rung moves. */}
+                  <TableHeader className="w-32 pr-4! text-right xl:w-36">Action</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -161,11 +207,18 @@ export function AgentsListView({ agents, projectNameById, healthByCopilotId, now
                       title={`Open agent ${agent.name} — ${AGENT_STATUS_DIMENSION_LABELS.executable}: ${agentExecutableLabel(agent.executable)}`}
                       className="group h-14"
                     >
-                      {/* py-2! pins the row to the h-14 set above, matching the
+                      {/* py-2 pins the row to the h-14 set above, matching the
                           projects table on the cockpit so the two read as one
-                          rhythm instead of two densities. It must beat the
-                          primitive's own py-*, which class order alone would not do. */}
-                      <TableCell className="py-2! pl-4!">
+                          rhythm instead of two densities.
+
+                          It no longer needs `!important`: `TableCell` composes
+                          `cn(defaults…, className)`, so tailwind-merge drops the
+                          primitive's own `py-4` before the browser sees the list.
+                          MEASURED both ways at 1440/768/390 — cell padding
+                          8px|8px and row height 56px, identical with and without
+                          the marker. The two `pl-4!`/`pr-4!` on this table are
+                          the opposite case and are documented where they sit. */}
+                      <TableCell className="py-2 pl-4!">
                         <div className="flex min-w-0 items-center gap-3">
                           {/* Reuses the existing CopilotAvatar: the glyph is derived
                               from slug/name/capabilities and is decorative only —
@@ -188,6 +241,17 @@ export function AgentsListView({ agents, projectNameById, healthByCopilotId, now
                                 (`class="dark"` on <html>) so a bare zinc-400 has
                                 no light-mode counterpart to break. */}
                             <div className="truncate font-mono text-xs text-zinc-400">
+                              {/* Below sm the State column is dropped, so the
+                                  lifecycle folds in here rather than vanishing —
+                                  same rule as the runs/cost fold on the projects
+                                  table. It leads the line because it is the most
+                                  load-bearing fact of the row and the line
+                                  truncates from the right. Words, not a badge:
+                                  the canonical label (labels.ts) is the channel,
+                                  and no colour is spent restating it. */}
+                              <span className="sm:hidden">
+                                {copilotStatusLabel(agent.lifecycleStatus)} ·{' '}
+                              </span>
                               {projectName !== '—' ? `${projectName} · ` : ''}
                               {runtimeLabel(agent.runtime) ?? '—'}
                               {agent.configuredModel ? ` · ${agent.configuredModel}` : ''}
@@ -197,8 +261,10 @@ export function AgentsListView({ agents, projectNameById, healthByCopilotId, now
                         </div>
                       </TableCell>
                       {/* STATE — lifecycle, via the canonical label (labels.ts),
-                          never recomputed here. */}
-                      <TableCell className="py-2!">
+                          never recomputed here. Hidden below sm in step with its
+                          header; the same label is folded into the Agent cell
+                          above, so nothing is lost. */}
+                      <TableCell className="hidden py-2 sm:table-cell">
                         <Badge color={stateBadgeColor} className="gap-1.5 uppercase tracking-normal">
                           <span aria-hidden="true" className={clsx('size-1.5 shrink-0 rounded-full', stateDot)} />
                           {copilotStatusLabel(agent.lifecycleStatus)}
@@ -208,7 +274,7 @@ export function AgentsListView({ agents, projectNameById, healthByCopilotId, now
                           run gate's own truth, so an active-but-blocked agent cannot
                           misread as simply "active" the way a single merged column
                           would let it. */}
-                      <TableCell className="hidden py-2! sm:table-cell">
+                      <TableCell className="hidden py-2 sm:table-cell">
                         <span
                           className={clsx(
                             'font-mono text-xs tabular-nums',
@@ -218,7 +284,7 @@ export function AgentsListView({ agents, projectNameById, healthByCopilotId, now
                           {agentExecutableLabel(agent.executable)}
                         </span>
                       </TableCell>
-                      <TableCell className="hidden py-2! text-right md:table-cell">
+                      <TableCell className="hidden py-2 text-right md:table-cell">
                         {agent.lastRunAt ? (
                           <>
                             <div className="font-mono text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
@@ -241,16 +307,16 @@ export function AgentsListView({ agents, projectNameById, healthByCopilotId, now
                       </TableCell>
                       {/* Success — health.testPassRate, run-backed only. No test
                           evidence (no runs ever) renders NotMeasuredDash, never 0%. */}
-                      <TableCell className="hidden py-2! text-right font-mono text-sm tabular-nums text-zinc-600 xl:table-cell dark:text-zinc-400">
+                      <TableCell className="hidden py-2 text-right font-mono text-sm tabular-nums text-zinc-600 xl:table-cell dark:text-zinc-400">
                         {hasSuccessSignal ? formatPercent(health!.health.testPassRate) : <NotMeasuredDash />}
                       </TableCell>
                       {/* Cost 24h — health.costLast24hUsd, gated on runsLast24h > 0
                           (same rule as the dashboard project table): zero runs in the
                           window is an absent measurement, not a real $0. */}
-                      <TableCell className="hidden py-2! text-right font-mono text-sm tabular-nums text-zinc-600 xl:table-cell dark:text-zinc-400">
+                      <TableCell className="hidden py-2 text-right font-mono text-sm tabular-nums text-zinc-600 xl:table-cell dark:text-zinc-400">
                         {hasCost24hSignal ? formatUsd(health!.health.costLast24hUsd) : <NotMeasuredDash />}
                       </TableCell>
-                      <TableCell className="py-2! pr-4! text-right">
+                      <TableCell className="py-2 pr-4! text-right">
                         <span
                           className={clsx(
                             'font-mono text-xs tabular-nums',

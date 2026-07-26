@@ -9,9 +9,9 @@ import { ProjectRepoIntelligence } from '@/components/agent-ops/project-repo-int
 import { ProvisionConsumerCard } from '@/components/agent-ops/provision-consumer-card'
 import { ProjectTabs } from '@/components/agent-ops/project-tabs'
 import { CopilotAvatar } from '@/components/agent-ops/copilot-avatar'
+import { SoftAccentLink } from '@/components/agent-ops/soft-accent-link'
 import { PageLayout } from '@/components/shell/page-layout'
 import { Section } from '@/components/ui/section'
-import { Link } from '@/components/ui/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   formatDurationMs,
@@ -341,11 +341,14 @@ export function ProjectDetailView({ project, validated, runs, copilotNameById, c
           icon={CpuChipIcon}
           title="No validated agents"
           description="Provision a copilot for this project to see it here."
-          action={
-            <Link href="/admin/agents/new" className="text-xs text-accent-400 hover:underline">
-              Provision a copilot
-            </Link>
-          }
+          // `SoftAccentLink` is THE accent CTA of the /admin pages (its own
+          // doc-comment says so, and both list views already use it for their
+          // empty state). This was the one place still shipping a bare
+          // `text-accent-400 hover:underline` inline link: measured 96x16 at
+          // 768 AND at 390, a target no thumb can hit, with no hit area beyond
+          // the glyphs themselves. The pill measures 36px tall, which is the
+          // height every other CTA on these pages has.
+          action={<SoftAccentLink href="/admin/agents/new">Provision a copilot</SoftAccentLink>}
         />
       )}
 
