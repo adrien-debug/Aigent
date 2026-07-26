@@ -2,6 +2,7 @@ import { BoltIcon } from '@heroicons/react/24/outline'
 
 import { EmptyState, NotMeasuredDash } from '@/components/agent-ops/empty-state'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
+import { TelemetryScrollAffordance } from '@/components/agent-ops/telemetry/telemetry-scroll-affordance'
 import { Link } from '@/components/ui/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatDurationMs, formatRelative, formatTimestamp } from '@/lib/agent-mission-control/format'
@@ -32,7 +33,12 @@ export function TelemetryEventsTable({
     <SurfaceCard>
       <SurfaceCardHeader
         title="Recent Telemetry Events"
-        meta={<span className="text-xs text-zinc-500">{events.length} events · all projects</span>}
+        meta={
+          // zinc-400, not zinc-500: measured 3.59:1 on the raised plane
+          // (#1a1a1e) for a 4.5 threshold — the row count was under AA. Same
+          // call and same ratio as dashboard-kpi-strip's integrity footer.
+          <span className="text-xs text-zinc-400">{events.length} events · all projects</span>
+        }
       />
       {events.length === 0 ? (
         <EmptyState
@@ -41,15 +47,21 @@ export function TelemetryEventsTable({
           description="Events appear here as soon as an opted-in delivered agent reports its first ping."
         />
       ) : (
-        // Scrollbar deliberately NOT hidden: `no-scrollbar` on a scrollport whose
-        // content overflows leaves zero affordance — columns exist off-screen and
-        // nothing on the page says so. The fade+ResizeObserver alternative
-        // (agent-detail-nav) needs a client boundary; this table is a server
-        // component, and the native bar costs nothing and is understood everywhere.
-        <div className="overflow-x-auto">
-          <Table className="w-full border-collapse text-left">
+        // Same geometry contract as TelemetryAgentsTable, so the two stacked
+        // tables share ONE gutter and ONE row rhythm: `bleed` + `[--gutter:0]` +
+        // `px-6` puts the first glyph exactly under the card header title, and
+        // `dense` makes the py-3 rows that every cell here asked for real — the
+        // per-cell `py-3`/`px-6` written before were dead overrides losing to the
+        // primitive's own `py-4`/`px-4` in the compiled sheet.
+        <TelemetryScrollAffordance>
+          <Table bleed dense data-scrollport className="px-6 [--gutter:--spacing(0)]">
+            {/* Same as the agents table: no local rules on the head row or the
+                body. Under the collapsed border model the cell edge wins over
+                the row edge, so `border-b`/`divide-y` written here never painted
+                a pixel — the primitive's own `[&_th]:border-b` and TableCell
+                `border-b` draw both separators at ONE weight. */}
             <TableHead>
-              <TableRow className="border-b border-white/5">
+              <TableRow>
                 <TableHeader>Agent</TableHeader>
                 <TableHeader>Project</TableHeader>
                 <TableHeader>Status</TableHeader>
@@ -59,7 +71,7 @@ export function TelemetryEventsTable({
                 <TableHeader className="text-right">Received</TableHeader>
               </TableRow>
             </TableHead>
-            <TableBody className="divide-y divide-white/5">
+            <TableBody>
               {events.map((event) => {
                 const category = errorCategoryOf(event.error)
                 return (
@@ -72,7 +84,7 @@ export function TelemetryEventsTable({
                   // interactive — the agent link, which also gets its own focus ring
                   // since the row no longer provides one.
                   <TableRow key={event.id}>
-                    <TableCell className="px-6 py-3">
+                    <TableCell>
                       <div className="flex min-w-0 flex-col">
                         <Link
                           href={`/admin/agents/${event.agentId}`}
@@ -80,17 +92,20 @@ export function TelemetryEventsTable({
                         >
                           {copilotNameById.get(event.agentId) ?? event.agentId}
                         </Link>
-                        <span className="mt-0.5 max-w-40 truncate font-mono text-[10px] text-zinc-500">
+                        {/* zinc-400: at 10px mono the run id measured 3.59:1 on
+                            the raised plane — an identifier an operator is
+                            expected to COPY must clear AA, not merely hint. */}
+                        <span className="mt-0.5 max-w-40 truncate font-mono text-[10px] text-zinc-400">
                           {event.runId}
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="px-6 py-3">
+                    <TableCell>
                       <span className="block max-w-32 truncate text-xs text-zinc-400">
                         {projectNameById.get(event.projectId) ?? event.projectId}
                       </span>
                     </TableCell>
-                    <TableCell className="px-6 py-3">
+                    <TableCell>
                       <span className="inline-flex items-center gap-2">
                         <span
                           aria-hidden="true"
@@ -105,21 +120,26 @@ export function TelemetryEventsTable({
                         <span className="text-xs text-zinc-300 capitalize">{event.status}</span>
                       </span>
                     </TableCell>
-                    <TableCell className="px-6 py-3">
+                    <TableCell>
                       <span className="text-xs text-zinc-400">{event.provider ?? <NotMeasuredDash />}</span>
                     </TableCell>
-                    <TableCell className="px-6 py-3 text-right">
+                    <TableCell className="text-right">
                       <span className="font-mono text-xs text-zinc-300 tabular-nums">
                         {event.latencyMs !== null ? formatDurationMs(event.latencyMs) : <NotMeasuredDash />}
                       </span>
                     </TableCell>
-                    <TableCell className="px-6 py-3">
+                    <TableCell>
                       {category !== null ? (
                         <span className="block max-w-32 truncate text-xs text-[var(--state-danger-text)]" title={category}>
                           {category}
                         </span>
                       ) : event.status === 'failed' ? (
-                        <span className="text-xs text-zinc-600" title="failed, but no error.category reported">
+                        // zinc-600 measured 2.25:1 here — half the AA floor. A
+                        // reader could not tell "not reported" apart from an
+                        // empty cell, which turns a missing signal into a silent
+                        // one; the doctrine says an absence is STATED, so it has
+                        // to be legible. zinc-400 like every other quiet role.
+                        <span className="text-xs text-zinc-400" title="failed, but no error.category reported">
                           not reported
                         </span>
                       ) : (
@@ -129,15 +149,15 @@ export function TelemetryEventsTable({
                         // measured" here would assert an unknown where the runtime
                         // reported a known success. Same aria-hidden + sr-only shape
                         // as the unranked RankBadge, with the truthful word.
-                        <span className="text-xs text-zinc-600">
+                        <span className="text-xs text-zinc-400">
                           <span aria-hidden="true">—</span>
                           <span className="sr-only">no error</span>
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="px-6 py-3 text-right">
+                    <TableCell className="text-right">
                       <span
-                        className="font-mono text-xs whitespace-nowrap text-zinc-500 tabular-nums"
+                        className="font-mono text-xs whitespace-nowrap text-zinc-400 tabular-nums"
                         title={formatTimestamp(event.receivedAt)}
                       >
                         {formatRelative(event.receivedAt, nowIso)}
@@ -148,7 +168,7 @@ export function TelemetryEventsTable({
               })}
             </TableBody>
           </Table>
-        </div>
+        </TelemetryScrollAffordance>
       )}
     </SurfaceCard>
   )
