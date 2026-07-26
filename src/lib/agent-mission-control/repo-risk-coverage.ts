@@ -17,6 +17,7 @@ import {
   SECRET_KEYWORDS,
 } from './repo-coverage-keywords'
 import type { RepoMap } from './repo-intelligence'
+import { REPO_READ_TOOL_NAMES } from './repo-read-tools'
 import type { RepoFitCase } from './repo-fit'
 import type { RepoSuiteContext } from './repo-suite-context'
 
@@ -39,13 +40,36 @@ function hasTrackedEnvRisk(repoCtx: RepoSuiteContext | null, repoMap: RepoMap | 
   return notes.some((n) => /\.env.*tracked|tracked.*\.env/i.test(n)) || (repoCtx?.residue ?? []).some((r) => r.type === 'env_residue')
 }
 
-/** Which risk coverage dimensions are required for this repo context. */
+/**
+ * Which risk coverage dimensions are required for this repo context.
+ *
+ * CAPABILITY GATE. These dimensions all require the agent to REPORT something
+ * read from the repository — real script names, design-system verdicts, .env
+ * risk, genuine API routes. An agent with no repo-reading tool cannot produce
+ * any of them; its only truthful answer is "I cannot see the repository", which
+ * is correct behaviour and was being graded FAIL.
+ *
+ * Without this gate the three mechanisms fight each other: the generator's
+ * CAPABILITY FIRST rule says don't write those cases, `filterCasesByCapability`
+ * deletes any that slip through, and then THIS function would declare them
+ * "missing" and re-inject them via the retry prompt or the deterministic
+ * fallback cases — putting back exactly what was just removed. Requirement and
+ * enforcement have to agree, so the requirement itself is gated here, at the
+ * single place that decides it.
+ *
+ * `mountedTools` omitted → unchanged legacy behaviour (every caller in this
+ * repo passes it; the default keeps a future caller from silently losing
+ * coverage on a repo-capable agent).
+ */
 export function requiredRiskCoverageKeys(args: {
   repoCtx: RepoSuiteContext | null
   repoMap: RepoMap | null
   residueCount: number
+  /** The agent's mounted tool names — repo coverage needs a repo-reading tool. */
+  mountedTools?: ReadonlySet<string>
 }): RiskCoverageKey[] {
-  const { repoCtx, repoMap, residueCount } = args
+  const { repoCtx, repoMap, residueCount, mountedTools } = args
+  if (mountedTools && !REPO_READ_TOOL_NAMES.some((t) => mountedTools.has(t))) return []
   const map = repoMap
   const required: RiskCoverageKey[] = []
 
@@ -76,6 +100,8 @@ export function assessRiskCoverage(args: {
   repoCtx: RepoSuiteContext | null
   repoMap: RepoMap | null
   residueCount: number
+  /** Forwarded to requiredRiskCoverageKeys — no repo tool ⇒ no repo requirement. */
+  mountedTools?: ReadonlySet<string>
 }): { covered: RiskCoverageKey[]; missing: RiskCoverageKey[] } {
   const required = requiredRiskCoverageKeys(args)
   const text = allCasesText(args.cases)

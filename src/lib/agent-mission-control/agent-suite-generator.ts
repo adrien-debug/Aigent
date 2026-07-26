@@ -41,7 +41,7 @@ import {
   riskCoverageRetryPrompt,
   type RiskCoverageKey,
 } from './repo-risk-coverage'
-import { effectiveToolNamesForRepoFit } from './repo-read-tools'
+import { effectiveToolNamesForRepoFit, REPO_READ_TOOL_NAMES } from './repo-read-tools'
 import { makeId, slugify } from './slug'
 import type { RepoMap } from './repo-intelligence'
 import type { TestSuite } from './types'
@@ -231,6 +231,70 @@ export function looksAdversarial(input: string): boolean {
 /** Tags that already mark a case as a trap for the judge. */
 const TRAP_TAGS = new Set(['adversarial', 'safety', 'refusal', 'destructive', 'security'])
 
+/**
+ * Cases that DEMAND repo knowledge — the ones an agent with no repo-reading tool
+ * can only answer with "I cannot see the repository".
+ *
+ * Rule CAPABILITY FIRST in REPO_AWARE_INSTRUCTIONS tells the generator not to
+ * write these for a repo-blind agent. It does not obey reliably: measured
+ * 2026-07-26 on ETH Market Analyst (6 market tools, zero repo tools), the rule
+ * was in the prompt and `mountedTools` was in the payload, and the generator
+ * still emitted a design-system case demanding Catalyst/Tailwind verdicts and
+ * real repo script names. A prompt instruction is not an enforcement — same
+ * lesson as trap tagging above.
+ *
+ * The distinction that matters is DEMAND vs MENTION. A case that merely says
+ * "don't invent repo files" is a REFUSAL probe: a repo-blind agent passes it by
+ * refusing, which is exactly the behaviour worth testing, so it must SURVIVE.
+ * A case that requires the agent to REPORT repo findings — name real scripts,
+ * cite design-system signals, audit .env risk — is unpassable, and it is those
+ * that get dropped. The signal is in `expected_behavior` (what the agent must
+ * DO), never in the input alone.
+ */
+const REPO_FINDING_DEMAND = [
+  // "recommends real validation commands from the repo", "such as check, lint…"
+  /\b(?:real|existing|actual)\b[^.]{0,40}\b(?:validation )?(?:commands?|scripts?)\b/i,
+  /\bcommands? from the repo\b/i,
+  // "references the existing Catalyst/Tailwind design-system expectations"
+  /\bdesign[- ]system\b[^.]{0,60}\b(?:signals?|expectations?|gate|conventions?)\b/i,
+  /\b(?:catalyst|tailwind)\b/i,
+  // "flags that the repo context indicates a tracked .env risk"
+  /\b(?:flags?|identif\w+|reports?)\b[^.]{0,50}\b(?:tracked )?\.env\b[^.]{0,30}\brisk\b/i,
+  // "cites only API routes that genuinely appear in the provided context"
+  /\bcites? (?:only )?(?:the )?(?:real |existing |genuine )?(?:api )?routes?\b/i,
+  // "Grounds the suggestion in the provided repo context" (the form the
+  // generator actually emitted) as well as "grounded in the repo context".
+  /\bground(?:s|ed)\b[^.]{0,40}\bin the (?:provided )?repo context\b/i,
+]
+
+/** True when passing this case REQUIRES reporting something read from the repo. */
+export function demandsRepoFindings(expectedBehavior: string): boolean {
+  return REPO_FINDING_DEMAND.some((re) => re.test(expectedBehavior))
+}
+
+/**
+ * Drop generated cases the agent's toolbelt makes unpassable.
+ *
+ * Returns the kept cases plus the names of what was dropped, so the caller can
+ * REPORT the truncation instead of silently shipping a shorter suite — a suite
+ * that quietly lost a case reads as "fully covered" when it is not.
+ */
+export function filterCasesByCapability(
+  cases: NewTestCaseInput[],
+  mountedTools: ReadonlySet<string>
+): { kept: NewTestCaseInput[]; dropped: string[] } {
+  const hasRepoTools = REPO_READ_TOOL_NAMES.some((t) => mountedTools.has(t))
+  if (hasRepoTools) return { kept: cases, dropped: [] }
+
+  const kept: NewTestCaseInput[] = []
+  const dropped: string[] = []
+  for (const c of cases) {
+    if (demandsRepoFindings(c.expectedBehavior)) dropped.push(c.name)
+    else kept.push(c)
+  }
+  return { kept, dropped }
+}
+
 function validateCases(raw: unknown, mounted: Set<string>): NewTestCaseInput[] {
   if (!Array.isArray(raw)) return []
   const out: NewTestCaseInput[] = []
@@ -351,7 +415,18 @@ async function callGenerator(
     })
     const cleaned = res.text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
     const parsed = JSON.parse(cleaned) as { testCases?: unknown; benchmarkDimensions?: unknown }
-    const cases = validateCases(parsed.testCases, mounted)
+    const validated = validateCases(parsed.testCases, mounted)
+    // Deterministic backstop for CAPABILITY FIRST: drop what this agent cannot
+    // answer. Applied BEFORE the MIN_CASES check so a suite made mostly of
+    // unpassable cases is treated as an unusable generation (→ retry/fallback)
+    // rather than shipped short.
+    const { kept, dropped } = filterCasesByCapability(validated, mounted)
+    if (dropped.length > 0) {
+      console.warn(
+        `[suite-generator] dropped ${dropped.length} case(s) requiring repo findings from a repo-blind agent: ${dropped.join(', ')}`
+      )
+    }
+    const cases = kept
     if (cases.length < MIN_CASES) return null
 
     const dims = Array.isArray(parsed.benchmarkDimensions)
@@ -413,6 +488,7 @@ async function generateSuite(ctx: ManifestContext): Promise<GeneratedSuite> {
       repoCtx: ctx.repoContext,
       repoMap: ctx.repoMap,
       residueCount: ctx.residueCount,
+      mountedTools: mounted,
     })
 
     // One-shot LLM retry when essential repo risks are not covered.
@@ -428,6 +504,7 @@ async function generateSuite(ctx: ManifestContext): Promise<GeneratedSuite> {
           repoCtx: ctx.repoContext,
           repoMap: ctx.repoMap,
           residueCount: ctx.residueCount,
+      mountedTools: mounted,
         })
       }
     }
@@ -452,6 +529,7 @@ async function generateSuite(ctx: ManifestContext): Promise<GeneratedSuite> {
           repoCtx: ctx.repoContext,
           repoMap: ctx.repoMap,
           residueCount: ctx.residueCount,
+      mountedTools: mounted,
         })
       }
       if (coverage.missing.length > 0) riskCoverageMissing = coverage.missing
