@@ -56,15 +56,24 @@ export function EmptyState({
  * panel occupies the SAME visual slot as the populated panel it replaces —
  * the page keeps its structure whether or not there is data. Use this whenever
  * an empty state stands in for a card; use bare `EmptyState` only when the
- * caller already provides a surface (e.g. inside an existing SurfaceCard).
+ * caller already provides a surface (e.g. inside an existing `Section`).
+ *
+ * `className` lands on the SURFACE, not on the inner content. It used to go to
+ * the content, which made the surface unreachable: five callers mounted this
+ * inside a `Section` — a surface already — and tried to cancel the doubled plane
+ * with `className="border-0 bg-transparent"`. That string reached a content div
+ * that had neither a border nor a background, so it did nothing at all while
+ * looking like it had; the ring, the shadow and the rounded fill kept painting a
+ * card inside a card. Those callers now use bare `EmptyState`, and routing
+ * `className` here means the next attempt to restyle the plane actually bites.
  */
 export function EmptyStatePanel({
   className,
   ...props
 }: React.ComponentProps<typeof EmptyState>) {
   return (
-    <div className={surfaceRaised}>
-      <EmptyState {...props} className={className} />
+    <div className={clsx(surfaceRaised, className)}>
+      <EmptyState {...props} />
     </div>
   )
 }

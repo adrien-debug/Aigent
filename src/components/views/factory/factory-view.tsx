@@ -1,4 +1,4 @@
-import { EmptyStatePanel, NotMeasuredDash } from '@/components/agent-ops/empty-state'
+import { EmptyState, NotMeasuredDash } from '@/components/agent-ops/empty-state'
 import { CertifiedToolsPanel } from '@/components/agent-ops/factory/certified-tools-panel'
 import { RuntimesPanel } from '@/components/agent-ops/factory/runtimes-panel'
 import { SoftAccentLink } from '@/components/agent-ops/soft-accent-link'
@@ -55,8 +55,7 @@ export function FactoryView({ runtimes, certifiedTools, agentDraftCount, registr
               </Text>
             }
           >
-            <EmptyStatePanel
-              className="border-0 bg-transparent"
+            <EmptyState
               title="No drafts yet"
               description="Agent drafts created from the Factory will appear here."
             />
@@ -75,8 +74,7 @@ export function FactoryView({ runtimes, certifiedTools, agentDraftCount, registr
               </Text>
             }
           >
-            <EmptyStatePanel
-              className="border-0 bg-transparent"
+            <EmptyState
               title="No tool build missions"
               description="Tool build missions started from the Factory will appear here."
             />
@@ -85,8 +83,7 @@ export function FactoryView({ runtimes, certifiedTools, agentDraftCount, registr
 
         <StaggerFade delay={6}>
           <Section title="Missing capabilities">
-            <EmptyStatePanel
-              className="border-0 bg-transparent"
+            <EmptyState
               title="No missing capabilities reported"
               description="Gaps between what agents request and what the registry can mount will surface here."
             />
@@ -95,8 +92,7 @@ export function FactoryView({ runtimes, certifiedTools, agentDraftCount, registr
 
         <StaggerFade delay={7}>
           <Section title="Blockers requiring human action">
-            <EmptyStatePanel
-              className="border-0 bg-transparent"
+            <EmptyState
               title="No blockers"
               description="Anything the Factory cannot resolve on its own will appear here for review."
             />

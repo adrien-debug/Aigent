@@ -53,18 +53,28 @@ export function CommandPalette() {
             className="fixed inset-0 bg-zinc-950/50 backdrop-blur-sm transition-opacity"
           />
           <div className="fixed inset-0 z-10 w-screen overflow-y-auto p-4 sm:p-6 md:p-20">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: -20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: -20 }}
-              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            >
+            {/* DialogPanel is what makes "click outside" mean anything: Headless
+                closes on a click landing OUTSIDE this node. Without it the dialog
+                falls back to its own root, which wraps both `fixed inset-0` layers
+                — the whole viewport — so no click was ever outside and only Escape
+                could close the palette.
+                It has to hug the palette itself, hence `mx-auto max-w-xl` moved
+                here off the Combobox: left there, the panel would still span the
+                full scrollport and a click beside the box would keep being eaten. */}
+            <Headless.DialogPanel className="mx-auto max-w-xl">
+              <Headless.DialogTitle className="sr-only">Command palette</Headless.DialogTitle>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: -20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              >
               <Headless.Combobox
                 as="div"
                 // Plane 4 (overlay): sits above every panel, so it takes the
                 // overlay fill and the strong shadow — not the panel fill, which
                 // made it read as just another card floating over the page.
-                className={clsx('mx-auto max-w-xl overflow-hidden backdrop-blur-xl', surfaceOverlay)}
+                className={clsx('overflow-hidden backdrop-blur-xl', surfaceOverlay)}
                 onChange={(action: typeof ACTIONS[0] | null) => {
                   if (!action) return
                   setIsOpen(false)
@@ -110,7 +120,8 @@ export function CommandPalette() {
                   </div>
                 )}
               </Headless.Combobox>
-            </motion.div>
+              </motion.div>
+            </Headless.DialogPanel>
           </div>
         </Headless.Dialog>
       )}

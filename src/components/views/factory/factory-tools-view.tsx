@@ -1,4 +1,4 @@
-import { EmptyStatePanel } from '@/components/agent-ops/empty-state'
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { CertifiedToolsPanel, type FactoryToolRow } from '@/components/agent-ops/factory/certified-tools-panel'
 import { SoftAccentLink } from '@/components/agent-ops/soft-accent-link'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
@@ -15,8 +15,7 @@ export function FactoryToolsView({ certifiedTools }: { certifiedTools: FactoryTo
 
       <StaggerFade delay={2}>
         <Section title="Tool Builder">
-          <EmptyStatePanel
-            className="border-0 bg-transparent"
+          <EmptyState
             title="No tool in progress"
             description="Start a new build to walk the DRAFT → IMPLEMENTING → TESTING → CERTIFIED pipeline. Below is what the registry already certifies."
             action={<SoftAccentLink href="/admin/factory/tools/new">New tool build</SoftAccentLink>}
