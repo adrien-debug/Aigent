@@ -12,5 +12,12 @@
     "affichée, pas éteinte. Un lot de correction la fait tomber, une entrée ici ne se",
     "justifie que pour un cas où l'override mort est VOULU et documenté."
   ],
-  "entries": []
+  "entries": [
+    {
+      "file": "src/components/shell/aigent-sidebar.tsx",
+      "component": "SidebarHeading",
+      "utility": "mb-1.5",
+      "reason": "FAUX POSITIF MESURÉ, pas une dette de style. La gate suppose que le défaut de la primitive gagne toujours ; Tailwind ordonne en fait une famille d'espacement par VALEUR, donc le pas le plus grand est émis en dernier. Sonde Chromium sur ce build (dev worktree, /admin, 1440x900) : un nœud portant `mb-1 mb-1.5` calcule margin-bottom 6px, et `mb-1.5 mb-1` calcule 6px aussi — l'override de l'appelant PASSE. Le même protocole confirme la gate là où elle a raison : `pb-4 pb-0` et `pb-0 pb-4` calculent tous deux 16px, donc `pb-0` est bien mort. Corriger la gate (comparer les valeurs de la famille, pas la seule provenance) éteindrait cette entrée ; en attendant, retirer `mb-1.5` ferait passer les intertitres de la sidebar de 6px à 4px — une régression visuelle réelle pour satisfaire une alerte fausse."
+    }
+  ]
 }

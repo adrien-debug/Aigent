@@ -4,6 +4,33 @@
    class is set on <html> in the root layout. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ---------------------------------------------------------------------------
+   LIGHT MODE IS WRITTEN BUT NEVER PAINTED — read this before trusting it.
+
+   `src/app/layout.tsx` hard-sets `className="dark"` on <html> and nothing ever
+   removes it: no theme toggle, no `prefers-color-scheme` media query, no
+   server-side preference. The `dark` variant above therefore matches on EVERY
+   element of EVERY page, in dev and in prod alike.
+
+   Consequence, stated plainly so nobody re-derives it the hard way: the light
+   half of every `clsx('text-zinc-500 dark:text-zinc-400')` in this codebase has
+   never been rendered, never been screenshotted, and never been measured. Not
+   one of the contrast numbers documented in this file or in
+   `src/components/agent-ops/DESIGN-DOCTRINE.md` describes it, and
+   `scripts/check-contrast.mjs` cannot describe it either — it drives the real
+   app, which is dark. Treat every light-mode value as UNVERIFIED, not as
+   "supported": 434 `dark:` utilities are counted under `src` today, so an equal
+   number of light-mode declarations sit unexecuted, and several are already
+   known to be wrong by construction (the danger
+   role and every `--accent-*` role below ship a single dark-tuned value with no
+   light counterpart at all).
+
+   It is kept, not deleted, because the Catalyst kit ships that convention in
+   its own primitives and forking them buys nothing here. But it is
+   dormant code. Turning light mode on is a project — repaint the roles, then
+   re-run the contrast gate against a light build — not a one-line flip.
+   --------------------------------------------------------------------------- */
+
 /* Screen-reader-only text must be fully clipped and pulled out of layout.
    Without an explicit `clip`, these absolutely-positioned spans (e.g. the
    "(low risk)" labels on every tool badge) stack down the page and inflate
@@ -41,7 +68,16 @@
    a darker vivid step, 700+ the dark solid end (unchanged) so white/dark text on
    a solid accent surface still clears WCAG AA. Every step is a DISTINCT luminance
    so intensity-encoded ladders (SplitBar buckets, ToolBadge risk) read as steps,
-   not one flat green. Contrasts (text-zinc-950): on 500 = 15.96:1, on 600 = 13.17:1. */
+   not one flat green. Contrasts (text-zinc-950): on 500 = 15.96:1, on 600 = 13.17:1.
+
+   Consumer audit (26/07/2026): `accent-50`, `accent-100` and `accent-950` have
+   zero users in src — and they STAY anyway. They are not dead weight, they are
+   contractual: `scripts/check-palette.mjs` declares REQUIRED_SHADES =
+   50…950 and fails the build on a missing step, because a hole in the ramp
+   makes Tailwind drop `bg-accent-100` silently and the class renders as nothing.
+   A ramp is a system, not a bag of colours; unused steps are the ones a new
+   screen reaches for first. Only tokens with no consumer AND no contract get
+   deleted here (see `--surface-interactive` and `--chart-tick` below). */
 @theme {
   --color-accent-50: #f3fcf0;
   --color-accent-100: #e7fbe2;
@@ -103,8 +139,15 @@
 
 :root {
   /* Non-colour depth primitives. These ARE referenced from .tsx files, so they
-     survive as plain custom properties. */
-  --surface-interactive: rgb(255 255 255 / 4%);
+     survive as plain custom properties.
+
+     `--surface-interactive` used to sit here and had ZERO consumers repo-wide
+     (audited by grep over src, scripts and docs — declaration only, no read).
+     The hover fill everything actually uses is the `@theme` token
+     `--color-surface-interactive` declared above: same tail, different prefix,
+     and a completely different value (an opaque #232327 versus a 4% white
+     wash). Deleted rather than kept "in case" — a near-homonym of a live token
+     is worse than no token, because the next reader picks the wrong one. */
   --surface-border: rgb(255 255 255 / 8%);
   --surface-border-strong: rgb(255 255 255 / 14%);
 
@@ -178,10 +221,19 @@
   --state-danger-solid-line: #8f1d22;
 }
 
+/* Chart roles consumed by `dashboard-charts/chart-primitives.tsx`. Every token
+   left here has a real consumer.
+
+   `--chart-tick` had none: it declared `var(--color-zinc-400)` while the axis
+   labels it was named for hard-code `fill: 'var(--color-zinc-500)'` in
+   `chart-primitives.tsx` (const `AXIS_TICK`). A role token nobody reads is not
+   a role, it is a second opinion — deleted. The 10px zinc-500 those ticks
+   actually paint on the sunken plane measures 4.02:1, under the 4.5 AA
+   threshold; fixing that is a `chart-primitives.tsx` change, not a token
+   change, and is reported rather than silently patched from here. */
 :root {
   --chart-series: var(--color-zinc-400);
   --chart-success: var(--color-accent-600);
-  --chart-tick: var(--color-zinc-400);
   /* Grid lines on the dark ground — white at low alpha, not near-black. */
   --chart-grid: rgba(255, 255, 255, 0.06);
 }
