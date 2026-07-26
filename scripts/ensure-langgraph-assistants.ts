@@ -37,8 +37,41 @@ async function pg(path: string): Promise<Array<Record<string, unknown>>> {
   return r.json()
 }
 
+/**
+ * Persist the resolved assistant onto `copilots.assistant_id`.
+ *
+ * `ensureCopilotAssistant` provisions the assistant on the Agent Server and
+ * RETURNS its id — it never writes the column. So this script printed a green
+ * `✓ assistant=<id>` while the DB row stayed NULL, and the run-time cascade in
+ * resolve-run-assistant.ts then stepped DOWN to the project's assistant (or the
+ * bare `agent_builder` graph), whose config.configurable carries none of the
+ * copilot's own tools. That is the exact silent failure AGENTS.md warns about:
+ * the agent runs, mounts the wrong tools, answers "no data" with
+ * tool_call_count = 0, and looks perfectly healthy.
+ *
+ * Caught 2026-07-26 provisioning ETH Market Analyst: script reported ✓,
+ * `copilots.assistant_id` was NULL.
+ *
+ * `assistant_id` is NOT one of the promotion-locked columns (0033 protects
+ * status / production_version_id / stage only), so a direct PATCH is legal here.
+ */
+async function persistAssistantId(copilotId: string, assistantId: string): Promise<void> {
+  const r = await fetch(`${url}/copilots?id=eq.${encodeURIComponent(copilotId)}`, {
+    method: 'PATCH',
+    headers: {
+      apikey: key as string,
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify({ assistant_id: assistantId }),
+  })
+  // Never echo the raw body: it can carry schema internals.
+  if (!r.ok) throw new Error(`persist assistant_id → ${r.status}`)
+}
+
 async function main() {
-  const copilots = await pg('copilots?select=id,name,runtime,status&order=name')
+  const copilots = await pg('copilots?select=id,name,runtime,status,assistant_id&order=name')
   console.log(`${copilots.length} copilot(s) to provision\n`)
 
   let ok = 0
@@ -48,7 +81,11 @@ async function main() {
     const name = String(c.name)
     try {
       const assistantId = await ensureCopilotAssistant({ copilotId: id })
-      console.log(`✓ ${name.padEnd(26)} assistant=${assistantId}`)
+      // Write it back, or the cascade silently targets someone else's assistant.
+      const stored = typeof c.assistant_id === 'string' ? c.assistant_id : null
+      const persisted = stored !== assistantId
+      if (persisted) await persistAssistantId(id, assistantId)
+      console.log(`✓ ${name.padEnd(26)} assistant=${assistantId}${persisted ? ' (persisted)' : ''}`)
       ok++
     } catch (e) {
       const msg = (e as Error).message

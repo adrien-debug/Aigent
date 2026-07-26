@@ -222,3 +222,23 @@ describe('the verdict is measured, not sampled', () => {
     expect(agentCall).not.toHaveProperty('temperature')
   })
 })
+
+describe('an empty expectedToolCalls is not a ban on tools', () => {
+  it('tells the judge that [] means "no tool required", never "no tool allowed"', () => {
+    // Measured 2026-07-26 on the first post-reset agent: ETH Market Analyst called
+    // 7 tools and cited each source; the judge failed the case for "fabricating
+    // tool use/results" solely because `expectedToolCalls` was []. The generator
+    // is INSTRUCTED to leave that field empty by default (rule 3, NO MANDATORY
+    // FIRST TOOL), so the judge was punishing the generator's own convention —
+    // on every agent, not just this one.
+    expect(JUDGE_CALIBRATION).toMatch(/EMPTY `expectedToolCalls` IS NOT A BAN/i)
+    expect(JUDGE_CALIBRATION).toMatch(/never on the COUNT of tools used/i)
+  })
+
+  it('forbids inferring fabrication from tool counts the judge cannot see', () => {
+    // The judge only sees the reply text; the mechanical check lives in the
+    // ground-truth gate in test-runner.ts. A judge guessing at tool usage is
+    // guessing, and its guess was overriding a correct agent.
+    expect(JUDGE_CALIBRATION).toMatch(/you cannot see which tools really ran/i)
+  })
+})
