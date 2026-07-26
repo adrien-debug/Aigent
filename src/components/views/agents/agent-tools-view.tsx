@@ -138,7 +138,7 @@ export function AgentToolsView({ detail }: { detail: AgentDetail }) {
           <section key={group} className={surfaceSectionClass}>
             <div className="px-5 pt-4 pb-3">
               <Subheading level={2}>{group}</Subheading>
-              <Text className="mt-1 !text-xs">
+              <Text className="mt-1 text-xs">
                 {groupTools.length} tool{groupTools.length === 1 ? '' : 's'}
               </Text>
             </div>

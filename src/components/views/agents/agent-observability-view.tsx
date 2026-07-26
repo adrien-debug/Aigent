@@ -104,7 +104,7 @@ export function AgentObservabilityView({ detail, suites, benchmarkRuns, testRuns
               </ul>
             </div>
           ) : (
-            <Text className="!text-xs">No blocker. The run gate accepts this agent.</Text>
+            <Text className="text-xs">No blocker. The run gate accepts this agent.</Text>
           )}
         </div>
       </Section>
@@ -133,7 +133,7 @@ export function AgentObservabilityView({ detail, suites, benchmarkRuns, testRuns
           description="Mounted tools and their execution readiness. Last use is not recorded by the runner today."
         >
           {tools.length === 0 ? (
-            <Text className="!text-xs">No tool mounted.</Text>
+            <Text className="text-xs">No tool mounted.</Text>
           ) : (
             <ul className="flex flex-col">
               {tools.map((tool) => (
@@ -164,7 +164,7 @@ export function AgentObservabilityView({ detail, suites, benchmarkRuns, testRuns
               action="Run a benchmark suite to establish a baseline."
             />
           ) : (
-            <Text className="!text-xs">
+            <Text className="text-xs">
               {benchmarkRuns.length} benchmark run{benchmarkRuns.length === 1 ? '' : 's'} across {suites.length} suite
               {suites.length === 1 ? '' : 's'}.
             </Text>
@@ -179,7 +179,7 @@ export function AgentObservabilityView({ detail, suites, benchmarkRuns, testRuns
               action="Generate and run a test suite."
             />
           ) : (
-            <Text className="!text-xs">
+            <Text className="text-xs">
               {testRuns.length} test run{testRuns.length === 1 ? '' : 's'} recorded.
             </Text>
           )}
@@ -188,7 +188,7 @@ export function AgentObservabilityView({ detail, suites, benchmarkRuns, testRuns
 
       <Section title="Errors" description="Runs that failed or were blocked by a guardrail.">
         {errorRuns.length === 0 ? (
-          <Text className="!text-xs">No failed or blocked run recorded.</Text>
+          <Text className="text-xs">No failed or blocked run recorded.</Text>
         ) : (
           <ul className="flex flex-col">
             {errorRuns.slice(0, 10).map((run) => (

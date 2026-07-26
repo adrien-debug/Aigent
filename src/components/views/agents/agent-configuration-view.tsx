@@ -151,7 +151,7 @@ export function AgentConfigurationView({ detail }: { detail: AgentDetail }) {
               {JSON.stringify(manifest, null, 2)}
             </pre>
           ) : (
-            <Text className="!text-xs">No manifest is recorded for this agent.</Text>
+            <Text className="text-xs">No manifest is recorded for this agent.</Text>
           )}
         </div>
       </details>
