@@ -14,21 +14,49 @@
 
    Consequence, stated plainly so nobody re-derives it the hard way: the light
    half of every `clsx('text-zinc-500 dark:text-zinc-400')` in this codebase has
-   never been rendered, never been screenshotted, and never been measured. Not
-   one of the contrast numbers documented in this file or in
-   `src/components/agent-ops/DESIGN-DOCTRINE.md` describes it, and
-   `scripts/check-contrast.mjs` cannot describe it either — it drives the real
-   app, which is dark. Treat every light-mode value as UNVERIFIED, not as
-   "supported": 434 `dark:` utilities are counted under `src` today, so an equal
-   number of light-mode declarations sit unexecuted, and several are already
-   known to be wrong by construction (the danger
-   role and every `--accent-*` role below ship a single dark-tuned value with no
-   light counterpart at all).
+   never been rendered in the product. Not one of the contrast numbers documented
+   in this file or in `src/components/agent-ops/DESIGN-DOCTRINE.md` describes it,
+   and `scripts/check-contrast.mjs` does not describe it either — it drives the
+   real app, which is dark.
 
-   It is kept, not deleted, because the Catalyst kit ships that convention in
-   its own primitives and forking them buys nothing here. But it is
-   dormant code. Turning light mode on is a project — repaint the roles, then
-   re-run the contrast gate against a light build — not a one-line flip.
+   IT IS NOW MEASURED, ONCE, AND IT FAILS. Previous readings of this block were
+   left to infer "unverified, probably fine". It is not fine. Reproduce it in
+   about ten seconds — this IS the dev toggle, there is no other one, and adding
+   a real one means editing `src/app/layout.tsx`:
+
+       document.documentElement.classList.remove('dark')   // devtools console
+       document.documentElement.classList.add('dark')      // put it back
+
+   Composited contrast of every text node on /admin at 1280 (Chromium, ancestor
+   backgrounds and alphas flattened, `getComputedStyle`, 250 nodes checked):
+
+       dark, as shipped        →  0 nodes below WCAG AA
+       light, `.dark` removed  → 16 nodes below AA, worst 1.00:1
+
+   1.00:1 is not "low contrast", it is foreground equal to background: the KPI
+   figures on the dashboard were white on white. The single biggest cause was in
+   THIS file — an unconditional `body` rule pinning a dark ground and a light
+   foreground under a workspace card that turns white. That one is FIXED (see the
+   `body` rule near the bottom) and the light half is now stated as a pair, like
+   every other colour here.
+
+   WHAT IS STILL NOT VERIFIED, and must not be described as supported:
+     - the residual sub-AA nodes after the body fix. They are owned by chart and
+       view code (axis ticks hard-code `var(--color-zinc-500)` in
+       `chart-primitives.tsx`), outside this file;
+     - every `--accent-*` role and the whole `--state-danger-*` set below ship a
+       single dark-tuned value with NO light counterpart — a wash mixed to read
+       on #111114 does not read on #ffffff, and no amount of pairing in the
+       primitives fixes a token that only has one value;
+     - the surface ladder (`--color-surface-*`) is five dark planes. Light mode
+       has no ladder at all.
+
+   The light half is KEPT, not deleted: the Catalyst kit ships that convention in
+   its own primitives, forking them buys nothing, and it keeps this repo diffable
+   against its twin. But it is dormant code with a known-failing measurement
+   attached. Turning light mode on is a project — give the roles and the ladder a
+   light value, then re-run the contrast gate against a light build — not a
+   one-line flip.
    --------------------------------------------------------------------------- */
 
 /* Screen-reader-only text must be fully clipped and pulled out of layout.
@@ -238,8 +266,38 @@
   --chart-grid: rgba(255, 255, 255, 0.06);
 }
 
+/* The page ground and the default foreground.
+
+   These used to be stated UNCONDITIONALLY — `bg-[var(--color-surface-canvas)]`
+   (#09090b) and `text-[var(--color-surface-foreground)]` (#fafafa) with no
+   `dark:` half. Everywhere else in this codebase a colour is written as a pair;
+   here, the one rule that decides the ground under everything else was pinned
+   dark. That is why light mode does not merely look wrong, it is unreadable:
+   `SidebarLayout` flips its workspace card to `lg:bg-white` while the body keeps
+   handing every unstyled descendant #fafafa, so near-white text lands on white.
+
+   Measured on /admin at 1280 (Chromium, composited ancestor backgrounds, real
+   `getComputedStyle`), 250 text nodes checked:
+     dark, as shipped        → 0 nodes below WCAG AA
+     light, `.dark` removed  → 16 below AA, worst 1.00:1 — the KPI figures
+                               ("1", "11", "73", "$", "0.16", 20px) were white
+                               on white, i.e. INVISIBLE, not merely low contrast
+
+   The pair below removes that whole class of failure at the root. It changes
+   NOTHING in dark: `.dark` is hard-set on <html> in src/app/layout.tsx, body is
+   a descendant, the `dark` custom-variant above matches, and the dark half wins
+   — re-measured after the change, body still computes #09090b / #fafafa and
+   /admin still reports 0 nodes below AA. See the light-mode block at the top of
+   this file for what remains broken and how to reproduce the measurement.
+
+   `overflow-x: hidden` is a SAFETY NET, and it is currently catching nothing:
+   probed at 390 / 768 / 1280 across the seven /admin routes, `scrollWidth` was
+   equal to the viewport both as shipped and with the clip lifted to `visible`,
+   so no content is being silently pushed out of reach today. Kept precisely
+   because it is cheap insurance — but note it would swallow a future regression
+   without a sound, so a responsive check must lift it before trusting a zero. */
 body {
-  @apply bg-[var(--color-surface-canvas)] text-[var(--color-surface-foreground)] overflow-x-hidden antialiased;
+  @apply bg-white text-zinc-950 dark:bg-[var(--color-surface-canvas)] dark:text-[var(--color-surface-foreground)] overflow-x-hidden antialiased;
 }
 
 /* Sidebar surface — ported from the Kyc design system (SHA 565f979).

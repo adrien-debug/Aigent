@@ -51,6 +51,12 @@ export const NavbarItem = forwardRef(function NavbarItem(
     '*:not-nth-2:last:data-[slot=icon]:ml-auto *:not-nth-2:last:data-[slot=icon]:size-5 sm:*:not-nth-2:last:data-[slot=icon]:size-4',
     // Avatar
     '*:data-[slot=avatar]:-m-0.5 *:data-[slot=avatar]:size-7 *:data-[slot=avatar]:[--avatar-radius:var(--radius-md)] sm:*:data-[slot=avatar]:size-6',
+    // Focus — same story as SidebarItem (see sidebar.tsx for the measurement):
+    // the kit shipped no focus rule here either, so the mobile "Open navigation"
+    // button and every navbar entry fell back to Chromium's blue UA ring. Same
+    // accent treatment as Button/Badge/Avatar, so the keyboard ring is one
+    // colour across the whole shell.
+    'focus:not-data-focus:outline-hidden data-focus:outline-2 data-focus:-outline-offset-2 data-focus:outline-accent-500',
     // Hover
     'data-hover:bg-zinc-950/5 data-hover:*:data-[slot=icon]:fill-zinc-950',
     // Active

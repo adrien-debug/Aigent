@@ -42,8 +42,20 @@ export const Input = forwardRef(function Input(
         'before:absolute before:inset-px before:rounded-[calc(var(--radius-lg)-1px)] before:bg-white before:shadow-sm',
         // Background color is moved to control and shadow is removed in dark mode so hide `before` pseudo
         'dark:before:hidden',
-        // Focus ring
-        'after:pointer-events-none after:absolute after:inset-0 after:rounded-lg after:ring-transparent after:ring-inset sm:focus-within:after:ring-2 sm:focus-within:after:ring-accent-500',
+        // Focus ring — UNCONDITIONAL, deliberately not `sm:focus-within:`.
+        //
+        // The kit ships this rule behind `sm:` while the control itself carries
+        // `focus:outline-hidden` (below), which kills the browser's own ring. The
+        // two together mean that under 640px a focused field had NO focus
+        // indicator at all — measured in Chromium at 390px on /admin/agents/new,
+        // real keyboard focus: control `outline-style: none`, wrapper `::after`
+        // `box-shadow: none`. Nothing was painted. That is a WCAG 2.4.7 (level A)
+        // failure, on the one viewport class where it is hardest to recover from.
+        // `Select` never had the `sm:` and proved the fix: it painted the 2px
+        // accent ring at 390 as well as at 1280.
+        // Re-measured after the change: accent ring rgb(167,251,144) 2px inset at
+        // 390 / 768 / 1280 alike, desktop value byte-identical to before.
+        'after:pointer-events-none after:absolute after:inset-0 after:rounded-lg after:ring-transparent after:ring-inset focus-within:after:ring-2 focus-within:after:ring-accent-500',
         // Disabled state
         'has-data-disabled:opacity-50 has-data-disabled:before:bg-zinc-950/5 has-data-disabled:before:shadow-none',
         // Caller LAST — the `className` of an <Input> lands on this OUTER wrapper
