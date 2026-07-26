@@ -70,7 +70,13 @@ describe('RunsOverTimeChart', () => {
   it('says so plainly when the window is empty — no chart chrome around nothing', () => {
     render(<RunsOverTimeChart runs={[]} nowMs={NOW} />)
 
-    expect(screen.getByText(/No runs recorded in the last 24h/i)).toBeTruthy()
+    // The empty branch now uses the SHARED EmptyState (role="status"), like the
+    // three sibling charts, instead of a bespoke dot-plus-sentence — so assert on
+    // the role as well as the copy: it is the role that makes the two cards of a
+    // dashboard row the same shape, and a silent regression to a bare <span>
+    // would otherwise pass on the text alone.
+    expect(screen.getByRole('status')).toBeTruthy()
+    expect(screen.getByText(/No runs in the last 24h/i)).toBeTruthy()
     expect(screen.queryByRole('img', { name: /Hourly runs/i })).toBeNull()
   })
 })

@@ -1,5 +1,3 @@
-import clsx from 'clsx'
-
 import { HourlyRunsChart } from '@/components/agent-ops/dashboard-charts/chart-primitives'
 import {
   LegendDot,
@@ -7,6 +5,7 @@ import {
   hourLabel,
   runCount,
 } from '@/components/agent-ops/dashboard-charts/chart-frame'
+import { EmptyState } from '@/components/agent-ops/empty-state'
 import { SurfaceCard, SurfaceCardHeader } from '@/components/agent-ops/surface-card'
 import type { AgentRun } from '@/lib/agent-mission-control/types'
 
@@ -27,18 +26,26 @@ export function RunsOverTimeChart({ runs, nowMs }: { runs: AgentRun[]; nowMs: nu
   const other = buckets.reduce((s, b) => s + b.other, 0)
 
   if (total === 0) {
-    // `h-full` here on the EMPTY branch too, not only on the populated one below:
-    // the grid cell stretches, but a SurfaceCard without it sizes to its own
-    // content — so an empty chart left a hole beside its full-height neighbour,
-    // which is the state a fresh install is always in. Measured on /admin before
-    // the fix: 80px against 200px in the same row.
+    // `h-full` on the EMPTY branch too, not only on the populated one below: the
+    // grid cell stretches, but a SurfaceCard without it sizes to its own content.
+    //
+    // Filling the cell was not enough, though. This branch used to render a
+    // bespoke dot-plus-sentence pinned under the header while its three sibling
+    // charts (cost / status breakdown / activity by project) all render the shared
+    // EmptyState. Measured on /admin at 1440x900 with an empty window: the two
+    // cards of row 3 were both 200px tall, but this one's body was 32px with a
+    // 120px HOLE under it, against a neighbour whose body filled all 152px. Same
+    // grammar + `flex-1`/`justify-center` (SurfaceCard is `flex flex-col`, so the
+    // block absorbs the leftover height) now puts both bodies at 176px, gap 0, and
+    // both empty-state blocks centred on the same y — 415px for either card.
     return (
       <SurfaceCard className="h-full">
         <SurfaceCardHeader title="Runs over time — 24h" className="px-4 pt-3 pb-2" />
-        <div className={clsx('flex items-center gap-2 px-4 pb-4')}>
-          <span aria-hidden="true" className="size-1.5 rounded-full bg-zinc-600" />
-          <span className="text-xs text-zinc-500">No runs recorded in the last 24h.</span>
-        </div>
+        <EmptyState
+          className="flex flex-1 flex-col justify-center"
+          title="No runs in the last 24h"
+          description="No run was recorded in this window. This reflects recorded runs only — it is not evidence that agents are idle."
+        />
       </SurfaceCard>
     )
   }

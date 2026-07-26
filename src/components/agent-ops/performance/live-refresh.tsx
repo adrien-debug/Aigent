@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
-import { Text } from '@/components/ui/text'
 
 const REFRESH_INTERVAL_MS = 30_000
 const PREFLIGHT_TIMEOUT_MS = 2_500
@@ -109,7 +108,18 @@ export function LiveRefresh({ initialRefreshedAt }: { initialRefreshedAt: string
         ) : null}
         {online ? 'Live' : 'Paused'}
       </Badge>
-      <Text className="font-mono text-xs tabular-nums">{lastRefreshedAt}</Text>
+      {/* A <span>, not <Text>. `Text` renders a <p> whose own `text-base/6
+          sm:text-sm/6` BEATS a caller's `text-xs` — the primitive composes
+          `clsx(className, defaults)` and Tailwind settles a same-property clash
+          by the order of the compiled sheet, not by the class attribute
+          (DESIGN-DOCTRINE §Cascade). So this clock rendered at 14px while the
+          code claimed 12px, and `Text` has no size prop to make the intent real.
+          A paragraph was the wrong box anyway: this is an inline readout beside
+          a badge in a page-header row, and it now matches the `<span>` meta
+          pattern used by every other header in the dashboard. zinc-400 rather
+          than `Text`'s zinc-500 for the same reason as everywhere else — 12px
+          zinc-500 measures 3.59:1 here, under the 4.5 AA floor. */}
+      <span className="font-mono text-xs text-zinc-400 tabular-nums">{lastRefreshedAt}</span>
       <span className="sr-only">
         {online
           ? 'Page data auto-refreshes every 30 seconds while this tab is visible.'

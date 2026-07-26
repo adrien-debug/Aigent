@@ -37,7 +37,10 @@ export function RecentRunsTable({
       <SurfaceCardHeader
         title="Recent Runs"
         className="px-4 pt-3 pb-2"
-        meta={<span className="text-xs text-zinc-500">{runs.length} runs · all projects</span>}
+        // zinc-400, not zinc-500: `check-contrast` measured the identical node in
+        // AgentLeaderboard's header (same class, same raised plane rgb(26,26,30),
+        // same 12px regular weight) at 3.59:1 for a 4.5 threshold.
+        meta={<span className="text-xs text-zinc-400">{runs.length} runs · all projects</span>}
       />
       {/* Scrollbar deliberately NOT hidden. This scrollport clips on BOTH axes —
           `max-h-[28rem]` hides rows, `min-w-[760px]` hides columns under 760px — and
@@ -46,17 +49,50 @@ export function RecentRunsTable({
           needs a client boundary; this table is a server component, so the native
           bar is the cheaper honest answer and it covers both axes at once. */}
       <div className="max-h-[28rem] overflow-auto">
-        <Table className="min-w-[760px] w-full border-collapse px-4 text-left [--gutter:--spacing(0)]">
+        {/* `min-w` moved from <Table> to THIS wrapper. `fixed` renders the table
+            `w-full table-fixed`, which can never exceed its container, so a
+            min-width handed to the primitive would land on a div that no longer
+            scrolls — inert. The wrapper is what overflows the scrollport above
+            and gives the horizontal scroll back under 900px. 900 rather than the
+            previous 760: eight columns with declared widths need the extra room
+            before "Run & Copilot" is squeezed to nothing. */}
+        <div className="min-w-[900px]">
+        {/* `fixed` is what makes the sticky header below actually stick. A
+            non-fixed <Table> wraps itself in `overflow-x-auto`, and a box with
+            `overflow-x: auto` computes `overflow-y` to `auto` too — so it became
+            a second scrollport sitting BETWEEN the header and the scrollport that
+            really scrolls (the max-h div above). `position: sticky` resolves
+            against the nearest such ancestor, and that one never scrolls
+            vertically: the header was pinned to a box that does not move. The
+            primitive documents the trap in `components/ui/table.tsx`.
+
+            The scrollport above still clips BOTH axes, so the honest scrollbars
+            the comment below asks for are unchanged.
+
+            `fixed` also stabilises the column edges: under auto layout they moved
+            with the longest copilot name, so the same eight headers landed at a
+            different x on every render. Every column but "Run & Copilot" now
+            declares its width and that one absorbs the remainder.
+
+            `dense` replaces the `py-2` every TableCell carried: `TableCell`
+            composes `clsx(className, …, dense ? 'py-3' : 'py-4')`, so `py-2` lost
+            to `py-4` and the rows rendered 16px tall — the compact feed described
+            above never existed. `dense` emits the value once, so nothing races.
+
+            `border-collapse` dropped: `className` lands on a DIV here, and the
+            property means nothing outside a table box (Tailwind preflight already
+            collapses tables). It was a dead class. */}
+        <Table fixed dense className="px-4 text-left [--gutter:--spacing(0)]">
         <TableHead className="sticky top-0 z-10">
           <TableRow className="border-b border-white/5">
             <TableHeader>Run & Copilot</TableHeader>
-            <TableHeader>Project</TableHeader>
-            <TableHeader>Status</TableHeader>
-            <TableHeader className="w-1/3">Input Summary</TableHeader>
-            <TableHeader className="text-right">Latency</TableHeader>
-            <TableHeader className="text-right">Cost</TableHeader>
-            <TableHeader className="text-right">Started</TableHeader>
-            <TableHeader className="text-center">
+            <TableHeader className="w-28">Project</TableHeader>
+            <TableHeader className="w-32">Status</TableHeader>
+            <TableHeader className="w-1/4">Input Summary</TableHeader>
+            <TableHeader className="w-20 text-right">Latency</TableHeader>
+            <TableHeader className="w-20 text-right">Cost</TableHeader>
+            <TableHeader className="w-24 text-right">Started</TableHeader>
+            <TableHeader className="w-10 text-center">
               <span className="sr-only">Trace</span>
             </TableHeader>
           </TableRow>
@@ -74,7 +110,7 @@ export function RecentRunsTable({
               // only over the link itself, which also gets the focus ring the row no
               // longer provides.
               <TableRow key={run.id}>
-                <TableCell className="py-2">
+                <TableCell>
                   <div className="flex min-w-0 flex-col">
                     <Link
                       href={`/admin/agents/${run.copilotId}/runs?run=${run.id}`}
@@ -85,7 +121,13 @@ export function RecentRunsTable({
                     </Link>
                   </div>
                 </TableCell>
-                <TableCell className="py-2">
+                {/* `truncate` on the CELL, not on the span inside it: under
+                    `table-fixed` a cell no longer grows to fit its content, so
+                    without an ellipsis a long project name simply painted over the
+                    Status column. `overflow`/`text-overflow` are properties
+                    `TableCell` sets nowhere, so these ADD to the defaults instead
+                    of racing them — no `!` needed. */}
+                <TableCell className="truncate">
                   {copilot?.projectId ? (
                     <span className="text-xs text-zinc-400">
                       {projectNameById.get(copilot.projectId) ?? <NotMeasuredDash />}
@@ -94,33 +136,41 @@ export function RecentRunsTable({
                     <NotMeasuredDash />
                   )}
                 </TableCell>
-                <TableCell className="py-2">
+                <TableCell className="truncate">
                   <RunStatusText status={run.status} />
                 </TableCell>
-                <TableCell className="py-2">
-                  <span className="block max-w-md truncate text-xs text-zinc-400" title={run.inputSummary}>
+                <TableCell>
+                  {/* `max-w-md` dropped: the 1/4 column is now the bound, and the
+                      extra 28rem cap cut the ellipsis short of the column edge —
+                      a ragged right margin that did not line up with the header
+                      above it or the rows around it. */}
+                  <span className="block truncate text-xs text-zinc-400" title={run.inputSummary}>
                     {run.inputSummary}
                   </span>
                 </TableCell>
-                <TableCell className="py-2 text-right">
+                <TableCell className="text-right">
                   <span className="font-mono text-xs text-zinc-300 tabular-nums">
                     {formatDurationMs(run.latencyMs)}
                   </span>
                 </TableCell>
-                <TableCell className="py-2 text-right">
+                <TableCell className="text-right">
                   <span className="font-mono text-xs text-zinc-400 tabular-nums">
                     {run.costUsd === null ? <NotMeasuredDash /> : formatUsd(run.costUsd)}
                   </span>
                 </TableCell>
-                <TableCell className="py-2 text-right">
+                <TableCell className="text-right">
+                  {/* zinc-400, not zinc-500: `check-contrast` measured this class at
+                      12px regular on the raised plane rgb(26,26,30) at 3.59:1 for a
+                      4.5 threshold (same node shape as AgentLeaderboard's slug). A
+                      timestamp is data, not decoration — it has to clear AA. */}
                   <span
-                    className="font-mono text-xs whitespace-nowrap text-zinc-500 tabular-nums"
+                    className="font-mono text-xs whitespace-nowrap text-zinc-400 tabular-nums"
                     title={formatTimestamp(run.startedAt)}
                   >
                     {formatRelative(run.startedAt, nowIso)}
                   </span>
                 </TableCell>
-                <TableCell className="py-2 text-center">
+                <TableCell className="text-center">
                   {run.traceUrl ? (
                     <a
                       href={run.traceUrl}
@@ -145,6 +195,7 @@ export function RecentRunsTable({
           })}
         </TableBody>
         </Table>
+        </div>
       </div>
     </SurfaceCard>
   )

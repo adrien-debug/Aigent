@@ -24,7 +24,18 @@ export function ActivityByProjectChart({ projects }: { projects: ProjectOverview
     return (
       <SurfaceCard className="h-full">
         <SurfaceCardHeader title="Activity by project — 24h" className="px-4 pt-3 pb-2" />
-        <EmptyState title="No project activity" description="No project recorded any runs in the last 24h." />
+        {/* `flex-1` + `justify-center`, exactly like the populated branch below:
+            SurfaceCard is `flex flex-col` and the grid row stretches it, so
+            without it the empty copy hugged the header and left dead space at the
+            bottom. Measured on /admin at 1440x900 with an empty window: 24px of
+            hole here against 0 for CostOverTimeChart in the same row, which put
+            the two empty blocks 12px apart vertically (807 vs 819). Both now
+            centre on the same y. */}
+        <EmptyState
+          className="flex flex-1 flex-col justify-center"
+          title="No project activity"
+          description="No project recorded any runs in the last 24h."
+        />
       </SurfaceCard>
     )
   }

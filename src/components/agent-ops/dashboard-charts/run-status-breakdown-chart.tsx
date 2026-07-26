@@ -49,7 +49,15 @@ export function RunStatusBreakdownChart({ runs }: { runs: AgentRun[] }) {
     return (
       <SurfaceCard className="h-full">
         <SurfaceCardHeader title="Run status breakdown" className="px-4 pt-3 pb-2" />
-        <EmptyState title="No runs to break down" description="No runs were found in the current window." />
+        {/* `flex-1` + `justify-center`, exactly like the populated branch below:
+            SurfaceCard is `flex flex-col` and the grid row stretches it, so
+            without it the empty copy hugged the header and the bottom of the card
+            was dead space — misaligned against the neighbour in the same row. */}
+        <EmptyState
+          className="flex flex-1 flex-col justify-center"
+          title="No runs to break down"
+          description="No runs were found in the current window."
+        />
       </SurfaceCard>
     )
   }
