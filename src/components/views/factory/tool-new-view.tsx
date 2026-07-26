@@ -37,7 +37,21 @@ export function ToolNewView({
         <Section
           title="Pipeline"
           description="DRAFT → IMPLEMENTING → TESTING → CERTIFIED, with REJECTED/DEPRECATED as the failure and retirement branches."
-          contentClassName="max-h-96 overflow-y-auto px-6 py-4"
+          // No `max-h-96 overflow-y-auto`. A bounded box that scrolls is the
+          // right shape for a LIVE list, whose length is decided by data at
+          // runtime; this one renders `TOOL_BUILD_STATE_STEPS`, a six-entry
+          // compile-time constant, so the box was already deterministic — the
+          // cap only decided how much of it you could see.
+          //
+          // MEASURED clientHeight 384 against scrollHeight: 436 @1440 (52px
+          // hidden, step 6 clipped), 484 @1024 and @768 (100px, step 6 fully
+          // below the fold), 676 @390 (292px — steps 5 and 6, REJECTED and
+          // DEPRECATED, entirely out of view and step 4 cut mid-sentence).
+          // Those two are exactly the branches this section's own description
+          // announces, so on a phone the page promised a failure and a
+          // retirement state it then hid behind an inner scroll — nested inside
+          // a page that already scrolls, which on touch swallows the swipe.
+          contentClassName="px-6 py-4"
         >
           {/* Step number and its badge sat on two different centres — 277 against
               283 measured, on every row: the badge is an inline-flex inside a
@@ -118,9 +132,14 @@ export function ToolNewView({
             <span className="font-mono text-zinc-300">repo</span> need adapters and secrets the sandbox
             cannot safely run, and are not generable here yet.
           </Text>
-          {/* `text-xs!`: a bare `text-xs` loses to the primitive's `sm:text-sm/6`
-              in the compiled sheet, so this source path rendered at 14px. */}
-          <Text className="mt-2 font-mono text-xs!">
+          {/* Plain `text-xs`. The `!` dated from `Text`'s `clsx(className,
+              defaults)` era, when a bare caller class was emitted before the
+              primitive's `sm:text-sm/6` and lost the cascade — this path
+              rendered at 14px. `cn(defaults, className)` resolves it in JS now,
+              and keeping the `!` would only stop `tailwind-merge` from dropping
+              the dead default (important and non-important classes sit in
+              different conflict groups). Measured 12px/16px either way. */}
+          <Text className="mt-2 font-mono text-xs">
             src/lib/agent-mission-control/tool-builder/mission.ts
           </Text>
         </Section>

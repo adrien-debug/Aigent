@@ -13,17 +13,28 @@ import type { FactoryPageData } from '@/lib/agent-mission-control/factory-page-d
 /**
  * Meta counter of a section header.
  *
- * `text-xs!` and not `text-xs`: `Text` composes `clsx(className, defaults)`, so a
- * bare `text-xs` loses to the primitive's own `sm:text-sm/6` in the compiled
- * sheet and every one of these counters actually rendered at 14px from 640px up.
- * `Text` exposes no size prop, and this file may not touch the primitive, so the
- * override is made real with an explicit `!` — visible in the diff, unlike the
- * no-op it replaces. The colour is dropped entirely: the primitive's own default
- * already IS zinc-500/zinc-400, so restating it only invited the reader to
- * believe a colour decision was being made here.
+ * Plain `text-xs`, no `!`. The escape hatch was posted when `Text` composed
+ * `clsx(className, defaults)` — the caller's class was emitted before the
+ * primitive's `sm:text-sm/6`, lost the cascade, and every counter rendered at
+ * 14px from 640px up. `Text` now composes `cn(defaults, className)`, so
+ * `tailwind-merge` drops the losing default in JS and the bare class wins on
+ * its own.
+ *
+ * The `!` is not merely redundant now, it is ACTIVELY WORSE: `tailwind-merge`
+ * v3 keys its conflict groups on the important flag, so `text-xs!` does NOT
+ * merge with `text-sm/6` (verified: `twMerge('text-sm/6','text-xs!')` returns
+ * BOTH). The dead default therefore stayed in the class list, `responsiveDefault`
+ * still emitted its `max-sm:` half, and the only thing making the size correct
+ * was `!important` — which no downstream caller could then override. Bare
+ * `text-xs` measures identically at 1440/768/390 (12px/16px) with a class list
+ * of three utilities instead of six.
+ *
+ * The colour is dropped entirely: the primitive's own default already IS
+ * zinc-500/zinc-400, so restating it only invited the reader to believe a
+ * colour decision was being made here.
  */
 function SectionCount({ children }: { children: React.ReactNode }) {
-  return <Text className="font-mono text-xs!">{children}</Text>
+  return <Text className="font-mono text-xs">{children}</Text>
 }
 
 export function FactoryView({ runtimes, certifiedTools, agentDraftCount, registryHash }: FactoryPageData) {
@@ -129,8 +140,10 @@ export function FactoryView({ runtimes, certifiedTools, agentDraftCount, registr
         <div className="pt-3">
           {/* Was `text-[11px]`, dead against the primitive's `sm:text-sm/6` and
               therefore rendering at 14px. Revived on the documented meta step
-              (`text-xs`) rather than on an off-scale 11px nobody else uses. */}
-          <Text className="font-mono text-xs!">Registry {registryHash}</Text>
+              (`text-xs`) rather than on an off-scale 11px nobody else uses.
+              No `!` — see `SectionCount` above for why it is now the thing that
+              BLOCKS the merge instead of the thing that made the override land. */}
+          <Text className="font-mono text-xs">Registry {registryHash}</Text>
         </div>
       </StaggerFade>
     </PageLayout>
