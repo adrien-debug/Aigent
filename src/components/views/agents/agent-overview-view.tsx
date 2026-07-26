@@ -163,8 +163,18 @@ export function AgentOverviewView({ detail }: { detail: AgentDetail }) {
         ]}
       />
 
+      {/* `[&>*:last-child]:flex-1` on BOTH columns, not `h-full` on one card:
+          grid already stretches the two column wrappers to the same height, but
+          a `flex-col` wrapper leaves its last Section at its natural height, so
+          the shorter column ended in mid-air — measured 107px above its
+          neighbour at 1600px, 151px at 1280px, a hole between two cards that
+          are supposed to close the page on one line. Applied symmetrically
+          because which column is shorter depends on the data (the right column
+          renders "Attention" only when there is one), so pinning either side
+          would fix one dataset and break the other. Every other two-column grid
+          on the agent pages already ends flush — this one was the exception. */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-6 xl:[&>*:last-child]:flex-1">
           <Section title="Latest result" description="The most recent run, exactly as recorded.">
             <LatestResult detail={detail} />
           </Section>
@@ -203,7 +213,7 @@ export function AgentOverviewView({ detail }: { detail: AgentDetail }) {
           </Section>
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-6 xl:[&>*:last-child]:flex-1">
           <Section title="Mission" description="What this agent does, and what it may never do.">
             <div className="flex flex-col gap-4">
               <p className="text-sm leading-6 text-zinc-300">
@@ -255,7 +265,10 @@ export function AgentOverviewView({ detail }: { detail: AgentDetail }) {
                 {tools.slice(0, 6).map((tool) => (
                   <li key={tool.id} className="flex items-center justify-between gap-3">
                     <span className="truncate font-mono text-xs text-zinc-300">{tool.name}</span>
-                    <span className="shrink-0 text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                    {/* zinc-400, not -500: check-contrast measures -500 at 3.59:1
+                        on this raised plane (rgb(26,26,30)) for a 4.5 threshold.
+                        Same call, same reason as dashboard-kpi-strip.tsx. */}
+                    <span className="shrink-0 text-[10px] font-medium uppercase tracking-widest text-zinc-400">
                       {toolNatureLabel(tool)}
                     </span>
                   </li>

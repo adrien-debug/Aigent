@@ -86,6 +86,10 @@ function CopilotStatusTone({ status }: { status: DisplayStatus }) {
 function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
   return (
     <Section title="Validated Agents" contentClassName="" actions={<span className="text-xs text-zinc-500">{copilots.length} total</span>}>
+      {/* No `dense` here, and no `py-4` on the cells either: py-4 IS the
+          primitive's default, so repeating it on all six cells only suggested
+          the padding was decided locally. Removed rather than kept — the
+          rendered pixels are unchanged, the false ownership is gone. */}
       <Table className="w-full text-left border-collapse px-6 [--gutter:--spacing(0)]">
         <TableHead>
           <TableRow className="border-b border-white/5">
@@ -106,7 +110,7 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
             // whole row becomes the target. The inner <Link> loses its own href to
             // avoid two tab stops on one URL.
             <TableRow key={copilot.id} href={`/admin/agents/${copilot.id}`} title={copilot.name}>
-              <TableCell className="py-4">
+              <TableCell>
                 <div className="flex items-center gap-3">
                   <CopilotAvatar copilot={copilot} className="size-8 rounded-xl" />
                   <div className="flex flex-col">
@@ -115,16 +119,16 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
                   </div>
                 </div>
               </TableCell>
-              <TableCell className="py-4">
+              <TableCell>
                 <CopilotStatusTone status={copilot.displayStatus ?? copilot.status} />
               </TableCell>
-              <TableCell className="hidden py-4 md:table-cell">
+              <TableCell className="hidden md:table-cell">
                 <div className="flex flex-col">
                   <span className="text-xs text-zinc-300">{copilot.model}</span>
                   <span className="text-[10px] text-zinc-500 mt-0.5">{AGENT_RUNTIME_LABELS[copilot.runtime]}</span>
                 </div>
               </TableCell>
-              <TableCell className="py-4 text-right">
+              <TableCell className="text-right">
                 {copilot.healthEvidence === 'runs' ? (
                   <div className="flex flex-col items-end gap-1">
                     <span className={`text-sm font-mono ${copilot.health.testPassRate >= 0.9 ? 'text-accent-400' : 'text-zinc-300'}`}>
@@ -138,10 +142,10 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
                   <span className="text-xs text-zinc-600">—</span>
                 )}
               </TableCell>
-              <TableCell className="hidden py-4 text-right lg:table-cell">
+              <TableCell className="hidden text-right lg:table-cell">
                 <span className="text-sm font-mono text-white">{numberFormat.format(copilot.health.runsLast24h)}</span>
               </TableCell>
-              <TableCell className="py-4 text-right">
+              <TableCell className="text-right">
                 <span className="text-sm font-mono text-zinc-400">
                   {copilot.health.runsLast24h > 0 ? formatUsd(copilot.health.costLast24hUsd) : '—'}
                 </span>
@@ -157,7 +161,12 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
 function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copilotNameById: Map<string, string> }) {
   return (
     <Section title="Recent Traces" contentClassName="" actions={<span className="text-xs text-zinc-500">{runs.length} runs</span>}>
-      <Table className="w-full text-left border-collapse px-6 [--gutter:--spacing(0)]">
+      {/* `dense`, not `className="py-3"` on every cell: TableCell composes
+          `clsx(className, …, dense ? 'py-3' : 'py-4')`, so the caller's py-3 and
+          the primitive's py-4 have equal specificity and Tailwind's stylesheet
+          order picks py-4 — the seven overrides below rendered nothing and only
+          told the reader a lie. `dense` emits ONE value, so there is no race. */}
+      <Table dense className="w-full text-left border-collapse px-6 [--gutter:--spacing(0)]">
         <TableHead>
           <TableRow className="border-b border-white/5">
             <TableHeader>Run ID & Copilot</TableHeader>
@@ -172,7 +181,7 @@ function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copil
         <TableBody className="divide-y divide-white/5">
           {runs.map((run) => (
             <TableRow key={run.id} href={`/admin/agents/${run.copilotId}/runs?run=${run.id}`} title={run.id}>
-              <TableCell className="py-3">
+              <TableCell>
                 <div className="flex flex-col">
                   <span className="truncate text-sm font-medium text-white">
                     {copilotNameById.get(run.copilotId) ?? run.copilotId}
@@ -180,24 +189,24 @@ function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copil
                   <span className="text-[10px] font-mono text-zinc-500 mt-0.5 truncate">{run.id}</span>
                 </div>
               </TableCell>
-              <TableCell className="py-3">
+              <TableCell>
                 <RunStatusTone status={run.status} />
               </TableCell>
-              <TableCell className="py-3">
+              <TableCell>
                 <span className="block text-xs text-zinc-400 truncate max-w-md" title={run.inputSummary}>
                   {run.inputSummary}
                 </span>
               </TableCell>
-              <TableCell className="py-3 text-right">
+              <TableCell className="text-right">
                 <span className="text-xs font-mono text-zinc-300">{formatDurationMs(run.latencyMs)}</span>
               </TableCell>
-              <TableCell className="hidden py-3 text-right lg:table-cell">
+              <TableCell className="hidden text-right lg:table-cell">
                 <span className="text-xs font-mono text-zinc-400">{formatUsd(run.costUsd)}</span>
               </TableCell>
-              <TableCell className="hidden py-3 text-right md:table-cell">
+              <TableCell className="hidden text-right md:table-cell">
                 <span className="text-xs font-mono text-zinc-500">{formatTimestamp(run.startedAt).replace(' UTC', '')}</span>
               </TableCell>
-              <TableCell className="py-3 text-center">
+              <TableCell className="text-center">
                 {run.traceUrl ? (
                   <a
                     href={run.traceUrl}

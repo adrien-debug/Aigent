@@ -46,7 +46,9 @@ export function AgentConfigurationView({ detail }: { detail: AgentDetail }) {
                 value: agent?.executedModel ? (
                   agent.executedModel
                 ) : (
-                  <span className="text-zinc-500">Not proven by a run</span>
+                  // zinc-400, not -500: check-contrast measures -500 at 3.59:1 on
+                  // this raised plane (rgb(26,26,30)) for a 4.5 threshold.
+                  <span className="text-zinc-400">Not proven by a run</span>
                 ),
               },
               { label: 'Runtime', value: <TextValue value={copilot.runtime} /> },

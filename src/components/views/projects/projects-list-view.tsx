@@ -29,13 +29,42 @@ export function ProjectsListView({ projects }: { projects: Project[] }) {
                 <TableRow>
                   {/* Columns drop by priority below lg — five fixed widths do not
                       fit a 390px viewport, and `table-fixed` collides rather than
-                      shrinks. Project + Status always survive. */}
+                      shrinks. Project + Status always survive.
+
+                      The five secondary widths used to be CONSTANT across every
+                      breakpoint. Under `table-fixed` a declared px width is
+                      served first and the title column — the only one with no
+                      declared width — absorbs the whole shortfall. Measured at
+                      1024px (table 680px): the five kept their full 576px,
+                      Project fell to 104px and the name box to 28px for 115px of
+                      text, i.e. two readable characters.
+                      They now step DOWN one notch below xl, where the table is
+                      narrow, and return to their previous value at xl and above
+                      — so >=1280px renders exactly as before (Project 360px at
+                      1280, 680px at 1600) while the same 680px table now leaves
+                      Project 216px. Each shrunk width still clears its header's
+                      intrinsic 77-80px, measured, so nothing overflows.
+                      Percentages were tried first and rejected on evidence: a
+                      `%` inside `min()` is not resolvable during the fixed-table
+                      sizing pass, and Chromium silently dropped ALL six widths
+                      back to an equal 1/6 share. */}
                   <TableHeader className="pl-4!">Project</TableHeader>
-                  <TableHeader className="hidden w-28 text-right md:table-cell">Copilots</TableHeader>
-                  <TableHeader className="hidden w-36 lg:table-cell">Test pass</TableHeader>
-                  <TableHeader className="hidden w-24 text-right sm:table-cell">Runs 24h</TableHeader>
-                  <TableHeader className="hidden w-24 text-right sm:table-cell">Cost 24h</TableHeader>
-                  <TableHeader className="w-28 pr-4! text-right sm:w-32">Status</TableHeader>
+                  <TableHeader className="hidden w-20 text-right md:table-cell xl:w-28">Copilots</TableHeader>
+                  {/* lg -> xl, same call as Success/Cost on agents-list-view:
+                      this column is a METER, not a number, and it needs width to
+                      say anything. Stepped down to 112px at lg it would have left
+                      the track ~22px once the cell's 32px of padding, the 48px
+                      percentage label and the 10px gap are taken out — arithmetic
+                      on the measured column width, not a browser reading, because
+                      no project in this database has a pass rate to render. A bar
+                      that short cannot be compared across rows, and a meter that
+                      cannot be read is decoration. It returns at xl at its full
+                      144px, and the pass rate stays one click away on the project
+                      page. */}
+                  <TableHeader className="hidden w-36 xl:table-cell">Test pass</TableHeader>
+                  <TableHeader className="hidden w-20 text-right sm:table-cell xl:w-24">Runs 24h</TableHeader>
+                  <TableHeader className="hidden w-20 text-right sm:table-cell xl:w-24">Cost 24h</TableHeader>
+                  <TableHeader className="w-24 pr-4! text-right sm:w-28 xl:w-32">Status</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -62,12 +91,18 @@ export function ProjectsListView({ projects }: { projects: Project[] }) {
                             <div className="truncate text-sm font-medium text-zinc-900 group-hover:underline dark:text-white">
                               {project.name}
                             </div>
-                            <div className="truncate font-mono text-xs text-zinc-500">
+                            {/* zinc-400, not -500: measured by check-contrast on
+                                this raised plane (rgb(26,26,30)) the -500 lands
+                                at 3.59:1 for a 4.5 threshold. Same call, same
+                                reason as dashboard-kpi-strip.tsx. The shell is
+                                hard-dark (`class="dark"` on <html>), so a bare
+                                zinc-400 has no light-mode counterpart to break. */}
+                            <div className="truncate font-mono text-xs text-zinc-400">
                               {project.repoFullName ?? 'no repo linked'}
                             </div>
                             {/* Below sm the 24h column is dropped; its two values
                                 fold under the repo rather than disappearing. */}
-                            <div className="truncate font-mono text-xs tabular-nums text-zinc-500 sm:hidden">
+                            <div className="truncate font-mono text-xs tabular-nums text-zinc-400 sm:hidden">
                               {project.runsLast24h.toLocaleString()} runs · {cost}
                             </div>
                           </div>
@@ -81,7 +116,7 @@ export function ProjectsListView({ projects }: { projects: Project[] }) {
                           spread across projects scannable in one pass. Absent
                           evidence renders an em-dash and NO bar — an empty track
                           would read as a real 0%. */}
-                      <TableCell className="hidden py-3! lg:table-cell">
+                      <TableCell className="hidden py-3! xl:table-cell">
                         {project.passRate === null ? (
                           <NotMeasuredDash />
                         ) : (
@@ -113,7 +148,7 @@ export function ProjectsListView({ projects }: { projects: Project[] }) {
                           // A project with no copilots and no runs has produced no
                           // signal at all. Claiming HEALTHY there would be a
                           // default-healthy assertion.
-                          <span className="font-mono text-xs text-zinc-500">no signal</span>
+                          <span className="font-mono text-xs text-zinc-400">no signal</span>
                         )}
                       </TableCell>
                     </TableRow>

@@ -119,7 +119,10 @@ export function AgentToolsView({ detail }: { detail: AgentDetail }) {
             <dt className={eyebrowClass}>{cell.label}</dt>
             <dd className="mt-1 font-mono text-xl/7 font-light tabular-nums text-zinc-100">{cell.value}</dd>
             {'note' in cell && cell.note ? (
-              <p className="mt-1 text-[11px] text-zinc-500">{cell.note}</p>
+              // zinc-400, not -500: check-contrast measures -500 at 3.59:1 on
+              // this raised plane (rgb(26,26,30)) for a 4.5 threshold. This note
+              // is the provenance of the number above it — it must be readable.
+              <p className="mt-1 text-[11px] text-zinc-400">{cell.note}</p>
             ) : null}
           </div>
         ))}
@@ -166,15 +169,21 @@ export function AgentToolsView({ detail }: { detail: AgentDetail }) {
                     {tool.description ? (
                       <p className="mt-2 max-w-3xl text-xs leading-5 text-zinc-400">{tool.description}</p>
                     ) : null}
-                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-zinc-500">
+                    {/* Labels move zinc-500 -> zinc-400: check-contrast measures
+                        -500 at 3.59:1 on this raised plane (rgb(26,26,30)) for a
+                        4.5 threshold. The VALUES move -400 -> -300 with them, or
+                        label and value would land on the same zinc and the
+                        two-level hierarchy of this meta line would collapse —
+                        same pair as the dt/dd of agent-observability-view. */}
+                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-zinc-400">
                       <span>
-                        Risk: <span className="text-zinc-400">{tool.riskLevel}</span>
+                        Risk: <span className="text-zinc-300">{tool.riskLevel}</span>
                       </span>
                       <span>
-                        Provider: <span className="text-zinc-400">{tool.provider}</span>
+                        Provider: <span className="text-zinc-300">{tool.provider}</span>
                       </span>
                       {isUnresolved ? (
-                        <span className="text-zinc-400">
+                        <span className="text-zinc-300">
                           Declared in the manifest but the runner has no handler under this name — every call fails.
                         </span>
                       ) : null}

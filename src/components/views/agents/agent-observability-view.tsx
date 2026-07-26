@@ -21,17 +21,20 @@ import {
 /** Compact, honest absence: cause + impact + action, on a few lines. */
 function NotConfigured({ cause, impact, action }: { cause: string; impact: string; action: string }) {
   return (
+    // zinc-400 on the <dt> labels, not -500: check-contrast measures -500 at
+    // 3.59:1 on this raised plane (rgb(26,26,30)) for a 4.5 threshold. The label
+    // stays quieter than its <dd> (zinc-300), which is all the hierarchy needed.
     <dl className="flex flex-col gap-2 text-xs leading-5">
       <div className="flex gap-2">
-        <dt className="w-16 shrink-0 text-zinc-500">Cause</dt>
+        <dt className="w-16 shrink-0 text-zinc-400">Cause</dt>
         <dd className="text-zinc-300">{cause}</dd>
       </div>
       <div className="flex gap-2">
-        <dt className="w-16 shrink-0 text-zinc-500">Impact</dt>
+        <dt className="w-16 shrink-0 text-zinc-400">Impact</dt>
         <dd className="text-zinc-300">{impact}</dd>
       </div>
       <div className="flex gap-2">
-        <dt className="w-16 shrink-0 text-zinc-500">Action</dt>
+        <dt className="w-16 shrink-0 text-zinc-400">Action</dt>
         <dd className="text-zinc-300">{action}</dd>
       </div>
     </dl>
@@ -144,7 +147,7 @@ export function AgentObservabilityView({ detail, suites, benchmarkRuns, testRuns
                       proves the column is unwritten, not that the tool was never
                       called — "never used" turned a missing writer into a
                       measurement, on tools that had demonstrably run. */}
-                  <span className="shrink-0 text-[11px] text-zinc-500">
+                  <span className="shrink-0 text-[11px] text-zinc-400">
                     {tool.lastUsedAt ? <TimeAgoValue value={tool.lastUsedAt} /> : 'Last use unknown'}
                   </span>
                 </li>
@@ -195,7 +198,7 @@ export function AgentObservabilityView({ detail, suites, benchmarkRuns, testRuns
               >
                 <RunStatusText status={run.status} />
                 <span className="truncate text-xs text-zinc-400">{run.outputSummary || 'No output recorded'}</span>
-                <span className="shrink-0 text-[11px] text-zinc-500">
+                <span className="shrink-0 text-[11px] text-zinc-400">
                   <TimeAgoValue value={run.startedAt} />
                 </span>
               </li>

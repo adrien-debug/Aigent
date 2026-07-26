@@ -37,7 +37,9 @@ export function ProjectTeamView({ project, graph, loadError }: ProjectTeamPageDa
           className="size-9 shrink-0 bg-zinc-900 text-white ring-1 ring-white/10"
         />
         <Heading className="truncate tracking-tight">{project.name}</Heading>
-        <span className="flex shrink-0 items-center gap-1.5 text-xs text-zinc-500">
+        {/* zinc-400, not -500: check-contrast measures -500 at 3.90:1 against
+            this page's sunken canvas (rgb(17,17,20)) for a 4.5 threshold. */}
+        <span className="flex shrink-0 items-center gap-1.5 text-xs text-zinc-400">
           <ServerStackIcon aria-hidden="true" className="size-4" />
           <span className="font-mono">{PROJECT_PLATFORM_LABELS[project.platform]}</span>
         </span>
