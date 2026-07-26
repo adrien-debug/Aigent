@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { ManifestRecap } from '@/components/agent-ops/authoring-primitives'
+import { BadgeButton } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Description, ErrorMessage, Field, Fieldset, Label } from '@/components/ui/fieldset'
 import { Input } from '@/components/ui/input'
@@ -316,18 +317,42 @@ export function CreateAgentForm({
               value={model}
               onChange={(event) => handleModelChange(event.target.value)}
               placeholder={DEFAULT_MODEL}
-              list="create-agent-model-suggestions"
               required
             />
-            <datalist id="create-agent-model-suggestions">
+            {/* Was a native `<datalist>`. Its popup is painted by the browser
+                chrome, not by this document: it takes no token, no ring, no
+                font from the design system, and it looks different on every
+                platform — the one widget on this screen the theme cannot
+                reach. Worse, it is invisible until the field is focused AND
+                partially typed, so a 2-to-4 item catalogue that we WANT the
+                operator to see stayed hidden.
+                Replaced by `BadgeButton` chips: always visible, on our tokens,
+                and the current value is marked `aria-pressed` so the state is
+                announced rather than merely coloured. The field stays free
+                text — the backend, not this list, decides what runs. */}
+            <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Suggested models">
               {SUGGESTED_MODELS[modelProvider].map((suggestion) => (
-                <option key={suggestion} value={suggestion} />
+                <BadgeButton
+                  key={suggestion}
+                  type="button"
+                  color={suggestion === model ? 'accent' : 'zinc'}
+                  aria-pressed={suggestion === model}
+                  onClick={() => handleModelChange(suggestion)}
+                >
+                  <span className="font-mono">{suggestion}</span>
+                </BadgeButton>
               ))}
-            </datalist>
+            </div>
             {modelLooksForeign ? (
-              <Description className="text-accent-600 dark:text-accent-400">
-                {`Model doesn't look like a ${modelProvider} model.`}
-              </Description>
+              /* `ErrorMessage`, not a `Description` painted accent by hand: the
+                 old `text-accent-600 dark:text-accent-400` never painted at all
+                 (`Description` composes `clsx(className, defaults)`, so its
+                 `text-zinc-500 dark:text-zinc-400` is emitted last), which left
+                 this mismatch warning looking exactly like the neutral helper
+                 text above it. `ErrorMessage` carries the accent + semibold
+                 pair the design system already reserves for field-level
+                 problems, with no dead class and no `!`. */
+              <ErrorMessage>{`Model doesn't look like a ${modelProvider} model.`}</ErrorMessage>
             ) : null}
           </Field>
 

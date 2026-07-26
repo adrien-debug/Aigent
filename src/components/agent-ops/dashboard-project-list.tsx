@@ -39,11 +39,11 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
                     once in the header rather than repeated per cell. */}
                 <TableHeader className="hidden w-24 text-right sm:table-cell">
                   Runs<span className="sr-only"> over the last 24 hours</span>
-                  <span aria-hidden="true" className="ml-1 font-normal text-zinc-500">24h</span>
+                  <span aria-hidden="true" className="ml-1 font-normal text-zinc-400">24h</span>
                 </TableHeader>
                 <TableHeader className="hidden w-24 text-right sm:table-cell">
                   Cost<span className="sr-only"> over the last 24 hours</span>
-                  <span aria-hidden="true" className="ml-1 font-normal text-zinc-500">24h</span>
+                  <span aria-hidden="true" className="ml-1 font-normal text-zinc-400">24h</span>
                 </TableHeader>
                 <TableHeader className="w-28 pr-4! pl-2! text-right sm:w-32 sm:pl-4!">Status</TableHeader>
               </TableRow>
@@ -74,13 +74,19 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
                         <ProjectAvatar name={project.name} src={logo} size="sm" />
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium text-zinc-900 dark:text-white group-hover:underline">{project.name}</div>
-                          <div className="truncate font-mono text-xs text-zinc-500">
+                          {/* zinc-400 throughout this table, not zinc-500:
+                              `check:contrast` measures zinc-500 at 3.59:1 on the
+                              raised row plane and 4.02:1 in the sticky head —
+                              both under the 4.5 AA floor. The repo slug is the
+                              only thing distinguishing two projects with similar
+                              names, so it is not decoration. */}
+                          <div className="truncate font-mono text-xs text-zinc-400">
                             {project.repoFullName ?? 'no repo linked'}
                           </div>
                           {/* Below sm both 24h columns are dropped so Project keeps the
                               majority of the width; their values fold here rather
                               than being squeezed into 48px and spilling left. */}
-                          <div className="truncate font-mono text-xs tabular-nums text-zinc-500 sm:hidden">
+                          <div className="truncate font-mono text-xs tabular-nums text-zinc-400 sm:hidden">
                             {project.runsLast24h.toLocaleString()} runs · {cost}
                           </div>
                         </div>
@@ -106,7 +112,7 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
                       ) : (
                         // A project with no pass rate and no runs has produced no
                         // observation to call healthy.
-                        <span className="font-mono text-xs text-zinc-500">no signal</span>
+                        <span className="font-mono text-xs text-zinc-400">no signal</span>
                       )}
                     </TableCell>
                   </TableRow>
@@ -116,10 +122,12 @@ export function DashboardProjectList({ projects }: { projects: ProjectOverviewIt
           </Table>
         </div>
       ) : (
+        /* No `className="py-12"`: it restated the component's own default, so it
+           read as a decision the caller had made and was in fact inert. Padding
+           is chosen through the `padding` prop now — the default is this. */
         <EmptyState
           title="No projects yet"
           description="Register the first product surface to see its delivery KPIs here."
-          className="py-12"
           action={
             <SoftAccentLink href="/admin/projects/new">New project</SoftAccentLink>
           }

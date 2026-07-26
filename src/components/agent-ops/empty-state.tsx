@@ -16,6 +16,33 @@ function asLabel(title: string): string {
 }
 
 /**
+ * Padding is a PROP, not a `className`, and the reason is measured, not
+ * stylistic. `EmptyState` used to compose `clsx('px-6 py-12', className)`,
+ * which reads like an override and is not one: two utilities of the same
+ * property have identical specificity, so the winner is whichever Tailwind
+ * emits LAST in the compiled sheet — never the one written last in the
+ * attribute. Probed in the running app against the real stylesheet:
+ *   `px-6 py-12 py-8`        → 48px         (the caller's py-8 is dead)
+ *   `px-6 py-12 px-0 py-6`   → 48px / 24px  (BOTH of the caller's are dead)
+ * Two agent-ops call sites were asking for a tighter box and silently getting
+ * the roomy one, which is why an empty card inside a dense panel carried the
+ * same 96px of vertical air as a full-page empty state.
+ * With a prop, exactly ONE padding string is ever emitted, so there is no race
+ * left to lose. `className` keeps its legitimate role: ADDING what the default
+ * does not set (`flex-1`, `min-h-0`), never replacing it.
+ */
+const EMPTY_STATE_PADDING = {
+  /** Full-width / full-card empty state — the page-level default. */
+  default: 'px-6 py-12',
+  /** A card body that must not dominate the row it shares with a populated peer. */
+  compact: 'px-6 py-8',
+  /** Inside a section that already owns the gutter: vertical air only. */
+  inline: 'px-0 py-6',
+} as const
+
+export type EmptyStatePadding = keyof typeof EMPTY_STATE_PADDING
+
+/**
  * EmptyState — the ONE empty-state grammar for /admin screens (canon fixed by
  * DS audit: 5 different copy-pasted empty-state markups were found across the
  * repo). Centered, generous padding, discrete zinc icon, NEUTRAL title (this
@@ -40,24 +67,26 @@ function asLabel(title: string): string {
  * ever drew its name from it.
  *
  * Callers own the surrounding surface (card/section wrapper); this component
- * only lays out the centered content block, matching the `px-6 py-12` rhythm
- * used by every empty state in the repo today.
+ * only lays out the centered content block, on the `EMPTY_STATE_PADDING`
+ * rhythm chosen through the `padding` prop above.
  */
 export function EmptyState({
   icon: Icon,
   title,
   description,
   action,
+  padding = 'default',
   className,
 }: {
   icon?: React.ComponentType<React.ComponentProps<'svg'>>
   title: string
   description?: string
   action?: React.ReactNode
+  padding?: EmptyStatePadding
   className?: string
 }) {
   return (
-    <div role="status" className={clsx('px-6 py-12', className)}>
+    <div role="status" className={clsx(EMPTY_STATE_PADDING[padding], className)}>
       <div className="mx-auto max-w-md text-center">
         {Icon ? <Icon aria-hidden="true" className="mx-auto size-10 text-zinc-500" /> : null}
         {/* Byte-for-byte the classes the neutral `Subheading` actually resolved
@@ -75,7 +104,14 @@ export function EmptyState({
         >
           {asLabel(title)}
         </p>
-        {description ? <Text className="mt-2 text-zinc-600">{description}</Text> : null}
+        {/* `mt-2` only. The `text-zinc-600` that used to sit here was a no-op:
+            `Text` composes `clsx(className, defaults)`, so its own
+            `text-zinc-500 dark:text-zinc-400` is what the stylesheet emits last
+            and therefore what paints. The class claimed a tone the component
+            never had, and contradicted this file's own doc ("zinc-500
+            description") two comments above. Removed rather than made real with
+            `!`: zinc-500/400 IS the intended description tone. */}
+        {description ? <Text className="mt-2">{description}</Text> : null}
         {action ? <div className="mt-6 flex flex-wrap justify-center gap-3">{action}</div> : null}
       </div>
     </div>

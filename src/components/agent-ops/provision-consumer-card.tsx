@@ -75,7 +75,13 @@ export function ProvisionConsumerCard({
     >
       <div className="flex flex-wrap items-center gap-2">
         <ServerStackIcon className="size-5 text-zinc-500" aria-hidden="true" />
-        <Text className="font-mono text-xs text-zinc-500">{repoFullName}</Text>
+        {/* `text-xs` needs the `!`: `Text` composes `clsx(className, defaults)`,
+            so its `sm:text-sm/6` is emitted later in the sheet and won — these
+            three meta lines rendered at 14px while claiming 12px. `!` is the
+            escape hatch the cascade doctrine allows, and it is visible in the
+            diff. The `text-zinc-500` that sat here is gone: it was dead too
+            (the app forces `dark`, so `dark:text-zinc-400` always painted). */}
+        <Text className="font-mono text-xs!">{repoFullName}</Text>
         {status?.provisioned ? (
           <Badge color="accent">Intake provisioned {status.version ?? ''}</Badge>
         ) : (
@@ -84,7 +90,7 @@ export function ProvisionConsumerCard({
       </div>
 
       {status?.provisioned && status.provisionedAt ? (
-        <Text className="text-xs text-zinc-500">
+        <Text className="text-xs!">
           Last marker: {formatTimestamp(status.provisionedAt)} · project key{' '}
           <span className="font-mono">{status.projectKey ?? '—'}</span>
         </Text>
@@ -108,7 +114,7 @@ export function ProvisionConsumerCard({
 
       <GitHubDeliveryModeToggle value={deliveryMode} onChange={setDeliveryMode} />
 
-      <Text className="text-xs text-zinc-500">
+      <Text className="text-xs!">
         Real GitHub writes require <span className="font-mono">GITHUB_PUSH_ENABLED=1</span> server-side.
         Preview always works (dry-run).
       </Text>
