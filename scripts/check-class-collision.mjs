@@ -50,8 +50,19 @@
  *     prop-keyed map (`colors[color]` in badge/button) are NOT extracted: the
  *     applied set depends on a prop this gate does not evaluate. Callers that
  *     fight a colour map are therefore NOT caught.
+ *   - Defaults that arrive through a bare module CONST are not extracted
+ *     either: `Panel` composes `tone === 'raised' ? surfaceRaised : …`, and
+ *     `surfaceRaised` is a string const, not a literal. Its `rounded-xl` /
+ *     `bg-white` / `ring-1` are therefore NOT indexed, so a
+ *     `<Panel className="rounded-lg">` — dead, in fact — is not reported.
+ *     A known MISS, listed in scripts/README-gates.md, never a wrong accusation.
  *   - Unknown/unmapped utilities are ignored rather than guessed (fail-open on
  *     classification, never a fabricated violation).
+ *   - Static families, never the compiled sheet: this gate has no notion of
+ *     which rule Tailwind emitted last, so `check:class-collision` green does
+ *     NOT mean "the rendered pixels match the class list" — only that no LITERAL
+ *     caller class fights a KNOWN inline default. The pixel-level statement
+ *     belongs to `check:a11y` / a browser, not here.
  *
  * Pure Node, no deps. Run via `node scripts/check-class-collision.mjs`.
  *   `--list-families`  dumps the property mapping of the utilities it read —
@@ -459,27 +470,49 @@ function readBrackets(source, open) {
 }
 
 /**
- * Boolean props with a declared default, read from the destructuring
- * (`dense = false`) and from the context defaults (`{ dense: false }`).
- * A name declared twice with two different values is marked ambiguous (null).
+ * Props with a declared default value, read from the destructuring
+ * (`dense = false`, `inset = 'md'`) and from the context defaults
+ * (`{ dense: false }`). A name declared twice with two different values is
+ * marked ambiguous (null) — an unknown keeps BOTH branches of its ternary, so
+ * ambiguity costs recall, never precision.
+ *
+ * String defaults matter as much as booleans: `Panel` gates its padding on
+ * `inset === 'sm' && 'p-4'`, `inset === 'md' && 'p-6'`, `inset === 'lg' && 'p-8'`
+ * with `inset = 'md'`. Without evaluating those comparisons all THREE paddings
+ * posed as defaults at once — a shape the primitive can never render — and a
+ * `<Panel inset="none" className="p-3">`, whose override is perfectly alive
+ * because no padding default is emitted at all, was reported as dead. That is a
+ * false positive, and a gate that cries wolf is how an allowlist gets inflated.
  */
-function booleanEnvOf(source) {
+function propEnvOf(source) {
   const env = new Map()
-  for (const m of source.matchAll(/\b([A-Za-z_$][\w$]*)\s*(?:=|:)\s*(true|false)\b/g)) {
-    const name = m[1]
-    const value = m[2] === 'true'
+  const put = (name, value) => {
     if (env.has(name) && env.get(name) !== value) env.set(name, null)
     else if (!env.has(name)) env.set(name, value)
   }
+  for (const m of source.matchAll(/\b([A-Za-z_$][\w$]*)\s*(?:=|:)\s*(true|false)\b/g)) put(m[1], m[2] === 'true')
+  // `name?: 'a' | 'b'` (a type annotation, not a default) is skipped: `\s*`
+  // cannot cross the `?`, so only real initialisers land in the env.
+  for (const m of source.matchAll(/\b([A-Za-z_$][\w$]*)\s*(?:=|:)\s*'([^'\\]*)'/g)) put(m[1], m[2])
   return env
 }
 
-/** `cond` / `!cond` evaluated against the declared defaults; null when unknown. */
+/**
+ * `cond`, `!cond`, `x === 'lit'`, `x !== 'lit'` evaluated against the declared
+ * defaults; null when the expression or the operand is outside that vocabulary.
+ */
 function evalCondition(expr, env) {
-  const m = expr.trim().match(/^(!?)([A-Za-z_$][\w$]*)$/)
+  const t = expr.trim()
+  let m = t.match(/^([A-Za-z_$][\w$]*)\s*(===|!==)\s*'([^'\\]*)'$/)
+  if (m) {
+    const value = env.get(m[1])
+    if (typeof value !== 'string') return null
+    return m[2] === '===' ? value === m[3] : value !== m[3]
+  }
+  m = t.match(/^(!?)([A-Za-z_$][\w$]*)$/)
   if (!m) return null
   const value = env.get(m[2])
-  if (value === undefined || value === null) return null
+  if (typeof value !== 'boolean') return null
   return m[1] === '!' ? !value : value
 }
 
@@ -574,14 +607,27 @@ function defaultLiteralsOfArg(arg, source, env) {
   return stringLiteralsOf(t)
 }
 
+/**
+ * Reads the primitives and keeps, per component, the RAW clsx arguments that
+ * sit after `className` — not a flattened utility set.
+ *
+ * Keeping them raw is what lets the same primitive be resolved differently at
+ * each call site. `TableCell` composes `dense ? 'py-3' : 'py-4'` where `dense`
+ * comes from the Table CONTEXT, so its real default is `py-4` under a plain
+ * `<Table>` and `py-3` under a `<Table dense>`. A single flattened set can only
+ * be right for one of the two: resolving `dense = false` once made the gate
+ * accuse every `<TableCell className="py-3">` inside `<Table dense>` of
+ * fighting a `py-4` that cell never renders — a false accusation, and a false
+ * accusation is how an allowlist gets inflated until the gate means nothing.
+ */
 async function collectPrimitiveDefaults() {
   const files = (await readdir(UI_DIR)).filter((f) => f.endsWith('.tsx'))
-  /** @type {Map<string, {utilities: Map<string, {raw: string, properties: string[], variants: string[]}>, file: string}>} */
+  /** @type {Map<string, {file: string, source: string, baseEnv: Map<string, unknown>, argGroups: string[][], cache: Map<string, Map>}>} */
   const byComponent = new Map()
 
   for (const file of files) {
     const source = await readFile(join(UI_DIR, file), 'utf8')
-    const env = booleanEnvOf(source)
+    const baseEnv = propEnvOf(source)
 
     // Component boundaries. Every default we find is attributed to the nearest
     // preceding declaration — good enough because the primitives are one flat
@@ -605,25 +651,71 @@ async function collectPrimitiveDefaults() {
       const owner = [...decls].reverse().find((x) => x.at < m.index)
       if (!owner) continue
 
-      const entry = byComponent.get(owner.name) ?? { utilities: new Map(), file: `src/components/ui/${file}` }
-      const literals = splitArgs(body)
-        .slice(1) // arg 0 is `className` itself
-        .flatMap((arg) => defaultLiteralsOfArg(arg, source, env))
-      for (const literal of literals) {
-        for (const token of literal.split(/\s+/).filter(Boolean)) {
-          const util = parseUtility(token)
-          if (util.important) continue // an important default is unbeatable anyway; nothing the caller writes changes that
-          if (retargetsOtherElement(util.variants)) continue
-          const properties = propertiesOf(util.base)
-          if (!properties) continue
-          entry.utilities.set(token, { raw: token, properties, variants: util.variants, base: util.base })
-        }
-      }
+      const entry =
+        byComponent.get(owner.name) ??
+        { file: `src/components/ui/${file}`, source, baseEnv, argGroups: [], cache: new Map() }
+      entry.argGroups.push(splitArgs(body).slice(1)) // arg 0 is `className` itself
       byComponent.set(owner.name, entry)
     }
   }
 
   return byComponent
+}
+
+/**
+ * The utilities a primitive renders when the props visible at the call site
+ * hold. `overrides` wins over the primitive's own declared defaults; a name in
+ * neither stays unknown, and an unknown keeps BOTH branches of its ternary —
+ * so the "identical class is redundant, not dead" skip downstream covers both,
+ * and only a caller fighting BOTH branches is ever reported. Ambiguity costs
+ * recall, never precision.
+ */
+function utilitiesFor(entry, overrides) {
+  const key = [...overrides].map(([k, v]) => `${k}=${v}`).sort().join('&')
+  const cached = entry.cache.get(key)
+  if (cached) return cached
+
+  const env = new Map(entry.baseEnv)
+  for (const [name, value] of overrides) env.set(name, value)
+
+  const utilities = new Map()
+  for (const args of entry.argGroups) {
+    for (const literal of args.flatMap((arg) => defaultLiteralsOfArg(arg, entry.source, env))) {
+      for (const token of literal.split(/\s+/).filter(Boolean)) {
+        const util = parseUtility(token)
+        if (util.important) continue // an important default is unbeatable anyway; nothing the caller writes changes that
+        if (retargetsOtherElement(util.variants)) continue
+        const properties = propertiesOf(util.base)
+        if (!properties) continue
+        utilities.set(token, { raw: token, properties, variants: util.variants, base: util.base })
+      }
+    }
+  }
+  entry.cache.set(key, utilities)
+  return utilities
+}
+
+/**
+ * The literal props of a JSX opening tag: `dense`, `dense={true}`,
+ * `inset="none"`, `inset={'none'}`. Anything computed (`dense={isDense}`) is
+ * deliberately absent from the map, which leaves the name unknown rather than
+ * guessed.
+ */
+function literalPropsOf(attrs) {
+  const props = new Map()
+  const re = /(?:^|\s)([a-z][\w]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*(true|false|'[^']*'|"[^"]*")\s*\})?)?(?=\s|$|\/)/g
+  let m
+  while ((m = re.exec(attrs))) {
+    const name = m[1]
+    const braced = m[4]
+    if (m[2] !== undefined) props.set(name, m[2])
+    else if (m[3] !== undefined) props.set(name, m[3])
+    else if (braced === 'true') props.set(name, true)
+    else if (braced === 'false') props.set(name, false)
+    else if (braced !== undefined) props.set(name, braced.slice(1, -1))
+    else if (!/=/.test(m[0])) props.set(name, true) // bare prop: `<Table dense>`
+  }
+  return props
 }
 
 /* ------------------------------------------------------------------ *
@@ -641,6 +733,58 @@ async function* walk(dir) {
     const full = join(dir, entry.name)
     if (entry.isDirectory()) yield* walk(full)
     else if (/\.(tsx|jsx)$/.test(entry.name)) yield full
+  }
+}
+
+/**
+ * JSX tag scanner: every `<Name …>` / `</Name>` with its attribute text, in
+ * source order. Not a parser — it walks to each tag's closing `>` while
+ * tracking quotes and `{}` depth, which is what makes it survive the two things
+ * a regex cannot: `className={clsx('a > b')}` and `onClick={() => …}`, both of
+ * which contain a `>` that does not close the tag.
+ */
+function* scanJsxTags(source, from = 0, to = source.length) {
+  const opener = /<(\/?)([A-Z][\w.]*)/g
+  opener.lastIndex = from
+  let match
+  while ((match = opener.exec(source))) {
+    if (match.index >= to) return
+    const [, slash, name] = match
+    const attrsAt = opener.lastIndex
+    let depth = 0
+    let quote = null
+    let end = -1
+    for (let i = attrsAt; i < to; i++) {
+      const ch = source[i]
+      if (quote) {
+        if (ch === quote && source[i - 1] !== '\\') quote = null
+        continue
+      }
+      if (ch === '"' || ch === "'" || ch === '`') quote = ch
+      else if (ch === '{') depth++
+      else if (ch === '}') depth--
+      else if (ch === '>' && depth === 0) {
+        end = i
+        break
+      }
+    }
+    if (end === -1) return
+    yield {
+      name,
+      closing: slash === '/',
+      selfClosing: source[end - 1] === '/',
+      attrs: source.slice(attrsAt, end).replace(/\/$/, ''),
+      attrsAt,
+    }
+    // An element passed AS A PROP (`<Section actions={<Text className="text-xs"/>}>`)
+    // lives inside the outer tag's attribute text, and the depth-aware walk above
+    // just stepped over all of it. Recurse into that span before resuming, or
+    // those elements are invisible — three real dead overrides in factory-view.tsx
+    // disappeared exactly that way while this scanner was being written.
+    if (!slash) yield* scanJsxTags(source, attrsAt, end)
+    // Resume AFTER the tag: what remains of an attribute value is a string, and
+    // a `<Foo` inside a string is not an element.
+    opener.lastIndex = end + 1
   }
 }
 
@@ -723,6 +867,15 @@ function lineOf(source, index) {
   return source.slice(0, index).split('\n').length
 }
 
+/**
+ * The v4 `!important` form of a utility, variants preserved: `sm:text-xs` ->
+ * `sm:text-xs!`. Printed as exit 2 so the suggestion is a class that can be
+ * pasted, not a rule to re-derive.
+ */
+function importantForm(token) {
+  return `${token}!`
+}
+
 /* ------------------------------------------------------------------ *
  * Allowlist
  * ------------------------------------------------------------------ */
@@ -763,9 +916,13 @@ async function loadAllowlist() {
 const defaults = await collectPrimitiveDefaults()
 
 if (process.argv.includes('--list-families')) {
+  // Resolved with NO call-site override — i.e. the shape an unconfigured
+  // primitive renders. A `<Table dense>` call site resolves differently; that
+  // is the point, and it is why this dump is an audit of the classifier, not a
+  // statement about any particular caller.
   for (const [component, entry] of [...defaults].sort()) {
     console.log(`\n${component}  (${entry.file})`)
-    for (const [token, u] of entry.utilities) console.log(`  ${token.padEnd(46)} ${u.properties.join(', ')}`)
+    for (const [token, u] of utilitiesFor(entry, new Map())) console.log(`  ${token.padEnd(46)} ${u.properties.join(', ')}`)
   }
   process.exit(0)
 }
@@ -776,7 +933,7 @@ if (process.argv.includes('--list-families')) {
 const onlyArg = process.argv.find((a) => a.startsWith('--only='))
 const only = onlyArg ? onlyArg.slice('--only='.length) : null
 
-const { keys: allowed } = await loadAllowlist()
+const { keys: allowed, entries: allowedEntries } = await loadAllowlist()
 const usedAllowlistKeys = new Set()
 const violations = []
 
@@ -788,15 +945,33 @@ for (const dir of SCAN_DIRS) {
     const primitives = importedPrimitives(source)
     if (primitives.size === 0) continue
 
-    const tagRe = /<([A-Z][A-Za-z0-9_]*)\b/g
-    let m
-    while ((m = tagRe.exec(source))) {
-      const component = m[1]
+    // Open/close-aware walk, so every tag knows which primitives ENCLOSE it.
+    // That ancestry is not decoration: `TableCell` reads `dense` from the Table
+    // context, so the enclosing `<Table dense>` is the only thing that says
+    // which branch of `dense ? 'py-3' : 'py-4'` the cell actually renders.
+    const stack = []
+    for (const tag of scanJsxTags(source)) {
+      if (tag.closing) {
+        const at = stack.findLastIndex((frame) => frame.name === tag.name)
+        if (at !== -1) stack.length = at
+        continue
+      }
+      const props = literalPropsOf(tag.attrs)
+      // Props visible at this call site: the ancestors' first (outermost to
+      // innermost), the tag's own last — nearest declaration wins, exactly like
+      // a React context provider chain.
+      const scopedProps = new Map()
+      for (const frame of stack) for (const [k, v] of frame.props) scopedProps.set(k, v)
+      for (const [k, v] of props) scopedProps.set(k, v)
+      if (!tag.selfClosing) stack.push({ name: tag.name, props })
+
+      const component = tag.name
       if (!primitives.has(component)) continue
       const entry = defaults.get(component)
       if (!entry) continue
+      const utilities = utilitiesFor(entry, scopedProps)
 
-      const found = classNameOfTag(source, m.index + m[0].length)
+      const found = classNameOfTag(source, tag.attrsAt)
       if (!found) continue
       const line = lineOf(source, found.at)
 
@@ -812,12 +987,12 @@ for (const dir of SCAN_DIRS) {
         // value is the one asked for. It must NOT be reported as beaten by the
         // OTHER branch of a prop ternary — `dense ? 'py-3' : 'py-4'` never emits
         // both, and `py-3` only exists on a dense table.
-        if ([...entry.utilities.keys()].includes(caller.raw)) continue
+        if (utilities.has(caller.raw)) continue
 
         const callerDirectional = directionalValue(caller.base)
 
         const beaten = []
-        for (const def of entry.utilities.values()) {
+        for (const def of utilities.values()) {
           if (def.raw === caller.raw) continue // identical class: redundant, not a collision
           if (!def.properties.some((p) => properties.includes(p))) continue
           const defDirectional = directionalValue(def.base)
@@ -879,6 +1054,15 @@ if (violations.length > 0) {
       console.error(`      ${v.properties.join(', ')} — écrasé par le défaut « ${v.beatenBy} »`)
       console.error(`      ${v.reason}`)
       if (v.others.length > 0) console.error(`      (aussi en conflit : ${v.others.join(', ')})`)
+      // Named exits, per violation, in order of preference — and the waiver key
+      // printed verbatim so taking the third one is a visible, reviewable act
+      // rather than a quiet edit nobody can diff against what it hides.
+      console.error(`      → 1. supprimer « ${v.utility} » : il ne fait déjà rien.`)
+      console.error(`      → 2. le rendre réel : « ${importantForm(v.utility)} », ou une prop de ${v.component}.`)
+      console.error(
+        `      → 3. dette assumée : {"file":"${v.file}","component":"${v.component}",` +
+          `"utility":"${v.utility}","reason":"…"} dans scripts/class-collision-allowlist.json`
+      )
     }
     console.error('')
   }
@@ -904,7 +1088,23 @@ if (stale.length > 0) {
   console.warn('  → les retirer de scripts/class-collision-allowlist.json.\n')
 }
 
+// A green run must never hide the debt it is standing on: every waiver that
+// actually silenced a collision is reprinted on SUCCESS, with its justification.
+// This is the difference between a gate that passes and a gate that has been
+// talked into passing — the exact failure mode this repo already deleted once
+// (the `|| true` of test:storybook-unit).
+if (usedAllowlistKeys.size > 0) {
+  console.log(`⚠ ${usedAllowlistKeys.size} collision(s) éteinte(s) par allowlist — la gate passe MALGRÉ elles :`)
+  for (const key of usedAllowlistKeys) {
+    const entry = allowedEntries.find((e) => `${e.file}|${e.component}|${e.utility}` === key)
+    console.log(`    ${entry.file}  <${entry.component} className="… ${entry.utility} …">`)
+    console.log(`      ${entry.reason}`)
+  }
+}
+
 console.log(
   `✓ class-collision passed — aucun override className mort (${defaults.size} primitives lues, ` +
-    `${[...defaults.values()].reduce((n, e) => n + e.utilities.size, 0)} utilitaires par défaut indexés).`
+    `${[...defaults.values()].reduce((n, e) => n + utilitiesFor(e, new Map()).size, 0)} utilitaires par défaut indexés` +
+    (usedAllowlistKeys.size > 0 ? `, ${usedAllowlistKeys.size} éteint(s) par allowlist` : '') +
+    ').'
 )

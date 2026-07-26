@@ -1,0 +1,22 @@
+{
+  "doc": [
+    "Dette assumée de check-tables.mjs — chaque entrée éteint UN défaut de table,",
+    "identifié par file + rule + subject.",
+    "`rule` ∈ sticky-head-needs-fixed | hover-row-needs-href | responsive-column-mismatch.",
+    "`subject` est le fingerprint de contenu que la gate imprime dans son message : les",
+    "classes de l'élément fautif triées, ou `column-<n>` pour la règle de colonnes. Il ne",
+    "porte AUCUN numéro de ligne, donc une entrée ne pourrit pas au premier import ajouté",
+    "au-dessus ; en revanche modifier les classes fautives change la clé, ce qui est voulu :",
+    "un autre override est une autre décision, elle se re-prend.",
+    "`reason` est OBLIGATOIRE et doit être écrite (≥ 15 caractères) : la gate refuse de",
+    "démarrer sur une entrée sans justification, parce qu'un silencieux anonyme est",
+    "exactement ce que cette gate existe pour empêcher.",
+    "Une entrée active est RÉIMPRIMÉE à chaque run vert : une gate verte ne cache jamais la",
+    "dette sur laquelle elle est assise.",
+    "Vide au départ, et elle doit le rester : la sortie normale d'un défaut de table est de",
+    "le corriger (passer `fixed`, passer `href`, aligner les breakpoints), pas de l'inscrire",
+    "ici. Gonfler ce fichier pour faire verdir la gate serait exactement la triche que ce",
+    "repo a déjà supprimée une fois (le `|| true` de test:storybook-unit)."
+  ],
+  "entries": []
+}
