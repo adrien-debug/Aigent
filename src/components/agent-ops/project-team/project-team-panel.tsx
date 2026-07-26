@@ -38,6 +38,23 @@ import type {
 const percentFormat = new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 1 })
 const plainFormat = new Intl.NumberFormat('en-US')
 
+/**
+ * `sectionLabelClass` in `Subheading` form. The panel's section titles were raw
+ * `<h3>` tags, which the dashboard is not entitled to — it renders primitives
+ * only — but `Subheading` hard-codes `text-base/7 sm:text-sm/6 font-semibold`
+ * and `text-zinc-950 dark:text-white`, and Tailwind settles a same-utility
+ * clash by the order of the GENERATED CSS (`.text-base` after `.text-xs`,
+ * `.font-semibold` after `.font-medium`, `.text-zinc-950` after
+ * `.text-zinc-500`), never by the order of the class attribute. So every
+ * property the primitive also sets is re-asserted with `!`; drop the `!` and
+ * the primitive silently wins, turning every caption into semibold body text.
+ *
+ * `sectionLabelClass` itself stays the source of truth for the non-heading uses
+ * (`<dt>` in `Field`) — this constant only exists because those two cannot share
+ * one string once one of them has to fight the primitive.
+ */
+const panelSectionTitleClass = 'text-xs! font-medium! tracking-wide text-zinc-500! uppercase'
+
 export interface TeamMetric {
   key: string
   label: string
@@ -635,7 +652,9 @@ export function ProjectTeamPanel({
         </dl>
 
         <div>
-          <h3 className={sectionLabelClass}>Metrics</h3>
+          <Subheading level={3} tone="neutral" className={panelSectionTitleClass}>
+            Metrics
+          </Subheading>
           <dl className="mt-3 grid grid-cols-3 gap-4">
             {agent.metrics.map((metric) => (
               <div key={metric.key} className="flex flex-col gap-1">
@@ -649,7 +668,9 @@ export function ProjectTeamPanel({
         </div>
 
         <div>
-          <h3 className={sectionLabelClass}>Tools</h3>
+          <Subheading level={3} tone="neutral" className={panelSectionTitleClass}>
+            Tools
+          </Subheading>
           {/* Checked FIRST: a failed tool read also produces an empty array, so
               testing `length === 0` alone turns an exception into the assertion
               "No tool declared." */}
@@ -675,7 +696,9 @@ export function ProjectTeamPanel({
         <Divider soft />
 
         <div className="flex items-center justify-between gap-3">
-          <h3 className={sectionLabelClass}>Relations</h3>
+          <Subheading level={3} tone="neutral" className={panelSectionTitleClass}>
+            Relations
+          </Subheading>
           {canAddRelation ? (
             <Button ref={addRelationRef} outline onClick={onAddRelation}>
               Add relation
@@ -692,9 +715,9 @@ export function ProjectTeamPanel({
         ) : null}
 
         <div>
-          <h3 className={sectionLabelClass}>
+          <Subheading level={3} tone="neutral" className={panelSectionTitleClass}>
             Incoming relations
-          </h3>
+          </Subheading>
           {incoming.length > 0 ? (
             <ul className="mt-2 divide-y divide-white/5">
               {incoming.map((edge) => (
@@ -717,9 +740,9 @@ export function ProjectTeamPanel({
         </div>
 
         <div>
-          <h3 className={sectionLabelClass}>
+          <Subheading level={3} tone="neutral" className={panelSectionTitleClass}>
             Outgoing relations
-          </h3>
+          </Subheading>
           {outgoing.length > 0 ? (
             <ul className="mt-2 divide-y divide-white/5">
               {outgoing.map((edge) => (
@@ -743,7 +766,9 @@ export function ProjectTeamPanel({
 
         {agent.latestRunId ? (
           <div>
-            <h3 className={sectionLabelClass}>Recent run</h3>
+            <Subheading level={3} tone="neutral" className={panelSectionTitleClass}>
+              Recent run
+            </Subheading>
             <p className="mt-2 text-sm text-zinc-300">
               {humanizeStatus(agent.latestRunStatus ?? 'unavailable')}
               <span className="ml-2 font-mono text-xs text-zinc-500">{agent.latestRunId}</span>

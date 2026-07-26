@@ -7,6 +7,7 @@ import { surfaceCardClass } from '@/components/agent-ops/surface-card'
 import { ToolBadge } from '@/components/agent-ops/tool-badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Subheading } from '@/components/ui/heading'
 import { Link } from '@/components/ui/link'
 import { Text } from '@/components/ui/text'
 import type { AgentPreview } from '@/lib/agent-mission-control/project-builder-types'
@@ -20,6 +21,31 @@ function asToolRisk(risk: string | undefined): ToolRiskLevel | undefined {
 }
 
 const DEFAULT_FLOW = ['start', 'agent', 'approval?', 'tools?', 'final'] as const
+
+/**
+ * Overline-scaled section title, shared by both Agent Builder panes (the
+ * workbench imports it — this module is the leaf, so the dependency only ever
+ * points one way).
+ *
+ * These titles were raw `<h2>`/`<h3>` tags, which the dashboard is not entitled
+ * to: it renders primitives only. `Subheading` is the primitive, but it
+ * hard-codes `text-base/7 sm:text-sm/6 font-semibold` + `text-zinc-950
+ * dark:text-white`, and Tailwind settles a same-utility clash by the order of
+ * the GENERATED CSS (`.text-base`, `.font-semibold` and `.text-zinc-950` are
+ * all emitted after their smaller/lighter/dimmer counterparts), never by the
+ * order of the class attribute. The overline scale therefore has to carry `!`
+ * on every property the primitive also sets — without it the primitive silently
+ * wins and a 10px medium caption renders as semibold body text.
+ *
+ * `/[inherit]` is not decoration either: a bare `text-[10px]` sets font-size and
+ * NOTHING else (an arbitrary size has no paired line-height), so `Subheading`'s
+ * `text-base/7` would have kept imposing a 1.75rem line box on a 10px caption
+ * and grown every section header by ~14px. The raw `<h*>` these replace
+ * inherited their line-height; `/[inherit]` reproduces that exactly, so the
+ * change is semantics-only and moves no pixel.
+ */
+export const builderSectionTitleClass =
+  'text-[10px]/[inherit]! font-medium! tracking-wider text-zinc-500! uppercase'
 
 /**
  * Secondary preview rail — spec readout + approval actions live in the header (not duplicated in chat).
@@ -78,25 +104,33 @@ export function ProjectBuilderPreviewPanel({
       <div className="border-b border-white/5 bg-[var(--color-surface-elevated)] px-4 py-3">
         {/* Title + action button on one line — no separate action section. */}
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0" role="status" aria-live="polite">
-            <h2 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Preview</h2>
-            <p className="mt-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-              {createdCopilotId ? 'Draft created' : hasSpec ? 'Spec in progress — not created yet' : 'Waiting for discussion'}
-            </p>
-            {conversationStatus ? <p className="mt-1 text-xs text-zinc-500">{conversationStatus}</p> : null}
-            {preview?.readyForApproval && !createdCopilotId ? (
-              <Badge color="accent" className="mt-2">
-                Ready for approval
-              </Badge>
-            ) : null}
-            {createdCopilotId ? (
-              <Link
-                href={`/admin/agents/${createdCopilotId}`}
-                className="mt-2 block text-xs font-medium text-accent-600 hover:text-accent-500 dark:text-accent-400 dark:hover:text-accent-300"
-              >
-                Open drafted agent →
-              </Link>
-            ) : null}
+          {/* The rail's title sits OUTSIDE the live region: `role="status"` is
+              atomic, so keeping the heading inside made assistive tech re-read
+              "Preview" on every status change. Only the part that actually
+              changes is announced. */}
+          <div className="min-w-0">
+            <Subheading level={2} tone="neutral" className={builderSectionTitleClass}>
+              Preview
+            </Subheading>
+            <div role="status" aria-live="polite">
+              <p className="mt-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                {createdCopilotId ? 'Draft created' : hasSpec ? 'Spec in progress — not created yet' : 'Waiting for discussion'}
+              </p>
+              {conversationStatus ? <p className="mt-1 text-xs text-zinc-500">{conversationStatus}</p> : null}
+              {preview?.readyForApproval && !createdCopilotId ? (
+                <Badge color="accent" className="mt-2">
+                  Ready for approval
+                </Badge>
+              ) : null}
+              {createdCopilotId ? (
+                <Link
+                  href={`/admin/agents/${createdCopilotId}`}
+                  className="mt-2 block text-xs font-medium text-accent-600 hover:text-accent-500 dark:text-accent-400 dark:hover:text-accent-300"
+                >
+                  Open drafted agent →
+                </Link>
+              ) : null}
+            </div>
           </div>
 
           {showDraftAction || showLangGraphActions ? (
@@ -153,7 +187,9 @@ export function ProjectBuilderPreviewPanel({
 
       <div className="no-scrollbar min-h-0 flex-1 space-y-6 overflow-y-auto p-4">
         <div>
-          <h3 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Flow</h3>
+          <Subheading level={3} tone="neutral" className={builderSectionTitleClass}>
+            Flow
+          </Subheading>
           <ol className="mt-3 flex flex-wrap gap-1.5">
             {flow.map((step, i) => (
               <li key={`${step}-${i}`} className="flex items-center gap-1.5">
@@ -179,7 +215,9 @@ export function ProjectBuilderPreviewPanel({
 
         {preview?.options && preview.options.length > 0 ? (
           <div>
-            <h3 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Options</h3>
+            <Subheading level={3} tone="neutral" className={builderSectionTitleClass}>
+              Options
+            </Subheading>
             <ul className="mt-3 divide-y divide-zinc-950/5 dark:divide-white/5">
               {preview.options.map((option) => {
                 const selected = preview.selectedOptionId === option.id
@@ -243,7 +281,9 @@ export function ProjectBuilderPreviewPanel({
 
         {tools.length > 0 ? (
           <div>
-            <h3 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Tools</h3>
+            <Subheading level={3} tone="neutral" className={builderSectionTitleClass}>
+              Tools
+            </Subheading>
             <ul className="mt-3 space-y-2">
               {tools.map((t) => (
                 <li key={t.name} className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -259,7 +299,9 @@ export function ProjectBuilderPreviewPanel({
 
         {preview?.benchmarks && preview.benchmarks.length > 0 ? (
           <div>
-            <h3 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Benchmarks</h3>
+            <Subheading level={3} tone="neutral" className={builderSectionTitleClass}>
+              Benchmarks
+            </Subheading>
             <ul className="mt-3 space-y-1.5 text-xs text-zinc-700 dark:text-zinc-300">
               {preview.benchmarks.map((b) => (
                 <li key={b}>{b}</li>
@@ -270,7 +312,9 @@ export function ProjectBuilderPreviewPanel({
 
         {tests.length > 0 ? (
           <div>
-            <h3 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Tests</h3>
+            <Subheading level={3} tone="neutral" className={builderSectionTitleClass}>
+              Tests
+            </Subheading>
             <ul className="mt-3 space-y-1.5 text-xs">
               {tests.slice(0, 4).map((c, i) => (
                 <li key={i} className="text-zinc-700 dark:text-zinc-300">
@@ -284,7 +328,9 @@ export function ProjectBuilderPreviewPanel({
 
         {preview?.riskPolicy || preview?.approvalPolicy ? (
           <div>
-            <h3 className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Policies</h3>
+            <Subheading level={3} tone="neutral" className={builderSectionTitleClass}>
+              Policies
+            </Subheading>
             <ul className="mt-3 space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400">
               {preview.riskPolicy ? <li>Risk: {preview.riskPolicy}</li> : null}
               {preview.approvalPolicy ? <li>Approval: {preview.approvalPolicy}</li> : null}
