@@ -1,0 +1,18 @@
+
+> agent-mission-control@0.1.0 lint
+> eslint
+
+
+/Users/adrienbeyondcrypto/Aigent/src/components/agent-ops/architect-chat.tsx
+  83:6  warning  React Hook useEffect has a missing dependency: 'onDraftId'. Either include it or remove the dependency array. If 'onDraftId' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
+
+/Users/adrienbeyondcrypto/Aigent/tests/unit/autonomous-factory-route.test.ts
+  30:26  warning  'id' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  31:27  warning  'a' is defined but never used. Allowed unused args must match /^_/u   @typescript-eslint/no-unused-vars
+  31:38  warning  'b' is defined but never used. Allowed unused args must match /^_/u   @typescript-eslint/no-unused-vars
+
+/Users/adrienbeyondcrypto/Aigent/tests/unit/deterministic-evidence-gate.test.ts
+  35:6  warning  'Row' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+✖ 5 problems (0 errors, 5 warnings)
+

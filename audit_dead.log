@@ -1,0 +1,5 @@
+
+> agent-mission-control@0.1.0 audit:dead
+> node scripts/audit-dead.mjs
+
+✓ No dead components (133 checked).

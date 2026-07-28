@@ -1,0 +1,15 @@
+
+> agent-mission-control@0.1.0 typecheck
+> tsc --noEmit
+
+scripts/promote-market-intelligence.ts(39,7): error TS2322: Type '"fallback"' is not assignable to type 'SuiteSource'.
+scripts/promote-market-intelligence.ts(40,28): error TS2322: Type '"unknown"' is not assignable to type 'RepoFitLevel'.
+scripts/promote-market-intelligence.ts(51,14): error TS18047: 'suites' is possibly 'null'.
+scripts/promote-market-intelligence.ts(55,84): error TS2339: Property 'passedCases' does not exist on type 'TestRun'.
+scripts/promote-market-intelligence.ts(55,107): error TS2339: Property 'totalCases' does not exist on type 'TestRun'.
+scripts/promote-market-intelligence.ts(61,14): error TS18047: 'suites' is possibly 'null'.
+scripts/promote-market-intelligence.ts(64,63): error TS2551: Property 'result' does not exist on type 'BenchmarkRun'. Did you mean 'resultId'?
+scripts/promote-tradeagent-copilot.ts(50,7): error TS2322: Type '"existing"' is not assignable to type 'SuiteSource'.
+scripts/promote-tradeagent-copilot.ts(51,28): error TS2322: Type '"unknown"' is not assignable to type 'RepoFitLevel'.
+scripts/promote-tradeagent-copilot.ts(59,14): error TS18047: 'suites' is possibly 'null'.
+scripts/promote-tradeagent-copilot.ts(67,14): error TS18047: 'suites' is possibly 'null'.

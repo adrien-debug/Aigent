@@ -1,0 +1,47 @@
+
+> agent-mission-control@0.1.0 test
+> vitest run tests/unit
+
+
+ RUN  v4.1.10 /Users/adrienbeyondcrypto/Aigent
+
+ ❯ |unit| tests/unit/autonomous-factory-creation.test.ts (5 tests | 1 failed) 15ms
+     × inserts copilots → manifests → tools → manifest.tool_ids → copilot_versions, no delete 8ms
+export-trading-packages FAILED: EXPORT BLOCKED — safety-critical contract invalid (Sentinel/Pulse):
+  - sentinel-risk-manager: unknown schemaName "NotARealContract"
+export-trading-packages FAILED: EXPORT BLOCKED — safety-critical contract invalid (Sentinel/Pulse):
+  - pulse-execution-scout: invariants must be a non-empty array
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |unit| tests/unit/autonomous-factory-creation.test.ts > createCopilotFromManifest — full creation (#1) > inserts copilots → manifests → tools → manifest.tool_ids → copilot_versions, no delete
+Error: [vitest] No "pgrestUpsert" export is defined on the "@/lib/agent-mission-control/postgrest" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+vi.mock(import("@/lib/agent-mission-control/postgrest"), async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    // your mocked methods
+  }
+})
+
+ ❯ ensureToolDefinition src/lib/agent-mission-control/tool-catalog.ts:82:9
+     80|   if (overrides) Object.assign(proposed, overrides)
+     81|   const row = proposedToDbRow(proposed)
+     82|   await pgrestUpsert('tool_definitions', row)
+       |         ^
+     83|   return row.id as string
+     84| }
+ ❯ ensureToolDefinitionsForProposed src/lib/agent-mission-control/tool-catalog.ts:97:11
+ ❯ Module.createCopilotFromManifest src/lib/agent-mission-control/authoring-writes.ts:344:11
+ ❯ tests/unit/autonomous-factory-creation.test.ts:76:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 131 passed (132)
+      Tests  1 failed | 1524 passed (1525)
+   Start at  06:22:58
+   Duration  5.14s (transform 4.73s, setup 1.37s, import 12.71s, tests 14.80s, environment 976ms)
+
