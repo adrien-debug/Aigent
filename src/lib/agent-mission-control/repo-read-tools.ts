@@ -15,7 +15,7 @@ import type { ProposedTool } from './authoring-types'
 /** Registry ids of the scoped, read-only repo tools. */
 export const REPO_READ_TOOL_NAMES = ['read_repo_file', 'list_repo_tree', 'search_repo'] as const
 
-export type RepoReadToolName = (typeof REPO_READ_TOOL_NAMES)[number]
+type RepoReadToolName = (typeof REPO_READ_TOOL_NAMES)[number]
 
 const WRITE_TOOL_HINT = /(write|delete|push|create|modify|commit|deploy|promote)/i
 

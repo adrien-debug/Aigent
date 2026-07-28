@@ -557,6 +557,4 @@ export function summarizeAvailableAgents(agents: AvailableAgent[]): {
   }
 }
 
-// `RawRow` is exported-adjacent only for the transport typing above; keep the
-// module surface to the contract + the two readers + the summary.
-export type { RawRow }
+// `RawRow` stays module-private — transport typing only.

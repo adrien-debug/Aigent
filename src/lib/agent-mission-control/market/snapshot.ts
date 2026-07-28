@@ -62,7 +62,7 @@ export interface Candle {
 }
 
 /** A price observation — decimal string, never a float. */
-export interface Price {
+interface Price {
   price: string
   quote: AssetSymbol
 }

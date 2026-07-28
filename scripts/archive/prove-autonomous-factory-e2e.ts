@@ -30,13 +30,13 @@
  */
 import { randomUUID } from 'node:crypto'
 
-import { POST as createCopilot } from '../src/app/api/agent-ops/copilots/route'
-import { DELETE as deleteCopilot } from '../src/app/api/agent-ops/copilots/[copilotId]/route'
+import { POST as createCopilot } from '../../src/app/api/agent-ops/copilots/route'
+import { DELETE as deleteCopilot } from '../../src/app/api/agent-ops/copilots/[copilotId]/route'
 import {
   GET as observeQualification,
   POST as qualify,
-} from '../src/app/api/agent-ops/copilots/[copilotId]/qualification/route'
-import { pgrest } from '../src/lib/agent-mission-control/postgrest'
+} from '../../src/app/api/agent-ops/copilots/[copilotId]/qualification/route'
+import { pgrest } from '../../src/lib/agent-mission-control/postgrest'
 
 const KEEP = process.argv.includes('--keep')
 const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`

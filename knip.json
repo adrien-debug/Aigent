@@ -1,0 +1,21 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/app/**/*.{ts,tsx}",
+    "src/langgraph/**/*.mjs",
+    "scripts/**/*.{ts,mjs,js}",
+    "tests/**/*.{ts,tsx}",
+    "langgraph.json"
+  ],
+  "project": ["src/**/*.{ts,tsx,mjs}", "scripts/**/*.{ts,mjs,js}", "tests/**/*.{ts,tsx}"],
+  "ignoreExportsUsedInFile": true,
+  "ignore": [
+    "src/lib/agent-mission-control/seed-fixtures.ts",
+    "src/langgraph/auth.mjs",
+    "src/lib/agent-mission-control/market/contract-hints.ts",
+    "src/lib/agent-mission-control/market/tool-descriptions.ts",
+    "src/lib/agent-mission-control/realestate/tool-descriptions.ts"
+  ],
+  "ignoreBinaries": ["gitleaks"],
+  "ignoreDependencies": ["gitleaks", "tailwindcss"]
+}

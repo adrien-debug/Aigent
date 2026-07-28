@@ -44,13 +44,13 @@ process.env.AIGENT_DETERMINISTIC_EVIDENCE = 'allow'
 // explicit production (the guard refuses production regardless).
 if (!process.env.NODE_ENV) (process.env as Record<string, string>).NODE_ENV = 'development'
 
-import { createCopilotFromManifest, deleteCopilotCascade } from '../src/lib/agent-mission-control/authoring-writes'
-import { makeDeterministicEvidenceAdapter } from '../src/lib/agent-mission-control/evidence/deterministic-adapter'
-import { evaluateReleaseGate } from '../src/lib/agent-mission-control/release-gate'
-import { pgrest } from '../src/lib/agent-mission-control/postgrest'
-import { runBenchmarkSuite } from '../src/lib/agent-mission-control/benchmark-runner'
-import { runTestSuite } from '../src/lib/agent-mission-control/test-runner'
-import type { CreateCopilotInput } from '../src/lib/agent-mission-control/authoring-types'
+import { createCopilotFromManifest, deleteCopilotCascade } from '../../src/lib/agent-mission-control/authoring-writes'
+import { makeDeterministicEvidenceAdapter } from '../../src/lib/agent-mission-control/evidence/deterministic-adapter'
+import { evaluateReleaseGate } from '../../src/lib/agent-mission-control/release-gate'
+import { pgrest } from '../../src/lib/agent-mission-control/postgrest'
+import { runBenchmarkSuite } from '../../src/lib/agent-mission-control/benchmark-runner'
+import { runTestSuite } from '../../src/lib/agent-mission-control/test-runner'
+import type { CreateCopilotInput } from '../../src/lib/agent-mission-control/authoring-types'
 
 const KEEP = process.argv.includes('--keep')
 const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`

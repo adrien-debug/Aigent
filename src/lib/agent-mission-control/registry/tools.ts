@@ -245,11 +245,6 @@ export const TOOL_REGISTRY: Readonly<Record<string, ToolDefinition>> = {
 /** Every tool id the registry knows, derived (never hand-listed). */
 export const TOOL_IDS: ReadonlyArray<string> = Object.keys(TOOL_REGISTRY)
 
-/** Ids of tools currently certified (publishable / mountable in production). */
-export const CERTIFIED_TOOL_IDS: ReadonlyArray<string> = TOOL_IDS.filter(
-  (id) => TOOL_REGISTRY[id].certification === 'certified'
-)
-
 /** Look up a tool descriptor, or `undefined` for an unknown id. */
 export function getTool(id: string): ToolDefinition | undefined {
   return (TOOL_REGISTRY as Record<string, ToolDefinition>)[id]

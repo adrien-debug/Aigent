@@ -126,8 +126,3 @@ export function validateManifestAgainstRegistry(
     blockers,
   }
 }
-
-/** The certified tool ids an author can pick from — for the Factory tool picker. */
-export function certifiedToolChoices(): ReadonlyArray<string> {
-  return TOOL_IDS.filter((id) => isToolCertified(id))
-}

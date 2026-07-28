@@ -30,13 +30,13 @@
  */
 import { randomUUID } from 'node:crypto'
 
-import { createCopilotFromManifest, deleteCopilotCascade } from '../src/lib/agent-mission-control/authoring-writes'
-import { evaluateAndPersistPromotionGate, type PromotionPolicy } from '../src/lib/agent-mission-control/promotion-gate'
-import { pgrest } from '../src/lib/agent-mission-control/postgrest'
-import { makeFixtureShadowAgent } from '../src/lib/agent-mission-control/promotion-fixtures'
-import { runReplayComparison, persistReplayComparison, type ReplayOutcome } from '../src/lib/agent-mission-control/replay'
-import { runShadowExperiment, persistShadowExperiment } from '../src/lib/agent-mission-control/shadow'
-import type { CreateCopilotInput } from '../src/lib/agent-mission-control/authoring-types'
+import { createCopilotFromManifest, deleteCopilotCascade } from '../../src/lib/agent-mission-control/authoring-writes'
+import { evaluateAndPersistPromotionGate, type PromotionPolicy } from '../../src/lib/agent-mission-control/promotion-gate'
+import { pgrest } from '../../src/lib/agent-mission-control/postgrest'
+import { makeFixtureShadowAgent } from '../../src/lib/agent-mission-control/promotion-fixtures'
+import { runReplayComparison, persistReplayComparison, type ReplayOutcome } from '../../src/lib/agent-mission-control/replay'
+import { runShadowExperiment, persistShadowExperiment } from '../../src/lib/agent-mission-control/shadow'
+import type { CreateCopilotInput } from '../../src/lib/agent-mission-control/authoring-types'
 
 const KEEP = process.argv.includes('--keep')
 const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`
@@ -120,8 +120,8 @@ async function main() {
     // a langgraph copilot WITHOUT an assistant runs the bare graph (tool_call_count=0).
     // This makes the proof agent runtime-complete like a route-created one.
     try {
-      const { ensureCopilotAssistant } = await import('../src/lib/agent-mission-control/langgraph-assistants')
-      const { setCopilotAssistantId } = await import('../src/lib/agent-mission-control/authoring-writes')
+      const { ensureCopilotAssistant } = await import('../../src/lib/agent-mission-control/langgraph-assistants')
+      const { setCopilotAssistantId } = await import('../../src/lib/agent-mission-control/authoring-writes')
       const assistantId = await ensureCopilotAssistant({ copilotId })
       await setCopilotAssistantId(copilotId, assistantId)
       record({ step: '1b. provision LangGraph assistant (route chains this after create)', ok: !!assistantId, real: 'executed', detail: `assistantId=${assistantId}`, persisted: { assistantId } })
@@ -272,7 +272,7 @@ async function main() {
     // not abort the (already-proven) chain above.
     let runReal: Step
     try {
-      const { executeCopilotRun } = await import('../src/lib/agent-mission-control/runner')
+      const { executeCopilotRun } = await import('../../src/lib/agent-mission-control/runner')
       const result = await executeCopilotRun({
         copilotId, versionId, projectId: 'unassigned', model: 'gpt-5.4', modelProvider: 'openai',
         systemPromptSummary: input.manifest.systemPromptSummary, userInput: 'Count the words in: the quick brown fox jumps',

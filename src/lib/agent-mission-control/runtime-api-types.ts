@@ -119,7 +119,7 @@ export function toRuntimeRunStatus(internal: AgentRunStatus): RuntimeRunStatus {
   }
 }
 
-export type RuntimeRun = {
+type RuntimeRun = {
   id: string
   agentId: string
   projectKey: string
@@ -133,7 +133,7 @@ export type RuntimeRun = {
   updatedAt: string
 }
 
-export type RuntimeRunEvent = {
+type RuntimeRunEvent = {
   id: string
   runId: string
   sequence: number

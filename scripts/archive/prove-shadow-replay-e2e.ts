@@ -37,9 +37,9 @@
  */
 import { randomUUID } from 'node:crypto'
 
-import { createCopilotFromManifest, deleteCopilotCascade } from '../src/lib/agent-mission-control/authoring-writes'
-import { pgrest } from '../src/lib/agent-mission-control/postgrest'
-import type { CreateCopilotInput } from '../src/lib/agent-mission-control/authoring-types'
+import { createCopilotFromManifest, deleteCopilotCascade } from '../../src/lib/agent-mission-control/authoring-writes'
+import { pgrest } from '../../src/lib/agent-mission-control/postgrest'
+import type { CreateCopilotInput } from '../../src/lib/agent-mission-control/authoring-types'
 
 const KEEP = process.argv.includes('--keep')
 const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`
@@ -130,7 +130,7 @@ async function main() {
     })
 
     // ── 2) SHADOW via the product ROUTE (not runShadowExperiment directly) ────
-    const { POST: shadowPOST, GET: shadowGET } = await import('../src/app/api/agent-ops/copilots/[copilotId]/versions/[versionId]/shadow/route')
+    const { POST: shadowPOST, GET: shadowGET } = await import('../../src/app/api/agent-ops/copilots/[copilotId]/versions/[versionId]/shadow/route')
     const shadowRes = await shadowPOST(req({}), ctx(copilotId, versionId))
     const shadowBody = await shadowRes.json()
     record({
@@ -158,7 +158,7 @@ async function main() {
     })
 
     // ── 3) REPLAY via the product ROUTE (not runReplayComparison directly) ────
-    const { POST: replayPOST, GET: replayGET } = await import('../src/app/api/agent-ops/copilots/[copilotId]/versions/[versionId]/replay/route')
+    const { POST: replayPOST, GET: replayGET } = await import('../../src/app/api/agent-ops/copilots/[copilotId]/versions/[versionId]/replay/route')
     const replayRes = await replayPOST(req({}), ctx(copilotId, versionId))
     const replayBody = await replayRes.json()
     record({
@@ -204,7 +204,7 @@ async function main() {
     }
 
     // ── 6) gate reflects real shadow+replay evidence ──────────────────────────
-    const { evaluateAndPersistPromotionGate } = await import('../src/lib/agent-mission-control/promotion-gate')
+    const { evaluateAndPersistPromotionGate } = await import('../../src/lib/agent-mission-control/promotion-gate')
     const gate = await evaluateAndPersistPromotionGate(copilotId, versionId, { requireShadow: true, requireReplay: true })
     record({
       step: '6. promotion gate reads the route-produced evidence (requireShadow+requireReplay)',

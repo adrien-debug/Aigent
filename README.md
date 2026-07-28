@@ -84,6 +84,17 @@ npm run check:tool-definitions        # SKIPs offline; arms with AMC_DATA_SOURCE
 npm run check:tool-definitions -- --fix
 ```
 
+### Factory proofs (archived scripts)
+
+One-shot E2E proofs live under `scripts/archive/` and are wired as npm scripts:
+
+```bash
+npm run prove:factory-core          # deterministic, no network
+npm run prove:factory-e2e             # full factory chain (needs gpu1 + LangGraph)
+npm run prove:shadow-replay          # shadow/replay API proof
+npm run prove:autonomous-factory     # product-path qualification proof
+```
+
 ## Checks
 
 ```bash

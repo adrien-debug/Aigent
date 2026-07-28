@@ -33,7 +33,7 @@ export type RealEstateSourceType =
   | 'composite' // several official sources merged
   | 'fixture' // hand-authored lab data
 
-export const REAL_ESTATE_SOURCE_TYPES: readonly RealEstateSourceType[] = [
+const REAL_ESTATE_SOURCE_TYPES: readonly RealEstateSourceType[] = [
   'dvf',
   'cadastre',
   'ban',
@@ -63,7 +63,7 @@ export type TruthStatus =
   | 'FALLBACK'
   | 'UNAVAILABLE'
 
-export const TRUTH_STATUSES: readonly TruthStatus[] = [
+const TRUTH_STATUSES: readonly TruthStatus[] = [
   'LIVE',
   'HISTORICAL',
   'FIXTURE',

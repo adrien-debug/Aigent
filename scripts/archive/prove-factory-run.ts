@@ -15,10 +15,10 @@
  *   node --env-file=.env.local "$(command -v npx)" -y tsx --conditions=react-server \
  *   scripts/prove-factory-run.ts <copilotId>
  */
-import { ensureCopilotAssistant } from '../src/lib/agent-mission-control/langgraph-assistants'
-import { setCopilotAssistantId } from '../src/lib/agent-mission-control/authoring-writes'
-import { executeCopilotRun } from '../src/lib/agent-mission-control/runner'
-import { pgrest } from '../src/lib/agent-mission-control/postgrest'
+import { ensureCopilotAssistant } from '../../src/lib/agent-mission-control/langgraph-assistants'
+import { setCopilotAssistantId } from '../../src/lib/agent-mission-control/authoring-writes'
+import { executeCopilotRun } from '../../src/lib/agent-mission-control/runner'
+import { pgrest } from '../../src/lib/agent-mission-control/postgrest'
 
 const eq = (col: string, val: string) => `${col}=eq.${encodeURIComponent(val)}`
 

@@ -54,7 +54,7 @@ export const TRUTH_STATUSES: readonly TruthStatus[] = [
 ]
 
 /** TradeAgent freshness labels, restated for lossless mapping at delivery. */
-export type TradeAgentFreshness =
+type TradeAgentFreshness =
   | 'LIVE'
   | 'INDEXED'
   | 'CACHED'

@@ -2,8 +2,8 @@
  * Council-style briefing: Market Intelligence synthesis + Portfolio Risk Guardian.
  * 💲 Two OpenAI runs. Does not call composeCouncil (needs structured contracts).
  */
-import { executeCopilotRun } from '../src/lib/agent-mission-control/runner'
-import { pgrest } from '../src/lib/agent-mission-control/postgrest'
+import { executeCopilotRun } from '../../src/lib/agent-mission-control/runner'
+import { pgrest } from '../../src/lib/agent-mission-control/postgrest'
 
 const MI = 'copilot-market-intelligence'
 const RISK = 'copilot-portfolio-risk-guardian'

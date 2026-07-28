@@ -11,10 +11,10 @@
  *
  * Run: npx tsx scripts/prove-core-factory.mjs   (no secrets, no network)
  */
-import { REGISTRY_HASH } from '../src/lib/agent-mission-control/registry/index.ts'
-import { RUNTIME_IDS, getRuntime } from '../src/lib/agent-mission-control/registry/runtimes.ts'
-import { TOOL_IDS, getTool } from '../src/lib/agent-mission-control/registry/tools.ts'
-import { validateManifestAgainstRegistry } from '../src/lib/agent-mission-control/registry/manifest-validation.ts'
+import { REGISTRY_HASH } from '../../src/lib/agent-mission-control/registry/index.ts'
+import { RUNTIME_IDS, getRuntime } from '../../src/lib/agent-mission-control/registry/runtimes.ts'
+import { TOOL_IDS, getTool } from '../../src/lib/agent-mission-control/registry/tools.ts'
+import { validateManifestAgainstRegistry } from '../../src/lib/agent-mission-control/registry/manifest-validation.ts'
 
 let failures = 0
 const check = (name, cond, detail = '') => {

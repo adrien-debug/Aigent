@@ -159,7 +159,7 @@ export type MeasurementState = 'MEASURED' | 'UNKNOWN' | 'UNAVAILABLE' | 'STALE' 
  * whenever `state !== 'MEASURED'`; a consumer must render a dash (or the state)
  * rather than treating a missing value as `0`.
  */
-export interface MeasuredNumber {
+interface MeasuredNumber {
   value: number | null
   state: MeasurementState
 }
