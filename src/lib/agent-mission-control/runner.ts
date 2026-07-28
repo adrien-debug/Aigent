@@ -21,6 +21,7 @@ import 'server-only'
 
 import { randomUUID } from 'node:crypto'
 
+import { assessMarketIntelligenceOperatorRun } from './market/eval/operator-run-quality'
 import { resolveToolId } from './copilot-behavior'
 import { forbiddenEntryTargetsTool } from './forbidden-actions'
 import { summarize } from './format'
@@ -671,6 +672,29 @@ async function executeViaLangGraph(args: ViaLangGraphArgs): Promise<ExecuteCopil
   }
   for (const row of toolCallRows) {
     await pgrest('POST', 'tool_calls', row)
+  }
+
+  if (copilotId === 'copilot-market-intelligence' && !isPaused) {
+    const quality = assessMarketIntelligenceOperatorRun({
+      actualToolNames: toolCallRows.map((r) => String(r.tool_name)),
+      outputText: outputSummary,
+    })
+    if (quality.warnings.length > 0) {
+      const detail = `toolBreadth=${quality.uniqueToolCount}/4+ provenance=${quality.provenanceMentioned} — ${quality.warnings.join('; ')}`
+      console.warn(`[runner] ${copilotId} operator-run-quality: ${detail}`)
+      await pgrest('POST', 'agent_run_steps', {
+        id: randomUUID(),
+        run_id: runId,
+        index: traceResult.steps.length,
+        kind: 'guardrail-check',
+        title: 'Operator run quality (advisory)',
+        detail,
+        status: quality.toolBreadthOk && quality.provenanceMentioned ? 'ok' : 'warning',
+        started_at: finishedAt,
+        duration_ms: 0,
+        tool_call_id: null,
+      })
+    }
   }
 
   const steps: ExecuteCopilotRunStep[] = traceResult.steps.map((s: TraceStep) => ({

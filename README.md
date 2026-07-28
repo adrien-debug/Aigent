@@ -61,6 +61,29 @@ with `npm run langgraph:studio`.
 `TRADEAGENT_PORTFOLIO_RISK_URL` + `TRADEAGENT_INTERNAL_API_KEY` for live
 market reads and portfolio risk). Without them the relevant data and run paths fail closed.
 
+### TradeAgent roster (gpu1)
+
+Reconcile the four canonical TradeAgent copilots on `proj-tradeagent` (migration 0033 lockdown: plain INSERT only, no upsert on `copilots` / `copilot_versions`):
+
+```bash
+node --env-file=.env.local scripts/provision-tradeagent-roster.mjs --apply
+LANGGRAPH_API_URL=http://127.0.0.1:2024 npm run reprovision
+LANGGRAPH_API_URL=http://127.0.0.1:2024 node --env-file=.env.local $(command -v npx) -y tsx --conditions=react-server scripts/prove-market-intelligence.ts
+node --env-file=.env.local scripts/scorecard-tradeagent.mjs copilot-market-intelligence
+LANGGRAPH_API_URL=http://127.0.0.1:2024 node --env-file=.env.local $(command -v npx) -y tsx --conditions=react-server scripts/promote-tradeagent-copilot.ts portfolio-risk-guardian
+```
+
+Agents are born `draft`; promotion to `active` goes through `/api/agent-ops/copilots/:id/promotion` after a passing gate.
+
+**Tool catalogue** (`tool_definitions` + `tools.tool_definition_id`, migration `0041`): registry authority in code, shared DB rows per tool, per-copilot mounts FK to the catalogue. Sync and gate:
+
+```bash
+# After applying 0041 on gpu1:
+npm run sync:tool-definitions
+npm run check:tool-definitions        # SKIPs offline; arms with AMC_DATA_SOURCE=gpu1
+npm run check:tool-definitions -- --fix
+```
+
 ## Checks
 
 ```bash
@@ -109,7 +132,7 @@ been **removed**: every surface now reads in a single voice.
 | `src/components/agent-ops/` | The console UI. |
 | `src/components/catalyst/` | Vendored Catalyst UI kit. |
 | `supabase/migrations/` | Schema for the `aigent` perimeter. |
-| `scripts/` | `seed-amc.ts`, `provision-agent-builder.ts`, `reprovision-assistants.ts`, `check-palette.mjs`, `check-catalyst.mjs`. |
+| `scripts/` | `seed-amc.ts`, `provision-agent-builder.ts`, `provision-tradeagent-roster.mjs`, `reprovision-assistants.ts`, `check-palette.mjs`, `check-catalyst.mjs`. |
 | `deploy/` | Container/Caddy config: `app/` (the Next.js app), `db/` (the data layer — PostgREST + Caddy over the `aigent` database), `langgraph/` (the Agent Server). |
 
 ## Docs

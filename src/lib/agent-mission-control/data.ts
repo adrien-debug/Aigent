@@ -256,8 +256,29 @@ export async function getVersionsForCopilot(copilotId: string): Promise<CopilotV
 }
 
 export async function getManifestForCopilot(copilotId: string): Promise<AgentManifest | undefined> {
+  const copilotRows = await rest<RawRow[]>(
+    `copilots?id=eq.${encodeURIComponent(copilotId)}&select=production_version_id,latest_version_id`
+  )
+  const copilot = copilotRows[0]
+  if (!copilot) return undefined
+
+  const versionId =
+    (typeof copilot.production_version_id === 'string' && copilot.production_version_id.length > 0
+      ? copilot.production_version_id
+      : null) ??
+    (typeof copilot.latest_version_id === 'string' && copilot.latest_version_id.length > 0
+      ? copilot.latest_version_id
+      : null)
+  if (!versionId) return undefined
+
+  const versionRows = await rest<RawRow[]>(
+    `copilot_versions?id=eq.${encodeURIComponent(versionId)}&select=manifest_id`
+  )
+  const manifestId = versionRows[0]?.manifest_id
+  if (typeof manifestId !== 'string' || manifestId.length === 0) return undefined
+
   return camelRows<AgentManifest>(
-    await rest<RawRow[]>(`manifests?select=*&copilot_id=eq.${encodeURIComponent(copilotId)}&order=updated_at.desc&limit=1`)
+    await rest<RawRow[]>(`manifests?select=*&id=eq.${encodeURIComponent(manifestId)}&limit=1`)
   )[0]
 }
 

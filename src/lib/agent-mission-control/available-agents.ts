@@ -172,6 +172,7 @@ type CopilotRow = {
 }
 
 type ManifestRow = {
+  id: string
   copilot_id: string
   tool_ids: string[] | null
   skills: { label?: string }[] | null
@@ -190,7 +191,13 @@ type ToolRow = {
   mutates: boolean | null
 }
 
-type VersionRow = { id: string; copilot_id: string; label: string | null; stage: VersionStage | null }
+type VersionRow = {
+  id: string
+  copilot_id: string
+  label: string | null
+  stage: VersionStage | null
+  manifest_id: string | null
+}
 
 type RunRow = {
   copilot_id: string
@@ -443,15 +450,14 @@ export async function getAvailableAgents(): Promise<AvailableAgent[]> {
     .map((c) => c.production_version_id ?? c.latest_version_id)
     .filter((v): v is string => typeof v === 'string' && v.length > 0)
 
-  const [manifests, tools, versions, runs, projects] = await Promise.all([
-    rest<ManifestRow[]>(
-      `manifests?select=copilot_id,tool_ids,skills,confirmation_policy,forbidden_actions,updated_at&copilot_id=in.(${inList(ids)})&order=updated_at.desc`
-    ),
+  const [tools, versions, runs, projects] = await Promise.all([
     rest<ToolRow[]>(
       `tools?select=id,copilot_id,name,enabled,risk_level,requires_confirmation,mutates&copilot_id=in.(${inList(ids)})`
     ),
     versionIds.length > 0
-      ? rest<VersionRow[]>(`copilot_versions?select=id,copilot_id,label,stage&id=in.(${inList(versionIds)})`)
+      ? rest<VersionRow[]>(
+          `copilot_versions?select=id,copilot_id,label,stage,manifest_id&id=in.(${inList(versionIds)})`
+        )
       : Promise.resolve([]),
     rest<RunRow[]>(
       // Evaluation rows excluded: the test runner (029) and the benchmark
@@ -465,9 +471,31 @@ export async function getAvailableAgents(): Promise<AvailableAgent[]> {
     rest<{ id: string }[]>('projects?select=id'),
   ])
 
-  const manifestByCopilot = firstPerKey(manifests, (m) => m.copilot_id)
-  const lastRunByCopilot = firstPerKey(runs, (r) => r.copilot_id)
+  const manifestIds = [
+    ...new Set(
+      versions
+        .map((v) => v.manifest_id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    ),
+  ]
+  const manifests =
+    manifestIds.length > 0
+      ? await rest<ManifestRow[]>(
+          `manifests?select=id,copilot_id,tool_ids,skills,confirmation_policy,forbidden_actions,updated_at&id=in.(${inList(manifestIds)})`
+        )
+      : []
+
+  const manifestById = new Map(manifests.map((m) => [m.id, m]))
   const versionById = new Map(versions.map((v) => [v.id, v]))
+  const manifestByCopilot = new Map<string, ManifestRow>()
+  for (const copilot of copilots) {
+    const versionId = copilot.production_version_id ?? copilot.latest_version_id
+    const manifestId = versionId ? versionById.get(versionId)?.manifest_id : null
+    if (!manifestId) continue
+    const manifest = manifestById.get(manifestId)
+    if (manifest) manifestByCopilot.set(copilot.id, manifest)
+  }
+  const lastRunByCopilot = firstPerKey(runs, (r) => r.copilot_id)
   const projectIds = new Set(projects.map((p) => p.id))
   const toolsByCopilot = new Map<string, ToolRow[]>()
   for (const tool of tools) {

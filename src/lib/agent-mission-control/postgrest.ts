@@ -119,6 +119,16 @@ export async function pgrest<T = Record<string, unknown>[]>(
   return readRows<T>(await pgrestRaw(method, pathAndQuery, 'return=representation', body))
 }
 
+/** Upsert rows via PostgREST merge-duplicates (idempotent catalogue sync). */
+export async function pgrestUpsert<T = Record<string, unknown>[]>(
+  pathAndQuery: string,
+  body: unknown
+): Promise<T> {
+  return readRows<T>(
+    await pgrestRaw('POST', pathAndQuery, 'resolution=merge-duplicates,return=minimal', body)
+  )
+}
+
 /**
  * Total row count of a PostgREST query, EXACT — `Prefer: count=exact` makes
  * PostgREST run the underlying count and report it in `Content-Range`

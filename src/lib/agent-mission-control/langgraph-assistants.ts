@@ -154,17 +154,34 @@ async function loadCopilotBehaviorConfig(
 ): Promise<{ config: CopilotBehaviorConfig; projectId: string | null }> {
   const copilotRows = await pgrest<RawRow[]>(
     'GET',
-    `copilots?id=eq.${encodeURIComponent(copilotId)}&select=id,name,model,model_provider,project_id`
+    `copilots?id=eq.${encodeURIComponent(copilotId)}&select=id,name,model,model_provider,project_id,production_version_id,latest_version_id`
   )
   const copilot = copilotRows[0]
   if (!copilot) throw new Error(`copilot not found: ${copilotId}`)
 
-  // Latest manifest for the copilot (mirrors data.getManifestForCopilot's order).
-  const manifestRows = await pgrest<RawRow[]>(
-    'GET',
-    `manifests?copilot_id=eq.${encodeURIComponent(copilotId)}&select=system_prompt_summary,forbidden_actions,confirmation_policy,always_confirm_actions,output_contract,max_steps_per_run,max_cost_per_run_usd&order=updated_at.desc&limit=1`
-  )
-  const manifest = manifestRows[0] ?? null
+  const versionId =
+    (typeof copilot.production_version_id === 'string' && copilot.production_version_id.length > 0
+      ? copilot.production_version_id
+      : null) ??
+    (typeof copilot.latest_version_id === 'string' && copilot.latest_version_id.length > 0
+      ? copilot.latest_version_id
+      : null)
+
+  let manifest: RawRow | null = null
+  if (versionId) {
+    const versionRows = await pgrest<RawRow[]>(
+      'GET',
+      `copilot_versions?id=eq.${encodeURIComponent(versionId)}&select=manifest_id`
+    )
+    const manifestId = versionRows[0]?.manifest_id
+    if (typeof manifestId === 'string' && manifestId.length > 0) {
+      const manifestRows = await pgrest<RawRow[]>(
+        'GET',
+        `manifests?id=eq.${encodeURIComponent(manifestId)}&select=system_prompt_summary,forbidden_actions,confirmation_policy,always_confirm_actions,output_contract,max_steps_per_run,max_cost_per_run_usd`
+      )
+      manifest = manifestRows[0] ?? null
+    }
+  }
 
   // The copilot's tools (name + gating + risk).
   const toolRows = await pgrest<RawRow[]>(

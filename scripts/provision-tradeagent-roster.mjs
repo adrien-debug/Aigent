@@ -43,6 +43,8 @@
  *   node --env-file=.env.local scripts/provision-tradeagent-roster.mjs --activate <copilotId>
  */
 
+import { readFileSync } from 'node:fs'
+
 const base = process.env.AMC_SUPABASE_URL
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!base || !key) {
@@ -99,6 +101,31 @@ async function req(method, path, body, prefer) {
   return res
 }
 
+/** Lockdown tables (migration 0033): upsert asks for UPDATE on protected columns statically. */
+const LOCKDOWN_TABLES = new Set(['copilots', 'copilot_versions'])
+
+async function existingIds(table, ids) {
+  if (ids.length === 0) return new Set()
+  const inList = ids.map((id) => encodeURIComponent(id)).join(',')
+  const rows = await (await req('GET', `${table}?select=id&id=in.(${inList})`)).json()
+  return new Set(rows.map((r) => r.id))
+}
+
+/** Insert or skip on lockdown tables; upsert elsewhere (idempotent re-runs). */
+async function writeRows(table, rows) {
+  if (rows.length === 0) return
+  if (!LOCKDOWN_TABLES.has(table)) {
+    await req('POST', table, rows, 'resolution=merge-duplicates,return=representation')
+    return
+  }
+  const present = await existingIds(
+    table,
+    rows.map((r) => r.id)
+  )
+  const fresh = rows.filter((r) => !present.has(r.id))
+  if (fresh.length > 0) await req('POST', table, fresh, 'return=representation')
+}
+
 /**
  * The roster. `tools` lists MANIFEST TOOL NAMES that must exist in the runner's
  * registry — asserted below before anything is written.
@@ -118,6 +145,7 @@ const ROSTER = [
     ],
     prompt:
       'You are Market Intelligence for TradeAgent. Read the market with your tools and produce ONE actionable synthesis: direction, structure, volatility regime and liquidity quality. ' +
+      'On every actionable synthesis you MUST call all five mounted read tools before concluding: read_multi_timeframe_candles (pair + intervals such as 1h/4h/1d), read_market_snapshot, read_volatility_state, read_market_structure, and read_liquidity_snapshot — skip one only when that tool returns UNAVAILABLE and say so explicitly. ' +
       'Always state the provider and the freshness of the data you used. If a tool returns UNAVAILABLE, say the data is unavailable — never estimate, never fill a gap with a plausible number. ' +
       'You never place, size, modify or recommend the execution of an order. Analysis only.',
     forbidden: ['place order', 'modify position', 'transfer funds', 'withdraw funds', 'write to any account'],
@@ -248,6 +276,58 @@ const TOOL_DESCRIPTIONS = {
   read_macro_context: `Read macro regime context. Takes no required argument; call it with {}.`,
 }
 
+/** Parse graded fields from registry/tools.ts for catalogue upserts. */
+function parseQuotedField(body, field) {
+  const single = body.match(new RegExp(`\\b${field}:\\s*'((?:\\\\'|[^'])*)'`))
+  if (single) return single[1].replace(/\\'/g, "'")
+  const double = body.match(new RegExp(`\\b${field}:\\s*"((?:\\\\"|[^"])*)"`))
+  if (double) return double[1].replace(/\\"/g, '"')
+  return null
+}
+
+function loadRegistryCatalogFields() {
+  const src = readFileSync('src/lib/agent-mission-control/registry/tools.ts', 'utf8')
+  const out = new Map()
+  for (const m of src.matchAll(/^ {2}([a-z_0-9]+): def\(\{([\s\S]*?)^ {2}\}\),$/gm)) {
+    const [, name, body] = m
+    const mutates = body.match(/\bmutates:\s*(true|false)\b/)
+    const kind = body.match(/\bkind:\s*'([a-z-]+)'/)
+    const summary = parseQuotedField(body, 'summary')
+    const certification = body.match(/\bcertification:\s*'([a-z]+)'/)
+    if (!mutates || !kind || !summary || !certification) continue
+    out.set(name, {
+      mutates: mutates[1] === 'true',
+      kind: kind[1],
+      summary,
+      certification: certification[1],
+    })
+  }
+  return out
+}
+
+async function ensureCatalogRows(toolNames) {
+  const catalog = loadRegistryCatalogFields()
+  const unique = [...new Set(toolNames)]
+  const rows = unique.map((name) => {
+    const def = catalog.get(name)
+    return {
+      id: name,
+      name,
+      description: TOOL_DESCRIPTIONS[name] ?? def?.summary ?? `Tool: ${name}`,
+      provider: 'internal',
+      risk_level: riskOf(name),
+      mutates: def?.mutates ?? false,
+      version: '1.0.0',
+      certification: def?.certification ?? 'certified',
+      provenance: 'platform',
+      kind: def?.kind ?? 'http-get',
+      updated_at: NOW,
+    }
+  })
+  await writeRows('tool_definitions', rows)
+  return rows.length
+}
+
 // ── --activate: promote a copilot only after a real run proved it ────────────
 if (activateId) {
   const runs = await (
@@ -314,15 +394,17 @@ if (project.length === 0) {
 }
 
 const created = []
+const rosterToolNames = ROSTER.flatMap((a) => a.tools)
+await ensureCatalogRows(rosterToolNames)
+console.log(`  ✓ tool_definitions        ${new Set(rosterToolNames).size} catalogue row(s)`)
+
 for (const a of ROSTER) {
   const copilotId = `copilot-${a.slug}`
   const manifestId = `man-${a.slug}-v1`
   const versionId = `ver-${a.slug}-v1`
 
   // copilots first: every child FKs to it.
-  await req(
-    'POST',
-    'copilots',
+  await writeRows('copilots', [
     {
       id: copilotId,
       project_id: PROJECT_ID,
@@ -341,44 +423,39 @@ for (const a of ROSTER) {
       updated_at: NOW,
       health: {},
     },
-    'resolution=merge-duplicates,return=representation'
-  )
+  ])
 
   const toolIds = []
+  const toolRows = []
   for (const name of a.tools) {
     const toolId = `tool-${a.slug}-${name.replace(/_/g, '-')}`
     toolIds.push(toolId)
-    await req(
-      'POST',
-      'tools',
-      {
-        id: toolId,
-        copilot_id: copilotId,
-        name,
-        description: TOOL_DESCRIPTIONS[name] ?? `Read-only market tool: ${name}`,
-        provider: 'internal',
-        risk_level: riskOf(name),
-        enabled: true,
-        // Everything mounted is a read (market/tools.ts is GET-only), so it is
-        // provably read-only. Assert `mutates: false` EXPLICITLY: the column
-        // default is `true` (migration 0022, fail-closed), so omitting it here
-        // reverted every read tool to "write-capable" on every re-provision —
-        // the copilot then rendered as NOT read-only, contradicting the whole
-        // read-only market doctrine (migration 0023 classified these false).
-        mutates: false,
-        // Everything mounted is a read, so nothing needs confirmation today.
-        // The manifest still declares risky-only, so a future write handler is
-        // gated by default rather than inheriting a permissive setting.
-        requires_confirmation: false,
-        scoped_routes: [],
-      },
-      'resolution=merge-duplicates,return=representation'
-    )
+    toolRows.push({
+      id: toolId,
+      copilot_id: copilotId,
+      tool_definition_id: name,
+      name,
+      description: TOOL_DESCRIPTIONS[name] ?? `Read-only market tool: ${name}`,
+      provider: 'internal',
+      risk_level: riskOf(name),
+      enabled: true,
+      // Everything mounted is a read (market/tools.ts is GET-only), so it is
+      // provably read-only. Assert `mutates: false` EXPLICITLY: the column
+      // default is `true` (migration 0022, fail-closed), so omitting it here
+      // reverted every read tool to "write-capable" on every re-provision —
+      // the copilot then rendered as NOT read-only, contradicting the whole
+      // read-only market doctrine (migration 0023 classified these false).
+      mutates: false,
+      // Everything mounted is a read, so nothing needs confirmation today.
+      // The manifest still declares risky-only, so a future write handler is
+      // gated by default rather than inheriting a permissive setting.
+      requires_confirmation: false,
+      scoped_routes: [],
+    })
   }
+  await writeRows('tools', toolRows)
 
-  await req(
-    'POST',
-    'manifests',
+  await writeRows('manifests', [
     {
       id: manifestId,
       copilot_id: copilotId,
@@ -395,12 +472,9 @@ for (const a of ROSTER) {
       max_cost_per_run_usd: 0.5,
       updated_at: NOW,
     },
-    'resolution=merge-duplicates,return=representation'
-  )
+  ])
 
-  await req(
-    'POST',
-    'copilot_versions',
+  await writeRows('copilot_versions', [
     {
       id: versionId,
       copilot_id: copilotId,
@@ -414,8 +488,7 @@ for (const a of ROSTER) {
       created_by: OWNER,
       scores: {},
     },
-    'resolution=merge-duplicates,return=representation'
-  )
+  ])
 
   created.push({ copilotId, name: a.name, tools: toolIds.length })
   console.log(`  ✓ ${a.name.padEnd(26)} ${copilotId} (${toolIds.length} tools)`)
@@ -433,8 +506,11 @@ console.log(`  tools                     ${tools.length}`)
 console.log(`  manifests                 ${mans.length}`)
 console.log(`  versions                  ${vers.length}`)
 
-if (cop.length !== ROSTER.length) {
-  console.error(`\n✗ expected ${ROSTER.length} copilots, found ${cop.length}`)
+const rosterIds = new Set(ROSTER.map((a) => `copilot-${a.slug}`))
+const rosterPresent = cop.filter((c) => rosterIds.has(c.id))
+if (rosterPresent.length !== ROSTER.length) {
+  const missing = ROSTER.map((a) => `copilot-${a.slug}`).filter((id) => !rosterPresent.some((c) => c.id === id))
+  console.error(`\n✗ roster incomplete — missing: ${missing.join(', ')}`)
   process.exit(1)
 }
 
@@ -445,8 +521,7 @@ if (cop.length !== ROSTER.length) {
 // has one — assistant creation needs the server-only TS module, so it lives in
 // its own script rather than being importable from this .mjs.
 console.log('\nNEXT — required before any run:')
-console.log('  node --env-file=.env.local npx -y tsx --conditions=react-server \\')
-console.log('    scripts/ensure-langgraph-assistants.ts')
+console.log('  LANGGRAPH_API_URL=http://127.0.0.1:2024 npm run reprovision')
 console.log('\n  (LANGGRAPH_API_URL must resolve to the LOCAL server in dev —')
 console.log('   agent-server-endpoint.mjs refuses a remote endpoint outside production.)')
 

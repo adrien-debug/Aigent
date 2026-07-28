@@ -197,6 +197,7 @@ const MARKET_TOOL_IDS: ReadonlySet<string> = new Set([
   'read_multi_timeframe_candles',
   'read_liquidity_snapshot',
   'read_derivatives_snapshot',
+  'read_funding_open_interest',
   'read_macro_context',
   'read_account_risk_snapshot',
 ])

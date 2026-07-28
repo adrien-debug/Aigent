@@ -28,6 +28,8 @@
     "check:registry-parity": "node scripts/check-registry-parity.mjs",
     "check:registry-integrity": "node scripts/check-registry-integrity.mjs",
     "check:tool-rows": "node --env-file-if-exists=.env.local scripts/check-tool-rows-drift.mjs",
+    "check:tool-definitions": "node --env-file-if-exists=.env.local scripts/check-tool-definitions.mjs",
+    "sync:tool-definitions": "node --env-file=.env.local $(command -v npx) -y tsx --conditions=react-server scripts/sync-tool-definitions.ts",
     "check:headings:static": "node scripts/check-headings.mjs --static-only",
     "check:headings": "node scripts/check-headings.mjs",
     "check:tables": "node scripts/check-tables.mjs",
@@ -37,7 +39,7 @@
     "check:rsc-boundary": "node scripts/check-rsc-boundary.mjs",
     "check:pending": "npm run check:tables && npm run check:class-collision",
     "check:browser": "npm run check:headings && npm run check:surfaces && npm run check:a11y",
-    "check": "npm run typecheck && npm run lint:fast && npm run lint && npm run check:ds && npm run check:catalyst && npm run check:headings:static && npm run check:tables && npm run check:class-collision && npm run check:legacy-bridge && npm run check:views && npm run check:agent-truth && npm run check:danger && npm run check:render-truth && npm run check:status-truth && npm run check:registry-parity && npm run check:registry-integrity && npm run check:tool-rows && npm run check:charts && npm run check:rsc-boundary && npm run check:secrets && npm run audit:dead",
+    "check": "npm run typecheck && npm run lint:fast && npm run lint && npm run check:ds && npm run check:catalyst && npm run check:headings:static && npm run check:tables && npm run check:class-collision && npm run check:legacy-bridge && npm run check:views && npm run check:agent-truth && npm run check:danger && npm run check:render-truth && npm run check:status-truth && npm run check:registry-parity && npm run check:registry-integrity && npm run check:tool-rows && npm run check:tool-definitions && npm run check:charts && npm run check:rsc-boundary && npm run check:secrets && npm run audit:dead",
     "audit:dead": "node scripts/audit-dead.mjs",
     "verify": "npm run check && npm run audit:dead && npm run test && npm run build",
     "eval:trading": "node --env-file=.env.local $(command -v npx) -y tsx scripts/eval-trading-roster.ts",
@@ -57,7 +59,8 @@
     "check:secrets": "gitleaks git --no-banner --redact --config .gitleaks.toml",
     "hooks:install": "git config core.hooksPath scripts/hooks && echo '✓ pre-commit gitleaks actif (core.hooksPath=scripts/hooks)'",
     "quality:dead": "knip",
-    "quality:dup": "jscpd src --threshold 100 --reporters consoleFull"
+    "quality:dup": "jscpd src --threshold 100 --reporters consoleFull",
+    "sonar": "docker run --rm -v \"$(pwd)\":/usr/src -e SONAR_TOKEN sonarsource/sonar-scanner-cli"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",

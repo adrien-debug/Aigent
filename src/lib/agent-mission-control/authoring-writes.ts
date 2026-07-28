@@ -25,6 +25,10 @@ import {
   REPO_READ_TOOL_NAMES,
 } from './repo-read-tools'
 import { makeId, slugify } from './slug'
+import {
+  buildToolMountRows,
+  ensureToolDefinitionsForProposed,
+} from './tool-catalog'
 import type { TestSuite } from './types'
 
 type RawRow = Record<string, unknown>
@@ -337,28 +341,8 @@ export async function createCopilotFromManifest(input: CreateCopilotInput): Prom
       roleText,
       input.projectId !== null
     )
-    // Ids are generated client-side (makeId), so the whole set inserts as ONE
-    // batch POST (PostgREST bulk insert: array payload) instead of a round-trip
-    // per tool.
-    const toolPayloads: RawRow[] = proposedTools.map((proposed) => ({
-      id: makeId('tool', `${slugify(proposed.name)}-${crypto.randomUUID().slice(0, 8)}`),
-      copilot_id: copilotId,
-      name: proposed.name,
-      description: proposed.description,
-      provider: proposed.provider,
-      risk_level: proposed.riskLevel,
-      enabled: true,
-      requires_confirmation: proposed.requiresConfirmation,
-      scoped_routes: [],
-      // Migration 0022 is applied, so the column exists. The architect's DECLARED
-      // value wins verbatim (architect-prompt.ts §4 sets mutates:false on reads,
-      // true on writes). Only when it is unset (a pre-0022 row, or an author who
-      // skipped the field) do we derive a default — and that default classifies
-      // read-only tools as read-only (defaultMutatesForTool), instead of the old
-      // flat `?? true` that mislabeled every unset read tool as "CAN WRITE".
-      // Fail-closed: an unclassifiable tool still defaults to mutating.
-      mutates: proposed.mutates ?? defaultMutatesForTool(proposed),
-    }))
+    await ensureToolDefinitionsForProposed(proposedTools)
+    const toolPayloads = buildToolMountRows(copilotId, input.slug, proposedTools)
     const toolIds = toolPayloads.map((payload) => payload.id as string)
     if (toolIds.length > 0) {
       await pgrest<RawRow[]>('POST', 'tools', toolPayloads)
