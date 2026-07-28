@@ -31,9 +31,6 @@ import type {
   ToolDefinition,
 } from './types'
 
-// Display labels — single source lives in ./labels (UI constants, not data).
-export { AGENT_RUNTIME_LABELS, MODEL_PROVIDER_LABELS } from './labels'
-
 // ---------------------------------------------------------------------------
 // Projects
 // ---------------------------------------------------------------------------
