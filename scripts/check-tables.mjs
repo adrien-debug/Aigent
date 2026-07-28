@@ -59,6 +59,8 @@ const ALLOWLIST_PATH = join(HERE, 'table-guard-allowlist.json')
 
 const DASHBOARD_DIRS = [
   join('app', 'admin'),
+  join('app', 'admin-v2'),
+  join('components', 'aigent-v2'),
   join('components', 'agent-ops'),
   join('components', 'views'),
   join('components', 'shell'),
