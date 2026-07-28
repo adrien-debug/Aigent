@@ -1,5 +1,7 @@
+import { listAgentDrafts, type AgentDraftRow } from '@/lib/agent-mission-control/agent-drafts-store'
 import { isPgrestTimeout, pgrestWithCount } from '@/lib/agent-mission-control/postgrest'
 import { REGISTRY_HASH, RUNTIME_IDS, TOOL_IDS, getRuntime, getTool } from '@/lib/agent-mission-control/registry'
+import { listActiveToolBuildMissions, type ToolBuildMissionRow } from '@/lib/agent-mission-control/tool-build-missions-store'
 import type { FactoryRuntimeRow } from '@/components/agent-ops/factory/runtimes-panel'
 import type { FactoryToolRow } from '@/components/agent-ops/factory/certified-tools-panel'
 
@@ -7,6 +9,8 @@ export interface FactoryPageData {
   runtimes: FactoryRuntimeRow[]
   certifiedTools: FactoryToolRow[]
   agentDraftCount: number | null
+  agentDrafts: AgentDraftRow[] | null
+  toolBuildMissions: ToolBuildMissionRow[] | null
   registryHash: string
 }
 
@@ -57,6 +61,14 @@ export async function getFactoryPageData(): Promise<FactoryPageData> {
   const certifiedTools = allTools.filter((t) => t.certification === 'certified')
 
   const agentDraftCount = await getAgentDraftCount()
+  let agentDrafts: AgentDraftRow[] | null = null
+  let toolBuildMissions: ToolBuildMissionRow[] | null = null
+  try {
+    agentDrafts = await listAgentDrafts(12)
+    toolBuildMissions = await listActiveToolBuildMissions(12)
+  } catch (err) {
+    console.error('[admin/factory] draft/mission lists unavailable:', isPgrestTimeout(err) ? 'timeout' : err)
+  }
 
-  return { runtimes, certifiedTools, agentDraftCount, registryHash: REGISTRY_HASH }
+  return { runtimes, certifiedTools, agentDraftCount, agentDrafts, toolBuildMissions, registryHash: REGISTRY_HASH }
 }

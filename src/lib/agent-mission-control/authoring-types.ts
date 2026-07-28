@@ -3,9 +3,10 @@
  *
  * Shared contract for the agent-authoring surface (the "architect" assistant
  * that converses with a user, proposes a manifest, and — once ready — creates
- * a real `Copilot` row). Backed live by the `agent_drafts` table (PostgREST on
- * gpu1). Pure types, no logic — reuse the enum unions already established by
- * the DB CHECK constraints and by `./types.ts`.
+ * a real `Copilot` row). Backed live by the `agent_drafts` table on gpu1
+ * (`generated_manifest`, `conversation`, `created_copilot_id`). Pure types —
+ * reuse the enum unions already established by the DB CHECK constraints and
+ * by `./types.ts`.
  */
 
 import type { AgentRuntime, AgentSkill, ConfirmationPolicy, ModelProvider, ToolRiskLevel } from './types'

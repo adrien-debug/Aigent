@@ -108,6 +108,22 @@ SONAR_TOKEN=<token> npm run sonar
 Dashboard: http://100.88.191.49:9010/dashboard?id=agent-mission-control (Tailscale).
 CI runs the same scan on the org self-hosted runner `gpu1` (advisory, `continue-on-error`).
 
+### Factory (live surfaces)
+
+- `/admin/factory` — registry truth + **agent drafts** (`agent_drafts`, migration `0042`) + **tool build missions** (`tool_build_missions`, migration `0043`).
+- `/admin/factory/tools` — start a local-deterministic tool build (`POST /api/agent-ops/tool-build-missions`); only `count_words` has a sandbox today.
+- Architect chat persists drafts server-side (`draftId` returned by `POST /api/agent-ops/architect`).
+- Release page — **Run qualification sweep** / **Advance one step** (`POST /api/agent-ops/copilots/:id/qualification`).
+
+Apply new migrations on gpu1 before expecting tool build missions:
+
+```bash
+ssh gpu1 'docker exec -i nexus-postgres psql -U postgres -d aigent -v ON_ERROR_STOP=1' \\
+  < supabase/migrations/0043_tool_build_missions.sql
+```
+
+(`agent_drafts` already exists on gpu1 with the historical schema — `0042` only re-grants.)
+
 `npm run verify` is the release gate — it adds `next build` and the offline unit
 suite on top of `check`. The live suite (`test:live`) is never part of `verify`:
 it needs the real `npm run dev` stack + gpu1 PostgREST + OpenAI and self-skips

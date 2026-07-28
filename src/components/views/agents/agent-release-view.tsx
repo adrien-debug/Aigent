@@ -12,6 +12,7 @@ import {
   ReplayEvidence,
   ShadowEvidence,
 } from '@/components/agent-ops/agent-detail/promotion-evidence-panel'
+import { QualificationActions } from '@/components/agent-ops/agent-detail/qualification-actions'
 import { QualificationTimeline } from '@/components/agent-ops/agent-detail/qualification-timeline'
 import { PageLayout } from '@/components/shell/page-layout'
 import { eyebrowClass } from '@/components/shell/page-header'
@@ -85,6 +86,7 @@ export function AgentReleaseView({
   replay,
 }: AgentReleasePageData) {
   const { versions, productionVersion, candidateVersion, gate, capabilities } = lifecycle
+  const copilotId = lifecycle.copilotId
 
   // The rollback target is the version the promotion transition archived most
   // recently. `archived` is the only stage that proves a version actually
@@ -155,7 +157,14 @@ export function AgentReleaseView({
             There is no candidate version to qualify, so the workflow has nothing to evaluate.
           </Text>
         ) : (
-          <QualificationTimeline readiness={qualificationReadiness} />
+          <>
+            <QualificationTimeline readiness={qualificationReadiness} />
+            <QualificationActions
+              copilotId={copilotId}
+              candidateVersionId={candidateVersionIdForEvidence}
+              readiness={qualificationReadiness}
+            />
+          </>
         )}
       </Section>
 

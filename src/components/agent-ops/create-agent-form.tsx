@@ -77,9 +77,11 @@ function defaultManifest(description: string): GeneratedManifest {
 export function CreateAgentForm({
   projects,
   manifest,
+  draftId,
 }: {
   projects: Project[]
   manifest?: GeneratedManifest
+  draftId?: string | null
 }) {
   const router = useRouter()
 
@@ -234,6 +236,18 @@ export function CreateAgentForm({
         window.sessionStorage.removeItem(ARCHITECT_DRAFT_STORAGE_KEY)
       } catch {
         // Storage unavailable — nothing to purge.
+      }
+
+      if (draftId) {
+        try {
+          await fetch(`/api/agent-ops/agent-drafts/${encodeURIComponent(draftId)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ copilotId: created.copilotId }),
+          })
+        } catch {
+          // Best-effort — copilot exists even if draft link fails.
+        }
       }
 
       router.push(`/admin/agents/${created.copilotId}`)

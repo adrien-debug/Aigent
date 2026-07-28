@@ -18,6 +18,7 @@ import type { Project } from '@/lib/agent-mission-control/types'
  */
 export function NewCopilotWorkbench({ projects }: { projects: Project[] }) {
   const [manifest, setManifest] = useState<GeneratedManifest | null>(null)
+  const [draftId, setDraftId] = useState<string | null>(null)
 
   return (
     <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
@@ -31,11 +32,11 @@ export function NewCopilotWorkbench({ projects }: { projects: Project[] }) {
               Manifest applied from the assistant — review and create.
             </div>
           ) : null}
-          <CreateAgentForm projects={projects} manifest={manifest ?? undefined} />
+          <CreateAgentForm projects={projects} manifest={manifest ?? undefined} draftId={draftId} />
         </div>
       </AgentSectionCard>
 
-      <ArchitectChat onManifest={setManifest} />
+      <ArchitectChat onManifest={setManifest} onDraftId={setDraftId} />
     </div>
   )
 }

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
 import { getOpenAIClient, ARCHITECT_MODEL } from '@/lib/agent-mission-control/llm-client'
+import { upsertAgentDraft } from '@/lib/agent-mission-control/agent-drafts-store'
+import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 import { ARCHITECT_SYSTEM_PROMPT, ARCHITECT_TOOL } from '@/lib/agent-mission-control/architect-prompt'
 import type { ArchitectMessage, GeneratedManifest } from '@/lib/agent-mission-control/authoring-types'
 
@@ -43,6 +45,7 @@ const OPENAI_REQUEST_TIMEOUT_MS = 60_000
 interface ArchitectResponseBody {
   reply: string
   manifest: GeneratedManifest | null
+  draftId: string | null
 }
 
 export async function POST(request: Request) {
@@ -154,6 +157,19 @@ export async function POST(request: Request) {
   const payload: ArchitectResponseBody = {
     reply: replyText || (manifest ? "I've drafted a manifest — review it on the right." : ''),
     manifest,
+    draftId: null,
   }
+
+  try {
+    const draft = await upsertAgentDraft({
+      draftId: typeof body.draftId === 'string' ? body.draftId : undefined,
+      messages: body.messages,
+      manifest,
+    })
+    payload.draftId = draft.id
+  } catch (err) {
+    console.error('[agent-ops/architect] draft persistence failed:', isPgrestTimeout(err) ? 'timeout' : err)
+  }
+
   return NextResponse.json(payload)
 }

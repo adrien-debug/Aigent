@@ -1,5 +1,7 @@
 import { EmptyState, NotMeasuredDash } from '@/components/agent-ops/empty-state'
+import { AgentDraftsPanel } from '@/components/agent-ops/factory/agent-drafts-panel'
 import { CertifiedToolsPanel } from '@/components/agent-ops/factory/certified-tools-panel'
+import { ToolBuildMissionsPanel } from '@/components/agent-ops/factory/tool-build-missions-panel'
 import { RuntimesPanel } from '@/components/agent-ops/factory/runtimes-panel'
 import { SoftAccentLink } from '@/components/agent-ops/soft-accent-link'
 import { StaggerFade } from '@/components/agent-ops/stagger-fade'
@@ -37,7 +39,14 @@ function SectionCount({ children }: { children: React.ReactNode }) {
   return <Text className="font-mono text-xs">{children}</Text>
 }
 
-export function FactoryView({ runtimes, certifiedTools, agentDraftCount, registryHash }: FactoryPageData) {
+export function FactoryView({
+  runtimes,
+  certifiedTools,
+  agentDraftCount,
+  agentDrafts,
+  toolBuildMissions,
+  registryHash,
+}: FactoryPageData) {
   return (
     <PageLayout className="gap-8 pb-12">
       <StaggerFade delay={1}>
@@ -90,10 +99,14 @@ export function FactoryView({ runtimes, certifiedTools, agentDraftCount, registr
               <SectionCount>{agentDraftCount === null ? <NotMeasuredDash /> : agentDraftCount}</SectionCount>
             }
           >
-            <EmptyState
-              title="No drafts yet"
-              description="Agent drafts created from the Factory will appear here."
-            />
+            {agentDrafts === null ? (
+              <EmptyState
+                title="Drafts unavailable"
+                description="The agent drafts store could not be reached. Check gpu1 connectivity."
+              />
+            ) : (
+              <AgentDraftsPanel drafts={agentDrafts} />
+            )}
           </Section>
         </StaggerFade>
 
@@ -103,17 +116,22 @@ export function FactoryView({ runtimes, certifiedTools, agentDraftCount, registr
             title="Tool build missions"
             actions={
               <SectionCount>
-                {/* No tool-build-mission store exists yet (next brick). Never
-                    borrow the tools-table count here — that would read as
-                    "33 missions" when there are none. Honest dash. */}
-                <NotMeasuredDash />
+                {toolBuildMissions === null ? (
+                  <NotMeasuredDash />
+                ) : (
+                  toolBuildMissions.length
+                )}
               </SectionCount>
             }
           >
-            <EmptyState
-              title="No tool build missions"
-              description="Tool build missions started from the Factory will appear here."
-            />
+            {toolBuildMissions === null ? (
+              <EmptyState
+                title="Missions unavailable"
+                description="The tool build mission store could not be reached."
+              />
+            ) : (
+              <ToolBuildMissionsPanel missions={toolBuildMissions} />
+            )}
           </Section>
         </StaggerFade>
 

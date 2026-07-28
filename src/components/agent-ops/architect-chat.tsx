@@ -12,11 +12,13 @@ import type { ArchitectMessage, GeneratedManifest } from '@/lib/agent-mission-co
 
 interface ArchitectChatProps {
   onManifest?: (manifest: GeneratedManifest) => void
+  onDraftId?: (draftId: string | null) => void
 }
 
 interface ArchitectResponseBody {
   reply: string
   manifest: GeneratedManifest | null
+  draftId: string | null
 }
 
 /** sessionStorage key for the in-progress architect conversation draft. */
@@ -25,6 +27,7 @@ const DRAFT_STORAGE_KEY = 'amc-architect-draft'
 interface ArchitectDraft {
   messages: ArchitectMessage[]
   manifest: GeneratedManifest | null
+  draftId: string | null
 }
 
 function readDraft(): ArchitectDraft | null {
@@ -33,7 +36,7 @@ function readDraft(): ArchitectDraft | null {
     if (!raw) return null
     const parsed = JSON.parse(raw) as Partial<ArchitectDraft>
     if (!Array.isArray(parsed.messages)) return null
-    return { messages: parsed.messages, manifest: parsed.manifest ?? null }
+    return { messages: parsed.messages, manifest: parsed.manifest ?? null, draftId: parsed.draftId ?? null }
   } catch {
     return null
   }
@@ -54,12 +57,13 @@ function clearDraft() {
  * a "Manifest ready" card surfaces a summary with a primary action to hand
  * it off to the caller (typically the copilot-creation flow).
  */
-export function ArchitectChat({ onManifest }: ArchitectChatProps) {
+export function ArchitectChat({ onManifest, onDraftId }: ArchitectChatProps) {
   const [messages, setMessages] = useState<ArchitectMessage[]>([])
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [manifest, setManifest] = useState<GeneratedManifest | null>(null)
+  const [draftId, setDraftId] = useState<string | null>(null)
   const [hydrated, setHydrated] = useState(false)
   const [applied, setApplied] = useState(false)
 
@@ -72,6 +76,8 @@ export function ArchitectChat({ onManifest }: ArchitectChatProps) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setMessages(draft.messages)
       setManifest(draft.manifest)
+      setDraftId(draft.draftId)
+      onDraftId?.(draft.draftId)
     }
     setHydrated(true)
   }, [])
@@ -85,14 +91,17 @@ export function ArchitectChat({ onManifest }: ArchitectChatProps) {
     }
     try {
       if (messages.length > 0 || manifest !== null) {
-        window.sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({ messages, manifest }))
+        window.sessionStorage.setItem(
+          DRAFT_STORAGE_KEY,
+          JSON.stringify({ messages, manifest, draftId }),
+        )
       } else {
         window.sessionStorage.removeItem(DRAFT_STORAGE_KEY)
       }
     } catch {
       // Storage unavailable — the beforeunload guard below still protects the work.
     }
-  }, [hydrated, applied, messages, manifest])
+  }, [hydrated, applied, messages, manifest, draftId])
 
   // Warn before refresh/close/external navigation while there is unsaved work.
   const hasUnsavedWork = messages.length > 0 || manifest !== null
@@ -127,7 +136,7 @@ export function ArchitectChat({ onManifest }: ArchitectChatProps) {
       const response = await fetch('/api/agent-ops/architect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: nextMessages }),
+        body: JSON.stringify({ messages: nextMessages, draftId: draftId ?? undefined }),
       })
 
       if (response.status === 503) {
@@ -145,6 +154,10 @@ export function ArchitectChat({ onManifest }: ArchitectChatProps) {
       setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }])
       if (data.manifest) {
         setManifest(data.manifest)
+      }
+      if (data.draftId) {
+        setDraftId(data.draftId)
+        onDraftId?.(data.draftId)
       }
     } catch {
       setError('Live backend not configured.')

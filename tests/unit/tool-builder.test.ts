@@ -19,6 +19,7 @@ import {
   validateToolSpec,
   type ToolBuildSpec,
 } from '@/lib/agent-mission-control/tool-builder/mission'
+import { advanceToolBuildMission } from '@/lib/agent-mission-control/tool-build-missions-store'
 import { runToolSandbox } from '@/lib/agent-mission-control/tool-builder/sandbox'
 import { countWords } from '@/lib/agent-mission-control/tool-builder/tools/count-words'
 
@@ -185,5 +186,21 @@ describe('FULL PIPELINE end to end — spec → build → sandbox → certify', 
     expect(evidence.failed).toBe(1)
     m = certifyMission(m, evidence)
     expect(m.state).toBe('REJECTED')
+  })
+})
+
+describe('advanceToolBuildMission — server runner', () => {
+  it('certifies count_words when sandbox exists', () => {
+    const mission = advanceToolBuildMission(startToolBuild(goodSpec))
+    expect(mission.state).toBe('CERTIFIED')
+    expect(mission.evidence?.passed).toBeGreaterThan(0)
+  })
+
+  it('rejects unknown tool ids with an honest reason', () => {
+    const mission = advanceToolBuildMission(
+      startToolBuild({ ...goodSpec, id: 'unknown_local_tool' }),
+    )
+    expect(mission.state).toBe('REJECTED')
+    expect(mission.rejectionReason).toMatch(/no sandbox implementation/)
   })
 })
