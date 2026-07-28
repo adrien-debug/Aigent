@@ -98,9 +98,19 @@ export function AgentReleaseView({
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0]
 
   const blocking = gate ? gate.checks.filter((c) => c.status !== 'pass') : []
+  const candidateIsProduction =
+    productionVersion !== undefined &&
+    candidateVersion !== undefined &&
+    productionVersion.id === candidateVersion.id
 
   return (
     <PageLayout>
+      {candidateIsProduction ? (
+        <Text className="text-xs text-zinc-400">
+          Production and candidate are the same version — nothing new is waiting to ship. The gate below
+          documents the version currently serving; promote stays off until a newer draft or beta exists.
+        </Text>
+      ) : null}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Section
           title="In production"
@@ -124,7 +134,9 @@ export function AgentReleaseView({
           description="The version the release gate is evaluating."
           meta={
             candidateVersion ? (
-              <span className="text-xs font-medium text-zinc-400">Under evaluation</span>
+              <span className="text-xs font-medium text-zinc-400">
+                {candidateIsProduction ? 'Already serving' : 'Under evaluation'}
+              </span>
             ) : (
               <span className="text-xs font-medium text-zinc-400">No candidate</span>
             )

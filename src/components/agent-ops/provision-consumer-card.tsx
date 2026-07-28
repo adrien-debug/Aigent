@@ -70,7 +70,7 @@ export function ProvisionConsumerCard({
   return (
     <AgentSectionCard
       title="Consumer workspace"
-      description="Provision the intake page, registry, bindings and AGENTS-WANTED in the linked repo — once, then only push agents."
+      description="Optional one-time setup: provision the intake page, registry, bindings and AGENTS-WANTED in the linked repo. TradeAgent agents run without this — it only enables the consumer intake flow."
       contentClassName="px-6 py-5 space-y-4"
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -91,7 +91,7 @@ export function ProvisionConsumerCard({
         {status?.provisioned ? (
           <Badge color="accent">Intake provisioned {status.version ?? ''}</Badge>
         ) : (
-          <Badge color="zinc">Not provisioned</Badge>
+          <Badge color="zinc">Intake not set up</Badge>
         )}
       </div>
 

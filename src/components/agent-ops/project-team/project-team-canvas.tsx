@@ -241,6 +241,16 @@ function ProjectTeamCanvasInner({
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [viewportFitted, setViewportFitted] = useState(false)
 
+  const fitViewport = useCallback(() => {
+    const container = containerRef.current
+    if (!container) return false
+    const box = container.getBoundingClientRect()
+    if (box.width < 1 || box.height < 1) return false
+    fitView(FIT_VIEW_OPTIONS)
+    setViewportFitted(true)
+    return true
+  }, [fitView])
+
   // -- Visible set ----------------------------------------------------------
   // A filter genuinely changes what exists on the canvas (unlike selection,
   // which only dims). The anchor is always kept: without it the composition
@@ -435,8 +445,7 @@ function ProjectTeamCanvasInner({
       // the DOM, so the fit has to land after the browser has laid out the box
       // the observer just told us about.
       frame = requestAnimationFrame(() => {
-        fitView(FIT_VIEW_OPTIONS)
-        setViewportFitted(true)
+        fitViewport()
       })
     })
     observer.observe(container)
@@ -445,7 +454,16 @@ function ProjectTeamCanvasInner({
       observer.disconnect()
       cancelAnimationFrame(frame)
     }
-  }, [layoutKey, fitView])
+  }, [layoutKey, fitViewport])
+
+  // Backup path: React Flow's own init fires once the pane exists even when the
+  // ResizeObserver race loses — without this, `onlyRenderVisibleElements` can
+  // cull every node against a default viewport and the canvas reads empty.
+  const onInit = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (!viewportFitted) fitViewport()
+    })
+  }, [fitViewport, viewportFitted])
 
   // What the shell needs to know: a fitted viewport over a non-empty visible
   // set is the only state in which a node can actually be on screen. Reported,
@@ -481,6 +499,7 @@ function ProjectTeamCanvasInner({
         edges={flowEdges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        onInit={onInit}
         onPaneClick={onPaneClick}
         onEdgeMouseEnter={onEdgeMouseEnter}
         onEdgeMouseLeave={onEdgeMouseLeave}
@@ -489,9 +508,10 @@ function ProjectTeamCanvasInner({
         nodesFocusable={false}
         edgesFocusable={false}
         elementsSelectable={false}
-        // Keeps the DOM small on large rosters; nodes outside the viewport are
-        // not mounted at all.
-        onlyRenderVisibleElements
+        // Culling is enabled only AFTER the first fit — before that the default
+        // viewport can hide every node and the canvas looks empty while the
+        // toolbar still counts agents.
+        onlyRenderVisibleElements={viewportFitted}
         minZoom={0.08}
         maxZoom={1.6}
         fitView

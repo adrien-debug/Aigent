@@ -134,24 +134,6 @@ export function FactoryView({
             )}
           </Section>
         </StaggerFade>
-
-        <StaggerFade className="h-full" delay={6}>
-          <Section className="h-full" title="Missing capabilities">
-            <EmptyState
-              title="No missing capabilities reported"
-              description="Gaps between what agents request and what the registry can mount will surface here."
-            />
-          </Section>
-        </StaggerFade>
-
-        <StaggerFade className="h-full" delay={7}>
-          <Section className="h-full" title="Blockers requiring human action">
-            <EmptyState
-              title="No blockers"
-              description="Anything the Factory cannot resolve on its own will appear here for review."
-            />
-          </Section>
-        </StaggerFade>
       </div>
 
       <StaggerFade delay={8}>

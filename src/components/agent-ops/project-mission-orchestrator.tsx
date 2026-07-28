@@ -273,17 +273,19 @@ export function ProjectMissionOrchestrator({
           </div>
         )}
 
-        {hydrateWarning && phase !== 'running' && (
-          /* zinc-400, not zinc-500: `check:contrast` measured this exact node
-             ("Mission data unavailable", 12px w400 on rgb(26,26,30)) at
-             3.59:1 against the 4.5 AA threshold. Same call, same reason, as
-             the one already recorded in `dashboard-kpi-strip.tsx`. It is the
-             line that tells the operator the data is MISSING — the one string
-             on this panel that must never be the hardest to read. */
+        {hydrateWarning && phase !== 'running' && !report && (
+          <EmptyState
+            title="No mission history"
+            description={`${hydrateWarning} You can still run a new mission below.`}
+            padding="inline"
+          />
+        )}
+
+        {hydrateWarning && phase !== 'running' && report ? (
           <p role="status" aria-live="polite" className="text-xs text-zinc-400">
             {hydrateWarning}
           </p>
-        )}
+        ) : null}
 
         {phase === 'running' && (
           <div role="status" aria-live="polite" className="flex items-center gap-2 text-sm text-zinc-400">

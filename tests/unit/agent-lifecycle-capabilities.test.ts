@@ -403,6 +403,22 @@ describe('getAgentLifecycle — promotion is a human act, restated not recompute
     for (const [method] of calls) expect(method).toBe('GET')
   })
 
+  it('E2 — promote refuses when the candidate is already serving production', async () => {
+    installMocks({
+      detail: makeDetail({
+        copilot: { productionVersionId: PROD_ID, latestVersionId: PROD_ID },
+        versions: [makeVersion(PROD_ID, 'production', 'v1.0.0')],
+      }),
+      gate: makeGate({ candidateVersionId: PROD_ID, promotable: false }),
+    })
+
+    const lifecycle = await getAgentLifecycle(COPILOT_ID)
+    const promote = cap(lifecycle!, 'promote')
+    expect(promote.state).toBe('unavailable')
+    if (promote.state === 'available') throw new Error('unreachable')
+    expect(promote.reason).toMatch(/Already in production/i)
+  })
+
   it('F — a red gate blocks promotion and lists the blocking checks verbatim', async () => {
     installMocks({
       gate: makeGate({

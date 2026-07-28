@@ -121,7 +121,8 @@ CI runs the same scan on the org self-hosted runner `gpu1` (advisory, `continue-
 
 ### Factory (live surfaces)
 
-- `/admin/factory` — registry truth + **agent drafts** (`agent_drafts`, migration `0042`) + **tool build missions** (`tool_build_missions`, migration `0043`).
+- `/admin/factory` — registry truth + **agent drafts** (`agent_drafts`, migration `0042`) + **tool build missions** (`tool_build_missions`, migration `0043`). Decorative placeholder panels were removed — only wired sections render.
+- `/admin/performance` — fleet leaderboard ranks **operational** 24h success (not eval-suite pass rate) and excludes `scripts/dev-seed.mjs` fixtures (`dev-seed-markers.ts`).
 - `/admin/factory/tools` — start a local-deterministic tool build (`POST /api/agent-ops/tool-build-missions`); only `count_words` has a sandbox today.
 - Architect chat persists drafts server-side (`draftId` returned by `POST /api/agent-ops/architect`).
 - Release page — **Run qualification sweep** / **Advance one step** (`POST /api/agent-ops/copilots/:id/qualification`).

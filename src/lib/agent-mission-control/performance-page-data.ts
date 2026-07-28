@@ -1,4 +1,5 @@
 import { getCopilots, getProjects, getRecentRunsInWindow } from '@/lib/agent-mission-control/data'
+import { isDevSeedCopilot } from '@/lib/agent-mission-control/dev-seed-markers'
 import type { AgentRun, Copilot, Project } from '@/lib/agent-mission-control/types'
 
 /**
@@ -47,7 +48,10 @@ export async function getPerformancePageData(): Promise<PerformancePageData> {
   // (testPassRate, runsLast24h) — NOT on this page's `runs` sample — so it
   // reflects the fleet's true standing regardless of how many rows the window
   // query capped at.
-  const ranked = [...copilots].sort(
+  // Dev-seed fixtures exist to render screens locally — they must not pollute the
+  // fleet performance view with hand-typed eval scores and zero traffic.
+  const fleetCopilots = copilots.filter((c) => !isDevSeedCopilot(c))
+  const ranked = [...fleetCopilots].sort(
     (a, b) => b.health.runsLast24h - a.health.runsLast24h || a.name.localeCompare(b.name)
   )
   const recentRuns = runs.slice(0, RUNS_TABLE_SIZE)

@@ -401,7 +401,11 @@ function decideCapability(proposal: ImprovementProposal | null): Capability {
  * anywhere in this codebase. `available` says a human MAY promote, not that
  * anything will.
  */
-function promoteCapability(gate: ReleaseGate | null, gateError: string | null): Capability {
+function promoteCapability(
+  gate: ReleaseGate | null,
+  gateError: string | null,
+  productionVersionId: string | null | undefined
+): Capability {
   if (gateError !== null) {
     return unavailable(
       'Release gate could not be evaluated',
@@ -412,6 +416,12 @@ function promoteCapability(gate: ReleaseGate | null, gateError: string | null): 
     return unavailable(
       'No candidate version to promote',
       'evaluateReleaseGate() returned null: this copilot has no latest_version_id, or the version it points at does not exist.'
+    )
+  }
+  if (productionVersionId !== null && productionVersionId !== undefined && gate.candidateVersionId === productionVersionId) {
+    return unavailable(
+      'Already in production',
+      'This version is already serving consumers. Author a newer draft or beta version before promoting again.'
     )
   }
   if (!gate.promotable) {
@@ -514,7 +524,7 @@ export async function getAgentLifecycle(copilotId: string): Promise<AgentLifecyc
       proposalUnreadable ?? autoImproveCapability(runTests, suiteCount, latestBenchmark, latestProposal),
     'create-v2': proposalUnreadable ?? createV2Capability(latestProposal),
     decide: proposalUnreadable ?? decideCapability(latestProposal),
-    promote: promoteCapability(gate, gateError),
+    promote: promoteCapability(gate, gateError, productionVersion?.id ?? null),
     rollback: rollbackCapability(detail.versions, productionVersion),
   }
 

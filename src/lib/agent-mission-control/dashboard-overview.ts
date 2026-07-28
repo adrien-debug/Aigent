@@ -230,6 +230,11 @@ export function buildProjectOverview(projects: Project[], copilots: Copilot[]): 
   return projects
     .map((project) => {
       const rollup = rollups.get(project.id)
+      const runsLast24h = rollup?.runsLast24h ?? 0
+      const passRate =
+        rollup && rollup.passRates.length > 0
+          ? rollup.passRates.reduce((s, n) => s + n, 0) / rollup.passRates.length
+          : null
       return {
         id: project.id,
         name: project.name,
@@ -239,15 +244,16 @@ export function buildProjectOverview(projects: Project[], copilots: Copilot[]): 
         platform: project.platform,
         copilotCount: rollup?.copilotCount ?? 0,
         activeCount: rollup?.activeCount ?? 0,
-        runsLast24h: rollup?.runsLast24h ?? 0,
+        runsLast24h,
         costLast24hUsd: rollup?.costLast24hUsd ?? 0,
-        passRate:
-          rollup && rollup.passRates.length > 0
-            ? rollup.passRates.reduce((s, n) => s + n, 0) / rollup.passRates.length
-            : null,
+        passRate,
       }
     })
-    .sort((a, b) => b.runsLast24h - a.runsLast24h || a.name.localeCompare(b.name))
+    .sort((a, b) => {
+      const aSignal = a.passRate !== null || a.runsLast24h > 0 ? 1 : 0
+      const bSignal = b.passRate !== null || b.runsLast24h > 0 ? 1 : 0
+      return bSignal - aSignal || b.runsLast24h - a.runsLast24h || a.name.localeCompare(b.name)
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -336,35 +342,27 @@ export function buildActionItems(input: {
     }
   }
 
+  const seenBlockedProjects = new Set<string>()
   for (const mission of input.missionRuns) {
-    if (mission.status === 'blocked' || mission.decision === 'blocked') {
-      const project = input.projectsById.get(mission.projectId)
-      items.push({
-        id: `action_mission_${mission.id}`,
-        kind: 'mission_blocked',
-        title: 'Mission blocked',
-        meta: `${project?.name ?? mission.projectId} · ${mission.repo ?? '—'}`,
-        status: mission.status,
-        href: project ? `/admin/projects/${project.id}` : '/admin',
-        buttonLabel: 'View Mission',
-        priority: ACTION_PRIORITY.mission_blocked,
-      })
-    }
-  }
-
-  for (const warning of input.dataWarnings) {
+    if (mission.status !== 'blocked' && mission.decision !== 'blocked') continue
+    // missionRuns arrive newest-first — keep only the latest blocked row per project.
+    if (seenBlockedProjects.has(mission.projectId)) continue
+    seenBlockedProjects.add(mission.projectId)
+    const project = input.projectsById.get(mission.projectId)
     items.push({
-      id: `action_warn_${warning}`,
-      kind: 'data_unavailable',
-      title: warning,
-      meta: 'System',
-      status: 'unavailable',
-      href: '/admin',
-      buttonLabel: 'Review',
-      priority: ACTION_PRIORITY.data_unavailable,
+      id: `action_mission_${mission.id}`,
+      kind: 'mission_blocked',
+      title: 'Mission blocked',
+      meta: `${project?.name ?? mission.projectId} · ${mission.repo ?? '—'}`,
+      status: mission.status,
+      href: project ? `/admin/projects/${project.id}` : '/admin',
+      buttonLabel: 'View Mission',
+      priority: ACTION_PRIORITY.mission_blocked,
     })
   }
 
+  // System-level ingest warnings belong in DashboardDataWarnings — not the
+  // operator action queue (there is no button that fixes a missing table).
   return items
     .sort((a, b) => a.priority - b.priority)
     .slice(0, input.limit ?? 6)

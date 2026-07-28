@@ -39,7 +39,7 @@ export function CertifiedToolsPanel({ tools }: { tools: FactoryToolRow[] }) {
   }
 
   return (
-    <div className="max-h-96 overflow-y-auto px-6 py-4">
+    <div className="max-h-[min(48rem,70vh)] overflow-y-auto px-6 py-4">
       <ul className="flex flex-col gap-2">
         {tools.map((tool) => (
           <li key={tool.id} className={`flex flex-col gap-2 p-4 ${surfaceSunken}`}>

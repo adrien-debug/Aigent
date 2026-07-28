@@ -21,31 +21,35 @@ import type { Copilot } from '@/lib/agent-mission-control/types'
 const numberFormat = new Intl.NumberFormat('en-US')
 
 /**
- * Ranking score — volume-weighted quality.
+ * Operational success over the shared 24h window (completed / terminal runs).
+ * Eval-suite pass rates live on the agent detail scorecard — this page is fleet
+ * traffic, so mixing test_runs pass_rate with zero operational runs lied.
+ */
+function operationalSuccessRate(copilot: Copilot): number | null {
+  if (!copilot.healthUnavailableFields || copilot.healthUnavailableFields.includes('runsLast24h')) {
+    return null
+  }
+  if (copilot.health.runsLast24h <= 0) return null
+  if (copilot.healthUnavailableFields.includes('errorRateLast24h')) return null
+  return 1 - copilot.health.errorRateLast24h
+}
+
+/**
+ * Ranking score — volume-weighted operational quality.
  *
- *   score = testPassRate × ln(1 + runsLast24h)
+ *   score = successRate × ln(1 + runsLast24h)
  *
  * Rationale: a 100% pass rate over 3 runs must not outrank a 97% pass rate
  * over 900 runs. The log term rewards real traffic with strongly diminishing
- * returns, so quality (pass rate) stays the dominant factor between agents of
- * comparable volume, while volume separates agents of comparable quality.
- * Copilots whose health is not backed by real runs (healthEvidence !== 'runs')
- * get NO score (null): they are unranked, sink below every scored agent in the
- * order they were received, and render "—".
+ * returns. Agents with no 24h traffic are unranked and render "—".
  *
- * Display: the score itself is never shown — it only drives the row order and
- * the RankBadge (#1 solid accent mark; every other rank is zinc). Never paint
- * accent-soft / accent-surface on the row — that imports a second surface.
- * Pass Rate stays zinc tabular — accent is reserved for the rank-1 mark only.
+ * Display: the score itself is never shown — it only drives row order and
+ * RankBadge (#1 solid accent mark; every other rank is zinc).
  */
 function leaderboardScore(copilot: Copilot): number | null {
-  // testPassRate is a PLACEHOLDER 0 when unproven (data.ts normalizeHealth) — the
-  // authoritative "is it measured" signal is healthUnavailableFields, NOT
-  // healthEvidence (true for a benchmark-only copilot whose testPassRate is 0).
-  if (!copilot.healthUnavailableFields || copilot.healthUnavailableFields.includes('testPassRate')) {
-    return null
-  }
-  return copilot.health.testPassRate * Math.log1p(copilot.health.runsLast24h)
+  const successRate = operationalSuccessRate(copilot)
+  if (successRate === null) return null
+  return successRate * Math.log1p(copilot.health.runsLast24h)
 }
 
 /**
@@ -233,15 +237,11 @@ export function AgentLeaderboard({
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
-                  {copilot.healthUnavailableFields && !copilot.healthUnavailableFields.includes('testPassRate') ? (
+                  {operationalSuccessRate(copilot) !== null ? (
                     <span className="text-sm font-mono tabular-nums text-zinc-300">
-                      {formatPercent(copilot.health.testPassRate)}
+                      {formatPercent(operationalSuccessRate(copilot)!)}
                     </span>
                   ) : (
-                    // testPassRate is a PLACEHOLDER 0 when unproven — gate on
-                    // healthUnavailableFields (authoritative), NOT healthEvidence
-                    // (true for a benchmark-only copilot) nor a null check (the
-                    // placeholder is 0, never null). Fabricated "0.0%" otherwise.
                     <NotMeasuredDash />
                   )}
                 </TableCell>

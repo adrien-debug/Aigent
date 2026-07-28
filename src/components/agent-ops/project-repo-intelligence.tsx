@@ -77,8 +77,10 @@ const PHASE_STATUS_LABELS: Record<Phase, string> = {
   'no-repo': 'No repo resolved for this project — nothing to scan',
 }
 
-/** Phases that owe the operator a banner, not just a status line. */
-const FAILED_PHASES: ReadonlySet<Phase> = new Set<Phase>(['error', 'auth-required', 'unavailable'])
+/** Phases that owe the operator a banner, not just a status line. Auth-required
+ *  is excluded: the strip already states the failure; a second red banner was
+ *  redundant noise on project pages. */
+const FAILED_PHASES: ReadonlySet<Phase> = new Set<Phase>(['error', 'unavailable'])
 
 function intelSummaryLine(intel: RepoIntelligence): string {
   const { map } = intel

@@ -190,7 +190,8 @@ describe('assembleDashboardOverview fail-soft', () => {
     expect(overview.kpis.runs24h).toBe(0)
     expect(overview.kpis.success24h).toBeNull()
     expect(overview.kpis.cost24h).toBeNull()
-    expect(overview.kpis.needsAction).toBe(overview.actionItems.length)
+    expect(overview.kpis.needsAction).toBe(0)
+    expect(overview.actionItems).toEqual([])
   })
 
   it('8b — availableAgents: null (failed load) renders executableNow/Total as null, never 0', () => {
