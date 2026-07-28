@@ -67,6 +67,31 @@ This is the part that matters for honesty.
 other 21 admin routes, which still stand on the old wrappers.** They fall when
 they are rebuilt — one prompt per surface, or one much larger one.
 
+## Merge with `main` — the /admin-v2 slice deleted (26 more files)
+
+While this branch was open, PR #26 was merged into `main`, bringing in the whole
+`/admin-v2` slice. P004 forbids that route, so merging `main` here DELETED it
+rather than keeping two consoles side by side:
+
+| Deleted on merge | Replaced by |
+| --- | --- |
+| `src/app/admin-v2/**` (5 files) | `/admin` + `/admin/runs` |
+| `src/components/aigent-v2/**` (15 files) | `components/{admin-dashboard,admin-shell,runs-console}` |
+| `src/lib/aigent-v2/**` (4 files) | `src/lib/runs-console/**` (same logic, moved) |
+| `tests/unit/aigent-v2/**` | `tests/unit/runs-console/**` |
+| `docs/visual-reviews/AIGENT-FRONTEND-RESET-001/**` | Screenshots of a route that no longer exists. Kept nothing rather than ship evidence of a deleted screen. |
+
+`src/proxy.ts` kept the P004 side of the conflict: with `/admin-v2` gone, the
+protected-prefix list and the matcher are back to `/admin` alone, and the
+measured-hole comment now records the SHAPE of the bug (a sibling admin surface
+one directory name away) instead of pointing at a route that no longer exists.
+
+Scripts and npm entries followed the perimeter rather than being deleted:
+`check:frontend-v2-boundary` → `check:rebuilt-boundary`, `test:frontend-v2` →
+`test:runs-console`, `verify:frontend-v2-e2e` → `verify:admin-e2e`, and the six
+visual gates now scan `components/{admin-dashboard,admin-shell,runs-console}`
+instead of the deleted `aigent-v2`.
+
 ## Verification at the end of this pass
 
 | Command | Result |

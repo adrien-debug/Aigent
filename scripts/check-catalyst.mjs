@@ -34,6 +34,9 @@ const SRC = join(ROOT, 'src')
 
 const DASHBOARD_DIRS = [
   join('app', 'admin'),
+  join('components', 'admin-dashboard'),
+  join('components', 'admin-shell'),
+  join('components', 'runs-console'),
   join('app', 'login'),
   join('components', 'agent-ops'),
   join('components', 'views'),
