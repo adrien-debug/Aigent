@@ -58,11 +58,11 @@ export function SidebarSection({ className, ...props }: React.ComponentPropsWith
   )
 }
 
-export function SidebarDivider({ className, ...props }: React.ComponentPropsWithoutRef<'hr'>) {
+function SidebarDivider({ className, ...props }: React.ComponentPropsWithoutRef<'hr'>) {
   return <hr {...props} className={cn('my-4 border-t border-zinc-950/5 lg:-mx-4 dark:border-white/5', className)} />
 }
 
-export function SidebarSpacer({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
+function SidebarSpacer({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
   return <div aria-hidden="true" {...props} className={cn('mt-8 flex-1', className)} />
 }
 

@@ -1,12 +1,12 @@
-import { after } from 'next/server'
 import { NextResponse } from 'next/server'
 
-import { prepareAutoEval } from '@/lib/agent-mission-control/agent-autoeval'
-import { AGENT_BUILDER_SLUG } from '@/lib/agent-mission-control/agent-builder-copilot'
-import { resumeAgentBuilderRun, draftToCreateInput } from '@/lib/agent-mission-control/agent-builder-run'
-import { createCopilotFromManifest, setCopilotAssistantId } from '@/lib/agent-mission-control/authoring-writes'
-import { ensureCopilotAssistant } from '@/lib/agent-mission-control/langgraph-assistants'
-import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
+import {
+  handleAgentBuilderResume,
+  isAgentBuilderLiveBackendConfigured,
+  liveBackendNotConfiguredResponse,
+  parseAgentBuilderResumeRequest,
+  resolveAgentBuilderCopilot,
+} from '@/lib/agent-mission-control/agent-builder-resume-route'
 
 /**
  * POST /api/agent-ops/architect/resume — the human-in-the-loop decision for a
@@ -28,125 +28,24 @@ import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
  * OPENAI_API_KEY. Never fabricates a resume, never creates on reject.
  */
 
-// The runId is a LangGraph thread_id — always a randomUUID() minted server-side.
-// It flows straight into the Agent Server URL path (`threads/{id}/state`,
-// `threads/{id}/runs/wait`) via the SDK client, so constrain its shape to a UUID
-// BEFORE it leaves for the upstream (same guard as architect/runs/[id]): an
-// unvalidated segment (path traversal, scheme/host injection) must never reach
-// that fetch. Anything else → 400.
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const LOG_LABEL = 'agent-ops/architect/resume'
 
 export async function POST(request: Request) {
-  const base = process.env.AMC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (process.env.AMC_DATA_SOURCE !== 'gpu1' || !base || !key || !process.env.OPENAI_API_KEY) {
-    return NextResponse.json({ error: 'live backend not configured' }, { status: 503 })
+  if (!isAgentBuilderLiveBackendConfigured()) {
+    return liveBackendNotConfiguredResponse()
   }
 
-  let body: { runId?: unknown; approved?: unknown }
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
-  }
-  if (typeof body.runId !== 'string' || body.runId.trim().length === 0) {
-    return NextResponse.json({ error: 'runId is required' }, { status: 400 })
-  }
-  if (!UUID_RE.test(body.runId)) {
-    return NextResponse.json({ error: 'invalid runId' }, { status: 400 })
-  }
-  if (typeof body.approved !== 'boolean') {
-    return NextResponse.json({ error: 'approved must be a boolean' }, { status: 400 })
-  }
-  const { runId, approved } = body
+  const parsed = await parseAgentBuilderResumeRequest(request)
+  if (!parsed.ok) return parsed.response
 
-  // Resolve the Agent Builder copilot (the assistant the run started on).
-  let copilotId: string
-  try {
-    const rows = await pgrest<{ id: string }[]>(
-      'GET',
-      `copilots?select=id&slug=eq.${encodeURIComponent(AGENT_BUILDER_SLUG)}&limit=1`
-    )
-    if (!rows[0]) {
-      // `notProvisioned: true` = the same machine-readable discriminator the
-      // sister run routes emit (architect/run, projects/builder/run) so a client
-      // can tell this 409 apart from the `threadLost: true` 409 below without
-      // parsing the message.
-      return NextResponse.json({ error: 'Agent Builder is not provisioned', notProvisioned: true }, { status: 409 })
-    }
-    copilotId = rows[0].id
-  } catch (err) {
-    console.error('[agent-ops/architect/resume] failed to resolve Agent Builder', err)
-    // pgrest() timeout (PgrestError 504, postgrest.ts) → 504 gateway timeout;
-    // any other upstream failure stays a generic 502. Same body either way.
-    return NextResponse.json({ error: 'failed to resolve Agent Builder' }, { status: isPgrestTimeout(err) ? 504 : 502 })
-  }
+  const resolved = await resolveAgentBuilderCopilot(LOG_LABEL)
+  if (!resolved.ok) return resolved.response
 
-  let state
-  try {
-    state = await resumeAgentBuilderRun({ copilotId, runId, approved })
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'resume failed'
-    // The dev Agent Server keeps thread state in memory; a restart drops it and
-    // resuming a lost thread 404s. Surface that as an actionable 409.
-    if (/\b404\b|not found/i.test(message)) {
-      return NextResponse.json(
-        { error: 'the approval thread was lost (Agent Server restarted) — relaunch the run', threadLost: true },
-        { status: 409 }
-      )
-    }
-    console.error('[agent-ops/architect/resume] resume failed', err)
-    return NextResponse.json({ error: 'Agent Builder resume failed' }, { status: isPgrestTimeout(err) ? 504 : 502 })
-  }
-
-  // On reject (or no draft produced), return the run state as-is — nothing created.
-  if (!approved || !state.manifestDraft) {
-    return NextResponse.json(state)
-  }
-
-  // APPROVED + a draft exists → persist it as a real draft copilot on the bench.
-  // This is the approved side-effect: a materialized draft the operator can then
-  // inspect, test and (separately, later, with its own approval) promote.
-  let createdCopilotId: string
-  try {
-    const createInput = draftToCreateInput(state.manifestDraft, state.selectedTools)
-    createdCopilotId = await createCopilotFromManifest(createInput)
-  } catch (err) {
-    // The draft was approved but persistence failed — report it honestly rather
-    // than claiming a copilot was created. The run itself succeeded.
-    console.error('[agent-ops/architect/resume] draft persistence failed', err)
-    return NextResponse.json(
-      { ...state, createdCopilotId: null, persistError: 'the draft was approved but could not be saved — retry' },
-      { status: isPgrestTimeout(err) ? 504 : 502 }
-    )
-  }
-
-  // Provision the draft's DEDICATED LangGraph assistant (config.configurable
-  // derived from the manifest + tools just written) and persist its id — the
-  // SAME step the standalone copilot path runs (copilots/route.ts, fix b540512)
-  // and the project builder path (fix for the null assistant_id). Without it the
-  // bench draft has a null assistant_id and its runs fall back to the shared
-  // graph instead of its own behaviour config.
-  //
-  // On a provisioning failure the draft is KEPT (it is a full agent that merely
-  // lacks its live assistant; ensureCopilotAssistant is idempotent on the
-  // deterministic id, so reprovision recovers it) with an honest warning —
-  // rather than discarding the operator's approved work.
-  try {
-    const assistantId = await ensureCopilotAssistant({ copilotId: createdCopilotId })
-    await setCopilotAssistantId(createdCopilotId, assistantId)
-    // Auto-evaluate: generate suites now, run them after the response (see the
-    // project builder resume for the rationale). Zero clicks to a first score.
-    const runEval = await prepareAutoEval(createdCopilotId)
-    after(runEval)
-    return NextResponse.json({ ...state, createdCopilotId, assistantId })
-  } catch (err) {
-    console.error('[agent-ops/architect/resume] assistant provisioning failed', err)
-    return NextResponse.json({
-      ...state,
-      createdCopilotId,
-      assistantId: null,
-      assistantError: 'the draft was created but its LangGraph assistant could not be provisioned — reprovision it from the agent page',
-    })
-  }
+  return handleAgentBuilderResume({
+    logLabel: LOG_LABEL,
+    copilotId: resolved.copilotId,
+    runId: parsed.runId,
+    approved: parsed.approved,
+    projectId: null,
+  })
 }

@@ -14,7 +14,7 @@ export function Fieldset({
   )
 }
 
-export function Legend({
+function Legend({
   className,
   ...props
 }: { className?: string } & Omit<Headless.LegendProps, 'as' | 'className'>) {
@@ -31,7 +31,7 @@ export function Legend({
   )
 }
 
-export function FieldGroup({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
+function FieldGroup({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
   return <div data-slot="control" {...props} className={cn('space-y-8', className)} />
 }
 

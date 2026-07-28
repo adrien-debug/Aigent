@@ -64,7 +64,7 @@ export function Text({ className, size = 'body', tone = 'muted', ...props }: Tex
   )
 }
 
-export function TextLink({ className, ...props }: React.ComponentPropsWithoutRef<typeof Link>) {
+function TextLink({ className, ...props }: React.ComponentPropsWithoutRef<typeof Link>) {
   return (
     <Link
       {...props}
@@ -80,7 +80,7 @@ export function Strong({ className, ...props }: React.ComponentPropsWithoutRef<'
   return <strong {...props} className={cn('font-medium text-zinc-950 dark:text-white', className)} />
 }
 
-export function Code({ className, ...props }: React.ComponentPropsWithoutRef<'code'>) {
+function Code({ className, ...props }: React.ComponentPropsWithoutRef<'code'>) {
   return (
     <code
       {...props}

@@ -19,11 +19,8 @@ export { PageHeader as AdminPageHeader, eyebrowClass } from '@/components/shell/
 /** @deprecated moved to `@/components/ui/section` — import directly in new code. */
 export {
   Section as AgentSectionCard,
-  Section,
   SectionHeader as SurfaceCardHeader,
-  SectionHeader,
   surfaceSectionClass,
-  surfaceSectionHeaderClass,
 } from '@/components/ui/section'
 
 /** @deprecated moved to `@/components/agent-ops/_legacy/surface-legacy` — the formal legacy bridge. */

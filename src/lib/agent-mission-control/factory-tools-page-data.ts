@@ -23,7 +23,7 @@ export async function getFactoryToolsPageData(): Promise<FactoryToolsPageData> {
   return { certifiedTools, activeMissions }
 }
 
-export function getCertifiedFactoryTools(): FactoryToolRow[] {
+function getCertifiedFactoryTools(): FactoryToolRow[] {
   return TOOL_IDS.map((id) => {
     const tool = getTool(id)!
     return {

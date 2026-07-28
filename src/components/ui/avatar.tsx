@@ -50,7 +50,7 @@ export function Avatar({
   )
 }
 
-export const AvatarButton = forwardRef(function AvatarButton(
+const AvatarButton = forwardRef(function AvatarButton(
   {
     src,
     square = false,

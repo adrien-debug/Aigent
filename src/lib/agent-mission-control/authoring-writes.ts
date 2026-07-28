@@ -137,7 +137,7 @@ const READ_ONLY_NAME_PREFIX =
  * `mutates: true` on a read-named tool (or `false` on a write-named one) is
  * always honoured — see createCopilotFromManifest's `proposed.mutates ??`.
  */
-export function defaultMutatesForTool(
+function defaultMutatesForTool(
   tool: Pick<ProposedTool, 'name' | 'description'>
 ): boolean {
   if (KNOWN_READ_ONLY_TOOL_NAMES.has(tool.name)) return false

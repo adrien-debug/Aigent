@@ -30,7 +30,7 @@ export const surfaceSectionClass = `flex flex-col overflow-hidden ${surfaceRaise
  */
 const surfaceSectionHeaderStructureClass = 'flex shrink-0 flex-wrap items-center justify-between gap-3'
 
-export const SURFACE_HEADER_DENSITY = {
+const SURFACE_HEADER_DENSITY = {
   /** Section default — matches the `px-6` gutter of full-page section cards. */
   comfortable: 'px-6 pt-4 pb-2',
   /** Cockpit cards — 16px, aligned with the 16px content gutter of their rows/cells. */

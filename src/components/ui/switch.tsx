@@ -2,7 +2,7 @@ import * as Headless from '@headlessui/react'
 import type React from 'react'
 import { cn } from './cn'
 
-export function SwitchGroup({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
+function SwitchGroup({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
   return (
     <div
       data-slot="control"
@@ -18,7 +18,7 @@ export function SwitchGroup({ className, ...props }: React.ComponentPropsWithout
   )
 }
 
-export function SwitchField({
+function SwitchField({
   className,
   ...props
 }: { className?: string } & Omit<Headless.FieldProps, 'as' | 'className'>) {
