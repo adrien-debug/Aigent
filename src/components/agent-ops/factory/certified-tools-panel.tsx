@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge'
-import { Text } from '@/components/ui/text'
+import { Strong, Text } from '@/components/ui/text'
 import { surfaceItemClass } from '@/components/agent-ops/surface-card'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 
@@ -46,21 +46,21 @@ export function CertifiedToolsPanel({ tools }: { tools: FactoryToolRow[] }) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="truncate text-sm font-medium text-white">{tool.label}</span>
+                  <Strong className="truncate text-sm">{tool.label}</Strong>
                   <Badge color={CERT_BADGE[tool.certification]}>{tool.certification}</Badge>
                 </div>
-                <Text className="mt-0.5 font-mono text-xs text-zinc-500">
+                <Text size="xs" className="mt-0.5 font-mono">
                   {tool.id} · v{tool.version}
                 </Text>
               </div>
-              <div className="flex shrink-0 items-center gap-4 text-xs text-zinc-400">
+              <div className="flex shrink-0 items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400">
                 <span>{tool.kind}</span>
                 <span>risk: {tool.risk}</span>
                 <span>{tool.mutates ? 'mutates' : 'read-only'}</span>
               </div>
             </div>
-            <Text className="text-zinc-400">{tool.summary}</Text>
-            <Text className="font-mono text-[11px] text-zinc-500">provenance: {tool.provenance}</Text>
+            <Text>{tool.summary}</Text>
+            <Text size="2xs" className="font-mono">provenance: {tool.provenance}</Text>
           </li>
         ))}
       </ul>

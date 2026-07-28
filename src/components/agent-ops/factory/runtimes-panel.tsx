@@ -1,4 +1,4 @@
-import { Text } from '@/components/ui/text'
+import { Strong, Text } from '@/components/ui/text'
 import { surfaceItemClass } from '@/components/agent-ops/surface-card'
 
 export interface FactoryRuntimeRow {
@@ -37,18 +37,18 @@ export function RuntimesPanel({ runtimes }: { runtimes: FactoryRuntimeRow[] }) {
             <li key={runtime.id} className={`flex flex-col gap-2 p-4 ${surfaceItemClass}`}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <span className="text-sm font-medium text-white">{runtime.label}</span>
-                  <Text className="mt-0.5 font-mono text-xs text-zinc-500">
+                  <Strong className="text-sm">{runtime.label}</Strong>
+                  <Text size="xs" className="mt-0.5 font-mono">
                     {runtime.id} · engine: {runtime.engine}
                   </Text>
                 </div>
-                <span className="shrink-0 text-xs text-zinc-400">
+                <span className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">
                   {runtime.executable ? 'executable' : 'not executable'}
                   {runtime.creatable ? ' · creatable' : ' · not creatable'}
                 </span>
               </div>
-              <Text className="text-zinc-400">{runtime.note}</Text>
-              <Text className="text-xs text-zinc-500">
+              <Text>{runtime.note}</Text>
+              <Text size="xs">
                 {activeCaps.length > 0
                   ? `capabilities: ${activeCaps.map((c) => CAPABILITY_LABELS[c]).join(', ')}`
                   : 'no capabilities'}

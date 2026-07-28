@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/shell/page-header'
 import { PageLayout } from '@/components/shell/page-layout'
 import { Badge } from '@/components/ui/badge'
 import { Section } from '@/components/ui/section'
-import { Text } from '@/components/ui/text'
+import { Strong, Text } from '@/components/ui/text'
 import type { getTool } from '@/lib/agent-mission-control/registry'
 import type { TOOL_BUILD_STATE_STEPS } from '@/lib/agent-mission-control/tool-builder/mission'
 
@@ -86,7 +86,7 @@ export function ToolNewView({
           {countWords ? (
             <>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-sm tabular-nums text-white">{countWords.id}</span>
+                <Strong className="font-mono text-sm tabular-nums">{countWords.id}</Strong>
                 {/* zinc-400: this span measured 3.59:1 at 12px on the raised plane. */}
                 <span className="font-mono text-xs tabular-nums text-zinc-400">v{countWords.version}</span>
                 <Badge color={countWords.certification === 'certified' ? 'accent' : 'zinc'}>
