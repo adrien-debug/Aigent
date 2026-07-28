@@ -292,7 +292,7 @@ function ProjectTeamEdgeComponent({
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
           >
             {data.label ?? RELATION_LABEL[data.relation]}
-            {derived ? <span className="ml-1 text-zinc-500">(derived)</span> : null}
+            {derived ? <span className="ml-1 text-zinc-400">(derived)</span> : null}
           </div>
         </EdgeLabelRenderer>
       )}

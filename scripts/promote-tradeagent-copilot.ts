@@ -47,12 +47,20 @@ async function main() {
     suites = {
       testSuiteId: testSuite.id as string,
       benchmarkSuiteId: benchSuite.id as string,
-      suiteSource: 'existing',
-      repoFit: { score: 0, level: 'unknown', reasons: [] },
+      suiteSource: 'manifest_only',
+      repoFit: {
+        score: 0,
+        level: 'none',
+        suiteSource: 'manifest_only',
+        checks: [],
+        missingCoverage: [],
+        hallucinationWarnings: [],
+      },
     }
   } else {
     console.log(`suites created: test=${suites.testSuiteId} bench=${suites.benchmarkSuiteId}`)
   }
+  if (!suites) throw new Error('suites unavailable')
 
   const testRun = await runTestSuite({
     copilotId: COPILOT,

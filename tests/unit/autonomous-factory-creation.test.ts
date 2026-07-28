@@ -20,11 +20,19 @@ const h = vi.hoisted(() => {
     if (config.failOn && config.failOn.method === method && config.failOn.table === table) throw new Error(`fail ${method} ${table}`)
     return []
   }
-  return { calls, config, pgrest }
+  async function pgrestUpsert(table: string, _body?: unknown): Promise<unknown> {
+    calls.push({ method: 'UPSERT', table })
+    if (config.failOn && config.failOn.method === 'UPSERT' && config.failOn.table === table) {
+      throw new Error(`fail UPSERT ${table}`)
+    }
+    return []
+  }
+  return { calls, config, pgrest, pgrestUpsert }
 })
 
 vi.mock('@/lib/agent-mission-control/postgrest', () => ({
   pgrest: (m: string, p: string, b?: unknown) => h.pgrest(m, p, b),
+  pgrestUpsert: (t: string, b?: unknown) => h.pgrestUpsert(t, b),
   requireBackend: () => ({ base: 'https://x/rest', key: 'k' }),
 }))
 vi.mock('@/lib/agent-mission-control/langgraph-assistants', () => ({
@@ -79,6 +87,7 @@ describe('createCopilotFromManifest — full creation (#1)', () => {
     expect(seq).toEqual([
       'POST copilots',
       'POST manifests',
+      'UPSERT tool_definitions',
       'POST tools',
       'PATCH manifests',
       'POST copilot_versions',

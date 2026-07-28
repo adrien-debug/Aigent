@@ -65,7 +65,7 @@ const statusTextClass = 'text-xs font-medium uppercase tracking-widest'
 const STATUS_TONE = {
   danger: 'text-[var(--state-danger-text)]',
   resolved: 'text-zinc-300',
-  muted: 'text-zinc-500',
+  muted: 'text-zinc-400',
 } as const
 
 function RunStatusTone({ status }: { status: AgentRunStatus }) {
@@ -85,7 +85,7 @@ function CopilotStatusTone({ status }: { status: DisplayStatus }) {
 
 function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
   return (
-    <Section title="Validated Agents" contentClassName="" actions={<span className="text-xs text-zinc-500">{copilots.length} total</span>}>
+    <Section title="Validated Agents" contentClassName="" actions={<span className="text-xs text-zinc-400">{copilots.length} total</span>}>
       {/* No `dense` here, and no `py-4` on the cells either: py-4 IS the
           primitive's default, so repeating it on all six cells only suggested
           the padding was decided locally. Removed rather than kept — the
@@ -115,7 +115,7 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
                   <CopilotAvatar copilot={copilot} className="size-8 rounded-xl" />
                   <div className="flex flex-col">
                     <span className="text-sm font-medium text-white">{copilot.name}</span>
-                    <span className="text-[10px] font-mono text-zinc-500 mt-0.5">{copilot.slug}</span>
+                    <span className="text-[10px] font-mono text-zinc-400 mt-0.5">{copilot.slug}</span>
                   </div>
                 </div>
               </TableCell>
@@ -125,7 +125,7 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
               <TableCell className="hidden md:table-cell">
                 <div className="flex flex-col">
                   <span className="text-xs text-zinc-300">{copilot.model}</span>
-                  <span className="text-[10px] text-zinc-500 mt-0.5">{AGENT_RUNTIME_LABELS[copilot.runtime]}</span>
+                  <span className="text-[10px] text-zinc-400 mt-0.5">{AGENT_RUNTIME_LABELS[copilot.runtime]}</span>
                 </div>
               </TableCell>
               <TableCell className="text-right">
@@ -160,7 +160,7 @@ function ValidatedAgentsTable({ copilots }: { copilots: Copilot[] }) {
 
 function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copilotNameById: Map<string, string> }) {
   return (
-    <Section title="Recent Traces" contentClassName="" actions={<span className="text-xs text-zinc-500">{runs.length} runs</span>}>
+    <Section title="Recent Traces" contentClassName="" actions={<span className="text-xs text-zinc-400">{runs.length} runs</span>}>
       {/* `dense`, not `className="py-3"` on every cell: TableCell composes
           `clsx(className, …, dense ? 'py-3' : 'py-4')`, so the caller's py-3 and
           the primitive's py-4 have equal specificity and Tailwind's stylesheet
@@ -186,7 +186,7 @@ function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copil
                   <span className="truncate text-sm font-medium text-white">
                     {copilotNameById.get(run.copilotId) ?? run.copilotId}
                   </span>
-                  <span className="text-[10px] font-mono text-zinc-500 mt-0.5 truncate">{run.id}</span>
+                  <span className="text-[10px] font-mono text-zinc-400 mt-0.5 truncate">{run.id}</span>
                 </div>
               </TableCell>
               <TableCell>
@@ -204,7 +204,7 @@ function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copil
                 <span className="text-xs font-mono text-zinc-400">{formatUsd(run.costUsd)}</span>
               </TableCell>
               <TableCell className="hidden text-right md:table-cell">
-                <span className="text-xs font-mono text-zinc-500">{formatTimestamp(run.startedAt).replace(' UTC', '')}</span>
+                <span className="text-xs font-mono text-zinc-400">{formatTimestamp(run.startedAt).replace(' UTC', '')}</span>
               </TableCell>
               <TableCell className="text-center">
                 {run.traceUrl ? (
@@ -214,7 +214,7 @@ function ProjectTracesTable({ runs, copilotNameById }: { runs: AgentRun[], copil
                     rel="noreferrer"
                     aria-label={`Open trace for run ${run.id} in LangSmith`}
                     title="Open trace in LangSmith"
-                    className="inline-flex items-center justify-center size-11 -my-3.5 rounded-md text-zinc-500 outline-offset-2 transition-colors hover:text-accent-400 hover:bg-[var(--accent-soft)] focus-visible:outline-2 focus-visible:outline-accent-500"
+                    className="inline-flex items-center justify-center size-11 -my-3.5 rounded-md text-zinc-400 outline-offset-2 transition-colors hover:text-accent-400 hover:bg-[var(--accent-soft)] focus-visible:outline-2 focus-visible:outline-accent-500"
                   >
                     <ArrowTopRightOnSquareIcon className="size-4" />
                   </a>

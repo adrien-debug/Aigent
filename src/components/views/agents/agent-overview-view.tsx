@@ -66,7 +66,7 @@ function LatestResult({ detail }: { detail: AgentDetail }) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <RunStatusText status={run.status} />
-        <span className="text-xs text-zinc-500">
+        <span className="text-xs text-zinc-400">
           <TimeAgoValue value={run.startedAt} />
         </span>
         <span className="font-mono text-xs text-zinc-400">
@@ -200,7 +200,7 @@ export function AgentOverviewView({ detail }: { detail: AgentDetail }) {
                     className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-white/5 py-2.5 last:border-0"
                   >
                     <RunStatusText status={run.status} />
-                    <span className="truncate text-xs text-zinc-500">
+                    <span className="truncate text-xs text-zinc-400">
                       <TimeAgoValue value={run.startedAt} /> · {run.toolCallCount} tool calls
                     </span>
                     <span className="font-mono text-xs tabular-nums text-zinc-400">

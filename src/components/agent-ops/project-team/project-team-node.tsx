@@ -95,7 +95,7 @@ const STATUS_PRESENTATION: Record<ProjectTeamNodeStatus, StatusPresentation> = {
     icon: PauseCircleIcon,
     border: 'border-solid border border-zinc-700',
     opacity: 'opacity-90',
-    tone: 'text-zinc-500',
+    tone: 'text-zinc-400',
     live: false,
   },
   // Not materialized yet — dotted reads as "not built".
@@ -104,7 +104,7 @@ const STATUS_PRESENTATION: Record<ProjectTeamNodeStatus, StatusPresentation> = {
     icon: PencilSquareIcon,
     border: 'border-dotted border-2 border-zinc-600',
     opacity: 'opacity-90',
-    tone: 'text-zinc-500',
+    tone: 'text-zinc-400',
     live: false,
   },
   // Data could not be read. Deliberately the faintest state, and its metrics
@@ -250,7 +250,7 @@ const selectedClass = 'ring-2 ring-[var(--accent-node-selected)] ring-offset-2 r
 function ProjectBody({ node, memberCount }: { node: ProjectTeamNode; memberCount: number | null }) {
   return (
     <div className="flex h-full flex-col justify-center gap-1 px-4 py-3">
-      <span className="text-[10px] font-medium tracking-widest text-zinc-500 uppercase">Project</span>
+      <span className="text-[10px] font-medium tracking-widest text-zinc-400 uppercase">Project</span>
       <span className="truncate text-base font-semibold text-white">{node.name}</span>
       <span className="truncate text-xs text-zinc-400">
         {memberCount === null ? 'Team' : `${memberCount} ${memberCount === 1 ? 'agent' : 'agents'}`}
@@ -262,10 +262,10 @@ function ProjectBody({ node, memberCount }: { node: ProjectTeamNode; memberCount
 function GroupBody({ node, memberCount }: { node: ProjectTeamNode; memberCount: number | null }) {
   return (
     <div className="flex h-full items-center gap-3 px-4 py-3">
-      <RectangleGroupIcon aria-hidden="true" className="size-5 shrink-0 text-zinc-500" />
+      <RectangleGroupIcon aria-hidden="true" className="size-5 shrink-0 text-zinc-400" />
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium text-white">{node.name}</div>
-        <div className="truncate text-xs text-zinc-500">
+        <div className="truncate text-xs text-zinc-400">
           {memberCount === null ? 'Team' : `${memberCount} ${memberCount === 1 ? 'agent' : 'agents'}`}
         </div>
       </div>
@@ -308,7 +308,7 @@ function AgentBody({ node }: { node: ProjectTeamNode }) {
         </span>
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium text-white">{node.name}</div>
-          <div className="truncate text-xs text-zinc-500">{node.role ?? (secondary || '—')}</div>
+          <div className="truncate text-xs text-zinc-400">{node.role ?? (secondary || '—')}</div>
         </div>
         {/* Activity indicator: shape + motion, and the text label below carries
             the same fact statically for reduced-motion / colour-blind readers. */}
@@ -324,7 +324,7 @@ function AgentBody({ node }: { node: ProjectTeamNode }) {
       </div>
       <div className="flex items-center justify-between gap-2">
         <StatusMark status={node.status} liveKey={liveKeyOf(node)} />
-        <span className="truncate text-[10px] text-zinc-500">{runsLabel}</span>
+        <span className="truncate text-[10px] text-zinc-400">{runsLabel}</span>
       </div>
     </div>
   )

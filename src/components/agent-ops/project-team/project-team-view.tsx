@@ -571,7 +571,7 @@ function ProjectTeamViewInner({
             viewport as possible, so the band stays compact and flush. */}
         <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
           <AgentKpiBand stats={stats} density="compact" separators flush className="flex-1" />
-          <span className="text-xs text-zinc-500">
+          <span className="text-xs text-zinc-400">
             {freshnessAge ? `Refreshed ${freshnessAge}` : 'Freshness unavailable'}
             {stale ? ' · last refresh failed, showing the previous graph' : null}
           </span>
@@ -593,7 +593,7 @@ function ProjectTeamViewInner({
           />
 
           {onlyMembership ? (
-            <p className="border-b border-white/5 px-4 py-2 text-xs text-zinc-500">
+            <p className="border-b border-white/5 px-4 py-2 text-xs text-zinc-400">
               No orchestration or dependency relation is recorded for this team yet — the links below are
               project and team membership only.
             </p>

@@ -229,7 +229,7 @@ export function ProjectTeamToolbar({
             region, so the two are split. `aria-hidden` here is not hiding
             information: the sr-only region below states the same sentence,
             once the count stops moving. */}
-        <span aria-hidden="true" className="text-xs text-zinc-500">
+        <span aria-hidden="true" className="text-xs text-zinc-400">
           {visibleCount} of {totalCount} agents shown
         </span>
         <span aria-live="polite" className="sr-only">

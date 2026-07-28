@@ -36,13 +36,21 @@ async function main() {
     suites = {
       testSuiteId: testSuite.id as string,
       benchmarkSuiteId: benchSuite.id as string,
-      suiteSource: 'fallback',
-      repoFit: { score: 0, level: 'unknown', reasons: [] },
+      suiteSource: 'manifest_only',
+      repoFit: {
+        score: 0,
+        level: 'none',
+        suiteSource: 'manifest_only',
+        checks: [],
+        missingCoverage: [],
+        hallucinationWarnings: [],
+      },
     }
     console.log('suites already exist')
   } else {
     console.log(`suites created: test=${suites.testSuiteId} bench=${suites.benchmarkSuiteId}`)
   }
+  if (!suites) throw new Error('suites unavailable')
 
   // 2) Test run (live evidence for release gate)
   console.log('running test suite…')
@@ -52,7 +60,7 @@ async function main() {
     versionId: VERSION,
     triggeredBy: 'promote-market-intelligence-script',
   })
-  console.log(`test run: ${testRun.status} passRate=${testRun.passRate} (${testRun.passedCases}/${testRun.totalCases})`)
+  console.log(`test run: ${testRun.status} passRate=${testRun.passRate} cases=${testRun.resultIds.length}`)
 
   // 3) Benchmark (live evidence)
   console.log('running benchmark…')
@@ -61,7 +69,7 @@ async function main() {
     suiteId: suites.benchmarkSuiteId,
     versionId: VERSION,
   })
-  console.log(`benchmark: ${benchRun.status} score=${benchRun.result?.score ?? 'n/a'}`)
+  console.log(`benchmark: ${benchRun.status} resultId=${benchRun.resultId ?? 'n/a'}`)
 
   // 4) Release gate preview
   const release = await evaluateReleaseGate(COPILOT, VERSION)

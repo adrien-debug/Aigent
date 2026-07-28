@@ -81,7 +81,7 @@ export function ProjectTeamAccessibleList({
                   <span className="text-sm font-medium text-white">{agent.name}</span>
                   <span className="text-sm font-medium text-zinc-400">{humanizeStatus(agent.status)}</span>
                 </span>
-                <span className="text-xs text-zinc-500">
+                <span className="text-xs text-zinc-400">
                   {agent.role ?? 'Role not documented'}
                   {' · '}
                   {/* Screen readers get the SAME distinction the panel makes:

@@ -44,14 +44,14 @@ const plainFormat = new Intl.NumberFormat('en-US')
  * `text-zinc-950 dark:text-white`.
  *
  * The `!important` this string used to carry on all three (`text-xs!`,
- * `font-medium!`, `text-zinc-500!`) is gone: `Subheading` now composes with
+ * `font-medium!`, `text-zinc-400!`) is gone: `Subheading` now composes with
  * `cn()` (caller LAST), so `tailwind-merge` deletes the primitive's own
  * `text-sm/6` and `font-semibold` before the browser ever sees them. Measured
  * on /admin/projects/:id/team with the panel open, both before and after the
  * removal: 12px / 16px / weight 500 — identical.
  *
- * `dark:text-zinc-500` is NOT redundant and must stay. `tailwind-merge` will
- * not let a bare `text-zinc-500` displace a `dark:text-white` — different
+ * `dark:text-zinc-400` is NOT redundant and must stay. `tailwind-merge` will
+ * not let a bare `text-zinc-400` displace a `dark:text-white` — different
  * variant set, different conflict — and this app forces `.dark` on <html>, so
  * without the dark half the primitive repaints every caption white. That is
  * the second trap `cn.ts` documents, and the reason the colour is stated twice
@@ -62,7 +62,7 @@ const plainFormat = new Intl.NumberFormat('en-US')
  * one string once one of them has to out-specify the primitive.
  */
 const panelSectionTitleClass =
-  'text-xs font-medium tracking-wide text-zinc-500 dark:text-zinc-500 uppercase'
+  'text-xs font-medium tracking-wide text-zinc-400 dark:text-zinc-400 uppercase'
 
 export interface TeamMetric {
   key: string
@@ -461,10 +461,10 @@ function RelationRow({
 
   return (
     <li className="flex items-start gap-3 py-2">
-      <Icon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-zinc-500" />
+      <Icon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-zinc-400" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm text-zinc-200">{counterpartName}</p>
-        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-400">
           <span>{relationLabel}</span>
           {/* Provenance is load-bearing, not decoration: a relation the platform
               INFERRED must never read like something an operator configured. */}
@@ -478,7 +478,7 @@ function RelationRow({
       {relationId !== null && onDelete ? (
         <Headless.Button
           onClick={() => onDelete(relationId, description)}
-          className="-my-2 flex size-11 shrink-0 items-center justify-center rounded-md text-zinc-500 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-500"
+          className="-my-2 flex size-11 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-500"
         >
           <XMarkIcon aria-hidden="true" className="size-3.5" />
           <span className="sr-only">Delete relation: {description}</span>
@@ -622,7 +622,7 @@ export function ProjectTeamPanel({
           <Subheading level={2} tone="neutral" className="truncate tracking-tight text-white">
             {agent.name}
           </Subheading>
-          <p className="mt-0.5 truncate font-mono text-xs text-zinc-500">{agent.slug ?? agent.id}</p>
+          <p className="mt-0.5 truncate font-mono text-xs text-zinc-400">{agent.slug ?? agent.id}</p>
         </div>
         <Headless.Button
           onClick={onClose}
@@ -645,7 +645,7 @@ export function ProjectTeamPanel({
         </div>
 
         {/* A `<p>`, not `Text`. `Text` composes `clsx(className, 'text-base/6
-            text-zinc-500 sm:text-sm/6 dark:text-zinc-400')`, so the caller's
+            text-zinc-400 sm:text-sm/6 dark:text-zinc-400')`, so the caller's
             `text-sm text-zinc-400` was a silent no-op — Tailwind settles two
             utilities of one property by the order of the GENERATED CSS, never by
             the class attribute (`check-class-collision` flagged both). The
@@ -682,7 +682,7 @@ export function ProjectTeamPanel({
           <dl className="mt-3 grid grid-cols-3 gap-4">
             {agent.metrics.map((metric) => (
               <div key={metric.key} className="flex flex-col gap-1">
-                <dt className="text-xs text-zinc-500">{metric.label}</dt>
+                <dt className="text-xs text-zinc-400">{metric.label}</dt>
                 <dd className="font-mono text-sm tabular-nums text-white">
                   {metric.value ?? <span className="text-zinc-600">n/a</span>}
                 </dd>
@@ -731,7 +731,7 @@ export function ProjectTeamPanel({
         </div>
 
         {derivedOnly ? (
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-zinc-400">
             Every relation below was <strong className="font-medium text-zinc-400">derived</strong> from
             observable evidence (shared tools, mission participation, project membership). None of them
             is a relation someone configured.
@@ -795,7 +795,7 @@ export function ProjectTeamPanel({
             </Subheading>
             <p className="mt-2 text-sm text-zinc-300">
               {humanizeStatus(agent.latestRunStatus ?? 'unavailable')}
-              <span className="ml-2 font-mono text-xs text-zinc-500">{agent.latestRunId}</span>
+              <span className="ml-2 font-mono text-xs text-zinc-400">{agent.latestRunId}</span>
             </p>
           </div>
         ) : null}
@@ -813,7 +813,7 @@ export function ProjectTeamPanel({
                 className="flex min-h-11 items-center justify-between rounded-lg border border-white/5 px-3 py-2 text-sm text-zinc-300 transition-colors hover:border-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 sm:min-h-0"
               >
                 {label}
-                <ArrowTopRightOnSquareIcon aria-hidden="true" className="size-4 text-zinc-500" />
+                <ArrowTopRightOnSquareIcon aria-hidden="true" className="size-4 text-zinc-400" />
               </Link>
             ))}
           </div>
