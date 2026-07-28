@@ -1,6 +1,5 @@
 /**
- * AIGENT-FRONTEND-RESET-001 — /admin-v2/** must be behind the SAME session gate
- * as /admin/**.
+ * P004 — every admin PAGE surface must sit behind the session gate.
  *
  * MEASURED REGRESSION THIS PINS (29/07/2026): the identity gate matched
  * `path === '/admin' || path.startsWith('/admin/')`, and `config.matcher` only
@@ -75,24 +74,25 @@ function matcherCovers(path: string): boolean {
   })
 }
 
-const V2_PATHS = ['/admin-v2', '/admin-v2/runs', '/admin-v2/runs?status=failed'.split('?')[0]!]
+const ADMIN_PATHS = ['/admin', '/admin/runs', '/admin/agents']
 
-describe('/admin-v2 identity gate — matcher', () => {
-  it.each(V2_PATHS)('runs the proxy on %s', (path) => {
+describe('admin identity gate — matcher', () => {
+  it.each(ADMIN_PATHS)('runs the proxy on %s', (path) => {
     // Guard #1: if the matcher misses, the function body below never executes
     // and the route is public no matter how correct that body is.
     expect(matcherCovers(path)).toBe(true)
   })
 
-  it('still covers the legacy admin surface and the agent-ops API', () => {
+  it('covers the bare /admin segment and the agent-ops API', () => {
+    // `/admin` is listed on its own because `:path*` does not match the bare
+    // segment — the exact omission that made a sibling surface public.
     expect(matcherCovers('/admin')).toBe(true)
-    expect(matcherCovers('/admin/agents')).toBe(true)
     expect(matcherCovers('/api/agent-ops/copilots')).toBe(true)
   })
 })
 
-describe('/admin-v2 identity gate — decision', () => {
-  it.each(V2_PATHS)('redirects %s to /login when there is no session', (path) => {
+describe('admin identity gate — decision', () => {
+  it.each(ADMIN_PATHS)('redirects %s to /login when there is no session', (path) => {
     const response = proxy(request(path))
 
     expect(response.status).toBe(307)
@@ -102,11 +102,11 @@ describe('/admin-v2 identity gate — decision', () => {
     expect(location.searchParams.get('next')).toBe(path)
   })
 
-  it('treats /admin-v2 exactly like /admin — no weaker gate for the new console', () => {
-    const legacy = proxy(request('/admin/agents'))
-    const v2 = proxy(request('/admin-v2/runs'))
+  it('treats the new run console exactly like any other admin page', () => {
+    const existing = proxy(request('/admin/agents'))
+    const rebuilt = proxy(request('/admin/runs'))
 
-    expect(v2.status).toBe(legacy.status)
+    expect(rebuilt.status).toBe(existing.status)
   })
 
   it('does not gate an unrelated route that merely starts with the same letters', () => {
@@ -127,18 +127,18 @@ describe('/admin-v2 identity gate — decision', () => {
  * it is an outage — so the documented dev escape hatch is probed too. Without
  * this, a change that hard-blocks /admin-v2 would leave the suite green.
  */
-describe('/admin-v2 identity gate — dev escape hatch', () => {
+describe('admin identity gate — dev escape hatch', () => {
   it('lets the local dev bypass through, and only when it is explicitly on', async () => {
     vi.stubEnv('AMC_DEV_BYPASS_AUTH', '1')
     vi.resetModules()
     const withBypass = await import('@/proxy')
 
-    expect(withBypass.proxy(request('/admin-v2/runs')).status).not.toBe(307)
+    expect(withBypass.proxy(request('/admin/runs')).status).not.toBe(307)
 
     vi.stubEnv('AMC_DEV_BYPASS_AUTH', '0')
     vi.resetModules()
     const withoutBypass = await import('@/proxy')
 
-    expect(withoutBypass.proxy(request('/admin-v2/runs')).status).toBe(307)
+    expect(withoutBypass.proxy(request('/admin/runs')).status).toBe(307)
   })
 })

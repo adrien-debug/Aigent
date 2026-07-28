@@ -33,8 +33,13 @@ export type DashboardKpis = {
   executableTotal: number | null
   /** Count of operational runs with started_at in the shared 24h window. */
   runs24h: number
-  /** Completed / (completed + failed) over TERMINAL runs in the window.
-   * Null when there are zero terminal runs — NOT_APPLICABLE, never 0. */
+  /**
+   * Completed / (completed + failed) over TERMINAL runs in the window,
+   * expressed as a WHOLE PERCENTAGE (0..100), already rounded — NOT a 0..1
+   * ratio. The distinction is not cosmetic: a consumer that assumed a ratio
+   * and multiplied by 100 rendered "10000%" on the dashboard (caught in P004).
+   * Null when there are zero terminal runs — NOT_APPLICABLE, never 0.
+   */
   success24h: number | null
   /** Sum of costUsd over the window's runs. Null when the window has zero
    * runs (nothing to sum) — never coalesced to 0. */

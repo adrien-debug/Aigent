@@ -51,28 +51,6 @@ function table() {
   return screen.getByRole('table')
 }
 
-describe('RunsView — shell', () => {
-  it('renders the six navigation entries, all pointing at existing routes', () => {
-    renderView(pageData([makeRun()]))
-
-    const nav = screen.getAllByRole('navigation', { name: 'Aigent V2' })[0]!
-    for (const label of ['Dashboard', 'Runs', 'Agents', 'Projects', 'Factory', 'Settings']) {
-      expect(within(nav).getByRole('link', { name: new RegExp(label) })).toBeInTheDocument()
-    }
-    expect(within(nav).getByRole('link', { name: /Runs/ })).toHaveAttribute(
-      'href',
-      '/admin-v2/runs'
-    )
-    // The five legacy destinations are marked so the reader knows they leave V2.
-    expect(within(nav).getAllByText('V1')).toHaveLength(5)
-  })
-
-  it('shows the session role and never an invented user name', () => {
-    renderView(pageData([makeRun()]))
-    expect(screen.getByText('admin')).toBeInTheDocument()
-  })
-})
-
 describe('RunsView — data rendering', () => {
   it('renders a run with its agent, project, model and cost', () => {
     renderView(pageData([makeRun()]))
@@ -205,15 +183,17 @@ describe('RunsView — KPI and success rate', () => {
 })
 
 describe('RunsView — filters', () => {
-  it('narrows the feed by search across id, agent, project and input', async () => {
+  it('narrows the feed from the search carried by the URL', () => {
+    // The search input lives in the shell topbar and writes `?q=`; the view
+    // receives it through `initialFilters`. There is deliberately no second
+    // input here, so the two surfaces cannot disagree.
     renderView(
       pageData([
         makeRun({ id: 'run-eth', inputSummary: 'ETH regime' }),
         makeRun({ id: 'run-btc', inputSummary: 'BTC funding' }),
-      ])
+      ]),
+      { ...DEFAULT_RUNS_FILTERS, q: 'BTC' }
     )
-
-    await userEvent.type(screen.getByPlaceholderText(/Search run id/), 'BTC')
 
     expect(within(table()).getByText('run-btc')).toBeInTheDocument()
     expect(within(table()).queryByText('run-eth')).not.toBeInTheDocument()
@@ -259,9 +239,11 @@ describe('RunsView — filters', () => {
   })
 
   it('shows the filtered-empty state and clears back to the full list', async () => {
-    renderView(pageData([makeRun({ id: 'run-eth' })]))
+    renderView(pageData([makeRun({ id: 'run-eth' })]), {
+      ...DEFAULT_RUNS_FILTERS,
+      q: 'nothing-matches',
+    })
 
-    await userEvent.type(screen.getByPlaceholderText(/Search run id/), 'nothing-matches')
     expect(screen.getByText('No run matches these filters')).toBeInTheDocument()
 
     // Two reset affordances coexist by design: the persistent one in the filter

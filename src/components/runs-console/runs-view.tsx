@@ -24,6 +24,17 @@ import {
 import { deriveRunsMetrics } from '@/lib/runs-console/runs-metrics'
 import type { RunsPageData } from '@/lib/runs-console/runs-page-data'
 
+/**
+ * The fleet-wide run console (`/admin/runs`), new in P004: before it, runs were
+ * reachable only inside one agent or as a capped feed on the performance page.
+ *
+ * NO `loading.tsx` FOR THIS ROUTE, deliberately. `loading.tsx` is a Suspense
+ * boundary, so React flushes a `200 OK` shell before the page resolves; when
+ * `getRunsPageData` then throws, the error UI paints inside an ALREADY
+ * COMMITTED 200. Measured against an unreachable PostgREST: with a skeleton the
+ * route answered 200, without it 500. A backend outage that answers 200 is
+ * invisible to every monitor — the honest status line wins over the skeleton.
+ */
 /** Debounce only the URL write — filtering itself stays instant on every keystroke. */
 const URL_SYNC_DELAY_MS = 250
 

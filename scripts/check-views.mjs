@@ -52,7 +52,21 @@ const ADMIN_DIR = join(SRC, 'app', 'admin')
 const VIEWS_DIR = join(SRC, 'components', 'views')
 const NOT_YET_MIGRATED_PATH = join(ROOT, 'scripts', 'not-yet-migrated.json')
 
-const VIEWS_IMPORT_RE = /from\s+['"]@\/components\/views\//
+/**
+ * The VIEW LAYER a page.tsx may delegate to.
+ *
+ * P004 rebuilds /admin and /admin/runs outside `components/views/`, on
+ * `components/admin-dashboard/` and `components/runs-console/`. Anchoring this
+ * gate on `views/` alone would have made it a rule that PROTECTS the old
+ * rendering: a rebuilt page would be reported as a "half-done migration" for
+ * the sole crime of not importing the layer it replaces.
+ *
+ * The invariant the gate actually exists to defend is unchanged and still
+ * enforced: a page.tsx stays a thin `data + <View />` shell and never grows its
+ * own markup. Only the list of accepted view layers moved.
+ */
+const VIEWS_IMPORT_RE =
+  /from\s+['"]@\/components\/(views|admin-dashboard|runs-console)\//
 const LEGACY_COLOR_TOKEN_RE = /var\(--color-surface-(?:canvas|primary|secondary|interactive|elevated|foreground|focus)\)/
 const LEGACY_IMPORT_RE = /from\s+['"].*agent-ops\/_legacy\/[^'"]*['"]/
 const LAYOUT_PRIMITIVE_IMPORT_RE = /import\s*\{[^}]*\b(Panel|Section|PageLayout)\b[^}]*\}\s*from/
