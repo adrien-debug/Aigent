@@ -1,0 +1,61 @@
+{
+  "mission": "AIGENT-FRONTEND-RESET-001-P001",
+  "route": "/admin-v2/runs",
+  "branch": "feat/aigent-frontend-reset-001",
+  "baseCommitAtCapture": "87e8537a9a1d03bba7739a8c5b3f3260d205fb04",
+  "capturedAt": "2026-07-29T02:03:00+04:00",
+  "capturedAgainst": "local dev server on port 3210, live gpu1 PostgREST data",
+  "dataShown": "6 real operational runs (Market Intelligence, Portfolio Risk Guardian) on project TradeAgent",
+  "designSystem": "Catalyst primitives (src/components/ui) + src/theme.css tokens \u2014 no parallel design system",
+  "screenshots": [
+    {
+      "file": "desktop-1440x900.png",
+      "viewport": "1440x900",
+      "state": "populated, real gpu1 data",
+      "bytes": 119432,
+      "sha256": "6eb537d57df99849c37cdc5db22bec9de9b9635d91b4803a238e9157ce85904d"
+    },
+    {
+      "file": "laptop-1280x800.png",
+      "viewport": "1280x800",
+      "state": "populated, real gpu1 data",
+      "bytes": 100062,
+      "sha256": "598dca75e03f2c48ca79343c1380d0b91b0e763111a1f87bef2bb753a759cb85"
+    },
+    {
+      "file": "tablet-1024x768.png",
+      "viewport": "1024x768",
+      "state": "populated, real gpu1 data",
+      "bytes": 75163,
+      "sha256": "2981ade255f6bab21376ea4d2ff61a50436e147fa15ff78b33a2555ce741a86c"
+    },
+    {
+      "file": "mobile-375x812.png",
+      "viewport": "375x812",
+      "state": "populated, stacked cards",
+      "bytes": 40100,
+      "sha256": "3ebb9008f538b7a22ff211058801e818c463a98b73d1742cf34f29c78dcc21f6"
+    },
+    {
+      "file": "mobile-nav-open-375x812.png",
+      "viewport": "375x812",
+      "state": "navigation drawer open",
+      "bytes": 24058,
+      "sha256": "c13e644b521fd37acf8fea14b3617d388fdc067c4c1268e18033ad273efa9a14"
+    },
+    {
+      "file": "empty-filtered-1440x900.png",
+      "viewport": "1440x900",
+      "state": "filters exclude everything (?q=zzz-no-such-run&status=failed)",
+      "bytes": 91223,
+      "sha256": "4fc1e1a3bc1be38b0d09982fca36bc1172ca736fc5a0b0c7fb29a1bd41485b3c"
+    },
+    {
+      "file": "error-state-1440x900.png",
+      "viewport": "1440x900",
+      "state": "real backend outage (AMC_SUPABASE_URL=http://127.0.0.1:9), HTTP 500",
+      "bytes": 31174,
+      "sha256": "ea8840335cc92a0f81f6693091c86dfaf175e663d9aa7247f9eca052eedc25a9"
+    }
+  ]
+}

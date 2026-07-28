@@ -44,6 +44,8 @@ const SRC = join(ROOT, 'src')
 // Surfaces produit où un graphique peut apparaître.
 const SCAN_DIRS = [
   join('app', 'admin'),
+  join('app', 'admin-v2'),
+  join('components', 'aigent-v2'),
   join('components', 'agent-ops'),
   join('components', 'views'),
   join('components', 'shell'),

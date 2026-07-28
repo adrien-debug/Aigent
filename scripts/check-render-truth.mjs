@@ -41,6 +41,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SCANNED_DIRS = [
   join(ROOT, 'src/app/admin'),
+  join(ROOT, 'src/app/admin-v2'),
+  join(ROOT, 'src/components/aigent-v2'),
   join(ROOT, 'src/components/agent-ops'),
   join(ROOT, 'src/components/views'),
   join(ROOT, 'src/components/shell'),
