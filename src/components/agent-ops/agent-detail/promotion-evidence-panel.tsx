@@ -1,5 +1,6 @@
 import { eyebrowClass } from '@/components/agent-ops/surface-card'
 import { EmptyState } from '@/components/agent-ops/empty-state'
+import { StatusDot } from '@/components/ui/status-dot'
 import { Text } from '@/components/ui/text'
 import type { PromotionCheck, PromotionCheckStatus } from '@/lib/agent-mission-control/promotion-gate'
 
@@ -29,31 +30,8 @@ const STATUS_LABEL: Record<PromotionCheckStatus, string> = {
  * word carries the distinction, the accent dot marks PASS only, and a FAIL
  * is never painted the same as an unmeasured check. */
 function PromotionStatusText({ status }: { status: PromotionCheckStatus }) {
-  return (
-    <span className="inline-flex shrink-0 items-center gap-1.5 text-xs">
-      <span
-        aria-hidden="true"
-        className={
-          status === 'PASS'
-            ? 'size-1.5 rounded-full bg-accent-500'
-            : status === 'FAIL'
-              ? 'size-1.5 rounded-full bg-[var(--state-danger-solid)]'
-              : 'size-1.5 rounded-full ring-1 ring-zinc-400 dark:ring-zinc-500'
-        }
-      />
-      <span
-        className={
-          status === 'PASS'
-            ? 'text-accent-700 dark:text-accent-300'
-            : status === 'FAIL'
-              ? 'text-[var(--state-danger-text)]'
-              : 'text-zinc-500 dark:text-zinc-400'
-        }
-      >
-        {STATUS_LABEL[status]}
-      </span>
-    </span>
-  )
+  const tone = status === 'PASS' ? 'positive' : status === 'FAIL' ? 'negative' : 'neutral'
+  return <StatusDot tone={tone}>{STATUS_LABEL[status]}</StatusDot>
 }
 
 /** The five promotion checks, each with its own real `reason` — never a

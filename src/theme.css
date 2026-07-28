@@ -119,15 +119,47 @@
   --color-accent-900: #1c4f15;
   --color-accent-950: #0b2809;
 
-  /* Dark surfaces — legacy names, now mapped onto the layered ladder below.
-     `primary` and `secondary` used to be the SAME value (#18181b), so a card
-     could not separate from the surface behind it and everything read as one
-     flat sheet. They are now distinct steps. Prefer the --surface-* tokens. */
-  --color-surface-canvas: #09090b;
+  /* -------------------------------------------------------------------------
+     LEGACY SURFACE NAMES (AIGENT-DESIGN-SYSTEM-CONSOLIDATION-001).
+
+     These six predate the layered ladder below and have real consumers today
+     (audited by grep over src/ — not dead weight, cf. the ladder's own
+     "never delete a token with a real consumer" rule). Three are EXACT-VALUE
+     ALIASES of a ladder step and are now declared AS `var(...)` of their
+     canonical replacement, so the two names can never drift apart again —
+     the previous state was two independent hex literals that happened to
+     match, one accidental edit away from silently diverging:
+
+       legacy token                 canonical replacement       alias since
+       --color-surface-canvas       --color-surface-app          this pass
+       --color-surface-secondary    --color-surface-raised       this pass
+       --color-surface-interactive  --color-surface-overlay      this pass
+       --color-surface-elevated     --color-surface-overlay      this pass
+
+     Migration strategy: NEW code must reach for the ladder token
+     (`--color-surface-app`/`-raised`/`-overlay`, or the `Panel`/
+     `surfaceRaised`/`surfaceSunken`/`surfaceOverlay` primitives in
+     `ui/panel.tsx`), never a legacy name. Existing consumers of a legacy
+     name (grep for `surface-canvas` / `surface-secondary` / `surface-
+     interactive` / `surface-elevated` in src/) are NOT migrated by this
+     pass — a token alias is safe to ship today because it cannot change
+     the rendered colour; rewriting every call site is separate, lower-risk
+     work with no visual delta to re-review. Tracked for a future pass, no
+     fixed date: delete the alias (keep only the ladder name) once grep
+     over src/ for all four legacy names returns zero.
+
+     `--color-surface-primary` (#131316) and `--color-surface-focus`
+     (#1f1f23) are KEPT AS DISTINCT VALUES, not aliased: neither matches any
+     ladder step (`workspace` is #111114, one step off `primary`), so
+     collapsing them would be a real colour change, not a rename. They stay
+     legacy-named because nothing in the ladder below claims their role yet;
+     folding them in is a design decision (what surface IS #131316/#1f1f23
+     in the five-plane model), out of scope for a token-hierarchy pass. */
+  --color-surface-canvas: var(--color-surface-app);
   --color-surface-primary: #131316;
-  --color-surface-secondary: #1a1a1e;
-  --color-surface-interactive: #232327;
-  --color-surface-elevated: #232327;
+  --color-surface-secondary: var(--color-surface-raised);
+  --color-surface-interactive: var(--color-surface-overlay);
+  --color-surface-elevated: var(--color-surface-overlay);
   --color-surface-focus: #1f1f23;
 
   /* Foreground on the dark ground (was inherited zinc-900 from the light set). */

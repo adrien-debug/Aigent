@@ -8,6 +8,7 @@ import {
 } from '@heroicons/react/20/solid'
 import clsx from 'clsx'
 
+import { Avatar } from '@/components/ui/avatar'
 import { AGENT_BUILDER_SLUG } from '@/lib/agent-mission-control/agent-builder-copilot'
 import type { Copilot } from '@/lib/agent-mission-control/types'
 
@@ -54,10 +55,13 @@ function copilotType(copilot: Pick<Copilot, 'slug' | 'name' | 'tags'>): CopilotT
 }
 
 /**
- * Round type-glyph avatar for a copilot. Decorative (`aria-hidden`) — the name
- * always sits next to it in text. Soft accent surface + accent hairline ring +
- * accent icon; identity is carried by the icon, tint stays mono per doctrine.
- * Default size is 40px (`size-10`); override via `className`.
+ * Round type-glyph avatar for a copilot. Composes `Avatar` (frame: outline,
+ * radius, sizing) with a custom `children` fill — the type icon on a gradient
+ * tile — since a copilot has neither a photo nor initials to hand `Avatar`'s
+ * own `src`/`initials` props. Decorative (`aria-hidden`) — the name always
+ * sits next to it in text. Default size is 40px (`size-10`); override via
+ * `className`. `square`: a copilot avatar is round (Catalyst's `Avatar`
+ * default), distinct from `ProjectAvatar`'s square photo/logo tile.
  */
 export function CopilotAvatar({
   copilot,
@@ -84,15 +88,17 @@ export function CopilotAvatar({
   }[type]
 
   return (
-    <span
+    <Avatar
       aria-hidden="true"
       className={clsx(
-        'flex shrink-0 items-center justify-center rounded-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] ring-1',
+        'shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] ring-1',
         gradientClass,
         className || 'size-10'
       )}
     >
-      <Icon className={clsx("size-1/2")} />
-    </span>
+      <span className="flex size-full items-center justify-center">
+        <Icon className="size-1/2" />
+      </span>
+    </Avatar>
   )
 }

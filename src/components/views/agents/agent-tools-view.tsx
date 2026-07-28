@@ -3,7 +3,7 @@ import { eyebrowClass } from '@/components/shell/page-header'
 import { PageLayout } from '@/components/shell/page-layout'
 import { Badge } from '@/components/ui/badge'
 import { Subheading } from '@/components/ui/heading'
-import { Text } from '@/components/ui/text'
+import { metaTextClass, Text } from '@/components/ui/text'
 import { surfaceSectionClass } from '@/components/ui/section'
 import type { AgentDetail } from '@/lib/agent-mission-control/agent-detail'
 import type { ToolDefinition } from '@/lib/agent-mission-control/types'
@@ -122,7 +122,7 @@ export function AgentToolsView({ detail }: { detail: AgentDetail }) {
               // zinc-400, not -500: check-contrast measures -500 at 3.59:1 on
               // this raised plane (rgb(26,26,30)) for a 4.5 threshold. This note
               // is the provenance of the number above it — it must be readable.
-              <p className="mt-1 text-[11px] text-zinc-400">{cell.note}</p>
+              <p className={`mt-1 ${metaTextClass} text-zinc-400`}>{cell.note}</p>
             ) : null}
           </div>
         ))}
@@ -175,7 +175,7 @@ export function AgentToolsView({ detail }: { detail: AgentDetail }) {
                         label and value would land on the same zinc and the
                         two-level hierarchy of this meta line would collapse —
                         same pair as the dt/dd of agent-observability-view. */}
-                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-zinc-400">
+                    <div className={`mt-2 flex flex-wrap gap-x-5 gap-y-1 ${metaTextClass} text-zinc-400`}>
                       <span>
                         Risk: <span className="text-zinc-300">{tool.riskLevel}</span>
                       </span>

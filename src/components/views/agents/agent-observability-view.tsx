@@ -10,7 +10,7 @@ import { RunStatusText } from '@/components/agent-ops/run-detail-panel'
 import { PageLayout } from '@/components/shell/page-layout'
 import { eyebrowClass } from '@/components/shell/page-header'
 import { Badge } from '@/components/ui/badge'
-import { Text } from '@/components/ui/text'
+import { metaTextClass, Text } from '@/components/ui/text'
 import type { AgentObservabilityPageData } from '@/lib/agent-mission-control/agent-observability-page-data'
 import {
   AGENT_STATUS_DIMENSION_LABELS,
@@ -147,7 +147,7 @@ export function AgentObservabilityView({ detail, suites, benchmarkRuns, testRuns
                       proves the column is unwritten, not that the tool was never
                       called — "never used" turned a missing writer into a
                       measurement, on tools that had demonstrably run. */}
-                  <span className="shrink-0 text-[11px] text-zinc-400">
+                  <span className={`shrink-0 ${metaTextClass} text-zinc-400`}>
                     {tool.lastUsedAt ? <TimeAgoValue value={tool.lastUsedAt} /> : 'Last use unknown'}
                   </span>
                 </li>
@@ -198,7 +198,7 @@ export function AgentObservabilityView({ detail, suites, benchmarkRuns, testRuns
               >
                 <RunStatusText status={run.status} />
                 <span className="truncate text-xs text-zinc-400">{run.outputSummary || 'No output recorded'}</span>
-                <span className="shrink-0 text-[11px] text-zinc-400">
+                <span className={`shrink-0 ${metaTextClass} text-zinc-400`}>
                   <TimeAgoValue value={run.startedAt} />
                 </span>
               </li>

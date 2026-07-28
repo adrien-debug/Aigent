@@ -2,7 +2,7 @@ import clsx from 'clsx'
 
 import { Subheading } from '@/components/ui/heading'
 import { surfaceRaised, surfaceSunken } from '@/components/ui/panel'
-import { Text } from '@/components/ui/text'
+import { metaTextClass, Text } from '@/components/ui/text'
 import type { TelemetryHealthDiagnostic } from '@/lib/agent-mission-control/telemetry-health'
 import { eyebrowClass } from '@/components/agent-ops/surface-card'
 import { CheckCircleIcon, SignalIcon } from '@heroicons/react/20/solid'
@@ -99,7 +99,7 @@ export function TelemetryUnconfiguredState({
                   `AIGENT_RUNTIME_TELEMETRY_TOKEN` still wraps as one word wherever
                   there is room. */}
               {step.env ? (
-                <code className="mt-0.5 font-mono text-[11px] break-words text-zinc-400">{step.env}</code>
+                <code className={clsx('mt-0.5 font-mono break-words text-zinc-400', metaTextClass)}>{step.env}</code>
               ) : null}
             </li>
           ))}

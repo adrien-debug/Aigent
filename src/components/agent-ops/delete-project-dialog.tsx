@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState, type CSSProperties } from 'react'
+import { useState } from 'react'
 
 import { ErrorBanner } from '@/components/agent-ops/authoring-primitives'
 import { Button } from '@/components/ui/button'
@@ -10,24 +10,6 @@ import { Description, Field, Label } from '@/components/ui/fieldset'
 import { Input } from '@/components/ui/input'
 import { messageForResponse } from '@/lib/agent-mission-control/client-errors'
 import type { Project } from '@/lib/agent-mission-control/types'
-
-/**
- * Catalyst exposes no `danger` colour key and components/ui/ is out of
- * scope for this pass, so the destructive fill is injected through the button's
- * own `--btn-*` custom properties. Inline style rather than a className: the
- * `zinc` colour array ALSO declares `--btn-bg`, and which declaration wins
- * depends on the order Tailwind emits the two utilities into the stylesheet,
- * not on the order clsx concatenates the class names. An inline declaration is
- * deterministic. `zinc` is the base because it already carries white text, and
- * white on `--state-danger-solid` measures 6.45:1 (see globals.css).
- */
-type ButtonVars = CSSProperties & Record<'--btn-bg' | '--btn-border' | '--btn-hover-overlay', string>
-
-const dangerSolidStyle: ButtonVars = {
-  '--btn-bg': 'var(--state-danger-solid)',
-  '--btn-border': 'var(--state-danger-solid-line)',
-  '--btn-hover-overlay': 'rgb(255 255 255 / 12%)',
-}
 
 /**
  * Destructive confirm: permanently deletes a project and cascade-deletes every
@@ -124,7 +106,7 @@ export function DeleteProjectDialog({
         <Button plain disabled={pending} onClick={close}>
           Cancel
         </Button>
-        <Button color="zinc" style={dangerSolidStyle} disabled={pending || !confirmed} onClick={remove}>
+        <Button color="danger" disabled={pending || !confirmed} onClick={remove}>
           {pending ? 'Deleting…' : 'Delete project'}
         </Button>
       </DialogActions>

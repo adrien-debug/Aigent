@@ -8,6 +8,7 @@ import { PageLayout } from '@/components/shell/page-layout'
 import { Badge } from '@/components/ui/badge'
 import { surfaceRaised } from '@/components/ui/panel'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { metaTextClass } from '@/components/ui/text'
 import { formatPercent, formatRelativeCompact, formatUsd } from '@/lib/agent-mission-control/format'
 import {
   AGENT_RUN_STATUS_LABELS,
@@ -298,7 +299,7 @@ export function AgentsListView({ agents, projectNameById, healthByCopilotId, now
                                 at -500 would ship a sub-AA label the day the
                                 first run lands. */}
                             {lastRunLabel ? (
-                              <div className="truncate text-[11px] text-zinc-400">{lastRunLabel}</div>
+                              <div className={clsx('truncate text-zinc-400', metaTextClass)}>{lastRunLabel}</div>
                             ) : null}
                           </>
                         ) : (

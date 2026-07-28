@@ -29,6 +29,19 @@ const TEXT_SIZES = {
 } as const satisfies Record<string, { base: string; bump?: string }>
 
 /**
+ * The dashboard's 11px rung as a plain class string — for the `<span>`,
+ * `<code>`, `<div>`, `<dt>` sites that carry this role but aren't a `<p>`
+ * (`Text` only renders one). Per DESIGN-DOCTRINE.md §Typo: "provenance
+ * lines, monospace metadata" — declared, not tolerated, and previously
+ * "written by hand, no tool guarding it" everywhere outside `Text`. Same
+ * literal as `TEXT_SIZES['2xs'].base` so the two never drift apart; unlike
+ * a caller writing `text-[11px]` directly against a `<Text size="body">`
+ * (which loses to the primitive's own `sm:text-sm/6` — see the ladder
+ * comment above), a plain sibling element has no competing rule to lose to.
+ */
+export const metaTextClass = TEXT_SIZES['2xs'].base
+
+/**
  * Colour ladder — also a PROP, for the second half of the same defect.
  *
  * `tailwind-merge` drops a bare default when the caller passes a bare class, but

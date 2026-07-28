@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 
-import { surfaceSunken } from '@/components/ui/panel'
+import { Panel, surfaceSunken } from '@/components/ui/panel'
 import { surfaceSectionClass, surfaceSectionHeaderClass } from '@/components/ui/section'
 
 /**
@@ -42,8 +42,8 @@ export function SurfaceCard({
   padding?: string
 }) {
   return (
-    <section className={clsx(surfaceSectionClass, padding, className)}>
+    <Panel as="section" inset="none" className={clsx('flex flex-col overflow-hidden', padding, className)}>
       {children}
-    </section>
+    </Panel>
   )
 }
