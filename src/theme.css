@@ -189,12 +189,20 @@
    emitted, and additionally generate `bg-surface-raised`-style utilities.
    --------------------------------------------------------------------------- */
 @theme {
-  --color-surface-app: #09090b;
-  --color-surface-workspace: #111114;
-  --color-surface-raised: #1a1a1e;
-  --color-surface-raised-hover: #202024;
-  --color-surface-sunken: #0d0d10;
-  --color-surface-overlay: #232327;
+  /* P004 — RETARGETED ON THE FIGMA FRAME, measured at 1:1 zoom (see
+     docs/visual-reviews/AIGENT-FRONTEND-P004/figma-measurements.md).
+
+     The kit inverts the usual convention: its CARDS are darker than the PAGE.
+     The previous values did the opposite (app #09090b under raised #1a1a1e),
+     which is precisely the old rendering P004 dismantles. Retargeting here —
+     one declaration site, no parallel palette — flips every surface at once. */
+  --color-surface-app: #1a1b1e;        /* frame ground,      sampled 700,500 */
+  --color-surface-workspace: #1a1b1e;  /* same plane: the frame has no second ground */
+  --color-surface-raised: #0a0a0a;     /* content card,      sampled 1100,700 */
+  --color-surface-raised-hover: #101010;
+  --color-surface-sunken: #070707;     /* card interior,     sampled 100,700 */
+  --color-surface-control: #2e3033;    /* search field / icon buttons, sampled 300,577 */
+  --color-surface-overlay: #2e3033;    /* menus sit on the control plane */
 }
 
 :root {

@@ -31,6 +31,29 @@ import { SESSION_COOKIE, decodeSession } from '@/lib/agent-mission-control/auth'
  */
 const DEV_AUTH_BYPASS = process.env.NODE_ENV !== 'production' && process.env.AMC_DEV_BYPASS_AUTH === '1'
 
+/**
+ * Authenticated PAGE surfaces.
+ *
+ * MEASURED HOLE (29/07/2026): this test used to read
+ * `path === '/admin' || path.startsWith('/admin/')`, and `config.matcher` only
+ * listed `/admin/:path*`. A console briefly built at `/admin-v2/**` matched
+ * NEITHER — not `/admin`, and starting with `/admin-`, not `/admin/` — so every
+ * agent name, project, input summary and cost in the fleet answered 200 to an
+ * unauthenticated request. Verified by curl before the fix (200 + real rows)
+ * and after (307 to /login). That route no longer exists, but the shape of the
+ * bug does: a sibling admin surface is one directory name away at any time.
+ *
+ * Each entry is matched as a PATH SEGMENT (exact, or followed by `/`), never as
+ * a bare `startsWith`: a bare prefix would also swallow an unrelated
+ * `/administration` route and grant it a gate it never asked for. A new admin
+ * surface is protected by ADDING IT HERE — that is the one line to remember.
+ */
+const PROTECTED_PAGE_PREFIXES = ['/admin'] as const
+
+function isProtectedPage(path: string): boolean {
+  return PROTECTED_PAGE_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
+}
+
 export function proxy(request: NextRequest) {
   const url = new URL(request.url)
   const path = url.pathname
@@ -58,14 +81,14 @@ export function proxy(request: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Authentication required' }, { status: 401 })
   }
 
-  // --- Protected pages: /admin/** requires a session, else redirect to login ---
-  if (path === '/admin' || path.startsWith('/admin/')) {
+  // --- Protected pages: every admin surface requires a session ---
+  if (isProtectedPage(path)) {
     if (session) return NextResponse.next()
     // Local-only escape hatch (dev + explicit flag) — never in a prod build.
     if (DEV_AUTH_BYPASS) return NextResponse.next()
     const loginUrl = new URL('/login', request.url)
     // Preserve the intended destination, but only as a safe internal path.
-    if (path.startsWith('/admin')) loginUrl.searchParams.set('next', path)
+    loginUrl.searchParams.set('next', path)
     return NextResponse.redirect(loginUrl)
   }
 
@@ -79,5 +102,11 @@ function readSessionCookie(request: NextRequest): string | undefined {
 export const config = {
   // Guard the admin pages and the agent-ops API. Auth routes are allow-listed
   // inside proxy() above so they stay reachable.
-  matcher: ['/admin/:path*', '/api/agent-ops/:path*'],
+  //
+  // TWO LEVELS, BOTH REQUIRED. This matcher decides whether `proxy()` RUNS AT
+  // ALL; `PROTECTED_PAGE_PREFIXES` decides what it does once running. Adding a
+  // surface to only one of them protects NOTHING — measured, see the header.
+  // Every new admin surface goes in BOTH lists, and `/admin` is listed on its
+  // own because `:path*` does not match the bare segment.
+  matcher: ['/admin', '/admin/:path*', '/api/agent-ops/:path*'],
 }
