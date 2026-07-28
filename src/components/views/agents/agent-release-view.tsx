@@ -6,6 +6,7 @@ import {
   ReleaseOwnership,
 } from '@/components/agent-ops/agent-detail/release-panel'
 import { AgentSection as Section } from '@/components/agent-ops/agent-section'
+import { GaugeChart } from '@/components/agent-ops/dashboard-charts/gauge-chart'
 import {
   PromotionChecksList,
   PromotionOverall,
@@ -183,15 +184,6 @@ export function AgentReleaseView({
       <Section
         title="Release gate"
         description="Nine checks evaluated from this candidate’s real test run, benchmark and tool policy. Promotion needs all nine."
-        meta={
-          gate ? (
-            <span className="text-xs font-medium text-zinc-400">
-              {gate.promotable
-                ? 'All checks pass'
-                : `${blocking.length} of ${gate.checks.length} blocking`}
-            </span>
-          ) : null
-        }
       >
         {gate === null ? (
           <div className="max-w-prose">
@@ -205,23 +197,26 @@ export function AgentReleaseView({
           </div>
         ) : (
           <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-4">
+              <GaugeChart
+                value={gate.checks.length - blocking.length}
+                max={gate.checks.length}
+                label={`${gate.checks.length - blocking.length}/${gate.checks.length}`}
+                tone={gate.promotable ? 'positive' : 'negative'}
+                ariaLabel={`${gate.checks.length - blocking.length} of ${gate.checks.length} release gate checks passing`}
+              />
+              {/* `missing` and `fail` block identically but mean opposite things,
+                  so the count is split rather than totalled. */}
+              {blocking.length > 0 ? (
+                <Text className="text-xs">
+                  {blocking.filter((c) => c.status === 'fail').length} failing ·{' '}
+                  {blocking.filter((c) => c.status === 'missing').length} not measured
+                </Text>
+              ) : (
+                <Text className="text-xs">All checks pass on {gate.evidence.candidateLabel}.</Text>
+              )}
+            </div>
             <ReleaseGateChecks checks={gate.checks} />
-            {/* `missing` and `fail` block identically but mean opposite things,
-                so the summary names them separately instead of totalling them. */}
-            {blocking.length > 0 ? (
-              <Text className="text-xs">
-                Blocked by {blocking.filter((c) => c.status === 'fail').length} failing check
-                {blocking.filter((c) => c.status === 'fail').length === 1 ? '' : 's'} and{' '}
-                {blocking.filter((c) => c.status === 'missing').length} unmeasured one
-                {blocking.filter((c) => c.status === 'missing').length === 1 ? '' : 's'}. An unmeasured check is
-                not a negative result — it is evidence nobody has produced yet.
-              </Text>
-            ) : (
-              <Text className="text-xs">
-                Every check passes on {gate.evidence.candidateLabel}. That permits a promotion; it does not
-                perform one.
-              </Text>
-            )}
           </div>
         )}
       </Section>

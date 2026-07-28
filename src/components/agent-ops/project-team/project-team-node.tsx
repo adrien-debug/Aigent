@@ -16,6 +16,7 @@ import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
 import clsx from 'clsx'
 import { memo } from 'react'
 
+import { metaTextClass } from '@/components/ui/text'
 import { TEAM_NODE_SIZE } from '@/lib/agent-mission-control/project-team/layout'
 import type {
   ProjectTeamNode,
@@ -302,7 +303,10 @@ function AgentBody({ node }: { node: ProjectTeamNode }) {
       <div className="flex items-start gap-2">
         <span
           aria-hidden="true"
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-[11px] font-semibold text-accent-300 ring-1 ring-[var(--accent-line)]"
+          className={clsx(
+            'flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-soft)] font-semibold text-accent-300 ring-1 ring-[var(--accent-line)]',
+            metaTextClass,
+          )}
         >
           {monogram(node.name)}
         </span>

@@ -1,6 +1,7 @@
 import { ServerStackIcon, CpuChipIcon, BoltIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline'
 
 import { AgentKpiBand, type AgentKpiStat } from '@/components/agent-ops/agent-kpi-band'
+import { GaugeChart } from '@/components/agent-ops/dashboard-charts/gauge-chart'
 import { EmptyStatePanel, NotMeasuredDash } from '@/components/agent-ops/empty-state'
 import { ProjectDeleteAction } from '@/components/agent-ops/project-delete-action'
 import { ProjectHeader } from '@/components/agent-ops/project-header'
@@ -253,8 +254,19 @@ export function ProjectDetailView({ project, validated, runs, copilotNameById, c
     },
     {
       name: 'Executable',
-      value: `${kpis.executableCount} / ${kpis.validatedCount}`,
-      valueTone: kpis.executableCount === kpis.validatedCount && kpis.validatedCount > 0 ? 'default' : 'muted',
+      content:
+        kpis.validatedCount > 0 ? (
+          <GaugeChart
+            value={kpis.executableCount}
+            max={kpis.validatedCount}
+            label={`${kpis.executableCount}/${kpis.validatedCount}`}
+            tone={kpis.executableCount === kpis.validatedCount ? 'positive' : 'neutral'}
+            size={64}
+            ariaLabel={`${kpis.executableCount} of ${kpis.validatedCount} agents executable`}
+          />
+        ) : (
+          <NotMeasuredDash />
+        ),
       hint: 'Active with every declared tool resolved',
     },
     {
@@ -279,15 +291,19 @@ export function ProjectDetailView({ project, validated, runs, copilotNameById, c
     },
     {
       name: 'Success',
-      content: kpis.successRate === null ? (
-        <NotMeasuredDash />
-      ) : (
-        <span
-          className={`text-2xl/8 font-light tracking-tight tabular-nums ${kpis.successRate >= 0.9 ? 'text-accent-400' : 'text-white'}`}
-        >
-          {formatPercent(kpis.successRate)}
-        </span>
-      ),
+      content:
+        kpis.successRate === null ? (
+          <NotMeasuredDash />
+        ) : (
+          <GaugeChart
+            value={Math.round(kpis.successRate * 100)}
+            max={100}
+            label={formatPercent(kpis.successRate)}
+            tone={kpis.successRate >= 0.9 ? 'positive' : 'neutral'}
+            size={64}
+            ariaLabel={`Success rate ${formatPercent(kpis.successRate)}`}
+          />
+        ),
       hint: kpis.finishedRunsCount > 0 ? `${kpis.finishedRunsCount} finished run${kpis.finishedRunsCount > 1 ? 's' : ''}` : undefined,
     },
     {

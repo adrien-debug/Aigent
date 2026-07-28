@@ -39,16 +39,22 @@ export const surfaceOverlay =
   'rounded-xl bg-white shadow-xl ring-1 ring-zinc-950/10 dark:bg-surface-overlay dark:shadow-[var(--surface-shadow-strong)] dark:ring-[var(--surface-border-strong)]'
 
 export function Panel({
+  as: Component = 'div',
   className,
   inset = 'md',
   tone = 'raised',
   ...props
 }: {
+  /** Element the surface renders as. `Panel` is the ONLY place that decides
+   * fill/border/radius/shadow for the raised and sunken planes — a caller that
+   * needs `<section>` semantics (e.g. `SectionSurface`) composes this instead
+   * of restating the paint. */
+  as?: 'div' | 'section'
   inset?: 'none' | 'sm' | 'md' | 'lg'
   tone?: 'raised' | 'sunken'
 } & React.ComponentPropsWithoutRef<'div'>) {
   return (
-    <div
+    <Component
       {...props}
       className={cn(
         tone === 'raised' ? surfaceRaised : surfaceSunken,

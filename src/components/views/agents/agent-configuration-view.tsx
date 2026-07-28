@@ -147,6 +147,9 @@ export function AgentConfigurationView({ detail }: { detail: AgentDetail }) {
         </summary>
         <div className="px-5 pb-5">
           {manifest ? (
+            // Not `metaTextClass`: this `<pre>` wants `leading-5` (not the meta
+            // rung's own `/4`) so a wrapped JSON line keeps code-block spacing —
+            // a deliberate, different line-height, not the shared 11px meta role.
             <pre className="overflow-x-auto rounded-lg bg-surface-sunken p-4 font-mono text-[11px] leading-5 text-zinc-400">
               {JSON.stringify(manifest, null, 2)}
             </pre>

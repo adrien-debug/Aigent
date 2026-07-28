@@ -56,6 +56,11 @@ const styles = {
     // Icon
     '[--btn-icon:var(--color-zinc-500)] data-active:[--btn-icon:var(--color-zinc-700)] data-hover:[--btn-icon:var(--color-zinc-700)] dark:[--btn-icon:var(--color-zinc-500)] dark:data-active:[--btn-icon:var(--color-zinc-400)] dark:data-hover:[--btn-icon:var(--color-zinc-400)]',
   ],
+  // A `plain` trigger for a destructive flow (e.g. "Delete…" in a page header):
+  // the fill stays neutral — a solid red here would outshout an act that isn't
+  // confirmed yet — but the icon already carries the danger role. Composes
+  // with `plain` only; it overrides just `--btn-icon`.
+  dangerIcon: '[--btn-icon:var(--state-danger-text)] data-active:[--btn-icon:var(--state-danger-text)] data-hover:[--btn-icon:var(--state-danger-text)]',
   colors: {
     'dark/zinc': [
       'text-white [--btn-bg:var(--color-zinc-900)] [--btn-border:var(--color-zinc-950)]/90 [--btn-hover-overlay:var(--color-white)]/10',
@@ -94,25 +99,34 @@ const styles = {
       'text-zinc-950 [--btn-hover-overlay:var(--color-zinc-950)]/10 [--btn-bg:var(--color-accent-500)] [--btn-border:var(--color-accent-600)]/90',
       '[--btn-icon:var(--color-zinc-900)] data-active:[--btn-icon:var(--color-zinc-950)] data-hover:[--btn-icon:var(--color-zinc-950)]',
     ],
+    // The ONE non-accent hue, on the `--state-danger-*` roles (theme.css).
+    // Destructive actions (delete, rollback) — never a second decorative
+    // colour. White text: white on --state-danger-solid measures 6.45:1
+    // (documented in theme.css). Built from the same --btn-* custom
+    // properties as every other colour so `outline`/`plain` still compose.
+    danger: [
+      'text-white [--btn-hover-overlay:rgb(255_255_255/12%)] [--btn-bg:var(--state-danger-solid)] [--btn-border:var(--state-danger-solid-line)]',
+      '[--btn-icon:var(--color-white)] data-active:[--btn-icon:var(--color-white)] data-hover:[--btn-icon:var(--color-white)]',
+    ],
   },
 }
 
 type ButtonProps = (
-  | { color?: keyof typeof styles.colors; outline?: never; plain?: never }
-  | { color?: never; outline: true; plain?: never }
-  | { color?: never; outline?: never; plain: true }
+  | { color?: keyof typeof styles.colors; outline?: never; plain?: never; dangerIcon?: never }
+  | { color?: never; outline: true; plain?: never; dangerIcon?: never }
+  | { color?: never; outline?: never; plain: true; dangerIcon?: boolean }
 ) & { className?: string; children: React.ReactNode } & (
     | ({ href?: never } & Omit<Headless.ButtonProps, 'as' | 'className'>)
     | ({ href: string } & Omit<React.ComponentPropsWithoutRef<typeof Link>, 'className'>)
   )
 
 export const Button = forwardRef(function Button(
-  { color, outline, plain, className, children, ...props }: ButtonProps,
+  { color, outline, plain, dangerIcon, className, children, ...props }: ButtonProps,
   ref: React.ForwardedRef<HTMLElement>
 ) {
   let classes = cn(
     styles.base,
-    outline ? styles.outline : plain ? styles.plain : [styles.solid, styles.colors[color ?? 'dark/zinc']],
+    outline ? styles.outline : plain ? [styles.plain, dangerIcon && styles.dangerIcon] : [styles.solid, styles.colors[color ?? 'dark/zinc']],
     // Caller LAST. `styles.base` carries the padding scale and `text-base/6
     // sm:text-sm/6`; before this, a `className="px-2"` on a Button was inert.
     className

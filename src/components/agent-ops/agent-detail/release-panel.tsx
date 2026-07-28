@@ -1,12 +1,13 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState, type CSSProperties } from 'react'
+import { useState } from 'react'
 
 import { ErrorBanner, Spinner } from '@/components/agent-ops/authoring-primitives'
 import { eyebrowClass } from '@/components/agent-ops/surface-card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { StatusDot } from '@/components/ui/status-dot'
 import { Text } from '@/components/ui/text'
 import { messageForResponse } from '@/lib/agent-mission-control/client-errors'
 import type { Capability } from '@/lib/agent-mission-control/agent-lifecycle'
@@ -37,22 +38,6 @@ import type { GateStatus, ReleaseCheck } from '@/lib/agent-mission-control/relea
  */
 
 /**
- * Catalyst exposes no `danger` colour key and `components/ui/` is out of
- * scope here, so the destructive fill rides the button's own `--btn-*` custom
- * properties. Inline style, not a className: the `zinc` colour array ALSO
- * declares `--btn-bg`, and which declaration wins depends on the order Tailwind
- * emits the utilities, not on clsx concatenation order. Verbatim from
- * `delete-project-dialog.tsx` — same role, same values, on purpose.
- */
-type ButtonVars = CSSProperties & Record<'--btn-bg' | '--btn-border' | '--btn-hover-overlay', string>
-
-const dangerSolidStyle: ButtonVars = {
-  '--btn-bg': 'var(--state-danger-solid)',
-  '--btn-border': 'var(--state-danger-solid-line)',
-  '--btn-hover-overlay': 'rgb(255 255 255 / 12%)',
-}
-
-/**
  * `missing` is NOT `fail`, and the two must not read alike.
  *
  * A failed check saw the evidence and rejected it. A missing check never got
@@ -64,32 +49,9 @@ const dangerSolidStyle: ButtonVars = {
  * colour alone.
  */
 function CheckStatusText({ status }: { status: GateStatus }) {
+  const tone = status === 'pass' ? 'positive' : status === 'fail' ? 'negative' : 'neutral'
   const label = status === 'pass' ? 'Pass' : status === 'fail' ? 'Fail' : 'Not measured'
-  return (
-    <span className="inline-flex shrink-0 items-center gap-1.5 text-xs">
-      <span
-        aria-hidden="true"
-        className={
-          status === 'pass'
-            ? 'size-1.5 rounded-full bg-accent-500'
-            : status === 'fail'
-              ? 'size-1.5 rounded-full bg-[var(--state-danger-solid)]'
-              : 'size-1.5 rounded-full ring-1 ring-zinc-400 dark:ring-zinc-500'
-        }
-      />
-      <span
-        className={
-          status === 'pass'
-            ? 'text-accent-700 dark:text-accent-300'
-            : status === 'fail'
-              ? 'text-[var(--state-danger-text)]'
-              : 'text-zinc-500 dark:text-zinc-400'
-        }
-      >
-        {label}
-      </span>
-    </span>
-  )
+  return <StatusDot tone={tone}>{label}</StatusDot>
 }
 
 /** The nine gate checks with their real observed value and requirement. */
@@ -221,8 +183,7 @@ export function ReleaseActions({
           {candidateLabel ? `Promote ${candidateLabel} to production` : 'Promote to production'}
         </Button>
         <Button
-          color="zinc"
-          style={dangerSolidStyle}
+          color="danger"
           disabled={!canRollback || pending !== null}
           onClick={() => setConfirming('rollback')}
         >
@@ -298,8 +259,7 @@ export function ReleaseActions({
             Cancel
           </Button>
           <Button
-            color="zinc"
-            style={dangerSolidStyle}
+            color="danger"
             disabled={pending !== null || rollbackVersionId === null}
             onClick={() => {
               if (rollbackVersionId === null) return

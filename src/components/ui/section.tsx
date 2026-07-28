@@ -1,13 +1,19 @@
 import { cn } from '@/components/ui/cn'
 import { Subheading } from '@/components/ui/heading'
-import { surfaceRaised } from '@/components/ui/panel'
+import { Panel, surfaceRaised } from '@/components/ui/panel'
 import { Text } from '@/components/ui/text'
 
 /**
  * Section — generic panel-with-header primitive, extracted from
- * `agent-ops/surface-card.tsx` (`AgentSectionCard`). Thin wrapper over
- * `surfaceRaised` (Panel's "raised" plane) + `SectionHeader` so every section
- * card in the dashboard shares ONE paint path.
+ * `agent-ops/surface-card.tsx` (`AgentSectionCard`). Composes `Panel` (Panel
+ * is the ONLY place fill/border/radius/shadow for the raised plane is
+ * decided) with `as="section"` + `SectionHeader`, so every section card in
+ * the dashboard shares Panel's single paint path instead of restating it.
+ *
+ * `surfaceSectionClass` stays exported: a handful of call sites (see
+ * `surface-card.tsx`, `_legacy/surface-legacy.tsx`) build their own `<div>`/
+ * `<section>` shell around it rather than rendering `SectionSurface` — the
+ * class string, not the component, is their contract.
  */
 
 /** Level 2 — section panels (Projects, tables, workbench). */
@@ -52,9 +58,9 @@ function SectionSurface({
   padding?: string
 }) {
   return (
-    <section className={cn(surfaceSectionClass, padding, className)}>
+    <Panel as="section" inset="none" className={cn('flex flex-col overflow-hidden', padding, className)}>
       {children}
-    </section>
+    </Panel>
   )
 }
 

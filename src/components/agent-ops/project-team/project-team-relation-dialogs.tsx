@@ -1,6 +1,6 @@
 'use client'
 
-import { type CSSProperties, useState } from 'react'
+import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/ui/dialog'
@@ -12,21 +12,6 @@ import { EXPLICIT_RELATION_TYPES } from '@/lib/agent-mission-control/project-tea
 import type { TeamAgentView } from './project-team-panel'
 
 const MAX_LABEL_LENGTH = 200
-
-/**
- * Destructive fill, same convention as `delete-project-dialog.tsx` — see the
- * comment there for why this is an inline style rather than a className.
- * Deleting a relation used the very same `<Button color="accent">` as the
- * dialog's own confirm and as every constructive primary in the dashboard, so
- * nothing but the label distinguished building from destroying.
- */
-type ButtonVars = CSSProperties & Record<'--btn-bg' | '--btn-border' | '--btn-hover-overlay', string>
-
-const dangerSolidStyle: ButtonVars = {
-  '--btn-bg': 'var(--state-danger-solid)',
-  '--btn-border': 'var(--state-danger-solid-line)',
-  '--btn-hover-overlay': 'rgb(255 255 255 / 12%)',
-}
 
 /**
  * Ceiling on ONE relation write, client-side.
@@ -417,7 +402,7 @@ export function DeleteRelationDialog({
         <Button plain disabled={pending} onClick={onClose}>
           Cancel
         </Button>
-        <Button color="zinc" style={dangerSolidStyle} disabled={pending} onClick={remove}>
+        <Button color="danger" disabled={pending} onClick={remove}>
           {pending ? 'Deleting…' : 'Delete relation'}
         </Button>
       </DialogActions>

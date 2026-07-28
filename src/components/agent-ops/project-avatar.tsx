@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 
 import { Avatar } from '@/components/ui/avatar'
+import { metaTextClass } from '@/components/ui/text'
 
 /**
  * Canonical project identity chip.
@@ -28,7 +29,7 @@ const SIZE = {
 
 const TEXT = {
   xs: 'text-[10px]',
-  sm: 'text-[11px]',
+  sm: metaTextClass,
   md: 'text-sm',
   lg: 'text-base',
 } as const

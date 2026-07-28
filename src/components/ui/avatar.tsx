@@ -7,6 +7,12 @@ type AvatarProps = {
   initials?: string
   alt?: string
   className?: string
+  /** Custom fill — a glyph, an icon, a gradient tile — for identities that
+   * are neither a photo nor initials (e.g. `CopilotAvatar`'s type icon).
+   * Takes over the slot entirely: mutually exclusive with `src`/`initials`,
+   * same as they already are with each other. The frame (outline, radius,
+   * sizing) still comes from `Avatar` either way. */
+  children?: React.ReactNode
 }
 
 export function Avatar({
@@ -15,6 +21,7 @@ export function Avatar({
   initials,
   alt = '',
   className,
+  children,
   ...props
 }: AvatarProps & React.ComponentPropsWithoutRef<'span'>) {
   return (
@@ -43,6 +50,7 @@ export function Avatar({
         </svg>
       )}
       {src && <img className="size-full" src={src} alt={alt} />}
+      {children}
     </span>
   )
 }
