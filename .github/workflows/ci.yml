@@ -59,3 +59,20 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: proof, path: proof.json, retention-days: 30 }
+
+  # SonarQube — GPU1 self-hosted runner only (Tailscale, 100.88.191.49:9010).
+  sonarqube:
+    name: SonarQube analysis
+    runs-on: [self-hosted, gpu1]
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run SonarQube scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          docker run --rm -v "$PWD":/usr/src -e SONAR_TOKEN sonarsource/sonar-scanner-cli

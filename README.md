@@ -96,6 +96,18 @@ npm run test       # vitest — offline unit suite (tests/unit/**)
 npm run test:live  # vitest — LIVE suite (tests/live/**), opt-in, hits gpu1 + OpenAI, costs money
 ```
 
+### SonarQube
+
+Static analysis against the GPU1 SonarQube server (`agent-mission-control` project).
+Local scan (Docker + `SONAR_TOKEN`):
+
+```bash
+SONAR_TOKEN=<token> npm run sonar
+```
+
+Dashboard: http://100.88.191.49:9010/dashboard?id=agent-mission-control (Tailscale).
+CI runs the same scan on the org self-hosted runner `gpu1` (advisory, `continue-on-error`).
+
 `npm run verify` is the release gate — it adds `next build` and the offline unit
 suite on top of `check`. The live suite (`test:live`) is never part of `verify`:
 it needs the real `npm run dev` stack + gpu1 PostgREST + OpenAI and self-skips
