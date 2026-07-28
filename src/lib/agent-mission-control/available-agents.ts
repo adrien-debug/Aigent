@@ -68,8 +68,6 @@ const RUNNABLE_TOOL_NAMES: ReadonlySet<string> = new Set<string>([
   ...Object.keys(REALESTATE_TOOL_HANDLERS),
 ])
 
-type RawRow = Record<string, unknown>
-
 const rest = <T>(pathAndQuery: string): Promise<T> => pgrest<T>('GET', pathAndQuery)
 
 /**
@@ -556,5 +554,3 @@ export function summarizeAvailableAgents(agents: AvailableAgent[]): {
     withProvenExecutedModel: agents.filter((a) => a.executedModel !== null).length,
   }
 }
-
-// `RawRow` stays module-private — transport typing only.

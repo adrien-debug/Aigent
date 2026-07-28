@@ -61,12 +61,6 @@ export interface Candle {
   interval: CandleInterval
 }
 
-/** A price observation — decimal string, never a float. */
-interface Price {
-  price: string
-  quote: AssetSymbol
-}
-
 /** 24h ticker. All prices decimal strings. */
 export interface Ticker {
   last: string

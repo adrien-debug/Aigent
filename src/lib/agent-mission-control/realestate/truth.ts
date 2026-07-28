@@ -33,17 +33,6 @@ export type RealEstateSourceType =
   | 'composite' // several official sources merged
   | 'fixture' // hand-authored lab data
 
-const REAL_ESTATE_SOURCE_TYPES: readonly RealEstateSourceType[] = [
-  'dvf',
-  'cadastre',
-  'ban',
-  'dpe',
-  'georisques',
-  'apify-scrape',
-  'composite',
-  'fixture',
-]
-
 /**
  * Truth status of a real-estate datum — same canonical vocabulary as the
  * trading domain, minus `SNAPSHOT` (no real-time official source exists here):
@@ -62,14 +51,6 @@ export type TruthStatus =
   | 'FIXTURE'
   | 'FALLBACK'
   | 'UNAVAILABLE'
-
-const TRUTH_STATUSES: readonly TruthStatus[] = [
-  'LIVE',
-  'HISTORICAL',
-  'FIXTURE',
-  'FALLBACK',
-  'UNAVAILABLE',
-]
 
 /**
  * Provenance carried by every datum. `dataTimestamp` is when the observation

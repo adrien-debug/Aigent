@@ -119,29 +119,6 @@ export function toRuntimeRunStatus(internal: AgentRunStatus): RuntimeRunStatus {
   }
 }
 
-type RuntimeRun = {
-  id: string
-  agentId: string
-  projectKey: string
-  status: RuntimeRunStatus
-  requestId: string
-  idempotencyKey: string | null
-  input: unknown
-  output: unknown
-  error: RuntimeErrorBody | null
-  createdAt: string
-  updatedAt: string
-}
-
-type RuntimeRunEvent = {
-  id: string
-  runId: string
-  sequence: number
-  type: string
-  data: unknown
-  createdAt: string
-}
-
 /** Structured error body — never a raw `Error#message`/stack from upstream. */
 export type RuntimeErrorBody = {
   code: string

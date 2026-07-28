@@ -1,5 +1,4 @@
 import * as Headless from '@headlessui/react'
-import type React from 'react'
 import { cn, responsiveDefault } from './cn'
 
 export function Fieldset({
@@ -12,27 +11,6 @@ export function Fieldset({
       className={cn('*:data-[slot=text]:mt-1 [&>*+[data-slot=control]]:mt-6', className)}
     />
   )
-}
-
-function Legend({
-  className,
-  ...props
-}: { className?: string } & Omit<Headless.LegendProps, 'as' | 'className'>) {
-  return (
-    <Headless.Legend
-      data-slot="legend"
-      {...props}
-      className={cn(
-        'font-semibold text-zinc-950 data-disabled:opacity-50 dark:text-white',
-        responsiveDefault('text-sm/6', 'max-sm:text-base/6', className),
-        className
-      )}
-    />
-  )
-}
-
-function FieldGroup({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
-  return <div data-slot="control" {...props} className={cn('space-y-8', className)} />
 }
 
 export function Field({ className, ...props }: { className?: string } & Omit<Headless.FieldProps, 'as' | 'className'>) {

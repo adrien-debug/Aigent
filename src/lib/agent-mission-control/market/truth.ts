@@ -53,17 +53,6 @@ export const TRUTH_STATUSES: readonly TruthStatus[] = [
   'UNAVAILABLE',
 ]
 
-/** TradeAgent freshness labels, restated for lossless mapping at delivery. */
-type TradeAgentFreshness =
-  | 'LIVE'
-  | 'INDEXED'
-  | 'CACHED'
-  | 'ESTIMATED'
-  | 'SIMULATED'
-  | 'STALE'
-  | 'UNAVAILABLE'
-  | 'ERROR'
-
 /**
  * Provenance carried by every datum. `dataTimestamp` is when the observation
  * happened at the source; `asOf` is the point-in-time the datum answers for

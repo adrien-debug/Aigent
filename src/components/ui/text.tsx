@@ -1,5 +1,4 @@
 import { cn, responsiveDefault } from './cn'
-import { Link } from './link'
 
 /**
  * Font-size ladder — a PROP, not a `className`.
@@ -64,34 +63,6 @@ export function Text({ className, size = 'body', tone = 'muted', ...props }: Tex
   )
 }
 
-function TextLink({ className, ...props }: React.ComponentPropsWithoutRef<typeof Link>) {
-  return (
-    <Link
-      {...props}
-      className={cn(
-        'text-zinc-950 underline decoration-zinc-950/50 data-hover:decoration-zinc-950 dark:text-white dark:decoration-white/50 dark:data-hover:decoration-white',
-        className
-      )}
-    />
-  )
-}
-
 export function Strong({ className, ...props }: React.ComponentPropsWithoutRef<'strong'>) {
   return <strong {...props} className={cn('font-medium text-zinc-950 dark:text-white', className)} />
-}
-
-function Code({ className, ...props }: React.ComponentPropsWithoutRef<'code'>) {
-  return (
-    <code
-      {...props}
-      // Same treatment as `TEXT_SIZES.body`: Catalyst shipped `text-sm
-      // sm:text-[0.8125rem]` (14px on phones, 13px from 640px up), parking the
-      // desktop size behind a variant no caller class could reach.
-      className={cn(
-        'rounded-sm border border-zinc-950/10 bg-zinc-950/2.5 px-0.5 font-medium text-zinc-950 dark:border-white/20 dark:bg-white/5 dark:text-white',
-        responsiveDefault('text-[0.8125rem]', 'max-sm:text-sm', className),
-        className
-      )}
-    />
-  )
 }

@@ -154,16 +154,6 @@ export type CopilotHealthMetric = keyof CopilotHealth
  */
 export type MeasurementState = 'MEASURED' | 'UNKNOWN' | 'UNAVAILABLE' | 'STALE' | 'NOT_APPLICABLE'
 
-/**
- * A numeric metric that carries its own measurement state. `value` is `null`
- * whenever `state !== 'MEASURED'`; a consumer must render a dash (or the state)
- * rather than treating a missing value as `0`.
- */
-interface MeasuredNumber {
-  value: number | null
-  state: MeasurementState
-}
-
 export type VersionStage = 'production' | 'beta' | 'draft' | 'archived'
 
 export interface CopilotVersion {

@@ -1,5 +1,5 @@
 import { EmptyState } from '@/components/agent-ops/empty-state'
-import { surfaceItemClass } from '@/components/agent-ops/surface-card'
+import { surfaceSunken } from '@/components/ui/panel'
 import { Badge } from '@/components/ui/badge'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
@@ -33,7 +33,7 @@ export function AgentDraftsPanel({ drafts }: { drafts: AgentDraftRow[] }) {
     <div className="max-h-96 overflow-y-auto px-6 py-4">
       <ul className="flex flex-col gap-2">
         {drafts.map((draft) => (
-          <li key={draft.id} className={`flex flex-col gap-2 p-4 ${surfaceItemClass}`}>
+          <li key={draft.id} className={`flex flex-col gap-2 p-4 ${surfaceSunken}`}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">

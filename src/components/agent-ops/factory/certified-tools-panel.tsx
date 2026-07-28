@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge'
 import { Strong, Text } from '@/components/ui/text'
-import { surfaceItemClass } from '@/components/agent-ops/surface-card'
+import { surfaceSunken } from '@/components/ui/panel'
 import { EmptyState } from '@/components/agent-ops/empty-state'
 
 export interface FactoryToolRow {
@@ -42,7 +42,7 @@ export function CertifiedToolsPanel({ tools }: { tools: FactoryToolRow[] }) {
     <div className="max-h-96 overflow-y-auto px-6 py-4">
       <ul className="flex flex-col gap-2">
         {tools.map((tool) => (
-          <li key={tool.id} className={`flex flex-col gap-2 p-4 ${surfaceItemClass}`}>
+          <li key={tool.id} className={`flex flex-col gap-2 p-4 ${surfaceSunken}`}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">

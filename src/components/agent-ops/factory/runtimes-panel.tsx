@@ -1,5 +1,5 @@
 import { Strong, Text } from '@/components/ui/text'
-import { surfaceItemClass } from '@/components/agent-ops/surface-card'
+import { surfaceSunken } from '@/components/ui/panel'
 
 export interface FactoryRuntimeRow {
   id: string
@@ -34,7 +34,7 @@ export function RuntimesPanel({ runtimes }: { runtimes: FactoryRuntimeRow[] }) {
             (key) => runtime.capabilities[key]
           )
           return (
-            <li key={runtime.id} className={`flex flex-col gap-2 p-4 ${surfaceItemClass}`}>
+            <li key={runtime.id} className={`flex flex-col gap-2 p-4 ${surfaceSunken}`}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   <Strong className="text-sm">{runtime.label}</Strong>

@@ -14,7 +14,7 @@
  * covered, which need a Tool Builder mission, and which are impossible.
  */
 
-import { getTool, isToolCertified, TOOL_IDS } from './tools'
+import { getTool, isToolCertified } from './tools'
 import { isRuntimeCreatable, isRuntimeExecutable, runtimeAvailability } from './runtimes'
 
 /** How a single declared tool resolves against the canonical registry. */
