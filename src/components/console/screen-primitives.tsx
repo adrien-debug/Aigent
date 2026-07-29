@@ -308,11 +308,20 @@ export const TABLE_NUM = 'text-right tabular-nums'
  * `Section scroll="lg"`, so a table panel is exactly as tall as any other
  * bounded panel beside it, with 3 rows or with 300.
  *
- * When the table is the panel's ONLY child, skip this and use `Section
- * scroll="lg"` instead — one bound, not two nested.
+ * WHEN TO USE WHICH — this is the ONLY difference, and it is a placement
+ * question, not a CSS one. `Section scroll="lg"` bounds the panel's whole body,
+ * so anything inside it scrolls, footer included. A footer that must stay
+ * pinned while the rows move therefore cannot live in a `scroll`-ed Section:
+ * the table gets this wrapper and the footer sits beside it, both inside an
+ * unbounded body. When the table is the panel's ONLY child, skip this and use
+ * `Section scroll="lg"` — one bound, not two nested.
  *
- * `overflow-auto`, not `overflow-y-auto`: on a phone the row is wider than the
- * column and must scroll sideways rather than be clipped.
+ * NOT A BEHAVIOURAL DIFFERENCE. A previous note here claimed `overflow-auto`
+ * was required over `overflow-y-auto` so a too-wide row could scroll sideways
+ * on a phone instead of being clipped. That is not how the property resolves:
+ * per CSS Overflow 3, when one axis is not `visible` the other computes from
+ * `visible` to `auto` — so `Section`'s `overflow-y-auto` scrolls horizontally
+ * too. The two mechanisms behave identically; only the footer decides.
  */
 export const TABLE_SCROLL = 'max-h-[26rem] overflow-auto'
 
