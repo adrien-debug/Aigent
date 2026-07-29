@@ -1,5 +1,6 @@
 import { ArrowRightIcon } from '@heroicons/react/20/solid'
 
+import { AgentActionsPanel } from '@/components/console/agent-actions'
 import { Button } from '@/components/ui/button'
 import { StatusDot, type StatusDotTone } from '@/components/ui/status-dot'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -239,6 +240,26 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
           </>
         }
       />
+
+      {/* ── ROW 0.5 · actions ─────────────────────────────────────────────
+          `AgentActionsPanel` is a client island: the three write actions
+          (run / test / benchmark) this copilot exposes. `detail.executable`
+          and `blockers` are the SAME verdict the run route itself enforces
+          (`getAgentDetail` → `computeBlockers`/`isExecutable`) — this panel
+          never recomputes it, it only reads it. Suite ids are the first row
+          of each suite list (`null` renders as "no suite yet" rather than a
+          dead button). */}
+      <Section title="Actions" description="Launch a real run against the live model — every call here is billed">
+        <div className="px-4 py-3">
+          <AgentActionsPanel
+            copilotId={copilot.id}
+            executable={detail.executable}
+            blockers={blockers.map((b) => ({ code: b.code, label: b.label }))}
+            testSuiteId={detail.testSuites[0]?.id ?? null}
+            benchmarkSuiteId={detail.benchmarkSuites[0]?.id ?? null}
+          />
+        </div>
+      </Section>
 
       {/* ── ROW 1 · KPI band ──────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">

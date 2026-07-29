@@ -29,6 +29,7 @@ import { NON_EVALUATION_RUN_FILTER } from './types'
 import type {
   AgentManifest,
   AgentRun,
+  BenchmarkSuite,
   Copilot,
   CopilotHealthMetric,
   CopilotVersion,
@@ -340,6 +341,18 @@ export async function getTestSuitesForCopilot(copilotId: string): Promise<TestSu
 
 export async function getTestCasesForSuite(suiteId: string): Promise<TestCase[]> {
   return camelRows<TestCase>(await rest<RawRow[]>(`test_cases?select=*&suite_id=eq.${encodeURIComponent(suiteId)}&order=id`))
+}
+
+/**
+ * Benchmark suites for a copilot — same shape/rationale as
+ * `getTestSuitesForCopilot`, no join needed since `BenchmarkSuite.taskCount`
+ * is a persisted column (unlike `TestSuite.caseIds`, which is derived from a
+ * child table).
+ */
+export async function getBenchmarkSuitesForCopilot(copilotId: string): Promise<BenchmarkSuite[]> {
+  return camelRows<BenchmarkSuite>(
+    await rest<RawRow[]>(`benchmark_suites?select=*&copilot_id=eq.${encodeURIComponent(copilotId)}&order=name`)
+  )
 }
 
 /**

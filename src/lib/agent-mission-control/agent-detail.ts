@@ -2,15 +2,25 @@ import 'server-only'
 
 import { getAvailableAgent, type AvailableAgent } from './available-agents'
 import {
+  getBenchmarkSuitesForCopilot,
   getCopilot,
   getManifestForCopilot,
   getRunsForCopilot,
+  getTestSuitesForCopilot,
   getToolsForCopilot,
   getVersionsForCopilot,
 } from './data'
 import { getLatestDeliveryEvent, type DeliveryEvent } from './delivery-events-store'
 import { isExecutable } from './runtime-catalogue'
-import type { AgentManifest, AgentRun, Copilot, CopilotVersion, ToolDefinition } from './types'
+import type {
+  AgentManifest,
+  AgentRun,
+  BenchmarkSuite,
+  Copilot,
+  CopilotVersion,
+  TestSuite,
+  ToolDefinition,
+} from './types'
 
 /**
  * ONE resolver for every agent-detail section (AIGENT-AGENT-PAGES-021).
@@ -49,6 +59,15 @@ export type AgentDetail = {
    * not read" — a failed read never reaches this type at all.
    */
   delivery: DeliveryEvent | null
+  /**
+   * Suites this copilot owns. `run/route.ts` and `benchmarks/run/route.ts`
+   * both require a `suiteId` the console has no other source for — these
+   * lists are what the run/test/benchmark actions pick from. Empty means
+   * "no suite generated yet", not "unknown": a failed read rejects the whole
+   * `Promise.all` below like every other field on this page.
+   */
+  testSuites: TestSuite[]
+  benchmarkSuites: BenchmarkSuite[]
 }
 
 /**
@@ -204,13 +223,15 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
   const copilot = await getCopilot(copilotId)
   if (!copilot) return undefined
 
-  const [agent, manifest, versions, tools, runs, delivery] = await Promise.all([
+  const [agent, manifest, versions, tools, runs, delivery, testSuites, benchmarkSuites] = await Promise.all([
     getAvailableAgent(copilotId),
     getManifestForCopilot(copilotId),
     getVersionsForCopilot(copilotId),
     getToolsForCopilot(copilotId),
     getRunsForCopilot(copilotId, 50),
     getLatestDeliveryEvent(copilotId),
+    getTestSuitesForCopilot(copilotId),
+    getBenchmarkSuitesForCopilot(copilotId),
   ])
 
   const toolsById = new Map(tools.map((t) => [t.id, t]))
@@ -233,5 +254,7 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
     executable: blockers.length === 0,
     metrics: computeMetrics(runs),
     delivery,
+    testSuites,
+    benchmarkSuites,
   }
 }
