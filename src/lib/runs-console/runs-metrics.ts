@@ -89,8 +89,28 @@ export function deriveRunsMetrics(runs: AgentRun[]): RunsMetrics {
   }
 }
 
+/** THE ONE precision rule for this metric, consumed by every renderer that
+ *  shows it — the KPI card figure, the ring's aria label, and (via
+ *  `formatSuccessFigure` below) the ring's own centre text. Integers stay
+ *  integers ("100%", "0%"); anything else keeps one decimal ("83.3%"). This
+ *  mirrors `RingGauge`'s internal `formatFigure` exactly, on purpose: before
+ *  this fix the two used different rules (`Math.round` here vs
+ *  integer-or-one-decimal there) and printed different figures for the same
+ *  rate — "83" beside "83.3", "0.0%" beside a bare "0". `rate` is the 0..1
+ *  ratio from `RunsMetrics.successRate`; callers pass the already-null-checked
+ *  value, `null` is never handled here. */
 export function formatPercent(rate: number): string {
-  return `${Math.round(rate * 100)}%`
+  const percent = rate * 100
+  const figure = Number.isInteger(percent) ? String(percent) : String(Math.round(percent * 10) / 10)
+  return `${figure}%`
+}
+
+/** Same rule as `formatPercent`, without the `%` — for renderers (the ring's
+ *  centre text, its aria label) that compose the figure into their own
+ *  wording instead of a bare percentage. */
+export function formatSuccessFigure(rate: number): string {
+  const percent = rate * 100
+  return Number.isInteger(percent) ? String(percent) : String(Math.round(percent * 10) / 10)
 }
 
 /** `null`/non-finite latency renders as an em dash upstream, never as "0ms". */

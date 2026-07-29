@@ -4,7 +4,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { AgentRunStatus } from '@/lib/agent-mission-control/types'
 import type { RunsPageData } from '@/lib/runs-console/runs-page-data'
-import { deriveRunsMetrics, formatDuration, formatPercent } from '@/lib/runs-console/runs-metrics'
+import {
+  deriveRunsMetrics,
+  formatDuration,
+  formatPercent,
+  formatSuccessFigure,
+} from '@/lib/runs-console/runs-metrics'
 
 // Alias paths, not `./charts/…`: `scripts/audit-dead.mjs` proves a component is
 // alive by looking for `@/<path>` or a SAME-DIRECTORY `./<basename>`. A relative
@@ -104,12 +109,14 @@ function dangerCount(count: number) {
 export function RunsScreen({ data }: { data: RunsPageData }) {
   const metrics = deriveRunsMetrics(data.runs)
 
-  // The gauges need a NUMBER where the card needs a STRING. Narrowed ONCE,
-  // unrounded (0..100), same as `agent-detail-screen.tsx` — `formatPercent`
-  // above rounds to one decimal ("83.3%") while a stray `Math.round` here used
-  // to round to the whole percent ("83") before the gauges ever saw it, so the
-  // card and the ring/arc beside it could print different figures for the same
-  // rate. Only the aria label rounds, for speech, at the point it is spoken.
+  // The gauges need a NUMBER (for arc geometry) where the card needs a
+  // STRING. Narrowed ONCE, unrounded (0..100) — the gauges' own centre text
+  // and this screen's `formatPercent`/`formatSuccessFigure` now share the
+  // ONE precision rule in `runs-metrics.ts` (integer stays integer, else one
+  // decimal), so every renderer of this metric prints the same figure for
+  // the same rate. Previously the KPI card rounded to one decimal while a
+  // stray `Math.round` on the aria label rounded to the whole percent —
+  // "83.3%" beside "83" for the identical rate.
   const successPercent = metrics.successRate === null ? null : metrics.successRate * 100
 
   /** Every status of the vocabulary, in outcome order. The counts are MEASURED,
@@ -179,9 +186,9 @@ export function RunsScreen({ data }: { data: RunsPageData }) {
               // "Indisponible" truncates. Measured, not guessed.
               size={56}
               ariaLabel={
-                successPercent === null
+                metrics.successRate === null
                   ? 'Success rate: no run reached a terminal state, nothing measured.'
-                  : `Success rate: ${Math.round(successPercent)} of 100.`
+                  : `Success rate: ${formatSuccessFigure(metrics.successRate)} of 100.`
               }
             />
           }

@@ -7,7 +7,12 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { deriveRunsMetrics, formatDuration, formatPercent } from '@/lib/runs-console/runs-metrics'
+import {
+  deriveRunsMetrics,
+  formatDuration,
+  formatPercent,
+  formatSuccessFigure,
+} from '@/lib/runs-console/runs-metrics'
 import { makeRun } from './runs-fixtures'
 
 describe('deriveRunsMetrics', () => {
@@ -91,10 +96,77 @@ describe('formatDuration', () => {
   })
 })
 
-describe('formatPercent', () => {
-  it('rounds to a whole percent', () => {
-    expect(formatPercent(0.5)).toBe('50%')
+describe('formatPercent — the ONE precision rule for the success rate', () => {
+  // AIGENT bug fixed here: the KPI card used to round to one decimal
+  // ("83.3%") while the ring's aria label used a stray `Math.round` to a
+  // whole percent ("83") — same rate, two different figures on screen at
+  // once. `formatPercent` now uses the same rule as `RingGauge`'s internal
+  // `formatFigure`: integers stay integers, anything else keeps one decimal.
+  it('keeps one decimal for a non-integer rate — 83.3%, never 83%', () => {
+    expect(formatPercent(0.8333333333)).toBe('83.3%')
+  })
+
+  it('drops the decimal only when the percent is an exact integer', () => {
     expect(formatPercent(1)).toBe('100%')
-    expect(formatPercent(0.666)).toBe('67%')
+    expect(formatPercent(0)).toBe('0%')
+    expect(formatPercent(0.5)).toBe('50%')
+  })
+
+  it('does not multiply an already-percent value — input is the 0..1 ratio', () => {
+    expect(formatPercent(0.666)).toBe('66.6%')
+  })
+})
+
+describe('formatSuccessFigure — same rule, no "%", for the ring/aria composition', () => {
+  it('matches formatPercent minus the trailing "%" for every case', () => {
+    for (const rate of [0.8333333333, 1, 0, 0.5, 0.666]) {
+      expect(formatPercent(rate)).toBe(`${formatSuccessFigure(rate)}%`)
+    }
+  })
+})
+
+describe('success rate stays identical across every renderer of the metric', () => {
+  // This is the regression the mission was opened for: the small ArcGauge
+  // beside the KPI card and the big RingGauge in the outcome panel must
+  // print the SAME characters for the SAME rate. `RingGauge`'s own centre
+  // text is drawn by its internal `formatFigure`, which this test mirrors
+  // exactly (integer stays integer, else one decimal) to prove the two
+  // independent implementations now agree byte-for-byte.
+  function ringGaugeFigure(percent: number): string {
+    return Number.isInteger(percent) ? String(percent) : String(Math.round(percent * 10) / 10)
+  }
+
+  it('83.3% case: KPI card and ring centre text agree', () => {
+    const rate = 5 / 6 // 0.8333... -> 83.3
+    const kpiCardText = formatPercent(rate)
+    const ringCentreText = ringGaugeFigure(rate * 100)
+
+    expect(kpiCardText).toBe('83.3%')
+    expect(ringCentreText).toBe('83.3')
+    expect(kpiCardText).toBe(`${ringCentreText}%`)
+  })
+
+  it('100% case: KPI card and ring centre text agree (both drop the decimal)', () => {
+    const rate = 1
+    expect(formatPercent(rate)).toBe(`${ringGaugeFigure(rate * 100)}%`)
+    expect(formatPercent(rate)).toBe('100%')
+  })
+
+  it('0% (measured zero) case: KPI card and ring centre text agree', () => {
+    const rate = 0
+    expect(formatPercent(rate)).toBe(`${ringGaugeFigure(rate * 100)}%`)
+    expect(formatPercent(rate)).toBe('0%')
+  })
+
+  it('null (unmeasured) stays null end to end — never rendered as "0%"', () => {
+    const metrics = deriveRunsMetrics([
+      makeRun({ status: 'running' }),
+      makeRun({ status: 'needs-confirmation' }),
+    ])
+
+    expect(metrics.successRate).toBeNull()
+    // Callers (runs-screen.tsx) branch on `=== null` before ever calling
+    // `formatPercent`/`formatSuccessFigure` — neither function is asked to
+    // handle null, and the UI shows "Indisponible"/"Not measured" instead.
   })
 })
