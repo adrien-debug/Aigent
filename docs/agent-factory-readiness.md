@@ -1,3 +1,5 @@
+ARCHIVED — historical state, not current doctrine
+
 # Agent Factory Readiness — AIGENT-RUNTIME-PROMOTION-001
 
 **Question :** Aigent est-il aujourd'hui capable de créer un nouvel agent réellement

@@ -1,3 +1,5 @@
+ARCHIVED — historical state, not current doctrine
+
 # AIGENT-DETERMINISTIC-EVIDENCE-001 — deterministic evidence for tests & benchmarks
 
 Branch: `feat/deterministic-evidence-001` · base SHA `0b91ce6` (contains PR #19 /

@@ -1,3 +1,5 @@
+ARCHIVED — historical state, not current doctrine
+
 # Live shadow proof — real LangGraph execution
 
 Reproducible proof that `useFixture:false` runs the candidate through the **real LangGraph runtime** and persists `execution_mode: 'live_langgraph'` — the only provenance a REQUIRED promotion-gate shadow check accepts. Captured against gpu1 via the product API on a disposable copilot (created + deleted through the product routes, no direct SQL), commit `70b8288`.

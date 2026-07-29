@@ -1,187 +1,144 @@
-# Agent Mission Control
+# Aigent — Agent Mission Control
 
-Internal control plane for authoring, testing, promoting and running LLM
-copilots. A Next.js 16 (App Router) admin console backed by a dedicated Postgres
-perimeter (`aigent`) on GPU1, with real agent execution split between a direct
-model-router loop and the official **LangGraph Agent Server** for
-human-in-the-loop runs.
+**The central plane where LLM agents are created, qualified, shipped, observed
+and improved.** Aigent is not the product an end user touches: the agents it
+produces run inside *consumer* products, those products report their runs back
+here, and Aigent turns that history into governed V2s.
 
-Everything here is server-only and **fail-closed**: without the live backend and
-the credentials for the provider a given run selects (`OPENAI_API_KEY`, and/or
-`GEMINI_API_KEY` / `VLLM_LOCAL_API_KEY` on the direct path), data and execution
-paths return `503`/`ProviderUnavailableError` — there is no mock path for agent
+```
+   create → qualify → ship ──► CONSUMER PRODUCT executes the agent
+      ↑                                    │
+      └──── improve ◄──── telemetry ◄──────┘
+```
+
+- **`docs/product-vision.md`** — what the platform is for, and what it is not.
+- **`docs/current-capabilities.md`** — every capability with its real state
+  (wired / partial / backend-only / not wired) and the file that proves it.
+- **`docs/architecture.md`** — layers, trust boundaries, directory map.
+- **`docs/known-gaps.md`** — what is honestly missing.
+
+Everything is server-only and **fail-closed**. Without the live backend and the
+credentials for the provider a given run selects, data and execution paths
+return `503` / `ProviderUnavailableError`. There is no mock path for agent
 authoring or runs.
+
+## What is actually reachable today
+
+The console at `/admin` is **rebuilt and active** — six live screens:
+
+| Route | Screen |
+|---|---|
+| `/admin` | Overview — fleet KPIs, run trend, per-agent activity |
+| `/admin/runs` | Runs — live run stream, filters, metrics |
+| `/admin/agents` | Agents — catalogue with executable / degraded status |
+| `/admin/agents/[id]` | Agent detail (read-only) |
+| `/admin/projects` | Projects |
+| `/admin/projects/[id]/builder` | Project builder — conversational authoring, SSE-streamed |
+
+Plus the marketing site at `/`, `/about`, `/pricing`, `/contact`.
+
+**Read this honestly:** the console is a *read* console. The project builder is
+its only write surface. The rest of the lifecycle — qualification, promotion,
+improvement, shipping, shadow, replay, tests, benchmarks — is real, tested HTTP
+under `/api/agent-ops/**`, but **has no UI**. See
+`docs/current-capabilities.md` for the row-by-row state and
+`docs/known-gaps.md` §1 for what that costs.
+
+Routes named in older documentation — `/admin/factory`, `/admin/performance`,
+`/admin/settings`, `/admin/telemetry`, `/admin/agents/new` — **do not exist**.
+`scripts/check-no-legacy-front.mjs` fails the build if any of them reappears, or
+if a `/admin-v2` route shows up.
+
+## Notable partial capabilities
+
+State the restriction, not the headline:
+
+- **Shipping to a consumer repo** is a **dry run** unless `confirm: true` is in
+  the request body **and** `GITHUB_PUSH_ENABLED=1` is in the environment.
+- **Telemetry** is write-mostly: events are ingested and stored, and the
+  per-agent summary feeds the improvement loop, but the fleet-level summary and
+  the health diagnostic have **no production callers**.
+- **Tool builder** works, but only `count_words` has a sandbox.
+- **Provider `mistral`** is declared and **not wired** — it throws a typed error
+  rather than falling back silently.
+- **Provider `local`** (vLLM) requires an explicit opt-in key.
 
 ## Stack
 
-- **Next.js 16** App Router — ⚠️ this version has breaking changes vs. older
-  Next; read `node_modules/next/dist/docs/` before touching framework code
-  (see `AGENTS.md`).
-- **React 19**, TypeScript, Tailwind v4, Catalyst UI kit (`src/components/catalyst/`).
-- **LangGraph** (`@langchain/langgraph` + `@langchain/langgraph-sdk`) — the
-  `agent_builder` graph in `src/langgraph/`, served by the LangGraph Agent Server.
-  It resolves the copilot provider and mounts its scoped executable tools,
-  including the seven read-only market tools through their canonical handlers.
-- **Multi-provider on the direct path** — the direct model-router loop
-  (`src/lib/agent-mission-control/model-router.ts`) resolves the copilot's
-  provider and routes to **OpenAI** (`OPENAI_API_KEY`), **Gemini**
-  (`GEMINI_API_KEY`/`GOOGLE_API_KEY`), or Adrien's **local vLLM** park
-  (`VLLM_LOCAL_API_KEY`, OpenAI-compatible). Provider is per-copilot
-  (`model_provider`), not global. The live catalog is the 4 TradeAgent
-  copilots on `openai`/`gpt-5.4`.
-- **Postgres via PostgREST** — the `aigent` perimeter on GPU1 (service-role,
-  server-only). See `docs/BACKEND-GPU1.md`.
+- **Next.js 16** App Router — ⚠️ breaking changes vs. older Next; read
+  `node_modules/next/dist/docs/` before touching framework code (`AGENTS.md`).
+- **React 19**, TypeScript, Tailwind v4, Catalyst primitives (`src/components/ui/`).
+- **LangGraph** — the `agent_builder` graph in `src/langgraph/`, served by the
+  official LangGraph Agent Server. Mandatory runtime for every agent.
+- **Direct model-router** (`src/lib/agent-mission-control/model-router.ts`) —
+  per-copilot provider, routing to OpenAI / Gemini / local vLLM.
+- **Postgres via PostgREST** — the `aigent` perimeter on GPU1, service-role,
+  server-only. See `docs/BACKEND-GPU1.md`.
 
 ## Getting started
 
-Copy the env template and fill in real values (never commit `.env.local`):
-
 ```bash
-cp .env.example .env.local
-```
-
-Then run **both** servers together — the app and the LangGraph Agent Server:
-
-```bash
+cp .env.example .env.local   # fill in real values; never commit this file
 npm run dev
 ```
 
-- **Next.js** → http://localhost:3210 (admin console at `/admin`).
-- **LangGraph Agent Server** → http://127.0.0.1:2024 (serves the `agent_builder`
-  graph; the same endpoint LangSmith Studio connects to).
+Runs both servers together:
 
-Run either alone with `npm run dev:next` / `npm run langgraph`, and open Studio
-with `npm run langgraph:studio`.
+- **Next.js → http://localhost:3210** — console at `/admin`.
+  **Never port 3000.** Other Next servers on this machine own it; see
+  `AGENTS.md` for the absolute rule.
+- **LangGraph Agent Server → http://127.0.0.1:2024** — serves `agent_builder`;
+  the same endpoint LangSmith Studio connects to.
 
-### Required env
+Either alone: `npm run dev:next` / `npm run langgraph`. Studio:
+`npm run langgraph:studio`.
 
-`AMC_DATA_SOURCE=gpu1`, `AMC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
-`OPENAI_API_KEY` (see `.env.example` for the full list, including
-`LANGGRAPH_API_URL`, `AGENT_BUILDER_MODEL`, `TRADEAGENT_MARKET_URL`, and
-`TRADEAGENT_PORTFOLIO_RISK_URL` + `TRADEAGENT_INTERNAL_API_KEY` for live
-market reads and portfolio risk). Without them the relevant data and run paths fail closed.
+Required env: `AMC_DATA_SOURCE=gpu1`, `AMC_SUPABASE_URL`,
+`SUPABASE_SERVICE_ROLE_KEY`, `AMC_SESSION_SECRET`, `OPENAI_API_KEY`. See
+`.env.example` for the full list. Without them the relevant paths fail closed.
 
-### TradeAgent roster (gpu1)
-
-Reconcile the four canonical TradeAgent copilots on `proj-tradeagent` (migration 0033 lockdown: plain INSERT only, no upsert on `copilots` / `copilot_versions`):
-
-```bash
-node --env-file=.env.local scripts/provision-tradeagent-roster.mjs --apply
-LANGGRAPH_API_URL=http://127.0.0.1:2024 npm run reprovision
-LANGGRAPH_API_URL=http://127.0.0.1:2024 node --env-file=.env.local $(command -v npx) -y tsx --conditions=react-server scripts/prove-market-intelligence.ts
-node --env-file=.env.local scripts/scorecard-tradeagent.mjs copilot-market-intelligence
-LANGGRAPH_API_URL=http://127.0.0.1:2024 node --env-file=.env.local $(command -v npx) -y tsx --conditions=react-server scripts/promote-tradeagent-copilot.ts portfolio-risk-guardian
-```
-
-Agents are born `draft`; promotion to `active` goes through `/api/agent-ops/copilots/:id/promotion` after a passing gate.
-
-**Tool catalogue** (`tool_definitions` + `tools.tool_definition_id`, migration `0041`): registry authority in code, shared DB rows per tool, per-copilot mounts FK to the catalogue. Sync and gate:
-
-```bash
-# After applying 0041 on gpu1:
-npm run sync:tool-definitions
-npm run check:tool-definitions        # SKIPs offline; arms with AMC_DATA_SOURCE=gpu1
-npm run check:tool-definitions -- --fix
-```
-
-### Factory proofs (archived scripts)
-
-One-shot E2E proofs live under `scripts/archive/` and are wired as npm scripts:
-
-```bash
-npm run prove:factory-core          # deterministic, no network
-npm run prove:factory-e2e             # full factory chain (needs gpu1 + LangGraph)
-npm run prove:shadow-replay          # shadow/replay API proof
-npm run prove:autonomous-factory     # product-path qualification proof
-```
+After a clone, arm the secret hook once: `npm run hooks:install` (see
+`CLAUDE.md`).
 
 ## Checks
 
 ```bash
-npm run verify     # full release gate: typecheck + lint + check:ds + check:catalyst + unit tests + build
-npm run check      # fast gate (no build/tests): typecheck + lint + check:ds + check:catalyst
-npm run typecheck  # tsc --noEmit
-npm run lint       # eslint
-npm run check:ds   # monochrome-accent + zinc palette / contrast guard
-npm run test       # vitest — offline unit suite (tests/unit/**)
-npm run test:live  # vitest — LIVE suite (tests/live/**), opt-in, hits gpu1 + OpenAI, costs money
+npm run check      # full static gate — see docs/current-capabilities.md for the list
+npm run verify     # check + knip + offline unit tests + build  (the release gate)
+npm run typecheck
+npm run lint
+npm run test       # vitest, offline unit suite
+npm run test:live  # opt-in — hits gpu1 + OpenAI, costs money, never in verify
+```
+
+A red gate beats any sentence in any `.md`. That precedence is stated once, in
+`AGENTS.md`.
+
+### One-shot proofs
+
+```bash
+npm run prove:factory-core        # deterministic, no network
+npm run prove:factory-e2e         # full factory chain (needs gpu1 + LangGraph)
+npm run prove:shadow-replay
+npm run prove:autonomous-factory
 ```
 
 ### SonarQube
-
-Static analysis against the GPU1 SonarQube server (`agent-mission-control` project).
-Local scan (Docker + `SONAR_TOKEN`):
 
 ```bash
 SONAR_TOKEN=<token> npm run sonar
 ```
 
 Dashboard: http://100.88.191.49:9010/dashboard?id=agent-mission-control (Tailscale).
-CI runs the same scan on the org self-hosted runner `gpu1` (advisory, `continue-on-error`).
 
-### Factory (live surfaces)
+## Where the rules live
 
-- `/admin/factory` — registry truth + **agent drafts** (`agent_drafts`, migration `0042`) + **tool build missions** (`tool_build_missions`, migration `0043`). Decorative placeholder panels were removed — only wired sections render.
-- `/admin/performance` — fleet leaderboard ranks **operational** 24h success (not eval-suite pass rate) and excludes `scripts/dev-seed.mjs` fixtures (`dev-seed-markers.ts`).
-- `/admin/factory/tools` — start a local-deterministic tool build (`POST /api/agent-ops/tool-build-missions`); only `count_words` has a sandbox today.
-- Architect chat persists drafts server-side (`draftId` returned by `POST /api/agent-ops/architect`).
-- Release page — **Run qualification sweep** / **Advance one step** (`POST /api/agent-ops/copilots/:id/qualification`).
+One rule, one file — nothing is restated:
 
-Apply new migrations on gpu1 before expecting tool build missions:
-
-```bash
-ssh gpu1 'docker exec -i nexus-postgres psql -U postgres -d aigent -v ON_ERROR_STOP=1' \\
-  < supabase/migrations/0043_tool_build_missions.sql
-```
-
-(`agent_drafts` already exists on gpu1 with the historical schema — `0042` only re-grants.)
-
-`npm run verify` is the release gate — it adds `next build` and the offline unit
-suite on top of `check`. The live suite (`test:live`) is never part of `verify`:
-it needs the real `npm run dev` stack + gpu1 PostgREST + OpenAI and self-skips
-when unreachable.
-
-`scripts/check-no-legacy-front.mjs` guards the P006 demolition: no deleted
-visual layer may be reimported and no `/admin-v2` route may reappear. It runs
-in CI and must stay green.
-
-## Typography
-
-**One typeface across the entire product — Satoshi Variable, for everything,
-including KPIs and numbers.** The earlier rule that held numeric / tabular
-values (KPI figures, IDs, versions, costs) in a monospace face (Geist Mono) has
-been **removed**: every surface now reads in a single voice.
-
-- The font is loaded once in `src/app/layout.tsx` (`--font-satoshi`, a local
-  variable woff2). Geist Mono is no longer loaded.
-- In `src/app/globals.css`, **both** Tailwind font slots resolve to it:
-  `--font-sans: var(--font-satoshi)` and `--font-mono: var(--font-satoshi)`.
-  So any `font-mono` class in the app (KPI values, tool names, SHAs, JSON, code)
-  renders in Satoshi. `tabular-nums` is still used to keep figures aligned —
-  it's a font-feature toggle, independent of the family.
-## Layout
-
-`/admin` and `/admin/runs` are neutral placeholders — the console UI was
-demolished (P006) and is not yet rebuilt.
-
-| Path | What |
-|---|---|
-| `src/app/admin/` | Admin console routes — currently placeholders. |
-| `src/app/api/agent-ops/` | Server-only route handlers (the only OpenAI / Agent Server / write points). |
-| `src/lib/agent-mission-control/` | Data layer, runner, model router, auth, tool handlers (all `server-only`). |
-| `src/langgraph/` | The `agent_builder` `StateGraph`, tool registry, and its own PostgREST client. |
-| `src/components/ui/` | Vendored Catalyst UI kit — only the primitives actually consumed. |
-| `supabase/migrations/` | Schema for the `aigent` perimeter. |
-| `scripts/` | `seed-amc.ts`, `provision-agent-builder.ts`, `provision-tradeagent-roster.mjs`, `reprovision-assistants.ts`, `check-no-legacy-front.mjs`. |
-| `deploy/` | Container/Caddy config: `app/` (the Next.js app), `db/` (the data layer — PostgREST + Caddy over the `aigent` database), `langgraph/` (the Agent Server). |
-
-## Docs
-
-- **`docs/agent-authoring.md`** — how a copilot gets created (architect flow),
-  the two execution paths (LangGraph vs. direct model-router), and the
-  human-in-the-loop interrupt/resume lifecycle. Also covers the project
-  builder — a full-screen **modal** (not a page), whose architect replies are
-  **streamed over SSE** token-by-token — and the post-creation
-  **improvement loop** (analyze → create-v2 → decision).
-- **`docs/BACKEND-GPU1.md`** — the `aigent` Postgres/PostgREST perimeter on GPU1.
-- **`AGENTS.md`** — Next.js 16 caveat for agents working in this repo.
+- **`CLAUDE.md`** — git, branching, push, deployment, secrets.
+- **`AGENTS.md`** — technical invariants: port, runtime, LangGraph, design
+  tokens, doctrine hierarchy.
+- **`docs/metrics-canon.md`** — how a number is allowed to be displayed.
+- **`docs/agent-authoring.md`** — the authoring flow and the two execution paths.
+- **`docs/BACKEND-GPU1.md`** — the Postgres/PostgREST perimeter.
+- **`docs/TESTING.md`**, **`docs/dev-runtime.md`** — test and runtime specifics.

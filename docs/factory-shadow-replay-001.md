@@ -1,3 +1,5 @@
+ARCHIVED — historical state, not current doctrine
+
 # AIGENT-FACTORY-SHADOW-REPLAY-001 — Shadow/Replay as product capabilities
 
 > **⚠️ SUPERSEDED (2026-07-25, integration `be4a715` on `main`).** The `501

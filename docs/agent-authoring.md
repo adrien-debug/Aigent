@@ -5,19 +5,31 @@ scratch via the architect assistant, and running it for real. This is the
 "write a new agent" path, distinct from managing existing copilots (registry,
 versions, promotion gate, etc. — see `AGENTS.md` / `types.ts` for that surface).
 
+> **Surface note (verified against the code).** This document describes the
+> authoring *mechanism*, which is real and tested. Its **UI surfaces have moved**:
+> `/admin/agents/new` **no longer exists** — the console's only authoring surface
+> today is the **project builder** at `/admin/projects/[id]/builder`
+> (`src/components/console/project-builder-screen.tsx`). `/admin/agents/[id]` is
+> **read-only**: it has no run panel and issues no `fetch`. Everything else below
+> is reachable by HTTP under `/api/agent-ops/**`, not by a click. Row-by-row
+> state: `docs/current-capabilities.md`.
+
 ## 1. Overview
 
-- **Creation surface**: `/admin/agents/new`. A form + chat-style assistant
-  where an operator describes the agent they want in natural language.
+- **Creation surface**: the project builder (`/admin/projects/[id]/builder`), a
+  conversational screen whose architect replies stream over SSE. It posts to
+  `builder/conversation`, `builder/create-draft` and `builder/message?stream=1`.
+  The older standalone form at `/admin/agents/new` was removed.
 - **Architect assistant**: an LLM-backed step that takes the operator's
   description and produces a structured `GeneratedManifest` draft (system prompt
   summary, allowed routes, forbidden actions, confirmation policy, tool ids,
-  cost/step limits) — not just prose.
-- **Real runner**: once a copilot + manifest exist, `/admin/agents/[id]` (or
-  the run panel on the copilot detail page) can trigger a real execution — a
-  live OpenAI call, not a mock/fixture. Output lands in `agent_runs` /
-  `agent_run_steps` exactly like production traffic, so a hand-run test looks
-  identical to a real run in the trace UI.
+  cost/step limits) — not just prose. HTTP surface:
+  `POST /api/agent-ops/architect`.
+- **Real runner**: once a copilot + manifest exist, a real execution is
+  triggered by `POST /api/agent-ops/copilots/:id/run` — a live provider call,
+  not a mock/fixture. Output lands in `agent_runs` / `agent_run_steps` exactly
+  like production traffic. **There is no button for this**; the console does not
+  call that route.
 - **Human-in-the-loop**: a copilot on the `langgraph` runtime runs on the
   official LangGraph Agent Server. A confirmation-required tool PAUSES the graph
   for human approval; the run is persisted as `needs-confirmation` and resumed
@@ -111,10 +123,11 @@ draft an agent contextualized to it:
 
 ### Bench flow
 
-- **Workbench** — `/admin/agents/[id]/builder` (a Builder tab shown ONLY on the
-  Agent Builder copilot). A textarea → **Run Agent Builder** → LangGraph node
-  timeline → drafted manifest / tools / tests / risks → **Approve & create
-  draft** / **Reject**, plus a link to the created copilot.
+- **Workbench** — the UI described here (`/admin/agents/[id]/builder`, a Builder
+  tab with a **Run Agent Builder** button, a LangGraph node timeline and
+  **Approve & create draft** / **Reject** controls) **NO LONGER EXISTS**. The
+  route is absent from `src/app/admin/`. The bench routes below are real and
+  tested; they are driven by HTTP, not by a screen.
 - **Builder routes** (real LangGraph runs — the bench copilot can't go through
   `executeCopilotRun`, which requires a project, so these call
   `runOnAgentServer`/`resumeOnAgentServer` directly; the Agent Server THREAD is

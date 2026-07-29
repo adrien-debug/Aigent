@@ -1,3 +1,5 @@
+ARCHIVED — historical state, not current doctrine
+
 # AIGENT-AUTONOMOUS-FACTORY-001 — Autonomous Factory
 
 > Branch: `feat/autonomous-factory-001` · Base: `0b91ce6` (head of PR #19) · Migrations: `0040`

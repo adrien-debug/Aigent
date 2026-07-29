@@ -4,9 +4,13 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-> **Discipline de ce fichier** : invariants courts pour agents, rien d'autre. Le détail par
-> mission (roster complet, exports, canvas) vit dans
-> `docs/missions/AGENTS-history-2026-07.md` — le consulter AVANT de toucher un domaine listé.
+> **Discipline de ce fichier** : invariants techniques courts pour agents, rien d'autre.
+> — Ce qui EXISTE et dans quel état → `README.md` et `docs/current-capabilities.md`.
+> — Pourquoi la plateforme existe → `docs/product-vision.md`.
+> — Comment elle est structurée → `docs/architecture.md`.
+> — Ce qui manque → `docs/known-gaps.md`.
+> — Détail par mission (roster complet, exports, canvas) → `docs/missions/AGENTS-history-2026-07.md`
+>   (archivé : décrit un état passé, à ne pas lire comme la doctrine courante).
 
 <!-- BEGIN:doctrine-hierarchy -->
 ## Hiérarchie de doctrine
@@ -17,11 +21,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
    doctrine.
 4. Mission courante.
 
-Il n'existe aujourd'hui aucune doctrine visuelle de dashboard : P006 a supprimé l'ancien front
-(`src/components/agent-ops/**`, `src/components/views/**`, `src/components/shell/**` et leur
-doctrine `DESIGN-DOCTRINE.md`), et `/admin` + `/admin/runs` sont des placeholders neutres en
-attente de reconstruction. Une nouvelle doctrine visuelle ne s'écrit qu'au moment où un vrai écran
-se reconstruit — jamais par anticipation.
+L'état produit réel (ce qui est câblé, partiel, backend-only, non branché) n'est PAS de la
+doctrine : il vit dans `README.md` et `docs/current-capabilities.md`, avec un fichier de preuve
+par ligne. Ne le recopie pas ici.
 
 Une règle vit dans **un seul** de ces fichiers ; ailleurs on y renvoie, on ne la recopie pas.
 Contradiction entre deux fichiers → la plus récente et la plus spécifique gagne, et l'écart se
@@ -45,20 +47,50 @@ est pris par un process non identifié comme le sien.
 <!-- END:dev-port-rule -->
 
 <!-- BEGIN:catalyst-ui-rules -->
-## UI (gate : `npm run check:no-legacy-front`)
-- `/admin` et `/admin/runs` sont des **placeholders neutres** (P006) : pas de carte, pas de
-  shell, pas de navigation, pas de données. La reconstruction visuelle du dashboard n'a pas
-  commencé — n'y ajoute rien par anticipation.
-- **Marketing** (`src/app/(site)/`, `src/components/marketing/`) → blocs Tailwind Plus pris tels
-  quels, restylés sur les tokens du projet (`accent-*`/`zinc`). Vitrine statique, doctrine
-  inchangée par la démolition du dashboard.
+## UI — console reconstruite et active (gate : `npm run check:no-legacy-front`)
+
+- **La console `/admin` est reconstruite et vivante.** Six routes réelles :
+  `/admin` · `/admin/runs` · `/admin/agents` · `/admin/agents/[id]` · `/admin/projects` ·
+  `/admin/projects/[id]/builder`. Les écrans vivent dans `src/components/console/`, encadrés
+  par `console-shell.tsx` (rail 216/248px + topbar 52px). Toute page admin monte le shell
+  elle-même : `src/app/admin/layout.tsx` est un pass-through par construction (un layout serveur
+  n'a pas de pathname, donc ne peut pas fournir `activeHref`).
+- **Le rail porte exactement quatre entrées** : Overview, Runs, Projects, Agents. Le builder se
+  rejoint depuis l'écran Projects — il exige un id de projet, donc pas de lien fabriqué. **Aucun
+  contrôle mort** : un bouton grisé vers un écran inexistant est une publicité pour du vide.
+- **Routes SUPPRIMÉES et interdites par la gate** : `factory`, `performance`, `settings`,
+  `telemetry`, `not-found.tsx` sous `src/app/admin/`, et tout `/admin-v2`. Seule exception
+  commissionnée : `src/app/admin/error.tsx`, la frontière d'erreur du segment `/admin`.
+  Les couches démolies (`src/components/agent-ops/**`, `views/**`, `shell/**`) ne peuvent pas
+  être réimportées.
 - **Un seul accent : `accent` (vert tendre, `#A7FB90`, `src/theme.css`).** Tout le reste est `zinc`.
-  (`src/app/globals.css` n'est qu'un stub qui `@import "../theme.css"`.)
+  (`src/app/globals.css` n'est qu'un stub qui `@import "../theme.css"`.) Ne jamais importer les
+  tokens/palette d'un autre projet : le design system de ce workspace lui est PROPRE.
+- **Une seule police : Satoshi Variable, pour TOUT.** `--font-sans` et `--font-mono` résolvent
+  tous deux vers elle (`src/theme.css`) : une classe `font-mono` est un choix d'alignement
+  (`tabular-nums`), pas un changement de famille. Geist Mono n'est plus chargée.
 - **Les primitives Catalyst vivent dans `src/components/ui/`** — kit minimal, uniquement les
   primitives réellement consommées par une route vivante (`npm run quality:dead` échoue sur une
-  primitive orpheline). Aucun composant "pour plus tard", aucun design system parallèle. Les
-  primitives nécessaires au futur dashboard seront réintroduites depuis la source officielle au
-  moment où elles seront réellement utilisées — pas avant.
+  primitive orpheline). Aucun composant "pour plus tard", aucun design system parallèle.
+- **Marketing** (`src/app/(site)/`, `src/components/marketing/`) → blocs Tailwind Plus pris tels
+  quels, restylés sur les tokens du projet. Vitrine statique, périmètre distinct de la console.
+- **Les gates de design system n'existent plus** (`check:ds`, `check:contrast`, `check:catalyst`,
+  `check:danger`, `check:views` ont été supprimées avec l'ancien dashboard et n'ont jamais été
+  réécrites pour la console actuelle). Une nouvelle règle visuelle ne vaut que si une gate la
+  fait respecter — jamais une simple phrase dans un `.md`. Trou connu :
+  `docs/known-gaps.md` §7.
+
+## Vérité affichée (gates : `check:render-truth`, `check:status-truth`)
+
+- **Une valeur non mesurée voyage `null` + un état, JAMAIS `0`.** Absence de mesure ≠ mesure
+  nulle ; absence de run ≠ 0 % de succès ; lecture échouée ≠ flotte vide et saine. Un read
+  raté rend `null`, jamais `[]`. Dictionnaire complet : `docs/metrics-canon.md`.
+- **Une affirmation d'écran ne porte que sur ce qui a été mesuré.** Pas de « toutes les sources
+  répondent » adossé à trois lectures scopées sur la page. Le vocabulaire de statut sort de
+  `labels.ts`, nulle part ailleurs.
+- **Le rôle `danger` est réservé à une panne**, pas à une condition ordinaire. Un agent `draft`,
+  en pause ou archivé n'est pas exécutable **par conception** — un rail rouge en permanence ne
+  peut plus alerter de rien.
 <!-- END:catalyst-ui-rules -->
 
 ## Invariants agents & runtime (détail : docs/missions/AGENTS-history-2026-07.md)
@@ -77,7 +109,7 @@ est pris par un process non identifié comme le sien.
   runtime (formulation antérieure, fausse) mais l'absence d'assistant. **Ordre obligatoire** :
   `scripts/ensure-langgraph-assistants.ts` (transporte outils/prompt/modèle dans
   `config.configurable`) PUIS `runtime: 'langgraph'`. Flipper le runtime seul recrée le bug.
-- **Endpoint LangGraph** : `agent-server-endpoint.mjs` refuse un endpoint distant hors production.
+- **Endpoint LangGraph** : `src/langgraph/agent-server-endpoint.mjs` refuse un endpoint distant hors production.
   En dev, `LANGGRAPH_API_URL` doit viser le serveur local (`http://127.0.0.1:2024`) — `.env.local`
   pointe sur `agent.hearst.app`, donc surcharger la variable pour tout script de provisioning.
 - **La description d'un outil EST son contrat d'entrée** : le runner l'envoie au modèle sans
@@ -95,6 +127,35 @@ est pris par un process non identifié comme le sien.
   `src/langgraph/model-provider.mjs` ; `mistral` déclaré non câblé (erreur typée, jamais de
   fallback muet). Détail : `docs/agent-authoring.md` §3.
 - **Matérialisation OpenAI d'agents = étape facturée, jamais exécutée sans accord** (§8 global).
+
+## Frontières de confiance — trois, séparées exprès
+
+- `/admin/**` → cookie de session HMAC (`auth.ts`). `/api/agent-ops/**` → session **ou**
+  `x-amc-key`. Fail-closed : pas de `AMC_SESSION_SECRET`, tout est refusé (`src/proxy.ts`).
+- **`/api/runtime-telemetry` est monté HORS de `/api/agent-ops/**` volontairement** : l'appelant
+  est un agent déployé chez un consommateur, pas un opérateur. Il s'authentifie avec SON propre
+  jeton (`AIGENT_RUNTIME_TELEMETRY_TOKEN`), **jamais** `AMC_API_KEY`. Payload traité comme
+  hostile : plafond 16 Ko, schéma Zod strict, scan de motifs de secrets, et rien n'est renvoyé
+  en écho — pas même un `err.message`.
+- `/api/runtime/v1/**` → API du consommateur (lecture de ses agents, POST de ses runs), jeton
+  bearer dédié (`bearer-token-auth.ts`).
+- **Échappatoire dev uniquement** : `AMC_DEV_BYPASS_AUTH=1` + `NODE_ENV !== 'production'`
+  saute la session sur les PAGES `/admin/**`. Jamais en build de production, jamais sur l'API.
+
+## Shipping & télémétrie
+
+- **Une écriture GitHub réelle exige DEUX verrous** : `confirm: true` dans le corps **et**
+  `GITHUB_PUSH_ENABLED=1` dans l'environnement. Sinon c'est un dry-run — et c'est le défaut
+  correct pour une écriture distante destructive.
+- **Après provisioning, Aigent ne fait que POUSSER des agents.** Les gestes activate / rebind /
+  deploy-version appartiennent au workspace consommateur (`consumer-bootstrap.ts`).
+- **La télémétrie est un canal unique pour deux sources** : les runs rapportés par les agents
+  déployés ET les runs internes d'Aigent (`runner.ts` → `emitInternalRunTelemetry`), plus les
+  événements de cycle de vie (promotion / shadow / replay). Une seule table,
+  `runtime_telemetry_events`.
+- **Aujourd'hui la télémétrie est en écriture quasi pure** : seul `summarizeRuntimeTelemetry`
+  (par agent) est lu, par la boucle d'amélioration. Le résumé flotte et le diagnostic de santé
+  n'ont aucun appelant en production. Ne pas écrire l'inverse : `docs/known-gaps.md` §2.
 
 <!-- HEARST-GOVERNANCE:START -->
 ## Gouvernance — ordre de lecture obligatoire

@@ -1,3 +1,5 @@
+ARCHIVED — historical state, not current doctrine
+
 # AIGENT-CORE-FACTORY-035 — reconstruction du cœur (design + preuves)
 
 > État : **passe 1 en cours** — fondations canoniques prouvées d'abord, purge legacy en dernier

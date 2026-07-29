@@ -1,3 +1,5 @@
+ARCHIVED — historical state, not current doctrine
+
 # Audit qualité agents — 10 axes, 10 auditeurs Opus (2026-07-20)
 
 > **⚠ INSTANTANÉ DU MATIN — NE PAS LIRE COMME L'ÉTAT COURANT.**

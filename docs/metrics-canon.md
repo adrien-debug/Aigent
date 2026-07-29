@@ -1,5 +1,15 @@
 # Dictionnaire canonique des métriques — Agent Mission Control
 
+> **Périmètre — à lire avant de s'en servir.** La **doctrine des chiffres** (§0) est
+> **toujours en vigueur** : c'est la règle vivante du projet, rappelée dans `AGENTS.md` et
+> tenue par `check:render-truth` / `check:status-truth`.
+>
+> En revanche, les **rattachements « Page principale »** de ce document décrivent un
+> dashboard **antérieur**. Les écrans qu'il nomme — `/admin/performance`, `/admin/factory`,
+> watchlist, `fleet-kpi-band.tsx`, `RegistryKpis` — **n'existent plus** ; la console actuelle
+> compte six routes (voir `README.md`). Une entrée métrique reste utile pour sa **source** et
+> sa **nullabilité** ; ne pas s'y fier pour savoir où un chiffre s'affiche aujourd'hui.
+
 > **Livrable A2.** Référence unique de toute métrique affichée dans l'admin. La Phase 3 (pages)
 > s'y adosse : un chiffre ne s'affiche que s'il a une entrée ici, avec sa source réelle, sa
 > nullabilité et son état. Cette doc est **descriptive du code existant** (resolvers réels), pas

@@ -1,3 +1,5 @@
+ARCHIVED — historical state, not current doctrine
+
 # Aigent landing — self-improving positioning rework
 
 PR: [#15](https://github.com/adrien-debug/Aigent/pull/15) — branch `feat/landing-self-improving-positioning`.

@@ -1,3 +1,5 @@
+ARCHIVED — historical state, not current doctrine
+
 # AIG-AGENT-QUALITY-005 — Audit réel de la qualité des agents & du multi-provider
 
 > Vérité d'exécution, pas de config. Chaque ligne porte un verdict de l'échelle :

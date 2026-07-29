@@ -1,3 +1,5 @@
+ARCHIVED — historical state, not current doctrine
+
 # My Team — project agent canvas (AIG-TEAM-CANVAS-002)
 
 Live map of every agent attached to a project, as a graph.

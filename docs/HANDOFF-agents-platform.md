@@ -1,3 +1,5 @@
+ARCHIVED — historical state, not current doctrine
+
 # HANDOFF — Plateforme d'agents Aigent → workspaces (état au 2026-07-16)
 
 > Prompt de continuation pour le prochain agent. Session dense : on a bouclé le

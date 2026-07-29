@@ -1,3 +1,5 @@
+ARCHIVED — historical state, not current doctrine
+
 # Historique des missions — archive AGENTS.md (extrait le 2026-07-22)
 
 > Contenu déplacé verbatim depuis `AGENTS.md` (qui ne garde que les invariants courts).

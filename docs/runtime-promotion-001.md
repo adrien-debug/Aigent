@@ -1,3 +1,5 @@
+ARCHIVED — historical state, not current doctrine
+
 # AIGENT-RUNTIME-PROMOTION-001 — design + preuves
 
 > Branche `feat/runtime-promotion-001` · base `496d0eb` · tag `recovery/pre-promotion-001`.
