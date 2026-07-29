@@ -23,6 +23,7 @@ import {
   type ResolveCopilotHealthOptions,
   type ResolvedAgentHealth,
 } from './agent-health'
+import { sumMeasuredHealth, type MeasuredSum } from './health-measure'
 import { camelRow, camelRows, pgrest } from './postgrest'
 import { NON_EVALUATION_RUN_FILTER } from './types'
 import type {
@@ -393,15 +394,77 @@ export async function getRecentRunsInWindow(
   })
 }
 
+/**
+ * Fleet-wide KPIs over the whole registry.
+ *
+ * TWO KINDS OF FIELD LIVE HERE, and the types say which is which.
+ *
+ *  · STRUCTURAL COUNTS (`totalCopilots`, `activeCopilots`) — how many rows the
+ *    read returned, and how many of them carry a given status. Nobody has to
+ *    "measure" a row into existence, so a `0` here is a fact and the type is a
+ *    plain `number`.
+ *  · MEASUREMENTS (`avgTestPassRate`, `runsLast24h`, `totalCostLast24hUsd`) —
+ *    figures that only exist if something actually proved them. Every one of
+ *    them is nullable, because "nobody measured this" is NOT zero: a fleet that
+ *    has never been tested does not score 0%, and a cost nobody could read is
+ *    not "$0.00". Null renders `Indisponible`.
+ *
+ * The two 24h fields carry their COVERAGE with them (`MeasuredSum`, from
+ * `./health-measure` — the same record `/admin` and `/admin/projects` roll up
+ * per project) instead of being bare numbers. A bare number cannot say whether
+ * it covers the whole fleet or three agents out of eleven, and `value` is only
+ * the exact total when `unmeasured === 0`; otherwise it is a LOWER BOUND that a
+ * caller must disclose as such. `Cost24hCoverage` (dashboard-overview.ts) was
+ * the other candidate and is the wrong one here: its denominator counts RUNS in
+ * a window, whereas this rollup's unit of coverage is a COPILOT.
+ */
 export interface RegistryKpis {
+  /** Copilot rows returned by the read. Structural — a real 0 is a real 0. */
   totalCopilots: number
+  /** Rows whose derived `displayStatus` serves production. Structural. */
   activeCopilots: number
-  avgTestPassRate: number
-  runsLast24h: number
-  totalCostLast24hUsd: number
+  /**
+   * Mean `health.testPassRate` over the copilots a RUN backs
+   * (`healthEvidence === 'runs'`), which is a different gate from the one the
+   * 24h fields use and deliberately so — see the comment in the body.
+   *
+   * `null` when NOT ONE copilot carries run evidence. It used to return `0`
+   * there, which told an operator that a never-tested fleet scores zero percent.
+   * Same three states, same reason, as the per-project pass-rate mean in
+   * `dashboard-overview.ts` (`ProjectOverviewItem.testPassRate`).
+   */
+  avgTestPassRate: number | null
+  /**
+   * Runs in the last 24h, summed over the copilots that PROVED the metric, with
+   * the coverage of that sum.
+   *  · `{ value: 0, measured: 0, unmeasured: 0 }` — EMPTY fleet, read OK. A
+   *    measured zero at full coverage: no agent, no run to have been made.
+   *  · `{ value, measured: n>0, unmeasured: 0 }` — the exact fleet total.
+   *  · `{ value, measured: n>0, unmeasured: k>0 }` — a LOWER BOUND covering `n`
+   *    of `n+k` agents; disclose the gap, never print it as "the total".
+   *  · `null` — the fleet has copilots and not one proved a run count.
+   *    `Indisponible`, never 0.
+   *  · a failed READ never produces a value at all: `getCopilots()` throws and
+   *    the throw propagates (see the body).
+   */
+  runsLast24h: MeasuredSum | null
+  /**
+   * Cost in USD over the last 24h — the SAME rule, the SAME function and the
+   * SAME five states as `runsLast24h` above, so the two cannot disagree.
+   * `null` renders `Indisponible`, never `$0.00`.
+   */
+  totalCostLast24hUsd: MeasuredSum | null
 }
 
 export async function getRegistryKpis(): Promise<RegistryKpis> {
+  // A failed read THROWS here and never reaches the rollups below — the /admin
+  // error boundary shows a retry (module header: "there is NO mock fallback").
+  // That IS the honest "read impossible" branch, and it is deliberately not
+  // caught into `null`: when the backend is unreachable the whole page is
+  // unavailable, not one KPI, and swallowing the failure would render a calm
+  // "Indisponible" over a dead perimeter while claiming the other counts are
+  // real. What must never happen — a 0 standing in for an unread fleet — cannot
+  // happen either way.
   const copilots = await getCopilots()
   // "Measured" = has real run evidence (healthEvidence), NOT `testPassRate > 0`:
   // an agent that genuinely scores 0% must count, and the enriched blob is now
@@ -412,9 +475,23 @@ export async function getRegistryKpis(): Promise<RegistryKpis> {
     // Count anything serving production as active — the stored `status` column
     // stays `draft` after promotion, so use the derived displayStatus.
     activeCopilots: copilots.filter((c) => c.displayStatus === 'active' || c.displayStatus === 'production').length,
+    // Pass rate keeps its OWN gate (`healthEvidence`) rather than
+    // `isMeasuredHealth`: a benchmark-only copilot has run evidence while its
+    // `testPassRate` is a placeholder that would drag the mean down, so the two
+    // rules answer different questions. Unchanged from before; only the
+    // no-support branch moved from a fabricated `0` to `null`.
     avgTestPassRate:
-      measured.length > 0 ? measured.reduce((s, c) => s + c.health.testPassRate, 0) / measured.length : 0,
-    runsLast24h: copilots.reduce((s, c) => s + c.health.runsLast24h, 0),
-    totalCostLast24hUsd: copilots.reduce((s, c) => s + c.health.costLast24hUsd, 0),
+      measured.length > 0 ? measured.reduce((s, c) => s + c.health.testPassRate, 0) / measured.length : null,
+    // ONE rule, ONE rollup, ONE module — `sumMeasuredHealth` (./health-measure),
+    // the same call `/admin` and `/admin/projects` make per project, applied
+    // here to the whole fleet. What it replaces on BOTH lines was
+    // `copilots.reduce((s, c) => s + c.health.<metric>, 0)`, which consulted
+    // nothing: `health.runsLast24h` and `health.costLast24hUsd` are
+    // NORMALISATION PLACEHOLDERS whenever `healthUnavailableFields` names them
+    // (see `normalizeHealth` above — an unreadable metric is written back as `0`
+    // precisely because the field is typed `number`), so those two sums added
+    // fillers to a total and reported the result as a fleet measurement.
+    runsLast24h: sumMeasuredHealth(copilots, 'runsLast24h'),
+    totalCostLast24hUsd: sumMeasuredHealth(copilots, 'costLast24hUsd'),
   }
 }

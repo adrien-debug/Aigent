@@ -3,7 +3,11 @@ import { ArrowRightIcon } from '@heroicons/react/20/solid'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatUsd } from '@/lib/agent-mission-control/format'
-import type { Copilot, CopilotHealthMetric, Project } from '@/lib/agent-mission-control/types'
+// The ONE measurement rule + rollup, shared with the data layer
+// (`dashboard-overview.ts`). Neutral module, no `server-only` — see its header
+// for why it cannot live beside the rollup that consumes it.
+import { isMeasuredHealth, sumMeasuredHealth, type MeasuredSum } from '@/lib/agent-mission-control/health-measure'
+import type { Copilot, Project } from '@/lib/agent-mission-control/types'
 
 // Alias paths, not `./charts/…`: `scripts/audit-dead.mjs` proves a component is
 // alive by looking for `@/<path>` or a SAME-DIRECTORY `./<basename>`. A relative
@@ -65,43 +69,19 @@ const unavailableCell = <Unavailable className="text-[11px]" />
 /* ----------------------------------------------------------------- helpers */
 
 /**
- * Is this health metric a MEASUREMENT on this copilot?
+ * The sub-label of a fleet KPI, stating what its figure actually covers.
  *
- * `healthUnavailableFields` names what the data layer could not prove. An
- * UNDEFINED list means the row never went through the data layer, so nothing is
- * proven — the contract (`types.ts`) says to treat every metric as unavailable
- * in that case, not as measured.
+ * A `MeasuredSum` is a sum over the members that PROVED the metric — a lower
+ * bound whenever `unmeasured > 0`. Printing it under a flat "Across assigned
+ * agents" claimed a completeness nobody verified, which is the same overclaim
+ * as the `$0.00` this branch removed, just phrased in prose instead of digits.
+ * So the coverage is disclosed whenever it is partial, and only claimed when it
+ * is whole.
  */
-function isMeasured(copilot: Copilot, metric: CopilotHealthMetric): boolean {
-  if (copilot.healthUnavailableFields === undefined) return false
-  if (copilot.healthUnavailableFields.includes(metric)) return false
-  return Number.isFinite(copilot.health?.[metric])
-}
-
-/** A rollup and how much of the team it could not cover. */
-type MeasuredSum = { value: number; unmeasured: number }
-
-/**
- * Sum a health metric over a team, counting ONLY the members that proved it.
- *
- * `null` when a non-empty team proved none — a total nobody measured is not 0.
- * An EMPTY team returns a measured 0: with no agent assigned there is no run and
- * no cost to account for, which is a fact rather than a placeholder.
- */
-function sumMeasured(team: Copilot[], metric: CopilotHealthMetric): MeasuredSum | null {
-  let value = 0
-  let measured = 0
-  let unmeasured = 0
-  for (const copilot of team) {
-    if (isMeasured(copilot, metric)) {
-      value += copilot.health[metric]
-      measured += 1
-    } else {
-      unmeasured += 1
-    }
-  }
-  if (team.length > 0 && measured === 0) return null
-  return { value, unmeasured }
+function coverageDetail(sum: MeasuredSum | null): string {
+  if (sum === null) return 'No assigned agent proved a 24h figure'
+  if (sum.unmeasured === 0) return 'Across every assigned agent'
+  return `Excludes ${sum.unmeasured} agent${sum.unmeasured === 1 ? '' : 's'} with no measured figure`
 }
 
 /** The shipped definition of "serving", kept verbatim: the production pointer
@@ -136,8 +116,8 @@ export function ProjectsScreen({
   const bench = copilots === null ? null : copilots.filter((copilot) => copilot.projectId === null)
   const serving = assigned === null ? null : assigned.filter(isServing)
 
-  const fleetRuns = assigned === null ? null : sumMeasured(assigned, 'runsLast24h')
-  const fleetCost = assigned === null ? null : sumMeasured(assigned, 'costLast24hUsd')
+  const fleetRuns = assigned === null ? null : sumMeasuredHealth(assigned, 'runsLast24h')
+  const fleetCost = assigned === null ? null : sumMeasuredHealth(assigned, 'costLast24hUsd')
 
   // Per project: the team is the assigned copilots pointing at it. With the
   // copilot read down there is no team to compute, so every figure is absent —
@@ -151,13 +131,28 @@ export function ProjectsScreen({
       project,
       team: team.length,
       serving: team.filter(isServing).length,
-      runs24h: sumMeasured(team, 'runsLast24h'),
-      cost24h: sumMeasured(team, 'costLast24hUsd'),
+      runs24h: sumMeasuredHealth(team, 'runsLast24h'),
+      cost24h: sumMeasuredHealth(team, 'costLast24hUsd'),
     }
   })
 
+  /**
+   * Agents whose 24h figures are NOT fully proven.
+   *
+   * BOTH metrics, not just runs. The footer below says "24h figures", plural,
+   * and a filter on `runsLast24h` alone let it claim full coverage while a cost
+   * was still unmeasured — the same class of overclaim this branch exists to
+   * remove, one line further down the page. An agent counts as covered only
+   * when every figure the strip sums has actually been measured for it.
+   */
   const unmeasuredAgents =
-    assigned === null ? 0 : assigned.filter((copilot) => !isMeasured(copilot, 'runsLast24h')).length
+    assigned === null
+      ? 0
+      : assigned.filter(
+          (copilot) =>
+            !isMeasuredHealth(copilot, 'runsLast24h') ||
+            !isMeasuredHealth(copilot, 'costLast24hUsd')
+        ).length
 
   return (
     <div className="space-y-4">
@@ -216,13 +211,13 @@ export function ProjectsScreen({
         <KpiCard
           label="Runs · 24h"
           value={fleetRuns === null ? unavailableFigure : fleetRuns.value}
-          detail="Across assigned agents"
+          detail={coverageDetail(fleetRuns)}
         />
 
         <KpiCard
           label="Cost · 24h"
           value={fleetCost === null ? unavailableFigure : formatUsd(fleetCost.value)}
-          detail="Across assigned agents"
+          detail={coverageDetail(fleetCost)}
         />
       </div>
 
@@ -372,7 +367,9 @@ export function ProjectsScreen({
                 />
               ) : (
                 bench.map((copilot) => {
-                  const runs = isMeasured(copilot, 'runsLast24h') ? copilot.health.runsLast24h : null
+                  const runs = isMeasuredHealth(copilot, 'runsLast24h')
+                    ? copilot.health.runsLast24h
+                    : null
                   return (
                     <PanelRow
                       key={copilot.id}

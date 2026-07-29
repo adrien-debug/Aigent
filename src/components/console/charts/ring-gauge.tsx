@@ -2,10 +2,12 @@
  * `RingGauge` — the large donut ring that dominates the right-hand panels of the
  * console (platform status, delivery readiness).
  *
- * PURE SERVER-RENDERED SVG. No dependency, no `'use client'`, no DOM measurement,
- * no JS-driven animation. It receives numbers and returns markup — that is a hard
- * constraint of this console, not an accident: a chart library here would drag a
- * client boundary across a screen that is otherwise entirely server-rendered.
+ * PURE SERVER-RENDERED SVG. No chart library, no `'use client'`, no DOM
+ * measurement, no JS-driven animation. It receives numbers and returns markup —
+ * that is a hard constraint of this console, not an accident: a chart library
+ * here would drag a client boundary across a screen that is otherwise entirely
+ * server-rendered. Its ONE import is a string constant from a module that
+ * itself imports nothing, which adds no runtime and no boundary.
  *
  * TRUTH — the rule this component exists to enforce visually:
  *   · `value === null`   → NO ARC IS DRAWN. The track alone is rendered, dashed,
@@ -23,15 +25,21 @@
  * `max = 100`. Nothing here multiplies it.
  */
 
+import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
+
 /**
- * The one word this console renders for an absent measurement (operator-specified).
+ * The one word this console renders for an absent measurement, for the SVG
+ * layer — an SVG `<text>` cannot host a React element, so the gauges need the
+ * raw string rather than `<Unavailable />`.
  *
- * `screen-primitives.tsx` owns the HTML rendering of it (`<Unavailable />`); an
- * SVG `<text>` cannot host a React element, so the SVG layer needs the raw string.
- * It is spelled HERE and imported by `arc-gauge.tsx` — one spelling for both
- * gauges, never a second literal.
+ * It is NO LONGER spelled here. The word now lives once, in the neutral
+ * `format` module, which the HTML layer (`screen-primitives.tsx`), these gauges
+ * and `formatUsd` can all import — `formatUsd` is a plain lib function and
+ * could not have imported it from a `.tsx` component. This alias is kept so
+ * `arc-gauge.tsx` and `trend-chart.tsx` keep their existing import; it is a
+ * re-export, not a second literal.
  */
-export const UNAVAILABLE = 'Indisponible'
+export const UNAVAILABLE = UNAVAILABLE_LABEL
 
 /** Rough advance width of one glyph, as a fraction of the font size. Used only to
  *  size "Indisponible" down until it fits inside the ring — never for layout. */

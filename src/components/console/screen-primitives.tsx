@@ -1,5 +1,6 @@
 import { Heading } from '@/components/ui/heading'
 import { cn } from '@/components/ui/cn'
+import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
 
 /**
  * The console's shared visual grammar. Server components only: props in,
@@ -318,12 +319,18 @@ export const TABLE_SCROLL = 'max-h-[26rem] overflow-auto'
 /* ------------------------------------------------------------------ states */
 
 /**
- * The absent measurement, spelled in ONE place. A metric that was never
- * measured renders this word — never 0, never "0%", never an empty gauge arc
- * pretending to be a measured zero. A measured 0 renders 0.
+ * The absent measurement, in HTML. A metric that was never measured renders
+ * this word — never 0, never "0%", never an empty gauge arc pretending to be a
+ * measured zero. A measured 0 renders 0.
+ *
+ * The word itself is NOT spelled here: it is `UNAVAILABLE_LABEL` in
+ * `@/lib/agent-mission-control/format`, the one neutral module the HTML layer,
+ * the SVG gauges and `formatUsd` can all reach. This component owns the
+ * RENDERING (the span, the zinc-500 role), not the string — a second literal
+ * here is exactly how the vocabulary split in the first place.
  */
 export function Unavailable({ className }: { className?: string }) {
-  return <span className={cn('text-zinc-500', className)}>Indisponible</span>
+  return <span className={cn('text-zinc-500', className)}>{UNAVAILABLE_LABEL}</span>
 }
 
 /** Nothing to show, and nothing wrong with that. Calm, neutral, never danger, never accent. */

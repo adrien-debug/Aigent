@@ -17,11 +17,24 @@ import { describe, expect, it } from 'vitest'
 import { ArcGauge } from '@/components/console/charts/arc-gauge'
 import { RingGauge } from '@/components/console/charts/ring-gauge'
 import { OverviewScreen } from '@/components/console/overview-screen'
+import { ProjectsScreen } from '@/components/console/projects-screen'
 import { KpiCard, PanelRow, Unavailable } from '@/components/console/screen-primitives'
 // TYPE-ONLY. `dashboard-overview.ts` is `server-only`; importing a VALUE from it
 // in this (browser-conditions) project throws at import time.
-import type { DashboardOverview, ProjectOverviewItem } from '@/lib/agent-mission-control/dashboard-overview'
-import type { AgentRun } from '@/lib/agent-mission-control/types'
+import type {
+  Cost24hCoverage,
+  DashboardOverview,
+  ProjectOverviewItem,
+} from '@/lib/agent-mission-control/dashboard-overview'
+import type { AgentRun, Copilot } from '@/lib/agent-mission-control/types'
+// The fixture the DATA-LAYER suite pins (dashboard-overview.test.ts › C13) and
+// this suite renders. One literal, two vitest projects — see its header for why
+// duplicating it into each file would defeat the point of section D6.
+import {
+  CROSS_SCREEN_ITEMS,
+  CROSS_SCREEN_PROJECTS,
+  CROSS_SCREEN_TEAM,
+} from '../fixtures/cross-screen-cost'
 
 /* ---------------------------------------------------------------- fixtures */
 
@@ -342,5 +355,525 @@ describe('the render primitives behind the rule', () => {
     const zeroRing = render(<RingGauge value={0} label="Success rate" />)
     expect(within(zeroRing.container).getByText('0')).toBeTruthy()
     expect(within(zeroRing.container).queryByText(UNAVAILABLE)).toBeNull()
+  })
+})
+
+/* ======================================================================== */
+/* D · COST — the same rule as runs, held on BOTH screens                   */
+/*                                                                          */
+/* Two different figures wear the word "cost" in this console and they come */
+/* from two different reads, so they are tested apart:                      */
+/*   · `/admin` › "Cost · 24h" KPI ← `kpis.cost24h`, derived from the        */
+/*     WINDOW's runs. `Cost24hCoverage | null` — a window can be measured    */
+/*     only IN PART, so the figure travels with its denominator.            */
+/*   · `/admin/projects` › the "Cost · 24h" column ← the TEAM's health,      */
+/*     rolled up per project.                                              */
+/* One law over both: `$0.00` is printed only when something was measured   */
+/* at zero. An absence is the word `Indisponible` — never "$0.00", never    */
+/* "—", never an empty gauge, never a zero bar.                             */
+/* ======================================================================== */
+
+/* ------------------------------------------------------------- D fixtures */
+
+function coverage(partial: Partial<Cost24hCoverage> = {}): Cost24hCoverage {
+  return { usd: 0, measuredRuns: 1, totalRuns: 1, ...partial }
+}
+
+/**
+ * A COMPLETE run in the window. Written out rather than cast from a two-field
+ * literal: the screen buckets `startedAt` and counts `status` for the panels
+ * beside the Cost card, and a partial blob renders `NaN` in them — a fixture
+ * that quietly breaks a neighbouring assertion is worse than no fixture.
+ */
+function agentRun(partial: Partial<AgentRun> & Pick<AgentRun, 'id'>): AgentRun {
+  return {
+    copilotId: 'c-btc',
+    versionId: 'v1',
+    projectId: 'p-proven',
+    userLabel: 'operator',
+    startedAt: '2026-07-29T09:00:00Z',
+    finishedAt: '2026-07-29T09:00:10Z',
+    status: 'completed',
+    stepIds: [],
+    inputSummary: '',
+    outputSummary: '',
+    toolCallCount: 0,
+    unsafeAttemptCount: 0,
+    latencyMs: 1200,
+    costUsd: null,
+    traceUrl: null,
+    ...partial,
+  }
+}
+
+/**
+ * The em dash. NOT what `formatUsd` returns any more — it returns the same word
+ * `UNAVAILABLE` above, so the two spellings of one absence are now one.
+ *
+ * Kept, and still forbidden, because the assertion is broader than its original
+ * cause: it is punctuation, this console spells an absent measurement with a
+ * WORD, and a cost slot showing "—" would mean SOME new source of the old
+ * vocabulary crept back in — a hand-written fallback, a copied cell, a fresh
+ * `?? '—'`. The guard outlives the bug that motivated it.
+ */
+const EM_DASH_ABSENCE = '—'
+
+/** The KPI card carrying `label` INSIDE a given container — `/admin/projects`
+ *  spells "Cost · 24h" twice (the card and the table header), so a page-wide
+ *  `getByText` finds two nodes and the query has to be scoped. */
+function kpiCardIn(container: HTMLElement, label: string): HTMLElement {
+  const card = within(container)
+    .getAllByText(label)
+    .map((node) => node.closest('div.rounded-xl'))
+    .find((node): node is HTMLElement => node !== null)
+  if (card === undefined) throw new Error(`No KPI card found for label "${label}"`)
+  return card
+}
+
+/**
+ * The `/admin/projects` registry, keyed by project name.
+ *
+ * Keyed on the row's own title element rather than on the first cell's text: the
+ * first cell also carries the platform/description subtitle, so a fixture that
+ * changes a slug would silently change the key and every lookup would return
+ * `undefined` — an assertion failing for the wrong reason.
+ * Cell order: project · repository · serving/team · runs · cost · builder.
+ */
+function registryRows(container: HTMLElement): Map<string, string[]> {
+  const rows = new Map<string, string[]>()
+  for (const row of container.querySelectorAll('tbody tr')) {
+    const name = row.querySelector('td p')?.textContent ?? ''
+    rows.set(
+      name,
+      [...row.querySelectorAll('td')].map((cell) => cell.textContent ?? '')
+    )
+  }
+  return rows
+}
+
+/**
+ * Any mark a CHART could stroke or fill. Broader than `drawnArcs` on purpose —
+ * it is used to claim that NOTHING is drawn beside an absent cost, so it must
+ * not be able to miss a bar, a slice or a curve either.
+ *
+ * DECORATIVE ICONS ARE NOT MARKS, and excluding them was measured, not assumed:
+ * the `All projects` link at the foot of the Projects panel carries a heroicon,
+ * which made the first version of this helper report 2 "marks" in a panel that
+ * plots nothing. Heroicons render `data-slot="icon" aria-hidden="true"`; both
+ * gauges render `role="img"` with a real `aria-label`. The distinction is the
+ * component contract, not a guess. A positive control in D4 proves the helper
+ * still sees a genuine mark after this filtering.
+ */
+function drawnMarks(container: HTMLElement): Element[] {
+  return [...container.querySelectorAll('svg, path, circle, rect, polyline, polygon, line')].filter(
+    (node) => node.closest('[data-slot="icon"]') === null
+  )
+}
+
+/* ---------------------------------------------- D1 · a null cost → the word */
+
+describe('D1 — an absent cost renders the exact word "Indisponible" on /admin', () => {
+  it('the "Cost · 24h" KPI card says Indisponible, and shows no currency at all', () => {
+    render(<OverviewScreen overview={overviewFixture({ kpis: kpis({ cost24h: null }) })} />)
+
+    const card = kpiCard('Cost · 24h')
+    expect(within(card).getByText(UNAVAILABLE)).toBeTruthy()
+    // The three shapes a coalesced absence took, all forbidden in one place.
+    expect(card.textContent).not.toContain('$')
+    expect(card.textContent).not.toContain('0.00')
+    expect(card.textContent).not.toContain(EM_DASH_ABSENCE)
+  })
+
+  it('ALL THREE reasons for a null cost render the word, each naming its own cause', () => {
+    // Same figure, three different absences. The word must be identical (an
+    // operator learns ONE spelling) and the sub-label must differ (or
+    // "Indisponible" under a line still claiming "Summed over the window's runs"
+    // reads as a formatting glitch rather than a missing measurement).
+    const cases = [
+      { name: 'the run read FAILED', overview: unreadWindow() },
+      {
+        name: 'the window was read and held NO run',
+        overview: overviewFixture({ kpis: kpis({ cost24h: null }), windowRuns: [] as AgentRun[] }),
+      },
+      {
+        name: 'runs were read but NOT ONE carried a measurable cost',
+        overview: overviewFixture({
+          kpis: kpis({ runs24h: 3, cost24h: null }),
+          // Three real runs, none of them priced — `costUsd: null` is the
+          // default, and it means "the runner could not measure it".
+          windowRuns: [agentRun({ id: 'r1' }), agentRun({ id: 'r2' }), agentRun({ id: 'r3' })],
+        }),
+      },
+    ]
+
+    const details = new Set<string>()
+    for (const { name, overview } of cases) {
+      const { unmount } = render(<OverviewScreen overview={overview} />)
+      const card = kpiCard('Cost · 24h')
+
+      expect(within(card).getByText(UNAVAILABLE), name).toBeTruthy()
+      expect(card.textContent, name).not.toContain('$')
+
+      const detail = card.querySelector('p:last-of-type')?.textContent ?? ''
+      expect(detail, name).not.toBe('')
+      details.add(detail)
+      unmount()
+    }
+
+    // Three causes, three sentences — none of them borrowed from another.
+    expect(details.size).toBe(3)
+  })
+
+  it('a project whose team proved no cost carries no fabricated $0.00 on /admin', () => {
+    render(
+      <OverviewScreen
+        overview={overviewFixture({ projects: [projectItem({ runsLast24h: 3, costLast24hUsd: null })] })}
+      />
+    )
+
+    const panel = screen.getByText('Projects').closest('section') as HTMLElement
+    // Whatever this panel chooses to display, it may never put a currency figure
+    // against a project whose cost nobody measured. Holds today (the row shows
+    // `active` and `runs` only) and holds after a cost cell is added, because the
+    // only correct rendering there is the word, not a zero.
+    expect(panel.textContent).not.toContain('$')
+    expect(panel.textContent).not.toContain(EM_DASH_ABSENCE)
+  })
+})
+
+/* --------------------------------------- D2 · a measured zero → a real zero */
+
+describe('D2 — a MEASURED zero cost renders a real formatted zero, never the word', () => {
+  it('the "Cost · 24h" KPI card shows $0.00 when the window was priced at zero', () => {
+    render(
+      <OverviewScreen
+        overview={overviewFixture({
+          kpis: kpis({ runs24h: 4, cost24h: coverage({ usd: 0, measuredRuns: 4, totalRuns: 4 }) }),
+        })}
+      />
+    )
+
+    const card = kpiCard('Cost · 24h')
+    expect(within(card).getByText('$0.00')).toBeTruthy()
+    // The inverse lie: relabelling every zero "not measured" is the same defect
+    // pointing the other way.
+    expect(within(card).queryByText(UNAVAILABLE)).toBeNull()
+    expect(card.textContent).not.toContain(EM_DASH_ABSENCE)
+  })
+
+  it('a measured zero and an absence do NOT render the same card', () => {
+    const { unmount } = render(
+      <OverviewScreen
+        overview={overviewFixture({
+          kpis: kpis({ runs24h: 4, cost24h: coverage({ usd: 0, measuredRuns: 4, totalRuns: 4 }) }),
+        })}
+      />
+    )
+    const measured = kpiCard('Cost · 24h').textContent
+    unmount()
+
+    render(<OverviewScreen overview={overviewFixture({ kpis: kpis({ cost24h: null }) })} />)
+    const absent = kpiCard('Cost · 24h').textContent
+
+    expect(measured).not.toBe(absent)
+    expect(measured).toContain('$0.00')
+    expect(absent).toContain(UNAVAILABLE)
+  })
+})
+
+/* ------------------------------------------ D3 · a positive value, formatted */
+
+describe('D3 — a measured cost is formatted as currency, with its coverage', () => {
+  it('the figure is the canonical "$2.50", not a raw number and not a rounded one', () => {
+    render(
+      <OverviewScreen
+        overview={overviewFixture({
+          kpis: kpis({ runs24h: 4, cost24h: coverage({ usd: 2.5, measuredRuns: 4, totalRuns: 4 }) }),
+        })}
+      />
+    )
+
+    // The FIGURE slot, read directly rather than searched for: `toContain` over
+    // the whole card would also be satisfied by "$2.50" appearing in the
+    // sub-label, and the assertion is about what sits in the big slot.
+    const figure = kpiCard('Cost · 24h').querySelector('p.text-2xl\\/7')
+    expect(figure?.textContent).toBe('$2.50')
+    expect(within(kpiCard('Cost · 24h')).queryByText(UNAVAILABLE)).toBeNull()
+  })
+
+  it('sub-cent and large amounts keep two decimals rather than collapsing', () => {
+    const { unmount } = render(
+      <OverviewScreen
+        overview={overviewFixture({ kpis: kpis({ runs24h: 1, cost24h: coverage({ usd: 0.004 }) }) })}
+      />
+    )
+    // 0.004 rounds to "$0.00" — a HONEST rounding of a measured amount, and it
+    // must still not be confused with an absence: the card keeps its currency.
+    expect(kpiCard('Cost · 24h').textContent).toContain('$0.00')
+    expect(within(kpiCard('Cost · 24h')).queryByText(UNAVAILABLE)).toBeNull()
+    unmount()
+
+    render(<OverviewScreen overview={overviewFixture({ kpis: kpis({ runs24h: 1, cost24h: coverage({ usd: 1234.5 }) }) })} />)
+    expect(kpiCard('Cost · 24h').textContent).toContain('$1234.50')
+  })
+
+  it('PARTIAL coverage is disclosed — dollars are never presented as the whole window', () => {
+    render(
+      <OverviewScreen
+        overview={overviewFixture({
+          kpis: kpis({ runs24h: 4, cost24h: coverage({ usd: 2.5, measuredRuns: 3, totalRuns: 4 }) }),
+        })}
+      />
+    )
+
+    const card = kpiCard('Cost · 24h')
+    // The figure is a LOWER BOUND: one of the four runs had no measurable cost.
+    // Printing "$2.50" alone would be the same overstatement the `?? 0` made,
+    // only better dressed — so both halves of the fraction must be on screen.
+    expect(card.textContent).toContain('$2.50')
+    expect(card.textContent).toMatch(/\b3\b[^0-9]*\b4\b/)
+    expect(card.textContent).not.toContain("Summed over the window's runs")
+  })
+
+  it('FULL coverage does not invent a caveat it does not have', () => {
+    render(
+      <OverviewScreen
+        overview={overviewFixture({
+          kpis: kpis({ runs24h: 4, cost24h: coverage({ usd: 2.5, measuredRuns: 4, totalRuns: 4 }) }),
+        })}
+      />
+    )
+
+    // The mirror of the test above: a total that DOES cover the window must not
+    // be hedged into looking partial, or the disclosure stops meaning anything.
+    expect(kpiCard('Cost · 24h').textContent).toContain("Summed over the window's runs")
+    expect(kpiCard('Cost · 24h').textContent).not.toMatch(/measured on/i)
+  })
+})
+
+/* ------------------------------------------- D4 · nothing is drawn for a null */
+
+describe('D4 — an absent cost draws no mark: no arc, no bar, no curve', () => {
+  it('the Cost card holds no drawn mark at all — and the query can see one when it exists', () => {
+    // POSITIVE CONTROL FIRST. An earlier probe on this branch trusted a `<path>`
+    // query against a gauge that strokes `<circle>`, so the assertion was blind
+    // and green. This proves `drawnMarks` can find a mark BEFORE it is used to
+    // claim there is none.
+    const control = render(<ArcGauge value={42} ariaLabel="control" />)
+    expect(drawnMarks(control.container).length).toBeGreaterThan(0)
+    control.unmount()
+
+    render(<OverviewScreen overview={overviewFixture({ kpis: kpis({ cost24h: null }) })} />)
+    const card = kpiCard('Cost · 24h')
+
+    expect(within(card).getByText(UNAVAILABLE)).toBeTruthy()
+    expect(drawnMarks(card)).toHaveLength(0)
+    expect(drawnArcs(card)).toHaveLength(0)
+  })
+
+  it('a measured cost does not smuggle a gauge in either — the figure is the whole story', () => {
+    render(
+      <OverviewScreen
+        overview={overviewFixture({
+          kpis: kpis({ runs24h: 4, cost24h: coverage({ usd: 2.5, measuredRuns: 4, totalRuns: 4 }) }),
+        })}
+      />
+    )
+
+    // Stated so the null case above cannot be satisfied by a card that simply
+    // never draws anything under any circumstance: the two cases differ in the
+    // FIGURE, and neither carries a mark. A cost has no natural maximum, so a
+    // gauge here would need an invented denominator.
+    expect(drawnMarks(kpiCard('Cost · 24h'))).toHaveLength(0)
+  })
+
+  it('an absent cost never leaves a zero-length arc on a project row', () => {
+    render(
+      <OverviewScreen
+        overview={overviewFixture({ projects: [projectItem({ runsLast24h: null, costLast24hUsd: null })] })}
+      />
+    )
+
+    const panel = screen.getByText('Projects').closest('section') as HTMLElement
+    expect(drawnMarks(panel)).toHaveLength(0)
+  })
+})
+
+/* ------------------------------- D5 · /admin/projects states the same three */
+
+describe('D5 — /admin/projects renders the three cost states of the same contract', () => {
+  it('measured n · measured 0 · absent → "$12.50" · "$0.00" · "Indisponible"', () => {
+    const { container } = render(
+      <ProjectsScreen projects={CROSS_SCREEN_PROJECTS} copilots={CROSS_SCREEN_TEAM} />
+    )
+
+    const rows = registryRows(container)
+
+    expect(rows.get('Proven')?.[4]).toBe('$12.50')
+    expect(rows.get('Zero')?.[4]).toBe('$0.00')
+    expect(rows.get('Dark')?.[4]).toBe(UNAVAILABLE)
+    // The zero is a measurement and the absence is not — they must not collide.
+    expect(rows.get('Zero')?.[4]).not.toBe(rows.get('Dark')?.[4])
+  })
+
+  it('the copilot read FAILING makes every cost absent, never 0', () => {
+    const { container } = render(<ProjectsScreen projects={CROSS_SCREEN_PROJECTS} copilots={null} />)
+
+    const rows = registryRows(container)
+    expect(rows.size).toBe(3)
+    for (const cells of rows.values()) {
+      expect(cells[4]).toBe(UNAVAILABLE)
+    }
+    expect(kpiCardIn(container, 'Cost · 24h').textContent).toContain(UNAVAILABLE)
+    expect(kpiCardIn(container, 'Cost · 24h').textContent).not.toContain('$')
+  })
+
+  it('a fleet where NOBODY proved a cost reports the absence, not a summed zero', () => {
+    // The shared `Dark` agent, narrowed to the case this test is about: its RUN
+    // count becomes a real measurement while its cost stays unproven. Derived
+    // from the fixture rather than re-declared, so it stays the same agent.
+    const [, , dark] = CROSS_SCREEN_TEAM
+    const costUnproven: Copilot = {
+      ...dark,
+      healthUnavailableFields: ['costLast24hUsd'],
+      health: { ...dark.health, runsLast24h: 2 },
+    }
+
+    const { container } = render(
+      <ProjectsScreen projects={[CROSS_SCREEN_PROJECTS[2]]} copilots={[costUnproven]} />
+    )
+
+    const card = kpiCardIn(container, 'Cost · 24h')
+    expect(within(card).getByText(UNAVAILABLE)).toBeTruthy()
+    expect(card.textContent).not.toContain('$')
+    // …while the metric that WAS proven on the same agent is unaffected: the two
+    // fields are gated independently.
+    expect(kpiCardIn(container, 'Runs · 24h').textContent).toContain('2')
+  })
+
+  /**
+   * THE GATE NOTHING ELSE ON A SCREEN EXERCISES — a row that never went through
+   * the data layer at all.
+   *
+   * `Copilot.healthUnavailableFields` is OPTIONAL, and `undefined` is its third
+   * value: a raw PostgREST row cast by `camelRows` (or any path that skips
+   * `enrichCopilot`) carries a full `health` blob and no statement about what
+   * was proven. The contract in `types.ts` says to treat every metric as
+   * unavailable there, because the blob is the stored baseline, not a reading.
+   *
+   * Every other fixture in this suite declares the list, so the first gate of
+   * the shared rule was covered only in the data layer. It is the gate a local
+   * re-implementation is most likely to get wrong — the two other gates are
+   * visible in any hand-written version, this one looks like a null check that
+   * "obviously" should default to trusting the numbers.
+   */
+  it('an UNENRICHED team (no unavailability statement at all) is absent, not its raw blob', () => {
+    const [proven] = CROSS_SCREEN_TEAM
+    // The same agent as `Proven` — 3 runs, $12.50 sitting in `health` — minus
+    // the one thing that made those numbers measurements.
+    const { healthUnavailableFields: _dropped, ...unenriched } = proven
+    void _dropped
+
+    const { container } = render(
+      <ProjectsScreen projects={[CROSS_SCREEN_PROJECTS[0]]} copilots={[unenriched as Copilot]} />
+    )
+
+    const rows = registryRows(container)
+    expect(rows.get('Proven')?.[3]).toBe(UNAVAILABLE) // runs
+    expect(rows.get('Proven')?.[4]).toBe(UNAVAILABLE) // cost
+    // The blob's numbers must not surface anywhere on the page — neither raw
+    // nor formatted, and not in the KPI band above the table either.
+    expect(container.textContent).not.toContain('$12.50')
+    expect(kpiCardIn(container, 'Cost · 24h').textContent).not.toContain('$')
+    expect(kpiCardIn(container, 'Runs · 24h').textContent).toContain(UNAVAILABLE)
+  })
+})
+
+/* --------------------------------------------- D6 · the two screens agree */
+
+describe('D6 — /admin and /admin/projects state the SAME truth for the same project', () => {
+  /**
+   * ONE fixture, both screens. `CROSS_SCREEN_TEAM` is the `Copilot[]`
+   * `/admin/projects` receives; `CROSS_SCREEN_ITEMS` is what the data layer
+   * derives from it for `/admin` — pinned by the data-layer suite (C13), so the
+   * two halves of this comparison cannot drift apart silently.
+   */
+  function bothScreens() {
+    const projectsRender = render(
+      <ProjectsScreen projects={CROSS_SCREEN_PROJECTS} copilots={CROSS_SCREEN_TEAM} />
+    )
+    const registry = registryRows(projectsRender.container)
+    projectsRender.unmount()
+
+    const overviewRender = render(
+      <OverviewScreen overview={overviewFixture({ projects: CROSS_SCREEN_ITEMS })} />
+    )
+    const panel = screen.getByText('Projects').closest('section') as HTMLElement
+    const rows = new Map(
+      [...panel.querySelectorAll('a')]
+        // The panel footer holds an "All projects" link too; only the row
+        // anchors point at a builder.
+        .filter((row) => row.getAttribute('href')?.includes('/builder'))
+        .map((row) => [row.querySelector('div.truncate')?.textContent ?? '', row.textContent ?? ''])
+    )
+
+    // NON-VACUITY. Every assertion below is a lookup, and a lookup that misses
+    // would make several of them read as "the screen does not say the wrong
+    // thing" — which an EMPTY screen also satisfies. Both sides must really hold
+    // the three projects before anything is compared.
+    expect([...registry.keys()]).toEqual(['Proven', 'Zero', 'Dark'])
+    expect([...rows.keys()]).toEqual(['Proven', 'Zero', 'Dark'])
+
+    return { registry, rows, overviewRender }
+  }
+
+  it('the RUNS figure reads identically on both screens, in all three states', () => {
+    const { registry, rows } = bothScreens()
+
+    // Proven → the same number, twice.
+    expect(registry.get('Proven')?.[3]).toBe('3')
+    expect(rows.get('Proven')).toContain('3')
+    // Measured zero → a real 0 on both, and the word on neither.
+    expect(registry.get('Zero')?.[3]).toBe('0')
+    expect(rows.get('Zero')).toContain('0')
+    expect(rows.get('Zero')).not.toContain(UNAVAILABLE)
+    // Absent → the word on both. THIS is the pair that used to disagree: `0`
+    // here and `Indisponible` there, from one field, on two screens.
+    expect(registry.get('Dark')?.[3]).toBe(UNAVAILABLE)
+    expect(rows.get('Dark')).toContain(UNAVAILABLE)
+    expect(rows.get('Dark')).not.toMatch(/\b0\b/)
+  })
+
+  it('neither screen states a cost the other one denies', () => {
+    const { registry, rows } = bothScreens()
+
+    // `/admin/projects` is the screen that renders a per-project cost today.
+    expect(registry.get('Proven')?.[4]).toBe('$12.50')
+    expect(registry.get('Zero')?.[4]).toBe('$0.00')
+    expect(registry.get('Dark')?.[4]).toBe(UNAVAILABLE)
+
+    // `/admin` renders `active` and `runs` on the row and no cost — so the one
+    // thing it must never do is contradict the column above. It may not print a
+    // currency figure for the project whose cost nobody measured, and it may not
+    // print the absence word for the two that WERE measured.
+    expect(rows.get('Dark')).not.toContain('$')
+    expect(rows.get('Proven')).not.toContain(UNAVAILABLE)
+    expect(rows.get('Zero')).not.toContain(UNAVAILABLE)
+  })
+
+  /**
+   * TRIPWIRE, not a preference. `/admin` currently shows no per-project cost at
+   * all, which is why nothing there can be wrong about it — and also why the
+   * fixed field is unobserved on that screen. The day a cost cell is added, this
+   * test fails and the person adding it has to extend the assertions above to
+   * cover it in all three states, instead of shipping a cell nobody compared.
+   */
+  it('TRIPWIRE — /admin does not render a per-project cost yet', () => {
+    const { rows } = bothScreens()
+
+    for (const row of rows.values()) {
+      expect(row).not.toContain('$')
+      expect(row).not.toContain('cost')
+    }
   })
 })

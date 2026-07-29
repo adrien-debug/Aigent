@@ -20,6 +20,14 @@ import {
 import type { AgentRun } from '@/lib/agent-mission-control/types'
 import type { DeliveryEvent } from '@/lib/agent-mission-control/delivery-events-store'
 import type { Copilot, Project } from '@/lib/agent-mission-control/types'
+// The fixture BOTH test projects read. See its header for why it is not a
+// literal duplicated into each suite — that duplication is the defect class this
+// branch closes, so it is not the mechanism used to test it.
+import {
+  CROSS_SCREEN_ITEMS,
+  CROSS_SCREEN_PROJECTS,
+  CROSS_SCREEN_TEAM,
+} from '../fixtures/cross-screen-cost'
 
 /** Health blob with every key present, so a test overrides only what it is about. */
 function health(partial: Partial<Copilot['health']> = {}): Copilot['health'] {
@@ -263,7 +271,16 @@ describe('assembleDashboardOverview fail-soft', () => {
 
   it('13 — computeCost24h is null over an empty window, never a coalesced 0', () => {
     expect(computeCost24h([])).toBeNull()
-    expect(computeCost24h([{ costUsd: null }, { costUsd: 1.5 }] as Pick<AgentRun, 'costUsd'>[])).toBe(1.5)
+    // WAS `toBe(1.5)`. That assertion pinned the defect: `?? 0` folded the
+    // unmeasured run in as a free one and returned a bare `1.5`, so a LOWER
+    // BOUND was presented as THE cost of the window. The figure is unchanged —
+    // what changed is that it now travels with the denominator that qualifies
+    // it. Detailed cases in section C below.
+    expect(computeCost24h([{ costUsd: null }, { costUsd: 1.5 }] as Pick<AgentRun, 'costUsd'>[])).toEqual({
+      usd: 1.5,
+      measuredRuns: 1,
+      totalRuns: 2,
+    })
   })
 
   it('9 — no GitHub write imported in dashboard-overview module', async () => {
@@ -423,12 +440,14 @@ describe('A — the 24h run read is never swallowed', () => {
     expect(overview.windowRuns?.map((run) => run.id)).toEqual(['r1', 'r2', 'r3', 'r4'])
     // 2 completed over 3 terminal runs — `running` is excluded, not counted as failed.
     expect(overview.kpis.success24h).toBe(67)
-    // 1.25 + 0.75 + 0.5. `r4` carries `costUsd: null` (cost not measurable for
-    // that run) and `computeCost24h` folds it in as 0 — a KNOWN, pre-existing
-    // and NARROWER gap than this mission's: it is per-run cost absence INSIDE a
-    // window that was successfully read, not a failed read. Asserted here so the
-    // behaviour is visible rather than assumed, not because it is right.
-    expect(overview.kpis.cost24h).toBe(2.5)
+    // 1.25 + 0.75 + 0.5 over the THREE runs that carried a measurable cost.
+    // `r4` has `costUsd: null` — the cost of that run could not be measured, so
+    // it is NOT summed in as a free run, and the record says so: the window held
+    // 4 runs and only 3 of them support this figure. The previous assertion here
+    // was `toBe(2.5)`, a bare number that could not admit the gap; its own
+    // comment already said it was pinned "so the behaviour is visible… not
+    // because it is right".
+    expect(overview.kpis.cost24h).toEqual({ usd: 2.5, measuredRuns: 3, totalRuns: 4 })
     expect(overview.dataWarnings).not.toContain(RUNS_READ_FAILED_WARNING)
   })
 
@@ -660,5 +679,399 @@ describe('B — ProjectOverviewItem.runsLast24h can say "not measured"', () => {
     expect(item.runsLast24h).toBeNull()
     // The whole point: an absence must not arrive as a measurement.
     expect(item.runsLast24h).not.toBe(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// C — cost: a measured zero, a PARTIAL measurement and an absence stay apart
+//
+// Same shape as section B, applied to the field that was still coalescing. Two
+// different figures live under the word "cost" here and they are tested apart:
+//
+//  · `DashboardKpis.cost24h` — derived from the WINDOW's runs (`AgentRun.costUsd`)
+//    and typed `Cost24hCoverage | null`, because a window can be measured only
+//    IN PART: `costUsd === null` means the runner could not measure that run's
+//    cost, not that the run was free.
+//  · `ProjectOverviewItem.costLast24hUsd` — derived from the TEAM's health
+//    (`copilot.health.costLast24hUsd`) and typed `number | null`, gated on the
+//    same `isMeasuredHealth` rule the run count already uses.
+//
+// The two share one law, and every test below is an instance of it: `0` is only
+// ever printed when something was measured at zero. An absence is `null` and
+// renders `Indisponible` — never "$0.00", never an empty gauge, never a zero bar.
+// ---------------------------------------------------------------------------
+
+/** Read a source file of the app, for the two structural assertions at the end
+ *  of this section. Same idiom test 9 already uses to prove an absence of
+ *  imports — a behavioural test cannot see a `?? 0` that no fixture reaches. */
+async function readSource(relativePath: string): Promise<string> {
+  const fs = await import('node:fs/promises')
+  return fs.readFile(new URL(`../../${relativePath}`, import.meta.url), 'utf8')
+}
+
+/** Runs reduced to the only field `computeCost24h` reads. */
+function costs(...values: (number | null)[]): Pick<AgentRun, 'costUsd'>[] {
+  return values.map((costUsd) => ({ costUsd }))
+}
+
+describe('C — computeCost24h never presents an absence as a measured zero', () => {
+  it('C1 — a window that WAS read and held NO run is null, not a measured $0.00', () => {
+    // DELIBERATE, and the direction was checked against the decision recorded on
+    // the function itself rather than assumed: an empty sum is "nothing was
+    // measured", not "the fleet cost zero dollars". The distinction is not
+    // academic — `$0.00` under "Cost · 24h" is a claim about spend, and no read
+    // established it. `runs24h` is what legitimately reports the measured 0 for
+    // this same window (test A1), and the two live side by side on the screen.
+    expect(computeCost24h([])).toBeNull()
+    expect(computeCost24h([])).not.toEqual({ usd: 0, measuredRuns: 0, totalRuns: 0 })
+  })
+
+  it('C2 — every run measured: the exact sum, with full coverage stated', () => {
+    expect(computeCost24h(costs(1.25, 0.75, 0.5))).toEqual({
+      usd: 2.5,
+      measuredRuns: 3,
+      totalRuns: 3,
+    })
+  })
+
+  it('C3 — runs measured AT ZERO produce a real zero WITH its support', () => {
+    // The inverse of C1, and the reason the record exists: this `0` and the
+    // absence in C1 are both "zero dollars" to a bare `number`, and they are not
+    // the same statement. Here three runs were read and each one cost nothing.
+    const measured = computeCost24h(costs(0, 0, 0))
+
+    expect(measured).toEqual({ usd: 0, measuredRuns: 3, totalRuns: 3 })
+    expect(measured).not.toBeNull()
+    // A zero that is *structurally* distinguishable from an absence: it carries
+    // support. `usd === 0 && measuredRuns === 0` can never be produced.
+    expect(measured?.measuredRuns).toBeGreaterThan(0)
+  })
+
+  it('C4 — a run whose cost was NOT measured is not summed in as a free run', () => {
+    const partial = computeCost24h(costs(2, null, null, 0.5))
+
+    // The dollars that WERE measured are kept…
+    expect(partial?.usd).toBe(2.5)
+    // …and the figure carries what it does NOT cover, so the UI can say so.
+    expect(partial).toEqual({ usd: 2.5, measuredRuns: 2, totalRuns: 4 })
+    expect(partial?.measuredRuns).toBeLessThan(partial?.totalRuns ?? 0)
+  })
+
+  it('C5 — runs present but NOT ONE measurable: null, never a sum of skipped runs', () => {
+    // The old `+ (r.costUsd ?? 0)` returned `0` here — three unmeasured runs
+    // rendered as a confident "$0.00". There is no lower bound to state when the
+    // support is empty, so there is no figure at all.
+    expect(computeCost24h(costs(null, null, null))).toBeNull()
+    expect(computeCost24h(costs(null))).toBeNull()
+  })
+
+  it('C6 — a non-finite cost is an absence, not a value to plot', () => {
+    // NaN / Infinity can only come from a broken computation upstream; carrying
+    // one into the total would make the whole KPI NaN and render as garbage.
+    // `undefined` covers a row that never carried the column at all.
+    const runs = [{ costUsd: Number.NaN }, { costUsd: 1 }, { costUsd: undefined }] as Pick<AgentRun, 'costUsd'>[]
+
+    expect(computeCost24h(runs)).toEqual({ usd: 1, measuredRuns: 1, totalRuns: 3 })
+    expect(computeCost24h([{ costUsd: Number.NaN }] as Pick<AgentRun, 'costUsd'>[])).toBeNull()
+  })
+
+  it('C7 — the run read FAILED: null, and it never even counts a length', () => {
+    expect(computeCost24h(null)).toBeNull()
+  })
+
+  it('C7b — end to end through the collector, a failed read leaves cost null', async () => {
+    ;(await runsReader()).mockRejectedValueOnce(new Error('agent_runs unreachable'))
+
+    const overview = await collectOverview()
+
+    expect(overview.kpis.cost24h).toBeNull()
+    expect(overview.dataWarnings).toContain(RUNS_READ_FAILED_WARNING)
+    // The discriminator, spelled out: an EMPTY-but-read window is also null here
+    // (C1), and `dataWarnings` is the only thing that tells the two apart.
+    ;(await runsReader()).mockResolvedValueOnce([])
+    const readEmpty = await collectOverview()
+    expect(readEmpty.kpis.cost24h).toBeNull()
+    expect(readEmpty.dataWarnings).not.toContain(RUNS_READ_FAILED_WARNING)
+  })
+})
+
+describe('C — ProjectOverviewItem.costLast24hUsd obeys the same rule as runs', () => {
+  /** A team member with a cost the data layer PROVED. */
+  function provenCost(id: string, costLast24hUsd: number, runsLast24h = 0): Copilot {
+    return copilot({
+      id,
+      name: id,
+      projectId: 'p1',
+      healthUnavailableFields: [],
+      health: health({ costLast24hUsd, runsLast24h }),
+    })
+  }
+
+  it('C8 — a member whose cost sits in healthUnavailableFields makes it null', () => {
+    const [item] = buildProjectOverview(
+      [project('p1', 'Dark')],
+      [
+        copilot({
+          id: 'c1',
+          name: 'Named unavailable',
+          projectId: 'p1',
+          // The 99 is a normalisation placeholder (data.ts normalizeHealth), not
+          // a measurement — `healthUnavailableFields` is what says so.
+          healthUnavailableFields: ['costLast24hUsd'],
+          health: health({ costLast24hUsd: 99 }),
+        }),
+        // `healthUnavailableFields` undefined: the row never went through the
+        // data layer, so nothing on it is proven (types.ts › CopilotHealth).
+        copilot({ id: 'c2', name: 'Never enriched', projectId: 'p1', health: health({ costLast24hUsd: 5 }) }),
+      ]
+    )
+
+    expect(item.copilotCount).toBe(2)
+    expect(item.costLast24hUsd).toBeNull()
+    // Stated in the negative too — `0` is exactly what this used to render, and
+    // "$0.00" is what the operator then read.
+    expect(item.costLast24hUsd).not.toBe(0)
+  })
+
+  it('C9 — a PROVEN zero cost stays 0 and never gets relabelled absent', () => {
+    // The inverse test. A rule that turns every zero into "Indisponible" is just
+    // the old lie pointing the other way: this team was measured and it cost
+    // nothing, which is a fact and must render as a real formatted zero.
+    const [item] = buildProjectOverview([project('p1', 'Quiet')], [provenCost('c1', 0), provenCost('c2', 0)])
+
+    expect(item.costLast24hUsd).toBe(0)
+    expect(item.costLast24hUsd).not.toBeNull()
+  })
+
+  it('C10 — a project with NO copilot at all is a measured 0: no agent, no cost', () => {
+    const [item] = buildProjectOverview([project('p1', 'Empty')], [])
+
+    expect(item.copilotCount).toBe(0)
+    expect(item.costLast24hUsd).toBe(0)
+    // Same call the `/admin/projects` rollup makes for an empty team, so the two
+    // screens answer the same way for a project nobody staffed.
+    expect(item.runsLast24h).toBe(0)
+  })
+
+  it('C11 — proven costs are summed; an unproven placeholder never enters the total', () => {
+    const [item] = buildProjectOverview(
+      [project('p1', 'Mixed')],
+      [
+        provenCost('c1', 1.25),
+        provenCost('c2', 0.75),
+        copilot({
+          id: 'c3',
+          name: 'Placeholder',
+          projectId: 'p1',
+          healthUnavailableFields: ['costLast24hUsd'],
+          health: health({ costLast24hUsd: 1000 }),
+        }),
+      ]
+    )
+
+    // 1.25 + 0.75. The 1000 is not merely "excluded" — it never existed as a
+    // measurement, and its member does not drag the total to null either: two
+    // members DID prove a cost.
+    expect(item.costLast24hUsd).toBe(2)
+  })
+
+  it('C12 — cost and runs are proven INDEPENDENTLY; neither borrows the other proof', () => {
+    const [item] = buildProjectOverview(
+      [project('p1', 'Half proven')],
+      [
+        copilot({
+          id: 'c1',
+          name: 'Runs only',
+          projectId: 'p1',
+          healthUnavailableFields: ['costLast24hUsd'],
+          health: health({ runsLast24h: 6, costLast24hUsd: 42 }),
+        }),
+      ]
+    )
+
+    expect(item.runsLast24h).toBe(6)
+    expect(item.costLast24hUsd).toBeNull()
+
+    // …and the mirror image, so the gate cannot be reading one field for both.
+    const [mirror] = buildProjectOverview(
+      [project('p1', 'Half proven')],
+      [
+        copilot({
+          id: 'c1',
+          name: 'Cost only',
+          projectId: 'p1',
+          healthUnavailableFields: ['runsLast24h'],
+          health: health({ runsLast24h: 42, costLast24hUsd: 6 }),
+        }),
+      ]
+    )
+
+    expect(mirror.runsLast24h).toBeNull()
+    expect(mirror.costLast24hUsd).toBe(6)
+  })
+
+  it('C12b — the whole assembled overview keeps a null cost null all the way out', () => {
+    const overview = assembleDashboardOverview({
+      copilots: [
+        copilot({
+          id: 'c1',
+          name: 'Unproven cost',
+          projectId: 'p1',
+          status: 'active',
+          healthUnavailableFields: ['costLast24hUsd'],
+          health: health({ runsLast24h: 3, costLast24hUsd: 99 }),
+        }),
+      ],
+      projects: [project('p1', 'Trade')],
+      latestDeliveryByCopilot: new Map(),
+      latestSandboxByCopilot: new Map(),
+      scorecards: new Map(),
+      missionRuns: [],
+      dataWarnings: [],
+      availableAgents: [],
+      windowRuns: [],
+    })
+
+    expect(overview.projects[0].costLast24hUsd).toBeNull()
+    // The project row and the window KPI are two different reads over two
+    // different populations — both absent here, neither borrowed from the other.
+    expect(overview.kpis.cost24h).toBeNull()
+    expect(overview.projects[0].runsLast24h).toBe(3)
+  })
+
+  /**
+   * C13 — THE CROSS-SCREEN PIN. One assertion, and the whole cross-screen claim
+   * rests on it.
+   *
+   * `tests/unit/overview-screen-truth.test.tsx` (section D) renders BOTH screens
+   * from `tests/fixtures/cross-screen-cost.ts`: `/admin/projects` gets the
+   * `Copilot[]` and derives its own figures, `/admin` gets the
+   * `ProjectOverviewItem[]` because it cannot call this module (`server-only`
+   * throws under the browser conditions that suite runs in). The component test
+   * therefore has to be TOLD what a team rolls up to — and THIS is where that is
+   * checked against the real rollup.
+   *
+   * WHOLE OBJECTS, IN ORDER, on purpose: a stray `repoFullName`, a `passRate`
+   * that is not what the sort/rollup produces, or a different emitted order
+   * would leave the component suite rendering a project the data layer never
+   * builds, with every one of its own assertions still green.
+   */
+  it('C13 — the data layer really derives the items the component suite renders', () => {
+    expect(buildProjectOverview(CROSS_SCREEN_PROJECTS, CROSS_SCREEN_TEAM)).toEqual(CROSS_SCREEN_ITEMS)
+
+    // Read out loud, so the pin is legible without opening the fixture: the
+    // three states of the contract, side by side, from one team.
+    const byId = new Map(CROSS_SCREEN_ITEMS.map((item) => [item.id, item]))
+    expect(byId.get('p-proven')?.costLast24hUsd).toBe(12.5)
+    expect(byId.get('p-zero')?.costLast24hUsd).toBe(0)
+    expect(byId.get('p-dark')?.costLast24hUsd).toBeNull()
+  })
+})
+
+describe('C — structural: the coalescence is gone and "measured" is ONE rule', () => {
+  /** `buildProjectOverview` alone — bounded so an unrelated `?? 0` elsewhere in
+   *  the module cannot fail this, and so a new one inside it cannot hide. */
+  async function rollupSource(): Promise<string> {
+    const source = await readSource('src/lib/agent-mission-control/dashboard-overview.ts')
+    const start = source.indexOf('export function buildProjectOverview')
+    const end = source.indexOf('// Pure — action items')
+    expect(start).toBeGreaterThan(-1)
+    expect(end).toBeGreaterThan(start)
+    return source.slice(start, end)
+  }
+
+  it('C14 — no `?? 0` / `|| 0` on a metric anywhere in the project rollup', async () => {
+    const rollup = await rollupSource()
+
+    // `costLast24hUsd: rollup?.costLast24hUsd ?? 0` is the exact line that made
+    // an unproven cost render "$0.00". A behavioural test cannot see its return:
+    // the fixture that would expose it is precisely the one the fix removed.
+    expect(rollup).not.toMatch(/costLast24hUsd[^\n]*\?\?\s*0/)
+    expect(rollup).not.toMatch(/costLast24hUsd[^\n]*\|\|\s*0/)
+    expect(rollup).not.toMatch(/runsLast24h[^\n]*\?\?\s*0/)
+    expect(rollup).not.toMatch(/runsLast24h[^\n]*\|\|\s*0/)
+    // …while the STRUCTURAL counts stay structural: a project with no team
+    // really does hold 0 copilots and 0 active ones, and those zeroes are facts
+    // that need no coverage record. Asserted positively so this test cannot be
+    // silently satisfied by the whole block disappearing.
+    expect(rollup).toMatch(/copilotCount: team\.length/)
+    expect(rollup).toMatch(/activeCount: team\.filter\(/)
+  })
+
+  it('C15 — cost enters the rollup through the SAME shared call as runs', async () => {
+    const rollup = await rollupSource()
+
+    // One function, called identically for both metrics — not two hand-rolled
+    // accumulators that merely look alike. The defect line this replaced read
+    // `current.costLast24hUsd += copilot.health.costLast24hUsd` at the top level
+    // of a loop, outside any measurement gate.
+    expect(rollup).toMatch(/sumMeasuredHealth\(team, 'runsLast24h'\)/)
+    expect(rollup).toMatch(/sumMeasuredHealth\(team, 'costLast24hUsd'\)/)
+    // No raw accumulation of either metric survives anywhere in the rollup.
+    expect(rollup).not.toMatch(/\+=\s*copilot\.health\./)
+    expect(rollup).not.toMatch(/\+=\s*c\.health\./)
+    // Both fields unwrap the SAME three-state result the same way — an absence
+    // stays `null`, never a coalesced 0.
+    expect(rollup).toMatch(/runsLast24h: runs === null \? null : runs\.value/)
+    expect(rollup).toMatch(/costLast24hUsd: cost === null \? null : cost\.value/)
+  })
+
+  /**
+   * C16 — ONE definition of "measured", in ONE module, with no local copies.
+   *
+   * WHAT THIS USED TO ASSERT, and why it changed: the rule lived in TWO files —
+   * `dashboard-overview.ts` (feeding `/admin`) and `projects-screen.tsx`
+   * (feeding `/admin/projects`) — because the data layer opens with
+   * `import 'server-only'` and a VALUE import of it kills the browser-conditions
+   * test project. This test pinned the two copies byte for byte. The copies are
+   * now GONE: the rule moved to `src/lib/agent-mission-control/health-measure.ts`,
+   * a neutral module with no `server-only`, that BOTH sides import. So the
+   * invariant is no longer "the two copies agree" but the strictly stronger
+   * "there is only one copy, and nobody has quietly grown a second".
+   *
+   * NAME-AGNOSTIC ON PURPOSE, unchanged: the function is located by its
+   * SIGNATURE, not by its identifier, so a rename cannot make this test quietly
+   * stop looking.
+   */
+  it('C16 — the rule exists exactly once, in the neutral module both screens import', async () => {
+    const [shared, dataLayer, screenSource] = await Promise.all([
+      readSource('src/lib/agent-mission-control/health-measure.ts'),
+      readSource('src/lib/agent-mission-control/dashboard-overview.ts'),
+      readSource('src/components/console/projects-screen.tsx'),
+    ])
+
+    const SIGNATURE = /function (\w+)\(copilot: Copilot, metric: CopilotHealthMetric\): boolean \{\n([\s\S]*?)\n\}/g
+
+    // Exactly one definition, and it is in the shared module.
+    const found = [...shared.matchAll(SIGNATURE)]
+    if (found.length !== 1) {
+      throw new Error(`health-measure.ts holds ${found.length} health-measurement rules; exactly 1 is the contract`)
+    }
+    const [, name, body] = found[0]
+
+    // The extraction really found the rule — a regex that matched an empty body
+    // would otherwise satisfy everything below and prove nothing.
+    expect(body).toContain('healthUnavailableFields === undefined')
+    expect(body).toContain('Number.isFinite')
+    expect(name).toBe('isMeasuredHealth')
+
+    // ZERO local copies. A re-inlined rule in either consumer puts the two
+    // screens back on separate definitions of "measured" — the divergence this
+    // module exists to make impossible.
+    expect([...dataLayer.matchAll(SIGNATURE)]).toHaveLength(0)
+    expect([...screenSource.matchAll(SIGNATURE)]).toHaveLength(0)
+
+    // …and both consumers really do take it from the shared module, so the
+    // emptiness above means "imported", not "dropped".
+    expect(dataLayer).toMatch(/from '\.\/health-measure'/)
+    expect(screenSource).toMatch(/from '@\/lib\/agent-mission-control\/health-measure'/)
+
+    // The shared module must stay importable from a Client Component — that is
+    // the whole reason it is separate from `dashboard-overview.ts`. Enforced by
+    // `tests/unit/overview-screen-truth.test.tsx` at runtime (browser resolve
+    // conditions), and here at the source level so a stray import is caught
+    // before it reaches a renderer.
+    expect(shared).not.toMatch(/^import 'server-only'/m)
+    expect(shared).not.toMatch(/from '\.\/(data|postgrest|dashboard-overview)'/)
   })
 })

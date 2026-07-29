@@ -318,6 +318,30 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
   const projectsMeasured = measuredProjectRuns.length
   const projectsWithActivity = measuredProjectRuns.filter((runs) => runs > 0).length
 
+  // COST CARRIES ITS OWN COVERAGE, so the sub-label has FIVE things to say and
+  // never the wrong one. `kpis.cost24h` is `Cost24hCoverage | null`:
+  //  · measured, full coverage    → the plain provenance line.
+  //  · measured, PARTIAL coverage → the denominator, said out loud. The figure
+  //    is then a LOWER BOUND (a run whose `costUsd` is null had its cost
+  //    unmeasured, not waived), and dollars printed without that disclosure
+  //    would imply they cover the window.
+  //  · null, run read failed      → why the figure is absent.
+  //  · null, window read and empty → no run to cost. Not a free window.
+  //  · null, runs present but none priced → nothing to sum from.
+  // Aliased once because the value is read four times and `kpis.cost24h.usd`
+  // does not narrow across a JSX boundary.
+  const cost24h = kpis.cost24h
+  const costDetail =
+    cost24h !== null
+      ? cost24h.measuredRuns < cost24h.totalRuns
+        ? `Cost measured on ${cost24h.measuredRuns} of ${cost24h.totalRuns} runs`
+        : "Summed over the window's runs"
+      : windowRuns === null
+        ? RUNS_UNREAD_DETAIL
+        : windowRuns.length === 0
+          ? 'No run in this window to cost'
+          : 'No run in this window carried a measurable cost'
+
   const trend = windowRuns === null ? null : bucketRunsByStartTime(windowRuns)
   const trendSeries: TrendSeries[] =
     trend === null || trend.xLabels.length === 0
@@ -469,10 +493,28 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
 
         <KpiCard label="Needs action" value={kpis.needsAction} detail="Operator queue" />
 
+        {/* THE FIGURE AND ITS SUPPORT TRAVEL TOGETHER. `AgentRun.costUsd` is
+            nullable and `null` there means the runner could not MEASURE the
+            cost (a LangGraph run with no usage payload) — not that the run was
+            free. So the data layer hands over `{ usd, measuredRuns, totalRuns }`
+            rather than a bare number, and this card prints the denominator
+            whenever the two counts differ. Dollars shown without it would be
+            the same overstatement in nicer clothes: a lower bound read as a
+            total.
+
+            `null` is THREE different absences (dead read · empty window · no
+            priced run) and all three render `Indisponible`, never "$0.00".
+            `formatUsd` used to return an em dash for a null — punctuation, not
+            the word this console uses for "nobody measured this" — which is why
+            the null was narrowed here before ever reaching it. It now returns
+            the same word (`UNAVAILABLE_LABEL`, one vocabulary), so the two
+            paths finally AGREE; the narrowing stays because only the component
+            can carry the zinc-500 role and the figure-sized class.
+            `costDetail` above names which absence it is. */}
         <KpiCard
           label="Cost · 24h"
-          value={kpis.cost24h === null ? unavailableFigure : formatUsd(kpis.cost24h)}
-          detail={runsUnread ? RUNS_UNREAD_DETAIL : "Summed over the window's runs"}
+          value={cost24h === null ? unavailableFigure : formatUsd(cost24h.usd)}
+          detail={costDetail}
         />
       </div>
 
@@ -732,17 +774,31 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
           THE TWO SCREENS NOW AGREE ON ABSENCE TOO. `runsLast24h` is
           `number | null`: the data layer sums only the team members that PROVED
           the metric (`isMeasuredHealth`, the same rule `/admin/projects` applies
-          through `sumMeasured`) and returns `null` when a non-empty team proved
+          through `sumMeasuredHealth`) and returns `null` when a non-empty team proved
           none. So a project whose team proved nothing renders `Indisponible`
           HERE and `Indisponible` THERE — it used to render `0` here and
           `Indisponible` there, from one field, on two screens. A project with no
           copilot at all still renders a measured `0`: no agent, no run to have
           made.
 
-          STILL DIFFERENT, AND DELIBERATELY NOT PAPERED OVER: `costLast24hUsd` on
-          the same item is still typed `number` and still sums the WHOLE team, so
-          an unproven cost normalises to `$0.00`. This panel does not render it,
-          so nothing here is currently lying; the field itself carries the note.
+          COST IS NOW THE SAME CONTRACT — the note that used to sit here said
+          `costLast24hUsd` was "still typed `number` and still sums the WHOLE
+          team", and that is no longer true. It is `number | null` under the
+          SAME `isMeasuredHealth` gate as `runsLast24h`: a measured `0` for a
+          project with no copilot, the proven sum when members proved one, and
+          `null` when a non-empty team proved none. The `$0.00` an unproven cost
+          used to normalise into is gone at the source.
+
+          `/admin/projects` reaches those same three states by its OWN route —
+          it receives `Copilot[]` instead of a `DashboardOverview` and applies
+          `sumMeasuredHealth`, whose measurement rule is character-for-character
+          the data layer's. Same rule, same inputs, same answer; the reason
+          there are two copies of it is written at that helper, and collapsing
+          them into one client-safe module is the follow-up.
+
+          This row still shows only `active` and `runs`. Adding a cost value is
+          a layout decision, not a truth fix, so it is not smuggled in here —
+          and the field is no longer a hazard sitting unrendered.
         */}
         <Section
           title="Projects"
