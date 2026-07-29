@@ -159,11 +159,14 @@ export interface RegistryAgent {
   source: 'aigent'
   pushedAt: string
   manifestPath: string
-  /** Identity chain back to Aigent — required to bind an activation/run to a
-   *  real project/copilot/version when telemetry flows back. */
-  aigentProjectId: string
-  copilotId: string
-  versionId: string | null
+  /** Identity chain back to Aigent — written on every push, used to bind an
+   *  activation/run to a real project/copilot/version when telemetry flows
+   *  back. OPTIONAL because a registry written before these fields existed
+   *  must still load: dropping such a row would hide a really-installed agent
+   *  from the consumer, and rewriting the file would delete it outright. */
+  aigentProjectId?: string
+  copilotId?: string
+  versionId?: string | null
 }
 
 export interface AgentBinding {
@@ -200,8 +203,7 @@ export async function readRegistry(): Promise<RegistryAgent[]> {
         typeof row === 'object' &&
         row !== null &&
         typeof (row as RegistryAgent).slug === 'string' &&
-        (row as RegistryAgent).source === 'aigent' &&
-        typeof (row as RegistryAgent).copilotId === 'string'
+        (row as RegistryAgent).source === 'aigent'
     )
   } catch {
     return []

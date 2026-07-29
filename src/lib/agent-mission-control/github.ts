@@ -1239,10 +1239,13 @@ export interface AgentRegistryEntry {
    * back to the exact project/copilot/version that produced it. Without these,
    * the registry row only carries a human-readable slug and nothing else ties
    * it back to Aigent's own ids.
+   *
+   * OPTIONAL on the type because rows written before these fields existed must
+   * still load — see `isRegistryEntry`. Every push writes them.
    */
-  aigentProjectId: string
-  copilotId: string
-  versionId: string | null
+  aigentProjectId?: string
+  copilotId?: string
+  versionId?: string | null
 }
 
 /** Narrowing type guard: is `v` a well-formed AgentRegistryEntry row? */
@@ -1258,9 +1261,16 @@ function isRegistryEntry(v: unknown): v is AgentRegistryEntry {
     e.source === 'aigent' &&
     typeof e.pushedAt === 'string' &&
     typeof e.manifestPath === 'string' &&
-    typeof e.aigentProjectId === 'string' &&
-    typeof e.copilotId === 'string' &&
-    (e.versionId === null || typeof e.versionId === 'string')
+    // Identity chain — OPTIONAL on read, ALWAYS written on push. A registry
+    // pushed before these fields existed is still a valid registry, and
+    // rejecting those rows here would be destructive rather than strict:
+    // `mergeRegistryEntry` rebuilds the file from exactly what this guard
+    // returned, so a dropped legacy row would be DELETED from the consumer
+    // repo on the next unrelated push. Missing identity is a row to carry
+    // forward, not a row to destroy.
+    (e.aigentProjectId === undefined || typeof e.aigentProjectId === 'string') &&
+    (e.copilotId === undefined || typeof e.copilotId === 'string') &&
+    (e.versionId === undefined || e.versionId === null || typeof e.versionId === 'string')
   )
 }
 
