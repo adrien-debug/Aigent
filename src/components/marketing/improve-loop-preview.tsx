@@ -2,8 +2,7 @@ import clsx from 'clsx'
 
 /**
  * A static, decorative representation of the improvement loop (analyze →
- * propose → create V2 → compare → decide — see docs/agent-authoring.md §1c
- * and src/components/agent-ops/improve-workbench.tsx for the real screen).
+ * propose → create V2 → compare → decide — see docs/agent-authoring.md §1c).
  * Pure markup, no data, no interactivity — same approach already used by
  * console-preview.tsx: a marketing illustration, not a product screenshot.
  * Vertical on mobile so every label and detail stays fully readable; a row

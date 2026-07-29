@@ -13,14 +13,15 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 1. `CLAUDE.md` — git, merge, push, déploiement, sécurité opérationnelle.
 2. `AGENTS.md` (ce fichier) — workflow agent, ports, architecture, Catalyst, vérité runtime.
-3. `src/components/agent-ops/DESIGN-DOCTRINE.md` — surfaces, tokens, composants UI, échelle typo,
-   règle de cascade des `className`, responsive, tables, empty states, et les **arbitrages design
-   non tranchés**. Portée : le périmètre dashboard complet, celui que scanne `check:catalyst` —
-   `src/app/admin/**`, `src/components/agent-ops/**`, `src/components/views/**`,
-   `src/components/shell/**`.
-4. Gates exécutables (`npm run check`) — arbitre final : une gate rouge gagne sur toute phrase de
+3. Gates exécutables (`npm run check`) — arbitre final : une gate rouge gagne sur toute phrase de
    doctrine.
-5. Mission courante.
+4. Mission courante.
+
+Il n'existe aujourd'hui aucune doctrine visuelle de dashboard : P006 a supprimé l'ancien front
+(`src/components/agent-ops/**`, `src/components/views/**`, `src/components/shell/**` et leur
+doctrine `DESIGN-DOCTRINE.md`), et `/admin` + `/admin/runs` sont des placeholders neutres en
+attente de reconstruction. Une nouvelle doctrine visuelle ne s'écrit qu'au moment où un vrai écran
+se reconstruit — jamais par anticipation.
 
 Une règle vit dans **un seul** de ces fichiers ; ailleurs on y renvoie, on ne la recopie pas.
 Contradiction entre deux fichiers → la plus récente et la plus spécifique gagne, et l'écart se
@@ -44,37 +45,20 @@ est pris par un process non identifié comme le sien.
 <!-- END:dev-port-rule -->
 
 <!-- BEGIN:catalyst-ui-rules -->
-## UI (gate : `npm run check:catalyst`)
-- **Dashboard** (`src/app/admin/`, `src/components/agent-ops/`, `src/components/views/`,
-  `src/components/shell/`) → **primitives Catalyst
-  uniquement** (`src/components/ui/`). Zéro `<button>`/`<input>`/`<select>`/`<textarea>`/
-  `<table>` natif. Un contrôle au style entièrement custom (toggle, tuile sélectionnable, croix
-  de suppression dans un badge) utilise `Headless.Button` (`@headlessui/react`) plutôt qu'un
-  `<button>` brut — même sémantique clavier/focus/disabled que `Button` Catalyst, sans hériter
-  de son padding/couleur par défaut.
+## UI (gate : `npm run check:no-legacy-front`)
+- `/admin` et `/admin/runs` sont des **placeholders neutres** (P006) : pas de carte, pas de
+  shell, pas de navigation, pas de données. La reconstruction visuelle du dashboard n'a pas
+  commencé — n'y ajoute rien par anticipation.
 - **Marketing** (`src/app/(site)/`, `src/components/marketing/`) → blocs Tailwind Plus pris tels
-  quels, restylés sur les tokens du projet (`accent-*`/`zinc`). Pas de primitive Catalyst ici —
-  convention volontaire, le marketing est une vitrine statique.
+  quels, restylés sur les tokens du projet (`accent-*`/`zinc`). Vitrine statique, doctrine
+  inchangée par la démolition du dashboard.
 - **Un seul accent : `accent` (vert tendre, `#A7FB90`, `src/theme.css`).** Tout le reste est `zinc`.
   (`src/app/globals.css` n'est qu'un stub qui `@import "../theme.css"`.)
-  Les autres couleurs que `<Button color>` accepte sont interdites hors `components/ui/`.
-- Besoin d'une section/écran dashboard ? → **lis** `~/.claude/tailwind-blocks/application-ui/`
-  pour la structure, puis monte-la avec les primitives Catalyst. Ne colle jamais le JSX brut d'un
-  bloc dans le dashboard.
-- **Graphiques : Recharts, jamais de SVG maison.** Doctrine globale §Graphiques — Recharts est le
-  moteur standard, ECharts l'étage data-science (gros volumes, heatmap/sankey/treemap, zoom-brush).
-  Les wrappers vivent dans `src/components/agent-ops/dashboard-charts/chart-primitives.tsx`
-  (`'use client'` — Recharts mesure le DOM) ; le bucketing reste SERVEUR dans `chart-frame.tsx`.
-  Couleurs via les tokens `--chart-*` de `src/theme.css`, jamais un hex littéral. Une barre de
-  progression HTML (`<div>` à largeur %) n'est pas un graphique et n'a pas besoin de Recharts.
-- **Les primitives vivent dans `src/components/ui/`** — le kit a été déplacé de
-  `components/catalyst/` (qui n'existe plus) vers `components/ui/` par le refactor `353a1ed`
-  (architecture en couches theme/ui/shell/views) ; c'est ce chemin, et lui seul, que scanne
-  `check:catalyst`. `sidebar-layout` + `sidebar` + `navbar` = LE shell admin ; `panel` + `section`
-  = la grammaire de plans (primitives maison, ex-`surface` supprimé). **La liste exacte, la règle
-  du consommateur réel et le contrat de chaque primitive vivent dans
-  `src/components/agent-ops/DESIGN-DOCTRINE.md` §Sources** — ne les recopie pas ici, c'est
-  précisément la duplication qui avait laissé ce fichier annoncer un compte périmé.
+- **Les primitives Catalyst vivent dans `src/components/ui/`** — kit minimal, uniquement les
+  primitives réellement consommées par une route vivante (`npm run quality:dead` échoue sur une
+  primitive orpheline). Aucun composant "pour plus tard", aucun design system parallèle. Les
+  primitives nécessaires au futur dashboard seront réintroduites depuis la source officielle au
+  moment où elles seront réellement utilisées — pas avant.
 <!-- END:catalyst-ui-rules -->
 
 ## Invariants agents & runtime (détail : docs/missions/AGENTS-history-2026-07.md)

@@ -88,19 +88,13 @@ draft an agent contextualized to it:
   (which reads the repo tree + key files through `github.ts` — validated paths,
   secret files denied, timeout-bounded). NEVER writes to GitHub, NEVER returns a
   secret value.
-- **Project builder** — a **full-screen modal** (`ProjectBuilderModal`,
-  `src/components/agent-ops/project-builder-modal.tsx`), not a standalone page.
-  Built on `Headless.Dialog` (`@headlessui/react`) rather than the Catalyst
-  `Dialog` primitive, which tops out at `max-w-5xl` — too narrow for the
-  builder's two-column chat+preview layout: `max-w-[1600px]`, `h-[90vh]`.
-  Closing it (Escape or the corner cross) routes back to
-  `/admin/projects/[id]` rather than unmounting into a blank state.
-  `POST …/projects/[id]/builder/run` scans the repo, hands the summary to the
+- **Project builder** — server-side, driven by
+  `POST …/projects/[id]/builder/run` which scans the repo, hands the summary to the
   graph as context, and runs to the approval interrupt. On approve,
   `POST …/projects/[id]/builder/resume` persists the draft **attached to the
   project** (`project_id` set, status draft, never production).
 - **Streaming (SSE)** — `POST /api/agent-ops/projects/[id]/builder/message`
-  (the conversational architect turn inside the modal, distinct from the
+  (the conversational architect turn, distinct from the
   `run`/`resume` interrupt flow above) supports two transports on the same
   write path: plain JSON by default, or Server-Sent Events when the request
   sends `Accept: text/event-stream` (or `?stream=1`). In SSE mode each prose
@@ -156,7 +150,6 @@ the end. Three routes, all under
 `app/api/agent-ops/copilots/[copilotId]/improve/`, backed by
 `src/lib/agent-mission-control/improvement-loop.ts` and persisted in the
 `improvement_proposals` table (migration `0010_improvement_proposals.sql`).
-UI: `src/components/agent-ops/improve-workbench.tsx`.
 
 Flow — **collect → propose → materialize V2 → compare → decide**:
 

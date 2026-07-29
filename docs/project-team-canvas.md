@@ -4,7 +4,7 @@ Live map of every agent attached to a project, as a graph.
 
 - **Route** — `/admin/projects/[id]/team`
 - **API** — `GET /api/agent-ops/projects/[id]/team`
-- **Sub-nav** — `Overview · Agent Builder · My Team` (`src/components/agent-ops/project-tabs.tsx`)
+- **Sub-nav** — `Overview · Agent Builder · My Team`
 
 The tab set contains only project routes that actually exist. `Runs`, `Tools`,
 `Benchmarks` and `Settings` are **not** listed because there are no such project
@@ -20,18 +20,12 @@ src/lib/agent-mission-control/project-team/
   relations.ts  pure edge derivation + the truth rules
   layout.ts     pure deterministic layout (no React, no DOM, no clock)
   data.ts       getProjectTeamGraph(projectId) — server-only
-
-src/components/agent-ops/project-team/
-  project-team-canvas.tsx           ReactFlow surface — PRESENTATIONAL
-  project-team-node.tsx             project / group / agent nodes
-  project-team-edge.tsx             custom edges
-  project-team-view.tsx             shell: filters, URL sync, selection, refresh
-  project-team-toolbar.tsx          search, filters, view modes, viewport commands
-  project-team-panel.tsx            agent detail panel
-  project-team-empty-state.tsx      empty / no-match / unavailable
-  project-team-accessible-list.tsx  screen-reader alternative to the canvas
-  use-project-team-refresh.ts       polling
 ```
+
+The rendering layer (ReactFlow canvas, nodes/edges, toolbar, panel, empty states,
+polling hook) lived under `src/components/agent-ops/project-team/` and was removed
+with the legacy dashboard front (P007). The contract below (`getProjectTeamGraph`,
+node/edge sourcing, status derivation, layout) is backend and still live.
 
 `getProjectTeamGraph` is the **single** source: the page calls it server-side,
 the API route calls the same function. No logic is duplicated between them.
@@ -47,9 +41,9 @@ used**: the mission requires a deterministic layout and unit-testable placement,
 and an async/worker layout engine makes both harder. `layout.ts` is a pure
 function — same input, byte-identical output — so it is tested directly.
 
-`src/components/agent-ops/graph-canvas-svg.tsx` is **not** reused here. It is a
-fixed 5-node LangGraph execution diagram with hardcoded positions and no
-zoom/pan/minimap; the two surfaces answer different questions.
+The fixed 5-node LangGraph execution diagram (`graph-canvas-svg.tsx`, deleted with
+the legacy dashboard front, P007) was **not** reused here — it had hardcoded
+positions and no zoom/pan/minimap; the two surfaces answered different questions.
 
 ## Where nodes come from
 
@@ -248,8 +242,6 @@ the graph never reads.
 ```bash
 npm run typecheck
 npm run lint
-npm run check:ds
-npm run check:catalyst
 npm run test
 npm run build
 # or all of it:

@@ -141,9 +141,9 @@ suite on top of `check`. The live suite (`test:live`) is never part of `verify`:
 it needs the real `npm run dev` stack + gpu1 PostgREST + OpenAI and self-skips
 when unreachable.
 
-The DS guard (`scripts/check-palette.mjs`) enforces the palette doctrine in
-`src/components/agent-ops/DESIGN-DOCTRINE.md` — token-only colors, WCAG AA
-contrast, no mock data in the app. It runs in CI and must stay green.
+`scripts/check-no-legacy-front.mjs` guards the P006 demolition: no deleted
+visual layer may be reimported and no `/admin-v2` route may reappear. It runs
+in CI and must stay green.
 
 ## Typography
 
@@ -159,20 +159,20 @@ been **removed**: every surface now reads in a single voice.
   So any `font-mono` class in the app (KPI values, tool names, SHAs, JSON, code)
   renders in Satoshi. `tabular-nums` is still used to keep figures aligned —
   it's a font-feature toggle, independent of the family.
-- Doctrine: `src/components/agent-ops/DESIGN-DOCTRINE.md` → "Typo & espacement".
-
 ## Layout
+
+`/admin` and `/admin/runs` are neutral placeholders — the console UI was
+demolished (P006) and is not yet rebuilt.
 
 | Path | What |
 |---|---|
-| `src/app/admin/` | Admin console — projects, agents, versions, tests, runs, settings. |
+| `src/app/admin/` | Admin console routes — currently placeholders. |
 | `src/app/api/agent-ops/` | Server-only route handlers (the only OpenAI / Agent Server / write points). |
 | `src/lib/agent-mission-control/` | Data layer, runner, model router, auth, tool handlers (all `server-only`). |
 | `src/langgraph/` | The `agent_builder` `StateGraph`, tool registry, and its own PostgREST client. |
-| `src/components/agent-ops/` | The console UI. |
-| `src/components/catalyst/` | Vendored Catalyst UI kit. |
+| `src/components/ui/` | Vendored Catalyst UI kit — only the primitives actually consumed. |
 | `supabase/migrations/` | Schema for the `aigent` perimeter. |
-| `scripts/` | `seed-amc.ts`, `provision-agent-builder.ts`, `provision-tradeagent-roster.mjs`, `reprovision-assistants.ts`, `check-palette.mjs`, `check-catalyst.mjs`. |
+| `scripts/` | `seed-amc.ts`, `provision-agent-builder.ts`, `provision-tradeagent-roster.mjs`, `reprovision-assistants.ts`, `check-no-legacy-front.mjs`. |
 | `deploy/` | Container/Caddy config: `app/` (the Next.js app), `db/` (the data layer — PostgREST + Caddy over the `aigent` database), `langgraph/` (the Agent Server). |
 
 ## Docs

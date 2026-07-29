@@ -15,4 +15,3 @@ export function isValidProjectId(id: string): boolean {
 
 /** Providers operators may assign when creating a copilot. */
 export const CREATABLE_MODEL_PROVIDERS = ['openai', 'google', 'local'] as const
-export type CreatableModelProvider = (typeof CREATABLE_MODEL_PROVIDERS)[number]

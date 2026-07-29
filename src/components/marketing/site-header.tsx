@@ -8,9 +8,7 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 
 /**
- * Hearst "H" monogram — same mark used in the admin rail
- * (src/components/agent-ops/agent-control-shell.tsx), so the brand is
- * identical across marketing and app. Draws in `currentColor`.
+ * Hearst "H" monogram. Draws in `currentColor`.
  */
 function LogoMark({ className }: { className?: string }) {
   return (
