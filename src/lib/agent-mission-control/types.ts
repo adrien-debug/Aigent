@@ -159,9 +159,19 @@ export interface CopilotVersion {
   changelog: string
   createdAt: IsoTimestamp
   createdBy: string
+  /**
+   * `copilot_versions.scores` is `jsonb not null default '{}'::jsonb`, and it
+   * reaches this type through `camelRow`, an UNVALIDATED cast. An absent key is
+   * therefore `undefined` at runtime, which is why every field is declared
+   * nullable: the old `testPassRate: number` was a promise the cast could not
+   * keep, and a `=== null` guard written against it let `undefined` through to
+   * `formatPercent`, which rendered the literal string `NaN%` on screen.
+   * `getVersionsForCopilot` normalises `undefined` and any non-finite value to
+   * `null` so the guards below are the only thing a view has to write.
+   */
   scores: {
-    testPassRate: number // 0..1
-    benchmarkScore: number // 0..100
+    testPassRate: number | null // 0..1, null if never measured
+    benchmarkScore: number | null // 0..100, null if never measured
     shadowAgreement: number | null // 0..1, null if never shadowed
     /**
      * Unsafe actions counted by the latest completed benchmark run pinned to
