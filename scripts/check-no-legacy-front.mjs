@@ -13,9 +13,8 @@
  * Three checks, all on facts a grep or a stat can prove:
  *   1. NO IMPORT of a deleted layer, anywhere under `src/`.
  *   2. NO `/admin-v2` route or reference, anywhere under `src/`.
- *   3. NO deleted admin ROUTE FILE back on disk (a route can regress without
- *      ever being imported by name — a new `page.tsx` dropped straight into a
- *      demolished path is invisible to the import scan above).
+ *   3. NO still-deleted admin ROUTE FILE back on disk. Project Builder is the
+ *      first explicitly commissioned post-demolition screen and is allowed.
  *
  * ANTI-BLINDNESS: a guard anchored on paths that no longer exist can pass by
  * scanning nothing. The scan root is therefore verified before the verdict, and
@@ -50,12 +49,11 @@ const FORBIDDEN_ROUTE = '/admin-v2'
 
 /**
  * Every admin route P006 demolished, as a path relative to `src/app/admin`.
- * Only `admin/page.tsx`, `admin/layout.tsx` and `admin/runs/page.tsx` may
- * exist — anything below re-creates a screen this mission removed.
+ * Project Builder is deliberately absent from this list: it is a new screen,
+ * built from current primitives and the surviving server contracts.
  */
 const DELETED_ADMIN_ROUTES = [
   'agents',
-  'projects',
   'factory',
   'performance',
   'settings',
