@@ -1,74 +1,295 @@
 import {
-  BoltIcon,
-  ChartBarSquareIcon,
+  ArrowRightStartOnRectangleIcon,
   CircleStackIcon,
-  Cog6ToothIcon,
   CommandLineIcon,
   CpuChipIcon,
   HomeIcon,
   PlayCircleIcon,
 } from '@heroicons/react/24/outline'
 
-import { Button } from '@/components/ui/button'
+import { cn } from '@/components/ui/cn'
 import { Heading } from '@/components/ui/heading'
+import { Link } from '@/components/ui/link'
+import { StatusDot, type StatusDotTone } from '@/components/ui/status-dot'
 
-const navigation = [
+/**
+ * The console frame: a 248px graphite rail, a 52px topbar, and the content
+ * column. Server component — it holds no state and reads no data, everything it
+ * renders comes from props, which is the only reason it can stay one.
+ *
+ * TWO THINGS THIS FILE DELIBERATELY REFUSES TO RENDER:
+ *
+ *  1. A DEAD CONTROL. The rail used to carry `Factory`, `Performance` and
+ *     `Settings` as DISABLED buttons pointing at `href: null`. Those routes were
+ *     demolished (scripts/check-no-legacy-front.mjs still fails the build if any
+ *     of them comes back); a greyed-out entry for a screen that does not exist
+ *     is an advertisement for vapour. They are deleted, not hidden. Project
+ *     Builder is absent for the opposite reason: it is real, but it lives at
+ *     `/admin/projects/[id]/builder` and cannot be reached without a project id,
+ *     so it is reached from the Projects screen instead of a fabricated link.
+ *
+ *  2. AN INVENTED MEASUREMENT. The topbar used to show a hardcoded green
+ *     "Connected" dot. Nothing measured it; it was green on a dead database. The
+ *     platform state now comes from the route via `stateLabel` / `degraded`, and
+ *     a route that cannot supply one gets NO dot at all — see
+ *     `resolvePlatformState`.
+ */
+
+/**
+ * The rail. Every entry is a route that exists on disk today
+ * (`src/app/admin/**`); adding one here without adding the page is how a dead
+ * control gets back in.
+ */
+const NAVIGATION = [
   { href: '/admin', label: 'Overview', icon: HomeIcon },
   { href: '/admin/runs', label: 'Runs', icon: PlayCircleIcon },
   { href: '/admin/projects', label: 'Projects', icon: CircleStackIcon },
   { href: '/admin/agents', label: 'Agents', icon: CpuChipIcon },
-  { href: null, label: 'Factory', icon: BoltIcon },
-  { href: null, label: 'Performance', icon: ChartBarSquareIcon },
 ] as const
 
-export function ConsoleShell({ children }: { children: React.ReactNode }) {
+type NavIcon = (typeof NAVIGATION)[number]['icon']
+
+/**
+ * Which rail entry lights up, given the path the route handed us.
+ *
+ * A server component cannot read `usePathname()` without turning client, so the
+ * path is a PROP. Detail routes are resolved by prefix, so
+ * `/admin/agents/copilot-x` lights `Agents` and
+ * `/admin/projects/proj-1/builder` lights `Projects` without either page having
+ * to know the rail's shape. `/admin` matches EXACTLY — it prefixes every other
+ * entry, so treating it as a prefix would light Overview on every screen.
+ */
+function resolveActiveHref(activeHref: string | undefined): string | null {
+  if (!activeHref) return null
+  const path = activeHref.split(/[?#]/)[0].replace(/\/+$/, '') || '/'
+
+  let best: string | null = null
+  for (const { href } of NAVIGATION) {
+    if (path === href) return href
+    if (href === '/admin') continue
+    if (path.startsWith(`${href}/`) && (best === null || href.length > best.length)) best = href
+  }
+  return best
+}
+
+/**
+ * The wording shown when a route flags degradation but supplies none of its own.
+ *
+ * Deliberately NOT the bare word `Degraded`: that is a value of the RUNTIME
+ * AGENT status vocabulary (`active | inactive | degraded | unavailable`), and
+ * reusing it here would put an agent-level word in a platform-level slot — the
+ * exact ambiguity this console has been bitten by before, where one word in two
+ * slots read as two different claims. This says what it means: the SERVICE is
+ * degraded, not some agent.
+ */
+const DEGRADED_STATE_LABEL = 'Service degraded'
+
+/**
+ * Platform state for the topbar — or nothing.
+ *
+ * The rule is the repo's render-truth rule applied to a dot: an absent
+ * measurement is not rendered as a healthy one. No label and no degradation
+ * flag ⇒ `null` ⇒ the cluster does not render. `degraded` on its own IS a
+ * measurement, so it still surfaces (in the danger role) rather than being
+ * silently dropped for want of a word.
+ */
+function resolvePlatformState(
+  stateLabel: string | undefined,
+  degraded: boolean
+): { label: string; tone: StatusDotTone } | null {
+  const label = stateLabel?.trim()
+  if (label) return { label, tone: degraded ? 'negative' : 'positive' }
+  if (degraded) return { label: DEGRADED_STATE_LABEL, tone: 'negative' }
+  return null
+}
+
+/**
+ * One rail entry. The ACTIVE item is a solid accent pill with zinc-950 text —
+ * dark on `#A7FB90` measures ~16:1, and it is the single most recognisable trait
+ * of the frame. Inactive items are zinc with a `bg-surface-hover` hit area.
+ *
+ * Written against `Link` rather than `Button plain`: `Button`'s base carries
+ * `text-base/6 sm:text-sm/6`, and a caller class cannot beat the `sm:` half
+ * (see the `responsiveDefault` note in src/components/ui/cn.ts), so a compact
+ * 13px rail item built on `Button` would silently render 14px from 640px up.
+ */
+function NavItem({
+  href,
+  label,
+  icon: Icon,
+  active,
+  className,
+}: {
+  href: string
+  label: string
+  icon: NavIcon
+  active: boolean
+  className?: string
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px]/5 font-medium transition-colors',
+        active
+          ? 'bg-accent-500 text-zinc-950 shadow-[0_0_18px_-6px_var(--accent-glow)]'
+          : 'text-zinc-400 hover:bg-surface-hover hover:text-white',
+        className
+      )}
+    >
+      <Icon
+        aria-hidden="true"
+        className={cn('size-4 shrink-0', active ? 'text-zinc-950' : 'text-zinc-500 group-hover:text-zinc-300')}
+      />
+      <span className="truncate">{label}</span>
+    </Link>
+  )
+}
+
+export function ConsoleShell({
+  children,
+  activeHref,
+  title,
+  stateLabel,
+  degraded = false,
+}: {
+  children: React.ReactNode
+  /**
+   * The path of the screen being rendered — `'/admin'`, `'/admin/runs'`, or the
+   * concrete path of a detail route (`/admin/agents/${id}`), which lights its
+   * parent section. Omitted ⇒ no active pill.
+   */
+  activeHref?: string
+  /** Page title, left of the topbar. Omitted ⇒ the topbar shows no title. */
+  title?: string
+  /**
+   * The platform state word, right of the topbar (e.g. `'Live'`,
+   * `'Partial data'`). Omitted ⇒ nothing is claimed and nothing is drawn.
+   */
+  stateLabel?: string
+  /** Puts the state in the danger role. Never decorative: real degradation only. */
+  degraded?: boolean
+}) {
+  const active = resolveActiveHref(activeHref)
+  const state = resolvePlatformState(stateLabel, degraded)
+
   return (
     <div className="min-h-screen bg-surface-app text-white">
       <div className="mx-auto grid min-h-screen max-w-[1800px] lg:grid-cols-[248px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-white/8 bg-surface-raised px-4 py-5 lg:flex lg:flex-col">
-          <div className="flex items-center gap-3 px-2">
-            <div className="grid size-9 place-items-center rounded-lg bg-accent-500 text-zinc-950">
-              <CommandLineIcon className="size-5" />
+        {/* The rail owns the border and the graphite plane so both run the FULL
+            page height; the sticky inner column is what stays in view. */}
+        <aside className="hidden border-r border-line bg-surface-raised lg:block">
+          <div className="sticky top-0 flex h-screen flex-col">
+            {/* Brand band, height-matched to the topbar so the two hairlines
+                read as one continuous rule across the frame. */}
+            <div className="flex h-13 shrink-0 items-center gap-2.5 border-b border-line px-4">
+              <span
+                aria-hidden="true"
+                className="grid size-7 shrink-0 place-items-center rounded-md bg-accent-500 text-zinc-950"
+              >
+                <CommandLineIcon className="size-4" />
+              </span>
+              <div className="min-w-0">
+                <Heading level={2} className="truncate text-[13px]/4 font-semibold">
+                  Nexus
+                </Heading>
+                <p className="mt-0.5 truncate text-[10px]/4 text-zinc-500">Agent Mission Control</p>
+              </div>
             </div>
-            <div>
-              <Heading level={2} className="text-lg/6">Nexus</Heading>
-              <p className="text-[11px]/4 text-zinc-400">Agent Mission Control</p>
+
+            <nav aria-label="Primary" className="min-h-0 flex-1 overflow-y-auto px-2.5 py-3">
+              <p className="px-2.5 pb-1.5 text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-600">
+                Console
+              </p>
+              <ul className="space-y-0.5">
+                {NAVIGATION.map((item) => (
+                  <li key={item.href}>
+                    <NavItem
+                      href={item.href}
+                      label={item.label}
+                      icon={item.icon}
+                      active={item.href === active}
+                      className="w-full"
+                    />
+                  </li>
+                ))}
+              </ul>
+            </nav>
+
+            {/* Footer: one real destination. `/logout` is a GET route handler
+                (src/app/logout/route.ts) written so a plain link can trigger it —
+                a plain <a> on purpose, because next/link would PREFETCH it and
+                sign the operator out on hover. */}
+            <div className="shrink-0 border-t border-line p-2.5">
+              <a
+                href="/logout"
+                className="group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px]/5 font-medium text-zinc-400 transition-colors hover:bg-surface-hover hover:text-white"
+              >
+                <ArrowRightStartOnRectangleIcon
+                  aria-hidden="true"
+                  className="size-4 shrink-0 text-zinc-500 group-hover:text-zinc-300"
+                />
+                <span className="truncate">Sign out</span>
+              </a>
             </div>
-          </div>
-          <nav aria-label="Primary" className="mt-8 space-y-1">
-            {navigation.map(({ href, label, icon: Icon }) => (
-              href ? (
-                <Button key={label} href={href} plain className="w-full justify-start">
-                  <Icon data-slot="icon" />
-                  {label}
-                </Button>
-              ) : (
-                <Button key={label} plain disabled className="w-full justify-start">
-                  <Icon data-slot="icon" />
-                  {label}
-                </Button>
-              )
-            ))}
-          </nav>
-          <div className="mt-auto border-t border-white/8 pt-4">
-            <Button plain disabled className="w-full justify-start">
-              <Cog6ToothIcon data-slot="icon" />
-              Settings
-            </Button>
           </div>
         </aside>
-        <div className="min-w-0">
-          <header className="flex h-16 items-center justify-between border-b border-white/8 px-4 sm:px-6 lg:px-8">
-            <div className="lg:hidden">
-              <Heading level={2} className="text-lg/6">Nexus</Heading>
-            </div>
-            <p className="hidden text-xs text-zinc-400 lg:block">Live operations console</p>
-            <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-accent-500" aria-hidden="true" />
-              <span className="text-xs text-zinc-300">Connected</span>
-            </div>
-          </header>
-          <main className="min-w-0 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
+
+        <div className="flex min-w-0 flex-col">
+          {/* Topbar + compact rail travel together: below `lg` the sidebar is
+              gone, so the strip IS the navigation and must stay reachable. */}
+          <div className="sticky top-0 z-20 bg-surface-app/95 backdrop-blur">
+            <header className="flex h-13 items-center justify-between gap-3 border-b border-line px-3 sm:px-4 lg:px-5">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span
+                  aria-hidden="true"
+                  className="grid size-6 shrink-0 place-items-center rounded bg-accent-500 text-zinc-950 lg:hidden"
+                >
+                  <CommandLineIcon className="size-3.5" />
+                </span>
+                {title ? <p className="truncate text-[13px]/5 font-semibold text-white">{title}</p> : null}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {state ? (
+                  <StatusDot tone={state.tone} className="max-w-32 text-[11px]/4">
+                    {state.label}
+                  </StatusDot>
+                ) : null}
+                {/* Quick access = a REAL destination. The frame this adapts puts
+                    a search field here; a field that filters nothing is a dead
+                    control, so the slot carries the one link an operator always
+                    wants instead. */}
+                <Link
+                  href="/admin/runs"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-line-strong bg-surface-raised px-2 py-1 text-[11px]/4 font-medium text-zinc-300 transition-colors hover:bg-surface-hover hover:text-white"
+                >
+                  <PlayCircleIcon aria-hidden="true" className="size-3.5 shrink-0" />
+                  <span className="truncate">Live runs</span>
+                </Link>
+              </div>
+            </header>
+
+            {/* CSS-only small-screen navigation: one scrollable strip, no JS, no
+                hamburger, no open/close state to keep this a server component. */}
+            <nav
+              aria-label="Primary (compact)"
+              className="no-scrollbar flex gap-1 overflow-x-auto border-b border-line px-2 py-1.5 lg:hidden"
+            >
+              {NAVIGATION.map((item) => (
+                <NavItem
+                  key={item.href}
+                  href={item.href}
+                  label={item.label}
+                  icon={item.icon}
+                  active={item.href === active}
+                  className="shrink-0"
+                />
+              ))}
+            </nav>
+          </div>
+
+          <main className="min-w-0 flex-1 p-3 sm:p-4 lg:p-5">{children}</main>
         </div>
       </div>
     </div>

@@ -1,0 +1,221 @@
+/**
+ * `RingGauge` — the large donut ring that dominates the right-hand panels of the
+ * console (platform status, delivery readiness).
+ *
+ * PURE SERVER-RENDERED SVG. No dependency, no `'use client'`, no DOM measurement,
+ * no JS-driven animation. It receives numbers and returns markup — that is a hard
+ * constraint of this console, not an accident: a chart library here would drag a
+ * client boundary across a screen that is otherwise entirely server-rendered.
+ *
+ * TRUTH — the rule this component exists to enforce visually:
+ *   · `value === null`   → NO ARC IS DRAWN. The track alone is rendered, dashed,
+ *                          and the centre reads the exact word "Indisponible".
+ *                          An unmeasured value must never look like a measured 0.
+ *   · `value === 0`      → the figure `0` is drawn, and again no arc (a zero-length
+ *                          arc with a round cap renders a misleading dot). The two
+ *                          cases stay distinguishable by the TRACK: solid when a
+ *                          measurement exists, dashed when none does.
+ *   · a non-finite value (NaN / Infinity) is treated as UNMEASURED rather than
+ *     plotted — it can only come from a broken computation upstream, and drawing
+ *     it would be a claim.
+ *
+ * `value` is ALREADY expressed in `max` units. A percentage arrives as 0..100 with
+ * `max = 100`. Nothing here multiplies it.
+ */
+
+/**
+ * The one word this console renders for an absent measurement (operator-specified).
+ *
+ * `screen-primitives.tsx` owns the HTML rendering of it (`<Unavailable />`); an
+ * SVG `<text>` cannot host a React element, so the SVG layer needs the raw string.
+ * It is spelled HERE and imported by `arc-gauge.tsx` — one spelling for both
+ * gauges, never a second literal.
+ */
+export const UNAVAILABLE = 'Indisponible'
+
+/** Rough advance width of one glyph, as a fraction of the font size. Used only to
+ *  size "Indisponible" down until it fits inside the ring — never for layout. */
+const GLYPH_WIDTH_RATIO = 0.62
+
+export type RingGaugeProps = {
+  /** Value in `max` units. `null` ⇒ never measured ⇒ no arc, "Indisponible". */
+  value: number | null
+  /** Top of the scale. A percentage gauge keeps the default 100. */
+  max?: number
+  /** What the ring measures. Read to assistive tech; the panel header shows it visually. */
+  label: string
+  /** Short unit / qualifier drawn under the figure (e.g. "of 24 agents"). */
+  caption?: string
+  /** Outer box, in px. The ring is square. */
+  size?: number
+  /** Arc thickness in px. Defaults to a proportion of `size`. */
+  thickness?: number
+}
+
+/** Deterministic id suffix — server components cannot call `useId`, and two rings
+ *  on one page must not share a filter. Same label ⇒ same (identical) filter. */
+function stableSuffix(seed: string) {
+  let hash = 5381
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = ((hash << 5) + hash + seed.charCodeAt(index)) >>> 0
+  }
+  return hash.toString(36)
+}
+
+/** Integers stay integers; anything else keeps one decimal. Never rounds to 0 a
+ *  value that is not 0 — `0.04` renders `0` only because it rounds there honestly. */
+function formatFigure(value: number) {
+  return Number.isInteger(value) ? String(value) : String(Math.round(value * 10) / 10)
+}
+
+export function RingGauge({
+  value,
+  max = 100,
+  label,
+  caption,
+  size = 190,
+  thickness,
+}: RingGaugeProps) {
+  // ── Measurement ────────────────────────────────────────────────────────────
+  const measuredValue = value !== null && Number.isFinite(value) ? value : null
+  const scaleMax = Number.isFinite(max) && max > 0 ? max : null
+  const hasMeasurement = measuredValue !== null && scaleMax !== null
+
+  // ── Geometry ───────────────────────────────────────────────────────────────
+  const box = Math.max(64, Math.round(Number.isFinite(size) ? size : 190))
+  const requestedStroke = thickness !== undefined && Number.isFinite(thickness) ? thickness : null
+  const strokeWidth = Math.max(4, Math.min(box / 3, Math.round(requestedStroke ?? box * 0.085)))
+  const centre = box / 2
+  const radius = (box - strokeWidth) / 2
+  const circumference = 2 * Math.PI * radius
+
+  // Clamped so an out-of-range value cannot produce broken geometry: the ARC is
+  // capped, the printed FIGURE is not — the number stays what was measured.
+  const filledFraction =
+    measuredValue !== null && scaleMax !== null
+      ? Math.min(1, Math.max(0, measuredValue / scaleMax))
+      : 0
+  const dashOffset = circumference * (1 - filledFraction)
+  const hasVisibleArc = filledFraction > 0
+
+  // ── Centre typography ──────────────────────────────────────────────────────
+  const innerDiameter = box - strokeWidth * 2
+  const figureSize = Math.round(box * 0.24)
+  const captionSize = Math.max(9, Math.round(box * 0.062))
+  const unavailableSize = Math.max(
+    9,
+    Math.min(
+      Math.round(box * 0.1),
+      Math.floor((innerDiameter * 0.9) / (UNAVAILABLE.length * GLYPH_WIDTH_RATIO))
+    )
+  )
+  const figureY = caption ? centre - captionSize * 0.7 : centre
+  const captionY = centre + figureSize * 0.45
+
+  const haloId = `ring-halo-${stableSuffix(`${label}:${box}`)}`
+
+  const ariaLabel =
+    measuredValue !== null && scaleMax !== null
+      ? `${label}: ${formatFigure(measuredValue)} out of ${formatFigure(scaleMax)}.`
+      : `${label}: ${UNAVAILABLE} — no measurement available.`
+
+  return (
+    <svg
+      role="img"
+      aria-label={ariaLabel}
+      width={box}
+      height={box}
+      viewBox={`0 0 ${box} ${box}`}
+      className="shrink-0"
+    >
+      {hasVisibleArc ? (
+        <defs>
+          {/* The luminous halo of the reference frame. A blur filter, not a CSS
+              animation — this component never runs on the client. */}
+          <filter id={haloId} x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation={strokeWidth * 0.45} />
+          </filter>
+        </defs>
+      ) : null}
+
+      {/* Track. Solid when something was measured, dashed when nothing was — that
+          contrast is what separates a measured 0 from "Indisponible" at a glance. */}
+      <circle
+        cx={centre}
+        cy={centre}
+        r={radius}
+        fill="none"
+        strokeWidth={strokeWidth}
+        strokeDasharray={hasMeasurement ? undefined : `${strokeWidth * 0.3} ${strokeWidth * 0.75}`}
+        strokeLinecap={hasMeasurement ? 'butt' : 'round'}
+        className="stroke-[var(--chart-track)]"
+      />
+
+      {hasVisibleArc ? (
+        <g transform={`rotate(-90 ${centre} ${centre})`}>
+          <circle
+            cx={centre}
+            cy={centre}
+            r={radius}
+            fill="none"
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+            filter={`url(#${haloId})`}
+            className="stroke-[var(--accent-glow)]"
+          />
+          <circle
+            cx={centre}
+            cy={centre}
+            r={radius}
+            fill="none"
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+            className="stroke-[var(--chart-line)]"
+          />
+        </g>
+      ) : null}
+
+      {measuredValue !== null && scaleMax !== null ? (
+        <>
+          <text
+            x={centre}
+            y={figureY}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fontSize={figureSize}
+            className="fill-white font-mono tabular-nums"
+          >
+            {formatFigure(measuredValue)}
+          </text>
+          {caption ? (
+            <text
+              x={centre}
+              y={captionY}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontSize={captionSize}
+              className="fill-zinc-500"
+            >
+              {caption}
+            </text>
+          ) : null}
+        </>
+      ) : (
+        <text
+          x={centre}
+          y={centre}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize={unavailableSize}
+          className="fill-zinc-500"
+        >
+          {UNAVAILABLE}
+        </text>
+      )}
+    </svg>
+  )
+}

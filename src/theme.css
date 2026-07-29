@@ -41,14 +41,41 @@
   --color-accent-950: #0b2809;
 }
 
+/* Surfaces & hairlines — the console's plane system, declared HERE and not in
+   `:root`, because these are consumed as UTILITIES (`bg-surface-app`,
+   `border-line`). A custom property that only this stylesheet references is
+   tree-shaken out of a bare `:root`; `@theme` is what makes Tailwind emit the
+   utility. `bg-surface-app` / `bg-surface-raised` were already written in
+   console-shell.tsx against tokens that did not exist — they produced no style
+   at all until this block. */
+@theme {
+  --color-surface-app: #08080a; /* page ground, near-black */
+  --color-surface-raised: #101013; /* panel & sidebar graphite, one step above */
+  --color-surface-sunken: #0b0b0d; /* inset plate: chart bed, table head */
+  --color-surface-hover: #16161a; /* row hover, the only interactive plane */
+
+  --color-line: rgb(255 255 255 / 7%); /* the hairline that divides everything */
+  --color-line-strong: rgb(255 255 255 / 12%); /* structural edge: shell, focus */
+}
+
 :root {
   --accent-surface: color-mix(in oklab, var(--color-accent-600) 15%, transparent);
   --accent-line: color-mix(in oklab, var(--color-accent-700) 40%, transparent);
+  /* Soft accent halo — luminous separators, gauge rings, active-item glow. */
+  --accent-glow: color-mix(in oklab, var(--color-accent-500) 28%, transparent);
 
   /* Danger — the one non-accent hue, reserved for failure and destruction. */
   --state-danger-solid: #b3282d;
   --state-danger-solid-line: #8f1d22;
   --state-danger-text: #f87171;
+
+  /* Charts & gauges — read from .tsx as arbitrary values (`stroke-[var(--chart-line)]`,
+     `[--chart-track]`), never as a utility, so `:root` is the right home. The
+     charts are hand-written SVG: these five vars ARE the chart palette. */
+  --chart-line: var(--color-accent-500); /* the one curve/arc stroke */
+  --chart-fill: color-mix(in oklab, var(--color-accent-500) 14%, transparent); /* area under a curve */
+  --chart-grid: rgb(255 255 255 / 5%); /* faint grid lines */
+  --chart-track: #1e1e23; /* unfilled part of a gauge arc or ring */
 }
 
 @utility no-scrollbar {

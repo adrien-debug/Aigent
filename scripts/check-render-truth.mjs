@@ -28,16 +28,27 @@
  *     truthiness test whose false branch asserts a measurement ("never used",
  *     "none", "0"). Null means nobody wrote it — say so, do not measure it.
  *
- * Scope: the surfaces users actually read — `src/app/admin/**` and
- * `src/lib/runs-console/**`. Exit 0 = clean, exit 1 = violation. Read-only,
- * no network, no secret.
+ * Scope: the surfaces users actually read — `src/app/admin/**`,
+ * `src/lib/runs-console/**` and `src/components/console/**`. Exit 0 = clean,
+ * exit 1 = violation. Read-only, no network, no secret.
+ *
+ * WHY `src/components/console` IS IN THE LIST. The pages under `src/app/admin/**`
+ * are now thin: they read data and hand it to a screen component. Every figure a
+ * human actually reads is rendered in `src/components/console/**`, so a guard
+ * that stopped at the route layer had gone almost entirely decorative — proved,
+ * not assumed: a file containing `run.costUsd ?? 0` placed in that directory
+ * passed this guard before the directory was added here, and fails it after.
  */
 import { readFile, readdir } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const SCANNED_DIRS = [join(ROOT, 'src/app/admin'), join(ROOT, 'src/lib/runs-console')]
+const SCANNED_DIRS = [
+  join(ROOT, 'src/app/admin'),
+  join(ROOT, 'src/lib/runs-console'),
+  join(ROOT, 'src/components/console'),
+]
 
 /**
  * Field names that ARE measurements in this codebase's contracts (`types.ts`,
