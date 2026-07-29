@@ -109,7 +109,7 @@ function project(partial: Partial<Project> & Pick<Project, 'id' | 'name'>): Proj
 /* ==================================================================== RunsScreen */
 
 describe('RunsScreen — the success KPI card and its ArcGauge share ONE unrounded value', () => {
-  it('5 of 6 terminal runs (83.33...%): the KPI card and the small ArcGauge beside it agree on "83"', () => {
+  it('5 of 6 terminal runs (83.33...%): card, small arc and large ring all read "83.3"', () => {
     const runs: AgentRun[] = [
       agentRun({ id: 'r1', status: 'completed' }),
       agentRun({ id: 'r2', status: 'completed' }),
@@ -120,26 +120,22 @@ describe('RunsScreen — the success KPI card and its ArcGauge share ONE unround
     ]
     const { container } = render(<RunsScreen data={runsPageData({ runs, windowRunCount: runs.length })} />)
 
-    // KPI card: `formatPercent` from `runs-metrics.ts` rounds to a whole percent.
-    expect(screen.getByText('83%')).toBeTruthy()
+    // ONE precision rule for this metric, applied everywhere it is shown:
+    // an integer stays an integer ("100%", "0%"), anything else keeps a single
+    // decimal ("83.3%"). Before that rule the KPI card rounded to a whole
+    // percent while the large ring kept a decimal, so the same measured rate
+    // read "83" in one place and "83.3" two inches away.
+    expect(screen.getByText('83.3%')).toBeTruthy()
+    expect(screen.queryByText('83%')).toBeNull()
 
-    // The small ArcGauge beside the card reads the SAME unrounded successPercent
-    // (this is the regression the code comment pins: a stray `Math.round`
-    // applied BEFORE the gauge used to let the card and the gauge disagree).
-    // Its own aria-label rounds once, for speech, at the point it is spoken —
-    // and it rounds to the same whole percent as the card.
+    // The small ArcGauge beside the card speaks the SAME figure it displays —
+    // its aria-label no longer rounds independently of the card.
     const arcAria = [...container.querySelectorAll('svg[role="img"]')]
       .map((svg) => svg.getAttribute('aria-label') ?? '')
       .find((label) => label.startsWith('Success rate:') && label.includes('of 100'))
-    expect(arcAria).toBe('Success rate: 83 of 100.')
+    expect(arcAria).toBe('Success rate: 83.3 of 100.')
 
-    // NOTE (recorded, not asserted as a defect fixed here): the LARGE 168px
-    // "Outcome mix" RingGauge receives the identical unrounded `successPercent`
-    // but renders it through `formatFigure`, which keeps one decimal for a
-    // non-integer ("83.3") — so the big ring and the small card/arc pair show
-    // different precision for the exact same measured rate. Both are honest
-    // (neither invents a figure), so this is a precision-consistency finding,
-    // not a truth violation; left unfixed as out of this phase's mandate.
+    // The large 168px "Outcome mix" ring renders the identical figure.
     const ringText = [...container.querySelectorAll('text')].find((t) => t.textContent === '83.3')
     expect(ringText).toBeTruthy()
   })
