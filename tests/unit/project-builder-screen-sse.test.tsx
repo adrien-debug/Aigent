@@ -102,7 +102,12 @@ describe('ProjectBuilderScreen — the SSE chain, mounted end to end', () => {
 
     await waitFor(() => expect(screen.getByText('Describe the agent you need')).toBeTruthy())
     expect(screen.getByText('completed')).toBeTruthy()
-    expect(fetchMock).toHaveBeenCalledWith('/api/agent-ops/projects/proj-1/builder/conversation')
+    // The read now carries an abort signal (cancelled on unmount / superseded
+    // by Retry), so the call is asserted by URL plus the presence of a signal.
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/agent-ops/projects/proj-1/builder/conversation',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
   })
 
   it('2 — AN EVENT ACTUALLY CHANGES THE UI: a delta frame appears on screen while the stream is still open', async () => {
