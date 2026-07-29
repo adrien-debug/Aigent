@@ -795,9 +795,24 @@ export const SANDBOX_READ_FAILED_WARNING = 'Sandbox report data unavailable'
  * Read-only dashboard overview for /admin. Never writes, never calls GitHub.
  *
  * List-friendly: one parallel PostgREST wave only. Per-agent delivery scorecards
- * (`getDeliveryScorecard`) are intentionally omitted — each costs 10–15 remote
- * RTTs and made /admin 12–48s. Release-gate / scorecard signals stay on the
- * agent detail pages; blocked KPIs here use delivery + sandbox + mission facts.
+ * (`getDeliveryScorecard`) are intentionally omitted — verified N+1, not a single
+ * batchable read: each copilot's scorecard runs `evaluateReleaseGate` plus a
+ * repo-intelligence load, test-suite/test-case fetches and a tool lookup
+ * (`delivery-scorecard-server.ts`), none of it expressible as one `in.(...)`
+ * PostgREST wave the way `data.ts`'s other batched reads are — it is 10–15 remote
+ * RTTs PER COPILOT and made /admin 12–48s. There is no cheap batched substitute,
+ * so `scorecards` stays an empty Map here rather than pretending otherwise.
+ *
+ * This is NOT a silent zero: `computeAvgRepoFit`/`buildActionItems` already
+ * treat an empty scorecards Map as "not measured" —
+ *  · `avgRepoFit` falls back to sandbox-report `repoFitScore` only (a real,
+ *    separately-loaded signal) and is `null` when even that is empty —
+ *    `overview-screen.tsx` renders `Unavailable`, never 0.
+ *  · `release_gate_red` action items simply cannot fire (they read
+ *    `scorecards.get(copilotId)?.releaseGateRed`, which is always `undefined`
+ *    here) — an absent item, not a fabricated "0 red gates".
+ * Release-gate / scorecard signals stay on the agent detail pages, which pay the
+ * per-copilot cost once for the one copilot being viewed.
  */
 export async function getDashboardOverview(nowMs: number = Date.now()): Promise<DashboardOverview> {
   const dataWarnings: string[] = []
