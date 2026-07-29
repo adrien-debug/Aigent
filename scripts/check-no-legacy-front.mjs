@@ -57,9 +57,15 @@ const DELETED_ADMIN_ROUTES = [
   'performance',
   'settings',
   'telemetry',
-  'error.tsx',
   'not-found.tsx',
 ]
+
+// `src/app/admin/error.tsx` is the one commissioned exception: a top-level
+// error boundary for the whole `/admin` segment, built from current Catalyst
+// primitives, not a resurrection of the deleted dashboard's error handling.
+// Anything else named `error.tsx` deeper in the tree (a route re-creating its
+// own legacy boundary) is still forbidden — only this exact path is allowed.
+const ALLOWED_ERROR_BOUNDARY = join(SRC, 'app', 'admin', 'error.tsx')
 
 async function* walk(dir) {
   let entries
@@ -123,6 +129,15 @@ async function main() {
       violations.push(`src/app/admin/${entry}  route re-created — that screen was deleted by P006`)
     } catch {
       // Absent, as required.
+    }
+  }
+
+  // Any `error.tsx` under `src/app/admin/**` other than the one commissioned
+  // top-level boundary is a legacy resurrection — a route re-growing its own
+  // error handling is exactly the per-screen sprawl P006 removed.
+  for await (const file of walk(ADMIN_DIR)) {
+    if (file.endsWith('error.tsx') && file !== ALLOWED_ERROR_BOUNDARY) {
+      violations.push(`${relative(ROOT, file)}  error boundary re-created outside the allowed path`)
     }
   }
 
