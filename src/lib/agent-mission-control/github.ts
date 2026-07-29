@@ -495,6 +495,23 @@ function forTemplate(text: string): string {
   return text.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${')
 }
 
+/**
+ * Map the internal ModelProvider union onto the telemetry ingestion endpoint's
+ * wire vocabulary (route.ts providerEnum: openai/gemini/custom/unknown).
+ * `google` -> `gemini` (the endpoint's spelling), `local`/anything else has no
+ * knowable wire equivalent so it is omitted (undefined) rather than guessed.
+ */
+function normalizeProviderForWire(provider: Copilot['modelProvider'] | undefined): string | undefined {
+  switch (provider) {
+    case 'openai':
+      return 'openai'
+    case 'google':
+      return 'gemini'
+    default:
+      return undefined
+  }
+}
+
 function handlerHeader(copilot: Copilot): string {
   return [
     `// Auto-generated runtime handler for agent "${copilot.name}" (${copilot.slug}).`,
@@ -545,11 +562,19 @@ function readEnv(name: string): string | undefined {
  * telemetry.ts is TypeScript-safe, dependency-free and never leaks raw
  * content.
  */
-export function telemetryWrapperSource(manifest: AgentManifest): string {
+export function telemetryWrapperSource(manifest: AgentManifest, copilot?: Copilot): string {
   const t = manifest.telemetry
   const endpointDefault = forTemplate(t?.endpoint ?? '')
-  const projectIdDefault = forTemplate(t?.projectId ?? '')
-  const agentIdDefault = forTemplate(t?.agentId ?? '')
+  // projectId/agentId: an explicit manifest.telemetry override wins; otherwise
+  // fall back to the copilot's OWN project/slug, known at generation time.
+  // Without this fallback these stayed undefined for every real agent (the
+  // authoring flow never sets manifest.telemetry.projectId/agentId), so every
+  // emitted event failed the ingestion endpoint's required-field validation.
+  const projectIdDefault = forTemplate(t?.projectId ?? copilot?.projectId ?? '')
+  const agentIdDefault = forTemplate(t?.agentId ?? copilot?.slug ?? copilot?.id ?? '')
+  const modelDefault = forTemplate(copilot?.model ?? '')
+  const providerDefault = normalizeProviderForWire(copilot?.modelProvider)
+  const agentVersionDefault = forTemplate(copilot?.latestVersionId ?? '')
   const sampleRateDefault = typeof t?.sampleRate === 'number' ? t.sampleRate : 1
   const redactInputsDefault = t?.redactInputs !== false
   const redactOutputsDefault = t?.redactOutputs !== false
@@ -578,6 +603,12 @@ export interface TelemetryConfig {
   endpoint?: string
   projectId?: string
   agentId?: string
+  /** The agent's version at generation time (copilot.latestVersionId) — static, not re-resolved at runtime. */
+  agentVersion?: string
+  /** The model id this handler was generated against (copilot.model). */
+  model?: string
+  /** Wire-vocabulary provider (openai/gemini) the ingestion endpoint accepts — 'local'/unmapped omitted, never guessed. */
+  provider?: 'openai' | 'gemini'
   sampleRate?: number
   redactInputs?: boolean
   redactOutputs?: boolean
@@ -587,8 +618,14 @@ export interface TelemetryConfig {
 const DEFAULT_CONFIG: TelemetryConfig = {
   enabled: ${JSON.stringify(Boolean(t?.enabled))},
   endpoint: ${endpointDefault ? `\`${endpointDefault}\`` : 'undefined'},
+  // projectId/agentId are REQUIRED by the ingestion endpoint's schema (non-optional,
+  // min length 1). Falls back to this copilot's own project/slug when the manifest
+  // doesn't override them — see telemetryWrapperSource's projectIdDefault/agentIdDefault.
   projectId: ${projectIdDefault ? `\`${projectIdDefault}\`` : 'undefined'},
   agentId: ${agentIdDefault ? `\`${agentIdDefault}\`` : 'undefined'},
+  agentVersion: ${agentVersionDefault ? `\`${agentVersionDefault}\`` : 'undefined'},
+  model: ${modelDefault ? `\`${modelDefault}\`` : 'undefined'},
+  provider: ${providerDefault ? JSON.stringify(providerDefault) : 'undefined'},
   sampleRate: ${JSON.stringify(sampleRateDefault)},
   redactInputs: ${JSON.stringify(redactInputsDefault)},
   redactOutputs: ${JSON.stringify(redactOutputsDefault)},
@@ -600,10 +637,13 @@ export interface RuntimeTelemetryEvent {
   eventId: string
   projectId?: string
   agentId?: string
+  agentVersion?: string
   runId?: string
   timestamp: string
   status: TelemetryStatus
   latencyMs?: number
+  model?: string
+  provider?: 'openai' | 'gemini'
   inputShape?: Record<string, number | boolean>
   outputShape?: Record<string, number | boolean>
   error?: { name?: string; code?: string; messageHash?: string; category?: string }
@@ -664,6 +704,18 @@ function randomEventId(): string {
   const g = globalThis as { crypto?: { randomUUID?: () => string } }
   if (typeof g.crypto?.randomUUID === 'function') return g.crypto.randomUUID()
   return \`evt_\${Date.now().toString(36)}\${Math.random().toString(36).slice(2, 10)}\`
+}
+
+/**
+ * The ingestion endpoint requires a non-empty runId on every event
+ * (route.ts's schema has no \`.optional()\` on it). \`metadata.runId\` lets a
+ * caller correlate telemetry with its OWN run id when it has one; absent
+ * that, a fresh id is generated per invocation so the field is NEVER
+ * \`undefined\` — every started/completed/failed triple for one call still
+ * shares the same runId either way.
+ */
+function resolveRunId(metadata?: TelemetryMetadata): string {
+  return metadata?.runId ?? randomEventId()
 }
 
 /**
@@ -746,16 +798,32 @@ export function withRuntimeTelemetry<Input, Result>(
       return handler(input)
     }
 
+    // One runId per invocation — shared by the started/completed(-or-failed)
+    // pair below, and NEVER undefined (the endpoint requires it non-empty).
+    const runId = resolveRunId(metadata)
+    // The endpoint's environment schema is a closed enum on both fields
+    // (nodeEnv: production/development/test/unknown, runtime: node/edge/unknown)
+    // — normalize here rather than forwarding an arbitrary NODE_ENV string,
+    // which would otherwise fail the endpoint's strict validation silently.
+    const rawNodeEnv = readEnv('NODE_ENV')
+    const nodeEnv = rawNodeEnv === 'production' || rawNodeEnv === 'development' || rawNodeEnv === 'test' ? rawNodeEnv : 'unknown'
+    const runtimeKind = typeof (globalThis as { EdgeRuntime?: unknown }).EdgeRuntime !== 'undefined' ? 'edge' : 'node'
+    const environment: Record<string, string | number | boolean> = { nodeEnv, runtime: runtimeKind }
+
     const startedAt = Date.now()
     void sendRuntimeTelemetry(
       {
         eventId: randomEventId(),
         projectId: config.projectId,
         agentId: config.agentId,
-        runId: metadata?.runId,
+        agentVersion: config.agentVersion,
+        runId,
         timestamp: new Date().toISOString(),
         status: 'started',
+        model: config.model,
+        provider: config.provider,
         inputShape: shapeOf(input),
+        environment,
       },
       config
     )
@@ -767,11 +835,15 @@ export function withRuntimeTelemetry<Input, Result>(
           eventId: randomEventId(),
           projectId: config.projectId,
           agentId: config.agentId,
-          runId: metadata?.runId,
+          agentVersion: config.agentVersion,
+          runId,
           timestamp: new Date().toISOString(),
           status: 'completed',
           latencyMs: Date.now() - startedAt,
+          model: config.model,
+          provider: config.provider,
           outputShape: shapeOf(result),
+          environment,
         },
         config
       )
@@ -784,10 +856,14 @@ export function withRuntimeTelemetry<Input, Result>(
           eventId: randomEventId(),
           projectId: config.projectId,
           agentId: config.agentId,
-          runId: metadata?.runId,
+          agentVersion: config.agentVersion,
+          runId,
           timestamp: new Date().toISOString(),
           status: 'failed',
           latencyMs: Date.now() - startedAt,
+          model: config.model,
+          provider: config.provider,
+          environment,
           error: {
             name: err instanceof Error ? err.name : undefined,
             messageHash,
@@ -1120,7 +1196,7 @@ function scaffoldAgentFiles(
   // manifest.telemetry means back-compat, unchanged scaffold (no extra file,
   // no import in handler.ts; see telemetryHooks()).
   if (manifest.telemetry) {
-    files.push({ path: `${dir}/telemetry.ts`, content: telemetryWrapperSource(manifest) })
+    files.push({ path: `${dir}/telemetry.ts`, content: telemetryWrapperSource(manifest, copilot) })
   }
   return files
 }

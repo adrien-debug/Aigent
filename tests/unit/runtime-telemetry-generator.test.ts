@@ -24,6 +24,20 @@ function copilot(runtime: AgentRuntime): Copilot {
   return { name: 'Test Agent', slug: `test-${runtime}`, runtime, model: 'gpt-5.4' } as unknown as Copilot
 }
 
+/** A copilot with the full identity the wrapper is expected to thread into DEFAULT_CONFIG. */
+function fullCopilot(): Copilot {
+  return {
+    id: 'cop-1',
+    name: 'Full Agent',
+    slug: 'full-agent',
+    projectId: 'proj-full',
+    latestVersionId: 'v3',
+    runtime: 'langgraph',
+    model: 'gpt-5.4',
+    modelProvider: 'openai',
+  } as unknown as Copilot
+}
+
 const RUNTIMES: AgentRuntime[] = ['langgraph', 'openai-assistants', 'gemini', 'custom']
 
 function withTelemetry(telemetry: AgentManifest['telemetry']): AgentManifest {
@@ -146,6 +160,68 @@ describe('runtime telemetry generator — telemetryWrapperSource guard condition
     expect(src).toMatch(/sampleRate:\s*0\.25/)
     expect(src).toMatch(/redactInputs:\s*false/)
     expect(src).toMatch(/redactOutputs:\s*false/)
+  })
+})
+
+describe('runtime telemetry generator — required-field wiring (fix: consumer runtime signal loop)', () => {
+  it('DEFAULT_CONFIG.projectId/agentId fall back to the copilot project/slug when the manifest does not override them', () => {
+    // The ingestion endpoint's Zod schema requires projectId/agentId non-empty
+    // (route.ts boundedString(), no .optional() gap on either). The authoring
+    // flow never sets manifest.telemetry.projectId/agentId, so without this
+    // fallback every emitted event failed validation (400) at the endpoint.
+    const src = telemetryWrapperSource(withTelemetry({ enabled: true }), fullCopilot())
+    expect(src).toMatch(/projectId:\s*`proj-full`/)
+    expect(src).toMatch(/agentId:\s*`full-agent`/)
+  })
+
+  it('an explicit manifest.telemetry.projectId/agentId still wins over the copilot fallback', () => {
+    const src = telemetryWrapperSource(
+      withTelemetry({ enabled: true, projectId: 'override-proj', agentId: 'override-agent' }),
+      fullCopilot()
+    )
+    expect(src).toMatch(/projectId:\s*`override-proj`/)
+    expect(src).toMatch(/agentId:\s*`override-agent`/)
+  })
+
+  it('DEFAULT_CONFIG carries model/provider/agentVersion from the copilot (provider normalized to wire vocabulary)', () => {
+    const src = telemetryWrapperSource(withTelemetry({ enabled: true }), fullCopilot())
+    expect(src).toMatch(/model:\s*`gpt-5\.4`/)
+    // internal ModelProvider 'openai' -> wire 'openai'; 'google' -> wire 'gemini' (route.ts providerEnum).
+    expect(src).toMatch(/provider:\s*"openai"/)
+    expect(src).toMatch(/agentVersion:\s*`v3`/)
+  })
+
+  it('google provider is normalized to the wire vocabulary "gemini", never passed through as "google"', () => {
+    const c = { ...fullCopilot(), modelProvider: 'google' } as unknown as Copilot
+    const src = telemetryWrapperSource(withTelemetry({ enabled: true }), c)
+    expect(src).toMatch(/provider:\s*"gemini"/)
+    expect(src).not.toMatch(/provider:\s*"google"/)
+  })
+
+  it('an unmapped provider (local) is omitted rather than guessed', () => {
+    const c = { ...fullCopilot(), modelProvider: 'local' } as unknown as Copilot
+    const src = telemetryWrapperSource(withTelemetry({ enabled: true }), c)
+    expect(src).toMatch(/provider:\s*undefined/)
+  })
+
+  it('every emitted event shares ONE non-undefined runId per invocation (resolveRunId, never the old hardcoded undefined)', () => {
+    const src = telemetryWrapperSource(withTelemetry({ enabled: true }), fullCopilot())
+    expect(src).toContain('function resolveRunId(')
+    expect(src).toMatch(/const runId = resolveRunId\(metadata\)/)
+    // All three lifecycle pings (started/completed/failed) reference the same local `runId`.
+    const runIdRefs = src.match(/runId,/g) ?? []
+    expect(runIdRefs.length).toBeGreaterThanOrEqual(3)
+    // The old bug: the exported wrapper hardcoded `runId: undefined` at the call site with
+    // no in-wrapper fallback. That literal may still appear as the metadata default (a
+    // caller may not know its own run id yet), but resolveRunId must generate one.
+    expect(src).toMatch(/return metadata\?\.runId \?\? randomEventId\(\)/)
+  })
+
+  it("environment.nodeEnv/runtime are normalized to the endpoint's closed enum, never an arbitrary NODE_ENV passthrough", () => {
+    const src = telemetryWrapperSource(withTelemetry({ enabled: true }), fullCopilot())
+    expect(src).toMatch(/rawNodeEnv === 'production' \|\| rawNodeEnv === 'development' \|\| rawNodeEnv === 'test'/)
+    expect(src).toContain("'unknown'")
+    expect(src).toMatch(/=\s*\{ nodeEnv, runtime: runtimeKind \}/)
   })
 })
 
