@@ -14,12 +14,32 @@
  *                          and the centre reads the exact word "Indisponible".
  *                          An unmeasured value must never look like a measured 0.
  *   · `value === 0`      → the figure `0` is drawn, and again no arc (a zero-length
- *                          arc with a round cap renders a misleading dot). The two
- *                          cases stay distinguishable by the TRACK: solid when a
- *                          measurement exists, dashed when none does.
+ *                          arc renders a misleading stub). The two cases stay
+ *                          distinguishable by the TRACK: solid and one step
+ *                          brighter when a measurement exists, dashed and dimmer
+ *                          when none does.
+ *   · `max === 0` with a value → a MEASURED zero out of zero (an empty registry
+ *                          read cleanly). It keeps the measured vocabulary: the
+ *                          figure, the caption and a solid track. Painting it as
+ *                          "Indisponible" contradicted the caption printed right
+ *                          under the ring, which read "0 of 0".
  *   · a non-finite value (NaN / Infinity) is treated as UNMEASURED rather than
  *     plotted — it can only come from a broken computation upstream, and drawing
  *     it would be a claim.
+ *
+ * THE TRACK IS THE WHOLE DISTINCTION, so it has to be visible. It is no longer
+ * drawn from `--chart-track` (measured at 1.14:1 against the panel — a contrast
+ * at which neither the track nor its dashes exist on screen) and the dashed
+ * pattern no longer uses round caps: at this stroke width each round cap added
+ * more length than the gap it had to leave, so the "dashed" track painted as a
+ * continuous line and the two states were byte-different but pixel-identical.
+ * Measured against the real `--color-surface-raised` panel (#101013) through
+ * Tailwind's actual OKLCH zinc steps: the measured/solid track is `zinc-500`
+ * (3.93:1, clears the 3:1 non-text floor); the unmeasured/dashed track is
+ * `zinc-600` (2.46:1) — a deliberately dimmer secondary state, since the KPI
+ * figure or the centre word beside it (`fill-zinc-400`, 7.2:1+) already carries
+ * the actual claim. `src/theme.css` is not this component's to edit, hence the
+ * zinc utilities.
  *
  * `value` is ALREADY expressed in `max` units. A percentage arrives as 0..100 with
  * `max = 100`. Nothing here multiplies it.
@@ -85,8 +105,12 @@ export function RingGauge({
   thickness,
 }: RingGaugeProps) {
   // ── Measurement ────────────────────────────────────────────────────────────
+  // `max === 0` is a legitimate MEASURED scale (0 out of 0 agents), not a
+  // missing one: only a negative or non-finite maximum makes the scale
+  // unusable. The arc cannot fill against an empty scale, so the figure is
+  // printed and the track stays solid and empty.
   const measuredValue = value !== null && Number.isFinite(value) ? value : null
-  const scaleMax = Number.isFinite(max) && max > 0 ? max : null
+  const scaleMax = Number.isFinite(max) && max >= 0 ? max : null
   const hasMeasurement = measuredValue !== null && scaleMax !== null
 
   // ── Geometry ───────────────────────────────────────────────────────────────
@@ -99,8 +123,10 @@ export function RingGauge({
 
   // Clamped so an out-of-range value cannot produce broken geometry: the ARC is
   // capped, the printed FIGURE is not — the number stays what was measured.
+  // An empty scale (`max === 0`) fills nothing at all: there is no proportion to
+  // draw, and inventing a full ring for "0 of 0" would be a claim.
   const filledFraction =
-    measuredValue !== null && scaleMax !== null
+    measuredValue !== null && scaleMax !== null && scaleMax > 0
       ? Math.min(1, Math.max(0, measuredValue / scaleMax))
       : 0
   const dashOffset = circumference * (1 - filledFraction)
@@ -146,19 +172,26 @@ export function RingGauge({
         </defs>
       ) : null}
 
-      {/* Track. Solid when something was measured, dashed when nothing was — that
-          contrast is what separates a measured 0 from "Indisponible" at a glance. */}
+      {/* Track. Solid and one step brighter when something was measured, dashed
+          and dimmer when nothing was — that pair is what separates a measured 0
+          from "Indisponible" at a glance. Butt caps on both: a round cap adds
+          half a stroke width at each end, which at this thickness closes the
+          gaps and paints the "dashed" track as a solid one. */}
       <circle
         cx={centre}
         cy={centre}
         r={radius}
         fill="none"
         strokeWidth={strokeWidth}
-        strokeDasharray={hasMeasurement ? undefined : `${strokeWidth * 0.3} ${strokeWidth * 0.75}`}
-        strokeLinecap={hasMeasurement ? 'butt' : 'round'}
-        className="stroke-[var(--chart-track)]"
+        strokeDasharray={hasMeasurement ? undefined : `${strokeWidth} ${strokeWidth}`}
+        strokeLinecap="butt"
+        className={hasMeasurement ? 'stroke-zinc-500' : 'stroke-zinc-600'}
       />
 
+      {/* BUTT CAPS, NOT ROUND. A round cap paints half a stroke width beyond each
+          end of the arc, so the drawn sweep was always longer than the measured
+          fraction — 3 of 14 painted as ~24% against a true 21.4%. The figure in
+          the centre and the arc around it now agree. */}
       {hasVisibleArc ? (
         <g transform={`rotate(-90 ${centre} ${centre})`}>
           <circle
@@ -167,7 +200,7 @@ export function RingGauge({
             r={radius}
             fill="none"
             strokeWidth={strokeWidth}
-            strokeLinecap="round"
+            strokeLinecap="butt"
             strokeDasharray={circumference}
             strokeDashoffset={dashOffset}
             filter={`url(#${haloId})`}
@@ -179,7 +212,7 @@ export function RingGauge({
             r={radius}
             fill="none"
             strokeWidth={strokeWidth}
-            strokeLinecap="round"
+            strokeLinecap="butt"
             strokeDasharray={circumference}
             strokeDashoffset={dashOffset}
             className="stroke-[var(--chart-line)]"
@@ -206,7 +239,7 @@ export function RingGauge({
               textAnchor="middle"
               dominantBaseline="central"
               fontSize={captionSize}
-              className="fill-zinc-500"
+              className="fill-zinc-400"
             >
               {caption}
             </text>
@@ -219,7 +252,7 @@ export function RingGauge({
           textAnchor="middle"
           dominantBaseline="central"
           fontSize={unavailableSize}
-          className="fill-zinc-500"
+          className="fill-zinc-400"
         >
           {UNAVAILABLE}
         </text>

@@ -1,5 +1,3 @@
-import { UNAVAILABLE } from './ring-gauge'
-
 /**
  * `ArcGauge` — the compact 180° gauge that sits at the right of a KPI card.
  *
@@ -13,19 +11,32 @@ import { UNAVAILABLE } from './ring-gauge'
  * the banned thing.
  *
  * TRUTH — identical rules to `RingGauge`:
- *   · `value === null` (or non-finite) → NO ARC. The track alone, drawn DASHED.
- *   · `value === 0` → also no arc (a zero-length arc with a round cap renders a
- *     misleading dot), but the track stays SOLID. The dashed-vs-solid track is
- *     what keeps "never measured" visually distinct from "measured zero" at a
- *     size far too small for a word.
+ *   · `value === null` (or non-finite) → NO ARC. The track alone, drawn DASHED
+ *     and one step dimmer.
+ *   · `value === 0` → also no arc (a zero-length arc renders a misleading stub),
+ *     but the track stays SOLID and one step brighter. That pair — pattern AND
+ *     lightness — is what keeps "never measured" distinct from "measured zero"
+ *     at a size far too small for a word.
+ *   · `max === 0` with a value → a MEASURED zero out of zero (a registry read
+ *     cleanly returning nothing). Measured vocabulary: solid track, no arc.
  *   · the KPI card next to it carries the figure — including "Indisponible" when
- *     there is none. This gauge never invents one.
+ *     there is none. This gauge never invents one, and it carries no text of its
+ *     own: at the 56px every call site uses, any caption would render at ~7px.
+ *
+ * THE TRACK HAS TO BE VISIBLE FOR ANY OF THAT TO BE TRUE. It is no longer drawn
+ * from `--chart-track` (1.14:1 against the panel — invisible), and the dashed
+ * pattern no longer uses round caps: each round cap added half a stroke width at
+ * both ends of every dash, more than the gap itself, so the "dashed" track
+ * painted as a continuous line and the two states rendered identically.
+ * Measured against the real `--color-surface-raised` panel (#101013): the
+ * measured/solid track is `zinc-500` (3.93:1, clears the 3:1 non-text floor);
+ * the unmeasured/dashed track is `zinc-600` (2.46:1) — dimmer on purpose, since
+ * the KPI figure beside it always carries the actual claim, including the word
+ * "Indisponible" when there is none. `src/theme.css` is not this component's to
+ * edit, hence the zinc utilities.
  *
  * `value` is ALREADY expressed in `max` units. Nothing here multiplies it.
  */
-
-/** Rough advance width of one glyph, as a fraction of the font size. */
-const GLYPH_WIDTH_RATIO = 0.62
 
 export type ArcGaugeProps = {
   /** Value in `max` units. `null` ⇒ never measured ⇒ no arc, dashed track. */
@@ -34,28 +45,16 @@ export type ArcGaugeProps = {
   max?: number
   /** Gauge WIDTH in px. The drawn height is roughly half of it. */
   size?: number
-  /** Required: the gauge carries no visible text by default, so this is its only voice. */
+  /** Required: the gauge carries no visible text, so this is its only voice. */
   ariaLabel: string
-  /** Opt-in tiny `value/max` caption under the arc. Off by default — the KPI card
-   *  already shows the figure and repeating it doubles the ink for nothing. */
-  showValueCaption?: boolean
 }
 
-/** Integers stay integers; anything else keeps one decimal. */
-function formatFigure(value: number) {
-  return Number.isInteger(value) ? String(value) : String(Math.round(value * 10) / 10)
-}
-
-export function ArcGauge({
-  value,
-  max = 100,
-  size = 72,
-  ariaLabel,
-  showValueCaption = false,
-}: ArcGaugeProps) {
+export function ArcGauge({ value, max = 100, size = 72, ariaLabel }: ArcGaugeProps) {
   // ── Measurement ────────────────────────────────────────────────────────────
+  // `max === 0` is a measured, empty scale — not a missing one. Only a negative
+  // or non-finite maximum makes the scale unusable.
   const measuredValue = value !== null && Number.isFinite(value) ? value : null
-  const scaleMax = Number.isFinite(max) && max > 0 ? max : null
+  const scaleMax = Number.isFinite(max) && max >= 0 ? max : null
   const hasMeasurement = measuredValue !== null && scaleMax !== null
 
   // ── Geometry: a semicircle opening upwards, drawn left → right ─────────────
@@ -66,27 +65,17 @@ export function ArcGauge({
   const baselineY = centreX // the arc's flat side sits at y = radius + stroke/2
   const semicircleLength = Math.PI * radius
 
-  // Clamped so an out-of-range value cannot produce broken geometry; the caption,
-  // when shown, still prints the value that was actually measured.
+  // Clamped so an out-of-range value cannot produce broken geometry. Nothing
+  // fills against an empty scale: "0 of 0" draws no sweep.
   const filledFraction =
-    measuredValue !== null && scaleMax !== null
+    measuredValue !== null && scaleMax !== null && scaleMax > 0
       ? Math.min(1, Math.max(0, measuredValue / scaleMax))
       : 0
   const dashOffset = semicircleLength * (1 - filledFraction)
   const hasVisibleArc = filledFraction > 0
 
   const arcPath = `M ${centreX - radius} ${baselineY} A ${radius} ${radius} 0 0 1 ${centreX + radius} ${baselineY}`
-
-  // ── Optional caption ───────────────────────────────────────────────────────
-  const arcBottom = baselineY + strokeWidth / 2 + 1
-  const captionSize = hasMeasurement
-    ? Math.max(8, Math.round(width * 0.14))
-    : Math.max(7, Math.floor((width - 4) / (UNAVAILABLE.length * GLYPH_WIDTH_RATIO)))
-  const viewHeight = showValueCaption ? arcBottom + captionSize + 2 : arcBottom
-  const captionText =
-    measuredValue !== null && scaleMax !== null
-      ? `${formatFigure(measuredValue)}/${formatFigure(scaleMax)}`
-      : UNAVAILABLE
+  const viewHeight = baselineY + strokeWidth / 2 + 1
 
   return (
     <svg
@@ -97,17 +86,21 @@ export function ArcGauge({
       viewBox={`0 0 ${width} ${viewHeight}`}
       className="shrink-0"
     >
-      {/* Track. Dashed = nothing was ever measured; solid = there is a value,
-          even when that value is 0 and therefore draws no arc at all. */}
+      {/* Track. Dashed and dimmer = nothing was ever measured; solid and brighter
+          = there is a value, even when that value is 0 and draws no arc at all. */}
       <path
         d={arcPath}
         fill="none"
         strokeWidth={strokeWidth}
-        strokeDasharray={hasMeasurement ? undefined : `${strokeWidth * 0.35} ${strokeWidth * 0.8}`}
-        strokeLinecap={hasMeasurement ? 'butt' : 'round'}
-        className="stroke-[var(--chart-track)]"
+        strokeDasharray={hasMeasurement ? undefined : `${strokeWidth} ${strokeWidth}`}
+        strokeLinecap="butt"
+        className={hasMeasurement ? 'stroke-zinc-500' : 'stroke-zinc-600'}
       />
 
+      {/* BUTT CAPS, NOT ROUND. At 56px a round cap adds 3px at each end of a 6px
+          stroke, so the shortest arc this gauge could draw covered ~7.6% of the
+          sweep whatever the value: 1 of 14 painted as ~15% against a true 7.1%.
+          The sweep now equals the measured fraction. */}
       {hasVisibleArc ? (
         <>
           {/* The halo is a second, wider, translucent stroke rather than a blur
@@ -116,7 +109,7 @@ export function ArcGauge({
             d={arcPath}
             fill="none"
             strokeWidth={strokeWidth * 1.9}
-            strokeLinecap="round"
+            strokeLinecap="butt"
             strokeDasharray={semicircleLength}
             strokeDashoffset={dashOffset}
             strokeOpacity={0.55}
@@ -126,25 +119,12 @@ export function ArcGauge({
             d={arcPath}
             fill="none"
             strokeWidth={strokeWidth}
-            strokeLinecap="round"
+            strokeLinecap="butt"
             strokeDasharray={semicircleLength}
             strokeDashoffset={dashOffset}
             className="stroke-[var(--chart-line)]"
           />
         </>
-      ) : null}
-
-      {showValueCaption ? (
-        <text
-          x={centreX}
-          y={arcBottom + captionSize / 2 + 1}
-          textAnchor="middle"
-          dominantBaseline="central"
-          fontSize={captionSize}
-          className={hasMeasurement ? 'fill-zinc-400 font-mono tabular-nums' : 'fill-zinc-500'}
-        >
-          {captionText}
-        </text>
       ) : null}
     </svg>
   )

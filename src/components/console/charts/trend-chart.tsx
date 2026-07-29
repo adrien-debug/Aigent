@@ -8,21 +8,48 @@
  * WHY THE TEXT IS HTML AND ONLY THE PLOT IS SVG. Fluid width without letterboxing
  * needs `preserveAspectRatio="none"`, which stretches the viewBox horizontally —
  * and would stretch any `<text>` inside it with it. So the plate holds geometry
- * only (grid, areas, curves, kept at true stroke width by `non-scaling-stroke`)
- * while the axis ticks, the x labels and the legend are ordinary HTML positioned
- * against the same numbers. Crisp type at every width, one source of geometry.
+ * only (grid, rails, areas, curves, kept at true stroke width by
+ * `non-scaling-stroke`) while the axis ticks, the x labels, the observed period
+ * and the legend are ordinary HTML positioned against the same numbers. Crisp
+ * type at every width, one source of geometry.
  *
- * TRUTH. Two situations that look alike and must never be worded alike:
+ * THREE STATES, AND THEY MUST NOT LOOK ALIKE
  *   · NOTHING WAS MEASURED — that is `Indisponible`, and it is NOT this
- *     component's job. A panel with no measurement renders `<Unavailable />`
- *     instead of a chart.
+ *     component's job. A panel with no measurement renders `<Unavailable />` (or
+ *     an `ErrorState` in the danger role) INSTEAD of a chart. Nothing in this
+ *     file ever prints that word on the plate, so an empty plate can never be
+ *     mistaken for a failed read.
  *   · NOTHING HAPPENED — the window was read and it is genuinely empty (no
- *     series, no interval, or every point measured at 0). That is a real result,
- *     so the plate is drawn with its grid and says so plainly, in words that do
- *     not claim a failure. `emptyMessage` carries that sentence.
- * Non-finite points are dropped from the geometry rather than plotted; negative
- * values are clamped to the baseline for drawing only — the sr-only table below
- * the chart always reports the raw values.
+ *     series, no interval, or every point measured at 0). That is a real result
+ *     and it gets a real plate: the grid, both rails, the baseline labelled `0`,
+ *     the observed period (or the explicit statement that no interval was
+ *     observed), the legend when the series identities are known, and the
+ *     sentence carried by `emptyMessage`. What it does NOT get is a data mark —
+ *     no curve, no dot, no area, and no fabricated axis top.
+ *   · POPULATED — same frame, plus the full tick scale, the x labels and the
+ *     curves.
+ * The frame is therefore drawn in every state; only the marks and the tick
+ * VALUES depend on what was measured. An empty panel that draws no structure at
+ * all is a defect of its own: it reads as a broken render rather than a quiet
+ * window.
+ *
+ * Non-finite points are dropped from the geometry AND break the curve, so an
+ * unmeasured interval shows as a gap instead of a smooth line straight through
+ * it — that is what the sr-only table already says for the same cell. Negative
+ * values are clamped to the baseline for drawing only; the table always reports
+ * the raw values.
+ *
+ * CONTRAST, measured against the real `--color-surface-sunken` bed (#0b0b0d)
+ * through Tailwind's actual OKLCH zinc steps, not guessed: `--chart-grid`
+ * (1.10:1) and `text-zinc-600` (2.54:1) are both a structure nobody can see.
+ * The rail — the actual measured 0 baseline and the plate's edge — is drawn
+ * `zinc-500` (4.07:1, clears the 3:1 non-text floor with margin). The grid is
+ * `zinc-600` (2.54:1): still short of that floor on its own, but it is pure
+ * redundant structure — every gridline's value is restated in the `zinc-400`
+ * tick label beside it (7.48:1) and in the sr-only table — and it stays one
+ * step dimmer than the rail on purpose, so the hierarchy reads rail > grid.
+ * Every label clears AA. The token is left untouched on purpose: `src/theme.css`
+ * is not this component's to edit.
  *
  * NOT A SPARKLINE. This is a full plate with a grid, an axis and a legend. The
  * banned thing is the decorative mini-curve glued inside a card or a table cell.
@@ -35,8 +62,18 @@ const VIEW_WIDTH = 1000
 /** Breathing room top and bottom so a curve at the extreme never touches the edge. */
 const PLOT_INSET = 6
 const DEFAULT_PLOT_HEIGHT = 220
-/** Five gridlines, top to bottom, as fractions of the nice maximum. */
-const TICK_FRACTIONS = [1, 0.75, 0.5, 0.25, 0] as const
+/**
+ * How many gaps the tick scale aims for. The actual count follows the data —
+ * a window whose busiest interval held 1 run gets 1 gap, not four quarter-run
+ * gridlines.
+ */
+const TARGET_INTERVALS = 4
+/**
+ * The empty plate's grid. Fractions of the plate HEIGHT, not of a value: no
+ * scale is asserted, only the structure is drawn. The baseline (0) is the rail
+ * and is drawn separately.
+ */
+const EMPTY_GRID_FRACTIONS = [1, 0.75, 0.5, 0.25] as const
 /** Above this many intervals, x labels are thinned. */
 const MAX_X_LABELS = 8
 
@@ -114,15 +151,26 @@ function niceCeiling(value: number) {
 }
 
 /**
- * The axis top. Ticks taken straight off the raw max read as noise
- * (`13.7 / 10.3 / 6.9 / 3.4 / 0`), but rounding the TOP alone is not enough
- * either: a top of 10 across four intervals still prints `7.5 / 2.5`. So the
- * STEP is what gets rounded, and the top is four of them — every tick is then as
- * round as the step. Always ≥ `rawMax`, so no measured point falls off the plate.
+ * The tick VALUES, top down to 0.
+ *
+ * Ticks taken straight off the raw max read as noise (`13.7 / 10.3 / 6.9 / 3.4
+ * / 0`), so the STEP is what gets rounded and the top is a whole number of
+ * steps — every tick is then as round as the step, and the top is always ≥
+ * `rawMax` so no measured point falls off the plate.
+ *
+ * THE COUNT OF TICKS FOLLOWS THE DATA. A fixed five-line scale forced a top of
+ * four steps whatever the data was, which over integer counts printed
+ * `1 / 0.75 / 0.5 / 0.25 / 0` — and 0.75 of a run is not a quantity this
+ * console can measure. When every sample is a whole number the step is rounded
+ * up to one, and the plate simply draws fewer gridlines.
  */
-function niceAxisTop(rawMax: number) {
-  const intervals = TICK_FRACTIONS.length - 1
-  return niceCeiling(rawMax / intervals) * intervals
+function buildTicks(rawMax: number, integerScale: boolean): number[] {
+  const rawStep = rawMax > 0 ? rawMax / TARGET_INTERVALS : 0
+  const step = integerScale ? Math.max(1, Math.ceil(niceCeiling(rawStep))) : niceCeiling(rawStep)
+  const intervals = rawMax > 0 ? Math.max(1, Math.ceil(rawMax / step)) : 1
+  const ticks: number[] = []
+  for (let index = intervals; index >= 0; index -= 1) ticks.push(round2(step * index))
+  return ticks
 }
 
 function formatAxisValue(value: number) {
@@ -142,7 +190,30 @@ function formatCellValue(value: number | undefined) {
   return Number.isInteger(value) ? String(value) : String(Math.round(value * 100) / 100)
 }
 
+type Sample = { index: number; value: number }
 type PlotPoint = { x: number; y: number }
+
+/**
+ * Contiguous runs of measured intervals. A hole (a non-finite sample, or a
+ * series shorter than `xLabels`) ENDS the run instead of being interpolated
+ * across: the curve used to be drawn straight through a gap while the sr-only
+ * table said `Indisponible` for the same interval — two layers of one component
+ * disagreeing about whether a measurement exists.
+ */
+function toSegments(samples: Sample[]): Sample[][] {
+  const segments: Sample[][] = []
+  let current: Sample[] = []
+  for (const sample of samples) {
+    const previous = current[current.length - 1]
+    if (previous !== undefined && sample.index !== previous.index + 1) {
+      segments.push(current)
+      current = []
+    }
+    current.push(sample)
+  }
+  if (current.length > 0) segments.push(current)
+  return segments
+}
 
 /**
  * Catmull-Rom → cubic Bézier. Each segment borrows its neighbours to pick control
@@ -184,6 +255,18 @@ function visibleLabelIndices(columns: number) {
   return indices
 }
 
+/**
+ * The observed period, read off the interval labels themselves — the only place
+ * the chart holds it. `null` when no interval was observed at all, which is a
+ * fact about the window and is stated as such rather than guessed.
+ */
+function observedPeriod(xLabels: string[]): string | null {
+  if (xLabels.length === 0) return null
+  const first = xLabels[0]
+  const last = xLabels[xLabels.length - 1]
+  return first === last ? first : `${first} → ${last}`
+}
+
 /* ------------------------------------------------------------- component */
 
 export function TrendChart({
@@ -219,51 +302,80 @@ export function TrendChart({
     (best, entry) => entry.samples.reduce((inner, sample) => Math.max(inner, sample.value), best),
     0
   )
-  const niceMax = niceAxisTop(rawMax)
+  // Counts, not measures: when every sample the window produced is a whole
+  // number the axis stays whole too. Decided from the data, never from a flag
+  // the caller could forget.
+  const integerScale = plotted.every((entry) => entry.samples.every((sample) => Number.isInteger(sample.value)))
+  const ticks = buildTicks(rawMax, integerScale)
+  const niceMax = ticks[0]
 
   const xFor = (index: number) =>
     columns <= 1 ? VIEW_WIDTH / 2 : (index / (columns - 1)) * VIEW_WIDTH
   const yFor = (value: number) =>
     plotBottom - (clamp(value, 0, niceMax) / niceMax) * (plotBottom - plotTop)
 
-  const gridYs = TICK_FRACTIONS.map((fraction) => plotBottom - fraction * (plotBottom - plotTop))
+  // The grid. Populated: one line per tick VALUE. Empty: evenly spaced lines
+  // that carry no value at all — the plate keeps its structure without claiming
+  // a scale nobody measured. The baseline is excluded from both: it is the rail.
+  const gridYs = isEmpty
+    ? EMPTY_GRID_FRACTIONS.map((fraction) => plotBottom - fraction * (plotBottom - plotTop))
+    : ticks.filter((tick) => tick > 0).map((tick) => yFor(tick))
+
   const shownLabelIndices = visibleLabelIndices(columns)
+  const period = observedPeriod(xLabels)
   const firstAccentKey = plotted.find((entry) => entry.tone === 'accent' && entry.samples.length > 1)?.key
   const areaFillId = `trend-area-${stableSuffix(`${series.map((entry) => entry.key).join('|')}:${columns}`)}`
 
+  const periodSentence = period === null ? 'No interval was observed.' : `Observed period ${period}.`
   const ariaLabel = isEmpty
-    ? `Chart, ${emptyMessage}`
-    : `Chart of ${series.map((entry) => entry.label).join(', ')} across ${columns} interval${columns === 1 ? '' : 's'}, maximum ${formatAxisValue(rawMax)}.`
+    ? `Chart, ${emptyMessage} ${periodSentence}`
+    : `Chart of ${series.map((entry) => entry.label).join(', ')} across ${columns} interval${columns === 1 ? '' : 's'}, ${periodSentence} Maximum ${formatAxisValue(rawMax)}.`
+
+  // The sr-only mirror only exists when there is something to mirror. An empty
+  // window used to hand a screen reader a one-column, zero-row table on top of
+  // the sentence it had already announced.
+  const hasDataTable = series.length > 0 && columns > 0
 
   return (
     <figure className="min-w-0">
+      {/* The legend is series IDENTITY, not series data: it survives a window
+          that measured nothing, because "which curves would be here" is known
+          even when none of them has a point to draw. */}
       {series.length > 0 ? (
         <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1">
           {series.map((entry) => (
             <span key={entry.key} className="inline-flex items-center gap-1.5">
               <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${SERIES_DOT[entry.tone]}`} />
-              <span className="text-[10px]/4 uppercase tracking-widest text-zinc-500">{entry.label}</span>
+              <span className="text-[10px]/4 uppercase tracking-widest text-zinc-400">{entry.label}</span>
             </span>
           ))}
         </div>
       ) : null}
 
       <div className="flex min-w-0 gap-2">
-        {/* Y ticks — HTML, positioned at the exact px the gridlines use. Suppressed
-            when the window is empty: printing a 0..1 scale over no data would be
-            a fabricated axis. */}
+        {/* Y ticks — HTML, positioned at the exact px the gridlines use. On an
+            empty plate only the BASELINE is labelled: a window that was read and
+            held nothing has a floor of 0, which is measured, while any tick
+            above it would be an axis top nobody measured. */}
         <div className="relative w-10 shrink-0" style={{ height: plotHeight }}>
-          {isEmpty
-            ? null
-            : TICK_FRACTIONS.map((fraction, index) => (
-                <span
-                  key={fraction}
-                  className="absolute right-1.5 -translate-y-1/2 text-[10px]/3 tabular-nums text-zinc-600"
-                  style={{ top: gridYs[index] }}
-                >
-                  {formatAxisValue(fraction * niceMax)}
-                </span>
-              ))}
+          {isEmpty ? (
+            <span
+              className="absolute right-1.5 -translate-y-1/2 text-[10px]/3 tabular-nums text-zinc-400"
+              style={{ top: plotBottom }}
+            >
+              0
+            </span>
+          ) : (
+            ticks.map((tick) => (
+              <span
+                key={tick}
+                className="absolute right-1.5 -translate-y-1/2 text-[10px]/3 tabular-nums text-zinc-400"
+                style={{ top: yFor(tick) }}
+              >
+                {formatAxisValue(tick)}
+              </span>
+            ))
+          )}
         </div>
 
         <div className="relative min-w-0 flex-1">
@@ -276,7 +388,7 @@ export function TrendChart({
             preserveAspectRatio="none"
             className="block rounded-lg bg-surface-sunken"
           >
-            {showArea && firstAccentKey ? (
+            {showArea && firstAccentKey && !isEmpty ? (
               <defs>
                 <linearGradient id={areaFillId} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="var(--chart-fill)" />
@@ -295,91 +407,132 @@ export function TrendChart({
                 strokeWidth={1}
                 vectorEffect="non-scaling-stroke"
                 shapeRendering="crispEdges"
-                className="stroke-[var(--chart-grid)]"
+                className="stroke-zinc-600"
               />
             ))}
 
+            {/* The two rails. Drawn one step above the grid so the plate reads as
+                a plate in every state — including the state where nothing else
+                is drawn on it. The left rail is stroked at 2 and clipped by the
+                viewport to a crisp 1px flush with the edge. */}
+            <line
+              x1={0}
+              x2={VIEW_WIDTH}
+              y1={plotBottom}
+              y2={plotBottom}
+              strokeWidth={1}
+              vectorEffect="non-scaling-stroke"
+              shapeRendering="crispEdges"
+              className="stroke-zinc-500"
+            />
+            <line
+              x1={0}
+              x2={0}
+              y1={0}
+              y2={plotHeight}
+              strokeWidth={2}
+              vectorEffect="non-scaling-stroke"
+              shapeRendering="crispEdges"
+              className="stroke-zinc-500"
+            />
+
             {isEmpty
               ? null
-              : plotted.map((entry) => {
-                  const points = entry.samples.map((sample) => ({
-                    x: xFor(sample.index),
-                    y: yFor(sample.value),
-                  }))
-                  if (points.length === 0) return null
-                  const line = smoothPath(points, plotTop, plotBottom)
+              : plotted.flatMap((entry) =>
+                  toSegments(entry.samples).map((segment) => {
+                    const points = segment.map((sample) => ({
+                      x: xFor(sample.index),
+                      y: yFor(sample.value),
+                    }))
+                    const segmentKey = `${entry.key}-${segment[0].index}`
 
-                  if (points.length === 1) {
-                    const only = points[0]
+                    if (points.length === 1) {
+                      const only = points[0]
+                      return (
+                        <circle
+                          key={segmentKey}
+                          cx={only.x}
+                          cy={only.y}
+                          r={3}
+                          vectorEffect="non-scaling-stroke"
+                          className={SERIES_FILL[entry.tone]}
+                        />
+                      )
+                    }
+
+                    const line = smoothPath(points, plotTop, plotBottom)
+                    const fillsArea = showArea && entry.key === firstAccentKey
+                    const areaPath = fillsArea
+                      ? `${line} L ${round2(points[points.length - 1].x)} ${plotHeight} L ${round2(points[0].x)} ${plotHeight} Z`
+                      : null
+
                     return (
-                      <circle
-                        key={entry.key}
-                        cx={only.x}
-                        cy={only.y}
-                        r={3}
-                        vectorEffect="non-scaling-stroke"
-                        className={SERIES_FILL[entry.tone]}
-                      />
-                    )
-                  }
-
-                  const fillsArea = showArea && entry.key === firstAccentKey
-                  const areaPath = fillsArea
-                    ? `${line} L ${round2(points[points.length - 1].x)} ${plotHeight} L ${round2(points[0].x)} ${plotHeight} Z`
-                    : null
-
-                  return (
-                    <g key={entry.key}>
-                      <title>{entry.label}</title>
-                      {areaPath ? <path d={areaPath} fill={`url(#${areaFillId})`} stroke="none" /> : null}
-                      {entry.tone === 'accent' ? (
-                        // The luminous stroke of the reference: a wide translucent
-                        // copy under the curve. Not a blur filter — a filter region
-                        // is stretched by `preserveAspectRatio="none"`.
+                      <g key={segmentKey}>
+                        <title>{entry.label}</title>
+                        {areaPath ? <path d={areaPath} fill={`url(#${areaFillId})`} stroke="none" /> : null}
+                        {entry.tone === 'accent' ? (
+                          // The luminous stroke of the reference: a wide translucent
+                          // copy under the curve. Not a blur filter — a filter region
+                          // is stretched by `preserveAspectRatio="none"`.
+                          <path
+                            d={line}
+                            fill="none"
+                            strokeWidth={7}
+                            strokeOpacity={0.45}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            vectorEffect="non-scaling-stroke"
+                            className="stroke-[var(--accent-glow)]"
+                          />
+                        ) : null}
                         <path
                           d={line}
                           fill="none"
-                          strokeWidth={7}
-                          strokeOpacity={0.45}
+                          strokeWidth={2}
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           vectorEffect="non-scaling-stroke"
-                          className="stroke-[var(--accent-glow)]"
+                          className={SERIES_STROKE[entry.tone]}
                         />
-                      ) : null}
-                      <path
-                        d={line}
-                        fill="none"
-                        strokeWidth={2}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        vectorEffect="non-scaling-stroke"
-                        className={SERIES_STROKE[entry.tone]}
-                      />
-                    </g>
-                  )
-                })}
+                      </g>
+                    )
+                  })
+                )}
           </svg>
 
+          {/* `aria-hidden` because the `<svg>` above already carries this exact
+              sentence as its accessible name: shown once, announced once. */}
           {isEmpty ? (
-            <p className="pointer-events-none absolute inset-0 flex items-center justify-center px-4 text-center text-[11px]/4 text-zinc-500">
-              {emptyMessage}
+            <p
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 flex items-center justify-center px-4 text-center text-[11px]/4 text-zinc-400"
+            >
+              {/* A middle gridline sits at this exact vertical centre, so the
+                  bare sentence used to read with a horizontal rule drawn right
+                  through its glyphs. `bg-surface-sunken` matches the SVG plate
+                  underneath — same plane, not a new one — so the pill reads as
+                  the line stopping at its edges rather than a patch of mismatched
+                  colour. */}
+              <span className="rounded-full bg-surface-sunken px-3 py-1">{emptyMessage}</span>
             </p>
           ) : null}
         </div>
       </div>
 
-      {columns > 0 ? (
-        <div className="mt-1.5 flex min-w-0 gap-2">
-          <div className="w-10 shrink-0" />
-          <div className="relative h-4 min-w-0 flex-1">
-            {shownLabelIndices.map((index) => {
+      {/* The x axis. Intervals when there are intervals; otherwise the plain
+          statement that none was observed — never a blank strip, and never an
+          invented range. */}
+      <div className="mt-1.5 flex min-w-0 gap-2">
+        <div className="w-10 shrink-0" />
+        <div className="relative h-4 min-w-0 flex-1">
+          {columns > 0 ? (
+            shownLabelIndices.map((index) => {
               const isFirst = index === 0
               const isLast = index === columns - 1
               return (
                 <span
                   key={`${xLabels[index]}-${index}`}
-                  className="absolute top-0 whitespace-nowrap text-[10px]/4 tabular-nums text-zinc-600"
+                  className="absolute top-0 whitespace-nowrap text-[10px]/4 tabular-nums text-zinc-400"
                   style={{
                     left: `${(xFor(index) / VIEW_WIDTH) * 100}%`,
                     transform: isFirst ? 'none' : isLast ? 'translateX(-100%)' : 'translateX(-50%)',
@@ -388,38 +541,44 @@ export function TrendChart({
                   {xLabels[index]}
                 </span>
               )
-            })}
-          </div>
+            })
+          ) : (
+            <span aria-hidden="true" className="absolute top-0 left-0 text-[10px]/4 text-zinc-400">
+              No interval observed
+            </span>
+          )}
         </div>
-      ) : null}
+      </div>
 
       {/* The same numbers, reachable without sight. A raw table on purpose: it is
           never seen, so the Catalyst table's density chrome would be dead weight. */}
-      <figcaption className="sr-only">
-        <table>
-          <caption>{ariaLabel}</caption>
-          <thead>
-            <tr>
-              <th scope="col">Interval</th>
-              {series.map((entry) => (
-                <th key={entry.key} scope="col">
-                  {entry.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {xLabels.map((label, index) => (
-              <tr key={`${label}-${index}`}>
-                <th scope="row">{label}</th>
+      {hasDataTable ? (
+        <figcaption className="sr-only">
+          <table>
+            <caption>{ariaLabel}</caption>
+            <thead>
+              <tr>
+                <th scope="col">Interval</th>
                 {series.map((entry) => (
-                  <td key={entry.key}>{formatCellValue(entry.points[index])}</td>
+                  <th key={entry.key} scope="col">
+                    {entry.label}
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </figcaption>
+            </thead>
+            <tbody>
+              {xLabels.map((label, index) => (
+                <tr key={`${label}-${index}`}>
+                  <th scope="row">{label}</th>
+                  {series.map((entry) => (
+                    <td key={entry.key}>{formatCellValue(entry.points[index])}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </figcaption>
+      ) : null}
     </figure>
   )
 }
