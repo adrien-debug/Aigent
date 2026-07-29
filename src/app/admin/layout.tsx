@@ -1,9 +1,9 @@
-import { CommandPalette } from '@/components/shell/command-palette'
-import { AigentSidebar } from '@/components/shell/aigent-sidebar'
-import { Navbar, NavbarSection, NavbarSpacer } from '@/components/ui/navbar'
+import { cookies } from 'next/headers'
+
+import { AdminRail } from '@/components/admin-shell/admin-rail'
+import { AdminTopbar } from '@/components/admin-shell/admin-topbar'
 import { SidebarLayout } from '@/components/ui/sidebar-layout'
-import { Avatar } from '@/components/ui/avatar'
-import { metaTextClass } from '@/components/ui/text'
+import { SESSION_COOKIE, decodeSession } from '@/lib/agent-mission-control/auth'
 
 // Live-only: every /admin route renders per-request against the gpu1 data layer.
 // Force dynamic so `next build` never prerenders them (the fail-closed data layer
@@ -11,52 +11,44 @@ import { metaTextClass } from '@/components/ui/text'
 export const dynamic = 'force-dynamic'
 
 /**
- * NO `loading.tsx` ABOVE A DYNAMIC SEGMENT — read this before adding one.
+ * The admin shell, REBUILT in P004.
  *
- * A `loading.tsx` is a Suspense boundary, and Next.js reuses the NEAREST one for
- * every descendant. A boundary placed here (or at `agents/`, `projects/`, …)
- * therefore lets React flush the HTML shell with `200 OK` before `[id]` has
- * resolved, which permanently locks the status line: every `notFound()` below —
- * `agents/[id]/layout.tsx`, `getProjectDetailPageData` — then paints its 404 UI
- * inside an already committed 200 response. Measured on a dev server before the
- * fix: all 9 deep links out of /admin/telemetry that point at retired ids
- * answered 200 with a "not found" body, i.e. no monitor, crawler or API client
- * could tell an absent agent from an empty page. Removing the subtree boundary
- * turned exactly those 9 into 404 while every live route stayed 200.
+ * It replaces `components/shell/*` — `aigent-sidebar` (the old rail),
+ * `command-palette`, and the `page-layout`/`page-header` wrappers. The rail is
+ * now the Catalyst `Sidebar` primitives directly, and the topbar owns the ONE
+ * global search field, which lives in the URL rather than in component state.
  *
- * A skeleton is therefore only legal on a segment with NO dynamic segment below
- * it (`settings/` qualifies; `projects/` does not). Wrapping the index alone in
- * a `(overview)` route group would also work — it was tried and dropped because
- * the skeleton it carried mirrored nothing: 726px against a 1451px page, 4 KPI
- * tiles against 5, three whole row-blocks absent. A fallback that jumps 725px
- * when the data lands is worse than no fallback.
+ * The avatar no longer hard-codes "AD"/"Adrien": the admin session carries no
+ * name (see `auth.ts` → `AdminSession`), so the shell shows the role it can
+ * prove and nothing else.
+ *
+ * NO `loading.tsx` ABOVE THIS SUBTREE — the rule predates P004 and still holds.
+ * A `loading.tsx` is a Suspense boundary, and Next reuses the NEAREST one for
+ * every descendant, so a boundary here lets React flush the HTML shell with
+ * `200 OK` before `[id]` has resolved: every `notFound()` below then paints its
+ * 404 inside an already-committed 200. Measured twice — once on the 404 path
+ * (9 deep links answered 200 instead of 404), once on the error path in P003
+ * (a total backend failure answered 200 with a skeleton instead of 500).
  */
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const store = await cookies()
+  const session = decodeSession(store.get(SESSION_COOKIE)?.value)
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
-      <CommandPalette />
-      <SidebarLayout
-        navbar={
-          // Second `navigation` landmark of the shell, next to the sidebar
-          // rail (labelled "Main"). It carries the account affordance only, so
-          // it is named for what it holds — the two are told apart in a screen
-          // reader's landmark list instead of both reading "navigation".
-          <Navbar aria-label="Account">
-            <NavbarSpacer />
-            <NavbarSection>
-              <Avatar
-                initials="AD"
-                alt="Adrien"
-                className={`size-8 bg-zinc-800 text-white ${metaTextClass} font-medium ring-1 ring-white/10`}
-              />
-            </NavbarSection>
-          </Navbar>
-        }
-        sidebar={<AigentSidebar />}
-      >
+    // The topbar is rendered ONCE, at the top of the content column, because
+    // `SidebarLayout` only shows its `navbar` slot below `lg` — passing it
+    // there AND rendering it here would put two search fields in the DOM at
+    // every width, one merely hidden by CSS. The slot keeps a spacer so the
+    // mobile header still carries its burger button.
+    <SidebarLayout navbar={<div className="min-w-0 flex-1" />} sidebar={<AdminRail />}>
+      <div className="flex flex-col gap-6">
+        <AdminTopbar
+          nowIso={new Date().toISOString()}
+          viewerRole={session?.role ?? null}
+          authenticated={session !== null}
+        />
         {children}
-      </SidebarLayout>
-    </>
+      </div>
+    </SidebarLayout>
   )
 }

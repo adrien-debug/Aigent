@@ -34,20 +34,21 @@ const DEV_AUTH_BYPASS = process.env.NODE_ENV !== 'production' && process.env.AMC
 /**
  * Authenticated PAGE surfaces.
  *
- * MEASURED HOLE (AIGENT-FRONTEND-RESET-001, 29/07/2026): this test used to read
- * `path === '/admin' || path.startsWith('/admin/')`. The new console lives at
- * `/admin-v2/**`, which matches NEITHER — it is not `/admin`, and it starts with
- * `/admin-`, not `/admin/`. The whole V2 runs cockpit — every agent name,
- * project, input summary and cost in the fleet — answered 200 to an
+ * MEASURED HOLE (29/07/2026): this test used to read
+ * `path === '/admin' || path.startsWith('/admin/')`, and `config.matcher` only
+ * listed `/admin/:path*`. A console briefly built at `/admin-v2/**` matched
+ * NEITHER — not `/admin`, and starting with `/admin-`, not `/admin/` — so every
+ * agent name, project, input summary and cost in the fleet answered 200 to an
  * unauthenticated request. Verified by curl before the fix (200 + real rows)
- * and after (307 to /login).
+ * and after (307 to /login). That route no longer exists, but the shape of the
+ * bug does: a sibling admin surface is one directory name away at any time.
  *
  * Each entry is matched as a PATH SEGMENT (exact, or followed by `/`), never as
  * a bare `startsWith`: a bare prefix would also swallow an unrelated
  * `/administration` route and grant it a gate it never asked for. A new admin
  * surface is protected by ADDING IT HERE — that is the one line to remember.
  */
-const PROTECTED_PAGE_PREFIXES = ['/admin', '/admin-v2'] as const
+const PROTECTED_PAGE_PREFIXES = ['/admin'] as const
 
 function isProtectedPage(path: string): boolean {
   return PROTECTED_PAGE_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
@@ -104,18 +105,8 @@ export const config = {
   //
   // TWO LEVELS, BOTH REQUIRED. This matcher decides whether `proxy()` RUNS AT
   // ALL; `PROTECTED_PAGE_PREFIXES` decides what it does once running. Adding a
-  // surface to only one of them protects nothing: `/admin/:path*` never matches
-  // `/admin-v2/runs`, so before this line existed the V2 console answered 200
-  // to an anonymous request no matter what the function body said. Every new
-  // admin surface goes in BOTH lists.
-  //
-  // `/admin-v2` and `/admin-v2/:path*` are listed separately because
-  // `:path*` does not match the bare segment on its own.
-  matcher: [
-    '/admin',
-    '/admin/:path*',
-    '/admin-v2',
-    '/admin-v2/:path*',
-    '/api/agent-ops/:path*',
-  ],
+  // surface to only one of them protects NOTHING — measured, see the header.
+  // Every new admin surface goes in BOTH lists, and `/admin` is listed on its
+  // own because `:path*` does not match the bare segment.
+  matcher: ['/admin', '/admin/:path*', '/api/agent-ops/:path*'],
 }
