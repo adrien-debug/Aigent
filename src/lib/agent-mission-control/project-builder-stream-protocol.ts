@@ -1,13 +1,5 @@
 export const PROJECT_BUILDER_HEARTBEAT_MS = 15_000
 
-export type ProjectBuilderStreamLifecycle =
-  | 'connecting'
-  | 'running'
-  | 'reconnecting'
-  | 'reconciling'
-  | 'completed'
-  | 'failed'
-
 type EventBase = {
   runId: string
   conversationId: string | null
