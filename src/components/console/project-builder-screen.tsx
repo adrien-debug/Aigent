@@ -59,6 +59,42 @@ import { EmptyState, ErrorState, ScreenHeader, Section } from './screen-primitiv
 
 type BuilderLifecycle = 'connecting' | 'running' | 'reconciling' | 'completed' | 'failed'
 
+/**
+ * The typed failure the SERVER reports on the stream → a sentence.
+ *
+ * `project-builder-stream-protocol.ts` declares `error` as a CLOSED union, and
+ * the route really pushes it (`{type:'terminal', lifecycle:'failed', error,
+ * retryable}`). Nothing read it: the client only looked at `lifecycle`, and
+ * because `isProjectBuilderTerminal` answers `true` for a failed terminal too,
+ * `consumeSSE` RESOLVED and the four statements after it overwrote 'failed'
+ * with 'reconciling' then 'completed'. A server-side architect failure rendered
+ * as a green pill, no banner, and a transcript with the user's turn and no
+ * reply. This is the mapping that closes that hole; the union is exhaustive, so
+ * a new failure value cannot be added without landing here.
+ */
+function architectFailureMessage(error: string, retryable: boolean): string {
+  const cause =
+    error === 'architect_message_failed'
+      ? 'The architect could not answer this turn.'
+      : error === 'transport_interrupted'
+        ? 'The architect stream was interrupted before it completed.'
+        : error === 'persistence_timeout'
+          ? 'The reply could not be persisted before the write timed out.'
+          : 'The architect run failed.'
+  return retryable ? `${cause} It can be retried.` : `${cause} It cannot be retried as-is.`
+}
+
+/** One wording for the conversation read, used by the mount effect and by Retry. */
+function conversationFailure(status: number): string {
+  // A 401 is NOT "unavailable": the backend answered, and answered that this
+  // browser has no session. Reporting it as an outage sent operators looking
+  // for a dead service while the dev auth bypass (which covers PAGES but never
+  // `/api/agent-ops/**`) was the whole cause.
+  if (status === 401 || status === 403) return 'Your session has expired — sign in again to use the builder.'
+  if (status === 503) return 'Builder backend is not configured.'
+  return 'Conversation is unavailable.'
+}
+
 /** Lifecycle → dot role. `connecting` is NOT positive: nothing is proven yet. */
 function lifecycleTone(lifecycle: BuilderLifecycle): StatusDotTone {
   if (lifecycle === 'failed') return 'negative'
@@ -87,17 +123,36 @@ export function ProjectBuilderScreen({
 
   const reload = useCallback(async () => {
     const response = await fetch(`/api/agent-ops/projects/${projectId}/builder/conversation`)
-    if (!response.ok) throw new Error(response.status === 503 ? 'Builder backend is not configured.' : 'Conversation is unavailable.')
+    if (!response.ok) throw new Error(conversationFailure(response.status))
     setBundle(await response.json() as ProjectBuilderConversationBundle)
   }, [projectId])
+
+  /**
+   * The Retry control's handler, and the ONLY way `error` is cleared by a
+   * retry.
+   *
+   * It used to be `onClick={() => void reload()}`, and `reload` touches neither
+   * `error` nor `lifecycle`. A SUCCESSFUL retry therefore refreshed the bundle
+   * under a red banner that never went away, and a FAILED one rejected into
+   * `void` — no catch, no log, no state change, so the button was inert in both
+   * directions. Clearing first and catching after is what makes it a control.
+   */
+  const retry = useCallback(() => {
+    setError(null)
+    setLifecycle('connecting')
+    reload()
+      .then(() => setLifecycle('completed'))
+      .catch((reason: unknown) => {
+        setLifecycle('failed')
+        setError(reason instanceof Error ? reason.message : 'Conversation is unavailable.')
+      })
+  }, [reload])
 
   useEffect(() => {
     let active = true
     fetch(`/api/agent-ops/projects/${projectId}/builder/conversation`)
       .then((response) => {
-        if (!response.ok) {
-          throw new Error(response.status === 503 ? 'Builder backend is not configured.' : 'Conversation is unavailable.')
-        }
+        if (!response.ok) throw new Error(conversationFailure(response.status))
         return response.json() as Promise<ProjectBuilderConversationBundle>
       })
       .then((nextBundle) => {
@@ -138,15 +193,46 @@ export function ProjectBuilderScreen({
         body: JSON.stringify({ content }),
       })
       if (!response.ok || !response.body) throw new Error('The architect stream could not start.')
-      await consumeSSE<ProjectBuilderStreamEvent>(response.body, (event) => {
-        if (event.type === 'delta') setPartial((value) => value + event.delta)
-        if (event.type === 'terminal') setLifecycle(event.lifecycle)
-      }, { isTerminal: isProjectBuilderTerminal, requireTerminal: true })
+      const { terminalEvent, malformedFrames } = await consumeSSE<ProjectBuilderStreamEvent>(
+        response.body,
+        (event) => {
+          // `connected` is a real handshake, and it is the first moment the
+          // server is proven to be answering. `setLifecycle('running')` fires
+          // before `fetch` is even called, so without this the pill claimed
+          // 'running' whether or not anything ever replied.
+          if (event.type === 'connected') setLifecycle('running')
+          if (event.type === 'delta') setPartial((value) => value + event.delta)
+        },
+        { isTerminal: isProjectBuilderTerminal, requireTerminal: true }
+      )
+
+      // A FAILED terminal is a failure, not a slow success. `requireTerminal`
+      // is satisfied by it, so `consumeSSE` resolves and nothing below would
+      // have stopped the reconcile/complete sequence on its own.
+      if (terminalEvent?.type === 'terminal' && terminalEvent.lifecycle === 'failed') {
+        setPartial('')
+        setLifecycle('failed')
+        setError(architectFailureMessage(terminalEvent.error, terminalEvent.retryable))
+        return
+      }
+
       setLifecycle('reconciling')
       await reload()
       setPartial('')
       setLifecycle('completed')
+
+      // The stream ended on a real terminal, but part of it did not survive
+      // transport. The transcript is therefore INCOMPLETE, and saying so is the
+      // difference between a truncated answer and a clean one.
+      if (malformedFrames > 0) {
+        setError(
+          `${malformedFrames} stream frame${malformedFrames > 1 ? 's were' : ' was'} lost in transport — the reply above may be incomplete.`
+        )
+      }
     } catch (reason) {
+      // The half-arrived block goes with the failure: leaving it on screen under
+      // a red banner reads as a reply still arriving.
+      setPartial('')
       setLifecycle('failed')
       setError(reason instanceof Error ? reason.message : 'The stream was interrupted before completion.')
     }
@@ -190,7 +276,7 @@ export function ProjectBuilderScreen({
         <ErrorState
           title={error}
           actions={
-            <Button outline onClick={() => void reload()}>
+            <Button outline onClick={retry}>
               Retry
             </Button>
           }

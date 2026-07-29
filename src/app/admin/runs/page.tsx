@@ -17,8 +17,11 @@ export default async function RunsPage() {
 
   // The ONLY platform claim this route can back: `getRunsPageData` attempts
   // three reads (runs, agents, projects) and records every failure in
-  // `degraded`, so an empty `degraded` means all three answered. Nothing wider
-  // is asserted here.
+  // `degraded`, so an empty `degraded` means those three answered. "All
+  // sources reporting" used to say this platform-wide over exactly three
+  // page-scoped reads — the same overclaim as `/admin/projects`, one
+  // `/admin` itself deliberately avoids ("No data-source warning reported").
+  // Scoped to what was actually checked; nothing wider is asserted here.
   const degraded = data.degraded.length > 0
 
   return (
@@ -26,7 +29,7 @@ export default async function RunsPage() {
       activeHref="/admin/runs"
       title="Runs"
       degraded={degraded}
-      stateLabel={degraded ? 'Partial labels' : 'All sources reporting'}
+      stateLabel={degraded ? 'Partial labels' : 'No source warning on this screen'}
     >
       <RunsScreen data={data} />
     </ConsoleShell>

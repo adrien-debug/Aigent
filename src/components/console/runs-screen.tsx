@@ -104,10 +104,13 @@ function dangerCount(count: number) {
 export function RunsScreen({ data }: { data: RunsPageData }) {
   const metrics = deriveRunsMetrics(data.runs)
 
-  // The gauges need a NUMBER where the card needs a STRING. `formatPercent`
-  // (runs-console/runs-metrics) rounds to the whole percent, and so does this —
-  // by construction the ring, the arc and the card print the same figure.
-  const successPercent = metrics.successRate === null ? null : Math.round(metrics.successRate * 100)
+  // The gauges need a NUMBER where the card needs a STRING. Narrowed ONCE,
+  // unrounded (0..100), same as `agent-detail-screen.tsx` — `formatPercent`
+  // above rounds to one decimal ("83.3%") while a stray `Math.round` here used
+  // to round to the whole percent ("83") before the gauges ever saw it, so the
+  // card and the ring/arc beside it could print different figures for the same
+  // rate. Only the aria label rounds, for speech, at the point it is spoken.
+  const successPercent = metrics.successRate === null ? null : metrics.successRate * 100
 
   /** Every status of the vocabulary, in outcome order. The counts are MEASURED,
    *  so a status nothing produced legitimately renders 0. The words are the raw
@@ -178,7 +181,7 @@ export function RunsScreen({ data }: { data: RunsPageData }) {
               ariaLabel={
                 successPercent === null
                   ? 'Success rate: no run reached a terminal state, nothing measured.'
-                  : `Success rate: ${successPercent} of 100.`
+                  : `Success rate: ${Math.round(successPercent)} of 100.`
               }
             />
           }

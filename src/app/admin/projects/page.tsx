@@ -39,7 +39,11 @@ export default async function ProjectsPage() {
       activeHref="/admin/projects"
       title="Projects"
       degraded={copilots === null}
-      stateLabel={copilots === null ? 'Agent registry unreadable' : 'All sources reporting'}
+      // Scoped to the two reads this route actually makes (projects, copilots).
+      // "All sources reporting" claimed the whole platform from a page-scoped
+      // subset — the same overclaim `/admin/runs` carried, and one `/admin`
+      // itself deliberately avoids ("No data-source warning reported").
+      stateLabel={copilots === null ? 'Agent registry unreadable' : 'No source warning on this screen'}
     >
       <ProjectsScreen
         projects={projectsResult.value}
