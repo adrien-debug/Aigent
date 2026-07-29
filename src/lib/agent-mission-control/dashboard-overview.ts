@@ -13,7 +13,7 @@ import type { MissionReport } from './mission-orchestrator'
 import { pgrest } from './postgrest'
 import { isExecutable } from './runtime-catalogue'
 import { parseSandboxReport, type TargetRepoSandboxReport } from './target-repo-sandbox'
-import type { AgentRun, Copilot, Project } from './types'
+import type { AgentRun, Copilot, CopilotHealthMetric, Project } from './types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -31,18 +31,30 @@ export type DashboardKpis = {
    * never 0. */
   executableNow: number | null
   executableTotal: number | null
-  /** Count of operational runs with started_at in the shared 24h window. */
-  runs24h: number
+  /**
+   * Count of operational runs with started_at in the shared 24h window.
+   *
+   * `0` is a MEASUREMENT — the window was read and held nothing. Null means the
+   * run read FAILED (`windowRuns === null`): a failed read is not zero runs, and
+   * rendering it as 0 paints a calm, healthy-looking fleet over a dead backend.
+   * See the discriminator note on `DashboardOverview.windowRuns`.
+   */
+  runs24h: number | null
   /**
    * Completed / (completed + failed) over TERMINAL runs in the window,
    * expressed as a WHOLE PERCENTAGE (0..100), already rounded — NOT a 0..1
    * ratio. The distinction is not cosmetic: a consumer that assumed a ratio
    * and multiplied by 100 rendered "10000%" on the dashboard (caught in P004).
-   * Null when there are zero terminal runs — NOT_APPLICABLE, never 0.
+   *
+   * Null for TWO different reasons, both honest, both rendered "Indisponible":
+   * zero terminal runs in a window that WAS read (NOT_APPLICABLE), or the run
+   * read failed (UNREAD). Never 0. Tell them apart via `dataWarnings` — see
+   * `DashboardOverview.windowRuns`.
    */
   success24h: number | null
-  /** Sum of costUsd over the window's runs. Null when the window has zero
-   * runs (nothing to sum) — never coalesced to 0. */
+  /** Sum of costUsd over the window's runs. Null when the window has zero runs
+   * (nothing to sum) OR when the run read failed — never coalesced to 0. Same
+   * two-reason null as `success24h`; same discriminator. */
   cost24h: number | null
   /** Length of the action queue (overview.actionItems). */
   needsAction: number
@@ -57,7 +69,25 @@ export type ProjectOverviewItem = {
   platform: Project['platform']
   copilotCount: number
   activeCount: number
-  runsLast24h: number
+  /**
+   * Runs in the last 24h, summed over the team members that actually PROVED the
+   * metric (see `isMeasuredHealth`).
+   *  · `0`     — measured: either the proven members all sat at zero, or the
+   *              project has no copilot at all (no agent, no run to have made).
+   *  · `n > 0` — measured.
+   *  · `null`  — NOT MEASURABLE: the project has copilots and not one of them
+   *              proved a run count. Renders "Indisponible", never 0.
+   */
+  runsLast24h: number | null
+  /**
+   * KNOWN REMAINING DEFECT (out of scope for P00x-truth-001, reported not fixed):
+   * this field has the exact same weakness `runsLast24h` just lost — it sums
+   * `copilot.health.costLast24hUsd` across the WHOLE team without checking
+   * `healthUnavailableFields`, so an unproven cost normalises to 0 and is
+   * rendered as a measured "$0.00". It must become `number | null` on the same
+   * `isMeasuredHealth` rule; that change was deliberately not made here because
+   * this mission is scoped to `runsLast24h` only.
+   */
   costLast24hUsd: number
   /** Mean test pass rate (0..1) across copilots with run-backed health, null when no evidence. */
   passRate: number | null
@@ -87,10 +117,25 @@ export type DashboardOverview = {
   projects: ProjectOverviewItem[]
   actionItems: ActionItem[]
   dataWarnings: string[]
-  /** The SAME 24h-window runs used to derive runs24h/success24h/cost24h, so the
+  /**
+   * The SAME 24h-window runs used to derive runs24h/success24h/cost24h, so the
    * page can reuse them for the activity/status/cost charts instead of a second
-   * separate load — one shared window instant across the whole dashboard. */
-  windowRuns: AgentRun[]
+   * separate load — one shared window instant across the whole dashboard.
+   *
+   * THREE STATES, ALL DISTINGUISHABLE:
+   *  · `[]`        — the read SUCCEEDED and the window is empty. A measured
+   *                  emptiness: runs24h is 0, no warning is pushed.
+   *  · `[...]`     — the read succeeded with runs. Measured values.
+   *  · `null`      — the read FAILED. runs24h/success24h/cost24h are all null
+   *                  and `dataWarnings` carries RUNS_READ_FAILED_WARNING. Charts
+   *                  must render "Indisponible", NOT an empty axis or a flat
+   *                  zero curve — an unread window is not a quiet one.
+   *
+   * DISCRIMINATOR for the null metrics: `dataWarnings`. A null KPI with NO
+   * run-history warning means measured-but-nothing-to-measure; a null KPI WITH
+   * that warning means unread. The data layer never conflates the two.
+   */
+  windowRuns: AgentRun[] | null
 }
 
 type SandboxSnapshot = {
@@ -188,8 +233,12 @@ export function computeBlockedDeliveries(
  * RunStatusBreakdownChart already renders (completed/failed are the only two
  * terminal-success statuses; blocked/needs-confirmation/running are excluded
  * from the ratio the same way they get their own bars, not folded into
- * "failed"). */
-export function computeSuccess24h(windowRuns: Pick<AgentRun, 'status'>[]): number | null {
+ * "failed").
+ *
+ * `null` window = the run read FAILED → null, and it never even counts. Passing
+ * an array keeps the previous behaviour byte for byte. */
+export function computeSuccess24h(windowRuns: Pick<AgentRun, 'status'>[] | null): number | null {
+  if (windowRuns === null) return null
   const completed = windowRuns.filter((r) => r.status === 'completed').length
   const failed = windowRuns.filter((r) => r.status === 'failed').length
   const terminal = completed + failed
@@ -197,9 +246,12 @@ export function computeSuccess24h(windowRuns: Pick<AgentRun, 'status'>[]): numbe
   return Math.round((completed / terminal) * 100)
 }
 
-/** Sum of costUsd over the window. Null when the window is empty — an empty
- * sum is "nothing measured", not a measured zero cost. */
-export function computeCost24h(windowRuns: Pick<AgentRun, 'costUsd'>[]): number | null {
+/** Sum of costUsd over the window. Null when the window is empty — an empty sum
+ * is "nothing measured", not a measured zero cost — and null when the run read
+ * FAILED (`windowRuns === null`), which is a different absence with the same
+ * rendering. Only `dataWarnings` tells the two apart. */
+export function computeCost24h(windowRuns: Pick<AgentRun, 'costUsd'>[] | null): number | null {
+  if (windowRuns === null) return null
   if (windowRuns.length === 0) return null
   return windowRuns.reduce((sum, r) => sum + (r.costUsd ?? 0), 0)
 }
@@ -208,20 +260,68 @@ export function computeCost24h(windowRuns: Pick<AgentRun, 'costUsd'>[]): number 
 // Pure — project overview rollup
 // ---------------------------------------------------------------------------
 
+/**
+ * Is this health metric a MEASUREMENT on this copilot?
+ *
+ * Deliberately the SAME definition as `isMeasured()` in
+ * `src/components/console/projects-screen.tsx`, so the dashboard and the
+ * projects console cannot disagree about what counts as measured.
+ * `healthUnavailableFields` names what the data layer could not prove; an
+ * UNDEFINED list means the row never went through the data layer, so nothing is
+ * proven (contract in `types.ts` › CopilotHealth) — treat every metric as
+ * unavailable rather than as measured.
+ */
+function isMeasuredHealth(copilot: Copilot, metric: CopilotHealthMetric): boolean {
+  if (copilot.healthUnavailableFields === undefined) return false
+  if (copilot.healthUnavailableFields.includes(metric)) return false
+  return Number.isFinite(copilot.health?.[metric])
+}
+
+/** Ordering key ONLY — never rendered. An unmeasured run count sorts BELOW a
+ *  measured zero (-1), so "nobody measured" never outranks a proven quiet
+ *  project; it must not be read anywhere as a zero measurement. */
+function runsOrderKey(item: Pick<ProjectOverviewItem, 'runsLast24h'>): number {
+  return item.runsLast24h === null ? -1 : item.runsLast24h
+}
+
 export function buildProjectOverview(projects: Project[], copilots: Copilot[]): ProjectOverviewItem[] {
   const rollups = new Map<
     string,
-    { copilotCount: number; activeCount: number; runsLast24h: number; costLast24hUsd: number; passRates: number[] }
+    {
+      copilotCount: number
+      activeCount: number
+      /** Sum over the team members that PROVED runsLast24h — placeholders excluded. */
+      runsLast24h: number
+      /** How many members proved it. 0 on a non-empty team ⇒ the project reports null. */
+      runsMeasuredCount: number
+      costLast24hUsd: number
+      passRates: number[]
+    }
   >()
 
   for (const copilot of copilots) {
     if (copilot.projectId === null) continue
     const current =
       rollups.get(copilot.projectId) ??
-      { copilotCount: 0, activeCount: 0, runsLast24h: 0, costLast24hUsd: 0, passRates: [] }
+      {
+        copilotCount: 0,
+        activeCount: 0,
+        runsLast24h: 0,
+        runsMeasuredCount: 0,
+        costLast24hUsd: 0,
+        passRates: [],
+      }
     current.copilotCount += 1
     if (copilot.status === 'active') current.activeCount += 1
-    current.runsLast24h += copilot.health.runsLast24h
+    // Only a PROVEN run count enters the sum. `health.runsLast24h` is a
+    // normalisation placeholder when `healthUnavailableFields` names it, and
+    // adding a placeholder to a total silently turns an absence into a figure.
+    if (isMeasuredHealth(copilot, 'runsLast24h')) {
+      current.runsLast24h += copilot.health.runsLast24h
+      current.runsMeasuredCount += 1
+    }
+    // KNOWN REMAINING DEFECT (see ProjectOverviewItem.costLast24hUsd): this sum
+    // still swallows unproven costs. Out of scope here, reported, not hidden.
     current.costLast24hUsd += copilot.health.costLast24hUsd
     // testPassRate is a PLACEHOLDER 0 when unproven (data.ts normalizeHealth) —
     // only push a PROVEN rate into the project mean; healthEvidence is 'runs' for
@@ -235,7 +335,14 @@ export function buildProjectOverview(projects: Project[], copilots: Copilot[]): 
   return projects
     .map((project) => {
       const rollup = rollups.get(project.id)
-      const runsLast24h = rollup?.runsLast24h ?? 0
+      // Three states, kept apart on purpose:
+      //  · no rollup at all → the project has NO copilot: a measured 0 (no agent,
+      //    no run to have made) — same call the projects console makes for an
+      //    empty team.
+      //  · rollup with zero proven members → NOT MEASURABLE → null.
+      //  · rollup with proven members → the proven sum, 0 included.
+      const runsLast24h: number | null =
+        rollup === undefined ? 0 : rollup.runsMeasuredCount === 0 ? null : rollup.runsLast24h
       const passRate =
         rollup && rollup.passRates.length > 0
           ? rollup.passRates.reduce((s, n) => s + n, 0) / rollup.passRates.length
@@ -255,9 +362,9 @@ export function buildProjectOverview(projects: Project[], copilots: Copilot[]): 
       }
     })
     .sort((a, b) => {
-      const aSignal = a.passRate !== null || a.runsLast24h > 0 ? 1 : 0
-      const bSignal = b.passRate !== null || b.runsLast24h > 0 ? 1 : 0
-      return bSignal - aSignal || b.runsLast24h - a.runsLast24h || a.name.localeCompare(b.name)
+      const aSignal = a.passRate !== null || (a.runsLast24h !== null && a.runsLast24h > 0) ? 1 : 0
+      const bSignal = b.passRate !== null || (b.runsLast24h !== null && b.runsLast24h > 0) ? 1 : 0
+      return bSignal - aSignal || runsOrderKey(b) - runsOrderKey(a) || a.name.localeCompare(b.name)
     })
 }
 
@@ -388,7 +495,10 @@ export function assembleDashboardOverview(input: {
   /** Null when getAvailableAgents() failed — kept distinct from an empty
    * (proven-zero) array so executableNow can render "—" rather than "0". */
   availableAgents: AvailableAgent[] | null
-  windowRuns: AgentRun[]
+  /** Null when getRecentRunsInWindow() failed — kept distinct from an empty
+   * (read-and-nothing-there) array exactly like `availableAgents`, so runs24h
+   * can render "Indisponible" rather than a reassuring 0. */
+  windowRuns: AgentRun[] | null
 }): DashboardOverview {
   const copilotsById = new Map(input.copilots.map((c) => [c.id, c]))
   const projectsById = new Map(input.projects.map((p) => [p.id, p]))
@@ -426,7 +536,9 @@ export function assembleDashboardOverview(input: {
       ),
       executableNow: input.availableAgents === null ? null : input.availableAgents.filter(isExecutable).length,
       executableTotal: input.availableAgents === null ? null : input.availableAgents.length,
-      runs24h: input.windowRuns.length,
+      // A failed read has NO length. `null` here, never 0 — 0 would claim the
+      // window was read and held nothing, which is the opposite of what happened.
+      runs24h: input.windowRuns === null ? null : input.windowRuns.length,
       success24h: computeSuccess24h(input.windowRuns),
       cost24h: computeCost24h(input.windowRuns),
       needsAction: actionItems.length,
@@ -539,6 +651,17 @@ async function fetchMissionRuns(): Promise<{ runs: MissionRunSnapshot[]; warning
 }
 
 /**
+ * The human sentence pushed into `dataWarnings` when the 24h run read fails.
+ *
+ * Same register as the two warnings already in that array ("Mission data
+ * unavailable", "Executable-agent data unavailable") — `dataWarnings` holds
+ * sentences and the UI prints them VERBATIM, so this is not a machine code.
+ * Exported so a consumer can recognise "runs24h is null because it was unread"
+ * without re-typing the string and drifting from it.
+ */
+export const RUNS_READ_FAILED_WARNING = 'Run history unavailable'
+
+/**
  * Read-only dashboard overview for /admin. Never writes, never calls GitHub.
  *
  * List-friendly: one parallel PostgREST wave only. Per-agent delivery scorecards
@@ -556,7 +679,7 @@ export async function getDashboardOverview(nowMs: number = Date.now()): Promise<
     latestSandboxByCopilot,
     missionResult,
     availableAgentsResult,
-    windowRuns,
+    windowRunsResult,
   ] = await Promise.all([
     getCopilots({ health: 'list' }),
     getProjects(),
@@ -566,11 +689,17 @@ export async function getDashboardOverview(nowMs: number = Date.now()): Promise<
     getAvailableAgents()
       .then((agents) => ({ agents, warning: null as string | null }))
       .catch(() => ({ agents: null, warning: 'Executable-agent data unavailable' })),
-    getRecentRunsInWindow({ nowMs }).catch(() => [] as AgentRun[]),
+    // Same idiom as getAvailableAgents() above — a failed read reports itself.
+    // `catch(() => [])` used to sit here and made a dead backend look like a
+    // quiet 24h: an empty array is indistinguishable from a healthy empty window.
+    getRecentRunsInWindow({ nowMs })
+      .then((runs) => ({ runs, warning: null as string | null }))
+      .catch(() => ({ runs: null, warning: RUNS_READ_FAILED_WARNING })),
   ])
 
   if (missionResult.warning) dataWarnings.push(missionResult.warning)
   if (availableAgentsResult.warning) dataWarnings.push(availableAgentsResult.warning)
+  if (windowRunsResult.warning) dataWarnings.push(windowRunsResult.warning)
 
   return assembleDashboardOverview({
     copilots,
@@ -581,6 +710,6 @@ export async function getDashboardOverview(nowMs: number = Date.now()): Promise<
     missionRuns: missionResult.runs,
     dataWarnings,
     availableAgents: availableAgentsResult.agents,
-    windowRuns,
+    windowRuns: windowRunsResult.runs,
   })
 }
