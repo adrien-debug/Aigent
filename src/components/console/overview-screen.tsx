@@ -16,6 +16,7 @@ import { TrendChart, type TrendSeries } from '@/components/console/charts/trend-
 import {
   DegradedBanner,
   EmptyState,
+  ErrorState,
   KpiCard,
   PanelRow,
   ScreenHeader,
@@ -45,6 +46,25 @@ import {
  * `?? 0` on a metric lives in this file; where a ratio needs both halves to
  * exist, the pair is narrowed to a single nullable object instead of being
  * coalesced apart.
+ *
+ * THE 24h WINDOW HAS THREE STATES AND ALL THREE ARE VISIBLE ON SCREEN.
+ * `overview.windowRuns` is `AgentRun[] | null`:
+ *   · `[…]`  — read OK, runs observed. Measured figures, real chart, real fleet.
+ *   · `[]`   — read OK and the window held nothing. A MEASURED emptiness: the
+ *              KPI reads `0`, the chart draws its own "no run in this window"
+ *              plate, every per-status count reads `0`, and the Agents list
+ *              shows its calm `EmptyState`. Nothing is wrong and nothing here
+ *              pretends otherwise.
+ *   · `null` — the read FAILED. Every figure derived from it says
+ *              `Indisponible`, the panels whose whole body came from that read
+ *              wear the danger role, and `dataWarnings` carries the sentence
+ *              that explains it (top banner + Platform status). An unread window
+ *              is NEVER drawn as a quiet one: no empty axis, no flat-zero curve,
+ *              no empty fleet, no calm `EmptyState`.
+ * The narrowing happens ONCE, in `windowRuns` below, and the three pure helpers
+ * still take a plain `AgentRun[]` — so a failed read cannot reach a chart as an
+ * empty array on the way to the pixels. That substitution is the whole defect
+ * this screen was fixed for.
  */
 
 /* --------------------------------------------------------------- constants */
@@ -97,6 +117,41 @@ const LIST_SCROLL = 'max-h-80 overflow-y-auto'
  *  `text-2xl`, which a 12-glyph word does not survive). */
 const unavailableFigure = <Unavailable className="text-base/7" />
 
+/** `Indisponible` sized for a `PanelRow` stat (the slot is `text-[13px]/5`).
+ *  Same rung `projects-screen` uses for the bench rows, so the same absence is
+ *  the same size on both screens. */
+const unavailableValue = <Unavailable className="text-[11px]" />
+
+/**
+ * The sub-label of a window-derived KPI when the run read FAILED.
+ *
+ * The figure itself already says `Indisponible`; this says WHY, because
+ * "Indisponible" under a detail line still claiming "Summed over the window's
+ * runs" would read as a formatting glitch rather than a dead read. The measured
+ * details stay untouched — they only describe a window that WAS read.
+ */
+const RUNS_UNREAD_DETAIL = 'Run history could not be read'
+
+/**
+ * Panel-level heading for the same failure. One spelling, three panels.
+ *
+ * DELIBERATELY A SECOND LITERAL, and the duplication is not an oversight.
+ * The data layer exports this exact sentence as `RUNS_READ_FAILED_WARNING`, and
+ * importing it would be the obvious fix — but `dashboard-overview.ts` starts
+ * with `import 'server-only'`, so pulling in the VALUE (rather than the type)
+ * drags that guard into this module's runtime graph and the component test
+ * suite dies with "This module cannot be imported from a Client Component".
+ * Measured, not assumed: the import was tried and
+ * `tests/unit/overview-screen-truth.test.tsx` went red on it.
+ *
+ * So the two literals stay two, and the drift risk is real but bounded: the
+ * heading is cosmetic, while the sentence that must match is the one the data
+ * layer pushes into `dataWarnings` and the degraded banner prints verbatim.
+ * Closing this properly means a client-safe module owning the display string —
+ * out of scope here, and recorded rather than silently tolerated.
+ */
+const RUNS_UNREAD_TITLE = 'Run history unavailable'
+
 /** UTC wall clock, formatted from the epoch without a locale so the label is
  *  identical on every server. The chart header says UTC out loud. */
 function formatClockUtc(epochMs: number): string {
@@ -143,6 +198,12 @@ type TrendBuckets = {
  * fabricated zeros before the first real run. A window with no run returns EMPTY
  * arrays, so `TrendChart` draws its own honest empty plate instead of an axis
  * over nothing. Runs sharing a single instant collapse into one bucket.
+ *
+ * TAKES AN ARRAY, NEVER A NULL, ON PURPOSE. The empty plate it produces is the
+ * truthful answer for a window that WAS read and held nothing — and the exact
+ * lie for a window nobody could read. Keeping the parameter non-nullable makes
+ * the caller narrow first; `countRunsByStatus` and `groupRunsByAgent` below hold
+ * the same line for the same reason.
  */
 function bucketRunsByStartTime(runs: AgentRun[], bucketCount = TREND_BUCKET_COUNT): TrendBuckets {
   let first = Number.POSITIVE_INFINITY
@@ -238,20 +299,36 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
       ? { now: kpis.executableNow, total: kpis.executableTotal }
       : null
 
-  const projectsTotal = overview.projects.length
-  const projectsWithActivity = overview.projects.filter((project) => project.runsLast24h > 0).length
+  // THE ONE NARROWING. `null` means the 24h run read FAILED — not that the
+  // window was quiet. Everything below branches on `windowRuns` before it can
+  // touch a helper, so the three pure helpers keep taking a real `AgentRun[]`
+  // and an unread window can never be handed to a chart as `[]`.
+  const windowRuns = overview.windowRuns
+  const runsUnread = windowRuns === null
 
-  const trend = bucketRunsByStartTime(overview.windowRuns)
+  const projectsTotal = overview.projects.length
+  // Only a MEASURED project can be called active or inactive; a project whose
+  // team proved no run count is neither, so it leaves BOTH halves of the ratio
+  // rather than being counted as quiet. The denominator is therefore the
+  // measured population — and the sub-label states the coverage, so the card
+  // cannot imply it counted the whole registry.
+  const measuredProjectRuns = overview.projects
+    .map((project) => project.runsLast24h)
+    .filter((runs): runs is number => runs !== null)
+  const projectsMeasured = measuredProjectRuns.length
+  const projectsWithActivity = measuredProjectRuns.filter((runs) => runs > 0).length
+
+  const trend = windowRuns === null ? null : bucketRunsByStartTime(windowRuns)
   const trendSeries: TrendSeries[] =
-    trend.xLabels.length === 0
+    trend === null || trend.xLabels.length === 0
       ? []
       : [
           { key: 'completed', label: 'completed', tone: 'accent', points: trend.completed },
           { key: 'failed', label: 'failed', tone: 'danger', points: trend.failed },
         ]
 
-  const statusCounts = countRunsByStatus(overview.windowRuns)
-  const agentActivity = groupRunsByAgent(overview.windowRuns)
+  const statusCounts = windowRuns === null ? null : countRunsByStatus(windowRuns)
+  const agentActivity = windowRuns === null ? null : groupRunsByAgent(windowRuns)
   const projectNameById = new Map(overview.projects.map((project) => [project.id, project.name]))
 
   const [topAction, ...queuedActions] = overview.actionItems
@@ -287,17 +364,27 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {/* "EVERY", said out loud, because this figure and the per-project
             `runs` values in the Projects panel below come from TWO DIFFERENT
-            READS and do not have to add up. This one is `windowRuns.length` —
+            READS and do not have to add up. This one counts `windowRuns` —
             every non-evaluation run in the window, including agents on the
             bench that belong to no project. The project rows sum
             `copilot.health.runsLast24h` over each project's team, which no
-            bench agent is part of. See the note on the Projects panel. */}
-        <KpiCard label="Runs · 24h" value={kpis.runs24h} detail="Every operational run, bench included" />
+            bench agent is part of. See the note on the Projects panel.
+
+            `kpis.runs24h` is `number | null`: `0` is the window read and found
+            empty, `null` is the window NOT READ. The second renders
+            `Indisponible` and swaps the sub-label, because a count of 0 under
+            "Every operational run" is exactly the calm, healthy-looking lie a
+            dead backend produces. */}
+        <KpiCard
+          label="Runs · 24h"
+          value={kpis.runs24h === null ? unavailableFigure : kpis.runs24h}
+          detail={runsUnread ? RUNS_UNREAD_DETAIL : 'Every operational run, bench included'}
+        />
 
         <KpiCard
           label="Success · 24h"
           value={kpis.success24h === null ? unavailableFigure : `${kpis.success24h}%`}
-          detail="Terminal runs only"
+          detail={runsUnread ? RUNS_UNREAD_DETAIL : 'Terminal runs only'}
           aside={
             <ArcGauge
               value={kpis.success24h}
@@ -307,10 +394,17 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
               // what keeps the figure beside it clear of the gauge at `lg`,
               // where the card is 213px wide inside its padding.
               size={56}
+              // TWO REASONS for a null rate, and the gauge is this card's only
+              // voice for a screen reader — so it must not tell the blind
+              // operator "no terminal run" when the truth is "nobody read the
+              // window". The visible layer makes the same distinction through
+              // the sub-label above.
               ariaLabel={
-                kpis.success24h === null
-                  ? 'Success rate over the last 24 hours: no terminal run, nothing measured.'
-                  : `Success rate over the last 24 hours: ${kpis.success24h} of 100.`
+                kpis.success24h !== null
+                  ? `Success rate over the last 24 hours: ${kpis.success24h} of 100.`
+                  : runsUnread
+                    ? 'Success rate over the last 24 hours: the run history could not be read.'
+                    : 'Success rate over the last 24 hours: no terminal run, nothing measured.'
               }
             />
           }
@@ -334,17 +428,40 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
           }
         />
 
+        {/* THE DENOMINATOR IS THE MEASURED POPULATION, NOT THE REGISTRY.
+            `ProjectOverviewItem.runsLast24h` can now say "not measured", and an
+            unmeasured project is neither active nor inactive — counting it in
+            the total would quietly report it as quiet. So it leaves both halves
+            and the sub-label discloses how many projects the ratio covers. When
+            projects exist and NONE carries a measured figure the card refuses to
+            state a ratio at all: `Indisponible`, over a dashed (unmeasured)
+            gauge track. An EMPTY registry still reads `0 / 0` — that is a
+            measured nothing, not an absence. */}
         <KpiCard
           label="Projects · active"
-          value={`${projectsWithActivity} / ${projectsTotal}`}
-          detail="With at least one run in the window"
+          value={
+            projectsTotal > 0 && projectsMeasured === 0
+              ? unavailableFigure
+              : `${projectsWithActivity} / ${projectsMeasured}`
+          }
+          detail={
+            projectsMeasured === projectsTotal
+              ? 'With at least one run in the window'
+              : `Runs measured for ${projectsMeasured} of ${projectsTotal} projects`
+          }
           aside={
-            projectsTotal > 0 ? (
+            projectsMeasured > 0 ? (
               <ArcGauge
                 value={projectsWithActivity}
-                max={projectsTotal}
+                max={projectsMeasured}
                 size={56}
-                ariaLabel={`Projects with activity: ${projectsWithActivity} of ${projectsTotal}.`}
+                ariaLabel={`Projects with activity: ${projectsWithActivity} of ${projectsMeasured} projects carrying a measured run count.`}
+              />
+            ) : projectsTotal > 0 ? (
+              <ArcGauge
+                value={null}
+                size={56}
+                ariaLabel="Projects with activity: no project carries a measured run count."
               />
             ) : undefined
           }
@@ -355,7 +472,7 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
         <KpiCard
           label="Cost · 24h"
           value={kpis.cost24h === null ? unavailableFigure : formatUsd(kpis.cost24h)}
-          detail="Summed over the window's runs"
+          detail={runsUnread ? RUNS_UNREAD_DETAIL : "Summed over the window's runs"}
         />
       </div>
 
@@ -414,24 +531,52 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
           )}
         </Section>
 
+        {/* THE PANEL THIS MISSION EXISTS FOR. `TrendChart` draws an honest empty
+            plate for a window that WAS read and held nothing — and that plate
+            is indistinguishable from a dead read once a failure has been
+            flattened into `[]`. So the chart is never reached with an unread
+            window: the body is replaced by the failure itself, and the panel
+            takes the danger border (same treatment as Platform status below) so
+            the row cannot read as calm. */}
         <Section
           title="Run activity · 24h"
-          description="Completed and failed runs, bucketed across the observed window (UTC)"
+          description={
+            runsUnread
+              ? 'The 24h run window could not be read'
+              : 'Completed and failed runs, bucketed across the observed window (UTC)'
+          }
           bodyClassName="px-4 pt-3 pb-2"
-          className="md:col-span-2 md:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
+          className={
+            runsUnread
+              ? 'border-[var(--state-danger-solid-line)] md:col-span-2 md:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1'
+              : 'md:col-span-2 md:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1'
+          }
         >
-          <TrendChart
-            series={trendSeries}
-            xLabels={trend.xLabels}
-            height={232}
-            showArea
-            emptyMessage="No completed or failed run was recorded in this window."
-          />
+          {trend === null ? (
+            <ErrorState
+              title={RUNS_UNREAD_TITLE}
+              description="Nothing can be plotted for this window: the runs were never read. This is not an empty window — an empty one would draw its grid and say so."
+              // Flattened onto the panel it already sits inside, exactly as the
+              // Platform status banner is: the danger role lives on the Section
+              // border, so a second box here would only double the chrome.
+              className="rounded-none border-0 bg-transparent px-0 py-6"
+            />
+          ) : (
+            <TrendChart
+              series={trendSeries}
+              xLabels={trend.xLabels}
+              height={232}
+              showArea
+              emptyMessage="No completed or failed run was recorded in this window."
+            />
+          )}
         </Section>
 
         <Section
           title="Success rate · 24h"
-          description="Completed over completed plus failed"
+          description={
+            runsUnread ? 'The 24h run window could not be read' : 'Completed over completed plus failed'
+          }
           className="md:col-start-2 md:row-start-1 xl:col-start-3 xl:row-start-1"
         >
           <div className="flex justify-center px-4 pt-4 pb-3">
@@ -452,7 +597,12 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
                 <dt className="min-w-0">
                   <StatusDot tone={runStatusTone(status)}>{status}</StatusDot>
                 </dt>
-                <dd className="shrink-0 text-[13px]/5 tabular-nums text-white">{statusCounts[status]}</dd>
+                {/* A status nothing produced in a window that WAS read is a
+                    measured `0` and stays `0`. An unread window has no count at
+                    all — five `0`s here would describe a fleet that never ran. */}
+                <dd className="shrink-0 text-[13px]/5 tabular-nums text-white">
+                  {statusCounts === null ? <Unavailable className="text-[11px]/5" /> : statusCounts[status]}
+                </dd>
               </div>
             ))}
           </dl>
@@ -469,9 +619,19 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
           the middle gives up 51px it was spending on a title that truncates
           either way. */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1fr)]">
+        {/* PARTIALLY affected by a failed run read, and the split is stated
+            rather than smoothed: `Production` and `Blocked` come from OTHER
+            reads and still hold, while `Ran · 24h` and the whole busiest-agents
+            list come from `windowRuns` and become unavailable together. The
+            panel keeps its border — only the two cells that lost their source
+            change. */}
         <Section
           title="Agents"
-          description="Fleet counts and the busiest agents of the window"
+          description={
+            runsUnread
+              ? 'Fleet counts · window activity could not be read'
+              : 'Fleet counts and the busiest agents of the window'
+          }
           className="md:col-start-1 md:row-start-1 xl:col-start-1 xl:row-start-1"
         >
           {/* `px-2.5`, not `px-3`: the last 4px per side the cell needed to hold
@@ -494,7 +654,9 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
               <dt className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">
                 Ran · 24h
               </dt>
-              <dd className="mt-1 text-lg/6 tabular-nums text-white">{agentActivity.length}</dd>
+              <dd className="mt-1 text-lg/6 tabular-nums text-white">
+                {agentActivity === null ? <Unavailable className="text-xs/6" /> : agentActivity.length}
+              </dd>
             </div>
             <div className="min-w-0 px-2.5 py-2.5">
               <dt className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">
@@ -516,7 +678,16 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
             </div>
           </dl>
           <div className={LIST_SCROLL}>
-            {agentActivity.length === 0 ? (
+            {agentActivity === null ? (
+              // NOT the `EmptyState` below. "No agent ran" is a measurement; an
+              // empty list under a dead read is the calm, healthy-looking lie
+              // this mission removes. Danger role, flattened into the panel.
+              <ErrorState
+                title={RUNS_UNREAD_TITLE}
+                description="Which agents ran in this window could not be read. The fleet counts above come from another read and still hold."
+                className="rounded-none border-0 bg-transparent"
+              />
+            ) : agentActivity.length === 0 ? (
               <EmptyState
                 title="No agent ran in this window."
                 description="The fleet counts above still hold."
@@ -558,13 +729,20 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
           It is NOT `windowRuns`, which is what the KPI band and the Agents
           panel above count — that read has a different population.
 
-          ONE DIFFERENCE REMAINS AND IT IS NOT FIXABLE FROM THIS FILE: this
-          field is typed `number`, so a project whose team proved NOTHING
-          arrives here as `0`, while `/admin/projects` renders `Indisponible`
-          for it (`sumMeasured` consults `healthUnavailableFields`, which this
-          contract does not carry). Closing that needs `ProjectOverviewItem` to
-          be able to say "not measured" — a change in src/lib, out of this
-          mission's scope, and reported rather than made silently.
+          THE TWO SCREENS NOW AGREE ON ABSENCE TOO. `runsLast24h` is
+          `number | null`: the data layer sums only the team members that PROVED
+          the metric (`isMeasuredHealth`, the same rule `/admin/projects` applies
+          through `sumMeasured`) and returns `null` when a non-empty team proved
+          none. So a project whose team proved nothing renders `Indisponible`
+          HERE and `Indisponible` THERE — it used to render `0` here and
+          `Indisponible` there, from one field, on two screens. A project with no
+          copilot at all still renders a measured `0`: no agent, no run to have
+          made.
+
+          STILL DIFFERENT, AND DELIBERATELY NOT PAPERED OVER: `costLast24hUsd` on
+          the same item is still typed `number` and still sums the WHOLE team, so
+          an unproven cost normalises to `$0.00`. This panel does not render it,
+          so nothing here is currently lying; the field itself carries the note.
         */}
         <Section
           title="Projects"
@@ -583,7 +761,11 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
                   subtitle={project.repoFullName ?? 'Repository not configured'}
                   values={[
                     { label: 'active', value: `${project.activeCount}/${project.copilotCount}` },
-                    { label: 'runs', value: project.runsLast24h },
+                    {
+                      label: 'runs',
+                      value:
+                        project.runsLast24h === null ? unavailableValue : project.runsLast24h,
+                    },
                   ]}
                 />
               ))
