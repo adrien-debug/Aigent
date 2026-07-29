@@ -1,62 +1,410 @@
 import { Heading } from '@/components/ui/heading'
-import { Text } from '@/components/ui/text'
+import { cn } from '@/components/ui/cn'
 
+/**
+ * The console's shared visual grammar. Server components only: props in,
+ * markup out — no state, no data access, no function props crossing the
+ * server/client boundary (scripts/check-rsc-boundary.mjs).
+ *
+ * Every default class list is passed to `cn()` FIRST and the caller's
+ * `className` LAST — see src/components/ui/cn.ts for why that order is the
+ * only thing that decides who wins.
+ */
+
+/* ------------------------------------------------------------------ header */
+
+/**
+ * Page header inside the content column. Dense: one line of title, one line of
+ * description, actions right-aligned.
+ */
 export function ScreenHeader({
   title,
   description,
   actions,
+  className,
 }: {
   title: string
-  description: string
+  description?: string
   actions?: React.ReactNode
+  className?: string
 }) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <Heading>{title}</Heading>
-        <Text className="mt-1">{description}</Text>
+    <div className={cn('flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between', className)}>
+      <div className="min-w-0">
+        <Heading className="truncate text-lg/6 font-semibold">{title}</Heading>
+        {description ? <p className="mt-0.5 truncate text-xs/5 text-zinc-400">{description}</p> : null}
       </div>
-      {actions ? <div className="flex shrink-0 gap-2">{actions}</div> : null}
+      {/* `flex-wrap`: the agent-detail header passes three non-shrinking controls
+          here. Without wrapping they overflowed the column on a narrow viewport
+          instead of dropping to a second line. */}
+      {actions ? (
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{actions}</div>
+      ) : null}
     </div>
   )
 }
 
+/* ------------------------------------------------------------------- panel */
+
+/**
+ * Bounded body heights. A panel NEVER grows with its data: a dense list gets a
+ * fixed rung and scrolls INSIDE the panel, so the grid is identical whether the
+ * list holds 2 rows or 200. Named rungs rather than a free number, so two
+ * panels sitting side by side cannot drift apart.
+ */
+const SECTION_BODY_HEIGHTS = {
+  sm: 'max-h-56', // 224px — ~4 dense rows
+  md: 'max-h-80', // 320px — ~6 dense rows
+  lg: 'max-h-[26rem]', // 416px — ~8 dense rows
+} as const
+
+export type SectionScroll = keyof typeof SECTION_BODY_HEIGHTS
+
+/** The graphite panel: hairline border, dense header row, optional bounded body. */
+export function Section({
+  title,
+  description,
+  actions,
+  children,
+  className,
+  bodyClassName,
+  scroll,
+}: {
+  title: string
+  description?: string
+  /** Right-hand slot of the header row: a link, a compact control, a count. */
+  actions?: React.ReactNode
+  children: React.ReactNode
+  className?: string
+  bodyClassName?: string
+  /** Bounds the body and scrolls the content inside it instead of stretching the grid. */
+  scroll?: SectionScroll
+}) {
+  return (
+    <section
+      className={cn('flex min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-surface-raised', className)}
+    >
+      <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
+        <div className="min-w-0">
+          <Heading level={2} className="truncate text-xs/5 font-semibold tracking-wide text-white">
+            {title}
+          </Heading>
+          {description ? <p className="mt-0.5 truncate text-[11px]/4 text-zinc-500">{description}</p> : null}
+        </div>
+        {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+      </div>
+      <div className={cn('min-w-0', scroll && [SECTION_BODY_HEIGHTS[scroll], 'overflow-y-auto'], bodyClassName)}>
+        {children}
+      </div>
+    </section>
+  )
+}
+
+/* ------------------------------------------------------------------ metric */
+
+/**
+ * One KPI: a tiny uppercase label, ONE large figure, a sub-label, and an
+ * optional right-hand slot for a gauge or a ratio indicator.
+ *
+ * Owns its padding so `KpiCard` can wrap it in card chrome without double
+ * padding. `value` is a node on purpose: an absent measurement passes
+ * `<Unavailable />` here, never a fabricated 0.
+ */
 export function Metric({
   label,
   value,
   detail,
+  aside,
+  className,
 }: {
   label: string
   value: React.ReactNode
-  detail: string
+  detail?: string
+  /** Right of the figure: a small gauge arc, a ratio, a status dot. */
+  aside?: React.ReactNode
+  className?: string
 }) {
   return (
-    <div className="min-w-0 px-5 py-4 first:pl-0 last:pr-0 sm:px-6">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">{label}</p>
-      <p className="mt-2 text-2xl/8 font-light tabular-nums text-white">{value}</p>
-      <p className="mt-1 text-xs text-zinc-400">{detail}</p>
+    <div className={cn('flex min-w-0 items-start justify-between gap-3 px-4 py-3.5', className)}>
+      <div className="min-w-0">
+        <p className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">{label}</p>
+        <p className="mt-1.5 truncate text-2xl/7 font-light tabular-nums text-white">{value}</p>
+        {detail ? <p className="mt-1 truncate text-[11px]/4 text-zinc-500">{detail}</p> : null}
+      </div>
+      {aside ? <div className="shrink-0">{aside}</div> : null}
     </div>
   )
 }
 
-export function Section({
-  title,
-  description,
-  children,
-  className = '',
+/** Row-1 card: `Metric` in bordered graphite. The card carries no padding — `Metric` does. */
+export function KpiCard({
+  label,
+  value,
+  detail,
+  aside,
+  className,
 }: {
-  title: string
-  description?: string
-  children: React.ReactNode
+  label: string
+  value: React.ReactNode
+  detail?: string
+  aside?: React.ReactNode
   className?: string
 }) {
   return (
-    <section className={`overflow-hidden rounded-xl border border-white/8 bg-zinc-900 shadow-sm ${className}`}>
-      <div className="border-b border-white/8 px-5 py-4 sm:px-6">
-        <Heading level={2} className="text-sm/6">{title}</Heading>
-        {description ? <p className="mt-1 text-xs text-zinc-400">{description}</p> : null}
+    <div className={cn('min-w-0 rounded-xl border border-line bg-surface-raised', className)}>
+      <Metric label={label} value={value} detail={detail} aside={aside} />
+    </div>
+  )
+}
+
+/* --------------------------------------------------------------- panel row */
+
+/**
+ * The repeating unit of every list panel: leading slot, title, subtitle, and a
+ * right-aligned stat cluster. `values` is declarative rather than free markup
+ * so the figure/caption pair cannot drift from one panel to the next.
+ *
+ * `href` is what makes a row interactive. Without it the row is inert markup —
+ * no hover affordance is rendered, because a row that looks clickable and is
+ * not is a dead control.
+ */
+export function PanelRow({
+  leading,
+  title,
+  subtitle,
+  values,
+  trailing,
+  href,
+  className,
+}: {
+  /** Left of the title: an icon, an avatar, a status dot. */
+  leading?: React.ReactNode
+  title: React.ReactNode
+  subtitle?: React.ReactNode
+  /** Right-aligned figures. Each renders as one tabular value over a tiny caption. */
+  values?: { label: string; value: React.ReactNode }[]
+  /** Far right: a badge, a chevron, a compact action. */
+  trailing?: React.ReactNode
+  /** Real destination. Omit it and the row renders as a plain, non-interactive row. */
+  href?: string
+  className?: string
+}) {
+  const body = (
+    <>
+      {leading ? <div className="flex shrink-0 items-center">{leading}</div> : null}
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[13px]/5 font-medium text-white">{title}</div>
+        {subtitle ? <div className="mt-0.5 truncate text-[11px]/4 text-zinc-500">{subtitle}</div> : null}
       </div>
-      {children}
-    </section>
+      {values && values.length > 0 ? (
+        <div className="flex shrink-0 items-center gap-4 text-right">
+          {values.map((entry) => (
+            <div key={entry.label} className="min-w-0">
+              <div className="text-[13px]/5 tabular-nums text-white">{entry.value}</div>
+              <div className="text-[10px]/4 uppercase tracking-widest text-zinc-600">{entry.label}</div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {trailing ? <div className="flex shrink-0 items-center">{trailing}</div> : null}
+    </>
+  )
+
+  const shared = 'flex min-w-0 items-center gap-3 border-b border-line px-4 py-2.5 last:border-b-0'
+
+  return href ? (
+    <a href={href} className={cn(shared, 'transition-colors hover:bg-surface-hover', className)}>
+      {body}
+    </a>
+  ) : (
+    <div className={cn(shared, className)}>{body}</div>
+  )
+}
+
+/* ------------------------------------------------------------------- table */
+
+/**
+ * THE console table language — one set, applied to the existing Catalyst
+ * primitives of `src/components/ui/table.tsx`. No `Table` wrapper component is
+ * introduced here: the kit already owns the markup, these constants only
+ * retokenise it.
+ *
+ * WHY THIS EXISTS. Two dialects shipped side by side. `agents-screen` and
+ * `agent-detail-screen` used the kit raw (`<Table dense>` + a bare
+ * `bg-surface-sunken` head), which keeps the kit's UNTOKENISED hairlines
+ * (`border-white/10`, `divide-white/8`) and its 24px edge padding
+ * (`first:pl-6`) — so the first column sat 8px to the right of its own panel
+ * title, which sits at `px-4`. `runs-screen` and `projects-screen` each carried
+ * a private, near-identical copy of the fix. Same language, three sources.
+ * All four console tables now consume THESE constants and hold no private copy.
+ *
+ * HOW THE OVERRIDES LAND — both mechanisms, on purpose:
+ *  · On the SAME element (thead/tbody/tr), `cn()` passes the caller's class last
+ *    and `tailwind-merge` drops the kit's conflicting one. Deterministic, no
+ *    cascade involved. See `src/components/ui/cn.ts`.
+ *  · On DESCENDANTS (th/td), the kit's `px-5 first:pl-6` cannot be reached from
+ *    the parent by merging, so `TABLE_SHELL` uses arbitrary variants:
+ *    `[&_td:first-child]:pl-4` compiles to `.shell td:first-child` (0,2,1),
+ *    which outranks `.first\:pl-6:first-child` (0,2,0) by specificity rather
+ *    than by stylesheet order. Declared ONCE on the table, not per cell.
+ */
+
+/**
+ * Goes on `<Table className={TABLE_SHELL}>`. **Drop the `dense` prop** when you
+ * apply it — `dense` emits `[&_td]:py-2.5` at the same specificity as the
+ * `[&_td]:py-2` here, and the tie is then decided by stylesheet order.
+ *
+ * 12px body text, dense 8px rows, 12px inter-column gutters, and 16px at both
+ * edges — the edge value is what makes a column and the `Section` header above
+ * it (`px-4`) share one vertical line. That misalignment was the visible bug.
+ */
+export const TABLE_SHELL = [
+  'text-xs',
+  // `TableCell` is nowrap but `TableHeader` is not, so a two-word label
+  // ("Started · UTC", "Runs · 24h") wrapped mid-header and broke the rhythm.
+  '[&_th]:whitespace-nowrap',
+  '[&_th]:px-3 [&_th]:py-2 [&_td]:px-3 [&_td]:py-2',
+  '[&_th:first-child]:pl-4 [&_td:first-child]:pl-4',
+  '[&_th:last-child]:pr-4 [&_td:last-child]:pr-4',
+].join(' ')
+
+/**
+ * Goes on `<TableHead className={TABLE_HEAD}>`. A sunken plate one step below
+ * the panel, a tokenised hairline under it, and a 10px uppercase label.
+ *
+ * `text-zinc-400`, not the `zinc-500` the two private copies used: zinc-500 on
+ * `--color-surface-sunken` measures ~4.1:1, under the 4.5 AA floor at this size.
+ */
+export const TABLE_HEAD = 'border-line bg-surface-sunken text-[10px] tracking-widest text-zinc-400'
+
+/** Goes on `<TableBody className={TABLE_BODY}>`: row separators on the `line`
+ *  token instead of the kit's untokenised `divide-white/8`. */
+export const TABLE_BODY = 'divide-line'
+
+/**
+ * Goes on EVERY `<TableRow>` that does not lead anywhere — including the row
+ * inside `TableHead`. The kit hovers every `<tr>`; a header row and an inert
+ * data row that light up under the cursor advertise a control that is not there.
+ *
+ * TODAY THAT IS EVERY ROW OF THE CONSOLE. All four tables (runs, projects,
+ * agents, agent detail — runs and versions) are inert: where a row offers a
+ * destination it does so through a real `Button href` in its own cell
+ * ("Open Builder", "Inspect"), which is the control the user can actually
+ * focus and click. There is deliberately NO "row link" variant — a `<tr>`
+ * cannot be an anchor, so a whole-row hover would promise a click target that
+ * does not exist. If a row ever gains a genuine row-level destination, give it
+ * `transition-colors hover:bg-surface-hover` and a real `<a>` covering the row.
+ */
+export const TABLE_ROW = 'hover:bg-transparent'
+
+/** Goes on any `<TableHeader>` / `<TableCell>` holding a figure: right-aligned,
+ *  tabular, so digits stack in a column instead of dancing row to row. */
+export const TABLE_NUM = 'text-right tabular-nums'
+
+/**
+ * Wraps the `<Table>` when something must stay OUT of the scroll area (a footer
+ * disclosure strip under the rows). Bounds the panel at the same rung as
+ * `Section scroll="lg"`, so a table panel is exactly as tall as any other
+ * bounded panel beside it, with 3 rows or with 300.
+ *
+ * When the table is the panel's ONLY child, skip this and use `Section
+ * scroll="lg"` instead — one bound, not two nested.
+ *
+ * `overflow-auto`, not `overflow-y-auto`: on a phone the row is wider than the
+ * column and must scroll sideways rather than be clipped.
+ */
+export const TABLE_SCROLL = 'max-h-[26rem] overflow-auto'
+
+/* ------------------------------------------------------------------ states */
+
+/**
+ * The absent measurement, spelled in ONE place. A metric that was never
+ * measured renders this word — never 0, never "0%", never an empty gauge arc
+ * pretending to be a measured zero. A measured 0 renders 0.
+ */
+export function Unavailable({ className }: { className?: string }) {
+  return <span className={cn('text-zinc-500', className)}>Indisponible</span>
+}
+
+/** Nothing to show, and nothing wrong with that. Calm, neutral, never danger, never accent. */
+export function EmptyState({
+  title,
+  description,
+  className,
+}: {
+  title: string
+  description?: string
+  className?: string
+}) {
+  return (
+    <div className={cn('px-4 py-10 text-center', className)}>
+      <p className="text-[13px]/5 text-zinc-400">{title}</p>
+      {description ? <p className="mt-1 text-[11px]/4 text-zinc-600">{description}</p> : null}
+    </div>
+  )
+}
+
+/**
+ * Something failed. The danger role, never the accent — an error painted in the
+ * success hue is the single most expensive lie this console can tell.
+ */
+export function ErrorState({
+  title,
+  description,
+  actions,
+  className,
+}: {
+  title: string
+  description?: string
+  actions?: React.ReactNode
+  className?: string
+}) {
+  return (
+    <div
+      role="alert"
+      className={cn(
+        'rounded-xl border border-[var(--state-danger-solid-line)] bg-surface-raised px-4 py-3.5',
+        className
+      )}
+    >
+      <p className="text-[13px]/5 font-semibold text-[var(--state-danger-text)]">{title}</p>
+      {description ? <p className="mt-1 text-[11px]/4 text-zinc-400">{description}</p> : null}
+      {actions ? <div className="mt-3 flex flex-wrap items-center gap-2">{actions}</div> : null}
+    </div>
+  )
+}
+
+/**
+ * The page is rendering, but part of its data could not be read — `dataWarnings`
+ * is non-empty. Also the danger role: a partial answer must not look healthy.
+ */
+export function DegradedBanner({
+  title = 'Degraded data',
+  messages,
+  className,
+}: {
+  title?: string
+  /** One line per warning. Render nothing when empty — an empty banner is a lie. */
+  messages: string[]
+  className?: string
+}) {
+  if (messages.length === 0) return null
+  return (
+    <div
+      role="status"
+      className={cn(
+        'rounded-xl border border-[var(--state-danger-solid-line)] bg-surface-raised px-4 py-3',
+        className
+      )}
+    >
+      <p className="text-[11px]/4 font-semibold uppercase tracking-widest text-[var(--state-danger-text)]">{title}</p>
+      <ul className="mt-1.5 space-y-0.5">
+        {messages.map((message) => (
+          <li key={message} className="text-[11px]/4 text-zinc-400">
+            {message}
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
