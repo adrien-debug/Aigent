@@ -8,6 +8,7 @@ import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import { formatDuration } from '@/lib/runs-console/runs-metrics'
 import type { AgentDetail } from '@/lib/agent-mission-control/agent-detail'
 import type { DeliveryEvent } from '@/lib/agent-mission-control/delivery-events-store'
+import type { RuntimeTelemetrySummary } from '@/lib/agent-mission-control/runtime-telemetry-store'
 import type { AgentRun, CopilotVersion } from '@/lib/agent-mission-control/types'
 
 // Alias paths, not `./charts/…` — see the note in `agents-screen.tsx`.
@@ -197,6 +198,102 @@ function DeliveryFacts({ delivery }: { delivery: DeliveryEvent }) {
         label="Delivered"
         value={createdAt === null ? <Unavailable className="text-[11px]/5" /> : createdAt}
       />
+    </dl>
+  )
+}
+
+/**
+ * Runtime telemetry laid out as facts — the DEPLOYED agent's own reported
+ * lifecycle pings (`runtime_telemetry_events`), never Aigent's own executed
+ * runs (that is `detail.runs`/`detail.metrics` above, a separate channel).
+ *
+ * DOCTRINE (telemetry-health.ts / AGENTS.md "telemetry is write-mostly"):
+ * zero events received is NEVER rendered as "agent inactive" — the reference
+ * emitter is opt-in at three independent levels (manifest declares it,
+ * consumer process turns it on, Aigent's ingestion token is configured), so
+ * silence here means the LOOP is unproven, not that the agent stopped
+ * running. `totalRuns === 0` therefore renders an `EmptyState` that says
+ * exactly that, never "inactive" / "unhealthy" / a red dot.
+ *
+ * Every field that the reference emitter structurally never sends (tokens,
+ * cost, error categories, tool signals — see `TelemetryMeasurementState` in
+ * runtime-telemetry-store.ts) reads its OWN provenance flag and renders
+ * "Not reported" rather than a fabricated 0 or a generic "Indisponible" —
+ * the two absences have different causes and must not share one word.
+ */
+function RuntimeTelemetryFacts({ telemetry }: { telemetry: RuntimeTelemetrySummary }) {
+  const lastSeenAt = formatUtcTimestamp(telemetry.lastSeenAt)
+  const notReported = <span className="text-zinc-600">Not reported</span>
+
+  if (telemetry.totalRuns === 0) {
+    return (
+      <EmptyState
+        title="No runtime telemetry event has ever been received for this agent."
+        description="This does not mean the deployed agent is inactive — only that no lifecycle ping has arrived (opt-in off, network break, or genuinely idle)."
+      />
+    )
+  }
+
+  return (
+    <dl>
+      <Fact label="Runs reported" value={telemetry.totalRuns} />
+      <Fact label="Completed" value={telemetry.completedRuns} />
+      <Fact label="Failed" value={telemetry.failedRuns} />
+      <Fact label="In flight (no terminal ping)" value={telemetry.startedRuns} />
+      <Fact
+        label="Success rate"
+        value={telemetry.successRate === null ? <Unavailable className="text-[11px]/5" /> : formatPercent(telemetry.successRate)}
+      />
+      <Fact
+        label="Avg latency"
+        value={
+          telemetry.avgLatencyMs === null ? (
+            <Unavailable className="text-[11px]/5" />
+          ) : (
+            (formatDuration(telemetry.avgLatencyMs) ?? <Unavailable className="text-[11px]/5" />)
+          )
+        }
+      />
+      <Fact
+        label="p95 latency"
+        value={
+          telemetry.p95LatencyMs === null ? (
+            <Unavailable className="text-[11px]/5" />
+          ) : (
+            (formatDuration(telemetry.p95LatencyMs) ?? <Unavailable className="text-[11px]/5" />)
+          )
+        }
+      />
+      <Fact
+        label="Tokens"
+        value={
+          telemetry.measurement.tokens !== 'MEASURED'
+            ? notReported
+            : (telemetry.totalTokens ?? <Unavailable className="text-[11px]/5" />)
+        }
+      />
+      <Fact
+        label="Cost"
+        value={
+          telemetry.measurement.cost !== 'MEASURED' || telemetry.totalCostUsd === null ? (
+            notReported
+          ) : (
+            <>
+              {formatUsd(telemetry.totalCostUsd, 4)}
+              {telemetry.costEstimated ? <span className="text-zinc-600"> · estimate</span> : null}
+            </>
+          )
+        }
+      />
+      <Fact
+        label="Tool signal"
+        value={
+          telemetry.toolSignals.state !== 'MEASURED'
+            ? notReported
+            : `${telemetry.toolSignals.runsInvokedTools ?? 0} / ${telemetry.toolSignals.runsWithToolSignal ?? 0} invoked a tool`
+        }
+      />
+      <Fact label="Last event received" value={lastSeenAt === null ? <Unavailable className="text-[11px]/5" /> : lastSeenAt} />
     </dl>
   )
 }
@@ -766,6 +863,28 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
           `detail.lifecycle` — see `agent-lifecycle-trace.ts`. Each stage
           carries its own source; no collapsed single status. */}
       <LifecycleTracePanel lifecycle={detail.lifecycle} />
+      {/* `detail.telemetry` is the DEPLOYED agent's own reported lifecycle
+          pings, a separate channel from `detail.runs` above (Aigent's own
+          executed runs). `null` means the read FAILED — the loop's true
+          state is unknown, so this renders `Indisponible`, never the
+          zero-events `EmptyState` a successful-but-empty read gets. */}
+      <Section
+        title="Runtime telemetry"
+        description="Lifecycle pings reported back by the deployed agent's own process"
+        className={detail.telemetry === null ? 'border-[var(--state-danger-solid-line)]' : undefined}
+      >
+        {detail.telemetry === null ? (
+          <div className="px-4 py-6">
+            <Unavailable className="text-[13px]/5" />
+            <p className="mt-1 text-[11px]/4 text-zinc-500">
+              The telemetry lookup for this agent failed — this is not evidence the loop is silent or
+              that the agent is inactive, only that the read itself did not complete.
+            </p>
+          </div>
+        ) : (
+          <RuntimeTelemetryFacts telemetry={detail.telemetry} />
+        )}
+      </Section>
 
       {/* ── ROW 4 · version history ───────────────────────────────────────── */}
       <Section

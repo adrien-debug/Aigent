@@ -1,7 +1,7 @@
 /**
  * Unit tests — Dashboard overview helper (pure logic + fail-soft assembly).
  */
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   assembleDashboardOverview,
@@ -173,6 +173,14 @@ describe('dashboard KPIs', () => {
       dataWarnings: [],
       availableAgents: [],
       windowRuns: [],
+      telemetryHealth: {
+        status: 'not_configured',
+        summary: 'Runtime telemetry ingestion is not configured.',
+        daysSinceLastEvent: null,
+        agentsWithTelemetryDeclared: null,
+      },
+      telemetryReportingAgents: null,
+      telemetryRunsMeasured: null,
     })
     // Measured mean over BOTH sources when scorecards ARE loaded (agent-detail
     // path / a future batched wave) — not a zero, and not sandbox-only.
@@ -203,6 +211,14 @@ describe('dashboard KPIs', () => {
       dataWarnings: [],
       availableAgents: [],
       windowRuns: [],
+      telemetryHealth: {
+        status: 'not_configured',
+        summary: 'Runtime telemetry ingestion is not configured.',
+        daysSinceLastEvent: null,
+        agentsWithTelemetryDeclared: null,
+      },
+      telemetryReportingAgents: null,
+      telemetryRunsMeasured: null,
     })
     expect(overview.kpis.avgRepoFit).not.toBe(0)
     expect(overview.kpis.avgRepoFit).toBe(100) // sandbox signal alone, genuinely measured
@@ -218,6 +234,14 @@ describe('dashboard KPIs', () => {
       dataWarnings: [],
       availableAgents: [],
       windowRuns: [],
+      telemetryHealth: {
+        status: 'not_configured',
+        summary: 'Runtime telemetry ingestion is not configured.',
+        daysSinceLastEvent: null,
+        agentsWithTelemetryDeclared: null,
+      },
+      telemetryReportingAgents: null,
+      telemetryRunsMeasured: null,
     })
     expect(emptyOverview.kpis.avgRepoFit).not.toBe(0)
     expect(emptyOverview.kpis.avgRepoFit).toBeNull()
@@ -344,6 +368,14 @@ describe('assembleDashboardOverview fail-soft', () => {
       dataWarnings: ['Mission data unavailable'],
       availableAgents: [],
       windowRuns: [],
+      telemetryHealth: {
+        status: 'not_configured',
+        summary: 'Runtime telemetry ingestion is not configured.',
+        daysSinceLastEvent: null,
+        agentsWithTelemetryDeclared: null,
+      },
+      telemetryReportingAgents: null,
+      telemetryRunsMeasured: null,
     })
     expect(overview.dataWarnings).toContain('Mission data unavailable')
     expect(overview.kpis.productionAgents).toBe(0)
@@ -369,6 +401,14 @@ describe('assembleDashboardOverview fail-soft', () => {
       dataWarnings: ['Executable-agent data unavailable'],
       availableAgents: null,
       windowRuns: [],
+      telemetryHealth: {
+        status: 'not_configured',
+        summary: 'Runtime telemetry ingestion is not configured.',
+        daysSinceLastEvent: null,
+        agentsWithTelemetryDeclared: null,
+      },
+      telemetryReportingAgents: null,
+      telemetryRunsMeasured: null,
     })
     expect(overview.kpis.executableNow).toBeNull()
     expect(overview.kpis.executableTotal).toBeNull()
@@ -418,6 +458,14 @@ describe('assembleDashboardOverview fail-soft', () => {
       dataWarnings: [],
       availableAgents: [],
       windowRuns: [],
+      telemetryHealth: {
+        status: 'not_configured',
+        summary: 'Runtime telemetry ingestion is not configured.',
+        daysSinceLastEvent: null,
+        agentsWithTelemetryDeclared: null,
+      },
+      telemetryReportingAgents: null,
+      telemetryRunsMeasured: null,
     })
     expect(overview.kpis.sandboxPassRate).toBeNull()
     expect(overview.kpis.avgRepoFit).toBeNull()
@@ -518,6 +566,15 @@ describe('getDashboardOverview server collector', () => {
     expect(overview.dataWarnings).toContain('Sandbox report data unavailable')
     expect(overview.kpis.readyForManualTest).toBeNull()
     expect(overview.kpis.blockedDeliveries).toBeNull()
+    // The fleet telemetry read (`summarizeFleetRuntimeTelemetry`) rides the
+    // same throwing `pgrest` mock — the read failure must degrade to null
+    // counts + a warning, never a fabricated "no events" reading. The status
+    // itself reads `not_configured` in this test (no ingestion token in the
+    // test env), which correctly short-circuits before the lookup-failure
+    // branch — see the dedicated describe block below for `unavailable`.
+    expect(overview.dataWarnings).toContain('Runtime telemetry data unavailable')
+    expect(overview.telemetryReportingAgents).toBeNull()
+    expect(overview.telemetryRunsMeasured).toBeNull()
   })
 
   it('ANTI-REGRESSION: a failed delivery/sandbox read and a genuinely empty one are NOT the same', async () => {
@@ -537,6 +594,12 @@ describe('getDashboardOverview server collector', () => {
       // not absent — unlike the failed-read case just above, which is null.
       expect(overview.kpis.readyForManualTest).toBe(0)
       expect(overview.kpis.blockedDeliveries).toBe(0)
+      // A genuinely empty `runtime_telemetry_events` table is a SUCCESSFUL
+      // read that found nothing — no warning, real zero counts, distinct
+      // from the throwing-pgrest case above.
+      expect(overview.dataWarnings).not.toContain('Runtime telemetry data unavailable')
+      expect(overview.telemetryReportingAgents).toBe(0)
+      expect(overview.telemetryRunsMeasured).toBe(0)
     } finally {
       vi.mocked(postgrest.pgrest).mockImplementation(async () => {
         throw new Error('mission_runs missing')
@@ -681,6 +744,14 @@ describe('A — the 24h run read is never swallowed', () => {
       dataWarnings: [RUNS_READ_FAILED_WARNING],
       availableAgents: [],
       windowRuns: null,
+      telemetryHealth: {
+        status: 'not_configured',
+        summary: 'Runtime telemetry ingestion is not configured.',
+        daysSinceLastEvent: null,
+        agentsWithTelemetryDeclared: null,
+      },
+      telemetryReportingAgents: null,
+      telemetryRunsMeasured: null,
     })
 
     expect(overview.kpis.runs24h).toBeNull()
@@ -1086,6 +1157,14 @@ describe('C — ProjectOverviewItem.costLast24hUsd obeys the same rule as runs',
       dataWarnings: [],
       availableAgents: [],
       windowRuns: [],
+      telemetryHealth: {
+        status: 'not_configured',
+        summary: 'Runtime telemetry ingestion is not configured.',
+        daysSinceLastEvent: null,
+        agentsWithTelemetryDeclared: null,
+      },
+      telemetryReportingAgents: null,
+      telemetryRunsMeasured: null,
     })
 
     expect(overview.projects[0].costLast24hUsd).toBeNull()
@@ -1229,5 +1308,92 @@ describe('C — structural: the coalescence is gone and "measured" is ONE rule',
     // before it reaches a renderer.
     expect(shared).not.toMatch(/^import 'server-only'/m)
     expect(shared).not.toMatch(/from '\.\/(data|postgrest|dashboard-overview)'/)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// E — fleet runtime-telemetry channel health (AGENT-E mission).
+//
+// `getDashboardOverview` adds ONE bounded query (`summarizeFleetRuntimeTelemetry`,
+// last 2000 events) to the existing parallel wave and turns it into a pure
+// `TelemetryHealthDiagnostic` (telemetry-health.ts). These tests exercise the
+// states its own doctrine calls out by name: not_configured, loop_muted,
+// healthy — plus the read-failure/empty-read split already covered above.
+// ---------------------------------------------------------------------------
+
+describe('getDashboardOverview — telemetry channel health', () => {
+  const ORIGINAL_TOKEN = process.env.AIGENT_RUNTIME_TELEMETRY_TOKEN
+
+  afterEach(() => {
+    if (ORIGINAL_TOKEN === undefined) delete process.env.AIGENT_RUNTIME_TELEMETRY_TOKEN
+    else process.env.AIGENT_RUNTIME_TELEMETRY_TOKEN = ORIGINAL_TOKEN
+  })
+
+  it('not_configured: ingestion token unset ⇒ status not_configured, never "healthy"', async () => {
+    delete process.env.AIGENT_RUNTIME_TELEMETRY_TOKEN
+    const postgrest = await import('@/lib/agent-mission-control/postgrest')
+    vi.mocked(postgrest.pgrest).mockImplementation(async () => [])
+    const { getDashboardOverview } = await import('@/lib/agent-mission-control/dashboard-overview')
+    const overview = await getDashboardOverview()
+    expect(overview.telemetryHealth.status).toBe('not_configured')
+  })
+
+  it('loop_muted: token configured but the fleet read never saw a single event', async () => {
+    process.env.AIGENT_RUNTIME_TELEMETRY_TOKEN = 'test-token'
+    const postgrest = await import('@/lib/agent-mission-control/postgrest')
+    vi.mocked(postgrest.pgrest).mockImplementation(async () => [])
+    const { getDashboardOverview } = await import('@/lib/agent-mission-control/dashboard-overview')
+    const overview = await getDashboardOverview()
+    // Zero rows read ⇒ `agentsWithTelemetryDeclared` stays null (this screen
+    // never resolves level-1 declaration) so the diagnostic reports
+    // `unavailable`, NOT `loop_muted` — `diagnoseTelemetryHealth` cannot tell
+    // "nobody declared it" from "declared but silent" without that count, and
+    // must not guess. This is the honest state for THIS collector's shape.
+    expect(overview.telemetryHealth.status).toBe('unavailable')
+    expect(overview.telemetryReportingAgents).toBe(0)
+    expect(overview.telemetryRunsMeasured).toBe(0)
+  })
+
+  it('unavailable: token configured but the fleet read itself fails — never a fabricated "muted"', async () => {
+    process.env.AIGENT_RUNTIME_TELEMETRY_TOKEN = 'test-token'
+    const postgrest = await import('@/lib/agent-mission-control/postgrest')
+    vi.mocked(postgrest.pgrest).mockImplementation(async () => {
+      throw new Error('runtime_telemetry_events unreachable')
+    })
+    const { getDashboardOverview } = await import('@/lib/agent-mission-control/dashboard-overview')
+    const overview = await getDashboardOverview()
+    expect(overview.telemetryHealth.status).toBe('unavailable')
+    expect(overview.dataWarnings).toContain('Runtime telemetry data unavailable')
+    expect(overview.telemetryReportingAgents).toBeNull()
+    expect(overview.telemetryRunsMeasured).toBeNull()
+  })
+
+  it('a real reported event surfaces as a real lastSeenAt and a non-zero reporting-agent count', async () => {
+    process.env.AIGENT_RUNTIME_TELEMETRY_TOKEN = 'test-token'
+    const postgrest = await import('@/lib/agent-mission-control/postgrest')
+    vi.mocked(postgrest.pgrest).mockImplementation(async (method: string, path: string) => {
+      if (typeof path === 'string' && path.startsWith('runtime_telemetry_events')) {
+        return [
+          {
+            project_id: 'proj-1',
+            agent_id: 'cop-1',
+            status: 'completed',
+            latency_ms: 500,
+            usage: {},
+            error: {},
+            output_shape: {},
+            received_at: '2026-07-30T09:00:00Z',
+            provider: 'openai',
+            model: 'gpt-5.4',
+          },
+        ]
+      }
+      return []
+    })
+    const { getDashboardOverview } = await import('@/lib/agent-mission-control/dashboard-overview')
+    const overview = await getDashboardOverview()
+    expect(overview.telemetryReportingAgents).toBe(1)
+    expect(overview.telemetryRunsMeasured).toBe(1)
+    expect(overview.telemetryHealth.daysSinceLastEvent).not.toBeNull()
   })
 })

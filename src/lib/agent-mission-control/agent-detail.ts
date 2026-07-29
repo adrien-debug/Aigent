@@ -19,7 +19,11 @@ import {
   type ImprovementProposal,
   type VersionComparison,
 } from './improvement-loop'
-import { getLatestTelemetryEventForCopilot } from './runtime-telemetry-store'
+import {
+  getLatestTelemetryEventForCopilot,
+  summarizeRuntimeTelemetry,
+  type RuntimeTelemetrySummary,
+} from './runtime-telemetry-store'
 import { isExecutable } from './runtime-catalogue'
 import type {
   AgentManifest,
@@ -117,6 +121,16 @@ export type AgentDetail = {
    * resolver's normal fail-hard contract, same as every other field above.
    */
   lifecycle: LifecycleTrace
+  /**
+   * Runtime telemetry reported back from the DEPLOYED agent's own process —
+   * distinct from `runs`/`metrics` above, which are Aigent's OWN executed
+   * runs. `null` means the read FAILED (PostgREST error/timeout), never that
+   * the agent reported nothing; a zero-event agent still gets a real
+   * `RuntimeTelemetrySummary` with `totalRuns: 0`. The page must render
+   * "Indisponible" only for the `null` case (see AGENTS.md "loop muted" ≠
+   * "agent stopped" doctrine — this resolver does not label absence).
+   */
+  telemetry: RuntimeTelemetrySummary | null
 }
 
 /**
@@ -283,6 +297,7 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
     benchmarkSuites,
     improveProposal,
     telemetryResult,
+    telemetry,
   ] = await Promise.all([
     getAvailableAgent(copilotId),
     getManifestForCopilot(copilotId),
@@ -302,6 +317,12 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
     getLatestTelemetryEventForCopilot(copilotId)
       .then((event) => ({ event, failed: false as const }))
       .catch(() => ({ event: null, failed: true as const })),
+    // Single-agent page, single extra PostgREST round trip — not the batched
+    // overview wave (dashboard-overview.ts explicitly stays away from
+    // per-copilot reads). A failed read reports itself as `null`, never an
+    // empty/zeroed summary: `summarizeRuntimeTelemetry` throws on a hard
+    // PostgREST error and this is the one place that catches it.
+    summarizeRuntimeTelemetry(copilot.projectId ?? '', copilotId).catch(() => null),
   ])
 
   const improveComparison =
@@ -357,5 +378,6 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
     improveComparison,
     project,
     lifecycle,
+    telemetry,
   }
 }

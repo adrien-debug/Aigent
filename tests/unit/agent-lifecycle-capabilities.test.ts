@@ -180,6 +180,7 @@ function makeDetail(overrides: { copilot?: Partial<Copilot>; hasManifest?: boole
     // display) — this stub does not exercise the trace, so an empty shape
     // satisfies the type without asserting anything about it.
     lifecycle: { stages: [], versionDrift: { state: 'unknown', lastDeliveredVersionLabel: null, lastReportedVersion: null, driftDetected: false, detail: '' } },
+    telemetry: null,
   } as AgentDetail
 }
 

@@ -86,6 +86,14 @@ function overviewFixture(partial: Partial<DashboardOverview> = {}): DashboardOve
     actionItems: [],
     dataWarnings: [],
     windowRuns: [],
+    telemetryHealth: {
+      status: 'not_configured',
+      summary: 'Runtime telemetry ingestion is not configured.',
+      daysSinceLastEvent: null,
+      agentsWithTelemetryDeclared: null,
+    },
+    telemetryReportingAgents: null,
+    telemetryRunsMeasured: null,
     ...partial,
   }
 }

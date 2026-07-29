@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { StatusDot, type StatusDotTone } from '@/components/ui/status-dot'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { DashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
+import type { TelemetryHealthStatus } from '@/lib/agent-mission-control/telemetry-health'
 import type { AgentRun, AgentRunStatus } from '@/lib/agent-mission-control/types'
 
 // Alias paths, not `./charts/…`: `scripts/audit-dead.mjs` proves a component is
@@ -121,6 +122,28 @@ const unavailableFigure = <Unavailable className="text-base/7" />
  *  Same rung `projects-screen` uses for the bench rows, so the same absence is
  *  the same size on both screens. */
 const unavailableValue = <Unavailable className="text-[11px]" />
+
+/**
+ * Plain-English label for `TelemetryHealthDiagnostic.status` — the SAME five
+ * states `telemetry-health.ts` defines, worded for a one-line dl value. Never
+ * "healthy" on config presence alone (that module's own doctrine): `healthy`
+ * only reaches this label when the diagnostic already required a real event
+ * within the mute window, so no extra guard is needed here.
+ */
+function telemetryStatusLabel(status: TelemetryHealthStatus): React.ReactNode {
+  switch (status) {
+    case 'not_configured':
+      return <span className="text-zinc-400">Not configured</span>
+    case 'incomplete_configuration':
+      return <span className="text-zinc-400">No agent declares it</span>
+    case 'loop_muted':
+      return <span className="text-[var(--state-danger-text)]">Muted</span>
+    case 'healthy':
+      return <StatusDot tone="positive">Healthy</StatusDot>
+    case 'unavailable':
+      return <Unavailable className="text-[11px]/5" />
+  }
+}
 
 /**
  * The sub-label of a window-derived KPI when the run read FAILED.
@@ -901,10 +924,30 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
                 )}
               </dd>
             </div>
-            <div className="flex items-center justify-between gap-3 px-4 py-1.5">
+            <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-1.5">
               <dt className="min-w-0 truncate text-[11px]/5 text-zinc-500">Average repo fit</dt>
               <dd className="shrink-0 text-[13px]/5 tabular-nums text-white">
                 {kpis.avgRepoFit === null ? <Unavailable className="text-[11px]/5" /> : kpis.avgRepoFit}
+              </dd>
+            </div>
+            {/* Channel health, not agent health — see the doctrine header on
+                `telemetry-health.ts` and `DashboardOverview.telemetryHealth`.
+                `loop_muted` / `not_configured` NEVER render as "agent down";
+                the tone is informational, matching the rest of this panel. */}
+            <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-1.5">
+              <dt className="min-w-0 truncate text-[11px]/5 text-zinc-500">Telemetry channel</dt>
+              <dd className="shrink-0 text-[13px]/5 tabular-nums text-white">
+                {telemetryStatusLabel(overview.telemetryHealth.status)}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 px-4 py-1.5">
+              <dt className="min-w-0 truncate text-[11px]/5 text-zinc-500">External runs measured</dt>
+              <dd className="shrink-0 text-[13px]/5 tabular-nums text-white">
+                {overview.telemetryRunsMeasured === null ? (
+                  <Unavailable className="text-[11px]/5" />
+                ) : (
+                  overview.telemetryRunsMeasured
+                )}
               </dd>
             </div>
           </dl>

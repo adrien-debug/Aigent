@@ -52,6 +52,9 @@ vi.mock('@/lib/agent-mission-control/data', () => ({
   getRunsForCopilot: vi.fn(async () => []),
   getToolsForCopilot: vi.fn(async () => []),
   getVersionsForCopilot: vi.fn(async () => []),
+  getProject: vi.fn(async () => undefined),
+  getTestSuitesForCopilot: vi.fn(async () => []),
+  getBenchmarkSuitesForCopilot: vi.fn(async () => []),
 }))
 
 vi.mock('@/lib/agent-mission-control/delivery-events-store', () => ({
@@ -64,6 +67,7 @@ vi.mock('@/lib/agent-mission-control/improvement-loop', () => ({
 
 vi.mock('@/lib/agent-mission-control/runtime-telemetry-store', () => ({
   getLatestTelemetryEventForCopilot: vi.fn(async () => null),
+  summarizeRuntimeTelemetry: vi.fn(async () => null),
 }))
 
 function baseAgent(overrides: Partial<AvailableAgent>): AvailableAgent {

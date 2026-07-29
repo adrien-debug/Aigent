@@ -18,6 +18,8 @@ import type { MissionReport } from './mission-orchestrator'
 import { pgrest } from './postgrest'
 import { isExecutable } from './runtime-catalogue'
 import { parseSandboxReport, type TargetRepoSandboxReport } from './target-repo-sandbox'
+import { diagnoseTelemetryHealth, type TelemetryHealthDiagnostic } from './telemetry-health'
+import { summarizeFleetRuntimeTelemetry } from './runtime-telemetry-store'
 import type { AgentRun, Copilot, Project } from './types'
 
 // ---------------------------------------------------------------------------
@@ -178,6 +180,27 @@ export type DashboardOverview = {
    * that warning means unread. The data layer never conflates the two.
    */
   windowRuns: AgentRun[] | null
+  /**
+   * Health of the runtime-telemetry CHANNEL, not of any agent — see
+   * telemetry-health.ts's doctrine header, which this diagnostic enforces.
+   * `agentsWithTelemetryDeclared` is always `null` here: the manifest-level
+   * declaration count needs a per-copilot manifest resolve (2-3 round trips
+   * each, `getManifestForCopilot`), which is exactly the N+1 this module's
+   * own doc comment (`getDashboardOverview`) already refuses to pay for
+   * scorecards. So level 1 (declared) stays UNAVAILABLE on this screen by
+   * design; levels 2/3 (ingestion configured, events actually received) are
+   * cheap — one bounded fleet query — and ARE measured.
+   */
+  telemetryHealth: TelemetryHealthDiagnostic
+  /** Distinct (project, agent) pairs that have EVER reported a runtime
+   *  telemetry event, from the same bounded fleet read as `telemetryHealth`.
+   *  `null` only if that read itself failed. */
+  telemetryReportingAgents: number | null
+  /** Runs measured over the bounded recent window read for `telemetryHealth`
+   *  (last 2000 events, terminal + in-flight) — an EXTERNAL count, distinct
+   *  from `kpis.runs24h` which is Aigent's own executed runs. `null` only if
+   *  the fleet telemetry read itself failed. */
+  telemetryRunsMeasured: number | null
 }
 
 type SandboxSnapshot = {
@@ -596,6 +619,12 @@ export function assembleDashboardOverview(input: {
    * (read-and-nothing-there) array exactly like `availableAgents`, so runs24h
    * can render "Indisponible" rather than a reassuring 0. */
   windowRuns: AgentRun[] | null
+  /** Diagnostic already computed by the caller — pure pass-through, kept as
+   *  an input like everything else here so this function stays a single
+   *  synchronous assembly with no I/O of its own. */
+  telemetryHealth: TelemetryHealthDiagnostic
+  telemetryReportingAgents: number | null
+  telemetryRunsMeasured: number | null
 }): DashboardOverview {
   const copilotsById = new Map(input.copilots.map((c) => [c.id, c]))
   const projectsById = new Map(input.projects.map((p) => [p.id, p]))
@@ -665,6 +694,9 @@ export function assembleDashboardOverview(input: {
     actionItems,
     dataWarnings: input.dataWarnings,
     windowRuns: input.windowRuns,
+    telemetryHealth: input.telemetryHealth,
+    telemetryReportingAgents: input.telemetryReportingAgents,
+    telemetryRunsMeasured: input.telemetryRunsMeasured,
   }
 }
 
@@ -791,6 +823,9 @@ export const DELIVERY_READ_FAILED_WARNING = 'Delivery event data unavailable'
 /** Same idea as `RUNS_READ_FAILED_WARNING`, for the sandbox-report read. */
 export const SANDBOX_READ_FAILED_WARNING = 'Sandbox report data unavailable'
 
+/** Same idea as `RUNS_READ_FAILED_WARNING`, for the fleet runtime-telemetry read. */
+export const TELEMETRY_READ_FAILED_WARNING = 'Runtime telemetry data unavailable'
+
 /**
  * Read-only dashboard overview for /admin. Never writes, never calls GitHub.
  *
@@ -825,6 +860,7 @@ export async function getDashboardOverview(nowMs: number = Date.now()): Promise<
     missionResult,
     availableAgentsResult,
     windowRunsResult,
+    fleetTelemetryResult,
   ] = await Promise.all([
     getCopilots({ health: 'list' }),
     getProjects(),
@@ -851,6 +887,13 @@ export async function getDashboardOverview(nowMs: number = Date.now()): Promise<
     getRecentRunsInWindow({ nowMs })
       .then((runs) => ({ runs, warning: null as string | null }))
       .catch(() => ({ runs: null, warning: RUNS_READ_FAILED_WARNING })),
+    // One bounded query (last 2000 events, same read `summarizeFleetRuntimeTelemetry`
+    // already does for a would-be /admin/telemetry) — added to THIS wave instead
+    // of a second round trip. A failed read reports itself via `lookupFailed`,
+    // never a fabricated "no events" for a channel that could not be checked.
+    summarizeFleetRuntimeTelemetry()
+      .then((summary) => ({ summary, lookupFailed: false }))
+      .catch(() => ({ summary: null, lookupFailed: true })),
   ])
 
   if (latestDeliveryResult.warning) dataWarnings.push(latestDeliveryResult.warning)
@@ -858,6 +901,22 @@ export async function getDashboardOverview(nowMs: number = Date.now()): Promise<
   if (missionResult.warning) dataWarnings.push(missionResult.warning)
   if (availableAgentsResult.warning) dataWarnings.push(availableAgentsResult.warning)
   if (windowRunsResult.warning) dataWarnings.push(windowRunsResult.warning)
+  if (fleetTelemetryResult.lookupFailed) dataWarnings.push(TELEMETRY_READ_FAILED_WARNING)
+
+  const telemetryHealth = diagnoseTelemetryHealth({
+    ingestionTokenConfigured: Boolean(process.env.AIGENT_RUNTIME_TELEMETRY_TOKEN),
+    // Level-1 (manifest-declared) count needs a per-copilot manifest resolve —
+    // deliberately not paid for on this screen (see `telemetryHealth` on
+    // `DashboardOverview`). Always `null`: `diagnoseTelemetryHealth` treats
+    // that as "cannot determine" and returns status `unavailable` whenever
+    // the ingestion token IS configured, which is the honest read for a
+    // figure this collector never attempted to measure — never a guessed 0.
+    agentsWithTelemetryDeclared: null,
+    lastEventReceivedAt: fleetTelemetryResult.summary?.lastSeenAt ?? null,
+    lastEventLookupFailed: fleetTelemetryResult.lookupFailed,
+    now: new Date(nowMs).toISOString(),
+    muteThresholdDays: 7,
+  })
 
   return assembleDashboardOverview({
     copilots,
@@ -869,5 +928,8 @@ export async function getDashboardOverview(nowMs: number = Date.now()): Promise<
     dataWarnings,
     availableAgents: availableAgentsResult.agents,
     windowRuns: windowRunsResult.runs,
+    telemetryHealth,
+    telemetryReportingAgents: fleetTelemetryResult.summary?.reportingAgents ?? null,
+    telemetryRunsMeasured: fleetTelemetryResult.summary?.totalRuns ?? null,
   })
 }

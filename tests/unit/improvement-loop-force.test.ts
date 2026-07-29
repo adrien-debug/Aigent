@@ -242,6 +242,7 @@ vi.mock('@/lib/agent-mission-control/langgraph-explorer', () => ({
 }))
 vi.mock('@/lib/agent-mission-control/runtime-telemetry-store', () => ({
   summarizeRuntimeTelemetry: vi.fn(async () => null),
+  getLatestTelemetryEventForCopilot: vi.fn(async () => null),
 }))
 
 import { runAutoImprovementCycle } from '@/lib/agent-mission-control/improvement-loop'

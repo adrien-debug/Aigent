@@ -45,6 +45,8 @@ vi.mock('@/lib/agent-mission-control/promotion-gate', () => ({
 }))
 vi.mock('@/lib/agent-mission-control/runtime-telemetry-store', () => ({
   emitPromotionTelemetry: vi.fn(async () => {}),
+  getLatestTelemetryEventForCopilot: vi.fn(async () => null),
+  summarizeRuntimeTelemetry: vi.fn(async () => null),
 }))
 
 import { POST } from '@/app/api/agent-ops/copilots/[copilotId]/promotion/route'
