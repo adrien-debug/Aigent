@@ -322,8 +322,6 @@ export interface Resolved24hMetrics {
 /** A window run that ended badly counts toward the error rate. `running` / `needs-confirmation` are in-flight, not failures. */
 const ERROR_RUN_STATUSES = new Set(['failed', 'blocked'])
 
-const EMPTY_24H: Resolved24hMetrics = { runsLast24h: 0, costLast24hUsd: 0, errorRateLast24h: 0 }
-
 /**
  * Resolve rolling-24h metrics for a BATCH of copilots in ONE PostgREST round
  * trip: a single aggregate read of `agent_runs?started_at=gte.<now-24h>` scoped
@@ -333,24 +331,44 @@ const EMPTY_24H: Resolved24hMetrics = { runsLast24h: 0, costLast24hUsd: 0, error
  * Money is summed losslessly: each `cost_usd` is rounded to micro-USD (6 dp) and
  * accumulated as an integer, with a single final divide — no float drift from
  * repeated addition. `null`/absent `cost_usd` contributes nothing.
+ *
+ * FAIL-SOFT, ON PURPOSE, AND THE ABSENCE IS AN ABSENT MAP ENTRY, NEVER A ZERO.
+ * A dead `agent_runs` table used to crash the caller entirely (no try/catch —
+ * `getCopilots()`'s `Promise.all` rejected and the whole fleet read failed for
+ * one unrelated aggregate). Worse, the id was pre-seeded with the zero
+ * baseline BEFORE the read, so on the rare path where the function returned at
+ * all after a partial failure, every requested id still carried a confident
+ * `runsLast24h: 0` that nobody measured. Both are gone: a requested id that
+ * this read could not prove is simply MISSING from the returned map. The
+ * caller (`enrichCopilot` in data.ts) already handles a missing entry
+ * correctly — `kpi24h.get(c.id)` returns `undefined`, its `if (kpi24h)` guard
+ * skips `prove(...)`, and `runsLast24h`/`costLast24hUsd`/`errorRateLast24h`
+ * land in `healthUnavailableFields` instead of being asserted as zero. That
+ * path already existed; this function simply had no way to reach it.
  */
 export async function resolve24hMetricsBatch(copilotIds: string[]): Promise<Map<string, Resolved24hMetrics>> {
   const out = new Map<string, Resolved24hMetrics>()
   if (copilotIds.length === 0) return out
-  for (const id of copilotIds) out.set(id, { ...EMPTY_24H })
 
   const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-  // Evaluation rows are excluded: the test runner (029) and the benchmark
-  // runner (030) both drive the same engine on the direct path, so a suite of
-  // 20 cases writes 20 agent_runs and a benchmark writes one per task.
-  // Counting them here would make "runs in the last 24h" spike from an
-  // authoring action and, worse, let a deliberately-failing test case — or a
-  // benchmark task probing for unsafe behaviour — raise the OPERATIONAL error
-  // rate. Both are the evaluation doing its job, not an incident in production.
-  const rows = await pgrest<RawRow[]>(
-    'GET',
-    `agent_runs?copilot_id=in.(${inList(copilotIds)})&started_at=gte.${encodeURIComponent(sinceIso)}&${NON_EVALUATION_RUN_FILTER}&select=copilot_id,status,cost_usd`
-  )
+  let rows: RawRow[]
+  try {
+    // Evaluation rows are excluded: the test runner (029) and the benchmark
+    // runner (030) both drive the same engine on the direct path, so a suite of
+    // 20 cases writes 20 agent_runs and a benchmark writes one per task.
+    // Counting them here would make "runs in the last 24h" spike from an
+    // authoring action and, worse, let a deliberately-failing test case — or a
+    // benchmark task probing for unsafe behaviour — raise the OPERATIONAL error
+    // rate. Both are the evaluation doing its job, not an incident in production.
+    rows = await pgrest<RawRow[]>(
+      'GET',
+      `agent_runs?copilot_id=in.(${inList(copilotIds)})&started_at=gte.${encodeURIComponent(sinceIso)}&${NON_EVALUATION_RUN_FILTER}&select=copilot_id,status,cost_usd`
+    )
+  } catch {
+    // Every requested id stays absent from `out` — never seeded with
+    // `EMPTY_24H`. A read that could not run proves nothing, for any copilot.
+    return out
+  }
 
   // Accumulate per copilot: run count, integer micro-USD cost, error count.
   const acc = new Map<string, { runs: number; microUsd: number; errors: number }>()
@@ -365,6 +383,9 @@ export async function resolve24hMetricsBatch(copilotIds: string[]): Promise<Map<
     if (typeof r.status === 'string' && ERROR_RUN_STATUSES.has(r.status)) a.errors += 1
   }
 
+  // The read SUCCEEDED, so every requested id is measured — including the
+  // ones with zero matching rows, which is a real, proven zero (the copilot
+  // genuinely had no run in the window), not an absence.
   for (const id of copilotIds) {
     const a = acc.get(id)!
     out.set(id, {

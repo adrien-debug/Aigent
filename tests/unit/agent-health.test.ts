@@ -24,6 +24,7 @@ vi.mock('@/lib/agent-mission-control/postgrest', () => ({
 
 import {
   deriveDisplayStatus,
+  resolve24hMetricsBatch,
   resolveCopilotHealth,
   resolveCopilotHealthBatch,
   resolveVersionScoresBatch,
@@ -258,5 +259,68 @@ describe('deriveDisplayStatus', () => {
   it('6b — passes through other statuses untouched', () => {
     expect(deriveDisplayStatus({ status: 'paused', productionVersionId: null })).toBe('paused')
     expect(deriveDisplayStatus({ status: 'active', productionVersionId: null })).toBe('active')
+  })
+})
+
+/**
+ * `resolve24hMetricsBatch` used to pre-seed every requested id with the zero
+ * baseline BEFORE the read, then always overwrite every id at the end — so a
+ * read failure (uncaught) crashed the whole caller instead of leaving the
+ * batch's ids absent, and a read that DID reach the final loop could never
+ * leave an id genuinely unproven. Both meant `enrichCopilot`'s `if (kpi24h)`
+ * branch (data.ts) — which marks `runsLast24h`/`costLast24hUsd` unavailable
+ * for a missing map entry — was structurally unreachable via the real
+ * function. These pin the fix: FAIL-SOFT, and the absence is a MISSING id,
+ * never a seeded zero.
+ */
+describe('resolve24hMetricsBatch', () => {
+  it('7 — no run in the window → a real measured 0, present in the map', async () => {
+    pgrestHandler = (_m, path) => {
+      if (path.startsWith('agent_runs?')) return []
+      throw new Error(`Unmocked pgrest path: ${path}`)
+    }
+    const map = await resolve24hMetricsBatch([COPILOT])
+    expect(map.get(COPILOT)).toEqual({ runsLast24h: 0, costLast24hUsd: 0, errorRateLast24h: 0 })
+  })
+
+  it('8 — runs present → summed correctly, losslessly, per copilot', async () => {
+    pgrestHandler = (_m, path) => {
+      if (path.startsWith('agent_runs?'))
+        return [
+          { copilot_id: COPILOT, status: 'completed', cost_usd: 0.1 },
+          { copilot_id: COPILOT, status: 'failed', cost_usd: 0.2 },
+          { copilot_id: 'copilot-other', status: 'completed', cost_usd: 5 },
+        ]
+      throw new Error(`Unmocked pgrest path: ${path}`)
+    }
+    const map = await resolve24hMetricsBatch([COPILOT, 'copilot-other'])
+    expect(map.get(COPILOT)).toEqual({ runsLast24h: 2, costLast24hUsd: 0.3, errorRateLast24h: 0.5 })
+    expect(map.get('copilot-other')).toEqual({ runsLast24h: 1, costLast24hUsd: 5, errorRateLast24h: 0 })
+  })
+
+  it('9 — the read FAILS → every requested id is MISSING, never seeded with the zero baseline', async () => {
+    pgrestHandler = () => {
+      throw new Error('PostgREST unreachable')
+    }
+    const map = await resolve24hMetricsBatch([COPILOT, 'copilot-other'])
+    expect(map.size).toBe(0)
+    expect(map.has(COPILOT)).toBe(false)
+    expect(map.get(COPILOT)).toBeUndefined()
+  })
+
+  it('10 — ANTI-REGRESSION: a failed read and a genuinely-empty window are NOT the same map', async () => {
+    pgrestHandler = (_m, path) => {
+      if (path.startsWith('agent_runs?')) return []
+      throw new Error(`Unmocked pgrest path: ${path}`)
+    }
+    const empty = await resolve24hMetricsBatch([COPILOT])
+
+    pgrestHandler = () => {
+      throw new Error('PostgREST unreachable')
+    }
+    const failed = await resolve24hMetricsBatch([COPILOT])
+
+    expect(empty.has(COPILOT)).toBe(true) // measured, a real 0
+    expect(failed.has(COPILOT)).toBe(false) // unproven, absent from the map
   })
 })
