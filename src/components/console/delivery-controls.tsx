@@ -163,16 +163,38 @@ export function DeliveryControls({
   const hasRepo = typeof repoFullName === 'string' && repoFullName.length > 0
   const hasProject = projectId !== null
 
-  // AIGENT: real GitHub writes require BOTH `confirm:true` in the body AND
-  // `GITHUB_PUSH_ENABLED=1` server-side (push-agent/route.ts:163). The client
-  // has no legitimate way to read that env var — no route exposes it, and
-  // inventing one is out of scope for this mission. So the real-delivery path
-  // stays visible but NEVER auto-enables: it is offered, the confirm dialog is
-  // wired, but the button is disabled with an explicit "not available in this
-  // environment" reason UNLESS a push attempt already proved it live (a prior
-  // 200 with `dryRun:false` in this same session). That is the only honest
-  // client-side signal available.
-  const [realPushProvenAvailable, setRealPushProvenAvailable] = useState(false)
+  // Real GitHub writes need BOTH `confirm:true` in the body AND server-side
+  // configuration (`GITHUB_PUSH_ENABLED=1`, a GitHub token, the live backend)
+  // — see `push-agent/route.ts`. None of that is readable from the browser, so
+  // this used to arm itself only AFTER a push came back `dryRun:false`, which
+  // meant the real button unlocked only once a real delivery had already
+  // happened. `GET /api/agent-ops/delivery-capability` answers the question up
+  // front instead, as a single boolean carrying no secret and no variable name.
+  //
+  // THREE states, not two: `null` is "we could not ask" (route failed, offline)
+  // and must NOT read as a refusal — an unreachable capability check is an
+  // unknown, and the button stays disabled saying exactly that.
+  const [realDeliveryEnabled, setRealDeliveryEnabled] = useState<boolean | null | undefined>(undefined)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch('/api/agent-ops/delivery-capability', { signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`capability read failed (${res.status})`)
+        const body = (await res.json()) as { realDeliveryEnabled?: unknown }
+        return typeof body.realDeliveryEnabled === 'boolean' ? body.realDeliveryEnabled : null
+      })
+      .then((value) => {
+        if (!mountedRef.current || controller.signal.aborted) return
+        setRealDeliveryEnabled(value)
+      })
+      .catch(() => {
+        if (!mountedRef.current || controller.signal.aborted) return
+        // Unknown, never an implicit "false that looks decided".
+        setRealDeliveryEnabled(null)
+      })
+    return () => controller.abort()
+  }, [])
 
   async function runPromotion() {
     if (promoting || candidateVersion === undefined) return
@@ -219,7 +241,7 @@ export function DeliveryControls({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // `confirm:true` is only ever sent from the explicit "real delivery"
-        // confirm dialog, gated further below by `realPushProvenAvailable` —
+        // confirm dialog, gated further below by `realDeliveryEnabled` —
         // this mission's default flow (the plain "Dry-run delivery" button)
         // never sends it, so it is always a dry-run by construction.
         body: JSON.stringify(confirmReal ? { copilotId: copilot.id, confirm: true } : { copilotId: copilot.id }),
@@ -248,10 +270,10 @@ export function DeliveryControls({
           commitSha: body.commitSha,
           branch: body.branch ?? '',
         })
-        // The only honest client-side proof that the real-delivery path is
-        // actually wired in this environment: a response that came back with
-        // `dryRun:false`. Until that happens, the button stays disabled.
-        if (body.dryRun === false) setRealPushProvenAvailable(true)
+        // Deliberately NOT re-arming the real button from this response: the
+        // capability comes from the server-side check at mount, never from
+        // "a delivery already succeeded". Latching it here would make the
+        // control progressively easier to fire the more it has been fired.
         if (confirmReal) setRealPushOpen(false)
       } else {
         setPush({ kind: 'error', message: body.error ?? `push failed (${res.status})` })
@@ -359,7 +381,7 @@ export function DeliveryControls({
             <Button
               plain
               dangerIcon
-              disabled={!hasProject || !hasRepo || !realPushProvenAvailable || realPushing}
+              disabled={!hasProject || !hasRepo || realDeliveryEnabled !== true || realPushing}
               onClick={() => setRealPushOpen(true)}
             >
               Prepare real delivery
@@ -374,10 +396,16 @@ export function DeliveryControls({
           <p className="mt-1.5 text-[11px]/4 text-zinc-500">
             The linked project has no `repoFullName` — link a GitHub repository before delivery.
           </p>
-        ) : !realPushProvenAvailable ? (
+        ) : realDeliveryEnabled === undefined ? (
+          <p className="mt-1.5 text-[11px]/4 text-zinc-500">Checking whether real delivery is available…</p>
+        ) : realDeliveryEnabled === null ? (
           <p className="mt-1.5 text-[11px]/4 text-zinc-500">
-            Real delivery is not available in this environment (the server did not report `GITHUB_PUSH_ENABLED=1`
-            active — a dry-run response is the only signal this UI can read).
+            Whether real delivery is available could not be determined — the capability check did not answer. Dry-run
+            stays available; the real path is held closed rather than guessed.
+          </p>
+        ) : realDeliveryEnabled === false ? (
+          <p className="mt-1.5 text-[11px]/4 text-zinc-500">
+            Real delivery is not enabled on this server. Dry-run remains available.
           </p>
         ) : null}
         {push.kind === 'result' ? (
@@ -459,9 +487,10 @@ export function DeliveryControls({
         title="Deliver for real?"
         description={
           <>
-            This sends <code>confirm:true</code> to the push route. It only becomes an actual GitHub write if the
-            server also has <code>GITHUB_PUSH_ENABLED=1</code> set — otherwise it still returns a dry-run. A real
-            write opens a pull request (or commits directly) against <strong>{repoFullName}</strong>.
+            This sends <code>confirm:true</code> to the push route and, on this server, real delivery is enabled — so
+            this is expected to be an actual GitHub write, not a dry-run. It opens a pull request (or commits
+            directly) against <strong>{repoFullName}</strong>. Server configuration permits the write; it does not
+            guarantee the repository is reachable or the branch writable.
           </>
         }
         confirmLabel="Send confirm:true"

@@ -50,16 +50,36 @@ function makeVersion(id: string, label: string): CopilotVersion {
 
 const candidateVersion = makeVersion('version-candidate', 'v2.0.0-draft')
 
-function mockFetchOnce(status: number, body: unknown) {
-  return vi.fn().mockResolvedValueOnce({
-    ok: status >= 200 && status < 300,
-    status,
-    json: async () => body,
+/**
+ * The panel asks `GET /api/agent-ops/delivery-capability` once on mount, before
+ * any user action. Every mock here answers that call by URL so the ACTION
+ * response can no longer be consumed by the capability read — and so each test
+ * states plainly whether real delivery is enabled in its scenario.
+ */
+function capabilityResponse(realDeliveryEnabled: boolean | 'fail') {
+  if (realDeliveryEnabled === 'fail') return Promise.reject(new Error('capability unreachable'))
+  return Promise.resolve({ ok: true, status: 200, json: async () => ({ realDeliveryEnabled }) })
+}
+
+function mockFetchOnce(status: number, body: unknown, realDeliveryEnabled: boolean | 'fail' = false) {
+  const action = { ok: status >= 200 && status < 300, status, json: async () => body }
+  return vi.fn((url: string, _init?: RequestInit) =>
+    String(url).includes('/delivery-capability')
+      ? capabilityResponse(realDeliveryEnabled)
+      : Promise.resolve(action)
+  )
+}
+
+/** A fetch that ONLY answers the capability probe — any action call fails the test. */
+function mockCapabilityOnly(realDeliveryEnabled: boolean | 'fail') {
+  return vi.fn((url: string, _init?: RequestInit) => {
+    if (String(url).includes('/delivery-capability')) return capabilityResponse(realDeliveryEnabled)
+    throw new Error(`unexpected action call to ${String(url)}`)
   })
 }
 
 beforeEach(() => {
-  vi.stubGlobal('fetch', vi.fn())
+  vi.stubGlobal('fetch', mockCapabilityOnly(false))
 })
 
 afterEach(() => {
@@ -100,7 +120,7 @@ describe('promotion blocked by the execution gate', () => {
   })
 
   it('never fires a network call when there is no candidate version', () => {
-    const fetchMock = vi.fn()
+    const fetchMock = mockCapabilityOnly(false)
     vi.stubGlobal('fetch', fetchMock)
     render(
       <DeliveryControls
@@ -112,7 +132,11 @@ describe('promotion blocked by the execution gate', () => {
       />
     )
     expect(screen.getByRole('button', { name: /Promote version/ })).toBeDisabled()
-    expect(fetchMock).not.toHaveBeenCalled()
+    // No ACTION call. The read-only capability probe on mount is not an
+    // action — `mockCapabilityOnly` throws on anything else, so reaching a
+    // promotion/push route here would fail the test outright.
+    const actionCalls = fetchMock.mock.calls.filter(([url]) => !String(url).includes('/delivery-capability'))
+    expect(actionCalls).toHaveLength(0)
   })
 })
 
@@ -187,7 +211,10 @@ describe('dry-run delivery', () => {
         body: JSON.stringify({ copilotId: 'copilot-test-1' }),
       })
     )
-    const sentBody = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body)
+    // calls[0] is the mount capability probe — select the ACTION call by URL.
+    const pushCall = fetchMock.mock.calls.find(([url]) => String(url).includes('/push-agent'))
+    expect(pushCall).toBeDefined()
+    const sentBody = JSON.parse((pushCall![1] as RequestInit).body as string)
     expect(sentBody.confirm).toBeUndefined()
     expect(screen.queryByText(/delivered/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/deployed/i)).not.toBeInTheDocument()
@@ -210,8 +237,9 @@ describe('missing repository', () => {
   })
 })
 
-describe('push environment disabled by default', () => {
-  it('disables the real-delivery button with an explicit reason until a live response proves it available', () => {
+describe('real-delivery capability, read from the server before the action', () => {
+  it('capability false → the real button is disabled and says so, dry-run stays available', async () => {
+    vi.stubGlobal('fetch', mockCapabilityOnly(false))
     render(
       <DeliveryControls
         copilot={makeCopilot()}
@@ -221,8 +249,52 @@ describe('push environment disabled by default', () => {
         candidateVersion={candidateVersion}
       />
     )
+    await waitFor(() => expect(screen.getByText(/Real delivery is not enabled on this server/)).toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'Prepare real delivery' })).toBeDisabled()
-    expect(screen.getByText(/Real delivery is not available in this environment/)).toBeInTheDocument()
+    // The safe path is never taken away.
+    expect(screen.getByRole('button', { name: /Dry-run delivery/ })).toBeEnabled()
+    // The refusal must not name the server-side switch it depends on.
+    expect(screen.queryByText(/GITHUB_PUSH_ENABLED/)).toBeNull()
+    expect(screen.queryByText(/GITHUB_TOKEN/)).toBeNull()
+  })
+
+  it('capability true → the real button is enabled, and still behind a strong confirmation', async () => {
+    vi.stubGlobal('fetch', mockCapabilityOnly(true))
+    render(
+      <DeliveryControls
+        copilot={makeCopilot()}
+        projectId="proj-test-1"
+        repoFullName="hearst/console"
+        blockers={[]}
+        candidateVersion={candidateVersion}
+      />
+    )
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Prepare real delivery' })).toBeEnabled())
+    // Enabled is not fired: opening the control only opens the dialog. No
+    // action request leaves until the dialog is confirmed (mockCapabilityOnly
+    // throws on any non-capability URL, so a stray POST fails this test).
+    fireEvent.click(screen.getByRole('button', { name: 'Prepare real delivery' }))
+    expect(screen.getByText('Deliver for real?')).toBeInTheDocument()
+  })
+
+  it('capability read FAILS → unavailable, held closed, and distinct from a plain refusal', async () => {
+    vi.stubGlobal('fetch', mockCapabilityOnly('fail'))
+    render(
+      <DeliveryControls
+        copilot={makeCopilot()}
+        projectId="proj-test-1"
+        repoFullName="hearst/console"
+        blockers={[]}
+        candidateVersion={candidateVersion}
+      />
+    )
+    await waitFor(() =>
+      expect(screen.getByText(/could not be determined/)).toBeInTheDocument()
+    )
+    // Unknown is NOT rendered as "not enabled on this server" — an unreachable
+    // check is not evidence the server refuses.
+    expect(screen.queryByText(/Real delivery is not enabled on this server/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Prepare real delivery' })).toBeDisabled()
   })
 })
 
