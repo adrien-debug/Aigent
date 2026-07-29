@@ -15,8 +15,8 @@ import { Heading } from '@/components/ui/heading'
 const navigation = [
   { href: '/admin', label: 'Overview', icon: HomeIcon },
   { href: '/admin/runs', label: 'Runs', icon: PlayCircleIcon },
-  { href: null, label: 'Projects', icon: CircleStackIcon },
-  { href: null, label: 'Agents', icon: CpuChipIcon },
+  { href: '/admin/projects', label: 'Projects', icon: CircleStackIcon },
+  { href: '/admin/agents', label: 'Agents', icon: CpuChipIcon },
   { href: null, label: 'Factory', icon: BoltIcon },
   { href: null, label: 'Performance', icon: ChartBarSquareIcon },
 ] as const
