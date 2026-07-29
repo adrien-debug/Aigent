@@ -41,6 +41,20 @@
   --color-accent-950: #0b2809;
 }
 
+/* Surfaces — the four greys of the console, plus the two hairlines. These live
+   in @theme (not :root) because they are consumed as utilities: `bg-app`,
+   `bg-rail`, `bg-card`, `bg-sunken`, `border-line`, `border-line-strong`. A
+   token referenced only from inside this stylesheet gets tree-shaken out of a
+   bare :root, and the utility silently never exists. */
+@theme {
+  --color-app: #0a0a0b;
+  --color-rail: #0c0c0e;
+  --color-card: #161618;
+  --color-sunken: #101012;
+  --color-line: rgba(255, 255, 255, 0.07);
+  --color-line-strong: rgba(255, 255, 255, 0.12);
+}
+
 :root {
   --accent-surface: color-mix(in oklab, var(--color-accent-600) 15%, transparent);
   --accent-line: color-mix(in oklab, var(--color-accent-700) 40%, transparent);
@@ -49,6 +63,14 @@
   --state-danger-solid: #b3282d;
   --state-danger-solid-line: #8f1d22;
   --state-danger-text: #f87171;
+
+  /* Charts — hand-drawn server-rendered SVG, read from .tsx as var(--chart-*).
+     Plain CSS custom properties, so no tree-shaking applies. The accent step is
+     given a literal fallback for the same reason. */
+  --chart-bar: var(--color-accent-500, #a7fb90);
+  --chart-bar-muted: #2a2a2e;
+  --chart-grid: rgba(255, 255, 255, 0.05);
+  --chart-track: #232327;
 }
 
 @utility no-scrollbar {
