@@ -169,6 +169,7 @@ function makeDetail(overrides: { copilot?: Partial<Copilot>; hasManifest?: boole
       completedRuns: 0,
       lastRun: undefined,
     },
+    delivery: null,
   } as AgentDetail
 }
 

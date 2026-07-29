@@ -8,6 +8,7 @@ import {
   getToolsForCopilot,
   getVersionsForCopilot,
 } from './data'
+import { getLatestDeliveryEvent, type DeliveryEvent } from './delivery-events-store'
 import { isExecutable } from './runtime-catalogue'
 import type { AgentManifest, AgentRun, Copilot, CopilotVersion, ToolDefinition } from './types'
 
@@ -39,6 +40,15 @@ export type AgentDetail = {
   /** True only when the run route would accept a launch right now. */
   executable: boolean
   metrics: AgentMetrics
+  /**
+   * The most recent `agent_delivery_events` row for this copilot, or `null`
+   * when this agent has never been delivered. A read FAILURE here rejects the
+   * `Promise.all` below like every other field in this resolver — the page's
+   * own `error.tsx` catches it, so there is no silent "no delivery" reading
+   * for a dead table. `null` here means "queried, none found", never "could
+   * not read" — a failed read never reaches this type at all.
+   */
+  delivery: DeliveryEvent | null
 }
 
 /**
@@ -194,12 +204,13 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
   const copilot = await getCopilot(copilotId)
   if (!copilot) return undefined
 
-  const [agent, manifest, versions, tools, runs] = await Promise.all([
+  const [agent, manifest, versions, tools, runs, delivery] = await Promise.all([
     getAvailableAgent(copilotId),
     getManifestForCopilot(copilotId),
     getVersionsForCopilot(copilotId),
     getToolsForCopilot(copilotId),
     getRunsForCopilot(copilotId, 50),
+    getLatestDeliveryEvent(copilotId),
   ])
 
   const toolsById = new Map(tools.map((t) => [t.id, t]))
@@ -221,5 +232,6 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
     blockers,
     executable: blockers.length === 0,
     metrics: computeMetrics(runs),
+    delivery,
   }
 }

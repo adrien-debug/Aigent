@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import { formatDuration } from '@/lib/runs-console/runs-metrics'
 import type { AgentDetail } from '@/lib/agent-mission-control/agent-detail'
+import type { DeliveryEvent } from '@/lib/agent-mission-control/delivery-events-store'
 import type { AgentRun, CopilotVersion } from '@/lib/agent-mission-control/types'
 
 // Alias paths, not `./charts/…` — see the note in `agents-screen.tsx`.
@@ -100,6 +101,18 @@ function riskTone(riskLevel: string): StatusDotTone {
 }
 
 /**
+ * Delivery status → dot role. `agent_delivery_events.status` is free-form text
+ * written by several producers (`delivery-loop-server.ts`, the push route) —
+ * there is no enum to switch on exhaustively, so only the one value that
+ * unambiguously means "this delivery failed" earns the danger role. Everything
+ * else (`ready_for_manual_test`, `delivered`, …) stays neutral rather than
+ * guessing at a vocabulary this screen does not own.
+ */
+function deliveryStatusTone(status: string): StatusDotTone {
+  return status === 'failed' ? 'negative' : 'neutral'
+}
+
+/**
  * The model a run actually PROVED. A run is presumed unverified until a writer
  * proves it (`modelUnverified` defaults to `true`), so an absent proof surfaces
  * as such instead of quietly reading like a verified model.
@@ -123,6 +136,63 @@ function Fact({ label, value }: { label: string; value: React.ReactNode }) {
       <dt className="min-w-0 shrink-0 truncate text-[11px]/5 text-zinc-500">{label}</dt>
       <dd className="min-w-0 truncate text-right text-[12px]/5 tabular-nums text-white">{value}</dd>
     </div>
+  )
+}
+
+/**
+ * The delivery record laid out as facts: destination repo/branch, what
+ * actually shipped (commit or PR — mutually exclusive per `mode`), and the
+ * delivery's own outcome status. Every field here is a real persisted column
+ * (`agent_delivery_events`, migration 0015) — nothing computed, nothing
+ * inferred about whether the delivered code is currently "active" downstream,
+ * because this table only records the push, not what the consumer repo did
+ * with it afterwards.
+ */
+function DeliveryFacts({ delivery }: { delivery: DeliveryEvent }) {
+  const createdAt = formatUtcTimestamp(delivery.createdAt)
+  return (
+    <dl>
+      <Fact
+        label="Status"
+        value={<StatusDot tone={deliveryStatusTone(delivery.status)}>{delivery.status}</StatusDot>}
+      />
+      <Fact label="Mode" value={delivery.mode} />
+      <Fact label="Target repo" value={<span className="font-mono text-[11px]">{delivery.targetRepo}</span>} />
+      <Fact label="Target branch" value={orUnavailable(delivery.targetBranch)} />
+      {delivery.mode === 'pull_request' ? (
+        <Fact
+          label="Pull request"
+          value={
+            delivery.prUrl === null ? (
+              <Unavailable className="text-[11px]/5" />
+            ) : (
+              <a href={delivery.prUrl} className="text-accent-400 hover:underline">
+                {delivery.prNumber === null ? delivery.prUrl : `#${delivery.prNumber}`}
+              </a>
+            )
+          }
+        />
+      ) : (
+        <Fact
+          label="Commit"
+          value={
+            delivery.commitSha === null ? (
+              <Unavailable className="text-[11px]/5" />
+            ) : delivery.commitUrl === null ? (
+              <span className="font-mono text-[11px]">{delivery.commitSha.slice(0, 12)}</span>
+            ) : (
+              <a href={delivery.commitUrl} className="font-mono text-[11px] text-accent-400 hover:underline">
+                {delivery.commitSha.slice(0, 12)}
+              </a>
+            )
+          }
+        />
+      )}
+      <Fact
+        label="Delivered"
+        value={createdAt === null ? <Unavailable className="text-[11px]/5" /> : createdAt}
+      />
+    </dl>
   )
 }
 
@@ -552,6 +622,28 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
           )}
         </Section>
       </div>
+
+      {/* ── ROW 3.5 · delivery ────────────────────────────────────────────
+          `detail.delivery` is the LATEST `agent_delivery_events` row for this
+          copilot (`getLatestDeliveryEvent`, one resolver, same fail-hard
+          contract as every other field on this page — a read failure never
+          reaches this component, it fails the whole route instead). `null`
+          here is a MEASURED fact: the table was read and this agent has never
+          been delivered — not "unknown", so it renders `EmptyState`, not
+          `Unavailable`. */}
+      <Section
+        title="Delivery"
+        description="The most recent push of this agent to a consumer repository"
+      >
+        {detail.delivery === null ? (
+          <EmptyState
+            title="This agent has never been delivered."
+            description="No row exists in the delivery log for this copilot."
+          />
+        ) : (
+          <DeliveryFacts delivery={detail.delivery} />
+        )}
+      </Section>
 
       {/* ── ROW 4 · version history ───────────────────────────────────────── */}
       <Section
