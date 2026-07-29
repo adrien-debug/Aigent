@@ -5,6 +5,7 @@ import {
   getBenchmarkSuitesForCopilot,
   getCopilot,
   getManifestForCopilot,
+  getProject,
   getRunsForCopilot,
   getTestSuitesForCopilot,
   getToolsForCopilot,
@@ -24,6 +25,7 @@ import type {
   BenchmarkSuite,
   Copilot,
   CopilotVersion,
+  Project,
   TestSuite,
   ToolDefinition,
 } from './types'
@@ -93,6 +95,15 @@ export type AgentDetail = {
    * here renders as "no comparison yet", not a broken page.
    */
   improveComparison: VersionComparison | null
+  /**
+   * The project this copilot delivers into, resolved from the CANONICAL
+   * `agent.projectId` (catalogue-validated — same reasoning as the header's
+   * `agent?.projectId` guard in `agent-detail-screen.tsx`, not the raw
+   * `copilot.projectId` column, which can point at a deleted project row).
+   * `undefined` when the agent has no project link, or the linked id no
+   * longer resolves to a live row — both read as "no delivery target".
+   */
+  project: Project | undefined
 }
 
 /**
@@ -286,6 +297,13 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
   const toolsById = new Map(tools.map((t) => [t.id, t]))
   const blockers = computeBlockers(agent, toolsById)
 
+  // Resolved from the CANONICAL project id, after `agent` is known — a
+  // second, small round-trip rather than a fifth `Promise.all` entry, since
+  // it depends on `agent.projectId`, not on `copilotId` alone. `getProject`
+  // returning `undefined` (deleted project) collapses to the same
+  // "no delivery target" state as no link at all; no error either way.
+  const project = agent?.projectId == null ? undefined : await getProject(agent.projectId)
+
   const currentVersion =
     versions.find((v) => v.id === copilot.productionVersionId) ??
     versions.find((v) => v.id === copilot.latestVersionId) ??
@@ -307,5 +325,6 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
     benchmarkSuites,
     improveProposal,
     improveComparison,
+    project,
   }
 }

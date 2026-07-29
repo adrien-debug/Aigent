@@ -174,6 +174,7 @@ function makeDetail(overrides: { copilot?: Partial<Copilot>; hasManifest?: boole
     benchmarkSuites: [],
     improveProposal: null,
     improveComparison: null,
+    project: undefined,
   } as AgentDetail
 }
 

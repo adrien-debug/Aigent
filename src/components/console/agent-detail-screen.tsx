@@ -16,6 +16,7 @@ import { RingGauge } from '@/components/console/charts/ring-gauge'
 import { agentStatusTone, formatUtcTimestamp } from './agents-screen'
 import { QualificationPanel } from './qualification-panel'
 import { ImprovePanel } from './improve-panel'
+import { DeliveryControls } from './delivery-controls'
 import {
   EmptyState,
   KpiCard,
@@ -203,6 +204,21 @@ function DeliveryFacts({ delivery }: { delivery: DeliveryEvent }) {
 
 export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
   const { copilot, agent, manifest, currentVersion, metrics, blockers } = detail
+
+  // The PROMOTABLE candidate: the latest persisted version, when it differs
+  // from the one already serving production. Equal ids (or no latest at all)
+  // means there is nothing new to promote — the controls disable themselves
+  // rather than offer to "promote" the version already live.
+  //
+  // Deliberately NOT the same thing as `candidateVersion` below: promotion
+  // asks "is there something newer than production?", qualification asks "is
+  // there a draft/beta to run evidence against?". A version can satisfy one
+  // and not the other, so collapsing them into one variable would let the
+  // promotion controls target a version qualification never examined.
+  const promotionCandidate =
+    copilot.latestVersionId !== copilot.productionVersionId
+      ? detail.versions.find((v) => v.id === copilot.latestVersionId)
+      : undefined
 
   // A ratio arrives as 0..1 and the gauges plot 0..100. Narrowed once here so
   // neither half is coalesced apart — `null` stays `null` all the way down.
@@ -671,6 +687,42 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
         title="Delivery"
         description="The most recent push of this agent to a consumer repository"
       >
+        <dl>
+          <Fact
+            label="Production version"
+            value={
+              currentVersion !== undefined && currentVersion.id === copilot.productionVersionId ? (
+                <>
+                  {orUnavailable(currentVersion.label)} · {currentVersion.id}
+                </>
+              ) : copilot.productionVersionId === null ? (
+                <Unavailable className="text-[11px]/5" />
+              ) : (
+                <span className="font-mono text-[11px]">{copilot.productionVersionId}</span>
+              )
+            }
+          />
+          <Fact
+            label="Project"
+            value={
+              detail.project === undefined ? (
+                <Unavailable className="text-[11px]/5" />
+              ) : (
+                detail.project.name
+              )
+            }
+          />
+          <Fact
+            label="Target repo"
+            value={
+              detail.project?.repoFullName ? (
+                <span className="font-mono text-[11px]">{detail.project.repoFullName}</span>
+              ) : (
+                <Unavailable className="text-[11px]/5" />
+              )
+            }
+          />
+        </dl>
         {detail.delivery === null ? (
           <EmptyState
             title="This agent has never been delivered."
@@ -679,6 +731,13 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
         ) : (
           <DeliveryFacts delivery={detail.delivery} />
         )}
+        <DeliveryControls
+          copilot={copilot}
+          projectId={agent?.projectId ?? null}
+          repoFullName={detail.project?.repoFullName}
+          blockers={blockers}
+          candidateVersion={promotionCandidate}
+        />
       </Section>
 
       {/* ── ROW 3.6 · qualification / shadow / replay ─────────────────────── */}
