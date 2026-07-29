@@ -19,6 +19,29 @@ import type { AgentRun, Copilot, CopilotHealthMetric, Project } from './types'
 // Types
 // ---------------------------------------------------------------------------
 
+/**
+ * A 24h cost figure AND how much of the window it actually covers.
+ *
+ * `AgentRun.costUsd` is `number | null`, and `null` there means "the cost could
+ * not be MEASURED" (types.ts: e.g. a LangGraph run with no usage payload) — it
+ * does NOT mean the run was free. So a plain sum over a window that contains
+ * unmeasured runs is a LOWER BOUND, and printing it as "the cost" is a claim
+ * nobody proved. The denominator travels WITH the number so the UI can state
+ * what the figure covers instead of implying it covers everything.
+ *
+ * Same idiom the agent detail page already ships (`AgentMetrics.cost24hUsd` +
+ * `runsWithoutCost`, agent-detail.ts) — one house rule, not a second one.
+ */
+export type Cost24hCoverage = {
+  /** Sum over the runs whose cost WAS measurable. A lower bound whenever
+   *  `measuredRuns < totalRuns`; the exact total when they are equal. */
+  usd: number
+  /** Runs in the window that carried a measurable cost — the figure's support. */
+  measuredRuns: number
+  /** Runs in the window, measured or not — the denominator to disclose. */
+  totalRuns: number
+}
+
 export type DashboardKpis = {
   productionAgents: number | null
   readyForManualTest: number | null
@@ -52,10 +75,17 @@ export type DashboardKpis = {
    * `DashboardOverview.windowRuns`.
    */
   success24h: number | null
-  /** Sum of costUsd over the window's runs. Null when the window has zero runs
-   * (nothing to sum) OR when the run read failed — never coalesced to 0. Same
-   * two-reason null as `success24h`; same discriminator. */
-  cost24h: number | null
+  /**
+   * Cost over the window's runs, WITH its coverage (see `Cost24hCoverage`) —
+   * not a bare number, because a bare number would keep implying it covers
+   * every run in the window.
+   *
+   * Null for THREE honest reasons, all rendered "Indisponible", never "$0.00":
+   * the run read failed, the window was read and held no run at all, or the
+   * window held runs and NOT ONE of them carried a measurable cost. Same
+   * `dataWarnings` discriminator as `success24h` for the first case.
+   */
+  cost24h: Cost24hCoverage | null
   /** Length of the action queue (overview.actionItems). */
   needsAction: number
 }
@@ -80,15 +110,21 @@ export type ProjectOverviewItem = {
    */
   runsLast24h: number | null
   /**
-   * KNOWN REMAINING DEFECT (out of scope for P00x-truth-001, reported not fixed):
-   * this field has the exact same weakness `runsLast24h` just lost — it sums
-   * `copilot.health.costLast24hUsd` across the WHOLE team without checking
-   * `healthUnavailableFields`, so an unproven cost normalises to 0 and is
-   * rendered as a measured "$0.00". It must become `number | null` on the same
-   * `isMeasuredHealth` rule; that change was deliberately not made here because
-   * this mission is scoped to `runsLast24h` only.
+   * Cost in the last 24h, summed over the team members that actually PROVED the
+   * metric (`isMeasuredHealth`) — the SAME rule and the SAME three states as
+   * `runsLast24h` above, so the two fields cannot behave differently.
+   *  · `0`     — measured: either the proven members all cost nothing, or the
+   *              project has no copilot at all (no agent, no cost to incur).
+   *  · `n > 0` — measured.
+   *  · `null`  — NOT MEASURABLE: the project has copilots and not one of them
+   *              proved a cost. Renders "Indisponible" — never "$0.00", never
+   *              an empty gauge, never a zero bar.
+   *
+   * It used to be `number` and summed `copilot.health.costLast24hUsd` across the
+   * WHOLE team, so an unproven cost normalised to 0 and rendered as a confident
+   * measured "$0.00". That is the defect this type closes.
    */
-  costLast24hUsd: number
+  costLast24hUsd: number | null
   /** Mean test pass rate (0..1) across copilots with run-backed health, null when no evidence. */
   passRate: number | null
 }
@@ -246,14 +282,55 @@ export function computeSuccess24h(windowRuns: Pick<AgentRun, 'status'>[] | null)
   return Math.round((completed / terminal) * 100)
 }
 
-/** Sum of costUsd over the window. Null when the window is empty — an empty sum
- * is "nothing measured", not a measured zero cost — and null when the run read
- * FAILED (`windowRuns === null`), which is a different absence with the same
- * rendering. Only `dataWarnings` tells the two apart. */
-export function computeCost24h(windowRuns: Pick<AgentRun, 'costUsd'>[] | null): number | null {
+/**
+ * Cost over the window, WITH the coverage of that cost.
+ *
+ * WHY THE SHAPE CHANGED — this used to be `reduce((s, r) => s + (r.costUsd ?? 0))`.
+ * That `?? 0` folded a run whose cost was NOT MEASURABLE into the total as if it
+ * had been free. `AgentRun.costUsd === null` means the runner could not measure
+ * the cost (types.ts — e.g. LangGraph with no usage), so a sum over a set that
+ * contains unmeasured members is a LOWER BOUND, and returning it as a bare
+ * `number` presented it as THE cost. Two runs at $1.50 and "unknown" reported
+ * "$1.50" — a figure nobody proved.
+ *
+ * CHOSEN: (b) partial-with-provenance, NOT (a) strict-null. Strict would be
+ * honest too, but LangGraph is mandatory for every agent in this fleet
+ * (AGENTS.md) and its runs commonly carry a null cost, so (a) would make this
+ * KPI null nearly always — that is a true statement said so often it stops being
+ * read, and it would also throw away the dollars that WERE measured. (b) keeps
+ * the measured dollars and hands the UI the denominator, which is exactly what
+ * `agent-detail.ts` already does for the per-agent card (`cost24hUsd` +
+ * `runsWithoutCost`). One house rule for "partial measurement", not two.
+ *
+ * NULL — three absences, one rendering ("Indisponible"), never 0:
+ *  · `windowRuns === null` — the run read FAILED. Discriminated by
+ *    `dataWarnings` carrying RUNS_READ_FAILED_WARNING.
+ *  · empty window — nothing to sum. UNCHANGED, documented and unit-tested
+ *    behaviour: an empty sum is "nothing measured", not a measured zero cost.
+ *  · window read, runs present, NOT ONE carried a measurable cost. New, and the
+ *    reason this returns a record instead of `{usd: 0, measuredRuns: 0}`: a
+ *    zero with zero support must be structurally impossible to render as
+ *    "$0.00". Same call `buildProjectOverview` makes for a team that proved
+ *    nothing.
+ *
+ * A genuine measured zero still comes back as a real zero: runs whose costUsd IS
+ * `0` count as measured and produce `{ usd: 0, measuredRuns: n, … }`.
+ */
+export function computeCost24h(windowRuns: Pick<AgentRun, 'costUsd'>[] | null): Cost24hCoverage | null {
   if (windowRuns === null) return null
   if (windowRuns.length === 0) return null
-  return windowRuns.reduce((sum, r) => sum + (r.costUsd ?? 0), 0)
+  // A type predicate, not a cast: the narrowing IS the measurement rule here
+  // (finite number = measured; null/undefined/NaN = not measured), and writing
+  // it once keeps the reduce below from having to re-assert it.
+  const measured = windowRuns
+    .map((run) => run.costUsd)
+    .filter((usd): usd is number => Number.isFinite(usd))
+  if (measured.length === 0) return null
+  return {
+    usd: measured.reduce((sum, usd) => sum + usd, 0),
+    measuredRuns: measured.length,
+    totalRuns: windowRuns.length,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -263,9 +340,12 @@ export function computeCost24h(windowRuns: Pick<AgentRun, 'costUsd'>[] | null): 
 /**
  * Is this health metric a MEASUREMENT on this copilot?
  *
- * Deliberately the SAME definition as `isMeasured()` in
- * `src/components/console/projects-screen.tsx`, so the dashboard and the
- * projects console cannot disagree about what counts as measured.
+ * Deliberately the SAME definition, under the SAME name, as `isMeasuredHealth()`
+ * in `src/components/console/projects-screen.tsx`, so the dashboard and the
+ * projects console cannot disagree about what counts as measured. Both halves of
+ * that claim — identical body, identical name — are enforced by test C16 in
+ * `tests/unit/dashboard-overview.test.ts`, which locates the rule by SIGNATURE so
+ * a rename throws instead of silently matching nothing.
  * `healthUnavailableFields` names what the data layer could not prove; an
  * UNDEFINED list means the row never went through the data layer, so nothing is
  * proven (contract in `types.ts` › CopilotHealth) — treat every metric as
@@ -294,7 +374,10 @@ export function buildProjectOverview(projects: Project[], copilots: Copilot[]): 
       runsLast24h: number
       /** How many members proved it. 0 on a non-empty team ⇒ the project reports null. */
       runsMeasuredCount: number
+      /** Sum over the team members that PROVED costLast24hUsd — same rule as runs. */
       costLast24hUsd: number
+      /** How many members proved it. 0 on a non-empty team ⇒ the project reports null. */
+      costMeasuredCount: number
       passRates: number[]
     }
   >()
@@ -309,6 +392,7 @@ export function buildProjectOverview(projects: Project[], copilots: Copilot[]): 
         runsLast24h: 0,
         runsMeasuredCount: 0,
         costLast24hUsd: 0,
+        costMeasuredCount: 0,
         passRates: [],
       }
     current.copilotCount += 1
@@ -320,9 +404,13 @@ export function buildProjectOverview(projects: Project[], copilots: Copilot[]): 
       current.runsLast24h += copilot.health.runsLast24h
       current.runsMeasuredCount += 1
     }
-    // KNOWN REMAINING DEFECT (see ProjectOverviewItem.costLast24hUsd): this sum
-    // still swallows unproven costs. Out of scope here, reported, not hidden.
-    current.costLast24hUsd += copilot.health.costLast24hUsd
+    // Same gate, same reason as runs above: `health.costLast24hUsd` is a
+    // normalisation placeholder when `healthUnavailableFields` names it, and an
+    // unproven cost added as 0 is what turned "nobody measured" into "$0.00".
+    if (isMeasuredHealth(copilot, 'costLast24hUsd')) {
+      current.costLast24hUsd += copilot.health.costLast24hUsd
+      current.costMeasuredCount += 1
+    }
     // testPassRate is a PLACEHOLDER 0 when unproven (data.ts normalizeHealth) —
     // only push a PROVEN rate into the project mean; healthEvidence is 'runs' for
     // a benchmark-only copilot whose testPassRate is 0, which would drag the mean.
@@ -335,14 +423,17 @@ export function buildProjectOverview(projects: Project[], copilots: Copilot[]): 
   return projects
     .map((project) => {
       const rollup = rollups.get(project.id)
-      // Three states, kept apart on purpose:
+      // Three states, kept apart on purpose, and applied IDENTICALLY to runs and
+      // to cost — one rule, two fields, no room for them to disagree:
       //  · no rollup at all → the project has NO copilot: a measured 0 (no agent,
-      //    no run to have made) — same call the projects console makes for an
-      //    empty team.
+      //    no run to have made and no cost to have incurred) — same call the
+      //    projects console makes for an empty team.
       //  · rollup with zero proven members → NOT MEASURABLE → null.
       //  · rollup with proven members → the proven sum, 0 included.
       const runsLast24h: number | null =
         rollup === undefined ? 0 : rollup.runsMeasuredCount === 0 ? null : rollup.runsLast24h
+      const costLast24hUsd: number | null =
+        rollup === undefined ? 0 : rollup.costMeasuredCount === 0 ? null : rollup.costLast24hUsd
       const passRate =
         rollup && rollup.passRates.length > 0
           ? rollup.passRates.reduce((s, n) => s + n, 0) / rollup.passRates.length
@@ -357,7 +448,7 @@ export function buildProjectOverview(projects: Project[], copilots: Copilot[]): 
         copilotCount: rollup?.copilotCount ?? 0,
         activeCount: rollup?.activeCount ?? 0,
         runsLast24h,
-        costLast24hUsd: rollup?.costLast24hUsd ?? 0,
+        costLast24hUsd,
         passRate,
       }
     })

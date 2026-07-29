@@ -71,8 +71,28 @@ const unavailableCell = <Unavailable className="text-[11px]" />
  * UNDEFINED list means the row never went through the data layer, so nothing is
  * proven — the contract (`types.ts`) says to treat every metric as unavailable
  * in that case, not as measured.
+ *
+ * A KNOWING DUPLICATE OF `isMeasuredHealth` (dashboard-overview.ts), sharing its
+ * name so the two cannot be edited in ignorance of each other: the bodies are
+ * character-for-character identical, and that is the mechanism by which `/admin`
+ * and `/admin/projects` reach the SAME verdict — measured n · measured 0 ·
+ * `Indisponible` — for the same project's runs and the same project's cost.
+ *
+ * It is not imported because `dashboard-overview.ts` opens with
+ * `import 'server-only'`, and taking a VALUE from it drags that guard into this
+ * module's runtime graph. Measured on this branch, not assumed: the import was
+ * tried and `tests/unit/overview-screen-truth.test.tsx` died with "This module
+ * cannot be imported from a Client Component".
+ *
+ * THE FIX, when someone owns both sides: a client-safe
+ * `src/lib/agent-mission-control/health-measure.ts` holding `isMeasuredHealth` +
+ * `sumMeasuredHealth`, imported by the data layer AND by this file. It belongs
+ * beside `types.ts` and `format.ts`, neither of which carries `server-only` and
+ * the second of which this file already value-imports. Creating it edits the
+ * data layer, so it is out of this mission's scope — the duplication survives
+ * EXPLAINED, not unnoticed.
  */
-function isMeasured(copilot: Copilot, metric: CopilotHealthMetric): boolean {
+function isMeasuredHealth(copilot: Copilot, metric: CopilotHealthMetric): boolean {
   if (copilot.healthUnavailableFields === undefined) return false
   if (copilot.healthUnavailableFields.includes(metric)) return false
   return Number.isFinite(copilot.health?.[metric])
@@ -87,13 +107,33 @@ type MeasuredSum = { value: number; unmeasured: number }
  * `null` when a non-empty team proved none — a total nobody measured is not 0.
  * An EMPTY team returns a measured 0: with no agent assigned there is no run and
  * no cost to account for, which is a fact rather than a placeholder.
+ *
+ * These three states are exactly the ternary `buildProjectOverview` applies to
+ * `runsLast24h` AND to `costLast24hUsd` (dashboard-overview.ts) — see the note
+ * on `isMeasuredHealth` above for why the rule lives in two files for now.
  */
-function sumMeasured(team: Copilot[], metric: CopilotHealthMetric): MeasuredSum | null {
+/**
+ * The sub-label of a fleet KPI, stating what its figure actually covers.
+ *
+ * A `MeasuredSum` is a sum over the members that PROVED the metric — a lower
+ * bound whenever `unmeasured > 0`. Printing it under a flat "Across assigned
+ * agents" claimed a completeness nobody verified, which is the same overclaim
+ * as the `$0.00` this branch removed, just phrased in prose instead of digits.
+ * So the coverage is disclosed whenever it is partial, and only claimed when it
+ * is whole.
+ */
+function coverageDetail(sum: MeasuredSum | null): string {
+  if (sum === null) return 'No assigned agent proved a 24h figure'
+  if (sum.unmeasured === 0) return 'Across every assigned agent'
+  return `Excludes ${sum.unmeasured} agent${sum.unmeasured === 1 ? '' : 's'} with no measured figure`
+}
+
+function sumMeasuredHealth(team: Copilot[], metric: CopilotHealthMetric): MeasuredSum | null {
   let value = 0
   let measured = 0
   let unmeasured = 0
   for (const copilot of team) {
-    if (isMeasured(copilot, metric)) {
+    if (isMeasuredHealth(copilot, metric)) {
       value += copilot.health[metric]
       measured += 1
     } else {
@@ -136,8 +176,8 @@ export function ProjectsScreen({
   const bench = copilots === null ? null : copilots.filter((copilot) => copilot.projectId === null)
   const serving = assigned === null ? null : assigned.filter(isServing)
 
-  const fleetRuns = assigned === null ? null : sumMeasured(assigned, 'runsLast24h')
-  const fleetCost = assigned === null ? null : sumMeasured(assigned, 'costLast24hUsd')
+  const fleetRuns = assigned === null ? null : sumMeasuredHealth(assigned, 'runsLast24h')
+  const fleetCost = assigned === null ? null : sumMeasuredHealth(assigned, 'costLast24hUsd')
 
   // Per project: the team is the assigned copilots pointing at it. With the
   // copilot read down there is no team to compute, so every figure is absent —
@@ -151,13 +191,28 @@ export function ProjectsScreen({
       project,
       team: team.length,
       serving: team.filter(isServing).length,
-      runs24h: sumMeasured(team, 'runsLast24h'),
-      cost24h: sumMeasured(team, 'costLast24hUsd'),
+      runs24h: sumMeasuredHealth(team, 'runsLast24h'),
+      cost24h: sumMeasuredHealth(team, 'costLast24hUsd'),
     }
   })
 
+  /**
+   * Agents whose 24h figures are NOT fully proven.
+   *
+   * BOTH metrics, not just runs. The footer below says "24h figures", plural,
+   * and a filter on `runsLast24h` alone let it claim full coverage while a cost
+   * was still unmeasured — the same class of overclaim this branch exists to
+   * remove, one line further down the page. An agent counts as covered only
+   * when every figure the strip sums has actually been measured for it.
+   */
   const unmeasuredAgents =
-    assigned === null ? 0 : assigned.filter((copilot) => !isMeasured(copilot, 'runsLast24h')).length
+    assigned === null
+      ? 0
+      : assigned.filter(
+          (copilot) =>
+            !isMeasuredHealth(copilot, 'runsLast24h') ||
+            !isMeasuredHealth(copilot, 'costLast24hUsd')
+        ).length
 
   return (
     <div className="space-y-4">
@@ -216,13 +271,13 @@ export function ProjectsScreen({
         <KpiCard
           label="Runs · 24h"
           value={fleetRuns === null ? unavailableFigure : fleetRuns.value}
-          detail="Across assigned agents"
+          detail={coverageDetail(fleetRuns)}
         />
 
         <KpiCard
           label="Cost · 24h"
           value={fleetCost === null ? unavailableFigure : formatUsd(fleetCost.value)}
-          detail="Across assigned agents"
+          detail={coverageDetail(fleetCost)}
         />
       </div>
 
@@ -372,7 +427,9 @@ export function ProjectsScreen({
                 />
               ) : (
                 bench.map((copilot) => {
-                  const runs = isMeasured(copilot, 'runsLast24h') ? copilot.health.runsLast24h : null
+                  const runs = isMeasuredHealth(copilot, 'runsLast24h')
+                    ? copilot.health.runsLast24h
+                    : null
                   return (
                     <PanelRow
                       key={copilot.id}
