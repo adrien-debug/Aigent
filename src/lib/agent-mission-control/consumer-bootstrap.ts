@@ -92,6 +92,20 @@ function renderBindings(): string {
   return `${JSON.stringify({ agents: [] }, null, 2)}\n`
 }
 
+function renderEnvExample(project: Project): string {
+  return `# Aigent consumer runtime — copy to .env.local and fill in secrets.
+# AIGENT_PROJECT_KEY is pre-filled from the Aigent project that provisioned
+# this workspace. It is a convenience override only: each registry row already
+# carries its own aigentProjectId, so telemetry identifies the correct project
+# even if this var is left unset.
+AIGENT_PROJECT_KEY=${consumerProjectKey(project)}
+
+AIGENT_TELEMETRY_ENABLED=false
+AIGENT_TELEMETRY_ENDPOINT=
+AIGENT_TELEMETRY_TOKEN=
+`
+}
+
 function renderPackReadme(project: Project): string {
   return `# Aigent consumer intake (${CONSUMER_PACK_VERSION})
 
@@ -145,6 +159,11 @@ export interface RegistryAgent {
   source: 'aigent'
   pushedAt: string
   manifestPath: string
+  /** Identity chain back to Aigent — required to bind an activation/run to a
+   *  real project/copilot/version when telemetry flows back. */
+  aigentProjectId: string
+  copilotId: string
+  versionId: string | null
 }
 
 export interface AgentBinding {
@@ -181,7 +200,8 @@ export async function readRegistry(): Promise<RegistryAgent[]> {
         typeof row === 'object' &&
         row !== null &&
         typeof (row as RegistryAgent).slug === 'string' &&
-        (row as RegistryAgent).source === 'aigent'
+        (row as RegistryAgent).source === 'aigent' &&
+        typeof (row as RegistryAgent).copilotId === 'string'
     )
   } catch {
     return []
@@ -467,11 +487,14 @@ export async function POST(_req: Request, { params }: { params: Promise<{ slug: 
   const others = bindings.agents.filter((b) => b.slug !== slug)
   await writeBindings({ agents: [...others, next] })
 
+  // The registry row carries the Aigent project id that pushed this agent —
+  // that is the reliable identity, independent of whether the operator has
+  // set AIGENT_PROJECT_KEY locally. Env var wins only if explicitly set.
   void emitRuntimeTelemetry({
     eventId: crypto.randomUUID(),
     runId: \`activate-\${slug}-\${Date.now()}\`,
-    agentId: slug,
-    projectId: process.env.AIGENT_PROJECT_KEY ?? 'unknown',
+    agentId: agent.copilotId,
+    projectId: process.env.AIGENT_PROJECT_KEY ?? agent.aigentProjectId,
     timestamp: now,
     status: 'completed',
   })
@@ -547,6 +570,7 @@ export function buildConsumerIntakePack(project: Project, provisionedAt: string)
     { path: REGISTRY_README_PATH, content: renderRegistryReadme() },
     { path: BINDINGS_PATH, content: renderBindings() },
     { path: 'aigent/README.md', content: renderPackReadme(project) },
+    { path: 'aigent/.env.example', content: renderEnvExample(project) },
     { path: 'lib/aigent/types.ts', content: renderTypes() },
     { path: 'lib/aigent/registry.ts', content: renderRegistryLib() },
     { path: 'lib/aigent/telemetry-client.ts', content: renderTelemetryClient() },

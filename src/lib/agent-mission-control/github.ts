@@ -1157,6 +1157,16 @@ export interface AgentRegistryEntry {
   pushedAt: string
   /** Repo-relative path to this agent's serialized manifest. */
   manifestPath: string
+  /**
+   * Identity chain back to Aigent — required so a delivered agent's runtime
+   * telemetry (emitted by the consumer's telemetry-client.ts) can be joined
+   * back to the exact project/copilot/version that produced it. Without these,
+   * the registry row only carries a human-readable slug and nothing else ties
+   * it back to Aigent's own ids.
+   */
+  aigentProjectId: string
+  copilotId: string
+  versionId: string | null
 }
 
 /** Narrowing type guard: is `v` a well-formed AgentRegistryEntry row? */
@@ -1171,7 +1181,10 @@ function isRegistryEntry(v: unknown): v is AgentRegistryEntry {
     typeof e.runtime === 'string' &&
     e.source === 'aigent' &&
     typeof e.pushedAt === 'string' &&
-    typeof e.manifestPath === 'string'
+    typeof e.manifestPath === 'string' &&
+    typeof e.aigentProjectId === 'string' &&
+    typeof e.copilotId === 'string' &&
+    (e.versionId === null || typeof e.versionId === 'string')
   )
 }
 
@@ -1262,7 +1275,8 @@ async function scaffoldHostRegistry(
   repoFullName: string,
   ref: string,
   copilot: Copilot,
-  manifest: AgentManifest
+  manifest: AgentManifest,
+  project: Project
 ): Promise<ScaffoldedFile[]> {
   const existing = await readHostRegistry(repoFullName, ref)
   const entry: AgentRegistryEntry = {
@@ -1274,6 +1288,9 @@ async function scaffoldHostRegistry(
     source: 'aigent',
     pushedAt: new Date().toISOString(),
     manifestPath: `agents/${copilot.slug}/manifest.json`,
+    aigentProjectId: project.id,
+    copilotId: copilot.id,
+    versionId: copilot.productionVersionId ?? copilot.latestVersionId ?? null,
   }
   const merged = mergeRegistryEntry(existing, entry)
   return [
@@ -1318,7 +1335,7 @@ export async function pushAgentToRepo(args: PushAgentArgs): Promise<PushResult> 
   // agents the repo already hosts. The registry read is read-only, so it is
   // safe to run even in dry-run — and it MUST run there too, so PushResult.files
   // lists exactly the 5 paths the real push would write.
-  const registryFiles = await scaffoldHostRegistry(repoFullName, branch, copilot, manifest)
+  const registryFiles = await scaffoldHostRegistry(repoFullName, branch, copilot, manifest, project)
   const scaffolded = [...scaffoldAgentFiles(copilot, manifest), ...registryFiles]
   const files = scaffolded.map((f) => f.path)
 
@@ -1422,7 +1439,7 @@ export async function pushAgentToRepoPullRequest(args: PushAgentArgs): Promise<P
   const shortRunId = (args.runId ?? '').replace(/[^A-Za-z0-9]/g, '').slice(0, 8) || 'run'
   const deliveryBranch = deliveryBranchName(copilot.slug, shortRunId)
 
-  const registryFiles = await scaffoldHostRegistry(repoFullName, baseBranch, copilot, manifest)
+  const registryFiles = await scaffoldHostRegistry(repoFullName, baseBranch, copilot, manifest, project)
   const scaffolded = [...scaffoldAgentFiles(copilot, manifest), ...registryFiles]
   const files = scaffolded.map((f) => f.path)
 
