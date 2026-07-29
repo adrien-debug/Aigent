@@ -436,8 +436,14 @@ const ACTION_PRIORITY: Record<ActionItemKind, number> = {
 export function buildActionItems(input: {
   copilotsById: Map<string, Copilot>
   projectsById: Map<string, Project>
-  latestDeliveryByCopilot: Map<string, DeliveryEvent>
-  latestSandboxByCopilot: Map<string, SandboxSnapshot>
+  /** Null when the delivery-event read FAILED — see the module doc on
+   *  `fetchLatestDeliveryEvents`. Distinct from an empty (proven-zero) Map:
+   *  a failed read cannot say "nobody is ready for manual test", it can only
+   *  say it does not know, which is why it earns its own queue item below
+   *  rather than being silently skipped. */
+  latestDeliveryByCopilot: Map<string, DeliveryEvent> | null
+  /** Null when the sandbox-report read FAILED — same reasoning. */
+  latestSandboxByCopilot: Map<string, SandboxSnapshot> | null
   scorecards: Map<string, ScorecardSnapshot>
   missionRuns: MissionRunSnapshot[]
   dataWarnings: string[]
@@ -445,7 +451,37 @@ export function buildActionItems(input: {
 }): ActionItem[] {
   const items: ActionItem[] = []
 
-  for (const [copilotId, evt] of input.latestDeliveryByCopilot) {
+  // A failed read is an ITEM in the queue, not a silent gap in it: the two
+  // sources this loop depends on can fail independently of the reads that
+  // built copilots/projects, and an operator scanning an apparently-quiet
+  // queue has no other signal that "ready for manual test" and "sandbox
+  // failed" were never actually checked this round.
+  if (input.latestDeliveryByCopilot === null) {
+    items.push({
+      id: 'action_data_unavailable_delivery',
+      kind: 'data_unavailable',
+      title: 'Delivery events could not be read',
+      meta: 'Ready-for-manual-test and PR items are not represented this round.',
+      status: 'unavailable',
+      href: '/admin',
+      buttonLabel: 'Retry',
+      priority: ACTION_PRIORITY.data_unavailable,
+    })
+  }
+  if (input.latestSandboxByCopilot === null) {
+    items.push({
+      id: 'action_data_unavailable_sandbox',
+      kind: 'data_unavailable',
+      title: 'Sandbox reports could not be read',
+      meta: 'Sandbox-failure items are not represented this round.',
+      status: 'unavailable',
+      href: '/admin',
+      buttonLabel: 'Retry',
+      priority: ACTION_PRIORITY.data_unavailable,
+    })
+  }
+
+  for (const [copilotId, evt] of input.latestDeliveryByCopilot ?? []) {
     const copilot = input.copilotsById.get(copilotId)
     if (!copilot) continue
     const project = copilot.projectId ? input.projectsById.get(copilot.projectId) : undefined
@@ -464,7 +500,7 @@ export function buildActionItems(input: {
       })
     }
 
-    const sandbox = input.latestSandboxByCopilot.get(copilotId)
+    const sandbox = input.latestSandboxByCopilot?.get(copilotId)
     if (sandbox?.status === 'failed') {
       items.push({
         id: `action_sandbox_${copilotId}`,
@@ -539,8 +575,14 @@ export function buildActionItems(input: {
 export function assembleDashboardOverview(input: {
   copilots: Copilot[]
   projects: Project[]
-  latestDeliveryByCopilot: Map<string, DeliveryEvent>
-  latestSandboxByCopilot: Map<string, SandboxSnapshot>
+  /** Null when `fetchLatestDeliveryEvents()` failed — kept distinct from an
+   *  empty (proven-zero) Map exactly like `availableAgents`/`windowRuns`
+   *  below, so `readyForManualTest` can render `Indisponible` instead of a
+   *  reassuring 0, and the action queue can say so instead of quietly
+   *  shipping fewer items than it should. */
+  latestDeliveryByCopilot: Map<string, DeliveryEvent> | null
+  /** Null when `fetchLatestSandboxSnapshots()` failed — same reasoning. */
+  latestSandboxByCopilot: Map<string, SandboxSnapshot> | null
   scorecards: Map<string, ScorecardSnapshot>
   missionRuns: MissionRunSnapshot[]
   dataWarnings: string[]
@@ -559,8 +601,14 @@ export function assembleDashboardOverview(input: {
   const projectsById = new Map(input.projects.map((p) => [p.id, p]))
   const copilotIds = input.copilots.map((c) => c.id)
 
-  const latestDeliveries = [...input.latestDeliveryByCopilot.values()]
-  const sandboxSnapshots = [...input.latestSandboxByCopilot.values()]
+  // Local consts, not repeated `input.x` property reads: TypeScript narrows a
+  // destructured local across a control-flow check far more reliably than a
+  // property access on a parameter, and `blockedDeliveries` below depends on
+  // both being proven non-null together.
+  const { latestDeliveryByCopilot, latestSandboxByCopilot } = input
+
+  const latestDeliveries = latestDeliveryByCopilot === null ? [] : [...latestDeliveryByCopilot.values()]
+  const sandboxSnapshots = latestSandboxByCopilot === null ? [] : [...latestSandboxByCopilot.values()]
   const repoFitScores = [
     ...sandboxSnapshots.map((s) => s.repoFitScore).filter((n): n is number => n != null),
     ...[...input.scorecards.values()].map((s) => s.repoFitScore).filter((n): n is number => n != null),
@@ -569,8 +617,8 @@ export function assembleDashboardOverview(input: {
   const actionItems = buildActionItems({
     copilotsById,
     projectsById,
-    latestDeliveryByCopilot: input.latestDeliveryByCopilot,
-    latestSandboxByCopilot: input.latestSandboxByCopilot,
+    latestDeliveryByCopilot,
+    latestSandboxByCopilot,
     scorecards: input.scorecards,
     missionRuns: input.missionRuns,
     dataWarnings: input.dataWarnings,
@@ -579,16 +627,31 @@ export function assembleDashboardOverview(input: {
   return {
     kpis: {
       productionAgents: computeProductionAgents(input.copilots),
-      readyForManualTest: latestDeliveries.length > 0 ? computeReadyForManualTest(latestDeliveries) : 0,
+      // A failed delivery-event read has NO length either — same rule as
+      // `runs24h` below. `0` here would tell an operator "nobody is ready for
+      // manual test" when the true fact is "we could not check".
+      readyForManualTest:
+        latestDeliveryByCopilot === null
+          ? null
+          : latestDeliveries.length > 0
+            ? computeReadyForManualTest(latestDeliveries)
+            : 0,
       sandboxPassRate: computeSandboxPassRate(sandboxSnapshots),
       avgRepoFit: computeAvgRepoFit(repoFitScores),
-      blockedDeliveries: computeBlockedDeliveries(
-        copilotIds,
-        input.latestDeliveryByCopilot,
-        input.latestSandboxByCopilot,
-        input.scorecards,
-        input.missionRuns
-      ),
+      // Blocking status is derived from BOTH the delivery and the sandbox
+      // read (`isBlockedDelivery` reads both statuses per copilot) — if
+      // either failed, the count is not a lower bound, it is unknowable, so
+      // it must not be presented as measured.
+      blockedDeliveries:
+        latestDeliveryByCopilot === null || latestSandboxByCopilot === null
+          ? null
+          : computeBlockedDeliveries(
+              copilotIds,
+              latestDeliveryByCopilot,
+              latestSandboxByCopilot,
+              input.scorecards,
+              input.missionRuns
+            ),
       executableNow: input.availableAgents === null ? null : input.availableAgents.filter(isExecutable).length,
       executableTotal: input.availableAgents === null ? null : input.availableAgents.length,
       // A failed read has NO length. `null` here, never 0 — 0 would claim the
@@ -619,66 +682,72 @@ function latestByCopilot<T extends { copilotId: string }>(rows: T[]): Map<string
   return map
 }
 
+/**
+ * Reads the LATEST delivery event per copilot. Deliberately lets a read
+ * failure REJECT rather than swallowing it — the caller (`getDashboardOverview`)
+ * is what turns a rejection into a warning + a `null` map, exactly like
+ * `getAvailableAgents`/`getRecentRunsInWindow`. A `try/catch` here that
+ * returned `new Map()` on failure used to make a dead `agent_delivery_events`
+ * table indistinguishable from a genuinely empty one — the caller's `.then/
+ * .catch` wrapper could never fire because this promise never rejected.
+ */
 async function fetchLatestDeliveryEvents(): Promise<Map<string, DeliveryEvent>> {
-  try {
-    const rows = await pgrest<RawRow[]>(
-      'GET',
-      'agent_delivery_events?select=*&order=created_at.desc&limit=200'
-    )
-    const map = new Map<string, DeliveryEvent>()
-    for (const row of rows) {
-      const copilotId = row.copilot_id as string
-      if (map.has(copilotId)) continue
-      map.set(copilotId, {
-        id: row.id as string,
-        mode: row.mode as DeliveryEvent['mode'],
-        targetRepo: row.target_repo as string,
-        targetBranch: (row.target_branch as string | null) ?? null,
-        deliveryBranch: (row.delivery_branch as string | null) ?? null,
-        commitSha: (row.commit_sha as string | null) ?? null,
-        commitUrl: (row.commit_url as string | null) ?? null,
-        prUrl: (row.pr_url as string | null) ?? null,
-        prNumber: (row.pr_number as number | null) ?? null,
-        status: row.status as string,
-        createdAt: row.created_at as string,
-      })
-    }
-    return map
-  } catch {
-    return new Map()
+  const rows = await pgrest<RawRow[]>('GET', 'agent_delivery_events?select=*&order=created_at.desc&limit=200')
+  const map = new Map<string, DeliveryEvent>()
+  for (const row of rows) {
+    const copilotId = row.copilot_id as string
+    if (map.has(copilotId)) continue
+    map.set(copilotId, {
+      id: row.id as string,
+      mode: row.mode as DeliveryEvent['mode'],
+      targetRepo: row.target_repo as string,
+      targetBranch: (row.target_branch as string | null) ?? null,
+      deliveryBranch: (row.delivery_branch as string | null) ?? null,
+      commitSha: (row.commit_sha as string | null) ?? null,
+      commitUrl: (row.commit_url as string | null) ?? null,
+      prUrl: (row.pr_url as string | null) ?? null,
+      prNumber: (row.pr_number as number | null) ?? null,
+      status: row.status as string,
+      createdAt: row.created_at as string,
+    })
   }
+  return map
 }
 
+/**
+ * Reads the LATEST sandbox report per copilot. Same reasoning as
+ * `fetchLatestDeliveryEvents` above: the read failure is left to REJECT, not
+ * swallowed here, so the caller can distinguish "the table is dead" from "the
+ * table is empty". The inner try/catch around `parseSandboxReport` is a
+ * DIFFERENT, legitimate case — one row's `report` blob being unparseable is
+ * not a read failure, it just leaves that row's `repo` unresolved.
+ */
 async function fetchLatestSandboxSnapshots(): Promise<Map<string, SandboxSnapshot>> {
-  try {
-    const rows = await pgrest<RawRow[]>(
-      'GET',
-      'sandbox_reports?select=copilot_id,status,sandbox_fit_score,repo_fit_score,report,created_at&order=created_at.desc&limit=200'
-    )
-    const snapshots: SandboxSnapshot[] = []
-    for (const row of rows) {
-      const copilotId = row.copilot_id as string | null
-      if (!copilotId) continue
-      let repo: string | null = null
-      try {
-        const report = parseSandboxReport(row.report)
-        repo = report.repo
-      } catch {
-        repo = null
-      }
-      snapshots.push({
-        copilotId,
-        status: row.status as SandboxSnapshot['status'],
-        sandboxFitScore: (row.sandbox_fit_score as number | null) ?? null,
-        repoFitScore: (row.repo_fit_score as number | null) ?? null,
-        repo,
-        createdAt: row.created_at as string,
-      })
+  const rows = await pgrest<RawRow[]>(
+    'GET',
+    'sandbox_reports?select=copilot_id,status,sandbox_fit_score,repo_fit_score,report,created_at&order=created_at.desc&limit=200'
+  )
+  const snapshots: SandboxSnapshot[] = []
+  for (const row of rows) {
+    const copilotId = row.copilot_id as string | null
+    if (!copilotId) continue
+    let repo: string | null = null
+    try {
+      const report = parseSandboxReport(row.report)
+      repo = report.repo
+    } catch {
+      repo = null
     }
-    return latestByCopilot(snapshots)
-  } catch {
-    return new Map()
+    snapshots.push({
+      copilotId,
+      status: row.status as SandboxSnapshot['status'],
+      sandboxFitScore: (row.sandbox_fit_score as number | null) ?? null,
+      repoFitScore: (row.repo_fit_score as number | null) ?? null,
+      repo,
+      createdAt: row.created_at as string,
+    })
   }
+  return latestByCopilot(snapshots)
 }
 
 async function fetchMissionRuns(): Promise<{ runs: MissionRunSnapshot[]; warning: string | null }> {
@@ -716,6 +785,12 @@ async function fetchMissionRuns(): Promise<{ runs: MissionRunSnapshot[]; warning
  */
 export const RUNS_READ_FAILED_WARNING = 'Run history unavailable'
 
+/** Same idea as `RUNS_READ_FAILED_WARNING`, for the delivery-event read. */
+export const DELIVERY_READ_FAILED_WARNING = 'Delivery event data unavailable'
+
+/** Same idea as `RUNS_READ_FAILED_WARNING`, for the sandbox-report read. */
+export const SANDBOX_READ_FAILED_WARNING = 'Sandbox report data unavailable'
+
 /**
  * Read-only dashboard overview for /admin. Never writes, never calls GitHub.
  *
@@ -730,16 +805,27 @@ export async function getDashboardOverview(nowMs: number = Date.now()): Promise<
   const [
     copilots,
     projects,
-    latestDeliveryByCopilot,
-    latestSandboxByCopilot,
+    latestDeliveryResult,
+    latestSandboxResult,
     missionResult,
     availableAgentsResult,
     windowRunsResult,
   ] = await Promise.all([
     getCopilots({ health: 'list' }),
     getProjects(),
-    fetchLatestDeliveryEvents(),
-    fetchLatestSandboxSnapshots(),
+    // Same idiom as getAvailableAgents() below — a failed read reports itself.
+    // `catch { return new Map() }` used to sit inside fetchLatestDeliveryEvents
+    // and made a dead `agent_delivery_events` table look like a genuinely empty
+    // one: readyForManualTest rendered a confident 0, and the action queue
+    // silently lost every ready-for-manual-test / PR item with no signal at all.
+    fetchLatestDeliveryEvents()
+      .then((map) => ({ map, warning: null as string | null }))
+      .catch(() => ({ map: null, warning: DELIVERY_READ_FAILED_WARNING })),
+    // Same idiom, for `sandbox_reports`. A dead table used to render as a
+    // proven-empty one — no blocked-sandbox action item, no signal.
+    fetchLatestSandboxSnapshots()
+      .then((map) => ({ map, warning: null as string | null }))
+      .catch(() => ({ map: null, warning: SANDBOX_READ_FAILED_WARNING })),
     fetchMissionRuns(),
     getAvailableAgents()
       .then((agents) => ({ agents, warning: null as string | null }))
@@ -752,6 +838,8 @@ export async function getDashboardOverview(nowMs: number = Date.now()): Promise<
       .catch(() => ({ runs: null, warning: RUNS_READ_FAILED_WARNING })),
   ])
 
+  if (latestDeliveryResult.warning) dataWarnings.push(latestDeliveryResult.warning)
+  if (latestSandboxResult.warning) dataWarnings.push(latestSandboxResult.warning)
   if (missionResult.warning) dataWarnings.push(missionResult.warning)
   if (availableAgentsResult.warning) dataWarnings.push(availableAgentsResult.warning)
   if (windowRunsResult.warning) dataWarnings.push(windowRunsResult.warning)
@@ -759,8 +847,8 @@ export async function getDashboardOverview(nowMs: number = Date.now()): Promise<
   return assembleDashboardOverview({
     copilots,
     projects,
-    latestDeliveryByCopilot,
-    latestSandboxByCopilot,
+    latestDeliveryByCopilot: latestDeliveryResult.map,
+    latestSandboxByCopilot: latestSandboxResult.map,
     scorecards: new Map(),
     missionRuns: missionResult.runs,
     dataWarnings,

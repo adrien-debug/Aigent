@@ -392,6 +392,39 @@ describe('getDashboardOverview server collector', () => {
     expect(overview.kpis.runs24h).toBe(0)
     expect(overview.kpis.success24h).toBeNull()
     expect(overview.kpis.cost24h).toBeNull()
+    // fetchLatestDeliveryEvents / fetchLatestSandboxSnapshots ride the same
+    // mocked (throwing) pgrest. They used to swallow this into `new Map()`
+    // with NO warning, which made readyForManualTest render a confident 0 and
+    // blockedDeliveries a confident count while the two tables behind them
+    // were actually unreachable — the second BLOCKER this suite now pins.
+    expect(overview.dataWarnings).toContain('Delivery event data unavailable')
+    expect(overview.dataWarnings).toContain('Sandbox report data unavailable')
+    expect(overview.kpis.readyForManualTest).toBeNull()
+    expect(overview.kpis.blockedDeliveries).toBeNull()
+  })
+
+  it('ANTI-REGRESSION: a failed delivery/sandbox read and a genuinely empty one are NOT the same', async () => {
+    const postgrest = await import('@/lib/agent-mission-control/postgrest')
+    // Everything answers empty (not a throw) this time: a real, measured
+    // "nothing here" — as opposed to the always-throwing module mock above.
+    // Restored at the end: this file's module-level mock always throws, and
+    // every other test in this describe block depends on that.
+    vi.mocked(postgrest.pgrest).mockImplementation(async () => [])
+    try {
+      const { getDashboardOverview } = await import('@/lib/agent-mission-control/dashboard-overview')
+      const overview = await getDashboardOverview()
+
+      expect(overview.dataWarnings).not.toContain('Delivery event data unavailable')
+      expect(overview.dataWarnings).not.toContain('Sandbox report data unavailable')
+      // A genuinely empty delivery-events table is zero READY items — measured,
+      // not absent — unlike the failed-read case just above, which is null.
+      expect(overview.kpis.readyForManualTest).toBe(0)
+      expect(overview.kpis.blockedDeliveries).toBe(0)
+    } finally {
+      vi.mocked(postgrest.pgrest).mockImplementation(async () => {
+        throw new Error('mission_runs missing')
+      })
+    }
   })
 })
 
@@ -511,7 +544,13 @@ describe('A — the 24h run read is never swallowed', () => {
     expect(overview.projects[0].copilotCount).toBe(1)
     expect(overview.projects[0].activeCount).toBe(1)
     expect(overview.projects[0].runsLast24h).toBe(4)
-    expect(overview.actionItems).toEqual([])
+    // NOT empty any more: this file's module-level `pgrest` mock always
+    // throws, so the delivery-event and sandbox-report reads fail alongside
+    // the runs read this test is actually about. The queue now says so —
+    // two `data_unavailable` items — instead of silently reporting zero
+    // pending actions on a partially dead backend (the second BLOCKER this
+    // suite exists to pin, see the 'fail-soft on mission table error' test).
+    expect(overview.actionItems.map((item) => item.kind)).toEqual(['data_unavailable', 'data_unavailable'])
   })
 
   it('A5b — a null window still lets the action queue be built (pure assembly)', () => {
