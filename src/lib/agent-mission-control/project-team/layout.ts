@@ -594,23 +594,6 @@ export function computeTeamLayout(
 }
 
 /**
- * agentId → groupId, using the exact same resolution the layout itself applies
- * (explicit `team-membership` edge in either direction, then the `team` label).
- * Exported so the renderer can label a group with its agent count without
- * re-deriving membership by a second, possibly divergent rule.
- */
-export function resolveTeamMembership(
-  nodes: readonly TeamLayoutInputNode[],
-  edges: readonly TeamLayoutInputEdge[]
-): Map<string, string> {
-  return resolveAgentGroups(
-    nodes.filter((n) => n.kind === 'agent'),
-    nodes.filter((n) => n.kind === 'group'),
-    edges
-  )
-}
-
-/**
  * Stable signature of the VISIBLE SET (ids, kinds, membership relations).
  *
  * The canvas keys its layout cache on this string: it changes when a node or a

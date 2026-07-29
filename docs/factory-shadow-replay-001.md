@@ -8,8 +8,10 @@
 >
 > **Proof status (be precise):** a live shadow run was executed against gpu1 and
 > returned `execution_mode: 'live_langgraph', verdict: PASS, would_mutate: 0` —
-> **captured in `docs/visual-reviews/AIGENT-FACTORY-SHADOW-REPLAY-001/live-shadow-proof.md`**
-> (committed artifact: the route response + the read-back `shadow_experiments` row).
+> **captured in `docs/live-shadow-proof-AIGENT-FACTORY-SHADOW-REPLAY-001.md`**
+> (committed artifact: the route response + the read-back `shadow_experiments` row;
+> moved out of `docs/visual-reviews/` when the UI visual-review package for the
+> now-deleted dashboard front was removed, P007).
 > It was run on a *disposable* copilot created + deleted through the product routes
 > (no direct SQL); reproduce with a `useFixture:false` run. The automated tests
 > (`shadow-live.test.ts`,
@@ -247,22 +249,24 @@ contrôlée, et les appels facturés explicitement autorisés — pas avant.
 `src/app/api/agent-ops/copilots/[copilotId]/versions/[versionId]/replay/route.ts`,
 `tests/unit/shadow-replay-routes.test.ts`, `tests/unit/shadow-replay-routes-gaps.test.ts`,
 `tests/unit/promotion-policy.test.ts`, `scripts/prove-shadow-replay-e2e.ts`,
-`docs/visual-reviews/AIGENT-FACTORY-SHADOW-REPLAY-001/`.
+`docs/visual-reviews/AIGENT-FACTORY-SHADOW-REPLAY-001/` (supprimé depuis, P007 — dossier
+de visual-review du dashboard legacy ; la preuve backend a survécu, déplacée vers
+`docs/live-shadow-proof-AIGENT-FACTORY-SHADOW-REPLAY-001.md`).
 
 **Modifiés (livraison initiale)** : `src/app/api/agent-ops/copilots/[copilotId]/promotion/route.ts`
 (utilise `resolvePromotionPolicy`), `src/lib/agent-mission-control/authoring-writes.ts`
 (nouveaux copilots → `requires_shadow_replay: true`), `src/app/admin/agents/[id]/release/page.tsx`
 (fix filtre `candidate_version_id` + intégration `ProofActions`),
-`src/components/agent-ops/agent-detail/promotion-evidence-panel.tsx` (`'use client'` +
-`ProofActions`), `tests/unit/promotion-status.test.ts` (mock ajusté).
+`src/components/agent-ops/agent-detail/promotion-evidence-panel.tsx` (supprimé depuis, P007)
+(`'use client'` + `ProofActions`), `tests/unit/promotion-status.test.ts` (mock ajusté).
 
 **Modifiés (rework PR #22)** : `supabase/migrations/0034_shadow_replay_lifecycle.sql`
 (ajout `execution_mode`), `src/lib/agent-mission-control/promotion-gate.ts`
 (`shadowCheck`/`replayCheck` provenance-aware), `src/app/api/agent-ops/copilots/[copilotId]/versions/[versionId]/{shadow,replay}/route.ts`
 (écrivent `execution_mode: 'deterministic_fixture'`, `executionMode` exposé par GET),
 `src/app/admin/agents/[id]/release/page.tsx` (lit `execution_mode`),
-`src/components/agent-ops/agent-detail/promotion-evidence-panel.tsx` (`ExecutionModeBadge`,
-labels fixture explicites), `tests/unit/promotion-gate.test.ts` (+10 tests provenance),
+`src/components/agent-ops/agent-detail/promotion-evidence-panel.tsx` (supprimé depuis, P007)
+(`ExecutionModeBadge`, labels fixture explicites), `tests/unit/promotion-gate.test.ts` (+10 tests provenance),
 `tests/unit/shadow-replay-routes.test.ts` (+4 tests provenance dont 1 bout-en-bout).
 
 **Non touchés** : migrations `0001`-`0033`, `release-gate.ts`, les runners tests/benchmark

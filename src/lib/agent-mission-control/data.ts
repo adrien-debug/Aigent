@@ -23,19 +23,16 @@ import {
   type ResolveCopilotHealthOptions,
   type ResolvedAgentHealth,
 } from './agent-health'
-import { camelRow, camelRows, pgrest, pgrestWithCount } from './postgrest'
+import { camelRow, camelRows, pgrest } from './postgrest'
 import { NON_EVALUATION_RUN_FILTER } from './types'
 import type {
   AgentManifest,
   AgentRun,
-  BenchmarkRun,
-  BenchmarkSuite,
   Copilot,
   CopilotHealthMetric,
   CopilotVersion,
   Project,
   TestCase,
-  TestRun,
   TestSuite,
   ToolDefinition,
 } from './types'
@@ -319,18 +316,6 @@ export async function getTestCasesForSuite(suiteId: string): Promise<TestCase[]>
   return camelRows<TestCase>(await rest<RawRow[]>(`test_cases?select=*&suite_id=eq.${encodeURIComponent(suiteId)}&order=id`))
 }
 
-export async function getTestRunsForCopilot(copilotId: string): Promise<TestRun[]> {
-  const rows = await rest<RawRow[]>(
-    `test_runs?select=*,test_results(id)&copilot_id=eq.${encodeURIComponent(copilotId)}&order=started_at.desc`
-  )
-  return rows.map((r) => {
-    const { test_results, ...rest_ } = r as RawRow & { test_results: { id: string }[] }
-    const run = camelRow<TestRun>(rest_)
-    run.resultIds = (test_results ?? []).map((x) => x.id)
-    return run
-  })
-}
-
 /**
  * Runs for a copilot, newest first. Bounded by `limit` (default 50) so this
  * stays a single fast PostgREST round trip regardless of how much traffic a
@@ -408,39 +393,6 @@ export async function getRecentRunsInWindow(
   })
 }
 
-/** Traces for a project: the OPERATIONAL runs of ITS copilots (per-project
- * Traces menu). Same non-evaluation exclusion as getRecentRuns. */
-export async function getRecentRunsForProject(projectId: string, limit = 30): Promise<AgentRun[]> {
-  const rows = await rest<RawRow[]>(
-    `agent_runs?select=*,agent_run_steps(id)&project_id=eq.${encodeURIComponent(projectId)}&${NON_EVALUATION_RUN_FILTER}&order=started_at.desc&limit=${limit}`
-  )
-  return rows.map((r) => {
-    const { agent_run_steps, ...rest_ } = r as RawRow & { agent_run_steps: { id: string }[] }
-    const run = normalizeResolvedModel(camelRow<AgentRun>(rest_))
-    run.stepIds = (agent_run_steps ?? []).map((s) => s.id)
-    return run
-  })
-}
-
-export async function getBenchmarkSuitesForCopilot(copilotId: string): Promise<BenchmarkSuite[]> {
-  return camelRows<BenchmarkSuite>(
-    await rest<RawRow[]>(`benchmark_suites?select=*&copilot_id=eq.${encodeURIComponent(copilotId)}&order=name`)
-  )
-}
-
-/**
- * Benchmark runs across a batch of suites — ONE PostgREST round trip via
- * `suite_id=in.(...)` instead of one fetch per suite. Use this when scanning
- * all of a copilot's suites at once (e.g. the overview's best-candidate scan).
- */
-export async function getBenchmarkRunsForSuites(suiteIds: string[]): Promise<BenchmarkRun[]> {
-  if (suiteIds.length === 0) return []
-  const ids = suiteIds.map((id) => encodeURIComponent(id)).join(',')
-  return camelRows<BenchmarkRun>(
-    await rest<RawRow[]>(`benchmark_runs?select=*&suite_id=in.(${ids})&order=started_at.desc`)
-  )
-}
-
 export interface RegistryKpis {
   totalCopilots: number
   activeCopilots: number
@@ -465,19 +417,4 @@ export async function getRegistryKpis(): Promise<RegistryKpis> {
     runsLast24h: copilots.reduce((s, c) => s + c.health.runsLast24h, 0),
     totalCostLast24hUsd: copilots.reduce((s, c) => s + c.health.costLast24hUsd, 0),
   }
-}
-
-/**
- * How many manifests actually declare a runtime-telemetry wrapper
- * (`manifests.telemetry` non-null, migration 0018).
- *
- * Feeds the telemetry health diagnostic, which must distinguish three states
- * that look identical from the outside: nobody opted in, someone opted in but
- * nothing arrives, and everything is fine. Returns `null` when PostgREST does
- * not report an exact count — the diagnostic then says the data is
- * unavailable rather than claiming zero agents declared it.
- */
-export async function countManifestsWithTelemetryDeclared(): Promise<number | null> {
-  const { count } = await pgrestWithCount('manifests?select=id&telemetry=not.is.null&limit=0')
-  return count
 }

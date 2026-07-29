@@ -14,48 +14,26 @@ Ne jamais bloquer indéfiniment un push sur une simple valeur `unknown`.
 
 @AGENTS.md
 
-## UI — ce qui garde réellement le design system
+## UI — état après démolition (P006/P007)
 
-> **Storybook n'est PAS installé dans ce workspace (26/07/2026).** Le câblage précédent
-> était creux de bout en bout — hook PreToolUse désactivé, 0 story, 0 test, et un
-> `test:storybook-unit` qui se terminait par `|| true` donc ne pouvait pas échouer tout
-> en occupant une ligne de `npm run check`. Le tout a été **supprimé**, pas caché :
-> scripts, hook et marqueur `.storybook-consulted` n'existent plus.
+Storybook n'est pas installé dans ce workspace. L'ancien dashboard visuel
+(`src/components/agent-ops/**`, `src/components/views/**`, `src/components/shell/**`) et sa
+doctrine (`DESIGN-DOCTRINE.md`) ont été supprimés par P006, ainsi que toutes les gates qui ne
+protégeaient que ce visuel (`check:ds`, `check:contrast`, `check:catalyst`, `check:danger`,
+`check:views`). `/admin` et `/admin/runs` sont des placeholders neutres.
 
-Le design system est gardé par des outils qui échouent pour de vrai :
+Ce qui garde encore quelque chose aujourd'hui :
 
-- `npm run check:ds` (`scripts/check-palette.mjs`) — mono-accent (`#A7FB90`) + zinc, et zéro import
-  de `seed-fixtures` depuis l'app. **Ne dis pas qu'il « vérifie les contrastes AA » : c'est faux.**
-  Il calcule exactement **3 paires codées en dur** sur l'échelle accent (zinc-950 sur accent-500,
-  zinc-950 sur accent-600, blanc sur accent-700) — un garde-fou sur la *palette*, qui ne regarde
-  aucune page, aucun plan de surface, aucun texte réellement rendu.
-- `npm run check:contrast` (`scripts/check-contrast.mjs`) — la seule gate qui mesure vraiment le
-  contraste AA : elle pilote un navigateur, lit les styles calculés et composite les fonds
-  ancêtres + `opacity`, donc elle voit ce qu'aucun grep ne voit (`oklch()`, `color-mix()`, alphas
-  empilés). **Elle EXISTE, elle ÉCHOUE, et elle n'est branchée NULLE PART.**
-  - État réel mesuré le 26/07/2026 contre `http://localhost:3210` : **exit 1, 51 glyphes sous AA
-    sur 6 pages / 6** (`/admin`, `/admin/projects/proj-tradeagent`, `…/team`,
-    `/admin/agents/copilot-market-intelligence`, `/admin/performance`, `/admin/settings`) — pour
-    l'essentiel du `text-zinc-500` à 10–12 px, mesuré entre 3,59:1 et 4,02:1 pour un seuil de 4,5.
-  - Elle n'est ni dans le script `check` de `package.json`, ni dans `.github/workflows/ci.yml`
-    (qui ne lance que `npm run check`, `npm test`, `npm run build`). **Conclusion à énoncer telle
-    quelle : le contraste AA du dashboard n'est PAS gardé aujourd'hui.** La brancher demande un
-    serveur de dev dans la CI *et* de réparer les 51 glyphes d'abord — tant que ce n'est pas fait,
-    ne présente pas cette gate comme câblée.
-- `npm run check:catalyst` — primitives `src/components/ui/` obligatoires sur
-  `src/app/admin/**`, `src/components/agent-ops/**`, `src/components/views/**`,
-  `src/components/shell/**`. Zéro natif, spacing sur l'échelle fixe.
-- `npm run check:danger` (`scripts/check-danger-role.mjs`) — un échec ou une destruction doit
-  porter le rôle rouge `--state-danger-*`, jamais l'accent.
-- `npm run check:views`, `check:render-truth`, `check:status-truth` — vérité affichée.
-
-Le contrat visuel lui-même (surfaces, tokens, échelle typo, cascade des `className`, arbitrages
-ouverts) vit dans `src/components/agent-ops/DESIGN-DOCTRINE.md` — il n'est pas recopié ici.
+- `npm run check:no-legacy-front` — aucune des couches supprimées ne peut être réimportée, aucun
+  `/admin-v2` ne peut réapparaître.
+- `npm run check:render-truth`, `check:status-truth` — vérité affichée (mesure/absence, pas de
+  vocabulaire de statut hors `labels.ts`), désormais scopées sur `src/app/admin/**` (et
+  `src/lib/runs-console/**` pour la première) puisque les autres dossiers scannés n'existent plus.
+- `npm run check:agent-truth` — vérité runtime, hors périmètre visuel.
 
 Le design system de ce workspace lui est PROPRE : ne pas importer les tokens/palette
-d'un autre projet. Si Storybook est installé un jour, il faudra de vraies stories et une
-gate a11y bloquante **avant** de réécrire une règle ici — une règle ne vaut que si un
-outil la fait respecter.
+d'un autre projet. Une nouvelle doctrine visuelle ne s'écrit qu'au moment où un vrai écran se
+reconstruit, avec une gate qui la fait respecter — jamais une simple phrase dans un `.md`.
 
 ## Anti-fuite de secrets — pre-commit actif
 

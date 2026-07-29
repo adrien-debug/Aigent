@@ -1,6 +1,0 @@
-
-> agent-mission-control@0.1.0 check:tool-definitions
-> node --env-file-if-exists=.env.local scripts/check-tool-definitions.mjs
-
-Catalogue: 22 row(s) in DB, 22 in registry. Mounts: 42, missing FK: 0.
-✓ Tool-definitions gate passed — catalogue aligned and every mount has tool_definition_id.

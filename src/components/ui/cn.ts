@@ -42,9 +42,9 @@ import { twMerge } from 'tailwind-merge'
  * No running count is kept here on purpose. The previous wording pinned a number
  * ("~36") that was already stale when read, because the census lives in files
  * this one does not own. Count it when you need it rather than trusting a
- * comment. `src/components/ui/**`, `src/components/shell/**` and
- * `src/theme.css` carry ZERO of either dialect — verified by grep, the only two
- * hits under those paths being the two examples written above.
+ * comment. `src/components/ui/**` and `src/theme.css` carry ZERO of either
+ * dialect — verified by grep, the only two hits under that path being the two
+ * examples written above.
  *
  * That zero is the point of this file: every escape that used to be needed here
  * was there to force an override past `clsx(className, defaults)`, and the
