@@ -15,6 +15,7 @@ import { ArcGauge } from '@/components/console/charts/arc-gauge'
 import { RingGauge } from '@/components/console/charts/ring-gauge'
 import { agentStatusTone, formatUtcTimestamp } from './agents-screen'
 import { QualificationPanel } from './qualification-panel'
+import { ImprovePanel } from './improve-panel'
 import {
   EmptyState,
   KpiCard,
@@ -686,6 +687,20 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
         candidateVersionId={candidateVersion?.id ?? null}
         candidateVersionLabel={candidateVersion?.label ?? null}
         candidateVersionStage={candidateVersion?.stage ?? null}
+      />
+
+      {/* ── ROW 3.7 · improve ─────────────────────────────────────────────── */}
+      <ImprovePanel
+        copilotId={copilot.id}
+        baseVersionLabel={
+          currentVersion === undefined
+            ? 'the current version'
+            : typeof currentVersion.label === 'string' && currentVersion.label.length > 0
+              ? currentVersion.label
+              : currentVersion.id
+        }
+        initialProposal={detail.improveProposal}
+        initialComparison={detail.improveComparison}
       />
 
       {/* ── ROW 4 · version history ───────────────────────────────────────── */}

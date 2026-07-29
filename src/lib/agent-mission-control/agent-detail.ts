@@ -11,6 +11,12 @@ import {
   getVersionsForCopilot,
 } from './data'
 import { getLatestDeliveryEvent, type DeliveryEvent } from './delivery-events-store'
+import {
+  compareImprovementVersions,
+  getLatestProposalForCopilot,
+  type ImprovementProposal,
+  type VersionComparison,
+} from './improvement-loop'
 import { isExecutable } from './runtime-catalogue'
 import type {
   AgentManifest,
@@ -68,6 +74,25 @@ export type AgentDetail = {
    */
   testSuites: TestSuite[]
   benchmarkSuites: BenchmarkSuite[]
+  /**
+   * The most recent `improvement_proposals` row for this copilot, or `null`
+   * when none exists yet. Seeds the Improve panel so a page reload shows the
+   * real open/decided cycle instead of losing it to client-only state — the
+   * panel still re-fetches after each of its own mutations, this is only the
+   * initial paint. A read failure here is NOT allowed to fail the whole page
+   * (unlike `delivery`): the improvement loop is a control surface, not a
+   * fact this page is chiefly reporting, so it fails soft to `null` with the
+   * failure logged, same posture as the loop's own observability edges.
+   */
+  improveProposal: ImprovementProposal | null
+  /**
+   * V1-vs-V2 comparison for `improveProposal`, present only once a V2 draft
+   * exists (`v2VersionId` set). Recomputed live from `test_runs`/
+   * `benchmark_runs` (`compareImprovementVersions`) — never persisted, so it
+   * cannot drift. Same fail-soft posture as `improveProposal`: a read failure
+   * here renders as "no comparison yet", not a broken page.
+   */
+  improveComparison: VersionComparison | null
 }
 
 /**
@@ -223,7 +248,17 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
   const copilot = await getCopilot(copilotId)
   if (!copilot) return undefined
 
-  const [agent, manifest, versions, tools, runs, delivery, testSuites, benchmarkSuites] = await Promise.all([
+  const [
+    agent,
+    manifest,
+    versions,
+    tools,
+    runs,
+    delivery,
+    testSuites,
+    benchmarkSuites,
+    improveProposal,
+  ] = await Promise.all([
     getAvailableAgent(copilotId),
     getManifestForCopilot(copilotId),
     getVersionsForCopilot(copilotId),
@@ -232,7 +267,21 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
     getLatestDeliveryEvent(copilotId),
     getTestSuitesForCopilot(copilotId),
     getBenchmarkSuitesForCopilot(copilotId),
+    getLatestProposalForCopilot(copilotId).catch((err: unknown) => {
+      console.error('[agent-detail] failed to read the latest improvement proposal', err)
+      return null
+    }),
   ])
+
+  const improveComparison =
+    improveProposal?.v2VersionId != null
+      ? await compareImprovementVersions(copilotId, improveProposal.baseVersionId, improveProposal.v2VersionId).catch(
+          (err: unknown) => {
+            console.error('[agent-detail] failed to compare improvement versions', err)
+            return null
+          }
+        )
+      : null
 
   const toolsById = new Map(tools.map((t) => [t.id, t]))
   const blockers = computeBlockers(agent, toolsById)
@@ -256,5 +305,7 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
     delivery,
     testSuites,
     benchmarkSuites,
+    improveProposal,
+    improveComparison,
   }
 }
