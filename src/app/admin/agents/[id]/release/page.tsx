@@ -9,6 +9,7 @@ import {
 } from '@/components/agent-ops/agent-detail/release-panel'
 import { AgentSection as Section } from '@/components/agent-ops/agent-section'
 import {
+  ProofActions,
   PromotionChecksList,
   PromotionOverall,
   ReplayEvidence,
@@ -107,7 +108,7 @@ export default async function AgentReleasePage({ params }: { params: Promise<{ i
   const shadowRows = candidateVersionIdForEvidence
     ? await pgrest<Record<string, unknown>[]>(
         'GET',
-        `shadow_experiments?copilot_id=eq.${encodeURIComponent(lifecycle.copilotId)}&candidate_version_id=eq.${encodeURIComponent(candidateVersionIdForEvidence)}&select=status,candidate_verdict,would_mutate_count,sampled_run_count&order=started_at.desc&limit=1`,
+        `shadow_experiments?copilot_id=eq.${encodeURIComponent(lifecycle.copilotId)}&candidate_version_id=eq.${encodeURIComponent(candidateVersionIdForEvidence)}&select=status,candidate_verdict,would_mutate_count,sampled_run_count,execution_mode&order=started_at.desc&limit=1`,
       ).catch(() => [])
     : []
   const shadowRow = shadowRows[0] ?? null
@@ -117,13 +118,17 @@ export default async function AgentReleasePage({ params }: { params: Promise<{ i
         candidateVerdict: (shadowRow.candidate_verdict as string | null) ?? null,
         wouldMutateCount: shadowRow.would_mutate_count as number,
         sampledRunCount: shadowRow.sampled_run_count as number,
+        // PR #22 rework: never a stand-in default here — an absent column
+        // read (pre-migration row) is exactly 'legacy_unknown' territory,
+        // and the UI must render it as unlabelled/unproven, never as PASS.
+        executionMode: (shadowRow.execution_mode as string | undefined) ?? 'legacy_unknown',
       }
     : null
 
   const replayRows = candidateVersionIdForEvidence
     ? await pgrest<Record<string, unknown>[]>(
         'GET',
-        `replay_comparisons?copilot_id=eq.${encodeURIComponent(lifecycle.copilotId)}&select=verdict,case_count,candidates&order=created_at.desc&limit=1`,
+        `replay_comparisons?copilot_id=eq.${encodeURIComponent(lifecycle.copilotId)}&candidate_version_id=eq.${encodeURIComponent(candidateVersionIdForEvidence)}&select=status,verdict,case_count,candidates,execution_mode&order=created_at.desc&limit=1`,
       ).catch(() => [])
     : []
   const replayRow = replayRows[0] ?? null
@@ -134,8 +139,10 @@ export default async function AgentReleasePage({ params }: { params: Promise<{ i
         divergent: ((replayRow.candidates as Array<{ comparison: string; note: string }>) ?? []).filter(
           (c) => c.comparison === 'worse' || c.comparison === 'nondeterministic',
         ),
+        executionMode: (replayRow.execution_mode as string | undefined) ?? 'legacy_unknown',
       }
     : null
+  const replayStatus = (replayRow?.status as string | null) ?? null
 
   return (
     <div className="flex flex-col gap-6">
@@ -250,12 +257,34 @@ export default async function AgentReleasePage({ params }: { params: Promise<{ i
               <div className="mt-2">
                 <ShadowEvidence shadow={shadow} />
               </div>
+              {candidateVersionIdForEvidence ? (
+                <div className="mt-3">
+                  <ProofActions
+                    copilotId={lifecycle.copilotId}
+                    versionId={candidateVersionIdForEvidence}
+                    versionLabel={gate?.evidence.candidateLabel ?? candidateVersion?.label ?? null}
+                    kind="shadow"
+                    runningStatus={shadow?.status ?? null}
+                  />
+                </div>
+              ) : null}
             </div>
             <div>
               <p className={eyebrowClass}>Replay comparison</p>
               <div className="mt-2">
                 <ReplayEvidence replay={replay} />
               </div>
+              {candidateVersionIdForEvidence ? (
+                <div className="mt-3">
+                  <ProofActions
+                    copilotId={lifecycle.copilotId}
+                    versionId={candidateVersionIdForEvidence}
+                    versionLabel={gate?.evidence.candidateLabel ?? candidateVersion?.label ?? null}
+                    kind="replay"
+                    runningStatus={replayStatus}
+                  />
+                </div>
+              ) : null}
             </div>
           </div>
         )}

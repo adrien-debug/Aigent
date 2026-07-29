@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 import { evaluateAndPersistPromotionGate } from '@/lib/agent-mission-control/promotion-gate'
+import { resolvePromotionPolicy } from '@/lib/agent-mission-control/promotion-policy'
 import { emitPromotionTelemetry } from '@/lib/agent-mission-control/runtime-telemetry-store'
 
 /**
@@ -112,7 +113,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
       // RPC (migration 0029) re-reads this persisted row and refuses to reach
       // ACTIVE without a fresh PASS. The UI enabling the button is a courtesy;
       // this server evaluation + the DB re-read are the real, layered control.
-      const evaluated = await evaluateAndPersistPromotionGate(copilotId, versionId)
+      // AIGENT-FACTORY-SHADOW-REPLAY-001: which policy this copilot must
+      // satisfy is no longer the hardcoded default — it is resolved per
+      // copilot (strict for anything created after the cutover, lenient for
+      // pre-cutover rows, strict-fail-closed if undeterminable). See
+      // promotion-policy.ts for the full compatibility rule.
+      const { policy, source: policySource } = await resolvePromotionPolicy(copilotId)
+      const evaluated = await evaluateAndPersistPromotionGate(copilotId, versionId, policy)
       if (!evaluated) {
         return NextResponse.json({ error: 'copilot or candidate version not found' }, { status: 404 })
       }
@@ -122,7 +129,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
         copilotId,
         versionId,
         gateEvaluationId,
-        detail: { overall: result.overall, checks: result.checks.map((c) => ({ id: c.id, status: c.status })) },
+        detail: { overall: result.overall, policySource, checks: result.checks.map((c) => ({ id: c.id, status: c.status })) },
       })
       if (!result.promotable) {
         const blocking = result.checks.filter((c) => c.status !== 'PASS' && c.status !== 'NOT_CONFIGURED').map((c) => `${c.label}: ${c.reason}`)
