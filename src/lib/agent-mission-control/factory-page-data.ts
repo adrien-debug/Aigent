@@ -2,8 +2,7 @@ import { listAgentDrafts, type AgentDraftRow } from '@/lib/agent-mission-control
 import { isPgrestTimeout, pgrestWithCount } from '@/lib/agent-mission-control/postgrest'
 import { REGISTRY_HASH, RUNTIME_IDS, TOOL_IDS, getRuntime, getTool } from '@/lib/agent-mission-control/registry'
 import { listActiveToolBuildMissions, type ToolBuildMissionRow } from '@/lib/agent-mission-control/tool-build-missions-store'
-import type { FactoryRuntimeRow } from '@/components/agent-ops/factory/runtimes-panel'
-import type { FactoryToolRow } from '@/components/agent-ops/factory/certified-tools-panel'
+import type { FactoryRuntimeRow, FactoryToolRow } from '@/lib/agent-mission-control/page-view-models'
 
 export interface FactoryPageData {
   runtimes: FactoryRuntimeRow[]

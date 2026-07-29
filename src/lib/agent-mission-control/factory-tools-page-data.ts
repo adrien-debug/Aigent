@@ -1,6 +1,6 @@
 import { listActiveToolBuildMissions, type ToolBuildMissionRow } from '@/lib/agent-mission-control/tool-build-missions-store'
 import { TOOL_IDS, getTool } from '@/lib/agent-mission-control/registry'
-import type { FactoryToolRow } from '@/components/agent-ops/factory/certified-tools-panel'
+import type { FactoryToolRow } from '@/lib/agent-mission-control/page-view-models'
 import { isPgrestTimeout } from '@/lib/agent-mission-control/postgrest'
 
 export interface FactoryToolsPageData {
