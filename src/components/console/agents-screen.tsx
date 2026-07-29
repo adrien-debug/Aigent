@@ -3,7 +3,7 @@ import { ArrowRightIcon } from '@heroicons/react/20/solid'
 import { Button } from '@/components/ui/button'
 import { StatusDot, type StatusDotTone } from '@/components/ui/status-dot'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { formatUsd } from '@/lib/agent-mission-control/format'
+import { formatUsd, UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
 import type { AvailableAgent, AvailableAgentStatus } from '@/lib/agent-mission-control/available-agents'
 
 // Alias paths, not `./charts/…`: `scripts/audit-dead.mjs` proves a component is
@@ -13,6 +13,7 @@ import { ArcGauge } from '@/components/console/charts/arc-gauge'
 import { RingGauge } from '@/components/console/charts/ring-gauge'
 import {
   EmptyState,
+  ErrorState,
   KpiCard,
   PanelRow,
   ScreenHeader,
@@ -38,6 +39,20 @@ import {
  * length. No `?? 0` on a measurement lives in this file. The counters below are
  * filters over the SAME array the table renders, so a KPI and the list it
  * summarises are structurally incapable of disagreeing.
+ *
+ * THE CATALOGUE ITSELF HAS THREE STATES, AND ALL THREE ARE VISIBLE.
+ * `agents` is `AvailableAgent[] | null`:
+ *   · `[…]`  — read OK, agents persisted. Every figure is measured.
+ *   · `[]`   — read OK and the environment holds nothing. A MEASURED emptiness:
+ *              the counts read `0`, the gauges are not drawn (a ratio over an
+ *              empty set is undefined, not zero), and every panel shows its calm
+ *              `EmptyState`.
+ *   · `null` — the read FAILED. Every figure says `Indisponible`, an
+ *              `ErrorState` in the danger role names the failure with its
+ *              PostgREST detail, and every panel wears the failure rather than
+ *              an empty state. An unread catalogue is NEVER drawn as an empty
+ *              fleet: "0 persisted agents" on a dead backend is precisely the
+ *              calm, healthy-looking lie this console exists to refuse.
  *
  * STATUS VOCABULARY. The words rendered for a status are the ENUM VALUES
  * themselves (`active`, `degraded`, …), lower-case, exactly as `runs-screen.tsx`
@@ -98,6 +113,37 @@ export function formatUtcTimestamp(iso: string | null): string | null {
 
 /* ----------------------------------------------------------------- helpers */
 
+/** `Indisponible` sized for the big KPI figure slot (a 12-glyph word does not
+ *  survive `text-2xl`). Same rung the four sibling screens use. */
+const unavailableFigure = <Unavailable className="text-base/7" />
+
+/**
+ * The dot role for one line of the AGGREGATE composition legend.
+ *
+ * `agentStatusTone` splits `unavailable` on the LIFECYCLE column, because the
+ * contract folds two facts into one word: an `archived` agent was deliberately
+ * retired (neutral), any other is missing a hard requirement (danger). A legend
+ * row is a COUNT, so it has no single lifecycle to pass — and calling
+ * `agentStatusTone(status)` with the argument omitted resolved
+ * `undefined !== 'archived'` to `'negative'` every time. The result was one
+ * screen, one word, two roles: the legend painted `unavailable` in the danger
+ * role while the table two panels away painted the same agent neutral because
+ * it was archived on purpose. A danger role spent on a deliberate retirement
+ * can no longer warn about anything.
+ *
+ * So the row is judged on the POPULATION it counts: danger as soon as at least
+ * one of those agents is genuinely blocked, neutral when every one of them was
+ * retired on purpose. An unread catalogue counts nobody and claims nothing.
+ */
+function legendTone(
+  status: AvailableAgentStatus,
+  agents: AvailableAgent[] | null
+): StatusDotTone {
+  if (status !== 'unavailable') return agentStatusTone(status)
+  const rows = (agents ?? []).filter((agent) => agent.status === 'unavailable')
+  return rows.some((agent) => agent.lifecycleStatus !== 'archived') ? 'negative' : 'neutral'
+}
+
 /**
  * The LAST RUN's status → dot role. `AvailableAgent.lastRunStatus` is a free
  * string copied from `agent_runs.status`, so an unknown value stays neutral
@@ -124,7 +170,7 @@ function lastRunEpoch(agent: AvailableAgent): number | null {
  * `unavailableFields`, the `runtime` column) — nothing is inferred, and an empty
  * result means the agent really is launchable.
  */
-function blockingReasons(agent: AvailableAgent): string[] {
+export function blockingReasons(agent: AvailableAgent): string[] {
   const reasons: string[] = []
 
   if (agent.unresolvedToolIds.length > 0) {
@@ -150,20 +196,37 @@ function blockingReasons(agent: AvailableAgent): string[] {
 
 /* --------------------------------------------------------------- component */
 
-export function AgentsScreen({ agents }: { agents: AvailableAgent[] }) {
-  const total = agents.length
-  const executable = agents.filter((agent) => agent.executable).length
-  const countOf = (status: AvailableAgentStatus) => agents.filter((agent) => agent.status === status).length
-  const needsAttention = agents.filter(
-    (agent) => agent.status === 'degraded' || agent.status === 'unavailable'
-  ).length
+export function AgentsScreen({
+  agents,
+  agentsErrorDetail = null,
+}: {
+  /** `null` ⇒ the catalogue read FAILED. Never `[]` — see the file docblock. */
+  agents: AvailableAgent[] | null
+  /** The PostgREST detail of that failure, when the route could extract one. */
+  agentsErrorDetail?: string | null
+}) {
+  // The read failed ⇒ NOTHING was counted. Every figure below is `null`, which
+  // the JSX renders as the word `Indisponible`; none of them is allowed to fall
+  // back to a confident 0. `rows` is the empty array only so the table and the
+  // panels have something to map over — they are gated on `unread` first, so an
+  // unread catalogue never reaches an EmptyState.
+  const unread = agents === null
+  const rows = agents ?? []
+
+  const total = unread ? null : rows.length
+  const executable = unread ? null : rows.filter((agent) => agent.executable).length
+  const countOf = (status: AvailableAgentStatus) =>
+    unread ? null : rows.filter((agent) => agent.status === status).length
+  const needsAttention = unread
+    ? null
+    : rows.filter((agent) => agent.status === 'degraded' || agent.status === 'unavailable').length
   // NOT "verified agents": this counts the agents whose LAST RUN proved the
   // model it executed. Every other agent is unproven, which is a different claim.
-  const modelProven = agents.filter((agent) => agent.executedModel !== null).length
-  const mountedTools = agents.reduce((sum, agent) => sum + agent.tools.length, 0)
+  const modelProven = unread ? null : rows.filter((agent) => agent.executedModel !== null).length
+  const mountedTools = unread ? null : rows.reduce((sum, agent) => sum + agent.tools.length, 0)
 
-  const blocked = agents.filter((agent) => !agent.executable)
-  const byLastRun = agents.toSorted((a, b) => {
+  const blocked = rows.filter((agent) => !agent.executable)
+  const byLastRun = rows.toSorted((a, b) => {
     const left = lastRunEpoch(a)
     const right = lastRunEpoch(b)
     if (left === right) return a.name.localeCompare(b.name)
@@ -178,61 +241,102 @@ export function AgentsScreen({ agents }: { agents: AvailableAgent[] }) {
         title="Agents"
         description="Canonical runtime catalogue — persisted agents only."
         actions={
-          <Button href="/admin/runs" outline>
-            Run activity <ArrowRightIcon />
-          </Button>
+          <>
+            <Button href="/admin" outline>
+              Back to overview
+            </Button>
+            <Button href="/admin/runs" outline>
+              Run activity <ArrowRightIcon />
+            </Button>
+          </>
         }
       />
 
+      {/* The failure is STATED, in the danger role, above everything it invalidates.
+          Without it an unread catalogue and an empty one would render the same
+          calm screen — the one lie this console is built to refuse. */}
+      {unread ? (
+        <ErrorState
+          title="Agent catalogue could not be read"
+          description={
+            agentsErrorDetail
+              ? `Every figure on this page is unavailable for this read. ${agentsErrorDetail}`
+              : 'Every figure on this page is unavailable for this read.'
+          }
+        />
+      ) : null}
+
       {/* ── ROW 1 · KPI band ──────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Persisted agents" value={total} detail="Rows in the runtime catalogue" />
+      {/* THREE ACROSS, not six. Measured at 1280 a six-up band leaves ~123px of
+          inner width per card, where the 16px absence rung (`Indisponible`,
+          ~85px) sits beside a 72px gauge and truncates. `lg:grid-cols-3` is the
+          rung `overview-screen` already settled on for six cards, and the two
+          gauges are passed `size={56}` for the same measured reason as
+          `runs-screen` / `projects-screen`. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <KpiCard
+          label="Persisted agents"
+          value={total ?? unavailableFigure}
+          detail={unread ? 'The catalogue could not be read' : 'Rows in the runtime catalogue'}
+        />
 
         <KpiCard
           label="Executable now"
-          value={`${executable} / ${total}`}
-          detail="Would pass the run gate"
+          value={unread ? unavailableFigure : `${executable} / ${total}`}
+          detail={unread ? 'The catalogue could not be read' : 'Would pass the run gate'}
           aside={
-            total > 0 ? (
+            total !== null && total > 0 ? (
               <ArcGauge
                 value={executable}
                 max={total}
+                size={56}
                 ariaLabel={`Executable agents: ${executable} of ${total}.`}
               />
             ) : undefined
           }
         />
 
-        <KpiCard label="Serving" value={countOf('active')} detail="Runtime status active" />
+        <KpiCard
+          label="Serving"
+          value={countOf('active') ?? unavailableFigure}
+          detail={unread ? 'The catalogue could not be read' : 'Runtime status active'}
+        />
 
         <KpiCard
           label="Needs attention"
           value={
-            needsAttention > 0 ? (
+            needsAttention === null ? (
+              unavailableFigure
+            ) : needsAttention > 0 ? (
               <span className="text-[var(--state-danger-text)]">{needsAttention}</span>
             ) : (
               needsAttention
             )
           }
-          detail="Degraded or unavailable"
+          detail={unread ? 'The catalogue could not be read' : 'Degraded or unavailable'}
         />
 
         <KpiCard
           label="Model proven"
-          value={`${modelProven} / ${total}`}
-          detail="Last run verified the model"
+          value={unread ? unavailableFigure : `${modelProven} / ${total}`}
+          detail={unread ? 'The catalogue could not be read' : 'Last run verified the model'}
           aside={
-            total > 0 ? (
+            total !== null && total > 0 ? (
               <ArcGauge
                 value={modelProven}
                 max={total}
+                size={56}
                 ariaLabel={`Agents whose last run proved its model: ${modelProven} of ${total}.`}
               />
             ) : undefined
           }
         />
 
-        <KpiCard label="Mounted tools" value={mountedTools} detail="Resolved tool definitions" />
+        <KpiCard
+          label="Mounted tools"
+          value={mountedTools ?? unavailableFigure}
+          detail={unread ? 'The catalogue could not be read' : 'Resolved tool definitions'}
+        />
       </div>
 
       {/* ── ROW 2 · fleet composition · the catalogue itself ──────────────── */}
@@ -242,40 +346,61 @@ export function AgentsScreen({ agents }: { agents: AvailableAgent[] }) {
             {/* An empty catalogue has no ratio to draw: `max = 0` makes the ring
                 render "Indisponible" rather than a fabricated full circle. */}
             <RingGauge
-              value={total > 0 ? executable : null}
-              max={total}
+              value={total !== null && total > 0 ? executable : null}
+              max={total ?? 0}
               label="Executable agents"
-              caption={total > 0 ? `of ${total}` : undefined}
+              caption={total !== null && total > 0 ? `of ${total}` : undefined}
               size={168}
             />
             <p className="mt-2 text-center text-[11px]/4 text-zinc-500">
-              {total > 0
-                ? `${executable} of ${total} agents would be accepted for a run right now`
-                : 'No persisted agent to measure'}
+              {unread
+                ? 'The agent catalogue could not be read'
+                : total !== null && total > 0
+                  ? `${executable} of ${total} agents would be accepted for a run right now`
+                  : 'No persisted agent to measure'}
             </p>
           </div>
           <dl className="border-t border-line">
-            {AGENT_STATUS_ORDER.map((status) => (
-              <div
-                key={status}
-                className="flex items-center justify-between gap-3 border-b border-line px-4 py-1.5 last:border-b-0"
-              >
-                <dt className="min-w-0">
-                  <StatusDot tone={agentStatusTone(status)}>{status}</StatusDot>
-                </dt>
-                <dd className="shrink-0 text-[13px]/5 tabular-nums text-white">{countOf(status)}</dd>
-              </div>
-            ))}
+            {AGENT_STATUS_ORDER.map((status) => {
+              const count = countOf(status)
+              return (
+                <div
+                  key={status}
+                  className="flex items-center justify-between gap-3 border-b border-line px-4 py-1.5 last:border-b-0"
+                >
+                  <dt className="min-w-0">
+                    {/* `legendTone`, NOT `agentStatusTone(status)`: a legend row is
+                        a COUNT and has no lifecycle to pass, and the bare call
+                        resolved `unavailable` to the danger role even when every
+                        agent it counted was archived on purpose. */}
+                    <StatusDot tone={legendTone(status, agents)}>{status}</StatusDot>
+                  </dt>
+                  <dd className="shrink-0 text-[13px]/5 tabular-nums text-white">
+                    {count ?? <Unavailable className="text-[13px]/5" />}
+                  </dd>
+                </div>
+              )
+            })}
           </dl>
         </Section>
 
         <Section
           title="Runtime catalogue"
           description="Lifecycle and execution truth stay separate — an agent is legitimately draft and inactive at once"
-          actions={<span className="shrink-0 text-[11px]/4 tabular-nums text-zinc-500">{total} rows</span>}
+          actions={
+            <span className="shrink-0 text-[11px]/4 tabular-nums text-zinc-500">
+              {unread ? UNAVAILABLE_LABEL : `${total} rows`}
+            </span>
+          }
           scroll="lg"
         >
-          {total === 0 ? (
+          {unread ? (
+            <ErrorState
+              title="Runtime catalogue unavailable"
+              description="The agent registry could not be read for this request. No row is shown, because none was read."
+              className="m-4"
+            />
+          ) : total === 0 ? (
             <EmptyState
               title="No persisted agent is available."
               description="The catalogue reads live rows only — an empty environment shows nothing."
@@ -375,11 +500,19 @@ export function AgentsScreen({ agents }: { agents: AvailableAgent[] }) {
           title="Blocked from running"
           description="The same refusals the run endpoint enforces"
           actions={
-            <span className="shrink-0 text-[11px]/4 tabular-nums text-zinc-500">{blocked.length}</span>
+            <span className="shrink-0 text-[11px]/4 tabular-nums text-zinc-500">
+              {unread ? UNAVAILABLE_LABEL : blocked.length}
+            </span>
           }
           scroll="md"
         >
-          {total === 0 ? (
+          {unread ? (
+            <ErrorState
+              title="Blocked agents unavailable"
+              description="Nothing was read, so nothing can be declared launchable either."
+              className="m-4"
+            />
+          ) : total === 0 ? (
             <EmptyState title="No persisted agent is available." />
           ) : blocked.length === 0 ? (
             <EmptyState
@@ -411,7 +544,13 @@ export function AgentsScreen({ agents }: { agents: AvailableAgent[] }) {
           description="Most recently active first; agents that never ran sort last"
           scroll="md"
         >
-          {total === 0 ? (
+          {unread ? (
+            <ErrorState
+              title="Run history per agent unavailable"
+              description="The agent registry could not be read for this request."
+              className="m-4"
+            />
+          ) : total === 0 ? (
             <EmptyState title="No persisted agent is available." />
           ) : (
             byLastRun.map((agent) => {

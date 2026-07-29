@@ -7,6 +7,7 @@ import { formatUsd } from '@/lib/agent-mission-control/format'
 // (`dashboard-overview.ts`). Neutral module, no `server-only` — see its header
 // for why it cannot live beside the rollup that consumes it.
 import { isMeasuredHealth, sumMeasuredHealth, type MeasuredSum } from '@/lib/agent-mission-control/health-measure'
+import { isDevSeedCopilot, isDevSeedProject } from '@/lib/agent-mission-control/dev-seed-markers'
 import type { Copilot, Project } from '@/lib/agent-mission-control/types'
 
 // Alias paths, not `./charts/…`: `scripts/audit-dead.mjs` proves a component is
@@ -53,6 +54,15 @@ import {
  *     proved none.
  *  3. AN EMPTY SET IS A MEASURED 0. A project with no agent has no run to have
  *     made — that 0 is a fact, and it renders as 0.
+ *  4. DEV-SEED FIXTURES ARE NOT PRODUCTION TRUTH. `scripts/dev-seed.mjs` writes
+ *     real, persisted rows (`seed-project-lab`, `seed-agent-*`), so a plain read
+ *     cannot tell them from a genuine project or agent — but this is a console
+ *     presented as the real production run stream, and `/admin/runs` already
+ *     excludes the same rows from its window (`isDevSeedCopilot`,
+ *     `runs-page-data.ts`). This screen applies the identical markers
+ *     (`dev-seed-markers.ts`) to both `projects` and `copilots` before any KPI
+ *     or table row is built, and DISCLOSES the exclusion count rather than
+ *     hiding it silently.
  */
 
 /* --------------------------------------------------------------- constants */
@@ -112,8 +122,16 @@ export function ProjectsScreen({
   /** PostgREST detail behind that failure, shown in the error panel. */
   agentsErrorDetail?: string | null
 }) {
-  const assigned = copilots === null ? null : copilots.filter((copilot) => copilot.projectId !== null)
-  const bench = copilots === null ? null : copilots.filter((copilot) => copilot.projectId === null)
+  // Dev-seed rows excluded FIRST, before any KPI, rollup or table row is built
+  // from either array — see point 4 of the file doc. Real projects/agents never
+  // match the marker, so this is a no-op outside a dev-seeded environment.
+  const realProjects = projects.filter((project) => !isDevSeedProject(project))
+  const excludedProjects = projects.length - realProjects.length
+  const realCopilots = copilots === null ? null : copilots.filter((copilot) => !isDevSeedCopilot(copilot))
+  const excludedCopilots = copilots === null ? 0 : copilots.length - (realCopilots?.length ?? 0)
+
+  const assigned = realCopilots === null ? null : realCopilots.filter((copilot) => copilot.projectId !== null)
+  const bench = realCopilots === null ? null : realCopilots.filter((copilot) => copilot.projectId === null)
   const serving = assigned === null ? null : assigned.filter(isServing)
 
   const fleetRuns = assigned === null ? null : sumMeasuredHealth(assigned, 'runsLast24h')
@@ -122,7 +140,7 @@ export function ProjectsScreen({
   // Per project: the team is the assigned copilots pointing at it. With the
   // copilot read down there is no team to compute, so every figure is absent —
   // NOT zero.
-  const rollups: ProjectRollup[] = projects.map((project) => {
+  const rollups: ProjectRollup[] = realProjects.map((project) => {
     if (assigned === null) {
       return { project, team: 0, serving: 0, runs24h: null, cost24h: null }
     }
@@ -181,12 +199,24 @@ export function ProjectsScreen({
           bench count is not lost — it is the count in the bench panel's header,
           beside the list it counts. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <KpiCard label="Projects" value={projects.length} detail="Persisted workspaces" />
+        <KpiCard
+          label="Projects"
+          value={realProjects.length}
+          detail={
+            excludedProjects > 0
+              ? `Persisted workspaces · ${excludedProjects} dev-seed excluded`
+              : 'Persisted workspaces'
+          }
+        />
 
         <KpiCard
           label="Assigned agents"
           value={assigned === null ? unavailableFigure : assigned.length}
-          detail="Linked to a project"
+          detail={
+            excludedCopilots > 0
+              ? `Linked to a project · ${excludedCopilots} dev-seed excluded`
+              : 'Linked to a project'
+          }
         />
 
         <KpiCard
@@ -225,10 +255,12 @@ export function ProjectsScreen({
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
         <Section
           title="Project registry"
-          description={`${projects.length} live record${projects.length === 1 ? '' : 's'} from the Aigent perimeter`}
+          description={`${realProjects.length} live record${realProjects.length === 1 ? '' : 's'} from the Aigent perimeter${
+            excludedProjects > 0 ? ` · ${excludedProjects} dev-seed project${excludedProjects === 1 ? '' : 's'} excluded` : ''
+          }`}
         >
           <div className={TABLE_SCROLL}>
-            {projects.length === 0 ? (
+            {realProjects.length === 0 ? (
               <EmptyState
                 title="No project is available."
                 description="Nothing is persisted in the Aigent perimeter."

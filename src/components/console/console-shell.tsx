@@ -13,11 +13,12 @@ import { Link } from '@/components/ui/link'
 import { StatusDot, type StatusDotTone } from '@/components/ui/status-dot'
 
 /**
- * The console frame: a 248px graphite rail, a 52px topbar, and the content
- * column. Server component — it holds no state and reads no data, everything it
- * renders comes from props, which is the only reason it can stay one.
+ * The console frame: a graphite rail (216px at `lg`, 248px from `xl`), a 52px
+ * topbar, and the content column. Server component — it holds no state and
+ * reads no data, everything it renders comes from props, which is the only
+ * reason it can stay one.
  *
- * TWO THINGS THIS FILE DELIBERATELY REFUSES TO RENDER:
+ * THREE THINGS THIS FILE DELIBERATELY REFUSES TO RENDER:
  *
  *  1. A DEAD CONTROL. The rail used to carry `Factory`, `Performance` and
  *     `Settings` as DISABLED buttons pointing at `href: null`. Those routes were
@@ -33,6 +34,14 @@ import { StatusDot, type StatusDotTone } from '@/components/ui/status-dot'
  *     platform state now comes from the route via `stateLabel` / `degraded`, and
  *     a route that cannot supply one gets NO dot at all — see
  *     `resolvePlatformState`.
+ *
+ *  3. A WORD THE DESTINATION CANNOT HONOUR. The quick-access control used to be
+ *     labelled "Live runs". Nothing behind it is live: `/admin/runs` is a server
+ *     render (`dynamic = 'force-dynamic'` = fresh per REQUEST, not streaming),
+ *     there is no `EventSource`, no polling and no `revalidate` anywhere under
+ *     `src/`, and the runs table prints its own "Read at <t> UTC" footer
+ *     precisely because it is a snapshot. It now says "Run activity" — the same
+ *     wording `agents-screen` already uses for the same destination.
  */
 
 /**
@@ -164,8 +173,9 @@ export function ConsoleShell({
   /** Page title, left of the topbar. Omitted ⇒ the topbar shows no title. */
   title?: string
   /**
-   * The platform state word, right of the topbar (e.g. `'Live'`,
-   * `'Partial data'`). Omitted ⇒ nothing is claimed and nothing is drawn.
+   * The platform state word, right of the topbar (e.g. `'No data-source warning
+   * reported'`, `'Partial data'`). Omitted ⇒ nothing is claimed and nothing is
+   * drawn. Deliberately NOT `'Live'` — see point 3 of the file docblock.
    */
   stateLabel?: string
   /** Puts the state in the danger role. Never decorative: real degradation only. */
@@ -176,7 +186,25 @@ export function ConsoleShell({
 
   return (
     <div className="min-h-screen bg-surface-app text-white">
-      <div className="mx-auto grid min-h-screen max-w-[1800px] lg:grid-cols-[248px_minmax(0,1fr)]">
+      {/* FULL-BLEED FRAME, CAPPED CONTENT. The width cap used to sit here, on
+          the grid, which put the RAIL inside it: above 1800px the graphite
+          plane detached from the left edge of the screen and floated in page
+          ground with a border on one side and nothing on the other — a
+          rendering fault, not a layout choice. The cap now lives on the two
+          things that actually need a reading measure (the topbar row and
+          `<main>`), at `1552px` = the old `1800 − 248`, so the content measure
+          is unchanged and only the rail moved.
+
+          THE TRACK IS RESPONSIVE, WHICH IS THE WHOLE "COMPACT AT INTERMEDIATE
+          WIDTHS" ANSWER. It used to be one binary switch — nothing below `lg`,
+          248px from `lg` up — so at 1024px four short links ate 24.2% of the
+          viewport. 216px at `lg` returns 32px to the content column exactly
+          where it is scarcest, and still clears the widest thing in the rail:
+          the brand band needs 16 + 28 + 10 + ~118 ("Agent Mission Control" at
+          10px) + 16 ≈ 188px. From `xl` the rail is back to 248px.
+          NO collapse toggle: a hamburger needs open/close state, which would
+          force `'use client'` onto the entire frame. CSS only. */}
+      <div className="grid min-h-screen lg:grid-cols-[216px_minmax(0,1fr)] xl:grid-cols-[248px_minmax(0,1fr)]">
         {/* The rail owns the border and the graphite plane so both run the FULL
             page height; the sticky inner column is what stays in view. */}
         <aside className="hidden border-r border-line bg-surface-raised lg:block">
@@ -240,33 +268,51 @@ export function ConsoleShell({
           {/* Topbar + compact rail travel together: below `lg` the sidebar is
               gone, so the strip IS the navigation and must stay reachable. */}
           <div className="sticky top-0 z-20 bg-surface-app/95 backdrop-blur">
-            <header className="flex h-13 items-center justify-between gap-3 border-b border-line px-3 sm:px-4 lg:px-5">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span
-                  aria-hidden="true"
-                  className="grid size-6 shrink-0 place-items-center rounded bg-accent-500 text-zinc-950 lg:hidden"
-                >
-                  <CommandLineIcon className="size-3.5" />
-                </span>
-                {title ? <p className="truncate text-[13px]/5 font-semibold text-white">{title}</p> : null}
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                {state ? (
-                  <StatusDot tone={state.tone} className="max-w-32 text-[11px]/4">
-                    {state.label}
-                  </StatusDot>
-                ) : null}
-                {/* Quick access = a REAL destination. The frame this adapts puts
-                    a search field here; a field that filters nothing is a dead
-                    control, so the slot carries the one link an operator always
-                    wants instead. */}
-                <Link
-                  href="/admin/runs"
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-line-strong bg-surface-raised px-2 py-1 text-[11px]/4 font-medium text-zinc-300 transition-colors hover:bg-surface-hover hover:text-white"
-                >
-                  <PlayCircleIcon aria-hidden="true" className="size-3.5 shrink-0" />
-                  <span className="truncate">Live runs</span>
-                </Link>
+            {/* The hairline spans the whole column (it is the frame's rule); the
+                ROW inside it carries the same `max-w-[1552px]` cap and the same
+                padding as `<main>`, so the title and the state cluster stay on
+                the content's own edges at every width. */}
+            <header className="border-b border-line">
+              <div className="mx-auto flex h-13 w-full max-w-[1552px] items-center justify-between gap-3 px-3 sm:px-4 lg:px-5">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span
+                    aria-hidden="true"
+                    className="grid size-6 shrink-0 place-items-center rounded bg-accent-500 text-zinc-950 lg:hidden"
+                  >
+                    <CommandLineIcon className="size-3.5" />
+                  </span>
+                  {title ? <p className="truncate text-[13px]/5 font-semibold text-white">{title}</p> : null}
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  {state ? (
+                    <StatusDot tone={state.tone} className="max-w-32 text-[11px]/4">
+                      {state.label}
+                    </StatusDot>
+                  ) : null}
+                  {/* Quick access = a REAL destination, under a label that
+                      destination can honour. The frame this adapts puts a search
+                      field here; a field that filters nothing is a dead control,
+                      so the slot carries the one link an operator always wants
+                      instead.
+                      It says "Run activity", NOT "Live runs" — see point 3 of
+                      the file docblock. Polling was NOT added to rescue the old
+                      word: that would trade a labelling defect for a load
+                      defect, and a genuinely live view needs its own SSE
+                      endpoint plus a client consumer, neither of which exists.
+                      SUPPRESSED ON THE RUNS SECTION ITSELF: a control that
+                      navigates to the screen already being read is a no-op
+                      dressed as an action. The rail entry beside it keeps the
+                      `aria-current` pill, so nothing is lost. */}
+                  {active === '/admin/runs' ? null : (
+                    <Link
+                      href="/admin/runs"
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-line-strong bg-surface-raised px-2 py-1 text-[11px]/4 font-medium text-zinc-300 transition-colors hover:bg-surface-hover hover:text-white"
+                    >
+                      <PlayCircleIcon aria-hidden="true" className="size-3.5 shrink-0" />
+                      <span className="truncate">Run activity</span>
+                    </Link>
+                  )}
+                </div>
               </div>
             </header>
 
@@ -289,7 +335,11 @@ export function ConsoleShell({
             </nav>
           </div>
 
-          <main className="min-w-0 flex-1 p-3 sm:p-4 lg:p-5">{children}</main>
+          {/* `w-full max-w-[1552px] mx-auto`: the reading measure the cap used
+              to give the whole frame, applied where it belongs. 1552 − 40 of
+              `lg:p-5` = the same 1512px content measure the old
+              `max-w-[1800px]` produced, so no screen's grid rungs move. */}
+          <main className="mx-auto w-full min-w-0 max-w-[1552px] flex-1 p-3 sm:p-4 lg:p-5">{children}</main>
         </div>
       </div>
     </div>

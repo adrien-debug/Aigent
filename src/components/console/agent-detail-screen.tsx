@@ -151,8 +151,15 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
             <StatusDot tone={detail.executable ? 'positive' : 'negative'} className="max-w-40">
               {detail.executable ? 'Executable now' : 'Execution blocked'}
             </StatusDot>
-            {copilot.projectId === null ? null : (
-              <Button href={`/admin/projects/${copilot.projectId}/builder`} outline>
+            {/* `agent.projectId`, NOT the raw `copilot.projectId` column: the
+                catalogue validates the id against the live `projects` table
+                (`projectExists` in available-agents.ts) before trusting it. A
+                copilot whose project was deleted still carries a non-null
+                `project_id` column, and the raw guard rendered a button whose
+                destination 404s. `agent` is undefined only when the copilot is
+                absent from the catalogue read entirely — no project link then. */}
+            {agent?.projectId == null ? null : (
+              <Button href={`/admin/projects/${agent.projectId}/builder`} outline>
                 Project builder <ArrowRightIcon />
               </Button>
             )}
@@ -175,6 +182,12 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
             <ArcGauge
               value={successPercent}
               max={100}
+              // 56, not the 72 default: this is a five-across band (like
+              // runs-screen and projects-screen), and at 1280px a 72px gauge
+              // squeezes the text column under the ~85px `Indisponible` rung
+              // until it truncates. Measured, not guessed — same reasoning as
+              // runs-screen.tsx:174-176 and projects-screen.tsx:201-203.
+              size={56}
               ariaLabel={
                 successPercent === null
                   ? 'Success rate: no terminal run, nothing measured.'
@@ -442,7 +455,14 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
                     {tool.requiresConfirmation ? <span>· confirmation required</span> : null}
                   </span>
                 }
-                values={[{ label: 'calls · 7d', value: tool.callsLast7d }]}
+                // No `values` prop here. `tool.callsLast7d` is
+                // `tools.calls_last_7d int not null default 0` — no run path,
+                // telemetry ingest or aggregation ever writes it, so every row
+                // reads 0 regardless of real usage while the KPI band above
+                // reports real tool-call counts from `agent_runs`. Rendering a
+                // schema default as a measurement is worse than showing
+                // nothing; remove it rather than hide it behind a flag until a
+                // real writer exists.
                 trailing={
                   <StatusDot tone={tool.enabled ? 'positive' : 'neutral'} className="max-w-24">
                     {tool.enabled ? 'enabled' : 'disabled'}
@@ -456,6 +476,11 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
         <Section
           title="Manifest & policy"
           description="The contract the runtime gate enforces"
+          // This is the third child of a 3-up row that is only 2-up at `md`:
+          // with no placement it orphaned itself under "Mounted tools" and left
+          // an empty half-column of bare page ground between 768px and 1279px.
+          // Full-width at `md`, back to one-third at `xl` where all three fit.
+          className="md:col-span-2 xl:col-span-1"
           scroll="lg"
         >
           {manifest === undefined ? (
@@ -564,6 +589,15 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
                 // are the stored zero baseline, NOT a measurement. Rendering them
                 // would state "0.0% of tests pass" about a version nobody ran.
                 const measured = version.scoresEvidence === 'runs'
+                // EVIDENCE **AND** THE FIELD ITSELF. `measured` alone was not
+                // enough: it is set as soon as ANY of the three run-backed
+                // figures resolved, so a version with a test run and no
+                // benchmark passed the gate with `benchmarkScore` still absent
+                // — React rendered `undefined` as an empty cell, and the Tests
+                // column of a benchmark-only version rendered "NaN%". Each cell
+                // now answers for its own measurement.
+                const testPassRate = measured ? version.scores.testPassRate : null
+                const benchmarkScore = measured ? version.scores.benchmarkScore : null
                 const createdAt = formatUtcTimestamp(version.createdAt)
                 return (
                   <TableRow key={version.id} className={TABLE_ROW}>
@@ -575,10 +609,10 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
                       <ModelPair provider={version.modelProvider} model={version.model} />
                     </TableCell>
                     <TableCell className={`${TABLE_NUM} text-zinc-300`}>
-                      {measured ? formatPercent(version.scores.testPassRate) : <Unavailable />}
+                      {testPassRate === null ? <Unavailable /> : formatPercent(testPassRate)}
                     </TableCell>
                     <TableCell className={`${TABLE_NUM} text-zinc-300`}>
-                      {measured ? version.scores.benchmarkScore : <Unavailable />}
+                      {benchmarkScore === null ? <Unavailable /> : benchmarkScore}
                     </TableCell>
                     <TableCell className={`${TABLE_NUM} text-zinc-300`}>
                       {version.scores.shadowAgreement === null ? (

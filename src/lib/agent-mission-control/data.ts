@@ -232,6 +232,18 @@ export const getCopilot = cache(async function getCopilot(id: string): Promise<C
   return enrichCopilot(copilot, health.get(copilot.id), kpi24h.get(copilot.id))
 })
 
+/**
+ * A raw jsonb figure → a measurement or an ABSENCE, never anything in between.
+ *
+ * `undefined` (key absent from the blob), `null`, `NaN` and `Infinity` all mean
+ * the same thing here: nothing was measured. They must not be allowed to reach
+ * arithmetic — `(undefined * 100).toFixed(1)` is the string `"NaN"`, which is
+ * how a missing key ended up rendered as a percentage on a live screen.
+ */
+function finiteOrNull(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
 export async function getVersionsForCopilot(copilotId: string): Promise<CopilotVersion[]> {
   const versions = camelRows<CopilotVersion>(
     await rest<RawRow[]>(`copilot_versions?select=*&copilot_id=eq.${encodeURIComponent(copilotId)}&order=created_at.desc`)
@@ -240,6 +252,19 @@ export async function getVersionsForCopilot(copilotId: string): Promise<CopilotV
   return versions.map((version) => {
     const resolved = scores.get(version.id)
     version.scoresEvidence = resolved?.evidenceSource ?? 'none'
+    // NORMALISE THE BLOB FIRST. `copilot_versions.scores` is
+    // `jsonb not null default '{}'` and arrives through `camelRow`, an
+    // unvalidated cast — an absent key is `undefined`, not `null`. A view
+    // guarding on `=== null` therefore let `undefined` through to
+    // `formatPercent`, which printed the literal string "NaN%" (measured live
+    // on 10 of 14 persisted versions). Absence becomes `null` here, ONCE, so
+    // every consumer of `scores` inherits the fix instead of re-deriving it.
+    version.scores = {
+      testPassRate: finiteOrNull(version.scores?.testPassRate),
+      benchmarkScore: finiteOrNull(version.scores?.benchmarkScore),
+      shadowAgreement: finiteOrNull(version.scores?.shadowAgreement),
+      unsafeActionCount: finiteOrNull(version.scores?.unsafeActionCount),
+    }
     // Same rule as copilots: run-backed value overwrites the stale zero blob;
     // no run → keep the stored baseline (seeded versions, un-run drafts).
     if (resolved && resolved.testPassRate !== null) version.scores.testPassRate = resolved.testPassRate

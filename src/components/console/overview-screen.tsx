@@ -441,6 +441,11 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
           aside={
             <ArcGauge
               value={executable ? executable.now : null}
+              // `max={0}` is a MEASURED empty scale, not a missing one — a
+              // freshly-empty registry is `{now: 0, total: 0}` — and
+              // `ArcGauge`/`RingGauge` both draw that as a solid, measured track
+              // (`scaleMax = max >= 0 ? max : null`), never the dashed
+              // never-measured one. No flooring needed here.
               max={executable ? executable.total : 100}
               size={56}
               ariaLabel={
