@@ -28,26 +28,16 @@
  *     truthiness test whose false branch asserts a measurement ("never used",
  *     "none", "0"). Null means nobody wrote it — say so, do not measure it.
  *
- * Scope: the surfaces users actually read — `src/app/admin/**`,
- * `src/components/agent-ops/**`, `src/components/views/**` (the
- * catalyst-in-layers migration moved page-level render logic here — see the
- * migration plan) and `src/components/shell/**`. Exit 0 = clean, exit 1 =
- * violation. Read-only, no network, no secret.
+ * Scope: the surfaces users actually read — `src/app/admin/**` and
+ * `src/lib/runs-console/**`. Exit 0 = clean, exit 1 = violation. Read-only,
+ * no network, no secret.
  */
 import { readFile, readdir } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const SCANNED_DIRS = [
-  join(ROOT, 'src/app/admin'),
-  join(ROOT, 'src/components/admin-dashboard'),
-  join(ROOT, 'src/components/admin-shell'),
-  join(ROOT, 'src/components/runs-console'),
-  join(ROOT, 'src/components/agent-ops'),
-  join(ROOT, 'src/components/views'),
-  join(ROOT, 'src/components/shell'),
-]
+const SCANNED_DIRS = [join(ROOT, 'src/app/admin'), join(ROOT, 'src/lib/runs-console')]
 
 /**
  * Field names that ARE measurements in this codebase's contracts (`types.ts`,
@@ -128,14 +118,7 @@ const ASSERTED_ABSENCE_RE = new RegExp(
  * listed file stops violating, so a migrated file cannot leave a stale blanket
  * exemption behind to cover the next regression.
  */
-const KNOWN_DEBT = new Set([
-  // AIGENT-UI-TRUTH-026 wave 2 — a run whose tool calls were never counted is
-  // not a run with zero tool calls. Relocated from
-  // src/app/admin/agents/[id]/runs/page.tsx by the catalyst-in-layers
-  // migration (page.tsx is now a thin data+View shell; this render logic
-  // moved to the view file verbatim — see the migration plan).
-  'src/components/views/agents/agent-runs-view.tsx',
-])
+const KNOWN_DEBT = new Set([])
 
 async function* walk(dir) {
   let entries

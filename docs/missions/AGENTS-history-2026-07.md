@@ -121,8 +121,8 @@ sous `src/lib/agent-mission-control/market/` :
 Cartographie vivante des agents d'un projet, en graphe. Route
 `/admin/projects/[id]/team`, API `GET /api/agent-ops/projects/[id]/team`,
 sous-nav projet `Overview · Agent Builder · My Team`
-(`src/components/agent-ops/project-tabs.tsx` — n'expose QUE des routes projet
-qui existent réellement).
+(`src/components/agent-ops/project-tabs.tsx` — supprimé depuis, P007 — n'exposait
+QUE des routes projet qui existaient réellement).
 
 - **Moteur** : `@xyflow/react` 12.11.2. **Pas d'elkjs** — le layout
   (`project-team/layout.ts`) est une fonction pure déterministe, donc testable.

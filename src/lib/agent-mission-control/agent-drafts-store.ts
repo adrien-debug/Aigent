@@ -106,14 +106,6 @@ export async function upsertAgentDraft(input: {
   return mapRow(fetched[0])
 }
 
-export async function listAgentDrafts(limit = 20): Promise<AgentDraftRow[]> {
-  const rows = await pgrest<RawAgentDraft[]>(
-    'GET',
-    `agent_drafts?status=in.(drafting,ready)&order=updated_at.desc&limit=${limit}`,
-  )
-  return rows.map(mapRow)
-}
-
 export async function markAgentDraftMaterialized(draftId: string, copilotId: string): Promise<void> {
   await pgrest(
     'PATCH',

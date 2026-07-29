@@ -23,7 +23,7 @@ through their existing interfaces or left as isolated integration points.
 | Orchestration service | tests → benchmark → shadow → replay → gate, version-scoped/idempotent/resumable | `src/lib/agent-mission-control/qualification-orchestrator.ts` |
 | Workflow state | `qualification_runs` table (ledger only) | `supabase/migrations/0040_qualification_runs.sql` |
 | API | `GET/POST /api/agent-ops/copilots/:id/qualification` + create contract in the create response | `src/app/api/agent-ops/copilots/[copilotId]/qualification/route.ts`, `.../copilots/route.ts` |
-| UI | Qualification timeline + recommended next action on the Release page | `src/components/agent-ops/agent-detail/qualification-timeline.tsx`, `src/app/admin/agents/[id]/release/page.tsx` |
+| UI (removed since, P007) | Qualification timeline + recommended next action on the Release page | was `src/components/agent-ops/agent-detail/qualification-timeline.tsx`, `src/app/admin/agents/[id]/release/page.tsx` — deleted with the legacy dashboard front |
 | Tests | 14 mandatory scenarios | `tests/unit/qualification-orchestrator.test.ts`, `tests/unit/autonomous-factory-creation.test.ts`, `tests/unit/autonomous-factory-route.test.ts` |
 | E2E | Product-path proof (route handlers only) | `scripts/prove-autonomous-factory-e2e.ts` |
 

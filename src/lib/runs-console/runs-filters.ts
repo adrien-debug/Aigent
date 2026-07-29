@@ -32,12 +32,6 @@ export const PERIOD_MS: Record<RunsPeriod, number> = {
   '24h': 24 * 60 * 60 * 1000,
 }
 
-export const PERIOD_LABEL: Record<RunsPeriod, string> = {
-  '1h': 'Last hour',
-  '6h': 'Last 6 hours',
-  '24h': 'Last 24 hours',
-}
-
 export interface RunsFilterState {
   q: string
   agent: string

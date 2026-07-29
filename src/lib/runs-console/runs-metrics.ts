@@ -89,15 +89,6 @@ export function deriveRunsMetrics(runs: AgentRun[]): RunsMetrics {
   }
 }
 
-export function formatUsd(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
-  }).format(amount)
-}
-
 export function formatPercent(rate: number): string {
   return `${Math.round(rate * 100)}%`
 }

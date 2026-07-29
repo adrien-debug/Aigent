@@ -19,10 +19,7 @@
  * tables, they compare against DB columns, and they are deliberately NOT
  * flagged. Comments are skipped: this guard is about what renders.
  *
- * Scope: the dashboard — `src/app/admin/**`, `src/components/agent-ops/**`,
- * `src/components/views/**` (the catalyst-in-layers migration moved
- * page-level render logic here — see the migration plan) and
- * `src/components/shell/**`. `src/app/(site)/**` and
+ * Scope: the dashboard — `src/app/admin/**`. `src/app/(site)/**` and
  * `src/components/marketing/**` are a separate world by doctrine (AGENTS.md:
  * Tailwind Plus blocks, static vitrine) and are excluded.
  *
@@ -33,15 +30,7 @@ import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const SCANNED_DIRS = [
-  join(ROOT, 'src/app/admin'),
-  join(ROOT, 'src/components/admin-dashboard'),
-  join(ROOT, 'src/components/admin-shell'),
-  join(ROOT, 'src/components/runs-console'),
-  join(ROOT, 'src/components/agent-ops'),
-  join(ROOT, 'src/components/views'),
-  join(ROOT, 'src/components/shell'),
-]
+const SCANNED_DIRS = [join(ROOT, 'src/app/admin')]
 
 /** The file that OWNS every status label. */
 const LABELS_MODULE = 'src/lib/agent-mission-control/labels.ts'
@@ -64,25 +53,7 @@ const DISPLAY_LITERAL_RE =
  * listed file stops violating, so a migrated file cannot leave a stale blanket
  * exemption behind to cover the next regression.
  */
-const KNOWN_DEBT = new Set([
-  // AIGENT-UI-TRUTH-026 wave 2 — the project team canvas keeps its own
-  // `ProjectTeamNodeStatus` vocabulary (`STATUS_LABELS`, `STATUS_PRESENTATION`).
-  // This is the exact source of the `IDLE` that contradicted `ACTIVE` for the
-  // same agent on the same day.
-  'src/components/agent-ops/project-team/project-team-panel.tsx',
-  'src/components/agent-ops/project-team/project-team-node.tsx',
-  // Summary-strip counter names, not agent statuses — but spelled with the same
-  // words on the same screen, which is precisely the confusion to remove.
-  'src/components/agent-ops/project-team/project-team-view.tsx',
-  // AIGENT-COCKPIT-030 — these compare a TelemetryMeasurementState value
-  // (`'MEASURED' | 'UNAVAILABLE' | 'NOT_APPLICABLE'`, telemetry provenance from
-  // runtime-telemetry-store.ts), NOT an agent status. The word collides with the
-  // agent-status `unavailable`, but the vocabulary is different and correct — a
-  // measurement's provenance is data, it never keys off labels.ts. Shrink-only:
-  // the guard fails if either file stops using the measurement-state literal.
-  'src/components/agent-ops/telemetry/telemetry-error-breakdown.tsx',
-  'src/components/agent-ops/telemetry/telemetry-kpi-band.tsx',
-])
+const KNOWN_DEBT = new Set([])
 
 async function* walk(dir) {
   let entries

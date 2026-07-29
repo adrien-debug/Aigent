@@ -47,9 +47,6 @@ export type AgentRuntime =
   | 'gemini'
   | 'custom'
 
-/** Restriction du runtime autorisé côté API/formulaire de création — voir copilots/route.ts. */
-export type CreatableAgentRuntime = Extract<AgentRuntime, 'langgraph'>
-
 export type CopilotStatus = 'active' | 'paused' | 'draft' | 'degraded' | 'archived'
 
 export type AgentPushStatus = 'never' | 'pushing' | 'pushed' | 'failed'
@@ -140,19 +137,6 @@ export interface CopilotHealth {
 
 /** One rolled-up health metric — the key space of `healthUnavailableFields`. */
 export type CopilotHealthMetric = keyof CopilotHealth
-
-/**
- * Explicit measurement state for a value that may not be measurable. The whole
- * point of the "doctrine des chiffres": a value nobody could measure travels as
- * `null` + a state, NEVER as a fabricated `0`.
- *
- * - `MEASURED` — a real reading (including a real `0`).
- * - `UNKNOWN` — not read this pass (skipped, e.g. a `list`-mode health fan-out).
- * - `UNAVAILABLE` — structurally unmeasurable: no producer exists at all.
- * - `STALE` — last reading is past its freshness window.
- * - `NOT_APPLICABLE` — the metric does not apply to this subject.
- */
-export type MeasurementState = 'MEASURED' | 'UNKNOWN' | 'UNAVAILABLE' | 'STALE' | 'NOT_APPLICABLE'
 
 export type VersionStage = 'production' | 'beta' | 'draft' | 'archived'
 

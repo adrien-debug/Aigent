@@ -10,9 +10,12 @@
  * stops a later commit from re-creating one of those paths and importing it
  * again — except this gate.
  *
- * Two checks, both on facts a grep can prove:
+ * Three checks, all on facts a grep or a stat can prove:
  *   1. NO IMPORT of a deleted layer, anywhere under `src/`.
  *   2. NO `/admin-v2` route or reference, anywhere under `src/`.
+ *   3. NO deleted admin ROUTE FILE back on disk (a route can regress without
+ *      ever being imported by name — a new `page.tsx` dropped straight into a
+ *      demolished path is invisible to the import scan above).
  *
  * ANTI-BLINDNESS: a guard anchored on paths that no longer exist can pass by
  * scanning nothing. The scan root is therefore verified before the verdict, and
@@ -44,6 +47,22 @@ const DELETED_LAYERS = [
 
 /** The route family the mission forbids outright. */
 const FORBIDDEN_ROUTE = '/admin-v2'
+
+/**
+ * Every admin route P006 demolished, as a path relative to `src/app/admin`.
+ * Only `admin/page.tsx`, `admin/layout.tsx` and `admin/runs/page.tsx` may
+ * exist — anything below re-creates a screen this mission removed.
+ */
+const DELETED_ADMIN_ROUTES = [
+  'agents',
+  'projects',
+  'factory',
+  'performance',
+  'settings',
+  'telemetry',
+  'error.tsx',
+  'not-found.tsx',
+]
 
 async function* walk(dir) {
   let entries
@@ -100,6 +119,16 @@ async function main() {
     process.exit(1)
   }
 
+  const ADMIN_DIR = join(SRC, 'app', 'admin')
+  for (const entry of DELETED_ADMIN_ROUTES) {
+    try {
+      await stat(join(ADMIN_DIR, entry))
+      violations.push(`src/app/admin/${entry}  route re-created — that screen was deleted by P006`)
+    } catch {
+      // Absent, as required.
+    }
+  }
+
   if (violations.length > 0) {
     console.error(`\n✗ ${violations.length} reference(s) to a demolished front:\n`)
     for (const v of violations) console.error('  ' + v)
@@ -113,7 +142,8 @@ async function main() {
   }
 
   console.log(
-    `✓ Demolition guard passed — ${scanned} file(s) scanned, no deleted visual layer imported, no ${FORBIDDEN_ROUTE}.`
+    `✓ Demolition guard passed — ${scanned} file(s) scanned, no deleted visual layer imported, ` +
+      `no ${FORBIDDEN_ROUTE}, no demolished admin route re-created.`
   )
 }
 

@@ -119,13 +119,6 @@ export function toRuntimeRunStatus(internal: AgentRunStatus): RuntimeRunStatus {
   }
 }
 
-/** Structured error body — never a raw `Error#message`/stack from upstream. */
-export type RuntimeErrorBody = {
-  code: string
-  message: string
-  requestId: string
-}
-
 // ---------------------------------------------------------------------------
 // Auth — service-to-service bearer token, fail-closed.
 // ---------------------------------------------------------------------------
