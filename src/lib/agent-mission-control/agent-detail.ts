@@ -8,6 +8,7 @@ import {
   getToolsForCopilot,
   getVersionsForCopilot,
 } from './data'
+import { isExecutable } from './runtime-catalogue'
 import type { AgentManifest, AgentRun, Copilot, CopilotVersion, ToolDefinition } from './types'
 
 /**
@@ -166,6 +167,24 @@ function computeBlockers(agent: AvailableAgent | undefined, toolsById: Map<strin
         detail: 'The runtime cannot resolve this from persisted data, so a run cannot be started.',
       })
     }
+  }
+
+  // Mirrors `runtime-catalogue.isExecutable` — langgraph is the only executable
+  // product runtime (AGENTS.md). This must be the SAME rule /admin/agents uses,
+  // never a second one: a non-langgraph agent (runtime unset, 'direct', or any
+  // other value) is never executable, but that is a distinct fact from the
+  // LangGraph-specific reasons above (missing assistant, unresolved tools in the
+  // graph registry) and must not be conflated with — or silently replaced by —
+  // them. Only push this blocker when nothing else already explains why the
+  // agent isn't executable per `isExecutable`, so a langgraph agent that is
+  // otherwise healthy never gets a spurious runtime blocker, and a non-langgraph
+  // agent gets exactly one clear reason instead of borrowed LangGraph wording.
+  if (agent.runtime !== 'langgraph' && blockers.length === 0 && !isExecutable(agent)) {
+    blockers.push({
+      code: 'runtime-not-langgraph',
+      label: `Runtime is ${agent.runtime ?? 'unset'}, not langgraph`,
+      detail: 'LangGraph is the only executable product runtime; this agent has no wired execution path.',
+    })
   }
 
   return blockers

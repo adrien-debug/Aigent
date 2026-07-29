@@ -39,10 +39,13 @@ describe('legacy front — demolished admin routes stay demolished', () => {
     expect(existsSync(join(ROOT, 'src/app/admin-v2'))).toBe(false)
   })
 
-  it('only the commissioned screens and their layout remain directly under src/app/admin', () => {
+  it('only the commissioned screens, layout and error boundary remain directly under src/app/admin', () => {
     const entries = readdirSync(join(ROOT, 'src/app/admin'), { withFileTypes: true })
     const names = entries.map((e) => e.name).sort()
-    expect(names).toEqual(['agents', 'layout.tsx', 'page.tsx', 'projects', 'runs'])
+    // `error.tsx` is the one commissioned top-level error boundary (see
+    // scripts/check-no-legacy-front.mjs ALLOWED_ERROR_BOUNDARY) — a new
+    // screen built from current Catalyst primitives, not a resurrection.
+    expect(names).toEqual(['agents', 'error.tsx', 'layout.tsx', 'page.tsx', 'projects', 'runs'])
   })
 })
 

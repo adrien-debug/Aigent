@@ -273,4 +273,174 @@ describe('ProjectBuilderScreen — the SSE chain, mounted end to end', () => {
     // The half-arrived block must not linger under the danger banner.
     expect(screen.queryByText('architect · streaming')).toBeNull()
   })
+
+  describe('lifecycle — abort on unmount and inactivity watchdog', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('abort on unmount: the in-flight stream is cancelled and no post-unmount setState happens', async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse(emptyBundle()))
+      const { unmount } = mount()
+      await waitFor(() => expect(screen.getByText('Describe the agent you need')).toBeTruthy())
+
+      const upstream = controlledStream()
+      let capturedSignal: AbortSignal | undefined
+      fetchMock.mockImplementationOnce((_url: string, init?: RequestInit) => {
+        capturedSignal = init?.signal ?? undefined
+        return Promise.resolve(new Response(upstream.stream, { status: 200 }))
+      })
+
+      fireEvent.change(screen.getByPlaceholderText(/Describe the mission/), { target: { value: 'Build a risk monitor' } })
+      fireEvent.click(screen.getByRole('button', { name: /Send/ }))
+
+      await act(async () => {
+        upstream.push({ type: 'connected', lifecycle: 'running', runId: 'run-1', conversationId: 'pbconv-1', sequence: 1 })
+      })
+      await waitFor(() => expect(screen.getByText('running')).toBeTruthy())
+
+      expect(capturedSignal?.aborted).toBe(false)
+
+      // React would warn ("state update on an unmounted component") if a
+      // stray setState landed after this; vitest fails the test on console.error.
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      await act(async () => {
+        unmount()
+      })
+
+      expect(capturedSignal?.aborted).toBe(true)
+
+      // The abort already cancelled the reader (and with it the stream), so
+      // there is nothing left to push — the point being verified is that the
+      // abort itself produced no post-unmount React update.
+      expect(consoleError).not.toHaveBeenCalled()
+      consoleError.mockRestore()
+    })
+
+    it('inactivity watchdog: no event for the full window aborts the stream with an explicit state', async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse(emptyBundle()))
+      mount()
+      await waitFor(() => expect(screen.getByText('Describe the agent you need')).toBeTruthy())
+
+      const upstream = controlledStream()
+      fetchMock.mockResolvedValueOnce(new Response(upstream.stream, { status: 200 }))
+      fireEvent.change(screen.getByPlaceholderText(/Describe the mission/), { target: { value: 'Build a risk monitor' } })
+      fireEvent.click(screen.getByRole('button', { name: /Send/ }))
+
+      await act(async () => {
+        upstream.push({ type: 'connected', lifecycle: 'running', runId: 'run-1', conversationId: 'pbconv-1', sequence: 1 })
+      })
+      await waitFor(() => expect(screen.getByText('running')).toBeTruthy())
+
+      // No further event ever arrives — advance past the watchdog window.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(90_000)
+      })
+
+      await waitFor(() => expect(screen.getByText('failed')).toBeTruthy())
+      const banner = screen.getByRole('alert')
+      expect(within(banner).getByText(/interrupted by inactivity/)).toBeTruthy()
+    })
+
+    it('an event before the timeout re-arms the watchdog — no timeout fires', async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse(emptyBundle()))
+      mount()
+      await waitFor(() => expect(screen.getByText('Describe the agent you need')).toBeTruthy())
+
+      const upstream = controlledStream()
+      fetchMock.mockResolvedValueOnce(new Response(upstream.stream, { status: 200 }))
+      fireEvent.change(screen.getByPlaceholderText(/Describe the mission/), { target: { value: 'Build a risk monitor' } })
+      fireEvent.click(screen.getByRole('button', { name: /Send/ }))
+
+      await act(async () => {
+        upstream.push({ type: 'connected', lifecycle: 'running', runId: 'run-1', conversationId: 'pbconv-1', sequence: 1 })
+      })
+      await waitFor(() => expect(screen.getByText('running')).toBeTruthy())
+
+      // Just under the window, then a delta resets the clock.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(80_000)
+      })
+      await act(async () => {
+        upstream.push({
+          type: 'delta',
+          lifecycle: 'running',
+          runId: 'run-1',
+          conversationId: 'pbconv-1',
+          sequence: 2,
+          delta: 'still working…',
+        })
+      })
+      // Another 80s (170s total since connect) — would have fired a naive
+      // one-shot timeout, must not fire a re-armed one.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(80_000)
+      })
+
+      expect(screen.getByText('running')).toBeTruthy()
+      expect(screen.queryByText(/interrupted by inactivity/)).toBeNull()
+
+      // Close it out cleanly so the test doesn't leak a pending stream.
+      const updatedBundle = { ...emptyBundle() }
+      fetchMock.mockResolvedValueOnce(jsonResponse(updatedBundle))
+      await act(async () => {
+        upstream.push({
+          type: 'terminal',
+          lifecycle: 'completed',
+          runId: 'run-1',
+          conversationId: 'pbconv-1',
+          sequence: 3,
+          messageId: 'm-1',
+          conversationStatus: 'active',
+          preview: null,
+          createdCopilotId: null,
+        })
+        upstream.close()
+      })
+      await waitFor(() => expect(screen.getByText('completed')).toBeTruthy())
+    })
+
+    it('a terminal event disarms the watchdog: no residual timer, no late timeout', async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse(emptyBundle()))
+      mount()
+      await waitFor(() => expect(screen.getByText('Describe the agent you need')).toBeTruthy())
+
+      const upstream = controlledStream()
+      fetchMock.mockResolvedValueOnce(new Response(upstream.stream, { status: 200 }))
+      fireEvent.change(screen.getByPlaceholderText(/Describe the mission/), { target: { value: 'Build a risk monitor' } })
+      fireEvent.click(screen.getByRole('button', { name: /Send/ }))
+
+      const updatedBundle = { ...emptyBundle() }
+      fetchMock.mockResolvedValueOnce(jsonResponse(updatedBundle))
+      await act(async () => {
+        upstream.push({
+          type: 'terminal',
+          lifecycle: 'completed',
+          runId: 'run-1',
+          conversationId: 'pbconv-1',
+          sequence: 1,
+          messageId: 'm-1',
+          conversationStatus: 'active',
+          preview: null,
+          createdCopilotId: null,
+        })
+        upstream.close()
+      })
+      await waitFor(() => expect(screen.getByText('completed')).toBeTruthy())
+
+      // No pending timers left — a terminal disarms the watchdog rather than
+      // leaving it to fire later and flip a completed turn back to failed.
+      expect(vi.getTimerCount()).toBe(0)
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(90_000)
+      })
+      expect(screen.getByText('completed')).toBeTruthy()
+      expect(screen.queryByText(/interrupted by inactivity/)).toBeNull()
+    })
+  })
 })

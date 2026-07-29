@@ -145,6 +145,84 @@ describe('dashboard KPIs', () => {
     expect(computeAvgRepoFit([100, 80])).toBe(90)
   })
 
+  it('4b — scorecards present feed avgRepoFit alongside sandbox repoFitScore, correctly averaged', () => {
+    const overview = assembleDashboardOverview({
+      copilots: [],
+      projects: [],
+      latestDeliveryByCopilot: new Map(),
+      latestSandboxByCopilot: new Map([
+        [
+          'c1',
+          {
+            copilotId: 'c1',
+            status: 'passed' as const,
+            sandboxFitScore: 80,
+            repoFitScore: 100,
+            repo: 'r',
+            createdAt: 't',
+          },
+        ],
+      ]),
+      scorecards: new Map([
+        [
+          'c2',
+          { score: 90, level: 'ready', blockers: [], repoFitScore: 60, releaseGateRed: false },
+        ],
+      ]),
+      missionRuns: [],
+      dataWarnings: [],
+      availableAgents: [],
+      windowRuns: [],
+    })
+    // Measured mean over BOTH sources when scorecards ARE loaded (agent-detail
+    // path / a future batched wave) — not a zero, and not sandbox-only.
+    expect(overview.kpis.avgRepoFit).toBe(80)
+  })
+
+  it('4c — scorecards absent (the current /admin list-friendly collector shape):'
+    + ' avgRepoFit falls back to sandbox-only, never a fabricated zero', () => {
+    const overview = assembleDashboardOverview({
+      copilots: [],
+      projects: [],
+      latestDeliveryByCopilot: new Map(),
+      latestSandboxByCopilot: new Map([
+        [
+          'c1',
+          {
+            copilotId: 'c1',
+            status: 'passed' as const,
+            sandboxFitScore: 80,
+            repoFitScore: 100,
+            repo: 'r',
+            createdAt: 't',
+          },
+        ],
+      ]),
+      scorecards: new Map(), // getDashboardOverview always passes this today
+      missionRuns: [],
+      dataWarnings: [],
+      availableAgents: [],
+      windowRuns: [],
+    })
+    expect(overview.kpis.avgRepoFit).not.toBe(0)
+    expect(overview.kpis.avgRepoFit).toBe(100) // sandbox signal alone, genuinely measured
+
+    // And with NO sandbox signal either, it must be null (Indisponible), not 0.
+    const emptyOverview = assembleDashboardOverview({
+      copilots: [],
+      projects: [],
+      latestDeliveryByCopilot: new Map(),
+      latestSandboxByCopilot: new Map(),
+      scorecards: new Map(),
+      missionRuns: [],
+      dataWarnings: [],
+      availableAgents: [],
+      windowRuns: [],
+    })
+    expect(emptyOverview.kpis.avgRepoFit).not.toBe(0)
+    expect(emptyOverview.kpis.avgRepoFit).toBeNull()
+  })
+
   it('5 — blockedDeliveries counts failed sandbox / blockers', () => {
     const latestDelivery = new Map<string, DeliveryEvent>([['c1', deliveryEvent('fixing')]])
     const latestSandbox = new Map([
@@ -211,6 +289,45 @@ describe('action items', () => {
       dataWarnings: [],
     })
     expect(items[0]?.kind).toBe('ready_manual')
+  })
+
+  it('7 — release_gate_red action item fires when a scorecard proves it, never fabricated when scorecards are empty', () => {
+    const withScorecard = buildActionItems({
+      copilotsById,
+      projectsById,
+      latestDeliveryByCopilot: new Map([['c-btc', deliveryEvent('fixing')]]),
+      latestSandboxByCopilot: new Map(),
+      scorecards: new Map([
+        [
+          'c-btc',
+          {
+            score: 40,
+            level: 'not_ready',
+            blockers: ['release_gate_red'],
+            repoFitScore: 50,
+            releaseGateRed: true,
+          },
+        ],
+      ]),
+      missionRuns: [],
+      dataWarnings: [],
+    })
+    expect(withScorecard.some((i) => i.kind === 'release_gate_red')).toBe(true)
+
+    // The shape `getDashboardOverview` actually passes today: scorecards is an
+    // empty Map (N+1 cost, see module doc). `card` resolves to `undefined` for
+    // every copilot, so `release_gate_red` cannot fire — an absent item, not a
+    // fabricated "0 red gates" or a false positive/negative.
+    const withoutScorecards = buildActionItems({
+      copilotsById,
+      projectsById,
+      latestDeliveryByCopilot: new Map([['c-btc', deliveryEvent('fixing')]]),
+      latestSandboxByCopilot: new Map(),
+      scorecards: new Map(),
+      missionRuns: [],
+      dataWarnings: [],
+    })
+    expect(withoutScorecards.some((i) => i.kind === 'release_gate_red')).toBe(false)
   })
 
 })
