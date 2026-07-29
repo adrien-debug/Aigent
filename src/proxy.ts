@@ -36,7 +36,7 @@ const DEV_AUTH_BYPASS = process.env.NODE_ENV !== 'production' && process.env.AMC
  *
  * MEASURED HOLE (29/07/2026): this test used to read
  * `path === '/admin' || path.startsWith('/admin/')`, and `config.matcher` only
- * listed `/admin/:path*`. A console briefly built at `/admin-v2/**` matched
+ * listed `/admin/:path*`. A console briefly built at a sibling segment matched
  * NEITHER — not `/admin`, and starting with `/admin-`, not `/admin/` — so every
  * agent name, project, input summary and cost in the fleet answered 200 to an
  * unauthenticated request. Verified by curl before the fix (200 + real rows)

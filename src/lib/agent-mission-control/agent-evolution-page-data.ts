@@ -1,4 +1,4 @@
-import type { EvolutionSuiteRef } from '@/components/agent-ops/agent-detail/evolution-workbench'
+import type { EvolutionSuiteRef } from '@/lib/agent-mission-control/page-view-models'
 import { getAgentLifecycle, type AgentLifecycle } from '@/lib/agent-mission-control/agent-lifecycle'
 import { getBenchmarkSuitesForCopilot, getTestSuitesForCopilot } from '@/lib/agent-mission-control/data'
 import { compareImprovementVersions, type VersionComparison } from '@/lib/agent-mission-control/improvement-loop'

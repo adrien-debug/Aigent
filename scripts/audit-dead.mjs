@@ -54,7 +54,24 @@ function isReferenced(componentFile, corpus) {
   return false
 }
 
-const componentFiles = walk('src/components').filter((f) => /\.(tsx|ts)$/.test(f))
+/**
+ * The Catalyst kit is a LIBRARY, not page code.
+ *
+ * P006 deleted the whole visual front and left two placeholder screens, so most
+ * of `src/components/ui/` has no consumer this minute — and the same mission
+ * lists "les primitives Catalyst officielles réellement réutilisables" among the
+ * things it must NOT touch. Flagging them as dead would force this gate to
+ * delete exactly what the rebuild is meant to build on.
+ *
+ * The gate keeps doing its real job: catching PRODUCT components that nothing
+ * renders any more. `src/components/ui/**` is excluded because an unused export
+ * in a kit is inventory, not dead product code.
+ */
+const KIT_DIR = 'src/components/ui/'
+
+const componentFiles = walk('src/components')
+  .filter((f) => /\.(tsx|ts)$/.test(f))
+  .filter((f) => !f.replace(/\\/g, '/').startsWith(KIT_DIR))
 const corpus = loadCorpus()
 const deadComponents = componentFiles.filter((f) => !isReferenced(f, corpus)).map((f) => f.replace(/\\/g, '/'))
 

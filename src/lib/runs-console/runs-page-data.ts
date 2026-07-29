@@ -66,7 +66,7 @@ async function readViewer(): Promise<ViewerIdentity> {
 }
 
 /**
- * `/admin-v2/runs` data-fetch. Composes EXISTING getters — same
+ * `/admin/runs` data-fetch. Composes EXISTING getters — same
  * non-evaluation-run contract (`getRecentRunsInWindow`) the legacy Performance
  * page uses, so "runs" means one thing across V1 and V2.
  *
