@@ -83,7 +83,8 @@ requireCount('executable', mjsIds.size)
 // A one-shot script prints the canonical sets as JSON so we compare values, not
 // regex-scraped source. tsx is already a dev dependency (used by npm scripts).
 const snapshotSrc = `
-import { TOOL_IDS, TOOL_REGISTRY, RUNTIME_IDS, RUNTIME_REGISTRY, REGISTRY_HASH } from './src/lib/agent-mission-control/registry/index.ts'
+import registry from './src/lib/agent-mission-control/registry/index.ts'
+const { TOOL_IDS, TOOL_REGISTRY, RUNTIME_IDS, RUNTIME_REGISTRY, REGISTRY_HASH } = registry
 const tools = TOOL_IDS.map((id) => {
   const t = TOOL_REGISTRY[id]
   return { id: t.id, version: t.version, kind: t.kind, mutates: t.mutates, risk: t.risk, requiresConfirmation: t.requiresConfirmation, secretRefs: t.secretRefs, certification: t.certification, runtimes: t.runtimes }
@@ -96,7 +97,7 @@ process.stdout.write(JSON.stringify({ toolIds: TOOL_IDS, tools, runtimeIds: RUNT
 `
 let snapshot
 try {
-  const out = execFileSync('npx', ['tsx', '--eval', snapshotSrc], {
+  const out = execFileSync(process.execPath, ['--import', 'tsx', '--eval', snapshotSrc], {
     cwd: ROOT,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
