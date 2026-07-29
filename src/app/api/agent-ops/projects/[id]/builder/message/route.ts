@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import { NextResponse } from 'next/server'
 
 import { getProject } from '@/lib/agent-mission-control/data'
@@ -6,26 +8,21 @@ import {
   postProjectBuilderMessage,
   postProjectBuilderMessageStream,
 } from '@/lib/agent-mission-control/project-builder-conversation'
+import {
+  encodeProjectBuilderHeartbeat,
+  encodeProjectBuilderSSE,
+  PROJECT_BUILDER_HEARTBEAT_MS,
+  type ProjectBuilderStreamEvent,
+} from '@/lib/agent-mission-control/project-builder-stream-protocol'
 
-/**
- * POST /api/agent-ops/projects/:id/builder/message
- * Persist user turn, run architect LLM, persist assistant reply + preview update.
- *
- * Two transports, same underlying write path:
- *  - Default (no streaming requested): behaves exactly as before — runs the
- *    full architect turn, then returns the complete bundle as JSON.
- *  - Streaming (`Accept: text/event-stream` header OR `?stream=1` query):
- *    returns a `text/event-stream` response. Each prose token the architect
- *    produces is pushed as `data: {"delta":"..."}\n\n` as soon as it arrives;
- *    a final `data: {"done":true,"preview":...,"messageId":...}\n\n` event
- *    carries the same data the JSON endpoint would have returned in one shot
- *    (resolved preview + latest assistant message id), so the client can
- *    reconcile without a second round-trip. Persistence is identical either
- *    way — the SSE transport does not change what gets written to the DB,
- *    only how the prose is delivered to the browser while it is generated.
- */
 const PROJECT_ID_RE = /^[a-z0-9-]{1,200}$/
 const MAX_MESSAGE_LENGTH = 12_000
+type ProjectBuilderStreamEventInput =
+  ProjectBuilderStreamEvent extends infer Event
+    ? Event extends ProjectBuilderStreamEvent
+      ? Omit<Event, 'runId' | 'sequence'>
+      : never
+    : never
 
 function requireLiveBackend(): NextResponse | null {
   const base = process.env.AMC_SUPABASE_URL
@@ -39,23 +36,12 @@ function requireLiveBackend(): NextResponse | null {
 function wantsStream(request: Request): boolean {
   const accept = request.headers.get('accept') ?? ''
   if (accept.includes('text/event-stream')) return true
-  const url = new URL(request.url)
-  return url.searchParams.get('stream') === '1'
+  return new URL(request.url).searchParams.get('stream') === '1'
 }
-
-function sseEvent(payload: Record<string, unknown>): string {
-  return `data: ${JSON.stringify(payload)}\n\n`
-}
-
-// PgrestError(504) from the shared postgrest client (30s cap) — an upstream
-// TIMEOUT the client should see as 504, not folded into the generic 502 —
-// classified by the shared isPgrestTimeout() guard (postgrest.ts).
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  if (!PROJECT_ID_RE.test(id)) {
-    return NextResponse.json({ error: 'invalid id' }, { status: 400 })
-  }
+  if (!PROJECT_ID_RE.test(id)) return NextResponse.json({ error: 'invalid id' }, { status: 400 })
 
   const blocked = requireLiveBackend()
   if (blocked) return blocked
@@ -74,16 +60,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   const content = body.content
 
-  // The project must exist for a builder conversation to attach to it —
-  // project_builder_conversations has a FK on projects(id), so an unknown or
-  // just-deleted project id would otherwise surface as a PostgREST FK
-  // violation → generic 502 instead of the 404 the client can act on.
-  // Same pre-check as the ../resume sister route. Runs BEFORE the transport
-  // branch so the SSE path answers with a real HTTP 404 pre-stream too.
   try {
-    if (!(await getProject(id))) {
-      return NextResponse.json({ error: 'project not found' }, { status: 404 })
-    }
+    if (!(await getProject(id))) return NextResponse.json({ error: 'project not found' }, { status: 404 })
   } catch (err) {
     console.error('[agent-ops/projects/builder/message] failed to check project', err)
     return NextResponse.json({ error: 'failed to check project' }, { status: isPgrestTimeout(err) ? 504 : 502 })
@@ -91,8 +69,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   if (!wantsStream(request)) {
     try {
-      const bundle = await postProjectBuilderMessage(id, content)
-      return NextResponse.json(bundle)
+      return NextResponse.json(await postProjectBuilderMessage(id, content))
     } catch (err) {
       const message = err instanceof Error ? err.message : 'message failed'
       if (/already produced a draft/i.test(message)) {
@@ -104,42 +81,69 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const encoder = new TextEncoder()
+  const runId = randomUUID()
+  let sequence = 0
   let closed = false
+  let heartbeat: ReturnType<typeof setInterval> | undefined
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const push = (payload: Record<string, unknown>) => {
+      const enqueue = (frame: string) => {
         if (closed) return
         try {
-          controller.enqueue(encoder.encode(sseEvent(payload)))
+          controller.enqueue(encoder.encode(frame))
         } catch {
-          // Controller already closed client-side (e.g. aborted) — ignore.
+          closed = true
         }
       }
+      const push = (
+        event: ProjectBuilderStreamEventInput
+      ) => {
+        sequence += 1
+        enqueue(encodeProjectBuilderSSE({ ...event, runId, sequence } as ProjectBuilderStreamEvent))
+      }
+
+      push({ type: 'connected', lifecycle: 'running', conversationId: null })
+      heartbeat = setInterval(() => {
+        enqueue(encodeProjectBuilderHeartbeat(runId, sequence))
+      }, PROJECT_BUILDER_HEARTBEAT_MS)
 
       try {
         const bundle = await postProjectBuilderMessageStream(id, content, (delta) => {
-          push({ delta })
+          push({ type: 'delta', lifecycle: 'running', conversationId: null, delta })
         })
-        const latestAssistant = [...bundle.messages].reverse().find((m) => m.role === 'assistant') ?? null
+        const latestAssistant = [...bundle.messages].reverse().find((message) => message.role === 'assistant')
+        if (!latestAssistant) throw new Error('persisted assistant message missing')
+
         push({
-          done: true,
+          type: 'terminal',
+          lifecycle: 'completed',
+          conversationId: bundle.conversation.id,
+          messageId: latestAssistant.id,
           preview: bundle.conversation.latestPreview,
           conversationStatus: bundle.conversation.status,
           createdCopilotId: bundle.createdCopilotId,
-          messageId: latestAssistant?.id ?? null,
         })
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'message failed'
-        console.error('[agent-ops/projects/builder/message] stream failed', err)
-        push({ error: /already produced a draft/i.test(message) ? message : 'architect message failed' })
+        console.error('[agent-ops/projects/builder/message] stream failed', { runId, sequence, error: err })
+        push({
+          type: 'terminal',
+          lifecycle: 'failed',
+          conversationId: null,
+          error: 'architect_message_failed',
+          retryable: true,
+        })
       } finally {
-        closed = true
-        controller.close()
+        if (heartbeat) clearInterval(heartbeat)
+        if (!closed) {
+          closed = true
+          controller.close()
+        }
       }
     },
     cancel() {
       closed = true
+      if (heartbeat) clearInterval(heartbeat)
     },
   })
 
@@ -150,6 +154,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       'Cache-Control': 'no-cache, no-transform',
       Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',
+      'X-Project-Builder-Run-Id': runId,
     },
   })
 }
