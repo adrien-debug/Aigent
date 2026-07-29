@@ -146,6 +146,9 @@ export function ProjectBuilderScreen({
   // controller per turn; the unmount cleanup always aborts whichever one is
   // current at teardown time.
   const streamAbortRef = useRef<AbortController | null>(null)
+  // Same contract for the conversation READ (mount fetch and Retry share it):
+  // one in-flight request at a time, cancelled on unmount.
+  const loadAbortRef = useRef<AbortController | null>(null)
   const mountedRef = useRef(true)
 
   useEffect(() => {
@@ -154,13 +157,17 @@ export function ProjectBuilderScreen({
       mountedRef.current = false
       streamAbortRef.current?.abort()
       streamAbortRef.current = null
+      loadAbortRef.current?.abort()
+      loadAbortRef.current = null
     }
   }, [])
 
-  const reload = useCallback(async () => {
-    const response = await fetch(`/api/agent-ops/projects/${projectId}/builder/conversation`)
+  const reload = useCallback(async (signal?: AbortSignal) => {
+    const response = await fetch(`/api/agent-ops/projects/${projectId}/builder/conversation`, { signal })
     if (!response.ok) throw new Error(conversationFailure(response.status))
-    setBundle(await response.json() as ProjectBuilderConversationBundle)
+    const nextBundle = await response.json() as ProjectBuilderConversationBundle
+    if (!mountedRef.current) return
+    setBundle(nextBundle)
   }, [projectId])
 
   /**
@@ -176,39 +183,65 @@ export function ProjectBuilderScreen({
   const retry = useCallback(() => {
     setError(null)
     setLifecycle('connecting')
-    reload()
-      .then(() => setLifecycle('completed'))
+    // Retry owns the same controller slot as the mount read, so unmounting
+    // mid-retry cancels the request instead of letting it resolve into a dead
+    // component. A retry also supersedes an in-flight initial read.
+    loadAbortRef.current?.abort()
+    const controller = new AbortController()
+    loadAbortRef.current = controller
+    reload(controller.signal)
+      .then(() => {
+        if (!mountedRef.current || controller.signal.aborted) return
+        setLifecycle('completed')
+      })
       .catch((reason: unknown) => {
+        if (!mountedRef.current || controller.signal.aborted) return
         setLifecycle('failed')
         setError(reason instanceof Error ? reason.message : 'Conversation is unavailable.')
+      })
+      .finally(() => {
+        if (loadAbortRef.current === controller) loadAbortRef.current = null
       })
   }, [reload])
 
   useEffect(() => {
-    let active = true
-    fetch(`/api/agent-ops/projects/${projectId}/builder/conversation`)
+    // `mountedRef` is initialised here rather than only in the mount effect
+    // above: under StrictMode the first cleanup would otherwise leave it false
+    // for the retained run, and every guarded `setState` would silently no-op.
+    mountedRef.current = true
+    const controller = new AbortController()
+    loadAbortRef.current = controller
+    fetch(`/api/agent-ops/projects/${projectId}/builder/conversation`, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error(conversationFailure(response.status))
         return response.json() as Promise<ProjectBuilderConversationBundle>
       })
       .then((nextBundle) => {
-        if (!active) return
+        if (!mountedRef.current || controller.signal.aborted) return
         setBundle(nextBundle)
         setLifecycle('completed')
       })
       .catch((reason: unknown) => {
-        if (!active) return
+        // An abort is this component tearing down or a retry superseding the
+        // read — not a failure to report. Reporting it would repaint the banner
+        // over whatever the newer request is about to say.
+        if (!mountedRef.current || controller.signal.aborted) return
         setLifecycle('failed')
         setError(reason instanceof Error ? reason.message : 'Conversation is unavailable.')
       })
     return () => {
-      active = false
+      controller.abort()
+      if (loadAbortRef.current === controller) loadAbortRef.current = null
     }
   }, [projectId])
 
   async function send() {
     const content = input.trim()
     if (!content || lifecycle === 'running') return
+    // Guarded here as well as on the composer: `disabled` is a UI affordance,
+    // not an invariant — this function is reachable from a keyboard handler and
+    // from any future caller. No bundle after a failed read means no stream.
+    if (bundle === null && lifecycle === 'failed') return
     setInput('')
     setPartial('')
     setError(null)
@@ -330,16 +363,35 @@ export function ProjectBuilderScreen({
       })
       const payload = await response.json() as ProjectBuilderConversationBundle & { error?: string }
       if (!response.ok) throw new Error(payload.error ?? 'Draft materialization failed.')
+      // Same rule the SSE path already follows: every `setState` past an `await`
+      // is guarded, or unmounting mid-materialization warns and leaks.
+      if (!mountedRef.current) return
       setBundle(payload)
     } catch (reason) {
+      if (!mountedRef.current) return
       setError(reason instanceof Error ? reason.message : 'Draft materialization failed.')
     } finally {
-      setApproving(false)
+      if (mountedRef.current) setApproving(false)
     }
   }
 
   const preview = bundle?.conversation.latestPreview
-  const composerBusy = lifecycle === 'running' || lifecycle === 'reconciling'
+  /**
+   * The initial conversation read never landed, so there is no conversation to
+   * append a turn to.
+   *
+   * `bundle` is the proof: the mount effect and `reload()` are the ONLY writers,
+   * and both set it exclusively on a 2xx. A null bundle under a terminal
+   * lifecycle therefore means the read failed (401, 503, network) — as opposed
+   * to `connecting`, where it is merely still in flight.
+   */
+  const initialLoadFailed = bundle === null && lifecycle === 'failed'
+
+  // `initialLoadFailed` belongs here, not just on the button: without it a 401
+  // left the composer live, and Enter would POST `/builder/message?stream=1`
+  // and open an SSE stream against the very session that just refused the read
+  // — a second failure the user did not ask for. Retry is the only way forward.
+  const composerBusy = lifecycle === 'running' || lifecycle === 'reconciling' || initialLoadFailed
 
   return (
     <div className="space-y-4">
@@ -389,6 +441,15 @@ export function ProjectBuilderScreen({
               </div>
             )) : lifecycle === 'connecting' ? (
               <EmptyState title="Loading the conversation…" />
+            ) : initialLoadFailed ? (
+              // Not "Describe the agent you need": the composer is disabled in
+              // this state, so inviting a description would be an instruction
+              // the screen refuses to accept. The banner above carries the
+              // cause and the Retry control.
+              <EmptyState
+                title="Conversation could not be loaded"
+                description="Nothing can be sent until this read succeeds — use Retry above."
+              />
             ) : (
               <EmptyState
                 title="Describe the agent you need"
