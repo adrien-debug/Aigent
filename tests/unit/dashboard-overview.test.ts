@@ -14,11 +14,25 @@ import {
   computeReadyForManualTest,
   computeSandboxPassRate,
   computeSuccess24h,
+  RUNS_READ_FAILED_WARNING,
   type DashboardOverview,
 } from '@/lib/agent-mission-control/dashboard-overview'
 import type { AgentRun } from '@/lib/agent-mission-control/types'
 import type { DeliveryEvent } from '@/lib/agent-mission-control/delivery-events-store'
 import type { Copilot, Project } from '@/lib/agent-mission-control/types'
+
+/** Health blob with every key present, so a test overrides only what it is about. */
+function health(partial: Partial<Copilot['health']> = {}): Copilot['health'] {
+  return {
+    testPassRate: 1,
+    benchmarkScore: 90,
+    runsLast24h: 0,
+    errorRateLast24h: 0,
+    avgLatencyMs: 0,
+    costLast24hUsd: 0,
+    ...partial,
+  }
+}
 
 function copilot(partial: Partial<Copilot> & Pick<Copilot, 'id' | 'name'>): Copilot {
   return {
@@ -44,6 +58,31 @@ function copilot(partial: Partial<Copilot> & Pick<Copilot, 'id' | 'name'>): Copi
       avgLatencyMs: 0,
       costLast24hUsd: 0,
     },
+    ...partial,
+  }
+}
+
+/**
+ * One run in the 24h window. Defaults to a cheap completed run so a test only
+ * states the field it is actually about (status / cost / startedAt).
+ */
+function agentRun(partial: Partial<AgentRun> & Pick<AgentRun, 'id'>): AgentRun {
+  return {
+    copilotId: 'c-btc',
+    versionId: 'v1',
+    projectId: 'proj-trade',
+    userLabel: 'operator',
+    startedAt: '2026-07-29T09:00:00Z',
+    finishedAt: '2026-07-29T09:00:10Z',
+    status: 'completed',
+    stepIds: [],
+    inputSummary: '',
+    outputSummary: '',
+    toolCallCount: 0,
+    unsafeAttemptCount: 0,
+    latencyMs: 1200,
+    costUsd: null,
+    traceUrl: null,
     ...partial,
   }
 }
@@ -336,5 +375,290 @@ describe('getDashboardOverview server collector', () => {
     expect(overview.kpis.runs24h).toBe(0)
     expect(overview.kpis.success24h).toBeNull()
     expect(overview.kpis.cost24h).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// A — the 24h run read: three states that must stay apart end to end
+// ---------------------------------------------------------------------------
+
+/** Fixed instant so the window boundary is never wall-clock dependent. */
+const FIXED_NOW_MS = Date.parse('2026-07-29T12:00:00Z')
+
+async function collectOverview(): Promise<DashboardOverview> {
+  const { getDashboardOverview } = await import('@/lib/agent-mission-control/dashboard-overview')
+  return getDashboardOverview(FIXED_NOW_MS)
+}
+
+/** The MOCKED reader, so a test can make the read reject — an empty array would
+ *  test the opposite of what these tests are about. */
+async function runsReader() {
+  const data = await import('@/lib/agent-mission-control/data')
+  return vi.mocked(data.getRecentRunsInWindow)
+}
+
+describe('A — the 24h run read is never swallowed', () => {
+  it('A1 — read SUCCEEDS with zero runs: a MEASURED emptiness (0, [], no warning)', async () => {
+    ;(await runsReader()).mockResolvedValueOnce([])
+
+    const overview = await collectOverview()
+
+    expect(overview.kpis.runs24h).toBe(0)
+    expect(overview.windowRuns).toEqual([])
+    // The window WAS read. Nothing about the run history is unavailable.
+    expect(overview.dataWarnings).not.toContain(RUNS_READ_FAILED_WARNING)
+  })
+
+  it('A2 — read SUCCEEDS with runs: the measured values are reported', async () => {
+    ;(await runsReader()).mockResolvedValueOnce([
+      agentRun({ id: 'r1', status: 'completed', costUsd: 1.25 }),
+      agentRun({ id: 'r2', status: 'completed', costUsd: 0.75 }),
+      agentRun({ id: 'r3', status: 'failed', costUsd: 0.5 }),
+      agentRun({ id: 'r4', status: 'running', costUsd: null }),
+    ])
+
+    const overview = await collectOverview()
+
+    expect(overview.kpis.runs24h).toBe(4)
+    expect(overview.windowRuns?.map((run) => run.id)).toEqual(['r1', 'r2', 'r3', 'r4'])
+    // 2 completed over 3 terminal runs — `running` is excluded, not counted as failed.
+    expect(overview.kpis.success24h).toBe(67)
+    // 1.25 + 0.75 + 0.5. `r4` carries `costUsd: null` (cost not measurable for
+    // that run) and `computeCost24h` folds it in as 0 — a KNOWN, pre-existing
+    // and NARROWER gap than this mission's: it is per-run cost absence INSIDE a
+    // window that was successfully read, not a failed read. Asserted here so the
+    // behaviour is visible rather than assumed, not because it is right.
+    expect(overview.kpis.cost24h).toBe(2.5)
+    expect(overview.dataWarnings).not.toContain(RUNS_READ_FAILED_WARNING)
+  })
+
+  it('A3 — read FAILS: runs24h and windowRuns are NULL, not 0 and not []', async () => {
+    ;(await runsReader()).mockRejectedValueOnce(new Error('agent_runs unreachable'))
+
+    const overview = await collectOverview()
+
+    expect(overview.kpis.runs24h).toBeNull()
+    expect(overview.windowRuns).toBeNull()
+    // Stated in the negative too: these are the two shapes a swallowed read produced.
+    expect(overview.kpis.runs24h).not.toBe(0)
+    expect(overview.windowRuns).not.toEqual([])
+    // Everything derived from the unread window degrades with it.
+    expect(overview.kpis.success24h).toBeNull()
+    expect(overview.kpis.cost24h).toBeNull()
+  })
+
+  it('A4 — read FAILS: an explicit human sentence lands in dataWarnings', async () => {
+    ;(await runsReader()).mockRejectedValueOnce(new Error('agent_runs unreachable'))
+
+    const overview = await collectOverview()
+
+    expect(overview.dataWarnings).toContain(RUNS_READ_FAILED_WARNING)
+    // The UI prints dataWarnings VERBATIM — this must stay a sentence, not a code.
+    expect(RUNS_READ_FAILED_WARNING).toBe('Run history unavailable')
+  })
+
+  it('A5 — read FAILS: the rest of the overview is STILL returned (degraded, not blanked)', async () => {
+    const data = await import('@/lib/agent-mission-control/data')
+    vi.mocked(data.getCopilots).mockResolvedValueOnce([
+      copilot({
+        id: 'c1',
+        name: 'BTC Alert',
+        projectId: 'proj-trade',
+        status: 'active',
+        productionVersionId: 'v1',
+        healthUnavailableFields: [],
+        health: health({ runsLast24h: 4, costLast24hUsd: 2 }),
+      }),
+    ])
+    vi.mocked(data.getProjects).mockResolvedValueOnce([
+      {
+        id: 'proj-trade',
+        name: 'TradeAgent',
+        slug: 'tradeagent',
+        description: '',
+        platform: 'web',
+        repoFullName: 'adrien-debug/TradeAgent',
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    ])
+    ;(await runsReader()).mockRejectedValueOnce(new Error('agent_runs unreachable'))
+
+    const overview = await collectOverview()
+
+    expect(overview.kpis.runs24h).toBeNull()
+    // …and everything that DID answer is still there, measured.
+    expect(overview.kpis.productionAgents).toBe(1)
+    expect(overview.projects.map((p) => p.id)).toEqual(['proj-trade'])
+    expect(overview.projects[0].copilotCount).toBe(1)
+    expect(overview.projects[0].activeCount).toBe(1)
+    expect(overview.projects[0].runsLast24h).toBe(4)
+    expect(overview.actionItems).toEqual([])
+  })
+
+  it('A5b — a null window still lets the action queue be built (pure assembly)', () => {
+    const overview = assembleDashboardOverview({
+      copilots: [copilot({ id: 'c-btc', name: 'BTC Alert', projectId: 'proj-trade' })],
+      projects: [],
+      latestDeliveryByCopilot: new Map([['c-btc', deliveryEvent('ready_for_manual_test')]]),
+      latestSandboxByCopilot: new Map(),
+      scorecards: new Map(),
+      missionRuns: [],
+      dataWarnings: [RUNS_READ_FAILED_WARNING],
+      availableAgents: [],
+      windowRuns: null,
+    })
+
+    expect(overview.kpis.runs24h).toBeNull()
+    // The fixture event is ready-for-manual-test AND carries an open PR url, so
+    // it legitimately produces two queue entries.
+    expect(overview.actionItems.map((item) => item.kind)).toEqual(['ready_manual', 'pr_open'])
+    expect(overview.kpis.needsAction).toBe(2)
+    // Reads that succeeded keep their measured values next to the null one.
+    expect(overview.kpis.executableNow).toBe(0)
+    expect(overview.kpis.readyForManualTest).toBe(1)
+  })
+
+  it('A6 — ANTI-REGRESSION: a FAILED read and a SUCCESSFUL-but-empty read differ', async () => {
+    ;(await runsReader()).mockResolvedValueOnce([])
+    const measuredEmpty = await collectOverview()
+
+    ;(await runsReader()).mockRejectedValueOnce(new Error('agent_runs unreachable'))
+    const unread = await collectOverview()
+
+    // Field by field — an assertion that only compared "something differs" could
+    // be satisfied by unrelated drift and would prove nothing.
+    expect(measuredEmpty.kpis.runs24h).toBe(0)
+    expect(unread.kpis.runs24h).toBeNull()
+    expect(measuredEmpty.windowRuns).toEqual([])
+    expect(unread.windowRuns).toBeNull()
+    expect(measuredEmpty.dataWarnings).not.toContain(RUNS_READ_FAILED_WARNING)
+    expect(unread.dataWarnings).toContain(RUNS_READ_FAILED_WARNING)
+
+    // And whole-object: the day the two collapse back into one shape, this fails.
+    expect(unread.kpis).not.toEqual(measuredEmpty.kpis)
+    expect(unread.windowRuns).not.toEqual(measuredEmpty.windowRuns)
+    expect(unread.dataWarnings).not.toEqual(measuredEmpty.dataWarnings)
+    expect(unread).not.toEqual(measuredEmpty)
+
+    // success24h / cost24h are null in BOTH states — that is the documented
+    // two-reason null, and dataWarnings is the ONLY discriminator.
+    expect(measuredEmpty.kpis.success24h).toBeNull()
+    expect(unread.kpis.success24h).toBeNull()
+    expect(measuredEmpty.kpis.cost24h).toBeNull()
+    expect(unread.kpis.cost24h).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// B — ProjectOverviewItem.runsLast24h: measured zero vs not measurable
+// ---------------------------------------------------------------------------
+
+function project(id: string, name: string): Project {
+  return {
+    id,
+    name,
+    slug: name.toLowerCase().replace(/\s+/g, '-'),
+    description: '',
+    platform: 'web',
+    createdAt: '2026-01-01T00:00:00Z',
+  }
+}
+
+describe('B — ProjectOverviewItem.runsLast24h can say "not measured"', () => {
+  it('B1 — a PROVEN zero stays 0, never null', () => {
+    const [item] = buildProjectOverview(
+      [project('p1', 'Quiet')],
+      [
+        copilot({
+          id: 'c1',
+          name: 'Quiet Agent',
+          projectId: 'p1',
+          healthUnavailableFields: [],
+          health: health({ runsLast24h: 0 }),
+        }),
+      ]
+    )
+
+    expect(item.runsLast24h).toBe(0)
+    expect(item.runsLast24h).not.toBeNull()
+  })
+
+  it('B1b — a project with NO copilot is a measured 0 (no agent, no run to have made)', () => {
+    const [item] = buildProjectOverview([project('p1', 'Empty')], [])
+
+    expect(item.copilotCount).toBe(0)
+    expect(item.runsLast24h).toBe(0)
+  })
+
+  it('B2 — proven counts are summed and reported unchanged', () => {
+    const [item] = buildProjectOverview(
+      [project('p1', 'Trade')],
+      [
+        copilot({
+          id: 'c1',
+          name: 'A',
+          projectId: 'p1',
+          healthUnavailableFields: [],
+          health: health({ runsLast24h: 3 }),
+        }),
+        copilot({
+          id: 'c2',
+          name: 'B',
+          projectId: 'p1',
+          healthUnavailableFields: [],
+          health: health({ runsLast24h: 4 }),
+        }),
+      ]
+    )
+
+    expect(item.runsLast24h).toBe(7)
+  })
+
+  it('B2b — an UNPROVEN placeholder never enters the sum', () => {
+    const [item] = buildProjectOverview(
+      [project('p1', 'Mixed')],
+      [
+        copilot({
+          id: 'c1',
+          name: 'Proven',
+          projectId: 'p1',
+          healthUnavailableFields: [],
+          health: health({ runsLast24h: 3 }),
+        }),
+        copilot({
+          id: 'c2',
+          name: 'Placeholder',
+          projectId: 'p1',
+          // The 99 below is a normalisation placeholder, not a measurement.
+          healthUnavailableFields: ['runsLast24h'],
+          health: health({ runsLast24h: 99 }),
+        }),
+      ]
+    )
+
+    expect(item.runsLast24h).toBe(3)
+  })
+
+  it('B3 — a non-empty team where NOBODY proved a run count is not measurable → null', () => {
+    const [item] = buildProjectOverview(
+      [project('p1', 'Dark')],
+      [
+        copilot({
+          id: 'c1',
+          name: 'Named unavailable',
+          projectId: 'p1',
+          healthUnavailableFields: ['runsLast24h'],
+          health: health({ runsLast24h: 99 }),
+        }),
+        // `healthUnavailableFields` undefined: the row never went through the
+        // data layer, so nothing on it is proven.
+        copilot({ id: 'c2', name: 'Never enriched', projectId: 'p1', health: health({ runsLast24h: 7 }) }),
+      ]
+    )
+
+    expect(item.copilotCount).toBe(2)
+    expect(item.runsLast24h).toBeNull()
+    // The whole point: an absence must not arrive as a measurement.
+    expect(item.runsLast24h).not.toBe(0)
   })
 })
