@@ -14,6 +14,7 @@ import type { AgentRun, CopilotVersion } from '@/lib/agent-mission-control/types
 import { ArcGauge } from '@/components/console/charts/arc-gauge'
 import { RingGauge } from '@/components/console/charts/ring-gauge'
 import { agentStatusTone, formatUtcTimestamp } from './agents-screen'
+import { QualificationPanel } from './qualification-panel'
 import {
   EmptyState,
   KpiCard,
@@ -211,6 +212,19 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
   // own: the field is ALSO named in `unavailableFields` when the nature of the
   // mounted tools could not be established. That case is UNKNOWN, not "mutating".
   const readOnlyKnown = agent !== undefined && !agent.unavailableFields.includes('readOnly')
+
+  // Qualification/Shadow/Replay all target a DRAFT/BETA candidate — never the
+  // production version itself (release-gate.ts's own `is-draft` check would
+  // refuse it anyway). `copilot.latestVersionId` can legitimately point at a
+  // version that has already been promoted to production, so the actual
+  // target is resolved from the loaded version list: prefer the copilot's own
+  // `latestVersionId` row when it is still draft/beta, otherwise the most
+  // recently created draft/beta version. `undefined` when none exists — the
+  // panel then disables its actions with a stated reason instead of guessing.
+  const candidateVersion =
+    (copilot.latestVersionId
+      ? detail.versions.find((v) => v.id === copilot.latestVersionId && (v.stage === 'draft' || v.stage === 'beta'))
+      : undefined) ?? detail.versions.find((v) => v.stage === 'draft' || v.stage === 'beta')
 
   return (
     <div className="space-y-4">
@@ -665,6 +679,14 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
           <DeliveryFacts delivery={detail.delivery} />
         )}
       </Section>
+
+      {/* ── ROW 3.6 · qualification / shadow / replay ─────────────────────── */}
+      <QualificationPanel
+        copilotId={copilot.id}
+        candidateVersionId={candidateVersion?.id ?? null}
+        candidateVersionLabel={candidateVersion?.label ?? null}
+        candidateVersionStage={candidateVersion?.stage ?? null}
+      />
 
       {/* ── ROW 4 · version history ───────────────────────────────────────── */}
       <Section
