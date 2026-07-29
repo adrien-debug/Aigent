@@ -53,7 +53,6 @@ const FORBIDDEN_ROUTE = '/admin-v2'
  * built from current primitives and the surviving server contracts.
  */
 const DELETED_ADMIN_ROUTES = [
-  'agents',
   'factory',
   'performance',
   'settings',

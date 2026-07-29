@@ -28,7 +28,7 @@ describe('legacy front — deleted component namespaces stay deleted', () => {
 })
 
 describe('legacy front — demolished admin routes stay demolished', () => {
-  it.each(['agents', 'factory', 'performance', 'settings', 'telemetry'])(
+  it.each(['factory', 'performance', 'settings', 'telemetry'])(
     'src/app/admin/%s does not exist',
     (dir) => {
       expect(existsSync(join(ROOT, 'src/app/admin', dir))).toBe(false)
@@ -42,7 +42,7 @@ describe('legacy front — demolished admin routes stay demolished', () => {
   it('only the commissioned screens and their layout remain directly under src/app/admin', () => {
     const entries = readdirSync(join(ROOT, 'src/app/admin'), { withFileTypes: true })
     const names = entries.map((e) => e.name).sort()
-    expect(names).toEqual(['layout.tsx', 'page.tsx', 'projects', 'runs'])
+    expect(names).toEqual(['agents', 'layout.tsx', 'page.tsx', 'projects', 'runs'])
   })
 })
 
