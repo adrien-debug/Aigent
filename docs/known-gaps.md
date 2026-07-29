@@ -53,6 +53,29 @@ It throws a typed error rather than falling back silently — which is the right
 failure — but any doc or config that lists it as a provider option is listing
 something that cannot run.
 
+## 5bis. Version drift cannot be computed yet — the delivery event lacks a resolvable version.
+
+The lifecycle trace (`agent-lifecycle-trace.ts`) is meant to compare the last
+DELIVERED version against the last version self-reported by telemetry and flag
+a mismatch. It cannot, today: `DeliveryEvent`'s read shape
+(`delivery-events-store.ts`) does not carry `versionId` — only the write input
+does — so there is no join from a delivery row back to a version label. The
+trace reports this honestly as `versionDrift.state: 'unknown'` with a detail
+string naming the gap, rather than guessing a match. Closing this needs either
+adding `version_id` to the `agent_delivery_events` SELECT and the read type, or
+persisting a version label directly on the row.
+
+## 5ter. "Active in consumer" is permanently unknown by design, not by gap.
+
+Unlike the drift gap above, this one is not a TODO: `agent-lifecycle-trace.ts`
+hard-codes the `active_in_consumer` stage to `reached: 'unknown'` because
+Aigent has no read channel into a consumer workspace's own activation state
+(AGENTS.md: "Après provisioning, Aigent ne fait que POUSSER des agents").
+`scripts/check-lifecycle-truth.mjs` enforces that this stays the literal
+`'unknown'` and is never inferred from a delivery event. Building a real
+answer here requires a genuine consumer-side read channel — a product
+decision, not a data-plumbing fix.
+
 ## 6. Documentation drift is a recurring failure mode here.
 
 Before this pass, `CLAUDE.md` and `AGENTS.md` both asserted that `/admin` and

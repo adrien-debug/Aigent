@@ -22,6 +22,7 @@
 | Runs screen — live run stream, filters, metrics | wired | `src/app/admin/runs/page.tsx`, `src/lib/runs-console/runs-page-data.ts` |
 | Agents list — catalogue with executable / degraded status | wired | `src/app/admin/agents/page.tsx`, `src/lib/agent-mission-control/available-agents.ts` |
 | Agent detail | wired (read-only) | `src/app/admin/agents/[id]/page.tsx`, `src/components/console/agent-detail-screen.tsx` |
+| Agent detail — governed lifecycle trace (draft → … → V2 draft), each stage sourced independently | wired (read-only) | `src/lib/agent-mission-control/agent-lifecycle-trace.ts`, `src/components/console/lifecycle-trace-panel.tsx`; `active_in_consumer` is always `unknown` by design (no consumer-side read channel); telemetry leg fail-soft |
 | Projects list | wired | `src/app/admin/projects/page.tsx` |
 | Project builder — conversational agent authoring, SSE-streamed | wired | `src/app/admin/projects/[id]/builder/page.tsx`, `src/components/console/project-builder-screen.tsx` |
 | Console shell — rail, topbar, degraded-state indicator | wired | `src/components/console/console-shell.tsx` |
@@ -101,9 +102,18 @@ There is no telemetry screen (that route was deleted and is gate-forbidden).
 
 `npm run check` runs, in order: `typecheck` · `lint:fast` (oxlint) · `lint` ·
 `check:no-legacy-front` · `check:agent-truth` · `check:render-truth` ·
-`check:status-truth` · `check:registry-parity` · `check:registry-integrity` ·
-`check:tool-rows` · `check:tool-definitions` · `check:rsc-boundary` ·
-`check:secrets` (gitleaks) · `audit:dead`.
+`check:status-truth` · `check:lifecycle-truth` · `check:registry-parity` ·
+`check:registry-integrity` · `check:tool-rows` · `check:tool-definitions` ·
+`check:rsc-boundary` · `check:secrets` (gitleaks) · `audit:dead`.
+
+`check:lifecycle-truth` (`scripts/check-lifecycle-truth.mjs`) is narrow by
+design — it names two files (`agent-lifecycle-trace.ts`,
+`lifecycle-trace-panel.tsx`) rather than walking a directory, and blocks five
+specific claims: "deployed" without consumer proof, "healthy" without a real
+`diagnoseTelemetryHealth` call, a telemetry value coalesced to a false zero,
+"promoted" disconnected from a production-stage check, and the
+`active_in_consumer` stage computed from anything other than the literal
+`'unknown'`.
 
 `npm run verify` adds `quality:dead` (knip), `test` (vitest, offline unit suite)
 and `build`. `test:live` is opt-in, hits GPU1 + OpenAI, costs money, and is

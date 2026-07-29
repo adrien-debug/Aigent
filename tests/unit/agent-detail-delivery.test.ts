@@ -96,6 +96,14 @@ vi.mock('@/lib/agent-mission-control/delivery-events-store', () => ({
   }),
 }))
 
+vi.mock('@/lib/agent-mission-control/improvement-loop', () => ({
+  getLatestProposalForCopilot: vi.fn(async () => null),
+}))
+
+vi.mock('@/lib/agent-mission-control/runtime-telemetry-store', () => ({
+  getLatestTelemetryEventForCopilot: vi.fn(async () => null),
+}))
+
 describe('getAgentDetail — delivery exposure', () => {
   it('a delivered agent carries the real delivery row, not a derived guess', async () => {
     mockDeliveryImpl = null

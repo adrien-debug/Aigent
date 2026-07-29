@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { buildLifecycleTrace, type LifecycleTrace } from './agent-lifecycle-trace'
 import { getAvailableAgent, type AvailableAgent } from './available-agents'
 import {
   getBenchmarkSuitesForCopilot,
@@ -18,6 +19,7 @@ import {
   type ImprovementProposal,
   type VersionComparison,
 } from './improvement-loop'
+import { getLatestTelemetryEventForCopilot } from './runtime-telemetry-store'
 import { isExecutable } from './runtime-catalogue'
 import type {
   AgentManifest,
@@ -104,6 +106,17 @@ export type AgentDetail = {
    * longer resolves to a live row — both read as "no delivery target".
    */
   project: Project | undefined
+  /**
+   * The governed lifecycle trace (draft → … → V2 draft), each stage carrying
+   * its own source. Unlike every other field in this resolver, the telemetry
+   * leg is FAIL-SOFT: telemetry is documented as best-effort everywhere else
+   * in this codebase (`runtime-telemetry-store.ts` header), so a telemetry
+   * outage degrades that one stage to `unknown` (`telemetryLookupFailed`)
+   * instead of failing the whole agent-detail page. Delivery, versions and
+   * the improvement-loop proposal are NOT fail-soft here — they follow the
+   * resolver's normal fail-hard contract, same as every other field above.
+   */
+  lifecycle: LifecycleTrace
 }
 
 /**
@@ -269,6 +282,7 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
     testSuites,
     benchmarkSuites,
     improveProposal,
+    telemetryResult,
   ] = await Promise.all([
     getAvailableAgent(copilotId),
     getManifestForCopilot(copilotId),
@@ -282,6 +296,12 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
       console.error('[agent-detail] failed to read the latest improvement proposal', err)
       return null
     }),
+    // Fail-soft, deliberately: telemetry is documented best-effort everywhere
+    // else in this codebase. A telemetry-read outage must degrade one
+    // lifecycle stage to `unknown`, not take down the whole detail page.
+    getLatestTelemetryEventForCopilot(copilotId)
+      .then((event) => ({ event, failed: false as const }))
+      .catch(() => ({ event: null, failed: true as const })),
   ])
 
   const improveComparison =
@@ -309,6 +329,16 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
     versions.find((v) => v.id === copilot.latestVersionId) ??
     versions[0]
 
+  const lifecycle = buildLifecycleTrace({
+    versions,
+    currentVersion,
+    delivery,
+    lastTelemetry: telemetryResult.event,
+    telemetryLookupFailed: telemetryResult.failed,
+    hasV2Draft: versions.some((v) => v.createdBy === 'improvement-loop'),
+    hasImprovementProposal: improveProposal !== null,
+  })
+
   return {
     copilot,
     agent,
@@ -326,5 +356,6 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
     improveProposal,
     improveComparison,
     project,
+    lifecycle,
   }
 }

@@ -13,6 +13,7 @@ import type { AgentRun, CopilotVersion } from '@/lib/agent-mission-control/types
 // Alias paths, not `./charts/…` — see the note in `agents-screen.tsx`.
 import { ArcGauge } from '@/components/console/charts/arc-gauge'
 import { RingGauge } from '@/components/console/charts/ring-gauge'
+import { LifecycleTracePanel } from './lifecycle-trace-panel'
 import { agentStatusTone, formatUtcTimestamp } from './agents-screen'
 import { QualificationPanel } from './qualification-panel'
 import { ImprovePanel } from './improve-panel'
@@ -761,6 +762,10 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
         initialProposal={detail.improveProposal}
         initialComparison={detail.improveComparison}
       />
+      {/* ── ROW 3.6 · lifecycle ───────────────────────────────────────────
+          `detail.lifecycle` — see `agent-lifecycle-trace.ts`. Each stage
+          carries its own source; no collapsed single status. */}
+      <LifecycleTracePanel lifecycle={detail.lifecycle} />
 
       {/* ── ROW 4 · version history ───────────────────────────────────────── */}
       <Section

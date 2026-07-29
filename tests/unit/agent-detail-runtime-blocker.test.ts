@@ -58,6 +58,14 @@ vi.mock('@/lib/agent-mission-control/delivery-events-store', () => ({
   getLatestDeliveryEvent: vi.fn(async () => null),
 }))
 
+vi.mock('@/lib/agent-mission-control/improvement-loop', () => ({
+  getLatestProposalForCopilot: vi.fn(async () => null),
+}))
+
+vi.mock('@/lib/agent-mission-control/runtime-telemetry-store', () => ({
+  getLatestTelemetryEventForCopilot: vi.fn(async () => null),
+}))
+
 function baseAgent(overrides: Partial<AvailableAgent>): AvailableAgent {
   return {
     copilotId: 'cop-1',

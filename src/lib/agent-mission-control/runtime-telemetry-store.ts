@@ -500,6 +500,30 @@ function reduceTelemetryRows(rows: RawRow[]): TelemetryRollup {
  * without an unbounded scan). Throws on a hard PostgREST error; callers
  * wrap this in their own fail-soft try/catch (see improvement-loop.ts).
  */
+/**
+ * Latest telemetry event for a single copilot (`agent_id` column), across all
+ * projects — the agent-detail lifecycle trace only needs the self-reported
+ * version and receipt time, not the full aggregate. Throws on a hard
+ * PostgREST error, same contract as every other read in this module; the
+ * lifecycle trace's caller wraps this specific call in its own fail-soft
+ * try/catch so a telemetry outage degrades one stage, not the whole page
+ * (see `agent-detail.ts`, `telemetryLookupFailed`).
+ */
+export async function getLatestTelemetryEventForCopilot(
+  copilotId: string
+): Promise<{ agentVersion: string | null; receivedAt: string } | null> {
+  const rows = await pgrest<RawRow[]>(
+    'GET',
+    `runtime_telemetry_events?${eq('agent_id', copilotId)}&select=agent_version,received_at&order=received_at.desc&limit=1`
+  )
+  const row = rows[0]
+  if (!row) return null
+  return {
+    agentVersion: (row.agent_version as string | null) ?? null,
+    receivedAt: row.received_at as string,
+  }
+}
+
 export async function summarizeRuntimeTelemetry(projectId: string, agentId: string): Promise<RuntimeTelemetrySummary> {
   const rows = await pgrest<RawRow[]>(
     'GET',
