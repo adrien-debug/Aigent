@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { PaperAirplaneIcon } from '@heroicons/react/20/solid'
 
 import { Button } from '@/components/ui/button'
@@ -58,6 +58,25 @@ import { EmptyState, ErrorState, ScreenHeader, Section } from './screen-primitiv
  */
 
 type BuilderLifecycle = 'connecting' | 'running' | 'reconciling' | 'completed' | 'failed'
+
+/**
+ * How long the client waits for ANY SSE frame (not just a terminal one)
+ * before treating the stream as dead. The server's own per-completion budget
+ * — `OPENAI_TIMEOUT_MS` in `project-builder-conversation.ts` — is 90s, and the
+ * architect loop can chain up to `MAX_TOOL_ITERATIONS` scouting round-trips
+ * before it lands on prose; each one is still a real network write, so a
+ * client watchdog shorter than the server's own per-call timeout would fire
+ * on a healthy stream. Matching it means the client never gives up before the
+ * server would have.
+ */
+const SSE_INACTIVITY_TIMEOUT_MS = 90_000
+
+class SSEInactivityTimeoutError extends Error {
+  constructor() {
+    super('Stream interrupted by inactivity — no event was received in time.')
+    this.name = 'SSEInactivityTimeoutError'
+  }
+}
 
 /**
  * The typed failure the SERVER reports on the stream → a sentence.
@@ -120,6 +139,23 @@ export function ProjectBuilderScreen({
   const [lifecycle, setLifecycle] = useState<BuilderLifecycle>('connecting')
   const [error, setError] = useState<string | null>(null)
   const [approving, setApproving] = useState(false)
+
+  // Mount-scoped controller for the in-flight SSE stream (if any). Aborted on
+  // unmount so a stream outliving the component neither leaks a reader nor
+  // triggers a post-unmount `setState`. `send()` replaces it with a fresh
+  // controller per turn; the unmount cleanup always aborts whichever one is
+  // current at teardown time.
+  const streamAbortRef = useRef<AbortController | null>(null)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      streamAbortRef.current?.abort()
+      streamAbortRef.current = null
+    }
+  }, [])
 
   const reload = useCallback(async () => {
     const response = await fetch(`/api/agent-ops/projects/${projectId}/builder/conversation`)
@@ -186,25 +222,52 @@ export function ProjectBuilderScreen({
     }
     setBundle((current) => current ? { ...current, messages: [...current.messages, optimistic] } : current)
 
+    // A fresh controller per turn — aborted by unmount cleanup, by the
+    // inactivity watchdog, or (implicitly) superseded by the next turn's own
+    // controller. `fetch` gets the signal directly so the network request
+    // itself is cancelled, not just the local bookkeeping.
+    const controller = new AbortController()
+    streamAbortRef.current = controller
+
+    // Watchdog: no event (not even `connected`) for `SSE_INACTIVITY_TIMEOUT_MS`
+    // aborts the stream and reports an explicit state — never a silently stuck
+    // "running" pill. Reset on every frame `consumeSSE` hands back; disarmed on
+    // a terminal frame and in the `finally` below (abort included).
+    let watchdog: ReturnType<typeof setTimeout> | undefined
+    const armWatchdog = () => {
+      if (watchdog !== undefined) clearTimeout(watchdog)
+      watchdog = setTimeout(() => controller.abort(new SSEInactivityTimeoutError()), SSE_INACTIVITY_TIMEOUT_MS)
+    }
+    const disarmWatchdog = () => {
+      if (watchdog !== undefined) clearTimeout(watchdog)
+      watchdog = undefined
+    }
+
     try {
+      armWatchdog()
       const response = await fetch(`/api/agent-ops/projects/${projectId}/builder/message?stream=1`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
         body: JSON.stringify({ content }),
+        signal: controller.signal,
       })
       if (!response.ok || !response.body) throw new Error('The architect stream could not start.')
       const { terminalEvent, malformedFrames } = await consumeSSE<ProjectBuilderStreamEvent>(
         response.body,
         (event) => {
+          armWatchdog()
           // `connected` is a real handshake, and it is the first moment the
           // server is proven to be answering. `setLifecycle('running')` fires
           // before `fetch` is even called, so without this the pill claimed
           // 'running' whether or not anything ever replied.
-          if (event.type === 'connected') setLifecycle('running')
-          if (event.type === 'delta') setPartial((value) => value + event.delta)
+          if (event.type === 'connected' && mountedRef.current) setLifecycle('running')
+          if (event.type === 'delta' && mountedRef.current) setPartial((value) => value + event.delta)
+          if (isProjectBuilderTerminal(event)) disarmWatchdog()
         },
-        { isTerminal: isProjectBuilderTerminal, requireTerminal: true }
+        { isTerminal: isProjectBuilderTerminal, requireTerminal: true, signal: controller.signal }
       )
+
+      if (!mountedRef.current) return
 
       // A FAILED terminal is a failure, not a slow success. `requireTerminal`
       // is satisfied by it, so `consumeSSE` resolves and nothing below would
@@ -218,6 +281,7 @@ export function ProjectBuilderScreen({
 
       setLifecycle('reconciling')
       await reload()
+      if (!mountedRef.current) return
       setPartial('')
       setLifecycle('completed')
 
@@ -230,11 +294,28 @@ export function ProjectBuilderScreen({
         )
       }
     } catch (reason) {
+      if (!mountedRef.current) return
       // The half-arrived block goes with the failure: leaving it on screen under
       // a red banner reads as a reply still arriving.
       setPartial('')
       setLifecycle('failed')
-      setError(reason instanceof Error ? reason.message : 'The stream was interrupted before completion.')
+      // `reader.cancel(reason)` (fired by the abort listener in `sse-client`)
+      // resolves the pending read with `{done:true}` rather than rejecting, so
+      // a watchdog abort surfaces here as `consumeSSE`'s own
+      // `IncompleteSSEStreamError` — the watchdog's actual reason lives on
+      // `controller.signal.reason`, checked first so "inactivity" is reported
+      // instead of the generic "closed before terminal" message.
+      const effectiveReason = controller.signal.aborted ? controller.signal.reason : reason
+      setError(
+        effectiveReason instanceof SSEInactivityTimeoutError
+          ? 'Stream interrupted by inactivity — the architect stopped responding.'
+          : effectiveReason instanceof Error
+            ? effectiveReason.message
+            : 'The stream was interrupted before completion.'
+      )
+    } finally {
+      disarmWatchdog()
+      if (streamAbortRef.current === controller) streamAbortRef.current = null
     }
   }
 
