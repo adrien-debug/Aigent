@@ -35,6 +35,8 @@ import { randomUUID } from 'node:crypto'
 import { summarize } from './format'
 import {
   hasBenchmarkBelowImproveTarget,
+  hasRuntimeTelemetryBelowImproveTarget,
+  IMPROVEMENT_MAX_TELEMETRY_FAILURE_RATE,
   IMPROVEMENT_MIN_BENCHMARK_ACCURACY,
   IMPROVEMENT_MIN_BENCHMARK_SCORE,
 } from './improvement-criteria'
@@ -681,7 +683,25 @@ export async function analyzeAndPropose(copilotId: string, triggeredBy: string):
 
   const totalFailures = signals.suites.reduce((n, s) => n + s.failures.length, 0)
   const hasWeakBenchmark = hasBenchmarkBelowImproveTarget(signals.benchmarks)
+  // Deployed-runtime telemetry (real production pings, not tests/benchmarks) —
+  // loaded into `signals.runtimeTelemetry` above but, before this check, never
+  // consulted by the "is there anything to improve" gate: a copilot could pass
+  // every test and benchmark while visibly failing for real users and still be
+  // reported "nothing to improve". This does NOT force a manifest-fixable
+  // diagnosis (there is no failing test case to attribute a category to) — it
+  // only stops the loop from lying that the copilot is healthy.
+  const hasWeakRuntimeTelemetry = hasRuntimeTelemetryBelowImproveTarget(signals.runtimeTelemetry)
   if (totalFailures === 0 && !hasWeakBenchmark) {
+    if (hasWeakRuntimeTelemetry) {
+      throw new NotFoundError(
+        `deployed runtime telemetry shows a failure rate of ` +
+          `${Math.round(((signals.runtimeTelemetry?.failureRate ?? 0) * 100))}% ` +
+          `over ${signals.runtimeTelemetry?.completedRuns ?? 0}/${signals.runtimeTelemetry?.failedRuns ?? 0} completed/failed runs ` +
+          `(target <= ${Math.round(IMPROVEMENT_MAX_TELEMETRY_FAILURE_RATE * 100)}%), but no failing test case exists to diagnose — ` +
+          `the test/benchmark suites do not reproduce the production failures; add or fix a test case that reproduces them before ` +
+          `this loop can propose a manifest patch`
+      )
+    }
     throw new NotFoundError(
       `${NOTHING_TO_IMPROVE_PREFIX} no failing test case and no benchmark below target (score >= ${IMPROVEMENT_MIN_BENCHMARK_SCORE}, accuracy >= ${Math.round(IMPROVEMENT_MIN_BENCHMARK_ACCURACY * 100)}%)`
     )
