@@ -166,7 +166,7 @@ describe('dashboard KPIs', () => {
       scorecards: new Map([
         [
           'c2',
-          { score: 90, level: 'ready', blockers: [], repoFitScore: 60, releaseGateRed: false } as any,
+          { score: 90, level: 'ready', blockers: [], repoFitScore: 60, releaseGateRed: false },
         ],
       ]),
       missionRuns: [],
@@ -298,7 +298,16 @@ describe('action items', () => {
       latestDeliveryByCopilot: new Map([['c-btc', deliveryEvent('fixing')]]),
       latestSandboxByCopilot: new Map(),
       scorecards: new Map([
-        ['c-btc', { score: 40, level: 'not_ready', blockers: ['release_gate_red'], repoFitScore: 50, releaseGateRed: true } as any],
+        [
+          'c-btc',
+          {
+            score: 40,
+            level: 'not_ready',
+            blockers: ['release_gate_red'],
+            repoFitScore: 50,
+            releaseGateRed: true,
+          },
+        ],
       ]),
       missionRuns: [],
       dataWarnings: [],
