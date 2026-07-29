@@ -9,11 +9,16 @@ import 'server-only'
 import { getAvailableAgents, type AvailableAgent } from './available-agents'
 import type { DeliveryEvent } from './delivery-events-store'
 import { getCopilots, getProjects, getRecentRunsInWindow } from './data'
+// The measurement rule and its rollup, shared VERBATIM with
+// `src/components/console/projects-screen.tsx`. They live in their own neutral
+// module because this one opens with `import 'server-only'` and a component
+// cannot take a value from it — see health-measure.ts for the full reason.
+import { sumMeasuredHealth } from './health-measure'
 import type { MissionReport } from './mission-orchestrator'
 import { pgrest } from './postgrest'
 import { isExecutable } from './runtime-catalogue'
 import { parseSandboxReport, type TargetRepoSandboxReport } from './target-repo-sandbox'
-import type { AgentRun, Copilot, CopilotHealthMetric, Project } from './types'
+import type { AgentRun, Copilot, Project } from './types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -101,7 +106,7 @@ export type ProjectOverviewItem = {
   activeCount: number
   /**
    * Runs in the last 24h, summed over the team members that actually PROVED the
-   * metric (see `isMeasuredHealth`).
+   * metric (see `isMeasuredHealth` / `sumMeasuredHealth`, `./health-measure`).
    *  · `0`     — measured: either the proven members all sat at zero, or the
    *              project has no copilot at all (no agent, no run to have made).
    *  · `n > 0` — measured.
@@ -111,8 +116,9 @@ export type ProjectOverviewItem = {
   runsLast24h: number | null
   /**
    * Cost in the last 24h, summed over the team members that actually PROVED the
-   * metric (`isMeasuredHealth`) — the SAME rule and the SAME three states as
-   * `runsLast24h` above, so the two fields cannot behave differently.
+   * metric — the SAME rule, the SAME function (`sumMeasuredHealth`) and the SAME
+   * three states as `runsLast24h` above, so the two fields cannot behave
+   * differently.
    *  · `0`     — measured: either the proven members all cost nothing, or the
    *              project has no copilot at all (no agent, no cost to incur).
    *  · `n > 0` — measured.
@@ -337,26 +343,6 @@ export function computeCost24h(windowRuns: Pick<AgentRun, 'costUsd'>[] | null): 
 // Pure — project overview rollup
 // ---------------------------------------------------------------------------
 
-/**
- * Is this health metric a MEASUREMENT on this copilot?
- *
- * Deliberately the SAME definition, under the SAME name, as `isMeasuredHealth()`
- * in `src/components/console/projects-screen.tsx`, so the dashboard and the
- * projects console cannot disagree about what counts as measured. Both halves of
- * that claim — identical body, identical name — are enforced by test C16 in
- * `tests/unit/dashboard-overview.test.ts`, which locates the rule by SIGNATURE so
- * a rename throws instead of silently matching nothing.
- * `healthUnavailableFields` names what the data layer could not prove; an
- * UNDEFINED list means the row never went through the data layer, so nothing is
- * proven (contract in `types.ts` › CopilotHealth) — treat every metric as
- * unavailable rather than as measured.
- */
-function isMeasuredHealth(copilot: Copilot, metric: CopilotHealthMetric): boolean {
-  if (copilot.healthUnavailableFields === undefined) return false
-  if (copilot.healthUnavailableFields.includes(metric)) return false
-  return Number.isFinite(copilot.health?.[metric])
-}
-
 /** Ordering key ONLY — never rendered. An unmeasured run count sorts BELOW a
  *  measured zero (-1), so "nobody measured" never outranks a proven quiet
  *  project; it must not be read anywhere as a zero measurement. */
@@ -365,79 +351,52 @@ function runsOrderKey(item: Pick<ProjectOverviewItem, 'runsLast24h'>): number {
 }
 
 export function buildProjectOverview(projects: Project[], copilots: Copilot[]): ProjectOverviewItem[] {
-  const rollups = new Map<
-    string,
-    {
-      copilotCount: number
-      activeCount: number
-      /** Sum over the team members that PROVED runsLast24h — placeholders excluded. */
-      runsLast24h: number
-      /** How many members proved it. 0 on a non-empty team ⇒ the project reports null. */
-      runsMeasuredCount: number
-      /** Sum over the team members that PROVED costLast24hUsd — same rule as runs. */
-      costLast24hUsd: number
-      /** How many members proved it. 0 on a non-empty team ⇒ the project reports null. */
-      costMeasuredCount: number
-      passRates: number[]
-    }
-  >()
-
+  // The team per project, assembled once. A copilot with no `projectId` is on
+  // the validation bench and belongs to no team — it must not land in any
+  // project's total.
+  const teams = new Map<string, Copilot[]>()
   for (const copilot of copilots) {
     if (copilot.projectId === null) continue
-    const current =
-      rollups.get(copilot.projectId) ??
-      {
-        copilotCount: 0,
-        activeCount: 0,
-        runsLast24h: 0,
-        runsMeasuredCount: 0,
-        costLast24hUsd: 0,
-        costMeasuredCount: 0,
-        passRates: [],
-      }
-    current.copilotCount += 1
-    if (copilot.status === 'active') current.activeCount += 1
-    // Only a PROVEN run count enters the sum. `health.runsLast24h` is a
-    // normalisation placeholder when `healthUnavailableFields` names it, and
-    // adding a placeholder to a total silently turns an absence into a figure.
-    if (isMeasuredHealth(copilot, 'runsLast24h')) {
-      current.runsLast24h += copilot.health.runsLast24h
-      current.runsMeasuredCount += 1
-    }
-    // Same gate, same reason as runs above: `health.costLast24hUsd` is a
-    // normalisation placeholder when `healthUnavailableFields` names it, and an
-    // unproven cost added as 0 is what turned "nobody measured" into "$0.00".
-    if (isMeasuredHealth(copilot, 'costLast24hUsd')) {
-      current.costLast24hUsd += copilot.health.costLast24hUsd
-      current.costMeasuredCount += 1
-    }
-    // testPassRate is a PLACEHOLDER 0 when unproven (data.ts normalizeHealth) —
-    // only push a PROVEN rate into the project mean; healthEvidence is 'runs' for
-    // a benchmark-only copilot whose testPassRate is 0, which would drag the mean.
-    if (copilot.healthUnavailableFields && !copilot.healthUnavailableFields.includes('testPassRate')) {
-      current.passRates.push(copilot.health.testPassRate)
-    }
-    rollups.set(copilot.projectId, current)
+    const team = teams.get(copilot.projectId)
+    if (team === undefined) teams.set(copilot.projectId, [copilot])
+    else team.push(copilot)
   }
 
   return projects
     .map((project) => {
-      const rollup = rollups.get(project.id)
-      // Three states, kept apart on purpose, and applied IDENTICALLY to runs and
-      // to cost — one rule, two fields, no room for them to disagree:
-      //  · no rollup at all → the project has NO copilot: a measured 0 (no agent,
-      //    no run to have made and no cost to have incurred) — same call the
-      //    projects console makes for an empty team.
-      //  · rollup with zero proven members → NOT MEASURABLE → null.
-      //  · rollup with proven members → the proven sum, 0 included.
-      const runsLast24h: number | null =
-        rollup === undefined ? 0 : rollup.runsMeasuredCount === 0 ? null : rollup.runsLast24h
-      const costLast24hUsd: number | null =
-        rollup === undefined ? 0 : rollup.costMeasuredCount === 0 ? null : rollup.costLast24hUsd
+      // A project no copilot points at has an EMPTY team, not a missing one —
+      // and an empty team is a measured 0 (no agent, no run to have made, no
+      // cost to have incurred), which is exactly what `sumMeasuredHealth`
+      // returns for `[]`.
+      const team = teams.get(project.id) ?? []
+
+      // ONE rule, ONE rollup, ONE module (`./health-measure`) — the SAME
+      // function `/admin/projects` calls, so the two screens cannot reach
+      // different verdicts about the same project. Its three states ARE the
+      // three states of these two fields, applied IDENTICALLY to runs and to
+      // cost with no room for them to disagree:
+      //  · empty team              → a measured 0.
+      //  · team, nothing proven    → null → NOT MEASURABLE → "Indisponible".
+      //  · team with proven members→ the proven sum, a genuine 0 included.
+      // Placeholders never enter the sum: `health.runsLast24h` /
+      // `health.costLast24hUsd` are normalisation fillers whenever
+      // `healthUnavailableFields` names them, and adding a filler to a total is
+      // what turned "nobody measured" into a confident "$0.00".
+      const runs = sumMeasuredHealth(team, 'runsLast24h')
+      const cost = sumMeasuredHealth(team, 'costLast24hUsd')
+
+      // testPassRate deliberately does NOT go through that gate: the mean here
+      // has always been over the members whose rate the data layer proved, and
+      // `healthEvidence` is 'runs' for a benchmark-only copilot whose
+      // testPassRate is a placeholder 0 that would drag the mean down. Kept
+      // verbatim — this consolidation moves the run/cost rule, it does not
+      // re-litigate pass rate.
+      const passRates = team
+        .filter((c) => c.healthUnavailableFields && !c.healthUnavailableFields.includes('testPassRate'))
+        .map((c) => c.health.testPassRate)
       const passRate =
-        rollup && rollup.passRates.length > 0
-          ? rollup.passRates.reduce((s, n) => s + n, 0) / rollup.passRates.length
-          : null
+        passRates.length > 0 ? passRates.reduce((s, n) => s + n, 0) / passRates.length : null
+
       return {
         id: project.id,
         name: project.name,
@@ -445,10 +404,12 @@ export function buildProjectOverview(projects: Project[], copilots: Copilot[]): 
         logoUrl: project.logoUrl ?? null,
         repoFullName: project.repoFullName ?? null,
         platform: project.platform,
-        copilotCount: rollup?.copilotCount ?? 0,
-        activeCount: rollup?.activeCount ?? 0,
-        runsLast24h,
-        costLast24hUsd,
+        // Structural counts, not measurements: the team really does hold this
+        // many rows, so 0 here is a fact and needs no coverage record.
+        copilotCount: team.length,
+        activeCount: team.filter((c) => c.status === 'active').length,
+        runsLast24h: runs === null ? null : runs.value,
+        costLast24hUsd: cost === null ? null : cost.value,
         passRate,
       }
     })
@@ -584,7 +545,10 @@ export function assembleDashboardOverview(input: {
   missionRuns: MissionRunSnapshot[]
   dataWarnings: string[]
   /** Null when getAvailableAgents() failed — kept distinct from an empty
-   * (proven-zero) array so executableNow can render "—" rather than "0". */
+   * (proven-zero) array so executableNow can render `Indisponible` rather than
+   * "0". (It says `Indisponible`, not "—": `overview-screen.tsx` renders
+   * `unavailableFigure` there. This comment said "—" long after the screen had
+   * stopped agreeing with it.) */
   availableAgents: AvailableAgent[] | null
   /** Null when getRecentRunsInWindow() failed — kept distinct from an empty
    * (read-and-nothing-there) array exactly like `availableAgents`, so runs24h

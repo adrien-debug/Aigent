@@ -469,6 +469,22 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
                 <Fact label="Manifest version" value={manifest.version} />
                 <Fact label="Confirmation policy" value={manifest.confirmationPolicy} />
                 <Fact label="Max steps per run" value={manifest.maxStepsPerRun} />
+                {/* The ONLY `formatUsd` in the console handed a value it did
+                    not narrow first — deliberately, and it is not a measurement.
+                    This is the manifest's CONFIGURED CEILING, and
+                    `manifests.max_cost_per_run_usd` is `numeric not null
+                    default 1` (migration 0001, never altered since), so unlike
+                    the nullable columns `orUnavailable` exists for, this one
+                    cannot arrive absent through `camelRows`. If it somehow did,
+                    `formatUsd` now says `Indisponible` — the honest reading,
+                    since "no ceiling is configured" is not a state this schema
+                    can produce; only an unreadable row is.
+                    KNOWN, SEPARATE DEFECT (not an absence-vocabulary one, so
+                    not fixed here): the constraint DOES allow a stored `0`, and
+                    `runner.ts` treats a `<= 0` ceiling as UNBOUNDED. Such a row
+                    would render "$0.0000" here while the runtime enforces no
+                    budget at all — a policy display bug that belongs to whoever
+                    owns the ceiling contract, not to the formatter. */}
                 <Fact label="Max cost per run" value={formatUsd(manifest.maxCostPerRunUsd, 4)} />
                 <Fact label="Declared tools" value={manifest.toolIds.length} />
                 <Fact label="Allowed routes" value={manifest.allowedRoutes.length} />

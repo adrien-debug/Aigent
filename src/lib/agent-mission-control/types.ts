@@ -101,7 +101,14 @@ export interface Copilot {
    * Health metrics that NO persisted row proved — same channel as
    * `AvailableAgent.unavailableFields`: a metric named here means the number
    * sitting in `health` is a normalisation placeholder, not a measurement, and
-   * MUST render as a dash. Set by `data.ts` (`enrichCopilot`) at read time.
+   * MUST render as the console's absence word (`UNAVAILABLE_LABEL`, i.e.
+   * `Indisponible`, via `<Unavailable />` or `formatUsd`) — never a dash, which
+   * this product no longer uses for an unmeasured figure, and never a `0`.
+   * Set by `data.ts` (`enrichCopilot`) at read time.
+   *
+   * NEVER read a metric named here without consulting the list. The ONE rule
+   * that does it, shared by the data layer and the screens, is
+   * `isMeasuredHealth` (`./health-measure`) — do not re-implement it locally.
    *
    * `undefined` means the row never went through the data layer, so nothing is
    * proven — a consumer must treat every metric as unavailable, not as measured.

@@ -40,7 +40,7 @@ vi.mock('@/lib/agent-mission-control/postgrest', () => ({
 }))
 
 import { deriveToolNatureReadOnly, type ToolNatureSignal } from '@/lib/agent-mission-control/available-agents'
-import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
+import { formatPercent, formatUsd, UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
 import { costFromMessages } from '@/lib/agent-mission-control/langgraph-server'
 import { resolveCopilotHealthBatch, resolveVersionScoresBatch } from '@/lib/agent-mission-control/agent-health'
 
@@ -99,10 +99,14 @@ describe('canon — cost: absence is null, never a fake 0', () => {
     expect(costFromMessages(messages as never)).not.toBe(0)
   })
 
-  it('formatUsd renders an unmeasured cost (null/undefined) as "—", never "$0.00"', () => {
-    expect(formatUsd(null)).toBe('—')
-    expect(formatUsd(undefined)).toBe('—')
-    expect(formatUsd(Number.NaN)).toBe('—')
+  it('formatUsd renders an unmeasured cost (null/undefined/NaN) as `Indisponible`, never "$0.00"', () => {
+    // ONE absence vocabulary. The formatter returns the same word the screens
+    // render through `<Unavailable />` — not an em dash, which this console
+    // reserves for something else entirely and which reads as punctuation.
+    expect(formatUsd(null)).toBe(UNAVAILABLE_LABEL)
+    expect(formatUsd(undefined)).toBe(UNAVAILABLE_LABEL)
+    expect(formatUsd(Number.NaN)).toBe(UNAVAILABLE_LABEL)
+    expect(UNAVAILABLE_LABEL).toBe('Indisponible')
   })
 
   it('formatUsd renders a MEASURED zero as a real "$0.00" (measured ≠ unknown)', () => {

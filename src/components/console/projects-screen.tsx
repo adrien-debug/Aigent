@@ -3,7 +3,11 @@ import { ArrowRightIcon } from '@heroicons/react/20/solid'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatUsd } from '@/lib/agent-mission-control/format'
-import type { Copilot, CopilotHealthMetric, Project } from '@/lib/agent-mission-control/types'
+// The ONE measurement rule + rollup, shared with the data layer
+// (`dashboard-overview.ts`). Neutral module, no `server-only` — see its header
+// for why it cannot live beside the rollup that consumes it.
+import { isMeasuredHealth, sumMeasuredHealth, type MeasuredSum } from '@/lib/agent-mission-control/health-measure'
+import type { Copilot, Project } from '@/lib/agent-mission-control/types'
 
 // Alias paths, not `./charts/…`: `scripts/audit-dead.mjs` proves a component is
 // alive by looking for `@/<path>` or a SAME-DIRECTORY `./<basename>`. A relative
@@ -65,54 +69,6 @@ const unavailableCell = <Unavailable className="text-[11px]" />
 /* ----------------------------------------------------------------- helpers */
 
 /**
- * Is this health metric a MEASUREMENT on this copilot?
- *
- * `healthUnavailableFields` names what the data layer could not prove. An
- * UNDEFINED list means the row never went through the data layer, so nothing is
- * proven — the contract (`types.ts`) says to treat every metric as unavailable
- * in that case, not as measured.
- *
- * A KNOWING DUPLICATE OF `isMeasuredHealth` (dashboard-overview.ts), sharing its
- * name so the two cannot be edited in ignorance of each other: the bodies are
- * character-for-character identical, and that is the mechanism by which `/admin`
- * and `/admin/projects` reach the SAME verdict — measured n · measured 0 ·
- * `Indisponible` — for the same project's runs and the same project's cost.
- *
- * It is not imported because `dashboard-overview.ts` opens with
- * `import 'server-only'`, and taking a VALUE from it drags that guard into this
- * module's runtime graph. Measured on this branch, not assumed: the import was
- * tried and `tests/unit/overview-screen-truth.test.tsx` died with "This module
- * cannot be imported from a Client Component".
- *
- * THE FIX, when someone owns both sides: a client-safe
- * `src/lib/agent-mission-control/health-measure.ts` holding `isMeasuredHealth` +
- * `sumMeasuredHealth`, imported by the data layer AND by this file. It belongs
- * beside `types.ts` and `format.ts`, neither of which carries `server-only` and
- * the second of which this file already value-imports. Creating it edits the
- * data layer, so it is out of this mission's scope — the duplication survives
- * EXPLAINED, not unnoticed.
- */
-function isMeasuredHealth(copilot: Copilot, metric: CopilotHealthMetric): boolean {
-  if (copilot.healthUnavailableFields === undefined) return false
-  if (copilot.healthUnavailableFields.includes(metric)) return false
-  return Number.isFinite(copilot.health?.[metric])
-}
-
-/** A rollup and how much of the team it could not cover. */
-type MeasuredSum = { value: number; unmeasured: number }
-
-/**
- * Sum a health metric over a team, counting ONLY the members that proved it.
- *
- * `null` when a non-empty team proved none — a total nobody measured is not 0.
- * An EMPTY team returns a measured 0: with no agent assigned there is no run and
- * no cost to account for, which is a fact rather than a placeholder.
- *
- * These three states are exactly the ternary `buildProjectOverview` applies to
- * `runsLast24h` AND to `costLast24hUsd` (dashboard-overview.ts) — see the note
- * on `isMeasuredHealth` above for why the rule lives in two files for now.
- */
-/**
  * The sub-label of a fleet KPI, stating what its figure actually covers.
  *
  * A `MeasuredSum` is a sum over the members that PROVED the metric — a lower
@@ -126,22 +82,6 @@ function coverageDetail(sum: MeasuredSum | null): string {
   if (sum === null) return 'No assigned agent proved a 24h figure'
   if (sum.unmeasured === 0) return 'Across every assigned agent'
   return `Excludes ${sum.unmeasured} agent${sum.unmeasured === 1 ? '' : 's'} with no measured figure`
-}
-
-function sumMeasuredHealth(team: Copilot[], metric: CopilotHealthMetric): MeasuredSum | null {
-  let value = 0
-  let measured = 0
-  let unmeasured = 0
-  for (const copilot of team) {
-    if (isMeasuredHealth(copilot, metric)) {
-      value += copilot.health[metric]
-      measured += 1
-    } else {
-      unmeasured += 1
-    }
-  }
-  if (team.length > 0 && measured === 0) return null
-  return { value, unmeasured }
 }
 
 /** The shipped definition of "serving", kept verbatim: the production pointer

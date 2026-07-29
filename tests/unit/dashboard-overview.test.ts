@@ -990,69 +990,88 @@ describe('C — structural: the coalescence is gone and "measured" is ONE rule',
     expect(rollup).not.toMatch(/costLast24hUsd[^\n]*\|\|\s*0/)
     expect(rollup).not.toMatch(/runsLast24h[^\n]*\?\?\s*0/)
     expect(rollup).not.toMatch(/runsLast24h[^\n]*\|\|\s*0/)
-    // …while the two coalescences that ARE legitimate stay legitimate: a project
-    // with no team really has 0 copilots and 0 active ones. Asserted so this
-    // test is not silently satisfied by the whole block disappearing.
-    expect(rollup).toMatch(/copilotCount: rollup\?\.copilotCount \?\? 0/)
-    expect(rollup).toMatch(/activeCount: rollup\?\.activeCount \?\? 0/)
+    // …while the STRUCTURAL counts stay structural: a project with no team
+    // really does hold 0 copilots and 0 active ones, and those zeroes are facts
+    // that need no coverage record. Asserted positively so this test cannot be
+    // silently satisfied by the whole block disappearing.
+    expect(rollup).toMatch(/copilotCount: team\.length/)
+    expect(rollup).toMatch(/activeCount: team\.filter\(/)
   })
 
-  it('C15 — cost enters the rollup only through the same gate as runs', async () => {
+  it('C15 — cost enters the rollup through the SAME shared call as runs', async () => {
     const rollup = await rollupSource()
 
-    expect(rollup).toMatch(/isMeasuredHealth\(copilot, 'runsLast24h'\)/)
-    expect(rollup).toMatch(/isMeasuredHealth\(copilot, 'costLast24hUsd'\)/)
-    // A raw accumulation NOT wrapped in the gate is what this forbids: the
-    // defect line read `current.costLast24hUsd += copilot.health.costLast24hUsd`
-    // at the top level of the loop. It may only appear indented inside the `if`.
-    const ungated = /\n {4}current\.costLast24hUsd \+=/
-    expect(rollup).not.toMatch(ungated)
+    // One function, called identically for both metrics — not two hand-rolled
+    // accumulators that merely look alike. The defect line this replaced read
+    // `current.costLast24hUsd += copilot.health.costLast24hUsd` at the top level
+    // of a loop, outside any measurement gate.
+    expect(rollup).toMatch(/sumMeasuredHealth\(team, 'runsLast24h'\)/)
+    expect(rollup).toMatch(/sumMeasuredHealth\(team, 'costLast24hUsd'\)/)
+    // No raw accumulation of either metric survives anywhere in the rollup.
+    expect(rollup).not.toMatch(/\+=\s*copilot\.health\./)
+    expect(rollup).not.toMatch(/\+=\s*c\.health\./)
+    // Both fields unwrap the SAME three-state result the same way — an absence
+    // stays `null`, never a coalesced 0.
+    expect(rollup).toMatch(/runsLast24h: runs === null \? null : runs\.value/)
+    expect(rollup).toMatch(/costLast24hUsd: cost === null \? null : cost\.value/)
   })
 
   /**
-   * C16 — ONE definition of "measured", not two that look alike.
+   * C16 — ONE definition of "measured", in ONE module, with no local copies.
    *
-   * The rule lives in TWO files — `dashboard-overview.ts` (feeding `/admin`) and
-   * `src/components/console/projects-screen.tsx` (feeding `/admin/projects`) —
-   * because the data layer opens with `import 'server-only'` and a VALUE import
-   * of it kills the browser-conditions test project. The duplication is
-   * deliberate and documented at both sites; nothing except THIS test stops one
-   * copy from being "improved" alone, and the day they differ the two screens go
-   * back to stating different truths about the same project, which is the
-   * divergence this branch exists to close.
+   * WHAT THIS USED TO ASSERT, and why it changed: the rule lived in TWO files —
+   * `dashboard-overview.ts` (feeding `/admin`) and `projects-screen.tsx`
+   * (feeding `/admin/projects`) — because the data layer opens with
+   * `import 'server-only'` and a VALUE import of it kills the browser-conditions
+   * test project. This test pinned the two copies byte for byte. The copies are
+   * now GONE: the rule moved to `src/lib/agent-mission-control/health-measure.ts`,
+   * a neutral module with no `server-only`, that BOTH sides import. So the
+   * invariant is no longer "the two copies agree" but the strictly stronger
+   * "there is only one copy, and nobody has quietly grown a second".
    *
-   * NAME-AGNOSTIC ON PURPOSE. The function is located by its SIGNATURE, not by
-   * its identifier, so a rename cannot make this test quietly stop looking (it
-   * would throw instead). Exactly one such function may exist per file.
+   * NAME-AGNOSTIC ON PURPOSE, unchanged: the function is located by its
+   * SIGNATURE, not by its identifier, so a rename cannot make this test quietly
+   * stop looking.
    */
-  it('C16 — the data layer and the projects screen share one rule, byte for byte', async () => {
-    const [dataLayer, screenSource] = await Promise.all([
+  it('C16 — the rule exists exactly once, in the neutral module both screens import', async () => {
+    const [shared, dataLayer, screenSource] = await Promise.all([
+      readSource('src/lib/agent-mission-control/health-measure.ts'),
       readSource('src/lib/agent-mission-control/dashboard-overview.ts'),
       readSource('src/components/console/projects-screen.tsx'),
     ])
 
     const SIGNATURE = /function (\w+)\(copilot: Copilot, metric: CopilotHealthMetric\): boolean \{\n([\s\S]*?)\n\}/g
 
-    function ruleIn(source: string, file: string): { name: string; body: string } {
-      const found = [...source.matchAll(SIGNATURE)]
-      if (found.length !== 1) {
-        throw new Error(`${file} holds ${found.length} health-measurement rules; exactly 1 is the contract`)
-      }
-      return { name: found[0][1], body: found[0][2] }
+    // Exactly one definition, and it is in the shared module.
+    const found = [...shared.matchAll(SIGNATURE)]
+    if (found.length !== 1) {
+      throw new Error(`health-measure.ts holds ${found.length} health-measurement rules; exactly 1 is the contract`)
     }
-
-    const dataRule = ruleIn(dataLayer, 'dashboard-overview.ts')
-    const screenRule = ruleIn(screenSource, 'projects-screen.tsx')
+    const [, name, body] = found[0]
 
     // The extraction really found the rule — a regex that matched an empty body
-    // would otherwise satisfy the comparison below and prove nothing.
-    expect(dataRule.body).toContain('healthUnavailableFields === undefined')
-    expect(dataRule.body).toContain('Number.isFinite')
+    // would otherwise satisfy everything below and prove nothing.
+    expect(body).toContain('healthUnavailableFields === undefined')
+    expect(body).toContain('Number.isFinite')
+    expect(name).toBe('isMeasuredHealth')
 
-    // What it DOES: identical, character for character.
-    expect(screenRule.body).toBe(dataRule.body)
-    // …and what it is CALLED: identical too, which is the stated mechanism for
-    // making the pair impossible to edit in ignorance of each other.
-    expect(screenRule.name).toBe(dataRule.name)
+    // ZERO local copies. A re-inlined rule in either consumer puts the two
+    // screens back on separate definitions of "measured" — the divergence this
+    // module exists to make impossible.
+    expect([...dataLayer.matchAll(SIGNATURE)]).toHaveLength(0)
+    expect([...screenSource.matchAll(SIGNATURE)]).toHaveLength(0)
+
+    // …and both consumers really do take it from the shared module, so the
+    // emptiness above means "imported", not "dropped".
+    expect(dataLayer).toMatch(/from '\.\/health-measure'/)
+    expect(screenSource).toMatch(/from '@\/lib\/agent-mission-control\/health-measure'/)
+
+    // The shared module must stay importable from a Client Component — that is
+    // the whole reason it is separate from `dashboard-overview.ts`. Enforced by
+    // `tests/unit/overview-screen-truth.test.tsx` at runtime (browser resolve
+    // conditions), and here at the source level so a stray import is caught
+    // before it reaches a renderer.
+    expect(shared).not.toMatch(/^import 'server-only'/m)
+    expect(shared).not.toMatch(/from '\.\/(data|postgrest|dashboard-overview)'/)
   })
 })

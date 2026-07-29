@@ -503,10 +503,13 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
             total.
 
             `null` is THREE different absences (dead read · empty window · no
-            priced run) and all three render `Indisponible`, never "$0.00" and
-            never "—". `formatUsd` would happily take the null and return "—",
-            which is why it is not given the chance: an em dash is punctuation,
-            not the word this console uses for "nobody measured this".
+            priced run) and all three render `Indisponible`, never "$0.00".
+            `formatUsd` used to return an em dash for a null — punctuation, not
+            the word this console uses for "nobody measured this" — which is why
+            the null was narrowed here before ever reaching it. It now returns
+            the same word (`UNAVAILABLE_LABEL`, one vocabulary), so the two
+            paths finally AGREE; the narrowing stays because only the component
+            can carry the zinc-500 role and the figure-sized class.
             `costDetail` above names which absence it is. */}
         <KpiCard
           label="Cost · 24h"

@@ -407,12 +407,14 @@ function agentRun(partial: Partial<AgentRun> & Pick<AgentRun, 'id'>): AgentRun {
 }
 
 /**
- * The em dash `formatUsd` returns for a null amount.
+ * The em dash. NOT what `formatUsd` returns any more — it returns the same word
+ * `UNAVAILABLE` above, so the two spellings of one absence are now one.
  *
- * Named so the assertions can forbid it by intent rather than by literal: it is
- * punctuation, and this console spells an absent measurement with a WORD. A cost
- * slot showing "—" would mean a null reached `formatUsd` instead of being
- * narrowed before it — the exact substitution these tests exist to catch.
+ * Kept, and still forbidden, because the assertion is broader than its original
+ * cause: it is punctuation, this console spells an absent measurement with a
+ * WORD, and a cost slot showing "—" would mean SOME new source of the old
+ * vocabulary crept back in — a hand-written fallback, a copied cell, a fresh
+ * `?? '—'`. The guard outlives the bug that motivated it.
  */
 const EM_DASH_ABSENCE = '—'
 
@@ -747,6 +749,43 @@ describe('D5 — /admin/projects renders the three cost states of the same contr
     // …while the metric that WAS proven on the same agent is unaffected: the two
     // fields are gated independently.
     expect(kpiCardIn(container, 'Runs · 24h').textContent).toContain('2')
+  })
+
+  /**
+   * THE GATE NOTHING ELSE ON A SCREEN EXERCISES — a row that never went through
+   * the data layer at all.
+   *
+   * `Copilot.healthUnavailableFields` is OPTIONAL, and `undefined` is its third
+   * value: a raw PostgREST row cast by `camelRows` (or any path that skips
+   * `enrichCopilot`) carries a full `health` blob and no statement about what
+   * was proven. The contract in `types.ts` says to treat every metric as
+   * unavailable there, because the blob is the stored baseline, not a reading.
+   *
+   * Every other fixture in this suite declares the list, so the first gate of
+   * the shared rule was covered only in the data layer. It is the gate a local
+   * re-implementation is most likely to get wrong — the two other gates are
+   * visible in any hand-written version, this one looks like a null check that
+   * "obviously" should default to trusting the numbers.
+   */
+  it('an UNENRICHED team (no unavailability statement at all) is absent, not its raw blob', () => {
+    const [proven] = CROSS_SCREEN_TEAM
+    // The same agent as `Proven` — 3 runs, $12.50 sitting in `health` — minus
+    // the one thing that made those numbers measurements.
+    const { healthUnavailableFields: _dropped, ...unenriched } = proven
+    void _dropped
+
+    const { container } = render(
+      <ProjectsScreen projects={[CROSS_SCREEN_PROJECTS[0]]} copilots={[unenriched as Copilot]} />
+    )
+
+    const rows = registryRows(container)
+    expect(rows.get('Proven')?.[3]).toBe(UNAVAILABLE) // runs
+    expect(rows.get('Proven')?.[4]).toBe(UNAVAILABLE) // cost
+    // The blob's numbers must not surface anywhere on the page — neither raw
+    // nor formatted, and not in the KPI band above the table either.
+    expect(container.textContent).not.toContain('$12.50')
+    expect(kpiCardIn(container, 'Cost · 24h').textContent).not.toContain('$')
+    expect(kpiCardIn(container, 'Runs · 24h').textContent).toContain(UNAVAILABLE)
   })
 })
 
