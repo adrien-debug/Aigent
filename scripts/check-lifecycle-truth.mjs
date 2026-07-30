@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 /**
  * Lifecycle-truth guard — five specific lies the governed lifecycle trace
- * (`src/lib/agent-mission-control/agent-lifecycle-trace.ts` and its display,
- * `src/components/console/lifecycle-trace-panel.tsx`) must never tell:
+ * (`src/lib/agent-mission-control/agent-lifecycle-trace.ts`) must never tell:
  *
  *  1. "deployed" claimed without consumer proof. A delivery event proves
  *     Aigent PUSHED something — never that the consumer merged, activated, or
  *     deployed it. Banned: the words "deployed"/"is live" attached to
- *     `delivery`/`deliver` in these two files.
+ *     `delivery`/`deliver` in that file.
  *  2. "healthy" claimed without a telemetry diagnostic. A telemetry event
  *     proves a report ARRIVED — never that the agent is well
  *     (`telemetry-health.ts`'s own doctrine). Banned: "healthy" near
@@ -22,10 +21,17 @@
  *     `active_in_consumer` stage's `reached` must be the literal string
  *     `'unknown'` — never derived from `delivery`.
  *
- * Scope: the two files this trace lives in, named explicitly rather than a
- * directory walk — this is a narrow, mission-specific guard, not a general
- * console sweep (render-truth/status-truth already cover the console broadly).
- * Exit 0 = clean, exit 1 = violation. Read-only, no network, no secret.
+ * SCOPE — ONE file, named explicitly rather than walked: the trace module
+ * itself. This guard used to also name its display component under
+ * `src/components/console/`; that file was deleted by the frontend reset and was
+ * never in FILES anyway, so the claim was doubly wrong. A header that advertises
+ * twice the reach of the code is the same lie as a green gate on zero targets —
+ * when a display layer comes back, add it to FILES *and* to this comment, in the
+ * same commit.
+ *
+ * A file listed here but missing on disk is a VIOLATION, not a skip: this guard
+ * cannot go vacuously green. Exit 0 = clean, exit 1 = violation. Read-only, no
+ * network, no secret.
  */
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'

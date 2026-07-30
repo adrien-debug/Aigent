@@ -44,17 +44,18 @@ agents it produces run inside *consumer* products.
    propose → materialize a draft → compare → human decision. A V2 never
    auto-promotes.
 
-## The non-negotiable: truth over comfort
+## Truth over comfort — why the product is shaped this way
 
-This platform exists to say what an agent actually does, so every surface obeys
-the same rule: **an unmeasured value travels as `null` plus a state, never as
-`0`.** No agent is `active` because someone wrote `active`. No number renders
-because a query returned an empty array. No screen claims "all systems
-reporting" over three page-scoped reads.
+Aigent exists to say what an agent actually does, so the whole platform is built
+around one rule: **an unmeasured value travels as `null` plus a state, never as
+`0`.** No agent is `active` because someone wrote `active`. No number is produced
+because a query returned an empty array. No aggregate claims "all systems
+reporting" over a handful of scoped reads.
 
-The canonical statement of that rule and its per-metric application lives in
-`docs/metrics-canon.md`; the gates that enforce it are
-`npm run check:render-truth`, `check:status-truth`, `check:agent-truth`.
+> This section explains a design intent, it does not legislate. **The rule itself
+> is stated in `AGENTS.md` § « Vérité des données »** — that file owns it. Its
+> per-metric application is in `docs/metrics-canon.md`; which gates actually
+> enforce it (and how narrow they are) is in `scripts/README-gates.md`.
 
 ## What Aigent is NOT
 

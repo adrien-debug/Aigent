@@ -1,126 +1,137 @@
-# Known gaps — what is honestly missing
+# Known gaps — ce qui manque honnêtement
 
-> Companion to `docs/current-capabilities.md`. That file says what state each
-> capability is in; this one says why the gap matters and what closing it means.
-> Nothing here is speculation — every gap was established by reading the code.
+> Compagnon de `docs/current-capabilities.md`. Ce fichier-là dit dans quel état
+> est chaque capacité ; celui-ci dit pourquoi l'écart compte et ce que le combler
+> impliquerait. Rien ici n'est de la spéculation — chaque manque a été établi en
+> lisant le code.
+>
+> **Ce fichier n'est pas de la doctrine** : c'est un constat daté. Les règles
+> vivent dans `CLAUDE.md` et `AGENTS.md`.
 
-## 1. ~~The console is a read console.~~ CLOSED — the lifecycle has buttons.
+## 1. Il n'y a aucune interface — et c'est délibéré
 
-This gap was real when written and is no longer true. The console rebuild
-(`984c5d6`..`644eada`) gave the lifecycle a UI, but this file was not updated in
-the same pass — it kept claiming the opposite for a week.
+Le front a été entièrement supprimé. Aigent est aujourd'hui une plateforme
+**API-only** : tout le cycle de vie (créer, tester, benchmarker, qualifier,
+promouvoir, améliorer, livrer) est atteignable par HTTP sous
+`/api/agent-ops/**`, et par rien d'autre.
 
-Measured 2026-07-30 with
-`grep -rhoE "/api/agent-ops/[^\`'\" ]+" src/components/console/*.tsx | sed 's/\${[^}]*}/:id/g' | sort -u`:
-**15 distinct endpoints across 5 components**, not three. Run, tests/run,
-benchmarks/run, qualification, promotion, shadow, replay, improve (analyze /
-create-v2 / decision), delivery-loop and push-agent are all driven from
-`qualification-panel.tsx`, `improve-panel.tsx`, `delivery-controls.tsx`,
-`agent-actions.tsx` and `project-builder-screen.tsx`.
+Ce n'est pas un manque à combler en urgence, c'est l'état choisi par la mission
+`frontend-reset`. Ce qui EST un vrai manque tant que ça dure :
 
-What genuinely remains: bench-only architect runs started via
-`POST /api/agent-ops/architect/run` (no `projectId`) still have no DB row —
-only project-builder conversations are listed on Overview. See §7 for HITL runs
-whose tab was closed: they are now reachable from the Overview action queue when
-the conversation still holds a live `langgraph_thread_id`.
+- **aucune lecture humaine de la flotte** — les agrégations existent et sont
+  testées (`dashboard-overview.ts`, `agent-detail.ts`, `telemetry-health.ts`,
+  `src/lib/runs-console/`) mais **plus personne ne les appelle**. C'est du code
+  vivant sans lecteur, pas du code mort : il attend le nouveau front ;
+- **aucune approbation humaine ergonomique** — les runs qui s'arrêtent en
+  `needs-confirmation` sont reprenables uniquement par un `POST` manuel sur la
+  route de resume.
 
-## 2. Telemetry comes back — the fleet view exists, one reader does not.
+Le futur front sera livré en blocs séparés et en free design : aucun kit,
+palette ni système de tokens n'est décidé, et aucune gate visuelle n'existe.
 
-Ingestion is solid — dedicated token, hardened payload handling, a table that
-holds both consumer-reported runs and Aigent's own. Of the data going in:
+## 2. Le canal de retour consommateur n'a jamais porté de trafic réel
 
-- `summarizeRuntimeTelemetry` (per-agent) is read by the improvement loop and by
-  `agent-detail.ts` for `/admin/agents/[id]`. ✅
-- `summarizeFleetRuntimeTelemetry` and `diagnoseTelemetryHealth`
-  (`telemetry-health.ts`) are called by `dashboard-overview.ts` and rendered as
-  the Telemetry card on `/admin`. ✅ — this file previously claimed both had zero
-  callers, which was wrong.
-- `listRecentRuntimeTelemetryEvents` is now read by `/admin` (Overview telemetry
-  panel, bounded to 50 events). ✅
-- The per-event stream is no longer a dead export — it is surfaced on the
-  flagship screen alongside the fleet channel KPIs.
+L'ingestion est solide : jeton dédié, payload traité comme hostile (plafond
+16 Ko, schéma Zod strict, scan de motifs de secrets, aucun écho en réponse), une
+table unique pour deux sources.
 
-The honest gap is narrower than it was: fleet health and the per-event feed are
-visible on Overview. Note also that of 37 rows in `runtime_telemetry_events`, **zero
-came from an externally deployed agent** — every row is Aigent's own runner or a
-lifecycle event, so the return channel has never been exercised end to end.
+Mais **zéro ligne de `runtime_telemetry_events` ne provient d'un agent déployé à
+l'extérieur** : tout ce qui est stocké vient du runner interne d'Aigent ou d'un
+événement de cycle de vie. La boucle
+`create → qualify → ship → execute → telemetry → improve` n'a donc jamais été
+bouclée de bout en bout par un vrai consommateur. L'endpoint accepte ; personne
+n'a encore prouvé qu'il émet.
 
-## 3. Shipping is double-gated off by default.
+Corollaire honnête : « Aigent apprend des runs de ses agents déployés » décrit
+une capacité **construite**, pas une capacité **exercée**.
 
-`push-agent` writes to a real GitHub repo only when **both** `confirm: true` is
-in the body and `GITHUB_PUSH_ENABLED=1` is in the environment. Otherwise it is a
-dry run. That is the correct default for a destructive remote write — but it
-means the shipping leg of the loop is not exercised in normal operation, and
-"Aigent ships agents" is a claim about a path that is off unless someone turns
-it on deliberately.
+## 3. Le shipping est doublement verrouillé par défaut
 
-## 4. The tool builder builds one tool.
+`push-agent` n'écrit dans un vrai repo GitHub que si **les deux** verrous sont
+levés : `confirm: true` dans le corps **et** `GITHUB_PUSH_ENABLED=1` dans
+l'environnement. Sinon, dry-run.
 
-`count_words` is the only tool with a sandbox. The build-mission machinery
-(`tool_build_missions`, migration `0043`) is general; the sandbox coverage is not.
+C'est le bon défaut pour une écriture distante destructive — mais ça veut dire
+que la jambe « livraison » de la boucle n'est pas exercée en fonctionnement
+normal, et que « Aigent livre des agents » parle d'un chemin éteint tant que
+personne ne l'allume délibérément.
 
-## 5. `mistral` is declared and not wired.
+## 4. Le tool builder ne construit qu'un outil
 
-It throws a typed error rather than falling back silently — which is the right
-failure — but any doc or config that lists it as a provider option is listing
-something that cannot run.
+La machinerie de build-mission (`tool_build_missions`) est générale ; la
+couverture en sandbox ne l'est pas — un seul outil en dispose. Un outil construit
+sans sandbox ne peut pas être certifié par exécution.
 
-## 5bis. Version drift cannot be computed yet — the delivery event lacks a resolvable version.
+## 5. `mistral` est déclaré et non câblé
 
-The lifecycle trace (`agent-lifecycle-trace.ts`) is meant to compare the last
-DELIVERED version against the last version self-reported by telemetry and flag
-a mismatch. It cannot, today: `DeliveryEvent`'s read shape
-(`delivery-events-store.ts`) does not carry `versionId` — only the write input
-does — so there is no join from a delivery row back to a version label. The
-trace reports this honestly as `versionDrift.state: 'unknown'` with a detail
-string naming the gap, rather than guessing a match. Closing this needs either
-adding `version_id` to the `agent_delivery_events` SELECT and the read type, or
-persisting a version label directly on the row.
+Il lève une erreur typée plutôt que de retomber silencieusement sur un autre
+provider — c'est le bon échec. Mais toute doc ou config qui le liste comme option
+liste quelque chose qui ne peut pas tourner. C'est le **seul** provider dans ce
+cas : `openai`, `google` (tool-use inclus) et `local` (vLLM, opt-in) exécutent
+réellement.
 
-## 5ter. "Active in consumer" is permanently unknown by design, not by gap.
+## 6. La dérive de version ne peut pas être calculée
 
-Unlike the drift gap above, this one is not a TODO: `agent-lifecycle-trace.ts`
-hard-codes the `active_in_consumer` stage to `reached: 'unknown'` because
-Aigent has no read channel into a consumer workspace's own activation state
-(AGENTS.md: "Après provisioning, Aigent ne fait que POUSSER des agents").
-`scripts/check-lifecycle-truth.mjs` enforces that this stays the literal
-`'unknown'` and is never inferred from a delivery event. Building a real
-answer here requires a genuine consumer-side read channel — a product
-decision, not a data-plumbing fix.
+La trace de cycle de vie (`agent-lifecycle-trace.ts`) devrait comparer la
+dernière version LIVRÉE à la dernière version auto-déclarée par la télémétrie et
+signaler l'écart. Elle ne peut pas : la forme de lecture d'un `DeliveryEvent`
+(`delivery-events-store.ts`) ne porte pas de `versionId` — seule l'entrée
+d'écriture l'a — donc il n'existe aucune jointure d'une ligne de livraison vers
+un label de version.
 
-## 6. Documentation drift is a recurring failure mode here.
+La trace le rapporte honnêtement (`versionDrift.state: 'unknown'` + un détail qui
+nomme le manque) plutôt que de deviner une correspondance. Combler ça demande soit
+d'ajouter `version_id` au SELECT et au type de lecture, soit de persister un label
+de version sur la ligne.
 
-Before this pass, `CLAUDE.md` and `AGENTS.md` both asserted that `/admin` and
-`/admin/runs` were neutral placeholders and that visual reconstruction had not
-begun, while `src/app/admin/` held six live screens and ~4 600 lines of console
-components. `README.md` documented `/admin/factory`, `/admin/performance` and
-`/admin/agents/new` — three routes that the build gate now actively forbids.
+## 7. « Actif chez le consommateur » est inconnaissable par conception
 
-There is no gate that checks a doc against the code. Until there is, this file
-and `docs/current-capabilities.md` are only as fresh as the last person who read
-the source.
+Contrairement au §6, ce n'est pas un TODO. `agent-lifecycle-trace.ts` fixe l'étape
+`active_in_consumer` à `reached: 'unknown'` parce qu'Aigent **n'a aucun canal de
+lecture** vers l'état d'activation d'un workspace consommateur (`AGENTS.md` :
+« Après provisioning, Aigent ne fait que POUSSER des agents »).
+`scripts/check-lifecycle-truth.mjs` impose que ça reste le littéral `'unknown'` et
+que ce ne soit jamais déduit d'un événement de livraison.
 
-## 7. ~~Visual doctrine is thin.~~ NOT A GAP — this workspace is free design.
+Une vraie réponse ici exige un canal de lecture côté consommateur — une décision
+produit, pas un branchement de données.
 
-Previously listed here as a hole: no `check:ds` / `check:contrast` /
-`check:catalyst` / `check:danger` / `check:views`. That absence is now the
-DECISION, not an omission. This workspace carries no design doctrine and no
-visual gate: no mandated palette, kit, font or token layer. What lives in
-`src/theme.css` and `src/components/ui/` is a starting point anyone may keep,
-bend or replace.
+## 8. Les gates de vérité sont plus étroites que leur réputation
 
-What still holds is not design: `check:render-truth` / `check:status-truth`
-(a screen may only claim what was measured) and `check:no-legacy-front`
-(deleted routes stay deleted). Those are honesty and structure.
+À énoncer tel quel, parce que l'inverse a déjà été cru dans ce repo :
 
-Do not re-file this as a gap, and do not "restore" a design gate here.
+- `check:lifecycle-truth` ne scanne **qu'un seul fichier**.
+- `check:agent-truth` vérifie qu'aucun roster n'est *importé* et qu'aucun
+  provider/modèle n'est codé en dur dans le contrat canonique — pas que ce qui
+  est servi est **exécutable**.
+- `check:render-truth` ne couvre que `src/lib/runs-console/`.
+- **Aucune gate ne scanne les agrégations** de `dashboard-overview.ts` /
+  `agent-detail.ts` / `data.ts`, là où la règle « une valeur non mesurée reste
+  `null` » compte le plus. Elle y tient par discipline humaine.
+- **Aucune gate ne détecte un assistant LangGraph manquant** — le symptôme
+  documenté (agent d'apparence saine, `tool_call_count = 0`, « pas de données »)
+  reste possible avec toutes les gates vertes.
 
-## Not verified in this pass
+## 9. La dérive documentaire est le mode de défaillance récurrent ici
 
-- Whether the live GPU1 backend currently holds the canonical TradeAgent roster
-  in the documented state. That needs a live read; nothing here was run against
-  the database.
-- Whether the deployed consumer products are in fact emitting telemetry. The
-  endpoint accepts it; whether anything calls it in production was not checked.
-- Runtime behaviour of any kind. This pass read source only — no server was
-  started, no test suite was run.
+Ce fichier a déjà menti sur lui-même : sa version précédente s'ouvrait sur un §
+intitulé « la dérive documentaire est un mode de défaillance récurrent » tout en
+décrivant, une passe plus tard, une console de six écrans et quinze endpoints
+cliquables qui n'existaient plus depuis le reset.
+
+Il n'existe **aucune gate qui confronte un document au code**. Tant qu'il n'y en a
+pas, ce fichier et `docs/current-capabilities.md` ne valent que par la dernière
+personne qui a lu la source. Deux réflexes en découlent :
+
+1. quand un document et le code se contredisent, **le code a raison** ;
+2. les rapports de mission de `docs/` portent un bandeau d'archive et sont des
+   **observations datées**, jamais des règles.
+
+## Non vérifié dans cette passe
+
+- Si le backend GPU1 live détient le roster documenté dans l'état décrit. Aucun
+  compte d'agents n'est figé dans la doctrine précisément pour cette raison.
+- Si les produits consommateurs déployés émettent effectivement de la télémétrie
+  (§2 dit ce qui est stocké, pas ce qui est émis ailleurs).
+- Le comportement runtime au sens large : cette passe a lu la source et exécuté
+  les gates, elle n'a pas lancé d'agent.

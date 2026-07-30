@@ -1,4 +1,22 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>Hearst-Corporation/renovate-config"]
+  "//": "Configuration LOCALE et explicite. Aucun `extends` distant : la politique de mise a jour des dependances de ce repository est lisible ici, et elle ne peut pas changer sans un commit visible dans cet historique. Voir CLAUDE.md §9.",
+  "dependencyDashboard": true,
+  "rangeStrategy": "bump",
+  "prConcurrentLimit": 5,
+  "labels": ["dependencies"],
+  "lockFileMaintenance": { "enabled": true, "schedule": ["before 5am on monday"] },
+  "packageRules": [
+    {
+      "description": "Les mises a jour patch/minor des devDependencies sont regroupees en une seule PR.",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "devDependencies (non-major)"
+    },
+    {
+      "description": "Un major reste toujours une PR isolee, jamais groupee ni auto-mergee.",
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    }
+  ]
 }

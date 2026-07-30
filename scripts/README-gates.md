@@ -10,23 +10,48 @@
 >
 > Règle de lecture : **la colonne « ne garantit PAS » est la colonne utile.**
 >
-> **P007 (teardown frontend, 29/07/2026)** — le dashboard legacy
-> (`src/app/admin/**`, `src/components/agent-ops/**`, `src/components/views/**`,
-> `src/components/shell/**`) a été supprimé. Les gates qui ne gardaient QUE ce
-> périmètre (`check:ds`, `check:catalyst`, `check:danger`, `check:tables`,
-> `check:class-collision`, `check:charts`, `check:surfaces`, `check:headings`,
-> `check:a11y`/`check:contrast`, `check:views`, `check:legacy-bridge`, et les chaînes
-> `check:browser`/`check:pending` qui les regroupaient) ont été supprimées avec lui —
-> elles n'existent plus dans `package.json`. Ce fichier ne documente plus que les
-> gates qui gardent du backend/business vivant.
+> **Teardown frontend (29/07/2026)** — le dashboard legacy a été supprimé, puis le
+> reset complet du front a retiré tout `src/components/`. Les gates qui ne
+> gardaient QUE ce périmètre ont été supprimées avec lui.
+>
+> **Ménage de gouvernance (30/07/2026)** — sept gates orphelines survivaient dans
+> `package.json` en pointant sur des fichiers effacés. Elles ont été **supprimées
+> du repo** : `check:console-branding`, `check:console-design-system`,
+> `check:chart-empty-guard`, `check:empty-state-explained`,
+> `check:error-state-not-usable`, `check:no-zero-fallback-states`,
+> `check:status-truth`. Cinq d'entre elles étaient rouges en permanence (dont une
+> qui crashait sur une `ENOENT` Node brute) ; deux passaient **vertes par
+> vacuité** en nommant des répertoires qu'elles n'avaient jamais ouverts. Ce
+> fichier ne documente plus que les gates qui gardent quelque chose de vivant.
 
 ---
 
 ## 1. Où chaque gate est câblée
 
+**`package.json` fait foi, pas ce tableau.** Pour la composition exacte :
+`node -e "console.log(require('./package.json').scripts.check)"`.
+
 | Chaîne | Contenu | Bloque quoi |
 | --- | --- | --- |
-| `npm run check` | typecheck · lint:fast · lint · no-legacy-front · agent-truth · render-truth · status-truth · registry-parity · registry-integrity · tool-rows · tool-definitions · rsc-boundary · secrets · audit:dead | CI (`.github/workflows/ci.yml`) + pré-livraison |
+| `npm run check` | typecheck · lint:fast · lint · no-legacy-front · agent-truth · lifecycle-truth · registry-parity · registry-integrity · dev-port · render-truth · secrets · audit:dead | CI (`.github/workflows/ci.yml`) + pré-livraison |
+| `npm run verify` | `check` + quality:dead (knip) + test (vitest offline) + build | pré-intégration quand le build ou une surface de rendu bouge |
+
+**La chaîne `check` est entièrement statique et hors ligne.** Deux gates en ont
+été retirées le 30/07/2026 parce qu'elles interrogeaient la base live :
+
+| Commande | Pourquoi hors chaîne |
+| --- | --- |
+| `check:tool-rows` | appel réseau vers PostgREST gpu1 ; s'auto-skippe (exit 0) sans backend, donc **vacuité systématique en CI** — précisément là où elle prétendait protéger. Un `fetch` non gardé y produisait une stack undici brute en cas de coupure. |
+| `check:tool-definitions` | même diagnostic, même second `fetch` non gardé. |
+
+Ce sont désormais des **commandes d'exploitation**, à lancer volontairement pour
+auditer la base. ⚠️ Leur option `--fix` **ÉCRIT en base** (PATCH/POST sur `tools`
+et `tool_definitions`) : sans `--fix` elles sont en lecture seule, avec `--fix`
+elles ne sont plus un audit.
+
+Hors chaîne également : `check:rsc-boundary`, prête et honnête (elle annonce
+« 0 composants client ») ; elle se réarme seule dès qu'un module `'use client'`
+apparaît, sans qu'on ait à la modifier.
 
 ---
 
@@ -34,16 +59,18 @@
 
 | Gate | Garantit | Ne garantit PAS |
 | --- | --- | --- |
-| `check:no-legacy-front` | aucun import d'une couche visuelle démolie par P006, aucune route `/admin-v2`, aucune route admin démolie recréée sur disque | qu'un écran neuf soit bon — seulement qu'il ne ressuscite pas l'ancien |
-| `check:rsc-boundary` | aucun Server Component ne passe une prop **fonction** à un Client Component | les autres valeurs non sérialisables ; et il ne résout les identifiants que localement |
-| `check:status-truth` | un libellé de statut affiché vient de `labels.ts`, jamais d'une chaîne écrite sur place | que le statut affiché soit **vrai** — seulement qu'il soit dit dans un seul vocabulaire |
-| `check:render-truth` | aucune absence de mesure n'est rendue comme un 0 / `NaN` / une phrase affirmative | que la donnée présente soit juste |
-| `check:agent-truth` | aucun import de `market/dropship/agents/roster` et aucune lecture de `delivery/tradeagent/**` depuis `src/app`/`src/components` ; aucun provider/modèle littéral **assigné** (`=`, `:`) **ni retombé par `??`/`\|\|`** dans `available-agents.ts` ; **et que les 236 fichiers runtime + le contrat canonique + les 4 cibles protégées ont bien été ouverts** | que les agents servis soient **exécutables**. Elle lit **ligne à ligne** : un défaut fabriqué via une fonction, un ternaire, une constante déclarée ailleurs, ou une chaîne concaténée reste invisible. Elle ne regarde le check 3 que dans **un seul fichier** — le même défaut ailleurs dans `src/lib` passe |
+| `check:no-legacy-front` | aucun import d'une couche visuelle démolie, aucune route admin recréée sur disque, et la présence positive des 3 fichiers du squelette | qu'un écran neuf soit bon — seulement qu'il ne ressuscite pas l'ancien |
+| `check:rsc-boundary` *(hors chaîne)* | aucun Server Component ne passe une prop **fonction** à un Client Component | rien aujourd'hui : **0 composant client** dans le repo. Elle l'annonce au lieu d'afficher un ✓ trompeur, et se réarme seule quand le front revient |
+| `check:render-truth` | dans `src/lib/runs-console/**` : aucune absence de mesure rendue comme un 0, un `NaN` ou une phrase affirmative. **Échoue si une racine de scan a disparu ou si 0 fichier a été lu** | que la donnée présente soit juste ; et rien en dehors de `runs-console` — les agrégations de `dashboard-overview.ts` / `agent-detail.ts` / `data.ts` ne sont scannées par AUCUNE gate |
+| `check:lifecycle-truth` | 5 mensonges précis interdits dans `agent-lifecycle-trace.ts` : « deployed » sans preuve consommateur, « healthy » sans diagnostic réel, faux zéro télémétrie, « promoted » déconnecté d'une version de prod, `active_in_consumer` calculé autrement que le littéral `'unknown'` | quoi que ce soit **hors de ce fichier unique** — sa portée est d'un seul module, pas du domaine lifecycle |
+| `check:dev-port` | le port de dev est épinglé à 3987 dans les 4 resolvers, et aucun des trois ports interdits (3000, 3001, 3210 — jamais binder, jamais sonder) n'apparaît en code vif ou en doctrine ; **échoue si un resolver a disparu** | qu'un serveur tourne réellement sur 3987 — c'est une gate statique |
+| `check:agent-truth` | aucun import de `market/dropship/agents/roster` et aucune lecture de `delivery/tradeagent/**` depuis `src/app`/`src/components` ; aucun provider/modèle littéral **assigné** (`=`, `:`) **ni retombé par `??`/`\|\|`** dans `available-agents.ts` ; **et qu'un nombre non nul de fichiers runtime + le contrat canonique + les 4 cibles protégées ont bien été ouverts** (le compte exact est affiché à l'exécution — ne le fige pas ici, il dérive) | que les agents servis soient **exécutables**. Elle lit **ligne à ligne** : un défaut fabriqué via une fonction, un ternaire, une constante déclarée ailleurs, ou une chaîne concaténée reste invisible. Elle ne regarde le check 3 que dans **un seul fichier** — le même défaut ailleurs dans `src/lib` passe |
 | `check:registry-parity` | **les 3** familles composant `RUNNABLE_TOOL_NAMES` (5 natifs + 9 market + 3 realestate) sont buildables par `REGISTRY_IDS` — valeurs **importées** du `.mjs`, plus regex ; parité **bidirectionnelle** market ET realestate ; **et que la composition de `RUNNABLE_TOOL_NAMES` n'a pas gagné une 4ᵉ source non couverte** ; **et qu'aucun ensemble parsé n'est tombé sous son minimum** | que l'outil **fonctionne** (handler juste, provider joignable, description exploitable par le modèle). Ni que l'assistant LangGraph existe — c'est l'absence d'assistant, pas le runtime, qui produit `tool_call_count=0`. Les handlers TS restent lus **en source** : leur forme est bornée par un compte minimal, pas comprise |
 | `check:registry-integrity` | canonique ⟺ `.mjs` exécutable ⟺ union `BehaviorToolId` ⟺ union `AgentRuntime` (22 outils, 4 runtimes, **valeurs réelles** via `tsx`) ; semver, `secretRefs` UPPER_SNAKE, `kind`/`risk`/`mutates`/`requiresConfirmation`/`certification` valides **sur tous les outils** ; **`mutates: true` ⇒ `requiresConfirmation: true`** ; **et qu'aucun ensemble n'est vide** | que les **lignes `tools`** en base soient conformes (c'est `check:tool-rows`) ; que la classification déclarée soit **vraie** (`mutates: false` est une affirmation humaine, rien ne la vérifie contre le handler) ; que l'outil s'exécute |
-| `check:tool-rows` | les lignes `tools` réellement provisionnées ne contredisent pas le registre canonique | rien quand la base est vide ou injoignable |
-| `check:secrets` | `gitleaks` sur tout l'historique + hook `pre-commit` sur l'index | un secret qu'aucune règle gitleaks ne décrit |
-| `audit:dead` | aucun composant non référencé | le code mort *à l'exécution* (une branche jamais atteinte reste « référencée ») |
+| `check:tool-rows` *(hors chaîne, réseau)* | les lignes `tools` réellement provisionnées ne contredisent pas le registre canonique | **rien du tout quand la base est injoignable ou non configurée** — elle sort 0 en s'annonçant SKIPPED. Ne la lis jamais comme une preuve en CI |
+| `check:tool-definitions` *(hors chaîne, réseau)* | le catalogue `tool_definitions` en base est aligné sur le registre, et chaque montage porte sa FK | même angle mort : SKIP silencieux sans backend |
+| `check:secrets` | `gitleaks` sur tout l'historique + hook `pre-commit` sur l'index | **un secret qu'aucune règle gitleaks ne décrit** — ce n'est pas théorique : un mot de passe de dev écrit en prose dans un `.md` est resté versionné des semaines avec cette gate verte (`docs/HANDOFF-agents-platform.md`, supprimé le 30/07/2026) |
+| `audit:dead` | aucun composant non référencé | **rien aujourd'hui : `src/components/` n'existe pas.** Elle l'annonce explicitement (« 0 cible : frontend volontairement absent ») au lieu d'afficher un ✓. Ne garantit jamais le code mort *à l'exécution* — une branche jamais atteinte reste « référencée ». Le code mort général est couvert par knip (`npm run quality:dead`) |
 
 ---
 
@@ -98,6 +125,11 @@ est verte par construction).
 message qui dit explicitement « une gate qui indexe 0 élément doit ÉCHOUER ».
 
 #### Table des sondes (26/07/2026, toutes rejouées après correction)
+
+> **Relevé daté — ce n'est pas l'état courant.** Les chemins cités ci-dessous
+> (`src/app/admin/page.tsx`…) étaient les cibles de sonde à cette date ; le reset
+> frontend les a supprimés depuis. La valeur de ce tableau est la **méthode** et
+> les défauts qu'elle a révélés, pas les chemins.
 
 | Gate | Ce qu'on a cassé | AVANT correctif | APRÈS correctif |
 | --- | --- | --- | --- |

@@ -1,14 +1,26 @@
 # Dictionnaire canonique des métriques — Agent Mission Control
 
-> **Périmètre — à lire avant de s'en servir.** La **doctrine des chiffres** (§0) est
-> **toujours en vigueur** : c'est la règle vivante du projet, rappelée dans `AGENTS.md` et
-> tenue par `check:render-truth` / `check:status-truth`.
+> **Périmètre — à lire avant de s'en servir.**
 >
-> En revanche, les **rattachements « Page principale »** de ce document décrivent un
-> dashboard **antérieur**. Les écrans qu'il nomme — `/admin/performance`, `/admin/factory`,
-> watchlist, `fleet-kpi-band.tsx`, `RegistryKpis` — **n'existent plus** ; la console actuelle
-> compte six routes (voir `README.md`). Une entrée métrique reste utile pour sa **source** et
-> sa **nullabilité** ; ne pas s'y fier pour savoir où un chiffre s'affiche aujourd'hui.
+> **Ce qui est vivant** : la **doctrine des chiffres** (§0) — une valeur non mesurée
+> reste `null` et ne devient jamais `0`, une absence ne se rend jamais comme une
+> mesure. C'est une règle du projet, énoncée dans `AGENTS.md` § « Vérité des
+> données », et la **source** + la **nullabilité** de chaque entrée métrique
+> ci-dessous restent la référence.
+>
+> **Ce qui est mort** : toutes les colonnes « Page principale ». Il n'y a plus
+> AUCUNE page. Le frontend a été entièrement supprimé (`AGENTS.md` § Frontend) —
+> `/admin/performance`, `/admin/factory`, la watchlist, `fleet-kpi-band.tsx`,
+> `RegistryKpis` et la « console à six routes » qu'annonçait la version précédente
+> de ce bandeau n'existent pas. **Ne lis jamais ce document pour savoir où un
+> chiffre s'affiche** ; lis-le pour savoir d'où il vient et quand il vaut `null`.
+>
+> **Ce qui tient la doctrine** : `check:render-truth` (portée réelle :
+> `src/lib/runs-console/` seulement) et `check:lifecycle-truth` (un seul fichier).
+> `check:status-truth` a été **supprimée** le 30/07/2026 — elle ne scannait plus
+> que des répertoires effacés et passait verte sans rien ouvrir. Autrement dit :
+> aucune gate ne couvre la majorité des chiffres listés ici, la règle y tient par
+> discipline. Voir `scripts/README-gates.md`.
 
 > **Livrable A2.** Référence unique de toute métrique affichée dans l'admin. La Phase 3 (pages)
 > s'y adosse : un chiffre ne s'affiche que s'il a une entrée ici, avec sa source réelle, sa

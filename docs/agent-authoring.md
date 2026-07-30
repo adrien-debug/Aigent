@@ -5,21 +5,20 @@ scratch via the architect assistant, and running it for real. This is the
 "write a new agent" path, distinct from managing existing copilots (registry,
 versions, promotion gate, etc. — see `AGENTS.md` / `types.ts` for that surface).
 
-> **Surface note (verified against the code).** This document describes the
-> authoring *mechanism*, which is real and tested. Its **UI surfaces have moved**:
-> `/admin/agents/new` **no longer exists** — the console's only authoring surface
-> today is the **project builder** at `/admin/projects/[id]/builder`
-> (`src/components/console/project-builder-screen.tsx`). `/admin/agents/[id]` is
-> **read-only**: it has no run panel and issues no `fetch`. Everything else below
-> is reachable by HTTP under `/api/agent-ops/**`, not by a click. Row-by-row
-> state: `docs/current-capabilities.md`.
+> **Surface note (verified against the code, 2026-07-30).** This document
+> describes the authoring *mechanism*, which is real and tested. **There is no UI
+> at all**: the frontend was reset (`AGENTS.md` § Frontend) and every flow below
+> is reachable by HTTP under `/api/agent-ops/**`, never by a click. Wherever the
+> text below says "screen", "modal" or "console", read "the HTTP routes that
+> surface used to call". Row-by-row state: `docs/current-capabilities.md`.
 
 ## 1. Overview
 
-- **Creation surface**: the project builder (`/admin/projects/[id]/builder`), a
-  conversational screen whose architect replies stream over SSE. It posts to
-  `builder/conversation`, `builder/create-draft` and `builder/message?stream=1`.
-  The older standalone form at `/admin/agents/new` was removed.
+- **Creation surface**: the project-builder routes under
+  `/api/agent-ops/projects/[id]/builder/*` — a conversational flow whose
+  architect replies stream over SSE (`conversation`, `create-draft`,
+  `message?stream=1`). The screens that used to drive them are gone; the routes
+  are not.
 - **Architect assistant**: an LLM-backed step that takes the operator's
   description and produces a structured `GeneratedManifest` draft (system prompt
   summary, allowed routes, forbidden actions, confirmation policy, tool ids,
@@ -28,8 +27,7 @@ versions, promotion gate, etc. — see `AGENTS.md` / `types.ts` for that surface
 - **Real runner**: once a copilot + manifest exist, a real execution is
   triggered by `POST /api/agent-ops/copilots/:id/run` — a live provider call,
   not a mock/fixture. Output lands in `agent_runs` / `agent_run_steps` exactly
-  like production traffic. **There is no button for this**; the console does not
-  call that route.
+  like production traffic. Triggered by HTTP only — there is no UI anywhere.
 - **Human-in-the-loop**: a copilot on the `langgraph` runtime runs on the
   official LangGraph Agent Server. A confirmation-required tool PAUSES the graph
   for human approval; the run is persisted as `needs-confirmation` and resumed
@@ -80,15 +78,12 @@ own write points (`builder/run`, `builder/resume`, `builder/message`,
 The **Agent Builder Copilot** (slug `agent-builder-copilot`) is a real,
 provisioned copilot whose job is to draft OTHER copilots, human-in-the-loop. It
 lives on the validation bench (`project_id: null`) and runs on the LangGraph
-`agent_builder` graph. It is now **visible and operable from the UI** — no
-manual script required:
+`agent_builder` graph. It is provisioned and driven over HTTP:
 
 - **Provisioning** — `POST /api/agent-ops/copilots/provision-agent-builder`
   (idempotent: creates it if absent, returns the existing row untouched
-  otherwise). The dashboard (`/admin`) and project surfaces are the UI entry;
-  there is no dedicated copilots list page. The
-  `npm run provision:agent-builder` script (→
-  `scripts/provision-agent-builder.ts`) is the CLI fallback.
+  otherwise). `npm run provision:agent-builder` (→
+  `scripts/provision-agent-builder.ts`) is the CLI equivalent.
 ### Repo-aware project flow
 
 From a **project** the builder can read the project's linked GitHub repo and
@@ -123,11 +118,9 @@ draft an agent contextualized to it:
 
 ### Bench flow
 
-- **Workbench** — the UI described here (`/admin/agents/[id]/builder`, a Builder
-  tab with a **Run Agent Builder** button, a LangGraph node timeline and
-  **Approve & create draft** / **Reject** controls) **NO LONGER EXISTS**. The
-  route is absent from `src/app/admin/`. The bench routes below are real and
-  tested; they are driven by HTTP, not by a screen.
+- **Workbench** — there is no workbench UI, and no `src/app/admin/` at all. The
+  bench routes below are real and tested; they are driven by HTTP, not by a
+  screen.
 - **Builder routes** (real LangGraph runs — the bench copilot can't go through
   `executeCopilotRun`, which requires a project, so these call
   `runOnAgentServer`/`resumeOnAgentServer` directly; the Agent Server THREAD is
@@ -372,12 +365,14 @@ Live schema on GPU1 (base `aigent`), migrations in `supabase/migrations/`:
   `[]`) — no new table, the agent's mission-level skills derived by the Agent
   Builder, surfaced on the copilot overview's Skills card.
 
-> The architect's in-progress draft type (`agent_drafts` /
-> `GeneratedManifest`) lives in
-> `src/lib/agent-mission-control/authoring-types.ts`. There is **no**
-> `agent_drafts` migration in this tree — no SQL file creates that table. Do not
-> assume a persisted drafts table exists from this doc; the architect endpoint
-> (§2) is stateless and returns the manifest to the caller.
+> The architect's in-progress draft type (`GeneratedManifest`) lives in
+> `src/lib/agent-mission-control/authoring-types.ts`. An `agent_drafts` table
+> **does** exist — `supabase/migrations/0042_agent_drafts.sql` (which documents
+> that the table pre-existed on gpu1 and re-grants it), with RLS enabled in
+> `0044`. An earlier version of this note claimed no such migration existed;
+> that was true when written and is no longer. Note that the architect endpoint
+> (§2) is nonetheless **stateless** — it returns the manifest to the caller
+> rather than writing a draft row per turn.
 
 ## 6. Running it locally
 

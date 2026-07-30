@@ -1,8 +1,8 @@
 #!/bin/sh
-# Pre-commit Hearst — anti-fuite de secrets (doctrine globale §Sécurité :
-# « gitleaks en pre-commit partout »). Bloquant : un secret détecté arrête le
-# commit. Sortie masquée (--redact) : une valeur en clair ne doit JAMAIS
-# apparaître dans un log de terminal.
+# Pre-commit — anti-fuite de secrets (règle locale : CLAUDE.md §4 « Sécurité —
+# secrets »). Bloquant : un secret détecté arrête le commit. Sortie masquée
+# (--redact) : une valeur en clair ne doit JAMAIS apparaître dans un log de
+# terminal.
 #
 # Installé par `npm run hooks:install` (core.hooksPath=scripts/hooks).
 # Contournement d'urgence assumé et tracé : `git commit --no-verify`.

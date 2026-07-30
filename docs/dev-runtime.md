@@ -35,14 +35,14 @@ other node entry in `package.json`.
 `concurrently -k --kill-others-on-fail` line, which let the stack rot silently:
 
 1. **LangGraph died, Next kept serving.** LangGraph exited on SIGTERM (code 143)
-   while `next dev` carried on answering `200` on `/admin`. The dashboard looked
+   while `next dev` carried on answering `200` on `/`. The app looked
    perfectly healthy while *every agent run was broken* — the exact class of
    false-green this repo forbids elsewhere.
 2. **Runaway orphans.** A detached dev server (PPID=1, cwd = this repo) burned
    102 % CPU for 11 hours holding port `3003` and answered HTTP `000`. Nothing
    noticed, and nothing reclaimed the port.
 
-A `200` on `/admin` is therefore *not* evidence the stack works. `npm run health`
+A `200` on `/` is therefore *not* evidence the stack works. `npm run health`
 is.
 
 The measured root cause in the logs was worse than a lone crash: Next was killed
@@ -133,7 +133,7 @@ read-only call — no thread, no run, zero billed tokens). A server that outlive
 its graph reports `UNHEALTHY  alive but graph agent_builder absent`.
 
 `STACK DEGRADED` with `NEXT HEALTHY` and `LANGGRAPH UNHEALTHY` is precisely the
-false-green scenario above: the UI will load, agent runs will not work. Do not
+false-green scenario above: the page will load, agent runs will not work. Do not
 treat the dashboard rendering as a counter-argument.
 
 The exit code is `0` only when every service is `HEALTHY`, and `1` otherwise, so

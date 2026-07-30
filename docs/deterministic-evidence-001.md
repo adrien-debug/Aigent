@@ -120,7 +120,8 @@ session**, for two concrete reasons:
    accept connections, and `.env.local`'s `LANGGRAPH_API_URL` points at the remote
    (`agent.hearst.app`), which `agent-server-endpoint.mjs` refuses outside
    production.
-2. **A real candidate run is a billed step.** Per the global doctrine (§8), a billed
+2. **A real candidate run is a billed step.** Per `CLAUDE.md` §3 (ask before a
+   significant external cost), a billed
    materialisation/run is executed only with Adrien's explicit agreement.
 
 So `ensureCandidateAssistant`'s provisioning + a real thread run are **coded, not

@@ -101,8 +101,16 @@ A red gate beats any sentence in any `.md`. That precedence is stated in `AGENTS
 
 ## Where the rules live
 
-- **`CLAUDE.md`** — git, branching, push, deployment, secrets.
-- **`AGENTS.md`** — technical invariants: port, runtime, LangGraph, frontend-reset guard.
+**Governance is 100 % local.** `CLAUDE.md` + `AGENTS.md` + the gates declared in
+`package.json` are the complete set of rules for this project. No remote
+repository, no external doctrine, no plugin, no governance SHA and no sync
+command is needed to work on Aigent — you can understand and develop it offline
+from this repository alone.
+
+- **`CLAUDE.md`** — autonomy, when to ask, git and `mission/*` branches, secrets,
+  destructive actions, proportionate validation, deployment.
+- **`AGENTS.md`** — technical invariants: port, runtime, LangGraph, trust
+  boundaries, data truth, frontend-reset guard.
 - **`docs/metrics-canon.md`** — how a number is allowed to be displayed.
 - **`docs/agent-authoring.md`** — authoring flow and execution paths.
 - **`docs/BACKEND-GPU1.md`** — Postgres/PostgREST perimeter.

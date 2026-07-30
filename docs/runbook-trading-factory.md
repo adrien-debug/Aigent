@@ -1,7 +1,8 @@
 # Runbook — Trading Agent Factory (AIG-TRADE-001)
 
 Operational procedures for the six founder trading agents. Every LLM-billed step
-is called out explicitly — **do not run those without approval (global rule §8)**.
+is called out explicitly — **do not run those without Adrien's explicit approval**
+(`CLAUDE.md` §3 « quand demander » et §5 « actions destructives »).
 
 ## 0. Prerequisites
 
@@ -14,8 +15,9 @@ is called out explicitly — **do not run those without approval (global rule §
 ## 1. Inspect the roster (free, no LLM)
 
 The six agents are pure config in
-`src/lib/agent-mission-control/market/agents/roster.ts`. View them in the UI at
-`/admin/trading-factory`. Nothing here calls a model.
+`src/lib/agent-mission-control/market/agents/roster.ts`. There is no UI: the
+frontend was reset and the only surface is the HTTP API. Nothing here calls a
+model.
 
 ## 2. Run the deterministic test corpus (free, no LLM)
 

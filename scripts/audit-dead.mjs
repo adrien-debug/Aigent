@@ -55,23 +55,30 @@ function isReferenced(componentFile, corpus) {
 }
 
 /**
- * The Catalyst kit is a LIBRARY, not page code.
+ * Portée honnête de cette gate.
  *
- * P006 deleted the whole visual front and left two placeholder screens, so most
- * of `src/components/ui/` has no consumer this minute — and the same mission
- * lists "les primitives Catalyst officielles réellement réutilisables" among the
- * things it must NOT touch. Flagging them as dead would force this gate to
- * delete exactly what the rebuild is meant to build on.
+ * Elle juge les composants de `src/components/`. Depuis le reset frontend ce
+ * répertoire N'EXISTE PAS (AGENTS.md § Frontend, tenu par `check:no-legacy-front`
+ * qui interdit justement son retour). Une gate sans cible ne doit pas afficher un
+ * ✓ de succès : elle le DIT, explicitement, et sort 0 — l'absence de front est une
+ * décision, pas une anomalie.
  *
- * The gate keeps doing its real job: catching PRODUCT components that nothing
- * renders any more. `src/components/ui/**` is excluded because an unused export
- * in a kit is inventory, not dead product code.
+ * Quand un nouveau front arrivera, cette gate se réarmera d'elle-même sur ses
+ * fichiers, sans qu'on ait à la modifier. Le seul geste à prévoir alors : décider
+ * si un répertoire de kit doit être exclu (une exportation inutilisée dans un kit
+ * est de l'inventaire, pas du code produit mort).
  */
-const KIT_DIR = 'src/components/ui/'
+const COMPONENTS_DIR = 'src/components'
 
-const componentFiles = walk('src/components')
-  .filter((f) => /\.(tsx|ts)$/.test(f))
-  .filter((f) => !f.replace(/\\/g, '/').startsWith(KIT_DIR))
+if (!fs.existsSync(COMPONENTS_DIR)) {
+  console.log('◦ audit:dead — 0 cible : frontend volontairement absent.')
+  console.log(`  \`${COMPONENTS_DIR}/\` n'existe pas (reset frontend, cf. AGENTS.md).`)
+  console.log("  Aucun audit de composants n'a été réalisé — cette gate ne mesure rien aujourd'hui.")
+  console.log('  Le code mort du reste du repo est couvert par knip (`npm run quality:dead`).')
+  process.exit(0)
+}
+
+const componentFiles = walk(COMPONENTS_DIR).filter((f) => /\.(tsx|ts)$/.test(f))
 const corpus = loadCorpus()
 const deadComponents = componentFiles.filter((f) => !isReferenced(f, corpus)).map((f) => f.replace(/\\/g, '/'))
 
