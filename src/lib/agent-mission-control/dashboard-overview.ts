@@ -10,7 +10,7 @@ import { getAvailableAgents, type AvailableAgent } from './available-agents'
 import type { DeliveryEvent } from './delivery-events-store'
 import { getCopilots, getProjects, getRecentRunsInWindow } from './data'
 // The measurement rule and its rollup, shared VERBATIM with
-// `src/components/console/projects-screen.tsx`. They live in their own neutral
+// Historical projects screen (removed in frontend reset). They live in their own neutral
 // module because this one opens with `import 'server-only'` and a component
 // cannot take a value from it — see health-measure.ts for the full reason.
 import { sumMeasuredHealth } from './health-measure'

@@ -58,50 +58,25 @@ un diagnostic faux.
 abandonne si le port est pris par un process non identifié comme le sien.
 <!-- END:dev-port-rule -->
 
-<!-- BEGIN:console-structure-rules -->
-## UI — console reconstruite et active (gate : `npm run check:no-legacy-front`)
+<!-- BEGIN:frontend-reset-rules -->
+## UI — reset complet (gate : `npm run check:no-legacy-front`)
 
-- **La console `/admin` est reconstruite et vivante.** Six routes réelles :
-  `/admin` · `/admin/runs` · `/admin/agents` · `/admin/agents/[id]` · `/admin/projects` ·
-  `/admin/projects/[id]/builder`. Les écrans vivent dans `src/components/console/`, encadrés
-  par `console-shell.tsx` (rail 216/248px + topbar 52px). Toute page admin monte le shell
-  elle-même : `src/app/admin/layout.tsx` est un pass-through par construction (un layout serveur
-  n'a pas de pathname, donc ne peut pas fournir `activeHref`).
-- **Le rail porte exactement quatre entrées** : Overview, Runs, Projects, Agents. Le builder se
-  rejoint depuis l'écran Projects — il exige un id de projet, donc pas de lien fabriqué. **Aucun
-  contrôle mort** : un bouton grisé vers un écran inexistant est une publicité pour du vide.
-- **Routes SUPPRIMÉES et interdites par la gate** : `factory`, `performance`, `settings`,
-  `telemetry`, `not-found.tsx` sous `src/app/admin/`, et tout `/admin-v2`. Seule exception
-  commissionnée : `src/app/admin/error.tsx`, la frontière d'erreur du segment `/admin`.
-  Les couches démolies (`src/components/agent-ops/**`, `views/**`, `shell/**`) ne peuvent pas
-  être réimportées.
-- **AUCUNE doctrine de design dans ce fichier — free design.** Ce workspace est indépendant :
-  pas de design system imposé, pas de palette obligatoire, pas de kit obligatoire, pas de gate
-  visuelle. Le style de la console est un CHOIX libre, pas une règle héritée.
-  Ce qui existe aujourd'hui (`src/theme.css` : tokens de surface/contenu, accent vert ; les
-  primitives de `src/components/ui/`) est un **point de départ, pas un contrat** : on peut le
-  garder, le tordre ou le remplacer sans demander la permission ni mettre à jour ce fichier.
-  Ne pas réintroduire ici de règle de couleur, de police, de token ou de composant — et ne
-  jamais importer le design system d'un autre projet : ce workspace n'appartient à aucune
-  maison de style.
-  Les seules contraintes qui restent ci-dessus sont **structurelles** (routes réelles, routes
-  supprimées, frontière RSC) et **de vérité affichée** (section suivante) — ce sont des faits
-  d'architecture et d'honnêteté, pas des goûts.
-- **Marketing** (`src/app/(site)/`, `src/components/marketing/`) → périmètre distinct de la
-  console, vitrine statique.
+- **Aucun front historique.** Pas de `src/components/`, pas de console `/admin`, pas de
+  marketing `(site)/`, pas de `src/theme.css`, pas de dossier `design/`.
+- **Surface minimale** : `src/app/page.tsx` affiche uniquement le placeholder technique
+  « Frontend reset complete » — pas de design system, pas de navigation, pas de dashboard
+  temporaire.
+- **API et runtime intacts** : `src/app/api/**`, `src/lib/**`, `src/langgraph/**`,
+  `src/proxy.ts` (auth API) restent la voie d'accès produit jusqu'à reconstruction.
+- **Free design** : le futur front sera fourni en blocs séparés ; ne pas anticiper ici.
+<!-- END:frontend-reset-rules -->
 
-## Vérité affichée (gates : `check:render-truth`, `check:status-truth`)
+## Vérité des données (backend / API)
 
-- **Une valeur non mesurée voyage `null` + un état, JAMAIS `0`.** Absence de mesure ≠ mesure
-  nulle ; absence de run ≠ 0 % de succès ; lecture échouée ≠ flotte vide et saine. Un read
-  raté rend `null`, jamais `[]`. Dictionnaire complet : `docs/metrics-canon.md`.
-- **Une affirmation d'écran ne porte que sur ce qui a été mesuré.** Pas de « toutes les sources
-  répondent » adossé à trois lectures scopées sur la page. Le vocabulaire de statut sort de
-  `labels.ts`, nulle part ailleurs.
-- **Le rôle `danger` est réservé à une panne**, pas à une condition ordinaire. Un agent `draft`,
-  en pause ou archivé n'est pas exécutable **par conception** — un rail rouge en permanence ne
-  peut plus alerter de rien.
-<!-- END:console-structure-rules -->
+- **Une valeur non mesurée reste `null` côté données**, jamais coercée en `0` dans les
+  agrégations et contrats. Dictionnaire : `docs/metrics-canon.md`.
+- Les gates `check:agent-truth`, `check:lifecycle-truth` et les contrats API restent
+  l'arbitre — pas de règle d'affichage tant qu'il n'y a pas d'UI.
 
 ## Invariants agents & runtime (détail : docs/missions/AGENTS-history-2026-07.md)
 
@@ -140,8 +115,9 @@ abandonne si le port est pris par un process non identifié comme le sien.
 
 ## Frontières de confiance — trois, séparées exprès
 
-- `/admin/**` → cookie de session HMAC (`auth.ts`). `/api/agent-ops/**` → session **ou**
-  `x-amc-key`. Fail-closed : pas de `AMC_SESSION_SECRET`, tout est refusé (`src/proxy.ts`).
+- `/api/agent-ops/**` → cookie de session HMAC (`auth.ts`) **ou** `x-amc-key`.
+  Fail-closed : pas de `AMC_SESSION_SECRET`, tout est refusé (`src/proxy.ts`).
+  **Pas de surface `/admin` après le reset front** — l'UI reviendra via blocs futurs.
 - **`/api/runtime-telemetry` est monté HORS de `/api/agent-ops/**` volontairement** : l'appelant
   est un agent déployé chez un consommateur, pas un opérateur. Il s'authentifie avec SON propre
   jeton (`AIGENT_RUNTIME_TELEMETRY_TOKEN`), **jamais** `AMC_API_KEY`. Payload traité comme
@@ -150,7 +126,8 @@ abandonne si le port est pris par un process non identifié comme le sien.
 - `/api/runtime/v1/**` → API du consommateur (lecture de ses agents, POST de ses runs), jeton
   bearer dédié (`bearer-token-auth.ts`).
 - **Échappatoire dev uniquement** : `AMC_DEV_BYPASS_AUTH=1` + `NODE_ENV !== 'production'`
-  saute la session sur les PAGES `/admin/**`. Jamais en build de production, jamais sur l'API.
+  n'a plus d'effet sur des pages `/admin/**` (segment supprimé). Jamais en build de
+  production, jamais sur l'API.
 
 ## Shipping & télémétrie
 
@@ -163,11 +140,10 @@ abandonne si le port est pris par un process non identifié comme le sien.
   déployés ET les runs internes d'Aigent (`runner.ts` → `emitInternalRunTelemetry`), plus les
   événements de cycle de vie (promotion / shadow / replay). Une seule table,
   `runtime_telemetry_events`.
-- **La télémétrie est lue par l'Overview et le détail agent** : `summarizeRuntimeTelemetry`
-  (par agent) par la boucle d'amélioration et `agent-detail.ts` ; `summarizeFleetRuntimeTelemetry`
-  et `diagnoseTelemetryHealth` par `dashboard-overview.ts`, rendus dans la carte Telemetry de
-  `/admin` (carte Telemetry + feed événements récents). `listRecentRuntimeTelemetryEvents`
-  est consommé par `dashboard-overview.ts` pour l'Overview.
+- **La télémétrie** alimente `summarizeRuntimeTelemetry`, `summarizeFleetRuntimeTelemetry`,
+  `diagnoseTelemetryHealth`, `listRecentRuntimeTelemetryEvents` dans
+  `dashboard-overview.ts` et `agent-detail.ts` — **données prêtes**, pas d'UI tant que le
+  front n'est pas reconstruit.
   État chiffré et nuances : `docs/known-gaps.md` §2 — propriétaire unique de cette ligne.
 
 <!-- HEARST-GOVERNANCE:START -->

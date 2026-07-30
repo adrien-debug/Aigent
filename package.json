@@ -27,7 +27,7 @@
     "check:dev-port": "node scripts/check-dev-port.mjs",
     "check:console-branding": "node scripts/check-console-branding.mjs",
     "check:console-design-system": "node scripts/check-console-design-system.mjs",
-    "check": "npm run typecheck && npm run lint:fast && npm run lint && npm run check:no-legacy-front && npm run check:console-branding && npm run check:console-design-system && npm run check:agent-truth && npm run check:render-truth && npm run check:status-truth && npm run check:lifecycle-truth && npm run check:registry-parity && npm run check:registry-integrity && npm run check:tool-rows && npm run check:tool-definitions && npm run check:rsc-boundary && npm run check:dev-port && npm run check:chart-empty-guard && npm run check:empty-state-explained && npm run check:no-zero-fallback-states && npm run check:error-state-not-usable && npm run check:secrets && npm run audit:dead",
+    "check": "npm run typecheck && npm run lint:fast && npm run lint && npm run check:no-legacy-front && npm run check:agent-truth && npm run check:lifecycle-truth && npm run check:registry-parity && npm run check:registry-integrity && npm run check:tool-rows && npm run check:tool-definitions && npm run check:dev-port && npm run check:secrets && npm run audit:dead",
     "audit:dead": "node scripts/audit-dead.mjs",
     "verify": "npm run check && npm run quality:dead && npm run test && npm run build",
     "eval:trading": "node --env-file=.env.local $(command -v npx) -y tsx scripts/eval-trading-roster.ts",
@@ -59,26 +59,19 @@
     "check:error-state-not-usable": "node scripts/check-error-state-not-usable.mjs"
   },
   "dependencies": {
-    "@headlessui/react": "^2.2.10",
-    "@heroicons/react": "^2.2.0",
     "@langchain/core": "^1.2.2",
     "@langchain/langgraph": "^1.4.7",
     "@langchain/langgraph-cli": "^1.4.2",
     "@langchain/langgraph-sdk": "^1.9.25",
     "@langchain/openai": "^1.5.5",
-    "clsx": "^2.1.1",
     "next": "16.2.10",
     "openai": "^6.46.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "server-only": "^0.0.1",
-    "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -88,7 +81,6 @@
     "jscpd": "^5.0.12",
     "knip": "^6.29.0",
     "oxlint": "^1.75.0",
-    "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"
   }

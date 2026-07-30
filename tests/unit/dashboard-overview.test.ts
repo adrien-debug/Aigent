@@ -1347,11 +1347,10 @@ describe('C — structural: the coalescence is gone and "measured" is ONE rule',
    * SIGNATURE, not by its identifier, so a rename cannot make this test quietly
    * stop looking.
    */
-  it('C16 — the rule exists exactly once, in the neutral module both screens import', async () => {
-    const [shared, dataLayer, screenSource] = await Promise.all([
+  it('C16 — the rule exists exactly once, in the neutral module consumers import', async () => {
+    const [shared, dataLayer] = await Promise.all([
       readSource('src/lib/agent-mission-control/health-measure.ts'),
       readSource('src/lib/agent-mission-control/dashboard-overview.ts'),
-      readSource('src/components/console/projects-screen.tsx'),
     ])
 
     const SIGNATURE = /function (\w+)\(copilot: Copilot, metric: CopilotHealthMetric\): boolean \{\n([\s\S]*?)\n\}/g
@@ -1369,22 +1368,13 @@ describe('C — structural: the coalescence is gone and "measured" is ONE rule',
     expect(body).toContain('Number.isFinite')
     expect(name).toBe('isMeasuredHealth')
 
-    // ZERO local copies. A re-inlined rule in either consumer puts the two
-    // screens back on separate definitions of "measured" — the divergence this
-    // module exists to make impossible.
+    // ZERO local copies in consumers.
     expect([...dataLayer.matchAll(SIGNATURE)]).toHaveLength(0)
-    expect([...screenSource.matchAll(SIGNATURE)]).toHaveLength(0)
 
-    // …and both consumers really do take it from the shared module, so the
-    // emptiness above means "imported", not "dropped".
     expect(dataLayer).toMatch(/from '\.\/health-measure'/)
-    expect(screenSource).toMatch(/from '@\/lib\/agent-mission-control\/health-measure'/)
 
     // The shared module must stay importable from a Client Component — that is
-    // the whole reason it is separate from `dashboard-overview.ts`. Enforced by
-    // `tests/unit/overview-screen-truth.test.tsx` at runtime (browser resolve
-    // conditions), and here at the source level so a stray import is caught
-    // before it reaches a renderer.
+    // the whole reason it is separate from `dashboard-overview.ts`.
     expect(shared).not.toMatch(/^import 'server-only'/m)
     expect(shared).not.toMatch(/from '\.\/(data|postgrest|dashboard-overview)'/)
   })

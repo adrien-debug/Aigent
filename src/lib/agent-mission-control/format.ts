@@ -21,7 +21,7 @@
  * THE word this product renders for a measurement that was never taken.
  *
  * ONE spelling, one place. It is rendered as HTML by `<Unavailable />`
- * (`src/components/console/screen-primitives.tsx`), as raw SVG `<text>` by the
+ * (historical console primitives, removed in frontend reset), as raw SVG `<text>` by the
  * gauges (`charts/ring-gauge.tsx` re-exports it as `UNAVAILABLE`, because an
  * SVG `<text>` cannot host a React element), and as a plain string by
  * `formatUsd` below. Those three layers cannot share a component, so they share
