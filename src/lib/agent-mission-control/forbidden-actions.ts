@@ -22,6 +22,10 @@ export function normalizeToolName(value: string): string {
   return value.trim().toLowerCase()
 }
 
+function isToolBoundaryChar(char: string): boolean {
+  return char === '' || !/[a-z0-9_.-]/.test(char)
+}
+
 /**
  * Does a `forbiddenActions` entry designate this tool?
  *
@@ -45,8 +49,7 @@ export function forbiddenEntryTargetsTool(entry: string, toolName: string): bool
     if (at < 0) return false
     const before = at === 0 ? '' : haystack[at - 1]
     const after = haystack[at + name.length] ?? ''
-    const isBoundary = (c: string) => c === '' || !/[a-z0-9_.-]/.test(c)
-    if (isBoundary(before) && isBoundary(after)) return true
+    if (isToolBoundaryChar(before) && isToolBoundaryChar(after)) return true
     from = at + 1
   }
 }

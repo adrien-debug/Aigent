@@ -477,7 +477,7 @@ export function buildProjectOverview(projects: Project[], copilots: Copilot[]): 
         passRate,
       }
     })
-    .sort((a, b) => {
+    .toSorted((a, b) => {
       const aSignal = a.passRate !== null || (a.runsLast24h !== null && a.runsLast24h > 0) ? 1 : 0
       const bSignal = b.passRate !== null || (b.runsLast24h !== null && b.runsLast24h > 0) ? 1 : 0
       return bSignal - aSignal || runsOrderKey(b) - runsOrderKey(a) || a.name.localeCompare(b.name)
@@ -500,7 +500,7 @@ export function buildRecentDeliveries(
   if (latestDeliveryByCopilot === null) return null
   return [...latestDeliveryByCopilot.entries()]
     .map(([copilotId, event]) => ({ copilotId, event }))
-    .sort((a, b) => Date.parse(b.event.createdAt) - Date.parse(a.event.createdAt))
+    .toSorted((a, b) => Date.parse(b.event.createdAt) - Date.parse(a.event.createdAt))
     .slice(0, limit)
 }
 
@@ -678,7 +678,7 @@ export function buildActionItems(input: {
   // System-level ingest warnings belong in DashboardDataWarnings — not the
   // operator action queue (there is no button that fixes a missing table).
   return items
-    .sort((a, b) => a.priority - b.priority)
+    .toSorted((a, b) => a.priority - b.priority)
     .slice(0, input.limit ?? 6)
 }
 

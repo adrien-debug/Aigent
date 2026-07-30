@@ -33,6 +33,7 @@ import {
   REGISTRY_JSON_PATH,
   REGISTRY_README_PATH,
 } from './consumer-bootstrap'
+import { buildAgentDeliveryPrBody, buildConsumerIntakePrBody } from './github-pr-body'
 
 // ---------------------------------------------------------------------------
 // Config / fail-closed
@@ -205,17 +206,19 @@ export interface PushAgentArgs {
   prBodyExtra?: string
 }
 
+function sanitizeBranchSegment(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60)
+}
+
 /** Sanitize a slug into a git-branch-safe segment: lowercase, [a-z0-9-] only, bounded. */
 export function deliveryBranchName(slug: string, shortRunId: string): string {
-  const clean = (s: string) =>
-    s
-      .toLowerCase()
-      .replace(/[^a-z0-9-]+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 60)
-  const base = clean(slug) || 'agent'
-  const rid = clean(shortRunId) || 'run'
+  const base = sanitizeBranchSegment(slug) || 'agent'
+  const rid = sanitizeBranchSegment(shortRunId) || 'run'
   return `agent/${base}-${rid}`
 }
 
@@ -248,7 +251,7 @@ async function gh<T = unknown>(
     })
   } catch (err) {
     if (err instanceof Error && err.name === 'TimeoutError') {
-      throw new Error(`GitHub request timed out after ${GITHUB_FETCH_TIMEOUT_MS}ms on ${method} ${path}`)
+      throw new Error(`GitHub request timed out after ${GITHUB_FETCH_TIMEOUT_MS}ms on ${method} ${path}`, { cause: err })
     }
     throw err
   }
@@ -267,6 +270,77 @@ async function getDefaultBranch(repoFullName: string): Promise<string> {
   const safeRepo = assertValidRepoFullName(repoFullName)
   const repo = await gh<{ default_branch: string }>('GET', `repos/${safeRepo}`)
   return repo.default_branch
+}
+
+async function getHeadCommitContext(
+  repoFullName: string,
+  branch: string
+): Promise<{ headCommitSha: string; baseTreeSha: string }> {
+  const ref = await gh<{ object: { sha: string } }>('GET', `repos/${repoFullName}/git/refs/heads/${branch}`)
+  const headCommitSha = ref.object.sha
+  const headCommit = await gh<{ tree: { sha: string } }>('GET', `repos/${repoFullName}/git/commits/${headCommitSha}`)
+  return { headCommitSha, baseTreeSha: headCommit.tree.sha }
+}
+
+async function createBranchFromHead(
+  repoFullName: string,
+  branch: string,
+  headCommitSha: string
+): Promise<void> {
+  try {
+    await gh('POST', `repos/${repoFullName}/git/refs`, {
+      ref: `refs/heads/${branch}`,
+      sha: headCommitSha,
+    })
+  } catch (err) {
+    if (err instanceof Error && /GitHub 422 on POST .*\/git\/refs/.test(err.message)) {
+      throw new Error(`branch_exists: ${branch}`, { cause: err })
+    }
+    throw err
+  }
+}
+
+async function createCommitFromFiles(args: {
+  repoFullName: string
+  files: ScaffoldedFile[]
+  baseTreeSha: string
+  parentCommitSha: string
+  message: string
+}): Promise<{ sha: string; html_url: string }> {
+  const blobs = await Promise.all(
+    args.files.map(async (file) => {
+      const blob = await gh<{ sha: string }>('POST', `repos/${args.repoFullName}/git/blobs`, {
+        content: file.content,
+        encoding: 'utf-8',
+      })
+      return { path: file.path, sha: blob.sha }
+    })
+  )
+
+  const tree = await gh<{ sha: string }>('POST', `repos/${args.repoFullName}/git/trees`, {
+    base_tree: args.baseTreeSha,
+    tree: blobs.map((blob) => ({
+      path: blob.path,
+      mode: '100644',
+      type: 'blob',
+      sha: blob.sha,
+    })),
+  })
+
+  return gh<{ sha: string; html_url: string }>('POST', `repos/${args.repoFullName}/git/commits`, {
+    message: args.message,
+    tree: tree.sha,
+    parents: [args.parentCommitSha],
+  })
+}
+
+async function updateBranchRef(
+  repoFullName: string,
+  branch: string,
+  commitSha: string,
+  force: boolean
+): Promise<void> {
+  await gh('PATCH', `repos/${repoFullName}/git/refs/heads/${branch}`, { sha: commitSha, force })
 }
 
 /**
@@ -360,7 +434,7 @@ export async function listRepos(): Promise<GithubRepoSummary[]> {
 
   return Array.from(byFullName.values())
     .map(mapRepo)
-    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0))
+    .toSorted((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0))
 }
 
 /**
@@ -1093,8 +1167,8 @@ export function handlerForRuntime(copilot: Copilot, manifest: AgentManifest): st
       return customHandler(copilot, manifest)
     default: {
       // Exhaustiveness guard: if AgentRuntime grows, this fails to compile.
-      const _never: never = copilot.runtime
-      throw new Error(`unsupported runtime: ${String(_never)}`)
+      const neverRuntime: never = copilot.runtime
+      throw new Error(`unsupported runtime: ${String(neverRuntime)}`)
     }
   }
 }
@@ -1110,8 +1184,8 @@ function runtimeEnvVar(copilot: Copilot): string {
     case 'custom':
       return 'AGENT_ENDPOINT (+ optional AGENT_API_KEY)'
     default: {
-      const _never: never = copilot.runtime
-      return String(_never)
+      const neverRuntime: never = copilot.runtime
+      return String(neverRuntime)
     }
   }
 }
@@ -1323,7 +1397,7 @@ function mergeRegistryEntry(
   return existing
     .filter((e) => e.slug !== next.slug)
     .concat(next)
-    .sort((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0))
+    .toSorted((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0))
 }
 
 /** Serialize the machine index: pretty JSON, trailing newline (stable diff). */
@@ -1439,56 +1513,20 @@ export async function pushAgentToRepo(args: PushAgentArgs): Promise<PushResult> 
   // --- Real push via the Git Data API (commit on default branch). ---
 
   // 1. Current ref + head commit.
-  const ref = await gh<{ object: { sha: string } }>(
-    'GET',
-    `repos/${repoFullName}/git/refs/heads/${branch}`
-  )
-  const headCommitSha = ref.object.sha
-  const headCommit = await gh<{ tree: { sha: string } }>(
-    'GET',
-    `repos/${repoFullName}/git/commits/${headCommitSha}`
-  )
-  const baseTreeSha = headCommit.tree.sha
+  const { headCommitSha, baseTreeSha } = await getHeadCommitContext(repoFullName, branch)
 
-  // 2. A blob per file.
-  const blobs = await Promise.all(
-    scaffolded.map(async (f) => {
-      const blob = await gh<{ sha: string }>('POST', `repos/${repoFullName}/git/blobs`, {
-        content: f.content,
-        encoding: 'utf-8',
-      })
-      return { path: f.path, sha: blob.sha }
-    })
-  )
-
-  // 3. A tree layered on the current base tree.
-  const tree = await gh<{ sha: string }>('POST', `repos/${repoFullName}/git/trees`, {
-    base_tree: baseTreeSha,
-    tree: blobs.map((b) => ({
-      path: b.path,
-      mode: '100644',
-      type: 'blob',
-      sha: b.sha,
-    })),
-  })
-
-  // 4. The commit.
+  // 2. The commit from the scaffolded files.
   const commitMessage = `agent(${copilot.slug}): push runtime v${manifest.version}`
-  const commit = await gh<{ sha: string; html_url: string }>(
-    'POST',
-    `repos/${repoFullName}/git/commits`,
-    {
-      message: commitMessage,
-      tree: tree.sha,
-      parents: [headCommitSha],
-    }
-  )
-
-  // 5. Advance the default-branch ref to the new commit.
-  await gh('PATCH', `repos/${repoFullName}/git/refs/heads/${branch}`, {
-    sha: commit.sha,
-    force: false,
+  const commit = await createCommitFromFiles({
+    repoFullName,
+    files: scaffolded,
+    baseTreeSha,
+    parentCommitSha: headCommitSha,
+    message: commitMessage,
   })
+
+  // 3. Advance the default-branch ref to the new commit.
+  await updateBranchRef(repoFullName, branch, commit.sha, false)
 
   return {
     pushed: true,
@@ -1542,49 +1580,29 @@ export async function pushAgentToRepoPullRequest(args: PushAgentArgs): Promise<P
   }
 
   // 1. Resolve the base branch HEAD commit + its tree.
-  const ref = await gh<{ object: { sha: string } }>('GET', `repos/${repoFullName}/git/refs/heads/${baseBranch}`)
-  const headCommitSha = ref.object.sha
-  const headCommit = await gh<{ tree: { sha: string } }>('GET', `repos/${repoFullName}/git/commits/${headCommitSha}`)
+  const { headCommitSha, baseTreeSha } = await getHeadCommitContext(repoFullName, baseBranch)
 
   // 2. Create the dedicated delivery branch off that HEAD. A 422 means the ref
   //    already exists — surface it as a clean, retryable branch_exists error.
-  try {
-    await gh('POST', `repos/${repoFullName}/git/refs`, {
-      ref: `refs/heads/${deliveryBranch}`,
-      sha: headCommitSha,
-    })
-  } catch (err) {
-    if (err instanceof Error && /GitHub 422 on POST .*\/git\/refs/.test(err.message)) {
-      throw new Error(`branch_exists: ${deliveryBranch}`)
-    }
-    throw err
-  }
+  await createBranchFromHead(repoFullName, deliveryBranch, headCommitSha)
 
   // 3. Blobs → tree (on the base tree) → commit → advance the DELIVERY branch ref
   //    (never the default branch).
-  const blobs = await Promise.all(
-    scaffolded.map(async (f) => {
-      const blob = await gh<{ sha: string }>('POST', `repos/${repoFullName}/git/blobs`, { content: f.content, encoding: 'utf-8' })
-      return { path: f.path, sha: blob.sha }
-    })
-  )
-  const tree = await gh<{ sha: string }>('POST', `repos/${repoFullName}/git/trees`, {
-    base_tree: headCommit.tree.sha,
-    tree: blobs.map((b) => ({ path: b.path, mode: '100644', type: 'blob', sha: b.sha })),
-  })
-  const commit = await gh<{ sha: string; html_url: string }>('POST', `repos/${repoFullName}/git/commits`, {
+  const commit = await createCommitFromFiles({
+    repoFullName,
+    files: scaffolded,
+    baseTreeSha,
+    parentCommitSha: headCommitSha,
     message: `agent(${copilot.slug}): deliver runtime v${manifest.version} via PR`,
-    tree: tree.sha,
-    parents: [headCommitSha],
   })
-  await gh('PATCH', `repos/${repoFullName}/git/refs/heads/${deliveryBranch}`, { sha: commit.sha, force: false })
+  await updateBranchRef(repoFullName, deliveryBranch, commit.sha, false)
 
   // 4. Open the PR back to the default branch. NEVER merged here.
   const pr = await gh<{ html_url: string; number: number }>('POST', `repos/${repoFullName}/pulls`, {
     title: `Deliver agent "${copilot.name}" (${copilot.slug})`,
     head: deliveryBranch,
     base: baseBranch,
-    body: buildPrBody(copilot, manifest, files, args.prBodyExtra),
+    body: buildAgentDeliveryPrBody(copilot, manifest, files, args.prBodyExtra),
     maintainer_can_modify: true,
   })
 
@@ -1601,31 +1619,6 @@ export async function pushAgentToRepoPullRequest(args: PushAgentArgs): Promise<P
     files,
     message: `PR #${pr.number} ouverte: ${deliveryBranch} → ${baseBranch} (${files.length} fichiers)`,
   }
-}
-
-/** PR body — provenance + files + validation + optional scorecard/sandbox summary. No secrets. */
-function buildPrBody(copilot: Copilot, manifest: AgentManifest, files: string[], extra?: string): string {
-  const lines = [
-    `## Agent delivery — ${copilot.name} (\`${copilot.slug}\`)`,
-    '',
-    `Delivered by **Aigent** (Agent Mission Control). Merge remains a **manual** decision in this repo — this PR is never auto-merged.`,
-    '',
-    `- **Copilot id:** \`${copilot.id}\``,
-    `- **Version:** \`${manifest.version}\``,
-    `- **Runtime:** ${copilot.runtime} · **model:** ${copilot.model}`,
-    `- **Source:** aigent`,
-    '',
-    '### Files changed',
-    ...files.map((f) => `- \`${f}\``),
-    '',
-    '### Validation',
-    'Run the target repo gate scripts (e.g. `npm run verify` / `npm run typecheck`) before merging. Aigent can validate this branch through its Target Repo Sandbox.',
-  ]
-  if (extra && extra.trim().length > 0) {
-    lines.push('', '### Aigent quality summary', extra.trim())
-  }
-  lines.push('', '> ⚠️ No secret is embedded — the handler reads credentials from `process.env` at runtime.')
-  return lines.join('\n')
 }
 
 // ---------------------------------------------------------------------------
@@ -1750,28 +1743,15 @@ export async function provisionConsumerIntake(args: ProvisionConsumerArgs): Prom
       }
     }
 
-    const ref = await gh<{ object: { sha: string } }>('GET', `repos/${repoFullName}/git/refs/heads/${baseBranch}`)
-    const headCommitSha = ref.object.sha
-    const headCommit = await gh<{ tree: { sha: string } }>('GET', `repos/${repoFullName}/git/commits/${headCommitSha}`)
-    const blobs = await Promise.all(
-      scaffolded.map(async (f) => {
-        const blob = await gh<{ sha: string }>('POST', `repos/${repoFullName}/git/blobs`, {
-          content: f.content,
-          encoding: 'utf-8',
-        })
-        return { path: f.path, sha: blob.sha }
-      })
-    )
-    const tree = await gh<{ sha: string }>('POST', `repos/${repoFullName}/git/trees`, {
-      base_tree: headCommit.tree.sha,
-      tree: blobs.map((b) => ({ path: b.path, mode: '100644', type: 'blob', sha: b.sha })),
-    })
-    const commit = await gh<{ sha: string; html_url: string }>('POST', `repos/${repoFullName}/git/commits`, {
+    const { headCommitSha, baseTreeSha } = await getHeadCommitContext(repoFullName, baseBranch)
+    const commit = await createCommitFromFiles({
+      repoFullName,
+      files: scaffolded,
+      baseTreeSha,
+      parentCommitSha: headCommitSha,
       message: `aigent: provision consumer intake (${CONSUMER_PACK_VERSION})`,
-      tree: tree.sha,
-      parents: [headCommitSha],
     })
-    await gh('PATCH', `repos/${repoFullName}/git/refs/heads/${baseBranch}`, { sha: commit.sha, force: false })
+    await updateBranchRef(repoFullName, baseBranch, commit.sha, false)
     return {
       pushed: true,
       dryRun: false,
@@ -1797,62 +1777,29 @@ export async function provisionConsumerIntake(args: ProvisionConsumerArgs): Prom
     }
   }
 
-  const ref = await gh<{ object: { sha: string } }>('GET', `repos/${repoFullName}/git/refs/heads/${baseBranch}`)
-  const headCommitSha = ref.object.sha
+  const { headCommitSha, baseTreeSha } = await getHeadCommitContext(repoFullName, baseBranch)
   // The delivery tree MUST layer the intake pack on top of the existing repo,
   // exactly as the direct_commit path does above. Omitting base_tree makes
   // git/trees build a tree that contains ONLY the pack entries — every other
   // file in the repo reads as deleted, so merging the PR would wipe the
   // consumer repo down to the pack. Read the head commit's tree sha and pass
   // it as base_tree so the pack is an addition, not a replacement.
-  const headCommit = await gh<{ tree: { sha: string } }>('GET', `repos/${repoFullName}/git/commits/${headCommitSha}`)
+  await createBranchFromHead(repoFullName, deliveryBranch, headCommitSha)
 
-  try {
-    await gh('POST', `repos/${repoFullName}/git/refs`, { ref: `refs/heads/${deliveryBranch}`, sha: headCommitSha })
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    if (/422/.test(msg)) throw new Error(`branch_exists: ${deliveryBranch}`)
-    throw err
-  }
-
-  const blobs = await Promise.all(
-    scaffolded.map(async (f) => {
-      const blob = await gh<{ sha: string }>('POST', `repos/${repoFullName}/git/blobs`, {
-        content: f.content,
-        encoding: 'utf-8',
-      })
-      return { path: f.path, sha: blob.sha }
-    })
-  )
-  const tree = await gh<{ sha: string }>('POST', `repos/${repoFullName}/git/trees`, {
-    base_tree: headCommit.tree.sha,
-    tree: blobs.map((b) => ({ path: b.path, mode: '100644', type: 'blob', sha: b.sha })),
-  })
-  const commit = await gh<{ sha: string; html_url: string }>('POST', `repos/${repoFullName}/git/commits`, {
+  const commit = await createCommitFromFiles({
+    repoFullName,
+    files: scaffolded,
+    baseTreeSha,
+    parentCommitSha: headCommitSha,
     message: `aigent: provision consumer intake (${CONSUMER_PACK_VERSION})`,
-    tree: tree.sha,
-    parents: [headCommitSha],
   })
-  await gh('PATCH', `repos/${repoFullName}/git/refs/heads/${deliveryBranch}`, { sha: commit.sha, force: true })
+  await updateBranchRef(repoFullName, deliveryBranch, commit.sha, true)
 
   const pr = await gh<{ html_url: string; number: number }>('POST', `repos/${repoFullName}/pulls`, {
     title: `aigent: consumer intake (${project.name})`,
     head: deliveryBranch,
     base: baseBranch,
-    body: [
-      `## Consumer intake — ${project.name}`,
-      '',
-      'Provisioned by **Aigent**. Merge manually after review.',
-      '',
-      `- Pack version: \`${CONSUMER_PACK_VERSION}\``,
-      `- Intake UI: \`/admin/aigent\``,
-      `- Demand file: \`AGENTS-WANTED.md\``,
-      '',
-      '### Files',
-      ...files.map((f) => `- \`${f}\``),
-      '',
-      'After merge: restyle `/admin/aigent` to your design system, then push agents from Aigent.',
-    ].join('\n'),
+    body: buildConsumerIntakePrBody(project.name, files, CONSUMER_PACK_VERSION),
   })
 
   return {

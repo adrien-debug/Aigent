@@ -97,8 +97,7 @@ export function forbiddenEntryTargetsTool(entry, toolName) {
     if (at < 0) return false
     const before = at === 0 ? '' : haystack[at - 1]
     const after = haystack[at + name.length] ?? ''
-    const isBoundary = (c) => c === '' || !/[a-z0-9_.-]/.test(c)
-    if (isBoundary(before) && isBoundary(after)) return true
+    if (isToolBoundaryChar(before) && isToolBoundaryChar(after)) return true
     from = at + 1
   }
 }
@@ -167,6 +166,10 @@ const AgentBuilderState = Annotation.Root({
 const DEFAULT_TOOL_RISK = { draft_copilot_spec: 'medium' }
 
 const DEFAULT_MODEL = process.env.AGENT_BUILDER_MODEL || 'gpt-5.4'
+
+function isToolBoundaryChar(char) {
+  return char === '' || !/[a-z0-9_.-]/.test(char)
+}
 
 const DEFAULT_SYSTEM_PROMPT = [
   'You are Agent Builder Copilot, an internal assistant for Agent Mission Control.',
@@ -502,8 +505,8 @@ export async function toolsNode(state, config) {
   // the last message can be a ToolMessage (no `.tool_calls`); reading it literally
   // dropped the approved sibling call, leaving its tool_call unanswered and
   // 400-ing the run. Reverse-find the AI message exactly like routeApproval does.
-  const lastAi = [...state.messages]
-    .reverse()
+  const lastAi = state.messages
+    .toReversed()
     .find((m) => (m.getType?.() ?? m.type) === 'ai' || (m.getType?.() ?? m.type) === 'assistant')
   // Skip any call already answered by the approval node (a declined/blocked tool).
   const answered = new Set(state.messages.filter((m) => (m.getType?.() ?? m.type) === 'tool').map((m) => m.tool_call_id))
@@ -548,7 +551,7 @@ function routeAgent(state) {
 // After approval: if the gated call was declined (already answered), go back to
 // the agent; otherwise run the tool.
 function routeApproval(state) {
-  const lastAi = [...state.messages].reverse().find((m) => (m.getType?.() ?? m.type) === 'ai' || (m.getType?.() ?? m.type) === 'assistant')
+  const lastAi = state.messages.toReversed().find((m) => (m.getType?.() ?? m.type) === 'ai' || (m.getType?.() ?? m.type) === 'assistant')
   const answered = new Set(state.messages.filter((m) => (m.getType?.() ?? m.type) === 'tool').map((m) => m.tool_call_id))
   const pending = (lastAi?.tool_calls ?? []).filter((c) => !answered.has(c.id ?? c.name))
   return pending.length > 0 ? 'tools' : 'agent'

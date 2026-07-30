@@ -35,7 +35,7 @@ import { loadCandidateExec, runVersionInputLive } from './shadow-live'
 function outputShape(reply: unknown, toolsCalled: string[]): string {
   const text = typeof reply === 'string' ? reply : JSON.stringify(reply ?? '')
   const lenBucket = Math.round(text.length / 50) * 50
-  return `len:${lenBucket}|tools:${[...toolsCalled].sort().join(',')}`
+  return `len:${lenBucket}|tools:${toolsCalled.toSorted().join(',')}`
 }
 
 /**

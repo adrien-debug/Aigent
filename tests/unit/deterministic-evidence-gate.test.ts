@@ -32,8 +32,6 @@ import type { ReplayOutcome } from '@/lib/agent-mission-control/replay'
 const COPILOT = 'copilot-gate'
 const CANDIDATE = 'ver-candidate'
 
-type Row = Record<string, unknown>
-
 /** The test/benchmark evidence the mock will (or won't) surface, given the filters. */
 interface Evidence {
   versionId: string

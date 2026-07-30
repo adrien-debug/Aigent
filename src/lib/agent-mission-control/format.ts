@@ -77,8 +77,10 @@ const USD_MAX_DIGITS = 8
 export function formatUsd(amount: number | null | undefined, digits = 2): string {
   if (amount == null || !Number.isFinite(amount)) return UNAVAILABLE_LABEL
   let precision = digits
-  while (amount !== 0 && Number(amount.toFixed(precision)) === 0 && precision < USD_MAX_DIGITS) {
-    precision += 1
+  if (amount !== 0) {
+    for (; precision < USD_MAX_DIGITS; precision += 1) {
+      if (Number(amount.toFixed(precision)) !== 0) break
+    }
   }
   return `$${amount.toFixed(precision)}`
 }

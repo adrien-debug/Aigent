@@ -439,7 +439,7 @@ function reduceTelemetryRows(rows: RawRow[]): TelemetryRollup {
     if (receivedAt && (!lastSeenAt || receivedAt > lastSeenAt)) lastSeenAt = receivedAt
   }
 
-  const sortedLatencies = [...latencies].sort((a, b) => a - b)
+  const sortedLatencies = latencies.toSorted((a, b) => a - b)
   const avgLatencyMs =
     latencies.length > 0 ? Math.round(latencies.reduce((sum, v) => sum + v, 0) / latencies.length) : null
   const p95LatencyMs = latencies.length > 0 ? Math.round(percentile95(sortedLatencies)) : null
@@ -451,7 +451,7 @@ function reduceTelemetryRows(rows: RawRow[]): TelemetryRollup {
 
   const topErrorCategories: RuntimeTelemetryErrorCategory[] = [...errorCounts.entries()]
     .map(([category, count]) => ({ category, count }))
-    .sort((a, b) => b.count - a.count)
+    .toSorted((a, b) => b.count - a.count)
     .slice(0, 5)
 
   // Error-category provenance:
@@ -607,7 +607,7 @@ export async function summarizeFleetRuntimeTelemetry(): Promise<RuntimeTelemetry
         lastSeenAt: rollup.lastSeenAt,
       }
     })
-    .sort((a, b) => (b.lastSeenAt ?? '').localeCompare(a.lastSeenAt ?? ''))
+    .toSorted((a, b) => (b.lastSeenAt ?? '').localeCompare(a.lastSeenAt ?? ''))
 
   return {
     ...reduceTelemetryRows(rows),

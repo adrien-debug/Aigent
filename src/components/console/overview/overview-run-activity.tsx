@@ -1,15 +1,13 @@
 import { TrendChart, type TrendSeries } from '@/components/console/charts/trend-chart'
 import { BarBreakdown, type BarBreakdownRow } from '@/components/console/charts/bar-breakdown'
 import { cn } from '@/components/ui/cn'
-import type { AgentRun, AgentRunStatus } from '@/lib/agent-mission-control/types'
-import { consolePanelChrome } from '../console-variants'
-import { ErrorState, Unavailable } from '../screen-primitives'
+import type { AgentRunStatus } from '@/lib/agent-mission-control/types'
+import { consoleTypography } from '../console-variants'
+import { ErrorState, Section, Unavailable } from '../screen-primitives'
 import { NoDataChart } from '../charts/no-data-chart'
 import {
   RUN_STATUSES,
   RUNS_UNREAD_TITLE,
-  countRunsByStatus,
-  overviewTypography,
   runStatusTone,
   type TrendBuckets,
 } from './overview-helpers'
@@ -52,37 +50,29 @@ export function OverviewRunActivity({
     : null
 
   return (
-    <section
-      className={cn(
-        consolePanelChrome('secondary'),
-        runsUnread && 'border-[var(--state-danger-solid-line)]',
-        className
-      )}
-      data-testid="overview-run-activity"
-    >
-      <header className="flex flex-wrap items-end justify-between gap-3 border-b border-line px-4 py-3.5 sm:px-5">
-        <div>
-          <h2 className={overviewTypography.zoneTitle}>Run activity · 24h</h2>
-          <p className={cn('mt-0.5', overviewTypography.zoneDescription)}>
-            Volume, outcomes and status mix across the observed window
-          </p>
-        </div>
+    <div className={className} data-testid="overview-run-activity">
+      <Section
+        title="Run activity · 24h"
+        description="Volume, outcomes and status mix across the observed window"
+        presentation="editorial"
+        className={cn('rounded-2xl', runsUnread && 'border-[var(--state-danger-solid-line)]')}
+        actions={
         <dl className="flex flex-wrap gap-4 text-right">
           <div>
-            <dt className={overviewTypography.secondaryLabel}>Volume</dt>
-            <dd className={cn('mt-0.5', overviewTypography.secondaryMetric)}>
+            <dt className={consoleTypography.eyebrow}>Volume</dt>
+            <dd className={cn(consoleTypography.bodySmMedium, 'mt-0.5 tabular-nums')}>
               {runs24h === null ? <Unavailable className="text-base/7" /> : runs24h}
             </dd>
           </div>
           <div>
-            <dt className={overviewTypography.secondaryLabel}>Success</dt>
-            <dd className={cn('mt-0.5', overviewTypography.secondaryMetric)}>
+            <dt className={consoleTypography.eyebrow}>Success</dt>
+            <dd className={cn(consoleTypography.bodySmMedium, 'mt-0.5 tabular-nums')}>
               {success24h === null ? <Unavailable className="text-base/7" /> : `${success24h}%`}
             </dd>
           </div>
         </dl>
-      </header>
-
+        }
+      >
       {trend === null ? (
         <ErrorState
           title={RUNS_UNREAD_TITLE}
@@ -108,7 +98,7 @@ export function OverviewRunActivity({
             )}
           </div>
           <div className="min-w-0">
-            <p className={cn('mb-2', overviewTypography.secondaryLabel)}>Status distribution</p>
+            <p className={cn('mb-2', consoleTypography.eyebrow)}>Status distribution</p>
             {statusCounts === null ? (
               <Unavailable />
             ) : (
@@ -131,6 +121,7 @@ export function OverviewRunActivity({
           </div>
         </div>
       )}
-    </section>
+      </Section>
+    </div>
   )
 }

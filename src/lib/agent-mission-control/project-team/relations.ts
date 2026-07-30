@@ -247,8 +247,8 @@ export function buildTeamGroups(agents: readonly TeamAgentInput[]): TeamGroup[] 
   }
   return [...byTeam.entries()]
     .filter(([, ids]) => ids.length >= MIN_GROUP_SIZE)
-    .map(([team, ids]) => ({ team, nodeId: groupNodeId(team), agentIds: [...ids].sort() }))
-    .sort((a, b) => (a.team < b.team ? -1 : a.team > b.team ? 1 : 0))
+    .map(([team, ids]) => ({ team, nodeId: groupNodeId(team), agentIds: ids.toSorted() }))
+    .toSorted((a, b) => (a.team < b.team ? -1 : a.team > b.team ? 1 : 0))
 }
 
 /** agentId -> team label, but ONLY for agents inside a materialized group. */
@@ -498,7 +498,7 @@ export function buildTeamEdges(input: BuildTeamEdgesInput): ProjectTeamEdge[] {
   for (const [name, holders] of agentsByToolName) {
     if (holders.length < 2) continue
     if (holders.length > SHARED_TOOL_MAX_AGENTS) continue // commodity — no signal
-    const sorted = [...holders].sort()
+    const sorted = holders.toSorted()
     for (let i = 0; i < sorted.length; i += 1) {
       for (let j = i + 1; j < sorted.length; j += 1) {
         const source = sorted[i] as string
@@ -515,7 +515,7 @@ export function buildTeamEdges(input: BuildTeamEdgesInput): ProjectTeamEdge[] {
   }
 
   for (const { source, target, names } of sharedByPair.values()) {
-    const sortedNames = [...names].sort()
+    const sortedNames = names.toSorted()
     // Never active: "we declare the same tool name" is a static coincidence of
     // configuration. Nothing travels between these two agents because of it.
     edges.push(
@@ -560,7 +560,7 @@ function sortEdges(edges: ProjectTeamEdge[]): ProjectTeamEdge[] {
     const i = RELATION_ORDER.indexOf(r)
     return i === -1 ? RELATION_ORDER.length : i
   }
-  return edges.sort((a, b) => {
+  return edges.toSorted((a, b) => {
     const byRelation = rank(a.relation) - rank(b.relation)
     if (byRelation !== 0) return byRelation
     if (a.source !== b.source) return a.source < b.source ? -1 : 1

@@ -5,7 +5,7 @@ import type { AgentPreview, AgentPreviewOption } from './project-builder-types'
 
 export function mergePreview(base: AgentPreview | null, patch: Partial<AgentPreview> | null): AgentPreview | null {
   if (!patch || Object.keys(patch).length === 0) return base
-  const merged: AgentPreview = { ...(base ?? {}), ...patch }
+  const merged: AgentPreview = { ...base, ...patch }
   if (patch.options && base?.options) {
     const byId = new Map(base.options.map((o) => [o.id, o]))
     for (const o of patch.options) byId.set(o.id, o)

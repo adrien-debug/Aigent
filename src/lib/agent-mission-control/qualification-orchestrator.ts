@@ -249,7 +249,7 @@ function fingerprintCandidate(snap: CandidateSnapshot): string {
     m.always_confirm_actions ?? null,
     m.max_steps_per_run ?? null,
     m.max_cost_per_run_usd ?? null,
-    [...snap.toolIds].sort(),
+    snap.toolIds.toSorted(),
   ])
   return createHash('sha256').update(canonical).digest('hex')
 }

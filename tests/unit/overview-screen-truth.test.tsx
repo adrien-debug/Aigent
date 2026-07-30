@@ -24,7 +24,6 @@ import { KpiCard, PanelRow, Unavailable } from '@/components/console/screen-prim
 import type {
   Cost24hCoverage,
   DashboardOverview,
-  ProjectOverviewItem,
   RecentDelivery,
 } from '@/lib/agent-mission-control/dashboard-overview'
 import type { DeliveryEvent } from '@/lib/agent-mission-control/delivery-events-store'
@@ -60,23 +59,6 @@ function kpis(partial: Partial<DashboardOverview['kpis']> = {}): DashboardOvervi
     success24h: null,
     cost24h: null,
     needsAction: 0,
-    ...partial,
-  }
-}
-
-function projectItem(partial: Partial<ProjectOverviewItem> = {}): ProjectOverviewItem {
-  return {
-    id: 'proj-trade',
-    name: 'TradeAgent',
-    imageUrl: null,
-    logoUrl: null,
-    repoFullName: 'adrien-debug/TradeAgent',
-    platform: 'web',
-    copilotCount: 2,
-    activeCount: 1,
-    runsLast24h: 0,
-    costLast24hUsd: 0,
-    passRate: null,
     ...partial,
   }
 }
@@ -131,11 +113,6 @@ function operatingMetric(label: string): HTMLElement {
   const cell = labelNode?.parentElement
   if (cell === null || cell === undefined) throw new Error(`No operating metric found for "${label}"`)
   return cell as HTMLElement
-}
-
-/** @deprecated KPI cards removed — use operatingMetric */
-function kpiCard(label: string): HTMLElement {
-  return operatingMetric(label.replace(' · 24h', '').replace('Projects · active', 'Serving agents'))
 }
 
 /**

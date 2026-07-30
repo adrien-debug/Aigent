@@ -170,7 +170,7 @@ export function computeMarketStructure(
   // Nearest to `last` first, deduped, capped.
   const nearestFirst = (arr: number[]) =>
     Array.from(new Set(arr))
-      .sort((a, b) => Math.abs(a - last) - Math.abs(b - last))
+      .toSorted((a, b) => Math.abs(a - last) - Math.abs(b - last))
       .slice(0, maxLevels)
       .map((v) => fixed(v, 2))
 

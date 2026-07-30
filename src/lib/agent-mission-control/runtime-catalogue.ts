@@ -107,7 +107,7 @@ export async function toPublishedAgent(agent: AvailableAgent): Promise<Published
 export async function getPublishedAgents(): Promise<PublishedAgent[]> {
   const agents = await getAvailableAgents()
   const published = await Promise.all(agents.map(toPublishedAgent))
-  return published.sort((a, b) => a.name.localeCompare(b.name))
+  return published.toSorted((a, b) => a.name.localeCompare(b.name))
 }
 
 /** One published agent, or `undefined` when no canonical row carries that id. */

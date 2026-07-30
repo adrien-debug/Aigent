@@ -212,7 +212,7 @@ export async function getThreadHistory(threadId: string): Promise<ExplorerHistor
   }
   const list = (Array.isArray(raw) ? raw : []) as Row[]
   // Server returns newest-first; reverse to oldest-first for a natural replay.
-  const ordered = [...list].reverse()
+  const ordered = list.toReversed()
 
   return ordered.map((cp, index) => {
     const values = (cp.values as { messages?: Row[] } | undefined) ?? {}

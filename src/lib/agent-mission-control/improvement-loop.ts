@@ -594,6 +594,10 @@ function asStringArray(v: unknown, maxItems = 24, maxLen = 300): string[] | null
   return out.slice(0, maxItems)
 }
 
+function changeWhyText(v: { why?: unknown }): string {
+  return typeof v.why === 'string' ? summarize(v.why, 400) : ''
+}
+
 /**
  * Server-side validation of the model's manifestChanges — the LLM output is
  * UNTRUSTED input. Unknown fields are dropped; each kept change is re-based on
@@ -608,13 +612,12 @@ function validateManifestChanges(
   if (typeof raw !== 'object' || raw === null) return null
   const input = raw as Record<string, { from?: unknown; to?: unknown; why?: unknown }>
   const out: ImprovementManifestChanges = {}
-  const why = (v: { why?: unknown }): string => (typeof v.why === 'string' ? summarize(v.why, 400) : '')
 
   const sp = input.systemPromptSummary
   if (sp && typeof sp.to === 'string' && sp.to.trim().length >= 20) {
     const to = sp.to.trim().slice(0, 4000)
     if (to !== manifest.systemPromptSummary) {
-      out.systemPromptSummary = { from: manifest.systemPromptSummary, to, why: why(sp) }
+      out.systemPromptSummary = { from: manifest.systemPromptSummary, to, why: changeWhyText(sp) }
     }
   }
 
@@ -622,7 +625,7 @@ function validateManifestChanges(
   if (fa) {
     const to = asStringArray(fa.to)
     if (to && to.length > 0 && JSON.stringify(to) !== JSON.stringify(manifest.forbiddenActions)) {
-      out.forbiddenActions = { from: manifest.forbiddenActions, to, why: why(fa) }
+      out.forbiddenActions = { from: manifest.forbiddenActions, to, why: changeWhyText(fa) }
     }
   }
 
@@ -630,7 +633,7 @@ function validateManifestChanges(
   if (aca) {
     const to = asStringArray(aca.to)
     if (to && JSON.stringify(to) !== JSON.stringify(manifest.alwaysConfirmActions)) {
-      out.alwaysConfirmActions = { from: manifest.alwaysConfirmActions, to, why: why(aca) }
+      out.alwaysConfirmActions = { from: manifest.alwaysConfirmActions, to, why: changeWhyText(aca) }
     }
   }
 
@@ -639,20 +642,20 @@ function validateManifestChanges(
     const to = cp.to as ConfirmationPolicy
     // Only equal-or-stricter survives; equal is a no-op so only stricter is kept.
     if (POLICY_ORDER[to] > POLICY_ORDER[manifest.confirmationPolicy]) {
-      out.confirmationPolicy = { from: manifest.confirmationPolicy, to, why: why(cp) }
+      out.confirmationPolicy = { from: manifest.confirmationPolicy, to, why: changeWhyText(cp) }
     }
   }
 
   const ms = input.maxStepsPerRun
   if (ms && typeof ms.to === 'number' && Number.isInteger(ms.to) && ms.to >= 1 && ms.to <= 24 && ms.to !== manifest.maxStepsPerRun) {
-    out.maxStepsPerRun = { from: manifest.maxStepsPerRun, to: ms.to, why: why(ms) }
+    out.maxStepsPerRun = { from: manifest.maxStepsPerRun, to: ms.to, why: changeWhyText(ms) }
   }
 
   const inv = input.outputContractInvariants
   if (inv) {
     const to = asStringArray(inv.to)
     if (to && JSON.stringify(to) !== JSON.stringify(manifest.outputContractInvariants)) {
-      out.outputContractInvariants = { from: manifest.outputContractInvariants, to, why: why(inv) }
+      out.outputContractInvariants = { from: manifest.outputContractInvariants, to, why: changeWhyText(inv) }
     }
   }
 

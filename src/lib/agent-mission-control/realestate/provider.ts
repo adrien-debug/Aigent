@@ -350,8 +350,8 @@ type FoldAcc = {
 } & {
   /** Distinct residential surface lines seen, keyed to avoid double-summing a
    *  surface DVF repeats across a mutation's rows. */
-  _surfaceKeys: Set<string>
-  _surfaceSum: number
+  surfaceKeys: Set<string>
+  surfaceSum: number
 }
 
 function foldMutations(rows: WireMutation[]): DvfComparable[] {
@@ -390,8 +390,8 @@ function foldMutations(rows: WireMutation[]): DvfComparable[] {
         postalCode: strOrNone(m.code_postal),
         lat: numOrNull(m.latitude),
         lon: numOrNull(m.longitude),
-        _surfaceKeys: new Set<string>(),
-        _surfaceSum: 0,
+        surfaceKeys: new Set<string>(),
+        surfaceSum: 0,
       }
       byId.set(id, acc)
       order.push(id)
@@ -410,9 +410,9 @@ function foldMutations(rows: WireMutation[]): DvfComparable[] {
     // dépendances/garages into a residential €/m².
     if (rowSurface !== null && rowSurface > 0 && rowType !== 'other') {
       const key = `${strOrNone(m.id_parcelle) ?? ''}:${rowSurface}`
-      if (!acc._surfaceKeys.has(key)) {
-        acc._surfaceKeys.add(key)
-        acc._surfaceSum += rowSurface
+      if (!acc.surfaceKeys.has(key)) {
+        acc.surfaceKeys.add(key)
+        acc.surfaceSum += rowSurface
       }
     }
     const rooms = intOrNull(m.nombre_pieces_principales)
@@ -426,7 +426,7 @@ function foldMutations(rows: WireMutation[]): DvfComparable[] {
     const acc = byId.get(id)!
     // No usable price → not a comparable. Dropped, never patched with a fake.
     if (acc.valueEur === '' || acc.valueEur === '0') continue
-    const surfaceM2 = acc._surfaceSum > 0 ? String(acc._surfaceSum) : null
+    const surfaceM2 = acc.surfaceSum > 0 ? String(acc.surfaceSum) : null
     const pricePerSqmEur = derivePricePerSqm(acc.valueEur, surfaceM2)
     out.push({
       mutationId: acc.mutationId,
@@ -474,15 +474,18 @@ function mapType(t: string | undefined): DvfComparable['propertyType'] {
   return 'other'
 }
 
+function toRadians(degrees: number): number {
+  return (degrees * Math.PI) / 180
+}
+
 /** Great-circle distance in metres between two lat/lon points. */
 function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6_371_000
-  const toRad = (d: number) => (d * Math.PI) / 180
-  const dLat = toRad(lat2 - lat1)
-  const dLon = toRad(lon2 - lon1)
+  const dLat = toRadians(lat2 - lat1)
+  const dLon = toRadians(lon2 - lon1)
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) ** 2
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)))
 }
 

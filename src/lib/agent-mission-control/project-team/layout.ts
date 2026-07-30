@@ -235,7 +235,7 @@ function resolveAgentGroups(
 
   // group id keyed by every label that may designate it.
   const groupByLabel = new Map<string, string>()
-  for (const group of [...groups].sort((a, b) => compareStrings(a.id, b.id))) {
+  for (const group of groups.toSorted((a, b) => compareStrings(a.id, b.id))) {
     for (const label of [group.id, group.slug, group.name]) {
       if (!label) continue
       const key = label.toLowerCase()
@@ -344,7 +344,7 @@ function buildClusters(
 
   const byGroup = new Map<string, TeamLayoutInputNode[]>()
   const ungrouped: TeamLayoutInputNode[] = []
-  for (const agent of [...agents].sort((a, b) => compareStrings(nodeSortKey(a), nodeSortKey(b)))) {
+  for (const agent of agents.toSorted((a, b) => compareStrings(nodeSortKey(a), nodeSortKey(b)))) {
     const groupId = membership.get(agent.id)
     if (groupId === undefined) {
       ungrouped.push(agent)
@@ -365,13 +365,12 @@ function buildClusters(
     clusters.push({ sortKey: ' ', ...laid })
   }
 
-  for (const group of [...groups].sort((a, b) => compareStrings(nodeSortKey(a), nodeSortKey(b)))) {
+  for (const group of groups.toSorted((a, b) => compareStrings(nodeSortKey(a), nodeSortKey(b)))) {
     const laid = layoutCluster(group, byGroup.get(group.id) ?? [])
     clusters.push({ sortKey: `${nodeSortKey(group)}`, ...laid })
   }
 
-  clusters.sort((a, b) => compareStrings(a.sortKey, b.sortKey))
-  return clusters
+  return clusters.toSorted((a, b) => compareStrings(a.sortKey, b.sortKey))
 }
 
 // ---------------------------------------------------------------------------
@@ -481,7 +480,7 @@ export function computeTeamLayout(
 
   // A single anchor. Extra project nodes (contract says there is one) are not
   // dropped — they join the orphan shelf below.
-  const sortedProjects = [...projects].sort((a, b) => compareStrings(nodeSortKey(a), nodeSortKey(b)))
+  const sortedProjects = projects.toSorted((a, b) => compareStrings(nodeSortKey(a), nodeSortKey(b)))
   const anchor = sortedProjects[0] ?? null
   const projectSize = anchor ? sizeOf(anchor.kind) : TEAM_NODE_SIZE.project
 
@@ -543,7 +542,7 @@ export function computeTeamLayout(
   // never silently missing from the canvas.
   const orphans = nodes
     .filter((n) => !raw.has(n.id))
-    .sort((a, b) => compareStrings(nodeSortKey(a), nodeSortKey(b)))
+    .toSorted((a, b) => compareStrings(nodeSortKey(a), nodeSortKey(b)))
   if (orphans.length > 0) {
     const bottom = raw.size === 0 ? 0 : Math.max(...[...raw.values()].map((b) => b.y + b.height))
     const left = raw.size === 0 ? 0 : Math.min(...[...raw.values()].map((b) => b.x))
@@ -606,12 +605,12 @@ export function teamLayoutSignature(
 ): string {
   const nodePart = nodes
     .map((n) => `${n.id}:${n.kind}:${n.team ?? ''}`)
-    .sort(compareStrings)
+    .toSorted(compareStrings)
     .join('|')
   const edgePart = edges
     .filter((e) => e.relation === 'team-membership' || e.relation === 'project-membership')
     .map((e) => `${e.source}>${e.target}:${e.relation}`)
-    .sort(compareStrings)
+    .toSorted(compareStrings)
     .join('|')
   return `${nodePart}#${edgePart}`
 }

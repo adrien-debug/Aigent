@@ -27,8 +27,8 @@ const describeCandidate = vi.fn(async () => ({
 
 vi.mock('@/lib/agent-mission-control/authoring-writes', () => ({
   createCopilotFromManifest: () => createCopilotFromManifest(),
-  deleteCopilotCascade: (id: string) => deleteCopilotCascade(),
-  setCopilotAssistantId: (a: string, b: string) => setCopilotAssistantId(),
+  deleteCopilotCascade: (_id: string) => deleteCopilotCascade(),
+  setCopilotAssistantId: (_a: string, _b: string) => setCopilotAssistantId(),
   // The route's Zod schema calls this in a superRefine — keep the real contract simple.
   isHighRiskOrWriteCapableTool: () => false,
 }))

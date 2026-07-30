@@ -66,7 +66,7 @@ function normalizeResolvedModel(run: AgentRun): AgentRun {
   run.resolvedModel = typeof run.resolvedModel === 'string' && run.resolvedModel.length > 0 ? run.resolvedModel : null
   run.resolvedProvider =
     typeof run.resolvedProvider === 'string' && run.resolvedProvider.length > 0 ? run.resolvedProvider : null
-  run.modelUnverified = run.modelUnverified === false ? false : true
+  run.modelUnverified = run.modelUnverified !== false
   return run
 }
 

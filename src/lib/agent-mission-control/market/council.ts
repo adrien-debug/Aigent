@@ -114,6 +114,10 @@ export interface CouncilResult {
   readonly rationale: string
 }
 
+function opposedLeans(a: string, b: string): boolean {
+  return (a === 'bullish' && b === 'bearish') || (a === 'bearish' && b === 'bullish')
+}
+
 /** Map a directional report to a coarse lean for divergence detection. */
 function leanOf(
   r: TechnicalAnalysisReport | QuantRegimeReport,
@@ -146,14 +150,11 @@ function collectDivergences(reports: CouncilReports): CouncilDivergence[] {
     })
   }
 
-  const opposed = (a: string, b: string) =>
-    (a === 'bullish' && b === 'bearish') || (a === 'bearish' && b === 'bullish')
-
   for (let i = 0; i < directional.length; i++) {
     for (let j = i + 1; j < directional.length; j++) {
       const A = directional[i]
       const B = directional[j]
-      if (opposed(A.lean, B.lean)) {
+      if (opposedLeans(A.lean, B.lean)) {
         out.push({
           between: [A.seat, B.seat],
           dimension: 'direction',

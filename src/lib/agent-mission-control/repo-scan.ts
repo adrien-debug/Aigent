@@ -82,10 +82,10 @@ export async function scanProjectRepo(project: Project, ref?: string): Promise<R
   // 3. Design-system signals from path shape (no fetch).
   const dsSignals: string[] = []
   if (files.some((p) => /components\/catalyst\//.test(p))) dsSignals.push('Catalyst primitives (components/ui/)')
-  if (files.some((p) => /tailwind\.config/.test(p)) || files.some((p) => /globals\.css$/.test(p)))
+  if (files.some((p) => /tailwind\.config/.test(p)) || files.some((p) => p.endsWith('globals.css')))
     dsSignals.push('Tailwind config / globals.css')
-  if (files.some((p) => /check-catalyst\.mjs$/.test(p))) dsSignals.push('Catalyst gate (check-catalyst.mjs)')
-  if (files.some((p) => /check-palette\.mjs$/.test(p))) dsSignals.push('Palette/DS gate (check-palette.mjs)')
+  if (files.some((p) => p.endsWith('check-catalyst.mjs'))) dsSignals.push('Catalyst gate (check-catalyst.mjs)')
+  if (files.some((p) => p.endsWith('check-palette.mjs'))) dsSignals.push('Palette/DS gate (check-palette.mjs)')
 
   // 4. Fetch a small, bounded set of key files for deeper signal.
   const stack: string[] = []
@@ -103,7 +103,7 @@ export async function scanProjectRepo(project: Project, ref?: string): Promise<R
         devDependencies?: Record<string, string>
         scripts?: Record<string, string>
       }
-      const deps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) }
+      const deps: Record<string, string> = { ...pkg.dependencies, ...pkg.devDependencies }
       for (const { dep, label } of STACK_HINTS) if (deps[dep]) stack.push(label)
       scripts = pkg.scripts ?? {}
     } catch {

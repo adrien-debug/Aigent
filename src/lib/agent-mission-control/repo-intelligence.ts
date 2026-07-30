@@ -169,7 +169,11 @@ export async function scanRepoIntelligence(project: Project, ref?: string): Prom
     )
   )
   const docs = cap(
-    files.filter((p) => /^docs?\//.test(p) || /^(?:README|AGENTS|CLAUDE)(?:\.md)?$/.test(p.split('/').pop() ?? '') || /\.md$/.test(p) === true && /^(?:README|AGENTS|CLAUDE|CONTRIBUTING|CHANGELOG)/.test(p.split('/').pop() ?? ''))
+    files.filter(
+      (p) => /^docs?\//.test(p)
+        || /^(?:README|AGENTS|CLAUDE)(?:\.md)?$/.test(p.split('/').pop() ?? '')
+        || (p.endsWith('.md') && /^(?:README|AGENTS|CLAUDE|CONTRIBUTING|CHANGELOG)/.test(p.split('/').pop() ?? ''))
+    )
   )
 
   // --- Design-system signals (path shape) ---
@@ -360,33 +364,33 @@ function detectResidue(
   }
 
   // Mock / seed residue tracked in the repo.
-  for (const p of files.filter((p) => /(?:^|\/)(?:mock|seed|fixture)s?[-_./]/i.test(p) || /\.(?:mock|seed|fixtures)\./i.test(p))) {
+  for (const filePath of files.filter((candidatePath) => /(?:^|\/)(?:mock|seed|fixture)s?[-_./]/i.test(candidatePath) || /\.(?:mock|seed|fixtures)\./i.test(candidatePath))) {
     findings.push({
       severity: 'low',
       type: 'mock_residue',
-      path: p,
+      path: filePath,
       evidence: 'file name suggests a mock/seed/fixture',
       recommendedAction: 'Verify it is used by tests only and not shipped in the app path.',
     })
   }
 
   // Old-prompt residue: versioned/backup prompt files.
-  for (const p of files.filter((p) => /prompt/i.test(p) && /(?:[-_.](?:old|v\d+|bak|backup|legacy|deprecated))\b/i.test(p))) {
+  for (const filePath of files.filter((candidatePath) => /prompt/i.test(candidatePath) && /(?:[-_.](?:old|v\d+|bak|backup|legacy|deprecated))\b/i.test(candidatePath))) {
     findings.push({
       severity: 'low',
       type: 'old_prompt',
-      path: p,
+      path: filePath,
       evidence: 'prompt file name carries an old/backup/version marker',
       recommendedAction: 'Confirm which prompt is live; delete the superseded copy (git keeps history).',
     })
   }
 
   // Backup / legacy source files left in tree.
-  for (const p of files.filter((p) => /\.(?:bak|old|orig|backup)$/i.test(p) || /(?:[-_.](?:copy|legacy|deprecated|unused))\.(?:ts|tsx|js|mjs)$/i.test(p))) {
+  for (const filePath of files.filter((candidatePath) => /\.(?:bak|old|orig|backup)$/i.test(candidatePath) || /(?:[-_.](?:copy|legacy|deprecated|unused))\.(?:ts|tsx|js|mjs)$/i.test(candidatePath))) {
     findings.push({
       severity: has(/\.gitignore$/) ? 'low' : 'medium',
       type: 'stale_agentic_code',
-      path: p,
+      path: filePath,
       evidence: 'file name carries a backup/legacy/unused marker',
       recommendedAction: 'Review and remove if superseded — git history preserves it.',
     })
@@ -522,7 +526,7 @@ function recommendAgents(map: RepoMap, footprint: AgenticFootprint, residue: Res
 
   // Cap to 7, keep the highest-priority first (stable order: high → medium → low).
   const order: Record<RecommendationPriority, number> = { high: 0, medium: 1, low: 2 }
-  return recs.sort((a, b) => order[a.priority] - order[b.priority]).slice(0, 7)
+  return recs.toSorted((a, b) => order[a.priority] - order[b.priority]).slice(0, 7)
 }
 
 // ---------------------------------------------------------------------------

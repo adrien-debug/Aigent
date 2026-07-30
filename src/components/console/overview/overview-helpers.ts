@@ -1,7 +1,4 @@
-/**
- * Shared helpers for the /admin overview — pure functions and presentation tokens.
- * Overview-only typography (larger minimum sizes than generic console primitives).
- */
+/** Shared pure helpers for the /admin overview. */
 
 import type { ActionItem, ActionItemKind } from '@/lib/agent-mission-control/dashboard-overview'
 import type { AgentRun, AgentRunStatus } from '@/lib/agent-mission-control/types'
@@ -30,20 +27,6 @@ export const REAL_ROUTES: readonly RegExp[] = [
 export const RUNS_UNREAD_DETAIL = 'Run history could not be read'
 export const RUNS_UNREAD_TITLE = 'Run history unavailable'
 
-export const overviewTypography = {
-  heroMetric: 'text-[36px]/10 font-light tabular-nums tracking-tight text-content',
-  heroLabel: 'text-sm/6 font-medium text-content-muted',
-  heroDetail: 'text-[11px]/4 text-content-subtle',
-  zoneTitle: 'text-[15px]/6 font-semibold text-content',
-  zoneDescription: 'text-sm/6 text-content-muted',
-  secondaryMetric: 'text-xl/7 font-medium tabular-nums text-content',
-  secondaryLabel: 'text-[11px]/4 font-semibold uppercase tracking-wide text-content-subtle',
-  lineTitle: 'text-sm/6 font-medium text-content',
-  lineBody: 'text-sm/6 text-content-muted line-clamp-2',
-  lineMeta: 'text-[11px]/4 text-content-subtle',
-  kindBadge: 'text-[10px]/4 font-semibold uppercase tracking-widest',
-} as const
-
 const ACTION_KIND_LABEL: Record<ActionItemKind, string> = {
   architect_approval: 'Approval',
   ready_manual: 'Ready',
@@ -51,7 +34,7 @@ const ACTION_KIND_LABEL: Record<ActionItemKind, string> = {
   release_gate_red: 'Blocked',
   pr_open: 'Ready',
   mission_blocked: 'Blocked',
-  data_unavailable: 'Unavailable',
+  data_unavailable: 'Data unavailable',
 }
 
 export function actionKindLabel(kind: ActionItemKind): string {

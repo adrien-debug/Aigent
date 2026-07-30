@@ -20,23 +20,12 @@ import { z } from 'zod'
 import { DvfHttpProvider, type DvfQuery, type ProviderContext } from './provider'
 import { ApifyListingsProvider, LISTING_PORTALS, type ListingPortal, type ListingsQuery } from './apify-provider'
 import { GeoResolver } from './geo-resolver'
+import { parseToolArgs } from '../tool-args'
 
 export interface RealEstateToolResult {
   ok: boolean
   data: unknown
   summary: string
-}
-
-function parse<T>(schema: z.ZodType<T>, argsJson: string): T | { __err: string } {
-  let raw: unknown
-  try {
-    raw = argsJson ? JSON.parse(argsJson) : {}
-  } catch {
-    return { __err: 'invalid JSON args' }
-  }
-  const r = schema.safeParse(raw)
-  if (!r.success) return { __err: r.error.issues.map((i) => i.message).join('; ') }
-  return r.data
 }
 
 function err(tool: string, message: string): RealEstateToolResult {
@@ -68,8 +57,9 @@ const dvfArgs = z.object({
 })
 
 export async function readDvfComparables(argsJson: string): Promise<RealEstateToolResult> {
-  const a = parse(dvfArgs, argsJson)
-  if ('__err' in a) return err('read_dvf_comparables', a.__err)
+  const parsed = parseToolArgs(dvfArgs, argsJson)
+  if (!parsed.ok) return err('read_dvf_comparables', parsed.error)
+  const a = parsed.data
 
   const provider = new DvfHttpProvider()
   const query: DvfQuery = Object.assign(
@@ -118,8 +108,9 @@ const listingsArgs = z.object({
 })
 
 export async function readMarketListings(argsJson: string): Promise<RealEstateToolResult> {
-  const a = parse(listingsArgs, argsJson)
-  if ('__err' in a) return err('read_market_listings', a.__err)
+  const parsed = parseToolArgs(listingsArgs, argsJson)
+  if (!parsed.ok) return err('read_market_listings', parsed.error)
+  const a = parsed.data
 
   const provider = new ApifyListingsProvider()
   const query: ListingsQuery = {
@@ -160,8 +151,9 @@ const resolveArgs = z.object({
 })
 
 export async function resolveAddressToSection(argsJson: string): Promise<RealEstateToolResult> {
-  const a = parse(resolveArgs, argsJson)
-  if ('__err' in a) return err('resolve_address_to_section', a.__err)
+  const parsed = parseToolArgs(resolveArgs, argsJson)
+  if (!parsed.ok) return err('resolve_address_to_section', parsed.error)
+  const a = parsed.data
 
   const resolver = new GeoResolver()
   const res = await resolver.resolve(a.address, { asOf: a.asOf ?? Date.now() })

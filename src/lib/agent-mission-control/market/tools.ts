@@ -36,6 +36,7 @@ import {
   type CandleInterval,
   type PairSymbol,
 } from './snapshot'
+import { parseToolArgs } from '../tool-args'
 
 export interface TradingToolResult {
   ok: boolean
@@ -75,18 +76,6 @@ function ctxOf(asOf?: number, maxAgeMs?: number | null): ProviderContext {
   }
 }
 
-function parse<T>(schema: z.ZodType<T>, argsJson: string): T | { __err: string } {
-  let raw: unknown
-  try {
-    raw = argsJson ? JSON.parse(argsJson) : {}
-  } catch {
-    return { __err: 'invalid JSON args' }
-  }
-  const r = schema.safeParse(raw)
-  if (!r.success) return { __err: r.error.issues.map((i) => i.message).join('; ') }
-  return r.data
-}
-
 function err(tool: string, message: string): TradingToolResult {
   return { ok: false, data: { error: message }, summary: `${tool} failed: ${message}` }
 }
@@ -106,8 +95,9 @@ const snapshotArgs = z.object({
 })
 
 export async function readMarketSnapshot(argsJson: string): Promise<TradingToolResult> {
-  const a = parse(snapshotArgs, argsJson)
-  if ('__err' in a) return err('read_market_snapshot', a.__err)
+  const parsed = parseToolArgs(snapshotArgs, argsJson)
+  if (!parsed.ok) return err('read_market_snapshot', parsed.error)
+  const a = parsed.data
   const provider = resolveProvider({ fixtureScenario: a.fixtureScenario as ScenarioId | undefined })
   if (!provider) return err('read_market_snapshot', 'no market source configured')
 
@@ -139,8 +129,9 @@ const mtfArgs = z.object({
 })
 
 async function readMultiTimeframeCandles(argsJson: string): Promise<TradingToolResult> {
-  const a = parse(mtfArgs, argsJson)
-  if ('__err' in a) return err('read_multi_timeframe_candles', a.__err)
+  const parsed = parseToolArgs(mtfArgs, argsJson)
+  if (!parsed.ok) return err('read_multi_timeframe_candles', parsed.error)
+  const a = parsed.data
   const provider = resolveProvider({ fixtureScenario: a.fixtureScenario as ScenarioId | undefined })
   if (!provider) return err('read_multi_timeframe_candles', 'no market source configured')
 
@@ -181,8 +172,9 @@ const volArgs = z.object({
 })
 
 export async function readVolatilityState(argsJson: string): Promise<TradingToolResult> {
-  const a = parse(volArgs, argsJson)
-  if ('__err' in a) return err('read_volatility_state', a.__err)
+  const parsed = parseToolArgs(volArgs, argsJson)
+  if (!parsed.ok) return err('read_volatility_state', parsed.error)
+  const a = parsed.data
   const provider = resolveProvider({ fixtureScenario: a.fixtureScenario as ScenarioId | undefined })
   if (!provider) return err('read_volatility_state', 'no market source configured')
   const interval = (a.interval ?? '1h') as CandleInterval
@@ -223,8 +215,9 @@ const structArgs = z.object({
   fixtureScenario: z.string().optional(),
 })
 export async function readMarketStructure(argsJson: string): Promise<TradingToolResult> {
-  const a = parse(structArgs, argsJson)
-  if ('__err' in a) return err('read_market_structure', a.__err)
+  const parsed = parseToolArgs(structArgs, argsJson)
+  if (!parsed.ok) return err('read_market_structure', parsed.error)
+  const a = parsed.data
   const provider = resolveProvider({ fixtureScenario: a.fixtureScenario as ScenarioId | undefined })
   if (!provider) return err('read_market_structure', 'no market source configured')
   const intervals = (a.intervals ?? [a.interval ?? '1h']) as CandleInterval[]
@@ -284,8 +277,9 @@ const liqArgs = z.object({
   fixtureScenario: z.string().optional(),
 })
 export async function readLiquiditySnapshot(argsJson: string): Promise<TradingToolResult> {
-  const a = parse(liqArgs, argsJson)
-  if ('__err' in a) return err('read_liquidity_snapshot', a.__err)
+  const parsed = parseToolArgs(liqArgs, argsJson)
+  if (!parsed.ok) return err('read_liquidity_snapshot', parsed.error)
+  const a = parsed.data
   const provider = resolveProvider({ fixtureScenario: a.fixtureScenario as ScenarioId | undefined })
   if (!provider) return err('read_liquidity_snapshot', 'no market source configured')
   const res = await provider.getOrderBook(a.pair, a.depth ?? 20, ctxOf(a.asOf))
@@ -327,8 +321,9 @@ function structureState(
 // ---------------------------------------------------------------------------
 
 export async function readFundingOpenInterest(argsJson: string): Promise<TradingToolResult> {
-  const a = parse(liqArgs.omit({ depth: true }), argsJson)
-  if ('__err' in a) return err('read_funding_open_interest', a.__err)
+  const parsed = parseToolArgs(liqArgs.omit({ depth: true }), argsJson)
+  if (!parsed.ok) return err('read_funding_open_interest', parsed.error)
+  const a = parsed.data
   const provider = resolveProvider({ fixtureScenario: a.fixtureScenario as ScenarioId | undefined })
   if (!provider) return err('read_funding_open_interest', 'no market source configured')
   const res = await provider.getFundingOpenInterest(a.pair, ctxOf(a.asOf))
@@ -371,8 +366,9 @@ const derivativesArgs = z.object({
 const DERIVATIVES_SUPPORTED_SYMBOL = 'BTCUSDT'
 
 async function readDerivativesSnapshot(argsJson: string): Promise<TradingToolResult> {
-  const a = parse(derivativesArgs, argsJson)
-  if ('__err' in a) return err('read_derivatives_snapshot', a.__err)
+  const parsed = parseToolArgs(derivativesArgs, argsJson)
+  if (!parsed.ok) return err('read_derivatives_snapshot', parsed.error)
+  const a = parsed.data
   // A caller that named an instrument must get THAT instrument or an explicit
   // refusal — never a silent substitution.
   const requested = a.pair ?? a.symbol
@@ -417,8 +413,9 @@ const acctArgs = z.object({
   asOf: z.number().int().optional(),
 })
 export async function readAccountRiskSnapshot(argsJson: string): Promise<TradingToolResult> {
-  const a = parse(acctArgs, argsJson)
-  if ('__err' in a) return err('read_account_risk_snapshot', a.__err)
+  const parsed = parseToolArgs(acctArgs, argsJson)
+  if (!parsed.ok) return err('read_account_risk_snapshot', parsed.error)
+  const a = parsed.data
   if (!a.accountId) {
     return {
       ok: false,
@@ -483,8 +480,9 @@ const macroArgs = z.object({
   fixtureScenario: z.string().optional(),
 })
 export async function readMacroContext(argsJson: string): Promise<TradingToolResult> {
-  const a = parse(macroArgs, argsJson)
-  if ('__err' in a) return err('read_macro_context', a.__err)
+  const parsed = parseToolArgs(macroArgs, argsJson)
+  if (!parsed.ok) return err('read_macro_context', parsed.error)
+  const a = parsed.data
   const provider = resolveProvider({ fixtureScenario: a.fixtureScenario as ScenarioId | undefined })
   if (!provider) return err('read_macro_context', 'no market source configured')
   const ctx = ctxOf(a.asOf)

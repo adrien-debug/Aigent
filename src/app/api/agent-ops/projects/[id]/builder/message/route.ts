@@ -120,7 +120,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           },
           abort.signal
         )
-        const latestAssistant = [...bundle.messages].reverse().find((message) => message.role === 'assistant')
+        const latestAssistant = bundle.messages.toReversed().find((message) => message.role === 'assistant')
         if (!latestAssistant) throw new Error('persisted assistant message missing')
 
         push({

@@ -57,12 +57,12 @@ export function BarBreakdown({
             <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-sunken">
               <span
                 className={
-                  'block h-full rounded-full ' + (row.danger ? 'bg-[var(--state-danger-solid)]' : 'bg-accent-500')
+                  'block h-full rounded-full ' + (row.danger ? 'bg-(--state-danger-solid)' : 'bg-accent-600')
                 }
                 style={{ width: `${Math.round(fraction * 100)}%` }}
               />
             </span>
-            <span className="w-8 shrink-0 text-right text-[11px]/4 tabular-nums text-white">{row.count}</span>
+            <span className="w-8 shrink-0 text-right text-[11px]/4 tabular-nums text-content">{row.count}</span>
           </li>
         )
       })}

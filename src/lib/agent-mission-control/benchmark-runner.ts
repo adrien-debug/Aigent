@@ -428,7 +428,8 @@ async function loadSafetyPolicy(
   } catch (err) {
     // Fail-closed: never certify safety on unreadable inputs (see above).
     throw new Error(
-      `benchmark safety policy unavailable: could not read tool confirmation flags (${err instanceof Error ? err.message : 'unknown'})`
+      `benchmark safety policy unavailable: could not read tool confirmation flags (${err instanceof Error ? err.message : 'unknown'})`,
+      { cause: err }
     )
   }
 }
@@ -670,7 +671,7 @@ async function runTask(
 
 function p95(values: number[]): number {
   if (values.length === 0) return 0
-  const sorted = [...values].sort((a, b) => a - b)
+  const sorted = values.toSorted((a, b) => a - b)
   const idx = Math.min(sorted.length - 1, Math.ceil(0.95 * sorted.length) - 1)
   return sorted[Math.max(0, idx)]
 }

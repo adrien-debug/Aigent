@@ -225,7 +225,7 @@ function stripSentinel(text: string): string {
  */
 function realModelFromMessages(messages: AnyMsg[]): string | null {
   const aiMessages = messages.filter((m) => (m.type ?? m.role) === 'ai' || (m.type ?? m.role) === 'assistant')
-  for (const m of [...aiMessages].reverse()) {
+  for (const m of aiMessages.toReversed()) {
     // The graph stamps the model it actually instantiated (agent-builder-graph.mjs,
     // EXECUTED_MODEL) — that's the authoritative source here. Verified against a
     // live run: the SDK does NOT pass the provider's own `model_name` through
@@ -392,7 +392,7 @@ async function finalizeRunFromState(args: {
   const executedModel = (state.values as { executedModel?: string | null } | undefined)?.executedModel ?? null
   const resolvedModel = executedModel ?? realModelFromMessages(messages)
 
-  const lastAi = [...messages].reverse().find((m) => (m.type ?? m.role) === 'ai' || (m.type ?? m.role) === 'assistant')
+  const lastAi = messages.toReversed().find((m) => (m.type ?? m.role) === 'ai' || (m.type ?? m.role) === 'assistant')
   const finalText = typeof lastAi?.content === 'string' ? stripSentinel(lastAi.content) : ''
 
   if (interrupted) {
@@ -472,17 +472,17 @@ export async function runOnAgentServer(args: {
   const result = (await c.runs.wait(threadId, target, {
     input: { messages: [{ role: 'user', content: args.userInput }] },
     ...(runConfig ? { config: runConfig } : {}),
-  })) as { messages?: AnyMsg[]; __interrupt__?: unknown }
+  })) as { messages?: AnyMsg[]; ['__interrupt__']?: unknown }
 
   // Reconstruct via the shared helper. The `.wait()` path keeps its exact prior
   // behaviour: messages come from `result.messages`, and the interrupt marker
-  // from `result.__interrupt__` is OR-ed with the thread's task list (the helper
+  // from `result['__interrupt__']` is OR-ed with the thread's task list (the helper
   // reads getState for the task list, as this function always did).
   return finalizeRunFromState({
     c,
     threadId,
     messagesOverride: (result.messages ?? []) as AnyMsg[],
-    waitInterrupt: result.__interrupt__,
+    waitInterrupt: result['__interrupt__'],
   })
 }
 
@@ -593,7 +593,7 @@ export async function resumeOnAgentServer(args: {
   const result = (await c.runs.wait(args.threadId, target, {
     command: { resume: { approved: args.approved } },
     ...(runConfig ? { config: runConfig } : {}),
-  })) as { messages?: AnyMsg[]; __interrupt__?: unknown }
+  })) as { messages?: AnyMsg[]; ['__interrupt__']?: unknown }
 
   // Interrupt path (a resumed run may hit ANOTHER gated tool and pause again —
   // same detection as runOnAgentServer: re-read the thread state rather than
@@ -601,7 +601,7 @@ export async function resumeOnAgentServer(args: {
   // a pending interrupt through the thread's task list too).
   const state = await c.threads.getState(args.threadId)
   const interrupts = (state.tasks ?? []).flatMap((t) => (t as { interrupts?: unknown[] }).interrupts ?? [])
-  const interrupted = Boolean(result.__interrupt__) || interrupts.length > 0
+  const interrupted = Boolean(result['__interrupt__']) || interrupts.length > 0
 
   const allMessages = (result.messages ?? []) as AnyMsg[]
   // Only the messages appended by the resume are new. Guard against the count
@@ -620,11 +620,11 @@ export async function resumeOnAgentServer(args: {
   const resumeExecutedModel = (state.values as { executedModel?: string | null } | undefined)?.executedModel ?? null
   const resolvedModel =
     resumeExecutedModel ?? realModelFromMessages(messages) ?? realModelFromMessages(allMessages)
-  const lastAi = [...messages].reverse().find((m) => (m.type ?? m.role) === 'ai' || (m.type ?? m.role) === 'assistant')
+  const lastAi = messages.toReversed().find((m) => (m.type ?? m.role) === 'ai' || (m.type ?? m.role) === 'assistant')
   const finalText = typeof lastAi?.content === 'string' ? stripSentinel(lastAi.content) : ''
 
   if (interrupted) {
-    const payload = result.__interrupt__ ?? interrupts
+    const payload = result['__interrupt__'] ?? interrupts
     const msg = interruptMessage(payload)
     const pendingTool = pendingToolFromInterrupt(payload)
     steps.push({

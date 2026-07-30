@@ -86,12 +86,12 @@ export async function GET(request: Request) {
     // "GitHub 404 on GET repos/…" = unknown repo or ref (both the tree fetch
     // and the default-branch resolution are GETs): the client named a resource
     // that does not exist for this token → 404, not an upstream failure.
-    if (/^GitHub 404 on GET repos\//.test(message)) {
+    if (message.startsWith('GitHub 404 on GET repos/')) {
       return NextResponse.json({ error: 'repo or ref not found' }, { status: 404 })
     }
     // "GitHub request timed out after …" = the 15s AbortSignal ceiling → 504,
     // consistent with the PgrestError(504) timeout remap in postgrest.ts.
-    if (/^GitHub request timed out after /.test(message)) {
+    if (message.startsWith('GitHub request timed out after ')) {
       return NextResponse.json({ error: 'GitHub timeout' }, { status: 504 })
     }
     return NextResponse.json({ error: 'GitHub error' }, { status: 502 })

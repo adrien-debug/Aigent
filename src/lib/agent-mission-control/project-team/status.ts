@@ -89,14 +89,14 @@ function byNewest(a: TeamRunInput, b: TeamRunInput): number {
 /** Latest run of any status, or `null`. */
 export function pickLatestRun(runs: readonly TeamRunInput[]): TeamRunInput | null {
   if (runs.length === 0) return null
-  return [...runs].sort(byNewest)[0] ?? null
+  return runs.toSorted(byNewest)[0] ?? null
 }
 
 /** Latest run that reached a terminal state, or `null`. */
 export function pickLatestTerminalRun(runs: readonly TeamRunInput[]): TeamRunInput | null {
   const terminal = runs.filter((r) => TERMINAL_RUN_STATUSES.has(r.status))
   if (terminal.length === 0) return null
-  return terminal.sort(byNewest)[0] ?? null
+  return terminal.toSorted(byNewest)[0] ?? null
 }
 
 export interface AgentActivity {

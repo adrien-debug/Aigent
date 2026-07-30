@@ -40,7 +40,7 @@ function isValidId(id: unknown): id is string {
 function isUpstreamTimeout(err: unknown): boolean {
   if (isPgrestTimeout(err)) return true
   if (!(err instanceof Error)) return false
-  return /^GitHub request timed out after \d+ms/.test(err.message)
+  return err.message.startsWith('GitHub request timed out after ')
 }
 
 /**
@@ -224,7 +224,7 @@ export async function POST(
       )
     }
     // PR mode: the delivery branch already exists — a clean, retryable outcome.
-    if (/^branch_exists:/.test(message)) {
+    if (message.startsWith('branch_exists:')) {
       return NextResponse.json(
         { error: 'delivery branch already exists — retry (a new short id will be used)' },
         { status: 409 }

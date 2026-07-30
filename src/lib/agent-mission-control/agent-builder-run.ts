@@ -282,7 +282,7 @@ export async function getAgentBuilderRunState(runId: string): Promise<BuilderRun
   const interrupted = interrupts.length > 0
 
   const steps = buildEventsFromMessages(messages)
-  const lastAi = [...messages].reverse().find((m) => (m.type ?? m.role) === 'ai' || (m.type ?? m.role) === 'assistant')
+  const lastAi = messages.toReversed().find((m) => (m.type ?? m.role) === 'ai' || (m.type ?? m.role) === 'assistant')
   const finalText = typeof lastAi?.content === 'string' ? stripSentinel(lastAi.content) : ''
   const draft = extractDraft(messages)
 
@@ -639,7 +639,7 @@ function extractDraft(messages: AnyMsg[]): NormalizeInput['draft'] {
     }
   }
 
-  for (const m of [...messages].reverse()) {
+  for (const m of messages.toReversed()) {
     const type = m.type ?? m.role
     if (type !== 'tool') continue
     const name = m.name ?? (m.tool_call_id ? nameByCallId.get(m.tool_call_id) : undefined)

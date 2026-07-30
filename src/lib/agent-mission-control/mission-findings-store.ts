@@ -35,7 +35,7 @@ export async function getMissionFindings(missionRunId: string): Promise<MissionF
     'GET',
     `mission_findings?${eq('mission_run_id', missionRunId)}&select=*&order=created_at.desc&limit=${MISSION_FINDINGS_LIMIT}`
   )
-  return rows.reverse().map((row) => ({
+  return rows.toReversed().map((row) => ({
     id: row.id as string,
     missionRunId: row.mission_run_id as string,
     copilotId: (row.copilot_id as string | null) ?? null,

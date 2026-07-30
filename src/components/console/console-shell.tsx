@@ -225,7 +225,7 @@ export function ConsoleShell({
             `surface-raised` with every panel, so the frame and the content read
             as one continuous grey and nothing looked layered. Black rail, black
             page, cards lifted above both: one clear hierarchy. */}
-        <aside className="hidden border-r border-line bg-surface-app lg:block">
+        <aside className="hidden border-r border-line-strong bg-[linear-gradient(180deg,#101611_0%,#0f1511_58%,#0c110d_100%)] lg:block">
           <div className="sticky top-0 flex h-screen flex-col">
             {/* Brand band, height-matched to the topbar so the two hairlines
                 read as one continuous rule across the frame. */}
@@ -285,7 +285,7 @@ export function ConsoleShell({
         <div className="flex min-w-0 flex-col">
           {/* Topbar + compact rail travel together: below `lg` the sidebar is
               gone, so the strip IS the navigation and must stay reachable. */}
-          <div className="sticky top-0 z-20 bg-surface-app/95 backdrop-blur">
+          <div className="sticky top-0 z-20 bg-[rgb(14_19_15/0.92)] backdrop-blur">
             {/* The hairline spans the whole column (it is the frame's rule); the
                 ROW inside it carries the same `max-w-[1552px]` cap and the same
                 padding as `<main>`, so the title and the state cluster stay on

@@ -181,6 +181,37 @@
   --chart-track: #16181a; /* unfilled part of a gauge arc or ring */
 }
 
+/* Overview editorial direction — deliberately scoped to `/admin`'s overview.
+   It remaps the console's semantic roles instead of teaching every child
+   component a second set of raw colours. Other console routes stay unchanged. */
+.overview-editorial {
+  --color-white: #172019;
+  --color-surface-app: #f2f2ec;
+  --color-surface-raised: #fdfcf8;
+  --color-surface-sunken: #eef2ea;
+  --color-surface-hover: #edf2e9;
+  --color-surface-selected: #e4f0de;
+  --color-surface-overlay: #f8faf4;
+  --color-content: #172019;
+  --color-content-muted: #5c645d;
+  --color-content-subtle: #737b74;
+  --color-content-faint: #949a94;
+  --color-line: rgb(23 32 25 / 10%);
+  --color-line-strong: rgb(23 32 25 / 20%);
+  --accent-surface: color-mix(in oklab, var(--color-accent-700) 10%, white);
+  --accent-line: color-mix(in oklab, var(--color-accent-800) 34%, transparent);
+  --state-danger-surface: color-mix(in oklab, var(--state-danger-solid) 7%, white);
+  --shadow-card-sm: 0 1px 1px rgb(23 32 25 / 4%), 0 8px 24px -18px rgb(23 32 25 / 25%);
+  --shadow-card-lg: 0 1px 2px rgb(23 32 25 / 5%), 0 20px 50px -28px rgb(23 32 25 / 35%);
+  --shadow-well: inset 0 1px 2px rgb(23 32 25 / 8%);
+  --chart-line: var(--color-accent-700);
+  --chart-fill: color-mix(in oklab, var(--color-accent-600) 24%, transparent);
+  --chart-fill-fade: color-mix(in oklab, var(--color-accent-600) 0%, transparent);
+  --chart-grid: rgb(23 32 25 / 14%);
+  --chart-track: #dce3da;
+  color: var(--color-content);
+}
+
 @utility no-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;

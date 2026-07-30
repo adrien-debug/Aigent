@@ -142,7 +142,7 @@ async function loadMessages(conversationId: string): Promise<ProjectBuilderMessa
     'GET',
     `project_builder_messages?${eq('conversation_id', conversationId)}&select=*&order=created_at.desc&limit=${MAX_MESSAGES_LOAD}`
   )
-  return rows.map(rowToMessage).reverse()
+  return rows.map(rowToMessage).toReversed()
 }
 
 /**
@@ -383,7 +383,7 @@ async function runCompletion(
   const toolCalls =
     toolCallsByIndex.size > 0
       ? Array.from(toolCallsByIndex.entries())
-          .sort(([a], [b]) => a - b)
+          .toSorted(([a], [b]) => a - b)
           .map(([, v]) => v)
       : undefined
 
@@ -1073,10 +1073,7 @@ export async function confirmProjectBuilderDraftMaterialization(
   await pgrest('PATCH', `project_builder_conversations?${eq('id', conversation.id)}`, {
     status: 'draft_created',
     langgraph_thread_id: null,
-    latest_preview: {
-      ...(preview ?? {}),
-      createdCopilotId,
-    },
+    latest_preview: preview ? { ...preview, createdCopilotId } : { createdCopilotId },
     updated_at: now,
   })
 

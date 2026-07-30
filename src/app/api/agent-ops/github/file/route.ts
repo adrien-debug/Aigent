@@ -130,20 +130,24 @@ export async function GET(request: Request) {
     // an unknown repo/path/ref is the CLIENT naming a resource that doesn't
     // exist (404), not GitHub being down (502); a stalled GitHub API is a
     // gateway timeout (504). Keep these anchors in sync with github.ts.
-    if (/^invalid (repo|path|ref)/.test(message)) {
+    if (
+      message.startsWith('invalid repo')
+      || message.startsWith('invalid path')
+      || message.startsWith('invalid ref')
+    ) {
       // github.ts's own validators are stricter than this route's schemas
       // (e.g. they reject ".." inside repo/ref segments) — that's still a
       // client-input fault, never an upstream failure.
       return NextResponse.json({ error: 'invalid repo, path or ref' }, { status: 400 })
     }
-    if (/^GitHub 404 on /.test(message)) {
+    if (message.startsWith('GitHub 404 on ')) {
       return NextResponse.json({ error: 'file not found' }, { status: 404 })
     }
-    if (/^not a file: /.test(message)) {
+    if (message.startsWith('not a file: ')) {
       // The path exists but is a dir/submodule/symlink — no file resource here.
       return NextResponse.json({ error: 'not a file' }, { status: 404 })
     }
-    if (/^GitHub request timed out after /.test(message)) {
+    if (message.startsWith('GitHub request timed out after ')) {
       return NextResponse.json({ error: 'GitHub timeout' }, { status: 504 })
     }
     return NextResponse.json({ error: 'failed to read file' }, { status: 502 })

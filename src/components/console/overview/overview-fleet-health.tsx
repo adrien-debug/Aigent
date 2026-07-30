@@ -1,9 +1,8 @@
 import type { DashboardKpis } from '@/lib/agent-mission-control/dashboard-overview'
 import { BarBreakdown, type BarBreakdownRow } from '@/components/console/charts/bar-breakdown'
 import { cn } from '@/components/ui/cn'
-import { consolePanelChrome } from '../console-variants'
-import { Unavailable } from '../screen-primitives'
-import { overviewTypography } from './overview-helpers'
+import { consoleTypography } from '../console-variants'
+import { Section, Unavailable } from '../screen-primitives'
 
 export function OverviewFleetHealth({
   kpis,
@@ -45,16 +44,14 @@ export function OverviewFleetHealth({
       : null
 
   return (
-    <section className={cn(consolePanelChrome('secondary'), className)}>
-      <header className="border-b border-line px-4 py-3.5 sm:px-5">
-        <h2 className={overviewTypography.zoneTitle}>Fleet health</h2>
-        <p className={cn('mt-0.5', overviewTypography.zoneDescription)}>
-          {executableLabel ?? 'Executable share and blockers at a glance'}
-        </p>
-      </header>
-
+    <Section
+      title="Fleet health"
+      description={executableLabel ?? 'Executable share and blockers at a glance'}
+      presentation="editorial"
+      className={cn('h-full rounded-2xl', className)}
+    >
       {rows.length === 0 ? (
-        <p className={cn('px-5 py-6', overviewTypography.zoneDescription)}>
+        <p className={cn('px-4 py-6', consoleTypography.bodySm, 'text-content-muted')}>
           {kpis.productionAgents === null && kpis.executableNow === null ? (
             <Unavailable />
           ) : (
@@ -64,6 +61,6 @@ export function OverviewFleetHealth({
       ) : (
         <BarBreakdown rows={rows} total={scaleBase} ariaLabel="Fleet health breakdown" />
       )}
-    </section>
+    </Section>
   )
 }

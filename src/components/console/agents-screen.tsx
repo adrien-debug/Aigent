@@ -228,7 +228,7 @@ function tally(agents: AvailableAgent[], keyOf: (agent: AvailableAgent) => strin
     counts.set(key, (counts.get(key) ?? 0) + 1)
   }
   return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
+    .toSorted((a, b) => b[1] - a[1])
     .map(([label, count]) => ({ label, count }))
 }
 
@@ -254,7 +254,7 @@ function FleetTable({ agents }: { agents: AvailableAgent[] }) {
   const [groupByLifecycle, setGroupByLifecycle] = useState(false)
 
   const lifecycleValues = useMemo(
-    () => [...new Set(agents.map((a) => a.lifecycleStatus))].sort(),
+    () => [...new Set(agents.map((a) => a.lifecycleStatus))].toSorted(),
     [agents]
   )
 
@@ -273,8 +273,7 @@ function FleetTable({ agents }: { agents: AvailableAgent[] }) {
   }, [agents, query, execFilter, lifecycleFilter])
 
   const sorted = useMemo(() => {
-    const rows = [...filtered]
-    rows.sort((a, b) => {
+    return filtered.toSorted((a, b) => {
       switch (sortKey) {
         case 'name':
           return a.name.localeCompare(b.name)
@@ -299,7 +298,6 @@ function FleetTable({ agents }: { agents: AvailableAgent[] }) {
         }
       }
     })
-    return rows
   }, [filtered, sortKey])
 
   const groups: { key: string; rows: AvailableAgent[] }[] = groupByLifecycle

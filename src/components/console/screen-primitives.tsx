@@ -80,6 +80,7 @@ export function Section({
   bodyClassName,
   scroll,
   priority = 'secondary',
+  presentation = 'default',
 }: {
   title: string
   description?: string
@@ -99,16 +100,38 @@ export function Section({
    * no caller has to opt in.
    */
   priority?: 'primary' | 'secondary'
+  /** Opt-in roomy header treatment for editorial landing screens. */
+  presentation?: 'default' | 'editorial'
 }) {
   return (
     <section className={cn(consolePanelChrome(priority), className)}>
-      <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
+      <div
+        className={cn(
+          'flex items-center justify-between gap-3 border-b border-line',
+          presentation === 'editorial' ? 'px-5 py-4' : 'px-4 py-2.5'
+        )}
+      >
         <div className="min-w-0">
-          <Heading level={2} className={cn('truncate', consoleTypography.panelTitle)}>
+          <Heading
+            level={2}
+            className={cn(
+              'truncate',
+              presentation === 'editorial'
+                ? 'text-[15px]/6 font-semibold tracking-tight text-content'
+                : consoleTypography.panelTitle
+            )}
+          >
             {title}
           </Heading>
           {description ? (
-            <p className={cn('mt-0.5 truncate', consoleTypography.panelDescription)}>{description}</p>
+            <p
+              className={cn(
+                'mt-0.5 truncate',
+                presentation === 'editorial' ? 'text-xs/5 text-content-muted' : consoleTypography.panelDescription
+              )}
+            >
+              {description}
+            </p>
           ) : null}
         </div>
         {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
