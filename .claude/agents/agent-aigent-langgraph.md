@@ -12,10 +12,9 @@ effort: low
 **Dans ton champ** : tout `src/langgraph/**` · dans `src/lib/agent-mission-control/` :
 `runner.ts`, `langgraph-{server,client,assistants}.ts`, `resolve-run-assistant.ts`,
 `model-{router,fallbacks,pricing}.ts`, `tool-handlers.ts`, `runner-errors.ts`, `registry/` ·
-les routes `/api/agent-ops/{architect*,langgraph/*}`,
-`/api/agent-ops/copilots/[copilotId]/{run,runs/[runId]/resume}` · et les surfaces
-consommateur en auth bearer `/api/runtime/v1/agents/[agentId]/runs` et
-`/api/runtime/v1/runs/[runId]/{events,resume}`.
+`/api/agent-ops/{architect*,langgraph/*}` et
+`/api/agent-ops/copilots/[copilotId]/{run,runs/[runId]/resume}` · les surfaces consommateur en
+auth bearer `/api/runtime/v1/agents/[agentId]/runs` et `/api/runtime/v1/runs/[runId]/{events,resume}`.
 
 **Hors champ** : cycle de vie, promotion, shadow/replay, improvement-loop et
 `project-builder-conversation.ts` → fiche `agent-aigent-lifecycle`. PostgREST, migrations,
@@ -77,14 +76,13 @@ n'est alors imposé** — un plafond contre un tarif inventé serait pire que pa
   ou **LEGACY** si ni `tools` ni `systemPrompt` (5 outils `DEFAULT_TOOL_IDS`,
   `DEFAULT_CONFIRM_REQUIRED = {draft_copilot_spec}`, pas de plafond).
 
-**Registre** : autorité canonique `registry/tools.ts` (`TOOL_REGISTRY`, `TOOL_IDS`),
-exécutables dans `src/langgraph/tool-registry.mjs` (`REGISTRY`, `buildTool`,
-`buildToolsFromConfig`). Familles : repo GitHub (gardé par `isSecretPath`), `http_get`
-(allowlist + anti-SSRF sur redirects), lectures PostgREST, `draft_copilot_spec` (write gaté,
-jamais persisté par le graphe), `count_words`, market, realestate. **Ne recopie pas le compte
-d'outils** : `check:registry-integrity` et `check:registry-parity` le recalculent et cassent si
-canonique et exécutable divergent. `copilot-behavior.ts` **importe** `TOOL_IDS` — plus de liste
-d'ids recopiée.
+**Registre** : autorité canonique `registry/tools.ts` (`TOOL_REGISTRY`, `TOOL_IDS`), exécutables
+dans `src/langgraph/tool-registry.mjs` (`REGISTRY`, `buildTool`, `buildToolsFromConfig`).
+Familles : repo GitHub (gardé par `isSecretPath`), `http_get` (allowlist + anti-SSRF sur
+redirects), lectures PostgREST, `draft_copilot_spec` (write gaté, jamais persisté par le
+graphe), `count_words`, market, realestate. **Ne recopie pas le compte d'outils** :
+`check:registry-integrity` et `check:registry-parity` le recalculent et cassent si canonique et
+exécutable divergent. `copilot-behavior.ts` **importe** `TOOL_IDS` — plus de liste recopiée.
 
 ## Model routing — multi-provider, ne régresse pas en « OpenAI-only »
 
@@ -144,21 +142,19 @@ requête, sinon fail-closed ; un fallback est toujours marqué. `model-pricing.t
   détecte** — c'est une discipline de script.
 - **Liveness assistant** : `langgraphjs dev` garde les assistants en mémoire ; un restart les
   efface alors que la DB conserve `assistant_id`. `resolve-run-assistant.ts` vérifie
-  (`assistants.get`) et re-provisionne à la volée, fail-loud ; cascade copilot → projet →
-  graphe nu. Ids déterministes par hash, `create(ifExists:'do_nothing')` **suivi d'un `update`
-  inconditionnel du config** (sinon un assistant existant garde une config périmée). Réparation
+  (`assistants.get`) et re-provisionne à la volée, fail-loud ; cascade copilot → projet → graphe
+  nu. Ids déterministes par hash, `create(ifExists:'do_nothing')` **suivi d'un `update`
+  inconditionnel du config** — sinon un assistant existant garde une config périmée. Réparation
   en lot : `scripts/reprovision-assistants.ts`.
 - **Endpoint & auth du serveur** : `agent-server-endpoint.mjs` refuse un endpoint distant hors
-  production **et** un endpoint local en production — `.env.local` pointe sur un hôte distant,
-  donc surcharge `LANGGRAPH_API_URL` dans tout script de provisioning. L'auth est le header
-  `x-agent-key`, fail-closed des deux côtés (`langgraph-client.ts` / `src/langgraph/auth.mjs`) :
-  503 sans `LANGGRAPH_SERVER_SECRET` sur `/api/agent-ops/langgraph/*`, 503 sans
-  `AMC_DATA_SOURCE=gpu1` + `OPENAI_API_KEY` sur `architect/*`.
+  production **et** un endpoint local en production — `.env.local` vise un hôte distant, donc
+  surcharge `LANGGRAPH_API_URL` dans tout script de provisioning. Auth = header `x-agent-key`,
+  fail-closed des deux côtés (`langgraph-client.ts` / `src/langgraph/auth.mjs`).
 - **Rien d'inventé sur un run** : le modèle exécuté est lu du canal `executedModel` ou de
-  `response_metadata`, sinon du modèle configuré ; les deux absents → `null` +
-  `modelUnverified` (le SDK ne remonte pas les clés custom). Côté router, `modelVerified` n'est
-  vrai que si le provider a rapporté le modèle servi. `costFromMessages` rend `null` sans
-  `usage_metadata`, jamais un 0 fabriqué.
+  `response_metadata`, sinon du modèle configuré ; les deux absents → `null` + `modelUnverified`
+  (le SDK ne remonte pas les clés custom). Côté router, `modelVerified` n'est vrai que si le
+  provider a rapporté le modèle servi. `costFromMessages` rend `null` sans `usage_metadata`,
+  jamais un 0 fabriqué.
 - **`recursionLimitFor`** dérive la limite du SDK de `maxSteps` (`NODES_PER_STEP`) ;
   sous-compter provoque un `GraphRecursionError` en plein run.
 - **Deux process Node** : les `.ts` du lib sont `import 'server-only'` ; les `.mjs` du graphe
@@ -166,15 +162,14 @@ requête, sinon fail-closed ; un fallback est toujours marqué. `model-pricing.t
   et `forbiddenEntryTargetsTool` **dupliqué volontairement** entre `forbidden-actions.ts` et
   `agent-builder-graph.mjs` : changer l'un sans l'autre fait diverger les deux chemins.
 - **Erreurs typées → HTTP** (`runner-errors.ts`) : `NotFoundError`, `UnsupportedRuntimeError`,
-  `VersionNotServingError`, `ModelRouterError` et ses filles `ProviderUnavailableError` /
-  `ModelAccessError`. N'invente pas de statut à partir du texte d'une erreur.
+  `VersionNotServingError`, `ModelRouterError` + `ProviderUnavailableError` / `ModelAccessError`.
+  N'invente pas de statut à partir du texte d'une erreur.
 - **La description d'un outil porte le contrat que le schéma ne dit pas.** Sur le chemin
   LangGraph les outils ont un vrai schéma Zod ; sur le chemin direct `toRouterTool` envoie un
-  schéma **vide** (`properties: {}`, `additionalProperties: true`) — là, la description est
-  100 % du contrat.
+  schéma **vide** — là, la description est 100 % du contrat.
 - **PR GitHub — nuance.** Le release proposal d'`agent-builder-run.ts` porte
-  `prCreation: 'ships-next'` : il décrit des `proposedFiles` et n'écrit rien. Ce n'est **pas**
-  vrai au niveau du repo : `/api/agent-ops/projects/:id/push-agent` a un vrai chemin d'écriture
+  `prCreation: 'ships-next'` : il décrit des `proposedFiles` et n'écrit rien. Faux au niveau du
+  repo, en revanche : `/api/agent-ops/projects/:id/push-agent` a un vrai chemin d'écriture
   GitHub, armé par le double verrou `confirm: true` **et** `GITHUB_PUSH_ENABLED=1` (sinon
   dry-run).
 
