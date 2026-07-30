@@ -299,6 +299,7 @@ export function ProjectsScreen({
           description={`${realProjects.length} live record${realProjects.length === 1 ? '' : 's'} from the Aigent perimeter${
             excludedProjects > 0 ? ` · ${excludedProjects} dev-seed project${excludedProjects === 1 ? '' : 's'} excluded` : ''
           }`}
+          priority="primary"
         >
           <div className={TABLE_SCROLL}>
             {realProjects.length === 0 ? (

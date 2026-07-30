@@ -103,3 +103,4 @@ Console screens are server components by default. `agents-screen`,
 
 Visual tokens live in `src/theme.css` as the **current** console starting point;
 this workspace is free design (see `AGENTS.md`) — no mandated palette or kit.
+Operational guide: [`docs/console-design-system.md`](console-design-system.md).

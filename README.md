@@ -141,8 +141,8 @@ Dashboard: http://100.88.191.49:9010/dashboard?id=agent-mission-control (Tailsca
 One rule, one file — nothing is restated:
 
 - **`CLAUDE.md`** — git, branching, push, deployment, secrets.
-- **`AGENTS.md`** — technical invariants: port, runtime, LangGraph, design
-  tokens, doctrine hierarchy.
+- **`AGENTS.md`** — technical invariants: port, runtime, LangGraph, doctrine hierarchy.
+- **`docs/console-design-system.md`** — local console tokens, primitives, variants (not global Hearst doctrine).
 - **`docs/metrics-canon.md`** — how a number is allowed to be displayed.
 - **`docs/agent-authoring.md`** — the authoring flow and the two execution paths.
 - **`docs/BACKEND-GPU1.md`** — the Postgres/PostgREST perimeter.

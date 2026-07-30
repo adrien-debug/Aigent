@@ -50,11 +50,11 @@ export const Select = forwardRef(function Select(
           '[&_optgroup]:font-semibold',
           // Typography — `*:` also styles the popup options, which the browser
           // renders outside this element's own cascade.
-          'text-xs text-white *:bg-zinc-900 *:text-white',
+          'text-xs text-content *:bg-surface-raised *:text-content',
           // Border
-          'border border-white/10 data-hover:border-white/20',
+          'border border-line data-hover:border-line-strong',
           // Background color
-          'bg-white/5',
+          'bg-surface-sunken',
           // Hide default focus styles (the ring above replaces them)
           'focus:outline-hidden',
           // Invalid state

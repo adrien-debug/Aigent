@@ -665,6 +665,7 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
         <Section
           title="Action queue"
           description="Highest-priority operator decisions"
+          priority="primary"
           scroll="md"
         >
           {overview.actionItems.length === 0 ? (

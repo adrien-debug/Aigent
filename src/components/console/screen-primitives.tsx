@@ -1,8 +1,15 @@
 import { Heading } from '@/components/ui/heading'
+import { Link } from '@/components/ui/link'
 import { cn } from '@/components/ui/cn'
 import type { StatusDotTone } from '@/components/ui/status-dot'
 import type { AvailableAgentStatus } from '@/lib/agent-mission-control/available-agents'
 import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
+import {
+  consoleCardChrome,
+  consolePanelChrome,
+  consoleSurfaceClasses,
+  consoleTypography,
+} from './console-variants'
 
 /**
  * The console's shared visual grammar. Server components only: props in,
@@ -34,8 +41,8 @@ export function ScreenHeader({
   return (
     <div className={cn('flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between', className)}>
       <div className="min-w-0">
-        <Heading className="truncate text-xl/7 font-semibold tracking-tight text-white">{title}</Heading>
-        {description ? <p className="mt-1 truncate text-[13px]/5 text-content-muted">{description}</p> : null}
+        <Heading className={cn('truncate', consoleTypography.screenTitle)}>{title}</Heading>
+        {description ? <p className={cn('mt-1 truncate', consoleTypography.screenDescription)}>{description}</p> : null}
       </div>
       {/* `flex-wrap`: the agent-detail header passes three non-shrinking controls
           here. Without wrapping they overflowed the column on a narrow viewport
@@ -94,27 +101,15 @@ export function Section({
   priority?: 'primary' | 'secondary'
 }) {
   return (
-    <section
-      className={cn(
-        // A FLAT surface, not a gradient down to the page colour. The gradient
-        // version faded the bottom of every panel into pure black, so a card
-        // dissolved into the background exactly where it was supposed to end —
-        // the opposite of separating surface from ground. The panel now holds
-        // one solid plane and the edge lighting in `--shadow-card-*` does the
-        // separating.
-        'flex min-w-0 flex-col overflow-hidden rounded-xl border',
-        priority === 'primary'
-          ? 'border-line-strong bg-surface-overlay shadow-[var(--shadow-card-lg)]'
-          : 'border-line bg-surface-raised shadow-[var(--shadow-card-sm)]',
-        className
-      )}
-    >
+    <section className={cn(consolePanelChrome(priority), className)}>
       <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
         <div className="min-w-0">
-          <Heading level={2} className="truncate text-[13px]/5 font-semibold tracking-wide text-white">
+          <Heading level={2} className={cn('truncate', consoleTypography.panelTitle)}>
             {title}
           </Heading>
-          {description ? <p className="mt-0.5 truncate text-[11px]/4 text-content-muted">{description}</p> : null}
+          {description ? (
+            <p className={cn('mt-0.5 truncate', consoleTypography.panelDescription)}>{description}</p>
+          ) : null}
         </div>
         {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
       </div>
@@ -152,12 +147,9 @@ export function Metric({
   return (
     <div className={cn('flex min-w-0 items-start justify-between gap-3 px-4 py-4', className)}>
       <div className="min-w-0">
-        <p className="truncate text-[10px]/4 font-semibold uppercase tracking-[0.14em] text-content-subtle">{label}</p>
-        {/* The figure is the reason the card exists, so it is the biggest thing
-            in it by a clear margin — 30px against a 10px label. At the previous
-            24px/light it competed with its own gauge instead of leading. */}
-        <p className="mt-2 truncate text-[30px]/9 font-light tabular-nums tracking-tight text-white">{value}</p>
-        {detail ? <p className="mt-1.5 truncate text-[11px]/4 text-content-subtle">{detail}</p> : null}
+        <p className={cn('truncate', consoleTypography.eyebrow)}>{label}</p>
+        <p className={cn('mt-2 truncate', consoleTypography.metric)}>{value}</p>
+        {detail ? <p className={cn('mt-1.5 truncate', consoleTypography.caption)}>{detail}</p> : null}
       </div>
       {aside ? <div className="shrink-0 self-center">{aside}</div> : null}
     </div>
@@ -186,17 +178,7 @@ export function KpiCard({
   priority?: 'primary' | 'secondary'
 }) {
   return (
-    <div
-      className={cn(
-        // One solid plane, same as `Section` — see the note there for why the
-        // gradient-to-page-colour version was wrong.
-        'min-w-0 rounded-xl border',
-        priority === 'primary'
-          ? 'border-line-strong bg-surface-overlay shadow-[var(--shadow-card-lg)]'
-          : 'border-line bg-surface-raised shadow-[var(--shadow-card-sm)]',
-        className
-      )}
-    >
+    <div className={cn(consoleCardChrome(priority), className)}>
       <Metric label={label} value={value} detail={detail} aside={aside} />
     </div>
   )
@@ -243,19 +225,19 @@ export function PanelRow({
   selected?: boolean
   className?: string
 }) {
-  const body = (
+  const rowContent = (
     <>
       {leading ? <div className="flex shrink-0 items-center">{leading}</div> : null}
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[13px]/5 font-medium text-white">{title}</div>
-        {subtitle ? <div className="mt-0.5 truncate text-[11px]/4 text-content-muted">{subtitle}</div> : null}
+        <div className={cn('truncate', consoleTypography.bodySmMedium)}>{title}</div>
+        {subtitle ? <div className={cn('mt-0.5 truncate', consoleTypography.captionMuted)}>{subtitle}</div> : null}
       </div>
       {values && values.length > 0 ? (
         <div className="flex shrink-0 items-center gap-4 text-right">
           {values.map((entry) => (
             <div key={entry.label} className="min-w-0">
-              <div className="text-[13px]/5 tabular-nums text-white">{entry.value}</div>
-              <div className="text-[10px]/4 uppercase tracking-widest text-content-subtle">{entry.label}</div>
+              <div className={cn(consoleTypography.bodySm, 'tabular-nums text-white')}>{entry.value}</div>
+              <div className={consoleTypography.eyebrow}>{entry.label}</div>
             </div>
           ))}
         </div>
@@ -269,20 +251,12 @@ export function PanelRow({
     selected && 'bg-surface-selected'
   )
 
-  // A PLAIN `<a>`, not the Catalyst `Link`.
-  //
-  // `Link` wraps next/link in Headless UI's `DataInteractive`, which forwards
-  // interaction props onto its child. `body` here is a FRAGMENT, and the pair
-  // threw `Passing props on "Fragment"!` on every render of every screen that
-  // uses a PanelRow — caught by the error boundary, but a real console error and
-  // a real broken render path. Client-side navigation is not worth that; the row
-  // goes back to a document navigation, which has always worked.
   return href ? (
-    <a href={href} className={cn(shared, 'transition-colors hover:bg-surface-hover', className)}>
-      {body}
-    </a>
+    <Link href={href} className={cn(shared, 'transition-colors hover:bg-surface-hover', className)}>
+      <span className="flex min-w-0 w-full items-center gap-3">{rowContent}</span>
+    </Link>
   ) : (
-    <div className={cn(shared, className)}>{body}</div>
+    <div className={cn(shared, className)}>{rowContent}</div>
   )
 }
 
@@ -419,8 +393,8 @@ export function EmptyState({
 }) {
   return (
     <div className={cn('px-4 py-10 text-center', className)}>
-      <p className="text-[13px]/5 text-content-muted">{title}</p>
-      {description ? <p className="mt-1 text-[11px]/4 text-content-faint">{description}</p> : null}
+      <p className={cn(consoleTypography.bodySm, 'text-content-muted')}>{title}</p>
+      {description ? <p className={cn('mt-1', consoleTypography.caption, 'text-content-faint')}>{description}</p> : null}
     </div>
   )
 }
@@ -443,13 +417,10 @@ export function ErrorState({
   return (
     <div
       role="alert"
-      className={cn(
-        'rounded-xl border border-[var(--state-danger-solid-line)] bg-[var(--state-danger-surface)] px-4 py-3.5 shadow-[var(--shadow-card-sm)]',
-        className
-      )}
+      className={cn('rounded-xl px-4 py-3.5', consoleSurfaceClasses('danger'), className)}
     >
-      <p className="text-[13px]/5 font-semibold text-[var(--state-danger-text)]">{title}</p>
-      {description ? <p className="mt-1 text-[11px]/4 text-content-muted">{description}</p> : null}
+      <p className={cn(consoleTypography.bodySm, 'font-semibold text-[var(--state-danger-text)]')}>{title}</p>
+      {description ? <p className={cn('mt-1', consoleTypography.captionMuted)}>{description}</p> : null}
       {actions ? <div className="mt-3 flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
   )
@@ -473,15 +444,14 @@ export function DegradedBanner({
   return (
     <div
       role="status"
-      className={cn(
-        'rounded-xl border border-[var(--state-danger-solid-line)] bg-[var(--state-danger-surface)] px-4 py-3 shadow-[var(--shadow-card-sm)]',
-        className
-      )}
+      className={cn('rounded-xl px-4 py-3', consoleSurfaceClasses('danger'), className)}
     >
-      <p className="text-[11px]/4 font-semibold uppercase tracking-widest text-[var(--state-danger-text)]">{title}</p>
+      <p className={cn(consoleTypography.caption, 'font-semibold uppercase tracking-widest text-[var(--state-danger-text)]')}>
+        {title}
+      </p>
       <ul className="mt-1.5 space-y-0.5">
         {messages.map((message) => (
-          <li key={message} className="text-[11px]/4 text-content-muted">
+          <li key={message} className={consoleTypography.captionMuted}>
             {message}
           </li>
         ))}

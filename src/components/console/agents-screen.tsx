@@ -729,6 +729,7 @@ export function AgentsScreen({
         <Section
           title="Runtime catalogue"
           description="Search, filter, sort and group — lifecycle and execution truth stay separate"
+          priority="primary"
           actions={
             <span className="shrink-0 text-[11px]/4 tabular-nums text-content-subtle">
               {unread ? UNAVAILABLE_LABEL : `${total} rows`}

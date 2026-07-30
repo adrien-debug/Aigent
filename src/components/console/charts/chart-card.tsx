@@ -1,4 +1,5 @@
 import { cn } from '@/components/ui/cn'
+import { consolePanelChrome, consoleTypography } from '../console-variants'
 import { NoDataChart } from './no-data-chart'
 
 /**
@@ -41,13 +42,13 @@ export function ChartCard({
   maxHeight?: 'max-h-56' | 'max-h-80' | 'max-h-[26rem]'
 }) {
   return (
-    <div className={cn('flex min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-surface-raised', className)}>
+    <div className={cn(consolePanelChrome('secondary'), className)}>
       <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
         <div className="min-w-0">
-          <p className="truncate text-xs/5 font-semibold text-white">{title}</p>
-          {subtitle ? <p className="mt-0.5 truncate text-[11px]/4 text-content-subtle">{subtitle}</p> : null}
+          <p className={cn('truncate', consoleTypography.panelTitle)}>{title}</p>
+          {subtitle ? <p className={cn('mt-0.5 truncate', consoleTypography.caption)}>{subtitle}</p> : null}
         </div>
-        <p className="shrink-0 text-[10px]/4 uppercase tracking-widest text-content-faint">Source · {source}</p>
+        <p className={cn('shrink-0', consoleTypography.tableCaption)}>Source · {source}</p>
       </div>
       <div className={cn('min-w-0 overflow-hidden px-3 py-3', maxHeight)}>
         {isEmpty ? <NoDataChart detail={emptyDetail} /> : children}

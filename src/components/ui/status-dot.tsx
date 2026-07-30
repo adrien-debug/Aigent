@@ -14,9 +14,9 @@ const TONES = {
   /** The one filled, coloured-for-failure dot — the system's single non-accent hue. */
   negative: { dot: 'bg-[var(--state-danger-solid)]', text: 'text-[var(--state-danger-text)]' },
   /** Unfilled ring: nothing was measured yet, or the check does not apply. Never implies failure. */
-  neutral: { dot: 'ring-1 ring-zinc-400 dark:ring-zinc-500', text: 'text-zinc-500 dark:text-zinc-400' },
-  /** Filled zinc — actively running right now, distinct from both outcomes and from "not measured". */
-  pending: { dot: 'bg-zinc-400 dark:bg-zinc-500', text: 'text-zinc-500 dark:text-zinc-400' },
+  neutral: { dot: 'ring-1 ring-content-subtle', text: 'text-content-subtle' },
+  /** Filled neutral — actively running right now, distinct from both outcomes and from "not measured". */
+  pending: { dot: 'bg-content-subtle', text: 'text-content-subtle' },
 } as const
 
 export type StatusDotTone = keyof typeof TONES

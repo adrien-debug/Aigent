@@ -473,6 +473,7 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
         <Section
           title="Recent runs"
           description={`The ${detail.runs.length} most recent runs loaded for this agent`}
+          priority="primary"
           scroll="lg"
           className="md:col-span-2 md:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
         >

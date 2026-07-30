@@ -43,18 +43,18 @@ const styles = {
   outline: [
     // Base
     'border-zinc-950/10 text-zinc-950 data-active:bg-zinc-950/2.5 data-hover:bg-zinc-950/2.5',
-    // Dark mode
-    'dark:border-white/15 dark:text-white dark:[--btn-bg:transparent] dark:data-active:bg-white/5 dark:data-hover:bg-white/5',
+    // Dark mode — semantic console tokens
+    'dark:border-line-strong dark:text-content dark:[--btn-bg:transparent] dark:data-active:bg-surface-hover/60 dark:data-hover:bg-surface-hover/60',
     // Icon
-    '[--btn-icon:var(--color-zinc-500)] data-active:[--btn-icon:var(--color-zinc-700)] data-hover:[--btn-icon:var(--color-zinc-700)] dark:data-active:[--btn-icon:var(--color-zinc-400)] dark:data-hover:[--btn-icon:var(--color-zinc-400)]',
+    '[--btn-icon:var(--color-zinc-500)] data-active:[--btn-icon:var(--color-zinc-700)] data-hover:[--btn-icon:var(--color-zinc-700)] dark:[--btn-icon:var(--color-content-subtle)] dark:data-active:[--btn-icon:var(--color-content-muted)] dark:data-hover:[--btn-icon:var(--color-content-muted)]',
   ],
   plain: [
     // Base
     'border-transparent text-zinc-950 data-active:bg-zinc-950/5 data-hover:bg-zinc-950/5',
-    // Dark mode
-    'dark:text-white dark:data-active:bg-white/10 dark:data-hover:bg-white/10',
+    // Dark mode — semantic console tokens
+    'dark:text-content dark:data-active:bg-surface-hover/60 dark:data-hover:bg-surface-hover/60',
     // Icon
-    '[--btn-icon:var(--color-zinc-500)] data-active:[--btn-icon:var(--color-zinc-700)] data-hover:[--btn-icon:var(--color-zinc-700)] dark:[--btn-icon:var(--color-zinc-500)] dark:data-active:[--btn-icon:var(--color-zinc-400)] dark:data-hover:[--btn-icon:var(--color-zinc-400)]',
+    '[--btn-icon:var(--color-zinc-500)] data-active:[--btn-icon:var(--color-zinc-700)] data-hover:[--btn-icon:var(--color-zinc-700)] dark:[--btn-icon:var(--color-content-subtle)] dark:data-active:[--btn-icon:var(--color-content-muted)] dark:data-hover:[--btn-icon:var(--color-content-muted)]',
   ],
   // A `plain` trigger for a destructive flow (e.g. "Delete…" in a page header):
   // the fill stays neutral — a solid red here would outshout an act that isn't
@@ -97,8 +97,8 @@ const styles = {
     // at ~16:1 while white would be illegible. NO glow: the pill is a coloured
     // surface, not an emitter (see the no-glow rule in theme.css).
     accent: [
-      'text-zinc-950 [--btn-hover-overlay:var(--color-zinc-950)]/10 [--btn-bg:var(--color-accent-500)] [--btn-border:var(--color-accent-600)]/90',
-      '[--btn-icon:var(--color-zinc-900)] data-active:[--btn-icon:var(--color-zinc-950)] data-hover:[--btn-icon:var(--color-zinc-950)]',
+      'text-content-on-accent [--btn-hover-overlay:var(--color-zinc-950)]/10 [--btn-bg:var(--color-accent-500)] [--btn-border:var(--color-accent-600)]/90',
+      '[--btn-icon:var(--color-content-on-accent)] data-active:[--btn-icon:var(--color-content-on-accent)] data-hover:[--btn-icon:var(--color-content-on-accent)]',
     ],
     // The ONE non-accent hue, on the `--state-danger-*` roles (theme.css).
     // Destructive actions (delete, rollback) — never a second decorative

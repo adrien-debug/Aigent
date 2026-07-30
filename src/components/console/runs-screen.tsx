@@ -502,6 +502,7 @@ export function RunsScreen({ data, filters = DEFAULT_RUNS_FILTERS }: { data: Run
         <Section
           title="Run activity"
           description={`${filteredRuns.length} of ${data.runs.length} loaded runs shown · table capped at ${data.tableRowCap}`}
+          priority="primary"
         >
           <div className={TABLE_SCROLL}>
             {filteredRuns.length === 0 ? (

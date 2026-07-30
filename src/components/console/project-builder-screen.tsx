@@ -518,6 +518,7 @@ export function ProjectBuilderScreen({
         <Section
           title="Architect conversation"
           description="The mission, its tools and its approval policy are settled here"
+          priority="primary"
           className="h-[70vh] min-h-[420px] xl:h-auto xl:min-h-0"
           bodyClassName="flex min-h-0 flex-1 flex-col"
         >

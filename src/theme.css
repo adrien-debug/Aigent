@@ -64,19 +64,16 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   LAYER 2 — SEMANTIC: what a token MEANS, never what colour it is.
+   LAYER 2 — SEMANTIC: role-based tokens for the console composition layer.
    ═══════════════════════════════════════════════════════════════════════════
-   This is the only layer a page or a new composition may consume. A screen asks
-   for `text-content-muted`, not for a grey — so re-theming a product is editing
-   this file, not 237 class names across the app.
+   Current local contract: screens and shared console primitives consume these
+   roles (`text-content-muted`, `bg-surface-raised`, …) rather than raw ramp
+   steps. Re-theming the console edits this file, not scattered class names.
 
    Declared in `@theme` (not `:root`) because they are consumed as UTILITIES
    (`bg-surface-app`, `text-content`, `border-line`): a custom property that only
    this stylesheet references is tree-shaken out of a bare `:root`, and the
-   utility is never emitted.
-
-   The `--ds-*` aliases below mirror these names for cross-product code that
-   reads raw custom properties rather than Tailwind utilities. */
+   utility is never emitted. */
 @theme {
   /* Planes, lowest to highest. */
   /* TRUE BLACK, not graphite. The old planes (#08080a page, #141417 card) were
@@ -124,65 +121,17 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   LAYER 2b — the `--ds-*` contract.
+   LAYER 3 — FUNCTIONAL: accent tints, danger, elevation, charts.
    ═══════════════════════════════════════════════════════════════════════════
-   The same semantic layer under cross-product `--ds-*` names, for code that reads
-   raw custom properties (hand-written SVG, inline styles, shared components).
-   Aliases follow layer 2 — not a second source of truth.
-
-   In this product `--ds-accent` resolves to the green accent above. A sibling
-   product may point `--ds-accent` elsewhere; that substitution is the point of
-   the indirection. */
-:root {
-  --ds-canvas: var(--color-surface-app);
-  --ds-surface: var(--color-surface-raised);
-  --ds-surface-raised: var(--color-surface-overlay);
-  --ds-surface-sunken: var(--color-surface-sunken);
-  --ds-text: var(--color-content);
-  --ds-text-muted: var(--color-content-muted);
-  --ds-border: var(--color-line);
-  --ds-border-strong: var(--color-line-strong);
-  --ds-accent: var(--color-accent-500);
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   LAYER 3 — PRODUCT THEME (current Aigent console).
-   ═══════════════════════════════════════════════════════════════════════════
-   Optional accent ramps beyond the green in layer 1. Copper below is declared
-   for reuse but not applied in this console — swapping `--ds-accent` to copper
-   would be an explicit product choice, not a silent default.
-
-   Measured on `--color-surface-raised`: copper-500 is 4.45:1 — enough for a
-   fill, a border or large text, NOT for body copy. Copper-400 (#d67f52) is
-   6.14:1 and is the step to use when copper has to be READ.
-   `--color-content-on-accent` stays near-black for copper too: measured on
-   copper-500 it is 4.70:1 against white's 4.13:1. Both are tight, so text on a
-   copper fill should be large or semibold. */
-@theme {
-  --color-copper-50: #fdf6f2;
-  --color-copper-100: #f9e8de;
-  --color-copper-200: #f2cdb8;
-  --color-copper-300: #e6a985;
-  --color-copper-400: #d67f52;
-  --color-copper-500: #c2622f;
-  --color-copper-600: #a34d24;
-  --color-copper-700: #813c1e;
-  --color-copper-800: #5f2d18;
-  --color-copper-900: #422011;
-  --color-copper-950: #24110a;
-}
-
+   Product-specific values for the current Aigent console direction. Modifiable
+   by an explicit design mission — not a Hearst-wide interproduct contract. */
 :root {
   --accent-surface: color-mix(in oklab, var(--color-accent-600) 15%, transparent);
   --accent-line: color-mix(in oklab, var(--color-accent-700) 40%, transparent);
-  /* ── NO GLOW. HOUSE RULE. ──────────────────────────────────────────────────
-     There is deliberately NO glow, halo, bloom or blur token here, and none
-     anywhere in the console. A neon pass was built and stripped back out: glow
-     turns a dark interface into a light show and destroys exactly what makes it
-     read well — the surface stack and the elevation lighting below.
-     Do not reintroduce `--accent-glow*`, `--accent-bloom*`, `blur-*`,
-     `feGaussianBlur`, or a `0 0 Npx <accent>` box-shadow. Depth comes from
-     stacked surfaces and inset edge lighting, never from emission. */
+  /* Current console direction: depth from stacked surfaces and inset edge
+     lighting, not glow or bloom. Elevation tokens below carry the bevel; avoid
+     reintroducing accent halos or blur-based depth unless a product mission asks
+     for it explicitly. */
 
   /* Danger — the one non-accent hue, reserved for failure and destruction. */
   --state-danger-solid: #b3282d;
