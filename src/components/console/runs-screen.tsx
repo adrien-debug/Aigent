@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { StatusDot, type StatusDotTone } from '@/components/ui/status-dot'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatUsd } from '@/lib/agent-mission-control/format'
@@ -146,9 +147,8 @@ function distinctValues(runs: AgentRun[], pick: (run: AgentRun) => string | null
   return [...set].toSorted()
 }
 
-/** Native `<select>`, styled to sit beside `Input` without pulling in a
- *  Catalyst `Select` primitive this console does not carry — a GET-form
- *  control local to this one screen, not a shared component. */
+/** The filter-bar select. Thin wrapper over the Catalyst `Select` primitive so
+ *  this screen's eight GET-form filters declare their options in one place. */
 function FilterSelect({
   name,
   value,
@@ -161,18 +161,13 @@ function FilterSelect({
   ariaLabel: string
 }) {
   return (
-    <select
-      name={name}
-      defaultValue={value}
-      aria-label={ariaLabel}
-      className="block w-full appearance-none rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent-500"
-    >
+    <Select name={name} defaultValue={value} aria-label={ariaLabel}>
       {options.map((option) => (
-        <option key={option.value || '__all'} value={option.value} className="bg-zinc-900 text-white">
+        <option key={option.value || '__all'} value={option.value}>
           {option.label}
         </option>
       ))}
-    </select>
+    </Select>
   )
 }
 

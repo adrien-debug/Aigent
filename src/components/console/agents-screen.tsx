@@ -5,7 +5,10 @@ import { Fragment, useMemo, useState } from 'react'
 import { ArrowRightIcon } from '@heroicons/react/20/solid'
 
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Field, Label } from '@/components/ui/fieldset'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { StatusDot, type StatusDotTone } from '@/components/ui/status-dot'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatUsd, UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
@@ -317,21 +320,21 @@ function FleetTable({ agents }: { agents: AvailableAgent[] }) {
             aria-label="Search agents by name or id"
           />
         </div>
-        <select
+        <Select
+          className="w-auto shrink-0"
           value={execFilter}
           onChange={(event) => setExecFilter(event.target.value as ExecFilter)}
           aria-label="Filter by executability"
-          className="rounded-md border border-line bg-surface-sunken px-2 py-1.5 text-xs text-zinc-300"
         >
           <option value="all">Executable · all</option>
           <option value="executable">Executable only</option>
           <option value="blocked">Blocked only</option>
-        </select>
-        <select
+        </Select>
+        <Select
+          className="w-auto shrink-0"
           value={lifecycleFilter}
           onChange={(event) => setLifecycleFilter(event.target.value)}
           aria-label="Filter by lifecycle status"
-          className="rounded-md border border-line bg-surface-sunken px-2 py-1.5 text-xs text-zinc-300"
         >
           <option value="all">Lifecycle · all</option>
           {lifecycleValues.map((value) => (
@@ -339,27 +342,22 @@ function FleetTable({ agents }: { agents: AvailableAgent[] }) {
               {value}
             </option>
           ))}
-        </select>
-        <select
+        </Select>
+        <Select
+          className="w-auto shrink-0"
           value={sortKey}
           onChange={(event) => setSortKey(event.target.value as SortKey)}
           aria-label="Sort rows by"
-          className="rounded-md border border-line bg-surface-sunken px-2 py-1.5 text-xs text-zinc-300"
         >
           <option value="lastRun">Sort · last run</option>
           <option value="name">Sort · name</option>
           <option value="tools">Sort · tools</option>
           <option value="cost">Sort · last cost</option>
-        </select>
-        <label className="flex shrink-0 items-center gap-1.5 text-[11px]/4 text-zinc-400">
-          <input
-            type="checkbox"
-            checked={groupByLifecycle}
-            onChange={(event) => setGroupByLifecycle(event.target.checked)}
-            className="size-3.5 rounded border-line accent-[var(--accent-500)]"
-          />
-          Group by lifecycle
-        </label>
+        </Select>
+        <Field className="flex shrink-0 items-center gap-1.5">
+          <Checkbox checked={groupByLifecycle} onChange={setGroupByLifecycle} />
+          <Label className="text-[11px]/4 text-zinc-400">Group by lifecycle</Label>
+        </Field>
         <span className="ml-auto shrink-0 text-[11px]/4 tabular-nums text-zinc-500">
           {sorted.length} / {agents.length} rows
         </span>

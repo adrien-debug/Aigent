@@ -1,5 +1,6 @@
 import { Heading } from '@/components/ui/heading'
 import { cn } from '@/components/ui/cn'
+import { Link } from '@/components/ui/link'
 import type { StatusDotTone } from '@/components/ui/status-dot'
 import type { AvailableAgentStatus } from '@/lib/agent-mission-control/available-agents'
 import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
@@ -258,10 +259,13 @@ export function PanelRow({
     selected && 'bg-surface-selected'
   )
 
+  // Every caller passes an internal `/admin/...` route, so this is `Link` (which
+  // wraps next/link): as a raw `<a>` each row navigation was a full document
+  // reload, throwing away the client router and re-fetching the whole shell.
   return href ? (
-    <a href={href} className={cn(shared, 'transition-colors hover:bg-surface-hover', className)}>
+    <Link href={href} className={cn(shared, 'transition-colors hover:bg-surface-hover', className)}>
       {body}
-    </a>
+    </Link>
   ) : (
     <div className={cn(shared, className)}>{body}</div>
   )

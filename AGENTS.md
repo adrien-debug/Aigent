@@ -80,16 +80,28 @@ abandonne si le port est pris par un process non identifié comme le sien.
 - **Une seule police : Satoshi Variable, pour TOUT.** `--font-sans` et `--font-mono` résolvent
   tous deux vers elle (`src/theme.css`) : une classe `font-mono` est un choix d'alignement
   (`tabular-nums`), pas un changement de famille. Geist Mono n'est plus chargée.
+- **La console est 100% Catalyst (gate : `npm run check:catalyst`).** Un contrôle brut
+  (`<select>`, `<input>`, `<button>`, `<table>`, `<h1..3>`, `<textarea>`) est interdit dans
+  `src/components/console/**` dès qu'une primitive existe : la gate échoue et nomme le
+  remplaçant. Il manque une primitive ? On la prend dans le VRAI kit
+  (`~/Downloads/catalyst-ui-kit.zip`) et on l'adapte aux tokens du projet — on ne la
+  bricole pas à la main sur place.
+  Deux exceptions, portées par la gate elle-même : les `<a>` vers une URL **externe**
+  (`Link` enveloppe `next/link`, fait pour les routes internes — y router une URL GitHub
+  serait une régression), et les `charts/` (SVG écrit à la main, Catalyst n'en fournit pas).
+  Un `<div>` de layout n'est pas une violation : Catalyst n'a pas de primitive pour un wrapper.
 - **Les primitives Catalyst vivent dans `src/components/ui/`** — kit minimal, uniquement les
   primitives réellement consommées par une route vivante (`npm run quality:dead` échoue sur une
   primitive orpheline). Aucun composant "pour plus tard", aucun design system parallèle.
 - **Marketing** (`src/app/(site)/`, `src/components/marketing/`) → blocs Tailwind Plus pris tels
   quels, restylés sur les tokens du projet. Vitrine statique, périmètre distinct de la console.
-- **Les gates de design system n'existent plus** (`check:ds`, `check:contrast`, `check:catalyst`,
-  `check:danger`, `check:views` ont été supprimées avec l'ancien dashboard et n'ont jamais été
-  réécrites pour la console actuelle). Une nouvelle règle visuelle ne vaut que si une gate la
-  fait respecter — jamais une simple phrase dans un `.md`. Trou connu :
-  `docs/known-gaps.md` §7.
+- **`check:catalyst` a été RÉÉCRITE** (2026-07-30) après avoir été supprimée avec l'ancien
+  dashboard : sans elle, la console avait laissé filer cinq `<select>` bruts et une case à
+  cocher brute, dont un commentaire assumait explicitement de sauter la primitive. Preuve que
+  la phrase ci-dessous n'est pas un slogan.
+  Restent supprimées et jamais réécrites : `check:ds`, `check:contrast`, `check:danger`,
+  `check:views`. Une nouvelle règle visuelle ne vaut que si une gate la fait respecter —
+  jamais une simple phrase dans un `.md`. Trou connu : `docs/known-gaps.md` §7.
 
 ## Vérité affichée (gates : `check:render-truth`, `check:status-truth`)
 
