@@ -40,7 +40,7 @@ export default function RootLayout({
       // so dark is the product's identity rather than the reader's OS setting.
       className={`dark ${satoshi.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-white dark:bg-zinc-950">
+      <body className="min-h-full flex flex-col bg-white dark:bg-surface-app">
         {children}
       </body>
     </html>

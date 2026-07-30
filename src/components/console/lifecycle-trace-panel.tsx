@@ -37,22 +37,22 @@ export function LifecycleTracePanel({ lifecycle }: { lifecycle: LifecycleTrace }
           <li key={stage.key} className="px-4 py-2.5">
             <div className="flex items-center justify-between gap-3">
               <StatusDot tone={stageTone(stage.reached)}>{stage.label}</StatusDot>
-              <span className="shrink-0 text-[10px]/4 uppercase tracking-widest text-zinc-600">
+              <span className="shrink-0 text-[10px]/4 uppercase tracking-widest text-content-faint">
                 {stage.evidence.source}
               </span>
             </div>
-            <p className="mt-1 text-[11px]/4 text-zinc-500">{stage.evidence.detail}</p>
+            <p className="mt-1 text-[11px]/4 text-content-subtle">{stage.evidence.detail}</p>
           </li>
         ))}
       </ol>
       <div className="border-t border-line px-4 py-2.5">
-        <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">Version drift</p>
+        <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">Version drift</p>
         {versionDrift.state === 'unknown' ? (
-          <p className="mt-1 text-[11px]/4 text-zinc-500">
+          <p className="mt-1 text-[11px]/4 text-content-subtle">
             <Unavailable /> — {versionDrift.detail}
           </p>
         ) : (
-          <p className="mt-1 text-[11px]/4 text-zinc-400">
+          <p className="mt-1 text-[11px]/4 text-content-muted">
             {versionDrift.driftDetected ? (
               <span className="text-[var(--state-danger-text)]">
                 Drift detected: delivered {versionDrift.lastDeliveredVersionLabel} · reported{' '}

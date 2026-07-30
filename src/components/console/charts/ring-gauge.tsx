@@ -37,7 +37,7 @@
  * Tailwind's actual OKLCH zinc steps: the measured/solid track is `zinc-500`
  * (3.93:1, clears the 3:1 non-text floor); the unmeasured/dashed track is
  * `zinc-600` (2.46:1) — a deliberately dimmer secondary state, since the KPI
- * figure or the centre word beside it (`fill-zinc-400`, 7.2:1+) already carries
+ * figure or the centre word beside it (`fill-content-muted`, 7.2:1+) already carries
  * the actual claim. `src/theme.css` is not this component's to edit, hence the
  * zinc utilities.
  *
@@ -185,7 +185,7 @@ export function RingGauge({
         strokeWidth={strokeWidth}
         strokeDasharray={hasMeasurement ? undefined : `${strokeWidth} ${strokeWidth}`}
         strokeLinecap="butt"
-        className={hasMeasurement ? 'stroke-zinc-500' : 'stroke-zinc-600'}
+        className={hasMeasurement ? 'stroke-content-subtle' : 'stroke-content-faint'}
       />
 
       {/* BUTT CAPS, NOT ROUND. A round cap paints half a stroke width beyond each
@@ -239,7 +239,7 @@ export function RingGauge({
               textAnchor="middle"
               dominantBaseline="central"
               fontSize={captionSize}
-              className="fill-zinc-400"
+              className="fill-content-muted"
             >
               {caption}
             </text>
@@ -252,7 +252,7 @@ export function RingGauge({
           textAnchor="middle"
           dominantBaseline="central"
           fontSize={unavailableSize}
-          className="fill-zinc-400"
+          className="fill-content-muted"
         >
           {UNAVAILABLE}
         </text>

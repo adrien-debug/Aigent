@@ -165,7 +165,7 @@ function ConfirmedActionButton({
         <p className="text-[11px]/4 text-[var(--state-danger-text)]">{error}</p>
       ) : null}
       {phase === 'success' && result !== null ? (
-        <div className="text-[11px]/4 text-zinc-400">
+        <div className="text-[11px]/4 text-content-muted">
           {renderResult ? renderResult(result) : <StatusDot tone="positive">Done</StatusDot>}
         </div>
       ) : null}
@@ -203,7 +203,7 @@ export function AgentActionsPanel({
         <StatusDot tone="negative">Actions blocked</StatusDot>
         <ul className="space-y-0.5">
           {blockers.map((b) => (
-            <li key={b.code} className="text-[11px]/4 text-zinc-400">
+            <li key={b.code} className="text-[11px]/4 text-content-muted">
               {b.label}
             </li>
           ))}
@@ -234,7 +234,7 @@ export function AgentActionsPanel({
       />
 
       {testSuiteId === null ? (
-        <p className="text-[11px]/4 text-zinc-500">No test suite exists for this agent yet.</p>
+        <p className="text-[11px]/4 text-content-subtle">No test suite exists for this agent yet.</p>
       ) : (
         <ConfirmedActionButton
           label="Run tests"
@@ -260,7 +260,7 @@ export function AgentActionsPanel({
       )}
 
       {benchmarkSuiteId === null ? (
-        <p className="text-[11px]/4 text-zinc-500">No benchmark suite exists for this agent yet.</p>
+        <p className="text-[11px]/4 text-content-subtle">No benchmark suite exists for this agent yet.</p>
       ) : (
         <ConfirmedActionButton
           label="Run benchmark"

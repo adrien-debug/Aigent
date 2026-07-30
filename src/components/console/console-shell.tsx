@@ -142,14 +142,14 @@ function NavItem({
       className={cn(
         'group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px]/5 font-medium transition-colors',
         active
-          ? 'bg-accent-500 text-zinc-950 shadow-[0_0_18px_-6px_var(--accent-glow)]'
-          : 'text-zinc-400 hover:bg-surface-hover hover:text-white',
+          ? 'bg-accent-500 text-content-on-accent shadow-[0_0_18px_-6px_var(--accent-glow)]'
+          : 'text-content-muted hover:bg-surface-hover hover:text-white',
         className
       )}
     >
       <Icon
         aria-hidden="true"
-        className={cn('size-4 shrink-0', active ? 'text-zinc-950' : 'text-zinc-500 group-hover:text-zinc-300')}
+        className={cn('size-4 shrink-0', active ? 'text-content-on-accent' : 'text-content-subtle group-hover:text-content-muted')}
       />
       <span className="truncate">{label}</span>
     </Link>
@@ -214,7 +214,7 @@ export function ConsoleShell({
             <div className="flex h-13 shrink-0 items-center gap-2.5 border-b border-line px-4">
               <span
                 aria-hidden="true"
-                className="grid size-7 shrink-0 place-items-center rounded-md bg-accent-500 text-zinc-950"
+                className="grid size-7 shrink-0 place-items-center rounded-md bg-accent-500 text-content-on-accent"
               >
                 <CommandLineIcon className="size-4" />
               </span>
@@ -222,12 +222,12 @@ export function ConsoleShell({
                 <Heading level={2} className="truncate text-[13px]/4 font-semibold">
                   Aigent
                 </Heading>
-                <p className="mt-0.5 truncate text-[10px]/4 text-zinc-500">Agent Mission Control</p>
+                <p className="mt-0.5 truncate text-[10px]/4 text-content-subtle">Agent Mission Control</p>
               </div>
             </div>
 
             <nav aria-label="Primary" className="min-h-0 flex-1 overflow-y-auto px-2.5 py-3">
-              <p className="px-2.5 pb-1.5 text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-600">
+              <p className="px-2.5 pb-1.5 text-[10px]/4 font-semibold uppercase tracking-widest text-content-faint">
                 Console
               </p>
               <ul className="space-y-0.5">
@@ -252,11 +252,11 @@ export function ConsoleShell({
             <div className="shrink-0 border-t border-line p-2.5">
               <a
                 href="/logout"
-                className="group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px]/5 font-medium text-zinc-400 transition-colors hover:bg-surface-hover hover:text-white"
+                className="group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px]/5 font-medium text-content-muted transition-colors hover:bg-surface-hover hover:text-white"
               >
                 <ArrowRightStartOnRectangleIcon
                   aria-hidden="true"
-                  className="size-4 shrink-0 text-zinc-500 group-hover:text-zinc-300"
+                  className="size-4 shrink-0 text-content-subtle group-hover:text-content-muted"
                 />
                 <span className="truncate">Sign out</span>
               </a>
@@ -277,7 +277,7 @@ export function ConsoleShell({
                 <div className="flex min-w-0 items-center gap-2.5">
                   <span
                     aria-hidden="true"
-                    className="grid size-6 shrink-0 place-items-center rounded bg-accent-500 text-zinc-950 lg:hidden"
+                    className="grid size-6 shrink-0 place-items-center rounded bg-accent-500 text-content-on-accent lg:hidden"
                   >
                     <CommandLineIcon className="size-3.5" />
                   </span>
@@ -306,7 +306,7 @@ export function ConsoleShell({
                   {active === '/admin/runs' ? null : (
                     <Link
                       href="/admin/runs"
-                      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-line-strong bg-surface-raised px-2 py-1 text-[11px]/4 font-medium text-zinc-300 transition-colors hover:bg-surface-hover hover:text-white"
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-line-strong bg-surface-raised px-2 py-1 text-[11px]/4 font-medium text-content-muted transition-colors hover:bg-surface-hover hover:text-white"
                     >
                       <PlayCircleIcon aria-hidden="true" className="size-3.5 shrink-0" />
                       <span className="truncate">Run activity</span>

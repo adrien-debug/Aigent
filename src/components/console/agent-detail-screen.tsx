@@ -129,9 +129,9 @@ function runModelLabel(run: AgentRun): React.ReactNode {
     return <Unavailable />
   }
   return (
-    <span className="text-zinc-400">
+    <span className="text-content-muted">
       {run.resolvedModel}
-      {run.modelUnverified === false ? null : <span className="text-zinc-600"> · unverified</span>}
+      {run.modelUnverified === false ? null : <span className="text-content-faint"> · unverified</span>}
     </span>
   )
 }
@@ -140,7 +140,7 @@ function runModelLabel(run: AgentRun): React.ReactNode {
 function Fact({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-1.5 last:border-b-0">
-      <dt className="min-w-0 shrink-0 truncate text-[11px]/5 text-zinc-500">{label}</dt>
+      <dt className="min-w-0 shrink-0 truncate text-[11px]/5 text-content-subtle">{label}</dt>
       <dd className="min-w-0 truncate text-right text-[12px]/5 tabular-nums text-white">{value}</dd>
     </div>
   )
@@ -224,7 +224,7 @@ function DeliveryFacts({ delivery }: { delivery: DeliveryEvent }) {
  */
 function RuntimeTelemetryFacts({ telemetry }: { telemetry: RuntimeTelemetrySummary }) {
   const lastSeenAt = formatUtcTimestamp(telemetry.lastSeenAt)
-  const notReported = <span className="text-zinc-600">Not reported</span>
+  const notReported = <span className="text-content-faint">Not reported</span>
 
   if (telemetry.totalRuns === 0) {
     return (
@@ -281,7 +281,7 @@ function RuntimeTelemetryFacts({ telemetry }: { telemetry: RuntimeTelemetrySumma
           ) : (
             <>
               {formatUsd(telemetry.totalCostUsd, 4)}
-              {telemetry.costEstimated ? <span className="text-zinc-600"> · estimate</span> : null}
+              {telemetry.costEstimated ? <span className="text-content-faint"> · estimate</span> : null}
             </>
           )
         }
@@ -464,7 +464,7 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
             blockers.map((blocker) => (
               <div key={blocker.code} className="border-b border-line px-4 py-2.5 last:border-b-0">
                 <p className="text-[13px]/5 font-medium text-[var(--state-danger-text)]">{blocker.label}</p>
-                <p className="mt-0.5 text-[11px]/4 text-zinc-400">{blocker.detail}</p>
+                <p className="mt-0.5 text-[11px]/4 text-content-muted">{blocker.detail}</p>
               </div>
             ))
           )}
@@ -505,13 +505,13 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
                       <TableCell>
                         <StatusDot tone={runStatusTone(run.status)}>{run.status}</StatusDot>
                       </TableCell>
-                      <TableCell className="tabular-nums text-zinc-400">
+                      <TableCell className="tabular-nums text-content-muted">
                         {startedAt === null ? <Unavailable /> : startedAt}
                       </TableCell>
-                      <TableCell className={`${TABLE_NUM} text-zinc-300`}>
+                      <TableCell className={`${TABLE_NUM} text-content-muted`}>
                         {latency === null ? <Unavailable /> : latency}
                       </TableCell>
-                      <TableCell className={`${TABLE_NUM} text-zinc-300`}>{run.toolCallCount}</TableCell>
+                      <TableCell className={`${TABLE_NUM} text-content-muted`}>{run.toolCallCount}</TableCell>
                       <TableCell className={`${TABLE_NUM} text-white`}>
                         {run.costUsd === null ? <Unavailable /> : formatUsd(run.costUsd, 4)}
                       </TableCell>
@@ -655,7 +655,7 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
           title="Mounted tools"
           description="Persisted tool definitions for the current agent"
           actions={
-            <span className="shrink-0 text-[11px]/4 tabular-nums text-zinc-500">{detail.tools.length}</span>
+            <span className="shrink-0 text-[11px]/4 tabular-nums text-content-subtle">{detail.tools.length}</span>
           }
           scroll="lg"
         >
@@ -743,12 +743,12 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
               </dl>
               {manifest.skills.length > 0 ? (
                 <div className="border-t border-line px-4 py-2.5">
-                  <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">
+                  <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">
                     Skills
                   </p>
                   <ul className="mt-1.5 space-y-1">
                     {manifest.skills.map((skill) => (
-                      <li key={skill.label} className="text-[12px]/5 text-zinc-300">
+                      <li key={skill.label} className="text-[12px]/5 text-content-muted">
                         {skill.label}
                       </li>
                     ))}
@@ -757,7 +757,7 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
               ) : null}
               {manifest.forbiddenActions.length > 0 ? (
                 <div className="border-t border-line px-4 py-2.5">
-                  <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">
+                  <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">
                     Forbidden actions
                   </p>
                   <ul className="mt-1.5 space-y-1">
@@ -877,7 +877,7 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
         {detail.telemetry === null ? (
           <div className="px-4 py-6">
             <Unavailable className="text-[13px]/5" />
-            <p className="mt-1 text-[11px]/4 text-zinc-500">
+            <p className="mt-1 text-[11px]/4 text-content-subtle">
               The telemetry lookup for this agent failed — this is not evidence the loop is silent or
               that the agent is inactive, only that the read itself did not complete.
             </p>
@@ -892,7 +892,7 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
         title="Version history"
         description="Scores are shown only when a real run produced them"
         actions={
-          <span className="shrink-0 text-[11px]/4 tabular-nums text-zinc-500">
+          <span className="shrink-0 text-[11px]/4 tabular-nums text-content-subtle">
             {detail.versions.length}
           </span>
         }
@@ -939,16 +939,16 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
                       <StatusDot tone={versionStageTone(version.stage)}>{version.stage}</StatusDot>
                     </TableCell>
                     <TableCell className="font-mono text-white">{orUnavailable(version.label)}</TableCell>
-                    <TableCell className="text-zinc-400">
+                    <TableCell className="text-content-muted">
                       <ModelPair provider={version.modelProvider} model={version.model} />
                     </TableCell>
-                    <TableCell className={`${TABLE_NUM} text-zinc-300`}>
+                    <TableCell className={`${TABLE_NUM} text-content-muted`}>
                       {testPassRate === null ? <Unavailable /> : formatPercent(testPassRate)}
                     </TableCell>
-                    <TableCell className={`${TABLE_NUM} text-zinc-300`}>
+                    <TableCell className={`${TABLE_NUM} text-content-muted`}>
                       {benchmarkScore === null ? <Unavailable /> : benchmarkScore}
                     </TableCell>
-                    <TableCell className={`${TABLE_NUM} text-zinc-300`}>
+                    <TableCell className={`${TABLE_NUM} text-content-muted`}>
                       {version.scores.shadowAgreement === null ? (
                         <Unavailable />
                       ) : (
@@ -963,10 +963,10 @@ export function AgentDetailScreen({ detail }: { detail: AgentDetail }) {
                           {version.scores.unsafeActionCount}
                         </span>
                       ) : (
-                        <span className="text-zinc-300">{version.scores.unsafeActionCount}</span>
+                        <span className="text-content-muted">{version.scores.unsafeActionCount}</span>
                       )}
                     </TableCell>
-                    <TableCell className="tabular-nums text-zinc-400">
+                    <TableCell className="tabular-nums text-content-muted">
                       {createdAt === null ? <Unavailable /> : createdAt}
                     </TableCell>
                   </TableRow>

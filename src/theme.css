@@ -41,14 +41,47 @@
   --color-accent-950: #0b2809;
 }
 
-/* Surfaces & hairlines — the console's plane system, declared HERE and not in
-   `:root`, because these are consumed as UTILITIES (`bg-surface-app`,
-   `border-line`). A custom property that only this stylesheet references is
-   tree-shaken out of a bare `:root`; `@theme` is what makes Tailwind emit the
-   utility. `bg-surface-app` / `bg-surface-raised` were already written in
-   console-shell.tsx against tokens that did not exist — they produced no style
-   at all until this block. */
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER 1 — FOUNDATION: the Hearst graphite ramp.
+   ═══════════════════════════════════════════════════════════════════════════
+   Catalyst is built and tested against `zinc`, and its PRIMITIVES keep using it
+   — that grammar is what makes the kit robust, and rewriting it would fork the
+   kit. But `zinc` is a cold, blue-leaning grey, and it must not become the
+   identity of every Hearst product.
+   So the foundation here is a graphite that is slightly WARMER and less blue
+   than Tailwind's zinc: same neutral role, a hue that belongs to us. Measured
+   against zinc, every step carries a touch more red/yellow and less blue.
+   Nothing in a page consumes this ramp directly — layer 2 does. */
 @theme {
+  --color-graphite-50: #f7f6f5;
+  --color-graphite-100: #edebe9;
+  --color-graphite-200: #d8d5d1;
+  --color-graphite-300: #b4afa9;
+  --color-graphite-400: #8a8480;
+  --color-graphite-500: #6b6560;
+  --color-graphite-600: #524d49;
+  --color-graphite-700: #3e3a37;
+  --color-graphite-800: #2a2724;
+  --color-graphite-900: #1a1917;
+  --color-graphite-950: #0e0d0c;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER 2 — SEMANTIC: what a token MEANS, never what colour it is.
+   ═══════════════════════════════════════════════════════════════════════════
+   This is the only layer a page or a new composition may consume. A screen asks
+   for `text-content-muted`, not for a grey — so re-theming a product is editing
+   this file, not 237 class names across the app.
+
+   Declared in `@theme` (not `:root`) because they are consumed as UTILITIES
+   (`bg-surface-app`, `text-content`, `border-line`): a custom property that only
+   this stylesheet references is tree-shaken out of a bare `:root`, and the
+   utility is never emitted.
+
+   The `--ds-*` aliases below mirror these names for cross-product code that
+   reads raw custom properties rather than Tailwind utilities. */
+@theme {
+  /* Planes, lowest to highest. */
   --color-surface-app: #08080a; /* page ground, near-black — the lowest plane */
   --color-surface-raised: #141417; /* panel & sidebar graphite — was #101013, only 2% off
     `surface-app`, so a card never actually detached from the page behind it. Now a real step. */
@@ -62,10 +95,85 @@
     `surface-raised` — how a prioritised card visually outranks an ordinary one without a second
     accent hue */
 
+  /* Content (text & icons), by ROLE. These are what 175 raw `text-zinc-*`
+     classes were standing in for: the console had semantic surfaces but no
+     semantic text, so every label reached for the zinc ramp directly. Four
+     steps, each with one job — a fifth would just invite guessing.
+     Contrast measured against `--color-surface-raised` (#141417), the plane
+     most text actually sits on. */
+  --color-content: #ffffff; /* primary: headings, KPI figures, table values — 18.39:1 */
+  --color-content-muted: #b4afa9; /* secondary: labels, subtitles, meta — 8.44:1, AAA */
+  --color-content-subtle: #8a8480; /* tertiary: axis ticks, timestamps, hints — 4.98:1, AA */
+  --color-content-faint: #6b6560; /* quaternary: disabled, placeholder — 3.2:1, AA for non-text
+    and large text only. NEVER for body copy that must be read. */
+  --color-content-on-accent: #0e0d0c; /* text/icon sitting ON an accent fill (active rail item,
+    brand mark, solid accent button). Near-black, not white: the accent is a LIGHT green here, so
+    white on it fails contrast outright. This is the one content token whose correct value flips
+    with the theme's accent — a product with a dark accent overrides it to `--color-content`. */
+
+  /* Hairlines. */
   --color-line: rgb(255 255 255 / 8%); /* the hairline that divides everything — was 7%, bumped
     slightly so a card edge reads against the new, darker `surface-app` */
   --color-line-strong: rgb(255 255 255 / 16%); /* structural edge: shell, focus, primary-card
     border — was 12% */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER 2b — the `--ds-*` contract.
+   ═══════════════════════════════════════════════════════════════════════════
+   The same semantic layer, under the cross-product names, for code that reads
+   raw custom properties instead of Tailwind utilities (hand-written SVG, inline
+   styles, a sibling Hearst app sharing a component). Aliases, not a second
+   source of truth: change layer 2 and these follow.
+
+   In THIS product `--ds-accent` resolves to Aigent's green. In the Hearst house
+   theme it resolves to copper (see LAYER 3) — that substitution is the whole
+   point of the indirection. */
+:root {
+  --ds-canvas: var(--color-surface-app);
+  --ds-surface: var(--color-surface-raised);
+  --ds-surface-raised: var(--color-surface-overlay);
+  --ds-surface-sunken: var(--color-surface-sunken);
+  --ds-text: var(--color-content);
+  --ds-text-muted: var(--color-content-muted);
+  --ds-border: var(--color-line);
+  --ds-border-strong: var(--color-line-strong);
+  --ds-accent: var(--color-accent-500);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER 3 — PRODUCT THEME.
+   ═══════════════════════════════════════════════════════════════════════════
+   Everything above is shared Hearst plumbing. THIS is where a product gets its
+   face, and it is the only layer a sibling product should need to rewrite.
+
+   Aigent's accent is the tender green #A7FB90 (`AGENTS.md`: one accent, the
+   rest neutral). The Hearst house accent is copper — declared below but NOT
+   applied here, because Aigent is not the house shell and silently swapping a
+   product's identity is a decision, not a refactor. A product that wants copper
+   points `--ds-accent` at `--color-copper-500` and inherits everything else.
+
+   Copper, anchored at 500, warm against the graphite and deliberately rare:
+   an accent that appears everywhere stops meaning anything.
+
+   Measured on `--color-surface-raised`: copper-500 is 4.45:1 — enough for a
+   fill, a border or large text, NOT for body copy. Copper-400 (#d67f52) is
+   6.14:1 and is the step to use when copper has to be READ.
+   `--color-content-on-accent` stays near-black for copper too: measured on
+   copper-500 it is 4.70:1 against white's 4.13:1. Both are tight, so text on a
+   copper fill should be large or semibold. */
+@theme {
+  --color-copper-50: #fdf6f2;
+  --color-copper-100: #f9e8de;
+  --color-copper-200: #f2cdb8;
+  --color-copper-300: #e6a985;
+  --color-copper-400: #d67f52;
+  --color-copper-500: #c2622f;
+  --color-copper-600: #a34d24;
+  --color-copper-700: #813c1e;
+  --color-copper-800: #5f2d18;
+  --color-copper-900: #422011;
+  --color-copper-950: #24110a;
 }
 
 :root {

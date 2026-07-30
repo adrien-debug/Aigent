@@ -94,7 +94,7 @@ export function ArcGauge({ value, max = 100, size = 72, ariaLabel }: ArcGaugePro
         strokeWidth={strokeWidth}
         strokeDasharray={hasMeasurement ? undefined : `${strokeWidth} ${strokeWidth}`}
         strokeLinecap="butt"
-        className={hasMeasurement ? 'stroke-zinc-500' : 'stroke-zinc-600'}
+        className={hasMeasurement ? 'stroke-content-subtle' : 'stroke-content-faint'}
       />
 
       {/* BUTT CAPS, NOT ROUND. At 56px a round cap adds 3px at each end of a 6px

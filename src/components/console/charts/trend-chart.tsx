@@ -41,7 +41,7 @@
  *
  * CONTRAST, measured against the real `--color-surface-sunken` bed (#0b0b0d)
  * through Tailwind's actual OKLCH zinc steps, not guessed: `--chart-grid`
- * (1.10:1) and `text-zinc-600` (2.54:1) are both a structure nobody can see.
+ * (1.10:1) and `text-content-faint` (2.54:1) are both a structure nobody can see.
  * The rail — the actual measured 0 baseline and the plate's edge — is drawn
  * `zinc-500` (4.07:1, clears the 3:1 non-text floor with margin). The grid is
  * `zinc-600` (2.54:1): still short of that floor on its own, but it is pure
@@ -101,13 +101,13 @@ export type TrendChartProps = {
 
 const SERIES_STROKE: Record<TrendSeriesTone, string> = {
   accent: 'stroke-[var(--chart-line)]',
-  muted: 'stroke-zinc-500',
+  muted: 'stroke-content-subtle',
   danger: 'stroke-[var(--state-danger-text)]',
 }
 
 const SERIES_DOT: Record<TrendSeriesTone, string> = {
   accent: 'bg-[var(--chart-line)]',
-  muted: 'bg-zinc-500',
+  muted: 'bg-content-subtle',
   danger: 'bg-[var(--state-danger-text)]',
 }
 
@@ -118,7 +118,7 @@ const SERIES_DOT: Record<TrendSeriesTone, string> = {
  */
 const SERIES_FILL: Record<TrendSeriesTone, string> = {
   accent: 'fill-[var(--chart-line)]',
-  muted: 'fill-zinc-500',
+  muted: 'fill-content-subtle',
   danger: 'fill-[var(--state-danger-text)]',
 }
 
@@ -356,7 +356,7 @@ export function TrendChart({
           {series.map((entry) => (
             <span key={entry.key} className="inline-flex items-center gap-1.5">
               <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${SERIES_DOT[entry.tone]}`} />
-              <span className="text-[10px]/4 uppercase tracking-widest text-zinc-400">{entry.label}</span>
+              <span className="text-[10px]/4 uppercase tracking-widest text-content-muted">{entry.label}</span>
             </span>
           ))}
         </div>
@@ -370,7 +370,7 @@ export function TrendChart({
         <div className="relative w-10 shrink-0" style={{ height: plotHeight }}>
           {isEmpty ? (
             <span
-              className="absolute right-1.5 -translate-y-1/2 text-[10px]/3 tabular-nums text-zinc-400"
+              className="absolute right-1.5 -translate-y-1/2 text-[10px]/3 tabular-nums text-content-muted"
               style={{ top: plotBottom }}
             >
               0
@@ -379,7 +379,7 @@ export function TrendChart({
             ticks.map((tick) => (
               <span
                 key={tick}
-                className="absolute right-1.5 -translate-y-1/2 text-[10px]/3 tabular-nums text-zinc-400"
+                className="absolute right-1.5 -translate-y-1/2 text-[10px]/3 tabular-nums text-content-muted"
                 style={{ top: yFor(tick) }}
               >
                 {formatAxisValue(tick)}
@@ -417,7 +417,7 @@ export function TrendChart({
                 strokeWidth={1}
                 vectorEffect="non-scaling-stroke"
                 shapeRendering="crispEdges"
-                className="stroke-zinc-600"
+                className="stroke-content-faint"
               />
             ))}
 
@@ -433,7 +433,7 @@ export function TrendChart({
               strokeWidth={1}
               vectorEffect="non-scaling-stroke"
               shapeRendering="crispEdges"
-              className="stroke-zinc-500"
+              className="stroke-content-subtle"
             />
             <line
               x1={0}
@@ -443,7 +443,7 @@ export function TrendChart({
               strokeWidth={2}
               vectorEffect="non-scaling-stroke"
               shapeRendering="crispEdges"
-              className="stroke-zinc-500"
+              className="stroke-content-subtle"
             />
 
             {isEmpty
@@ -515,7 +515,7 @@ export function TrendChart({
           {isEmpty ? (
             <p
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 flex items-center justify-center px-4 text-center text-[11px]/4 text-zinc-400"
+              className="pointer-events-none absolute inset-0 flex items-center justify-center px-4 text-center text-[11px]/4 text-content-muted"
             >
               {/* A middle gridline sits at this exact vertical centre, so the
                   bare sentence used to read with a horizontal rule drawn right
@@ -542,7 +542,7 @@ export function TrendChart({
               return (
                 <span
                   key={`${xLabels[index]}-${index}`}
-                  className="absolute top-0 whitespace-nowrap text-[10px]/4 tabular-nums text-zinc-400"
+                  className="absolute top-0 whitespace-nowrap text-[10px]/4 tabular-nums text-content-muted"
                   style={{
                     left: `${(xFor(index) / VIEW_WIDTH) * 100}%`,
                     transform: isFirst ? 'none' : isLast ? 'translateX(-100%)' : 'translateX(-50%)',
@@ -553,7 +553,7 @@ export function TrendChart({
               )
             })
           ) : (
-            <span aria-hidden="true" className="absolute top-0 left-0 text-[10px]/4 text-zinc-400">
+            <span aria-hidden="true" className="absolute top-0 left-0 text-[10px]/4 text-content-muted">
               No interval observed
             </span>
           )}

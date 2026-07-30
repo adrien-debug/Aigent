@@ -74,7 +74,20 @@ abandonne si le port est pris par un process non identifié comme le sien.
   commissionnée : `src/app/admin/error.tsx`, la frontière d'erreur du segment `/admin`.
   Les couches démolies (`src/components/agent-ops/**`, `views/**`, `shell/**`) ne peuvent pas
   être réimportées.
-- **Un seul accent : `accent` (vert tendre, `#A7FB90`, `src/theme.css`).** Tout le reste est `zinc`.
+- **Design system en TROIS COUCHES (gate : `npm run check:ds-tokens`).** `src/theme.css`.
+  1. **Fondation** — la rampe `graphite-*` (graphite Hearst, plus chaud et moins bleu que le
+     zinc Tailwind) + le `zinc` interne de Catalyst. Catalyst est conçu et testé avec le zinc :
+     ses **primitives** le gardent, on ne forke pas le kit.
+  2. **Sémantique** — `surface-*`, `content-*`, `line*`, plus les alias `--ds-*`
+     (`--ds-canvas`, `--ds-surface`, `--ds-text`, `--ds-border`, `--ds-accent`…) pour le code
+     qui lit des custom properties brutes. **C'est la SEULE couche qu'une page consomme.**
+  3. **Thème produit** — l'accent. Aigent = vert `#A7FB90`. Le thème maison Hearst = cuivre
+     (`copper-*`, déclaré, non appliqué ici : Aigent n'est pas le shell maison).
+  **`zinc-*` brut est interdit dans une page ou une composition** — la gate échoue et nomme le
+  token sémantique à utiliser. Il ne survit QUE dans `src/components/ui/**` (les primitives) et
+  le marketing (blocs Tailwind Plus tels quels). Re-thémer un produit = éditer une couche, pas
+  237 noms de classes. Un `zinc` en fondation : oui. Un DS qui « a l'air zinc » : non.
+- **Un seul accent : `accent` (vert tendre, `#A7FB90`, `src/theme.css`).** Tout le reste est neutre.
   (`src/app/globals.css` n'est qu'un stub qui `@import "../theme.css"`.) Ne jamais importer les
   tokens/palette d'un autre projet : le design system de ce workspace lui est PROPRE.
 - **Une seule police : Satoshi Variable, pour TOUT.** `--font-sans` et `--font-mono` résolvent

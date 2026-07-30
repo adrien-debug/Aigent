@@ -36,7 +36,7 @@ export function ScreenHeader({
     <div className={cn('flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between', className)}>
       <div className="min-w-0">
         <Heading className="truncate text-xl/7 font-semibold tracking-tight text-white">{title}</Heading>
-        {description ? <p className="mt-1 truncate text-[13px]/5 text-zinc-300">{description}</p> : null}
+        {description ? <p className="mt-1 truncate text-[13px]/5 text-content-muted">{description}</p> : null}
       </div>
       {/* `flex-wrap`: the agent-detail header passes three non-shrinking controls
           here. Without wrapping they overflowed the column on a narrow viewport
@@ -109,7 +109,7 @@ export function Section({
           <Heading level={2} className="truncate text-[13px]/5 font-semibold tracking-wide text-white">
             {title}
           </Heading>
-          {description ? <p className="mt-0.5 truncate text-[11px]/4 text-zinc-400">{description}</p> : null}
+          {description ? <p className="mt-0.5 truncate text-[11px]/4 text-content-muted">{description}</p> : null}
         </div>
         {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
       </div>
@@ -147,9 +147,9 @@ export function Metric({
   return (
     <div className={cn('flex min-w-0 items-start justify-between gap-3 px-4 py-3.5', className)}>
       <div className="min-w-0">
-        <p className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-400">{label}</p>
+        <p className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-content-muted">{label}</p>
         <p className="mt-1.5 truncate text-2xl/7 font-light tabular-nums text-white">{value}</p>
-        {detail ? <p className="mt-1 truncate text-[11px]/4 text-zinc-400">{detail}</p> : null}
+        {detail ? <p className="mt-1 truncate text-[11px]/4 text-content-muted">{detail}</p> : null}
       </div>
       {aside ? <div className="shrink-0">{aside}</div> : null}
     </div>
@@ -238,14 +238,14 @@ export function PanelRow({
       {leading ? <div className="flex shrink-0 items-center">{leading}</div> : null}
       <div className="min-w-0 flex-1">
         <div className="truncate text-[13px]/5 font-medium text-white">{title}</div>
-        {subtitle ? <div className="mt-0.5 truncate text-[11px]/4 text-zinc-400">{subtitle}</div> : null}
+        {subtitle ? <div className="mt-0.5 truncate text-[11px]/4 text-content-muted">{subtitle}</div> : null}
       </div>
       {values && values.length > 0 ? (
         <div className="flex shrink-0 items-center gap-4 text-right">
           {values.map((entry) => (
             <div key={entry.label} className="min-w-0">
               <div className="text-[13px]/5 tabular-nums text-white">{entry.value}</div>
-              <div className="text-[10px]/4 uppercase tracking-widest text-zinc-500">{entry.label}</div>
+              <div className="text-[10px]/4 uppercase tracking-widest text-content-subtle">{entry.label}</div>
             </div>
           ))}
         </div>
@@ -322,10 +322,10 @@ export const TABLE_SHELL = [
  * Goes on `<TableHead className={TABLE_HEAD}>`. A sunken plate one step below
  * the panel, a tokenised hairline under it, and a 10px uppercase label.
  *
- * `text-zinc-400`, not the `zinc-500` the two private copies used: zinc-500 on
+ * `text-content-muted`, not the `content-subtle` the two private copies used: it on
  * `--color-surface-sunken` measures ~4.1:1, under the 4.5 AA floor at this size.
  */
-export const TABLE_HEAD = 'border-line bg-surface-sunken text-[10px] tracking-widest text-zinc-400'
+export const TABLE_HEAD = 'border-line bg-surface-sunken text-[10px] tracking-widest text-content-muted'
 
 /** Goes on `<TableBody className={TABLE_BODY}>`: row separators on the `line`
  *  token instead of the kit's untokenised `divide-white/8`. */
@@ -384,11 +384,11 @@ export const TABLE_SCROLL = 'max-h-[26rem] overflow-auto'
  * The word itself is NOT spelled here: it is `UNAVAILABLE_LABEL` in
  * `@/lib/agent-mission-control/format`, the one neutral module the HTML layer,
  * the SVG gauges and `formatUsd` can all reach. This component owns the
- * RENDERING (the span, the zinc-500 role), not the string — a second literal
+ * RENDERING (the span, the content-subtle role), not the string — a second literal
  * here is exactly how the vocabulary split in the first place.
  */
 export function Unavailable({ className }: { className?: string }) {
-  return <span className={cn('text-zinc-500', className)}>{UNAVAILABLE_LABEL}</span>
+  return <span className={cn('text-content-subtle', className)}>{UNAVAILABLE_LABEL}</span>
 }
 
 /** Nothing to show, and nothing wrong with that. Calm, neutral, never danger, never accent. */
@@ -403,8 +403,8 @@ export function EmptyState({
 }) {
   return (
     <div className={cn('px-4 py-10 text-center', className)}>
-      <p className="text-[13px]/5 text-zinc-400">{title}</p>
-      {description ? <p className="mt-1 text-[11px]/4 text-zinc-600">{description}</p> : null}
+      <p className="text-[13px]/5 text-content-muted">{title}</p>
+      {description ? <p className="mt-1 text-[11px]/4 text-content-faint">{description}</p> : null}
     </div>
   )
 }
@@ -433,7 +433,7 @@ export function ErrorState({
       )}
     >
       <p className="text-[13px]/5 font-semibold text-[var(--state-danger-text)]">{title}</p>
-      {description ? <p className="mt-1 text-[11px]/4 text-zinc-300">{description}</p> : null}
+      {description ? <p className="mt-1 text-[11px]/4 text-content-muted">{description}</p> : null}
       {actions ? <div className="mt-3 flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
   )
@@ -465,7 +465,7 @@ export function DegradedBanner({
       <p className="text-[11px]/4 font-semibold uppercase tracking-widest text-[var(--state-danger-text)]">{title}</p>
       <ul className="mt-1.5 space-y-0.5">
         {messages.map((message) => (
-          <li key={message} className="text-[11px]/4 text-zinc-300">
+          <li key={message} className="text-[11px]/4 text-content-muted">
             {message}
           </li>
         ))}

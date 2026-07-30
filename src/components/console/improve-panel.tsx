@@ -66,13 +66,13 @@ function SourcesList({ sources }: { sources: ImprovementSources }) {
     <ul className="space-y-1.5">
       {rows.map((row) => (
         <li key={row.label} className="flex items-center justify-between gap-3 text-[12px]/5">
-          <span className="text-zinc-300">{row.label}</span>
+          <span className="text-content-muted">{row.label}</span>
           {row.available ? (
             <StatusDot tone={sourceTone(true)}>available</StatusDot>
           ) : (
             <span className="flex items-center gap-1.5">
               <StatusDot tone={sourceTone(false)}>unavailable</StatusDot>
-              {row.reason ? <span className="text-[11px]/4 text-zinc-600">({row.reason})</span> : null}
+              {row.reason ? <span className="text-[11px]/4 text-content-faint">({row.reason})</span> : null}
             </span>
           )}
         </li>
@@ -94,12 +94,12 @@ function ManifestChangeRow<T>({
   if (!change) return null
   return (
     <div className="border-b border-line px-4 py-2.5 last:border-b-0">
-      <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">{label}</p>
+      <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">{label}</p>
       <div className="mt-1 space-y-1 text-[12px]/5">
-        <p className="text-zinc-500 line-through decoration-zinc-700">{render(change.from)}</p>
-        <p className="text-zinc-200">{render(change.to)}</p>
+        <p className="text-content-subtle line-through decoration-graphite-700">{render(change.from)}</p>
+        <p className="text-content">{render(change.to)}</p>
       </div>
-      {change.why ? <p className="mt-1 text-[11px]/4 text-zinc-500">{change.why}</p> : null}
+      {change.why ? <p className="mt-1 text-[11px]/4 text-content-subtle">{change.why}</p> : null}
     </div>
   )
 }
@@ -160,12 +160,12 @@ function ComparisonTable({ comparison, baseLabel, v2Label }: { comparison: Versi
     <div className="space-y-4 px-4 py-3">
       {comparison.tests.length > 0 ? (
         <div>
-          <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">Tests — pass rate</p>
+          <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">Tests — pass rate</p>
           <div className="mt-1.5 space-y-1">
             {comparison.tests.map((t) => (
               <div key={t.suiteId} className="flex items-center justify-between text-[12px]/5">
-                <span className="min-w-0 truncate text-zinc-300">{t.suiteName}</span>
-                <span className="tabular-nums text-zinc-400">
+                <span className="min-w-0 truncate text-content-muted">{t.suiteName}</span>
+                <span className="tabular-nums text-content-muted">
                   {baseLabel}: {t.v1 === null ? <Unavailable /> : formatPercent(t.v1.passRate)}
                   {'  ·  '}
                   {v2Label}: {t.v2 === null ? <Unavailable /> : formatPercent(t.v2.passRate)}
@@ -177,12 +177,12 @@ function ComparisonTable({ comparison, baseLabel, v2Label }: { comparison: Versi
       ) : null}
       {comparison.benchmarks.length > 0 ? (
         <div>
-          <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">Benchmarks — score</p>
+          <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">Benchmarks — score</p>
           <div className="mt-1.5 space-y-1">
             {comparison.benchmarks.map((b) => (
               <div key={b.suiteId} className="flex items-center justify-between text-[12px]/5">
-                <span className="min-w-0 truncate text-zinc-300">{b.suiteName}</span>
-                <span className="tabular-nums text-zinc-400">
+                <span className="min-w-0 truncate text-content-muted">{b.suiteName}</span>
+                <span className="tabular-nums text-content-muted">
                   {baseLabel}: {b.v1 === null ? <Unavailable /> : b.v1.score}
                   {'  ·  '}
                   {v2Label}: {b.v2 === null ? <Unavailable /> : b.v2.score}
@@ -357,7 +357,7 @@ export function ImprovePanel({
           <div className="mt-3 flex justify-center">
             {confirmingAnalyze ? (
               <div className="flex items-center gap-2">
-                <span className="text-[11px]/4 text-zinc-500">This runs a billed gpt-5.4 completion.</span>
+                <span className="text-[11px]/4 text-content-subtle">This runs a billed gpt-5.4 completion.</span>
                 <Button outline onClick={() => setConfirmingAnalyze(false)} disabled={busy === 'analyze'}>
                   Cancel
                 </Button>
@@ -380,23 +380,23 @@ export function ImprovePanel({
                 {proposal.status}
               </StatusDot>
               {!cycleOpen && !decided ? null : (
-                <span className="text-[11px]/4 text-zinc-500">
+                <span className="text-[11px]/4 text-content-subtle">
                   {proposal.baseVersionId} → {proposal.v2VersionId ?? 'no V2 yet'}
                 </span>
               )}
             </div>
-            {proposal.summary ? <p className="mt-2 text-[12px]/5 text-zinc-300">{proposal.summary}</p> : null}
+            {proposal.summary ? <p className="mt-2 text-[12px]/5 text-content-muted">{proposal.summary}</p> : null}
           </div>
 
           <div className="border-b border-line px-4 py-3">
-            <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">Sources consulted</p>
+            <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">Sources consulted</p>
             <div className="mt-2">
               <SourcesList sources={proposal.sources} />
             </div>
           </div>
 
           <div className="border-b border-line">
-            <p className="px-4 pt-3 text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">
+            <p className="px-4 pt-3 text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">
               Proposed manifest changes
             </p>
             <ManifestChangesBlock changes={proposal.manifestChanges} />
@@ -404,7 +404,7 @@ export function ImprovePanel({
 
           {proposal.v2VersionId ? (
             <div className="border-b border-line">
-              <p className="px-4 pt-3 text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">
+              <p className="px-4 pt-3 text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">
                 Base version vs V2 draft
               </p>
               {comparison ? (
@@ -426,7 +426,7 @@ export function ImprovePanel({
             {proposal.status === 'proposed' ? (
               confirmingCreateV2 ? (
                 <>
-                  <span className="text-[11px]/4 text-zinc-500">This runs a billed gpt-5.4 completion.</span>
+                  <span className="text-[11px]/4 text-content-subtle">This runs a billed gpt-5.4 completion.</span>
                   <Button outline onClick={() => setConfirmingCreateV2(false)} disabled={busy === 'create-v2'}>
                     Cancel
                   </Button>
@@ -457,7 +457,7 @@ export function ImprovePanel({
             ) : null}
             {decided && confirmingAnalyze ? (
               <>
-                <span className="text-[11px]/4 text-zinc-500">This runs a billed gpt-5.4 completion.</span>
+                <span className="text-[11px]/4 text-content-subtle">This runs a billed gpt-5.4 completion.</span>
                 <Button outline onClick={() => setConfirmingAnalyze(false)} disabled={busy === 'analyze'}>
                   Cancel
                 </Button>

@@ -336,16 +336,16 @@ export function ProjectsScreen({
                         {/* Platform rides in the subtitle rather than owning a
                             column: same fact, ~80px cheaper in a table that
                             already has to scroll horizontally. */}
-                        <p className="max-w-56 truncate text-[11px]/4 text-zinc-500">
+                        <p className="max-w-56 truncate text-[11px]/4 text-content-subtle">
                           {project.platform} · {project.description || project.slug}
                         </p>
                       </TableCell>
 
                       <TableCell>
                         {project.repoFullName ? (
-                          <span className="font-mono text-[11px] text-zinc-400">{project.repoFullName}</span>
+                          <span className="font-mono text-[11px] text-content-muted">{project.repoFullName}</span>
                         ) : (
-                          <span className="text-[11px] text-zinc-500">not configured</span>
+                          <span className="text-[11px] text-content-subtle">not configured</span>
                         )}
                       </TableCell>
 
@@ -354,20 +354,20 @@ export function ProjectsScreen({
                           unavailableCell
                         ) : (
                           <>
-                            <span className={teamServing > 0 ? 'text-accent-300' : 'text-zinc-500'}>
+                            <span className={teamServing > 0 ? 'text-accent-300' : 'text-content-subtle'}>
                               {teamServing}
                             </span>
-                            <span className="text-zinc-600"> / </span>
-                            <span className="text-zinc-300">{team}</span>
+                            <span className="text-content-faint"> / </span>
+                            <span className="text-content-muted">{team}</span>
                           </>
                         )}
                       </TableCell>
 
-                      <TableCell className={`${TABLE_NUM} text-zinc-300`}>
+                      <TableCell className={`${TABLE_NUM} text-content-muted`}>
                         {runs24h === null ? unavailableCell : runs24h.value}
                       </TableCell>
 
-                      <TableCell className={`${TABLE_NUM} text-zinc-300`}>
+                      <TableCell className={`${TABLE_NUM} text-content-muted`}>
                         {cost24h === null ? unavailableCell : formatUsd(cost24h.value)}
                       </TableCell>
 
@@ -375,7 +375,7 @@ export function ProjectsScreen({
                         {lastDelivery === null ? (
                           unavailableCell
                         ) : lastDelivery === undefined ? (
-                          <span className="text-[11px] text-zinc-500">no delivery yet</span>
+                          <span className="text-[11px] text-content-subtle">no delivery yet</span>
                         ) : (
                           <>
                             {lastDelivery.url ? (
@@ -383,18 +383,18 @@ export function ProjectsScreen({
                                 href={lastDelivery.url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="font-mono text-[11px] text-zinc-300 hover:text-accent-300"
+                                className="font-mono text-[11px] text-content-muted hover:text-accent-300"
                               >
                                 {formatDeliveryAt(lastDelivery.at)}
                               </a>
                             ) : (
-                              <span className="font-mono text-[11px] text-zinc-300">
+                              <span className="font-mono text-[11px] text-content-muted">
                                 {formatDeliveryAt(lastDelivery.at)}
                               </span>
                             )}
                             <span
                               className={`ml-1.5 text-[10px] ${
-                                lastDelivery.status === 'failed' ? 'text-[var(--state-danger-text)]' : 'text-zinc-500'
+                                lastDelivery.status === 'failed' ? 'text-[var(--state-danger-text)]' : 'text-content-subtle'
                               }`}
                             >
                               {DELIVERY_STATUS_LABEL[lastDelivery.status]}
@@ -419,7 +419,7 @@ export function ProjectsScreen({
               not cover every member is stated, never quietly presented as a
               fleet total. */}
           <div className="space-y-1 border-t border-line px-4 py-2">
-            <p className="text-[11px]/4 text-zinc-500">
+            <p className="text-[11px]/4 text-content-subtle">
               {assigned === null
                 ? 'Agent figures unavailable for this read'
                 : unmeasuredAgents === 0
@@ -431,7 +431,7 @@ export function ProjectsScreen({
                 and Aigent has no reader for it (`docs/known-gaps.md`). Deducing it
                 from a delivery event would be a guess dressed as a fact, so this
                 screen states the gap instead. */}
-            <p className="text-[11px]/4 text-zinc-600">
+            <p className="text-[11px]/4 text-content-faint">
               Consumer-side active version and version drift are not readable by Aigent — a delivery above only
               proves a push landed, not what the consumer runs.
             </p>
@@ -454,7 +454,7 @@ export function ProjectsScreen({
                   caption={assigned === null ? undefined : `of ${assigned.length}`}
                   size={168}
                 />
-                <p className="mt-2 text-center text-[11px]/4 text-zinc-500">
+                <p className="mt-2 text-center text-[11px]/4 text-content-subtle">
                   {serving === null || assigned === null
                     ? 'The agent registry could not be read'
                     : `${serving.length} of ${assigned.length} assigned agents are active or serving production`}
@@ -467,7 +467,7 @@ export function ProjectsScreen({
             title="Validation bench"
             description="Agents with no project assignment yet"
             actions={
-              <span className="shrink-0 text-[11px]/4 tabular-nums text-zinc-500">
+              <span className="shrink-0 text-[11px]/4 tabular-nums text-content-subtle">
                 {bench === null ? <Unavailable className="text-[11px]/4" /> : bench.length}
               </span>
             }

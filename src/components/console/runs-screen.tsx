@@ -290,12 +290,12 @@ export function RunsScreen({ data, filters = DEFAULT_RUNS_FILTERS }: { data: Run
       <Section title="Filters" description={filtersActive ? 'Narrowed view — clear to see every loaded run.' : 'All loaded runs shown.'}>
         <form method="get" className="flex flex-wrap items-end gap-2 px-4 py-3">
           <label className="flex min-w-32 flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-widest text-zinc-500">Search</span>
+            <span className="text-[10px] uppercase tracking-widest text-content-subtle">Search</span>
             <Input name="q" type="search" defaultValue={filters.q} placeholder="id, agent, project…" />
           </label>
 
           <label className="flex w-36 flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-widest text-zinc-500">Status</span>
+            <span className="text-[10px] uppercase tracking-widest text-content-subtle">Status</span>
             <FilterSelect
               name="status"
               value={filters.status}
@@ -305,7 +305,7 @@ export function RunsScreen({ data, filters = DEFAULT_RUNS_FILTERS }: { data: Run
           </label>
 
           <label className="flex w-40 flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-widest text-zinc-500">Agent</span>
+            <span className="text-[10px] uppercase tracking-widest text-content-subtle">Agent</span>
             <FilterSelect
               name="agent"
               value={filters.agent}
@@ -318,7 +318,7 @@ export function RunsScreen({ data, filters = DEFAULT_RUNS_FILTERS }: { data: Run
           </label>
 
           <label className="flex w-40 flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-widest text-zinc-500">Project</span>
+            <span className="text-[10px] uppercase tracking-widest text-content-subtle">Project</span>
             <FilterSelect
               name="project"
               value={filters.project}
@@ -331,7 +331,7 @@ export function RunsScreen({ data, filters = DEFAULT_RUNS_FILTERS }: { data: Run
           </label>
 
           <label className="flex w-32 flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-widest text-zinc-500">Period</span>
+            <span className="text-[10px] uppercase tracking-widest text-content-subtle">Period</span>
             <FilterSelect
               name="period"
               value={filters.period}
@@ -341,7 +341,7 @@ export function RunsScreen({ data, filters = DEFAULT_RUNS_FILTERS }: { data: Run
           </label>
 
           <label className="flex w-32 flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-widest text-zinc-500">Duration</span>
+            <span className="text-[10px] uppercase tracking-widest text-content-subtle">Duration</span>
             <FilterSelect
               name="duration"
               value={filters.duration}
@@ -351,7 +351,7 @@ export function RunsScreen({ data, filters = DEFAULT_RUNS_FILTERS }: { data: Run
           </label>
 
           <label className="flex w-32 flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-widest text-zinc-500">Cost</span>
+            <span className="text-[10px] uppercase tracking-widest text-content-subtle">Cost</span>
             <FilterSelect
               name="cost"
               value={filters.cost}
@@ -361,7 +361,7 @@ export function RunsScreen({ data, filters = DEFAULT_RUNS_FILTERS }: { data: Run
           </label>
 
           <label className="flex w-36 flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-widest text-zinc-500">Provider</span>
+            <span className="text-[10px] uppercase tracking-widest text-content-subtle">Provider</span>
             <FilterSelect
               name="provider"
               value={filters.provider}
@@ -371,7 +371,7 @@ export function RunsScreen({ data, filters = DEFAULT_RUNS_FILTERS }: { data: Run
           </label>
 
           <label className="flex w-40 flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-widest text-zinc-500">Model</span>
+            <span className="text-[10px] uppercase tracking-widest text-content-subtle">Model</span>
             <FilterSelect
               name="model"
               value={filters.model}
@@ -547,19 +547,19 @@ export function RunsScreen({ data, filters = DEFAULT_RUNS_FILTERS }: { data: Run
 
                         <TableCell className="text-white">
                           <p className="max-w-52 truncate">
-                            {agentName ?? <span className="font-mono text-zinc-400">{run.copilotId}</span>}
+                            {agentName ?? <span className="font-mono text-content-muted">{run.copilotId}</span>}
                           </p>
                         </TableCell>
 
-                        <TableCell className="text-zinc-400">
+                        <TableCell className="text-content-muted">
                           <p className="max-w-40 truncate">
                             {projectName ?? <span className="font-mono">{run.projectId}</span>}
                           </p>
                         </TableCell>
 
-                        <TableCell className="text-zinc-400">
+                        <TableCell className="text-content-muted">
                           {run.modelUnverified ? (
-                            <span className="text-zinc-500">unverified</span>
+                            <span className="text-content-subtle">unverified</span>
                           ) : run.resolvedModel ? (
                             <span className="font-mono text-[11px]">{run.resolvedModel}</span>
                           ) : (
@@ -568,7 +568,7 @@ export function RunsScreen({ data, filters = DEFAULT_RUNS_FILTERS }: { data: Run
                         </TableCell>
 
                         <TableCell className={TABLE_NUM}>
-                          <span className="text-zinc-300">{run.toolCallCount}</span>
+                          <span className="text-content-muted">{run.toolCallCount}</span>
                           {run.unsafeAttemptCount > 0 ? (
                             <span className="ml-1.5 text-[11px] text-[var(--state-danger-text)]">
                               +{run.unsafeAttemptCount} unsafe
@@ -576,15 +576,15 @@ export function RunsScreen({ data, filters = DEFAULT_RUNS_FILTERS }: { data: Run
                           ) : null}
                         </TableCell>
 
-                        <TableCell className={`${TABLE_NUM} text-zinc-300`}>
+                        <TableCell className={`${TABLE_NUM} text-content-muted`}>
                           {latency ?? unavailableCell}
                         </TableCell>
 
-                        <TableCell className={`${TABLE_NUM} text-zinc-300`}>
+                        <TableCell className={`${TABLE_NUM} text-content-muted`}>
                           {run.costUsd === null ? unavailableCell : formatUsd(run.costUsd)}
                         </TableCell>
 
-                        <TableCell className={`${TABLE_NUM} text-zinc-400`}>
+                        <TableCell className={`${TABLE_NUM} text-content-muted`}>
                           {startedAt === null ? (
                             unavailableCell
                           ) : (
@@ -604,7 +604,7 @@ export function RunsScreen({ data, filters = DEFAULT_RUNS_FILTERS }: { data: Run
               floor rather than a total, and saying so is the difference between
               a cap and a lie. */}
           <div className="border-t border-line px-4 py-2">
-            <p className="text-[11px]/4 text-zinc-500">
+            <p className="text-[11px]/4 text-content-subtle">
               {readAt === null ? 'Read time unavailable' : `Read at ${readAt}`}
               {data.windowTruncated ? ` · window read capped at ${data.windowMaxRows} rows` : ''}
             </p>
@@ -637,7 +637,7 @@ export function RunsScreen({ data, filters = DEFAULT_RUNS_FILTERS }: { data: Run
           </dl>
 
           <div className="border-t border-line px-4 py-2">
-            <p className="text-[11px]/4 text-zinc-500">
+            <p className="text-[11px]/4 text-content-subtle">
               {metrics.unmeasuredCostRuns} run{metrics.unmeasuredCostRuns === 1 ? '' : 's'} carried no
               measured cost ·{' '}
               {metrics.unsafeAttemptRuns > 0 ? (

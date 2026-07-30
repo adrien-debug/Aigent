@@ -145,7 +145,7 @@ const CONVERSATION_STEPS: { status: ProjectBuilderConversationStatus; label: str
  *  single word. */
 function ConversationStepper({ status }: { status: ProjectBuilderConversationStatus }) {
   if (status === 'archived') {
-    return <p className="px-4 py-2 text-[11px]/4 text-zinc-500">This conversation is archived.</p>
+    return <p className="px-4 py-2 text-[11px]/4 text-content-subtle">This conversation is archived.</p>
   }
   const activeIndex = CONVERSATION_STEPS.findIndex((step) => step.status === status)
   return (
@@ -158,14 +158,14 @@ function ConversationStepper({ status }: { status: ProjectBuilderConversationSta
             <span
               className={cn(
                 'flex items-center gap-1.5 text-[10px]/4 font-semibold uppercase tracking-widest',
-                current ? 'text-accent-300' : reached ? 'text-zinc-300' : 'text-zinc-600'
+                current ? 'text-accent-300' : reached ? 'text-content-muted' : 'text-content-faint'
               )}
             >
               <span
                 aria-hidden="true"
                 className={cn(
                   'size-1.5 rounded-full',
-                  current ? 'bg-accent-300' : reached ? 'bg-zinc-400' : 'bg-zinc-700'
+                  current ? 'bg-accent-300' : reached ? 'bg-content-muted' : 'bg-graphite-700'
                 )}
               />
               {step.label}
@@ -533,10 +533,10 @@ export function ProjectBuilderScreen({
                 }
               >
                 <div className="flex items-baseline gap-2">
-                  <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">{message.role}</p>
-                  <p className="text-[10px]/4 tabular-nums text-zinc-600">{formatMessageTime(message.createdAt)}</p>
+                  <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">{message.role}</p>
+                  <p className="text-[10px]/4 tabular-nums text-content-faint">{formatMessageTime(message.createdAt)}</p>
                 </div>
-                <p className="mt-1.5 whitespace-pre-wrap text-[13px]/6 text-zinc-200">{message.content}</p>
+                <p className="mt-1.5 whitespace-pre-wrap text-[13px]/6 text-content">{message.content}</p>
               </div>
             )) : lifecycle === 'connecting' ? (
               <EmptyState title="Loading the conversation…" />
@@ -557,16 +557,16 @@ export function ProjectBuilderScreen({
             )}
             {partial ? (
               <div className="max-w-[88%]">
-                {/* `zinc-400`, NOT the accent. The accent is this console's
+                {/* `content-muted`, NOT the accent. The accent is this console's
                     proven/success hue (`StatusDot` tone `positive`), and a
                     half-arrived answer is proven nothing — the same reason
                     `lifecycleTone` maps `running` to `pending`, not `positive`.
                     One step brighter than the settled `zinc-500` role labels
                     below, so the live block still reads as the live one. */}
-                <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-400">
+                <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-content-muted">
                   architect · streaming
                 </p>
-                <p className="mt-1.5 whitespace-pre-wrap text-[13px]/6 text-zinc-200">{partial}</p>
+                <p className="mt-1.5 whitespace-pre-wrap text-[13px]/6 text-content">{partial}</p>
               </div>
             ) : null}
           </div>
@@ -630,7 +630,7 @@ export function ProjectBuilderScreen({
                 ) : (
                   <Button color="accent" className="w-full" disabled={!preview.readyForApproval || approving} onClick={() => void materialize()}>Approve — create draft</Button>
                 )}
-                {!preview.readyForApproval ? <p className="mt-2 text-center text-[11px]/4 text-zinc-500">Continue the discussion before approval.</p> : null}
+                {!preview.readyForApproval ? <p className="mt-2 text-center text-[11px]/4 text-content-subtle">Continue the discussion before approval.</p> : null}
               </div>
             </>
           )}
@@ -647,8 +647,8 @@ function PreviewBlock({ label, value }: { label: string; value?: string }) {
   if (!value) return null
   return (
     <div className="border-b border-line px-4 py-2.5 last:border-b-0">
-      <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">{label}</p>
-      <p className="mt-1 whitespace-pre-wrap text-[13px]/6 text-zinc-200">{value}</p>
+      <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">{label}</p>
+      <p className="mt-1 whitespace-pre-wrap text-[13px]/6 text-content">{value}</p>
     </div>
   )
 }
@@ -658,15 +658,15 @@ function PreviewList({ label, values }: { label: string; values?: string[] }) {
   if (!values?.length) return null
   return (
     <div className="border-b border-line px-4 py-2.5 last:border-b-0">
-      <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">{label}</p>
+      <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">{label}</p>
       <ul className="mt-1.5 space-y-1.5">
         {values.map((value) => (
-          <li key={value} className="flex gap-2 text-[12px]/5 text-zinc-300">
+          <li key={value} className="flex gap-2 text-[12px]/5 text-content-muted">
             {/* Neutral zinc, NOT the accent. A list bullet is punctuation, not a
                 status and not an action: ten green dots in a rail that also holds
                 the one accent CTA spend the accent on nothing and stop the button
                 from reading as the primary thing on screen. */}
-            <span aria-hidden="true" className="mt-[7px] size-1 shrink-0 rounded-full bg-zinc-600" />
+            <span aria-hidden="true" className="mt-[7px] size-1 shrink-0 rounded-full bg-content-faint" />
             <span className="min-w-0">{value}</span>
           </li>
         ))}

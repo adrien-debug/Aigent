@@ -134,9 +134,9 @@ const unavailableValue = <Unavailable className="text-[11px]" />
 function telemetryStatusLabel(status: TelemetryHealthStatus): React.ReactNode {
   switch (status) {
     case 'not_configured':
-      return <span className="text-zinc-400">Not configured</span>
+      return <span className="text-content-muted">Not configured</span>
     case 'incomplete_configuration':
-      return <span className="text-zinc-400">No agent declares it</span>
+      return <span className="text-content-muted">No agent declares it</span>
     case 'loop_muted':
       return <span className="text-[var(--state-danger-text)]">Muted</span>
     case 'healthy':
@@ -555,7 +555,7 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
             the null was narrowed here before ever reaching it. It now returns
             the same word (`UNAVAILABLE_LABEL`, one vocabulary), so the two
             paths finally AGREE; the narrowing stays because only the component
-            can carry the zinc-500 role and the figure-sized class.
+            can carry the content-subtle role and the figure-sized class.
             `costDetail` above names which absence it is. */}
         <KpiCard
           label="Cost · 24h"
@@ -584,7 +584,7 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
               caption={executable ? `of ${executable.total}` : undefined}
               size={96}
             />
-            <p className="max-w-40 text-[11px]/4 text-zinc-500">
+            <p className="max-w-40 text-[11px]/4 text-content-subtle">
               {executable
                 ? `${executable.now} of ${executable.total} agents would be accepted for a run right now`
                 : 'The executable-agent count could not be read'}
@@ -592,7 +592,7 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
           </div>
           <dl className="grid grid-cols-3 divide-x divide-line self-center">
             <div className="min-w-0 px-3">
-              <dt className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">
+              <dt className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">
                 Ready for manual test
               </dt>
               <dd className="mt-1 text-lg/6 tabular-nums text-white">
@@ -604,7 +604,7 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
               </dd>
             </div>
             <div className="min-w-0 px-3">
-              <dt className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">
+              <dt className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">
                 Sandbox pass rate
               </dt>
               <dd className="mt-1 text-lg/6 tabular-nums text-white">
@@ -616,7 +616,7 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
               </dd>
             </div>
             <div className="min-w-0 px-3">
-              <dt className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">
+              <dt className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">
                 Average repo fit
               </dt>
               <dd className="mt-1 text-lg/6 tabular-nums text-white">
@@ -719,7 +719,7 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
               than be quietly cut into something that looks like data. */}
           <dl className="grid grid-cols-3 divide-x divide-line border-b border-line">
             <div className="min-w-0 px-2.5 py-2.5">
-              <dt className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">
+              <dt className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">
                 Production
               </dt>
               <dd className="mt-1 text-lg/6 tabular-nums text-white">
@@ -727,7 +727,7 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
               </dd>
             </div>
             <div className="min-w-0 px-2.5 py-2.5">
-              <dt className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">
+              <dt className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">
                 Ran · 24h
               </dt>
               <dd className="mt-1 text-lg/6 tabular-nums text-white">
@@ -735,7 +735,7 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
               </dd>
             </div>
             <div className="min-w-0 px-2.5 py-2.5">
-              <dt className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">
+              <dt className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">
                 Blocked
               </dt>
               <dd className="mt-1 text-lg/6 tabular-nums text-white">
@@ -853,13 +853,13 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
                 `loop_muted` / `not_configured` NEVER render as "agent down";
                 the tone is informational. */}
             <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2">
-              <dt className="min-w-0 truncate text-[11px]/5 text-zinc-500">Channel status</dt>
+              <dt className="min-w-0 truncate text-[11px]/5 text-content-subtle">Channel status</dt>
               <dd className="shrink-0 text-[13px]/5 tabular-nums text-white">
                 {telemetryStatusLabel(overview.telemetryHealth.status)}
               </dd>
             </div>
             <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2">
-              <dt className="min-w-0 truncate text-[11px]/5 text-zinc-500">Agents reporting</dt>
+              <dt className="min-w-0 truncate text-[11px]/5 text-content-subtle">Agents reporting</dt>
               <dd className="shrink-0 text-[13px]/5 tabular-nums text-white">
                 {overview.telemetryReportingAgents === null ? (
                   <Unavailable className="text-[11px]/5" />
@@ -869,7 +869,7 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
               </dd>
             </div>
             <div className="flex items-center justify-between gap-3 px-4 py-2">
-              <dt className="min-w-0 truncate text-[11px]/5 text-zinc-500">External runs measured</dt>
+              <dt className="min-w-0 truncate text-[11px]/5 text-content-subtle">External runs measured</dt>
               <dd className="shrink-0 text-[13px]/5 tabular-nums text-white">
                 {overview.telemetryRunsMeasured === null ? (
                   <Unavailable className="text-[11px]/5" />

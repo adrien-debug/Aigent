@@ -33,7 +33,7 @@ describe('RingGauge — the track is the whole distinction, and it must be real 
 
     const track = circles[0]
     expect(track.getAttribute('stroke-dasharray')).toBeNull()
-    expect(track.getAttribute('class')).toContain('stroke-zinc-500')
+    expect(track.getAttribute('class')).toContain('stroke-content-subtle')
 
     const svg = container.querySelector('svg') as SVGElement
     expect(svg.getAttribute('aria-label')).toBe('Executable agents: 7 out of 14.')
@@ -48,7 +48,7 @@ describe('RingGauge — the track is the whole distinction, and it must be real 
     // only the track — no glow, no line arc
     expect(circles.length).toBe(1)
     expect(circles[0].getAttribute('stroke-dasharray')).not.toBeNull()
-    expect(circles[0].getAttribute('class')).toContain('stroke-zinc-600')
+    expect(circles[0].getAttribute('class')).toContain('stroke-content-faint')
 
     expect(container.textContent).toContain(UNAVAILABLE)
     const svg = container.querySelector('svg') as SVGElement
@@ -61,7 +61,7 @@ describe('RingGauge — the track is the whole distinction, and it must be real 
     const circles = container.querySelectorAll('circle')
     expect(circles.length).toBe(1) // track only — no arc for a zero fraction
     expect(circles[0].getAttribute('stroke-dasharray')).toBeNull()
-    expect(circles[0].getAttribute('class')).toContain('stroke-zinc-500')
+    expect(circles[0].getAttribute('class')).toContain('stroke-content-subtle')
 
     expect(container.textContent).toContain('0')
     expect(container.textContent).not.toContain(UNAVAILABLE)
@@ -96,7 +96,7 @@ describe('ArcGauge — same contract, drawn with <path>, never a <circle>', () =
 
     const track = paths[0]
     expect(track.getAttribute('stroke-dasharray')).toBeNull()
-    expect(track.getAttribute('class')).toContain('stroke-zinc-500')
+    expect(track.getAttribute('class')).toContain('stroke-content-subtle')
   })
 
   it('value === null: exactly ONE path (the dashed track), no arc paths', () => {
@@ -105,7 +105,7 @@ describe('ArcGauge — same contract, drawn with <path>, never a <circle>', () =
     const paths = container.querySelectorAll('path')
     expect(paths.length).toBe(1)
     expect(paths[0].getAttribute('stroke-dasharray')).not.toBeNull()
-    expect(paths[0].getAttribute('class')).toContain('stroke-zinc-600')
+    expect(paths[0].getAttribute('class')).toContain('stroke-content-faint')
   })
 
   it('a measured zero: solid track, still exactly one path (no misleading dot arc)', () => {
@@ -113,14 +113,14 @@ describe('ArcGauge — same contract, drawn with <path>, never a <circle>', () =
     const paths = container.querySelectorAll('path')
     expect(paths.length).toBe(1)
     expect(paths[0].getAttribute('stroke-dasharray')).toBeNull()
-    expect(paths[0].getAttribute('class')).toContain('stroke-zinc-500')
+    expect(paths[0].getAttribute('class')).toContain('stroke-content-subtle')
   })
 
   it('max === 0 with a measured value: still the solid/measured track, not the dashed/unmeasured one', () => {
     const { container } = render(<ArcGauge value={0} max={0} ariaLabel="Executable agents: 0 of 0." />)
     const track = container.querySelector('path') as SVGPathElement
     expect(track.getAttribute('stroke-dasharray')).toBeNull()
-    expect(track.getAttribute('class')).toContain('stroke-zinc-500')
+    expect(track.getAttribute('class')).toContain('stroke-content-subtle')
   })
 
   it('the arc sweep is proportional to the fraction (regression guard for the round-cap overstatement)', () => {

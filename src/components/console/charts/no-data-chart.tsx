@@ -31,11 +31,11 @@ export function NoDataChart({
         className
       )}
     >
-      <span aria-hidden className="text-sm text-zinc-600">
+      <span aria-hidden className="text-sm text-content-faint">
         ╱╲
       </span>
-      <p className="text-[11px]/4 text-zinc-500">{label}</p>
-      {detail ? <p className="text-[10px]/4 text-zinc-600">{detail}</p> : null}
+      <p className="text-[11px]/4 text-content-subtle">{label}</p>
+      {detail ? <p className="text-[10px]/4 text-content-faint">{detail}</p> : null}
     </div>
   )
 }

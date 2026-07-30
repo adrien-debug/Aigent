@@ -356,9 +356,9 @@ function FleetTable({ agents }: { agents: AvailableAgent[] }) {
         </Select>
         <Field className="flex shrink-0 items-center gap-1.5">
           <Checkbox checked={groupByLifecycle} onChange={setGroupByLifecycle} />
-          <Label className="text-[11px]/4 text-zinc-400">Group by lifecycle</Label>
+          <Label className="text-[11px]/4 text-content-muted">Group by lifecycle</Label>
         </Field>
-        <span className="ml-auto shrink-0 text-[11px]/4 tabular-nums text-zinc-500">
+        <span className="ml-auto shrink-0 text-[11px]/4 tabular-nums text-content-subtle">
           {sorted.length} / {agents.length} rows
         </span>
       </div>
@@ -397,7 +397,7 @@ function FleetTable({ agents }: { agents: AvailableAgent[] }) {
                 <Fragment key={group.key || 'ungrouped'}>
                   {group.key ? (
                     <TableRow key={`group-${group.key}`} className={`${TABLE_ROW} bg-surface-sunken`}>
-                      <TableCell colSpan={10} className="text-[10px] tracking-widest text-zinc-400 uppercase">
+                      <TableCell colSpan={10} className="text-[10px] tracking-widest text-content-muted uppercase">
                         {group.key} · {group.rows.length}
                       </TableCell>
                     </TableRow>
@@ -421,7 +421,7 @@ function FleetTable({ agents }: { agents: AvailableAgent[] }) {
                               (~4.1:1) so the identifier stays legible instead of
                               reading as decoration. */}
                           <p className="max-w-56 truncate text-white">{agent.name}</p>
-                          <p className="max-w-56 truncate font-mono text-[10px]/4 text-zinc-500">
+                          <p className="max-w-56 truncate font-mono text-[10px]/4 text-content-subtle">
                             {agent.copilotId}
                             {/* `versionStage` — the stage of the ONE version the
                                 catalogue resolves (`production_version_id ??
@@ -430,7 +430,7 @@ function FleetTable({ agents }: { agents: AvailableAgent[] }) {
                                 Not "delivered version": see the file docblock
                                 for why that split is refused this mission. */}
                             {agent.version !== null ? (
-                              <span className="text-zinc-600">
+                              <span className="text-content-faint">
                                 {' '}
                                 · {agent.version}
                                 {agent.versionStage !== null ? ` (${agent.versionStage})` : ''}
@@ -438,12 +438,12 @@ function FleetTable({ agents }: { agents: AvailableAgent[] }) {
                             ) : null}
                           </p>
                         </TableCell>
-                        <TableCell className="text-zinc-300">{agent.lifecycleStatus}</TableCell>
+                        <TableCell className="text-content-muted">{agent.lifecycleStatus}</TableCell>
                         <TableCell>
                           {agent.runtime === null ? (
                             <Unavailable />
                           ) : (
-                            <span className="text-zinc-300">{agent.runtime}</span>
+                            <span className="text-content-muted">{agent.runtime}</span>
                           )}
                         </TableCell>
                         <TableCell>
@@ -454,7 +454,7 @@ function FleetTable({ agents }: { agents: AvailableAgent[] }) {
                           {agent.provider === null && agent.configuredModel === null ? (
                             <Unavailable />
                           ) : (
-                            <p className="max-w-52 truncate text-zinc-300">
+                            <p className="max-w-52 truncate text-content-muted">
                               {agent.provider ?? <Unavailable />} ·{' '}
                               {agent.configuredModel ?? <Unavailable />}
                             </p>
@@ -465,7 +465,7 @@ function FleetTable({ agents }: { agents: AvailableAgent[] }) {
                           {lastRunAt === null ? (
                             <Unavailable />
                           ) : (
-                            <span className="tabular-nums text-zinc-300">{lastRunAt}</span>
+                            <span className="tabular-nums text-content-muted">{lastRunAt}</span>
                           )}
                         </TableCell>
                         <TableCell className={TABLE_NUM}>
@@ -479,7 +479,7 @@ function FleetTable({ agents }: { agents: AvailableAgent[] }) {
                           {/* THE operational payoff of this rebuild: the refusal
                               reason is readable right here, no click required. */}
                           {agent.executable ? (
-                            <span className="text-zinc-500">—</span>
+                            <span className="text-content-subtle">—</span>
                           ) : (
                             <p
                               className="truncate text-[11px]/4 text-[var(--state-danger-text)]"
@@ -694,7 +694,7 @@ export function AgentsScreen({
               caption={total !== null && total > 0 ? `of ${total}` : undefined}
               size={168}
             />
-            <p className="mt-2 text-center text-[11px]/4 text-zinc-500">
+            <p className="mt-2 text-center text-[11px]/4 text-content-subtle">
               {unread
                 ? 'The agent catalogue could not be read'
                 : total !== null && total > 0
@@ -730,7 +730,7 @@ export function AgentsScreen({
           title="Runtime catalogue"
           description="Search, filter, sort and group — lifecycle and execution truth stay separate"
           actions={
-            <span className="shrink-0 text-[11px]/4 tabular-nums text-zinc-500">
+            <span className="shrink-0 text-[11px]/4 tabular-nums text-content-subtle">
               {unread ? UNAVAILABLE_LABEL : `${total} rows`}
             </span>
           }
@@ -828,7 +828,7 @@ export function AgentsScreen({
           title="Blocked from running"
           description="The same refusals the run endpoint enforces"
           actions={
-            <span className="shrink-0 text-[11px]/4 tabular-nums text-zinc-500">
+            <span className="shrink-0 text-[11px]/4 tabular-nums text-content-subtle">
               {unread ? UNAVAILABLE_LABEL : blocked.length}
             </span>
           }

@@ -154,7 +154,7 @@ function ConfirmButton({
         <Button outline disabled>
           {label}
         </Button>
-        {disabledReason ? <p className="text-[11px]/4 text-zinc-500">{disabledReason}</p> : null}
+        {disabledReason ? <p className="text-[11px]/4 text-content-subtle">{disabledReason}</p> : null}
       </div>
     )
   }
@@ -394,7 +394,7 @@ export function QualificationPanel({
           {/* ── Qualification workflow ─────────────────────────────────── */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-[11px]/4 font-semibold uppercase tracking-widest text-zinc-500">
+              <p className="text-[11px]/4 font-semibold uppercase tracking-widest text-content-subtle">
                 Qualification workflow
               </p>
               <ConfirmButton
@@ -407,9 +407,9 @@ export function QualificationPanel({
               />
             </div>
             {loading ? (
-              <p className="text-[12px]/5 text-zinc-500">Loading…</p>
+              <p className="text-[12px]/5 text-content-subtle">Loading…</p>
             ) : readiness === null ? (
-              <p className="text-[12px]/5 text-zinc-500">Not started.</p>
+              <p className="text-[12px]/5 text-content-subtle">Not started.</p>
             ) : (
               <>
                 <StatusDot
@@ -425,7 +425,7 @@ export function QualificationPanel({
                 >
                   {readiness.state}
                 </StatusDot>
-                <p className="text-[12px]/5 text-zinc-300">{readiness.nextAction}</p>
+                <p className="text-[12px]/5 text-content-muted">{readiness.nextAction}</p>
                 {readiness.steps.length > 0 ? (
                   <ul className="space-y-1">
                     {readiness.steps.map((s, i) => (
@@ -433,7 +433,7 @@ export function QualificationPanel({
                         <StatusDot tone={STEP_STATUS_TONE[s.status]} className="max-w-28">
                           {s.step}
                         </StatusDot>
-                        <span className="text-zinc-500">{s.reason}</span>
+                        <span className="text-content-subtle">{s.reason}</span>
                       </li>
                     ))}
                   </ul>
@@ -445,7 +445,7 @@ export function QualificationPanel({
           {/* ── Shadow ──────────────────────────────────────────────────── */}
           <div className="space-y-2 border-t border-line pt-3">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-[11px]/4 font-semibold uppercase tracking-widest text-zinc-500">
+              <p className="text-[11px]/4 font-semibold uppercase tracking-widest text-content-subtle">
                 Shadow
               </p>
               <ConfirmButton
@@ -458,7 +458,7 @@ export function QualificationPanel({
               />
             </div>
             {loading ? (
-              <p className="text-[12px]/5 text-zinc-500">Loading…</p>
+              <p className="text-[12px]/5 text-content-subtle">Loading…</p>
             ) : shadow === 'unread' || shadow === null ? (
               <StatusDot tone="neutral">Not run</StatusDot>
             ) : (
@@ -466,10 +466,10 @@ export function QualificationPanel({
                 <StatusDot tone={EVIDENCE_TONE[shadowEvidenceState(shadow)]}>
                   {EVIDENCE_LABEL[shadowEvidenceState(shadow)]}
                 </StatusDot>
-                <dl className="mt-1 space-y-0.5 text-[11px]/5 text-zinc-400">
+                <dl className="mt-1 space-y-0.5 text-[11px]/5 text-content-muted">
                   <div>
                     Provenance:{' '}
-                    <span className={shadow.executionMode === 'live_langgraph' ? 'text-zinc-300' : 'text-amber-400'}>
+                    <span className={shadow.executionMode === 'live_langgraph' ? 'text-content-muted' : 'text-amber-400'}>
                       {shadow.executionMode === 'deterministic_fixture'
                         ? 'simulated ($0 fixture — never gates a real promotion)'
                         : shadow.executionMode}
@@ -478,7 +478,7 @@ export function QualificationPanel({
                   <div>Sampled runs: {shadow.sampledRunCount}</div>
                   <div>
                     Mutations blocked:{' '}
-                    <span className={shadow.wouldMutateCount > 0 ? 'text-[var(--state-danger-text)]' : 'text-zinc-300'}>
+                    <span className={shadow.wouldMutateCount > 0 ? 'text-[var(--state-danger-text)]' : 'text-content-muted'}>
                       {shadow.wouldMutateCount}
                     </span>
                   </div>
@@ -491,7 +491,7 @@ export function QualificationPanel({
           {/* ── Replay ──────────────────────────────────────────────────── */}
           <div className="space-y-2 border-t border-line pt-3">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-[11px]/4 font-semibold uppercase tracking-widest text-zinc-500">
+              <p className="text-[11px]/4 font-semibold uppercase tracking-widest text-content-subtle">
                 Replay
               </p>
               <ConfirmButton
@@ -504,7 +504,7 @@ export function QualificationPanel({
               />
             </div>
             {loading ? (
-              <p className="text-[12px]/5 text-zinc-500">Loading…</p>
+              <p className="text-[12px]/5 text-content-subtle">Loading…</p>
             ) : replay === 'unread' || replay === null ? (
               <StatusDot tone="neutral">Not run</StatusDot>
             ) : (
@@ -512,10 +512,10 @@ export function QualificationPanel({
                 <StatusDot tone={EVIDENCE_TONE[replayEvidenceState(replay)]}>
                   {EVIDENCE_LABEL[replayEvidenceState(replay)]}
                 </StatusDot>
-                <dl className="mt-1 space-y-0.5 text-[11px]/5 text-zinc-400">
+                <dl className="mt-1 space-y-0.5 text-[11px]/5 text-content-muted">
                   <div>
                     Provenance:{' '}
-                    <span className={replay.executionMode === 'live_langgraph' ? 'text-zinc-300' : 'text-amber-400'}>
+                    <span className={replay.executionMode === 'live_langgraph' ? 'text-content-muted' : 'text-amber-400'}>
                       {replay.executionMode === 'deterministic_fixture'
                         ? 'simulated ($0 fixture — never gates a real promotion)'
                         : replay.executionMode}

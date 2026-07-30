@@ -51,7 +51,7 @@ export function BarBreakdown({
         const fraction = scale > 0 ? Math.min(1, Math.max(0, row.count / scale)) : 0
         return (
           <li key={row.label} className="flex items-center gap-2.5">
-            <span className="w-28 shrink-0 truncate text-[11px]/4 text-zinc-400" title={row.label}>
+            <span className="w-28 shrink-0 truncate text-[11px]/4 text-content-muted" title={row.label}>
               {row.label}
             </span>
             <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-sunken">

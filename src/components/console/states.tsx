@@ -70,12 +70,12 @@ export function EmptyStateIllustrated({
         className
       )}
     >
-      <span aria-hidden className="text-xl text-zinc-600">
+      <span aria-hidden className="text-xl text-content-faint">
         ○
       </span>
-      <p className="text-[13px]/5 font-medium text-zinc-300">{title}</p>
-      <p className="max-w-sm text-[11px]/4 text-zinc-500">{reason}</p>
-      <p className="text-[10px]/4 uppercase tracking-widest text-zinc-600">Source · {source}</p>
+      <p className="text-[13px]/5 font-medium text-content-muted">{title}</p>
+      <p className="max-w-sm text-[11px]/4 text-content-subtle">{reason}</p>
+      <p className="text-[10px]/4 uppercase tracking-widest text-content-faint">Source · {source}</p>
       {action ? <div className="mt-1">{action}</div> : null}
     </div>
   )
@@ -114,7 +114,7 @@ export function ErrorStateBlocking({
         ⛔
       </span>
       <p className="text-sm/5 font-semibold text-[var(--state-danger-text)]">{title}</p>
-      <p className="max-w-sm text-[12px]/5 text-zinc-400">{description}</p>
+      <p className="max-w-sm text-[12px]/5 text-content-muted">{description}</p>
       {retry ? <div className="mt-2">{retry}</div> : null}
     </div>
   )
@@ -170,9 +170,9 @@ export function DataUnavailable({
 }) {
   return (
     <div className={cn('rounded-xl border border-line bg-surface-app px-4 py-3.5', className)}>
-      <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">{label}</p>
-      <p className="mt-1 text-lg/6 font-light text-zinc-500">{UNAVAILABLE_LABEL}</p>
-      <p className={cn('mt-1 text-[11px]/4 text-zinc-600', className)}>{detail}</p>
+      <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">{label}</p>
+      <p className="mt-1 text-lg/6 font-light text-content-subtle">{UNAVAILABLE_LABEL}</p>
+      <p className={cn('mt-1 text-[11px]/4 text-content-faint', className)}>{detail}</p>
     </div>
   )
 }
@@ -206,7 +206,7 @@ export function ConfigurationRequired({
       )}
     >
       <p className="text-[13px]/5 font-medium text-accent-500">{title}</p>
-      <p className="text-[11px]/4 text-zinc-400">{description}</p>
+      <p className="text-[11px]/4 text-content-muted">{description}</p>
       <div>{action}</div>
     </div>
   )
@@ -239,8 +239,8 @@ export function EvidenceMissing({
         className
       )}
     >
-      <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">No {pipeline} evidence yet</p>
-      <p className="text-[11px]/4 text-zinc-500">{detail}</p>
+      <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-content-subtle">No {pipeline} evidence yet</p>
+      <p className="text-[11px]/4 text-content-subtle">{detail}</p>
       {action ? <div className="mt-1">{action}</div> : null}
     </div>
   )
@@ -264,8 +264,8 @@ export function CompactMetric({
 }) {
   return (
     <div className={cn('flex items-center justify-between gap-3 px-3 py-1.5 text-[11px]/4', className)}>
-      <span className="truncate text-zinc-500">{label}</span>
-      <span className="shrink-0 tabular-nums text-zinc-200">{value}</span>
+      <span className="truncate text-content-subtle">{label}</span>
+      <span className="shrink-0 tabular-nums text-content">{value}</span>
     </div>
   )
 }

@@ -45,9 +45,9 @@ export function ChartCard({
       <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
         <div className="min-w-0">
           <p className="truncate text-xs/5 font-semibold text-white">{title}</p>
-          {subtitle ? <p className="mt-0.5 truncate text-[11px]/4 text-zinc-500">{subtitle}</p> : null}
+          {subtitle ? <p className="mt-0.5 truncate text-[11px]/4 text-content-subtle">{subtitle}</p> : null}
         </div>
-        <p className="shrink-0 text-[10px]/4 uppercase tracking-widest text-zinc-600">Source · {source}</p>
+        <p className="shrink-0 text-[10px]/4 uppercase tracking-widest text-content-faint">Source · {source}</p>
       </div>
       <div className={cn('min-w-0 overflow-hidden px-3 py-3', maxHeight)}>
         {isEmpty ? <NoDataChart detail={emptyDetail} /> : children}

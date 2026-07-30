@@ -101,7 +101,7 @@ function ConfirmDialog({
       <div className="fixed inset-0 flex w-screen items-center justify-center p-4">
         <DialogPanel className="w-full max-w-md rounded-xl border border-line bg-surface-raised p-5">
           <DialogTitle className="text-sm font-semibold text-white">{title}</DialogTitle>
-          <div className="mt-2 text-[12px]/5 text-zinc-400">{description}</div>
+          <div className="mt-2 text-[12px]/5 text-content-muted">{description}</div>
           <div className="mt-5 flex justify-end gap-2">
             <Button outline onClick={onClose} disabled={busy}>
               Cancel
@@ -323,10 +323,10 @@ export function DeliveryControls({
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="text-[11px]/4 font-semibold uppercase tracking-widest text-zinc-500">
+            <p className="text-[11px]/4 font-semibold uppercase tracking-widest text-content-subtle">
               Promotion
             </p>
-            <p className="mt-0.5 text-[11px]/4 text-zinc-500">
+            <p className="mt-0.5 text-[11px]/4 text-content-subtle">
               Re-evaluates the full release gate live before writing anything. A failing gate never mutates.
             </p>
           </div>
@@ -355,7 +355,7 @@ export function DeliveryControls({
             {promotion.kind === 'blocked' && promotion.blocking.length > 0 ? (
               <ul className="mt-1.5 space-y-0.5">
                 {promotion.blocking.map((line) => (
-                  <li key={line} className="text-[11px]/4 text-zinc-400">
+                  <li key={line} className="text-[11px]/4 text-content-muted">
                     {line}
                   </li>
                 ))}
@@ -369,8 +369,8 @@ export function DeliveryControls({
       <div className="border-t border-line pt-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="text-[11px]/4 font-semibold uppercase tracking-widest text-zinc-500">Delivery</p>
-            <p className="mt-0.5 text-[11px]/4 text-zinc-500">
+            <p className="text-[11px]/4 font-semibold uppercase tracking-widest text-content-subtle">Delivery</p>
+            <p className="mt-0.5 text-[11px]/4 text-content-subtle">
               {hasRepo ? `Target: ${repoFullName}` : 'No repository is linked to this project.'}
             </p>
           </div>
@@ -389,22 +389,22 @@ export function DeliveryControls({
           </div>
         </div>
         {!hasProject ? (
-          <p className="mt-1.5 text-[11px]/4 text-zinc-500">
+          <p className="mt-1.5 text-[11px]/4 text-content-subtle">
             This copilot is not linked to a project — delivery is unavailable.
           </p>
         ) : !hasRepo ? (
-          <p className="mt-1.5 text-[11px]/4 text-zinc-500">
+          <p className="mt-1.5 text-[11px]/4 text-content-subtle">
             The linked project has no `repoFullName` — link a GitHub repository before delivery.
           </p>
         ) : realDeliveryEnabled === undefined ? (
-          <p className="mt-1.5 text-[11px]/4 text-zinc-500">Checking whether real delivery is available…</p>
+          <p className="mt-1.5 text-[11px]/4 text-content-subtle">Checking whether real delivery is available…</p>
         ) : realDeliveryEnabled === null ? (
-          <p className="mt-1.5 text-[11px]/4 text-zinc-500">
+          <p className="mt-1.5 text-[11px]/4 text-content-subtle">
             Whether real delivery is available could not be determined — the capability check did not answer. Dry-run
             stays available; the real path is held closed rather than guessed.
           </p>
         ) : realDeliveryEnabled === false ? (
-          <p className="mt-1.5 text-[11px]/4 text-zinc-500">
+          <p className="mt-1.5 text-[11px]/4 text-content-subtle">
             Real delivery is not enabled on this server. Dry-run remains available.
           </p>
         ) : null}
@@ -446,10 +446,10 @@ export function DeliveryControls({
       <div className="border-t border-line pt-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="text-[11px]/4 font-semibold uppercase tracking-widest text-zinc-500">
+            <p className="text-[11px]/4 font-semibold uppercase tracking-widest text-content-subtle">
               Delivery loop
             </p>
-            <p className="mt-0.5 text-[11px]/4 text-zinc-500">
+            <p className="mt-0.5 text-[11px]/4 text-content-subtle">
               Assesses the latest delivery + sandbox and computes readiness. Read-only.
             </p>
           </div>
@@ -460,7 +460,7 @@ export function DeliveryControls({
         {loop.kind === 'error' ? (
           <p className="mt-2 text-[11px]/4 text-[var(--state-danger-text)]">{loop.message}</p>
         ) : loop.kind === 'result' ? (
-          <pre className="mt-2 max-h-40 overflow-auto rounded-lg border border-line bg-surface-sunken px-3 py-2 text-[10px]/4 text-zinc-400">
+          <pre className="mt-2 max-h-40 overflow-auto rounded-lg border border-line bg-surface-sunken px-3 py-2 text-[10px]/4 text-content-muted">
             {JSON.stringify(loop.state, null, 2)}
           </pre>
         ) : null}
