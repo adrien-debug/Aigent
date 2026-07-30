@@ -5,6 +5,10 @@ import { StatusDot, type StatusDotTone } from '@/components/ui/status-dot'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { DashboardOverview, RecentDelivery } from '@/lib/agent-mission-control/dashboard-overview'
 import type { RuntimeTelemetryEvent } from '@/lib/agent-mission-control/runtime-telemetry-store'
+import {
+  classifyRuntimeTelemetryProvenance,
+  type RuntimeTelemetryProvenance,
+} from '@/lib/agent-mission-control/runtime-telemetry-provenance'
 import type { TelemetryHealthStatus } from '@/lib/agent-mission-control/telemetry-health'
 import type { AgentRun, AgentRunStatus } from '@/lib/agent-mission-control/types'
 
@@ -218,6 +222,19 @@ function runStatusTone(status: AgentRunStatus): StatusDotTone {
  *  wrong" get the danger role; the rest stay neutral rather than guessing. */
 function actionStatusTone(status: string): StatusDotTone {
   return status === 'failed' || status === 'blocked' ? 'negative' : 'neutral'
+}
+
+function telemetryProvenanceLabel(provenance: RuntimeTelemetryProvenance): string {
+  switch (provenance) {
+    case 'internal':
+      return 'internal'
+    case 'lifecycle':
+      return 'lifecycle'
+    case 'consumer':
+      return 'consumer'
+    case 'unknown':
+      return 'unknown'
+  }
 }
 
 type TrendBuckets = {
@@ -637,7 +654,7 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
             // Exactly what an empty `dataWarnings` proves — and no more. Two
             // of the collector's reads fail SOFT without raising a warning, so
             // "every source answered" would be a claim this screen cannot back.
-            <StatusDot tone="positive">No data-source warning reported</StatusDot>
+            <StatusDot tone="neutral">No data-source warning reported</StatusDot>
           )}
         </div>
       </Section>
@@ -845,8 +862,8 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
         </Section>
 
         <Section
-          title="Telemetry"
-          description="Runtime-telemetry channel — agents reporting outside Aigent's own runner"
+          title="Runtime telemetry"
+          description="Global channel — internal runs, lifecycle events and consumer traffic when reported"
           scroll="lg"
         >
           <dl>
@@ -871,7 +888,7 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
               </dd>
             </div>
             <div className="flex items-center justify-between gap-3 px-4 py-2">
-              <dt className="min-w-0 truncate text-[11px]/5 text-content-subtle">External runs measured</dt>
+              <dt className="min-w-0 truncate text-[11px]/5 text-content-subtle">Runs in feed window</dt>
               <dd className="shrink-0 text-[13px]/5 tabular-nums text-white">
                 {overview.telemetryRunsMeasured === null ? (
                   <Unavailable className="text-[11px]/5" />
@@ -889,24 +906,27 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
             />
           ) : overview.recentTelemetryEvents.length === 0 ? (
             <EmptyState
-              title="No external telemetry event has been recorded yet."
-              description="Consumer agents that POST to /api/runtime-telemetry will appear here."
+              title="No runtime telemetry event has been recorded yet."
+              description="Internal runs, lifecycle events and consumer POSTs share this channel when they occur."
               className="rounded-none border-0 border-t border-line bg-transparent"
             />
           ) : (
-            overview.recentTelemetryEvents.map((event: RuntimeTelemetryEvent) => (
+            overview.recentTelemetryEvents.map((event: RuntimeTelemetryEvent) => {
+              const provenance = classifyRuntimeTelemetryProvenance(event)
+              return (
               <PanelRow
                 key={event.id}
                 href={`/admin/agents/${event.agentId}`}
                 title={<span className="font-mono">{event.agentId}</span>}
-                subtitle={`${event.projectId} · ${event.status}${event.eventType ? ` · ${event.eventType}` : ''} · ${formatDeliveryStamp(event.receivedAt)} UTC`}
+                subtitle={`${telemetryProvenanceLabel(provenance)} · ${event.projectId} · ${event.status}${event.eventType ? ` · ${event.eventType}` : ''} · ${formatDeliveryStamp(event.receivedAt)} UTC`}
                 trailing={
                   <StatusDot tone={actionStatusTone(event.status)} className="max-w-24 sm:max-w-32">
                     {event.status}
                   </StatusDot>
                 }
               />
-            ))
+              )
+            })
           )}
         </Section>
       </div>

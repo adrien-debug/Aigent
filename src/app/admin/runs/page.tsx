@@ -35,6 +35,7 @@ export default async function RunsPage({
       activeHref="/admin/runs"
       title="Runs"
       degraded={degraded}
+      stateTone={degraded ? 'negative' : 'neutral'}
       stateLabel={degraded ? 'Partial labels' : 'No source warning on this screen'}
     >
       <RunsScreen data={data} filters={filters} />

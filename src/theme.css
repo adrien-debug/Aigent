@@ -24,11 +24,10 @@
   --font-mono: var(--font-satoshi);
 }
 
-/* Accent — the brand green, #A7FB90 anchored as the 500 shade. THE official one.
-   A brief detour to an electric #22F56F was reverted: this console gets its
-   character from depth and surface, not from a saturated emitter. All ten steps
-   are declared even where a step has no current consumer: a hole in the ramp
-   makes Tailwind drop `bg-accent-*` at that step silently. */
+/* Accent — brand green #A7FB90 anchored as the 500 shade for this console.
+   Current product choice: depth and surface over a saturated emitter. All ten
+   steps are declared even where a step has no current consumer: a hole in the
+   ramp makes Tailwind drop `bg-accent-*` at that step silently. */
 @theme {
   --color-accent-50: #f3fcf0;
   --color-accent-100: #e7fbe2;
@@ -44,16 +43,12 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   LAYER 1 — FOUNDATION: the Hearst graphite ramp.
+   LAYER 1 — FOUNDATION: a warm graphite ramp (current Aigent console palette).
    ═══════════════════════════════════════════════════════════════════════════
-   Catalyst is built and tested against `zinc`, and its PRIMITIVES keep using it
-   — that grammar is what makes the kit robust, and rewriting it would fork the
-   kit. But `zinc` is a cold, blue-leaning grey, and it must not become the
-   identity of every Hearst product.
-   So the foundation here is a graphite that is slightly WARMER and less blue
-   than Tailwind's zinc: same neutral role, a hue that belongs to us. Measured
-   against zinc, every step carries a touch more red/yellow and less blue.
-   Nothing in a page consumes this ramp directly — layer 2 does. */
+   Catalyst primitives in `src/components/ui/` still use Tailwind `zinc` — that
+   grammar keeps the kit robust. This ramp is slightly warmer than zinc and is
+   what layer 2 maps onto for this product. Pages consume layer 2, not this ramp
+   directly. */
 @theme {
   --color-graphite-50: #f7f6f5;
   --color-graphite-100: #edebe9;
@@ -131,14 +126,13 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    LAYER 2b — the `--ds-*` contract.
    ═══════════════════════════════════════════════════════════════════════════
-   The same semantic layer, under the cross-product names, for code that reads
-   raw custom properties instead of Tailwind utilities (hand-written SVG, inline
-   styles, a sibling Hearst app sharing a component). Aliases, not a second
-   source of truth: change layer 2 and these follow.
+   The same semantic layer under cross-product `--ds-*` names, for code that reads
+   raw custom properties (hand-written SVG, inline styles, shared components).
+   Aliases follow layer 2 — not a second source of truth.
 
-   In THIS product `--ds-accent` resolves to Aigent's green. In the Hearst house
-   theme it resolves to copper (see LAYER 3) — that substitution is the whole
-   point of the indirection. */
+   In this product `--ds-accent` resolves to the green accent above. A sibling
+   product may point `--ds-accent` elsewhere; that substitution is the point of
+   the indirection. */
 :root {
   --ds-canvas: var(--color-surface-app);
   --ds-surface: var(--color-surface-raised);
@@ -152,19 +146,11 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   LAYER 3 — PRODUCT THEME.
+   LAYER 3 — PRODUCT THEME (current Aigent console).
    ═══════════════════════════════════════════════════════════════════════════
-   Everything above is shared Hearst plumbing. THIS is where a product gets its
-   face, and it is the only layer a sibling product should need to rewrite.
-
-   Aigent's accent is the tender green #A7FB90 (`AGENTS.md`: one accent, the
-   rest neutral). The Hearst house accent is copper — declared below but NOT
-   applied here, because Aigent is not the house shell and silently swapping a
-   product's identity is a decision, not a refactor. A product that wants copper
-   points `--ds-accent` at `--color-copper-500` and inherits everything else.
-
-   Copper, anchored at 500, warm against the graphite and deliberately rare:
-   an accent that appears everywhere stops meaning anything.
+   Optional accent ramps beyond the green in layer 1. Copper below is declared
+   for reuse but not applied in this console — swapping `--ds-accent` to copper
+   would be an explicit product choice, not a silent default.
 
    Measured on `--color-surface-raised`: copper-500 is 4.45:1 — enough for a
    fill, a border or large text, NOT for body copy. Copper-400 (#d67f52) is

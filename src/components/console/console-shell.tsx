@@ -31,9 +31,10 @@ import { StatusDot, type StatusDotTone } from '@/components/ui/status-dot'
  *
  *  2. AN INVENTED MEASUREMENT. The topbar used to show a hardcoded green
  *     "Connected" dot. Nothing measured it; it was green on a dead database. The
- *     platform state now comes from the route via `stateLabel` / `degraded`, and
+ *     platform state now comes from the route via `stateLabel` / `stateTone`, and
  *     a route that cannot supply one gets NO dot at all — see
- *     `resolvePlatformState`.
+ *     `resolvePlatformState`. An absent warning in the reads a route made is
+ *     neutral, never positive — only a measured health earns the accent role.
  *
  *  3. A WORD THE DESTINATION CANNOT HONOUR. The quick-access control used to be
  *     labelled "Live runs". Nothing behind it is live: `/admin/runs` is a server
@@ -104,11 +105,15 @@ const DEGRADED_STATE_LABEL = 'Service degraded'
  */
 function resolvePlatformState(
   stateLabel: string | undefined,
+  stateTone: StatusDotTone | undefined,
   degraded: boolean
 ): { label: string; tone: StatusDotTone } | null {
   const label = stateLabel?.trim()
-  if (label) return { label, tone: degraded ? 'negative' : 'positive' }
-  if (degraded) return { label: DEGRADED_STATE_LABEL, tone: 'negative' }
+  if (label) {
+    const tone = stateTone ?? (degraded ? 'negative' : 'neutral')
+    return { label, tone }
+  }
+  if (degraded) return { label: DEGRADED_STATE_LABEL, tone: stateTone ?? 'negative' }
   return null
 }
 
@@ -161,6 +166,7 @@ export function ConsoleShell({
   activeHref,
   title,
   stateLabel,
+  stateTone,
   degraded = false,
 }: {
   children: React.ReactNode
@@ -178,11 +184,19 @@ export function ConsoleShell({
    * drawn. Deliberately NOT `'Live'` — see point 3 of the file docblock.
    */
   stateLabel?: string
-  /** Puts the state in the danger role. Never decorative: real degradation only. */
+  /**
+   * Explicit visual role for `stateLabel`. Required whenever the label is not
+   * a plain absence-of-warning: `positive` only for measured health,
+   * `negative` for proven degradation, `neutral` for scoped reads that reported
+   * no warning. Omitted with `degraded` falls back to negative; omitted
+   * otherwise falls back to neutral — never to positive.
+   */
+  stateTone?: StatusDotTone
+  /** When no `stateLabel` is supplied, surfaces the service-degraded fallback. */
   degraded?: boolean
 }) {
   const active = resolveActiveHref(activeHref)
-  const state = resolvePlatformState(stateLabel, degraded)
+  const state = resolvePlatformState(stateLabel, stateTone, degraded)
 
   return (
     <div className="min-h-screen bg-surface-app text-white">

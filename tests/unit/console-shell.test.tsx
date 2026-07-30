@@ -186,9 +186,18 @@ describe('E5 — the platform dot is a measurement, never decoration', () => {
     expect(within(header).queryByText(/reporting|degraded|Partial/i)).toBeNull()
   })
 
-  it('a label renders verbatim, in the positive role when nothing is degraded', () => {
-    shell({ stateLabel: 'No data-source warning reported' })
-    expect(screen.getByText('No data-source warning reported')).toBeTruthy()
+  it('an absence-of-warning label renders in the neutral role, never positive', () => {
+    const { container } = shell({ stateLabel: 'No data-source warning reported', degraded: false })
+    const cluster = screen.getByText('No data-source warning reported').closest('.inline-flex')
+    expect(cluster?.outerHTML ?? '').toMatch(/ring-1/)
+    expect(cluster?.outerHTML ?? '').not.toMatch(/bg-accent-500|--chart-line/)
+    expect(container.querySelector('header')?.textContent).toContain('No data-source warning reported')
+  })
+
+  it('an explicit positive tone renders in the accent role', () => {
+    shell({ stateLabel: 'All executable', stateTone: 'positive' })
+    const cluster = screen.getByText('All executable').closest('.inline-flex')
+    expect(cluster?.outerHTML ?? '').toMatch(/bg-accent-500|--chart-line/)
   })
 
   it('degradation without a word still surfaces — in the danger role, never dropped', () => {
@@ -200,10 +209,15 @@ describe('E5 — the platform dot is a measurement, never decoration', () => {
 
   it('a degraded label is not painted in the accent', () => {
     const { container } = shell({ stateLabel: 'Agent catalogue unreadable', degraded: true })
-    const dot = screen.getByText('Agent catalogue unreadable').closest('span')
-    const markup = (dot?.outerHTML ?? '') + (container.querySelector('header')?.innerHTML ?? '')
+    const cluster = screen.getByText('Agent catalogue unreadable').closest('.inline-flex')
+    const markup = (cluster?.outerHTML ?? '') + (container.querySelector('header')?.innerHTML ?? '')
     expect(markup).toMatch(/state-danger/)
-    expect(dot?.outerHTML ?? '').not.toMatch(/accent-500|--chart-line/)
+    expect(cluster?.outerHTML ?? '').not.toMatch(/bg-accent-500|--chart-line/)
+  })
+
+  it('does not add Healthy, Online or Connected without an explicit positive tone', () => {
+    const { container } = shell({ stateLabel: 'No source warning on this screen', degraded: false })
+    expect(container.textContent).not.toMatch(/\bHealthy\b|\bOnline\b|\bConnected\b/i)
   })
 })
 

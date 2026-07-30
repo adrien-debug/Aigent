@@ -14,8 +14,10 @@ npm run health      # one-shot report on what is actually up right now
 habit. `npm run dev:stack` is an explicit alias for the same command, and
 `npm run dev:clean` wipes `.next` then chains to it.
 
-`npm run dev:legacy` is the old, **unsupervised** `concurrently` line, kept only
-as a fallback. It is the command with the defect described below; prefer `dev`.
+`npm run dev:clean` wipes `.next` then chains to it.
+
+`dev:legacy` (unsupervised `concurrently`) was **removed** — it bypassed the
+supervisor and could leave Next running without LangGraph. Use `npm run dev` only.
 
 Both `dev` and `health` load `.env.local` through `node --env-file`, like every
 other node entry in `package.json`.
@@ -29,8 +31,8 @@ other node entry in `package.json`.
 
 ## The failure mode being fixed
 
-`npm run dev:legacy` (`concurrently -k --kill-others-on-fail`) — which was the
-`npm run dev` of record until this change — let the stack rot silently:
+`npm run dev` (supervised stack via `scripts/dev-stack.mjs`) replaced the old
+`concurrently -k --kill-others-on-fail` line, which let the stack rot silently:
 
 1. **LangGraph died, Next kept serving.** LangGraph exited on SIGTERM (code 143)
    while `next dev` carried on answering `200` on `/admin`. The dashboard looked

@@ -97,8 +97,9 @@ Catalyst primitives. Single typeface: Satoshi Variable, for everything —
 `--font-sans` and `--font-mono` both resolve to it (`src/theme.css`), so a
 `font-mono` class is a `tabular-nums` alignment choice, not a family change.
 
-Console screens are server components by default. Only `overview-screen`,
-`runs-screen`, `projects-screen` and `project-builder-screen` are client
-components; `agents-screen` and `agent-detail-screen` are not.
+Console screens are server components by default. `agents-screen`,
+`project-builder-screen` and `runs-screen` are client components; `overview-screen`,
+`projects-screen` and `agent-detail-screen` stay on the server.
 
-Design tokens and the single-accent rule live in `AGENTS.md`.
+Visual tokens live in `src/theme.css` as the **current** console starting point;
+this workspace is free design (see `AGENTS.md`) — no mandated palette or kit.

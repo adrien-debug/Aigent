@@ -142,6 +142,40 @@ for (const rel of RESOLVERS) {
   }
 }
 
+// npm scripts that start Next must pin 3987 or AIGENT_DEV_PORT — never bare `next dev`.
+{
+  let pkg
+  try {
+    pkg = JSON.parse(await readFile(join(ROOT, 'package.json'), 'utf8'))
+  } catch {
+    failures.push('package.json — unreadable; dev scripts cannot be verified')
+    pkg = null
+  }
+  if (pkg?.scripts) {
+    for (const [name, command] of Object.entries(pkg.scripts)) {
+      if (typeof command !== 'string') continue
+      if (!/\bnext\s+dev\b/.test(command)) continue
+      const pinsPort =
+        /--port\s+\$\{AIGENT_DEV_PORT:-3987\}/.test(command) ||
+        /--port\s+3987\b/.test(command) ||
+        /AIGENT_DEV_PORT/.test(command)
+      if (!pinsPort) {
+        failures.push(
+          `package.json scripts.${name} — starts Next without pinning port ${CANONICAL} or AIGENT_DEV_PORT: ${command}`
+        )
+      }
+      if (/\bnext\s+dev\s*$/.test(command.trim())) {
+        failures.push(
+          `package.json scripts.${name} — bare \`next dev\` would default to port 3000: ${command}`
+        )
+      }
+    }
+    if (pkg.scripts['dev:legacy']) {
+      failures.push('package.json scripts.dev:legacy — unsupervised dev entry must be removed; use npm run dev')
+    }
+  }
+}
+
 if (failures.length > 0) {
   console.error(`✗ check:dev-port — ${failures.length} violation(s).\n`)
   for (const failure of failures) console.error(`  ${failure}`)

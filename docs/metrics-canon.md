@@ -79,8 +79,7 @@ Assemblés par `getDashboardOverview()` → `assembleDashboardOverview()`. **Une
 - **Unité** : compte. **Fenêtre** : dernier event par copilot. **Fraîcheur** : live.
 - **Couverture** : copilots ayant au moins un delivery event.
 - **Type** : `number | null`. **Nullable** : oui par le type ; en pratique `0` si `latestDeliveries.length === 0`.
-- **0 vs absence** : ⚠️ **piège doux** — `assembleDashboardOverview` force `0` quand aucun delivery event n'existe (`latestDeliveries.length > 0 ? compute : 0`). Un `fetchLatestDeliveryEvents` en échec renvoie `new Map()` silencieusement → indistinguable de « aucun event ». La lecture DB échouée est avalée (catch → Map vide), donc l'état réel peut être UNAVAILABLE présenté comme `0`.
-- **États** : MEASURED | (UNAVAILABLE masqué en 0 si la table est injoignable).
+- **0 vs absence** : `null` quand `latestDeliveryByCopilot === null` (lecture échouée → `DELIVERY_READ_FAILED_WARNING` dans `dataWarnings` + item `data_unavailable` dans la file). `0` quand la lecture a réussi et qu'aucun copilot n'a d'event. Ne plus confondre avec un `Map` vide avalé silencieusement — corrigé dans `getDashboardOverview`.
 - **Page principale** : `/admin`. **Secondaires** : action items (`buildActionItems`, kind `ready_manual`).
 
 ### 1.3 `sandboxPassRate` — « Sandbox pass rate » ✅ FIABLE (nullable honnête)
@@ -91,8 +90,8 @@ Assemblés par `getDashboardOverview()` → `assembleDashboardOverview()`. **Une
 - **Unité** : pourcentage (0..100, arrondi). **Fenêtre** : dernier report par copilot. **Fraîcheur** : live.
 - **Couverture** : copilots avec au moins un sandbox report.
 - **Type** : `number | null`. **Nullable** : **OUI** — `null` quand `reports.length === 0`.
-- **0 vs absence** : ✅ correct — `null` = aucun report (rien à afficher, dash), `0` = mesuré, tous les reports échoués. Les deux ne collapsent pas.
-- **États** : MEASURED | NOT_APPLICABLE (`null`, aucun report) | (UNAVAILABLE masqué si `sandbox_reports` injoignable → Map vide → `null`, acceptable car indistinguable de « aucun report »).
+- **0 vs absence** : ✅ correct — `null` quand `latestSandboxByCopilot === null` (warning `SANDBOX_READ_FAILED_WARNING`). `null` aussi quand la lecture a réussi et qu'aucun report n'existe. `0` = mesuré, tous les reports échoués.
+- **États** : MEASURED | NOT_APPLICABLE (`null`, aucun report) | UNAVAILABLE (`null` + warning si la table est injoignable).
 - **Page principale** : `/admin`. **Secondaires** : —
 
 ### 1.4 `avgRepoFit` — « Avg repo fit » ✅ FIABLE (nullable honnête)
@@ -436,5 +435,5 @@ Champs bruts d'un run, lus par `getRunsForCopilot`/`getRecentRuns`. Consommés p
 
 ### ⚠️ PIÈGES DOCTRINAUX (métrique techniquement correcte, interprétation risquée)
 - **`toolCallCount = 0`** sur un agent supposé actif : symptôme d'un **assistant LangGraph manquant** (l'agent tourne contre le graphe nu, 5 outils legacy, répond « pas de données », `tool_call_count=0` en paraissant sain). Cause = absence d'assistant, PAS le runtime. Ne jamais conclure activité/inactivité de cette seule métrique.
-- **Lecture DB échouée avalée en Map vide** (`fetchLatestDeliveryEvents`, `fetchLatestSandboxSnapshots`, `resolve*Batch` côté cockpit) : un catch silencieux transforme UNAVAILABLE en « aucune donnée » → certains KPIs cockpit affichent `0`/`null` d'indisponibilité comme s'ils étaient mesurés.
+- **Lecture DB échouée sur le cockpit** : `getDashboardOverview` laisse désormais `fetchLatestDeliveryEvents` / `fetchLatestSandboxSnapshots` / `getRecentRunsInWindow` **rejeter** ; l'échec devient `null` + warning (`DELIVERY_READ_FAILED_WARNING`, `SANDBOX_READ_FAILED_WARNING`, `RUNS_READ_FAILED_WARNING`) — plus de `Map`/`[]` vide qui masque UNAVAILABLE. Les KPIs `readyForManualTest`, `sandboxPassRate`, `runs24h`/`windowRuns` respectent ce contrat.
 - **`suiteCount` sortie `?? 0`** : ne jamais lire `=== 0` comme « aucune suite » sans consulter `capabilities['run-tests']` (qui porte l'erreur de read).

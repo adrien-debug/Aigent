@@ -22,10 +22,7 @@ export default async function AdminPage() {
       activeHref="/admin"
       title="Overview"
       degraded={degraded}
-      // Exactly what an empty `dataWarnings` proves, and no more: the collector
-      // swallows `getRecentRunsInWindow` failures into `[]` without raising a
-      // warning, so "all sources reporting" would be an unbacked claim here.
-      // Same wording as the platform-state row the screen itself renders.
+      stateTone={degraded ? 'negative' : 'neutral'}
       stateLabel={degraded ? 'Partial data' : 'No data-source warning reported'}
     >
       <OverviewScreen overview={overview} />

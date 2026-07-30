@@ -231,6 +231,7 @@ export interface RuntimeTelemetrySummary {
 }
 
 function rowToEvent(r: RawRow): RuntimeTelemetryEvent {
+  const eventType = r.event_type as PromotionLifecycleEvent | null | undefined
   return {
     id: r.id as string,
     projectId: r.project_id as string,
@@ -248,6 +249,7 @@ function rowToEvent(r: RawRow): RuntimeTelemetryEvent {
     usage: (r.usage as Record<string, unknown>) ?? {},
     environment: (r.environment as Record<string, unknown>) ?? {},
     receivedAt: r.received_at as string,
+    ...(eventType ? { eventType } : {}),
   }
 }
 

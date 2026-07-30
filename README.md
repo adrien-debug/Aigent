@@ -31,18 +31,19 @@ The console at `/admin` is **rebuilt and active** — six live screens:
 | `/admin` | Overview — fleet KPIs, run trend, per-agent activity |
 | `/admin/runs` | Runs — live run stream, filters, metrics |
 | `/admin/agents` | Agents — catalogue with executable / degraded status |
-| `/admin/agents/[id]` | Agent detail (read-only) |
+| `/admin/agents/[id]` | Agent detail — lifecycle trace, qualification, improve, delivery |
 | `/admin/projects` | Projects |
 | `/admin/projects/[id]/builder` | Project builder — conversational authoring, SSE-streamed |
 
 Plus the marketing site at `/`, `/about`, `/pricing`, `/contact`.
 
-**Read this honestly:** the console is a *read* console. The project builder is
-its only write surface. The rest of the lifecycle — qualification, promotion,
-improvement, shipping, shadow, replay, tests, benchmarks — is real, tested HTTP
-under `/api/agent-ops/**`, but **has no UI**. See
-`docs/current-capabilities.md` for the row-by-row state and
-`docs/known-gaps.md` §1 for what that costs.
+**Read this honestly:** the console is an **operator control plane**, not a
+read-only catalogue. Runs, tests, benchmarks, qualification, shadow, replay,
+improvement, promotion, delivery-loop and shipping are **wired with real UI
+controls** on the agent detail screen, project builder and related panels — each
+action still carries its backend restrictions (billed calls need confirmation,
+shipping is double-gated, promotion is governed, `active_in_consumer` stays
+`unknown`). See `docs/current-capabilities.md` for the row-by-row state.
 
 Routes named in older documentation — `/admin/factory`, `/admin/performance`,
 `/admin/settings`, `/admin/telemetry`, `/admin/agents/new` — **do not exist**.

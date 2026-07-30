@@ -953,3 +953,108 @@ describe('E — recent deliveries panel: read failed ≠ empty ≠ populated', (
     expect(screen.getAllByText('adrien-debug/TradeAgent', { exact: false }).length).toBeGreaterThan(0)
   })
 })
+
+describe('F — runtime telemetry panel: global channel with honest provenance', () => {
+  it('uses the Runtime telemetry title and never claims an external-only feed', () => {
+    render(<OverviewScreen overview={overviewFixture()} />)
+    expect(screen.getByText('Runtime telemetry')).toBeInTheDocument()
+    expect(screen.queryByText(/external telemetry/i)).toBeNull()
+  })
+
+  it('labels an internal event as internal', () => {
+    render(
+      <OverviewScreen
+        overview={overviewFixture({
+          recentTelemetryEvents: [
+            {
+              id: 'evt-internal',
+              projectId: 'proj-trade',
+              agentId: 'copilot-internal',
+              agentVersion: null,
+              targetRepo: null,
+              runId: 'run-1',
+              provider: 'openai',
+              model: 'gpt-5.4',
+              status: 'completed',
+              latencyMs: 10,
+              inputShape: {},
+              outputShape: {},
+              error: {},
+              usage: {},
+              environment: { source: 'aigent-internal-runner' },
+              receivedAt: '2026-07-30T12:00:00.000Z',
+            },
+          ],
+        })}
+      />
+    )
+    expect(screen.getByText(/internal ·/)).toBeInTheDocument()
+  })
+
+  it('labels a lifecycle event as lifecycle', () => {
+    render(
+      <OverviewScreen
+        overview={overviewFixture({
+          recentTelemetryEvents: [
+            {
+              id: 'evt-life',
+              projectId: 'promotion',
+              agentId: 'copilot-life',
+              agentVersion: 'v2',
+              targetRepo: null,
+              runId: 'gate-1',
+              provider: null,
+              model: null,
+              status: 'completed',
+              latencyMs: null,
+              inputShape: {},
+              outputShape: {},
+              error: {},
+              usage: {},
+              environment: { source: 'aigent-promotion' },
+              receivedAt: '2026-07-30T12:00:00.000Z',
+              eventType: 'promotion_completed',
+            },
+          ],
+        })}
+      />
+    )
+    expect(screen.getByText(/lifecycle ·/)).toBeInTheDocument()
+  })
+
+  it('shows unknown when consumer cannot be proven', () => {
+    render(
+      <OverviewScreen
+        overview={overviewFixture({
+          recentTelemetryEvents: [
+            {
+              id: 'evt-unknown',
+              projectId: 'proj-trade',
+              agentId: 'copilot-unknown',
+              agentVersion: null,
+              targetRepo: null,
+              runId: 'run-2',
+              provider: 'openai',
+              model: 'gpt-5.4',
+              status: 'completed',
+              latencyMs: 10,
+              inputShape: {},
+              outputShape: {},
+              error: {},
+              usage: {},
+              environment: { nodeEnv: 'production' },
+              receivedAt: '2026-07-30T12:00:00.000Z',
+            },
+          ],
+        })}
+      />
+    )
+    expect(screen.getByText(/unknown ·/)).toBeInTheDocument()
+  })
+
+  it('empty state does not mention external-only traffic', () => {
+    render(<OverviewScreen overview={overviewFixture({ recentTelemetryEvents: [] })} />)
+    expect(screen.getByText('No runtime telemetry event has been recorded yet.')).toBeInTheDocument()
+    expect(screen.queryByText(/external telemetry/i)).toBeNull()
+  })
+})

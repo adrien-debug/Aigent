@@ -19,6 +19,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
       activeHref={`/admin/agents/${id}`}
       title={detail.copilot.name}
       stateLabel={detail.executable ? 'Executable' : 'Execution blocked'}
+      stateTone={detail.executable ? 'positive' : 'negative'}
       degraded={!detail.executable}
     >
       <AgentDetailScreen detail={detail} />

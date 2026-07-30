@@ -90,11 +90,23 @@ export default async function AgentsPage() {
             ? 'All executable'
             : `${executable} of ${total} executable`
 
+  const stateTone =
+    agents === null || total === null || executable === null || broken === null
+      ? 'negative'
+      : total === 0
+        ? undefined
+        : broken > 0
+          ? 'negative'
+          : executable === total
+            ? 'positive'
+            : 'neutral'
+
   return (
     <ConsoleShell
       activeHref="/admin/agents"
       title="Agents"
       stateLabel={stateLabel}
+      stateTone={stateTone}
       degraded={agents === null || (broken !== null && broken > 0)}
     >
       <AgentsScreen agents={agents} agentsErrorDetail={agentsErrorDetail} />
