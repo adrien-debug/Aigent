@@ -32,12 +32,30 @@ export const PERIOD_MS: Record<RunsPeriod, number> = {
   '24h': 24 * 60 * 60 * 1000,
 }
 
+/**
+ * Duration buckets over `AgentRun.latencyMs`. A run with no finite latency
+ * matches NONE of them — it is unmeasured, not "under 1s" — so it only shows
+ * up when no duration filter is active.
+ */
+export const RUNS_DURATIONS = ['lt1s', '1to10s', 'gt10s'] as const
+export type RunsDuration = (typeof RUNS_DURATIONS)[number]
+
+/** Over `AgentRun.costUsd`: `measured` = not null, `unmeasured` = null. */
+export const RUNS_COSTS = ['measured', 'unmeasured'] as const
+export type RunsCost = (typeof RUNS_COSTS)[number]
+
 export interface RunsFilterState {
   q: string
   agent: string
   project: string
   status: string
   period: RunsPeriod
+  /** Exact match against `AgentRun.resolvedProvider`. Empty = all. */
+  provider: string
+  /** Exact match against `AgentRun.resolvedModel`. Empty = all. */
+  model: string
+  duration: RunsDuration | ''
+  cost: RunsCost | ''
 }
 
 export const DEFAULT_RUNS_FILTERS: RunsFilterState = {
@@ -46,6 +64,10 @@ export const DEFAULT_RUNS_FILTERS: RunsFilterState = {
   project: '',
   status: '',
   period: '24h',
+  provider: '',
+  model: '',
+  duration: '',
+  cost: '',
 }
 
 function isPeriod(value: string): value is RunsPeriod {
@@ -54,6 +76,14 @@ function isPeriod(value: string): value is RunsPeriod {
 
 function isStatus(value: string): value is AgentRunStatus {
   return (RUN_STATUSES as readonly string[]).includes(value)
+}
+
+function isDuration(value: string): value is RunsDuration {
+  return (RUNS_DURATIONS as readonly string[]).includes(value)
+}
+
+function isCost(value: string): value is RunsCost {
+  return (RUNS_COSTS as readonly string[]).includes(value)
 }
 
 /** Accepts Next.js `searchParams` (string | string[] | undefined values). */
@@ -75,6 +105,8 @@ export function parseRunsFilters(params: RawSearchParams | undefined): RunsFilte
 
   const period = firstValue(params.period)
   const status = firstValue(params.status)
+  const duration = firstValue(params.duration)
+  const cost = firstValue(params.cost)
 
   return {
     q: firstValue(params.q).slice(0, 200),
@@ -82,6 +114,10 @@ export function parseRunsFilters(params: RawSearchParams | undefined): RunsFilte
     project: firstValue(params.project),
     status: isStatus(status) ? status : '',
     period: isPeriod(period) ? period : DEFAULT_RUNS_FILTERS.period,
+    provider: firstValue(params.provider),
+    model: firstValue(params.model),
+    duration: isDuration(duration) ? duration : '',
+    cost: isCost(cost) ? cost : '',
   }
 }
 
@@ -93,6 +129,10 @@ export function serializeRunsFilters(state: RunsFilterState): string {
   if (state.project) params.set('project', state.project)
   if (state.status) params.set('status', state.status)
   if (state.period !== DEFAULT_RUNS_FILTERS.period) params.set('period', state.period)
+  if (state.provider) params.set('provider', state.provider)
+  if (state.model) params.set('model', state.model)
+  if (state.duration) params.set('duration', state.duration)
+  if (state.cost) params.set('cost', state.cost)
   return params.toString()
 }
 
@@ -102,7 +142,11 @@ export function hasActiveFilters(state: RunsFilterState): boolean {
     Boolean(state.agent) ||
     Boolean(state.project) ||
     Boolean(state.status) ||
-    state.period !== DEFAULT_RUNS_FILTERS.period
+    state.period !== DEFAULT_RUNS_FILTERS.period ||
+    Boolean(state.provider) ||
+    Boolean(state.model) ||
+    Boolean(state.duration) ||
+    Boolean(state.cost)
   )
 }
 
@@ -127,6 +171,19 @@ function matchesQuery(run: AgentRun, query: string, ctx: RunsFilterContext): boo
   return haystack.includes(query)
 }
 
+/** `null`/non-finite excludes a run from EVERY bucket: unmeasured is not
+ *  "under 1s", it is absent, and only shows up when no duration filter runs. */
+function matchesDuration(run: AgentRun, duration: RunsDuration): boolean {
+  if (typeof run.latencyMs !== 'number' || !Number.isFinite(run.latencyMs)) return false
+  if (duration === 'lt1s') return run.latencyMs < 1000
+  if (duration === '1to10s') return run.latencyMs >= 1000 && run.latencyMs < 10_000
+  return run.latencyMs >= 10_000
+}
+
+function matchesCost(run: AgentRun, cost: RunsCost): boolean {
+  return cost === 'measured' ? run.costUsd !== null : run.costUsd === null
+}
+
 export function applyRunsFilters(
   runs: AgentRun[],
   state: RunsFilterState,
@@ -139,6 +196,10 @@ export function applyRunsFilters(
     if (state.agent && run.copilotId !== state.agent) return false
     if (state.project && run.projectId !== state.project) return false
     if (state.status && run.status !== state.status) return false
+    if (state.provider && (run.resolvedProvider ?? null) !== state.provider) return false
+    if (state.model && (run.resolvedModel ?? null) !== state.model) return false
+    if (state.duration && !matchesDuration(run, state.duration)) return false
+    if (state.cost && !matchesCost(run, state.cost)) return false
 
     const startedMs = Date.parse(run.startedAt)
     // An unparseable timestamp is kept rather than dropped: hiding a row because

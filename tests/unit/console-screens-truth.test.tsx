@@ -147,6 +147,81 @@ describe('RunsScreen — the success KPI card and its ArcGauge share ONE unround
   })
 })
 
+describe('RunsScreen — observability workspace (filters, empty window, charts)', () => {
+  it('an empty 24h window renders the compact panel — no run table, no filter form, no outcome ring', () => {
+    render(<RunsScreen data={runsPageData({ runs: [], windowRunCount: 0 })} />)
+
+    expect(screen.getByText('No agent produced an operational run in the last 24 hours.')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Go to Agents' })).toBeTruthy()
+    // No filter controls when there is nothing to filter.
+    expect(screen.queryByLabelText('Filter by status')).toBeNull()
+    // No "Operational run activity" table caption, no outcome-mix ring.
+    expect(screen.queryByText('Run activity')).toBeNull()
+    expect(screen.queryByText('Outcome mix')).toBeNull()
+  })
+
+  it('a non-empty window renders the filter form with real option lists, never a fabricated one', () => {
+    const runs: AgentRun[] = [
+      agentRun({ id: 'r1', copilotId: 'c-btc', status: 'completed' }),
+      agentRun({ id: 'r2', copilotId: 'c-eth', status: 'failed' }),
+    ]
+    render(
+      <RunsScreen
+        data={runsPageData({
+          runs,
+          windowRunCount: runs.length,
+          agentNameById: new Map([
+            ['c-btc', 'BTC Agent'],
+            ['c-eth', 'ETH Agent'],
+          ]),
+        })}
+      />
+    )
+
+    expect(screen.getByLabelText('Filter by status')).toBeTruthy()
+    expect(screen.getByLabelText('Filter by agent')).toBeTruthy()
+    expect(screen.getAllByText('BTC Agent').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('ETH Agent').length).toBeGreaterThan(0)
+  })
+
+  it('a status filter narrows the table AND the KPI band from the SAME derivation, and states the match count', () => {
+    const runs: AgentRun[] = [
+      agentRun({ id: 'r1', status: 'completed' }),
+      agentRun({ id: 'r2', status: 'failed' }),
+    ]
+    render(
+      <RunsScreen
+        data={runsPageData({ runs, windowRunCount: runs.length })}
+        filters={{ q: '', agent: '', project: '', status: 'failed', period: '24h', provider: '', model: '', duration: '', cost: '' }}
+      />
+    )
+
+    expect(screen.getByText('1 of 2 loaded runs shown · table capped at 200')).toBeTruthy()
+    const runsShownCard = kpiCard('Runs shown')
+    expect(within(runsShownCard).getByText('1')).toBeTruthy()
+  })
+
+  it('a filter that narrows a real window to zero rows says so in the table, distinct from a truly empty window', () => {
+    const runs: AgentRun[] = [agentRun({ id: 'r1', status: 'completed' })]
+    render(
+      <RunsScreen
+        data={runsPageData({ runs, windowRunCount: runs.length })}
+        filters={{ q: '', agent: '', project: '', status: 'blocked', period: '24h', provider: '', model: '', duration: '', cost: '' }}
+      />
+    )
+
+    expect(screen.getByText('No run matches the current filters.')).toBeTruthy()
+  })
+
+  it('a run with no measured cost renders Indisponible in its own table cell, never "$0.00"', () => {
+    const runs: AgentRun[] = [agentRun({ id: 'r1', status: 'completed', costUsd: null })]
+    render(<RunsScreen data={runsPageData({ runs, windowRunCount: runs.length })} />)
+
+    expect(screen.queryByText('$0.00')).toBeNull()
+    expect(screen.getAllByText('Indisponible').length).toBeGreaterThan(0)
+  })
+})
+
 /* ================================================================ ProjectsScreen */
 
 describe('ProjectsScreen — dev-seed fixture rows are excluded from every KPI and disclosed, not silently dropped', () => {

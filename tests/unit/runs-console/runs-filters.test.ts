@@ -32,6 +32,10 @@ describe('parseRunsFilters', () => {
       project: 'proj-b',
       status: 'failed',
       period: '6h',
+      provider: 'openai',
+      model: 'gpt-5.4',
+      duration: '1to10s',
+      cost: 'measured',
     })
 
     expect(parsed).toEqual({
@@ -40,6 +44,10 @@ describe('parseRunsFilters', () => {
       project: 'proj-b',
       status: 'failed',
       period: '6h',
+      provider: 'openai',
+      model: 'gpt-5.4',
+      duration: '1to10s',
+      cost: 'measured',
     })
   })
 

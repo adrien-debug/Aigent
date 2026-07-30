@@ -32,6 +32,14 @@ export interface RunsMetrics {
   unmeasuredCostRuns: number
   /** Runs that recorded at least one blocked/unsafe tool attempt. */
   unsafeAttemptRuns: number
+  /** Mean `latencyMs` over runs with a finite latency. `null` when none did. */
+  avgLatencyMs: number | null
+  /** p95 `latencyMs` over the same set. `null` when none did. */
+  p95LatencyMs: number | null
+  /** Runs with a finite `latencyMs` — the denominator for both figures above. */
+  measuredLatencyRuns: number
+  /** Sum of `toolCallCount` over all runs — a real 0 is a real 0. */
+  totalToolCalls: number
 }
 
 export function deriveRunsMetrics(runs: AgentRun[]): RunsMetrics {
@@ -43,6 +51,8 @@ export function deriveRunsMetrics(runs: AgentRun[]): RunsMetrics {
   let measuredCostRuns = 0
   let costSum = 0
   let unsafeAttemptRuns = 0
+  let totalToolCalls = 0
+  const latencySamples: number[] = []
 
   for (const run of runs) {
     switch (run.status) {
@@ -69,9 +79,19 @@ export function deriveRunsMetrics(runs: AgentRun[]): RunsMetrics {
     }
 
     if (run.unsafeAttemptCount > 0) unsafeAttemptRuns += 1
+    totalToolCalls += run.toolCallCount
+
+    if (typeof run.latencyMs === 'number' && Number.isFinite(run.latencyMs)) {
+      latencySamples.push(run.latencyMs)
+    }
   }
 
   const terminal = completed + failed + blocked
+
+  const sortedLatencies = latencySamples.toSorted((a, b) => a - b)
+  const avgLatencyMs =
+    sortedLatencies.length > 0 ? sortedLatencies.reduce((sum, v) => sum + v, 0) / sortedLatencies.length : null
+  const p95LatencyMs = sortedLatencies.length > 0 ? percentile95(sortedLatencies) : null
 
   return {
     total: runs.length,
@@ -86,7 +106,23 @@ export function deriveRunsMetrics(runs: AgentRun[]): RunsMetrics {
     measuredCostRuns,
     unmeasuredCostRuns: runs.length - measuredCostRuns,
     unsafeAttemptRuns,
+    avgLatencyMs,
+    p95LatencyMs,
+    measuredLatencyRuns: sortedLatencies.length,
+    totalToolCalls,
   }
+}
+
+/** `sorted` must already be ascending and non-empty. Linear-interpolated rank,
+ *  the same method `runs-timeseries.ts` uses per hourly bucket. */
+function percentile95(sorted: number[]): number {
+  if (sorted.length === 1) return sorted[0]
+  const rank = 0.95 * (sorted.length - 1)
+  const lowIndex = Math.floor(rank)
+  const highIndex = Math.ceil(rank)
+  if (lowIndex === highIndex) return sorted[lowIndex]
+  const weight = rank - lowIndex
+  return sorted[lowIndex] * (1 - weight) + sorted[highIndex] * weight
 }
 
 /** THE ONE precision rule for this metric, consumed by every renderer that

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 
 import { ConsoleShell } from '@/components/console/console-shell'
 import { RunsScreen } from '@/components/console/runs-screen'
+import { parseRunsFilters, type RawSearchParams } from '@/lib/runs-console/runs-filters'
 import { getRunsPageData } from '@/lib/runs-console/runs-page-data'
 
 export const metadata: Metadata = {
@@ -12,8 +13,13 @@ export const metadata: Metadata = {
  *  declared here so the route stays dynamic on its own, not by inheritance. */
 export const dynamic = 'force-dynamic'
 
-export default async function RunsPage() {
-  const data = await getRunsPageData()
+export default async function RunsPage({
+  searchParams,
+}: {
+  searchParams: Promise<RawSearchParams>
+}) {
+  const [data, rawParams] = await Promise.all([getRunsPageData(), searchParams])
+  const filters = parseRunsFilters(rawParams)
 
   // The ONLY platform claim this route can back: `getRunsPageData` attempts
   // three reads (runs, agents, projects) and records every failure in
@@ -31,7 +37,7 @@ export default async function RunsPage() {
       degraded={degraded}
       stateLabel={degraded ? 'Partial labels' : 'No source warning on this screen'}
     >
-      <RunsScreen data={data} />
+      <RunsScreen data={data} filters={filters} />
     </ConsoleShell>
   )
 }
