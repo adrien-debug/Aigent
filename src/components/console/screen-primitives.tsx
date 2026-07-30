@@ -32,8 +32,8 @@ export function ScreenHeader({
   return (
     <div className={cn('flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between', className)}>
       <div className="min-w-0">
-        <Heading className="truncate text-lg/6 font-semibold">{title}</Heading>
-        {description ? <p className="mt-0.5 truncate text-xs/5 text-zinc-400">{description}</p> : null}
+        <Heading className="truncate text-xl/7 font-semibold tracking-tight text-white">{title}</Heading>
+        {description ? <p className="mt-1 truncate text-[13px]/5 text-zinc-300">{description}</p> : null}
       </div>
       {/* `flex-wrap`: the agent-detail header passes three non-shrinking controls
           here. Without wrapping they overflowed the column on a narrow viewport
@@ -70,6 +70,7 @@ export function Section({
   className,
   bodyClassName,
   scroll,
+  priority = 'secondary',
 }: {
   title: string
   description?: string
@@ -80,17 +81,32 @@ export function Section({
   bodyClassName?: string
   /** Bounds the body and scrolls the content inside it instead of stretching the grid. */
   scroll?: SectionScroll
+  /**
+   * Visual weight against sibling panels on the same screen. `'secondary'` (the
+   * default, and the only variant every existing caller renders today) keeps
+   * the original graphite plate. `'primary'` sits one plane higher
+   * (`surface-overlay`), carries the strong hairline and the elevated shadow —
+   * the one panel on a screen the reader's eye should land on first. Additive:
+   * no caller has to opt in.
+   */
+  priority?: 'primary' | 'secondary'
 }) {
   return (
     <section
-      className={cn('flex min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-surface-raised', className)}
+      className={cn(
+        'flex min-w-0 flex-col overflow-hidden rounded-xl border',
+        priority === 'primary'
+          ? 'border-line-strong bg-surface-overlay shadow-[var(--shadow-card-lg)]'
+          : 'border-line bg-surface-raised shadow-[var(--shadow-card-sm)]',
+        className
+      )}
     >
       <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
         <div className="min-w-0">
-          <Heading level={2} className="truncate text-xs/5 font-semibold tracking-wide text-white">
+          <Heading level={2} className="truncate text-[13px]/5 font-semibold tracking-wide text-white">
             {title}
           </Heading>
-          {description ? <p className="mt-0.5 truncate text-[11px]/4 text-zinc-500">{description}</p> : null}
+          {description ? <p className="mt-0.5 truncate text-[11px]/4 text-zinc-400">{description}</p> : null}
         </div>
         {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
       </div>
@@ -128,9 +144,9 @@ export function Metric({
   return (
     <div className={cn('flex min-w-0 items-start justify-between gap-3 px-4 py-3.5', className)}>
       <div className="min-w-0">
-        <p className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">{label}</p>
+        <p className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-400">{label}</p>
         <p className="mt-1.5 truncate text-2xl/7 font-light tabular-nums text-white">{value}</p>
-        {detail ? <p className="mt-1 truncate text-[11px]/4 text-zinc-500">{detail}</p> : null}
+        {detail ? <p className="mt-1 truncate text-[11px]/4 text-zinc-400">{detail}</p> : null}
       </div>
       {aside ? <div className="shrink-0">{aside}</div> : null}
     </div>
@@ -144,15 +160,30 @@ export function KpiCard({
   detail,
   aside,
   className,
+  priority = 'secondary',
 }: {
   label: string
   value: React.ReactNode
   detail?: string
   aside?: React.ReactNode
   className?: string
+  /** Same hierarchy contract as `Section.priority` — the headline KPI on a
+   * screen (e.g. the single number the operator cares about most) can render
+   * `'primary'` to visually outrank the row of ordinary KPI cards beside it.
+   * Defaults to `'secondary'`, which is byte-identical to the card's original
+   * chrome. */
+  priority?: 'primary' | 'secondary'
 }) {
   return (
-    <div className={cn('min-w-0 rounded-xl border border-line bg-surface-raised', className)}>
+    <div
+      className={cn(
+        'min-w-0 rounded-xl border',
+        priority === 'primary'
+          ? 'border-line-strong bg-surface-overlay shadow-[var(--shadow-card-lg)]'
+          : 'border-line bg-surface-raised shadow-[var(--shadow-card-sm)]',
+        className
+      )}
+    >
       <Metric label={label} value={value} detail={detail} aside={aside} />
     </div>
   )
@@ -176,6 +207,7 @@ export function PanelRow({
   values,
   trailing,
   href,
+  selected = false,
   className,
 }: {
   /** Left of the title: an icon, an avatar, a status dot. */
@@ -188,6 +220,14 @@ export function PanelRow({
   trailing?: React.ReactNode
   /** Real destination. Omit it and the row renders as a plain, non-interactive row. */
   href?: string
+  /**
+   * The persistent "this is the one the operator is looking at" state — the
+   * row for the record shown in a detail pane beside the list, for instance.
+   * Renders on `surface-selected`, a step above the transient `surface-hover`
+   * a pointer produces, so a selection does not get read as a passing hover.
+   * Defaults to `false`; no existing caller passes it today.
+   */
+  selected?: boolean
   className?: string
 }) {
   const body = (
@@ -195,14 +235,14 @@ export function PanelRow({
       {leading ? <div className="flex shrink-0 items-center">{leading}</div> : null}
       <div className="min-w-0 flex-1">
         <div className="truncate text-[13px]/5 font-medium text-white">{title}</div>
-        {subtitle ? <div className="mt-0.5 truncate text-[11px]/4 text-zinc-500">{subtitle}</div> : null}
+        {subtitle ? <div className="mt-0.5 truncate text-[11px]/4 text-zinc-400">{subtitle}</div> : null}
       </div>
       {values && values.length > 0 ? (
         <div className="flex shrink-0 items-center gap-4 text-right">
           {values.map((entry) => (
             <div key={entry.label} className="min-w-0">
               <div className="text-[13px]/5 tabular-nums text-white">{entry.value}</div>
-              <div className="text-[10px]/4 uppercase tracking-widest text-zinc-600">{entry.label}</div>
+              <div className="text-[10px]/4 uppercase tracking-widest text-zinc-500">{entry.label}</div>
             </div>
           ))}
         </div>
@@ -211,7 +251,10 @@ export function PanelRow({
     </>
   )
 
-  const shared = 'flex min-w-0 items-center gap-3 border-b border-line px-4 py-2.5 last:border-b-0'
+  const shared = cn(
+    'flex min-w-0 items-center gap-3 border-b border-line px-4 py-2.5 last:border-b-0',
+    selected && 'bg-surface-selected'
+  )
 
   return href ? (
     <a href={href} className={cn(shared, 'transition-colors hover:bg-surface-hover', className)}>
@@ -379,12 +422,12 @@ export function ErrorState({
     <div
       role="alert"
       className={cn(
-        'rounded-xl border border-[var(--state-danger-solid-line)] bg-surface-raised px-4 py-3.5',
+        'rounded-xl border border-[var(--state-danger-solid-line)] bg-[var(--state-danger-surface)] px-4 py-3.5 shadow-[var(--shadow-card-sm)]',
         className
       )}
     >
       <p className="text-[13px]/5 font-semibold text-[var(--state-danger-text)]">{title}</p>
-      {description ? <p className="mt-1 text-[11px]/4 text-zinc-400">{description}</p> : null}
+      {description ? <p className="mt-1 text-[11px]/4 text-zinc-300">{description}</p> : null}
       {actions ? <div className="mt-3 flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
   )
@@ -409,14 +452,14 @@ export function DegradedBanner({
     <div
       role="status"
       className={cn(
-        'rounded-xl border border-[var(--state-danger-solid-line)] bg-surface-raised px-4 py-3',
+        'rounded-xl border border-[var(--state-danger-solid-line)] bg-[var(--state-danger-surface)] px-4 py-3 shadow-[var(--shadow-card-sm)]',
         className
       )}
     >
       <p className="text-[11px]/4 font-semibold uppercase tracking-widest text-[var(--state-danger-text)]">{title}</p>
       <ul className="mt-1.5 space-y-0.5">
         {messages.map((message) => (
-          <li key={message} className="text-[11px]/4 text-zinc-400">
+          <li key={message} className="text-[11px]/4 text-zinc-300">
             {message}
           </li>
         ))}

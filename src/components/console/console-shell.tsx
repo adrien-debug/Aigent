@@ -220,7 +220,7 @@ export function ConsoleShell({
               </span>
               <div className="min-w-0">
                 <Heading level={2} className="truncate text-[13px]/4 font-semibold">
-                  Nexus
+                  Aigent
                 </Heading>
                 <p className="mt-0.5 truncate text-[10px]/4 text-zinc-500">Agent Mission Control</p>
               </div>
