@@ -97,14 +97,20 @@ There is no gate that checks a doc against the code. Until there is, this file
 and `docs/current-capabilities.md` are only as fresh as the last person who read
 the source.
 
-## 7. Visual doctrine is thin relative to the console that exists.
+## 7. ~~Visual doctrine is thin.~~ NOT A GAP — this workspace is free design.
 
-`AGENTS.md` holds the accent rule and the Catalyst-primitives rule, and
-`check:render-truth` / `check:status-truth` enforce truthful rendering. But the
-gates that once guarded the design system itself — `check:ds`, `check:contrast`,
-`check:catalyst`, `check:danger`, `check:views` — were removed with the old
-dashboard and were never re-added for the new console. The doctrine that a rule
-only counts when a tool enforces it currently has a hole here.
+Previously listed here as a hole: no `check:ds` / `check:contrast` /
+`check:catalyst` / `check:danger` / `check:views`. That absence is now the
+DECISION, not an omission. This workspace carries no design doctrine and no
+visual gate: no mandated palette, kit, font or token layer. What lives in
+`src/theme.css` and `src/components/ui/` is a starting point anyone may keep,
+bend or replace.
+
+What still holds is not design: `check:render-truth` / `check:status-truth`
+(a screen may only claim what was measured) and `check:no-legacy-front`
+(deleted routes stay deleted). Those are honesty and structure.
+
+Do not re-file this as a gap, and do not "restore" a design gate here.
 
 ## Not verified in this pass
 

@@ -16,7 +16,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## Hiérarchie de doctrine
 
 1. `CLAUDE.md` — git, merge, push, déploiement, sécurité opérationnelle.
-2. `AGENTS.md` (ce fichier) — workflow agent, ports, architecture, Catalyst, vérité runtime.
+2. `AGENTS.md` (ce fichier) — workflow agent, ports, architecture, vérité runtime.
+   **Pas de design** : ce workspace est free design (voir la section UI).
 3. Gates exécutables (`npm run check`) — arbitre final : une gate rouge gagne sur toute phrase de
    doctrine.
 4. Mission courante.
@@ -57,7 +58,7 @@ un diagnostic faux.
 abandonne si le port est pris par un process non identifié comme le sien.
 <!-- END:dev-port-rule -->
 
-<!-- BEGIN:catalyst-ui-rules -->
+<!-- BEGIN:console-structure-rules -->
 ## UI — console reconstruite et active (gate : `npm run check:no-legacy-front`)
 
 - **La console `/admin` est reconstruite et vivante.** Six routes réelles :
@@ -74,47 +75,20 @@ abandonne si le port est pris par un process non identifié comme le sien.
   commissionnée : `src/app/admin/error.tsx`, la frontière d'erreur du segment `/admin`.
   Les couches démolies (`src/components/agent-ops/**`, `views/**`, `shell/**`) ne peuvent pas
   être réimportées.
-- **Design system en TROIS COUCHES (gate : `npm run check:ds-tokens`).** `src/theme.css`.
-  1. **Fondation** — la rampe `graphite-*` (graphite Hearst, plus chaud et moins bleu que le
-     zinc Tailwind) + le `zinc` interne de Catalyst. Catalyst est conçu et testé avec le zinc :
-     ses **primitives** le gardent, on ne forke pas le kit.
-  2. **Sémantique** — `surface-*`, `content-*`, `line*`, plus les alias `--ds-*`
-     (`--ds-canvas`, `--ds-surface`, `--ds-text`, `--ds-border`, `--ds-accent`…) pour le code
-     qui lit des custom properties brutes. **C'est la SEULE couche qu'une page consomme.**
-  3. **Thème produit** — l'accent. Aigent = vert `#A7FB90`. Le thème maison Hearst = cuivre
-     (`copper-*`, déclaré, non appliqué ici : Aigent n'est pas le shell maison).
-  **`zinc-*` brut est interdit dans une page ou une composition** — la gate échoue et nomme le
-  token sémantique à utiliser. Il ne survit QUE dans `src/components/ui/**` (les primitives) et
-  le marketing (blocs Tailwind Plus tels quels). Re-thémer un produit = éditer une couche, pas
-  237 noms de classes. Un `zinc` en fondation : oui. Un DS qui « a l'air zinc » : non.
-- **Un seul accent : `accent` (vert tendre, `#A7FB90`, `src/theme.css`).** Tout le reste est neutre.
-  (`src/app/globals.css` n'est qu'un stub qui `@import "../theme.css"`.) Ne jamais importer les
-  tokens/palette d'un autre projet : le design system de ce workspace lui est PROPRE.
-- **Une seule police : Satoshi Variable, pour TOUT.** `--font-sans` et `--font-mono` résolvent
-  tous deux vers elle (`src/theme.css`) : une classe `font-mono` est un choix d'alignement
-  (`tabular-nums`), pas un changement de famille. Geist Mono n'est plus chargée.
-- **La console est 100% Catalyst (gate : `npm run check:catalyst`).** Un contrôle brut
-  (`<select>`, `<input>`, `<button>`, `<table>`, `<h1..3>`, `<textarea>`) est interdit dans
-  `src/components/console/**` dès qu'une primitive existe : la gate échoue et nomme le
-  remplaçant. Il manque une primitive ? On la prend dans le VRAI kit
-  (`~/Downloads/catalyst-ui-kit.zip`) et on l'adapte aux tokens du projet — on ne la
-  bricole pas à la main sur place.
-  Deux exceptions, portées par la gate elle-même : les `<a>` vers une URL **externe**
-  (`Link` enveloppe `next/link`, fait pour les routes internes — y router une URL GitHub
-  serait une régression), et les `charts/` (SVG écrit à la main, Catalyst n'en fournit pas).
-  Un `<div>` de layout n'est pas une violation : Catalyst n'a pas de primitive pour un wrapper.
-- **Les primitives Catalyst vivent dans `src/components/ui/`** — kit minimal, uniquement les
-  primitives réellement consommées par une route vivante (`npm run quality:dead` échoue sur une
-  primitive orpheline). Aucun composant "pour plus tard", aucun design system parallèle.
-- **Marketing** (`src/app/(site)/`, `src/components/marketing/`) → blocs Tailwind Plus pris tels
-  quels, restylés sur les tokens du projet. Vitrine statique, périmètre distinct de la console.
-- **`check:catalyst` a été RÉÉCRITE** (2026-07-30) après avoir été supprimée avec l'ancien
-  dashboard : sans elle, la console avait laissé filer cinq `<select>` bruts et une case à
-  cocher brute, dont un commentaire assumait explicitement de sauter la primitive. Preuve que
-  la phrase ci-dessous n'est pas un slogan.
-  Restent supprimées et jamais réécrites : `check:ds`, `check:contrast`, `check:danger`,
-  `check:views`. Une nouvelle règle visuelle ne vaut que si une gate la fait respecter —
-  jamais une simple phrase dans un `.md`. Trou connu : `docs/known-gaps.md` §7.
+- **AUCUNE doctrine de design dans ce fichier — free design.** Ce workspace est indépendant :
+  pas de design system imposé, pas de palette obligatoire, pas de kit obligatoire, pas de gate
+  visuelle. Le style de la console est un CHOIX libre, pas une règle héritée.
+  Ce qui existe aujourd'hui (`src/theme.css` : tokens de surface/contenu, accent vert ; les
+  primitives de `src/components/ui/`) est un **point de départ, pas un contrat** : on peut le
+  garder, le tordre ou le remplacer sans demander la permission ni mettre à jour ce fichier.
+  Ne pas réintroduire ici de règle de couleur, de police, de token ou de composant — et ne
+  jamais importer le design system d'un autre projet : ce workspace n'appartient à aucune
+  maison de style.
+  Les seules contraintes qui restent ci-dessus sont **structurelles** (routes réelles, routes
+  supprimées, frontière RSC) et **de vérité affichée** (section suivante) — ce sont des faits
+  d'architecture et d'honnêteté, pas des goûts.
+- **Marketing** (`src/app/(site)/`, `src/components/marketing/`) → périmètre distinct de la
+  console, vitrine statique.
 
 ## Vérité affichée (gates : `check:render-truth`, `check:status-truth`)
 
@@ -127,7 +101,7 @@ abandonne si le port est pris par un process non identifié comme le sien.
 - **Le rôle `danger` est réservé à une panne**, pas à une condition ordinaire. Un agent `draft`,
   en pause ou archivé n'est pas exécutable **par conception** — un rail rouge en permanence ne
   peut plus alerter de rien.
-<!-- END:catalyst-ui-rules -->
+<!-- END:console-structure-rules -->
 
 ## Invariants agents & runtime (détail : docs/missions/AGENTS-history-2026-07.md)
 

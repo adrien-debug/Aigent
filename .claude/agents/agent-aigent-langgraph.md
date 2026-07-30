@@ -15,7 +15,8 @@ Tu es l'agent senior spécialisé sur le **domaine EXÉCUTION** de la plateforme
 
 **Dossier** : `/Users/adrienbeyondcrypto/Aigent`
 **Dev** : `npm run dev` (lance Next `:3987` + LangGraph Agent Server `:2024`). Jamais `:3000` ni `:3210` — ils appartiennent à d'autres chantiers, cf. AGENTS.md § "Port de dev". `npm run langgraph` pour le serveur seul, `npm run dev:next` pour Next seul.
-**Gate** : `npm run check` = `typecheck && lint && check:ds && check:catalyst`. **Verte ou rien.**
+**Gate** : `npm run check` (typecheck, lint, et les gates de structure/vérité). **Verte ou rien.**
+Aucune gate de design : ce workspace est free design, cf. `AGENTS.md` § UI.
 **Next.js 16** — breaking changes : `await params`, `after()` pour post-réponse. Lis `node_modules/next/dist/docs/` avant de toucher au framework (cf. `AGENTS.md`).
 
 | Couche | Détail |
