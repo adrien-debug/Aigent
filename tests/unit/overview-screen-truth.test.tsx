@@ -122,12 +122,20 @@ function measuredEmptyWindow(): DashboardOverview {
   })
 }
 
-/** The card whose uppercase label is `label`, as a query root. */
+/** Secondary metric in the operating-state band. */
+function operatingMetric(label: string): HTMLElement {
+  const section = screen.getByTestId('overview-operating-state')
+  const labelNode = within(section)
+    .getAllByText(label)
+    .find((node) => node.className.includes('uppercase'))
+  const cell = labelNode?.parentElement
+  if (cell === null || cell === undefined) throw new Error(`No operating metric found for "${label}"`)
+  return cell as HTMLElement
+}
+
+/** @deprecated KPI cards removed — use operatingMetric */
 function kpiCard(label: string): HTMLElement {
-  const labelNode = screen.getByText(label)
-  const card = labelNode.closest('div.rounded-xl')
-  if (card === null) throw new Error(`No KPI card found for label "${label}"`)
-  return card as HTMLElement
+  return operatingMetric(label.replace(' · 24h', '').replace('Projects · active', 'Serving agents'))
 }
 
 /**
@@ -149,19 +157,18 @@ function drawnArcs(container: HTMLElement): Element[] {
 /* ---------------------------------------------------------- C1 · null → word */
 
 describe('C1 — a null runs figure renders the exact word "Indisponible"', () => {
-  it('the "Runs · 24h" KPI card says Indisponible when the window was never read', () => {
+  it('the "Runs" operating metric says Indisponible when the window was never read', () => {
     render(<OverviewScreen overview={unreadWindow()} />)
 
-    expect(within(kpiCard('Runs · 24h')).getByText(UNAVAILABLE)).toBeTruthy()
+    expect(within(operatingMetric('Runs')).getByText(UNAVAILABLE)).toBeTruthy()
   })
 
-  it('the KPI card carries no fabricated figure beside the word', () => {
+  it('the operating metric carries no fabricated figure beside the word', () => {
     render(<OverviewScreen overview={unreadWindow()} />)
 
-    const card = kpiCard('Runs · 24h')
-    expect(card.textContent).toContain(UNAVAILABLE)
-    // Not "0", not "0 run" — no digit at all in the figure slot.
-    expect(within(card).queryByText('0')).toBeNull()
+    const cell = operatingMetric('Runs')
+    expect(cell.textContent).toContain(UNAVAILABLE)
+    expect(within(cell).queryByText('0')).toBeNull()
   })
 
   it('the failure is stated out loud, in the danger role, not swallowed', () => {
@@ -170,59 +177,26 @@ describe('C1 — a null runs figure renders the exact word "Indisponible"', () =
     expect(screen.getAllByText(RUNS_READ_FAILED_WARNING).length).toBeGreaterThan(0)
   })
 
-  it('a project row whose team proved nothing says Indisponible for `runs`', () => {
-    render(
-      <OverviewScreen
-        overview={overviewFixture({ projects: [projectItem({ runsLast24h: null })] })}
-      />
-    )
-
-    const runsCaption = screen.getByText('runs')
-    const cell = runsCaption.parentElement
-    expect(cell).not.toBeNull()
-    expect(cell?.textContent).toContain(UNAVAILABLE)
-    expect(cell?.textContent).not.toContain('0')
-  })
 })
 
 /* --------------------------------------------------- C2 · measured 0 → "0" */
 
 describe('C2 — a MEASURED zero renders 0, never Indisponible', () => {
-  it('a window that was read and held nothing shows 0 in the Runs card', () => {
+  it('a window that was read and held nothing shows 0 in the Runs metric', () => {
     render(<OverviewScreen overview={measuredEmptyWindow()} />)
 
-    const card = kpiCard('Runs · 24h')
-    expect(within(card).getByText('0')).toBeTruthy()
-    expect(within(card).queryByText(UNAVAILABLE)).toBeNull()
-  })
-
-  it('a project row whose team proved a zero shows 0', () => {
-    render(
-      <OverviewScreen overview={overviewFixture({ projects: [projectItem({ runsLast24h: 0 })] })} />
-    )
-
-    const cell = screen.getByText('runs').parentElement
-    expect(cell?.textContent).toContain('0')
-    expect(cell?.textContent).not.toContain(UNAVAILABLE)
-  })
-
-  it('a project row with a measured positive count shows it unchanged', () => {
-    render(
-      <OverviewScreen overview={overviewFixture({ projects: [projectItem({ runsLast24h: 12 })] })} />
-    )
-
-    const cell = screen.getByText('runs').parentElement
-    expect(cell?.textContent).toContain('12')
-    expect(cell?.textContent).not.toContain(UNAVAILABLE)
+    const cell = operatingMetric('Runs')
+    expect(within(cell).getByText('0')).toBeTruthy()
+    expect(within(cell).queryByText(UNAVAILABLE)).toBeNull()
   })
 
   it('the unread and the measured-empty screens do NOT render the same figure', () => {
     const { unmount } = render(<OverviewScreen overview={measuredEmptyWindow()} />)
-    const measured = kpiCard('Runs · 24h').textContent
+    const measured = operatingMetric('Runs').textContent
     unmount()
 
     render(<OverviewScreen overview={unreadWindow()} />)
-    const unread = kpiCard('Runs · 24h').textContent
+    const unread = operatingMetric('Runs').textContent
 
     expect(measured).not.toBe(unread)
     expect(measured).toContain('0')
@@ -233,98 +207,44 @@ describe('C2 — a MEASURED zero renders 0, never Indisponible', () => {
 /* ------------------------------------------- C3 · no misleading gauge/curve */
 
 describe('C3 — a null measurement draws no gauge arc and no zero curve', () => {
-  it('no accent arc is stroked anywhere while the window is unread', () => {
+  it('no success RingGauge is rendered on the overview', () => {
     const { container } = render(<OverviewScreen overview={unreadWindow()} />)
-
-    // success24h is null: the KPI-card arc AND the big panel ring must both draw
-    // the track only. There are TWO gauges under this label — checking only the
-    // first left the ring untested, so every one of them is asserted.
-    const gauges = [...container.querySelectorAll('svg[aria-label*="Success rate"]')]
-    expect(gauges).toHaveLength(2)
-    for (const gauge of gauges) expect(drawnArcs(gauge as HTMLElement)).toHaveLength(0)
+    expect(container.querySelectorAll('svg[aria-label*="Success rate over the last 24 hours"]')).toHaveLength(0)
   })
 
   it('the trend chart says nothing rather than drawing a flat-zero curve', () => {
     render(<OverviewScreen overview={unreadWindow()} />)
 
-    const panel = screen.getByText('Run activity · 24h').closest('section')
-    expect(panel).not.toBeNull()
-    // No axis, no grid, no curve: nothing at all is plotted from a window that
-    // was never read — an empty plate would be indistinguishable from a quiet one.
-    expect(panel?.querySelectorAll('svg')).toHaveLength(0)
-    expect(panel?.querySelectorAll('polyline')).toHaveLength(0)
+    const panel = screen.getByTestId('overview-run-activity')
+    expect(panel.querySelectorAll('svg')).toHaveLength(0)
+    expect(panel.querySelectorAll('polyline')).toHaveLength(0)
     expect(drawnArcs(panel as HTMLElement)).toHaveLength(0)
   })
 
   it('a MEASURED empty window still draws its own honest empty plate', () => {
     render(<OverviewScreen overview={measuredEmptyWindow()} />)
 
-    const panel = screen.getByText('Run activity · 24h').closest('section')
-    // The read succeeded, so the empty case is reached and states its own
-    // emptiness — this is what the UNREAD window must never be allowed to
-    // imitate, and the assertion above proves the unread one stays silent.
-    expect(panel?.textContent).toContain('No completed or failed run in this window')
-    // ...and it says WHY it is empty, so "nothing ran" cannot read as "the
-    // chart broke".
-    expect(panel?.textContent).toContain('The window was read and held nothing')
-
-    // It is the COMPACT placeholder, not a full-size grid drawn around one
-    // sentence: a 232px black plate is the empty-graph antipattern this
-    // console removes, and it is what shipped here before.
-    const placeholder = panel?.querySelector('.h-24')
+    const panel = screen.getByTestId('overview-run-activity')
+    expect(panel.textContent).toContain('No run in this window')
+    expect(panel.textContent).toContain('The window was read and held nothing')
+    const placeholder = panel.querySelector('.h-24')
     expect(placeholder).not.toBeNull()
-    expect(panel?.querySelectorAll('polyline')).toHaveLength(0)
+    expect(panel.querySelectorAll('polyline')).toHaveLength(0)
   })
 
-  it('the projects-active gauge does not present unmeasured projects as inactive', () => {
-    render(
-      <OverviewScreen
-        overview={overviewFixture({
-          projects: [
-            projectItem({ id: 'p1', name: 'A', runsLast24h: null }),
-            projectItem({ id: 'p2', name: 'B', runsLast24h: null }),
-          ],
-        })}
-      />
-    )
-
-    const card = kpiCard('Projects · active')
-    // Nothing was measured, so the numerator is not a fact — "0 / 2" would claim
-    // both projects sat idle, which no read established.
-    expect(card.textContent).not.toContain('0 / 2')
-    expect(within(card).getByText(UNAVAILABLE)).toBeTruthy()
-    // …and the gauge beside it draws no arc, over a DASHED (unmeasured) track.
-    expect(drawnArcs(card)).toHaveLength(0)
-    expect(card.querySelector('path')?.getAttribute('stroke-dasharray')).toBeTruthy()
-  })
-
-  it('the status breakdown says Indisponible five times rather than five zeros', () => {
+  it('an unread window shows a run-activity error instead of five status zeros', () => {
     render(<OverviewScreen overview={unreadWindow()} />)
 
-    const panel = screen.getByText('Success rate · 24h').closest('section')
-    expect(panel).not.toBeNull()
-    // One per run status. Five `0`s here would describe a fleet that never ran.
-    expect(within(panel as HTMLElement).getAllByText(UNAVAILABLE).length).toBeGreaterThanOrEqual(5)
+    const panel = screen.getByTestId('overview-run-activity')
+    expect(panel.textContent).toContain('Run history unavailable')
+    expect(within(panel).queryAllByText('0')).toHaveLength(0)
   })
 
   it('the status breakdown shows measured zeros when the window WAS read', () => {
     render(<OverviewScreen overview={measuredEmptyWindow()} />)
 
-    const panel = screen.getByText('Success rate · 24h').closest('section')
-    expect(within(panel as HTMLElement).getAllByText('0')).toHaveLength(5)
-  })
-
-  it('the Agents panel splits what the failed read cost from what still holds', () => {
-    render(<OverviewScreen overview={unreadWindow()} />)
-
-    const panel = screen.getByText('Agents').closest('section') as HTMLElement
-    // `Ran · 24h` came from windowRuns → unavailable.
-    const ran = within(panel).getByText('Ran · 24h').parentElement
-    expect(ran?.textContent).toContain(UNAVAILABLE)
-    // `Production` came from another read → still a measurement.
-    const production = within(panel).getByText('Production').parentElement
-    expect(production?.textContent).toContain('1')
-    expect(production?.textContent).not.toContain(UNAVAILABLE)
+    const panel = screen.getByTestId('overview-run-activity')
+    expect(within(panel).getAllByText('0').length).toBeGreaterThanOrEqual(5)
   })
 })
 
@@ -500,7 +420,7 @@ describe('D1 — an absent cost renders the exact word "Indisponible" on /admin'
   it('the "Cost · 24h" KPI card says Indisponible, and shows no currency at all', () => {
     render(<OverviewScreen overview={overviewFixture({ kpis: kpis({ cost24h: null }) })} />)
 
-    const card = kpiCard('Cost · 24h')
+    const card = operatingMetric('Cost')
     expect(within(card).getByText(UNAVAILABLE)).toBeTruthy()
     // The three shapes a coalesced absence took, all forbidden in one place.
     expect(card.textContent).not.toContain('$')
@@ -533,7 +453,7 @@ describe('D1 — an absent cost renders the exact word "Indisponible" on /admin'
     const details = new Set<string>()
     for (const { name, overview } of cases) {
       const { unmount } = render(<OverviewScreen overview={overview} />)
-      const card = kpiCard('Cost · 24h')
+      const card = operatingMetric('Cost')
 
       expect(within(card).getByText(UNAVAILABLE), name).toBeTruthy()
       expect(card.textContent, name).not.toContain('$')
@@ -548,21 +468,6 @@ describe('D1 — an absent cost renders the exact word "Indisponible" on /admin'
     expect(details.size).toBe(3)
   })
 
-  it('a project whose team proved no cost carries no fabricated $0.00 on /admin', () => {
-    render(
-      <OverviewScreen
-        overview={overviewFixture({ projects: [projectItem({ runsLast24h: 3, costLast24hUsd: null })] })}
-      />
-    )
-
-    const panel = screen.getByText('Projects').closest('section') as HTMLElement
-    // Whatever this panel chooses to display, it may never put a currency figure
-    // against a project whose cost nobody measured. Holds today (the row shows
-    // `active` and `runs` only) and holds after a cost cell is added, because the
-    // only correct rendering there is the word, not a zero.
-    expect(panel.textContent).not.toContain('$')
-    expect(panel.textContent).not.toContain(EM_DASH_ABSENCE)
-  })
 })
 
 /* --------------------------------------- D2 · a measured zero → a real zero */
@@ -577,7 +482,7 @@ describe('D2 — a MEASURED zero cost renders a real formatted zero, never the w
       />
     )
 
-    const card = kpiCard('Cost · 24h')
+    const card = operatingMetric('Cost')
     expect(within(card).getByText('$0.00')).toBeTruthy()
     // The inverse lie: relabelling every zero "not measured" is the same defect
     // pointing the other way.
@@ -593,11 +498,11 @@ describe('D2 — a MEASURED zero cost renders a real formatted zero, never the w
         })}
       />
     )
-    const measured = kpiCard('Cost · 24h').textContent
+    const measured = operatingMetric('Cost').textContent
     unmount()
 
     render(<OverviewScreen overview={overviewFixture({ kpis: kpis({ cost24h: null }) })} />)
-    const absent = kpiCard('Cost · 24h').textContent
+    const absent = operatingMetric('Cost').textContent
 
     expect(measured).not.toBe(absent)
     expect(measured).toContain('$0.00')
@@ -623,9 +528,9 @@ describe('D3 — a measured cost is formatted as currency, with its coverage', (
     // Selector follows `Metric`'s figure slot, which is now `text-[30px]/9`
     // (the figure was enlarged so it clearly outranks its own label). The
     // assertion below is unchanged — this is still "what sits in the big slot".
-    const figure = kpiCard('Cost · 24h').querySelector('p.text-\\[30px\\]\\/9')
-    expect(figure?.textContent).toBe('$2.50')
-    expect(within(kpiCard('Cost · 24h')).queryByText(UNAVAILABLE)).toBeNull()
+    const card = operatingMetric('Cost')
+    expect(within(card).getByText('$2.50')).toBeTruthy()
+    expect(within(operatingMetric('Cost')).queryByText(UNAVAILABLE)).toBeNull()
   })
 
   it('sub-cent and large amounts keep two decimals rather than collapsing', () => {
@@ -636,12 +541,12 @@ describe('D3 — a measured cost is formatted as currency, with its coverage', (
     )
     // 0.004 rounds to "$0.00" — a HONEST rounding of a measured amount, and it
     // must still not be confused with an absence: the card keeps its currency.
-    expect(kpiCard('Cost · 24h').textContent).toContain('$0.00')
-    expect(within(kpiCard('Cost · 24h')).queryByText(UNAVAILABLE)).toBeNull()
+    expect(operatingMetric('Cost').textContent).toContain('$0.00')
+    expect(within(operatingMetric('Cost')).queryByText(UNAVAILABLE)).toBeNull()
     unmount()
 
     render(<OverviewScreen overview={overviewFixture({ kpis: kpis({ runs24h: 1, cost24h: coverage({ usd: 1234.5 }) }) })} />)
-    expect(kpiCard('Cost · 24h').textContent).toContain('$1234.50')
+    expect(operatingMetric('Cost').textContent).toContain('$1234.50')
   })
 
   it('PARTIAL coverage is disclosed — dollars are never presented as the whole window', () => {
@@ -653,13 +558,12 @@ describe('D3 — a measured cost is formatted as currency, with its coverage', (
       />
     )
 
-    const card = kpiCard('Cost · 24h')
+    const card = operatingMetric('Cost')
     // The figure is a LOWER BOUND: one of the four runs had no measurable cost.
     // Printing "$2.50" alone would be the same overstatement the `?? 0` made,
     // only better dressed — so both halves of the fraction must be on screen.
     expect(card.textContent).toContain('$2.50')
-    expect(card.textContent).toMatch(/\b3\b[^0-9]*\b4\b/)
-    expect(card.textContent).not.toContain("Summed over the window's runs")
+    expect(card.textContent).toContain('3 of 4 runs priced')
   })
 
   it('FULL coverage does not invent a caveat it does not have', () => {
@@ -671,10 +575,8 @@ describe('D3 — a measured cost is formatted as currency, with its coverage', (
       />
     )
 
-    // The mirror of the test above: a total that DOES cover the window must not
-    // be hedged into looking partial, or the disclosure stops meaning anything.
-    expect(kpiCard('Cost · 24h').textContent).toContain("Summed over the window's runs")
-    expect(kpiCard('Cost · 24h').textContent).not.toMatch(/measured on/i)
+    expect(operatingMetric('Cost').textContent).toContain('All window runs priced')
+    expect(operatingMetric('Cost').textContent).not.toMatch(/\b3\b[^0-9]*\b4\b/)
   })
 })
 
@@ -691,7 +593,7 @@ describe('D4 — an absent cost draws no mark: no arc, no bar, no curve', () => 
     control.unmount()
 
     render(<OverviewScreen overview={overviewFixture({ kpis: kpis({ cost24h: null }) })} />)
-    const card = kpiCard('Cost · 24h')
+    const card = operatingMetric('Cost')
 
     expect(within(card).getByText(UNAVAILABLE)).toBeTruthy()
     expect(drawnMarks(card)).toHaveLength(0)
@@ -711,19 +613,9 @@ describe('D4 — an absent cost draws no mark: no arc, no bar, no curve', () => 
     // never draws anything under any circumstance: the two cases differ in the
     // FIGURE, and neither carries a mark. A cost has no natural maximum, so a
     // gauge here would need an invented denominator.
-    expect(drawnMarks(kpiCard('Cost · 24h'))).toHaveLength(0)
+    expect(drawnMarks(operatingMetric('Cost'))).toHaveLength(0)
   })
 
-  it('an absent cost never leaves a zero-length arc on a project row', () => {
-    render(
-      <OverviewScreen
-        overview={overviewFixture({ projects: [projectItem({ runsLast24h: null, costLast24hUsd: null })] })}
-      />
-    )
-
-    const panel = screen.getByText('Projects').closest('section') as HTMLElement
-    expect(drawnMarks(panel)).toHaveLength(0)
-  })
 })
 
 /* ------------------------------- D5 · /admin/projects states the same three */
@@ -818,90 +710,22 @@ describe('D5 — /admin/projects renders the three cost states of the same contr
 
 /* --------------------------------------------- D6 · the two screens agree */
 
-describe('D6 — /admin and /admin/projects state the SAME truth for the same project', () => {
-  /**
-   * ONE fixture, both screens. `CROSS_SCREEN_TEAM` is the `Copilot[]`
-   * `/admin/projects` receives; `CROSS_SCREEN_ITEMS` is what the data layer
-   * derives from it for `/admin` — pinned by the data-layer suite (C13), so the
-   * two halves of this comparison cannot drift apart silently.
-   */
-  function bothScreens() {
-    const projectsRender = render(
+describe('D6 — /admin/projects cost contract (overview no longer lists projects)', () => {
+  it('the projects registry renders the three cost states', () => {
+    const { container } = render(
       <ProjectsScreen projects={CROSS_SCREEN_PROJECTS} copilots={CROSS_SCREEN_TEAM} />
     )
-    const registry = registryRows(projectsRender.container)
-    projectsRender.unmount()
-
-    const overviewRender = render(
-      <OverviewScreen overview={overviewFixture({ projects: CROSS_SCREEN_ITEMS })} />
-    )
-    const panel = screen.getByText('Projects').closest('section') as HTMLElement
-    const rows = new Map(
-      [...panel.querySelectorAll('a')]
-        // The panel footer holds an "All projects" link too; only the row
-        // anchors point at a builder.
-        .filter((row) => row.getAttribute('href')?.includes('/builder'))
-        .map((row) => [row.querySelector('div.truncate')?.textContent ?? '', row.textContent ?? ''])
-    )
-
-    // NON-VACUITY. Every assertion below is a lookup, and a lookup that misses
-    // would make several of them read as "the screen does not say the wrong
-    // thing" — which an EMPTY screen also satisfies. Both sides must really hold
-    // the three projects before anything is compared.
-    expect([...registry.keys()]).toEqual(['Proven', 'Zero', 'Dark'])
-    expect([...rows.keys()]).toEqual(['Proven', 'Zero', 'Dark'])
-
-    return { registry, rows, overviewRender }
-  }
-
-  it('the RUNS figure reads identically on both screens, in all three states', () => {
-    const { registry, rows } = bothScreens()
-
-    // Proven → the same number, twice.
-    expect(registry.get('Proven')?.[3]).toBe('3')
-    expect(rows.get('Proven')).toContain('3')
-    // Measured zero → a real 0 on both, and the word on neither.
-    expect(registry.get('Zero')?.[3]).toBe('0')
-    expect(rows.get('Zero')).toContain('0')
-    expect(rows.get('Zero')).not.toContain(UNAVAILABLE)
-    // Absent → the word on both. THIS is the pair that used to disagree: `0`
-    // here and `Indisponible` there, from one field, on two screens.
-    expect(registry.get('Dark')?.[3]).toBe(UNAVAILABLE)
-    expect(rows.get('Dark')).toContain(UNAVAILABLE)
-    expect(rows.get('Dark')).not.toMatch(/\b0\b/)
+    const rows = registryRows(container)
+    expect(rows.get('Proven')?.[4]).toBe('$12.50')
+    expect(rows.get('Zero')?.[4]).toBe('$0.00')
+    expect(rows.get('Dark')?.[4]).toBe(UNAVAILABLE)
   })
 
-  it('neither screen states a cost the other one denies', () => {
-    const { registry, rows } = bothScreens()
-
-    // `/admin/projects` is the screen that renders a per-project cost today.
-    expect(registry.get('Proven')?.[4]).toBe('$12.50')
-    expect(registry.get('Zero')?.[4]).toBe('$0.00')
-    expect(registry.get('Dark')?.[4]).toBe(UNAVAILABLE)
-
-    // `/admin` renders `active` and `runs` on the row and no cost — so the one
-    // thing it must never do is contradict the column above. It may not print a
-    // currency figure for the project whose cost nobody measured, and it may not
-    // print the absence word for the two that WERE measured.
-    expect(rows.get('Dark')).not.toContain('$')
-    expect(rows.get('Proven')).not.toContain(UNAVAILABLE)
-    expect(rows.get('Zero')).not.toContain(UNAVAILABLE)
-  })
-
-  /**
-   * TRIPWIRE, not a preference. `/admin` currently shows no per-project cost at
-   * all, which is why nothing there can be wrong about it — and also why the
-   * fixed field is unobserved on that screen. The day a cost cell is added, this
-   * test fails and the person adding it has to extend the assertions above to
-   * cover it in all three states, instead of shipping a cell nobody compared.
-   */
-  it('TRIPWIRE — /admin does not render a per-project cost yet', () => {
-    const { rows } = bothScreens()
-
-    for (const row of rows.values()) {
-      expect(row).not.toContain('$')
-      expect(row).not.toContain('cost')
-    }
+  it('overview no longer mounts a Projects panel', () => {
+    render(<OverviewScreen overview={overviewFixture({ projects: CROSS_SCREEN_ITEMS })} />)
+    expect(screen.queryByText('Projects')).toBeNull()
+    expect(screen.getByTestId('overview-operating-state')).toBeTruthy()
+    expect(screen.getByTestId('overview-action-queue')).toBeTruthy()
   })
 })
 
@@ -937,7 +761,7 @@ describe('E — recent deliveries panel: read failed ≠ empty ≠ populated', (
   it('a measured empty read renders the calm empty state, not the error state', () => {
     render(<OverviewScreen overview={overviewFixture({ recentDeliveries: [] })} />)
 
-    expect(screen.getByText('No delivery has been recorded yet.')).toBeInTheDocument()
+    expect(screen.getByText('No delivery recorded yet')).toBeInTheDocument()
     expect(screen.queryByText('Delivery events unavailable')).not.toBeInTheDocument()
   })
 
@@ -988,7 +812,8 @@ describe('F — runtime telemetry panel: global channel with honest provenance',
         })}
       />
     )
-    expect(screen.getByText(/internal ·/)).toBeInTheDocument()
+    const panel = screen.getByTestId('overview-telemetry')
+    expect(within(panel).getAllByText('internal').length).toBeGreaterThan(0)
   })
 
   it('labels a lifecycle event as lifecycle', () => {
@@ -1019,7 +844,8 @@ describe('F — runtime telemetry panel: global channel with honest provenance',
         })}
       />
     )
-    expect(screen.getByText(/lifecycle ·/)).toBeInTheDocument()
+    const panel = screen.getByTestId('overview-telemetry')
+    expect(within(panel).getAllByText('lifecycle').length).toBeGreaterThan(0)
   })
 
   it('shows unknown when consumer cannot be proven', () => {
@@ -1049,12 +875,13 @@ describe('F — runtime telemetry panel: global channel with honest provenance',
         })}
       />
     )
-    expect(screen.getByText(/unknown ·/)).toBeInTheDocument()
+    const panel = screen.getByTestId('overview-telemetry')
+    expect(within(panel).getAllByText('unknown').length).toBeGreaterThan(0)
   })
 
   it('empty state does not mention external-only traffic', () => {
     render(<OverviewScreen overview={overviewFixture({ recentTelemetryEvents: [] })} />)
-    expect(screen.getByText('No runtime telemetry event has been recorded yet.')).toBeInTheDocument()
+    expect(screen.getByText('No runtime telemetry event recorded yet')).toBeInTheDocument()
     expect(screen.queryByText(/external telemetry/i)).toBeNull()
   })
 })
