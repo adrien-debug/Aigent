@@ -216,6 +216,8 @@ describe('dashboard KPIs', () => {
       },
       telemetryReportingAgents: null,
       telemetryRunsMeasured: null,
+      pendingArchitectApprovals: [],
+      recentTelemetryEvents: [],
     })
     // Measured mean over BOTH sources when scorecards ARE loaded (agent-detail
     // path / a future batched wave) — not a zero, and not sandbox-only.
@@ -254,6 +256,8 @@ describe('dashboard KPIs', () => {
       },
       telemetryReportingAgents: null,
       telemetryRunsMeasured: null,
+      pendingArchitectApprovals: [],
+      recentTelemetryEvents: [],
     })
     expect(overview.kpis.avgRepoFit).not.toBe(0)
     expect(overview.kpis.avgRepoFit).toBe(100) // sandbox signal alone, genuinely measured
@@ -277,6 +281,8 @@ describe('dashboard KPIs', () => {
       },
       telemetryReportingAgents: null,
       telemetryRunsMeasured: null,
+      pendingArchitectApprovals: [],
+      recentTelemetryEvents: [],
     })
     expect(emptyOverview.kpis.avgRepoFit).not.toBe(0)
     expect(emptyOverview.kpis.avgRepoFit).toBeNull()
@@ -346,8 +352,31 @@ describe('action items', () => {
       scorecards: new Map(),
       missionRuns: [],
       dataWarnings: [],
+      pendingArchitectApprovals: [],
     })
     expect(items[0]?.kind).toBe('ready_manual')
+  })
+
+  it('6b — architect_approval outranks ready_for_manual_test', () => {
+    const items = buildActionItems({
+      copilotsById,
+      projectsById,
+      latestDeliveryByCopilot: new Map([['c-btc', deliveryEvent('ready_for_manual_test')]]),
+      latestSandboxByCopilot: new Map(),
+      scorecards: new Map(),
+      missionRuns: [],
+      dataWarnings: [],
+      pendingArchitectApprovals: [
+        {
+          conversationId: 'conv-1',
+          projectId: 'proj-trade',
+          threadId: 'thread-abc',
+          updatedAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+    })
+    expect(items[0]?.kind).toBe('architect_approval')
+    expect(items[0]?.href).toBe('/admin/projects/proj-trade/builder')
   })
 
   it('7 — release_gate_red action item fires when a scorecard proves it, never fabricated when scorecards are empty', () => {
@@ -370,6 +399,7 @@ describe('action items', () => {
       ]),
       missionRuns: [],
       dataWarnings: [],
+      pendingArchitectApprovals: [],
     })
     expect(withScorecard.some((i) => i.kind === 'release_gate_red')).toBe(true)
 
@@ -385,6 +415,7 @@ describe('action items', () => {
       scorecards: new Map(),
       missionRuns: [],
       dataWarnings: [],
+      pendingArchitectApprovals: [],
     })
     expect(withoutScorecards.some((i) => i.kind === 'release_gate_red')).toBe(false)
   })
@@ -411,6 +442,8 @@ describe('assembleDashboardOverview fail-soft', () => {
       },
       telemetryReportingAgents: null,
       telemetryRunsMeasured: null,
+      pendingArchitectApprovals: [],
+      recentTelemetryEvents: [],
     })
     expect(overview.dataWarnings).toContain('Mission data unavailable')
     expect(overview.kpis.productionAgents).toBe(0)
@@ -444,6 +477,8 @@ describe('assembleDashboardOverview fail-soft', () => {
       },
       telemetryReportingAgents: null,
       telemetryRunsMeasured: null,
+      pendingArchitectApprovals: [],
+      recentTelemetryEvents: [],
     })
     expect(overview.kpis.executableNow).toBeNull()
     expect(overview.kpis.executableTotal).toBeNull()
@@ -501,6 +536,8 @@ describe('assembleDashboardOverview fail-soft', () => {
       },
       telemetryReportingAgents: null,
       telemetryRunsMeasured: null,
+      pendingArchitectApprovals: [],
+      recentTelemetryEvents: [],
     })
     expect(overview.kpis.sandboxPassRate).toBeNull()
     expect(overview.kpis.avgRepoFit).toBeNull()
@@ -762,10 +799,13 @@ describe('A — the 24h run read is never swallowed', () => {
     // NOT empty any more: this file's module-level `pgrest` mock always
     // throws, so the delivery-event and sandbox-report reads fail alongside
     // the runs read this test is actually about. The queue now says so —
-    // two `data_unavailable` items — instead of silently reporting zero
-    // pending actions on a partially dead backend (the second BLOCKER this
-    // suite exists to pin, see the 'fail-soft on mission table error' test).
-    expect(overview.actionItems.map((item) => item.kind)).toEqual(['data_unavailable', 'data_unavailable'])
+    // three `data_unavailable` items — delivery, sandbox, and architect-approval
+    // scans all fail alongside the runs read this test is actually about.
+    expect(overview.actionItems.map((item) => item.kind)).toEqual([
+      'data_unavailable',
+      'data_unavailable',
+      'data_unavailable',
+    ])
   })
 
   it('A5b — a null window still lets the action queue be built (pure assembly)', () => {
@@ -787,6 +827,8 @@ describe('A — the 24h run read is never swallowed', () => {
       },
       telemetryReportingAgents: null,
       telemetryRunsMeasured: null,
+      pendingArchitectApprovals: [],
+      recentTelemetryEvents: [],
     })
 
     expect(overview.kpis.runs24h).toBeNull()
@@ -1200,6 +1242,8 @@ describe('C — ProjectOverviewItem.costLast24hUsd obeys the same rule as runs',
       },
       telemetryReportingAgents: null,
       telemetryRunsMeasured: null,
+      pendingArchitectApprovals: [],
+      recentTelemetryEvents: [],
     })
 
     expect(overview.projects[0].costLast24hUsd).toBeNull()

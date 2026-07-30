@@ -19,7 +19,15 @@ import { pgrest } from './postgrest'
 import { isExecutable } from './runtime-catalogue'
 import { parseSandboxReport, type TargetRepoSandboxReport } from './target-repo-sandbox'
 import { diagnoseTelemetryHealth, type TelemetryHealthDiagnostic } from './telemetry-health'
-import { summarizeFleetRuntimeTelemetry } from './runtime-telemetry-store'
+import {
+  listRecentRuntimeTelemetryEvents,
+  summarizeFleetRuntimeTelemetry,
+  type RuntimeTelemetryEvent,
+} from './runtime-telemetry-store'
+import {
+  listPendingArchitectApprovals,
+  type PendingArchitectApproval,
+} from './pending-architect-approvals'
 import type { AgentRun, Copilot, Project } from './types'
 
 // ---------------------------------------------------------------------------
@@ -138,6 +146,7 @@ export type ProjectOverviewItem = {
 }
 
 export type ActionItemKind =
+  | 'architect_approval'
   | 'ready_manual'
   | 'sandbox_failed'
   | 'release_gate_red'
@@ -215,6 +224,17 @@ export type DashboardOverview = {
    * emptiness, same three-state contract as `windowRuns`.
    */
   recentDeliveries: RecentDelivery[] | null
+  /**
+   * Project-builder conversations paused at the LangGraph approval interrupt.
+   * `null` only when the pending-approval scan could not run (DB read failed).
+   */
+  pendingArchitectApprovals: PendingArchitectApproval[] | null
+  /**
+   * Raw runtime-telemetry events, newest first — the per-event feed that
+   * `summarizeFleetRuntimeTelemetry` rolls up for the channel KPIs above.
+   * `null` only when the events table could not be read.
+   */
+  recentTelemetryEvents: RuntimeTelemetryEvent[] | null
 }
 
 /** One delivery event with the copilot it belongs to — `DeliveryEvent` itself
@@ -489,6 +509,7 @@ export function buildRecentDeliveries(
 // ---------------------------------------------------------------------------
 
 const ACTION_PRIORITY: Record<ActionItemKind, number> = {
+  architect_approval: 0,
   ready_manual: 1,
   sandbox_failed: 2,
   release_gate_red: 3,
@@ -511,9 +532,38 @@ export function buildActionItems(input: {
   scorecards: Map<string, ScorecardSnapshot>
   missionRuns: MissionRunSnapshot[]
   dataWarnings: string[]
+  /** Null when `listPendingArchitectApprovals()` failed — same contract as delivery/sandbox maps. */
+  pendingArchitectApprovals: PendingArchitectApproval[] | null
   limit?: number
 }): ActionItem[] {
   const items: ActionItem[] = []
+
+  if (input.pendingArchitectApprovals === null) {
+    items.push({
+      id: 'action_data_unavailable_architect',
+      kind: 'data_unavailable',
+      title: 'Architect approvals could not be scanned',
+      meta: 'HITL runs waiting for confirmation are not represented this round.',
+      status: 'unavailable',
+      href: '/admin',
+      buttonLabel: 'Retry',
+      priority: ACTION_PRIORITY.data_unavailable,
+    })
+  } else {
+    for (const approval of input.pendingArchitectApprovals) {
+      const project = input.projectsById.get(approval.projectId)
+      items.push({
+        id: `action_architect_${approval.conversationId}`,
+        kind: 'architect_approval',
+        title: 'Architect draft awaiting approval',
+        meta: `${project?.name ?? approval.projectId} · thread ${approval.threadId.slice(0, 8)}`,
+        status: 'awaiting_approval',
+        href: `/admin/projects/${approval.projectId}/builder`,
+        buttonLabel: 'Open builder',
+        priority: ACTION_PRIORITY.architect_approval,
+      })
+    }
+  }
 
   // A failed read is an ITEM in the queue, not a silent gap in it: the two
   // sources this loop depends on can fail independently of the reads that
@@ -666,6 +716,8 @@ export function assembleDashboardOverview(input: {
   telemetryHealth: TelemetryHealthDiagnostic
   telemetryReportingAgents: number | null
   telemetryRunsMeasured: number | null
+  pendingArchitectApprovals: PendingArchitectApproval[] | null
+  recentTelemetryEvents: RuntimeTelemetryEvent[] | null
 }): DashboardOverview {
   const copilotsById = new Map(input.copilots.map((c) => [c.id, c]))
   const projectsById = new Map(input.projects.map((p) => [p.id, p]))
@@ -692,6 +744,7 @@ export function assembleDashboardOverview(input: {
     scorecards: input.scorecards,
     missionRuns: input.missionRuns,
     dataWarnings: input.dataWarnings,
+    pendingArchitectApprovals: input.pendingArchitectApprovals,
   })
 
   return {
@@ -739,6 +792,8 @@ export function assembleDashboardOverview(input: {
     telemetryReportingAgents: input.telemetryReportingAgents,
     telemetryRunsMeasured: input.telemetryRunsMeasured,
     recentDeliveries: buildRecentDeliveries(latestDeliveryByCopilot),
+    pendingArchitectApprovals: input.pendingArchitectApprovals,
+    recentTelemetryEvents: input.recentTelemetryEvents,
   }
 }
 
@@ -867,6 +922,8 @@ export const SANDBOX_READ_FAILED_WARNING = 'Sandbox report data unavailable'
 
 /** Same idea as `RUNS_READ_FAILED_WARNING`, for the fleet runtime-telemetry read. */
 export const TELEMETRY_READ_FAILED_WARNING = 'Runtime telemetry data unavailable'
+export const TELEMETRY_EVENTS_READ_FAILED_WARNING = 'Runtime telemetry event feed unavailable'
+export const ARCHITECT_APPROVALS_READ_FAILED_WARNING = 'Architect approval queue unavailable'
 
 /**
  * Read-only dashboard overview for /admin. Never writes, never calls GitHub.
@@ -903,6 +960,8 @@ export async function getDashboardOverview(nowMs: number = Date.now()): Promise<
     availableAgentsResult,
     windowRunsResult,
     fleetTelemetryResult,
+    pendingArchitectApprovalsResult,
+    telemetryEventsResult,
   ] = await Promise.all([
     getCopilots({ health: 'list' }),
     getProjects(),
@@ -936,6 +995,12 @@ export async function getDashboardOverview(nowMs: number = Date.now()): Promise<
     summarizeFleetRuntimeTelemetry()
       .then((summary) => ({ summary, lookupFailed: false }))
       .catch(() => ({ summary: null, lookupFailed: true })),
+    listPendingArchitectApprovals()
+      .then((approvals) => ({ approvals, warning: null as string | null }))
+      .catch(() => ({ approvals: null, warning: ARCHITECT_APPROVALS_READ_FAILED_WARNING })),
+    listRecentRuntimeTelemetryEvents(50)
+      .then((events) => ({ events, warning: null as string | null }))
+      .catch(() => ({ events: null, warning: TELEMETRY_EVENTS_READ_FAILED_WARNING })),
   ])
 
   if (latestDeliveryResult.warning) dataWarnings.push(latestDeliveryResult.warning)
@@ -944,6 +1009,8 @@ export async function getDashboardOverview(nowMs: number = Date.now()): Promise<
   if (availableAgentsResult.warning) dataWarnings.push(availableAgentsResult.warning)
   if (windowRunsResult.warning) dataWarnings.push(windowRunsResult.warning)
   if (fleetTelemetryResult.lookupFailed) dataWarnings.push(TELEMETRY_READ_FAILED_WARNING)
+  if (pendingArchitectApprovalsResult.warning) dataWarnings.push(pendingArchitectApprovalsResult.warning)
+  if (telemetryEventsResult.warning) dataWarnings.push(telemetryEventsResult.warning)
 
   const telemetryHealth = diagnoseTelemetryHealth({
     ingestionTokenConfigured: Boolean(process.env.AIGENT_RUNTIME_TELEMETRY_TOKEN),
@@ -973,5 +1040,7 @@ export async function getDashboardOverview(nowMs: number = Date.now()): Promise<
     telemetryHealth,
     telemetryReportingAgents: fleetTelemetryResult.summary?.reportingAgents ?? null,
     telemetryRunsMeasured: fleetTelemetryResult.summary?.totalRuns ?? null,
+    pendingArchitectApprovals: pendingArchitectApprovalsResult.approvals,
+    recentTelemetryEvents: telemetryEventsResult.events,
   })
 }

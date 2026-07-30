@@ -166,7 +166,8 @@ abandonne si le port est pris par un process non identifié comme le sien.
 - **La télémétrie est lue par l'Overview et le détail agent** : `summarizeRuntimeTelemetry`
   (par agent) par la boucle d'amélioration et `agent-detail.ts` ; `summarizeFleetRuntimeTelemetry`
   et `diagnoseTelemetryHealth` par `dashboard-overview.ts`, rendus dans la carte Telemetry de
-  `/admin`. Seul `listRecentRuntimeTelemetryEvents` n'a aucun appelant de production.
+  `/admin` (carte Telemetry + feed événements récents). `listRecentRuntimeTelemetryEvents`
+  est consommé par `dashboard-overview.ts` pour l'Overview.
   État chiffré et nuances : `docs/known-gaps.md` §2 — propriétaire unique de cette ligne.
 
 <!-- HEARST-GOVERNANCE:START -->

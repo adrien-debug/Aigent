@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { StatusDot, type StatusDotTone } from '@/components/ui/status-dot'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { DashboardOverview, RecentDelivery } from '@/lib/agent-mission-control/dashboard-overview'
+import type { RuntimeTelemetryEvent } from '@/lib/agent-mission-control/runtime-telemetry-store'
 import type { TelemetryHealthStatus } from '@/lib/agent-mission-control/telemetry-health'
 import type { AgentRun, AgentRunStatus } from '@/lib/agent-mission-control/types'
 
@@ -846,6 +847,7 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
         <Section
           title="Telemetry"
           description="Runtime-telemetry channel — agents reporting outside Aigent's own runner"
+          scroll="lg"
         >
           <dl>
             {/* Channel health, not agent health — see the doctrine header on
@@ -879,6 +881,33 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
               </dd>
             </div>
           </dl>
+          {overview.recentTelemetryEvents === null ? (
+            <ErrorState
+              title="Telemetry events unavailable"
+              description="The runtime-telemetry event table could not be read this round."
+              className="rounded-none border-0 border-t border-line bg-transparent"
+            />
+          ) : overview.recentTelemetryEvents.length === 0 ? (
+            <EmptyState
+              title="No external telemetry event has been recorded yet."
+              description="Consumer agents that POST to /api/runtime-telemetry will appear here."
+              className="rounded-none border-0 border-t border-line bg-transparent"
+            />
+          ) : (
+            overview.recentTelemetryEvents.map((event: RuntimeTelemetryEvent) => (
+              <PanelRow
+                key={event.id}
+                href={`/admin/agents/${event.agentId}`}
+                title={<span className="font-mono">{event.agentId}</span>}
+                subtitle={`${event.projectId} · ${event.status}${event.eventType ? ` · ${event.eventType}` : ''} · ${formatDeliveryStamp(event.receivedAt)} UTC`}
+                trailing={
+                  <StatusDot tone={actionStatusTone(event.status)} className="max-w-24 sm:max-w-32">
+                    {event.status}
+                  </StatusDot>
+                }
+              />
+            ))
+          )}
         </Section>
       </div>
 

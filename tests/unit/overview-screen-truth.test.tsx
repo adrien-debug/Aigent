@@ -97,6 +97,8 @@ function overviewFixture(partial: Partial<DashboardOverview> = {}): DashboardOve
     telemetryReportingAgents: null,
     telemetryRunsMeasured: null,
     recentDeliveries: [],
+    pendingArchitectApprovals: [],
+    recentTelemetryEvents: [],
     ...partial,
   }
 }

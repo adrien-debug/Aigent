@@ -18,9 +18,11 @@ create-v2 / decision), delivery-loop and push-agent are all driven from
 `qualification-panel.tsx`, `improve-panel.tsx`, `delivery-controls.tsx`,
 `agent-actions.tsx` and `project-builder-screen.tsx`.
 
-What genuinely remains: no UI lists architect runs sitting in
-`awaiting_approval`, so a HITL run whose tab was closed is unreachable from the
-product (see §7).
+What genuinely remains: bench-only architect runs started via
+`POST /api/agent-ops/architect/run` (no `projectId`) still have no DB row —
+only project-builder conversations are listed on Overview. See §7 for HITL runs
+whose tab was closed: they are now reachable from the Overview action queue when
+the conversation still holds a live `langgraph_thread_id`.
 
 ## 2. Telemetry comes back — the fleet view exists, one reader does not.
 
@@ -33,12 +35,13 @@ holds both consumer-reported runs and Aigent's own. Of the data going in:
   (`telemetry-health.ts`) are called by `dashboard-overview.ts` and rendered as
   the Telemetry card on `/admin`. ✅ — this file previously claimed both had zero
   callers, which was wrong.
-- `listRecentRuntimeTelemetryEvents` still has **zero production callers** —
-  only unit tests. That one is the real remainder: no screen lists individual
-  telemetry events.
+- `listRecentRuntimeTelemetryEvents` is now read by `/admin` (Overview telemetry
+  panel, bounded to 50 events). ✅
+- The per-event stream is no longer a dead export — it is surfaced on the
+  flagship screen alongside the fleet channel KPIs.
 
-The honest gap is narrower than it was: fleet health is visible, the per-event
-stream is not. Note also that of 37 rows in `runtime_telemetry_events`, **zero
+The honest gap is narrower than it was: fleet health and the per-event feed are
+visible on Overview. Note also that of 37 rows in `runtime_telemetry_events`, **zero
 came from an externally deployed agent** — every row is Aigent's own runner or a
 lifecycle event, so the return channel has never been exercised end to end.
 

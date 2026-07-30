@@ -76,15 +76,13 @@ the archived one-shot proofs (`npm run prove:*`).
 | Lifecycle telemetry (promotion / shadow / replay) on the same channel | wired (automatic) | `runtime-telemetry-store.ts` `emitPromotionTelemetry` / `emitShadowTelemetry` / `emitReplayTelemetry` |
 | Per-agent telemetry summary consumed by the improvement loop | backend-only | `improvement-loop.ts:56` → `summarizeRuntimeTelemetry` |
 | Fleet telemetry summary | wired — `summarizeFleetRuntimeTelemetry` feeds the `/admin` Telemetry card | `dashboard-overview.ts:22,936` → `overview-screen.tsx:856` |
-| **Recent-events feed** | **not wired** — `listRecentRuntimeTelemetryEvents` has zero production callers; only `tests/unit/runtime-telemetry-store.test.ts` calls it | `runtime-telemetry-store.ts:554` |
+| **Recent-events feed** | wired — `listRecentRuntimeTelemetryEvents(50)` on `/admin` Overview | `dashboard-overview.ts` → `overview-screen.tsx` |
 | Telemetry health diagnostic | wired — `diagnoseTelemetryHealth` renders as the Telemetry card's channel status | `dashboard-overview.ts:21,948` → `overview-screen.tsx:858` |
 
-**What telemetry still lacks.** The summaries are read (improvement loop, agent
-detail, Overview card), but there is no per-event screen — that route was deleted
-and is gate-forbidden. More important: of the 37 stored events, **none came from
-an externally deployed agent** (measured 2026-07-30). Every row is Aigent's own
-runner or a lifecycle event, so the consumer return channel is built and
-authenticated but has never carried real traffic.
+**What telemetry still lacks.** The consumer return channel is built and
+authenticated but has never carried real traffic from an externally deployed
+agent (measured 2026-07-30) — every stored row is Aigent's own runner or a
+lifecycle event.
 
 ## Runtime & providers
 
