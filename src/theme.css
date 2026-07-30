@@ -24,9 +24,11 @@
   --font-mono: var(--font-satoshi);
 }
 
-/* Accent — the single brand hue, #A7FB90 anchored as the 500 shade. All ten
-   steps are declared even where a given step has no current consumer: a hole
-   in the ramp makes Tailwind drop `bg-accent-*` at that step silently. */
+/* Accent — the brand green, #A7FB90 anchored as the 500 shade. THE official one.
+   A brief detour to an electric #22F56F was reverted: this console gets its
+   character from depth and surface, not from a saturated emitter. All ten steps
+   are declared even where a step has no current consumer: a hole in the ramp
+   makes Tailwind drop `bg-accent-*` at that step silently. */
 @theme {
   --color-accent-50: #f3fcf0;
   --color-accent-100: #e7fbe2;
@@ -82,30 +84,38 @@
    reads raw custom properties rather than Tailwind utilities. */
 @theme {
   /* Planes, lowest to highest. */
-  --color-surface-app: #08080a; /* page ground, near-black — the lowest plane */
-  --color-surface-raised: #141417; /* panel & sidebar graphite — was #101013, only 2% off
-    `surface-app`, so a card never actually detached from the page behind it. Now a real step. */
-  --color-surface-sunken: #030304; /* inset plate: chart bed, table head — was #0b0b0d, LIGHTER
-    than `surface-app`, which read as raised, not recessed. Now genuinely below the page ground,
-    so a sunken plate reads as a well, not a lid. */
-  --color-surface-hover: #1c1c21; /* row hover, mid-way between raised and selected */
-  --color-surface-selected: #232329; /* active/selected row or item — distinct from hover so a
-    persistent selection doesn't read as a transient pointer state */
-  --color-surface-overlay: #1a1a1f; /* the plane a primary/featured card sits on, one notch above
-    `surface-raised` — how a prioritised card visually outranks an ordinary one without a second
-    accent hue */
+  /* TRUE BLACK, not graphite. The old planes (#08080a page, #141417 card) were
+     mid-greys: a glow laid on grey has nothing to bloom against and reads as a
+     smudge. Black is what makes an emissive curve look emissive. */
+  /* FIVE DISTINCT PLANES. They used to sit within 2-3% of each other, so the
+     eye read one flat grey and the interface had no depth at all. Each step
+     below is a visible rung, and paired with the inset lighting in
+     `--shadow-card-*` it produces an actual stack: well < page < panel <
+     featured panel < hover. */
+  --color-surface-app: #000000; /* PAGE GROUND — pure black. The darkest thing on screen, and the
+    only plane that is pure: everything else is a lifted slab sitting on it. */
+  --color-surface-raised: #161a18; /* THE CARD. A full, deliberate step off the page — it used to
+    sit ~4% off black, which the eye read as one flat field with faint outlines instead of panels
+    on a ground. The card must be legible as an object before any border helps it. */
+  --color-surface-sunken: #060706; /* WELL: chart bed, table head. Just off pure black, so it reads
+    as carved INTO the card rather than as a hole through to the page. */
+  --color-surface-hover: #232825; /* row hover — a clear rung above the card it sits in */
+  --color-surface-selected: #2c322e; /* active/selected row: above hover, so a persistent selection
+    never reads as a transient pointer state */
+  --color-surface-overlay: #1f2421; /* FEATURED CARD — one rung above the standard card, which is
+    how a prioritised panel outranks an ordinary one without borrowing the accent */
 
   /* Content (text & icons), by ROLE. These are what 175 raw `text-zinc-*`
      classes were standing in for: the console had semantic surfaces but no
      semantic text, so every label reached for the zinc ramp directly. Four
      steps, each with one job — a fifth would just invite guessing.
-     Contrast measured against `--color-surface-raised` (#141417), the plane
-     most text actually sits on. */
-  --color-content: #ffffff; /* primary: headings, KPI figures, table values — 18.39:1 */
-  --color-content-muted: #b4afa9; /* secondary: labels, subtitles, meta — 8.44:1, AAA */
-  --color-content-subtle: #8a8480; /* tertiary: axis ticks, timestamps, hints — 4.98:1, AA */
-  --color-content-faint: #6b6560; /* quaternary: disabled, placeholder — 3.2:1, AA for non-text
-    and large text only. NEVER for body copy that must be read. */
+     Contrast RE-MEASURED against the true-black planes: moving the card from
+     #141417 to #0a0b0a lifted every ratio, so these numbers are the new ones. */
+  --color-content: #ffffff; /* primary: headings, KPI figures, table values — 21.0:1 */
+  --color-content-muted: #b4afa9; /* secondary: labels, subtitles, meta — 9.65:1, AAA */
+  --color-content-subtle: #8a8480; /* tertiary: axis ticks, timestamps, hints — 5.69:1, AA */
+  --color-content-faint: #6b6560; /* quaternary: disabled, placeholder — 3.66:1, clears the 3:1
+    non-text floor and AA at large sizes. NEVER for body copy that must be read. */
   --color-content-on-accent: #0e0d0c; /* text/icon sitting ON an accent fill (active rail item,
     brand mark, solid accent button). Near-black, not white: the accent is a LIGHT green here, so
     white on it fails contrast outright. This is the one content token whose correct value flips
@@ -179,8 +189,14 @@
 :root {
   --accent-surface: color-mix(in oklab, var(--color-accent-600) 15%, transparent);
   --accent-line: color-mix(in oklab, var(--color-accent-700) 40%, transparent);
-  /* Soft accent halo — luminous separators, gauge rings, active-item glow. */
-  --accent-glow: color-mix(in oklab, var(--color-accent-500) 28%, transparent);
+  /* ── NO GLOW. HOUSE RULE. ──────────────────────────────────────────────────
+     There is deliberately NO glow, halo, bloom or blur token here, and none
+     anywhere in the console. A neon pass was built and stripped back out: glow
+     turns a dark interface into a light show and destroys exactly what makes it
+     read well — the surface stack and the elevation lighting below.
+     Do not reintroduce `--accent-glow*`, `--accent-bloom*`, `blur-*`,
+     `feGaussianBlur`, or a `0 0 Npx <accent>` box-shadow. Depth comes from
+     stacked surfaces and inset edge lighting, never from emission. */
 
   /* Danger — the one non-accent hue, reserved for failure and destruction. */
   --state-danger-solid: #b3282d;
@@ -190,19 +206,44 @@
      distinct surface, not a bordered box on the same graphite as everything neutral around it. */
   --state-danger-surface: color-mix(in oklab, var(--state-danger-solid) 10%, var(--color-surface-raised));
 
-  /* Elevation — soft, dark-theme-appropriate shadows. `-sm` for a resting card, `-lg` for a
-     primary/featured card or an open overlay. Both are additive-only: no component was shadowed
-     before, so applying either is a pure gain, never a conflict. */
-  --shadow-card-sm: 0 1px 2px rgb(0 0 0 / 40%);
-  --shadow-card-lg: 0 12px 32px -8px rgb(0 0 0 / 65%), 0 2px 6px rgb(0 0 0 / 45%);
+  /* ── ELEVATION ────────────────────────────────────────────────────────────
+     A drop shadow is nearly invisible on a true-black page: black on black
+     casts nothing. Depth here therefore comes from LIGHT, not from shade —
+     each surface is lit from above:
+
+       1. an inset hairline of white along the TOP edge  → the lit bevel
+       2. an inset dark bloom along the BOTTOM edge      → the far side falling away
+       3. an outer ambient shadow                        → the plate off the page
+
+     That stack is what makes a panel read as a physical slab rather than a
+     lighter rectangle painted on the background. */
+  --shadow-card-sm:
+    inset 0 1px 0 0 rgb(255 255 255 / 6%),
+    inset 0 -1px 0 0 rgb(0 0 0 / 60%),
+    0 1px 2px rgb(0 0 0 / 60%),
+    0 6px 16px -8px rgb(0 0 0 / 90%);
+  --shadow-card-lg:
+    inset 0 1px 0 0 rgb(255 255 255 / 10%),
+    inset 0 -1px 0 0 rgb(0 0 0 / 70%),
+    0 2px 6px rgb(0 0 0 / 55%),
+    0 18px 44px -12px rgb(0 0 0 / 95%);
+  /* A WELL: the opposite lighting — dark at the top, lit at the bottom — so a
+     chart bed or a table head reads as carved INTO the panel, not sat on it. */
+  --shadow-well:
+    inset 0 2px 6px -1px rgb(0 0 0 / 85%),
+    inset 0 -1px 0 0 rgb(255 255 255 / 4%);
 
   /* Charts & gauges — read from .tsx as arbitrary values (`stroke-[var(--chart-line)]`,
      `[--chart-track]`), never as a utility, so `:root` is the right home. The
      charts are hand-written SVG: these five vars ARE the chart palette. */
   --chart-line: var(--color-accent-500); /* the one curve/arc stroke */
-  --chart-fill: color-mix(in oklab, var(--color-accent-500) 14%, transparent); /* area under a curve */
-  --chart-grid: rgb(255 255 255 / 5%); /* faint grid lines */
-  --chart-track: #1e1e23; /* unfilled part of a gauge arc or ring */
+  /* The area under a curve fades to nothing rather than sitting as a flat wash:
+     `trend-chart` uses these two as the stops of a vertical gradient, so the fill
+     is dense where it meets the curve and gone by the baseline. */
+  --chart-fill: color-mix(in oklab, var(--color-accent-500) 34%, transparent);
+  --chart-fill-fade: color-mix(in oklab, var(--color-accent-500) 0%, transparent);
+  --chart-grid: rgb(255 255 255 / 6%); /* faint grid lines */
+  --chart-track: #16181a; /* unfilled part of a gauge arc or ring */
 }
 
 @utility no-scrollbar {

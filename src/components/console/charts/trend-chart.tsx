@@ -396,13 +396,18 @@ export function TrendChart({
             height={plotHeight}
             viewBox={`0 0 ${VIEW_WIDTH} ${plotHeight}`}
             preserveAspectRatio="none"
-            className="block rounded-lg bg-surface-sunken"
+            className="block rounded-lg bg-surface-sunken shadow-[var(--shadow-well)]"
           >
             {showArea && firstAccentKey && !isEmpty ? (
               <defs>
+                {/* Three stops, not two. A straight dense→transparent ramp keeps
+                    too much ink near the baseline and the fill reads as a solid
+                    block; pulling most of the fade into the top third makes the
+                    area hug the curve and dissolve into the plate. */}
                 <linearGradient id={areaFillId} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="var(--chart-fill)" />
-                  <stop offset="100%" stopColor="transparent" />
+                  <stop offset="45%" stopColor="var(--chart-fill)" stopOpacity={0.28} />
+                  <stop offset="100%" stopColor="var(--chart-fill-fade)" />
                 </linearGradient>
               </defs>
             ) : null}
@@ -480,21 +485,10 @@ export function TrendChart({
                       <g key={segmentKey}>
                         <title>{entry.label}</title>
                         {areaPath ? <path d={areaPath} fill={`url(#${areaFillId})`} stroke="none" /> : null}
-                        {entry.tone === 'accent' ? (
-                          // The luminous stroke of the reference: a wide translucent
-                          // copy under the curve. Not a blur filter — a filter region
-                          // is stretched by `preserveAspectRatio="none"`.
-                          <path
-                            d={line}
-                            fill="none"
-                            strokeWidth={7}
-                            strokeOpacity={0.45}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            vectorEffect="non-scaling-stroke"
-                            className="stroke-[var(--accent-glow)]"
-                          />
-                        ) : null}
+                        {/* NO GLOW. The curve is a clean 2px stroke over its area
+                            fill — no halo, no bloom, no stacked translucent copies.
+                            Depth on this plate comes from the recessed bed the chart
+                            sits in (`--shadow-well`), not from making the line emit. */}
                         <path
                           d={line}
                           fill="none"

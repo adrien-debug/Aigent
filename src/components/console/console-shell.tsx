@@ -142,7 +142,7 @@ function NavItem({
       className={cn(
         'group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px]/5 font-medium transition-colors',
         active
-          ? 'bg-accent-500 text-content-on-accent shadow-[0_0_18px_-6px_var(--accent-glow)]'
+          ? 'bg-accent-500 text-content-on-accent'
           : 'text-content-muted hover:bg-surface-hover hover:text-white',
         className
       )}
@@ -207,7 +207,11 @@ export function ConsoleShell({
       <div className="grid min-h-screen lg:grid-cols-[216px_minmax(0,1fr)] xl:grid-cols-[248px_minmax(0,1fr)]">
         {/* The rail owns the border and the graphite plane so both run the FULL
             page height; the sticky inner column is what stays in view. */}
-        <aside className="hidden border-r border-line bg-surface-raised lg:block">
+        {/* The rail sits on the PAGE plane, not the card plane. It used to share
+            `surface-raised` with every panel, so the frame and the content read
+            as one continuous grey and nothing looked layered. Black rail, black
+            page, cards lifted above both: one clear hierarchy. */}
+        <aside className="hidden border-r border-line bg-surface-app lg:block">
           <div className="sticky top-0 flex h-screen flex-col">
             {/* Brand band, height-matched to the topbar so the two hairlines
                 read as one continuous rule across the frame. */}

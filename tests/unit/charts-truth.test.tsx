@@ -28,8 +28,10 @@ describe('RingGauge — the track is the whole distinction, and it must be real 
     const { container } = render(<RingGauge value={7} max={14} label="Executable agents" />)
 
     const circles = container.querySelectorAll('circle')
-    // track + glow arc + line arc = 3 circles when a visible arc is drawn
-    expect(circles.length).toBe(3)
+    // track + line arc = 2 circles. There is no glow layer: the console has no
+    // glow at all (see the no-glow rule in theme.css), so a measured ring is the
+    // track plus the one painted arc.
+    expect(circles.length).toBe(2)
 
     const track = circles[0]
     expect(track.getAttribute('stroke-dasharray')).toBeNull()
@@ -87,12 +89,12 @@ describe('RingGauge — the track is the whole distinction, and it must be real 
 /* =================================================================== ArcGauge */
 
 describe('ArcGauge — same contract, drawn with <path>, never a <circle>', () => {
-  it('a measured positive value draws a track <path> (no dasharray) plus glow+line arc <path>s', () => {
+  it('a measured positive value draws a track <path> (no dasharray) plus the line arc <path>', () => {
     const { container } = render(<ArcGauge value={3} max={14} ariaLabel="Executable agents: 3 of 14." />)
 
     expect(container.querySelectorAll('circle').length).toBe(0) // ArcGauge never strokes a circle
     const paths = container.querySelectorAll('path')
-    expect(paths.length).toBe(3) // track + glow + line
+    expect(paths.length).toBe(2) // track + line. No glow layer — see theme.css.
 
     const track = paths[0]
     expect(track.getAttribute('stroke-dasharray')).toBeNull()
@@ -130,8 +132,10 @@ describe('ArcGauge — same contract, drawn with <path>, never a <circle>', () =
     const low = render(<ArcGauge value={1} max={14} ariaLabel="a" />)
     const high = render(<ArcGauge value={10} max={14} ariaLabel="b" />)
 
-    const lineArcLow = low.container.querySelectorAll('path')[2]
-    const lineArcHigh = high.container.querySelectorAll('path')[2]
+    // index 1, not 2: the glow layer that used to sit between the track and the
+    // arc is gone (no-glow rule), so the painted arc is the SECOND path.
+    const lineArcLow = low.container.querySelectorAll('path')[1]
+    const lineArcHigh = high.container.querySelectorAll('path')[1]
     const offsetLow = Number(lineArcLow.getAttribute('stroke-dashoffset'))
     const offsetHigh = Number(lineArcHigh.getAttribute('stroke-dashoffset'))
     // dashoffset counts DOWN from full length as the fraction grows, so the

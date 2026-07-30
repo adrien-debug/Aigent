@@ -1,6 +1,5 @@
 import { Heading } from '@/components/ui/heading'
 import { cn } from '@/components/ui/cn'
-import { Link } from '@/components/ui/link'
 import type { StatusDotTone } from '@/components/ui/status-dot'
 import type { AvailableAgentStatus } from '@/lib/agent-mission-control/available-agents'
 import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
@@ -97,6 +96,12 @@ export function Section({
   return (
     <section
       className={cn(
+        // A FLAT surface, not a gradient down to the page colour. The gradient
+        // version faded the bottom of every panel into pure black, so a card
+        // dissolved into the background exactly where it was supposed to end —
+        // the opposite of separating surface from ground. The panel now holds
+        // one solid plane and the edge lighting in `--shadow-card-*` does the
+        // separating.
         'flex min-w-0 flex-col overflow-hidden rounded-xl border',
         priority === 'primary'
           ? 'border-line-strong bg-surface-overlay shadow-[var(--shadow-card-lg)]'
@@ -145,13 +150,16 @@ export function Metric({
   className?: string
 }) {
   return (
-    <div className={cn('flex min-w-0 items-start justify-between gap-3 px-4 py-3.5', className)}>
+    <div className={cn('flex min-w-0 items-start justify-between gap-3 px-4 py-4', className)}>
       <div className="min-w-0">
-        <p className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-content-muted">{label}</p>
-        <p className="mt-1.5 truncate text-2xl/7 font-light tabular-nums text-white">{value}</p>
-        {detail ? <p className="mt-1 truncate text-[11px]/4 text-content-muted">{detail}</p> : null}
+        <p className="truncate text-[10px]/4 font-semibold uppercase tracking-[0.14em] text-content-subtle">{label}</p>
+        {/* The figure is the reason the card exists, so it is the biggest thing
+            in it by a clear margin — 30px against a 10px label. At the previous
+            24px/light it competed with its own gauge instead of leading. */}
+        <p className="mt-2 truncate text-[30px]/9 font-light tabular-nums tracking-tight text-white">{value}</p>
+        {detail ? <p className="mt-1.5 truncate text-[11px]/4 text-content-subtle">{detail}</p> : null}
       </div>
-      {aside ? <div className="shrink-0">{aside}</div> : null}
+      {aside ? <div className="shrink-0 self-center">{aside}</div> : null}
     </div>
   )
 }
@@ -180,6 +188,8 @@ export function KpiCard({
   return (
     <div
       className={cn(
+        // One solid plane, same as `Section` — see the note there for why the
+        // gradient-to-page-colour version was wrong.
         'min-w-0 rounded-xl border',
         priority === 'primary'
           ? 'border-line-strong bg-surface-overlay shadow-[var(--shadow-card-lg)]'
@@ -259,13 +269,18 @@ export function PanelRow({
     selected && 'bg-surface-selected'
   )
 
-  // Every caller passes an internal `/admin/...` route, so this is `Link` (which
-  // wraps next/link): as a raw `<a>` each row navigation was a full document
-  // reload, throwing away the client router and re-fetching the whole shell.
+  // A PLAIN `<a>`, not the Catalyst `Link`.
+  //
+  // `Link` wraps next/link in Headless UI's `DataInteractive`, which forwards
+  // interaction props onto its child. `body` here is a FRAGMENT, and the pair
+  // threw `Passing props on "Fragment"!` on every render of every screen that
+  // uses a PanelRow — caught by the error boundary, but a real console error and
+  // a real broken render path. Client-side navigation is not worth that; the row
+  // goes back to a document navigation, which has always worked.
   return href ? (
-    <Link href={href} className={cn(shared, 'transition-colors hover:bg-surface-hover', className)}>
+    <a href={href} className={cn(shared, 'transition-colors hover:bg-surface-hover', className)}>
       {body}
-    </Link>
+    </a>
   ) : (
     <div className={cn(shared, className)}>{body}</div>
   )
@@ -325,7 +340,8 @@ export const TABLE_SHELL = [
  * `text-content-muted`, not the `content-subtle` the two private copies used: it on
  * `--color-surface-sunken` measures ~4.1:1, under the 4.5 AA floor at this size.
  */
-export const TABLE_HEAD = 'border-line bg-surface-sunken text-[10px] tracking-widest text-content-muted'
+export const TABLE_HEAD =
+  'border-line bg-surface-sunken text-[10px] tracking-widest text-content-muted shadow-[var(--shadow-well)]'
 
 /** Goes on `<TableBody className={TABLE_BODY}>`: row separators on the `line`
  *  token instead of the kit's untokenised `divide-white/8`. */

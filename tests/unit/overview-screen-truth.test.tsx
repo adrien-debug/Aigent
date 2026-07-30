@@ -618,7 +618,10 @@ describe('D3 — a measured cost is formatted as currency, with its coverage', (
     // The FIGURE slot, read directly rather than searched for: `toContain` over
     // the whole card would also be satisfied by "$2.50" appearing in the
     // sub-label, and the assertion is about what sits in the big slot.
-    const figure = kpiCard('Cost · 24h').querySelector('p.text-2xl\\/7')
+    // Selector follows `Metric`'s figure slot, which is now `text-[30px]/9`
+    // (the figure was enlarged so it clearly outranks its own label). The
+    // assertion below is unchanged — this is still "what sits in the big slot".
+    const figure = kpiCard('Cost · 24h').querySelector('p.text-\\[30px\\]\\/9')
     expect(figure?.textContent).toBe('$2.50')
     expect(within(kpiCard('Cost · 24h')).queryByText(UNAVAILABLE)).toBeNull()
   })

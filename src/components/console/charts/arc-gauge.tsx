@@ -59,7 +59,10 @@ export function ArcGauge({ value, max = 100, size = 72, ariaLabel }: ArcGaugePro
 
   // ── Geometry: a semicircle opening upwards, drawn left → right ─────────────
   const width = Math.max(36, Math.round(Number.isFinite(size) ? size : 72))
-  const strokeWidth = Math.max(4, Math.round(width * 0.11))
+  // Thinner than the original 11%. A heavy arc beside a light-weight figure read
+  // as the loudest thing on the card, so the decoration outranked the number it
+  // was describing. At ~7% the gauge supports the figure instead of competing.
+  const strokeWidth = Math.max(3, Math.round(width * 0.07))
   const centreX = width / 2
   const radius = (width - strokeWidth) / 2
   const baselineY = centreX // the arc's flat side sits at y = radius + stroke/2
@@ -88,12 +91,15 @@ export function ArcGauge({ value, max = 100, size = 72, ariaLabel }: ArcGaugePro
     >
       {/* Track. Dashed and dimmer = nothing was ever measured; solid and brighter
           = there is a value, even when that value is 0 and draws no arc at all. */}
+      {/* The TRACK may have round caps: it is a full sweep, so rounding its ends
+          cannot misreport a fraction — it only stops the arc looking sheared off.
+          The VALUE arc below keeps butt caps, where the distortion would be a lie. */}
       <path
         d={arcPath}
         fill="none"
         strokeWidth={strokeWidth}
-        strokeDasharray={hasMeasurement ? undefined : `${strokeWidth} ${strokeWidth}`}
-        strokeLinecap="butt"
+        strokeDasharray={hasMeasurement ? undefined : `${strokeWidth * 0.5} ${strokeWidth * 1.5}`}
+        strokeLinecap="round"
         className={hasMeasurement ? 'stroke-content-subtle' : 'stroke-content-faint'}
       />
 
@@ -105,16 +111,8 @@ export function ArcGauge({ value, max = 100, size = 72, ariaLabel }: ArcGaugePro
         <>
           {/* The halo is a second, wider, translucent stroke rather than a blur
               filter: at this size a Gaussian blur turns the arc to mush. */}
-          <path
-            d={arcPath}
-            fill="none"
-            strokeWidth={strokeWidth * 1.9}
-            strokeLinecap="butt"
-            strokeDasharray={semicircleLength}
-            strokeDashoffset={dashOffset}
-            strokeOpacity={0.55}
-            className="stroke-[var(--accent-glow)]"
-          />
+          {/* NO GLOW: the halo layers that used to sit under this arc were
+              removed. A flat painted arc on a recessed plate. */}
           <path
             d={arcPath}
             fill="none"

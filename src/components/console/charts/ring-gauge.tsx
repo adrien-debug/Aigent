@@ -80,16 +80,6 @@ export type RingGaugeProps = {
   thickness?: number
 }
 
-/** Deterministic id suffix — server components cannot call `useId`, and two rings
- *  on one page must not share a filter. Same label ⇒ same (identical) filter. */
-function stableSuffix(seed: string) {
-  let hash = 5381
-  for (let index = 0; index < seed.length; index += 1) {
-    hash = ((hash << 5) + hash + seed.charCodeAt(index)) >>> 0
-  }
-  return hash.toString(36)
-}
-
 /** Integers stay integers; anything else keeps one decimal. Never rounds to 0 a
  *  value that is not 0 — `0.04` renders `0` only because it rounds there honestly. */
 function formatFigure(value: number) {
@@ -146,8 +136,6 @@ export function RingGauge({
   const figureY = caption ? centre - captionSize * 0.7 : centre
   const captionY = centre + figureSize * 0.45
 
-  const haloId = `ring-halo-${stableSuffix(`${label}:${box}`)}`
-
   const ariaLabel =
     measuredValue !== null && scaleMax !== null
       ? `${label}: ${formatFigure(measuredValue)} out of ${formatFigure(scaleMax)}.`
@@ -162,16 +150,6 @@ export function RingGauge({
       viewBox={`0 0 ${box} ${box}`}
       className="shrink-0"
     >
-      {hasVisibleArc ? (
-        <defs>
-          {/* The luminous halo of the reference frame. A blur filter, not a CSS
-              animation — this component never runs on the client. */}
-          <filter id={haloId} x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation={strokeWidth * 0.45} />
-          </filter>
-        </defs>
-      ) : null}
-
       {/* Track. Solid and one step brighter when something was measured, dashed
           and dimmer when nothing was — that pair is what separates a measured 0
           from "Indisponible" at a glance. Butt caps on both: a round cap adds
@@ -194,18 +172,9 @@ export function RingGauge({
           the centre and the arc around it now agree. */}
       {hasVisibleArc ? (
         <g transform={`rotate(-90 ${centre} ${centre})`}>
-          <circle
-            cx={centre}
-            cy={centre}
-            r={radius}
-            fill="none"
-            strokeWidth={strokeWidth}
-            strokeLinecap="butt"
-            strokeDasharray={circumference}
-            strokeDashoffset={dashOffset}
-            filter={`url(#${haloId})`}
-            className="stroke-[var(--accent-glow)]"
-          />
+          {/* NO GLOW: a single flat arc. The halo/bloom layers that used to sit
+              under this were removed — the ring reads as a painted arc on a
+              recessed plate, not as a lit tube. */}
           <circle
             cx={centre}
             cy={centre}
