@@ -100,6 +100,13 @@ caches. « Ne rien perdre » ne veut pas dire « ne rien supprimer ».
   d'autorisation séparée.
 - **Le merge dans `main` exige un ordre explicite d'Adrien.** Une PR prête et non
   mergée est un état normal et complet, pas un échec — annonce-le clairement.
+- **`git fetch` avant toute conclusion sur l'état distant.** Un arbre local propre
+  ne prouve rien sur `origin` : `main` local peut être en retard, une PR peut avoir
+  été mergée entre-temps, `origin/main` peut avoir avancé sans toi. Avant
+  d'affirmer « rien n'a été poussé », « la PR est en attente », « `main` est à jour »
+  ou de lancer un merge, **fetch d'abord et lis le résultat**. C'est arrivé sur ce
+  repo : `origin/main` avait avancé de cinq commits pendant qu'un `git status`
+  local restait propre.
 - **Jamais `git push --force` sur `main`.** Sur une branche de mission qui
   n'appartient qu'à toi, réécrire l'historique est permis.
 - Ne réécris jamais (`reset` / `rebase` / `amend` / `force`) un commit qui
