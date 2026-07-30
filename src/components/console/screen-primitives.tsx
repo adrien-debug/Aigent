@@ -1,5 +1,7 @@
 import { Heading } from '@/components/ui/heading'
 import { cn } from '@/components/ui/cn'
+import type { StatusDotTone } from '@/components/ui/status-dot'
+import type { AvailableAgentStatus } from '@/lib/agent-mission-control/available-agents'
 import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
 
 /**
@@ -466,4 +468,44 @@ export function DegradedBanner({
       </ul>
     </div>
   )
+}
+
+/* --------------------------------------------------- shared console format */
+
+/**
+ * Presentation helpers shared by the console's screens.
+ *
+ * They live HERE, in the module every screen already imports, rather than in
+ * one screen that another screen reaches into: `agents-screen.tsx` became a
+ * client component (it owns search/filter/sort state), and the moment it did,
+ * the server-rendered `agent-detail-screen.tsx` importing these two helpers
+ * from it started throwing at request time — "Attempted to call
+ * formatUtcTimestamp() from the server but it is on the client". Typecheck,
+ * the full unit suite and `check:rsc-boundary` all stayed green; only loading
+ * the page surfaced it.
+ */
+
+/** The dot role for an agent's runtime status. `unavailable` splits on the
+ *  LIFECYCLE column: `archived` was retired on purpose (neutral), anything
+ *  else is missing a hard requirement (danger). */
+export function agentStatusTone(status: AvailableAgentStatus, lifecycleStatus?: string): StatusDotTone {
+  if (status === 'active') return 'positive'
+  if (status === 'degraded') return 'negative'
+  if (status === 'unavailable') return lifecycleStatus === 'archived' ? 'neutral' : 'negative'
+  return 'neutral'
+}
+
+const pad2 = (value: number) => String(value).padStart(2, '0')
+
+/**
+ * ISO instant → `2026-07-29 08:14 UTC`, or `null` when the string is not a
+ * parseable instant. UTC and locale-free on purpose: `toLocaleString()` renders
+ * differently per server locale, and these screens render on both sides.
+ */
+export function formatUtcTimestamp(iso: string | null): string | null {
+  if (iso === null) return null
+  const epoch = Date.parse(iso)
+  if (!Number.isFinite(epoch)) return null
+  const date = new Date(epoch)
+  return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())} ${pad2(date.getUTCHours())}:${pad2(date.getUTCMinutes())} UTC`
 }

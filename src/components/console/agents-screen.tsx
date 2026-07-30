@@ -30,6 +30,8 @@ import {
   TABLE_ROW,
   TABLE_SHELL,
   Unavailable,
+  agentStatusTone,
+  formatUtcTimestamp,
 } from './screen-primitives'
 
 /**
@@ -123,33 +125,6 @@ export const AGENT_STATUS_ORDER: readonly AvailableAgentStatus[] = [
  * fault), while any other `unavailable` agent is missing a hard requirement and
  * is genuinely blocked (danger).
  */
-export function agentStatusTone(status: AvailableAgentStatus, lifecycleStatus?: string): StatusDotTone {
-  if (status === 'active') return 'positive'
-  if (status === 'degraded') return 'negative'
-  if (status === 'unavailable') return lifecycleStatus === 'archived' ? 'neutral' : 'negative'
-  return 'neutral'
-}
-
-/**
- * ISO instant → `2026-07-29 08:14 UTC`, or `null` when the string is not a
- * parseable instant.
- *
- * UTC and locale-free on purpose: `toLocaleString()` renders differently per
- * server locale, and this component may render on the client too. Lives here
- * rather than in `src/lib/agent-mission-control/format.ts` only because this
- * mission does not own that file — it is the formatter's natural home and
- * should move there.
- */
-const pad2 = (value: number) => String(value).padStart(2, '0')
-
-export function formatUtcTimestamp(iso: string | null): string | null {
-  if (iso === null) return null
-  const epoch = Date.parse(iso)
-  if (!Number.isFinite(epoch)) return null
-  const date = new Date(epoch)
-  return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())} ${pad2(date.getUTCHours())}:${pad2(date.getUTCMinutes())} UTC`
-}
-
 /* ----------------------------------------------------------------- helpers */
 
 /** `Indisponible` sized for the big KPI figure slot (a 12-glyph word does not

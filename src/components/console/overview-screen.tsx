@@ -12,6 +12,7 @@ import type { AgentRun, AgentRunStatus } from '@/lib/agent-mission-control/types
 // import that crosses into a sub-directory matches neither, so these three files
 // read as dead components and the gate goes red.
 import { ArcGauge } from '@/components/console/charts/arc-gauge'
+import { NoDataChart } from './charts/no-data-chart'
 import { RingGauge } from '@/components/console/charts/ring-gauge'
 import { TrendChart, type TrendSeries } from '@/components/console/charts/trend-chart'
 import {
@@ -888,7 +889,7 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
           flattened into `[]`. So the chart is never reached with an unread
           window: the body is replaced by the failure itself, and the panel
           takes the danger border so the row cannot read as calm. */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
         <Section
           title="Run activity · 24h"
           description={
@@ -907,6 +908,15 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
               // role lives on the Section border, so a second box here would
               // only double the chrome.
               className="rounded-none border-0 bg-transparent px-0 py-6"
+            />
+          ) : trendSeries.length === 0 ? (
+            // A read window that held nothing gets the COMPACT placeholder, not
+            // a 232px grid drawn around one sentence. An empty plot area the
+            // size of a full chart reads as a broken chart, and it is the exact
+            // "grande zone noire sans information" this console is removing.
+            <NoDataChart
+              label="No completed or failed run in this window"
+              detail="The window was read and held nothing — start a run from an agent to populate this plot."
             />
           ) : (
             <TrendChart

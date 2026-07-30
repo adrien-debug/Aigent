@@ -15,7 +15,6 @@ import type { AgentRun, CopilotVersion } from '@/lib/agent-mission-control/types
 import { ArcGauge } from '@/components/console/charts/arc-gauge'
 import { RingGauge } from '@/components/console/charts/ring-gauge'
 import { LifecycleTracePanel } from './lifecycle-trace-panel'
-import { agentStatusTone, formatUtcTimestamp } from './agents-screen'
 import { QualificationPanel } from './qualification-panel'
 import { ImprovePanel } from './improve-panel'
 import { DeliveryControls } from './delivery-controls'
@@ -31,6 +30,8 @@ import {
   TABLE_ROW,
   TABLE_SHELL,
   Unavailable,
+  agentStatusTone,
+  formatUtcTimestamp,
 } from './screen-primitives'
 
 /**

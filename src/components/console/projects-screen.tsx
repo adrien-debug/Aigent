@@ -319,7 +319,10 @@ export function ProjectsScreen({
                     <TableHeader className={TABLE_NUM}>Cost · 24h</TableHeader>
                     <TableHeader>Last delivery</TableHeader>
                     {/* A control, not a figure: right-aligned without `tabular-nums`. */}
-                    <TableHeader className="text-right">Builder</TableHeader>
+                    {/* Pinned: the row's only action must stay reachable at any
+                        width. Unpinned it sat 67px past the scroll container's
+                        right edge — present in the DOM, invisible at rest. */}
+                    <TableHeader className="sticky right-0 bg-surface-sunken text-right">Builder</TableHeader>
                   </TableRow>
                 </TableHead>
                 <TableBody className={TABLE_BODY}>
@@ -400,7 +403,7 @@ export function ProjectsScreen({
                         )}
                       </TableCell>
 
-                      <TableCell className="text-right">
+                      <TableCell className="sticky right-0 bg-surface-raised text-right">
                         <Button href={`/admin/projects/${project.id}/builder`} outline>
                           Open Builder <ArrowRightIcon />
                         </Button>

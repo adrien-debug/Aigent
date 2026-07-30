@@ -50,6 +50,42 @@ if (!/max-h-/.test(source)) {
   fail('ChartCard body must carry a bounded max-h- rung — an unbounded chart frame grows with its data, which this console never allows.')
 }
 
+/*
+ * SECOND RULE — the screens, not just the frame.
+ *
+ * The first half above only proves `ChartCard`'s own contract. That was not
+ * enough: the real defect shipped in `overview-screen.tsx`, which drew a
+ * `<TrendChart height={232}>` directly and let it render a full-size grid
+ * around a single "no run in this window" sentence — a 232px black plate that
+ * reads as a chart that failed to draw. The gate was green throughout, because
+ * it never looked at a screen.
+ *
+ * Rule: a screen that renders a TALL chart (height >= 160) must also import
+ * `NoDataChart`, i.e. it must have SOME compact path for the empty case. This
+ * is deliberately coarse — it cannot prove the branch is correct — but it makes
+ * the omission impossible to ship silently, which is what actually happened.
+ */
+const { readdir } = await import('node:fs/promises')
+const CONSOLE_DIR = join(ROOT, 'src/components/console')
+const screens = (await readdir(CONSOLE_DIR)).filter((f) => f.endsWith('-screen.tsx'))
+
+for (const file of screens) {
+  const path = join(CONSOLE_DIR, file)
+  const text = await readFile(path, 'utf8')
+  const tall = [...text.matchAll(/height=\{(\d+)\}/g)].map((m) => Number(m[1])).filter((h) => h >= 160)
+  if (tall.length === 0) continue
+  if (!/NoDataChart/.test(text)) {
+    fail(
+      `${file} renders a chart at height ${tall[0]}px but never references NoDataChart — ` +
+        'a tall plate with nothing in it is the empty-graph antipattern this console removes. ' +
+        'Swap in the compact placeholder when the series is empty.'
+    )
+  }
+}
+
 if (process.exitCode !== 1) {
-  console.log('✓ check:chart-empty-guard — ChartCard guards every empty series with NoDataChart, inside a bounded frame.')
+  console.log(
+    '✓ check:chart-empty-guard — ChartCard guards every empty series with NoDataChart inside a bounded frame, ' +
+      `and all ${screens.length} console screen(s) drawing a tall chart carry a compact empty path.`
+  )
 }

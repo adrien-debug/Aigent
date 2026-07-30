@@ -258,9 +258,20 @@ describe('C3 — a null measurement draws no gauge arc and no zero curve', () =>
     render(<OverviewScreen overview={measuredEmptyWindow()} />)
 
     const panel = screen.getByText('Run activity · 24h').closest('section')
-    // The read succeeded, so the chart is reached and states its emptiness —
-    // this is the case the unread window must NOT be allowed to imitate.
-    expect(panel?.textContent).toContain('No completed or failed run was recorded in this window.')
+    // The read succeeded, so the empty case is reached and states its own
+    // emptiness — this is what the UNREAD window must never be allowed to
+    // imitate, and the assertion above proves the unread one stays silent.
+    expect(panel?.textContent).toContain('No completed or failed run in this window')
+    // ...and it says WHY it is empty, so "nothing ran" cannot read as "the
+    // chart broke".
+    expect(panel?.textContent).toContain('The window was read and held nothing')
+
+    // It is the COMPACT placeholder, not a full-size grid drawn around one
+    // sentence: a 232px black plate is the empty-graph antipattern this
+    // console removes, and it is what shipped here before.
+    const placeholder = panel?.querySelector('.h-24')
+    expect(placeholder).not.toBeNull()
+    expect(panel?.querySelectorAll('polyline')).toHaveLength(0)
   })
 
   it('the projects-active gauge does not present unmeasured projects as inactive', () => {
