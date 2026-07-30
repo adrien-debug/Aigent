@@ -25,7 +25,9 @@ import type {
   Cost24hCoverage,
   DashboardOverview,
   ProjectOverviewItem,
+  RecentDelivery,
 } from '@/lib/agent-mission-control/dashboard-overview'
+import type { DeliveryEvent } from '@/lib/agent-mission-control/delivery-events-store'
 import type { AgentRun, Copilot } from '@/lib/agent-mission-control/types'
 // The fixture the DATA-LAYER suite pins (dashboard-overview.test.ts › C13) and
 // this suite renders. One literal, two vitest projects — see its header for why
@@ -94,6 +96,7 @@ function overviewFixture(partial: Partial<DashboardOverview> = {}): DashboardOve
     },
     telemetryReportingAgents: null,
     telemetryRunsMeasured: null,
+    recentDeliveries: [],
     ...partial,
   }
 }
@@ -883,5 +886,54 @@ describe('D6 — /admin and /admin/projects state the SAME truth for the same pr
       expect(row).not.toContain('$')
       expect(row).not.toContain('cost')
     }
+  })
+})
+
+/* -------------------------------------------------------- recent deliveries */
+
+function deliveryFixture(overrides: Partial<DeliveryEvent> = {}): DeliveryEvent {
+  return {
+    id: 'evt_1',
+    mode: 'pull_request',
+    targetRepo: 'adrien-debug/TradeAgent',
+    targetBranch: 'main',
+    deliveryBranch: 'agent/btc',
+    commitSha: 'abc',
+    commitUrl: 'u',
+    prUrl: null,
+    prNumber: null,
+    status: 'completed',
+    createdAt: '2026-07-20T12:34:00Z',
+    ...overrides,
+  }
+}
+
+describe('E — recent deliveries panel: read failed ≠ empty ≠ populated', () => {
+  it('a null read (the delivery-event table could not be read) renders an error state, never an empty list', () => {
+    render(<OverviewScreen overview={overviewFixture({ recentDeliveries: null })} />)
+
+    expect(screen.getByText('Delivery events unavailable')).toBeInTheDocument()
+    expect(
+      screen.queryByText('No delivery has been recorded yet.')
+    ).not.toBeInTheDocument()
+  })
+
+  it('a measured empty read renders the calm empty state, not the error state', () => {
+    render(<OverviewScreen overview={overviewFixture({ recentDeliveries: [] })} />)
+
+    expect(screen.getByText('No delivery has been recorded yet.')).toBeInTheDocument()
+    expect(screen.queryByText('Delivery events unavailable')).not.toBeInTheDocument()
+  })
+
+  it('a populated read renders one row per delivery, newest first as given by the data layer', () => {
+    const deliveries: RecentDelivery[] = [
+      { copilotId: 'copilot-newer', event: deliveryFixture({ id: 'evt_new', status: 'pr_open' }) },
+      { copilotId: 'copilot-older', event: deliveryFixture({ id: 'evt_old', status: 'completed' }) },
+    ]
+    render(<OverviewScreen overview={overviewFixture({ recentDeliveries: deliveries })} />)
+
+    expect(screen.getByText('copilot-newer')).toBeInTheDocument()
+    expect(screen.getByText('copilot-older')).toBeInTheDocument()
+    expect(screen.getAllByText('adrien-debug/TradeAgent', { exact: false }).length).toBeGreaterThan(0)
   })
 })

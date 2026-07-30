@@ -201,6 +201,27 @@ export type DashboardOverview = {
    *  from `kpis.runs24h` which is Aigent's own executed runs. `null` only if
    *  the fleet telemetry read itself failed. */
   telemetryRunsMeasured: number | null
+  /**
+   * The latest delivery event per copilot, newest first, capped — the SAME
+   * `latestDeliveryByCopilot` map `buildActionItems` already reads for the
+   * `ready_manual`/`pr_open` queue items, now surfaced whole so the overview
+   * can show a "recent deliveries" panel instead of leaving this read stuck
+   * inside the action-queue derivation. No second fetch: this is a view over
+   * a map the collector already built.
+   *
+   * `null` ONLY when the underlying read failed (`latestDeliveryByCopilot ===
+   * null` — see `DELIVERY_READ_FAILED_WARNING`), never when it succeeded and
+   * found nothing: an empty fleet with no delivery yet is `[]`, a measured
+   * emptiness, same three-state contract as `windowRuns`.
+   */
+  recentDeliveries: RecentDelivery[] | null
+}
+
+/** One delivery event with the copilot it belongs to — `DeliveryEvent` itself
+ *  carries no `copilotId` (it is the Map key in `latestDeliveryByCopilot`). */
+export type RecentDelivery = {
+  copilotId: string
+  event: DeliveryEvent
 }
 
 type SandboxSnapshot = {
@@ -441,6 +462,26 @@ export function buildProjectOverview(projects: Project[], copilots: Copilot[]): 
       const bSignal = b.passRate !== null || (b.runsLast24h !== null && b.runsLast24h > 0) ? 1 : 0
       return bSignal - aSignal || runsOrderKey(b) - runsOrderKey(a) || a.name.localeCompare(b.name)
     })
+}
+
+// ---------------------------------------------------------------------------
+// Pure — recent deliveries
+// ---------------------------------------------------------------------------
+
+/** Cap for the "recent deliveries" panel — a dense list, not a full log. */
+export const RECENT_DELIVERIES_LIMIT = 8
+
+/** Newest-first view over the latest-per-copilot delivery map. Pure so the
+ *  ordering/limit rule is unit-testable without a fetch. */
+export function buildRecentDeliveries(
+  latestDeliveryByCopilot: Map<string, DeliveryEvent> | null,
+  limit = RECENT_DELIVERIES_LIMIT
+): RecentDelivery[] | null {
+  if (latestDeliveryByCopilot === null) return null
+  return [...latestDeliveryByCopilot.entries()]
+    .map(([copilotId, event]) => ({ copilotId, event }))
+    .sort((a, b) => Date.parse(b.event.createdAt) - Date.parse(a.event.createdAt))
+    .slice(0, limit)
 }
 
 // ---------------------------------------------------------------------------
@@ -697,6 +738,7 @@ export function assembleDashboardOverview(input: {
     telemetryHealth: input.telemetryHealth,
     telemetryReportingAgents: input.telemetryReportingAgents,
     telemetryRunsMeasured: input.telemetryRunsMeasured,
+    recentDeliveries: buildRecentDeliveries(latestDeliveryByCopilot),
   }
 }
 

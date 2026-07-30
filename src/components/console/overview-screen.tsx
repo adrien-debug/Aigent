@@ -3,7 +3,7 @@ import { ArrowRightIcon } from '@heroicons/react/20/solid'
 import { Button } from '@/components/ui/button'
 import { StatusDot, type StatusDotTone } from '@/components/ui/status-dot'
 import { formatUsd } from '@/lib/agent-mission-control/format'
-import type { DashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
+import type { DashboardOverview, RecentDelivery } from '@/lib/agent-mission-control/dashboard-overview'
 import type { TelemetryHealthStatus } from '@/lib/agent-mission-control/telemetry-health'
 import type { AgentRun, AgentRunStatus } from '@/lib/agent-mission-control/types'
 
@@ -180,6 +180,17 @@ const RUNS_UNREAD_TITLE = 'Run history unavailable'
 function formatClockUtc(epochMs: number): string {
   const date = new Date(epochMs)
   return `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`
+}
+
+/** UTC date + clock for a delivery row (`agent_delivery_events.created_at` can
+ *  be days old, unlike the 24h-window trend header, so the day is spelled
+ *  out too — `formatClockUtc` alone would misdate anything not from today). */
+function formatDeliveryStamp(iso: string): string {
+  const ms = Date.parse(iso)
+  if (!Number.isFinite(ms)) return iso
+  const date = new Date(ms)
+  const day = `${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`
+  return `${day} ${formatClockUtc(ms)}`
 }
 
 /** A resolvable destination, or `null` when nothing on this console serves it.
@@ -381,6 +392,12 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
   const [topAction, ...queuedActions] = overview.actionItems
   const topActionHref = topAction ? resolveConsoleHref(topAction.href) : null
 
+  // BLOCK 4 · recent deliveries. `null` = the delivery-event read failed (the
+  // same failure the Action queue already surfaces as its own queue item);
+  // `[]` = the read succeeded and no copilot has ever delivered. Never
+  // collapsed together — see `RecentDelivery` on `dashboard-overview.ts`.
+  const recentDeliveries = overview.recentDeliveries
+
   return (
     <div className="space-y-4">
       <ScreenHeader
@@ -546,13 +563,90 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
         />
       </div>
 
-      {/* ── ROW 2 · queue · flagship chart · success ring ───────────────── */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.8fr)_minmax(0,0.9fr)]">
+      {/* ── BLOCK 1, continued · platform readiness ─────────────────────────
+          Still "état global et preuves disponibles": the KPI band above is
+          WHAT the control plane measured, this panel is HOW MUCH of it could
+          be read at all. Compact single row, not a tall side rail — the ring
+          and the three release-pipeline figures sit side by side instead of
+          stacking a panel's whole height for six numbers. */}
+      <Section
+        title="Platform status"
+        description={degraded ? 'Part of the control plane did not answer' : 'Control-plane readiness'}
+        className={degraded ? 'border-[var(--state-danger-solid-line)]' : undefined}
+      >
+        <div className="grid grid-cols-1 gap-4 border-b border-line px-4 py-3 sm:grid-cols-[auto_1fr]">
+          <div className="flex items-center gap-3">
+            <RingGauge
+              value={executable ? executable.now : null}
+              max={executable ? executable.total : 100}
+              label="Executable agents"
+              caption={executable ? `of ${executable.total}` : undefined}
+              size={96}
+            />
+            <p className="max-w-40 text-[11px]/4 text-zinc-500">
+              {executable
+                ? `${executable.now} of ${executable.total} agents would be accepted for a run right now`
+                : 'The executable-agent count could not be read'}
+            </p>
+          </div>
+          <dl className="grid grid-cols-3 divide-x divide-line self-center">
+            <div className="min-w-0 px-3">
+              <dt className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">
+                Ready for manual test
+              </dt>
+              <dd className="mt-1 text-lg/6 tabular-nums text-white">
+                {kpis.readyForManualTest === null ? (
+                  <Unavailable className="text-xs/6" />
+                ) : (
+                  kpis.readyForManualTest
+                )}
+              </dd>
+            </div>
+            <div className="min-w-0 px-3">
+              <dt className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">
+                Sandbox pass rate
+              </dt>
+              <dd className="mt-1 text-lg/6 tabular-nums text-white">
+                {kpis.sandboxPassRate === null ? (
+                  <Unavailable className="text-xs/6" />
+                ) : (
+                  `${kpis.sandboxPassRate}%`
+                )}
+              </dd>
+            </div>
+            <div className="min-w-0 px-3">
+              <dt className="truncate text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">
+                Average repo fit
+              </dt>
+              <dd className="mt-1 text-lg/6 tabular-nums text-white">
+                {kpis.avgRepoFit === null ? <Unavailable className="text-xs/6" /> : kpis.avgRepoFit}
+              </dd>
+            </div>
+          </dl>
+        </div>
+        <div className="px-4 py-2.5">
+          {degraded ? (
+            <DegradedBanner
+              title="Sources unavailable"
+              messages={overview.dataWarnings}
+              className="rounded-none border-0 bg-transparent px-0 py-0"
+            />
+          ) : (
+            // Exactly what an empty `dataWarnings` proves — and no more. Two
+            // of the collector's reads fail SOFT without raising a warning, so
+            // "every source answered" would be a claim this screen cannot back.
+            <StatusDot tone="positive">No data-source warning reported</StatusDot>
+          )}
+        </div>
+      </Section>
+
+      {/* ── BLOCK 2 · actions opérateur ── BLOCK 3 · agents exécutables et
+          bloqués ────────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Section
           title="Action queue"
           description="Highest-priority operator decisions"
           scroll="md"
-          className="md:col-start-1 md:row-start-1 xl:col-start-1 xl:row-start-1"
         >
           {overview.actionItems.length === 0 ? (
             <EmptyState
@@ -601,94 +695,6 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
           )}
         </Section>
 
-        {/* THE PANEL THIS MISSION EXISTS FOR. `TrendChart` draws an honest empty
-            plate for a window that WAS read and held nothing — and that plate
-            is indistinguishable from a dead read once a failure has been
-            flattened into `[]`. So the chart is never reached with an unread
-            window: the body is replaced by the failure itself, and the panel
-            takes the danger border (same treatment as Platform status below) so
-            the row cannot read as calm. */}
-        <Section
-          title="Run activity · 24h"
-          description={
-            runsUnread
-              ? 'The 24h run window could not be read'
-              : 'Completed and failed runs, bucketed across the observed window (UTC)'
-          }
-          bodyClassName="px-4 pt-3 pb-2"
-          className={
-            runsUnread
-              ? 'border-[var(--state-danger-solid-line)] md:col-span-2 md:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1'
-              : 'md:col-span-2 md:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1'
-          }
-        >
-          {trend === null ? (
-            <ErrorState
-              title={RUNS_UNREAD_TITLE}
-              description="Nothing can be plotted for this window: the runs were never read. This is not an empty window — an empty one would draw its grid and say so."
-              // Flattened onto the panel it already sits inside, exactly as the
-              // Platform status banner is: the danger role lives on the Section
-              // border, so a second box here would only double the chrome.
-              className="rounded-none border-0 bg-transparent px-0 py-6"
-            />
-          ) : (
-            <TrendChart
-              series={trendSeries}
-              xLabels={trend.xLabels}
-              height={232}
-              showArea
-              emptyMessage="No completed or failed run was recorded in this window."
-            />
-          )}
-        </Section>
-
-        <Section
-          title="Success rate · 24h"
-          description={
-            runsUnread ? 'The 24h run window could not be read' : 'Completed over completed plus failed'
-          }
-          className="md:col-start-2 md:row-start-1 xl:col-start-3 xl:row-start-1"
-        >
-          <div className="flex justify-center px-4 pt-4 pb-3">
-            <RingGauge
-              value={kpis.success24h}
-              max={100}
-              label="Success rate over the last 24 hours"
-              caption="percent"
-              size={168}
-            />
-          </div>
-          <dl className="border-t border-line">
-            {RUN_STATUSES.map((status) => (
-              <div
-                key={status}
-                className="flex items-center justify-between gap-3 border-b border-line px-4 py-1.5 last:border-b-0"
-              >
-                <dt className="min-w-0">
-                  <StatusDot tone={runStatusTone(status)}>{status}</StatusDot>
-                </dt>
-                {/* A status nothing produced in a window that WAS read is a
-                    measured `0` and stays `0`. An unread window has no count at
-                    all — five `0`s here would describe a fleet that never ran. */}
-                <dd className="shrink-0 text-[13px]/5 tabular-nums text-white">
-                  {statusCounts === null ? <Unavailable className="text-[11px]/5" /> : statusCounts[status]}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </Section>
-      </div>
-
-      {/* ── ROW 3 · agents · projects · platform ──────────────────────────
-          The middle track is 1.2fr, not 1.5fr. Same measured reason as the KPI
-          band: at 1280 the old split gave the side panels 274px, and the Agents
-          panel spends its width on a THREE-UP stat strip — 91px per cell, 67px
-          inside the cell padding, against a 76px `PRODUCTION` label and a 64px
-          `Indisponible`. Both were cut. At 1.2fr the side panels are 300px, the
-          cell holds 79px, and the two longest strings fit. The Projects list in
-          the middle gives up 51px it was spending on a title that truncates
-          either way. */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1fr)]">
         {/* PARTIALLY affected by a failed run read, and the split is stated
             rather than smoothed: `Production` and `Blocked` come from OTHER
             reads and still hold, while `Ran · 24h` and the whole busiest-agents
@@ -699,10 +705,9 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
           title="Agents"
           description={
             runsUnread
-              ? 'Fleet counts · window activity could not be read'
-              : 'Fleet counts and the busiest agents of the window'
+              ? 'Executable / blocked counts · window activity could not be read'
+              : 'Executable / blocked counts and the busiest agents of the window'
           }
-          className="md:col-start-1 md:row-start-1 xl:col-start-1 xl:row-start-1"
         >
           {/* `px-2.5`, not `px-3`: the last 4px per side the cell needed to hold
               `Indisponible` whole at the narrowest rung this strip ever sees.
@@ -787,160 +792,82 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
             )}
           </div>
         </Section>
+      </div>
 
-        {/*
-          PROVENANCE, because two screens must not state the same figure from
-          two places without saying which. The `runs` value on each row is
-          `ProjectOverviewItem.runsLast24h` — the field the data layer already
-          computed (`buildProjectOverview`, dashboard-overview.ts) by summing
-          `copilot.health.runsLast24h` over the project's team. It is the SAME
-          field `/admin/projects` sums for its own `Runs · 24h` column, so the
-          two screens read one source and cannot drift apart arithmetically.
-          It is NOT `windowRuns`, which is what the KPI band and the Agents
-          panel above count — that read has a different population.
-
-          THE TWO SCREENS NOW AGREE ON ABSENCE TOO. `runsLast24h` is
-          `number | null`: the data layer sums only the team members that PROVED
-          the metric (`isMeasuredHealth`, the same rule `/admin/projects` applies
-          through `sumMeasuredHealth`) and returns `null` when a non-empty team proved
-          none. So a project whose team proved nothing renders `Indisponible`
-          HERE and `Indisponible` THERE — it used to render `0` here and
-          `Indisponible` there, from one field, on two screens. A project with no
-          copilot at all still renders a measured `0`: no agent, no run to have
-          made.
-
-          COST IS NOW THE SAME CONTRACT — the note that used to sit here said
-          `costLast24hUsd` was "still typed `number` and still sums the WHOLE
-          team", and that is no longer true. It is `number | null` under the
-          SAME `isMeasuredHealth` gate as `runsLast24h`: a measured `0` for a
-          project with no copilot, the proven sum when members proved one, and
-          `null` when a non-empty team proved none. The `$0.00` an unproven cost
-          used to normalise into is gone at the source.
-
-          `/admin/projects` reaches those same three states by its OWN route —
-          it receives `Copilot[]` instead of a `DashboardOverview` and applies
-          `sumMeasuredHealth`, whose measurement rule is character-for-character
-          the data layer's. Same rule, same inputs, same answer; the reason
-          there are two copies of it is written at that helper, and collapsing
-          them into one client-safe module is the follow-up.
-
-          This row still shows only `active` and `runs`. Adding a cost value is
-          a layout decision, not a truth fix, so it is not smuggled in here —
-          and the field is no longer a hazard sitting unrendered.
-        */}
+      {/* ── BLOCK 4 · livraisons récentes ── BLOCK 5 · télémétrie ───────────
+          Both panels read fields the collector already assembled and had
+          nowhere to show: `recentDeliveries` is the whole
+          `latestDeliveryByCopilot` map (dashboard-overview.ts), previously
+          reduced down to a couple of Action-queue rows and otherwise thrown
+          away; `telemetryHealth`/`telemetryReportingAgents`/
+          `telemetryRunsMeasured` used to sit inside the old "Platform status"
+          `dl`, one line among release-pipeline figures they have nothing to
+          do with (a delivery channel is not a release gate). */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Section
-          title="Projects"
-          description="Team rollup · runs summed from agent health"
-          className="md:col-span-2 md:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
+          title="Recent deliveries"
+          description={
+            recentDeliveries === null
+              ? 'Delivery events could not be read'
+              : 'Latest push per agent, newest first'
+          }
+          scroll="md"
+          className={recentDeliveries === null ? 'border-[var(--state-danger-solid-line)]' : undefined}
         >
-          <div className={LIST_SCROLL}>
-            {overview.projects.length === 0 ? (
-              <EmptyState title="No project is available." />
-            ) : (
-              overview.projects.map((project) => (
-                <PanelRow
-                  key={project.id}
-                  href={`/admin/projects/${project.id}/builder`}
-                  title={project.name}
-                  subtitle={project.repoFullName ?? 'Repository not configured'}
-                  values={[
-                    { label: 'active', value: `${project.activeCount}/${project.copilotCount}` },
-                    {
-                      label: 'runs',
-                      value:
-                        project.runsLast24h === null ? unavailableValue : project.runsLast24h,
-                    },
-                  ]}
-                />
-              ))
-            )}
-          </div>
-          <div className="border-t border-line px-4 py-2">
-            <Button href="/admin/projects" plain className="text-xs">
-              All projects <ArrowRightIcon />
-            </Button>
-          </div>
+          {recentDeliveries === null ? (
+            <ErrorState
+              title="Delivery events unavailable"
+              description="The delivery-event table could not be read this round. This is not an empty history — an empty one would say so."
+              className="rounded-none border-0 bg-transparent"
+            />
+          ) : recentDeliveries.length === 0 ? (
+            <EmptyState
+              title="No delivery has been recorded yet."
+              description="A push from any agent will appear here."
+            />
+          ) : (
+            recentDeliveries.map((delivery: RecentDelivery) => (
+              <PanelRow
+                key={delivery.event.id}
+                href={`/admin/agents/${delivery.copilotId}`}
+                title={<span className="font-mono">{delivery.copilotId}</span>}
+                subtitle={`${delivery.event.targetRepo} · ${formatDeliveryStamp(delivery.event.createdAt)} UTC`}
+                trailing={
+                  <StatusDot tone={actionStatusTone(delivery.event.status)} className="max-w-24 sm:max-w-32">
+                    {delivery.event.status}
+                  </StatusDot>
+                }
+              />
+            ))
+          )}
         </Section>
 
         <Section
-          title="Platform status"
-          description={
-            degraded ? 'Part of the control plane did not answer' : 'Control-plane readiness'
-          }
-          className={
-            degraded
-              ? 'border-[var(--state-danger-solid-line)] md:col-start-2 md:row-start-1 xl:col-start-3 xl:row-start-1'
-              : 'md:col-start-2 md:row-start-1 xl:col-start-3 xl:row-start-1'
-          }
+          title="Telemetry"
+          description="Runtime-telemetry channel — agents reporting outside Aigent's own runner"
         >
-          <div className="flex flex-col items-center px-4 pt-4 pb-3">
-            <RingGauge
-              value={executable ? executable.now : null}
-              max={executable ? executable.total : 100}
-              label="Executable agents"
-              caption={executable ? `of ${executable.total}` : undefined}
-              size={168}
-            />
-            <p className="mt-2 text-center text-[11px]/4 text-zinc-500">
-              {executable
-                ? `${executable.now} of ${executable.total} agents would be accepted for a run right now`
-                : 'The executable-agent count could not be read'}
-            </p>
-          </div>
-
-          <div className="border-t border-line px-4 py-2.5">
-            {degraded ? (
-              <DegradedBanner
-                title="Sources unavailable"
-                messages={overview.dataWarnings}
-                className="rounded-none border-0 bg-transparent px-0 py-0"
-              />
-            ) : (
-              // Exactly what an empty `dataWarnings` proves — and no more. Two
-              // of the collector's reads fail SOFT without raising a warning, so
-              // "every source answered" would be a claim this screen cannot back.
-              <StatusDot tone="positive">No data-source warning reported</StatusDot>
-            )}
-          </div>
-
-          <dl className="border-t border-line">
-            <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-1.5">
-              <dt className="min-w-0 truncate text-[11px]/5 text-zinc-500">Ready for manual test</dt>
-              <dd className="shrink-0 text-[13px]/5 tabular-nums text-white">
-                {kpis.readyForManualTest === null ? (
-                  <Unavailable className="text-[11px]/5" />
-                ) : (
-                  kpis.readyForManualTest
-                )}
-              </dd>
-            </div>
-            <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-1.5">
-              <dt className="min-w-0 truncate text-[11px]/5 text-zinc-500">Sandbox pass rate</dt>
-              <dd className="shrink-0 text-[13px]/5 tabular-nums text-white">
-                {kpis.sandboxPassRate === null ? (
-                  <Unavailable className="text-[11px]/5" />
-                ) : (
-                  `${kpis.sandboxPassRate}%`
-                )}
-              </dd>
-            </div>
-            <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-1.5">
-              <dt className="min-w-0 truncate text-[11px]/5 text-zinc-500">Average repo fit</dt>
-              <dd className="shrink-0 text-[13px]/5 tabular-nums text-white">
-                {kpis.avgRepoFit === null ? <Unavailable className="text-[11px]/5" /> : kpis.avgRepoFit}
-              </dd>
-            </div>
+          <dl>
             {/* Channel health, not agent health — see the doctrine header on
                 `telemetry-health.ts` and `DashboardOverview.telemetryHealth`.
                 `loop_muted` / `not_configured` NEVER render as "agent down";
-                the tone is informational, matching the rest of this panel. */}
-            <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-1.5">
-              <dt className="min-w-0 truncate text-[11px]/5 text-zinc-500">Telemetry channel</dt>
+                the tone is informational. */}
+            <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2">
+              <dt className="min-w-0 truncate text-[11px]/5 text-zinc-500">Channel status</dt>
               <dd className="shrink-0 text-[13px]/5 tabular-nums text-white">
                 {telemetryStatusLabel(overview.telemetryHealth.status)}
               </dd>
             </div>
-            <div className="flex items-center justify-between gap-3 px-4 py-1.5">
+            <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2">
+              <dt className="min-w-0 truncate text-[11px]/5 text-zinc-500">Agents reporting</dt>
+              <dd className="shrink-0 text-[13px]/5 tabular-nums text-white">
+                {overview.telemetryReportingAgents === null ? (
+                  <Unavailable className="text-[11px]/5" />
+                ) : (
+                  overview.telemetryReportingAgents
+                )}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 px-4 py-2">
               <dt className="min-w-0 truncate text-[11px]/5 text-zinc-500">External runs measured</dt>
               <dd className="shrink-0 text-[13px]/5 tabular-nums text-white">
                 {overview.telemetryRunsMeasured === null ? (
@@ -953,6 +880,151 @@ export function OverviewScreen({ overview }: { overview: DashboardOverview }) {
           </dl>
         </Section>
       </div>
+
+      {/* ── BLOCK 6 · activité ── flagship chart · success ring ───────────
+          THE PANEL THIS MISSION EXISTS FOR. `TrendChart` draws an honest empty
+          plate for a window that WAS read and held nothing — and that plate
+          is indistinguishable from a dead read once a failure has been
+          flattened into `[]`. So the chart is never reached with an unread
+          window: the body is replaced by the failure itself, and the panel
+          takes the danger border so the row cannot read as calm. */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
+        <Section
+          title="Run activity · 24h"
+          description={
+            runsUnread
+              ? 'The 24h run window could not be read'
+              : 'Completed and failed runs, bucketed across the observed window (UTC)'
+          }
+          bodyClassName="px-4 pt-3 pb-2"
+          className={runsUnread ? 'border-[var(--state-danger-solid-line)]' : undefined}
+        >
+          {trend === null ? (
+            <ErrorState
+              title={RUNS_UNREAD_TITLE}
+              description="Nothing can be plotted for this window: the runs were never read. This is not an empty window — an empty one would draw its grid and say so."
+              // Flattened onto the panel it already sits inside: the danger
+              // role lives on the Section border, so a second box here would
+              // only double the chrome.
+              className="rounded-none border-0 bg-transparent px-0 py-6"
+            />
+          ) : (
+            <TrendChart
+              series={trendSeries}
+              xLabels={trend.xLabels}
+              height={232}
+              showArea
+              emptyMessage="No completed or failed run was recorded in this window."
+            />
+          )}
+        </Section>
+
+        <Section
+          title="Success rate · 24h"
+          description={
+            runsUnread ? 'The 24h run window could not be read' : 'Completed over completed plus failed'
+          }
+        >
+          <div className="flex justify-center px-4 pt-4 pb-3">
+            <RingGauge
+              value={kpis.success24h}
+              max={100}
+              label="Success rate over the last 24 hours"
+              caption="percent"
+              size={168}
+            />
+          </div>
+          <dl className="border-t border-line">
+            {RUN_STATUSES.map((status) => (
+              <div
+                key={status}
+                className="flex items-center justify-between gap-3 border-b border-line px-4 py-1.5 last:border-b-0"
+              >
+                <dt className="min-w-0">
+                  <StatusDot tone={runStatusTone(status)}>{status}</StatusDot>
+                </dt>
+                {/* A status nothing produced in a window that WAS read is a
+                    measured `0` and stays `0`. An unread window has no count at
+                    all — five `0`s here would describe a fleet that never ran. */}
+                <dd className="shrink-0 text-[13px]/5 tabular-nums text-white">
+                  {statusCounts === null ? <Unavailable className="text-[11px]/5" /> : statusCounts[status]}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </Section>
+      </div>
+
+      {/*
+        ── BLOCK 7 · projets ────────────────────────────────────────────────
+        PROVENANCE, because two screens must not state the same figure from
+        two places without saying which. The `runs` value on each row is
+        `ProjectOverviewItem.runsLast24h` — the field the data layer already
+        computed (`buildProjectOverview`, dashboard-overview.ts) by summing
+        `copilot.health.runsLast24h` over the project's team. It is the SAME
+        field `/admin/projects` sums for its own `Runs · 24h` column, so the
+        two screens read one source and cannot drift apart arithmetically.
+        It is NOT `windowRuns`, which is what the KPI band and the Agents
+        panel above count — that read has a different population.
+
+        THE TWO SCREENS NOW AGREE ON ABSENCE TOO. `runsLast24h` is
+        `number | null`: the data layer sums only the team members that PROVED
+        the metric (`isMeasuredHealth`, the same rule `/admin/projects` applies
+        through `sumMeasuredHealth`) and returns `null` when a non-empty team proved
+        none. So a project whose team proved nothing renders `Indisponible`
+        HERE and `Indisponible` THERE — it used to render `0` here and
+        `Indisponible` there, from one field, on two screens. A project with no
+        copilot at all still renders a measured `0`: no agent, no run to have
+        made.
+
+        COST IS NOW THE SAME CONTRACT — the note that used to sit here said
+        `costLast24hUsd` was "still typed `number` and still sums the WHOLE
+        team", and that is no longer true. It is `number | null` under the
+        SAME `isMeasuredHealth` gate as `runsLast24h`: a measured `0` for a
+        project with no copilot, the proven sum when members proved one, and
+        `null` when a non-empty team proved none. The `$0.00` an unproven cost
+        used to normalise into is gone at the source.
+
+        `/admin/projects` reaches those same three states by its OWN route —
+        it receives `Copilot[]` instead of a `DashboardOverview` and applies
+        `sumMeasuredHealth`, whose measurement rule is character-for-character
+        the data layer's. Same rule, same inputs, same answer; the reason
+        there are two copies of it is written at that helper, and collapsing
+        them into one client-safe module is the follow-up.
+
+        This row still shows only `active` and `runs`. Adding a cost value is
+        a layout decision, not a truth fix, so it is not smuggled in here —
+        and the field is no longer a hazard sitting unrendered.
+      */}
+      <Section title="Projects" description="Team rollup · runs summed from agent health">
+        <div className={LIST_SCROLL}>
+          {overview.projects.length === 0 ? (
+            <EmptyState title="No project is available." />
+          ) : (
+            overview.projects.map((project) => (
+              <PanelRow
+                key={project.id}
+                href={`/admin/projects/${project.id}/builder`}
+                title={project.name}
+                subtitle={project.repoFullName ?? 'Repository not configured'}
+                values={[
+                  { label: 'active', value: `${project.activeCount}/${project.copilotCount}` },
+                  {
+                    label: 'runs',
+                    value:
+                      project.runsLast24h === null ? unavailableValue : project.runsLast24h,
+                  },
+                ]}
+              />
+            ))
+          )}
+        </div>
+        <div className="border-t border-line px-4 py-2">
+          <Button href="/admin/projects" plain className="text-xs">
+            All projects <ArrowRightIcon />
+          </Button>
+        </div>
+      </Section>
     </div>
   )
 }

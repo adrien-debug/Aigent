@@ -7,6 +7,7 @@ import {
   assembleDashboardOverview,
   buildActionItems,
   buildProjectOverview,
+  buildRecentDeliveries,
   computeAvgRepoFit,
   computeBlockedDeliveries,
   computeCost24h,
@@ -14,6 +15,7 @@ import {
   computeReadyForManualTest,
   computeSandboxPassRate,
   computeSuccess24h,
+  RECENT_DELIVERIES_LIMIT,
   RUNS_READ_FAILED_WARNING,
   type DashboardOverview,
 } from '@/lib/agent-mission-control/dashboard-overview'
@@ -110,6 +112,39 @@ function deliveryEvent(status: string): DeliveryEvent {
     createdAt: '2026-07-16T00:00:00Z',
   }
 }
+
+describe('buildRecentDeliveries — recent deliveries panel source', () => {
+  it('null map (the read failed) stays null, never an empty list', () => {
+    expect(buildRecentDeliveries(null)).toBeNull()
+  })
+
+  it('empty map (read OK, nobody ever delivered) is a measured empty array', () => {
+    expect(buildRecentDeliveries(new Map())).toEqual([])
+  })
+
+  it('sorts newest first and pairs each event with its copilot id', () => {
+    const older = { ...deliveryEvent('completed'), id: 'evt_a', createdAt: '2026-07-10T00:00:00Z' }
+    const newer = { ...deliveryEvent('pr_open'), id: 'evt_b', createdAt: '2026-07-20T00:00:00Z' }
+    const map = new Map([
+      ['copilot-a', older],
+      ['copilot-b', newer],
+    ])
+    expect(buildRecentDeliveries(map)).toEqual([
+      { copilotId: 'copilot-b', event: newer },
+      { copilotId: 'copilot-a', event: older },
+    ])
+  })
+
+  it('caps at the panel limit', () => {
+    const map = new Map(
+      Array.from({ length: RECENT_DELIVERIES_LIMIT + 5 }, (_, i) => [
+        `copilot-${i}`,
+        { ...deliveryEvent('completed'), id: `evt_${i}`, createdAt: `2026-07-${String(i + 1).padStart(2, '0')}T00:00:00Z` },
+      ])
+    )
+    expect(buildRecentDeliveries(map)).toHaveLength(RECENT_DELIVERIES_LIMIT)
+  })
+})
 
 describe('dashboard KPIs', () => {
   it('1 — productionAgents counts production agents', () => {
