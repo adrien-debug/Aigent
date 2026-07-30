@@ -8,7 +8,7 @@ import { formatUsd } from '@/lib/agent-mission-control/format'
 // for why it cannot live beside the rollup that consumes it.
 import { isMeasuredHealth, sumMeasuredHealth, type MeasuredSum } from '@/lib/agent-mission-control/health-measure'
 import { isDevSeedCopilot, isDevSeedProject } from '@/lib/agent-mission-control/dev-seed-markers'
-import type { Copilot, Project } from '@/lib/agent-mission-control/types'
+import type { AgentPushStatus, Copilot, Project } from '@/lib/agent-mission-control/types'
 
 // Alias paths, not `./charts/…`: `scripts/audit-dead.mjs` proves a component is
 // alive by looking for `@/<path>` or a SAME-DIRECTORY `./<basename>`. A relative
@@ -100,12 +100,52 @@ function isServing(copilot: Copilot): boolean {
   return copilot.displayStatus === 'production' || copilot.status === 'active'
 }
 
+/**
+ * Most recent GitHub delivery among a project's team, from `Copilot.lastPushedAt`
+ * / `lastPushStatus` / `lastPushCommitUrl` — fields the copilot read already
+ * carries, never a new source. `undefined` when no team member ever recorded a
+ * push (a real, measured absence), distinct from `team` being empty.
+ *
+ * Deliberately never rendered as "deployed": a push is a commit landing in the
+ * consumer repo, not a release reaching production — conflating the two is
+ * exactly the overclaim `AGENTS.md` bans.
+ */
+type LastDelivery = { at: string; status: AgentPushStatus; url?: string }
+
+function latestDelivery(team: Copilot[]): LastDelivery | undefined {
+  let latest: LastDelivery | undefined
+  for (const copilot of team) {
+    if (!copilot.lastPushedAt || !copilot.lastPushStatus) continue
+    if (!latest || copilot.lastPushedAt > latest.at) {
+      latest = { at: copilot.lastPushedAt, status: copilot.lastPushStatus, url: copilot.lastPushCommitUrl }
+    }
+  }
+  return latest
+}
+
+/** Short, locale-free timestamp for a dense table cell. Server-rendered only —
+ *  this screen carries no client hydration, so there is no server/client
+ *  locale mismatch to guard against. */
+function formatDeliveryAt(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  return date.toISOString().slice(0, 16).replace('T', ' ')
+}
+
+const DELIVERY_STATUS_LABEL: Record<AgentPushStatus, string> = {
+  never: 'never',
+  pushing: 'pushing…',
+  pushed: 'pushed',
+  failed: 'push failed',
+}
+
 type ProjectRollup = {
   project: Project
   team: number
   serving: number
   runs24h: MeasuredSum | null
   cost24h: MeasuredSum | null
+  lastDelivery: LastDelivery | null | undefined
 }
 
 /* --------------------------------------------------------------- component */
@@ -142,7 +182,7 @@ export function ProjectsScreen({
   // NOT zero.
   const rollups: ProjectRollup[] = realProjects.map((project) => {
     if (assigned === null) {
-      return { project, team: 0, serving: 0, runs24h: null, cost24h: null }
+      return { project, team: 0, serving: 0, runs24h: null, cost24h: null, lastDelivery: null }
     }
     const team = assigned.filter((copilot) => copilot.projectId === project.id)
     return {
@@ -151,6 +191,7 @@ export function ProjectsScreen({
       serving: team.filter(isServing).length,
       runs24h: sumMeasuredHealth(team, 'runsLast24h'),
       cost24h: sumMeasuredHealth(team, 'costLast24hUsd'),
+      lastDelivery: latestDelivery(team),
     }
   })
 
@@ -276,12 +317,13 @@ export function ProjectsScreen({
                     <TableHeader className={TABLE_NUM}>Serving / team</TableHeader>
                     <TableHeader className={TABLE_NUM}>Runs · 24h</TableHeader>
                     <TableHeader className={TABLE_NUM}>Cost · 24h</TableHeader>
+                    <TableHeader>Last delivery</TableHeader>
                     {/* A control, not a figure: right-aligned without `tabular-nums`. */}
                     <TableHeader className="text-right">Builder</TableHeader>
                   </TableRow>
                 </TableHead>
                 <TableBody className={TABLE_BODY}>
-                  {rollups.map(({ project, team, serving: teamServing, runs24h, cost24h }) => (
+                  {rollups.map(({ project, team, serving: teamServing, runs24h, cost24h, lastDelivery }) => (
                     // Inert row: the only destination is the "Open Builder"
                     // control in the last cell, so the ROW itself must not light
                     // up as if the whole line were clickable.
@@ -326,6 +368,38 @@ export function ProjectsScreen({
                         {cost24h === null ? unavailableCell : formatUsd(cost24h.value)}
                       </TableCell>
 
+                      <TableCell>
+                        {lastDelivery === null ? (
+                          unavailableCell
+                        ) : lastDelivery === undefined ? (
+                          <span className="text-[11px] text-zinc-500">no delivery yet</span>
+                        ) : (
+                          <>
+                            {lastDelivery.url ? (
+                              <a
+                                href={lastDelivery.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="font-mono text-[11px] text-zinc-300 hover:text-accent-300"
+                              >
+                                {formatDeliveryAt(lastDelivery.at)}
+                              </a>
+                            ) : (
+                              <span className="font-mono text-[11px] text-zinc-300">
+                                {formatDeliveryAt(lastDelivery.at)}
+                              </span>
+                            )}
+                            <span
+                              className={`ml-1.5 text-[10px] ${
+                                lastDelivery.status === 'failed' ? 'text-[var(--state-danger-text)]' : 'text-zinc-500'
+                              }`}
+                            >
+                              {DELIVERY_STATUS_LABEL[lastDelivery.status]}
+                            </span>
+                          </>
+                        )}
+                      </TableCell>
+
                       <TableCell className="text-right">
                         <Button href={`/admin/projects/${project.id}/builder`} outline>
                           Open Builder <ArrowRightIcon />
@@ -341,13 +415,22 @@ export function ProjectsScreen({
           {/* Coverage disclosure, outside the scroll area: a rollup that could
               not cover every member is stated, never quietly presented as a
               fleet total. */}
-          <div className="border-t border-line px-4 py-2">
+          <div className="space-y-1 border-t border-line px-4 py-2">
             <p className="text-[11px]/4 text-zinc-500">
               {assigned === null
                 ? 'Agent figures unavailable for this read'
                 : unmeasuredAgents === 0
                   ? '24h figures cover every assigned agent'
                   : `${unmeasuredAgents} assigned agent${unmeasuredAgents === 1 ? '' : 's'} carried no measured 24h figure`}
+            </p>
+            {/* Structurally unknown, not a missed read: the consumer-side active
+                version lives in `agents/_registry.json` INSIDE the consumer repo,
+                and Aigent has no reader for it (`docs/known-gaps.md`). Deducing it
+                from a delivery event would be a guess dressed as a fact, so this
+                screen states the gap instead. */}
+            <p className="text-[11px]/4 text-zinc-600">
+              Consumer-side active version and version drift are not readable by Aigent — a delivery above only
+              proves a push landed, not what the consumer runs.
             </p>
           </div>
         </Section>

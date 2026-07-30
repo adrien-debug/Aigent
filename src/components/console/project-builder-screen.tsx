@@ -4,9 +4,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { PaperAirplaneIcon } from '@heroicons/react/20/solid'
 
 import { Button } from '@/components/ui/button'
+import { cn } from '@/components/ui/cn'
 import { StatusDot, type StatusDotTone } from '@/components/ui/status-dot'
 import { Textarea } from '@/components/ui/textarea'
-import type { ProjectBuilderConversationBundle, ProjectBuilderMessage } from '@/lib/agent-mission-control/project-builder-types'
+import type {
+  ProjectBuilderConversationBundle,
+  ProjectBuilderConversationStatus,
+  ProjectBuilderMessage,
+} from '@/lib/agent-mission-control/project-builder-types'
 import type { ProjectBuilderStreamEvent } from '@/lib/agent-mission-control/project-builder-stream-protocol'
 import { consumeSSE, isProjectBuilderTerminal } from '@/lib/agent-mission-control/sse-client'
 import { EmptyState, ErrorState, ScreenHeader, Section } from './screen-primitives'
@@ -120,6 +125,68 @@ function lifecycleTone(lifecycle: BuilderLifecycle): StatusDotTone {
   if (lifecycle === 'running' || lifecycle === 'reconciling') return 'pending'
   if (lifecycle === 'completed') return 'positive'
   return 'neutral'
+}
+
+/**
+ * The conversation's real, persisted stage — `ProjectBuilderConversation.status`,
+ * already part of the bundle every read returns. `archived` is not a forward
+ * step from `draft_created`; it is drawn as its own terminal stop rather than
+ * folded into the line, so a discussion that got shelved does not look like it
+ * simply finished further along the happy path.
+ */
+const CONVERSATION_STEPS: { status: ProjectBuilderConversationStatus; label: string }[] = [
+  { status: 'active', label: 'Discussing' },
+  { status: 'draft_ready', label: 'Ready for approval' },
+  { status: 'draft_created', label: 'Draft created' },
+]
+
+/** Dense horizontal stepper over the conversation's real `status` column — no
+ *  derived or guessed stage, just that value rendered as steps instead of a
+ *  single word. */
+function ConversationStepper({ status }: { status: ProjectBuilderConversationStatus }) {
+  if (status === 'archived') {
+    return <p className="px-4 py-2 text-[11px]/4 text-zinc-500">This conversation is archived.</p>
+  }
+  const activeIndex = CONVERSATION_STEPS.findIndex((step) => step.status === status)
+  return (
+    <ol className="flex items-center gap-2 border-b border-line px-4 py-2">
+      {CONVERSATION_STEPS.map((step, index) => {
+        const reached = activeIndex >= 0 && index <= activeIndex
+        const current = index === activeIndex
+        return (
+          <li key={step.status} className="flex items-center gap-2">
+            <span
+              className={cn(
+                'flex items-center gap-1.5 text-[10px]/4 font-semibold uppercase tracking-widest',
+                current ? 'text-accent-300' : reached ? 'text-zinc-300' : 'text-zinc-600'
+              )}
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'size-1.5 rounded-full',
+                  current ? 'bg-accent-300' : reached ? 'bg-zinc-400' : 'bg-zinc-700'
+                )}
+              />
+              {step.label}
+            </span>
+            {index < CONVERSATION_STEPS.length - 1 ? (
+              <span aria-hidden="true" className="h-px w-4 bg-line" />
+            ) : null}
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+/** `HH:MM` (UTC, via `toISOString`) next to a role label — deterministic and
+ *  locale-free, so it cannot drift between the server and client render of
+ *  this client component the way a `toLocaleString` call could. */
+function formatMessageTime(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toISOString().slice(11, 16)
 }
 
 export function ProjectBuilderScreen({
@@ -405,7 +472,30 @@ export function ProjectBuilderScreen({
         }
       />
 
-      {error ? (
+      {/* SESSION EXPIRED / INITIAL LOAD FAILED — one dominant, centered panel.
+          The two-panel workspace below still exists in the DOM (the composer's
+          own `initialLoadFailed` guard is what actually blocks a stray SSE
+          start, and stays testable that way) but is masked with `hidden`: no
+          giant dead form competing with the real message. */}
+      {initialLoadFailed ? (
+        <div className="flex min-h-[50vh] items-center justify-center px-4">
+          <ErrorState
+            className="w-full max-w-md"
+            title={error ?? 'Conversation could not be loaded'}
+            description="Nothing can be sent until this read succeeds. Reconnect, or go back to the project."
+            actions={
+              <>
+                <Button outline onClick={retry}>
+                  Retry
+                </Button>
+                <Button href="/admin/projects" outline>
+                  Back to Projects
+                </Button>
+              </>
+            }
+          />
+        </div>
+      ) : error ? (
         <ErrorState
           title={error}
           actions={
@@ -416,13 +506,19 @@ export function ProjectBuilderScreen({
         />
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 xl:h-[calc(100vh-11rem)] xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.55fr)]">
+      <div
+        className={cn(
+          'grid grid-cols-1 gap-4 xl:h-[calc(100vh-11rem)] xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.55fr)]',
+          initialLoadFailed && 'hidden'
+        )}
+      >
         <Section
           title="Architect conversation"
           description="The mission, its tools and its approval policy are settled here"
           className="h-[70vh] min-h-[420px] xl:h-auto xl:min-h-0"
           bodyClassName="flex min-h-0 flex-1 flex-col"
         >
+          {bundle ? <ConversationStepper status={bundle.conversation.status} /> : null}
           {/* `overscroll-contain`: on a touch screen, reaching the end of the
               transcript must NOT chain into the page and drag the composer
               away — the panel is the scroll boundary. */}
@@ -436,7 +532,10 @@ export function ProjectBuilderScreen({
                     : 'max-w-[88%]'
                 }
               >
-                <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">{message.role}</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-[10px]/4 font-semibold uppercase tracking-widest text-zinc-500">{message.role}</p>
+                  <p className="text-[10px]/4 tabular-nums text-zinc-600">{formatMessageTime(message.createdAt)}</p>
+                </div>
                 <p className="mt-1.5 whitespace-pre-wrap text-[13px]/6 text-zinc-200">{message.content}</p>
               </div>
             )) : lifecycle === 'connecting' ? (
