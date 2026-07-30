@@ -29,7 +29,7 @@ exactement ce que P007 a supprimé.
 ## Repo & stack
 
 **Dossier** : `/Users/adrienbeyondcrypto/Aigent`
-**Dev** : `npm run dev` (port **3210**, jamais 3000 — voir AGENTS.md).
+**Dev** : `npm run dev` (port **3987**, jamais 3000 ni 3210 — voir AGENTS.md).
 **Gate** : `npm run check` — voir `package.json` pour la liste exacte des sous-checks actuels ;
 ne suppose jamais qu'un gate cité dans une vieille note existe encore, vérifie.
 **Stack** : Next.js 16 App Router, React 19, Tailwind v4, kit Catalyst vendored dans

@@ -6,7 +6,7 @@ operator plumbing only.
 ## The two commands
 
 ```
-npm run dev         # start Next (:3210) + LangGraph (:2024) as one supervised stack
+npm run dev         # start Next (:3987) + LangGraph (:2024) as one supervised stack
 npm run health      # one-shot report on what is actually up right now
 ```
 

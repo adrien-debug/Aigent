@@ -1,7 +1,7 @@
 /**
  * Shared helpers for tests/live/** — the opt-in suite that hits the REAL
- * `npm run dev` stack (Next on :3000 or :3001, LangGraph Agent Server on
- * :2024), the real gpu1 PostgREST backend, and real OpenAI.
+ * `npm run dev` stack (Next on :3987, LangGraph Agent Server on :2024), the
+ * real gpu1 PostgREST backend, and real OpenAI.
  *
  * Every live test MUST call `requireLiveStack()` (or a narrower probe) at the
  * top and `return` early via `skipIfDown` when the stack isn't reachable —
@@ -13,11 +13,16 @@
 import { env } from 'node:process'
 
 /**
- * Ports the dev stack may bind. The stack now pins `AIGENT_DEV_PORT` (default
- * 3210, see scripts/dev-stack.mjs); 3000/3001 are kept for back-compat with
- * older `next dev` runs. Configured port first so a live run finds the real app.
+ * The ONLY port a live run may probe: `AIGENT_DEV_PORT`, default 3987 (see
+ * scripts/dev-stack.mjs and AGENTS.md § "Port de dev").
+ *
+ * 3000/3001/3210 used to be probed as a fallback. That is worse than finding
+ * nothing: those ports belong to OTHER Next projects on this machine, so a
+ * fallback pointed the live suite at a neighbouring app and reported its
+ * responses as Aigent's. A live test with no app running must fail loudly, not
+ * quietly test someone else's server.
  */
-const CANDIDATE_PORTS = [Number(process.env.AIGENT_DEV_PORT) || 3210, 3000, 3001]
+const CANDIDATE_PORTS = [Number(process.env.AIGENT_DEV_PORT) || 3987]
 
 let cachedBaseUrl: string | null | undefined
 

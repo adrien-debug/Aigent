@@ -34,11 +34,14 @@ const execFileAsync = promisify(execFile)
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const RUNTIME_DIR = join(REPO_ROOT, '.runtime')
 
-// Port de dev ABSOLU : 3210, jamais 3000 (voir AGENTS.md § "Port de dev").
-// Cette machine fait tourner d'autres serveurs Next qui se battent pour le 3000 ;
-// s'y mettre écrase un chantier voisin. Surchargeable par AIGENT_DEV_PORT au cas
-// où 3210 serait lui-même pris, mais jamais un retour silencieux sur 3000.
-const NEXT_PORT = Number(process.env.AIGENT_DEV_PORT) || 3210
+// Port de dev ABSOLU : 3987, jamais 3000 NI 3210 (voir AGENTS.md § "Port de dev").
+// Cette machine fait tourner beaucoup d'autres serveurs Next. Le 3000 a toujours
+// été disputé ; le 3210 l'est devenu — hearst-connect-v1-green-lab s'y est
+// installé le 2026-07-30 et a squatté Aigent. Le 3987 est hors de la bande
+// 3000-3400 où vivent tous les autres chantiers, donc hors de portée d'un défaut
+// ou d'un port incrémenté. Surchargeable par AIGENT_DEV_PORT, mais jamais un
+// retour silencieux sur 3000 ou 3210.
+const NEXT_PORT = Number(process.env.AIGENT_DEV_PORT) || 3987
 const LANGGRAPH_PORT = Number(process.env.AIGENT_LANGGRAPH_PORT) || 2024
 const NEXT_URL = `http://127.0.0.1:${NEXT_PORT}`
 const LANGGRAPH_BASE_URL = localAgentServerUrl(process.env)
@@ -430,8 +433,9 @@ function sleep(ms) {
 }
 
 /**
- * Free :3000 and :2024 — but only of processes belonging to this repo.
- * A foreign listener throws, aborting the whole run.
+ * Free the dev port and :2024 — but only of processes belonging to this repo.
+ * A foreign listener throws, aborting the whole run: a neighbouring project's
+ * server is never ours to kill.
  */
 async function preflight() {
   for (const port of [NEXT_PORT, LANGGRAPH_PORT]) {

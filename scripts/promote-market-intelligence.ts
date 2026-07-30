@@ -116,7 +116,7 @@ async function main() {
 
   // 7) Verify run gate via API
   if (apiKey) {
-    const runRes = await fetch(`http://127.0.0.1:3210/api/agent-ops/copilots/${COPILOT}/run`, {
+    const runRes = await fetch(`http://127.0.0.1:${Number(process.env.AIGENT_DEV_PORT) || 3987}/api/agent-ops/copilots/${COPILOT}/run`, {
       method: 'POST',
       headers: { 'x-amc-key': apiKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({

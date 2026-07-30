@@ -86,9 +86,12 @@ npm run dev
 
 Runs both servers together:
 
-- **Next.js → http://localhost:3210** — console at `/admin`.
-  **Never port 3000.** Other Next servers on this machine own it; see
-  `AGENTS.md` for the absolute rule.
+- **Next.js → http://localhost:3987** — console at `/admin`.
+  **Never port 3000. Never port 3210.** Other Next servers on this machine own
+  both — 3000 always, and 3210 since `hearst-connect-v1-green-lab` took it on
+  2026-07-30. Do not start Aigent there, do not kill what is listening there, and
+  do not read it as if it were Aigent. Absolute rule, stated in full in
+  `AGENTS.md` § "Port de dev".
 - **LangGraph Agent Server → http://127.0.0.1:2024** — serves `agent_builder`;
   the same endpoint LangSmith Studio connects to.
 

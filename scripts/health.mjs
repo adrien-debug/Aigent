@@ -45,11 +45,11 @@ const NEXT_TIMEOUT_MS = 10_000
 const LANGGRAPH_TIMEOUT_MS = 10_000
 const PGREST_TIMEOUT_MS = 10_000
 
-// Port de dev ABSOLU 3210, jamais 3000 (voir AGENTS.md). Aligné sur dev-stack.mjs
-// via AIGENT_DEV_PORT ; HEALTH_NEXT_URL reste l'override complet si besoin.
+// Port de dev ABSOLU 3987, jamais 3000 ni 3210 (voir AGENTS.md). Aligné sur
+// dev-stack.mjs via AIGENT_DEV_PORT ; HEALTH_NEXT_URL reste l'override complet.
 const NEXT_URL =
   process.env.HEALTH_NEXT_URL ||
-  `http://127.0.0.1:${Number(process.env.AIGENT_DEV_PORT) || 3210}/admin`
+  `http://127.0.0.1:${Number(process.env.AIGENT_DEV_PORT) || 3987}/admin`
 /** The same fail-closed local endpoint resolver used by agent runs. */
 const LANGGRAPH_URL = resolveAgentServerUrl({
   ...process.env,

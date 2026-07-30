@@ -1,6 +1,6 @@
 /**
  * AIG-AGENT-QUALITY-005 — Lot E: HITL end-to-end proof against the REAL
- * LangGraph Agent Server (:2024) via the app's run/resume routes (:3210).
+ * LangGraph Agent Server (:2024) via the app's run/resume routes (:3987).
  * Two runs: REJECT cycle then APPROVE cycle. Captures the persisted truth
  * (tool_calls, agent_runs status/cost/resolved_model) from gpu1 PostgREST.
  * Bounded: exactly 2 runs. No retries. Prints RESULT json lines.
@@ -8,7 +8,7 @@
 import path from 'node:path'
 process.loadEnvFile(path.resolve(process.cwd(), '.env.local'))
 
-const BASE = `http://127.0.0.1:${Number(process.env.AIGENT_DEV_PORT) || 3210}`
+const BASE = `http://127.0.0.1:${Number(process.env.AIGENT_DEV_PORT) || 3987}`
 const COPILOT = 'copilot-agent-builder-copilot-69d941fc'
 const KEY = process.env.AMC_API_KEY
 const PG = process.env.AMC_SUPABASE_URL

@@ -421,7 +421,7 @@ export const MARKET_TOOL_IDS = Object.freeze(Object.keys(MARKET_TOOL_SPECS))
 async function invokeMarketHandler(name, args) {
   const appBase =
     process.env.AIGENT_INTERNAL_URL?.replace(/\/+$/, '') ??
-    `http://127.0.0.1:${Number(process.env.AIGENT_DEV_PORT) || 3210}`
+    `http://127.0.0.1:${Number(process.env.AIGENT_DEV_PORT) || 3987}`
   const apiKey = process.env.AMC_API_KEY
   if (!apiKey) {
     return JSON.stringify({ ok: false, error: 'market tool bridge unavailable: AMC_API_KEY not configured' })
@@ -540,7 +540,7 @@ export const REALESTATE_TOOL_IDS = Object.freeze(Object.keys(REALESTATE_TOOL_SPE
 async function invokeRealEstateHandler(name, args) {
   const appBase =
     process.env.AIGENT_INTERNAL_URL?.replace(/\/+$/, '') ??
-    `http://127.0.0.1:${Number(process.env.AIGENT_DEV_PORT) || 3210}`
+    `http://127.0.0.1:${Number(process.env.AIGENT_DEV_PORT) || 3987}`
   const apiKey = process.env.AMC_API_KEY
   if (!apiKey) {
     return JSON.stringify({ ok: false, error: 'real-estate tool bridge unavailable: AMC_API_KEY not configured' })

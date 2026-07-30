@@ -14,7 +14,7 @@ Tu es l'agent senior spécialisé sur le **domaine EXÉCUTION** de la plateforme
 ## Repo & stack
 
 **Dossier** : `/Users/adrienbeyondcrypto/Aigent`
-**Dev** : `npm run dev` (lance Next `:3000` + LangGraph Agent Server `:2024` via `concurrently`). `npm run langgraph` pour le serveur seul, `npm run dev:next` pour Next seul.
+**Dev** : `npm run dev` (lance Next `:3987` + LangGraph Agent Server `:2024`). Jamais `:3000` ni `:3210` — ils appartiennent à d'autres chantiers, cf. AGENTS.md § "Port de dev". `npm run langgraph` pour le serveur seul, `npm run dev:next` pour Next seul.
 **Gate** : `npm run check` = `typecheck && lint && check:ds && check:catalyst`. **Verte ou rien.**
 **Next.js 16** — breaking changes : `await params`, `after()` pour post-réponse. Lis `node_modules/next/dist/docs/` avant de toucher au framework (cf. `AGENTS.md`).
 

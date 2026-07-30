@@ -14,7 +14,7 @@ describe('proxy.ts — /api/agent-ops/** auth gate', () => {
   it('rejects a request with no session and no x-amc-key (401)', async () => {
     const baseUrl = await findAppBaseUrl()
     if (!baseUrl) {
-      console.warn('[live] skip: app not reachable on :3000/:3001 — run `npm run dev` to exercise this test')
+      console.warn('[live] skip: app not reachable on the dev port — run `npm run dev` to exercise this test')
       return
     }
     const res = await fetch(`${baseUrl}/api/agent-ops/copilots`, { signal: AbortSignal.timeout(10_000) })

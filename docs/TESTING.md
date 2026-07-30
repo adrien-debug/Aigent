@@ -103,8 +103,9 @@ to see each one.
 ## `npm run test:live` — integration suite (`tests/live/`)
 
 Opt-in. Requires `npm run dev` running in another terminal (Next on the dev port
-`:3210` — `AIGENT_DEV_PORT`, default 3210; `tests/live/helpers.ts` probes it first,
-then `:3000`/`:3001` only for back-compat with older `next dev` runs) **and** the
+`:3987` — `AIGENT_DEV_PORT`, default 3987; `tests/live/helpers.ts` probes that port
+and nothing else — the old `:3000`/`:3001`/`:3210` fallbacks were removed because
+they pointed the suite at other projects' servers) **and** the
 LangGraph Agent Server on `:2024`. Also requires
 `.env.local` populated with a live gpu1 backend, `OPENAI_API_KEY`, and
 `GITHUB_TOKEN` (`tests/live/setup.ts` loads `.env.local` automatically via

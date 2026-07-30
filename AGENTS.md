@@ -37,13 +37,24 @@ ajoutée plus tard doit rester cohérente avec eux et ne peut ni les contredire 
 <!-- BEGIN:dev-port-rule -->
 ## Port de dev — ABSOLU
 
-Le dev Aigent tourne sur le port **3210**, jamais **3000**. Cette machine fait
-tourner beaucoup d'autres serveurs Next (Kyc, Netpool, hearst-comput…) qui se
-disputent le 3000 : s'y mettre, c'est écraser le travail d'un chantier voisin ou
-se faire écraser par lui. Règle absolue : ne JAMAIS lancer le dev sur 3000, ne
-JAMAIS tuer un serveur sur 3000 (il n'est pas à nous). `scripts/dev-stack.mjs`
-résout le port depuis `AIGENT_DEV_PORT` (défaut 3210) et abandonne si le port
-est pris par un process non identifié comme le sien.
+Le dev Aigent tourne sur le port **3987**. **Jamais 3000. Jamais 3210.**
+
+Cette machine fait tourner beaucoup d'autres serveurs Next (Kyc, Netpool,
+hearst-comput, hearst-connect, TradeAgent…). Le 3000 a toujours été disputé.
+Le **3210 est mort le 2026-07-30** : `hearst-connect-v1-green-lab` s'y est
+installé et a squatté Aigent — un port « réservé » par une phrase dans un `.md`
+ne l'est pas pour les autres chantiers. Le 3987 est choisi hors de la bande
+3000-3400 où ils vivent tous, donc hors de portée d'un défaut Next ou d'un port
+incrémenté.
+
+Règle absolue : ne JAMAIS lancer le dev d'Aigent sur 3000 ni sur 3210, et ne
+JAMAIS tuer un serveur sur l'un de ces deux ports — il ne nous appartient pas.
+S'y reconnecter « juste pour vérifier » est la même faute : ce qui répond là
+est le chantier de quelqu'un d'autre, et le lire comme si c'était Aigent produit
+un diagnostic faux.
+
+`scripts/dev-stack.mjs` résout le port depuis `AIGENT_DEV_PORT` (défaut 3987) et
+abandonne si le port est pris par un process non identifié comme le sien.
 <!-- END:dev-port-rule -->
 
 <!-- BEGIN:catalyst-ui-rules -->
