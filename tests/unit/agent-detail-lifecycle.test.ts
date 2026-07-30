@@ -24,6 +24,7 @@ const mockAgent: AvailableAgent = {
   name: 'Test Agent',
   description: null,
   version: 'v1',
+  versionStage: 'production',
   status: 'active',
   lifecycleStatus: 'active',
   runtime: 'langgraph',

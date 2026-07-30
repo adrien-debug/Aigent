@@ -93,6 +93,20 @@ export const AvailableAgentSchema = z
     name: z.string().min(1),
     description: z.string().nullable(),
     version: z.string().nullable(),
+    /**
+     * The STAGE of the version above (`copilot_versions.stage`), e.g.
+     * `production` / `beta` / `draft` / `archived`. Read from the SAME row
+     * `version` already resolves — `getAvailableAgents` selects `stage` in its
+     * `copilot_versions` query but this contract used to drop it on the floor.
+     * `null` when `version` itself is `null` (nothing to have a stage).
+     *
+     * NOT a second version: Aigent only ever resolves ONE version per copilot
+     * (`production_version_id ?? latest_version_id`), so this cannot answer
+     * "production vs. latest" when the two differ — that would need a second,
+     * un-batched read this contract does not perform. This field states only
+     * what the ALREADY-RESOLVED version's own stage is.
+     */
+    versionStage: z.string().nullable(),
     /** RUNTIME status — what the runtime can prove today. See `labels.ts`. */
     status: z.enum(AVAILABLE_AGENT_STATUSES),
     /**
@@ -410,6 +424,7 @@ function toAvailableAgent(input: {
     name: copilot.name,
     description,
     version: versionLabel,
+    versionStage: nonEmpty(version?.stage ?? null),
     status,
     lifecycleStatus: copilot.status,
     runtime,

@@ -1,6 +1,11 @@
+'use client'
+
+import { Fragment, useMemo, useState } from 'react'
+
 import { ArrowRightIcon } from '@heroicons/react/20/solid'
 
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { StatusDot, type StatusDotTone } from '@/components/ui/status-dot'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatUsd, UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
@@ -10,6 +15,7 @@ import type { AvailableAgent, AvailableAgentStatus } from '@/lib/agent-mission-c
 // alive by looking for `@/<path>` or a SAME-DIRECTORY `./<basename>`. A relative
 // import that crosses into a sub-directory matches neither.
 import { ArcGauge } from '@/components/console/charts/arc-gauge'
+import { BarBreakdown, type BarBreakdownRow } from '@/components/console/charts/bar-breakdown'
 import { RingGauge } from '@/components/console/charts/ring-gauge'
 import {
   EmptyState,
@@ -30,8 +36,15 @@ import {
  * The runtime catalogue: every persisted agent, its real status, and the
  * concrete reason each one that cannot run is blocked.
  *
- * SERVER COMPONENT. Everything here is markup over the `AvailableAgent[]` the
- * route already resolved; the two gauges are hand-written SVG. Nothing hydrates.
+ * CLIENT COMPONENT — the one exception in this console's table screens.
+ * `agents`/`agentsErrorDetail` are still resolved server-side by
+ * `src/app/admin/agents/page.tsx` and passed in as plain, already-serialised
+ * props; nothing here fetches. `'use client'` exists ONLY to hold the fleet
+ * table's search/filter/sort/group state — the KPI band, the composition
+ * panel, the analytics row and the two side panels below are markup over
+ * those same props and would be exactly this same JSX as a server component.
+ * Splitting them into a second file was rejected: this mission's perimeter is
+ * `agents-screen.tsx` and `charts/`, not a new shared component.
  *
  * TRUTH. `AvailableAgent` says "not measured" with `null` (and names the field
  * in `unavailableFields`), so a null renders the word `Indisponible`
@@ -62,6 +75,31 @@ import {
  * green. `src/lib/agent-mission-control/labels.ts`, which that guard names as the
  * owner of any display-cased word, does NOT exist yet; the day it does, the tone
  * map and the timestamp formatter below are what should move into it.
+ *
+ * EXECUTABILITY — ONE RULE, NOT TWO. `agent.executable` is not re-derived here:
+ * it is written by `available-agents.ts` from the exact same predicate as
+ * `runtime-catalogue.isExecutable` (status active, zero unresolved tools,
+ * runtime langgraph — see that file's comment on the field). That module is
+ * `import 'server-only'`, so it cannot be imported into this client component
+ * directly; the field it already computed is read instead, which is the same
+ * fact, not a second one. `blockingReasons` below states WHY in words, from the
+ * identical inputs, and is the module `agent-detail.ts`'s own (private,
+ * unexported) `computeBlockers` mirrors — this file already carried that
+ * mirror before this mission and it is kept as the one place both the fleet
+ * list and the blocked-agents panel read from.
+ *
+ * DATA REFUSED FOR THIS MISSION. "Delivered version" distinct from "production
+ * version", telemetry-received, improvement state and consumer status were all
+ * requested. None is refused out of laziness: `getAvailableAgents()` resolves
+ * exactly ONE version per copilot (`production_version_id ?? latest_version_id`,
+ * see that file), so a genuine "production vs. delivered" split needs a SECOND,
+ * currently un-batched read; telemetry/improvement/consumer facts live in
+ * `agent-lifecycle-trace.ts`, built PER AGENT from delivery events, telemetry
+ * events and improvement proposals — wiring it into this list would fan out N
+ * extra reads per row on every catalogue load, which is a new feature for the
+ * loader's owner, not a remount of something already read. `versionStage`
+ * (below) is the one exception: `copilot_versions.stage` is a column the
+ * existing query already selects and simply never returned.
  */
 
 /* ------------------------------------------------------- shared vocabulary */
@@ -97,9 +135,10 @@ export function agentStatusTone(status: AvailableAgentStatus, lifecycleStatus?: 
  * parseable instant.
  *
  * UTC and locale-free on purpose: `toLocaleString()` renders differently per
- * server locale, and these screens are server-rendered. Lives here rather than
- * in `src/lib/agent-mission-control/format.ts` only because this mission does not
- * own that file — it is the formatter's natural home and should move there.
+ * server locale, and this component may render on the client too. Lives here
+ * rather than in `src/lib/agent-mission-control/format.ts` only because this
+ * mission does not own that file — it is the formatter's natural home and
+ * should move there.
  */
 const pad2 = (value: number) => String(value).padStart(2, '0')
 
@@ -164,7 +203,10 @@ function lastRunEpoch(agent: AvailableAgent): number | null {
 }
 
 /**
- * Why the run gate would refuse this agent, in the contract's own terms.
+ * Why the run gate would refuse this agent, in the contract's own terms —
+ * mirrors `agent-detail.ts`'s private `computeBlockers` and
+ * `runtime-catalogue.isExecutable`. THE reason this table's "blocked" column
+ * exists: reading it here is the operational gain over opening the detail page.
  *
  * Every entry is read from a persisted fact (`unresolvedToolIds`,
  * `unavailableFields`, the `runtime` column) — nothing is inferred, and an empty
@@ -192,6 +234,304 @@ export function blockingReasons(agent: AvailableAgent): string[] {
   }
 
   return reasons
+}
+
+/* ------------------------------------------------------------ fleet table */
+
+type SortKey = 'name' | 'lastRun' | 'tools' | 'cost'
+type ExecFilter = 'all' | 'executable' | 'blocked'
+
+/** One bucket count with a stable, deterministic label — never invented, only
+ *  ever a raw value already present on `AvailableAgent`, or `Indisponible`. */
+function tally(agents: AvailableAgent[], keyOf: (agent: AvailableAgent) => string | null): BarBreakdownRow[] {
+  const counts = new Map<string, number>()
+  for (const agent of agents) {
+    const key = keyOf(agent) ?? UNAVAILABLE_LABEL
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([label, count]) => ({ label, count }))
+}
+
+/** Freshness bucket for a last-run timestamp, relative to the render instant. */
+function proofFreshness(agent: AvailableAgent, nowMs: number): string {
+  if (agent.lastRunAt === null) return 'no proof yet'
+  const epoch = Date.parse(agent.lastRunAt)
+  if (!Number.isFinite(epoch)) return UNAVAILABLE_LABEL
+  const ageMs = nowMs - epoch
+  if (ageMs < 0) return 'proof within 24h'
+  const hours = ageMs / 3_600_000
+  if (hours <= 24) return 'proof within 24h'
+  if (hours <= 24 * 7) return 'proof within 7d'
+  if (hours <= 24 * 30) return 'proof within 30d'
+  return 'proof over 30d old'
+}
+
+function FleetTable({ agents }: { agents: AvailableAgent[] }) {
+  const [query, setQuery] = useState('')
+  const [execFilter, setExecFilter] = useState<ExecFilter>('all')
+  const [lifecycleFilter, setLifecycleFilter] = useState<string>('all')
+  const [sortKey, setSortKey] = useState<SortKey>('lastRun')
+  const [groupByLifecycle, setGroupByLifecycle] = useState(false)
+
+  const lifecycleValues = useMemo(
+    () => [...new Set(agents.map((a) => a.lifecycleStatus))].sort(),
+    [agents]
+  )
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    return agents.filter((agent) => {
+      if (needle.length > 0) {
+        const haystack = `${agent.name} ${agent.copilotId}`.toLowerCase()
+        if (!haystack.includes(needle)) return false
+      }
+      if (execFilter === 'executable' && !agent.executable) return false
+      if (execFilter === 'blocked' && agent.executable) return false
+      if (lifecycleFilter !== 'all' && agent.lifecycleStatus !== lifecycleFilter) return false
+      return true
+    })
+  }, [agents, query, execFilter, lifecycleFilter])
+
+  const sorted = useMemo(() => {
+    const rows = [...filtered]
+    rows.sort((a, b) => {
+      switch (sortKey) {
+        case 'name':
+          return a.name.localeCompare(b.name)
+        case 'tools':
+          return b.tools.length - a.tools.length
+        case 'cost': {
+          const left = a.lastRunCostUsd
+          const right = b.lastRunCostUsd
+          if (left === right) return a.name.localeCompare(b.name)
+          if (left === null) return 1
+          if (right === null) return -1
+          return right - left
+        }
+        case 'lastRun':
+        default: {
+          const left = lastRunEpoch(a)
+          const right = lastRunEpoch(b)
+          if (left === right) return a.name.localeCompare(b.name)
+          if (left === null) return 1
+          if (right === null) return -1
+          return right - left
+        }
+      }
+    })
+    return rows
+  }, [filtered, sortKey])
+
+  const groups: { key: string; rows: AvailableAgent[] }[] = groupByLifecycle
+    ? lifecycleValues
+        .map((lifecycle) => ({ key: lifecycle, rows: sorted.filter((a) => a.lifecycleStatus === lifecycle) }))
+        .filter((group) => group.rows.length > 0)
+    : [{ key: '', rows: sorted }]
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
+        <div className="min-w-40 flex-1">
+          <Input
+            type="search"
+            placeholder="Search name or id…"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            aria-label="Search agents by name or id"
+          />
+        </div>
+        <select
+          value={execFilter}
+          onChange={(event) => setExecFilter(event.target.value as ExecFilter)}
+          aria-label="Filter by executability"
+          className="rounded-md border border-line bg-surface-sunken px-2 py-1.5 text-xs text-zinc-300"
+        >
+          <option value="all">Executable · all</option>
+          <option value="executable">Executable only</option>
+          <option value="blocked">Blocked only</option>
+        </select>
+        <select
+          value={lifecycleFilter}
+          onChange={(event) => setLifecycleFilter(event.target.value)}
+          aria-label="Filter by lifecycle status"
+          className="rounded-md border border-line bg-surface-sunken px-2 py-1.5 text-xs text-zinc-300"
+        >
+          <option value="all">Lifecycle · all</option>
+          {lifecycleValues.map((value) => (
+            <option key={value} value={value}>
+              {value}
+            </option>
+          ))}
+        </select>
+        <select
+          value={sortKey}
+          onChange={(event) => setSortKey(event.target.value as SortKey)}
+          aria-label="Sort rows by"
+          className="rounded-md border border-line bg-surface-sunken px-2 py-1.5 text-xs text-zinc-300"
+        >
+          <option value="lastRun">Sort · last run</option>
+          <option value="name">Sort · name</option>
+          <option value="tools">Sort · tools</option>
+          <option value="cost">Sort · last cost</option>
+        </select>
+        <label className="flex shrink-0 items-center gap-1.5 text-[11px]/4 text-zinc-400">
+          <input
+            type="checkbox"
+            checked={groupByLifecycle}
+            onChange={(event) => setGroupByLifecycle(event.target.checked)}
+            className="size-3.5 rounded border-line accent-[var(--accent-500)]"
+          />
+          Group by lifecycle
+        </label>
+        <span className="ml-auto shrink-0 text-[11px]/4 tabular-nums text-zinc-500">
+          {sorted.length} / {agents.length} rows
+        </span>
+      </div>
+
+      {sorted.length === 0 ? (
+        <EmptyState
+          title="No agent matches these filters."
+          description="Clear the search or the filters to see the full catalogue again."
+        />
+      ) : (
+        // Bounded height, sticky header: the box is fixed, the data scrolls
+        // inside it — a growing fleet never grows this panel.
+        <div className="max-h-[30rem] overflow-auto">
+          <Table caption="Runtime agent catalogue" className={TABLE_SHELL}>
+            <TableHead className={`${TABLE_HEAD} sticky top-0 z-10`}>
+              <TableRow className={TABLE_ROW}>
+                <TableHeader>Status</TableHeader>
+                <TableHeader>Agent</TableHeader>
+                <TableHeader>Lifecycle</TableHeader>
+                <TableHeader>Runtime</TableHeader>
+                <TableHeader>Provider · model</TableHeader>
+                <TableHeader className={TABLE_NUM}>Tools</TableHeader>
+                <TableHeader>Last run</TableHeader>
+                <TableHeader className={TABLE_NUM}>Last cost</TableHeader>
+                <TableHeader>Blocked because</TableHeader>
+                {/* Sticky right so the row action never scrolls out of the
+                    viewport under a wide table — the operational requirement
+                    driving this rebuild. */}
+                <TableHeader className="sticky right-0 bg-surface-sunken">
+                  <span className="sr-only">Inspect</span>
+                </TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody className={TABLE_BODY}>
+              {groups.map((group) => (
+                <Fragment key={group.key || 'ungrouped'}>
+                  {group.key ? (
+                    <TableRow key={`group-${group.key}`} className={`${TABLE_ROW} bg-surface-sunken`}>
+                      <TableCell colSpan={10} className="text-[10px] tracking-widest text-zinc-400 uppercase">
+                        {group.key} · {group.rows.length}
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                  {group.rows.map((agent) => {
+                    const lastRunAt = formatUtcTimestamp(agent.lastRunAt)
+                    const reasons = agent.executable ? [] : blockingReasons(agent)
+                    return (
+                      <TableRow key={agent.copilotId} className={TABLE_ROW}>
+                        <TableCell>
+                          <span title={`Runtime status: ${agent.status}`}>
+                            <StatusDot tone={agentStatusTone(agent.status, agent.lifecycleStatus)}>
+                              {agent.status}
+                            </StatusDot>
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {/* Contrast fix: the id used to sit at `zinc-600`
+                              (~2.8:1 on the sunken row background, under the AA
+                              floor for any text size) — bumped to `zinc-500`
+                              (~4.1:1) so the identifier stays legible instead of
+                              reading as decoration. */}
+                          <p className="max-w-56 truncate text-white">{agent.name}</p>
+                          <p className="max-w-56 truncate font-mono text-[10px]/4 text-zinc-500">
+                            {agent.copilotId}
+                            {/* `versionStage` — the stage of the ONE version the
+                                catalogue resolves (`production_version_id ??
+                                latest_version_id`), read from a column the
+                                loader already selected but never returned.
+                                Not "delivered version": see the file docblock
+                                for why that split is refused this mission. */}
+                            {agent.version !== null ? (
+                              <span className="text-zinc-600">
+                                {' '}
+                                · {agent.version}
+                                {agent.versionStage !== null ? ` (${agent.versionStage})` : ''}
+                              </span>
+                            ) : null}
+                          </p>
+                        </TableCell>
+                        <TableCell className="text-zinc-300">{agent.lifecycleStatus}</TableCell>
+                        <TableCell>
+                          {agent.runtime === null ? (
+                            <Unavailable />
+                          ) : (
+                            <span className="text-zinc-300">{agent.runtime}</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {/* The dot is a SEPARATOR between two facts, never a
+                              stand-in for one: `provider` and `configuredModel`
+                              are independently nullable in the contract, so each
+                              half answers for its OWN absence. */}
+                          {agent.provider === null && agent.configuredModel === null ? (
+                            <Unavailable />
+                          ) : (
+                            <p className="max-w-52 truncate text-zinc-300">
+                              {agent.provider ?? <Unavailable />} ·{' '}
+                              {agent.configuredModel ?? <Unavailable />}
+                            </p>
+                          )}
+                        </TableCell>
+                        <TableCell className={`${TABLE_NUM} text-white`}>{agent.tools.length}</TableCell>
+                        <TableCell>
+                          {lastRunAt === null ? (
+                            <Unavailable />
+                          ) : (
+                            <span className="tabular-nums text-zinc-300">{lastRunAt}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className={TABLE_NUM}>
+                          {agent.lastRunCostUsd === null ? (
+                            <Unavailable />
+                          ) : (
+                            <span className="text-white">{formatUsd(agent.lastRunCostUsd, 4)}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="max-w-64">
+                          {/* THE operational payoff of this rebuild: the refusal
+                              reason is readable right here, no click required. */}
+                          {agent.executable ? (
+                            <span className="text-zinc-500">—</span>
+                          ) : (
+                            <p
+                              className="truncate text-[11px]/4 text-[var(--state-danger-text)]"
+                              title={reasons.join(' · ')}
+                            >
+                              {reasons.join(' · ')}
+                            </p>
+                          )}
+                        </TableCell>
+                        <TableCell className="sticky right-0 bg-surface-raised text-right">
+                          <Button href={`/admin/agents/${agent.copilotId}`} plain>
+                            Inspect <ArrowRightIcon />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </Fragment>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </>
+  )
 }
 
 /* --------------------------------------------------------------- component */
@@ -234,6 +574,35 @@ export function AgentsScreen({
     if (right === null) return -1
     return right - left
   })
+
+  // ── Fleet analytics — every bucket is a plain tally over the same `rows`
+  // the table renders. Real sources only, named per row in the file docblock.
+  // `Date.now()` is an impure read (react-hooks/purity forbids calling it bare
+  // during render), so it is captured ONCE via `useState`'s lazy initialiser —
+  // the reference instant for "how old is this proof" is fixed for the life of
+  // the mount, exactly like a server-rendered page's implicit render time.
+  const [now] = useState(() => Date.now())
+  const lifecycleBreakdown = unread ? [] : tally(rows, (a) => a.lifecycleStatus)
+  const runtimeStatusBreakdown = unread ? [] : tally(rows, (a) => a.status)
+  const executabilityBreakdown = unread
+    ? []
+    : [
+        { label: 'executable', count: rows.filter((a) => a.executable).length },
+        { label: 'not executable', count: rows.filter((a) => !a.executable).length, danger: true },
+      ]
+  const modelBreakdown = unread ? [] : tally(rows, (a) => a.configuredModel)
+  const providerBreakdown = unread ? [] : tally(rows, (a) => a.provider)
+  const toolCoverageBreakdown = unread
+    ? []
+    : [
+        { label: 'all tools resolved', count: rows.filter((a) => a.unresolvedToolIds.length === 0).length },
+        {
+          label: 'some unresolved',
+          count: rows.filter((a) => a.unresolvedToolIds.length > 0).length,
+          danger: true,
+        },
+      ]
+  const proofFreshnessBreakdown = unread ? [] : tally(rows, (a) => proofFreshness(a, now))
 
   return (
     <div className="space-y-4">
@@ -386,13 +755,12 @@ export function AgentsScreen({
 
         <Section
           title="Runtime catalogue"
-          description="Lifecycle and execution truth stay separate — an agent is legitimately draft and inactive at once"
+          description="Search, filter, sort and group — lifecycle and execution truth stay separate"
           actions={
             <span className="shrink-0 text-[11px]/4 tabular-nums text-zinc-500">
               {unread ? UNAVAILABLE_LABEL : `${total} rows`}
             </span>
           }
-          scroll="lg"
         >
           {unread ? (
             <ErrorState
@@ -406,95 +774,82 @@ export function AgentsScreen({
               description="The catalogue reads live rows only — an empty environment shows nothing."
             />
           ) : (
-            /* One table language for the whole console (`screen-primitives`):
-               no `dense` — it collides with TABLE_SHELL's row padding at equal
-               specificity — and `TABLE_ROW` on every row, header included,
-               because nothing here is clickable except the Inspect button. */
-            <Table caption="Runtime agent catalogue" className={TABLE_SHELL}>
-              <TableHead className={TABLE_HEAD}>
-                <TableRow className={TABLE_ROW}>
-                  <TableHeader>Status</TableHeader>
-                  <TableHeader>Agent</TableHeader>
-                  <TableHeader>Lifecycle</TableHeader>
-                  <TableHeader>Runtime</TableHeader>
-                  <TableHeader>Provider · model</TableHeader>
-                  <TableHeader className={TABLE_NUM}>Tools</TableHeader>
-                  <TableHeader>Last run</TableHeader>
-                  <TableHeader className={TABLE_NUM}>Last cost</TableHeader>
-                  <TableHeader>
-                    <span className="sr-only">Inspect</span>
-                  </TableHeader>
-                </TableRow>
-              </TableHead>
-              <TableBody className={TABLE_BODY}>
-                {agents.map((agent) => {
-                  const lastRunAt = formatUtcTimestamp(agent.lastRunAt)
-                  return (
-                    <TableRow key={agent.copilotId} className={TABLE_ROW}>
-                      <TableCell>
-                        <StatusDot tone={agentStatusTone(agent.status, agent.lifecycleStatus)}>
-                          {agent.status}
-                        </StatusDot>
-                      </TableCell>
-                      <TableCell>
-                        <p className="max-w-56 truncate text-white">{agent.name}</p>
-                        <p className="max-w-56 truncate font-mono text-[10px]/4 text-zinc-600">
-                          {agent.copilotId}
-                        </p>
-                      </TableCell>
-                      <TableCell className="text-zinc-400">{agent.lifecycleStatus}</TableCell>
-                      <TableCell>
-                        {agent.runtime === null ? (
-                          <Unavailable />
-                        ) : (
-                          <span className="text-zinc-300">{agent.runtime}</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {/* The dot is a SEPARATOR between two facts, never a
-                            stand-in for one: `provider` and `configuredModel`
-                            are independently nullable in the contract, so each
-                            half answers for its OWN absence. A lone `·` used to
-                            occupy the missing side and read like a value. */}
-                        {agent.provider === null && agent.configuredModel === null ? (
-                          <Unavailable />
-                        ) : (
-                          <p className="max-w-52 truncate text-zinc-400">
-                            {agent.provider ?? <Unavailable />} ·{' '}
-                            {agent.configuredModel ?? <Unavailable />}
-                          </p>
-                        )}
-                      </TableCell>
-                      <TableCell className={`${TABLE_NUM} text-white`}>{agent.tools.length}</TableCell>
-                      <TableCell>
-                        {lastRunAt === null ? (
-                          <Unavailable />
-                        ) : (
-                          <span className="tabular-nums text-zinc-400">{lastRunAt}</span>
-                        )}
-                      </TableCell>
-                      <TableCell className={TABLE_NUM}>
-                        {agent.lastRunCostUsd === null ? (
-                          <Unavailable />
-                        ) : (
-                          <span className="text-white">{formatUsd(agent.lastRunCostUsd, 4)}</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button href={`/admin/agents/${agent.copilotId}`} plain>
-                          Inspect <ArrowRightIcon />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
+            <FleetTable agents={rows} />
           )}
         </Section>
       </div>
 
-      {/* ── ROW 3 · blocked agents · last run per agent ───────────────────── */}
+      {/* ── ROW 3 · fleet analytics ─────────────────────────────────────────
+          Every panel is a distribution over `rows` — the SAME array the table
+          above renders — never a sparkline, never inline in a card or a table
+          cell (see `BarBreakdown`'s own docblock). */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Section title="By lifecycle" description="copilots.status">
+          {unread ? (
+            <ErrorState title="Not read" description="Catalogue unread." className="m-4" />
+          ) : total === 0 ? (
+            <EmptyState title="No persisted agent." />
+          ) : (
+            <BarBreakdown rows={lifecycleBreakdown} total={total ?? 0} ariaLabel="Agents by lifecycle status" />
+          )}
+        </Section>
+        <Section title="By runtime status" description="Derived executability status">
+          {unread ? (
+            <ErrorState title="Not read" description="Catalogue unread." className="m-4" />
+          ) : total === 0 ? (
+            <EmptyState title="No persisted agent." />
+          ) : (
+            <BarBreakdown rows={runtimeStatusBreakdown} total={total ?? 0} ariaLabel="Agents by runtime status" />
+          )}
+        </Section>
+        <Section title="Executability" description="Would pass the run gate right now">
+          {unread ? (
+            <ErrorState title="Not read" description="Catalogue unread." className="m-4" />
+          ) : total === 0 ? (
+            <EmptyState title="No persisted agent." />
+          ) : (
+            <BarBreakdown rows={executabilityBreakdown} total={total ?? 0} ariaLabel="Agents by executability" />
+          )}
+        </Section>
+        <Section title="By provider" description="copilots.model_provider">
+          {unread ? (
+            <ErrorState title="Not read" description="Catalogue unread." className="m-4" />
+          ) : total === 0 ? (
+            <EmptyState title="No persisted agent." />
+          ) : (
+            <BarBreakdown rows={providerBreakdown} total={total ?? 0} ariaLabel="Agents by provider" />
+          )}
+        </Section>
+        <Section title="By model" description="copilots.model" className="sm:col-span-2">
+          {unread ? (
+            <ErrorState title="Not read" description="Catalogue unread." className="m-4" />
+          ) : total === 0 ? (
+            <EmptyState title="No persisted agent." />
+          ) : (
+            <BarBreakdown rows={modelBreakdown} total={total ?? 0} ariaLabel="Agents by configured model" />
+          )}
+        </Section>
+        <Section title="Tool coverage" description="Declared tools that resolve to a registered handler">
+          {unread ? (
+            <ErrorState title="Not read" description="Catalogue unread." className="m-4" />
+          ) : total === 0 ? (
+            <EmptyState title="No persisted agent." />
+          ) : (
+            <BarBreakdown rows={toolCoverageBreakdown} total={total ?? 0} ariaLabel="Agents by tool coverage" />
+          )}
+        </Section>
+        <Section title="Proof freshness" description="Age of the last recorded run, if any">
+          {unread ? (
+            <ErrorState title="Not read" description="Catalogue unread." className="m-4" />
+          ) : total === 0 ? (
+            <EmptyState title="No persisted agent." />
+          ) : (
+            <BarBreakdown rows={proofFreshnessBreakdown} total={total ?? 0} ariaLabel="Agents by proof freshness" />
+          )}
+        </Section>
+      </div>
+
+      {/* ── ROW 4 · blocked agents · last run per agent ───────────────────── */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Section
           title="Blocked from running"
