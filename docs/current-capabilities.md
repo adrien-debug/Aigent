@@ -75,12 +75,16 @@ the archived one-shot proofs (`npm run prove:*`).
 | Aigent's own internal runs fed into the same table | wired (automatic) | `runner.ts:643`, `emitInternalRunTelemetry` |
 | Lifecycle telemetry (promotion / shadow / replay) on the same channel | wired (automatic) | `runtime-telemetry-store.ts` `emitPromotionTelemetry` / `emitShadowTelemetry` / `emitReplayTelemetry` |
 | Per-agent telemetry summary consumed by the improvement loop | backend-only | `improvement-loop.ts:56` → `summarizeRuntimeTelemetry` |
-| **Fleet telemetry summary / recent-events feed** | **not wired** — `summarizeFleetRuntimeTelemetry` and `listRecentRuntimeTelemetryEvents` have zero production callers; only `tests/unit/runtime-telemetry-store.test.ts` and `runtime-telemetry-cost.test.ts` call them | `runtime-telemetry-store.ts:542,554` |
-| **Telemetry health diagnostic** | **not wired** — `telemetry-health.ts` is imported by nothing under `src/` | `telemetry-health.ts` |
+| Fleet telemetry summary | wired — `summarizeFleetRuntimeTelemetry` feeds the `/admin` Telemetry card | `dashboard-overview.ts:22,936` → `overview-screen.tsx:856` |
+| **Recent-events feed** | **not wired** — `listRecentRuntimeTelemetryEvents` has zero production callers; only `tests/unit/runtime-telemetry-store.test.ts` calls it | `runtime-telemetry-store.ts:554` |
+| Telemetry health diagnostic | wired — `diagnoseTelemetryHealth` renders as the Telemetry card's channel status | `dashboard-overview.ts:21,948` → `overview-screen.tsx:858` |
 
-**Telemetry is write-mostly today.** Events flow in and are stored; the only
-consumer of that data in production code is the per-agent improvement summary.
-There is no telemetry screen (that route was deleted and is gate-forbidden).
+**What telemetry still lacks.** The summaries are read (improvement loop, agent
+detail, Overview card), but there is no per-event screen — that route was deleted
+and is gate-forbidden. More important: of the 37 stored events, **none came from
+an externally deployed agent** (measured 2026-07-30). Every row is Aigent's own
+runner or a lifecycle event, so the consumer return channel is built and
+authenticated but has never carried real traffic.
 
 ## Runtime & providers
 

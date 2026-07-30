@@ -55,9 +55,11 @@ State the restriction, not the headline:
 
 - **Shipping to a consumer repo** is a **dry run** unless `confirm: true` is in
   the request body **and** `GITHUB_PUSH_ENABLED=1` is in the environment.
-- **Telemetry** is write-mostly: events are ingested and stored, and the
-  per-agent summary feeds the improvement loop, but the fleet-level summary and
-  the health diagnostic have **no production callers**.
+- **Telemetry** is read by the console (per-agent summary in the improvement loop
+  and on `/admin/agents/[id]`, fleet summary + health diagnostic in the `/admin`
+  Telemetry card). The remainders: `listRecentRuntimeTelemetryEvents` has no
+  production caller, and **no externally deployed agent has ever reported** — all
+  37 stored events are Aigent's own runs and lifecycle events.
 - **Tool builder** works, but only `count_words` has a sandbox.
 - **Provider `mistral`** is declared and **not wired** — it throws a typed error
   rather than falling back silently.

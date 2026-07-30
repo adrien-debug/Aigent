@@ -4,34 +4,43 @@
 > capability is in; this one says why the gap matters and what closing it means.
 > Nothing here is speculation — every gap was established by reading the code.
 
-## 1. The console is a read console. The lifecycle has no buttons.
+## 1. ~~The console is a read console.~~ CLOSED — the lifecycle has buttons.
 
-The single biggest gap. Six screens render the fleet honestly, but the only
-write surface in the whole console is the project builder. Qualify, promote,
-improve, ship, shadow, replay, run a test suite, launch a benchmark — all of it
-is real, tested HTTP, reachable only with `curl` or a script.
+This gap was real when written and is no longer true. The console rebuild
+(`984c5d6`..`644eada`) gave the lifecycle a UI, but this file was not updated in
+the same pass — it kept claiming the opposite for a week.
 
-Proof: `grep "fetch("` across `src/components/console/*.tsx` returns exactly
-three endpoints, all under `projects/[id]/builder/`.
+Measured 2026-07-30 with
+`grep -rhoE "/api/agent-ops/[^\`'\" ]+" src/components/console/*.tsx | sed 's/\${[^}]*}/:id/g' | sort -u`:
+**15 distinct endpoints across 5 components**, not three. Run, tests/run,
+benchmarks/run, qualification, promotion, shadow, replay, improve (analyze /
+create-v2 / decision), delivery-loop and push-agent are all driven from
+`qualification-panel.tsx`, `improve-panel.tsx`, `delivery-controls.tsx`,
+`agent-actions.tsx` and `project-builder-screen.tsx`.
 
-Consequence: an operator cannot drive the product loop from the product. The
-loop described in `docs/product-vision.md` is true of the *platform*, not yet of
-the *interface*.
+What genuinely remains: no UI lists architect runs sitting in
+`awaiting_approval`, so a HITL run whose tab was closed is unreachable from the
+product (see §7).
 
-## 2. Telemetry comes back and then stops.
+## 2. Telemetry comes back — the fleet view exists, one reader does not.
 
 Ingestion is solid — dedicated token, hardened payload handling, a table that
-holds both consumer-reported runs and Aigent's own. But of the data going in:
+holds both consumer-reported runs and Aigent's own. Of the data going in:
 
-- `summarizeRuntimeTelemetry` (per-agent) is read by the improvement loop. ✅
-- `summarizeFleetRuntimeTelemetry` and `listRecentRuntimeTelemetryEvents` have
-  **zero production callers** — only unit tests.
-- `telemetry-health.ts` is imported by **nothing** under `src/`.
+- `summarizeRuntimeTelemetry` (per-agent) is read by the improvement loop and by
+  `agent-detail.ts` for `/admin/agents/[id]`. ✅
+- `summarizeFleetRuntimeTelemetry` and `diagnoseTelemetryHealth`
+  (`telemetry-health.ts`) are called by `dashboard-overview.ts` and rendered as
+  the Telemetry card on `/admin`. ✅ — this file previously claimed both had zero
+  callers, which was wrong.
+- `listRecentRuntimeTelemetryEvents` still has **zero production callers** —
+  only unit tests. That one is the real remainder: no screen lists individual
+  telemetry events.
 
-So there is no fleet-level view of what deployed agents are actually doing, and
-no diagnostic that tells you whether the return channel is even alive. The
-`/admin/telemetry` route that would have shown it was deleted and is now
-forbidden by `check-no-legacy-front.mjs`.
+The honest gap is narrower than it was: fleet health is visible, the per-event
+stream is not. Note also that of 37 rows in `runtime_telemetry_events`, **zero
+came from an externally deployed agent** — every row is Aigent's own runner or a
+lifecycle event, so the return channel has never been exercised end to end.
 
 ## 3. Shipping is double-gated off by default.
 

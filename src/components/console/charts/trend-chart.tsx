@@ -168,15 +168,25 @@ function buildTicks(rawMax: number, integerScale: boolean): number[] {
   const rawStep = rawMax > 0 ? rawMax / TARGET_INTERVALS : 0
   const step = integerScale ? Math.max(1, Math.ceil(niceCeiling(rawStep))) : niceCeiling(rawStep)
   const intervals = rawMax > 0 ? Math.max(1, Math.ceil(rawMax / step)) : 1
+  // Rounded to the STEP's own magnitude, never to a fixed two decimals. A cost
+  // series peaking at $0.0024 has a step of 0.001, and `round2` collapsed every
+  // tick — including the top — to 0; `yFor` then divided by that 0 and fed
+  // `cy="NaN"` to a <circle>. The scale must keep as many decimals as the step
+  // it is built from.
+  const decimals = clamp(Math.ceil(-Math.log10(step)) + 1, 0, 20)
   const ticks: number[] = []
-  for (let index = intervals; index >= 0; index -= 1) ticks.push(round2(step * index))
+  for (let index = intervals; index >= 0; index -= 1) ticks.push(Number((step * index).toFixed(decimals)))
   return ticks
 }
 
 function formatAxisValue(value: number) {
   if (value >= 1000) return `${Math.round(value / 100) / 10}k`
   if (Number.isInteger(value)) return String(value)
-  return String(Math.round(value * 100) / 100)
+  // Two decimals is not enough for a cost axis: a scale running 0.001 → 0.003
+  // printed "0 / 0 / 0 / 0", which reads as an empty measurement rather than a
+  // sub-cent one. Keep enough decimals for the value to survive rounding.
+  const decimals = clamp(Math.ceil(-Math.log10(Math.abs(value))) + 1, 2, 20)
+  return String(Number(value.toFixed(decimals)))
 }
 
 /**

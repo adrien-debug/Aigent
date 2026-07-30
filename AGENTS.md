@@ -153,9 +153,11 @@ est pris par un process non identifié comme le sien.
   déployés ET les runs internes d'Aigent (`runner.ts` → `emitInternalRunTelemetry`), plus les
   événements de cycle de vie (promotion / shadow / replay). Une seule table,
   `runtime_telemetry_events`.
-- **Aujourd'hui la télémétrie est en écriture quasi pure** : seul `summarizeRuntimeTelemetry`
-  (par agent) est lu, par la boucle d'amélioration. Le résumé flotte et le diagnostic de santé
-  n'ont aucun appelant en production. Ne pas écrire l'inverse : `docs/known-gaps.md` §2.
+- **La télémétrie est lue par l'Overview et le détail agent** : `summarizeRuntimeTelemetry`
+  (par agent) par la boucle d'amélioration et `agent-detail.ts` ; `summarizeFleetRuntimeTelemetry`
+  et `diagnoseTelemetryHealth` par `dashboard-overview.ts`, rendus dans la carte Telemetry de
+  `/admin`. Seul `listRecentRuntimeTelemetryEvents` n'a aucun appelant de production.
+  État chiffré et nuances : `docs/known-gaps.md` §2 — propriétaire unique de cette ligne.
 
 <!-- HEARST-GOVERNANCE:START -->
 ## Gouvernance — ordre de lecture obligatoire

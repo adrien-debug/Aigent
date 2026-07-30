@@ -46,7 +46,10 @@ export async function PATCH(
   }
 
   try {
-    await markAgentDraftMaterialized(draftId, copilotId)
+    const updated = await markAgentDraftMaterialized(draftId, copilotId)
+    if (!updated) {
+      return NextResponse.json({ error: 'draft not found' }, { status: 404 })
+    }
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('[agent-ops/agent-drafts] materialize failed:', err instanceof Error ? err.message : err)

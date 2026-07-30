@@ -85,6 +85,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   let sequence = 0
   let closed = false
   let heartbeat: ReturnType<typeof setInterval> | undefined
+  // The client hanging up must actually stop the work. Without this the OpenAI
+  // turn ran to completion — and kept billing — after the browser was gone.
+  const abort = new AbortController()
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -109,9 +112,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }, PROJECT_BUILDER_HEARTBEAT_MS)
 
       try {
-        const bundle = await postProjectBuilderMessageStream(id, content, (delta) => {
-          push({ type: 'delta', lifecycle: 'running', conversationId: null, delta })
-        })
+        const bundle = await postProjectBuilderMessageStream(
+          id,
+          content,
+          (delta) => {
+            push({ type: 'delta', lifecycle: 'running', conversationId: null, delta })
+          },
+          abort.signal
+        )
         const latestAssistant = [...bundle.messages].reverse().find((message) => message.role === 'assistant')
         if (!latestAssistant) throw new Error('persisted assistant message missing')
 
@@ -125,14 +133,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           createdCopilotId: bundle.createdCopilotId,
         })
       } catch (err) {
-        console.error('[agent-ops/projects/builder/message] stream failed', { runId, sequence, error: err })
-        push({
-          type: 'terminal',
-          lifecycle: 'failed',
-          conversationId: null,
-          error: 'architect_message_failed',
-          retryable: true,
-        })
+        // A cancelled turn is not a failure: the client is already gone, so
+        // there is nobody to receive a terminal frame and nothing to log as an
+        // error. Anything else is a real failure and still reports as one.
+        if (abort.signal.aborted) {
+          console.warn('[agent-ops/projects/builder/message] stream cancelled by client', { runId, sequence })
+        } else {
+          console.error('[agent-ops/projects/builder/message] stream failed', { runId, sequence, error: err })
+          push({
+            type: 'terminal',
+            lifecycle: 'failed',
+            conversationId: null,
+            error: 'architect_message_failed',
+            retryable: true,
+          })
+        }
       } finally {
         if (heartbeat) clearInterval(heartbeat)
         if (!closed) {
@@ -144,6 +159,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     cancel() {
       closed = true
       if (heartbeat) clearInterval(heartbeat)
+      // Clearing the heartbeat only stopped the writes. This stops the work.
+      abort.abort()
     },
   })
 

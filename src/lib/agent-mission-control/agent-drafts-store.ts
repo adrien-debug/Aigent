@@ -106,8 +106,16 @@ export async function upsertAgentDraft(input: {
   return mapRow(fetched[0])
 }
 
-export async function markAgentDraftMaterialized(draftId: string, copilotId: string): Promise<void> {
-  await pgrest(
+/**
+ * Link a draft to the copilot that materialized it.
+ *
+ * Returns whether a row was actually updated. A PostgREST PATCH whose filter
+ * matches nothing is a 200 with an empty body, so the caller that only awaited
+ * this answered `{ok: true}` for a draftId that never existed — a success
+ * reported for work that did not happen.
+ */
+export async function markAgentDraftMaterialized(draftId: string, copilotId: string): Promise<boolean> {
+  const updated = await pgrest<RawAgentDraft[]>(
     'PATCH',
     `agent_drafts?id=eq.${encodeURIComponent(draftId)}`,
     {
@@ -116,4 +124,5 @@ export async function markAgentDraftMaterialized(draftId: string, copilotId: str
       updated_at: new Date().toISOString(),
     },
   )
+  return Array.isArray(updated) && updated.length > 0
 }

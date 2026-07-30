@@ -74,15 +74,15 @@ export function buildRunsHourlyBuckets(runs: AgentRun[], nowMs: number, spanMs: 
   const xLabels: string[] = []
   for (let i = 0; i < hours; i += 1) xLabels.push(hourLabelUtc(bucketStartMs + i * HOUR_MS))
 
-  const runsPerHour = new Array<number>(hours).fill(0)
-  const completedPerHour = new Array<number>(hours).fill(0)
-  const failedPerHour = new Array<number>(hours).fill(0)
-  const blockedPerHour = new Array<number>(hours).fill(0)
-  const toolCallsPerHour = new Array<number>(hours).fill(0)
-  const errorsPerHour = new Array<number>(hours).fill(0)
+  const runsPerHour = Array.from({ length: hours }, () => 0)
+  const completedPerHour = Array.from({ length: hours }, () => 0)
+  const failedPerHour = Array.from({ length: hours }, () => 0)
+  const blockedPerHour = Array.from({ length: hours }, () => 0)
+  const toolCallsPerHour = Array.from({ length: hours }, () => 0)
+  const errorsPerHour = Array.from({ length: hours }, () => 0)
   const latencySamples: number[][] = Array.from({ length: hours }, () => [])
-  const costSums = new Array<number>(hours).fill(0)
-  const costCounts = new Array<number>(hours).fill(0)
+  const costSums = Array.from({ length: hours }, () => 0)
+  const costCounts = Array.from({ length: hours }, () => 0)
 
   for (const run of runs) {
     const startedMs = Date.parse(run.startedAt)

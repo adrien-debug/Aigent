@@ -331,10 +331,14 @@ type CompletionOutcome = {
 async function runCompletion(
   client: OpenAI,
   params: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
-  onToken?: (delta: string) => void
+  onToken?: (delta: string) => void,
+  signal?: AbortSignal
 ): Promise<CompletionOutcome> {
   if (!onToken) {
-    const response = await client.chat.completions.create(params, { timeout: OPENAI_TIMEOUT_MS })
+    const response = await client.chat.completions.create(params, {
+      timeout: OPENAI_TIMEOUT_MS,
+      signal,
+    })
     const msg = response.choices[0]?.message
     if (!msg) throw new Error('architect returned empty completion')
     return { content: msg.content ?? null, toolCalls: msg.tool_calls }
@@ -342,7 +346,7 @@ async function runCompletion(
 
   const stream = await client.chat.completions.create(
     { ...params, stream: true },
-    { timeout: OPENAI_TIMEOUT_MS }
+    { timeout: OPENAI_TIMEOUT_MS, signal }
   )
 
   let content = ''
@@ -410,7 +414,8 @@ async function runArchitectLoop(
     currentPreview: AgentPreview | null
     repoFullName: string | undefined
   },
-  onToken?: (delta: string) => void
+  onToken?: (delta: string) => void,
+  signal?: AbortSignal
 ): Promise<{ reply: string; previewPatch: Partial<AgentPreview> | null }> {
   const client = getOpenAIClient()
   const recent = args.messages.slice(-MAX_MESSAGES_FOR_LLM)
@@ -435,6 +440,11 @@ async function runArchitectLoop(
   let toolBudgetExhausted = false
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
+    // The client is gone: stop before paying for another round-trip. Checked at
+    // the top of every iteration because a repo-tool turn can take seconds, and
+    // the signal may fire while github.ts is fetching.
+    signal?.throwIfAborted()
+
     // Tool-scouting iterations are speculative (the model may just call more
     // repo tools) — never stream these; only the turn that actually lands on
     // prose (handled below, before we know whether more tools follow) matters
@@ -450,7 +460,8 @@ async function runArchitectLoop(
         tool_choice: 'auto',
         max_completion_tokens: MAX_COMPLETION_TOKENS,
       },
-      onToken
+      onToken,
+      signal
     )
 
     const previewCall = outcome.toolCalls?.find((t) => t.type === 'function' && t.function.name === 'update_preview')
@@ -538,7 +549,8 @@ async function runArchitectLoop(
         tool_choice: 'none',
         max_completion_tokens: MAX_COMPLETION_TOKENS,
       },
-      onToken
+      onToken,
+      signal
     )
     const reply = typeof finalOutcome.content === 'string' ? finalOutcome.content.trim() : ''
     if (reply.length > 0) {
@@ -581,9 +593,10 @@ export async function streamArchitectTurn(
     currentPreview: AgentPreview | null
     repoFullName: string | undefined
   },
-  onToken: (delta: string) => void
+  onToken: (delta: string) => void,
+  signal?: AbortSignal
 ): Promise<{ reply: string; previewPatch: Partial<AgentPreview> | null }> {
-  return runArchitectLoop(args, onToken)
+  return runArchitectLoop(args, onToken, signal)
 }
 
 /**
@@ -692,10 +705,14 @@ export async function postProjectBuilderMessage(
 export async function postProjectBuilderMessageStream(
   projectId: string,
   content: string,
-  onToken: (delta: string) => void
+  onToken: (delta: string) => void,
+  signal?: AbortSignal
 ): Promise<ProjectBuilderConversationBundle> {
   const { conversation, messages, intelBlock, repoFullName } = await prepareArchitectTurnContext(projectId, content)
 
+  // An abort throws out of here, so `persistArchitectTurnResult` below is never
+  // reached with a half-streamed reply: the user turn stays persisted (it was
+  // real) and no truncated assistant message is written.
   const { reply, previewPatch } = await streamArchitectTurn(
     {
       messages,
@@ -703,7 +720,8 @@ export async function postProjectBuilderMessageStream(
       currentPreview: conversation.latestPreview,
       repoFullName,
     },
-    onToken
+    onToken,
+    signal
   )
 
   await persistArchitectTurnResult(conversation, reply, previewPatch)
