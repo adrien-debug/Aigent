@@ -2,7 +2,8 @@
 
 **Statut : `specification`.** Aucun objet agent n'est écrit en base dans
 cette passe. La matérialisation réelle est un chantier distinct, ultérieur,
-potentiellement facturé (architect LLM) — soumis à accord §8 le moment venu.
+potentiellement facturé (architect LLM) — soumis à l'accord explicite d'Adrien
+(`CLAUDE.md` §3) le moment venu.
 
 ## 0. Identité
 

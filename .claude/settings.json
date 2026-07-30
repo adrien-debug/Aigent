@@ -1,16 +1,12 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+
+  "//": "Gouvernance 100% locale. Ce workspace ne consomme AUCUNE doctrine distante, aucun marketplace, aucun plugin d'organisation. Les règles du projet vivent dans CLAUDE.md et AGENTS.md, à la racine du repository. Les plugins Hearst sont désactivés ICI même s'ils sont activés dans la configuration utilisateur : ce fichier (portée projet) gagne sur ~/.claude/settings.json (portée utilisateur). Voir CLAUDE.md §9.",
+
   "hooks": {},
-  "extraKnownMarketplaces": {
-    "hearst": {
-      "source": {
-        "source": "github",
-        "repo": "Hearst-Corporation/hearst-claude"
-      }
-    }
-  },
+
   "enabledPlugins": {
-    "hearst-core@hearst": true,
-    "hearst-secops@hearst": true
+    "hearst-core@hearst": false,
+    "hearst-secops@hearst": false
   }
 }

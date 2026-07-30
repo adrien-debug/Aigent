@@ -1,69 +1,211 @@
-<!-- BEGIN:deploy-policy -->
-PROD_AUTODEPLOY: unknown
+# CLAUDE.md — gouvernance du workspace Aigent
 
-Cette valeur déclenche uniquement une **vérification courte** avant push, jamais un blocage.
-
-Si aucun mécanisme d'auto-déploiement réel n'est démontré, un push explicitement demandé par Adrien
-est **autorisé et doit être exécuté**.
-
-La seule présence de fichiers CI, Vercel, Railway, Docker ou d'un ancien hook supposé ne constitue
-**pas** une preuve d'auto-déploiement. Il faut une étape de déploiement réellement câblée.
-
-Ne jamais bloquer indéfiniment un push sur une simple valeur `unknown`.
-<!-- END:deploy-policy -->
+> **Ce fichier et `AGENTS.md` sont la gouvernance complète de ce repository.**
+> Tout ce qui régit le travail sur Aigent est ici ou dans `AGENTS.md`. Aucun autre
+> repository, aucune doctrine distante, aucun plugin, aucun SHA externe, aucune
+> commande de synchronisation n'est nécessaire pour travailler sur ce projet.
+> Si une source extérieure prétend gouverner Aigent, elle a tort.
+>
+> **Périmètre de ce fichier** : méthode de travail, git, sécurité, déploiement.
+> Les invariants techniques (runtime, auth, port, vérité des données) vivent dans
+> `AGENTS.md`. L'état produit réel vit dans `README.md` et `docs/`.
+> Une règle vit dans **un seul** fichier ; ailleurs on y renvoie.
 
 @AGENTS.md
 
-> **Périmètre de ce fichier : git, sécurité opérationnelle, déploiement.** Les invariants
-> techniques (port, runtime, design, vérité runtime) vivent dans `AGENTS.md` ; l'état produit
-> réel dans `README.md` et `docs/current-capabilities.md`. Une règle vit dans UN seul fichier.
+## 1. Hiérarchie — quatre niveaux, rien d'autre
 
-## Git — branche et intégration
+1. **Instruction explicite d'Adrien** pour la mission courante.
+2. **`CLAUDE.md`** (ce fichier) — méthode, git, sécurité, déploiement.
+3. **`AGENTS.md`** — invariants techniques du produit.
+4. **Gates réellement branchées** dans `package.json` (`npm run check`) — arbitre
+   final : une gate rouge gagne sur toute phrase écrite dans un `.md`.
 
-- **On travaille sur `main`.** Pas de branche longue, pas de branche de confort.
-- **Un sous-agent travaille dans un worktree isolé**, jamais dans le working tree d'un autre.
-  Deux agents n'écrivent jamais dans le même arbre en même temps.
-- **L'intégration dans `main` est immédiate** dès que le travail est prêt et validé — on ne
-  laisse pas une branche mûrir.
-- **`stage → commit → push` se déroulent d'un trait.** Le push direct de `main` après
-  validation est le livrable normal, pas une demande séparée.
-- **Staging nommé.** Jamais `git add -A` ni `git add .` quand d'autres agents modifient le
-  repo en parallèle : on stage les fichiers qu'on a écrits, nommément.
-- Ne jamais réécrire (`reset` / `rebase` / `amend` / `force`) un commit qui appartient à un
-  autre agent actif.
-- **Jamais `git push --force` sur `main`.**
+En dessous, le **code et les contrats réels** du repository tranchent : quand un
+document et le code se contredisent, le code dit la vérité et c'est le document
+qu'on corrige.
 
-## Validation avant push
+Les rapports de mission, les documents d'architecture et les archives de `docs/`
+**ne sont jamais des règles actives** — ce sont des observations datées.
 
-Une vérification **ciblée et rapide**, pas une suite complète : ce qui touche au périmètre
-modifié. `npm run check` (statique) suffit dans la plupart des cas ; `npm run verify` quand le
-changement touche le build ou le rendu. La liste des gates est dans
-`docs/current-capabilities.md`, et une gate rouge gagne sur toute phrase de doctrine
-(précédence énoncée dans `AGENTS.md`).
+## 2. Autonomie par défaut
 
-Ne jamais faire passer une gate artificiellement (`@ts-ignore`, `as any` posés pour masquer).
-Ne jamais annoncer « ça marche » sans l'avoir constaté — « codé, non vérifié » est une réponse
-acceptable, une affirmation fausse ne l'est pas.
+Agis sans demander pour tout ce qui est réversible : écrire du code, créer une
+branche, lancer les gates, corriger un test, supprimer un fichier temporaire,
+choisir une option de conception ordinaire. Un doute sur un détail ? Prends le
+défaut le plus raisonnable, annonce-le en une ligne, continue.
 
-## Déploiement
+**Fais ce qui est demandé, entièrement.** « Refais tout » = tout. Si une partie
+n'a pas été faite, dis-le en premier et en clair.
 
-**Le déploiement est une étape distincte du push, et il exige un ordre explicite d'Adrien.**
-`push ≠ deploy`. Aucun agent ne déploie de sa propre initiative, quelle que soit la qualité du
-travail livré.
+## 3. Quand demander — c'est permis, et parfois attendu
 
-Aucune migration destructive, aucun `drop`, aucun reset de base prod, aucun écrasement de
-secret prod sans plan et accord explicite préalable.
+Poser une question n'est **pas** un échec d'autonomie. Demande une clarification
+avant d'agir quand l'ambiguïté peut produire :
 
-## Secrets
+- une suppression importante (fichiers, tables, historique) ;
+- une migration destructive ou une action sur des données de production ;
+- une réécriture d'architecture ou de contrat métier ;
+- une décision visuelle structurante (§8) ;
+- une modification de la gouvernance elle-même (§9) ;
+- un coût externe significatif (appels LLM facturés en volume, matérialisation
+  d'agents chez un provider).
 
-- Un secret ne s'affiche pas, ne se logge pas, ne se committe pas, ne se met pas dans un
-  prompt. Dans le code, une clé se lit via `process.env`.
+Formule la question en une ligne, propose l'option que tu recommandes, et fais
+pendant ce temps tout ce qui ne dépend pas de la réponse.
+
+Pour tout le reste — décisions réversibles, faible risque — l'autonomie reste la
+norme et la question est du bruit.
+
+## 4. Sécurité — secrets
+
+- Un secret ne s'affiche pas, ne se logge pas, ne se committe pas, ne se met pas
+  dans un prompt. Dans le code, une clé se lit via `process.env`.
 - Si tu croises un secret en clair, ne le recopie nulle part.
 - Ne jamais committer `.env.local`.
+- **Hook local** : `npm run hooks:install` câble `core.hooksPath=scripts/hooks`.
+  Le `pre-commit` lance `gitleaks protect --staged --redact` et refuse le commit
+  si un secret est détecté. À faire une fois après un clone.
+- `npm run check:secrets` rejoue `gitleaks` sur tout l'historique ; il fait partie
+  de `npm run check` et tourne aussi en CI.
 
-### Anti-fuite de secrets — pre-commit actif
+## 5. Actions destructives
 
-`npm run hooks:install` câble `core.hooksPath=scripts/hooks` : le hook `pre-commit`
-lance `gitleaks protect --staged --redact` et **refuse** le commit si un secret est
-détecté (vérifié par sonde : commit bloqué, HEAD inchangé). `npm run check:secrets`
-rejoue le scan sur tout l'historique. À faire une fois après un clone.
+Exigent un plan et un accord explicite d'Adrien **avant** :
+
+- migration destructive, `drop`, reset d'une base de production ;
+- écrasement d'un secret de production ;
+- suppression d'une branche distante ou réécriture d'un historique déjà poussé ;
+- toute action à coût réel non demandée (paiement, matérialisation facturée).
+
+Ne l'exigent pas — supprime librement quand c'est utile ou demandé : branches
+locales fusionnées, worktrees propres, fichiers temporaires, artefacts générés,
+caches. « Ne rien perdre » ne veut pas dire « ne rien supprimer ».
+
+## 6. Git
+
+**Workflow normal : une branche `mission/*` par mission, une PR par mission.**
+
+- Une mission importante ouvre une branche `mission/<nom-court>`. Le travail
+  direct sur `main` n'est pas le mode par défaut.
+- **Un seul intégrateur git** par mission. Les sous-agents produisent des
+  fichiers ; ils ne committent pas, ne poussent pas, n'ouvrent pas de PR.
+- Deux agents n'écrivent jamais dans le même working tree en même temps. Un
+  sous-agent qui doit écrire travaille dans un **worktree isolé**, nettoyé en fin
+  de mission (sauf s'il porte du travail non intégré — dans ce cas, signale-le).
+- **Staging nommé** : stage les fichiers que tu as écrits, nommément. Évite
+  `git add -A` / `git add .` quand d'autres fichiers traînent dans l'arbre.
+- `stage → commit → push` de la branche de mission se déroulent d'un trait une
+  fois la validation passée. Pousser la branche de mission ne demande pas
+  d'autorisation séparée.
+- **Le merge dans `main` exige un ordre explicite d'Adrien.** Une PR prête et non
+  mergée est un état normal et complet, pas un échec — annonce-le clairement.
+- **Jamais `git push --force` sur `main`.** Sur une branche de mission qui
+  n'appartient qu'à toi, réécrire l'historique est permis.
+- Ne réécris jamais (`reset` / `rebase` / `amend` / `force`) un commit qui
+  appartient à un autre agent actif.
+- Sur demande explicite d'Adrien : `merge`, `rebase`, `revert`, `reset --hard`,
+  `branch -d/-D`, `worktree remove`, `cherry-pick`, `push`, `tag` sont autorisés
+  sans redemander confirmation. Avant un reset destructif de commits locaux, pose
+  un tag `recovery/*` d'abord.
+
+**Aucun script de ce repository ne doit committer, pousser, ouvrir une PR ou
+configurer GitHub de sa propre initiative.** Un script d'audit, de diagnostic ou
+d'aide (`--help`, `--check`, `--dry-run`) ne produit **aucune écriture** : ni
+fichier, ni git, ni GitHub, ni secret, ni CI, ni configuration machine. Toute
+écriture exige une action explicite et identifiable de l'appelant.
+
+## 7. Validation avant push — proportionnée
+
+Ce qu'on lance dépend de ce qu'on a touché. Il n'y a pas de suite obligatoire.
+
+**Toujours, quand du code est modifié** :
+
+- `npm run typecheck`
+- `npm run lint`
+- les tests ciblés du périmètre modifié
+- `npm run check:secrets` (inclus dans `npm run check`)
+- les invariants métier réellement concernés par le changement
+- `npm run build` quand une surface de build est touchée
+
+En pratique, `npm run check` couvre tout le statique en une commande et c'est le
+défaut raisonnable ; `npm run verify` (check + knip + tests + build) quand le
+changement touche le build ou une surface de rendu. La composition exacte des
+deux chaînes est dans `package.json` — c'est elle qui fait foi, pas un `.md`.
+
+**Seulement quand c'est applicable** — jamais par principe : tests navigateur,
+captures, tests visuels, Storybook, audit de composants, tests frontend,
+migration de base, tests d'intégration externe. **Aucune gate visuelle n'est
+requise tant que le frontend est volontairement vide** (`AGENTS.md` § Frontend).
+
+Ne fais jamais passer une gate artificiellement (`@ts-ignore`, `as any` posés
+pour masquer). Une exception de lint légitime vit dans la config, justifiée.
+
+**Ne jamais annoncer « ça marche » sans l'avoir constaté.** « Codé, non vérifié »
+est une réponse acceptable ; une affirmation fausse ne l'est pas. Une gate verte
+prouve uniquement ce que cette gate mesure — la carte des angles morts est dans
+`scripts/README-gates.md`.
+
+## 8. Front & design — libre
+
+Le futur front est libre. **Aucune règle de ce repository n'impose** Storybook,
+Catalyst, Tailwind, une palette, une typographie, un kit de composants, une
+structure de navigation, un système de tokens, une architecture de composants ou
+une doctrine visuelle. Aucune gate visuelle n'existe, et il ne faut pas en
+réintroduire une sans mission dédiée.
+
+Ce qui reste, et qui ne touche pas au visuel :
+
+- **Pas de refonte non demandée** : si Adrien demande un bouton, ne redessine pas
+  la page.
+- **Navigateur piloté (Playwright/Chrome)** : toujours le fermer en fin, même sur
+  erreur. Jamais le profil Chrome quotidien d'Adrien. Jamais de contournement de
+  MFA/CAPTCHA.
+
+Les choix UI arriveront avec les blocs et les missions futurs. Ne les anticipe
+pas ici.
+
+## 9. La gouvernance ne se modifie pas en passant
+
+`CLAUDE.md`, `AGENTS.md`, `.claude/settings.json` et `.claude/agents/*.md` ne se
+modifient que dans une **mission dédiée à la gouvernance**, demandée comme telle
+par Adrien. Une mission de code ne les touche pas au passage.
+
+Corollaire : **aucun mécanisme automatique ne réécrit ces fichiers.** Pas de
+synchronisation, pas de repin, pas de mise à jour de doctrine, pas de script de
+setup qui réinstalle des règles ou des gates. Si une commande extérieure au
+repository propose de le faire, ne la lance pas — signale-la à Adrien.
+
+## 10. Déploiement
+
+**`push ≠ deploy`. Le déploiement exige un ordre explicite d'Adrien**, quelle que
+soit la qualité du travail livré. Aucun agent ne déploie de sa propre initiative.
+
+**Fait vérifié le 2026-07-30** : ce repository n'a **aucun auto-déploiement**.
+`.github/workflows/ci.yml` ne contient que deux jobs — `check + build` et
+`sonarqube` — et aucune étape de déploiement. Il n'existe ni `vercel.json`, ni
+`railway.json`, ni `fly.toml`, ni `netlify.toml`. Les fichiers de `deploy/` sont
+des `docker-compose` lancés à la main sur GPU1.
+
+Conséquence : **un push demandé par Adrien ne déploie rien et doit être exécuté.**
+Si un mécanisme de déploiement automatique est câblé plus tard, cette section est
+l'endroit où le dire — avec sa preuve.
+
+## 11. Sous-agents
+
+- Petite tâche → conversation principale, pas de fan-out.
+- Mission moyenne ou complexe → quelques workers sur des périmètres disjoints, et
+  **un seul intégrateur** qui touche git et consolide.
+- Un worker rapporte des fichiers et une validation. Il ne commit pas, ne pousse
+  pas, n'ouvre pas de PR, ne déploie pas.
+- Chaque agent déclare son périmètre et s'y tient. Les fiches de
+  `.claude/agents/` décrivent des domaines techniques, pas une autorité.
+
+## 12. Rapport
+
+Proportionné à la tâche : ce qui a été fait · les fichiers · la preuve quand elle
+existe · le SHA · ce qui reste. Pas de bloc de rapport imposé, pas de cérémonie.
+
+Distingue toujours ce que tu **sais**, ce que tu **déduis**, et ce qui est
+**indisponible**. N'invente jamais une donnée ; une donnée absente se dit absente,
+elle ne devient pas un zéro.

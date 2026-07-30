@@ -141,12 +141,17 @@ checking that an unauthenticated `GET /api/agent-ops/copilots` returns exactly
   serves a real file (`package.json`, 200, real `text` content) from a repo
   resolved dynamically from the live backend (never a hardcoded guess that
   might not be reachable).
-- **`pages.test.ts`** — logs in via the real `/api/auth/login` route with
-  `AMC_ADMIN_PASSWORD`, then checks `/admin` (Command Center copy: Production
-  Agents / Projects / Requires Attention) and an agent-detail page return 200
-  with that session cookie, that the removed list `/admin/agents` redirects to
-  `/admin`, and that `/admin` without a cookie redirects (3xx) rather than
-  rendering.
+- **`missions-api.test.ts`** — logs in via the real `/api/auth/login` route
+  with `AMC_ADMIN_PASSWORD` and reads
+  `GET /api/agent-ops/projects/proj-tradeagent/missions/latest` with that session
+  cookie, asserting the persisted mission is `completed` and carries a real
+  `runId`.
+
+  > This file used to be `pages.test.ts` and asserted that `/admin`,
+  > `/admin/agents` and `/admin/agents/:id` rendered. The frontend reset deleted
+  > all of those routes, so those assertions were guaranteed-red against a
+  > correct app; they were removed on 2026-07-30 and the file renamed to match
+  > what it actually tests. **There is no page test today — there is no page.**
 
 Run: `npm run test:live` (alias for `vitest run tests/live`).
 

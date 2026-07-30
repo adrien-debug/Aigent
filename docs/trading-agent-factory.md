@@ -7,10 +7,11 @@ and never touches a market/order/account-write path**.
 
 > Status of THIS build: the non-LLM socle (market tools, output contracts,
 > agent definitions, test corpus, benchmark scoring, shadow mode, council,
-> delivery packaging, UI) is complete and unit-tested. **Materializing the six
+> delivery packaging) is complete and unit-tested. There is **no UI** — the
+> frontend was reset and the only surface is the HTTP API. **Materializing the
 > agents as real OpenAI-backed copilots, running benchmarks, and the V2
-> improvement loop are OpenAI-billed steps gated behind explicit human
-> approval (global rule §8)** — see the Runbook.
+> improvement loop are OpenAI-billed steps that require Adrien's explicit
+> approval** (`CLAUDE.md` §3 and §5) — see the Runbook.
 
 ## 1. Architecture
 

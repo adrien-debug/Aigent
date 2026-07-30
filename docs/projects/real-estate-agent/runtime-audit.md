@@ -1,3 +1,10 @@
+ARCHIVED — relevé daté, pas l'état courant ni de la doctrine
+
+> **Ce document est un audit daté**, pas une source de vérité actuelle. Ses
+> constats de cartographie restent instructifs, mais ses recommandations finales
+> visent un état du repo qui a changé depuis. Les règles vivent dans `CLAUDE.md`
+> et `AGENTS.md` ; l'état courant dans `README.md` et `docs/current-capabilities.md`.
+
 # Runtime audit — LangGraph vs model-router direct
 
 Passe read-only. Cartographie exacte des chemins d'exécution runtime dans

@@ -317,7 +317,7 @@ Cet agent reste au statut `specification` tant que :
 
 1. Le graph LangGraph n'est pas matérialisé en copilot réel (roster →
    manifest → provisioning), étape distincte et potentiellement facturée
-   (architect LLM) — nécessite accord §8 le moment venu.
+   (architect LLM) — nécessite l'accord explicite d'Adrien le moment venu (`CLAUDE.md` §3).
 2. La suite de tests §16 n'existe pas encore et ne tourne pas en vert.
 3. Aucun run réel (`agent_runs`) n'a été exécuté.
 

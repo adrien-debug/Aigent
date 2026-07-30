@@ -10,7 +10,7 @@ agent réel n'existe encore en base pour ce projet).
 ## 1. Authentification service-to-service (fail-closed)
 
 - **Frontière de confiance dédiée.** `/api/runtime/v1/**` n'est PAS gardé par
-  `src/proxy.ts` (qui protège `/admin/**` et `/api/agent-ops/**` avec la
+  `src/proxy.ts` (qui protège `/api/agent-ops/**` — et uniquement lui — avec la
   session admin / `AMC_API_KEY`) et n'est pas non plus le canal telemetry
   best-effort (`/api/runtime-telemetry`, `AIGENT_RUNTIME_TELEMETRY_TOKEN`).
   C'est une troisième frontière, plus étroite : un runtime consommateur

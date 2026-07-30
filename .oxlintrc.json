@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "categories": { "correctness": "error", "suspicious": "warn" },
-  "ignorePatterns": ["dist", "build", ".next", "storybook-static", "coverage"],
+  "ignorePatterns": ["dist", "build", ".next", "coverage"],
   "rules": {
     "unicorn/no-array-sort": "warn",
     "unicorn/no-array-reverse": "warn",

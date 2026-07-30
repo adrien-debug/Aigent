@@ -1,106 +1,124 @@
-# Architecture — how Aigent is put together
+# Architecture — comment Aigent est assemblé
 
-> Structural map. What each layer is and where its boundary is. Capability
-> states live in `docs/current-capabilities.md`; runtime invariants live in
-> `AGENTS.md`.
+> Carte structurelle : ce qu'est chaque couche et où passe sa frontière. L'état
+> des capacités vit dans `docs/current-capabilities.md` ; les invariants runtime
+> dans `AGENTS.md`. **Ce fichier n'est pas de la doctrine** — c'est une carte, et
+> en cas de contradiction avec le code, c'est le code qui a raison.
 
-## Layers
+## Couches
 
 ```
-browser
+appelant HTTP  (opérateur · automatisation · agent déployé chez un consommateur)
   │
-  ├── /                  marketing site        src/app/(site)/
-  └── /admin/**          console (session-gated)
-        │
-        ▼
-   src/proxy.ts          identity gate — fail-closed
-        │
-        ├── /admin/**            valid admin session cookie required
-        └── /api/agent-ops/**    session cookie OR x-amc-key
-        │
-        ▼
-   src/app/api/**        route handlers — the ONLY write points
-        │
-        ▼
-   src/lib/**            data layer, runner, model router, tools  (server-only)
-        │
-        ├──► PostgREST ──► Postgres `aigent` on GPU1
-        └──► LangGraph Agent Server (127.0.0.1:2024 in dev)
+  ├── /                        page placeholder « Frontend reset complete »
+  │                            (aucune UI — cf. AGENTS.md § Frontend)
+  │
+  ▼
+src/proxy.ts                   garde d'identité — matcher : /api/agent-ops/** UNIQUEMENT
+  │                            (convention Next `proxy` ; il n'y a PAS de middleware.ts)
+  ▼
+src/app/api/**                 route handlers — les SEULS points d'écriture
+  │                            · /api/agent-ops/**      gardé par le proxy
+  │                            · /api/runtime-telemetry  jeton propre, hors matcher
+  │                            · /api/runtime/v1/**      jeton propre, hors matcher
+  │                            · /api/auth/login         frappe la session, hors matcher
+  ▼
+src/lib/**                     data layer, runner, model router, registre, lifecycle
+  │                            (server-only)
+  ├──► PostgREST ──► Postgres `aigent` sur GPU1
+  └──► LangGraph Agent Server (127.0.0.1:2024 en dev)
 ```
 
-## Trust boundaries — there are three, deliberately separate
+## Frontières de confiance — trois, séparées exprès
 
-| Surface | Who | Credential |
+| Surface | Appelant | Credential |
 |---|---|---|
-| `/admin/**` | a human operator | HMAC-signed session cookie (`src/lib/agent-mission-control/auth.ts`) |
-| `/api/agent-ops/**` | operator or Aigent's own automation | session cookie **or** `x-amc-key` |
-| `/api/runtime-telemetry` | an agent deployed in a **consumer** repo | its own bearer token, `AIGENT_RUNTIME_TELEMETRY_TOKEN` — never `AMC_API_KEY` |
-| `/api/runtime/v1/**` | a consumer product reading its agents | bearer token (`bearer-token-auth.ts`) |
+| `/api/agent-ops/**` | opérateur ou automatisation d'Aigent | cookie de session HMAC (`auth.ts`) **ou** `x-amc-key` |
+| `/api/runtime-telemetry` | un agent déployé dans un repo **consommateur** | son propre jeton `AIGENT_RUNTIME_TELEMETRY_TOKEN` — **jamais** `AMC_API_KEY` |
+| `/api/runtime/v1/**` | un produit consommateur lisant ses agents | son propre jeton `AIGENT_RUNTIME_API_TOKEN` (`bearer-token-auth.ts`) |
 
-The telemetry endpoint is mounted **outside** `/api/agent-ops/**` on purpose: a
-consumer's deployed handler is a narrower, less-trusted caller than an operator,
-so it gets its own token and its own gate. Its payload is treated as
-attacker-controlled end to end — 16 KB cap, strict Zod shape, secret-pattern
-scan, and nothing is echoed back, not even on error.
+L'endpoint de télémétrie est monté **hors** de `/api/agent-ops/**` volontairement :
+le handler déployé chez un consommateur est un appelant plus étroit et moins
+fiable qu'un opérateur, donc il a son jeton et sa garde. Son payload est traité
+comme contrôlé par un attaquant de bout en bout — plafond 16 Ko, forme Zod
+stricte, scan de motifs de secrets, et **rien n'est renvoyé en écho**, pas même
+sur erreur.
 
-Local dev has one escape hatch: `AMC_DEV_BYPASS_AUTH=1` with
-`NODE_ENV !== 'production'` skips the session gate on `/admin/**` pages only.
-It cannot affect a production build and never bypasses the data API.
+Deux points à ne pas arrondir :
 
-## Directory map
+- **Le proxy ne garde que `/api/agent-ops/**`.** Une route mutante posée ailleurs
+  n'est gardée par rien : soit elle reste sous ce préfixe, soit elle apporte sa
+  propre authentification explicite — c'est ce que font, délibérément, les deux
+  surfaces runtime ci-dessus.
+- **Le fail-closed est total en production seulement.** `auth.ts` porte des
+  fallbacks dev-only (secret de session et mot de passe admin par défaut) qui
+  deviennent inertes dès `NODE_ENV === 'production'`. En dev, sans
+  `AMC_SESSION_SECRET`, une session reste frappable via `POST /api/auth/login`.
 
-| Path | What |
+Il n'y a plus d'échappatoire de bypass d'authentification : la variable
+`AMC_DEV_BYPASS_AUTH` n'est lue par aucun code.
+
+## Carte des répertoires
+
+| Chemin | Contenu |
 |---|---|
-| `src/app/(site)/` | Marketing site — Tailwind Plus blocks restyled on project tokens. |
-| `src/app/admin/` | Console routes (6 pages + layout + error boundary). |
-| `src/app/api/agent-ops/` | Operator/automation API — ~60 route handlers. |
-| `src/app/api/runtime/v1/` | Consumer-facing runtime API (7 routes). |
-| `src/app/api/runtime-telemetry/` | Telemetry ingestion from deployed agents. |
-| `src/components/console/` | Console screens + `console-shell.tsx` + `charts/`. |
-| `src/components/ui/` | Vendored Catalyst primitives — only what a live route consumes. |
-| `src/components/marketing/` | Marketing-only components. |
-| `src/lib/agent-mission-control/` | Data layer, runner, model router, tools, lifecycle. All `server-only`. |
-| `src/lib/agent-mission-control/registry/` | Canonical runtime + tool registry — the authority. |
-| `src/lib/runs-console/` | Runs page data, filters, metrics. |
-| `src/langgraph/` | The `agent_builder` `StateGraph`, tool registry, own PostgREST client. |
-| `supabase/migrations/` | 40 migrations for the `aigent` perimeter. |
-| `scripts/` | Gates (`check-*.mjs`), provisioning, one-shot proofs (`scripts/archive/`). |
-| `deploy/` | Container/Caddy config: `app/`, `db/` (PostgREST), `langgraph/`. |
-| `tests/unit/` | Offline suite (part of `verify`). |
-| `tests/live/` | Opt-in suite — hits GPU1 + OpenAI, costs money, never in `verify`. |
+| `src/app/page.tsx`, `layout.tsx`, `globals.css` | toute l'UI existante : un placeholder technique |
+| `src/app/api/agent-ops/` | API opérateur / automatisation — la majorité des routes |
+| `src/app/api/runtime/v1/` | API runtime côté consommateur (7 routes) |
+| `src/app/api/runtime-telemetry/` | ingestion de télémétrie depuis les agents déployés |
+| `src/app/api/auth/login/` | frappe de session (rate-limitée, constant-time) |
+| `src/lib/agent-mission-control/` | data layer, runner, model router, outils, lifecycle. Tout en `server-only` |
+| `src/lib/agent-mission-control/registry/` | registre canonique runtimes + outils — l'autorité |
+| `src/lib/agent-mission-control/market/` | domaine trading, **read-only**, aucun chemin d'écriture |
+| `src/lib/runs-console/` | métriques, filtres et séries temporelles des runs — testé, sans lecteur depuis le reset |
+| `src/langgraph/` | le `StateGraph` `agent_builder`, son registre d'outils, son client PostgREST autonome |
+| `src/proxy.ts` | la garde d'identité |
+| `supabase/migrations/` | schéma versionné du périmètre `aigent` |
+| `scripts/` | gates (`check-*.mjs`), provisioning, preuves ponctuelles (`scripts/archive/`) |
+| `deploy/` | configuration conteneurs : `app/`, `db/` (PostgREST), `langgraph/` |
+| `tests/unit/` | suite offline (dans `verify`) |
+| `tests/live/` | suite opt-in — tape GPU1 + OpenAI, coûte de l'argent, jamais dans `verify` |
 
-## Two execution paths, one contract
+Les répertoires `src/components/`, `src/app/admin/`, `src/app/(site)/` et le
+fichier `src/theme.css` **n'existent plus** ; `check:no-legacy-front` refuse leur
+retour.
 
-1. **LangGraph Agent Server** — the mandatory runtime for every agent
-   (`runtime: 'langgraph'`). Human-in-the-loop: a confirmation-required tool
-   pauses the graph, the run persists as `needs-confirmation`, and a dedicated
-   resume route continues it.
-2. **Direct model-router loop** (`model-router.ts`) — non-streamed, resolves the
-   copilot's own provider per-copilot (`model_provider`), not globally.
+## Deux chemins d'exécution, un contrat
 
-Both mount the copilot's scoped executable tools from the same canonical
-registry. The provider set and its wiring state are in
-`docs/current-capabilities.md`; the LangGraph assistant trap is in `AGENTS.md`.
+1. **LangGraph Agent Server** — le **seul runtime produit exécutable**
+   (`runtime: 'langgraph'`, imposé à la création, à l'exécution, dans le contrat
+   canonique et dans le registre). Human-in-the-loop : un outil exigeant
+   confirmation met le graphe en pause, le run est persisté en
+   `needs-confirmation`, et une route dédiée le reprend.
+2. **Boucle model-router directe** (`model-router.ts`) — non streamée, résout le
+   provider par copilot. Depuis que la garde d'exécution refuse tout runtime
+   autre que `langgraph`, ce chemin n'est plus atteint que par les runners de
+   test et de benchmark.
 
-## Data
+Les deux montent les outils du copilot depuis le même registre canonique. Les
+providers réellement câblés (`openai`, `google` avec tool-use, `local` en opt-in)
+et le seul non câblé (`mistral`) sont dans `docs/current-capabilities.md` ; le
+piège de l'assistant LangGraph manquant est dans `AGENTS.md`.
 
-Postgres `aigent` on GPU1, reached over **PostgREST** with a service-role key,
-server-side only. RLS is deny-by-default. There is **no mock data source** for
-authoring or runs — without the backend and the selected provider's credentials,
-those paths return `503` / `ProviderUnavailableError`. See `docs/BACKEND-GPU1.md`.
+## Données
+
+Postgres `aigent` sur GPU1, atteint via **PostgREST** avec une clé service-role,
+côté serveur uniquement. RLS deny-by-default. **Il n'existe aucune source de
+données mock** pour l'authoring ou les runs : sans le backend et sans les
+credentials du provider sélectionné, ces chemins renvoient `503` /
+`ProviderUnavailableError`. Voir `docs/BACKEND-GPU1.md`.
+
+Une nouvelle table doit **activer RLS** et **granter explicitement à
+`service_role`** : le grant « on all tables » ne couvre pas le futur, et des
+tables ont déjà vécu sans RLS pour cette raison.
 
 ## Front end
 
-Next.js 16 App Router (breaking changes vs. older Next — read
-`node_modules/next/dist/docs/` first), React 19, TypeScript, Tailwind v4,
-Catalyst primitives. Single typeface: Satoshi Variable, for everything —
-`--font-sans` and `--font-mono` both resolve to it (`src/theme.css`), so a
-`font-mono` class is a `tabular-nums` alignment choice, not a family change.
+Next.js App Router (**ruptures d'API par rapport aux versions antérieures — lis
+`node_modules/next/dist/docs/` avant de toucher au code framework**), React,
+TypeScript. Pas de Tailwind, pas de kit UI, pas de fichier de tokens : la surface
+se réduit à trois fichiers et à un `globals.css` de huit lignes.
 
-Console screens are server components by default. `agents-screen`,
-`project-builder-screen` and `runs-screen` are client components; `overview-screen`,
-`projects-screen` and `agent-detail-screen` stay on the server.
-
-Visual tokens live in `src/theme.css` as the **current** console starting point;
-this workspace is free design (see `AGENTS.md`) — no mandated palette or kit.
-Operational guide: [`docs/console-design-system.md`](console-design-system.md).
+Le futur front est **libre** : aucun design system, aucune palette, aucune
+typographie, aucune structure de navigation n'est imposée par ce repository, et
+aucune gate visuelle n'existe (`CLAUDE.md` §8).

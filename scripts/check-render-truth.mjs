@@ -28,27 +28,30 @@
  *     truthiness test whose false branch asserts a measurement ("never used",
  *     "none", "0"). Null means nobody wrote it — say so, do not measure it.
  *
- * Scope: the surfaces users actually read — `src/app/admin/**`,
- * `src/lib/runs-console/**` and `src/components/console/**`. Exit 0 = clean,
- * exit 1 = violation. Read-only, no network, no secret.
+ * SCOPE — read this before adding a directory.
  *
- * WHY `src/components/console` IS IN THE LIST. The pages under `src/app/admin/**`
- * are now thin: they read data and hand it to a screen component. Every figure a
- * human actually reads is rendered in `src/components/console/**`, so a guard
- * that stopped at the route layer had gone almost entirely decorative — proved,
- * not assumed: a file containing `run.costUsd ?? 0` placed in that directory
- * passed this guard before the directory was added here, and fails it after.
+ * The guard used to scan three roots: `src/app/admin/**`, `src/lib/runs-console/**`
+ * and `src/components/console/**`. The frontend reset deleted the first and the
+ * third (AGENTS.md § Frontend). Keeping them listed made the guard announce that
+ * it had cleared "the admin surfaces" while opening a third of what it named —
+ * exactly the class of green-gate-that-lies this repo has been burned by.
+ *
+ * It now scans the one root that still exists, `src/lib/runs-console/**`: the
+ * run metrics/filters/timeseries layer, which is real, tested code and is what a
+ * rebuilt front will read its figures from. When new read surfaces appear, add
+ * them HERE — and only once they exist on disk.
+ *
+ * ANTI-BLINDNESS: a scan root that has vanished, or a run that opened zero files,
+ * FAILS. A guard that measured nothing must never exit 0 silently.
+ *
+ * Exit 0 = clean, exit 1 = violation. Read-only, no network, no secret.
  */
-import { readFile, readdir } from 'node:fs/promises'
+import { readFile, readdir, access } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const SCANNED_DIRS = [
-  join(ROOT, 'src/app/admin'),
-  join(ROOT, 'src/lib/runs-console'),
-  join(ROOT, 'src/components/console'),
-]
+const SCANNED_DIRS = [join(ROOT, 'src/lib/runs-console')]
 
 /**
  * Field names that ARE measurements in this codebase's contracts (`types.ts`,
@@ -190,9 +193,25 @@ async function main() {
   const nanCoercions = []
   const assertedAbsence = []
   const matchedDebt = new Set()
+  let scannedFiles = 0
 
   for (const dir of SCANNED_DIRS) {
+    // Anti-cécité 1/2 : une racine de scan disparue fait ÉCHOUER la gate.
+    // Sans ça, supprimer un répertoire suffirait à rendre ce garde vert.
+    try {
+      await access(dir)
+    } catch {
+      console.error(`\n✗ Render-truth guard FAILED — scan root missing: ${relative(ROOT, dir)}`)
+      console.error(
+        "  Une gate ne doit jamais passer au vert parce que sa cible a disparu.\n" +
+          "  Si ce répertoire a été supprimé volontairement, retire-le de SCANNED_DIRS\n" +
+          '  dans ce script, en connaissance de cause.\n'
+      )
+      process.exit(1)
+    }
+
     for await (const file of walk(dir)) {
+      scannedFiles += 1
       const rel = relative(ROOT, file)
       const text = await readFile(file, 'utf8')
 
@@ -227,15 +246,24 @@ async function main() {
     console.error('\nRender-truth guard FAILED.\n')
     process.exit(1)
   }
+
+  // Anti-cécité 2/2 : les racines existaient mais n'ont rendu aucun fichier.
+  if (scannedFiles === 0) {
+    console.error('\n✗ Render-truth guard FAILED — 0 fichier scanné.')
+    console.error("  Les racines existent mais sont vides : cette gate n'a rien mesuré.\n")
+    process.exit(1)
+  }
+
+  const roots = SCANNED_DIRS.map((d) => relative(ROOT, d)).join(', ')
   console.log(
-    `✓ Render-truth guard passed — no fabricated zero, no NaN coercion and no asserted absence in the admin surfaces (${KNOWN_DEBT.size} known debt file(s) still exempted).`
+    `✓ Render-truth guard passed — no fabricated zero, no NaN coercion and no asserted absence.\n` +
+      `  ${scannedFiles} fichier(s) scanné(s) dans ${roots} (${KNOWN_DEBT.size} known debt file(s) exempted).`
   )
 }
 
-// Run the scan only when this file IS the entry point. `stripComments` is
-// imported by scripts/check-catalyst.mjs (one comment-stripper for both guards,
-// not two that drift); a bare top-level `await main()` would make that guard
-// silently run this one — and inherit its process.exit(1).
+// Run the scan only when this file IS the entry point — a bare top-level
+// `await main()` would make any importer of `stripComments` silently run this
+// guard, and inherit its process.exit(1).
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   await main()
 }

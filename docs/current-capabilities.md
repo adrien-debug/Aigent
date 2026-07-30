@@ -1,128 +1,137 @@
 # Current capabilities — verified state
 
-> Established by reading the code at the SHA this file was committed on. Each
-> row's **proof** column names a file you can open. A capability with no proof
-> file does not belong in this table.
+> État établi par lecture du code, au SHA où ce fichier a été committé. La colonne
+> **preuve** nomme un fichier que tu peux ouvrir. Une capacité sans fichier de
+> preuve n'a pas sa place dans ce tableau.
 >
-> **States** — `wired` (reachable from the console by an operator) ·
-> `partial` (works but with a named restriction) · `backend-only` (the HTTP
-> route or library exists and is tested, but no console surface reaches it) ·
-> `not wired` (declared in code, throws or does nothing).
+> **Ce fichier n'est pas de la doctrine** — c'est un constat daté et faillible.
+> Les règles vivent dans `CLAUDE.md` et `AGENTS.md`. En cas de contradiction entre
+> ce document et le code, **le code a raison** et c'est ce document qu'on corrige.
 >
-> The distinction that matters most here is **wired vs backend-only**. The
-> console rebuilt in the current cycle is an **operator control plane**: reads
-> fleet state on Overview/Runs/Projects/Agents and exposes lifecycle actions
-> (run, tests, benchmarks, qualification, shadow, replay, improve, promotion,
-> delivery-loop, shipping) from the agent detail screen, project builder and
-> related panels — always with the backend restrictions named in each row.
+> **États** — `wired` (atteignable de bout en bout par un appelant réel) ·
+> `partial` (fonctionne avec une restriction nommée) · `backend-only` (la route
+> HTTP ou la bibliothèque existe et est testée, mais aucune surface opérateur ne
+> l'atteint) · `not wired` (déclaré dans le code, lève ou ne fait rien).
 
-## Console (operator-reachable)
+## Frontend — volontairement absent
 
-| Capability | State | Proof |
+Le front historique a été entièrement supprimé (mission `frontend-reset`). Il
+reste exactement trois fichiers d'UI : `src/app/page.tsx` (placeholder technique
+« Frontend reset complete »), `src/app/layout.tsx`, `src/app/globals.css`.
+
+| Ce qui n'existe plus | Détail |
+|---|---|
+| Console `/admin` | supprimée — aucun dashboard, aucune navigation |
+| Marketing `(site)/` | supprimé |
+| `src/components/` | supprimé — aucun design system, aucun kit UI |
+| `src/theme.css`, `design/` | supprimés |
+
+**Depuis ce reset, l'unique surface d'accès au produit est l'API HTTP.** Toute
+ligne de ce document qui décrirait un bouton, un écran ou un clic serait fausse :
+ce qui suit se lit « atteignable par requête HTTP authentifiée », jamais « visible
+à l'écran ». La gate `npm run check:no-legacy-front` refuse la réapparition de
+`src/components/`, `/admin`, `design/`, etc.
+
+La reconstruction UI viendra en blocs séparés, en **free design** : aucun kit,
+aucune palette, aucun système de tokens imposé (`AGENTS.md` § Frontend).
+
+## Authoring & lifecycle
+
+Toutes ces capacités sont **backend-only** au sens strict de ce document — elles
+n'ont plus de surface opérateur depuis le reset. La colonne État qualifie donc le
+**mécanisme**, et nomme sa restriction propre quand il y en a une.
+
+| Capacité | État | Preuve |
 |---|---|---|
-| Overview screen — fleet KPIs, run trend, per-agent activity, architect approvals in action queue, runtime-telemetry feed | wired | `src/app/admin/page.tsx`, `src/components/console/overview-screen.tsx`, `pending-architect-approvals.ts` |
-| Runs screen — live run stream, filters, metrics | wired | `src/app/admin/runs/page.tsx`, `src/lib/runs-console/runs-page-data.ts` |
-| Agents list — catalogue with executable / degraded status | wired | `src/app/admin/agents/page.tsx`, `src/components/console/agents-screen.tsx` (`'use client'`), `src/lib/agent-mission-control/available-agents.ts` |
-| Agent detail — lifecycle trace, qualification, improve, delivery controls | wired | `src/app/admin/agents/[id]/page.tsx`, `src/components/console/agent-detail-screen.tsx`, `qualification-panel.tsx`, `improve-panel.tsx`, `delivery-controls.tsx`, `agent-actions.tsx` |
-| Agent detail — governed lifecycle trace (draft → … → V2 draft), each stage sourced independently | wired | `src/lib/agent-mission-control/agent-lifecycle-trace.ts`, `src/components/console/lifecycle-trace-panel.tsx`; `active_in_consumer` is always `unknown` by design (no consumer-side read channel); telemetry leg fail-soft |
-| Projects list | wired | `src/app/admin/projects/page.tsx` |
-| Project builder — conversational agent authoring, SSE-streamed | wired | `src/app/admin/projects/[id]/builder/page.tsx`, `src/components/console/project-builder-screen.tsx` |
-| Console shell — rail, topbar, degraded-state indicator | wired | `src/components/console/console-shell.tsx` |
-| Marketing site (`/`, `/about`, `/pricing`, `/contact`) | wired | `src/app/(site)/` |
-| Login | wired | `src/app/api/auth/login/route.ts`, `src/proxy.ts` |
+| Flow architect — description NL → manifest structuré | wired (HTTP) | `api/agent-ops/architect/route.ts`, `authoring-types.ts` |
+| Matérialisation d'un copilot depuis un manifest | wired | `authoring-writes.ts` (`createCopilotFromManifest`) |
+| Auto-eval à la création (suites test + bench générées) | wired | `agent-autoeval.ts` (`prepareAutoEval`), `agent-suite-generator.ts` |
+| Run réel d'un copilot | wired — garde fail-closed à trois conditions | `copilots/[copilotId]/run/route.ts`, `runner.ts` |
+| Garde d'exécution — `active` + tools résolus + runtime `langgraph` | wired | `copilots/[copilotId]/run/route.ts` |
+| Human-in-the-loop interrupt / resume | wired | `copilots/[copilotId]/runs/[runId]/resume/route.ts`, `langgraph-server.ts` |
+| Génération + exécution de suites de tests | wired | `tests/generate/route.ts`, `tests/run/route.ts`, `test-runner.ts` |
+| Benchmarks (unitaire + sweep) | partial — les tâches sont sourcées depuis `test_cases`, il n'existe pas de table `benchmark_tasks` | `benchmarks/run/route.ts`, `benchmark-runner.ts` |
+| Release gate — 9 checks recalculés live | wired | `release-gate.ts` |
+| Promotion gate — étend le release gate (exécutabilité runtime, tools résolus) | wired | `promotion-gate.ts` |
+| Orchestrateur de qualification (tests → bench → shadow → replay → gate) | wired | `qualification-orchestrator.ts`, `copilots/[copilotId]/qualification/route.ts` |
+| Shadow experiment | wired | `shadow-live.ts`, `versions/[versionId]/shadow/route.ts` |
+| Replay comparison | wired | `replay-live.ts`, `versions/[versionId]/replay/route.ts` |
+| Promotion vers `active` | wired — transactionnelle via RPC Postgres, jamais d'auto-promotion | `copilots/[copilotId]/promotion/route.ts`, RPC `promote_copilot_version` |
+| Boucle d'amélioration — analyze / create-v2 / decision | wired — un seul cycle ouvert à la fois, décision humaine obligatoire | `improvement-loop.ts`, routes `improve/*` |
+| Diagnostic déterministe des échecs (autoritaire sur le LLM) | wired | `improvement-diagnosis.ts` |
+| Project builder conversationnel (boucle d'outils repo, SSE) | wired (HTTP) — plus aucune UI cliente | `project-builder-conversation.ts`, `projects/[id]/builder/*` |
+| Repo scan / repo intelligence | wired — lecture GitHub bornée, n'écrit jamais | `repo-scan.ts`, `repo-intelligence.ts` |
 
-The rail carries exactly four entries: Overview, Runs, Projects, Agents. The
-builder is reached from the Projects screen because it needs a project id.
-`Factory`, `Performance`, `Settings`, `Telemetry` are **deleted routes** —
-`scripts/check-no-legacy-front.mjs` fails the build if any reappears.
+## Shipping vers les produits consommateurs
 
-## Authoring & lifecycle (console controls)
-
-| Capability | State | Proof |
+| Capacité | État | Preuve |
 |---|---|---|
-| Architect flow — NL description → structured manifest | partial — project-builder conversation; bench-only `architect/run` has no DB row | `project-builder-screen.tsx`, `src/app/api/agent-ops/architect/route.ts` |
-| Agent drafts persistence | wired (builder) | `project-builder-screen.tsx`, `agent-drafts-store.ts` |
-| Real agent run (direct model-router path) | wired — confirmation required for billed paths | `agent-actions.tsx`, `copilots/[copilotId]/run/route.ts`, `runner.ts` |
-| Execution guard — fail-closed, only `active` + all tools resolved may run | wired | `copilots/[copilotId]/run/route.ts`, topbar on agent detail |
-| Human-in-the-loop interrupt / resume | wired (builder) | `project-builder-screen.tsx`, `copilots/[copilotId]/runs/[runId]/resume/route.ts` |
-| Test suite generation + run | wired | `qualification-panel.tsx`, `tests/generate/route.ts`, `tests/run/route.ts` |
-| Benchmarks (single + sweep) | wired | `qualification-panel.tsx`, `benchmarks/run/route.ts`, `benchmarks/sweep/route.ts` |
-| Shadow experiment | wired | `qualification-panel.tsx`, `versions/[versionId]/shadow/route.ts` |
-| Replay comparison | wired | `qualification-panel.tsx`, `versions/[versionId]/replay/route.ts` |
-| Release gate (9 checks) | wired (read + trigger via qualification) | `qualification-panel.tsx`, `release-gate.ts` |
-| Qualification orchestrator (tests → benchmark → shadow → replay → gate) | wired | `qualification-panel.tsx`, `qualification-orchestrator.ts` |
-| Promotion to `active` | wired — governed, no auto-promote | `qualification-panel.tsx`, `copilots/[copilotId]/promotion/route.ts` |
-| Improvement loop — analyze / create-v2 / decision | wired | `improve-panel.tsx`, `improve/*` routes |
-| Target-repo sandbox | wired | `delivery-controls.tsx`, `target-sandbox/route.ts` |
+| Provisioning d'un workspace consommateur | partial — l'API existe ; l'UI d'intake est livrée dans le pack consommateur | `provision-consumer/route.ts`, `consumer-bootstrap.ts` |
+| Push des artefacts d'agent vers le repo consommateur | wired — **dry-run** sauf `GITHUB_PUSH_ENABLED=1` **et** `confirm: true` | `push-agent/route.ts`, `github.ts` (`pushAgentToRepo`) |
+| Push sous forme de pull request | wired — mêmes deux verrous | `github.ts` (`pushAgentToRepoPullRequest`) |
+| Delivery loop + delivery scorecard | wired | `delivery-loop/route.ts`, `delivery-scorecard-server.ts` |
+| Runtime API v1 — le consommateur lit ses agents et poste ses runs | backend-only | `src/app/api/runtime/v1/**` (7 routes), `runtime-catalogue.ts` |
 
-## Shipping to consumer products
+**Après provisioning, Aigent ne fait que POUSSER.** Les gestes activate / rebind /
+deploy-version appartiennent au workspace consommateur — c'est la raison
+structurelle pour laquelle `active_in_consumer` reste `unknown`.
 
-| Capability | State | Proof |
+## Télémétrie
+
+| Capacité | État | Preuve |
 |---|---|---|
-| Consumer workspace provisioning (intake pack into the linked repo) | partial — API exists; intake UI ships in consumer pack | `provision-consumer/route.ts`, `consumer-bootstrap.ts` |
-| Push agent artifacts to the consumer repo | wired — dry-run unless `GITHUB_PUSH_ENABLED=1` **and** `confirm: true` | `delivery-controls.tsx`, `push-agent/route.ts`, `github.ts:54` |
-| Push as a pull request | wired — same two flags | `delivery-controls.tsx`, `github.ts` `pushAgentToRepoPullRequest` |
-| Repo scan / repo intelligence | partial — builder/repo flows | `project-builder-screen.tsx`, `repo/scan`, `repo/intelligence` |
-| Delivery loop + delivery scorecard | wired | `delivery-controls.tsx`, `delivery-loop/route.ts`, `delivery-scorecard-server.ts` |
-| Runtime API v1 — consumer reads its agents and posts runs | backend-only | `src/app/api/runtime/v1/**` (7 routes), `runtime-catalogue.ts` |
+| Endpoint d'ingestion pour les handlers déployés chez un consommateur | backend-only — jeton dédié `AIGENT_RUNTIME_TELEMETRY_TOKEN`, payload plafonné et validé | `src/app/api/runtime-telemetry/route.ts` |
+| Runs internes d'Aigent versés dans la même table | wired (automatique) | `runner.ts` → `emitInternalRunTelemetry` |
+| Événements de cycle de vie (promotion / shadow / replay) sur le même canal | wired (automatique) | `runtime-telemetry-store.ts` |
+| Résumé par agent, consommé par la boucle d'amélioration | backend-only | `improvement-loop.ts` → `summarizeRuntimeTelemetry` |
+| Résumé de flotte, diagnostic de santé, flux d'événements récents | **backend-only — aucun lecteur depuis le reset** | `dashboard-overview.ts`, `telemetry-health.ts` |
 
-## Telemetry
-
-| Capability | State | Proof |
-|---|---|---|
-| Ingestion endpoint for consumer-deployed handlers | backend-only, own bearer token (`AIGENT_RUNTIME_TELEMETRY_TOKEN`), size-capped and shape-validated | `src/app/api/runtime-telemetry/route.ts` |
-| Aigent's own internal runs fed into the same table | wired (automatic) | `runner.ts:643`, `emitInternalRunTelemetry` |
-| Lifecycle telemetry (promotion / shadow / replay) on the same channel | wired (automatic) | `runtime-telemetry-store.ts` `emitPromotionTelemetry` / `emitShadowTelemetry` / `emitReplayTelemetry` |
-| Per-agent telemetry summary consumed by the improvement loop | backend-only | `improvement-loop.ts:56` → `summarizeRuntimeTelemetry` |
-| Fleet telemetry summary + recent global feed (internal, lifecycle, consumer when marked) | wired — `summarizeFleetRuntimeTelemetry` + `listRecentRuntimeTelemetryEvents(50)` on `/admin` | `dashboard-overview.ts` → `overview-screen.tsx`, `runtime-telemetry-provenance.ts` |
-| **Recent-events feed** | wired — global channel with per-row provenance (`internal` / `lifecycle` / `consumer` / `unknown`) | `listRecentRuntimeTelemetryEvents(50)` → `overview-screen.tsx` |
-| Telemetry health diagnostic | wired — `diagnoseTelemetryHealth` renders as the Runtime telemetry card channel status | `dashboard-overview.ts` → `overview-screen.tsx` |
-
-**What telemetry still lacks.** The consumer return channel is built and
-authenticated but has never carried real traffic from an externally deployed
-agent (measured 2026-07-30) — every stored row is Aigent's own runner or a
-lifecycle event.
+**Ce que la télémétrie n'a jamais prouvé.** Le canal de retour consommateur est
+construit et authentifié mais **n'a jamais porté de trafic réel** venant d'un
+agent déployé à l'extérieur : chaque ligne stockée est un run interne d'Aigent ou
+un événement de cycle de vie. Détail chiffré : `docs/known-gaps.md`.
 
 ## Runtime & providers
 
-| Capability | State | Proof |
+| Capacité | État | Preuve |
 |---|---|---|
-| LangGraph `agent_builder` graph on the official Agent Server | wired | `src/langgraph/`, `langgraph.json` |
-| Direct model-router loop | wired | `model-router.ts` |
+| Graphe LangGraph `agent_builder` sur l'Agent Server officiel | wired — **seul runtime produit exécutable** | `src/langgraph/`, `langgraph.json` |
+| Boucle model-router directe | wired — réservée aux runners de test/benchmark | `model-router.ts` |
 | Provider `openai` | wired | `model-router.ts` |
-| Provider `google` / Gemini | wired | `model-router.ts`, `src/langgraph/model-provider.mjs` |
-| Provider `local` (vLLM, OpenAI-compatible) | partial — explicit opt-in, `VLLM_LOCAL_API_KEY` | `model-local.ts` |
-| Provider `mistral` | **not wired** — throws a typed error, never a silent fallback | `src/langgraph/model-provider.mjs:86` |
-| Tool registry + canonical tool definitions | wired | `src/lib/agent-mission-control/registry/`, `tool-handlers.ts` |
-| Market tools (trading, read-only) | wired | `market/`, `api/agent-ops/market-tools/[toolName]/route.ts` |
-| Real-estate tools | wired | `realestate/`, `api/agent-ops/realestate-tools/[toolName]/route.ts` |
-| Tool builder | partial — only `count_words` has a sandbox | `tool-builder/`, `api/agent-ops/tool-build-missions/route.ts` |
-| Langfuse / LangSmith observability hooks | backend-only | `langfuse.ts`, `langsmith.ts` |
+| Provider `google` / Gemini — **tool-use inclus** | wired | `model-router.ts` (`callGemini`), `src/langgraph/model-provider.mjs` |
+| Provider `local` (vLLM, compatible OpenAI) | partial — opt-in explicite, `VLLM_LOCAL_API_KEY` | `model-router.ts` (`callLocalVllm`), `model-local.ts` |
+| Provider `mistral` | **not wired** — erreur typée, jamais de fallback muet | `model-router.ts`, `src/langgraph/model-provider.mjs` |
+| Registre canonique d'outils et de runtimes | wired — autorité unique | `src/lib/agent-mission-control/registry/` |
+| Outils market (trading, read-only) | wired | `market/`, `api/agent-ops/market-tools/[toolName]/route.ts` |
+| Outils immobilier | wired | `realestate/`, `api/agent-ops/realestate-tools/[toolName]/route.ts` |
+| Tool builder | partial — un seul outil dispose d'un sandbox | `tool-builder/`, `api/agent-ops/tool-build-missions/route.ts` |
+| Hooks d'observabilité Langfuse / LangSmith | backend-only | `langfuse.ts`, `langsmith.ts` |
 
-## Gates (the arbiter)
+Comptes d'outils et de runtimes : ne les recopie pas ici, ils dérivent.
+`npm run check:registry-integrity` les affiche à la seconde près.
 
-`npm run check` runs, in order: `typecheck` · `lint:fast` (oxlint) · `lint` ·
-`check:no-legacy-front` · `check:console-branding` · `check:agent-truth` ·
-`check:render-truth` · `check:status-truth` · `check:lifecycle-truth` ·
-`check:registry-parity` · `check:registry-integrity` · `check:tool-rows` ·
-`check:tool-definitions` · `check:rsc-boundary` · `check:dev-port` ·
-`check:chart-empty-guard` · `check:empty-state-explained` ·
-`check:no-zero-fallback-states` · `check:error-state-not-usable` ·
-`check:secrets` (gitleaks) · `audit:dead`.
+## Gates
 
-`check:lifecycle-truth` (`scripts/check-lifecycle-truth.mjs`) is narrow by
-design — it names two files (`agent-lifecycle-trace.ts`,
-`lifecycle-trace-panel.tsx`) rather than walking a directory, and blocks five
-specific claims: "deployed" without consumer proof, "healthy" without a real
-`diagnoseTelemetryHealth` call, a telemetry value coalesced to a false zero,
-"promoted" disconnected from a production-stage check, and the
-`active_in_consumer` stage computed from anything other than the literal
-`'unknown'`.
+**`package.json` fait foi** — pas ce document. Pour la liste exacte et à jour :
 
-`npm run verify` adds `quality:dead` (knip), `test` (vitest, offline unit suite)
-and `build`. `test:live` is opt-in, hits GPU1 + OpenAI, costs money, and is
-never part of `verify`.
+```bash
+node -e "console.log(require('./package.json').scripts.check)"
+```
 
-Gates named in older docs — `check:ds`, `check:contrast`, `check:catalyst`,
-`check:danger`, `check:views` — **no longer exist**; they were removed with the
-old dashboard and were never re-added for the current console.
+Au moment de cette passe, `npm run check` enchaîne : `typecheck` · `lint:fast`
+(oxlint) · `lint` (eslint) · `check:no-legacy-front` · `check:agent-truth` ·
+`check:lifecycle-truth` · `check:registry-parity` · `check:registry-integrity` ·
+`check:dev-port` · `check:render-truth` · `check:secrets` (gitleaks) ·
+`audit:dead`.
+
+La chaîne est **entièrement statique et hors ligne**. `check:tool-rows` et
+`check:tool-definitions` en sont volontairement sorties : elles interrogent la
+base live, s'auto-skippent sans backend (donc ne mesuraient rien en CI) et leur
+option `--fix` **écrit en base**. Ce sont des commandes d'exploitation manuelles.
+
+`npm run verify` ajoute `quality:dead` (knip), `test` (vitest, suite offline) et
+`build`. `test:live` est opt-in, tape GPU1 + OpenAI et coûte de l'argent.
+
+**Aucune gate visuelle n'est active**, et c'est une décision, pas un manque : le
+workspace est free design et le frontend est volontairement vide. Ce que chaque
+gate ne garantit PAS est documenté dans `scripts/README-gates.md`.
