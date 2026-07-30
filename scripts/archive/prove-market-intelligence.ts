@@ -2,8 +2,8 @@
  * One real run of copilot-market-intelligence — validates tools mount (tool_call_count > 0).
  * 💲 OpenAI billed. Run only on explicit request.
  */
-import { executeCopilotRun } from '../src/lib/agent-mission-control/runner'
-import { pgrest } from '../src/lib/agent-mission-control/postgrest'
+import { executeCopilotRun } from '../../src/lib/agent-mission-control/runner'
+import { pgrest } from '../../src/lib/agent-mission-control/postgrest'
 
 const COPILOT = 'copilot-market-intelligence'
 

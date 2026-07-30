@@ -12,7 +12,10 @@ import type {
   ProjectBuilderConversationStatus,
   ProjectBuilderMessage,
 } from '@/lib/agent-mission-control/project-builder-types'
-import type { ProjectBuilderStreamEvent } from '@/lib/agent-mission-control/project-builder-stream-protocol'
+import type {
+  ProjectBuilderStreamEvent,
+  ProjectBuilderStreamLifecycle,
+} from '@/lib/agent-mission-control/project-builder-stream-protocol'
 import { consumeSSE, isProjectBuilderTerminal } from '@/lib/agent-mission-control/sse-client'
 import { EmptyState, ErrorState, ScreenHeader, Section } from './screen-primitives'
 
@@ -61,8 +64,6 @@ import { EmptyState, ErrorState, ScreenHeader, Section } from './screen-primitiv
  * WHOLE body, which in both panels holds the scrolling content *and* a footer
  * strip (composer, approval block) that must stay OUT of the scroll.
  */
-
-type BuilderLifecycle = 'connecting' | 'running' | 'reconciling' | 'completed' | 'failed'
 
 /**
  * How long the client waits for ANY SSE frame (not just a terminal one)
@@ -120,9 +121,11 @@ function conversationFailure(status: number): string {
 }
 
 /** Lifecycle → dot role. `connecting` is NOT positive: nothing is proven yet. */
-function lifecycleTone(lifecycle: BuilderLifecycle): StatusDotTone {
+function lifecycleTone(lifecycle: ProjectBuilderStreamLifecycle): StatusDotTone {
   if (lifecycle === 'failed') return 'negative'
-  if (lifecycle === 'running' || lifecycle === 'reconciling') return 'pending'
+  if (lifecycle === 'running' || lifecycle === 'reconciling' || lifecycle === 'reconnecting') {
+    return 'pending'
+  }
   if (lifecycle === 'completed') return 'positive'
   return 'neutral'
 }
@@ -203,7 +206,7 @@ export function ProjectBuilderScreen({
   const [bundle, setBundle] = useState<ProjectBuilderConversationBundle | null>(null)
   const [input, setInput] = useState(seedInput ?? '')
   const [partial, setPartial] = useState('')
-  const [lifecycle, setLifecycle] = useState<BuilderLifecycle>('connecting')
+  const [lifecycle, setLifecycle] = useState<ProjectBuilderStreamLifecycle>('connecting')
   const [error, setError] = useState<string | null>(null)
   const [approving, setApproving] = useState(false)
 

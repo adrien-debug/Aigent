@@ -1,10 +1,8 @@
 import { cn } from './cn'
 
 /**
- * Canonical "dot + label" status pattern — extracted from three byte-identical
- * implementations (`CheckStatusText` in release-panel.tsx, `StepStatusText` in
- * qualification-timeline.tsx, `PromotionStatusText` in promotion-evidence-panel.tsx).
- * All three mapped an arbitrary status enum to the same three visuals: a filled
+ * Canonical "dot + label" status pattern for the console. Maps an arbitrary
+ * status enum to the same three visuals: a filled
  * accent dot for the positive outcome, a filled danger dot for the negative one,
  * and an unfilled ring for everything else (not measured / not configured /
  * pending / unavailable). The word always carried the distinction — the dot never

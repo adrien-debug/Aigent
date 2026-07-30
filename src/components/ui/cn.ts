@@ -63,7 +63,7 @@ export function cn(...inputs: ClassValue[]) {
  * half hides behind a variant is unreachable: `tailwind-merge` will not cross a
  * variant boundary, and neither will the cascade.
  *
- * MEASURED, on /admin/factory, `<Text className="font-mono text-xs">`:
+ * MEASURED, on a dense console table cell, `<Text className="font-mono text-xs">`:
  *   `text-base/6 sm:text-sm/6`      → 14px @1440 (override dead), 12px @375
  *   `text-sm/6 max-sm:text-base/6`  → 12px @1440 (override lands), 16px @375
  *                                     (override dead — the trap simply moved)

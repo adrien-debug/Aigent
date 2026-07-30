@@ -185,7 +185,7 @@ export type GetCopilotsOptions = {
   /**
    * Health enrichment depth.
    * - `full` (default): test pass rate + benchmark + avg latency + 24h KPIs —
-   *   needed by /admin/performance (fleet latency KPI).
+   *   needed by fleet overview surfaces (latency KPI).
    * - `list`: test pass rate + 24h KPIs only — skips benchmark fan-out and
    *   latency aggregation (~2–3 PostgREST RTTs). Use on dashboard / project /
    *   telemetry list surfaces that do not display those fields.

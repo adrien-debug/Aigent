@@ -234,7 +234,7 @@ routes restent fixture-only PAR CONCEPTION, pas par oubli.
    construction ; un vrai run LLM (même pour un seul input de corpus) est un coût réel qui
    nécessite un accord explicite, jamais supposé.
 
-`scripts/prove-shadow-replay-e2e.ts` est écrit et prêt (utilise les vraies fonctions `POST`/
+`scripts/archive/prove-shadow-replay-e2e.ts` est écrit et prêt (utilise les vraies fonctions `POST`/
 `GET` exportées par les routes — même code que Next.js invoque pour une requête HTTP réelle,
 pas un raccourci) mais n'a **jamais été exécuté avec succès contre gpu1** ; il échoue
 aujourd'hui exactement au point (1) ci-dessus. Le live E2E sera exécuté sur la branche
@@ -250,7 +250,7 @@ contrôlée, et les appels facturés explicitement autorisés — pas avant.
 `src/app/api/agent-ops/copilots/[copilotId]/versions/[versionId]/shadow/route.ts`,
 `src/app/api/agent-ops/copilots/[copilotId]/versions/[versionId]/replay/route.ts`,
 `tests/unit/shadow-replay-routes.test.ts`, `tests/unit/shadow-replay-routes-gaps.test.ts`,
-`tests/unit/promotion-policy.test.ts`, `scripts/prove-shadow-replay-e2e.ts`,
+`tests/unit/promotion-policy.test.ts`, `scripts/archive/prove-shadow-replay-e2e.ts`,
 `docs/visual-reviews/AIGENT-FACTORY-SHADOW-REPLAY-001/` (supprimé depuis, P007 — dossier
 de visual-review du dashboard legacy ; la preuve backend a survécu, déplacée vers
 `docs/live-shadow-proof-AIGENT-FACTORY-SHADOW-REPLAY-001.md`).
