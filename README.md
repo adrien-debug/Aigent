@@ -22,33 +22,22 @@ credentials for the provider a given run selects, data and execution paths
 return `503` / `ProviderUnavailableError`. There is no mock path for agent
 authoring or runs.
 
-## What is actually reachable today
+## Frontend reset (état courant)
 
-The console at `/admin` is **rebuilt and active** — six live screens:
+**Mission `frontend-reset` : le front historique a été entièrement supprimé.**
 
-| Route | Screen |
+| État | Détail |
 |---|---|
-| `/admin` | Overview — fleet KPIs, run trend, per-agent activity |
-| `/admin/runs` | Runs — live run stream, filters, metrics |
-| `/admin/agents` | Agents — catalogue with executable / degraded status |
-| `/admin/agents/[id]` | Agent detail — lifecycle trace, qualification, improve, delivery |
-| `/admin/projects` | Projects |
-| `/admin/projects/[id]/builder` | Project builder — conversational authoring, SSE-streamed |
+| UI | Une seule page racine : texte technique `Frontend reset complete` |
+| Console `/admin` | **Absente** — pas de dashboard, pas de navigation |
+| Marketing `(site)/` | **Absent** |
+| `src/components/` | **Absent** — aucun design system, aucun kit UI |
+| API | **Active** — `src/app/api/**` intact |
+| Backend | **Intact** — `src/lib/**`, LangGraph, migrations, auth API |
 
-Plus the marketing site at `/`, `/about`, `/pricing`, `/contact`.
-
-**Read this honestly:** the console is an **operator control plane**, not a
-read-only catalogue. Runs, tests, benchmarks, qualification, shadow, replay,
-improvement, promotion, delivery-loop and shipping are **wired with real UI
-controls** on the agent detail screen, project builder and related panels — each
-action still carries its backend restrictions (billed calls need confirmation,
-shipping is double-gated, promotion is governed, `active_in_consumer` stays
-`unknown`). See `docs/current-capabilities.md` for the row-by-row state.
-
-Routes named in older documentation — `/admin/factory`, `/admin/performance`,
-`/admin/settings`, `/admin/telemetry`, `/admin/agents/new` — **do not exist**.
-`scripts/check-no-legacy-front.mjs` fails the build if any of them reappears, or
-if a `/admin-v2` route shows up.
+La reconstruction UI viendra via blocs fournis séparément. La gate
+`npm run check:no-legacy-front` refuse toute réapparition de
+`src/components/`, `/admin`, `design/`, etc.
 
 ## Notable partial capabilities
 
@@ -56,10 +45,8 @@ State the restriction, not the headline:
 
 - **Shipping to a consumer repo** is a **dry run** unless `confirm: true` is in
   the request body **and** `GITHUB_PUSH_ENABLED=1` is in the environment.
-- **Telemetry** is read by the console (per-agent summary in the improvement loop
-  and on `/admin/agents/[id]`, fleet summary + health diagnostic + a bounded
-  recent-events feed on `/admin`). **No externally deployed agent has ever
-  reported** — stored events are Aigent's own runs and lifecycle events.
+- **Telemetry** is aggregated in `dashboard-overview.ts` and `agent-detail.ts`
+  — **no UI** until the front is rebuilt.
 - **Tool builder** works, but only `count_words` has a sandbox.
 - **Provider `mistral`** is declared and **not wired** — it throws a typed error
   rather than falling back silently.
@@ -69,7 +56,7 @@ State the restriction, not the headline:
 
 - **Next.js 16** App Router — ⚠️ breaking changes vs. older Next; read
   `node_modules/next/dist/docs/` before touching framework code (`AGENTS.md`).
-- **React 19**, TypeScript, Tailwind v4, Catalyst primitives (`src/components/ui/`).
+- **React 19**, TypeScript — minimal App Router shell only (no Tailwind, no UI kit).
 - **LangGraph** — the `agent_builder` graph in `src/langgraph/`, served by the
   official LangGraph Agent Server. Mandatory runtime for every agent.
 - **Direct model-router** (`src/lib/agent-mission-control/model-router.ts`) —
@@ -86,64 +73,37 @@ npm run dev
 
 Runs both servers together:
 
-- **Next.js → http://localhost:3987** — console at `/admin`.
-  **Never port 3000. Never port 3210.** Other Next servers on this machine own
-  both — 3000 always, and 3210 since `hearst-connect-v1-green-lab` took it on
-  2026-07-30. Do not start Aigent there, do not kill what is listening there, and
-  do not read it as if it were Aigent. Absolute rule, stated in full in
-  `AGENTS.md` § "Port de dev".
-- **LangGraph Agent Server → http://127.0.0.1:2024** — serves `agent_builder`;
-  the same endpoint LangSmith Studio connects to.
+- **Next.js → http://localhost:3987** — placeholder root page only after frontend reset.
+  **Never port 3000. Never port 3210.** See `AGENTS.md` § "Port de dev".
+- **LangGraph Agent Server → http://127.0.0.1:2024** — serves `agent_builder`.
 
 Either alone: `npm run dev:next` / `npm run langgraph`. Studio:
 `npm run langgraph:studio`.
 
 Required env: `AMC_DATA_SOURCE=gpu1`, `AMC_SUPABASE_URL`,
 `SUPABASE_SERVICE_ROLE_KEY`, `AMC_SESSION_SECRET`, `OPENAI_API_KEY`. See
-`.env.example` for the full list. Without them the relevant paths fail closed.
+`.env.example` for the full list.
 
-After a clone, arm the secret hook once: `npm run hooks:install` (see
-`CLAUDE.md`).
+After a clone, arm the secret hook once: `npm run hooks:install` (see `CLAUDE.md`).
 
 ## Checks
 
 ```bash
-npm run check      # full static gate — see docs/current-capabilities.md for the list
-npm run verify     # check + knip + offline unit tests + build  (the release gate)
+npm run check      # full static gate — see docs/current-capabilities.md
+npm run verify     # check + knip + unit tests + build
 npm run typecheck
 npm run lint
-npm run test       # vitest, offline unit suite
-npm run test:live  # opt-in — hits gpu1 + OpenAI, costs money, never in verify
+npm run test
+npm run test:live  # opt-in — hits gpu1 + OpenAI, costs money
 ```
 
-A red gate beats any sentence in any `.md`. That precedence is stated once, in
-`AGENTS.md`.
-
-### One-shot proofs
-
-```bash
-npm run prove:factory-core        # deterministic, no network
-npm run prove:factory-e2e         # full factory chain (needs gpu1 + LangGraph)
-npm run prove:shadow-replay
-npm run prove:autonomous-factory
-```
-
-### SonarQube
-
-```bash
-SONAR_TOKEN=<token> npm run sonar
-```
-
-Dashboard: http://100.88.191.49:9010/dashboard?id=agent-mission-control (Tailscale).
+A red gate beats any sentence in any `.md`. That precedence is stated in `AGENTS.md`.
 
 ## Where the rules live
 
-One rule, one file — nothing is restated:
-
 - **`CLAUDE.md`** — git, branching, push, deployment, secrets.
-- **`AGENTS.md`** — technical invariants: port, runtime, LangGraph, doctrine hierarchy.
-- **`docs/console-design-system.md`** — local console tokens, primitives, variants (not global Hearst doctrine).
+- **`AGENTS.md`** — technical invariants: port, runtime, LangGraph, frontend-reset guard.
 - **`docs/metrics-canon.md`** — how a number is allowed to be displayed.
-- **`docs/agent-authoring.md`** — the authoring flow and the two execution paths.
-- **`docs/BACKEND-GPU1.md`** — the Postgres/PostgREST perimeter.
+- **`docs/agent-authoring.md`** — authoring flow and execution paths.
+- **`docs/BACKEND-GPU1.md`** — Postgres/PostgREST perimeter.
 - **`docs/TESTING.md`**, **`docs/dev-runtime.md`** — test and runtime specifics.

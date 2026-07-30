@@ -7,7 +7,7 @@
  * The rule belongs, logically, next to the rollup that consumes it in
  * `dashboard-overview.ts`. It cannot live there. That file opens with
  * `import 'server-only'`, and taking a VALUE from it drags that guard into the
- * runtime graph of whoever imports it — `src/components/console/projects-screen.tsx`
+ * runtime graph of whoever imports it — no UI consumer after frontend reset.
  * is rendered by the `components` vitest project under BROWSER resolve
  * conditions (vitest.config.ts), where `server-only` resolves to the module that
  * throws. Measured, not assumed: the import was tried on an earlier branch and

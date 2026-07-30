@@ -32,10 +32,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const FILES = [
-  join(ROOT, 'src/lib/agent-mission-control/agent-lifecycle-trace.ts'),
-  join(ROOT, 'src/components/console/lifecycle-trace-panel.tsx'),
-]
+const FILES = [join(ROOT, 'src/lib/agent-mission-control/agent-lifecycle-trace.ts')]
 
 // Reuses the same comment-stripping approach as render-truth/check-catalyst so
 // documentation prose explaining the counter-example never trips the scan.
