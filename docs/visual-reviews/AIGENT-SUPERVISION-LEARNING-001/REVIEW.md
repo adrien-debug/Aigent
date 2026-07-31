@@ -135,15 +135,45 @@ la mesure :
 - la version Playwright était codée en dur.
 
 Désormais le moniteur est posé sur le **contexte** avant toute navigation et
-vit jusqu'à sa fermeture ; il collecte `error`, `warning` et `pageerror` ; et
-**l'un ou l'autre non nul fait échouer le harness**.
+vit jusqu'à sa fermeture. Il collecte **trois** choses, et chacune non nulle
+fait échouer le harness :
 
-**Sonde de la mesure.** Un `console.warn` temporaire a été inséré dans
-`ObsidianCommands` (composant client, donc chemin réel) : le harness est passé
-au rouge, `✗ console — zéro warning console — 2 : [sonde-rework-v2] …`, exit
-non nul, et les 2 warnings ont été remontés dans le total. La sonde a été
-retirée et le fichier vérifié identique au commit. Une gate qui ne sait pas
-rougir ne prouve rien.
+| Source | Événement | Portée |
+|---|---|---|
+| messages d'erreur | `console` (type `error`) | `BrowserContext` |
+| messages d'avertissement | `console` (type `warning`) | `BrowserContext` |
+| exceptions non capturées | **`weberror`** | `BrowserContext` |
+
+**Le troisième point a été corrigé au REWORK v3.** Le moniteur écoutait
+`context.on('pageerror', …)` — or `pageerror` est l'événement de **`Page`** ;
+au niveau `BrowserContext`, Playwright expose **`weberror`**. Node accepte
+n'importe quel nom d'événement sans broncher, donc l'écouteur ne levait aucune
+erreur : il ne se déclenchait simplement jamais. Le harness prétendait
+collecter les exceptions de page sans en voir une seule — un écouteur
+silencieux est pire qu'un écouteur absent, parce qu'il se lit comme une
+garantie. `WebError` porte `error()` **et** `page()` : les deux sont extraites,
+l'URL d'origine permettant d'attribuer l'exception.
+
+**Sondes de la mesure — les deux sens, les deux sources.**
+
+*Warning* (v2) : un `console.warn` temporaire dans `ObsidianCommands` →
+`✗ console — zéro warning console — 2 : [sonde-rework-v2] …`, exit non nul.
+
+*Exception non capturée* (v3) : un `throw` dans un `setTimeout` — donc après
+chargement, hors `try/catch` et hors du cycle de rendu React, non absorbé par
+une error boundary :
+
+```
+✗ console — zéro exception non capturée (weberror) — 1 : [weberror] [sonde-rework-v3] … @ http://127.0.0.1:3987/actions
+  console — 7 erreur(s), 0 warning(s), 7 exception(s) non capturée(s) sur 7 scénario(s)
+✗ E2E ciblé : 14 échec(s) sur 30 assertion(s)
+```
+
+`console-measurements.json` est bien passé à `green: false`, `pageExceptions: 7`.
+L'URL dans le message prouve que `WebError.page()` est correctement récupérée.
+
+Les deux sondes ont été retirées et les fichiers vérifiés identiques au commit.
+Une gate qui ne sait pas rougir ne prouve rien.
 
 La version du pilote est lue **au runtime** sur le navigateur lancé
 (`Playwright 1.50.1 · Chromium 133.0.6943.16`), et `playwright` est désormais

@@ -66,11 +66,12 @@ const notes = []
  * les collectait. Ces totaux sont désormais MESURÉS ici et repris tels quels
  * par `write-visual-manifest.mjs`.
  */
-const totals = { consoleErrors: 0, consoleWarnings: 0, scenarios: 0 }
+const totals = { consoleErrors: 0, consoleWarnings: 0, pageExceptions: 0, scenarios: 0 }
 
 function tally(monitor) {
   totals.consoleErrors += monitor.errors.length
   totals.consoleWarnings += monitor.warnings.length
+  totals.pageExceptions += monitor.pageExceptions.length
   totals.scenarios += 1
 }
 
@@ -153,35 +154,66 @@ const OVERFLOW_PROBE = () => {
 const HIDE_DEV_BADGE = 'nextjs-portal { display: none !important; }'
 
 /**
- * Moniteur de console attaché au CONTEXTE, vivant jusqu'à sa fermeture.
+ * Moniteur attaché au CONTEXTE, vivant jusqu'à sa fermeture.
  *
  * POURQUOI PAS UN ÉCOUTEUR AUTOUR DU SEUL `goto`
  * ----------------------------------------------
- * La version précédente n'écoutait que pendant le chargement, puis se
+ * Une version antérieure n'écoutait que pendant le chargement, puis se
  * détachait — donc tout ce qui se produisait ENSUITE (clonage de la file,
  * défilement, ouverture du tiroir, clic) passait inaperçu. Et elle ne
  * collectait que `error`, pendant que le manifeste affirmait
  * `consoleWarnings: 0` : une preuve plus forte que la mesure, c'est-à-dire un
  * mensonge poli.
  *
- * Ici le moniteur est posé sur le contexte AVANT toute navigation et n'est
- * jamais retiré : il voit toute la vie de la page. Il collecte les DEUX
- * niveaux, et `pageerror` en plus — une exception non capturée n'émet pas
- * toujours un message de console, et elle doit faire échouer le harness.
+ * Le moniteur est donc posé sur le contexte AVANT toute navigation et n'est
+ * jamais retiré : il voit toute la vie de chaque page du contexte.
+ *
+ * DEUX SOURCES, DEUX ÉVÉNEMENTS DISTINCTS
+ * ---------------------------------------
+ *  · `console`  — les messages `error` / `warning` émis par la page.
+ *  · `weberror` — les EXCEPTIONS NON CAPTURÉES. C'est un événement de
+ *    `BrowserContext` (types.d.ts : `on(event: 'weberror', listener:
+ *    (webError: WebError) => any)`), à ne pas confondre avec `pageerror`, qui
+ *    est l'équivalent sur `Page`.
+ *
+ *    Cette confusion a réellement eu lieu ici : `context.on('pageerror', …)`
+ *    ne lève aucune erreur à l'enregistrement — Node accepte n'importe quel
+ *    nom d'événement — il ne se déclenche simplement JAMAIS. Le harness
+ *    prétendait donc collecter les exceptions de page sans en voir une seule :
+ *    un écouteur silencieux est pire qu'un écouteur absent, parce qu'il se
+ *    lit comme une garantie.
+ *
+ *    `WebError` porte `error()` ET `page()` : on garde les deux, la page
+ *    d'origine étant ce qui permet d'attribuer l'exception quand un contexte
+ *    en porte plusieurs. Elle peut être `null` (exception hors page) — dit
+ *    tel quel, jamais deviné.
  */
 function watchConsole(context) {
   const errors = []
   const warnings = []
+  const pageExceptions = []
+
   context.on('console', (msg) => {
     const type = msg.type()
     const line = msg.text().slice(0, 160)
     if (type === 'error') errors.push(line)
     else if (type === 'warning' || type === 'warn') warnings.push(line)
   })
-  context.on('pageerror', (err) => {
-    errors.push(`[pageerror] ${(err?.message ?? String(err)).slice(0, 160)}`)
+
+  context.on('weberror', (webError) => {
+    const err = webError.error()
+    const page = webError.page()
+    // `page()` peut valoir `null` — une exception hors page. On l'écrit
+    // « (hors page) » plutôt que d'inventer une URL.
+    const where = page ? page.url() : '(hors page)'
+    const detail = `[weberror] ${(err?.message ?? String(err)).slice(0, 140)} @ ${where}`
+    pageExceptions.push(detail)
+    // Comptée AVEC les erreurs console : pour le verdict du harness, une
+    // exception non capturée est au moins aussi grave qu'un `console.error`.
+    errors.push(detail)
   })
-  return { errors, warnings }
+
+  return { errors, warnings, pageExceptions }
 }
 
 /**
@@ -198,6 +230,14 @@ function checkConsole(label, monitor) {
     monitor.warnings.length === 0,
     `${label} — zéro warning console`,
     monitor.warnings.length ? `${monitor.warnings.length} : ${monitor.warnings[0]}` : ''
+  )
+  // Assertion PROPRE, en plus du compteur d'erreurs : une exception non
+  // capturée et un `console.error` ne se diagnostiquent pas pareil, et fondre
+  // les deux dans une seule ligne masquerait laquelle des deux a échoué.
+  check(
+    monitor.pageExceptions.length === 0,
+    `${label} — zéro exception non capturée (weberror)`,
+    monitor.pageExceptions.length ? `${monitor.pageExceptions.length} : ${monitor.pageExceptions[0]}` : ''
   )
 }
 
@@ -400,7 +440,8 @@ async function main() {
   console.log('')
   for (const note of notes) console.log(`  · ${note}`)
   console.log(
-    `\n  console — ${totals.consoleErrors} erreur(s), ${totals.consoleWarnings} warning(s) sur ${totals.scenarios} scénario(s)`
+    `\n  console — ${totals.consoleErrors} erreur(s), ${totals.consoleWarnings} warning(s), ` +
+      `${totals.pageExceptions} exception(s) non capturée(s) sur ${totals.scenarios} scénario(s)`
   )
   console.log(`  pilote  — ${driver}`)
 
@@ -417,6 +458,11 @@ async function main() {
           scenarios: totals.scenarios,
           consoleErrors: totals.consoleErrors,
           consoleWarnings: totals.consoleWarnings,
+          // Exceptions non capturées, collectées via l'événement `weberror` du
+          // BrowserContext — `pageerror` est l'événement de `Page` et ne se
+          // déclenche jamais à ce niveau.
+          pageExceptions: totals.pageExceptions,
+          pageExceptionSource: "BrowserContext 'weberror' (WebError.error() + WebError.page())",
           assertions: { total: assertionCount, failed: failures.length },
           green: failures.length === 0,
         },
@@ -432,7 +478,9 @@ async function main() {
     console.log(`\n✗ E2E ciblé : ${failures.length} échec(s) sur ${assertionCount} assertion(s)\n`)
     process.exit(1)
   }
-  console.log(`\n✓ E2E ciblé vert — ${assertionCount} assertions, 0 erreur et 0 warning console\n`)
+  console.log(
+    `\n✓ E2E ciblé vert — ${assertionCount} assertions, 0 erreur, 0 warning, 0 exception non capturée\n`
+  )
 }
 
 main().catch((err) => {

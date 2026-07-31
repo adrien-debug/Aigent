@@ -4,8 +4,10 @@
   "scenarios": 7,
   "consoleErrors": 0,
   "consoleWarnings": 0,
+  "pageExceptions": 0,
+  "pageExceptionSource": "BrowserContext 'weberror' (WebError.error() + WebError.page())",
   "assertions": {
-    "total": 23,
+    "total": 30,
     "failed": 0
   },
   "green": true

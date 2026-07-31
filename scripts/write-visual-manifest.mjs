@@ -166,8 +166,11 @@ const manifest = {
   // « non mesuré », jamais « zéro ».
   consoleErrors: measured?.consoleErrors ?? null,
   consoleWarnings: measured?.consoleWarnings ?? null,
+  /** Exceptions non capturées — comptées à part des `console.error`. */
+  pageExceptions: measured?.pageExceptions ?? null,
+  pageExceptionSource: measured?.pageExceptionSource ?? null,
   consoleNote: measured
-    ? `Mesuré sur ${measured.scenarios} scénario(s) : les niveaux \`error\` ET \`warning\` sont collectés du début à la fermeture du contexte, et l'un ou l'autre non nul fait échouer le harness. Sondé avec un console.warn temporaire : le harness rougit bien.`
+    ? `Mesuré sur ${measured.scenarios} scénario(s), du début à la fermeture du contexte : les niveaux \`error\` ET \`warning\` de la console, plus les exceptions non capturées via l'événement \`weberror\` du BrowserContext (et non \`pageerror\`, qui est l'événement de \`Page\` et ne se déclenche jamais à ce niveau). Chacun des trois compteurs non nul fait échouer le harness. Sondé dans les deux sens : un console.warn temporaire ET une exception non capturée levée après chargement font bien rougir le harness, avec \`green: false\` dans les mesures.`
     : "Non mesuré — le harness n'a pas été exécuté avec --capture.",
   e2e: {
     command: 'npm run prove:learning-e2e',
@@ -175,7 +178,7 @@ const manifest = {
       ? `${measured.green ? 'vert' : 'ROUGE'} — ${measured.assertions.total} assertions, ${measured.assertions.failed} échec(s)`
       : 'non exécuté',
     covers: [
-      'zéro erreur ET zéro warning console, observés jusqu’à la fermeture de chaque contexte',
+      'zéro erreur console, zéro warning console et zéro exception non capturée (weberror), observés jusqu’à la fermeture de chaque contexte',
       'zéro débordement horizontal à 375×812',
       'aucun contrôle fixe ne recouvre le contenu, à 5 positions de défilement',
       'file longue : défile dans sa boîte bornée, sans débordement',
