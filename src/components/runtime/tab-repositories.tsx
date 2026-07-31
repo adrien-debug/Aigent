@@ -73,7 +73,7 @@ function ProjectRow({
   const readability = repoFullName === null ? null : readabilityOf(repoFullName, visible)
 
   return (
-    <li className="flex min-w-0 items-center gap-3 border-b border-zinc-950/5 px-4 py-2.5 last:border-b-0 dark:border-white/5">
+    <li className="flex min-w-0 items-center gap-3 px-4 py-2.5">
       <div className="min-w-0 flex-1">
         <Link href={`/projects/${project.id}`} className="block min-w-0 truncate">
           <Strong className="truncate">{project.name}</Strong>
@@ -178,7 +178,7 @@ export default function RepositoriesTab({ data }: Readonly<{ data: RepositoriesT
 
       <Panel
         title="Projets et leurs dépôts"
-        className="min-h-[14rem] min-w-0 xl:flex-1"
+        className="min-h-56 min-w-0 xl:flex-1"
         padded={false}
         bodyClassName="scroll-thin overflow-y-auto"
       >
@@ -189,7 +189,7 @@ export default function RepositoriesTab({ data }: Readonly<{ data: RepositoriesT
                 <ProvenEmpty detail="Aucun projet n’est persisté. La lecture a réussi et la table est réellement vide." />
               </div>
             ) : (
-              <ul>
+              <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
                 {projects.map((project) => (
                   <ProjectRow key={project.id} project={project} visible={visible} />
                 ))}
@@ -202,7 +202,7 @@ export default function RepositoriesTab({ data }: Readonly<{ data: RepositoriesT
       <Panel
         title="Dépôts visibles du jeton"
         hint="non filtrés par projet"
-        className="min-h-[12rem] min-w-0 xl:flex-1"
+        className="min-h-48 min-w-0 xl:flex-1"
         padded={false}
         bodyClassName="scroll-thin overflow-y-auto"
       >
@@ -213,11 +213,11 @@ export default function RepositoriesTab({ data }: Readonly<{ data: RepositoriesT
                 <ProvenEmpty detail="Le jeton GitHub a répondu et ne voit aucun dépôt. La lecture a réussi : la visibilité est réellement vide, ce n’est pas une panne." />
               </div>
             ) : (
-              <ul>
+              <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
                 {repos.map((repo) => (
                   <li
                     key={repo.fullName}
-                    className="flex min-w-0 items-center gap-3 border-b border-zinc-950/5 px-4 py-2.5 last:border-b-0 dark:border-white/5"
+                    className="flex min-w-0 items-center gap-3 px-4 py-2.5"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex min-w-0 items-center gap-2">

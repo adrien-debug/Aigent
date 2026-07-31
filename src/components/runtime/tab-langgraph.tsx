@@ -261,7 +261,7 @@ function ProvisioningPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
 /* ─────────────────────── Assistants & threads ───────────────────────── */
 
 /**
- * `min-h-[24rem]` sur la grille, PAS `min-h-0` : dans une colonne flex dont les
+ * `min-h-96` sur la grille, PAS `min-h-0` : dans une colonne flex dont les
  * panneaux précédents ont déjà pris la hauteur, un `min-height: 0` laissait
  * cette grille à h=0 — mesuré dans le navigateur, pas déduit. Ses deux panneaux
  * étaient alors invisibles et leur contenu inatteignable, sans aucun signal à
@@ -270,11 +270,11 @@ function ProvisioningPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
  */
 function ServerStatePanel({ data }: Readonly<{ data: LangGraphTabData }>) {
   return (
-    <div className="grid min-h-[24rem] shrink-0 grid-cols-1 gap-3 xl:grid-cols-2">
+    <div className="grid min-h-96 shrink-0 grid-cols-1 gap-3 xl:grid-cols-2">
       <Panel
         title="Assistants du serveur"
         hint="en mémoire, pas en base"
-        className="min-h-[12rem] min-w-0"
+        className="min-h-48 min-w-0"
         padded={false}
         bodyClassName="scroll-thin overflow-y-auto"
       >
@@ -285,11 +285,11 @@ function ServerStatePanel({ data }: Readonly<{ data: LangGraphTabData }>) {
                 <ProvenEmpty detail="Le serveur répond et ne porte aucun assistant. Tout run partirait donc sur le graphe nu." />
               </div>
             ) : (
-              <ul>
+              <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
                 {rows.map((assistant) => (
                   <li
                     key={assistant.assistantId}
-                    className="border-b border-zinc-950/5 px-4 py-2 last:border-b-0 dark:border-white/5"
+                    className="px-4 py-2"
                   >
                     <Strong className="block truncate">{assistant.name ?? assistant.assistantId}</Strong>
                     <Text className="truncate text-xs">
@@ -307,7 +307,7 @@ function ServerStatePanel({ data }: Readonly<{ data: LangGraphTabData }>) {
       <Panel
         title="Threads récents"
         hint="50 plus récents"
-        className="min-h-[12rem] min-w-0"
+        className="min-h-48 min-w-0"
         padded={false}
         bodyClassName="scroll-thin overflow-y-auto"
       >
@@ -318,11 +318,11 @@ function ServerStatePanel({ data }: Readonly<{ data: LangGraphTabData }>) {
                 <ProvenEmpty detail="Le serveur répond et ne porte aucun thread : aucune conversation n’est en cours ni conservée." />
               </div>
             ) : (
-              <ul>
+              <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
                 {rows.map((thread) => (
                   <li
                     key={thread.threadId}
-                    className="flex items-center gap-2 border-b border-zinc-950/5 px-4 py-2 last:border-b-0 dark:border-white/5"
+                    className="flex items-center gap-2 px-4 py-2"
                   >
                     <Badge
                       color={

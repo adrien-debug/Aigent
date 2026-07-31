@@ -91,7 +91,7 @@ function DeliveryEventPanel({ detail }: DeliveryEventPanelProps) {
     <Panel
       title="Dernière livraison"
       hint={detail.repoFullName ?? 'aucun dépôt cible'}
-      className="min-h-[14rem] min-w-0"
+      className="min-h-56 min-w-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
       {detail.deliveryFailure !== null ? (
@@ -168,11 +168,11 @@ function DeliveryStatesPanel({ detail }: DeliveryStatesPanelProps) {
     <Panel
       title="États de livraison"
       hint={states.length + ' états distincts'}
-      className="min-h-[20rem] min-w-0"
+      className="min-h-80 min-w-0"
       padded={false}
       bodyClassName="scroll-thin overflow-y-auto"
     >
-      <div className="border-b border-zinc-950/5 px-4 py-3 dark:border-white/5">
+      <div className="px-4 py-3 dark:border-white/5">
         <Text>
           Huit affirmations DISTINCTES, jamais résumées en une seule. Trois d’entre elles ne sont ni
           des succès ni des échecs : deux sont des <Strong>inconnues structurelles</Strong> — Aigent
@@ -180,9 +180,11 @@ function DeliveryStatesPanel({ detail }: DeliveryStatesPanelProps) {
           une lecture qui a réussi et dont le résultat est « rien ».
         </Text>
       </div>
-      {states.map((state) => (
-        <DeliveryStateRow key={state.id} state={state} />
-      ))}
+      <div className="divide-y divide-zinc-950/5 dark:divide-white/5">
+        {states.map((state) => (
+          <DeliveryStateRow key={state.id} state={state} />
+        ))}
+      </div>
     </Panel>
   )
 }
@@ -194,7 +196,7 @@ function ScorecardPanel({ card, failure }: ScorecardPanelProps) {
     <Panel
       title="Scorecard de livraison"
       hint={scorecardPanelHint(card)}
-      className="min-h-[16rem] min-w-0"
+      className="min-h-64 min-w-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
       {failure !== null ? (
@@ -253,11 +255,11 @@ function ScorecardBody({ card }: ScorecardBodyProps) {
         </Note>
       ) : null}
 
-      <div className="flex flex-col">
+      <div className="flex flex-col divide-y divide-zinc-950/5 dark:divide-white/5">
         {card.dimensions.map((dim) => (
           <div
             key={dim.id}
-            className="flex items-center gap-3 border-b border-zinc-950/5 py-2 last:border-b-0 dark:border-white/5"
+            className="flex items-center gap-3 py-2"
           >
             <div className="min-w-0 flex-1">
               <Text className="truncate">
@@ -291,7 +293,7 @@ function SandboxPanel({ report, failure }: SandboxPanelProps) {
     <Panel
       title="Sandbox du dépôt cible"
       hint={report ? report.repo : undefined}
-      className="min-h-[16rem] min-w-0"
+      className="min-h-64 min-w-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
       {failure !== null ? (
@@ -367,11 +369,11 @@ function SandboxBody({ report }: SandboxBodyProps) {
         </Note>
       ) : null}
 
-      <div className="flex flex-col">
+      <div className="flex flex-col divide-y divide-zinc-950/5 dark:divide-white/5">
         {report.checks.map((check) => (
           <div
             key={check.id}
-            className="flex items-center gap-3 border-b border-zinc-950/5 py-2 last:border-b-0 dark:border-white/5"
+            className="flex items-center gap-3 py-2"
           >
             <div className="min-w-0 flex-1">
               <Text className="truncate">{check.label}</Text>
@@ -487,7 +489,7 @@ function ConsumerPanel({ detail }: ConsumerPanelProps) {
     <Panel
       title="Runtime consommateur"
       hint={detail.repoFullName ?? undefined}
-      className="min-h-[16rem] min-w-0"
+      className="min-h-64 min-w-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
       <div className="flex flex-col gap-3">

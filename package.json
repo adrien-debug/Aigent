@@ -5,7 +5,8 @@
   "scripts": {
     "audit:dead": "node scripts/audit-dead.mjs",
     "build": "next build",
-    "check": "npm run typecheck && npm run lint:fast && npm run lint && npm run check:no-legacy-front && npm run check:ui-kit-integrity && npm run check:agent-truth && npm run check:lifecycle-truth && npm run check:registry-parity && npm run check:registry-integrity && npm run check:dev-port && npm run check:render-truth && npm run check:rsc-boundary && npm run check:schema-rebuildable && npm run check:secrets && npm run audit:dead",
+    "check": "npm run typecheck && npm run lint:fast && npm run lint && npm run check:no-legacy-front && npm run check:legacy-design-doctrine && npm run check:ui-kit-integrity && npm run check:agent-truth && npm run check:lifecycle-truth && npm run check:registry-parity && npm run check:registry-integrity && npm run check:dev-port && npm run check:render-truth && npm run check:rsc-boundary && npm run check:schema-rebuildable && npm run check:secrets && npm run audit:dead",
+    "check:legacy-design-doctrine": "node scripts/check-legacy-design-doctrine.mjs",
     "check:agent-truth": "node scripts/check-agent-truth.mjs",
     "check:dev-port": "node scripts/check-dev-port.mjs",
     "check:lifecycle-truth": "node scripts/check-lifecycle-truth.mjs",

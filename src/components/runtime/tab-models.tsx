@@ -83,7 +83,7 @@ export default function ModelsTab({ data }: Readonly<{ data: ModelsTabData }>) {
       <Panel
         title="Modèles observés sur le catalogue"
         hint="déclaré vs prouvé"
-        className="min-h-[16rem] min-w-0 xl:flex-1"
+        className="min-h-64 min-w-0 xl:flex-1"
         padded={false}
         bodyClassName="scroll-thin overflow-y-auto"
       >
@@ -95,7 +95,7 @@ export default function ModelsTab({ data }: Readonly<{ data: ModelsTabData }>) {
               </div>
             ) : (
               <div className="flex flex-col">
-                <div className="grid shrink-0 grid-cols-2 gap-3 border-b border-zinc-950/5 px-4 py-3 sm:grid-cols-4 dark:border-white/5">
+                <div className="grid shrink-0 grid-cols-2 gap-3 px-4 py-3 sm:grid-cols-4 dark:border-white/5">
                   <Fact label="Agents" value={<FactValue>{agents.length}</FactValue>} />
                   <Fact
                     label="Modèle déclaré"
@@ -123,7 +123,7 @@ export default function ModelsTab({ data }: Readonly<{ data: ModelsTabData }>) {
                     }
                   />
                 </div>
-                <ul>
+                <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
                   {agents.map((agent) => {
                     // Un écart déclaré/prouvé n'est un écart que si les DEUX
                     // sont connus. Un `executedModel` absent est une absence de
@@ -136,7 +136,7 @@ export default function ModelsTab({ data }: Readonly<{ data: ModelsTabData }>) {
                     return (
                       <li
                         key={agent.copilotId}
-                        className="flex min-w-0 items-center gap-3 border-b border-zinc-950/5 px-4 py-2.5 last:border-b-0 dark:border-white/5"
+                        className="flex min-w-0 items-center gap-3 px-4 py-2.5"
                       >
                         <div className="min-w-0 flex-1">
                           <Link href={`/agents/${agent.copilotId}`} className="block min-w-0 truncate">

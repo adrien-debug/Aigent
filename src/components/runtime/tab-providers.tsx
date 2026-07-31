@@ -32,7 +32,7 @@ import { Fact, FactValue, LoadedBlock, ProvenEmpty, ProviderWiringBadge } from '
 
 function ProviderCard({ row, usedBy }: Readonly<{ row: ProviderRow; usedBy: number | null }>) {
   return (
-    <li className="border-b border-zinc-950/5 px-4 py-3 last:border-b-0 dark:border-white/5">
+    <li className="px-4 py-3">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <Strong className="truncate">{row.label}</Strong>
         <code className="text-xs text-zinc-500 dark:text-zinc-400">{row.id}</code>
@@ -141,11 +141,11 @@ export default function ProvidersTab({ data }: Readonly<{ data: ProvidersTabData
       <Panel
         title="Providers de modèle"
         hint="câblage réel, pas catalogue commercial"
-        className="min-h-[16rem] min-w-0 xl:flex-1"
+        className="min-h-64 min-w-0 xl:flex-1"
         padded={false}
         bodyClassName="scroll-thin overflow-y-auto"
       >
-        <ul>
+        <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
           {data.providers.map((row) => (
             <ProviderCard
               key={row.id}

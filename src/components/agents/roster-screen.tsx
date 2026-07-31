@@ -1,5 +1,5 @@
 /**
- * Roster des agents — écran à hauteur bornée, la liste défile DANS sa box.
+ * Roster des agents — page liste éditoriale, disclosure progressive.
  *
  * Server Component : il reçoit le contrat canonique déjà lu et le distribue. Il
  * ne lit rien lui-même et ne recalcule aucun statut — `AvailableAgent.status`
@@ -7,15 +7,17 @@
  * exactement comme un écran a fini par promettre un lancement que l'API
  * refusait.
  *
- * Chaque ligne mène à `/agents/[copilotId]` — un lien réel, jamais un `#`.
+ * La ligne de liste ne montre que le nécessaire : nom, état principal,
+ * dernière activité et signal critique éventuel. Le détail complet vit au clic.
  */
 import { Avatar } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Heading, Subheading } from '@/components/ui/heading'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
 import type { AvailableAgent } from '@/lib/agent-mission-control/available-agents'
-import { Panel, Rail, Unavailable, initialsOf } from '@/components/cockpit/primitives'
-import { LifecycleStatusBadge, ProviderBadge, RuntimeStatusBadge } from './atoms'
+import { Rail, Unavailable, initialsOf } from '@/components/cockpit/primitives'
+import { RuntimeStatusBadge } from './atoms'
 import { countRoster, isUnavailable, sortRoster, unresolvedToolsBadgeText } from './roster-model'
 
 const MUTED_RAIL = 'rgb(161 161 170 / 0.35)'
@@ -28,111 +30,133 @@ const RAIL_COLOR: Record<AvailableAgent['status'], string> = {
   unavailable: '#be850f',
 }
 
+function isoShort(iso: string | null): string | null {
+  if (!iso) return null
+  const t = Date.parse(iso)
+  if (!Number.isFinite(t)) return null
+  return new Date(t).toISOString().slice(0, 16).replace('T', ' ')
+}
+
+function missingRequirement(agent: AvailableAgent): string | null {
+  if (isUnavailable(agent, 'version')) return 'Version non resolue'
+  if (isUnavailable(agent, 'provider')) return 'Provider non resolu'
+  if (isUnavailable(agent, 'configuredModel')) return 'Modele non resolu'
+  if (isUnavailable(agent, 'runtime')) return 'Runtime non resolu'
+  if (isUnavailable(agent, 'projectId')) return 'Projet non resolu'
+  return null
+}
+
+function criticalSignal(agent: AvailableAgent): { tone: 'amber' | 'red'; text: string } | null {
+  if (agent.unresolvedToolIds.length > 0) {
+    return { tone: 'red', text: unresolvedToolsBadgeText(agent.unresolvedToolIds.length) }
+  }
+  if (agent.runtimeProvisioned === false) {
+    return { tone: 'amber', text: 'Assistant LangGraph non provisionne' }
+  }
+  const missing = missingRequirement(agent)
+  if (missing) {
+    return { tone: 'amber', text: missing }
+  }
+  return null
+}
+
+function rosterSummary(agents: readonly AvailableAgent[]): string {
+  const counts = countRoster(agents)
+  const bits = [
+    `${counts.total} agent${counts.total > 1 ? 's' : ''} au catalogue`,
+    `${counts.active} actif${counts.active > 1 ? 's' : ''}`,
+  ]
+  if (counts.degraded > 0) bits.push(`${counts.degraded} degrade${counts.degraded > 1 ? 's' : ''}`)
+  if (counts.withUnresolvedTools > 0) bits.push(`${counts.withUnresolvedTools} avec outil non resolu`)
+  return bits.join(' · ')
+}
+
 function AgentRosterRow({ agent }: Readonly<{ agent: AvailableAgent }>) {
-  const unresolved = agent.unresolvedToolIds.length
-  // `version` peut être absent : c'est une des exigences dures dont l'absence
-  // rend l'agent `unavailable`. On le dit, on n'invente pas de « v1 ».
-  const versionMissing = isUnavailable(agent, 'version')
+  const activity = isoShort(agent.lastRunAt)
+  const signal = criticalSignal(agent)
 
   return (
-    <li className="relative border-b border-zinc-950/5 last:border-b-0 dark:border-white/5">
+    <li className="relative">
       <Rail color={RAIL_COLOR[agent.status]} />
-      {/* Le lien couvre la ligne entière : la cible est la fiche de l'agent. */}
       <Link
         href={`/agents/${agent.copilotId}`}
-        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-zinc-950/[0.025] dark:hover:bg-white/[0.025]"
+        className="group flex items-start gap-4 px-5 py-4 transition hover:bg-zinc-950/2.5 focus-visible:bg-zinc-950/2.5"
       >
-        <Avatar square initials={initialsOf(agent.name)} className="size-8 shrink-0" />
+        <Avatar
+          square
+          initials={initialsOf(agent.name)}
+          className="size-10 shrink-0 bg-zinc-950/3 text-zinc-700 outline-zinc-950/10"
+        />
 
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <Strong className="truncate">{agent.name}</Strong>
             <RuntimeStatusBadge status={agent.status} />
-            <LifecycleStatusBadge status={agent.lifecycleStatus} />
-            {unresolved > 0 ? (
-              <Badge
-                color="red"
-                title="Des outils déclarés ne résolvent vers aucun handler enregistré : l’agent ne peut pas faire ce qu’il annonce."
-              >
-                {unresolvedToolsBadgeText(unresolved)}
-              </Badge>
-            ) : null}
           </div>
-          <Text className="truncate">
-            {versionMissing ? 'version non résolue' : agent.version}
-            {agent.versionStage ? ` · ${agent.versionStage}` : ''}
-            {' · '}
-            {agent.runtime ?? 'runtime non résolu'}
+          <Text className="mt-1 truncate">
+            {activity ? `Dernier run : ${activity} UTC` : 'Aucune activite enregistree'}
           </Text>
+          {signal ? (
+            <Text className={signal.tone === 'red' ? 'mt-1 text-red-600' : 'mt-1 text-amber-700'}>
+              {signal.text}
+            </Text>
+          ) : null}
         </div>
 
-        <div className="hidden shrink-0 items-center gap-2 sm:flex">
-          <ProviderBadge provider={agent.provider} />
-          {/* `executable` est la règle de la garde d'exécution, dite en un mot.
-              Il est plus étroit que « actif » : on ne les confond pas. */}
-          <Badge
-            color={agent.executable ? 'emerald' : 'zinc'}
-            title={
-              agent.executable
-                ? 'La garde d’exécution accepterait un lancement maintenant : actif, tous les outils résolus, runtime langgraph.'
-                : 'La garde d’exécution refuserait un lancement. La fiche de l’agent en donne les raisons concrètes.'
-            }
-          >
-            {agent.executable ? 'lançable' : 'non lançable'}
-          </Badge>
-        </div>
+        <Text className="hidden shrink-0 text-sm text-zinc-400 transition group-hover:text-zinc-600 sm:block">
+          Ouvrir
+        </Text>
       </Link>
     </li>
   )
 }
 
 export default function AgentRosterScreen({ agents }: Readonly<{ agents: AvailableAgent[] }>) {
-  const counts = countRoster(agents)
   const ranked = sortRoster(agents)
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3 xl:overflow-hidden">
-      {/* Bandeau de comptage — dérivé de la MÊME liste que la table affiche. */}
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <Badge color="zinc">{counts.total} agent(s)</Badge>
-        <Badge color="emerald" title="Chemin d’exécution complet ET version en service.">
-          {counts.active} actif(s)
-        </Badge>
-        <Badge color="zinc">{counts.inactive} inactif(s)</Badge>
-        <Badge color="red" title="Des outils déclarés ne résolvent vers aucun handler enregistré.">
-          {counts.degraded} dégradé(s)
-        </Badge>
-        <Badge color="amber" title="Pas exécutable : agent retiré, ou une exigence dure manque.">
-          {counts.unavailable} indisponible(s)
-        </Badge>
-        <Badge
-          color="sky"
-          title="Agents dont le dernier run a PROUVÉ le modèle exécuté. Les autres sont non prouvés — ce n’est pas la même chose que « faux »."
-        >
-          {counts.withProvenExecutedModel}/{counts.total} modèle prouvé
-        </Badge>
-      </div>
+    <div className="mx-auto flex max-w-6xl flex-col gap-8 p-6 pt-16 lg:pt-8">
+      <header className="flex flex-col gap-4 border-b border-zinc-950/6 pb-6 sm:flex-row sm:items-end sm:justify-between">
+        <div className="max-w-3xl">
+          <Text className="text-sm font-medium text-zinc-500">Agents</Text>
+          <Heading level={1} className="mt-2">
+            Agents
+          </Heading>
+          <Text className="mt-3 text-base/7 text-zinc-600">
+            {rosterSummary(ranked)}. La liste montre l essentiel pour decider quoi ouvrir, pas
+            tout ce que le contrat sait.
+          </Text>
+        </div>
 
-      <Panel
-        title="Roster des agents"
-        hint={`${ranked.length} au catalogue`}
-        className="min-h-[20rem] min-w-0 xl:min-h-0 xl:flex-1"
-        padded={false}
-        bodyClassName="scroll-thin overflow-y-auto"
-      >
+        <Button color="dark/zinc" href="/builder">
+          Nouveau copilot
+        </Button>
+      </header>
+
+      <section className="rounded-2xl border border-zinc-950/6 bg-white shadow-sm">
+        <div className="border-b border-zinc-950/6 px-5 py-4">
+          <Subheading level={2}>Liste des agents</Subheading>
+          <Text className="mt-1">
+            Nom, etat principal, derniere activite et signal critique eventuel. Le reste vient au
+            clic.
+          </Text>
+        </div>
+
         {ranked.length === 0 ? (
-          <Unavailable
-            reason="no-data"
-            detail="Aucun agent n’est persisté dans le catalogue. La lecture a réussi — il n’y a réellement rien, ce n’est pas une panne."
-          />
+          <div className="px-5 py-10">
+            <Unavailable
+              reason="no-data"
+              detail="Aucun agent n'est persiste dans le catalogue. La lecture a reussi — il n'y a reellement rien, ce n'est pas une panne."
+            />
+          </div>
         ) : (
-          <ul>
+          <ul className="divide-y divide-zinc-950/6">
             {ranked.map((agent) => (
               <AgentRosterRow key={agent.copilotId} agent={agent} />
             ))}
           </ul>
         )}
-      </Panel>
+      </section>
     </div>
   )
 }

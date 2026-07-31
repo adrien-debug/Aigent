@@ -39,7 +39,8 @@ contrôlés dans un navigateur, zéro erreur console) :
 
 | Élément | État |
 |---|---|
-| Shell | `src/components/app-shell.tsx` — rail desktop, sidebar mobile, colonne secondaire |
+| Shell | `src/components/app-shell.tsx` — rail noir glossy, zone de travail blanche, sans header ni colonne droite |
+| `/agents` | Page pilote recomposée en liste produit + détail éditorial, sans grille de panneaux |
 | Kit UI | `src/components/ui/` — **14 primitives**, toutes consommées ; code du repo, linté (`src/components/ui/README.md`) |
 | Composants métier | `src/components/{cockpit,agents,runs,projects,builder,qualification,delivery,runtime}/` |
 | Console `/admin` | **Absente** et interdite de retour |
@@ -53,6 +54,8 @@ obligation — les écrans peuvent s'en écarter.
 Deux gates encadrent le front, et **aucune des deux ne juge l'esthétique** :
 - `check:no-legacy-front` — refuse le retour des surfaces démolies ;
   `src/components/` est autorisé.
+- `check:legacy-design-doctrine` — bloque la réinjection de l'ancienne doctrine
+  layout (zéro-scroll, DS Guardian, gates `check:ds`/`check:catalyst` supprimées).
 - `check:ui-kit-integrity` — fige le kit `ui/` par empreinte SHA-256 contre une
   dérive silencieuse. Modifier une primitive **volontairement** :
   `node scripts/check-ui-kit-integrity.mjs --update`.
@@ -127,7 +130,7 @@ npm run test:live  # opt-in — tape gpu1 + OpenAI, coûte de l'argent
 ```
 
 `npm run check` enchaîne, dans l'ordre : `typecheck` · `lint:fast` · `lint` ·
-`check:no-legacy-front` · `check:ui-kit-integrity` · `check:agent-truth` ·
+`check:no-legacy-front` · `check:legacy-design-doctrine` · `check:ui-kit-integrity` · `check:agent-truth` ·
 `check:lifecycle-truth` · `check:registry-parity` · `check:registry-integrity` ·
 `check:dev-port` · `check:render-truth` · `check:rsc-boundary` ·
 `check:schema-rebuildable` · `check:secrets` · `audit:dead`. Le premier rouge

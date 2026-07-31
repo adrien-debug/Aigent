@@ -1,43 +1,25 @@
 /**
- * Fiche d'un agent — maître-détail, hauteur bornée, la donnée défile dans ses box.
+ * Fiche d'un agent — page produit, sections longues, scroll document naturel.
  *
- * Server Component pur : il reçoit `AgentDetail` (le résolveur UNIQUE de toutes
- * les sections) plus la gate de release, et il distribue. Il ne recalcule NI le
- * statut, NI l'exécutabilité, NI la promouvabilité — ce sont les dérivations
- * canoniques, et les refaire ici est ce qui produit deux vérités sous un seul
- * label.
- *
- * LECTURE SEULE. Aucun bouton d'action n'existe sur cet écran : pas de run, pas
- * de promotion, pas de qualification. Les mutations arrivent plus tard avec leur
- * dialogue de confirmation et leur coût affiché ; les esquisser ici en inerte
- * dessinerait une capacité qui n'existe pas.
- *
- * CE QUE L'ÉCRAN REFUSE DE FAIRE
- * ------------------------------
- * · Rendre un `null` comme un `0`. Chaque mesure passe par `Fact`, dont le
- *   contrat est que `null` devient « Indisponible ».
- * · Rendre `active_in_consumer` en rouge. Le verdict d'activation vaut `true`
- *   ou « Inconnue », jamais `false` : le silence d'un consommateur est ambigu.
- *   L'étape rend son état, sa raison, l'horodatage de la dernière preuve et sa
- *   péremption — et une lecture EN PANNE se dit « Lecture impossible », jamais
- *   « Inconnue ».
- * · Rendre un check `missing` comme un `pass`. Trois états, trois couleurs,
- *   trois mots.
+ * Server Component pur : il reçoit `AgentDetail` plus la gate de release et les
+ * distribue sans recalculer les verdicts canoniques. Le détail complet vient
+ * par disclosure progressive : overview, activity, qualification, configuration.
  */
 import type { ComponentProps, ReactNode } from 'react'
+import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Divider } from '@/components/ui/divider'
 import { Heading, Subheading } from '@/components/ui/heading'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
-import { Panel, Unavailable } from '@/components/cockpit/primitives'
+import { Unavailable, initialsOf } from '@/components/cockpit/primitives'
 import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
+import { formatDuration } from '@/lib/runs-console/runs-metrics'
 import type { AgentDetail } from '@/lib/agent-mission-control/agent-detail'
 import type { ReleaseGate } from '@/lib/agent-mission-control/release-gate'
 import type { QualificationRun } from '@/lib/agent-mission-control/qualification-orchestrator'
 import {
-  Fact,
-  FactValue,
   GateStatusBadge,
   LifecycleStatusBadge,
   NotMeasured,
@@ -46,7 +28,6 @@ import {
   StageBadge,
 } from './atoms'
 import {
-  isConsumerReportedStage,
   sortChecks,
   stageDisplay,
   summarizeGate,
@@ -92,18 +73,6 @@ function toolsCountHint(resolved: number, unresolved: number): string {
   return resolved + ' résolu(s) · ' + unresolved + ' non résolu(s)'
 }
 
-function gateSummaryHint(passed: number, total: number): string {
-  return passed + '/' + total + ' vérifiés'
-}
-
-function lifecycleReachedHint(reached: number, total: number): string {
-  return reached + '/' + total + ' atteintes'
-}
-
-function stageBadgeTitle(display: ReturnType<typeof stageDisplay>, source: string): string {
-  return STAGE_DISPLAY_MEANING[display] + ' — source : ' + source
-}
-
 function metricsToolCallHint(
   state: AgentDetail['metrics']['toolCallCountState'],
   toolCallCount: number | null,
@@ -120,849 +89,614 @@ function metricsToolCallHint(
   return 'mesuré sur ' + completedRuns + ' run(s) terminé(s)'
 }
 
-/* ─────────────────────────── En-tête ─────────────────────────── */
+type Tone = 'default' | 'danger' | 'warning'
 
-function DetailHeader({ detail }: Readonly<{ detail: AgentDetail }>) {
-  const { copilot, agent, project } = detail
+function Surface({
+  children,
+  className = '',
+}: Readonly<{
+  children: ReactNode
+  className?: string
+}>) {
+  return <div className={`rounded-2xl border border-zinc-950/6 bg-white shadow-sm ${className}`}>{children}</div>
+}
 
+function SectionHeader({
+  title,
+  description,
+  action,
+}: Readonly<{
+  title: string
+  description: string
+  action?: ReactNode
+}>) {
   return (
-    <div className="shrink-0">
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <Heading level={1} className="min-w-0 truncate">
-          {copilot.name}
-        </Heading>
-        {/* Statut RUNTIME et statut de CYCLE DE VIE, côte à côte. L'un ne
-            remplace jamais l'autre : ils répondent à deux questions. */}
-        {agent ? (
-          <RuntimeStatusBadge status={agent.status} />
-        ) : (
-          <Badge
-            color="red"
-            title="Aucune ligne canonique ne résout pour ce copilot : il n’est pas dans le catalogue runtime."
-          >
-            hors catalogue
-          </Badge>
-        )}
-        <LifecycleStatusBadge status={copilot.status} />
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="max-w-3xl">
+        <Text className="text-sm font-medium text-zinc-500">{title}</Text>
+        <Subheading level={2} className="mt-1">
+          {title}
+        </Subheading>
+        <Text className="mt-2 text-base/7 text-zinc-600">{description}</Text>
       </div>
-
-      <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-        <Text className="truncate">
-          {agent?.description ?? copilot.description ?? 'Aucune description'}
-        </Text>
-      </div>
-
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        {agent ? <ProviderBadge provider={agent.provider} /> : null}
-        {project ? (
-          <Badge color="zinc" title="Projet consommateur dans lequel cet agent est livré.">
-            {project.name}
-          </Badge>
-        ) : (
-          <Badge
-            color="zinc"
-            title="Aucun projet d’affectation résolu : le copilot est sur le banc de validation, ou son projet lié n’existe plus. L’affectation à un projet EST l’acte de validation."
-          >
-            banc de validation
-          </Badge>
-        )}
-      </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
     </div>
   )
 }
 
-/* ─────────────────── Exécutabilité & blockers ─────────────────── */
+function DetailField({
+  label,
+  value,
+  hint,
+}: Readonly<{
+  label: string
+  value: ReactNode | null
+  hint?: string
+}>) {
+  return (
+    <div className="min-w-0">
+      <Text className="text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</Text>
+      <div className="mt-1 min-w-0 wrap-break-word">{value ?? <NotMeasured />}</div>
+      {hint ? <Text className="mt-1 text-xs text-zinc-500">{hint}</Text> : null}
+    </div>
+  )
+}
 
-/**
- * Pourquoi un run ne peut pas partir — le miroir exact des 409 de la garde
- * d'exécution. C'est le panneau qui explique un « non lançable » au lieu de le
- * laisser deviner.
- */
-function ExecutabilityPanel({ detail }: Readonly<{ detail: AgentDetail }>) {
-  const { executable, blockers, agent } = detail
+function InlineStatus({ tone, children }: Readonly<{ tone: Tone; children: ReactNode }>) {
+  const classes =
+    tone === 'danger'
+      ? 'text-red-600'
+      : tone === 'warning'
+        ? 'text-amber-700'
+        : 'text-zinc-600'
+  return <Text className={classes}>{children}</Text>
+}
+
+function OverviewHeader({ detail }: Readonly<{ detail: AgentDetail }>) {
+  const { copilot, agent, project } = detail
 
   return (
-    <Panel
-      title="Exécutabilité"
-      hint={executable ? 'lançable' : `${blockers.length} obstacle(s)`}
-      className="min-h-0"
-      bodyClassName="scroll-thin overflow-y-auto"
-    >
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge
-            color={executable ? 'emerald' : 'red'}
-            title="La règle exacte de POST /copilots/:id/run : statut actif, aucun outil non résolu, runtime langgraph."
-          >
-            {executable ? 'la garde accepterait un lancement' : 'la garde refuserait un lancement'}
-          </Badge>
-          {agent?.runtime ? (
-            <Badge
-              color={agent.runtime === 'langgraph' ? 'emerald' : 'red'}
-              title="LangGraph est le seul runtime produit exécutable."
-            >
-              runtime {agent.runtime}
-            </Badge>
-          ) : (
-            <Badge color="red" title="La colonne runtime est vide — c’est en soi pourquoi l’agent ne peut pas tourner.">
-              runtime non résolu
-            </Badge>
-          )}
-          {/*
-            Signal de provisioning — n'a de sens que sur langgraph, d'où le
-            `=== false` strict : `null` (autre runtime, ou colonne non lue) ne
-            doit rien afficher, sous peine de transformer un « non applicable »
-            en alerte.
-          */}
-          {agent?.runtimeProvisioned === false ? (
-            <Badge
-              color="amber"
-              title="copilots.assistant_id est vide : le run part sur le graphe nu, avec les outils génériques hérités."
-            >
-              aucun assistant provisionné
-            </Badge>
-          ) : null}
+    <header className="flex flex-col gap-5 border-b border-zinc-950/6 pb-6 lg:flex-row lg:items-start lg:justify-between">
+      <div className="min-w-0">
+        <Link href="/agents" className="text-sm text-zinc-500 underline-offset-4 hover:underline">
+          Agents
+        </Link>
+
+        <div className="mt-4 flex min-w-0 items-start gap-4">
+          <Avatar
+            square
+            initials={initialsOf(copilot.name)}
+            className="size-12 shrink-0 bg-zinc-950/3 text-zinc-700 outline-zinc-950/10"
+          />
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <Heading level={1} className="min-w-0 truncate">
+                {copilot.name}
+              </Heading>
+              {agent ? <RuntimeStatusBadge status={agent.status} /> : <Badge color="red">hors catalogue</Badge>}
+              <LifecycleStatusBadge status={copilot.status} />
+            </div>
+            <Text className="mt-2 max-w-3xl text-base/7 text-zinc-600">
+              {agent?.description ?? copilot.description ?? 'Aucune description disponible pour cet agent.'}
+            </Text>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {project ? <Badge color="zinc">{project.name}</Badge> : <Badge color="zinc">banc de validation</Badge>}
+              {agent ? <ProviderBadge provider={agent.provider} /> : null}
+            </div>
+          </div>
         </div>
-
-        {agent?.runtimeProvisioned === false ? (
-          <div className="rounded-md border border-amber-400/25 bg-amber-400/5 px-3 py-2">
-            <Strong className="block">Aucun assistant LangGraph provisionné</Strong>
-            <Text className="mt-0.5">
-              Le runtime est LangGraph mais <code>assistant_id</code> est vide. Un run n’échoue pas
-              pour autant : il s’exécute contre le graphe nu, hérite des outils génériques hérités,
-              et répond « pas de données » avec zéro appel d’outil — en paraissant sain.
-            </Text>
-          </div>
-        ) : null}
-
-        {blockers.length === 0 ? (
-          <Text>
-            Aucun obstacle : l’agent est actif, tous ses outils déclarés résolvent, et son runtime
-            est LangGraph.
-          </Text>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {blockers.map((b) => (
-              <li
-                key={b.code}
-                className="rounded-md border border-[#e8455f]/25 bg-[#e8455f]/5 px-3 py-2"
-              >
-                <Strong className="block">{b.label}</Strong>
-                <Text className="mt-0.5">{b.detail}</Text>
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
-    </Panel>
+
+      <div className="flex flex-wrap gap-2">
+        <Button outline href={`/qualification/${copilot.id}`}>
+          Qualification
+        </Button>
+        <Button color="dark/zinc" href={`/delivery/${copilot.id}`}>
+          Livraison
+        </Button>
+      </div>
+    </header>
   )
 }
 
-/* ─────────────────────────── Outils ─────────────────────────── */
-
-function ToolsPanel({ detail }: Readonly<{ detail: AgentDetail }>) {
-  const { agent, tools } = detail
-  const resolved = agent?.tools ?? []
-  const unresolvedIds = agent?.unresolvedToolIds ?? []
-  const nameById = new Map(tools.map((t) => [t.id, t.name]))
-
-  let body: ReactNode
-  if (agent === undefined) {
-    body = (
-      <Unavailable
-        reason="unread"
-        detail="Aucune ligne canonique ne résout pour ce copilot — la liste d’outils montée ne peut pas être établie."
-      />
-    )
-  } else if (resolved.length === 0 && unresolvedIds.length === 0) {
-    body = <Unavailable reason="no-data" detail="Le manifeste ne déclare aucun outil." />
-  } else {
-    body = (
-      <div className="flex flex-col gap-3">
-        {unresolvedIds.length > 0 ? (
-          <div className="rounded-md border border-[#e8455f]/25 bg-[#e8455f]/5 px-3 py-2">
-            <Strong className="block">
-              {unresolvedIds.length} outil(s) déclaré(s) sans handler exécutable
-            </Strong>
-            <Text className="mt-0.5">
-              Un outil est résolu seulement si une ligne `tools` existe ET que le runner a un
-              handler sous ce nom. C’est la cause concrète d’un agent « dégradé ».
-            </Text>
-            <ul className="mt-1.5 flex flex-wrap gap-1.5">
-              {unresolvedIds.map((id) => (
-                <li key={id}>
-                  <Badge color="red">{nameById.get(id) ?? id}</Badge>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        {resolved.length > 0 ? (
-          <ul className="flex flex-col gap-1.5">
-            {resolved.map((t) => (
-              <li key={t.id} className="flex min-w-0 items-center gap-2">
-                <Strong className="min-w-0 flex-1 truncate">{t.name}</Strong>
-                <Badge
-                  color={t.mutates ? 'amber' : 'emerald'}
-                  title={
-                    t.mutates
-                      ? 'Cet outil peut écrire, ou sa nature n’est pas prouvée (fail-closed : seul un `mutates = false` explicite prouve une lecture seule).'
-                      : 'Nature prouvée en lecture seule par un `mutates = false` explicite.'
-                  }
-                >
-                  {t.mutates ? 'mutant' : 'lecture seule'}
-                </Badge>
-                <Badge color={toolRiskBadgeColor(t.riskLevel)}>{t.riskLevel}</Badge>
-                {t.requiresConfirmation ? <Badge color="sky">confirmation</Badge> : null}
-                {!t.enabled ? <Badge color="zinc">désactivé</Badge> : null}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
-    )
-  }
+function OverviewSection({ detail }: Readonly<{ detail: AgentDetail }>) {
+  const { agent, project, currentVersion, delivery, lifecycle } = detail
+  const consumerStage = lifecycle.stages.find((stage) => stage.key === 'active_in_consumer')
+  const consumerDisplay = consumerStage ? stageDisplay(consumerStage) : 'unknown'
+  const reachedCount = lifecycle.stages.filter((stage) => stageDisplay(stage) === 'reached').length
 
   return (
-    <Panel
-      title="Outils"
-      hint={agent ? toolsCountHint(resolved.length, unresolvedIds.length) : undefined}
-      className="min-h-0"
-      bodyClassName="scroll-thin overflow-y-auto"
-    >
-      {body}
-    </Panel>
+    <section className="space-y-4">
+      <SectionHeader
+        title="Overview"
+        description="Identite, projet cible, runtime et etat de service. Cette section repond a la question : que sert cet agent aujourd'hui et dans quel etat ?"
+      />
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <Surface className="p-5">
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            <DetailField label="Projet" value={project ? <Strong>{project.name}</Strong> : null} />
+            <DetailField
+              label="Runtime"
+              value={agent?.runtime ? <Strong>{agent.runtime}</Strong> : null}
+            />
+            <DetailField
+              label="Version"
+              value={currentVersion ? <Strong>{currentVersion.label}</Strong> : null}
+              hint={currentVersion?.stage ?? undefined}
+            />
+            <DetailField
+              label="Modele configure"
+              value={agent && !isUnavailable(agent, 'configuredModel') ? <Strong>{agent.configuredModel}</Strong> : null}
+            />
+            <DetailField
+              label="Modele prouve"
+              value={agent?.executedModel ? <Strong>{agent.executedModel}</Strong> : null}
+            />
+            <DetailField
+              label="Assistant LangGraph"
+              value={
+                agent && agent.runtimeProvisioned !== null ? (
+                  <Badge color={agent.runtimeProvisioned ? 'emerald' : 'amber'}>
+                    {agent.runtimeProvisioned ? 'provisionne' : 'manquant'}
+                  </Badge>
+                ) : (
+                  null
+                )
+              }
+            />
+          </div>
+        </Surface>
+
+        <Surface className="p-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge color={detail.executable ? 'emerald' : 'red'}>
+              {detail.executable ? 'lancable maintenant' : 'lancement bloque'}
+            </Badge>
+            <StageBadge
+              display={consumerDisplay}
+              title={consumerStage ? STAGE_DISPLAY_MEANING[consumerDisplay] : undefined}
+            />
+            <Badge color="zinc">{reachedCount}/{lifecycle.stages.length} etapes atteintes</Badge>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            <InlineStatus tone={detail.blockers.length > 0 ? 'danger' : 'default'}>
+              {detail.blockers.length > 0
+                ? `${detail.blockers.length} obstacle(s) concret(s) empechent un lancement.`
+                : 'Aucun obstacle runtime connu a ce stade.'}
+            </InlineStatus>
+            {detail.blockers.length > 0 ? (
+              <ul className="space-y-2">
+                {detail.blockers.slice(0, 3).map((blocker) => (
+                  <li key={blocker.code} className="rounded-xl border border-red-200 bg-red-50 px-3 py-2">
+                    <Strong className="block">{blocker.label}</Strong>
+                    <Text className="mt-1 text-sm text-red-700">{blocker.detail}</Text>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <Divider soft />
+            <DetailField
+              label="Livraison"
+              value={
+                delivery ? (
+                  <Strong>{delivery.targetRepo}</Strong>
+                ) : (
+                  <Badge color="zinc">jamais livre</Badge>
+                )
+              }
+              hint={delivery ? delivery.status : 'Aucune poussee ou PR consumer enregistree.'}
+            />
+          </div>
+        </Surface>
+      </div>
+    </section>
   )
 }
 
-/* ─────────────────────── Gate de release ─────────────────────── */
+function ActivitySection({ detail }: Readonly<{ detail: AgentDetail }>) {
+  const { runs, metrics, telemetry, lifecycle, delivery } = detail
+  const events = [
+    metrics.lastRun
+      ? {
+          key: 'last-run',
+          title: 'Dernier run operateur',
+          detail: `${isoShort(metrics.lastRun.startedAt) ?? 'date inconnue'} · ${metrics.lastRun.status}`,
+        }
+      : null,
+    telemetry
+      ? {
+          key: 'telemetry',
+          title: 'Derniere telemetrie',
+          detail:
+            telemetry.lastSeenAt === null
+              ? 'Aucun evenement runtime rapporte'
+              : `${isoShort(telemetry.lastSeenAt) ?? telemetry.lastSeenAt} · ${telemetry.totalRuns} run(s) rapportes`,
+        }
+      : {
+          key: 'telemetry-unread',
+          title: 'Telemetrie runtime',
+          detail: 'Lecture impossible du canal de telemetrie',
+        },
+    delivery
+      ? {
+          key: 'delivery',
+          title: 'Derniere livraison',
+          detail: `${delivery.targetRepo} · ${delivery.status}`,
+        }
+      : null,
+    ...lifecycle.stages
+      .filter((stage) => {
+        const display = stageDisplay(stage)
+        return display === 'reached' || display === 'unavailable'
+      })
+      .slice(0, 2)
+      .map((stage) => ({
+        key: stage.key,
+        title: stage.label,
+        detail: stage.evidence.detail,
+      })),
+  ].filter((item): item is { key: string; title: string; detail: string } => item !== null)
 
-/**
- * La gate de release — 9 checks, TROIS états.
- *
- * `missing` (« Non mesuré ») est le point de ce panneau : il bloque comme un
- * échec mais n'affirme pas la même chose, et le confondre avec un `pass` est
- * exactement ce qui promeut une version non prouvée.
- */
-function ReleaseGatePanel({
+  return (
+    <section className="space-y-4">
+      <SectionHeader
+        title="Activity"
+        description="Derniers runs et evenements importants. L'objectif ici est de voir ce qui s'est passe recemment avant de rentrer dans les preuves detaillees."
+      />
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+        <Surface>
+          <div className="border-b border-zinc-950/6 px-5 py-4">
+            <Subheading level={3}>Derniers runs</Subheading>
+            <Text className="mt-1">
+              Les runs sont listes avant toute interpretation secondaire.
+            </Text>
+          </div>
+
+          <div className="grid gap-4 border-b border-zinc-950/6 px-5 py-4 sm:grid-cols-2 xl:grid-cols-4">
+            <DetailField label="Runs 24 h" value={<Strong>{metrics.runs24h}</Strong>} />
+            <DetailField
+              label="Succes"
+              value={metrics.successRate === null ? null : <Strong>{formatPercent(metrics.successRate)}</Strong>}
+            />
+            <DetailField
+              label="Latence moyenne"
+              value={metrics.avgDurationMs === null ? null : <Strong>{Math.round(metrics.avgDurationMs)} ms</Strong>}
+            />
+            <DetailField
+              label="Cout 24 h"
+              value={metrics.cost24hUsd === null ? null : <Strong>{formatUsd(metrics.cost24hUsd)}</Strong>}
+            />
+          </div>
+
+          <div className="px-5 py-2">
+            {runs.length === 0 ? (
+              <div className="py-8">
+                <Unavailable reason="no-data" detail="Aucun run n'est enregistre pour cet agent." />
+              </div>
+            ) : (
+              <ul className="divide-y divide-zinc-950/6">
+                {runs.slice(0, 12).map((run) => (
+                  <li key={run.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <Strong className="truncate">{run.userLabel || run.inputSummary || run.id}</Strong>
+                        <Badge color={runStatusColor(run.status)}>{run.status}</Badge>
+                        {run.unsafeAttemptCount > 0 ? <Badge color="red">{run.unsafeAttemptCount} unsafe</Badge> : null}
+                      </div>
+                      <Text className="mt-1 truncate">
+                        {isoShort(run.startedAt) ?? 'date inconnue'} UTC
+                      </Text>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3 text-sm text-zinc-500">
+                      <span>{run.latencyMs === null ? <NotMeasured /> : formatDuration(run.latencyMs)}</span>
+                      <span>{run.costUsd === null ? <NotMeasured /> : formatUsd(run.costUsd)}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </Surface>
+
+        <Surface className="p-5">
+          <Subheading level={3}>Evenements importants</Subheading>
+          <Text className="mt-1">
+            Les signaux qui changent la lecture de la page sans transformer chaque fait en panneau.
+          </Text>
+          <ul className="mt-4 space-y-4">
+            {events.map((event) => (
+              <li key={event.key} className="border-l border-zinc-950/10 pl-4">
+                <Strong className="block">{event.title}</Strong>
+                <Text className="mt-1 text-sm text-zinc-600">{event.detail}</Text>
+              </li>
+            ))}
+          </ul>
+          <Divider soft className="my-5" />
+          <DetailField
+            label="Appels d'outils"
+            value={
+              metrics.toolCallCountState === 'MEASURED' ? <Strong>{metrics.toolCallCount}</Strong> : null
+            }
+            hint={metricsToolCallHint(metrics.toolCallCountState, metrics.toolCallCount, metrics.completedRuns)}
+          />
+        </Surface>
+      </div>
+    </section>
+  )
+}
+
+function QualificationSection({
+  detail,
   gate,
   gateFailure,
-}: Readonly<{ gate: ReleaseGate | null; gateFailure: string | null }>) {
-  if (gate === null) {
-    return (
-      <Panel title="Gate de release" className="min-h-0" bodyClassName="scroll-thin overflow-y-auto">
-        <Unavailable
-          reason={gateFailure ? 'unread' : 'no-data'}
-          detail={
-            gateFailure
-              ? `La gate n’a pas pu être évaluée : ${gateFailure}`
-              : 'Aucune version candidate ne résout pour ce copilot — il n’y a rien à évaluer.'
-          }
-        />
-      </Panel>
-    )
-  }
-
-  const summary = summarizeGate(gate.checks)
-
-  return (
-    <Panel
-      title="Gate de release"
-      hint={gateSummaryHint(summary.passed, summary.total)}
-      className="min-h-0"
-      bodyClassName="scroll-thin overflow-y-auto"
-    >
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge
-            color={summary.promotable ? 'emerald' : 'red'}
-            title="Promouvable seulement quand TOUS les checks passent. Un signal non mesuré bloque au même titre qu’un échec."
-          >
-            {summary.promotable ? 'promouvable' : 'non promouvable'}
-          </Badge>
-          {summary.failed > 0 ? <Badge color="red">{summary.failed} échec(s)</Badge> : null}
-          {summary.missing > 0 ? (
-            <Badge
-              color="amber"
-              title="Signaux jamais mesurés. Ils bloquent la promotion, mais ils n’accusent rien — il n’y a simplement rien à lire."
-            >
-              {summary.missing} non mesuré(s)
-            </Badge>
-          ) : null}
-          <Badge color="zinc">candidat {gate.evidence.candidateLabel}</Badge>
-          <Badge color="zinc">{gate.evidence.candidateStage}</Badge>
-        </div>
-
-        <ul className="flex flex-col gap-1.5">
-          {sortChecks(gate.checks).map((c) => (
-            <li key={c.id} className="flex min-w-0 items-center gap-2">
-              <span className="min-w-0 flex-1 truncate">
-                <Text className="truncate">{c.label}</Text>
-              </span>
-              <Text className="shrink-0 tabular-nums">{c.observed}</Text>
-              <Text className="hidden shrink-0 sm:inline">exigé&nbsp;: {c.required}</Text>
-              <GateStatusBadge status={c.status} />
-            </li>
-          ))}
-        </ul>
-
-        {/* La preuve est filtrée `execution_mode = live` : une fixture ne
-            satisfait jamais une promotion de production. Le dire évite de
-            chercher pourquoi un run « vert » n'apparaît pas ici. */}
-        <Text className="text-xs">
-          Les checks lisent le dernier test run et le dernier benchmark épinglés au candidat et
-          filtrés sur une exécution live — une preuve fixture ne peut jamais débloquer une
-          promotion.
-        </Text>
-      </div>
-    </Panel>
-  )
-}
-
-/* ─────────────────── Qualification ─────────────────── */
-
-function QualificationPanel({
-  run,
-  failure,
+  qualification,
+  qualificationFailure,
 }: Readonly<{
-  run: QualificationRun | null
-  failure: string | null
+  detail: AgentDetail
+  gate: ReleaseGate | null
+  gateFailure: string | null
+  qualification: QualificationRun | null
+  qualificationFailure: string | null
 }>) {
-  let body: ReactNode
-  if (failure !== null) {
-    body = (
-      <Unavailable reason="unread" detail={'Le registre de qualification n’a pas pu être lu : ' + failure} />
-    )
-  } else if (run === null) {
-    body = (
-      <Unavailable
-        reason="no-data"
-        detail="Aucune qualification n’a été lancée pour la version courante. La lecture a réussi — il n’y a rien, ce n’est pas une panne."
-      />
-    )
-  } else {
-    body = (
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge color={qualificationStatusColor(run.status)}>{run.status}</Badge>
-          <Badge
-            color={run.policy.requireShadow ? 'amber' : 'zinc'}
-            title="Une preuve shadow est-elle exigée pour promouvoir ce candidat ?"
-          >
-            shadow {run.policy.requireShadow ? 'exigé' : 'non exigé'}
-          </Badge>
-          <Badge
-            color={run.policy.requireReplay ? 'amber' : 'zinc'}
-            title="Une comparaison replay est-elle exigée pour promouvoir ce candidat ?"
-          >
-            replay {run.policy.requireReplay ? 'exigé' : 'non exigé'}
-          </Badge>
-          <Badge color="zinc">curseur {run.stepCursor}</Badge>
-        </div>
-
-        {run.steps.length === 0 ? (
-          <Text>Aucune étape n’a encore produit de verdict.</Text>
-        ) : (
-          <ul className="flex flex-col gap-1.5">
-            {run.steps.map((s) => (
-              <li key={s.step + '-' + s.at} className="flex min-w-0 items-center gap-2">
-                <Strong className="shrink-0">{s.step}</Strong>
-                <Text className="min-w-0 flex-1 truncate" title={s.reason}>
-                  {s.reason}
-                </Text>
-                <Badge color={qualificationStepColor(s.status)} title={s.sourceOfTruth}>
-                  {s.status}
-                </Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    )
-  }
+  const gateSummary = gate ? summarizeGate(gate.checks) : null
 
   return (
-    <Panel
-      title="Qualification"
-      hint={run ? run.status : undefined}
-      className="min-h-0"
-      bodyClassName="scroll-thin overflow-y-auto"
-    >
-      {body}
-    </Panel>
+    <section className="space-y-4">
+      <SectionHeader
+        title="Qualification"
+        description="Confiance, tests et preuves de promotion. Cette section distingue ce qui passe, ce qui echoue et ce qui n'a jamais ete mesure."
+        action={<Button outline href={`/qualification/${detail.copilot.id}`}>Ouvrir la surface complete</Button>}
+      />
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Surface className="p-5">
+          <Subheading level={3}>Confiance de release</Subheading>
+          {gate === null ? (
+            <div className="mt-4">
+              <Unavailable
+                reason={gateFailure ? 'unread' : 'no-data'}
+                detail={
+                  gateFailure
+                    ? `La gate n'a pas pu etre evaluee : ${gateFailure}`
+                    : "Aucune version candidate ne resout pour ce copilot."
+                }
+              />
+            </div>
+          ) : (
+            <div className="mt-4 space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge color={gateSummary?.promotable ? 'emerald' : 'red'}>
+                  {gateSummary?.promotable ? 'promouvable' : 'non promouvable'}
+                </Badge>
+                {gateSummary && gateSummary.blocking > 0 ? (
+                  <Badge color="amber">{gateSummary.blocking} blocage(s)</Badge>
+                ) : null}
+                <Badge color="zinc">candidat {gate.evidence.candidateLabel}</Badge>
+              </div>
+              <ul className="divide-y divide-zinc-950/6">
+                {sortChecks(gate.checks).map((check) => (
+                  <li key={check.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
+                    <div className="min-w-0 flex-1">
+                      <Strong className="block">{check.label}</Strong>
+                      <Text className="mt-1 text-sm text-zinc-600">
+                        Observe : {check.observed} · Exige : {check.required}
+                      </Text>
+                    </div>
+                    <GateStatusBadge status={check.status} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Surface>
+
+        <Surface className="p-5">
+          <Subheading level={3}>Tests et preuves</Subheading>
+          {qualificationFailure !== null ? (
+            <div className="mt-4">
+              <Unavailable reason="unread" detail={`Lecture impossible : ${qualificationFailure}`} />
+            </div>
+          ) : qualification === null ? (
+            <div className="mt-4 space-y-4">
+              <Unavailable
+                reason="no-data"
+                detail="Aucune qualification n'a ete lancee pour la version courante."
+              />
+            </div>
+          ) : (
+            <div className="mt-4 space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge color={qualificationStatusColor(qualification.status)}>{qualification.status}</Badge>
+                <Badge color={qualification.policy.requireShadow ? 'amber' : 'zinc'}>
+                  shadow {qualification.policy.requireShadow ? 'exige' : 'non exige'}
+                </Badge>
+                <Badge color={qualification.policy.requireReplay ? 'amber' : 'zinc'}>
+                  replay {qualification.policy.requireReplay ? 'exige' : 'non exige'}
+                </Badge>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <DetailField label="Suites de test" value={<Strong>{detail.testSuites.length}</Strong>} />
+                <DetailField label="Suites benchmark" value={<Strong>{detail.benchmarkSuites.length}</Strong>} />
+              </div>
+              {qualification.steps.length === 0 ? (
+                <Text>Aucune etape ne porte encore de verdict exploitable.</Text>
+              ) : (
+                <ul className="divide-y divide-zinc-950/6">
+                  {qualification.steps.map((step) => (
+                    <li key={step.step + '-' + step.at} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
+                      <div className="min-w-0 flex-1">
+                        <Strong className="block">{step.step}</Strong>
+                        <Text className="mt-1 text-sm text-zinc-600">{step.reason}</Text>
+                      </div>
+                      <Badge color={qualificationStepColor(step.status)} title={step.sourceOfTruth}>
+                        {step.status}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </Surface>
+      </div>
+    </section>
   )
 }
 
-/* ─────────────────── Cycle de vie ─────────────────── */
-
-/**
- * La trace de cycle de vie, chaque étape avec SA source et SON état de preuve.
- *
- * `active_in_consumer` n'est PLUS une inconnue structurelle : la route
- * consommateur authentifiée alimente `consumer-activation.ts`, dont le verdict
- * est recopié tel quel. L'écran rend donc quatre choses pour cette étape —
- * l'état, la RAISON, l'horodatage de la dernière preuve, et la péremption
- * (`stale`) explicitement — au lieu d'un badge gris muet.
- *
- * Ce qu'il ne fait toujours pas : rendre cette étape en rouge. Le verdict n'est
- * jamais `false`, donc « pas atteinte » ne peut pas s'afficher ici. Et un
- * heartbeat ne vaut pas une exécution : la raison rendue vient de l'agrégation,
- * pas d'une reformulation locale.
- */
-function LifecyclePanel({ detail }: Readonly<{ detail: AgentDetail }>) {
-  const { lifecycle } = detail
-  const reachedCount = lifecycle.stages.filter((s) => stageDisplay(s) === 'reached').length
+function ConfigurationSection({ detail }: Readonly<{ detail: AgentDetail }>) {
+  const { manifest, agent, tools, versions, currentVersion } = detail
+  const resolvedTools = agent?.tools ?? []
+  const unresolvedIds = agent?.unresolvedToolIds ?? []
+  const toolNameById = new Map(tools.map((tool) => [tool.id, tool.name]))
 
   return (
-    <Panel
-      title="Cycle de vie"
-      hint={lifecycleReachedHint(reachedCount, lifecycle.stages.length)}
-      className="min-h-0"
-      bodyClassName="scroll-thin overflow-y-auto"
-    >
-      <ul className="flex flex-col gap-1.5">
-        {lifecycle.stages.map((stage) => {
-          const display = stageDisplay(stage)
-          const consumerReported = isConsumerReportedStage(stage)
-          const consumer = stage.consumer
-          return (
-            <li key={stage.key} className="flex min-w-0 items-start gap-2">
-              <div className="min-w-0 flex-1">
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <Strong className="truncate">{stage.label}</Strong>
-                  {consumerReported ? (
-                    <Badge
-                      color="sky"
-                      title="Cette étape se lit UNIQUEMENT sur des événements rapportés par le consommateur et authentifiés (installation_id vérifié). Jamais sur une livraison, un statut Aigent ou un run interne. Un heartbeat prouve un runtime vivant, pas une exécution."
-                    >
-                      rapportée par le consommateur
+    <section className="space-y-4">
+      <SectionHeader
+        title="Configuration"
+        description="Outils, modele et parametres de fonctionnement. Cette section montre ce qui est monte aujourd'hui, pas toutes les metadonnees historiques."
+      />
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <Surface className="p-5">
+          <Subheading level={3}>Parametres actifs</Subheading>
+          {manifest === undefined ? (
+            <div className="mt-4">
+              <Unavailable
+                reason="no-data"
+                detail="Aucun manifeste ne resout pour ce copilot — c'est une exigence dure manquante."
+              />
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-5 sm:grid-cols-2">
+              <DetailField
+                label="Confirmation"
+                value={<Strong>{manifest.confirmationPolicy}</Strong>}
+              />
+              <DetailField label="Etapes max / run" value={<Strong>{manifest.maxStepsPerRun}</Strong>} />
+              <DetailField
+                label="Nature des outils"
+                value={
+                  agent && isUnavailable(agent, 'readOnly') ? null : (
+                    <Badge color={agent?.readOnly ? 'emerald' : 'amber'}>
+                      {agent?.readOnly ? 'lecture seule prouvee' : 'au moins un outil mutant'}
                     </Badge>
-                  ) : null}
-                  {/* La péremption est rendue EXPLICITEMENT : une preuve trop
-                      vieille ramène le verdict à « Inconnue », et l'écran doit
-                      dire pourquoi plutôt que de laisser croire à une absence. */}
-                  {consumer?.stale ? (
-                    <Badge
-                      color="amber"
-                      title={`Une preuve d’exécution authentifiée existe mais elle est plus ancienne que la fenêtre de ${consumer.recencyWindowDays ?? '?'} jours. Le verdict est retombé à « Inconnue » : on a cessé de savoir, on n’a pas appris le contraire.`}
-                    >
-                      preuve périmée
-                    </Badge>
-                  ) : null}
-                </div>
-                <Text className="text-xs" title={`source : ${stage.evidence.source}`}>
-                  {stage.evidence.detail}
-                </Text>
-                {consumer ? (
-                  <Text className="text-xs">
-                    {consumer.lastActivityAt
-                      ? `Dernière preuve authentifiée : ${consumer.lastActivityAt}`
-                      : 'Aucune preuve authentifiée horodatée.'}
-                    {consumer.observedInstallationCount === null
-                      ? ''
-                      : ` · ${consumer.observedInstallationCount} installation(s) observée(s)`}
-                  </Text>
+                  )
+                }
+              />
+              <DetailField
+                label="Approbation humaine"
+                value={
+                  agent && isUnavailable(agent, 'requiresHumanApproval') ? null : (
+                    <Badge color="zinc">{agent?.requiresHumanApproval ? 'requise' : 'non requise'}</Badge>
+                  )
+                }
+              />
+              <DetailField
+                label="Versions"
+                value={<Strong>{versions.length}</Strong>}
+                hint={currentVersion ? `courante : ${currentVersion.label}` : undefined}
+              />
+              <DetailField
+                label="Competences"
+                value={agent && agent.capabilities.length > 0 ? <Strong>{agent.capabilities.length}</Strong> : null}
+              />
+            </div>
+          )}
+
+          {manifest?.systemPromptSummary ? (
+            <>
+              <Divider soft className="my-5" />
+              <Text className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                Resume du prompt systeme
+              </Text>
+              <Text className="mt-2 text-zinc-600">{manifest.systemPromptSummary}</Text>
+            </>
+          ) : null}
+        </Surface>
+
+        <Surface>
+          <div className="border-b border-zinc-950/6 px-5 py-4">
+            <Subheading level={3}>Outils montes</Subheading>
+            <Text className="mt-1">
+              {agent ? toolsCountHint(resolvedTools.length, unresolvedIds.length) : "Outils non resolus"}
+            </Text>
+          </div>
+
+          <div className="px-5 py-4">
+            {agent === undefined ? (
+              <Unavailable
+                reason="unread"
+                detail="Aucune ligne canonique ne resout pour ce copilot — la liste d'outils montee ne peut pas etre etablie."
+              />
+            ) : resolvedTools.length === 0 && unresolvedIds.length === 0 ? (
+              <Unavailable reason="no-data" detail="Le manifeste ne declare aucun outil." />
+            ) : (
+              <div className="space-y-4">
+                {unresolvedIds.length > 0 ? (
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                    <Strong className="block">
+                      {unresolvedIds.length} outil(s) declare(s) sans handler executable
+                    </Strong>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {unresolvedIds.map((id) => (
+                        <Badge key={id} color="red">
+                          {toolNameById.get(id) ?? id}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {resolvedTools.length > 0 ? (
+                  <ul className="divide-y divide-zinc-950/6">
+                    {resolvedTools.map((tool) => (
+                      <li key={tool.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
+                        <div className="min-w-0 flex-1">
+                          <Strong className="block truncate">{tool.name}</Strong>
+                          <Text className="mt-1 text-sm text-zinc-600">
+                            {tool.enabled ? 'active' : 'desactive'}
+                            {tool.requiresConfirmation ? ' · confirmation' : ''}
+                          </Text>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap items-center gap-2">
+                          <Badge color={tool.mutates ? 'amber' : 'emerald'}>
+                            {tool.mutates ? 'mutant' : 'lecture seule'}
+                          </Badge>
+                          <Badge color={toolRiskBadgeColor(tool.riskLevel)}>{tool.riskLevel}</Badge>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+
+                {manifest && manifest.forbiddenActions.length > 0 ? (
+                  <>
+                    <Divider soft />
+                    <div>
+                      <Text className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                        Actions interdites
+                      </Text>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {manifest.forbiddenActions.map((action) => (
+                          <Badge key={action} color="red">
+                            {action}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </>
                 ) : null}
               </div>
-              <StageBadge
-                display={display}
-                title={stageBadgeTitle(display, stage.evidence.source)}
-              />
-            </li>
-          )
-        })}
-      </ul>
-
-      <Divider soft className="my-3" />
-
-      <Fact
-        label="Dérive de version (livrée vs rapportée)"
-        value={
-          lifecycle.versionDrift.state === 'measured' ? (
-            <Badge color={lifecycle.versionDrift.driftDetected ? 'red' : 'emerald'}>
-              {lifecycle.versionDrift.driftDetected ? 'dérive détectée' : 'aucune dérive'}
-            </Badge>
-          ) : null
-        }
-        why={lifecycle.versionDrift.detail}
-      />
-    </Panel>
-  )
-}
-
-/* ─────────────────── Mesures & runs ─────────────────── */
-
-function MetricsPanel({ detail }: Readonly<{ detail: AgentDetail }>) {
-  const { metrics, agent } = detail
-  const lastRunAt = isoShort(agent?.lastRunAt ?? null)
-
-  return (
-    <Panel title="Mesures" hint={`${metrics.totalRuns} run(s) lus`} className="min-h-0" bodyClassName="scroll-thin overflow-y-auto">
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-        {/* `runs24h` est un compte MESURÉ : un 0 réel est un 0, pas une absence. */}
-        <Fact label="Runs 24 h" value={<FactValue>{metrics.runs24h}</FactValue>} />
-        <Fact label="Runs au total" value={<FactValue>{metrics.totalRuns}</FactValue>} />
-        <Fact
-          label="Taux de succès"
-          value={metrics.successRate === null ? null : <FactValue>{formatPercent(metrics.successRate)}</FactValue>}
-          why="Aucun run n’a atteint un verdict (terminé ou échoué) — il n’y a rien sur quoi calculer un taux."
-        />
-        <Fact
-          label="Latence moyenne"
-          value={
-            metrics.avgDurationMs === null ? null : <FactValue>{Math.round(metrics.avgDurationMs)} ms</FactValue>
-          }
-          why="Aucun run ne porte de latence mesurée."
-        />
-        <Fact
-          label="Coût 24 h"
-          value={metrics.cost24hUsd === null ? null : <FactValue>{formatUsd(metrics.cost24hUsd)}</FactValue>}
-          why="Aucun run de la fenêtre ne porte de coût mesuré — un coût inconnu n’est pas un coût nul."
-          hint={
-            metrics.runsWithoutCost > 0
-              ? `${metrics.runsWithoutCost} run(s) de la fenêtre sans coût enregistré`
-              : undefined
-          }
-        />
-        {/* Le piège de l'assistant manquant : un agent langgraph sans assistant
-            provisionné tourne contre le graphe nu et termine « sainement » avec
-            zéro appel d'outil. Un 0 MESURÉ ici est donc un signal, pas du bruit —
-            et il se distingue d'un « non mesuré ». */}
-        <Fact
-          label="Appels d’outils"
-          value={
-            metrics.toolCallCountState === 'MEASURED' ? (
-              <FactValue>{metrics.toolCallCount}</FactValue>
-            ) : null
-          }
-          why="Aucun run terminé n’existe : il n’y a rien à mesurer. Ce n’est pas « zéro outil appelé »."
-          hint={metricsToolCallHint(metrics.toolCallCountState, metrics.toolCallCount, metrics.completedRuns)}
-        />
-        <Fact
-          label="Modèle configuré"
-          value={agent && !isUnavailable(agent, 'configuredModel') ? <FactValue>{agent.configuredModel}</FactValue> : null}
-          why="Aucun modèle n’est résolu depuis les données persistées — jamais remplacé par un modèle par défaut."
-        />
-        {/* Modèle CONFIGURÉ ≠ modèle EXÉCUTÉ. Le second n'est retenu que si le
-            runner l'a marqué vérifié ; sinon il reste non prouvé. */}
-        <Fact
-          label="Modèle prouvé au run"
-          value={agent?.executedModel ? <FactValue>{agent.executedModel}</FactValue> : null}
-          why="Le dernier run n’a pas prouvé le modèle exécuté (run ancien, ou runner qui ne l’a pas marqué vérifié). Non prouvé n’est pas faux."
-        />
-        <Fact
-          label="Dernier run"
-          value={lastRunAt ? <FactValue>{lastRunAt}</FactValue> : null}
-          why="Aucun run d’opérateur n’a été enregistré pour cet agent."
-          hint={agent?.lastRunStatus ?? undefined}
-        />
-      </div>
-    </Panel>
-  )
-}
-
-function RunsPanel({ detail }: Readonly<{ detail: AgentDetail }>) {
-  const { runs } = detail
-
-  return (
-    <Panel
-      title="Runs récents"
-      hint={`${runs.length} lus`}
-      className="min-h-0"
-      padded={false}
-      bodyClassName="scroll-thin overflow-y-auto px-4 py-2"
-    >
-      {runs.length === 0 ? (
-        <Unavailable reason="no-data" detail="Aucun run n’est enregistré pour cet agent." />
-      ) : (
-        <ul className="flex flex-col gap-1">
-          {runs.slice(0, 25).map((run) => (
-            <li key={run.id} className="flex min-w-0 items-center gap-2 border-b border-zinc-950/5 py-1 last:border-b-0 dark:border-white/5">
-              <Text className="shrink-0 tabular-nums">{isoShort(run.startedAt) ?? '—'}</Text>
-              <Text className="min-w-0 flex-1 truncate" title={run.inputSummary}>
-                {run.userLabel || run.inputSummary || run.id}
-              </Text>
-              {run.unsafeAttemptCount > 0 ? (
-                <Badge color="red" title="Tentatives d’action non sûres pendant ce run.">
-                  {run.unsafeAttemptCount} unsafe
-                </Badge>
-              ) : null}
-              <Text className="shrink-0 tabular-nums">
-                {run.costUsd === null ? <NotMeasured why="Le coût de ce run n’a pas pu être mesuré." /> : formatUsd(run.costUsd)}
-              </Text>
-              <Badge color={runStatusColor(run.status)}>{run.status}</Badge>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Panel>
-  )
-}
-
-/* ─────────────────── Versions, suites, livraison, télémétrie ─────────────────── */
-
-function VersionsPanel({ detail }: Readonly<{ detail: AgentDetail }>) {
-  const { versions, currentVersion, copilot } = detail
-
-  return (
-    <Panel
-      title="Versions"
-      hint={`${versions.length} persistée(s)`}
-      className="min-h-0"
-      bodyClassName="scroll-thin overflow-y-auto"
-    >
-      {versions.length === 0 ? (
-        <Unavailable reason="no-data" detail="Aucune version n’est persistée pour ce copilot." />
-      ) : (
-        <ul className="flex flex-col gap-1.5">
-          {versions.map((v) => {
-            // Le blob `scores` n'est une MESURE que si `scoresEvidence === 'runs'`.
-            // Sinon c'est la ligne de base stockée, qui ne prouve rien — et
-            // l'afficher comme un score serait un faux zéro.
-            const measured = v.scoresEvidence === 'runs'
-            return (
-              <li key={v.id} className="flex min-w-0 items-center gap-2">
-                <Strong className="shrink-0">{v.label}</Strong>
-                <Badge color={v.stage === 'production' ? 'emerald' : 'zinc'}>{v.stage}</Badge>
-                {v.id === copilot.productionVersionId ? (
-                  <Badge color="emerald" title="Version qui sert réellement la production.">
-                    en service
-                  </Badge>
-                ) : null}
-                {v.id === currentVersion?.id && v.id !== copilot.productionVersionId ? (
-                  <Badge color="sky" title="Version courante résolue (dernière), pas nécessairement celle qui sert.">
-                    courante
-                  </Badge>
-                ) : null}
-                <span className="min-w-0 flex-1" />
-                <Text className="shrink-0 tabular-nums">
-                  {measured && v.scores.testPassRate !== null ? (
-                    formatPercent(v.scores.testPassRate)
-                  ) : (
-                    <NotMeasured why="Aucun score adossé à des runs réels n’est attaché à cette version — la ligne de base stockée n’est pas une mesure." />
-                  )}
-                </Text>
-              </li>
-            )
-          })}
-        </ul>
-      )}
-    </Panel>
-  )
-}
-
-function SuitesPanel({ detail }: Readonly<{ detail: AgentDetail }>) {
-  const { testSuites, benchmarkSuites } = detail
-
-  return (
-    <Panel title="Tests & benchmarks" className="min-h-0" bodyClassName="scroll-thin overflow-y-auto">
-      <div className="flex flex-col gap-3">
-        <div>
-          <Subheading level={3}>Suites de test</Subheading>
-          {testSuites.length === 0 ? (
-            <Text className="mt-1">Aucune suite de test générée.</Text>
-          ) : (
-            <ul className="mt-1 flex flex-col gap-1">
-              {testSuites.map((s) => (
-                <li key={s.id} className="flex min-w-0 items-center gap-2">
-                  <Text className="min-w-0 flex-1 truncate">{s.name}</Text>
-                  <Badge color="zinc">{s.kind}</Badge>
-                  <Badge color="zinc">{s.caseIds.length} cas</Badge>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div>
-          <Subheading level={3}>Suites de benchmark</Subheading>
-          {benchmarkSuites.length === 0 ? (
-            <Text className="mt-1">Aucune suite de benchmark générée.</Text>
-          ) : (
-            <ul className="mt-1 flex flex-col gap-1">
-              {benchmarkSuites.map((s) => (
-                <li key={s.id} className="flex min-w-0 items-center gap-2">
-                  <Text className="min-w-0 flex-1 truncate">{s.name}</Text>
-                  <Badge color="zinc">{s.taskCount} tâches</Badge>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-    </Panel>
-  )
-}
-
-function DeliveryPanel({ detail }: Readonly<{ detail: AgentDetail }>) {
-  const { delivery } = detail
-
-  return (
-    <Panel title="Livraison" className="min-h-0" bodyClassName="scroll-thin overflow-y-auto">
-      {delivery === null ? (
-        <Unavailable
-          reason="no-data"
-          detail="Cet agent n’a jamais été livré — aucune poussée vers un dépôt consommateur."
-        />
-      ) : (
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge color="zinc">{delivery.mode}</Badge>
-            <Badge color="zinc">{delivery.status}</Badge>
+            )}
           </div>
-          <Fact label="Dépôt cible" value={<FactValue>{delivery.targetRepo}</FactValue>} />
-          <Fact label="Branche" value={<FactValue>{delivery.deliveryBranch ?? delivery.targetBranch}</FactValue>} />
-          {delivery.prUrl ? (
-            <div>
-              <Text className="text-xs">Pull request</Text>
-              {/* Lien EXTERNE et vivant — jamais réécrit en route locale. */}
-              <Link href={delivery.prUrl} className="underline">
-                {delivery.prNumber ? `#${delivery.prNumber}` : delivery.prUrl}
-              </Link>
-            </div>
-          ) : null}
-          {/* LIVRÉ ≠ DÉPLOYÉ : une poussée ne prouve rien sur ce que le
-              consommateur en a fait. */}
-          <Text className="text-xs">
-            Une livraison prouve qu’Aigent a poussé un commit ou ouvert une PR. Elle ne prouve pas
-            que le consommateur l’a mergée, déployée, ni même regardée.
-          </Text>
-        </div>
-      )}
-    </Panel>
+        </Surface>
+      </div>
+    </section>
   )
 }
-
-function TelemetryPanel({ detail }: Readonly<{ detail: AgentDetail }>) {
-  const { telemetry } = detail
-  const lastSeenAt = isoShort(telemetry?.lastSeenAt ?? null)
-
-  return (
-    <Panel
-      title="Télémétrie runtime"
-      hint={telemetry ? `${telemetry.totalRuns} run(s) rapporté(s)` : undefined}
-      className="min-h-0"
-      bodyClassName="scroll-thin overflow-y-auto"
-    >
-      {/* `null` = la LECTURE a échoué, jamais « l'agent n'a rien rapporté ». Un
-          agent à zéro événement obtient un vrai résumé avec `totalRuns: 0`. */}
-      {telemetry === null ? (
-        <Unavailable
-          reason="unread"
-          detail="Le canal de télémétrie n’a pas pu être lu. Ce n’est pas « aucun run rapporté » — c’est une absence de lecture."
-        />
-      ) : (
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-          <Fact label="Runs rapportés" value={<FactValue>{telemetry.totalRuns}</FactValue>} />
-          <Fact label="Terminés" value={<FactValue>{telemetry.completedRuns}</FactValue>} />
-          <Fact label="Échoués" value={<FactValue>{telemetry.failedRuns}</FactValue>} />
-          <Fact
-            label="Taux de succès"
-            value={telemetry.successRate === null ? null : <FactValue>{formatPercent(telemetry.successRate)}</FactValue>}
-            why="Aucun run terminal dans la fenêtre — rien sur quoi calculer un taux."
-          />
-          <Fact
-            label="Latence p95"
-            value={telemetry.p95LatencyMs === null ? null : <FactValue>{Math.round(telemetry.p95LatencyMs)} ms</FactValue>}
-            why="Aucune latence n’a été rapportée."
-          />
-          <Fact
-            label="Coût cumulé"
-            value={telemetry.totalCostUsd === null ? null : <FactValue>{formatUsd(telemetry.totalCostUsd)}</FactValue>}
-            why="Aucun événement de la fenêtre ne portait assez d’information (provider + modèle + tokens) pour être valorisé. Un coût non calculable n’est pas un coût nul."
-            hint={telemetry.costEstimated ? 'estimation conservatrice, jamais une facture' : undefined}
-          />
-          <Fact
-            label="Dernier événement"
-            value={lastSeenAt ? <FactValue>{lastSeenAt}</FactValue> : null}
-            why="Aucun événement de télémétrie n’a jamais été reçu pour cet agent."
-          />
-        </div>
-      )}
-    </Panel>
-  )
-}
-
-function ConfigurationPanel({ detail }: Readonly<{ detail: AgentDetail }>) {
-  const { manifest, agent } = detail
-
-  return (
-    <Panel title="Configuration" className="min-h-0" bodyClassName="scroll-thin overflow-y-auto">
-      {manifest === undefined ? (
-        <Unavailable
-          reason="no-data"
-          detail="Aucun manifeste ne résout pour ce copilot — c’est en soi une exigence dure manquante."
-        />
-      ) : (
-        <div className="flex flex-col gap-3">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-            <Fact
-              label="Politique de confirmation"
-              value={<FactValue>{manifest.confirmationPolicy}</FactValue>}
-            />
-            <Fact label="Étapes max / run" value={<FactValue>{manifest.maxStepsPerRun}</FactValue>} />
-            <Fact
-              label="Nature des outils"
-              value={
-                agent && isUnavailable(agent, 'readOnly') ? null : (
-                  <Badge color={agent?.readOnly ? 'emerald' : 'amber'}>
-                    {agent?.readOnly ? 'lecture seule prouvée' : 'au moins un outil mutant'}
-                  </Badge>
-                )
-              }
-              why="La nature des outils montés est inconnaissable (aucun manifeste, ou un niveau de risque hors du vocabulaire du schéma). Ce n’est pas « lecture seule »."
-            />
-            <Fact
-              label="Approbation humaine"
-              value={
-                agent && isUnavailable(agent, 'requiresHumanApproval') ? null : (
-                  <Badge color="zinc">{agent?.requiresHumanApproval ? 'requise' : 'non requise'}</Badge>
-                )
-              }
-              why="Politique inconnue — fail-closed, l’approbation est présumée requise."
-            />
-          </div>
-
-          {manifest.systemPromptSummary ? (
-            <div>
-              <Text className="text-xs">Résumé du prompt système</Text>
-              <Text className="mt-0.5">{manifest.systemPromptSummary}</Text>
-            </div>
-          ) : null}
-
-          {manifest.forbiddenActions.length > 0 ? (
-            <div>
-              <Text className="text-xs">Actions interdites</Text>
-              <ul className="mt-1 flex flex-wrap gap-1.5">
-                {manifest.forbiddenActions.map((a) => (
-                  <li key={a}>
-                    <Badge color="red">{a}</Badge>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {agent && agent.capabilities.length > 0 ? (
-            <div>
-              <Text className="text-xs">Compétences déclarées</Text>
-              <ul className="mt-1 flex flex-wrap gap-1.5">
-                {agent.capabilities.map((c) => (
-                  <li key={c}>
-                    <Badge color="zinc">{c}</Badge>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-      )}
-    </Panel>
-  )
-}
-
-/* ─────────────────────────── Écran ─────────────────────────── */
 
 export default function AgentDetailScreen({
   detail,
@@ -978,24 +712,18 @@ export default function AgentDetailScreen({
   qualificationFailure: string | null
 }>) {
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3">
-      <DetailHeader detail={detail} />
-
-      {/* Grille dense : chaque panneau borne sa hauteur, seule sa liste défile. */}
-      <div className="grid min-h-0 grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
-        <ExecutabilityPanel detail={detail} />
-        <MetricsPanel detail={detail} />
-        <ToolsPanel detail={detail} />
-        <ReleaseGatePanel gate={gate} gateFailure={gateFailure} />
-        <QualificationPanel run={qualification} failure={qualificationFailure} />
-        <LifecyclePanel detail={detail} />
-        <VersionsPanel detail={detail} />
-        <RunsPanel detail={detail} />
-        <SuitesPanel detail={detail} />
-        <DeliveryPanel detail={detail} />
-        <TelemetryPanel detail={detail} />
-        <ConfigurationPanel detail={detail} />
-      </div>
+    <div className="mx-auto flex max-w-6xl flex-col gap-10 p-6 pt-16 lg:pt-8">
+      <OverviewHeader detail={detail} />
+      <OverviewSection detail={detail} />
+      <ActivitySection detail={detail} />
+      <QualificationSection
+        detail={detail}
+        gate={gate}
+        gateFailure={gateFailure}
+        qualification={qualification}
+        qualificationFailure={qualificationFailure}
+      />
+      <ConfigurationSection detail={detail} />
     </div>
   )
 }

@@ -232,7 +232,7 @@ function AgentRow({ node }: Readonly<{ node: ProjectTeamNode }>) {
   const rail = nodeRailColor(node.status)
 
   return (
-    <li className="relative border-b border-zinc-950/5 last:border-b-0 dark:border-white/5">
+    <li className="relative">
       <Rail color={rail} />
       <div className="flex items-center gap-3 py-2.5 pr-4 pl-4">
         <Avatar square initials={initialsOf(node.name)} className="size-8 shrink-0" />
@@ -417,7 +417,7 @@ export default function ProjectDetailScreen({
                   />
                 </div>
               ) : (
-                <ul>
+                <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
                   {agents.map((node) => (
                     <AgentRow key={node.id} node={node} />
                   ))}
@@ -501,7 +501,7 @@ export default function ProjectDetailScreen({
                   </div>
                   )
                 })}
-                <Divider soft className="!my-2" />
+                <Divider soft className="my-2!" />
                 <Text className="text-xs">
                   {delivery.realDeliveryEnabled
                     ? "Une livraison réelle est possible : elle exigerait en plus `confirm: true` dans la requête. Aucune écriture n'est déclenchée depuis cet écran."

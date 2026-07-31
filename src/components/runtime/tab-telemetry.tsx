@@ -306,7 +306,7 @@ function EventsPanel({ events }: Readonly<{ events: TelemetryTabData['events'] }
     <Panel
       title="Événements reçus"
       hint="50 plus récents"
-      className="min-h-[16rem] min-w-0 xl:flex-1"
+      className="min-h-64 min-w-0 xl:flex-1"
       padded={false}
       bodyClassName="scroll-thin overflow-y-auto"
     >
@@ -317,11 +317,11 @@ function EventsPanel({ events }: Readonly<{ events: TelemetryTabData['events'] }
               <ProvenEmpty detail="Aucun événement n’a été reçu. La lecture a réussi et la table est réellement vide." />
             </div>
           ) : (
-            <ul>
+            <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
               {rows.map((event) => (
                 <li
                   key={event.id}
-                  className="flex items-center gap-3 border-b border-zinc-950/5 px-4 py-2.5 last:border-b-0 dark:border-white/5"
+                  className="flex items-center gap-3 px-4 py-2.5"
                 >
                   <Badge color={STATUS_COLOR[event.status]}>{event.status}</Badge>
                   <div className="min-w-0 flex-1">

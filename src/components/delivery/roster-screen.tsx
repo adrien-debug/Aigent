@@ -129,11 +129,11 @@ function DeliveryRosterRow({ row }: DeliveryRosterRowProps) {
   const rail = rosterRailColor(row.deliveryRead, d !== null)
 
   return (
-    <li className="relative border-b border-zinc-950/5 last:border-b-0 dark:border-white/5">
+    <li className="relative">
       <Rail color={rail} />
       <Link
         href={'/delivery/' + row.copilotId}
-        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-zinc-950/[0.025] dark:hover:bg-white/[0.025]"
+        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5"
       >
         <Avatar square initials={initialsOf(row.copilotName)} className="size-8 shrink-0" />
 
@@ -249,7 +249,7 @@ export default function DeliveryRosterScreen({
       <Panel
         title="Banc de livraison"
         hint={ranked.length + ' au catalogue'}
-        className="min-h-[20rem] min-w-0 xl:min-h-0 xl:flex-1"
+        className="min-h-80 min-w-0 xl:min-h-0 xl:flex-1"
         padded={false}
         bodyClassName="scroll-thin overflow-y-auto"
       >
@@ -259,7 +259,7 @@ export default function DeliveryRosterScreen({
             detail="Aucun agent n’est persisté dans le catalogue. La lecture a réussi — il n’y a réellement rien, ce n’est pas une panne."
           />
         ) : (
-          <ul>
+          <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
             {ranked.map((row) => (
               <DeliveryRosterRow key={row.copilotId} row={row} />
             ))}

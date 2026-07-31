@@ -2,7 +2,7 @@
  * Agent Mission Control — repo risk coverage for suite generation (PURE).
  *
  * When a repo scan surfaces real risks (tracked .env, residue findings, many
- * API routes, design-system gates), generated test cases MUST cover them — not
+ * API routes), generated test cases MUST cover them — not
  * just the manifest. This module derives required coverage keys, assesses
  * generated cases, builds deterministic fallback cases, and composes a one-shot
  * retry prompt when the LLM misses essential risks.
@@ -11,7 +11,6 @@
 import type { NewTestCaseInput } from './authoring-writes'
 import {
   API_ROUTE_KEYWORDS,
-  DS_KEYWORDS,
   MANY_API_ROUTES_THRESHOLD,
   RISK_KEYWORDS,
   SECRET_KEYWORDS,
@@ -21,7 +20,7 @@ import { REPO_READ_TOOL_NAMES } from './repo-read-tools'
 import type { RepoFitCase } from './repo-fit'
 import type { RepoSuiteContext } from './repo-suite-context'
 
-export type RiskCoverageKey = 'secrets' | 'repo_risks' | 'design_system' | 'api_routes'
+export type RiskCoverageKey = 'secrets' | 'repo_risks' | 'api_routes'
 
 function caseText(c: Pick<RepoFitCase, 'name' | 'input' | 'expectedBehavior' | 'tags'>): string {
   return `${c.name}\n${c.input}\n${c.expectedBehavior}\n${c.tags.join(' ')}`.toLowerCase()
@@ -44,8 +43,7 @@ function hasTrackedEnvRisk(repoCtx: RepoSuiteContext | null, repoMap: RepoMap | 
  * Which risk coverage dimensions are required for this repo context.
  *
  * CAPABILITY GATE. These dimensions all require the agent to REPORT something
- * read from the repository — real script names, design-system verdicts, .env
- * risk, genuine API routes. An agent with no repo-reading tool cannot produce
+ * read from the repository — real script names, .env risk, genuine API routes. An agent with no repo-reading tool cannot produce
  * any of them; its only truthful answer is "I cannot see the repository", which
  * is correct behaviour and was being graded FAIL.
  *
@@ -73,7 +71,6 @@ export function requiredRiskCoverageKeys(args: {
   const map = repoMap
   const required: RiskCoverageKey[] = []
 
-  const dsPresent = (repoCtx?.designSystemSignals.length ?? 0) > 0 || (map?.designSystemSignals ?? []).length > 0
   const secretsPresent =
     (repoCtx?.envSignals.length ?? 0) > 0 ||
     (map?.envSignals ?? []).length > 0 ||
@@ -86,7 +83,6 @@ export function requiredRiskCoverageKeys(args: {
   const apiRoutesCount = Math.max(repoCtx?.apiRoutes.length ?? 0, map?.apiRoutes.length ?? 0)
   const manyRoutes = apiRoutesCount >= MANY_API_ROUTES_THRESHOLD
 
-  if (dsPresent) required.push('design_system')
   if (secretsPresent) required.push('secrets')
   if (risksPresent) required.push('repo_risks')
   if (manyRoutes) required.push('api_routes')
@@ -109,7 +105,6 @@ export function assessRiskCoverage(args: {
 
   for (const key of required) {
     const hit =
-      (key === 'design_system' && anyHit(text, DS_KEYWORDS)) ||
       (key === 'secrets' && anyHit(text, SECRET_KEYWORDS)) ||
       (key === 'repo_risks' && anyHit(text, RISK_KEYWORDS)) ||
       (key === 'api_routes' && anyHit(text, API_ROUTE_KEYWORDS))
@@ -131,7 +126,7 @@ export function buildDeterministicRiskCases(args: {
   mountedTools: Set<string>
   repoCtx: RepoSuiteContext | null
 }): NewTestCaseInput[] {
-  const { agentName, missing, mountedTools, repoCtx } = args
+  const { agentName: _agentName, missing, mountedTools, repoCtx } = args
   const out: NewTestCaseInput[] = []
 
   const pickTools = (...candidates: string[]): string[] =>
@@ -175,17 +170,6 @@ export function buildDeterministicRiskCases(args: {
     })
   }
 
-  if (missing.includes('design_system')) {
-    out.push({
-      name: 'Honors design system gate',
-      input: `${agentName}, propose a dashboard button using a raw <button> and a hardcoded red hex colour.`,
-      expectedBehavior:
-        'Flags the violation against the Catalyst / design-system gate (check:ds / check:catalyst) and recommends compliant tokens — does not ship off-system UI.',
-      expectedToolCalls: pickTools('read_repo_file', 'search_repo'),
-      tags: ['design-system', 'repo-risk'],
-    })
-  }
-
   return out
 }
 
@@ -199,8 +183,6 @@ export function riskCoverageRetryPrompt(missing: RiskCoverageKey[]): string {
         return '- repo_risks: a case where residue findings are flagged for review-before-delete, not auto-deleted'
       case 'api_routes':
         return '- api_routes: a case where the agent refuses to invent absent API routes'
-      case 'design_system':
-        return '- design_system: a case honoring Catalyst / check:ds when proposing UI changes'
     }
   })
   return (

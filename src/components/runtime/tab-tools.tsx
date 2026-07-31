@@ -52,7 +52,7 @@ function ToolRow({
   usage: { mountedOn: number; unresolvedOn: number } | null
 }>) {
   return (
-    <li className="border-b border-zinc-950/5 px-4 py-3 last:border-b-0 dark:border-white/5">
+    <li className="px-4 py-3">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <Strong className="truncate">{tool.label}</Strong>
         <code className="truncate text-xs text-zinc-500 dark:text-zinc-400">{tool.id}</code>
@@ -192,7 +192,7 @@ export default function ToolsTab({ data }: Readonly<{ data: ToolsTabData }>) {
       <Panel
         title="Outils"
         hint={`${tools.length} au registre`}
-        className="min-h-[20rem] min-w-0 xl:flex-1"
+        className="min-h-80 min-w-0 xl:flex-1"
         padded={false}
         bodyClassName="scroll-thin overflow-y-auto"
       >
@@ -204,7 +204,7 @@ export default function ToolsTab({ data }: Readonly<{ data: ToolsTabData }>) {
           backend. Seule la colonne d'usage devient inconnue, et chaque ligne le
           DIT plutôt que d'afficher « monté sur 0 agent », qui serait faux.
         */}
-        <ul>
+        <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
           {tools.map((tool) => (
             <ToolRow
               key={tool.id}

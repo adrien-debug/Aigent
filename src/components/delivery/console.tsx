@@ -530,7 +530,7 @@ function ConfirmBody({
           </div>
 
           {/* LA CIBLE — jamais implicite sur une écriture distante. */}
-          <div className="rounded-md border border-zinc-950/10 bg-zinc-950/[0.025] px-3 py-2 dark:border-white/10 dark:bg-white/[0.025]">
+          <div className="rounded-md border border-zinc-950/10 bg-zinc-950/2.5 px-3 py-2 dark:border-white/10 dark:bg-white/2.5">
             <Text className="text-xs">Dépôt cible</Text>
             <Text className="mt-0.5">
               <Strong>{repoFullName ?? 'aucun dépôt cible résolu'}</Strong>
@@ -539,12 +539,12 @@ function ConfirmBody({
 
           <Text>{effective.cost.detail}</Text>
 
-          <div className="rounded-md border border-zinc-950/10 bg-zinc-950/[0.025] px-3 py-2 dark:border-white/10 dark:bg-white/[0.025]">
+          <div className="rounded-md border border-zinc-950/10 bg-zinc-950/2.5 px-3 py-2 dark:border-white/10 dark:bg-white/2.5">
             <Text className="text-xs">Ce que cette action NE fait PAS</Text>
             <Text className="mt-0.5">{effective.doesNot}</Text>
           </div>
 
-          <div className="rounded-md border border-zinc-950/10 bg-zinc-950/[0.025] px-3 py-2 dark:border-white/10 dark:bg-white/[0.025]">
+          <div className="rounded-md border border-zinc-950/10 bg-zinc-950/2.5 px-3 py-2 dark:border-white/10 dark:bg-white/2.5">
             <Text className="text-xs">Si l’action réussit</Text>
             <Text className="mt-0.5">{job.consequence}</Text>
           </div>

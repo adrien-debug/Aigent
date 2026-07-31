@@ -1,25 +1,10 @@
 /**
- * Cockpit — écran unique, hauteur du viewport, ZÉRO scroll de page en desktop.
+ * Overview — instruments et rosters sur fond clair, scroll document naturel.
  *
- * COMPOSITION (ce qui a changé, et pourquoi)
+ * Hiérarchie : bandeau KPI → activité (histogramme) → rosters (flux, agents,
+ * projets). Pas de bandeau shell : tout vit dans la zone de travail blanche.
  *
- * L'écran précédent alignait six tuiles KPI, un histogramme écrasé à 9 rem, deux
- * panneaux de cartes et un bandeau de projets — tous du même poids visuel. Un
- * cockpit n'est pas une grille homogène : il a un pouls, un instrument
- * principal, et des rosters en périphérie.
- *
- * La hiérarchie est maintenant explicite, du haut vers le bas :
- *  1. la barre d'état du SYSTÈME (`TopBar`) — canal de télémétrie, runtime ;
- *  2. le bandeau d'instruments (`KpiStrip`) — une surface, six mesures, un accent ;
- *  3. l'ACTIVITÉ — l'instrument principal, qui prend enfin la place d'un graphe ;
- *  4. les trois rosters — flux d'exécution, agents, projets — en lignes denses
- *     partageant la même grammaire.
- *
- * Chaque panneau reçoit une hauteur imposée par la grille (`min-h-0` de haut en
- * bas) et borne son contenu : seules les listes scrollent, dans leur box.
- *
- * Server Component : il lit et distribue. L'histogramme est le seul module
- * client (Recharts mesure le DOM).
+ * Server Component : l'histogramme est le seul module client (Recharts).
  */
 import type { DashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
 import { buildHourlyBuckets, buildStatusBreakdown } from '@/lib/cockpit/overview-series'
@@ -42,8 +27,6 @@ export default function CockpitOverview({
   const slices = buildStatusBreakdown(overview.windowRuns)
   const runs = buildNamedRuns(overview.windowRuns, overview.copilots, overview.projectRows)
   const agents = buildAgentCards(overview.windowRuns, overview.copilots, overview.projectRows)
-  // `windowRuns === null` ⇒ la lecture a ÉCHOUÉ (contrat de données). Une
-  // fenêtre non lue n'est pas une fenêtre calme.
   const unread = overview.windowRuns === null
 
   const projectCards: ProjectCard[] = overview.projects.map((p) => ({
@@ -56,22 +39,15 @@ export default function CockpitOverview({
     costLast24hUsd: p.costLast24hUsd,
     passRate: p.passRate,
   }))
-  // L'ORDRE VIENT DE L'AMONT et n'est pas retouché ici. `buildProjectOverview`
-  // trie déjà (signal d'abord, puis runs décroissants, puis nom) via
-  // `runsOrderKey`, qui fait délibérément passer un compte NON MESURÉ (-1) SOUS
-  // un zéro mesuré. Re-trier ici avec `(b.runs24h ?? 0)` réintroduisait
-  // exactement le faux zéro que cette clé existe pour éviter : « personne n'a
-  // mesuré » remontait au rang de « prouvé calme ».
   const rankedProjects = projectCards
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3 xl:overflow-hidden">
+    <div className="flex flex-col gap-4 p-6 pt-16 lg:pt-6 lg:px-8">
       <KpiStrip kpis={overview.kpis} unread={unread} />
 
-      {/* ── Instrument principal ── */}
       <Panel
         title="Activité 24 h"
-        className="min-h-[15rem] shrink-0 xl:min-h-0 xl:flex-[4] xl:shrink"
+        className="min-w-0"
         padded={false}
         bodyClassName="px-2 pt-3 pb-1"
         actions={slices ? <StatusLegend slices={slices} /> : undefined}
@@ -87,16 +63,12 @@ export default function CockpitOverview({
         )}
       </Panel>
 
-      {/* ── Rosters ── ils occupent l'espace restant ── */}
-      <div className="grid min-h-0 grid-cols-1 gap-3 xl:flex-[8] xl:grid-cols-[1.35fr_1fr] xl:grid-rows-[minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.35fr_1fr]">
         <Panel
           title="Flux d'exécution"
           hint={runs ? `${runs.length} sur la fenêtre` : undefined}
-          className="min-h-[18rem] min-w-0 xl:min-h-0"
+          className="min-w-0"
           padded={false}
-          /* Le défilement borné vient du CONTENEUR : `Table` Catalyst n'a pas
-             d'option de hauteur bornée et le kit ne se modifie pas. */
-          bodyClassName="overflow-y-auto px-4"
         >
           {runs === null ? (
             <Unavailable reason="unread" detail="La fenêtre de runs n'a pas pu être lue." />
@@ -107,13 +79,11 @@ export default function CockpitOverview({
           )}
         </Panel>
 
-        <div className="flex min-h-0 flex-col gap-3">
+        <div className="flex flex-col gap-4">
           <Panel
             title="Agents en vol"
             hint={agents ? `${agents.length} ont tourné` : undefined}
-            className="min-h-[13rem] xl:min-h-0 xl:flex-[2]"
             padded={false}
-            bodyClassName="scroll-thin overflow-y-auto"
           >
             {agents === null ? (
               <Unavailable reason="unread" detail="La fenêtre de runs n'a pas pu être lue." />
@@ -123,7 +93,7 @@ export default function CockpitOverview({
                 detail="Aucun agent n'a tourné sur les dernières 24 heures."
               />
             ) : (
-              <ul>
+              <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
                 {agents.map((card) => (
                   <AgentRow key={card.copilotId} card={card} nowMs={nowMs} />
                 ))}
@@ -134,14 +104,12 @@ export default function CockpitOverview({
           <Panel
             title="Projets"
             hint={`${projectCards.length} au catalogue`}
-            className="min-h-[13rem] xl:min-h-0 xl:flex-[3]"
             padded={false}
-            bodyClassName="scroll-thin overflow-y-auto"
           >
             {projectCards.length === 0 ? (
               <Unavailable reason="no-data" detail="Aucun projet dans le catalogue." />
             ) : (
-              <ul>
+              <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
                 {rankedProjects.map((card) => (
                   <ProjectRow key={card.id} card={card} />
                 ))}
@@ -152,7 +120,7 @@ export default function CockpitOverview({
       </div>
 
       {overview.dataWarnings.length > 0 ? (
-        <p className="shrink-0 truncate rounded-md border border-[#be850f]/25 bg-[#be850f]/8 px-3 py-1.5 font-mono text-[10.5px] text-[#d9a635]">
+        <p className="truncate rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 font-mono text-[10.5px] text-amber-800">
           {overview.dataWarnings.length} avertissement(s) de lecture — {overview.dataWarnings[0]}
         </p>
       ) : null}

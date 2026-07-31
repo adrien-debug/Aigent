@@ -54,8 +54,8 @@ export default async function Page({ params }: PageProps) {
     const failure = err instanceof Error ? err.message : 'lecture impossible'
     return (
       <AppShell>
-        <div className="h-full p-4">
-          <div className="flex h-full items-center justify-center rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div className="p-6 pt-16 lg:pt-8">
+          <div className="mx-auto max-w-md rounded-2xl bg-white px-6 py-10 text-center shadow-xs ring-1 ring-zinc-950/5">
             <div className="max-w-md px-6 text-center">
               <Unavailable
                 reason="unread"

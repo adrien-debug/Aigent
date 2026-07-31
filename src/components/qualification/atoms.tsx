@@ -65,7 +65,7 @@ type NoteProps = {
 function noteRingClass(tone: NonNullable<NoteProps['tone']>): string {
   if (tone === 'blocked') return 'border-[#e8455f]/25 bg-[#e8455f]/5'
   if (tone === 'warn') return 'border-amber-400/25 bg-amber-400/5'
-  return 'border-zinc-950/10 bg-zinc-950/[0.025] dark:border-white/10 dark:bg-white/[0.025]'
+  return 'border-zinc-950/10 bg-zinc-950/2.5 dark:border-white/10 dark:bg-white/2.5'
 }
 
 /* ─────────────────── Gate de release — trois états ─────────────────── */

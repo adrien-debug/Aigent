@@ -54,11 +54,11 @@ function Fact({ label, fact }: Readonly<{ label: string; fact: RunFact }>) {
     <div className="min-w-0 py-2">
       <Text className="truncate text-xs uppercase">{label}</Text>
       {fact.state === 'measured' ? (
-        <Strong className="block break-words tabular-nums">{fact.value}</Strong>
+        <Strong className="block wrap-break-word tabular-nums">{fact.value}</Strong>
       ) : (
         <div className="mt-0.5">
           <Badge color="zinc">{fact.state === 'not-measured' ? 'Non mesuré' : 'Non lisible'}</Badge>
-          <Text className="mt-1 block text-xs break-words">{fact.why}</Text>
+          <Text className="mt-1 block text-xs wrap-break-word">{fact.why}</Text>
         </div>
       )}
     </div>
@@ -153,9 +153,9 @@ export default function RunDetail({
   const ageSeconds = Number.isFinite(startedMs) ? Math.max(0, Math.round((nowMs - startedMs) / 1000)) : null
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div>
       {/* ── En-tête : identité du run ── */}
-      <div className="shrink-0 px-4 py-3">
+      <div className="px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <Badge color={RUN_STATUS_BADGE[run.status]}>{RUN_STATUS_LABEL[run.status]}</Badge>
           {run.unsafeAttemptCount > 0 ? (
@@ -184,8 +184,7 @@ export default function RunDetail({
 
       <Divider soft />
 
-      {/* ── Corps : c'est LUI qui scrolle, jamais la page ── */}
-      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 py-3">
+      <div className="px-4 py-3">
         <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
           <Fact label="Durée" fact={durationFact} />
           <Fact label="Coût" fact={runCostFact(run, (n) => formatUsd(n))} />

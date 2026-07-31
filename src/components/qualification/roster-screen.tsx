@@ -133,11 +133,11 @@ function RunGuardBadge({ candidate }: RunGuardBadgeProps) {
 
 function CandidateRow({ candidate }: CandidateRowProps) {
   return (
-    <li className="relative border-b border-zinc-950/5 last:border-b-0 dark:border-white/5">
+    <li className="relative">
       <Rail color={RAIL_COLOR[candidate.state]} />
       <Link
         href={'/qualification/' + candidate.copilotId}
-        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-zinc-950/[0.025] dark:hover:bg-white/[0.025]"
+        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5"
       >
         <Avatar square initials={initialsOf(candidate.name)} className="size-8 shrink-0" />
 
@@ -235,7 +235,7 @@ export default function QualificationRosterScreen({
       <Panel
         title="Banc de qualification"
         hint={ranked.length + ' au catalogue'}
-        className="min-h-[20rem] min-w-0 xl:min-h-0 xl:flex-1"
+        className="min-h-80 min-w-0 xl:min-h-0 xl:flex-1"
         padded={false}
         bodyClassName="scroll-thin overflow-y-auto"
       >
@@ -245,7 +245,7 @@ export default function QualificationRosterScreen({
             detail="Aucun agent n’est persisté dans le catalogue : il n’y a rien à qualifier. La lecture a réussi — ce n’est pas une panne."
           />
         ) : (
-          <ul>
+          <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
             {ranked.map((candidate) => (
               <CandidateRow key={candidate.copilotId} candidate={candidate} />
             ))}

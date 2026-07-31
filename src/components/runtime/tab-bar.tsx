@@ -35,7 +35,7 @@ export default function RuntimeTabBar({ current }: Readonly<{ current: RuntimeTa
                   'block rounded-md px-3 py-1.5 text-sm/6 font-medium no-underline',
                   active
                     ? 'bg-zinc-950/5 text-zinc-950 dark:bg-white/10 dark:text-white'
-                    : 'text-zinc-500 hover:bg-zinc-950/[0.035] hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-white',
+                    : 'text-zinc-500 hover:bg-zinc-950/3.5 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-white',
                 )}
               >
                 {tab.name}

@@ -8,9 +8,6 @@
  * état local aurait produit une sélection qu'aucun lien ne peut atteindre.
  *
  * Aucun `href="#"` : chaque ligne mène à un run qui existe dans la liste rendue.
- *
- * Le défilement appartient au CONTENEUR (`Panel` + `overflow-y-auto`), jamais à
- * la page — c'est ce qui tient le zéro-scroll desktop.
  */
 import { Badge } from '@/components/ui/badge'
 import { Strong, Text } from '@/components/ui/text'
@@ -45,7 +42,7 @@ function RunRow({
   const duration = formatDuration(run.latencyMs)
 
   return (
-    <li className="relative border-b border-zinc-950/5 last:border-b-0 dark:border-white/5">
+    <li className="relative">
       <Rail color={RAIL_COLOR[run.status]} />
       {/* `aria-current` porte la sélection pour l'assistance vocale ; la teinte
           seule ne suffirait pas à la dire. */}
@@ -94,7 +91,7 @@ export default function RunList({
   buildHref: (runId: string) => string
 }>) {
   return (
-    <ul>
+    <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
       {runs.map((run) => (
         <RunRow
           key={run.id}

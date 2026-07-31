@@ -363,7 +363,7 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
   const activation = await readConsumerActivation(copilotId, { delivered: delivery !== null }).then(
     (read): { read: ConsumerActivationRead | null; failed: false } => ({ read, failed: false }),
     (err: unknown): { read: null; failed: true } => {
-      console.error('[agent-detail] consumer-activation read failed', err)
+      console.warn('[agent-detail] consumer-activation read failed', err)
       return { read: null, failed: true }
     }
   )

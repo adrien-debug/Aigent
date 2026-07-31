@@ -206,7 +206,7 @@ function ErrorNote({ error }: Readonly<{ error: MutationError }>) {
   return (
     <div className="flex items-start gap-2 rounded-lg border border-dashed border-zinc-950/10 p-3 dark:border-white/10">
       <Badge color={color}>{label}</Badge>
-      <Text className="min-w-0 flex-1 break-words">{error.message}</Text>
+      <Text className="min-w-0 flex-1 wrap-break-word">{error.message}</Text>
     </div>
   )
 }
@@ -242,7 +242,7 @@ function ChatThread({
               {chatRoleLabel(line.role)}
             </Badge>
           </div>
-          <Text className="whitespace-pre-wrap break-words">{line.content}</Text>
+          <Text className="whitespace-pre-wrap wrap-break-word">{line.content}</Text>
         </li>
       ))}
     </ul>
@@ -254,7 +254,7 @@ function ToolRow({ tool }: Readonly<{ tool: PreviewView['tools'][number] }>) {
   const riskColor = toolRiskColor(tool.riskLevel)
 
   return (
-    <li className="flex flex-col gap-1 border-b border-zinc-950/5 py-2 last:border-b-0 dark:border-white/5">
+    <li className="flex flex-col gap-1 py-2">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <Strong className="truncate font-mono text-xs">{tool.name}</Strong>
         <Badge color={riskColor}>{tool.riskLevel}</Badge>
@@ -344,7 +344,7 @@ function SpecPanel({
       {preview.tools.length > 0 ? (
         <div>
           <Text className="mb-1 font-medium">Outils ({preview.tools.length})</Text>
-          <ul>
+          <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
             {preview.tools.map((tool) => (
               <ToolRow key={tool.name} tool={tool} />
             ))}
@@ -438,7 +438,7 @@ function StreamProgressNote({ progress }: Readonly<{ progress: StreamProgress }>
 
       {progress.text.length > 0 ? (
         <div className="max-h-40 min-h-0 overflow-y-auto rounded-md bg-zinc-950/5 p-2 dark:bg-white/5">
-          <Text className="text-xs whitespace-pre-wrap break-words">{progress.text}</Text>
+          <Text className="text-xs whitespace-pre-wrap wrap-break-word">{progress.text}</Text>
         </div>
       ) : null}
 
@@ -499,7 +499,7 @@ function HitlPanel({
             {hitl.pendingTool.risk ? <Badge color="amber">{hitl.pendingTool.risk}</Badge> : null}
             <Badge color="zinc">non exécuté</Badge>
           </div>
-          <Text className="mt-1 font-mono text-xs break-words">
+          <Text className="mt-1 font-mono text-xs wrap-break-word">
             {hitl.pendingTool.argumentsSummary}
           </Text>
           <Text className="mt-1 text-xs">
@@ -977,7 +977,7 @@ export default function BuilderWorkspace({
               {draftCreatedId ? (
                 <div className="rounded-lg border border-dashed border-emerald-500/40 p-3">
                   <Text className="font-medium">Draft créé</Text>
-                  <Text className="mt-1 font-mono text-xs break-words">{draftCreatedId}</Text>
+                  <Text className="mt-1 font-mono text-xs wrap-break-word">{draftCreatedId}</Text>
                   <Text className="mt-1 text-xs">
                     C’est la preuve de sortie de cette surface : un agent en statut draft, rattaché
                     au projet. Sa qualification et sa promotion se font ailleurs.

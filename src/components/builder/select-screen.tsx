@@ -28,11 +28,11 @@ const MUTED_RAIL = 'rgb(161 161 170 / 0.35)'
 
 function ProjectRow({ item }: Readonly<{ item: ProjectChoice }>) {
   return (
-    <li className="relative border-b border-zinc-950/5 last:border-b-0 dark:border-white/5">
+    <li className="relative">
       <Rail color={item.repoLinked ? '#0da87f' : MUTED_RAIL} />
       <Link
         href={item.href}
-        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-zinc-950/[2.5%] focus-visible:bg-zinc-950/[2.5%] focus-visible:outline-hidden dark:hover:bg-white/[2.5%] dark:focus-visible:bg-white/[2.5%]"
+        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-zinc-950/2.5 focus-visible:bg-zinc-950/2.5 focus-visible:outline-hidden dark:hover:bg-white/2.5 dark:focus-visible:bg-white/2.5"
       >
         <Avatar square initials={initialsOf(item.name)} className="size-8 shrink-0" />
         <div className="min-w-0 flex-1">
@@ -84,7 +84,7 @@ function ProjectListBody({
   }
 
   return (
-    <ul>
+    <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
       {items.map((item) => (
         <ProjectRow key={item.id} item={item} />
       ))}

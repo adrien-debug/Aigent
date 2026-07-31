@@ -7,18 +7,15 @@
  * bouton, ni texte, ni séparateur, ni surface générique. Uniquement des objets
  * que le kit n'a pas :
  *
- *  · `Panel`        — surface à hauteur BORNÉE par la grille du cockpit ;
- *                     c'est ce qui tient le zéro-scroll (le kit n'a pas de
- *                     notion de carte qui ne grandit pas avec sa donnée).
+ *  · `Panel`        — section avec en-tête Catalyst ; le corps suit la hauteur
+ *                     réelle du contenu. `scrollable` borne le corps si un
+ *                     scroll interne améliore l'usage.
  *  · `Unavailable`  — l'absence de mesure comme état de premier rang, avec la
  *                     distinction « lecture échouée » / « rien à mesurer »
  *                     (AGENTS.md § Vérité des données).
  *  · `Led`          — témoin d'activité temps réel.
  *  · `Rail`         — barre de sévérité en tête de ligne.
  *  · jauges         — proportions bornées (n sur total), pas des séries.
- *
- * Aucun mini-graphique inline dans les cartes ou les tables : les seuls objets
- * graphiques ici encodent une proportion qui existe réellement.
  */
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
@@ -31,11 +28,11 @@ import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
 /* ────────────────────────────── Surfaces ────────────────────────────── */
 
 /**
- * Panneau à hauteur bornée — le seul composant structurel du cockpit.
+ * Section avec en-tête — composant structurel métier (header Catalyst + corps).
  *
- * Son en-tête est composé de Catalyst (`Subheading`, `Text`, `Divider`) ; ce
- * que le panneau ajoute est le contrat de hauteur : il ne grandit jamais avec
- * la donnée, c'est la donnée qui défile à l'intérieur.
+ * Le corps grandit avec son contenu par défaut. Passer `scrollable` pour borner
+ * la hauteur et défiler à l'intérieur quand c'est utile (liste longue dans une
+ * zone sticky, etc.).
  */
 export function Panel({
   title,
@@ -45,23 +42,25 @@ export function Panel({
   className,
   bodyClassName,
   padded = true,
+  scrollable = false,
 }: Readonly<{
   title: string
   hint?: string
   actions?: ReactNode
   children: ReactNode
-  /** Contrainte de hauteur imposée par la grille du cockpit. */
   className?: string
   bodyClassName?: string
   /** `false` quand le contenu gère lui-même ses marges (table, liste pleine largeur). */
   padded?: boolean
+  /** Corps borné avec scroll interne — opt-in, pas le défaut. */
+  scrollable?: boolean
 }>) {
   const actionsClass = hint ? 'ml-3' : 'ml-auto'
 
   return (
     <section
       className={clsx(
-        'flex min-h-0 flex-col overflow-hidden rounded-lg',
+        'flex flex-col rounded-lg',
         'bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10',
         className,
       )}
@@ -78,7 +77,15 @@ export function Panel({
         </div>
         <Divider soft />
       </header>
-      <div className={clsx('min-h-0 flex-1', padded && 'p-4', bodyClassName)}>{children}</div>
+      <div
+        className={clsx(
+          padded && 'p-4',
+          scrollable && 'scroll-thin min-h-0 overflow-y-auto',
+          bodyClassName,
+        )}
+      >
+        {children}
+      </div>
     </section>
   )
 }
@@ -103,9 +110,9 @@ export function Unavailable({
   return (
     <div
       className={clsx(
-        'flex h-full flex-col items-center justify-center gap-2 rounded-lg',
+        'flex flex-col items-center justify-center gap-2 rounded-lg',
         'border border-dashed border-zinc-950/10 dark:border-white/10',
-        compact ? 'px-2 py-1' : 'p-4',
+        compact ? 'px-2 py-1' : 'min-h-32 p-4',
       )}
     >
       <span

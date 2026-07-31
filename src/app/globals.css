@@ -18,7 +18,15 @@
  * littérales et qu'un jeton unique évite qu'une puce et sa barre divergent. */
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
+}
+
+/* Navigation — rail sombre glossy, scope isolé du body clair. */
+@utility shell-sidebar-surface {
+  background:
+    linear-gradient(165deg, #141414 0%, #0a0a0a 42%, #111111 100%);
+  border-right: 1px solid rgb(255 255 255 / 0.06);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
 }
 
 body {
@@ -31,7 +39,7 @@ body {
  * toutes. */
 @utility scroll-thin {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-zinc-700) transparent;
+  scrollbar-color: var(--color-zinc-400) transparent;
 }
 
 .scroll-thin::-webkit-scrollbar {
@@ -44,12 +52,12 @@ body {
 }
 
 .scroll-thin::-webkit-scrollbar-thumb {
-  background: var(--color-zinc-700);
+  background: var(--color-zinc-400);
   border-radius: 9999px;
 }
 
 .scroll-thin::-webkit-scrollbar-thumb:hover {
-  background: var(--color-zinc-600);
+  background: var(--color-zinc-500);
 }
 
 /* Battement du témoin « système en ligne » — variation d'opacité seule, pas de

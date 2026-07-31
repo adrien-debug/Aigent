@@ -1,15 +1,17 @@
 # Migration cockpit → Catalyst — trace historique
 
-> ⚠️ **CE DOCUMENT N'EST PLUS UNE RÈGLE — 2026-07-31.**
-> Il décrivait une décision (« Catalyst est le design system unique », « migration
-> obligatoire ») qui a été **abrogée le jour même** par Adrien : le design est
-> libre, aucun design system n'est imposé (`CLAUDE.md` §8, `README.md`
-> § Frontend). Le kit `src/components/ui/` reste **disponible comme outil**, il
-> n'est plus une obligation, et aucune gate ne vérifie qu'un écran l'utilise.
+> ⚠️ **ARCHIVE — NON APPLICABLE À AIGENT — 2026-07-31.**
+> **CE DOCUMENT N'EST PLUS UNE RÈGLE.** Il décrivait une doctrine abrogée :
+> « Catalyst design system unique », zéro-scroll obligatoire, viewport lock,
+> densité 9–14px imposée, gates `check:ds` / `check:catalyst`, agent Design System
+> Guardian. Aucune de ces contraintes gouverne les nouveaux écrans Aigent.
+> Gate : `check:legacy-design-doctrine`.
 >
-> Ce qui reste utile ici : le **tableau de correspondance** composant cockpit ↔
-> primitive, et les justifications de ce qui a été gardé en composant métier. À
-> lire comme de la documentation d'architecture, jamais comme une contrainte.
+> Le design est libre (`CLAUDE.md` §8). Le kit `src/components/ui/` reste un
+> **outil** Catalyst local — pas une obligation, pas une doctrine importée.
+>
+> Ce qui reste utile ici : le tableau de correspondance composant ↔ primitive.
+> **À lire comme historique**, jamais comme contrainte produit.
 >
 > Ce document est conservé pour la trace de ce qui a été fait et pourquoi.
 >

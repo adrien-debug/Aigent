@@ -33,7 +33,7 @@
 
 | Chaîne | Contenu | Bloque quoi |
 | --- | --- | --- |
-| `npm run check` | typecheck · lint:fast · lint · no-legacy-front · **ui-kit-integrity** · agent-truth · lifecycle-truth · registry-parity · registry-integrity · dev-port · render-truth · rsc-boundary · **schema-rebuildable** · secrets · audit:dead | CI (`.github/workflows/ci.yml`) + pré-livraison |
+| `npm run check` | typecheck · lint:fast · lint · no-legacy-front · **legacy-design-doctrine** · **ui-kit-integrity** · agent-truth · lifecycle-truth · registry-parity · registry-integrity · dev-port · render-truth · rsc-boundary · **schema-rebuildable** · secrets · audit:dead | CI (`.github/workflows/ci.yml`) + pré-livraison |
 | `npm run verify` | `check` + quality:dead (knip) + test (vitest offline) + build | pré-intégration quand le build ou une surface de rendu bouge |
 
 **La chaîne `check` est entièrement statique et hors ligne.** Deux gates en ont
@@ -61,6 +61,7 @@ premier ordre** — voir §3.
 
 | Gate | Garantit | Ne garantit PAS |
 | --- | --- | --- |
+| `check:legacy-design-doctrine` | doc `cockpit-catalyst-migration.md` marquée abrogée ; `scripts.check` sans gates layout supprimées ; pas de réinjection DS Guardian / `check:ds` / `check:catalyst` dans les modules d'injection ; règle explicite dans `AGENTS.md` | le layout des écrans existants (zéro-scroll dans les composants reste hors périmètre) |
 | `check:no-legacy-front` | aucun import d'une couche visuelle démolie, aucune route admin recréée sur disque, et la présence positive des 3 fichiers du squelette | qu'un écran neuf soit bon — seulement qu'il ne ressuscite pas l'ancien |
 | `check:ui-kit-integrity` | empreinte SHA-256 de chaque fichier de `src/components/ui/` alignée sur `scripts/ui-kit.sha256.json` — refuse une dérive silencieuse du kit | **que le rendu soit bon**. Une réécriture qui vide `TouchTarget` ou coupe des couleurs de `Button` passe si on met à jour le manifeste. Aucune gate ne mesure les pixels — voir `src/components/ui/README.md` |
 | `check:rsc-boundary` | aucun Server Component ne passe une prop **fonction** à un Client Component — dans les trois formes : arrow inline, `function` expression, et référence à une fonction locale. Le scan de tag est **brace-aware** (voir §3 : la version regex était aveugle aux arrows) | qu'une prop fonction atteinte **indirectement** traverse : une fonction rangée dans un objet (`config={{ format: f }}`), passée via spread (`{...props}`), ou dont l'identifiant est importé plutôt que déclaré localement, reste invisible. Elle ne dit rien du contenu du composant client, ni du rendu |

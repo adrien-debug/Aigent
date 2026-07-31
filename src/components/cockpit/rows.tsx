@@ -51,7 +51,7 @@ function RosterRow({
   children: React.ReactNode
 }>) {
   return (
-    <li className="relative border-b border-zinc-950/5 last:border-b-0 dark:border-white/5">
+    <li className="relative">
       <Rail color={railColor} />
       <div className="flex items-center gap-3 py-2.5 pr-4 pl-4">{children}</div>
     </li>

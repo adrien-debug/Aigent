@@ -773,7 +773,7 @@ function ConfirmBody({
 
           <Text>{effective.cost.detail}</Text>
 
-          <div className="rounded-md border border-zinc-950/10 bg-zinc-950/[0.025] px-3 py-2 dark:border-white/10 dark:bg-white/[0.025]">
+          <div className="rounded-md border border-zinc-950/10 bg-zinc-950/2.5 px-3 py-2 dark:border-white/10 dark:bg-white/2.5">
             <Text className="text-xs">Si l’action réussit</Text>
             <Text className="mt-0.5">{job.consequence}</Text>
           </div>

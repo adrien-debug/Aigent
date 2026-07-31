@@ -96,7 +96,7 @@ export function LoadedBlock<T>({
 }>) {
   if (!loaded.ok) {
     return (
-      <div className="flex h-full min-h-[8rem] flex-col justify-center gap-2">
+      <div className="flex h-full min-h-32 flex-col justify-center gap-2">
         <Unavailable
           reason="unread"
           detail={`${what} n’a pas pu être lu. Rien n’est listé : une liste vide se lirait comme « il n’y a rien », ce qui n’est pas ce qui est su.`}

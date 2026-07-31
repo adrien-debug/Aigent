@@ -59,7 +59,7 @@ function noteRingClass(tone: NonNullable<NoteProps['tone']>): string {
   if (tone === 'blocked') return 'border-[#e8455f]/25 bg-[#e8455f]/5'
   if (tone === 'warn') return 'border-amber-400/25 bg-amber-400/5'
   if (tone === 'structural') return 'border-sky-400/25 bg-sky-400/5'
-  return 'border-zinc-950/10 bg-zinc-950/[0.025] dark:border-white/10 dark:bg-white/[0.025]'
+  return 'border-zinc-950/10 bg-zinc-950/2.5 dark:border-white/10 dark:bg-white/2.5'
 }
 
 function sandboxCheckTitle(status: SandboxCheckStatus, reason?: string): string | undefined {
@@ -151,7 +151,7 @@ export function StateKindTag({ kind }: StateKindTagProps) {
  */
 export function DeliveryStateRow({ state }: DeliveryStateRowProps) {
   return (
-    <div className="border-b border-zinc-950/5 px-4 py-3 last:border-b-0 dark:border-white/5">
+    <div className="px-4 py-3">
       <div className="flex flex-wrap items-center gap-2">
         <DeliveryStateBadge state={state} />
         <StateKindTag kind={state.kind} />

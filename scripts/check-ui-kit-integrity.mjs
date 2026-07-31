@@ -89,9 +89,6 @@ for (const name of modified) console.error(`  MODIFIÉ  ${KIT_DIR}/${name}`)
 for (const name of added) console.error(`  AJOUTÉ   ${KIT_DIR}/${name}`)
 for (const name of removed) console.error(`  SUPPRIMÉ ${KIT_DIR}/${name}`)
 console.error(`
-Modifier le kit est légitime, mais rarement la bonne réponse à un besoin d'écran :
-adaptez d'abord la COMPOSITION
-côté écran, ou remontez le besoin à Adrien.
-
-Si la modification est délibérée et validée : node scripts/check-ui-kit-integrity.mjs --update`)
+Modifier le kit est légitime et volontaire quand le besoin est sur la primitive elle-même.
+Après modification assumée : node scripts/check-ui-kit-integrity.mjs --update`)
 process.exit(1)
