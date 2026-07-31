@@ -25,11 +25,42 @@ import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
 /* ────────────────────────────── Surfaces ────────────────────────────── */
 
 /**
- * Cadre de panneau — le niveau « raised » de l'échelle de profondeur.
- *
- * L'en-tête est une barre d'instrument : un tiret d'accent, un titre en
- * capitales serrées, et une mesure à droite en chiffres monospacés.
+ * En-tête de panneau — tiret d'accent, titre en capitales serrées, mesure ou
+ * action à droite. Extrait de `Panel` pour rester réutilisable par un panneau
+ * dont le corps ne suit pas la mise en page par défaut (ex. `ActionQueue`).
  */
+export function PanelHeader({
+  title,
+  hint,
+  actions,
+  className,
+}: {
+  title: string
+  hint?: string
+  actions?: ReactNode
+  className?: string
+}) {
+  return (
+    <header
+      className={clsx(
+        'flex shrink-0 items-center gap-2.5 border-b border-white/5 px-3.5 py-2.5',
+        className,
+      )}
+    >
+      <span aria-hidden className="h-3 w-0.5 shrink-0 rounded-full bg-accent" />
+      <h2 className="shrink-0 text-[10px] font-semibold tracking-[0.2em] whitespace-nowrap text-ink-dim uppercase">
+        {title}
+      </h2>
+      {hint ? (
+        <span className="ml-auto truncate font-mono text-[10px] tracking-tight text-ink-faint">
+          {hint}
+        </span>
+      ) : null}
+      {actions ? <div className={clsx('shrink-0', hint ? 'ml-2' : 'ml-auto')}>{actions}</div> : null}
+    </header>
+  )
+}
+
 export function Panel({
   title,
   hint,
@@ -54,21 +85,7 @@ export function Panel({
         className,
       )}
     >
-      <header className="flex shrink-0 items-center gap-2.5 border-b border-white/5 px-3.5 py-2.5">
-        <span
-          aria-hidden
-          className="h-3 w-0.5 shrink-0 rounded-full bg-accent"
-        />
-        <h2 className="shrink-0 text-[10px] font-semibold tracking-[0.2em] whitespace-nowrap text-ink-dim uppercase">
-          {title}
-        </h2>
-        {hint ? (
-          <span className="ml-auto truncate font-mono text-[10px] tracking-tight text-ink-faint">
-            {hint}
-          </span>
-        ) : null}
-        {actions ? <div className={clsx('shrink-0', hint ? 'ml-2' : 'ml-auto')}>{actions}</div> : null}
-      </header>
+      <PanelHeader title={title} hint={hint} actions={actions} />
       <div className={clsx('min-h-0 flex-1', bodyClassName ?? 'p-3')}>{children}</div>
     </section>
   )
@@ -293,5 +310,157 @@ export function Rail({ color, className }: { color: string; className?: string }
       className={clsx('absolute inset-y-0 left-0 w-0.5', className)}
       style={{ background: color }}
     />
+  )
+}
+
+/* ─────────────────────────────── Entités ───────────────────────────────── */
+
+/**
+ * Monogramme d'identité — deux lettres, jamais un nom inventé.
+ *
+ * `active` porte l'UNIQUE signal de statut de l'avatar (teinte accent vs
+ * neutre) : pas de ring ni de pulse en plus, le rail de la ligne et le
+ * libellé texte suffisent à confirmer l'état.
+ */
+export function EntityAvatar({
+  initials,
+  active = false,
+  className,
+}: {
+  initials: string
+  active?: boolean
+  className?: string
+}) {
+  return (
+    <span
+      aria-hidden
+      className={clsx(
+        'grid size-7 shrink-0 place-items-center rounded-md border font-mono text-[10px] font-semibold',
+        active ? 'border-accent/25 bg-accent/10 text-accent' : 'border-white/8 bg-elevated text-ink-faint',
+        className,
+      )}
+    >
+      {initials}
+    </span>
+  )
+}
+
+/** Deux lettres d'identité — jamais un nom inventé, seulement son abréviation. */
+export function initialsOf(name: string | null): string {
+  if (!name) return '··'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[1][0]).toUpperCase()
+}
+
+/** Valeur monospacée alignée-données, ou la marque d'absence — jamais un zéro de remplacement. */
+export function MetricValue({
+  value,
+  unit,
+  size = 'md',
+}: {
+  value: string | number | null
+  unit?: string
+  size?: 'sm' | 'md'
+}) {
+  if (value === null) return <AbsentMark />
+  return (
+    <span className="flex items-baseline gap-1">
+      <span
+        className={clsx(
+          'font-mono leading-none font-semibold tabular-nums text-ink',
+          size === 'md' ? 'text-[14px]' : 'text-[11px] font-normal text-ink-dim',
+        )}
+      >
+        {value}
+      </span>
+      {unit ? <span className="text-[9.5px] text-ink-faint">{unit}</span> : null}
+    </span>
+  )
+}
+
+/** Marque d'absence inline — même orthographe que `Unavailable`, pour une valeur seule. */
+export function AbsentMark() {
+  return (
+    <span className="font-mono text-[9px] tracking-wide text-ink-faint uppercase">
+      {UNAVAILABLE_LABEL}
+    </span>
+  )
+}
+
+/** Séparateur ponctuel entre deux mesures alignées à droite d'une ligne. */
+export function MetricDot() {
+  return (
+    <span aria-hidden className="text-ink-faint/50">
+      ·
+    </span>
+  )
+}
+
+/** Ratio/compteur compact — badge secondaire sobre (n/total, N KO, version…). */
+export function CompactMetricBadge({
+  children,
+  color,
+}: {
+  children: ReactNode
+  color?: string
+}) {
+  return (
+    <span
+      className={clsx(
+        'rounded border px-1 font-mono text-[9.5px] tabular-nums whitespace-nowrap',
+        color ? undefined : 'border-white/8 bg-elevated text-ink-faint',
+      )}
+      style={
+        color
+          ? { color, borderColor: `${color}59`, background: `${color}1f` }
+          : undefined
+      }
+    >
+      {children}
+    </span>
+  )
+}
+
+/**
+ * Ligne d'entité — grammaire commune à un agent, un projet ou un run : rail de
+ * statut sur l'arête gauche, avatar, identité (titre + sous-titre), mesures
+ * alignées à droite. Une seule implémentation pour les trois rosters de
+ * l'écran ; ce que chaque domaine affiche à droite reste à l'appelant.
+ */
+export function EntityRow({
+  railColor,
+  avatar,
+  title,
+  titleMeta,
+  subtitle,
+  metrics,
+  href,
+}: {
+  railColor: string
+  avatar: ReactNode
+  title: ReactNode
+  /** Signal court à côté du titre — un point d'état, jamais plus d'un. */
+  titleMeta?: ReactNode
+  subtitle: ReactNode
+  metrics: ReactNode
+  href?: string
+}) {
+  const Tag = href ? 'a' : 'div'
+  return (
+    <li className="group relative border-b border-white/[0.035] transition-colors hover:bg-elevated">
+      <Rail color={railColor} className="opacity-60 transition-opacity group-hover:opacity-100" />
+      <Tag {...(href ? { href } : {})} className="flex items-center gap-2.5 px-3.5 py-2.5">
+        {avatar}
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-[12.5px] font-medium text-ink">{title}</span>
+            {titleMeta}
+          </span>
+          <span className="truncate text-[10.5px] text-ink-faint">{subtitle}</span>
+        </span>
+        <span className="flex shrink-0 flex-col items-end gap-1">{metrics}</span>
+      </Tag>
+    </li>
   )
 }
