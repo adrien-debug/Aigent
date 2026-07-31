@@ -85,6 +85,7 @@ const SCANNED_DIRS = [
   join(ROOT, 'src/components/builder'),
   join(ROOT, 'src/components/qualification'),
   join(ROOT, 'src/components/delivery'),
+  join(ROOT, 'src/components/runtime'),
 ]
 
 /**
