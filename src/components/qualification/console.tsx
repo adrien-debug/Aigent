@@ -176,7 +176,45 @@ interface ActionButtonProps {
   color?: 'red' | 'zinc'
 }
 
-type QualificationConsoleProps = { target: ConsoleTarget }
+/**
+ * Les cinq groupes de commandes de ce poste.
+ *
+ * Ils existaient déjà comme sections d'un bloc unique ; ils deviennent
+ * ADRESSABLES pour que l'écran de détail place chaque commande DANS l'étape du
+ * pipeline qu'elle concerne, au lieu d'aligner quatorze boutons de même poids
+ * dans un « poste de commande » séparé du contexte.
+ *
+ * Ce qui ne change PAS : la mécanique de mutation, le dialogue de
+ * confirmation, l'armement du mode live, la politique de sécurité, les routes
+ * appelées et leurs corps. Un filtre de RENDU, rien d'autre.
+ */
+export type ConsoleSection = 'suites' | 'qualification' | 'shadowReplay' | 'promotion' | 'improvement'
+
+export const ALL_CONSOLE_SECTIONS: readonly ConsoleSection[] = [
+  'suites',
+  'qualification',
+  'shadowReplay',
+  'promotion',
+  'improvement',
+]
+
+type QualificationConsoleProps = {
+  target: ConsoleTarget
+  /**
+   * Les groupes à rendre. Absent ⇒ tous, donc le comportement historique est
+   * conservé pour tout appelant qui ne demande rien de particulier.
+   */
+  sections?: readonly ConsoleSection[]
+  /**
+   * Masque les titres et textes d'introduction de chaque groupe.
+   *
+   * Quand une commande est rendue DANS l'étape qu'elle concerne, l'étape porte
+   * déjà son nom : répéter « Tests & benchmarks » au-dessus du bouton serait un
+   * doublon. La doctrine de sécurité qui accompagne les actions dangereuses,
+   * elle, n'est jamais masquée — voir `promotion` ci-dessous.
+   */
+  bare?: boolean
+}
 
 type ConfirmBodyProps = {
   job: Pending
@@ -328,7 +366,16 @@ function ActionButton({ job, busy, onOpen, disabled, disabledReason, color }: Re
   )
 }
 
-export default function QualificationConsole({ target }: Readonly<QualificationConsoleProps>) {
+export default function QualificationConsole({
+  target,
+  sections,
+  bare = false,
+}: Readonly<QualificationConsoleProps>) {
+  // `shows` par défaut à TOUT : un appelant qui ne précise rien obtient le
+  // poste complet, exactement comme avant.
+  const visible = sections ?? ALL_CONSOLE_SECTIONS
+  const shows = (section: ConsoleSection) => visible.includes(section)
+
   const router = useRouter()
   const [pending, setPending] = useState<Pending | null>(null)
   const [armLive, setArmLive] = useState(false)
@@ -419,8 +466,12 @@ export default function QualificationConsole({ target }: Readonly<QualificationC
 
   return (
     <div className="flex flex-col gap-4">
-      {/* ─── Ce que la garde d'exécution refuserait ─── */}
-      {target.runBlockers.length > 0 ? (
+      {/* ─── Ce que la garde d'exécution refuserait ───
+          Masqué en mode `bare` : le cockpit instancie plusieurs consoles (une
+          par étape), et cet avertissement s'y répéterait à l'identique. Il y est
+          rendu UNE fois, dans la colonne de décision, où il pèse — voir
+          `cockpit-screen.tsx`. En mode plein, il reste ici. */}
+      {!bare && target.runBlockers.length > 0 ? (
         <Note tone="blocked" title={`La garde d’exécution refuserait un lancement — ${target.runBlockers.length} raison(s)`}>
           Les trois conditions doivent tenir ensemble : statut « active », aucun outil non résolu,
           runtime « langgraph ». Les actions qui exécutent réellement l’agent restent proposées, mais
@@ -430,8 +481,9 @@ export default function QualificationConsole({ target }: Readonly<QualificationC
       ) : null}
 
       {/* ─── Suites & exécutions ─── */}
+      {shows('suites') ? (
       <section className="flex flex-col gap-2">
-        <Strong>Tests & benchmarks</Strong>
+        {bare ? null : <Strong>Tests & benchmarks</Strong>}
         <div className="flex flex-wrap gap-2">
           <ActionButton
             busy={busy}
@@ -494,16 +546,20 @@ export default function QualificationConsole({ target }: Readonly<QualificationC
           />
         </div>
       </section>
+      ) : null}
 
       <Divider soft />
 
       {/* ─── Qualification orchestrée ─── */}
+      {shows('qualification') ? (
       <section className="flex flex-col gap-2">
-        <Strong>Qualification orchestrée</Strong>
-        <Text>
-          Le parcours tests → benchmark → shadow → replay → gate s’arrête à la gate. Il ne promeut
-          jamais : « promouvable » est un état, pas un acte.
-        </Text>
+        {bare ? null : <Strong>Qualification orchestrée</Strong>}
+        {bare ? null : (
+          <Text>
+            Le parcours tests → benchmark → shadow → replay → gate s’arrête à la gate. Il ne promeut
+            jamais : « promouvable » est un état, pas un acte.
+          </Text>
+        )}
         <div className="flex flex-wrap gap-2">
           <ActionButton
             busy={busy}
@@ -532,16 +588,20 @@ export default function QualificationConsole({ target }: Readonly<QualificationC
           />
         </div>
       </section>
+      ) : null}
 
       <Divider soft />
 
       {/* ─── Shadow & replay ─── */}
+      {shows('shadowReplay') ? (
       <section className="flex flex-col gap-2">
-        <Strong>Shadow & replay</Strong>
-        <Text>
-          Fixture par défaut. Le mode live est un choix explicite, armé dans le dialogue de
-          confirmation — et c’est le seul mode qu’une gate exigeante accepte.
-        </Text>
+        {bare ? null : <Strong>Shadow & replay</Strong>}
+        {bare ? null : (
+          <Text>
+            Fixture par défaut. Le mode live est un choix explicite, armé dans le dialogue de
+            confirmation — et c’est le seul mode qu’une gate exigeante accepte.
+          </Text>
+        )}
         <div className="flex flex-wrap gap-2">
           <ActionButton
             busy={busy}
@@ -574,12 +634,14 @@ export default function QualificationConsole({ target }: Readonly<QualificationC
           />
         </div>
       </section>
+      ) : null}
 
       <Divider soft />
 
       {/* ─── Promotion ─── */}
+      {shows('promotion') ? (
       <section className="flex flex-col gap-2">
-        <Strong>Promotion</Strong>
+        {bare ? null : <Strong>Promotion</Strong>}
         <Text>
           Aucune promotion automatique n’existe. La RPC <code>promote_copilot_version</code> est
           l’unique voie, verrouillée en base à trois niveaux ; cette interface la déclenche, elle ne
@@ -631,12 +693,14 @@ export default function QualificationConsole({ target }: Readonly<QualificationC
           />
         </div>
       </section>
+      ) : null}
 
       <Divider soft />
 
       {/* ─── Boucle d'amélioration & décision humaine ─── */}
+      {shows('improvement') ? (
       <section className="flex flex-col gap-2">
-        <Strong>Boucle d’amélioration · décision humaine</Strong>
+        {bare ? null : <Strong>Boucle d’amélioration · décision humaine</Strong>}
         {target.openProposalId ? (
           <Note tone="info" title="Une boucle d’amélioration est déjà ouverte">
             La base n’en tolère qu’une seule par copilot : une nouvelle analyse serait refusée (409).
@@ -696,6 +760,7 @@ export default function QualificationConsole({ target }: Readonly<QualificationC
           />
         </div>
       </section>
+      ) : null}
 
       {/* ─── Résultat de la dernière action ─── */}
       {outcome.phase !== 'idle' ? (

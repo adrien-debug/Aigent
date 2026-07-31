@@ -39,7 +39,7 @@ import type {
   QualificationDetail,
   ReplayEvidence,
   ShadowEvidence,
-} from './detail-screen'
+} from './detail-contract'
 import type { QualificationCandidate } from './roster-screen'
 import { runBlockerCount } from './model'
 
