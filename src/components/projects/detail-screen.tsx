@@ -352,7 +352,7 @@ export default function ProjectDetailScreen({
   const summary = graph?.summary ?? null
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-3 max-lg:pl-14">
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-4 max-lg:pl-14">
       {/* ── En-tête ── */}
       <header className="shrink-0 px-1">
         <div className="flex min-w-0 items-center gap-3">

@@ -7,6 +7,9 @@
  * Server Component : l'histogramme est le seul module client (Recharts).
  */
 import type { ReactNode } from 'react'
+import { navEntry } from '@/components/navigation'
+import { Heading } from '@/components/ui/heading'
+import { Text } from '@/components/ui/text'
 import type { DashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
 import { buildHourlyBuckets, buildStatusBreakdown } from '@/lib/cockpit/overview-series'
 import { buildAgentCards, buildNamedRuns } from '@/lib/cockpit/named-runs'
@@ -16,6 +19,8 @@ import KpiStrip from './kpi-strip'
 import RunStream from './run-stream'
 import { AgentRow, ProjectRow } from './rows'
 import { Panel, Unavailable } from './primitives'
+
+const ENTRY = navEntry('/')
 
 function renderRunStreamPanel(runs: NamedRun[] | null, nowMs: number): ReactNode {
   if (runs === null) {
@@ -75,6 +80,11 @@ export default function CockpitOverview({
 
   return (
     <div className="flex flex-col gap-4 p-6 pt-16 lg:pt-6 lg:px-8">
+      <header>
+        <Heading level={1}>{ENTRY.name}</Heading>
+        <Text className="mt-1">{ENTRY.purpose}</Text>
+      </header>
+
       <KpiStrip kpis={overview.kpis} unread={unread} />
 
       <Panel

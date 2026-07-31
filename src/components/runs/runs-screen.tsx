@@ -10,6 +10,8 @@
  * (liste puis détail) — deux colonnes côte à côte sur ~700 px seraient illisibles.
  */
 import type { ReactNode } from 'react'
+import { navEntry } from '@/components/navigation'
+import { Heading } from '@/components/ui/heading'
 import { Strong, Text } from '@/components/ui/text'
 import { Panel, Unavailable } from '@/components/cockpit/primitives'
 import type { AgentRun } from '@/lib/agent-mission-control/types'
@@ -21,6 +23,8 @@ import RunList from './run-list'
 import TrafficProvenance from './traffic-provenance'
 import { resolveSelectedRun } from './run-view-model'
 import type { ProvenanceBreakdown } from './run-view-model'
+
+const ENTRY = navEntry('/runs')
 
 function windowPanelHint(capped: boolean, shownCount: number, windowRunCount: number): string {
   if (capped) {
@@ -120,7 +124,12 @@ export default function RunsScreen({
   }
 
   return (
-    <div className="flex flex-col gap-3 p-3">
+    <div className="flex flex-col gap-3 p-4">
+      <header>
+        <Heading level={1}>{ENTRY.name}</Heading>
+        <Text className="mt-1">{ENTRY.purpose}</Text>
+      </header>
+
       {/* ── Bandeau de mesures — dérivées d'une SEULE source (`deriveRunsMetrics`) ── */}
       <Panel
         title="Fenêtre 24 h"

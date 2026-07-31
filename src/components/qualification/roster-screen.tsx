@@ -13,9 +13,11 @@
  */
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { Heading } from '@/components/ui/heading'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
 import { Panel, Rail, SEVERITY, Unavailable, initialsOf } from '@/components/cockpit/primitives'
+import { navEntry } from '@/components/navigation'
 import type { QualificationRunStatus } from '@/lib/agent-mission-control/qualification-orchestrator'
 import { RunStatusBadge } from './atoms'
 import { candidateRank } from './model'
@@ -194,6 +196,10 @@ export default function QualificationRosterScreen({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3 max-lg:pl-14 xl:overflow-hidden">
+      <header className="shrink-0 px-1">
+        <Heading level={1}>{navEntry('/qualification').name}</Heading>
+        <Text className="mt-1">{navEntry('/qualification').purpose}</Text>
+      </header>
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         <Badge color="zinc">{ranked.length} candidat(s)</Badge>
         <Badge
