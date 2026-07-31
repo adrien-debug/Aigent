@@ -153,9 +153,18 @@ async function main() {
     generatedAt: new Date().toISOString(),
     git: {
       branch: git(['rev-parse', '--abbrev-ref', 'HEAD']),
+      /*
+       * LE SHA DU CODE CAPTURÉ — c'est-à-dire `HEAD` au moment du rendu.
+       *
+       * Un manifeste versionné ne peut PAS nommer le commit qui le contient :
+       * l'écrire modifie l'arbre, donc le SHA. C'est un point fixe impossible,
+       * pas un oubli. Ce champ désigne donc le commit RÉELLEMENT capturé, et
+       * le commit de livraison est son descendant direct (celui qui n'ajoute
+       * que ce manifeste). `dirty` dit si l'arbre portait des modifications
+       * non commitées pendant le rendu.
+       */
       sha: git(['rev-parse', 'HEAD']),
-      // Un arbre sale au moment de la capture rendrait les images non
-      // rattachables au commit : le fait est écrit, pas dissimulé.
+      shaMeaning: 'HEAD au moment du rendu — le commit de livraison est son descendant (il ajoute ce manifeste)',
       dirty: git(['status', '--porcelain']).length > 0,
     },
     environment: {
