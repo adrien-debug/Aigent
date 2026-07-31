@@ -1,0 +1,6 @@
+projectKey=agent-mission-control
+serverUrl=http://100.88.191.49:9010
+serverVersion=26.7.0.124771
+dashboardUrl=http://100.88.191.49:9010/dashboard?id=agent-mission-control
+ceTaskId=bea00cf0-2c02-4a92-a0f6-58b35c240d9b
+ceTaskUrl=http://100.88.191.49:9010/api/ce/task?id=bea00cf0-2c02-4a92-a0f6-58b35c240d9b
