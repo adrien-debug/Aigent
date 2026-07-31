@@ -21,15 +21,13 @@ import { Badge } from '@/components/ui/badge'
 import { Divider } from '@/components/ui/divider'
 import { Heading } from '@/components/ui/heading'
 import { Strong, Text } from '@/components/ui/text'
-import { Panel, Rail, Unavailable, initialsOf } from '@/components/cockpit/primitives'
+import { Panel, Rail, SEVERITY, Unavailable, initialsOf } from '@/components/cockpit/primitives'
 import { projectCountLabel, type ProjectChoice } from './model'
-
-const MUTED_RAIL = 'rgb(161 161 170 / 0.35)'
 
 function ProjectRow({ item }: Readonly<{ item: ProjectChoice }>) {
   return (
     <li className="relative">
-      <Rail color={item.repoLinked ? '#0da87f' : MUTED_RAIL} />
+      <Rail color={item.repoLinked ? SEVERITY.good : SEVERITY.muted} />
       <Link
         href={item.href}
         className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-zinc-950/2.5 focus-visible:bg-zinc-950/2.5 focus-visible:outline-hidden dark:hover:bg-white/2.5 dark:focus-visible:bg-white/2.5"
@@ -103,7 +101,7 @@ export default function BuilderSelectScreen({
   failure?: string | null
 }>) {
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-3">
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-3 max-lg:pl-14">
       <header className="shrink-0 px-1">
         <Heading level={1}>Builder</Heading>
         <Text className="mt-1">

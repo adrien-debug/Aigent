@@ -16,13 +16,15 @@
  *  · `Led`          — témoin d'activité temps réel.
  *  · `Rail`         — barre de sévérité en tête de ligne.
  *  · jauges         — proportions bornées (n sur total), pas des séries.
+ *  · `SEVERITY`     — la palette de couleur d'un `Rail`, source unique.
+ *  · `Fact`/`FactValue`/`NotMeasured` — paire libellé/valeur, absence rendue.
  */
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 
 import { Divider } from '@/components/ui/divider'
 import { Subheading } from '@/components/ui/heading'
-import { Text } from '@/components/ui/text'
+import { Strong, Text } from '@/components/ui/text'
 import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
 
 /* ────────────────────────────── Surfaces ────────────────────────────── */
@@ -133,7 +135,76 @@ export function AbsentMark() {
   return <span className="text-xs text-zinc-500 uppercase dark:text-zinc-400">{UNAVAILABLE_LABEL}</span>
 }
 
+/**
+ * Une valeur non mesurée, en ligne. Jamais un `0` à la place.
+ *
+ * Anciennement redéclaré à l'identique dans `runtime/atoms.tsx` et
+ * `delivery/atoms.tsx` : même classe, même contrat, deux copies qui ne
+ * pouvaient dériver qu'en silence l'une de l'autre.
+ */
+export function NotMeasured({ why }: Readonly<{ why?: string }>) {
+  return (
+    <span
+      className="text-xs text-zinc-500 uppercase dark:text-zinc-400"
+      title={why ?? 'Cette valeur n’a pas été mesurée — elle n’est pas nulle, elle est absente.'}
+    >
+      {UNAVAILABLE_LABEL}
+    </span>
+  )
+}
+
+/**
+ * Une paire libellé / valeur. `value === null` rend `NotMeasured` : la garde
+ * est dans la fonction, donc aucun appelant ne peut l'oublier. Un `0` mesuré
+ * reste un `0` — seul `null` est une absence.
+ */
+export function Fact({
+  label,
+  value,
+  why,
+  hint,
+}: Readonly<{
+  label: string
+  value: ReactNode | null
+  why?: string
+  hint?: string
+}>) {
+  return (
+    <div className="min-w-0">
+      <Text className="truncate text-xs">{label}</Text>
+      <div className="mt-0.5 min-w-0 truncate">
+        {value === null ? <NotMeasured why={why} /> : value}
+      </div>
+      {hint ? <Text className="mt-0.5 truncate text-xs">{hint}</Text> : null}
+    </div>
+  )
+}
+
+/** Une valeur mise en avant dans un `Fact`. */
+export function FactValue({ children }: Readonly<{ children: ReactNode }>) {
+  return <Strong className="tabular-nums">{children}</Strong>
+}
+
 /* ─────────────────────────── Objets d'instrument ─────────────────────── */
+
+/**
+ * Palette sémantique d'un `Rail` — quatre teintes, et rien d'autre.
+ *
+ * Anciennement redéclarée indépendamment (mêmes valeurs hex, parfois une
+ * légère dérive comme `#3b82f6` vs `#3b9dd6` pour « en cours ») dans
+ * `agents/roster-screen.tsx`, `qualification/roster-screen.tsx`,
+ * `runs/run-list.tsx`, `delivery/roster-screen.tsx`, `projects/{list,detail}-screen.tsx`,
+ * `builder/select-screen.tsx` et `cockpit/rows.tsx`. Une seule source : le sens
+ * (succès/échec/attention/neutre) ne doit pas pouvoir diverger d'un écran à
+ * l'autre pour le même statut.
+ */
+export const SEVERITY = {
+  good: '#0da87f',
+  bad: '#e8455f',
+  warn: '#be850f',
+  running: '#3b82f6',
+  muted: 'rgb(161 161 170 / 0.35)',
+} as const
 
 /**
  * Témoin lumineux. `live` fait battre la diode — réservé à ce qui est

@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge'
 import { Divider } from '@/components/ui/divider'
 import { Heading, Subheading } from '@/components/ui/heading'
 import { Strong, Text } from '@/components/ui/text'
-import { AbsentMark, Panel, Rail, Unavailable, initialsOf } from '@/components/cockpit/primitives'
+import { AbsentMark, Panel, Rail, SEVERITY, Unavailable, initialsOf } from '@/components/cockpit/primitives'
 import { UNAVAILABLE_LABEL, formatUsd } from '@/lib/agent-mission-control/format'
 import type {
   ProjectTeamEdge,
@@ -34,8 +34,6 @@ import type {
 } from '@/lib/agent-mission-control/project-team/types'
 import type { RepoIntelligence } from '@/lib/agent-mission-control/repo-intelligence'
 import type { DeliveryCapability, RepoReadState, RepoTreeNode } from './model'
-
-const MUTED_RAIL = 'rgb(161 161 170 / 0.35)'
 
 /* ──────────────────────────── Vocabulaire ──────────────────────────── */
 
@@ -109,10 +107,12 @@ function yesNoBadge(ok: boolean): { color: 'emerald' | 'zinc'; label: string } {
 }
 
 function nodeRailColor(status: ProjectTeamNode['status']): string {
-  if (status === 'active') return '#0da87f'
-  if (status === 'failed') return '#e8455f'
+  if (status === 'active') return SEVERITY.good
+  if (status === 'failed') return SEVERITY.bad
+  // Violet et non SEVERITY.warn : un noeud « bloqué » n'est ni un échec ni une
+  // simple attente, distinction que la palette à 4 teintes ne porte pas.
   if (status === 'blocked') return '#8e63ee'
-  return MUTED_RAIL
+  return SEVERITY.muted
 }
 
 function repoPanelBody(repo: RepoView): ReactNode {
@@ -352,7 +352,7 @@ export default function ProjectDetailScreen({
   const summary = graph?.summary ?? null
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-3">
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-3 max-lg:pl-14">
       {/* ── En-tête ── */}
       <header className="shrink-0 px-1">
         <div className="flex min-w-0 items-center gap-3">

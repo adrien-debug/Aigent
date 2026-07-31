@@ -16,18 +16,16 @@ import { Heading, Subheading } from '@/components/ui/heading'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
 import type { AvailableAgent } from '@/lib/agent-mission-control/available-agents'
-import { Rail, Unavailable, initialsOf } from '@/components/cockpit/primitives'
+import { Rail, SEVERITY, Unavailable, initialsOf } from '@/components/cockpit/primitives'
 import { RuntimeStatusBadge } from './atoms'
 import { countRoster, isUnavailable, sortRoster, unresolvedToolsBadgeText } from './roster-model'
 
-const MUTED_RAIL = 'rgb(161 161 170 / 0.35)'
-
 /** Le rail reprend la gravité du statut runtime — la même que le badge. */
 const RAIL_COLOR: Record<AvailableAgent['status'], string> = {
-  active: '#0da87f',
-  inactive: MUTED_RAIL,
-  degraded: '#e8455f',
-  unavailable: '#be850f',
+  active: SEVERITY.good,
+  inactive: SEVERITY.muted,
+  degraded: SEVERITY.bad,
+  unavailable: SEVERITY.warn,
 }
 
 function isoShort(iso: string | null): string | null {

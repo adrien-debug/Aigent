@@ -25,11 +25,9 @@ import { Badge } from '@/components/ui/badge'
 import { Divider } from '@/components/ui/divider'
 import { Heading } from '@/components/ui/heading'
 import { Strong, Text } from '@/components/ui/text'
-import { AbsentMark, Panel, Rail, Unavailable, initialsOf } from '@/components/cockpit/primitives'
+import { AbsentMark, Panel, Rail, SEVERITY, Unavailable, initialsOf } from '@/components/cockpit/primitives'
 import { UNAVAILABLE_LABEL, formatUsd } from '@/lib/agent-mission-control/format'
 import type { ProjectListItem, ProjectMeasure } from './model'
-
-const MUTED_RAIL = 'rgb(161 161 170 / 0.35)'
 
 function projectCountHint(count: number): string {
   const suffix = count > 1 ? 's' : ''
@@ -62,7 +60,7 @@ function ProjectListRow({ item }: Readonly<{ item: ProjectListItem }>) {
 
   return (
     <li className="relative">
-      <Rail color={live ? '#0da87f' : MUTED_RAIL} />
+      <Rail color={live ? SEVERITY.good : SEVERITY.muted} />
       {/* Toute la ligne est cliquable — le deep link est la raison d'être de
           cette liste. `block` + `focus-visible` : atteignable au clavier. */}
       <Link
@@ -163,7 +161,7 @@ export default function ProjectsListScreen({
   failure?: string | null
 }>) {
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-3">
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-3 max-lg:pl-14">
       <header className="shrink-0 px-1">
         <Heading level={1}>Projets</Heading>
         <Text className="mt-1">
