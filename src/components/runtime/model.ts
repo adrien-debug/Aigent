@@ -48,6 +48,11 @@ export const RUNTIME_TABS = [
     name: 'Dépôts',
     purpose: 'Les dépôts liés aux projets consommateurs et leur lisibilité réelle.',
   },
+  {
+    id: 'visual-tooling',
+    name: 'Outillage visuel',
+    purpose: 'Les outils visuels périphériques : lesquels répondent, lesquels ne sont pas configurés.',
+  },
 ] as const satisfies readonly { id: string; name: string; purpose: string }[]
 
 export type RuntimeTabId = (typeof RUNTIME_TABS)[number]['id']

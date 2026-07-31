@@ -20,6 +20,8 @@ import ProvidersTab from './tab-providers'
 import RepositoriesTab from './tab-repositories'
 import TelemetryTab from './tab-telemetry'
 import ToolsTab from './tab-tools'
+import VisualToolingTab from './tab-visual-tooling'
+import type { VisualToolingData } from './visual-tooling'
 import type {
   LangGraphTabData,
   ModelsTabData,
@@ -43,6 +45,7 @@ export type RuntimeScreenData =
   | { tab: 'providers'; data: ProvidersTabData }
   | { tab: 'models'; data: ModelsTabData }
   | { tab: 'repositories'; data: RepositoriesTabData }
+  | { tab: 'visual-tooling'; data: VisualToolingData }
 
 function TabPanel({ payload }: Readonly<{ payload: RuntimeScreenData }>) {
   switch (payload.tab) {
@@ -58,6 +61,8 @@ function TabPanel({ payload }: Readonly<{ payload: RuntimeScreenData }>) {
       return <ModelsTab data={payload.data} />
     case 'repositories':
       return <RepositoriesTab data={payload.data} />
+    case 'visual-tooling':
+      return <VisualToolingTab data={payload.data} />
   }
 }
 

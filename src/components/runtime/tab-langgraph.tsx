@@ -25,6 +25,7 @@ import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
 import { Panel } from '@/components/cockpit/primitives'
 import type { AvailableAgent } from '@/lib/agent-mission-control/available-agents'
+import GraphCanvas from './graph-canvas'
 import type { LangGraphTabData } from './server-reads'
 import { Fact, FactValue, LoadedBlock, ProvenEmpty, ProvisioningBadge } from './atoms'
 import { provisioningState } from './model'
@@ -358,6 +359,16 @@ function ServerStatePanel({ data }: Readonly<{ data: LangGraphTabData }>) {
 
 /* ──────────────────────────── Topologie ─────────────────────────────── */
 
+/**
+ * Topologie — rendue comme un CANVAS, sur la topologie réelle du serveur.
+ *
+ * Le Canvas remplace la liste de badges qui vivait ici : la même donnée, mais
+ * lisible comme un flux. Il ne change RIEN au contrat — même source, même
+ * traitement de l'indisponibilité, aucune écriture. Voir `graph-canvas.tsx`.
+ *
+ * La hauteur est BORNÉE (`h-[26rem]`) et ne suit pas la taille du graphe : un
+ * graphe de 200 nœuds se navigue au zoom, il ne pousse pas la page.
+ */
 function TopologyPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
   return (
     <Panel title={`Topologie · ${data.graphId}`} className="min-h-0 shrink-0">
@@ -373,12 +384,8 @@ function TopologyPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
                 <Badge color="zinc">{topology.nodes.length} nœud(s)</Badge>
                 <Badge color="zinc">{topology.edges.length} arête(s)</Badge>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {topology.nodes.map((node) => (
-                  <Badge key={node.id} color="sky" title={node.type}>
-                    {node.label || node.id}
-                  </Badge>
-                ))}
+              <div className="flex h-[26rem] min-h-0 flex-col">
+                <GraphCanvas nodes={topology.nodes} edges={topology.edges} readOnly />
               </div>
             </div>
           )
