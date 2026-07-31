@@ -31,17 +31,68 @@ describe('readVisualTooling', () => {
     const { readVisualTooling } = await load()
     const data = await readVisualTooling()
 
-    // Aucune adresse ⇒ aucune sonde ⇒ on ne sait rien. C'est le cœur du contrat.
-    for (const tool of data.tools) {
+    /*
+      Aucune adresse ⇒ aucune sonde ⇒ on ne sait rien. C'est le cœur du contrat.
+
+      `canvas-aigent` est exclu : ce n'est pas un service sondable mais une
+      surface embarquée dans ce produit, dont l'état ne dépend d'aucune variable
+      d'environnement. Il est traité par son propre test.
+    */
+    const probed = data.tools.filter((t) => t.id !== 'canvas-aigent')
+    expect(probed).toHaveLength(6)
+    for (const tool of probed) {
       expect(tool.status).toBe('UNAVAILABLE')
       expect(tool.url).toBeNull()
       expect(tool.checkedAt).toBeNull()
       expect(tool.latencyMs).toBeNull()
     }
-    expect(data.runningCount).toBe(0)
+    // Seul le Canvas est « atteint » — il est rendu, pas joint.
+    expect(data.runningCount).toBe(1)
   })
 
-  it('passe RUNNING seulement sur une réponse réelle', async () => {
+  it('expose exactement 7 outils, dont Canvas Aigent', async () => {
+    const { readVisualTooling } = await load()
+    const data = await readVisualTooling()
+
+    expect(data.tools).toHaveLength(7)
+    expect(data.tools.map((t) => t.id)).toEqual([
+      'langgraph',
+      'canvas-aigent',
+      'langsmith-studio',
+      'langfuse',
+      'grafana',
+      'n8n',
+      'obsidian',
+    ])
+  })
+
+  it('le Canvas est VERIFIED sans sonde — sa preuve est le rendu, pas un 200', async () => {
+    const { readVisualTooling } = await load()
+    const canvas = (await readVisualTooling()).tools.find((t) => t.id === 'canvas-aigent')
+
+    expect(canvas?.status).toBe('VERIFIED')
+    // Jamais sondé : aucune latence, aucun horodatage de contrôle fabriqué.
+    expect(canvas?.latencyMs).toBeNull()
+    expect(canvas?.checkedAt).toBeNull()
+    // Lien INTERNE : il ne part pas vers un tiers.
+    expect(canvas?.url).toBe('/runtime?tab=langgraph')
+  })
+
+  it('n’accorde VERIFIED à AUCUN service sondé', async () => {
+    process.env.GRAFANA_URL = 'http://127.0.0.1:3030'
+    process.env.LANGFUSE_BASEURL = 'http://127.0.0.1:3001'
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('ok', { status: 200 })),
+    )
+    const { readVisualTooling } = await load()
+    const probed = (await readVisualTooling()).tools.filter((t) => t.id !== 'canvas-aigent')
+
+    // Un 200 ne prouve pas qu'un service fait son travail : plafond CONNECTED.
+    expect(probed.every((t) => t.status !== 'VERIFIED')).toBe(true)
+  })
+
+  it('passe CONNECTED seulement sur une réponse réelle et acceptée', async () => {
     process.env.GRAFANA_URL = 'http://127.0.0.1:3030'
     vi.stubGlobal(
       'fetch',
@@ -50,7 +101,7 @@ describe('readVisualTooling', () => {
     const { readVisualTooling } = await load()
     const grafana = (await readVisualTooling()).tools.find((t) => t.id === 'grafana')
 
-    expect(grafana?.status).toBe('RUNNING')
+    expect(grafana?.status).toBe('CONNECTED')
     expect(grafana?.checkedAt).not.toBeNull()
     expect(grafana?.remediation).toBeNull()
   })
@@ -119,7 +170,7 @@ describe('readVisualTooling', () => {
     const { readVisualTooling } = await load()
     const tools = (await readVisualTooling()).tools
 
-    expect(tools.find((t) => t.id === 'grafana')?.status).toBe('RUNNING')
+    expect(tools.find((t) => t.id === 'grafana')?.status).toBe('CONNECTED')
     expect(tools.find((t) => t.id === 'n8n')?.status).toBe('CONFIGURED')
   })
 
@@ -142,6 +193,7 @@ describe('readVisualTooling', () => {
     const { readVisualTooling } = await load()
     const lg = (await readVisualTooling()).tools.find((t) => t.id === 'langgraph')
 
+    // Répondu mais refusé : on s'arrête à RUNNING, jamais CONNECTED.
     expect(lg?.status).toBe('RUNNING')
     expect(lg?.detail).toContain('authentification')
   })

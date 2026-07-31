@@ -1,74 +1,125 @@
 /**
- * Onglet « Outillage visuel » — l'état réel des outils périphériques.
+ * Onglet « Outillage visuel » — l'état réel des sept outils.
  *
- * CE QUE CET ÉCRAN DIT, ET CE QU'IL REFUSE DE DIRE
- * -----------------------------------------------
- * Il affiche trois états seulement — `RUNNING`, `CONFIGURED`, `UNAVAILABLE` —
- * et jamais « VERIFIED ». Une sonde HTTP prouve qu'un service répond, pas qu'il
- * fait son travail : Langfuse qui répond n'a pas pour autant reçu une trace,
- * Grafana qui répond n'a pas pour autant une datasource. Afficher un vert
- * « vérifié » depuis un 200 serait exactement le faux vert que la gouvernance
- * interdit.
+ * CE QUE CET ÉCRAN REFUSE DE DIRE. Le vocabulaire complet est disponible
+ * (`INSTALLED` → `VERIFIED`), mais rien n'est promu au-delà de ce qui est
+ * mesuré : une sonde HTTP mène au mieux à `CONNECTED`. Le seul `VERIFIED` de la
+ * console est le Canvas, dont la preuve est produite dans la même application et
+ * gardée par un harnais qui échoue si le graphe manque.
  *
- * TABLEAU DENSE, PAS UNE GRILLE DE CARTES. Sept outils tiennent dans une lecture
- * verticale ; une grille de grosses cards décoratives coûterait trois fois la
- * hauteur pour la même information.
+ * DENSE, PAS DÉCORATIF. Une ligne par outil, sur une grille alignée : statut,
+ * nom, fonction, endpoint, dernier contrôle, action. Les sept tiennent dans le
+ * premier viewport à 1440×900. Ce qui est long — détail de l'erreur, marche à
+ * suivre — vit dans un `<details>` et n'occupe la place que si on le demande.
  */
 import { Badge } from '@/components/ui/badge'
-import { Link } from '@/components/ui/link'
+import { Button } from '@/components/ui/button'
 import { Text } from '@/components/ui/text'
 import { Panel } from '@/components/cockpit/primitives'
 import type { ToolProbe, ToolStatus, VisualToolingData } from './visual-tooling'
 
-/** Une couleur par état — mais l'état est TOUJOURS écrit en toutes lettres. */
-const STATUS_COLOR: Record<ToolStatus, 'lime' | 'amber' | 'zinc'> = {
+/**
+ * Une couleur par état — mais l'état est TOUJOURS écrit en toutes lettres à
+ * côté : la couleur seule n'est pas une information accessible.
+ */
+const STATUS_COLOR: Record<ToolStatus, 'lime' | 'emerald' | 'amber' | 'sky' | 'zinc'> = {
+  VERIFIED: 'emerald',
+  CONNECTED: 'lime',
   RUNNING: 'lime',
   CONFIGURED: 'amber',
+  INSTALLED: 'sky',
   UNAVAILABLE: 'zinc',
 }
 
 /** Ce que chaque état signifie, dit à l'écran plutôt que supposé connu. */
 const STATUS_MEANING: Record<ToolStatus, string> = {
+  VERIFIED: 'fait démontrablement son travail',
+  CONNECTED: 'a répondu et accepté l’appel',
   RUNNING: 'a répondu',
   CONFIGURED: 'adresse connue, sans réponse',
+  INSTALLED: 'présent, non contacté',
   UNAVAILABLE: 'non configuré',
+}
+
+/** Un lien externe s'ouvre dans un onglet neuf ; un lien interne, non. */
+function isExternal(url: string): boolean {
+  return url.startsWith('http://') || url.startsWith('https://')
 }
 
 function ToolRow({ tool }: Readonly<{ tool: ToolProbe }>) {
   return (
-    <li className="flex flex-col gap-1.5 border-b border-zinc-200 py-2.5 last:border-0 dark:border-zinc-800">
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{tool.name}</span>
-        <Badge color={STATUS_COLOR[tool.status]}>{tool.status}</Badge>
-        <Text className="text-2xs text-zinc-500">{STATUS_MEANING[tool.status]}</Text>
-        {tool.version ? <Badge color="zinc">v{tool.version}</Badge> : null}
+    <li
+      className="grid grid-cols-[6.5rem_minmax(0,1fr)_auto] items-baseline gap-x-3 border-b border-zinc-200 py-2 last:border-0 dark:border-zinc-800"
+      data-testid="visual-tool-row"
+      data-tool={tool.id}
+      data-status={tool.status}
+    >
+      <Badge color={STATUS_COLOR[tool.status]} className="justify-self-start">
+        {tool.status}
+      </Badge>
+
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <div className="flex flex-wrap items-baseline gap-x-2">
+          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{tool.name}</span>
+          {tool.version ? <Badge color="zinc">v{tool.version}</Badge> : null}
+          <Text className="text-[11px] text-zinc-500">{STATUS_MEANING[tool.status]}</Text>
+        </div>
+
+        <Text className="truncate text-xs text-zinc-600 dark:text-zinc-400">{tool.purpose}</Text>
+
+        <div className="flex flex-wrap items-center gap-x-3 text-[11px] text-zinc-500">
+          {tool.url ? <code className="truncate font-mono">{tool.url}</code> : null}
+          {tool.latencyMs !== null ? <span>{tool.latencyMs} ms</span> : null}
+          {/*
+            Jamais de « 0 ms » ni de date fabriquée quand rien n'a été sondé :
+            l'absence de contrôle est dite, pas coercée en zéro.
+          */}
+          <span>
+            {tool.checkedAt === null ? 'jamais sondé' : `contrôlé ${tool.checkedAt.slice(11, 19)} UTC`}
+          </span>
+        </div>
+
+        <details className="group mt-0.5">
+          <summary className="cursor-pointer list-none text-[11px] text-zinc-500 select-none hover:text-zinc-900 dark:hover:text-zinc-100">
+            <span className="inline-block transition-transform group-open:rotate-90">▸</span> Détail
+          </summary>
+          <div className="mt-1 flex flex-col gap-1 border-l border-zinc-200 pl-2 dark:border-zinc-800">
+            <Text className="text-[11px] text-zinc-500">{tool.detail}</Text>
+            {tool.remediation ? (
+              <Text className="text-[11px] text-amber-600 dark:text-amber-500">
+                Pour l’activer : {tool.remediation}
+              </Text>
+            ) : null}
+          </div>
+        </details>
       </div>
 
-      <Text className="text-xs text-zinc-600 dark:text-zinc-400">{tool.purpose}</Text>
-
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-zinc-500">
+      <div className="flex items-center gap-1.5 justify-self-end">
         {tool.url ? (
-          // `noreferrer` : l'URL d'Aigent ne part pas dans le Referer d'un outil tiers.
-          <Link href={tool.url} target="_blank" rel="noreferrer noopener" className="font-medium">
-            Ouvrir ↗
-          </Link>
+          <Button
+            href={tool.url}
+            plain
+            className="!text-xs"
+            {...(isExternal(tool.url)
+              ? // `noreferrer` : l'URL d'Aigent ne part pas dans le Referer d'un tiers.
+                { target: '_blank', rel: 'noreferrer noopener' }
+              : {})}
+          >
+            Ouvrir
+          </Button>
         ) : null}
-        {tool.url ? <code className="truncate font-mono">{tool.url}</code> : null}
-        {tool.latencyMs !== null ? <span>{tool.latencyMs} ms</span> : null}
-        {/*
-          Jamais de « 0 ms » ni de date fabriquée quand rien n'a été sondé :
-          l'absence de sonde est dite, pas coercée en zéro.
-        */}
-        {tool.checkedAt === null ? <span>jamais sondé</span> : null}
+        {tool.remediation ? (
+          /*
+            Pas de faux bouton d'action : configurer un service se fait hors de
+            cette page (variable d'environnement, docker compose). Le bouton
+            PORTE la marche à suivre dans son `title` et pointe vers le détail
+            déplié — il ne prétend pas exécuter quoi que ce soit.
+          */
+          <Button plain disabled className="!text-xs" title={tool.remediation}>
+            Configurer
+          </Button>
+        ) : null}
       </div>
-
-      <Text className="text-2xs text-zinc-500">{tool.detail}</Text>
-
-      {tool.remediation ? (
-        <Text className="text-2xs text-amber-600 dark:text-amber-500">
-          Pour l’activer : {tool.remediation}
-        </Text>
-      ) : null}
     </li>
   )
 }
@@ -80,10 +131,11 @@ export default function VisualToolingTab({ data }: Readonly<{ data: VisualToolin
         title="Outillage visuel"
         hint={`${data.runningCount} sur ${data.tools.length} joignable(s) au dernier passage`}
       >
-        <Text className="mb-2 text-2xs text-zinc-500">
-          Une sonde prouve qu’un service répond — pas qu’il fait son travail.
-          Aucun état « vérifié » n’est affiché ici : Langfuse qui répond n’a pas
-          pour autant reçu une trace.
+        <Text className="mb-1 text-[11px] text-zinc-500">
+          Une sonde prouve qu’un service répond — pas qu’il fait son travail. Le
+          seul « VERIFIED » ici est le Canvas, dont la preuve est produite dans
+          cette application et gardée par un harnais qui échoue si le graphe
+          manque.
         </Text>
         <ul className="flex flex-col">
           {data.tools.map((tool) => (

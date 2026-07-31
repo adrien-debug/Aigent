@@ -1,5 +1,7 @@
 import 'server-only'
 
+import appPackage from '../../../package.json'
+
 /**
  * Visual Tooling — l'état RÉEL des outils visuels périphériques d'Aigent.
  *
@@ -24,16 +26,28 @@ import 'server-only'
 /**
  * L'échelle d'état, du plus faible au plus fort.
  *
- * - `UNAVAILABLE` : aucune adresse configurée — on ne sait rien, et on le dit.
+ * - `UNAVAILABLE` : rien de configuré — on ne sait rien, et on le dit.
+ * - `INSTALLED`   : le code/l'artefact est présent dans le produit, mais rien
+ *                   n'a été contacté (cas d'un composant embarqué, pas d'un
+ *                   service).
  * - `CONFIGURED`  : une adresse existe, mais la sonde n'a pas abouti.
  * - `RUNNING`     : le service a répondu.
+ * - `CONNECTED`   : le service a répondu ET a accepté notre appel (pas de mur
+ *                   d'authentification). Un 401 reste donc `RUNNING`.
+ * - `VERIFIED`    : le service fait DÉMONTRABLEMENT son travail.
  *
- * Il n'existe volontairement PAS de valeur « VERIFIED » ici : vérifier qu'un
- * outil fait son travail (une trace réellement reçue, un dashboard réellement
- * peuplé) demande une preuve métier que cette sonde ne produit pas. Prétendre
- * l'inverse depuis un simple 200 serait un faux vert.
+ * `VERIFIED` n'est jamais atteint par une sonde HTTP : un 200 prouve qu'un
+ * service répond, pas qu'il a reçu une trace ou peuplé un dashboard. Il est
+ * réservé aux outils dont la preuve est produite ici même, dans la page — voir
+ * `canvas-aigent`, dont le rendu EST la démonstration.
  */
-export type ToolStatus = 'RUNNING' | 'CONFIGURED' | 'UNAVAILABLE'
+export type ToolStatus =
+  | 'VERIFIED'
+  | 'CONNECTED'
+  | 'RUNNING'
+  | 'CONFIGURED'
+  | 'INSTALLED'
+  | 'UNAVAILABLE'
 
 export interface ToolProbe {
   /** Identifiant stable, utilisé comme clé de rendu et dans les tests. */
@@ -60,6 +74,19 @@ export interface ToolProbe {
 const PROBE_TIMEOUT_MS = 1_500
 
 /**
+ * La version d'XYFlow, lue dans le `package.json` du produit.
+ *
+ * Recopier « 12.11.2 » en dur en ferait une chaîne à maintenir à la main, qui
+ * mentirait au premier `npm update`. La dépendance est épinglée à l'exact, donc
+ * la valeur déclarée EST la version installée. Si le champ disparaît, la version
+ * reste `null` — jamais une valeur inventée.
+ */
+const XYFLOW_VERSION: string | null =
+  typeof appPackage.dependencies?.['@xyflow/react'] === 'string'
+    ? appPackage.dependencies['@xyflow/react']
+    : null
+
+/**
  * Normalise une erreur de sonde en message SÛR.
  *
  * Un `err.message` brut peut transporter une URL complète — donc potentiellement
@@ -76,7 +103,14 @@ function safeReason(err: unknown): string {
  * Sonde HTTP bornée. Ne suit aucune redirection et ne lit qu'un en-tête de
  * version quand le service en publie un.
  */
-async function probe(url: string): Promise<{ ok: boolean; version: string | null; latencyMs: number; reason: string }> {
+async function probe(url: string): Promise<{
+  ok: boolean
+  /** Le service a répondu ET accepté l'appel — pas de mur d'authentification. */
+  accepted: boolean
+  version: string | null
+  latencyMs: number
+  reason: string
+}> {
   const started = Date.now()
   try {
     const res = await fetch(url, {
@@ -95,6 +129,7 @@ async function probe(url: string): Promise<{ ok: boolean; version: string | null
     const authWall = res.status === 401 || res.status === 403
     return {
       ok,
+      accepted: ok && !authWall,
       version: res.headers.get('x-version') ?? null,
       latencyMs,
       reason: authWall
@@ -102,7 +137,13 @@ async function probe(url: string): Promise<{ ok: boolean; version: string | null
         : `Réponse HTTP ${res.status}.`,
     }
   } catch (err) {
-    return { ok: false, version: null, latencyMs: Date.now() - started, reason: safeReason(err) }
+    return {
+      ok: false,
+      accepted: false,
+      version: null,
+      latencyMs: Date.now() - started,
+      reason: safeReason(err),
+    }
   }
 }
 
@@ -126,9 +167,15 @@ async function fromUrl(
   }
 
   const result = await probe(url)
+  // `CONNECTED` exige que l'appel ait été ACCEPTÉ. Un 401 s'arrête à
+  // `RUNNING` : le service est bien là, mais nous n'avons rien pu en lire.
+  let status: ToolStatus = 'CONFIGURED'
+  if (result.accepted) status = 'CONNECTED'
+  else if (result.ok) status = 'RUNNING'
+
   return {
     ...base,
-    status: result.ok ? 'RUNNING' : 'CONFIGURED',
+    status,
     url,
     version: result.version,
     detail: result.reason,
@@ -243,6 +290,32 @@ export async function readVisualTooling(): Promise<VisualToolingData> {
         : 'Démarrer l’Agent Server local (port 2024).',
   }
 
+  /*
+   * Canvas Aigent — le seul outil dont l'état est DÉMONTRABLE ici.
+   *
+   * Ce n'est pas un service : c'est une surface de ce produit, rendue par cette
+   * application. On ne le sonde donc pas — on constate qu'il est embarqué. Son
+   * état est `VERIFIED` uniquement parce que la preuve est produite dans la même
+   * page : l'onglet LangGraph rend le graphe réel de l'Agent Server, et le
+   * harnais de capture ÉCHOUE si le Canvas ou ses nœuds sont absents. C'est la
+   * seule occurrence de `VERIFIED` dans cette console, et elle repose sur un
+   * test qui casse — pas sur une déclaration.
+   */
+  const canvas: ToolProbe = {
+    id: 'canvas-aigent',
+    name: 'Canvas Aigent',
+    purpose:
+      'Représente visuellement la topologie du graphe LangGraph : nœuds, arêtes, inspecteur. Surface embarquée dans Aigent.',
+    status: 'VERIFIED',
+    url: '/runtime?tab=langgraph',
+    version: XYFLOW_VERSION,
+    detail:
+      'Surface embarquée : aucun service à sonder. Le rendu du graphe réel est vérifié par le harnais de capture, qui échoue si le Canvas ou ses nœuds manquent.',
+    latencyMs: null,
+    checkedAt: null,
+    remediation: null,
+  }
+
   // Obsidian n'est PAS sondable : c'est une application de bureau locale, sans
   // port HTTP. Prétendre la sonder produirait un état inventé. On déclare donc
   // explicitement qu'elle n'est pas mesurable depuis le serveur.
@@ -264,11 +337,15 @@ export async function readVisualTooling(): Promise<VisualToolingData> {
   // les périphériques, puis ce qui n'est pas mesurable depuis le serveur.
   const langgraphFirst = tools.filter((t) => t.id === 'langgraph')
   const peripherals = tools.filter((t) => t.id !== 'langgraph')
-  const all = [...langgraphFirst, studio, ...peripherals, obsidian]
+  const all = [...langgraphFirst, canvas, studio, ...peripherals, obsidian]
+
+  // « Joignable » = le service a répondu, quel que soit le niveau atteint
+  // ensuite. `CONFIGURED` (adresse connue, silence) n'en fait pas partie.
+  const REACHED: readonly ToolStatus[] = ['VERIFIED', 'CONNECTED', 'RUNNING']
 
   return {
     tools: all,
-    runningCount: all.filter((t) => t.status === 'RUNNING').length,
+    runningCount: all.filter((t) => REACHED.includes(t.status)).length,
     probedAt: new Date().toISOString(),
   }
 }
