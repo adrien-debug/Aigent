@@ -1,8 +1,17 @@
-# Migration cockpit → Catalyst obligatoire
+# Migration cockpit → Catalyst — trace historique
 
-> Décision produit du 2026-07-31 : Catalyst est le design system unique.
-> Ce document est le tableau de décision demandé avant migration, et reste
-> ensuite la trace de ce qui a été fait et pourquoi.
+> ⚠️ **CE DOCUMENT N'EST PLUS UNE RÈGLE — 2026-07-31.**
+> Il décrivait une décision (« Catalyst est le design system unique », « migration
+> obligatoire ») qui a été **abrogée le jour même** par Adrien : le design est
+> libre, aucun design system n'est imposé (`CLAUDE.md` §8, `README.md`
+> § Frontend). Le kit `src/components/ui/` reste **disponible comme outil**, il
+> n'est plus une obligation, et aucune gate ne vérifie qu'un écran l'utilise.
+>
+> Ce qui reste utile ici : le **tableau de correspondance** composant cockpit ↔
+> primitive, et les justifications de ce qui a été gardé en composant métier. À
+> lire comme de la documentation d'architecture, jamais comme une contrainte.
+>
+> Ce document est conservé pour la trace de ce qui a été fait et pourquoi.
 >
 > **Passe 2 (même jour)** — la première passe n'avait branché que `Avatar`,
 > `Badge` et `Divider` : une insertion ponctuelle, pas une migration. Le shell,
