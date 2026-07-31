@@ -117,11 +117,38 @@ toutes reproduites avant correction :
    `projectId` n'existaient pas comme critères. Corrigé, et un filtre ne
    s'affiche plus que s'il discrimine réellement.
 
-## Console
+## Console — ce qui est mesuré, et comment on le sait
 
-**0 erreur, 0 warning** sur `/learning` et `/actions`, mesuré par le harness à
-chaque exécution (assertion dédiée, pas une lecture manuelle). Le HTML rendu
-côté serveur ne contient aucun marqueur d'erreur de rendu.
+**0 erreur, 0 warning**, sur les scénarios `/learning`, `/actions` et
+`/actions` file longue. Les chiffres du manifeste ne sont plus écrits à la
+main : ils viennent de `console-measurements.json`, produit par le harness lors
+du run qui a créé les captures.
+
+Trois choses ont changé au REWORK v2, parce que la preuve était plus forte que
+la mesure :
+
+- le harness ne collectait que `error`, pendant que le manifeste affirmait
+  `consoleWarnings: 0` — une affirmation sans mesure derrière ;
+- l'écouteur était retiré juste après le chargement, donc le clonage de la
+  file, le défilement et l'ouverture du tiroir se produisaient **hors
+  surveillance** ;
+- la version Playwright était codée en dur.
+
+Désormais le moniteur est posé sur le **contexte** avant toute navigation et
+vit jusqu'à sa fermeture ; il collecte `error`, `warning` et `pageerror` ; et
+**l'un ou l'autre non nul fait échouer le harness**.
+
+**Sonde de la mesure.** Un `console.warn` temporaire a été inséré dans
+`ObsidianCommands` (composant client, donc chemin réel) : le harness est passé
+au rouge, `✗ console — zéro warning console — 2 : [sonde-rework-v2] …`, exit
+non nul, et les 2 warnings ont été remontés dans le total. La sonde a été
+retirée et le fichier vérifié identique au commit. Une gate qui ne sait pas
+rougir ne prouve rien.
+
+La version du pilote est lue **au runtime** sur le navigateur lancé
+(`Playwright 1.50.1 · Chromium 133.0.6943.16`), et `playwright` est désormais
+épinglé à `1.50.1` : la plage `^1.50.1` laissait le lockfile résoudre `1.62.1`
+alors que `1.50.1` était installé — une preuve doit être reproductible.
 
 Le badge de développement Next.js est masqué à la capture : il n'existe pas en
 production (`next build` ne l'émet pas) et se lirait comme un élément

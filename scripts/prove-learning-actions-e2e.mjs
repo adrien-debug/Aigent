@@ -31,10 +31,14 @@
  * Sortie : exit 0 si tout passe, 1 sinon, avec le détail de chaque échec.
  * Lecture seule côté produit : aucune mutation, aucun appel LLM.
  */
-import { mkdirSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { chromium } from 'playwright'
+
+/** La version RÉSOLUE du paquet chargé — pas la plage déclarée. */
+const PLAYWRIGHT_VERSION = createRequire(import.meta.url)('playwright/package.json').version
 
 const BASE = process.env.AIGENT_E2E_BASE ?? 'http://127.0.0.1:3987'
 const MOBILE = { width: 375, height: 812 }
@@ -54,7 +58,26 @@ if (CAPTURE_DIR) mkdirSync(CAPTURE_DIR, { recursive: true })
 const failures = []
 const notes = []
 
+/**
+ * Les comptes CUMULÉS de tous les scénarios, écrits sur disque à la fin.
+ *
+ * Le manifeste lisait `consoleErrors: 0` / `consoleWarnings: 0` codés en dur —
+ * une affirmation, pas une mesure, et fausse pour les warnings puisque rien ne
+ * les collectait. Ces totaux sont désormais MESURÉS ici et repris tels quels
+ * par `write-visual-manifest.mjs`.
+ */
+const totals = { consoleErrors: 0, consoleWarnings: 0, scenarios: 0 }
+
+function tally(monitor) {
+  totals.consoleErrors += monitor.errors.length
+  totals.consoleWarnings += monitor.warnings.length
+  totals.scenarios += 1
+}
+
+let assertionCount = 0
+
 function check(ok, label, detail = '') {
+  assertionCount += 1
   if (ok) {
     console.log(`  ✓ ${label}`)
   } else {
@@ -129,20 +152,67 @@ const OVERFLOW_PROBE = () => {
  */
 const HIDE_DEV_BADGE = 'nextjs-portal { display: none !important; }'
 
-async function visit(page, path) {
+/**
+ * Moniteur de console attaché au CONTEXTE, vivant jusqu'à sa fermeture.
+ *
+ * POURQUOI PAS UN ÉCOUTEUR AUTOUR DU SEUL `goto`
+ * ----------------------------------------------
+ * La version précédente n'écoutait que pendant le chargement, puis se
+ * détachait — donc tout ce qui se produisait ENSUITE (clonage de la file,
+ * défilement, ouverture du tiroir, clic) passait inaperçu. Et elle ne
+ * collectait que `error`, pendant que le manifeste affirmait
+ * `consoleWarnings: 0` : une preuve plus forte que la mesure, c'est-à-dire un
+ * mensonge poli.
+ *
+ * Ici le moniteur est posé sur le contexte AVANT toute navigation et n'est
+ * jamais retiré : il voit toute la vie de la page. Il collecte les DEUX
+ * niveaux, et `pageerror` en plus — une exception non capturée n'émet pas
+ * toujours un message de console, et elle doit faire échouer le harness.
+ */
+function watchConsole(context) {
   const errors = []
-  const onConsole = (msg) => {
-    if (msg.type() === 'error') errors.push(msg.text().slice(0, 140))
-  }
-  page.on('console', onConsole)
+  const warnings = []
+  context.on('console', (msg) => {
+    const type = msg.type()
+    const line = msg.text().slice(0, 160)
+    if (type === 'error') errors.push(line)
+    else if (type === 'warning' || type === 'warn') warnings.push(line)
+  })
+  context.on('pageerror', (err) => {
+    errors.push(`[pageerror] ${(err?.message ?? String(err)).slice(0, 160)}`)
+  })
+  return { errors, warnings }
+}
+
+/**
+ * Vérifie les deux compteurs. Un warning non nul FAIT ÉCHOUER le harness au
+ * même titre qu'une erreur — c'est ce que le manifeste prétendait déjà.
+ */
+function checkConsole(label, monitor) {
+  check(
+    monitor.errors.length === 0,
+    `${label} — zéro erreur console`,
+    monitor.errors.length ? `${monitor.errors.length} : ${monitor.errors[0]}` : ''
+  )
+  check(
+    monitor.warnings.length === 0,
+    `${label} — zéro warning console`,
+    monitor.warnings.length ? `${monitor.warnings.length} : ${monitor.warnings[0]}` : ''
+  )
+}
+
+async function visit(page, path) {
   await page.goto(`${BASE}${path}`, { waitUntil: 'networkidle' })
   await page.addStyleTag({ content: HIDE_DEV_BADGE })
-  page.off('console', onConsole)
-  return errors
 }
 
 async function main() {
   const browser = await chromium.launch()
+  // La version RÉELLEMENT utilisée, lue sur le navigateur lancé — pas celle du
+  // `package.json` ni du lockfile, qui peuvent diverger de ce qui est installé
+  // (constaté : lockfile 1.62.1, `node_modules` 1.50.1). Une preuve doit dire
+  // ce qui l'a produite.
+  const driver = `Playwright ${PLAYWRIGHT_VERSION} · Chromium ${browser.version()}`
   try {
     // ─────────── 0. Captures desktop / laptop ───────────
     //
@@ -153,11 +223,15 @@ async function main() {
     if (CAPTURE_DIR) {
       for (const { route, viewport, name } of DESKTOP_SHOTS) {
         const context = await browser.newContext({ viewport })
+        const monitor = watchConsole(context)
         const page = await context.newPage()
-        const errors = await visit(page, route)
+        await visit(page, route)
         console.log(`\n▸ ${route} — ${viewport.width}×${viewport.height}`)
-        check(errors.length === 0, 'zéro erreur console', errors[0] ?? '')
         await page.screenshot({ path: join(CAPTURE_DIR, name), fullPage: true })
+        // Vérifié APRÈS la capture : le rendu de la capture peut lui-même
+        // déclencher un message, et il compte comme le reste.
+        checkConsole('console', monitor)
+        tally(monitor)
         notes.push(`capture ${name}`)
         await context.close()
       }
@@ -167,10 +241,10 @@ async function main() {
     for (const route of ['/learning', '/actions']) {
       console.log(`\n▸ ${route} — 375×812`)
       const context = await browser.newContext({ viewport: MOBILE })
+      const monitor = watchConsole(context)
       const page = await context.newPage()
 
-      const errors = await visit(page, route)
-      check(errors.length === 0, 'zéro erreur console', errors[0] ?? '')
+      await visit(page, route)
 
       const overflow = await page.evaluate(OVERFLOW_PROBE)
       check(
@@ -192,6 +266,10 @@ async function main() {
         notes.push(`capture ${name}`)
       }
 
+      // En DERNIER : le moniteur a vu le chargement, les sondes de mise en page
+      // (qui défilent la page) et la capture.
+      checkConsole('console', monitor)
+      tally(monitor)
       await context.close()
     }
 
@@ -203,9 +281,12 @@ async function main() {
     // le défilement. Le serveur ne connaît pas ce montage.
     console.log('\n▸ /actions — file LONGUE, 375×812')
     const context = await browser.newContext({ viewport: MOBILE })
+    // C'est LE scénario que l'ancienne mesure manquait : le clonage, le
+    // défilement et l'ouverture du tiroir se produisent tous APRÈS le
+    // chargement, donc après le détachement de l'ancien écouteur.
+    const monitor = watchConsole(context)
     const page = await context.newPage()
-    const errors = await visit(page, '/actions')
-    check(errors.length === 0, 'zéro erreur console', errors[0] ?? '')
+    await visit(page, '/actions')
 
     const cloned = await page.evaluate(() => {
       const list = document.querySelector('ul')
@@ -305,6 +386,11 @@ async function main() {
       notes.push('capture actions-mobile-long-queue-nav-open-375x812.png')
     }
 
+    // En DERNIER, une fois le scénario ENTIER joué : chargement, clonage,
+    // défilement dans la boîte, clic sur le tiroir, transition, captures.
+    checkConsole('console', monitor)
+    tally(monitor)
+
     await context.close()
   } finally {
     // Toujours fermer le navigateur, même sur erreur (CLAUDE.md §8).
@@ -313,11 +399,40 @@ async function main() {
 
   console.log('')
   for (const note of notes) console.log(`  · ${note}`)
+  console.log(
+    `\n  console — ${totals.consoleErrors} erreur(s), ${totals.consoleWarnings} warning(s) sur ${totals.scenarios} scénario(s)`
+  )
+  console.log(`  pilote  — ${driver}`)
+
+  // Les MESURES sur disque, pour que le manifeste les reprenne au lieu de les
+  // affirmer. Écrit même en cas d'échec : un manifeste qui dirait « 0 erreur »
+  // après un run rouge serait précisément le défaut qu'on corrige.
+  if (CAPTURE_DIR) {
+    writeFileSync(
+      join(CAPTURE_DIR, 'console-measurements.json'),
+      JSON.stringify(
+        {
+          measuredBy: 'scripts/prove-learning-actions-e2e.mjs',
+          driver,
+          scenarios: totals.scenarios,
+          consoleErrors: totals.consoleErrors,
+          consoleWarnings: totals.consoleWarnings,
+          assertions: { total: assertionCount, failed: failures.length },
+          green: failures.length === 0,
+        },
+        null,
+        2
+      ) + '\n',
+      'utf8'
+    )
+    console.log(`  mesures — ${join(CAPTURE_DIR, 'console-measurements.json')}`)
+  }
+
   if (failures.length > 0) {
-    console.log(`\n✗ E2E ciblé : ${failures.length} échec(s)\n`)
+    console.log(`\n✗ E2E ciblé : ${failures.length} échec(s) sur ${assertionCount} assertion(s)\n`)
     process.exit(1)
   }
-  console.log('\n✓ E2E ciblé vert — /learning et /actions, viewport 375×812, file longue, navigation ouverte\n')
+  console.log(`\n✓ E2E ciblé vert — ${assertionCount} assertions, 0 erreur et 0 warning console\n`)
 }
 
 main().catch((err) => {

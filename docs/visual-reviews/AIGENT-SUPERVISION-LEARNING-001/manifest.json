@@ -3,13 +3,14 @@
   "issue": 64,
   "pullRequest": 65,
   "branch": "mission/learning-command-center",
-  "sha": "ddc2c58b18469c31cee3825e7b1d3e41b3a16a4e",
+  "sha": "bff3c22e703b22d259fc1c15ce7a9970537d7260",
   "shaNote": "SHA du commit qui PRÉCÈDE celui portant ce manifeste — un fichier ne peut pas contenir l'empreinte du commit qui le crée. Généré par scripts/write-visual-manifest.mjs, jamais à la main.",
   "generatedBy": "scripts/write-visual-manifest.mjs",
   "capturedBy": "scripts/prove-learning-actions-e2e.mjs --capture",
   "browser": {
     "engine": "Chromium",
-    "driver": "Playwright 1.50.1",
+    "driver": "Playwright 1.50.1 · Chromium 133.0.6943.16",
+    "driverNote": "Version résolue au runtime par le harness, pas la plage déclarée.",
     "profile": "profil éphémère Playwright — jamais le profil Chrome quotidien"
   },
   "server": {
@@ -20,11 +21,12 @@
   },
   "consoleErrors": 0,
   "consoleWarnings": 0,
+  "consoleNote": "Mesuré sur 7 scénario(s) : les niveaux `error` ET `warning` sont collectés du début à la fermeture du contexte, et l'un ou l'autre non nul fait échouer le harness. Sondé avec un console.warn temporaire : le harness rougit bien.",
   "e2e": {
     "command": "npm run prove:learning-e2e",
-    "result": "vert — 15 assertions",
+    "result": "vert — 23 assertions, 0 échec(s)",
     "covers": [
-      "zéro erreur console sur /learning et /actions",
+      "zéro erreur ET zéro warning console, observés jusqu’à la fermeture de chaque contexte",
       "zéro débordement horizontal à 375×812",
       "aucun contrôle fixe ne recouvre le contenu, à 5 positions de défilement",
       "file longue : défile dans sa boîte bornée, sans débordement",
@@ -38,16 +40,14 @@
       "bytes": 95880,
       "route": "/actions",
       "viewport": "1440x900",
-      "state": "File réelle, filtres projet/statut visibles, badges « lecture seule », pied avec provenance",
-      "consoleErrors": 0
+      "state": "File réelle, filtres projet/statut visibles, badges « lecture seule », pied avec provenance"
     },
     {
       "file": "actions-mobile-375x812.png",
       "bytes": 54240,
       "route": "/actions",
       "viewport": "375x812",
-      "state": "File en colonne, filtres wrappés, titre dégagé du contrôle fixe",
-      "consoleErrors": 0
+      "state": "File en colonne, filtres wrappés, titre dégagé du contrôle fixe"
     },
     {
       "file": "actions-mobile-long-queue-375x812.png",
@@ -55,40 +55,35 @@
       "route": "/actions",
       "viewport": "375x812",
       "state": "FILE LONGUE (24 lignes clonées dans le harness) défilant dans sa boîte bornée",
-      "note": "Le pied affiche le compte RÉEL du serveur (2), ce qui prouve que le clonage reste dans le navigateur",
-      "consoleErrors": 0
+      "note": "Le pied affiche le compte RÉEL du serveur (2), ce qui prouve que le clonage reste dans le navigateur"
     },
     {
       "file": "actions-mobile-long-queue-nav-open-375x812.png",
       "bytes": 48400,
       "route": "/actions",
       "viewport": "375x812",
-      "state": "FILE LONGUE + navigation mobile OUVERTE — 11 surfaces atteignables",
-      "consoleErrors": 0
+      "state": "FILE LONGUE + navigation mobile OUVERTE — 11 surfaces atteignables"
     },
     {
       "file": "actions-mobile-nav-open-375x812.png",
       "bytes": 47321,
       "route": "/actions",
       "viewport": "375x812",
-      "state": "Navigation mobile ouverte, file courte",
-      "consoleErrors": 0
+      "state": "Navigation mobile ouverte, file courte"
     },
     {
       "file": "desktop-1440x900.png",
       "bytes": 252066,
       "route": "/learning",
       "viewport": "1440x900",
-      "state": "Obsidian not_configured · Learning Runtime not_configured",
-      "consoleErrors": 0
+      "state": "Obsidian not_configured · Learning Runtime not_configured"
     },
     {
       "file": "laptop-1280x800.png",
       "bytes": 252307,
       "route": "/learning",
       "viewport": "1280x800",
-      "state": "Obsidian not_configured · Learning Runtime not_configured",
-      "consoleErrors": 0
+      "state": "Obsidian not_configured · Learning Runtime not_configured"
     },
     {
       "file": "learning-runtime-unavailable-1440x900.png",
@@ -96,24 +91,21 @@
       "route": "/learning",
       "viewport": "1440x900",
       "state": "Learning Runtime UNAVAILABLE (port fermé, latence mesurée, endpoint sans jeton) · Obsidian CONFIGURÉ",
-      "note": "Capturée sous configuration temporaire, restaurée depuis — voir REVIEW.md",
-      "consoleErrors": 0
+      "note": "Capturée sous configuration temporaire, restaurée depuis — voir REVIEW.md"
     },
     {
       "file": "mobile-375x812.png",
       "bytes": 207794,
       "route": "/learning",
       "viewport": "375x812",
-      "state": "Quatre zones empilées, aucun recouvrement par le contrôle fixe, 0 débordement",
-      "consoleErrors": 0
+      "state": "Quatre zones empilées, aucun recouvrement par le contrôle fixe, 0 débordement"
     },
     {
       "file": "obsidian-bridge-state-1440x900.png",
       "bytes": 252073,
       "route": "/learning",
       "viewport": "1440x900",
-      "state": "Obsidian not_configured — message nommant AIGENT_OBSIDIAN_VAULT, aucun bouton mort",
-      "consoleErrors": 0
+      "state": "Obsidian not_configured — message nommant AIGENT_OBSIDIAN_VAULT, aucun bouton mort"
     }
   ],
   "notProven": [

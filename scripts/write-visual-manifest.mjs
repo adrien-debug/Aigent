@@ -19,7 +19,7 @@
  * Écrit UNIQUEMENT le manifeste. Aucune action git, aucun réseau.
  */
 import { execFileSync } from 'node:child_process'
-import { readdirSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const dir = process.argv[2]
@@ -32,6 +32,31 @@ const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim()
 
 const sha = git('rev-parse', 'HEAD')
 const branch = git('rev-parse', '--abbrev-ref', 'HEAD')
+
+/**
+ * Les MESURES du harness, écrites par lui lors du dernier run avec `--capture`.
+ *
+ * Le manifeste affirmait `consoleErrors: 0` / `consoleWarnings: 0` en dur.
+ * C'était faux pour les warnings — rien ne les collectait — et invérifiable
+ * pour les erreurs. Ces chiffres viennent désormais du navigateur qui a
+ * réellement produit les captures.
+ *
+ * Absence du fichier = on ne prétend RIEN : les champs passent à `null` avec
+ * une raison, plutôt qu'à un zéro rassurant. C'est la même règle que pour les
+ * mesures produit (`AGENTS.md` § Vérité des données) — une absence de mesure
+ * n'est pas un zéro.
+ */
+const measurementsPath = join(dir, 'console-measurements.json')
+const measured = existsSync(measurementsPath)
+  ? JSON.parse(readFileSync(measurementsPath, 'utf8'))
+  : null
+
+if (!measured) {
+  console.warn(
+    '  ! console-measurements.json absent — lancez `npm run prove:learning-e2e -- --capture <dir>`.\n' +
+      '    Les comptes console seront écrits `null` (non mesuré), jamais 0.'
+  )
+}
 
 /** Ce que chaque capture montre — la seule part que ce script ne peut pas
  *  déduire, donc la seule qui reste écrite à la main. */
@@ -100,7 +125,12 @@ const captures = readdirSync(dir)
       console.warn(`  ! capture sans état déclaré : ${file}`)
       return { file, bytes: statSync(join(dir, file)).size, state: 'NON DÉCRIT — à documenter' }
     }
-    return { file, bytes: statSync(join(dir, file)).size, ...meta, consoleErrors: 0 }
+    // Pas de `consoleErrors` PAR CAPTURE : le harness mesure par SCÉNARIO, et
+    // plusieurs captures partagent un scénario. Attribuer un 0 à chaque image
+    // serait réinventer, ligne par ligne, l'affirmation non mesurée que ce
+    // manifeste vient de supprimer. Les comptes réels sont au niveau du
+    // document, dans `consoleErrors` / `consoleWarnings`.
+    return { file, bytes: statSync(join(dir, file)).size, ...meta }
   })
 
 const manifest = {
@@ -115,7 +145,13 @@ const manifest = {
   capturedBy: 'scripts/prove-learning-actions-e2e.mjs --capture',
   browser: {
     engine: 'Chromium',
-    driver: 'Playwright 1.50.1',
+    // Lue sur le navigateur RÉELLEMENT lancé, pas dans package.json ni dans le
+    // lockfile — les trois peuvent diverger (constaté : lockfile 1.62.1,
+    // node_modules 1.50.1). `null` si le harness n'a pas tourné.
+    driver: measured?.driver ?? null,
+    driverNote: measured
+      ? 'Version résolue au runtime par le harness, pas la plage déclarée.'
+      : 'Non mesuré — le harness n’a pas été exécuté avec --capture.',
     profile: 'profil éphémère Playwright — jamais le profil Chrome quotidien',
   },
   server: {
@@ -125,13 +161,21 @@ const manifest = {
     devBadgeHidden:
       "Le badge de développement Next.js (`nextjs-portal`) est masqué à la capture : il n'existe pas en production et se lirait comme un élément d'interface.",
   },
-  consoleErrors: 0,
-  consoleWarnings: 0,
+  // MESURÉS par le harness sur toute la durée de chaque scénario — chargement,
+  // clonage, défilement, clic, capture — et non plus affirmés. `null` veut dire
+  // « non mesuré », jamais « zéro ».
+  consoleErrors: measured?.consoleErrors ?? null,
+  consoleWarnings: measured?.consoleWarnings ?? null,
+  consoleNote: measured
+    ? `Mesuré sur ${measured.scenarios} scénario(s) : les niveaux \`error\` ET \`warning\` sont collectés du début à la fermeture du contexte, et l'un ou l'autre non nul fait échouer le harness. Sondé avec un console.warn temporaire : le harness rougit bien.`
+    : "Non mesuré — le harness n'a pas été exécuté avec --capture.",
   e2e: {
     command: 'npm run prove:learning-e2e',
-    result: 'vert — 15 assertions',
+    result: measured
+      ? `${measured.green ? 'vert' : 'ROUGE'} — ${measured.assertions.total} assertions, ${measured.assertions.failed} échec(s)`
+      : 'non exécuté',
     covers: [
-      'zéro erreur console sur /learning et /actions',
+      'zéro erreur ET zéro warning console, observés jusqu’à la fermeture de chaque contexte',
       'zéro débordement horizontal à 375×812',
       'aucun contrôle fixe ne recouvre le contenu, à 5 positions de défilement',
       'file longue : défile dans sa boîte bornée, sans débordement',
