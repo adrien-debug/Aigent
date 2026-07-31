@@ -48,6 +48,12 @@
  *   · `src/components/cockpit/**` — the render surface itself, Recharts
  *     included. The 26/07/2026 `NaN` shipped from exactly this kind of module.
  *
+ * EXTENDED again 31/07/2026 to the three surfaces of the restoration:
+ *   · `src/components/runs/**`, `src/components/agents/**`,
+ *     `src/components/projects/**` — they landed reading real aggregates, and
+ *     the guard was passing GREEN over them without having scanned a single
+ *     line. Two of the agents that built them flagged the hole themselves.
+ *
  * Still NOT scanned, and it matters: the big aggregators
  * `dashboard-overview.ts`, `agent-detail.ts` and `data.ts`. They feed the
  * cockpit, so a fabricated zero born there arrives here already laundered and
@@ -69,6 +75,9 @@ const SCANNED_DIRS = [
   join(ROOT, 'src/lib/runs-console'),
   join(ROOT, 'src/lib/cockpit'),
   join(ROOT, 'src/components/cockpit'),
+  join(ROOT, 'src/components/runs'),
+  join(ROOT, 'src/components/agents'),
+  join(ROOT, 'src/components/projects'),
 ]
 
 /**

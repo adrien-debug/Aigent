@@ -141,7 +141,32 @@ function ExecutabilityPanel({ detail }: { detail: AgentDetail }) {
               runtime non résolu
             </Badge>
           )}
+          {/*
+            Signal de provisioning — n'a de sens que sur langgraph, d'où le
+            `=== false` strict : `null` (autre runtime, ou colonne non lue) ne
+            doit rien afficher, sous peine de transformer un « non applicable »
+            en alerte.
+          */}
+          {agent?.runtimeProvisioned === false ? (
+            <Badge
+              color="amber"
+              title="copilots.assistant_id est vide : le run part sur le graphe nu, avec les outils génériques hérités."
+            >
+              aucun assistant provisionné
+            </Badge>
+          ) : null}
         </div>
+
+        {agent?.runtimeProvisioned === false ? (
+          <div className="rounded-md border border-amber-400/25 bg-amber-400/5 px-3 py-2">
+            <Strong className="block">Aucun assistant LangGraph provisionné</Strong>
+            <Text className="mt-0.5">
+              Le runtime est LangGraph mais <code>assistant_id</code> est vide. Un run n’échoue pas
+              pour autant : il s’exécute contre le graphe nu, hérite des outils génériques hérités,
+              et répond « pas de données » avec zéro appel d’outil — en paraissant sain.
+            </Text>
+          </div>
+        ) : null}
 
         {blockers.length === 0 ? (
           <Text>

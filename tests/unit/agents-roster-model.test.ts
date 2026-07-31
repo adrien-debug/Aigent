@@ -36,6 +36,8 @@ function agent(over: Partial<AvailableAgent> = {}): AvailableAgent {
     lifecycleStatus: 'active',
     runtime: 'langgraph',
     executable: true,
+    assistantId: 'asst_fixture',
+    runtimeProvisioned: true,
     provider: 'openai',
     configuredModel: 'gpt-5.4',
     executedModel: 'gpt-5.4',

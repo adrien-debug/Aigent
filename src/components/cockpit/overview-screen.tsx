@@ -56,11 +56,13 @@ export default function CockpitOverview({
     costLast24hUsd: p.costLast24hUsd,
     passRate: p.passRate,
   }))
-  // Un cockpit montre ce qui bouge : les projets actifs passent devant, les
-  // coquilles vides ne mangent pas la première place.
-  const rankedProjects = [...projectCards].sort(
-    (a, b) => (b.runs24h ?? 0) - (a.runs24h ?? 0) || b.copilotCount - a.copilotCount,
-  )
+  // L'ORDRE VIENT DE L'AMONT et n'est pas retouché ici. `buildProjectOverview`
+  // trie déjà (signal d'abord, puis runs décroissants, puis nom) via
+  // `runsOrderKey`, qui fait délibérément passer un compte NON MESURÉ (-1) SOUS
+  // un zéro mesuré. Re-trier ici avec `(b.runs24h ?? 0)` réintroduisait
+  // exactement le faux zéro que cette clé existe pour éviter : « personne n'a
+  // mesuré » remontait au rang de « prouvé calme ».
+  const rankedProjects = projectCards
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3 xl:overflow-hidden">
