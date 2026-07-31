@@ -20,6 +20,10 @@ import { Text } from '@/components/ui/text'
  *
  * Pas d'`AppShell` ici : si la panne vient du shell, l'englober ferait remonter
  * l'erreur à la boundary parente et l'écran redeviendrait blanc.
+ *
+ * Ce fichier est HÉRITÉ par les neuf surfaces créées en PR 1 : le libellé ne
+ * nomme donc plus « le cockpit » en particulier, il nomme l'écran qui a
+ * échoué, quel qu'il soit.
  */
 export default function Error({
   error,
@@ -31,14 +35,14 @@ export default function Error({
   useEffect(() => {
     // Visible dans la console navigateur ET dans les logs serveur : c'est la
     // seule trace de ce type de panne tant qu'aucun test de rendu n'existe.
-    console.error('[cockpit] rendu interrompu', error)
+    console.error('[aigent] rendu interrompu', error)
   }, [error])
 
   return (
     <div className="flex h-full items-center justify-center bg-zinc-950 p-4">
       <div className="max-w-md rounded-lg bg-white px-6 py-8 text-center shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
         <Text className="font-medium text-zinc-950 dark:text-white">
-          Le cockpit n&apos;a pas pu s&apos;afficher.
+          Cet écran n&apos;a pas pu s&apos;afficher.
         </Text>
         <Text className="mt-2">
           L&apos;affichage a été interrompu pendant le rendu. Aucun chiffre n&apos;est montré :
