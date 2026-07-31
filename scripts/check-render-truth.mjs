@@ -86,6 +86,11 @@ const SCANNED_DIRS = [
   join(ROOT, 'src/components/qualification'),
   join(ROOT, 'src/components/delivery'),
   join(ROOT, 'src/components/runtime'),
+  // Surfaces de supervision : elles rendent des mesures nullables (runs de la
+  // fenêtre, échecs, latence du Learning Runtime, capacités) et c'est
+  // exactement là qu'un `?? 0` transformerait une absence en fait rassurant.
+  join(ROOT, 'src/components/actions'),
+  join(ROOT, 'src/components/learning'),
 ]
 
 /**

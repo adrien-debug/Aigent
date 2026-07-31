@@ -8,20 +8,25 @@
 > **Ce fichier n'est pas de la doctrine** : c'est un constat daté. Les règles
 > vivent dans `CLAUDE.md` et `AGENTS.md`. Mis à jour 2026-07-31 (tri docs).
 
-## 1. Deux surfaces restent des placeholders
+## 1. Une surface reste un placeholder
 
-Le front a 15 routes (shell + listes + détails). Deux d'entre elles n'ont **pas
-encore de lecture** et affichent `SurfacePlaceholder` :
+Le front a 16 routes (shell + listes + détails). Une seule n'a **pas encore de
+lecture** et affiche `SurfacePlaceholder` :
 
-- `/actions` — file d'actions (prévue PR 2)
 - `/settings` — réglages (prévue PR 8)
 
 Ce n'est pas un faux zéro : le composant dit explicitement qu'aucune lecture n'a
 été tentée. Le reste du parcours (aperçu, runs, agents, projets, builder,
-qualification, livraison, runtime) est branché.
+qualification, livraison, runtime, learning, actions) est branché.
 
-L'approbation humaine des runs `needs-confirmation` reste aussi peu ergonomique
-qu'avant : reprise par `POST` sur la route de resume, pas encore d'écran dédié.
+**`/actions` a été branché le 2026-08-01** (mission AIGENT-SUPERVISION-LEARNING-001) :
+file opérateur complète, filtres dérivés, et reprise d'un run `needs-confirmation`
+derrière une double confirmation. C'est la SEULE mutation de cet écran — les huit
+autres catégories de la file sont en lecture seule avec « Ouvrir le contexte »,
+faute de route mutante sûre en un clic. En particulier, une **décision
+d'amélioration V2 reste non arbitrable depuis la file** : la route
+`improve/decision` existe, mais l'arbitrage exige un jugement éditorial qui ne
+tient pas dans un bouton.
 
 **Aucune gate ne mesure le rendu.** Une réécriture du kit UI peut rester verte —
 voir `src/components/ui/README.md` et le revert `5e2aa63`.
@@ -111,7 +116,40 @@ produit, pas un branchement de données.
   reste possible avec toutes les gates vertes.
 - **Aucune gate ne mesure le rendu UI** — empreinte SHA du kit ≠ pixels corrects.
 
-## 9. La dérive documentaire est le mode de défaillance récurrent ici
+## 9. Le Learning Runtime est un contrat sans moteur en face
+
+`src/lib/agent-mission-control/learning-runtime.ts` sait interroger un moteur
+H-Supervised (`health`, `capabilities`) et distingue quatre états —
+`live | partial | unavailable | not_configured`. **Aucun moteur ne répond
+aujourd'hui** : `AIGENT_LEARNING_RUNTIME_URL` n'est pas renseignée, donc l'état
+réel est `not_configured` et `/learning` le dit.
+
+Ce qui est prouvé : le client ne tente aucun appel sans configuration, il
+n'échange jamais une panne contre une liste vide, et le jeton n'apparaît ni dans
+l'endpoint affiché, ni dans un message d'erreur (tests unitaires + une preuve
+visuelle en état `unavailable`, obtenue en pointant vers un port fermé).
+
+Ce qui ne l'est pas : les états `live` et `partial` contre un vrai moteur. Les
+capacités de la mission suivante — datasets, évaluations par lot, jobs
+d'entraînement, registre de modèles — **n'ont volontairement aucun écran** :
+elles sont décrites dans le bloc runtime de `/learning` plutôt que suggérées par
+des pages vides.
+
+## 10. Le pont Obsidian construit des chaînes, il ne touche à rien
+
+`obsidian-bridge.ts` génère des URI `obsidian://` (ouvrir, créer, rechercher,
+Canvas) et refuse tout contenu suspect avant encodage. Il n'accède **jamais** au
+filesystem d'un vault et n'ouvre rien lui-même.
+
+Conséquence honnête : que l'URI soit correctement formée est prouvé (82 tests
+unitaires + relevé DOM avec un nom de vault accentué et espacé). **Qu'Obsidian
+l'honore ne l'est pas** — l'application n'est pas installée sur la machine de
+développement, donc aucun clic de bout en bout n'a été observé.
+
+Les quatre templates de `docs/templates/obsidian/` sont versionnés côté Aigent et
+substituables, mais rien ne garantit qu'un vault donné les accepte tels quels.
+
+## 11. La dérive documentaire est le mode de défaillance récurrent ici
 
 Il n'existe **aucune gate qui confronte un document au code**. Tant qu'il n'y en a
 pas, ce fichier et `docs/current-capabilities.md` ne valent que par la dernière

@@ -727,6 +727,23 @@ export function assembleDashboardOverview(input: {
   telemetryRunsMeasured: number | null
   pendingArchitectApprovals: PendingArchitectApproval[] | null
   recentTelemetryEvents: RuntimeTelemetryEvent[] | null
+  /**
+   * Plafond de la file d'action. Absent = le défaut de `buildActionItems` (6),
+   * la troncature voulue par l'aperçu, qui n'a de place que pour une colonne.
+   *
+   * `/actions` et `/learning` sont des surfaces de revue DÉDIÉES : elles
+   * passent une limite haute pour obtenir la file complète. Le paramètre
+   * traverse jusqu'ici plutôt que de laisser un appelant re-dériver la file
+   * lui-même, parce qu'une re-dérivation ne dispose PAS des mêmes entrées —
+   * `latestSandboxByCopilot`, `scorecards` et `missionRuns` ne sont pas exposés
+   * sur `DashboardOverview`. Un appelant qui les remplacerait par `null`/vide
+   * produirait deux mensonges symétriques : des lignes « source indisponible »
+   * pour des sources qui ont été lues sans erreur, et la disparition
+   * silencieuse des lignes sandbox/gate/mission réelles. Une seule dérivation,
+   * les mêmes entrées, une limite qui varie : c'est la seule forme qui garde
+   * l'aperçu et la file complète d'accord entre eux.
+   */
+  actionItemsLimit?: number
 }): DashboardOverview {
   const copilotsById = new Map(input.copilots.map((c) => [c.id, c]))
   const projectsById = new Map(input.projects.map((p) => [p.id, p]))
@@ -754,6 +771,7 @@ export function assembleDashboardOverview(input: {
     missionRuns: input.missionRuns,
     dataWarnings: input.dataWarnings,
     pendingArchitectApprovals: input.pendingArchitectApprovals,
+    limit: input.actionItemsLimit,
   })
 
   return {
@@ -937,6 +955,17 @@ export const TELEMETRY_EVENTS_READ_FAILED_WARNING = 'Runtime telemetry event fee
 export const ARCHITECT_APPROVALS_READ_FAILED_WARNING = 'Architect approval queue unavailable'
 
 /**
+ * Plafond des surfaces de revue dédiées (`/actions`, `/learning`).
+ *
+ * Ce n'est pas « pas de limite » : une file non bornée rendrait un écran que
+ * personne ne peut lire et une page dont le coût de rendu suit la taille de la
+ * flotte. C'est un plafond assez haut pour qu'aucune file réelle ne le touche,
+ * et il reste EXPLICITE — si une flotte l'atteint un jour, l'UI doit le dire
+ * plutôt que de tronquer en silence.
+ */
+export const FULL_ACTION_QUEUE_LIMIT = 500
+
+/**
  * Read-only dashboard overview for the operator cockpit (`/`). Never writes,
  * never calls GitHub.
  *
@@ -960,7 +989,10 @@ export const ARCHITECT_APPROVALS_READ_FAILED_WARNING = 'Architect approval queue
  * Release-gate / scorecard signals stay on the agent detail pages, which pay the
  * per-copilot cost once for the one copilot being viewed.
  */
-export async function getDashboardOverview(nowMs: number = Date.now()): Promise<DashboardOverview> {
+export async function getDashboardOverview(
+  nowMs: number = Date.now(),
+  options: Readonly<{ actionItemsLimit?: number }> = {}
+): Promise<DashboardOverview> {
   const dataWarnings: string[] = []
 
   const [
@@ -1054,5 +1086,6 @@ export async function getDashboardOverview(nowMs: number = Date.now()): Promise<
     telemetryRunsMeasured: fleetTelemetryResult.summary?.totalRuns ?? null,
     pendingArchitectApprovals: pendingArchitectApprovalsResult.approvals,
     recentTelemetryEvents: telemetryEventsResult.events,
+    actionItemsLimit: options.actionItemsLimit,
   })
 }

@@ -20,10 +20,24 @@ import { join } from 'node:path'
 
 const ROOT = process.cwd()
 
-/** Répertoires démolis qui ne doivent PAS revenir. */
+/**
+ * Répertoires démolis qui ne doivent PAS revenir.
+ *
+ * `docs/visual-reviews` a vécu dans cette liste : il portait les captures du
+ * pilote de design, supprimé avec lui au reset front. Il en SORT le 2026-08-01,
+ * sur demande explicite d'Adrien (issue #64), exactement comme
+ * `src/components/` en était sorti le 2026-07-31 : la mission
+ * AIGENT-SUPERVISION-LEARNING-001 exige des preuves visuelles versionnées à ce
+ * chemin précis.
+ *
+ * Ce n'est PAS un retour de la doctrine de design. Une capture d'écran est une
+ * PREUVE datée — « voilà ce que l'écran montrait à ce SHA » — pas une règle
+ * esthétique. Aucune gate visuelle n'est réintroduite, aucune palette, aucun
+ * token, aucun Storybook : `check:legacy-design-doctrine` continue de garder
+ * ce flanc-là, et il reste vert.
+ */
 const FORBIDDEN_DIRS = [
   'design',
-  'docs/visual-reviews',
   'src/app/admin',
   'src/app/(site)',
   'src/app/login',

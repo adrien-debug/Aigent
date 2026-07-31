@@ -35,7 +35,10 @@ contrôlés dans un navigateur, zéro erreur console) :
 | `/builder` · `/builder/[projectId]` | Construction d'agents |
 | `/qualification` · `/qualification/[copilotId]` | Qualification avant livraison |
 | `/delivery` · `/delivery/[copilotId]` | Livraison vers un repo consommateur |
-| `/runtime` · `/actions` · `/settings` | Runtime LangGraph, file d'actions, réglages |
+| `/runtime` | Santé du canal de télémétrie |
+| `/learning` | Supervision, file de revue, évaluations, pont Obsidian, Learning Runtime |
+| `/actions` | File opérateur complète — reprise des runs en attente d'approbation |
+| `/settings` | Réglages (placeholder) |
 
 | Élément | État |
 |---|---|
