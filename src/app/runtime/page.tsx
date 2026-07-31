@@ -12,6 +12,7 @@ import {
   readTelemetryTab,
   readToolsTab,
 } from '@/components/runtime/server-reads'
+import { readVisualTooling } from '@/components/runtime/visual-tooling'
 
 /**
  * Surface « /runtime » — six onglets sur l'état RÉEL du plan d'exécution.
@@ -73,6 +74,9 @@ export default async function Page({
       break
     case 'repositories':
       payload = { tab: 'repositories', data: await readRepositoriesTab() }
+      break
+    case 'visual-tooling':
+      payload = { tab: 'visual-tooling', data: await readVisualTooling() }
       break
   }
 
