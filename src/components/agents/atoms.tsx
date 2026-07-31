@@ -107,12 +107,15 @@ const STAGE_COLOR: Record<StageDisplay, BadgeColor> = {
   reached: 'emerald',
   'not-reached': 'zinc',
   unknown: 'amber',
+  // Une panne de lecture n'est pas une inconnue tranquille : elle a sa propre
+  // couleur pour qu'un opérateur ne la confonde jamais avec « rien à signaler ».
+  unavailable: 'orange',
 }
 
 /**
- * Une étape du cycle de vie. `unknown` est ambré et porte le mot « Inconnue » —
- * jamais un vert ni un rouge, qui affirmeraient tous deux un fait qu'Aigent n'a
- * pas lu.
+ * Une étape du cycle de vie. `unknown` est ambré et porte le mot « Inconnue »,
+ * `unavailable` est orange et dit « Lecture impossible » — jamais un vert ni un
+ * rouge, qui affirmeraient tous deux un fait qu'Aigent n'a pas lu.
  */
 export function StageBadge({ display, title }: { display: StageDisplay; title?: string }) {
   return (

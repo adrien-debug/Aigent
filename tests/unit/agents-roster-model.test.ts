@@ -18,7 +18,7 @@ import {
   sortRoster,
 } from '@/components/agents/roster-model'
 import {
-  isStructurallyUnknowable,
+  isConsumerReportedStage,
   sortChecks,
   stageDisplay,
   summarizeGate,
@@ -223,13 +223,30 @@ describe('stageDisplay — trois états, jamais deux', () => {
   })
 })
 
-describe('isStructurallyUnknowable — la frontière consommateur', () => {
-  it('active_in_consumer est inconnaissable par construction', () => {
-    expect(isStructurallyUnknowable(stage({ key: 'active_in_consumer' }))).toBe(true)
+describe('isConsumerReportedStage — la seule source admissible', () => {
+  it('active_in_consumer se lit sur des événements consommateur', () => {
+    expect(isConsumerReportedStage(stage({ key: 'active_in_consumer' }))).toBe(true)
   })
 
-  it('les autres étapes ne le sont pas — leur inconnu serait un accident de lecture', () => {
-    expect(isStructurallyUnknowable(stage({ key: 'delivered' }))).toBe(false)
-    expect(isStructurallyUnknowable(stage({ key: 'telemetry_received' }))).toBe(false)
+  it('les autres étapes ne le sont pas — elles se lisent côté Aigent', () => {
+    expect(isConsumerReportedStage(stage({ key: 'delivered' }))).toBe(false)
+    expect(isConsumerReportedStage(stage({ key: 'telemetry_received' }))).toBe(false)
+  })
+})
+
+describe('stageDisplay — « lecture impossible » n\u2019est pas « inconnue »', () => {
+  it('reached === "unavailable" rend « unavailable », jamais « unknown »', () => {
+    const s = stage({ key: 'active_in_consumer', reached: 'unavailable' })
+    expect(stageDisplay(s)).toBe('unavailable')
+    expect(stageDisplay(s)).not.toBe('unknown')
+  })
+
+  it('une preuve « unavailable » l\u2019emporte sur un reached inconnu', () => {
+    const s = stage({
+      key: 'active_in_consumer',
+      reached: 'unknown',
+      evidence: { source: 'consumer-activation', state: 'unavailable', detail: '' },
+    })
+    expect(stageDisplay(s)).toBe('unavailable')
   })
 })

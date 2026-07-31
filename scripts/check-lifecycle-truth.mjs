@@ -17,9 +17,33 @@
  *  4. Promotion displayed without a production version. The word "promoted"
  *     must not appear disconnected from `stage === 'production'` /
  *     `currentVersion?.stage`.
- *  5. A consumer-active version inferred FROM a delivery event. The
- *     `active_in_consumer` stage's `reached` must be the literal string
- *     `'unknown'` — never derived from `delivery`.
+ *  5. A consumer-active verdict invented locally. TIGHTENED, not relaxed, on
+ *     2026-07-31: this rule used to demand the literal `'unknown'`, and it was
+ *     RIGHT to — at the time no consumer proof existed at all, so any other
+ *     value could only have been deduced from a delivery, which is a lie.
+ *
+ *     An authenticated consumer channel now exists, so the honest constraint is
+ *     no longer "always unknown" but "only ever the verdict of
+ *     consumer-activation.ts". Concretely, the guard requires ALL of:
+ *
+ *       5a. The `active_in_consumer` stage is produced by a dedicated resolver
+ *           whose parameters are ONLY the activation verdict and its lookup
+ *           flag. It must not receive `delivery`, `currentVersion`, `versions`,
+ *           `lastTelemetry`, or any other lifecycle fact — a function that is
+ *           never handed the delivery cannot infer activation from it.
+ *       5b. Inside that resolver, `reached` is only ever assigned from
+ *           `activation.activeInConsumer`, or from the two honest literals
+ *           `'unknown'` / `'unavailable'`. Any other expression — a boolean, a
+ *           comparison, a ternary on `delivery`/`stage`/`status` — is a
+ *           violation.
+ *       5c. `false` never appears as a `reached` value in that resolver, in any
+ *           form. Consumer silence is ambiguous; `false` would assert a fact
+ *           nobody measured.
+ *       5d. Nowhere in the module does an `active_in_consumer` line couple
+ *           `reached` to `delivery`, `delivered`, `stage`, or `status`.
+ *
+ *     The rule that has NOT moved: activation is never derived from a delivery,
+ *     from an Aigent-side status, or from any boolean lying around.
  *
  * SCOPE — ONE file, named explicitly rather than walked: the trace module
  * itself. This guard used to also name its display component under
@@ -116,20 +140,102 @@ async function main() {
         violations.push(`${at}  claims "promoted" without checking a production version/stage: ${line.trim()}`)
       }
 
-      // 5. active_in_consumer must stay the literal 'unknown', never computed
-      //    from `delivery`.
-      if (/active_in_consumer/.test(line) && /reached:/.test(line) && !/'unknown'/.test(line)) {
-        violations.push(`${at}  active_in_consumer.reached is not the literal 'unknown': ${line.trim()}`)
+      // 5d. A single line that couples an active_in_consumer `reached` to a
+      //     delivery / status / stage fact — the original lie, still banned.
+      if (
+        /active_in_consumer/.test(line) &&
+        /reached/.test(line) &&
+        /\b(delivery|delivered|currentVersion|\bstage\b|\bstatus\b|lastTelemetry)\b/.test(line)
+      ) {
+        violations.push(
+          `${at}  active_in_consumer.reached is coupled to a delivery/status/stage fact — activation is only ever the consumer-activation verdict: ${line.trim()}`
+        )
       }
     })
 
-    // Structural check for rule 5: somewhere in the file, the active_in_consumer
-    // stage object's `reached` field must be assigned the literal 'unknown'.
+    // ── Rule 5, structural. Scoped to the trace module. ──────────────────────
     if (rel.endsWith('agent-lifecycle-trace.ts')) {
-      const stageBlockMatch = text.match(/key:\s*'active_in_consumer'[\s\S]{0,600}?reached:\s*([^,\n]+)/)
-      if (!stageBlockMatch || stageBlockMatch[1].trim() !== `'unknown'`) {
+      const src = lines.join('\n')
+
+      // 5a. The stage must be produced by a dedicated resolver, and that
+      //     resolver must be handed ONLY the activation verdict + lookup flag.
+      const resolver = src.match(/function\s+resolveConsumerStage\s*\(([\s\S]*?)\)\s*:\s*LifecycleStage\s*\{([\s\S]*?)\n\}/)
+      if (!resolver) {
         violations.push(
-          `${rel}  active_in_consumer stage's reached field must be the literal 'unknown' — found: ${stageBlockMatch ? stageBlockMatch[1].trim() : 'NOT FOUND'}`
+          `${rel}  no \`function resolveConsumerStage(...): LifecycleStage\` found — the active_in_consumer stage must be built by a dedicated resolver that receives ONLY the consumer-activation verdict`
+        )
+      } else {
+        const [, params, body] = resolver
+
+        const forbiddenParams = ['delivery', 'delivered', 'currentVersion', 'versions', 'lastTelemetry', 'hasV2Draft']
+        for (const bad of forbiddenParams) {
+          if (new RegExp(`\\b${bad}\\b`).test(params)) {
+            violations.push(
+              `${rel}  resolveConsumerStage receives \`${bad}\` — it must be structurally unable to infer activation from any lifecycle fact other than the consumer-activation verdict`
+            )
+          }
+        }
+
+        // 5b. Every `reached:` assignment inside the resolver must read from
+        //     `activeInConsumer` or be one of the two honest literals.
+        const assignments = [...body.matchAll(/reached:\s*([^,\n]+)/g)].map((m) => m[1].trim())
+        if (assignments.length === 0) {
+          violations.push(`${rel}  resolveConsumerStage assigns no \`reached\` value`)
+        }
+        for (const value of assignments) {
+          const readsVerdict = /\bactiveInConsumer\b/.test(value) || /^verdict$/.test(value)
+          const honestLiteral = /^'unknown'$/.test(value) || /^'unavailable'$/.test(value)
+          const ternaryOfHonestLiterals = /^\w+\s*\?\s*'(unavailable|unknown)'\s*:\s*'(unavailable|unknown)'$/.test(value)
+          if (!readsVerdict && !honestLiteral && !ternaryOfHonestLiterals) {
+            violations.push(
+              `${rel}  resolveConsumerStage assigns \`reached: ${value}\` — only the consumer-activation verdict (\`activeInConsumer\`) or the literals 'unknown' / 'unavailable' are admissible`
+            )
+          }
+        }
+
+        // 5c. `false` must never be a reached value, in any branch.
+        for (const value of assignments) {
+          if (/\bfalse\b/.test(value)) {
+            violations.push(
+              `${rel}  resolveConsumerStage can assign \`false\` to reached (\`${value}\`) — consumer silence is ambiguous and must never be asserted as inactivity`
+            )
+          }
+        }
+
+        // 5c bis. The verdict copied out of the activation read must not be
+        //         massaged through a boolean coercion on the way in.
+        if (/reached:\s*(!!|Boolean\()/.test(body)) {
+          violations.push(
+            `${rel}  resolveConsumerStage coerces reached to a boolean — that collapses 'unknown'/'unavailable' into false`
+          )
+        }
+      }
+
+      // 5a bis. EXACTLY ONE `key: 'active_in_consumer'` stage object may exist,
+      //         and it must live INSIDE resolveConsumerStage. Anything else is
+      //         a second construction path that bypasses every check above —
+      //         which is precisely how a hand-inlined `reached: delivery !==
+      //         null` slipped past an earlier version of this guard.
+      const resolverBody = resolver ? resolver[0] : ''
+      const stageObjectCount = (src.match(/key:\s*'active_in_consumer'/g) ?? []).length
+      const inResolverCount = (resolverBody.match(/key:\s*'active_in_consumer'/g) ?? []).length
+      if (stageObjectCount !== inResolverCount) {
+        violations.push(
+          `${rel}  ${stageObjectCount - inResolverCount} active_in_consumer stage object(s) built OUTSIDE resolveConsumerStage — every construction path must go through the resolver, or the verdict-only rule can simply be side-stepped`
+        )
+      }
+      if (resolver && inResolverCount === 0) {
+        violations.push(`${rel}  resolveConsumerStage does not build a \`key: 'active_in_consumer'\` stage`)
+      }
+      if (!/resolveConsumerStage\(/.test(src)) {
+        violations.push(`${rel}  resolveConsumerStage is never called — the active_in_consumer stage is built some other way`)
+      }
+
+      // The unavailable ≠ unknown invariant: a failed lookup must not be
+      // reported as a measured absence.
+      if (!/'unavailable'/.test(src)) {
+        violations.push(
+          `${rel}  no 'unavailable' state present — a failed consumer-activation read must be reported as unavailable, never flattened into 'unknown'`
         )
       }
     }
@@ -144,7 +250,8 @@ async function main() {
 
   console.log(
     '✓ Lifecycle-truth guard passed — no unproven "deployed", no unproven "healthy", no false telemetry zero, ' +
-      'no disconnected "promoted", and active_in_consumer stays the literal unknown.'
+      'no disconnected "promoted", and active_in_consumer is decided ONLY by the consumer-activation verdict ' +
+      '(never from a delivery/status/stage, never false, and a failed read stays "unavailable").'
   )
 }
 

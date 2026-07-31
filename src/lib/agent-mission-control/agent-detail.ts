@@ -2,6 +2,7 @@ import 'server-only'
 
 import { buildLifecycleTrace, type LifecycleTrace } from './agent-lifecycle-trace'
 import { getAvailableAgent, type AvailableAgent } from './available-agents'
+import { readConsumerActivation, type ConsumerActivationRead } from './consumer-activation'
 import {
   getBenchmarkSuitesForCopilot,
   getCopilot,
@@ -350,6 +351,23 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
     versions.find((v) => v.id === copilot.latestVersionId) ??
     versions[0]
 
+  // Consumer activation — the ONLY admissible source for `active_in_consumer`.
+  // Sequenced after the wave rather than inside it because `delivered` comes
+  // from the delivery event resolved above, and passing a guessed `delivered`
+  // would corrupt the reason string the operator reads.
+  //
+  // FAIL-SOFT, BUT NOT FAIL-SILENT: a read failure degrades this ONE stage to
+  // `unavailable` and never takes down the detail page — and it is never
+  // flattened into `unknown`, which would report an outage as a measured
+  // absence of consumer activity.
+  const activation = await readConsumerActivation(copilotId, { delivered: delivery !== null }).then(
+    (read): { read: ConsumerActivationRead | null; failed: false } => ({ read, failed: false }),
+    (err: unknown): { read: null; failed: true } => {
+      console.error('[agent-detail] consumer-activation read failed', err)
+      return { read: null, failed: true }
+    }
+  )
+
   const lifecycle = buildLifecycleTrace({
     versions,
     currentVersion,
@@ -358,6 +376,8 @@ export async function getAgentDetail(copilotId: string): Promise<AgentDetail | u
     telemetryLookupFailed: telemetryResult.failed,
     hasV2Draft: versions.some((v) => v.createdBy === 'improvement-loop'),
     hasImprovementProposal: improveProposal !== null,
+    consumerActivation: activation.read,
+    consumerActivationLookupFailed: activation.failed,
   })
 
   return {

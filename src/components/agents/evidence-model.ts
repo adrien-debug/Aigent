@@ -10,7 +10,11 @@
  *                        exactement comme un `fail`, mais ça ne dit pas la même
  *                        chose : « non mesuré » n'accuse personne, `fail` si.
  *  · `unknown`         — pour une étape de cycle de vie : Aigent n'a pas de canal
- *                        de lecture. Structurellement inconnaissable.
+ *                        de lecture qui a abouti sans rien prouver.
+ *  · `unavailable`     — la lecture elle-même a ÉCHOUÉ. « Je n'ai pas pu lire »
+ *                        n'est pas « j'ai lu, rien à signaler » : les deux
+ *                        s'affichent différemment, sinon une panne se lit comme
+ *                        un produit sain.
  *
  * Le release-gate rend désormais `missing` sur un compteur de sécurité non
  * mesuré (auparavant il rendait `pass`, ce qui promouvait sur une preuve
@@ -105,14 +109,21 @@ export function sortChecks(checks: readonly ReleaseCheck[]): ReleaseCheck[] {
  *
  *  · `reached`     — atteinte, avec une preuve mesurée.
  *  · `not-reached` — pas atteinte, et on l'a VÉRIFIÉ (lecture réussie, rien trouvé).
- *  · `unknown`     — Aigent ne peut pas savoir. C'est le cas permanent de
- *                    `active_in_consumer` : il n'existe aucun canal de lecture
- *                    vers l'état d'activation d'un workspace consommateur, donc
- *                    rendre cette étape en vert OU en rouge serait une invention.
+ *  · `unknown`     — la lecture a eu lieu, elle n'a rien prouvé. Cas normal de
+ *                    `active_in_consumer` sans preuve d'exécution récente : le
+ *                    silence d'un consommateur est ambigu (agent au repos,
+ *                    réseau coupé, agent désinstallé donnent le même signal),
+ *                    donc jamais de rouge — l'absence de preuve n'est pas une
+ *                    preuve d'absence.
+ *  · `unavailable` — la lecture a ÉCHOUÉ. Distinct d'`unknown` : on n'a pas pu
+ *                    regarder, on n'a donc rien constaté du tout.
  */
-export type StageDisplay = 'reached' | 'not-reached' | 'unknown'
+export type StageDisplay = 'reached' | 'not-reached' | 'unknown' | 'unavailable'
 
 export function stageDisplay(stage: LifecycleStage): StageDisplay {
+  // L'indisponible se teste EN PREMIER : il ne doit jamais retomber sur
+  // `unknown`, qui affirmerait une lecture réussie qui n'a pas eu lieu.
+  if (stage.reached === 'unavailable' || stage.evidence.state === 'unavailable') return 'unavailable'
   if (stage.reached === 'unknown') return 'unknown'
   // Une étape dont la PREUVE est inconnue ne peut pas être affirmée atteinte,
   // même si le booléen dit `false` : un `false` posé sur une lecture échouée
@@ -125,15 +136,28 @@ export const STAGE_DISPLAY_LABEL: Record<StageDisplay, string> = {
   reached: 'Atteinte',
   'not-reached': 'Pas atteinte',
   unknown: 'Inconnue',
+  unavailable: 'Lecture impossible',
+}
+
+export const STAGE_DISPLAY_MEANING: Record<StageDisplay, string> = {
+  reached: 'La preuve a été lue et elle établit l’étape.',
+  'not-reached': 'La lecture a réussi et l’étape n’est pas atteinte.',
+  unknown: 'La lecture a réussi et n’a rien prouvé. Ce n’est pas une preuve du contraire.',
+  unavailable:
+    'La lecture a ÉCHOUÉ. Rien n’a été constaté, dans aucun sens — ce n’est pas « rien à signaler ».',
 }
 
 /**
- * `active_in_consumer` est la seule étape structurellement inconnaissable : elle
- * l'est par construction, pas par accident de lecture. Le distinguer permet à
- * l'écran de dire « Aigent ne peut pas le savoir » plutôt que « la lecture a
- * échoué » — deux causes très différentes pour un opérateur qui cherche à
- * comprendre pourquoi une case est grise.
+ * `active_in_consumer` a désormais un canal de lecture réel : la route
+ * consommateur authentifiée écrit des événements portant un `installation_id`
+ * vérifié en temps constant, et `consumer-activation.ts` en tire le verdict.
+ *
+ * L'ancienne mention « inconnaissable d'ici » est donc FAUSSE et a été retirée
+ * de l'écran. Ce qui reste vrai, et que cette fonction sert à dire : l'étape se
+ * lit sur des événements du CONSOMMATEUR, jamais sur une livraison, un statut
+ * Aigent ou un run interne. Un `unknown` y signifie « aucune exécution récente
+ * prouvée », jamais « l'agent est inactif ».
  */
-export function isStructurallyUnknowable(stage: LifecycleStage): boolean {
+export function isConsumerReportedStage(stage: LifecycleStage): boolean {
   return stage.key === 'active_in_consumer'
 }

@@ -25,13 +25,29 @@
  *
  * PRODUCTION (AIGENT) ≠ ACTIVE (CONSUMER). `copilot_versions.stage ===
  * 'production'` and `copilots.production_version_id` are Aigent-side pointers:
- * they say Aigent considers this version the one to ship. There is no read
- * path from here into a consumer's own activation state (AGENTS.md is
- * explicit: "Après provisioning, Aigent ne fait que POUSSER des agents" —
- * activate/rebind/deploy-version belong to the consumer workspace). So
- * "active in consumer" is ALWAYS `unknown` in this resolver, by construction —
- * not a bug to fix later, a boundary this file will never cross without a real
- * consumer-side read channel.
+ * they say Aigent considers this version the one to ship. They say NOTHING
+ * about a consumer's own activation state, and they never will.
+ *
+ * ACTIVE IN CONSUMER — ONE admissible source, and it is not this module. Since
+ * the authenticated consumer channel exists (`/api/runtime-telemetry/consumer`
+ * writes rows carrying an `installation_id` verified in constant time against a
+ * hashed token), `active_in_consumer` is no longer structurally unknowable. But
+ * the only thing allowed to decide it is `consumer-activation.ts`
+ * (`readConsumerActivation` / `deriveConsumerActivation`). This resolver COPIES
+ * that verdict; it never computes one.
+ *
+ * Specifically, `active_in_consumer.reached` must NEVER be derived from
+ * `delivery`, from `currentVersion.stage`, from telemetry that lacks an
+ * installation id, or from any boolean this module has on hand. A push is not
+ * an activation; a production pointer is not an activation; an internal run
+ * report is not an activation. And the verdict is NEVER `false` — silence from a
+ * consumer is ambiguous (idle agent, network outage, uninstalled agent all look
+ * identical), so absence of evidence is recorded as `'unknown'`.
+ *
+ * A LOOKUP FAILURE IS NOT AN ABSENCE. When the activation read itself throws,
+ * this stage reports `'unavailable'`, never `'unknown'`. "I could not read" and
+ * "I read, and there was nothing" are different facts and the surfaces render
+ * them differently.
  *
  * TELEMETRY RECEIVED ≠ AGENT HEALTHY. A `runtime_telemetry_events` row proves a
  * report arrived. It says nothing about whether the agent is well: see
@@ -54,13 +70,22 @@
 
 import type { CopilotVersion } from './types'
 import type { DeliveryEvent } from './delivery-events-store'
+import type { ConsumerActivationRead } from './consumer-activation'
 
 export type EvidenceState = 'measured' | 'unknown'
+
+/**
+ * A stage's evidence can additionally be `'unavailable'`: the lookup that would
+ * have produced it FAILED. That is not `'unknown'` — "I could not read" is a
+ * different fact from "I read, and there was nothing to find" — and collapsing
+ * the two would turn an outage into a calm product state.
+ */
+export type StageEvidenceState = EvidenceState | 'unavailable'
 
 export interface StageEvidence {
   /** Where this fact came from — a table or module name, not a guess. */
   source: string
-  state: EvidenceState
+  state: StageEvidenceState
   /** Human-readable, safe to render as-is. Never asserts beyond what `state: 'measured'` proves. */
   detail: string
 }
@@ -77,8 +102,40 @@ export interface LifecycleStage {
     | 'improvement_proposed'
     | 'v2_draft'
   label: string
-  reached: boolean | 'unknown'
+  /**
+   * `true` / `false` — measured. `'unknown'` — read, nothing conclusive.
+   * `'unavailable'` — the read itself failed.
+   *
+   * `active_in_consumer` never takes `false` by any branch: see the header.
+   */
+  reached: boolean | 'unknown' | 'unavailable'
   evidence: StageEvidence
+  /**
+   * Only populated on `active_in_consumer`. Carries the proof timestamp and the
+   * staleness flag so a surface can render BOTH without re-deriving anything.
+   */
+  consumer?: ConsumerStageFacts
+}
+
+/**
+ * The consumer-activation facts a surface must be able to render: the verdict's
+ * reason, when the last authenticated proof arrived, and whether that proof is
+ * stale. `stale` is carried explicitly rather than inferred from a date, so no
+ * surface has to re-implement the recency window.
+ */
+export interface ConsumerStageFacts {
+  reason: string
+  /** Newest AUTHENTICATED consumer event timestamp, or null. */
+  lastActivityAt: string | null
+  /** True when execution proof exists but fell outside the recency window. */
+  stale: boolean
+  /** How many installations ever authenticated, or null when the read failed. */
+  observedInstallationCount: number | null
+  /**
+   * How far back proof still counts, in days — echoed so a reader never has to
+   * guess the threshold a verdict was measured against.
+   */
+  recencyWindowDays: number | null
 }
 
 export interface VersionDriftReport {
@@ -102,6 +159,15 @@ export interface LifecycleTraceInput {
   hasV2Draft: boolean
   /** True when an improvement analysis/proposal exists for this copilot (improvement-loop artifact). */
   hasImprovementProposal: boolean
+  /**
+   * The verdict from `consumer-activation.ts` — the ONLY admissible source for
+   * `active_in_consumer`. `null` means the caller did not perform the read at
+   * all; combined with `consumerActivationLookupFailed` it distinguishes
+   * "not asked" from "asked and it failed".
+   */
+  consumerActivation: ConsumerActivationRead | null
+  /** True when `readConsumerActivation` threw. Renders `'unavailable'`, never `'unknown'`. */
+  consumerActivationLookupFailed: boolean
 }
 
 export interface LifecycleTrace {
@@ -156,6 +222,75 @@ function resolveVersionDrift(
       'A delivery event exists and telemetry has reported a version, but the delivery event does not carry ' +
       'the version id on its read shape, so the delivered version label cannot be resolved for comparison. ' +
       'This is a real gap, not a computed match — recorded rather than guessed.',
+  }
+}
+
+/**
+ * The `active_in_consumer` stage — built EXCLUSIVELY from the
+ * `consumer-activation.ts` verdict.
+ *
+ * Note what this function does not receive: no `delivery`, no `currentVersion`,
+ * no telemetry row. It cannot infer activation from any of them because it is
+ * never handed them. That is deliberate — the parameter list IS the guarantee,
+ * and `check:lifecycle-truth` rule 5 enforces that `reached` here reads only
+ * from `activation.activeInConsumer`.
+ *
+ * Three outcomes, and `false` is not among them:
+ *   'unavailable'  the read failed — we could not look
+ *   true           an authenticated consumer proved a RECENT run
+ *   'unknown'      everything else, including stale proof
+ */
+function resolveConsumerStage(
+  activation: ConsumerActivationRead | null,
+  lookupFailed: boolean
+): LifecycleStage {
+  if (lookupFailed || activation === null) {
+    return {
+      key: 'active_in_consumer',
+      label: 'Active in consumer',
+      // NOT 'unknown': the read did not happen or did not succeed. Reporting an
+      // outage as a calm absence is the exact lie this stage exists to avoid.
+      reached: lookupFailed ? 'unavailable' : 'unknown',
+      evidence: {
+        source: 'consumer-activation.readConsumerActivation',
+        state: lookupFailed ? 'unavailable' : 'unknown',
+        detail: lookupFailed
+          ? 'The consumer-activation read failed. This is UNAVAILABLE, not unknown — we could not look, ' +
+            'so nothing about consumer activity was measured either way.'
+          : 'No consumer-activation read was performed for this copilot, so activation was never assessed.',
+      },
+      consumer: {
+        reason: lookupFailed
+          ? 'The authenticated consumer-event read failed.'
+          : 'No consumer-activation read was performed.',
+        lastActivityAt: null,
+        stale: false,
+        observedInstallationCount: null,
+        recencyWindowDays: null,
+      },
+    }
+  }
+
+  const verdict = activation.activeInConsumer
+
+  return {
+    key: 'active_in_consumer',
+    label: 'Active in consumer',
+    // The verdict is copied, never recomputed. `activeInConsumer` is typed
+    // `true | 'unknown'`, so `false` cannot enter here even by accident.
+    reached: verdict,
+    evidence: {
+      source: 'consumer-activation.readConsumerActivation (runtime_telemetry_events, installation_id not null)',
+      state: verdict === true ? 'measured' : 'unknown',
+      detail: activation.reason,
+    },
+    consumer: {
+      reason: activation.reason,
+      lastActivityAt: activation.lastActivityAt,
+      stale: activation.staleEvidence,
+      observedInstallationCount: activation.observedInstallationCount,
+      recencyWindowDays: activation.recencyWindowDays,
+    },
   }
 }
 
@@ -234,21 +369,9 @@ export function buildLifecycleTrace(input: LifecycleTraceInput): LifecycleTrace 
               'This proves a push happened — it does NOT prove the consumer merged or deployed it.',
       },
     },
-    {
-      key: 'active_in_consumer',
-      label: 'Active in consumer',
-      // ALWAYS unknown: Aigent has no read channel into a consumer's own
-      // activation state (AGENTS.md, "Après provisioning, Aigent ne fait que
-      // POUSSER des agents"). This is a boundary, not a gap to silently fill.
-      reached: 'unknown',
-      evidence: {
-        source: 'none — no consumer-side read channel exists',
-        state: 'unknown',
-        detail:
-          'Aigent cannot read a consumer workspace\'s activation state. A delivery event never implies this ' +
-          'stage — it must never be inferred from `delivered`.',
-      },
-    },
+    // Built by the dedicated resolver above, which is handed the activation
+    // verdict and NOTHING else — no delivery, no stage, no telemetry row.
+    resolveConsumerStage(input.consumerActivation, input.consumerActivationLookupFailed),
     {
       key: 'telemetry_received',
       label: 'Telemetry received',

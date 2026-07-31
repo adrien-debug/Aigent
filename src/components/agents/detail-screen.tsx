@@ -16,9 +16,11 @@
  * ------------------------------
  * · Rendre un `null` comme un `0`. Chaque mesure passe par `Fact`, dont le
  *   contrat est que `null` devient « Indisponible ».
- * · Rendre `active_in_consumer` en vert ou en rouge. C'est une inconnue
- *   STRUCTURELLE : Aigent n'a aucun canal de lecture vers l'activation chez le
- *   consommateur, et l'étape est affichée comme telle, avec sa raison.
+ * · Rendre `active_in_consumer` en rouge. Le verdict d'activation vaut `true`
+ *   ou « Inconnue », jamais `false` : le silence d'un consommateur est ambigu.
+ *   L'étape rend son état, sa raison, l'horodatage de la dernière preuve et sa
+ *   péremption — et une lecture EN PANNE se dit « Lecture impossible », jamais
+ *   « Inconnue ».
  * · Rendre un check `missing` comme un `pass`. Trois états, trois couleurs,
  *   trois mots.
  */
@@ -42,7 +44,13 @@ import {
   RuntimeStatusBadge,
   StageBadge,
 } from './atoms'
-import { isStructurallyUnknowable, sortChecks, stageDisplay, summarizeGate } from './evidence-model'
+import {
+  isConsumerReportedStage,
+  sortChecks,
+  stageDisplay,
+  summarizeGate,
+  STAGE_DISPLAY_MEANING,
+} from './evidence-model'
 import { isUnavailable } from './roster-model'
 
 /** Une date ISO → texte court et déterministe (UTC, sans locale). */
@@ -436,9 +444,16 @@ function QualificationPanel({
 /**
  * La trace de cycle de vie, chaque étape avec SA source et SON état de preuve.
  *
- * `active_in_consumer` y est toujours « Inconnue » : c'est une frontière, pas un
- * trou à combler. L'écran le dit explicitement plutôt que de laisser un badge
- * gris se lire comme « pas encore ».
+ * `active_in_consumer` n'est PLUS une inconnue structurelle : la route
+ * consommateur authentifiée alimente `consumer-activation.ts`, dont le verdict
+ * est recopié tel quel. L'écran rend donc quatre choses pour cette étape —
+ * l'état, la RAISON, l'horodatage de la dernière preuve, et la péremption
+ * (`stale`) explicitement — au lieu d'un badge gris muet.
+ *
+ * Ce qu'il ne fait toujours pas : rendre cette étape en rouge. Le verdict n'est
+ * jamais `false`, donc « pas atteinte » ne peut pas s'afficher ici. Et un
+ * heartbeat ne vaut pas une exécution : la raison rendue vient de l'agrégation,
+ * pas d'une reformulation locale.
  */
 function LifecyclePanel({ detail }: { detail: AgentDetail }) {
   const { lifecycle } = detail
@@ -453,26 +468,51 @@ function LifecyclePanel({ detail }: { detail: AgentDetail }) {
       <ul className="flex flex-col gap-1.5">
         {lifecycle.stages.map((stage) => {
           const display = stageDisplay(stage)
-          const structural = isStructurallyUnknowable(stage)
+          const consumerReported = isConsumerReportedStage(stage)
+          const consumer = stage.consumer
           return (
             <li key={stage.key} className="flex min-w-0 items-start gap-2">
               <div className="min-w-0 flex-1">
-                <div className="flex min-w-0 items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <Strong className="truncate">{stage.label}</Strong>
-                  {structural ? (
+                  {consumerReported ? (
                     <Badge
-                      color="zinc"
-                      title="Aigent n’a aucun canal de lecture vers l’état d’activation d’un workspace consommateur. Cette étape ne peut pas être connue d’ici — ce n’est pas une lecture qui a échoué."
+                      color="sky"
+                      title="Cette étape se lit UNIQUEMENT sur des événements rapportés par le consommateur et authentifiés (installation_id vérifié). Jamais sur une livraison, un statut Aigent ou un run interne. Un heartbeat prouve un runtime vivant, pas une exécution."
                     >
-                      inconnaissable d’ici
+                      rapportée par le consommateur
+                    </Badge>
+                  ) : null}
+                  {/* La péremption est rendue EXPLICITEMENT : une preuve trop
+                      vieille ramène le verdict à « Inconnue », et l'écran doit
+                      dire pourquoi plutôt que de laisser croire à une absence. */}
+                  {consumer?.stale ? (
+                    <Badge
+                      color="amber"
+                      title={`Une preuve d’exécution authentifiée existe mais elle est plus ancienne que la fenêtre de ${consumer.recencyWindowDays ?? '?'} jours. Le verdict est retombé à « Inconnue » : on a cessé de savoir, on n’a pas appris le contraire.`}
+                    >
+                      preuve périmée
                     </Badge>
                   ) : null}
                 </div>
                 <Text className="text-xs" title={`source : ${stage.evidence.source}`}>
                   {stage.evidence.detail}
                 </Text>
+                {consumer ? (
+                  <Text className="text-xs">
+                    {consumer.lastActivityAt
+                      ? `Dernière preuve authentifiée : ${consumer.lastActivityAt}`
+                      : 'Aucune preuve authentifiée horodatée.'}
+                    {consumer.observedInstallationCount === null
+                      ? ''
+                      : ` · ${consumer.observedInstallationCount} installation(s) observée(s)`}
+                  </Text>
+                ) : null}
               </div>
-              <StageBadge display={display} title={`source : ${stage.evidence.source}`} />
+              <StageBadge
+                display={display}
+                title={`${STAGE_DISPLAY_MEANING[display]} — source : ${stage.evidence.source}`}
+              />
             </li>
           )
         })}
