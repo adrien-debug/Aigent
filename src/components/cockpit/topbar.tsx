@@ -14,10 +14,13 @@
  *    réel, et son résumé complet reste accessible en info-bulle.
  *  · Un compteur non lu affiche « — », jamais 0.
  */
+import type { ComponentProps } from 'react'
+
+import { Badge } from '@/components/ui/badge'
 import type { DashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
 import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
 import type { TelemetryHealthStatus } from '@/lib/agent-mission-control/telemetry-health'
-import { Chip, Led } from './primitives'
+import { Led } from './primitives'
 
 /**
  * Une diode et un mot par état du canal — jamais la couleur seule.
@@ -26,12 +29,15 @@ import { Chip, Led } from './primitives'
  * le vocabulaire de l'absence n'a qu'une orthographe dans tout le produit, et
  * `tests/unit/cost-truth.test.ts` le vérifie littéralement.
  */
-const TELEMETRY_VIEW: Record<TelemetryHealthStatus, { color: string; label: string }> = {
-  healthy: { color: '#0da87f', label: 'Canal actif' },
-  loop_muted: { color: '#be850f', label: 'Canal muet' },
-  incomplete_configuration: { color: '#be850f', label: 'Config partielle' },
-  not_configured: { color: '#6f7782', label: 'Non configuré' },
-  unavailable: { color: '#6f7782', label: UNAVAILABLE_LABEL },
+const TELEMETRY_VIEW: Record<
+  TelemetryHealthStatus,
+  { color: string; badgeColor: ComponentProps<typeof Badge>['color']; label: string }
+> = {
+  healthy: { color: '#0da87f', badgeColor: 'success', label: 'Canal actif' },
+  loop_muted: { color: '#be850f', badgeColor: 'warning', label: 'Canal muet' },
+  incomplete_configuration: { color: '#be850f', badgeColor: 'warning', label: 'Config partielle' },
+  not_configured: { color: '#6f7782', badgeColor: 'neutral', label: 'Non configuré' },
+  unavailable: { color: '#6f7782', badgeColor: 'neutral', label: UNAVAILABLE_LABEL },
 }
 
 /** Marque Aigent : un losange creux traversé d'un éclat — pas un logo tiers. */
@@ -93,10 +99,13 @@ export default function TopBar({
         <span aria-hidden className="h-3 w-px bg-edge" />
         <Count value={overview.telemetryRunsMeasured} unit="runs remontés" />
         <span aria-hidden className="h-3 w-px bg-edge" />
-        <Chip color={telemetry.color} live={overview.telemetryHealth.status === 'healthy'}>
+        <Badge dense color={telemetry.badgeColor}>
+          <Led color={telemetry.color} live={overview.telemetryHealth.status === 'healthy'} />
           <span title={overview.telemetryHealth.summary}>{telemetry.label}</span>
-        </Chip>
-        <Chip>Runtime LangGraph</Chip>
+        </Badge>
+        <Badge dense color="neutral">
+          Runtime LangGraph
+        </Badge>
       </div>
     </header>
   )

@@ -8,8 +8,13 @@
  *
  * Box bornée : l'en-tête est fixe, seule la liste scrolle.
  */
+import type { ComponentProps } from 'react'
+
+import { Badge } from '@/components/ui/badge'
 import type { ActionItem, ActionItemKind } from '@/lib/agent-mission-control/dashboard-overview'
-import { CompactMetricBadge, PanelHeader, Rail, Unavailable } from './primitives'
+import { PanelHeader, Rail, Unavailable } from './primitives'
+
+type BadgeColor = ComponentProps<typeof Badge>['color']
 
 /** Une couleur par nature de décision — le rouge est réservé à ce qui bloque. */
 const KIND_COLOR: Record<ActionItemKind, string> = {
@@ -20,6 +25,16 @@ const KIND_COLOR: Record<ActionItemKind, string> = {
   pr_open: '#8e63ee',
   mission_blocked: '#e8455f',
   data_unavailable: '#6f7782',
+}
+
+const KIND_BADGE_COLOR: Record<ActionItemKind, BadgeColor> = {
+  architect_approval: 'warning',
+  ready_manual: 'info',
+  sandbox_failed: 'danger',
+  release_gate_red: 'danger',
+  pr_open: 'special',
+  mission_blocked: 'danger',
+  data_unavailable: 'neutral',
 }
 
 const KIND_LABEL: Record<ActionItemKind, string> = {
@@ -38,9 +53,9 @@ export default function ActionQueue({ items }: { items: ActionItem[] }) {
       <PanelHeader
         title="File d'action"
         actions={
-          <CompactMetricBadge color={items.length > 0 ? 'var(--accent-main)' : undefined}>
+          <Badge dense color={items.length > 0 ? 'accent' : 'neutral'}>
             {items.length}
-          </CompactMetricBadge>
+          </Badge>
         }
       />
 
@@ -61,16 +76,9 @@ export default function ActionQueue({ items }: { items: ActionItem[] }) {
                     className="group relative block overflow-hidden rounded-lg border border-white/6 bg-raised px-3 py-2.5 pl-4 transition-colors hover:border-accent/25 hover:bg-elevated"
                   >
                     <Rail color={color} className="opacity-70 transition-opacity group-hover:opacity-100" />
-                    <span
-                      className="inline-flex items-center rounded border px-1.5 py-px font-mono text-[9px] tracking-[0.14em] uppercase"
-                      style={{
-                        color,
-                        borderColor: `${color}44`,
-                        background: `${color}14`,
-                      }}
-                    >
+                    <Badge dense color={KIND_BADGE_COLOR[item.kind]}>
                       {KIND_LABEL[item.kind]}
-                    </span>
+                    </Badge>
                     <p className="mt-1.5 truncate text-[12.5px] font-medium text-ink">{item.title}</p>
                     <p className="truncate text-[10.5px] text-ink-faint">{item.meta}</p>
                     <p className="mt-1.5 font-mono text-[10px] tracking-wide text-accent-soft uppercase transition-colors group-hover:text-accent-bright">

@@ -13,20 +13,12 @@
  * Les faits affichés sont exactement les mêmes qu'avant, et une mesure
  * absente l'est toujours explicitement.
  */
+import { Badge } from '@/components/ui/badge'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { AgentCard, ProjectCard } from '@/lib/cockpit/named-runs'
 import { timeAgo } from '@/lib/cockpit/named-runs'
 import { COPILOT_STATUS_COLOR, COPILOT_STATUS_LABEL } from '@/lib/cockpit/status'
-import {
-  AbsentMark,
-  CompactMetricBadge,
-  EntityAvatar,
-  EntityRow,
-  Led,
-  MetricDot,
-  MetricValue,
-  initialsOf,
-} from './primitives'
+import { AbsentMark, EntityAvatar, EntityRow, Led, MetricDot, MetricValue, initialsOf } from './primitives'
 
 const MUTED_RAIL = '#2e343c'
 
@@ -56,7 +48,11 @@ export function AgentRow({ card, nowMs }: { card: AgentCard; nowMs: number }) {
         <>
           <span className="flex items-baseline gap-1">
             <MetricValue value={card.runs24h} unit="runs" />
-            {failing ? <CompactMetricBadge color="#e8455f">{card.failures24h} KO</CompactMetricBadge> : null}
+            {failing ? (
+              <Badge dense color="danger">
+                {card.failures24h} KO
+              </Badge>
+            ) : null}
           </span>
           <span className="flex items-baseline gap-1.5">
             {card.costUsd === null ? <AbsentMark /> : <MetricValue value={formatUsd(card.costUsd)} size="sm" />}
@@ -82,9 +78,9 @@ export function ProjectRow({ card }: { card: ProjectCard }) {
       avatar={<EntityAvatar initials={initialsOf(card.name)} active={live} />}
       title={card.name}
       titleMeta={
-        <CompactMetricBadge>
+        <Badge dense color="neutral">
           {card.activeCount}/{card.copilotCount}
-        </CompactMetricBadge>
+        </Badge>
       }
       subtitle={card.repoFullName ?? 'aucun repo lié'}
       metrics={
