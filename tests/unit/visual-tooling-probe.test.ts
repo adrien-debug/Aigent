@@ -80,7 +80,7 @@ describe('readVisualTooling', () => {
 
   it('n’accorde VERIFIED à AUCUN service sondé', async () => {
     process.env.GRAFANA_URL = 'http://127.0.0.1:3030'
-    process.env.LANGFUSE_BASEURL = 'http://127.0.0.1:3001'
+    process.env.LANGFUSE_BASEURL = 'http://127.0.0.1:3999'
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response('ok', { status: 200 })),
