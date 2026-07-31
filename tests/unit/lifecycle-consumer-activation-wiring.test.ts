@@ -296,3 +296,47 @@ describe('active_in_consumer — false is unreachable', () => {
     expect(trace.stages.find((s) => s.key === 'delivered')!.reached).toBe(true)
   })
 })
+
+/* ─────────── Cas ajoutés après revue croisée par l'agent D5 ─────────── */
+
+describe('active_in_consumer — la borne de la fenêtre, et une date illisible', () => {
+  it('la borne EXACTE est inclusive — `>=`, pas `>`', () => {
+    // Le seul test existant couvrait ±1 minute : un passage de `>=` à `>` ne
+    // rougissait rien. Cette assertion épingle la borne elle-même.
+    const stage = stageFor([row('consumer.run_completed', agoMs(ACTIVATION_RECENCY_WINDOW_MS))])
+    expect(stage.reached).toBe(true)
+  })
+
+  it('un `received_at` nul ne prouve rien — et n’efface pas l’installation', () => {
+    // L'installation s'est authentifiée : elle compte. C'est son HORODATAGE
+    // qui est inutilisable, pas son identité. Les deux faits sont distincts.
+    const stage = stageFor([row('consumer.run_completed', null as unknown as string)])
+    expect(stage.reached).toBe('unknown')
+    expect(stage.reached).not.toBe(false)
+  })
+
+  it('une date malformée se comporte comme une date absente, jamais comme une preuve', () => {
+    const stage = stageFor([row('consumer.run_completed', 'pas-une-date')])
+    expect(stage.reached).toBe('unknown')
+  })
+})
+
+describe('active_in_consumer — le dernier saut avant le pixel', () => {
+  it('l’étape ne rend JAMAIS `not-reached` — ni sur unknown, ni sur unavailable', () => {
+    // `not-reached` se lit « on a mesuré, et c'est non ». Sur cette étape, ce
+    // serait affirmer une inactivité que personne n'a constatée.
+    const cases: LifecycleStage[] = [
+      stageFor([]),
+      stageFor([row('consumer.heartbeat', agoMs(MINUTE))]),
+      stageFor([row('consumer.run_completed', agoMs(ACTIVATION_RECENCY_WINDOW_MS + MINUTE))]),
+      buildLifecycleTrace(
+        baseInput({ consumerActivation: null, consumerActivationLookupFailed: true })
+      ).stages.find((s) => s.key === 'active_in_consumer')!,
+    ]
+
+    for (const stage of cases) {
+      expect(stage.reached === 'unknown' || stage.reached === 'unavailable').toBe(true)
+      expect(stage.reached).not.toBe(false)
+    }
+  })
+})

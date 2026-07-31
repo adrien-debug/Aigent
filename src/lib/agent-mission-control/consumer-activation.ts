@@ -2,21 +2,23 @@
  * Agent Mission Control — consumer activation read (server only).
  *
  * ┌───────────────────────────────────────────────────────────────────────────┐
- * │ THIS MODULE IS CORRECT BUT INERT. IT HAS NO CALLERS.                      │
+ * │ WIRED on 2026-07-31. `readConsumerActivation` has one caller:             │
+ * │ `agent-detail.ts`, which feeds `resolveConsumerStage` in                  │
+ * │ `agent-lifecycle-trace.ts`. The hard-coded literal is gone.               │
  * │                                                                           │
- * │ `readConsumerActivation` and `deriveConsumerActivation` are not invoked   │
- * │ anywhere outside this file and its unit test. Nothing in the product      │
- * │ consumes their verdict: `active_in_consumer` is still the hard-coded      │
- * │ literal 'unknown' everywhere it is produced, exactly as before.           │
+ * │ This box used to say the opposite — "CORRECT BUT INERT, NO CALLERS" —     │
+ * │ and it was true when written. Left as-is one commit longer, it would      │
+ * │ have instructed every future reader to deny what the code now does. A     │
+ * │ stale comment in the most authoritative-looking place in a module is a    │
+ * │ worse lie than no comment at all.                                         │
  * │                                                                           │
- * │ The loop AGENTS.md draws is therefore NOT closed today. The ingestion     │
- * │ half exists (the authenticated consumer route writes rows); the reading   │
- * │ half is written but unwired. Do not describe this brick as "active_in_    │
- * │ consumer is now proven" — it is not, until a caller exists.               │
- * │                                                                           │
- * │ Wiring it means touching `agent-lifecycle-trace.ts`, which is guarded by  │
- * │ the `check:lifecycle-truth` gate — a deliberate, separate mission, not a  │
- * │ side effect of adding the channel.                                        │
+ * │ WHAT REMAINS TRUE, and matters more than the wiring:                      │
+ * │ a verdict of `true` is never a claim that the agent is healthy, only      │
+ * │ that an authenticated consumer reported an EXECUTION inside the recency   │
+ * │ window. `'unknown'` covers both "no proof yet" and "the proof expired" —  │
+ * │ expiry means we stopped knowing, not that the agent went quiet. And       │
+ * │ there is still no `false`: consumer silence is ambiguous, and this        │
+ * │ module refuses to resolve that ambiguity in either direction.             │
  * └───────────────────────────────────────────────────────────────────────────┘
  *
  * Answers one question honestly: what do we actually KNOW about a copilot's

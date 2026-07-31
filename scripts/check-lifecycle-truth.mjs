@@ -182,10 +182,32 @@ async function main() {
         if (assignments.length === 0) {
           violations.push(`${rel}  resolveConsumerStage assigns no \`reached\` value`)
         }
-        for (const value of assignments) {
-          const readsVerdict = /\bactiveInConsumer\b/.test(value) || /^verdict$/.test(value)
-          const honestLiteral = /^'unknown'$/.test(value) || /^'unavailable'$/.test(value)
-          const ternaryOfHonestLiterals = /^\w+\s*\?\s*'(unavailable|unknown)'\s*:\s*'(unavailable|unknown)'$/.test(value)
+        // Un alias n'échappe pas au contrôle : si `reached` lit un identifiant,
+        // on REMONTE à son assignation. Sans ça,
+        // `const verdict = activation.delivered ? true : 'unknown'` passait au
+        // VERT — c'est-à-dire exactement le mensonge d'origine (activation
+        // dérivée d'une livraison) béni par la gate censée l'interdire.
+        // Trouvé en revue croisée, sur un sabotage que l'auteur n'avait pas tenté.
+        const aliasSource = (name) => {
+          const m = body.match(new RegExp(String.raw`\b(?:const|let)\s+${name}\s*(?::[^=]+)?=\s*([^\n;]+)`))
+          return m ? m[1].trim() : null
+        }
+
+        for (const raw of assignments) {
+          // Une lecture NUE : `activation.activeInConsumer`, rien de plus. Toute
+          // comparaison (`=== true`), coercition ou opérateur produit une valeur
+          // qui n'est PLUS le verdict — `activeInConsumer === true` rendait un
+          // `false` littéral tout en satisfaisant l'ancien test de sous-chaîne.
+          const isBareVerdictRead = (v) => /^[\w.]*\bactiveInConsumer$/.test(v)
+          const honest = (v) => /^'unknown'$/.test(v) || /^'unavailable'$/.test(v)
+          const ternaryOfHonestLiterals = /^\w+\s*\?\s*'(unavailable|unknown)'\s*:\s*'(unavailable|unknown)'$/.test(raw)
+
+          // `reached: verdict` → on juge ce que `verdict` VAUT, pas son nom.
+          const resolved = /^[A-Za-z_$][\w$]*$/.test(raw) ? (aliasSource(raw) ?? raw) : raw
+          const value = raw
+          const readsVerdict = isBareVerdictRead(resolved)
+          const honestLiteral = honest(resolved)
+
           if (!readsVerdict && !honestLiteral && !ternaryOfHonestLiterals) {
             violations.push(
               `${rel}  resolveConsumerStage assigns \`reached: ${value}\` — only the consumer-activation verdict (\`activeInConsumer\`) or the literals 'unknown' / 'unavailable' are admissible`
@@ -193,8 +215,17 @@ async function main() {
           }
         }
 
-        // 5c. `false` must never be a reached value, in any branch.
+        // 5c. `false` must never be a reached value, in any branch — ni écrit,
+        //     ni PRODUIT. Une comparaison (`=== true`), une négation ou une
+        //     coercition rend un booléen : `activeInConsumer === true` livrait
+        //     un `false` littéral sans que le mot `false` n'apparaisse jamais.
+        //     Trouvé en revue croisée.
         for (const value of assignments) {
+          if (/[=!]==?|^!|\bBoolean\s*\(|^!!/.test(value)) {
+            violations.push(
+              `${rel}  resolveConsumerStage derives \`reached\` from a comparison/coercion (\`${value}\`) — that yields a BOOLEAN, and \`false\` on active_in_consumer asserts an inactivity nobody measured. Copy the verdict, do not test it.`
+            )
+          }
           if (/\bfalse\b/.test(value)) {
             violations.push(
               `${rel}  resolveConsumerStage can assign \`false\` to reached (\`${value}\`) — consumer silence is ambiguous and must never be asserted as inactivity`
