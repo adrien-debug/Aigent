@@ -2,20 +2,18 @@
  * Flux d'exécution — ce qui SE PASSE, ligne à ligne, du plus récent au plus
  * ancien.
  *
- * Ce n'était qu'une table de gestion : cinq colonnes, une bordure de grille,
- * des pastilles pleines. C'est maintenant un flux de télémétrie — horodatage
- * monospacé en tête de ligne, rail de statut sur l'arête gauche, identité au
- * centre, mesures alignées à droite. Rien n'a été retiré : les mêmes cinq faits
- * sont là, mais la ligne se lit d'un balayage vertical au lieu d'un
- * déchiffrement cellule par cellule.
+ * Six colonnes tabulaires réelles (heure, statut, agent, durée, coût,
+ * ancienneté) : une forme distincte des rosters agent/projet à trois zones,
+ * donc pas de `EntityRow` ici. Ce qu'elle partage avec eux — le rail de
+ * statut et la marque d'absence — vient de `primitives.tsx`.
  *
  * Une mesure absente reste absente : ni « 0 ms », ni « $0.00 ».
  */
-import { UNAVAILABLE_LABEL, formatUsd } from '@/lib/agent-mission-control/format'
+import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { NamedRun } from '@/lib/cockpit/named-runs'
 import { clockTime, timeAgo } from '@/lib/cockpit/named-runs'
 import { RUN_STATUS_COLOR, RUN_STATUS_SINGULAR } from '@/lib/cockpit/status'
-import { Led, Rail } from './primitives'
+import { AbsentMark, Led, Rail } from './primitives'
 
 /** Une seule définition de grille pour l'en-tête et les lignes — sinon elles glissent. */
 const COLS =
@@ -75,23 +73,11 @@ export default function RunStream({ runs, nowMs }: { runs: NamedRun[]; nowMs: nu
               </span>
 
               <span className="text-right font-mono text-[11px] tabular-nums text-ink-dim">
-                {run.latencyMs === null ? (
-                  <span className="text-[9px] tracking-wide text-ink-faint uppercase">
-                    {UNAVAILABLE_LABEL}
-                  </span>
-                ) : (
-                  duration(run.latencyMs)
-                )}
+                {run.latencyMs === null ? <AbsentMark /> : duration(run.latencyMs)}
               </span>
 
               <span className="text-right font-mono text-[11px] tabular-nums text-ink-dim">
-                {run.costUsd === null ? (
-                  <span className="text-[9px] tracking-wide text-ink-faint uppercase">
-                    {UNAVAILABLE_LABEL}
-                  </span>
-                ) : (
-                  formatUsd(run.costUsd)
-                )}
+                {run.costUsd === null ? <AbsentMark /> : formatUsd(run.costUsd)}
               </span>
 
               <span className="truncate text-right font-mono text-[10.5px] whitespace-nowrap text-ink-faint">

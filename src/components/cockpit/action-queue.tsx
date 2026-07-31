@@ -9,7 +9,7 @@
  * Box bornée : l'en-tête est fixe, seule la liste scrolle.
  */
 import type { ActionItem, ActionItemKind } from '@/lib/agent-mission-control/dashboard-overview'
-import { Rail, Unavailable } from './primitives'
+import { CompactMetricBadge, PanelHeader, Rail, Unavailable } from './primitives'
 
 /** Une couleur par nature de décision — le rouge est réservé à ce qui bloque. */
 const KIND_COLOR: Record<ActionItemKind, string> = {
@@ -35,24 +35,14 @@ const KIND_LABEL: Record<ActionItemKind, string> = {
 export default function ActionQueue({ items }: { items: ActionItem[] }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex shrink-0 items-center gap-2.5 border-b border-white/6 px-4 py-3.5">
-        <span
-          aria-hidden
-          className="h-3 w-0.5 shrink-0 rounded-full bg-accent"
-        />
-        <h2 className="text-[10px] font-semibold tracking-[0.2em] text-ink-dim uppercase">
-          File d&apos;action
-        </h2>
-        <span
-          className={`ml-auto rounded border px-1.5 font-mono text-[11px] tabular-nums ${
-            items.length > 0
-              ? 'border-accent/30 bg-accent/10 text-accent'
-              : 'border-white/8 bg-elevated text-ink-faint'
-          }`}
-        >
-          {items.length}
-        </span>
-      </header>
+      <PanelHeader
+        title="File d'action"
+        actions={
+          <CompactMetricBadge color={items.length > 0 ? 'var(--accent-main)' : undefined}>
+            {items.length}
+          </CompactMetricBadge>
+        }
+      />
 
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-3">
         {items.length === 0 ? (
