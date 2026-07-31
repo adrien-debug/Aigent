@@ -19,7 +19,11 @@
  *  1. METRIC COALESCED TO ZERO. `x.successRate ?? 0`, `run.costUsd || 0` — the
  *     left side is a NAMED measurement from the contracts, and 0 is a claim
  *     about it. Counters, map lookups and geometry defaults are not matched:
- *     only the metric names below are.
+ *     only the metric names below are. Since 31/07/2026 the rule also covers the
+ *     DISGUISED form `typeof row.x === 'number' ? row.x : 0`, which is the same
+ *     coalescence dressed as a type guard — three shipped on the Qualification
+ *     surface, under a comment claiming they refused a false zero. `: null` in
+ *     the false branch is the correct shape and stays legal.
  *
  *  2. NaN BY COERCION. `Number(x?.y)` on an optional chain is `NaN` the moment
  *     the chain short-circuits, and `NaN` renders as the literal text "NaN".
@@ -111,6 +115,18 @@ const METRIC_FIELDS = [
   'unsafeActionCount',
   'tokensIn',
   'tokensOut',
+  // Compteurs de PREUVE de la surface Qualification. Ce sont des mesures au
+  // même titre qu'un score : `would_mutate_count = 0` est lu comme « le shadow
+  // a intercepté toutes les mutations », donc une colonne jamais écrite
+  // retombée à 0 délivre un certificat d'innocuité que personne n'a mesuré.
+  // Les deux graphies sont listées : ces champs traversent la frontière
+  // PostgREST, où la ligne brute est encore en snake_case.
+  'sampledRunCount',
+  'sampled_run_count',
+  'wouldMutateCount',
+  'would_mutate_count',
+  'caseCount',
+  'case_count',
 ]
 
 /** Nullable "when did this happen" fields — null means nobody wrote the column. */
@@ -145,6 +161,33 @@ const ASSERTION_LITERALS = [
 const alt = (names) => names.join('|')
 
 const METRIC_TO_ZERO_RE = new RegExp(String.raw`\.(?:${alt(METRIC_FIELDS)})\b[^\n]*?(?:\?\?|\|\|)\s*0\b`)
+
+/**
+ * The `?? 0` WEARING A TYPE GUARD'S CLOTHES.
+ *
+ *     sampledRunCount: typeof row.sampled_run_count === 'number' ? row.sampled_run_count : 0
+ *
+ * Semantically identical to `row.sampled_run_count ?? 0` — a NULL column becomes
+ * a confident zero — but it reads as a careful narrowing, which is exactly why
+ * it survived review. The Qualification surface shipped three of these, one of
+ * them on `would_mutate_count`, under a comment claiming the code refused a
+ * false zero.
+ *
+ * The false branch is what the rule turns on, and only `0` is banned there:
+ *   · `: null`      → the honest fix, and the shape this guard wants to see;
+ *   · `: undefined` → not a measurement either, left alone;
+ *   · `: 0`         → a fabricated measurement. Red.
+ *
+ * The metric name is required on the LEFT of the `typeof`, so ordinary
+ * narrowings (`typeof node.width === 'number' ? node.width : 0` — geometry) are
+ * not matched. The operand is matched loosely (`[^\n]*?`) because the guarded
+ * expression and the returned expression are written many ways, and requiring
+ * them to be textually identical would let a one-character difference walk
+ * straight through.
+ */
+const TYPEOF_GUARD_TO_ZERO_RE = new RegExp(
+  String.raw`typeof\s+[^\n]*?\.(?:${alt(METRIC_FIELDS)})\b[^\n]*?===\s*['"]number['"][^\n]*?\?[^\n]*?:\s*0\b`
+)
 
 /**
  * The ONE legitimate `?? 0` on a metric: seeding a RUNNING SUM.
@@ -276,6 +319,7 @@ async function main() {
           else bucket.push(`${rel}:${i + 1}  ${line.trim()}`)
         }
         if (METRIC_TO_ZERO_RE.test(line) && !RUNNING_SUM_RE.test(line)) record(metricToZero)
+        if (TYPEOF_GUARD_TO_ZERO_RE.test(line)) record(metricToZero)
         if (NAN_COERCION_RE.test(line)) record(nanCoercions)
         if (ASSERTED_ABSENCE_RE.test(line)) record(assertedAbsence)
       })

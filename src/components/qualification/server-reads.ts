@@ -41,6 +41,7 @@ import type {
   ShadowEvidence,
 } from './detail-screen'
 import type { QualificationCandidate } from './roster-screen'
+import { runBlockerCount } from './model'
 
 type RawRow = Record<string, unknown>
 
@@ -104,10 +105,14 @@ async function readShadow(copilotId: string, versionId: string): Promise<ShadowE
     // pour une preuve de production.
     executionMode: row.execution_mode,
     // Ces deux compteurs sont des COMPTES persistés par le moteur : un 0 y est
-    // une valeur mesurée. `?? 0` serait un faux zéro si la colonne était nulle,
-    // donc on garde la valeur numérique seulement quand elle en est une.
-    sampledRunCount: typeof row.sampled_run_count === 'number' ? row.sampled_run_count : 0,
-    wouldMutateCount: typeof row.would_mutate_count === 'number' ? row.would_mutate_count : 0,
+    // une valeur MESURÉE, et c'est précisément ce qui rend le faux zéro coûteux
+    // ici. `would_mutate_count = 0` s'affiche comme la preuve que le shadow a
+    // intercepté toutes les mutations ; une colonne NULL retombée à 0 rendrait
+    // donc « jamais enregistré » comme « aucune mutation tentée » — le mensonge
+    // le plus cher possible sur un panneau de sécurité. Une valeur non numérique
+    // reste `null`, et l'écran la rend « non mesuré ».
+    sampledRunCount: typeof row.sampled_run_count === 'number' ? row.sampled_run_count : null,
+    wouldMutateCount: typeof row.would_mutate_count === 'number' ? row.would_mutate_count : null,
     startedAt: (row.started_at as string | null) ?? null,
     endsAt: (row.ends_at as string | null) ?? null,
   }
@@ -125,7 +130,10 @@ async function readReplay(copilotId: string, versionId: string): Promise<ReplayE
     status: (row.status as string) ?? 'inconnu',
     verdict: (row.verdict as string | null) ?? null,
     executionMode: row.execution_mode,
-    caseCount: typeof row.case_count === 'number' ? row.case_count : 0,
+    // Même règle que les compteurs shadow : un compte non enregistré reste
+    // `null`. « 0 cas comparés » et « on ne sait pas combien de cas » ne disent
+    // pas la même chose d'une comparaison replay.
+    caseCount: typeof row.case_count === 'number' ? row.case_count : null,
     createdAt: (row.created_at as string | null) ?? null,
   }
 }
@@ -226,8 +234,15 @@ export async function loadQualificationDetail(
     // Le pointeur a été lu : `readCopilotPointer` a réussi, sinon on aurait jeté.
     productionRead: true,
     versions,
+    // Les trois `*Failure` ci-dessous ne sont pas décoratifs : sans eux, une
+    // lecture échouée rendait un tableau vide indistinguable d'un vide prouvé —
+    // et `buildConsoleTarget` en concluait « aucune suite n'existe », ce qui
+    // RALLUMAIT le bouton de génération LLM facturée sur une panne de lecture.
+    versionsFailure: versionsRead.failure,
     testSuites: testSuitesRead.value ?? [],
+    testSuitesFailure: testSuitesRead.failure,
     benchmarkSuites: benchSuitesRead.value ?? [],
+    benchmarkSuitesFailure: benchSuitesRead.failure,
     releaseGate: gateRead.value ?? null,
     releaseGateFailure: gateRead.failure,
     promotionGate: promotionRead.value ?? null,
@@ -293,16 +308,11 @@ export async function loadQualificationRoster(): Promise<{
       const candidateVersionId = productionVersionId ?? ((row.latest_version_id as string | null) ?? null)
 
       const agent = agentById.get(copilotId) ?? null
-      // Le nombre de conditions NON tenues, dérivé du contrat canonique. Sans
-      // contrat, il reste 0 et l'écran affiche « garde satisfaite » — ce qui
-      // serait faux : on marque donc 3 pour dire « rien ne prouve la garde ».
-      const runBlockerCount = agent
-        ? [
-            agent.status === 'active',
-            agent.unresolvedToolIds.length === 0,
-            agent.runtime === 'langgraph',
-          ].filter((ok) => !ok).length
-        : 3
+      // Le nombre de conditions NON tenues, dérivé du contrat canonique — et
+      // `null` quand aucun contrat ne résout (catalogue non lu, ou copilot
+      // absent du catalogue). La règle est dans `model.ts`, pure et testée :
+      // rendre `3` ici peignait tout le banc en rouge sur une panne de lecture.
+      const blockerCount = runBlockerCount(agent)
 
       let state: QualificationCandidate['state'] = 'not_started'
       let qualificationRead = true
@@ -340,7 +350,10 @@ export async function loadQualificationRoster(): Promise<{
         qualificationRead,
         hasProductionBaseline: productionVersionId !== null,
         hasOpenProposal: openByCopilot.has(copilotId),
-        runBlockerCount,
+        // Propagé tel quel : sans cette paire (valeur, lecture), un catalogue
+        // muet et un agent réellement non lançable rendraient le même pixel.
+        agentRead: agentsRead.failure === null,
+        runBlockerCount: blockerCount,
       }
     }),
   )

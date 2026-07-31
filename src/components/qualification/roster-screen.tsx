@@ -42,8 +42,16 @@ export interface QualificationCandidate {
   hasProductionBaseline: boolean
   /** Une boucle d'amélioration est-elle ouverte ? */
   hasOpenProposal: boolean
-  /** Nombre de conditions de la garde d'exécution non satisfaites (0..3). */
-  runBlockerCount: number
+  /** La lecture du catalogue canonique a-t-elle abouti ? */
+  agentRead: boolean
+  /**
+   * Nombre de conditions de la garde d'exécution non satisfaites (0..3).
+   *
+   * `null` ⇒ aucun contrat canonique ne résout pour cette ligne (catalogue non
+   * lu, ou copilot absent du catalogue). Ce n'est PAS « 3 conditions
+   * manquantes » : une lecture qui n'a pas eu lieu n'accuse personne.
+   */
+  runBlockerCount: number | null
 }
 
 const MUTED_RAIL = 'rgb(161 161 170 / 0.35)'
@@ -109,8 +117,23 @@ function CandidateRow({ candidate }: { candidate: QualificationCandidate }) {
           </Text>
         </div>
 
+        {/* Trois rendus pour trois affirmations différentes. Le badge NEUTRE
+            n'est pas une politesse : sans lui, une panne de lecture du
+            catalogue peignait tout le banc en « 3/3 condition(s) manquante(s) »
+            — un verdict accusateur produit par une absence de mesure. */}
         <div className="hidden shrink-0 items-center gap-2 sm:flex">
-          {candidate.runBlockerCount > 0 ? (
+          {candidate.runBlockerCount === null ? (
+            <Badge
+              color="zinc"
+              title={
+                candidate.agentRead
+                  ? 'Le catalogue a été lu et ne rend aucune ligne canonique pour cet agent : les trois conditions de la garde d’exécution sont INCONNUES, pas fausses.'
+                  : 'Le catalogue canonique n’a pas pu être lu. L’état de la garde d’exécution est INCONNU — ce n’est pas « la garde refuserait ».'
+              }
+            >
+              {candidate.agentRead ? 'garde non dérivable' : 'catalogue non lu'}
+            </Badge>
+          ) : candidate.runBlockerCount > 0 ? (
             <Badge
               color="red"
               title="Conditions de la garde d’exécution non satisfaites : statut « active », aucun outil non résolu, runtime « langgraph ». Les trois doivent tenir."
@@ -146,6 +169,9 @@ export default function QualificationRosterScreen({
   const blocked = ranked.filter((c) => c.state === 'blocked').length
   const awaitingDecision = ranked.filter((c) => c.hasOpenProposal).length
   const withoutBaseline = ranked.filter((c) => !c.hasProductionBaseline).length
+  // Compté séparément des blocages réels : agréger les deux redonnerait
+  // exactement le chiffre accusateur que le badge neutre vient d'éviter.
+  const guardUnknown = ranked.filter((c) => c.runBlockerCount === null).length
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3 xl:overflow-hidden">
@@ -167,6 +193,14 @@ export default function QualificationRosterScreen({
         >
           {withoutBaseline} sans baseline de replay
         </Badge>
+        {guardUnknown > 0 ? (
+          <Badge
+            color="zinc"
+            title="Aucun contrat canonique ne résout pour ces agents — catalogue non lu, ou agent absent du catalogue. L’état de leur garde d’exécution est INCONNU, jamais « non lançable »."
+          >
+            {guardUnknown} garde(s) non dérivable(s)
+          </Badge>
+        ) : null}
         {qualificationReadFailures > 0 ? (
           <Badge
             color="zinc"

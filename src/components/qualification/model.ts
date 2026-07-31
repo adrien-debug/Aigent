@@ -258,6 +258,25 @@ export function runGuardDivergence(
   return `Le contrat canonique dit « ${agent.executable ? 'lançable' : 'non lançable'} » alors que les trois conditions rejouées disent « ${replayed ? 'lançable' : 'non lançable'} ». C’est le contrat canonique qui fait foi — cet écart doit être corrigé côté dérivation.`
 }
 
+/**
+ * Combien des trois conditions de la garde NE tiennent PAS — ou `null`.
+ *
+ * `null` est le seul résultat honnête quand aucun contrat canonique ne résout,
+ * et il couvre DEUX causes que le banc doit rendre en neutre : le catalogue n'a
+ * pas pu être lu, ou il a été lu et ne contient pas ce copilot. Dans les deux
+ * cas les trois conditions sont INCONNUES.
+ *
+ * Le défaut historique était de rendre `3` ici : une panne de lecture du
+ * catalogue vidait la Map, chaque ligne obtenait `3`, et le banc entier passait
+ * en rouge « 3/3 condition(s) manquante(s) » — une absence de mesure rendue en
+ * verdict accusateur. La fonction est ici, pure et nommée, précisément pour que
+ * ce comportement soit testable.
+ */
+export function runBlockerCount(agent: AvailableAgent | null): number | null {
+  if (agent === null) return null
+  return runGuardConditions(agent).filter((c) => !c.satisfied).length
+}
+
 /* ─────────────────── Boucle d'amélioration ─────────────────── */
 
 export const PROPOSAL_STATUS_LABEL: Record<ImprovementProposal['status'], string> = {
@@ -352,6 +371,78 @@ export const EXECUTION_MODE_DETAIL: Record<EvidenceExecutionMode, string> = {
 
 export function executionMode(raw: unknown): EvidenceExecutionMode {
   return raw === 'live_langgraph' || raw === 'deterministic_fixture' ? raw : 'legacy_unknown'
+}
+
+/* ─────────────── Lectures de suites — la seule règle qui coûte ─────────────── */
+
+/**
+ * Ce qu'on peut affirmer d'un registre après une lecture — valeur ET lecture.
+ *
+ * `read: false` ⇒ `firstId` est `null` par IGNORANCE, jamais parce que le
+ * registre est vide.
+ */
+export interface SuiteReadState {
+  read: boolean
+  firstId: string | null
+}
+
+export function suiteReadState(
+  items: readonly { id: string }[],
+  failure: string | null,
+): SuiteReadState {
+  if (failure !== null) return { read: false, firstId: null }
+  return { read: true, firstId: items[0]?.id ?? null }
+}
+
+/**
+ * La génération de suites — FACTURÉE — doit-elle être proposée ?
+ *
+ * Trois situations, et une seule autorise le geste :
+ *  · registre NON LU        → non. On ne sait pas ce qui existe : payer une
+ *    génération LLM sur cette ignorance regénérerait peut-être des suites déjà
+ *    présentes. C'est le seul défaut de cette surface qui coûte de l'argent réel,
+ *    et le défaut sûr est « éteint ».
+ *  · les deux suites existent → non, la génération est idempotente.
+ *  · lu, et il manque au moins une suite → oui, c'est exactement son rôle.
+ *
+ * Dans le doute, l'action facturée reste éteinte.
+ */
+export function canGenerateSuites(test: SuiteReadState, bench: SuiteReadState): boolean {
+  if (!test.read || !bench.read) return false
+  return test.firstId === null || bench.firstId === null
+}
+
+/* ─────────────────── Saisie des modèles à balayer ─────────────────── */
+
+/**
+ * Une saisie « provider:modèle » → la paire attendue par la route.
+ *
+ * Une ligne mal formée rend `null` et n'est PAS envoyée : mieux vaut un balayage
+ * qui refuse de partir qu'un balayage qui devine le provider. Les trois
+ * providers acceptés sont ceux que la route valide — `mistral` n'y est PAS,
+ * puisque le model-router ne le câble pas (AGENTS.md § Runtime multi-provider) :
+ * l'accepter ici produirait N exécutions facturées vouées à une erreur typée.
+ *
+ * Vit dans `model.ts` et non dans le composant client : c'est une règle pure,
+ * elle porte une décision de coût, et elle se teste sans DOM.
+ */
+export function parseModelLine(line: string): { modelProvider: string; model: string } | null {
+  const [rawProvider, ...rest] = line.split(':')
+  const provider = rawProvider?.trim()
+  const model = rest.join(':').trim()
+  if (!provider || !model) return null
+  if (provider !== 'openai' && provider !== 'google' && provider !== 'local') return null
+  return { modelProvider: provider, model }
+}
+
+/** Les lignes RETENUES d'une saisie multi-lignes. Une ligne invalide est écartée. */
+export function parseModelList(raw: string): { modelProvider: string; model: string }[] {
+  return raw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map(parseModelLine)
+    .filter((spec): spec is { modelProvider: string; model: string } => spec !== null)
 }
 
 /* ─────────────────── Tri des candidats ─────────────────── */

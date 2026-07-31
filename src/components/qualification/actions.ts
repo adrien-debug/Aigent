@@ -33,15 +33,25 @@ export interface MutationDescriptor {
   /** Ce qui va être fait, en une phrase — repris tel quel dans le Dialog. */
   intent: string
   cost: MutationCost
-  /**
-   * `true` quand la mutation exige une confirmation explicite dans un Dialog.
-   *
-   * Vrai pour TOUT ce qui est facturé ou irréversible (décision D2 : pas de
-   * mutation facturée en un clic), et pour la décision humaine — dont la
-   * confirmation EST le garde-fou, pas une politesse.
-   */
-  requiresDialog: boolean
 }
+
+/**
+ * PAS de champ `requiresDialog` ici, et c'est délibéré.
+ *
+ * Un tel champ a existé : renseigné sur les 15 descripteurs, lu NULLE PART. Le
+ * comportement réel du poste de commande est « dialogue TOUJOURS » —
+ * `ActionButton` ouvre systématiquement `ConfirmBody`, sans exception ni
+ * condition. Le champ décrivait donc une politique conditionnelle qui n'existe
+ * pas, et il la décrivait en plus PLUS PERMISSIVE que le code : il marquait
+ * `RUN_SHADOW_FIXTURE` et `RUN_REPLAY_FIXTURE` comme dispensées de
+ * confirmation.
+ *
+ * Le supprimer plutôt que le laisser dormir est la seule option sûre : un futur
+ * lecteur qui le « rebrancherait » de bonne foi rouvrirait une mutation en un
+ * clic sur deux actions qui écrivent en base. Si un jour une politique
+ * conditionnelle est réellement voulue, elle se décidera avec le code qui la
+ * lit, pas avant.
+ */
 
 /* ─────────────────── Le catalogue ─────────────────── */
 
@@ -54,7 +64,6 @@ export const GENERATE_SUITE: MutationDescriptor = {
     detail:
       'Un appel de complétion réel est facturé. La génération prend quelques secondes ; elle n’exécute AUCUN test — elle crée seulement la suite.',
   },
-  requiresDialog: true,
 }
 
 export const RUN_TESTS: MutationDescriptor = {
@@ -66,14 +75,12 @@ export const RUN_TESTS: MutationDescriptor = {
     detail:
       'Un appel de modèle par cas, plus un appel de juge par cas. Le coût croît avec la taille de la suite.',
   },
-  requiresDialog: true,
 }
 
 export const RUN_BENCHMARK: MutationDescriptor = {
   label: 'Lancer le benchmark',
   intent: 'Exécuter et noter chaque tâche de la suite de benchmark, puis persister le résultat.',
   cost: { kind: 'billed', detail: 'Un appel de modèle par tâche, plus la notation. Facturé.' },
-  requiresDialog: true,
 }
 
 export const RUN_SWEEP: MutationDescriptor = {
@@ -85,7 +92,6 @@ export const RUN_SWEEP: MutationDescriptor = {
     detail:
       'N exécutions SÉQUENTIELLES d’une suite complète — le coût est multiplié par le nombre de modèles (8 au maximum). Un balayage long peut dépasser le budget de temps de la requête et rendre un 504 en amont de la route.',
   },
-  requiresDialog: true,
 }
 
 export const RUN_QUALIFICATION: MutationDescriptor = {
@@ -97,7 +103,6 @@ export const RUN_QUALIFICATION: MutationDescriptor = {
     detail:
       'Le parcours lit les preuves existantes et évalue la gate ; les étapes qui exécutent réellement un modèle sont facturées. Il s’arrête toujours avant la promotion.',
   },
-  requiresDialog: true,
 }
 
 export const RUN_SHADOW_FIXTURE: MutationDescriptor = {
@@ -109,7 +114,6 @@ export const RUN_SHADOW_FIXTURE: MutationDescriptor = {
     detail:
       'Aucun appel réseau, aucun coût. La preuve est estampillée « simulation » et ne débloque JAMAIS une promotion de production.',
   },
-  requiresDialog: false,
 }
 
 export const RUN_SHADOW_LIVE: MutationDescriptor = {
@@ -121,7 +125,6 @@ export const RUN_SHADOW_LIVE: MutationDescriptor = {
     detail:
       'Un vrai run LangGraph du candidat, facturé. C’est le SEUL mode qu’une gate de promotion accepte pour un check shadow exigé.',
   },
-  requiresDialog: true,
 }
 
 export const RUN_REPLAY_FIXTURE: MutationDescriptor = {
@@ -129,7 +132,6 @@ export const RUN_REPLAY_FIXTURE: MutationDescriptor = {
   intent:
     'Comparer référence et candidat sur le corpus avec les sorties fixtures déterministes, et persister la comparaison.',
   cost: { kind: 'free', detail: 'Aucun appel réseau, aucun coût. Preuve estampillée « simulation ».' },
-  requiresDialog: false,
 }
 
 export const RUN_REPLAY_LIVE: MutationDescriptor = {
@@ -141,7 +143,6 @@ export const RUN_REPLAY_LIVE: MutationDescriptor = {
     detail:
       'DEUX runs LangGraph réels par cas — la référence et le candidat. C’est la mutation la plus coûteuse de cette surface, et le seul mode qu’une gate accepte pour un check replay exigé.',
   },
-  requiresDialog: true,
 }
 
 export const PROMOTE: MutationDescriptor = {
@@ -153,7 +154,6 @@ export const PROMOTE: MutationDescriptor = {
     detail:
       'Écriture IRRÉVERSIBLE en base. Le serveur ré-évalue la gate complète avant d’écrire et la RPC transactionnelle relit une évaluation fraîche et passante : cette interface ne contourne rien et ne peut rien contourner.',
   },
-  requiresDialog: true,
 }
 
 export const ROLLBACK: MutationDescriptor = {
@@ -165,7 +165,6 @@ export const ROLLBACK: MutationDescriptor = {
     detail:
       'Écriture IRRÉVERSIBLE en base. Le retour arrière est dispensé de gate parce que la cible a DÉJÀ servi la production — la route le prouve en exigeant un stade « archived ».',
   },
-  requiresDialog: true,
 }
 
 export const ANALYZE: MutationDescriptor = {
@@ -177,7 +176,6 @@ export const ANALYZE: MutationDescriptor = {
     detail:
       'Collecte de signaux puis un appel d’architecte facturé. Une seule boucle ouverte par copilot : s’il en existe déjà une, la route refuse avec un 409.',
   },
-  requiresDialog: true,
 }
 
 export const CREATE_V2: MutationDescriptor = {
@@ -189,7 +187,6 @@ export const CREATE_V2: MutationDescriptor = {
     detail:
       'Écrit de nouvelles lignes et déplace le pointeur de version courante. La version reste un BROUILLON — rien n’est promu.',
   },
-  requiresDialog: true,
 }
 
 export const DECIDE_APPROVE: MutationDescriptor = {
@@ -200,7 +197,6 @@ export const DECIDE_APPROVE: MutationDescriptor = {
     detail:
       'La décision est définitive : une proposition déjà décidée ne se redécide pas (409). Elle ne promeut RIEN — la promotion reste une action séparée derrière sa propre gate.',
   },
-  requiresDialog: true,
 }
 
 export const DECIDE_REJECT: MutationDescriptor = {
@@ -210,7 +206,6 @@ export const DECIDE_REJECT: MutationDescriptor = {
     kind: 'irreversible',
     detail: 'La décision est définitive : une proposition déjà décidée ne se redécide pas (409).',
   },
-  requiresDialog: true,
 }
 
 /* ─────────────────── Lecture des erreurs de route ─────────────────── */

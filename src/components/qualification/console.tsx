@@ -65,6 +65,10 @@ import {
   type MutationDescriptor,
 } from './actions'
 import { Note } from './atoms'
+// Le parseur de modèles est une règle PURE (et une décision de coût : une ligne
+// mal formée n'est jamais devinée). Il vit dans `model.ts`, où il se teste sans
+// DOM — ce composant se contente de l'appeler.
+import { parseModelList } from './model'
 
 /* ─────────────────── Le contrat d'entrée ─────────────────── */
 
@@ -73,9 +77,28 @@ export interface ConsoleTarget {
   /** La version candidate résolue par le serveur. `null` ⇒ rien à qualifier. */
   candidateVersionId: string | null
   candidateLabel: string | null
-  /** La suite de test à exécuter. `null` ⇒ aucune suite n'existe encore. */
+  /**
+   * Le registre des suites a-t-il été LU ?
+   *
+   * `false` ⇒ `testSuiteId` / `benchmarkSuiteId` sont `null` par IGNORANCE, pas
+   * parce qu'aucune suite n'existe. La distinction est la seule qui coûte de
+   * l'argent réel sur cette surface : sans elle, une panne de lecture rallumait
+   * « Générer la suite », c'est-à-dire une génération LLM facturée de suites
+   * probablement déjà présentes.
+   */
+  suitesRead: boolean
+  /**
+   * La génération de suites — FACTURÉE — est-elle légitime ?
+   *
+   * Dérivé serveur (`canGenerateSuites`), jamais recalculé ici. `false` sur un
+   * registre non lu : dans le doute, l'action qui coûte de l'argent reste éteinte.
+   */
+  canGenerateSuites: boolean
+  /** La suite de test à exécuter. `null` ⇒ aucune suite n'existe encore (si `suitesRead`). */
   testSuiteId: string | null
   benchmarkSuiteId: string | null
+  /** Le registre des versions a-t-il été lu ? (cible de retour arrière) */
+  versionsRead: boolean
   /** Pointeur de production, tel que lu. `null` ⇒ aucune baseline. */
   productionVersionId: string | null
   /** La lecture du pointeur de production a-t-elle réussi ? */
@@ -140,32 +163,6 @@ interface Pending {
    * dialogue — le champ vide laisse le bouton de confirmation éteint.
    */
   needsModels?: boolean
-}
-
-/**
- * Une saisie « provider:modèle » → la paire attendue par la route.
- *
- * Une ligne mal formée rend `null` et n'est PAS envoyée : mieux vaut un
- * balayage qui refuse de partir qu'un balayage qui devine le provider. Les trois
- * providers acceptés sont ceux que la route valide — `mistral` n'y est pas,
- * puisque le model-router ne le câble pas.
- */
-function parseModelLine(line: string): { modelProvider: string; model: string } | null {
-  const [rawProvider, ...rest] = line.split(':')
-  const provider = rawProvider?.trim()
-  const model = rest.join(':').trim()
-  if (!provider || !model) return null
-  if (provider !== 'openai' && provider !== 'google' && provider !== 'local') return null
-  return { modelProvider: provider, model }
-}
-
-function parseModelList(raw: string): { modelProvider: string; model: string }[] {
-  return raw
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .map(parseModelLine)
-    .filter((spec): spec is { modelProvider: string; model: string } => spec !== null)
 }
 
 interface ActionButtonProps {
@@ -324,8 +321,17 @@ export default function QualificationConsole({ target }: { target: ConsoleTarget
               consequence:
                 'Suite de tests et suite de benchmark générées et persistées. Rien n’a été exécuté.',
             }}
-            disabled={target.testSuiteId !== null && target.benchmarkSuiteId !== null}
-            disabledReason="Des suites existent déjà pour ce copilot — la génération est idempotente et ne referait rien."
+            // Dans le doute, l'action FACTURÉE reste éteinte. Un registre non
+            // lu ne prouve pas qu'aucune suite n'existe, et payer une
+            // génération LLM sur cette ignorance est le seul geste de cette
+            // surface qui coûte réellement de l'argent. La règle vient du
+            // serveur (`canGenerateSuites`) — elle n'est pas rejouée ici.
+            disabled={!target.canGenerateSuites}
+            disabledReason={
+              !target.suitesRead
+                ? 'Le registre des suites n’a pas pu être lu : impossible de savoir si des suites existent déjà. La génération est facturée — elle reste éteinte tant que la lecture n’a pas abouti, plutôt que de payer pour regénérer ce qui existe peut-être.'
+                : 'Des suites existent déjà pour ce copilot — la génération est idempotente et ne referait rien.'
+            }
           />
           <ActionButton
             busy={busy}
@@ -337,7 +343,11 @@ export default function QualificationConsole({ target }: { target: ConsoleTarget
               consequence: 'Suite exécutée : test_runs et test_results persistés.',
             }}
             disabled={target.testSuiteId === null}
-            disabledReason="Aucune suite de test n’existe : il n’y a rien à exécuter. Générer la suite d’abord."
+            disabledReason={
+              !target.suitesRead
+                ? 'Le registre des suites n’a pas pu être lu : aucune suite à exécuter n’est identifiable. Ce n’est pas « aucune suite n’existe ».'
+                : 'Aucune suite de test n’existe : il n’y a rien à exécuter. Générer la suite d’abord.'
+            }
           />
           <ActionButton
             busy={busy}
@@ -349,7 +359,11 @@ export default function QualificationConsole({ target }: { target: ConsoleTarget
               consequence: 'Benchmark exécuté : benchmark_runs et benchmark_results persistés.',
             }}
             disabled={target.benchmarkSuiteId === null}
-            disabledReason="Aucune suite de benchmark n’existe pour ce copilot."
+            disabledReason={
+              !target.suitesRead
+                ? 'Le registre des suites n’a pas pu être lu : aucune suite de benchmark n’est identifiable. Ce n’est pas « aucune suite n’existe ».'
+                : 'Aucune suite de benchmark n’existe pour ce copilot.'
+            }
           />
           <ActionButton
             busy={busy}
@@ -366,7 +380,11 @@ export default function QualificationConsole({ target }: { target: ConsoleTarget
               consequence: 'Balayage terminé : un verdict par modèle, jamais un score fabriqué.',
             }}
             disabled={target.benchmarkSuiteId === null}
-            disabledReason="Aucune suite de benchmark n’existe pour ce copilot — il n’y a rien à balayer."
+            disabledReason={
+              !target.suitesRead
+                ? 'Le registre des suites n’a pas pu être lu : aucune suite à balayer n’est identifiable. Un balayage est la mutation la plus coûteuse de cette surface — il ne part pas sur une ignorance.'
+                : 'Aucune suite de benchmark n’existe pour ce copilot — il n’y a rien à balayer.'
+            }
           />
         </div>
       </section>
@@ -513,7 +531,11 @@ export default function QualificationConsole({ target }: { target: ConsoleTarget
                 : 'Production revenue à la version précédemment servie.',
             }}
             disabled={target.rollbackTargetId === null}
-            disabledReason="Aucune version archivée n’existe : il n’y a aucune version précédemment servie vers laquelle revenir. La route refuse toute cible qui ne soit pas archivée — c’est ce qui empêche un brouillon non qualifié d’atteindre la production par ce chemin."
+            disabledReason={
+              !target.versionsRead
+                ? 'Le registre des versions n’a pas pu être lu : aucune cible de retour arrière n’est identifiable. Ce n’est pas « aucune version archivée n’existe ».'
+                : 'Aucune version archivée n’existe : il n’y a aucune version précédemment servie vers laquelle revenir. La route refuse toute cible qui ne soit pas archivée — c’est ce qui empêche un brouillon non qualifié d’atteindre la production par ce chemin.'
+            }
           />
         </div>
       </section>

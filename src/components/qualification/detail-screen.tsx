@@ -52,6 +52,7 @@ import {
 import {
   REPLAY_FEASIBILITY_DETAIL,
   STEP_LABEL,
+  canGenerateSuites,
   executionMode,
   isProposalOpen,
   proposalNextAction,
@@ -61,6 +62,7 @@ import {
   runGuardWouldAccept,
   sortPromotionChecks,
   sortReleaseChecks,
+  suiteReadState,
   summarizeChecks,
 } from './model'
 
@@ -72,8 +74,16 @@ export interface ShadowEvidence {
   status: string
   verdict: string | null
   executionMode: unknown
-  sampledRunCount: number
-  wouldMutateCount: number
+  /** Compte persisté. `null` ⇒ la colonne n'a jamais été écrite, PAS zéro. */
+  sampledRunCount: number | null
+  /**
+   * Compte persisté des appels d'outils mutants interceptés.
+   *
+   * `null` est structurel ici : un 0 se lit comme la PREUVE que le shadow a tout
+   * intercepté. Confondre « jamais enregistré » avec « aucune mutation tentée »
+   * transformerait une absence de mesure en certificat d'innocuité.
+   */
+  wouldMutateCount: number | null
   startedAt: string | null
   endsAt: string | null
 }
@@ -84,7 +94,8 @@ export interface ReplayEvidence {
   status: string
   verdict: string | null
   executionMode: unknown
-  caseCount: number
+  /** Compte persisté. `null` ⇒ non enregistré, jamais « 0 cas comparés ». */
+  caseCount: number | null
   createdAt: string | null
 }
 
@@ -107,8 +118,12 @@ export interface QualificationDetail {
   /** La lecture du pointeur de production a-t-elle abouti ? */
   productionRead: boolean
   versions: CopilotVersion[]
+  /** `null` ⇒ la lecture a abouti. Une liste vide sur un échec n'est PAS un vide prouvé. */
+  versionsFailure: string | null
   testSuites: TestSuite[]
+  testSuitesFailure: string | null
   benchmarkSuites: BenchmarkSuite[]
+  benchmarkSuitesFailure: string | null
   releaseGate: ReleaseGate | null
   releaseGateFailure: string | null
   promotionGate: PromotionGateResult | null
@@ -604,14 +619,33 @@ function ShadowPanel({
           </div>
 
           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-            <Fact label="Runs échantillonnés" value={<FactValue>{evidence.sampledRunCount}</FactValue>} />
-            {/* Un 0 ici est un 0 MESURÉ, et c'est précisément le résultat
-                attendu : le shadow intercepte les outils mutants, ils ne
-                s'exécutent jamais. */}
+            <Fact
+              label="Runs échantillonnés"
+              value={
+                evidence.sampledRunCount === null ? null : (
+                  <FactValue>{evidence.sampledRunCount}</FactValue>
+                )
+              }
+              why="Le compteur d’échantillonnage n’a pas été enregistré pour cette expérience. Aucun run n’en est déduit — c’est un « non mesuré »."
+            />
+            {/* Le hint « un 0 est le résultat attendu » ne s'affiche QUE sur un
+                compteur réellement mesuré. Sur une colonne jamais écrite, il
+                ferait passer une absence de mesure pour une preuve
+                d'innocuité — c'est ce panneau, et pas un autre, où ce mensonge
+                coûte le plus cher. */}
             <Fact
               label="Mutations interceptées"
-              value={<FactValue>{evidence.wouldMutateCount}</FactValue>}
-              hint="Appels d’outils mutants qui auraient écrit — interceptés, jamais exécutés."
+              value={
+                evidence.wouldMutateCount === null ? null : (
+                  <FactValue>{evidence.wouldMutateCount}</FactValue>
+                )
+              }
+              why="Le compteur de mutations n’a JAMAIS été enregistré pour cette expérience. Ce n’est pas « aucune mutation tentée » : rien ne prouve ici que le shadow a intercepté quoi que ce soit."
+              hint={
+                evidence.wouldMutateCount === null
+                  ? undefined
+                  : 'Appels d’outils mutants qui auraient écrit — interceptés, jamais exécutés. Un 0 est ici un 0 MESURÉ, et c’est le résultat attendu.'
+              }
             />
             <Fact
               label="Démarré"
@@ -712,7 +746,11 @@ function ReplayPanel({
             </div>
 
             <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-              <Fact label="Cas comparés" value={<FactValue>{evidence.caseCount}</FactValue>} />
+              <Fact
+                label="Cas comparés"
+                value={evidence.caseCount === null ? null : <FactValue>{evidence.caseCount}</FactValue>}
+                why="Le nombre de cas comparés n’a pas été enregistré. « 0 cas » et « on ne sait pas combien de cas » ne disent pas la même chose d’une comparaison."
+              />
               <Fact
                 label="Créé"
                 value={isoShort(evidence.createdAt) ? <FactValue>{isoShort(evidence.createdAt)}</FactValue> : null}
@@ -875,17 +913,27 @@ function GateHistoryPanel({
 /* ─────────────────────── Versions & suites ─────────────────────── */
 
 function VersionsPanel({ detail }: { detail: QualificationDetail }) {
-  const { versions, productionVersionId, candidateVersion } = detail
+  const { versions, versionsFailure, productionVersionId, candidateVersion } = detail
 
   return (
     <Panel
       title="Versions"
-      hint={`${versions.length} persistée(s)`}
+      // Un compte n'est affiché que s'il a été LU. « 0 persistée(s) » sur une
+      // lecture échouée serait un chiffre fabriqué.
+      hint={versionsFailure === null ? `${versions.length} persistée(s)` : undefined}
       className="min-h-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
-      {versions.length === 0 ? (
-        <Unavailable reason="no-data" detail="Aucune version n’est persistée pour ce copilot." />
+      {versionsFailure !== null ? (
+        <Unavailable
+          reason="unread"
+          detail={`Le registre des versions n’a pas pu être lu : ${versionsFailure}. Ce n’est pas « aucune version ».`}
+        />
+      ) : versions.length === 0 ? (
+        <Unavailable
+          reason="no-data"
+          detail="Aucune version n’est persistée pour ce copilot. La lecture a réussi — il n’y a rien."
+        />
       ) : (
         <ul className="flex flex-col gap-1.5">
           {versions.map((v) => (
@@ -913,19 +961,29 @@ function VersionsPanel({ detail }: { detail: QualificationDetail }) {
 }
 
 function SuitesPanel({ detail }: { detail: QualificationDetail }) {
-  const { testSuites, benchmarkSuites } = detail
+  const { testSuites, testSuitesFailure, benchmarkSuites, benchmarkSuitesFailure } = detail
+  const anyFailure = testSuitesFailure ?? benchmarkSuitesFailure
 
   return (
     <Panel
       title="Suites"
-      hint={`${testSuites.length} test · ${benchmarkSuites.length} benchmark`}
+      hint={
+        anyFailure === null
+          ? `${testSuites.length} test · ${benchmarkSuites.length} benchmark`
+          : undefined
+      }
       className="min-h-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
-      {testSuites.length === 0 && benchmarkSuites.length === 0 ? (
+      {anyFailure !== null ? (
+        <Unavailable
+          reason="unread"
+          detail={`Le registre des suites n’a pas pu être lu : ${anyFailure}. Ce n’est pas « aucune suite n’existe » — et la génération, qui est facturée, reste éteinte tant qu’on ne sait pas ce qui existe déjà.`}
+        />
+      ) : testSuites.length === 0 && benchmarkSuites.length === 0 ? (
         <Unavailable
           reason="no-data"
-          detail="Aucune suite n’existe pour ce copilot. La génération est le premier geste — elle crée la suite, elle ne l’exécute pas."
+          detail="Aucune suite n’existe pour ce copilot. La lecture a réussi. La génération est le premier geste — elle crée la suite, elle ne l’exécute pas."
         />
       ) : (
         <div className="flex flex-col gap-3">
@@ -978,14 +1036,30 @@ function buildConsoleTarget(detail: QualificationDetail): ConsoleTarget {
       ? summarizeChecks(detail.releaseGate.checks).promotable
       : false
 
-  const archived = detail.versions.find((v) => v.stage === 'archived') ?? null
+  // Une lecture de versions échouée ne rend pas « aucune version archivée » :
+  // le retour arrière reste éteint avec sa raison plutôt que d'être proposé sur
+  // une cible qu'on n'a pas pu lire.
+  const archived =
+    detail.versionsFailure === null
+      ? (detail.versions.find((v) => v.stage === 'archived') ?? null)
+      : null
+
+  // Les suites ont-elles été LUES ? Sans cette réponse, `testSuiteId === null`
+  // veut dire deux choses opposées — « aucune suite n'existe » (la génération
+  // facturée est le bon geste) et « on n'a pas pu lire » (la génération
+  // regénérerait peut-être des suites qui existent déjà, pour de l'argent réel).
+  const testState = suiteReadState(detail.testSuites, detail.testSuitesFailure)
+  const benchState = suiteReadState(detail.benchmarkSuites, detail.benchmarkSuitesFailure)
 
   return {
     copilotId: detail.copilotId,
     candidateVersionId: detail.candidateVersion?.id ?? null,
     candidateLabel: detail.candidateVersion?.label ?? null,
-    testSuiteId: detail.testSuites[0]?.id ?? null,
-    benchmarkSuiteId: detail.benchmarkSuites[0]?.id ?? null,
+    suitesRead: testState.read && benchState.read,
+    canGenerateSuites: canGenerateSuites(testState, benchState),
+    testSuiteId: testState.firstId,
+    benchmarkSuiteId: benchState.firstId,
+    versionsRead: detail.versionsFailure === null,
     productionVersionId: detail.productionVersionId,
     productionRead: detail.productionRead,
     rollbackTargetId: archived?.id ?? null,
