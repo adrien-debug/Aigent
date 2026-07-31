@@ -30,7 +30,7 @@ import { RUNTIME_IDS, RUNTIME_REGISTRY } from '@/lib/agent-mission-control/regis
 import type { ProviderRow, ProvidersTabData } from './server-reads'
 import { Fact, FactValue, LoadedBlock, ProvenEmpty, ProviderWiringBadge } from './atoms'
 
-function ProviderCard({ row, usedBy }: { row: ProviderRow; usedBy: number | null }) {
+function ProviderCard({ row, usedBy }: Readonly<{ row: ProviderRow; usedBy: number | null }>) {
   return (
     <li className="border-b border-zinc-950/5 px-4 py-3 last:border-b-0 dark:border-white/5">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -80,7 +80,7 @@ function ProviderCard({ row, usedBy }: { row: ProviderRow; usedBy: number | null
   )
 }
 
-export default function ProvidersTab({ data }: { data: ProvidersTabData }) {
+export default function ProvidersTab({ data }: Readonly<{ data: ProvidersTabData }>) {
   const agents = data.agents.ok ? data.agents.data : null
   const runtimes = RUNTIME_IDS.map((id) => RUNTIME_REGISTRY[id])
   const executable = runtimes.filter((rt) => rt.engine !== 'none')

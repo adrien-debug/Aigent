@@ -35,6 +35,39 @@ import type { DeliveryState, DeliveryStateKind } from './model'
 
 type BadgeColor = ComponentProps<typeof Badge>['color']
 
+type DeliveryStateBadgeProps = { state: DeliveryState }
+type StateKindTagProps = { kind: DeliveryStateKind }
+type DeliveryStateRowProps = { state: DeliveryState }
+type SandboxStatusBadgeProps = { status: SandboxStatus; title?: string }
+type SandboxCheckBadgeProps = { status: SandboxCheckStatus; reason?: string }
+type DimensionBadgeProps = { status: DimensionStatus }
+type NotMeasuredProps = { why?: string }
+type FactProps = {
+  label: string
+  value: ReactNode | null
+  why?: string
+  hint?: string
+}
+type FactValueProps = { children: ReactNode }
+type NoteProps = {
+  tone?: 'info' | 'warn' | 'blocked' | 'structural'
+  title: string
+  children?: ReactNode
+}
+
+function noteRingClass(tone: NonNullable<NoteProps['tone']>): string {
+  if (tone === 'blocked') return 'border-[#e8455f]/25 bg-[#e8455f]/5'
+  if (tone === 'warn') return 'border-amber-400/25 bg-amber-400/5'
+  if (tone === 'structural') return 'border-sky-400/25 bg-sky-400/5'
+  return 'border-zinc-950/10 bg-zinc-950/[0.025] dark:border-white/10 dark:bg-white/[0.025]'
+}
+
+function sandboxCheckTitle(status: SandboxCheckStatus, reason?: string): string | undefined {
+  if (status !== 'skipped') return reason
+  const suffix = reason ? ' (' + reason + ')' : ''
+  return 'Ce check n’a RIEN mesuré' + suffix + ' — il n’est ni passé ni échoué.'
+}
+
 /* ═════════════════ Les huit états de livraison ═════════════════ */
 
 /**
@@ -81,7 +114,7 @@ const KIND_MEANING: Record<DeliveryStateKind, string> = {
  * neutre — sauf les inconnues structurelles, qui sont vraies par construction et
  * ne peuvent pas être « non atteintes ».
  */
-export function DeliveryStateBadge({ state }: { state: DeliveryState }) {
+export function DeliveryStateBadge({ state }: DeliveryStateBadgeProps) {
   if (state.reached === null) {
     return (
       <Badge color="zinc" title={`${state.meaning}\n\nCette question n’a pas pu être posée : la lecture nécessaire n’a pas abouti.`}>
@@ -98,7 +131,7 @@ export function DeliveryStateBadge({ state }: { state: DeliveryState }) {
 }
 
 /** Le mot qui qualifie la NATURE d'un état — affiché à côté de lui, jamais à sa place. */
-export function StateKindTag({ kind }: { kind: DeliveryStateKind }) {
+export function StateKindTag({ kind }: StateKindTagProps) {
   return (
     <span
       className="text-[10px] tracking-wide text-zinc-500 uppercase dark:text-zinc-400"
@@ -116,7 +149,7 @@ export function StateKindTag({ kind }: { kind: DeliveryStateKind }) {
  * `evidence === null` ne se rend pas comme une preuve vide : le composant dit
  * qu'aucune lecture n'a eu lieu.
  */
-export function DeliveryStateRow({ state }: { state: DeliveryState }) {
+export function DeliveryStateRow({ state }: DeliveryStateRowProps) {
   return (
     <div className="border-b border-zinc-950/5 px-4 py-3 last:border-b-0 dark:border-white/5">
       <div className="flex flex-wrap items-center gap-2">
@@ -152,7 +185,7 @@ const SANDBOX_STATUS_LABEL: Record<SandboxStatus, string> = {
   failed: 'Sandbox rouge',
 }
 
-export function SandboxStatusBadge({ status, title }: { status: SandboxStatus; title?: string }) {
+export function SandboxStatusBadge({ status, title }: SandboxStatusBadgeProps) {
   return (
     <Badge color={SANDBOX_STATUS_COLOR[status]} title={title}>
       {SANDBOX_STATUS_LABEL[status]}
@@ -177,15 +210,11 @@ const CHECK_LABEL: Record<SandboxCheckStatus, string> = {
   skipped: 'non exécuté',
 }
 
-export function SandboxCheckBadge({ status, reason }: { status: SandboxCheckStatus; reason?: string }) {
+export function SandboxCheckBadge({ status, reason }: SandboxCheckBadgeProps) {
   return (
     <Badge
       color={CHECK_COLOR[status]}
-      title={
-        status === 'skipped'
-          ? `Ce check n’a RIEN mesuré${reason ? ` (${reason})` : ''} — il n’est ni passé ni échoué.`
-          : reason
-      }
+      title={sandboxCheckTitle(status, reason)}
     >
       {CHECK_LABEL[status]}
     </Badge>
@@ -209,7 +238,7 @@ const DIMENSION_LABEL: Record<DimensionStatus, string> = {
   missing: 'non mesuré',
 }
 
-export function DimensionBadge({ status }: { status: DimensionStatus }) {
+export function DimensionBadge({ status }: DimensionBadgeProps) {
   return (
     <Badge
       color={DIMENSION_COLOR[status]}
@@ -231,7 +260,7 @@ export function DimensionBadge({ status }: { status: DimensionStatus }) {
  * un `title` qui dit POURQUOI quand on le sait : « non mesuré » et « lecture
  * échouée » ne sont pas la même chose.
  */
-export function NotMeasured({ why }: { why?: string }) {
+export function NotMeasured({ why }: NotMeasuredProps) {
   return (
     <span
       className="text-xs text-zinc-500 uppercase dark:text-zinc-400"
@@ -247,17 +276,7 @@ export function NotMeasured({ why }: { why?: string }) {
  * contrat de ce composant, et il dispense chaque appelant de réécrire la garde
  * (donc de l'oublier). Un `0` mesuré reste un `0` — seul `null` est une absence.
  */
-export function Fact({
-  label,
-  value,
-  why,
-  hint,
-}: {
-  label: string
-  value: ReactNode | null
-  why?: string
-  hint?: string
-}) {
+export function Fact({ label, value, why, hint }: FactProps) {
   return (
     <div className="min-w-0">
       <Text className="truncate text-xs">{label}</Text>
@@ -268,7 +287,7 @@ export function Fact({
 }
 
 /** Une valeur mise en avant dans un `Fact`. */
-export function FactValue({ children }: { children: ReactNode }) {
+export function FactValue({ children }: FactValueProps) {
   return <Strong className="tabular-nums">{children}</Strong>
 }
 
@@ -278,25 +297,10 @@ export function FactValue({ children }: { children: ReactNode }) {
  * Le ton `structural` est propre à cette surface : il porte les deux inconnues
  * du produit. Il n'est ni `warn` ni `blocked`, parce qu'il n'y a rien à corriger.
  */
-export function Note({
-  tone = 'info',
-  title,
-  children,
-}: {
-  tone?: 'info' | 'warn' | 'blocked' | 'structural'
-  title: string
-  children?: ReactNode
-}) {
-  const ring =
-    tone === 'blocked'
-      ? 'border-[#e8455f]/25 bg-[#e8455f]/5'
-      : tone === 'warn'
-        ? 'border-amber-400/25 bg-amber-400/5'
-        : tone === 'structural'
-          ? 'border-sky-400/25 bg-sky-400/5'
-          : 'border-zinc-950/10 bg-zinc-950/[0.025] dark:border-white/10 dark:bg-white/[0.025]'
+export function Note({ tone = 'info', title, children }: NoteProps) {
+  const ring = noteRingClass(tone)
   return (
-    <div className={`rounded-md border px-3 py-2 ${ring}`}>
+    <div className={'rounded-md border px-3 py-2 ' + ring}>
       <Strong className="block">{title}</Strong>
       {children ? <Text className="mt-0.5">{children}</Text> : null}
     </div>

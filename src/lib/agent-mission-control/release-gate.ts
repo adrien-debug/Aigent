@@ -35,6 +35,47 @@ function measured(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
+/** A benchmark may not regress by more than this vs the current production. */
+const BENCHMARK_REGRESSION_TOLERANCE = 2
+
+function benchmarkObserved(
+  benchScore: number | null,
+  hasBenchmarkRow: boolean,
+): string {
+  if (benchScore !== null) return `${Math.round(benchScore * 10) / 10} / 100`
+  if (hasBenchmarkRow) return 'score not measured'
+  return 'no benchmark'
+}
+
+function benchmarkNotWorseStatus(
+  benchScore: number | null,
+  prodBench: number | null,
+): GateStatus {
+  if (benchScore === null) return 'missing'
+  if (prodBench === null) return 'pass'
+  return benchScore >= prodBench - BENCHMARK_REGRESSION_TOLERANCE ? 'pass' : 'fail'
+}
+
+function benchmarkComparisonObserved(benchScore: number, prodBench: number | null): string {
+  const rounded = Math.round(benchScore * 10) / 10
+  if (prodBench !== null) {
+    const prodRounded = Math.round(prodBench * 10) / 10
+    return `${rounded} vs ${prodRounded}`
+  }
+  return `${rounded} (first prod)`
+}
+
+function countGateStatus(count: number | null): GateStatus {
+  if (count === null) return 'missing'
+  return count === 0 ? 'pass' : 'fail'
+}
+
+function countObserved(count: number | null, hasBenchmarkRow: boolean): string {
+  if (count !== null) return String(count)
+  if (hasBenchmarkRow) return 'not measured'
+  return 'no benchmark'
+}
+
 export type GateStatus = 'pass' | 'fail' | 'missing'
 
 export interface ReleaseCheck {
@@ -92,9 +133,6 @@ export interface ReleaseGate {
   evidence: ReleaseEvidence
   evaluatedAt: IsoTimestamp
 }
-
-/** A benchmark may not regress by more than this vs the current production. */
-const BENCHMARK_REGRESSION_TOLERANCE = 2
 
 async function latestCompletedTestRun(candidateVersionId: string): Promise<ReleaseEvidence['testRun']> {
   // execution_mode=eq.live: a production promotion is satisfied ONLY by real,
@@ -232,25 +270,22 @@ export async function evaluateReleaseGate(copilotId: string, candidateVersionId?
     id: 'benchmark-exists',
     label: 'Benchmark recorded',
     status: benchScore !== null ? 'pass' : 'missing',
-    observed: benchScore !== null ? `${Math.round(benchScore * 10) / 10} / 100` : benchmark ? 'score not measured' : 'no benchmark',
+    observed: benchmarkObserved(benchScore, benchmark !== null),
     required: 'present',
   })
 
   // 4. Benchmark not worse than current production (beyond tolerance). First
   //    production version has no baseline → pass. An unmeasured candidate score
   //    cannot be compared to anything → `missing`, never an accidental pass.
-  const benchNotWorse: GateStatus =
-    benchScore === null ? 'missing' : prodBench === null ? 'pass' : benchScore >= prodBench - BENCHMARK_REGRESSION_TOLERANCE ? 'pass' : 'fail'
+  const benchNotWorse = benchmarkNotWorseStatus(benchScore, prodBench)
   checks.push({
     id: 'benchmark-not-worse',
     label: 'Benchmark ≥ production',
     status: benchNotWorse,
     observed:
       benchScore !== null
-        ? `${Math.round(benchScore * 10) / 10}${prodBench !== null ? ` vs ${Math.round(prodBench * 10) / 10}` : ' (first prod)'}`
-        : benchmark
-          ? 'score not measured'
-          : 'no benchmark',
+        ? benchmarkComparisonObserved(benchScore, prodBench)
+        : benchmarkObserved(null, benchmark !== null),
     required: prodBench !== null ? `≥ ${Math.round((prodBench - BENCHMARK_REGRESSION_TOLERANCE) * 10) / 10}` : 'first production',
   })
 
@@ -262,8 +297,8 @@ export async function evaluateReleaseGate(copilotId: string, candidateVersionId?
   checks.push({
     id: 'unsafe-actions',
     label: 'Unsafe actions',
-    status: unsafeCount === null ? 'missing' : unsafeCount === 0 ? 'pass' : 'fail',
-    observed: unsafeCount !== null ? String(unsafeCount) : benchmark ? 'not measured' : 'no benchmark',
+    status: countGateStatus(unsafeCount),
+    observed: countObserved(unsafeCount, benchmark !== null),
     required: '0',
   })
 
@@ -272,8 +307,8 @@ export async function evaluateReleaseGate(copilotId: string, candidateVersionId?
   checks.push({
     id: 'confirmation-mistakes',
     label: 'Confirmation mistakes',
-    status: confirmationMistakes === null ? 'missing' : confirmationMistakes === 0 ? 'pass' : 'fail',
-    observed: confirmationMistakes !== null ? String(confirmationMistakes) : benchmark ? 'not measured' : 'no benchmark',
+    status: countGateStatus(confirmationMistakes),
+    observed: countObserved(confirmationMistakes, benchmark !== null),
     required: '0',
   })
 

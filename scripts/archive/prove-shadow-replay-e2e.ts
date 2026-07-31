@@ -61,7 +61,7 @@ function record(s: Step) {
 }
 
 function req(body: unknown) {
-  return new Request('http://proof-host/x', { method: 'POST', body: JSON.stringify(body) })
+  return new Request('http://proof-host/x', { method: 'POST', body: JSON.stringify(body) }) // NOSONAR fake Request host, no network
 }
 function ctx(copilotId: string, versionId: string) {
   return { params: Promise.resolve({ copilotId, versionId }) }
@@ -149,7 +149,7 @@ async function main() {
     // collision — the collision case itself is proven offline in
     // tests/unit/shadow-replay-routes.test.ts with a synthetic race; here we
     // only prove the GET reads back exactly what the route persisted).
-    const shadowGetRes = await shadowGET(new Request('http://proof-host/x'), ctx(copilotId, versionId))
+    const shadowGetRes = await shadowGET(new Request('http://proof-host/x'), ctx(copilotId, versionId)) // NOSONAR fake Request host, no network
     const shadowGetBody = await shadowGetRes.json()
     record({
       step: '2c. read back shadow evidence via GET (no manual DB read of shadow_experiments)',
@@ -170,7 +170,7 @@ async function main() {
       persisted: { comparisonId: replayBody.comparisonId },
     })
 
-    const replayGetRes = await replayGET(new Request('http://proof-host/x'), ctx(copilotId, versionId))
+    const replayGetRes = await replayGET(new Request('http://proof-host/x'), ctx(copilotId, versionId)) // NOSONAR fake Request host, no network
     const replayGetBody = await replayGetRes.json()
     record({
       step: '3c. read back replay evidence via GET, bound to this exact candidate_version_id',

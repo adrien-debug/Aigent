@@ -323,18 +323,27 @@ function buildStepsFromMessages(
       const matched = m.tool_call_id ? callById.get(m.tool_call_id) : undefined
       const name = m.name ?? matched?.name ?? 'tool'
       const argsSummary = matched?.args ? short(JSON.stringify(matched.args)) : ''
+      let stepTitle = `Tool · ${name}`
+      let stepStatus: 'blocked' | 'error' | 'ok' = 'ok'
+      if (blocked) {
+        stepTitle = `Blocked · ${name}`
+        stepStatus = 'blocked'
+      } else if (failed) {
+        stepTitle = `Failed · ${name}`
+        stepStatus = 'error'
+      }
       steps.push({
         kind: blocked ? 'confirmation' : 'tool-call',
-        title: `${blocked ? 'Blocked' : failed ? 'Failed' : 'Tool'} · ${name}`,
+        title: stepTitle,
         detail: short(content),
-        status: blocked ? 'blocked' : failed ? 'error' : 'ok',
+        status: stepStatus,
         durationMs: 0,
       })
       toolCalls.push({
         toolName: name,
         argumentsSummary: argsSummary,
         resultSummary: short(content),
-        status: blocked ? 'blocked' : failed ? 'error' : 'ok',
+        status: stepStatus,
       })
     }
   }

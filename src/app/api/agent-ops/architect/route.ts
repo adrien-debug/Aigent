@@ -139,7 +139,7 @@ export async function POST(request: Request) {
   // that flow to the client. Parse defensively so both cases return a graceful
   // 502 rather than an unhandled 500 or a garbage manifest.
   let manifest: GeneratedManifest | null = null
-  if (toolCall && toolCall.type === 'function') {
+  if (toolCall?.type === 'function') {
     try {
       const parsed: unknown = JSON.parse(toolCall.function.arguments)
       if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {

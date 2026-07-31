@@ -59,7 +59,16 @@ const READABILITY_MEANING: Record<Readability, string> = {
     'La liste des dépôts visibles n’a pas pu être lue. Aucune conclusion n’est possible sur ce dépôt : ni lisible, ni illisible.',
 }
 
-function ProjectRow({ project, visible }: { project: Project; visible: Set<string> | null }) {
+function readabilityBadgeColor(readability: Readability): 'emerald' | 'amber' | 'zinc' {
+  if (readability === 'readable') return 'emerald'
+  if (readability === 'unreadable') return 'amber'
+  return 'zinc'
+}
+
+function ProjectRow({
+  project,
+  visible,
+}: Readonly<{ project: Project; visible: Set<string> | null }>) {
   const repoFullName = project.repoFullName ?? null
   const readability = repoFullName === null ? null : readabilityOf(repoFullName, visible)
 
@@ -81,12 +90,7 @@ function ProjectRow({ project, visible }: { project: Project; visible: Set<strin
       </div>
       <div className="shrink-0">
         {readability === null ? null : (
-          <Badge
-            color={
-              readability === 'readable' ? 'emerald' : readability === 'unreadable' ? 'amber' : 'zinc'
-            }
-            title={READABILITY_MEANING[readability]}
-          >
+          <Badge color={readabilityBadgeColor(readability)} title={READABILITY_MEANING[readability]}>
             {READABILITY_LABEL[readability]}
           </Badge>
         )}
@@ -95,7 +99,7 @@ function ProjectRow({ project, visible }: { project: Project; visible: Set<strin
   )
 }
 
-export default function RepositoriesTab({ data }: { data: RepositoriesTabData }) {
+export default function RepositoriesTab({ data }: Readonly<{ data: RepositoriesTabData }>) {
   const visible: Set<string> | null = data.repos.ok
     ? new Set(data.repos.data.map((repo) => repo.fullName))
     : null

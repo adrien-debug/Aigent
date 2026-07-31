@@ -64,6 +64,19 @@ export interface ProjectChoice {
   href: string
 }
 
+/** Pluriel français simple — évite les template literals imbriqués en UI. */
+export function frenchPluralSuffix(count: number, suffix = 's'): string {
+  return count > 1 ? suffix : ''
+}
+
+export function projectCountLabel(count: number): string {
+  return count + ' projet' + frenchPluralSuffix(count)
+}
+
+export function messageCountLabel(count: number): string {
+  return count + ' message' + frenchPluralSuffix(count)
+}
+
 export function buildProjectChoices(projects: readonly Project[]): ProjectChoice[] {
   return projects
     .map((project) => ({

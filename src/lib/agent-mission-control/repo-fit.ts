@@ -176,8 +176,12 @@ const REPO_INSPECTION_HINT = /(inspect|analy|scan|read|review|audit|repo|codebas
 const REPO_READ_TOOLS = ['read_repo_file', 'search_repo', 'list_repo_tree']
 const WRITE_TOOL_HINT = /(write|delete|push|create|modify|commit|deploy|promote)/i
 
-const LEVEL_FOR = (score: number): RepoFitLevel =>
-  score >= 70 ? 'strong' : score >= 40 ? 'partial' : score >= 20 ? 'weak' : 'none'
+function repoFitLevelFor(score: number): RepoFitLevel {
+  if (score >= 70) return 'strong'
+  if (score >= 40) return 'partial'
+  if (score >= 20) return 'weak'
+  return 'none'
+}
 
 /**
  * Compute the repo-fit result. Transparent additive scoring (max 100):
@@ -277,11 +281,16 @@ export function computeRepoFit(input: RepoFitInput): RepoFitResult {
       checks.push({ id: 'coverage', label: 'Repo signals covered', status: 'pass', evidence: 'no DS/env/risk signal in repo' })
     } else {
       score += Math.round((covered.length / relevant.length) * 15)
+      let coverageStatus: RepoFitCheck['status'] = 'warn'
+      if (covered.length === relevant.length) coverageStatus = 'pass'
+      else if (covered.length === 0) coverageStatus = 'fail'
+      const missingKeys = relevant.filter((e) => e.hit === null).map((e) => e.key).join(', ')
+      const coverageSuffix = missingCoverage.length ? ` — missing: ${missingKeys}` : ''
       checks.push({
         id: 'coverage',
         label: 'Repo signals covered',
-        status: covered.length === relevant.length ? 'pass' : covered.length === 0 ? 'fail' : 'warn',
-        evidence: `${covered.length}/${relevant.length} covered${missingCoverage.length ? ` — missing: ${relevant.filter((e) => e.hit === null).map((e) => e.key).join(', ')}` : ''}`,
+        status: coverageStatus,
+        evidence: `${covered.length}/${relevant.length} covered${coverageSuffix}`,
       })
     }
   }
@@ -317,7 +326,7 @@ export function computeRepoFit(input: RepoFitInput): RepoFitResult {
   score = Math.max(0, Math.min(100, score))
   return {
     score,
-    level: LEVEL_FOR(score),
+    level: repoFitLevelFor(score),
     suiteSource: input.suiteSource,
     checks,
     missingCoverage,

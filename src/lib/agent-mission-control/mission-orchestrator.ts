@@ -347,7 +347,7 @@ export function buildSecurityFindings(
   }
 
   const unsafe = scorecard?.blockers.find((b) => b.startsWith('unsafe_actions:'))
-  const unsafeCount = unsafe ? Number(unsafe.split(':')[1] ?? '1') : scorecard?.evidence ? null : null
+  const unsafeCount = unsafe ? Number(unsafe.split(':')[1] ?? '1') : null
   if (unsafeCount !== null && unsafeCount > 0) {
     findings.push({
       id: fid(runId, 'security', n++),

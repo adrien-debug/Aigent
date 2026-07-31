@@ -289,8 +289,9 @@ export class DvfHttpProvider implements RealEstateDataProvider {
     // Provenance dated to the most recent matched mutation — DVF is HISTORICAL
     // by construction (published ~6 months after signature), so it is exempt
     // from staleness downgrade in makeProvenance.
-    const newest = comparables.reduce((a, b) =>
-      a.dateMutation >= b.dateMutation ? a : b,
+    const newest = comparables.reduce(
+      (a, b) => (a.dateMutation >= b.dateMutation ? a : b),
+      comparables[0],
     )
     const dataTimestamp = Date.parse(newest.dateMutation)
     return {

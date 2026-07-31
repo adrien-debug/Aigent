@@ -69,7 +69,7 @@ function sortValue(v) {
   if (Array.isArray(v)) return v.map(sortValue)
   if (v && typeof v === 'object') {
     const out = {}
-    for (const k of Object.keys(v).sort()) out[k] = sortValue(v[k])
+    for (const k of Object.keys(v).sort((a, b) => a.localeCompare(b))) out[k] = sortValue(v[k])
     return out
   }
   return v

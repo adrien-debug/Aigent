@@ -73,7 +73,7 @@ function canonical(value) {
   if (Array.isArray(value)) return value.map(canonical)
   if (value && typeof value === 'object') {
     const out = {}
-    for (const k of Object.keys(value).sort()) out[k] = canonical(value[k])
+    for (const k of Object.keys(value).sort((a, b) => a.localeCompare(b))) out[k] = canonical(value[k])
     return out
   }
   return value

@@ -83,10 +83,15 @@ function optString(args: Record<string, unknown>, key: string): string | undefin
   return t.length > 0 ? t : undefined
 }
 
+function parseNumericArg(v: unknown): number {
+  if (typeof v === 'number') return v
+  if (typeof v === 'string') return Number(v)
+  return NaN
+}
+
 /** Read an optional positive integer arg, clamped to [1, cap]; else fallback. */
 function optLimit(args: Record<string, unknown>, key: string, fallback: number, cap: number): number {
-  const v = args[key]
-  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN
+  const n = parseNumericArg(args[key])
   if (!Number.isFinite(n)) return fallback
   return Math.max(1, Math.min(cap, Math.floor(n)))
 }
@@ -268,6 +273,9 @@ const readToolPermissions: ToolHandler = async (argsJson, ctx) => {
     const tools = await getToolsForCopilot(copilotId)
     const needConfirm = tools.filter((t) => t.requiresConfirmation).length
 
+    const toolLabel = tools.length === 1 ? 'tool' : 'tools'
+    const requireLabel = needConfirm === 1 ? 'requires' : 'require'
+
     return {
       ok: true,
       data: {
@@ -276,7 +284,7 @@ const readToolPermissions: ToolHandler = async (argsJson, ctx) => {
         requiresConfirmationCount: needConfirm,
         tools: tools.map(toolPermissionSummary),
       },
-      summary: `${tools.length} tool${tools.length === 1 ? '' : 's'} (${needConfirm} require${needConfirm === 1 ? 's' : ''} confirmation)`,
+      summary: `${tools.length} ${toolLabel} (${needConfirm} ${requireLabel} confirmation)`,
     }
   } catch (e) {
     return fail('read_tool_permissions', e)

@@ -18,6 +18,7 @@
  * deux panneaux côte à côte sur 700 px de large produirait deux colonnes
  * illisibles.
  */
+import type { ReactNode } from 'react'
 import { Strong, Text } from '@/components/ui/text'
 import { Panel, Unavailable } from '@/components/cockpit/primitives'
 import type { AgentRun } from '@/lib/agent-mission-control/types'
@@ -30,11 +31,28 @@ import TrafficProvenance from './traffic-provenance'
 import { resolveSelectedRun } from './run-view-model'
 import type { ProvenanceBreakdown } from './run-view-model'
 
+function windowPanelHint(capped: boolean, shownCount: number, windowRunCount: number): string {
+  if (capped) {
+    return `${shownCount} affichés sur ${windowRunCount} dans la fenêtre`
+  }
+  const runWord = windowRunCount > 1 ? 'runs' : 'run'
+  return `${windowRunCount} ${runWord} dans la fenêtre`
+}
+
+function terminalSuccessHint(terminal: number): string {
+  const word = terminal > 1 ? 'terminaux' : 'terminal'
+  return `sur ${terminal} ${word}`
+}
+
 /**
  * Une mesure du bandeau. `value === null` ⇒ la mesure n'existe pas, et la tuile
  * le dit avec le mot, pas avec un tiret ambigu.
  */
-function Measure({ label, value, hint }: { label: string; value: string | null; hint?: string }) {
+function Measure({
+  label,
+  value,
+  hint,
+}: Readonly<{ label: string; value: string | null; hint?: string }>) {
   return (
     <div className="min-w-0 px-3 py-2">
       <Text className="truncate text-xs uppercase">{label}</Text>
@@ -63,7 +81,7 @@ export default function RunsScreen({
   tableRowCap,
   degradedDetail,
   buildHref,
-}: {
+}: Readonly<{
   runs: AgentRun[]
   metrics: RunsMetrics
   agentNameById: Map<string, string>
@@ -77,23 +95,45 @@ export default function RunsScreen({
   tableRowCap: number
   degradedDetail: string | null
   buildHref: (runId: string) => string
-}) {
+}>) {
   const { run: selected, notFound } = resolveSelectedRun(runs, selectedRunId)
 
   // Le total de la FENÊTRE, pas la taille de la tranche rendue : afficher 200
   // quand la fenêtre en contient 640 serait un total faux.
   const capped = windowRunCount > runs.length
 
+  let detailPanel: ReactNode
+  if (notFound) {
+    detailPanel = (
+      <Unavailable
+        reason="no-data"
+        detail={`Le run demandé n'est pas dans la fenêtre chargée. Il peut être plus ancien que 24 h, avoir été écarté par le plafond de ${tableRowCap} lignes, ou ne pas exister — cet écran ne peut pas trancher.`}
+      />
+    )
+  } else if (selected === null) {
+    detailPanel = (
+      <Unavailable
+        reason="no-data"
+        detail="Aucun run à détailler : la fenêtre ne contient aucun run."
+      />
+    )
+  } else {
+    detailPanel = (
+      <RunDetail
+        run={selected}
+        agentName={agentNameById.get(selected.copilotId) ?? null}
+        projectName={selected.projectId ? (projectNameById.get(selected.projectId) ?? null) : null}
+        nowMs={nowMs}
+      />
+    )
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3 xl:overflow-hidden">
       {/* ── Bandeau de mesures — dérivées d'une SEULE source (`deriveRunsMetrics`) ── */}
       <Panel
         title="Fenêtre 24 h"
-        hint={
-          capped
-            ? `${runs.length} affichés sur ${windowRunCount} dans la fenêtre`
-            : `${windowRunCount} run${windowRunCount > 1 ? 's' : ''} dans la fenêtre`
-        }
+        hint={windowPanelHint(capped, runs.length, windowRunCount)}
         className="shrink-0"
         padded={false}
         bodyClassName="grid grid-cols-2 divide-x divide-zinc-950/5 sm:grid-cols-3 xl:grid-cols-6 dark:divide-white/5"
@@ -102,11 +142,7 @@ export default function RunsScreen({
         <Measure
           label="Réussite"
           value={metrics.successRate === null ? null : formatPercent(metrics.successRate)}
-          hint={
-            metrics.terminal === 0
-              ? 'aucun run terminal'
-              : `sur ${metrics.terminal} terminal${metrics.terminal > 1 ? 'aux' : ''}`
-          }
+          hint={metrics.terminal === 0 ? 'aucun run terminal' : terminalSuccessHint(metrics.terminal)}
         />
         <Measure label="Échecs" value={String(metrics.failed)} hint={`${metrics.blocked} bloqué(s)`} />
         <Measure
@@ -165,26 +201,7 @@ export default function RunsScreen({
           padded={false}
           bodyClassName="min-h-0"
         >
-          {notFound ? (
-            <Unavailable
-              reason="no-data"
-              detail={`Le run demandé n'est pas dans la fenêtre chargée. Il peut être plus ancien que 24 h, avoir été écarté par le plafond de ${tableRowCap} lignes, ou ne pas exister — cet écran ne peut pas trancher.`}
-            />
-          ) : selected === null ? (
-            <Unavailable
-              reason="no-data"
-              detail="Aucun run à détailler : la fenêtre ne contient aucun run."
-            />
-          ) : (
-            <RunDetail
-              run={selected}
-              agentName={agentNameById.get(selected.copilotId) ?? null}
-              projectName={
-                selected.projectId ? (projectNameById.get(selected.projectId) ?? null) : null
-              }
-              nowMs={nowMs}
-            />
-          )}
+          {detailPanel}
         </Panel>
       </div>
 

@@ -591,7 +591,13 @@ export async function ensureAgentSuites(
   const testSuiteId = makeId('ts', `${slugify(ctx.name)}-${rand}`)
   const fitNote =
     suite.suiteSource === 'repo_aware'
-      ? ` [repo-fit ${repoFit.score}/100 · ${repoFit.level}${suite.riskCoverageMissing?.length ? ` · risk_coverage_missing:${suite.riskCoverageMissing.join(',')}` : ''}]`
+      ? (() => {
+          const riskSuffix =
+            suite.riskCoverageMissing?.length
+              ? ` · risk_coverage_missing:${suite.riskCoverageMissing.join(',')}`
+              : ''
+          return ` [repo-fit ${repoFit.score}/100 · ${repoFit.level}${riskSuffix}]`
+        })()
       : ''
   await pgrest('POST', 'test_suites', {
     id: testSuiteId,

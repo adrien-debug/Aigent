@@ -163,7 +163,7 @@ export async function POST(
   const dryRun = !(body.confirm === true && process.env.GITHUB_PUSH_ENABLED === '1')
 
   try {
-    const runId = randomUUID().replace(/-/g, '').slice(0, 8)
+    const runId = randomUUID().replaceAll('-', '').slice(0, 8)
     const result =
       deliveryMode === 'pull_request'
         ? await pushAgentToRepoPullRequest({ project, copilot, manifest, dryRun, runId })

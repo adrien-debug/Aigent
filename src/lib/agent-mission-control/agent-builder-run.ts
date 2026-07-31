@@ -704,7 +704,8 @@ function buildEventsFromMessages(messages: AnyMsg[]): BuilderEvent[] {
       } catch {
         /* non-JSON — treat as ok */
       }
-      const name = m.name ?? (m.tool_call_id ? nameByCallId.get(m.tool_call_id) : undefined) ?? 'tool'
+      const nameFromCall = m.tool_call_id ? nameByCallId.get(m.tool_call_id) : undefined
+      const name = m.name ?? nameFromCall ?? 'tool'
       events.push({
         kind: blocked ? 'confirmation' : 'tool-call',
         title: `${blocked ? 'Blocked' : 'Tool'} · ${name}`,

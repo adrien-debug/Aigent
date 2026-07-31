@@ -288,8 +288,9 @@ function mapListing(r: WireListing): PortalListing | null {
   const pricePerSqmEur = derivePricePerSqm(askingPriceEur, surfaceM2)
 
   const url = typeof r.url === 'string' ? r.url : null
-  const listingId =
-    r.id != null ? String(r.id) : (url ?? synthId(r))
+  let listingId: string
+  if (r.id != null) listingId = String(r.id)
+  else listingId = url ?? synthId(r)
 
   return {
     listingId,

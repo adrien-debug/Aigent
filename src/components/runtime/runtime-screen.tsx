@@ -44,7 +44,7 @@ export type RuntimeScreenData =
   | { tab: 'models'; data: ModelsTabData }
   | { tab: 'repositories'; data: RepositoriesTabData }
 
-function TabPanel({ payload }: { payload: RuntimeScreenData }) {
+function TabPanel({ payload }: Readonly<{ payload: RuntimeScreenData }>) {
   switch (payload.tab) {
     case 'telemetry':
       return <TelemetryTab data={payload.data} />
@@ -64,10 +64,10 @@ function TabPanel({ payload }: { payload: RuntimeScreenData }) {
 export default function RuntimeScreen({
   current,
   payload,
-}: {
+}: Readonly<{
   current: RuntimeTabId
   payload: RuntimeScreenData
-}) {
+}>) {
   const tab = runtimeTab(current)
 
   return (

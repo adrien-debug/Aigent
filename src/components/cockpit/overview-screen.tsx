@@ -34,10 +34,10 @@ import { Panel, Unavailable } from './primitives'
 export default function CockpitOverview({
   overview,
   nowMs,
-}: {
+}: Readonly<{
   overview: DashboardOverview
   nowMs: number
-}) {
+}>) {
   const buckets = buildHourlyBuckets(overview.windowRuns, nowMs)
   const slices = buildStatusBreakdown(overview.windowRuns)
   const runs = buildNamedRuns(overview.windowRuns, overview.copilots, overview.projectRows)

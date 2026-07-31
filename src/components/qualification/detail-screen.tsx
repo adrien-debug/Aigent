@@ -140,9 +140,87 @@ export interface QualificationDetail {
   gateHistoryFailure: string | null
 }
 
+type DetailHeaderProps = { detail: QualificationDetail }
+type RunGuardPanelProps = { agent: AvailableAgent | null }
+type ReleaseGatePanelProps = { gate: ReleaseGate | null; failure: string | null }
+type PromotionGatePanelProps = { gate: PromotionGateResult | null; failure: string | null }
+type QualificationRunPanelProps = { run: QualificationRun | null; failure: string | null }
+type ShadowPanelProps = { evidence: ShadowEvidence | null; failure: string | null }
+type ReplayPanelProps = {
+  evidence: ReplayEvidence | null
+  failure: string | null
+  productionVersionId: string | null
+  productionRead: boolean
+}
+type ImprovementPanelProps = { proposal: ImprovementProposal | null; failure: string | null }
+type GateHistoryPanelProps = { history: GateHistoryEntry[]; failure: string | null }
+type VersionsPanelProps = { detail: QualificationDetail }
+type SuitesPanelProps = { detail: QualificationDetail }
+type QualificationDetailScreenProps = { detail: QualificationDetail }
+
+function appendFailureMessage(message: string, failure: string): string {
+  return message + ' ' + failure
+}
+
+function shadowVerdictColor(verdict: string | null): 'emerald' | 'red' | 'amber' {
+  if (verdict === 'PASS') return 'emerald'
+  if (verdict === 'FAIL') return 'red'
+  return 'amber'
+}
+
+function replayVerdictColor(verdict: string | null): 'emerald' | 'red' | 'amber' {
+  if (verdict === 'BETTER' || verdict === 'EQUIVALENT') return 'emerald'
+  if (verdict === 'WORSE') return 'red'
+  return 'amber'
+}
+
+function resolvePromotable(detail: QualificationDetail): boolean {
+  if (detail.promotionGate) return detail.promotionGate.promotable
+  if (detail.releaseGate) return summarizeChecks(detail.releaseGate.checks).promotable
+  return false
+}
+
+function openProposalIdFrom(proposal: ImprovementProposal | null): string | null {
+  if (!isProposalOpen(proposal)) return null
+  return proposal?.id ?? null
+}
+
+type ProductionStatusBadgeProps = {
+  productionRead: boolean
+  productionVersionId: string | null
+}
+
+function ProductionStatusBadge({
+  productionRead,
+  productionVersionId,
+}: ProductionStatusBadgeProps) {
+  if (!productionRead) {
+    return (
+      <Badge color="zinc" title="Le pointeur de production n’a pas pu être lu.">
+        production non lue
+      </Badge>
+    )
+  }
+  if (productionVersionId) {
+    return (
+      <Badge color="emerald" title="Version qui sert réellement la production.">
+        production en service
+      </Badge>
+    )
+  }
+  return (
+    <Badge
+      color="amber"
+      title="Aucune version n’a jamais été promue : il n’existe aucune baseline de production."
+    >
+      aucune production
+    </Badge>
+  )
+}
+
 /* ─────────────────────────── En-tête ─────────────────────────── */
 
-function DetailHeader({ detail }: { detail: QualificationDetail }) {
+function DetailHeader({ detail }: DetailHeaderProps) {
   const { copilotName, agent, candidateVersion, productionVersionId, productionRead } = detail
 
   return (
@@ -161,22 +239,10 @@ function DetailHeader({ detail }: { detail: QualificationDetail }) {
           </Badge>
         )}
         {candidateVersion ? <Badge color="zinc">{candidateVersion.stage}</Badge> : null}
-        {!productionRead ? (
-          <Badge color="zinc" title="Le pointeur de production n’a pas pu être lu.">
-            production non lue
-          </Badge>
-        ) : productionVersionId ? (
-          <Badge color="emerald" title="Version qui sert réellement la production.">
-            production en service
-          </Badge>
-        ) : (
-          <Badge
-            color="amber"
-            title="Aucune version n’a jamais été promue : il n’existe aucune baseline de production."
-          >
-            aucune production
-          </Badge>
-        )}
+        <ProductionStatusBadge
+          productionRead={productionRead}
+          productionVersionId={productionVersionId}
+        />
       </div>
       <div className="mt-1">
         <Link href={`/agents/${detail.copilotId}`} className="underline">
@@ -206,7 +272,7 @@ function DetailHeader({ detail }: { detail: QualificationDetail }) {
  * expliqué, pas deviné — et il affiche une éventuelle divergence entre le rejeu
  * et le champ `executable` du contrat plutôt que de la taire.
  */
-function RunGuardPanel({ agent }: { agent: AvailableAgent | null }) {
+function RunGuardPanel({ agent }: RunGuardPanelProps) {
   if (agent === null) {
     return (
       <Panel title="Garde d’exécution" className="min-h-0" bodyClassName="scroll-thin overflow-y-auto">
@@ -225,7 +291,7 @@ function RunGuardPanel({ agent }: { agent: AvailableAgent | null }) {
   return (
     <Panel
       title="Garde d’exécution"
-      hint={`${conditions.filter((c) => c.satisfied).length}/3 conditions`}
+      hint={conditions.filter((c) => c.satisfied).length + '/3 conditions'}
       className="min-h-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
@@ -284,13 +350,7 @@ function RunGuardPanel({ agent }: { agent: AvailableAgent | null }) {
  * échec mais n'affirme pas la même chose, et le confondre avec un `pass` est
  * exactement ce qui promeut une version non prouvée.
  */
-function ReleaseGatePanel({
-  gate,
-  failure,
-}: {
-  gate: ReleaseGate | null
-  failure: string | null
-}) {
+function ReleaseGatePanel({ gate, failure }: ReleaseGatePanelProps) {
   if (gate === null) {
     return (
       <Panel title="Gate de release" className="min-h-0" bodyClassName="scroll-thin overflow-y-auto">
@@ -298,7 +358,7 @@ function ReleaseGatePanel({
           reason={failure ? 'unread' : 'no-data'}
           detail={
             failure
-              ? `La gate n’a pas pu être évaluée : ${failure}`
+              ? appendFailureMessage('La gate n’a pas pu être évaluée :', failure)
               : 'Aucune version candidate ne résout pour ce copilot — il n’y a rien à évaluer.'
           }
         />
@@ -311,7 +371,7 @@ function ReleaseGatePanel({
   return (
     <Panel
       title="Gate de release"
-      hint={`${summary.passed}/${summary.total} vérifiés`}
+      hint={summary.passed + '/' + summary.total + ' vérifiés'}
       className="min-h-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
@@ -368,7 +428,7 @@ function ReleaseGatePanel({
             why="Aucun test run live n’est épinglé à ce candidat — il n’y a rien à mesurer."
             hint={
               gate.evidence.testRun
-                ? `${gate.evidence.testRun.passed}/${gate.evidence.testRun.total} cas`
+                ? gate.evidence.testRun.passed + '/' + gate.evidence.testRun.total + ' cas'
                 : undefined
             }
           />
@@ -434,13 +494,7 @@ function ReleaseGatePanel({
 
 /* ─────────────────────── Gate de promotion ─────────────────────── */
 
-function PromotionGatePanel({
-  gate,
-  failure,
-}: {
-  gate: PromotionGateResult | null
-  failure: string | null
-}) {
+function PromotionGatePanel({ gate, failure }: PromotionGatePanelProps) {
   if (gate === null) {
     return (
       <Panel title="Gate de promotion" className="min-h-0" bodyClassName="scroll-thin overflow-y-auto">
@@ -448,7 +502,7 @@ function PromotionGatePanel({
           reason={failure ? 'unread' : 'no-data'}
           detail={
             failure
-              ? `La gate de promotion n’a pas pu être évaluée : ${failure}`
+              ? appendFailureMessage('La gate de promotion n’a pas pu être évaluée :', failure)
               : 'Aucune version candidate ne résout — il n’y a rien à évaluer.'
           }
         />
@@ -502,13 +556,7 @@ function PromotionGatePanel({
 
 /* ─────────────────────── Qualification orchestrée ─────────────────────── */
 
-function QualificationRunPanel({
-  run,
-  failure,
-}: {
-  run: QualificationRun | null
-  failure: string | null
-}) {
+function QualificationRunPanel({ run, failure }: QualificationRunPanelProps) {
   return (
     <Panel
       title="Qualification orchestrée"
@@ -519,7 +567,12 @@ function QualificationRunPanel({
       {failure !== null ? (
         <Unavailable
           reason="unread"
-          detail={`Le registre de qualification n’a pas pu être lu : ${failure}. Ce n’est pas « aucune qualification ».`}
+          detail={
+            appendFailureMessage(
+              'Le registre de qualification n’a pas pu être lu :',
+              failure,
+            ) + ' Ce n’est pas « aucune qualification ».'
+          }
         />
       ) : run === null ? (
         <Unavailable
@@ -578,13 +631,7 @@ function QualificationRunPanel({
 
 /* ─────────────────────── Shadow ─────────────────────── */
 
-function ShadowPanel({
-  evidence,
-  failure,
-}: {
-  evidence: ShadowEvidence | null
-  failure: string | null
-}) {
+function ShadowPanel({ evidence, failure }: ShadowPanelProps) {
   return (
     <Panel
       title="Shadow"
@@ -593,7 +640,7 @@ function ShadowPanel({
       bodyClassName="scroll-thin overflow-y-auto"
     >
       {failure !== null ? (
-        <Unavailable reason="unread" detail={`La preuve shadow n’a pas pu être lue : ${failure}`} />
+        <Unavailable reason="unread" detail={appendFailureMessage('La preuve shadow n’a pas pu être lue :', failure)} />
       ) : evidence === null ? (
         <Unavailable
           reason="no-data"
@@ -603,13 +650,7 @@ function ShadowPanel({
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <Badge
-              color={
-                evidence.verdict === 'PASS'
-                  ? 'emerald'
-                  : evidence.verdict === 'FAIL'
-                    ? 'red'
-                    : 'amber'
-              }
+              color={shadowVerdictColor(evidence.verdict)}
               title="INSUFFICIENT_EVIDENCE n’est ni un succès ni un échec : le corpus n’a pas réuni de quoi trancher."
             >
               {evidence.verdict ?? 'verdict absent'}
@@ -686,12 +727,7 @@ function ReplayPanel({
   failure,
   productionVersionId,
   productionRead,
-}: {
-  evidence: ReplayEvidence | null
-  failure: string | null
-  productionVersionId: string | null
-  productionRead: boolean
-}) {
+}: ReplayPanelProps) {
   const feasibility = replayFeasibility(productionVersionId, productionRead)
 
   return (
@@ -716,7 +752,7 @@ function ReplayPanel({
         ) : null}
 
         {failure !== null ? (
-          <Unavailable reason="unread" detail={`La preuve replay n’a pas pu être lue : ${failure}`} />
+          <Unavailable reason="unread" detail={appendFailureMessage('La preuve replay n’a pas pu être lue :', failure)} />
         ) : evidence === null ? (
           <Unavailable
             reason="no-data"
@@ -730,13 +766,7 @@ function ReplayPanel({
           <>
             <div className="flex flex-wrap items-center gap-2">
               <Badge
-                color={
-                  evidence.verdict === 'BETTER' || evidence.verdict === 'EQUIVALENT'
-                    ? 'emerald'
-                    : evidence.verdict === 'WORSE'
-                      ? 'red'
-                      : 'amber'
-                }
+                color={replayVerdictColor(evidence.verdict)}
                 title="INCONCLUSIVE n’est pas WORSE : la comparaison n’a pas réuni de quoi trancher."
               >
                 {evidence.verdict ?? 'verdict absent'}
@@ -773,13 +803,7 @@ function ReplayPanel({
 
 /* ─────────────────────── Boucle d'amélioration ─────────────────────── */
 
-function ImprovementPanel({
-  proposal,
-  failure,
-}: {
-  proposal: ImprovementProposal | null
-  failure: string | null
-}) {
+function ImprovementPanel({ proposal, failure }: ImprovementPanelProps) {
   return (
     <Panel
       title="Boucle d’amélioration"
@@ -790,7 +814,12 @@ function ImprovementPanel({
       {failure !== null ? (
         <Unavailable
           reason="unread"
-          detail={`Le registre des propositions n’a pas pu être lu : ${failure}. Ce n’est pas « aucune proposition ».`}
+          detail={
+            appendFailureMessage(
+              'Le registre des propositions n’a pas pu être lu :',
+              failure,
+            ) + ' Ce n’est pas « aucune proposition ».'
+          }
         />
       ) : proposal === null ? (
         <Unavailable
@@ -864,24 +893,18 @@ function ImprovementPanel({
 
 /* ─────────────────────── Historique des gates ─────────────────────── */
 
-function GateHistoryPanel({
-  history,
-  failure,
-}: {
-  history: GateHistoryEntry[]
-  failure: string | null
-}) {
+function GateHistoryPanel({ history, failure }: GateHistoryPanelProps) {
   return (
     <Panel
       title="Historique des gates"
-      hint={failure === null ? `${history.length} évaluation(s)` : undefined}
+      hint={failure === null ? history.length + ' évaluation(s)' : undefined}
       className="min-h-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
       {failure !== null ? (
         <Unavailable
           reason="unread"
-          detail={`L’historique des évaluations n’a pas pu être lu : ${failure}`}
+          detail={appendFailureMessage('L’historique des évaluations n’a pas pu être lu :', failure)}
         />
       ) : history.length === 0 ? (
         <Unavailable
@@ -912,7 +935,7 @@ function GateHistoryPanel({
 
 /* ─────────────────────── Versions & suites ─────────────────────── */
 
-function VersionsPanel({ detail }: { detail: QualificationDetail }) {
+function VersionsPanel({ detail }: VersionsPanelProps) {
   const { versions, versionsFailure, productionVersionId, candidateVersion } = detail
 
   return (
@@ -920,14 +943,19 @@ function VersionsPanel({ detail }: { detail: QualificationDetail }) {
       title="Versions"
       // Un compte n'est affiché que s'il a été LU. « 0 persistée(s) » sur une
       // lecture échouée serait un chiffre fabriqué.
-      hint={versionsFailure === null ? `${versions.length} persistée(s)` : undefined}
+      hint={versionsFailure === null ? versions.length + ' persistée(s)' : undefined}
       className="min-h-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
       {versionsFailure !== null ? (
         <Unavailable
           reason="unread"
-          detail={`Le registre des versions n’a pas pu être lu : ${versionsFailure}. Ce n’est pas « aucune version ».`}
+          detail={
+            appendFailureMessage(
+              'Le registre des versions n’a pas pu être lu :',
+              versionsFailure,
+            ) + ' Ce n’est pas « aucune version ».'
+          }
         />
       ) : versions.length === 0 ? (
         <Unavailable
@@ -960,7 +988,7 @@ function VersionsPanel({ detail }: { detail: QualificationDetail }) {
   )
 }
 
-function SuitesPanel({ detail }: { detail: QualificationDetail }) {
+function SuitesPanel({ detail }: SuitesPanelProps) {
   const { testSuites, testSuitesFailure, benchmarkSuites, benchmarkSuitesFailure } = detail
   const anyFailure = testSuitesFailure ?? benchmarkSuitesFailure
 
@@ -969,7 +997,7 @@ function SuitesPanel({ detail }: { detail: QualificationDetail }) {
       title="Suites"
       hint={
         anyFailure === null
-          ? `${testSuites.length} test · ${benchmarkSuites.length} benchmark`
+          ? testSuites.length + ' test · ' + benchmarkSuites.length + ' benchmark'
           : undefined
       }
       className="min-h-0"
@@ -978,7 +1006,13 @@ function SuitesPanel({ detail }: { detail: QualificationDetail }) {
       {anyFailure !== null ? (
         <Unavailable
           reason="unread"
-          detail={`Le registre des suites n’a pas pu être lu : ${anyFailure}. Ce n’est pas « aucune suite n’existe » — et la génération, qui est facturée, reste éteinte tant qu’on ne sait pas ce qui existe déjà.`}
+          detail={
+            appendFailureMessage(
+              'Le registre des suites n’a pas pu être lu :',
+              anyFailure,
+            ) +
+            ' Ce n’est pas « aucune suite n’existe » — et la génération, qui est facturée, reste éteinte tant qu’on ne sait pas ce qui existe déjà.'
+          }
         />
       ) : testSuites.length === 0 && benchmarkSuites.length === 0 ? (
         <Unavailable
@@ -1025,16 +1059,9 @@ function SuitesPanel({ detail }: { detail: QualificationDetail }) {
  */
 function buildConsoleTarget(detail: QualificationDetail): ConsoleTarget {
   const conditions = detail.agent ? runGuardConditions(detail.agent) : []
-  const runBlockers = conditions.filter((c) => !c.satisfied).map((c) => `${c.label} — ${c.observed}`)
+  const runBlockers = conditions.filter((c) => !c.satisfied).map((c) => c.label + ' — ' + c.observed)
 
-  // La gate de PROMOTION fait autorité quand elle a pu être évaluée ; sinon la
-  // gate de release, résumée avec la protection contre la liste vide. Aucune des
-  // deux n'est disponible ⇒ non promouvable, jamais « on suppose que oui ».
-  const promotable = detail.promotionGate
-    ? detail.promotionGate.promotable
-    : detail.releaseGate
-      ? summarizeChecks(detail.releaseGate.checks).promotable
-      : false
+  const promotable = resolvePromotable(detail)
 
   // Une lecture de versions échouée ne rend pas « aucune version archivée » :
   // le retour arrière reste éteint avec sa raison plutôt que d'être proposé sur
@@ -1064,7 +1091,7 @@ function buildConsoleTarget(detail: QualificationDetail): ConsoleTarget {
     productionRead: detail.productionRead,
     rollbackTargetId: archived?.id ?? null,
     rollbackTargetLabel: archived?.label ?? null,
-    openProposalId: isProposalOpen(detail.proposal) ? (detail.proposal?.id ?? null) : null,
+    openProposalId: openProposalIdFrom(detail.proposal),
     proposalId: detail.proposal?.id ?? null,
     proposalStatus: detail.proposal?.status ?? null,
     promotable,
@@ -1072,7 +1099,7 @@ function buildConsoleTarget(detail: QualificationDetail): ConsoleTarget {
   }
 }
 
-export default function QualificationDetailScreen({ detail }: { detail: QualificationDetail }) {
+export default function QualificationDetailScreen({ detail }: QualificationDetailScreenProps) {
   const target = buildConsoleTarget(detail)
 
   return (

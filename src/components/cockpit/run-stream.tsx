@@ -33,7 +33,7 @@ function duration(ms: number): string {
   return s < 60 ? `${s.toFixed(1)} s` : `${Math.round(s / 60)} min`
 }
 
-export default function RunStream({ runs, nowMs }: { runs: NamedRun[]; nowMs: number }) {
+export default function RunStream({ runs, nowMs }: Readonly<{ runs: NamedRun[]; nowMs: number }>) {
   return (
     <Table dense bleed>
       <TableHead>

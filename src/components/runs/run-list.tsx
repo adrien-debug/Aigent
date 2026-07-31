@@ -36,12 +36,12 @@ function RunRow({
   agentName,
   selected,
   href,
-}: {
+}: Readonly<{
   run: AgentRun
   agentName: string | null
   selected: boolean
   href: string
-}) {
+}>) {
   const duration = formatDuration(run.latencyMs)
 
   return (
@@ -86,13 +86,13 @@ export default function RunList({
   agentNameById,
   selectedRunId,
   buildHref,
-}: {
+}: Readonly<{
   runs: AgentRun[]
   agentNameById: Map<string, string>
   selectedRunId: string | null
   /** Construit le lien profond d'un run en préservant les filtres de l'URL. */
   buildHref: (runId: string) => string
-}) {
+}>) {
   return (
     <ul>
       {runs.map((run) => (

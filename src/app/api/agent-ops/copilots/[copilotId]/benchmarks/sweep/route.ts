@@ -4,7 +4,7 @@ import { runBenchmarkSweep } from '@/lib/agent-mission-control/benchmark-sweep'
 import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 import type { AgentRuntime, ModelProvider } from '@/lib/agent-mission-control/types'
 
-const MODEL_PROVIDERS: ModelProvider[] = ['openai', 'google', 'local']
+const MODEL_PROVIDERS = new Set<ModelProvider>(['openai', 'google', 'local'])
 
 // Same guard shape as the sibling benchmarks/run route: copilot ids are
 // `<prefix>-<slug>-<hex>` (see slug.makeId).
@@ -98,7 +98,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
       return NextResponse.json({ error: 'each model entry must be an object' }, { status: 400 })
     }
     const { modelProvider, model } = raw
-    if (typeof modelProvider !== 'string' || !MODEL_PROVIDERS.includes(modelProvider as ModelProvider)) {
+    if (typeof modelProvider !== 'string' || !MODEL_PROVIDERS.has(modelProvider as ModelProvider)) {
       return NextResponse.json({ error: 'invalid modelProvider in models[]' }, { status: 400 })
     }
     if (typeof model !== 'string' || model.trim().length === 0 || model.length > MAX_ID_LENGTH) {

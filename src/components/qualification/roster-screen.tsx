@@ -65,12 +65,78 @@ const RAIL_COLOR: Record<QualificationRunStatus | 'not_started', string> = {
   not_started: MUTED_RAIL,
 }
 
-function CandidateRow({ candidate }: { candidate: QualificationCandidate }) {
+type CandidateRowProps = { candidate: QualificationCandidate }
+
+type QualificationRosterScreenProps = {
+  candidates: QualificationCandidate[]
+  qualificationReadFailures: number
+}
+
+type QualificationStateBadgeProps = { candidate: QualificationCandidate }
+type RunGuardBadgeProps = { candidate: QualificationCandidate }
+
+function QualificationStateBadge({ candidate }: QualificationStateBadgeProps) {
+  if (!candidate.qualificationRead) {
+    return (
+      <Badge
+        color="zinc"
+        title="Le registre de qualification n’a pas pu être lu pour cet agent. Ce n’est pas « aucune qualification » — c’est une absence de lecture."
+      >
+        registre non lu
+      </Badge>
+    )
+  }
+  if (candidate.state === 'not_started') {
+    return (
+      <Badge
+        color="zinc"
+        title="La lecture a réussi et il n’existe aucune qualification pour la version candidate. Un vide prouvé, pas une panne."
+      >
+        pas encore lancée
+      </Badge>
+    )
+  }
+  return <RunStatusBadge status={candidate.state} />
+}
+
+function RunGuardBadge({ candidate }: RunGuardBadgeProps) {
+  if (candidate.runBlockerCount === null) {
+    const title = candidate.agentRead
+      ? 'Le catalogue a été lu et ne rend aucune ligne canonique pour cet agent : les trois conditions de la garde d’exécution sont INCONNUES, pas fausses.'
+      : 'Le catalogue canonique n’a pas pu être lu. L’état de la garde d’exécution est INCONNU — ce n’est pas « la garde refuserait ».'
+    const label = candidate.agentRead ? 'garde non dérivable' : 'catalogue non lu'
+    return (
+      <Badge color="zinc" title={title}>
+        {label}
+      </Badge>
+    )
+  }
+  if (candidate.runBlockerCount > 0) {
+    return (
+      <Badge
+        color="red"
+        title="Conditions de la garde d’exécution non satisfaites : statut « active », aucun outil non résolu, runtime « langgraph ». Les trois doivent tenir."
+      >
+        {candidate.runBlockerCount}/3 condition(s) manquante(s)
+      </Badge>
+    )
+  }
+  return (
+    <Badge
+      color="emerald"
+      title="Les trois conditions de la garde d’exécution tiennent : la route accepterait un lancement."
+    >
+      garde satisfaite
+    </Badge>
+  )
+}
+
+function CandidateRow({ candidate }: CandidateRowProps) {
   return (
     <li className="relative border-b border-zinc-950/5 last:border-b-0 dark:border-white/5">
       <Rail color={RAIL_COLOR[candidate.state]} />
       <Link
-        href={`/qualification/${candidate.copilotId}`}
+        href={'/qualification/' + candidate.copilotId}
         className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-zinc-950/[0.025] dark:hover:bg-white/[0.025]"
       >
         <Avatar square initials={initialsOf(candidate.name)} className="size-8 shrink-0" />
@@ -81,23 +147,7 @@ function CandidateRow({ candidate }: { candidate: QualificationCandidate }) {
             {/* Une lecture qui a échoué ne se rend PAS comme « pas encore
                 lancée » : les deux se ressembleraient à l'écran et disent
                 l'inverse l'une de l'autre. */}
-            {!candidate.qualificationRead ? (
-              <Badge
-                color="zinc"
-                title="Le registre de qualification n’a pas pu être lu pour cet agent. Ce n’est pas « aucune qualification » — c’est une absence de lecture."
-              >
-                registre non lu
-              </Badge>
-            ) : candidate.state === 'not_started' ? (
-              <Badge
-                color="zinc"
-                title="La lecture a réussi et il n’existe aucune qualification pour la version candidate. Un vide prouvé, pas une panne."
-              >
-                pas encore lancée
-              </Badge>
-            ) : (
-              <RunStatusBadge status={candidate.state} />
-            )}
+            <QualificationStateBadge candidate={candidate} />
             {candidate.hasOpenProposal ? (
               <Badge
                 color="amber"
@@ -122,32 +172,7 @@ function CandidateRow({ candidate }: { candidate: QualificationCandidate }) {
             catalogue peignait tout le banc en « 3/3 condition(s) manquante(s) »
             — un verdict accusateur produit par une absence de mesure. */}
         <div className="hidden shrink-0 items-center gap-2 sm:flex">
-          {candidate.runBlockerCount === null ? (
-            <Badge
-              color="zinc"
-              title={
-                candidate.agentRead
-                  ? 'Le catalogue a été lu et ne rend aucune ligne canonique pour cet agent : les trois conditions de la garde d’exécution sont INCONNUES, pas fausses.'
-                  : 'Le catalogue canonique n’a pas pu être lu. L’état de la garde d’exécution est INCONNU — ce n’est pas « la garde refuserait ».'
-              }
-            >
-              {candidate.agentRead ? 'garde non dérivable' : 'catalogue non lu'}
-            </Badge>
-          ) : candidate.runBlockerCount > 0 ? (
-            <Badge
-              color="red"
-              title="Conditions de la garde d’exécution non satisfaites : statut « active », aucun outil non résolu, runtime « langgraph ». Les trois doivent tenir."
-            >
-              {candidate.runBlockerCount}/3 condition(s) manquante(s)
-            </Badge>
-          ) : (
-            <Badge
-              color="emerald"
-              title="Les trois conditions de la garde d’exécution tiennent : la route accepterait un lancement."
-            >
-              garde satisfaite
-            </Badge>
-          )}
+          <RunGuardBadge candidate={candidate} />
         </div>
       </Link>
     </li>
@@ -157,11 +182,7 @@ function CandidateRow({ candidate }: { candidate: QualificationCandidate }) {
 export default function QualificationRosterScreen({
   candidates,
   qualificationReadFailures,
-}: {
-  candidates: QualificationCandidate[]
-  /** Combien d'agents dont le registre de qualification n'a pas pu être lu. */
-  qualificationReadFailures: number
-}) {
+}: QualificationRosterScreenProps) {
   const ranked = [...candidates].sort(
     (a, b) => candidateRank(a.state) - candidateRank(b.state) || a.name.localeCompare(b.name, 'fr'),
   )
@@ -213,7 +234,7 @@ export default function QualificationRosterScreen({
 
       <Panel
         title="Banc de qualification"
-        hint={`${ranked.length} au catalogue`}
+        hint={ranked.length + ' au catalogue'}
         className="min-h-[20rem] min-w-0 xl:min-h-0 xl:flex-1"
         padded={false}
         bodyClassName="scroll-thin overflow-y-auto"

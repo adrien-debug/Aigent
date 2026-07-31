@@ -91,9 +91,12 @@ function randomEventId(): string {
   // crypto.randomUUID is available in Node 19+, modern browsers, and edge
   // runtimes. The fallback keeps the emitter dependency-free on older hosts;
   // event ids are de-duplication keys, not security tokens.
-  const cryptoRef = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto
+  const cryptoRef = globalThis.crypto
   if (typeof cryptoRef?.randomUUID === 'function') return `cevt_${cryptoRef.randomUUID()}`
-  return `cevt_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`
+  const bytes = new Uint8Array(6)
+  cryptoRef.getRandomValues(bytes)
+  const suffix = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('').slice(0, 10)
+  return `cevt_${Date.now().toString(36)}_${suffix}`
 }
 
 /**

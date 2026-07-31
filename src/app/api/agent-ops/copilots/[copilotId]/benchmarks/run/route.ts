@@ -9,8 +9,8 @@ import {
 } from '@/lib/agent-mission-control/runner-errors'
 import type { AgentRuntime, BenchmarkRun, ModelProvider } from '@/lib/agent-mission-control/types'
 
-const MODEL_PROVIDERS: ModelProvider[] = ['openai', 'google', 'local']
-const RUNTIMES: AgentRuntime[] = ['langgraph', 'openai-assistants', 'gemini', 'custom']
+const MODEL_PROVIDERS = new Set<ModelProvider>(['openai', 'google', 'local'])
+const RUNTIMES = new Set<AgentRuntime>(['langgraph', 'openai-assistants', 'gemini', 'custom'])
 
 // Copilot ids are `<prefix>-<slug>-<hex>` (see slug.makeId): lowercase
 // alphanumeric + hyphens. Bound + charset-check the dynamic param before it
@@ -76,10 +76,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
   ) {
     return NextResponse.json({ error: 'model must be a string' }, { status: 400 })
   }
-  if (body.modelProvider !== undefined && !MODEL_PROVIDERS.includes(body.modelProvider as ModelProvider)) {
+  if (body.modelProvider !== undefined && !MODEL_PROVIDERS.has(body.modelProvider as ModelProvider)) {
     return NextResponse.json({ error: 'invalid modelProvider' }, { status: 400 })
   }
-  if (body.runtime !== undefined && !RUNTIMES.includes(body.runtime as AgentRuntime)) {
+  if (body.runtime !== undefined && !RUNTIMES.has(body.runtime as AgentRuntime)) {
     return NextResponse.json({ error: 'invalid runtime' }, { status: 400 })
   }
   if (body.allowFallback !== undefined && typeof body.allowFallback !== 'boolean') {

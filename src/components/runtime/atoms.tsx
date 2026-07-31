@@ -34,7 +34,7 @@ type BadgeColor = ComponentProps<typeof Badge>['color']
 /* ───────────────────────────── Absences ──────────────────────────────── */
 
 /** Une valeur non mesurée, en ligne. Jamais un `0` à la place. */
-export function NotMeasured({ why }: { why?: string }) {
+export function NotMeasured({ why }: Readonly<{ why?: string }>) {
   return (
     <span
       className="text-xs text-zinc-500 uppercase dark:text-zinc-400"
@@ -55,12 +55,12 @@ export function Fact({
   value,
   why,
   hint,
-}: {
+}: Readonly<{
   label: string
   value: ReactNode | null
   why?: string
   hint?: string
-}) {
+}>) {
   return (
     <div className="min-w-0">
       <Text className="truncate text-xs">{label}</Text>
@@ -72,7 +72,7 @@ export function Fact({
   )
 }
 
-export function FactValue({ children }: { children: ReactNode }) {
+export function FactValue({ children }: Readonly<{ children: ReactNode }>) {
   return <Strong className="tabular-nums">{children}</Strong>
 }
 
@@ -88,12 +88,12 @@ export function LoadedBlock<T>({
   loaded,
   what,
   children,
-}: {
+}: Readonly<{
   loaded: Loaded<T>
   /** Ce qui n'a pas pu être lu, à la première personne du panneau. */
   what: string
   children: (data: T) => ReactNode
-}) {
+}>) {
   if (!loaded.ok) {
     return (
       <div className="flex h-full min-h-[8rem] flex-col justify-center gap-2">
@@ -111,7 +111,7 @@ export function LoadedBlock<T>({
 }
 
 /** La lecture a réussi et n'a rien rendu — un vide PROUVÉ, pas une panne. */
-export function ProvenEmpty({ detail }: { detail: string }) {
+export function ProvenEmpty({ detail }: Readonly<{ detail: string }>) {
   return <Unavailable reason="no-data" detail={detail} />
 }
 
@@ -130,7 +130,7 @@ const WIRING_COLOR: Record<ProviderWiring, BadgeColor> = {
  * `not-wired` est délibérément `zinc` et non `red` : Mistral n'est pas EN PANNE,
  * il n'est pas implémenté. Le rouge dirait « quelque chose est cassé, répare-le ».
  */
-export function ProviderWiringBadge({ wiring }: { wiring: ProviderWiring }) {
+export function ProviderWiringBadge({ wiring }: Readonly<{ wiring: ProviderWiring }>) {
   return (
     <Badge color={WIRING_COLOR[wiring]} title={PROVIDER_WIRING_MEANING[wiring]}>
       {PROVIDER_WIRING_LABEL[wiring]}
@@ -147,7 +147,7 @@ export function ProviderWiringBadge({ wiring }: { wiring: ProviderWiring }) {
  * provisionne jamais d'assistant transformerait un « sans objet » en signal, et
  * la surface se mettrait à clignoter sur des agents parfaitement sains.
  */
-export function ProvisioningBadge({ runtimeProvisioned }: { runtimeProvisioned: boolean | null }) {
+export function ProvisioningBadge({ runtimeProvisioned }: Readonly<{ runtimeProvisioned: boolean | null }>) {
   const state = provisioningState(runtimeProvisioned)
   if (state === 'not-applicable') return null
   return (
@@ -163,7 +163,7 @@ export function ProvisioningBadge({ runtimeProvisioned }: { runtimeProvisioned: 
 /* ────────────────────────────── Outils ───────────────────────────────── */
 
 /** La nature d'un outil, fail-closed : le doute s'affiche comme une mutation. */
-export function MutationBadge({ mutates }: { mutates: boolean }) {
+export function MutationBadge({ mutates }: Readonly<{ mutates: boolean }>) {
   return (
     <Badge
       color={mutates ? 'amber' : 'zinc'}
@@ -184,7 +184,7 @@ const RISK_COLOR: Record<string, BadgeColor> = {
  * Le risque déclaré. Un niveau inconnu est traité comme le PIRE — un registre
  * qui gagnerait un niveau `critical` ne doit pas l'afficher en gris rassurant.
  */
-export function RiskBadge({ risk }: { risk: string }) {
+export function RiskBadge({ risk }: Readonly<{ risk: string }>) {
   const known = risk in RISK_COLOR
   return (
     <Badge
@@ -201,7 +201,7 @@ export function RiskBadge({ risk }: { risk: string }) {
 }
 
 /** Confirmation humaine exigée avant l'appel. Absent = pas de badge. */
-export function ConfirmationBadge({ required }: { required: boolean }) {
+export function ConfirmationBadge({ required }: Readonly<{ required: boolean }>) {
   if (!required) return null
   return (
     <Badge

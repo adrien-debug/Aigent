@@ -219,7 +219,10 @@ export async function getThreadHistory(threadId: string): Promise<ExplorerHistor
     const messages = Array.isArray(values.messages) ? values.messages : []
     const last = messages[messages.length - 1] as Row | undefined
     const lastRole = last ? String(last.type ?? last.role ?? '') : undefined
-    const lastContent = last ? (typeof last.content === 'string' ? last.content : JSON.stringify(last.content ?? '')) : ''
+    let lastContent = ''
+    if (last) {
+      lastContent = typeof last.content === 'string' ? last.content : JSON.stringify(last.content ?? '')
+    }
     const toolCalls = Array.isArray(last?.tool_calls)
       ? (last!.tool_calls as Row[]).map((tc) => String(tc.name ?? 'tool')).filter(Boolean)
       : []
@@ -228,6 +231,11 @@ export async function getThreadHistory(threadId: string): Promise<ExplorerHistor
     const tasks = (cp.tasks as { interrupts?: unknown[] }[] | undefined) ?? []
     const interrupts = tasks.flatMap((t) => t.interrupts ?? [])
 
+    let lastPreview: string | undefined
+    if (lastContent) {
+      lastPreview = lastContent.length > 160 ? `${lastContent.slice(0, 160)}…` : lastContent
+    }
+
     return {
       index,
       node,
@@ -235,7 +243,7 @@ export async function getThreadHistory(threadId: string): Promise<ExplorerHistor
       createdAt: str(cp.created_at),
       messageCount: messages.length,
       lastRole: lastRole || undefined,
-      lastPreview: lastContent ? (lastContent.length > 160 ? `${lastContent.slice(0, 160)}…` : lastContent) : undefined,
+      lastPreview,
       toolCalls,
       interrupts,
     }

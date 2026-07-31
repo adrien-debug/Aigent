@@ -84,7 +84,12 @@ const createProjectBodySchema = z
     platform: z.enum(PLATFORMS as [CreateProjectInput['platform'], ...CreateProjectInput['platform'][]], {
       message: "platform must be one of 'web' | 'desktop' | 'mobile' | 'api'",
     }),
-    repoUrl: z.string().trim().max(2_000, 'repoUrl must be at most 2000 characters').url().optional(),
+    repoUrl: z
+      .string()
+      .trim()
+      .max(2_000, 'repoUrl must be at most 2000 characters')
+      .pipe(z.url())
+      .optional(),
     repoFullName: repoFullNameSchema.optional(),
   })
   .refine((v) => v.slug === undefined || hasSlugifiableContent(v.slug), {
@@ -142,15 +147,18 @@ export async function POST(request: Request) {
     // hardcoded message; other name failures (too long — 'too_big' — and the
     // "no alphanumeric content" custom refine) must surface their own message,
     // they are different failures, not an absent name.
-    const nameIssue = issues.find(
+    const hasNameIssue = issues.some(
       (i) => i.path[0] === 'name' && (i.code === 'too_small' || i.code === 'invalid_type')
     )
-    const platformIssue = issues.find((i) => i.path[0] === 'platform')
-    const message = nameIssue
-      ? 'name is required'
-      : platformIssue
-        ? "platform must be one of 'web' | 'desktop' | 'mobile' | 'api'"
-        : (issues[0]?.message ?? 'invalid request body')
+    const hasPlatformIssue = issues.some((i) => i.path[0] === 'platform')
+    let message: string
+    if (hasNameIssue) {
+      message = 'name is required'
+    } else if (hasPlatformIssue) {
+      message = "platform must be one of 'web' | 'desktop' | 'mobile' | 'api'"
+    } else {
+      message = issues[0]?.message ?? 'invalid request body'
+    }
     return NextResponse.json({ error: message }, { status: 400 })
   }
   const body: CreateProjectInput = parsed.data

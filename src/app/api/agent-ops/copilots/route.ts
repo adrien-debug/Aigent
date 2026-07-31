@@ -1,5 +1,4 @@
-import { after } from 'next/server'
-import { NextResponse } from 'next/server'
+import { after, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { prepareAutoEval } from '@/lib/agent-mission-control/agent-autoeval'
@@ -160,7 +159,7 @@ const createCopilotBodySchema = z.object(
             tools.forEach((tool, index) => {
               if (isHighRiskOrWriteCapableTool(tool) && !tool.requiresConfirmation) {
                 ctx.addIssue({
-                  code: z.ZodIssueCode.custom,
+                  code: 'custom',
                   message: confirmationRequiredMessage(tool.name),
                   path: [index, 'requiresConfirmation'],
                 })
@@ -225,11 +224,14 @@ export async function POST(request: Request) {
     // Legacy messages are self-describing (kept verbatim for callers that may
     // match on them); anything else gets its field path prefixed so nested
     // manifest errors stay actionable.
-    const message = !issue
-      ? 'invalid request body'
-      : LEGACY_MESSAGES.has(issue.message) || issue.path.length === 0
-        ? issue.message
-        : `${issue.path.join('.')}: ${issue.message}`
+    let message = 'invalid request body'
+    if (issue) {
+      if (LEGACY_MESSAGES.has(issue.message) || issue.path.length === 0) {
+        message = issue.message
+      } else {
+        message = `${issue.path.join('.')}: ${issue.message}`
+      }
+    }
     return NextResponse.json({ error: message }, { status: 400 })
   }
   const body: CreateCopilotInput = parsed.data

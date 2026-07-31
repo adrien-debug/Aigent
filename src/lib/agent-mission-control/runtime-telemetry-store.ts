@@ -725,6 +725,14 @@ export async function emitPromotionTelemetry(args: {
 }
 
 /** Shadow lifecycle ping (started / completed / blocked_mutation). */
+function shadowTelemetryStatus(
+  eventType: 'shadow_started' | 'shadow_completed' | 'shadow_blocked_mutation',
+): 'completed' | 'started' | 'failed' {
+  if (eventType === 'shadow_completed') return 'completed'
+  if (eventType === 'shadow_started') return 'started'
+  return 'failed'
+}
+
 export async function emitShadowTelemetry(args: {
   eventType: 'shadow_started' | 'shadow_completed' | 'shadow_blocked_mutation'
   copilotId: string
@@ -742,7 +750,7 @@ export async function emitShadowTelemetry(args: {
     runId: args.experimentId,
     provider: null,
     model: null,
-    status: args.eventType === 'shadow_completed' ? 'completed' : args.eventType === 'shadow_started' ? 'started' : 'failed',
+    status: shadowTelemetryStatus(args.eventType),
     latencyMs: null,
     inputShape: {},
     outputShape: { verdict: args.verdict ?? null, wouldMutateCount: args.wouldMutateCount ?? null },

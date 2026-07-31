@@ -180,7 +180,7 @@ const TOOL_DESCRIPTIONS = {
 }
 
 // Everything mounted is a read; none carries account scope.
-const riskOf = () => 'low'
+const riskOf = (_name) => 'low'
 
 console.log(`\nETH Market Analyst — first agent of the post-reset platform`)
 console.log(`mode: ${apply ? 'APPLY' : 'DRY-RUN'}`)

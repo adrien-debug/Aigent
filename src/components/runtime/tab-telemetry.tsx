@@ -18,6 +18,7 @@ import { formatUsd } from '@/lib/agent-mission-control/format'
 import type {
   RuntimeTelemetryEvent,
   RuntimeTelemetryFleetSummary,
+  TelemetryMeasurementState,
 } from '@/lib/agent-mission-control/runtime-telemetry-store'
 import type {
   TelemetryHealthDiagnostic,
@@ -58,7 +59,29 @@ const HEALTH_MEANING: Record<TelemetryHealthStatus, string> = {
     'La lecture des événements a échoué. L’état du canal est INCONNU — ce n’est ni « sain » ni « muet », et l’afficher comme l’un des deux serait une invention.',
 }
 
-function HealthPanel({ health }: { health: TelemetryHealthDiagnostic }) {
+function measurementBadgeColor(state: TelemetryMeasurementState): 'emerald' | 'amber' | 'zinc' {
+  if (state === 'MEASURED') return 'emerald'
+  if (state === 'UNAVAILABLE') return 'amber'
+  return 'zinc'
+}
+
+function measurementBadgeLabel(state: TelemetryMeasurementState): string {
+  if (state === 'MEASURED') return 'mesuré'
+  if (state === 'UNAVAILABLE') return 'absent'
+  return 'sans objet'
+}
+
+function measurementTitle(state: TelemetryMeasurementState): string {
+  if (state === 'MEASURED') {
+    return 'Cette famille de mesure a réellement été observée sur la fenêtre.'
+  }
+  if (state === 'UNAVAILABLE') {
+    return 'Les événements ne transportaient pas cette information : la valeur est absente, jamais zéro.'
+  }
+  return 'Cette mesure ne s’applique pas à cette fenêtre.'
+}
+
+function HealthPanel({ health }: Readonly<{ health: TelemetryHealthDiagnostic }>) {
   return (
     <Panel
       title="Santé du canal de retour"
@@ -99,7 +122,7 @@ function HealthPanel({ health }: { health: TelemetryHealthDiagnostic }) {
 
 /* ───────────────────────── Agrégats de la flotte ────────────────────── */
 
-function FleetPanel({ fleet }: { fleet: TelemetryTabData['fleet'] }) {
+function FleetPanel({ fleet }: Readonly<{ fleet: TelemetryTabData['fleet'] }>) {
   return (
     <Panel
       title="Runs rapportés"
@@ -174,16 +197,10 @@ function FleetPanel({ fleet }: { fleet: TelemetryTabData['fleet'] }) {
                 ).map(([label, state]) => (
                   <Badge
                     key={label}
-                    color={state === 'MEASURED' ? 'emerald' : state === 'UNAVAILABLE' ? 'amber' : 'zinc'}
-                    title={
-                      state === 'MEASURED'
-                        ? 'Cette famille de mesure a réellement été observée sur la fenêtre.'
-                        : state === 'UNAVAILABLE'
-                          ? 'Les événements ne transportaient pas cette information : la valeur est absente, jamais zéro.'
-                          : 'Cette mesure ne s’applique pas à cette fenêtre.'
-                    }
+                    color={measurementBadgeColor(state)}
+                    title={measurementTitle(state)}
                   >
-                    {label} · {state === 'MEASURED' ? 'mesuré' : state === 'UNAVAILABLE' ? 'absent' : 'sans objet'}
+                    {label} · {measurementBadgeLabel(state)}
                   </Badge>
                 ))}
               </div>
@@ -228,7 +245,7 @@ function provenanceOf(event: RuntimeTelemetryEvent): 'internal' | 'consumer' | '
   return 'consumer'
 }
 
-function ProvenancePanel({ events }: { events: TelemetryTabData['events'] }) {
+function ProvenancePanel({ events }: Readonly<{ events: TelemetryTabData['events'] }>) {
   return (
     <Panel title="Provenance des événements" hint="deux sources, un seul canal" className="min-h-0 shrink-0">
       <LoadedBlock loaded={events} what="Le détail des événements">
@@ -284,7 +301,7 @@ function ProvenancePanel({ events }: { events: TelemetryTabData['events'] }) {
 
 const STATUS_COLOR = { completed: 'emerald', failed: 'red', started: 'sky' } as const
 
-function EventsPanel({ events }: { events: TelemetryTabData['events'] }) {
+function EventsPanel({ events }: Readonly<{ events: TelemetryTabData['events'] }>) {
   return (
     <Panel
       title="Événements reçus"
@@ -342,7 +359,7 @@ function EventsPanel({ events }: { events: TelemetryTabData['events'] }) {
   )
 }
 
-export default function TelemetryTab({ data }: { data: TelemetryTabData }) {
+export default function TelemetryTab({ data }: Readonly<{ data: TelemetryTabData }>) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
       <HealthPanel health={data.health} />

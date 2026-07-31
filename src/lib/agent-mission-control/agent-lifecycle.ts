@@ -498,9 +498,11 @@ export async function getAgentLifecycle(copilotId: string): Promise<AgentLifecyc
   const productionVersion = detail.versions.find((v) => v.id === detail.copilot.productionVersionId)
   // The candidate is the version the gate is actually evaluating, so the two
   // can never point at different rows on the same screen.
+  const gateCandidate = gate
+    ? detail.versions.find((v) => v.id === gate.candidateVersionId)
+    : undefined
   const candidateVersion =
-    (gate ? detail.versions.find((v) => v.id === gate.candidateVersionId) : undefined) ??
-    detail.versions.find((v) => v.id === detail.copilot.latestVersionId)
+    gateCandidate ?? detail.versions.find((v) => v.id === detail.copilot.latestVersionId)
 
   // A proposal read that failed cannot be treated as "no proposal": that would
   // offer "Analyse" on an agent with an open cycle and 409 on click.

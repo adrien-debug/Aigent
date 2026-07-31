@@ -25,7 +25,7 @@ import { Text } from '@/components/ui/text'
  * nomme donc plus « le cockpit » en particulier, il nomme l'écran qui a
  * échoué, quel qu'il soit.
  */
-export default function Error({
+export default function AppRouteError({
   error,
   reset,
 }: {

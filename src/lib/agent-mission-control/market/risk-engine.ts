@@ -185,20 +185,16 @@ export function calculateRisk(input: {
 
   const riskScore = Math.round(weightedScore / totalWeight)
   const riskLevel = levelOf(riskScore)
-  const lockRecommendation: LockRecommendation =
-    riskLevel === 'critical'
-      ? 'lock_withdrawals'
-      : liquidationRisk === 100
-        ? 'increase_collateral'
-        : riskLevel === 'high'
-          ? 'reduce_exposure'
-          : riskLevel === 'moderate'
-            ? 'monitor'
-            : 'no_action'
+  let lockRecommendation: LockRecommendation = 'no_action'
+  if (riskLevel === 'critical') lockRecommendation = 'lock_withdrawals'
+  else if (liquidationRisk === 100) lockRecommendation = 'increase_collateral'
+  else if (riskLevel === 'high') lockRecommendation = 'reduce_exposure'
+  else if (riskLevel === 'moderate') lockRecommendation = 'monitor'
+  let riskMultiplier = 0.1
+  if (riskLevel === 'low') riskMultiplier = 0.75
+  else if (riskLevel === 'moderate') riskMultiplier = 0.4
   const safeAmount =
-    available === null
-      ? null
-      : Math.max(0, available * (riskLevel === 'low' ? 0.75 : riskLevel === 'moderate' ? 0.4 : 0.1))
+    available === null ? null : Math.max(0, available * riskMultiplier)
   const equity = numeric(account.total_equity_usd)
   const borrowed = numeric(account.borrowed_usd)
   const collateral = numeric(account.collateral_usd)

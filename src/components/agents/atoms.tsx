@@ -49,7 +49,7 @@ const RUNTIME_STATUS_COLOR: Record<AvailableAgentStatus, BadgeColor> = {
  * définition, parce que « Actif » sans sa définition laisse croire à un statut
  * posé à la main alors que c'est une dérivation.
  */
-export function RuntimeStatusBadge({ status }: { status: AvailableAgentStatus }) {
+export function RuntimeStatusBadge({ status }: Readonly<{ status: AvailableAgentStatus }>) {
   return (
     <Badge color={RUNTIME_STATUS_COLOR[status]} title={RUNTIME_STATUS_MEANING[status]}>
       {RUNTIME_STATUS_LABEL[status]}
@@ -72,7 +72,7 @@ const LIFECYCLE_STATUS_COLOR: Record<string, BadgeColor> = {
  * et afficher un seul des deux en l'appelant « le » statut est précisément le
  * bug que le contrat canonique documente.
  */
-export function LifecycleStatusBadge({ status }: { status: string }) {
+export function LifecycleStatusBadge({ status }: Readonly<{ status: string }>) {
   return (
     <Badge
       color={LIFECYCLE_STATUS_COLOR[status] ?? 'zinc'}
@@ -93,7 +93,7 @@ const GATE_COLOR: Record<GateStatus, BadgeColor> = {
 }
 
 /** Un check de gate — trois états visuellement distincts, chacun avec son mot. */
-export function GateStatusBadge({ status }: { status: GateStatus }) {
+export function GateStatusBadge({ status }: Readonly<{ status: GateStatus }>) {
   return (
     <Badge color={GATE_COLOR[status]} title={GATE_STATUS_MEANING[status]}>
       {GATE_STATUS_LABEL[status]}
@@ -117,7 +117,7 @@ const STAGE_COLOR: Record<StageDisplay, BadgeColor> = {
  * `unavailable` est orange et dit « Lecture impossible » — jamais un vert ni un
  * rouge, qui affirmeraient tous deux un fait qu'Aigent n'a pas lu.
  */
-export function StageBadge({ display, title }: { display: StageDisplay; title?: string }) {
+export function StageBadge({ display, title }: Readonly<{ display: StageDisplay; title?: string }>) {
   return (
     <Badge color={STAGE_COLOR[display]} title={title}>
       {STAGE_DISPLAY_LABEL[display]}
@@ -145,7 +145,7 @@ const WIRING_LABEL: Record<ProviderWiring, string> = {
  * Le provider ET son câblage réel. Un provider `null` ne devient jamais
  * « openai » : il se dit non résolu.
  */
-export function ProviderBadge({ provider }: { provider: string | null }) {
+export function ProviderBadge({ provider }: Readonly<{ provider: string | null }>) {
   const wiring = providerWiring(provider)
   if (provider === null) {
     return (
@@ -168,7 +168,7 @@ export function ProviderBadge({ provider }: { provider: string | null }) {
  * (`UNAVAILABLE_LABEL`), et un `title` qui dit POURQUOI c'est absent quand on le
  * sait — « non mesuré » et « lecture échouée » ne sont pas la même chose.
  */
-export function NotMeasured({ why }: { why?: string }) {
+export function NotMeasured({ why }: Readonly<{ why?: string }>) {
   return (
     <span
       className="text-xs text-zinc-500 uppercase dark:text-zinc-400"
@@ -191,14 +191,14 @@ export function Fact({
   value,
   why,
   hint,
-}: {
+}: Readonly<{
   label: string
   value: ReactNode | null
   /** Pourquoi c'est absent, quand `value` est `null`. */
   why?: string
   /** Précision affichée sous la valeur, quand elle existe. */
   hint?: string
-}) {
+}>) {
   return (
     <div className="min-w-0">
       <Text className="truncate text-xs">{label}</Text>
@@ -211,6 +211,6 @@ export function Fact({
 }
 
 /** Une valeur numérique/textuelle mise en avant dans un `Fact`. */
-export function FactValue({ children }: { children: ReactNode }) {
+export function FactValue({ children }: Readonly<{ children: ReactNode }>) {
   return <Strong className="tabular-nums">{children}</Strong>
 }

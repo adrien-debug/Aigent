@@ -32,20 +32,24 @@ body {
 @utility scroll-thin {
   scrollbar-width: thin;
   scrollbar-color: var(--color-zinc-700) transparent;
-  &::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: var(--color-zinc-700);
-    border-radius: 9999px;
-  }
-  &::-webkit-scrollbar-thumb:hover {
-    background: var(--color-zinc-600);
-  }
+}
+
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--color-zinc-700);
+  border-radius: 9999px;
+}
+
+.scroll-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--color-zinc-600);
 }
 
 /* Battement du témoin « système en ligne » — variation d'opacité seule, pas de
@@ -63,7 +67,10 @@ body {
 
 @utility pulse-live {
   animation: cockpit-pulse 2.6s ease-in-out infinite;
-  @media (prefers-reduced-motion: reduce) {
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-live {
     animation: none;
   }
 }

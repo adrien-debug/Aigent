@@ -29,7 +29,7 @@
  * ZÉRO-SCROLL : la page ne défile jamais. Chaque panneau est borné (`min-h-0` +
  * `overflow-y-auto`) et c'est son contenu qui défile.
  */
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState, type ComponentProps } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { Badge } from '@/components/ui/badge'
@@ -53,11 +53,82 @@ import {
   buildPreviewView,
   INITIAL_STREAM_PROGRESS,
   markStreamInterrupted,
+  messageCountLabel,
   openingStreamProgress,
   reduceStreamEvent,
+  type ChatLine,
+  type HitlPhase,
+  type PreviewTool,
   type PreviewView,
   type StreamProgress,
 } from './model'
+
+type BadgeColor = ComponentProps<typeof Badge>['color']
+
+function mutationErrorLabel(kind: MutationError['kind']): string {
+  switch (kind) {
+    case 'unavailable':
+      return 'Backend indisponible'
+    case 'conflict':
+      return 'État en conflit'
+    case 'not-found':
+      return 'Introuvable'
+    default:
+      return 'Échec'
+  }
+}
+
+function mutationErrorColor(kind: MutationError['kind']): BadgeColor {
+  if (kind === 'conflict') return 'amber'
+  if (kind === 'unavailable') return 'zinc'
+  return 'red'
+}
+
+function chatRoleBadgeColor(role: ChatLine['role']): BadgeColor {
+  if (role === 'user') return 'blue'
+  if (role === 'assistant') return 'emerald'
+  return 'zinc'
+}
+
+function chatRoleLabel(role: ChatLine['role']): string {
+  if (role === 'user') return 'vous'
+  if (role === 'assistant') return 'architecte'
+  return 'système'
+}
+
+function toolRiskColor(riskLevel: PreviewTool['riskLevel']): BadgeColor {
+  if (riskLevel === 'critical' || riskLevel === 'high') return 'red'
+  if (riskLevel === 'medium') return 'amber'
+  return 'zinc'
+}
+
+function streamPhaseColor(phase: StreamProgress['phase']): BadgeColor {
+  switch (phase) {
+    case 'completed':
+      return 'emerald'
+    case 'failed':
+      return 'red'
+    case 'interrupted':
+      return 'amber'
+    default:
+      return 'blue'
+  }
+}
+
+function hitlPhaseColor(phase: HitlPhase): BadgeColor {
+  switch (phase) {
+    case 'awaiting-decision':
+      return 'amber'
+    case 'completed':
+      return 'emerald'
+    case 'running':
+      return 'blue'
+    case 'thread-lost':
+      return 'zinc'
+    default:
+      return 'red'
+  }
+}
 
 /* ─────────────────────────── Erreurs de mutation ───────────────────────── */
 
@@ -128,16 +199,9 @@ async function mutate(
 
 /* ──────────────────────────────── Sous-vues ────────────────────────────── */
 
-function ErrorNote({ error }: { error: MutationError }) {
-  const label =
-    error.kind === 'unavailable'
-      ? 'Backend indisponible'
-      : error.kind === 'conflict'
-        ? 'État en conflit'
-        : error.kind === 'not-found'
-          ? 'Introuvable'
-          : 'Échec'
-  const color = error.kind === 'conflict' ? 'amber' : error.kind === 'unavailable' ? 'zinc' : 'red'
+function ErrorNote({ error }: Readonly<{ error: MutationError }>) {
+  const label = mutationErrorLabel(error.kind)
+  const color = mutationErrorColor(error.kind)
 
   return (
     <div className="flex items-start gap-2 rounded-lg border border-dashed border-zinc-950/10 p-3 dark:border-white/10">
@@ -150,10 +214,10 @@ function ErrorNote({ error }: { error: MutationError }) {
 function ChatThread({
   lines,
   emptyProven,
-}: {
+}: Readonly<{
   lines: ReturnType<typeof buildChatLines>
   emptyProven: boolean
-}) {
+}>) {
   if (lines.length === 0) {
     return (
       <div className="p-4">
@@ -174,8 +238,8 @@ function ChatThread({
       {lines.map((line) => (
         <li key={line.id} className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
-            <Badge color={line.role === 'user' ? 'blue' : line.role === 'assistant' ? 'emerald' : 'zinc'}>
-              {line.role === 'user' ? 'vous' : line.role === 'assistant' ? 'architecte' : 'système'}
+            <Badge color={chatRoleBadgeColor(line.role)}>
+              {chatRoleLabel(line.role)}
             </Badge>
           </div>
           <Text className="whitespace-pre-wrap break-words">{line.content}</Text>
@@ -186,13 +250,8 @@ function ChatThread({
 }
 
 /** L'outil, AVEC sa description : elle porte le contrat que le schéma ne dit pas. */
-function ToolRow({ tool }: { tool: PreviewView['tools'][number] }) {
-  const riskColor =
-    tool.riskLevel === 'critical' || tool.riskLevel === 'high'
-      ? 'red'
-      : tool.riskLevel === 'medium'
-        ? 'amber'
-        : 'zinc'
+function ToolRow({ tool }: Readonly<{ tool: PreviewView['tools'][number] }>) {
+  const riskColor = toolRiskColor(tool.riskLevel)
 
   return (
     <li className="flex flex-col gap-1 border-b border-zinc-950/5 py-2 last:border-b-0 dark:border-white/5">
@@ -213,17 +272,33 @@ function ToolRow({ tool }: { tool: PreviewView['tools'][number] }) {
   )
 }
 
+function renderOptionAction(
+  selected: boolean,
+  canSelect: boolean,
+  selecting: boolean,
+  optionId: string,
+  onSelectOption: (optionId: string) => void,
+) {
+  if (selected) return <Badge color="emerald">retenue</Badge>
+  if (!canSelect) return null
+  return (
+    <Button plain onClick={() => onSelectOption(optionId)} disabled={selecting}>
+      Choisir
+    </Button>
+  )
+}
+
 function SpecPanel({
   preview,
   onSelectOption,
   selecting,
   canSelect,
-}: {
+}: Readonly<{
   preview: PreviewView | null
   onSelectOption: (optionId: string) => void
   selecting: boolean
   canSelect: boolean
-}) {
+}>) {
   if (!preview) {
     return (
       <div className="p-4">
@@ -256,17 +331,7 @@ function SpecPanel({
                 >
                   <div className="flex items-center gap-2">
                     <Strong className="min-w-0 flex-1 truncate">{option.title}</Strong>
-                    {selected ? (
-                      <Badge color="emerald">retenue</Badge>
-                    ) : canSelect ? (
-                      <Button
-                        plain
-                        onClick={() => onSelectOption(option.id)}
-                        disabled={selecting}
-                      >
-                        Choisir
-                      </Button>
-                    ) : null}
+                    {renderOptionAction(selected, canSelect, selecting, option.id, onSelectOption)}
                   </div>
                   <Text className="mt-1">{option.summary}</Text>
                 </li>
@@ -351,17 +416,10 @@ function SpecPanel({
  * ZÉRO-SCROLL : la prose reçue défile dans SA propre boîte bornée. Un tour long
  * ne fait pas grandir le panneau ni la page.
  */
-function StreamProgressNote({ progress }: { progress: StreamProgress }) {
+function StreamProgressNote({ progress }: Readonly<{ progress: StreamProgress }>) {
   if (progress.phase === 'idle') return null
 
-  const color =
-    progress.phase === 'completed'
-      ? 'emerald'
-      : progress.phase === 'failed'
-        ? 'red'
-        : progress.phase === 'interrupted'
-          ? 'amber'
-          : 'blue'
+  const color = streamPhaseColor(progress.phase)
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-dashed border-zinc-950/10 p-3 dark:border-white/10">
@@ -401,11 +459,11 @@ function HitlPanel({
   hitl,
   onDecide,
   pending,
-}: {
+}: Readonly<{
   hitl: ReturnType<typeof buildHitlView>
   onDecide: (approved: boolean) => void
   pending: boolean
-}) {
+}>) {
   if (hitl.phase === 'none') {
     return (
       <div className="p-4">
@@ -420,19 +478,7 @@ function HitlPanel({
   return (
     <div className="flex flex-col gap-3 p-4">
       <div className="flex items-center gap-2">
-        <Badge
-          color={
-            hitl.phase === 'awaiting-decision'
-              ? 'amber'
-              : hitl.phase === 'completed'
-                ? 'emerald'
-                : hitl.phase === 'running'
-                  ? 'blue'
-                  : hitl.phase === 'thread-lost'
-                    ? 'zinc'
-                    : 'red'
-          }
-        >
+        <Badge color={hitlPhaseColor(hitl.phase)}>
           {hitl.label}
         </Badge>
       </div>
@@ -489,7 +535,7 @@ export default function BuilderWorkspace({
   failure,
   /** `true` quand le backend live n'est pas configuré (503 côté serveur). */
   backendUnavailable,
-}: {
+}: Readonly<{
   projectId: string
   projectName: string
   repoFullName: string | null
@@ -497,7 +543,7 @@ export default function BuilderWorkspace({
   unreadable: boolean
   failure: string | null
   backendUnavailable: boolean
-}) {
+}>) {
   const router = useRouter()
   const [draftMessage, setDraftMessage] = useState('')
   const [busy, setBusy] = useState<null | 'message' | 'select' | 'draft' | 'decision'>(null)
@@ -846,7 +892,7 @@ export default function BuilderWorkspace({
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-2 xl:grid-cols-3">
         <Panel
           title="Conversation"
-          hint={`${lines.length} message${lines.length > 1 ? 's' : ''}`}
+          hint={messageCountLabel(lines.length)}
           className="min-h-0 xl:col-span-1"
           padded={false}
           bodyClassName="flex flex-col min-h-0"

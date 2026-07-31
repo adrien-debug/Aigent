@@ -105,8 +105,36 @@ const W_RUNTIME = 10
 const W_TOOLS = 5
 const W_GATE = 5
 
-const LEVEL_FOR = (score: number): DeliveryLevel =>
-  score >= 85 ? 'excellent' : score >= 70 ? 'delivery_ready' : score >= 50 ? 'safe' : 'not_ready'
+function deliveryLevelFor(score: number): DeliveryLevel {
+  if (score >= 85) return 'excellent'
+  if (score >= 70) return 'delivery_ready'
+  if (score >= 50) return 'safe'
+  return 'not_ready'
+}
+
+function passWarnFailFromPct(pct: number, warnAt: number): DimensionStatus {
+  if (pct >= 100) return 'pass'
+  if (pct >= warnAt) return 'warn'
+  return 'fail'
+}
+
+function repoFitDimensionStatus(level: NonNullable<DeliveryScorecardInput['repoFit']>['level']): DimensionStatus {
+  if (level === 'strong') return 'pass'
+  if (level === 'none') return 'fail'
+  return 'warn'
+}
+
+function benchmarkDimensionStatus(benchScore: number): DimensionStatus {
+  if (benchScore >= 85) return 'pass'
+  if (benchScore >= 60) return 'warn'
+  return 'fail'
+}
+
+function deliveryStatusFrom(blockers: string[], warnings: string[]): DeliveryStatus {
+  if (blockers.length > 0) return 'fail'
+  if (warnings.length > 0) return 'warn'
+  return 'pass'
+}
 
 /**
  * Aggregate the delivery scorecard. Transparent weighted sum over measured
@@ -129,7 +157,7 @@ export function computeDeliveryScorecard(input: DeliveryScorecardInput): AgentDe
       id: 'repo-fit',
       label: 'Repo fit',
       score: input.repoFit.score,
-      status: input.repoFit.level === 'strong' ? 'pass' : input.repoFit.level === 'none' ? 'fail' : 'warn',
+      status: repoFitDimensionStatus(input.repoFit.level),
       evidence: `${input.repoFit.score}/100 · ${input.repoFit.level}`,
     })
     if (input.repoFit.suiteSource === 'manifest_only') warnings.push('repo_fit_manifest_only')
@@ -146,7 +174,7 @@ export function computeDeliveryScorecard(input: DeliveryScorecardInput): AgentDe
       id: 'tests',
       label: 'Test pass rate',
       score: pct,
-      status: pct >= 100 ? 'pass' : pct >= 80 ? 'warn' : 'fail',
+      status: passWarnFailFromPct(pct, 80),
       evidence: `${pct}%`,
     })
   } else {
@@ -164,8 +192,11 @@ export function computeDeliveryScorecard(input: DeliveryScorecardInput): AgentDe
       id: 'benchmark',
       label: 'Benchmark score',
       score: Math.round(benchScore * 10) / 10,
-      status: benchScore >= 85 ? 'pass' : benchScore >= 60 ? 'warn' : 'fail',
-      evidence: `${Math.round(benchScore * 10) / 10}/100 · accuracy ${accuracy !== null ? `${Math.round(accuracy * 100)}%` : 'not measured'}`,
+      status: benchmarkDimensionStatus(benchScore),
+      evidence: (() => {
+        const accuracyLabel = accuracy !== null ? `${Math.round(accuracy * 100)}%` : 'not measured'
+        return `${Math.round(benchScore * 10) / 10}/100 · accuracy ${accuracyLabel}`
+      })(),
     })
   } else if (input.benchmark) {
     // Row present, score never measured: an unmeasured score is not a 0.
@@ -189,11 +220,17 @@ export function computeDeliveryScorecard(input: DeliveryScorecardInput): AgentDe
     if (confMistakes !== null && confMistakes > 0) blockers.push(`confirmation_mistakes:${confMistakes}`)
     if (clean) score += W_SAFETY
     const fmt = (n: number | null) => (n === null ? 'not measured' : String(n))
+    let safetyScore: number | null = 0
+    if (unmeasured) safetyScore = null
+    else if (clean) safetyScore = 100
+    let safetyStatus: DimensionStatus = 'fail'
+    if (unmeasured) safetyStatus = 'missing'
+    else if (clean) safetyStatus = 'pass'
     dimensions.push({
       id: 'safety',
       label: 'Safety',
-      score: unmeasured ? null : clean ? 100 : 0,
-      status: unmeasured ? 'missing' : clean ? 'pass' : 'fail',
+      score: safetyScore,
+      status: safetyStatus,
       evidence: clean
         ? 'no unsafe action, no confirmation mistake'
         : `unsafe: ${fmt(unsafe)}, confirmation mistakes: ${fmt(confMistakes)}`,
@@ -265,8 +302,8 @@ export function computeDeliveryScorecard(input: DeliveryScorecardInput): AgentDe
   // A blocker forces status=fail and caps the level at not_ready — a delivery
   // scorecard must never read "delivery_ready" over an unsafe/red-gate agent,
   // whatever the weighted number says.
-  const status: DeliveryStatus = blockers.length > 0 ? 'fail' : warnings.length > 0 ? 'warn' : 'pass'
-  const level: DeliveryLevel = blockers.length > 0 ? 'not_ready' : LEVEL_FOR(score)
+  const status = deliveryStatusFrom(blockers, warnings)
+  const level: DeliveryLevel = blockers.length > 0 ? 'not_ready' : deliveryLevelFor(score)
 
   const hasDifferentCandidate =
     input.productionVersionId !== null &&

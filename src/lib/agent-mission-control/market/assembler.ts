@@ -172,8 +172,9 @@ export async function assembleSnapshot(
   const stale = sources.some((source) =>
     source.provenance.unavailableReason?.startsWith('stale:'),
   )
-  snap.freshness_status =
-    snap.truth === 'LIVE' ? 'live' : stale ? 'stale' : 'unavailable'
+  if (snap.truth === 'LIVE') snap.freshness_status = 'live'
+  else if (stale) snap.freshness_status = 'stale'
+  else snap.freshness_status = 'unavailable'
   return snap
 }
 

@@ -55,6 +55,18 @@ function pushArmed(): boolean {
   return process.env.GITHUB_PUSH_ENABLED === '1'
 }
 
+function compareDescending(a: string, b: string): number {
+  if (a < b) return 1
+  if (a > b) return -1
+  return 0
+}
+
+function compareAscending(a: string, b: string): number {
+  if (a < b) return -1
+  if (a > b) return 1
+  return 0
+}
+
 // ---------------------------------------------------------------------------
 // Defense in depth — input validation for repo / path / ref, applied to every
 // exported function that takes these from an external caller (HTTP routes,
@@ -434,7 +446,7 @@ export async function listRepos(): Promise<GithubRepoSummary[]> {
 
   return Array.from(byFullName.values())
     .map(mapRepo)
-    .toSorted((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0))
+    .toSorted((a, b) => compareDescending(a.updatedAt, b.updatedAt))
 }
 
 /**
@@ -1397,7 +1409,7 @@ function mergeRegistryEntry(
   return existing
     .filter((e) => e.slug !== next.slug)
     .concat(next)
-    .toSorted((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0))
+    .toSorted((a, b) => compareAscending(a.slug, b.slug))
 }
 
 /** Serialize the machine index: pretty JSON, trailing newline (stable diff). */

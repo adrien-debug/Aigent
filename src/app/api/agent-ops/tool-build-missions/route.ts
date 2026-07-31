@@ -72,7 +72,7 @@ export async function POST(request: Request) {
 
   const parsed = specSchema.safeParse(body.spec)
   if (!parsed.success) {
-    return NextResponse.json({ error: 'invalid spec', details: parsed.error.flatten() }, { status: 400 })
+    return NextResponse.json({ error: 'invalid spec', details: z.flattenError(parsed.error) }, { status: 400 })
   }
 
   try {

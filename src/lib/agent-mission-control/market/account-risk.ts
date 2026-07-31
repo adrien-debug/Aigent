@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { freshnessFromSourceAge } from './snapshot'
+
 export interface AccountRiskSnapshot {
   account_id: string
   wallet_address: string | null
@@ -184,8 +186,7 @@ function materializeAccountRiskSnapshot(
       : [],
     source_timestamp: sourceTimestamp,
     fetched_at: asOf,
-    freshness_status:
-      sourceTimestamp === null ? 'unavailable' : ageMs !== null && ageMs <= 15_000 ? 'live' : 'stale',
+    freshness_status: freshnessFromSourceAge(sourceTimestamp, ageMs),
     unavailable_fields: nullableFields.filter((field) => stored[field] === null || stored[field] === undefined),
     source: 'tradeagent-account-snapshot',
   }

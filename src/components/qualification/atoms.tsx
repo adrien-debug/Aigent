@@ -42,6 +42,32 @@ import {
 
 type BadgeColor = ComponentProps<typeof Badge>['color']
 
+type GateStatusBadgeProps = { status: GateStatus }
+type PromotionStatusBadgeProps = { status: PromotionCheckStatus }
+type StepStatusBadgeProps = { status: QualificationStepStatus }
+type RunStatusBadgeProps = { status: QualificationRunStatus }
+type ExecutionModeBadgeProps = { mode: EvidenceExecutionMode }
+type ProposalStatusBadgeProps = { status: ImprovementProposal['status'] }
+type NotMeasuredProps = { why?: string }
+type FactProps = {
+  label: string
+  value: ReactNode | null
+  why?: string
+  hint?: string
+}
+type FactValueProps = { children: ReactNode }
+type NoteProps = {
+  tone?: 'info' | 'warn' | 'blocked'
+  title: string
+  children?: ReactNode
+}
+
+function noteRingClass(tone: NonNullable<NoteProps['tone']>): string {
+  if (tone === 'blocked') return 'border-[#e8455f]/25 bg-[#e8455f]/5'
+  if (tone === 'warn') return 'border-amber-400/25 bg-amber-400/5'
+  return 'border-zinc-950/10 bg-zinc-950/[0.025] dark:border-white/10 dark:bg-white/[0.025]'
+}
+
 /* ─────────────────── Gate de release — trois états ─────────────────── */
 
 const GATE_COLOR: Record<GateStatus, BadgeColor> = {
@@ -51,7 +77,7 @@ const GATE_COLOR: Record<GateStatus, BadgeColor> = {
   missing: 'amber',
 }
 
-export function GateStatusBadge({ status }: { status: GateStatus }) {
+export function GateStatusBadge({ status }: GateStatusBadgeProps) {
   return (
     <Badge color={GATE_COLOR[status]} title={GATE_STATUS_MEANING[status]}>
       {GATE_STATUS_LABEL[status]}
@@ -69,7 +95,7 @@ const PROMOTION_COLOR: Record<PromotionCheckStatus, BadgeColor> = {
   INSUFFICIENT_EVIDENCE: 'amber',
 }
 
-export function PromotionStatusBadge({ status }: { status: PromotionCheckStatus }) {
+export function PromotionStatusBadge({ status }: PromotionStatusBadgeProps) {
   return (
     <Badge color={PROMOTION_COLOR[status]} title={PROMOTION_STATUS_MEANING[status]}>
       {PROMOTION_STATUS_LABEL[status]}
@@ -89,7 +115,7 @@ const STEP_COLOR: Record<QualificationStepStatus, BadgeColor> = {
   PENDING: 'zinc',
 }
 
-export function StepStatusBadge({ status }: { status: QualificationStepStatus }) {
+export function StepStatusBadge({ status }: StepStatusBadgeProps) {
   return (
     <Badge color={STEP_COLOR[status]} title={STEP_STATUS_MEANING[status]}>
       {STEP_STATUS_LABEL[status]}
@@ -105,7 +131,7 @@ const RUN_STATUS_COLOR: Record<QualificationRunStatus, BadgeColor> = {
   aborted: 'amber',
 }
 
-export function RunStatusBadge({ status }: { status: QualificationRunStatus }) {
+export function RunStatusBadge({ status }: RunStatusBadgeProps) {
   return (
     <Badge color={RUN_STATUS_COLOR[status]} title={RUN_STATUS_MEANING[status]}>
       {RUN_STATUS_LABEL[status]}
@@ -123,7 +149,7 @@ const EXECUTION_MODE_COLOR: Record<EvidenceExecutionMode, BadgeColor> = {
   legacy_unknown: 'zinc',
 }
 
-export function ExecutionModeBadge({ mode }: { mode: EvidenceExecutionMode }) {
+export function ExecutionModeBadge({ mode }: ExecutionModeBadgeProps) {
   return (
     <Badge color={EXECUTION_MODE_COLOR[mode]} title={EXECUTION_MODE_DETAIL[mode]}>
       {EXECUTION_MODE_LABEL[mode]}
@@ -140,7 +166,7 @@ const PROPOSAL_COLOR: Record<ImprovementProposal['status'], BadgeColor> = {
   rejected: 'zinc',
 }
 
-export function ProposalStatusBadge({ status }: { status: ImprovementProposal['status'] }) {
+export function ProposalStatusBadge({ status }: ProposalStatusBadgeProps) {
   return (
     <Badge
       color={PROPOSAL_COLOR[status]}
@@ -158,7 +184,7 @@ export function ProposalStatusBadge({ status }: { status: ImprovementProposal['s
  * un `title` qui dit POURQUOI quand on le sait : « non mesuré » et « lecture
  * échouée » ne sont pas la même chose.
  */
-export function NotMeasured({ why }: { why?: string }) {
+export function NotMeasured({ why }: NotMeasuredProps) {
   return (
     <span
       className="text-xs text-zinc-500 uppercase dark:text-zinc-400"
@@ -174,17 +200,7 @@ export function NotMeasured({ why }: { why?: string }) {
  * contrat de ce composant, et il dispense chaque appelant de réécrire la garde
  * (donc de l'oublier). Un `0` mesuré reste un `0` — seul `null` est une absence.
  */
-export function Fact({
-  label,
-  value,
-  why,
-  hint,
-}: {
-  label: string
-  value: ReactNode | null
-  why?: string
-  hint?: string
-}) {
+export function Fact({ label, value, why, hint }: FactProps) {
   return (
     <div className="min-w-0">
       <Text className="truncate text-xs">{label}</Text>
@@ -195,7 +211,7 @@ export function Fact({
 }
 
 /** Une valeur mise en avant dans un `Fact`. */
-export function FactValue({ children }: { children: ReactNode }) {
+export function FactValue({ children }: FactValueProps) {
   return <Strong className="tabular-nums">{children}</Strong>
 }
 
@@ -206,23 +222,10 @@ export function FactValue({ children }: { children: ReactNode }) {
  * garanti en base, pas une panne. Le rendre en rouge apprendrait à l'opérateur
  * qu'il a fait une bêtise alors qu'il a simplement rencontré un invariant.
  */
-export function Note({
-  tone = 'info',
-  title,
-  children,
-}: {
-  tone?: 'info' | 'warn' | 'blocked'
-  title: string
-  children?: ReactNode
-}) {
-  const ring =
-    tone === 'blocked'
-      ? 'border-[#e8455f]/25 bg-[#e8455f]/5'
-      : tone === 'warn'
-        ? 'border-amber-400/25 bg-amber-400/5'
-        : 'border-zinc-950/10 bg-zinc-950/[0.025] dark:border-white/10 dark:bg-white/[0.025]'
+export function Note({ tone = 'info', title, children }: NoteProps) {
+  const ring = noteRingClass(tone)
   return (
-    <div className={`rounded-md border px-3 py-2 ${ring}`}>
+    <div className={'rounded-md border px-3 py-2 ' + ring}>
       <Strong className="block">{title}</Strong>
       {children ? <Text className="mt-0.5">{children}</Text> : null}
     </div>

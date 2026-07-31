@@ -37,18 +37,102 @@ const MUTED_RAIL = 'rgb(161 161 170 / 0.35)'
 const UNREAD_RAIL = '#be850f'
 const DELIVERED_RAIL = '#0da87f'
 
-function DeliveryRosterRow({ row }: { row: DeliveryRow }) {
+type DeliveryRosterRowProps = { row: DeliveryRow }
+
+type DeliveryRosterScreenProps = {
+  rows: DeliveryRow[]
+  deliveryReadFailures: number
+  telemetry: ConsumerTelemetryFact | null
+  telemetryFailure: string | null
+  realDeliveryEnabled: boolean
+}
+
+function rosterRailColor(deliveryRead: boolean, hasDelivery: boolean): string {
+  if (!deliveryRead) return UNREAD_RAIL
+  if (hasDelivery) return DELIVERED_RAIL
+  return MUTED_RAIL
+}
+
+type DeliveryStatusBadgeProps = { deliveryRead: boolean; hasDelivery: boolean }
+
+type RosterTelemetryNoteProps = {
+  telemetry: ConsumerTelemetryFact | null
+  telemetryFailure: string | null
+}
+
+function DeliveryStatusBadge({ deliveryRead, hasDelivery }: DeliveryStatusBadgeProps) {
+  if (!deliveryRead) {
+    return (
+      <Badge
+        color="amber"
+        title="La lecture de l’événement de livraison a ÉCHOUÉ pour cette ligne. On ne sait pas si cet agent a été livré — ce n’est pas « jamais livré »."
+      >
+        livraison non lue
+      </Badge>
+    )
+  }
+  if (hasDelivery) {
+    return (
+      <Badge color="emerald" title="Un événement de livraison RÉEL est persisté pour cet agent.">
+        livré
+      </Badge>
+    )
+  }
+  return (
+    <Badge
+      color="zinc"
+      title="La lecture a réussi et aucun événement de livraison n’existe pour cet agent. Fait mesuré, pas une panne."
+    >
+      jamais livré
+    </Badge>
+  )
+}
+
+function RosterTelemetryNote({ telemetry, telemetryFailure }: RosterTelemetryNoteProps) {
+  if (telemetryFailure !== null) {
+    return (
+      <Note tone="warn" title="Télémétrie non lue">
+        Impossible de dire si un agent déployé a rapporté un run — la lecture a échoué.
+        {' ' + telemetryFailure}
+      </Note>
+    )
+  }
+  if (telemetry === null) {
+    return (
+      <Note tone="warn" title="Télémétrie non lue">
+        Aucune lecture de télémétrie n’a abouti. Aucun chiffre n’est affiché à la place.
+      </Note>
+    )
+  }
+  if (telemetry.consumerCount === 0) {
+    return (
+      <Note tone="structural" title="Aucun agent déployé n’a jamais rapporté de run">
+        La table de télémétrie a été LUE : sur {telemetry.scannedCount} événement(s), aucun ne porte
+        une provenance « consumer ». C’est un fait mesuré, pas un panneau vide. Le flux est à sens
+        unique — Aigent pousse des agents, et rien ne revient.
+      </Note>
+    )
+  }
+  return (
+    <Note tone="info" title="Des agents déployés ont rapporté des runs">
+      {telemetry.consumerCount} événement(s) de provenance « consumer » sur{' '}
+      {telemetry.scannedCount} lu(s).
+    </Note>
+  )
+}
+
+function DeliveryRosterRow({ row }: DeliveryRosterRowProps) {
   const d = row.latestDelivery
 
   // Trois situations, trois rendus. La troisième — « non lue » — est celle qui
   // disparaît toujours en premier quand on n'y prend pas garde.
-  const rail = !row.deliveryRead ? UNREAD_RAIL : d !== null ? DELIVERED_RAIL : MUTED_RAIL
+  const rail = rosterRailColor(row.deliveryRead, d !== null)
 
   return (
     <li className="relative border-b border-zinc-950/5 last:border-b-0 dark:border-white/5">
       <Rail color={rail} />
       <Link
-        href={`/delivery/${row.copilotId}`}
+        href={'/delivery/' + row.copilotId}
         className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-zinc-950/[0.025] dark:hover:bg-white/[0.025]"
       >
         <Avatar square initials={initialsOf(row.copilotName)} className="size-8 shrink-0" />
@@ -57,25 +141,7 @@ function DeliveryRosterRow({ row }: { row: DeliveryRow }) {
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <Strong className="truncate">{row.copilotName}</Strong>
 
-            {!row.deliveryRead ? (
-              <Badge
-                color="amber"
-                title="La lecture de l’événement de livraison a ÉCHOUÉ pour cette ligne. On ne sait pas si cet agent a été livré — ce n’est pas « jamais livré »."
-              >
-                livraison non lue
-              </Badge>
-            ) : d !== null ? (
-              <Badge color="emerald" title="Un événement de livraison RÉEL est persisté pour cet agent.">
-                livré
-              </Badge>
-            ) : (
-              <Badge
-                color="zinc"
-                title="La lecture a réussi et aucun événement de livraison n’existe pour cet agent. Fait mesuré, pas une panne."
-              >
-                jamais livré
-              </Badge>
-            )}
+            <DeliveryStatusBadge deliveryRead={row.deliveryRead} hasDelivery={d !== null} />
 
             {d?.prUrl != null ? (
               <Badge
@@ -98,7 +164,7 @@ function DeliveryRosterRow({ row }: { row: DeliveryRow }) {
 
           <Text className="truncate">
             {row.repoFullName ?? 'aucun dépôt cible'}
-            {row.projectName ? ` · ${row.projectName}` : ''}
+            {row.projectName ? ' · ' + row.projectName : ''}
             {d !== null
               ? ` · ${deliveryModeLabel(d.mode) ?? d.mode} · ${isoShort(d.createdAt) ?? 'date non enregistrée'}`
               : ''}
@@ -115,13 +181,7 @@ export default function DeliveryRosterScreen({
   telemetry,
   telemetryFailure,
   realDeliveryEnabled,
-}: {
-  rows: DeliveryRow[]
-  deliveryReadFailures: number
-  telemetry: ConsumerTelemetryFact | null
-  telemetryFailure: string | null
-  realDeliveryEnabled: boolean
-}) {
+}: DeliveryRosterScreenProps) {
   const counts = countDeliveryRows(rows)
   const ranked = sortDeliveryRows(rows)
 
@@ -174,32 +234,12 @@ export default function DeliveryRosterScreen({
           </Note>
         )}
 
-        {telemetryFailure !== null ? (
-          <Note tone="warn" title="Télémétrie non lue">
-            Impossible de dire si un agent déployé a rapporté un run — la lecture a échoué.
-            {` ${telemetryFailure}`}
-          </Note>
-        ) : telemetry === null ? (
-          <Note tone="warn" title="Télémétrie non lue">
-            Aucune lecture de télémétrie n’a abouti. Aucun chiffre n’est affiché à la place.
-          </Note>
-        ) : telemetry.consumerCount === 0 ? (
-          <Note tone="structural" title="Aucun agent déployé n’a jamais rapporté de run">
-            La table de télémétrie a été LUE : sur {telemetry.scannedCount} événement(s), aucun ne porte
-            une provenance « consumer ». C’est un fait mesuré, pas un panneau vide. Le flux est à sens
-            unique — Aigent pousse des agents, et rien ne revient.
-          </Note>
-        ) : (
-          <Note tone="info" title="Des agents déployés ont rapporté des runs">
-            {telemetry.consumerCount} événement(s) de provenance « consumer » sur{' '}
-            {telemetry.scannedCount} lu(s).
-          </Note>
-        )}
+        <RosterTelemetryNote telemetry={telemetry} telemetryFailure={telemetryFailure} />
       </div>
 
       {deliveryReadFailures > 0 ? (
         <div className="shrink-0">
-          <Note tone="warn" title={`${deliveryReadFailures} lecture(s) de livraison en échec`}>
+          <Note tone="warn" title={deliveryReadFailures + ' lecture(s) de livraison en échec'}>
             Ces agents sont marqués « livraison non lue » et ne sont comptés ni parmi les livrés, ni
             parmi les jamais livrés. Une panne de lecture n’est pas une absence de livraison.
           </Note>
@@ -208,7 +248,7 @@ export default function DeliveryRosterScreen({
 
       <Panel
         title="Banc de livraison"
-        hint={`${ranked.length} au catalogue`}
+        hint={ranked.length + ' au catalogue'}
         className="min-h-[20rem] min-w-0 xl:min-h-0 xl:flex-1"
         padded={false}
         bodyClassName="scroll-thin overflow-y-auto"
