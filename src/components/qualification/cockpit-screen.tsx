@@ -263,7 +263,7 @@ export default function QualificationCockpitScreen({
     // UN SEUL conteneur de scroll : celui-ci. Aucun panneau n'en porte un
     // second. `min-h-svh` (et non `h-svh`) parce que cet écran est un document
     // qui s'allonge — le borner couperait la zone secondaire.
-    <div className="min-h-svh p-4 max-lg:pl-14">
+    <div className="shell-page-document max-lg:pl-14">
       <CockpitHeader detail={detail} state={decision.state} />
 
       {detail.agent === null ? (

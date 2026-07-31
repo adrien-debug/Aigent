@@ -182,7 +182,7 @@ export default function DeliveryRosterScreen({
   const ranked = sortDeliveryRows(rows)
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-4 max-lg:pl-14 xl:overflow-hidden">
+    <div className="shell-page-bounded flex min-h-0 flex-col gap-3 max-lg:pl-14">
       {/* Bandeau de comptage — dérivé de la MÊME liste que la table affiche. */}
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         <Badge color="zinc">{counts.total} agent(s)</Badge>
