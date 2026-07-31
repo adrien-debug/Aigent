@@ -36,10 +36,24 @@
  * it had cleared "the admin surfaces" while opening a third of what it named —
  * exactly the class of green-gate-that-lies this repo has been burned by.
  *
- * It now scans the one root that still exists, `src/lib/runs-console/**`: the
- * run metrics/filters/timeseries layer, which is real, tested code and is what a
- * rebuilt front will read its figures from. When new read surfaces appear, add
- * them HERE — and only once they exist on disk.
+ * It scans `src/lib/runs-console/**`: the run metrics/filters/timeseries layer,
+ * which is real, tested code and is what a rebuilt front will read its figures
+ * from. When new read surfaces appear, add them HERE — and only once they exist
+ * on disk.
+ *
+ * EXTENDED 31/07/2026 to the cockpit, now that it exists on disk:
+ *   · `src/lib/cockpit/**`        — the pure derivations (buckets, named runs,
+ *     agent cards) that turn `windowRuns` into what the screen draws. This is
+ *     where a `null` window would get flattened into a calm-looking zero.
+ *   · `src/components/cockpit/**` — the render surface itself, Recharts
+ *     included. The 26/07/2026 `NaN` shipped from exactly this kind of module.
+ *
+ * Still NOT scanned, and it matters: the big aggregators
+ * `dashboard-overview.ts`, `agent-detail.ts` and `data.ts`. They feed the
+ * cockpit, so a fabricated zero born there arrives here already laundered and
+ * this guard cannot see it. Extending to them is a separate mission — they are
+ * large, and the metric-name list would need auditing against their contracts
+ * first. Do not claim this guard covers them.
  *
  * ANTI-BLINDNESS: a scan root that has vanished, or a run that opened zero files,
  * FAILS. A guard that measured nothing must never exit 0 silently.
@@ -51,7 +65,11 @@ import { dirname, join, relative } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const SCANNED_DIRS = [join(ROOT, 'src/lib/runs-console')]
+const SCANNED_DIRS = [
+  join(ROOT, 'src/lib/runs-console'),
+  join(ROOT, 'src/lib/cockpit'),
+  join(ROOT, 'src/components/cockpit'),
+]
 
 /**
  * Field names that ARE measurements in this codebase's contracts (`types.ts`,
@@ -116,6 +134,32 @@ const ASSERTION_LITERALS = [
 const alt = (names) => names.join('|')
 
 const METRIC_TO_ZERO_RE = new RegExp(String.raw`\.(?:${alt(METRIC_FIELDS)})\b[^\n]*?(?:\?\?|\|\|)\s*0\b`)
+
+/**
+ * The ONE legitimate `?? 0` on a metric: seeding a RUNNING SUM.
+ *
+ *     card.costUsd = (card.costUsd ?? 0) + run.costUsd
+ *
+ * Why this is not the banned coalescence. The banned shape takes an unmeasured
+ * value and publishes 0 as if it were the measurement. This shape does the
+ * opposite: the accumulator is seeded `null`, each `?? 0` is reached only after
+ * the caller has PROVEN the incoming value is measured, and if nothing is ever
+ * measured the field is never assigned and stays `null`. The zero is an
+ * arithmetic identity for `+`, never a claim about the metric.
+ *
+ * The pattern is deliberately tight — it requires the SAME metric name on both
+ * sides of `=` and an `+` immediately after the parenthesis. It therefore still
+ * fails on the dangerous look-alikes, each verified by probe:
+ *   · `card.costUsd = other.costUsd ?? 0`        (no accumulation → red)
+ *   · `card.costUsd = (card.costUsd ?? 0)`       (no `+`          → red)
+ *   · `total.costUsd = (card.costUsd ?? 0) + x`  (different field → red)
+ *
+ * It does NOT verify the caller's guard — that stays a human reading. What it
+ * guarantees is that the only exempted shape is one that cannot publish a zero.
+ */
+const RUNNING_SUM_RE = new RegExp(
+  String.raw`([\w$]+(?:\.[\w$]+)*\.(?:${alt(METRIC_FIELDS)}))\s*=\s*\(\s*\1\s*(?:\?\?|\|\|)\s*0\s*\)\s*\+`
+)
 const NAN_COERCION_RE = /Number\([^)]*\?\./
 const ASSERTED_ABSENCE_RE = new RegExp(
   String.raw`\.(?:${alt(NULLABLE_FACT_FIELDS)})\b[^\n]*\?[^\n]*:\s*['"](?:${alt(ASSERTION_LITERALS)})['"]`,
@@ -220,7 +264,7 @@ async function main() {
           if (KNOWN_DEBT.has(rel)) matchedDebt.add(rel)
           else bucket.push(`${rel}:${i + 1}  ${line.trim()}`)
         }
-        if (METRIC_TO_ZERO_RE.test(line)) record(metricToZero)
+        if (METRIC_TO_ZERO_RE.test(line) && !RUNNING_SUM_RE.test(line)) record(metricToZero)
         if (NAN_COERCION_RE.test(line)) record(nanCoercions)
         if (ASSERTED_ABSENCE_RE.test(line)) record(assertedAbsence)
       })

@@ -33,7 +33,7 @@
 
 | Chaîne | Contenu | Bloque quoi |
 | --- | --- | --- |
-| `npm run check` | typecheck · lint:fast · lint · no-legacy-front · agent-truth · lifecycle-truth · registry-parity · registry-integrity · dev-port · render-truth · secrets · audit:dead | CI (`.github/workflows/ci.yml`) + pré-livraison |
+| `npm run check` | typecheck · lint:fast · lint · no-legacy-front · catalyst-integrity · agent-truth · lifecycle-truth · registry-parity · registry-integrity · dev-port · render-truth · **rsc-boundary** · secrets · audit:dead | CI (`.github/workflows/ci.yml`) + pré-livraison |
 | `npm run verify` | `check` + quality:dead (knip) + test (vitest offline) + build | pré-intégration quand le build ou une surface de rendu bouge |
 
 **La chaîne `check` est entièrement statique et hors ligne.** Deux gates en ont
@@ -49,9 +49,11 @@ auditer la base. ⚠️ Leur option `--fix` **ÉCRIT en base** (PATCH/POST sur `
 et `tool_definitions`) : sans `--fix` elles sont en lecture seule, avec `--fix`
 elles ne sont plus un audit.
 
-Hors chaîne également : `check:rsc-boundary`, prête et honnête (elle annonce
-« 0 composants client ») ; elle se réarme seule dès qu'un module `'use client'`
-apparaît, sans qu'on ait à la modifier.
+**`check:rsc-boundary` est entrée dans la chaîne le 31/07/2026.** Elle était
+restée hors chaîne tant que le front était vide ; le cockpit lui a rendu une
+cible (46 composants client, Recharts compris), donc elle garde de nouveau
+quelque chose de vivant. La sonde qui l'a rebranchée a trouvé un **trou de
+premier ordre** — voir §3.
 
 ---
 
@@ -60,8 +62,8 @@ apparaît, sans qu'on ait à la modifier.
 | Gate | Garantit | Ne garantit PAS |
 | --- | --- | --- |
 | `check:no-legacy-front` | aucun import d'une couche visuelle démolie, aucune route admin recréée sur disque, et la présence positive des 3 fichiers du squelette | qu'un écran neuf soit bon — seulement qu'il ne ressuscite pas l'ancien |
-| `check:rsc-boundary` *(hors chaîne)* | aucun Server Component ne passe une prop **fonction** à un Client Component | rien aujourd'hui : **0 composant client** dans le repo. Elle l'annonce au lieu d'afficher un ✓ trompeur, et se réarme seule quand le front revient |
-| `check:render-truth` | dans `src/lib/runs-console/**` : aucune absence de mesure rendue comme un 0, un `NaN` ou une phrase affirmative. **Échoue si une racine de scan a disparu ou si 0 fichier a été lu** | que la donnée présente soit juste ; et rien en dehors de `runs-console` — les agrégations de `dashboard-overview.ts` / `agent-detail.ts` / `data.ts` ne sont scannées par AUCUNE gate |
+| `check:rsc-boundary` | aucun Server Component ne passe une prop **fonction** à un Client Component — dans les trois formes : arrow inline, `function` expression, et référence à une fonction locale. Le scan de tag est **brace-aware** (voir §3 : la version regex était aveugle aux arrows) | qu'une prop fonction atteinte **indirectement** traverse : une fonction rangée dans un objet (`config={{ format: f }}`), passée via spread (`{...props}`), ou dont l'identifiant est importé plutôt que déclaré localement, reste invisible. Elle ne dit rien du contenu du composant client, ni du rendu |
+| `check:render-truth` | dans `src/lib/runs-console/**`, `src/lib/cockpit/**` et `src/components/cockpit/**` (15 fichiers) : aucune absence de mesure rendue comme un 0, un `NaN` ou une phrase affirmative. **Échoue si une racine de scan a disparu ou si 0 fichier a été lu**. Exempte une seule forme, la somme courante `x.m = (x.m ?? 0) + …`, qui ne peut pas publier de zéro (§3) | que la donnée présente soit juste ; et **rien dans les gros agrégateurs** — `dashboard-overview.ts`, `agent-detail.ts` et `data.ts` alimentent le cockpit et ne sont scannés par AUCUNE gate : un faux zéro né là arrive ici déjà blanchi. Elle lit **ligne à ligne** : un `?? 0` posé sur deux lignes, ou via une variable intermédiaire, passe |
 | `check:lifecycle-truth` | 5 mensonges précis interdits dans `agent-lifecycle-trace.ts` : « deployed » sans preuve consommateur, « healthy » sans diagnostic réel, faux zéro télémétrie, « promoted » déconnecté d'une version de prod, `active_in_consumer` calculé autrement que le littéral `'unknown'` | quoi que ce soit **hors de ce fichier unique** — sa portée est d'un seul module, pas du domaine lifecycle |
 | `check:dev-port` | le port de dev est épinglé à 3987 dans les 4 resolvers, et aucun des trois ports interdits (3000, 3001, 3210 — jamais binder, jamais sonder) n'apparaît en code vif ou en doctrine ; **échoue si un resolver a disparu** | qu'un serveur tourne réellement sur 3987 — c'est une gate statique |
 | `check:agent-truth` | aucun import de `market/dropship/agents/roster` et aucune lecture de `delivery/tradeagent/**` depuis `src/app`/`src/components` ; aucun provider/modèle littéral **assigné** (`=`, `:`) **ni retombé par `??`/`\|\|`** dans `available-agents.ts` ; **et qu'un nombre non nul de fichiers runtime + le contrat canonique + les 4 cibles protégées ont bien été ouverts** (le compte exact est affiché à l'exécution — ne le fige pas ici, il dérive) | que les agents servis soient **exécutables**. Elle lit **ligne à ligne** : un défaut fabriqué via une fonction, un ternaire, une constante déclarée ailleurs, ou une chaîne concaténée reste invisible. Elle ne regarde le check 3 que dans **un seul fichier** — le même défaut ailleurs dans `src/lib` passe |
@@ -70,7 +72,7 @@ apparaît, sans qu'on ait à la modifier.
 | `check:tool-rows` *(hors chaîne, réseau)* | les lignes `tools` réellement provisionnées ne contredisent pas le registre canonique | **rien du tout quand la base est injoignable ou non configurée** — elle sort 0 en s'annonçant SKIPPED. Ne la lis jamais comme une preuve en CI |
 | `check:tool-definitions` *(hors chaîne, réseau)* | le catalogue `tool_definitions` en base est aligné sur le registre, et chaque montage porte sa FK | même angle mort : SKIP silencieux sans backend |
 | `check:secrets` | `gitleaks` sur tout l'historique + hook `pre-commit` sur l'index | **un secret qu'aucune règle gitleaks ne décrit** — ce n'est pas théorique : un mot de passe de dev écrit en prose dans un `.md` est resté versionné des semaines avec cette gate verte (`docs/HANDOFF-agents-platform.md`, supprimé le 30/07/2026) |
-| `audit:dead` | aucun composant non référencé | **rien aujourd'hui : `src/components/` n'existe pas.** Elle l'annonce explicitement (« 0 cible : frontend volontairement absent ») au lieu d'afficher un ✓. Ne garantit jamais le code mort *à l'exécution* — une branche jamais atteinte reste « référencée ». Le code mort général est couvert par knip (`npm run quality:dead`) |
+| `audit:dead` | aucun composant non référencé — elle s'est réarmée avec le cockpit et vérifie **9 composants** (le compte est affiché à l'exécution, ne le fige pas ici) | le code mort *à l'exécution* — une branche jamais atteinte reste « référencée ». Le code mort général est couvert par knip (`npm run quality:dead`) |
 
 ---
 
@@ -150,6 +152,54 @@ message qui dit explicitement « une gate qui indexe 0 élément doit ÉCHOUER �
 
 Toutes les mutations ont été restaurées ; `git status` propre après chaque sonde, et les
 trois gates repassent **vert** sur le repo réel.
+
+### Rebranchement des deux gates de rendu (31/07/2026)
+
+Les deux gates qui gardent le rendu ont été sondées et corrigées en rebranchant
+le cockpit. **Les deux étaient vertes pour de mauvaises raisons.**
+
+#### `check:rsc-boundary` — aveugle à l'arrow inline, la forme la plus courante
+
+La gate existe pour attraper le bug du 26/07/2026 (`TrendChart cy="NaN"` :
+typecheck + build + 1483 tests + CI verts sur un chart mort au rendu client).
+Sonde : une prop fonction passée à `<HourlyRunsChart>` (module `'use client'`,
+Recharts) depuis `overview-screen.tsx`, un Server Component.
+
+| Forme sondée | AVANT correctif | APRÈS correctif |
+| --- | --- | --- |
+| `tickFormatter={formatTick}` (référence locale) | exit 1 ✓ | exit 1 ✓ |
+| `tickFormatter={(v) => \`${v}\`}` (**arrow inline**) | **exit 0 — aveugle** | exit 1 ✓ |
+| `buckets={buckets.map((b) => ({...b}))}` (anti-tautologie : arrow **dans** une expression de données, légitime) | exit 0 ✓ | exit 0 ✓ |
+
+**Cause racine** : le scan de tag était `<([A-Z]\w*)\b([^>]*?)\/?>`. La classe
+`[^>]` s'arrête au premier `>` du source — et `=>` en contient un. Les props
+étaient donc tronquées à `tickFormatter={(v) =` et l'arrow disparaissait : le
+test `isArrow` du script était **du code mort**, jamais atteignable. Même trou
+sur `(\w+)=\{([^}]*)\}`, qui coupait toute valeur contenant un objet.
+→ Corrigé : lecture du tag et des props avec **suivi de profondeur d'accolades**
+(`readTagProps`, `matchProps`), seule façon de rendre le cas arrow atteignable.
+
+#### `check:render-truth` — ne scannait que 4 fichiers sur un cockpit vivant
+
+Périmètre étendu de `src/lib/runs-console` (4 fichiers) à `+ src/lib/cockpit` et
+`+ src/components/cockpit` (**15 fichiers**). L'extension a produit **une seule**
+remontée, jugée **faux positif** :
+
+| Remontée | Arbitrage |
+| --- | --- |
+| `src/lib/cockpit/named-runs.ts:138` — `card.costUsd = (card.costUsd ?? 0) + run.costUsd` | **Faux positif.** L'accumulateur est semé à `null`, la ligne n'est atteinte que sous un `if (run.costUsd !== null && !== undefined)`, et si aucun run ne porte de coût la carte reste `null`. Le 0 est l'identité de `+`, pas une affirmation sur la mesure. **Rien corrigé dans `src/`** |
+
+La règle a été **affinée, pas affaiblie** : seule la somme courante
+`x.m = (x.m ?? 0) + …` est exemptée, via une backreference qui exige **le même
+champ des deux côtés du `=`** et un `+` immédiat. Les trois sosies dangereux
+restent rouges, vérifiés : `card.costUsd = other.costUsd ?? 0`,
+`card.costUsd = (card.costUsd ?? 0)` sans `+`, et
+`total.costUsd = (card.costUsd ?? 0) + x` sur un autre champ.
+
+Les trois règles ont ensuite été sondées **dans le nouveau périmètre** en
+injectant le défaut dans `src/components/cockpit/rows.tsx` — coercition
+`Number(card?.costUsd)` → exit 1 ; `formatUsd(card.costUsd ?? 0)` → exit 1 ;
+`: 'never run'` → exit 1. Toutes les mutations restaurées, `git status` propre.
 
 #### Ce que ces gates ne garantiront jamais
 
