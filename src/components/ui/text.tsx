@@ -1,14 +1,16 @@
 import clsx from 'clsx'
 import { Link } from './link'
 
+/**
+ * Typographie du produit — densité de poste de contrôle (thème `globals.css`).
+ *
+ * Les tailles Catalyst d'origine (`text-base/6 sm:text-sm/6`) sont celles d'une
+ * application de gestion aérée ; le cockpit lit des mesures et tient dans un
+ * viewport sans scroll. Les valeurs sont donc redéfinies ICI, dans le composant
+ * canonique, plutôt que combattues à coups de `className` sur chaque appel.
+ */
 export function Text({ className, ...props }: React.ComponentPropsWithoutRef<'p'>) {
-  return (
-    <p
-      data-slot="text"
-      {...props}
-      className={clsx(className, 'text-base/6 text-zinc-500 sm:text-sm/6 dark:text-zinc-400')}
-    />
-  )
+  return <p data-slot="text" {...props} className={clsx(className, 'text-[11px]/5 text-ink-faint')} />
 }
 
 export function TextLink({ className, ...props }: React.ComponentPropsWithoutRef<typeof Link>) {
@@ -17,14 +19,14 @@ export function TextLink({ className, ...props }: React.ComponentPropsWithoutRef
       {...props}
       className={clsx(
         className,
-        'text-zinc-950 underline decoration-zinc-950/50 data-hover:decoration-zinc-950 dark:text-white dark:decoration-white/50 dark:data-hover:decoration-white'
+        'text-accent-soft underline decoration-accent-soft/40 data-hover:text-accent-bright data-hover:decoration-accent-bright'
       )}
     />
   )
 }
 
 export function Strong({ className, ...props }: React.ComponentPropsWithoutRef<'strong'>) {
-  return <strong {...props} className={clsx(className, 'font-medium text-zinc-950 dark:text-white')} />
+  return <strong {...props} className={clsx(className, 'font-medium text-ink')} />
 }
 
 export function Code({ className, ...props }: React.ComponentPropsWithoutRef<'code'>) {
@@ -33,7 +35,7 @@ export function Code({ className, ...props }: React.ComponentPropsWithoutRef<'co
       {...props}
       className={clsx(
         className,
-        'rounded-sm border border-zinc-950/10 bg-zinc-950/2.5 px-0.5 text-sm font-medium text-zinc-950 sm:text-[0.8125rem] dark:border-white/20 dark:bg-white/5 dark:text-white'
+        'rounded-sm border border-white/10 bg-white/5 px-0.5 font-mono text-[10.5px] text-ink-dim'
       )}
     />
   )

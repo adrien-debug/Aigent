@@ -11,6 +11,8 @@
 import type { ComponentProps } from 'react'
 
 import { Badge } from '@/components/ui/badge'
+import { Link } from '@/components/ui/link'
+import { Strong, Text } from '@/components/ui/text'
 import type { ActionItem, ActionItemKind } from '@/lib/agent-mission-control/dashboard-overview'
 import { PanelHeader, Rail, Unavailable } from './primitives'
 
@@ -71,20 +73,20 @@ export default function ActionQueue({ items }: { items: ActionItem[] }) {
               const color = KIND_COLOR[item.kind]
               return (
                 <li key={item.id}>
-                  <a
+                  <Link
                     href={item.href}
-                    className="group relative block overflow-hidden rounded-lg border border-white/6 bg-raised px-3 py-2.5 pl-4 transition-colors hover:border-accent/25 hover:bg-elevated"
+                    className="group relative block overflow-hidden rounded-lg border border-white/6 bg-raised px-3 py-2.5 pl-4 transition-colors data-hover:border-accent/25 data-hover:bg-elevated"
                   >
                     <Rail color={color} className="opacity-70 transition-opacity group-hover:opacity-100" />
                     <Badge dense color={KIND_BADGE_COLOR[item.kind]}>
                       {KIND_LABEL[item.kind]}
                     </Badge>
-                    <p className="mt-1.5 truncate text-[12.5px] font-medium text-ink">{item.title}</p>
-                    <p className="truncate text-[10.5px] text-ink-faint">{item.meta}</p>
-                    <p className="mt-1.5 font-mono text-[10px] tracking-wide text-accent-soft uppercase transition-colors group-hover:text-accent-bright">
+                    <Strong className="mt-1.5 block truncate text-[12.5px]">{item.title}</Strong>
+                    <Text className="truncate">{item.meta}</Text>
+                    <Text className="mt-1.5 font-mono tracking-wide text-accent-soft uppercase transition-colors group-hover:text-accent-bright">
                       {item.buttonLabel} →
-                    </p>
-                  </a>
+                    </Text>
+                  </Link>
                 </li>
               )
             })}

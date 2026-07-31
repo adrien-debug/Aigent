@@ -2,22 +2,20 @@
  * Flux d'exécution — ce qui SE PASSE, ligne à ligne, du plus récent au plus
  * ancien.
  *
- * Six colonnes tabulaires réelles (heure, statut, agent, durée, coût,
- * ancienneté) : une forme distincte des rosters agent/projet à trois zones,
- * donc pas de `EntityRow` ici. Ce qu'elle partage avec eux — le rail de
- * statut et la marque d'absence — vient de `primitives.tsx`.
+ * Bâti sur la `Table` Catalyst (`dense`, `bounded`) : six colonnes tabulaires
+ * réelles — heure, statut, agent, durée, coût, ancienneté. `bounded` garde
+ * l'en-tête fixe et fait défiler le seul corps dans la hauteur du panneau,
+ * sans quoi la table grandirait avec la donnée et casserait le zéro-scroll.
  *
  * Une mesure absente reste absente : ni « 0 ms », ni « $0.00 ».
  */
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Strong, Text } from '@/components/ui/text'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { NamedRun } from '@/lib/cockpit/named-runs'
 import { clockTime, timeAgo } from '@/lib/cockpit/named-runs'
 import { RUN_STATUS_COLOR, RUN_STATUS_SINGULAR } from '@/lib/cockpit/status'
-import { AbsentMark, Led, Rail } from './primitives'
-
-/** Une seule définition de grille pour l'en-tête et les lignes — sinon elles glissent. */
-const COLS =
-  'grid grid-cols-[52px_minmax(0,1fr)_56px_66px_62px] items-center gap-x-3 sm:grid-cols-[52px_88px_minmax(0,1fr)_56px_66px_62px]'
+import { AbsentMark, Led } from './primitives'
 
 function duration(ms: number): string {
   if (ms < 1000) return `${ms} ms`
@@ -27,66 +25,57 @@ function duration(ms: number): string {
 
 export default function RunStream({ runs, nowMs }: { runs: NamedRun[]; nowMs: number }) {
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div
-        className={`${COLS} shrink-0 border-b border-white/6 px-3.5 py-1.5 text-[9px] font-semibold tracking-[0.16em] text-ink-faint uppercase`}
-      >
-        <span>Heure</span>
-        <span className="hidden sm:block">Statut</span>
-        <span>Agent</span>
-        <span className="text-right">Durée</span>
-        <span className="text-right">Coût</span>
-        <span className="text-right">Il y a</span>
-      </div>
+    <Table dense bounded>
+      <TableHead>
+        <TableRow>
+          <TableHeader>Heure</TableHeader>
+          <TableHeader className="hidden sm:table-cell">Statut</TableHeader>
+          <TableHeader>Agent</TableHeader>
+          <TableHeader className="text-right">Durée</TableHeader>
+          <TableHeader className="text-right">Coût</TableHeader>
+          <TableHeader className="text-right">Il y a</TableHeader>
+        </TableRow>
+      </TableHead>
 
-      <ul className="scroll-thin min-h-0 flex-1 overflow-y-auto">
-        {runs.map((run) => {
-          const color = RUN_STATUS_COLOR[run.status]
-          const live = run.status === 'running'
-          return (
-            <li
-              key={run.id}
-              className={`${COLS} group relative border-b border-white/[0.035] px-3.5 py-2 transition-colors hover:bg-elevated`}
-            >
-              <Rail color={color} className="opacity-50 transition-opacity group-hover:opacity-100" />
+      <TableBody>
+        {runs.map((run) => (
+          <TableRow key={run.id}>
+            <TableCell className="font-mono tabular-nums text-ink-faint">
+              {clockTime(run.startedAtMs)}
+            </TableCell>
 
-              <span className="font-mono text-[11px] tabular-nums text-ink-faint">
-                {clockTime(run.startedAtMs)}
+            <TableCell className="hidden sm:table-cell">
+              <span className="flex items-center gap-1.5">
+                <Led color={RUN_STATUS_COLOR[run.status]} live={run.status === 'running'} />
+                <span className="truncate text-ink-dim">{RUN_STATUS_SINGULAR[run.status]}</span>
               </span>
+            </TableCell>
 
-              <span className="hidden items-center gap-1.5 sm:flex">
-                <Led color={color} live={live} />
-                <span className="truncate text-[10.5px] tracking-wide text-ink-dim">
-                  {RUN_STATUS_SINGULAR[run.status]}
-                </span>
-              </span>
-
+            <TableCell>
               <span className="flex min-w-0 items-baseline gap-1.5">
-                <span className="truncate text-[12.5px] font-medium text-ink">
-                  {run.copilotName ?? (
-                    <span className="font-mono text-[11px] text-ink-faint">{run.copilotId}</span>
-                  )}
-                </span>
-                <span className="truncate text-[10.5px] text-ink-faint">
-                  {run.projectName ? `· ${run.projectName}` : '· sans projet'}
-                </span>
+                {run.copilotName ? (
+                  <Strong className="truncate text-[12.5px]">{run.copilotName}</Strong>
+                ) : (
+                  <span className="truncate font-mono text-ink-faint">{run.copilotId}</span>
+                )}
+                <Text className="truncate">{run.projectName ? `· ${run.projectName}` : '· sans projet'}</Text>
               </span>
+            </TableCell>
 
-              <span className="text-right font-mono text-[11px] tabular-nums text-ink-dim">
-                {run.latencyMs === null ? <AbsentMark /> : duration(run.latencyMs)}
-              </span>
+            <TableCell className="text-right font-mono tabular-nums text-ink-dim">
+              {run.latencyMs === null ? <AbsentMark /> : duration(run.latencyMs)}
+            </TableCell>
 
-              <span className="text-right font-mono text-[11px] tabular-nums text-ink-dim">
-                {run.costUsd === null ? <AbsentMark /> : formatUsd(run.costUsd)}
-              </span>
+            <TableCell className="text-right font-mono tabular-nums text-ink-dim">
+              {run.costUsd === null ? <AbsentMark /> : formatUsd(run.costUsd)}
+            </TableCell>
 
-              <span className="truncate text-right font-mono text-[10.5px] whitespace-nowrap text-ink-faint">
-                {timeAgo(run.startedAtMs, nowMs).replace('il y a ', '')}
-              </span>
-            </li>
-          )
-        })}
-      </ul>
-    </div>
+            <TableCell className="text-right font-mono whitespace-nowrap text-ink-faint">
+              {timeAgo(run.startedAtMs, nowMs).replace('il y a ', '')}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   )
 }

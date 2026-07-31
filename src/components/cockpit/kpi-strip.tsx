@@ -18,6 +18,7 @@
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 
+import { Text } from '@/components/ui/text'
 import type { DashboardKpis } from '@/lib/agent-mission-control/dashboard-overview'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import { ArcGauge, BarMeter, Led, SegmentMeter, Unavailable } from './primitives'
@@ -65,40 +66,37 @@ function Cell({
         />
       ) : null}
 
-      <span className="flex items-center gap-1.5">
+      <dt className="flex items-center gap-1.5">
         {led}
         <span className="truncate text-[9.5px] font-semibold tracking-[0.18em] text-ink-faint uppercase">
           {label}
         </span>
-      </span>
+      </dt>
 
-      {value === null ? (
-        <div className="h-9 w-fit">
-          <Unavailable reason={unavailableReason ?? 'unread'} compact />
-        </div>
-      ) : (
-        <div className="flex items-end justify-between gap-3">
-          <p className="flex min-w-0 items-baseline gap-1">
-            <span
-              className={clsx(
-                'truncate font-mono font-semibold tracking-tight tabular-nums',
-                hero ? 'text-[34px] leading-8' : 'text-[26px] leading-7',
-              )}
-              style={
-                valueColor
-                  ? { color: valueColor }
-                  : undefined
-              }
-            >
-              {value}
-            </span>
-            {unit ? <span className="text-[11px] text-ink-faint">{unit}</span> : null}
-          </p>
-          {graphic ? <div className="shrink-0 pb-0.5">{graphic}</div> : null}
-        </div>
-      )}
-
-      <span className="truncate text-[10px] leading-tight text-ink-faint">{support}</span>
+      <dd>
+        {value === null ? (
+          <div className="h-9 w-fit">
+            <Unavailable reason={unavailableReason ?? 'unread'} compact />
+          </div>
+        ) : (
+          <div className="flex items-end justify-between gap-3">
+            <p className="flex min-w-0 items-baseline gap-1">
+              <span
+                className={clsx(
+                  'truncate font-mono font-semibold tracking-tight tabular-nums',
+                  hero ? 'text-[34px] leading-8' : 'text-[26px] leading-7',
+                )}
+                style={valueColor ? { color: valueColor } : undefined}
+              >
+                {value}
+              </span>
+              {unit ? <span className="text-[11px] text-ink-faint">{unit}</span> : null}
+            </p>
+            {graphic ? <div className="shrink-0 pb-0.5">{graphic}</div> : null}
+          </div>
+        )}
+        <Text className="truncate leading-tight">{support}</Text>
+      </dd>
     </div>
   )
 }
@@ -124,7 +122,7 @@ export default function KpiStrip({
   const executableTotal = kpis.executableTotal
 
   return (
-    <div className="lip elev relative grid shrink-0 grid-cols-2 overflow-hidden rounded-xl border border-white/6 bg-raised sm:grid-cols-3 xl:grid-cols-6 [&>*+*]:border-l [&>*+*]:border-white/5 [&>*]:min-h-[92px]">
+    <dl className="lip elev relative grid shrink-0 grid-cols-2 overflow-hidden rounded-xl border border-white/6 bg-raised sm:grid-cols-3 xl:grid-cols-6 [&>*+*]:border-l [&>*+*]:border-white/5 [&>*]:min-h-[92px]">
       <Cell
         hero
         label="Runs 24 h"
@@ -204,6 +202,6 @@ export default function KpiStrip({
         valueColor={kpis.needsAction > 0 ? WARN : undefined}
         graphic={<Led color={kpis.needsAction > 0 ? WARN : '#3a4048'} className="mb-3 size-2" />}
       />
-    </div>
+    </dl>
   )
 }

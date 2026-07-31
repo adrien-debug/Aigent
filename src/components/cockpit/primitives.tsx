@@ -26,6 +26,8 @@ import clsx from 'clsx'
 import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
 import { Avatar } from '@/components/ui/avatar'
 import { Divider } from '@/components/ui/divider'
+import { Subheading } from '@/components/ui/heading'
+import { Strong, Text } from '@/components/ui/text'
 
 /* ────────────────────────────── Surfaces ────────────────────────────── */
 
@@ -50,17 +52,13 @@ export function PanelHeader({
     <header className={clsx('shrink-0', className)}>
       <div className="flex items-center gap-2.5 px-3.5 py-2.5">
         <span aria-hidden className="h-3 w-0.5 shrink-0 rounded-full bg-accent" />
-        <h2 className="shrink-0 text-[10px] font-semibold tracking-[0.2em] whitespace-nowrap text-ink-dim uppercase">
+        <Subheading level={2} className="shrink-0">
           {title}
-        </h2>
-        {hint ? (
-          <span className="ml-auto truncate font-mono text-[10px] tracking-tight text-ink-faint">
-            {hint}
-          </span>
-        ) : null}
+        </Subheading>
+        {hint ? <Text className="ml-auto truncate font-mono">{hint}</Text> : null}
         {actions ? <div className={clsx('shrink-0', hint ? 'ml-2' : 'ml-auto')}>{actions}</div> : null}
       </div>
-      <Divider className="border-white/5" />
+      <Divider soft />
     </header>
   )
 }
@@ -72,6 +70,7 @@ export function Panel({
   children,
   className,
   bodyClassName,
+  padded = true,
 }: {
   title: string
   hint?: string
@@ -80,6 +79,12 @@ export function Panel({
   /** Contrainte de hauteur imposée par la grille du cockpit. */
   className?: string
   bodyClassName?: string
+  /**
+   * `false` quand le contenu gère lui-même ses marges (table, liste pleine
+   * largeur). Le corps porte TOUJOURS `min-h-0 flex-1` : c'est lui qui borne
+   * la hauteur, un appelant n'a donc jamais à le répéter.
+   */
+  padded?: boolean
 }) {
   return (
     <section
@@ -90,7 +95,7 @@ export function Panel({
       )}
     >
       <PanelHeader title={title} hint={hint} actions={actions} />
-      <div className={clsx('min-h-0 flex-1', bodyClassName ?? 'p-3')}>{children}</div>
+      <div className={clsx('min-h-0 flex-1', padded && 'p-3', bodyClassName)}>{children}</div>
     </section>
   )
 }
@@ -128,9 +133,7 @@ export function Unavailable({
       >
         {label}
       </span>
-      {detail && !compact ? (
-        <p className="max-w-[34ch] text-center text-[11px] leading-snug text-ink-faint">{detail}</p>
-      ) : null}
+      {detail && !compact ? <Text className="max-w-[34ch] text-center">{detail}</Text> : null}
     </div>
   )
 }
@@ -348,8 +351,8 @@ export function MetricValue({
     <span className="flex items-baseline gap-1">
       <span
         className={clsx(
-          'font-mono leading-none font-semibold tabular-nums text-ink',
-          size === 'md' ? 'text-[14px]' : 'text-[11px] font-normal text-ink-dim',
+          'font-mono leading-none tabular-nums',
+          size === 'md' ? 'text-[14px] font-semibold text-ink' : 'text-[11px] font-normal text-ink-dim',
         )}
       >
         {value}
@@ -409,10 +412,10 @@ export function EntityRow({
         {avatar}
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-[12.5px] font-medium text-ink">{title}</span>
+            <Strong className="truncate text-[12.5px]">{title}</Strong>
             {titleMeta}
           </span>
-          <span className="truncate text-[10.5px] text-ink-faint">{subtitle}</span>
+          <Text className="truncate">{subtitle}</Text>
         </span>
         <span className="flex shrink-0 flex-col items-end gap-1">{metrics}</span>
       </Tag>

@@ -3,6 +3,12 @@
 > Décision produit du 2026-07-31 : Catalyst est le design system unique.
 > Ce document est le tableau de décision demandé avant migration, et reste
 > ensuite la trace de ce qui a été fait et pourquoi.
+>
+> **Passe 2 (même jour)** — la première passe n'avait branché que `Avatar`,
+> `Badge` et `Divider` : une insertion ponctuelle, pas une migration. Le shell,
+> la sidebar, la barre supérieure, les panneaux, les listes et le flux étaient
+> restés maison. La passe 2 reconstruit l'architecture visuelle sur les
+> composants officiels — voir « Passe 2 » en fin de document.
 
 ## Constat de départ
 
@@ -19,7 +25,12 @@
   nommées — sans accès aux tokens du produit ni aux hex de sévérité validés
   vision des couleurs.
 
-## Tableau de décision
+## Tableau de décision — passe 1 (dépassé sur 3 lignes)
+
+> ⚠️ Les lignes `RunStream`, `Heading`/`Subheading`/`Text` et `TopBar` de ce
+> tableau concluaient à **skip** / **keep**. La passe 2 a tranché l'inverse :
+> elles sont désormais migrées (voir « Tableau de migration appliqué » plus
+> bas). Le tableau ci-dessous est conservé comme trace du raisonnement initial.
 
 | Composant cockpit actuel | Équivalent Catalyst | Action | Justification |
 |---|---|---|---|
@@ -55,3 +66,72 @@
    `topbar.tsx`** : consomment `Avatar`/`Badge`/`TextLink` au lieu du
    markup ad hoc équivalent.
 4. Aucune donnée, route, calcul, ou comportement zéro-scroll modifié.
+
+---
+
+## Passe 2 — migration de l'architecture visuelle
+
+### Voie retenue : B (Catalyst intégral, thème produit)
+
+Catalyst est *light-mode-first* et non dense : `SidebarItem`, `NavbarItem`,
+`Text`, `Subheading`, `TableCell` posent tous `text-zinc-950 dark:text-white`,
+`text-base/6 sm:text-sm/5`, `py-2.5`, `fill-zinc-500`. Utilisés tels quels, le
+cockpit perdait sa densité (9–14 px → 14–16 px) et son accent cyan, et le
+zéro-scroll devenait intenable sur les listes.
+
+Le choix acté est donc : **mêmes composants Catalyst partout, densité et
+couleurs du produit portées DANS `src/components/ui/`** — le fichier canonique
+reste l'unique endroit où l'on décide de l'apparence d'un composant. Aucun
+`!important`, aucun `className` de combat sur les appels, aucun fork.
+
+### Tableau de migration appliqué
+
+| Zone | Avant | Après (Catalyst officiel) | Action |
+|---|---|---|---|
+| Shell | `app-shell.tsx` flex maison + `Dialog` Headless brut | `Sidebar` · `SidebarHeader` · `SidebarBody` · `SidebarFooter` · `SidebarSection` · `SidebarItem` · `SidebarLabel` | compose |
+| Nav (6 entrées) | `NavLink` maison, 5× `href="#"` | `SidebarItem` — `href` réel pour le cockpit, **`disabled` (bouton)** pour les écrans non construits | replace |
+| Tiroir mobile | `Dialog`/`DialogPanel` bruts | `Headless.Dialog` + `Sidebar*` + `NavbarItem` (même mécanique que `MobileSidebar` de Catalyst) | compose |
+| Barre supérieure | flex maison + `Chip`/`Count` | `Navbar` · `NavbarSection` · `NavbarSpacer` · `NavbarDivider` + `Text`/`Strong` + `Badge` | replace |
+| Flux d'exécution | grille CSS 6 colonnes maison | `Table` · `TableHead` · `TableBody` · `TableRow` · `TableHeader` · `TableCell` (`dense`, `bounded`) | replace |
+| En-tête de panneau | `<h2>` maison + bordure | `Subheading` + `Divider` | replace |
+| Lignes agents/projets | `<span>` typographiques maison | `Avatar` + `Badge` + `Strong`/`Text` dans `EntityRow` | compose |
+| File d'action | `<a>` + `<p>` maison | `Link` + `Badge` + `Strong`/`Text` | replace |
+| KPI | `<span>`/`<p>` maison | sémantique `dl`/`dt`/`dd` + `Text` | compose |
+
+### Pourquoi `SidebarLayout` n'est pas utilisé
+
+`SidebarLayout` impose `min-h-svh`, des paddings de page (`p-6`/`lg:p-10`), un
+`max-w-6xl` et un `<main>` qui grandit avec son contenu. Le cockpit tient dans
+le viewport sans jamais scroller au niveau de la page et porte une colonne de
+décision à droite. On compose donc **les mêmes composants** (`Sidebar*`,
+`NavbarItem`, `Headless.Dialog`) dans une coquille à hauteur bornée : c'est de
+la composition, pas un layout concurrent.
+
+### Extensions portées dans `src/components/ui/`
+
+- `badge.tsx` — palette produit (`accent`/`info`/`success`/`warning`/`danger`/
+  `special`/`neutral`) + prop `dense`.
+- `table.tsx` — prop `bounded` : en-tête fixe, corps défilant dans la hauteur du
+  panneau. Sans elle, la table grandit avec la donnée et casse le zéro-scroll.
+- `sidebar.tsx` / `navbar.tsx` — densité et couleurs du produit ; état
+  `data-disabled` explicite pour les entrées sans écran.
+- `text.tsx` / `heading.tsx` / `divider.tsx` — échelle typographique du cockpit.
+
+### Points de la demande, traités
+
+3. **`href="#"` supprimés** — vérifié au DOM : `a[href="#"]` = 0 ; les 5 entrées
+   sans écran sont des `<button disabled>` porteurs de « — écran à venir ».
+4. **`/admin`** — aucun lien dans le front et la route n'existe pas
+   (`src/app/` = `api`, `logout`, `page.tsx`). Les occurrences restantes sont
+   des commentaires ou des données métier du workspace *consommateur*.
+7. **Doublons de classes** — `min-h-0` : `Panel` le porte désormais seul, les
+   appelants passent `padded={false}` au lieu de le répéter ;
+   `font-semibold`/`font-normal` simultanés corrigés dans `MetricValue`.
+9. **Signaux redondants** — le statut d'un agent n'est plus dit que par le rail
+   (sévérité) **et** un `Badge` qui porte couleur + mot. La diode et la teinte
+   d'avatar ont été retirées de `AgentRow`. Sur `ProjectRow`, le badge `n/total`
+   est un compte et non un statut : la teinte d'avatar y reste le seul signal
+   d'activité, donc non redondante.
+10. **`$$0.00`** — non reproduit : le DOM rend `$0.00`. Le `$$` n'apparaît que
+    dans le payload RSC sérialisé (`self.__next_f.push`), où Next.js échappe un
+    `$` initial en `$$`. `formatUsd` ne produit qu'un seul `$`. Rien à corriger.

@@ -70,7 +70,8 @@ export default function CockpitOverview({
       <Panel
         title="Activité 24 h"
         className="min-h-[15rem] shrink-0 xl:min-h-0 xl:flex-[4] xl:shrink"
-        bodyClassName="min-h-0 px-2 pt-3 pb-1"
+        padded={false}
+        bodyClassName="px-2 pt-3 pb-1"
         actions={slices ? <StatusLegend slices={slices} /> : undefined}
         hint={slices ? undefined : 'fenêtre non lue'}
       >
@@ -90,7 +91,7 @@ export default function CockpitOverview({
           title="Flux d'exécution"
           hint={runs ? `${runs.length} sur la fenêtre` : undefined}
           className="min-h-[18rem] xl:min-h-0"
-          bodyClassName="min-h-0"
+          padded={false}
         >
           {runs === null ? (
             <Unavailable reason="unread" detail="La fenêtre de runs n'a pas pu être lue." />
@@ -106,7 +107,8 @@ export default function CockpitOverview({
             title="Agents en vol"
             hint={agents ? `${agents.length} ont tourné` : undefined}
             className="min-h-[13rem] xl:min-h-0 xl:flex-[2]"
-            bodyClassName="scroll-thin min-h-0 overflow-y-auto"
+            padded={false}
+            bodyClassName="scroll-thin overflow-y-auto"
           >
             {agents === null ? (
               <Unavailable reason="unread" detail="La fenêtre de runs n'a pas pu être lue." />
@@ -128,7 +130,8 @@ export default function CockpitOverview({
             title="Projets"
             hint={`${projectCards.length} au catalogue`}
             className="min-h-[13rem] xl:min-h-0 xl:flex-[3]"
-            bodyClassName="scroll-thin min-h-0 overflow-y-auto"
+            padded={false}
+            bodyClassName="scroll-thin overflow-y-auto"
           >
             {projectCards.length === 0 ? (
               <Unavailable reason="no-data" detail="Aucun projet dans le catalogue." />
