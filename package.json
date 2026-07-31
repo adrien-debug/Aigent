@@ -52,16 +52,23 @@
     "check:no-legacy-front": "node scripts/check-no-legacy-front.mjs"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.10",
+    "@heroicons/react": "^2.2.0",
     "@langchain/core": "^1.2.2",
     "@langchain/langgraph": "^1.4.7",
     "@langchain/langgraph-cli": "^1.4.2",
     "@langchain/langgraph-sdk": "^1.9.25",
     "@langchain/openai": "^1.5.5",
+    "@tailwindcss/postcss": "^4.3.3",
+    "clsx": "^2.1.1",
+    "motion": "^12.43.0",
     "next": "16.2.10",
     "openai": "^6.46.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "recharts": "^3.10.1",
     "server-only": "^0.0.1",
+    "tailwindcss": "^4.3.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {

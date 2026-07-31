@@ -10,8 +10,8 @@
 ```
 appelant HTTP  (opérateur · automatisation · agent déployé chez un consommateur)
   │
-  ├── /                        page placeholder « Frontend reset complete »
-  │                            (aucune UI — cf. AGENTS.md § Frontend)
+  ├── /                        shell applicatif (src/components/app-shell.tsx)
+  │                            front en reconstruction — cf. AGENTS.md § Frontend
   │
   ▼
 src/proxy.ts                   garde d'identité — matcher : /api/agent-ops/** UNIQUEMENT
@@ -62,7 +62,8 @@ Il n'y a plus d'échappatoire de bypass d'authentification : la variable
 
 | Chemin | Contenu |
 |---|---|
-| `src/app/page.tsx`, `layout.tsx`, `globals.css` | toute l'UI existante : un placeholder technique |
+| `src/app/page.tsx`, `layout.tsx`, `globals.css` | racine de l'App Router ; `globals.css` active Tailwind |
+| `src/components/` | composants UI — reconstruction en cours, un bloc à la fois |
 | `src/app/api/agent-ops/` | API opérateur / automatisation — la majorité des routes |
 | `src/app/api/runtime/v1/` | API runtime côté consommateur (7 routes) |
 | `src/app/api/runtime-telemetry/` | ingestion de télémétrie depuis les agents déployés |
@@ -79,9 +80,10 @@ Il n'y a plus d'échappatoire de bypass d'authentification : la variable
 | `tests/unit/` | suite offline (dans `verify`) |
 | `tests/live/` | suite opt-in — tape GPU1 + OpenAI, coûte de l'argent, jamais dans `verify` |
 
-Les répertoires `src/components/`, `src/app/admin/`, `src/app/(site)/` et le
-fichier `src/theme.css` **n'existent plus** ; `check:no-legacy-front` refuse leur
-retour.
+Les répertoires `src/app/admin/`, `src/app/(site)/` et le fichier `src/theme.css`
+**n'existent plus** ; `check:no-legacy-front` refuse leur retour, ainsi que celui
+de l'ancien arbre `src/components/console|agent-ops|views|shell|marketing`.
+`src/components/` lui-même est autorisé : le front s'y reconstruit.
 
 ## Deux chemins d'exécution, un contrat
 
@@ -116,9 +118,13 @@ tables ont déjà vécu sans RLS pour cette raison.
 
 Next.js App Router (**ruptures d'API par rapport aux versions antérieures — lis
 `node_modules/next/dist/docs/` avant de toucher au code framework**), React,
-TypeScript. Pas de Tailwind, pas de kit UI, pas de fichier de tokens : la surface
-se réduit à trois fichiers et à un `globals.css` de huit lignes.
+TypeScript, **Tailwind v4**, Headless UI, Heroicons.
 
-Le futur front est **libre** : aucun design system, aucune palette, aucune
-typographie, aucune structure de navigation n'est imposée par ce repository, et
-aucune gate visuelle n'existe (`CLAUDE.md` §8).
+Tailwind v4 se branche par un unique plugin PostCSS (`postcss.config.mjs`) : il
+n'y a **pas** de `tailwind.config.js`, et une éventuelle config de thème vivrait
+dans `@theme` au sein de `src/app/globals.css`.
+
+Le front se reconstruit **bloc par bloc**, sur décision d'Adrien. Il reste
+**libre** : aucune palette, aucun système de tokens, aucune typographie ni
+structure de navigation n'est imposée par ce repository, et aucune gate visuelle
+n'existe (`CLAUDE.md` §8).

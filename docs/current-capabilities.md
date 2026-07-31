@@ -13,27 +13,34 @@
 > HTTP ou la bibliothèque existe et est testée, mais aucune surface opérateur ne
 > l'atteint) · `not wired` (déclaré dans le code, lève ou ne fait rien).
 
-## Frontend — volontairement absent
+## Frontend — en reconstruction
 
-Le front historique a été entièrement supprimé (mission `frontend-reset`). Il
-reste exactement trois fichiers d'UI : `src/app/page.tsx` (placeholder technique
-« Frontend reset complete »), `src/app/layout.tsx`, `src/app/globals.css`.
+Le front historique a été entièrement supprimé (mission `frontend-reset`), puis la
+reconstruction a démarré le **2026-07-31** avec un premier bloc.
 
-| Ce qui n'existe plus | Détail |
+| Capacité | État | Preuve |
+|---|---|---|
+| Shell applicatif — sidebar mobile (`Dialog`), rail desktop, colonne secondaire | wired | `src/components/app-shell.tsx`, `src/app/page.tsx` |
+| Tailwind v4 branché | wired | `postcss.config.mjs`, `src/app/globals.css` |
+
+| Ce qui reste supprimé et interdit de retour | |
 |---|---|
-| Console `/admin` | supprimée — aucun dashboard, aucune navigation |
-| Marketing `(site)/` | supprimé |
-| `src/components/` | supprimé — aucun design system, aucun kit UI |
-| `src/theme.css`, `design/` | supprimés |
+| Console `/admin` | aucune route admin |
+| Marketing `(site)/`, page `/login` | absents |
+| `src/theme.css`, `design/` | absents |
+| Ancien arbre `src/components/console\|agent-ops\|views\|shell\|marketing` | interdit sur disque et en import |
 
-**Depuis ce reset, l'unique surface d'accès au produit est l'API HTTP.** Toute
-ligne de ce document qui décrirait un bouton, un écran ou un clic serait fausse :
-ce qui suit se lit « atteignable par requête HTTP authentifiée », jamais « visible
-à l'écran ». La gate `npm run check:no-legacy-front` refuse la réapparition de
-`src/components/`, `/admin`, `design/`, etc.
+**Le shell est une coquille** : sa navigation pointe sur `#`, ses zones de contenu
+sont vides, et il n'appelle aucune API. Ne le lis pas comme une capacité produit —
+c'est une structure sur laquelle les blocs suivants viendront se poser.
 
-La reconstruction UI viendra en blocs séparés, en **free design** : aucun kit,
-aucune palette, aucun système de tokens imposé (`AGENTS.md` § Frontend).
+En dehors de lui, **l'unique surface d'accès au produit reste l'API HTTP**. Les
+lignes ci-dessous se lisent « atteignable par requête authentifiée », jamais
+« visible à l'écran ». La gate `npm run check:no-legacy-front` autorise
+`src/components/` et refuse le retour des surfaces démolies.
+
+La suite arrivera en blocs séparés, en **free design** : aucun kit, aucune palette,
+aucun système de tokens imposé (`AGENTS.md` § Frontend).
 
 ## Authoring & lifecycle
 

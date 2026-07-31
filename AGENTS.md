@@ -65,24 +65,33 @@ choisi hors de la bande 3000-3400 où ils vivent tous.
 refuse de tuer un listener qu'il ne peut pas prouver être son propre serveur
 (double preuve : `cwd` **et** commande). LangGraph tourne sur `:2024`.
 
-## Frontend — reset assumé, futur libre
+## Frontend — en reconstruction, par blocs
 
 Gate : `npm run check:no-legacy-front`.
 
-- **Aucun front historique** : pas de `src/components/`, pas de console `/admin`,
-  pas de marketing `(site)/`, pas de `src/theme.css`, pas de dossier `design/`.
-- **Surface actuelle** : trois fichiers — `src/app/page.tsx` (placeholder
-  technique « Frontend reset complete »), `src/app/layout.tsx`,
-  `src/app/globals.css`. Rien d'autre.
-- **API et runtime intacts** : `src/app/api/**`, `src/lib/**`, `src/langgraph/**`
-  et `src/proxy.ts` restent la voie d'accès produit jusqu'à reconstruction.
-- **Free design** : aucune règle de ce repository n'impose de design system, de
-  kit, de palette, de tokens, de typographie, de navigation ni de Storybook, et
-  **aucune gate visuelle n'est active**. Le futur front arrivera en blocs séparés
-  — ne l'anticipe pas ici. Voir `CLAUDE.md` §8.
+Le front historique a été entièrement supprimé, puis **la reconstruction a
+commencé le 2026-07-31** par un premier bloc fourni par Adrien (shell applicatif :
+sidebar mobile en `Dialog`, rail desktop, colonne secondaire).
 
-Conséquence sur les gates : tant que le front est vide, une gate qui prétend
-auditer des composants ne mesure rien. Elle doit le **dire**, pas afficher un ✓.
+- **`src/components/` est de nouveau légitime.** Le construire est le plan, pas
+  une régression — la gate ne l'interdit plus.
+- **Ce qui reste démoli et doit le rester** : la console `/admin`, le marketing
+  `(site)/`, la page `/login`, `src/theme.css`, le dossier `design/`, et
+  l'ancien arbre `src/components/console|agent-ops|views|shell|marketing`. La
+  gate échoue si l'un d'eux réapparaît, sur disque ou en import.
+- **Stack UI** : Tailwind v4 (branché par le seul plugin PostCSS — pas de
+  `tailwind.config.js`, la config de thème vivrait dans `@theme` du CSS),
+  Headless UI, Heroicons.
+- **API et runtime intacts** : `src/app/api/**`, `src/lib/**`, `src/langgraph/**`
+  et `src/proxy.ts` restent la voie d'accès produit.
+- **Free design** : aucune règle de ce repository n'impose de palette, de tokens,
+  de typographie, de navigation ni de Storybook, et **aucune gate visuelle n'est
+  active**. Les blocs arrivent sur décision d'Adrien ; ne les anticipe pas.
+  Voir `CLAUDE.md` §8.
+
+Conséquence sur les gates : celles qui auditent des composants se réarment
+d'elles-mêmes maintenant que la cible existe (`audit:dead`, `check:rsc-boundary`).
+Une gate sans cible doit le **dire**, jamais afficher un ✓ silencieux.
 
 ## Frontières de confiance — trois, séparées exprès
 

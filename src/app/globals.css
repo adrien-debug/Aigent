@@ -1,8 +1,7 @@
-html,
-body {
-  margin: 0;
-  min-height: 100%;
-  background: #f4f4f5;
-  color: #18181b;
-  font-family: system-ui, sans-serif;
-}
+@import 'tailwindcss';
+
+/*
+ * Free design (CLAUDE.md §8) : aucune palette, aucun token, aucune typographie
+ * n'est imposé ici. Ce fichier ne fait qu'activer Tailwind — le style vit dans
+ * les composants tant qu'aucune décision de design system n'a été prise.
+ */
