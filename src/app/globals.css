@@ -1,7 +1,166 @@
 @import 'tailwindcss';
 
-/*
- * Free design (CLAUDE.md §8) : aucune palette, aucun token, aucune typographie
- * n'est imposé ici. Ce fichier ne fait qu'activer Tailwind — le style vit dans
- * les composants tant qu'aucune décision de design system n'a été prise.
- */
+/* ===========================================================================
+ * Système visuel du cockpit — ultra dark, accent cyan unique.
+ *
+ * Trois familles de jetons, et rien d'autre :
+ *  · SURFACES  — une échelle de profondeur, du fond au calque flottant. Deux
+ *    surfaces ne se distinguent JAMAIS par une opacité de blanc empilée (c'est
+ *    ce qui aplatissait l'écran précédent) mais par une valeur propre.
+ *  · ENCRES    — trois niveaux de lisibilité, jamais une couleur de série.
+ *  · ACCENT    — un seul, cyan-turquoise. Il signale ce qui est vivant ou
+ *    actionnable ; il ne décore pas.
+ *
+ * Les couleurs de STATUT de run ne sont pas ici : elles vivent dans
+ * `src/lib/cockpit/status.ts` parce que Recharts les consomme en valeurs
+ * littérales et qu'un jeton unique évite qu'une puce et sa barre divergent.
+ * ========================================================================= */
+
+:root {
+  --surface-base: #0a0b0d;
+  --surface-raised: #131618;
+  --surface-elevated: #1b1e22;
+  --surface-overlay: #262a31;
+  --border-subtle: #2e343c;
+
+  --text-primary: #e6eaee;
+  --text-secondary: #a8b0ba;
+  --text-muted: #6f7782;
+
+  --accent-main: #00e5d3;
+  --accent-bright: #33ffe8;
+  --accent-soft: #00b8a9;
+  /* Pas de `--accent-glow` : AUCUN halo n'est autorisé sur cet écran. La
+   * profondeur vient des surfaces, des arêtes et des ombres noires — jamais
+   * d'une lueur. Un jeton nommé « glow » qui ne sert nulle part finirait par
+   * être rebranché par réflexe. */
+}
+
+/* `inline` : les utilitaires Tailwind pointent sur les jetons ci-dessus au lieu
+ * d'en recopier la valeur — une seule définition, partout. */
+@theme inline {
+  --color-base: var(--surface-base);
+  --color-raised: var(--surface-raised);
+  --color-elevated: var(--surface-elevated);
+  --color-overlay: var(--surface-overlay);
+  --color-edge: var(--border-subtle);
+
+  --color-ink: var(--text-primary);
+  --color-ink-dim: var(--text-secondary);
+  --color-ink-faint: var(--text-muted);
+
+  --color-accent: var(--accent-main);
+  --color-accent-bright: var(--accent-bright);
+  --color-accent-soft: var(--accent-soft);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--surface-base);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--accent-main) 30%, transparent);
+  color: var(--text-primary);
+}
+
+/* ---------------------------------------------------------------------------
+ * Substrat — trame technique + halo froid. Purement décoratif : aucune
+ * information ne passe par lui, il n'existe que pour que les surfaces posées
+ * dessus aient un dessous.
+ * ------------------------------------------------------------------------- */
+@utility cockpit-substrate {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.014) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.014) 1px, transparent 1px);
+  background-size:
+    34px 34px,
+    34px 34px;
+}
+
+/* Lumière rasante sur l'arête haute d'une surface — ce qui donne l'épaisseur.
+ * Un filet d'1 px, blanc, sans teinte : la profondeur vient de l'arête, pas
+ * d'un halo (aucun glow n'est autorisé sur cet écran). */
+@utility lip {
+  &::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      rgb(255 255 255 / 0.1) 22%,
+      rgb(255 255 255 / 0.14) 50%,
+      rgb(255 255 255 / 0.1) 78%,
+      transparent
+    );
+    pointer-events: none;
+  }
+}
+
+/* Ombre portée d'une surface surélevée — profonde, jamais grise. */
+@utility elev {
+  box-shadow:
+    0 1px 0 0 rgb(255 255 255 / 0.03) inset,
+    0 28px 56px -30px rgb(0 0 0 / 0.95),
+    0 2px 8px -4px rgb(0 0 0 / 0.7);
+}
+
+/* Barres de défilement : présentes, discrètes, dans la palette. */
+@utility scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-subtle) transparent;
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--border-subtle);
+    border-radius: 9999px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-soft);
+  }
+}
+
+/* Battement du témoin « système en ligne » — variation d'opacité seule, pas de
+ * halo qui s'étend. Coupé si l'utilisateur a demandé moins d'animation : un
+ * cockpit n'impose pas son clignotement. */
+@keyframes cockpit-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@utility pulse-live {
+  animation: cockpit-pulse 2.6s ease-in-out infinite;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+/* Hachures : « ce n'est pas une valeur », lisible au premier coup d'œil. */
+@utility hatched {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 6px,
+    rgb(255 255 255 / 0.03) 6px,
+    rgb(255 255 255 / 0.03) 12px
+  );
+}

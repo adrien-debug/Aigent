@@ -142,6 +142,20 @@ export function buildAgentCards(
   return [...byCopilot.values()].sort((a, b) => (b.lastRunMs ?? 0) - (a.lastRunMs ?? 0))
 }
 
+/**
+ * Heure murale d'un instant, `HH:MM:SS`.
+ *
+ * Calculée côté serveur comme `timeAgo` et comme les libellés d'heure des
+ * buckets : un flux d'exécution doit lire la même horloge que l'histogramme
+ * posé au-dessus de lui.
+ */
+const pad2 = (n: number) => String(n).padStart(2, '0')
+
+export function clockTime(atMs: number): string {
+  const d = new Date(atMs)
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
+}
+
 /** Libellé relatif court : « il y a 4 min ». */
 export function timeAgo(fromMs: number, nowMs: number): string {
   const s = Math.max(0, Math.round((nowMs - fromMs) / 1000))

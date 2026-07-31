@@ -1,16 +1,30 @@
 'use client'
 
+/**
+ * Cadre du poste de contrôle : rail d'outils à gauche, barre d'état en haut,
+ * plan de travail au centre, colonne de décision à droite.
+ *
+ * Le shell précédent posait chaque colonne en `fixed` et compensait par des
+ * `pl-20` / `pr-96` sur le contenu — trois systèmes de coordonnées qui devaient
+ * rester d'accord. Ici tout est en flux : une rangée, une colonne, et la barre
+ * d'état couvre réellement toute la largeur au lieu de s'arrêter avant la
+ * colonne de droite.
+ *
+ * `h-full overflow-hidden` : le cockpit tient dans le viewport et ne scrolle
+ * JAMAIS au niveau de la page en desktop. Seules les listes scrollent, dans
+ * leur box.
+ */
 import { useState } from 'react'
-import type { ComponentType, SVGProps } from 'react'
-import { Dialog, DialogBackdrop, DialogPanel, TransitionChild } from '@headlessui/react'
+import type { ComponentType, ReactNode, SVGProps } from 'react'
+import { Dialog, DialogBackdrop, DialogPanel } from '@headlessui/react'
 import {
   Bars3Icon,
-  CalendarIcon,
-  ChartPieIcon,
-  DocumentDuplicateIcon,
+  BoltIcon,
+  CpuChipIcon,
   FolderIcon,
-  HomeIcon,
-  UsersIcon,
+  RocketLaunchIcon,
+  SignalIcon,
+  Squares2X2Icon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 
@@ -21,133 +35,150 @@ type NavItem = {
   current: boolean
 }
 
+/**
+ * Le cockpit est le seul écran construit à ce jour. Les autres entrées nomment
+ * les domaines réels d'Aigent et restent VISIBLEMENT inactives : elles annoncent
+ * la carte du produit, elles ne prétendent pas ouvrir une page.
+ */
 const navigation: NavItem[] = [
-  { name: 'Dashboard', href: '#', icon: HomeIcon, current: true },
-  { name: 'Team', href: '#', icon: UsersIcon, current: false },
-  { name: 'Projects', href: '#', icon: FolderIcon, current: false },
-  { name: 'Calendar', href: '#', icon: CalendarIcon, current: false },
-  { name: 'Documents', href: '#', icon: DocumentDuplicateIcon, current: false },
-  { name: 'Reports', href: '#', icon: ChartPieIcon, current: false },
+  { name: 'Cockpit', href: '/', icon: Squares2X2Icon, current: true },
+  { name: 'Agents', href: '#', icon: CpuChipIcon, current: false },
+  { name: 'Projets', href: '#', icon: FolderIcon, current: false },
+  { name: 'Runs', href: '#', icon: BoltIcon, current: false },
+  { name: 'Livraisons', href: '#', icon: RocketLaunchIcon, current: false },
+  { name: 'Télémétrie', href: '#', icon: SignalIcon, current: false },
 ]
 
-function classNames(...classes: (string | false | null | undefined)[]) {
-  return classes.filter(Boolean).join(' ')
+/** Marque Aigent — un losange creux traversé d'un éclat. */
+function Mark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden className={className}>
+      <path
+        d="M12 2.2 21.8 12 12 21.8 2.2 12 12 2.2Z"
+        stroke="var(--accent-main)"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+      <path d="M12 7.4 16.6 12 12 16.6 7.4 12 12 7.4Z" fill="var(--accent-main)" fillOpacity="0.9" />
+    </svg>
+  )
+}
+
+function NavLink({ item, withLabel = false }: { item: NavItem; withLabel?: boolean }) {
+  const soon = !item.current && item.href === '#'
+  return (
+    <a
+      href={item.href}
+      title={soon ? `${item.name} — écran à venir` : item.name}
+      aria-current={item.current ? 'page' : undefined}
+      aria-disabled={soon || undefined}
+      className={[
+        'group relative flex items-center gap-3 rounded-lg transition-colors',
+        withLabel ? 'px-3 py-2 text-[13px] font-medium' : 'justify-center p-2.5',
+        item.current
+          ? 'bg-accent/10 text-accent'
+          : soon
+            ? 'text-ink-faint/70 hover:bg-white/4 hover:text-ink-dim'
+            : 'text-ink-faint hover:bg-white/4 hover:text-ink',
+      ].join(' ')}
+    >
+      {item.current ? (
+        <span
+          aria-hidden
+          className="absolute top-1/2 -left-3 h-5 w-0.5 -translate-y-1/2 rounded-full bg-accent"
+        />
+      ) : null}
+      <item.icon aria-hidden="true" className="size-5 shrink-0" />
+      {withLabel ? <span>{item.name}</span> : <span className="sr-only">{item.name}</span>}
+    </a>
+  )
 }
 
 export default function AppShell({
   children,
   aside,
+  topbar,
 }: {
-  children?: React.ReactNode
-  aside?: React.ReactNode
+  children?: ReactNode
+  aside?: ReactNode
+  topbar?: ReactNode
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // `h-full overflow-hidden` : le cockpit tient dans le viewport et ne scrolle
-  // JAMAIS au niveau de la page. Seules les listes scrollent, dans leur box.
   return (
-    <div className="h-full overflow-hidden">
+    <div className="flex h-full overflow-hidden bg-base">
+      {/* Rail mobile */}
       <Dialog open={sidebarOpen} onClose={setSidebarOpen} className="relative z-50 lg:hidden">
         <DialogBackdrop
           transition
-          className="fixed inset-0 bg-gray-900/80 transition-opacity duration-300 ease-linear data-closed:opacity-0"
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity duration-300 ease-linear data-closed:opacity-0"
         />
-
         <div className="fixed inset-0 flex">
           <DialogPanel
             transition
-            className="relative mr-16 flex w-full max-w-xs flex-1 transform transition duration-300 ease-in-out data-closed:-translate-x-full"
+            className="relative flex w-full max-w-64 flex-1 flex-col border-r border-white/6 bg-raised transition duration-300 ease-in-out data-closed:-translate-x-full"
           >
-            <TransitionChild>
-              <div className="absolute top-0 left-full flex w-16 justify-center pt-5 duration-300 ease-in-out data-closed:opacity-0">
-                <button type="button" onClick={() => setSidebarOpen(false)} className="-m-2.5 p-2.5">
-                  <span className="sr-only">Close sidebar</span>
-                  <XMarkIcon aria-hidden="true" className="size-6 text-white" />
-                </button>
-              </div>
-            </TransitionChild>
-
-            <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-gray-900 px-6 pb-2 ring-1 ring-white/10">
-              <div className="flex h-16 shrink-0 items-center">
-                <img
-                  alt="Your Company"
-                  src="https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=500"
-                  className="h-8 w-auto"
-                />
-              </div>
-              <nav className="flex flex-1 flex-col">
-                <ul role="list" className="-mx-2 flex-1 space-y-1">
-                  {navigation.map((item) => (
-                    <li key={item.name}>
-                      <a
-                        href={item.href}
-                        className={classNames(
-                          item.current
-                            ? 'bg-gray-800 text-white'
-                            : 'text-gray-400 hover:bg-gray-800 hover:text-white',
-                          'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold',
-                        )}
-                      >
-                        <item.icon aria-hidden="true" className="size-6 shrink-0" />
-                        {item.name}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </nav>
+            <div className="flex h-12 shrink-0 items-center gap-2.5 border-b border-white/6 px-4">
+              <Mark className="size-[18px]" />
+              <span className="text-[13px] font-semibold tracking-[0.26em] text-ink">AIGENT</span>
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(false)}
+                className="ml-auto -mr-1 p-1 text-ink-faint hover:text-ink"
+              >
+                <span className="sr-only">Fermer</span>
+                <XMarkIcon aria-hidden="true" className="size-5" />
+              </button>
             </div>
+            <nav className="flex flex-1 flex-col gap-1 p-3">
+              {navigation.map((item) => (
+                <NavLink key={item.name} item={item} withLabel />
+              ))}
+            </nav>
           </DialogPanel>
         </div>
       </Dialog>
 
-      {/* Static sidebar for desktop */}
-      <div className="hidden before:pointer-events-none before:absolute before:inset-0 before:border-r before:border-white/10 before:bg-black/10 lg:fixed lg:inset-y-0 lg:left-0 lg:z-50 lg:block lg:w-20 lg:overflow-y-auto lg:bg-gray-900 lg:pb-4">
-        <div className="relative flex h-16 shrink-0 items-center justify-center">
-          <img
-            alt="Your Company"
-            src="https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=500"
-            className="h-8 w-auto"
+      {/* Rail desktop */}
+      <div className="hidden w-16 shrink-0 flex-col border-r border-white/6 bg-base lg:flex">
+        <div className="flex h-12 shrink-0 items-center justify-center border-b border-white/6">
+          <Mark className="size-[20px]" />
+        </div>
+        <nav className="flex flex-1 flex-col items-center gap-1 py-4">
+          {navigation.map((item) => (
+            <NavLink key={item.name} item={item} />
+          ))}
+        </nav>
+        <div className="flex h-12 shrink-0 items-center justify-center border-t border-white/6">
+          <span
+            aria-hidden
+            title="Interface en ligne"
+            className="pulse-live size-1.5 rounded-full bg-accent"
           />
         </div>
-        <nav className="relative mt-8">
-          <ul role="list" className="flex flex-col items-center space-y-1">
-            {navigation.map((item) => (
-              <li key={item.name}>
-                <a
-                  href={item.href}
-                  className={classNames(
-                    item.current ? 'bg-white/5 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white',
-                    'group flex gap-x-3 rounded-md p-3 text-sm/6 font-semibold',
-                  )}
-                >
-                  <item.icon aria-hidden="true" className="size-6 shrink-0" />
-                  <span className="sr-only">{item.name}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
       </div>
 
-      <div className="sticky top-0 z-40 flex items-center gap-x-6 bg-gray-900 px-4 py-4 before:pointer-events-none before:absolute before:inset-0 before:border-b before:border-white/10 before:bg-black/10 sm:px-6 lg:hidden">
-        <button
-          type="button"
-          onClick={() => setSidebarOpen(true)}
-          className="relative -m-2.5 p-2.5 text-gray-400 lg:hidden"
-        >
-          <span className="sr-only">Open sidebar</span>
-          <Bars3Icon aria-hidden="true" className="size-6" />
-        </button>
-        <div className="relative flex-1 text-sm/6 font-semibold text-white">Dashboard</div>
+      {/* Colonne principale */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex h-12 shrink-0 items-center border-b border-white/6">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="ml-2 shrink-0 rounded-md p-2 text-ink-faint hover:bg-white/4 hover:text-ink lg:hidden"
+          >
+            <span className="sr-only">Ouvrir la navigation</span>
+            <Bars3Icon aria-hidden="true" className="size-5" />
+          </button>
+          <div className="min-w-0 flex-1">{topbar}</div>
+        </div>
+
+        <div className="flex min-h-0 flex-1">
+          <main className="cockpit-substrate min-w-0 flex-1 overflow-hidden">{children}</main>
+          <aside className="hidden w-80 shrink-0 border-l border-white/6 bg-base xl:block">
+            {aside}
+          </aside>
+        </div>
       </div>
-
-      <main className="h-full overflow-hidden lg:pl-20">
-        <div className="h-full xl:pr-96">{children}</div>
-      </main>
-
-      <aside className="fixed inset-y-0 right-0 hidden w-96 overflow-hidden border-l border-white/10 px-4 py-5 sm:px-6 lg:px-6 xl:block">
-        {aside}
-      </aside>
     </div>
   )
 }
