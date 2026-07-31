@@ -22,24 +22,47 @@ credentials for the provider a given run selects, data and execution paths
 return `503` / `ProviderUnavailableError`. There is no mock path for agent
 authoring or runs.
 
-## Frontend — en reconstruction
+## Frontend — 15 écrans qui tournent
 
-Le front historique a été entièrement supprimé (mission `frontend-reset`), puis la
-reconstruction a démarré le **2026-07-31** avec un premier bloc : le shell
-applicatif (sidebar mobile, rail desktop, colonne secondaire).
+Le front historique a été supprimé (mission `frontend-reset`), puis reconstruit à
+partir du **2026-07-31**. État vérifié au 2026-07-31 (build vert, 4 écrans
+contrôlés dans un navigateur, zéro erreur console) :
 
-| État | Détail |
+| Route | Rôle |
 |---|---|
-| UI | Shell applicatif sur `/` — `src/components/app-shell.tsx` |
-| Stack UI | Tailwind v4 · Headless UI · Heroicons |
+| `/` | Aperçu — KPI 24 h, activité, flux d'exécution, file d'action |
+| `/runs` · `/agents` · `/projects` | Listes + détail (`/agents/[copilotId]`, `/projects/[id]`) |
+| `/builder` · `/builder/[projectId]` | Construction d'agents |
+| `/qualification` · `/qualification/[copilotId]` | Qualification avant livraison |
+| `/delivery` · `/delivery/[copilotId]` | Livraison vers un repo consommateur |
+| `/runtime` · `/actions` · `/settings` | Runtime LangGraph, file d'actions, réglages |
+
+| Élément | État |
+|---|---|
+| Shell | `src/components/app-shell.tsx` — rail desktop, sidebar mobile, colonne secondaire |
+| Kit UI | `src/components/ui/` — **14 primitives**, toutes consommées ; code du repo, linté (`src/components/ui/README.md`) |
+| Composants métier | `src/components/{cockpit,agents,runs,projects,builder,qualification,delivery,runtime}/` |
 | Console `/admin` | **Absente** et interdite de retour |
 | Marketing `(site)/`, `/login`, `src/theme.css` | **Absents** et interdits de retour |
-| API | **Active** — `src/app/api/**` intact |
-| Backend | **Intact** — `src/lib/**`, LangGraph, migrations, auth API |
+| API · Backend | **Actifs** — `src/app/api/**`, `src/lib/**`, LangGraph, migrations |
 
-La gate `npm run check:no-legacy-front` autorise `src/components/` et refuse le
-retour des surfaces démolies. Les blocs suivants arriveront séparément, en
-**free design** : aucune palette ni système de tokens n'est imposé (`CLAUDE.md` §8).
+**Le design est libre** : aucune palette, aucun token, aucune structure de page
+n'est imposée (`CLAUDE.md` §8). Le kit `ui/` est un outil disponible, pas une
+obligation — les écrans peuvent s'en écarter.
+
+Deux gates encadrent le front, et **aucune des deux ne juge l'esthétique** :
+- `check:no-legacy-front` — refuse le retour des surfaces démolies ;
+  `src/components/` est autorisé.
+- `check:ui-kit-integrity` — fige le kit `ui/` par empreinte SHA-256 contre une
+  dérive silencieuse. Modifier une primitive **volontairement** :
+  `node scripts/check-ui-kit-integrity.mjs --update`.
+
+> ⚠️ **Angle mort connu.** Aucune gate ne mesure le rendu. Le 2026-07-31, une
+> réécriture du kit a supprimé 2438 lignes pour en écrire 257 (`TouchTarget` vidé
+> de sa cible tactile de 44 px, `Button` réduit à 4 couleurs sur les 6 consommées)
+> — **les 15 gates sont restées vertes**, le build aussi. Revert `5e2aa63`.
+> Après toute modification d'une primitive : ouvrir un écran qui la consomme et
+> regarder. Une gate verte prouve ce qu'elle mesure, rien de plus.
 
 ## Notable partial capabilities
 
@@ -47,8 +70,9 @@ State the restriction, not the headline:
 
 - **Shipping to a consumer repo** is a **dry run** unless `confirm: true` is in
   the request body **and** `GITHUB_PUSH_ENABLED=1` is in the environment.
-- **Telemetry** is aggregated in `dashboard-overview.ts` and `agent-detail.ts`
-  — **no UI** until the front is rebuilt.
+- **Telemetry** is aggregated in `dashboard-overview.ts` and `agent-detail.ts`,
+  and surfaced on `/` and `/runs`. A run that reported no usage shows
+  `Non mesuré` — never a fabricated `0` (`docs/metrics-canon.md`).
 - **Tool builder** works, but only `count_words` has a sandbox.
 - **Provider `mistral`** is declared and **not wired** — it throws a typed error
   rather than falling back silently.
@@ -58,7 +82,10 @@ State the restriction, not the headline:
 
 - **Next.js 16** App Router — ⚠️ breaking changes vs. older Next; read
   `node_modules/next/dist/docs/` before touching framework code (`AGENTS.md`).
-- **React 19**, TypeScript, **Tailwind v4**, Headless UI, Heroicons.
+- **React 19**, TypeScript, **Tailwind v4**, Headless UI, Heroicons, Recharts
+  (graphes), `clsx`. Kit `src/components/ui/` : 14 primitives maison, issues d'un
+  fork Catalyst mais **plus réalignées sur l'amont** — c'est du code du repo,
+  linté et typé comme le reste.
 - **LangGraph** — the `agent_builder` graph in `src/langgraph/`, served by the
   official LangGraph Agent Server. Mandatory runtime for every agent.
 - **Direct model-router** (`src/lib/agent-mission-control/model-router.ts`) —
@@ -91,15 +118,69 @@ After a clone, arm the secret hook once: `npm run hooks:install` (see `CLAUDE.md
 ## Checks
 
 ```bash
-npm run check      # full static gate — see docs/current-capabilities.md
-npm run verify     # check + knip + unit tests + build
+npm run check      # gate statique complète — 15 étapes, ~13 s
+npm run verify     # check + knip + tests unitaires + build
 npm run typecheck
 npm run lint
-npm run test
-npm run test:live  # opt-in — hits gpu1 + OpenAI, costs money
+npm run test       # vitest tests/unit — 168 fichiers, 2105 tests (~3 s)
+npm run test:live  # opt-in — tape gpu1 + OpenAI, coûte de l'argent
 ```
 
-A red gate beats any sentence in any `.md`. That precedence is stated in `AGENTS.md`.
+`npm run check` enchaîne, dans l'ordre : `typecheck` · `lint:fast` · `lint` ·
+`check:no-legacy-front` · `check:ui-kit-integrity` · `check:agent-truth` ·
+`check:lifecycle-truth` · `check:registry-parity` · `check:registry-integrity` ·
+`check:dev-port` · `check:render-truth` · `check:rsc-boundary` ·
+`check:schema-rebuildable` · `check:secrets` · `audit:dead`. Le premier rouge
+arrête tout. **`package.json` fait foi** — pas cette liste.
+
+Ce que la gate **ne** voit pas, et qu'il faut vérifier autrement : le rendu à
+l'écran, la mise en page, un composant vidé de sa substance, un parcours réel de
+bout en bout, une migration qui s'applique vraiment. La carte complète des angles
+morts est dans `scripts/README-gates.md`.
+
+Une gate rouge prime sur n'importe quelle phrase d'un `.md` — cette précédence est
+posée dans `AGENTS.md`. L'inverse n'est pas vrai : une gate verte ne prouve que ce
+qu'elle mesure.
+
+## Mode d'emploi — travailler sur ce repo
+
+**Où est quoi**
+
+| Je veux toucher… | Ça vit dans… |
+|---|---|
+| Un écran | `src/app/<route>/page.tsx` + `src/components/<domaine>/` |
+| Une primitive UI | `src/components/ui/` — puis `check:ui-kit-integrity --update` |
+| La navigation | `src/components/navigation.ts` (source de vérité unique) |
+| La logique métier | `src/lib/agent-mission-control/` |
+| Une route API | `src/app/api/**` — server-only, fail-closed |
+| Le graphe d'agents | `src/langgraph/` (`agent_builder`) |
+| Le schéma DB | `supabase/migrations/` — toute table doit y être créée (`check:schema-rebuildable`) |
+| Une gate | `scripts/check-*.mjs` + son entrée dans `package.json` |
+
+**Boucle de travail**
+
+```bash
+npm run dev                  # Next :3987 + LangGraph :2024 ensemble
+# … coder …
+npm run check                # ~13 s, avant de committer
+# si une surface visuelle a bougé : ouvrir l'écran et REGARDER
+npm run verify               # avant un push qui touche le build
+```
+
+**Trois pièges déjà payés**
+
+1. **Port** — jamais 3000, 3001 ni 3210. Le dev est épinglé sur **3987**
+   (`check:dev-port` le vérifie dans 4 résolveurs).
+2. **Kit UI** — modifier une primitive fait échouer `check:ui-kit-integrity`.
+   C'est voulu : la gate protège contre une dérive silencieuse. Modification
+   volontaire → `--update`, puis **regarder un écran qui la consomme**.
+3. **Aucune donnée fabriquée** — une valeur absente s'affiche `Non mesuré`,
+   jamais `0`. `check:render-truth` et `check:lifecycle-truth` refusent les zéros
+   inventés, les `NaN` coercés et les statuts non prouvés.
+
+**Gouvernance locale, et elle le reste.** Aucun script de setup extérieur ne doit
+réinstaller des règles ou des gates ici (`CLAUDE.md` §9). `.claude/settings.json`
+désactive explicitement les plugins d'organisation.
 
 ## Where the rules live
 
@@ -117,3 +198,5 @@ from this repository alone.
 - **`docs/agent-authoring.md`** — authoring flow and execution paths.
 - **`docs/BACKEND-GPU1.md`** — Postgres/PostgREST perimeter.
 - **`docs/TESTING.md`**, **`docs/dev-runtime.md`** — test and runtime specifics.
+- **`docs/projects/`** — specs agents par produit consommateur (ex. real-estate).
+- Rapports de mission datés : **historique git**, pas de dossier d'archive vivant.

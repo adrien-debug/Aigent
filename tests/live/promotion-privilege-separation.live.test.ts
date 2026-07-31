@@ -11,8 +11,8 @@
  * RPC (SECURITY DEFINER owned by the executor) transitions.
  *
  * Two channels: PostgREST (each request its own tx) here, plus an SQL-level
- * forged-GUC path exercised in the migration proof (docs/runtime-promotion-001.md,
- * reproducible with the psql commands recorded there — not runnable from CI).
+ * forged-GUC path exercised in the migration proof (SQL recorded in git history
+ * under the former docs/runtime-promotion-001.md — not runnable from CI).
  *
  * Throwaway namespace, torn down in afterAll. Self-skips without gpu1. $0.
  */

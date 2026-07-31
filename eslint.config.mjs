@@ -15,11 +15,6 @@ const eslintConfig = defineConfig([
     // Agent worktrees: isolated copies of the repo created by workflow workers.
     // They are not source of THIS working tree and must never enter the lint gate.
     ".claude/worktrees/**",
-    // Kit Catalyst vendoré (Tailwind Plus) : source TIERCE, copiée telle quelle
-    // pour rester alignable sur l'amont. On ne la reformate pas au goût du repo —
-    // sinon chaque mise à jour du kit devient un conflit. Exclue du lint comme
-    // n'importe quel code vendoré. Le code QUI L'UTILISE, lui, est linté.
-    "src/components/ui/**",
   ]),
   {
     rules: {

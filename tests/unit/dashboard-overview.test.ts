@@ -376,7 +376,7 @@ describe('action items', () => {
       ],
     })
     expect(items[0]?.kind).toBe('architect_approval')
-    expect(items[0]?.href).toBe('/admin/projects/proj-trade/builder')
+    expect(items[0]?.href).toBe('/projects/proj-trade/builder')
   })
 
   it('7 — release_gate_red action item fires when a scorecard proves it, never fabricated when scorecards are empty', () => {

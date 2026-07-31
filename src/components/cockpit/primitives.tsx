@@ -1,26 +1,42 @@
 /**
- * Primitives du cockpit — bâties SUR Catalyst, pas à côté.
+ * Composants MÉTIER du cockpit — ce que Catalyst ne fournit pas.
  *
- * Le vocabulaire visuel (typographie, tons, focus) vient du kit vendoré dans
- * `src/components/ui/`. Ce fichier n'ajoute que ce que Catalyst ne fournit pas :
- * le cadre de panneau à hauteur bornée, et l'état d'absence de mesure.
+ * Le kit (`src/components/ui/`) est disponible comme outil ; il ne se
+ * modifie pas à la légère (gate `check:ui-kit-integrity`). Ce fichier ne
+ * contient donc AUCUN équivalent de primitive du kit : ni badge, ni avatar, ni
+ * bouton, ni texte, ni séparateur, ni surface générique. Uniquement des objets
+ * que le kit n'a pas :
  *
- * Règle structurante : une box a une hauteur BORNÉE et ne grandit jamais avec la
- * donnée — c'est la donnée qui scrolle à l'intérieur. Sans ça, un cockpit « sans
- * scroll » se remet à scroller dès que la flotte grossit.
+ *  · `Panel`        — surface à hauteur BORNÉE par la grille du cockpit ;
+ *                     c'est ce qui tient le zéro-scroll (le kit n'a pas de
+ *                     notion de carte qui ne grandit pas avec sa donnée).
+ *  · `Unavailable`  — l'absence de mesure comme état de premier rang, avec la
+ *                     distinction « lecture échouée » / « rien à mesurer »
+ *                     (AGENTS.md § Vérité des données).
+ *  · `Led`          — témoin d'activité temps réel.
+ *  · `Rail`         — barre de sévérité en tête de ligne.
+ *  · jauges         — proportions bornées (n sur total), pas des séries.
  *
- * Règle de vérité : `Unavailable` est un état visuel de premier rang, pas un
- * fallback discret. Une mesure absente se DIT ; elle ne se peint pas en zéro.
+ * Aucun mini-graphique inline dans les cartes ou les tables : les seuls objets
+ * graphiques ici encodent une proportion qui existe réellement.
  */
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 
-import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
-import { Badge } from '@/components/ui/badge'
+import { Divider } from '@/components/ui/divider'
 import { Subheading } from '@/components/ui/heading'
 import { Text } from '@/components/ui/text'
+import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
 
-/** Cadre de panneau : hauteur imposée par la grille, contenu borné. */
+/* ────────────────────────────── Surfaces ────────────────────────────── */
+
+/**
+ * Panneau à hauteur bornée — le seul composant structurel du cockpit.
+ *
+ * Son en-tête est composé de Catalyst (`Subheading`, `Text`, `Divider`) ; ce
+ * que le panneau ajoute est le contrat de hauteur : il ne grandit jamais avec
+ * la donnée, c'est la donnée qui défile à l'intérieur.
+ */
 export function Panel({
   title,
   hint,
@@ -28,33 +44,42 @@ export function Panel({
   children,
   className,
   bodyClassName,
+  padded = true,
 }: {
   title: string
   hint?: string
   actions?: ReactNode
   children: ReactNode
-  /** Contrainte de hauteur imposée par la grille du cockpit (ex. `h-44 shrink-0`). */
+  /** Contrainte de hauteur imposée par la grille du cockpit. */
   className?: string
   bodyClassName?: string
+  /** `false` quand le contenu gère lui-même ses marges (table, liste pleine largeur). */
+  padded?: boolean
 }) {
   return (
     <section
       className={clsx(
-        'flex min-h-0 flex-col rounded-xl bg-white/[0.03] ring-1 ring-white/10',
+        'flex min-h-0 flex-col overflow-hidden rounded-lg',
+        'bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10',
         className,
       )}
     >
-      <header className="flex shrink-0 items-baseline justify-between gap-3 border-b border-white/10 px-4 py-2.5">
-        <Subheading level={2} className="shrink-0 whitespace-nowrap !text-xs !font-semibold !text-zinc-300">
-          {title}
-        </Subheading>
-        {hint ? <Text className="truncate !text-xs !text-zinc-500">{hint}</Text> : null}
-        {actions}
+      <header className="shrink-0">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <Subheading level={2} className="shrink-0 truncate">
+            {title}
+          </Subheading>
+          {hint ? <Text className="ml-auto shrink-0 truncate">{hint}</Text> : null}
+          {actions ? <div className={clsx('shrink-0', hint ? 'ml-3' : 'ml-auto')}>{actions}</div> : null}
+        </div>
+        <Divider soft />
       </header>
-      <div className={clsx('min-h-0 flex-1', bodyClassName ?? 'p-3')}>{children}</div>
+      <div className={clsx('min-h-0 flex-1', padded && 'p-4', bodyClassName)}>{children}</div>
     </section>
   )
 }
+
+/* ───────────────────────────── Absence ─────────────────────────────── */
 
 /**
  * Absence de mesure. Deux raisons distinctes, jamais confondues :
@@ -74,68 +99,188 @@ export function Unavailable({
   return (
     <div
       className={clsx(
-        'flex h-full flex-col items-center justify-center gap-1.5 rounded-lg',
-        // Hachures : lisible au premier coup d'œil comme « ce n'est pas une valeur ».
-        'bg-[repeating-linear-gradient(135deg,transparent,transparent_5px,rgba(255,255,255,0.045)_5px,rgba(255,255,255,0.045)_10px)]',
+        'flex h-full flex-col items-center justify-center gap-2 rounded-lg',
+        'border border-dashed border-zinc-950/10 dark:border-white/10',
         compact ? 'px-2 py-1' : 'p-4',
       )}
     >
-      <Badge color="zinc">{label}</Badge>
-      {detail && !compact ? (
-        <Text className="max-w-[30ch] text-center !text-xs !leading-tight !text-zinc-500">{detail}</Text>
-      ) : null}
+      <span
+        className={clsx(
+          'rounded-md bg-zinc-950/5 font-medium text-zinc-500 uppercase dark:bg-white/5 dark:text-zinc-400',
+          compact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs',
+        )}
+      >
+        {label}
+      </span>
+      {detail && !compact ? <Text className="max-w-[34ch] text-center">{detail}</Text> : null}
     </div>
   )
 }
 
-/** Le ton d'un KPI — traduit en couleur de Badge Catalyst. */
-export type KpiTone = 'neutral' | 'good' | 'warn' | 'bad'
+/** Marque d'absence inline — pour une valeur seule dans une cellule. */
+export function AbsentMark() {
+  return <span className="text-xs text-zinc-500 uppercase dark:text-zinc-400">{UNAVAILABLE_LABEL}</span>
+}
 
-const TONE_VALUE: Record<KpiTone, string> = {
-  neutral: 'text-white',
-  good: 'text-emerald-300',
-  warn: 'text-amber-300',
-  bad: 'text-rose-300',
+/* ─────────────────────────── Objets d'instrument ─────────────────────── */
+
+/**
+ * Témoin lumineux. `live` fait battre la diode — réservé à ce qui est
+ * réellement en vol, jamais posé pour décorer.
+ */
+export function Led({
+  color,
+  live = false,
+  className,
+}: {
+  color: string
+  live?: boolean
+  className?: string
+}) {
+  return (
+    <span
+      aria-hidden
+      className={clsx('size-1.5 shrink-0 rounded-full', live && 'pulse-live', className)}
+      style={{ background: color }}
+    />
+  )
+}
+
+/** Rail de sévérité — la barre verticale colorée qui ouvre une ligne de liste. */
+export function Rail({ color, className }: { color: string; className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={clsx('absolute inset-y-0 left-0 w-0.5', className)}
+      style={{ background: color }}
+    />
+  )
 }
 
 /**
- * Tuile KPI, dans l'esprit du `Stat` de Catalyst mais bornée en hauteur pour la
- * grille du cockpit. `value === null` signifie NON MESURÉ : la tuile bascule en
- * indisponible plutôt que d'afficher un 0 rassurant.
- *
- * Aucun mini-graphique inline — un chiffre, son unité, son support.
+ * Mètre segmenté — `filled` sur `total`. Un cran allumé = une unité réelle.
+ * Au-delà de 24 unités le comptage cesse d'être lisible et l'on retombe sur une
+ * barre continue, qui dit la même proportion sans mentir sur la granularité.
  */
-export function Kpi({
-  label,
-  value,
-  unit,
-  support,
-  tone = 'neutral',
-  unavailableReason = 'unread',
+export function SegmentMeter({
+  filled,
+  total,
+  color,
+  className,
 }: {
-  label: string
-  value: string | number | null
-  unit?: string
-  support?: string
-  tone?: KpiTone
-  unavailableReason?: 'unread' | 'no-data'
+  filled: number
+  total: number
+  color: string
+  className?: string
 }) {
+  const safeTotal = Math.max(total, 0)
+  const safeFilled = Math.min(Math.max(filled, 0), safeTotal)
+
+  if (safeTotal === 0) {
+    return <div className={clsx('h-1.5 w-full rounded-full bg-zinc-950/5 dark:bg-white/10', className)} />
+  }
+
+  if (safeTotal > 24) {
+    return <BarMeter ratio={safeFilled / safeTotal} color={color} className={className} />
+  }
+
   return (
-    <div className="flex min-w-0 flex-col justify-between rounded-xl bg-white/[0.03] px-3 py-2.5 ring-1 ring-white/10">
-      <Text className="truncate !text-xs !font-medium !text-zinc-400">{label}</Text>
-      {value === null ? (
-        <div className="mt-1.5 flex-1">
-          <Unavailable reason={unavailableReason} compact />
-        </div>
-      ) : (
-        <p className="mt-1.5 flex items-baseline gap-1">
-          <span className={clsx('truncate text-2xl/8 font-semibold tabular-nums', TONE_VALUE[tone])}>
-            {value}
-          </span>
-          {unit ? <span className="text-xs/6 text-zinc-500">{unit}</span> : null}
-        </p>
-      )}
-      <Text className="mt-1 truncate !text-xs !text-zinc-500">{support ?? ' '}</Text>
+    <div aria-hidden className={clsx('flex items-end gap-[2px]', className)}>
+      {Array.from({ length: safeTotal }, (_, i) => (
+        <span
+          key={i}
+          className="h-3.5 w-[3px] rounded-[1px]"
+          style={i < safeFilled ? { background: color } : { background: 'rgb(161 161 170 / 0.35)' }}
+        />
+      ))}
     </div>
   )
+}
+
+/** Barre de proportion bornée 0..1 — la couverture d'une mesure, pas une série. */
+export function BarMeter({
+  ratio,
+  color,
+  className,
+}: {
+  ratio: number
+  color: string
+  className?: string
+}) {
+  const pct = Math.min(Math.max(ratio, 0), 1) * 100
+  return (
+    <div
+      aria-hidden
+      className={clsx(
+        'h-1.5 w-full overflow-hidden rounded-full bg-zinc-950/5 dark:bg-white/10',
+        className,
+      )}
+    >
+      <div
+        className="h-full rounded-full transition-[width]"
+        style={{ width: `${pct}%`, background: color }}
+      />
+    </div>
+  )
+}
+
+/**
+ * Jauge d'arc — un ratio borné 0..1, et rien d'autre. Elle n'apparaît que
+ * lorsque la valeur EST mesurée : une jauge à zéro sur une donnée absente est
+ * précisément le mensonge que cet écran refuse.
+ */
+export function ArcGauge({
+  ratio,
+  color,
+  size = 44,
+  label,
+}: {
+  ratio: number
+  color: string
+  size?: number
+  label?: string
+}) {
+  const stroke = 3.5
+  const r = (size - stroke) / 2
+  const c = 2 * Math.PI * r
+  const clamped = Math.min(Math.max(ratio, 0), 1)
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      role="img"
+      aria-label={label}
+      className="shrink-0"
+    >
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke="rgb(161 161 170 / 0.3)"
+        strokeWidth={stroke}
+      />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth={stroke}
+        strokeLinecap="round"
+        strokeDasharray={`${c * clamped} ${c}`}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+      />
+    </svg>
+  )
+}
+
+/** Deux lettres d'identité — jamais un nom inventé, seulement son abréviation. */
+export function initialsOf(name: string | null): string {
+  if (!name) return '··'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[1][0]).toUpperCase()
 }

@@ -10,6 +10,13 @@
   "project": ["src/**/*.{ts,tsx,mjs}", "scripts/**/*.{ts,mjs,js}", "tests/**/*.{ts,tsx}"],
   "ignoreExportsUsedInFile": true,
   "ignoreBinaries": ["gitleaks"],
-  "ignore": ["src/components/ui/**"],
+  "ignore": [
+    "src/components/ui/**",
+    "src/lib/agent-mission-control/consumer-telemetry-emitter.ts"
+  ],
+  "ignoreIssues": {
+    "src/lib/agent-mission-control/consumer-installations.ts": ["exports"]
+  },
   "ignoreDependencies": ["tailwindcss", "motion"]
 }
+

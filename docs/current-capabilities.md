@@ -13,15 +13,21 @@
 > HTTP ou la bibliothèque existe et est testée, mais aucune surface opérateur ne
 > l'atteint) · `not wired` (déclaré dans le code, lève ou ne fait rien).
 
-## Frontend — en reconstruction
+## Frontend — 15 écrans, reconstruction en cours
 
-Le front historique a été entièrement supprimé (mission `frontend-reset`), puis la
-reconstruction a démarré le **2026-07-31** avec un premier bloc.
+Le front historique a été entièrement supprimé (mission `frontend-reset`), puis
+**reconstruit à partir du 2026-07-31**. État vérifié : shell + listes + détails
+branchés ; `/actions` et `/settings` restent des placeholders honnêtes.
 
 | Capacité | État | Preuve |
 |---|---|---|
-| Shell applicatif — sidebar mobile (`Dialog`), rail desktop, colonne secondaire | wired | `src/components/app-shell.tsx`, `src/app/page.tsx` |
-| Tailwind v4 branché | wired | `postcss.config.mjs`, `src/app/globals.css` |
+| Shell — sidebar mobile (`Dialog`), rail desktop, colonne secondaire | wired | `src/components/app-shell.tsx`, `src/components/navigation.ts` |
+| Aperçu `/` — KPI, activité, flux, file d'action | wired | `src/app/page.tsx`, `src/components/cockpit/` |
+| Runs · Agents · Projets (+ détails) | wired | `src/app/{runs,agents,projects}/`, `src/components/{runs,agents,projects}/` |
+| Builder · Qualification · Livraison · Runtime | wired | `src/app/{builder,qualification,delivery,runtime}/` |
+| Actions · Réglages | partial — `SurfacePlaceholder`, aucune lecture | `src/app/{actions,settings}/page.tsx` |
+| Kit UI — 14 primitives, empreinte SHA-256 | wired | `src/components/ui/`, `check:ui-kit-integrity` |
+| Tailwind v4 · Headless UI · Heroicons · Recharts | wired | `postcss.config.mjs`, `src/app/globals.css` |
 
 | Ce qui reste supprimé et interdit de retour | |
 |---|---|
@@ -30,23 +36,15 @@ reconstruction a démarré le **2026-07-31** avec un premier bloc.
 | `src/theme.css`, `design/` | absents |
 | Ancien arbre `src/components/console\|agent-ops\|views\|shell\|marketing` | interdit sur disque et en import |
 
-**Le shell est une coquille** : sa navigation pointe sur `#`, ses zones de contenu
-sont vides, et il n'appelle aucune API. Ne le lis pas comme une capacité produit —
-c'est une structure sur laquelle les blocs suivants viendront se poser.
-
-En dehors de lui, **l'unique surface d'accès au produit reste l'API HTTP**. Les
-lignes ci-dessous se lisent « atteignable par requête authentifiée », jamais
-« visible à l'écran ». La gate `npm run check:no-legacy-front` autorise
-`src/components/` et refuse le retour des surfaces démolies.
-
-La suite arrivera en blocs séparés, en **free design** : aucun kit, aucune palette,
-aucun système de tokens imposé (`AGENTS.md` § Frontend).
+**Free design** : aucun kit, palette ni système de tokens imposé (`AGENTS.md`
+§ Frontend). L'API HTTP reste la voie d'automatisation ; le front est la voie
+opérateur. Gate `check:no-legacy-front` : autorise `src/components/`, refuse le
+retour des surfaces démolies.
 
 ## Authoring & lifecycle
 
-Toutes ces capacités sont **backend-only** au sens strict de ce document — elles
-n'ont plus de surface opérateur depuis le reset. La colonne État qualifie donc le
-**mécanisme**, et nomme sa restriction propre quand il y en a une.
+La colonne État qualifie le **mécanisme**. Plusieurs ont désormais une surface
+opérateur ; l'API sous `/api/agent-ops/**` reste la voie d'automatisation.
 
 | Capacité | État | Preuve |
 |---|---|---|
@@ -66,7 +64,7 @@ n'ont plus de surface opérateur depuis le reset. La colonne État qualifie donc
 | Promotion vers `active` | wired — transactionnelle via RPC Postgres, jamais d'auto-promotion | `copilots/[copilotId]/promotion/route.ts`, RPC `promote_copilot_version` |
 | Boucle d'amélioration — analyze / create-v2 / decision | wired — un seul cycle ouvert à la fois, décision humaine obligatoire | `improvement-loop.ts`, routes `improve/*` |
 | Diagnostic déterministe des échecs (autoritaire sur le LLM) | wired | `improvement-diagnosis.ts` |
-| Project builder conversationnel (boucle d'outils repo, SSE) | wired (HTTP) — plus aucune UI cliente | `project-builder-conversation.ts`, `projects/[id]/builder/*` |
+| Project builder conversationnel (boucle d'outils repo, SSE) | wired — UI builder + HTTP | `project-builder-conversation.ts`, `src/app/builder/`, `projects/[id]/builder/*` |
 | Repo scan / repo intelligence | wired — lecture GitHub bornée, n'écrit jamais | `repo-scan.ts`, `repo-intelligence.ts` |
 
 ## Shipping vers les produits consommateurs
@@ -91,7 +89,7 @@ structurelle pour laquelle `active_in_consumer` reste `unknown`.
 | Runs internes d'Aigent versés dans la même table | wired (automatique) | `runner.ts` → `emitInternalRunTelemetry` |
 | Événements de cycle de vie (promotion / shadow / replay) sur le même canal | wired (automatique) | `runtime-telemetry-store.ts` |
 | Résumé par agent, consommé par la boucle d'amélioration | backend-only | `improvement-loop.ts` → `summarizeRuntimeTelemetry` |
-| Résumé de flotte, diagnostic de santé, flux d'événements récents | **backend-only — aucun lecteur depuis le reset** | `dashboard-overview.ts`, `telemetry-health.ts` |
+| Résumé de flotte, diagnostic de santé, flux d'événements récents | wired — consommé par `/` et `/runs` | `dashboard-overview.ts`, `telemetry-health.ts`, `src/components/cockpit/` |
 
 **Ce que la télémétrie n'a jamais prouvé.** Le canal de retour consommateur est
 construit et authentifié mais **n'a jamais porté de trafic réel** venant d'un
@@ -126,9 +124,10 @@ node -e "console.log(require('./package.json').scripts.check)"
 ```
 
 Au moment de cette passe, `npm run check` enchaîne : `typecheck` · `lint:fast`
-(oxlint) · `lint` (eslint) · `check:no-legacy-front` · `check:agent-truth` ·
-`check:lifecycle-truth` · `check:registry-parity` · `check:registry-integrity` ·
-`check:dev-port` · `check:render-truth` · `check:secrets` (gitleaks) ·
+· `lint` · `check:no-legacy-front` · `check:ui-kit-integrity` ·
+`check:agent-truth` · `check:lifecycle-truth` · `check:registry-parity` ·
+`check:registry-integrity` · `check:dev-port` · `check:render-truth` ·
+`check:rsc-boundary` · `check:schema-rebuildable` · `check:secrets` ·
 `audit:dead`.
 
 La chaîne est **entièrement statique et hors ligne**. `check:tool-rows` et
@@ -139,6 +138,6 @@ option `--fix` **écrit en base**. Ce sont des commandes d'exploitation manuelle
 `npm run verify` ajoute `quality:dead` (knip), `test` (vitest, suite offline) et
 `build`. `test:live` est opt-in, tape GPU1 + OpenAI et coûte de l'argent.
 
-**Aucune gate visuelle n'est active**, et c'est une décision, pas un manque : le
-workspace est free design et le frontend est volontairement vide. Ce que chaque
-gate ne garantit PAS est documenté dans `scripts/README-gates.md`.
+**Aucune gate ne mesure le rendu** — c'est une décision (free design), pas un
+manque à combler par une gate visuelle. Ce que chaque gate ne garantit PAS est
+dans `scripts/README-gates.md`.

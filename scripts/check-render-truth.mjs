@@ -19,7 +19,11 @@
  *  1. METRIC COALESCED TO ZERO. `x.successRate ?? 0`, `run.costUsd || 0` — the
  *     left side is a NAMED measurement from the contracts, and 0 is a claim
  *     about it. Counters, map lookups and geometry defaults are not matched:
- *     only the metric names below are.
+ *     only the metric names below are. Since 31/07/2026 the rule also covers the
+ *     DISGUISED form `typeof row.x === 'number' ? row.x : 0`, which is the same
+ *     coalescence dressed as a type guard — three shipped on the Qualification
+ *     surface, under a comment claiming they refused a false zero. `: null` in
+ *     the false branch is the correct shape and stays legal.
  *
  *  2. NaN BY COERCION. `Number(x?.y)` on an optional chain is `NaN` the moment
  *     the chain short-circuits, and `NaN` renders as the literal text "NaN".
@@ -36,10 +40,30 @@
  * it had cleared "the admin surfaces" while opening a third of what it named —
  * exactly the class of green-gate-that-lies this repo has been burned by.
  *
- * It now scans the one root that still exists, `src/lib/runs-console/**`: the
- * run metrics/filters/timeseries layer, which is real, tested code and is what a
- * rebuilt front will read its figures from. When new read surfaces appear, add
- * them HERE — and only once they exist on disk.
+ * It scans `src/lib/runs-console/**`: the run metrics/filters/timeseries layer,
+ * which is real, tested code and is what a rebuilt front will read its figures
+ * from. When new read surfaces appear, add them HERE — and only once they exist
+ * on disk.
+ *
+ * EXTENDED 31/07/2026 to the cockpit, now that it exists on disk:
+ *   · `src/lib/cockpit/**`        — the pure derivations (buckets, named runs,
+ *     agent cards) that turn `windowRuns` into what the screen draws. This is
+ *     where a `null` window would get flattened into a calm-looking zero.
+ *   · `src/components/cockpit/**` — the render surface itself, Recharts
+ *     included. The 26/07/2026 `NaN` shipped from exactly this kind of module.
+ *
+ * EXTENDED again 31/07/2026 to the three surfaces of the restoration:
+ *   · `src/components/runs/**`, `src/components/agents/**`,
+ *     `src/components/projects/**` — they landed reading real aggregates, and
+ *     the guard was passing GREEN over them without having scanned a single
+ *     line. Two of the agents that built them flagged the hole themselves.
+ *
+ * Still NOT scanned, and it matters: the big aggregators
+ * `dashboard-overview.ts`, `agent-detail.ts` and `data.ts`. They feed the
+ * cockpit, so a fabricated zero born there arrives here already laundered and
+ * this guard cannot see it. Extending to them is a separate mission — they are
+ * large, and the metric-name list would need auditing against their contracts
+ * first. Do not claim this guard covers them.
  *
  * ANTI-BLINDNESS: a scan root that has vanished, or a run that opened zero files,
  * FAILS. A guard that measured nothing must never exit 0 silently.
@@ -51,7 +75,18 @@ import { dirname, join, relative } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const SCANNED_DIRS = [join(ROOT, 'src/lib/runs-console')]
+const SCANNED_DIRS = [
+  join(ROOT, 'src/lib/runs-console'),
+  join(ROOT, 'src/lib/cockpit'),
+  join(ROOT, 'src/components/cockpit'),
+  join(ROOT, 'src/components/runs'),
+  join(ROOT, 'src/components/agents'),
+  join(ROOT, 'src/components/projects'),
+  join(ROOT, 'src/components/builder'),
+  join(ROOT, 'src/components/qualification'),
+  join(ROOT, 'src/components/delivery'),
+  join(ROOT, 'src/components/runtime'),
+]
 
 /**
  * Field names that ARE measurements in this codebase's contracts (`types.ts`,
@@ -82,6 +117,18 @@ const METRIC_FIELDS = [
   'unsafeActionCount',
   'tokensIn',
   'tokensOut',
+  // Compteurs de PREUVE de la surface Qualification. Ce sont des mesures au
+  // même titre qu'un score : `would_mutate_count = 0` est lu comme « le shadow
+  // a intercepté toutes les mutations », donc une colonne jamais écrite
+  // retombée à 0 délivre un certificat d'innocuité que personne n'a mesuré.
+  // Les deux graphies sont listées : ces champs traversent la frontière
+  // PostgREST, où la ligne brute est encore en snake_case.
+  'sampledRunCount',
+  'sampled_run_count',
+  'wouldMutateCount',
+  'would_mutate_count',
+  'caseCount',
+  'case_count',
 ]
 
 /** Nullable "when did this happen" fields — null means nobody wrote the column. */
@@ -116,6 +163,59 @@ const ASSERTION_LITERALS = [
 const alt = (names) => names.join('|')
 
 const METRIC_TO_ZERO_RE = new RegExp(String.raw`\.(?:${alt(METRIC_FIELDS)})\b[^\n]*?(?:\?\?|\|\|)\s*0\b`)
+
+/**
+ * The `?? 0` WEARING A TYPE GUARD'S CLOTHES.
+ *
+ *     sampledRunCount: typeof row.sampled_run_count === 'number' ? row.sampled_run_count : 0
+ *
+ * Semantically identical to `row.sampled_run_count ?? 0` — a NULL column becomes
+ * a confident zero — but it reads as a careful narrowing, which is exactly why
+ * it survived review. The Qualification surface shipped three of these, one of
+ * them on `would_mutate_count`, under a comment claiming the code refused a
+ * false zero.
+ *
+ * The false branch is what the rule turns on, and only `0` is banned there:
+ *   · `: null`      → the honest fix, and the shape this guard wants to see;
+ *   · `: undefined` → not a measurement either, left alone;
+ *   · `: 0`         → a fabricated measurement. Red.
+ *
+ * The metric name is required on the LEFT of the `typeof`, so ordinary
+ * narrowings (`typeof node.width === 'number' ? node.width : 0` — geometry) are
+ * not matched. The operand is matched loosely (`[^\n]*?`) because the guarded
+ * expression and the returned expression are written many ways, and requiring
+ * them to be textually identical would let a one-character difference walk
+ * straight through.
+ */
+const TYPEOF_GUARD_TO_ZERO_RE = new RegExp(
+  String.raw`typeof\s+[^\n]*?\.(?:${alt(METRIC_FIELDS)})\b[^\n]*?===\s*['"]number['"][^\n]*?\?[^\n]*?:\s*0\b`
+)
+
+/**
+ * The ONE legitimate `?? 0` on a metric: seeding a RUNNING SUM.
+ *
+ *     card.costUsd = (card.costUsd ?? 0) + run.costUsd
+ *
+ * Why this is not the banned coalescence. The banned shape takes an unmeasured
+ * value and publishes 0 as if it were the measurement. This shape does the
+ * opposite: the accumulator is seeded `null`, each `?? 0` is reached only after
+ * the caller has PROVEN the incoming value is measured, and if nothing is ever
+ * measured the field is never assigned and stays `null`. The zero is an
+ * arithmetic identity for `+`, never a claim about the metric.
+ *
+ * The pattern is deliberately tight — it requires the SAME metric name on both
+ * sides of `=` and an `+` immediately after the parenthesis. It therefore still
+ * fails on the dangerous look-alikes, each verified by probe:
+ *   · `card.costUsd = other.costUsd ?? 0`        (no accumulation → red)
+ *   · `card.costUsd = (card.costUsd ?? 0)`       (no `+`          → red)
+ *   · `total.costUsd = (card.costUsd ?? 0) + x`  (different field → red)
+ *
+ * It does NOT verify the caller's guard — that stays a human reading. What it
+ * guarantees is that the only exempted shape is one that cannot publish a zero.
+ */
+const RUNNING_SUM_RE = new RegExp(
+  String.raw`([\w$]+(?:\.[\w$]+)*\.(?:${alt(METRIC_FIELDS)}))\s*=\s*\(\s*\1\s*(?:\?\?|\|\|)\s*0\s*\)\s*\+`
+)
 const NAN_COERCION_RE = /Number\([^)]*\?\./
 const ASSERTED_ABSENCE_RE = new RegExp(
   String.raw`\.(?:${alt(NULLABLE_FACT_FIELDS)})\b[^\n]*\?[^\n]*:\s*['"](?:${alt(ASSERTION_LITERALS)})['"]`,
@@ -220,7 +320,8 @@ async function main() {
           if (KNOWN_DEBT.has(rel)) matchedDebt.add(rel)
           else bucket.push(`${rel}:${i + 1}  ${line.trim()}`)
         }
-        if (METRIC_TO_ZERO_RE.test(line)) record(metricToZero)
+        if (METRIC_TO_ZERO_RE.test(line) && !RUNNING_SUM_RE.test(line)) record(metricToZero)
+        if (TYPEOF_GUARD_TO_ZERO_RE.test(line)) record(metricToZero)
         if (NAN_COERCION_RE.test(line)) record(nanCoercions)
         if (ASSERTED_ABSENCE_RE.test(line)) record(assertedAbsence)
       })

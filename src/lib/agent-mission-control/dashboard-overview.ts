@@ -444,7 +444,7 @@ export function buildProjectOverview(projects: Project[], copilots: Copilot[]): 
       const team = teams.get(project.id) ?? []
 
       // ONE rule, ONE rollup, ONE module (`./health-measure`) — the SAME
-      // function `/admin/projects` calls, so the two screens cannot reach
+      // function the project surface calls, so the two screens cannot reach
       // different verdicts about the same project. Its three states ARE the
       // three states of these two fields, applied IDENTICALLY to runs and to
       // cost with no room for them to disagree:
@@ -554,7 +554,7 @@ export function buildActionItems(input: {
       title: 'Architect approvals could not be scanned',
       meta: 'HITL runs waiting for confirmation are not represented this round.',
       status: 'unavailable',
-      href: '/admin',
+      href: '/',
       buttonLabel: 'Retry',
       priority: ACTION_PRIORITY.data_unavailable,
     })
@@ -567,7 +567,7 @@ export function buildActionItems(input: {
         title: 'Architect draft awaiting approval',
         meta: `${project?.name ?? approval.projectId} · thread ${approval.threadId.slice(0, 8)}`,
         status: 'awaiting_approval',
-        href: `/admin/projects/${approval.projectId}/builder`,
+        href: `/projects/${approval.projectId}/builder`,
         buttonLabel: 'Open builder',
         priority: ACTION_PRIORITY.architect_approval,
       })
@@ -586,7 +586,7 @@ export function buildActionItems(input: {
       title: 'Delivery events could not be read',
       meta: 'Ready-for-manual-test and PR items are not represented this round.',
       status: 'unavailable',
-      href: '/admin',
+      href: '/',
       buttonLabel: 'Retry',
       priority: ACTION_PRIORITY.data_unavailable,
     })
@@ -598,7 +598,7 @@ export function buildActionItems(input: {
       title: 'Sandbox reports could not be read',
       meta: 'Sandbox-failure items are not represented this round.',
       status: 'unavailable',
-      href: '/admin',
+      href: '/',
       buttonLabel: 'Retry',
       priority: ACTION_PRIORITY.data_unavailable,
     })
@@ -617,7 +617,7 @@ export function buildActionItems(input: {
         title: 'Ready for manual test',
         meta,
         status: evt.status,
-        href: `/admin/agents/${copilotId}`,
+        href: `/agents/${copilotId}`,
         buttonLabel: 'Review',
         priority: ACTION_PRIORITY.ready_manual,
       })
@@ -631,7 +631,7 @@ export function buildActionItems(input: {
         title: 'Sandbox failed',
         meta,
         status: 'failed',
-        href: `/admin/agents/${copilotId}`,
+        href: `/agents/${copilotId}`,
         buttonLabel: 'View Sandbox',
         priority: ACTION_PRIORITY.sandbox_failed,
       })
@@ -645,7 +645,7 @@ export function buildActionItems(input: {
         title: 'Release gate red',
         meta,
         status: 'blocked',
-        href: `/admin/agents/${copilotId}`,
+        href: `/agents/${copilotId}`,
         buttonLabel: 'View Scorecard',
         priority: ACTION_PRIORITY.release_gate_red,
       })
@@ -678,7 +678,7 @@ export function buildActionItems(input: {
       title: 'Mission blocked',
       meta: `${project?.name ?? mission.projectId} · ${mission.repo ?? '—'}`,
       status: mission.status,
-      href: project ? `/admin/projects/${project.id}` : '/admin',
+      href: project ? `/projects/${project.id}` : '/',
       buttonLabel: 'View Mission',
       priority: ACTION_PRIORITY.mission_blocked,
     })
@@ -937,7 +937,8 @@ export const TELEMETRY_EVENTS_READ_FAILED_WARNING = 'Runtime telemetry event fee
 export const ARCHITECT_APPROVALS_READ_FAILED_WARNING = 'Architect approval queue unavailable'
 
 /**
- * Read-only dashboard overview for /admin. Never writes, never calls GitHub.
+ * Read-only dashboard overview for the operator cockpit (`/`). Never writes,
+ * never calls GitHub.
  *
  * List-friendly: one parallel PostgREST wave only. Per-agent delivery scorecards
  * (`getDeliveryScorecard`) are intentionally omitted — verified N+1, not a single
@@ -945,7 +946,7 @@ export const ARCHITECT_APPROVALS_READ_FAILED_WARNING = 'Architect approval queue
  * repo-intelligence load, test-suite/test-case fetches and a tool lookup
  * (`delivery-scorecard-server.ts`), none of it expressible as one `in.(...)`
  * PostgREST wave the way `data.ts`'s other batched reads are — it is 10–15 remote
- * RTTs PER COPILOT and made /admin 12–48s. There is no cheap batched substitute,
+ * RTTs PER COPILOT and made the cockpit 12–48s. There is no cheap batched substitute,
  * so `scorecards` stays an empty Map here rather than pretending otherwise.
  *
  * This is NOT a silent zero: `computeAvgRepoFit`/`buildActionItems` already
@@ -1000,7 +1001,7 @@ export async function getDashboardOverview(nowMs: number = Date.now()): Promise<
       .then((runs) => ({ runs, warning: null as string | null }))
       .catch(() => ({ runs: null, warning: RUNS_READ_FAILED_WARNING })),
     // One bounded query (last 2000 events, same read `summarizeFleetRuntimeTelemetry`
-    // already does for a would-be /admin/telemetry) — added to THIS wave instead
+    // already does for a would-be dedicated telemetry surface) — added to THIS wave instead
     // of a second round trip. A failed read reports itself via `lookupFailed`,
     // never a fabricated "no events" for a channel that could not be checked.
     summarizeFleetRuntimeTelemetry()

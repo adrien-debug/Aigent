@@ -55,6 +55,8 @@ function baseInput(overrides: Partial<LifecycleTraceInput> = {}): LifecycleTrace
     telemetryLookupFailed: false,
     hasV2Draft: false,
     hasImprovementProposal: false,
+    consumerActivation: null,
+    consumerActivationLookupFailed: false,
     ...overrides,
   }
 }

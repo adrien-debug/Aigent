@@ -207,16 +207,17 @@ gate — ne prétends pas l'inverse.
   table, `runtime_telemetry_events`.
 - Les agrégations (`summarizeRuntimeTelemetry`, `summarizeFleetRuntimeTelemetry`,
   `diagnoseTelemetryHealth`, `listRecentRuntimeTelemetryEvents`) sont des
-  **données prêtes sans UI** tant que le front n'est pas reconstruit. État chiffré
-  et nuances : `docs/known-gaps.md`, propriétaire unique de cette ligne.
+  **consommées par `/` et `/runs`**. État chiffré et nuances :
+  `docs/known-gaps.md`, propriétaire unique de cette ligne.
 
 ## Gates — celles qui tournent vraiment
 
 **`package.json` fait foi.** `npm run check` exécute, dans l'ordre :
 
 `typecheck` · `lint:fast` (oxlint) · `lint` (eslint) · `check:no-legacy-front` ·
-`check:agent-truth` · `check:lifecycle-truth` · `check:registry-parity` ·
-`check:registry-integrity` · `check:dev-port` · `check:render-truth` ·
+`check:ui-kit-integrity` · `check:agent-truth` · `check:lifecycle-truth` ·
+`check:registry-parity` · `check:registry-integrity` · `check:dev-port` ·
+`check:render-truth` · `check:rsc-boundary` · `check:schema-rebuildable` ·
 `check:secrets` (gitleaks) · `audit:dead`.
 
 `npm run verify` ajoute `quality:dead` (knip), `test` (vitest, suite offline) et
@@ -230,9 +231,9 @@ rendaient `npm run check` dépendant du réseau. Ce sont des **commandes
 d'exploitation**, à lancer explicitement pour auditer la base. Leur option
 `--fix` **écrit en base** : ne la passe jamais par réflexe.
 
-Hors chaîne également : `check:rsc-boundary` (prête, se réarme seule dès qu'un
-module `'use client'` apparaît ; annonce honnêtement « 0 composants client »
-aujourd'hui) et `test:live` (opt-in, tape GPU1 + OpenAI, coûte de l'argent).
+Hors chaîne : `test:live` (opt-in, tape GPU1 + OpenAI, coûte de l'argent).
+**Aucune gate ne mesure le rendu** — `check:ui-kit-integrity` fige une empreinte
+SHA, pas les pixels.
 
 **Une gate verte est une information étroite** : elle dit « la règle que
 j'implémente n'est pas violée », jamais « l'écran est bon ». La carte des angles

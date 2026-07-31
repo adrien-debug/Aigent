@@ -4,8 +4,8 @@
  * SQL (the promote_copilot_version RPC + grants), so the durable in-repo guard
  * is to pin the invariants of the SHIPPED migration text — a future migration
  * that reopens a hole fails here. The behaviour itself is additionally proven
- * LIVE against gpu1 in docs/agent-factory-readiness.md (the DB is not reachable
- * from CI, so a text contract is the CI-runnable regression).
+ * LIVE against gpu1 via `npm run test:live` (the DB is not reachable from CI,
+ * so a text contract is the CI-runnable regression).
  *
  * Confirmed-live findings this pins:
  *  #2  the 5-arg overload must be GRANTed EXECUTE to service_role (0030).

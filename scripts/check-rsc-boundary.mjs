@@ -62,6 +62,59 @@ for (const { source } of files) {
   }
 }
 
+/**
+ * Read a JSX opening tag's props, starting just after `<ComponentName`.
+ *
+ * Why this is not a regex: the obvious `<([A-Z]\w*)\b([^>]*?)\/?>` stops at the
+ * first `>` in the source — and an arrow function `=>` contains one. That made
+ * the scanner truncate `tickFormatter={(v) => …}` down to `tickFormatter={(v) =`
+ * and drop the prop entirely, so the `isArrow` test below was DEAD CODE and the
+ * single most common function-prop shape sailed straight through. Measured on
+ * this repo: an inline arrow handed to a Recharts client component kept the gate
+ * green. Depth-tracking is what makes the arrow case reachable at all.
+ *
+ * Returns the raw prop text, or `null` if the tag never closes (truncated file).
+ */
+function readTagProps(source, start) {
+  let depth = 0
+  for (let i = start; i < source.length; i += 1) {
+    const ch = source[i]
+    if (ch === '{') depth += 1
+    else if (ch === '}') depth -= 1
+    else if (ch === '>' && depth === 0) {
+      const end = source[i - 1] === '/' ? i - 1 : i
+      return source.slice(start, end)
+    }
+  }
+  return null
+}
+
+/**
+ * Split a tag's prop text into `{name, value}` pairs, brace-aware.
+ *
+ * Same reason as above: `(\w+)=\{([^}]*)\}` closes on the first `}`, so any prop
+ * whose value contains an object or a template literal (`onX={() => f({a:1})}`)
+ * was cut mid-expression.
+ */
+function matchProps(rawProps) {
+  const out = []
+  const nameRe = /(\w+)=\{/g
+  let m
+  while ((m = nameRe.exec(rawProps)) !== null) {
+    let depth = 1
+    let i = m.index + m[0].length
+    const valueStart = i
+    for (; i < rawProps.length && depth > 0; i += 1) {
+      if (rawProps[i] === '{') depth += 1
+      else if (rawProps[i] === '}') depth -= 1
+    }
+    if (depth !== 0) continue // unbalanced — do not guess
+    out.push({ name: m[1], value: rawProps.slice(valueStart, i - 1).trim() })
+    nameRe.lastIndex = i
+  }
+  return out
+}
+
 const violations = []
 
 for (const { path, source } of files) {
@@ -73,13 +126,15 @@ for (const { path, source } of files) {
   for (const m of source.matchAll(/^\s*(?:async\s+)?function\s+([a-z]\w*)/gm)) localFns.add(m[1])
   for (const m of source.matchAll(/^\s*const\s+([a-z]\w*)\s*=\s*(?:async\s*)?\(/gm)) localFns.add(m[1])
 
-  for (const tag of source.matchAll(/<([A-Z]\w*)\b([^>]*?)\/?>/g)) {
-    const [, name, rawProps] = tag
+  for (const tag of source.matchAll(/<([A-Z]\w*)\b/g)) {
+    const name = tag[1]
     if (!clientComponents.has(name)) continue
 
-    for (const prop of rawProps.matchAll(/(\w+)=\{([^}]*)\}/g)) {
-      const [, propName, rawValue] = prop
-      const value = rawValue.trim()
+    const rawProps = readTagProps(source, tag.index + tag[0].length)
+    if (rawProps === null) continue
+
+    for (const prop of matchProps(rawProps)) {
+      const { name: propName, value } = prop
 
       const isArrow = /^(?:async\s*)?\([^)]*\)\s*=>/.test(value) || /^\w+\s*=>/.test(value)
       const isFunctionExpr = /^(?:async\s+)?function\b/.test(value)
