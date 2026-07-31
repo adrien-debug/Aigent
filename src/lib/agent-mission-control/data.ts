@@ -163,11 +163,11 @@ function enrichCopilot(
   // removed. So prove from run-backed truth, else FORCE the field unavailable so
   // the view shows a dash instead of a fabricated 0%. (24h fields below are
   // always run-backed via kpi24h, where an empty window is a real measured 0.)
-  if (resolved && resolved.testPassRate !== null) prove('testPassRate', resolved.testPassRate)
+  if (resolved != null && resolved.testPassRate !== null) prove('testPassRate', resolved.testPassRate)
   else unavailable.add('testPassRate')
-  if (resolved && resolved.benchmarkScore !== null) prove('benchmarkScore', resolved.benchmarkScore)
+  if (resolved != null && resolved.benchmarkScore !== null) prove('benchmarkScore', resolved.benchmarkScore)
   else unavailable.add('benchmarkScore')
-  if (resolved && resolved.avgLatencyMs !== null) prove('avgLatencyMs', resolved.avgLatencyMs)
+  if (resolved != null && resolved.avgLatencyMs !== null) prove('avgLatencyMs', resolved.avgLatencyMs)
   else unavailable.add('avgLatencyMs')
   // Overwrite the stale 24h blob with run-backed truth (same pattern as above).
   // Always applied — an absence of 24h runs is a real 0, not "keep the old lie".
@@ -241,7 +241,7 @@ export const getCopilot = cache(async function getCopilot(id: string): Promise<C
  * arithmetic — `(undefined * 100).toFixed(1)` is the string `"NaN"`, which is
  * how a missing key ended up rendered as a percentage on a live screen.
  */
-function finiteOrNull(value: number | null | undefined): number | null {
+function finiteOrNull(value?: number | null): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
@@ -268,8 +268,8 @@ export async function getVersionsForCopilot(copilotId: string): Promise<CopilotV
     }
     // Same rule as copilots: run-backed value overwrites the stale zero blob;
     // no run → keep the stored baseline (seeded versions, un-run drafts).
-    if (resolved && resolved.testPassRate !== null) version.scores.testPassRate = resolved.testPassRate
-    if (resolved && resolved.benchmarkScore !== null) version.scores.benchmarkScore = resolved.benchmarkScore
+    if (resolved != null && resolved.testPassRate !== null) version.scores.testPassRate = resolved.testPassRate
+    if (resolved != null && resolved.benchmarkScore !== null) version.scores.benchmarkScore = resolved.benchmarkScore
     // Unsafe count follows the OPPOSITE rule: the stored blob is a zero-init
     // baseline, and "0 unsafe actions" is a safety claim no one measured. The
     // run-backed value wins even when it is null, so an un-benchmarked version

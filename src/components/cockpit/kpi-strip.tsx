@@ -114,7 +114,7 @@ export default function KpiStrip({
   const successColor = successRateColor(kpis.success24h)
 
   const cost = kpis.cost24h
-  const coverage = cost && cost.totalRuns > 0 ? cost.measuredRuns / cost.totalRuns : 0
+  const coverage = cost?.totalRuns && cost.totalRuns > 0 ? cost.measuredRuns / cost.totalRuns : 0
   const partial = cost !== null && cost.measuredRuns < cost.totalRuns
 
   const blocked = kpis.blockedDeliveries

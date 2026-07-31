@@ -351,6 +351,47 @@ interface NormalizeInput {
   assistantId?: string | null
 }
 
+function resolveBuilderStatus(input: NormalizeInput): BuilderRunStatus {
+  if (input.forcedStatus) return input.forcedStatus
+  if (input.interrupted) return 'awaiting_approval'
+  if (input.budgetExhausted) return 'failed'
+  return 'completed'
+}
+
+function resolveCurrentNode(input: NormalizeInput, events: BuilderEvent[]): string {
+  if (input.interrupted) return 'human_approval_interrupt'
+  if (events.length === 0) return 'agent'
+  return nodeForStep(events.at(-1) as LangGraphServerStep)
+}
+
+function buildDraftRisks(
+  draft: NormalizeInput['draft'],
+  selectedTools: BuilderProposedTool[]
+): string[] {
+  return [
+    ...(draft?.forbiddenActions ?? []),
+    ...selectedTools
+      .filter((t) => t.requiresConfirmation || (t.riskLevel && t.riskLevel !== 'low'))
+      .map((t) => `Tool "${t.name}" is ${t.riskLevel ?? 'medium'} risk and requires confirmation`),
+  ]
+}
+
+function toManifestDraft(draft: NonNullable<NormalizeInput['draft']>): BuilderManifestDraft {
+  return {
+    name: draft.name,
+    description: draft.description,
+    suggestedRuntime: draft.suggestedRuntime,
+    suggestedModel: draft.suggestedModel,
+    systemPromptSummary: draft.systemPromptSummary,
+    allowedRoutes: draft.allowedRoutes,
+    forbiddenActions: draft.forbiddenActions,
+    confirmationPolicy: draft.confirmationPolicy,
+    skills: draft.skills,
+    maxStepsPerRun: draft.maxStepsPerRun,
+    maxCostPerRunUsd: draft.maxCostPerRunUsd,
+  }
+}
+
 function normalizeState(input: NormalizeInput): BuilderRunState {
   const events: BuilderEvent[] = input.steps.map((s) => ({
     kind: s.kind,
@@ -359,47 +400,14 @@ function normalizeState(input: NormalizeInput): BuilderRunState {
     status: s.status,
   }))
 
-  const status: BuilderRunStatus = input.forcedStatus
-    ? input.forcedStatus
-    : input.interrupted
-      ? 'awaiting_approval'
-      : input.budgetExhausted
-        ? 'failed'
-        : 'completed'
-
-  const currentNode = input.interrupted
-    ? 'human_approval_interrupt'
-    : events.length > 0
-      ? nodeForStep(events[events.length - 1] as LangGraphServerStep)
-      : 'agent'
+  const status = resolveBuilderStatus(input)
+  const currentNode = resolveCurrentNode(input, events)
 
   const draft = input.draft
   const selectedTools = draft?.proposedTools ?? []
   const testCases = draft?.proposedTestCases ?? []
-  // Risks = the draft's forbidden-actions surface (what the copilot is barred
-  // from) + a flag for any write/confirmation-required tool it proposes.
-  const risks = [
-    ...(draft?.forbiddenActions ?? []),
-    ...selectedTools
-      .filter((t) => t.requiresConfirmation || (t.riskLevel && t.riskLevel !== 'low'))
-      .map((t) => `Tool "${t.name}" is ${t.riskLevel ?? 'medium'} risk and requires confirmation`),
-  ]
-
-  const manifestDraft: BuilderManifestDraft | null = draft
-    ? {
-        name: draft.name,
-        description: draft.description,
-        suggestedRuntime: draft.suggestedRuntime,
-        suggestedModel: draft.suggestedModel,
-        systemPromptSummary: draft.systemPromptSummary,
-        allowedRoutes: draft.allowedRoutes,
-        forbiddenActions: draft.forbiddenActions,
-        confirmationPolicy: draft.confirmationPolicy,
-        skills: draft.skills,
-        maxStepsPerRun: draft.maxStepsPerRun,
-        maxCostPerRunUsd: draft.maxCostPerRunUsd,
-      }
-    : null
+  const risks = buildDraftRisks(draft, selectedTools)
+  const manifestDraft = draft ? toManifestDraft(draft) : null
 
   // Release proposal — only meaningful once a draft exists. Never pushes; PR
   // creation is deferred (ships-next) since no GitHub write route is armed here.
@@ -440,6 +448,43 @@ function normalizeState(input: NormalizeInput): BuilderRunState {
  * github.ts would push (handler.ts / manifest.json / README.md under
  * agents/<slug>) — but NOTHING is written: prCreation is 'ships-next'.
  */
+function buildValidationCommands(scan: { scripts: Record<string, string> } | null): string[] {
+  const GATE_ORDER = ['verify', 'typecheck', 'lint', 'test', 'build']
+  const scriptNames = scan ? Object.keys(scan.scripts) : []
+  const commands =
+    scriptNames.length > 0
+      ? GATE_ORDER.filter((g) => scriptNames.includes(g)).map((g) => `npm run ${g}`)
+      : ['npm run verify']
+  if (commands.length === 0) commands.push('npm run verify')
+  return commands
+}
+
+function buildReleasePrBody(
+  draft: BuilderManifestDraft,
+  dir: string,
+  scan: { repo: string; branch: string } | null,
+  validationCommands: string[]
+): string {
+  return [
+    `Adds the **${draft.name ?? 'drafted copilot'}** agent scaffold under \`${dir}\`.`,
+    '',
+    draft.description ? `> ${draft.description}` : '',
+    '',
+    scan ? `Scoped to \`${scan.repo}\` (branch \`${scan.branch}\`).` : '',
+    '',
+    '## Validation',
+    validationCommands.map((c) => `- [ ] \`${c}\` passes`).join('\n'),
+    '',
+    '## Guardrails',
+    '- Read-only tools only; no destructive/write tool without confirmation.',
+    '- Never auto-promotes to production; never force-pushes.',
+    '',
+    '_Prepared by Agent Builder. No code was pushed — this PR ships on explicit approval._',
+  ]
+    .filter((l) => l !== '')
+    .join('\n')
+}
+
 function buildReleaseProposal(
   draft: BuilderManifestDraft,
   risks: string[],
@@ -451,16 +496,7 @@ function buildReleaseProposal(
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
   const dir = `agents/${slug || 'drafted-copilot'}`
-
-  // Prefer the repo's real gate order when scanned; else a safe default.
-  const GATE_ORDER = ['verify', 'typecheck', 'lint', 'test', 'build']
-  const scriptNames = scan ? Object.keys(scan.scripts) : []
-  const validationCommands =
-    scriptNames.length > 0
-      ? GATE_ORDER.filter((g) => scriptNames.includes(g)).map((g) => `npm run ${g}`)
-      : ['npm run verify']
-  if (validationCommands.length === 0) validationCommands.push('npm run verify')
-
+  const validationCommands = buildValidationCommands(scan)
   const branch = `agent/${slug || 'drafted-copilot'}`
 
   return {
@@ -476,24 +512,7 @@ function buildReleaseProposal(
     validationCommands,
     branch,
     prTitle: `feat(agents): add ${draft.name ?? 'drafted copilot'}`,
-    prBody: [
-      `Adds the **${draft.name ?? 'drafted copilot'}** agent scaffold under \`${dir}\`.`,
-      '',
-      draft.description ? `> ${draft.description}` : '',
-      '',
-      scan ? `Scoped to \`${scan.repo}\` (branch \`${scan.branch}\`).` : '',
-      '',
-      '## Validation',
-      validationCommands.map((c) => `- [ ] \`${c}\` passes`).join('\n'),
-      '',
-      '## Guardrails',
-      '- Read-only tools only; no destructive/write tool without confirmation.',
-      '- Never auto-promotes to production; never force-pushes.',
-      '',
-      '_Prepared by Agent Builder. No code was pushed — this PR ships on explicit approval._',
-    ]
-      .filter((l) => l !== '')
-      .join('\n'),
+    prBody: buildReleasePrBody(draft, dir, scan, validationCommands),
     prCreation: 'ships-next',
   }
 }
@@ -628,9 +647,7 @@ async function readDraftFromThread(threadId: string): Promise<NormalizeInput['dr
  * Find the most recent `draft_copilot_spec` ToolMessage in the history and flatten
  * its `draft` payload (from draft-spec.mjs's buildCopilotDraft) into the UI shape.
  */
-function extractDraft(messages: AnyMsg[]): NormalizeInput['draft'] {
-  // Map tool_call_id → tool name so a ToolMessage (which may omit the name) is
-  // identifiable as the draft tool's result.
+function buildNameByCallId(messages: AnyMsg[]): Map<string, string> {
   const nameByCallId = new Map<string, string>()
   for (const m of messages) {
     const type = m.type ?? m.role
@@ -638,6 +655,30 @@ function extractDraft(messages: AnyMsg[]): NormalizeInput['draft'] {
       for (const call of m.tool_calls) if (call.id) nameByCallId.set(call.id, call.name)
     }
   }
+  return nameByCallId
+}
+
+function parseDraftPayload(d: Record<string, unknown>): NormalizeInput['draft'] {
+  const pm = (d.proposedManifest as Record<string, unknown>) ?? {}
+  return {
+    name: str(d.name),
+    description: str(d.description),
+    suggestedRuntime: str(d.suggestedRuntime),
+    suggestedModel: str(d.suggestedModel),
+    systemPromptSummary: str(pm.systemPromptSummary),
+    allowedRoutes: strArray(pm.allowedRoutes),
+    forbiddenActions: strArray(pm.forbiddenActions),
+    confirmationPolicy: str(pm.confirmationPolicy),
+    skills: skillArray(pm.skills),
+    maxStepsPerRun: num(pm.maxStepsPerRun),
+    maxCostPerRunUsd: num(pm.maxCostPerRunUsd),
+    proposedTools: toolArray(d.proposedTools),
+    proposedTestCases: testArray(d.proposedTestCases),
+  }
+}
+
+function extractDraft(messages: AnyMsg[]): NormalizeInput['draft'] {
+  const nameByCallId = buildNameByCallId(messages)
 
   for (const m of messages.toReversed()) {
     const type = m.type ?? m.role
@@ -653,65 +694,57 @@ function extractDraft(messages: AnyMsg[]): NormalizeInput['draft'] {
     }
     const d = parsed.draft
     if (!d || typeof d !== 'object') return null
-
-    const pm = (d.proposedManifest as Record<string, unknown>) ?? {}
-    return {
-      name: str(d.name),
-      description: str(d.description),
-      suggestedRuntime: str(d.suggestedRuntime),
-      suggestedModel: str(d.suggestedModel),
-      systemPromptSummary: str(pm.systemPromptSummary),
-      allowedRoutes: strArray(pm.allowedRoutes),
-      forbiddenActions: strArray(pm.forbiddenActions),
-      confirmationPolicy: str(pm.confirmationPolicy),
-      skills: skillArray(pm.skills),
-      maxStepsPerRun: num(pm.maxStepsPerRun),
-      maxCostPerRunUsd: num(pm.maxCostPerRunUsd),
-      proposedTools: toolArray(d.proposedTools),
-      proposedTestCases: testArray(d.proposedTestCases),
-    }
+    return parseDraftPayload(d)
   }
   return null
 }
 
 // --- Thread-state timeline (mirrors buildStepsFromMessages, builder-flavoured) ---
 
-function buildEventsFromMessages(messages: AnyMsg[]): BuilderEvent[] {
-  const nameByCallId = new Map<string, string>()
-  for (const m of messages) {
-    const type = m.type ?? m.role
-    if ((type === 'ai' || type === 'assistant') && Array.isArray(m.tool_calls)) {
-      for (const call of m.tool_calls) if (call.id) nameByCallId.set(call.id, call.name)
-    }
+function isToolMessageBlocked(content: string): boolean {
+  try {
+    const parsed = JSON.parse(content) as { ok?: boolean; blocked?: boolean }
+    return parsed.blocked === true || parsed.ok === false
+  } catch {
+    return false
   }
+}
+
+function eventFromAiMessage(m: AnyMsg): BuilderEvent {
+  const requested = (m.tool_calls ?? []).length
+  return {
+    kind: 'llm-call',
+    title: 'LLM call · agent',
+    detail: requested > 0 ? `requested ${requested} tool call(s)` : 'reasoning / answer',
+    status: 'ok',
+  }
+}
+
+function eventFromToolMessage(
+  m: AnyMsg,
+  nameByCallId: Map<string, string>
+): BuilderEvent {
+  const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content)
+  const blocked = isToolMessageBlocked(content)
+  const nameFromCall = m.tool_call_id ? nameByCallId.get(m.tool_call_id) : undefined
+  const name = m.name ?? nameFromCall ?? 'tool'
+  return {
+    kind: blocked ? 'confirmation' : 'tool-call',
+    title: `${blocked ? 'Blocked' : 'Tool'} · ${name}`,
+    detail: content.length > 220 ? `${content.slice(0, 219)}…` : content,
+    status: blocked ? 'blocked' : 'ok',
+  }
+}
+
+function buildEventsFromMessages(messages: AnyMsg[]): BuilderEvent[] {
+  const nameByCallId = buildNameByCallId(messages)
   const events: BuilderEvent[] = []
   for (const m of messages) {
     const type = m.type ?? m.role
     if (type === 'ai' || type === 'assistant') {
-      const requested = (m.tool_calls ?? []).length
-      events.push({
-        kind: 'llm-call',
-        title: 'LLM call · agent',
-        detail: requested > 0 ? `requested ${requested} tool call(s)` : 'reasoning / answer',
-        status: 'ok',
-      })
+      events.push(eventFromAiMessage(m))
     } else if (type === 'tool') {
-      const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content)
-      let blocked = false
-      try {
-        const parsed = JSON.parse(content) as { ok?: boolean; blocked?: boolean }
-        blocked = parsed.blocked === true || parsed.ok === false
-      } catch {
-        /* non-JSON — treat as ok */
-      }
-      const nameFromCall = m.tool_call_id ? nameByCallId.get(m.tool_call_id) : undefined
-      const name = m.name ?? nameFromCall ?? 'tool'
-      events.push({
-        kind: blocked ? 'confirmation' : 'tool-call',
-        title: `${blocked ? 'Blocked' : 'Tool'} · ${name}`,
-        detail: content.length > 220 ? `${content.slice(0, 219)}…` : content,
-        status: blocked ? 'blocked' : 'ok',
-      })
+      events.push(eventFromToolMessage(m, nameByCallId))
     }
   }
   return events

@@ -250,7 +250,7 @@ console.log(`\n✓ copilot ${COPILOT_ID}`)
 
 const toolIds = []
 for (const name of TOOLS) {
-  const toolId = `tool-${SLUG}-${name.replace(/_/g, '-')}`
+  const toolId = `tool-${SLUG}-${name.replaceAll('_', '-')}`
   toolIds.push(toolId)
   await req(
     'POST',

@@ -19,6 +19,7 @@
  * (on ne sait pas), lecture réussie et vide (on sait qu'il n'y a rien), donnée
  * présente. Les deux premières ne se rendent jamais pareil.
  */
+import type { ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Divider } from '@/components/ui/divider'
 import { Heading } from '@/components/ui/heading'
@@ -84,8 +85,71 @@ function appendFailureMessage(message: string, failure: string): string {
 
 /* ═════════════════ Le dernier événement de livraison ═════════════════ */
 
-function DeliveryEventPanel({ detail }: DeliveryEventPanelProps) {
+function DeliveryEventPanel({ detail }: Readonly<DeliveryEventPanelProps>) {
   const d = detail.latestDelivery
+
+  let body: ReactNode
+  if (detail.deliveryFailure !== null) {
+    body = (
+      <Note tone="warn" title="Événement de livraison non lu">
+        {appendFailureMessage(
+          'La lecture de `agent_delivery_events` a échoué. Aucun état de livraison n’est affiché à la place — un panneau vide se lirait comme « jamais livré », ce qui n’est pas ce qui est su.',
+          detail.deliveryFailure,
+        )}
+      </Note>
+    )
+  } else if (d === null) {
+    body = (
+      <Unavailable
+        reason="no-data"
+        detail="La lecture a réussi : aucun événement de livraison n’existe pour cet agent. C’est un fait mesuré — cet agent n’a jamais été livré à un dépôt cible."
+      />
+    )
+  } else {
+    body = (
+      <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Fact label="Mode" value={deliveryModeLabel(d.mode)} />
+          <Fact label="Dépôt" value={d.targetRepo} />
+          <Fact label="Branche de base" value={d.targetBranch} why="La branche de base n’a pas été enregistrée." />
+          <Fact
+            label="Branche de livraison"
+            value={d.deliveryBranch}
+            why="Une livraison en commit direct n’a pas de branche dédiée."
+          />
+          <Fact
+            label="Commit"
+            value={d.commitSha !== null ? <FactValue>{d.commitSha.slice(0, 10)}</FactValue> : null}
+            why="Aucun SHA de commit n’a été enregistré pour cette livraison."
+          />
+          <Fact label="Statut enregistré" value={d.status} />
+          <Fact label="Date" value={isoShort(d.createdAt)} why="La date de l’événement n’est pas lisible." />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Les liens sortants sont RÉELS ou absents — jamais un `#`. */}
+          {d.commitUrl !== null ? (
+            <Link href={d.commitUrl} target="_blank" rel="noreferrer" className="text-sm underline">
+              Voir le commit
+            </Link>
+          ) : null}
+          {d.prUrl !== null ? (
+            <Link href={d.prUrl} target="_blank" rel="noreferrer" className="text-sm underline">
+              Voir la PR {d.prNumber !== null ? `#${d.prNumber}` : ''}
+            </Link>
+          ) : null}
+        </div>
+
+        {d.prUrl !== null ? (
+          <Note tone="structural" title="L’état de cette PR n’est pas su">
+            Aigent a ouvert cette PR et n’a plus jamais relu son état. Elle peut être mergée,
+            fermée, ou toujours ouverte : aucun chemin de code ne va le vérifier. Le lien ci-dessus
+            est la seule façon de le savoir.
+          </Note>
+        ) : null}
+      </div>
+    )
+  }
 
   return (
     <Panel
@@ -94,68 +158,14 @@ function DeliveryEventPanel({ detail }: DeliveryEventPanelProps) {
       className="min-h-56 min-w-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
-      {detail.deliveryFailure !== null ? (
-        <Note tone="warn" title="Événement de livraison non lu">
-          {appendFailureMessage(
-            'La lecture de `agent_delivery_events` a échoué. Aucun état de livraison n’est affiché à la place — un panneau vide se lirait comme « jamais livré », ce qui n’est pas ce qui est su.',
-            detail.deliveryFailure,
-          )}
-        </Note>
-      ) : d === null ? (
-        <Unavailable
-          reason="no-data"
-          detail="La lecture a réussi : aucun événement de livraison n’existe pour cet agent. C’est un fait mesuré — cet agent n’a jamais été livré à un dépôt cible."
-        />
-      ) : (
-        <div className="flex flex-col gap-3">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Fact label="Mode" value={deliveryModeLabel(d.mode)} />
-            <Fact label="Dépôt" value={d.targetRepo} />
-            <Fact label="Branche de base" value={d.targetBranch} why="La branche de base n’a pas été enregistrée." />
-            <Fact
-              label="Branche de livraison"
-              value={d.deliveryBranch}
-              why="Une livraison en commit direct n’a pas de branche dédiée."
-            />
-            <Fact
-              label="Commit"
-              value={d.commitSha !== null ? <FactValue>{d.commitSha.slice(0, 10)}</FactValue> : null}
-              why="Aucun SHA de commit n’a été enregistré pour cette livraison."
-            />
-            <Fact label="Statut enregistré" value={d.status} />
-            <Fact label="Date" value={isoShort(d.createdAt)} why="La date de l’événement n’est pas lisible." />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Les liens sortants sont RÉELS ou absents — jamais un `#`. */}
-            {d.commitUrl !== null ? (
-              <Link href={d.commitUrl} target="_blank" rel="noreferrer" className="text-sm underline">
-                Voir le commit
-              </Link>
-            ) : null}
-            {d.prUrl !== null ? (
-              <Link href={d.prUrl} target="_blank" rel="noreferrer" className="text-sm underline">
-                Voir la PR {d.prNumber !== null ? `#${d.prNumber}` : ''}
-              </Link>
-            ) : null}
-          </div>
-
-          {d.prUrl !== null ? (
-            <Note tone="structural" title="L’état de cette PR n’est pas su">
-              Aigent a ouvert cette PR et n’a plus jamais relu son état. Elle peut être mergée,
-              fermée, ou toujours ouverte : aucun chemin de code ne va le vérifier. Le lien ci-dessus
-              est la seule façon de le savoir.
-            </Note>
-          ) : null}
-        </div>
-      )}
+      {body}
     </Panel>
   )
 }
 
 /* ═════════════════ Les huit états ═════════════════ */
 
-function DeliveryStatesPanel({ detail }: DeliveryStatesPanelProps) {
+function DeliveryStatesPanel({ detail }: Readonly<DeliveryStatesPanelProps>) {
   const states = deriveDeliveryStates({
     realDeliveryEnabled: detail.realDeliveryEnabled,
     latestDelivery: detail.latestDelivery,
@@ -191,7 +201,28 @@ function DeliveryStatesPanel({ detail }: DeliveryStatesPanelProps) {
 
 /* ═════════════════ Scorecard ═════════════════ */
 
-function ScorecardPanel({ card, failure }: ScorecardPanelProps) {
+function ScorecardPanel({ card, failure }: Readonly<ScorecardPanelProps>) {
+  let body: ReactNode
+  if (failure !== null) {
+    body = (
+      <Note tone="warn" title="Scorecard non calculée">
+        {appendFailureMessage(
+          'L’agrégation n’a pas abouti. Aucun score n’est affiché à la place — un score de 0 se lirait comme un verdict.',
+          failure,
+        )}
+      </Note>
+    )
+  } else if (card === null) {
+    body = (
+      <Unavailable
+        reason="no-data"
+        detail="Aucune scorecard n’est calculable : le copilot n’a pas été trouvé dans le périmètre serveur."
+      />
+    )
+  } else {
+    body = <ScorecardBody card={card} />
+  }
+
   return (
     <Panel
       title="Scorecard de livraison"
@@ -199,26 +230,12 @@ function ScorecardPanel({ card, failure }: ScorecardPanelProps) {
       className="min-h-64 min-w-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
-      {failure !== null ? (
-        <Note tone="warn" title="Scorecard non calculée">
-          {appendFailureMessage(
-            'L’agrégation n’a pas abouti. Aucun score n’est affiché à la place — un score de 0 se lirait comme un verdict.',
-            failure,
-          )}
-        </Note>
-      ) : card === null ? (
-        <Unavailable
-          reason="no-data"
-          detail="Aucune scorecard n’est calculable : le copilot n’a pas été trouvé dans le périmètre serveur."
-        />
-      ) : (
-        <ScorecardBody card={card} />
-      )}
+      {body}
     </Panel>
   )
 }
 
-function ScorecardBody({ card }: ScorecardBodyProps) {
+function ScorecardBody({ card }: Readonly<ScorecardBodyProps>) {
   const meaningful = scorecardScoreIsMeaningful(card)
   const ratio = scorecardMeasuredRatio(card)
 
@@ -288,7 +305,28 @@ function ScorecardBody({ card }: ScorecardBodyProps) {
 
 /* ═════════════════ Sandbox du dépôt cible ═════════════════ */
 
-function SandboxPanel({ report, failure }: SandboxPanelProps) {
+function SandboxPanel({ report, failure }: Readonly<SandboxPanelProps>) {
+  let body: ReactNode
+  if (failure !== null) {
+    body = (
+      <Note tone="warn" title="Rapport de sandbox non lu">
+        {appendFailureMessage(
+          'La lecture du dernier rapport a échoué. Aucun verdict n’est affiché à la place.',
+          failure,
+        )}
+      </Note>
+    )
+  } else if (report === null) {
+    body = (
+      <Unavailable
+        reason="no-data"
+        detail="La lecture a réussi : aucun rapport de sandbox n’a jamais été persisté pour cet agent. Le dépôt cible n’a donc jamais été évalué."
+      />
+    )
+  } else {
+    body = <SandboxBody report={report} />
+  }
+
   return (
     <Panel
       title="Sandbox du dépôt cible"
@@ -296,26 +334,12 @@ function SandboxPanel({ report, failure }: SandboxPanelProps) {
       className="min-h-64 min-w-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
-      {failure !== null ? (
-        <Note tone="warn" title="Rapport de sandbox non lu">
-          {appendFailureMessage(
-            'La lecture du dernier rapport a échoué. Aucun verdict n’est affiché à la place.',
-            failure,
-          )}
-        </Note>
-      ) : report === null ? (
-        <Unavailable
-          reason="no-data"
-          detail="La lecture a réussi : aucun rapport de sandbox n’a jamais été persisté pour cet agent. Le dépôt cible n’a donc jamais été évalué."
-        />
-      ) : (
-        <SandboxBody report={report} />
-      )}
+      {body}
     </Panel>
   )
 }
 
-function SandboxBody({ report }: SandboxBodyProps) {
+function SandboxBody({ report }: Readonly<SandboxBodyProps>) {
   const counts = countSandboxChecks(report)
 
   return (
@@ -400,7 +424,7 @@ function SandboxBody({ report }: SandboxBodyProps) {
 type ConsumerProvisionNoteProps = { detail: DeliveryDetailRead }
 type DetailTelemetryNoteProps = { detail: DeliveryDetailRead }
 
-function ConsumerProvisionNote({ detail }: ConsumerProvisionNoteProps) {
+function ConsumerProvisionNote({ detail }: Readonly<ConsumerProvisionNoteProps>) {
   if (detail.repoFullName === null) {
     return (
       <Note title="Aucun dépôt cible">
@@ -447,7 +471,7 @@ function ConsumerProvisionNote({ detail }: ConsumerProvisionNoteProps) {
   )
 }
 
-function DetailTelemetryNote({ detail }: DetailTelemetryNoteProps) {
+function DetailTelemetryNote({ detail }: Readonly<DetailTelemetryNoteProps>) {
   if (detail.telemetryFailure !== null) {
     return (
       <Note tone="warn" title="Télémétrie non lue">
@@ -484,7 +508,7 @@ function DetailTelemetryNote({ detail }: DetailTelemetryNoteProps) {
   )
 }
 
-function ConsumerPanel({ detail }: ConsumerPanelProps) {
+function ConsumerPanel({ detail }: Readonly<ConsumerPanelProps>) {
   return (
     <Panel
       title="Runtime consommateur"
@@ -523,7 +547,7 @@ function ConsumerPanel({ detail }: ConsumerPanelProps) {
 
 /* ═════════════════ L'écran ═════════════════ */
 
-export default function DeliveryDetailScreen({ detail }: DeliveryDetailScreenProps) {
+export default function DeliveryDetailScreen({ detail }: Readonly<DeliveryDetailScreenProps>) {
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3">
       {/* ─── En-tête ─── */}

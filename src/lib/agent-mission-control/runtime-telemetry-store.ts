@@ -48,7 +48,7 @@ type RawRow = Record<string, unknown>
  * source of truth: for any row written from now on it is the identity
  * (`openai` -> `openai`, `google` -> `google`) and costs nothing.
  */
-export function normalizeTelemetryProviderToModelProvider(provider: string | null | undefined): ModelProvider | null {
+export function normalizeTelemetryProviderToModelProvider(provider?: string | null): ModelProvider | null {
   switch (provider) {
     case 'openai':
       return 'openai'
@@ -231,7 +231,7 @@ export interface RuntimeTelemetrySummary {
 }
 
 function rowToEvent(r: RawRow): RuntimeTelemetryEvent {
-  const eventType = r.event_type as PromotionLifecycleEvent | null | undefined
+  const eventType = r.event_type as PromotionLifecycleEvent | null
   return {
     id: r.id as string,
     projectId: r.project_id as string,

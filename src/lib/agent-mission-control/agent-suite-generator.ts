@@ -495,7 +495,7 @@ async function generateSuite(ctx: ManifestContext): Promise<GeneratedSuite> {
     if (coverage.missing.length > 0) {
       const retry = await callGenerator(ctx, riskCoverageRetryPrompt(coverage.missing))
       riskCoverageRetried = true
-      if (retry && retry.cases.length >= MIN_CASES) {
+      if (retry?.cases && retry.cases.length >= MIN_CASES) {
         cases = retry.cases
         dims = retry.dims
         suiteSource = retry.suiteSource

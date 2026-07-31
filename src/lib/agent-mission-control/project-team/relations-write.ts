@@ -131,7 +131,7 @@ export const createRelationBodySchema = z
       .max(200, 'label must be at most 200 characters')
       .refine((v) => !v.includes('\0'), { message: 'label must not contain a null byte' })
       .optional()
-      .transform((v) => (v && v.length > 0 ? v : undefined)),
+      .transform((v) => (v?.length && v.length > 0 ? v : undefined)),
   })
   .strict()
   .refine((v) => v.sourceCopilotId !== v.targetCopilotId, {

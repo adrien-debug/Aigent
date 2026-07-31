@@ -253,5 +253,5 @@ export function getTool(id: string): ToolDefinition | undefined {
 /** True iff the id names a real, certified tool the registry can mount. */
 export function isToolCertified(id: string): boolean {
   const t = getTool(id)
-  return !!t && t.certification === 'certified'
+  return !!t?.certification && t.certification === 'certified'
 }

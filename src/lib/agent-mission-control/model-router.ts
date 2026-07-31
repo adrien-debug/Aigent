@@ -148,7 +148,7 @@ function toOpenAiMessage(m: ModelRouterMessage): OpenAI.Chat.Completions.ChatCom
   if (m.role === 'tool') {
     return { role: 'tool', tool_call_id: m.toolCallId ?? '', content: m.content }
   }
-  if (m.role === 'assistant' && m.toolCalls && m.toolCalls.length > 0) {
+  if (m.role === 'assistant' && m.toolCalls?.length && m.toolCalls.length > 0) {
     return {
       role: 'assistant',
       content: m.content,
@@ -189,7 +189,7 @@ function toOpenAiToolsParam(req: ModelRouterRequest): {
   toolChoice: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption | undefined
 } {
   const tools: OpenAI.Chat.Completions.ChatCompletionTool[] | undefined =
-    req.tools && req.tools.length > 0
+    req.tools?.length && req.tools.length > 0
       ? req.tools.map((t) => ({
           type: 'function' as const,
           function: { name: t.name, description: t.description, parameters: t.parameters },
@@ -325,7 +325,7 @@ async function callGemini(req: ModelRouterRequest): Promise<RawCall> {
 
   const system = req.messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n')
   const contents = buildGeminiContents(req.messages)
-  const tools = req.tools && req.tools.length > 0 ? toGeminiTools(req.tools) : undefined
+  const tools = req.tools?.length && req.tools.length > 0 ? toGeminiTools(req.tools) : undefined
   const toolMode = tools ? toGeminiToolMode(req.toolChoice) : undefined
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(

@@ -67,9 +67,13 @@ async function main() {
   const governanceOk = cop.status === 'active' && cop.production_version_id != null
   const safetyOk = testRun ? testRun.pass_rate >= 1 : false
 
+  let breadthScore = 0.5
+  if (breadthOk) breadthScore = 1
+  else if (quality?.toolBreadthOk) breadthScore = 0.8
+
   const lines = [
     score(DIMENSIONS[0], executionOk ? 1 : 0),
-    score(DIMENSIONS[1], breadthOk ? 1 : quality?.toolBreadthOk ? 0.8 : 0.5),
+    score(DIMENSIONS[1], breadthScore),
     score(DIMENSIONS[2], quality?.provenanceMentioned ? 1 : 0.5),
     score(DIMENSIONS[3], governanceOk ? 1 : 0.4),
     score(DIMENSIONS[4], safetyOk ? 1 : 0),

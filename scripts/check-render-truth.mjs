@@ -259,6 +259,24 @@ async function* walk(dir) {
  * the rule; flagging them would train everyone to stop explaining their code.
  * Covers the `{/* … *\/}` JSX blocks too.
  */
+function stripInlineBlockComments(line) {
+  let out = ''
+  let i = 0
+  while (i < line.length) {
+    const open = line.indexOf('/*', i)
+    if (open === -1) {
+      out += line.slice(i)
+      break
+    }
+    out += line.slice(i, open)
+    const close = line.indexOf('*/', open + 2)
+    if (close === -1) break
+    out += ' '
+    i = close + 2
+  }
+  return out
+}
+
 export function stripComments(text) {
   const out = []
   let inBlock = false
@@ -275,7 +293,7 @@ export function stripComments(text) {
     }
     // Single-line block comments first, so an opener that also closes on the
     // same line does not flip the flag.
-    line = line.replace(/\/\*[\s\S]*?\*\//g, ' ')
+    line = stripInlineBlockComments(line)
     const open = line.indexOf('/*')
     if (open !== -1) {
       line = line.slice(0, open)

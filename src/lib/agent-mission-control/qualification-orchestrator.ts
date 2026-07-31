@@ -706,8 +706,8 @@ export async function advanceQualification(
   // The gate is the ONLY step that decides the run's terminal verdict; the earlier
   // steps are informational and never block the walk (the gate re-reads their
   // evidence authoritatively). No auto-promotion: 'promotable' is a state, not an act.
-  const nextStatus: QualificationRunStatus =
-    cursor === 'gate' ? (promotable ? 'promotable' : 'blocked') : 'running'
+  let nextStatus: QualificationRunStatus = 'running'
+  if (cursor === 'gate') nextStatus = promotable ? 'promotable' : 'blocked'
 
   const steps = [...run.steps, stepResult]
   const updated = await pgrest<RawRow[]>(

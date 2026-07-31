@@ -75,7 +75,7 @@ type QualificationRosterScreenProps = {
 type QualificationStateBadgeProps = { candidate: QualificationCandidate }
 type RunGuardBadgeProps = { candidate: QualificationCandidate }
 
-function QualificationStateBadge({ candidate }: QualificationStateBadgeProps) {
+function QualificationStateBadge({ candidate }: Readonly<QualificationStateBadgeProps>) {
   if (!candidate.qualificationRead) {
     return (
       <Badge
@@ -99,7 +99,7 @@ function QualificationStateBadge({ candidate }: QualificationStateBadgeProps) {
   return <RunStatusBadge status={candidate.state} />
 }
 
-function RunGuardBadge({ candidate }: RunGuardBadgeProps) {
+function RunGuardBadge({ candidate }: Readonly<RunGuardBadgeProps>) {
   if (candidate.runBlockerCount === null) {
     const title = candidate.agentRead
       ? 'Le catalogue a été lu et ne rend aucune ligne canonique pour cet agent : les trois conditions de la garde d’exécution sont INCONNUES, pas fausses.'
@@ -131,7 +131,7 @@ function RunGuardBadge({ candidate }: RunGuardBadgeProps) {
   )
 }
 
-function CandidateRow({ candidate }: CandidateRowProps) {
+function CandidateRow({ candidate }: Readonly<CandidateRowProps>) {
   return (
     <li className="relative">
       <Rail color={RAIL_COLOR[candidate.state]} />
@@ -182,7 +182,7 @@ function CandidateRow({ candidate }: CandidateRowProps) {
 export default function QualificationRosterScreen({
   candidates,
   qualificationReadFailures,
-}: QualificationRosterScreenProps) {
+}: Readonly<QualificationRosterScreenProps>) {
   const ranked = [...candidates].sort(
     (a, b) => candidateRank(a.state) - candidateRank(b.state) || a.name.localeCompare(b.name, 'fr'),
   )

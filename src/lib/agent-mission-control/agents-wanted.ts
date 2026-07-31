@@ -15,7 +15,7 @@ const PLACEHOLDER_RE = /^_No open requests yet\b/i
 
 /** Strip HTML comments from a markdown fragment. */
 function stripHtmlComments(text: string): string {
-  return text.replace(/<!--[\s\S]*?-->/g, '').trim()
+  return text.replaceAll(/<!--[\s\S]*?-->/g, '').trim()
 }
 
 /**
@@ -23,11 +23,11 @@ function stripHtmlComments(text: string): string {
  * Returns null when the section is absent, empty, or still the scaffold placeholder.
  */
 export function parseAgentsWantedOpenSection(markdown: string): string | null {
-  const openMatch = markdown.match(/^## Open requests\s*$/im)
+  const openMatch = /^## Open requests\s*$/im.exec(markdown)
   if (!openMatch || openMatch.index === undefined) return null
 
   const afterOpen = markdown.slice(openMatch.index + openMatch[0].length).replace(/^\s*\n?/, '')
-  const fulfilledMatch = afterOpen.match(/^## Fulfilled\s*$/im)
+  const fulfilledMatch = /^## Fulfilled\s*$/im.exec(afterOpen)
   const rawSection = fulfilledMatch?.index !== undefined ? afterOpen.slice(0, fulfilledMatch.index) : afterOpen
 
   const body = stripHtmlComments(rawSection)
@@ -67,7 +67,7 @@ async function fetchAgentsWantedRaw(repoFullName: string): Promise<string | null
  * Returns null when unavailable, unconfigured, or no real open requests.
  */
 export async function loadAgentsWantedContext(
-  repoFullName: string | undefined | null
+  repoFullName?: string | null
 ): Promise<string | null> {
   if (!repoFullName || !process.env.GITHUB_TOKEN) return null
 
@@ -84,7 +84,7 @@ export async function loadAgentsWantedContext(
  */
 export async function appendAgentsWantedToContext(
   base: string | undefined,
-  repoFullName: string | undefined | null
+  repoFullName?: string | null
 ): Promise<string | undefined> {
   try {
     const wantedBlock = await loadAgentsWantedContext(repoFullName)

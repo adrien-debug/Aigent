@@ -114,7 +114,7 @@ const KIND_MEANING: Record<DeliveryStateKind, string> = {
  * neutre — sauf les inconnues structurelles, qui sont vraies par construction et
  * ne peuvent pas être « non atteintes ».
  */
-export function DeliveryStateBadge({ state }: DeliveryStateBadgeProps) {
+export function DeliveryStateBadge({ state }: Readonly<DeliveryStateBadgeProps>) {
   if (state.reached === null) {
     return (
       <Badge color="zinc" title={`${state.meaning}\n\nCette question n’a pas pu être posée : la lecture nécessaire n’a pas abouti.`}>
@@ -131,7 +131,7 @@ export function DeliveryStateBadge({ state }: DeliveryStateBadgeProps) {
 }
 
 /** Le mot qui qualifie la NATURE d'un état — affiché à côté de lui, jamais à sa place. */
-export function StateKindTag({ kind }: StateKindTagProps) {
+export function StateKindTag({ kind }: Readonly<StateKindTagProps>) {
   return (
     <span
       className="text-[10px] tracking-wide text-zinc-500 uppercase dark:text-zinc-400"
@@ -149,7 +149,7 @@ export function StateKindTag({ kind }: StateKindTagProps) {
  * `evidence === null` ne se rend pas comme une preuve vide : le composant dit
  * qu'aucune lecture n'a eu lieu.
  */
-export function DeliveryStateRow({ state }: DeliveryStateRowProps) {
+export function DeliveryStateRow({ state }: Readonly<DeliveryStateRowProps>) {
   return (
     <div className="px-4 py-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -185,7 +185,7 @@ const SANDBOX_STATUS_LABEL: Record<SandboxStatus, string> = {
   failed: 'Sandbox rouge',
 }
 
-export function SandboxStatusBadge({ status, title }: SandboxStatusBadgeProps) {
+export function SandboxStatusBadge({ status, title }: Readonly<SandboxStatusBadgeProps>) {
   return (
     <Badge color={SANDBOX_STATUS_COLOR[status]} title={title}>
       {SANDBOX_STATUS_LABEL[status]}
@@ -210,7 +210,7 @@ const CHECK_LABEL: Record<SandboxCheckStatus, string> = {
   skipped: 'non exécuté',
 }
 
-export function SandboxCheckBadge({ status, reason }: SandboxCheckBadgeProps) {
+export function SandboxCheckBadge({ status, reason }: Readonly<SandboxCheckBadgeProps>) {
   return (
     <Badge
       color={CHECK_COLOR[status]}
@@ -238,7 +238,7 @@ const DIMENSION_LABEL: Record<DimensionStatus, string> = {
   missing: 'non mesuré',
 }
 
-export function DimensionBadge({ status }: DimensionBadgeProps) {
+export function DimensionBadge({ status }: Readonly<DimensionBadgeProps>) {
   return (
     <Badge
       color={DIMENSION_COLOR[status]}
@@ -260,7 +260,7 @@ export function DimensionBadge({ status }: DimensionBadgeProps) {
  * un `title` qui dit POURQUOI quand on le sait : « non mesuré » et « lecture
  * échouée » ne sont pas la même chose.
  */
-export function NotMeasured({ why }: NotMeasuredProps) {
+export function NotMeasured({ why }: Readonly<NotMeasuredProps>) {
   return (
     <span
       className="text-xs text-zinc-500 uppercase dark:text-zinc-400"
@@ -276,7 +276,7 @@ export function NotMeasured({ why }: NotMeasuredProps) {
  * contrat de ce composant, et il dispense chaque appelant de réécrire la garde
  * (donc de l'oublier). Un `0` mesuré reste un `0` — seul `null` est une absence.
  */
-export function Fact({ label, value, why, hint }: FactProps) {
+export function Fact({ label, value, why, hint }: Readonly<FactProps>) {
   return (
     <div className="min-w-0">
       <Text className="truncate text-xs">{label}</Text>
@@ -287,7 +287,7 @@ export function Fact({ label, value, why, hint }: FactProps) {
 }
 
 /** Une valeur mise en avant dans un `Fact`. */
-export function FactValue({ children }: FactValueProps) {
+export function FactValue({ children }: Readonly<FactValueProps>) {
   return <Strong className="tabular-nums">{children}</Strong>
 }
 
@@ -297,7 +297,7 @@ export function FactValue({ children }: FactValueProps) {
  * Le ton `structural` est propre à cette surface : il porte les deux inconnues
  * du produit. Il n'est ni `warn` ni `blocked`, parce qu'il n'y a rien à corriger.
  */
-export function Note({ tone = 'info', title, children }: NoteProps) {
+export function Note({ tone = 'info', title, children }: Readonly<NoteProps>) {
   const ring = noteRingClass(tone)
   return (
     <div className={'rounded-md border px-3 py-2 ' + ring}>

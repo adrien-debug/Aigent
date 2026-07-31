@@ -161,12 +161,12 @@ export function parsePsRecords(stdout) {
   for (const raw of String(stdout).split('\n')) {
     const line = raw.trim()
     if (line.length === 0) continue
-    const match = /^(\d+)\s+(\d+)\s+(.*)$/.exec(line)
-    if (!match) continue
-    const pid = Number.parseInt(match[1], 10)
-    const ppid = Number.parseInt(match[2], 10)
+    const parts = line.split(/\s+/)
+    if (parts.length < 3) continue
+    const pid = Number.parseInt(parts[0], 10)
+    const ppid = Number.parseInt(parts[1], 10)
     if (!Number.isInteger(pid) || !Number.isInteger(ppid)) continue
-    records.push({ pid, ppid, command: match[3] })
+    records.push({ pid, ppid, command: parts.slice(2).join(' ') })
   }
   return records
 }

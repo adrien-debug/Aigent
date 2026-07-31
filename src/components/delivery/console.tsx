@@ -187,7 +187,7 @@ function confirmDescription(
 
 type OutcomeNoteProps = { outcome: Outcome }
 
-function OutcomeNote({ outcome }: OutcomeNoteProps) {
+function OutcomeNote({ outcome }: Readonly<OutcomeNoteProps>) {
   if (outcome.phase === 'running') {
     return (
       <Note tone="info" title={outcome.title}>
@@ -224,7 +224,7 @@ function OutcomeNote({ outcome }: OutcomeNoteProps) {
  * Déclaré au niveau module, et pas dans le rendu : un composant recréé à chaque
  * passe réinitialiserait son état (règle `react-hooks/static-components`).
  */
-function ActionButton({ job, busy, onOpen, disabled, disabledReason }: ActionButtonProps) {
+function ActionButton({ job, busy, onOpen, disabled, disabledReason }: Readonly<ActionButtonProps>) {
   const title = disabled ? disabledReason : job.descriptor.intent
   return (
     <Button type="button" outline disabled={disabled || busy} title={title} onClick={() => onOpen(job)}>
@@ -233,7 +233,7 @@ function ActionButton({ job, busy, onOpen, disabled, disabledReason }: ActionBut
   )
 }
 
-export default function DeliveryConsole({ target }: DeliveryConsoleProps) {
+export default function DeliveryConsole({ target }: Readonly<DeliveryConsoleProps>) {
   const router = useRouter()
   const [pending, setPending] = useState<Pending | null>(null)
   const [armReal, setArmReal] = useState(false)
@@ -502,7 +502,7 @@ function ConfirmBody({
   busy,
   onCancel,
   onConfirm,
-}: ConfirmBodyProps) {
+}: Readonly<ConfirmBodyProps>) {
   const effective = armReal && job.realDescriptor ? job.realDescriptor : job.descriptor
   const costColor = mutationCostColor(effective.cost.kind)
   const costLabel = mutationCostLabel(effective.cost.kind)

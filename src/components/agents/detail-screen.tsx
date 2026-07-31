@@ -142,14 +142,14 @@ function DetailField({
   )
 }
 
+function inlineStatusClasses(tone: Tone): string {
+  if (tone === 'danger') return 'text-red-600'
+  if (tone === 'warning') return 'text-amber-700'
+  return 'text-zinc-600'
+}
+
 function InlineStatus({ tone, children }: Readonly<{ tone: Tone; children: ReactNode }>) {
-  const classes =
-    tone === 'danger'
-      ? 'text-red-600'
-      : tone === 'warning'
-        ? 'text-amber-700'
-        : 'text-zinc-600'
-  return <Text className={classes}>{children}</Text>
+  return <Text className={inlineStatusClasses(tone)}>{children}</Text>
 }
 
 function OverviewHeader({ detail }: Readonly<{ detail: AgentDetail }>) {
@@ -443,6 +443,59 @@ function QualificationSection({
 }>) {
   const gateSummary = gate ? summarizeGate(gate.checks) : null
 
+  let testsBody: ReactNode
+  if (qualificationFailure !== null) {
+    testsBody = (
+      <div className="mt-4">
+        <Unavailable reason="unread" detail={`Lecture impossible : ${qualificationFailure}`} />
+      </div>
+    )
+  } else if (qualification === null) {
+    testsBody = (
+      <div className="mt-4 space-y-4">
+        <Unavailable
+          reason="no-data"
+          detail="Aucune qualification n'a ete lancee pour la version courante."
+        />
+      </div>
+    )
+  } else {
+    testsBody = (
+      <div className="mt-4 space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge color={qualificationStatusColor(qualification.status)}>{qualification.status}</Badge>
+          <Badge color={qualification.policy.requireShadow ? 'amber' : 'zinc'}>
+            shadow {qualification.policy.requireShadow ? 'exige' : 'non exige'}
+          </Badge>
+          <Badge color={qualification.policy.requireReplay ? 'amber' : 'zinc'}>
+            replay {qualification.policy.requireReplay ? 'exige' : 'non exige'}
+          </Badge>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <DetailField label="Suites de test" value={<Strong>{detail.testSuites.length}</Strong>} />
+          <DetailField label="Suites benchmark" value={<Strong>{detail.benchmarkSuites.length}</Strong>} />
+        </div>
+        {qualification.steps.length === 0 ? (
+          <Text>Aucune etape ne porte encore de verdict exploitable.</Text>
+        ) : (
+          <ul className="divide-y divide-zinc-950/6">
+            {qualification.steps.map((step) => (
+              <li key={step.step + '-' + step.at} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
+                <div className="min-w-0 flex-1">
+                  <Strong className="block">{step.step}</Strong>
+                  <Text className="mt-1 text-sm text-zinc-600">{step.reason}</Text>
+                </div>
+                <Badge color={qualificationStepColor(step.status)} title={step.sourceOfTruth}>
+                  {step.status}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    )
+  }
+
   return (
     <section className="space-y-4">
       <SectionHeader
@@ -495,51 +548,7 @@ function QualificationSection({
 
         <Surface className="p-5">
           <Subheading level={3}>Tests et preuves</Subheading>
-          {qualificationFailure !== null ? (
-            <div className="mt-4">
-              <Unavailable reason="unread" detail={`Lecture impossible : ${qualificationFailure}`} />
-            </div>
-          ) : qualification === null ? (
-            <div className="mt-4 space-y-4">
-              <Unavailable
-                reason="no-data"
-                detail="Aucune qualification n'a ete lancee pour la version courante."
-              />
-            </div>
-          ) : (
-            <div className="mt-4 space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge color={qualificationStatusColor(qualification.status)}>{qualification.status}</Badge>
-                <Badge color={qualification.policy.requireShadow ? 'amber' : 'zinc'}>
-                  shadow {qualification.policy.requireShadow ? 'exige' : 'non exige'}
-                </Badge>
-                <Badge color={qualification.policy.requireReplay ? 'amber' : 'zinc'}>
-                  replay {qualification.policy.requireReplay ? 'exige' : 'non exige'}
-                </Badge>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <DetailField label="Suites de test" value={<Strong>{detail.testSuites.length}</Strong>} />
-                <DetailField label="Suites benchmark" value={<Strong>{detail.benchmarkSuites.length}</Strong>} />
-              </div>
-              {qualification.steps.length === 0 ? (
-                <Text>Aucune etape ne porte encore de verdict exploitable.</Text>
-              ) : (
-                <ul className="divide-y divide-zinc-950/6">
-                  {qualification.steps.map((step) => (
-                    <li key={step.step + '-' + step.at} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
-                      <div className="min-w-0 flex-1">
-                        <Strong className="block">{step.step}</Strong>
-                        <Text className="mt-1 text-sm text-zinc-600">{step.reason}</Text>
-                      </div>
-                      <Badge color={qualificationStepColor(step.status)} title={step.sourceOfTruth}>
-                        {step.status}
-                      </Badge>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
+          {testsBody}
         </Surface>
       </div>
     </section>
@@ -551,6 +560,77 @@ function ConfigurationSection({ detail }: Readonly<{ detail: AgentDetail }>) {
   const resolvedTools = agent?.tools ?? []
   const unresolvedIds = agent?.unresolvedToolIds ?? []
   const toolNameById = new Map(tools.map((tool) => [tool.id, tool.name]))
+
+  let mountedToolsBody: ReactNode
+  if (agent === undefined) {
+    mountedToolsBody = (
+      <Unavailable
+        reason="unread"
+        detail="Aucune ligne canonique ne resout pour ce copilot — la liste d'outils montee ne peut pas etre etablie."
+      />
+    )
+  } else if (resolvedTools.length === 0 && unresolvedIds.length === 0) {
+    mountedToolsBody = <Unavailable reason="no-data" detail="Le manifeste ne declare aucun outil." />
+  } else {
+    mountedToolsBody = (
+      <div className="space-y-4">
+        {unresolvedIds.length > 0 ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <Strong className="block">
+              {unresolvedIds.length} outil(s) declare(s) sans handler executable
+            </Strong>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {unresolvedIds.map((id) => (
+                <Badge key={id} color="red">
+                  {toolNameById.get(id) ?? id}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {resolvedTools.length > 0 ? (
+          <ul className="divide-y divide-zinc-950/6">
+            {resolvedTools.map((tool) => (
+              <li key={tool.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
+                <div className="min-w-0 flex-1">
+                  <Strong className="block truncate">{tool.name}</Strong>
+                  <Text className="mt-1 text-sm text-zinc-600">
+                    {tool.enabled ? 'active' : 'desactive'}
+                    {tool.requiresConfirmation ? ' · confirmation' : ''}
+                  </Text>
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <Badge color={tool.mutates ? 'amber' : 'emerald'}>
+                    {tool.mutates ? 'mutant' : 'lecture seule'}
+                  </Badge>
+                  <Badge color={toolRiskBadgeColor(tool.riskLevel)}>{tool.riskLevel}</Badge>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {manifest && manifest.forbiddenActions.length > 0 ? (
+          <>
+            <Divider soft />
+            <div>
+              <Text className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                Actions interdites
+              </Text>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {manifest.forbiddenActions.map((action) => (
+                  <Badge key={action} color="red">
+                    {action}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : null}
+      </div>
+    )
+  }
 
   return (
     <section className="space-y-4">
@@ -625,73 +705,7 @@ function ConfigurationSection({ detail }: Readonly<{ detail: AgentDetail }>) {
             </Text>
           </div>
 
-          <div className="px-5 py-4">
-            {agent === undefined ? (
-              <Unavailable
-                reason="unread"
-                detail="Aucune ligne canonique ne resout pour ce copilot — la liste d'outils montee ne peut pas etre etablie."
-              />
-            ) : resolvedTools.length === 0 && unresolvedIds.length === 0 ? (
-              <Unavailable reason="no-data" detail="Le manifeste ne declare aucun outil." />
-            ) : (
-              <div className="space-y-4">
-                {unresolvedIds.length > 0 ? (
-                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-                    <Strong className="block">
-                      {unresolvedIds.length} outil(s) declare(s) sans handler executable
-                    </Strong>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {unresolvedIds.map((id) => (
-                        <Badge key={id} color="red">
-                          {toolNameById.get(id) ?? id}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                {resolvedTools.length > 0 ? (
-                  <ul className="divide-y divide-zinc-950/6">
-                    {resolvedTools.map((tool) => (
-                      <li key={tool.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
-                        <div className="min-w-0 flex-1">
-                          <Strong className="block truncate">{tool.name}</Strong>
-                          <Text className="mt-1 text-sm text-zinc-600">
-                            {tool.enabled ? 'active' : 'desactive'}
-                            {tool.requiresConfirmation ? ' · confirmation' : ''}
-                          </Text>
-                        </div>
-                        <div className="flex shrink-0 flex-wrap items-center gap-2">
-                          <Badge color={tool.mutates ? 'amber' : 'emerald'}>
-                            {tool.mutates ? 'mutant' : 'lecture seule'}
-                          </Badge>
-                          <Badge color={toolRiskBadgeColor(tool.riskLevel)}>{tool.riskLevel}</Badge>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-
-                {manifest && manifest.forbiddenActions.length > 0 ? (
-                  <>
-                    <Divider soft />
-                    <div>
-                      <Text className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                        Actions interdites
-                      </Text>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {manifest.forbiddenActions.map((action) => (
-                          <Badge key={action} color="red">
-                            {action}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                ) : null}
-              </div>
-            )}
-          </div>
+          <div className="px-5 py-4">{mountedToolsBody}</div>
         </Surface>
       </div>
     </section>

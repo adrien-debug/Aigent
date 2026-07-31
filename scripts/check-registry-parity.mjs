@@ -92,19 +92,53 @@ const langgraphBuildable = new Set(REGISTRY_IDS)
 
 // ── 2. Côté direct : parsing de source, borné par un compte minimal ──────────
 /** Keys of an exported handler map, e.g. `export const X: Record<…> = { … }`. */
+function sliceBalancedBlock(source, openBraceIndex) {
+  let depth = 0
+  for (let i = openBraceIndex; i < source.length; i += 1) {
+    const ch = source[i]
+    if (ch === '{') depth += 1
+    else if (ch === '}') {
+      depth -= 1
+      if (depth === 0) return source.slice(openBraceIndex + 1, i)
+    }
+  }
+  return null
+}
+
+function sliceBalancedBracket(source, openBracketIndex) {
+  let depth = 0
+  for (let i = openBracketIndex; i < source.length; i += 1) {
+    const ch = source[i]
+    if (ch === '[') depth += 1
+    else if (ch === ']') {
+      depth -= 1
+      if (depth === 0) return source.slice(openBracketIndex + 1, i)
+    }
+  }
+  return null
+}
+
 function handlerKeys(source, declaration) {
-  const block = source.match(
-    new RegExp(`export const ${declaration}[^=]*= \\{([\\s\\S]*?)\\n\\}`)
-  )
+  const marker = `export const ${declaration}`
+  const markerIndex = source.indexOf(marker)
+  if (markerIndex === -1) return null
+  const braceIndex = source.indexOf('{', markerIndex)
+  if (braceIndex === -1) return null
+  const block = sliceBalancedBlock(source, braceIndex)
   if (!block) return null
-  return [...block[1].matchAll(/^\s{2}([a-z_0-9]+):/gm)].map((m) => m[1])
+  return [...block.matchAll(/^\s{2}([a-z_0-9]+):/gm)].map((m) => m[1])
 }
 
 /** Elements of a `const NAME = [ 'a', 'b' ] as const` string-literal array. */
 function literalArray(source, declaration) {
-  const block = source.match(new RegExp(`const ${declaration} = \\[([\\s\\S]*?)\\n\\]`))
+  const marker = `const ${declaration} = [`
+  const markerIndex = source.indexOf(marker)
+  if (markerIndex === -1) return null
+  const bracketIndex = source.indexOf('[', markerIndex)
+  if (bracketIndex === -1) return null
+  const block = sliceBalancedBracket(source, bracketIndex)
   if (!block) return null
-  return [...block[1].matchAll(/'([a-z_0-9]+)'/g)].map((m) => m[1])
+  return [...block.matchAll(/'([a-z_0-9]+)'/g)].map((m) => m[1])
 }
 
 /**

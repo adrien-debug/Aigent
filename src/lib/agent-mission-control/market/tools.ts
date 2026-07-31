@@ -308,7 +308,7 @@ function structureState(
 ): 'range' | 'trend' | 'breakout-up' | 'breakout-down' {
   if (candles.length < 3) return trend === 'range' ? 'range' : 'trend'
   const history = candles.slice(-21, -1)
-  const last = Number(candles[candles.length - 1].close)
+  const last = Number(candles.at(-1)!.close)
   const highs = history.map((candle) => Number(candle.high)).filter(Number.isFinite)
   const lows = history.map((candle) => Number(candle.low)).filter(Number.isFinite)
   if (highs.length && last > Math.max(...highs)) return 'breakout-up'

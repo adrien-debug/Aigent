@@ -497,7 +497,7 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
  * only place a float appears is `derivePricePerSqm` (a derived FALLBACK value,
  * see its note).
  */
-function decimalStr(v: number | string | undefined | null): string | null {
+function decimalStr(v?: number | string | null): string | null {
   if (v === null || v === undefined) return null
   if (typeof v === 'number') {
     if (!Number.isFinite(v)) return null
@@ -544,7 +544,7 @@ function derivePricePerSqm(
 
 function intOrNull(v: number | string | undefined): number | null {
   if (isNoneLike(v)) return null
-  const n = typeof v === 'number' ? v : parseInt(String(v), 10)
+  const n = typeof v === 'number' ? v : Number.parseInt(String(v), 10)
   return Number.isFinite(n) ? n : null
 }
 
@@ -556,7 +556,7 @@ function numOrNull(v: number | string | undefined): number | null {
 }
 
 /** A string field that may be a DVF sentinel ('None'/'nan') → null. */
-function strOrNone(v: number | string | undefined | null): string | null {
+function strOrNone(v?: number | string | null): string | null {
   if (isNoneLike(v)) return null
   return String(v).trim()
 }

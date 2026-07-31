@@ -23,7 +23,7 @@ export function buildAgentDeliveryPrBody(
     '### Validation',
     'Run the target repo gate scripts (e.g. `npm run verify` / `npm run typecheck`) before merging. Aigent can validate this branch through its Target Repo Sandbox.',
   ]
-  if (extra && extra.trim().length > 0) {
+  if (extra?.trim().length && extra.trim().length > 0) {
     lines.push('', '### Aigent quality summary', extra.trim())
   }
   lines.push('', '> ⚠️ No secret is embedded — the handler reads credentials from `process.env` at runtime.')

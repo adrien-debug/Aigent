@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 
-type HeadingProps = { level?: 1 | 2 | 3 | 4 | 5 | 6 } & React.ComponentPropsWithoutRef<
-  'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
+type HeadingProps = Readonly<
+  { level?: 1 | 2 | 3 | 4 | 5 | 6 } & React.ComponentPropsWithoutRef<'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'>
 >
 
 export function Heading({ className, level = 1, ...props }: HeadingProps) {

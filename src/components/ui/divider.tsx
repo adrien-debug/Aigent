@@ -4,7 +4,7 @@ export function Divider({
   soft = false,
   className,
   ...props
-}: { soft?: boolean } & React.ComponentPropsWithoutRef<'hr'>) {
+}: Readonly<{ soft?: boolean } & React.ComponentPropsWithoutRef<'hr'>>) {
   return (
     <hr
       role="presentation"

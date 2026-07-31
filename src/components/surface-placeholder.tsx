@@ -31,14 +31,14 @@ export default function SurfacePlaceholder({
   title,
   purpose,
   plannedIn,
-}: {
+}: Readonly<{
   /** Le libellé EXACT de l'entrée de navigation — jamais une variante. */
   title: string
   /** Ce que la surface portera une fois construite. */
   purpose: string
   /** La PR de la restauration produit qui la branchera. */
   plannedIn: string
-}) {
+}>) {
   return (
     // `h-full overflow-hidden` : la page ne pousse jamais le shell hors du
     // viewport. Le contenu tient largement ; le `overflow-y-auto` interne est le

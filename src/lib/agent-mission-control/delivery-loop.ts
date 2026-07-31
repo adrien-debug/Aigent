@@ -252,7 +252,7 @@ export function evaluateReadiness(input: ReadinessInput): ReadinessResult {
   if (input.toolFitStatus === 'fail') unmet.push('repo-fit tool-fit is fail (inspection role without repo-read tools)')
 
   // Critical repo risk coverage must be present when repo-fit was computed.
-  if (input.repoFitMissingCoverage && input.repoFitMissingCoverage.length > 0) {
+  if (input.repoFitMissingCoverage?.length && input.repoFitMissingCoverage.length > 0) {
     unmet.push(`repo risk coverage missing: ${input.repoFitMissingCoverage.join(', ')}`)
   }
 

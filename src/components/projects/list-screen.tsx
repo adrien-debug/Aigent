@@ -17,6 +17,7 @@
  * comme « on a mesuré, c'est calme », alors que le fait réel est « il n'y a
  * personne ». On dit le fait. Voir `./model.ts` → `MeasureState`.
  */
+import type { ReactNode } from 'react'
 import Link from 'next/link'
 
 import { Avatar } from '@/components/ui/avatar'
@@ -116,6 +117,41 @@ function ProjectListRow({ item }: Readonly<{ item: ProjectListItem }>) {
   )
 }
 
+function renderProjectCatalog(
+  unreadable: boolean,
+  items: readonly ProjectListItem[],
+  failure?: string | null,
+): ReactNode {
+  if (unreadable) {
+    return (
+      <div className="p-4">
+        <Unavailable
+          reason="unread"
+          detail="La liste des projets n'a pas pu être lue. Aucun projet n'est affiché — ce n'est pas un catalogue vide, c'est un catalogue inconnu."
+        />
+        {failure ? <Text className="mt-3 text-center font-mono text-xs">{failure}</Text> : null}
+      </div>
+    )
+  }
+  if (items.length === 0) {
+    return (
+      <div className="p-4">
+        <Unavailable
+          reason="no-data"
+          detail="La lecture a réussi et le catalogue est réellement vide : aucun projet n'est enregistré."
+        />
+      </div>
+    )
+  }
+  return (
+    <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
+      {items.map((item) => (
+        <ProjectListRow key={item.id} item={item} />
+      ))}
+    </ul>
+  )
+}
+
 export default function ProjectsListScreen({
   items,
   /** `true` quand la lecture de la liste a ÉCHOUÉ — jamais quand elle est vide. */
@@ -142,28 +178,7 @@ export default function ProjectsListScreen({
         padded={false}
         bodyClassName="overflow-y-auto"
       >
-        {unreadable ? (
-          <div className="p-4">
-            <Unavailable
-              reason="unread"
-              detail="La liste des projets n'a pas pu être lue. Aucun projet n'est affiché — ce n'est pas un catalogue vide, c'est un catalogue inconnu."
-            />
-            {failure ? <Text className="mt-3 text-center font-mono text-xs">{failure}</Text> : null}
-          </div>
-        ) : items.length === 0 ? (
-          <div className="p-4">
-            <Unavailable
-              reason="no-data"
-              detail="La lecture a réussi et le catalogue est réellement vide : aucun projet n'est enregistré."
-            />
-          </div>
-        ) : (
-          <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
-            {items.map((item) => (
-              <ProjectListRow key={item.id} item={item} />
-            ))}
-          </ul>
-        )}
+        {renderProjectCatalog(unreadable, items, failure)}
       </Panel>
 
       <Divider soft className="shrink-0" />

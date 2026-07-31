@@ -60,7 +60,7 @@ type RosterTelemetryNoteProps = {
   telemetryFailure: string | null
 }
 
-function DeliveryStatusBadge({ deliveryRead, hasDelivery }: DeliveryStatusBadgeProps) {
+function DeliveryStatusBadge({ deliveryRead, hasDelivery }: Readonly<DeliveryStatusBadgeProps>) {
   if (!deliveryRead) {
     return (
       <Badge
@@ -88,7 +88,7 @@ function DeliveryStatusBadge({ deliveryRead, hasDelivery }: DeliveryStatusBadgeP
   )
 }
 
-function RosterTelemetryNote({ telemetry, telemetryFailure }: RosterTelemetryNoteProps) {
+function RosterTelemetryNote({ telemetry, telemetryFailure }: Readonly<RosterTelemetryNoteProps>) {
   if (telemetryFailure !== null) {
     return (
       <Note tone="warn" title="Télémétrie non lue">
@@ -121,7 +121,7 @@ function RosterTelemetryNote({ telemetry, telemetryFailure }: RosterTelemetryNot
   )
 }
 
-function DeliveryRosterRow({ row }: DeliveryRosterRowProps) {
+function DeliveryRosterRow({ row }: Readonly<DeliveryRosterRowProps>) {
   const d = row.latestDelivery
 
   // Trois situations, trois rendus. La troisième — « non lue » — est celle qui
@@ -181,7 +181,7 @@ export default function DeliveryRosterScreen({
   telemetry,
   telemetryFailure,
   realDeliveryEnabled,
-}: DeliveryRosterScreenProps) {
+}: Readonly<DeliveryRosterScreenProps>) {
   const counts = countDeliveryRows(rows)
   const ranked = sortDeliveryRows(rows)
 

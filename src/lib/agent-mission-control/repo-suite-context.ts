@@ -45,7 +45,7 @@ export interface RepoSuiteContext {
   hasAgenticCode: boolean
 }
 
-function cap<T>(arr: T[] | undefined | null, n: number): T[] {
+function cap<T>(arr: T[] | null | undefined, n: number): T[] {
   return Array.isArray(arr) ? arr.slice(0, n) : []
 }
 
@@ -55,7 +55,7 @@ function cap<T>(arr: T[] | undefined | null, n: number): T[] {
  * falls back to manifest-only). Never throws on a partial/odd bundle — missing
  * fields simply become empty lists.
  */
-export function buildRepoSuiteContext(intelligence: RepoIntelligence | null | undefined): RepoSuiteContext | null {
+export function buildRepoSuiteContext(intelligence?: RepoIntelligence | null): RepoSuiteContext | null {
   const map: RepoMap | undefined = intelligence?.map
   if (!map) return null
 

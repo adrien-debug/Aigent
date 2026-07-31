@@ -268,7 +268,7 @@ export class HttpMarketProvider extends BaseMarketProvider {
       volume: String(r.volume),
       interval,
     }))
-    const last = rows[rows.length - 1]
+    const last = rows.at(-1)!
     const dataTimestamp = last.timestamp ?? last.closeTime ?? ctx.asOf
     return {
       value: candles,

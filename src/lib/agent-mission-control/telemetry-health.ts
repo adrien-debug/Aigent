@@ -140,11 +140,14 @@ export function diagnoseTelemetryHealth(input: TelemetryHealthInput): TelemetryH
     }
   }
 
+  const lastEventAge =
+    daysSinceLastEvent !== null ? `${daysSinceLastEvent.toFixed(1)} day(s) ago` : 'recently'
+
   return {
     status: 'healthy',
     summary:
       `${agentsWithTelemetryDeclared} agent(s) declare telemetry and the loop is receiving events ` +
-      `(last one ${daysSinceLastEvent !== null ? `${daysSinceLastEvent.toFixed(1)} day(s) ago` : 'recently'}).`,
+      `(last one ${lastEventAge}).`,
     daysSinceLastEvent,
     agentsWithTelemetryDeclared,
   }

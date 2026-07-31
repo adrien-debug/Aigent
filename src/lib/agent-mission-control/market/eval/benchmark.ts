@@ -253,7 +253,7 @@ function scoreDeterministicCalc(r: TradingRunResult, ref?: CalcReference): numbe
   let matched = 0
   for (const k of keys) {
     const exp = Number(ref.expected[k])
-    const got = reported[k] === undefined ? NaN : Number(reported[k])
+    const got = reported[k] === undefined ? Number.NaN : Number(reported[k])
     if (!Number.isFinite(got) || !Number.isFinite(exp)) continue
     if (tol === 0) {
       // Exact on the decimal string (lossless) — string compare after Number

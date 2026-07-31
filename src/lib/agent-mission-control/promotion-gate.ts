@@ -185,7 +185,7 @@ export async function evaluatePromotionGate(
     reason:
       uncertified.length === 0
         ? `${manifestToolIds.length} manifest tool(s), all resolve to certified tools`
-        : `uncertified/phantom: ${uncertified.map((id) => idToName.get(id) ?? `${id} (no tool row)`).join(', ')}`,
+        : `uncertified/phantom: ${uncertified.map((id) => idToName.get(id) ?? id + ' (no tool row)').join(', ')}`,
     evidenceRef: null,
     sourceOfTruth: 'registry/tools.ts vs candidate manifest.tool_ids',
     evaluatedAt: at,

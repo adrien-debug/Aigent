@@ -180,7 +180,7 @@ const DEFAULT_MODEL_PROVIDER: ModelProvider = 'openai'
  * may still carry it until the CHECK-constraint migration lands, so an unknown
  * string falls back to the default provider rather than crashing a read.
  */
-function normalizeModelProvider(raw: ModelProvider | string | null | undefined): ModelProvider {
+function normalizeModelProvider(raw?: ModelProvider | string | null): ModelProvider {
   if (raw === 'openai' || raw === 'google' || raw === 'local') return raw
   return DEFAULT_MODEL_PROVIDER
 }
@@ -361,7 +361,7 @@ export function composeSystemPrompt(args: {
 
   // 1. Role / mission (Architect-authored summary, or an honest default).
   parts.push(
-    summary && summary.length > 0
+    summary?.length && summary.length > 0
       ? summary
       : `You are ${copilotName}, an autonomous copilot operating inside the Aigent platform. Assist the user by reasoning carefully and using ONLY the tools provided to you.`
   )
@@ -572,7 +572,7 @@ function buildTools(
   }
 
   // 2) Repo-linked copilot → guarantee the scoped repo tools exist.
-  if (!strictMarketConfig && repoFullName && repoFullName.includes('/')) {
+  if (!strictMarketConfig && repoFullName?.includes('/')) {
     for (const t of REPO_INJECTED_TOOLS) {
       add({ id: t.id, riskLevel: t.riskLevel, requiresConfirmation: t.requiresConfirmation, scope: scopeFor(t.id, repoFullName) })
     }
@@ -605,7 +605,7 @@ export function buildCopilotBehaviorConfig(input: BuildCopilotBehaviorInput): Co
   const confirmationPolicy: ConfirmationPolicy =
     manifest?.confirmation_policy ?? DEFAULT_CONFIRMATION_POLICY
   const built = buildTools(tools, repoFullName)
-  const modelId = copilot.model && copilot.model.trim().length > 0 ? copilot.model : DEFAULT_MODEL
+  const modelId = copilot.model?.trim() && copilot.model.trim().length > 0 ? copilot.model : DEFAULT_MODEL
 
   return {
     copilotId: copilot.id,

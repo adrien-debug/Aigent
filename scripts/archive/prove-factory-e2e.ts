@@ -54,8 +54,12 @@ const steps: Step[] = []
 function record(s: Step) {
   steps.push(s)
   const tag = s.ok ? '✓' : '✗'
-  const kind = s.real === 'executed' ? 'REAL' : s.real === 'direct-write' ? 'DIRECT-WRITE' : 'READ'
-  console.log(`${tag} [${kind}] ${s.step} — ${s.detail}${s.defect ? `  ⚠ DEFECT: ${s.defect}` : ''}`)
+  let kind: string
+  if (s.real === 'executed') kind = 'REAL'
+  else if (s.real === 'direct-write') kind = 'DIRECT-WRITE'
+  else kind = 'READ'
+  const defectSuffix = s.defect ? `  ⚠ DEFECT: ${s.defect}` : ''
+  console.log(`${tag} [${kind}] ${s.step} — ${s.detail}${defectSuffix}`)
 }
 
 async function main() {

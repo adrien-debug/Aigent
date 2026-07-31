@@ -74,7 +74,7 @@ export function formatPercent(ratio: number, digits = 1): string {
  */
 const USD_MAX_DIGITS = 8
 
-export function formatUsd(amount: number | null | undefined, digits = 2): string {
+export function formatUsd(amount?: number | null, digits = 2): string {
   if (amount == null || !Number.isFinite(amount)) return UNAVAILABLE_LABEL
   let precision = digits
   if (amount !== 0) {

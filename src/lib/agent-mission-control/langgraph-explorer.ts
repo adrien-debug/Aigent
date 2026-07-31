@@ -73,6 +73,100 @@ function isNotFoundError(err: unknown): boolean {
   return typeof err === 'object' && err !== null && 'status' in err && (err as { status: unknown }).status === 404
 }
 
+function mapExplorerMessage(m: Row): { role: string; content: string; toolCalls?: string[] } {
+  const type = String(m.type ?? m.role ?? 'message')
+  const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content ?? '')
+  const toolCalls = Array.isArray(m.tool_calls)
+    ? (m.tool_calls as Row[]).map((tc) => String(tc.name ?? 'tool')).filter(Boolean)
+    : undefined
+  return {
+    role: type,
+    content: content.length > 4000 ? `${content.slice(0, 4000)}…` : content,
+    ...(toolCalls && toolCalls.length > 0 ? { toolCalls } : {}),
+  }
+}
+
+function threadMeta(thread: Row): { assistantId?: string; graph: string } {
+  const meta = (thread.metadata as Row | undefined) ?? {}
+  return {
+    assistantId: str(meta.assistant_id) ?? str(meta.assistantId),
+    graph: str(meta.graph_id) ?? AGENT_BUILDER_GRAPH_ID,
+  }
+}
+
+function minimalThreadDetail(threadId: string, thread: Row): ExplorerThreadDetail {
+  const meta = threadMeta(thread)
+  return {
+    threadId,
+    status: String(thread.status ?? 'unknown'),
+    currentNode: null,
+    interrupts: [],
+    messages: [],
+    assistantId: meta.assistantId,
+    graph: meta.graph,
+  }
+}
+
+function emptyGraphTopology(graphId: string): GraphTopology {
+  return { graphId, topologyAvailable: false, nodes: [], edges: [] }
+}
+
+function mapTopologyNodes(nodes: Row[] | undefined): TopologyNode[] {
+  return (Array.isArray(nodes) ? nodes : [])
+    .map((n) => ({
+      id: String(n.id ?? ''),
+      label: str((n.data as Row | undefined)?.name) ?? String(n.id ?? ''),
+      type: str(n.type),
+    }))
+    .filter((n) => n.id.length > 0)
+}
+
+function mapTopologyEdges(edges: Row[] | undefined): TopologyEdge[] {
+  return (Array.isArray(edges) ? edges : [])
+    .map((e) => ({
+      source: String(e.source ?? ''),
+      target: String(e.target ?? ''),
+      conditional: e.conditional === true,
+    }))
+    .filter((e) => e.source.length > 0 && e.target.length > 0)
+}
+
+function mapHistoryCheckpoint(cp: Row, index: number): ExplorerHistoryStep {
+  const values = (cp.values as { messages?: Row[] } | undefined) ?? {}
+  const messages = Array.isArray(values.messages) ? values.messages : []
+  const last = messages.at(-1) as Row | undefined
+  const lastRole = last ? String(last.type ?? last.role ?? '') : undefined
+  const lastContent = last
+    ? typeof last.content === 'string'
+      ? last.content
+      : JSON.stringify(last.content ?? '')
+    : ''
+  const toolCalls = Array.isArray(last?.tool_calls)
+    ? (last!.tool_calls as Row[]).map((tc) => String(tc.name ?? 'tool')).filter(Boolean)
+    : []
+  const next = cp.next
+  const node = Array.isArray(next) && next.length > 0 ? String(next[0]) : null
+  const tasks = (cp.tasks as { interrupts?: unknown[] }[] | undefined) ?? []
+  const interrupts = tasks.flatMap((t) => t.interrupts ?? [])
+  const lastPreview = lastContent
+    ? lastContent.length > 160
+      ? `${lastContent.slice(0, 160)}…`
+      : lastContent
+    : undefined
+
+  return {
+    index,
+    node,
+    interrupted: interrupts.length > 0,
+    createdAt: str(cp.created_at),
+    messageCount: messages.length,
+    lastRole: lastRole || undefined,
+    lastPreview,
+    toolCalls,
+    interrupts,
+  }
+}
+
 /** List the assistants on the Agent Server (redacted). Read-only. */
 export async function listAssistants(): Promise<ExplorerAssistant[]> {
   const c = agentServerClient()
@@ -125,46 +219,27 @@ export async function getThreadDetail(threadId: string): Promise<ExplorerThreadD
 
   if (stateRes.status === 'rejected') {
     // The thread row exists but state is unreadable — return a minimal detail.
-    return {
-      threadId,
-      status: String(thread.status ?? 'unknown'),
-      currentNode: null,
-      interrupts: [],
-      messages: [],
-      assistantId: undefined,
-      graph: AGENT_BUILDER_GRAPH_ID,
-    }
+    return minimalThreadDetail(threadId, thread)
   }
   const state: { values?: unknown; next?: unknown; tasks?: unknown[] } = stateRes.value
 
   const values = (state.values as { messages?: Row[] } | undefined) ?? {}
   const rawMessages = Array.isArray(values.messages) ? values.messages : []
-  const messages = rawMessages.map((m) => {
-    const type = String(m.type ?? m.role ?? 'message')
-    const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content ?? '')
-    const toolCalls = Array.isArray(m.tool_calls)
-      ? (m.tool_calls as Row[]).map((tc) => String(tc.name ?? 'tool')).filter(Boolean)
-      : undefined
-    return {
-      role: type,
-      content: content.length > 4000 ? `${content.slice(0, 4000)}…` : content,
-      ...(toolCalls && toolCalls.length > 0 ? { toolCalls } : {}),
-    }
-  })
+  const messages = rawMessages.map(mapExplorerMessage)
 
   const next = state.next
   const currentNode = Array.isArray(next) && next.length > 0 ? next.map(String).join(', ') : null
   const interrupts = ((state.tasks ?? []) as { interrupts?: unknown[] }[]).flatMap((t) => t.interrupts ?? [])
 
-  const meta = (thread.metadata as Row | undefined) ?? {}
+  const meta = threadMeta(thread)
   return {
     threadId,
     status: String(thread.status ?? 'unknown'),
     currentNode,
     interrupts,
     messages,
-    assistantId: str(meta.assistant_id) ?? str(meta.assistantId),
-    graph: str(meta.graph_id) ?? AGENT_BUILDER_GRAPH_ID,
+    assistantId: meta.assistantId,
+    graph: meta.graph,
   }
 }
 
@@ -214,40 +289,7 @@ export async function getThreadHistory(threadId: string): Promise<ExplorerHistor
   // Server returns newest-first; reverse to oldest-first for a natural replay.
   const ordered = list.toReversed()
 
-  return ordered.map((cp, index) => {
-    const values = (cp.values as { messages?: Row[] } | undefined) ?? {}
-    const messages = Array.isArray(values.messages) ? values.messages : []
-    const last = messages[messages.length - 1] as Row | undefined
-    const lastRole = last ? String(last.type ?? last.role ?? '') : undefined
-    let lastContent = ''
-    if (last) {
-      lastContent = typeof last.content === 'string' ? last.content : JSON.stringify(last.content ?? '')
-    }
-    const toolCalls = Array.isArray(last?.tool_calls)
-      ? (last!.tool_calls as Row[]).map((tc) => String(tc.name ?? 'tool')).filter(Boolean)
-      : []
-    const next = cp.next
-    const node = Array.isArray(next) && next.length > 0 ? String(next[0]) : null
-    const tasks = (cp.tasks as { interrupts?: unknown[] }[] | undefined) ?? []
-    const interrupts = tasks.flatMap((t) => t.interrupts ?? [])
-
-    let lastPreview: string | undefined
-    if (lastContent) {
-      lastPreview = lastContent.length > 160 ? `${lastContent.slice(0, 160)}…` : lastContent
-    }
-
-    return {
-      index,
-      node,
-      interrupted: interrupts.length > 0,
-      createdAt: str(cp.created_at),
-      messageCount: messages.length,
-      lastRole: lastRole || undefined,
-      lastPreview,
-      toolCalls,
-      interrupts,
-    }
-  })
+  return ordered.map((row, index) => mapHistoryCheckpoint(row, index))
 }
 
 /** One node of a graph's topology (redacted — id + type only, no schema blob). */
@@ -295,31 +337,21 @@ export async function getGraphTopology(graphId: string): Promise<GraphTopology> 
     const assistants = (await c.assistants.search({ graphId, limit: 1 })) as unknown as Row[]
     assistantId = str(assistants[0]?.assistant_id)
   } catch (err) {
-    if (isNotFoundError(err)) return { graphId, topologyAvailable: false, nodes: [], edges: [] }
+    if (isNotFoundError(err)) return emptyGraphTopology(graphId)
     throw err
   }
-  if (!assistantId) return { graphId, topologyAvailable: false, nodes: [], edges: [] }
+  if (!assistantId) return emptyGraphTopology(graphId)
 
   let g: { nodes?: Row[]; edges?: Row[] }
   try {
     g = (await c.assistants.getGraph(assistantId)) as { nodes?: Row[]; edges?: Row[] }
   } catch (err) {
-    if (isNotFoundError(err)) return { graphId, topologyAvailable: false, nodes: [], edges: [] }
+    if (isNotFoundError(err)) return emptyGraphTopology(graphId)
     throw err
   }
 
-  const nodes: TopologyNode[] = (Array.isArray(g.nodes) ? g.nodes : []).map((n) => ({
-    id: String(n.id ?? ''),
-    // Prefer the runnable's own name, else the id (redacted — no data blob).
-    label: str((n.data as Row | undefined)?.name) ?? String(n.id ?? ''),
-    type: str(n.type),
-  })).filter((n) => n.id.length > 0)
-
-  const edges: TopologyEdge[] = (Array.isArray(g.edges) ? g.edges : []).map((e) => ({
-    source: String(e.source ?? ''),
-    target: String(e.target ?? ''),
-    conditional: e.conditional === true,
-  })).filter((e) => e.source.length > 0 && e.target.length > 0)
+  const nodes = mapTopologyNodes(g.nodes)
+  const edges = mapTopologyEdges(g.edges)
 
   return {
     graphId,

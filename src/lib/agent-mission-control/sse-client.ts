@@ -59,7 +59,7 @@ export async function consumeSSE<T>(
     for (;;) {
       const { done, value } = await reader.read()
       if (done) break
-      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n')
+      buffer += decoder.decode(value, { stream: true }).replaceAll('\r\n', '\n')
 
       let separator = buffer.indexOf('\n\n')
       while (separator !== -1) {

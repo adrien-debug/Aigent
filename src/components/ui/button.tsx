@@ -158,24 +158,32 @@ const styles = {
   },
 }
 
-type ButtonProps = (
-  | { color?: keyof typeof styles.colors; outline?: never; plain?: never }
-  | { color?: never; outline: true; plain?: never }
-  | { color?: never; outline?: never; plain: true }
-) & { className?: string; children: React.ReactNode } & (
-    | ({ href?: never } & Omit<Headless.ButtonProps, 'as' | 'className'>)
-    | ({ href: string } & Omit<React.ComponentPropsWithoutRef<typeof Link>, 'className'>)
-  )
+type ButtonProps = Readonly<
+  (
+    | { color?: keyof typeof styles.colors; outline?: never; plain?: never }
+    | { color?: never; outline: true; plain?: never }
+    | { color?: never; outline?: never; plain: true }
+  ) & { className?: string; children: React.ReactNode } & (
+      | ({ href?: never } & Omit<Headless.ButtonProps, 'as' | 'className'>)
+      | ({ href: string } & Omit<React.ComponentPropsWithoutRef<typeof Link>, 'className'>)
+    )
+>
+
+function buttonVariantClasses(
+  outline: boolean | undefined,
+  plain: boolean | undefined,
+  color: ButtonProps['color'],
+): string {
+  if (outline) return clsx(styles.outline)
+  if (plain) return clsx(styles.plain)
+  return clsx(styles.solid, styles.colors[color ?? 'dark/zinc'])
+}
 
 export const Button = forwardRef(function Button(
   { color, outline, plain, className, children, ...props }: ButtonProps,
   ref: React.ForwardedRef<HTMLElement>
 ) {
-  const classes = clsx(
-    className,
-    styles.base,
-    outline ? styles.outline : plain ? styles.plain : clsx(styles.solid, styles.colors[color ?? 'dark/zinc'])
-  )
+  const classes = clsx(className, styles.base, buttonVariantClasses(outline, plain, color))
 
   return typeof props.href === 'string' ? (
     <Link {...props} className={classes} ref={ref as React.ForwardedRef<HTMLAnchorElement>}>
@@ -191,7 +199,7 @@ export const Button = forwardRef(function Button(
 /**
  * Expand the hit area to at least 44×44px on touch devices
  */
-export function TouchTarget({ children }: { children: React.ReactNode }) {
+export function TouchTarget({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <>
       <span

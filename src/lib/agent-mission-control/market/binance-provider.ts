@@ -57,7 +57,7 @@ export async function cachedBinanceJson(
 ): Promise<BinanceFetchOutcome> {
   const cacheKey = `${target.baseUrl}${path}`
   const cached = responseCache.get(cacheKey)
-  if (cached && cached.expiresAt > Date.now()) return cached.value
+  if (cached?.expiresAt && cached.expiresAt > Date.now()) return cached.value
   if (cached) responseCache.delete(cacheKey)
 
   const pending = inflight.get(cacheKey)

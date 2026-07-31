@@ -589,9 +589,9 @@ export function buildConsumerIntakePack(project: Project, provisionedAt: string)
 export function consumerProvisionBranchName(projectSlug: string): string {
   const clean = projectSlug
     .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
+    .replaceAll(/[^a-z0-9-]+/g, '-')
+    .replaceAll(/-+/g, '-')
+    .replaceAll(/^-|-$/g, '')
     .slice(0, 48)
   return `aigent/provision-${clean || 'workspace'}`
 }

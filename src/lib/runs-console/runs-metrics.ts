@@ -150,7 +150,7 @@ export function formatSuccessFigure(rate: number): string {
 }
 
 /** `null`/non-finite latency renders as an em dash upstream, never as "0ms". */
-export function formatDuration(ms: number | null | undefined): string | null {
+export function formatDuration(ms?: number | null): string | null {
   if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0) return null
   if (ms < 1000) return `${Math.round(ms)}ms`
   const seconds = ms / 1000

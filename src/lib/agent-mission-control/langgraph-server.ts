@@ -114,7 +114,7 @@ export interface LangGraphServerResult {
   budgetExhausted: boolean
 }
 
-const short = (s: string, n = 220): string => (s && s.length > n ? `${s.slice(0, n - 1)}…` : (s ?? ''))
+const short = (s: string, n = 220): string => (s?.length && s.length > n ? `${s.slice(0, n - 1)}…` : (s ?? ''))
 
 /** SDK's own default recursion limit — our floor so we never UNDER-budget a run. */
 const SDK_DEFAULT_RECURSION_LIMIT = 25

@@ -170,11 +170,11 @@ export const OUTPUT_EXCERPT_MAX = 4000
 export function sanitizeOutput(raw: string): string {
   let out = raw
   // URLs with inline credentials: https://user:pass@host → https://***:***@host
-  out = out.replace(/(\bhttps?:\/\/)[^\s/@:]+:[^\s/@]+@/gi, '$1***:***@')
+  out = out.replaceAll(/(\bhttps?:\/\/)[^\s/@:]+:[^\s/@]+@/gi, '$1***:***@')
   // KEY/TOKEN/SECRET/PASSWORD (+ optional suffix) = <value>  →  = ***
-  out = out.replace(/([A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*\s*[:=]\s*)['"`]?[^\s'"`]+/gi, '$1***')
+  out = out.replaceAll(/([A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*\s*[:=]\s*)['"`]?[^\s'"`]+/gi, '$1***')
   // Bearer tokens.
-  out = out.replace(/\b(Bearer\s+)[A-Za-z0-9._-]+/gi, '$1***')
+  out = out.replaceAll(/\b(Bearer\s+)[A-Za-z0-9._-]+/gi, '$1***')
   if (out.length > OUTPUT_EXCERPT_MAX) out = out.slice(0, OUTPUT_EXCERPT_MAX) + '\n…[truncated]'
   return out
 }
@@ -223,33 +223,43 @@ function manifestIsValid(manifestText: string | null): { ok: boolean; readable: 
   }
 }
 
-/**
- * Evaluate a target-repo sandbox from already-read inputs. Deterministic and
- * pure. Blockers (missing registry entry / missing-invalid manifest / secret
- * leak) force status=failed; a non-critical miss (absent handler/readme, a
- * skipped script) is a warning. sandboxFitScore = passed / applicable * 100.
- */
-export function evaluateSandbox(input: SandboxEvalInput): TargetRepoSandboxReport {
-  const checks: SandboxCheck[] = []
-  const warnings: string[] = []
-  const blockers: string[] = []
+interface ArtifactCheckContext {
+  registry: ReturnType<typeof parseRegistrySlugs>
+  registryPresent: boolean
+  manifest: ReturnType<typeof manifestIsValid>
+  manifestPresent: boolean
+}
 
-  // --- Agent artifact checks -------------------------------------------------
-  const registry = parseRegistrySlugs(input.registryText)
-  const registryPresent = input.registryText !== null
+function buildArtifactCheckContext(input: SandboxEvalInput): ArtifactCheckContext {
+  return {
+    registry: parseRegistrySlugs(input.registryText),
+    registryPresent: input.registryText !== null,
+    manifest: manifestIsValid(input.manifestText),
+    manifestPresent: input.manifestText !== null,
+  }
+}
+
+function pushRegistryChecks(
+  checks: SandboxCheck[],
+  blockers: string[],
+  warnings: string[],
+  ctx: ArtifactCheckContext,
+  agentSlug: string
+): void {
+  const { registry, registryPresent } = ctx
   checks.push({
     id: 'artifact:registry',
     label: 'agents/_registry.json exists & parses',
     status: registryPresent && registry.ok ? 'passed' : 'failed',
-    reason: !registryPresent ? 'registry_missing' : !registry.ok ? 'registry_unparseable' : undefined,
+    reason: registryArtifactReason(registryPresent, registry.ok),
   })
   if (!registryPresent) blockers.push('agent_not_pushed_to_target_repo')
   else if (!registry.ok) blockers.push('registry_unparseable')
 
-  const agentInRegistry = registry.slugs.includes(input.agentSlug)
+  const agentInRegistry = registry.slugs.includes(agentSlug)
   checks.push({
     id: 'artifact:registry-entry',
-    label: `registry lists "${input.agentSlug}"`,
+    label: `registry lists "${agentSlug}"`,
     status: agentInRegistry ? 'passed' : 'failed',
     reason: agentInRegistry ? undefined : 'agent_absent_from_registry',
   })
@@ -258,18 +268,24 @@ export function evaluateSandbox(input: SandboxEvalInput): TargetRepoSandboxRepor
   checks.push({
     id: 'artifact:registry-source',
     label: 'registry entries sourced from aigent',
-    status: registry.aigentSourced ? 'passed' : registryPresent ? 'warning' : 'skipped',
-    reason: registry.aigentSourced ? undefined : registryPresent ? 'source_marker_absent' : 'registry_missing',
+    status: registryArtifactStatus(registry.aigentSourced, registryPresent),
+    reason: registrySourceReason(registryPresent, registry.aigentSourced),
   })
   if (registryPresent && !registry.aigentSourced) warnings.push('registry_source_not_aigent')
+}
 
-  const manifest = manifestIsValid(input.manifestText)
-  const manifestPresent = input.manifestText !== null
+function pushManifestChecks(
+  checks: SandboxCheck[],
+  blockers: string[],
+  warnings: string[],
+  ctx: ArtifactCheckContext
+): void {
+  const { manifest, manifestPresent } = ctx
   checks.push({
     id: 'artifact:manifest',
     label: 'manifest.json exists & is valid JSON',
     status: manifestPresent && manifest.ok ? 'passed' : 'failed',
-    reason: !manifestPresent ? 'manifest_missing' : !manifest.ok ? 'manifest_invalid_json' : undefined,
+    reason: manifestArtifactReason(manifestPresent, manifest.ok),
   })
   if (!manifestPresent) blockers.push('manifest_missing')
   else if (!manifest.ok) blockers.push('manifest_invalid_json')
@@ -277,11 +293,17 @@ export function evaluateSandbox(input: SandboxEvalInput): TargetRepoSandboxRepor
   checks.push({
     id: 'artifact:manifest-readable',
     label: 'manifest fields (provider/runtime/tools) readable',
-    status: manifest.readable ? 'passed' : manifestPresent && manifest.ok ? 'warning' : 'skipped',
+    status: manifestReadableStatus(manifest.readable, manifestPresent, manifest.ok),
     reason: manifest.readable ? undefined : 'manifest_fields_unreadable',
   })
   if (manifestPresent && manifest.ok && !manifest.readable) warnings.push('manifest_fields_unreadable')
+}
 
+function pushPresenceChecks(
+  checks: SandboxCheck[],
+  warnings: string[],
+  input: SandboxEvalInput
+): void {
   checks.push({
     id: 'artifact:handler',
     label: 'handler.ts exists',
@@ -297,10 +319,15 @@ export function evaluateSandbox(input: SandboxEvalInput): TargetRepoSandboxRepor
     reason: input.readmePresent ? undefined : 'readme_missing',
   })
   if (!input.readmePresent) warnings.push('readme_missing')
+}
 
-  // --- Secret scan (names only) ---------------------------------------------
+function pushSecretScanCheck(
+  checks: SandboxCheck[],
+  blockers: string[],
+  artifactTexts: Record<string, string>
+): void {
   const leaks: string[] = []
-  for (const [path, text] of Object.entries(input.artifactTexts)) {
+  for (const [path, text] of Object.entries(artifactTexts)) {
     for (const pattern of scanSecrets(text)) leaks.push(`${path}:${pattern}`)
   }
   checks.push({
@@ -310,55 +337,117 @@ export function evaluateSandbox(input: SandboxEvalInput): TargetRepoSandboxRepor
     reason: leaks.length === 0 ? undefined : `secret_pattern_in:${leaks.join(',')}`,
   })
   if (leaks.length > 0) blockers.push('secret_in_artifacts')
+}
 
-  // --- Repo gate scripts (NEVER invents a script) ---------------------------
-  // dry_run: DETECT which scripts exist, report the rest skipped — never run.
-  // execute: use the runner's real results (scriptResults) for scripts that ran,
-  // covered_by_verify for those verify subsumed, and keep script_missing/
-  // no_package_json for the absent ones. A missing script is NEVER a blocker.
-  const scripts = input.targetScripts
-  const scriptResults = input.scriptResults ?? {}
-  const coveredByVerify = new Set(input.coveredByVerify ?? [])
-  for (const name of SANDBOX_SCRIPT_ORDER) {
-    const exists = scripts !== null && Object.prototype.hasOwnProperty.call(scripts, name)
-    const command = exists ? `npm run ${name}` : undefined
-    const result = scriptResults[name]
-    if (!exists) {
-      checks.push({
-        id: `script:${name}`,
-        label: `npm run ${name}`,
-        status: 'skipped',
-        reason: scripts === null ? 'no_package_json' : 'script_missing',
-      })
-    } else if (result) {
-      checks.push({
-        id: `script:${name}`,
-        label: `npm run ${name}`,
-        status: result.status,
-        command,
-        durationMs: result.durationMs,
-        outputExcerpt: sanitizeOutput(result.outputExcerpt),
-        ...(result.timedOut ? { reason: 'timeout' } : {}),
-      })
-      if (result.timedOut) blockers.push(`script_timeout:${name}`)
-    } else if (coveredByVerify.has(name)) {
-      checks.push({ id: `script:${name}`, label: `npm run ${name}`, status: 'skipped', command, reason: 'covered_by_verify' })
-    } else {
-      // exists but not run: dry_run (default), or execute where install was
-      // skipped and the script wasn't reached.
-      checks.push({ id: `script:${name}`, label: `npm run ${name}`, status: 'skipped', command, reason: 'dry_run' })
+function buildScriptCheck(
+  name: string,
+  scripts: Record<string, string> | null,
+  scriptResults: Record<string, ScriptExecResult>,
+  coveredByVerify: Set<string>,
+  blockers: string[]
+): SandboxCheck {
+  const exists = scripts !== null && Object.prototype.hasOwnProperty.call(scripts, name)
+  const command = exists ? `npm run ${name}` : undefined
+  const result = scriptResults[name]
+  if (!exists) {
+    return {
+      id: `script:${name}`,
+      label: `npm run ${name}`,
+      status: 'skipped',
+      reason: scripts === null ? 'no_package_json' : 'script_missing',
     }
   }
+  if (result) {
+    if (result.timedOut) blockers.push(`script_timeout:${name}`)
+    return {
+      id: `script:${name}`,
+      label: `npm run ${name}`,
+      status: result.status,
+      command,
+      durationMs: result.durationMs,
+      outputExcerpt: sanitizeOutput(result.outputExcerpt),
+      ...(result.timedOut ? { reason: 'timeout' } : {}),
+    }
+  }
+  if (coveredByVerify.has(name)) {
+    return { id: `script:${name}`, label: `npm run ${name}`, status: 'skipped', command, reason: 'covered_by_verify' }
+  }
+  return { id: `script:${name}`, label: `npm run ${name}`, status: 'skipped', command, reason: 'dry_run' }
+}
 
-  // --- Score & status --------------------------------------------------------
-  // sandboxFitScore = passed / (passed + failed + warning). Skipped checks are
-  // excluded — a script that isn't in the target repo shouldn't drag the score.
+function computeSandboxFitScore(checks: SandboxCheck[]): number | null {
   const scored = checks.filter((c) => c.status !== 'skipped')
   const passed = scored.filter((c) => c.status === 'passed').length
   const applicable = scored.length
-  const sandboxFitScore = applicable > 0 ? Math.round((passed / applicable) * 100) : null
+  return applicable > 0 ? Math.round((passed / applicable) * 100) : null
+}
 
-  const status: SandboxStatus = blockers.length > 0 ? 'failed' : warnings.length > 0 ? 'warning' : 'passed'
+function resolveSandboxStatus(blockers: string[], warnings: string[]): SandboxStatus {
+  if (blockers.length > 0) return 'failed'
+  if (warnings.length > 0) return 'warning'
+  return 'passed'
+}
+
+/**
+ * Evaluate a target-repo sandbox from already-read inputs. Deterministic and
+ * pure. Blockers (missing registry entry / missing-invalid manifest / secret
+ * leak) force status=failed; a non-critical miss (absent handler/readme, a
+ * skipped script) is a warning. sandboxFitScore = passed / applicable * 100.
+ */
+function registryArtifactReason(registryPresent: boolean, registryOk: boolean): string | undefined {
+  if (!registryPresent) return 'registry_missing'
+  if (!registryOk) return 'registry_unparseable'
+  return undefined
+}
+
+function registryArtifactStatus(aigentSourced: boolean, registryPresent: boolean): SandboxCheck['status'] {
+  if (aigentSourced) return 'passed'
+  if (registryPresent) return 'warning'
+  return 'skipped'
+}
+
+function registrySourceReason(registryPresent: boolean, aigentSourced: boolean): string | undefined {
+  if (aigentSourced) return undefined
+  if (registryPresent) return 'source_marker_absent'
+  return 'registry_missing'
+}
+
+function manifestArtifactReason(manifestPresent: boolean, manifestOk: boolean): string | undefined {
+  if (!manifestPresent) return 'manifest_missing'
+  if (!manifestOk) return 'manifest_invalid_json'
+  return undefined
+}
+
+function manifestReadableStatus(
+  readable: boolean,
+  manifestPresent: boolean,
+  manifestOk: boolean,
+): SandboxCheckStatus {
+  if (readable) return 'passed'
+  if (manifestPresent && manifestOk) return 'warning'
+  return 'skipped'
+}
+
+export function evaluateSandbox(input: SandboxEvalInput): TargetRepoSandboxReport {
+  const checks: SandboxCheck[] = []
+  const warnings: string[] = []
+  const blockers: string[] = []
+
+  const artifactCtx = buildArtifactCheckContext(input)
+  pushRegistryChecks(checks, blockers, warnings, artifactCtx, input.agentSlug)
+  pushManifestChecks(checks, blockers, warnings, artifactCtx)
+  pushPresenceChecks(checks, warnings, input)
+  pushSecretScanCheck(checks, blockers, input.artifactTexts)
+
+  const scriptResults = input.scriptResults ?? {}
+  const coveredByVerify = new Set(input.coveredByVerify ?? [])
+  for (const name of SANDBOX_SCRIPT_ORDER) {
+    checks.push(buildScriptCheck(name, input.targetScripts, scriptResults, coveredByVerify, blockers))
+  }
+
+  const sandboxFitScore = computeSandboxFitScore(checks)
+  const status = resolveSandboxStatus(blockers, warnings)
+  const { registryPresent, manifestPresent } = artifactCtx
 
   return {
     schemaVersion: SANDBOX_SCHEMA_VERSION,

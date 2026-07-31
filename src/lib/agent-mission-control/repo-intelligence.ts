@@ -228,7 +228,7 @@ export async function scanRepoIntelligence(project: Project, ref?: string): Prom
     try {
       const f = await getRepoFile(project.repoFullName, envExample, ref)
       for (const line of f.text.split('\n')) {
-        const m = line.match(/^#?\s*([A-Z][A-Z0-9_]{2,})\s*=/)
+        const m = /^#?\s*([A-Z][A-Z0-9_]{2,})\s*=/.exec(line)
         if (m) envSignals.push(m[1])
       }
     } catch {
@@ -421,11 +421,13 @@ function recommendAgents(map: RepoMap, footprint: AgenticFootprint, residue: Res
 
   // QA & Release — justified when there's a test script or CI gate.
   if (map.scripts.test || map.scripts.verify || map.scripts.check || map.tests.length > 0) {
+    const gateScripts = ['test', 'verify', 'check'].filter((s) => map.scripts[s]).join(', ')
+    const gateLabel = gateScripts || `${map.tests.length} test files`
     recs.push({
       id: 'qa-release',
       title: 'QA & Release Copilot',
       priority: 'high',
-      why: `Repo has a test/verify gate (${['test', 'verify', 'check'].filter((s) => map.scripts[s]).join(', ') || `${map.tests.length} test files`}); an agent can triage failures and gate releases.`,
+      why: `Repo has a test/verify gate (${gateLabel}); an agent can triage failures and gate releases.`,
       proposedRole: 'Read the latest test/benchmark signals, summarize failures, and produce a release-readiness verdict.',
       toolsNeeded: readOnly,
       testsNeeded: ['flags a failing gate as not-releasable', 'summarizes a passing run as releasable'],

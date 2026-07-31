@@ -168,7 +168,7 @@ export function buildRepoTree(
       continue
     }
 
-    const name = segments[segments.length - 1]
+    const name = segments.at(-1)
     // Un segment vide (chemin malformé) n'a pas de nom affichable : on l'ignore
     // plutôt que de rendre une ligne sans libellé.
     if (!name) continue

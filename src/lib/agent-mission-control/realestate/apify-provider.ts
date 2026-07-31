@@ -329,7 +329,7 @@ function mapType(t: string | undefined): PortalListing['propertyType'] {
   return 'other'
 }
 
-function decimalStr(v: number | string | undefined | null): string | null {
+function decimalStr(v?: number | string | null): string | null {
   if (v === null || v === undefined) return null
   if (typeof v === 'number') {
     if (!Number.isFinite(v)) return null
@@ -352,7 +352,7 @@ function derivePricePerSqm(priceEur: string, surfaceM2: string | null): string |
 
 function intOrNull(v: number | string | undefined): number | null {
   if (v === null || v === undefined) return null
-  const n = typeof v === 'number' ? v : parseInt(String(v), 10)
+  const n = typeof v === 'number' ? v : Number.parseInt(String(v), 10)
   return Number.isFinite(n) ? n : null
 }
 

@@ -316,7 +316,7 @@ export function isBlockedDelivery(input: {
   if (input.missionStatus === 'blocked') return true
   if (input.deliveryStatus === 'execute_failed' || input.deliveryStatus === 'blocked') return true
   if (input.scorecard?.releaseGateRed) return true
-  if (input.scorecard && input.scorecard.level === 'not_ready' && input.scorecard.blockers.length > 0) return true
+  if (input.scorecard?.level === 'not_ready' && input.scorecard.blockers.length > 0) return true
   return false
 }
 

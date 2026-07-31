@@ -65,10 +65,12 @@ function renderSkillMarkdown(
       ? input.forbiddenActions.map((action) => `- ${action}`).join('\n')
       : '- No additional forbidden action declared.'
 
+  const compatibility = `Requires the Aigent agent "${input.agentSlug}" and its governed runtime.`
+
   return `---
 name: ${slug}
 description: ${yamlString(description)}
-compatibility: ${yamlString(`Requires the Aigent agent "${input.agentSlug}" and its governed runtime.`)}
+compatibility: ${yamlString(compatibility)}
 metadata:
   agent: ${yamlString(input.agentName)}
   agent-slug: ${yamlString(input.agentSlug)}

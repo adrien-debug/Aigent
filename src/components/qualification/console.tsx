@@ -275,7 +275,7 @@ function modelsSelectionSummary(
 
 type OutcomeNoteProps = { outcome: Outcome }
 
-function OutcomeNote({ outcome }: OutcomeNoteProps) {
+function OutcomeNote({ outcome }: Readonly<OutcomeNoteProps>) {
   if (outcome.phase === 'running') {
     return (
       <Note tone="info" title={outcome.title}>
@@ -311,7 +311,7 @@ function OutcomeNote({ outcome }: OutcomeNoteProps) {
  * marche pas » sans explication est précisément ce qui envoie un opérateur
  * chercher une panne là où il n'y a qu'un invariant.
  */
-function ActionButton({ job, busy, onOpen, disabled, disabledReason, color }: ActionButtonProps) {
+function ActionButton({ job, busy, onOpen, disabled, disabledReason, color }: Readonly<ActionButtonProps>) {
   const title = disabled ? disabledReason : job.descriptor.intent
   const isDisabled = disabled || busy
   if (color) {
@@ -328,7 +328,7 @@ function ActionButton({ job, busy, onOpen, disabled, disabledReason, color }: Ac
   )
 }
 
-export default function QualificationConsole({ target }: QualificationConsoleProps) {
+export default function QualificationConsole({ target }: Readonly<QualificationConsoleProps>) {
   const router = useRouter()
   const [pending, setPending] = useState<Pending | null>(null)
   const [armLive, setArmLive] = useState(false)
@@ -741,7 +741,7 @@ function ConfirmBody({
   busy,
   onCancel,
   onConfirm,
-}: ConfirmBodyProps) {
+}: Readonly<ConfirmBodyProps>) {
   const effective = armLive && job.liveDescriptor ? job.liveDescriptor : job.descriptor
   // Les lignes RETENUES, pas les lignes saisies : une ligne mal formée est
   // silencieusement écartée du corps, donc elle doit l'être aussi du compte

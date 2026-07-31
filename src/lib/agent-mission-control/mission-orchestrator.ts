@@ -184,6 +184,18 @@ export function selectMissionParticipants(input: SelectMissionParticipantsInput)
 // Finding builders (evidence V1)
 // ---------------------------------------------------------------------------
 
+function dimensionSeverity(status: string | undefined): 'blocker' | 'warning' | 'info' {
+  if (status === 'fail') return 'blocker'
+  if (status === 'warn') return 'warning'
+  return 'info'
+}
+
+function sandboxSeverity(status: string): 'blocker' | 'warning' | 'info' {
+  if (status === 'failed') return 'blocker'
+  if (status === 'warning') return 'warning'
+  return 'info'
+}
+
 function fid(runId: string, role: string, n: number): string {
   return `finding_${runId}_${role}_${n}`
 }
@@ -206,35 +218,28 @@ function missingParticipantFinding(
   }
 }
 
-function buildRepoInspectorFindings(
-  runId: string,
-  evidence: MissionEvidenceBundle,
-  participant: MissionParticipant
-): MissionFinding[] {
-  if (participant.status === 'missing') return [missingParticipantFinding(runId, 'repo_inspector', 0)]
-
-  const findings: MissionFinding[] = []
-  const intel = evidence.repoIntelligence
-  let n = 0
-
-  if (!intel) {
-    findings.push({
-      id: fid(runId, 'repo_inspector', n++),
-      missionRunId: runId,
-      copilotId: participant.copilotId,
-      role: 'repo_inspector',
-      severity: 'warning',
-      title: 'Repo intelligence unavailable',
-      description: 'No cached repo intelligence — run a repo scan before delivery decisions.',
-      evidence: { kind: 'repo_intelligence_missing' },
-      recommendation: 'POST /api/agent-ops/projects/:id/repo/intelligence to refresh the RepoMap.',
-    })
-    return findings
+function repoInspectorIntelMissing(runId: string, participant: MissionParticipant): MissionFinding {
+  return {
+    id: fid(runId, 'repo_inspector', 0),
+    missionRunId: runId,
+    copilotId: participant.copilotId,
+    role: 'repo_inspector',
+    severity: 'warning',
+    title: 'Repo intelligence unavailable',
+    description: 'No cached repo intelligence — run a repo scan before delivery decisions.',
+    evidence: { kind: 'repo_intelligence_missing' },
+    recommendation: 'POST /api/agent-ops/projects/:id/repo/intelligence to refresh the RepoMap.',
   }
+}
 
-  const { map, residue } = intel
-  findings.push({
-    id: fid(runId, 'repo_inspector', n++),
+function repoInspectorStackFinding(
+  runId: string,
+  participant: MissionParticipant,
+  n: number,
+  map: RepoIntelligence['map']
+): MissionFinding {
+  return {
+    id: fid(runId, 'repo_inspector', n),
     missionRunId: runId,
     copilotId: participant.copilotId,
     role: 'repo_inspector',
@@ -247,7 +252,41 @@ function buildRepoInspectorFindings(
       packageManager: map.packageManager,
     },
     recommendation: null,
-  })
+  }
+}
+
+function repoInspectorResidueFinding(
+  runId: string,
+  participant: MissionParticipant,
+  n: number,
+  residue: RepoIntelligence['residue']
+): MissionFinding {
+  return {
+    id: fid(runId, 'repo_inspector', n),
+    missionRunId: runId,
+    copilotId: participant.copilotId,
+    role: 'repo_inspector',
+    severity: residue.some((r) => r.severity === 'high') ? 'warning' : 'info',
+    title: `${residue.length} residue finding(s)`,
+    description: 'Residue signals require human review before cleanup — never auto-delete.',
+    evidence: { residue: residue.slice(0, 10).map((r) => ({ type: r.type, path: r.path, severity: r.severity })) },
+    recommendation: 'Review residue paths manually; do not auto-remove without validation.',
+  }
+}
+
+function buildRepoInspectorFindings(
+  runId: string,
+  evidence: MissionEvidenceBundle,
+  participant: MissionParticipant
+): MissionFinding[] {
+  if (participant.status === 'missing') return [missingParticipantFinding(runId, 'repo_inspector', 0)]
+
+  const intel = evidence.repoIntelligence
+  if (!intel) return [repoInspectorIntelMissing(runId, participant)]
+
+  const { map, residue } = intel
+  const findings: MissionFinding[] = [repoInspectorStackFinding(runId, participant, 0, map)]
+  let n = 1
 
   findings.push({
     id: fid(runId, 'repo_inspector', n++),
@@ -262,17 +301,7 @@ function buildRepoInspectorFindings(
   })
 
   if (residue.length > 0) {
-    findings.push({
-      id: fid(runId, 'repo_inspector', n++),
-      missionRunId: runId,
-      copilotId: participant.copilotId,
-      role: 'repo_inspector',
-      severity: residue.some((r) => r.severity === 'high') ? 'warning' : 'info',
-      title: `${residue.length} residue finding(s)`,
-      description: 'Residue signals require human review before cleanup — never auto-delete.',
-      evidence: { residue: residue.slice(0, 10).map((r) => ({ type: r.type, path: r.path, severity: r.severity })) },
-      recommendation: 'Review residue paths manually; do not auto-remove without validation.',
-    })
+    findings.push(repoInspectorResidueFinding(runId, participant, n++, residue))
   }
 
   if (map.riskNotes.length > 0) {
@@ -308,6 +337,34 @@ function buildRepoInspectorFindings(
   return findings
 }
 
+function securityEnvFinding(
+  runId: string,
+  participant: MissionParticipant,
+  n: number,
+  intel: MissionEvidenceBundle['repoIntelligence'],
+  envSignals: string[],
+  trackedEnvRisk: boolean
+): MissionFinding {
+  return {
+    id: fid(runId, 'security', n),
+    missionRunId: runId,
+    copilotId: participant.copilotId,
+    role: 'security',
+    severity: 'warning',
+    title: trackedEnvRisk ? 'Tracked .env / secret exposure risk' : 'Environment signals detected',
+    description: trackedEnvRisk
+      ? 'Repo intelligence flags tracked env/secret risk. Never read or display secret values.'
+      : `Env signals: ${envSignals.slice(0, 5).join(', ')}.`,
+    evidence: { envSignals, riskNotes: intel?.map.riskNotes ?? [] },
+    recommendation: 'Review .env tracking, rotate exposed secrets, keep agents read-only on secrets.',
+  }
+}
+
+function unsafeActionCount(scorecard: AgentDeliveryScorecard): number | null {
+  const unsafe = scorecard.blockers.find((b) => b.startsWith('unsafe_actions:'))
+  return unsafe ? Number(unsafe.split(':')[1] ?? '1') : null
+}
+
 export function buildSecurityFindings(
   runId: string,
   evidence: MissionEvidenceBundle,
@@ -324,23 +381,10 @@ export function buildSecurityFindings(
   const envSignals = intel?.map.envSignals ?? []
   const trackedEnvRisk = intel?.map.riskNotes.some((r) => /\.env|secret|credential|tracked/i.test(r)) ?? false
   if (envSignals.length > 0 || trackedEnvRisk) {
-    findings.push({
-      id: fid(runId, 'security', n++),
-      missionRunId: runId,
-      copilotId: participant.copilotId,
-      role: 'security',
-      severity: 'warning',
-      title: trackedEnvRisk ? 'Tracked .env / secret exposure risk' : 'Environment signals detected',
-      description: trackedEnvRisk
-        ? 'Repo intelligence flags tracked env/secret risk. Never read or display secret values.'
-        : `Env signals: ${envSignals.slice(0, 5).join(', ')}.`,
-      evidence: { envSignals, riskNotes: intel?.map.riskNotes ?? [] },
-      recommendation: 'Review .env tracking, rotate exposed secrets, keep agents read-only on secrets.',
-    })
+    findings.push(securityEnvFinding(runId, participant, n++, intel, envSignals, trackedEnvRisk))
   }
 
-  const unsafe = scorecard?.blockers.find((b) => b.startsWith('unsafe_actions:'))
-  const unsafeCount = unsafe ? Number(unsafe.split(':')[1] ?? '1') : null
+  const unsafeCount = scorecard ? unsafeActionCount(scorecard) : null
   if (unsafeCount !== null && unsafeCount > 0) {
     findings.push({
       id: fid(runId, 'security', n++),
@@ -353,7 +397,7 @@ export function buildSecurityFindings(
       evidence: { unsafeActionCount: unsafeCount },
       recommendation: 'Fix agent runtime policy before delivery.',
     })
-  } else if (scorecard && !unsafe) {
+  } else if (scorecard && unsafeCount === null) {
     findings.push({
       id: fid(runId, 'security', n++),
       missionRunId: runId,
@@ -369,6 +413,7 @@ export function buildSecurityFindings(
 
   const secretScan = sandbox?.checks.find((c) => c.id === 'security:secret-scan')
   if (secretScan) {
+    const secretScanReason = secretScan.reason ? ': ' + secretScan.reason : ''
     findings.push({
       id: fid(runId, 'security', n++),
       missionRunId: runId,
@@ -376,7 +421,7 @@ export function buildSecurityFindings(
       role: 'security',
       severity: secretScan.status === 'failed' ? 'blocker' : 'info',
       title: 'Sandbox secret scan',
-      description: `Secret scan ${secretScan.status}${secretScan.reason ? `: ${secretScan.reason}` : ''}.`,
+      description: `Secret scan ${secretScan.status}${secretScanReason}.`,
       evidence: { checkId: secretScan.id, status: secretScan.status },
       recommendation: secretScan.status === 'failed' ? 'Remove secret patterns from delivered artifacts.' : null,
     })
@@ -414,6 +459,58 @@ export function buildSecurityFindings(
   return findings
 }
 
+function qaTestPassFinding(
+  runId: string,
+  participant: MissionParticipant,
+  n: number,
+  testDim: AgentDeliveryScorecard['dimensions'][number] | undefined
+): MissionFinding {
+  return {
+    id: fid(runId, 'qa_release', n),
+    missionRunId: runId,
+    copilotId: participant.copilotId,
+    role: 'qa_release',
+    severity: dimensionSeverity(testDim?.status),
+    title: 'Test pass rate',
+    description: testDim?.evidence ?? `Tests dimension: ${testDim?.status ?? 'unknown'}.`,
+    evidence: { score: testDim?.score, status: testDim?.status },
+    recommendation: testDim?.status === 'fail' ? 'Reach 100% repo-aware tests before delivery.' : null,
+  }
+}
+
+function qaReleaseGateFinding(
+  runId: string,
+  participant: MissionParticipant,
+  n: number,
+  scorecard: AgentDeliveryScorecard,
+  gateRed: boolean
+): MissionFinding {
+  if (gateRed || scorecard.evidence.releaseGatePromotable === false) {
+    return {
+      id: fid(runId, 'qa_release', n),
+      missionRunId: runId,
+      copilotId: participant.copilotId,
+      role: 'qa_release',
+      severity: 'blocker',
+      title: 'Release gate red',
+      description: 'Release gate is not promotable for the candidate version.',
+      evidence: { releaseGatePromotable: scorecard.evidence.releaseGatePromotable, blockers: scorecard.blockers },
+      recommendation: 'Fix release gate checks before entering delivery loop.',
+    }
+  }
+  return {
+    id: fid(runId, 'qa_release', n),
+    missionRunId: runId,
+    copilotId: participant.copilotId,
+    role: 'qa_release',
+    severity: 'info',
+    title: 'Release gate green',
+    description: 'Release gate promotable.',
+    evidence: { releaseGatePromotable: true },
+    recommendation: null,
+  }
+}
+
 export function buildQaReleaseFindings(
   runId: string,
   evidence: MissionEvidenceBundle,
@@ -429,17 +526,7 @@ export function buildQaReleaseFindings(
 
   if (scorecard) {
     const testDim = scorecard.dimensions.find((d) => d.id === 'tests')
-    findings.push({
-      id: fid(runId, 'qa_release', n++),
-      missionRunId: runId,
-      copilotId: participant.copilotId,
-      role: 'qa_release',
-      severity: testDim?.status === 'fail' ? 'blocker' : testDim?.status === 'warn' ? 'warning' : 'info',
-      title: 'Test pass rate',
-      description: testDim?.evidence ?? `Tests dimension: ${testDim?.status ?? 'unknown'}.`,
-      evidence: { score: testDim?.score, status: testDim?.status },
-      recommendation: testDim?.status === 'fail' ? 'Reach 100% repo-aware tests before delivery.' : null,
-    })
+    findings.push(qaTestPassFinding(runId, participant, n++, testDim))
 
     const benchDim = scorecard.dimensions.find((d) => d.id === 'benchmark' || d.id === 'safety')
     findings.push({
@@ -456,29 +543,9 @@ export function buildQaReleaseFindings(
 
     const gateRed = scorecard.blockers.includes('release_gate_red')
     if (gateRed || scorecard.evidence.releaseGatePromotable === false) {
-      findings.push({
-        id: fid(runId, 'qa_release', n++),
-        missionRunId: runId,
-        copilotId: participant.copilotId,
-        role: 'qa_release',
-        severity: 'blocker',
-        title: 'Release gate red',
-        description: 'Release gate is not promotable for the candidate version.',
-        evidence: { releaseGatePromotable: scorecard.evidence.releaseGatePromotable, blockers: scorecard.blockers },
-        recommendation: 'Fix release gate checks before entering delivery loop.',
-      })
+      findings.push(qaReleaseGateFinding(runId, participant, n++, scorecard, gateRed))
     } else if (scorecard.evidence.releaseGatePromotable === true) {
-      findings.push({
-        id: fid(runId, 'qa_release', n++),
-        missionRunId: runId,
-        copilotId: participant.copilotId,
-        role: 'qa_release',
-        severity: 'info',
-        title: 'Release gate green',
-        description: 'Release gate promotable.',
-        evidence: { releaseGatePromotable: true },
-        recommendation: null,
-      })
+      findings.push(qaReleaseGateFinding(runId, participant, n++, scorecard, false))
     }
   }
 
@@ -488,7 +555,7 @@ export function buildQaReleaseFindings(
       missionRunId: runId,
       copilotId: participant.copilotId,
       role: 'qa_release',
-      severity: sandbox.status === 'failed' ? 'blocker' : sandbox.status === 'warning' ? 'warning' : 'info',
+      severity: sandboxSeverity(sandbox.status),
       title: 'Sandbox verdict',
       description: `Sandbox ${sandbox.executionMode} on ${sandbox.branch}: ${sandbox.status} (${sandbox.sandboxFitScore ?? '—'}/100).`,
       evidence: {
@@ -604,69 +671,85 @@ export function buildMissionFindings(
 // Consensus
 // ---------------------------------------------------------------------------
 
+interface ConsensusSignals {
+  sandboxFailed: boolean
+  releaseGateRed: boolean
+  unsafeBlocked: boolean
+  mergedValidated: boolean
+  deliveryReady: boolean
+  scorecardExcellent: boolean
+}
+
+function collectConsensusSignals(findings: MissionFinding[], blockers: MissionFinding[]): ConsensusSignals {
+  return {
+    sandboxFailed: blockers.some((f) => f.title === 'Sandbox verdict' || /sandbox.*failed/i.test(f.description)),
+    releaseGateRed: blockers.some((f) => f.title === 'Release gate red'),
+    unsafeBlocked: blockers.some((f) => /unsafe action/i.test(f.title)),
+    mergedValidated: findings.some(
+      (f) => f.title === 'Merged delivery validated' || f.evidence.deliveryStatus === 'merged_validated'
+    ),
+    deliveryReady: findings.some(
+      (f) => f.title === 'Delivery scorecard' && typeof f.evidence.level === 'string' && f.evidence.level !== 'not_ready'
+    ),
+    scorecardExcellent: findings.some(
+      (f) => f.title === 'Delivery scorecard' && (f.evidence.level === 'excellent' || f.evidence.level === 'delivery_ready')
+    ),
+  }
+}
+
+function deriveMissionOutcome(
+  signals: ConsensusSignals,
+  blockers: MissionFinding[],
+  warnings: MissionFinding[],
+  findings: MissionFinding[]
+): { decision: MissionDecision; status: MissionStatus; nextActions: string[] } {
+  const nextActions: string[] = []
+
+  if (signals.mergedValidated && blockers.length === 0) {
+    nextActions.push('Mission complete — domain agent merged and validated.')
+    nextActions.push('Optional: manual smoke test in production workspace.')
+    return { decision: 'continue', status: 'completed', nextActions }
+  }
+  if (signals.mergedValidated && blockers.length > 0) {
+    nextActions.push('Merged delivery validated but open blockers remain — review before next promotion.')
+    return { decision: 'needs_fix', status: 'needs_attention', nextActions }
+  }
+  if (blockers.length > 0 || signals.unsafeBlocked) {
+    nextActions.push('Resolve blocker findings before delivery.')
+    if (signals.releaseGateRed) nextActions.push('Fix release gate checks.')
+    if (signals.sandboxFailed) nextActions.push('Re-run target sandbox execute.')
+    return { decision: 'blocked', status: 'blocked', nextActions }
+  }
+  if (warnings.length > 0 && signals.scorecardExcellent) {
+    nextActions.push('Warnings present but scorecard is delivery-ready — may enter delivery loop.')
+    nextActions.push('Review warnings before manual test.')
+    return { decision: 'ready_for_delivery_loop', status: 'ready_for_delivery', nextActions }
+  }
+  if (warnings.length > 0 || findings.some((f) => f.evidence.kind === 'participant_missing')) {
+    nextActions.push('Address warnings or assign missing participants.')
+    return { decision: 'needs_fix', status: 'needs_attention', nextActions }
+  }
+  if (signals.deliveryReady) {
+    nextActions.push('Evidence green — proceed to delivery loop when objective requires shipping.')
+    return { decision: 'ready_for_delivery_loop', status: 'ready_for_delivery', nextActions }
+  }
+  nextActions.push('Collect more evidence (tests, sandbox, delivery) before delivery loop.')
+  return { decision: 'continue', status: 'needs_attention', nextActions }
+}
+
+function consensusSummary(status: MissionStatus, blockers: MissionFinding[], warnings: MissionFinding[]): string {
+  if (status === 'completed') return 'Mission completed — merged delivery validated with no blockers.'
+  if (status === 'blocked') return `${blockers.length} blocker(s) — mission blocked.`
+  if (status === 'ready_for_delivery') return `Ready for delivery loop (${warnings.length} warning(s)).`
+  return `${warnings.length} warning(s), ${blockers.length} blocker(s) — needs attention.`
+}
+
 export function computeMissionConsensus(findings: MissionFinding[]): MissionConsensus {
   const blockers = findings.filter((f) => f.severity === 'blocker')
   const warnings = findings.filter((f) => f.severity === 'warning')
-
-  const sandboxFailed = blockers.some((f) => f.title === 'Sandbox verdict' || /sandbox.*failed/i.test(f.description))
-  const releaseGateRed = blockers.some((f) => f.title === 'Release gate red')
-  const unsafeBlocked = blockers.some((f) => /unsafe action/i.test(f.title))
-  const mergedValidated = findings.some(
-    (f) => f.title === 'Merged delivery validated' || f.evidence.deliveryStatus === 'merged_validated'
-  )
-  const deliveryReady = findings.some(
-    (f) => f.title === 'Delivery scorecard' && typeof f.evidence.level === 'string' && f.evidence.level !== 'not_ready'
-  )
-  const scorecardExcellent = findings.some(
-    (f) => f.title === 'Delivery scorecard' && (f.evidence.level === 'excellent' || f.evidence.level === 'delivery_ready')
-  )
-
-  let decision: MissionDecision
-  let status: MissionStatus
-  const nextActions: string[] = []
-
-  if (mergedValidated && blockers.length === 0) {
-    decision = 'continue'
-    status = 'completed'
-    nextActions.push('Mission complete — domain agent merged and validated.')
-    nextActions.push('Optional: manual smoke test in production workspace.')
-  } else if (mergedValidated && blockers.length > 0) {
-    decision = 'needs_fix'
-    status = 'needs_attention'
-    nextActions.push('Merged delivery validated but open blockers remain — review before next promotion.')
-  } else if (blockers.length > 0 || unsafeBlocked) {
-    decision = 'blocked'
-    status = 'blocked'
-    nextActions.push('Resolve blocker findings before delivery.')
-    if (releaseGateRed) nextActions.push('Fix release gate checks.')
-    if (sandboxFailed) nextActions.push('Re-run target sandbox execute.')
-  } else if (warnings.length > 0 && scorecardExcellent && blockers.length === 0) {
-    decision = 'ready_for_delivery_loop'
-    status = 'ready_for_delivery'
-    nextActions.push('Warnings present but scorecard is delivery-ready — may enter delivery loop.')
-    nextActions.push('Review warnings before manual test.')
-  } else if (warnings.length > 0 || findings.some((f) => f.evidence.kind === 'participant_missing')) {
-    decision = 'needs_fix'
-    status = 'needs_attention'
-    nextActions.push('Address warnings or assign missing participants.')
-  } else if (deliveryReady) {
-    decision = 'ready_for_delivery_loop'
-    status = 'ready_for_delivery'
-    nextActions.push('Evidence green — proceed to delivery loop when objective requires shipping.')
-  } else {
-    decision = 'continue'
-    status = 'needs_attention'
-    nextActions.push('Collect more evidence (tests, sandbox, delivery) before delivery loop.')
-  }
-
-  const summary =
-    status === 'completed'
-      ? 'Mission completed — merged delivery validated with no blockers.'
-      : status === 'blocked'
-        ? `${blockers.length} blocker(s) — mission blocked.`
-        : status === 'ready_for_delivery'
-          ? `Ready for delivery loop (${warnings.length} warning(s)).`
-          : `${warnings.length} warning(s), ${blockers.length} blocker(s) — needs attention.`
+  const signals = collectConsensusSignals(findings, blockers)
+  const { decision, status, nextActions } = deriveMissionOutcome(signals, blockers, warnings, findings)
+  const summary = consensusSummary(status, blockers, warnings)
 
   return { decision, status, summary, blockers, warnings, nextActions }
 }

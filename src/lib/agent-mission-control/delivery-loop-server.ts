@@ -149,7 +149,10 @@ async function computeLoopState(
   if (!latestSandbox) latestSandbox = await getLatestSandboxReport(copilotId)
 
   // Classify a failing sandbox (deterministic, pure).
-  const classification = latestSandbox && latestSandbox.status !== 'passed' ? classifySandbox(latestSandbox) : null
+  let classification: ReturnType<typeof classifySandbox> | null = null
+  if (latestSandbox && latestSandbox.status !== 'passed') {
+    classification = classifySandbox(latestSandbox)
+  }
 
   // Latest scorecard level (production target — the served version).
   let scorecardLevel: 'not_ready' | 'safe' | 'delivery_ready' | 'excellent' | null = null
@@ -170,7 +173,7 @@ async function computeLoopState(
     testPassRate = testDim?.score != null ? testDim.score / 100 : null
     const benchDim = card?.dimensions.find((d) => d.id === 'safety')
     if (card?.blockers.some((b) => b.startsWith('unsafe_actions:'))) {
-      const m = card.blockers.find((b) => b.startsWith('unsafe_actions:'))?.match(/unsafe_actions:(\d+)/)
+      const m = (/unsafe_actions:(\d+)/).exec(card.blockers.find((b) => b.startsWith('unsafe_actions:')) ?? '')
       benchmarkUnsafeActions = m ? Number(m[1]) : 1
     } else if (benchDim?.status === 'pass') {
       benchmarkUnsafeActions = 0

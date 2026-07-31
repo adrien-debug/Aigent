@@ -106,7 +106,10 @@ console.log(`to archive        : ${todo.length}`)
 console.log(`historical runs   : ${runsBefore} (must be unchanged after)\n`)
 
 for (const r of before) {
-  const mark = r.status === ARCHIVED ? 'skip' : apply ? 'ARCHIVE' : 'would'
+  let mark
+  if (r.status === ARCHIVED) mark = 'skip'
+  else if (apply) mark = 'ARCHIVE'
+  else mark = 'would'
   console.log(`  ${mark.padEnd(8)} ${r.status.padEnd(8)} ${r.name}`)
 }
 

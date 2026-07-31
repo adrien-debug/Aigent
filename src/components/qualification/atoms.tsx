@@ -77,7 +77,7 @@ const GATE_COLOR: Record<GateStatus, BadgeColor> = {
   missing: 'amber',
 }
 
-export function GateStatusBadge({ status }: GateStatusBadgeProps) {
+export function GateStatusBadge({ status }: Readonly<GateStatusBadgeProps>) {
   return (
     <Badge color={GATE_COLOR[status]} title={GATE_STATUS_MEANING[status]}>
       {GATE_STATUS_LABEL[status]}
@@ -95,7 +95,7 @@ const PROMOTION_COLOR: Record<PromotionCheckStatus, BadgeColor> = {
   INSUFFICIENT_EVIDENCE: 'amber',
 }
 
-export function PromotionStatusBadge({ status }: PromotionStatusBadgeProps) {
+export function PromotionStatusBadge({ status }: Readonly<PromotionStatusBadgeProps>) {
   return (
     <Badge color={PROMOTION_COLOR[status]} title={PROMOTION_STATUS_MEANING[status]}>
       {PROMOTION_STATUS_LABEL[status]}
@@ -115,7 +115,7 @@ const STEP_COLOR: Record<QualificationStepStatus, BadgeColor> = {
   PENDING: 'zinc',
 }
 
-export function StepStatusBadge({ status }: StepStatusBadgeProps) {
+export function StepStatusBadge({ status }: Readonly<StepStatusBadgeProps>) {
   return (
     <Badge color={STEP_COLOR[status]} title={STEP_STATUS_MEANING[status]}>
       {STEP_STATUS_LABEL[status]}
@@ -131,7 +131,7 @@ const RUN_STATUS_COLOR: Record<QualificationRunStatus, BadgeColor> = {
   aborted: 'amber',
 }
 
-export function RunStatusBadge({ status }: RunStatusBadgeProps) {
+export function RunStatusBadge({ status }: Readonly<RunStatusBadgeProps>) {
   return (
     <Badge color={RUN_STATUS_COLOR[status]} title={RUN_STATUS_MEANING[status]}>
       {RUN_STATUS_LABEL[status]}
@@ -149,7 +149,7 @@ const EXECUTION_MODE_COLOR: Record<EvidenceExecutionMode, BadgeColor> = {
   legacy_unknown: 'zinc',
 }
 
-export function ExecutionModeBadge({ mode }: ExecutionModeBadgeProps) {
+export function ExecutionModeBadge({ mode }: Readonly<ExecutionModeBadgeProps>) {
   return (
     <Badge color={EXECUTION_MODE_COLOR[mode]} title={EXECUTION_MODE_DETAIL[mode]}>
       {EXECUTION_MODE_LABEL[mode]}
@@ -166,7 +166,7 @@ const PROPOSAL_COLOR: Record<ImprovementProposal['status'], BadgeColor> = {
   rejected: 'zinc',
 }
 
-export function ProposalStatusBadge({ status }: ProposalStatusBadgeProps) {
+export function ProposalStatusBadge({ status }: Readonly<ProposalStatusBadgeProps>) {
   return (
     <Badge
       color={PROPOSAL_COLOR[status]}
@@ -184,7 +184,7 @@ export function ProposalStatusBadge({ status }: ProposalStatusBadgeProps) {
  * un `title` qui dit POURQUOI quand on le sait : « non mesuré » et « lecture
  * échouée » ne sont pas la même chose.
  */
-export function NotMeasured({ why }: NotMeasuredProps) {
+export function NotMeasured({ why }: Readonly<NotMeasuredProps>) {
   return (
     <span
       className="text-xs text-zinc-500 uppercase dark:text-zinc-400"
@@ -200,7 +200,7 @@ export function NotMeasured({ why }: NotMeasuredProps) {
  * contrat de ce composant, et il dispense chaque appelant de réécrire la garde
  * (donc de l'oublier). Un `0` mesuré reste un `0` — seul `null` est une absence.
  */
-export function Fact({ label, value, why, hint }: FactProps) {
+export function Fact({ label, value, why, hint }: Readonly<FactProps>) {
   return (
     <div className="min-w-0">
       <Text className="truncate text-xs">{label}</Text>
@@ -211,7 +211,7 @@ export function Fact({ label, value, why, hint }: FactProps) {
 }
 
 /** Une valeur mise en avant dans un `Fact`. */
-export function FactValue({ children }: FactValueProps) {
+export function FactValue({ children }: Readonly<FactValueProps>) {
   return <Strong className="tabular-nums">{children}</Strong>
 }
 
@@ -222,7 +222,7 @@ export function FactValue({ children }: FactValueProps) {
  * garanti en base, pas une panne. Le rendre en rouge apprendrait à l'opérateur
  * qu'il a fait une bêtise alors qu'il a simplement rencontré un invariant.
  */
-export function Note({ tone = 'info', title, children }: NoteProps) {
+export function Note({ tone = 'info', title, children }: Readonly<NoteProps>) {
   const ring = noteRingClass(tone)
   return (
     <div className={'rounded-md border px-3 py-2 ' + ring}>

@@ -51,7 +51,7 @@ const AXIS_TICK = {
 } as const
 
 /** Info-bulle : seuls les statuts NON NULS sont listés — un zéro n'apprend rien. */
-function RunsTooltip({ active, payload }: TooltipContentProps) {
+function RunsTooltip({ active, payload }: Readonly<TooltipContentProps>) {
   if (!active || !payload?.length) return null
   const bucket = payload[0]?.payload as HourlyBucket | undefined
   if (!bucket) return null

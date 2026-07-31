@@ -7,11 +7,11 @@ import React, { forwardRef, useId } from 'react'
 import { TouchTarget } from './button'
 import { Link } from './link'
 
-export function Sidebar({ className, ...props }: React.ComponentPropsWithoutRef<'nav'>) {
+export function Sidebar({ className, ...props }: Readonly<React.ComponentPropsWithoutRef<'nav'>>) {
   return <nav {...props} className={clsx(className, 'flex h-full min-h-0 flex-col')} />
 }
 
-export function SidebarHeader({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
+export function SidebarHeader({ className, ...props }: Readonly<React.ComponentPropsWithoutRef<'div'>>) {
   return (
     <div
       {...props}
@@ -23,7 +23,7 @@ export function SidebarHeader({ className, ...props }: React.ComponentPropsWitho
   )
 }
 
-export function SidebarBody({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
+export function SidebarBody({ className, ...props }: Readonly<React.ComponentPropsWithoutRef<'div'>>) {
   return (
     <div
       {...props}
@@ -35,7 +35,7 @@ export function SidebarBody({ className, ...props }: React.ComponentPropsWithout
   )
 }
 
-export function SidebarFooter({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
+export function SidebarFooter({ className, ...props }: Readonly<React.ComponentPropsWithoutRef<'div'>>) {
   return (
     <div
       {...props}
@@ -47,7 +47,7 @@ export function SidebarFooter({ className, ...props }: React.ComponentPropsWitho
   )
 }
 
-export function SidebarSection({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
+export function SidebarSection({ className, ...props }: Readonly<React.ComponentPropsWithoutRef<'div'>>) {
   const id = useId()
 
   return (
@@ -57,15 +57,15 @@ export function SidebarSection({ className, ...props }: React.ComponentPropsWith
   )
 }
 
-export function SidebarDivider({ className, ...props }: React.ComponentPropsWithoutRef<'hr'>) {
+export function SidebarDivider({ className, ...props }: Readonly<React.ComponentPropsWithoutRef<'hr'>>) {
   return <hr {...props} className={clsx(className, 'my-4 border-t border-zinc-950/5 lg:-mx-4 dark:border-white/5')} />
 }
 
-export function SidebarSpacer({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
+export function SidebarSpacer({ className, ...props }: Readonly<React.ComponentPropsWithoutRef<'div'>>) {
   return <div aria-hidden="true" {...props} className={clsx(className, 'mt-8 flex-1')} />
 }
 
-export function SidebarHeading({ className, ...props }: React.ComponentPropsWithoutRef<'h3'>) {
+export function SidebarHeading({ className, ...props }: Readonly<React.ComponentPropsWithoutRef<'h3'>>) {
   return (
     <h3 {...props} className={clsx(className, 'mb-1 px-2 text-xs/6 font-medium text-zinc-500 dark:text-zinc-400')} />
   )
@@ -77,10 +77,12 @@ export const SidebarItem = forwardRef(function SidebarItem(
     className,
     children,
     ...props
-  }: { current?: boolean; className?: string; children: React.ReactNode } & (
-    | ({ href?: never } & Omit<Headless.ButtonProps, 'as' | 'className'>)
-    | ({ href: string } & Omit<Headless.ButtonProps<typeof Link>, 'as' | 'className'>)
-  ),
+  }: Readonly<
+    { current?: boolean; className?: string; children: React.ReactNode } & (
+      | ({ href?: never } & Omit<Headless.ButtonProps, 'as' | 'className'>)
+      | ({ href: string } & Omit<Headless.ButtonProps<typeof Link>, 'as' | 'className'>)
+    )
+  >,
   ref: React.ForwardedRef<HTMLAnchorElement | HTMLButtonElement>
 ) {
   const classes = clsx(
@@ -137,6 +139,6 @@ export const SidebarItem = forwardRef(function SidebarItem(
   )
 })
 
-export function SidebarLabel({ className, ...props }: React.ComponentPropsWithoutRef<'span'>) {
+export function SidebarLabel({ className, ...props }: Readonly<React.ComponentPropsWithoutRef<'span'>>) {
   return <span {...props} className={clsx(className, 'truncate')} />
 }

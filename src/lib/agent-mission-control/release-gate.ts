@@ -198,6 +198,131 @@ async function productionBenchmarkScore(productionVersionId: string | null): Pro
   return res[0] ? ((res[0].score as number) ?? null) : null
 }
 
+interface ReleaseGateContext {
+  candidateId: string
+  version: RawRow
+  proposal: RawRow | null
+  testRun: ReleaseEvidence['testRun']
+  benchmark: ReleaseEvidence['benchmark']
+  toolRiskWrites: string[]
+  prodBench: number | null
+  currentProductionVersionId: string | null
+}
+
+function buildApprovedCycleCheck(proposal: RawRow | null): ReleaseCheck {
+  const cycleBlocking = proposal !== null && proposal.status !== 'approved' && proposal.status !== 'rejected'
+  return {
+    id: 'approved-cycle',
+    label: 'No undecided improvement cycle',
+    status: cycleBlocking ? 'fail' : 'pass',
+    observed: proposal ? (proposal.status as string) : 'no open cycle',
+    required: 'approved / rejected / none',
+  }
+}
+
+function testPassRateStatus(testRun: ReleaseEvidence['testRun']): ReleaseCheck['status'] {
+  if (!testRun) return 'missing'
+  return testRun.passRate >= 1 ? 'pass' : 'fail'
+}
+
+function recursionCrashStatus(testRun: ReleaseEvidence['testRun']): ReleaseCheck['status'] {
+  if (!testRun) return 'missing'
+  return testRun.hasRecursionError ? 'fail' : 'pass'
+}
+
+function recursionCrashObserved(testRun: ReleaseEvidence['testRun']): string {
+  if (!testRun) return 'no test run'
+  return testRun.hasRecursionError ? 'GraphRecursionError present' : 'none'
+}
+
+function buildTestsPassCheck(testRun: ReleaseEvidence['testRun']): ReleaseCheck {
+  return {
+    id: 'tests-pass',
+    label: 'Tests pass rate',
+    status: testPassRateStatus(testRun),
+    observed: testRun ? `${testRun.passed}/${testRun.total} (${Math.round(testRun.passRate * 100)}%)` : 'no test run',
+    required: '100%',
+  }
+}
+
+function buildBenchmarkExistsCheck(benchmark: ReleaseEvidence['benchmark'], benchScore: number | null): ReleaseCheck {
+  return {
+    id: 'benchmark-exists',
+    label: 'Benchmark recorded',
+    status: benchScore !== null ? 'pass' : 'missing',
+    observed: benchmarkObserved(benchScore, benchmark !== null),
+    required: 'present',
+  }
+}
+
+function buildBenchmarkNotWorseCheck(
+  benchmark: ReleaseEvidence['benchmark'],
+  benchScore: number | null,
+  prodBench: number | null
+): ReleaseCheck {
+  return {
+    id: 'benchmark-not-worse',
+    label: 'Benchmark ≥ production',
+    status: benchmarkNotWorseStatus(benchScore, prodBench),
+    observed:
+      benchScore !== null
+        ? benchmarkComparisonObserved(benchScore, prodBench)
+        : benchmarkObserved(null, benchmark !== null),
+    required: prodBench !== null ? `≥ ${Math.round((prodBench - BENCHMARK_REGRESSION_TOLERANCE) * 10) / 10}` : 'first production',
+  }
+}
+
+function buildCountCheck(
+  id: 'unsafe-actions' | 'confirmation-mistakes',
+  label: string,
+  count: number | null,
+  hasBenchmarkRow: boolean
+): ReleaseCheck {
+  return {
+    id,
+    label,
+    status: countGateStatus(count),
+    observed: countObserved(count, hasBenchmarkRow),
+    required: '0',
+  }
+}
+
+function buildReleaseChecks(ctx: ReleaseGateContext): ReleaseCheck[] {
+  const benchScore = ctx.benchmark ? ctx.benchmark.score : null
+  const unsafeCount = ctx.benchmark ? ctx.benchmark.unsafeActionCount : null
+  const confirmationMistakes = ctx.benchmark ? ctx.benchmark.confirmationMistakeCount : null
+
+  return [
+    buildApprovedCycleCheck(ctx.proposal),
+    buildTestsPassCheck(ctx.testRun),
+    buildBenchmarkExistsCheck(ctx.benchmark, benchScore),
+    buildBenchmarkNotWorseCheck(ctx.benchmark, benchScore, ctx.prodBench),
+    buildCountCheck('unsafe-actions', 'Unsafe actions', unsafeCount, ctx.benchmark !== null),
+    buildCountCheck('confirmation-mistakes', 'Confirmation mistakes', confirmationMistakes, ctx.benchmark !== null),
+    {
+      id: 'no-recursion',
+      label: 'No runtime recursion crash',
+      status: recursionCrashStatus(ctx.testRun),
+      observed: recursionCrashObserved(ctx.testRun),
+      required: 'none',
+    },
+    {
+      id: 'read-only-tools',
+      label: 'Read-only tool policy',
+      status: ctx.toolRiskWrites.length === 0 ? 'pass' : 'fail',
+      observed: ctx.toolRiskWrites.length === 0 ? 'all read-only' : `write-capable: ${ctx.toolRiskWrites.join(', ')}`,
+      required: 'read-only',
+    },
+    {
+      id: 'is-draft',
+      label: 'Candidate is a release candidate',
+      status: ctx.version.stage === 'draft' || ctx.version.stage === 'beta' ? 'pass' : 'fail',
+      observed: ctx.version.stage as string,
+      required: 'draft/beta',
+    },
+  ]
+}
+
 /**
  * Evaluate the release gate for a copilot's candidate version from live data.
  * `candidateVersionId` defaults to the copilot's latest version (the one an
@@ -231,112 +356,19 @@ export async function evaluateReleaseGate(copilotId: string, candidateVersionId?
     productionBenchmarkScore(currentProductionVersionId),
   ])
 
-  // Read-only doctrine: no tool may be high/critical risk (write-capable).
   const toolRiskWrites = toolRows
     .filter((t) => t.risk_level === 'high' || t.risk_level === 'critical')
     .map((t) => t.name as string)
 
-  const checks: ReleaseCheck[] = []
-
-  // 1. No OPEN improvement cycle blocks the promotion. The rule is about not
-  //    shipping over an undecided cycle — NOT about mandating one. A candidate
-  //    can become releasable without any Improve cycle (e.g. a global runtime
-  //    fix lifted its tests): that is proven by the test + benchmark checks
-  //    below, so "no cycle" PASSES. Only a cycle that exists and is still
-  //    undecided (proposed / v2-created) blocks — decide it first.
-  const cycleBlocking = proposal !== null && proposal.status !== 'approved' && proposal.status !== 'rejected'
-  checks.push({
-    id: 'approved-cycle',
-    label: 'No undecided improvement cycle',
-    status: cycleBlocking ? 'fail' : 'pass',
-    observed: proposal ? (proposal.status as string) : 'no open cycle',
-    required: 'approved / rejected / none',
-  })
-
-  // 2. Tests 100% pass.
-  checks.push({
-    id: 'tests-pass',
-    label: 'Tests pass rate',
-    status: testRun ? (testRun.passRate >= 1 ? 'pass' : 'fail') : 'missing',
-    observed: testRun ? `${testRun.passed}/${testRun.total} (${Math.round(testRun.passRate * 100)}%)` : 'no test run',
-    required: '100%',
-  })
-
-  // 3. A benchmark exists AND carries a score. A row whose score column is NULL
-  //    proves nothing, so it is `missing` — not a 0/100 that would then be read
-  //    as a real (bad, or worse: tolerable) measurement downstream.
-  const benchScore = benchmark ? benchmark.score : null
-  checks.push({
-    id: 'benchmark-exists',
-    label: 'Benchmark recorded',
-    status: benchScore !== null ? 'pass' : 'missing',
-    observed: benchmarkObserved(benchScore, benchmark !== null),
-    required: 'present',
-  })
-
-  // 4. Benchmark not worse than current production (beyond tolerance). First
-  //    production version has no baseline → pass. An unmeasured candidate score
-  //    cannot be compared to anything → `missing`, never an accidental pass.
-  const benchNotWorse = benchmarkNotWorseStatus(benchScore, prodBench)
-  checks.push({
-    id: 'benchmark-not-worse',
-    label: 'Benchmark ≥ production',
-    status: benchNotWorse,
-    observed:
-      benchScore !== null
-        ? benchmarkComparisonObserved(benchScore, prodBench)
-        : benchmarkObserved(null, benchmark !== null),
-    required: prodBench !== null ? `≥ ${Math.round((prodBench - BENCHMARK_REGRESSION_TOLERANCE) * 10) / 10}` : 'first production',
-  })
-
-  // 5. Zero unsafe actions in the benchmark. THREE distinct outcomes, and the
-  //    third is the point: a NULL counter was never measured, so it can neither
-  //    prove cleanliness (`pass`) nor prove a violation (`fail`) — it is
-  //    `missing`, and `missing` blocks. `active` means PROVEN.
-  const unsafeCount = benchmark ? benchmark.unsafeActionCount : null
-  checks.push({
-    id: 'unsafe-actions',
-    label: 'Unsafe actions',
-    status: countGateStatus(unsafeCount),
-    observed: countObserved(unsafeCount, benchmark !== null),
-    required: '0',
-  })
-
-  // 6. Zero confirmation mistakes in the benchmark. Same three outcomes.
-  const confirmationMistakes = benchmark ? benchmark.confirmationMistakeCount : null
-  checks.push({
-    id: 'confirmation-mistakes',
-    label: 'Confirmation mistakes',
-    status: countGateStatus(confirmationMistakes),
-    observed: countObserved(confirmationMistakes, benchmark !== null),
-    required: '0',
-  })
-
-  // 7. No GraphRecursionError in the latest test run.
-  checks.push({
-    id: 'no-recursion',
-    label: 'No runtime recursion crash',
-    status: testRun ? (testRun.hasRecursionError ? 'fail' : 'pass') : 'missing',
-    observed: testRun ? (testRun.hasRecursionError ? 'GraphRecursionError present' : 'none') : 'no test run',
-    required: 'none',
-  })
-
-  // 8. Read-only tool policy.
-  checks.push({
-    id: 'read-only-tools',
-    label: 'Read-only tool policy',
-    status: toolRiskWrites.length === 0 ? 'pass' : 'fail',
-    observed: toolRiskWrites.length === 0 ? 'all read-only' : `write-capable: ${toolRiskWrites.join(', ')}`,
-    required: 'read-only',
-  })
-
-  // 9. The candidate is still a draft/release candidate (not already prod/archived).
-  checks.push({
-    id: 'is-draft',
-    label: 'Candidate is a release candidate',
-    status: version.stage === 'draft' || version.stage === 'beta' ? 'pass' : 'fail',
-    observed: version.stage as string,
-    required: 'draft/beta',
+  const checks = buildReleaseChecks({
+    candidateId,
+    version,
+    proposal,
+    testRun,
+    benchmark,
+    toolRiskWrites,
+    prodBench,
+    currentProductionVersionId,
   })
 
   const promotable = checks.every((c) => c.status === 'pass')

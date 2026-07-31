@@ -176,7 +176,13 @@ async function resolveBaseVersion(
   if (rows.length === 0) throw new NotFoundError(`version not found: ${versionId}`)
   const manifestId = rows[0].manifest_id as string | null
   if (!manifestId) throw new NotFoundError(`version ${versionId} has no manifest`)
-  return { id: rows[0].id as string, label: (rows[0].label as string) ?? versionId, stage: (rows[0].stage as string) ?? 'draft', manifestId }
+  const row = rows[0]
+  return {
+    id: row.id as string,
+    label: (row.label as string) ?? versionId,
+    stage: (row.stage as string) ?? 'draft',
+    manifestId,
+  }
 }
 
 /**
@@ -214,8 +220,8 @@ async function readLangSmithRuns(limit = 25): Promise<
     if (!queryRes.ok) return { available: false, reason: `LangSmith runs/query ${queryRes.status}` }
     const payload = (await queryRes.json()) as { runs?: Array<Record<string, unknown>> }
     const runs = (payload.runs ?? []).map((r) => {
-      const start = typeof r.start_time === 'string' ? Date.parse(r.start_time) : NaN
-      const end = typeof r.end_time === 'string' ? Date.parse(r.end_time) : NaN
+      const start = typeof r.start_time === 'string' ? Date.parse(r.start_time) : Number.NaN
+      const end = typeof r.end_time === 'string' ? Date.parse(r.end_time) : Number.NaN
       return {
         name: typeof r.name === 'string' ? r.name : 'run',
         status: typeof r.status === 'string' ? r.status : 'unknown',
@@ -810,7 +816,7 @@ export async function analyzeAndPropose(copilotId: string, triggeredBy: string):
 
 /** "v0.1.0-draft" → "v0.2.0-draft"; anything unparsable → "<label>-v2". */
 function bumpLabel(baseLabel: string): string {
-  const match = baseLabel.match(/^v(\d+)\.(\d+)\.(\d+)/)
+  const match = /^v(\d+)\.(\d+)\.(\d+)/.exec(baseLabel)
   if (!match) return `${baseLabel}-v2`
   return `v${match[1]}.${Number(match[2]) + 1}.0-draft`
 }
@@ -978,7 +984,12 @@ async function latestTestRunFor(suiteId: string, versionId: string): Promise<Sui
     `test_runs?${eq('suite_id', suiteId)}&${eq('version_id', versionId)}&status=eq.completed&select=id,pass_rate,finished_at&order=started_at.desc&limit=1`
   )
   const r = rows[0]
-  return r ? { runId: r.id as string, passRate: (r.pass_rate as number) ?? 0, finishedAt: (r.finished_at as string | null) ?? null } : null
+  if (!r) return null
+  return {
+    runId: r.id as string,
+    passRate: (r.pass_rate as number) ?? 0,
+    finishedAt: (r.finished_at as string | null) ?? null,
+  }
 }
 
 async function latestBenchmarkFor(suiteId: string, versionId: string): Promise<BenchmarkComparison['v1']> {
@@ -988,7 +999,11 @@ async function latestBenchmarkFor(suiteId: string, versionId: string): Promise<B
   )
   if (!rows[0]) return null
   const resultRows = await pgrest<RawRow[]>('GET', `benchmark_results?${eq('run_id', rows[0].id as string)}&select=score`)
-  return resultRows[0] ? { runId: rows[0].id as string, score: (resultRows[0].score as number) ?? 0 } : null
+  if (!resultRows[0]) return null
+  return {
+    runId: rows[0].id as string,
+    score: (resultRows[0].score as number) ?? 0,
+  }
 }
 
 /** Latest completed run per suite for each version — the V1 vs V2 table. */

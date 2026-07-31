@@ -86,7 +86,7 @@ function optString(args: Record<string, unknown>, key: string): string | undefin
 function parseNumericArg(v: unknown): number {
   if (typeof v === 'number') return v
   if (typeof v === 'string') return Number(v)
-  return NaN
+  return Number.NaN
 }
 
 /** Read an optional positive integer arg, clamped to [1, cap]; else fallback. */

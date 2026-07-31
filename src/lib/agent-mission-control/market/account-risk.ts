@@ -197,7 +197,7 @@ export async function readAccountRisk(
   asOf = Date.now(),
 ): Promise<AccountRiskSnapshot | null> {
   const cached = cache.get(accountId)
-  if (cached && cached.expiresAt > asOf) return cached.snapshot
+  if (cached?.expiresAt && cached.expiresAt > asOf) return cached.snapshot
   if (cached) cache.delete(accountId)
 
   const remote = await fetchTradeAgentAccountRisk(accountId)

@@ -77,10 +77,39 @@ const REFERENCE_PATTERNS = [
 
 /** Retire commentaires et littéraux : un nom de table cité en prose n'est pas une référence. */
 function strip(sql) {
-  return sql
-    .replace(/--[^\n]*/g, ' ')
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .replace(/'(?:[^']|'')*'/g, "''")
+  let out = ''
+  let i = 0
+  while (i < sql.length) {
+    if (sql[i] === '-' && sql[i + 1] === '-') {
+      while (i < sql.length && sql[i] !== '\n') i += 1
+      out += ' '
+      continue
+    }
+    if (sql[i] === '/' && sql[i + 1] === '*') {
+      i += 2
+      while (i < sql.length && !(sql[i] === '*' && sql[i + 1] === '/')) i += 1
+      i += 2
+      out += ' '
+      continue
+    }
+    if (sql[i] === "'") {
+      out += "''"
+      i += 1
+      while (i < sql.length) {
+        if (sql[i] === "'") {
+          if (sql[i + 1] === "'") i += 2
+          else {
+            i += 1
+            break
+          }
+        } else i += 1
+      }
+      continue
+    }
+    out += sql[i]
+    i += 1
+  }
+  return out
 }
 
 function collect(re, text) {

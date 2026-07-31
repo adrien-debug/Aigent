@@ -465,7 +465,7 @@ async function runArchitectLoop(
     )
 
     const previewCall = outcome.toolCalls?.find((t) => t.type === 'function' && t.function.name === 'update_preview')
-    if (previewCall && previewCall.type === 'function') {
+    if (previewCall?.type === 'function') {
       previewPatch = parsePreviewToolArgs(previewCall.function.arguments)
     }
 

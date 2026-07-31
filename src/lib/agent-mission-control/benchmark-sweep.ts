@@ -228,7 +228,7 @@ export async function runBenchmarkSweep(
   const refuseRuntime = judgeOnly && args.allowJudgeOnlySweep !== true
 
   const demand =
-    args.contextProbeTexts && args.contextProbeTexts.length > 0
+    args.contextProbeTexts?.length && args.contextProbeTexts.length > 0
       ? estimatePromptTokens(args.contextProbeTexts) +
         (args.reservedOutputTokens ?? DEFAULT_RESERVED_OUTPUT_TOKENS)
       : null

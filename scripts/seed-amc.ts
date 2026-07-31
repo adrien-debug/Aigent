@@ -37,10 +37,10 @@ function sqlLit(v: unknown): string {
     if (v.every((x) => typeof x === 'string')) {
       return `ARRAY[${v.map((x) => sqlLit(x)).join(',')}]::text[]`
     }
-    return `'${JSON.stringify(v).replace(/'/g, "''")}'::jsonb`
+    return `'${JSON.stringify(v).replaceAll("'", "''")}'::jsonb`
   }
-  if (typeof v === 'object') return `'${JSON.stringify(v).replace(/'/g, "''")}'::jsonb`
-  return `'${String(v).replace(/'/g, "''")}'`
+  if (typeof v === 'object') return `'${JSON.stringify(v).replaceAll("'", "''")}'::jsonb`
+  return `'${String(v).replaceAll("'", "''")}'`
 }
 
 // camelCase → snake_case ; cas particulier : suffixe 7d → _7d (calls_last_7d),

@@ -194,6 +194,7 @@ export async function resolveCopilotHealthBatch(
   for (const id of copilotIds) {
     const t = testByCopilot.get(id)
     const b = benchByCopilot.get(id)
+    const avgLatencyMs = t ? (latencyByRunId.get(t.id) ?? null) : null
     out.set(id, {
       testPassRate: t ? t.passRate : null,
       latestTestRunId: t ? t.id : null,
@@ -201,7 +202,7 @@ export async function resolveCopilotHealthBatch(
       benchmarkScore: b ? b.score : null,
       latestBenchmarkRunId: b ? b.id : null,
       latestBenchmarkRunAt: b ? b.at : null,
-      avgLatencyMs: t ? latencyByRunId.get(t.id) ?? null : null,
+      avgLatencyMs,
       evidenceSource: t || b ? 'runs' : 'none',
     })
   }
@@ -287,8 +288,8 @@ export async function resolveVersionScoresBatch(versionIds: string[]): Promise<M
   for (const vid of versionIds) {
     const testPassRate = passRateByVersion.has(vid) ? passRateByVersion.get(vid)! : null
     const benchRunId = newestBenchRunByVersion.get(vid)
-    const benchmarkScore = benchRunId && scoreByRunId.has(benchRunId) ? scoreByRunId.get(benchRunId)! : null
-    const unsafeActionCount = benchRunId && unsafeByRunId.has(benchRunId) ? unsafeByRunId.get(benchRunId)! : null
+    const benchmarkScore = benchRunId != null && scoreByRunId.has(benchRunId) ? scoreByRunId.get(benchRunId)! : null
+    const unsafeActionCount = benchRunId != null && unsafeByRunId.has(benchRunId) ? unsafeByRunId.get(benchRunId)! : null
     out.set(vid, {
       testPassRate,
       benchmarkScore,

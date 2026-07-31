@@ -37,7 +37,7 @@ export interface RiskAssessment {
   unavailable_inputs: string[]
 }
 
-function numeric(value: string | number | null | undefined): number | null {
+function numeric(value?: string | number | null): number | null {
   if (value === null || value === undefined || value === '') return null
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : null

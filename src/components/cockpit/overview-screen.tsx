@@ -6,15 +6,47 @@
  *
  * Server Component : l'histogramme est le seul module client (Recharts).
  */
+import type { ReactNode } from 'react'
 import type { DashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
 import { buildHourlyBuckets, buildStatusBreakdown } from '@/lib/cockpit/overview-series'
 import { buildAgentCards, buildNamedRuns } from '@/lib/cockpit/named-runs'
-import type { ProjectCard } from '@/lib/cockpit/named-runs'
+import type { AgentCard, NamedRun, ProjectCard } from '@/lib/cockpit/named-runs'
 import { HourlyRunsChart, StatusLegend } from './charts'
 import KpiStrip from './kpi-strip'
 import RunStream from './run-stream'
 import { AgentRow, ProjectRow } from './rows'
 import { Panel, Unavailable } from './primitives'
+
+function renderRunStreamPanel(runs: NamedRun[] | null, nowMs: number): ReactNode {
+  if (runs === null) {
+    return <Unavailable reason="unread" detail="La fenêtre de runs n'a pas pu être lue." />
+  }
+  if (runs.length === 0) {
+    return <Unavailable reason="no-data" detail="Aucun run sur les dernières 24 heures." />
+  }
+  return <RunStream runs={runs} nowMs={nowMs} />
+}
+
+function renderAgentRoster(agents: AgentCard[] | null, nowMs: number): ReactNode {
+  if (agents === null) {
+    return <Unavailable reason="unread" detail="La fenêtre de runs n'a pas pu être lue." />
+  }
+  if (agents.length === 0) {
+    return (
+      <Unavailable
+        reason="no-data"
+        detail="Aucun agent n'a tourné sur les dernières 24 heures."
+      />
+    )
+  }
+  return (
+    <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
+      {agents.map((card) => (
+        <AgentRow key={card.copilotId} card={card} nowMs={nowMs} />
+      ))}
+    </ul>
+  )
+}
 
 export default function CockpitOverview({
   overview,
@@ -70,13 +102,7 @@ export default function CockpitOverview({
           className="min-w-0"
           padded={false}
         >
-          {runs === null ? (
-            <Unavailable reason="unread" detail="La fenêtre de runs n'a pas pu être lue." />
-          ) : runs.length === 0 ? (
-            <Unavailable reason="no-data" detail="Aucun run sur les dernières 24 heures." />
-          ) : (
-            <RunStream runs={runs} nowMs={nowMs} />
-          )}
+          {renderRunStreamPanel(runs, nowMs)}
         </Panel>
 
         <div className="flex flex-col gap-4">
@@ -85,20 +111,7 @@ export default function CockpitOverview({
             hint={agents ? `${agents.length} ont tourné` : undefined}
             padded={false}
           >
-            {agents === null ? (
-              <Unavailable reason="unread" detail="La fenêtre de runs n'a pas pu être lue." />
-            ) : agents.length === 0 ? (
-              <Unavailable
-                reason="no-data"
-                detail="Aucun agent n'a tourné sur les dernières 24 heures."
-              />
-            ) : (
-              <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
-                {agents.map((card) => (
-                  <AgentRow key={card.copilotId} card={card} nowMs={nowMs} />
-                ))}
-              </ul>
-            )}
+            {renderAgentRoster(agents, nowMs)}
           </Panel>
 
           <Panel

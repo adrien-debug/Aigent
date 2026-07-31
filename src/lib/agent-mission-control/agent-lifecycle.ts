@@ -404,7 +404,7 @@ function decideCapability(proposal: ImprovementProposal | null): Capability {
 function promoteCapability(
   gate: ReleaseGate | null,
   gateError: string | null,
-  productionVersionId: string | null | undefined
+  productionVersionId?: string | null
 ): Capability {
   if (gateError !== null) {
     return unavailable(

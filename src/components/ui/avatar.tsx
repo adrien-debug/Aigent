@@ -4,13 +4,13 @@ import React, { forwardRef } from 'react'
 import { TouchTarget } from './button'
 import { Link } from './link'
 
-type AvatarProps = {
+type AvatarProps = Readonly<{
   src?: string | null
   square?: boolean
   initials?: string
   alt?: string
   className?: string
-}
+}>
 
 export function Avatar({
   src = null,
@@ -19,7 +19,7 @@ export function Avatar({
   alt = '',
   className,
   ...props
-}: AvatarProps & React.ComponentPropsWithoutRef<'span'>) {
+}: Readonly<AvatarProps & React.ComponentPropsWithoutRef<'span'>>) {
   return (
     <span
       data-slot="avatar"
@@ -58,11 +58,13 @@ export const AvatarButton = forwardRef(function AvatarButton(
     alt,
     className,
     ...props
-  }: AvatarProps &
-    (
-      | ({ href?: never } & Omit<Headless.ButtonProps, 'as' | 'className'>)
-      | ({ href: string } & Omit<React.ComponentPropsWithoutRef<typeof Link>, 'className'>)
-    ),
+  }: Readonly<
+    AvatarProps &
+      (
+        | ({ href?: never } & Omit<Headless.ButtonProps, 'as' | 'className'>)
+        | ({ href: string } & Omit<React.ComponentPropsWithoutRef<typeof Link>, 'className'>)
+      )
+  >,
   ref: React.ForwardedRef<HTMLButtonElement>
 ) {
   const classes = clsx(

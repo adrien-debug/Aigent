@@ -349,7 +349,7 @@ function toAvailableAgent(input: {
   // A run only proves the model it executed when the writer marked it verified.
   // `model_unverified` defaults to true at the DB level, so an old row or a
   // silent runner reads as unverified — surfaced as null, never trusted.
-  const executedModel = lastRun && lastRun.model_unverified === false ? nonEmpty(lastRun.resolved_model) : null
+  const executedModel = lastRun?.model_unverified === false ? nonEmpty(lastRun.resolved_model) : null
   if (executedModel === null) unavailableFields.push('executedModel')
 
   const declaredToolIds = manifest?.tool_ids ?? []

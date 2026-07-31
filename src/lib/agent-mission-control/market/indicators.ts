@@ -92,7 +92,7 @@ export function computeVolatilityState(
   opts: { atrWindow?: number; stdevWindow?: number } = {},
 ): VolatilityState | null {
   if (candles.length === 0) return null
-  const interval = candles[candles.length - 1].interval
+  const interval = candles.at(-1)!.interval
   const atrWindow = opts.atrWindow ?? 14
   const stdevWindow = opts.stdevWindow ?? 20
   const atr = computeATR(candles, atrWindow)
@@ -129,7 +129,7 @@ export function computeMarketStructure(
   opts: { pivotLookback?: number; maxLevels?: number } = {},
 ): MarketStructure | null {
   if (candles.length < 5) return null
-  const interval = candles[candles.length - 1].interval
+  const interval = candles.at(-1)!.interval
   const lookback = opts.pivotLookback ?? 2
   const maxLevels = opts.maxLevels ?? 3
 
@@ -139,7 +139,7 @@ export function computeMarketStructure(
   if (closes.some((c) => c === null)) return null
 
   const first = closes[0] as number
-  const last = closes[closes.length - 1] as number
+  const last = closes.at(-1) as number
   const atr = computeATR(candles, Math.min(14, candles.length - 1)) ?? 0
   const drift = last - first
   let trend: MarketStructure['trend']

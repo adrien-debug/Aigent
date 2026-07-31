@@ -230,7 +230,7 @@ async function loadManifestRunConfig(
   versionId: string
 ): Promise<{ tools: RunnerTool[]; maxCostUsd: number | null; forbiddenActions: string[] }> {
   const versionRows = await pgrest<RawRow[]>('GET', `copilot_versions?id=eq.${encodeURIComponent(versionId)}&select=manifest_id`)
-  const manifestId = versionRows[0]?.manifest_id as string | null | undefined
+  const manifestId = versionRows[0]?.manifest_id as string | null
   if (!manifestId) return { tools: [], maxCostUsd: null, forbiddenActions: [] }
 
   const manifestRows = await pgrest<RawRow[]>(
@@ -246,7 +246,7 @@ async function loadManifestRunConfig(
     ? (rawForbidden as unknown[]).filter((e): e is string => typeof e === 'string')
     : []
 
-  const toolIds = (manifestRows[0]?.tool_ids as string[] | null | undefined) ?? []
+  const toolIds = (manifestRows[0]?.tool_ids as string[] | null) ?? []
   if (toolIds.length === 0) return { tools: [], maxCostUsd, forbiddenActions }
 
   const inList = toolIds.map((id) => `"${id}"`).join(',')

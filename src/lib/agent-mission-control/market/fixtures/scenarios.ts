@@ -112,7 +112,7 @@ function build(
     description,
     interval,
     candles,
-    asOf: candles[candles.length - 1].closeTime,
+    asOf: candles.at(-1)!.closeTime,
   }
 }
 

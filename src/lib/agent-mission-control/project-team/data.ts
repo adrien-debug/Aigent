@@ -104,7 +104,7 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
 const encodeIds = (ids: readonly string[]): string => ids.map((id) => encodeURIComponent(id)).join(',')
 
 /** UTC day key (YYYY-MM-DD) — `runsToday` is defined on the current UTC day. */
-function utcDayKey(iso: string | null | undefined): string | null {
+function utcDayKey(iso?: string | null): string | null {
   if (typeof iso !== 'string' || iso.length === 0) return null
   const ms = Date.parse(iso)
   if (Number.isNaN(ms)) return null

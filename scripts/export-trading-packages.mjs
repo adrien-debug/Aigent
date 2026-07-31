@@ -76,7 +76,7 @@ function sortValue(v) {
 }
 /** Deterministic serialization: sorted keys, 2-space, LF, trailing newline. */
 function canonical(obj) {
-  return JSON.stringify(sortValue(obj), null, 2).replace(/\r\n/g, '\n') + '\n'
+  return JSON.stringify(sortValue(obj), null, 2).replaceAll('\r\n', '\n') + '\n'
 }
 function sha256(str) {
   return createHash('sha256').update(str, 'utf8').digest('hex')
@@ -128,7 +128,7 @@ const AGENT_CONTEXT_PAIRS = ['BTCUSDT', 'BTCUSDC']
  * never presented as LIVE). Never upgraded here.
  */
 function evidenceLevel(scores) {
-  return (scores && scores.evidenceLevel) || 'UNAVAILABLE'
+  return (scores?.evidenceLevel) || 'UNAVAILABLE'
 }
 
 /**

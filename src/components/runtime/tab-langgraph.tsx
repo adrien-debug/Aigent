@@ -31,6 +31,12 @@ import { provisioningState } from './model'
 
 /* ──────────────────────────── L'endpoint ────────────────────────────── */
 
+function threadStatusBadgeColor(status: string): 'amber' | 'red' | 'zinc' {
+  if (status === 'interrupted') return 'amber'
+  if (status === 'error') return 'red'
+  return 'zinc'
+}
+
 function EndpointPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
   // Le serveur est réputé joignable UNIQUEMENT si une lecture a abouti. On ne
   // déduit rien de la seule présence d'une URL : une URL est une intention.
@@ -325,13 +331,7 @@ function ServerStatePanel({ data }: Readonly<{ data: LangGraphTabData }>) {
                     className="flex items-center gap-2 px-4 py-2"
                   >
                     <Badge
-                      color={
-                        thread.status === 'interrupted'
-                          ? 'amber'
-                          : thread.status === 'error'
-                            ? 'red'
-                            : 'zinc'
-                      }
+                      color={threadStatusBadgeColor(thread.status)}
                       title={
                         thread.status === 'interrupted'
                           ? 'Le run est en pause sur un interrupt et attend une confirmation humaine.'

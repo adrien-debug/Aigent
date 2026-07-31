@@ -28,9 +28,9 @@ const H = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'applic
 
 function parseQuotedField(body, field) {
   const single = body.match(new RegExp(`\\b${field}:\\s*'((?:\\\\'|[^'])*)'`))
-  if (single) return single[1].replace(/\\'/g, "'")
+  if (single) return single[1].replaceAll('\\\'', "'")
   const double = body.match(new RegExp(`\\b${field}:\\s*"((?:\\\\"|[^"])*)"`))
-  if (double) return double[1].replace(/\\"/g, '"')
+  if (double) return double[1].replaceAll('\\"', '"')
   return null
 }
 

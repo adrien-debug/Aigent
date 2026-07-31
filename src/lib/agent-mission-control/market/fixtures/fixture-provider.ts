@@ -77,7 +77,7 @@ export class FixtureMarketProvider extends BaseMarketProvider {
     _ctx: ProviderContext,
   ): Promise<ProviderResult<Ticker>> {
     const scenario = getScenario(this.scenarioId)
-    const last = scenario.candles[scenario.candles.length - 1]
+    const last = scenario.candles.at(-1)!
     const first = scenario.candles[0]
     const highs = scenario.candles.map((c) => Number(c.high))
     const lows = scenario.candles.map((c) => Number(c.low))

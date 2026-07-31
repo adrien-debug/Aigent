@@ -57,7 +57,8 @@ const steps: Step[] = []
 function record(s: Step) {
   steps.push(s)
   const tag = s.ok ? '✓' : '✗'
-  console.log(`${tag} [${s.real.toUpperCase()}] ${s.step} — ${s.detail}${s.defect ? `  ⚠ DEFECT: ${s.defect}` : ''}`)
+  const defectSuffix = s.defect ? `  ⚠ DEFECT: ${s.defect}` : ''
+  console.log(`${tag} [${s.real.toUpperCase()}] ${s.step} — ${s.detail}${defectSuffix}`)
 }
 
 function req(body: unknown) {

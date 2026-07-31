@@ -116,7 +116,7 @@ function encodeSession(session: AdminSession): string {
 }
 
 /** Parse + verify a cookie value; null if malformed, tampered, or expired. */
-export function decodeSession(value: string | undefined | null): AdminSession | null {
+export function decodeSession(value?: string | null): AdminSession | null {
   if (!value) return null
   const dot = value.lastIndexOf('.')
   if (dot <= 0) return null

@@ -33,7 +33,7 @@ export interface LangfuseTraceStep {
   name: string
   /** Rich trace kind ('llm-call' | 'tool-call' | 'judge' | 'fallback' | …). */
   kind: string
-  status: 'ok' | 'warning' | 'blocked' | 'error' | string
+  status: 'ok' | 'warning' | 'blocked' | 'error'
   detail: string
   startedAt: string
   durationMs: number

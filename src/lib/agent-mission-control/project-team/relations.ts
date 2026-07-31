@@ -221,7 +221,7 @@ export const groupNodeId = (team: string): string => `group:${slugifyTeam(team)}
  * Team label for an agent, or `null` when no functional tag matches.
  * A `null` team means the agent attaches directly to the project node.
  */
-export function resolveTeamFromTags(tags: readonly string[] | null | undefined): string | null {
+export function resolveTeamFromTags(tags?: readonly string[] | null): string | null {
   if (!Array.isArray(tags) || tags.length === 0) return null
   const owned = new Set(tags.filter((t) => typeof t === 'string').map((t) => t.toLowerCase()))
   for (const rule of TEAM_TAG_RULES) {
@@ -323,7 +323,7 @@ function isRecent(iso: string | null | undefined, nowMs: number): boolean {
 }
 
 /** The more recent of two ISO timestamps, `null` when neither is usable. */
-function laterOf(a: string | null | undefined, b: string | null | undefined): string | null {
+function laterOf(a?: string | null, b?: string | null): string | null {
   const av = typeof a === 'string' ? Date.parse(a) : Number.NaN
   const bv = typeof b === 'string' ? Date.parse(b) : Number.NaN
   const aOk = !Number.isNaN(av)

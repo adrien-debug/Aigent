@@ -23,6 +23,7 @@
  * · Rendre « une boucle est déjà ouverte » comme une erreur : c'est un
  *   invariant garanti en base, donc une information.
  */
+import type { ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Divider } from '@/components/ui/divider'
 import { Heading } from '@/components/ui/heading'
@@ -193,7 +194,7 @@ type ProductionStatusBadgeProps = {
 function ProductionStatusBadge({
   productionRead,
   productionVersionId,
-}: ProductionStatusBadgeProps) {
+}: Readonly<ProductionStatusBadgeProps>) {
   if (!productionRead) {
     return (
       <Badge color="zinc" title="Le pointeur de production n’a pas pu être lu.">
@@ -220,7 +221,7 @@ function ProductionStatusBadge({
 
 /* ─────────────────────────── En-tête ─────────────────────────── */
 
-function DetailHeader({ detail }: DetailHeaderProps) {
+function DetailHeader({ detail }: Readonly<DetailHeaderProps>) {
   const { copilotName, agent, candidateVersion, productionVersionId, productionRead } = detail
 
   return (
@@ -272,7 +273,7 @@ function DetailHeader({ detail }: DetailHeaderProps) {
  * expliqué, pas deviné — et il affiche une éventuelle divergence entre le rejeu
  * et le champ `executable` du contrat plutôt que de la taire.
  */
-function RunGuardPanel({ agent }: RunGuardPanelProps) {
+function RunGuardPanel({ agent }: Readonly<RunGuardPanelProps>) {
   if (agent === null) {
     return (
       <Panel title="Garde d’exécution" className="min-h-0" bodyClassName="scroll-thin overflow-y-auto">
@@ -350,7 +351,7 @@ function RunGuardPanel({ agent }: RunGuardPanelProps) {
  * échec mais n'affirme pas la même chose, et le confondre avec un `pass` est
  * exactement ce qui promeut une version non prouvée.
  */
-function ReleaseGatePanel({ gate, failure }: ReleaseGatePanelProps) {
+function ReleaseGatePanel({ gate, failure }: Readonly<ReleaseGatePanelProps>) {
   if (gate === null) {
     return (
       <Panel title="Gate de release" className="min-h-0" bodyClassName="scroll-thin overflow-y-auto">
@@ -494,7 +495,7 @@ function ReleaseGatePanel({ gate, failure }: ReleaseGatePanelProps) {
 
 /* ─────────────────────── Gate de promotion ─────────────────────── */
 
-function PromotionGatePanel({ gate, failure }: PromotionGatePanelProps) {
+function PromotionGatePanel({ gate, failure }: Readonly<PromotionGatePanelProps>) {
   if (gate === null) {
     return (
       <Panel title="Gate de promotion" className="min-h-0" bodyClassName="scroll-thin overflow-y-auto">
@@ -556,7 +557,76 @@ function PromotionGatePanel({ gate, failure }: PromotionGatePanelProps) {
 
 /* ─────────────────────── Qualification orchestrée ─────────────────────── */
 
-function QualificationRunPanel({ run, failure }: QualificationRunPanelProps) {
+function QualificationRunPanel({ run, failure }: Readonly<QualificationRunPanelProps>) {
+  let body: ReactNode
+  if (failure !== null) {
+    body = (
+      <Unavailable
+        reason="unread"
+        detail={
+          appendFailureMessage(
+            'Le registre de qualification n’a pas pu être lu :',
+            failure,
+          ) + ' Ce n’est pas « aucune qualification ».'
+        }
+      />
+    )
+  } else if (run === null) {
+    body = (
+      <Unavailable
+        reason="no-data"
+        detail="Aucune qualification n’a été lancée pour la version candidate. La lecture a réussi — la table est vide pour ce candidat, ce n’est pas une panne."
+      />
+    )
+  } else {
+    body = (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <RunStatusBadge status={run.status} />
+          <Badge
+            color={run.policy.requireShadow ? 'amber' : 'zinc'}
+            title="Une preuve shadow est-elle exigée pour promouvoir ce candidat ? La résolution de politique est fail-closed : stricte quand elle est indéterminable."
+          >
+            shadow {run.policy.requireShadow ? 'exigé' : 'non exigé'}
+          </Badge>
+          <Badge
+            color={run.policy.requireReplay ? 'amber' : 'zinc'}
+            title="Une comparaison replay est-elle exigée pour promouvoir ce candidat ?"
+          >
+            replay {run.policy.requireReplay ? 'exigé' : 'non exigé'}
+          </Badge>
+        </div>
+
+        {run.steps.length === 0 ? (
+          <Text>
+            Le parcours est ouvert mais aucune étape n’a encore produit de verdict. Ce n’est pas un
+            échec — rien n’a encore été exécuté.
+          </Text>
+        ) : (
+          <ul className="flex flex-col gap-1.5">
+            {run.steps.map((s) => (
+              <li key={`${s.step}-${s.at}`} className="flex min-w-0 items-start gap-2">
+                <Strong className="w-28 shrink-0 truncate">{STEP_LABEL[s.step]}</Strong>
+                <div className="min-w-0 flex-1">
+                  <Text className="truncate" title={s.reason}>
+                    {s.reason}
+                  </Text>
+                  <Text className="text-xs">source : {s.sourceOfTruth}</Text>
+                </div>
+                <StepStatusBadge status={s.status} />
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <Text className="text-xs">
+          Le parcours s’arrête à la gate : il n’a aucun chemin vers la promotion. Un candidat
+          « promouvable » reste un candidat tant qu’un humain n’a pas agi.
+        </Text>
+      </div>
+    )
+  }
+
   return (
     <Panel
       title="Qualification orchestrée"
@@ -564,74 +634,91 @@ function QualificationRunPanel({ run, failure }: QualificationRunPanelProps) {
       className="min-h-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
-      {failure !== null ? (
-        <Unavailable
-          reason="unread"
-          detail={
-            appendFailureMessage(
-              'Le registre de qualification n’a pas pu être lu :',
-              failure,
-            ) + ' Ce n’est pas « aucune qualification ».'
-          }
-        />
-      ) : run === null ? (
-        <Unavailable
-          reason="no-data"
-          detail="Aucune qualification n’a été lancée pour la version candidate. La lecture a réussi — la table est vide pour ce candidat, ce n’est pas une panne."
-        />
-      ) : (
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <RunStatusBadge status={run.status} />
-            <Badge
-              color={run.policy.requireShadow ? 'amber' : 'zinc'}
-              title="Une preuve shadow est-elle exigée pour promouvoir ce candidat ? La résolution de politique est fail-closed : stricte quand elle est indéterminable."
-            >
-              shadow {run.policy.requireShadow ? 'exigé' : 'non exigé'}
-            </Badge>
-            <Badge
-              color={run.policy.requireReplay ? 'amber' : 'zinc'}
-              title="Une comparaison replay est-elle exigée pour promouvoir ce candidat ?"
-            >
-              replay {run.policy.requireReplay ? 'exigé' : 'non exigé'}
-            </Badge>
-          </div>
-
-          {run.steps.length === 0 ? (
-            <Text>
-              Le parcours est ouvert mais aucune étape n’a encore produit de verdict. Ce n’est pas un
-              échec — rien n’a encore été exécuté.
-            </Text>
-          ) : (
-            <ul className="flex flex-col gap-1.5">
-              {run.steps.map((s) => (
-                <li key={`${s.step}-${s.at}`} className="flex min-w-0 items-start gap-2">
-                  <Strong className="w-28 shrink-0 truncate">{STEP_LABEL[s.step]}</Strong>
-                  <div className="min-w-0 flex-1">
-                    <Text className="truncate" title={s.reason}>
-                      {s.reason}
-                    </Text>
-                    <Text className="text-xs">source : {s.sourceOfTruth}</Text>
-                  </div>
-                  <StepStatusBadge status={s.status} />
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <Text className="text-xs">
-            Le parcours s’arrête à la gate : il n’a aucun chemin vers la promotion. Un candidat
-            « promouvable » reste un candidat tant qu’un humain n’a pas agi.
-          </Text>
-        </div>
-      )}
+      {body}
     </Panel>
   )
 }
 
 /* ─────────────────────── Shadow ─────────────────────── */
 
-function ShadowPanel({ evidence, failure }: ShadowPanelProps) {
+function ShadowPanel({ evidence, failure }: Readonly<ShadowPanelProps>) {
+  let body: ReactNode
+  if (failure !== null) {
+    body = (
+      <Unavailable reason="unread" detail={appendFailureMessage('La preuve shadow n’a pas pu être lue :', failure)} />
+    )
+  } else if (evidence === null) {
+    body = (
+      <Unavailable
+        reason="no-data"
+        detail="Aucune expérience shadow n’existe pour ce candidat. La lecture a réussi — il n’y a rien."
+      />
+    )
+  } else {
+    body = (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge
+            color={shadowVerdictColor(evidence.verdict)}
+            title="INSUFFICIENT_EVIDENCE n’est ni un succès ni un échec : le corpus n’a pas réuni de quoi trancher."
+          >
+            {evidence.verdict ?? 'verdict absent'}
+          </Badge>
+          <Badge color="zinc">{evidence.status}</Badge>
+          <ExecutionModeBadge mode={executionMode(evidence.executionMode)} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+          <Fact
+            label="Runs échantillonnés"
+            value={
+              evidence.sampledRunCount === null ? null : (
+                <FactValue>{evidence.sampledRunCount}</FactValue>
+              )
+            }
+            why="Le compteur d’échantillonnage n’a pas été enregistré pour cette expérience. Aucun run n’en est déduit — c’est un « non mesuré »."
+          />
+          {/* Le hint « un 0 est le résultat attendu » ne s'affiche QUE sur un
+              compteur réellement mesuré. Sur une colonne jamais écrite, il
+              ferait passer une absence de mesure pour une preuve
+              d'innocuité — c'est ce panneau, et pas un autre, où ce mensonge
+              coûte le plus cher. */}
+          <Fact
+            label="Mutations interceptées"
+            value={
+              evidence.wouldMutateCount === null ? null : (
+                <FactValue>{evidence.wouldMutateCount}</FactValue>
+              )
+            }
+            why="Le compteur de mutations n’a JAMAIS été enregistré pour cette expérience. Ce n’est pas « aucune mutation tentée » : rien ne prouve ici que le shadow a intercepté quoi que ce soit."
+            hint={
+              evidence.wouldMutateCount === null
+                ? undefined
+                : 'Appels d’outils mutants qui auraient écrit — interceptés, jamais exécutés. Un 0 est ici un 0 MESURÉ, et c’est le résultat attendu.'
+            }
+          />
+          <Fact
+            label="Démarré"
+            value={isoShort(evidence.startedAt) ? <FactValue>{isoShort(evidence.startedAt)}</FactValue> : null}
+            why="La date de démarrage n’a pas été enregistrée."
+          />
+          <Fact
+            label="Terminé"
+            value={isoShort(evidence.endsAt) ? <FactValue>{isoShort(evidence.endsAt)}</FactValue> : null}
+            why="L’expérience n’a pas de date de fin : elle est en cours, ou elle a été interrompue."
+          />
+        </div>
+
+        {executionMode(evidence.executionMode) !== 'live_langgraph' ? (
+          <Note tone="warn" title="Cette preuve ne satisfait pas un check shadow exigé">
+            Seule une exécution <code>live_langgraph</code> est acceptée par une gate qui exige le
+            shadow. Une simulation prouve la mécanique du moteur, pas le comportement du candidat.
+          </Note>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <Panel
       title="Shadow"
@@ -639,75 +726,7 @@ function ShadowPanel({ evidence, failure }: ShadowPanelProps) {
       className="min-h-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
-      {failure !== null ? (
-        <Unavailable reason="unread" detail={appendFailureMessage('La preuve shadow n’a pas pu être lue :', failure)} />
-      ) : evidence === null ? (
-        <Unavailable
-          reason="no-data"
-          detail="Aucune expérience shadow n’existe pour ce candidat. La lecture a réussi — il n’y a rien."
-        />
-      ) : (
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge
-              color={shadowVerdictColor(evidence.verdict)}
-              title="INSUFFICIENT_EVIDENCE n’est ni un succès ni un échec : le corpus n’a pas réuni de quoi trancher."
-            >
-              {evidence.verdict ?? 'verdict absent'}
-            </Badge>
-            <Badge color="zinc">{evidence.status}</Badge>
-            <ExecutionModeBadge mode={executionMode(evidence.executionMode)} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-            <Fact
-              label="Runs échantillonnés"
-              value={
-                evidence.sampledRunCount === null ? null : (
-                  <FactValue>{evidence.sampledRunCount}</FactValue>
-                )
-              }
-              why="Le compteur d’échantillonnage n’a pas été enregistré pour cette expérience. Aucun run n’en est déduit — c’est un « non mesuré »."
-            />
-            {/* Le hint « un 0 est le résultat attendu » ne s'affiche QUE sur un
-                compteur réellement mesuré. Sur une colonne jamais écrite, il
-                ferait passer une absence de mesure pour une preuve
-                d'innocuité — c'est ce panneau, et pas un autre, où ce mensonge
-                coûte le plus cher. */}
-            <Fact
-              label="Mutations interceptées"
-              value={
-                evidence.wouldMutateCount === null ? null : (
-                  <FactValue>{evidence.wouldMutateCount}</FactValue>
-                )
-              }
-              why="Le compteur de mutations n’a JAMAIS été enregistré pour cette expérience. Ce n’est pas « aucune mutation tentée » : rien ne prouve ici que le shadow a intercepté quoi que ce soit."
-              hint={
-                evidence.wouldMutateCount === null
-                  ? undefined
-                  : 'Appels d’outils mutants qui auraient écrit — interceptés, jamais exécutés. Un 0 est ici un 0 MESURÉ, et c’est le résultat attendu.'
-              }
-            />
-            <Fact
-              label="Démarré"
-              value={isoShort(evidence.startedAt) ? <FactValue>{isoShort(evidence.startedAt)}</FactValue> : null}
-              why="La date de démarrage n’a pas été enregistrée."
-            />
-            <Fact
-              label="Terminé"
-              value={isoShort(evidence.endsAt) ? <FactValue>{isoShort(evidence.endsAt)}</FactValue> : null}
-              why="L’expérience n’a pas de date de fin : elle est en cours, ou elle a été interrompue."
-            />
-          </div>
-
-          {executionMode(evidence.executionMode) !== 'live_langgraph' ? (
-            <Note tone="warn" title="Cette preuve ne satisfait pas un check shadow exigé">
-              Seule une exécution <code>live_langgraph</code> est acceptée par une gate qui exige le
-              shadow. Une simulation prouve la mécanique du moteur, pas le comportement du candidat.
-            </Note>
-          ) : null}
-        </div>
-      )}
+      {body}
     </Panel>
   )
 }
@@ -727,8 +746,61 @@ function ReplayPanel({
   failure,
   productionVersionId,
   productionRead,
-}: ReplayPanelProps) {
+}: Readonly<ReplayPanelProps>) {
   const feasibility = replayFeasibility(productionVersionId, productionRead)
+
+  let evidenceBody: ReactNode
+  if (failure !== null) {
+    evidenceBody = (
+      <Unavailable reason="unread" detail={appendFailureMessage('La preuve replay n’a pas pu être lue :', failure)} />
+    )
+  } else if (evidence === null) {
+    evidenceBody = (
+      <Unavailable
+        reason="no-data"
+        detail={
+          feasibility === 'no-baseline'
+            ? 'Aucune comparaison replay n’existe — et il ne pouvait pas en exister, faute de baseline. Ce n’est pas un replay qui a échoué.'
+            : 'Aucune comparaison replay n’existe pour ce candidat. La lecture a réussi — il n’y a rien.'
+        }
+      />
+    )
+  } else {
+    evidenceBody = (
+      <>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge
+            color={replayVerdictColor(evidence.verdict)}
+            title="INCONCLUSIVE n’est pas WORSE : la comparaison n’a pas réuni de quoi trancher."
+          >
+            {evidence.verdict ?? 'verdict absent'}
+          </Badge>
+          <Badge color="zinc">{evidence.status}</Badge>
+          <ExecutionModeBadge mode={executionMode(evidence.executionMode)} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+          <Fact
+            label="Cas comparés"
+            value={evidence.caseCount === null ? null : <FactValue>{evidence.caseCount}</FactValue>}
+            why="Le nombre de cas comparés n’a pas été enregistré. « 0 cas » et « on ne sait pas combien de cas » ne disent pas la même chose d’une comparaison."
+          />
+          <Fact
+            label="Créé"
+            value={isoShort(evidence.createdAt) ? <FactValue>{isoShort(evidence.createdAt)}</FactValue> : null}
+            why="La date de création n’a pas été enregistrée."
+          />
+        </div>
+
+        {executionMode(evidence.executionMode) !== 'live_langgraph' ? (
+          <Note tone="warn" title="Cette preuve ne satisfait pas un check replay exigé">
+            Seule une exécution <code>live_langgraph</code> — la référence ET le candidat
+            réellement rejoués — est acceptée par une gate qui exige le replay.
+          </Note>
+        ) : null}
+      </>
+    )
+  }
 
   return (
     <Panel
@@ -751,51 +823,7 @@ function ReplayPanel({
           </Note>
         ) : null}
 
-        {failure !== null ? (
-          <Unavailable reason="unread" detail={appendFailureMessage('La preuve replay n’a pas pu être lue :', failure)} />
-        ) : evidence === null ? (
-          <Unavailable
-            reason="no-data"
-            detail={
-              feasibility === 'no-baseline'
-                ? 'Aucune comparaison replay n’existe — et il ne pouvait pas en exister, faute de baseline. Ce n’est pas un replay qui a échoué.'
-                : 'Aucune comparaison replay n’existe pour ce candidat. La lecture a réussi — il n’y a rien.'
-            }
-          />
-        ) : (
-          <>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge
-                color={replayVerdictColor(evidence.verdict)}
-                title="INCONCLUSIVE n’est pas WORSE : la comparaison n’a pas réuni de quoi trancher."
-              >
-                {evidence.verdict ?? 'verdict absent'}
-              </Badge>
-              <Badge color="zinc">{evidence.status}</Badge>
-              <ExecutionModeBadge mode={executionMode(evidence.executionMode)} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-              <Fact
-                label="Cas comparés"
-                value={evidence.caseCount === null ? null : <FactValue>{evidence.caseCount}</FactValue>}
-                why="Le nombre de cas comparés n’a pas été enregistré. « 0 cas » et « on ne sait pas combien de cas » ne disent pas la même chose d’une comparaison."
-              />
-              <Fact
-                label="Créé"
-                value={isoShort(evidence.createdAt) ? <FactValue>{isoShort(evidence.createdAt)}</FactValue> : null}
-                why="La date de création n’a pas été enregistrée."
-              />
-            </div>
-
-            {executionMode(evidence.executionMode) !== 'live_langgraph' ? (
-              <Note tone="warn" title="Cette preuve ne satisfait pas un check replay exigé">
-                Seule une exécution <code>live_langgraph</code> — la référence ET le candidat
-                réellement rejoués — est acceptée par une gate qui exige le replay.
-              </Note>
-            ) : null}
-          </>
-        )}
+        {evidenceBody}
       </div>
     </Panel>
   )
@@ -803,7 +831,91 @@ function ReplayPanel({
 
 /* ─────────────────────── Boucle d'amélioration ─────────────────────── */
 
-function ImprovementPanel({ proposal, failure }: ImprovementPanelProps) {
+function ImprovementPanel({ proposal, failure }: Readonly<ImprovementPanelProps>) {
+  let body: ReactNode
+  if (failure !== null) {
+    body = (
+      <Unavailable
+        reason="unread"
+        detail={
+          appendFailureMessage(
+            'Le registre des propositions n’a pas pu être lu :',
+            failure,
+          ) + ' Ce n’est pas « aucune proposition ».'
+        }
+      />
+    )
+  } else if (proposal === null) {
+    body = (
+      <Unavailable
+        reason="no-data"
+        detail="Aucune boucle d’amélioration n’existe pour ce copilot. La lecture a réussi — la table est vide pour lui."
+      />
+    )
+  } else {
+    body = (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <ProposalStatusBadge status={proposal.status} />
+          {isProposalOpen(proposal) ? (
+            <Badge
+              color="amber"
+              title="Une boucle ouverte attend une décision humaine. La base n’en tolère qu’une par copilot — une nouvelle analyse serait refusée avec un 409."
+            >
+              boucle ouverte
+            </Badge>
+          ) : null}
+        </div>
+
+        <Note
+          tone={isProposalOpen(proposal) ? 'warn' : 'info'}
+          title="La décision humaine est le garde-fou central"
+        >
+          {proposalNextAction(proposal)}
+        </Note>
+
+        <Text>{proposal.summary}</Text>
+
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+          <Fact
+            label="Version de base"
+            value={<FactValue>{proposal.baseVersionId}</FactValue>}
+          />
+          <Fact
+            label="Version V2"
+            value={proposal.v2VersionId ? <FactValue>{proposal.v2VersionId}</FactValue> : null}
+            why="La V2 n’a pas encore été matérialisée : la proposition existe, le brouillon non."
+          />
+          <Fact
+            label="Décidée par"
+            value={proposal.decidedBy ? <FactValue>{proposal.decidedBy}</FactValue> : null}
+            why="Personne n’a encore décidé. C’est exactement ce que la boucle attend."
+          />
+          <Fact
+            label="Décidée le"
+            value={isoShort(proposal.decidedAt) ? <FactValue>{isoShort(proposal.decidedAt)}</FactValue> : null}
+            why="Aucune décision n’a été enregistrée."
+          />
+        </div>
+
+        {proposal.failureAnalysis.length > 0 ? (
+          <div>
+            <Text className="text-xs">Analyse des échecs</Text>
+            <ul className="mt-1 flex flex-col gap-1">
+              {proposal.failureAnalysis.slice(0, 8).map((entry, i) => (
+                <li key={`${entry.caseId ?? 'entry'}-${i}`}>
+                  <Text className="truncate" title={entry.rootCause}>
+                    {entry.rootCause}
+                  </Text>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <Panel
       title="Boucle d’amélioration"
@@ -811,89 +923,50 @@ function ImprovementPanel({ proposal, failure }: ImprovementPanelProps) {
       className="min-h-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
-      {failure !== null ? (
-        <Unavailable
-          reason="unread"
-          detail={
-            appendFailureMessage(
-              'Le registre des propositions n’a pas pu être lu :',
-              failure,
-            ) + ' Ce n’est pas « aucune proposition ».'
-          }
-        />
-      ) : proposal === null ? (
-        <Unavailable
-          reason="no-data"
-          detail="Aucune boucle d’amélioration n’existe pour ce copilot. La lecture a réussi — la table est vide pour lui."
-        />
-      ) : (
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <ProposalStatusBadge status={proposal.status} />
-            {isProposalOpen(proposal) ? (
-              <Badge
-                color="amber"
-                title="Une boucle ouverte attend une décision humaine. La base n’en tolère qu’une par copilot — une nouvelle analyse serait refusée avec un 409."
-              >
-                boucle ouverte
-              </Badge>
-            ) : null}
-          </div>
-
-          <Note
-            tone={isProposalOpen(proposal) ? 'warn' : 'info'}
-            title="La décision humaine est le garde-fou central"
-          >
-            {proposalNextAction(proposal)}
-          </Note>
-
-          <Text>{proposal.summary}</Text>
-
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-            <Fact
-              label="Version de base"
-              value={<FactValue>{proposal.baseVersionId}</FactValue>}
-            />
-            <Fact
-              label="Version V2"
-              value={proposal.v2VersionId ? <FactValue>{proposal.v2VersionId}</FactValue> : null}
-              why="La V2 n’a pas encore été matérialisée : la proposition existe, le brouillon non."
-            />
-            <Fact
-              label="Décidée par"
-              value={proposal.decidedBy ? <FactValue>{proposal.decidedBy}</FactValue> : null}
-              why="Personne n’a encore décidé. C’est exactement ce que la boucle attend."
-            />
-            <Fact
-              label="Décidée le"
-              value={isoShort(proposal.decidedAt) ? <FactValue>{isoShort(proposal.decidedAt)}</FactValue> : null}
-              why="Aucune décision n’a été enregistrée."
-            />
-          </div>
-
-          {proposal.failureAnalysis.length > 0 ? (
-            <div>
-              <Text className="text-xs">Analyse des échecs</Text>
-              <ul className="mt-1 flex flex-col gap-1">
-                {proposal.failureAnalysis.slice(0, 8).map((entry, i) => (
-                  <li key={`${entry.caseId ?? 'entry'}-${i}`}>
-                    <Text className="truncate" title={entry.rootCause}>
-                      {entry.rootCause}
-                    </Text>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-      )}
+      {body}
     </Panel>
   )
 }
 
 /* ─────────────────────── Historique des gates ─────────────────────── */
 
-function GateHistoryPanel({ history, failure }: GateHistoryPanelProps) {
+function GateHistoryPanel({ history, failure }: Readonly<GateHistoryPanelProps>) {
+  let body: ReactNode
+  if (failure !== null) {
+    body = (
+      <Unavailable
+        reason="unread"
+        detail={appendFailureMessage('L’historique des évaluations n’a pas pu être lu :', failure)}
+      />
+    )
+  } else if (history.length === 0) {
+    body = (
+      <Unavailable
+        reason="no-data"
+        detail="Aucune évaluation de gate n’a jamais été persistée pour ce copilot. La lecture a réussi — il n’y a rien."
+      />
+    )
+  } else {
+    body = (
+      <ul className="flex flex-col gap-1.5">
+        {history.map((entry) => (
+          <li key={entry.id} className="flex min-w-0 items-center gap-2">
+            <Text className="shrink-0 tabular-nums">{isoShort(entry.evaluatedAt) ?? '—'}</Text>
+            <Text className="min-w-0 flex-1 truncate" title={entry.versionId}>
+              {entry.versionId}
+            </Text>
+            <Badge
+              color={entry.promotable ? 'emerald' : 'red'}
+              title="Une évaluation archivée est une OBSERVATION datée. Elle ne rouvre aucun droit : la RPC exige une évaluation FRAÎCHE et passante."
+            >
+              {entry.overall}
+            </Badge>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
   return (
     <Panel
       title="Historique des gates"
@@ -901,42 +974,60 @@ function GateHistoryPanel({ history, failure }: GateHistoryPanelProps) {
       className="min-h-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
-      {failure !== null ? (
-        <Unavailable
-          reason="unread"
-          detail={appendFailureMessage('L’historique des évaluations n’a pas pu être lu :', failure)}
-        />
-      ) : history.length === 0 ? (
-        <Unavailable
-          reason="no-data"
-          detail="Aucune évaluation de gate n’a jamais été persistée pour ce copilot. La lecture a réussi — il n’y a rien."
-        />
-      ) : (
-        <ul className="flex flex-col gap-1.5">
-          {history.map((entry) => (
-            <li key={entry.id} className="flex min-w-0 items-center gap-2">
-              <Text className="shrink-0 tabular-nums">{isoShort(entry.evaluatedAt) ?? '—'}</Text>
-              <Text className="min-w-0 flex-1 truncate" title={entry.versionId}>
-                {entry.versionId}
-              </Text>
-              <Badge
-                color={entry.promotable ? 'emerald' : 'red'}
-                title="Une évaluation archivée est une OBSERVATION datée. Elle ne rouvre aucun droit : la RPC exige une évaluation FRAÎCHE et passante."
-              >
-                {entry.overall}
-              </Badge>
-            </li>
-          ))}
-        </ul>
-      )}
+      {body}
     </Panel>
   )
 }
 
 /* ─────────────────────── Versions & suites ─────────────────────── */
 
-function VersionsPanel({ detail }: VersionsPanelProps) {
+function VersionsPanel({ detail }: Readonly<VersionsPanelProps>) {
   const { versions, versionsFailure, productionVersionId, candidateVersion } = detail
+
+  let body: ReactNode
+  if (versionsFailure !== null) {
+    body = (
+      <Unavailable
+        reason="unread"
+        detail={
+          appendFailureMessage(
+            'Le registre des versions n’a pas pu être lu :',
+            versionsFailure,
+          ) + ' Ce n’est pas « aucune version ».'
+        }
+      />
+    )
+  } else if (versions.length === 0) {
+    body = (
+      <Unavailable
+        reason="no-data"
+        detail="Aucune version n’est persistée pour ce copilot. La lecture a réussi — il n’y a rien."
+      />
+    )
+  } else {
+    body = (
+      <ul className="flex flex-col gap-1.5">
+        {versions.map((v) => (
+          <li key={v.id} className="flex min-w-0 items-center gap-2">
+            <Strong className="shrink-0">{v.label}</Strong>
+            <Badge color={v.stage === 'production' ? 'emerald' : 'zinc'}>{v.stage}</Badge>
+            {v.id === productionVersionId ? (
+              <Badge color="emerald" title="Version qui sert réellement la production.">
+                en service
+              </Badge>
+            ) : null}
+            {v.id === candidateVersion?.id && v.id !== productionVersionId ? (
+              <Badge color="sky" title="Version candidate évaluée par cette fiche.">
+                candidat
+              </Badge>
+            ) : null}
+            <span className="min-w-0 flex-1" />
+            <Text className="shrink-0 tabular-nums">{isoShort(v.createdAt) ?? '—'}</Text>
+          </li>
+        ))}
+      </ul>
+    )
+  }
 
   return (
     <Panel
@@ -947,50 +1038,63 @@ function VersionsPanel({ detail }: VersionsPanelProps) {
       className="min-h-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
-      {versionsFailure !== null ? (
-        <Unavailable
-          reason="unread"
-          detail={
-            appendFailureMessage(
-              'Le registre des versions n’a pas pu être lu :',
-              versionsFailure,
-            ) + ' Ce n’est pas « aucune version ».'
-          }
-        />
-      ) : versions.length === 0 ? (
-        <Unavailable
-          reason="no-data"
-          detail="Aucune version n’est persistée pour ce copilot. La lecture a réussi — il n’y a rien."
-        />
-      ) : (
-        <ul className="flex flex-col gap-1.5">
-          {versions.map((v) => (
-            <li key={v.id} className="flex min-w-0 items-center gap-2">
-              <Strong className="shrink-0">{v.label}</Strong>
-              <Badge color={v.stage === 'production' ? 'emerald' : 'zinc'}>{v.stage}</Badge>
-              {v.id === productionVersionId ? (
-                <Badge color="emerald" title="Version qui sert réellement la production.">
-                  en service
-                </Badge>
-              ) : null}
-              {v.id === candidateVersion?.id && v.id !== productionVersionId ? (
-                <Badge color="sky" title="Version candidate évaluée par cette fiche.">
-                  candidat
-                </Badge>
-              ) : null}
-              <span className="min-w-0 flex-1" />
-              <Text className="shrink-0 tabular-nums">{isoShort(v.createdAt) ?? '—'}</Text>
-            </li>
-          ))}
-        </ul>
-      )}
+      {body}
     </Panel>
   )
 }
 
-function SuitesPanel({ detail }: SuitesPanelProps) {
+function SuitesPanel({ detail }: Readonly<SuitesPanelProps>) {
   const { testSuites, testSuitesFailure, benchmarkSuites, benchmarkSuitesFailure } = detail
   const anyFailure = testSuitesFailure ?? benchmarkSuitesFailure
+
+  let body: ReactNode
+  if (anyFailure !== null) {
+    body = (
+      <Unavailable
+        reason="unread"
+        detail={
+          appendFailureMessage(
+            'Le registre des suites n’a pas pu être lu :',
+            anyFailure,
+          ) +
+          ' Ce n’est pas « aucune suite n’existe » — et la génération, qui est facturée, reste éteinte tant qu’on ne sait pas ce qui existe déjà.'
+        }
+      />
+    )
+  } else if (testSuites.length === 0 && benchmarkSuites.length === 0) {
+    body = (
+      <Unavailable
+        reason="no-data"
+        detail="Aucune suite n’existe pour ce copilot. La lecture a réussi. La génération est le premier geste — elle crée la suite, elle ne l’exécute pas."
+      />
+    )
+  } else {
+    body = (
+      <div className="flex flex-col gap-3">
+        {testSuites.length > 0 ? (
+          <ul className="flex flex-col gap-1">
+            {testSuites.map((s) => (
+              <li key={s.id} className="flex min-w-0 items-center gap-2">
+                <Text className="min-w-0 flex-1 truncate">{s.name}</Text>
+                <Badge color="zinc">{s.kind}</Badge>
+                <Badge color="zinc">{s.caseIds.length} cas</Badge>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {benchmarkSuites.length > 0 ? (
+          <ul className="flex flex-col gap-1">
+            {benchmarkSuites.map((s) => (
+              <li key={s.id} className="flex min-w-0 items-center gap-2">
+                <Text className="min-w-0 flex-1 truncate">{s.name}</Text>
+                <Badge color="zinc">{s.taskCount} tâches</Badge>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    )
+  }
 
   return (
     <Panel
@@ -1003,47 +1107,7 @@ function SuitesPanel({ detail }: SuitesPanelProps) {
       className="min-h-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
-      {anyFailure !== null ? (
-        <Unavailable
-          reason="unread"
-          detail={
-            appendFailureMessage(
-              'Le registre des suites n’a pas pu être lu :',
-              anyFailure,
-            ) +
-            ' Ce n’est pas « aucune suite n’existe » — et la génération, qui est facturée, reste éteinte tant qu’on ne sait pas ce qui existe déjà.'
-          }
-        />
-      ) : testSuites.length === 0 && benchmarkSuites.length === 0 ? (
-        <Unavailable
-          reason="no-data"
-          detail="Aucune suite n’existe pour ce copilot. La lecture a réussi. La génération est le premier geste — elle crée la suite, elle ne l’exécute pas."
-        />
-      ) : (
-        <div className="flex flex-col gap-3">
-          {testSuites.length > 0 ? (
-            <ul className="flex flex-col gap-1">
-              {testSuites.map((s) => (
-                <li key={s.id} className="flex min-w-0 items-center gap-2">
-                  <Text className="min-w-0 flex-1 truncate">{s.name}</Text>
-                  <Badge color="zinc">{s.kind}</Badge>
-                  <Badge color="zinc">{s.caseIds.length} cas</Badge>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {benchmarkSuites.length > 0 ? (
-            <ul className="flex flex-col gap-1">
-              {benchmarkSuites.map((s) => (
-                <li key={s.id} className="flex min-w-0 items-center gap-2">
-                  <Text className="min-w-0 flex-1 truncate">{s.name}</Text>
-                  <Badge color="zinc">{s.taskCount} tâches</Badge>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-      )}
+      {body}
     </Panel>
   )
 }
@@ -1099,7 +1163,7 @@ function buildConsoleTarget(detail: QualificationDetail): ConsoleTarget {
   }
 }
 
-export default function QualificationDetailScreen({ detail }: QualificationDetailScreenProps) {
+export default function QualificationDetailScreen({ detail }: Readonly<QualificationDetailScreenProps>) {
   const target = buildConsoleTarget(detail)
 
   return (

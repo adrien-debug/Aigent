@@ -244,7 +244,7 @@ function summarizeCandles(
     }
   }
   const first = candles[0]
-  const last = candles[candles.length - 1]
+  const last = candles.at(-1)!
   const highs = candles.map((candle) => Number(candle.high))
   const lows = candles.map((candle) => Number(candle.low))
   const volumes = candles.map((candle) => Number(candle.volume))

@@ -213,7 +213,7 @@ const READ_TOOLS = [
   { name: 'read_tool_permissions', label: 'Read tool permissions' },
 ]
 
-const toolId = (agentKey, name) => `${PREFIX}tool-${agentKey}-${name.replace(/_/g, '-')}`
+const toolId = (agentKey, name) => `${PREFIX}tool-${agentKey}-${name.replaceAll('_', '-')}`
 
 /**
  * The five lifecycle statuses `copilots.status` allows, one agent each, so every
@@ -719,7 +719,9 @@ async function seed() {
       await req('POST', table, missing, 'return=minimal')
     }
     created += missing.length
-    console.log(`  ${write ? '+' : '·'} ${table.padEnd(24)} ${missing.length} row(s) ${write ? 'inserted' : 'would be inserted'}`)
+    const rowMarker = write ? '+' : '·'
+    const rowVerb = write ? 'inserted' : 'would be inserted'
+    console.log(`  ${rowMarker} ${table.padEnd(24)} ${missing.length} row(s) ${rowVerb}`)
   }
   return { created, skipped }
 }
@@ -739,7 +741,9 @@ async function cleanup() {
     }
     if (write) await req('DELETE', `${table}?id=like.${PREFIX}*`, undefined, 'return=minimal')
     removed += found.length
-    console.log(`  ${write ? '-' : '·'} ${table.padEnd(24)} ${found.length} row(s) ${write ? 'deleted' : 'would be deleted'}`)
+    const deleteMarker = write ? '-' : '·'
+    const deleteVerb = write ? 'deleted' : 'would be deleted'
+    console.log(`  ${deleteMarker} ${table.padEnd(24)} ${found.length} row(s) ${deleteVerb}`)
   }
   return removed
 }
@@ -751,10 +755,14 @@ console.log(`dev proof: ${devProof} · namespace: ${PREFIX}*`)
 try {
   if (clean) {
     const removed = await cleanup()
-    console.log(`\n${write ? '✓' : '◦'} ${removed} seeded row(s) ${write ? 'deleted' : 'would be deleted'}.`)
+    const cleanMarker = write ? '✓' : '◦'
+    const cleanVerb = write ? 'deleted' : 'would be deleted'
+    console.log(`\n${cleanMarker} ${removed} seeded row(s) ${cleanVerb}.`)
   } else {
     const { created, skipped } = await seed()
-    console.log(`\n${write ? '✓' : '◦'} ${created} row(s) ${write ? 'inserted' : 'would be inserted'}, ${skipped} already present.`)
+    const seedMarker = write ? '✓' : '◦'
+    const insertVerb = write ? 'inserted' : 'would be inserted'
+    console.log(`\n${seedMarker} ${created} row(s) ${insertVerb}, ${skipped} already present.`)
     if (!write) console.log('  Nothing was written. Re-run with --write to apply.')
   }
 } catch (err) {

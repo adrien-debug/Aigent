@@ -20,7 +20,7 @@ export function Table({
   className,
   children,
   ...props
-}: { bleed?: boolean; dense?: boolean; grid?: boolean; striped?: boolean } & React.ComponentPropsWithoutRef<'div'>) {
+}: Readonly<{ bleed?: boolean; dense?: boolean; grid?: boolean; striped?: boolean } & React.ComponentPropsWithoutRef<'div'>>) {
   return (
     <TableContext.Provider value={{ bleed, dense, grid, striped } as React.ContextType<typeof TableContext>}>
       <div className="flow-root">
@@ -34,11 +34,11 @@ export function Table({
   )
 }
 
-export function TableHead({ className, ...props }: React.ComponentPropsWithoutRef<'thead'>) {
+export function TableHead({ className, ...props }: Readonly<React.ComponentPropsWithoutRef<'thead'>>) {
   return <thead {...props} className={clsx(className, 'text-zinc-500 dark:text-zinc-400')} />
 }
 
-export function TableBody(props: React.ComponentPropsWithoutRef<'tbody'>) {
+export function TableBody(props: Readonly<React.ComponentPropsWithoutRef<'tbody'>>) {
   return <tbody {...props} />
 }
 
@@ -54,7 +54,7 @@ export function TableRow({
   title,
   className,
   ...props
-}: { href?: string; target?: string; title?: string } & React.ComponentPropsWithoutRef<'tr'>) {
+}: Readonly<{ href?: string; target?: string; title?: string } & React.ComponentPropsWithoutRef<'tr'>>) {
   const { striped } = useContext(TableContext)
 
   return (
@@ -74,7 +74,7 @@ export function TableRow({
   )
 }
 
-export function TableHeader({ className, ...props }: React.ComponentPropsWithoutRef<'th'>) {
+export function TableHeader({ className, ...props }: Readonly<React.ComponentPropsWithoutRef<'th'>>) {
   const { bleed, grid } = useContext(TableContext)
 
   return (
@@ -90,7 +90,7 @@ export function TableHeader({ className, ...props }: React.ComponentPropsWithout
   )
 }
 
-export function TableCell({ className, children, ...props }: React.ComponentPropsWithoutRef<'td'>) {
+export function TableCell({ className, children, ...props }: Readonly<React.ComponentPropsWithoutRef<'td'>>) {
   const { bleed, dense, grid, striped } = useContext(TableContext)
   const { href, target, title } = useContext(TableRowContext)
   const [cellRef, setCellRef] = useState<HTMLElement | null>(null)

@@ -29,7 +29,7 @@ import {
   SidebarSection,
 } from '@/components/ui/sidebar'
 
-function Mark({ className }: { className?: string }) {
+function Mark({ className }: Readonly<{ className?: string }>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden className={className}>
       <path
@@ -59,7 +59,7 @@ function CloseMenuIcon() {
   )
 }
 
-function NavigationSidebar({ pathname }: { pathname: string }) {
+function NavigationSidebar({ pathname }: Readonly<{ pathname: string }>) {
   const current = activeNavHref(pathname)
 
   return (
@@ -100,7 +100,7 @@ function NavigationSidebar({ pathname }: { pathname: string }) {
   )
 }
 
-function MobileNavButton({ onOpen }: { onOpen: () => void }) {
+function MobileNavButton({ onOpen }: Readonly<{ onOpen: () => void }>) {
   return (
     <button
       type="button"
@@ -113,7 +113,7 @@ function MobileNavButton({ onOpen }: { onOpen: () => void }) {
   )
 }
 
-export default function AppShell({ children }: { children?: ReactNode }) {
+export default function AppShell({ children }: Readonly<{ children?: ReactNode }>) {
   const [showSidebar, setShowSidebar] = useState(false)
   const pathname = usePathname() ?? '/'
 

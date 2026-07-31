@@ -23,7 +23,7 @@ export interface TeamRunInput {
 
 export interface DeriveAgentStatusInput {
   /** Raw `copilots.status`. An unrecognized value is treated as incoherent data. */
-  copilotStatus: CopilotStatus | string | null | undefined
+  copilotStatus?: CopilotStatus | string | null
   /** Runs belonging to THIS agent. An empty array is a real fact (never ran), not an error. */
   runs: readonly TeamRunInput[]
   /**
@@ -55,7 +55,7 @@ const TERMINAL_RUN_STATUSES: ReadonlySet<string> = new Set<AgentRunStatus>([
   'blocked',
 ])
 
-export function deriveAvailability(copilotStatus: CopilotStatus | string | null | undefined): AgentAvailability {
+export function deriveAvailability(copilotStatus?: CopilotStatus | string | null): AgentAvailability {
   if (typeof copilotStatus !== 'string' || !KNOWN_COPILOT_STATUSES.has(copilotStatus)) return 'unknown'
   if (copilotStatus === 'draft') return 'draft'
   if (copilotStatus === 'paused' || copilotStatus === 'archived') return 'suspended'
@@ -63,7 +63,7 @@ export function deriveAvailability(copilotStatus: CopilotStatus | string | null 
 }
 
 /** Epoch ms for ordering. Unparseable/missing sorts oldest, never crashes. */
-function timeValue(iso: string | null | undefined): number {
+function timeValue(iso?: string | null): number {
   if (typeof iso !== 'string' || iso.length === 0) return Number.NEGATIVE_INFINITY
   const ms = Date.parse(iso)
   return Number.isNaN(ms) ? Number.NEGATIVE_INFINITY : ms

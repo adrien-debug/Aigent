@@ -139,13 +139,13 @@ export function getRuntime(id: string): RuntimeDefinition | undefined {
  */
 export function isRuntimeExecutable(id: string): boolean {
   const rt = getRuntime(id)
-  return !!rt && rt.engine !== 'none'
+  return (rt?.engine ?? 'none') !== 'none'
 }
 
 /** A runtime is CREATABLE iff an author may select it AND it is executable. */
 export function isRuntimeCreatable(id: string): boolean {
   const rt = getRuntime(id)
-  return !!rt && rt.creatable && rt.engine !== 'none'
+  return !!rt && rt.creatable && (rt?.engine ?? 'none') !== 'none'
 }
 
 /**
@@ -162,8 +162,8 @@ export function runtimeAvailability(id: string): {
   if (!rt || rt.engine === 'none') reasons.push('no-engine')
   if (rt && !rt.creatable) reasons.push('not-creatable')
   return {
-    available: !!rt && rt.engine !== 'none',
-    creatable: !!rt && rt.creatable && rt.engine !== 'none',
+    available: (rt?.engine ?? 'none') !== 'none',
+    creatable: !!rt && rt.creatable && (rt?.engine ?? 'none') !== 'none',
     reasons,
   }
 }

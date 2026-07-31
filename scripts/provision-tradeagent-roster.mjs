@@ -279,9 +279,9 @@ const TOOL_DESCRIPTIONS = {
 /** Parse graded fields from registry/tools.ts for catalogue upserts. */
 function parseQuotedField(body, field) {
   const single = body.match(new RegExp(`\\b${field}:\\s*'((?:\\\\'|[^'])*)'`))
-  if (single) return single[1].replace(/\\'/g, "'")
+  if (single) return single[1].replaceAll('\\\'', "'")
   const double = body.match(new RegExp(`\\b${field}:\\s*"((?:\\\\"|[^"])*)"`))
-  if (double) return double[1].replace(/\\"/g, '"')
+  if (double) return double[1].replaceAll('\\"', '"')
   return null
 }
 
@@ -428,7 +428,7 @@ for (const a of ROSTER) {
   const toolIds = []
   const toolRows = []
   for (const name of a.tools) {
-    const toolId = `tool-${a.slug}-${name.replace(/_/g, '-')}`
+    const toolId = `tool-${a.slug}-${name.replaceAll('_', '-')}`
     toolIds.push(toolId)
     toolRows.push({
       id: toolId,

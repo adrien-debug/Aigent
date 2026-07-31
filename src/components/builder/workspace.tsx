@@ -553,7 +553,7 @@ export default function BuilderWorkspace({
   const confirmer = useCostedConfirm()
   // Le run reçu du serveur peut être remplacé par celui d'une mutation locale :
   // on garde la valeur la plus fraîche sans re-fetch complet.
-  const [liveRun, setLiveRun] = useState<BuilderRunState | null | undefined>(undefined)
+  const [liveRun, setLiveRun] = useState<BuilderRunState | null>()
   const threadRef = useRef<HTMLDivElement | null>(null)
 
   const conversation = bundle?.conversation ?? null

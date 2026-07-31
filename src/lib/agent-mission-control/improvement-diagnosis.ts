@@ -83,7 +83,7 @@ export function diagnoseFailure(input: FailureDiagnosisInput, availableToolNames
 
   // 1. Graph recursion — deterministic, and it PRIMES over any LLM narrative:
   //    no manifest/prompt patch can add a stop condition the graph lacks.
-  const recursionMatch = haystack.match(GRAPH_RECURSION_RE)
+  const recursionMatch = GRAPH_RECURSION_RE.exec(haystack)
   if (recursionMatch) {
     return {
       testCaseId: input.caseId,
@@ -95,7 +95,7 @@ export function diagnoseFailure(input: FailureDiagnosisInput, availableToolNames
   }
 
   // 2. Runtime step budget — the graph stopped itself at its ceiling.
-  const budgetMatch = haystack.match(RUNTIME_LIMIT_RE)
+  const budgetMatch = RUNTIME_LIMIT_RE.exec(haystack)
   if (budgetMatch) {
     return {
       testCaseId: input.caseId,
