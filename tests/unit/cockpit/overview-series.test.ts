@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  buildHourlyBuckets,
-  buildHourlyCost,
-  buildStatusBreakdown,
-  peakTotal,
-} from '@/lib/cockpit/overview-series'
+import { buildHourlyBuckets, buildStatusBreakdown } from '@/lib/cockpit/overview-series'
 import type { AgentRun, AgentRunStatus } from '@/lib/agent-mission-control/types'
 
 const NOW = Date.parse('2026-07-31T12:30:00.000Z')
@@ -103,60 +98,5 @@ describe('buildStatusBreakdown', () => {
     expect(slices!.find((s) => s.status === 'completed')!.count).toBe(2)
     expect(slices!.find((s) => s.status === 'blocked')!.count).toBe(1)
     expect(slices!.find((s) => s.status === 'failed')!.count).toBe(0)
-  })
-})
-
-describe('buildHourlyCost — un cout non mesurable n est pas un cout de zero', () => {
-  it('rend null sur fenetre non lue', () => {
-    expect(buildHourlyCost(null, NOW)).toBeNull()
-  })
-
-  it('compte separement les runs sans cout mesurable au lieu de les sommer comme 0', () => {
-    const series = buildHourlyCost(
-      [
-        run({ startedAt: new Date(NOW).toISOString(), status: 'completed', costUsd: 0.25 }),
-        run({ startedAt: new Date(NOW).toISOString(), status: 'completed', costUsd: null }),
-      ],
-      NOW,
-      24,
-    )
-    const last = series!.at(-1)!
-    expect(last.usd).toBeCloseTo(0.25)
-    expect(last.measuredRuns).toBe(1)
-    expect(last.unmeasuredRuns).toBe(1)
-  })
-
-  it('un cout reellement nul reste une mesure', () => {
-    const series = buildHourlyCost(
-      [run({ startedAt: new Date(NOW).toISOString(), status: 'completed', costUsd: 0 })],
-      NOW,
-      24,
-    )
-    const last = series!.at(-1)!
-    expect(last.usd).toBe(0)
-    expect(last.measuredRuns).toBe(1)
-    expect(last.unmeasuredRuns).toBe(0)
-  })
-})
-
-describe('peakTotal', () => {
-  it('rend null sans serie — pas d echelle inventee', () => {
-    expect(peakTotal(null)).toBeNull()
-  })
-
-  it('rend 0 sur une serie lue mais vide', () => {
-    expect(peakTotal(buildHourlyBuckets([], NOW, 24))).toBe(0)
-  })
-
-  it('rend le pic', () => {
-    const buckets = buildHourlyBuckets(
-      [
-        run({ startedAt: new Date(NOW).toISOString(), status: 'completed' }),
-        run({ startedAt: new Date(NOW).toISOString(), status: 'failed' }),
-      ],
-      NOW,
-      24,
-    )
-    expect(peakTotal(buckets)).toBe(2)
   })
 })

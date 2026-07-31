@@ -7,7 +7,7 @@
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Text } from '@/components/ui/text'
-import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
+import { UNAVAILABLE_LABEL, formatUsd } from '@/lib/agent-mission-control/format'
 import type { NamedRun } from '@/lib/cockpit/named-runs'
 import { timeAgo } from '@/lib/cockpit/named-runs'
 import type { AgentRunStatus } from '@/lib/agent-mission-control/types'
@@ -20,10 +20,6 @@ const STATUS: Record<AgentRunStatus, { color: BadgeColor; label: string }> = {
   'needs-confirmation': { color: 'amber', label: 'À confirmer' },
   blocked: { color: 'violet', label: 'Bloqué' },
   failed: { color: 'rose', label: 'Échoué' },
-}
-
-function fmtUsd(usd: number): string {
-  return usd >= 1 ? `$${usd.toFixed(2)}` : `$${usd.toFixed(4)}`
 }
 
 function fmtDuration(ms: number): string {
@@ -73,7 +69,7 @@ export default function RecentRuns({ runs, nowMs }: { runs: NamedRun[]; nowMs: n
                 {run.costUsd === null ? (
                   <span className="text-zinc-600">{UNAVAILABLE_LABEL}</span>
                 ) : (
-                  fmtUsd(run.costUsd)
+                  formatUsd(run.costUsd)
                 )}
               </TableCell>
               <TableCell className="text-right whitespace-nowrap text-zinc-400">

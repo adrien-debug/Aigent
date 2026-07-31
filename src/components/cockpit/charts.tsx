@@ -15,9 +15,6 @@
 import {
   Bar,
   BarChart,
-  Cell,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -27,7 +24,7 @@ import {
 import type { HourlyBucket, StatusSlice } from '@/lib/cockpit/overview-series'
 import type { AgentRunStatus } from '@/lib/agent-mission-control/types'
 
-/** Une couleur par statut, stable entre l'histogramme et le donut. */
+/** Une couleur par statut, partagée par l'histogramme et sa légende. */
 export const STATUS_COLOR: Record<AgentRunStatus, string> = {
   completed: '#34d399',
   running: '#60a5fa',
@@ -93,42 +90,7 @@ export function HourlyRunsChart({ buckets }: { buckets: HourlyBucket[] }) {
   )
 }
 
-/** Donut de répartition par statut, sur la même fenêtre que l'histogramme. */
-export function StatusDonut({ slices }: { slices: StatusSlice[] }) {
-  const total = slices.reduce((sum, s) => sum + s.count, 0)
-  const data = slices.map((s) => ({ ...s, label: STATUS_LABEL[s.status] }))
-
-  return (
-    <div className="relative h-full w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={data}
-            dataKey="count"
-            nameKey="label"
-            innerRadius="62%"
-            outerRadius="88%"
-            paddingAngle={total === 0 ? 0 : 2}
-            stroke="none"
-            isAnimationActive={false}
-          >
-            {data.map((s) => (
-              <Cell key={s.status} fill={total === 0 ? 'rgba(255,255,255,0.07)' : STATUS_COLOR[s.status]} />
-            ))}
-          </Pie>
-          {total > 0 ? <Tooltip {...tooltipStyle} /> : null}
-        </PieChart>
-      </ResponsiveContainer>
-      {/* Centre du donut : le total, mesuré — 0 est ici une vraie mesure. */}
-      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-xl leading-none font-semibold tabular-nums text-white">{total}</span>
-        <span className="mt-0.5 text-[10px] tracking-wide text-gray-500 uppercase">runs 24 h</span>
-      </div>
-    </div>
-  )
-}
-
-/** Légende partagée par l'histogramme et le donut — une seule grammaire. */
+/** Légende de l'histogramme — un seul vocabulaire de statut pour tout l'écran. */
 export function StatusLegend({ slices }: { slices: StatusSlice[] }) {
   return (
     <ul className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -139,8 +101,8 @@ export function StatusLegend({ slices }: { slices: StatusSlice[] }) {
             className="size-2 shrink-0 rounded-full"
             style={{ background: STATUS_COLOR[s.status] }}
           />
-          <span className="text-[11px] text-gray-400">{STATUS_LABEL[s.status]}</span>
-          <span className="text-[11px] font-semibold tabular-nums text-gray-300">{s.count}</span>
+          <span className="text-xs text-zinc-400">{STATUS_LABEL[s.status]}</span>
+          <span className="text-xs font-semibold tabular-nums text-zinc-200">{s.count}</span>
         </li>
       ))}
     </ul>

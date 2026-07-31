@@ -20,10 +20,6 @@ import { Badge } from '@/components/ui/badge'
 import { Subheading } from '@/components/ui/heading'
 import { Text } from '@/components/ui/text'
 
-export function classNames(...classes: (string | false | null | undefined)[]) {
-  return classes.filter(Boolean).join(' ')
-}
-
 /** Cadre de panneau : hauteur imposée par la grille, contenu borné. */
 export function Panel({
   title,

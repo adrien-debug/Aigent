@@ -51,6 +51,17 @@ export type ProjectCard = {
   passRate: number | null
 }
 
+/**
+ * Index de résolution id → entité, construit une fois et partagé par les deux
+ * dérivations ci-dessous (elles le bâtissaient chacune de leur côté).
+ */
+function buildIndex(copilots: Copilot[], projects: Project[]) {
+  return {
+    copilotById: new Map(copilots.map((c) => [c.id, c])),
+    projectById: new Map(projects.map((p) => [p.id, p])),
+  }
+}
+
 /** Les N runs les plus récents de la fenêtre, nommés. `null` si non lue. */
 export function buildNamedRuns(
   windowRuns: AgentRun[] | null,
@@ -60,8 +71,7 @@ export function buildNamedRuns(
 ): NamedRun[] | null {
   if (windowRuns === null) return null
 
-  const copilotById = new Map(copilots.map((c) => [c.id, c]))
-  const projectById = new Map(projects.map((p) => [p.id, p]))
+  const { copilotById, projectById } = buildIndex(copilots, projects)
 
   return [...windowRuns]
     .map((run) => {
@@ -95,8 +105,7 @@ export function buildAgentCards(
 ): AgentCard[] | null {
   if (windowRuns === null) return null
 
-  const copilotById = new Map(copilots.map((c) => [c.id, c]))
-  const projectById = new Map(projects.map((p) => [p.id, p]))
+  const { copilotById, projectById } = buildIndex(copilots, projects)
   const byCopilot = new Map<string, AgentCard>()
 
   for (const run of windowRuns) {

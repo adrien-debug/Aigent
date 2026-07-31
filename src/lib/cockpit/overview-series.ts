@@ -46,6 +46,32 @@ export type StatusSlice = {
 const HOUR_MS = 3_600_000
 
 /**
+ * Squelette des `hours` dernières heures glissantes, une entrée par heure.
+ *
+ * Toutes les heures de la fenêtre existent, y compris celles sans run : une
+ * heure sans activité est une MESURE (0), pas un trou. C'est légitime parce que
+ * la fenêtre, elle, a bien été lue — le cas « non lue » est traité en amont par
+ * un `return null`.
+ */
+function hourSkeleton<T>(nowMs: number, hours: number, seed: (hourMs: number, label: string) => T) {
+  const currentHourStart = Math.floor(nowMs / HOUR_MS) * HOUR_MS
+  const firstHourStart = currentHourStart - (hours - 1) * HOUR_MS
+  const buckets = new Map<number, T>()
+  for (let h = 0; h < hours; h += 1) {
+    const hourMs = firstHourStart + h * HOUR_MS
+    const label = `${String(new Date(hourMs).getHours()).padStart(2, '0')}:00`
+    buckets.set(hourMs, seed(hourMs, label))
+  }
+  return buckets
+}
+
+/** L'heure pleine d'un horodatage ISO, ou `null` s'il est illisible. */
+function hourOf(startedAt: string): number | null {
+  const ms = Date.parse(startedAt)
+  return Number.isNaN(ms) ? null : Math.floor(ms / HOUR_MS) * HOUR_MS
+}
+
+/**
  * Histogramme horaire sur les `hours` dernières heures glissantes.
  *
  * Les buckets sont créés pour TOUTES les heures de la fenêtre, y compris celles
@@ -59,28 +85,20 @@ export function buildHourlyBuckets(
 ): HourlyBucket[] | null {
   if (windowRuns === null) return null
 
-  const currentHourStart = Math.floor(nowMs / HOUR_MS) * HOUR_MS
-  const firstHourStart = currentHourStart - (hours - 1) * HOUR_MS
-
-  const buckets = new Map<number, HourlyBucket>()
-  for (let h = 0; h < hours; h += 1) {
-    const hourMs = firstHourStart + h * HOUR_MS
-    buckets.set(hourMs, {
-      hourMs,
-      label: `${String(new Date(hourMs).getHours()).padStart(2, '0')}:00`,
-      completed: 0,
-      running: 0,
-      'needs-confirmation': 0,
-      blocked: 0,
-      failed: 0,
-      total: 0,
-    })
-  }
+  const buckets = hourSkeleton<HourlyBucket>(nowMs, hours, (hourMs, label) => ({
+    hourMs,
+    label,
+    completed: 0,
+    running: 0,
+    'needs-confirmation': 0,
+    blocked: 0,
+    failed: 0,
+    total: 0,
+  }))
 
   for (const run of windowRuns) {
-    const startedMs = Date.parse(run.startedAt)
-    if (Number.isNaN(startedMs)) continue
-    const hourMs = Math.floor(startedMs / HOUR_MS) * HOUR_MS
+    const hourMs = hourOf(run.startedAt)
+    if (hourMs === null) continue
     const bucket = buckets.get(hourMs)
     // Un run hors fenêtre est ignoré plutôt que replié sur un bord : le replier
     // gonflerait une heure qui n'a rien vu.
@@ -100,67 +118,4 @@ export function buildStatusBreakdown(windowRuns: AgentRun[] | null): StatusSlice
     counts.set(run.status, (counts.get(run.status) ?? 0) + 1)
   }
   return RUN_STATUSES.map((status) => ({ status, count: counts.get(status) ?? 0 }))
-}
-
-/**
- * Coût horaire cumulable pour un graphe.
- *
- * ATTENTION : un run dont `costUsd` vaut `null` n'a pas coûté zéro — son coût
- * n'était pas mesurable. On le compte donc dans `unmeasuredRuns` au lieu de
- * l'additionner comme 0, pour que l'écran puisse dire que la courbe est un
- * MINORANT et non un total.
- */
-export type HourlyCost = {
-  hourMs: number
-  label: string
-  usd: number
-  measuredRuns: number
-  unmeasuredRuns: number
-}
-
-export function buildHourlyCost(
-  windowRuns: AgentRun[] | null,
-  nowMs: number,
-  hours = 24,
-): HourlyCost[] | null {
-  if (windowRuns === null) return null
-
-  const currentHourStart = Math.floor(nowMs / HOUR_MS) * HOUR_MS
-  const firstHourStart = currentHourStart - (hours - 1) * HOUR_MS
-
-  const buckets = new Map<number, HourlyCost>()
-  for (let h = 0; h < hours; h += 1) {
-    const hourMs = firstHourStart + h * HOUR_MS
-    buckets.set(hourMs, {
-      hourMs,
-      label: `${String(new Date(hourMs).getHours()).padStart(2, '0')}:00`,
-      usd: 0,
-      measuredRuns: 0,
-      unmeasuredRuns: 0,
-    })
-  }
-
-  for (const run of windowRuns) {
-    const startedMs = Date.parse(run.startedAt)
-    if (Number.isNaN(startedMs)) continue
-    const bucket = buckets.get(Math.floor(startedMs / HOUR_MS) * HOUR_MS)
-    if (!bucket) continue
-    if (run.costUsd === null || run.costUsd === undefined) {
-      bucket.unmeasuredRuns += 1
-    } else {
-      bucket.usd += run.costUsd
-      bucket.measuredRuns += 1
-    }
-  }
-
-  return [...buckets.values()].sort((a, b) => a.hourMs - b.hourMs)
-}
-
-/**
- * Le pic d'un histogramme, pour borner un axe sans le laisser respirer à l'infini.
- * `null` quand il n'y a pas de série — l'appelant ne doit pas inventer d'échelle.
- */
-export function peakTotal(buckets: HourlyBucket[] | null): number | null {
-  if (buckets === null || buckets.length === 0) return null
-  return buckets.reduce((max, b) => (b.total > max ? b.total : max), 0)
 }

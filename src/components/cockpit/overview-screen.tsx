@@ -18,6 +18,7 @@
  * (Recharts mesure le DOM).
  */
 import type { DashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
+import { formatUsd } from '@/lib/agent-mission-control/format'
 import { buildHourlyBuckets, buildStatusBreakdown } from '@/lib/cockpit/overview-series'
 import { buildAgentCards, buildNamedRuns } from '@/lib/cockpit/named-runs'
 import type { ProjectCard } from '@/lib/cockpit/named-runs'
@@ -25,10 +26,6 @@ import { HourlyRunsChart, StatusLegend } from './charts'
 import { AgentGridCard, ProjectGridCard } from './cards'
 import RecentRuns from './recent-runs'
 import { Kpi, Panel, Unavailable } from './primitives'
-
-function fmtUsd(usd: number) {
-  return usd >= 1 ? `$${usd.toFixed(2)}` : `$${usd.toFixed(4)}`
-}
 
 export default function CockpitOverview({
   overview,
@@ -91,7 +88,7 @@ export default function CockpitOverview({
         />
         <Kpi
           label="Coût 24 h"
-          value={kpis.cost24h === null ? null : fmtUsd(kpis.cost24h.usd)}
+          value={kpis.cost24h === null ? null : formatUsd(kpis.cost24h.usd)}
           support={
             kpis.cost24h === null
               ? 'aucun coût mesurable'

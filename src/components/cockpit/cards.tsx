@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { DescriptionDetails, DescriptionList, DescriptionTerm } from '@/components/ui/description-list'
 import { Subheading } from '@/components/ui/heading'
 import { Text } from '@/components/ui/text'
-import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
+import { UNAVAILABLE_LABEL, formatUsd } from '@/lib/agent-mission-control/format'
 import type { AgentCard, ProjectCard } from '@/lib/cockpit/named-runs'
 import { timeAgo } from '@/lib/cockpit/named-runs'
 
@@ -34,10 +34,6 @@ function initials(name: string | null): string {
   const parts = name.trim().split(/\s+/)
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
   return (parts[0][0] + parts[1][0]).toUpperCase()
-}
-
-function fmtUsd(usd: number): string {
-  return usd >= 1 ? `$${usd.toFixed(2)}` : `$${usd.toFixed(4)}`
 }
 
 /** Carte d'agent : un agent qui a réellement tourné sur la fenêtre. */
@@ -74,7 +70,7 @@ export function AgentGridCard({ card, nowMs }: { card: AgentCard; nowMs: number 
           {card.costUsd === null ? (
             <Badge color="zinc">{UNAVAILABLE_LABEL}</Badge>
           ) : (
-            <span className="tabular-nums">{fmtUsd(card.costUsd)}</span>
+            <span className="tabular-nums">{formatUsd(card.costUsd)}</span>
           )}
         </DescriptionDetails>
 
@@ -119,7 +115,7 @@ export function ProjectGridCard({ card }: { card: ProjectCard }) {
           {card.costLast24hUsd === null ? (
             <Badge color="zinc">{UNAVAILABLE_LABEL}</Badge>
           ) : (
-            <span className="tabular-nums">{fmtUsd(card.costLast24hUsd)}</span>
+            <span className="tabular-nums">{formatUsd(card.costLast24hUsd)}</span>
           )}
         </DescriptionDetails>
 
