@@ -78,9 +78,25 @@ export async function readTelemetryTab(): Promise<TelemetryTabData> {
   const health = diagnoseTelemetryHealth({
     // Présence du jeton d'ingestion — jamais sa VALEUR, ni ici ni plus loin.
     ingestionTokenConfigured: Boolean(process.env.AIGENT_RUNTIME_TELEMETRY_TOKEN),
-    // Nombre d'agents qui ont réellement rapporté. Lecture échouée ⇒ `null`,
-    // et le diagnostic bascule sur `unavailable` au lieu d'inventer un zéro.
-    agentsWithTelemetryDeclared: fleet.ok ? fleet.data.reportingAgents : null,
+    // `null` DÉLIBÉRÉMENT, et pas `fleet.data.reportingAgents`.
+    //
+    // Ce champ attend le nombre d'agents dont le MANIFESTE DÉCLARE la
+    // télémétrie (niveau 1). `reportingAgents` est le nombre d'agents
+    // OBSERVÉS dans la fenêtre d'événements — une population différente.
+    // Les substituer produisait deux mensonges :
+    //   · un compte à 0 faisait afficher « zéro agent déclare la télémétrie
+    //     dans son manifeste », affirmation jamais mesurée ;
+    //   · `loop_muted` devenait INATTEIGNABLE — il exige `déclaré > 0` ET
+    //     (jamais reçu OU périmé), or « déclaré > 0 » valait alors « reçu
+    //     récemment ». Le seul statut qui dit « la boucle d'amélioration
+    //     s'est tue » ne pouvait donc jamais s'afficher, sur l'écran fait
+    //     pour le lever.
+    //
+    // Aucun loader ne rend aujourd'hui le compte déclaré. `null` fait
+    // basculer le diagnostic sur `unavailable`, qui est la réponse vraie :
+    // on ne peut pas le dire. Le compte OBSERVÉ reste affiché à côté, sous
+    // son vrai nom.
+    agentsWithTelemetryDeclared: null,
     lastEventReceivedAt: fleet.ok ? fleet.data.lastSeenAt : null,
     lastEventLookupFailed: !fleet.ok,
     now: new Date().toISOString(),

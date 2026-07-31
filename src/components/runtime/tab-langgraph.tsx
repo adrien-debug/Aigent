@@ -84,9 +84,12 @@ function EndpointPanel({ data }: { data: LangGraphTabData }) {
           <Fact
             label="Dernière lecture"
             value={
+              // `reachable` EST `data.assistants.ok` (l. 37) : le ternaire
+              // portait une troisième branche inatteignable, qui laissait
+              // croire à un état intermédiaire inexistant.
               reachable ? (
                 <FactValue>aboutie</FactValue>
-              ) : data.assistants.ok ? null : (
+              ) : (
                 <Text className="truncate text-xs" title={data.assistants.reason}>
                   {data.assistants.reason}
                 </Text>
