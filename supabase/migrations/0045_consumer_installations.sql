@@ -30,6 +30,18 @@ create table if not exists consumer_installations (
   -- copilot are rejected at the route (an installation speaks only for itself).
   copilot_id text not null references copilots(id) on delete cascade,
 
+  -- Which project this installation is allowed to report for. WITHOUT this
+  -- column the route had nothing to check `event.projectId` against, so any
+  -- valid installation could write rows under ANY project id — every
+  -- aggregation keyed (project_id, agent_id) was pollutable cross-tenant. The
+  -- fix is a schema fix first: the route can only verify a claim the database
+  -- lets it verify. Consumer events naming any other project are rejected.
+  --
+  -- Nullable ONLY so this migration stays additive on a table that may already
+  -- hold rows. The route treats a null project_id as UNPROVISIONED and refuses
+  -- the event (fail-closed) rather than accepting the caller's claim.
+  project_id text,
+
   -- Consumer-side deployment slot. Two environments of the same consumer are
   -- two installations with two distinct tokens — a staging leak never grants
   -- production reporting.
@@ -63,6 +75,11 @@ create table if not exists consumer_installations (
   last_version_loaded_at timestamptz
 );
 
+-- Additive path: if the table already exists from an earlier run of this
+-- migration (before project_id existed), add the column rather than skip it.
+alter table consumer_installations
+  add column if not exists project_id text;
+
 -- One installation per (copilot, environment, label) — re-running provisioning
 -- must not silently mint duplicate credentials for the same slot.
 create unique index if not exists consumer_installations_slot_idx
@@ -89,6 +106,22 @@ alter table runtime_telemetry_events
 alter table runtime_telemetry_events
   add column if not exists version_id text;
 
+-- The CLIENT's claimed event time. Separate from `received_at` ON PURPOSE.
+--
+-- `received_at` is server-clock evidence ("when Aigent accepted this") and is
+-- the ONLY basis for any recency window. Letting the caller write it made the
+-- activation window attacker-controlled: one run_completed dated year 2999
+-- pinned activeInConsumer=true forever, because the 7-day expiry could never
+-- fire. A consumer's own clock is unverifiable — it is untrusted information,
+-- not a measurement, so it gets its own column and no authority.
+alter table runtime_telemetry_events
+  add column if not exists reported_at timestamptz;
+
+comment on column runtime_telemetry_events.reported_at is
+  'Event time as CLAIMED by the reporting consumer. Untrusted: a consumer clock '
+  'cannot be verified. Informational only — never use it for recency, freshness '
+  'or activation decisions. Use received_at (server clock) for those.';
+
 comment on column runtime_telemetry_events.installation_id is
   'Authenticated consumer installation that reported this event. NULL for internal '
   'emitters (aigent-internal-runner/shadow/replay/promotion). Non-null is proof of '
@@ -99,8 +132,20 @@ comment on column runtime_telemetry_events.version_id is
 
 -- Recency scan for the activation read: newest authenticated consumer event
 -- per copilot.
-create index if not exists runtime_telemetry_events_installation_idx
-  on runtime_telemetry_events (installation_id, received_at desc)
+--
+-- LEADING COLUMN MUST BE agent_id. `readConsumerActivation` filters
+-- `agent_id=eq.X and installation_id is not null` and orders by received_at
+-- desc. An index led by installation_id cannot serve that: the planner has no
+-- equality on the leading column, so it would fall back to a scan. The
+-- predicate carries the installation_id condition; agent_id + received_at are
+-- what the query actually seeks and sorts on.
+
+-- Earlier draft of this migration created an index led by installation_id.
+-- If a run created it, retire it: it serves no query this module issues.
+drop index if exists runtime_telemetry_events_installation_idx;
+
+create index if not exists runtime_telemetry_events_consumer_agent_idx
+  on runtime_telemetry_events (agent_id, received_at desc)
   where installation_id is not null;
 
 -- ── RLS ─────────────────────────────────────────────────────────────────────

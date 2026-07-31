@@ -17,6 +17,7 @@ const VALID_TOKEN_HASH = createHash('sha256').update(VALID_TOKEN, 'utf8').digest
 
 interface InstallRow {
   id: string
+  project_id: string | null
   copilot_id: string
   environment: string
   label: string | null
@@ -29,6 +30,7 @@ interface InstallRow {
 
 const activeInstallation: InstallRow = {
   id: 'inst-1',
+  project_id: 'proj-1',
   copilot_id: 'cop-1',
   environment: 'production',
   label: 'acme-prod',
@@ -89,7 +91,9 @@ const validEvent = {
   runId: 'run-1',
   installationId: 'inst-1',
   environment: 'production' as const,
-  timestamp: '2026-07-31T10:00:00.000Z',
+  // Relative to now: the route rejects claims far in the past, so a hard-coded
+  // date would start failing once the calendar passed it.
+  timestamp: new Date(Date.now() - 60_000).toISOString(),
 }
 
 describe('POST /api/runtime-telemetry/consumer', () => {
@@ -299,5 +303,146 @@ describe('POST /api/runtime-telemetry/consumer', () => {
     await POST(req(validEvent, auth()))
     expect(JSON.stringify(insertedRows[0])).not.toContain(VALID_TOKEN)
     expect(JSON.stringify(insertedRows[0])).not.toContain(VALID_TOKEN_HASH)
+  })
+
+  // ── HAUT-1 — cross-tenant project writes ──────────────────────────────────
+
+  it('23 — a valid installation CANNOT report for another project -> 401', async () => {
+    const res = await POST(req({ ...validEvent, projectId: 'SOMEONE-ELSES-PROJECT' }, auth()))
+    expect(res.status).toBe(401)
+    expect(insertedRows).toHaveLength(0)
+  })
+
+  it('24 — an installation with NO provisioned project reports nothing -> 401', async () => {
+    // Fail-closed: a null project_id is "unprovisioned", never a wildcard.
+    installationRows = [{ ...activeInstallation, project_id: null }]
+    const res = await POST(req(validEvent, auth()))
+    expect(res.status).toBe(401)
+    expect(insertedRows).toHaveLength(0)
+  })
+
+  it('25 — the stored project_id comes from the INSTALLATION, matching the claim', async () => {
+    await POST(req(validEvent, auth()))
+    expect(insertedRows[0].project_id).toBe('proj-1')
+  })
+
+  // ── HAUT-2 — attacker-controlled time ─────────────────────────────────────
+
+  it('26 — a timestamp far in the FUTURE is rejected -> 400', async () => {
+    const res = await POST(req({ ...validEvent, timestamp: '2999-01-01T00:00:00.000Z' }, auth()))
+    expect(res.status).toBe(400)
+    expect(insertedRows).toHaveLength(0)
+  })
+
+  it('27 — a non-date timestamp is rejected -> 400', async () => {
+    const res = await POST(req({ ...validEvent, timestamp: 'hello-not-a-date' }, auth()))
+    expect(res.status).toBe(400)
+    expect(insertedRows).toHaveLength(0)
+  })
+
+  it('28 — a timestamp far in the PAST is rejected -> 400', async () => {
+    const old = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString()
+    const res = await POST(req({ ...validEvent, timestamp: old }, auth()))
+    expect(res.status).toBe(400)
+    expect(insertedRows).toHaveLength(0)
+  })
+
+  it('29 — received_at is the SERVER clock, never the claimed timestamp', async () => {
+    const before = Date.now()
+    const claimed = new Date(Date.now() - 3 * 60 * 1000).toISOString()
+    await POST(req({ ...validEvent, timestamp: claimed }, auth()))
+    const after = Date.now()
+
+    const receivedAt = String(insertedRows[0].received_at)
+    // Not the caller's value...
+    expect(receivedAt).not.toBe(claimed)
+    // ...but a server instant taken during this request.
+    const receivedMs = Date.parse(receivedAt)
+    expect(receivedMs).toBeGreaterThanOrEqual(before)
+    expect(receivedMs).toBeLessThanOrEqual(after)
+    // The claim is preserved, but in a column nothing depends on.
+    expect(insertedRows[0].reported_at).toBe(claimed)
+  })
+
+  it('30 — last_seen_at is the server clock too, not the claimed time', async () => {
+    const claimed = new Date(Date.now() - 3 * 60 * 1000).toISOString()
+    await POST(req({ ...validEvent, eventType: 'consumer.version_loaded', timestamp: claimed }, auth()))
+    expect((patchedRows[0].body as Record<string, unknown>).last_seen_at).not.toBe(claimed)
+  })
+
+  // ── HAUT-3 — eventId squatting a shared primary key ───────────────────────
+
+  it('31 — the stored row id is NAMESPACED by installation, not caller-chosen', async () => {
+    await POST(req({ ...validEvent, eventId: 'internal-run-event-42' }, auth()))
+    // The caller cannot land on an internal emitter's primary key.
+    expect(insertedRows[0].id).not.toBe('internal-run-event-42')
+    expect(insertedRows[0].id).toBe('consumer:inst-1:internal-run-event-42')
+  })
+
+  it('32 — two installations reusing the SAME eventId do not collide', async () => {
+    const otherToken = 'second-installation-token-fixture-value'
+    installationRows = [
+      { ...activeInstallation },
+      {
+        ...activeInstallation,
+        id: 'inst-2',
+        label: 'acme-two',
+        token_hash: createHash('sha256').update(otherToken, 'utf8').digest('hex'),
+      },
+    ]
+
+    await POST(req({ ...validEvent, eventId: 'shared-id' }, auth()))
+    await POST(
+      req({ ...validEvent, eventId: 'shared-id', installationId: 'inst-2' }, auth(otherToken))
+    )
+
+    expect(insertedRows).toHaveLength(2)
+    expect(insertedRows[0].id).not.toBe(insertedRows[1].id)
+  })
+
+  it('33 — idempotency still holds WITHIN one installation namespace', async () => {
+    await POST(req({ ...validEvent, eventId: 'same-event' }, auth()))
+    const firstId = insertedRows[0].id
+    insertedRows = []
+    await POST(req({ ...validEvent, eventId: 'same-event' }, auth()))
+    // Same caller + same eventId => same primary key, so the database dedups.
+    expect(insertedRows[0].id).toBe(firstId)
+  })
+
+  // ── MOYEN-4 — unverified versionId ────────────────────────────────────────
+
+  it('34 — a never-shipped versionId is accepted but marked UNVERIFIED', async () => {
+    const res = await POST(req({ ...validEvent, versionId: 'v-NEVER-SHIPPED' }, auth()))
+    expect(res.status).toBe(202)
+    // Deliberate: not checked against copilot_versions. The row must therefore
+    // carry the marker that stops a reader presenting it as observed fact.
+    const env = insertedRows[0].environment as Record<string, unknown>
+    expect(env.versionClaimVerified).toBe(false)
+  })
+
+  // ── MOYEN-5 — the secret scan must see the RAW payload ────────────────────
+
+  it('35 — a secret in an UNDECLARED field is caught (raw scan, pre-Zod)', async () => {
+    // .strict() would have stripped this key before a post-parse scanner ran,
+    // which is exactly why the scan moved ahead of the parse.
+    const res = await POST(req({ ...validEvent, leaked: 'sk-abcdefghijklmnopqrst' }, auth()))
+    expect(res.status).toBe(400)
+    expect(await res.text()).toContain('suspicious content')
+    expect(insertedRows).toHaveLength(0)
+  })
+
+  it('36 — a secret in a nested undeclared field is caught on the raw body', async () => {
+    const res = await POST(
+      req({ ...validEvent, meta: { nested: { key: 'ghp_abcdefghijklmnop' } } }, auth())
+    )
+    expect(res.status).toBe(400)
+    expect(await res.text()).toContain('suspicious content')
+    expect(insertedRows).toHaveLength(0)
+  })
+
+  it('37 — the raw scan runs BEFORE auth: no token still rejects the secret', async () => {
+    const res = await POST(req({ ...validEvent, leaked: 'sk-abcdefghijklmnopqrst' }))
+    expect(res.status).toBe(400)
+    expect(insertedRows).toHaveLength(0)
   })
 })

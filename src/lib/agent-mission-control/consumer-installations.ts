@@ -32,6 +32,15 @@ export type ConsumerInstallationStatus = 'active' | 'revoked'
 
 export interface ConsumerInstallation {
   id: string
+  /**
+   * Project this installation may report for. The route refuses any event
+   * naming a different project — without this, a valid installation could
+   * write rows under any project id and pollute cross-tenant aggregations.
+   *
+   * Null means the row predates the column (migration 0045): UNPROVISIONED,
+   * which the route treats as "may report for nothing", never as a wildcard.
+   */
+  projectId: string | null
   copilotId: string
   environment: ConsumerEnvironment
   label: string | null
@@ -91,6 +100,7 @@ export function constantTimeHexEqual(a: string, b: string): boolean {
 function rowToInstallation(row: Record<string, unknown>): ConsumerInstallation {
   return {
     id: String(row.id),
+    projectId: typeof row.project_id === 'string' && row.project_id.length > 0 ? row.project_id : null,
     copilotId: String(row.copilot_id),
     environment: row.environment as ConsumerEnvironment,
     label: (row.label as string | null) ?? null,

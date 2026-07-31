@@ -1,6 +1,24 @@
 /**
  * Agent Mission Control — consumer activation read (server only).
  *
+ * ┌───────────────────────────────────────────────────────────────────────────┐
+ * │ THIS MODULE IS CORRECT BUT INERT. IT HAS NO CALLERS.                      │
+ * │                                                                           │
+ * │ `readConsumerActivation` and `deriveConsumerActivation` are not invoked   │
+ * │ anywhere outside this file and its unit test. Nothing in the product      │
+ * │ consumes their verdict: `active_in_consumer` is still the hard-coded      │
+ * │ literal 'unknown' everywhere it is produced, exactly as before.           │
+ * │                                                                           │
+ * │ The loop AGENTS.md draws is therefore NOT closed today. The ingestion     │
+ * │ half exists (the authenticated consumer route writes rows); the reading   │
+ * │ half is written but unwired. Do not describe this brick as "active_in_    │
+ * │ consumer is now proven" — it is not, until a caller exists.               │
+ * │                                                                           │
+ * │ Wiring it means touching `agent-lifecycle-trace.ts`, which is guarded by  │
+ * │ the `check:lifecycle-truth` gate — a deliberate, separate mission, not a  │
+ * │ side effect of adding the channel.                                        │
+ * └───────────────────────────────────────────────────────────────────────────┘
+ *
  * Answers one question honestly: what do we actually KNOW about a copilot's
  * life inside a consumer workspace?
  *
@@ -112,8 +130,24 @@ export interface ConsumerActivationRead {
   lastActivityAt: string | null
   /** Newest event type observed, or null. */
   lastEventType: ConsumerEventType | null
-  /** Version the consumer reported loading, or null. Never guessed. */
+  /**
+   * Version the consumer CLAIMED to have loaded, or null. Never guessed — but
+   * also NEVER VERIFIED: the ingestion route does not confront this string
+   * with `copilot_versions`, so a consumer can report a version id that was
+   * never shipped and it will surface here verbatim.
+   *
+   * Read it as "what the consumer said", not "what is running". Any surface
+   * showing it MUST mark it as reported-not-verified; see
+   * `lastVersionLoadedVerified` below, which is permanently false today.
+   */
   lastVersionLoaded: string | null
+  /**
+   * Whether `lastVersionLoaded` was checked against the copilot's real
+   * versions. Always `false` in the current implementation — the check is
+   * deliberately not performed per event. The field exists so the absence of
+   * verification is explicit in the contract instead of implied by silence.
+   */
+  lastVersionLoadedVerified: false
   /** Number of installations that have ever authenticated for this copilot. */
   observedInstallationCount: number
   /** True when execution proof exists but is older than the recency window. */
@@ -143,6 +177,12 @@ function isConsumerEventType(value: unknown): value is ConsumerEventType {
  * Derive the activation read from authenticated consumer events.
  *
  * Pure — no I/O — so the recency rule is directly testable without a backend.
+ * The recency comparison reads `received_at`, which the ingestion route writes
+ * from the SERVER clock. That is what makes the 7-day expiry meaningful: when
+ * the caller could supply that value, a single event dated far in the future
+ * kept `activeInConsumer` true forever and the window never expired. Never
+ * repoint this comparison at a consumer-supplied time (`reported_at`).
+ *
  * `rows` MUST already be filtered to `installation_id is not null`: this
  * function trusts that every row it sees was authenticated, and rows lacking an
  * installation id are defensively ignored rather than counted as proof.
@@ -160,6 +200,8 @@ export function deriveConsumerActivation(
     delivered: options.delivered,
     recencyWindowMs: ACTIVATION_RECENCY_WINDOW_MS,
     recencyWindowDays: ACTIVATION_RECENCY_WINDOW_DAYS,
+    // Never verified against copilot_versions — see the field's doc comment.
+    lastVersionLoadedVerified: false as const,
   }
 
   // Only authenticated rows count. An event without an installation id came
