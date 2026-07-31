@@ -178,4 +178,53 @@ describe('Builder — réduction du flux d’authoring', () => {
     expect(before).toEqual(snapshot)
     expect(after).not.toBe(before)
   })
+
+  /* ── Garde de terminalité : une issue prouvée ne se réécrit pas ──────────
+   *
+   * Les trois cas ci-dessous ne sont pas déclenchables par le serveur actuel
+   * (la route pousse le terminal en dernier). Ils sont testés parce qu'une
+   * asymétrie de discipline dans ce module — `markStreamInterrupted` gardait
+   * déjà la terminalité, `reduceStreamEvent` non — est précisément ce qui
+   * produit un mensonge le jour où le protocole change.
+   */
+
+  it('un delta APRÈS un terminal ne rouvre pas un tour prouvé', () => {
+    const done = reduceStreamEvent(reduceStreamEvent(openingStreamProgress(), connected()), completed(2))
+    expect(done.phase).toBe('completed')
+    expect(done.outcomeUnknown).toBe(false)
+
+    const after = reduceStreamEvent(done, delta('suite inattendue', 3))
+
+    // Sans la garde : phase repassait à 'streaming' et outcomeUnknown à true,
+    // alors que `completion` restait renseignée — l'écran repeignait un tour
+    // persisté en « résultat inconnu ».
+    expect(after.phase).toBe('completed')
+    expect(after.outcomeUnknown).toBe(false)
+    expect(after.completion).not.toBeNull()
+  })
+
+  it('un second terminal n’efface pas une réussite déjà prouvée', () => {
+    const done = reduceStreamEvent(reduceStreamEvent(openingStreamProgress(), connected()), completed(2))
+    const after = reduceStreamEvent(done, failed(3))
+
+    // Sans la garde : phase 'failed', errorCode renseigné, `completion` effacée
+    // — un succès persisté devenait un échec affiché.
+    expect(after.phase).toBe('completed')
+    expect(after.errorCode).toBeNull()
+    expect(after.completion).not.toBeNull()
+  })
+
+  it('un événement inconnu est IGNORÉ, jamais traité comme un échec', () => {
+    const working = reduceStreamEvent(openingStreamProgress(), connected())
+    // Le cinquième événement que le protocole n'a pas encore : un appel d'outil
+    // est le candidat évident, et c'est l'absence que cette surface documente.
+    const unknown = { type: 'tool_call', runId: RUN, sequence: 2 } as unknown as ProjectBuilderStreamEvent
+    const after = reduceStreamEvent(working, unknown)
+
+    // Avant : phase 'failed' + errorCode `undefined` — une valeur hors du type
+    // déclaré, et un échec que le serveur n'a jamais prononcé.
+    expect(after.phase).toBe('working')
+    expect(after.errorCode).toBeNull()
+    expect(after.outcomeUnknown).toBe(true)
+  })
 })

@@ -526,6 +526,18 @@ export function reduceStreamEvent(
   state: StreamProgress,
   event: ProjectBuilderStreamEvent,
 ): StreamProgress {
+  // GARDE DE TERMINALITÉ — une issue prouvée ne se réécrit pas.
+  //
+  // Sans elle, trois séquences produisaient un mensonge (les trois trouvées en
+  // revue croisée, aucune déclenchable par le serveur actuel, toutes de même
+  // cause) : un `delta` arrivant après un `completed` repassait `outcomeUnknown`
+  // à `true` alors que la réponse est persistée ; un second terminal `failed`
+  // effaçait une `completion` réelle ; et un tour prouvé pouvait redevenir
+  // « en cours ». `markStreamInterrupted` posait déjà ce garde pour la coupure —
+  // l'asymétrie était une faille de discipline dans un module dont l'argument
+  // est précisément que les issues ne se confondent jamais.
+  if (state.phase === 'completed' || state.phase === 'failed') return state
+
   if (event.type === 'connected') {
     return {
       ...state,
@@ -570,18 +582,35 @@ export function reduceStreamEvent(
     }
   }
 
-  return {
-    ...state,
-    phase: 'failed',
-    runId: event.runId,
-    label: 'Tour en échec',
-    detail:
-      'Le serveur a signalé l’échec du tour. Ce n’est pas une coupure : le serveur a répondu, et il dit que le tour n’a pas abouti.',
-    errorCode: event.error,
-    retryable: event.retryable,
-    completion: null,
-    outcomeUnknown: false,
+  // L'ÉCHEC EST AFFIRMÉ, jamais déduit par défaut.
+  //
+  // Ce `return` était un fourre-tout : tout ce qui n'était ni `connected`, ni
+  // `delta`, ni `completed` devenait « Tour en échec ». Testé à la main sur un
+  // `{type:'tool_call'}` hypothétique, il produisait phase `failed` et
+  // `errorCode: undefined` — une valeur HORS du type déclaré, et un échec que
+  // le serveur n'a jamais prononcé. Le jour où le protocole gagne un cinquième
+  // événement — un événement d'appel d'outil est le candidat évident, et c'est
+  // l'absence que cette surface documente — l'UI l'aurait peint en rouge.
+  //
+  // On n'affirme donc l'échec que sur le littéral que le protocole émet
+  // vraiment. Tout autre événement est IGNORÉ : ne pas savoir interpréter un
+  // message n'autorise pas à conclure que le tour a échoué.
+  if (event.type === 'terminal' && event.lifecycle === 'failed') {
+    return {
+      ...state,
+      phase: 'failed',
+      runId: event.runId,
+      label: 'Tour en échec',
+      detail:
+        'Le serveur a signalé l’échec du tour. Ce n’est pas une coupure : le serveur a répondu, et il dit que le tour n’a pas abouti.',
+      errorCode: event.error,
+      retryable: event.retryable,
+      completion: null,
+      outcomeUnknown: false,
+    }
   }
+
+  return state
 }
 
 /**
