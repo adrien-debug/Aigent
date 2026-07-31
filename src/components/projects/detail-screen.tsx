@@ -109,9 +109,7 @@ function yesNoBadge(ok: boolean): { color: 'emerald' | 'zinc'; label: string } {
 function nodeRailColor(status: ProjectTeamNode['status']): string {
   if (status === 'active') return SEVERITY.good
   if (status === 'failed') return SEVERITY.bad
-  // Violet et non SEVERITY.warn : un noeud « bloqué » n'est ni un échec ni une
-  // simple attente, distinction que la palette à 4 teintes ne porte pas.
-  if (status === 'blocked') return '#8e63ee'
+  if (status === 'blocked') return SEVERITY.blocked
   return SEVERITY.muted
 }
 

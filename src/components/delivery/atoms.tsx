@@ -129,7 +129,7 @@ export function DeliveryStateBadge({ state }: Readonly<DeliveryStateBadgeProps>)
 export function StateKindTag({ kind }: Readonly<StateKindTagProps>) {
   return (
     <span
-      className="text-[10px] tracking-wide text-zinc-500 uppercase dark:text-zinc-400"
+      className="text-3xs tracking-wide text-zinc-500 uppercase dark:text-zinc-400"
       title={KIND_MEANING[kind]}
     >
       {KIND_LABEL[kind]}

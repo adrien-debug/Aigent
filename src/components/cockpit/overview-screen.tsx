@@ -143,7 +143,7 @@ export default function CockpitOverview({
       </div>
 
       {overview.dataWarnings.length > 0 ? (
-        <p className="truncate rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 font-mono text-[10.5px] text-amber-800">
+        <p className="truncate rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 font-mono text-2xs text-amber-800 dark:border-amber-500/25 dark:bg-amber-500/8 dark:text-amber-400">
           {overview.dataWarnings.length} avertissement(s) de lecture — {overview.dataWarnings[0]}
         </p>
       ) : null}

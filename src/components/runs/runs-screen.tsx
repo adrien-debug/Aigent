@@ -203,7 +203,7 @@ export default function RunsScreen({
       {/* Lecture partiellement dégradée : les runs sont réels, les libellés non
           tous résolus. On le DIT plutôt que d'afficher des ids en silence. */}
       {degradedDetail ? (
-        <p className="truncate rounded-md border border-[#be850f]/25 bg-[#be850f]/8 px-3 py-1.5 font-mono text-[10.5px] text-[#d9a635]">
+        <p className="truncate rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 font-mono text-2xs text-amber-800 dark:border-amber-500/25 dark:bg-amber-500/8 dark:text-amber-400">
           Libellés partiellement indisponibles — {degradedDetail}
         </p>
       ) : null}

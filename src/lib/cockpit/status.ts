@@ -15,6 +15,23 @@
  */
 import type { AgentRunStatus } from '@/lib/agent-mission-control/types'
 
+/**
+ * Les cinq teintes de sévérité du produit, et RIEN d'autre — la seule palette
+ * de statut de tout le cockpit. `RUN_STATUS_COLOR` et le `SEVERITY` consommé
+ * par `cockpit/primitives.tsx` (jauges, rails de liste) en dérivent tous les
+ * deux : avant cette réconciliation, les deux fichiers redéclaraient chacun
+ * une palette proche mais pas identique (`#3d82ee` vs `#3b82f6` pour
+ * « en cours »), une dérive qu'une deuxième source rend inévitable à terme.
+ */
+export const SEVERITY = {
+  good: '#0da87f',
+  running: '#3d82ee',
+  warn: '#be850f',
+  blocked: '#8e63ee',
+  bad: '#e8455f',
+  muted: 'rgb(161 161 170 / 0.35)',
+} as const
+
 /** Ordre d'empilement de l'histogramme ET ordre de la légende — le même. */
 export const RUN_STATUS_ORDER: readonly AgentRunStatus[] = [
   'completed',
@@ -25,11 +42,11 @@ export const RUN_STATUS_ORDER: readonly AgentRunStatus[] = [
 ] as const
 
 export const RUN_STATUS_COLOR: Record<AgentRunStatus, string> = {
-  completed: '#0da87f',
-  running: '#3d82ee',
-  'needs-confirmation': '#be850f',
-  blocked: '#8e63ee',
-  failed: '#e8455f',
+  completed: SEVERITY.good,
+  running: SEVERITY.running,
+  'needs-confirmation': SEVERITY.warn,
+  blocked: SEVERITY.blocked,
+  failed: SEVERITY.bad,
 }
 
 export const RUN_STATUS_LABEL: Record<AgentRunStatus, string> = {

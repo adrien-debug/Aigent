@@ -82,7 +82,7 @@ function AigentNode({ data, selected }: NodeProps) {
         {d.label}
       </div>
       {d.nodeType ? (
-        <div className="mt-0.5 truncate text-[10px] text-zinc-500 dark:text-zinc-400">
+        <div className="mt-0.5 truncate text-3xs text-zinc-500 dark:text-zinc-400">
           {d.nodeType}
         </div>
       ) : null}
@@ -120,7 +120,7 @@ function Inspector({ node }: Readonly<{ node: Node | null }>) {
         <Heading level={3} className="truncate text-sm">
           {d.label}
         </Heading>
-        <Text className="truncate font-mono text-[11px] text-zinc-500">{node.id}</Text>
+        <Text className="truncate font-mono text-2xs text-zinc-500">{node.id}</Text>
       </div>
 
       <div className="flex flex-wrap gap-1.5">
@@ -146,7 +146,7 @@ function Inspector({ node }: Readonly<{ node: Node | null }>) {
         la seule option honnête : les remplir exigerait de les fabriquer.
       */}
       <div className="mt-1 flex flex-col gap-1 border-t border-zinc-200 pt-2 dark:border-zinc-800">
-        <Text className="text-[11px] text-zinc-500">
+        <Text className="text-2xs text-zinc-500">
           Modèle, outils et politiques ne sont pas exposés par la topologie de
           l’Agent Server. Ils ne sont pas affichés plutôt que devinés.
         </Text>
@@ -245,7 +245,7 @@ export default function GraphCanvas(props: Readonly<GraphCanvasProps>) {
       {dropped > 0 ? (
         // Une arête écartée est un fait, pas un détail : la taire donnerait un
         // graphe faux d'apparence saine.
-        <Text className="text-[11px] text-amber-600 dark:text-amber-500">
+        <Text className="text-2xs text-amber-600 dark:text-amber-500">
           {dropped} arête(s) écartée(s) : elles désignent un nœud absent de la
           topologie publiée.
         </Text>

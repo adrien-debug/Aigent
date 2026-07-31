@@ -16,8 +16,12 @@
  *  · `Led`          — témoin d'activité temps réel.
  *  · `Rail`         — barre de sévérité en tête de ligne.
  *  · jauges         — proportions bornées (n sur total), pas des séries.
- *  · `SEVERITY`     — la palette de couleur d'un `Rail`, source unique.
  *  · `Fact`/`FactValue`/`NotMeasured` — paire libellé/valeur, absence rendue.
+ *
+ * `SEVERITY` (couleur d'un `Rail`) vit dans `@/lib/cockpit/status` — c'est la
+ * même palette que `RUN_STATUS_COLOR`, consommée aussi par Recharts en dehors
+ * de tout composant React. Ré-exportée ici pour que les écrans qui
+ * n'importent que des primitives de rendu n'aient pas à connaître ce détail.
  */
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
@@ -26,6 +30,9 @@ import { Divider } from '@/components/ui/divider'
 import { Subheading } from '@/components/ui/heading'
 import { Strong, Text } from '@/components/ui/text'
 import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
+import { SEVERITY } from '@/lib/cockpit/status'
+
+export { SEVERITY }
 
 /* ────────────────────────────── Surfaces ────────────────────────────── */
 
@@ -120,7 +127,7 @@ export function Unavailable({
       <span
         className={clsx(
           'rounded-md bg-zinc-950/5 font-medium text-zinc-500 uppercase dark:bg-white/5 dark:text-zinc-400',
-          compact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs',
+          compact ? 'px-1.5 py-0.5 text-3xs' : 'px-2 py-0.5 text-xs',
         )}
       >
         {label}
@@ -186,25 +193,6 @@ export function FactValue({ children }: Readonly<{ children: ReactNode }>) {
 }
 
 /* ─────────────────────────── Objets d'instrument ─────────────────────── */
-
-/**
- * Palette sémantique d'un `Rail` — quatre teintes, et rien d'autre.
- *
- * Anciennement redéclarée indépendamment (mêmes valeurs hex, parfois une
- * légère dérive comme `#3b82f6` vs `#3b9dd6` pour « en cours ») dans
- * `agents/roster-screen.tsx`, `qualification/roster-screen.tsx`,
- * `runs/run-list.tsx`, `delivery/roster-screen.tsx`, `projects/{list,detail}-screen.tsx`,
- * `builder/select-screen.tsx` et `cockpit/rows.tsx`. Une seule source : le sens
- * (succès/échec/attention/neutre) ne doit pas pouvoir diverger d'un écran à
- * l'autre pour le même statut.
- */
-export const SEVERITY = {
-  good: '#0da87f',
-  bad: '#e8455f',
-  warn: '#be850f',
-  running: '#3b82f6',
-  muted: 'rgb(161 161 170 / 0.35)',
-} as const
 
 /**
  * Témoin lumineux. `live` fait battre la diode — réservé à ce qui est
