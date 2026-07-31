@@ -40,7 +40,7 @@ contrôlés dans un navigateur, zéro erreur console) :
 | Élément | État |
 |---|---|
 | Shell | `src/components/app-shell.tsx` — rail desktop, sidebar mobile, colonne secondaire |
-| Kit UI | `src/components/ui/` — **27 primitives** (fork Tailwind Plus Catalyst, source tierce) |
+| Kit UI | `src/components/ui/` — **14 primitives**, toutes consommées ; code du repo, linté (`src/components/ui/README.md`) |
 | Composants métier | `src/components/{cockpit,agents,runs,projects,builder,qualification,delivery,runtime}/` |
 | Console `/admin` | **Absente** et interdite de retour |
 | Marketing `(site)/`, `/login`, `src/theme.css` | **Absents** et interdits de retour |
@@ -53,9 +53,9 @@ obligation — les écrans peuvent s'en écarter.
 Deux gates encadrent le front, et **aucune des deux ne juge l'esthétique** :
 - `check:no-legacy-front` — refuse le retour des surfaces démolies ;
   `src/components/` est autorisé.
-- `check:catalyst-integrity` — fige le kit `ui/` par empreinte SHA-256 contre une
+- `check:ui-kit-integrity` — fige le kit `ui/` par empreinte SHA-256 contre une
   dérive silencieuse. Modifier une primitive **volontairement** :
-  `node scripts/check-catalyst-integrity.mjs --update`.
+  `node scripts/check-ui-kit-integrity.mjs --update`.
 
 > ⚠️ **Angle mort connu.** Aucune gate ne mesure le rendu. Le 2026-07-31, une
 > réécriture du kit a supprimé 2438 lignes pour en écrire 257 (`TouchTarget` vidé
@@ -83,8 +83,9 @@ State the restriction, not the headline:
 - **Next.js 16** App Router — ⚠️ breaking changes vs. older Next; read
   `node_modules/next/dist/docs/` before touching framework code (`AGENTS.md`).
 - **React 19**, TypeScript, **Tailwind v4**, Headless UI, Heroicons, Recharts
-  (graphes), `clsx`. Kit `src/components/ui/` = fork Tailwind Plus Catalyst,
-  **source tierce** exclue du lint (`eslint.config.mjs`).
+  (graphes), `clsx`. Kit `src/components/ui/` : 14 primitives maison, issues d'un
+  fork Catalyst mais **plus réalignées sur l'amont** — c'est du code du repo,
+  linté et typé comme le reste.
 - **LangGraph** — the `agent_builder` graph in `src/langgraph/`, served by the
   official LangGraph Agent Server. Mandatory runtime for every agent.
 - **Direct model-router** (`src/lib/agent-mission-control/model-router.ts`) —
@@ -126,7 +127,7 @@ npm run test:live  # opt-in — tape gpu1 + OpenAI, coûte de l'argent
 ```
 
 `npm run check` enchaîne, dans l'ordre : `typecheck` · `lint:fast` · `lint` ·
-`check:no-legacy-front` · `check:catalyst-integrity` · `check:agent-truth` ·
+`check:no-legacy-front` · `check:ui-kit-integrity` · `check:agent-truth` ·
 `check:lifecycle-truth` · `check:registry-parity` · `check:registry-integrity` ·
 `check:dev-port` · `check:render-truth` · `check:rsc-boundary` ·
 `check:schema-rebuildable` · `check:secrets` · `audit:dead`. Le premier rouge
@@ -148,7 +149,7 @@ qu'elle mesure.
 | Je veux toucher… | Ça vit dans… |
 |---|---|
 | Un écran | `src/app/<route>/page.tsx` + `src/components/<domaine>/` |
-| Une primitive UI | `src/components/ui/` — puis `check:catalyst-integrity --update` |
+| Une primitive UI | `src/components/ui/` — puis `check:ui-kit-integrity --update` |
 | La navigation | `src/components/navigation.ts` (source de vérité unique) |
 | La logique métier | `src/lib/agent-mission-control/` |
 | Une route API | `src/app/api/**` — server-only, fail-closed |
@@ -170,7 +171,7 @@ npm run verify               # avant un push qui touche le build
 
 1. **Port** — jamais 3000, 3001 ni 3210. Le dev est épinglé sur **3987**
    (`check:dev-port` le vérifie dans 4 résolveurs).
-2. **Kit UI** — modifier une primitive fait échouer `check:catalyst-integrity`.
+2. **Kit UI** — modifier une primitive fait échouer `check:ui-kit-integrity`.
    C'est voulu : la gate protège contre une dérive silencieuse. Modification
    volontaire → `--update`, puis **regarder un écran qui la consomme**.
 3. **Aucune donnée fabriquée** — une valeur absente s'affiche `Non mesuré`,
