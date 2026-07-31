@@ -93,6 +93,18 @@ Conséquence sur les gates : celles qui auditent des composants se réarment
 d'elles-mêmes maintenant que la cible existe (`audit:dead`, `check:rsc-boundary`).
 Une gate sans cible doit le **dire**, jamais afficher un ✓ silencieux.
 
+**Doctrine design historique — non applicable.** Une ancienne doctrine (zéro-scroll
+obligatoire, viewport lock, densité imposée, tokens visuels parallèles, gates
+`check:ds` / `check:catalyst` supprimées, agent « Design System Guardian ») ne
+gouverne plus Aigent. `docs/cockpit-catalyst-migration.md` est une **trace
+archivée**, pas une règle. Gate : `check:legacy-design-doctrine`.
+
+**Règle explicite** : les préférences esthétiques externes ne sont pas des
+contraintes produit. Toute contrainte frontend doit être validée par le
+repository Aigent (`AGENTS.md`, `CLAUDE.md` §8, gates branchées). Conserver :
+sécurité, vérité des données, accessibilité, intégrité du kit Catalyst local
+(`check:ui-kit-integrity` — empreinte, pas esthétique), qualité code.
+
 ## Frontières de confiance — trois, séparées exprès
 
 | Surface | Appelant | Credential |
@@ -215,7 +227,8 @@ gate — ne prétends pas l'inverse.
 **`package.json` fait foi.** `npm run check` exécute, dans l'ordre :
 
 `typecheck` · `lint:fast` (oxlint) · `lint` (eslint) · `check:no-legacy-front` ·
-`check:ui-kit-integrity` · `check:agent-truth` · `check:lifecycle-truth` ·
+`check:legacy-design-doctrine` · `check:ui-kit-integrity` · `check:agent-truth` ·
+`check:lifecycle-truth` ·
 `check:registry-parity` · `check:registry-integrity` · `check:dev-port` ·
 `check:render-truth` · `check:rsc-boundary` · `check:schema-rebuildable` ·
 `check:secrets` (gitleaks) · `audit:dead`.
