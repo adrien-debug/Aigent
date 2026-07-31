@@ -9,18 +9,32 @@
 > demande explicite de l'issue #64 — une capture est une preuve, pas une doctrine
 > esthétique. `check:legacy-design-doctrine` reste vert.
 
+## Comment ces preuves sont produites
+
+```
+npm run prove:learning-e2e -- --capture docs/visual-reviews/AIGENT-SUPERVISION-LEARNING-001
+node scripts/write-visual-manifest.mjs docs/visual-reviews/AIGENT-SUPERVISION-LEARNING-001
+```
+
+Les captures et le manifeste sont **générés**, pas rédigés. C'est la correction
+du premier défaut du REWORK v1 : un manifeste écrit à la main portait un SHA et
+une branche qui ne décrivaient pas la livraison, et les captures desktop
+montraient un état du code antérieur aux dernières corrections de mise en page.
+
 ## Ce qui a été capturé
 
 | Fichier | Route | Viewport | État |
 |---|---|---|---|
 | `desktop-1440x900.png` | `/learning` | 1440×900 | Obsidian non configuré · Learning Runtime non connecté |
 | `laptop-1280x800.png` | `/learning` | 1280×800 | idem |
-| `mobile-375x812.png` | `/learning` | 375×812 | idem |
+| `mobile-375x812.png` | `/learning` | 375×812 | Quatre zones, **aucun recouvrement**, 0 débordement |
 | `learning-runtime-unavailable-1440x900.png` | `/learning` | 1440×900 | **Runtime injoignable** + Obsidian **configuré** |
 | `obsidian-bridge-state-1440x900.png` | `/learning` | 1440×900 | Obsidian non configuré (message d'aide) |
-| `actions-desktop-1440x900.png` | `/actions` | 1440×900 | File réelle, 2 lignes en lecture seule |
-| `actions-mobile-375x812.png` | `/actions` | 375×812 | idem |
-| `actions-mobile-nav-open-375x812.png` | `/actions` | 375×812 | **Navigation mobile ouverte** (11 entrées) |
+| `actions-desktop-1440x900.png` | `/actions` | 1440×900 | File réelle, **filtres projet/statut**, lecture seule |
+| `actions-mobile-375x812.png` | `/actions` | 375×812 | File en colonne, titre dégagé |
+| `actions-mobile-long-queue-375x812.png` | `/actions` | 375×812 | **File LONGUE** défilant dans sa boîte bornée |
+| `actions-mobile-long-queue-nav-open-375x812.png` | `/actions` | 375×812 | **File longue + navigation ouverte** |
+| `actions-mobile-nav-open-375x812.png` | `/actions` | 375×812 | Navigation mobile ouverte, file courte |
 
 ## Ce que les captures prouvent
 
@@ -58,10 +72,10 @@ preuve. **Aucune clé, aucun prompt, aucun payload** — contrôle par expressio
 régulière sur `sk-`, `Bearer`, `password`, `api_key`, `SERVICE_ROLE` : aucun
 résultat.
 
-## Défauts trouvés et corrigés pendant la revue
+## Défauts trouvés et corrigés — première revue
 
 La revue n'a pas servi qu'à illustrer — elle a trouvé quatre défauts réels, tous
-corrigés avant ces captures finales :
+corrigés avant les captures :
 
 1. **Débordement horizontal en mobile (47 éléments hors viewport).** Cause
    racine : `min-width: auto` sur les items de grille CSS, qui refusent de
@@ -78,11 +92,40 @@ corrigés avant ces captures finales :
    paragraphe. Le badge « Aucune mesure » est conservé, la raison passe en texte
    aligné à gauche.
 
+## Défauts corrigés au REWORK v1
+
+La première revue avait manqué quatre choses, toutes relevées par le REWORK et
+toutes reproduites avant correction :
+
+5. **Le manifeste ne décrivait pas la livraison** — SHA et branche périmés.
+   Il est désormais généré par script depuis git, donc il ne peut plus mentir.
+6. **Le contrôle fixe du shell recouvrait le contenu pendant le scroll.**
+   Le bouton de navigation est `position: fixed` : il ne défile pas. Réserver
+   la place sous le seul en-tête ne protégeait que la position 0. Mesuré :
+   à 3 positions de défilement sur 5, du contenu réel passait dessous — un
+   compteur « 0 », une ligne « Mission bloquée », le titre « Connaissance
+   (Obsidian) ». La gouttière couvre désormais la colonne entière, et le
+   harness le vérifie à cinq positions.
+7. **La boîte de `/actions` grandissait avec sa donnée.** `h-full` sous un
+   shell en `min-h-svh` n'a aucune borne à référencer : mesuré à **4727 px de
+   haut pour 812 px de viewport**. La page s'allongeait au lieu que la file
+   défile dedans. Bornée en `h-svh`. `/learning` reste en `min-h-svh` : c'est
+   un document, et l'y borner coupait ses quatre zones — vérifié en capture.
+8. **Les filtres étaient incomplets et à moitié aveugles.** `copilotId` et
+   `projectId` étaient jetés à la transposition alors qu'ils étaient connus en
+   amont, donc sept catégories sur neuf arrivaient sans clé. `status` et
+   `projectId` n'existaient pas comme critères. Corrigé, et un filtre ne
+   s'affiche plus que s'il discrimine réellement.
+
 ## Console
 
-**0 erreur, 0 warning** sur `/learning` et `/actions`, mesuré sur des
-chargements frais après redémarrage complet du serveur. Le HTML rendu côté
-serveur ne contient aucun marqueur d'erreur de rendu.
+**0 erreur, 0 warning** sur `/learning` et `/actions`, mesuré par le harness à
+chaque exécution (assertion dédiée, pas une lecture manuelle). Le HTML rendu
+côté serveur ne contient aucun marqueur d'erreur de rendu.
+
+Le badge de développement Next.js est masqué à la capture : il n'existe pas en
+production (`next build` ne l'émet pas) et se lirait comme un élément
+d'interface sur une preuve.
 
 ## Ce que ces captures ne prouvent PAS
 

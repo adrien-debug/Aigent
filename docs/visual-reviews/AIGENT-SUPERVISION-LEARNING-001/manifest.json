@@ -1,101 +1,125 @@
 {
   "mission": "AIGENT-SUPERVISION-LEARNING-001",
   "issue": 64,
-  "branch": "mission/aigent-supervision-learning-001",
-  "sha": "3c66f36",
-  "capturedAt": "2026-08-01T00:12:00+04:00",
+  "pullRequest": 65,
+  "branch": "mission/learning-command-center",
+  "sha": "ddc2c58b18469c31cee3825e7b1d3e41b3a16a4e",
+  "shaNote": "SHA du commit qui PRÉCÈDE celui portant ce manifeste — un fichier ne peut pas contenir l'empreinte du commit qui le crée. Généré par scripts/write-visual-manifest.mjs, jamais à la main.",
+  "generatedBy": "scripts/write-visual-manifest.mjs",
+  "capturedBy": "scripts/prove-learning-actions-e2e.mjs --capture",
   "browser": {
     "engine": "Chromium",
     "driver": "Playwright 1.50.1",
-    "profile": "profil dédié Playwright — jamais le profil Chrome quotidien"
+    "profile": "profil éphémère Playwright — jamais le profil Chrome quotidien"
   },
   "server": {
     "url": "http://127.0.0.1:3987",
     "mode": "dev (npm run dev — Next 3987 + LangGraph 2024)",
-    "dataSource": "gpu1 live (PostgREST)"
+    "dataSource": "gpu1 live (PostgREST)",
+    "devBadgeHidden": "Le badge de développement Next.js (`nextjs-portal`) est masqué à la capture : il n'existe pas en production et se lirait comme un élément d'interface."
   },
   "consoleErrors": 0,
   "consoleWarnings": 0,
-  "consoleNote": "Mesuré sur des chargements frais après redémarrage complet du serveur, session navigateur neuve. Le HTML rendu côté serveur ne contient aucun marqueur d'erreur de rendu.",
+  "e2e": {
+    "command": "npm run prove:learning-e2e",
+    "result": "vert — 15 assertions",
+    "covers": [
+      "zéro erreur console sur /learning et /actions",
+      "zéro débordement horizontal à 375×812",
+      "aucun contrôle fixe ne recouvre le contenu, à 5 positions de défilement",
+      "file longue : défile dans sa boîte bornée, sans débordement",
+      "navigation mobile ouverte : 11 surfaces atteignables"
+    ],
+    "fixturePolicy": "La file longue est clonée DANS LE NAVIGATEUR à partir des lignes réellement servies. Aucune fixture n'entre dans le parcours produit, aucun drapeau de test n'existe dans src/**."
+  },
   "captures": [
     {
+      "file": "actions-desktop-1440x900.png",
+      "bytes": 95880,
+      "route": "/actions",
+      "viewport": "1440x900",
+      "state": "File réelle, filtres projet/statut visibles, badges « lecture seule », pied avec provenance",
+      "consoleErrors": 0
+    },
+    {
+      "file": "actions-mobile-375x812.png",
+      "bytes": 54240,
+      "route": "/actions",
+      "viewport": "375x812",
+      "state": "File en colonne, filtres wrappés, titre dégagé du contrôle fixe",
+      "consoleErrors": 0
+    },
+    {
+      "file": "actions-mobile-long-queue-375x812.png",
+      "bytes": 57291,
+      "route": "/actions",
+      "viewport": "375x812",
+      "state": "FILE LONGUE (24 lignes clonées dans le harness) défilant dans sa boîte bornée",
+      "note": "Le pied affiche le compte RÉEL du serveur (2), ce qui prouve que le clonage reste dans le navigateur",
+      "consoleErrors": 0
+    },
+    {
+      "file": "actions-mobile-long-queue-nav-open-375x812.png",
+      "bytes": 48400,
+      "route": "/actions",
+      "viewport": "375x812",
+      "state": "FILE LONGUE + navigation mobile OUVERTE — 11 surfaces atteignables",
+      "consoleErrors": 0
+    },
+    {
+      "file": "actions-mobile-nav-open-375x812.png",
+      "bytes": 47321,
+      "route": "/actions",
+      "viewport": "375x812",
+      "state": "Navigation mobile ouverte, file courte",
+      "consoleErrors": 0
+    },
+    {
       "file": "desktop-1440x900.png",
+      "bytes": 252066,
       "route": "/learning",
       "viewport": "1440x900",
-      "fullPage": true,
       "state": "Obsidian not_configured · Learning Runtime not_configured",
       "consoleErrors": 0
     },
     {
       "file": "laptop-1280x800.png",
+      "bytes": 252307,
       "route": "/learning",
       "viewport": "1280x800",
-      "fullPage": true,
       "state": "Obsidian not_configured · Learning Runtime not_configured",
       "consoleErrors": 0
     },
     {
-      "file": "mobile-375x812.png",
+      "file": "learning-runtime-unavailable-1440x900.png",
+      "bytes": 222894,
       "route": "/learning",
-      "viewport": "375x812",
-      "fullPage": true,
-      "state": "Obsidian not_configured · Learning Runtime not_configured · 0 élément en débordement horizontal",
+      "viewport": "1440x900",
+      "state": "Learning Runtime UNAVAILABLE (port fermé, latence mesurée, endpoint sans jeton) · Obsidian CONFIGURÉ",
+      "note": "Capturée sous configuration temporaire, restaurée depuis — voir REVIEW.md",
       "consoleErrors": 0
     },
     {
-      "file": "learning-runtime-unavailable-1440x900.png",
+      "file": "mobile-375x812.png",
+      "bytes": 207794,
       "route": "/learning",
-      "viewport": "1440x900",
-      "fullPage": true,
-      "state": "Learning Runtime UNAVAILABLE (port fermé, latence 25 ms mesurée, endpoint sans jeton) · Obsidian CONFIGURÉ (3 commandes visibles)",
+      "viewport": "375x812",
+      "state": "Quatre zones empilées, aucun recouvrement par le contrôle fixe, 0 débordement",
       "consoleErrors": 0
     },
     {
       "file": "obsidian-bridge-state-1440x900.png",
+      "bytes": 252073,
       "route": "/learning",
       "viewport": "1440x900",
-      "fullPage": true,
       "state": "Obsidian not_configured — message nommant AIGENT_OBSIDIAN_VAULT, aucun bouton mort",
-      "consoleErrors": 0
-    },
-    {
-      "file": "actions-desktop-1440x900.png",
-      "route": "/actions",
-      "viewport": "1440x900",
-      "fullPage": false,
-      "state": "File réelle, 2 lignes, badges « lecture seule », filtres dérivés, pied avec provenance",
-      "consoleErrors": 0
-    },
-    {
-      "file": "actions-mobile-375x812.png",
-      "route": "/actions",
-      "viewport": "375x812",
-      "fullPage": false,
-      "state": "File réelle en colonne, filtres wrappés, titre dégagé du bouton de navigation",
-      "consoleErrors": 0
-    },
-    {
-      "file": "actions-mobile-nav-open-375x812.png",
-      "route": "/actions",
-      "viewport": "375x812",
-      "fullPage": false,
-      "state": "Navigation mobile OUVERTE — 11 entrées, Learning présent, Actions marquée courante",
       "consoleErrors": 0
     }
   ],
-  "measuredNotAsserted": {
-    "horizontalOverflowBefore": 47,
-    "horizontalOverflowAfter": 0,
-    "overflowRootCause": "min-width:auto sur les items de grille CSS (panneaux à 496px dans une grille de 343px)",
-    "obsidianUriSample": "obsidian://open?vault=Aigent%20Supervision&file=Supervision%2FFlotte.canvas",
-    "reviewNoteUriLength": 715,
-    "reviewNoteUriLimit": 1800,
-    "secretMarkersInUri": false
-  },
   "notProven": [
     "L'ouverture réelle d'un vault Obsidian — l'application n'est pas installée sur cette machine. Seule la bonne formation des URI est prouvée.",
-    "Les états 'live' et 'partial' du Learning Runtime contre un vrai moteur — H-Supervised n'existe pas encore. Seul 'unavailable' a été obtenu en conditions réelles (port fermé).",
-    "La reprise d'un run needs-confirmation de bout en bout — aucun run dans cet état dans la fenêtre au moment des captures. Le modèle est couvert par tests unitaires ; la route sous-jacente préexistait.",
-    "Le rendu au pixel — aucune gate ne le mesure. Ces images ont été lues une par une par un humain."
+    "Les états 'live' et 'partial' du Learning Runtime contre un vrai moteur — H-Supervised n'existe pas encore. Seul 'unavailable' a été obtenu en conditions réelles.",
+    "La reprise d’un run needs-confirmation de bout en bout — aucun run dans cet état dans la fenêtre au moment des captures.",
+    "Le rendu au pixel — aucune gate ne le mesure. Ces images sont lues par un humain."
   ]
 }
