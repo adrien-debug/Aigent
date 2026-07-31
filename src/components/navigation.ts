@@ -15,7 +15,14 @@
  *    `<SidebarItem disabled>` de l'état précédent étaient des `<button>` inertes
  *    qui dessinaient une carte du produit sans laisser y aller. Chaque entrée
  *    pointe désormais sur une route réelle — et cette route DIT honnêtement ce
- *    qu'elle ne sait pas encore faire (`wired: false`).
+ *    qu'elle ne sait pas encore faire, dans sa propre page.
+ *
+ *    Un champ `wired: boolean` a vécu ici, censé marquer les écrans branchés à
+ *    une vraie lecture. Il n'a JAMAIS été lu par personne, et il est devenu faux
+ *    au fur et à mesure que les surfaces atterrissaient — quatre entrées le
+ *    portaient encore à `false` en lisant de la donnée réelle. Un drapeau que
+ *    rien ne consomme ne se met pas à jour : il se supprime. L'état d'une
+ *    surface se lit dans la surface, pas dans une table qui prétend la décrire.
  * 2. `href="#"` est interdit partout dans ce repo. Un `#` est un lien qui ment
  *    en ayant l'air de marcher ; une page placeholder ne ment pas, elle nomme
  *    son absence.
@@ -49,12 +56,6 @@ export type NavEntry = {
   icon: ComponentType<SVGProps<SVGSVGElement>>
   /** Ce que la surface est censée porter — repris tel quel par le placeholder. */
   purpose: string
-  /**
-   * `true` uniquement quand l'écran lit une donnée réelle. Aujourd'hui seul
-   * l'aperçu est branché ; toute autre valeur `true` serait une affirmation
-   * fausse que la page rendrait visible à l'écran.
-   */
-  wired: boolean
 }
 
 /**
@@ -71,70 +72,60 @@ export const NAVIGATION = [
     href: '/',
     icon: Squares2X2Icon,
     purpose: "État de la flotte sur la fenêtre 24 h et file d'action de l'opérateur.",
-    wired: true,
   },
   {
     name: 'Runs',
     href: '/runs',
     icon: BoltIcon,
     purpose: "Historique des exécutions : statut, latence, coût, outils appelés, trace d'un run.",
-    wired: false,
   },
   {
     name: 'Agents',
     href: '/agents',
     icon: CpuChipIcon,
     purpose: 'Roster des copilotes, leur runtime, leur version de production et leur santé.',
-    wired: false,
   },
   {
     name: 'Projets',
     href: '/projects',
     icon: FolderIcon,
     purpose: 'Projets consommateurs, leur dépôt cible et les agents qui leur sont rattachés.',
-    wired: false,
   },
   {
     name: 'Builder',
     href: '/builder',
     icon: WrenchScrewdriverIcon,
     purpose: "Conversation d'authoring : architecte, manifeste, matérialisation d'un agent.",
-    wired: false,
   },
   {
     name: 'Qualification',
     href: '/qualification',
     icon: BeakerIcon,
     purpose: 'Tests, benchmarks, release gate et promotion de version.',
-    wired: false,
   },
   {
     name: 'Livraison',
     href: '/delivery',
     icon: RocketLaunchIcon,
     purpose: 'Poussées vers les dépôts consommateurs, PR ouvertes, sandbox.',
-    wired: false,
   },
   {
     name: 'Runtime',
     href: '/runtime',
     icon: SignalIcon,
     purpose: 'Santé du canal de télémétrie et événements remontés par les agents déployés.',
-    wired: false,
   },
   {
     name: 'Actions',
     href: '/actions',
     icon: InboxStackIcon,
     purpose: "File d'action complète — la colonne de l'aperçu, sans troncature.",
-    wired: false,
   },
   {
     name: 'Réglages',
     href: '/settings',
     icon: Cog6ToothIcon,
     purpose: 'Configuration du plan de contrôle, jetons et frontières de confiance.',
-    wired: false,
   },
 ] as const satisfies readonly NavEntry[]
 
