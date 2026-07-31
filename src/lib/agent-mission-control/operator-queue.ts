@@ -139,10 +139,28 @@ export type QueueSourceState = {
   detail: string | null
 }
 
+/**
+ * Les noms lisibles des identifiants présents dans la file.
+ *
+ * Un menu déroulant qui propose « copilot-market-intelligence » ne renseigne
+ * personne. La jointure id → nom est faite ICI, côté serveur, à partir des
+ * lectures déjà effectuées — pas de second aller-retour, et surtout pas de
+ * re-parsing du libellé `meta` côté client.
+ *
+ * Un identifiant absent de ces tables reste affiché TEL QUEL par l'UI : un id
+ * non résolu est un id non résolu, on n'invente pas un nom.
+ */
+export type QueueLabels = {
+  copilots: Record<string, string>
+  projects: Record<string, string>
+}
+
 export type OperatorQueue = {
   items: OperatorQueueItem[]
   /** État de CHAQUE source composée — l'UI affiche les pannes nommément. */
   sources: QueueSourceState[]
+  /** Noms lisibles pour les filtres — voir `QueueLabels`. */
+  labels: QueueLabels
   /** Avertissements hérités de l'aperçu, repris tels quels. */
   dataWarnings: string[]
   /**
@@ -238,6 +256,11 @@ export function buildOperatorQueue(input: {
 
   // Les sept catégories de l'aperçu, transposées sans altération de leur
   // priorité ni de leur href canonique.
+  //
+  // `copilotId` / `projectId` sont REPRIS de l'item amont, pas remis à `null`.
+  // Ils y étaient écrasés au départ, ce qui rendait les filtres par agent et
+  // par projet aveugles à sept catégories sur neuf : la file affichait un
+  // filtre « agent » qui ne voyait que les runs en attente.
   for (const item of input.actionItems) {
     items.push({
       id: item.id,
@@ -249,8 +272,12 @@ export function buildOperatorQueue(input: {
       buttonLabel: item.buttonLabel,
       priority: item.priority,
       mutation: null,
-      copilotId: null,
-      projectId: null,
+      copilotId: item.copilotId,
+      // Le projet peut manquer sur l'item amont alors que le copilot le
+      // connaît (une ligne de livraison porte son copilot, pas son projet) :
+      // on complète par la jointure en mémoire déjà disponible ici, sans
+      // aller-retour supplémentaire.
+      projectId: item.projectId ?? (item.copilotId ? input.copilotsById.get(item.copilotId)?.projectId ?? null : null),
       // Une gate rouge et une sandbox en échec bloquent une livraison : c'est
       // un risque PROUVÉ par la dérivation amont, pas une estimation.
       risk: item.kind === 'release_gate_red' || item.kind === 'sandbox_failed' ? 'high' : null,
@@ -353,20 +380,49 @@ export function buildOperatorQueue(input: {
     }
   }
 
+  // Noms lisibles des SEULS identifiants réellement présents dans la file —
+  // pas du roster entier : une table qui décrit des agents absents de l'écran
+  // grossit la charge utile sans servir un seul filtre.
+  const labels: QueueLabels = { copilots: {}, projects: {} }
+  for (const item of items) {
+    if (item.copilotId && !labels.copilots[item.copilotId]) {
+      const name = input.copilotsById.get(item.copilotId)?.name
+      if (name) labels.copilots[item.copilotId] = name
+    }
+    if (item.projectId && !labels.projects[item.projectId]) {
+      const name = input.projectsById.get(item.projectId)?.name
+      if (name) labels.projects[item.projectId] = name
+    }
+  }
+
   return {
     // Tri stable : à priorité égale l'ordre d'insertion est conservé, donc
     // l'ordre déterministe des sources amont. `toSorted` ne mute pas l'entrée.
     items: items.toSorted((a, b) => a.priority - b.priority),
     sources,
+    labels,
     dataWarnings: [...input.dataWarnings],
     composedAt: input.composedAt,
   }
 }
 
-/** Les valeurs de filtre offertes par l'écran — dérivées, jamais codées en dur. */
+/**
+ * Les valeurs de filtre offertes par l'écran — DÉRIVÉES des lignes réelles,
+ * jamais codées en dur.
+ *
+ * RÈGLE : un filtre ne s'affiche que s'il DISCRIMINE, c'est-à-dire s'il offre
+ * au moins deux valeurs distinctes. Un sélecteur « agent » sur une file qui ne
+ * contient qu'un seul agent n'est pas une commande, c'est une décoration qui
+ * suggère un tri impossible — et il ment sur la variété des données.
+ */
 export type QueueFilters = {
   kinds: OperatorQueueKind[]
   copilotIds: string[]
+  projectIds: string[]
+  /** Les statuts réellement présents. Ce ne sont PAS les `kind` : une même
+   *  catégorie porte plusieurs statuts (`proposed` / `v2-created` pour une
+   *  décision V2), et deux catégories peuvent partager un statut. */
+  statuses: string[]
   /** Vrai si au moins une ligne porte un risque prouvé — sinon le filtre risque
    *  n'a pas lieu d'être affiché. */
   hasRisk: boolean
@@ -377,22 +433,41 @@ export type QueueFilters = {
 export function deriveQueueFilters(items: readonly OperatorQueueItem[]): QueueFilters {
   const kinds = new Set<OperatorQueueKind>()
   const copilotIds = new Set<string>()
+  const projectIds = new Set<string>()
+  const statuses = new Set<string>()
   let hasRisk = false
   let hasMutation = false
 
   for (const item of items) {
     kinds.add(item.kind)
     if (item.copilotId) copilotIds.add(item.copilotId)
+    if (item.projectId) projectIds.add(item.projectId)
+    if (item.status) statuses.add(item.status)
     if (item.risk !== null) hasRisk = true
     if (item.mutation !== null) hasMutation = true
   }
 
   return {
+    // Tri déterministe : deux rendus de la même file offrent les mêmes filtres
+    // dans le même ordre, sinon les boutons dansent d'un chargement à l'autre.
     kinds: [...kinds],
-    copilotIds: [...copilotIds],
+    copilotIds: [...copilotIds].toSorted(),
+    projectIds: [...projectIds].toSorted(),
+    statuses: [...statuses].toSorted(),
     hasRisk,
     hasMutation,
   }
+}
+
+/**
+ * Un critère est-il DISCRIMINANT ? Deux valeurs distinctes minimum.
+ *
+ * Sur une file à un seul agent, filtrer par agent ne retire jamais rien : le
+ * contrôle serait inerte. L'UI s'en sert pour ne rendre que les filtres qui
+ * peuvent réellement changer l'affichage.
+ */
+export function isDiscriminating(values: readonly string[]): boolean {
+  return values.length > 1
 }
 
 /** Applique une sélection de filtres. Un critère absent ne filtre rien. */
@@ -401,6 +476,8 @@ export function filterQueue(
   selection: Readonly<{
     kind?: OperatorQueueKind | null
     copilotId?: string | null
+    projectId?: string | null
+    status?: string | null
     riskOnly?: boolean
     actionableOnly?: boolean
   }>
@@ -408,6 +485,8 @@ export function filterQueue(
   return items.filter((item) => {
     if (selection.kind && item.kind !== selection.kind) return false
     if (selection.copilotId && item.copilotId !== selection.copilotId) return false
+    if (selection.projectId && item.projectId !== selection.projectId) return false
+    if (selection.status && item.status !== selection.status) return false
     if (selection.riskOnly && item.risk === null) return false
     if (selection.actionableOnly && item.mutation === null) return false
     return true

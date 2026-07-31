@@ -46,6 +46,7 @@ import { Unavailable } from '@/components/cockpit/primitives'
 import {
   deriveQueueFilters,
   filterQueue,
+  isDiscriminating,
   QUEUE_KIND_LABEL,
   type OperatorQueue,
   type OperatorQueueItem,
@@ -87,6 +88,48 @@ function FilterButton({
     <Button plain aria-pressed={false} onClick={onClick}>
       {children}
     </Button>
+  )
+}
+
+/**
+ * Un sélecteur de filtre — rendu UNIQUEMENT s'il discrimine.
+ *
+ * `isDiscriminating` exige au moins deux valeurs distinctes : sur une file qui
+ * ne contient qu'un seul agent, un menu « agent » ne retirerait jamais rien.
+ * Un contrôle inerte suggère un tri impossible et laisse croire à une variété
+ * de données qui n'existe pas — on ne le rend pas du tout.
+ */
+function FilterSelect({
+  label,
+  allLabel,
+  values,
+  selected,
+  onSelect,
+  resolveLabel,
+}: Readonly<{
+  label: string
+  allLabel: string
+  values: readonly string[]
+  selected: string | null
+  onSelect: (value: string | null) => void
+  resolveLabel: (value: string) => string
+}>) {
+  if (!isDiscriminating(values)) return null
+
+  return (
+    <select
+      aria-label={label}
+      className="rounded-lg border border-zinc-950/10 bg-white px-3 py-1.5 text-sm text-zinc-900 dark:border-white/10 dark:bg-zinc-900 dark:text-white"
+      value={selected ?? ''}
+      onChange={(event) => onSelect(event.target.value || null)}
+    >
+      <option value="">{allLabel}</option>
+      {values.map((value) => (
+        <option key={value} value={value}>
+          {resolveLabel(value)}
+        </option>
+      ))}
+    </select>
   )
 }
 
@@ -181,6 +224,8 @@ export default function QueueConsole({
 
   const [kind, setKind] = useState<OperatorQueueKind | null>(null)
   const [copilotId, setCopilotId] = useState<string | null>(null)
+  const [projectId, setProjectId] = useState<string | null>(null)
+  const [status, setStatus] = useState<string | null>(null)
   const [riskOnly, setRiskOnly] = useState(false)
   const [actionableOnly, setActionableOnly] = useState(false)
 
@@ -191,8 +236,8 @@ export default function QueueConsole({
 
   const filters = useMemo(() => deriveQueueFilters(queue.items), [queue.items])
   const visible = useMemo(
-    () => filterQueue(queue.items, { kind, copilotId, riskOnly, actionableOnly }),
-    [queue.items, kind, copilotId, riskOnly, actionableOnly]
+    () => filterQueue(queue.items, { kind, copilotId, projectId, status, riskOnly, actionableOnly }),
+    [queue.items, kind, copilotId, projectId, status, riskOnly, actionableOnly]
   )
 
   const openConfirm = useCallback((item: OperatorQueueItem) => {
@@ -306,21 +351,33 @@ export default function QueueConsole({
           </FilterButton>
         ))}
 
-        {filters.copilotIds.length > 1 ? (
-          <select
-            aria-label="Filtrer par agent"
-            className="rounded-lg border border-zinc-950/10 bg-white px-3 py-1.5 text-sm text-zinc-900 dark:border-white/10 dark:bg-zinc-900 dark:text-white"
-            value={copilotId ?? ''}
-            onChange={(event) => setCopilotId(event.target.value || null)}
-          >
-            <option value="">Tous les agents</option>
-            {filters.copilotIds.map((id) => (
-              <option key={id} value={id}>
-                {id}
-              </option>
-            ))}
-          </select>
-        ) : null}
+        {/* Chaque sélecteur n'apparaît QUE s'il discrimine (≥ 2 valeurs). Un
+            filtre inerte suggère un tri impossible et ment sur la variété des
+            données — voir `isDiscriminating`. */}
+        <FilterSelect
+          label="Filtrer par agent"
+          allLabel="Tous les agents"
+          values={filters.copilotIds}
+          selected={copilotId}
+          onSelect={setCopilotId}
+          resolveLabel={(id) => queue.labels.copilots[id] ?? id}
+        />
+        <FilterSelect
+          label="Filtrer par projet"
+          allLabel="Tous les projets"
+          values={filters.projectIds}
+          selected={projectId}
+          onSelect={setProjectId}
+          resolveLabel={(id) => queue.labels.projects[id] ?? id}
+        />
+        <FilterSelect
+          label="Filtrer par statut"
+          allLabel="Tous les statuts"
+          values={filters.statuses}
+          selected={status}
+          onSelect={setStatus}
+          resolveLabel={(value) => value}
+        />
 
         {filters.hasRisk ? (
           <FilterButton active={riskOnly} onClick={() => setRiskOnly(!riskOnly)}>
@@ -365,10 +422,10 @@ export default function QueueConsole({
           )}
         </div>
 
-        {/* `pl-14` sur mobile : le shell pose l'avatar de session `fixed` en bas
-            à gauche, qui recouvrait le début de cette ligne. Même raison que la
-            gouttière du titre, à l'autre bout de la page. */}
-        <footer className="shrink-0 border-t border-zinc-950/5 px-4 py-2 pl-14 lg:pl-4 dark:border-white/10">
+        {/* Pas de gouttière ici : la colonne entière de `/actions` en réserve
+            déjà une sous `lg` (voir `src/app/actions/page.tsx`). En ajouter une
+            seconde décalerait le pied sans raison. */}
+        <footer className="shrink-0 border-t border-zinc-950/5 px-4 py-2 dark:border-white/10">
           <Text className="text-xs">
             {visible.length} ligne(s) affichée(s) sur {queue.items.length} · composée le{' '}
             {new Date(queue.composedAt).toLocaleString('fr-FR')}

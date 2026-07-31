@@ -163,6 +163,27 @@ export type ActionItem = {
   href: string
   buttonLabel: string
   priority: number
+  /**
+   * L'agent concerné, quand la ligne en porte un.
+   *
+   * Ces deux identifiants ont d'abord été omis : `meta` composait déjà un
+   * libellé lisible (« Market Intelligence · adrien-debug/TradeAgent »), donc
+   * l'information PARAISSAIT présente. Elle ne l'était pas — un libellé n'est
+   * pas une clé. Toute surface voulant filtrer par agent ou par projet devait
+   * soit re-parser une chaîne d'affichage, soit renoncer. `/actions` avait
+   * renoncé.
+   *
+   * Ils sont donc conservés à la dérivation, là où ils sont connus sans coût :
+   * `copilotId` vient de la clé de `latestDeliveryByCopilot`, `projectId` du
+   * copilot résolu ou de l'approbation architecte. Aucun aller-retour
+   * supplémentaire.
+   *
+   * `null` quand la ligne n'en porte réellement pas — une panne de source
+   * (`data_unavailable`) n'appartient à aucun agent.
+   */
+  copilotId: string | null
+  /** Le projet concerné, même contrat que `copilotId`. */
+  projectId: string | null
 }
 
 export type DashboardOverview = {
@@ -557,6 +578,8 @@ export function buildActionItems(input: {
       href: '/',
       buttonLabel: 'Retry',
       priority: ACTION_PRIORITY.data_unavailable,
+      copilotId: null,
+      projectId: null,
     })
   } else {
     for (const approval of input.pendingArchitectApprovals) {
@@ -570,6 +593,8 @@ export function buildActionItems(input: {
         href: `/projects/${approval.projectId}/builder`,
         buttonLabel: 'Open builder',
         priority: ACTION_PRIORITY.architect_approval,
+        copilotId: null,
+        projectId: approval.projectId,
       })
     }
   }
@@ -589,6 +614,8 @@ export function buildActionItems(input: {
       href: '/',
       buttonLabel: 'Retry',
       priority: ACTION_PRIORITY.data_unavailable,
+      copilotId: null,
+      projectId: null,
     })
   }
   if (input.latestSandboxByCopilot === null) {
@@ -601,6 +628,8 @@ export function buildActionItems(input: {
       href: '/',
       buttonLabel: 'Retry',
       priority: ACTION_PRIORITY.data_unavailable,
+      copilotId: null,
+      projectId: null,
     })
   }
 
@@ -620,6 +649,8 @@ export function buildActionItems(input: {
         href: `/agents/${copilotId}`,
         buttonLabel: 'Review',
         priority: ACTION_PRIORITY.ready_manual,
+        copilotId: copilotId,
+        projectId: copilot.projectId ?? null,
       })
     }
 
@@ -634,6 +665,8 @@ export function buildActionItems(input: {
         href: `/agents/${copilotId}`,
         buttonLabel: 'View Sandbox',
         priority: ACTION_PRIORITY.sandbox_failed,
+        copilotId: copilotId,
+        projectId: copilot.projectId ?? null,
       })
     }
 
@@ -648,6 +681,8 @@ export function buildActionItems(input: {
         href: `/agents/${copilotId}`,
         buttonLabel: 'View Scorecard',
         priority: ACTION_PRIORITY.release_gate_red,
+        copilotId: copilotId,
+        projectId: copilot.projectId ?? null,
       })
     }
 
@@ -661,6 +696,8 @@ export function buildActionItems(input: {
         href: evt.prUrl,
         buttonLabel: 'Open PR',
         priority: ACTION_PRIORITY.pr_open,
+        copilotId: copilotId,
+        projectId: copilot.projectId ?? null,
       })
     }
   }
@@ -681,6 +718,8 @@ export function buildActionItems(input: {
       href: project ? `/projects/${project.id}` : '/',
       buttonLabel: 'View Mission',
       priority: ACTION_PRIORITY.mission_blocked,
+      copilotId: null,
+      projectId: mission.projectId,
     })
   }
 

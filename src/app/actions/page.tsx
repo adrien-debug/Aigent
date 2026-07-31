@@ -55,11 +55,19 @@ export default async function Page() {
 
   return (
     <AppShell>
-      <div className="flex h-full min-h-0 flex-col overflow-hidden p-4">
-        {/* `pl-10` sur mobile : le shell pose un bouton de navigation `fixed`
-            en (16,16) et le titre passerait dessous. Au-delà de `lg` le rail est
-            permanent, le bouton disparaît, la gouttière aussi. */}
-        <header className="shrink-0 pb-4 pl-10 lg:pl-0">
+      {/* DEUX CONTRAINTES DE MISE EN PAGE, TOUTES DEUX MESURÉES
+          ------------------------------------------------------
+          1. `h-svh` et non `h-full`. Le shell est en `min-h-svh` — une hauteur
+             MINIMALE, donc sans borne à référencer : un `h-full` ici ne
+             résolvait rien et la boîte de la file grandissait avec sa donnée
+             (mesuré : 4727 px de contenu pour 812 px de viewport, la page
+             entière s'allongeait au lieu que la liste défile dedans). La boîte
+             est bornée au viewport ; la donnée défile DEDANS.
+          2. `max-lg:pl-14` : le bouton de navigation du shell est `fixed`
+             (16,16 · 37×36 · z-30). Il ne défile pas, donc réserver la place
+             sous le seul en-tête ne protégeait que la position de scroll 0. */}
+      <div className="flex h-svh min-h-0 flex-col overflow-hidden p-4 max-lg:pl-14">
+        <header className="shrink-0 pb-4">
           <Heading level={1}>{ENTRY.name}</Heading>
           <Text className="mt-1">{ENTRY.purpose}</Text>
           <Divider soft className="mt-4" />

@@ -18,6 +18,7 @@ import {
   buildOperatorQueue,
   deriveQueueFilters,
   filterQueue,
+  isDiscriminating,
   QUEUE_KIND_LABEL,
   selectOpenDecisions,
   selectPendingConfirmations,
@@ -54,6 +55,8 @@ function actionItem(partial: Partial<ActionItem> & { id: string; kind: ActionIte
     href: '/agents',
     buttonLabel: 'Ouvrir',
     priority: 5,
+    copilotId: null,
+    projectId: null,
     ...partial,
   }
 }
@@ -337,6 +340,141 @@ describe('filtres', () => {
     const filters = deriveQueueFilters(readOnly.items)
     expect(filters.hasRisk).toBe(false)
     expect(filters.hasMutation).toBe(false)
+  })
+})
+
+describe('propagation des identifiants (REWORK v1 §3)', () => {
+  it("conserve copilotId et projectId des items hérités au lieu de les écraser", () => {
+    // Le défaut corrigé : les sept catégories de l'aperçu étaient transposées
+    // avec `copilotId: null` / `projectId: null`, ce qui rendait les filtres
+    // agent et projet aveugles à sept catégories sur neuf.
+    const queue = buildOperatorQueue({
+      ...emptyInput(),
+      actionItems: [
+        actionItem({
+          id: 'a1',
+          kind: 'ready_manual',
+          copilotId: 'cop-1',
+          projectId: 'proj-1',
+        }),
+      ],
+    })
+
+    expect(queue.items[0].copilotId).toBe('cop-1')
+    expect(queue.items[0].projectId).toBe('proj-1')
+  })
+
+  it('complète le projet depuis le copilot quand l’item amont ne le porte pas', () => {
+    const queue = buildOperatorQueue({
+      ...emptyInput(),
+      actionItems: [actionItem({ id: 'a1', kind: 'pr_open', copilotId: 'cop-1', projectId: null })],
+      copilotsById: new Map([['cop-1', copilot({ id: 'cop-1', projectId: 'proj-9' })]]),
+    })
+
+    expect(queue.items[0].projectId).toBe('proj-9')
+  })
+
+  it("n'invente pas d'identifiant pour une panne de source", () => {
+    const queue = buildOperatorQueue({ ...emptyInput(), pendingConfirmations: null })
+    const unavailable = queue.items.find((i) => i.kind === 'data_unavailable')
+    expect(unavailable?.copilotId).toBeNull()
+    expect(unavailable?.projectId).toBeNull()
+  })
+
+  it('expose les noms lisibles des seuls identifiants présents', () => {
+    const queue = buildOperatorQueue({
+      ...emptyInput(),
+      actionItems: [actionItem({ id: 'a1', kind: 'pr_open', copilotId: 'cop-1', projectId: 'proj-1' })],
+      copilotsById: new Map([
+        ['cop-1', copilot({ id: 'cop-1', name: 'Market Intelligence' })],
+        // Présent au roster mais ABSENT de la file : ne doit pas être embarqué.
+        ['cop-2', copilot({ id: 'cop-2', name: 'Absent' })],
+      ]),
+      projectsById: new Map([['proj-1', { id: 'proj-1', name: 'TradeAgent' } as Project]]),
+    })
+
+    expect(queue.labels.copilots).toEqual({ 'cop-1': 'Market Intelligence' })
+    expect(queue.labels.projects).toEqual({ 'proj-1': 'TradeAgent' })
+  })
+
+  it('laisse un id non résolu tel quel plutôt que d’inventer un nom', () => {
+    const queue = buildOperatorQueue({
+      ...emptyInput(),
+      actionItems: [actionItem({ id: 'a1', kind: 'pr_open', copilotId: 'cop-inconnu' })],
+    })
+    expect(queue.labels.copilots['cop-inconnu']).toBeUndefined()
+  })
+})
+
+describe('filtres statut et projet (REWORK v1 §3)', () => {
+  const queue = buildOperatorQueue({
+    ...emptyInput(),
+    actionItems: [
+      actionItem({ id: 'a1', kind: 'pr_open', status: 'open', copilotId: 'c1', projectId: 'p1' }),
+      actionItem({ id: 'a2', kind: 'ready_manual', status: 'ready_for_manual_test', copilotId: 'c2', projectId: 'p2' }),
+    ],
+    openDecisions: [
+      { proposalId: 'd1', copilotId: 'c1', status: 'proposed', summary: 's', createdAt: COMPOSED_AT },
+      { proposalId: 'd2', copilotId: 'c2', status: 'v2-created', summary: 's', createdAt: COMPOSED_AT },
+    ],
+    copilotsById: new Map([
+      ['c1', copilot({ id: 'c1', projectId: 'p1' })],
+      ['c2', copilot({ id: 'c2', projectId: 'p2' })],
+    ]),
+  })
+
+  it('dérive les statuts réellement présents — distincts des catégories', () => {
+    const filters = deriveQueueFilters(queue.items)
+    // Deux statuts pour UNE seule catégorie `improvement_decision` : c'est
+    // exactement pourquoi `status` ne peut pas être déduit de `kind`.
+    expect(filters.statuses).toContain('proposed')
+    expect(filters.statuses).toContain('v2-created')
+    expect(filters.statuses).toContain('open')
+  })
+
+  it('filtre par statut', () => {
+    expect(filterQueue(queue.items, { status: 'v2-created' })).toHaveLength(1)
+    expect(filterQueue(queue.items, { status: 'proposed' })).toHaveLength(1)
+    expect(filterQueue(queue.items, { status: 'inexistant' })).toHaveLength(0)
+  })
+
+  it('filtre par projet, y compris sur les catégories héritées', () => {
+    const p1 = filterQueue(queue.items, { projectId: 'p1' })
+    expect(p1.map((i) => i.id).toSorted()).toEqual(['a1', 'queue_decision_d1'])
+  })
+
+  it('combine plusieurs critères', () => {
+    expect(filterQueue(queue.items, { projectId: 'p1', status: 'open' })).toHaveLength(1)
+    expect(filterQueue(queue.items, { projectId: 'p1', status: 'v2-created' })).toHaveLength(0)
+  })
+
+  it('trie les valeurs de filtre — deux rendus donnent le même ordre', () => {
+    const a = deriveQueueFilters(queue.items)
+    const b = deriveQueueFilters(queue.items)
+    expect(a.copilotIds).toEqual(b.copilotIds)
+    expect(a.projectIds).toEqual(a.projectIds.toSorted())
+    expect(a.statuses).toEqual(a.statuses.toSorted())
+  })
+})
+
+describe('isDiscriminating — un filtre inerte ne s’affiche pas', () => {
+  it('exige au moins deux valeurs distinctes', () => {
+    expect(isDiscriminating([])).toBe(false)
+    expect(isDiscriminating(['seul'])).toBe(false)
+    expect(isDiscriminating(['a', 'b'])).toBe(true)
+  })
+
+  it('une file mono-agent n’offre pas de filtre agent', () => {
+    const mono = buildOperatorQueue({
+      ...emptyInput(),
+      actionItems: [
+        actionItem({ id: 'a1', kind: 'pr_open', copilotId: 'c1' }),
+        actionItem({ id: 'a2', kind: 'ready_manual', copilotId: 'c1' }),
+      ],
+    })
+    const filters = deriveQueueFilters(mono.items)
+    expect(filters.copilotIds).toEqual(['c1'])
+    expect(isDiscriminating(filters.copilotIds)).toBe(false)
   })
 })
 

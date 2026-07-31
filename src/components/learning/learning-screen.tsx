@@ -290,7 +290,11 @@ function KnowledgeZone({
 
   return (
     <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-      <Panel title="Connaissance (Obsidian)" hint="espace humain">
+      {/* Pas de `hint` : le titre « Connaissance (Obsidian) » est déjà long, et
+          le slot `hint` de `Panel` est `shrink-0` — la paire dépassait de 23 px
+          une fois la gouttière de contrôle fixe réservée. Le corps du panneau
+          dit exactement la même chose, en pouvant revenir à la ligne. */}
+      <Panel title="Connaissance (Obsidian)">
         <Text>
           Obsidian est le workspace éditable de l’opérateur : les revues, les incidents et les décisions s’y
           écrivent à la main. Aigent n’y lit rien et n’y écrit rien — il ouvre des liens.
@@ -352,12 +356,25 @@ export default function LearningScreen({
   purpose: string
 }>) {
   return (
-    <div className="h-full overflow-y-auto p-4">
-      {/* `pl-10` sur mobile : le shell pose un bouton de navigation `fixed` en
-          (16,16). Sans cette gouttière, le titre passe DESSOUS et devient
-          illisible — constaté en capture, pas supposé. Au-delà de `lg` le rail
-          est permanent, le bouton disparaît, la gouttière aussi. */}
-      <header className="pb-4 pl-10 lg:pl-0">
+    // DEUX CHOIX DE MISE EN PAGE, TOUS DEUX MESURÉS
+    // ---------------------------------------------
+    // 1. `min-h-svh`, PAS `h-svh`. Cette page est un document : ses quatre
+    //    zones s'empilent et défilent avec la page. Une hauteur FIXE la
+    //    bornerait au viewport et couperait tout ce qui suit — constaté en
+    //    capture : la page s'arrêtait au milieu de « File de revue ».
+    //    (`/actions` fait l'inverse, et pour une bonne raison : sa file est une
+    //    boîte bornée dans laquelle la donnée défile.)
+    // 2. `max-lg:pl-14` — GOUTTIÈRE DE CONTRÔLE FIXE, sur la COLONNE ENTIÈRE et
+    //    pas sur le seul en-tête. Le shell pose un bouton de navigation
+    //    `position: fixed` en (16,16), 37×36 px, z-30. « Fixe » veut dire qu'il
+    //    ne défile PAS : réserver la place sous le titre ne protège que la
+    //    position de scroll 0. Mesuré avant correction : à 3 positions de
+    //    défilement sur 5, du contenu réel passait dessous — un compteur « 0 »,
+    //    une ligne « Mission bloquée », le titre « Connaissance (Obsidian) ».
+    //    Au-delà de `lg` le rail est permanent, le bouton n'existe plus, la
+    //    gouttière non plus.
+    <div className="min-h-svh p-4 max-lg:pl-14">
+      <header className="pb-4">
         <Heading level={1}>{title}</Heading>
         <Text className="mt-1">{purpose}</Text>
         <Divider soft className="mt-4" />
