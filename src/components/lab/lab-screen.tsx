@@ -28,6 +28,7 @@ import {
 } from './registry'
 import PatternCluster from './pattern-cluster'
 import PatternMorph from './pattern-morph'
+import PatternProgress from './pattern-progress'
 
 const STATUS_COLOR: Record<LabPattern['status'], 'emerald' | 'sky' | 'zinc'> = {
   adopted: 'emerald',
@@ -96,6 +97,7 @@ export default function LabScreen() {
   const cluster = byId.get('folder')
   const indicator = byId.get('indicator')
   const stagger = byId.get('stagger')
+  const progress = byId.get('progress')
 
   return (
     <div className="shell-page-document max-lg:pl-14">
@@ -139,6 +141,11 @@ export default function LabScreen() {
           </div>
 
           <div className="flex flex-col gap-4">
+            {progress ? (
+              <PatternCard pattern={progress}>
+                <PatternProgress />
+              </PatternCard>
+            ) : null}
             {cluster ? (
               <PatternCard pattern={cluster}>
                 <PatternCluster />

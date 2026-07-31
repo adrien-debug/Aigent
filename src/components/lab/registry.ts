@@ -107,6 +107,16 @@ export const LAB_PATTERNS = [
       'Le kit est figé par empreinte SHA (`check:ui-kit-integrity`) : ce pattern se regarde ici, il ne se modifie pas depuis le lab.',
   },
   {
+    id: 'progress',
+    name: 'Remplissage de progression',
+    purpose:
+      'Un run en cours affiche son avancement réel — combien d’étapes sur combien — au lieu du seul badge « En cours », qui ne distingue pas un run qui avance d’un run figé.',
+    status: 'candidate',
+    cost: 'Moyen — les étapes existent en base (`agent_runs.stepIds`, `AgentRunStep.index`), mais aucun canal ne les pousse vers l’écran pendant l’exécution.',
+    caveat:
+      'Le total d’étapes n’est PAS connu tant que le graphe n’a pas fini : le pattern doit donc porter deux modes distincts, et le mode « total inconnu » ne doit jamais afficher de pourcentage. Une barre qui avance sans mesure — le défaut le plus courant de ce pattern — est ici interdite.',
+  },
+  {
     id: 'stagger',
     name: 'Cascade d’entrée de liste',
     purpose:
