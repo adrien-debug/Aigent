@@ -1,0 +1,101 @@
+{
+  "mission": "AIGENT-SUPERVISION-LEARNING-001",
+  "issue": 64,
+  "branch": "mission/aigent-supervision-learning-001",
+  "sha": "3c66f36",
+  "capturedAt": "2026-08-01T00:12:00+04:00",
+  "browser": {
+    "engine": "Chromium",
+    "driver": "Playwright 1.50.1",
+    "profile": "profil dédié Playwright — jamais le profil Chrome quotidien"
+  },
+  "server": {
+    "url": "http://127.0.0.1:3987",
+    "mode": "dev (npm run dev — Next 3987 + LangGraph 2024)",
+    "dataSource": "gpu1 live (PostgREST)"
+  },
+  "consoleErrors": 0,
+  "consoleWarnings": 0,
+  "consoleNote": "Mesuré sur des chargements frais après redémarrage complet du serveur, session navigateur neuve. Le HTML rendu côté serveur ne contient aucun marqueur d'erreur de rendu.",
+  "captures": [
+    {
+      "file": "desktop-1440x900.png",
+      "route": "/learning",
+      "viewport": "1440x900",
+      "fullPage": true,
+      "state": "Obsidian not_configured · Learning Runtime not_configured",
+      "consoleErrors": 0
+    },
+    {
+      "file": "laptop-1280x800.png",
+      "route": "/learning",
+      "viewport": "1280x800",
+      "fullPage": true,
+      "state": "Obsidian not_configured · Learning Runtime not_configured",
+      "consoleErrors": 0
+    },
+    {
+      "file": "mobile-375x812.png",
+      "route": "/learning",
+      "viewport": "375x812",
+      "fullPage": true,
+      "state": "Obsidian not_configured · Learning Runtime not_configured · 0 élément en débordement horizontal",
+      "consoleErrors": 0
+    },
+    {
+      "file": "learning-runtime-unavailable-1440x900.png",
+      "route": "/learning",
+      "viewport": "1440x900",
+      "fullPage": true,
+      "state": "Learning Runtime UNAVAILABLE (port fermé, latence 25 ms mesurée, endpoint sans jeton) · Obsidian CONFIGURÉ (3 commandes visibles)",
+      "consoleErrors": 0
+    },
+    {
+      "file": "obsidian-bridge-state-1440x900.png",
+      "route": "/learning",
+      "viewport": "1440x900",
+      "fullPage": true,
+      "state": "Obsidian not_configured — message nommant AIGENT_OBSIDIAN_VAULT, aucun bouton mort",
+      "consoleErrors": 0
+    },
+    {
+      "file": "actions-desktop-1440x900.png",
+      "route": "/actions",
+      "viewport": "1440x900",
+      "fullPage": false,
+      "state": "File réelle, 2 lignes, badges « lecture seule », filtres dérivés, pied avec provenance",
+      "consoleErrors": 0
+    },
+    {
+      "file": "actions-mobile-375x812.png",
+      "route": "/actions",
+      "viewport": "375x812",
+      "fullPage": false,
+      "state": "File réelle en colonne, filtres wrappés, titre dégagé du bouton de navigation",
+      "consoleErrors": 0
+    },
+    {
+      "file": "actions-mobile-nav-open-375x812.png",
+      "route": "/actions",
+      "viewport": "375x812",
+      "fullPage": false,
+      "state": "Navigation mobile OUVERTE — 11 entrées, Learning présent, Actions marquée courante",
+      "consoleErrors": 0
+    }
+  ],
+  "measuredNotAsserted": {
+    "horizontalOverflowBefore": 47,
+    "horizontalOverflowAfter": 0,
+    "overflowRootCause": "min-width:auto sur les items de grille CSS (panneaux à 496px dans une grille de 343px)",
+    "obsidianUriSample": "obsidian://open?vault=Aigent%20Supervision&file=Supervision%2FFlotte.canvas",
+    "reviewNoteUriLength": 715,
+    "reviewNoteUriLimit": 1800,
+    "secretMarkersInUri": false
+  },
+  "notProven": [
+    "L'ouverture réelle d'un vault Obsidian — l'application n'est pas installée sur cette machine. Seule la bonne formation des URI est prouvée.",
+    "Les états 'live' et 'partial' du Learning Runtime contre un vrai moteur — H-Supervised n'existe pas encore. Seul 'unavailable' a été obtenu en conditions réelles (port fermé).",
+    "La reprise d'un run needs-confirmation de bout en bout — aucun run dans cet état dans la fenêtre au moment des captures. Le modèle est couvert par tests unitaires ; la route sous-jacente préexistait.",
+    "Le rendu au pixel — aucune gate ne le mesure. Ces images ont été lues une par une par un humain."
+  ]
+}
