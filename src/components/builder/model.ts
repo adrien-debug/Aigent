@@ -24,6 +24,7 @@
  * `ReadState` porte, et c'est pour ça qu'elle est un type et pas un booléen.
  */
 import type { BuilderRunState } from '@/lib/agent-mission-control/agent-builder-run'
+import type { ProjectBuilderStreamEvent } from '@/lib/agent-mission-control/project-builder-stream-protocol'
 import type {
   AgentPreview,
   AgentPreviewOption,
@@ -410,4 +411,195 @@ export function buildChatLines(messages: readonly ProjectBuilderMessage[]): Chat
     content: message.content,
     createdAt: message.createdAt,
   }))
+}
+
+/* ──────────────────── Tour d'architecte en flux (SSE) ──────────────────── */
+
+/**
+ * L'état d'un tour d'architecte tel que le FLUX le dit — jamais plus.
+ *
+ * CE QUE LE PROTOCOLE ÉMET RÉELLEMENT
+ * -----------------------------------
+ * `project-builder-stream-protocol.ts` ne connaît que quatre formes :
+ *
+ *  · `connected`            — le serveur a ouvert le flux et a commencé le tour ;
+ *  · `delta`                — un fragment de PROSE de la réponse ;
+ *  · `terminal`/`completed` — la réponse est écrite en base (messageId, preview,
+ *                             conversationStatus, createdCopilotId) ;
+ *  · `terminal`/`failed`    — le tour a échoué côté serveur (`error`, `retryable`).
+ *
+ * Et rien d'autre. En particulier : **le protocole ne porte AUCUN événement
+ * d'appel d'outil**. Les allers-retours de lecture du dépôt (« jusqu'à 8 »
+ * annoncés par le dialog) tournent entièrement côté serveur, à l'intérieur de
+ * `runArchitectLoop`, AVANT que la prose finale ne commence à être streamée.
+ * Cette phase est donc silencieuse sur le fil : on la nomme honnêtement
+ * « l'architecte lit le dépôt — aucune étape n'est rapportée par le flux »
+ * plutôt que d'inventer une liste d'outils que personne n'a envoyée.
+ *
+ * De même : **aucun total n'est connu**. Il n'existe ni compteur d'étapes ni
+ * progression en pourcentage dans le protocole. La surface n'affiche donc pas de
+ * barre de progression — elle affiche les octets réellement reçus.
+ *
+ * LE CAS QUI COMPTE : `interrupted`
+ * ---------------------------------
+ * Un flux coupé avant le terminal (réseau, onglet, proxy) ne prouve NI le
+ * succès NI l'échec : le serveur a très bien pu terminer le tour et persister la
+ * réponse. C'est exactement ce que dit `IncompleteSSEStreamError`. On ne
+ * l'affiche donc jamais comme un échec — c'est une phase à part, `interrupted`,
+ * dont la seule sortie honnête est « recharger pour savoir ».
+ */
+export type StreamPhase =
+  | 'idle'
+  | 'opening'
+  | 'working'
+  | 'streaming'
+  | 'completed'
+  | 'failed'
+  | 'interrupted'
+
+export interface StreamProgress {
+  phase: StreamPhase
+  /** Titre court, en français — jamais un littéral de protocole brut. */
+  label: string
+  /** Ce que l'opérateur doit comprendre maintenant. `null` s'il n'y a rien à dire. */
+  detail: string | null
+  /** La prose reçue jusqu'ici, concaténée dans l'ordre des `delta`. */
+  text: string
+  /** Nombre de fragments de prose reçus — une mesure, pas une estimation. */
+  deltaCount: number
+  /** `runId` du serveur, connu dès le premier événement. `null` avant. */
+  runId: string | null
+  /**
+   * Code d'erreur RÉELLEMENT émis par le serveur, jamais fabriqué. `null` tant
+   * qu'aucun `terminal`/`failed` n'est arrivé.
+   */
+  errorCode: 'architect_message_failed' | 'transport_interrupted' | 'persistence_timeout' | null
+  /** `true` seulement quand le serveur l'a dit dans son terminal d'échec. */
+  retryable: boolean
+  /** Le terminal de succès, quand il est arrivé — la preuve de persistance. */
+  completion: {
+    messageId: string
+    conversationId: string | null
+    conversationStatus: string
+    createdCopilotId: string | null
+  } | null
+  /**
+   * `true` quand un flux a été ouvert mais que le résultat serveur est INCONNU.
+   * L'écran doit alors proposer de recharger, pas affirmer un résultat.
+   */
+  outcomeUnknown: boolean
+}
+
+export const INITIAL_STREAM_PROGRESS: StreamProgress = {
+  phase: 'idle',
+  label: 'Aucun tour en cours',
+  detail: null,
+  text: '',
+  deltaCount: 0,
+  runId: null,
+  errorCode: null,
+  retryable: false,
+  completion: null,
+  outcomeUnknown: false,
+}
+
+/** L'état de départ dès que la confirmation est passée et que le POST part. */
+export function openingStreamProgress(): StreamProgress {
+  return {
+    ...INITIAL_STREAM_PROGRESS,
+    phase: 'opening',
+    label: 'Ouverture du flux',
+    detail: 'La requête est partie ; le serveur n’a pas encore confirmé le tour.',
+  }
+}
+
+/**
+ * Réduit un événement du flux dans l'état d'écran. PUR : aucune I/O, aucun
+ * effet — c'est ce qui rend le comportement du flux testable sans DOM.
+ *
+ * Les heartbeats n'arrivent JAMAIS ici : ce sont des lignes de commentaire SSE
+ * (`: heartbeat …`) sans champ `data:`, que `consumeSSE` écarte avant d'appeler
+ * le consommateur. Un battement de cœur n'est donc pas une étape, et il ne peut
+ * pas en devenir une par accident.
+ */
+export function reduceStreamEvent(
+  state: StreamProgress,
+  event: ProjectBuilderStreamEvent,
+): StreamProgress {
+  if (event.type === 'connected') {
+    return {
+      ...state,
+      phase: 'working',
+      runId: event.runId,
+      label: 'L’architecte travaille',
+      detail:
+        'Le tour a démarré. L’architecte peut lire le dépôt avant de répondre : cette phase ne rapporte aucune étape sur le flux, seule la réponse est streamée.',
+      outcomeUnknown: true,
+    }
+  }
+
+  if (event.type === 'delta') {
+    return {
+      ...state,
+      phase: 'streaming',
+      runId: event.runId,
+      text: state.text + event.delta,
+      deltaCount: state.deltaCount + 1,
+      label: 'Réponse en cours',
+      detail: 'L’architecte rédige sa réponse — elle s’écrit ci-dessous au fil du flux.',
+      outcomeUnknown: true,
+    }
+  }
+
+  if (event.lifecycle === 'completed') {
+    return {
+      ...state,
+      phase: 'completed',
+      runId: event.runId,
+      label: 'Tour terminé',
+      detail: 'La réponse est persistée dans le fil du projet.',
+      errorCode: null,
+      retryable: false,
+      completion: {
+        messageId: event.messageId,
+        conversationId: event.conversationId,
+        conversationStatus: event.conversationStatus,
+        createdCopilotId: event.createdCopilotId,
+      },
+      outcomeUnknown: false,
+    }
+  }
+
+  return {
+    ...state,
+    phase: 'failed',
+    runId: event.runId,
+    label: 'Tour en échec',
+    detail:
+      'Le serveur a signalé l’échec du tour. Ce n’est pas une coupure : le serveur a répondu, et il dit que le tour n’a pas abouti.',
+    errorCode: event.error,
+    retryable: event.retryable,
+    completion: null,
+    outcomeUnknown: false,
+  }
+}
+
+/**
+ * Le flux s'est arrêté sans terminal — coupure réseau, onglet, proxy.
+ *
+ * On ne convertit PAS ça en échec. Le serveur a pu finir : la seule affirmation
+ * vraie est « on ne sait pas ». Un tour déjà terminé (`completed`/`failed`)
+ * n'est évidemment pas repeint par une coupure survenue après coup.
+ */
+export function markStreamInterrupted(state: StreamProgress, reason: string | null): StreamProgress {
+  if (state.phase === 'completed' || state.phase === 'failed') return state
+  return {
+    ...state,
+    phase: 'interrupted',
+    label: 'Flux interrompu — résultat inconnu',
+    detail:
+      'La connexion s’est arrêtée avant la fin annoncée par le serveur. On ne sait pas si le tour a abouti : il a pu être persisté sans que la réponse nous parvienne. Recharger pour lire l’état réel.' +
+      (reason === null ? '' : ` (${reason})`),
+    outcomeUnknown: true,
+  }
 }

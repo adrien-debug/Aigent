@@ -40,16 +40,23 @@ import { Strong, Text } from '@/components/ui/text'
 import { Textarea } from '@/components/ui/textarea'
 import { Panel, Unavailable } from '@/components/cockpit/primitives'
 import type { BuilderRunState } from '@/lib/agent-mission-control/agent-builder-run'
+import type { ProjectBuilderStreamEvent } from '@/lib/agent-mission-control/project-builder-stream-protocol'
 import type {
   ProjectBuilderConversationBundle,
 } from '@/lib/agent-mission-control/project-builder-types'
+import { consumeSSE, isProjectBuilderTerminal } from '@/lib/agent-mission-control/sse-client'
 import { CostedConfirmDialog, useCostedConfirm } from './confirm-dialog'
 import {
   buildCapability,
   buildChatLines,
   buildHitlView,
   buildPreviewView,
+  INITIAL_STREAM_PROGRESS,
+  markStreamInterrupted,
+  openingStreamProgress,
+  reduceStreamEvent,
   type PreviewView,
+  type StreamProgress,
 } from './model'
 
 /* ─────────────────────────── Erreurs de mutation ───────────────────────── */
@@ -333,6 +340,58 @@ function SpecPanel({
 }
 
 /**
+ * Le tour d'architecte EN COURS, tel que le flux le dit.
+ *
+ * Ce bloc remplace l'ancien « Envoi… » aveugle. Il ne rend QUE ce que le
+ * protocole porte réellement : la phase, la prose reçue au fil de l'eau, et le
+ * nombre de fragments reçus. Il n'y a ni barre de pourcentage (aucun total
+ * n'existe dans le protocole) ni liste d'appels d'outils (le protocole n'en
+ * émet aucun — voir `StreamProgress` dans `model.ts`).
+ *
+ * ZÉRO-SCROLL : la prose reçue défile dans SA propre boîte bornée. Un tour long
+ * ne fait pas grandir le panneau ni la page.
+ */
+function StreamProgressNote({ progress }: { progress: StreamProgress }) {
+  if (progress.phase === 'idle') return null
+
+  const color =
+    progress.phase === 'completed'
+      ? 'emerald'
+      : progress.phase === 'failed'
+        ? 'red'
+        : progress.phase === 'interrupted'
+          ? 'amber'
+          : 'blue'
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-dashed border-zinc-950/10 p-3 dark:border-white/10">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge color={color}>{progress.label}</Badge>
+        {/* Une mesure réelle — le nombre de fragments reçus — jamais un pourcentage inventé. */}
+        {progress.deltaCount > 0 ? (
+          <Text className="text-xs">{progress.deltaCount} fragments reçus</Text>
+        ) : null}
+        {progress.errorCode ? (
+          <Text className="font-mono text-xs">{progress.errorCode}</Text>
+        ) : null}
+      </div>
+
+      {progress.detail ? <Text className="text-xs">{progress.detail}</Text> : null}
+
+      {progress.text.length > 0 ? (
+        <div className="max-h-40 min-h-0 overflow-y-auto rounded-md bg-zinc-950/5 p-2 dark:bg-white/5">
+          <Text className="text-xs whitespace-pre-wrap break-words">{progress.text}</Text>
+        </div>
+      ) : null}
+
+      {progress.phase === 'failed' && progress.retryable ? (
+        <Text className="text-xs">Le serveur signale que ce tour peut être retenté.</Text>
+      ) : null}
+    </div>
+  )
+}
+
+/**
  * L'interruption humaine — une DÉCISION, jamais un échec.
  *
  * L'outil retenu au checkpoint est affiché explicitement comme NON exécuté :
@@ -443,6 +502,8 @@ export default function BuilderWorkspace({
   const [draftMessage, setDraftMessage] = useState('')
   const [busy, setBusy] = useState<null | 'message' | 'select' | 'draft' | 'decision'>(null)
   const [error, setError] = useState<MutationError | null>(null)
+  // Ce que le FLUX du tour d'architecte dit — remplace l'ancien « Envoi… » aveugle.
+  const [stream, setStream] = useState<StreamProgress>(INITIAL_STREAM_PROGRESS)
   const confirmer = useCostedConfirm()
   // Le run reçu du serveur peut être remplacé par celui d'une mutation locale :
   // on garde la valeur la plus fraîche sans re-fetch complet.
@@ -473,23 +534,148 @@ export default function BuilderWorkspace({
     router.refresh()
   }, [router])
 
+  /**
+   * Repli NON streamé — le POST JSON d'origine, inchangé.
+   *
+   * Il sert quand le flux ne peut pas s'ouvrir du tout : navigateur sans
+   * `ReadableStream` sur les réponses `fetch`, proxy qui refuse le
+   * `text/event-stream`, réponse sans corps lisible. La fonctionnalité reste
+   * entière — on perd la progression, pas le tour.
+   */
+  const sendMessageBuffered = useCallback(
+    async (content: string) => {
+      setStream({
+        ...openingStreamProgress(),
+        label: 'Tour en cours — sans flux',
+        detail:
+          'Le flux de progression n’a pas pu être ouvert : le tour est émis en une seule requête. Aucune étape intermédiaire n’est donc rapportée jusqu’à la réponse.',
+      })
+      const result = await mutate(
+        `/api/agent-ops/projects/${encodeURIComponent(projectId)}/builder/message`,
+        { method: 'POST', body: JSON.stringify({ content }) },
+      )
+      if (!result.ok) {
+        // Un `status: null` = réseau injoignable : on ne sait pas si le serveur a
+        // agi. On le dit comme une interruption, pas comme un échec prouvé.
+        setStream((current) =>
+          result.error.status === null
+            ? markStreamInterrupted(current, result.error.message)
+            : { ...current, phase: 'failed', label: 'Tour en échec', detail: result.error.message },
+        )
+        setError(result.error)
+        return
+      }
+      setStream({
+        ...INITIAL_STREAM_PROGRESS,
+        phase: 'completed',
+        label: 'Tour terminé',
+        detail: 'La réponse est persistée dans le fil du projet.',
+      })
+      setDraftMessage('')
+      refresh()
+    },
+    [projectId, refresh],
+  )
+
+  /**
+   * Le tour d'architecte EN FLUX — le chemin normal.
+   *
+   * La route décide du mode sur `?stream=1` OU un `Accept: text/event-stream`
+   * (`wantsStream()`), et on envoie les deux : le paramètre survit à un proxy
+   * qui réécrirait les en-têtes.
+   *
+   * Trois issues sont distinguées, jamais confondues :
+   *  · terminal reçu       → succès ou échec, selon ce que le serveur a dit ;
+   *  · flux coupé sans terminal → `interrupted` : résultat INCONNU ;
+   *  · flux impossible à ouvrir → repli sur le POST JSON.
+   */
   const sendMessage = useCallback(async () => {
     const content = draftMessage.trim()
     if (content.length === 0) return
     setBusy('message')
     setError(null)
-    const result = await mutate(
-      `/api/agent-ops/projects/${encodeURIComponent(projectId)}/builder/message`,
-      { method: 'POST', body: JSON.stringify({ content }) },
-    )
-    setBusy(null)
-    if (!result.ok) {
-      setError(result.error)
+    setStream(openingStreamProgress())
+
+    let response: Response
+    try {
+      response = await fetch(
+        `/api/agent-ops/projects/${encodeURIComponent(projectId)}/builder/message?stream=1`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+          body: JSON.stringify({ content }),
+        },
+      )
+    } catch (err) {
+      // La requête n'est jamais partie proprement : on ne sait pas si le serveur
+      // a agi. Aucun repli ici — le rejouer risquerait un second tour facturé.
+      const message = err instanceof Error ? err.message : 'requête impossible'
+      setStream((current) => markStreamInterrupted(current, message))
+      setError({ kind: 'failure', message, status: null })
+      setBusy(null)
       return
     }
-    setDraftMessage('')
-    refresh()
-  }, [draftMessage, projectId, refresh])
+
+    // Erreur AVANT tout flux : la route a répondu en JSON (503 / 400 / 404 / 409).
+    if (!response.ok) {
+      let body: unknown = null
+      try {
+        body = await response.json()
+      } catch {
+        body = null
+      }
+      const message =
+        body !== null && typeof body === 'object' && typeof (body as { error?: unknown }).error === 'string'
+          ? (body as { error: string }).error
+          : `HTTP ${response.status}`
+      const failure = classify(response.status, message)
+      setStream((current) => ({
+        ...current,
+        phase: 'failed',
+        label: 'Tour refusé',
+        detail: message,
+      }))
+      setError(failure)
+      setBusy(null)
+      return
+    }
+
+    // Le serveur a répondu 200 mais SANS flux lisible (proxy qui met en tampon,
+    // navigateur sans corps streamable) : repli sur le POST JSON.
+    const isEventStream = (response.headers.get('content-type') ?? '').includes('text/event-stream')
+    if (!response.body || !isEventStream) {
+      await sendMessageBuffered(content)
+      setBusy(null)
+      return
+    }
+
+    try {
+      const result = await consumeSSE<ProjectBuilderStreamEvent>(
+        response.body,
+        (event) => setStream((current) => reduceStreamEvent(current, event)),
+        { isTerminal: isProjectBuilderTerminal, requireTerminal: true },
+      )
+      // `requireTerminal` garantit un terminal ici ; seul un terminal de succès
+      // vide le brouillon et recharge la lecture serveur.
+      const terminal = result.terminalEvent
+      if (terminal !== null && isProjectBuilderTerminal(terminal)) {
+        if (terminal.lifecycle === 'completed') {
+          setDraftMessage('')
+          refresh()
+        } else {
+          setError({ kind: 'failure', message: terminal.error, status: null })
+        }
+      }
+    } catch (err) {
+      // EOF avant terminal, ou lecture interrompue. Le serveur a PU terminer :
+      // ni succès ni échec — inconnu, et l'écran le dit comme tel.
+      setStream((current) =>
+        markStreamInterrupted(current, err instanceof Error ? err.message : null),
+      )
+    } finally {
+      setBusy(null)
+    }
+  }, [draftMessage, projectId, refresh, sendMessageBuffered])
 
   const selectOption = useCallback(
     async (optionId: string) => {
@@ -674,6 +860,12 @@ export default function BuilderWorkspace({
             <ChatThread lines={lines} emptyProven={!unreadable && bundle !== null} />
           </div>
           <div className="shrink-0 border-t border-zinc-950/5 p-3 dark:border-white/5">
+            {/* La progression réelle du tour — ce que le flux dit, borné et scrollable. */}
+            {stream.phase !== 'idle' ? (
+              <div className="mb-3">
+                <StreamProgressNote progress={stream} />
+              </div>
+            ) : null}
             <Textarea
               value={draftMessage}
               onChange={(event) => setDraftMessage(event.target.value)}
@@ -692,10 +884,19 @@ export default function BuilderWorkspace({
                   !capability.canSendMessage || busy !== null || draftMessage.trim().length === 0
                 }
               >
-                {busy === 'message' ? 'Envoi…' : 'Envoyer'}
+                {/* Plus d'état aveugle : le libellé nomme la phase réelle du flux. */}
+                {busy === 'message' ? stream.label : 'Envoyer'}
               </Button>
               <Text className="text-xs">Appel modèle facturé — confirmation demandée.</Text>
             </div>
+            {/* Résultat INCONNU : la seule action honnête est de relire le serveur. */}
+            {stream.phase === 'interrupted' ? (
+              <div className="mt-2">
+                <Button plain onClick={refresh}>
+                  Recharger pour lire l’état réel
+                </Button>
+              </div>
+            ) : null}
           </div>
         </Panel>
 
