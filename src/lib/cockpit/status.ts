@@ -49,15 +49,7 @@ export const RUN_STATUS_SINGULAR: Record<AgentRunStatus, string> = {
   failed: 'Échoué',
 }
 
-/** Statut d'un copilot — même grammaire, autre domaine. */
-export const COPILOT_STATUS_COLOR: Record<string, string> = {
-  active: '#0da87f',
-  paused: '#be850f',
-  draft: '#6f7782',
-  degraded: '#e8455f',
-  archived: '#4a515a',
-}
-
+/** Statut d'un copilot — libellés seuls (la couleur voyage avec le Badge du kit). */
 export const COPILOT_STATUS_LABEL: Record<string, string> = {
   active: 'Actif',
   paused: 'En pause',

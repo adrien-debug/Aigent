@@ -27,10 +27,9 @@ import type { LifecycleStage } from '@/lib/agent-mission-control/agent-lifecycle
 
 /**
  * Le ton d'un check. `missing` a son propre ton — ni le vert d'un `pass`, ni le
- * rouge d'un `fail` — parce qu'il porte une affirmation différente.
+ * rouge d'un `fail` — parce qu'il porte une affirmation différente. Le statut
+ * lui-même (`GateStatus`) porte ce ton ; pas d'indirection.
  */
-export type GateTone = 'pass' | 'fail' | 'missing'
-
 export const GATE_STATUS_LABEL: Record<GateStatus, string> = {
   pass: 'Vérifié',
   fail: 'Échoué',
@@ -46,10 +45,6 @@ export const GATE_STATUS_MEANING: Record<GateStatus, string> = {
   fail: 'La mesure a été prise et elle viole l’exigence.',
   missing:
     'La mesure n’a jamais été prise. Ce n’est PAS un succès : un signal absent bloque la promotion au même titre qu’un échec, mais il n’accuse rien — il constate qu’il n’y a rien à lire.',
-}
-
-export function gateTone(status: GateStatus): GateTone {
-  return status
 }
 
 export interface GateSummary {

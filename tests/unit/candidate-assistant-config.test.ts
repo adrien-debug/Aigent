@@ -14,7 +14,7 @@
  *
  * The provisioning that consumes this (ensureCandidateAssistant) reaches the
  * Agent Server and a real billed candidate run is an agreement-gated step — NOT
- * exercised here (see docs/deterministic-evidence-001.md).
+ * exercised here (see tests/unit/deterministic-evidence-*).
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 

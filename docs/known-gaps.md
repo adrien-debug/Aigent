@@ -6,28 +6,25 @@
 > lisant le code.
 >
 > **Ce fichier n'est pas de la doctrine** : c'est un constat daté. Les règles
-> vivent dans `CLAUDE.md` et `AGENTS.md`.
+> vivent dans `CLAUDE.md` et `AGENTS.md`. Mis à jour 2026-07-31 (tri docs).
 
-## 1. Il n'y a aucune interface — et c'est délibéré
+## 1. Deux surfaces restent des placeholders
 
-Le front a été entièrement supprimé. Aigent est aujourd'hui une plateforme
-**API-only** : tout le cycle de vie (créer, tester, benchmarker, qualifier,
-promouvoir, améliorer, livrer) est atteignable par HTTP sous
-`/api/agent-ops/**`, et par rien d'autre.
+Le front a 15 routes (shell + listes + détails). Deux d'entre elles n'ont **pas
+encore de lecture** et affichent `SurfacePlaceholder` :
 
-Ce n'est pas un manque à combler en urgence, c'est l'état choisi par la mission
-`frontend-reset`. Ce qui EST un vrai manque tant que ça dure :
+- `/actions` — file d'actions (prévue PR 2)
+- `/settings` — réglages (prévue PR 8)
 
-- **aucune lecture humaine de la flotte** — les agrégations existent et sont
-  testées (`dashboard-overview.ts`, `agent-detail.ts`, `telemetry-health.ts`,
-  `src/lib/runs-console/`) mais **plus personne ne les appelle**. C'est du code
-  vivant sans lecteur, pas du code mort : il attend le nouveau front ;
-- **aucune approbation humaine ergonomique** — les runs qui s'arrêtent en
-  `needs-confirmation` sont reprenables uniquement par un `POST` manuel sur la
-  route de resume.
+Ce n'est pas un faux zéro : le composant dit explicitement qu'aucune lecture n'a
+été tentée. Le reste du parcours (aperçu, runs, agents, projets, builder,
+qualification, livraison, runtime) est branché.
 
-Le futur front sera livré en blocs séparés et en free design : aucun kit,
-palette ni système de tokens n'est décidé, et aucune gate visuelle n'existe.
+L'approbation humaine des runs `needs-confirmation` reste aussi peu ergonomique
+qu'avant : reprise par `POST` sur la route de resume, pas encore d'écran dédié.
+
+**Aucune gate ne mesure le rendu.** Une réécriture du kit UI peut rester verte —
+voir `src/components/ui/README.md` et le revert `5e2aa63`.
 
 ## 2. Le canal de retour consommateur n'a jamais porté de trafic réel
 
@@ -104,28 +101,25 @@ produit, pas un branchement de données.
 - `check:agent-truth` vérifie qu'aucun roster n'est *importé* et qu'aucun
   provider/modèle n'est codé en dur dans le contrat canonique — pas que ce qui
   est servi est **exécutable**.
-- `check:render-truth` ne couvre que `src/lib/runs-console/`.
+- `check:render-truth` couvre un périmètre étroit (`runs-console`, `cockpit`) —
+  pas les gros agrégateurs.
 - **Aucune gate ne scanne les agrégations** de `dashboard-overview.ts` /
   `agent-detail.ts` / `data.ts`, là où la règle « une valeur non mesurée reste
   `null` » compte le plus. Elle y tient par discipline humaine.
 - **Aucune gate ne détecte un assistant LangGraph manquant** — le symptôme
   documenté (agent d'apparence saine, `tool_call_count = 0`, « pas de données »)
   reste possible avec toutes les gates vertes.
+- **Aucune gate ne mesure le rendu UI** — empreinte SHA du kit ≠ pixels corrects.
 
 ## 9. La dérive documentaire est le mode de défaillance récurrent ici
-
-Ce fichier a déjà menti sur lui-même : sa version précédente s'ouvrait sur un §
-intitulé « la dérive documentaire est un mode de défaillance récurrent » tout en
-décrivant, une passe plus tard, une console de six écrans et quinze endpoints
-cliquables qui n'existaient plus depuis le reset.
 
 Il n'existe **aucune gate qui confronte un document au code**. Tant qu'il n'y en a
 pas, ce fichier et `docs/current-capabilities.md` ne valent que par la dernière
 personne qui a lu la source. Deux réflexes en découlent :
 
 1. quand un document et le code se contredisent, **le code a raison** ;
-2. les rapports de mission de `docs/` portent un bandeau d'archive et sont des
-   **observations datées**, jamais des règles.
+2. les rapports de mission historiques vivent dans **l'historique git**, jamais
+   comme règles actives.
 
 ## Non vérifié dans cette passe
 

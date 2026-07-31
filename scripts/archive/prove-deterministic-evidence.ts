@@ -29,10 +29,10 @@
  * Run: NODE_ENV=development AIGENT_DETERMINISTIC_EVIDENCE=allow \
  *      node --env-file=.env.local npx tsx scripts/prove-deterministic-evidence.ts [--keep]
  *
- * STATUS: coded, NOT executed live in this session — see docs/deterministic-evidence-001.md
+ * STATUS: coded, NOT executed live in the session that wrote this script
  * (running it writes cleanable rows to the SHARED gpu1 DB and requires migration
- * 0037 applied there, a pre-merge coordination step deferred to the integrator).
- * The identical logic is verified offline in tests/unit/deterministic-evidence-*.
+ * 0037 applied there). The identical logic is verified offline in
+ * tests/unit/deterministic-evidence-*.
  */
 import { randomUUID } from 'node:crypto'
 

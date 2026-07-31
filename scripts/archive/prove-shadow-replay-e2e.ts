@@ -31,7 +31,8 @@
  * This script is ready to run as soon as (1) is done on the integration
  * branch; running it before then will fail with PGRST204 (column not found
  * in schema cache) on `copilots.requires_shadow_replay`. See
- * docs/factory-shadow-replay-001.md for the full verdict and gap list.
+ * git history (`docs/factory-shadow-replay-001.md`, deleted 2026-07-31) for the
+ * original verdict and gap list.
  *
  * Run: node --env-file=.env.local npx tsx --conditions=react-server scripts/prove-shadow-replay-e2e.ts [--keep]
  */

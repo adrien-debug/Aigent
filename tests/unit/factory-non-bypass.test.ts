@@ -5,7 +5,7 @@
  * (promotion gate, tool-confirmation invariant, runtime registry, shadow/replay).
  * pgrest is mocked; zero network, zero billed call. The single-production
  * concurrency invariant (case 12) is additionally proven LIVE against gpu1 in
- * tests/live/promotion-concurrency.live.test.ts + docs/agent-factory-readiness.md.
+ * tests/live/promotion-concurrency.live.test.ts.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 

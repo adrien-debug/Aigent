@@ -37,11 +37,11 @@ sentir. Ce n'est pas un chantier prioritaire.
 
 ## Modifier une primitive
 
-1. La gate `check:catalyst-integrity` fige ce dossier par empreinte SHA-256 :
+1. La gate `check:ui-kit-integrity` fige ce dossier par empreinte SHA-256 :
    toute modification la fait échouer. **C'est voulu** — elle protège contre une
    dérive silencieuse, pas contre une modification assumée.
 2. Après une modification volontaire :
-   `node scripts/check-catalyst-integrity.mjs --update`
+   `node scripts/check-ui-kit-integrity.mjs --update`
 3. **Puis ouvrir un écran qui consomme la primitive, et regarder.**
 
 > ⚠️ Le point 3 n'est pas une politesse. Le 2026-07-31, une réécriture de ce kit

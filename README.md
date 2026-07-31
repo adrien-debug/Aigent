@@ -198,3 +198,5 @@ from this repository alone.
 - **`docs/agent-authoring.md`** — authoring flow and execution paths.
 - **`docs/BACKEND-GPU1.md`** — Postgres/PostgREST perimeter.
 - **`docs/TESTING.md`**, **`docs/dev-runtime.md`** — test and runtime specifics.
+- **`docs/projects/`** — specs agents par produit consommateur (ex. real-estate).
+- Rapports de mission datés : **historique git**, pas de dossier d'archive vivant.

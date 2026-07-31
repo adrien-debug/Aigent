@@ -4,8 +4,8 @@
  * Cadre du poste de contrôle — composants Catalyst officiels, apparence
  * Catalyst native (voie A, décision du 2026-07-31).
  *
- * RÈGLE ABSOLUE : `src/components/ui/` ne se modifie pas (gate
- * `check:catalyst-integrity`). Tout ce qui est réglé ici l'est par la
+ * RÈGLE ABSOLUE : `src/components/ui/` ne se modifie pas à la légère (gate
+ * `check:ui-kit-integrity`). Tout ce qui est réglé ici l'est par la
  * COMPOSITION et le layout, jamais en repeignant le kit.
  *
  * `SidebarLayout` n'est pas utilisé : il pose `min-h-svh` et un `<main>` qui

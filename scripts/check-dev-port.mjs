@@ -20,9 +20,9 @@
  *
  * Prohibition prose is allowed to name the banned ports — a rule has to be able
  * to say what it forbids — so lines that ban rather than use are exempt.
- * Historical records under docs/visual-reviews/, delivery/ and the dated report
- * files are exempt wholesale: they describe runs that really happened on the old
- * port, and rewriting them would falsify the record.
+ * Historical records under docs/visual-reviews/ and delivery/ are exempt
+ * wholesale: they describe runs that really happened on the old port, and
+ * rewriting them would falsify the record.
  *
  * Pure Node, no deps. Run via `npm run check:dev-port`.
  */
@@ -52,7 +52,6 @@ const SCAN_EXT = /\.(ts|tsx|mjs|js|md|json)$/
 const EXEMPT = [
   'docs/visual-reviews/',
   'delivery/',
-  'docs/aig-agent-quality-005-report.md',
   'node_modules/',
   '.next/',
   // This gate's own prose names the banned ports to forbid them.

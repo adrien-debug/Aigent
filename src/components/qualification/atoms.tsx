@@ -2,8 +2,8 @@
  * Atomes de la surface Qualification — composés à partir de Catalyst, jamais à
  * côté.
  *
- * `src/components/ui/` ne se modifie pas et ne se double pas (gate
- * `check:catalyst-integrity`). Ce fichier ne contient donc aucun badge maison,
+ * `src/components/ui/` ne se modifie pas à la légère et ne se double pas (gate
+ * `check:ui-kit-integrity`). Ce fichier ne contient donc aucun badge maison,
  * aucun bouton, aucun texte, aucune surface générique : uniquement des
  * COMPOSITIONS qui portent une règle métier que le kit ne connaît pas.
  *

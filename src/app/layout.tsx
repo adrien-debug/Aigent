@@ -18,7 +18,7 @@ export default function RootLayout({
   // les variantes `dark:` de Tailwind, donc tout le mode sombre natif de
   // Catalyst (`dark:bg-zinc-900`, `dark:text-white`…). Sans elle, le kit rend
   // en clair et on est tenté de le repeindre — ce qu'interdit
-  // `check:catalyst-integrity`.
+  // `check:ui-kit-integrity` (toute retouche du kit doit être volontaire).
   return (
     <html lang="fr" className="dark h-full bg-zinc-950">
       <body className="h-full antialiased">{children}</body>

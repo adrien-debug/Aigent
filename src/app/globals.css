@@ -4,7 +4,7 @@
  * `dark` posée sur <html> ne déclenche rien tant qu'on ne l'a pas déclarée
  * ici. C'est ce variant qui active le mode sombre NATIF de Catalyst
  * (`dark:bg-zinc-900`, `dark:text-white`…) — sans lui, le kit rend en clair et
- * on serait tenté de le repeindre, ce qu'interdit `check:catalyst-integrity`. */
+ * on serait tenté de le repeindre, ce qu'interdit `check:ui-kit-integrity`. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* Le système de jetons « ultra dark / accent cyan » qui vivait ici a été retiré

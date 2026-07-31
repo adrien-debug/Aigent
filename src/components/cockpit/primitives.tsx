@@ -1,11 +1,11 @@
 /**
  * Composants MÉTIER du cockpit — ce que Catalyst ne fournit pas.
  *
- * Catalyst (`src/components/ui/`) est le design system unique et il ne se
- * modifie pas (gate `check:catalyst-integrity`). Ce fichier ne contient donc
- * AUCUN équivalent de composant Catalyst : ni badge, ni avatar, ni bouton, ni
- * texte, ni séparateur, ni surface générique. Uniquement des objets que le kit
- * n'a pas :
+ * Le kit (`src/components/ui/`) est disponible comme outil ; il ne se
+ * modifie pas à la légère (gate `check:ui-kit-integrity`). Ce fichier ne
+ * contient donc AUCUN équivalent de primitive du kit : ni badge, ni avatar, ni
+ * bouton, ni texte, ni séparateur, ni surface générique. Uniquement des objets
+ * que le kit n'a pas :
  *
  *  · `Panel`        — surface à hauteur BORNÉE par la grille du cockpit ;
  *                     c'est ce qui tient le zéro-scroll (le kit n'a pas de
