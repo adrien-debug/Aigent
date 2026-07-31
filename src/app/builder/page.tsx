@@ -1,0 +1,50 @@
+import type { Metadata } from 'next'
+
+import AppShell from '@/components/app-shell'
+import { navEntry } from '@/components/navigation'
+import BuilderSelectScreen from '@/components/builder/select-screen'
+import { buildProjectChoices } from '@/components/builder/model'
+import { getProjects } from '@/lib/agent-mission-control/data'
+
+/**
+ * Surface « /builder » — sélection du projet, BRANCHÉE sur l'état vivant.
+ *
+ * LECTURE EN SERVER COMPONENT, JAMAIS PAR UNE ROUTE API
+ * -----------------------------------------------------
+ * Cette page appelle directement `getProjects`, comme `src/app/page.tsx` appelle
+ * `getDashboardOverview`. Pas de `fetch('/api/…')` : ce serait un aller-retour
+ * HTTP du serveur vers lui-même, qui devrait en plus se réauthentifier auprès de
+ * `src/proxy.ts`. Pas de Server Action non plus — elle POSTe vers la route de la
+ * page, hors du `matcher` de `src/proxy.ts`, donc gardée par rien.
+ *
+ * Les MUTATIONS, elles, partent des composants client vers `/api/agent-ops/**`,
+ * la seule surface que `src/proxy.ts` garde.
+ *
+ * `getProjects` LÈVE en cas d'échec (pas de repli). On capture pour distinguer
+ * « lecture échouée » de « catalogue vide » : les deux rendraient une liste sans
+ * ligne, et ce sont deux affirmations opposées.
+ */
+const ENTRY = navEntry('/builder')
+
+export const metadata: Metadata = { title: `Aigent · ${ENTRY.name}` }
+
+// L'authoring lit l'état vivant : jamais de cache statique.
+export const dynamic = 'force-dynamic'
+
+async function loadProjects() {
+  try {
+    return { items: buildProjectChoices(await getProjects()), failure: null }
+  } catch (err) {
+    return { items: null, failure: err instanceof Error ? err.message : 'lecture impossible' }
+  }
+}
+
+export default async function Page() {
+  const { items, failure } = await loadProjects()
+
+  return (
+    <AppShell>
+      <BuilderSelectScreen items={items ?? []} unreadable={items === null} failure={failure} />
+    </AppShell>
+  )
+}

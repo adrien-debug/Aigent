@@ -134,6 +134,36 @@ export const AvailableAgentSchema = z
      * silently widen what the UI calls launchable.
      */
     executable: z.boolean(),
+    /**
+     * `copilots.assistant_id` — the provisioned LangGraph assistant, verbatim.
+     *
+     * `null` is a FACT read from the column, not a placeholder: no assistant has
+     * been provisioned for this copilot. The distinction matters because the
+     * failure it describes is silent — a `langgraph` copilot without an
+     * assistant does NOT error. It runs against the bare graph, inherits the
+     * legacy generic tools, answers "no data" with `tool_call_count = 0`, and
+     * reads perfectly healthy everywhere else in this contract (AGENTS.md,
+     * "Piège LangGraph"). This field is the only place that fact surfaces.
+     */
+    assistantId: z.string().nullable(),
+    /**
+     * Is the wired execution path actually provisioned?
+     *
+     * THREE-VALUED on purpose:
+     *   - `true`   runtime is `langgraph` AND an `assistant_id` is persisted.
+     *   - `false`  runtime is `langgraph` and NO assistant is persisted — the
+     *              bare-graph trap above. A measured defect, not a guess.
+     *   - `null`   the question does not apply or cannot be answered: the
+     *              runtime is not `langgraph` (an absent assistant is not a
+     *              defect there — nothing provisions one), or the runtime
+     *              column itself is unresolved. `null` also lands in
+     *              `unavailableFields`, so a consumer never reads "not
+     *              applicable" as "not provisioned".
+     *
+     * Never defaulted to `false`: "no assistant expected" and "assistant
+     * missing" are opposite claims and must not render alike.
+     */
+    runtimeProvisioned: z.boolean().nullable(),
     provider: z.string().nullable(),
     configuredModel: z.string().nullable(),
     /** Model the runner actually proved at run time. Unverified ⇒ null. */
@@ -179,6 +209,13 @@ type CopilotRow = {
   runtime: string | null
   model: string | null
   model_provider: string | null
+  /**
+   * Written by `authoring-writes.ts` (`setCopilotAssistantId`) and by
+   * `scripts/ensure-langgraph-assistants.ts`. Optional on the TYPE, not on the
+   * read: a loader that forgets it in its `select=` gets `undefined` here, which
+   * the derivation below reports as UNKNOWN — never as "not provisioned".
+   */
+  assistant_id?: string | null
   production_version_id: string | null
   latest_version_id: string | null
 }
@@ -418,6 +455,23 @@ function toAvailableAgent(input: {
   const runtime = nonEmpty(copilot.runtime)
   if (runtime === null) unavailableFields.push('runtime')
 
+  // --- provisioning of the wired execution path ---------------------------
+  // Three states, kept apart on purpose (see the schema docs above):
+  //   column not read     → assistantId null AND runtimeProvisioned null (UNKNOWN)
+  //   runtime ≠ langgraph → runtimeProvisioned null (NOT APPLICABLE): nothing
+  //                         provisions an assistant there, so an absent one is
+  //                         not a defect and must not raise a signal.
+  //   runtime = langgraph → the boolean is MEASURED, and `false` is the
+  //                         bare-graph trap, the one failure nothing else here
+  //                         can see.
+  const assistantColumnRead = copilot.assistant_id !== undefined
+  const assistantId = assistantColumnRead ? nonEmpty(copilot.assistant_id ?? null) : null
+  if (assistantId === null) unavailableFields.push('assistantId')
+
+  const runtimeProvisioned: boolean | null =
+    !assistantColumnRead || runtime !== 'langgraph' ? null : assistantId !== null
+  if (runtimeProvisioned === null) unavailableFields.push('runtimeProvisioned')
+
   return {
     copilotId: copilot.id,
     projectId,
@@ -431,6 +485,8 @@ function toAvailableAgent(input: {
     // The run gate's rule, spelled out once: active, nothing unresolved, AND
     // runtime is langgraph (the only executable product runtime).
     executable: status === 'active' && unresolvedToolIds.length === 0 && runtime === 'langgraph',
+    assistantId,
+    runtimeProvisioned,
     provider,
     configuredModel,
     executedModel,
@@ -454,7 +510,7 @@ function toAvailableAgent(input: {
  */
 export async function getAvailableAgents(): Promise<AvailableAgent[]> {
   const copilots = await rest<CopilotRow[]>(
-    'copilots?select=id,project_id,name,description,status,runtime,model,model_provider,production_version_id,latest_version_id&order=name'
+    'copilots?select=id,project_id,name,description,status,runtime,model,model_provider,assistant_id,production_version_id,latest_version_id&order=name'
   )
   if (copilots.length === 0) return []
 

@@ -109,20 +109,32 @@ export function ProjectRow({ card }: { card: ProjectCard }) {
       </div>
 
       <div className="shrink-0 text-right">
-        <Text>
-          {card.runs24h === null ? (
-            <AbsentMark />
-          ) : (
-            <>
-              <Strong className="tabular-nums">{card.runs24h}</Strong> runs
-            </>
-          )}
-        </Text>
-        <Text className="tabular-nums">
-          {card.costLast24hUsd === null ? <AbsentMark /> : formatUsd(card.costLast24hUsd)}
-          {' · '}
-          {card.passRate === null ? '—' : `${Math.round(card.passRate * 100)} %`}
-        </Text>
+        {/* Un projet SANS copilot n'a pas 0 run pour $0.00 : il n'a rien à
+         * mesurer. `sumMeasuredHealth` rend `{ value: 0 }` sur une équipe vide
+         * (sa garde est `team.length > 0 && measured === 0`), et ce zéro est
+         * défendable au contrat — mais à l'écran « 0 runs · $0.00 » se lit
+         * « mesuré, calme » alors que le fait est « personne ». Troisième état,
+         * comme le fait déjà la surface /projects. */}
+        {card.copilotCount === 0 ? (
+          <Text>rien à mesurer</Text>
+        ) : (
+          <>
+            <Text>
+              {card.runs24h === null ? (
+                <AbsentMark />
+              ) : (
+                <>
+                  <Strong className="tabular-nums">{card.runs24h}</Strong> runs
+                </>
+              )}
+            </Text>
+            <Text className="tabular-nums">
+              {card.costLast24hUsd === null ? <AbsentMark /> : formatUsd(card.costLast24hUsd)}
+              {' · '}
+              {card.passRate === null ? '—' : `${Math.round(card.passRate * 100)} %`}
+            </Text>
+          </>
+        )}
       </div>
     </RosterRow>
   )

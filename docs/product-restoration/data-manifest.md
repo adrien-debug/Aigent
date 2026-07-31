@@ -230,9 +230,22 @@ benchmark facturé.
   réponse OpenAI sans bloc `usage` produit 0 token, donc un coût calculé de 0 $.
   C'est la racine amont d'une partie des coûts nuls stockés.
 
+### Découverts en qualification navigateur (2026-07-31), corrigés depuis
+
+- **`overview-screen.tsx:61`** — `[...projectCards].sort((a,b) => (b.runs24h ?? 0) - (a.runs24h ?? 0))`.
+  L'amont fait délibérément passer un compte **non mesuré** SOUS un zéro mesuré
+  (`runsOrderKey` rend `-1`, et son commentaire l'énonce). Ce re-tri à l'écran
+  annulait cette intention : « personne n'a mesuré » remontait au rang de
+  « prouvé calme ». **Corrigé** — l'ordre vient désormais de l'amont, sans retouche.
+- **`rows.tsx:111-126`** — un projet **sans aucun copilot** affichait
+  `$0.00 · 0 runs`. `sumMeasuredHealth` rend `{ value: 0 }` sur une équipe vide
+  (sa garde est `team.length > 0 && measured === 0`), ce qui est défendable au
+  contrat mais se lit à l'écran « mesuré, calme » alors que le fait est
+  « personne ». **Corrigé** — troisième état « rien à mesurer ».
+
 ### `catch → []` / lecture échouée transformée en vide
 
-- **`consumer-bootstrap.ts:209`** — `catch { return [] }` sur la lecture du
+- **`consumer-bootstrap.ts:208`** — `catch { return [] }` sur la lecture du
   registre local. Fichier absent (cas normal) et fichier illisible/corrompu
   (anomalie) rendent le même `[]`.
 - **`github.ts:1382`** — `catch { return [] }` sur un `registry.json` corrompu,
@@ -240,6 +253,19 @@ benchmark facturé.
   fait qu'un registre distant illisible se présente comme un registre vide — et la
   suite du code y **réécrit** un registre neuf, donc perte silencieuse d'entrées.
   À traiter comme une décision à confirmer, pas comme un bug évident.
+
+**Portée exacte de ces deux-là, vérifiée le 2026-07-31** (la première rédaction
+laissait croire qu'ils polluaient l'affichage des dépôts) : aucun des deux n'est
+sur le chemin de LECTURE d'un repository par une surface. `github.ts:1382` est
+dans `readHostRegistry`, privé, sur un chemin d'**écriture** ; `consumer-bootstrap`
+lit un registre local d'agents, pas un dépôt. La lecture d'arbre que consomme
+`/projects` est `getRepoTree`, qui **lève** au lieu de rendre `[]` — un dépôt
+illisible y est donc distinguable d'un dépôt vide. L'observation reste vraie,
+son périmètre était trop large.
+
+**Défaut voisin, celui-là bien sur le chemin de lecture** : `github.ts:453-461`
+déstructure `truncated` de la réponse GitHub sans jamais le lire — un arbre
+tronqué par l'API est indiscernable d'un arbre complet.
 
 Les autres `catch { return null }` recensés (`agent-detail.ts:312,333`,
 `test-runner.ts:282`, `sandbox-reports-store.ts:64`, `auth.ts:134,142`,
