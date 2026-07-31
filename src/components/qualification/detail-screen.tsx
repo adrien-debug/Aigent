@@ -1002,13 +1002,17 @@ export default function QualificationDetailScreen({ detail }: { detail: Qualific
   const target = buildConsoleTarget(detail)
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3">
+    <div className="flex h-full min-h-0 flex-col gap-3 p-3">
       <DetailHeader detail={detail} />
 
+      {/* Le poste de commande est borné à ~40 % de la colonne : sans plafond il
+       * prenait toute la hauteur et laissait 41 px aux dix panneaux de preuve,
+       * réduits à leur seul titre. Une box fixe dont la data scrolle dedans —
+       * pas une box qui écrase ses voisines. */}
       <Panel
         title="Poste de commande"
         hint="fixture par défaut"
-        className="min-h-0 shrink-0"
+        className="max-h-[40%] min-h-0 shrink-0"
         bodyClassName="scroll-thin overflow-y-auto"
       >
         <QualificationConsole target={target} />
@@ -1016,8 +1020,12 @@ export default function QualificationDetailScreen({ detail }: { detail: Qualific
 
       <Divider soft />
 
-      {/* Grille dense : chaque panneau borne sa hauteur, seule sa liste défile. */}
-      <div className="grid min-h-0 grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
+      {/* Grille dense : `flex-1` lui donne la hauteur restante — sans lui elle
+       * ne réclamait que son contenu minimal. `auto-rows-fr` répartit à parts
+       * égales, `overflow-y-auto` absorbe le débordement des rangées basses sur
+       * les viewports courts. Chaque panneau borne sa hauteur, seule sa liste
+       * défile. */}
+      <div className="scroll-thin grid min-h-0 flex-1 auto-rows-fr grid-cols-1 gap-3 overflow-y-auto lg:grid-cols-2 xl:grid-cols-3">
         <RunGuardPanel agent={detail.agent} />
         <ReleaseGatePanel gate={detail.releaseGate} failure={detail.releaseGateFailure} />
         <PromotionGatePanel gate={detail.promotionGate} failure={detail.promotionGateFailure} />
