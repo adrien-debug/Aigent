@@ -1,12 +1,12 @@
 /**
- * Atomes de la surface Agents — composés à partir du kit `ui/`, jamais à côté.
+ * Atomes de la surface Agents — composés à partir de Catalyst, jamais à côté.
  *
  * `src/components/ui/` ne se modifie pas et ne se double pas : il n'y a ici ni
  * badge maison, ni bouton, ni texte, ni surface générique. Ce fichier ne contient
  * que des COMPOSITIONS qui portent une règle métier que le kit ne connaît pas —
  * essentiellement les trois vocabulaires d'absence du produit.
  *
- * Les couleurs viennent de la palette `Badge` du kit `ui/`. Le choix qui compte :
+ * Les couleurs viennent de la palette `Badge` de Catalyst. Le choix qui compte :
  * `missing` n'est ni `emerald` (pass) ni `red` (fail) mais `amber`, et il porte
  * TOUJOURS son mot (« Non mesuré »). La couleur n'est jamais le seul porteur du
  * sens — un écran lu en niveaux de gris doit rester vrai.

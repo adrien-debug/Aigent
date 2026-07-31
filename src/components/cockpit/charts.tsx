@@ -150,10 +150,10 @@ export function HourlyRunsChart({ buckets }: { buckets: HourlyBucket[] }) {
 }
 
 /**
- * Légende de l'histogramme — `Badge` du kit `ui/`, un par statut.
+ * Légende de l'histogramme — `Badge` Catalyst officiel, un par statut.
  *
  * La pastille de couleur reste un élément de dataviz (elle relie le libellé à
- * sa barre dans le graphe) : c'est le seul ajout au badge, et le kit ne
+ * sa barre dans le graphe) : c'est le seul ajout au badge, et Catalyst ne
  * fournit rien d'équivalent.
  */
 export function StatusLegend({ slices }: { slices: StatusSlice[] }) {

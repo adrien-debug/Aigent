@@ -15,7 +15,7 @@
  * Il affiche : le nom de la surface, ce qu'elle portera, le fait qu'elle n'est
  * pas branchée, et la PR qui la branchera.
  *
- * Il est composé à partir du kit `ui/` (`Heading`, `Text`, `Divider`) plus
+ * Il est composé de Catalyst officiel (`Heading`, `Text`, `Divider`) plus
  * `Unavailable`, l'objet métier qui encode déjà la distinction
  * « lecture échouée » / « rien à mesurer ». Ici c'est la troisième situation —
  * ni l'une ni l'autre : aucune lecture n'a été TENTÉE. `reason="no-data"` est le

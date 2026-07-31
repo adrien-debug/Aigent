@@ -1,9 +1,9 @@
 /**
- * Composants MÉTIER du cockpit — ce que le kit `ui/` ne fournit pas.
+ * Composants MÉTIER du cockpit — ce que Catalyst ne fournit pas.
  *
- * `src/components/ui/` est le design system unique et il ne se modifie pas
- * pour un écran (gate `check:ui-kit-integrity`). Ce fichier ne contient donc
- * AUCUN équivalent de composant du kit : ni badge, ni avatar, ni bouton, ni
+ * Catalyst (`src/components/ui/`) est le design system unique et il ne se
+ * modifie pas (gate `check:catalyst-integrity`). Ce fichier ne contient donc
+ * AUCUN équivalent de composant Catalyst : ni badge, ni avatar, ni bouton, ni
  * texte, ni séparateur, ni surface générique. Uniquement des objets que le kit
  * n'a pas :
  *
@@ -33,7 +33,7 @@ import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
 /**
  * Panneau à hauteur bornée — le seul composant structurel du cockpit.
  *
- * Son en-tête est composé à partir du kit `ui/` (`Subheading`, `Text`, `Divider`) ; ce
+ * Son en-tête est composé de Catalyst (`Subheading`, `Text`, `Divider`) ; ce
  * que le panneau ajoute est le contrat de hauteur : il ne grandit jamais avec
  * la donnée, c'est la donnée qui défile à l'intérieur.
  */

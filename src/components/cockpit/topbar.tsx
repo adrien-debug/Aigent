@@ -1,5 +1,5 @@
 /**
- * Barre d'état du cockpit — `Navbar` du kit `ui/`, sans retouche du kit.
+ * Barre d'état du cockpit — `Navbar` Catalyst officielle, sans retouche du kit.
  *
  * Tout ce qui est affiché ici sort de `DashboardOverview` (`telemetryHealth`,
  * `telemetryReportingAgents`, `telemetryRunsMeasured`). Rien n'est inventé :

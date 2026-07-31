@@ -94,8 +94,8 @@ export default function CockpitOverview({
           hint={runs ? `${runs.length} sur la fenêtre` : undefined}
           className="min-h-[18rem] min-w-0 xl:min-h-0"
           padded={false}
-          /* Le défilement borné vient du CONTENEUR : `Table` n'a pas
-             d'option de hauteur bornée et le kit ne se modifie pas pour un écran. */
+          /* Le défilement borné vient du CONTENEUR : `Table` Catalyst n'a pas
+             d'option de hauteur bornée et le kit ne se modifie pas. */
           bodyClassName="overflow-y-auto px-4"
         >
           {runs === null ? (

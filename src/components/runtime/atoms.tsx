@@ -1,6 +1,6 @@
 /**
- * Atomes de la surface Runtime — des COMPOSITIONS du kit `ui/`, jamais des
- * doublons de ses composants.
+ * Atomes de la surface Runtime — des COMPOSITIONS de Catalyst, jamais des
+ * doublons de Catalyst.
  *
  * `src/components/ui/` ne se modifie pas et ne se réimplémente pas ici. Ce
  * fichier ne contient que ce que le kit ne sait pas dire : le câblage d'un

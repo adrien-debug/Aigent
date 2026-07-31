@@ -2,9 +2,9 @@
  * File d'action — la colonne qui fait d'un tableau de bord un COCKPIT : on n'y
  * regarde pas la flotte, on y prend une décision.
  *
- * Composée à partir du kit `ui/` : `Link` pour la carte cliquable, `Badge` pour
+ * Composée en Catalyst officiel : `Link` pour la carte cliquable, `Badge` pour
  * la nature de la décision, `Strong`/`Text` pour le contenu. Le seul objet hors
- * kit est le `Rail` de sévérité, que le kit ne fournit pas.
+ * kit est le `Rail` de sévérité, que Catalyst ne fournit pas.
  *
  * Box bornée : l'en-tête est fixe, seule la liste défile.
  */

@@ -182,7 +182,7 @@ interface ActionButtonProps {
  * passe réinitialiserait son état (règle `react-hooks/static-components`).
  *
  * Les deux variantes sont rendues dans des branches JSX distinctes parce que
- * `ButtonProps` du kit `ui/` est une union discriminée : `color` et `outline`
+ * `ButtonProps` de Catalyst est une union discriminée : `color` et `outline`
  * s'excluent. On n'altère pas le kit — on l'appelle correctement.
  *
  * Un bouton désactivé porte TOUJOURS sa raison en `title` : « ce bouton ne
@@ -774,7 +774,7 @@ function ConfirmBody({
         </Button>
         {/* Une action gratuite est neutre ; tout ce qui est facturé ou
             irréversible porte le bouton ROUGE. Deux branches distinctes : la
-            prop `color` et la prop `outline` du kit `ui/` s'excluent. */}
+            prop `color` et la prop `outline` de Catalyst s'excluent. */}
         {effective.cost.kind === 'free' ? (
           <Button outline onClick={onConfirm} disabled={busy || blockedOnModels}>
             {busy ? 'En cours…' : effective.label}

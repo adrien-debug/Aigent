@@ -302,7 +302,7 @@ export const RUN_STATUS_LABEL: Record<AgentRun['status'], string> = {
 }
 
 /**
- * Couleur de badge par statut. `blocked` et `failed` sont distincts :
+ * Couleur de badge Catalyst par statut. `blocked` et `failed` sont distincts :
  * un run bloqué a été ARRÊTÉ par une garde (verdict terminal côté Sentinel), un
  * run échoué a planté. Les confondre en « rouge » perdrait l'information la plus
  * actionnable de la liste.

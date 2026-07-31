@@ -24,7 +24,7 @@
     "sync:tool-definitions": "node --env-file=.env.local $(command -v npx) -y tsx --conditions=react-server scripts/sync-tool-definitions.ts",
     "check:rsc-boundary": "node scripts/check-rsc-boundary.mjs",
     "check:dev-port": "node scripts/check-dev-port.mjs",
-    "check": "npm run typecheck && npm run lint:fast && npm run lint && npm run check:no-legacy-front && npm run check:ui-kit-integrity && npm run check:agent-truth && npm run check:lifecycle-truth && npm run check:registry-parity && npm run check:registry-integrity && npm run check:dev-port && npm run check:render-truth && npm run check:rsc-boundary && npm run check:schema-rebuildable && npm run check:secrets && npm run audit:dead",
+    "check": "npm run typecheck && npm run lint:fast && npm run lint && npm run check:no-legacy-front && npm run check:catalyst-integrity && npm run check:agent-truth && npm run check:lifecycle-truth && npm run check:registry-parity && npm run check:registry-integrity && npm run check:dev-port && npm run check:render-truth && npm run check:rsc-boundary && npm run check:schema-rebuildable && npm run check:secrets && npm run audit:dead",
     "audit:dead": "node scripts/audit-dead.mjs",
     "verify": "npm run check && npm run quality:dead && npm run test && npm run build",
     "eval:trading": "node --env-file=.env.local $(command -v npx) -y tsx scripts/eval-trading-roster.ts",
@@ -50,7 +50,7 @@
     "quality:dup": "jscpd src --threshold 100 --reporters consoleFull",
     "sonar": "docker run --rm -v \"$(pwd)\":/usr/src -e SONAR_TOKEN sonarsource/sonar-scanner-cli",
     "check:no-legacy-front": "node scripts/check-no-legacy-front.mjs",
-    "check:ui-kit-integrity": "node scripts/check-ui-kit-integrity.mjs",
+    "check:catalyst-integrity": "node scripts/check-catalyst-integrity.mjs",
     "check:schema-rebuildable": "node scripts/check-schema-rebuildable.mjs"
   },
   "dependencies": {
