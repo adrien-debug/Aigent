@@ -52,7 +52,7 @@ const KIND_LABEL: Record<ActionItemKind, string> = {
   data_unavailable: 'Donnée absente',
 }
 
-export default function ActionQueue({ items }: { items: ActionItem[] }) {
+export default function ActionQueue({ items }: Readonly<{ items: ActionItem[] }>) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="shrink-0">

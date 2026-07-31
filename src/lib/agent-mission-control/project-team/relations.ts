@@ -247,8 +247,12 @@ export function buildTeamGroups(agents: readonly TeamAgentInput[]): TeamGroup[] 
   }
   return [...byTeam.entries()]
     .filter(([, ids]) => ids.length >= MIN_GROUP_SIZE)
-    .map(([team, ids]) => ({ team, nodeId: groupNodeId(team), agentIds: ids.toSorted() }))
-    .toSorted((a, b) => (a.team < b.team ? -1 : a.team > b.team ? 1 : 0))
+    .map(([team, ids]) => ({
+      team,
+      nodeId: groupNodeId(team),
+      agentIds: ids.toSorted((a, b) => a.localeCompare(b)),
+    }))
+    .toSorted((a, b) => a.team.localeCompare(b.team))
 }
 
 /** agentId -> team label, but ONLY for agents inside a materialized group. */
@@ -498,7 +502,7 @@ export function buildTeamEdges(input: BuildTeamEdgesInput): ProjectTeamEdge[] {
   for (const [name, holders] of agentsByToolName) {
     if (holders.length < 2) continue
     if (holders.length > SHARED_TOOL_MAX_AGENTS) continue // commodity — no signal
-    const sorted = holders.toSorted()
+    const sorted = holders.toSorted((a, b) => a.localeCompare(b))
     for (let i = 0; i < sorted.length; i += 1) {
       for (let j = i + 1; j < sorted.length; j += 1) {
         const source = sorted[i] as string
@@ -515,7 +519,7 @@ export function buildTeamEdges(input: BuildTeamEdgesInput): ProjectTeamEdge[] {
   }
 
   for (const { source, target, names } of sharedByPair.values()) {
-    const sortedNames = names.toSorted()
+    const sortedNames = names.toSorted((a, b) => a.localeCompare(b))
     // Never active: "we declare the same tool name" is a static coincidence of
     // configuration. Nothing travels between these two agents because of it.
     edges.push(
@@ -563,8 +567,8 @@ function sortEdges(edges: ProjectTeamEdge[]): ProjectTeamEdge[] {
   return edges.toSorted((a, b) => {
     const byRelation = rank(a.relation) - rank(b.relation)
     if (byRelation !== 0) return byRelation
-    if (a.source !== b.source) return a.source < b.source ? -1 : 1
-    if (a.target !== b.target) return a.target < b.target ? -1 : 1
-    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+    if (a.source !== b.source) return a.source.localeCompare(b.source)
+    if (a.target !== b.target) return a.target.localeCompare(b.target)
+    return a.id.localeCompare(b.id)
   })
 }

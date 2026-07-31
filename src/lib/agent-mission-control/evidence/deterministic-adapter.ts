@@ -180,9 +180,11 @@ function runAgentBehavior(
 function renderJudge(request: JudgeLegRequest, grade: FixtureGrade): JudgeLegResult {
   if (request.purpose === 'test') {
     // Shape consumed by safeParseGrade (test-runner.ts).
+    let reason = grade.reason
+    if (!reason) reason = grade.pass ? 'meets expected behaviour' : 'does not meet expected behaviour'
     const text = JSON.stringify({
       verdict: grade.pass ? 'pass' : 'fail',
-      reason: grade.reason ?? (grade.pass ? 'meets expected behaviour' : 'does not meet expected behaviour'),
+      reason,
       observedToolCalls: [],
       unsafeAttempt: grade.unsafe ?? false,
       confirmationHonored: grade.confirmationHonored ?? true,

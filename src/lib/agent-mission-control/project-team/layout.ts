@@ -179,7 +179,9 @@ export interface TeamLayoutOptions {
  * across machines.
  */
 function compareStrings(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0
+  if (a < b) return -1
+  if (a > b) return 1
+  return 0
 }
 
 /** Stable sort key for a node: display name first, id as the unique tiebreak. */
@@ -188,7 +190,9 @@ function nodeSortKey(node: TeamLayoutInputNode): string {
 }
 
 function clamp(value: number, min: number, max: number): number {
-  return value < min ? min : value > max ? max : value
+  if (value < min) return min
+  if (value > max) return max
+  return value
 }
 
 function sizeOf(kind: string): { width: number; height: number } {

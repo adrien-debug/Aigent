@@ -54,7 +54,10 @@ async function executeAgent(request: AgentLegRequest): Promise<AgentLegResult> {
     return {
       toolCalls: gr.toolCalls.map((t) => ({ toolName: t.toolName, status: t.status })),
       reply: gr.interrupted
-        ? `[interrupted for human confirmation] ${gr.interruptMessage ?? ''}${gr.pendingTool ? ` (pending tool: ${gr.pendingTool.name})` : ''}`.trim()
+        ? (() => {
+            const pendingSuffix = gr.pendingTool ? ` (pending tool: ${gr.pendingTool.name})` : ''
+            return `[interrupted for human confirmation] ${gr.interruptMessage ?? ''}${pendingSuffix}`.trim()
+          })()
         : gr.finalText,
       pausedForConfirmation: gr.interrupted,
       pendingToolName: gr.pendingTool?.name ?? null,
@@ -90,7 +93,10 @@ async function executeAgent(request: AgentLegRequest): Promise<AgentLegResult> {
     return {
       toolCalls: res.toolCalls.map((t) => ({ toolName: t.name, status: t.status })),
       reply: pausedForConfirmation
-        ? `[blocked pending human confirmation] ${res.outputSummary}${pendingToolName ? ` (pending tool: ${pendingToolName})` : ''}`.trim()
+        ? (() => {
+            const pendingSuffix = pendingToolName ? ` (pending tool: ${pendingToolName})` : ''
+            return `[blocked pending human confirmation] ${res.outputSummary}${pendingSuffix}`.trim()
+          })()
         : res.fullText ?? res.outputSummary,
       pausedForConfirmation,
       pendingToolName,

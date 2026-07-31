@@ -75,8 +75,14 @@ const registryModule = await import('../src/langgraph/tool-registry.mjs')
 const { REGISTRY_IDS, MARKET_TOOL_IDS, REALESTATE_TOOL_IDS } = registryModule
 
 for (const [name, value] of Object.entries({ REGISTRY_IDS, MARKET_TOOL_IDS, REALESTATE_TOOL_IDS })) {
-  if (!Array.isArray(value) || value.length === 0) {
-    console.error(`✗ ${LANGGRAPH_REGISTRY} n'exporte plus un ${name} exploitable (${value === undefined ? 'absent' : 'vide'}).`)
+  if (!Array.isArray(value)) {
+    const reason = typeof value === 'undefined' ? 'absent' : 'invalide'
+    console.error(`✗ ${LANGGRAPH_REGISTRY} n'exporte plus un ${name} exploitable (${reason}).`)
+    console.error('  La gate ne peut rien vérifier — elle échoue plutôt que de passer à l\'aveugle.')
+    process.exit(1)
+  }
+  if (value.length === 0) {
+    console.error(`✗ ${LANGGRAPH_REGISTRY} n'exporte plus un ${name} exploitable (vide).`)
     console.error('  La gate ne peut rien vérifier — elle échoue plutôt que de passer à l\'aveugle.')
     process.exit(1)
   }

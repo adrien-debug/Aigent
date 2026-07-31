@@ -45,7 +45,7 @@ export function Panel({
   className,
   bodyClassName,
   padded = true,
-}: {
+}: Readonly<{
   title: string
   hint?: string
   actions?: ReactNode
@@ -55,7 +55,9 @@ export function Panel({
   bodyClassName?: string
   /** `false` quand le contenu gère lui-même ses marges (table, liste pleine largeur). */
   padded?: boolean
-}) {
+}>) {
+  const actionsClass = hint ? 'ml-3' : 'ml-auto'
+
   return (
     <section
       className={clsx(
@@ -70,7 +72,9 @@ export function Panel({
             {title}
           </Subheading>
           {hint ? <Text className="ml-auto shrink-0 truncate">{hint}</Text> : null}
-          {actions ? <div className={clsx('shrink-0', hint ? 'ml-3' : 'ml-auto')}>{actions}</div> : null}
+          {actions ? (
+            <div className={clsx('shrink-0', actionsClass)}>{actions}</div>
+          ) : null}
         </div>
         <Divider soft />
       </header>
@@ -90,11 +94,11 @@ export function Unavailable({
   reason = 'unread',
   detail,
   compact = false,
-}: {
+}: Readonly<{
   reason?: 'unread' | 'no-data'
   detail?: string
   compact?: boolean
-}) {
+}>) {
   const label = reason === 'unread' ? UNAVAILABLE_LABEL : 'Aucune mesure'
   return (
     <div
@@ -132,11 +136,11 @@ export function Led({
   color,
   live = false,
   className,
-}: {
+}: Readonly<{
   color: string
   live?: boolean
   className?: string
-}) {
+}>) {
   return (
     <span
       aria-hidden
@@ -147,7 +151,7 @@ export function Led({
 }
 
 /** Rail de sévérité — la barre verticale colorée qui ouvre une ligne de liste. */
-export function Rail({ color, className }: { color: string; className?: string }) {
+export function Rail({ color, className }: Readonly<{ color: string; className?: string }>) {
   return (
     <span
       aria-hidden
@@ -167,12 +171,12 @@ export function SegmentMeter({
   total,
   color,
   className,
-}: {
+}: Readonly<{
   filled: number
   total: number
   color: string
   className?: string
-}) {
+}>) {
   const safeTotal = Math.max(total, 0)
   const safeFilled = Math.min(Math.max(filled, 0), safeTotal)
 
@@ -202,11 +206,11 @@ export function BarMeter({
   ratio,
   color,
   className,
-}: {
+}: Readonly<{
   ratio: number
   color: string
   className?: string
-}) {
+}>) {
   const pct = Math.min(Math.max(ratio, 0), 1) * 100
   return (
     <div
@@ -234,12 +238,12 @@ export function ArcGauge({
   color,
   size = 44,
   label,
-}: {
+}: Readonly<{
   ratio: number
   color: string
   size?: number
   label?: string
-}) {
+}>) {
   const stroke = 3.5
   const r = (size - stroke) / 2
   const c = 2 * Math.PI * r

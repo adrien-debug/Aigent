@@ -63,6 +63,7 @@ import {
   SANDBOX_EXECUTE,
   describeStatus,
   readPushOutcome,
+  type MutationCost,
   type MutationDescriptor,
   type PushResult,
 } from './actions'
@@ -135,6 +136,88 @@ interface ActionButtonProps {
   disabledReason?: string
 }
 
+type DeliveryConsoleProps = { target: DeliveryConsoleTarget }
+
+type ConfirmBodyProps = {
+  job: Pending
+  armReal: boolean
+  onArmReal: (v: boolean) => void
+  realDeliveryEnabled: boolean
+  repoFullName: string | null
+  busy: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}
+
+function blockedDeliveryReason(target: DeliveryConsoleTarget): string | undefined {
+  if (!target.projectRead) {
+    return 'Le projet de cet agent n’a pas pu être LU : impossible de savoir s’il a un dépôt cible. Ce n’est pas « aucun dépôt » — c’est une ignorance, et on ne livre pas dans le doute.'
+  }
+  if (target.projectId === null) {
+    return 'Cet agent n’est rattaché à aucun projet : il n’existe aucun dépôt vers lequel livrer.'
+  }
+  if (target.repoFullName === null) {
+    return 'Le projet de cet agent n’a aucun dépôt GitHub lié. Une livraison est IMPOSSIBLE — la route répondrait 400.'
+  }
+  return undefined
+}
+
+function mutationCostColor(kind: MutationCost['kind']): 'emerald' | 'amber' | 'red' {
+  if (kind === 'free') return 'emerald'
+  if (kind === 'compute') return 'amber'
+  return 'red'
+}
+
+function mutationCostLabel(kind: MutationCost['kind']): string {
+  if (kind === 'free') return 'aucune écriture'
+  if (kind === 'compute') return 'exécution longue'
+  return 'écriture distante réelle'
+}
+
+function confirmDescription(
+  isDelivery: boolean | undefined,
+  realDeliveryEnabled: boolean,
+): string {
+  if (!isDelivery) return ''
+  if (realDeliveryEnabled) {
+    return 'Le verrou serveur est OUVERT : cette confirmation suffira à écrire réellement.'
+  }
+  return 'Le verrou serveur est FERMÉ : même confirmée, la route retombera en dry-run et le répondra. Rien ne sera écrit.'
+}
+
+type OutcomeNoteProps = { outcome: Outcome }
+
+function OutcomeNote({ outcome }: OutcomeNoteProps) {
+  if (outcome.phase === 'running') {
+    return (
+      <Note tone="info" title={outcome.title}>
+        L’action est partie. Cette surface n’a pas de canal de progression : le résultat
+        arrivera avec la réponse de la route.
+      </Note>
+    )
+  }
+  if (outcome.phase === 'ok') {
+    return (
+      <Note
+        // Une écriture réelle est signalée en `warn`, pas en `info` : elle
+        // a changé un dépôt qui ne nous appartient pas.
+        tone={outcome.wrote === true ? 'warn' : 'info'}
+        title={outcome.title}
+      >
+        {outcome.detail}
+      </Note>
+    )
+  }
+  const fallbackDetail = outcome.refused
+    ? 'La route a refusé sans détail supplémentaire.'
+    : 'Aucun détail n’a été renvoyé par la route.'
+  return (
+    <Note tone={outcome.refused ? 'warn' : 'blocked'} title={outcome.title}>
+      {outcome.detail ?? fallbackDetail}
+    </Note>
+  )
+}
+
 /**
  * Un bouton qui OUVRE son dialogue — jamais une mutation en un clic.
  *
@@ -150,7 +233,7 @@ function ActionButton({ job, busy, onOpen, disabled, disabledReason }: ActionBut
   )
 }
 
-export default function DeliveryConsole({ target }: { target: DeliveryConsoleTarget }) {
+export default function DeliveryConsole({ target }: DeliveryConsoleProps) {
   const router = useRouter()
   const [pending, setPending] = useState<Pending | null>(null)
   const [armReal, setArmReal] = useState(false)
@@ -249,23 +332,15 @@ export default function DeliveryConsole({ target }: { target: DeliveryConsoleTar
     [router],
   )
 
-  const noRepo = target.repoFullName === null
-  const noProject = target.projectId === null
   const projectBase = target.projectId
-    ? `/api/agent-ops/projects/${encodeURIComponent(target.projectId)}`
+    ? '/api/agent-ops/projects/' + encodeURIComponent(target.projectId)
     : null
-  const copilotBase = `/api/agent-ops/copilots/${encodeURIComponent(target.copilotId)}`
+  const copilotBase = '/api/agent-ops/copilots/' + encodeURIComponent(target.copilotId)
 
   // La raison d'extinction, dans l'ordre de précision : une lecture ratée n'est
   // pas une absence de dépôt, et une absence de dépôt n'est pas une absence de
   // projet.
-  const blockedReason = !target.projectRead
-    ? 'Le projet de cet agent n’a pas pu être LU : impossible de savoir s’il a un dépôt cible. Ce n’est pas « aucun dépôt » — c’est une ignorance, et on ne livre pas dans le doute.'
-    : noProject
-      ? 'Cet agent n’est rattaché à aucun projet : il n’existe aucun dépôt vers lequel livrer.'
-      : noRepo
-        ? 'Le projet de cet agent n’a aucun dépôt GitHub lié. Une livraison est IMPOSSIBLE — la route répondrait 400.'
-        : undefined
+  const blockedReason = blockedDeliveryReason(target)
   const blocked = blockedReason !== undefined || projectBase === null
 
   return (
@@ -306,7 +381,7 @@ export default function DeliveryConsole({ target }: { target: DeliveryConsoleTar
               descriptor: PUSH_DRY_RUN,
               // `projectBase` est non-null dès que `blocked` est faux ; la garde
               // ci-dessous satisfait le typage sans masquer un cas réel.
-              path: `${projectBase ?? ''}/push-agent`,
+              path: (projectBase ?? '') + '/push-agent',
               // PAS de `confirm` : la route calcule `dryRun = true` par
               // construction, quelle que soit la configuration du serveur.
               body: { copilotId: target.copilotId, deliveryMode: 'pull_request' },
@@ -335,7 +410,7 @@ export default function DeliveryConsole({ target }: { target: DeliveryConsoleTar
             disabledReason={blockedReason}
             job={{
               descriptor: SANDBOX_DRY_RUN,
-              path: `${copilotBase}/target-sandbox`,
+              path: copilotBase + '/target-sandbox',
               body: { mode: 'dry_run' },
               realDescriptor: SANDBOX_EXECUTE,
               realBody: { mode: 'execute', installMode: 'auto' },
@@ -361,7 +436,7 @@ export default function DeliveryConsole({ target }: { target: DeliveryConsoleTar
             disabledReason={blockedReason}
             job={{
               descriptor: PROVISION_DRY_RUN,
-              path: `${projectBase ?? ''}/provision-consumer`,
+              path: (projectBase ?? '') + '/provision-consumer',
               body: { deliveryMode: 'pull_request' },
               realDescriptor: PROVISION_REAL,
               realBody: { deliveryMode: 'pull_request', confirm: true },
@@ -381,28 +456,7 @@ export default function DeliveryConsole({ target }: { target: DeliveryConsoleTar
       {/* ─── Résultat de la dernière action ─── */}
       {outcome.phase !== 'idle' ? (
         <div aria-live="polite">
-          {outcome.phase === 'running' ? (
-            <Note tone="info" title={outcome.title}>
-              L’action est partie. Cette surface n’a pas de canal de progression : le résultat
-              arrivera avec la réponse de la route.
-            </Note>
-          ) : outcome.phase === 'ok' ? (
-            <Note
-              // Une écriture réelle est signalée en `warn`, pas en `info` : elle
-              // a changé un dépôt qui ne nous appartient pas.
-              tone={outcome.wrote === true ? 'warn' : 'info'}
-              title={outcome.title}
-            >
-              {outcome.detail}
-            </Note>
-          ) : (
-            <Note tone={outcome.refused ? 'warn' : 'blocked'} title={outcome.title}>
-              {outcome.detail ??
-                (outcome.refused
-                  ? 'La route a refusé sans détail supplémentaire.'
-                  : 'Aucun détail n’a été renvoyé par la route.')}
-            </Note>
-          )}
+          <OutcomeNote outcome={outcome} />
         </div>
       ) : null}
 
@@ -448,25 +502,10 @@ function ConfirmBody({
   busy,
   onCancel,
   onConfirm,
-}: {
-  job: Pending
-  armReal: boolean
-  onArmReal: (v: boolean) => void
-  realDeliveryEnabled: boolean
-  repoFullName: string | null
-  busy: boolean
-  onCancel: () => void
-  onConfirm: () => void
-}) {
+}: ConfirmBodyProps) {
   const effective = armReal && job.realDescriptor ? job.realDescriptor : job.descriptor
-  const costColor =
-    effective.cost.kind === 'free' ? 'emerald' : effective.cost.kind === 'compute' ? 'amber' : 'red'
-  const costLabel =
-    effective.cost.kind === 'free'
-      ? 'aucune écriture'
-      : effective.cost.kind === 'compute'
-        ? 'exécution longue'
-        : 'écriture distante réelle'
+  const costColor = mutationCostColor(effective.cost.kind)
+  const costLabel = mutationCostLabel(effective.cost.kind)
 
   // La vérité opérationnelle : armer la confirmation ne suffit pas si le verrou
   // serveur est fermé. On le dit AVANT, pas après la réponse.
@@ -518,11 +557,7 @@ function ConfirmBody({
               </Label>
               <Description>
                 {job.realDescriptor.cost.detail}{' '}
-                {job.isDelivery
-                  ? realDeliveryEnabled
-                    ? 'Le verrou serveur est OUVERT : cette confirmation suffira à écrire réellement.'
-                    : 'Le verrou serveur est FERMÉ : même confirmée, la route retombera en dry-run et le répondra. Rien ne sera écrit.'
-                  : ''}
+                {confirmDescription(job.isDelivery, realDeliveryEnabled)}
               </Description>
             </CheckboxField>
           ) : null}

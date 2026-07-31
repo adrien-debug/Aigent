@@ -183,9 +183,10 @@ export async function POST(
       // when the row is genuinely absent (that IS the failure, so say so).
       let names = canonical.unresolvedToolIds
       try {
+        const quotedIds = canonical.unresolvedToolIds.map((id) => `"${id}"`).join(',')
         const rows = await pgrest<{ id: string; name: string }[]>(
           'GET',
-          `tools?id=in.(${canonical.unresolvedToolIds.map((id) => `"${id}"`).join(',')})&select=id,name`
+          `tools?id=in.(${quotedIds})&select=id,name`
         )
         const byId = new Map(rows.map((r) => [r.id, r.name]))
         names = canonical.unresolvedToolIds.map((id) => byId.get(id) ?? `${id} (no tool row)`)

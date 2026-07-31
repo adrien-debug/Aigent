@@ -33,7 +33,7 @@ import type { ProvenanceBreakdown } from './run-view-model'
 
 /** Le compteur d'une provenance. Un `0` ici est une mesure, pas une absence :
  *  la lecture a réussi et a compté zéro événement de cette source. */
-function Count({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
+function Count({ label, value, accent }: Readonly<{ label: string; value: number; accent?: boolean }>) {
   return (
     <div className="min-w-0">
       <Text className="truncate text-xs uppercase">{label}</Text>
@@ -46,10 +46,10 @@ function Count({ label, value, accent }: { label: string; value: number; accent?
 
 export default function TrafficProvenance({
   breakdown,
-}: {
+}: Readonly<{
   /** `null` = la lecture du flux d'événements a ÉCHOUÉ. Jamais un flux vide. */
   breakdown: ProvenanceBreakdown | null
-}) {
+}>) {
   const state = consumerChannelState(breakdown)
 
   if (state === 'unread' || breakdown === null) {

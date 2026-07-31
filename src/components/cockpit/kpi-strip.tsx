@@ -27,6 +27,22 @@ const GOOD = '#059669'
 const WARN = '#d97706'
 const BAD = '#dc2626'
 
+function successRateColor(success24h: number | null): string {
+  if (success24h === null || success24h >= 90) return GOOD
+  if (success24h >= 60) return WARN
+  return BAD
+}
+
+function costSupportText(
+  cost: NonNullable<DashboardKpis['cost24h']>,
+  partial: boolean,
+): string {
+  if (partial) {
+    return `minorant · ${cost.measuredRuns}/${cost.totalRuns} runs mesurés`
+  }
+  return `${cost.totalRuns} runs mesurés`
+}
+
 function Cell({
   label,
   value,
@@ -36,7 +52,7 @@ function Cell({
   led,
   valueColor,
   unavailableReason,
-}: {
+}: Readonly<{
   label: string
   /** `null` = non mesuré. La cellule le DIT au lieu d'afficher un chiffre. */
   value: string | number | null
@@ -48,7 +64,7 @@ function Cell({
   led?: ReactNode
   valueColor?: string
   unavailableReason?: 'unread' | 'no-data'
-}) {
+}>) {
   return (
     <div className="flex min-w-0 flex-col justify-between gap-2 p-4">
       <dt className="flex items-center gap-2">
@@ -88,15 +104,14 @@ function Cell({
 export default function KpiStrip({
   kpis,
   unread,
-}: {
+}: Readonly<{
   kpis: DashboardKpis
   /** La fenêtre de runs n'a pas pu être lue — distingue « absent » de « vide ». */
   unread: boolean
-}) {
+}>) {
   const reason = unread ? 'unread' : 'no-data'
 
-  const successColor =
-    kpis.success24h === null ? GOOD : kpis.success24h >= 90 ? GOOD : kpis.success24h >= 60 ? WARN : BAD
+  const successColor = successRateColor(kpis.success24h)
 
   const cost = kpis.cost24h
   const coverage = cost && cost.totalRuns > 0 ? cost.measuredRuns / cost.totalRuns : 0
@@ -136,13 +151,7 @@ export default function KpiStrip({
       <Cell
         label="Coût 24 h"
         value={cost === null ? null : formatUsd(cost.usd)}
-        support={
-          cost === null
-            ? 'aucun coût mesurable'
-            : partial
-              ? `minorant · ${cost.measuredRuns}/${cost.totalRuns} runs mesurés`
-              : `${cost.totalRuns} runs mesurés`
-        }
+        support={cost === null ? 'aucun coût mesurable' : costSupportText(cost, partial)}
         unavailableReason={reason}
         graphic={
           cost === null ? undefined : (

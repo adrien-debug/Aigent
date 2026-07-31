@@ -100,7 +100,7 @@ const deadComponents = componentFiles.filter((f) => !isReferenced(f, corpus)).ma
 
 if (deadComponents.length > 0) {
   console.error(`✗ ${deadComponents.length} dead component(s):\n`)
-  for (const f of deadComponents.sort()) console.error('  ' + f)
+  for (const f of deadComponents.sort((a, b) => a.localeCompare(b))) console.error('  ' + f)
   process.exit(1)
 }
 

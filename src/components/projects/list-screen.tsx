@@ -30,6 +30,11 @@ import type { ProjectListItem, ProjectMeasure } from './model'
 
 const MUTED_RAIL = 'rgb(161 161 170 / 0.35)'
 
+function projectCountHint(count: number): string {
+  const suffix = count > 1 ? 's' : ''
+  return `${count} projet${suffix}`
+}
+
 /**
  * Une mesure agrégée, rendue selon son état réel.
  *
@@ -41,16 +46,16 @@ const MUTED_RAIL = 'rgb(161 161 170 / 0.35)'
 function Measure({
   measure,
   render,
-}: {
+}: Readonly<{
   measure: ProjectMeasure
   render: (value: number) => React.ReactNode
-}) {
+}>) {
   if (measure.state === 'measured' && measure.value !== null) return <>{render(measure.value)}</>
   if (measure.state === 'not-measured') return <AbsentMark />
   return null
 }
 
-function ProjectListRow({ item }: { item: ProjectListItem }) {
+function ProjectListRow({ item }: Readonly<{ item: ProjectListItem }>) {
   const live = item.activeCount > 0
   const empty = item.copilotCount === 0
 
@@ -116,11 +121,11 @@ export default function ProjectsListScreen({
   /** `true` quand la lecture de la liste a ÉCHOUÉ — jamais quand elle est vide. */
   unreadable = false,
   failure,
-}: {
+}: Readonly<{
   items: readonly ProjectListItem[]
   unreadable?: boolean
   failure?: string | null
-}) {
+}>) {
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-3">
       <header className="shrink-0 px-1">
@@ -132,7 +137,7 @@ export default function ProjectsListScreen({
 
       <Panel
         title="Catalogue"
-        hint={unreadable ? 'lecture échouée' : `${items.length} projet${items.length > 1 ? 's' : ''}`}
+        hint={unreadable ? 'lecture échouée' : projectCountHint(items.length)}
         className="min-h-0 flex-1"
         padded={false}
         bodyClassName="overflow-y-auto"

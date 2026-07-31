@@ -67,7 +67,7 @@ async function main() {
 
   // 1) CREATE — the product route. A read-only candidate with one certified tool.
   const createRes = await createCopilot(
-    jsonRequest('http://local/api/agent-ops/copilots', {
+    jsonRequest('http://local/api/agent-ops/copilots', { // NOSONAR fake Request host, no network
       name: `AF001 E2E ${token}`,
       slug,
       description: 'autonomous factory e2e candidate',
@@ -110,7 +110,7 @@ async function main() {
     record('candidate', versionRow?.stage === 'draft', `candidate version ${versionId} is ${versionRow?.stage}`)
 
     // 4) QUALIFICATION SWEEP — the orchestration route.
-    const sweepRes = await qualify(jsonRequest(`http://local/api/agent-ops/copilots/${copilotId}/qualification`, { versionId, action: 'sweep' }), params(copilotId))
+    const sweepRes = await qualify(jsonRequest(`http://local/api/agent-ops/copilots/${copilotId}/qualification`, { versionId, action: 'sweep' }), params(copilotId)) // NOSONAR fake Request host, no network
     const sweep = await sweepRes.json()
     record('sweep', sweepRes.status === 200, `run ${sweep.run?.id} → status=${sweep.run?.status}; next="${sweep.readiness?.nextAction}"`)
 
@@ -123,17 +123,17 @@ async function main() {
 
     // 6) RESUME — the advance action is idempotent on a terminal run (proves the
     //    resume endpoint is exposed; failure-mid-flight resume is proven in unit #8).
-    const advRes = await qualify(jsonRequest(`http://local/api/agent-ops/copilots/${copilotId}/qualification`, { versionId, action: 'advance' }), params(copilotId))
+    const advRes = await qualify(jsonRequest(`http://local/api/agent-ops/copilots/${copilotId}/qualification`, { versionId, action: 'advance' }), params(copilotId)) // NOSONAR fake Request host, no network
     const adv = await advRes.json()
     record('resume', advRes.status === 200, `advance → status=${adv.run?.status} (terminal runs are stable)`)
 
     // Observe via GET (the UI read path).
-    const obsRes = await observeQualification(new Request(`http://local/api/agent-ops/copilots/${copilotId}/qualification?versionId=${versionId}`), params(copilotId))
+    const obsRes = await observeQualification(new Request(`http://local/api/agent-ops/copilots/${copilotId}/qualification?versionId=${versionId}`), params(copilotId)) // NOSONAR fake Request host, no network
     record('observe', obsRes.status === 200, `GET qualification → 200 (detail page read path)`)
   } finally {
     // 7) CLEANUP via the product DELETE route (cascades version/manifest/tools).
     if (!KEEP) {
-      const delRes = await deleteCopilot(new Request(`http://local/api/agent-ops/copilots/${copilotId}`, { method: 'DELETE' }), params(copilotId))
+      const delRes = await deleteCopilot(new Request(`http://local/api/agent-ops/copilots/${copilotId}`, { method: 'DELETE' }), params(copilotId)) // NOSONAR fake Request host, no network
       record('cleanup', delRes.status === 200 || delRes.status === 204, `DELETE /copilots/${copilotId} → ${delRes.status}`)
     } else {
       record('cleanup', true, `--keep set; left ${copilotId} in place`)

@@ -38,7 +38,7 @@ function fnv1a(input: string): string {
  * with the same registry source produce the same string → the same hash.
  */
 export function registryFingerprintSource(): string {
-  const tools = TOOL_IDS.toSorted()
+  const tools = TOOL_IDS.toSorted((a, b) => a.localeCompare(b))
     .map((id) => {
       const t = TOOL_REGISTRY[id]
       return [
@@ -49,11 +49,11 @@ export function registryFingerprintSource(): string {
         t.risk,
         t.requiresConfirmation ? 'C' : 'c',
         t.certification,
-        t.runtimes.toSorted().join('+'),
-        t.secretRefs.toSorted().join(','),
+        t.runtimes.toSorted((a, b) => a.localeCompare(b)).join('+'),
+        t.secretRefs.toSorted((a, b) => a.localeCompare(b)).join(','),
       ].join('|')
     })
-  const runtimes = RUNTIME_IDS.toSorted()
+  const runtimes = RUNTIME_IDS.toSorted((a, b) => a.localeCompare(b))
     .map((id) => {
       const r = RUNTIME_REGISTRY[id]
       return [r.id, r.engine, r.creatable ? 'C' : 'c'].join('|')

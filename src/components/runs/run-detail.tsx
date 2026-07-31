@@ -49,7 +49,7 @@ import type { RunFact } from './run-view-model'
  * DIFFÉRENTES d'une valeur : un badge zinc portant le mot, plus la raison en
  * dessous. Impossible de la lire comme une mesure.
  */
-function Fact({ label, fact }: { label: string; fact: RunFact }) {
+function Fact({ label, fact }: Readonly<{ label: string; fact: RunFact }>) {
   return (
     <div className="min-w-0 py-2">
       <Text className="truncate text-xs uppercase">{label}</Text>
@@ -66,7 +66,7 @@ function Fact({ label, fact }: { label: string; fact: RunFact }) {
 }
 
 /** Bloc de texte libre (entrée / sortie d'un run), avec son absence qualifiée. */
-function SummaryBlock({ label, text }: { label: string; text: string }) {
+function SummaryBlock({ label, text }: Readonly<{ label: string; text: string }>) {
   const trimmed = text?.trim() ?? ''
   return (
     <div className="min-w-0">
@@ -90,7 +90,7 @@ function SummaryBlock({ label, text }: { label: string; text: string }) {
  * qu'elle ne peut pas ouvrir (leur contenu). Deux cas seulement, et aucun ne
  * produit de fausse liste vide.
  */
-function Timeline({ run }: { run: AgentRun }) {
+function Timeline({ run }: Readonly<{ run: AgentRun }>) {
   const stepCount = Array.isArray(run.stepIds) ? run.stepIds.length : null
 
   if (stepCount === null) {
@@ -136,13 +136,13 @@ export default function RunDetail({
   agentName,
   projectName,
   nowMs,
-}: {
+}: Readonly<{
   run: AgentRun
   /** `null` quand la lecture du roster a échoué — l'id brut est alors affiché. */
   agentName: string | null
   projectName: string | null
   nowMs: number
-}) {
+}>) {
   const durationFact = runDurationFact(formatDuration(run.latencyMs))
   const errorFact = runErrorFact(run)
   const startedMs = Date.parse(run.startedAt)

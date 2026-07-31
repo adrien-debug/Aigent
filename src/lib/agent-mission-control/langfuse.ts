@@ -288,7 +288,8 @@ export async function exportLangfuseTrace(
     const errors = body?.errors ?? []
     if (errors.length > 0) {
       const first = errors[0]
-      const detail = first?.message ?? (first?.error ? JSON.stringify(first.error) : 'unspecified')
+      let detail = first?.message
+      if (!detail) detail = first?.error ? JSON.stringify(first.error) : 'unspecified'
       return {
         exported: false,
         eventCount: body?.successes?.length ?? 0,

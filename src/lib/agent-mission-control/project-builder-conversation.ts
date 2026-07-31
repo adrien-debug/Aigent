@@ -1039,7 +1039,8 @@ export async function confirmProjectBuilderDraftMaterialization(
 
   const preview = conversation.latestPreview
   const draft = runState.manifestDraft ?? (preview ? previewToManifestDraft(preview) : null)
-  const tools = runState.selectedTools.length > 0 ? runState.selectedTools : preview ? previewToTools(preview) : []
+  let tools = runState.selectedTools
+  if (tools.length === 0 && preview) tools = previewToTools(preview)
 
   if (!draft) throw new Error('no manifest draft to materialize')
 

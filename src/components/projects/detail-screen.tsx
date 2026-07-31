@@ -18,6 +18,7 @@
  * Ces trois-là ne partagent jamais le même rendu.
  */
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -84,6 +85,123 @@ const RUN_HISTORY_NOTE: Record<ProjectTeamNode['runHistory'], string | null> = {
   'not-applicable': null,
 }
 
+function agentTeamHint(agentCount: number, unavailableAgents: number): string {
+  if (unavailableAgents > 0) {
+    return `${unavailableAgents} statut(s) illisible(s)`
+  }
+  const suffix = agentCount > 1 ? 's' : ''
+  return `${agentCount} agent${suffix}`
+}
+
+function relationCountHint(count: number): string {
+  const suffix = count > 1 ? 's' : ''
+  return `${count} arête${suffix}`
+}
+
+function severityBadgeColor(severity: string): 'red' | 'amber' | 'zinc' {
+  if (severity === 'high') return 'red'
+  if (severity === 'medium') return 'amber'
+  return 'zinc'
+}
+
+function yesNoBadge(ok: boolean): { color: 'emerald' | 'zinc'; label: string } {
+  return ok ? { color: 'emerald', label: 'oui' } : { color: 'zinc', label: 'non' }
+}
+
+function nodeRailColor(status: ProjectTeamNode['status']): string {
+  if (status === 'active') return '#0da87f'
+  if (status === 'failed') return '#e8455f'
+  if (status === 'blocked') return '#8e63ee'
+  return MUTED_RAIL
+}
+
+function repoPanelBody(repo: RepoView): ReactNode {
+  if (repo.state === 'unlinked') {
+    return (
+      <Unavailable
+        reason="no-data"
+        detail="Aucun dépôt n'est rattaché à ce projet : il n'y a pas d'arbre à lire."
+      />
+    )
+  }
+  if (repo.state === 'unreadable') {
+    return (
+      <div>
+        <Unavailable
+          reason="unread"
+          detail="Le dépôt est rattaché mais n'a pas pu être lu (jeton absent, API injoignable ou dépôt inaccessible). Ce n'est PAS un dépôt vide — son contenu est inconnu."
+        />
+        {repo.failure ? (
+          <Text className="mt-3 text-center font-mono text-xs">{repo.failure}</Text>
+        ) : null}
+      </div>
+    )
+  }
+  if (repo.roots.length === 0) {
+    return (
+      <Unavailable
+        reason="no-data"
+        detail="La lecture du dépôt a réussi et l'arbre est réellement vide."
+      />
+    )
+  }
+  return <TreeBranch nodes={repo.roots} />
+}
+
+function intelPanelBody(intel: IntelligenceView): ReactNode {
+  if (intel.unreadable) {
+    return (
+      <Unavailable
+        reason="unread"
+        detail="Le cache d'intelligence n'a pas pu être lu. On ne sait pas si ce projet a été scanné."
+      />
+    )
+  }
+  if (intel.intelligence === null) {
+    return (
+      <Unavailable
+        reason="no-data"
+        detail="Ce dépôt n'a jamais été scanné. Aucun scan n'est déclenché depuis cet écran — il est en lecture seule."
+      />
+    )
+  }
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <Stat
+          label="Stack"
+          value={
+            intel.intelligence.map.stack.length > 0
+              ? intel.intelligence.map.stack.join(' · ')
+              : null
+          }
+          absent="non détectée"
+        />
+        <Stat
+          label="Code agentique"
+          value={intel.intelligence.footprint.hasAgenticCode ? 'présent' : 'absent'}
+        />
+      </div>
+      <Divider soft />
+      <div>
+        <Subheading level={3}>Résidus ({intel.intelligence.residue.length})</Subheading>
+        {intel.intelligence.residue.length === 0 ? (
+          <Text className="mt-1">Aucun résidu relevé par le dernier scan.</Text>
+        ) : (
+          <ul className="mt-1 space-y-1">
+            {intel.intelligence.residue.slice(0, 8).map((finding, i) => (
+              <li key={`${finding.path}-${i}`} className="flex items-center gap-2">
+                <Badge color={severityBadgeColor(finding.severity)}>{finding.severity}</Badge>
+                <Text className="truncate font-mono text-xs">{finding.path}</Text>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /* ──────────────────────────── Sous-blocs ──────────────────────────── */
 
 /** Une valeur d'en-tête : le chiffre, ou l'absence QUALIFIÉE. */
@@ -91,12 +209,12 @@ function Stat({
   label,
   value,
   absent = UNAVAILABLE_LABEL,
-}: {
+}: Readonly<{
   label: string
   value: number | string | null
   /** Le mot exact quand `value === null`. `null` reste `null`, jamais `0`. */
   absent?: string
-}) {
+}>) {
   return (
     <div className="min-w-0">
       <Text className="truncate text-xs">{label}</Text>
@@ -109,16 +227,9 @@ function Stat({
   )
 }
 
-function AgentRow({ node }: { node: ProjectTeamNode }) {
+function AgentRow({ node }: Readonly<{ node: ProjectTeamNode }>) {
   const note = RUN_HISTORY_NOTE[node.runHistory]
-  const rail =
-    node.status === 'active'
-      ? '#0da87f'
-      : node.status === 'failed'
-        ? '#e8455f'
-        : node.status === 'blocked'
-          ? '#8e63ee'
-          : MUTED_RAIL
+  const rail = nodeRailColor(node.status)
 
   return (
     <li className="relative border-b border-zinc-950/5 last:border-b-0 dark:border-white/5">
@@ -173,7 +284,10 @@ function AgentRow({ node }: { node: ProjectTeamNode }) {
 }
 
 /** L'arbre du dépôt, rendu récursivement et déjà borné en profondeur. */
-function TreeBranch({ nodes, depth = 0 }: { nodes: readonly RepoTreeNode[]; depth?: number }) {
+function TreeBranch({
+  nodes,
+  depth = 0,
+}: Readonly<{ nodes: readonly RepoTreeNode[]; depth?: number }>) {
   return (
     <ul className={depth === 0 ? '' : 'border-l border-zinc-950/5 pl-3 dark:border-white/5'}>
       {nodes.map((node) => (
@@ -218,14 +332,14 @@ export default function ProjectDetailScreen({
   repo,
   intel,
   delivery,
-}: {
+}: Readonly<{
   name: string
   /** `null` = la lecture du graphe a échoué. Jamais « projet sans équipe ». */
   graph: ProjectTeamGraph | null
   repo: RepoView
   intel: IntelligenceView
   delivery: DeliveryCapability
-}) {
+}>) {
   const agents = graph?.nodes.filter((node) => node.kind === 'agent') ?? []
   // Les arêtes de simple appartenance sont structurelles et déjà dites par la
   // liste d'agents : les répéter en « relations » gonflerait le compte sans
@@ -287,9 +401,9 @@ export default function ProjectDetailScreen({
             <Panel
               title="Équipe"
               hint={
-                summary && summary.unavailableAgents > 0
-                  ? `${summary.unavailableAgents} statut(s) illisible(s)`
-                  : `${agents.length} agent${agents.length > 1 ? 's' : ''}`
+                summary
+                  ? agentTeamHint(agents.length, summary.unavailableAgents)
+                  : agentTeamHint(agents.length, 0)
               }
               className="min-h-0"
               padded={false}
@@ -313,7 +427,7 @@ export default function ProjectDetailScreen({
 
             <Panel
               title="Relations"
-              hint={`${relations.length} arête${relations.length > 1 ? 's' : ''}`}
+              hint={relationCountHint(relations.length)}
               className="min-h-0"
               padded={false}
               bodyClassName="overflow-y-auto"
@@ -357,29 +471,7 @@ export default function ProjectDetailScreen({
               padded={false}
               bodyClassName="overflow-auto px-4 py-2"
             >
-              {repo.state === 'unlinked' ? (
-                <Unavailable
-                  reason="no-data"
-                  detail="Aucun dépôt n'est rattaché à ce projet : il n'y a pas d'arbre à lire."
-                />
-              ) : repo.state === 'unreadable' ? (
-                <div>
-                  <Unavailable
-                    reason="unread"
-                    detail="Le dépôt est rattaché mais n'a pas pu être lu (jeton absent, API injoignable ou dépôt inaccessible). Ce n'est PAS un dépôt vide — son contenu est inconnu."
-                  />
-                  {repo.failure ? (
-                    <Text className="mt-3 text-center font-mono text-xs">{repo.failure}</Text>
-                  ) : null}
-                </div>
-              ) : repo.roots.length === 0 ? (
-                <Unavailable
-                  reason="no-data"
-                  detail="La lecture du dépôt a réussi et l'arbre est réellement vide."
-                />
-              ) : (
-                <TreeBranch nodes={repo.roots} />
-              )}
+              {repoPanelBody(repo)}
             </Panel>
 
             <Panel
@@ -388,61 +480,7 @@ export default function ProjectDetailScreen({
               className="min-h-0"
               bodyClassName="overflow-y-auto"
             >
-              {intel.unreadable ? (
-                <Unavailable
-                  reason="unread"
-                  detail="Le cache d'intelligence n'a pas pu être lu. On ne sait pas si ce projet a été scanné."
-                />
-              ) : intel.intelligence === null ? (
-                <Unavailable
-                  reason="no-data"
-                  detail="Ce dépôt n'a jamais été scanné. Aucun scan n'est déclenché depuis cet écran — il est en lecture seule."
-                />
-              ) : (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <Stat
-                      label="Stack"
-                      value={
-                        intel.intelligence.map.stack.length > 0
-                          ? intel.intelligence.map.stack.join(' · ')
-                          : null
-                      }
-                      absent="non détectée"
-                    />
-                    <Stat
-                      label="Code agentique"
-                      value={intel.intelligence.footprint.hasAgenticCode ? 'présent' : 'absent'}
-                    />
-                  </div>
-                  <Divider soft />
-                  <div>
-                    <Subheading level={3}>Résidus ({intel.intelligence.residue.length})</Subheading>
-                    {intel.intelligence.residue.length === 0 ? (
-                      <Text className="mt-1">Aucun résidu relevé par le dernier scan.</Text>
-                    ) : (
-                      <ul className="mt-1 space-y-1">
-                        {intel.intelligence.residue.slice(0, 8).map((finding, i) => (
-                          <li key={`${finding.path}-${i}`} className="flex items-center gap-2">
-                            <Badge
-                              color={
-                                finding.severity === 'high'
-                                  ? 'red'
-                                  : finding.severity === 'medium'
-                                    ? 'amber'
-                                    : 'zinc'
-                              }
-                            >
-                              {finding.severity}
-                            </Badge>
-                            <Text className="truncate font-mono text-xs">{finding.path}</Text>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-              )}
+              {intelPanelBody(intel)}
             </Panel>
 
             {/* Capacité de LIVRAISON — un constat, pas un déclencheur. Cette
@@ -454,12 +492,15 @@ export default function ProjectDetailScreen({
                   { label: 'Backend configuré', ok: delivery.backendConfigured },
                   { label: 'GitHub configuré', ok: delivery.githubConfigured },
                   { label: 'Poussée armée (GITHUB_PUSH_ENABLED)', ok: delivery.pushArmed },
-                ].map((lock) => (
+                ].map((lock) => {
+                  const badge = yesNoBadge(lock.ok)
+                  return (
                   <div key={lock.label} className="flex items-center gap-2">
-                    <Badge color={lock.ok ? 'emerald' : 'zinc'}>{lock.ok ? 'oui' : 'non'}</Badge>
+                    <Badge color={badge.color}>{badge.label}</Badge>
                     <Text className="truncate">{lock.label}</Text>
                   </div>
-                ))}
+                  )
+                })}
                 <Divider soft className="!my-2" />
                 <Text className="text-xs">
                   {delivery.realDeliveryEnabled

@@ -52,9 +52,39 @@ import {
 } from './model'
 import type { DeliveryDetailRead } from './server-reads'
 
+type DeliveryEventPanelProps = { detail: DeliveryDetailRead }
+type DeliveryStatesPanelProps = { detail: DeliveryDetailRead }
+type ScorecardPanelProps = {
+  card: AgentDeliveryScorecard | null
+  failure: string | null
+}
+type ScorecardBodyProps = { card: AgentDeliveryScorecard }
+type SandboxPanelProps = {
+  report: TargetRepoSandboxReport | null
+  failure: string | null
+}
+type SandboxBodyProps = { report: TargetRepoSandboxReport }
+type ConsumerPanelProps = { detail: DeliveryDetailRead }
+type DeliveryDetailScreenProps = { detail: DeliveryDetailRead }
+
+function scorecardPanelHint(card: AgentDeliveryScorecard | null): string | undefined {
+  if (!card) return undefined
+  return card.target === 'production' ? 'version en production' : 'version candidate'
+}
+
+function scorecardLevelColor(level: AgentDeliveryScorecard['level']): 'emerald' | 'amber' | 'red' {
+  if (level === 'excellent' || level === 'delivery_ready') return 'emerald'
+  if (level === 'safe') return 'amber'
+  return 'red'
+}
+
+function appendFailureMessage(message: string, failure: string): string {
+  return message + ' ' + failure
+}
+
 /* ═════════════════ Le dernier événement de livraison ═════════════════ */
 
-function DeliveryEventPanel({ detail }: { detail: DeliveryDetailRead }) {
+function DeliveryEventPanel({ detail }: DeliveryEventPanelProps) {
   const d = detail.latestDelivery
 
   return (
@@ -66,9 +96,10 @@ function DeliveryEventPanel({ detail }: { detail: DeliveryDetailRead }) {
     >
       {detail.deliveryFailure !== null ? (
         <Note tone="warn" title="Événement de livraison non lu">
-          La lecture de `agent_delivery_events` a échoué. Aucun état de livraison n’est affiché à la
-          place — un panneau vide se lirait comme « jamais livré », ce qui n’est pas ce qui est su.
-          {` ${detail.deliveryFailure}`}
+          {appendFailureMessage(
+            'La lecture de `agent_delivery_events` a échoué. Aucun état de livraison n’est affiché à la place — un panneau vide se lirait comme « jamais livré », ce qui n’est pas ce qui est su.',
+            detail.deliveryFailure,
+          )}
         </Note>
       ) : d === null ? (
         <Unavailable
@@ -124,7 +155,7 @@ function DeliveryEventPanel({ detail }: { detail: DeliveryDetailRead }) {
 
 /* ═════════════════ Les huit états ═════════════════ */
 
-function DeliveryStatesPanel({ detail }: { detail: DeliveryDetailRead }) {
+function DeliveryStatesPanel({ detail }: DeliveryStatesPanelProps) {
   const states = deriveDeliveryStates({
     realDeliveryEnabled: detail.realDeliveryEnabled,
     latestDelivery: detail.latestDelivery,
@@ -136,7 +167,7 @@ function DeliveryStatesPanel({ detail }: { detail: DeliveryDetailRead }) {
   return (
     <Panel
       title="États de livraison"
-      hint={`${states.length} états distincts`}
+      hint={states.length + ' états distincts'}
       className="min-h-[20rem] min-w-0"
       padded={false}
       bodyClassName="scroll-thin overflow-y-auto"
@@ -158,25 +189,20 @@ function DeliveryStatesPanel({ detail }: { detail: DeliveryDetailRead }) {
 
 /* ═════════════════ Scorecard ═════════════════ */
 
-function ScorecardPanel({
-  card,
-  failure,
-}: {
-  card: AgentDeliveryScorecard | null
-  failure: string | null
-}) {
+function ScorecardPanel({ card, failure }: ScorecardPanelProps) {
   return (
     <Panel
       title="Scorecard de livraison"
-      hint={card ? (card.target === 'production' ? 'version en production' : 'version candidate') : undefined}
+      hint={scorecardPanelHint(card)}
       className="min-h-[16rem] min-w-0"
       bodyClassName="scroll-thin overflow-y-auto"
     >
       {failure !== null ? (
         <Note tone="warn" title="Scorecard non calculée">
-          L’agrégation n’a pas abouti. Aucun score n’est affiché à la place — un score de 0 se lirait
-          comme un verdict.
-          {` ${failure}`}
+          {appendFailureMessage(
+            'L’agrégation n’a pas abouti. Aucun score n’est affiché à la place — un score de 0 se lirait comme un verdict.',
+            failure,
+          )}
         </Note>
       ) : card === null ? (
         <Unavailable
@@ -190,7 +216,7 @@ function ScorecardPanel({
   )
 }
 
-function ScorecardBody({ card }: { card: AgentDeliveryScorecard }) {
+function ScorecardBody({ card }: ScorecardBodyProps) {
   const meaningful = scorecardScoreIsMeaningful(card)
   const ratio = scorecardMeasuredRatio(card)
 
@@ -198,13 +224,7 @@ function ScorecardBody({ card }: { card: AgentDeliveryScorecard }) {
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <Badge
-          color={
-            card.level === 'excellent' || card.level === 'delivery_ready'
-              ? 'emerald'
-              : card.level === 'safe'
-                ? 'amber'
-                : 'red'
-          }
+          color={scorecardLevelColor(card.level)}
           title={SCORECARD_LEVEL_MEANING[card.level]}
         >
           {SCORECARD_LEVEL_LABEL[card.level]}
@@ -227,7 +247,7 @@ function ScorecardBody({ card }: { card: AgentDeliveryScorecard }) {
       </div>
 
       {card.blockers.length > 0 ? (
-        <Note tone="blocked" title={`${card.blockers.length} bloqueur(s)`}>
+        <Note tone="blocked" title={card.blockers.length + ' bloqueur(s)'}>
           {card.blockers.join(' · ')} — un bloqueur force le verdict à « pas prêt », quel que soit le
           score pondéré.
         </Note>
@@ -266,13 +286,7 @@ function ScorecardBody({ card }: { card: AgentDeliveryScorecard }) {
 
 /* ═════════════════ Sandbox du dépôt cible ═════════════════ */
 
-function SandboxPanel({
-  report,
-  failure,
-}: {
-  report: TargetRepoSandboxReport | null
-  failure: string | null
-}) {
+function SandboxPanel({ report, failure }: SandboxPanelProps) {
   return (
     <Panel
       title="Sandbox du dépôt cible"
@@ -282,8 +296,10 @@ function SandboxPanel({
     >
       {failure !== null ? (
         <Note tone="warn" title="Rapport de sandbox non lu">
-          La lecture du dernier rapport a échoué. Aucun verdict n’est affiché à la place.
-          {` ${failure}`}
+          {appendFailureMessage(
+            'La lecture du dernier rapport a échoué. Aucun verdict n’est affiché à la place.',
+            failure,
+          )}
         </Note>
       ) : report === null ? (
         <Unavailable
@@ -297,7 +313,7 @@ function SandboxPanel({
   )
 }
 
-function SandboxBody({ report }: { report: TargetRepoSandboxReport }) {
+function SandboxBody({ report }: SandboxBodyProps) {
   const counts = countSandboxChecks(report)
 
   return (
@@ -346,7 +362,7 @@ function SandboxBody({ report }: { report: TargetRepoSandboxReport }) {
       </div>
 
       {report.blockers.length > 0 ? (
-        <Note tone="blocked" title={`${report.blockers.length} bloqueur(s)`}>
+        <Note tone="blocked" title={report.blockers.length + ' bloqueur(s)'}>
           {report.blockers.join(' · ')}
         </Note>
       ) : null}
@@ -379,7 +395,94 @@ function SandboxBody({ report }: { report: TargetRepoSandboxReport }) {
  * consommateur » se lirait comme « pas activé » ; la vérité est « nous n'avons
  * aucun moyen de le savoir », et ça ne se dessine pas, ça s'écrit.
  */
-function ConsumerPanel({ detail }: { detail: DeliveryDetailRead }) {
+type ConsumerProvisionNoteProps = { detail: DeliveryDetailRead }
+type DetailTelemetryNoteProps = { detail: DeliveryDetailRead }
+
+function ConsumerProvisionNote({ detail }: ConsumerProvisionNoteProps) {
+  if (detail.repoFullName === null) {
+    return (
+      <Note title="Aucun dépôt cible">
+        Sans dépôt lié, la question du provisioning n’a pas d’objet. Ce n’est ni « provisionné »
+        ni « non provisionné » : il n’y a pas de cible.
+      </Note>
+    )
+  }
+  if (detail.consumerFailure !== null) {
+    return (
+      <Note tone="warn" title="État de provisioning non lu">
+        {appendFailureMessage(
+          'La lecture de `aigent/consumer-ready.json` sur le dépôt cible a échoué. On ne sait pas si le pack d’accueil est installé.',
+          detail.consumerFailure,
+        )}
+      </Note>
+    )
+  }
+  if (detail.consumerProvisioned === true) {
+    const provisionedAt = detail.consumerProvisionedAt
+      ? ' · provisionné le ' + isoShort(detail.consumerProvisionedAt)
+      : ''
+    return (
+      <Note tone="info" title="Pack d’accueil consommateur installé">
+        Version {detail.consumerPackVersion ?? 'non enregistrée'}
+        {provisionedAt}
+        . Le canal de retour EXISTE dans le dépôt — ce qui ne veut pas dire qu’il a servi.
+      </Note>
+    )
+  }
+  if (detail.consumerProvisioned === false) {
+    return (
+      <Note title="Pack d’accueil non installé">
+        La lecture a réussi : `aigent/consumer-ready.json` n’existe pas sur le dépôt cible. Aucun
+        canal de retour n’y est installé, donc aucun run ne pourrait remonter même si l’agent
+        tournait.
+      </Note>
+    )
+  }
+  return (
+    <Note tone="warn" title="État de provisioning non lu">
+      Aucune lecture n’a abouti pour ce dépôt.
+    </Note>
+  )
+}
+
+function DetailTelemetryNote({ detail }: DetailTelemetryNoteProps) {
+  if (detail.telemetryFailure !== null) {
+    return (
+      <Note tone="warn" title="Télémétrie non lue">
+        {appendFailureMessage(
+          'Impossible de dire si un agent déployé a rapporté un run.',
+          detail.telemetryFailure,
+        )}
+      </Note>
+    )
+  }
+  if (detail.telemetry === null) {
+    return (
+      <Note tone="warn" title="Télémétrie non lue">
+        Aucune lecture n’a abouti. Aucun chiffre n’est affiché à la place.
+      </Note>
+    )
+  }
+  if (detail.telemetry.consumerCount === 0) {
+    return (
+      <Note tone="structural" title="Aucun agent déployé n’a jamais rapporté de run">
+        La table `runtime_telemetry_events` a été LUE : sur {detail.telemetry.scannedCount}{' '}
+        événement(s) les plus récents, <Strong>aucun</Strong> ne porte une provenance
+        « consumer ». C’est un <Strong>fait mesuré</Strong> sur une lecture réussie, pas un
+        panneau vide et pas une inconnue. Le flux est à sens unique : Aigent pousse des agents,
+        et rien ne revient.
+      </Note>
+    )
+  }
+  return (
+    <Note tone="info" title="Des runs de provenance consommateur existent">
+      {detail.telemetry.consumerCount} événement(s) de provenance « consumer » sur{' '}
+      {detail.telemetry.scannedCount} lu(s).
+    </Note>
+  )
+}
+
+function ConsumerPanel({ detail }: ConsumerPanelProps) {
   return (
     <Panel
       title="Runtime consommateur"
@@ -389,36 +492,7 @@ function ConsumerPanel({ detail }: { detail: DeliveryDetailRead }) {
     >
       <div className="flex flex-col gap-3">
         {/* ── Provisioning du pack d'accueil ── */}
-        {detail.repoFullName === null ? (
-          <Note title="Aucun dépôt cible">
-            Sans dépôt lié, la question du provisioning n’a pas d’objet. Ce n’est ni « provisionné »
-            ni « non provisionné » : il n’y a pas de cible.
-          </Note>
-        ) : detail.consumerFailure !== null ? (
-          <Note tone="warn" title="État de provisioning non lu">
-            La lecture de `aigent/consumer-ready.json` sur le dépôt cible a échoué. On ne sait pas si
-            le pack d’accueil est installé.
-            {` ${detail.consumerFailure}`}
-          </Note>
-        ) : detail.consumerProvisioned === true ? (
-          <Note tone="info" title="Pack d’accueil consommateur installé">
-            Version {detail.consumerPackVersion ?? 'non enregistrée'}
-            {detail.consumerProvisionedAt
-              ? ` · provisionné le ${isoShort(detail.consumerProvisionedAt)}`
-              : ''}
-            . Le canal de retour EXISTE dans le dépôt — ce qui ne veut pas dire qu’il a servi.
-          </Note>
-        ) : detail.consumerProvisioned === false ? (
-          <Note title="Pack d’accueil non installé">
-            La lecture a réussi : `aigent/consumer-ready.json` n’existe pas sur le dépôt cible. Aucun
-            canal de retour n’y est installé, donc aucun run ne pourrait remonter même si l’agent
-            tournait.
-          </Note>
-        ) : (
-          <Note tone="warn" title="État de provisioning non lu">
-            Aucune lecture n’a abouti pour ce dépôt.
-          </Note>
-        )}
+        <ConsumerProvisionNote detail={detail} />
 
         <Divider soft />
 
@@ -439,29 +513,7 @@ function ConsumerPanel({ detail }: { detail: DeliveryDetailRead }) {
         <Divider soft />
 
         {/* ── Le fait mesuré ── */}
-        {detail.telemetryFailure !== null ? (
-          <Note tone="warn" title="Télémétrie non lue">
-            Impossible de dire si un agent déployé a rapporté un run.
-            {` ${detail.telemetryFailure}`}
-          </Note>
-        ) : detail.telemetry === null ? (
-          <Note tone="warn" title="Télémétrie non lue">
-            Aucune lecture n’a abouti. Aucun chiffre n’est affiché à la place.
-          </Note>
-        ) : detail.telemetry.consumerCount === 0 ? (
-          <Note tone="structural" title="Aucun agent déployé n’a jamais rapporté de run">
-            La table `runtime_telemetry_events` a été LUE : sur {detail.telemetry.scannedCount}{' '}
-            événement(s) les plus récents, <Strong>aucun</Strong> ne porte une provenance
-            « consumer ». C’est un <Strong>fait mesuré</Strong> sur une lecture réussie, pas un
-            panneau vide et pas une inconnue. Le flux est à sens unique : Aigent pousse des agents,
-            et rien ne revient.
-          </Note>
-        ) : (
-          <Note tone="info" title="Des runs de provenance consommateur existent">
-            {detail.telemetry.consumerCount} événement(s) de provenance « consumer » sur{' '}
-            {detail.telemetry.scannedCount} lu(s).
-          </Note>
-        )}
+        <DetailTelemetryNote detail={detail} />
       </div>
     </Panel>
   )
@@ -469,7 +521,7 @@ function ConsumerPanel({ detail }: { detail: DeliveryDetailRead }) {
 
 /* ═════════════════ L'écran ═════════════════ */
 
-export default function DeliveryDetailScreen({ detail }: { detail: DeliveryDetailRead }) {
+export default function DeliveryDetailScreen({ detail }: DeliveryDetailScreenProps) {
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3">
       {/* ─── En-tête ─── */}

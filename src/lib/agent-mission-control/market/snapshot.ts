@@ -215,6 +215,18 @@ export interface MarketSnapshot {
   unavailable_fields: string[]
 }
 
+export type FreshnessLabel = 'live' | 'stale' | 'unavailable'
+
+export function freshnessFromSourceAge(
+  sourceTimestamp: number | null,
+  ageMs: number | null,
+  liveThresholdMs = 15_000,
+): FreshnessLabel {
+  if (sourceTimestamp === null) return 'unavailable'
+  if (ageMs !== null && ageMs <= liveThresholdMs) return 'live'
+  return 'stale'
+}
+
 /** Compute the worst (least trustworthy) truth across provenances. */
 export function worstTruth(sources: SnapshotSource[]): TruthStatus {
   const order: TruthStatus[] = [

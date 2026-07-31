@@ -132,6 +132,12 @@ const STATUS_RANK: Record<AvailableAgentStatus, number> = {
   active: 3,
 }
 
+export function unresolvedToolsBadgeText(count: number): string {
+  const tools = count > 1 ? 'outils' : 'outil'
+  const resolvedWord = count > 1 ? 'résolus' : 'résolu'
+  return count + ' ' + tools + ' non ' + resolvedWord
+}
+
 export function sortRoster(agents: readonly AvailableAgent[]): AvailableAgent[] {
   return [...agents].sort(
     (a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status] || a.name.localeCompare(b.name, 'fr'),

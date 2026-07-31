@@ -19,8 +19,14 @@
  * Run (same runner as scripts/seed-amc.ts — tsx resolves extensionless TS imports):
  *   node --env-file=.env.local "$(command -v npx)" -y tsx scripts/provision-agent-builder.ts
  */
+import { randomBytes } from 'node:crypto'
+
 import { AGENT_BUILDER_COPILOT, AGENT_BUILDER_SLUG, agentBuilderTestSuite } from '../src/lib/agent-mission-control/agent-builder-copilot'
 import { makeId, slugify } from '../src/lib/agent-mission-control/slug'
+
+function randomHex(bytes = 4): string {
+  return randomBytes(bytes).toString('hex')
+}
 
 type Row = Record<string, unknown>
 
@@ -59,7 +65,7 @@ async function main() {
   }
 
   const now = new Date().toISOString()
-  const rand = Math.random().toString(16).slice(2, 10)
+  const rand = randomHex()
   const slug = input.slug || slugify(input.name)
   const copilotId = makeId('copilot', `${slug}-${rand}`)
   const manifestId = makeId('manifest', `${slug}-${rand}`)
@@ -109,7 +115,7 @@ async function main() {
   const toolIds: string[] = []
   for (const t of input.manifest.proposedTools) {
     const rows = await pgrest<Row[]>('POST', 'tools', {
-      id: makeId('tool', `${slugify(t.name)}-${Math.random().toString(16).slice(2, 10)}`),
+      id: makeId('tool', `${slugify(t.name)}-${randomHex()}`),
       copilot_id: copilotId,
       name: t.name,
       description: t.description,

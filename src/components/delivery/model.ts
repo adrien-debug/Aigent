@@ -155,6 +155,56 @@ export const DELIVERY_STATE_ORDER: readonly DeliveryStateId[] = [
   'no_consumer_telemetry',
 ]
 
+function shippingDisabledEvidence(realDeliveryEnabled: boolean | null): string | null {
+  if (realDeliveryEnabled === null) return null
+  if (realDeliveryEnabled) return 'Le serveur déclare une écriture GitHub réelle possible.'
+  return 'Le serveur déclare l’écriture GitHub réelle impossible ici. Toute livraison retombera en dry-run.'
+}
+
+function confirmationRequiredEvidence(realDeliveryEnabled: boolean | null): string | null {
+  if (realDeliveryEnabled === null) return null
+  if (realDeliveryEnabled) {
+    return 'Le second verrou est armé côté serveur : seule la confirmation explicite manque.'
+  }
+  return 'Sans le verrou serveur, une confirmation ne suffirait pas à écrire.'
+}
+
+function pushSucceededEvidence(
+  deliveryRead: boolean,
+  delivery: DeliveryEvent | null,
+): string | null {
+  if (!deliveryRead) return null
+  if (delivery === null) return 'Aucun événement de livraison persisté pour cet agent.'
+  if (delivery.commitSha !== null) {
+    return 'Commit ' + delivery.commitSha.slice(0, 7) + ' sur ' + delivery.targetRepo + '.'
+  }
+  return 'Événement de livraison présent, sans SHA de commit enregistré.'
+}
+
+function prOpenedEvidence(deliveryRead: boolean, delivery: DeliveryEvent | null): string | null {
+  if (!deliveryRead) return null
+  if (delivery === null) return 'Aucun événement de livraison persisté pour cet agent.'
+  if (delivery.prUrl === null) return 'Livraison en commit direct — aucune PR n’a été ouverte.'
+  const prLabel = delivery.prNumber !== null ? '#' + delivery.prNumber : 'ouverte'
+  return 'PR ' + prLabel + ' sur ' + delivery.targetRepo + '.'
+}
+
+function consumerTelemetryEvidence(
+  consumerTelemetryCount: number | null,
+  telemetryEventCount: number | null,
+): string | null {
+  if (consumerTelemetryCount === null) return null
+  if (telemetryEventCount === null) {
+    return consumerTelemetryCount + ' événement(s) de provenance « consumer » lus.'
+  }
+  return (
+    consumerTelemetryCount +
+    ' événement(s) de provenance « consumer » sur ' +
+    telemetryEventCount +
+    ' événement(s) lus.'
+  )
+}
+
 /* ═════════════════════ Ce que l'écran observe ═════════════════════ */
 
 /**
@@ -214,11 +264,7 @@ export function deriveDeliveryStates(obs: DeliveryObservation): DeliveryState[] 
     state(
       'shipping_disabled',
       obs.realDeliveryEnabled === null ? null : !obs.realDeliveryEnabled,
-      obs.realDeliveryEnabled === null
-        ? null
-        : obs.realDeliveryEnabled
-          ? 'Le serveur déclare une écriture GitHub réelle possible.'
-          : 'Le serveur déclare l’écriture GitHub réelle impossible ici. Toute livraison retombera en dry-run.',
+      shippingDisabledEvidence(obs.realDeliveryEnabled),
     ),
 
     // 2. Confirmation requise — vrai dès que l'environnement pourrait écrire.
@@ -227,11 +273,7 @@ export function deriveDeliveryStates(obs: DeliveryObservation): DeliveryState[] 
     state(
       'confirmation_required',
       obs.realDeliveryEnabled === null ? null : obs.realDeliveryEnabled,
-      obs.realDeliveryEnabled === null
-        ? null
-        : obs.realDeliveryEnabled
-          ? 'Le second verrou est armé côté serveur : seule la confirmation explicite manque.'
-          : 'Sans le verrou serveur, une confirmation ne suffirait pas à écrire.',
+      confirmationRequiredEvidence(obs.realDeliveryEnabled),
     ),
 
     // 3. Dry-run effectué. Un dry-run n'écrit RIEN, donc il ne laisse aucune
@@ -249,26 +291,14 @@ export function deriveDeliveryStates(obs: DeliveryObservation): DeliveryState[] 
     state(
       'push_succeeded',
       obs.deliveryRead ? d !== null && d.commitSha !== null : null,
-      !obs.deliveryRead
-        ? null
-        : d === null
-          ? 'Aucun événement de livraison persisté pour cet agent.'
-          : d.commitSha !== null
-            ? `Commit ${d.commitSha.slice(0, 7)} sur ${d.targetRepo}.`
-            : 'Événement de livraison présent, sans SHA de commit enregistré.',
+      pushSucceededEvidence(obs.deliveryRead, d),
     ),
 
     // 5. PR ouverte.
     state(
       'pr_opened',
       obs.deliveryRead ? d !== null && d.prUrl !== null : null,
-      !obs.deliveryRead
-        ? null
-        : d === null
-          ? 'Aucun événement de livraison persisté pour cet agent.'
-          : d.prUrl !== null
-            ? `PR ${d.prNumber !== null ? `#${d.prNumber}` : 'ouverte'} sur ${d.targetRepo}.`
-            : 'Livraison en commit direct — aucune PR n’a été ouverte.',
+      prOpenedEvidence(obs.deliveryRead, d),
     ),
 
     // 6. Merge inconnu — INCONNUE STRUCTURELLE, vraie par construction.
@@ -289,11 +319,7 @@ export function deriveDeliveryStates(obs: DeliveryObservation): DeliveryState[] 
     state(
       'no_consumer_telemetry',
       obs.consumerTelemetryCount === null ? null : obs.consumerTelemetryCount === 0,
-      obs.consumerTelemetryCount === null
-        ? null
-        : obs.telemetryEventCount === null
-          ? `${obs.consumerTelemetryCount} événement(s) de provenance « consumer » lus.`
-          : `${obs.consumerTelemetryCount} événement(s) de provenance « consumer » sur ${obs.telemetryEventCount} événement(s) lus.`,
+      consumerTelemetryEvidence(obs.consumerTelemetryCount, obs.telemetryEventCount),
     ),
   ]
 }

@@ -63,6 +63,7 @@ import {
   RUN_TESTS,
   describeStatus,
   type MutationDescriptor,
+  type MutationCost,
 } from './actions'
 import { Note } from './atoms'
 // Le parseur de modèles est une règle PURE (et une décision de coût : une ligne
@@ -175,6 +176,127 @@ interface ActionButtonProps {
   color?: 'red' | 'zinc'
 }
 
+type QualificationConsoleProps = { target: ConsoleTarget }
+
+type ConfirmBodyProps = {
+  job: Pending
+  armLive: boolean
+  onArmLive: (v: boolean) => void
+  models: string
+  onModels: (v: string) => void
+  busy: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}
+
+function mutationCostColor(kind: MutationCost['kind']): 'emerald' | 'amber' | 'red' {
+  if (kind === 'free') return 'emerald'
+  if (kind === 'billed') return 'amber'
+  return 'red'
+}
+
+function mutationCostLabel(kind: MutationCost['kind']): string {
+  if (kind === 'free') return 'aucun coût'
+  if (kind === 'billed') return 'exécution facturée'
+  return 'écriture irréversible'
+}
+
+function suiteGenerateDisabledReason(target: ConsoleTarget): string {
+  if (!target.suitesRead) {
+    return 'Le registre des suites n’a pas pu être lu : impossible de savoir si des suites existent déjà. La génération est facturée — elle reste éteinte tant que la lecture n’a pas abouti, plutôt que de payer pour regénérer ce qui existe peut-être.'
+  }
+  return 'Des suites existent déjà pour ce copilot — la génération est idempotente et ne referait rien.'
+}
+
+function suiteRunDisabledReason(target: ConsoleTarget): string {
+  if (!target.suitesRead) {
+    return 'Le registre des suites n’a pas pu être lu : aucune suite à exécuter n’est identifiable. Ce n’est pas « aucune suite n’existe ».'
+  }
+  return 'Aucune suite de test n’existe : il n’y a rien à exécuter. Générer la suite d’abord.'
+}
+
+function benchmarkRunDisabledReason(target: ConsoleTarget): string {
+  if (!target.suitesRead) {
+    return 'Le registre des suites n’a pas pu être lu : aucune suite de benchmark n’est identifiable. Ce n’est pas « aucune suite n’existe ».'
+  }
+  return 'Aucune suite de benchmark n’existe pour ce copilot.'
+}
+
+function benchmarkSweepDisabledReason(target: ConsoleTarget): string {
+  if (!target.suitesRead) {
+    return 'Le registre des suites n’a pas pu être lu : aucune suite à balayer n’est identifiable. Un balayage est la mutation la plus coûteuse de cette surface — il ne part pas sur une ignorance.'
+  }
+  return 'Aucune suite de benchmark n’existe pour ce copilot — il n’y a rien à balayer.'
+}
+
+function replayDisabledReason(
+  version: string | null,
+  target: ConsoleTarget,
+): string {
+  if (version === null) {
+    return 'Aucune version candidate ne résout pour ce copilot.'
+  }
+  if (target.productionRead) {
+    return 'Aucune version de production n’existe : le replay n’a rien à comparer et la route refuse de partir (409). Ce n’est pas un replay échoué — c’est une dépendance circulaire, il faut une première promotion pour créer la baseline.'
+  }
+  return 'Le pointeur de production n’a pas pu être lu — impossible de dire si un replay serait possible.'
+}
+
+function promoteDisabledReason(version: string | null): string {
+  if (version === null) {
+    return 'Aucune version candidate ne résout pour ce copilot.'
+  }
+  return 'La gate serveur ne dit pas ce candidat promouvable. Le bouton suit la gate — il ne la devance pas, et le serveur la ré-évaluerait de toute façon avant d’écrire.'
+}
+
+function rollbackDisabledReason(target: ConsoleTarget): string {
+  if (!target.versionsRead) {
+    return 'Le registre des versions n’a pas pu être lu : aucune cible de retour arrière n’est identifiable. Ce n’est pas « aucune version archivée n’existe ».'
+  }
+  return 'Aucune version archivée n’existe : il n’y a aucune version précédemment servie vers laquelle revenir. La route refuse toute cible qui ne soit pas archivée — c’est ce qui empêche un brouillon non qualifié d’atteindre la production par ce chemin.'
+}
+
+function rejectDisabledReason(target: ConsoleTarget): string {
+  if (target.proposalId === null) {
+    return 'Aucune proposition n’existe pour ce copilot.'
+  }
+  return 'Cette proposition est déjà décidée — une décision ne se rejoue pas (409).'
+}
+
+function modelsSelectionSummary(
+  parsedModels: { modelProvider: string; model: string }[],
+): string {
+  if (parsedModels.length === 0) {
+    return 'Aucune ligne valide — le balayage ne peut pas partir.'
+  }
+  const listed = parsedModels.map((m) => m.modelProvider + ':' + m.model).join(', ')
+  return parsedModels.length + ' modèle(s) retenu(s) : ' + listed
+}
+
+type OutcomeNoteProps = { outcome: Outcome }
+
+function OutcomeNote({ outcome }: OutcomeNoteProps) {
+  if (outcome.phase === 'running') {
+    return (
+      <Note tone="info" title={outcome.title}>
+        L’action est partie. Cette surface n’a pas de canal de progression : le résultat
+        arrivera avec la réponse de la route.
+      </Note>
+    )
+  }
+  if (outcome.phase === 'ok') {
+    return <Note tone="info" title={outcome.title} />
+  }
+  const fallbackDetail = outcome.refused
+    ? 'La route a refusé sans détail supplémentaire.'
+    : 'Aucun détail n’a été renvoyé par la route.'
+  return (
+    <Note tone={outcome.refused ? 'warn' : 'blocked'} title={outcome.title}>
+      {outcome.detail ?? fallbackDetail}
+    </Note>
+  )
+}
+
 /**
  * Un bouton qui OUVRE son dialogue — jamais une mutation en un clic.
  *
@@ -206,7 +328,7 @@ function ActionButton({ job, busy, onOpen, disabled, disabledReason, color }: Ac
   )
 }
 
-export default function QualificationConsole({ target }: { target: ConsoleTarget }) {
+export default function QualificationConsole({ target }: QualificationConsoleProps) {
   const router = useRouter()
   const [pending, setPending] = useState<Pending | null>(null)
   const [armLive, setArmLive] = useState(false)
@@ -292,7 +414,7 @@ export default function QualificationConsole({ target }: { target: ConsoleTarget
     [router],
   )
 
-  const base = `/api/agent-ops/copilots/${encodeURIComponent(target.copilotId)}`
+  const base = '/api/agent-ops/copilots/' + encodeURIComponent(target.copilotId)
   const version = target.candidateVersionId
 
   return (
@@ -327,11 +449,7 @@ export default function QualificationConsole({ target }: { target: ConsoleTarget
             // surface qui coûte réellement de l'argent. La règle vient du
             // serveur (`canGenerateSuites`) — elle n'est pas rejouée ici.
             disabled={!target.canGenerateSuites}
-            disabledReason={
-              !target.suitesRead
-                ? 'Le registre des suites n’a pas pu être lu : impossible de savoir si des suites existent déjà. La génération est facturée — elle reste éteinte tant que la lecture n’a pas abouti, plutôt que de payer pour regénérer ce qui existe peut-être.'
-                : 'Des suites existent déjà pour ce copilot — la génération est idempotente et ne referait rien.'
-            }
+            disabledReason={suiteGenerateDisabledReason(target)}
           />
           <ActionButton
             busy={busy}
@@ -343,11 +461,7 @@ export default function QualificationConsole({ target }: { target: ConsoleTarget
               consequence: 'Suite exécutée : test_runs et test_results persistés.',
             }}
             disabled={target.testSuiteId === null}
-            disabledReason={
-              !target.suitesRead
-                ? 'Le registre des suites n’a pas pu être lu : aucune suite à exécuter n’est identifiable. Ce n’est pas « aucune suite n’existe ».'
-                : 'Aucune suite de test n’existe : il n’y a rien à exécuter. Générer la suite d’abord.'
-            }
+            disabledReason={suiteRunDisabledReason(target)}
           />
           <ActionButton
             busy={busy}
@@ -359,11 +473,7 @@ export default function QualificationConsole({ target }: { target: ConsoleTarget
               consequence: 'Benchmark exécuté : benchmark_runs et benchmark_results persistés.',
             }}
             disabled={target.benchmarkSuiteId === null}
-            disabledReason={
-              !target.suitesRead
-                ? 'Le registre des suites n’a pas pu être lu : aucune suite de benchmark n’est identifiable. Ce n’est pas « aucune suite n’existe ».'
-                : 'Aucune suite de benchmark n’existe pour ce copilot.'
-            }
+            disabledReason={benchmarkRunDisabledReason(target)}
           />
           <ActionButton
             busy={busy}
@@ -380,11 +490,7 @@ export default function QualificationConsole({ target }: { target: ConsoleTarget
               consequence: 'Balayage terminé : un verdict par modèle, jamais un score fabriqué.',
             }}
             disabled={target.benchmarkSuiteId === null}
-            disabledReason={
-              !target.suitesRead
-                ? 'Le registre des suites n’a pas pu être lu : aucune suite à balayer n’est identifiable. Un balayage est la mutation la plus coûteuse de cette surface — il ne part pas sur une ignorance.'
-                : 'Aucune suite de benchmark n’existe pour ce copilot — il n’y a rien à balayer.'
-            }
+            disabledReason={benchmarkSweepDisabledReason(target)}
           />
         </div>
       </section>
@@ -464,13 +570,7 @@ export default function QualificationConsole({ target }: { target: ConsoleTarget
               consequence: 'Comparaison replay terminée et persistée.',
             }}
             disabled={version === null || target.productionVersionId === null}
-            disabledReason={
-              version === null
-                ? 'Aucune version candidate ne résout pour ce copilot.'
-                : target.productionRead
-                  ? 'Aucune version de production n’existe : le replay n’a rien à comparer et la route refuse de partir (409). Ce n’est pas un replay échoué — c’est une dépendance circulaire, il faut une première promotion pour créer la baseline.'
-                  : 'Le pointeur de production n’a pas pu être lu — impossible de dire si un replay serait possible.'
-            }
+            disabledReason={replayDisabledReason(version, target)}
           />
         </div>
       </section>
@@ -505,11 +605,7 @@ export default function QualificationConsole({ target }: { target: ConsoleTarget
                 : 'Version promue en production : la précédente est archivée et le pointeur du copilot est déplacé.',
             }}
             disabled={version === null || !target.promotable}
-            disabledReason={
-              version === null
-                ? 'Aucune version candidate ne résout pour ce copilot.'
-                : 'La gate serveur ne dit pas ce candidat promouvable. Le bouton suit la gate — il ne la devance pas, et le serveur la ré-évaluerait de toute façon avant d’écrire.'
-            }
+            disabledReason={promoteDisabledReason(version)}
           />
           <ActionButton
             busy={busy}
@@ -531,11 +627,7 @@ export default function QualificationConsole({ target }: { target: ConsoleTarget
                 : 'Production revenue à la version précédemment servie.',
             }}
             disabled={target.rollbackTargetId === null}
-            disabledReason={
-              !target.versionsRead
-                ? 'Le registre des versions n’a pas pu être lu : aucune cible de retour arrière n’est identifiable. Ce n’est pas « aucune version archivée n’existe ».'
-                : 'Aucune version archivée n’existe : il n’y a aucune version précédemment servie vers laquelle revenir. La route refuse toute cible qui ne soit pas archivée — c’est ce qui empêche un brouillon non qualifié d’atteindre la production par ce chemin.'
-            }
+            disabledReason={rollbackDisabledReason(target)}
           />
         </div>
       </section>
@@ -600,11 +692,7 @@ export default function QualificationConsole({ target }: { target: ConsoleTarget
               consequence: 'Décision humaine enregistrée : boucle rejetée.',
             }}
             disabled={target.proposalId === null || target.proposalStatus === 'approved' || target.proposalStatus === 'rejected'}
-            disabledReason={
-              target.proposalId === null
-                ? 'Aucune proposition n’existe pour ce copilot.'
-                : 'Cette proposition est déjà décidée — une décision ne se rejoue pas (409).'
-            }
+            disabledReason={rejectDisabledReason(target)}
           />
         </div>
       </section>
@@ -612,24 +700,7 @@ export default function QualificationConsole({ target }: { target: ConsoleTarget
       {/* ─── Résultat de la dernière action ─── */}
       {outcome.phase !== 'idle' ? (
         <div aria-live="polite">
-          {outcome.phase === 'running' ? (
-            <Note tone="info" title={outcome.title}>
-              L’action est partie. Cette surface n’a pas de canal de progression : le résultat
-              arrivera avec la réponse de la route.
-            </Note>
-          ) : outcome.phase === 'ok' ? (
-            <Note tone="info" title={outcome.title} />
-          ) : (
-            <Note
-              tone={outcome.refused ? 'warn' : 'blocked'}
-              title={outcome.title}
-            >
-              {outcome.detail ??
-                (outcome.refused
-                  ? 'La route a refusé sans détail supplémentaire.'
-                  : 'Aucun détail n’a été renvoyé par la route.')}
-            </Note>
-          )}
+          <OutcomeNote outcome={outcome} />
         </div>
       ) : null}
 
@@ -670,17 +741,7 @@ function ConfirmBody({
   busy,
   onCancel,
   onConfirm,
-}: {
-  job: Pending
-  armLive: boolean
-  onArmLive: (v: boolean) => void
-  /** La saisie brute des modèles à balayer, une paire `provider:modèle` par ligne. */
-  models: string
-  onModels: (v: string) => void
-  busy: boolean
-  onCancel: () => void
-  onConfirm: () => void
-}) {
+}: ConfirmBodyProps) {
   const effective = armLive && job.liveDescriptor ? job.liveDescriptor : job.descriptor
   // Les lignes RETENUES, pas les lignes saisies : une ligne mal formée est
   // silencieusement écartée du corps, donc elle doit l'être aussi du compte
@@ -689,14 +750,8 @@ function ConfirmBody({
   // Une mutation qui exige des modèles reste inconfirmable tant qu'aucune ligne
   // valide n'est saisie : la route répondrait 400, autant le dire ici.
   const blockedOnModels = job.needsModels === true && parsedModels.length === 0
-  const costColor =
-    effective.cost.kind === 'free' ? 'emerald' : effective.cost.kind === 'billed' ? 'amber' : 'red'
-  const costLabel =
-    effective.cost.kind === 'free'
-      ? 'aucun coût'
-      : effective.cost.kind === 'billed'
-        ? 'exécution facturée'
-        : 'écriture irréversible'
+  const costColor = mutationCostColor(effective.cost.kind)
+  const costLabel = mutationCostLabel(effective.cost.kind)
 
   return (
     <>
@@ -759,11 +814,7 @@ function ConfirmBody({
                 disabled={busy}
                 onChange={(event) => onModels(event.target.value)}
               />
-              <Text className="mt-1 text-xs">
-                {parsedModels.length === 0
-                  ? 'Aucune ligne valide — le balayage ne peut pas partir.'
-                  : `${parsedModels.length} modèle(s) retenu(s) : ${parsedModels.map((m) => `${m.modelProvider}:${m.model}`).join(', ')}`}
-              </Text>
+              <Text className="mt-1 text-xs">{modelsSelectionSummary(parsedModels)}</Text>
             </Field>
           ) : null}
         </div>

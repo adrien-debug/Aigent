@@ -22,11 +22,11 @@ import { Divider } from '@/components/ui/divider'
 import { Heading } from '@/components/ui/heading'
 import { Strong, Text } from '@/components/ui/text'
 import { Panel, Rail, Unavailable, initialsOf } from '@/components/cockpit/primitives'
-import type { ProjectChoice } from './model'
+import { projectCountLabel, type ProjectChoice } from './model'
 
 const MUTED_RAIL = 'rgb(161 161 170 / 0.35)'
 
-function ProjectRow({ item }: { item: ProjectChoice }) {
+function ProjectRow({ item }: Readonly<{ item: ProjectChoice }>) {
   return (
     <li className="relative border-b border-zinc-950/5 last:border-b-0 dark:border-white/5">
       <Rail color={item.repoLinked ? '#0da87f' : MUTED_RAIL} />
@@ -51,16 +51,57 @@ function ProjectRow({ item }: { item: ProjectChoice }) {
   )
 }
 
+function ProjectListBody({
+  unreadable,
+  failure,
+  items,
+}: Readonly<{
+  unreadable: boolean
+  failure?: string | null
+  items: readonly ProjectChoice[]
+}>) {
+  if (unreadable) {
+    return (
+      <div className="p-4">
+        <Unavailable
+          reason="unread"
+          detail="La liste des projets n’a pas pu être lue. Ce n’est pas un catalogue vide, c’est un catalogue inconnu."
+        />
+        {failure ? <Text className="mt-3 text-center font-mono text-xs">{failure}</Text> : null}
+      </div>
+    )
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="p-4">
+        <Unavailable
+          reason="no-data"
+          detail="La lecture a réussi et le catalogue est réellement vide : aucun projet n’est enregistré. Créer un projet avant d’ouvrir le builder."
+        />
+      </div>
+    )
+  }
+
+  return (
+    <ul>
+      {items.map((item) => (
+        <ProjectRow key={item.id} item={item} />
+      ))}
+    </ul>
+  )
+}
+
 export default function BuilderSelectScreen({
   items,
   /** `true` quand la lecture a ÉCHOUÉ — jamais quand elle est vide. */
   unreadable = false,
   failure,
-}: {
+}: Readonly<{
   items: readonly ProjectChoice[]
   unreadable?: boolean
   failure?: string | null
-}) {
+}>) {
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-3">
       <header className="shrink-0 px-1">
@@ -72,33 +113,12 @@ export default function BuilderSelectScreen({
 
       <Panel
         title="Choisir un projet"
-        hint={unreadable ? 'lecture échouée' : `${items.length} projet${items.length > 1 ? 's' : ''}`}
+        hint={unreadable ? 'lecture échouée' : projectCountLabel(items.length)}
         className="min-h-0 flex-1"
         padded={false}
         bodyClassName="overflow-y-auto"
       >
-        {unreadable ? (
-          <div className="p-4">
-            <Unavailable
-              reason="unread"
-              detail="La liste des projets n’a pas pu être lue. Ce n’est pas un catalogue vide, c’est un catalogue inconnu."
-            />
-            {failure ? <Text className="mt-3 text-center font-mono text-xs">{failure}</Text> : null}
-          </div>
-        ) : items.length === 0 ? (
-          <div className="p-4">
-            <Unavailable
-              reason="no-data"
-              detail="La lecture a réussi et le catalogue est réellement vide : aucun projet n’est enregistré. Créer un projet avant d’ouvrir le builder."
-            />
-          </div>
-        ) : (
-          <ul>
-            {items.map((item) => (
-              <ProjectRow key={item.id} item={item} />
-            ))}
-          </ul>
-        )}
+        <ProjectListBody unreadable={unreadable} failure={failure} items={items} />
       </Panel>
 
       <Divider soft className="shrink-0" />

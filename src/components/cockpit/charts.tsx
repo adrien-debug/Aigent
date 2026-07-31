@@ -88,7 +88,7 @@ function RunsTooltip({ active, payload }: TooltipContentProps) {
   )
 }
 
-export function HourlyRunsChart({ buckets }: { buckets: HourlyBucket[] }) {
+export function HourlyRunsChart({ buckets }: Readonly<{ buckets: HourlyBucket[] }>) {
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={buckets} margin={{ top: 8, right: 6, bottom: 0, left: -18 }} barCategoryGap="22%">
@@ -156,7 +156,7 @@ export function HourlyRunsChart({ buckets }: { buckets: HourlyBucket[] }) {
  * sa barre dans le graphe) : c'est le seul ajout au badge, et Catalyst ne
  * fournit rien d'équivalent.
  */
-export function StatusLegend({ slices }: { slices: StatusSlice[] }) {
+export function StatusLegend({ slices }: Readonly<{ slices: StatusSlice[] }>) {
   return (
     <ul className="flex flex-wrap items-center gap-1.5">
       {slices.map((s) => (

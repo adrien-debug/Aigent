@@ -88,7 +88,7 @@ const consumerTelemetryEventSchema = z
      * `reported_at` below): validating it only keeps garbage out of a
      * timestamptz column, it does not make the value authoritative.
      */
-    timestamp: z.string().datetime({ offset: true }),
+    timestamp: z.iso.datetime({ offset: true }),
     latencyMs: z.number().int().min(0).max(24 * 60 * 60 * 1000).optional(),
     usage: usageSchema.optional(),
     error: errorSchema.optional(),

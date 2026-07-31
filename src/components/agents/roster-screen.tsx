@@ -16,7 +16,7 @@ import { Strong, Text } from '@/components/ui/text'
 import type { AvailableAgent } from '@/lib/agent-mission-control/available-agents'
 import { Panel, Rail, Unavailable, initialsOf } from '@/components/cockpit/primitives'
 import { LifecycleStatusBadge, ProviderBadge, RuntimeStatusBadge } from './atoms'
-import { countRoster, isUnavailable, sortRoster } from './roster-model'
+import { countRoster, isUnavailable, sortRoster, unresolvedToolsBadgeText } from './roster-model'
 
 const MUTED_RAIL = 'rgb(161 161 170 / 0.35)'
 
@@ -28,7 +28,7 @@ const RAIL_COLOR: Record<AvailableAgent['status'], string> = {
   unavailable: '#be850f',
 }
 
-function AgentRosterRow({ agent }: { agent: AvailableAgent }) {
+function AgentRosterRow({ agent }: Readonly<{ agent: AvailableAgent }>) {
   const unresolved = agent.unresolvedToolIds.length
   // `version` peut être absent : c'est une des exigences dures dont l'absence
   // rend l'agent `unavailable`. On le dit, on n'invente pas de « v1 ».
@@ -54,7 +54,7 @@ function AgentRosterRow({ agent }: { agent: AvailableAgent }) {
                 color="red"
                 title="Des outils déclarés ne résolvent vers aucun handler enregistré : l’agent ne peut pas faire ce qu’il annonce."
               >
-                {unresolved} outil{unresolved > 1 ? 's' : ''} non résolu{unresolved > 1 ? 's' : ''}
+                {unresolvedToolsBadgeText(unresolved)}
               </Badge>
             ) : null}
           </div>
@@ -86,7 +86,7 @@ function AgentRosterRow({ agent }: { agent: AvailableAgent }) {
   )
 }
 
-export default function AgentRosterScreen({ agents }: { agents: AvailableAgent[] }) {
+export default function AgentRosterScreen({ agents }: Readonly<{ agents: AvailableAgent[] }>) {
   const counts = countRoster(agents)
   const ranked = sortRoster(agents)
 

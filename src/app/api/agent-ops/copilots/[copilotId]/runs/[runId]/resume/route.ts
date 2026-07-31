@@ -363,11 +363,14 @@ export async function POST(
     //   - otherwise (at least one tool call actually went through)  → `completed`.
     const allBlocked =
       result.toolCalls.length > 0 && result.toolCalls.every((tc) => tc.status === 'blocked')
-    const status = result.budgetExhausted
-      ? 'failed'
-      : allBlocked
-        ? (approved ? 'failed' : 'blocked')
-        : 'completed'
+    let status: 'failed' | 'blocked' | 'completed'
+    if (result.budgetExhausted) {
+      status = 'failed'
+    } else if (allBlocked) {
+      status = approved ? 'failed' : 'blocked'
+    } else {
+      status = 'completed'
+    }
     const outputSummary = summarize(result.finalText || '(empty response)')
 
     // Persist the model that ACTUALLY served the resumed thread (verified from

@@ -90,7 +90,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cop
 
   // Deterministic stamps generated at the route boundary — the sandbox modules
   // stay pure of Date.now()/randomUUID so they're trivially testable.
-  const runId = `sandbox_${randomUUID().replace(/-/g, '').slice(0, 16)}`
+  const runId = `sandbox_${randomUUID().replaceAll('-', '').slice(0, 16)}`
   const createdAt = new Date().toISOString()
 
   try {

@@ -31,7 +31,7 @@ import { provisioningState } from './model'
 
 /* ──────────────────────────── L'endpoint ────────────────────────────── */
 
-function EndpointPanel({ data }: { data: LangGraphTabData }) {
+function EndpointPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
   // Le serveur est réputé joignable UNIQUEMENT si une lecture a abouti. On ne
   // déduit rien de la seule présence d'une URL : une URL est une intention.
   const reachable = data.assistants.ok
@@ -140,7 +140,7 @@ function crossReference(agents: AvailableAgent[], serverAssistantIds: Set<string
   return { langgraph, bareGraph, provisioned, staleAssistant }
 }
 
-function ProvisioningPanel({ data }: { data: LangGraphTabData }) {
+function ProvisioningPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
   const serverIds = data.assistants.ok
     ? new Set(data.assistants.data.map((a) => a.assistantId))
     : null
@@ -268,7 +268,7 @@ function ProvisioningPanel({ data }: { data: LangGraphTabData }) {
  * l'écran. Le plancher les rend lisibles ; le débordement est absorbé par le
  * défilement de la colonne.
  */
-function ServerStatePanel({ data }: { data: LangGraphTabData }) {
+function ServerStatePanel({ data }: Readonly<{ data: LangGraphTabData }>) {
   return (
     <div className="grid min-h-[24rem] shrink-0 grid-cols-1 gap-3 xl:grid-cols-2">
       <Panel
@@ -358,7 +358,7 @@ function ServerStatePanel({ data }: { data: LangGraphTabData }) {
 
 /* ──────────────────────────── Topologie ─────────────────────────────── */
 
-function TopologyPanel({ data }: { data: LangGraphTabData }) {
+function TopologyPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
   return (
     <Panel title={`Topologie · ${data.graphId}`} className="min-h-0 shrink-0">
       <LoadedBlock loaded={data.topology} what="La topologie du graphe">
@@ -396,7 +396,7 @@ function TopologyPanel({ data }: { data: LangGraphTabData }) {
  * pas rentrer : il défile ici, dans une zone bornée. Le zéro-scroll de la PAGE
  * reste tenu par le `h-full overflow-hidden` de `runtime-screen`.
  */
-export default function LangGraphTab({ data }: { data: LangGraphTabData }) {
+export default function LangGraphTab({ data }: Readonly<{ data: LangGraphTabData }>) {
   return (
     <div className="scroll-thin flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
       <EndpointPanel data={data} />

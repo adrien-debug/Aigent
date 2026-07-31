@@ -282,8 +282,8 @@ function buildGeminiContents(messages: ModelRouterMessage[]) {
     }
 
     if (message.role === 'tool') {
-      const name =
-        (message.toolCallId ? nameByCallId.get(message.toolCallId) : undefined) ?? message.toolCallId ?? 'tool'
+      const resolvedName = message.toolCallId ? nameByCallId.get(message.toolCallId) : undefined
+      const name = resolvedName ?? message.toolCallId ?? 'tool'
       contents.push({
         role: 'user',
         parts: [{ functionResponse: { name, response: parseJsonRecord(message.content) } }],

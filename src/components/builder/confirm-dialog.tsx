@@ -53,7 +53,7 @@ export function CostedConfirmDialog({
   onConfirm,
   onClose,
   children,
-}: {
+}: Readonly<{
   open: boolean
   descriptor: CostedActionDescriptor
   pending: boolean
@@ -61,7 +61,7 @@ export function CostedConfirmDialog({
   onClose: () => void
   /** Contenu additionnel (options de dry-run, détail de la cible). */
   children?: ReactNode
-}) {
+}>) {
   return (
     <Dialog open={open} onClose={onClose} size="lg">
       <DialogTitle>{descriptor.title}</DialogTitle>

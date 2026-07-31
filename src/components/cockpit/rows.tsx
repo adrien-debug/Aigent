@@ -36,14 +36,20 @@ const STATUS_BADGE: Record<string, BadgeColor> = {
   archived: 'zinc',
 }
 
+function agentRailColor(failing: boolean, status: string): string {
+  if (failing) return '#e8455f'
+  if (status === 'active') return '#0da87f'
+  return MUTED_RAIL
+}
+
 /** Coquille commune aux deux rosters : rail de sévérité + contenu en Catalyst. */
 function RosterRow({
   railColor,
   children,
-}: {
+}: Readonly<{
   railColor: string
   children: React.ReactNode
-}) {
+}>) {
   return (
     <li className="relative border-b border-zinc-950/5 last:border-b-0 dark:border-white/5">
       <Rail color={railColor} />
@@ -53,11 +59,11 @@ function RosterRow({
 }
 
 /** Un agent qui a réellement tourné sur la fenêtre. */
-export function AgentRow({ card, nowMs }: { card: AgentCard; nowMs: number }) {
+export function AgentRow({ card, nowMs }: Readonly<{ card: AgentCard; nowMs: number }>) {
   const statusLabel = COPILOT_STATUS_LABEL[card.status] ?? COPILOT_STATUS_LABEL.draft
   const statusBadge = STATUS_BADGE[card.status] ?? 'zinc'
   const failing = card.failures24h > 0
-  const railColor = failing ? '#e8455f' : card.status === 'active' ? '#0da87f' : MUTED_RAIL
+  const railColor = agentRailColor(failing, card.status)
 
   return (
     <RosterRow railColor={railColor}>
@@ -91,7 +97,7 @@ export function AgentRow({ card, nowMs }: { card: AgentCard; nowMs: number }) {
 }
 
 /** Un projet du catalogue — actif ou non, il est dit tel qu'il est. */
-export function ProjectRow({ card }: { card: ProjectCard }) {
+export function ProjectRow({ card }: Readonly<{ card: ProjectCard }>) {
   const live = card.activeCount > 0
 
   return (

@@ -7,6 +7,7 @@ import {
   cachedBinanceJson,
   type BinanceFetchOutcome,
 } from './binance-provider'
+import { freshnessFromSourceAge } from './snapshot'
 
 const FUTURES_TARGET = {
   baseUrl: BINANCE_FUTURES_BASE_URL,
@@ -162,8 +163,7 @@ export async function readLiveDerivativesSnapshot(
       openInterestChangePct: oiChange,
       longShortRatio,
     }),
-    freshness_status:
-      sourceTimestamp === null ? 'unavailable' : ageMs !== null && ageMs <= 15_000 ? 'live' : 'stale',
+    freshness_status: freshnessFromSourceAge(sourceTimestamp, ageMs),
     unavailable_fields: [],
   }
 

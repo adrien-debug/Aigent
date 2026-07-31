@@ -75,6 +75,12 @@ function runOrderValue(run: TeamRunInput): number {
   return finished === Number.NEGATIVE_INFINITY ? timeValue(run.startedAt) : finished
 }
 
+function compareIdsDescending(a: TeamRunInput, b: TeamRunInput): number {
+  if (a.id < b.id) return 1
+  if (a.id > b.id) return -1
+  return 0
+}
+
 /**
  * Newest-first comparator. Ties break on `id` descending so the output is
  * deterministic even when two runs share a timestamp to the millisecond.
@@ -83,7 +89,7 @@ function byNewest(a: TeamRunInput, b: TeamRunInput): number {
   const delta = runOrderValue(b) - runOrderValue(a)
   if (delta !== 0 && Number.isFinite(delta)) return delta
   if (runOrderValue(b) !== runOrderValue(a)) return runOrderValue(b) > runOrderValue(a) ? 1 : -1
-  return a.id < b.id ? 1 : a.id > b.id ? -1 : 0
+  return compareIdsDescending(a, b)
 }
 
 /** Latest run of any status, or `null`. */

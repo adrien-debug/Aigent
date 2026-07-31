@@ -255,7 +255,15 @@ export function runGuardDivergence(
 ): string | null {
   const replayed = runGuardWouldAccept(conditions)
   if (replayed === agent.executable) return null
-  return `Le contrat canonique dit « ${agent.executable ? 'lançable' : 'non lançable'} » alors que les trois conditions rejouées disent « ${replayed ? 'lançable' : 'non lançable'} ». C’est le contrat canonique qui fait foi — cet écart doit être corrigé côté dérivation.`
+  const canonical = agent.executable ? 'lançable' : 'non lançable'
+  const replayedLabel = replayed ? 'lançable' : 'non lançable'
+  return (
+    'Le contrat canonique dit « ' +
+    canonical +
+    ' » alors que les trois conditions rejouées disent « ' +
+    replayedLabel +
+    ' ». C’est le contrat canonique qui fait foi — cet écart doit être corrigé côté dérivation.'
+  )
 }
 
 /**

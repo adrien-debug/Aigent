@@ -47,10 +47,10 @@ function usageOf(toolId: string, agents: AvailableAgent[]) {
 function ToolRow({
   tool,
   usage,
-}: {
+}: Readonly<{
   tool: ToolDefinition
   usage: { mountedOn: number; unresolvedOn: number } | null
-}) {
+}>) {
   return (
     <li className="border-b border-zinc-950/5 px-4 py-3 last:border-b-0 dark:border-white/5">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -115,7 +115,7 @@ function ToolRow({
   )
 }
 
-export default function ToolsTab({ data }: { data: ToolsTabData }) {
+export default function ToolsTab({ data }: Readonly<{ data: ToolsTabData }>) {
   // Dérivé, jamais écrit à la main.
   const tools = TOOL_IDS.map((id) => TOOL_REGISTRY[id])
   const mutating = tools.filter((tool) => tool.mutates)

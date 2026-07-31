@@ -17,7 +17,7 @@ import clsx from 'clsx'
 import { Link } from '@/components/ui/link'
 import { RUNTIME_TABS, runtimeTabHref, type RuntimeTabId } from './model'
 
-export default function RuntimeTabBar({ current }: { current: RuntimeTabId }) {
+export default function RuntimeTabBar({ current }: Readonly<{ current: RuntimeTabId }>) {
   return (
     <nav aria-label="Sections de la surface Runtime" className="min-w-0 shrink-0">
       <ul className="scroll-thin flex min-w-0 items-center gap-1 overflow-x-auto">

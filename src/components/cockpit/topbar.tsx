@@ -38,7 +38,7 @@ const TELEMETRY_VIEW: Record<
 }
 
 /** Un compteur de télémétrie — la valeur, puis ce qu'elle compte. */
-function Count({ value, unit }: { value: number | null; unit: string }) {
+function Count({ value, unit }: Readonly<{ value: number | null; unit: string }>) {
   return (
     <Text className="whitespace-nowrap">
       {value === null ? '—' : <Strong className="tabular-nums">{value}</Strong>} {unit}
@@ -48,12 +48,12 @@ function Count({ value, unit }: { value: number | null; unit: string }) {
 
 export default function TopBar({
   overview,
-}: {
+}: Readonly<{
   overview: Pick<
     DashboardOverview,
     'telemetryHealth' | 'telemetryReportingAgents' | 'telemetryRunsMeasured'
   >
-}) {
+}>) {
   const telemetry = TELEMETRY_VIEW[overview.telemetryHealth.status]
 
   return (

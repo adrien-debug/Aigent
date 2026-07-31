@@ -28,7 +28,7 @@ import { Panel } from '@/components/cockpit/primitives'
 import type { ModelsTabData } from './server-reads'
 import { Fact, FactValue, LoadedBlock, NotMeasured, ProvenEmpty } from './atoms'
 
-export default function ModelsTab({ data }: { data: ModelsTabData }) {
+export default function ModelsTab({ data }: Readonly<{ data: ModelsTabData }>) {
   const configuredLocal = data.local.filter((row) => row.configured)
 
   return (

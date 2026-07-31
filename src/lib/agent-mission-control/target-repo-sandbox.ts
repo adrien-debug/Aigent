@@ -174,7 +174,7 @@ export function sanitizeOutput(raw: string): string {
   // URLs with inline credentials: https://user:pass@host → https://***:***@host
   out = out.replace(/(\bhttps?:\/\/)[^\s/@:]+:[^\s/@]+@/gi, '$1***:***@')
   // KEY/TOKEN/SECRET/PASSWORD (+ optional suffix) = <value>  →  = ***
-  out = out.replace(/((?:[A-Z0-9_]*)?(?:KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*\s*[:=]\s*)['"`]?[^\s'"`]+/gi, '$1***')
+  out = out.replace(/([A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*\s*[:=]\s*)['"`]?[^\s'"`]+/gi, '$1***')
   // Bearer tokens.
   out = out.replace(/\b(Bearer\s+)[A-Za-z0-9._-]+/gi, '$1***')
   if (out.length > OUTPUT_EXCERPT_MAX) out = out.slice(0, OUTPUT_EXCERPT_MAX) + '\n…[truncated]'
