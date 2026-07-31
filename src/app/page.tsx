@@ -3,6 +3,7 @@ import ActionQueue from '@/components/cockpit/action-queue'
 import CockpitOverview from '@/components/cockpit/overview-screen'
 import TopBar from '@/components/cockpit/topbar'
 import { Unavailable } from '@/components/cockpit/primitives'
+import { Text } from '@/components/ui/text'
 import { getDashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
 
 // Le cockpit lit l'état vivant de la flotte : jamais de cache statique.
@@ -35,16 +36,14 @@ export default async function HomePage() {
   if (overview === null) {
     return (
       <AppShell>
-        <div className="h-full p-3">
-          <div className="lip elev relative flex h-full items-center justify-center rounded-xl border border-white/6 bg-raised">
+        <div className="h-full p-4">
+          <div className="flex h-full items-center justify-center rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
             <div className="max-w-md px-6 text-center">
               <Unavailable
                 reason="unread"
                 detail="Le backend n'a pas répondu. Aucun chiffre n'est affiché — un cockpit qui invente des valeurs est plus dangereux qu'un cockpit vide."
               />
-              {failure ? (
-                <p className="mt-3 font-mono text-[11px] leading-snug text-ink-faint">{failure}</p>
-              ) : null}
+              {failure ? <Text className="mt-3">{failure}</Text> : null}
             </div>
           </div>
         </div>

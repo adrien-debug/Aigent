@@ -1,118 +1,129 @@
 /**
- * Lignes de roster — agents et projets.
+ * Lignes de roster — agents et projets — en composants Catalyst officiels.
  *
- * Même grammaire que le flux d'exécution, portée par la primitive commune
- * `EntityRow` (`primitives.tsx`) : un rail de statut sur l'arête gauche,
- * l'identité au centre, les mesures alignées à droite en chiffres
- * monospacés. Une entité tient sur une ligne dense.
+ * `Avatar` porte l'identité, `Badge` le statut, `Strong`/`Text` la typographie.
+ * Il n'y a plus de `EntityRow` ni de `EntityAvatar` maison : c'étaient des
+ * doublons de Catalyst. Ce qui reste hors kit sur ces lignes est le seul `Rail`
+ * (sévérité), que le kit ne fournit pas.
  *
- * Un statut d'agent n'est dit QU'UNE fois à côté du nom : un `Badge` Catalyst
- * qui porte à la fois la couleur et le mot. Le rail de la ligne garde la
- * sévérité (échec/actif/inerte) ; l'avatar, lui, reste neutre — plus de diode
- * ni de troisième teinte pour répéter la même information.
+ * Un statut n'est dit qu'UNE fois : par le `Badge`, qui porte la couleur ET le
+ * mot. Pas de diode, pas d'avatar teinté en plus pour répéter la même chose.
  *
- * Les faits affichés sont exactement les mêmes qu'avant, et une mesure
- * absente l'est toujours explicitement.
+ * Les faits affichés sont exactement les mêmes qu'avant, et une mesure absente
+ * l'est toujours explicitement.
  */
 import type { ComponentProps } from 'react'
 
+import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { Strong, Text } from '@/components/ui/text'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { AgentCard, ProjectCard } from '@/lib/cockpit/named-runs'
 import { timeAgo } from '@/lib/cockpit/named-runs'
 import { COPILOT_STATUS_LABEL } from '@/lib/cockpit/status'
-import { AbsentMark, EntityAvatar, EntityRow, MetricDot, MetricValue, initialsOf } from './primitives'
+import { AbsentMark, Rail, initialsOf } from './primitives'
 
-const MUTED_RAIL = '#2e343c'
+type BadgeColor = ComponentProps<typeof Badge>['color']
+
+const MUTED_RAIL = 'rgb(161 161 170 / 0.35)'
 
 /** Le statut d'un copilot, dit une seule fois — couleur et mot dans le badge. */
-const STATUS_BADGE: Record<string, ComponentProps<typeof Badge>['color']> = {
-  active: 'success',
-  paused: 'warning',
-  draft: 'neutral',
-  degraded: 'danger',
-  archived: 'neutral',
+const STATUS_BADGE: Record<string, BadgeColor> = {
+  active: 'emerald',
+  paused: 'amber',
+  draft: 'zinc',
+  degraded: 'red',
+  archived: 'zinc',
+}
+
+/** Coquille commune aux deux rosters : rail de sévérité + contenu en Catalyst. */
+function RosterRow({
+  railColor,
+  children,
+}: {
+  railColor: string
+  children: React.ReactNode
+}) {
+  return (
+    <li className="relative border-b border-zinc-950/5 last:border-b-0 dark:border-white/5">
+      <Rail color={railColor} />
+      <div className="flex items-center gap-3 py-2.5 pr-4 pl-4">{children}</div>
+    </li>
+  )
 }
 
 /** Un agent qui a réellement tourné sur la fenêtre. */
 export function AgentRow({ card, nowMs }: { card: AgentCard; nowMs: number }) {
   const statusLabel = COPILOT_STATUS_LABEL[card.status] ?? COPILOT_STATUS_LABEL.draft
-  const statusBadge = STATUS_BADGE[card.status] ?? 'neutral'
+  const statusBadge = STATUS_BADGE[card.status] ?? 'zinc'
   const failing = card.failures24h > 0
-  const active = card.status === 'active'
-  const railColor = failing ? '#e8455f' : active ? '#0da87f' : MUTED_RAIL
+  const railColor = failing ? '#e8455f' : card.status === 'active' ? '#0da87f' : MUTED_RAIL
 
   return (
-    <EntityRow
-      railColor={railColor}
-      avatar={<EntityAvatar initials={initialsOf(card.name)} />}
-      title={card.name ?? <span className="text-ink-faint">Agent non résolu</span>}
-      /* Un seul signal de statut à côté du nom : le badge porte la couleur ET
-         le mot. Le rail de la ligne dit déjà la sévérité — inutile d'y ajouter
-         une diode et un troisième libellé. */
-      titleMeta={
-        <Badge dense color={statusBadge}>
-          {statusLabel}
-        </Badge>
-      }
-      subtitle={card.projectName ?? 'Sans projet'}
-      metrics={
-        <>
-          <span className="flex items-baseline gap-1">
-            <MetricValue value={card.runs24h} unit="runs" />
-            {failing ? (
-              <Badge dense color="danger">
-                {card.failures24h} KO
-              </Badge>
-            ) : null}
-          </span>
-          <span className="flex items-baseline gap-1.5">
-            {card.costUsd === null ? <AbsentMark /> : <MetricValue value={formatUsd(card.costUsd)} size="sm" />}
-            <MetricDot />
-            <span className="font-mono text-[10px] whitespace-nowrap text-ink-faint">
-              {card.lastRunMs === null ? '—' : timeAgo(card.lastRunMs, nowMs).replace('il y a ', '')}
-            </span>
-          </span>
-        </>
-      }
-    />
+    <RosterRow railColor={railColor}>
+      <Avatar square initials={initialsOf(card.name)} className="size-8 shrink-0" />
+
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-center gap-2">
+          {card.name ? (
+            <Strong className="truncate">{card.name}</Strong>
+          ) : (
+            <Text className="truncate">Agent non résolu</Text>
+          )}
+          <Badge color={statusBadge}>{statusLabel}</Badge>
+          {failing ? <Badge color="red">{card.failures24h} KO</Badge> : null}
+        </div>
+        <Text className="truncate">{card.projectName ?? 'Sans projet'}</Text>
+      </div>
+
+      <div className="shrink-0 text-right">
+        <Text>
+          <Strong className="tabular-nums">{card.runs24h}</Strong> runs
+        </Text>
+        <Text className="tabular-nums">
+          {card.costUsd === null ? <AbsentMark /> : formatUsd(card.costUsd)}
+          {' · '}
+          {card.lastRunMs === null ? '—' : timeAgo(card.lastRunMs, nowMs).replace('il y a ', '')}
+        </Text>
+      </div>
+    </RosterRow>
   )
 }
 
 /** Un projet du catalogue — actif ou non, il est dit tel qu'il est. */
 export function ProjectRow({ card }: { card: ProjectCard }) {
   const live = card.activeCount > 0
-  const railColor = live ? 'var(--accent-main)' : MUTED_RAIL
 
   return (
-    <EntityRow
-      railColor={railColor}
-      /* Le badge `n/total` est un COMPTE, pas un statut : la teinte de l'avatar
-         reste ici le seul signal d'activité, elle n'est donc pas redondante. */
-      avatar={<EntityAvatar initials={initialsOf(card.name)} active={live} />}
-      title={card.name}
-      titleMeta={
-        <Badge dense color="neutral">
-          {card.activeCount}/{card.copilotCount}
-        </Badge>
-      }
-      subtitle={card.repoFullName ?? 'aucun repo lié'}
-      metrics={
-        <>
-          <MetricValue value={card.runs24h} unit="runs" />
-          <span className="flex items-baseline gap-1.5">
-            {card.costLast24hUsd === null ? (
-              <AbsentMark />
-            ) : (
-              <MetricValue value={formatUsd(card.costLast24hUsd)} size="sm" />
-            )}
-            <MetricDot />
-            <span className="font-mono text-[10px] tabular-nums text-ink-faint">
-              {card.passRate === null ? '—' : `${Math.round(card.passRate * 100)} %`}
-            </span>
-          </span>
-        </>
-      }
-    />
+    <RosterRow railColor={live ? '#0da87f' : MUTED_RAIL}>
+      <Avatar square initials={initialsOf(card.name)} className="size-8 shrink-0" />
+
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-center gap-2">
+          <Strong className="truncate">{card.name}</Strong>
+          <Badge color={live ? 'emerald' : 'zinc'}>
+            {card.activeCount}/{card.copilotCount}
+          </Badge>
+        </div>
+        <Text className="truncate">{card.repoFullName ?? 'aucun repo lié'}</Text>
+      </div>
+
+      <div className="shrink-0 text-right">
+        <Text>
+          {card.runs24h === null ? (
+            <AbsentMark />
+          ) : (
+            <>
+              <Strong className="tabular-nums">{card.runs24h}</Strong> runs
+            </>
+          )}
+        </Text>
+        <Text className="tabular-nums">
+          {card.costLast24hUsd === null ? <AbsentMark /> : formatUsd(card.costLast24hUsd)}
+          {' · '}
+          {card.passRate === null ? '—' : `${Math.round(card.passRate * 100)} %`}
+        </Text>
+      </div>
+    </RosterRow>
   )
 }

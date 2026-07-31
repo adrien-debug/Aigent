@@ -4,7 +4,16 @@ useDefault = true
 
 [allowlist]
 description = "Faux positifs assumés"
-paths = ['''\.env\.example$''', '''pnpm-lock\.yaml$''', '''package-lock\.json$''']
+# `catalyst-kit.sha256.json` ne contient QUE des empreintes SHA-256 de fichiers
+# publics du kit Catalyst vendoré (gate `check:catalyst-integrity`). Ce sont des
+# hachages de code source versionné, pas des credentials : aucun secret ne peut
+# y transiter, la gate régénère le fichier depuis le contenu de src/components/ui/.
+paths = [
+  '''\.env\.example$''',
+  '''pnpm-lock\.yaml$''',
+  '''package-lock\.json$''',
+  '''scripts/catalyst-kit\.sha256\.json$''',
+]
 
 # `ghp_secret123` est un littéral INVENTÉ dans tests/unit/project-builder-preview.test.ts :
 # le test vérifie justement que la redaction masque ce motif. On allowliste la VALEUR exacte,

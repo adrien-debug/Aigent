@@ -1,21 +1,31 @@
 /**
- * Flux d'exécution — ce qui SE PASSE, ligne à ligne, du plus récent au plus
- * ancien.
+ * Flux d'exécution — `Table` Catalyst officielle, sans aucune retouche du kit.
  *
- * Bâti sur la `Table` Catalyst (`dense`, `bounded`) : six colonnes tabulaires
- * réelles — heure, statut, agent, durée, coût, ancienneté. `bounded` garde
- * l'en-tête fixe et fait défiler le seul corps dans la hauteur du panneau,
- * sans quoi la table grandirait avec la donnée et casserait le zéro-scroll.
+ * Le kit n'a pas d'option « table bornée » : le défilement vertical est donc
+ * porté par le CONTENEUR (`overflow-y-auto` dans le panneau), pas par une prop
+ * ajoutée à `Table`. C'est la règle de la voie A — on compose autour du kit,
+ * on ne le modifie pas.
  *
  * Une mesure absente reste absente : ni « 0 ms », ni « $0.00 ».
  */
+import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Strong, Text } from '@/components/ui/text'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { NamedRun } from '@/lib/cockpit/named-runs'
 import { clockTime, timeAgo } from '@/lib/cockpit/named-runs'
-import { RUN_STATUS_COLOR, RUN_STATUS_SINGULAR } from '@/lib/cockpit/status'
-import { AbsentMark, Led } from './primitives'
+import { RUN_STATUS_SINGULAR } from '@/lib/cockpit/status'
+import type { AgentRunStatus } from '@/lib/agent-mission-control/types'
+import { AbsentMark } from './primitives'
+
+/** Le statut d'un run — couleur ET mot portés par le `Badge` Catalyst. */
+const STATUS_BADGE: Record<AgentRunStatus, 'emerald' | 'blue' | 'amber' | 'purple' | 'red'> = {
+  completed: 'emerald',
+  running: 'blue',
+  'needs-confirmation': 'amber',
+  blocked: 'purple',
+  failed: 'red',
+}
 
 function duration(ms: number): string {
   if (ms < 1000) return `${ms} ms`
@@ -25,7 +35,7 @@ function duration(ms: number): string {
 
 export default function RunStream({ runs, nowMs }: { runs: NamedRun[]; nowMs: number }) {
   return (
-    <Table dense bounded>
+    <Table dense bleed>
       <TableHead>
         <TableRow>
           <TableHeader>Heure</TableHeader>
@@ -40,37 +50,30 @@ export default function RunStream({ runs, nowMs }: { runs: NamedRun[]; nowMs: nu
       <TableBody>
         {runs.map((run) => (
           <TableRow key={run.id}>
-            <TableCell className="font-mono tabular-nums text-ink-faint">
-              {clockTime(run.startedAtMs)}
-            </TableCell>
+            <TableCell className="tabular-nums">{clockTime(run.startedAtMs)}</TableCell>
 
             <TableCell className="hidden sm:table-cell">
-              <span className="flex items-center gap-1.5">
-                <Led color={RUN_STATUS_COLOR[run.status]} live={run.status === 'running'} />
-                <span className="truncate text-ink-dim">{RUN_STATUS_SINGULAR[run.status]}</span>
-              </span>
+              <Badge color={STATUS_BADGE[run.status]}>{RUN_STATUS_SINGULAR[run.status]}</Badge>
             </TableCell>
 
             <TableCell>
-              <span className="flex min-w-0 items-baseline gap-1.5">
-                {run.copilotName ? (
-                  <Strong className="truncate text-[12.5px]">{run.copilotName}</Strong>
-                ) : (
-                  <span className="truncate font-mono text-ink-faint">{run.copilotId}</span>
-                )}
-                <Text className="truncate">{run.projectName ? `· ${run.projectName}` : '· sans projet'}</Text>
-              </span>
+              {run.copilotName ? (
+                <Strong className="truncate">{run.copilotName}</Strong>
+              ) : (
+                <Text className="truncate">{run.copilotId}</Text>
+              )}
+              <Text className="truncate">{run.projectName ?? 'sans projet'}</Text>
             </TableCell>
 
-            <TableCell className="text-right font-mono tabular-nums text-ink-dim">
+            <TableCell className="text-right tabular-nums">
               {run.latencyMs === null ? <AbsentMark /> : duration(run.latencyMs)}
             </TableCell>
 
-            <TableCell className="text-right font-mono tabular-nums text-ink-dim">
+            <TableCell className="text-right tabular-nums">
               {run.costUsd === null ? <AbsentMark /> : formatUsd(run.costUsd)}
             </TableCell>
 
-            <TableCell className="text-right font-mono whitespace-nowrap text-ink-faint">
+            <TableCell className="text-right whitespace-nowrap">
               {timeAgo(run.startedAtMs, nowMs).replace('il y a ', '')}
             </TableCell>
           </TableRow>

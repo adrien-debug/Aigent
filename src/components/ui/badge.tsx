@@ -32,52 +32,17 @@ const colors = {
   pink: 'bg-pink-400/15 text-pink-700 group-data-hover:bg-pink-400/25 dark:bg-pink-400/10 dark:text-pink-400 dark:group-data-hover:bg-pink-400/20',
   rose: 'bg-rose-400/15 text-rose-700 group-data-hover:bg-rose-400/25 dark:bg-rose-400/10 dark:text-rose-400 dark:group-data-hover:bg-rose-400/20',
   zinc: 'bg-zinc-600/10 text-zinc-700 group-data-hover:bg-zinc-600/20 dark:bg-white/5 dark:text-zinc-400 dark:group-data-hover:bg-white/10',
-
-  /**
-   * Palette produit — jetons du thème cockpit (`globals.css`), pas des
-   * couleurs Tailwind nommées. Un poste de contrôle exclusivement sombre n'a
-   * pas de variante claire à prévoir : ces cinq entrées couvrent le
-   * vocabulaire de sévérité réel du produit (accent unique + succès/attention/
-   * danger + neutre), au lieu de forcer un mappage vers la palette Tailwind
-   * générique ou un `className` qui entrerait en conflit avec `colors[color]`.
-   */
-  accent: 'bg-accent/10 text-accent border border-accent/25',
-  info: 'bg-[#3d82ee]/12 text-[#3d82ee] border border-[#3d82ee]/30',
-  success: 'bg-[#0da87f]/12 text-[#0da87f] border border-[#0da87f]/30',
-  warning: 'bg-[#be850f]/12 text-[#be850f] border border-[#be850f]/30',
-  danger: 'bg-[#e8455f]/12 text-[#e8455f] border border-[#e8455f]/30',
-  special: 'bg-[#8e63ee]/12 text-[#8e63ee] border border-[#8e63ee]/30',
-  neutral: 'bg-elevated text-ink-faint border border-edge',
 }
 
-type BadgeProps = {
-  color?: keyof typeof colors
-  /**
-   * Densité du poste de contrôle : chiffres/libellés mono alignés-données au
-   * lieu de la taille de texte par défaut. Une prop typée plutôt qu'un
-   * `className` de taille en override — les deux poseraient le même
-   * utilitaire `text-*`/`font-*` que la base et entreraient en conflit
-   * d'ordre de génération CSS, ce que Catalyst obligatoire interdit
-   * explicitement de résoudre par la force (`!important`).
-   */
-  dense?: boolean
-}
+type BadgeProps = { color?: keyof typeof colors }
 
-export function Badge({
-  color = 'zinc',
-  dense = false,
-  className,
-  ...props
-}: BadgeProps & React.ComponentPropsWithoutRef<'span'>) {
+export function Badge({ color = 'zinc', className, ...props }: BadgeProps & React.ComponentPropsWithoutRef<'span'>) {
   return (
     <span
       {...props}
       className={clsx(
         className,
-        'inline-flex items-center gap-x-1.5 rounded-md forced-colors:outline',
-        dense
-          ? 'px-1.5 py-0.5 font-mono text-[9.5px] tracking-[0.08em] tabular-nums'
-          : 'px-1.5 py-0.5 text-sm/5 font-medium sm:text-xs/5',
+        'inline-flex items-center gap-x-1.5 rounded-md px-1.5 py-0.5 text-sm/5 font-medium sm:text-xs/5 forced-colors:outline',
         colors[color]
       )}
     />

@@ -12,10 +12,15 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   // `h-full` sur html ET body est exigé par le shell : le cockpit occupe
-  // exactement le viewport. Le fond presque noir est porté ici pour éviter un
-  // flash clair avant l'hydratation.
+  // exactement le viewport.
+  //
+  // `dark` est une CLASSE, pas seulement `color-scheme` : c'est elle qui active
+  // les variantes `dark:` de Tailwind, donc tout le mode sombre natif de
+  // Catalyst (`dark:bg-zinc-900`, `dark:text-white`…). Sans elle, le kit rend
+  // en clair et on est tenté de le repeindre — ce qu'interdit
+  // `check:catalyst-integrity`.
   return (
-    <html lang="fr" className="h-full bg-base">
+    <html lang="fr" className="dark h-full bg-zinc-950">
       <body className="h-full antialiased">{children}</body>
     </html>
   )

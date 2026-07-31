@@ -135,3 +135,79 @@ la composition, pas un layout concurrent.
 10. **`$$0.00`** — non reproduit : le DOM rend `$0.00`. Le `$$` n'apparaît que
     dans le payload RSC sérialisé (`self.__next_f.push`), où Next.js échappe un
     `$` initial en `$$`. `formatUsd` ne produit qu'un seul `$`. Rien à corriger.
+
+---
+
+## Passe 3 — voie A : intégrité de Catalyst d'abord
+
+### Ce qui n'allait pas en passe 2
+
+La passe 2 portait la densité et les couleurs du produit **dans**
+`src/components/ui/` : 215 lignes modifiées sur 7 fichiers du kit
+(`sidebar`, `navbar`, `text`, `heading`, `table`, `badge`, `divider`).
+Techniquement c'était la voie B ; concrètement c'était un **fork silencieux** —
+exactement ce que la décision produit interdit. Un `SidebarItem` dont toutes
+les classes ont été réécrites n'est plus un composant Catalyst, c'est une
+coquille locale portant un nom Catalyst.
+
+### Ce qui a été fait
+
+1. **`src/components/ui/` restauré à l'identique.** Vérifié fichier par fichier
+   par empreinte SHA-256 : les 27 fichiers du kit sont identiques à la
+   référence officielle. Zéro ligne modifiée.
+2. **Voie A appliquée à tout l'écran** : les surfaces utilisent les composants
+   Catalyst avec leur **apparence native** (densité et palette du kit). Le
+   cockpit a perdu sa densité mono, son cyan et son aspect « poste de
+   contrôle » — c'est assumé, ce sont des sujets de composition produit à
+   traiter ensuite, pas des raisons de modifier le kit.
+3. **Mode sombre natif** : `@custom-variant dark` dans `globals.css` + classe
+   `dark` sur `<html>`. En Tailwind v4, `dark:` suit `prefers-color-scheme` par
+   défaut ; sans ce variant, les classes `dark:` de Catalyst ne s'appliquent
+   pas et le kit rend en clair — c'est ce qui pousse à le repeindre.
+4. **Zéro-scroll reconstruit par le LAYOUT seul** : hauteurs bornées
+   (`h-full min-h-0`) dans le shell et `overflow-y-auto` sur les conteneurs de
+   panneau. Aucune prop ajoutée à `Table` (la passe 2 avait ajouté `bounded`).
+
+### Composants Catalyst utilisés, par surface
+
+| Surface | Composants Catalyst officiels |
+|---|---|
+| Shell (`app-shell.tsx`) | `Sidebar`, `SidebarHeader`, `SidebarBody`, `SidebarFooter`, `SidebarSection`, `SidebarHeading`, `SidebarItem`, `SidebarLabel`, `NavbarItem`, `Text` |
+| Barre d'état (`topbar.tsx`) | `Navbar`, `NavbarSection`, `NavbarSpacer`, `NavbarDivider`, `Badge`, `Text`, `Strong` |
+| Panneaux (`primitives.tsx`) | `Subheading`, `Divider`, `Text` |
+| Flux d'exécution (`run-stream.tsx`) | `Table`, `TableHead`, `TableBody`, `TableRow`, `TableHeader`, `TableCell`, `Badge`, `Text`, `Strong` |
+| Rosters (`rows.tsx`) | `Avatar`, `Badge`, `Text`, `Strong` |
+| File d'action (`action-queue.tsx`) | `Link`, `Badge`, `Subheading`, `Divider`, `Text`, `Strong` |
+| KPI (`kpi-strip.tsx`) | `Heading`, `Text` |
+| Graphe (`charts.tsx`) | `Badge`, `Divider`, `Text`, `Strong` |
+| Page (`page.tsx`) | `Text` |
+
+### Composants hors Catalyst restants, et pourquoi
+
+Tous dans `src/components/cockpit/primitives.tsx`. Aucun n'a d'équivalent dans
+le kit ; aucun ne duplique un composant Catalyst.
+
+| Composant | Justification métier |
+|---|---|
+| `Panel` | Surface à hauteur **bornée** : elle ne grandit jamais avec sa donnée, c'est la donnée qui défile dedans. C'est le contrat qui tient le zéro-scroll. Catalyst n'a pas de notion de carte bornée. Son en-tête est composé de `Subheading` + `Divider` + `Text`. |
+| `Unavailable` / `AbsentMark` | L'absence de mesure comme état de premier rang, avec la distinction « lecture échouée » / « rien à mesurer » (AGENTS.md § Vérité des données). Un `Badge` gris dirait « zéro », pas « non mesuré ». |
+| `Led` | Témoin d'activité temps réel (pulsation). Aucun équivalent Catalyst. |
+| `Rail` | Barre de sévérité en tête de ligne — encodage visuel de gravité, pas un séparateur. `Divider` ne le couvre pas. |
+| `ArcGauge`, `BarMeter`, `SegmentMeter` | Visualisations de proportion bornée (n sur total). Dataviz explicitement autorisée. |
+| `initialsOf` | Fonction pure (monogramme), pas un composant. |
+| `HourlyRunsChart` (`charts.tsx`) | Histogramme Recharts. Dataviz. |
+| `Mark` (`app-shell.tsx`) | Logotype SVG du produit. |
+
+### La gate qui empêche la récidive
+
+`npm run check:catalyst-integrity` (dans la chaîne `npm run check`, donc en CI)
+compare l'empreinte SHA-256 des 27 fichiers du kit à
+`scripts/catalyst-kit.sha256.json`. Toute modification, ajout ou suppression
+fait échouer la gate.
+
+Sondée dans les deux sens avant livraison : rouge sur un fichier altéré
+(`MODIFIÉ src/components/ui/badge.tsx`, exit 1), verte sur kit intact (exit 0).
+
+Elle protège le **kit**, pas son usage : elle ne détecte pas un écran qui
+combattrait Catalyst depuis l'extérieur (`className` agressifs). C'est une
+limite assumée, écrite dans l'en-tête du script.

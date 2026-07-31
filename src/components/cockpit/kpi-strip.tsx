@@ -1,16 +1,15 @@
 /**
- * Bandeau d'instruments — six mesures sur UNE surface continue, pas six boîtes.
+ * Bandeau d'instruments — six mesures sur une surface continue.
  *
- * La version précédente alignait six rectangles identiques : même fond, même
- * cadre, même taille de chiffre. Six objets de même poids ne hiérarchisent
- * rien. Ici la surface est unique, les cellules sont séparées par des filets, et
- * une seule mesure — les runs de la fenêtre — porte l'accent : c'est le pouls de
- * la flotte, tout le reste le qualifie.
+ * Composé en Catalyst officiel (`Heading` pour la valeur, `Text` pour le
+ * libellé et le support, sémantique `dl`/`dt`/`dd`). Les seuls objets hors kit
+ * sont les jauges de proportion (`ArcGauge`, `BarMeter`, `SegmentMeter`) et la
+ * diode `Led` — Catalyst ne fournit aucune visualisation de ce type.
  *
- * Trois cellules portent un objet graphique, et chacun encode une proportion
- * RÉELLE et bornée : combien d'agents sont exécutables sur le catalogue, quelle
- * part des runs terminaux a réussi, quelle part du coût a pu être mesurée. Aucun
- * mini-graphique de série temporelle : l'histogramme est en dessous, en grand.
+ * Chaque objet graphique encode une proportion RÉELLE et bornée : combien
+ * d'agents sont exécutables sur le catalogue, quelle part des runs terminaux a
+ * réussi, quelle part du coût a pu être mesurée. Aucun mini-graphique de série
+ * temporelle : l'histogramme est en dessous, en grand.
  *
  * `value === null` bascule la cellule en « indisponible » — jamais un 0
  * rassurant sur une mesure qui n'existe pas.
@@ -18,14 +17,15 @@
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 
+import { Heading } from '@/components/ui/heading'
 import { Text } from '@/components/ui/text'
 import type { DashboardKpis } from '@/lib/agent-mission-control/dashboard-overview'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import { ArcGauge, BarMeter, Led, SegmentMeter, Unavailable } from './primitives'
 
-const GOOD = '#0da87f'
-const WARN = '#be850f'
-const BAD = '#e8455f'
+const GOOD = '#059669'
+const WARN = '#d97706'
+const BAD = '#dc2626'
 
 function Cell({
   label,
@@ -34,7 +34,6 @@ function Cell({
   support,
   graphic,
   led,
-  hero = false,
   valueColor,
   unavailableReason,
 }: {
@@ -45,57 +44,42 @@ function Cell({
   support: string
   /** Objet de proportion, à droite du chiffre. Jamais une série temporelle. */
   graphic?: ReactNode
-  /** Témoin de sévérité, à GAUCHE du libellé — un point posé à côté d'un
-   *  chiffre se lit comme une poussière, à côté d'un libellé comme un état. */
+  /** Témoin de sévérité, à GAUCHE du libellé. */
   led?: ReactNode
-  hero?: boolean
   valueColor?: string
   unavailableReason?: 'unread' | 'no-data'
 }) {
   return (
-    <div
-      className={clsx(
-        'relative flex min-w-0 flex-col justify-between gap-1.5 px-4 py-3',
-        hero && 'bg-white/[0.015]',
-      )}
-    >
-      {hero ? (
-        <span
-          aria-hidden
-          className="absolute inset-y-3 left-0 w-0.5 rounded-full bg-accent"
-        />
-      ) : null}
-
-      <dt className="flex items-center gap-1.5">
+    <div className="flex min-w-0 flex-col justify-between gap-2 p-4">
+      <dt className="flex items-center gap-2">
         {led}
-        <span className="truncate text-[9.5px] font-semibold tracking-[0.18em] text-ink-faint uppercase">
-          {label}
-        </span>
+        <Text className="truncate">{label}</Text>
       </dt>
 
-      <dd>
+      <dd className="min-w-0">
         {value === null ? (
-          <div className="h-9 w-fit">
+          <div className="w-fit">
             <Unavailable reason={unavailableReason ?? 'unread'} compact />
           </div>
         ) : (
           <div className="flex items-end justify-between gap-3">
-            <p className="flex min-w-0 items-baseline gap-1">
-              <span
-                className={clsx(
-                  'truncate font-mono font-semibold tracking-tight tabular-nums',
-                  hero ? 'text-[34px] leading-8' : 'text-[26px] leading-7',
-                )}
-                style={valueColor ? { color: valueColor } : undefined}
+            {/* `div` et non `p` : `Heading` rend un `<h3>` et `Text` un `<p>`,
+                or un `<p>` ne peut contenir ni l'un ni l'autre — HTML invalide
+                et erreur d'hydratation React. */}
+            <div className="flex min-w-0 items-baseline gap-1.5">
+              <Heading
+                level={3}
+                className={clsx('truncate tabular-nums', valueColor && 'text-(--kpi)')}
+                style={valueColor ? ({ '--kpi': valueColor } as React.CSSProperties) : undefined}
               >
                 {value}
-              </span>
-              {unit ? <span className="text-[11px] text-ink-faint">{unit}</span> : null}
-            </p>
-            {graphic ? <div className="shrink-0 pb-0.5">{graphic}</div> : null}
+              </Heading>
+              {unit ? <Text>{unit}</Text> : null}
+            </div>
+            {graphic ? <div className="shrink-0 pb-1">{graphic}</div> : null}
           </div>
         )}
-        <Text className="truncate leading-tight">{support}</Text>
+        <Text className="truncate">{support}</Text>
       </dd>
     </div>
   )
@@ -122,15 +106,13 @@ export default function KpiStrip({
   const executableTotal = kpis.executableTotal
 
   return (
-    <dl className="lip elev relative grid shrink-0 grid-cols-2 overflow-hidden rounded-xl border border-white/6 bg-raised sm:grid-cols-3 xl:grid-cols-6 [&>*+*]:border-l [&>*+*]:border-white/5 [&>*]:min-h-[92px]">
+    <dl className="grid shrink-0 grid-cols-2 overflow-hidden rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 sm:grid-cols-3 xl:grid-cols-6 dark:bg-zinc-900 dark:ring-white/10 [&>*+*]:border-l [&>*+*]:border-zinc-950/5 dark:[&>*+*]:border-white/5">
       <Cell
-        hero
         label="Runs 24 h"
         value={kpis.runs24h}
         support={unread ? 'fenêtre non lue' : 'exécutions sur la fenêtre'}
-        valueColor="var(--accent-main)"
         unavailableReason={reason}
-        led={<Led color="var(--accent-main)" live={(kpis.runs24h ?? 0) > 0} />}
+        led={<Led color={GOOD} live={(kpis.runs24h ?? 0) > 0} />}
       />
 
       <Cell
@@ -164,7 +146,7 @@ export default function KpiStrip({
         unavailableReason={reason}
         graphic={
           cost === null ? undefined : (
-            <BarMeter ratio={coverage} color={partial ? WARN : 'var(--accent-soft)'} className="w-16" />
+            <BarMeter ratio={coverage} color={partial ? WARN : GOOD} className="w-16" />
           )
         }
       />
@@ -178,11 +160,7 @@ export default function KpiStrip({
         valueColor={kpis.executableNow === 0 ? WARN : undefined}
         graphic={
           executableTotal === null || kpis.executableNow === null ? undefined : (
-            <SegmentMeter
-              filled={kpis.executableNow}
-              total={executableTotal}
-              color="var(--accent-main)"
-            />
+            <SegmentMeter filled={kpis.executableNow} total={executableTotal} color={GOOD} />
           )
         }
       />
@@ -192,7 +170,7 @@ export default function KpiStrip({
         value={blocked}
         support="livraisons à débloquer"
         valueColor={blocked !== null && blocked > 0 ? BAD : undefined}
-        led={<Led color={blocked !== null && blocked > 0 ? BAD : '#3a4048'} />}
+        led={<Led color={blocked !== null && blocked > 0 ? BAD : 'rgb(161 161 170 / 0.5)'} />}
       />
 
       <Cell
@@ -200,7 +178,7 @@ export default function KpiStrip({
         value={kpis.needsAction}
         support="décisions en attente"
         valueColor={kpis.needsAction > 0 ? WARN : undefined}
-        graphic={<Led color={kpis.needsAction > 0 ? WARN : '#3a4048'} className="mb-3 size-2" />}
+        led={<Led color={kpis.needsAction > 0 ? WARN : 'rgb(161 161 170 / 0.5)'} />}
       />
     </dl>
   )

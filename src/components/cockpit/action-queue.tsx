@@ -2,41 +2,44 @@
  * File d'action — la colonne qui fait d'un tableau de bord un COCKPIT : on n'y
  * regarde pas la flotte, on y prend une décision.
  *
- * Elle est traitée comme une colonne de commande et non comme un panneau de
- * plus : surface propre, en-tête à compteur, et une carte par décision portant
- * son rail de sévérité. Le rouge reste réservé à ce qui bloque.
+ * Composée en Catalyst officiel : `Link` pour la carte cliquable, `Badge` pour
+ * la nature de la décision, `Strong`/`Text` pour le contenu. Le seul objet hors
+ * kit est le `Rail` de sévérité, que Catalyst ne fournit pas.
  *
- * Box bornée : l'en-tête est fixe, seule la liste scrolle.
+ * Box bornée : l'en-tête est fixe, seule la liste défile.
  */
 import type { ComponentProps } from 'react'
 
 import { Badge } from '@/components/ui/badge'
+import { Divider } from '@/components/ui/divider'
+import { Subheading } from '@/components/ui/heading'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
 import type { ActionItem, ActionItemKind } from '@/lib/agent-mission-control/dashboard-overview'
-import { PanelHeader, Rail, Unavailable } from './primitives'
+import { Rail, Unavailable } from './primitives'
 
 type BadgeColor = ComponentProps<typeof Badge>['color']
 
 /** Une couleur par nature de décision — le rouge est réservé à ce qui bloque. */
-const KIND_COLOR: Record<ActionItemKind, string> = {
-  architect_approval: '#be850f',
-  ready_manual: '#3d82ee',
-  sandbox_failed: '#e8455f',
-  release_gate_red: '#e8455f',
-  pr_open: '#8e63ee',
-  mission_blocked: '#e8455f',
-  data_unavailable: '#6f7782',
+const KIND_BADGE: Record<ActionItemKind, BadgeColor> = {
+  architect_approval: 'amber',
+  ready_manual: 'blue',
+  sandbox_failed: 'red',
+  release_gate_red: 'red',
+  pr_open: 'purple',
+  mission_blocked: 'red',
+  data_unavailable: 'zinc',
 }
 
-const KIND_BADGE_COLOR: Record<ActionItemKind, BadgeColor> = {
-  architect_approval: 'warning',
-  ready_manual: 'info',
-  sandbox_failed: 'danger',
-  release_gate_red: 'danger',
-  pr_open: 'special',
-  mission_blocked: 'danger',
-  data_unavailable: 'neutral',
+/** La même sévérité, en valeur littérale, pour le rail (hors kit). */
+const KIND_RAIL: Record<ActionItemKind, string> = {
+  architect_approval: '#d97706',
+  ready_manual: '#2563eb',
+  sandbox_failed: '#dc2626',
+  release_gate_red: '#dc2626',
+  pr_open: '#9333ea',
+  mission_blocked: '#dc2626',
+  data_unavailable: 'rgb(161 161 170 / 0.5)',
 }
 
 const KIND_LABEL: Record<ActionItemKind, string> = {
@@ -52,44 +55,38 @@ const KIND_LABEL: Record<ActionItemKind, string> = {
 export default function ActionQueue({ items }: { items: ActionItem[] }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PanelHeader
-        title="File d'action"
-        actions={
-          <Badge dense color={items.length > 0 ? 'accent' : 'neutral'}>
+      <header className="shrink-0">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <Subheading level={2}>File d&apos;action</Subheading>
+          <Badge className="ml-auto" color={items.length > 0 ? 'blue' : 'zinc'}>
             {items.length}
           </Badge>
-        }
-      />
+        </div>
+        <Divider soft />
+      </header>
 
-      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-3">
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {items.length === 0 ? (
           <Unavailable
             reason="no-data"
             detail="Rien ne requiert de décision. C'est une mesure, pas un défaut de lecture."
           />
         ) : (
-          <ul className="space-y-2">
-            {items.map((item) => {
-              const color = KIND_COLOR[item.kind]
-              return (
-                <li key={item.id}>
-                  <Link
-                    href={item.href}
-                    className="group relative block overflow-hidden rounded-lg border border-white/6 bg-raised px-3 py-2.5 pl-4 transition-colors data-hover:border-accent/25 data-hover:bg-elevated"
-                  >
-                    <Rail color={color} className="opacity-70 transition-opacity group-hover:opacity-100" />
-                    <Badge dense color={KIND_BADGE_COLOR[item.kind]}>
-                      {KIND_LABEL[item.kind]}
-                    </Badge>
-                    <Strong className="mt-1.5 block truncate text-[12.5px]">{item.title}</Strong>
-                    <Text className="truncate">{item.meta}</Text>
-                    <Text className="mt-1.5 font-mono tracking-wide text-accent-soft uppercase transition-colors group-hover:text-accent-bright">
-                      {item.buttonLabel} →
-                    </Text>
-                  </Link>
-                </li>
-              )
-            })}
+          <ul className="space-y-3">
+            {items.map((item) => (
+              <li key={item.id}>
+                <Link
+                  href={item.href}
+                  className="relative block overflow-hidden rounded-lg py-3 pr-3 pl-4 ring-1 ring-zinc-950/5 data-hover:bg-zinc-950/2.5 dark:ring-white/10 dark:data-hover:bg-white/5"
+                >
+                  <Rail color={KIND_RAIL[item.kind]} />
+                  <Badge color={KIND_BADGE[item.kind]}>{KIND_LABEL[item.kind]}</Badge>
+                  <Strong className="mt-2 block truncate">{item.title}</Strong>
+                  <Text className="truncate">{item.meta}</Text>
+                  <Text className="mt-2">{item.buttonLabel} →</Text>
+                </Link>
+              </li>
+            ))}
           </ul>
         )}
       </div>

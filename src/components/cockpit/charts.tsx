@@ -28,6 +28,9 @@ import {
 } from 'recharts'
 import type { TooltipContentProps } from 'recharts'
 
+import { Badge } from '@/components/ui/badge'
+import { Divider } from '@/components/ui/divider'
+import { Strong, Text } from '@/components/ui/text'
 import type { HourlyBucket, StatusSlice } from '@/lib/cockpit/overview-series'
 import { RUN_STATUS_COLOR, RUN_STATUS_LABEL, RUN_STATUS_ORDER } from '@/lib/cockpit/status'
 
@@ -43,7 +46,7 @@ const floorHeight = (value: number | undefined | null) => (value ? 2 : 0)
 
 const AXIS_TICK = {
   fontSize: 9.5,
-  fill: 'var(--text-muted)',
+  fill: 'rgb(161 161 170)',
   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
 } as const
 
@@ -56,15 +59,16 @@ function RunsTooltip({ active, payload }: TooltipContentProps) {
   const present = RUN_STATUS_ORDER.filter((s) => bucket[s] > 0)
 
   return (
-    <div className="elev min-w-[9rem] rounded-lg border border-white/10 bg-overlay/95 px-2.5 py-2 backdrop-blur-sm">
-      <div className="flex items-baseline justify-between gap-4 border-b border-white/8 pb-1.5">
-        <span className="font-mono text-[11px] text-ink">{bucket.label}</span>
-        <span className="font-mono text-[11px] tabular-nums text-ink-dim">
+    <div className="min-w-[9rem] rounded-lg bg-white px-3 py-2 shadow-lg ring-1 ring-zinc-950/5 dark:bg-zinc-800 dark:ring-white/10">
+      <div className="flex items-baseline justify-between gap-4 pb-1.5">
+        <Strong>{bucket.label}</Strong>
+        <Text className="tabular-nums">
           {bucket.total} run{bucket.total > 1 ? 's' : ''}
-        </span>
+        </Text>
       </div>
+      <Divider soft />
       {present.length === 0 ? (
-        <p className="pt-1.5 text-[10px] text-ink-faint">Aucune exécution sur cette heure.</p>
+        <Text className="pt-1.5">Aucune exécution sur cette heure.</Text>
       ) : (
         <ul className="space-y-0.5 pt-1.5">
           {present.map((s) => (
@@ -74,8 +78,8 @@ function RunsTooltip({ active, payload }: TooltipContentProps) {
                 className="size-1.5 shrink-0 rounded-full"
                 style={{ background: RUN_STATUS_COLOR[s] }}
               />
-              <span className="flex-1 text-[10.5px] text-ink-dim">{RUN_STATUS_LABEL[s]}</span>
-              <span className="font-mono text-[10.5px] tabular-nums text-ink">{bucket[s]}</span>
+              <Text className="flex-1">{RUN_STATUS_LABEL[s]}</Text>
+              <Strong className="tabular-nums">{bucket[s]}</Strong>
             </li>
           ))}
         </ul>
@@ -118,7 +122,7 @@ export function HourlyRunsChart({ buckets }: { buckets: HourlyBucket[] }) {
           domain={[0, (dataMax: number) => Math.max(2, Math.ceil(dataMax * 1.15))]}
         />
         <Tooltip
-          cursor={{ fill: 'rgb(0 229 211 / 0.06)' }}
+          cursor={{ fill: 'rgb(161 161 170 / 0.12)' }}
           content={RunsTooltip}
           animationDuration={120}
         />
@@ -133,7 +137,7 @@ export function HourlyRunsChart({ buckets }: { buckets: HourlyBucket[] }) {
             stackId="runs"
             name={RUN_STATUS_LABEL[s]}
             fill={`url(#fill-${s})`}
-            stroke="var(--surface-raised)"
+            stroke="rgb(24 24 27)"
             strokeWidth={1.5}
             radius={[2, 2, 0, 0]}
             minPointSize={floorHeight}
@@ -145,36 +149,29 @@ export function HourlyRunsChart({ buckets }: { buckets: HourlyBucket[] }) {
   )
 }
 
-/** Légende de l'histogramme — un seul vocabulaire de statut pour tout l'écran. */
+/**
+ * Légende de l'histogramme — `Badge` Catalyst officiel, un par statut.
+ *
+ * La pastille de couleur reste un élément de dataviz (elle relie le libellé à
+ * sa barre dans le graphe) : c'est le seul ajout au badge, et Catalyst ne
+ * fournit rien d'équivalent.
+ */
 export function StatusLegend({ slices }: { slices: StatusSlice[] }) {
   return (
     <ul className="flex flex-wrap items-center gap-1.5">
-      {slices.map((s) => {
-        const empty = s.count === 0
-        return (
-          <li
-            key={s.status}
-            className="flex items-center gap-1.5 rounded border border-white/6 bg-elevated px-1.5 py-0.5"
-          >
+      {slices.map((s) => (
+        <li key={s.status}>
+          <Badge color="zinc">
             <span
               aria-hidden
               className="size-1.5 shrink-0 rounded-full"
-              style={{
-                background: RUN_STATUS_COLOR[s.status],
-                opacity: empty ? 0.3 : 1,
-              }}
+              style={{ background: RUN_STATUS_COLOR[s.status], opacity: s.count === 0 ? 0.3 : 1 }}
             />
-            <span className="text-[10px] tracking-wide text-ink-faint">
-              {RUN_STATUS_LABEL[s.status]}
-            </span>
-            <span
-              className={`font-mono text-[10px] tabular-nums ${empty ? 'text-ink-faint' : 'text-ink'}`}
-            >
-              {s.count}
-            </span>
-          </li>
-        )
-      })}
+            {RUN_STATUS_LABEL[s.status]}
+            <span className="tabular-nums">{s.count}</span>
+          </Badge>
+        </li>
+      ))}
     </ul>
   )
 }

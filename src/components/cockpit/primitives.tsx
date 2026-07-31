@@ -1,68 +1,42 @@
 /**
- * Primitives du cockpit — le vocabulaire VISUEL PROPRE AU MÉTIER, au-dessus de
- * Catalyst (`src/components/ui/`), qui reste l'unique design system du
- * produit (décision produit du 2026-07-31, voir
- * `docs/cockpit-catalyst-migration.md`).
+ * Composants MÉTIER du cockpit — ce que Catalyst ne fournit pas.
  *
- * Ce que ce fichier NE fait plus : boutons, badges, avatars génériques —
- * Catalyst les fournit, on les consomme directement (`Avatar`, `Badge`,
- * `Divider`, `TextLink`). Ce qui reste ici est ce que Catalyst ne fournit
- * pas : panneau borné en hauteur, état d'absence de mesure, diode d'état,
- * rail de sévérité, jauges de proportion, composition de ligne d'entité.
+ * Catalyst (`src/components/ui/`) est le design system unique et il ne se
+ * modifie pas (gate `check:catalyst-integrity`). Ce fichier ne contient donc
+ * AUCUN équivalent de composant Catalyst : ni badge, ni avatar, ni bouton, ni
+ * texte, ni séparateur, ni surface générique. Uniquement des objets que le kit
+ * n'a pas :
  *
- * Deux règles structurantes, héritées et maintenues :
- *  · Une box a une hauteur BORNÉE par la grille et ne grandit jamais avec la
- *    donnée — c'est la donnée qui scrolle dedans.
- *  · `Unavailable` est un état de premier rang, pas un fallback discret. Une
- *    mesure absente se DIT ; elle ne se peint pas en zéro.
+ *  · `Panel`        — surface à hauteur BORNÉE par la grille du cockpit ;
+ *                     c'est ce qui tient le zéro-scroll (le kit n'a pas de
+ *                     notion de carte qui ne grandit pas avec sa donnée).
+ *  · `Unavailable`  — l'absence de mesure comme état de premier rang, avec la
+ *                     distinction « lecture échouée » / « rien à mesurer »
+ *                     (AGENTS.md § Vérité des données).
+ *  · `Led`          — témoin d'activité temps réel.
+ *  · `Rail`         — barre de sévérité en tête de ligne.
+ *  · jauges         — proportions bornées (n sur total), pas des séries.
  *
- * Aucun mini-graphique inline dans les cartes ou les tables. Les seuls objets
- * graphiques ici — jauge d'arc, mètre segmenté — encodent une PROPORTION bornée
- * qui existe réellement (n sur total), jamais une série temporelle miniature.
+ * Aucun mini-graphique inline dans les cartes ou les tables : les seuls objets
+ * graphiques ici encodent une proportion qui existe réellement.
  */
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 
-import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
-import { Avatar } from '@/components/ui/avatar'
 import { Divider } from '@/components/ui/divider'
 import { Subheading } from '@/components/ui/heading'
-import { Strong, Text } from '@/components/ui/text'
+import { Text } from '@/components/ui/text'
+import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
 
 /* ────────────────────────────── Surfaces ────────────────────────────── */
 
 /**
- * En-tête de panneau — tiret d'accent, titre en capitales serrées, mesure ou
- * action à droite, `Divider` Catalyst en pied. Extrait de `Panel` pour rester
- * réutilisable par un panneau dont le corps ne suit pas la mise en page par
- * défaut (ex. `ActionQueue`).
+ * Panneau à hauteur bornée — le seul composant structurel du cockpit.
+ *
+ * Son en-tête est composé de Catalyst (`Subheading`, `Text`, `Divider`) ; ce
+ * que le panneau ajoute est le contrat de hauteur : il ne grandit jamais avec
+ * la donnée, c'est la donnée qui défile à l'intérieur.
  */
-export function PanelHeader({
-  title,
-  hint,
-  actions,
-  className,
-}: {
-  title: string
-  hint?: string
-  actions?: ReactNode
-  className?: string
-}) {
-  return (
-    <header className={clsx('shrink-0', className)}>
-      <div className="flex items-center gap-2.5 px-3.5 py-2.5">
-        <span aria-hidden className="h-3 w-0.5 shrink-0 rounded-full bg-accent" />
-        <Subheading level={2} className="shrink-0">
-          {title}
-        </Subheading>
-        {hint ? <Text className="ml-auto truncate font-mono">{hint}</Text> : null}
-        {actions ? <div className={clsx('shrink-0', hint ? 'ml-2' : 'ml-auto')}>{actions}</div> : null}
-      </div>
-      <Divider soft />
-    </header>
-  )
-}
-
 export function Panel({
   title,
   hint,
@@ -79,23 +53,28 @@ export function Panel({
   /** Contrainte de hauteur imposée par la grille du cockpit. */
   className?: string
   bodyClassName?: string
-  /**
-   * `false` quand le contenu gère lui-même ses marges (table, liste pleine
-   * largeur). Le corps porte TOUJOURS `min-h-0 flex-1` : c'est lui qui borne
-   * la hauteur, un appelant n'a donc jamais à le répéter.
-   */
+  /** `false` quand le contenu gère lui-même ses marges (table, liste pleine largeur). */
   padded?: boolean
 }) {
   return (
     <section
       className={clsx(
-        'lip elev relative flex min-h-0 flex-col overflow-hidden rounded-xl',
-        'border border-white/6 bg-raised',
+        'flex min-h-0 flex-col overflow-hidden rounded-lg',
+        'bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10',
         className,
       )}
     >
-      <PanelHeader title={title} hint={hint} actions={actions} />
-      <div className={clsx('min-h-0 flex-1', padded && 'p-3', bodyClassName)}>{children}</div>
+      <header className="shrink-0">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <Subheading level={2} className="shrink-0 truncate">
+            {title}
+          </Subheading>
+          {hint ? <Text className="ml-auto shrink-0 truncate">{hint}</Text> : null}
+          {actions ? <div className={clsx('shrink-0', hint ? 'ml-3' : 'ml-auto')}>{actions}</div> : null}
+        </div>
+        <Divider soft />
+      </header>
+      <div className={clsx('min-h-0 flex-1', padded && 'p-4', bodyClassName)}>{children}</div>
     </section>
   )
 }
@@ -120,15 +99,15 @@ export function Unavailable({
   return (
     <div
       className={clsx(
-        'hatched flex h-full flex-col items-center justify-center gap-2 rounded-lg',
-        'border border-dashed border-white/8',
+        'flex h-full flex-col items-center justify-center gap-2 rounded-lg',
+        'border border-dashed border-zinc-950/10 dark:border-white/10',
         compact ? 'px-2 py-1' : 'p-4',
       )}
     >
       <span
         className={clsx(
-          'rounded border border-white/10 bg-overlay/60 font-mono tracking-[0.16em] text-ink-faint uppercase',
-          compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]',
+          'rounded-md bg-zinc-950/5 font-medium text-zinc-500 uppercase dark:bg-white/5 dark:text-zinc-400',
+          compact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs',
         )}
       >
         {label}
@@ -136,6 +115,11 @@ export function Unavailable({
       {detail && !compact ? <Text className="max-w-[34ch] text-center">{detail}</Text> : null}
     </div>
   )
+}
+
+/** Marque d'absence inline — pour une valeur seule dans une cellule. */
+export function AbsentMark() {
+  return <span className="text-xs text-zinc-500 uppercase dark:text-zinc-400">{UNAVAILABLE_LABEL}</span>
 }
 
 /* ─────────────────────────── Objets d'instrument ─────────────────────── */
@@ -162,6 +146,17 @@ export function Led({
   )
 }
 
+/** Rail de sévérité — la barre verticale colorée qui ouvre une ligne de liste. */
+export function Rail({ color, className }: { color: string; className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={clsx('absolute inset-y-0 left-0 w-0.5', className)}
+      style={{ background: color }}
+    />
+  )
+}
+
 /**
  * Mètre segmenté — `filled` sur `total`. Un cran allumé = une unité réelle.
  * Au-delà de 24 unités le comptage cesse d'être lisible et l'on retombe sur une
@@ -182,7 +177,7 @@ export function SegmentMeter({
   const safeFilled = Math.min(Math.max(filled, 0), safeTotal)
 
   if (safeTotal === 0) {
-    return <div className={clsx('h-1.5 w-full rounded-full bg-white/6', className)} />
+    return <div className={clsx('h-1.5 w-full rounded-full bg-zinc-950/5 dark:bg-white/10', className)} />
   }
 
   if (safeTotal > 24) {
@@ -195,11 +190,7 @@ export function SegmentMeter({
         <span
           key={i}
           className="h-3.5 w-[3px] rounded-[1px]"
-          style={
-            i < safeFilled
-              ? { background: color }
-              : { background: 'rgb(255 255 255 / 0.08)' }
-          }
+          style={i < safeFilled ? { background: color } : { background: 'rgb(161 161 170 / 0.35)' }}
         />
       ))}
     </div>
@@ -218,7 +209,13 @@ export function BarMeter({
 }) {
   const pct = Math.min(Math.max(ratio, 0), 1) * 100
   return (
-    <div aria-hidden className={clsx('h-1.5 w-full overflow-hidden rounded-full bg-white/8', className)}>
+    <div
+      aria-hidden
+      className={clsx(
+        'h-1.5 w-full overflow-hidden rounded-full bg-zinc-950/5 dark:bg-white/10',
+        className,
+      )}
+    >
       <div
         className="h-full rounded-full transition-[width]"
         style={{ width: `${pct}%`, background: color }}
@@ -262,7 +259,7 @@ export function ArcGauge({
         cy={size / 2}
         r={r}
         fill="none"
-        stroke="rgb(255 255 255 / 0.08)"
+        stroke="rgb(161 161 170 / 0.3)"
         strokeWidth={stroke}
       />
       <circle
@@ -280,145 +277,10 @@ export function ArcGauge({
   )
 }
 
-/** Rail de sévérité — la barre verticale colorée qui ouvre une ligne de liste. */
-export function Rail({ color, className }: { color: string; className?: string }) {
-  return (
-    <span
-      aria-hidden
-      className={clsx('absolute inset-y-0 left-0 w-0.5', className)}
-      style={{ background: color }}
-    />
-  )
-}
-
-/* ─────────────────────────────── Entités ───────────────────────────────── */
-
-/**
- * Monogramme d'identité — enveloppe métier minimale autour de `Avatar`
- * Catalyst (`square`, `initials`) : la seule chose que Catalyst ne porte pas
- * nativement est l'état actif/inactif du cockpit.
- *
- * `active` porte l'UNIQUE signal de statut de l'avatar (teinte accent vs
- * neutre) : pas de ring ni de pulse en plus, le rail de la ligne et le
- * libellé texte suffisent à confirmer l'état.
- */
-export function EntityAvatar({
-  initials,
-  active = false,
-  className,
-}: {
-  initials: string
-  active?: boolean
-  className?: string
-}) {
-  return (
-    <Avatar
-      square
-      initials={initials}
-      className={clsx(
-        // `bg-*`/`text-*`/`border-*` : aucun conflit d'utilitaire avec les
-        // classes de base d'`Avatar` (qui pose un `outline`, pas un `border`,
-        // et ni fond ni couleur de texte) — composition normale, pas de
-        // combat de spécificité.
-        'size-7 shrink-0 border font-mono text-[10px] font-semibold',
-        active ? 'border-accent/25 bg-accent/10 text-accent' : 'border-white/8 bg-elevated text-ink-faint',
-        className,
-      )}
-    />
-  )
-}
-
 /** Deux lettres d'identité — jamais un nom inventé, seulement son abréviation. */
 export function initialsOf(name: string | null): string {
   if (!name) return '··'
   const parts = name.trim().split(/\s+/)
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
   return (parts[0][0] + parts[1][0]).toUpperCase()
-}
-
-/** Valeur monospacée alignée-données, ou la marque d'absence — jamais un zéro de remplacement. */
-export function MetricValue({
-  value,
-  unit,
-  size = 'md',
-}: {
-  value: string | number | null
-  unit?: string
-  size?: 'sm' | 'md'
-}) {
-  if (value === null) return <AbsentMark />
-  return (
-    <span className="flex items-baseline gap-1">
-      <span
-        className={clsx(
-          'font-mono leading-none tabular-nums',
-          size === 'md' ? 'text-[14px] font-semibold text-ink' : 'text-[11px] font-normal text-ink-dim',
-        )}
-      >
-        {value}
-      </span>
-      {unit ? <span className="text-[9.5px] text-ink-faint">{unit}</span> : null}
-    </span>
-  )
-}
-
-/** Marque d'absence inline — même orthographe que `Unavailable`, pour une valeur seule. */
-export function AbsentMark() {
-  return (
-    <span className="font-mono text-[9px] tracking-wide text-ink-faint uppercase">
-      {UNAVAILABLE_LABEL}
-    </span>
-  )
-}
-
-/** Séparateur ponctuel entre deux mesures alignées à droite d'une ligne. */
-export function MetricDot() {
-  return (
-    <span aria-hidden className="text-ink-faint/50">
-      ·
-    </span>
-  )
-}
-
-/**
- * Ligne d'entité — grammaire commune à un agent, un projet ou un run : rail de
- * statut sur l'arête gauche, avatar, identité (titre + sous-titre), mesures
- * alignées à droite. Une seule implémentation pour les trois rosters de
- * l'écran ; ce que chaque domaine affiche à droite reste à l'appelant.
- */
-export function EntityRow({
-  railColor,
-  avatar,
-  title,
-  titleMeta,
-  subtitle,
-  metrics,
-  href,
-}: {
-  railColor: string
-  avatar: ReactNode
-  title: ReactNode
-  /** Signal court à côté du titre — un point d'état, jamais plus d'un. */
-  titleMeta?: ReactNode
-  subtitle: ReactNode
-  metrics: ReactNode
-  href?: string
-}) {
-  const Tag = href ? 'a' : 'div'
-  return (
-    <li className="group relative border-b border-white/[0.035] transition-colors hover:bg-elevated">
-      <Rail color={railColor} className="opacity-60 transition-opacity group-hover:opacity-100" />
-      <Tag {...(href ? { href } : {})} className="flex items-center gap-2.5 px-3.5 py-2.5">
-        {avatar}
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="flex min-w-0 items-center gap-1.5">
-            <Strong className="truncate text-[12.5px]">{title}</Strong>
-            {titleMeta}
-          </span>
-          <Text className="truncate">{subtitle}</Text>
-        </span>
-        <span className="flex shrink-0 flex-col items-end gap-1">{metrics}</span>
-      </Tag>
-    </li>
-  )
 }

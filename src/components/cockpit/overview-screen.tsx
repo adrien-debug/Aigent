@@ -90,8 +90,11 @@ export default function CockpitOverview({
         <Panel
           title="Flux d'exécution"
           hint={runs ? `${runs.length} sur la fenêtre` : undefined}
-          className="min-h-[18rem] xl:min-h-0"
+          className="min-h-[18rem] min-w-0 xl:min-h-0"
           padded={false}
+          /* Le défilement borné vient du CONTENEUR : `Table` Catalyst n'a pas
+             d'option de hauteur bornée et le kit ne se modifie pas. */
+          bodyClassName="overflow-y-auto px-4"
         >
           {runs === null ? (
             <Unavailable reason="unread" detail="La fenêtre de runs n'a pas pu être lue." />

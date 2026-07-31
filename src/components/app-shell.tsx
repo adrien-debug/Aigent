@@ -1,24 +1,23 @@
 'use client'
 
 /**
- * Cadre du poste de contrôle, bâti sur les composants Catalyst officiels :
- * `Sidebar` et ses sections pour la navigation, `Navbar` pour la barre d'état,
- * `Dialog` Headless pour le tiroir mobile (le même que celui qu'utilise
- * `SidebarLayout`).
+ * Cadre du poste de contrôle — composants Catalyst officiels, apparence
+ * Catalyst native (voie A, décision du 2026-07-31).
  *
- * `SidebarLayout` lui-même n'est PAS utilisé : il impose `min-h-svh`, des
- * paddings de page (`p-6`/`lg:p-10`), un `max-w-6xl` et un `<main>` qui grandit
- * avec son contenu. Le cockpit, lui, tient dans le viewport sans jamais
- * scroller au niveau de la page et porte une colonne de décision à droite. On
- * compose donc les mêmes composants Catalyst dans une coquille dont la hauteur
- * est bornée — c'est de la composition, pas un layout concurrent.
+ * RÈGLE ABSOLUE : `src/components/ui/` ne se modifie pas (gate
+ * `check:catalyst-integrity`). Tout ce qui est réglé ici l'est par la
+ * COMPOSITION et le layout, jamais en repeignant le kit.
  *
- * `h-full overflow-hidden` : seules les listes scrollent, dans leur box.
+ * `SidebarLayout` n'est pas utilisé : il pose `min-h-svh` et un `<main>` qui
+ * grandit avec son contenu, deux choses incompatibles avec un cockpit qui tient
+ * dans le viewport et porte une colonne de décision à droite. On assemble donc
+ * les mêmes composants (`Sidebar*`, `NavbarItem`, `Headless.Dialog` — exactement
+ * ceux que `SidebarLayout` utilise en interne) dans une coquille dont la hauteur
+ * est bornée. Le zéro-scroll vient de ce layout, pas d'une retouche du kit.
  */
 import { useState } from 'react'
 import type { ComponentType, ReactNode, SVGProps } from 'react'
 import * as Headless from '@headlessui/react'
-import clsx from 'clsx'
 import {
   BoltIcon,
   CpuChipIcon,
@@ -34,10 +33,12 @@ import {
   SidebarBody,
   SidebarFooter,
   SidebarHeader,
+  SidebarHeading,
   SidebarItem,
   SidebarLabel,
   SidebarSection,
 } from '@/components/ui/sidebar'
+import { Text } from '@/components/ui/text'
 
 type NavEntry = {
   name: string
@@ -50,8 +51,8 @@ type NavEntry = {
 /**
  * Le cockpit est le seul écran construit à ce jour. Les autres entrées nomment
  * les domaines réels d'Aigent et restent VISIBLEMENT inactives : `SidebarItem`
- * sans `href` rend un `<button disabled>` — la carte du produit s'annonce sans
- * jamais feindre une navigation qui n'existe pas.
+ * sans `href` rend un `<button>` — on le passe `disabled`, ce qui annonce la
+ * carte du produit sans jamais feindre une navigation qui n'existe pas.
  */
 const navigation: NavEntry[] = [
   { name: 'Cockpit', href: '/', icon: Squares2X2Icon, current: true },
@@ -62,17 +63,17 @@ const navigation: NavEntry[] = [
   { name: 'Télémétrie', icon: SignalIcon },
 ]
 
-/** Marque Aigent — un losange creux traversé d'un éclat. */
+/** Marque Aigent — visualisation d'identité, hors périmètre du kit. */
 function Mark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden className={className}>
       <path
         d="M12 2.2 21.8 12 12 21.8 2.2 12 12 2.2Z"
-        stroke="var(--accent-main)"
+        stroke="currentColor"
         strokeWidth="1.4"
         strokeLinejoin="round"
       />
-      <path d="M12 7.4 16.6 12 12 16.6 7.4 12 12 7.4Z" fill="var(--accent-main)" fillOpacity="0.9" />
+      <path d="M12 7.4 16.6 12 12 16.6 7.4 12 12 7.4Z" fill="currentColor" fillOpacity="0.9" />
     </svg>
   )
 }
@@ -93,62 +94,39 @@ function CloseMenuIcon() {
   )
 }
 
-/** Une entrée de nav — lien réel, ou bouton inerte quand l'écran n'existe pas. */
-function NavEntryItem({ entry, iconOnly = false }: { entry: NavEntry; iconOnly?: boolean }) {
-  const label = entry.href ? entry.name : `${entry.name} — écran à venir`
-  const icon = <entry.icon data-slot="icon" aria-hidden="true" />
-
-  if (!entry.href) {
-    return (
-      <SidebarItem disabled title={label} className={iconOnly ? 'justify-center' : undefined}>
-        {icon}
-        {iconOnly ? <span className="sr-only">{label}</span> : <SidebarLabel>{entry.name}</SidebarLabel>}
-      </SidebarItem>
-    )
-  }
-
-  return (
-    <SidebarItem
-      href={entry.href}
-      current={entry.current}
-      title={label}
-      className={iconOnly ? 'justify-center' : undefined}
-    >
-      {icon}
-      {iconOnly ? <span className="sr-only">{entry.name}</span> : <SidebarLabel>{entry.name}</SidebarLabel>}
-    </SidebarItem>
-  )
-}
-
-function NavigationSidebar({ iconOnly = false }: { iconOnly?: boolean }) {
+function NavigationSidebar() {
   return (
     <Sidebar>
-      {/* `h-12` : la marque s'aligne exactement sur la barre d'état voisine. */}
-      <SidebarHeader
-        className={clsx('h-12 justify-center py-0', iconOnly ? 'items-center px-0' : 'px-3')}
-      >
+      <SidebarHeader>
         <div className="flex items-center gap-2.5">
-          <Mark className="size-5 shrink-0" />
-          {iconOnly ? null : (
-            <span className="text-[13px] font-semibold tracking-[0.26em] text-ink">AIGENT</span>
-          )}
+          <Mark className="size-5 shrink-0 text-zinc-950 dark:text-white" />
+          <SidebarLabel className="font-semibold tracking-[0.22em] text-zinc-950 dark:text-white">
+            AIGENT
+          </SidebarLabel>
         </div>
       </SidebarHeader>
 
       <SidebarBody>
         <SidebarSection>
-          {navigation.map((entry) => (
-            <NavEntryItem key={entry.name} entry={entry} iconOnly={iconOnly} />
-          ))}
+          <SidebarHeading>Plan de contrôle</SidebarHeading>
+          {navigation.map((entry) =>
+            entry.href ? (
+              <SidebarItem key={entry.name} href={entry.href} current={entry.current}>
+                <entry.icon data-slot="icon" aria-hidden="true" />
+                <SidebarLabel>{entry.name}</SidebarLabel>
+              </SidebarItem>
+            ) : (
+              <SidebarItem key={entry.name} disabled title={`${entry.name} — écran à venir`}>
+                <entry.icon data-slot="icon" aria-hidden="true" />
+                <SidebarLabel>{entry.name}</SidebarLabel>
+              </SidebarItem>
+            ),
+          )}
         </SidebarSection>
       </SidebarBody>
 
-      <SidebarFooter className={iconOnly ? 'items-center' : undefined}>
-        <span
-          aria-hidden
-          title="Interface en ligne"
-          className="pulse-live size-1.5 rounded-full bg-accent"
-        />
+      <SidebarFooter>
+        <Text>Écrans à venir désactivés</Text>
       </SidebarFooter>
     </Sidebar>
   )
@@ -166,19 +144,19 @@ export default function AppShell({
   const [showSidebar, setShowSidebar] = useState(false)
 
   return (
-    <div className="flex h-full overflow-hidden bg-base">
-      {/* Tiroir mobile — même mécanique que le `MobileSidebar` de Catalyst */}
+    <div className="flex h-full overflow-hidden bg-white dark:bg-zinc-900">
+      {/* Tiroir mobile — la mécanique du `MobileSidebar` de Catalyst */}
       <Headless.Dialog open={showSidebar} onClose={setShowSidebar} className="lg:hidden">
         <Headless.DialogBackdrop
           transition
-          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm transition data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in"
+          className="fixed inset-0 z-40 bg-black/30 transition data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in"
         />
         <Headless.DialogPanel
           transition
-          className="fixed inset-y-0 z-50 w-full max-w-64 border-r border-edge bg-raised transition duration-300 ease-in-out data-closed:-translate-x-full"
+          className="fixed inset-y-0 z-50 w-full max-w-80 p-2 transition duration-300 ease-in-out data-closed:-translate-x-full"
         >
-          <div className="flex h-full flex-col">
-            <div className="absolute top-2.5 right-2 z-10">
+          <div className="flex h-full flex-col rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+            <div className="-mb-3 px-4 pt-3">
               <Headless.CloseButton as={NavbarItem} aria-label="Fermer la navigation">
                 <CloseMenuIcon />
               </Headless.CloseButton>
@@ -188,25 +166,29 @@ export default function AppShell({
         </Headless.DialogPanel>
       </Headless.Dialog>
 
-      {/* Rail desktop — la même `Sidebar` Catalyst, en mode icônes */}
-      <div className="hidden w-16 border-r border-edge lg:block">
-        <NavigationSidebar iconOnly />
+      {/* Sidebar desktop */}
+      {/* `h-full min-h-0` : c'est cette borne qui fait défiler `SidebarBody`
+          dans la colonne au lieu de pousser le shell hors du viewport. */}
+      <div className="hidden h-full min-h-0 w-64 shrink-0 border-r border-zinc-950/5 lg:block dark:border-white/5">
+        <NavigationSidebar />
       </div>
 
-      {/* Colonne principale */}
+      {/* Colonne principale — hauteur bornée, c'est elle qui tient le zéro-scroll */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex h-12 items-center border-b border-edge">
-          <div className="pl-2 lg:hidden">
+        <header className="flex shrink-0 items-center gap-2 border-b border-zinc-950/5 px-4 dark:border-white/5">
+          <div className="lg:hidden">
             <NavbarItem onClick={() => setShowSidebar(true)} aria-label="Ouvrir la navigation">
               <OpenMenuIcon />
             </NavbarItem>
           </div>
           <div className="min-w-0 flex-1">{topbar}</div>
-        </div>
+        </header>
 
         <div className="flex min-h-0 flex-1">
-          <main className="cockpit-substrate min-w-0 flex-1 overflow-hidden">{children}</main>
-          <aside className="hidden w-80 border-l border-edge bg-base xl:block">{aside}</aside>
+          <main className="min-w-0 flex-1 overflow-hidden">{children}</main>
+          <aside className="hidden w-80 shrink-0 border-l border-zinc-950/5 xl:block dark:border-white/5">
+            {aside}
+          </aside>
         </div>
       </div>
     </div>
