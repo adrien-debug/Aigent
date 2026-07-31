@@ -86,7 +86,7 @@ export default function ProvidersTab({ data }: { data: ProvidersTabData }) {
   const executable = runtimes.filter((rt) => rt.engine !== 'none')
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto xl:overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
       <Panel title="Runtimes" hint="registre canonique" className="min-h-0 shrink-0">
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -141,7 +141,7 @@ export default function ProvidersTab({ data }: { data: ProvidersTabData }) {
       <Panel
         title="Providers de modèle"
         hint="câblage réel, pas catalogue commercial"
-        className="min-h-[16rem] min-w-0 xl:min-h-0 xl:flex-1"
+        className="min-h-[16rem] min-w-0 xl:flex-1"
         padded={false}
         bodyClassName="scroll-thin overflow-y-auto"
       >

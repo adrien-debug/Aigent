@@ -257,13 +257,21 @@ function ProvisioningPanel({ data }: { data: LangGraphTabData }) {
 
 /* ─────────────────────── Assistants & threads ───────────────────────── */
 
+/**
+ * `min-h-[24rem]` sur la grille, PAS `min-h-0` : dans une colonne flex dont les
+ * panneaux précédents ont déjà pris la hauteur, un `min-height: 0` laissait
+ * cette grille à h=0 — mesuré dans le navigateur, pas déduit. Ses deux panneaux
+ * étaient alors invisibles et leur contenu inatteignable, sans aucun signal à
+ * l'écran. Le plancher les rend lisibles ; le débordement est absorbé par le
+ * défilement de la colonne.
+ */
 function ServerStatePanel({ data }: { data: LangGraphTabData }) {
   return (
-    <div className="grid min-h-0 shrink-0 grid-cols-1 gap-3 xl:flex-1 xl:grid-cols-2">
+    <div className="grid min-h-[24rem] shrink-0 grid-cols-1 gap-3 xl:grid-cols-2">
       <Panel
         title="Assistants du serveur"
         hint="en mémoire, pas en base"
-        className="min-h-[12rem] min-w-0 xl:min-h-0"
+        className="min-h-[12rem] min-w-0"
         padded={false}
         bodyClassName="scroll-thin overflow-y-auto"
       >
@@ -296,7 +304,7 @@ function ServerStatePanel({ data }: { data: LangGraphTabData }) {
       <Panel
         title="Threads récents"
         hint="50 plus récents"
-        className="min-h-[12rem] min-w-0 xl:min-h-0"
+        className="min-h-[12rem] min-w-0"
         padded={false}
         bodyClassName="scroll-thin overflow-y-auto"
       >
@@ -377,9 +385,17 @@ function TopologyPanel({ data }: { data: LangGraphTabData }) {
   )
 }
 
+/**
+ * PAS de `xl:overflow-hidden` sur la colonne : au-delà de 1280 il cessait de
+ * défiler et COUPAIT — « Assistants du serveur » et « Threads récents »
+ * mesuraient 0 px, contenu inatteignable, sans qu'aucun signal ne l'indique.
+ * Un onglet à six panneaux ne tient pas dans un viewport, et le nier ne le fait
+ * pas rentrer : il défile ici, dans une zone bornée. Le zéro-scroll de la PAGE
+ * reste tenu par le `h-full overflow-hidden` de `runtime-screen`.
+ */
 export default function LangGraphTab({ data }: { data: LangGraphTabData }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto xl:overflow-hidden">
+    <div className="scroll-thin flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
       <EndpointPanel data={data} />
       <ProvisioningPanel data={data} />
       <ServerStatePanel data={data} />

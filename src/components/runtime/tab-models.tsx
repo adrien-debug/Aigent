@@ -32,7 +32,7 @@ export default function ModelsTab({ data }: { data: ModelsTabData }) {
   const configuredLocal = data.local.filter((row) => row.configured)
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto xl:overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
       <Panel
         title="Parc local — vLLM"
         hint={`${configuredLocal.length}/${data.local.length} endpoint(s) déclaré(s) ici`}
@@ -83,7 +83,7 @@ export default function ModelsTab({ data }: { data: ModelsTabData }) {
       <Panel
         title="Modèles observés sur le catalogue"
         hint="déclaré vs prouvé"
-        className="min-h-[16rem] min-w-0 xl:min-h-0 xl:flex-1"
+        className="min-h-[16rem] min-w-0 xl:flex-1"
         padded={false}
         bodyClassName="scroll-thin overflow-y-auto"
       >

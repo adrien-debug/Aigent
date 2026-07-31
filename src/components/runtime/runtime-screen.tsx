@@ -84,7 +84,14 @@ export default function RuntimeScreen({
           <Divider soft />
         </header>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
+        {/* `overflow-y-auto`, PAS `overflow-hidden` : un onglet dense (LangGraph
+         * en porte six) dépassait la hauteur disponible et ses derniers
+         * panneaux étaient COUPÉS à zéro — « Assistants du serveur » et
+         * « Threads récents » mesuraient 0 px, contenu inatteignable, sans que
+         * rien ne l'indique. Le zéro-scroll de la PAGE est tenu par le `h-full
+         * overflow-hidden` du parent ; c'est ici, dans la zone bornée, que la
+         * donnée doit défiler. Box fixe, data qui scrolle dedans. */}
+        <div className="scroll-thin flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
           <TabPanel payload={payload} />
         </div>
       </section>

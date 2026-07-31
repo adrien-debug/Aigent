@@ -289,7 +289,7 @@ function EventsPanel({ events }: { events: TelemetryTabData['events'] }) {
     <Panel
       title="Événements reçus"
       hint="50 plus récents"
-      className="min-h-[16rem] min-w-0 xl:min-h-0 xl:flex-1"
+      className="min-h-[16rem] min-w-0 xl:flex-1"
       padded={false}
       bodyClassName="scroll-thin overflow-y-auto"
     >
@@ -344,7 +344,7 @@ function EventsPanel({ events }: { events: TelemetryTabData['events'] }) {
 
 export default function TelemetryTab({ data }: { data: TelemetryTabData }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto xl:overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
       <HealthPanel health={data.health} />
       <FleetPanel fleet={data.fleet} />
       <ProvenancePanel events={data.events} />

@@ -123,7 +123,7 @@ export default function ToolsTab({ data }: { data: ToolsTabData }) {
   const agents = data.agents.ok ? data.agents.data : null
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto xl:overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
       <Panel title="Registre canonique des outils" hint="l’autorité unique" className="min-h-0 shrink-0">
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -192,7 +192,7 @@ export default function ToolsTab({ data }: { data: ToolsTabData }) {
       <Panel
         title="Outils"
         hint={`${tools.length} au registre`}
-        className="min-h-[20rem] min-w-0 xl:min-h-0 xl:flex-1"
+        className="min-h-[20rem] min-w-0 xl:flex-1"
         padded={false}
         bodyClassName="scroll-thin overflow-y-auto"
       >

@@ -101,7 +101,7 @@ export default function RepositoriesTab({ data }: { data: RepositoriesTabData })
     : null
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto xl:overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
       <Panel title="Lisibilité des dépôts" hint="ce que le jeton configuré voit" className="min-h-0 shrink-0">
         <LoadedBlock loaded={data.projects} what="La liste des projets">
           {(projects) => {
@@ -174,7 +174,7 @@ export default function RepositoriesTab({ data }: { data: RepositoriesTabData })
 
       <Panel
         title="Projets et leurs dépôts"
-        className="min-h-[14rem] min-w-0 xl:min-h-0 xl:flex-1"
+        className="min-h-[14rem] min-w-0 xl:flex-1"
         padded={false}
         bodyClassName="scroll-thin overflow-y-auto"
       >
@@ -198,7 +198,7 @@ export default function RepositoriesTab({ data }: { data: RepositoriesTabData })
       <Panel
         title="Dépôts visibles du jeton"
         hint="non filtrés par projet"
-        className="min-h-[12rem] min-w-0 xl:min-h-0 xl:flex-1"
+        className="min-h-[12rem] min-w-0 xl:flex-1"
         padded={false}
         bodyClassName="scroll-thin overflow-y-auto"
       >
