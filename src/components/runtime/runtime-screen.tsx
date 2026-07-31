@@ -76,7 +76,7 @@ export default function RuntimeScreen({
   const tab = runtimeTab(current)
 
   return (
-    <div className="h-full overflow-hidden p-4 max-lg:pl-14">
+    <div className="shell-page-bounded max-lg:pl-14">
       <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
         <header className="shrink-0">
           <div className="flex flex-col gap-3 px-6 py-4">

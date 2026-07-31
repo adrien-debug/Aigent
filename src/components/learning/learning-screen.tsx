@@ -373,7 +373,7 @@ export default function LearningScreen({
     //    une ligne « Mission bloquée », le titre « Connaissance (Obsidian) ».
     //    Au-delà de `lg` le rail est permanent, le bouton n'existe plus, la
     //    gouttière non plus.
-    <div className="min-h-svh p-4 max-lg:pl-14">
+    <div className="shell-page-document max-lg:pl-14">
       <header className="pb-4">
         <Heading level={1}>{title}</Heading>
         <Text className="mt-1">{purpose}</Text>

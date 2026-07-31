@@ -25,7 +25,16 @@ import { Badge } from '@/components/ui/badge'
 import { Divider } from '@/components/ui/divider'
 import { Heading, Subheading } from '@/components/ui/heading'
 import { Strong, Text } from '@/components/ui/text'
-import { AbsentMark, Panel, Rail, SEVERITY, Unavailable, initialsOf } from '@/components/cockpit/primitives'
+import {
+  AbsentMark,
+  Fact,
+  FactValue,
+  Panel,
+  Rail,
+  SEVERITY,
+  Unavailable,
+  initialsOf,
+} from '@/components/cockpit/primitives'
 import { UNAVAILABLE_LABEL, formatUsd } from '@/lib/agent-mission-control/format'
 import type {
   ProjectTeamEdge,
@@ -166,18 +175,18 @@ function intelPanelBody(intel: IntelligenceView): ReactNode {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
-        <Stat
+        <Fact
           label="Stack"
           value={
-            intel.intelligence.map.stack.length > 0
-              ? intel.intelligence.map.stack.join(' · ')
-              : null
+            intel.intelligence.map.stack.length > 0 ? (
+              <FactValue>{intel.intelligence.map.stack.join(' · ')}</FactValue>
+            ) : null
           }
-          absent="non détectée"
+          absentLabel="non détectée"
         />
-        <Stat
+        <Fact
           label="Code agentique"
-          value={intel.intelligence.footprint.hasAgenticCode ? 'présent' : 'absent'}
+          value={<FactValue>{intel.intelligence.footprint.hasAgenticCode ? 'présent' : 'absent'}</FactValue>}
         />
       </div>
       <Divider soft />
@@ -201,29 +210,6 @@ function intelPanelBody(intel: IntelligenceView): ReactNode {
 }
 
 /* ──────────────────────────── Sous-blocs ──────────────────────────── */
-
-/** Une valeur d'en-tête : le chiffre, ou l'absence QUALIFIÉE. */
-function Stat({
-  label,
-  value,
-  absent = UNAVAILABLE_LABEL,
-}: Readonly<{
-  label: string
-  value: number | string | null
-  /** Le mot exact quand `value === null`. `null` reste `null`, jamais `0`. */
-  absent?: string
-}>) {
-  return (
-    <div className="min-w-0">
-      <Text className="truncate text-xs">{label}</Text>
-      {value === null ? (
-        <Text className="mt-0.5 text-xs uppercase">{absent}</Text>
-      ) : (
-        <Strong className="mt-0.5 block truncate tabular-nums">{value}</Strong>
-      )}
-    </div>
-  )
-}
 
 function AgentRow({ node }: Readonly<{ node: ProjectTeamNode }>) {
   const note = RUN_HISTORY_NOTE[node.runHistory]
@@ -350,7 +336,7 @@ export default function ProjectDetailScreen({
   const summary = graph?.summary ?? null
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-4 max-lg:pl-14">
+    <div className="shell-page-bounded flex min-h-0 flex-col gap-3 max-lg:pl-14">
       {/* ── En-tête ── */}
       <header className="shrink-0 px-1">
         <div className="flex min-w-0 items-center gap-3">
@@ -374,11 +360,11 @@ export default function ProjectDetailScreen({
 
         {summary ? (
           <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-5">
-            <Stat label="Agents" value={summary.totalAgents} />
-            <Stat label="En cours" value={summary.activeAgents} />
-            <Stat label="Bloqués" value={summary.blockedAgents} />
-            <Stat label="Échoués" value={summary.failedAgents} />
-            <Stat label="Runs aujourd'hui" value={summary.runsToday} />
+            <Fact label="Agents" value={<FactValue>{summary.totalAgents}</FactValue>} />
+            <Fact label="En cours" value={<FactValue>{summary.activeAgents}</FactValue>} />
+            <Fact label="Bloqués" value={<FactValue>{summary.blockedAgents}</FactValue>} />
+            <Fact label="Échoués" value={<FactValue>{summary.failedAgents}</FactValue>} />
+            <Fact label="Runs aujourd'hui" value={<FactValue>{summary.runsToday}</FactValue>} />
           </div>
         ) : null}
       </header>

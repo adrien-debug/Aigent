@@ -549,7 +549,7 @@ function ConsumerPanel({ detail }: Readonly<ConsumerPanelProps>) {
 
 export default function DeliveryDetailScreen({ detail }: Readonly<DeliveryDetailScreenProps>) {
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-4 max-lg:pl-14">
+    <div className="shell-page-bounded flex min-h-0 flex-col gap-3 max-lg:pl-14">
       {/* ─── En-tête ─── */}
       <div className="shrink-0">
         <div className="flex flex-wrap items-center gap-2">

@@ -33,6 +33,36 @@ html {
   color-scheme: light;
 }
 
+/* Les deux familles de conteneur racine d'écran — chacune recopiée à la main
+ * sur 8+ fichiers avant ces utilitaires, avec une dérive constatée (un
+ * `xl:overflow-hidden` conditionnel sans justification sur 2 écrans, corrigé
+ * au passage). `max-lg:pl-14` réserve la place du bouton de navigation mobile
+ * `position: fixed` posé par `AppShell` (16,16 · 37×36 · z-30) : sans elle, le
+ * contenu passe SOUS le bouton en scroll, pas seulement à la position 0.
+ *
+ *  · `shell-page-bounded`  — la page ne pousse JAMAIS le shell hors du
+ *                            viewport ; c'est la DONNÉE qui défile dans une
+ *                            box interne bornée (Runtime, Projets, Builder,
+ *                            Qualification-roster, Livraison).
+ *  · `shell-page-document` — la page EST un document qui s'allonge et défile
+ *                            avec le scroll de la fenêtre (Learning,
+ *                            Qualification-cockpit). Jamais les deux sur le
+ *                            même écran : un panneau enfant qui porte son
+ *                            propre `overflow-y-auto` sous `shell-page-document`
+ *                            recrée les mini-scrolls imbriqués que la
+ *                            recomposition du cockpit de qualification a
+ *                            justement supprimés. */
+@utility shell-page-bounded {
+  height: 100%;
+  overflow: hidden;
+  padding: calc(var(--spacing) * 4);
+}
+
+@utility shell-page-document {
+  min-height: 100svh;
+  padding: calc(var(--spacing) * 4);
+}
+
 /* Navigation — rail sombre glossy, scope isolé du body clair. */
 @utility shell-sidebar-surface {
   background:

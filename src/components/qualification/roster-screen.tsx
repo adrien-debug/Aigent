@@ -195,7 +195,7 @@ export default function QualificationRosterScreen({
   const guardUnknown = ranked.filter((c) => c.runBlockerCount === null).length
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3 max-lg:pl-14 xl:overflow-hidden">
+    <div className="shell-page-bounded flex min-h-0 flex-col gap-3 max-lg:pl-14">
       <header className="shrink-0 px-1">
         <Heading level={1}>{navEntry('/qualification').name}</Heading>
         <Text className="mt-1">{navEntry('/qualification').purpose}</Text>

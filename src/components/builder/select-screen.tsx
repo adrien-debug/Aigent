@@ -101,7 +101,7 @@ export default function BuilderSelectScreen({
   failure?: string | null
 }>) {
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-4 max-lg:pl-14">
+    <div className="shell-page-bounded flex min-h-0 flex-col gap-3 max-lg:pl-14">
       <header className="shrink-0 px-1">
         <Heading level={1}>Builder</Heading>
         <Text className="mt-1">
