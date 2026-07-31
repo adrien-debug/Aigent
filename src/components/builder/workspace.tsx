@@ -666,7 +666,12 @@ export default function BuilderWorkspace({
           bodyClassName="flex flex-col min-h-0"
         >
           <div ref={threadRef} className="min-h-0 flex-1 overflow-y-auto">
-            <ChatThread lines={lines} emptyProven />
+            {/* `emptyProven` était câblé en dur à `true` — la branche `'unread'`
+             * de `ChatThread` était donc MORTE, et un fil dont la lecture avait
+             * échoué affirmait « la lecture a réussi et le fil est réellement
+             * vide ». Le vide n'est prouvé que si la lecture a abouti ET a
+             * ramené un bundle : sinon on ne sait pas ce que contient le fil. */}
+            <ChatThread lines={lines} emptyProven={!unreadable && bundle !== null} />
           </div>
           <div className="shrink-0 border-t border-zinc-950/5 p-3 dark:border-white/5">
             <Textarea

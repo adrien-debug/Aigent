@@ -36,50 +36,20 @@ import type { Project } from '@/lib/agent-mission-control/types'
 /* ─────────────────────────── États de lecture ─────────────────────────── */
 
 /**
- * L'état d'une lecture, du point de vue de ce qu'on a le DROIT d'affirmer.
+ * Un contrat `ReadState`/`ReadOutcome` a vécu ici — 47 lignes documentées
+ * décrivant comment distinguer « lu et vide » de « pas lu ». Il n'était importé
+ * par AUCUN composant ni aucune page : les écrans utilisaient à la place des
+ * booléens ad hoc (`unreadable`, `failure`, `backendUnavailable`), c'est-à-dire
+ * exactement le booléen que son propre commentaire disait avoir remplacé par un
+ * type. Ses seuls consommateurs étaient ses tests, qui le prouvaient lui-même
+ * sans rien prouver de l'écran.
  *
- * `empty` n'existe que si la lecture a abouti — c'est ce qui autorise l'écran à
- * écrire « il n'y en a aucun » plutôt que « on ne sait pas ».
+ * Supprimé plutôt que rebranché : un contrat de vérité documenté et jamais
+ * appelé est pire que pas de contrat, parce qu'il fait croire que la
+ * distinction est structurelle alors qu'elle est tenue à la main, panneau par
+ * panneau. Si le besoin d'un type revient, il devra être adopté par les écrans
+ * dans le même commit — pas déposé en avance.
  */
-export type ReadState = 'loading' | 'error' | 'empty' | 'unavailable' | 'ready'
-
-export interface ReadOutcome<T> {
-  state: ReadState
-  /** Présent uniquement quand `state === 'ready'`. */
-  value: T | null
-  /** Message technique de l'échec — jamais inventé, jamais un faux zéro. */
-  failure: string | null
-}
-
-/** Une lecture réussie qui a rapporté quelque chose. */
-export function ready<T>(value: T): ReadOutcome<T> {
-  return { state: 'ready', value, failure: null }
-}
-
-/** Une lecture réussie qui n'a rien rapporté — un vide PROUVÉ. */
-export function proven<T>(): ReadOutcome<T> {
-  return { state: 'empty', value: null, failure: null }
-}
-
-/** Une lecture qui a échoué : on ne sait pas ce qu'il y avait. */
-export function failed<T>(failure: string): ReadOutcome<T> {
-  return { state: 'error', value: null, failure }
-}
-
-/** Une lecture qui n'a pas pu être tentée (dépendance absente). */
-export function unavailable<T>(reason: string): ReadOutcome<T> {
-  return { state: 'unavailable', value: null, failure: reason }
-}
-
-/**
- * Qualifie une liste lue sans erreur : vide → `empty` PROUVÉ, sinon `ready`.
- *
- * C'est le seul endroit où « tableau de longueur 0 » devient « il n'y en a
- * aucun » — et il n'est atteint que sur le chemin où la lecture a abouti.
- */
-export function fromList<T>(items: readonly T[]): ReadOutcome<readonly T[]> {
-  return items.length === 0 ? proven<readonly T[]>() : ready<readonly T[]>(items)
-}
 
 /* ──────────────────────────── Sélection projet ─────────────────────────── */
 
