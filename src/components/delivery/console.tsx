@@ -557,7 +557,7 @@ function ConfirmBody({
         </Button>
         {/* Une action sans écriture est neutre ; tout ce qui écrit à distance
             porte le bouton ROUGE. Deux branches distinctes : `color` et
-            `outline` de Catalyst s'excluent. */}
+            `outline` du kit `ui/` s'excluent. */}
         {effective.cost.kind === 'free' ? (
           <Button outline onClick={onConfirm} disabled={busy}>
             {busy ? 'En cours…' : effective.label}

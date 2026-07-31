@@ -1,10 +1,8 @@
 /**
- * Flux d'exécution — `Table` Catalyst officielle, sans aucune retouche du kit.
+ * Flux d'exécution.
  *
- * Le kit n'a pas d'option « table bornée » : le défilement vertical est donc
- * porté par le CONTENEUR (`overflow-y-auto` dans le panneau), pas par une prop
- * ajoutée à `Table`. C'est la règle de la voie A — on compose autour du kit,
- * on ne le modifie pas.
+ * Le défilement vertical est porté par le CONTENEUR (`overflow-y-auto` dans
+ * le panneau), pas par une prop de `Table`.
  *
  * Une mesure absente reste absente : ni « 0 ms », ni « $0.00 ».
  */
@@ -18,7 +16,7 @@ import { RUN_STATUS_SINGULAR } from '@/lib/cockpit/status'
 import type { AgentRunStatus } from '@/lib/agent-mission-control/types'
 import { AbsentMark } from './primitives'
 
-/** Le statut d'un run — couleur ET mot portés par le `Badge` Catalyst. */
+/** Le statut d'un run — couleur ET mot portés par le `Badge` du kit `ui/`. */
 const STATUS_BADGE: Record<AgentRunStatus, 'emerald' | 'blue' | 'amber' | 'purple' | 'red'> = {
   completed: 'emerald',
   running: 'blue',
@@ -35,7 +33,7 @@ function duration(ms: number): string {
 
 export default function RunStream({ runs, nowMs }: { runs: NamedRun[]; nowMs: number }) {
   return (
-    <Table dense bleed>
+    <Table dense>
       <TableHead>
         <TableRow>
           <TableHeader>Heure</TableHeader>

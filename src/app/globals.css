@@ -2,13 +2,13 @@
 
 /* En Tailwind v4, `dark:` suit `prefers-color-scheme` par défaut : la classe
  * `dark` posée sur <html> ne déclenche rien tant qu'on ne l'a pas déclarée
- * ici. C'est ce variant qui active le mode sombre NATIF de Catalyst
+ * ici. C'est ce variant qui active le mode sombre du kit
  * (`dark:bg-zinc-900`, `dark:text-white`…) — sans lui, le kit rend en clair et
- * on serait tenté de le repeindre, ce qu'interdit `check:catalyst-integrity`. */
+ * on serait tenté de le repeindre, ce qu'interdit `check:ui-kit-integrity`. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* Le système de jetons « ultra dark / accent cyan » qui vivait ici a été retiré
- * au commit a1f6193 : l'écran a migré en apparence Catalyst native, et aucune
+ * au commit a1f6193 : l'écran a migré en apparence du kit `ui/`, et aucune
  * de ses ~100 lignes n'était plus consommée par un JSX (vérifié par comptage
  * d'occurrences sur src/**, pas par lecture). Le kit porte désormais ses
  * propres couleurs ; ce fichier ne garde que ce qui lui manque vraiment.

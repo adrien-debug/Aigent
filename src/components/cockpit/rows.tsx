@@ -1,9 +1,9 @@
 /**
- * Lignes de roster — agents et projets — en composants Catalyst officiels.
+ * Lignes de roster — agents et projets — en composants du kit `ui/`.
  *
  * `Avatar` porte l'identité, `Badge` le statut, `Strong`/`Text` la typographie.
  * Il n'y a plus de `EntityRow` ni de `EntityAvatar` maison : c'étaient des
- * doublons de Catalyst. Ce qui reste hors kit sur ces lignes est le seul `Rail`
+ * doublons du kit. Ce qui reste hors kit sur ces lignes est le seul `Rail`
  * (sévérité), que le kit ne fournit pas.
  *
  * Un statut n'est dit qu'UNE fois : par le `Badge`, qui porte la couleur ET le
@@ -36,7 +36,7 @@ const STATUS_BADGE: Record<string, BadgeColor> = {
   archived: 'zinc',
 }
 
-/** Coquille commune aux deux rosters : rail de sévérité + contenu en Catalyst. */
+/** Coquille commune aux deux rosters : rail de sévérité + contenu du kit `ui/`. */
 function RosterRow({
   railColor,
   children,

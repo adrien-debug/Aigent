@@ -17,7 +17,7 @@
  * facturé, montant non mesuré avant émission ») plutôt qu'un montant faux.
  * `estimatedCost` n'est rendu que si l'appelant a une valeur réellement connue.
  *
- * Le kit Catalyst n'est pas modifié : ce composant COMPOSE `Dialog`, `Button`,
+ * Le kit `ui/` n'est pas modifié : ce composant COMPOSE `Dialog`, `Button`,
  * `Badge`, `Text`.
  */
 import { useState } from 'react'

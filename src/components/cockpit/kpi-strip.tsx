@@ -1,10 +1,10 @@
 /**
  * Bandeau d'instruments — six mesures sur une surface continue.
  *
- * Composé en Catalyst officiel (`Heading` pour la valeur, `Text` pour le
+ * Composé à partir du kit `ui/` (`Heading` pour la valeur, `Text` pour le
  * libellé et le support, sémantique `dl`/`dt`/`dd`). Les seuls objets hors kit
  * sont les jauges de proportion (`ArcGauge`, `BarMeter`, `SegmentMeter`) et la
- * diode `Led` — Catalyst ne fournit aucune visualisation de ce type.
+ * diode `Led` — le kit ne fournit aucune visualisation de ce type.
  *
  * Chaque objet graphique encode une proportion RÉELLE et bornée : combien
  * d'agents sont exécutables sur le catalogue, quelle part des runs terminaux a

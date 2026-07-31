@@ -15,10 +15,10 @@ export default function RootLayout({
   // exactement le viewport.
   //
   // `dark` est une CLASSE, pas seulement `color-scheme` : c'est elle qui active
-  // les variantes `dark:` de Tailwind, donc tout le mode sombre natif de
-  // Catalyst (`dark:bg-zinc-900`, `dark:text-white`…). Sans elle, le kit rend
+  // les variantes `dark:` de Tailwind, donc tout le mode sombre du kit
+  // (`dark:bg-zinc-900`, `dark:text-white`…). Sans elle, le kit rend
   // en clair et on est tenté de le repeindre — ce qu'interdit
-  // `check:catalyst-integrity`.
+  // `check:ui-kit-integrity`.
   return (
     <html lang="fr" className="dark h-full bg-zinc-950">
       <body className="h-full antialiased">{children}</body>

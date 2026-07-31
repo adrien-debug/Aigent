@@ -33,7 +33,7 @@
 
 | Chaîne | Contenu | Bloque quoi |
 | --- | --- | --- |
-| `npm run check` | typecheck · lint:fast · lint · no-legacy-front · catalyst-integrity · agent-truth · lifecycle-truth · registry-parity · registry-integrity · dev-port · render-truth · **rsc-boundary** · secrets · audit:dead | CI (`.github/workflows/ci.yml`) + pré-livraison |
+| `npm run check` | typecheck · lint:fast · lint · no-legacy-front · ui-kit-integrity · agent-truth · lifecycle-truth · registry-parity · registry-integrity · dev-port · render-truth · **rsc-boundary** · secrets · audit:dead | CI (`.github/workflows/ci.yml`) + pré-livraison |
 | `npm run verify` | `check` + quality:dead (knip) + test (vitest offline) + build | pré-intégration quand le build ou une surface de rendu bouge |
 
 **La chaîne `check` est entièrement statique et hors ligne.** Deux gates en ont

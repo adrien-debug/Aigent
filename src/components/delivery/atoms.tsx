@@ -1,5 +1,5 @@
 /**
- * Atomes de la surface Livraison — composés à partir de Catalyst, jamais à côté.
+ * Atomes de la surface Livraison — composés à partir du kit `ui/`, jamais à côté.
  *
  * `src/components/ui/` ne se modifie pas et ne se double pas. Ce fichier ne
  * contient donc aucun badge maison, aucun bouton, aucune surface générique :
