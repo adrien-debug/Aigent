@@ -35,6 +35,7 @@ import {
   type NodeProps,
   useEdgesState,
   useNodesState,
+  useReactFlow,
 } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
@@ -188,6 +189,7 @@ function CanvasInner({ graphId, nodes: rawNodes, edges: rawEdges }: Readonly<Gra
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>(mapped.nodes as unknown as Node[])
   const [edges, , onEdgesChange] = useEdgesState<Edge>(mapped.edges as unknown as Edge[])
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const flow = useReactFlow()
 
   /*
     RÉHYDRATATION AU PREMIER RENDU CLIENT, jamais pendant le rendu serveur.
@@ -220,7 +222,10 @@ function CanvasInner({ graphId, nodes: rawNodes, edges: rawEdges }: Readonly<Gra
     if (appliedRef.current === storedLayout) return
     appliedRef.current = storedLayout
     setNodes((current) => applyLayout(current, storedLayout))
-  }, [storedLayout, setNodes])
+    // Le cadrage stocké est restauré APRÈS les positions : sinon `fitView`
+    // recadrerait par-dessus et annulerait visuellement la restauration.
+    if (storedLayout?.viewport) flow.setViewport(storedLayout.viewport)
+  }, [storedLayout, setNodes, flow])
 
   const onSelectionChange = useCallback(({ nodes: sel }: { nodes: Node[] }) => {
     setSelectedId(sel.length === 1 ? sel[0].id : null)
@@ -235,9 +240,13 @@ function CanvasInner({ graphId, nodes: rawNodes, edges: rawEdges }: Readonly<Gra
   */
   const onNodeDragStop = useCallback(
     (_event: unknown, _node: Node, currentNodes: Node[]) => {
-      writeLayout(graphId, toStoredLayout(currentNodes))
+      // Le CADRAGE est stocké avec les positions. Sans lui, `fitView` recadrait
+      // au rechargement et le nœud restauré RÉAPPARAISSAIT ailleurs à l'écran :
+      // les coordonnées du graphe étaient bonnes, leur projection ne l'était
+      // pas. Constaté par l'E2E, qui a refusé la capture.
+      writeLayout(graphId, toStoredLayout(currentNodes, flow.getViewport()))
     },
-    [graphId],
+    [graphId, flow],
   )
 
   /** Efface la disposition stockée et revient au calcul déterministe. */
@@ -264,7 +273,9 @@ function CanvasInner({ graphId, nodes: rawNodes, edges: rawEdges }: Readonly<Gra
           onSelectionChange={onSelectionChange}
           onNodeDragStop={onNodeDragStop}
           nodeTypes={NODE_TYPES}
-          fitView
+          // `fitView` UNIQUEMENT sans disposition stockée : sinon il recadre
+          // par-dessus la restauration et l'annule visuellement.
+          fitView={!hasStoredLayout}
           // Aucune mutation du GRAPHE : pas de création d'arête, pas de
           // suppression. Seule la disposition bouge, et elle est stockée à part.
           nodesConnectable={false}

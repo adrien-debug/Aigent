@@ -49,7 +49,7 @@ function isExternal(url: string): boolean {
 function ToolRow({ tool }: Readonly<{ tool: ToolProbe }>) {
   return (
     <li
-      className="grid grid-cols-[6.5rem_minmax(0,1fr)_auto] items-baseline gap-x-3 border-b border-zinc-200 py-2 last:border-0 dark:border-zinc-800"
+      className="grid grid-cols-[6.5rem_minmax(0,1fr)_auto] items-baseline gap-x-3 border-b border-zinc-200 py-1.5 last:border-0 dark:border-zinc-800"
       data-testid="visual-tool-row"
       data-tool={tool.id}
       data-status={tool.status}
@@ -58,40 +58,47 @@ function ToolRow({ tool }: Readonly<{ tool: ToolProbe }>) {
         {tool.status}
       </Badge>
 
-      <div className="flex min-w-0 flex-col gap-0.5">
+      {/*
+        DEUX LIGNES PAR OUTIL, PAS QUATRE. La première porte l'identité (nom,
+        version, sens du statut) ; la seconde, la fonction puis les faits de
+        sonde sur la MÊME ligne. Le détail complet reste accessible en
+        disclosure. Cette compression est ce qui fait tenir les sept outils dans
+        le premier viewport à 1440×900 — l'E2E le vérifie et échoue sinon.
+      */}
+      <div className="flex min-w-0 flex-col">
         <div className="flex flex-wrap items-baseline gap-x-2">
           <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{tool.name}</span>
           {tool.version ? <Badge color="zinc">v{tool.version}</Badge> : null}
           <Text className="text-[11px] text-zinc-500">{STATUS_MEANING[tool.status]}</Text>
+          {tool.url ? <code className="truncate font-mono text-[11px] text-zinc-500">{tool.url}</code> : null}
         </div>
 
-        <Text className="truncate text-xs text-zinc-600 dark:text-zinc-400">{tool.purpose}</Text>
-
-        <div className="flex flex-wrap items-center gap-x-3 text-[11px] text-zinc-500">
-          {tool.url ? <code className="truncate font-mono">{tool.url}</code> : null}
-          {tool.latencyMs !== null ? <span>{tool.latencyMs} ms</span> : null}
-          {/*
-            Jamais de « 0 ms » ni de date fabriquée quand rien n'a été sondé :
-            l'absence de contrôle est dite, pas coercée en zéro.
-          */}
-          <span>
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+          <Text className="min-w-0 flex-1 truncate text-xs text-zinc-600 dark:text-zinc-400">
+            {tool.purpose}
+          </Text>
+          <span className="shrink-0 text-[11px] text-zinc-500">
+            {tool.latencyMs !== null ? `${tool.latencyMs} ms · ` : ''}
+            {/*
+              Jamais de « 0 ms » ni de date fabriquée quand rien n'a été sondé :
+              l'absence de contrôle est dite, pas coercée en zéro.
+            */}
             {tool.checkedAt === null ? 'jamais sondé' : `contrôlé ${tool.checkedAt.slice(11, 19)} UTC`}
           </span>
+          <details className="group shrink-0">
+            <summary className="cursor-pointer list-none text-[11px] text-zinc-500 select-none hover:text-zinc-900 dark:hover:text-zinc-100">
+              <span className="inline-block transition-transform group-open:rotate-90">▸</span> Détail
+            </summary>
+            <div className="mt-1 flex flex-col gap-1 border-l border-zinc-200 pl-2 dark:border-zinc-800">
+              <Text className="text-[11px] text-zinc-500">{tool.detail}</Text>
+              {tool.remediation ? (
+                <Text className="text-[11px] text-amber-600 dark:text-amber-500">
+                  Pour l’activer : {tool.remediation}
+                </Text>
+              ) : null}
+            </div>
+          </details>
         </div>
-
-        <details className="group mt-0.5">
-          <summary className="cursor-pointer list-none text-[11px] text-zinc-500 select-none hover:text-zinc-900 dark:hover:text-zinc-100">
-            <span className="inline-block transition-transform group-open:rotate-90">▸</span> Détail
-          </summary>
-          <div className="mt-1 flex flex-col gap-1 border-l border-zinc-200 pl-2 dark:border-zinc-800">
-            <Text className="text-[11px] text-zinc-500">{tool.detail}</Text>
-            {tool.remediation ? (
-              <Text className="text-[11px] text-amber-600 dark:text-amber-500">
-                Pour l’activer : {tool.remediation}
-              </Text>
-            ) : null}
-          </div>
-        </details>
       </div>
 
       <div className="flex items-center gap-1.5 justify-self-end">
@@ -133,9 +140,8 @@ export default function VisualToolingTab({ data }: Readonly<{ data: VisualToolin
       >
         <Text className="mb-1 text-[11px] text-zinc-500">
           Une sonde prouve qu’un service répond — pas qu’il fait son travail. Le
-          seul « VERIFIED » ici est le Canvas, dont la preuve est produite dans
-          cette application et gardée par un harnais qui échoue si le graphe
-          manque.
+          seul « VERIFIED » est le Canvas, prouvé par un harnais qui échoue si le
+          graphe manque.
         </Text>
         <ul className="flex flex-col">
           {data.tools.map((tool) => (
