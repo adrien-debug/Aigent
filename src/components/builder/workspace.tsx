@@ -843,7 +843,7 @@ export default function BuilderWorkspace({
   // Lecture impossible : on ne rend AUCUN champ plutôt que des champs vides.
   if (backendUnavailable || unreadable || !conversation) {
     return (
-      <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-3">
+      <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-4 max-lg:pl-14">
         <header className="shrink-0 px-1">
           <Heading level={1}>{projectName}</Heading>
           <Text className="mt-1">{repoFullName ?? 'aucun dépôt lié'}</Text>
@@ -866,7 +866,7 @@ export default function BuilderWorkspace({
   const draftCreatedId = preview?.createdCopilotId ?? bundle?.createdCopilotId ?? null
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-3">
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-4 max-lg:pl-14">
       <header className="flex shrink-0 flex-wrap items-center gap-2 px-1">
         <div className="min-w-0 flex-1">
           <Heading level={1} className="truncate">

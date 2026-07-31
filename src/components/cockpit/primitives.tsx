@@ -16,14 +16,23 @@
  *  · `Led`          — témoin d'activité temps réel.
  *  · `Rail`         — barre de sévérité en tête de ligne.
  *  · jauges         — proportions bornées (n sur total), pas des séries.
+ *  · `Fact`/`FactValue`/`NotMeasured` — paire libellé/valeur, absence rendue.
+ *
+ * `SEVERITY` (couleur d'un `Rail`) vit dans `@/lib/cockpit/status` — c'est la
+ * même palette que `RUN_STATUS_COLOR`, consommée aussi par Recharts en dehors
+ * de tout composant React. Ré-exportée ici pour que les écrans qui
+ * n'importent que des primitives de rendu n'aient pas à connaître ce détail.
  */
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 
 import { Divider } from '@/components/ui/divider'
 import { Subheading } from '@/components/ui/heading'
-import { Text } from '@/components/ui/text'
+import { Strong, Text } from '@/components/ui/text'
 import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
+import { SEVERITY } from '@/lib/cockpit/status'
+
+export { SEVERITY }
 
 /* ────────────────────────────── Surfaces ────────────────────────────── */
 
@@ -118,7 +127,7 @@ export function Unavailable({
       <span
         className={clsx(
           'rounded-md bg-zinc-950/5 font-medium text-zinc-500 uppercase dark:bg-white/5 dark:text-zinc-400',
-          compact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs',
+          compact ? 'px-1.5 py-0.5 text-3xs' : 'px-2 py-0.5 text-xs',
         )}
       >
         {label}
@@ -131,6 +140,56 @@ export function Unavailable({
 /** Marque d'absence inline — pour une valeur seule dans une cellule. */
 export function AbsentMark() {
   return <span className="text-xs text-zinc-500 uppercase dark:text-zinc-400">{UNAVAILABLE_LABEL}</span>
+}
+
+/**
+ * Une valeur non mesurée, en ligne. Jamais un `0` à la place.
+ *
+ * Anciennement redéclaré à l'identique dans `runtime/atoms.tsx` et
+ * `delivery/atoms.tsx` : même classe, même contrat, deux copies qui ne
+ * pouvaient dériver qu'en silence l'une de l'autre.
+ */
+export function NotMeasured({ why }: Readonly<{ why?: string }>) {
+  return (
+    <span
+      className="text-xs text-zinc-500 uppercase dark:text-zinc-400"
+      title={why ?? 'Cette valeur n’a pas été mesurée — elle n’est pas nulle, elle est absente.'}
+    >
+      {UNAVAILABLE_LABEL}
+    </span>
+  )
+}
+
+/**
+ * Une paire libellé / valeur. `value === null` rend `NotMeasured` : la garde
+ * est dans la fonction, donc aucun appelant ne peut l'oublier. Un `0` mesuré
+ * reste un `0` — seul `null` est une absence.
+ */
+export function Fact({
+  label,
+  value,
+  why,
+  hint,
+}: Readonly<{
+  label: string
+  value: ReactNode | null
+  why?: string
+  hint?: string
+}>) {
+  return (
+    <div className="min-w-0">
+      <Text className="truncate text-xs">{label}</Text>
+      <div className="mt-0.5 min-w-0 truncate">
+        {value === null ? <NotMeasured why={why} /> : value}
+      </div>
+      {hint ? <Text className="mt-0.5 truncate text-xs">{hint}</Text> : null}
+    </div>
+  )
+}
+
+/** Une valeur mise en avant dans un `Fact`. */
+export function FactValue({ children }: Readonly<{ children: ReactNode }>) {
+  return <Strong className="tabular-nums">{children}</Strong>
 }
 
 /* ─────────────────────────── Objets d'instrument ─────────────────────── */

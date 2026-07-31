@@ -40,13 +40,13 @@ function ToolRow({ tool }: Readonly<{ tool: ToolProbe }>) {
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{tool.name}</span>
         <Badge color={STATUS_COLOR[tool.status]}>{tool.status}</Badge>
-        <Text className="text-[11px] text-zinc-500">{STATUS_MEANING[tool.status]}</Text>
+        <Text className="text-2xs text-zinc-500">{STATUS_MEANING[tool.status]}</Text>
         {tool.version ? <Badge color="zinc">v{tool.version}</Badge> : null}
       </div>
 
       <Text className="text-xs text-zinc-600 dark:text-zinc-400">{tool.purpose}</Text>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-zinc-500">
         {tool.url ? (
           // `noreferrer` : l'URL d'Aigent ne part pas dans le Referer d'un outil tiers.
           <Link href={tool.url} target="_blank" rel="noreferrer noopener" className="font-medium">
@@ -62,10 +62,10 @@ function ToolRow({ tool }: Readonly<{ tool: ToolProbe }>) {
         {tool.checkedAt === null ? <span>jamais sondé</span> : null}
       </div>
 
-      <Text className="text-[11px] text-zinc-500">{tool.detail}</Text>
+      <Text className="text-2xs text-zinc-500">{tool.detail}</Text>
 
       {tool.remediation ? (
-        <Text className="text-[11px] text-amber-600 dark:text-amber-500">
+        <Text className="text-2xs text-amber-600 dark:text-amber-500">
           Pour l’activer : {tool.remediation}
         </Text>
       ) : null}
@@ -80,7 +80,7 @@ export default function VisualToolingTab({ data }: Readonly<{ data: VisualToolin
         title="Outillage visuel"
         hint={`${data.runningCount} sur ${data.tools.length} joignable(s) au dernier passage`}
       >
-        <Text className="mb-2 text-[11px] text-zinc-500">
+        <Text className="mb-2 text-2xs text-zinc-500">
           Une sonde prouve qu’un service répond — pas qu’il fait son travail.
           Aucun état « vérifié » n’est affiché ici : Langfuse qui répond n’a pas
           pour autant reçu une trace.

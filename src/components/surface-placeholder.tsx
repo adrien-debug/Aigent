@@ -43,7 +43,9 @@ export default function SurfacePlaceholder({
     // `h-full overflow-hidden` : la page ne pousse jamais le shell hors du
     // viewport. Le contenu tient largement ; le `overflow-y-auto` interne est le
     // repli sur un viewport très court, et il défile DANS la boîte.
-    <div className="h-full overflow-hidden p-4">
+    // `max-lg:pl-14` : gouttière pour le bouton de navigation mobile fixe du
+    // shell (16,16 · 37×36 · z-30) — sans ça il recouvre le coin du titre.
+    <div className="h-full overflow-hidden p-4 max-lg:pl-14">
       <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
         <header className="shrink-0">
           <div className="px-6 py-4">

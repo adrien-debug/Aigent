@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
 import AppShell from '@/components/app-shell'
-import QualificationDetailScreen from '@/components/qualification/detail-screen'
+import QualificationCockpitScreen from '@/components/qualification/cockpit-screen'
 import { loadQualificationDetail } from '@/components/qualification/server-reads'
 import { Unavailable } from '@/components/cockpit/primitives'
 import { Text } from '@/components/ui/text'
@@ -71,7 +71,7 @@ export default async function Page({ params }: PageProps) {
 
   return (
     <AppShell>
-      <QualificationDetailScreen detail={detail} />
+      <QualificationCockpitScreen detail={detail} />
     </AppShell>
   )
 }

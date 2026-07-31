@@ -13,9 +13,11 @@
  */
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { Heading } from '@/components/ui/heading'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
-import { Panel, Rail, Unavailable, initialsOf } from '@/components/cockpit/primitives'
+import { Panel, Rail, SEVERITY, Unavailable, initialsOf } from '@/components/cockpit/primitives'
+import { navEntry } from '@/components/navigation'
 import type { QualificationRunStatus } from '@/lib/agent-mission-control/qualification-orchestrator'
 import { RunStatusBadge } from './atoms'
 import { candidateRank } from './model'
@@ -54,15 +56,13 @@ export interface QualificationCandidate {
   runBlockerCount: number | null
 }
 
-const MUTED_RAIL = 'rgb(161 161 170 / 0.35)'
-
 const RAIL_COLOR: Record<QualificationRunStatus | 'not_started', string> = {
-  promotable: '#0da87f',
-  blocked: '#e8455f',
-  running: '#3b82f6',
-  superseded: '#be850f',
-  aborted: '#be850f',
-  not_started: MUTED_RAIL,
+  promotable: SEVERITY.good,
+  blocked: SEVERITY.bad,
+  running: SEVERITY.running,
+  superseded: SEVERITY.warn,
+  aborted: SEVERITY.warn,
+  not_started: SEVERITY.muted,
 }
 
 type CandidateRowProps = { candidate: QualificationCandidate }
@@ -195,7 +195,11 @@ export default function QualificationRosterScreen({
   const guardUnknown = ranked.filter((c) => c.runBlockerCount === null).length
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3 xl:overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3 max-lg:pl-14 xl:overflow-hidden">
+      <header className="shrink-0 px-1">
+        <Heading level={1}>{navEntry('/qualification').name}</Heading>
+        <Text className="mt-1">{navEntry('/qualification').purpose}</Text>
+      </header>
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         <Badge color="zinc">{ranked.length} candidat(s)</Badge>
         <Badge

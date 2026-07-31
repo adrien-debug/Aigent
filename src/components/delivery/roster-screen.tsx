@@ -21,7 +21,7 @@ import { Badge } from '@/components/ui/badge'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
 import { Avatar } from '@/components/ui/avatar'
-import { Panel, Rail, Unavailable, initialsOf } from '@/components/cockpit/primitives'
+import { Panel, Rail, SEVERITY, Unavailable, initialsOf } from '@/components/cockpit/primitives'
 
 import { Note, isoShort } from './atoms'
 import {
@@ -31,11 +31,6 @@ import {
   type DeliveryRow,
 } from './model'
 import type { ConsumerTelemetryFact } from './server-reads'
-
-const MUTED_RAIL = 'rgb(161 161 170 / 0.35)'
-/** Une ligne NON LUE porte un rail ambre : elle n'est ni livrée ni non livrée. */
-const UNREAD_RAIL = '#be850f'
-const DELIVERED_RAIL = '#0da87f'
 
 type DeliveryRosterRowProps = { row: DeliveryRow }
 
@@ -47,10 +42,11 @@ type DeliveryRosterScreenProps = {
   realDeliveryEnabled: boolean
 }
 
+/** Une ligne NON LUE porte un rail ambre : elle n'est ni livrée ni non livrée. */
 function rosterRailColor(deliveryRead: boolean, hasDelivery: boolean): string {
-  if (!deliveryRead) return UNREAD_RAIL
-  if (hasDelivery) return DELIVERED_RAIL
-  return MUTED_RAIL
+  if (!deliveryRead) return SEVERITY.warn
+  if (hasDelivery) return SEVERITY.good
+  return SEVERITY.muted
 }
 
 type DeliveryStatusBadgeProps = { deliveryRead: boolean; hasDelivery: boolean }
@@ -186,7 +182,7 @@ export default function DeliveryRosterScreen({
   const ranked = sortDeliveryRows(rows)
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3 xl:overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-4 max-lg:pl-14 xl:overflow-hidden">
       {/* Bandeau de comptage — dérivé de la MÊME liste que la table affiche. */}
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         <Badge color="zinc">{counts.total} agent(s)</Badge>

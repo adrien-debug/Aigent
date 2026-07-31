@@ -27,11 +27,14 @@ import type { ComponentProps, ReactNode } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Strong, Text } from '@/components/ui/text'
+import { Fact, FactValue, NotMeasured } from '@/components/cockpit/primitives'
 import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
 import type { SandboxCheckStatus, SandboxStatus } from '@/lib/agent-mission-control/target-repo-sandbox'
 import type { DimensionStatus } from '@/lib/agent-mission-control/delivery-scorecard'
 
 import type { DeliveryState, DeliveryStateKind } from './model'
+
+export { Fact, FactValue, NotMeasured }
 
 type BadgeColor = ComponentProps<typeof Badge>['color']
 
@@ -41,14 +44,6 @@ type DeliveryStateRowProps = { state: DeliveryState }
 type SandboxStatusBadgeProps = { status: SandboxStatus; title?: string }
 type SandboxCheckBadgeProps = { status: SandboxCheckStatus; reason?: string }
 type DimensionBadgeProps = { status: DimensionStatus }
-type NotMeasuredProps = { why?: string }
-type FactProps = {
-  label: string
-  value: ReactNode | null
-  why?: string
-  hint?: string
-}
-type FactValueProps = { children: ReactNode }
 type NoteProps = {
   tone?: 'info' | 'warn' | 'blocked' | 'structural'
   title: string
@@ -134,7 +129,7 @@ export function DeliveryStateBadge({ state }: Readonly<DeliveryStateBadgeProps>)
 export function StateKindTag({ kind }: Readonly<StateKindTagProps>) {
   return (
     <span
-      className="text-[10px] tracking-wide text-zinc-500 uppercase dark:text-zinc-400"
+      className="text-3xs tracking-wide text-zinc-500 uppercase dark:text-zinc-400"
       title={KIND_MEANING[kind]}
     >
       {KIND_LABEL[kind]}
@@ -251,44 +246,6 @@ export function DimensionBadge({ status }: Readonly<DimensionBadgeProps>) {
       {DIMENSION_LABEL[status]}
     </Badge>
   )
-}
-
-/* ═════════════════ Absence ═════════════════ */
-
-/**
- * Une valeur non mesurée, en ligne. Un seul mot — celui du produit entier — et
- * un `title` qui dit POURQUOI quand on le sait : « non mesuré » et « lecture
- * échouée » ne sont pas la même chose.
- */
-export function NotMeasured({ why }: Readonly<NotMeasuredProps>) {
-  return (
-    <span
-      className="text-xs text-zinc-500 uppercase dark:text-zinc-400"
-      title={why ?? 'Cette valeur n’a jamais été mesurée — elle n’est pas nulle, elle est absente.'}
-    >
-      {UNAVAILABLE_LABEL}
-    </span>
-  )
-}
-
-/**
- * Une paire libellé / valeur. `value === null` rend `NotMeasured` : c'est le
- * contrat de ce composant, et il dispense chaque appelant de réécrire la garde
- * (donc de l'oublier). Un `0` mesuré reste un `0` — seul `null` est une absence.
- */
-export function Fact({ label, value, why, hint }: Readonly<FactProps>) {
-  return (
-    <div className="min-w-0">
-      <Text className="truncate text-xs">{label}</Text>
-      <div className="mt-0.5 min-w-0 truncate">{value === null ? <NotMeasured why={why} /> : value}</div>
-      {hint ? <Text className="mt-0.5 truncate text-xs">{hint}</Text> : null}
-    </div>
-  )
-}
-
-/** Une valeur mise en avant dans un `Fact`. */
-export function FactValue({ children }: Readonly<FactValueProps>) {
-  return <Strong className="tabular-nums">{children}</Strong>
 }
 
 /**

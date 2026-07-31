@@ -21,11 +21,9 @@ import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { AgentCard, ProjectCard } from '@/lib/cockpit/named-runs'
 import { timeAgo } from '@/lib/cockpit/named-runs'
 import { COPILOT_STATUS_LABEL } from '@/lib/cockpit/status'
-import { AbsentMark, Rail, initialsOf } from './primitives'
+import { AbsentMark, Rail, SEVERITY, initialsOf } from './primitives'
 
 type BadgeColor = ComponentProps<typeof Badge>['color']
-
-const MUTED_RAIL = 'rgb(161 161 170 / 0.35)'
 
 /** Le statut d'un copilot, dit une seule fois — couleur et mot dans le badge. */
 const STATUS_BADGE: Record<string, BadgeColor> = {
@@ -37,9 +35,9 @@ const STATUS_BADGE: Record<string, BadgeColor> = {
 }
 
 function agentRailColor(failing: boolean, status: string): string {
-  if (failing) return '#e8455f'
-  if (status === 'active') return '#0da87f'
-  return MUTED_RAIL
+  if (failing) return SEVERITY.bad
+  if (status === 'active') return SEVERITY.good
+  return SEVERITY.muted
 }
 
 /** Coquille commune aux deux rosters : rail de sévérité + contenu en Catalyst. */
@@ -101,7 +99,7 @@ export function ProjectRow({ card }: Readonly<{ card: ProjectCard }>) {
   const live = card.activeCount > 0
 
   return (
-    <RosterRow railColor={live ? '#0da87f' : MUTED_RAIL}>
+    <RosterRow railColor={live ? SEVERITY.good : SEVERITY.muted}>
       <Avatar square initials={initialsOf(card.name)} className="size-8 shrink-0" />
 
       <div className="min-w-0 flex-1">

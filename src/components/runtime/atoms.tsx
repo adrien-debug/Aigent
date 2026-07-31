@@ -14,9 +14,8 @@
 import type { ComponentProps, ReactNode } from 'react'
 
 import { Badge } from '@/components/ui/badge'
-import { Strong, Text } from '@/components/ui/text'
-import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
-import { Unavailable } from '@/components/cockpit/primitives'
+import { Text } from '@/components/ui/text'
+import { Fact, FactValue, NotMeasured, Unavailable } from '@/components/cockpit/primitives'
 import {
   MUTATION_MEANING,
   PROVIDER_WIRING_LABEL,
@@ -29,52 +28,9 @@ import {
   type ProviderWiring,
 } from './model'
 
+export { Fact, FactValue, NotMeasured }
+
 type BadgeColor = ComponentProps<typeof Badge>['color']
-
-/* ───────────────────────────── Absences ──────────────────────────────── */
-
-/** Une valeur non mesurée, en ligne. Jamais un `0` à la place. */
-export function NotMeasured({ why }: Readonly<{ why?: string }>) {
-  return (
-    <span
-      className="text-xs text-zinc-500 uppercase dark:text-zinc-400"
-      title={why ?? 'Cette valeur n’a pas été mesurée — elle n’est pas nulle, elle est absente.'}
-    >
-      {UNAVAILABLE_LABEL}
-    </span>
-  )
-}
-
-/**
- * Une paire libellé / valeur. `value === null` rend `NotMeasured` : la garde est
- * dans la fonction, donc aucun appelant ne peut l'oublier. Un `0` mesuré reste
- * un `0` — seul `null` est une absence.
- */
-export function Fact({
-  label,
-  value,
-  why,
-  hint,
-}: Readonly<{
-  label: string
-  value: ReactNode | null
-  why?: string
-  hint?: string
-}>) {
-  return (
-    <div className="min-w-0">
-      <Text className="truncate text-xs">{label}</Text>
-      <div className="mt-0.5 min-w-0 truncate">
-        {value === null ? <NotMeasured why={why} /> : value}
-      </div>
-      {hint ? <Text className="mt-0.5 truncate text-xs">{hint}</Text> : null}
-    </div>
-  )
-}
-
-export function FactValue({ children }: Readonly<{ children: ReactNode }>) {
-  return <Strong className="tabular-nums">{children}</Strong>
-}
 
 /**
  * Le rendu d'un `Loaded<T>` : succès → `children`, échec → l'échec DIT.

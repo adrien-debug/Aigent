@@ -14,18 +14,15 @@ import { Strong, Text } from '@/components/ui/text'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { AgentRun } from '@/lib/agent-mission-control/types'
 import { formatDuration } from '@/lib/runs-console/runs-metrics'
-import { AbsentMark, Rail } from '@/components/cockpit/primitives'
+import { AbsentMark, Rail, SEVERITY } from '@/components/cockpit/primitives'
 import { RUN_STATUS_BADGE, RUN_STATUS_LABEL } from './run-view-model'
 
-/** Rail gris — la teinte « pas de signal », partagée avec les rosters du cockpit. */
-const MUTED_RAIL = 'rgb(161 161 170 / 0.35)'
-
 const RAIL_COLOR: Record<AgentRun['status'], string> = {
-  completed: '#0da87f',
-  running: '#3b9dd6',
-  failed: '#e8455f',
-  blocked: '#be850f',
-  'needs-confirmation': MUTED_RAIL,
+  completed: SEVERITY.good,
+  running: SEVERITY.running,
+  failed: SEVERITY.bad,
+  blocked: SEVERITY.warn,
+  'needs-confirmation': SEVERITY.muted,
 }
 
 function RunRow({

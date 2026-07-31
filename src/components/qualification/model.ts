@@ -32,32 +32,12 @@ import type {
   PromotionCheck,
   PromotionCheckStatus,
 } from '@/lib/agent-mission-control/promotion-gate'
-import type {
-  QualificationRunStatus,
-  QualificationStep,
-  QualificationStepStatus,
-} from '@/lib/agent-mission-control/qualification-orchestrator'
+import type { QualificationRunStatus } from '@/lib/agent-mission-control/qualification-orchestrator'
 import type { ImprovementProposal } from '@/lib/agent-mission-control/improvement-loop'
 
 /* ───────────────────── Gate de release — trois états ───────────────────── */
 
-export const GATE_STATUS_LABEL: Record<GateStatus, string> = {
-  pass: 'Vérifié',
-  fail: 'Échoué',
-  missing: 'Non mesuré',
-}
 
-/**
- * Ce que chaque état AFFIRME. Rendu en `title` pour que la distinction ne repose
- * jamais uniquement sur une couleur — un écran lu en niveaux de gris doit rester
- * vrai.
- */
-export const GATE_STATUS_MEANING: Record<GateStatus, string> = {
-  pass: 'La mesure a été prise sur des runs live et elle satisfait l’exigence.',
-  fail: 'La mesure a été prise et elle viole l’exigence.',
-  missing:
-    'La mesure n’a JAMAIS été prise. Ce n’est pas un succès : un signal absent bloque la promotion au même titre qu’un échec, mais il n’accuse rien — il constate qu’il n’y a rien à lire.',
-}
 
 export interface ChecksSummary {
   total: number
@@ -100,12 +80,6 @@ export function sortReleaseChecks(checks: readonly ReleaseCheck[]): ReleaseCheck
 
 /* ─────────────────── Gate de promotion — quatre états ─────────────────── */
 
-export const PROMOTION_STATUS_LABEL: Record<PromotionCheckStatus, string> = {
-  PASS: 'Vérifié',
-  FAIL: 'Échoué',
-  NOT_CONFIGURED: 'Non exigé',
-  INSUFFICIENT_EVIDENCE: 'Preuve insuffisante',
-}
 
 export const PROMOTION_STATUS_MEANING: Record<PromotionCheckStatus, string> = {
   PASS: 'La preuve existe et satisfait l’exigence.',
@@ -127,35 +101,8 @@ export function sortPromotionChecks(checks: readonly PromotionCheck[]): Promotio
   return [...checks].sort((a, b) => PROMOTION_RANK[a.status] - PROMOTION_RANK[b.status])
 }
 
-/* ──────────────── Étapes de qualification — six états ──────────────── */
 
-export const STEP_LABEL: Record<QualificationStep, string> = {
-  tests: 'Tests',
-  benchmark: 'Benchmark',
-  shadow: 'Shadow',
-  replay: 'Replay',
-  gate: 'Gate de promotion',
-}
 
-export const STEP_STATUS_LABEL: Record<QualificationStepStatus, string> = {
-  PASS: 'Vérifié',
-  FAIL: 'Échoué',
-  NOT_CONFIGURED: 'Non exigé',
-  NOT_AVAILABLE: 'Capacité non câblée',
-  INSUFFICIENT_EVIDENCE: 'Preuve insuffisante',
-  PENDING: 'Pas encore exécuté',
-}
-
-export const STEP_STATUS_MEANING: Record<QualificationStepStatus, string> = {
-  PASS: 'L’étape a produit une preuve qui satisfait son exigence.',
-  FAIL: 'L’étape a produit une preuve qui viole son exigence.',
-  NOT_CONFIGURED: 'La politique de ce candidat n’exige pas cette étape.',
-  NOT_AVAILABLE:
-    'La capacité n’est pas câblée dans ce périmètre — l’étape n’a rien pu produire. Ce n’est pas un échec du candidat.',
-  INSUFFICIENT_EVIDENCE:
-    'L’étape a tourné sans réunir assez de preuve pour trancher. Elle bloque sans accuser.',
-  PENDING: 'L’étape n’a pas encore été exécutée.',
-}
 
 export const RUN_STATUS_LABEL: Record<QualificationRunStatus, string> = {
   running: 'En cours',
@@ -287,12 +234,6 @@ export function runBlockerCount(agent: AvailableAgent | null): number | null {
 
 /* ─────────────────── Boucle d'amélioration ─────────────────── */
 
-export const PROPOSAL_STATUS_LABEL: Record<ImprovementProposal['status'], string> = {
-  proposed: 'Proposée',
-  'v2-created': 'V2 créée',
-  approved: 'Approuvée',
-  rejected: 'Rejetée',
-}
 
 /**
  * Une boucle est OUVERTE tant qu'elle n'a pas reçu sa décision humaine.
@@ -306,25 +247,6 @@ export function isProposalOpen(proposal: ImprovementProposal | null): boolean {
   return proposal.status === 'proposed' || proposal.status === 'v2-created'
 }
 
-/**
- * Ce que la boucle attend maintenant. Rendu en une phrase, jamais en un mot :
- * « proposed » ne dit pas à l'opérateur qu'il doit d'abord matérialiser la V2.
- */
-export function proposalNextAction(proposal: ImprovementProposal | null): string {
-  if (!proposal) {
-    return 'Aucune boucle d’amélioration n’existe pour ce copilot. La lecture a réussi — il n’y a rien.'
-  }
-  switch (proposal.status) {
-    case 'proposed':
-      return 'La proposition attend sa V2 : matérialiser le brouillon V2, puis décider. Une approbation sans V2 est refusée (409).'
-    case 'v2-created':
-      return 'La V2 existe. La DÉCISION HUMAINE est ce qui manque — approuver ou rejeter, explicitement.'
-    case 'approved':
-      return 'Boucle approuvée. L’approbation n’a rien promu : la promotion reste une action séparée, derrière sa propre gate.'
-    case 'rejected':
-      return 'Boucle rejetée. Une nouvelle analyse peut être ouverte.'
-  }
-}
 
 /* ─────────────────── Replay — dépendance circulaire ─────────────────── */
 
@@ -349,37 +271,12 @@ export function replayFeasibility(
   return productionVersionId ? 'possible' : 'no-baseline'
 }
 
-export const REPLAY_FEASIBILITY_DETAIL: Record<ReplayFeasibility, string> = {
-  possible:
-    'Une version de production existe : elle sert de référence, le candidat lui est comparé cas par cas.',
-  'no-baseline':
-    'Aucune version de production n’existe pour ce copilot, donc le replay n’a RIEN à comparer et la route refuse de partir (409). Ce n’est pas « replay échoué » : c’est une dépendance circulaire — il faut une première promotion pour créer la baseline que le replay exigerait.',
-  unknown:
-    'Le pointeur de production n’a pas pu être lu. Impossible de dire si un replay serait possible — ce n’est pas la même chose qu’une absence de baseline.',
-}
 
 /* ─────────────────── Mode d'exécution d'une preuve ─────────────────── */
 
-export type EvidenceExecutionMode = 'live_langgraph' | 'deterministic_fixture' | 'legacy_unknown'
 
-export const EXECUTION_MODE_LABEL: Record<EvidenceExecutionMode, string> = {
-  live_langgraph: 'exécution live',
-  deterministic_fixture: 'simulation (fixture)',
-  legacy_unknown: 'provenance inconnue',
-}
 
-export const EXECUTION_MODE_DETAIL: Record<EvidenceExecutionMode, string> = {
-  live_langgraph:
-    'Preuve produite par un vrai run LangGraph du candidat. C’est le SEUL mode qu’une gate de promotion accepte pour un check exigé.',
-  deterministic_fixture:
-    'Preuve produite par la fixture déterministe, à coût nul et sans réseau. Elle prouve la mécanique, jamais le candidat : une fixture ne débloque aucune promotion de production.',
-  legacy_unknown:
-    'Ligne antérieure aux migrations de provenance : le mode d’exécution n’a pas été enregistré. Non prouvé n’est pas faux, mais une gate exigeante ne s’en satisfait pas.',
-}
 
-export function executionMode(raw: unknown): EvidenceExecutionMode {
-  return raw === 'live_langgraph' || raw === 'deterministic_fixture' ? raw : 'legacy_unknown'
-}
 
 /* ─────────────── Lectures de suites — la seule règle qui coûte ─────────────── */
 
