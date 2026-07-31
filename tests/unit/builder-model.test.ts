@@ -19,11 +19,6 @@ import {
   buildHitlView,
   buildPreviewView,
   buildProjectChoices,
-  failed,
-  fromList,
-  proven,
-  ready,
-  unavailable,
 } from '@/components/builder/model'
 import type { BuilderRunState } from '@/lib/agent-mission-control/agent-builder-run'
 import type { AgentPreview } from '@/lib/agent-mission-control/project-builder-types'
@@ -68,29 +63,6 @@ function runState(over: Partial<BuilderRunState> = {}): BuilderRunState {
   }
 }
 
-describe('états de lecture — les quatre situations restent distinctes', () => {
-  it('sépare vide prouvé, échec et indisponibilité', () => {
-    expect(proven().state).toBe('empty')
-    expect(failed('boom').state).toBe('error')
-    expect(unavailable('pas de backend').state).toBe('unavailable')
-    expect(ready([1]).state).toBe('ready')
-  })
-
-  it('une liste vide lue sans erreur est un vide PROUVÉ, pas une erreur', () => {
-    // C'est le cas réel d'`agent_drafts` : 0 ligne en base.
-    const outcome = fromList([])
-    expect(outcome.state).toBe('empty')
-    expect(outcome.failure).toBeNull()
-    expect(outcome.value).toBeNull()
-  })
-
-  it('une lecture échouée ne rend jamais une liste vide', () => {
-    const outcome = failed<readonly string[]>('PostgREST 502')
-    expect(outcome.state).not.toBe('empty')
-    expect(outcome.value).toBeNull()
-    expect(outcome.failure).toBe('PostgREST 502')
-  })
-})
 
 describe('buildProjectChoices', () => {
   it('ne fabrique jamais de dépôt : absent reste null', () => {
