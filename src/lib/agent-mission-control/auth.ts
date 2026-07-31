@@ -2,20 +2,19 @@
  * Agent Mission Control — admin session auth (server only).
  *
  * V1 single-admin identity gate. No auth provider, no DB, no heavy dep — a
- * signed session cookie built from `node:crypto` HMAC. Fail-closed IN
- * PRODUCTION: if the required secrets are absent the app cannot mint or
- * trust any session, so every gate denies. In development, both the session
- * secret and the admin password fall back to a hardcoded value (see
- * DEV_FALLBACK_* below) so `npm run dev` always logs in locally even if
- * .env.local wasn't loaded — this fallback is inert whenever
- * NODE_ENV === 'production'.
+ * signed session cookie built from `node:crypto` HMAC. Fail-closed in EVERY
+ * environment: there is no hardcoded fallback secret and no fallback admin
+ * password, in dev no more than in prod. If the env vars are absent the app
+ * cannot mint or trust any session, so every gate denies. (Historically a
+ * DEV_FALLBACK_* pair made a session forgeable by anyone who read this file
+ * whenever NODE_ENV was unset — removed deliberately, do not reintroduce.)
  *
  * Env (server-side only, NEVER sent to the browser):
- *   AMC_SESSION_SECRET  — HMAC key that signs the session cookie. REQUIRED in
- *                         prod; optional in dev (hardcoded fallback).
+ *   AMC_SESSION_SECRET  — HMAC key that signs the session cookie. REQUIRED
+ *                         (min 16 chars), whatever NODE_ENV says.
  *   AMC_ADMIN_PASSWORD  — the admin password checked at login (plain). Either
- *                         this or AMC_ADMIN_PASSWORD_HASH must be set in
- *                         prod; optional in dev (hardcoded fallback).
+ *                         this or AMC_ADMIN_PASSWORD_HASH must be set, in
+ *                         every environment.
  *   AMC_ADMIN_PASSWORD_HASH — optional sha256 hex of the password; preferred
  *                         over the plain var. If both set, the hash wins.
  *   AMC_API_KEY         — optional server-to-server key (unchanged; the proxy
@@ -31,18 +30,8 @@ import { createHmac, timingSafeEqual, createHash } from 'node:crypto'
 export const SESSION_COOKIE = 'amc_session'
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000 // 12 hours
 
-// DEV-ONLY hardcoded fallback so `npm run dev` never fails closed just
-// because .env.local wasn't loaded (wrong cwd, shell didn't export it, a
-// stray process started without it, etc). NEVER used when
-// NODE_ENV === 'production' — prod always requires the real env vars.
-// Password matches the .env.local default (hearst-agent-mc-2026) so both
-// paths log in with the same password.
-const DEV_FALLBACK_SESSION_SECRET = 'aigent-local-dev-session-secret-hearst-2026'
-const DEV_FALLBACK_ADMIN_PASSWORD = 'Admin'
-
-function isDev(): boolean {
-  return process.env.NODE_ENV !== 'production'
-}
+/** Minimum accepted length for AMC_SESSION_SECRET, in characters. */
+const MIN_SESSION_SECRET_LENGTH = 16
 
 export interface AdminSession {
   sub: 'admin'
@@ -51,20 +40,38 @@ export interface AdminSession {
   expiresAt: number
 }
 
-/** The signing secret. Dev: hardcoded fallback if unset. Prod: throws if unset (fail-closed). */
-function sessionSecret(): string {
+/**
+ * True when AMC_SESSION_SECRET is present and long enough. Read lazily on every
+ * call — never cached at module load, so importing this module (as the Next
+ * build does) can never throw.
+ */
+function hasValidSessionSecret(): boolean {
   const s = process.env.AMC_SESSION_SECRET
-  if (s && s.length >= 16) return s
-  if (isDev()) return DEV_FALLBACK_SESSION_SECRET
-  throw new Error('AMC_SESSION_SECRET is not configured (min 16 chars) — auth is fail-closed.')
+  return typeof s === 'string' && s.length >= MIN_SESSION_SECRET_LENGTH
 }
 
-/** True when the auth layer is fully configured (secret + a password source). Always true in dev. */
+/**
+ * The signing secret. Throws when unset or shorter than 16 chars, in EVERY
+ * environment — there is no fallback. Callers that must not throw
+ * (decodeSession) wrap this.
+ */
+function sessionSecret(): string {
+  const s = process.env.AMC_SESSION_SECRET
+  if (!s || s.length < MIN_SESSION_SECRET_LENGTH) {
+    throw new Error(
+      `AMC_SESSION_SECRET is not configured (min ${MIN_SESSION_SECRET_LENGTH} chars) — auth is fail-closed.`,
+    )
+  }
+  return s
+}
+
+/**
+ * True only when the auth layer is really usable: a valid signing secret AND a
+ * password source. Reflects reality in every environment — no dev shortcut.
+ */
 export function authConfigured(): boolean {
-  if (isDev()) return true
-  const hasSecret = Boolean(process.env.AMC_SESSION_SECRET && process.env.AMC_SESSION_SECRET.length >= 16)
   const hasPassword = Boolean(process.env.AMC_ADMIN_PASSWORD || process.env.AMC_ADMIN_PASSWORD_HASH)
-  return hasSecret && hasPassword
+  return hasValidSessionSecret() && hasPassword
 }
 
 function b64url(buf: Buffer): string {
@@ -87,9 +94,8 @@ function safeEqual(a: string, b: string): boolean {
 
 /**
  * Verify a login password against AMC_ADMIN_PASSWORD_HASH (sha256 hex) or
- * AMC_ADMIN_PASSWORD (plain), constant-time. In dev, falls back to the
- * hardcoded DEV_FALLBACK_ADMIN_PASSWORD when neither env var is set. In
- * prod, false if neither is configured (fail-closed).
+ * AMC_ADMIN_PASSWORD (plain), constant-time. No fallback password exists: if
+ * neither var is configured this returns false in every environment.
  */
 export async function verifyAdminPassword(password: string): Promise<boolean> {
   if (typeof password !== 'string' || password.length === 0) return false
@@ -100,7 +106,6 @@ export async function verifyAdminPassword(password: string): Promise<boolean> {
   }
   const plain = process.env.AMC_ADMIN_PASSWORD
   if (plain) return safeEqual(password, plain)
-  if (isDev()) return safeEqual(password, DEV_FALLBACK_ADMIN_PASSWORD)
   return false // fail-closed: no password source configured
 }
 

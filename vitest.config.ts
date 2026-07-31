@@ -24,9 +24,11 @@ export default defineConfig({
   test: {
     testTimeout: 30_000,
     hookTimeout: 30_000,
-    include: ['tests/unit/**/*.test.ts', 'tests/live/**/*.test.ts'],
+    // Unit suite ONLY. The live suite (tests/live/**) hits GPU1 + OpenAI and
+    // COSTS MONEY: it must never be picked up by a bare `npx vitest run`. It
+    // has its own config — vitest.live.config.ts, wired to `npm run test:live`.
+    include: ['tests/unit/**/*.test.ts'],
     environment: 'node',
     globals: false,
-    setupFiles: ['tests/live/setup.ts'],
   },
 })

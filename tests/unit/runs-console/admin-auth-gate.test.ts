@@ -16,7 +16,6 @@ let proxy: typeof import('@/proxy').proxy
 let config: typeof import('@/proxy').config
 
 beforeAll(async () => {
-  vi.stubEnv('AMC_DEV_BYPASS_AUTH', '0')
   vi.stubEnv('AMC_API_KEY', 'test-api-key')
   vi.resetModules()
   const mod = await import('@/proxy')
