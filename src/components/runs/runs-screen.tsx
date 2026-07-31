@@ -12,8 +12,8 @@
 import type { ReactNode } from 'react'
 import { navEntry } from '@/components/navigation'
 import { Heading } from '@/components/ui/heading'
-import { Strong, Text } from '@/components/ui/text'
-import { Panel, Unavailable } from '@/components/cockpit/primitives'
+import { Text } from '@/components/ui/text'
+import { Fact, FactValue, Panel, Unavailable } from '@/components/cockpit/primitives'
 import type { AgentRun } from '@/lib/agent-mission-control/types'
 import type { RunsMetrics } from '@/lib/runs-console/runs-metrics'
 import { formatDuration, formatPercent } from '@/lib/runs-console/runs-metrics'
@@ -39,27 +39,20 @@ function terminalSuccessHint(terminal: number): string {
   return `sur ${terminal} ${word}`
 }
 
-/**
- * Une mesure du bandeau. `value === null` ⇒ la mesure n'existe pas, et la tuile
- * le dit avec le mot, pas avec un tiret ambigu.
- */
+/** Une mesure du bandeau, dans un `Fact` (`labelUppercase` reprend le style d'origine). */
 function Measure({
   label,
   value,
   hint,
 }: Readonly<{ label: string; value: string | null; hint?: string }>) {
   return (
-    <div className="min-w-0 px-3 py-2">
-      <Text className="truncate text-xs uppercase">{label}</Text>
-      {value === null ? (
-        <Text className="text-sm">
-          <span className="text-zinc-500 uppercase dark:text-zinc-400">Non mesuré</span>
-        </Text>
-      ) : (
-        <Strong className="block truncate text-sm tabular-nums">{value}</Strong>
-      )}
-      {hint ? <Text className="truncate text-xs">{hint}</Text> : null}
-    </div>
+    <Fact
+      className="px-3 py-2"
+      label={label}
+      labelUppercase
+      value={value === null ? null : <FactValue>{value}</FactValue>}
+      hint={hint}
+    />
   )
 }
 

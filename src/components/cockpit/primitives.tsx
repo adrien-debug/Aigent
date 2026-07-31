@@ -149,13 +149,20 @@ export function AbsentMark() {
  * `delivery/atoms.tsx` : même classe, même contrat, deux copies qui ne
  * pouvaient dériver qu'en silence l'une de l'autre.
  */
-export function NotMeasured({ why }: Readonly<{ why?: string }>) {
+export function NotMeasured({
+  why,
+  label = UNAVAILABLE_LABEL,
+}: Readonly<{
+  why?: string
+  /** Le mot du produit par défaut ; `Stat` en avait besoin d'un distinct (« non détectée »). */
+  label?: string
+}>) {
   return (
     <span
       className="text-xs text-zinc-500 uppercase dark:text-zinc-400"
       title={why ?? 'Cette valeur n’a pas été mesurée — elle n’est pas nulle, elle est absente.'}
     >
-      {UNAVAILABLE_LABEL}
+      {label}
     </span>
   )
 }
@@ -164,23 +171,38 @@ export function NotMeasured({ why }: Readonly<{ why?: string }>) {
  * Une paire libellé / valeur. `value === null` rend `NotMeasured` : la garde
  * est dans la fonction, donc aucun appelant ne peut l'oublier. Un `0` mesuré
  * reste un `0` — seul `null` est une absence.
+ *
+ * Remplace deux composants qui faisaient la même chose sous un autre nom :
+ * `Measure` (runs-screen.tsx, label en majuscules) et `Stat`
+ * (projects/detail-screen.tsx, mot d'absence personnalisable). `labelUppercase`
+ * et `why`/`absent` couvrent les deux sans perdre leurs nuances respectives.
  */
 export function Fact({
   label,
+  labelUppercase = false,
   value,
   why,
+  absentLabel,
   hint,
+  className,
 }: Readonly<{
   label: string
+  /** `Measure` mettait son libellé en capitales ; `Fact`/`Stat` non. */
+  labelUppercase?: boolean
   value: ReactNode | null
+  /** Titre explicatif de l'absence, porté par `NotMeasured`. */
   why?: string
+  /** Mot d'absence visible non standard (ex. « non détectée » pour une stack vide). */
+  absentLabel?: string
   hint?: string
+  /** Padding/marge du conteneur — propre à chaque grille appelante, jamais un défaut du composant. */
+  className?: string
 }>) {
   return (
-    <div className="min-w-0">
-      <Text className="truncate text-xs">{label}</Text>
+    <div className={clsx('min-w-0', className)}>
+      <Text className={clsx('truncate text-xs', labelUppercase && 'uppercase')}>{label}</Text>
       <div className="mt-0.5 min-w-0 truncate">
-        {value === null ? <NotMeasured why={why} /> : value}
+        {value === null ? <NotMeasured why={why} label={absentLabel} /> : value}
       </div>
       {hint ? <Text className="mt-0.5 truncate text-xs">{hint}</Text> : null}
     </div>
