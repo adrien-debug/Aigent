@@ -168,6 +168,15 @@ export type ActionItem = {
 export type DashboardOverview = {
   kpis: DashboardKpis
   projects: ProjectOverviewItem[]
+  /**
+   * Les copilots tels que lus, exposés pour que l'UI puisse résoudre un
+   * `copilotId` en NOM sans relire la base — `windowRuns` ne porte que des ids,
+   * et « run-a3f… » ne renseigne personne. Jointure en mémoire, zéro aller-retour
+   * supplémentaire. Un id non résolu reste non résolu : on n'invente pas de nom.
+   */
+  copilots: Copilot[]
+  /** Même raison que `copilots`, pour résoudre un `projectId`. */
+  projectRows: Project[]
   actionItems: ActionItem[]
   dataWarnings: string[]
   /**
@@ -748,6 +757,8 @@ export function assembleDashboardOverview(input: {
   })
 
   return {
+    copilots: input.copilots,
+    projectRows: input.projects,
     kpis: {
       productionAgents: computeProductionAgents(input.copilots),
       // A failed delivery-event read has NO length either — same rule as

@@ -1,6 +1,11 @@
 /**
- * Frontend reset — pins absence of the historical visual layer.
- * Complements `scripts/check-no-legacy-front.mjs` with test-time assertions.
+ * Front démoli — épingle l'absence des surfaces supprimées.
+ * Complète `scripts/check-no-legacy-front.mjs` par des assertions au test.
+ *
+ * `src/components/` n'est PLUS asserté absent : le front est en reconstruction
+ * depuis le 2026-07-31 (premier bloc UI, sur ordre explicite d'Adrien). Ce qui
+ * reste épinglé, c'est ce qui a été supprimé pour de bonnes raisons et ne doit
+ * pas ressusciter en silence.
  */
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -9,11 +14,7 @@ import { describe, expect, it } from 'vitest'
 
 const ROOT = process.cwd()
 
-describe('frontend reset — visual layer absent', () => {
-  it('src/components does not exist', () => {
-    expect(existsSync(join(ROOT, 'src/components'))).toBe(false)
-  })
-
+describe('front démoli — les surfaces supprimées restent absentes', () => {
   it('design pilot artifacts do not exist', () => {
     expect(existsSync(join(ROOT, 'design'))).toBe(false)
   })
@@ -30,7 +31,12 @@ describe('frontend reset — visual layer absent', () => {
     expect(existsSync(join(ROOT, 'src/theme.css'))).toBe(false)
   })
 
-  it('minimal skeleton page exists', () => {
+  it('the old console component tree does not exist', () => {
+    expect(existsSync(join(ROOT, 'src/components/console'))).toBe(false)
+  })
+
+  it('skeleton page and layout exist', () => {
     expect(existsSync(join(ROOT, 'src/app/page.tsx'))).toBe(true)
+    expect(existsSync(join(ROOT, 'src/app/layout.tsx'))).toBe(true)
   })
 })

@@ -22,22 +22,24 @@ credentials for the provider a given run selects, data and execution paths
 return `503` / `ProviderUnavailableError`. There is no mock path for agent
 authoring or runs.
 
-## Frontend reset (état courant)
+## Frontend — en reconstruction
 
-**Mission `frontend-reset` : le front historique a été entièrement supprimé.**
+Le front historique a été entièrement supprimé (mission `frontend-reset`), puis la
+reconstruction a démarré le **2026-07-31** avec un premier bloc : le shell
+applicatif (sidebar mobile, rail desktop, colonne secondaire).
 
 | État | Détail |
 |---|---|
-| UI | Une seule page racine : texte technique `Frontend reset complete` |
-| Console `/admin` | **Absente** — pas de dashboard, pas de navigation |
-| Marketing `(site)/` | **Absent** |
-| `src/components/` | **Absent** — aucun design system, aucun kit UI |
+| UI | Shell applicatif sur `/` — `src/components/app-shell.tsx` |
+| Stack UI | Tailwind v4 · Headless UI · Heroicons |
+| Console `/admin` | **Absente** et interdite de retour |
+| Marketing `(site)/`, `/login`, `src/theme.css` | **Absents** et interdits de retour |
 | API | **Active** — `src/app/api/**` intact |
 | Backend | **Intact** — `src/lib/**`, LangGraph, migrations, auth API |
 
-La reconstruction UI viendra via blocs fournis séparément. La gate
-`npm run check:no-legacy-front` refuse toute réapparition de
-`src/components/`, `/admin`, `design/`, etc.
+La gate `npm run check:no-legacy-front` autorise `src/components/` et refuse le
+retour des surfaces démolies. Les blocs suivants arriveront séparément, en
+**free design** : aucune palette ni système de tokens n'est imposé (`CLAUDE.md` §8).
 
 ## Notable partial capabilities
 
@@ -56,7 +58,7 @@ State the restriction, not the headline:
 
 - **Next.js 16** App Router — ⚠️ breaking changes vs. older Next; read
   `node_modules/next/dist/docs/` before touching framework code (`AGENTS.md`).
-- **React 19**, TypeScript — minimal App Router shell only (no Tailwind, no UI kit).
+- **React 19**, TypeScript, **Tailwind v4**, Headless UI, Heroicons.
 - **LangGraph** — the `agent_builder` graph in `src/langgraph/`, served by the
   official LangGraph Agent Server. Mandatory runtime for every agent.
 - **Direct model-router** (`src/lib/agent-mission-control/model-router.ts`) —
@@ -73,7 +75,7 @@ npm run dev
 
 Runs both servers together:
 
-- **Next.js → http://localhost:3987** — placeholder root page only after frontend reset.
+- **Next.js → http://localhost:3987** — the app shell on `/`.
   **Never port 3000. Never port 3210.** See `AGENTS.md` § "Port de dev".
 - **LangGraph Agent Server → http://127.0.0.1:2024** — serves `agent_builder`.
 

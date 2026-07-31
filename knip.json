@@ -10,5 +10,6 @@
   "project": ["src/**/*.{ts,tsx,mjs}", "scripts/**/*.{ts,mjs,js}", "tests/**/*.{ts,tsx}"],
   "ignoreExportsUsedInFile": true,
   "ignoreBinaries": ["gitleaks"],
-  "ignoreDependencies": ["tailwindcss"]
+  "ignore": ["src/components/ui/**"],
+  "ignoreDependencies": ["tailwindcss", "motion"]
 }

@@ -78,7 +78,23 @@ if (!fs.existsSync(COMPONENTS_DIR)) {
   process.exit(0)
 }
 
-const componentFiles = walk(COMPONENTS_DIR).filter((f) => /\.(tsx|ts)$/.test(f))
+/**
+ * Le kit Catalyst est une BIBLIOTHÈQUE vendorée, pas du code de page.
+ *
+ * Il est copié en entier depuis Tailwind Plus pour rester alignable sur l'amont.
+ * À un instant donné, l'écran n'en consomme qu'une poignée de composants — les
+ * autres sont de l'INVENTAIRE, pas du code mort. Les signaler ferait exactement
+ * l'inverse de ce que cette gate protège : elle pousserait à supprimer ce sur
+ * quoi la reconstruction du front est censée s'appuyer.
+ *
+ * La gate garde son vrai travail : repérer un composant PRODUIT que plus rien ne
+ * rend. Ce qui est écrit ici pour Aigent reste jugé.
+ */
+const KIT_DIR = 'src/components/ui/'
+
+const componentFiles = walk(COMPONENTS_DIR)
+  .filter((f) => /\.(tsx|ts)$/.test(f))
+  .filter((f) => !f.replace(/\\/g, '/').startsWith(KIT_DIR))
 const corpus = loadCorpus()
 const deadComponents = componentFiles.filter((f) => !isReferenced(f, corpus)).map((f) => f.replace(/\\/g, '/'))
 
