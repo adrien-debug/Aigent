@@ -1,0 +1,14 @@
+{
+  "measuredBy": "scripts/prove-learning-actions-e2e.mjs",
+  "driver": "Playwright 1.50.1 · Chromium 133.0.6943.16",
+  "scenarios": 7,
+  "consoleErrors": 0,
+  "consoleWarnings": 0,
+  "pageExceptions": 0,
+  "pageExceptionSource": "BrowserContext 'weberror' (WebError.error() + WebError.page())",
+  "assertions": {
+    "total": 30,
+    "failed": 0
+  },
+  "green": true
+}

@@ -13,11 +13,12 @@
 > HTTP ou la bibliothèque existe et est testée, mais aucune surface opérateur ne
 > l'atteint) · `not wired` (déclaré dans le code, lève ou ne fait rien).
 
-## Frontend — 15 écrans, reconstruction en cours
+## Frontend — 16 écrans, reconstruction en cours
 
 Le front historique a été entièrement supprimé (mission `frontend-reset`), puis
 **reconstruit à partir du 2026-07-31**. État vérifié : shell + listes + détails
-branchés ; `/actions` et `/settings` restent des placeholders honnêtes.
+branchés ; `/actions` est branché depuis le 2026-08-01 ; `/settings` reste un
+placeholder honnête.
 
 | Capacité | État | Preuve |
 |---|---|---|
@@ -25,7 +26,11 @@ branchés ; `/actions` et `/settings` restent des placeholders honnêtes.
 | Aperçu `/` — KPI, activité, flux, file d'action | wired | `src/app/page.tsx`, `src/components/cockpit/` |
 | Runs · Agents · Projets (+ détails) | wired | `src/app/{runs,agents,projects}/`, `src/components/{runs,agents,projects}/` |
 | Builder · Qualification · Livraison · Runtime | wired | `src/app/{builder,qualification,delivery,runtime}/` |
-| Actions · Réglages | partial — `SurfacePlaceholder`, aucune lecture | `src/app/{actions,settings}/page.tsx` |
+| Actions `/actions` — file opérateur complète, filtres, reprise de run | wired | `src/app/actions/page.tsx`, `src/components/actions/`, `src/lib/agent-mission-control/operator-queue.ts` |
+| Learning `/learning` — supervision, file de revue, évaluations, connaissance | wired | `src/app/learning/page.tsx`, `src/components/learning/`, `src/lib/agent-mission-control/learning-overview.ts` |
+| Pont Obsidian — URI natives `open` / `new` / `search`, 4 templates | wired | `src/lib/agent-mission-control/obsidian-bridge.ts`, `docs/templates/obsidian/` |
+| Learning Runtime (H-Supervised) — client health/capabilities server-only | partial — contrat câblé, **aucun moteur en face** | `src/lib/agent-mission-control/learning-runtime.ts` |
+| Réglages | partial — `SurfacePlaceholder`, aucune lecture | `src/app/settings/page.tsx` |
 | Kit UI — 14 primitives, empreinte SHA-256 | wired | `src/components/ui/`, `check:ui-kit-integrity` |
 | Tailwind v4 · Headless UI · Heroicons · Recharts | wired | `postcss.config.mjs`, `src/app/globals.css` |
 

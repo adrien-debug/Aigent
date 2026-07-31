@@ -163,6 +163,27 @@ export type ActionItem = {
   href: string
   buttonLabel: string
   priority: number
+  /**
+   * L'agent concerné, quand la ligne en porte un.
+   *
+   * Ces deux identifiants ont d'abord été omis : `meta` composait déjà un
+   * libellé lisible (« Market Intelligence · adrien-debug/TradeAgent »), donc
+   * l'information PARAISSAIT présente. Elle ne l'était pas — un libellé n'est
+   * pas une clé. Toute surface voulant filtrer par agent ou par projet devait
+   * soit re-parser une chaîne d'affichage, soit renoncer. `/actions` avait
+   * renoncé.
+   *
+   * Ils sont donc conservés à la dérivation, là où ils sont connus sans coût :
+   * `copilotId` vient de la clé de `latestDeliveryByCopilot`, `projectId` du
+   * copilot résolu ou de l'approbation architecte. Aucun aller-retour
+   * supplémentaire.
+   *
+   * `null` quand la ligne n'en porte réellement pas — une panne de source
+   * (`data_unavailable`) n'appartient à aucun agent.
+   */
+  copilotId: string | null
+  /** Le projet concerné, même contrat que `copilotId`. */
+  projectId: string | null
 }
 
 export type DashboardOverview = {
@@ -557,6 +578,8 @@ export function buildActionItems(input: {
       href: '/',
       buttonLabel: 'Retry',
       priority: ACTION_PRIORITY.data_unavailable,
+      copilotId: null,
+      projectId: null,
     })
   } else {
     for (const approval of input.pendingArchitectApprovals) {
@@ -570,6 +593,8 @@ export function buildActionItems(input: {
         href: `/projects/${approval.projectId}/builder`,
         buttonLabel: 'Open builder',
         priority: ACTION_PRIORITY.architect_approval,
+        copilotId: null,
+        projectId: approval.projectId,
       })
     }
   }
@@ -589,6 +614,8 @@ export function buildActionItems(input: {
       href: '/',
       buttonLabel: 'Retry',
       priority: ACTION_PRIORITY.data_unavailable,
+      copilotId: null,
+      projectId: null,
     })
   }
   if (input.latestSandboxByCopilot === null) {
@@ -601,6 +628,8 @@ export function buildActionItems(input: {
       href: '/',
       buttonLabel: 'Retry',
       priority: ACTION_PRIORITY.data_unavailable,
+      copilotId: null,
+      projectId: null,
     })
   }
 
@@ -620,6 +649,8 @@ export function buildActionItems(input: {
         href: `/agents/${copilotId}`,
         buttonLabel: 'Review',
         priority: ACTION_PRIORITY.ready_manual,
+        copilotId: copilotId,
+        projectId: copilot.projectId ?? null,
       })
     }
 
@@ -634,6 +665,8 @@ export function buildActionItems(input: {
         href: `/agents/${copilotId}`,
         buttonLabel: 'View Sandbox',
         priority: ACTION_PRIORITY.sandbox_failed,
+        copilotId: copilotId,
+        projectId: copilot.projectId ?? null,
       })
     }
 
@@ -648,6 +681,8 @@ export function buildActionItems(input: {
         href: `/agents/${copilotId}`,
         buttonLabel: 'View Scorecard',
         priority: ACTION_PRIORITY.release_gate_red,
+        copilotId: copilotId,
+        projectId: copilot.projectId ?? null,
       })
     }
 
@@ -661,6 +696,8 @@ export function buildActionItems(input: {
         href: evt.prUrl,
         buttonLabel: 'Open PR',
         priority: ACTION_PRIORITY.pr_open,
+        copilotId: copilotId,
+        projectId: copilot.projectId ?? null,
       })
     }
   }
@@ -681,6 +718,8 @@ export function buildActionItems(input: {
       href: project ? `/projects/${project.id}` : '/',
       buttonLabel: 'View Mission',
       priority: ACTION_PRIORITY.mission_blocked,
+      copilotId: null,
+      projectId: mission.projectId,
     })
   }
 
@@ -727,6 +766,23 @@ export function assembleDashboardOverview(input: {
   telemetryRunsMeasured: number | null
   pendingArchitectApprovals: PendingArchitectApproval[] | null
   recentTelemetryEvents: RuntimeTelemetryEvent[] | null
+  /**
+   * Plafond de la file d'action. Absent = le défaut de `buildActionItems` (6),
+   * la troncature voulue par l'aperçu, qui n'a de place que pour une colonne.
+   *
+   * `/actions` et `/learning` sont des surfaces de revue DÉDIÉES : elles
+   * passent une limite haute pour obtenir la file complète. Le paramètre
+   * traverse jusqu'ici plutôt que de laisser un appelant re-dériver la file
+   * lui-même, parce qu'une re-dérivation ne dispose PAS des mêmes entrées —
+   * `latestSandboxByCopilot`, `scorecards` et `missionRuns` ne sont pas exposés
+   * sur `DashboardOverview`. Un appelant qui les remplacerait par `null`/vide
+   * produirait deux mensonges symétriques : des lignes « source indisponible »
+   * pour des sources qui ont été lues sans erreur, et la disparition
+   * silencieuse des lignes sandbox/gate/mission réelles. Une seule dérivation,
+   * les mêmes entrées, une limite qui varie : c'est la seule forme qui garde
+   * l'aperçu et la file complète d'accord entre eux.
+   */
+  actionItemsLimit?: number
 }): DashboardOverview {
   const copilotsById = new Map(input.copilots.map((c) => [c.id, c]))
   const projectsById = new Map(input.projects.map((p) => [p.id, p]))
@@ -754,6 +810,7 @@ export function assembleDashboardOverview(input: {
     missionRuns: input.missionRuns,
     dataWarnings: input.dataWarnings,
     pendingArchitectApprovals: input.pendingArchitectApprovals,
+    limit: input.actionItemsLimit,
   })
 
   return {
@@ -937,6 +994,17 @@ export const TELEMETRY_EVENTS_READ_FAILED_WARNING = 'Runtime telemetry event fee
 export const ARCHITECT_APPROVALS_READ_FAILED_WARNING = 'Architect approval queue unavailable'
 
 /**
+ * Plafond des surfaces de revue dédiées (`/actions`, `/learning`).
+ *
+ * Ce n'est pas « pas de limite » : une file non bornée rendrait un écran que
+ * personne ne peut lire et une page dont le coût de rendu suit la taille de la
+ * flotte. C'est un plafond assez haut pour qu'aucune file réelle ne le touche,
+ * et il reste EXPLICITE — si une flotte l'atteint un jour, l'UI doit le dire
+ * plutôt que de tronquer en silence.
+ */
+export const FULL_ACTION_QUEUE_LIMIT = 500
+
+/**
  * Read-only dashboard overview for the operator cockpit (`/`). Never writes,
  * never calls GitHub.
  *
@@ -960,7 +1028,10 @@ export const ARCHITECT_APPROVALS_READ_FAILED_WARNING = 'Architect approval queue
  * Release-gate / scorecard signals stay on the agent detail pages, which pay the
  * per-copilot cost once for the one copilot being viewed.
  */
-export async function getDashboardOverview(nowMs: number = Date.now()): Promise<DashboardOverview> {
+export async function getDashboardOverview(
+  nowMs: number = Date.now(),
+  options: Readonly<{ actionItemsLimit?: number }> = {}
+): Promise<DashboardOverview> {
   const dataWarnings: string[] = []
 
   const [
@@ -1054,5 +1125,6 @@ export async function getDashboardOverview(nowMs: number = Date.now()): Promise<
     telemetryRunsMeasured: fleetTelemetryResult.summary?.totalRuns ?? null,
     pendingArchitectApprovals: pendingArchitectApprovalsResult.approvals,
     recentTelemetryEvents: telemetryEventsResult.events,
+    actionItemsLimit: options.actionItemsLimit,
   })
 }

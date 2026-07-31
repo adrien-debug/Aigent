@@ -11,10 +11,9 @@
  * TOUJOURS son mot (« Non mesuré »). La couleur n'est jamais le seul porteur du
  * sens — un écran lu en niveaux de gris doit rester vrai.
  */
-import type { ComponentProps, ReactNode } from 'react'
+import type { ComponentProps } from 'react'
 
 import { Badge } from '@/components/ui/badge'
-import { Strong, Text } from '@/components/ui/text'
 import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
 import type { GateStatus } from '@/lib/agent-mission-control/release-gate'
 import type { AvailableAgentStatus } from '@/lib/agent-mission-control/available-agents'
@@ -179,38 +178,10 @@ export function NotMeasured({ why }: Readonly<{ why?: string }>) {
   )
 }
 
-/**
- * Une paire libellé / valeur.
- *
- * `value === null` rend `NotMeasured` : c'est le contrat de cette fonction, et il
- * dispense chaque appelant de réécrire la garde (donc de l'oublier). Un `0`
- * mesuré reste un `0` — seul `null` est une absence.
- */
-export function Fact({
-  label,
-  value,
-  why,
-  hint,
-}: Readonly<{
-  label: string
-  value: ReactNode | null
-  /** Pourquoi c'est absent, quand `value` est `null`. */
-  why?: string
-  /** Précision affichée sous la valeur, quand elle existe. */
-  hint?: string
-}>) {
-  return (
-    <div className="min-w-0">
-      <Text className="truncate text-xs">{label}</Text>
-      <div className="mt-0.5 min-w-0 truncate">
-        {value === null ? <NotMeasured why={why} /> : value}
-      </div>
-      {hint ? <Text className="mt-0.5 truncate text-xs">{hint}</Text> : null}
-    </div>
-  )
-}
-
-/** Une valeur numérique/textuelle mise en avant dans un `Fact`. */
-export function FactValue({ children }: Readonly<{ children: ReactNode }>) {
-  return <Strong className="tabular-nums">{children}</Strong>
-}
+// `Fact` / `FactValue` ont vécu ici : une paire libellé/valeur qui rendait
+// `NotMeasured` sur `null`. La recomposition de la surface Agents en table +
+// détail documentaire a supprimé leur dernier appelant, et knip les signalait
+// comme exports morts. Supprimés plutôt que gardés « au cas où » : un composant
+// sans consommateur ne se met plus à jour avec la doctrine qu'il implémente, et
+// il redeviendrait faux en silence. `NotMeasured` — le contrat réel, celui qui
+// distingue une absence d'un zéro — reste exporté juste au-dessus et consommé.

@@ -1,5 +1,5 @@
 /**
- * Carte de navigation d'Aigent — source UNIQUE des dix surfaces du plan de
+ * Carte de navigation d'Aigent — source UNIQUE des onze surfaces du plan de
  * contrôle.
  *
  * Pourquoi un module à part, et pas un tableau dans `app-shell.tsx` :
@@ -36,6 +36,7 @@
  */
 import type { ComponentType, SVGProps } from 'react'
 import {
+  AcademicCapIcon,
   BeakerIcon,
   BoltIcon,
   Cog6ToothIcon,
@@ -59,10 +60,10 @@ export type NavEntry = {
 }
 
 /**
- * Les dix entrées, dans l'ordre imposé du parcours produit.
+ * Les onze entrées, dans l'ordre imposé du parcours produit.
  *
  * `satisfies` plutôt qu'une annotation : le tableau garde son type littéral, ce
- * qui permet à `NavHref` d'être l'union exacte des dix routes. Une page qui
+ * qui permet à `NavHref` d'être l'union exacte des onze routes. Une page qui
  * demande `navEntry('/typo')` ne compile alors PAS — au lieu de rendre
  * `undefined` et d'exploser au rendu.
  */
@@ -116,6 +117,13 @@ export const NAVIGATION = [
     purpose: 'Santé du canal de télémétrie et événements remontés par les agents déployés.',
   },
   {
+    name: 'Learning',
+    href: '/learning',
+    icon: AcademicCapIcon,
+    purpose:
+      "Supervision de la flotte, file de revue, état des évaluations et accès à la connaissance — le poste d'amélioration des agents.",
+  },
+  {
     name: 'Actions',
     href: '/actions',
     icon: InboxStackIcon,
@@ -129,7 +137,7 @@ export const NAVIGATION = [
   },
 ] as const satisfies readonly NavEntry[]
 
-/** L'union exacte des dix routes de navigation — pas `string`. */
+/** L'union exacte des onze routes de navigation — pas `string`. */
 export type NavHref = (typeof NAVIGATION)[number]['href']
 
 /**
@@ -159,7 +167,7 @@ export function activeNavHref(pathname: string): string | null {
  * Le paramètre est typé `NavHref`, donc une route absente de la carte est une
  * ERREUR DE COMPILATION, pas un `undefined` qui casserait au rendu. C'est ce qui
  * autorise le retour non-nullable : le `find` ne peut pas échouer sur une valeur
- * que le type a déjà restreinte aux dix `href` du tableau.
+ * que le type a déjà restreinte aux onze `href` du tableau.
  */
 export function navEntry(href: NavHref): NavEntry {
   const entry = NAVIGATION.find((candidate) => candidate.href === href)
