@@ -165,9 +165,9 @@ describe('the requirement agrees with the enforcement', () => {
       mountedTools: REPO_TOOLS,
     })
 
-    expect(keys).toContain('design_system')
     expect(keys).toContain('secrets')
     expect(keys).toContain('repo_risks')
+    expect(keys).not.toContain('design_system')
   })
 
   it('is unchanged when no toolbelt is supplied (legacy callers)', () => {

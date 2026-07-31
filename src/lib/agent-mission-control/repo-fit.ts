@@ -11,7 +11,7 @@
  *   1. is the suite repo_aware or manifest_only?
  *   2. do the scripts the cases cite exist in RepoMap.scripts?
  *   3. do the routes the cases cite exist in RepoMap.appRoutes/apiRoutes?
- *   4. are the repo's DS / env / risk signals actually covered by a case?
+ *   4. are the repo's env / risk / route signals actually covered by a case?
  *   5. are the agent's tools compatible with a repo-inspection role?
  *
  * PURE by design: no `server-only`, no PostgREST, no GitHub, no env — unit
@@ -21,7 +21,6 @@
 
 import {
   API_ROUTE_KEYWORDS,
-  DS_KEYWORDS,
   MANY_API_ROUTES_THRESHOLD,
   RISK_KEYWORDS,
   SECRET_KEYWORDS,
@@ -250,13 +249,12 @@ export function computeRepoFit(input: RepoFitInput): RepoFitResult {
     }
   }
 
-  // 4. Coverage (+15) — DS / env / risk signals present must each be covered.
+  // 4. Coverage (+15) — env / risk / route signals present must each be covered.
   if (!repoAware || !map) {
     checks.push({ id: 'coverage', label: 'Repo signals covered', status: 'skip', evidence: 'no repo signals' })
   } else {
     const hasTrackedEnv = (map.riskNotes ?? []).some((n) => /\.env.*tracked|tracked.*\.env/i.test(n))
     const expected: { key: string; present: boolean; hit: string | null }[] = [
-      { key: 'design_system', present: (map.designSystemSignals ?? []).length > 0, hit: anyCaseHits(text, DS_KEYWORDS) },
       {
         key: 'secrets',
         present: (map.envSignals ?? []).length > 0 || hasTrackedEnv,
@@ -278,7 +276,7 @@ export function computeRepoFit(input: RepoFitInput): RepoFitResult {
     relevant.filter((e) => e.hit === null).forEach((e) => missingCoverage.push(e.key))
     if (relevant.length === 0) {
       score += 15 // no signal to cover → full credit
-      checks.push({ id: 'coverage', label: 'Repo signals covered', status: 'pass', evidence: 'no DS/env/risk signal in repo' })
+      checks.push({ id: 'coverage', label: 'Repo signals covered', status: 'pass', evidence: 'no env/risk signal in repo' })
     } else {
       score += Math.round((covered.length / relevant.length) * 15)
       let coverageStatus: RepoFitCheck['status'] = 'warn'

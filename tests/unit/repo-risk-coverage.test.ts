@@ -51,9 +51,10 @@ function tradeAgentIntelligence() {
 const repoCtx = buildRepoSuiteContext(tradeAgentIntelligence())!
 
 describe('requiredRiskCoverageKeys — TradeAgent profile', () => {
-  it('requires secrets, repo_risks, api_routes and design_system', () => {
+  it('requires secrets, repo_risks, api_routes — not legacy design_system', () => {
     const keys = requiredRiskCoverageKeys({ repoCtx, repoMap: tradeAgentMap(), residueCount: 8 })
-    expect(keys).toEqual(expect.arrayContaining(['secrets', 'repo_risks', 'api_routes', 'design_system']))
+    expect(keys).toEqual(expect.arrayContaining(['secrets', 'repo_risks', 'api_routes']))
+    expect(keys).not.toContain('design_system')
   })
 })
 
@@ -75,8 +76,9 @@ describe('assessRiskCoverage', () => {
     expect(requiredRiskCoverageKeys({ repoCtx, repoMap: tradeAgentMap(), residueCount: 0 })).toContain('api_routes')
   })
 
-  it('DS signals → design_system required', () => {
-    expect(requiredRiskCoverageKeys({ repoCtx, repoMap: tradeAgentMap(), residueCount: 0 })).toContain('design_system')
+  it('DS signals do not require design_system (legacy doctrine blocked)', () => {
+    const keys = requiredRiskCoverageKeys({ repoCtx, repoMap: tradeAgentMap(), residueCount: 0 })
+    expect(keys).not.toContain('design_system')
   })
 })
 
@@ -114,15 +116,6 @@ describe('buildDeterministicRiskCases', () => {
     expect(cases[0].expectedBehavior.toLowerCase()).toMatch(/invent/)
   })
 
-  it('generates design-system case when DS signals present', () => {
-    const cases = buildDeterministicRiskCases({
-      agentName: 'BTC Alert',
-      missing: ['design_system'],
-      mountedTools: mounted,
-      repoCtx,
-    })
-    expect(cases[0].expectedBehavior.toLowerCase()).toMatch(/catalyst|check:ds/)
-  })
 })
 
 describe('assessRiskCoverage — missing stays signalled', () => {

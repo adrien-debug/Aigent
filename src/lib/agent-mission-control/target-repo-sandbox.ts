@@ -88,8 +88,6 @@ export const SANDBOX_SCRIPT_ORDER = [
   'verify',
   'typecheck',
   'lint',
-  'check:ds',
-  'check:catalyst',
   'test',
   'build',
 ] as const

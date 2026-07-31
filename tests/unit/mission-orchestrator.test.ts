@@ -160,17 +160,10 @@ describe('selectMissionParticipants', () => {
     expect(roles).toContain('repo_inspector')
     expect(roles).toContain('security')
     expect(roles).toContain('qa_release')
-    expect(roles).not.toContain('design_system')
+    expect(roles).not.toContain('design_system' as typeof roles[number])
   })
 
-  it('2 — selects Design System Guardian only when DS signals exist', () => {
-    const without = selectMissionParticipants({
-      objective: 'Audit',
-      projectCopilots: [],
-      repoIntelligence: baseIntel(),
-    })
-    expect(without.some((p) => p.role === 'design_system')).toBe(false)
-
+  it('2 — never selects Design System Guardian (legacy doctrine blocked)', () => {
     const withDs = selectMissionParticipants({
       objective: 'Audit',
       projectCopilots: [],
@@ -178,7 +171,8 @@ describe('selectMissionParticipants', () => {
         map: { ...baseIntel().map, designSystemSignals: ['Tailwind', 'globals.css'] },
       }),
     })
-    expect(withDs.some((p) => p.role === 'design_system')).toBe(true)
+    const roles = withDs.map((p) => p.role)
+    expect(roles).not.toContain('design_system' as typeof roles[number])
   })
 
   it('3 — selects domain BTC agent for BTC objective', () => {

@@ -102,7 +102,6 @@ describe('evaluateSandbox — artifacts', () => {
     // typecheck exists → dry_run; build/lint/verify absent → script_missing.
     expect(r.checks.find((c) => c.id === 'script:typecheck')!.reason).toBe('dry_run')
     expect(r.checks.find((c) => c.id === 'script:build')!.reason).toBe('script_missing')
-    expect(r.checks.find((c) => c.id === 'script:check:catalyst')!.reason).toBe('script_missing')
     // No script:* check is ever "passed" in dry-run (they're detected, not run).
     expect(r.checks.filter((c) => c.id.startsWith('script:')).every((c) => c.status === 'skipped')).toBe(true)
   })

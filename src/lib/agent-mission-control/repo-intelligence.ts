@@ -449,21 +449,6 @@ function recommendAgents(map: RepoMap, footprint: AgenticFootprint, residue: Res
     })
   }
 
-  // Design System Guardian — justified by DS signals.
-  if (map.designSystemSignals.length > 0) {
-    recs.push({
-      id: 'design-system-guardian',
-      title: 'Design System Guardian',
-      priority: map.designSystemSignals.some((s) => /gate/i.test(s)) ? 'medium' : 'high',
-      why: `Design-system signals present (${map.designSystemSignals.join('; ')}) — an agent can flag off-system UI (native controls, hardcoded colours, oversized components).`,
-      proposedRole: 'Read components and flag deviations from the design system: native controls, hardcoded hex, off-scale spacing, oversized cards/buttons.',
-      toolsNeeded: readOnly,
-      testsNeeded: ['flags a native <button> in the dashboard path', 'flags a hardcoded hex colour'],
-      risks: ['advisory only — proposes fixes, never edits'],
-      releaseValue: 'Keeps the UI consistent as the surface grows.',
-    })
-  }
-
   // Repo Inspector / Cleanup — justified when residue exists.
   if (residue.length > 0) {
     recs.push({

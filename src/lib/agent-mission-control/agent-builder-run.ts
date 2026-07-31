@@ -435,7 +435,7 @@ function normalizeState(input: NormalizeInput): BuilderRunState {
 /**
  * Derive a repo-aware release proposal from the drafted manifest + the repo
  * scan. The validation commands are the repo's REAL npm scripts when a scan is
- * present (verify/typecheck/lint/check:ds/check:catalyst/test/build in run
+ * present (verify/typecheck/lint/test/build in run
  * order), else a sensible default set. It proposes the SAME scaffold files
  * github.ts would push (handler.ts / manifest.json / README.md under
  * agents/<slug>) — but NOTHING is written: prCreation is 'ships-next'.
@@ -453,7 +453,7 @@ function buildReleaseProposal(
   const dir = `agents/${slug || 'drafted-copilot'}`
 
   // Prefer the repo's real gate order when scanned; else a safe default.
-  const GATE_ORDER = ['verify', 'typecheck', 'lint', 'check:ds', 'check:catalyst', 'test', 'build']
+  const GATE_ORDER = ['verify', 'typecheck', 'lint', 'test', 'build']
   const scriptNames = scan ? Object.keys(scan.scripts) : []
   const validationCommands =
     scriptNames.length > 0

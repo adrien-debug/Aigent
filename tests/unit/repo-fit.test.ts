@@ -108,11 +108,16 @@ describe('computeRepoFit', () => {
     expect(r.hallucinationWarnings.some((w) => w.includes('does-not-exist'))).toBe(false)
   })
 
-  it('5 — DS signals present but no DS case → missingCoverage design_system', () => {
-    // A minimal suite with NO design-system keyword anywhere in the case text.
+  it('5 — DS signals present do not require design_system coverage', () => {
     const cases = [c('Answers a summary', 'Summarize the repo.', 'Answers, read-only.', ['behavior'])]
-    const r = computeRepoFit({ suiteSource: 'repo_aware', cases, toolNames: READ_TOOLS, repoMap: repoMap({ envSignals: [], riskNotes: [] }), residueCount: 0 })
-    expect(r.missingCoverage).toContain('design_system')
+    const r = computeRepoFit({
+      suiteSource: 'repo_aware',
+      cases,
+      toolNames: READ_TOOLS,
+      repoMap: repoMap({ envSignals: [], riskNotes: [] }),
+      residueCount: 0,
+    })
+    expect(r.missingCoverage).not.toContain('design_system')
   })
 
   it('6 — envSignals present but no secret case → missingCoverage secrets', () => {

@@ -31,7 +31,6 @@ export type MissionParticipantRole =
   | 'orchestrator'
   | 'repo_inspector'
   | 'security'
-  | 'design_system'
   | 'qa_release'
   | 'domain_agent'
 
@@ -112,7 +111,6 @@ const ROLE_LABELS: Record<MissionParticipantRole, string> = {
   orchestrator: 'Orchestrator',
   repo_inspector: 'Repo Inspector',
   security: 'Security Sentinel',
-  design_system: 'Design System Guardian',
   qa_release: 'QA & Release',
   domain_agent: 'Domain Agent',
 }
@@ -120,7 +118,6 @@ const ROLE_LABELS: Record<MissionParticipantRole, string> = {
 const ROLE_MATCHERS: Record<Exclude<MissionParticipantRole, 'orchestrator'>, RegExp[]> = {
   repo_inspector: [/repo[- ]?inspect/i, /inspector/i],
   security: [/\bsecurity\b/i, /security[- ]?sentinel/i],
-  design_system: [/design[- ]?system/i, /ds[- ]?guardian/i, /catalyst/i],
   qa_release: [/\bqa\b/i, /qa[- ]?release/i, /quality[- ]?release/i],
   domain_agent: [/btc/i, /alert/i, /levels/i, /trade/i],
 }
@@ -146,14 +143,10 @@ function objectiveMentionsDomain(objective: string): boolean {
 
 /** Select mission participants from repo intelligence + project copilots + objective. */
 export function selectMissionParticipants(input: SelectMissionParticipantsInput): MissionParticipant[] {
-  const { objective, projectCopilots, repoIntelligence } = input
-  const dsSignals = repoIntelligence?.map.designSystemSignals ?? []
-  const includeDs = dsSignals.length > 0
-
+  const { objective, projectCopilots } = input
   const roles: Exclude<MissionParticipantRole, 'orchestrator'>[] = [
     'repo_inspector',
     'security',
-    ...(includeDs ? (['design_system'] as const) : []),
     'qa_release',
     ...(objectiveMentionsDomain(objective) ? (['domain_agent'] as const) : []),
   ]
@@ -421,51 +414,6 @@ export function buildSecurityFindings(
   return findings
 }
 
-function buildDesignSystemFindings(
-  runId: string,
-  evidence: MissionEvidenceBundle,
-  participant: MissionParticipant
-): MissionFinding[] {
-  if (participant.status === 'missing') return [missingParticipantFinding(runId, 'design_system', 0)]
-
-  const intel = evidence.repoIntelligence
-  const dsSignals = intel?.map.designSystemSignals ?? []
-  const scripts = intel?.map.scripts ?? {}
-  const findings: MissionFinding[] = []
-  let n = 0
-
-  findings.push({
-    id: fid(runId, 'design_system', n++),
-    missionRunId: runId,
-    copilotId: participant.copilotId,
-    role: 'design_system',
-    severity: 'info',
-    title: 'Design system signals',
-    description: dsSignals.length > 0 ? dsSignals.join(' · ') : 'No DS signals in RepoMap.',
-    evidence: { designSystemSignals: dsSignals },
-    recommendation: null,
-  })
-
-  const dsScripts = ['check:ds', 'check:catalyst']
-  const present = dsScripts.filter((s) => scripts[s])
-  const absent = dsScripts.filter((s) => !scripts[s])
-  if (absent.length > 0) {
-    findings.push({
-      id: fid(runId, 'design_system', n++),
-      missionRunId: runId,
-      copilotId: participant.copilotId,
-      role: 'design_system',
-      severity: 'info',
-      title: 'DS validation scripts absent',
-      description: `No ${absent.join('/')} in package.json — agents must not invent these gates.`,
-      evidence: { absent, present },
-      recommendation: 'When proposing UI, cite only real repo scripts (lint, test, build, check).',
-    })
-  }
-
-  return findings
-}
-
 export function buildQaReleaseFindings(
   runId: string,
   evidence: MissionEvidenceBundle,
@@ -646,7 +594,6 @@ export function buildMissionFindings(
 
   if (byRole.repo_inspector) all.push(...buildRepoInspectorFindings(runId, evidence, byRole.repo_inspector))
   if (byRole.security) all.push(...buildSecurityFindings(runId, evidence, byRole.security))
-  if (byRole.design_system) all.push(...buildDesignSystemFindings(runId, evidence, byRole.design_system))
   if (byRole.qa_release) all.push(...buildQaReleaseFindings(runId, evidence, byRole.qa_release))
   if (byRole.domain_agent) all.push(...buildDomainAgentFindings(runId, evidence, byRole.domain_agent))
 

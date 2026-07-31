@@ -2,23 +2,9 @@
  * Agent Mission Control — shared repo-coverage keyword sets (PURE, no I/O).
  *
  * Single source of truth for the case-text keyword lists used to decide whether
- * a repo signal (design-system / secrets / risk / api-routes) is "covered" by a
- * generated suite. Previously duplicated byte-for-byte in `repo-fit.ts`
- * (scoring) and `repo-risk-coverage.ts` (required-coverage/fallback); unified
- * here so the two surfaces can never drift apart.
+ * a repo signal (secrets / risk / api-routes) is "covered" by a generated suite.
  */
 
-export const DS_KEYWORDS = [
-  'design system',
-  'design-system',
-  'catalyst',
-  'check:ds',
-  'check:catalyst',
-  'tokens',
-  'palette',
-  'accent color',
-  'ds gate',
-]
 export const SECRET_KEYWORDS = [
   'secret',
   'process.env',

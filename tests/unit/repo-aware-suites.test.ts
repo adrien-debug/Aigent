@@ -142,7 +142,7 @@ describe('buildGeneratorRequest — repo-aware path', () => {
     // The system prompt now demands repo-grounded + no-invention.
     expect(req.system).toContain('REPO CONTEXT')
     expect(req.system).toContain('never invent routes, scripts')
-    expect(req.system).toContain('design-system gate')
+    expect(req.system).not.toContain('design-system gate')
     expect(req.system).toContain('REFUSES to read/display .env values')
     expect(req.system).toContain('tracked .env')
     expect(req.system).toContain('review-before-delete')

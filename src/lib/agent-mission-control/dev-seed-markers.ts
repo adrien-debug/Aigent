@@ -3,7 +3,7 @@
  * dev-only fixtures from production-oriented views (performance leaderboard,
  * etc.). Disclosure lives in the seed labels; this module is the machine
  * check — NOT `seed-fixtures.ts` (type fixtures for seed-amc, never imported
- * from the app per `check:ds`).
+ * from the app per les gates branchées dans `package.json`).
  */
 import type { Copilot, Project } from './types'
 
