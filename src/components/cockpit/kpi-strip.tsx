@@ -121,7 +121,7 @@ export default function KpiStrip({
   const executableTotal = kpis.executableTotal
 
   return (
-    <dl className="grid shrink-0 grid-cols-2 overflow-hidden rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 sm:grid-cols-3 xl:grid-cols-6 dark:bg-zinc-900 dark:ring-white/10 [&>*+*]:border-l [&>*+*]:border-zinc-950/5 dark:[&>*+*]:border-white/5">
+    <dl className="dark grid shrink-0 grid-cols-2 overflow-hidden rounded-lg bg-black shadow-xs ring-1 ring-white/10 sm:grid-cols-3 xl:grid-cols-6 [&>*+*]:border-l [&>*+*]:border-white/10">
       <Cell
         label="Runs 24 h"
         value={kpis.runs24h}

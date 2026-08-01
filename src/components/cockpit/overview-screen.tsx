@@ -8,8 +8,7 @@
  */
 import type { ReactNode } from 'react'
 import { navEntry } from '@/components/navigation'
-import { Heading } from '@/components/ui/heading'
-import { Text } from '@/components/ui/text'
+import { Link } from '@/components/ui/link'
 import type { DashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
 import { buildHourlyBuckets, buildStatusBreakdown } from '@/lib/cockpit/overview-series'
 import { buildAgentCards, buildNamedRuns } from '@/lib/cockpit/named-runs'
@@ -80,9 +79,48 @@ export default function CockpitOverview({
 
   return (
     <div className="flex flex-col gap-4 p-6 pt-16 lg:pt-6 lg:px-8">
-      <header>
-        <Heading level={1}>{ENTRY.name}</Heading>
-        <Text className="mt-1">{ENTRY.purpose}</Text>
+      {/* En-tête de page — même surface noire que les boxes, titre blanc, et
+          les deux actions de l'écran à droite : la discrète en `white/10`,
+          l'action principale en accent. */}
+      <header className="dark rounded-lg bg-black px-6 py-5 ring-1 ring-white/10 md:flex md:items-center md:justify-between md:space-x-5">
+        <div className="flex items-start space-x-5">
+          <div className="shrink-0">
+            <div className="relative flex size-16 items-center justify-center rounded-full bg-white/5 outline -outline-offset-1 outline-white/10">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden className="size-7 text-white">
+                <path
+                  d="M12 2.2 21.8 12 12 21.8 2.2 12 12 2.2Z"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinejoin="round"
+                />
+                <path d="M12 7.4 16.6 12 12 16.6 7.4 12 12 7.4Z" fill="currentColor" fillOpacity="0.9" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Le padding vertical simule un centrage quand les deux lignes
+              tiennent sur une ligne, sans faire sauter la marque si le texte
+              passe à la ligne. */}
+          <div className="pt-1.5">
+            <h1 className="text-2xl font-bold text-white">{ENTRY.name}</h1>
+            <p className="text-sm font-medium text-gray-400">{ENTRY.purpose}</p>
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-col-reverse justify-stretch space-y-4 space-y-reverse sm:flex-row-reverse sm:justify-end sm:space-y-0 sm:space-x-3 sm:space-x-reverse md:mt-0 md:flex-row md:space-x-3">
+          <Link
+            href="/runs"
+            className="inline-flex items-center justify-center rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white no-underline inset-ring inset-ring-white/5 hover:bg-white/20"
+          >
+            Voir les runs
+          </Link>
+          <Link
+            href="/actions"
+            className="inline-flex items-center justify-center rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white no-underline hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+          >
+            File d’action
+          </Link>
+        </div>
       </header>
 
       <KpiStrip kpis={overview.kpis} unread={unread} />

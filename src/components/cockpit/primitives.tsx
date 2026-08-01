@@ -70,7 +70,15 @@ export function Panel({
     <section
       className={clsx(
         'flex flex-col rounded-lg',
-        'bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10',
+        // Noir profond plutôt que le `zinc-900` du kit : sur un fond noir, un
+        // panneau gris-bleuté se lit comme une surface flottante alors qu'il
+        // porte l'information principale. Le contraste vient du LISERÉ, pas
+        // d'un écart de valeur entre le fond et la boîte.
+        // `dark` est posée SUR LA BOX, pas sur la page : le fond reste clair,
+        // et le kit Catalyst bascule ses `dark:text-white` À L'INTÉRIEUR de la
+        // box. Sans ce scope, `Strong` et `Heading` rendraient `text-zinc-950`
+        // — du noir sur noir, invisible.
+        'dark bg-black shadow-xs ring-1 ring-white/10',
         className,
       )}
     >
