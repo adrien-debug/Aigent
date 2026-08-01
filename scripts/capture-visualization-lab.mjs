@@ -70,6 +70,14 @@ function attachConsole(page) {
   page.on('console', (msg) => {
     const text = msg.text().slice(0, 300)
     if (IGNORED.some((re) => re.test(text))) return
+    /*
+     * Les `ERR_FAILED` de la surface `unavailable` sont produits PAR le
+     * harnais : ce sont les requêtes qu'il abandonne lui-même pour simuler la
+     * coupure. Les compter comme des défauts reviendrait à faire échouer la
+     * preuve à cause de la preuve. Ils restent comptés partout ailleurs — sur
+     * toute autre surface, un `ERR_FAILED` est un vrai défaut.
+     */
+    if (surface.startsWith('unavailable') && /Failed to load resource/.test(text)) return
     consoleMessages.push({ surface, type: msg.type(), text })
   })
   page.on('pageerror', (err) => {
