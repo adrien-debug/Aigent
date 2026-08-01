@@ -59,7 +59,14 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
     <div className="relative px-2 pt-2 pb-1" onPointerLeave={() => setHovered(null)}>
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        className="w-full overflow-visible"
+        // Hauteur FIXE : sans elle, le SVG garde son ratio 600×220 et grandit
+        // en hauteur avec la largeur de l'écran — une ligne plate occupait
+        // 600 px de haut. La hauteur d'un graphe ne dépend pas de la taille de
+        // la fenêtre, elle dépend de ce qu'il y a à lire.
+        //
+        // `preserveAspectRatio` reste au défaut (`meet`) : le passer à `none`
+        // étirerait la géométrie, et les points ronds deviendraient des ovales.
+        className="h-40 w-full overflow-visible"
         role="img"
         aria-label={`Activité par heure sur la fenêtre — ${buckets.reduce((n, b) => n + b.total, 0)} runs`}
       >
