@@ -40,7 +40,7 @@ import { PageBody, PageHeader } from '@/components/app-shell'
 import { Divider } from '@/components/ui/divider'
 import { Subheading } from '@/components/ui/heading'
 import { Strong, Text } from '@/components/ui/text'
-import { Panel, Unavailable } from '@/components/cockpit/primitives'
+import { Unavailable } from '@/components/cockpit/primitives'
 import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
 import { QUEUE_KIND_LABEL, type OperatorQueueKind } from '@/lib/agent-mission-control/operator-queue'
 import type { LearningOverview } from '@/lib/agent-mission-control/learning-overview'
@@ -90,77 +90,109 @@ function Measure({
 }: Readonly<{ label: string; value: number | null; unreadReason: string }>) {
   return (
     <div className="min-w-0">
-      <Text className="truncate text-xs uppercase">{label}</Text>
       {value === null ? (
-        <div className="mt-1">
+        <>
+          {/* L'absence garde son badge et sa raison : c'est le seul rendu qui
+              distingue une flotte calme d'une lecture tombée. Elle n'emprunte
+              PAS la taille du grand chiffre — un « indisponible » à 36 px se
+              lirait comme une mesure. */}
           <Badge color="zinc">{UNAVAILABLE_LABEL}</Badge>
-          <Text className="mt-1 text-xs">{unreadReason}</Text>
-        </div>
+          <Text className="aig-text-muted mt-1.5 truncate text-sm">{label}</Text>
+          <Text className="aig-text-faint mt-0.5 text-xs">{unreadReason}</Text>
+        </>
       ) : (
-        <Strong className="mt-1 block text-2xl tabular-nums">{value}</Strong>
+        <>
+          <div className="aig-display text-3xl font-semibold tabular-nums sm:text-4xl">{value}</div>
+          <Text className="aig-text-muted mt-1 truncate text-sm">{label}</Text>
+        </>
       )}
     </div>
   )
 }
 
+/**
+ * LA SUPERVISION — la zone dominante de cette route.
+ *
+ * Elle était un `Panel` parmi quatre, de rang strictement égal à « Évaluations »
+ * (qui n'a rien à montrer) et à « Connaissance » (qui est une liste de liens).
+ * Elle prend la scène : c'est la seule zone de l'écran qui porte des mesures
+ * réelles de la flotte.
+ */
 function SupervisionZone({ overview }: Readonly<{ overview: LearningOverview }>) {
   const { supervision } = overview
   const runs = supervision.runsInWindow
   const unread = "La fenêtre de runs n'a pas pu être lue — ce n'est pas une absence d'activité."
 
   const inFlight = runs === null ? null : runs.filter((run) => run.status === 'running').length
-  const awaiting = runs === null ? null : runs.filter((run) => run.status === 'needs-confirmation').length
+  const awaiting =
+    runs === null ? null : runs.filter((run) => run.status === 'needs-confirmation').length
 
   return (
-    <Panel title="Supervision" hint="fenêtre 24 h">
+    <section className="aig-stage aig-accent-edge p-5 sm:p-6" aria-label="Supervision">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <Text className="aig-text-faint text-2xs font-medium uppercase tracking-[0.18em]">
+          Supervision
+        </Text>
+        <Text className="aig-text-faint text-xs">fenêtre 24 h</Text>
+      </div>
+
       {/* Un `0` MESURÉ doit se distinguer d'une absence de lecture, sinon les
           deux se lisent pareil. La provenance est donc dite explicitement :
           « lecture réussie » quand la fenêtre a répondu, même vide. */}
-      <Text className="mb-3 text-xs">
+      <Text className="aig-text-muted mt-2 text-xs">
         {runs === null
           ? 'Lecture de la fenêtre impossible — les compteurs ci-dessous sont indisponibles, pas nuls.'
           : `Lecture réussie au ${new Date(supervision.asOf).toLocaleString('fr-FR')} : ${runs.length} run(s) dans la fenêtre. Un 0 ci-dessous est une mesure, pas une absence de lecture.`}
       </Text>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Measure label="Runs (24 h)" value={runs === null ? null : runs.length} unreadReason={unread} />
+
+      <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
+        <Measure
+          label="Runs (24 h)"
+          value={runs === null ? null : runs.length}
+          unreadReason={unread}
+        />
         <Measure label="Échecs" value={supervision.failedRunsInWindow} unreadReason={unread} />
         <Measure label="En vol" value={inFlight} unreadReason={unread} />
         <Measure label="En attente d'accord" value={awaiting} unreadReason={unread} />
       </div>
 
-      <Divider soft className="my-4" />
+      <div className="aig-hairline my-5" />
 
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Text className="text-xs uppercase">Canal de télémétrie</Text>
-          <Badge color={TELEMETRY_COLOR[supervision.telemetryHealth.status]}>
-            {TELEMETRY_LABEL[supervision.telemetryHealth.status]}
-          </Badge>
-          {supervision.recentTelemetryEvents === null ? (
-            <Badge color="zinc">flux non lu</Badge>
-          ) : (
-            <Text className="text-xs">
-              {supervision.recentTelemetryEvents.length} événement(s) récent(s)
-            </Text>
-          )}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Text className="aig-text-faint text-xs uppercase">Canal de télémétrie</Text>
+            <Badge color={TELEMETRY_COLOR[supervision.telemetryHealth.status]}>
+              {TELEMETRY_LABEL[supervision.telemetryHealth.status]}
+            </Badge>
+            {supervision.recentTelemetryEvents === null ? (
+              <Badge color="zinc">flux non lu</Badge>
+            ) : (
+              <Text className="aig-text-muted text-xs">
+                {supervision.recentTelemetryEvents.length} événement(s) récent(s)
+              </Text>
+            )}
+          </div>
+          {/* `summary` est rédigé par `telemetry-health.ts` et documenté « safe to
+              render as-is ». Il n'affirme JAMAIS une activité d'agent — seulement
+              l'état de la boucle et de sa configuration. On le rend tel quel
+              plutôt que de le paraphraser et d'en perdre la nuance. */}
+          <Text className="aig-text-muted mt-2 max-w-2xl text-sm">
+            {supervision.telemetryHealth.summary}
+          </Text>
         </div>
-        {/* `summary` est rédigé par `telemetry-health.ts` et documenté « safe to
-            render as-is ». Il n'affirme JAMAIS une activité d'agent — seulement
-            l'état de la boucle et de sa configuration. On le rend tel quel
-            plutôt que de le paraphraser et d'en perdre la nuance. */}
-        <Text className="mt-2 text-xs">{supervision.telemetryHealth.summary}</Text>
-      </div>
 
-      {overview.dataWarnings.length > 0 ? (
-        <ul className="mt-3 list-disc space-y-1 pl-5">
-          {overview.dataWarnings.map((warning) => (
-            <li key={warning}>
-              <Text className="text-xs">{warning}</Text>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </Panel>
+        {overview.dataWarnings.length > 0 ? (
+          <ul className="aig-quiet min-w-0 list-disc space-y-1 py-2 pr-3 pl-8 lg:max-w-sm lg:shrink-0">
+            {overview.dataWarnings.map((warning) => (
+              <li key={warning}>
+                <Text className="aig-text-muted text-xs">{warning}</Text>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    </section>
   )
 }
 
@@ -176,90 +208,105 @@ const REVIEW_QUEUE_PREVIEW = 12
 function ReviewQueueZone({ overview }: Readonly<{ overview: LearningOverview }>) {
   const items = overview.reviewQueue.items
 
-  // Ni `hint` ni `actions` sur ce panneau. Les deux slots du header de `Panel`
-  // sont `shrink-0` : ils REFUSENT de rétrécir, donc titre + bouton imposaient
-  // 399 px de large pour 360 disponibles (mesuré au viewport 360). `Panel` sert
-  // sept surfaces, on ne le modifie pas pour cet écran — le lien et l'état de
-  // la file descendent dans le pied, qui wrappe.
+  // Ni `hint` ni `actions` dans l'en-tête. Le titre et son compte vivent sur une
+  // ligne qui WRAPPE : titre + bouton imposaient 399 px de large pour 360
+  // disponibles au viewport 360. Le lien et l'état de la file descendent dans
+  // le pied du creux, qui wrappe aussi.
   return (
-    <Panel title="File de revue" scrollable className="max-h-96" padded={false}>
-      {items.length === 0 ? (
-        <div className="p-4">
-          <Unavailable
-            reason="no-data"
-            detail="Aucune action en attente. Les sources ont été lues : file vide mesurée."
-          />
-        </div>
-      ) : (
-        // Le séparateur prend le liseré doux de la grammaire : il n'y a plus de
-        // paire claire/sombre à arbitrer, le document est graphite partout.
-        <ul className="divide-y divide-[color:var(--aig-line-soft)]">
-          {items.slice(0, REVIEW_QUEUE_PREVIEW).map((item) => (
-            <li key={item.id} className="flex items-start justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge color={item.kind === 'data_unavailable' ? 'zinc' : 'amber'}>
-                    {QUEUE_KIND_LABEL[item.kind as OperatorQueueKind] ?? item.kind}
-                  </Badge>
-                </div>
-                <Strong className="mt-1 block truncate">{item.title}</Strong>
-                <Text className="truncate text-xs">{item.meta}</Text>
-              </div>
-              <Button plain href={item.href} className="shrink-0">
-                Ouvrir
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {/* Provenance et troncature, dites explicitement. Un extrait qui ne
-          s'annonce pas comme extrait se lit comme la file entière — et la
-          mission interdit précisément ce genre de silence. */}
-      <div className="aig-line-soft flex flex-wrap items-center justify-between gap-2 border-t px-4 py-2">
-        <Text className="text-xs">
-          {overview.reviewQueue.isFullQueue ? 'File complète' : 'Extrait de la file'}
-          {items.length > REVIEW_QUEUE_PREVIEW
-            ? ` · ${REVIEW_QUEUE_PREVIEW} des ${items.length} ligne(s) affichée(s) ici`
-            : ` · ${items.length} ligne(s)`}
-        </Text>
-        <Button plain href="/actions">
-          Ouvrir la file
-        </Button>
+    <section className="flex min-w-0 flex-col">
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 pb-3">
+        <Subheading level={2}>File de revue</Subheading>
+        <Text className="aig-text-muted text-sm">{items.length} ligne(s)</Text>
       </div>
-    </Panel>
+
+      {/* La file est un FLUX : elle descend dans un creux qui l'accueille, avec
+          de la hauteur réelle, plutôt que d'être posée sur une carte de rang
+          égal au reste de l'écran. Box bornée, la donnée défile dedans. */}
+      <div className="aig-inset flex min-h-0 flex-1 flex-col overflow-hidden">
+        {items.length === 0 ? (
+          <div className="p-4">
+            <Unavailable
+              reason="no-data"
+              detail="Aucune action en attente. Les sources ont été lues : file vide mesurée."
+            />
+          </div>
+        ) : (
+          // Le séparateur prend le liseré doux de la grammaire : il n'y a plus de
+          // paire claire/sombre à arbitrer, le document est graphite partout.
+          <ul className="scroll-thin min-h-0 flex-1 divide-y divide-[color:var(--aig-line-soft)] overflow-y-auto">
+            {items.slice(0, REVIEW_QUEUE_PREVIEW).map((item) => (
+              <li key={item.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge color={item.kind === 'data_unavailable' ? 'zinc' : 'amber'}>
+                      {QUEUE_KIND_LABEL[item.kind as OperatorQueueKind] ?? item.kind}
+                    </Badge>
+                  </div>
+                  <Strong className="mt-1 block truncate">{item.title}</Strong>
+                  <Text className="aig-text-muted truncate text-xs">{item.meta}</Text>
+                </div>
+                <Button plain href={item.href} className="shrink-0">
+                  Ouvrir
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* Provenance et troncature, dites explicitement. Un extrait qui ne
+            s'annonce pas comme extrait se lit comme la file entière — et la
+            mission interdit précisément ce genre de silence. */}
+        <div className="aig-line-soft flex shrink-0 flex-wrap items-center justify-between gap-2 border-t px-4 py-2">
+          <Text className="aig-text-muted text-xs">
+            {overview.reviewQueue.isFullQueue ? 'File complète' : 'Extrait de la file'}
+            {items.length > REVIEW_QUEUE_PREVIEW
+              ? ` · ${REVIEW_QUEUE_PREVIEW} des ${items.length} ligne(s) affichée(s) ici`
+              : ` · ${items.length} ligne(s)`}
+          </Text>
+          <Button plain href="/actions">
+            Ouvrir la file
+          </Button>
+        </div>
+      </div>
+    </section>
   )
 }
 
 /* ───────────────────────── Zone 3 — Évaluations ───────────────────────── */
 
+/**
+ * Évaluations — une zone qui n'a RIEN de mesuré à montrer.
+ *
+ * Elle occupait un `Panel` complet, de rang égal à la supervision qui, elle,
+ * porte de vraies mesures. Elle passe au second rang (`aig-quiet`) : présente,
+ * lisible, subordonnée. C'est exactement l'écart qu'elle décrit — les cinq
+ * signaux existent, ailleurs.
+ */
 function EvaluationsZone({ overview }: Readonly<{ overview: LearningOverview }>) {
   return (
-    <Panel title="Évaluations" hint="5 signaux">
+    <div className="aig-quiet p-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <Subheading level={3}>Évaluations</Subheading>
+        <Text className="aig-text-faint text-xs">5 signaux</Text>
+      </div>
+
       {/* `Unavailable` centre son détail sur ~34 caractères — bon pour une
           cellule, illisible pour ce paragraphe. On garde donc sa MARQUE
           (le badge « Aucune mesure », qui porte le sens) et on rend la raison
           en texte aligné à gauche, à sa mesure. */}
-      {/* Le trait tireté reste — il dit « cadre sans contenu mesuré ». Seule sa
-          couleur passe au liseré de la grammaire, la moitié claire étant morte. */}
-      <div className="aig-line-soft rounded-lg border border-dashed p-4">
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
         <Unavailable reason="no-data" compact />
-        <Text className="mt-2">{overview.evaluations.reason}</Text>
+        <Text className="aig-text-muted min-w-0 flex-1 text-sm">
+          {overview.evaluations.reason}
+        </Text>
       </div>
-      <Text className="mt-3 text-xs">
-        Les cinq signaux — tests, benchmarks, shadow, replay, release gate — existent et sont mesurés par
-        agent, là où leur coût se paie une seule fois : ouvrez la fiche d’un agent ou la surface
+
+      <Text className="aig-text-muted mt-3 text-xs">
+        Les cinq signaux — tests, benchmarks, shadow, replay, release gate — existent et sont mesurés
+        par agent, là où leur coût se paie une seule fois : ouvrez la fiche d’un agent ou la surface
         Qualification.
       </Text>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Button plain href="/qualification">
-          Ouvrir Qualification
-        </Button>
-        <Button plain href="/agents">
-          Ouvrir les agents
-        </Button>
-      </div>
-    </Panel>
+    </div>
   )
 }
 
@@ -294,35 +341,48 @@ function KnowledgeZone({
   const runtime = overview.learningRuntime
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-      {/* Pas de `hint` : le titre « Connaissance (Obsidian) » est déjà long, et
-          le slot `hint` de `Panel` est `shrink-0` — la paire dépassait de 23 px
-          une fois la gouttière de contrôle fixe réservée. Le corps du panneau
-          dit exactement la même chose, en pouvant revenir à la ligne. */}
-      <Panel title="Connaissance (Obsidian)">
-        <Text>
-          Obsidian est le workspace éditable de l’opérateur : les revues, les incidents et les décisions s’y
-          écrivent à la main. Aigent n’y lit rien et n’y écrit rien — il ouvre des liens.
+    // Une colonne dans la gouttière étroite du second rang, deux quand l'écran
+    // n'a pas encore de colonne étroite (sous `xl`, la grille parente retombe
+    // en pile pleine largeur).
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1 [&>*]:min-w-0">
+      {/* Pas de `hint` en ligne avec le titre : « Connaissance (Obsidian) » est
+          déjà long, et la paire dépassait de 23 px une fois la gouttière de
+          contrôle fixe réservée. Le corps dit la même chose, en wrappant. */}
+      <div className="aig-quiet p-4">
+        <Subheading level={3}>Connaissance (Obsidian)</Subheading>
+        <Text className="aig-text-muted mt-2 text-sm">
+          Obsidian est le workspace éditable de l’opérateur : les revues, les incidents et les
+          décisions s’y écrivent à la main. Aigent n’y lit rien et n’y écrit rien — il ouvre des
+          liens.
         </Text>
         <div className="mt-4">
           <ObsidianCommands config={obsidian} />
         </div>
-      </Panel>
+      </div>
 
-      <Panel title="Learning Runtime" hint="H-Supervised">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge color={RUNTIME_COLOR[runtime.status]}>{RUNTIME_LABEL[runtime.status]}</Badge>
-          {runtime.latencyMs !== null ? (
-            <Text className="text-xs tabular-nums">{runtime.latencyMs} ms</Text>
-          ) : null}
-          {runtime.endpoint ? <Text className="truncate text-xs">{runtime.endpoint}</Text> : null}
+      <div className="aig-quiet p-4">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+          <Subheading level={3}>Learning Runtime</Subheading>
+          <Text className="aig-text-faint text-xs">H-Supervised</Text>
         </div>
 
-        {runtime.detail ? <Text className="mt-2">{runtime.detail}</Text> : null}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Badge color={RUNTIME_COLOR[runtime.status]}>{RUNTIME_LABEL[runtime.status]}</Badge>
+          {runtime.latencyMs !== null ? (
+            <Text className="aig-text-muted text-xs tabular-nums">{runtime.latencyMs} ms</Text>
+          ) : null}
+          {runtime.endpoint ? (
+            <Text className="aig-text-faint truncate text-xs">{runtime.endpoint}</Text>
+          ) : null}
+        </div>
+
+        {runtime.detail ? (
+          <Text className="aig-text-muted mt-2 text-sm">{runtime.detail}</Text>
+        ) : null}
 
         <Divider soft className="my-4" />
 
-        <Text className="text-xs uppercase">Capacités</Text>
+        <Text className="aig-text-faint text-xs uppercase">Capacités</Text>
         {runtime.capabilities === null ? (
           <div className="mt-1">
             <Badge color="zinc">Non mesuré</Badge>
@@ -337,12 +397,13 @@ function KnowledgeZone({
           </div>
         )}
 
-        <Text className="mt-4 text-xs">
-          Datasets, évaluations par lot, jobs d’entraînement et registre de modèles vivront derrière ce
-          contrat, dans un moteur séparé. Tant qu’il n’est pas branché, ces capacités n’ont pas d’écran dans
-          Aigent — les décrire ici est honnête, leur donner une page vide ne le serait pas.
+        <Text className="aig-text-muted mt-4 text-xs">
+          Datasets, évaluations par lot, jobs d’entraînement et registre de modèles vivront derrière
+          ce contrat, dans un moteur séparé. Tant qu’il n’est pas branché, ces capacités n’ont pas
+          d’écran dans Aigent — les décrire ici est honnête, leur donner une page vide ne le serait
+          pas.
         </Text>
-      </Panel>
+      </div>
     </div>
   )
 }
@@ -369,20 +430,43 @@ export default function LearningScreen({
     // La gouttiere du bouton de navigation mobile et le sticky de l'en-tete
     // viennent de `PageHeader` : cet ecran n'a plus de geometrie a lui.
     <>
-      <PageHeader title={title} description={purpose} />
-      <PageBody>
+      {/* Les deux liens de sortie vivaient au fond du panneau « Évaluations »,
+          qui est précisément la zone qui n'a rien à montrer : les commandes de
+          la surface étaient enterrées sous son état d'absence. Elles remontent
+          groupées dans les actions de l'en-tête, où le shell les attend. */}
+      <PageHeader
+        title={title}
+        description={purpose}
+        actions={
+          <>
+            <Button outline href="/qualification">
+              Qualification
+            </Button>
+            <Button outline href="/agents">
+              Agents
+            </Button>
+          </>
+        }
+      />
+      <PageBody className="gap-5">
         <SupervisionZone overview={overview} />
 
-        <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+        {/* La file de revue tient la colonne large : c'est la seule zone de ce
+            second rang qui porte de la donnée ligne à ligne. Les trois zones
+            purement descriptives (évaluations, Obsidian, runtime) se rangent en
+            colonne étroite à côté, en second rang. */}
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] [&>*]:min-w-0">
           <ReviewQueueZone overview={overview} />
-          <EvaluationsZone overview={overview} />
-        </div>
 
-        <div>
-          <Subheading level={2} className="sr-only">
-            Connaissance et runtime
-          </Subheading>
-          <KnowledgeZone overview={overview} obsidian={obsidian} />
+          <div className="flex flex-col gap-4">
+            <EvaluationsZone overview={overview} />
+            <div>
+              <Subheading level={2} className="sr-only">
+                Connaissance et runtime
+              </Subheading>
+              <KnowledgeZone overview={overview} obsidian={obsidian} />
+            </div>
+          </div>
         </div>
       </PageBody>
     </>

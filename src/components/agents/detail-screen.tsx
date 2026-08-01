@@ -87,19 +87,6 @@ function metricsToolCallHint(
 
 type Tone = 'default' | 'danger' | 'warning'
 
-function Surface({
-  children,
-  className = '',
-}: Readonly<{
-  children: ReactNode
-  className?: string
-}>) {
-  // `aig-panel` remplace le trio fond blanc / anneau / ombre codé en dur : le
-  // fond, le liseré, le rayon et l'élévation viennent d'un seul jeton, donc
-  // cette fiche ne peut plus diverger du roster ni des panneaux du cockpit.
-  return <div className={`aig-panel ${className}`}>{children}</div>
-}
-
 function SectionHeader({
   title,
   description,
@@ -139,6 +126,38 @@ function DetailField({
       <Text className="aig-text-faint text-xs font-medium uppercase tracking-wide">{label}</Text>
       <div className="mt-1 min-w-0 wrap-break-word">{value ?? <NotMeasured />}</div>
       {hint ? <Text className="aig-text-faint mt-1 text-xs">{hint}</Text> : null}
+    </div>
+  )
+}
+
+/**
+ * Une mesure de fenêtre, à la taille de son importance.
+ *
+ * `value === null` reste `NotMeasured` — la garde est DANS la fonction, comme
+ * dans `DetailField`, donc aucun appelant ne peut l'oublier et aucun `0` ne
+ * peut s'y substituer. L'absence n'emprunte PAS la taille du grand chiffre :
+ * un « indisponible » à 36 px se lirait comme une mesure.
+ */
+function Metric({
+  label,
+  value,
+  hint,
+}: Readonly<{
+  label: string
+  value: ReactNode | null
+  hint?: string
+}>) {
+  return (
+    <div className="min-w-0">
+      {value === null ? (
+        <div className="pt-1">
+          <NotMeasured />
+        </div>
+      ) : (
+        <div className="aig-display truncate text-2xl font-semibold sm:text-3xl">{value}</div>
+      )}
+      <Text className="aig-text-muted mt-1 truncate text-sm">{label}</Text>
+      {hint ? <Text className="aig-text-faint mt-0.5 text-xs">{hint}</Text> : null}
     </div>
   )
 }
@@ -221,21 +240,78 @@ function OverviewHeader({ detail }: Readonly<{ detail: AgentDetail }>) {
   )
 }
 
+/**
+ * L'ÉTAT DE SERVICE — la zone dominante de la fiche.
+ *
+ * Cette page empilait quatre sections de panneaux de rang strictement égal :
+ * l'information qui décide de tout — cet agent peut-il partir, et sinon
+ * pourquoi — avait le même poids visuel qu'une liste de métadonnées. Elle prend
+ * la scène, avec le verdict en grand et les obstacles montés d'un palier.
+ *
+ * Rien n'est retiré : les six champs d'identité, les badges de cycle de vie et
+ * la ligne de livraison sont tous rendus, au second rang.
+ */
 function OverviewSection({ detail }: Readonly<{ detail: AgentDetail }>) {
   const { agent, project, currentVersion, delivery, lifecycle } = detail
   const consumerStage = lifecycle.stages.find((stage) => stage.key === 'active_in_consumer')
   const consumerDisplay = consumerStage ? stageDisplay(consumerStage) : 'unknown'
   const reachedCount = lifecycle.stages.filter((stage) => stageDisplay(stage) === 'reached').length
+  const blocked = detail.blockers.length > 0
 
   return (
-    <section className="space-y-4">
-      <SectionHeader
-        title="Aperçu"
-        description="Identité, projet cible, runtime et état de service. Cette section répond à la question : que sert cet agent aujourd’hui et dans quel état ?"
-      />
+    <section className="aig-stage aig-accent-edge p-5 sm:p-6" aria-label="État de service">
+      <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
+        {/* Le verdict — le seul grand caractère de la fiche. */}
+        <div className="min-w-0 xl:w-[22rem] xl:shrink-0">
+          <Text className="aig-text-faint text-2xs font-medium uppercase tracking-[0.18em]">
+            État de service
+          </Text>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <Surface className="p-5">
+          <p
+            className={`mt-2 text-3xl font-semibold tracking-tight sm:text-4xl ${
+              detail.executable ? 'aig-display' : 'text-red-400'
+            }`}
+          >
+            {detail.executable ? 'Lançable maintenant' : 'Lancement bloqué'}
+          </p>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <StageBadge
+              display={consumerDisplay}
+              title={consumerStage ? STAGE_DISPLAY_MEANING[consumerDisplay] : undefined}
+            />
+            <Badge color="zinc">
+              {reachedCount}/{lifecycle.stages.length} etapes atteintes
+            </Badge>
+          </div>
+
+          <div className="mt-4">
+            <InlineStatus tone={blocked ? 'danger' : 'default'}>
+              {blocked
+                ? `${detail.blockers.length} obstacle(s) concret(s) empechent un lancement.`
+                : 'Aucun obstacle runtime connu a ce stade.'}
+            </InlineStatus>
+          </div>
+
+          {/* Un obstacle DOIT ressortir : `aig-panel-raised` monte la boîte
+              d'un palier, le liseré rouge porte la gravité. Le couple
+              `border-red-200 / bg-red-50` était un aplat pâle pensé pour un
+              fond blanc — sur graphite il éblouissait. */}
+          {blocked ? (
+            <ul className="mt-3 space-y-2">
+              {detail.blockers.slice(0, 3).map((blocker) => (
+                <li key={blocker.code} className="aig-panel-raised border-red-500/40 px-3 py-2">
+                  <Strong className="block">{blocker.label}</Strong>
+                  <Text className="mt-1 text-sm text-red-400">{blocker.detail}</Text>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+
+        {/* L'identité au second rang, dans un creux qui l'accueille : elle
+            situe l'agent, elle ne décide de rien. */}
+        <div className="aig-inset min-w-0 flex-1 p-4 sm:p-5">
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             <DetailField label="Projet" value={project ? <Strong>{project.name}</Strong> : null} />
             <DetailField
@@ -270,56 +346,17 @@ function OverviewSection({ detail }: Readonly<{ detail: AgentDetail }>) {
               }
             />
           </div>
-        </Surface>
 
-        <Surface className="p-5">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge color={detail.executable ? 'emerald' : 'red'}>
-              {detail.executable ? 'lancable maintenant' : 'lancement bloque'}
-            </Badge>
-            <StageBadge
-              display={consumerDisplay}
-              title={consumerStage ? STAGE_DISPLAY_MEANING[consumerDisplay] : undefined}
-            />
-            <Badge color="zinc">
-              {reachedCount}/{lifecycle.stages.length} etapes atteintes
-            </Badge>
-          </div>
+          <div className="aig-hairline my-4" />
 
-          <div className="mt-4 space-y-3">
-            <InlineStatus tone={detail.blockers.length > 0 ? 'danger' : 'default'}>
-              {detail.blockers.length > 0
-                ? `${detail.blockers.length} obstacle(s) concret(s) empechent un lancement.`
-                : 'Aucun obstacle runtime connu a ce stade.'}
-            </InlineStatus>
-            {/* Un obstacle DOIT ressortir : `aig-panel-raised` monte la boîte
-                d'un palier, le liseré rouge porte la gravité. Le couple
-                `border-red-200 / bg-red-50` était un aplat pâle pensé pour un
-                fond blanc — sur graphite il éblouissait. */}
-            {detail.blockers.length > 0 ? (
-              <ul className="space-y-2">
-                {detail.blockers.slice(0, 3).map((blocker) => (
-                  <li key={blocker.code} className="aig-panel-raised border-red-500/40 px-3 py-2">
-                    <Strong className="block">{blocker.label}</Strong>
-                    <Text className="mt-1 text-sm text-red-400">{blocker.detail}</Text>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <Divider soft />
-            <DetailField
-              label="Livraison"
-              value={
-                delivery ? (
-                  <Strong>{delivery.targetRepo}</Strong>
-                ) : (
-                  <Badge color="zinc">jamais livre</Badge>
-                )
-              }
-              hint={delivery ? delivery.status : 'Aucune poussée ou PR consumer enregistrée.'}
-            />
-          </div>
-        </Surface>
+          <DetailField
+            label="Livraison"
+            value={
+              delivery ? <Strong>{delivery.targetRepo}</Strong> : <Badge color="zinc">jamais livre</Badge>
+            }
+            hint={delivery ? delivery.status : 'Aucune poussée ou PR consumer enregistrée.'}
+          />
+        </div>
       </div>
     </section>
   )
@@ -376,50 +413,46 @@ function ActivitySection({ detail }: Readonly<{ detail: AgentDetail }>) {
         description="Derniers runs et événements importants. L’objectif ici est de voir ce qui s’est passé récemment avant de rentrer dans les preuves détaillées."
       />
 
+      {/* Les quatre mesures de la fenêtre passent en grands chiffres et
+          quittent la boîte de la liste : c'était l'information la plus dense de
+          la section, rendue en corps de légende dans un liseré interne. Chaque
+          absence garde son rendu propre — `Metric` ne coerce rien. */}
+      <div className="aig-quiet grid grid-cols-2 gap-x-6 gap-y-5 p-4 sm:grid-cols-4 sm:p-5">
+        <Metric label="Runs 24 h" value={<>{metrics.runs24h}</>} />
+        <Metric
+          label="Succes"
+          value={metrics.successRate === null ? null : <>{formatPercent(metrics.successRate)}</>}
+        />
+        <Metric
+          label="Latence moyenne"
+          value={
+            metrics.avgDurationMs === null ? null : <>{Math.round(metrics.avgDurationMs)} ms</>
+          }
+        />
+        <Metric
+          label="Cout 24 h"
+          value={metrics.cost24hUsd === null ? null : <>{formatUsd(metrics.cost24hUsd)}</>}
+        />
+      </div>
+
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-        <Surface>
-          <div className="aig-line-soft border-b px-5 py-4">
+        <div className="flex min-w-0 flex-col">
+          <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 pb-3">
             <Subheading level={3}>Derniers runs</Subheading>
-            <Text className="mt-1">
-              Les runs sont listes avant toute interpretation secondaire.
+            <Text className="aig-text-muted text-sm">
+              Listés avant toute interprétation secondaire.
             </Text>
           </div>
 
-          <div className="grid gap-4 aig-line-soft border-b px-5 py-4 sm:grid-cols-2 xl:grid-cols-4">
-            <DetailField label="Runs 24 h" value={<Strong>{metrics.runs24h}</Strong>} />
-            <DetailField
-              label="Succes"
-              value={
-                metrics.successRate === null ? null : (
-                  <Strong>{formatPercent(metrics.successRate)}</Strong>
-                )
-              }
-            />
-            <DetailField
-              label="Latence moyenne"
-              value={
-                metrics.avgDurationMs === null ? null : (
-                  <Strong>{Math.round(metrics.avgDurationMs)} ms</Strong>
-                )
-              }
-            />
-            <DetailField
-              label="Cout 24 h"
-              value={
-                metrics.cost24hUsd === null ? null : (
-                  <Strong>{formatUsd(metrics.cost24hUsd)}</Strong>
-                )
-              }
-            />
-          </div>
-
-          <div className="px-5 py-2">
+          {/* Le flux de runs dans un CREUX, à hauteur bornée : la boîte ne
+              grandit pas avec la donnée, la donnée défile dedans. */}
+          <div className="aig-inset min-h-0 flex-1 overflow-hidden">
             {runs.length === 0 ? (
-              <div className="py-8">
+              <div className="p-4">
                 <Unavailable reason="no-data" detail="Aucun run n'est enregistre pour cet agent." />
               </div>
             ) : (
-              <ul className="divide-y divide-white/6">
+              <ul className="scroll-thin max-h-[26rem] divide-y divide-[color:var(--aig-line-soft)] overflow-y-auto px-4">
                 {runs.slice(0, 12).map((run) => (
                   <li key={run.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
                     <div className="min-w-0 flex-1">
@@ -447,11 +480,11 @@ function ActivitySection({ detail }: Readonly<{ detail: AgentDetail }>) {
               </ul>
             )}
           </div>
-        </Surface>
+        </div>
 
-        <Surface className="p-5">
+        <div className="aig-quiet min-w-0 p-4 sm:p-5">
           <Subheading level={3}>Evenements importants</Subheading>
-          <Text className="mt-1">
+          <Text className="aig-text-muted mt-1 text-sm">
             Les signaux qui changent la lecture de la page sans transformer chaque fait en panneau.
           </Text>
           <ul className="mt-4 space-y-4">
@@ -476,7 +509,7 @@ function ActivitySection({ detail }: Readonly<{ detail: AgentDetail }>) {
               metrics.completedRuns,
             )}
           />
-        </Surface>
+        </div>
       </div>
     </section>
   )
@@ -537,7 +570,7 @@ function QualificationSection({
         {qualification.steps.length === 0 ? (
           <Text>Aucune étape ne porte encore de verdict exploitable.</Text>
         ) : (
-          <ul className="divide-y divide-white/6">
+          <ul className="aig-inset scroll-thin max-h-96 divide-y divide-[color:var(--aig-line-soft)] overflow-y-auto px-3">
             {qualification.steps.map((step) => (
               <li
                 key={step.step + '-' + step.at}
@@ -571,7 +604,7 @@ function QualificationSection({
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Surface className="p-5">
+        <div className="aig-quiet min-w-0 p-4 sm:p-5">
           <Subheading level={3}>Confiance de release</Subheading>
           {gate === null ? (
             <div className="mt-4">
@@ -595,7 +628,9 @@ function QualificationSection({
                 ) : null}
                 <Badge color="zinc">candidat {gate.evidence.candidateLabel}</Badge>
               </div>
-              <ul className="divide-y divide-white/6">
+              {/* La liste des checks est un flux : elle descend dans un creux
+                  à hauteur bornée plutôt que d'allonger la boîte. */}
+              <ul className="aig-inset scroll-thin max-h-96 divide-y divide-[color:var(--aig-line-soft)] overflow-y-auto px-3">
                 {sortChecks(gate.checks).map((check) => (
                   <li
                     key={check.id}
@@ -613,12 +648,12 @@ function QualificationSection({
               </ul>
             </div>
           )}
-        </Surface>
+        </div>
 
-        <Surface className="p-5">
+        <div className="aig-quiet min-w-0 p-4 sm:p-5">
           <Subheading level={3}>Tests et preuves</Subheading>
           {testsBody}
-        </Surface>
+        </div>
       </div>
     </section>
   )
@@ -663,7 +698,7 @@ function ConfigurationSection({ detail }: Readonly<{ detail: AgentDetail }>) {
         ) : null}
 
         {resolvedTools.length > 0 ? (
-          <ul className="divide-y divide-white/6">
+          <ul className="divide-y divide-[color:var(--aig-line-soft)]">
             {resolvedTools.map((tool) => (
               <li key={tool.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
                 <div className="min-w-0 flex-1">
@@ -713,7 +748,7 @@ function ConfigurationSection({ detail }: Readonly<{ detail: AgentDetail }>) {
       />
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <Surface className="p-5">
+        <div className="aig-quiet min-w-0 p-4 sm:p-5">
           <Subheading level={3}>Paramètres actifs</Subheading>
           {manifest === undefined ? (
             <div className="mt-4">
@@ -777,20 +812,24 @@ function ConfigurationSection({ detail }: Readonly<{ detail: AgentDetail }>) {
               <Text className="aig-text-muted mt-2">{manifest.systemPromptSummary}</Text>
             </>
           ) : null}
-        </Surface>
+        </div>
 
-        <Surface>
-          <div className="aig-line-soft border-b px-5 py-4">
+        <div className="flex min-w-0 flex-col">
+          <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 pb-3">
             <Subheading level={3}>Outils montés</Subheading>
-            <Text className="mt-1">
+            <Text className="aig-text-muted text-sm">
               {agent
                 ? toolsCountHint(resolvedTools.length, unresolvedIds.length)
                 : 'Outils non résolus'}
             </Text>
           </div>
 
-          <div className="px-5 py-4">{mountedToolsBody}</div>
-        </Surface>
+          {/* Le montage d'outils est une LISTE : creux à hauteur bornée, la
+              donnée défile dedans plutôt que d'allonger la page. */}
+          <div className="aig-inset scroll-thin max-h-[30rem] min-h-0 flex-1 overflow-y-auto p-4">
+            {mountedToolsBody}
+          </div>
+        </div>
       </div>
     </section>
   )

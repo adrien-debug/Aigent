@@ -64,17 +64,127 @@ function criticalSignal(agent: AvailableAgent): { tone: 'amber' | 'red'; text: s
   return null
 }
 
-function rosterSummary(agents: readonly AvailableAgent[]): string {
+/**
+ * Un chiffre de flotte, à la taille de son importance.
+ *
+ * Ce sont des COMPTAGES dérivés de la liste rendue juste en dessous : ils ne
+ * peuvent pas être `null`, contrairement à une mesure lue en base. Un `0` ici
+ * est donc un vrai zéro — d'où l'absence de garde d'absence, qui serait
+ * mensongère dans l'autre sens (prétendre douter d'un comptage local).
+ */
+function FleetFigure({
+  value,
+  label,
+  hint,
+  tone = 'default',
+}: Readonly<{
+  value: number
+  label: string
+  hint?: string
+  tone?: 'default' | 'good' | 'warn' | 'bad'
+}>) {
+  const toneClass =
+    tone === 'bad'
+      ? 'text-red-400'
+      : tone === 'warn'
+        ? 'text-amber-400'
+        : tone === 'good'
+          ? 'text-emerald-400'
+          : 'aig-display'
+
+  return (
+    <div className="min-w-0">
+      <div className={`text-3xl font-semibold tabular-nums sm:text-4xl ${toneClass}`}>{value}</div>
+      <Text className="aig-text-muted mt-1 truncate text-sm">{label}</Text>
+      {hint ? <Text className="aig-text-faint mt-0.5 text-xs">{hint}</Text> : null}
+    </div>
+  )
+}
+
+/**
+ * La SANTÉ DE LA FLOTTE — la zone dominante de cette route.
+ *
+ * Avant, ces chiffres n'existaient qu'en prose dans la description de l'en-tête
+ * (« 12 agents au catalogue · 3 actifs · … ») : une information de premier rang
+ * rendue à la taille d'une légende. Elle prend ici la scène, et les panneaux de
+ * répartition descendent au second rang.
+ */
+function FleetStage({
+  agents,
+  visualizations,
+}: Readonly<{
+  agents: readonly AvailableAgent[]
+  visualizations: readonly ResolvedVisualization[]
+}>) {
   const counts = countRoster(agents)
-  const bits = [
-    `${counts.total} agent${counts.total > 1 ? 's' : ''} au catalogue`,
-    `${counts.active} actif${counts.active > 1 ? 's' : ''}`,
-  ]
-  if (counts.degraded > 0) bits.push(`${counts.degraded} dégradé${counts.degraded > 1 ? 's' : ''}`)
-  if (counts.withUnresolvedTools > 0) {
-    bits.push(`${counts.withUnresolvedTools} avec outil non résolu`)
-  }
-  return bits.join(' · ')
+  const attention = agents.filter((agent) => criticalSignal(agent) !== null).length
+
+  return (
+    <section className="aig-stage aig-accent-edge p-5 sm:p-6" aria-label="Santé de la flotte">
+      <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
+        <div className="min-w-0 xl:flex-1">
+          <Text className="aig-text-faint text-2xs font-medium uppercase tracking-[0.18em]">
+            Santé de la flotte
+          </Text>
+
+          <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
+            <FleetFigure value={counts.total} label="Au catalogue" />
+            <FleetFigure
+              value={counts.active}
+              label="Actifs"
+              tone={counts.active > 0 ? 'good' : 'default'}
+              hint="run terminé, modèle prouvé"
+            />
+            <FleetFigure
+              value={counts.degraded}
+              label="Dégradés"
+              tone={counts.degraded > 0 ? 'bad' : 'default'}
+            />
+            <FleetFigure
+              value={attention}
+              label="Signal critique"
+              tone={attention > 0 ? 'warn' : 'default'}
+              hint="outil non résolu, assistant, résolution"
+            />
+          </div>
+
+          <div className="aig-hairline my-5" />
+
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <Text className="aig-text-muted text-sm">
+              {counts.withProvenExecutedModel} agent(s) ont un modèle PROUVÉ par un run réel
+            </Text>
+            <Text className="aig-text-muted text-sm">
+              {counts.inactive} inactif(s) · {counts.unavailable} indisponible(s)
+            </Text>
+            <Text
+              className={
+                counts.withUnresolvedTools > 0
+                  ? 'text-sm text-red-400'
+                  : 'aig-text-muted text-sm'
+              }
+            >
+              {counts.withUnresolvedTools} avec outil non résolu
+            </Text>
+          </div>
+        </div>
+
+        {/* Les panneaux de répartition ne sont plus une bande de cartes de rang
+            égal en tête de page : ils habitent la scène, en second rang, dans un
+            creux qui les accueille au lieu de les faire flotter. */}
+        {visualizations.length > 0 ? (
+          <div
+            className="viz-scope aig-inset grid min-w-0 gap-3 p-3 md:grid-cols-2 xl:w-[26rem] xl:shrink-0 xl:grid-cols-1 [&>*]:min-w-0"
+            aria-label="Répartition par agent"
+          >
+            {visualizations.map((viz) => (
+              <EmbeddedVisualization key={viz.id} visualization={viz} density="compact" />
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </section>
+  )
 }
 
 function AgentRosterRow({ agent }: Readonly<{ agent: AvailableAgent }>) {
@@ -152,7 +262,7 @@ export default function AgentRosterScreen({
           exactement la dérive que cette mission ferme. */}
       <PageHeader
         title="Agents"
-        description={`${rosterSummary(ranked)}. La liste montre l’essentiel pour décider quoi ouvrir, pas tout ce que le contrat sait.`}
+        description="La flotte en tête, la liste en dessous : l’essentiel pour décider quoi ouvrir, pas tout ce que le contrat sait."
         actions={
           <Button color="dark/zinc" href="/builder">
             Nouveau copilot
@@ -160,41 +270,36 @@ export default function AgentRosterScreen({
         }
       />
 
-      <PageBody>
-        {visualizations.length > 0 ? (
-          <section
-            className="viz-scope grid gap-3 md:grid-cols-2 [&>*]:min-w-0"
-            aria-label="Répartition par agent"
-          >
-            {visualizations.map((viz) => (
-              <EmbeddedVisualization key={viz.id} visualization={viz} density="compact" />
-            ))}
-          </section>
-        ) : null}
+      <PageBody className="gap-5">
+        <FleetStage agents={ranked} visualizations={visualizations} />
 
-        <section className="aig-panel">
-          <div className="aig-line-soft border-b px-5 py-4">
+        {/* Le roster n'est plus un panneau de plus dans une pile : c'est le
+            CREUX qui accueille la liste, sous la scène. Il prend de la hauteur
+            réelle et la donnée y défile — la boîte ne grandit pas avec elle. */}
+        <section className="min-w-0">
+          <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 pb-3">
             <Subheading level={2}>Liste des agents</Subheading>
-            <Text className="mt-1">
-              Nom, état principal, dernière activité et signal critique éventuel. Le reste vient au
-              clic.
+            <Text className="aig-text-muted text-sm">
+              Nom, état, dernière activité, signal critique. Le reste vient au clic.
             </Text>
           </div>
 
-          {ranked.length === 0 ? (
-            <div className="px-5 py-10">
-              <Unavailable
-                reason="no-data"
-                detail="Aucun agent n'est persisté dans le catalogue. La lecture a réussi — il n'y a réellement rien, ce n'est pas une panne."
-              />
-            </div>
-          ) : (
-            <ul className="divide-y divide-white/6">
-              {ranked.map((agent) => (
-                <AgentRosterRow key={agent.copilotId} agent={agent} />
-              ))}
-            </ul>
-          )}
+          <div className="aig-inset min-h-[22rem] overflow-hidden">
+            {ranked.length === 0 ? (
+              <div className="px-5 py-10">
+                <Unavailable
+                  reason="no-data"
+                  detail="Aucun agent n'est persisté dans le catalogue. La lecture a réussi — il n'y a réellement rien, ce n'est pas une panne."
+                />
+              </div>
+            ) : (
+              <ul className="scroll-thin max-h-[calc(100svh-24rem)] min-h-[22rem] divide-y divide-[color:var(--aig-line-soft)] overflow-y-auto">
+                {ranked.map((agent) => (
+                  <AgentRosterRow key={agent.copilotId} agent={agent} />
+                ))}
+              </ul>
+            )}
+          </div>
         </section>
       </PageBody>
     </>

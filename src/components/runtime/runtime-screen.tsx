@@ -80,18 +80,36 @@ export default function RuntimeScreen({
     // La piste d'onglets descend dans `meta` : c'est le contexte de navigation
     // de la surface, pas une action.
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      {/* La description de l'ONGLET descend dans la scène, avec son nom : la
+          répéter ici la donnerait deux fois à quelques pixels d'écart. L'en-tête
+          garde la description de la SURFACE, qui ne change pas d'un onglet à
+          l'autre. */}
       <PageHeader
         title="Runtime"
-        description={tab.purpose}
+        description="Ce qui est réellement câblé sous les agents : le canal de retour, l’Agent Server, les outils, les providers, les modèles, les dépôts et l’outillage."
         meta={<RuntimeTabBar current={current} />}
       />
 
-      <PageBody className="min-h-0 flex-1">
-        {/* Le panneau courant — `aig-panel` porte le fond, le liseré, le rayon
-            et l'élévation en un seul jeton. La pile
-            `bg-white/shadow-xs/ring-1` + son scope `dark:` disait la même chose
-            en quatre décisions locales qu'aucun autre écran ne partageait. */}
-        <section className="aig-panel flex min-h-0 flex-1 flex-col overflow-hidden">
+      <PageBody className="min-h-0 flex-1 gap-0">
+        {/* LA SCÈNE de la surface — l'onglet courant, nommé et situé.
+         *
+         * Avant, le contenu tombait dans un `aig-panel` anonyme, de rang égal à
+         * tout ce qu'il contenait : rien ne disait « voici la section du
+         * runtime que vous regardez ». La scène porte cette identité, et le
+         * contenu descend dans un CREUX qui l'accueille — deux rangs au lieu
+         * d'un aplat. Le contenu lui-même appartient aux onglets, il n'est pas
+         * touché ici. */}
+        <section
+          className="aig-stage aig-accent-edge flex min-h-0 flex-1 flex-col overflow-hidden"
+          aria-label={tab.name}
+        >
+          <div className="shrink-0 px-4 pt-4 pb-3 sm:px-5">
+            <h2 className="aig-display text-xl font-semibold sm:text-2xl">{tab.name}</h2>
+            <p className="aig-text-muted mt-1 max-w-3xl text-sm">{tab.purpose}</p>
+          </div>
+
+          <div className="aig-hairline mx-4 shrink-0 sm:mx-5" />
+
           {/* `overflow-y-auto`, PAS `overflow-hidden` : un onglet dense (LangGraph
            * en porte six) dépassait la hauteur disponible et ses derniers
            * panneaux étaient COUPÉS à zéro — « Assistants du serveur » et
@@ -99,8 +117,10 @@ export default function RuntimeScreen({
            * rien ne l'indique. Le zéro-scroll de la PAGE est tenu par le
            * `overflow-hidden` du parent ; c'est ici, dans la zone bornée, que la
            * donnée doit défiler. Box fixe, data qui scrolle dedans. */}
-          <div className="scroll-thin flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
-            <TabPanel payload={payload} />
+          <div className="m-3 mt-3 min-h-0 flex-1 overflow-hidden sm:m-4 sm:mt-3">
+            <div className="aig-inset scroll-thin flex h-full min-h-0 flex-col overflow-y-auto p-3">
+              <TabPanel payload={payload} />
+            </div>
           </div>
         </section>
       </PageBody>

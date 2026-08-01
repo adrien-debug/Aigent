@@ -14,9 +14,10 @@
 import { PageBody, PageHeader } from '@/components/app-shell'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { Subheading } from '@/components/ui/heading'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
-import { Panel, Rail, SEVERITY, Unavailable, initialsOf } from '@/components/cockpit/primitives'
+import { Rail, SEVERITY, Unavailable, initialsOf } from '@/components/cockpit/primitives'
 import { navEntry } from '@/components/navigation'
 import type { QualificationRunStatus } from '@/lib/agent-mission-control/qualification-orchestrator'
 import { RunStatusBadge } from './atoms'
@@ -131,6 +132,44 @@ function RunGuardBadge({ candidate }: Readonly<RunGuardBadgeProps>) {
   )
 }
 
+/**
+ * Un chiffre de l'état des candidats.
+ *
+ * Comme sur le roster des agents, ce sont des COMPTAGES dérivés de la liste
+ * rendue en dessous — jamais une mesure lue en base. Un `0` y est donc un vrai
+ * zéro. Les inconnues (garde non dérivable, registre non lu) sont comptées à
+ * PART et rendues en ligne neutre : les agréger aux blocages produirait
+ * exactement le verdict accusateur que le badge neutre évite ligne à ligne.
+ */
+function CandidateFigure({
+  value,
+  label,
+  hint,
+  tone = 'default',
+}: Readonly<{
+  value: number
+  label: string
+  hint?: string
+  tone?: 'default' | 'good' | 'warn' | 'bad'
+}>) {
+  const toneClass =
+    tone === 'bad'
+      ? 'text-red-400'
+      : tone === 'warn'
+        ? 'text-amber-400'
+        : tone === 'good'
+          ? 'text-emerald-400'
+          : 'aig-display'
+
+  return (
+    <div className="min-w-0">
+      <div className={`text-3xl font-semibold tabular-nums sm:text-4xl ${toneClass}`}>{value}</div>
+      <Text className="aig-text-muted mt-1 truncate text-sm">{label}</Text>
+      {hint ? <Text className="aig-text-faint mt-0.5 truncate text-xs">{hint}</Text> : null}
+    </div>
+  )
+}
+
 function CandidateRow({ candidate }: Readonly<CandidateRowProps>) {
   return (
     <li className="relative">
@@ -206,21 +245,50 @@ export default function QualificationRosterScreen({
       <PageHeader
         title={navEntry('/qualification').name}
         description={navEntry('/qualification').purpose}
-        // Les compteurs sont le CONTEXTE CHIFFRÉ de la surface, pas une action :
-        // ils vont dans `meta`, la fente que `PageHeader` prévoit pour ça.
-        meta={
-          <>
-            <Badge color="zinc">{ranked.length} candidat(s)</Badge>
-            <Badge
-              color="emerald"
-              title="Tous les checks de la gate passent. « Promouvable » est un état — aucune promotion ne part toute seule."
-            >
-              {promotable} promouvable(s)
-            </Badge>
-            <Badge color="red">{blocked} bloquée(s)</Badge>
-            <Badge color="amber" title="Boucles d’amélioration qui attendent une décision humaine.">
-              {awaitingDecision} décision(s) attendue(s)
-            </Badge>
+      />
+      <PageBody className="min-h-0 flex-1 gap-5">
+        {/* ÉTAT DES CANDIDATS — la zone dominante. Ces chiffres vivaient en
+            badges de 11 px dans le `meta` de l'en-tête : l'information
+            principale de la surface rendue à la taille d'une étiquette. Ils
+            gardent chacun leur `title` explicatif, mot pour mot. */}
+        <section
+          className="aig-stage aig-accent-edge shrink-0 p-5 sm:p-6"
+          aria-label="État des candidats"
+        >
+          <Text className="aig-text-faint text-2xs font-medium uppercase tracking-[0.18em]">
+            État des candidats
+          </Text>
+
+          <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
+            <CandidateFigure value={ranked.length} label="Candidat(s)" />
+            <div title="Tous les checks de la gate passent. « Promouvable » est un état — aucune promotion ne part toute seule.">
+              <CandidateFigure
+                value={promotable}
+                label="Promouvable(s)"
+                tone={promotable > 0 ? 'good' : 'default'}
+                hint="aucune promotion ne part seule"
+              />
+            </div>
+            <CandidateFigure
+              value={blocked}
+              label="Bloquée(s)"
+              tone={blocked > 0 ? 'bad' : 'default'}
+            />
+            <div title="Boucles d’amélioration qui attendent une décision humaine.">
+              <CandidateFigure
+                value={awaitingDecision}
+                label="Décision(s) attendue(s)"
+                tone={awaitingDecision > 0 ? 'warn' : 'default'}
+              />
+            </div>
+          </div>
+
+          <div className="aig-hairline my-5" />
+
+          {/* Les inconnues, en ligne et en NEUTRE. Elles ne montent pas au rang
+              de grand chiffre : ce sont des absences de mesure, pas des
+              verdicts, et les grossir les ferait lire comme des blocages. */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <Badge
               color="zinc"
               title="Sans version de production, le replay n’a rien à comparer : la route refuse de partir. C’est une dépendance circulaire, pas une panne."
@@ -243,32 +311,37 @@ export default function QualificationRosterScreen({
                 {qualificationReadFailures} registre(s) non lu(s)
               </Badge>
             ) : null}
-          </>
-        }
-      />
-      <PageBody className="min-h-0 flex-1">
-        <Panel
-          title="Banc de qualification"
-          hint={ranked.length + ' au catalogue'}
-          className="min-h-80 min-w-0 xl:min-h-0 xl:flex-1"
-          padded={false}
-          bodyClassName="scroll-thin overflow-y-auto"
-        >
-          {ranked.length === 0 ? (
-            <Unavailable
-              reason="no-data"
-              detail="Aucun agent n’est persisté dans le catalogue : il n’y a rien à qualifier. La lecture a réussi — ce n’est pas une panne."
-            />
-          ) : (
-            // Séparateur discret de la grammaire : la paire claire/sombre
-            // dosée à la main n'avait plus de moitié claire à rendre.
-            <ul className="aig-line-soft divide-y divide-[color:var(--aig-line-soft)]">
-              {ranked.map((candidate) => (
-                <CandidateRow key={candidate.copilotId} candidate={candidate} />
-              ))}
-            </ul>
-          )}
-        </Panel>
+          </div>
+        </section>
+
+        {/* Le banc descend dans un CREUX : il accueille la liste au lieu de la
+            poser sur une énième carte de rang égal à la scène. La box reste
+            bornée, la donnée défile dedans. */}
+        <section className="flex min-h-0 min-w-0 flex-col xl:flex-1">
+          <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 pb-3">
+            <Subheading level={2}>Banc de qualification</Subheading>
+            <Text className="aig-text-muted text-sm">{ranked.length} au catalogue</Text>
+          </div>
+
+          <div className="aig-inset flex min-h-80 min-w-0 flex-col overflow-hidden xl:min-h-0 xl:flex-1">
+            {ranked.length === 0 ? (
+              <div className="p-4">
+                <Unavailable
+                  reason="no-data"
+                  detail="Aucun agent n’est persisté dans le catalogue : il n’y a rien à qualifier. La lecture a réussi — ce n’est pas une panne."
+                />
+              </div>
+            ) : (
+              // Séparateur discret de la grammaire : la paire claire/sombre
+              // dosée à la main n'avait plus de moitié claire à rendre.
+              <ul className="scroll-thin min-h-0 flex-1 divide-y divide-[color:var(--aig-line-soft)] overflow-y-auto">
+                {ranked.map((candidate) => (
+                  <CandidateRow key={candidate.copilotId} candidate={candidate} />
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
       </PageBody>
     </div>
   )
