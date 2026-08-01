@@ -1,8 +1,8 @@
 /**
  * Overview — instruments et rosters sur fond clair, scroll document naturel.
  *
- * Hiérarchie : bandeau KPI → activité (histogramme) → rosters (flux, agents,
- * projets). Pas de bandeau shell : tout vit dans la zone de travail blanche.
+ * Hiérarchie : bandeau KPI → activité (histogramme) → rosters (flux, projets).
+ * Pas de bandeau shell : tout vit dans la zone de travail blanche.
  *
  * Server Component : l'histogramme est le seul module client (Recharts).
  */
@@ -11,12 +11,12 @@ import { navEntry } from '@/components/navigation'
 import { Link } from '@/components/ui/link'
 import type { DashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
 import { buildHourlyBuckets, buildStatusBreakdown } from '@/lib/cockpit/overview-series'
-import { buildAgentCards, buildNamedRuns } from '@/lib/cockpit/named-runs'
-import type { AgentCard, NamedRun, ProjectCard } from '@/lib/cockpit/named-runs'
+import { buildNamedRuns } from '@/lib/cockpit/named-runs'
+import type { NamedRun, ProjectCard } from '@/lib/cockpit/named-runs'
 import { HourlyRunsChart, StatusLegend } from './charts'
 import KpiStrip from './kpi-strip'
 import RunStream from './run-stream'
-import { AgentRow, ProjectRow } from './rows'
+import { ProjectRow } from './rows'
 import { Panel, Unavailable } from './primitives'
 
 const ENTRY = navEntry('/')
@@ -31,27 +31,6 @@ function renderRunStreamPanel(runs: NamedRun[] | null, nowMs: number): ReactNode
   return <RunStream runs={runs} nowMs={nowMs} />
 }
 
-function renderAgentRoster(agents: AgentCard[] | null, nowMs: number): ReactNode {
-  if (agents === null) {
-    return <Unavailable reason="unread" detail="La fenêtre de runs n'a pas pu être lue." />
-  }
-  if (agents.length === 0) {
-    return (
-      <Unavailable
-        reason="no-data"
-        detail="Aucun agent n'a tourné sur les dernières 24 heures."
-      />
-    )
-  }
-  return (
-    <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
-      {agents.map((card) => (
-        <AgentRow key={card.copilotId} card={card} nowMs={nowMs} />
-      ))}
-    </ul>
-  )
-}
-
 export default function CockpitOverview({
   overview,
   nowMs,
@@ -62,7 +41,6 @@ export default function CockpitOverview({
   const buckets = buildHourlyBuckets(overview.windowRuns, nowMs)
   const slices = buildStatusBreakdown(overview.windowRuns)
   const runs = buildNamedRuns(overview.windowRuns, overview.copilots, overview.projectRows)
-  const agents = buildAgentCards(overview.windowRuns, overview.copilots, overview.projectRows)
   const unread = overview.windowRuns === null
 
   const projectCards: ProjectCard[] = overview.projects.map((p) => ({
@@ -153,31 +131,22 @@ export default function CockpitOverview({
           {renderRunStreamPanel(runs, nowMs)}
         </Panel>
 
-        <div className="flex flex-col gap-4">
-          <Panel
-            title="Agents en vol"
-            hint={agents ? `${agents.length} ont tourné` : undefined}
-            padded={false}
-          >
-            {renderAgentRoster(agents, nowMs)}
-          </Panel>
-
-          <Panel
-            title="Projets"
-            hint={`${projectCards.length} au catalogue`}
-            padded={false}
-          >
-            {projectCards.length === 0 ? (
-              <Unavailable reason="no-data" detail="Aucun projet dans le catalogue." />
-            ) : (
-              <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
-                {rankedProjects.map((card) => (
-                  <ProjectRow key={card.id} card={card} />
-                ))}
-              </ul>
-            )}
-          </Panel>
-        </div>
+        <Panel
+          title="Projets"
+          hint={`${projectCards.length} au catalogue`}
+          className="min-w-0"
+          padded={false}
+        >
+          {projectCards.length === 0 ? (
+            <Unavailable reason="no-data" detail="Aucun projet dans le catalogue." />
+          ) : (
+            <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
+              {rankedProjects.map((card) => (
+                <ProjectRow key={card.id} card={card} />
+              ))}
+            </ul>
+          )}
+        </Panel>
       </div>
 
       {overview.dataWarnings.length > 0 ? (
