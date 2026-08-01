@@ -106,6 +106,30 @@ services:
       GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
       GF_USERS_ALLOW_SIGN_UP: 'false'
       GF_INSTALL_PLUGINS: 'marcusolsson-json-datasource'
+      # ------------------------------------------------------------------
+      # EMBEDDING LOCAL — réglage minimal pour AIGENT-VISUALIZATION-LAB-003.
+      #
+      # Sans ces deux réglages, Grafana renvoie `X-Frame-Options: deny` et un
+      # 302 vers son login : aucun panneau n'est embarquable, et le laboratoire
+      # ne peut rien prouver.
+      #
+      # CE N'EST PAS LA POLITIQUE GPU1. Ce qui rend ce réglage acceptable ici,
+      # et uniquement ici :
+      #   · le port n'est publié que sur 127.0.0.1 — rien n'est joignable
+      #     depuis le réseau ;
+      #   · le rôle anonyme est **Viewer** : lecture seule, aucune édition,
+      #     aucune administration, aucun accès aux datasources en écriture ;
+      #   · l'organisation anonyme est la seule organisation locale.
+      #
+      # Sur GPU1, l'embedding devra passer par un mécanisme authentifié
+      # (service account + jeton court, ou reverse-proxy portant l'identité) —
+      # jamais par `GF_AUTH_ANONYMOUS_ENABLED`. Voir REVIEW.md de la mission.
+      GF_SECURITY_ALLOW_EMBEDDING: 'true'
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: 'Viewer'
+      # Le thème par défaut du CONTENU des panneaux se règle dans Grafana, pas
+      # par du CSS injecté depuis Aigent (invariant 5 de la mission).
+      GF_USERS_DEFAULT_THEME: 'dark'
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
