@@ -1,7 +1,7 @@
 'use client'
 
 import { motion, useReducedMotion } from 'motion/react'
-import { useEffect, useState } from 'react'
+import { useSyncExternalStore } from 'react'
 
 import type { VisualizationState } from '../embed/contract'
 
@@ -60,16 +60,23 @@ const ROLE: Record<Exclude<VisualizationState, 'READY'>, string> = {
   UNAVAILABLE: 'viz-surface-raised',
 }
 
-/** Vrai quand l'onglet est masqué — on suspend alors les animations décoratives. */
+/**
+ * Vrai quand l'onglet est regardé — on suspend sinon les animations
+ * décoratives, qui consomment sans que personne ne les voie.
+ *
+ * `useSyncExternalStore` est le bon outil ici : la source de vérité est
+ * `document.visibilityState`, un système externe, et le troisième argument
+ * donne la valeur du rendu serveur sans provoquer de mismatch.
+ */
 function useDocumentVisible(): boolean {
-  const [visible, setVisible] = useState(true)
-  useEffect(() => {
-    const onChange = () => setVisible(document.visibilityState === 'visible')
-    onChange()
-    document.addEventListener('visibilitychange', onChange)
-    return () => document.removeEventListener('visibilitychange', onChange)
-  }, [])
-  return visible
+  return useSyncExternalStore(
+    (onChange) => {
+      document.addEventListener('visibilitychange', onChange)
+      return () => document.removeEventListener('visibilitychange', onChange)
+    },
+    () => document.visibilityState === 'visible',
+    () => true,
+  )
 }
 
 /**
@@ -178,11 +185,19 @@ export default function VisualizationStateView({
    * hydratation : rendre l'animation dès la première passe produit un HTML
    * serveur différent du HTML client, donc une erreur « Hydration failed »
    * (constatée au harnais). On rend donc STATIQUE au premier passage, puis on
-   * anime — le contenu informatif, lui, est identique dans les deux cas, donc
-   * rien n'est perdu pour un lecteur sans JavaScript.
+   * anime — le contenu informatif est identique dans les deux cas, donc rien
+   * n'est perdu pour un lecteur sans JavaScript.
+   *
+   * `useSyncExternalStore` plutôt qu'un `setState` dans un effet : il exprime
+   * directement « cette valeur diffère entre serveur et client » via son
+   * troisième argument, sans déclencher de rendu en cascade.
    */
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
+  const mounted = useSyncExternalStore(
+    // Rien à souscrire : la valeur ne change qu'une fois, à l'hydratation.
+    () => () => {},
+    () => true,
+    () => false,
+  )
 
   // Animer seulement une fois monté, si l'utilisateur l'accepte ET que
   // l'onglet est regardé.
