@@ -38,8 +38,7 @@
  */
 import { PageBody, PageHeader } from '@/components/app-shell'
 import { Badge } from '@/components/ui/badge'
-import { Divider } from '@/components/ui/divider'
-import { Heading, Subheading } from '@/components/ui/heading'
+import { Subheading } from '@/components/ui/heading'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
 import QualificationConsole from './console'
