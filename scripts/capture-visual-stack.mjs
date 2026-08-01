@@ -288,6 +288,18 @@ async function captureDegraded(page, name, headline, body) {
        */
       host.style.flex = '0 0 auto'
       host.style.minHeight = '0'
+      // Le fond noir vient du PANNEAU, pas du conteneur direct : on remonte la
+      // chaîne des ancêtres qui s'étirent (`flex: 1`) jusqu'au panneau, pour
+      // qu'ils se dimensionnent eux aussi sur leur contenu.
+      let parent = host.parentElement
+      for (let depth = 0; depth < 4 && parent; depth += 1) {
+        const cs = getComputedStyle(parent)
+        if (cs.flexGrow !== '0' || cs.flex.startsWith('1')) {
+          parent.style.flex = '0 0 auto'
+          parent.style.minHeight = '0'
+        }
+        parent = parent.parentElement
+      }
       const box = document.createElement('div')
       box.setAttribute('data-testid', 'graph-canvas-degraded')
       // `min-height` modeste et pas de `flex:1` : la boîte s'ajuste à son
