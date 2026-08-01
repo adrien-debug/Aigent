@@ -129,9 +129,18 @@ const captures = []
  */
 async function assertNoForeignOverlay(page, file) {
   const intruders = await page.evaluate(() => {
-    const OUTIL = /describe a change|copilot|cursor|devtools|extension/i
+    /*
+     * Marqueurs d'outillage TIERS, choisis pour ne pas matcher le produit.
+     * « Copilot » seul est exclu : c'est le vocabulaire métier d'Aigent
+     * (« Agent Builder Copilot », « Gold Trading High-Risk Copilot ») et le
+     * filtrer ferait échouer la capture sur des noms d'agents légitimes.
+     */
+    const OUTIL = /describe a change|github copilot|cursor tab|open in cursor/i
     const found = []
     for (const el of document.querySelectorAll('body *')) {
+      // Les <script> RSC portent du texte sérialisé : ils ne sont pas visibles
+      // et n'ont rien à faire dans cette recherche.
+      if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'NOSCRIPT') continue
       const text = (el.textContent ?? '').trim()
       if (el.children.length === 0 && OUTIL.test(text)) {
         found.push(`texte « ${text.slice(0, 40)} »`)
