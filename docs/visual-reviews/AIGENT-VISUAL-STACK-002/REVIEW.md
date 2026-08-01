@@ -1,14 +1,30 @@
 # AIGENT-VISUAL-STACK-002 — revue visuelle (rework)
 
-**SHA du rendu Aigent** : `26487c3`
+**SHA du rendu Aigent** : `294a412`
 **Arbre propre avant capture** : oui (`cleanBeforeCapture: true`)
 **Verdict du harnais** : `PASS`
 **Console** : 0 erreur, 0 avertissement, 0 exception non capturée
 
-Le commit qui porte ces preuves est le descendant direct de `26487c3` : il
+Le commit qui porte ces preuves est le descendant direct de `294a412` : il
 n'ajoute que des artefacts, aucun code.
 
 ## Ce que ce rework a corrigé
+
+### 0bis. L'état vide affichait un écran impossible
+
+`canvas-empty` montrait « **5 nœud(s) · 6 arête(s)** » au-dessus de « Aucun nœud
+à représenter » : la simulation remplaçait le contenu du Canvas mais laissait
+les compteurs du vrai graphe. Cet écran n'existe nulle part dans le produit —
+une preuve d'un état impossible ne prouve rien.
+
+S'y ajoutait ~400 px de fond noir réservé à la surface du graphe sous un message
+de deux lignes, qui se lisait comme un masque plutôt que comme un état vide.
+
+Corrigé : les compteurs suivent la simulation, et la chaîne des ancêtres étirés
+se dimensionne sur son contenu. Le graphe étant chargé côté serveur (RSC),
+`page.route` ne peut pas l'intercepter : la simulation DOM reste le seul moyen
+sans éteindre l'Agent Server partagé. Elle est déclarée `simulated: true` dans
+le manifeste.
 
 ### 0. Un panneau de développement masquait le bas de toutes les captures
 
@@ -122,7 +138,7 @@ Une seconde sonde (`console.error` injecté) avait déjà prouvé que le harnais
 | `canvas-mobile-375x812.png` | Canvas | 375×812 | graphe réel |
 | `canvas-node-selected-inspector-desktop-1440x900.png` | Canvas | 1440×900 | nœud sélectionné, inspecteur ouvert |
 | `canvas-node-selected-inspector-mobile-375x812.png` | Canvas | 375×812 | idem, surface mobile |
-| `canvas-empty-1440x900.png` | Canvas | 1440×900 | graphe vide (simulé côté navigateur) |
+| `canvas-empty-1440x900.png` | Canvas | 1440×900 | graphe vide — compteurs à **0 nœud(s) · 0 arête(s)**, cohérents avec le message (simulé côté navigateur) |
 | `canvas-unavailable-1440x900.png` | Canvas | 1440×900 | graphe indisponible (simulé) |
 | `canvas-layout-persisted-1440x900.png` | Canvas | 1440×900 | disposition persistée après rechargement |
 | `visual-tooling-desktop-1440x900.png` | Console | 1440×900 | 7 outils, grille dense |
