@@ -58,7 +58,10 @@ services:
       LANGFUSE_INIT_USER_NAME: Operateur local
       LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD}
     healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/public/health']
+      # 127.0.0.1 et non `localhost` : ces images résolvent `localhost` en
+      # IPv6 (::1) alors qu'elles écoutent en IPv4 — le healthcheck échouait
+      # (« Connection refused ») sur un service parfaitement joignable.
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3000/api/public/health']
       interval: 10s
       timeout: 5s
       retries: 30
@@ -85,7 +88,7 @@ services:
       # Aigent tourne sur l'hôte (3987) : ce conteneur doit sortir le joindre.
       - 'host.docker.internal:host-gateway'
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:9090/-/healthy || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:9090/-/healthy || exit 1']
       interval: 10s
       timeout: 5s
       retries: 20
@@ -108,7 +111,7 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/health || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/api/health || exit 1']
       interval: 10s
       timeout: 5s
       retries: 20
@@ -146,7 +149,8 @@ services:
     volumes:
       - n8n-data:/home/node/.n8n
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:5678/healthz || exit 1']
+      # Voir la note IPv6 du healthcheck Langfuse.
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:5678/healthz || exit 1']
       interval: 10s
       timeout: 5s
       retries: 20
