@@ -1,11 +1,11 @@
 # AIGENT-VISUAL-STACK-002 — revue visuelle (rework)
 
-**SHA du rendu Aigent** : `801f4db`
+**SHA du rendu Aigent** : `26487c3`
 **Arbre propre avant capture** : oui (`cleanBeforeCapture: true`)
 **Verdict du harnais** : `PASS`
 **Console** : 0 erreur, 0 avertissement, 0 exception non capturée
 
-Le commit qui porte ces preuves est le descendant direct de `801f4db` : il
+Le commit qui porte ces preuves est le descendant direct de `26487c3` : il
 n'ajoute que des artefacts, aucun code.
 
 ## Ce que ce rework a corrigé
@@ -99,7 +99,14 @@ Ajoutées parce que les précédentes laissaient passer les défauts ci-dessus :
 - **overlay étranger** — tout élément fixe couvrant le bas du viewport et
   n'appartenant pas au produit, jugé sur sa géométrie et non sur son texte.
 
-**Sonde négative jouée** : l'ancienne grille fixe restaurée déclenche
+**Sondes négatives jouées** — une gate qui ne peut pas échouer ne prouve rien :
+
+- **overlay** : le masquage de `css-studio-panel` retiré, l'assertion le nomme
+  sur chaque capture (`<css-studio-panel> fixe couvrant le bas (375×812)`).
+  Cette sonde a d'abord passé au vert à tort : l'assertion interrogeait
+  `body *` alors que l'élément est enfant direct de `<html>`. Périmètre
+  corrigé, sonde rejouée, défaut détecté.
+- **composition** : l'ancienne grille fixe restaurée déclenche
 simultanément « ligne large de 247px seulement », « nom cassé sur 60px de haut »
 et « contenu hors du panneau ». Retirée, tout repasse au vert.
 
