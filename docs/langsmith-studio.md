@@ -33,27 +33,40 @@ Nœuds : `__start__`, `agent`, `approval`, `tools`, `__end__`.
 Six arêtes, dont quatre conditionnelles. Le nœud `approval` porte le HITL
 (interrupt/resume) ; la boucle `tools → agent` est le cycle d'outillage.
 
-## Ce qui n'est PAS prouvé, et pourquoi
+## Ce qui n'est PAS prouvé — corrigé le 2026-08-01
 
-**Studio n'a pas été ouvert et son rendu n'a pas été constaté.**
+**Une hypothèse antérieure de ce document était fausse.** Il affirmait que
+Studio exigeait une session graphique et ne pouvait donc pas afficher le
+graphe. La capture
+`docs/visual-reviews/AIGENT-VISUAL-STACK-002/langsmith-graph.png` montre le
+contraire :
 
-Studio n'est pas un binaire local : c'est l'application hébergée
-`smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024` (voir le script
-`langgraph:studio` du `package.json`). Elle s'exécute dans le navigateur, sur
-le domaine LangChain, et exige une **session LangSmith authentifiée**. Le
-navigateur charge Studio depuis le serveur distant, puis appelle le serveur
-local en CORS.
+- Studio ouvre le graphe **`agent_builder`** sans connexion préalable ;
+- les cinq nœuds sont rendus : `__start__`, `agent`, `approval`, `tools`, `__end__` ;
+- les arêtes conditionnelles sont tracées ;
+- l'en-tête affiche **« Connected »** contre `http://127.0.0.1:2024` ;
+- les schémas d'entrée (`ExecutedModel`, `Messages`) sont exposés.
 
-Conséquences :
+L'obstacle `x-agent-key` supposé ne s'est pas matérialisé : Studio joint le
+serveur local et lit sa topologie.
 
-- l'ouverture demande un **login graphique** sur un service tiers, que cette
-  mission n'a ni le mandat ni les moyens d'effectuer (`CLAUDE.md` §3, §8) ;
-- une capture de Studio exigerait cette session ;
-- le compte LangSmith d'Adrien n'a pas été utilisé.
+### La limite RÉELLE, plus étroite
 
-Classement honnête de l'outil : **`CONNECTED`**, pas `VERIFIED`. Le serveur
-local est joignable, authentifié, sert le bon graphe et satisfait le contrat
-CORS de Studio — mais « Studio affiche le graphe » n'a pas été observé.
+Un bandeau de Studio l'énonce lui-même :
+
+> Studio tracing requires langgraph-api **0.11.0** or later with session-name
+> tracing enabled. Your server reports version **1.4.2**.
+
+Deux conséquences :
+
+1. **Le tracing in-Studio est indisponible** — les schémas de version diffèrent,
+   Studio ne sait pas lire les traces de ce serveur.
+2. **Aucune exécution n'a été observée.** Soumettre un run depuis Studio
+   déclencherait un appel LLM facturé, hors mandat de cette mission. Le bouton
+   `Submit` n'a pas été actionné.
+
+Statut retenu : **`CONNECTED`, pas `VERIFIED`**. Studio sait LIRE le graphe —
+c'est prouvé. Qu'il en OBSERVE une exécution ne l'est pas.
 
 ## Ouvrir Studio manuellement
 

@@ -368,6 +368,103 @@ async function captureTooling(page, name) {
     }
   }
 
+  /*
+   * GÉOMÉTRIE MOBILE — ce que « pas d'overflow » ne prouvait pas.
+   *
+   * La v1 passait toutes les gates avec une composition illisible : nom cassé
+   * en trois lignes, « adresse connue, sonde en échec » à un mot par ligne,
+   * bouton hors du panneau. Le document ne débordait pas — chaque colonne
+   * rétrécissait à l'intérieur. Ces assertions mesurent donc la LARGEUR UTILE
+   * réelle et la position des éléments, pas seulement le scroll du document.
+   */
+  if (name === 'mobile') {
+    const geometry = await page.evaluate(() => {
+      const panel = document.querySelector('[data-testid="visual-tooling"]')
+      const panelRect = panel?.getBoundingClientRect() ?? null
+      return [...document.querySelectorAll('[data-testid="visual-tool-row"]')].map((row) => {
+        const rect = row.getBoundingClientRect()
+        const name = row.querySelector('span.font-semibold')
+        const nameRect = name?.getBoundingClientRect() ?? null
+        const action = row.querySelector('a, span.italic')
+        const actionRect = action?.getBoundingClientRect() ?? null
+        return {
+          tool: row.dataset.tool,
+          width: rect.width,
+          // Largeur du nom rapportée à celle de la ligne : un nom qui occupe
+          // une bande étroite est un nom qui se casse mot à mot.
+          nameWidth: nameRect?.width ?? 0,
+          nameHeight: nameRect?.height ?? 0,
+          actionRight: actionRect?.right ?? null,
+          actionWidth: actionRect?.width ?? 0,
+          rowRight: rect.right,
+          panelRight: panelRect?.right ?? null,
+        }
+      })
+    })
+
+    /*
+     * Seuil calé sur la largeur RÉELLEMENT disponible, pas sur le viewport.
+     *
+     * Mesuré au 2026-08-01 à 375 px : le shell impose `max-lg:pl-14` (56 px de
+     * rail), puis les conteneurs successifs retirent 72 px — il reste 247 px à
+     * la ligne. Exiger 300 px ferait échouer le harnais sur une contrainte du
+     * SHELL, hors du périmètre de cette console. On vérifie donc que la ligne
+     * occupe bien toute la largeur que son parent lui laisse : c'est ce que ce
+     * composant contrôle.
+     */
+    const panelWidth = await page.evaluate(() => {
+      const ul = document.querySelector('[data-testid="visual-tool-row"]')?.parentElement
+      return ul ? ul.getBoundingClientRect().width : 0
+    })
+
+    for (const g of geometry) {
+      // La ligne doit remplir son conteneur — un rétrécissement interne
+      // (l'ancienne grille fixe) se voit ici.
+      if (g.width < panelWidth - 2) {
+        fail(
+          `${surface} : ligne « ${g.tool} » large de ${Math.round(g.width)}px pour ${Math.round(panelWidth)}px disponibles`,
+        )
+      }
+      // Plancher absolu de lisibilité, indépendant du shell.
+      if (g.width < 240) {
+        fail(`${surface} : ligne « ${g.tool} » sous le plancher de lisibilité (${Math.round(g.width)}px)`)
+      }
+      // Un nom sur plus de deux lignes de texte = cassure mot à mot.
+      if (g.nameHeight > 44) {
+        fail(
+          `${surface} : nom de « ${g.tool} » cassé sur ${Math.round(g.nameHeight)}px de haut (mot à mot)`,
+        )
+      }
+      // L'action doit rester DANS le panneau, entièrement.
+      if (g.actionRight !== null && g.panelRight !== null && g.actionRight > g.panelRight + 1) {
+        fail(
+          `${surface} : action de « ${g.tool} » déborde du panneau (${Math.round(g.actionRight)} > ${Math.round(g.panelRight)})`,
+        )
+      }
+      // Une action rendue mais large de zéro est invisible.
+      if (g.actionRight !== null && g.actionWidth < 24) {
+        fail(`${surface} : action de « ${g.tool} » large de ${Math.round(g.actionWidth)}px`)
+      }
+    }
+
+    // Aucun texte ne doit sortir de son panneau.
+    const escaping = await page.evaluate(() => {
+      const panel = document.querySelector('[data-testid="visual-tooling"]')
+      if (!panel) return []
+      const panelRect = panel.getBoundingClientRect()
+      return [...panel.querySelectorAll('[data-testid="visual-tool-row"] *')]
+        .filter((el) => {
+          const r = el.getBoundingClientRect()
+          return r.width > 0 && (r.right > panelRect.right + 1 || r.left < panelRect.left - 1)
+        })
+        .map((el) => (el.textContent ?? '').trim().slice(0, 40))
+        .slice(0, 5)
+    })
+    if (escaping.length > 0) {
+      fail(`${surface} : contenu hors du panneau — ${escaping.join(' | ')}`)
+    }
+  }
+
   await shoot(page, `visual-tooling-${name}-${vp.width}x${vp.height}.png`, {
     surface: 'visual-tooling',
     route: TOOLING_ROUTE,

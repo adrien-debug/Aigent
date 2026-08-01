@@ -238,7 +238,10 @@ export async function readVisualTooling(): Promise<VisualToolingData> {
       {
         id: 'langfuse',
         name: 'Langfuse',
-        purpose: 'Qualité, coûts et latence des appels LLM.',
+        // « Coûts » retiré : le chemin tracé porte les étapes, statuts et
+        // durées d'un run. Un coût n'apparaît que si un appel facturé a lieu —
+        // le smoke de cette mission n'en produit aucun.
+        purpose: 'Traces d’exécution des agents : étapes, statuts, durées et métadonnées de run.',
       },
       envUrl('LANGFUSE_BASEURL') ?? envUrl('LANGFUSE_HOST'),
       'Renseigner LANGFUSE_BASEURL vers une instance Langfuse joignable.',
@@ -247,7 +250,12 @@ export async function readVisualTooling(): Promise<VisualToolingData> {
       {
         id: 'grafana',
         name: 'Grafana',
-        purpose: 'Santé de l’infrastructure : serveurs et GPU.',
+        // Le dashboard livré (`aigent-runs`) mesure des RUNS D'AGENTS, pas des
+        // machines : ni CPU, ni mémoire, ni GPU n'y figurent. Décrire Grafana
+        // comme une surface d'infrastructure enverrait l'opérateur y chercher
+        // ce qui n'y est pas.
+        purpose:
+          'Dashboard des runs d’agents : volume, états terminaux, taux de succès et latences, depuis runtime_telemetry_events.',
       },
       envUrl('GRAFANA_URL'),
       'Renseigner GRAFANA_URL vers une instance Grafana joignable.',
@@ -256,7 +264,12 @@ export async function readVisualTooling(): Promise<VisualToolingData> {
       {
         id: 'n8n',
         name: 'n8n',
-        purpose: 'Intégrations périphériques uniquement — notifications, synchronisations. Jamais un runtime d’agent.',
+        // Le workflow livré lit `/api/agent-ops/metrics` et rend un verdict de
+        // flotte. La mention « jamais un runtime d'agent » reste vraie et
+        // structurante : n8n orchestre autour d'Aigent, il n'exécute pas
+        // d'agent.
+        purpose:
+          'Automatisations autour d’Aigent — veille de santé de flotte sur les métriques réelles. Jamais un runtime d’agent.',
       },
       envUrl('N8N_URL'),
       'Renseigner N8N_URL vers une instance n8n joignable.',
@@ -280,19 +293,20 @@ export async function readVisualTooling(): Promise<VisualToolingData> {
     name: 'LangSmith Studio',
     purpose: 'Inspecte visuellement les exécutions du graphe, pas à pas.',
     /*
-     * CONNECTED, JAMAIS VERIFIED — et c'est un plafond délibéré.
+     * CONNECTED, PAS VERIFIED — mais pour une raison PLUS ÉTROITE qu'avant.
      *
-     * Ce qui EST prouvé (2026-08-01, contre le serveur vivant) : l'Agent Server
-     * répond, sert 20 assistants tous en `agent_builder`, expose le graphe réel
-     * (5 nœuds, 6 arêtes) et ses schémas, et satisfait le contrat CORS que
-     * Studio exige. Autrement dit, tout ce que Studio a besoin de lire est là.
+     * Constaté le 2026-08-01, capture à l'appui
+     * (docs/visual-reviews/AIGENT-VISUAL-STACK-002/langsmith-graph.png) :
+     * Studio AFFICHE bien le graphe `agent_builder` — les cinq nœuds
+     * `__start__ / agent / approval / tools / __end__`, leurs arêtes, les
+     * schémas d'entrée — et se déclare « Connected » contre le serveur local.
+     * L'hypothèse d'un mur de connexion bloquant était FAUSSE.
      *
-     * Ce qui n'est PAS prouvé : que Studio AFFICHE ce graphe. Studio est une
-     * application tierce hébergée sur `smith.langchain.com` qui exige une
-     * session LangSmith graphique ; de plus, elle ne fournit pas nativement
-     * l'en-tête `x-agent-key` qu'attend notre serveur fail-closed. Constater le
-     * rendu demanderait un login tiers — que cette console ne peut pas faire, et
-     * qu'elle ne doit pas simuler.
+     * Ce qui empêche encore `VERIFIED` : le tracing in-Studio est indisponible.
+     * Studio réclame `langgraph-api >= 0.11.0` quand notre serveur rapporte
+     * 1.4.2 (schémas de version différents), et aucun run n'a été soumis —
+     * ç'aurait été un appel LLM facturé. Studio sait donc LIRE le graphe ; il
+     * n'a pas été prouvé qu'il en OBSERVE une exécution.
      */
     status: langgraphReached ? 'CONNECTED' : 'UNAVAILABLE',
     url:
@@ -301,12 +315,12 @@ export async function readVisualTooling(): Promise<VisualToolingData> {
         : null,
     version: null,
     detail: langgraphReached
-      ? 'Serveur prêt pour Studio : 20 assistants `agent_builder`, graphe réel (5 nœuds, 6 arêtes), schémas exposés, CORS compatible. Le rendu par Studio n’est PAS vérifié — application tierce hébergée exigeant une session graphique, et sans en-tête `x-agent-key` natif.'
+      ? 'Studio rend le graphe `agent_builder` (5 nœuds, 6 arêtes) et se déclare « Connected » — vérifié par capture. Le tracing in-Studio reste indisponible : Studio réclame langgraph-api ≥ 0.11.0 quand le serveur rapporte 1.4.2. Aucune exécution n’a été observée, donc pas de `VERIFIED`.'
       : 'Studio se branche sur l’Agent Server local, qui ne répond pas. Aucun lien n’est proposé.',
     latencyMs: null,
     checkedAt: langgraph?.checkedAt ?? null,
     remediation: langgraphReached
-      ? 'Ouvrir le lien dans un navigateur connecté à LangSmith — voir docs/langsmith-studio.md.'
+      ? 'Le graphe s’ouvre déjà. Pour le tracing in-Studio : aligner la version de langgraph-api — voir docs/langsmith-studio.md.'
       : 'Démarrer l’Agent Server local (port 2024).',
   }
 
