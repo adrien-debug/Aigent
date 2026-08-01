@@ -1,7 +1,7 @@
 import AppShell from '@/components/app-shell'
 import CockpitOverview from '@/components/cockpit/overview-screen'
-import { Absent } from '@/components/design/surface'
-import { Body, Muted } from '@/components/design/type'
+import { Unavailable } from '@/components/cockpit/primitives'
+import { Text } from '@/components/ui/text'
 import { getDashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
 
 // Le cockpit lit l'état vivant de la flotte : jamais de cache statique.
@@ -32,14 +32,13 @@ export default async function HomePage() {
   if (overview === null) {
     return (
       <AppShell>
-        <div className="min-h-svh bg-ink-900 p-6 pt-16 lg:pt-7">
-          <div className="mx-auto flex max-w-md flex-col items-center gap-3 border border-line bg-ink-800 px-6 py-10 text-center">
-            <Absent reason="unread" />
-            <Body className="text-fg-low">
-              Le backend n’a pas répondu. Aucun chiffre n’est affiché — un tableau qui invente des
-              valeurs est plus dangereux qu’un tableau vide.
-            </Body>
-            {failure ? <Muted className="font-mono break-all">{failure}</Muted> : null}
+        <div className="p-6 pt-16 lg:pt-6">
+          <div className="mx-auto max-w-md rounded-lg bg-white px-6 py-10 text-center shadow-xs ring-1 ring-zinc-950/5">
+            <Unavailable
+              reason="unread"
+              detail="Le backend n'a pas répondu. Aucun chiffre n'est affiché — un tableau qui invente des valeurs est plus dangereux qu'un tableau vide."
+            />
+            {failure ? <Text className="mt-3">{failure}</Text> : null}
           </div>
         </div>
       </AppShell>
