@@ -283,9 +283,17 @@ try {
   const blockedPage = await blockedCtx.newPage()
   attachConsole(blockedPage)
   await login(blockedPage)
-  // On coupe l'accès à Grafana DANS LE NAVIGATEUR — jamais en éteignant le
-  // conteneur, qui est partagé avec d'autres surfaces de la machine.
+  /*
+   * On coupe l'accès à Grafana DANS LE NAVIGATEUR — jamais en éteignant le
+   * conteneur, partagé avec d'autres surfaces de la machine.
+   *
+   * Deux routes à couper, pas une : l'iframe (`/d-solo/`) ET la re-sonde
+   * serveur (`/api/agent-ops/visualizations/`). Ne bloquer que la première
+   * laisserait la re-sonde répondre `READY` — le badge resterait vert au-dessus
+   * d'un cadre vide, ce qui est le défaut même que cette preuve doit exclure.
+   */
   await blockedPage.route('**/d-solo/**', (route) => route.abort())
+  await blockedPage.route('**/api/agent-ops/visualizations/**', (route) => route.abort())
   await blockedPage.goto(`${BASE}${ROUTE}`, { waitUntil: 'networkidle', timeout: 90_000 })
   await hideDevOverlay(blockedPage)
   await blockedPage.waitForTimeout(6000)

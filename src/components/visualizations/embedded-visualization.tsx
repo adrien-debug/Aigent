@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import type { EnvelopeDensity, ResolvedVisualization } from './embed/contract'
 import VisualizationStateView from './states/visualization-state'
@@ -40,36 +40,46 @@ export default function EmbeddedVisualization({
   /*
    * L'IFRAME PEUT ÉCHOUER APRÈS UNE SONDE RÉUSSIE.
    *
-   * La sonde serveur dit que Grafana répondait au moment du rendu. Elle ne dit
-   * rien de ce que le NAVIGATEUR obtiendra ensuite : réseau coupé, requête
-   * bloquée, contenu refusé. Sans ce garde, le cadre reste blanc sous un badge
-   * `READY` — exactement le faux positif que cette mission interdit (constaté
-   * au harnais, capture `unavailable-1440x900.png` de la première passe).
+   * La résolution serveur dit que Grafana répondait AU RENDU. Elle ne dit rien
+   * de ce que le navigateur obtiendra ensuite : réseau coupé, requête bloquée,
+   * service arrêté entre-temps. Sans re-vérification, le cadre reste blanc sous
+   * un badge `READY` — le faux positif que cette mission interdit (constaté au
+   * harnais, première passe de `unavailable-1440x900.png`).
    *
-   * `onError` ne suffit pas : une iframe vidée ne le déclenche pas toujours. On
-   * vérifie donc aussi, après le `load`, qu'elle a bien reçu quelque chose.
+   * On re-sonde donc côté SERVEUR après montage. Détecter depuis l'iframe est
+   * impossible : `contentDocument` d'une iframe cross-origin vaut `null` que le
+   * chargement ait réussi ou échoué — la valeur ne discrimine rien (vérifié le
+   * 2026-08-02).
    */
-  const [frameFailed, setFrameFailed] = useState(false)
-  const frameRef = useRef<HTMLIFrameElement | null>(null)
+  const [liveState, setLiveState] = useState<ResolvedVisualization['state'] | null>(null)
+  const [liveReason, setLiveReason] = useState<string | null>(null)
 
-  const serverState = forcedState ?? viz.state
-  const state = frameFailed && !forcedState ? 'UNAVAILABLE' : serverState
+  useEffect(() => {
+    // Une démo ne sonde rien : son état est forcé, par définition.
+    if (forcedState || demo) return
+    const controller = new AbortController()
+    fetch(`/api/agent-ops/visualizations/${viz.id}`, {
+      signal: controller.signal,
+      cache: 'no-store',
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) return
+        setLiveState(data.state)
+        setLiveReason(data.reason ?? null)
+      })
+      .catch(() => {
+        // La re-sonde elle-même est injoignable : on ne peut plus affirmer
+        // `READY`. Dégrader est le seul choix honnête.
+        setLiveState('UNAVAILABLE')
+        setLiveReason('La vérification de la source n’a pas abouti.')
+      })
+    return () => controller.abort()
+  }, [viz.id, forcedState, demo])
+
+  const state = forcedState ?? liveState ?? viz.state
+  const reason = forcedState ? viz.reason : (liveReason ?? viz.reason)
   const isReady = state === 'READY' && viz.embedUrl.length > 0
-
-  function inspectFrame() {
-    const frame = frameRef.current
-    if (!frame) return
-    // Cross-origin : lire `contentDocument` lève, et CETTE levée prouve que le
-    // document distant est bien chargé. Un accès qui réussit signifie au
-    // contraire une page `about:blank` — donc rien n'a été rendu.
-    try {
-      const doc = frame.contentDocument
-      if (doc === null) return // cross-origin chargé : c'est le cas nominal.
-      if (doc.body === null || doc.body.childElementCount === 0) setFrameFailed(true)
-    } catch {
-      // SecurityError ⇒ document distant chargé. Rien à signaler.
-    }
-  }
 
   const pad = density === 'compact' ? 'p-3' : 'p-5'
   const gap = density === 'compact' ? 'gap-2' : 'gap-3'
@@ -114,13 +124,10 @@ export default function EmbeddedVisualization({
       >
         {isReady ? (
           <iframe
-            ref={frameRef}
             src={viz.embedUrl}
             title={`${viz.title} — panneau Grafana ${viz.panelId}`}
             className="block h-full w-full border-0"
             style={{ minHeight: `${viz.minHeightPx}px` }}
-            onLoad={inspectFrame}
-            onError={() => setFrameFailed(true)}
             // `eager` : `lazy` laisse les panneaux hors écran non chargés, donc
             // non vérifiables — un cadre vide ne se distinguerait pas d'un
             // cadre en attente.
@@ -144,7 +151,7 @@ export default function EmbeddedVisualization({
             reason={
               state === 'READY'
                 ? 'La source est déclarée prête mais aucune URL vérifiée n’a été résolue.'
-                : viz.reason
+                : reason
             }
             minHeightPx={viz.minHeightPx}
             diagnosticHref={viz.sourceUrl || null}
