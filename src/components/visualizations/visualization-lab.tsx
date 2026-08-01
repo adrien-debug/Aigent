@@ -43,7 +43,14 @@ export default function VisualizationLab({ visualizations }: Readonly<Props>) {
     <div className="viz-scope scroll-thin flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-4 sm:p-6">
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-          <h1 className="viz-title text-xl font-semibold">Laboratoire de visualisations</h1>
+          {/*
+            `max-lg:pl-12` — le shell pose son bouton de menu en haut à gauche
+            sur les petits écrans, et il recouvrait la première lettre du titre
+            à 375px. On dégage la gouttière plutôt que de rétrécir le titre.
+          */}
+          <h1 className="viz-title text-xl font-semibold max-lg:pl-12">
+            Laboratoire de visualisations
+          </h1>
           <span className="viz-provenance text-[11px]">
             {/*
               Compte DÉRIVÉ, jamais saisi : si une source tombe, ce chiffre
