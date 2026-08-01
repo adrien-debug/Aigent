@@ -166,11 +166,15 @@ export function ProviderBadge({ provider }: Readonly<{ provider: string | null }
  * Une valeur non mesurée, en ligne. Un seul mot, celui du produit entier
  * (`UNAVAILABLE_LABEL`), et un `title` qui dit POURQUOI c'est absent quand on le
  * sait — « non mesuré » et « lecture échouée » ne sont pas la même chose.
+ *
+ * Le gris se prend sur `aig-text-muted` et non sur une paire claire/sombre : le
+ * document est graphite partout, et une absence doit rester LISIBLE — la reculer
+ * jusqu'à `aig-text-faint` la ferait passer pour du bruit décoratif.
  */
 export function NotMeasured({ why }: Readonly<{ why?: string }>) {
   return (
     <span
-      className="text-xs text-zinc-500 uppercase dark:text-zinc-400"
+      className="aig-text-muted text-xs uppercase"
       title={why ?? 'Cette valeur n’a jamais été mesurée — elle n’est pas nulle, elle est absente.'}
     >
       {UNAVAILABLE_LABEL}

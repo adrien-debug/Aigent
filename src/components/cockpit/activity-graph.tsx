@@ -199,7 +199,7 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
         {points.map((point, i) => (
           <span
             key={point.bucket.hourMs}
-            className="flex-1 text-center font-mono text-3xs text-zinc-500"
+            className="aig-text-faint flex-1 text-center font-mono text-3xs"
           >
             {i % 6 === 0 ? point.bucket.label : ''}
           </span>

@@ -182,7 +182,10 @@ function DeliveryStatesPanel({ detail }: Readonly<DeliveryStatesPanelProps>) {
       padded={false}
       bodyClassName="scroll-thin overflow-y-auto"
     >
-      <div className="px-4 py-3 dark:border-white/5">
+      {/* Le `border-*` de cette boîte n'a jamais eu de `border-width` : il ne
+          peignait rien. Retiré plutôt que traduit — la grammaire ne reprend pas
+          une décision morte. */}
+      <div className="px-4 py-3">
         <Text>
           Huit affirmations DISTINCTES, jamais résumées en une seule. Trois d’entre elles ne sont ni
           des succès ni des échecs : deux sont des <Strong>inconnues structurelles</Strong> — Aigent
@@ -190,7 +193,7 @@ function DeliveryStatesPanel({ detail }: Readonly<DeliveryStatesPanelProps>) {
           une lecture qui a réussi et dont le résultat est « rien ».
         </Text>
       </div>
-      <div className="divide-y divide-zinc-950/5 dark:divide-white/5">
+      <div className="divide-y divide-[color:var(--aig-line-soft)]">
         {states.map((state) => (
           <DeliveryStateRow key={state.id} state={state} />
         ))}
@@ -272,7 +275,7 @@ function ScorecardBody({ card }: Readonly<ScorecardBodyProps>) {
         </Note>
       ) : null}
 
-      <div className="flex flex-col divide-y divide-zinc-950/5 dark:divide-white/5">
+      <div className="flex flex-col divide-y divide-[color:var(--aig-line-soft)]">
         {card.dimensions.map((dim) => (
           <div
             key={dim.id}
@@ -393,7 +396,7 @@ function SandboxBody({ report }: Readonly<SandboxBodyProps>) {
         </Note>
       ) : null}
 
-      <div className="flex flex-col divide-y divide-zinc-950/5 dark:divide-white/5">
+      <div className="flex flex-col divide-y divide-[color:var(--aig-line-soft)]">
         {report.checks.map((check) => (
           <div
             key={check.id}

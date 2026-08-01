@@ -191,7 +191,9 @@ function ReviewQueueZone({ overview }: Readonly<{ overview: LearningOverview }>)
           />
         </div>
       ) : (
-        <ul className="divide-y divide-zinc-950/5 dark:divide-white/10">
+        // Le séparateur prend le liseré doux de la grammaire : il n'y a plus de
+        // paire claire/sombre à arbitrer, le document est graphite partout.
+        <ul className="divide-y divide-[color:var(--aig-line-soft)]">
           {items.slice(0, REVIEW_QUEUE_PREVIEW).map((item) => (
             <li key={item.id} className="flex items-start justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
@@ -214,7 +216,7 @@ function ReviewQueueZone({ overview }: Readonly<{ overview: LearningOverview }>)
       {/* Provenance et troncature, dites explicitement. Un extrait qui ne
           s'annonce pas comme extrait se lit comme la file entière — et la
           mission interdit précisément ce genre de silence. */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-950/5 px-4 py-2 dark:border-white/10">
+      <div className="aig-line-soft flex flex-wrap items-center justify-between gap-2 border-t px-4 py-2">
         <Text className="text-xs">
           {overview.reviewQueue.isFullQueue ? 'File complète' : 'Extrait de la file'}
           {items.length > REVIEW_QUEUE_PREVIEW
@@ -238,7 +240,9 @@ function EvaluationsZone({ overview }: Readonly<{ overview: LearningOverview }>)
           cellule, illisible pour ce paragraphe. On garde donc sa MARQUE
           (le badge « Aucune mesure », qui porte le sens) et on rend la raison
           en texte aligné à gauche, à sa mesure. */}
-      <div className="rounded-lg border border-dashed border-zinc-950/10 p-4 dark:border-white/10">
+      {/* Le trait tireté reste — il dit « cadre sans contenu mesuré ». Seule sa
+          couleur passe au liseré de la grammaire, la moitié claire étant morte. */}
+      <div className="aig-line-soft rounded-lg border border-dashed p-4">
         <Unavailable reason="no-data" compact />
         <Text className="mt-2">{overview.evaluations.reason}</Text>
       </div>

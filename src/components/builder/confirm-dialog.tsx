@@ -73,14 +73,23 @@ export function CostedConfirmDialog({
             <ul className="flex flex-col gap-1">
               {descriptor.effects.map((effect) => (
                 <li key={effect} className="flex gap-2">
-                  <span aria-hidden className="mt-2 size-1 shrink-0 rounded-full bg-zinc-400" />
+                  {/* Puce décorative : elle ne porte aucun sens, seulement le
+                      rythme de la liste. Sa teinte suit le liseré de la
+                      grammaire au lieu d'une valeur zinc choisie à part. */}
+                  <span
+                    aria-hidden
+                    className="mt-2 size-1 shrink-0 rounded-full bg-[color:var(--aig-line)]"
+                  />
                   <Text>{effect}</Text>
                 </li>
               ))}
             </ul>
           </div>
 
-          <div className="rounded-lg border border-dashed border-zinc-950/10 p-3 dark:border-white/10">
+          {/* Encadré tireté : il signale un cadre dont le contenu chiffré peut
+              manquer. Sa couleur vient du liseré de la grammaire, la moitié
+              claire de l'ancienne paire n'ayant plus de rendu possible. */}
+          <div className="aig-line-soft rounded-lg border border-dashed p-3">
             <div className="flex items-center gap-2">
               <Text className="font-medium">Coût</Text>
               {descriptor.estimatedCost === null ? (

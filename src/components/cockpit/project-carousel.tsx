@@ -190,13 +190,13 @@ function ProjectSlide({ card }: Readonly<{ card: ProjectCard }>) {
         ) : (
           <dl className="mt-3 grid w-full grid-cols-2 gap-1">
             <div className="min-w-0">
-              <dt className="truncate text-2xs text-zinc-400">Agents</dt>
+              <dt className="aig-text-muted truncate text-2xs">Agents</dt>
               <dd className="mt-0.5 truncate text-sm font-semibold text-white tabular-nums">
                 {card.activeCount}/{card.copilotCount}
               </dd>
             </div>
             <div className="min-w-0">
-              <dt className="truncate text-2xs text-zinc-400">Runs</dt>
+              <dt className="aig-text-muted truncate text-2xs">Runs</dt>
               <dd className="mt-0.5 truncate text-sm font-semibold text-white tabular-nums">
                 {card.runs24h === null ? <AbsentMark /> : card.runs24h}
               </dd>
