@@ -144,7 +144,11 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
         {points.map((point, index) => (
           <motion.span
             key={point.bucket.hourMs}
-            className="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black"
+            // Le coeur du point reprend le FOND du panneau (`--aig-base`), pas un
+            // noir absolu : c'est un trou dans la courbe, cercle par le halo de
+            // severite ci-dessous. Code en dur, il se detachait d'un cran sur le
+            // graphite et se lisait comme une pastille noire posee dessus.
+            className="aig-base absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full"
             // Les deux axes sont exprimés dans le repère du SVG puis convertis
             // en pourcentage de la boîte : c'est la seule façon que le point
             // tombe sur la courbe quelle que soit la largeur rendue.
@@ -212,14 +216,14 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.6 }}
           >
-            <div className="flex items-baseline gap-1.5 rounded-full border border-white/10 bg-black px-3 py-1.5">
+            <div className="aig-panel-raised flex items-baseline gap-1.5 rounded-full px-3 py-1.5">
               <AnimateNumber
                 className="text-lg font-semibold text-white tabular-nums"
                 transition={{ type: 'spring', visualDuration: 0.4, bounce: 0.15 }}
               >
                 {active.bucket.total}
               </AnimateNumber>
-              <span className="text-xs text-zinc-400">
+              <span className="aig-text-muted text-xs">
                 run{active.bucket.total > 1 ? 's' : ''} · {active.bucket.label}
               </span>
             </div>

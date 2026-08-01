@@ -36,6 +36,7 @@
  * de `overflow-y-auto` — les onze mini-scrolls imbriqués de la version
  * précédente rendaient toute lecture continue impossible.
  */
+import { PageBody, PageHeader } from '@/components/app-shell'
 import { Badge } from '@/components/ui/badge'
 import { Divider } from '@/components/ui/divider'
 import { Heading, Subheading } from '@/components/ui/heading'
@@ -77,22 +78,28 @@ function CockpitHeader({
     : null
 
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-      <div className="min-w-0">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <Heading level={1} className="min-w-0 truncate">
-            {copilotName}
-          </Heading>
+    // L'en-tete commun du produit : le nom de l'agent en titre, l'etat global
+    // et les deux versions en `meta` (c'est du contexte chiffre de page, pas le
+    // contenu d'un panneau), la fiche complete en action.
+    <PageHeader
+      title={copilotName}
+      actions={
+        <Link
+          href={`/agents/${detail.copilotId}`}
+          className="aig-text-muted text-sm no-underline hover:text-white"
+        >
+          Fiche complète de l’agent
+        </Link>
+      }
+      meta={
+        <>
           <Badge color={GLOBAL_STATE_COLOR[state]}>{GLOBAL_STATE_LABEL[state]}</Badge>
-        </div>
-
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
           <Text className="text-sm">
             Candidat évalué :{' '}
             {candidateVersion ? (
               <Strong>{candidateVersion.label}</Strong>
             ) : (
-              <span className="text-amber-500">aucune version candidate</span>
+              <span className="text-amber-400">aucune version candidate</span>
             )}
           </Text>
           <Text className="text-sm">
@@ -104,19 +111,12 @@ function CockpitHeader({
             ) : productionVersionId ? (
               <Strong>{productionVersionId}</Strong>
             ) : (
-              <span className="text-amber-500">aucune</span>
+              <span className="text-amber-400">aucune</span>
             )}
           </Text>
-        </div>
-      </div>
-
-      <Link
-        href={`/agents/${detail.copilotId}`}
-        className="shrink-0 text-sm underline underline-offset-4"
-      >
-        Fiche complète de l’agent
-      </Link>
-    </header>
+        </>
+      }
+    />
   )
 }
 
@@ -267,22 +267,21 @@ export default function QualificationCockpitScreen({
   const action = nextAction(pipeline, decision)
 
   return (
-    // UN SEUL conteneur de scroll : celui-ci. Aucun panneau n'en porte un
-    // second. `min-h-svh` (et non `h-svh`) parce que cet écran est un document
-    // qui s'allonge — le borner couperait la zone secondaire.
-    <div className="shell-page-document max-lg:pl-14">
+    // UN SEUL conteneur de scroll : la page. Aucun panneau n'en porte un second.
+    // L'en-tete sort du corps pour que le sticky du shell fonctionne, et
+    // `PageBody` remplace `shell-page-document` + sa gouttiere mobile locale.
+    <>
       <CockpitHeader detail={detail} state={decision.state} />
 
+      <PageBody>
       {detail.agent === null ? (
-        <div className="mt-4">
+        <div>
           <Note tone="warn" title="Aucune ligne canonique ne résout pour ce copilot">
             Le contrat canonique ne rend rien pour cet identifiant : les conditions de la garde
             d’exécution sont INCONNUES, pas fausses. Cet écran ne les invente pas.
           </Note>
         </div>
       ) : null}
-
-      <Divider soft className="my-4" />
 
       {/* Deux colonnes à partir de `lg` : le parcours à gauche, la décision à
           droite et STICKY — elle doit rester lisible pendant qu'on parcourt les
@@ -538,6 +537,7 @@ export default function QualificationCockpitScreen({
           </div>
         </section>
       </div>
-    </div>
+      </PageBody>
+    </>
   )
 }

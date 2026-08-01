@@ -36,8 +36,9 @@
  */
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { PageBody, PageHeader } from '@/components/app-shell'
 import { Divider } from '@/components/ui/divider'
-import { Heading, Subheading } from '@/components/ui/heading'
+import { Subheading } from '@/components/ui/heading'
 import { Strong, Text } from '@/components/ui/text'
 import { Panel, Unavailable } from '@/components/cockpit/primitives'
 import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
@@ -356,31 +357,16 @@ export default function LearningScreen({
   purpose: string
 }>) {
   return (
-    // DEUX CHOIX DE MISE EN PAGE, TOUS DEUX MESURÉS
-    // ---------------------------------------------
-    // 1. `min-h-svh`, PAS `h-svh`. Cette page est un document : ses quatre
-    //    zones s'empilent et défilent avec la page. Une hauteur FIXE la
-    //    bornerait au viewport et couperait tout ce qui suit — constaté en
-    //    capture : la page s'arrêtait au milieu de « File de revue ».
-    //    (`/actions` fait l'inverse, et pour une bonne raison : sa file est une
-    //    boîte bornée dans laquelle la donnée défile.)
-    // 2. `max-lg:pl-14` — GOUTTIÈRE DE CONTRÔLE FIXE, sur la COLONNE ENTIÈRE et
-    //    pas sur le seul en-tête. Le shell pose un bouton de navigation
-    //    `position: fixed` en (16,16), 37×36 px, z-30. « Fixe » veut dire qu'il
-    //    ne défile PAS : réserver la place sous le titre ne protège que la
-    //    position de scroll 0. Mesuré avant correction : à 3 positions de
-    //    défilement sur 5, du contenu réel passait dessous — un compteur « 0 »,
-    //    une ligne « Mission bloquée », le titre « Connaissance (Obsidian) ».
-    //    Au-delà de `lg` le rail est permanent, le bouton n'existe plus, la
-    //    gouttière non plus.
-    <div className="shell-page-document max-lg:pl-14">
-      <header className="pb-4">
-        <Heading level={1}>{title}</Heading>
-        <Text className="mt-1">{purpose}</Text>
-        <Divider soft className="mt-4" />
-      </header>
-
-      <div className="flex flex-col gap-4 pb-4">
+    // Cette page est un DOCUMENT : ses quatre zones s'empilent et defilent avec
+    // la fenetre. `PageBody` ne borne pas la hauteur, c'est exactement ce qu'il
+    // faut ici — contrairement a `/actions`, dont la file est une boite bornee
+    // dans laquelle la donnee defile.
+    //
+    // La gouttiere du bouton de navigation mobile et le sticky de l'en-tete
+    // viennent de `PageHeader` : cet ecran n'a plus de geometrie a lui.
+    <>
+      <PageHeader title={title} description={purpose} />
+      <PageBody>
         <SupervisionZone overview={overview} />
 
         <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
@@ -394,7 +380,7 @@ export default function LearningScreen({
           </Subheading>
           <KnowledgeZone overview={overview} obsidian={obsidian} />
         </div>
-      </div>
-    </div>
+      </PageBody>
+    </>
   )
 }

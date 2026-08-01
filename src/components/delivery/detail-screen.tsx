@@ -20,9 +20,9 @@
  * présente. Les deux premières ne se rendent jamais pareil.
  */
 import type { ReactNode } from 'react'
+import { PageHeader } from '@/components/app-shell'
 import { Badge } from '@/components/ui/badge'
 import { Divider } from '@/components/ui/divider'
-import { Heading } from '@/components/ui/heading'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
 import { Panel, Unavailable } from '@/components/cockpit/primitives'
@@ -549,26 +549,33 @@ function ConsumerPanel({ detail }: Readonly<ConsumerPanelProps>) {
 
 export default function DeliveryDetailScreen({ detail }: Readonly<DeliveryDetailScreenProps>) {
   return (
-    <div className="shell-page-bounded flex min-h-0 flex-col gap-3 max-lg:pl-14">
-      {/* ─── En-tête ─── */}
-      <div className="shrink-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <Heading level={1}>{detail.copilotName}</Heading>
-          {detail.repoFullName !== null ? (
-            <Badge color="zinc">{detail.repoFullName}</Badge>
-          ) : (
-            <Badge color="zinc" title="Aucun dépôt GitHub lié au projet de cet agent.">
-              aucun dépôt cible
-            </Badge>
-          )}
-          {detail.projectName !== null ? <Badge color="zinc">{detail.projectName}</Badge> : null}
-        </div>
-        <Text className="mt-1">
-          <Link href="/delivery" className="underline">
+    <>
+      {/* L'en-tete commun porte le nom de l'agent ; le depot cible et le projet
+          descendent dans `meta`, qui est fait pour le contexte chiffre d'une
+          page. Le retour au banc devient l'action de l'en-tete plutot qu'un
+          lien souligne perdu sous le titre. */}
+      <PageHeader
+        title={detail.copilotName}
+        meta={
+          <>
+            {detail.repoFullName !== null ? (
+              <Badge color="zinc">{detail.repoFullName}</Badge>
+            ) : (
+              <Badge color="zinc" title="Aucun dépôt GitHub lié au projet de cet agent.">
+                aucun dépôt cible
+              </Badge>
+            )}
+            {detail.projectName !== null ? <Badge color="zinc">{detail.projectName}</Badge> : null}
+          </>
+        }
+        actions={
+          <Link href="/delivery" className="aig-text-muted text-sm no-underline hover:text-white">
             ← Banc de livraison
           </Link>
-        </Text>
-      </div>
+        }
+      />
+
+      <div className="flex min-h-0 flex-col gap-3 px-4 py-4 sm:px-6">
 
       {!detail.projectRead ? (
         <div className="shrink-0">
@@ -604,6 +611,7 @@ export default function DeliveryDetailScreen({ detail }: Readonly<DeliveryDetail
           }}
         />
       </Panel>
-    </div>
+      </div>
+    </>
   )
 }
