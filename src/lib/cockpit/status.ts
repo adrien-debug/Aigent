@@ -1,17 +1,31 @@
 /**
  * Vocabulaire de statut du cockpit — une seule définition pour l'écran ENTIER.
  *
- * Ces valeurs sont littérales et non des `var(--…)` parce que Recharts les
- * consomme aussi bien en `fill` SVG qu'en interpolation d'animation : une
- * variable CSS y passerait au rendu mais pas au calcul. Les garder ici, en dur
- * et en un seul endroit, est ce qui empêche une puce de légende et sa barre de
- * diverger silencieusement.
+ * POURQUOI DES VALEURS LITTÉRALES. Ces teintes sont consommées HORS de tout
+ * contexte CSS : passées en props (`Rail color=`, `Led color=`, `BarMeter
+ * color=`), écrites en attributs SVG et injectées dans des `style` inline. Un
+ * `var(--…)` résoudrait au rendu mais pas partout où ces valeurs transitent en
+ * JavaScript. Les garder ici, en dur et en UN SEUL endroit, est ce qui empêche
+ * une puce de légende et sa barre de diverger silencieusement.
  *
- * Palette validée pour la vision des couleurs (deutan / protan / tritan) sur la
- * surface `--surface-raised` #131618 : bande de clarté OKLCH 0.48–0.67, chroma
- * ≥ 0.1, séparation ΔE de la pire paire adjacente ≥ 20 en vision normale et
- * ≥ 20 en protan/deutan. La couleur n'est jamais le SEUL porteur d'identité —
- * chaque statut voyage avec son libellé.
+ * (La mention d'un consommateur Recharts qui figurait ici était périmée :
+ * Recharts n'est plus une dépendance du projet — ni dans `package.json`, ni
+ * dans `node_modules`, ni importé nulle part. Le graphe d'activité est
+ * aujourd'hui du SVG écrit à la main. La règle, elle, reste vraie pour la
+ * raison ci-dessus ; c'est sa justification qui avait vieilli.)
+ *
+ * Un miroir CSS de ces cinq teintes existe dans `globals.css`
+ * (`--aig-severity-*`) pour les encadrés d'alerte, qui sont du CSS pur. CE
+ * FICHIER reste l'autorité : toute modification part d'ici.
+ *
+ * ACCESSIBILITÉ — ce qui est vrai, et ce qui ne l'est pas. Ces teintes tiennent
+ * la bande de clarté OKLCH 0.48–0.67 et un chroma ≥ 0.1, et les paires
+ * ADJACENTES dans l'ordre d'empilement se séparent nettement. Mais une
+ * promesse de ΔE ≥ 20 « sur la pire paire, y compris en protan/deutan » a
+ * figuré ici et elle était FAUSSE : en deutéranopie, `running` et `blocked` se
+ * séparent d'un ΔE de l'ordre de 0,3 — indistinguables. Le garde-fou réel
+ * n'est donc pas la couleur : c'est que chaque statut voyage TOUJOURS avec son
+ * libellé écrit. Ne jamais coder un statut par la seule teinte.
  */
 import type { AgentRunStatus } from '@/lib/agent-mission-control/types'
 

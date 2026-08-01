@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import CssStudio from '@/components/css-studio'
+import MotionProvider from '@/components/motion-provider'
 
 export const metadata: Metadata = {
   title: 'Aigent · Control',
@@ -28,11 +29,15 @@ export default function RootLayout({
    * Le fond du body est `--aig-subtle` : le creux du produit. Les zones qui
    * PORTENT du contenu montent d'un palier (`aig-panel`), ce qui crée la
    * hiérarchie par la valeur plutôt que par des bordures partout.
+   *
+   * `MotionProvider` respecte `prefers-reduced-motion` pour tout ce qui est
+   * rendu dessous — y compris les animations écrites plus tard. Ses limites
+   * connues sont documentées dans le composant.
    */
   return (
     <html lang="fr" className="dark aig-scope min-h-svh">
       <body className="aig-subtle min-h-svh antialiased">
-        {children}
+        <MotionProvider>{children}</MotionProvider>
         {/* Outil de développement — inerte ET absent du bundle en production. */}
         <CssStudio />
       </body>

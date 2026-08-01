@@ -19,8 +19,8 @@
  *  · `Fact`/`FactValue`/`NotMeasured` — paire libellé/valeur, absence rendue.
  *
  * `SEVERITY` (couleur d'un `Rail`) vit dans `@/lib/cockpit/status` — c'est la
- * même palette que `RUN_STATUS_COLOR`, consommée aussi par Recharts en dehors
- * de tout composant React. Ré-exportée ici pour que les écrans qui
+ * même palette que `RUN_STATUS_COLOR`, consommée en dehors de tout contexte CSS
+ * (props, attributs SVG, styles inline). Ré-exportée ici pour que les écrans qui
  * n'importent que des primitives de rendu n'aient pas à connaître ce détail.
  */
 import type { ReactNode } from 'react'

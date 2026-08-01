@@ -8,7 +8,8 @@
  * suit désormais la grammaire du produit (`globals.css`) et l'en-tête commun du
  * shell. Il n'a plus de langage à lui.
  *
- * Server Component : l'histogramme est le seul module client (Recharts).
+ * Server Component : l'histogramme est le seul module client (SVG écrit à la
+ * main + Motion pour son entrée).
  */
 import type { ReactNode } from 'react'
 import { navEntry } from '@/components/navigation'

@@ -29,7 +29,7 @@
  *
  * `'use client'` : `useSpring` s'anime image par image dans le navigateur.
  */
-import { motion, useSpring, useTransform } from 'motion/react'
+import { motion, useReducedMotion, useSpring, useTransform } from 'motion/react'
 import { useEffect, useState } from 'react'
 
 import { Strong, Text } from '@/components/ui/text'
@@ -93,6 +93,11 @@ function DeterminateFill({ done }: Readonly<{ done: number }>) {
 }
 
 function IndeterminateSweep() {
+  // `useReducedMotion()` rend `null` avant hydratation : le `!== true` traite
+  // « pas encore connu » comme « on peut animer », et l'hydratation corrigera.
+  // L'inverse figerait le pattern pour tout le monde le temps d'un rendu.
+  const sweep = useReducedMotion() !== true
+
   return (
     <div className="flex select-none flex-col gap-1.5">
       <div className="relative">
@@ -105,13 +110,33 @@ function IndeterminateSweep() {
         {/* Aucune proportion : la lueur balaie sans jamais s'arrêter sur une
             valeur, parce qu'il n'y en a pas à montrer. Le mouvement dit
             « ça travaille », il ne prétend pas dire « on en est là ». */}
+        {/*
+          MOUVEMENT RÉDUIT : LE BALAYAGE NE DÉMARRE PAS DU TOUT.
+
+          C'était la seule boucle infinie du produit sans garde, et le pire
+          profil vestibulaire qu'on puisse écrire : un balayage de grande
+          amplitude sur un texte `4xl font-black`, indéfiniment. Le laisser
+          tourner sur `prefers-reduced-motion: reduce` est exactement ce que ce
+          réglage système existe pour empêcher.
+
+          Réduit, la couche colorée est simplement POSÉE : le libellé reste
+          lisible et coloré, il ne balaie plus. Aucune information n'est perdue
+          — il n'y en avait aucune dans le mouvement, c'est le propos même de ce
+          pattern (« ça travaille », pas « on en est là »).
+        */}
         <motion.div
           className="absolute inset-0 text-4xl font-black tracking-tighter uppercase"
           style={{ color: SEVERITY.running }}
-          animate={{
-            clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)', 'inset(0 0% 0 100%)'],
-          }}
-          transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut', times: [0, 0.55, 1] }}
+          animate={
+            sweep
+              ? { clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)', 'inset(0 0% 0 100%)'] }
+              : undefined
+          }
+          transition={
+            sweep
+              ? { duration: 2.2, repeat: Infinity, ease: 'easeInOut', times: [0, 0.55, 1] }
+              : undefined
+          }
         >
           En cours
         </motion.div>

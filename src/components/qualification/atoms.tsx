@@ -42,7 +42,12 @@ type NoteProps = {
  * rendait plus jamais.
  */
 function noteRingClass(tone: NonNullable<NoteProps['tone']>): string {
-  if (tone === 'blocked') return 'border-[#e8455f]/25 bg-[#e8455f]/5'
+  // La teinte « bloque » vient du canon (`SEVERITY.bad`), plus d'une copie en
+  // dur : elle etait recopiee a l'identique dans DEUX fichiers d'atomes, ce qui
+  // fait deux endroits a corriger le jour ou le canon bouge — et deux chances
+  // de n'en corriger qu'un.
+  if (tone === 'blocked')
+    return 'border-[color-mix(in_oklab,var(--aig-severity-bad)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-bad)_5%,transparent)]'
   if (tone === 'warn') return 'border-amber-400/25 bg-amber-400/5'
   return 'aig-raised aig-line'
 }

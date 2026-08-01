@@ -25,9 +25,11 @@
  * d'occurrences sur src/**, pas par lecture). Le kit porte désormais ses
  * propres couleurs ; ce fichier ne garde que ce qui lui manque vraiment.
  *
- * Les couleurs de STATUT de run ne sont pas ici : elles vivent dans
- * `src/lib/cockpit/status.ts` parce que Recharts les consomme en valeurs
- * littérales et qu'un jeton unique évite qu'une puce et sa barre divergent. */
+ * Les couleurs de STATUT de run vivent dans `src/lib/cockpit/status.ts` — leur
+ * autorité — parce qu'elles transitent en JavaScript (props, attributs SVG,
+ * styles inline) là où un `var()` ne résout pas. Un miroir CSS en est déclaré
+ * plus bas (`--aig-severity-*`) pour les encadrés d'alerte, qui sont du CSS
+ * pur. */
 
 /* ═══════════════════════════════════════════════════════════════════════════
  * GRAMMAIRE DE SURFACE AIGENT — les cinq rôles, globaux.
@@ -79,6 +81,28 @@
   --aig-accent: oklch(0.72 0.11 52);
   --aig-accent-quiet: oklch(0.45 0.06 52);
 
+  /*
+   * SÉVÉRITÉ — le miroir CSS de `src/lib/cockpit/status.ts`, qui reste
+   * l'autorité.
+   *
+   * POURQUOI DEUX ÉCRITURES DE LA MÊME COULEUR. `status.ts` doit rester en
+   * valeurs littérales : ses teintes sont consommées hors de tout contexte CSS
+   * (calcul, interpolation, attributs SVG), là où un `var()` ne résout pas. Mais
+   * les encadrés d'alerte, eux, sont du CSS pur et recopiaient `#e8455f` en dur
+   * dans deux fichiers d'atomes — deux endroits à corriger le jour où le canon
+   * bouge, et deux chances de n'en corriger qu'un.
+   *
+   * Ces variables sont donc le point d'entrée CSS du même vocabulaire. Elles ne
+   * s'inventent pas : toute modification part de `status.ts` et se répercute
+   * ici. Ce ne sont PAS des rôles de surface — la sévérité dit un état du
+   * monde, pas une profondeur d'empilement.
+   */
+  --aig-severity-good: #0da87f;
+  --aig-severity-running: #3d82ee;
+  --aig-severity-warn: #be850f;
+  --aig-severity-blocked: #8e63ee;
+  --aig-severity-bad: #e8455f;
+
   --aig-radius: 0.75rem;
 
   /* Élévations — trois, nommées. Une ombre arbitraire par écran est
@@ -114,13 +138,6 @@ html {
   background-color: var(--aig-raised);
   color: var(--aig-text);
   box-shadow: var(--aig-elevation-raised);
-}
-
-@utility aig-interactive {
-  color: var(--aig-accent);
-  transition:
-    color 150ms ease,
-    background-color 150ms ease;
 }
 
 @utility aig-overlay {
@@ -171,53 +188,40 @@ html {
   box-shadow: var(--aig-elevation-raised);
 }
 
-/* Anneau de focus unique. Un produit qui varie son focus écran par écran est
-   inutilisable au clavier. */
-@utility aig-focus {
-  outline: 2px solid var(--aig-accent);
-  outline-offset: 2px;
-}
-
+/* Anneau de focus unique, posé GLOBALEMENT plutôt qu'en utilitaire à appliquer :
+   un focus qu'il faut penser à poser écran par écran finit par manquer quelque
+   part, et un produit qui varie son focus est inutilisable au clavier. */
 .aig-scope :focus-visible {
   outline: 2px solid var(--aig-accent);
   outline-offset: 2px;
 }
 
-/* Les deux familles de conteneur racine d'écran — chacune recopiée à la main
- * sur 8+ fichiers avant ces utilitaires, avec une dérive constatée (un
- * `xl:overflow-hidden` conditionnel sans justification sur 2 écrans, corrigé
- * au passage). `max-lg:pl-14` réserve la place du bouton de navigation mobile
- * `position: fixed` posé par `AppShell` (16,16 · 37×36 · z-30) : sans elle, le
- * contenu passe SOUS le bouton en scroll, pas seulement à la position 0.
+/*
+ * `shell-page-document` — la page EST un document qui s'allonge et défile avec
+ * la fenêtre. C'est le seul survivant de cette famille.
  *
- *  · `shell-page-bounded`  — la page ne pousse JAMAIS le shell hors du
- *                            viewport ; c'est la DONNÉE qui défile dans une
- *                            box interne bornée (Runtime, Projets, Builder,
- *                            Qualification-roster, Livraison).
- *  · `shell-page-document` — la page EST un document qui s'allonge et défile
- *                            avec le scroll de la fenêtre (Learning,
- *                            Qualification-cockpit). Jamais les deux sur le
- *                            même écran : un panneau enfant qui porte son
- *                            propre `overflow-y-auto` sous `shell-page-document`
- *                            recrée les mini-scrolls imbriqués que la
- *                            recomposition du cockpit de qualification a
- *                            justement supprimés. */
-@utility shell-page-bounded {
-  height: 100%;
-  overflow: hidden;
-  padding: calc(var(--spacing) * 4);
-}
-
+ * TROIS UTILITAIRES ONT ÉTÉ SUPPRIMÉS ICI, tous à zéro consommateur :
+ *   · `shell-page-bounded`    — documenté sur dix lignes comme régissant cinq
+ *                               écrans nommés ; il n'en régissait plus AUCUN.
+ *                               Les écrans bornés portent désormais leur
+ *                               `h-svh overflow-hidden` explicitement, à côté
+ *                               du `PageHeader` du shell.
+ *   · `shell-sidebar-surface` — le dégradé du rail « scope isolé du body
+ *                               clair ». Il n'y a plus de body clair : le rail
+ *                               est un creux `aig-subtle`.
+ *   · `aig-interactive` / `aig-focus` — déclarés lors de la promotion de la
+ *                               grammaire, jamais consommés. `.aig-scope
+ *                               :focus-visible` fait le travail de `aig-focus`
+ *                               globalement, ce qui est mieux : un anneau de
+ *                               focus qu'il faut penser à poser écran par écran
+ *                               finit par manquer quelque part.
+ *
+ * Une doctrine qui décrit des écrans qu'elle ne régit plus est pire qu'une
+ * absence de doctrine : elle se lit comme vraie.
+ */
 @utility shell-page-document {
   min-height: 100svh;
   padding: calc(var(--spacing) * 4);
-}
-
-/* Navigation — rail sombre glossy, scope isolé du body clair. */
-@utility shell-sidebar-surface {
-  background: linear-gradient(165deg, #141414 0%, #0a0a0a 42%, #111111 100%);
-  border-right: 1px solid rgb(255 255 255 / 0.06);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
 }
 
 body {

@@ -21,11 +21,24 @@ import { Heading } from '@/components/ui/heading'
 import { Text } from '@/components/ui/text'
 import type { DashboardKpis } from '@/lib/agent-mission-control/dashboard-overview'
 import { formatUsd } from '@/lib/agent-mission-control/format'
-import { ArcGauge, BarMeter, Led, SegmentMeter, Unavailable } from './primitives'
+import { ArcGauge, BarMeter, Led, SEVERITY, SegmentMeter, Unavailable } from './primitives'
 
-const GOOD = '#059669'
-const WARN = '#d97706'
-const BAD = '#dc2626'
+/*
+ * LA PALETTE VIENT DU CANON, ELLE N'EST PLUS REDECLAREE ICI.
+ *
+ * Ces trois constantes portaient `#059669` / `#d97706` / `#dc2626` — des
+ * valeurs PROCHES mais DIFFERENTES de `SEVERITY` (`#0da87f` / `#be850f` /
+ * `#e8455f`). Consequence visible et non theorique : la jauge de reussite de ce
+ * bandeau rendait un vert, et le rail de severite de la ligne juste en dessous
+ * en rendait un autre, sur le meme ecran.
+ *
+ * C'est exactement la derive que l'en-tete de `status.ts` dit avoir eliminee en
+ * reconciliant deux palettes concurrentes — elle etait simplement revenue par
+ * un troisieme fichier. Une seule source, donc, et aucune redeclaration locale.
+ */
+const GOOD = SEVERITY.good
+const WARN = SEVERITY.warn
+const BAD = SEVERITY.bad
 
 function successRateColor(success24h: number | null): string {
   if (success24h === null || success24h >= 90) return GOOD

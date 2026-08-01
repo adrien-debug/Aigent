@@ -209,9 +209,26 @@
 }
 
 /*
- * Dernier filet de sécurité : si l'utilisateur demande moins de mouvement et
- * qu'une animation échappait au contrôle JS, le CSS la neutralise. La
- * suppression du mouvement ne retire aucune information — les états restent
+ * Filet CSS — ce qu'il attrape RÉELLEMENT, et ce qu'il n'attrape pas.
+ *
+ * Il a longtemps été décrit ici comme « le dernier filet de sécurité » qui
+ * neutraliserait « une animation échappant au contrôle JS ». C'était FAUX, et
+ * la nuance compte : cette règle ne surcharge que `animation-*` et
+ * `transition-duration`, alors que Motion anime en écrivant `transform` et
+ * `opacity` en style INLINE via WAAPI/rAF — sans `@keyframes` CSS ni
+ * `transition` CSS. Elle est donc un no-op sur tout `motion.div`, et s'y fier
+ * revenait à croire les animations gardées alors qu'elles ne l'étaient pas.
+ *
+ * Ce qu'elle couvre vraiment : les animations et transitions écrites en CSS
+ * pur sous `.viz-scope` — aujourd'hui aucune, demain peut-être. Elle reste à ce
+ * titre, pas comme garantie.
+ *
+ * La VRAIE garde du mouvement est ailleurs, à deux niveaux :
+ *   · `MotionProvider` (`reducedMotion="user"`) posé sur tout le document ;
+ *   · un `useReducedMotion()` explicite dans chaque composant qui porte une
+ *     boucle `repeat: Infinity` — voir `states/visualization-state.tsx`.
+ *
+ * La suppression du mouvement ne retire aucune information : les états restent
  * écrits en toutes lettres.
  */
 @media (prefers-reduced-motion: reduce) {
