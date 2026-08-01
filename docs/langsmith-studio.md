@@ -77,18 +77,21 @@ npm run langgraph:studio
 Ce que ça fait : ouvre
 `https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024`.
 
-Prérequis :
+Prérequis — **un seul**, vérifié :
 
-1. le serveur local tourne (`npm run langgraph`, port 2024) ;
-2. une session LangSmith active dans le navigateur ;
-3. `LANGGRAPH_SERVER_SECRET` connu — le serveur est **fail-closed** et rejette
-   toute requête sans `x-agent-key` (voir `src/langgraph/auth.mjs`). Studio doit
-   pouvoir présenter cet en-tête, sans quoi ses appels reçoivent 401.
+1. le serveur local tourne (`npm run langgraph`, port 2024).
 
-Le point 3 est la friction réelle : la garde d'auth maison protège le serveur
-(c'est voulu, il est exposable publiquement), mais Studio hébergé n'a pas de
-champ natif pour un en-tête personnalisé. Vérifier ce chemin de bout en bout
-demande une session interactive.
+Ce qui **n'est PAS** nécessaire, contrairement à ce que ce document affirmait :
+
+- **Aucune session LangSmith préalable.** La capture a été prise dans un
+  contexte navigateur vierge, sans authentification, et Studio a rendu le
+  graphe.
+- **Aucune manipulation de `x-agent-key`.** Le serveur reste fail-closed
+  (`src/langgraph/auth.mjs`, inchangé), et Studio lit néanmoins la topologie.
+  L'obstacle supposé ne s'est jamais matérialisé — il était théorique.
+
+La seule limite constatée est celle du tracing, énoncée par Studio lui-même
+(voir plus haut). Elle n'empêche pas d'ouvrir et d'inspecter le graphe.
 
 ## Sécurité — à faire
 

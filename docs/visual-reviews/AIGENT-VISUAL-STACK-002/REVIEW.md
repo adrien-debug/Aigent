@@ -1,14 +1,29 @@
 # AIGENT-VISUAL-STACK-002 — revue visuelle (rework)
 
-**SHA du rendu Aigent** : `527a6fc`
+**SHA du rendu Aigent** : `801f4db`
 **Arbre propre avant capture** : oui (`cleanBeforeCapture: true`)
 **Verdict du harnais** : `PASS`
 **Console** : 0 erreur, 0 avertissement, 0 exception non capturée
 
-Le commit qui porte ces preuves est le descendant direct de `527a6fc` : il
+Le commit qui porte ces preuves est le descendant direct de `801f4db` : il
 n'ajoute que des artefacts, aucun code.
 
 ## Ce que ce rework a corrigé
+
+### 0. Un panneau de développement masquait le bas de toutes les captures
+
+`<css-studio-panel>` — un custom element injecté par le serveur de dev, ancré en
+bas de viewport sur 812 px — recouvrait les dernières lignes de l'outillage et
+le bas du Canvas en 375×812.
+
+Il portait un **Shadow DOM** : aucune recherche de texte ne le trouvait. Trois
+hypothèses successives ont été fausses avant de l'identifier — extension de
+navigateur, profil persistant, composite après encodage. Il était dans le DOM
+depuis le début.
+
+Il est désormais masqué comme `nextjs-portal`, et l'assertion d'overlay juge sur
+la **géométrie** plutôt que sur le texte : tout élément fixe, large, couvrant le
+bas du viewport et hors du produit fait échouer la capture.
 
 ### 1. La composition mobile était illisible, et aucune gate ne le voyait
 
@@ -46,19 +61,31 @@ au tactile, précisément là où l'écran est le plus contraint. Remplacé par 
 mention non interactive « Configuration externe ». La procédure vit dans le
 disclosure « Détail », atteignable partout.
 
-### 5. LangSmith Studio — une affirmation antérieure était fausse
+### 5. LangSmith Studio — deux affirmations antérieures étaient fausses
 
-La revue précédente affirmait que Studio exigeait une session graphique et ne
-pouvait donc pas afficher le graphe. **La capture montre le contraire** :
-Studio ouvre `agent_builder`, rend les cinq nœuds et leurs arêtes, et se déclare
-« Connected » contre `127.0.0.1:2024`.
+Ce qui est **PROUVÉ** par `langsmith-graph.png` :
 
-La limite réelle est plus étroite, et Studio l'énonce lui-même dans un bandeau :
-le tracing in-Studio exige `langgraph-api ≥ 0.11.0` quand le serveur rapporte
-`1.4.2`. Aucun run n'a été soumis — ce serait un appel LLM facturé.
+- Studio rend le graphe **`agent_builder`** ;
+- les **5 nœuds** sont visibles : `__start__`, `agent`, `approval`, `tools`, `__end__` ;
+- les **6 arêtes** sont tracées, dont les conditionnelles ;
+- l'en-tête affiche **« Connected »** contre `127.0.0.1:2024` ;
+- les schémas d'entrée sont exposés.
 
-Statut inchangé : **`CONNECTED`, pas `VERIFIED`**. Studio sait LIRE le graphe,
-c'est prouvé ; qu'il en OBSERVE une exécution ne l'est pas.
+Deux affirmations des revues précédentes sont **retirées** parce que la capture
+les contredit :
+
+1. ~~« une session LangSmith préalable est indispensable »~~ — la capture a été
+   prise dans un contexte navigateur vierge, sans authentification.
+2. ~~« `x-agent-key` empêche Studio de lire le graphe »~~ — le serveur est resté
+   fail-closed, inchangé, et Studio lit néanmoins la topologie. Cet obstacle
+   était théorique et ne s'est jamais matérialisé.
+
+**La seule limite réelle**, énoncée par Studio lui-même dans un bandeau : le
+tracing in-Studio exige `langgraph-api ≥ 0.11.0` quand le serveur rapporte
+`1.4.2`. **Aucun run n'a été soumis** — ce serait un appel LLM facturé.
+
+Statut : **`CONNECTED`**. Studio sait LIRE le graphe, c'est prouvé ; qu'il en
+OBSERVE une exécution ne l'est pas.
 
 ## Nouvelles assertions du harnais
 
@@ -68,7 +95,9 @@ Ajoutées parce que les précédentes laissaient passer les défauts ci-dessus :
   du conteneur), hauteur du nom (>44 px = cassure mot à mot), action entièrement
   dans le panneau, action de largeur non nulle ;
 - **contenu hors cadre** — tout élément dont la boîte sort du panneau ;
-- **troncature** — tout élément dont le `scrollWidth` dépasse le `clientWidth`.
+- **troncature** — tout élément dont le `scrollWidth` dépasse le `clientWidth` ;
+- **overlay étranger** — tout élément fixe couvrant le bas du viewport et
+  n'appartenant pas au produit, jugé sur sa géométrie et non sur son texte.
 
 **Sonde négative jouée** : l'ancienne grille fixe restaurée déclenche
 simultanément « ligne large de 247px seulement », « nom cassé sur 60px de haut »
@@ -126,9 +155,55 @@ résolus**, aucun secret. Sonde négative jouée sur cette gate également.
 
 Statut : `INSTALLED`, non vérifié graphiquement.
 
-## Les sept outils
+**Hors périmètre de cette PR** : le déploiement canonique du vault sur GPU1
+fera l'objet d'une mission séparée. Cette PR versionne le vault dans le
+repository et en garantit la structure ; elle ne le déploie nulle part et ne
+touche à aucun vault personnel ni à `obsidian.json`.
 
-`RUNNING` · `VERIFIED` · `CONNECTED` · `CONNECTED` · `CONNECTED` · `CONNECTED` · `INSTALLED`
+## DEUX NIVEAUX DE STATUT — à ne jamais confondre
 
-Aucun service sondé n'atteint `VERIFIED` — le harnais échoue si c'est le cas.
-Le seul `VERIFIED` est le Canvas, dont la preuve est produite dans la page même.
+C'est la distinction la plus importante de cette revue, et la source d'ambiguïté
+la plus probable en la lisant vite.
+
+### Niveau 1 — le statut de la SONDE, affiché dans la console Aigent
+
+Ce que la console mesure en direct, à chaque chargement, et **rien de plus** :
+
+| Outil | Sonde | Ce que ça prouve |
+|---|---|---|
+| LangGraph | `RUNNING` | a répondu ; l'appel se heurte au mur d'auth fail-closed |
+| Canvas Aigent | `VERIFIED` | surface embarquée, preuve produite dans la page même |
+| LangSmith Studio | `CONNECTED` | dérivé de l'état de LangGraph |
+| Langfuse | `CONNECTED` | a répondu **et** accepté l'appel |
+| Grafana | `CONNECTED` | idem |
+| n8n | `CONNECTED` | idem |
+| Obsidian | `INSTALLED` | artefact présent ; aucun port à sonder |
+
+**Une sonde HTTP ne monte jamais au-delà de `CONNECTED`.** Un 200 prouve qu'un
+service répond et nous parle — pas qu'il fait son travail. Le harnais échoue si
+un service sondé affiche `VERIFIED`. Le seul `VERIFIED` de la console est le
+Canvas, parce que sa preuve est produite dans la même page et gardée par une
+gate qui casse si le graphe manque.
+
+### Niveau 2 — le statut de VALIDATION de la mission
+
+Ce que les parcours externes ont démontré, hors de la console :
+
+| Outil | Validation mission | Parcours qui le prouve |
+|---|---|---|
+| **Langfuse** | **VÉRIFIÉ** | trace écrite via le mapping de `RunTrace.finishAndExport()` puis **relue par l'API**, 9/9 contrôles, `Usage 0 → 0` |
+| **Grafana** | **VÉRIFIÉ** | dashboard peuplé de métriques réelles, datasource saine, survit au redémarrage |
+| **n8n** | **VÉRIFIÉ** | workflow réellement exécuté (#3, #5, #6, #7), verdict métier réel, chemin d'erreur inclus |
+| LangSmith Studio | **PARTIEL** | graphe rendu et « Connected » ; tracing indisponible, aucun run observé |
+| Obsidian | **NON VÉRIFIÉ graphiquement** | `check:vault` vert ; capture impossible, limitation démontrée |
+
+### Pourquoi la console ne dit pas « VÉRIFIÉ » pour Langfuse, Grafana et n8n
+
+Parce que **la console ne le sait pas**. Sa sonde envoie un GET et lit un code
+de statut ; elle n'écrit pas de trace, ne lit pas un dashboard, n'exécute pas un
+workflow. Promouvoir ces trois lignes à `VERIFIED` afficherait comme mesuré ce
+qui a été prouvé ailleurs, par un autre moyen, à un autre moment.
+
+Un écran qui affiche `VERIFIED` doit pouvoir le redémontrer à chaque
+rafraîchissement. La console reste donc à `CONNECTED` — et c'est cette revue,
+avec ses captures et ses smokes rejouables, qui porte le niveau 2.

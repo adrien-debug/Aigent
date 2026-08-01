@@ -1,10 +1,10 @@
 {
   "mission": "AIGENT-VISUAL-STACK-002",
   "revision": "REWORK v1 — lots 1 et 7",
-  "generatedAt": "2026-08-01T19:05:28.925Z",
+  "generatedAt": "2026-08-01T19:29:15.100Z",
   "git": {
     "branch": "mission/aigent-visual-stack-002",
-    "sha": "527a6fc4b5fd4f1303e422fa2202c8b549c6a256",
+    "sha": "801f4db71af1f718137c18d5fb9b8a7e0defd948",
     "cleanBeforeCapture": true,
     "shaMeaning": "HEAD au moment du rendu. Le commit de livraison des preuves est son descendant direct : il n’ajoute que ces artefacts, aucun code."
   },
