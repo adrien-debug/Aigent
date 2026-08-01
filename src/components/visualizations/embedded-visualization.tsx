@@ -1,5 +1,7 @@
 'use client'
 
+import { useRef, useState } from 'react'
+
 import type { EnvelopeDensity, ResolvedVisualization } from './embed/contract'
 import VisualizationStateView from './states/visualization-state'
 
@@ -35,8 +37,39 @@ export default function EmbeddedVisualization({
   demo = false,
   forcedState,
 }: Readonly<Props>) {
-  const state = forcedState ?? viz.state
+  /*
+   * L'IFRAME PEUT ÉCHOUER APRÈS UNE SONDE RÉUSSIE.
+   *
+   * La sonde serveur dit que Grafana répondait au moment du rendu. Elle ne dit
+   * rien de ce que le NAVIGATEUR obtiendra ensuite : réseau coupé, requête
+   * bloquée, contenu refusé. Sans ce garde, le cadre reste blanc sous un badge
+   * `READY` — exactement le faux positif que cette mission interdit (constaté
+   * au harnais, capture `unavailable-1440x900.png` de la première passe).
+   *
+   * `onError` ne suffit pas : une iframe vidée ne le déclenche pas toujours. On
+   * vérifie donc aussi, après le `load`, qu'elle a bien reçu quelque chose.
+   */
+  const [frameFailed, setFrameFailed] = useState(false)
+  const frameRef = useRef<HTMLIFrameElement | null>(null)
+
+  const serverState = forcedState ?? viz.state
+  const state = frameFailed && !forcedState ? 'UNAVAILABLE' : serverState
   const isReady = state === 'READY' && viz.embedUrl.length > 0
+
+  function inspectFrame() {
+    const frame = frameRef.current
+    if (!frame) return
+    // Cross-origin : lire `contentDocument` lève, et CETTE levée prouve que le
+    // document distant est bien chargé. Un accès qui réussit signifie au
+    // contraire une page `about:blank` — donc rien n'a été rendu.
+    try {
+      const doc = frame.contentDocument
+      if (doc === null) return // cross-origin chargé : c'est le cas nominal.
+      if (doc.body === null || doc.body.childElementCount === 0) setFrameFailed(true)
+    } catch {
+      // SecurityError ⇒ document distant chargé. Rien à signaler.
+    }
+  }
 
   const pad = density === 'compact' ? 'p-3' : 'p-5'
   const gap = density === 'compact' ? 'gap-2' : 'gap-3'
@@ -81,11 +114,17 @@ export default function EmbeddedVisualization({
       >
         {isReady ? (
           <iframe
+            ref={frameRef}
             src={viz.embedUrl}
             title={`${viz.title} — panneau Grafana ${viz.panelId}`}
             className="block h-full w-full border-0"
             style={{ minHeight: `${viz.minHeightPx}px` }}
-            loading="lazy"
+            onLoad={inspectFrame}
+            onError={() => setFrameFailed(true)}
+            // `eager` : `lazy` laisse les panneaux hors écran non chargés, donc
+            // non vérifiables — un cadre vide ne se distinguerait pas d'un
+            // cadre en attente.
+            loading="eager"
             // L'iframe ne peut ni naviguer au sommet, ni ouvrir de popup, ni
             // soumettre de formulaire. Elle n'a besoin que d'exécuter le JS de
             // Grafana pour dessiner.

@@ -288,7 +288,31 @@ try {
   await blockedPage.route('**/d-solo/**', (route) => route.abort())
   await blockedPage.goto(`${BASE}${ROUTE}`, { waitUntil: 'networkidle', timeout: 90_000 })
   await hideDevOverlay(blockedPage)
-  await blockedPage.waitForTimeout(4000)
+  await blockedPage.waitForTimeout(6000)
+
+  /*
+   * LE CŒUR DE CETTE PREUVE : source coupée ⇒ plus AUCUN `READY`.
+   *
+   * La première passe affichait quatre cadres blancs sous un badge `READY` :
+   * la sonde serveur avait réussi avant le blocage, et le client n'en savait
+   * rien. Un badge qui promet une visualisation au-dessus d'un cadre vide est
+   * précisément le faux positif que cette mission interdit.
+   */
+  const blockedInfo = await blockedPage.evaluate(() => {
+    const envelopes = [...document.querySelectorAll('[data-testid="embedded-visualization"]')]
+    return {
+      live: envelopes.filter((e) => e.dataset.demo === 'false'),
+      stillReady: envelopes
+        .filter((e) => e.dataset.demo === 'false' && e.dataset.state === 'READY')
+        .map((e) => e.dataset.viz),
+    }
+  })
+  if (blockedInfo.stillReady.length > 0) {
+    fail(
+      `source bloquée : ${blockedInfo.stillReady.length} panneau(x) encore READY sur un cadre vide — ${blockedInfo.stillReady.join(', ')}`,
+    )
+  }
+
   await blockedPage.screenshot({ path: join(OUT, 'unavailable-1440x900.png') })
   captures.push({
     file: 'unavailable-1440x900.png',
