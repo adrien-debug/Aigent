@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Harnais de capture et de vérification — mission AIGENT-VISUAL-STACK-001.
+ * Harnais de capture et de vérification — mission AIGENT-VISUAL-STACK-002.
  *
  * IL ÉCHOUE. C'est sa raison d'être : un harnais qui rend un manifeste vert quoi
  * qu'il arrive ne prouve rien. Celui-ci sort en code 1 — et n'écrit pas de
@@ -44,7 +44,9 @@ const { chromium } = await import('playwright').catch(() => {
 })
 
 const BASE = process.argv[2] ?? 'http://127.0.0.1:3988'
-const OUT = join(process.cwd(), 'docs/visual-reviews/AIGENT-VISUAL-STACK-001')
+// Les preuves de la mission 001 restent intactes : elles appartiennent à
+// une PR déjà mergée et ne doivent pas être écrasées par cette passe.
+const OUT = join(process.cwd(), 'docs/visual-reviews/AIGENT-VISUAL-STACK-002')
 
 const CANVAS_ROUTE = '/runtime?tab=langgraph'
 const TOOLING_ROUTE = '/runtime?tab=visual-tooling'
@@ -435,7 +437,7 @@ async function main() {
     if (warnings.length > 0) fail(`${warnings.length} avertissement(s) console`)
 
     const manifest = {
-      mission: 'AIGENT-VISUAL-STACK-001',
+      mission: 'AIGENT-VISUAL-STACK-002',
       revision: 'REWORK v1 — lots 1 et 7',
       generatedAt: new Date().toISOString(),
       git: gitState,
