@@ -1,0 +1,81 @@
+filters:
+  and:
+    - file.hasProperty("agent_id")
+    - file.inFolder("agents")
+
+formulas:
+  etat_latence: 'if(latence_moyenne_ms, latence_moyenne_ms + " ms", "non mesurée")'
+  etat_succes: 'if(taux_succes, taux_succes + " %", "non mesuré")'
+
+properties:
+  agent_id:
+    displayName: Agent
+  projet:
+    displayName: Projet
+  runs_observes:
+    displayName: Runs
+  runs_completed:
+    displayName: Terminés
+  runs_failed:
+    displayName: Échoués
+  formula.etat_succes:
+    displayName: Succès
+  formula.etat_latence:
+    displayName: Latence moy.
+  releve_le:
+    displayName: Relevé le
+
+views:
+  - type: table
+    name: Tous les agents
+    order:
+      - agent_id
+      - projet
+      - runs_observes
+      - runs_completed
+      - runs_failed
+      - formula.etat_succes
+      - formula.etat_latence
+    sort:
+      - property: runs_observes
+        direction: DESC
+
+  - type: table
+    name: Avec échecs
+    filters:
+      and:
+        - runs_failed > 0
+    order:
+      - agent_id
+      - projet
+      - runs_failed
+      - formula.etat_succes
+    sort:
+      - property: runs_failed
+        direction: DESC
+
+  - type: table
+    name: Latence non mesurée
+    filters:
+      and:
+        - '!latence_moyenne_ms'
+    order:
+      - agent_id
+      - projet
+      - runs_observes
+    sort:
+      - property: agent_id
+        direction: ASC
+
+  - type: table
+    name: Par projet
+    order:
+      - projet
+      - agent_id
+      - runs_observes
+      - formula.etat_succes
+    sort:
+      - property: projet
+        direction: ASC
+      - property: runs_observes
+        direction: DESC
