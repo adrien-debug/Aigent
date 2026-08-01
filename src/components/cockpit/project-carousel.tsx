@@ -16,7 +16,7 @@
 import { Carousel, useCarousel } from '@motionplus/core/react'
 import { motion } from 'motion/react'
 
-import { Badge } from '@/components/ui/badge'
+import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { ProjectCard } from '@/lib/cockpit/named-runs'
@@ -54,6 +54,42 @@ function ChevronRightIcon() {
       aria-hidden
     >
       <path d="M9 18l6-6-6-6" />
+    </svg>
+  )
+}
+
+function FolderIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
+    </svg>
+  )
+}
+
+function BoltIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z" />
     </svg>
   )
 }
@@ -113,49 +149,79 @@ function Navigation() {
  * ce qui est un troisième état.
  */
 function ProjectSlide({ card }: Readonly<{ card: ProjectCard }>) {
-  const live = card.activeCount > 0
   const empty = card.copilotCount === 0
 
   return (
-    <article className="flex h-full w-64 flex-col gap-3 rounded-lg bg-white/5 p-4 ring-1 ring-white/10">
-      <div className="flex items-center gap-2.5">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-xs font-semibold text-white">
+    <article className="flex h-full w-60 flex-col divide-y divide-white/10 rounded-xl bg-white/5 ring-1 ring-white/10">
+      <div className="flex flex-1 flex-col items-center px-5 py-6 text-center">
+        {/* La MARQUE du projet — initiales pour l'instant. Le jour où un projet
+            porte un logo, c'est ici qu'il se substitue, sans toucher au reste
+            de la carte. */}
+        <span className="flex size-20 shrink-0 items-center justify-center rounded-full bg-white/10 text-xl font-semibold text-white ring-1 ring-white/10">
           {initialsOf(card.name)}
         </span>
-        <div className="min-w-0 flex-1">
-          <Strong className="block truncate">{card.name}</Strong>
-          <Text className="block truncate text-xs">{card.repoFullName ?? 'aucun dépôt lié'}</Text>
-        </div>
+
+        <Strong className="mt-4 block w-full truncate">{card.name}</Strong>
+        <Text className="mt-1 block w-full truncate text-xs">
+          {card.repoFullName ?? 'aucun dépôt lié'}
+        </Text>
+
+        {/* L'équipe est un CHIFFRE parmi les autres, pas une pastille : un
+            badge coloré sur chaque carte devient un motif décoratif, et une
+            couleur qui apparaît partout ne signale plus rien. */}
+
+        {/* Un projet SANS agent n'a pas « 0 run pour $0.00 » : il n'a rien à
+            mesurer. Troisième état, distinct d'une mesure à zéro. */}
+        {empty ? (
+          <Text className="mt-4 text-xs">aucun agent · rien à mesurer</Text>
+        ) : (
+          <dl className="mt-4 grid w-full grid-cols-4 gap-1">
+            <div className="min-w-0">
+              <dt className="truncate text-2xs text-zinc-400">Agents</dt>
+              <dd className="mt-0.5 truncate text-sm font-semibold text-white tabular-nums">
+                {card.activeCount}/{card.copilotCount}
+              </dd>
+            </div>
+            <div className="min-w-0">
+              <dt className="truncate text-2xs text-zinc-400">Runs</dt>
+              <dd className="mt-0.5 truncate text-sm font-semibold text-white tabular-nums">
+                {card.runs24h === null ? <AbsentMark /> : card.runs24h}
+              </dd>
+            </div>
+            <div className="min-w-0">
+              <dt className="truncate text-2xs text-zinc-400">Coût</dt>
+              <dd className="mt-0.5 truncate text-sm font-semibold text-white tabular-nums">
+                {card.costLast24hUsd === null ? <AbsentMark /> : formatUsd(card.costLast24hUsd)}
+              </dd>
+            </div>
+            <div className="min-w-0">
+              <dt className="truncate text-2xs text-zinc-400">Succès</dt>
+              <dd className="mt-0.5 truncate text-sm font-semibold text-white tabular-nums">
+                {card.passRate === null ? <AbsentMark /> : `${Math.round(card.passRate * 100)} %`}
+              </dd>
+            </div>
+          </dl>
+        )}
       </div>
 
-      <Badge color={live ? 'emerald' : 'zinc'} className="w-fit">
-        {empty ? 'aucun agent' : `${card.activeCount}/${card.copilotCount} actifs`}
-      </Badge>
-
-      {empty ? (
-        <Text className="text-xs">rien à mesurer</Text>
-      ) : (
-        <dl className="mt-auto grid grid-cols-3 gap-2 border-t border-white/10 pt-3">
-          <div className="min-w-0">
-            <dt className="truncate text-xs text-zinc-400">Runs</dt>
-            <dd className="mt-0.5 truncate text-sm font-semibold text-white tabular-nums">
-              {card.runs24h === null ? <AbsentMark /> : card.runs24h}
-            </dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="truncate text-xs text-zinc-400">Coût</dt>
-            <dd className="mt-0.5 truncate text-sm font-semibold text-white tabular-nums">
-              {card.costLast24hUsd === null ? <AbsentMark /> : formatUsd(card.costLast24hUsd)}
-            </dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="truncate text-xs text-zinc-400">Succès</dt>
-            <dd className="mt-0.5 truncate text-sm font-semibold text-white tabular-nums">
-              {card.passRate === null ? <AbsentMark /> : `${Math.round(card.passRate * 100)} %`}
-            </dd>
-          </div>
-        </dl>
-      )}
+      {/* Pied d'actions — des liens RÉELS vers des routes qui existent, jamais
+          un bouton décoratif. */}
+      <div className="grid shrink-0 grid-cols-2 divide-x divide-white/10">
+        <Link
+          href={`/projects/${card.id}`}
+          className="flex items-center justify-center gap-1.5 py-3 text-xs font-medium text-white no-underline hover:bg-white/5"
+        >
+          <FolderIcon />
+          Ouvrir
+        </Link>
+        <Link
+          href={`/runs?project=${card.id}`}
+          className="flex items-center justify-center gap-1.5 py-3 text-xs font-medium text-white no-underline hover:bg-white/5"
+        >
+          <BoltIcon />
+          Runs
+        </Link>
+      </div>
     </article>
   )
 }
