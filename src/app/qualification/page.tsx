@@ -3,9 +3,8 @@ import type { Metadata } from 'next'
 import AppShell from '@/components/app-shell'
 import QualificationRosterScreen from '@/components/qualification/roster-screen'
 import { loadQualificationRoster } from '@/components/qualification/server-reads'
-import { Unavailable } from '@/components/cockpit/primitives'
+import SurfaceState from '@/components/surface-state'
 import { navEntry } from '@/components/navigation'
-import { Text } from '@/components/ui/text'
 
 /**
  * Surface « /qualification » — le banc de qualification, branché.
@@ -36,15 +35,15 @@ export default async function Page() {
     const failure = err instanceof Error ? err.message : 'lecture impossible'
     return (
       <AppShell>
-        <div className="h-full p-4">
+        <div className="h-full p-4 max-lg:pt-20">
           <div className="aig-panel flex h-full items-center justify-center">
-            <div className="max-w-md px-6 text-center">
-              <Unavailable
-                reason="unread"
-                detail="Le banc de qualification n’a pas pu être lu. Aucune liste n’est affichée — une liste vide se lirait comme « aucun candidat », ce qui n’est pas ce qui est su."
-              />
-              <Text className="mt-3">{failure}</Text>
-            </div>
+            {/* Le flux interrompu : la source EXISTE, c'est la lecture qui
+                a echoue. Meme geste sur toutes les surfaces — un operateur
+                reconnait l'etat sans relire le texte. */}
+            <SurfaceState
+              kind="unavailable"
+              detail={`Le banc de qualification n’a pas pu être lu. Aucune liste n’est affichée — une liste vide se lirait comme « aucun candidat », ce qui n’est pas ce qui est su.${failure ? ` (${failure})` : ''}`}
+            />
           </div>
         </div>
       </AppShell>

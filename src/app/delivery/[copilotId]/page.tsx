@@ -4,8 +4,7 @@ import { notFound } from 'next/navigation'
 import AppShell from '@/components/app-shell'
 import DeliveryDetailScreen from '@/components/delivery/detail-screen'
 import { loadDeliveryDetail } from '@/components/delivery/server-reads'
-import { Unavailable } from '@/components/cockpit/primitives'
-import { Text } from '@/components/ui/text'
+import SurfaceState from '@/components/surface-state'
 
 /**
  * Fiche de livraison d'un agent — `/delivery/[copilotId]`, deep link réel.
@@ -56,15 +55,15 @@ export default async function Page({ params }: PageProps) {
     const failure = err instanceof Error ? err.message : 'lecture impossible'
     return (
       <AppShell>
-        <div className="h-full p-4">
+        <div className="h-full p-4 max-lg:pt-20">
           <div className="aig-panel flex h-full items-center justify-center">
-            <div className="max-w-md px-6 text-center">
-              <Unavailable
-                reason="unread"
-                detail="La fiche de livraison de cet agent n’a pas pu être lue. Ce n’est pas « agent inconnu » — c’est une lecture qui a échoué."
-              />
-              <Text className="mt-3">{failure}</Text>
-            </div>
+            {/* Le flux interrompu : la source EXISTE, c'est la lecture qui
+                a echoue. Meme geste sur toutes les surfaces — un operateur
+                reconnait l'etat sans relire le texte. */}
+            <SurfaceState
+              kind="unavailable"
+              detail={`La fiche de livraison de cet agent n’a pas pu être lue. Ce n’est pas « agent inconnu » — c’est une lecture qui a échoué.${failure ? ` (${failure})` : ''}`}
+            />
           </div>
         </div>
       </AppShell>

@@ -1,7 +1,6 @@
 import AppShell from '@/components/app-shell'
 import CockpitOverview from '@/components/cockpit/overview-screen'
-import { Unavailable } from '@/components/cockpit/primitives'
-import { Text } from '@/components/ui/text'
+import SurfaceState from '@/components/surface-state'
 import { getDashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
 
 // Le cockpit lit l'état vivant de la flotte : jamais de cache statique.
@@ -39,15 +38,15 @@ export default async function HomePage() {
         {/* Le fond sombre codé en dur qui vivait ici n'a plus de raison d'être :
             le document EST graphite et `aig-panel` porte le fond, le liseré et le
             rayon en un seul rôle, identique aux dix autres surfaces. */}
-        <div className="h-full p-4">
+        <div className="h-full p-4 max-lg:pt-20">
           <div className="aig-panel flex h-full items-center justify-center">
-            <div className="max-w-md px-6 text-center">
-              <Unavailable
-                reason="unread"
-                detail="Le backend n'a pas répondu. Aucun chiffre n'est affiché — un tableau qui invente des valeurs est plus dangereux qu'un tableau vide."
-              />
-              {failure ? <Text className="mt-3">{failure}</Text> : null}
-            </div>
+            {/* Le flux interrompu : la source EXISTE, c'est la lecture qui
+                a echoue. Meme geste sur toutes les surfaces — un operateur
+                reconnait l'etat sans relire le texte. */}
+            <SurfaceState
+              kind="unavailable"
+              detail={`Le backend n'a pas répondu. Aucun chiffre n'est affiché — un tableau qui invente des valeurs est plus dangereux qu'un tableau vide.${failure ? ` (${failure})` : ''}`}
+            />
           </div>
         </div>
       </AppShell>

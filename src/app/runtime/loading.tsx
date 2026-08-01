@@ -1,5 +1,5 @@
 import AppShell from '@/components/app-shell'
-import { Text } from '@/components/ui/text'
+import SurfaceState from '@/components/surface-state'
 
 /**
  * Attente de la surface Runtime.
@@ -13,15 +13,9 @@ import { Text } from '@/components/ui/text'
 export default function Loading() {
   return (
     <AppShell>
-      <div className="h-full p-4">
+      <div className="h-full p-4 max-lg:pt-20">
         <div className="aig-panel flex h-full items-center justify-center">
-          <div className="flex items-center gap-3 px-6">
-            <span
-              aria-hidden="true"
-              className="pulse-live aig-text-faint size-1.5 shrink-0 rounded-full bg-current"
-            />
-            <Text>Lecture de l’état du plan d’exécution…</Text>
-          </div>
+          <SurfaceState kind="loading" detail="Lecture de l’état du plan d’exécution. Aucun chiffre n’est affiché tant que la lecture n’a pas abouti." />
         </div>
       </div>
     </AppShell>
