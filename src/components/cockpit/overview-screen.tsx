@@ -13,7 +13,8 @@ import type { DashboardOverview } from '@/lib/agent-mission-control/dashboard-ov
 import { buildHourlyBuckets, buildStatusBreakdown } from '@/lib/cockpit/overview-series'
 import { buildNamedRuns } from '@/lib/cockpit/named-runs'
 import type { NamedRun, ProjectCard } from '@/lib/cockpit/named-runs'
-import { HourlyRunsChart, StatusLegend } from './charts'
+import ActivityGraph from './activity-graph'
+import { StatusLegend } from './charts'
 import KpiStrip from './kpi-strip'
 import RunStream from './run-stream'
 import ProjectCarousel from './project-carousel'
@@ -112,7 +113,7 @@ export default function CockpitOverview({
         hint={slices ? undefined : 'fenêtre non lue'}
       >
         {buckets ? (
-          <HourlyRunsChart buckets={buckets} />
+          <ActivityGraph buckets={buckets} />
         ) : (
           <Unavailable
             reason="unread"
