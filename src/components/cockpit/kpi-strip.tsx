@@ -121,7 +121,20 @@ export default function KpiStrip({
   const executableTotal = kpis.executableTotal
 
   return (
-    <dl className="dark grid shrink-0 grid-cols-2 overflow-hidden rounded-lg bg-black shadow-xs ring-1 ring-white/10 sm:grid-cols-3 xl:grid-cols-6 [&>*+*]:border-l [&>*+*]:border-white/10">
+    /* LES SÉPARATEURS SONT DES GOUTTIÈRES, PAS DES BORDURES
+       -----------------------------------------------------
+       `[&>*+*]:border-l` suivait l'ordre DOM, pas la grille : à 2 ou 3
+       colonnes, les cellules qui OUVRENT une ligne (3ᵉ et 5ᵉ en mobile)
+       portaient un liseré collé au bord gauche de la box, et aucune ligne ne
+       séparait les rangées. Six cellules sur trois rangées : le motif était
+       faux deux fois sur trois.
+       Ici c'est le fond de la `dl` qui transparaît par un `gap` d'1 px : la
+       séparation suit la géométrie réelle de la grille à tous les points de
+       rupture, verticalement comme horizontalement, et ne peut pas déborder
+       puisqu'une gouttière n'existe qu'ENTRE deux cellules. Les cellules
+       reprennent le noir de la box ; `overflow-hidden` + le rayon de la `dl`
+       recoupent les angles. */
+    <dl className="dark grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-lg bg-white/10 shadow-xs ring-1 ring-white/10 sm:grid-cols-3 xl:grid-cols-6 [&>*]:bg-black">
       <Cell
         label="Runs 24 h"
         value={kpis.runs24h}

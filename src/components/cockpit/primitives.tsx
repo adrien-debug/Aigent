@@ -83,13 +83,19 @@ export function Panel({
       )}
     >
       <header className="shrink-0">
-        <div className="flex items-center gap-3 px-4 py-3">
+        {/* `flex-wrap` + des actions qui PEUVENT rétrécir : la légende de
+            statut de l'Aperçu porte cinq badges et était enveloppée en
+            `shrink-0`, ce qui neutralisait son propre `flex-wrap` — la boîte
+            ne pouvait pas descendre sous sa largeur max-content et l'en-tête
+            débordait en largeur contrainte. Le titre garde `shrink-0` (il
+            tronque déjà), le hint aussi ; seules les actions cèdent. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
           <Subheading level={2} className="shrink-0 truncate">
             {title}
           </Subheading>
           {hint ? <Text className="ml-auto shrink-0 truncate">{hint}</Text> : null}
           {actions ? (
-            <div className={clsx('shrink-0', actionsClass)}>{actions}</div>
+            <div className={clsx('min-w-0', actionsClass)}>{actions}</div>
           ) : null}
         </div>
         <Divider soft />

@@ -36,11 +36,11 @@ function isoShort(iso: string | null): string | null {
 }
 
 function missingRequirement(agent: AvailableAgent): string | null {
-  if (isUnavailable(agent, 'version')) return 'Version non resolue'
-  if (isUnavailable(agent, 'provider')) return 'Provider non resolu'
-  if (isUnavailable(agent, 'configuredModel')) return 'Modele non resolu'
-  if (isUnavailable(agent, 'runtime')) return 'Runtime non resolu'
-  if (isUnavailable(agent, 'projectId')) return 'Projet non resolu'
+  if (isUnavailable(agent, 'version')) return 'Version non résolue'
+  if (isUnavailable(agent, 'provider')) return 'Provider non résolu'
+  if (isUnavailable(agent, 'configuredModel')) return 'Modèle non résolu'
+  if (isUnavailable(agent, 'runtime')) return 'Runtime non résolu'
+  if (isUnavailable(agent, 'projectId')) return 'Projet non résolu'
   return null
 }
 
@@ -64,8 +64,10 @@ function rosterSummary(agents: readonly AvailableAgent[]): string {
     `${counts.total} agent${counts.total > 1 ? 's' : ''} au catalogue`,
     `${counts.active} actif${counts.active > 1 ? 's' : ''}`,
   ]
-  if (counts.degraded > 0) bits.push(`${counts.degraded} degrade${counts.degraded > 1 ? 's' : ''}`)
-  if (counts.withUnresolvedTools > 0) bits.push(`${counts.withUnresolvedTools} avec outil non resolu`)
+  if (counts.degraded > 0) bits.push(`${counts.degraded} dégradé${counts.degraded > 1 ? 's' : ''}`)
+  if (counts.withUnresolvedTools > 0) {
+    bits.push(`${counts.withUnresolvedTools} avec outil non résolu`)
+  }
   return bits.join(' · ')
 }
 
@@ -92,7 +94,7 @@ function AgentRosterRow({ agent }: Readonly<{ agent: AvailableAgent }>) {
             <RuntimeStatusBadge status={agent.status} />
           </div>
           <Text className="mt-1 truncate">
-            {activity ? `Dernier run : ${activity} UTC` : 'Aucune activite enregistree'}
+            {activity ? `Dernier run : ${activity} UTC` : 'Aucune activité enregistrée'}
           </Text>
           {signal ? (
             <Text className={signal.tone === 'red' ? 'mt-1 text-red-600' : 'mt-1 text-amber-700'}>
@@ -115,13 +117,13 @@ export default function AgentRosterScreen({ agents }: Readonly<{ agents: Availab
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8 p-6 pt-16 lg:pt-8">
       <header className="flex flex-col gap-4 border-b border-zinc-950/6 pb-6 sm:flex-row sm:items-end sm:justify-between">
+        {/* UN seul titre : le surtitre répétait « Agents » au-dessus du `H1`
+            « Agents ». Voir la même correction sur `SectionHeader` dans
+            `detail-screen.tsx`. */}
         <div className="max-w-3xl">
-          <Text className="text-sm font-medium text-zinc-500">Agents</Text>
-          <Heading level={1} className="mt-2">
-            Agents
-          </Heading>
+          <Heading level={1}>Agents</Heading>
           <Text className="mt-3 text-base/7 text-zinc-600">
-            {rosterSummary(ranked)}. La liste montre l essentiel pour decider quoi ouvrir, pas
+            {rosterSummary(ranked)}. La liste montre l’essentiel pour décider quoi ouvrir, pas
             tout ce que le contrat sait.
           </Text>
         </div>
@@ -135,7 +137,7 @@ export default function AgentRosterScreen({ agents }: Readonly<{ agents: Availab
         <div className="border-b border-zinc-950/6 px-5 py-4">
           <Subheading level={2}>Liste des agents</Subheading>
           <Text className="mt-1">
-            Nom, etat principal, derniere activite et signal critique eventuel. Le reste vient au
+            Nom, état principal, dernière activité et signal critique éventuel. Le reste vient au
             clic.
           </Text>
         </div>
@@ -144,7 +146,7 @@ export default function AgentRosterScreen({ agents }: Readonly<{ agents: Availab
           <div className="px-5 py-10">
             <Unavailable
               reason="no-data"
-              detail="Aucun agent n'est persiste dans le catalogue. La lecture a reussi — il n'y a reellement rien, ce n'est pas une panne."
+              detail="Aucun agent n'est persisté dans le catalogue. La lecture a réussi — il n'y a réellement rien, ce n'est pas une panne."
             />
           </div>
         ) : (

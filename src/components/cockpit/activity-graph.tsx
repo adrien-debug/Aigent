@@ -69,9 +69,11 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
         // tenir dans la hauteur imposée — le dessin devenait minuscule, centré
         // dans une bande vide.
         //
-        // Conséquence assumée : l'axe X est étiré. Les points et les libellés
-        // le compensent (`vector-effect` sur les traits, `<circle>` remplacé
-        // par un cercle non déformé côté HTML — voir plus bas).
+        // Conséquence assumée : l'axe X est étiré. Deux compensations, et
+        // deux seulement : `vector-effect` sur la COURBE (les lignes de grille
+        // sont horizontales, l'étirement horizontal ne les épaissit pas), et
+        // les points/libellés sortis du SVG en HTML — un `<circle>` dans un
+        // viewBox étiré deviendrait un ovale.
         preserveAspectRatio="none"
         className="h-40 w-full overflow-visible"
         role="img"
@@ -142,7 +144,7 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
         {points.map((point, index) => (
           <motion.span
             key={point.bucket.hourMs}
-            className="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black ring-1.5"
+            className="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black"
             // Les deux axes sont exprimés dans le repère du SVG puis convertis
             // en pourcentage de la boîte : c'est la seule façon que le point
             // tombe sur la courbe quelle que soit la largeur rendue.
