@@ -118,9 +118,46 @@ async function settle(page) {
 
 const captures = []
 
+/**
+ * Rien d'étranger au produit ne doit recouvrir la page.
+ *
+ * Les captures v1 portaient un panneau « Describe a change » masquant le bas
+ * de l'outillage. Il venait d'une extension, pas du DOM applicatif. Cette
+ * assertion cherche les marqueurs d'outillage extérieur ET tout élément
+ * flottant plein-largeur ancré en bas de viewport, qui est la signature d'une
+ * barre injectée.
+ */
+async function assertNoForeignOverlay(page, file) {
+  const intruders = await page.evaluate(() => {
+    const OUTIL = /describe a change|copilot|cursor|devtools|extension/i
+    const found = []
+    for (const el of document.querySelectorAll('body *')) {
+      const text = (el.textContent ?? '').trim()
+      if (el.children.length === 0 && OUTIL.test(text)) {
+        found.push(`texte « ${text.slice(0, 40)} »`)
+        continue
+      }
+      const style = getComputedStyle(el)
+      if (style.position !== 'fixed') continue
+      const r = el.getBoundingClientRect()
+      const nearBottom = r.bottom > window.innerHeight - 8 && r.top > window.innerHeight / 2
+      const wide = r.width > window.innerWidth * 0.85
+      // Une barre fixe, large et collée en bas qui n'appartient pas au produit.
+      if (nearBottom && wide && r.height > 40 && !el.closest('[data-testid]')) {
+        found.push(`élément fixe en bas (${Math.round(r.width)}×${Math.round(r.height)})`)
+      }
+    }
+    return [...new Set(found)].slice(0, 4)
+  })
+  if (intruders.length > 0) {
+    fail(`${file} : overlay étranger au produit — ${intruders.join(' | ')}`)
+  }
+}
+
 async function shoot(page, file, meta) {
   const overflow = await hasHorizontalOverflow(page)
   if (overflow) fail(`débordement horizontal sur ${file}`)
+  await assertNoForeignOverlay(page, file)
   await page.screenshot({ path: join(OUT, file), fullPage: false })
   captures.push({ file, horizontalOverflow: overflow, ...meta })
 }
@@ -522,8 +559,35 @@ async function main() {
     fail('l’arbre git n’était PAS propre avant la capture : les preuves ne sont pas rattachables à un commit de code')
   }
 
-  const browser = await chromium.launch()
-  const context = await browser.newContext()
+  /*
+   * NAVIGATEUR STÉRILE — seul le produit doit apparaître sur une preuve.
+   *
+   * Les captures v1 portaient un panneau « Describe a change » en bas de
+   * l'écran, masquant les dernières lignes de l'outillage et le bas du Canvas
+   * en 375×812. Il ne vient PAS du DOM (vérifié : aucun élément ne porte ce
+   * texte) mais d'une extension chargée dans le navigateur. Une preuve qui
+   * montre l'outillage de son auteur n'est pas une preuve du produit.
+   *
+   * On lance donc explicitement en headless, sans extension, sans profil
+   * persistant, et on neutralise l'automation-detection qui déclenche
+   * certaines barres.
+   */
+  const browser = await chromium.launch({
+    headless: true,
+    args: [
+      '--disable-extensions',
+      '--disable-component-extensions-with-background-pages',
+      '--disable-features=Translate,AcceptCHFrame,MediaRouter',
+      '--no-default-browser-check',
+      '--no-first-run',
+      '--hide-scrollbars',
+    ],
+  })
+  const context = await browser.newContext({
+    // Pas de profil hérité : chaque capture repart d'un état vierge.
+    storageState: undefined,
+    deviceScaleFactor: 1,
+  })
   const page = await context.newPage()
   attachConsole(page)
 
