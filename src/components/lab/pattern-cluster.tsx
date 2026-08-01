@@ -37,8 +37,8 @@ function Tile({ initials, size }: Readonly<{ initials: string; size: 'mini' | 'f
     <span
       className={
         size === 'mini'
-          ? 'flex size-full items-center justify-center rounded-[5px] bg-zinc-950/8 text-[8px] font-semibold text-zinc-600 dark:bg-white/10 dark:text-zinc-300'
-          : 'flex size-14 items-center justify-center rounded-xl bg-zinc-950/5 text-sm font-semibold text-zinc-700 ring-1 ring-zinc-950/10 dark:bg-white/10 dark:text-zinc-200 dark:ring-white/10'
+          ? 'aig-raised flex size-full items-center justify-center rounded-[5px] text-[8px] font-semibold'
+          : 'aig-panel-raised flex size-14 items-center justify-center rounded-xl text-sm font-semibold'
       }
     >
       {initials}
@@ -75,9 +75,9 @@ export default function PatternCluster() {
             ref={thumbRef}
             type="button"
             onClick={openCluster}
-            className="flex flex-col items-center gap-2 rounded-2xl p-3 transition hover:bg-zinc-950/2.5 focus-visible:outline-hidden dark:hover:bg-white/5"
+            className="flex flex-col items-center gap-2 rounded-2xl p-3 transition hover:bg-white/5 focus-visible:outline-hidden"
           >
-            <span className="grid grid-cols-2 grid-rows-2 gap-1.5 rounded-2xl bg-zinc-950/5 p-2.5 ring-1 ring-zinc-950/10 dark:bg-white/5 dark:ring-white/10">
+            <span className="aig-panel grid grid-cols-2 grid-rows-2 gap-1.5 rounded-2xl p-2.5">
               {SHARED.map((agent) => (
                 <motion.span key={agent.id} layoutId={`cluster-${agent.id}`} className="size-6">
                   <Tile initials={agent.initials} size="mini" />
@@ -91,7 +91,7 @@ export default function PatternCluster() {
         <AnimatePresence>
           {isOpen ? (
             <motion.div
-              className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-zinc-950/50 p-4"
+              className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-black/60 p-4"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0, transition: { delay: 0.05 } }}

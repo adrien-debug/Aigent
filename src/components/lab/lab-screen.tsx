@@ -14,9 +14,9 @@
  * Chaque fiche porte donc les deux, et l'état `adopted` porte en plus le chemin
  * du consommateur réel, pour être vérifiable plutôt que cru.
  */
+import { PageBody, PageHeader } from '@/components/app-shell'
 import { Badge } from '@/components/ui/badge'
 import { Divider } from '@/components/ui/divider'
-import { Heading } from '@/components/ui/heading'
 import { Strong, Text, TextLink } from '@/components/ui/text'
 import { Panel } from '@/components/cockpit/primitives'
 import {
@@ -53,11 +53,11 @@ function PatternCard({
       </div>
 
       {children ? (
-        <div className="mx-4 mt-3 overflow-hidden rounded-lg bg-zinc-950/2.5 dark:bg-white/5">
+        <div className="aig-subtle mx-4 mt-3 overflow-hidden rounded-lg">
           {children}
         </div>
       ) : (
-        <div className="mx-4 mt-3 rounded-lg border border-dashed border-zinc-950/10 px-4 py-6 text-center dark:border-white/10">
+        <div className="aig-line-soft mx-4 mt-3 rounded-lg border border-dashed px-4 py-6 text-center">
           <Text className="text-xs">
             Pas de démo ici — ce pattern se regarde dans le produit, à l’endroit où il sert.
           </Text>
@@ -100,22 +100,20 @@ export default function LabScreen() {
   const progress = byId.get('progress')
 
   return (
-    <div className="shell-page-document max-lg:pl-14">
-      <header className="pb-4">
-        <Heading level={1}>Laboratoire d’interaction</Heading>
-        <Text className="mt-1">
-          Un banc d’essai pour les patterns d’interaction, avant qu’ils entrent — ou non — dans une
-          surface produit.
-        </Text>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Badge color="emerald">{counts.adopted} en production</Badge>
-          <Badge color="sky">{counts.candidate} candidat(s)</Badge>
-          <Badge color="zinc">{counts.exploration} exploration(s)</Badge>
-        </div>
-        <Divider soft className="mt-4" />
-      </header>
+    <>
+      <PageHeader
+        title="Laboratoire d’interaction"
+        description="Un banc d’essai pour les patterns d’interaction, avant qu’ils entrent — ou non — dans une surface produit."
+        meta={
+          <>
+            <Badge color="emerald">{counts.adopted} en production</Badge>
+            <Badge color="sky">{counts.candidate} candidat(s)</Badge>
+            <Badge color="zinc">{counts.exploration} exploration(s)</Badge>
+          </>
+        }
+      />
 
-      <div className="flex flex-col gap-4 pb-4">
+      <PageBody>
         <Panel title="Ce que cette page est, et n’est pas" padded>
           <div className="flex flex-col gap-2">
             <Text className="text-sm">
@@ -167,7 +165,7 @@ export default function LabScreen() {
             {stagger ? <PatternCard pattern={stagger} /> : null}
           </div>
         </div>
-      </div>
-    </div>
+      </PageBody>
+    </>
   )
 }

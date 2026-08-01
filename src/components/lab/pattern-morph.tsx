@@ -69,14 +69,14 @@ export default function PatternMorph() {
   return (
     <MotionConfig transition={SPRING}>
       <div className="relative">
-        <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
+        <ul className="divide-y divide-[color:var(--aig-line-soft)]">
           {LAB_AGENTS.map((agent) => (
             <li key={agent.id} className="relative">
               <Rail color={RAIL_COLOR[agent.status]} />
               <button
                 type="button"
                 onClick={() => setOpenId(agent.id)}
-                className="flex w-full items-center gap-3 py-2.5 pr-4 pl-4 text-left hover:bg-zinc-950/2.5 focus-visible:bg-zinc-950/2.5 focus-visible:outline-hidden dark:hover:bg-white/2.5"
+                className="flex w-full items-center gap-3 py-2.5 pr-4 pl-4 text-left transition hover:bg-white/5 focus-visible:bg-white/5 focus-visible:outline-hidden"
               >
                 {/* `layoutId` absent quand la fiche est ouverte SUR CET agent :
                     deux éléments ne peuvent pas partager un calque au même
@@ -84,7 +84,7 @@ export default function PatternMorph() {
                     l'une est en train de disparaître. */}
                 <motion.span
                   layoutId={openId === agent.id ? undefined : `avatar-${agent.id}`}
-                  className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-zinc-950/3 text-xs font-semibold text-zinc-700 ring-1 ring-zinc-950/10 dark:bg-white/5 dark:text-zinc-300 dark:ring-white/10"
+                  className="aig-raised flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-semibold"
                 >
                   {initialsOf(agent.name)}
                 </motion.span>
@@ -120,13 +120,13 @@ export default function PatternMorph() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.18 }}
                 onClick={() => setOpenId(null)}
-                className="absolute inset-0 z-10 rounded-lg bg-zinc-950/45"
+                className="absolute inset-0 z-10 rounded-lg bg-black/60"
               />
 
               <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-4">
                 <motion.div
                   key={`sheet-${open.id}`}
-                  className="pointer-events-auto w-full max-w-sm rounded-xl bg-white p-5 shadow-2xl ring-1 ring-zinc-950/10 dark:bg-zinc-900 dark:ring-white/10"
+                  className="aig-panel-raised pointer-events-auto w-full max-w-sm p-5"
                   initial={{ opacity: 0, scale: 0.96 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.96 }}
@@ -134,7 +134,7 @@ export default function PatternMorph() {
                   <div className="flex items-center gap-3">
                     <motion.span
                       layoutId={`avatar-${open.id}`}
-                      className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-zinc-950/3 text-base font-semibold text-zinc-700 ring-1 ring-zinc-950/10 dark:bg-white/5 dark:text-zinc-300 dark:ring-white/10"
+                      className="aig-raised flex size-12 shrink-0 items-center justify-center rounded-xl text-base font-semibold"
                     >
                       {initialsOf(open.name)}
                     </motion.span>
@@ -160,7 +160,7 @@ export default function PatternMorph() {
                     exit={{ opacity: 0 }}
                     transition={{ delay: 0.08, duration: 0.22 }}
                   >
-                    <div className="mt-4 grid grid-cols-3 gap-3 rounded-lg bg-zinc-950/2.5 p-3 dark:bg-white/5">
+                    <div className="aig-subtle mt-4 grid grid-cols-3 gap-3 rounded-lg p-3">
                       <Fact label="Runs 24 h" value={<FactValue>{open.runs24h}</FactValue>} />
                       <Fact
                         label="Succès"
@@ -185,7 +185,7 @@ export default function PatternMorph() {
                         {open.runBlockers.map((blocker) => (
                           <li
                             key={blocker}
-                            className="rounded-lg border border-red-500/25 bg-red-50/60 px-3 py-2 dark:bg-red-950/20"
+                            className="rounded-lg border border-red-500/25 bg-red-950/20 px-3 py-2"
                           >
                             <Text className="text-xs">{blocker}</Text>
                           </li>
@@ -196,7 +196,7 @@ export default function PatternMorph() {
                     <button
                       type="button"
                       onClick={() => setOpenId(null)}
-                      className="mt-4 w-full rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-zinc-950"
+                      className="aig-raised aig-accent mt-4 w-full rounded-lg px-4 py-2 text-sm font-medium transition hover:text-white"
                     >
                       Fermer
                     </button>
