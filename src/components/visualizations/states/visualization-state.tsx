@@ -170,8 +170,23 @@ export default function VisualizationStateView({
 }: Readonly<Props>) {
   const reducedMotion = useReducedMotion()
   const visible = useDocumentVisible()
-  // Animer seulement si l'utilisateur l'accepte ET que l'onglet est regardé.
-  const animate = !reducedMotion && visible
+
+  /*
+   * MONTÉ CÔTÉ CLIENT AVANT D'ANIMER.
+   *
+   * `useReducedMotion()` vaut `null` au rendu serveur et sa vraie valeur après
+   * hydratation : rendre l'animation dès la première passe produit un HTML
+   * serveur différent du HTML client, donc une erreur « Hydration failed »
+   * (constatée au harnais). On rend donc STATIQUE au premier passage, puis on
+   * anime — le contenu informatif, lui, est identique dans les deux cas, donc
+   * rien n'est perdu pour un lecteur sans JavaScript.
+   */
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
+  // Animer seulement une fois monté, si l'utilisateur l'accepte ET que
+  // l'onglet est regardé.
+  const animate = mounted && !reducedMotion && visible
 
   const art = (() => {
     switch (state) {

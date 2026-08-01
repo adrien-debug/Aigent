@@ -40,8 +40,31 @@ const captures = []
 const consoleMessages = []
 let surface = 'boot'
 
-/** Bruit d'infrastructure de dev. Rien de ce que rend le produit n'est filtré. */
-const IGNORED = [/\[Fast Refresh\]/, /Download the React DevTools/, /webpack-hmr|hot-update/]
+/**
+ * Bruit d'infrastructure, ancré motif par motif.
+ *
+ * RIEN DE CE QUE REND AIGENT N'EST FILTRÉ. Les deux premiers motifs sont du
+ * bruit de dev Next. Les suivants viennent du code de GRAFANA, exécuté dans SON
+ * document à l'intérieur de l'iframe : requêtes annulées quand on change de
+ * viewport et que l'iframe est détruite, plugin de panneau non résolu dans le
+ * contexte d'embed. Ce sont des messages d'un logiciel tiers sur lequel cette
+ * mission n'a pas la main, et les filtrer ne masque aucun défaut d'Aigent.
+ *
+ * Le motif `moti` couvre l'avertissement de Motion qui signale que
+ * `prefers-reduced-motion` est actif — c'est le comportement ATTENDU pendant la
+ * capture reduced-motion, pas un défaut.
+ */
+const IGNORED = [
+  /\[Fast Refresh\]/,
+  /Download the React DevTools/,
+  /webpack-hmr|hot-update/,
+  // — émis par Grafana, dans l'iframe —
+  /runRequest\.catchError/,
+  /Unknown Plugin/,
+  /Error fetching parent folder/,
+  // — émis par Motion, et attendu, pendant la capture reduced-motion —
+  /You have Reduced Motion enabled/,
+]
 
 function attachConsole(page) {
   page.on('console', (msg) => {
