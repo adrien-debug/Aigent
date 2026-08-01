@@ -1,0 +1,214 @@
+'use client'
+
+/**
+ * L'activité horaire en courbe — tracé animé, curseur qui suit le pointeur.
+ *
+ * CE QUE CE GRAPHE DIT, ET CE QU'IL REFUSE DE DIRE
+ * ------------------------------------------------
+ * Une heure sans run vaut ZÉRO, et c'est une mesure : la fenêtre a bien été
+ * lue, il ne s'est rien passé. La courbe descend donc à zéro, elle ne
+ * s'interrompt pas. En revanche une fenêtre NON LUE ne descend pas ici du tout
+ * — l'appelant rend une absence à la place, parce qu'un axe plat sur un backend
+ * muet peindrait une flotte sereine par-dessus une panne.
+ *
+ * Le curseur montre le NOMBRE DE RUNS de l'heure survolée, pas une variation en
+ * pourcentage : sur un volume horaire qui passe de 1 à 3 runs, « +200 % » est
+ * vrai et parfaitement trompeur.
+ *
+ * `AnimateNumber` et `Cursor` viennent de `@motionplus/core` (Motion+).
+ */
+import { AnimateNumber, Cursor } from '@motionplus/core/react'
+import { AnimatePresence, motion } from 'motion/react'
+import { useState } from 'react'
+
+import type { HourlyBucket } from '@/lib/cockpit/overview-series'
+import { SEVERITY } from '@/lib/cockpit/status'
+
+/** Repère du tracé — coordonnées internes, indépendantes de la taille rendue. */
+const WIDTH = 600
+const HEIGHT = 220
+const PAD_X = 12
+const PAD_TOP = 16
+const PAD_BOTTOM = 28
+
+function buildPath(points: readonly { x: number; y: number }[]): string {
+  return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x},${p.y}`).join(' ')
+}
+
+export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBucket[] }>) {
+  const [hovered, setHovered] = useState<number | null>(null)
+
+  // L'échelle part TOUJOURS de zéro et garde deux crans minimum : sans le
+  // plancher, une fenêtre à un seul run remplirait toute la hauteur et se
+  // lirait comme un pic d'activité.
+  const max = Math.max(2, ...buckets.map((b) => b.total))
+  const plotH = HEIGHT - PAD_TOP - PAD_BOTTOM
+  const step = (WIDTH - PAD_X * 2) / Math.max(buckets.length - 1, 1)
+
+  const points = buckets.map((bucket, i) => ({
+    x: PAD_X + i * step,
+    y: PAD_TOP + plotH - (bucket.total / max) * plotH,
+    bucket,
+  }))
+
+  const linePath = buildPath(points)
+  const areaPath = `${linePath} L ${points[points.length - 1]?.x ?? PAD_X},${PAD_TOP + plotH} L ${PAD_X},${PAD_TOP + plotH} Z`
+  const active = hovered === null ? null : points[hovered]
+
+  return (
+    // Le padding est porté par le conteneur EXTÉRIEUR, et la boîte du tracé est
+    // `relative` sans marge : les surcouches (points, colonnes de survol,
+    // libellés) sont positionnées en pourcentage de CETTE boîte, donc tout
+    // décalage de padding les désalignerait de la courbe.
+    <div className="px-2 pt-2 pb-1" onPointerLeave={() => setHovered(null)}>
+      <div className="relative">
+      <svg
+        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        // Hauteur FIXE, et `none` pour que le tracé REMPLISSE sa boîte : au
+        // défaut (`meet`), le SVG conserve son ratio 600×220 et se réduit pour
+        // tenir dans la hauteur imposée — le dessin devenait minuscule, centré
+        // dans une bande vide.
+        //
+        // Conséquence assumée : l'axe X est étiré. Les points et les libellés
+        // le compensent (`vector-effect` sur les traits, `<circle>` remplacé
+        // par un cercle non déformé côté HTML — voir plus bas).
+        preserveAspectRatio="none"
+        className="h-40 w-full overflow-visible"
+        role="img"
+        aria-label={`Activité par heure sur la fenêtre — ${buckets.reduce((n, b) => n + b.total, 0)} runs`}
+      >
+        <defs>
+          <linearGradient id="activity-area" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor={SEVERITY.good} stopOpacity="0.22" />
+            <stop offset="100%" stopColor={SEVERITY.good} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {[0, 0.5, 1].map((ratio) => {
+          const y = PAD_TOP + plotH * ratio
+          return (
+            <line
+              key={ratio}
+              x1={PAD_X}
+              y1={y}
+              x2={WIDTH - PAD_X}
+              y2={y}
+              stroke="currentColor"
+              className="text-white/8"
+              strokeWidth="1"
+              strokeDasharray="4,6"
+            />
+          )
+        })}
+
+        {/* L'aire n'apparaît qu'APRÈS le tracé : la remplir pendant que la
+            ligne se dessine donnerait une surface qui grandit toute seule. */}
+        <motion.path
+          d={areaPath}
+          fill="url(#activity-area)"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.9 }}
+        />
+
+        {/* `non-scaling-stroke` : sans lui, l'étirement horizontal du viewBox
+            épaissirait le trait de façon inégale selon la pente. */}
+        <motion.path
+          d={linePath}
+          fill="none"
+          stroke={SEVERITY.good}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 1.4, ease: 'easeInOut' }}
+        />
+      </svg>
+
+      {/* Les POINTS vivent hors du SVG, positionnés en pourcentage : dans un
+          viewBox étiré (`preserveAspectRatio="none"`), un `<circle>` devient un
+          ovale. En HTML ils restent ronds quelle que soit la largeur. */}
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        initial="hidden"
+        animate="visible"
+        variants={{
+          visible: { transition: { delayChildren: 0.2, staggerChildren: 1.2 / 24 } },
+        }}
+      >
+        {points.map((point, index) => (
+          <motion.span
+            key={point.bucket.hourMs}
+            className="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black ring-1.5"
+            // Les deux axes sont exprimés dans le repère du SVG puis convertis
+            // en pourcentage de la boîte : c'est la seule façon que le point
+            // tombe sur la courbe quelle que soit la largeur rendue.
+            style={{
+              left: `${(point.x / WIDTH) * 100}%`,
+              top: `${(point.y / HEIGHT) * 100}%`,
+              boxShadow: `0 0 0 1.5px ${SEVERITY.good}`,
+            }}
+            animate={{ scale: hovered === index ? 1.6 : 1 }}
+            variants={{ hidden: { scale: 0, opacity: 0 }, visible: { scale: 1, opacity: 1 } }}
+          />
+        ))}
+      </motion.div>
+
+      {/* Colonnes de survol — viser un point de 8 px au pointeur est
+          impossible, la colonne entière déclenche. */}
+      <div className="absolute inset-x-0 top-0 bottom-7 flex">
+        {points.map((point, index) => (
+          <button
+            key={point.bucket.hourMs}
+            type="button"
+            aria-label={`${point.bucket.label} — ${point.bucket.total} run(s)`}
+            className="h-full flex-1 cursor-pointer"
+            onPointerEnter={() => setHovered(index)}
+            onFocus={() => setHovered(index)}
+          />
+        ))}
+      </div>
+
+      {/* Un libellé toutes les six heures : les vingt-quatre se chevaucheraient. */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-1 flex">
+        {points.map((point, i) => (
+          <span
+            key={point.bucket.hourMs}
+            className="flex-1 text-center font-mono text-3xs text-zinc-500"
+          >
+            {i % 6 === 0 ? point.bucket.label : ''}
+          </span>
+        ))}
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {active ? (
+          <Cursor
+            follow
+            key="activity-cursor"
+            offset={{ x: 18, y: 18 }}
+            initial={{ opacity: 0, scale: 0.6 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.6 }}
+          >
+            <div className="flex items-baseline gap-1.5 rounded-full border border-white/10 bg-black px-3 py-1.5">
+              <AnimateNumber
+                className="text-lg font-semibold text-white tabular-nums"
+                transition={{ type: 'spring', visualDuration: 0.4, bounce: 0.15 }}
+              >
+                {active.bucket.total}
+              </AnimateNumber>
+              <span className="text-xs text-zinc-400">
+                run{active.bucket.total > 1 ? 's' : ''} · {active.bucket.label}
+              </span>
+            </div>
+          </Cursor>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  )
+}

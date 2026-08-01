@@ -118,7 +118,7 @@ export default function AppShell({ children }: Readonly<{ children?: ReactNode }
   const pathname = usePathname() ?? '/'
 
   return (
-    <div className="flex min-h-svh bg-white">
+    <div className="flex min-h-svh">
       <Headless.Dialog open={showSidebar} onClose={setShowSidebar} className="lg:hidden">
         <Headless.DialogBackdrop
           transition
@@ -149,7 +149,7 @@ export default function AppShell({ children }: Readonly<{ children?: ReactNode }
         <NavigationSidebar pathname={pathname} />
       </div>
 
-      <main className="min-w-0 flex-1 bg-white">
+      <main className="min-w-0 flex-1">
         <MobileNavButton onOpen={() => setShowSidebar(true)} />
         {children}
       </main>

@@ -33,7 +33,7 @@ export default async function HomePage() {
     return (
       <AppShell>
         <div className="p-6 pt-16 lg:pt-6">
-          <div className="mx-auto max-w-md rounded-lg bg-white px-6 py-10 text-center shadow-xs ring-1 ring-zinc-950/5">
+          <div className="mx-auto max-w-md rounded-lg bg-[#0a0a0b] px-6 py-10 text-center shadow-xs ring-1 ring-white/10">
             <Unavailable
               reason="unread"
               detail="Le backend n'a pas répondu. Aucun chiffre n'est affiché — un tableau qui invente des valeurs est plus dangereux qu'un tableau vide."
