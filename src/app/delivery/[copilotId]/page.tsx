@@ -38,7 +38,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   // sobrement plutôt que de propager l'erreur depuis les métadonnées.
   try {
     const detail = await loadDeliveryDetail(copilotId)
-    return { title: detail ? `Aigent · Livraison · ${detail.copilotName}` : 'Aigent · Agent inconnu' }
+    return {
+      title: detail ? `Aigent · Livraison · ${detail.copilotName}` : 'Aigent · Agent inconnu',
+    }
   } catch {
     return { title: 'Aigent · Livraison' }
   }
@@ -55,7 +57,7 @@ export default async function Page({ params }: PageProps) {
     return (
       <AppShell>
         <div className="h-full p-4">
-          <div className="flex h-full items-center justify-center rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div className="aig-panel flex h-full items-center justify-center">
             <div className="max-w-md px-6 text-center">
               <Unavailable
                 reason="unread"

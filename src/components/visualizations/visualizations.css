@@ -38,20 +38,22 @@
   --viz-radius: 0.75rem;
 }
 
-/* Thème clair : la grammaire s'inverse, les rôles restent identiques. */
-@media (prefers-color-scheme: light) {
-  .viz-scope {
-    --viz-base: oklch(0.99 0.002 264);
-    --viz-subtle: oklch(0.96 0.003 264);
-    --viz-raised: oklch(0.93 0.004 264);
-    --viz-line: oklch(0.87 0.005 264);
-    --viz-text: oklch(0.24 0.006 264);
-    --viz-text-muted: oklch(0.45 0.006 264);
-    --viz-text-faint: oklch(0.58 0.006 264);
-    --viz-accent: oklch(0.52 0.12 52);
-    --viz-accent-quiet: oklch(0.72 0.07 52);
-  }
-}
+/**
+ * PAS D'INVERSION EN THÈME CLAIR — retiré, pas oublié.
+ *
+ * Ce bloc basculait le scope en palette claire sur
+ * `prefers-color-scheme: light`. C'était juste tant que ces panneaux ne
+ * vivaient que dans `/lab`. Ils sont désormais embarqués dans les pages
+ * produit (`/runs`, `/agents`), et le produit est dark-first au niveau du
+ * document (`globals.css`) : sur une machine réglée en clair, l'inversion
+ * repeignait les enveloppes en blanc AU MILIEU d'un écran graphite, avec les
+ * iframes Grafana — qui restent en `theme=dark`, réglé dans Grafana et non
+ * pilotable depuis Aigent — inchangées à l'intérieur. Une enveloppe claire
+ * autour d'un graphique sombre, sur une page sombre.
+ *
+ * Les rôles ci-dessus s'alignent sur les jetons `--aig-*` du produit : une
+ * seule échelle de graphite pour les deux surfaces.
+ */
 
 /* ------------------------------------------------------------- les 5 rôles */
 
@@ -136,16 +138,16 @@
 
 /* Un état READY se distingue, mais la couleur ne porte jamais l'information
    seule : le texte du badge EST l'état. */
-.viz-badge[data-badge-state='READY'] {
+.viz-badge[data-badge-state="READY"] {
   color: oklch(0.78 0.13 155);
   border-color: color-mix(in oklab, oklch(0.78 0.13 155) 35%, transparent);
 }
-.viz-badge[data-badge-state='UNAVAILABLE'] {
+.viz-badge[data-badge-state="UNAVAILABLE"] {
   color: oklch(0.72 0.15 25);
   border-color: color-mix(in oklab, oklch(0.72 0.15 25) 35%, transparent);
 }
-.viz-badge[data-badge-state='NOT_CONFIGURED'],
-.viz-badge[data-badge-state='EMPTY'] {
+.viz-badge[data-badge-state="NOT_CONFIGURED"],
+.viz-badge[data-badge-state="EMPTY"] {
   color: var(--viz-text-faint);
 }
 
@@ -178,7 +180,12 @@
   background-color: var(--viz-line);
 }
 .viz-link-pulse {
-  background: linear-gradient(90deg, transparent, var(--viz-accent), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--viz-accent),
+    transparent
+  );
 }
 .viz-blueprint {
   stroke: var(--viz-line);

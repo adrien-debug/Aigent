@@ -29,23 +29,29 @@ type NoteProps = {
   children?: ReactNode
 }
 
+/**
+ * Le liseré et le fond d'un encadré, par ton.
+ *
+ * Les deux tons PORTEURS DE SENS (`blocked`, `warn`) gardent leur teinte : ici la
+ * couleur double le mot, elle ne le remplace pas — c'est la règle de tête de
+ * fichier. Le ton NEUTRE, lui, ne portait aucun sens : sa paire claire/sombre
+ * (`bg-zinc-950/2.5 dark:bg-white/2.5`) était une décision de surface, et la
+ * grammaire `aig-*` la nomme mieux — `aig-raised` est le rôle « ce qui ressort
+ * du fond » et `aig-line` son liseré franc. Le scope `dark:` local est retiré :
+ * le document entier est sombre depuis `layout.tsx`, la moitié claire ne se
+ * rendait plus jamais.
+ */
 function noteRingClass(tone: NonNullable<NoteProps['tone']>): string {
   if (tone === 'blocked') return 'border-[#e8455f]/25 bg-[#e8455f]/5'
   if (tone === 'warn') return 'border-amber-400/25 bg-amber-400/5'
-  return 'border-zinc-950/10 bg-zinc-950/2.5 dark:border-white/10 dark:bg-white/2.5'
+  return 'aig-raised aig-line'
 }
 
 /* ─────────────────── Gate de release — trois états ─────────────────── */
 
-
-
 /* ─────────────────── Gate de promotion — quatre états ─────────────────── */
 
-
-
 /* ─────────────────── Étapes de qualification ─────────────────── */
-
-
 
 const RUN_STATUS_COLOR: Record<QualificationRunStatus, BadgeColor> = {
   running: 'sky',
@@ -65,16 +71,9 @@ export function RunStatusBadge({ status }: Readonly<RunStatusBadgeProps>) {
 
 /* ─────────────────── Provenance d'une preuve ─────────────────── */
 
-
-
 /* ─────────────────── Boucle d'amélioration ─────────────────── */
 
-
-
 /* ─────────────────── Absence ─────────────────── */
-
-
-
 
 /**
  * Un encadré d'information — ni erreur ni succès.
@@ -92,4 +91,3 @@ export function Note({ tone = 'info', title, children }: Readonly<NoteProps>) {
     </div>
   )
 }
-

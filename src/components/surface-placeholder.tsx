@@ -15,17 +15,15 @@
  * Il affiche : le nom de la surface, ce qu'elle portera, le fait qu'elle n'est
  * pas branchée, et la PR qui la branchera.
  *
- * Il est composé de Catalyst officiel (`Heading`, `Text`, `Divider`) plus
- * `Unavailable`, l'objet métier qui encode déjà la distinction
- * « lecture échouée » / « rien à mesurer ». Ici c'est la troisième situation —
- * ni l'une ni l'autre : aucune lecture n'a été TENTÉE. `reason="no-data"` est le
- * plus proche (pas d'échec de backend à signaler) et le texte lève l'ambiguïté
- * explicitement, plutôt que d'inventer une quatrième raison dans le kit métier.
+ * Il rend l'état `not-configured` de `SurfaceState` — celui dont le blueprint
+ * dit « le branchement manque », et non « la lecture a échoué » (`unavailable`)
+ * ni « la lecture a abouti sur rien » (`empty`). C'est exactement la troisième
+ * situation : aucune lecture n'a été TENTÉE. L'état porte donc la nuance dans
+ * son geste ET dans son texte, au lieu de la laisser au seul paragraphe.
  */
-import { Divider } from '@/components/ui/divider'
-import { Heading } from '@/components/ui/heading'
 import { Text } from '@/components/ui/text'
-import { Unavailable } from '@/components/cockpit/primitives'
+import { PageBody, PageHeader } from '@/components/app-shell'
+import SurfaceState from '@/components/surface-state'
 
 export default function SurfacePlaceholder({
   title,
@@ -40,36 +38,31 @@ export default function SurfacePlaceholder({
   plannedIn: string
 }>) {
   return (
-    // `shell-page-bounded` : la page ne pousse jamais le shell hors du
-    // viewport. Le contenu tient largement ; le `overflow-y-auto` interne est le
-    // repli sur un viewport très court, et il défile DANS la boîte.
-    // `max-lg:pl-14` : gouttière pour le bouton de navigation mobile fixe du
-    // shell (16,16 · 37×36 · z-30) — sans ça il recouvre le coin du titre.
-    <div className="shell-page-bounded max-lg:pl-14">
-      <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-        <header className="shrink-0">
-          <div className="px-6 py-4">
-            <Heading level={1}>{title}</Heading>
-            <Text className="mt-1">{purpose}</Text>
-          </div>
-          <Divider soft />
-        </header>
-
-        <div className="min-h-0 flex-1 overflow-y-auto p-6">
-          <div className="mx-auto flex h-full max-w-xl items-center justify-center">
-            <div className="w-full">
-              <Unavailable
-                reason="no-data"
-                detail="Cette surface est nommée, pas encore construite. Aucune lecture n'a été tentée : ce que vous voyez n'est pas un état vide de la flotte, c'est l'absence d'écran."
-              />
-              <Text className="mt-4 text-center">
-                Branchement prévu par <strong className="font-medium">{plannedIn}</strong> de la
-                restauration produit.
-              </Text>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
+    // L'en-tête et la gouttière viennent du shell (`PageHeader`/`PageBody`) :
+    // cet écran n'a plus de géométrie à lui.
+    <>
+      <PageHeader title={title} description={purpose} />
+      <PageBody>
+        <section className="aig-panel flex flex-col">
+          {/*
+           * `not-configured` PLUTÔT QUE `loading` OU `empty`.
+           *
+           * Le blueprint dit la bonne chose : le branchement MANQUE, il n'est
+           * pas cassé et rien n'est en cours. Un état de chargement ici
+           * laisserait croire qu'une lecture est partie ; un état vide
+           * laisserait croire qu'elle a abouti sur zéro. C'est la troisième
+           * situation — aucune lecture n'a été TENTÉE.
+           */}
+          <SurfaceState
+            kind="not-configured"
+            detail="Cette surface est nommée, pas encore construite. Aucune lecture n'a été tentée : ce que vous voyez n'est pas un état vide de la flotte, c'est l'absence d'écran."
+          />
+          <Text className="pb-8 text-center">
+            Branchement prévu par <strong className="font-medium">{plannedIn}</strong> de la
+            restauration produit.
+          </Text>
+        </section>
+      </PageBody>
+    </>
   )
 }

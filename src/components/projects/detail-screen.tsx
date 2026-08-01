@@ -22,8 +22,9 @@ import type { ReactNode } from 'react'
 
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { PageHeader } from '@/components/app-shell'
 import { Divider } from '@/components/ui/divider'
-import { Heading, Subheading } from '@/components/ui/heading'
+import { Subheading } from '@/components/ui/heading'
 import { Strong, Text } from '@/components/ui/text'
 import {
   AbsentMark,
@@ -58,7 +59,10 @@ const NODE_STATUS_LABEL: Record<ProjectTeamNode['status'], string> = {
   unavailable: UNAVAILABLE_LABEL,
 }
 
-const NODE_STATUS_BADGE: Record<ProjectTeamNode['status'], 'emerald' | 'amber' | 'purple' | 'red' | 'zinc'> = {
+const NODE_STATUS_BADGE: Record<
+  ProjectTeamNode['status'],
+  'emerald' | 'amber' | 'purple' | 'red' | 'zinc'
+> = {
   active: 'emerald',
   waiting: 'amber',
   blocked: 'purple',
@@ -186,7 +190,11 @@ function intelPanelBody(intel: IntelligenceView): ReactNode {
         />
         <Fact
           label="Code agentique"
-          value={<FactValue>{intel.intelligence.footprint.hasAgenticCode ? 'présent' : 'absent'}</FactValue>}
+          value={
+            <FactValue>
+              {intel.intelligence.footprint.hasAgenticCode ? 'présent' : 'absent'}
+            </FactValue>
+          }
         />
       </div>
       <Divider soft />
@@ -273,18 +281,16 @@ function TreeBranch({
   depth = 0,
 }: Readonly<{ nodes: readonly RepoTreeNode[]; depth?: number }>) {
   return (
-    <ul className={depth === 0 ? '' : 'border-l border-zinc-950/5 pl-3 dark:border-white/5'}>
+    <ul className={depth === 0 ? '' : 'aig-line-soft border-l pl-3'}>
       {nodes.map((node) => (
         <li key={node.path}>
           <div className="flex items-center gap-2 py-0.5">
-            <span aria-hidden className="text-xs text-zinc-500 dark:text-zinc-400">
+            <span aria-hidden className="aig-text-faint text-xs">
               {node.type === 'tree' ? '▸' : '·'}
             </span>
             <Text className="truncate font-mono text-xs">{node.name}</Text>
           </div>
-          {node.children.length > 0 ? (
-            <TreeBranch nodes={node.children} depth={depth + 1} />
-          ) : null}
+          {node.children.length > 0 ? <TreeBranch nodes={node.children} depth={depth + 1} /> : null}
         </li>
       ))}
     </ul>
@@ -336,166 +342,184 @@ export default function ProjectDetailScreen({
   const summary = graph?.summary ?? null
 
   return (
-    <div className="shell-page-bounded flex min-h-0 flex-col gap-3 max-lg:pl-14">
-      {/* ── En-tête ── */}
-      <header className="shrink-0 px-1">
-        <div className="flex min-w-0 items-center gap-3">
-          <Avatar square initials={initialsOf(name)} className="size-9 shrink-0" />
-          <div className="min-w-0 flex-1">
-            <Heading level={1} className="truncate">
-              {name}
-            </Heading>
-            <Text className="truncate">
-              {repo.fullName ?? 'aucun dépôt lié'}
-              {repo.state === 'unreadable' ? ' · dépôt illisible' : ''}
-            </Text>
-          </div>
+    // L'en-tête vient du shell ; le corps reste borné à la main (zéro-scroll :
+    // `PageBody` ne pose aucune borne de hauteur). `PageHeader` porte déjà la
+    // gouttière mobile, elle n'est pas redoublée.
+    <div className="flex h-svh min-h-0 flex-col">
+      {/* Le nom du projet et son dépôt passent par le contrat commun ; ce qui
+          est propre à cet écran — avatar, retour au catalogue, et les cinq
+          faits agrégés — vit dans `meta`, la rangée de contexte de page. */}
+      <PageHeader
+        title={name}
+        description={
+          repo.fullName
+            ? `${repo.fullName}${repo.state === 'unreadable' ? ' · dépôt illisible' : ''}`
+            : 'aucun dépôt lié'
+        }
+        actions={
           <Link
             href="/projects"
-            className="shrink-0 text-sm/6 text-zinc-500 underline underline-offset-4 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
+            className="aig-text-muted shrink-0 text-sm/6 underline underline-offset-4 hover:text-white"
           >
             Retour au catalogue
           </Link>
-        </div>
+        }
+        meta={
+          <>
+            <Avatar
+              square
+              initials={initialsOf(name)}
+              className="aig-raised size-8 shrink-0 outline-0"
+            />
+            {summary ? (
+              <div className="grid min-w-0 flex-1 grid-cols-2 gap-4 sm:grid-cols-5">
+                <Fact label="Agents" value={<FactValue>{summary.totalAgents}</FactValue>} />
+                <Fact label="En cours" value={<FactValue>{summary.activeAgents}</FactValue>} />
+                <Fact label="Bloqués" value={<FactValue>{summary.blockedAgents}</FactValue>} />
+                <Fact label="Échoués" value={<FactValue>{summary.failedAgents}</FactValue>} />
+                <Fact label="Runs aujourd'hui" value={<FactValue>{summary.runsToday}</FactValue>} />
+              </div>
+            ) : null}
+          </>
+        }
+      />
 
-        {summary ? (
-          <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-5">
-            <Fact label="Agents" value={<FactValue>{summary.totalAgents}</FactValue>} />
-            <Fact label="En cours" value={<FactValue>{summary.activeAgents}</FactValue>} />
-            <Fact label="Bloqués" value={<FactValue>{summary.blockedAgents}</FactValue>} />
-            <Fact label="Échoués" value={<FactValue>{summary.failedAgents}</FactValue>} />
-            <Fact label="Runs aujourd'hui" value={<FactValue>{summary.runsToday}</FactValue>} />
+      <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 py-4 sm:px-6">
+        {graph === null ? (
+          <div className="min-h-0 flex-1">
+            <Unavailable
+              reason="unread"
+              detail="Le graphe d'équipe de ce projet n'a pas pu être lu. Ni les agents, ni les relations, ni les missions ne sont affichés — ce projet n'est pas vide, il est inconnu de cet écran."
+            />
           </div>
-        ) : null}
-      </header>
+        ) : (
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-[1.3fr_1fr]">
+            {/* ── Colonne gauche : l'équipe et ses relations ── */}
+            <div className="grid min-h-0 grid-rows-[1.4fr_1fr] gap-3">
+              <Panel
+                title="Équipe"
+                hint={
+                  summary
+                    ? agentTeamHint(agents.length, summary.unavailableAgents)
+                    : agentTeamHint(agents.length, 0)
+                }
+                className="min-h-0"
+                padded={false}
+                bodyClassName="overflow-y-auto"
+              >
+                {agents.length === 0 ? (
+                  <div className="p-4">
+                    <Unavailable
+                      reason="no-data"
+                      detail="La lecture a réussi : aucun agent n'est rattaché à ce projet. Il n'a donc ni run ni coût à mesurer."
+                    />
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-white/5">
+                    {agents.map((node) => (
+                      <AgentRow key={node.id} node={node} />
+                    ))}
+                  </ul>
+                )}
+              </Panel>
 
-      <Divider soft className="shrink-0" />
-
-      {graph === null ? (
-        <div className="min-h-0 flex-1">
-          <Unavailable
-            reason="unread"
-            detail="Le graphe d'équipe de ce projet n'a pas pu être lu. Ni les agents, ni les relations, ni les missions ne sont affichés — ce projet n'est pas vide, il est inconnu de cet écran."
-          />
-        </div>
-      ) : (
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-[1.3fr_1fr]">
-          {/* ── Colonne gauche : l'équipe et ses relations ── */}
-          <div className="grid min-h-0 grid-rows-[1.4fr_1fr] gap-3">
-            <Panel
-              title="Équipe"
-              hint={
-                summary
-                  ? agentTeamHint(agents.length, summary.unavailableAgents)
-                  : agentTeamHint(agents.length, 0)
-              }
-              className="min-h-0"
-              padded={false}
-              bodyClassName="overflow-y-auto"
-            >
-              {agents.length === 0 ? (
-                <div className="p-4">
-                  <Unavailable
-                    reason="no-data"
-                    detail="La lecture a réussi : aucun agent n'est rattaché à ce projet. Il n'a donc ni run ni coût à mesurer."
-                  />
-                </div>
-              ) : (
-                <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
-                  {agents.map((node) => (
-                    <AgentRow key={node.id} node={node} />
-                  ))}
-                </ul>
-              )}
-            </Panel>
-
-            <Panel
-              title="Relations"
-              hint={relationCountHint(relations.length)}
-              className="min-h-0"
-              padded={false}
-              bodyClassName="overflow-y-auto"
-            >
-              {relations.length === 0 ? (
-                <div className="p-4">
-                  <Unavailable
-                    reason="no-data"
-                    detail="Aucune relation explicite ni dérivée entre les agents de ce projet."
-                  />
-                </div>
-              ) : (
-                <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
-                  {relations.map((edge) => (
-                    <li key={edge.id} className="flex items-center gap-2 px-4 py-2">
-                      <div className="min-w-0 flex-1">
-                        <Text className="truncate">
-                          <Strong>{nodeName.get(edge.source) ?? 'source inconnue'}</Strong>{' '}
-                          {RELATION_LABEL[edge.relation]}{' '}
-                          <Strong>{nodeName.get(edge.target) ?? 'cible inconnue'}</Strong>
-                        </Text>
-                      </div>
-                      {/* `explicit` = une ligne persistée l'affirme.
+              <Panel
+                title="Relations"
+                hint={relationCountHint(relations.length)}
+                className="min-h-0"
+                padded={false}
+                bodyClassName="overflow-y-auto"
+              >
+                {relations.length === 0 ? (
+                  <div className="p-4">
+                    <Unavailable
+                      reason="no-data"
+                      detail="Aucune relation explicite ni dérivée entre les agents de ce projet."
+                    />
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-white/5">
+                    {relations.map((edge) => (
+                      <li key={edge.id} className="flex items-center gap-2 px-4 py-2">
+                        <div className="min-w-0 flex-1">
+                          <Text className="truncate">
+                            <Strong>{nodeName.get(edge.source) ?? 'source inconnue'}</Strong>{' '}
+                            {RELATION_LABEL[edge.relation]}{' '}
+                            <Strong>{nodeName.get(edge.target) ?? 'cible inconnue'}</Strong>
+                          </Text>
+                        </div>
+                        {/* `explicit` = une ligne persistée l'affirme.
                           `derived` = calculé depuis une évidence explicable. */}
-                      <Badge color={edge.origin === 'explicit' ? 'blue' : 'zinc'}>
-                        {edge.origin === 'explicit' ? 'configurée' : 'dérivée'}
-                      </Badge>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Panel>
-          </div>
+                        <Badge color={edge.origin === 'explicit' ? 'blue' : 'zinc'}>
+                          {edge.origin === 'explicit' ? 'configurée' : 'dérivée'}
+                        </Badge>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Panel>
+            </div>
 
-          {/* ── Colonne droite : le dépôt et la livraison ── */}
-          <div className="grid min-h-0 grid-rows-[1fr_1fr_auto] gap-3">
-            <Panel
-              title="Dépôt"
-              hint={repo.deeperEntries > 0 ? `+${repo.deeperEntries} plus profond` : undefined}
-              className="min-h-0"
-              padded={false}
-              bodyClassName="overflow-auto px-4 py-2"
-            >
-              {repoPanelBody(repo)}
-            </Panel>
+            {/* ── Colonne droite : le dépôt et la livraison ── */}
+            <div className="grid min-h-0 grid-rows-[1fr_1fr_auto] gap-3">
+              <Panel
+                title="Dépôt"
+                hint={repo.deeperEntries > 0 ? `+${repo.deeperEntries} plus profond` : undefined}
+                className="min-h-0"
+                padded={false}
+                bodyClassName="overflow-auto px-4 py-2"
+              >
+                {repoPanelBody(repo)}
+              </Panel>
 
-            <Panel
-              title="Intelligence de dépôt"
-              hint={intel.scannedAt ? `scan ${intel.scannedAt.slice(0, 10)}` : undefined}
-              className="min-h-0"
-              bodyClassName="overflow-y-auto"
-            >
-              {intelPanelBody(intel)}
-            </Panel>
+              <Panel
+                title="Intelligence de dépôt"
+                hint={intel.scannedAt ? `scan ${intel.scannedAt.slice(0, 10)}` : undefined}
+                className="min-h-0"
+                bodyClassName="overflow-y-auto"
+              >
+                {intelPanelBody(intel)}
+              </Panel>
 
-            {/* Capacité de LIVRAISON — un constat, pas un déclencheur. Cette
+              {/* Capacité de LIVRAISON — un constat, pas un déclencheur. Cette
                 surface est en lecture seule : elle n'appelle aucune écriture
                 GitHub, pas même un dry-run. */}
-            <Panel title="Capacité de livraison" className="shrink-0">
-              <div className="space-y-1.5">
-                {[
-                  { label: 'Backend configuré', ok: delivery.backendConfigured },
-                  { label: 'GitHub configuré', ok: delivery.githubConfigured },
-                  { label: 'Poussée armée (GITHUB_PUSH_ENABLED)', ok: delivery.pushArmed },
-                ].map((lock) => {
-                  const badge = yesNoBadge(lock.ok)
-                  return (
-                  <div key={lock.label} className="flex items-center gap-2">
-                    <Badge color={badge.color}>{badge.label}</Badge>
-                    <Text className="truncate">{lock.label}</Text>
-                  </div>
-                  )
-                })}
-                <Divider soft className="my-2!" />
-                <Text className="text-xs">
-                  {delivery.realDeliveryEnabled
-                    ? "Une livraison réelle est possible : elle exigerait en plus `confirm: true` dans la requête. Aucune écriture n'est déclenchée depuis cet écran."
-                    : "Une livraison réelle est impossible en l'état — toute poussée serait un dry-run."}
-                </Text>
-              </div>
-            </Panel>
+              <Panel title="Capacité de livraison" className="shrink-0">
+                <div className="space-y-1.5">
+                  {[
+                    {
+                      label: 'Backend configuré',
+                      ok: delivery.backendConfigured,
+                    },
+                    {
+                      label: 'GitHub configuré',
+                      ok: delivery.githubConfigured,
+                    },
+                    {
+                      label: 'Poussée armée (GITHUB_PUSH_ENABLED)',
+                      ok: delivery.pushArmed,
+                    },
+                  ].map((lock) => {
+                    const badge = yesNoBadge(lock.ok)
+                    return (
+                      <div key={lock.label} className="flex items-center gap-2">
+                        <Badge color={badge.color}>{badge.label}</Badge>
+                        <Text className="truncate">{lock.label}</Text>
+                      </div>
+                    )
+                  })}
+                  <Divider soft className="my-2!" />
+                  <Text className="text-xs">
+                    {delivery.realDeliveryEnabled
+                      ? "Une livraison réelle est possible : elle exigerait en plus `confirm: true` dans la requête. Aucune écriture n'est déclenchée depuis cet écran."
+                      : "Une livraison réelle est impossible en l'état — toute poussée serait un dry-run."}
+                  </Text>
+                </div>
+              </Panel>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

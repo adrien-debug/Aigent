@@ -9,9 +9,7 @@
  * ZÉRO-SCROLL : la page ne pousse jamais le shell hors du viewport. La boîte est
  * à hauteur bornée et c'est la donnée qui défile à l'intérieur.
  */
-import { Divider } from '@/components/ui/divider'
-import { Heading } from '@/components/ui/heading'
-import { Text } from '@/components/ui/text'
+import { PageBody, PageHeader } from '@/components/app-shell'
 import { runtimeTab, type RuntimeTabId } from './model'
 import RuntimeTabBar from './tab-bar'
 import LangGraphTab from './tab-langgraph'
@@ -76,30 +74,36 @@ export default function RuntimeScreen({
   const tab = runtimeTab(current)
 
   return (
-    <div className="shell-page-bounded max-lg:pl-14">
-      <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-        <header className="shrink-0">
-          <div className="flex flex-col gap-3 px-6 py-4">
-            <div className="min-w-0">
-              <Heading level={1}>Runtime</Heading>
-              <Text className="mt-1">{tab.purpose}</Text>
-            </div>
-            <RuntimeTabBar current={current} />
-          </div>
-          <Divider soft />
-        </header>
+    // Le titre, la description et la gouttière mobile de cet écran étaient
+    // recomposés à la main DANS le panneau ; `PageHeader` est la seule
+    // implémentation du produit et porte déjà son sticky et son `max-lg:pl-16`.
+    // La piste d'onglets descend dans `meta` : c'est le contexte de navigation
+    // de la surface, pas une action.
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <PageHeader
+        title="Runtime"
+        description={tab.purpose}
+        meta={<RuntimeTabBar current={current} />}
+      />
 
-        {/* `overflow-y-auto`, PAS `overflow-hidden` : un onglet dense (LangGraph
-         * en porte six) dépassait la hauteur disponible et ses derniers
-         * panneaux étaient COUPÉS à zéro — « Assistants du serveur » et
-         * « Threads récents » mesuraient 0 px, contenu inatteignable, sans que
-         * rien ne l'indique. Le zéro-scroll de la PAGE est tenu par le `h-full
-         * overflow-hidden` du parent ; c'est ici, dans la zone bornée, que la
-         * donnée doit défiler. Box fixe, data qui scrolle dedans. */}
-        <div className="scroll-thin flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
-          <TabPanel payload={payload} />
-        </div>
-      </section>
+      <PageBody className="min-h-0 flex-1">
+        {/* Le panneau courant — `aig-panel` porte le fond, le liseré, le rayon
+            et l'élévation en un seul jeton. La pile
+            `bg-white/shadow-xs/ring-1` + son scope `dark:` disait la même chose
+            en quatre décisions locales qu'aucun autre écran ne partageait. */}
+        <section className="aig-panel flex min-h-0 flex-1 flex-col overflow-hidden">
+          {/* `overflow-y-auto`, PAS `overflow-hidden` : un onglet dense (LangGraph
+           * en porte six) dépassait la hauteur disponible et ses derniers
+           * panneaux étaient COUPÉS à zéro — « Assistants du serveur » et
+           * « Threads récents » mesuraient 0 px, contenu inatteignable, sans que
+           * rien ne l'indique. Le zéro-scroll de la PAGE est tenu par le
+           * `overflow-hidden` du parent ; c'est ici, dans la zone bornée, que la
+           * donnée doit défiler. Box fixe, data qui scrolle dedans. */}
+          <div className="scroll-thin flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
+            <TabPanel payload={payload} />
+          </div>
+        </section>
+      </PageBody>
     </div>
   )
 }

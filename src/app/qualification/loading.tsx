@@ -17,11 +17,11 @@ export default function Loading() {
   return (
     <AppShell>
       <div className="h-full p-4">
-        <div className="flex h-full items-center justify-center rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div className="aig-panel flex h-full items-center justify-center">
           <div className="flex items-center gap-3 px-6">
             <span
               aria-hidden="true"
-              className="pulse-live size-1.5 shrink-0 rounded-full bg-zinc-400 dark:bg-zinc-500"
+              className="pulse-live aig-text-faint size-1.5 shrink-0 rounded-full bg-current"
             />
             <Text>Lecture des preuves de qualification…</Text>
           </div>

@@ -35,10 +35,23 @@ function isReferenced(componentFile, corpus) {
   const base = path.basename(noExt)
   const importPath = '@/' + noExt.replace(/^src\//, '')
 
+  /*
+   * LES AIGUILLES DOIVENT COUVRIR UN IMPORT RELATIF **MULTI-SEGMENT**.
+   *
+   * La liste ne portait que `./<base>` et `../<base>` — un seul segment. Un
+   * import parfaitement ordinaire comme
+   *   `import X from './states/visualization-state'`
+   * n'était donc reconnu par AUCUNE aiguille, et la gate déclarait mort un
+   * composant rendu à l'écran (constaté sur
+   * `visualizations/states/visualization-state.tsx`, importé par
+   * `embedded-visualization.tsx` et visible dans `/lab/visualizations`).
+   *
+   * C'est le pire mode de défaillance possible pour cette gate : elle POUSSE à
+   * supprimer du code vivant. On cherche donc le chemin relatif réel, calculé
+   * depuis le fichier qui importe, plutôt qu'un basename nu.
+   */
   const needles = [
     importPath,
-    `./${base}`,
-    `../${base}`,
     `'/${base}'`,
     `"/${base}"`,
     `'/${base}.tsx'`,
@@ -50,6 +63,16 @@ function isReferenced(componentFile, corpus) {
     for (const needle of needles) {
       if (content.includes(needle)) return true
     }
+
+    // Le chemin relatif tel que CE fichier devrait l'écrire pour atteindre le
+    // composant. `path.relative` rend `states/visualization-state` ; un import
+    // s'écrit `./states/…`, d'où le préfixe quand il n'y a pas déjà de `..`.
+    const fromDir = path.dirname(fileRel)
+    let relImport = path.relative(fromDir, noExt).replaceAll('\\', '/')
+    if (!relImport.startsWith('.')) relImport = `./${relImport}`
+    // Bornage par le quote fermant : sans lui, `./run-list` matcherait aussi
+    // `./run-list-extra`, et un composant mort passerait pour vivant.
+    if (content.includes(`${relImport}'`) || content.includes(`${relImport}"`)) return true
   }
   return false
 }

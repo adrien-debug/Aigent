@@ -5,6 +5,22 @@ import { useEffect, useState } from 'react'
 import type { EnvelopeDensity, ResolvedVisualization } from './embed/contract'
 import VisualizationStateView from './states/visualization-state'
 
+/*
+ * LA FEUILLE DE STYLE VOYAGE AVEC LE COMPOSANT QUI EN A BESOIN.
+ *
+ * Elle était importée par `visualization-lab.tsx` — la PAGE du laboratoire.
+ * Tant que les panneaux ne vivaient que là, ça tenait. Depuis qu'ils sont
+ * embarqués dans les pages produit (`/runs`, `/agents`), qui ne rendent jamais
+ * le laboratoire, la feuille n'était plus chargée du tout : les `viz-*` ne
+ * résolvaient rien et les SVG des états retombaient sur le `fill` noir par
+ * défaut du navigateur — des carrés noirs pleins à la place des blueprints,
+ * constaté au rendu réel sur `/runs`.
+ *
+ * L'importer ICI la lie au seul composant qui consomme réellement ces classes.
+ * Next dédoublonne : la charger deux fois via le laboratoire ne coûte rien.
+ */
+import './visualizations.css'
+
 /**
  * L'enveloppe Aigent autour d'un panneau source — AIGENT-VISUALIZATION-LAB-003.
  *
@@ -57,6 +73,25 @@ export default function EmbeddedVisualization({
   useEffect(() => {
     // Une démo ne sonde rien : son état est forcé, par définition.
     if (forcedState || demo) return
+
+    /*
+     * ON NE RE-SONDE QUE CE QUE LE SERVEUR A DÉCLARÉ `READY`.
+     *
+     * La re-sonde existe pour un seul risque : un panneau que le serveur a vu
+     * vivant AU RENDU et qui serait mort depuis, laissant un cadre vide sous un
+     * badge vert. Un panneau déjà résolu `NOT_CONFIGURED` ou `UNAVAILABLE` ne
+     * court pas ce risque — son cadre dit déjà la vérité, et le re-sonder ne
+     * peut rien améliorer.
+     *
+     * Le sonder quand même avait un coût réel et visible : sur `/runs` sans
+     * `GRAFANA_URL`, six requêtes partaient vers `/api/agent-ops/**` — surface
+     * gardée par `src/proxy.ts` — et rendaient six 401 dans la console d'un
+     * opérateur non authentifié. Six erreurs rouges pour confirmer une absence
+     * que la page affichait déjà correctement : du bruit qui apprend à ignorer
+     * la console, exactement là où elle devrait rester lisible.
+     */
+    if (viz.state !== 'READY') return
+
     const controller = new AbortController()
     fetch(`/api/agent-ops/visualizations/${viz.id}`, {
       signal: controller.signal,
@@ -75,7 +110,7 @@ export default function EmbeddedVisualization({
         setLiveReason('La vérification de la source n’a pas abouti.')
       })
     return () => controller.abort()
-  }, [viz.id, forcedState, demo])
+  }, [viz.id, viz.state, forcedState, demo])
 
   const state = forcedState ?? liveState ?? viz.state
   const reason = forcedState ? viz.reason : (liveReason ?? viz.reason)

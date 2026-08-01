@@ -135,7 +135,12 @@ interface Outcome {
   refused: boolean
 }
 
-const IDLE: Outcome = { phase: 'idle', title: '', detail: null, refused: false }
+const IDLE: Outcome = {
+  phase: 'idle',
+  title: '',
+  detail: null,
+  refused: false,
+}
 
 /**
  * Le corps d'une mutation, avec son mode d'exécution.
@@ -188,7 +193,12 @@ interface ActionButtonProps {
  * confirmation, l'armement du mode live, la politique de sécurité, les routes
  * appelées et leurs corps. Un filtre de RENDU, rien d'autre.
  */
-export type ConsoleSection = 'suites' | 'qualification' | 'shadowReplay' | 'promotion' | 'improvement'
+export type ConsoleSection =
+  | 'suites'
+  | 'qualification'
+  | 'shadowReplay'
+  | 'promotion'
+  | 'improvement'
 
 export const ALL_CONSOLE_SECTIONS: readonly ConsoleSection[] = [
   'suites',
@@ -267,10 +277,7 @@ function benchmarkSweepDisabledReason(target: ConsoleTarget): string {
   return 'Aucune suite de benchmark n’existe pour ce copilot — il n’y a rien à balayer.'
 }
 
-function replayDisabledReason(
-  version: string | null,
-  target: ConsoleTarget,
-): string {
+function replayDisabledReason(version: string | null, target: ConsoleTarget): string {
   if (version === null) {
     return 'Aucune version candidate ne résout pour ce copilot.'
   }
@@ -301,9 +308,7 @@ function rejectDisabledReason(target: ConsoleTarget): string {
   return 'Cette proposition est déjà décidée — une décision ne se rejoue pas (409).'
 }
 
-function modelsSelectionSummary(
-  parsedModels: { modelProvider: string; model: string }[],
-): string {
+function modelsSelectionSummary(parsedModels: { modelProvider: string; model: string }[]): string {
   if (parsedModels.length === 0) {
     return 'Aucune ligne valide — le balayage ne peut pas partir.'
   }
@@ -317,8 +322,8 @@ function OutcomeNote({ outcome }: Readonly<OutcomeNoteProps>) {
   if (outcome.phase === 'running') {
     return (
       <Note tone="info" title={outcome.title}>
-        L’action est partie. Cette surface n’a pas de canal de progression : le résultat
-        arrivera avec la réponse de la route.
+        L’action est partie. Cette surface n’a pas de canal de progression : le résultat arrivera
+        avec la réponse de la route.
       </Note>
     )
   }
@@ -349,12 +354,25 @@ function OutcomeNote({ outcome }: Readonly<OutcomeNoteProps>) {
  * marche pas » sans explication est précisément ce qui envoie un opérateur
  * chercher une panne là où il n'y a qu'un invariant.
  */
-function ActionButton({ job, busy, onOpen, disabled, disabledReason, color }: Readonly<ActionButtonProps>) {
+function ActionButton({
+  job,
+  busy,
+  onOpen,
+  disabled,
+  disabledReason,
+  color,
+}: Readonly<ActionButtonProps>) {
   const title = disabled ? disabledReason : job.descriptor.intent
   const isDisabled = disabled || busy
   if (color) {
     return (
-      <Button type="button" color={color} disabled={isDisabled} title={title} onClick={() => onOpen(job)}>
+      <Button
+        type="button"
+        color={color}
+        disabled={isDisabled}
+        title={title}
+        onClick={() => onOpen(job)}
+      >
         {job.descriptor.label}
       </Button>
     )
@@ -412,7 +430,12 @@ export default function QualificationConsole({
       // seulement telle que l'opérateur l'a saisie — aucune valeur par défaut.
       const body = job.needsModels ? { ...baseBody, models: parseModelList(modelList) } : baseBody
       setBusy(true)
-      setOutcome({ phase: 'running', title: `${descriptor.label}…`, detail: null, refused: false })
+      setOutcome({
+        phase: 'running',
+        title: `${descriptor.label}…`,
+        detail: null,
+        refused: false,
+      })
       try {
         const res = await fetch(job.path, {
           method: 'POST',
@@ -441,7 +464,12 @@ export default function QualificationConsole({
           })
           return
         }
-        setOutcome({ phase: 'ok', title: job.consequence, detail: null, refused: false })
+        setOutcome({
+          phase: 'ok',
+          title: job.consequence,
+          detail: null,
+          refused: false,
+        })
         setPending(null)
         setArmLive(false)
         setModels('')
@@ -472,294 +500,322 @@ export default function QualificationConsole({
           rendu UNE fois, dans la colonne de décision, où il pèse — voir
           `cockpit-screen.tsx`. En mode plein, il reste ici. */}
       {!bare && target.runBlockers.length > 0 ? (
-        <Note tone="blocked" title={`La garde d’exécution refuserait un lancement — ${target.runBlockers.length} raison(s)`}>
+        <Note
+          tone="blocked"
+          title={`La garde d’exécution refuserait un lancement — ${target.runBlockers.length} raison(s)`}
+        >
           Les trois conditions doivent tenir ensemble : statut « active », aucun outil non résolu,
-          runtime « langgraph ». Les actions qui exécutent réellement l’agent restent proposées, mais
-          la route répondra 409 avec ces mêmes raisons — l’écran ne masque pas un refus qu’il ne
-          contrôle pas.
+          runtime « langgraph ». Les actions qui exécutent réellement l’agent restent proposées,
+          mais la route répondra 409 avec ces mêmes raisons — l’écran ne masque pas un refus qu’il
+          ne contrôle pas.
         </Note>
       ) : null}
 
       {/* ─── Suites & exécutions ─── */}
       {shows('suites') ? (
-      <section className="flex flex-col gap-2">
-        {bare ? null : <Strong>Tests & benchmarks</Strong>}
-        <div className="flex flex-wrap gap-2">
-          <ActionButton
-            busy={busy}
-            onOpen={open}
-            job={{
-              descriptor: GENERATE_SUITE,
-              path: `${base}/tests/generate`,
-              body: {},
-              consequence:
-                'Suite de tests et suite de benchmark générées et persistées. Rien n’a été exécuté.',
-            }}
-            // Dans le doute, l'action FACTURÉE reste éteinte. Un registre non
-            // lu ne prouve pas qu'aucune suite n'existe, et payer une
-            // génération LLM sur cette ignorance est le seul geste de cette
-            // surface qui coûte réellement de l'argent. La règle vient du
-            // serveur (`canGenerateSuites`) — elle n'est pas rejouée ici.
-            disabled={!target.canGenerateSuites}
-            disabledReason={suiteGenerateDisabledReason(target)}
-          />
-          <ActionButton
-            busy={busy}
-            onOpen={open}
-            job={{
-              descriptor: RUN_TESTS,
-              path: `${base}/tests/run`,
-              body: { suiteId: target.testSuiteId, versionId: version ?? undefined },
-              consequence: 'Suite exécutée : test_runs et test_results persistés.',
-            }}
-            disabled={target.testSuiteId === null}
-            disabledReason={suiteRunDisabledReason(target)}
-          />
-          <ActionButton
-            busy={busy}
-            onOpen={open}
-            job={{
-              descriptor: RUN_BENCHMARK,
-              path: `${base}/benchmarks/run`,
-              body: { suiteId: target.benchmarkSuiteId, versionId: version ?? undefined },
-              consequence: 'Benchmark exécuté : benchmark_runs et benchmark_results persistés.',
-            }}
-            disabled={target.benchmarkSuiteId === null}
-            disabledReason={benchmarkRunDisabledReason(target)}
-          />
-          <ActionButton
-            busy={busy}
-            onOpen={open}
-            job={{
-              descriptor: RUN_SWEEP,
-              path: `${base}/benchmarks/sweep`,
-              // Les modèles sont SAISIS dans le dialogue : cette surface n'a
-              // aucune source de vérité sur « les modèles à comparer », et en
-              // fabriquer une reviendrait à proposer jusqu'à huit exécutions
-              // facturées que personne n'a choisies.
-              body: { suiteId: target.benchmarkSuiteId, versionId: version ?? undefined },
-              needsModels: true,
-              consequence: 'Balayage terminé : un verdict par modèle, jamais un score fabriqué.',
-            }}
-            disabled={target.benchmarkSuiteId === null}
-            disabledReason={benchmarkSweepDisabledReason(target)}
-          />
-        </div>
-      </section>
+        <section className="flex flex-col gap-2">
+          {bare ? null : <Strong>Tests & benchmarks</Strong>}
+          <div className="flex flex-wrap gap-2">
+            <ActionButton
+              busy={busy}
+              onOpen={open}
+              job={{
+                descriptor: GENERATE_SUITE,
+                path: `${base}/tests/generate`,
+                body: {},
+                consequence:
+                  'Suite de tests et suite de benchmark générées et persistées. Rien n’a été exécuté.',
+              }}
+              // Dans le doute, l'action FACTURÉE reste éteinte. Un registre non
+              // lu ne prouve pas qu'aucune suite n'existe, et payer une
+              // génération LLM sur cette ignorance est le seul geste de cette
+              // surface qui coûte réellement de l'argent. La règle vient du
+              // serveur (`canGenerateSuites`) — elle n'est pas rejouée ici.
+              disabled={!target.canGenerateSuites}
+              disabledReason={suiteGenerateDisabledReason(target)}
+            />
+            <ActionButton
+              busy={busy}
+              onOpen={open}
+              job={{
+                descriptor: RUN_TESTS,
+                path: `${base}/tests/run`,
+                body: {
+                  suiteId: target.testSuiteId,
+                  versionId: version ?? undefined,
+                },
+                consequence: 'Suite exécutée : test_runs et test_results persistés.',
+              }}
+              disabled={target.testSuiteId === null}
+              disabledReason={suiteRunDisabledReason(target)}
+            />
+            <ActionButton
+              busy={busy}
+              onOpen={open}
+              job={{
+                descriptor: RUN_BENCHMARK,
+                path: `${base}/benchmarks/run`,
+                body: {
+                  suiteId: target.benchmarkSuiteId,
+                  versionId: version ?? undefined,
+                },
+                consequence: 'Benchmark exécuté : benchmark_runs et benchmark_results persistés.',
+              }}
+              disabled={target.benchmarkSuiteId === null}
+              disabledReason={benchmarkRunDisabledReason(target)}
+            />
+            <ActionButton
+              busy={busy}
+              onOpen={open}
+              job={{
+                descriptor: RUN_SWEEP,
+                path: `${base}/benchmarks/sweep`,
+                // Les modèles sont SAISIS dans le dialogue : cette surface n'a
+                // aucune source de vérité sur « les modèles à comparer », et en
+                // fabriquer une reviendrait à proposer jusqu'à huit exécutions
+                // facturées que personne n'a choisies.
+                body: {
+                  suiteId: target.benchmarkSuiteId,
+                  versionId: version ?? undefined,
+                },
+                needsModels: true,
+                consequence: 'Balayage terminé : un verdict par modèle, jamais un score fabriqué.',
+              }}
+              disabled={target.benchmarkSuiteId === null}
+              disabledReason={benchmarkSweepDisabledReason(target)}
+            />
+          </div>
+        </section>
       ) : null}
 
       <Divider soft />
 
       {/* ─── Qualification orchestrée ─── */}
       {shows('qualification') ? (
-      <section className="flex flex-col gap-2">
-        {bare ? null : <Strong>Qualification orchestrée</Strong>}
-        {bare ? null : (
-          <Text>
-            Le parcours tests → benchmark → shadow → replay → gate s’arrête à la gate. Il ne promeut
-            jamais : « promouvable » est un état, pas un acte.
-          </Text>
-        )}
-        <div className="flex flex-wrap gap-2">
-          <ActionButton
-            busy={busy}
-            onOpen={open}
-            job={{
-              descriptor: RUN_QUALIFICATION,
-              path: `${base}/qualification`,
-              body: { versionId: version, action: 'sweep' },
-              consequence:
-                'Parcours de qualification terminé — la gate a tranché. Aucune promotion n’a eu lieu.',
-            }}
-            disabled={version === null}
-            disabledReason="Aucune version candidate ne résout pour ce copilot."
-          />
-          <ActionButton
-            busy={busy}
-            onOpen={open}
-            job={{
-              descriptor: { ...RUN_QUALIFICATION, label: 'Avancer d’une étape' },
-              path: `${base}/qualification`,
-              body: { versionId: version, action: 'advance' },
-              consequence: 'Étape suivante exécutée, curseur avancé.',
-            }}
-            disabled={version === null}
-            disabledReason="Aucune version candidate ne résout pour ce copilot."
-          />
-        </div>
-      </section>
+        <section className="flex flex-col gap-2">
+          {bare ? null : <Strong>Qualification orchestrée</Strong>}
+          {bare ? null : (
+            <Text>
+              Le parcours tests → benchmark → shadow → replay → gate s’arrête à la gate. Il ne
+              promeut jamais : « promouvable » est un état, pas un acte.
+            </Text>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <ActionButton
+              busy={busy}
+              onOpen={open}
+              job={{
+                descriptor: RUN_QUALIFICATION,
+                path: `${base}/qualification`,
+                body: { versionId: version, action: 'sweep' },
+                consequence:
+                  'Parcours de qualification terminé — la gate a tranché. Aucune promotion n’a eu lieu.',
+              }}
+              disabled={version === null}
+              disabledReason="Aucune version candidate ne résout pour ce copilot."
+            />
+            <ActionButton
+              busy={busy}
+              onOpen={open}
+              job={{
+                descriptor: {
+                  ...RUN_QUALIFICATION,
+                  label: 'Avancer d’une étape',
+                },
+                path: `${base}/qualification`,
+                body: { versionId: version, action: 'advance' },
+                consequence: 'Étape suivante exécutée, curseur avancé.',
+              }}
+              disabled={version === null}
+              disabledReason="Aucune version candidate ne résout pour ce copilot."
+            />
+          </div>
+        </section>
       ) : null}
 
       <Divider soft />
 
       {/* ─── Shadow & replay ─── */}
       {shows('shadowReplay') ? (
-      <section className="flex flex-col gap-2">
-        {bare ? null : <Strong>Shadow & replay</Strong>}
-        {bare ? null : (
-          <Text>
-            Fixture par défaut. Le mode live est un choix explicite, armé dans le dialogue de
-            confirmation — et c’est le seul mode qu’une gate exigeante accepte.
-          </Text>
-        )}
-        <div className="flex flex-wrap gap-2">
-          <ActionButton
-            busy={busy}
-            onOpen={open}
-            job={{
-              descriptor: RUN_SHADOW_FIXTURE,
-              path: `${base}/versions/${encodeURIComponent(version ?? '')}/shadow`,
-              body: { useFixture: true },
-              liveDescriptor: RUN_SHADOW_LIVE,
-              liveBody: { useFixture: false },
-              consequence:
-                'Expérience shadow terminée et persistée, avec son mode d’exécution réel enregistré.',
-            }}
-            disabled={version === null}
-            disabledReason="Aucune version candidate ne résout pour ce copilot."
-          />
-          <ActionButton
-            busy={busy}
-            onOpen={open}
-            job={{
-              descriptor: RUN_REPLAY_FIXTURE,
-              path: `${base}/versions/${encodeURIComponent(version ?? '')}/replay`,
-              body: { useFixture: true },
-              liveDescriptor: RUN_REPLAY_LIVE,
-              liveBody: { useFixture: false },
-              consequence: 'Comparaison replay terminée et persistée.',
-            }}
-            disabled={version === null || target.productionVersionId === null}
-            disabledReason={replayDisabledReason(version, target)}
-          />
-        </div>
-      </section>
+        <section className="flex flex-col gap-2">
+          {bare ? null : <Strong>Shadow & replay</Strong>}
+          {bare ? null : (
+            <Text>
+              Fixture par défaut. Le mode live est un choix explicite, armé dans le dialogue de
+              confirmation — et c’est le seul mode qu’une gate exigeante accepte.
+            </Text>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <ActionButton
+              busy={busy}
+              onOpen={open}
+              job={{
+                descriptor: RUN_SHADOW_FIXTURE,
+                path: `${base}/versions/${encodeURIComponent(version ?? '')}/shadow`,
+                body: { useFixture: true },
+                liveDescriptor: RUN_SHADOW_LIVE,
+                liveBody: { useFixture: false },
+                consequence:
+                  'Expérience shadow terminée et persistée, avec son mode d’exécution réel enregistré.',
+              }}
+              disabled={version === null}
+              disabledReason="Aucune version candidate ne résout pour ce copilot."
+            />
+            <ActionButton
+              busy={busy}
+              onOpen={open}
+              job={{
+                descriptor: RUN_REPLAY_FIXTURE,
+                path: `${base}/versions/${encodeURIComponent(version ?? '')}/replay`,
+                body: { useFixture: true },
+                liveDescriptor: RUN_REPLAY_LIVE,
+                liveBody: { useFixture: false },
+                consequence: 'Comparaison replay terminée et persistée.',
+              }}
+              disabled={version === null || target.productionVersionId === null}
+              disabledReason={replayDisabledReason(version, target)}
+            />
+          </div>
+        </section>
       ) : null}
 
       <Divider soft />
 
       {/* ─── Promotion ─── */}
       {shows('promotion') ? (
-      <section className="flex flex-col gap-2">
-        {bare ? null : <Strong>Promotion</Strong>}
-        <Text>
-          Aucune promotion automatique n’existe. La RPC <code>promote_copilot_version</code> est
-          l’unique voie, verrouillée en base à trois niveaux ; cette interface la déclenche, elle ne
-          la contourne pas.
-        </Text>
-        <div className="flex flex-wrap gap-2">
-          <ActionButton
-            busy={busy}
-            onOpen={open}
-            color="red"
-            job={{
-              descriptor: PROMOTE,
-              path: `${base}/promotion`,
-              body: {
-                action: 'promote',
-                versionId: version,
-                previousProductionVersionId: target.productionVersionId,
-              },
-              // Même règle que le retour arrière : la version promue est
-              // NOMMÉE dans la confirmation, pas laissée à la mémoire.
-              consequence: target.candidateLabel
-                ? `Version ${target.candidateLabel} promue en production : la précédente est archivée et le pointeur du copilot est déplacé.`
-                : 'Version promue en production : la précédente est archivée et le pointeur du copilot est déplacé.',
-            }}
-            disabled={version === null || !target.promotable}
-            disabledReason={promoteDisabledReason(version)}
-          />
-          <ActionButton
-            busy={busy}
-            onOpen={open}
-            color="red"
-            job={{
-              descriptor: ROLLBACK,
-              path: `${base}/promotion`,
-              body: {
-                action: 'rollback',
-                versionId: target.rollbackTargetId,
-                previousProductionVersionId: target.productionVersionId,
-              },
-              // La conséquence NOMME la version cible : « revenir en arrière »
-              // sans dire vers quoi est exactement le genre de confirmation
-              // qu'on signe sans lire.
-              consequence: target.rollbackTargetLabel
-                ? `Production revenue à la version ${target.rollbackTargetLabel}, précédemment servie.`
-                : 'Production revenue à la version précédemment servie.',
-            }}
-            disabled={target.rollbackTargetId === null}
-            disabledReason={rollbackDisabledReason(target)}
-          />
-        </div>
-      </section>
+        <section className="flex flex-col gap-2">
+          {bare ? null : <Strong>Promotion</Strong>}
+          <Text>
+            Aucune promotion automatique n’existe. La RPC <code>promote_copilot_version</code> est
+            l’unique voie, verrouillée en base à trois niveaux ; cette interface la déclenche, elle
+            ne la contourne pas.
+          </Text>
+          <div className="flex flex-wrap gap-2">
+            <ActionButton
+              busy={busy}
+              onOpen={open}
+              color="red"
+              job={{
+                descriptor: PROMOTE,
+                path: `${base}/promotion`,
+                body: {
+                  action: 'promote',
+                  versionId: version,
+                  previousProductionVersionId: target.productionVersionId,
+                },
+                // Même règle que le retour arrière : la version promue est
+                // NOMMÉE dans la confirmation, pas laissée à la mémoire.
+                consequence: target.candidateLabel
+                  ? `Version ${target.candidateLabel} promue en production : la précédente est archivée et le pointeur du copilot est déplacé.`
+                  : 'Version promue en production : la précédente est archivée et le pointeur du copilot est déplacé.',
+              }}
+              disabled={version === null || !target.promotable}
+              disabledReason={promoteDisabledReason(version)}
+            />
+            <ActionButton
+              busy={busy}
+              onOpen={open}
+              color="red"
+              job={{
+                descriptor: ROLLBACK,
+                path: `${base}/promotion`,
+                body: {
+                  action: 'rollback',
+                  versionId: target.rollbackTargetId,
+                  previousProductionVersionId: target.productionVersionId,
+                },
+                // La conséquence NOMME la version cible : « revenir en arrière »
+                // sans dire vers quoi est exactement le genre de confirmation
+                // qu'on signe sans lire.
+                consequence: target.rollbackTargetLabel
+                  ? `Production revenue à la version ${target.rollbackTargetLabel}, précédemment servie.`
+                  : 'Production revenue à la version précédemment servie.',
+              }}
+              disabled={target.rollbackTargetId === null}
+              disabledReason={rollbackDisabledReason(target)}
+            />
+          </div>
+        </section>
       ) : null}
 
       <Divider soft />
 
       {/* ─── Boucle d'amélioration & décision humaine ─── */}
       {shows('improvement') ? (
-      <section className="flex flex-col gap-2">
-        {bare ? null : <Strong>Boucle d’amélioration · décision humaine</Strong>}
-        {target.openProposalId ? (
-          <Note tone="info" title="Une boucle d’amélioration est déjà ouverte">
-            La base n’en tolère qu’une seule par copilot : une nouvelle analyse serait refusée (409).
-            Ce n’est pas une erreur — c’est l’invariant qui vous demande de DÉCIDER celle-ci d’abord.
-          </Note>
-        ) : null}
-        <div className="flex flex-wrap gap-2">
-          <ActionButton
-            busy={busy}
-            onOpen={open}
-            job={{
-              descriptor: ANALYZE,
-              path: `${base}/improve/analyze`,
-              body: { triggeredBy: 'operator' },
-              consequence: 'Analyse terminée : une proposition d’amélioration a été persistée.',
-            }}
-            disabled={target.openProposalId !== null}
-            disabledReason="Une boucle est déjà ouverte pour ce copilot. Décidez-la avant d’en ouvrir une autre."
-          />
-          <ActionButton
-            busy={busy}
-            onOpen={open}
-            job={{
-              descriptor: CREATE_V2,
-              path: `${base}/improve/create-v2`,
-              body: { proposalId: target.proposalId },
-              consequence:
-                'V2 matérialisée en brouillon, assistant re-provisionné. Rien n’est promu.',
-            }}
-            disabled={target.proposalStatus !== 'proposed'}
-            disabledReason="La matérialisation n’est possible que sur une proposition à l’état « proposée »."
-          />
-          <ActionButton
-            busy={busy}
-            onOpen={open}
-            job={{
-              descriptor: DECIDE_APPROVE,
-              path: `${base}/improve/decision`,
-              body: { proposalId: target.proposalId, decision: 'approved', decidedBy: 'operator' },
-              consequence: 'Décision humaine enregistrée : boucle approuvée. Rien n’a été promu.',
-            }}
-            disabled={target.proposalStatus !== 'v2-created'}
-            disabledReason="Une approbation exige que la V2 existe déjà : la route refuse une approbation sans V2 (409)."
-          />
-          <ActionButton
-            busy={busy}
-            onOpen={open}
-            color="zinc"
-            job={{
-              descriptor: DECIDE_REJECT,
-              path: `${base}/improve/decision`,
-              body: { proposalId: target.proposalId, decision: 'rejected', decidedBy: 'operator' },
-              consequence: 'Décision humaine enregistrée : boucle rejetée.',
-            }}
-            disabled={target.proposalId === null || target.proposalStatus === 'approved' || target.proposalStatus === 'rejected'}
-            disabledReason={rejectDisabledReason(target)}
-          />
-        </div>
-      </section>
+        <section className="flex flex-col gap-2">
+          {bare ? null : <Strong>Boucle d’amélioration · décision humaine</Strong>}
+          {target.openProposalId ? (
+            <Note tone="info" title="Une boucle d’amélioration est déjà ouverte">
+              La base n’en tolère qu’une seule par copilot : une nouvelle analyse serait refusée
+              (409). Ce n’est pas une erreur — c’est l’invariant qui vous demande de DÉCIDER
+              celle-ci d’abord.
+            </Note>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
+            <ActionButton
+              busy={busy}
+              onOpen={open}
+              job={{
+                descriptor: ANALYZE,
+                path: `${base}/improve/analyze`,
+                body: { triggeredBy: 'operator' },
+                consequence: 'Analyse terminée : une proposition d’amélioration a été persistée.',
+              }}
+              disabled={target.openProposalId !== null}
+              disabledReason="Une boucle est déjà ouverte pour ce copilot. Décidez-la avant d’en ouvrir une autre."
+            />
+            <ActionButton
+              busy={busy}
+              onOpen={open}
+              job={{
+                descriptor: CREATE_V2,
+                path: `${base}/improve/create-v2`,
+                body: { proposalId: target.proposalId },
+                consequence:
+                  'V2 matérialisée en brouillon, assistant re-provisionné. Rien n’est promu.',
+              }}
+              disabled={target.proposalStatus !== 'proposed'}
+              disabledReason="La matérialisation n’est possible que sur une proposition à l’état « proposée »."
+            />
+            <ActionButton
+              busy={busy}
+              onOpen={open}
+              job={{
+                descriptor: DECIDE_APPROVE,
+                path: `${base}/improve/decision`,
+                body: {
+                  proposalId: target.proposalId,
+                  decision: 'approved',
+                  decidedBy: 'operator',
+                },
+                consequence: 'Décision humaine enregistrée : boucle approuvée. Rien n’a été promu.',
+              }}
+              disabled={target.proposalStatus !== 'v2-created'}
+              disabledReason="Une approbation exige que la V2 existe déjà : la route refuse une approbation sans V2 (409)."
+            />
+            <ActionButton
+              busy={busy}
+              onOpen={open}
+              color="zinc"
+              job={{
+                descriptor: DECIDE_REJECT,
+                path: `${base}/improve/decision`,
+                body: {
+                  proposalId: target.proposalId,
+                  decision: 'rejected',
+                  decidedBy: 'operator',
+                },
+                consequence: 'Décision humaine enregistrée : boucle rejetée.',
+              }}
+              disabled={
+                target.proposalId === null ||
+                target.proposalStatus === 'approved' ||
+                target.proposalStatus === 'rejected'
+              }
+              disabledReason={rejectDisabledReason(target)}
+            />
+          </div>
+        </section>
       ) : null}
 
       {/* ─── Résultat de la dernière action ─── */}
@@ -838,19 +894,18 @@ function ConfirmBody({
 
           <Text>{effective.cost.detail}</Text>
 
-          <div className="rounded-md border border-zinc-950/10 bg-zinc-950/2.5 px-3 py-2 dark:border-white/10 dark:bg-white/2.5">
+          {/* La conséquence est ce qu'on lit juste avant de signer : elle doit
+              RESSORTIR du corps du dialogue. `aig-raised` porte ce rôle — le
+              fond dosé à la main et son scope `dark:` n'étaient qu'une manière
+              détournée de dire « un cran au-dessus ». */}
+          <div className="aig-raised aig-line rounded-md border px-3 py-2">
             <Text className="text-xs">Si l’action réussit</Text>
             <Text className="mt-0.5">{job.consequence}</Text>
           </div>
 
           {job.liveDescriptor ? (
             <CheckboxField>
-              <Checkbox
-                name="live"
-                checked={armLive}
-                onChange={onArmLive}
-                disabled={busy}
-              />
+              <Checkbox name="live" checked={armLive} onChange={onArmLive} disabled={busy} />
               <Label>Passer en exécution LIVE</Label>
               <Description>
                 {job.liveDescriptor.cost.detail} La fixture reste le défaut : décocher revient à une
@@ -867,10 +922,10 @@ function ConfirmBody({
               <Label>Modèles à balayer</Label>
               <Description>
                 Une paire <code>provider:modèle</code> par ligne — par exemple{' '}
-                <code>openai:gpt-4o-mini</code>. Providers acceptés :{' '}
-                <code>openai</code>, <code>google</code>, <code>local</code>. Huit au maximum, et
-                chaque ligne est une exécution complète de la suite, facturée séparément. Une ligne
-                mal formée est écartée : elle n’est ni devinée ni envoyée.
+                <code>openai:gpt-4o-mini</code>. Providers acceptés : <code>openai</code>,{' '}
+                <code>google</code>, <code>local</code>. Huit au maximum, et chaque ligne est une
+                exécution complète de la suite, facturée séparément. Une ligne mal formée est
+                écartée : elle n’est ni devinée ni envoyée.
               </Description>
               <Textarea
                 name="models"

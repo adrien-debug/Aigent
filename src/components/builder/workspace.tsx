@@ -32,18 +32,17 @@
 import { useCallback, useMemo, useRef, useState, type ComponentProps } from 'react'
 import { useRouter } from 'next/navigation'
 
+import { PageHeader } from '@/components/app-shell'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Divider } from '@/components/ui/divider'
-import { Heading, Subheading } from '@/components/ui/heading'
+import { Subheading } from '@/components/ui/heading'
 import { Strong, Text } from '@/components/ui/text'
 import { Textarea } from '@/components/ui/textarea'
 import { Panel, Unavailable } from '@/components/cockpit/primitives'
 import type { BuilderRunState } from '@/lib/agent-mission-control/agent-builder-run'
 import type { ProjectBuilderStreamEvent } from '@/lib/agent-mission-control/project-builder-stream-protocol'
-import type {
-  ProjectBuilderConversationBundle,
-} from '@/lib/agent-mission-control/project-builder-types'
+import type { ProjectBuilderConversationBundle } from '@/lib/agent-mission-control/project-builder-types'
 import { consumeSSE, isProjectBuilderTerminal } from '@/lib/agent-mission-control/sse-client'
 import { CostedConfirmDialog, useCostedConfirm } from './confirm-dialog'
 import {
@@ -189,7 +188,9 @@ async function mutate(
 
   if (!response.ok) {
     const message =
-      body !== null && typeof body === 'object' && typeof (body as { error?: unknown }).error === 'string'
+      body !== null &&
+      typeof body === 'object' &&
+      typeof (body as { error?: unknown }).error === 'string'
         ? (body as { error: string }).error
         : `HTTP ${response.status}`
     return { ok: false, error: classify(response.status, message) }
@@ -204,7 +205,10 @@ function ErrorNote({ error }: Readonly<{ error: MutationError }>) {
   const color = mutationErrorColor(error.kind)
 
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-dashed border-zinc-950/10 p-3 dark:border-white/10">
+    // Une erreur DOIT ressortir : `aig-panel-raised` la monte d'un palier
+    // au-dessus du panneau qui la porte. Le tiret reste — il distingue une note
+    // d'état d'un contenu persisté.
+    <div className="aig-panel-raised flex items-start gap-2 border-dashed p-3">
       <Badge color={color}>{label}</Badge>
       <Text className="min-w-0 flex-1 wrap-break-word">{error.message}</Text>
     </div>
@@ -238,9 +242,7 @@ function ChatThread({
       {lines.map((line) => (
         <li key={line.id} className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
-            <Badge color={chatRoleBadgeColor(line.role)}>
-              {chatRoleLabel(line.role)}
-            </Badge>
+            <Badge color={chatRoleBadgeColor(line.role)}>{chatRoleLabel(line.role)}</Badge>
           </div>
           <Text className="whitespace-pre-wrap wrap-break-word">{line.content}</Text>
         </li>
@@ -263,9 +265,7 @@ function ToolRow({ tool }: Readonly<{ tool: PreviewView['tools'][number] }>) {
       {/* Description absente ≠ description vide : on nomme l'absence. */}
       <Text className="text-xs">
         {tool.description ?? (
-          <span className="text-zinc-500 dark:text-zinc-400">
-            description non fournie par l’architecte
-          </span>
+          <span className="aig-text-faint">description non fournie par l’architecte</span>
         )}
       </Text>
     </li>
@@ -325,10 +325,7 @@ function SpecPanel({
             {preview.options.map((option) => {
               const selected = preview.selectedOptionId === option.id
               return (
-                <li
-                  key={option.id}
-                  className="rounded-lg border border-zinc-950/10 p-2 dark:border-white/10"
-                >
+                <li key={option.id} className="aig-line border p-2 rounded-lg">
                   <div className="flex items-center gap-2">
                     <Strong className="min-w-0 flex-1 truncate">{option.title}</Strong>
                     {renderOptionAction(selected, canSelect, selecting, option.id, onSelectOption)}
@@ -344,7 +341,7 @@ function SpecPanel({
       {preview.tools.length > 0 ? (
         <div>
           <Text className="mb-1 font-medium">Outils ({preview.tools.length})</Text>
-          <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
+          <ul className="divide-y divide-white/5">
             {preview.tools.map((tool) => (
               <ToolRow key={tool.name} tool={tool} />
             ))}
@@ -358,7 +355,7 @@ function SpecPanel({
           <ol className="flex flex-col gap-1">
             {preview.flow.map((step, index) => (
               <li key={step} className="flex gap-2">
-                <span className="shrink-0 font-mono text-xs text-zinc-500">{index + 1}.</span>
+                <span className="aig-text-faint shrink-0 font-mono text-xs">{index + 1}.</span>
                 <Text className="text-xs">{step}</Text>
               </li>
             ))}
@@ -389,7 +386,7 @@ function SpecPanel({
         <Text className="text-xs">
           <Strong>Étapes max par run :</Strong>{' '}
           {preview.maxStepsPerRun === null ? (
-            <span className="text-zinc-500 dark:text-zinc-400">non fixé par l’architecte</span>
+            <span className="aig-text-faint">non fixé par l’architecte</span>
           ) : (
             preview.maxStepsPerRun
           )}
@@ -422,7 +419,7 @@ function StreamProgressNote({ progress }: Readonly<{ progress: StreamProgress }>
   const color = streamPhaseColor(progress.phase)
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-dashed border-zinc-950/10 p-3 dark:border-white/10">
+    <div className="aig-panel-raised flex flex-col gap-2 border-dashed p-3">
       <div className="flex flex-wrap items-center gap-2">
         <Badge color={color}>{progress.label}</Badge>
         {/* Une mesure réelle — le nombre de fragments reçus — jamais un pourcentage inventé. */}
@@ -436,8 +433,11 @@ function StreamProgressNote({ progress }: Readonly<{ progress: StreamProgress }>
 
       {progress.detail ? <Text className="text-xs">{progress.detail}</Text> : null}
 
+      {/* La prose reçue est de la DONNÉE : elle vit dans un creux
+          (`aig-subtle`), pas sur le fond du panneau. Hauteur bornée inchangée —
+          la boîte ne grandit pas avec le flux. */}
       {progress.text.length > 0 ? (
-        <div className="max-h-40 min-h-0 overflow-y-auto rounded-md bg-zinc-950/5 p-2 dark:bg-white/5">
+        <div className="aig-subtle max-h-40 min-h-0 overflow-y-auto rounded-md p-2">
           <Text className="text-xs whitespace-pre-wrap wrap-break-word">{progress.text}</Text>
         </div>
       ) : null}
@@ -478,15 +478,13 @@ function HitlPanel({
   return (
     <div className="flex flex-col gap-3 p-4">
       <div className="flex items-center gap-2">
-        <Badge color={hitlPhaseColor(hitl.phase)}>
-          {hitl.label}
-        </Badge>
+        <Badge color={hitlPhaseColor(hitl.phase)}>{hitl.label}</Badge>
       </div>
 
       {hitl.actionHint ? <Text>{hitl.actionHint}</Text> : null}
 
       {hitl.question ? (
-        <div className="rounded-lg border border-zinc-950/10 p-3 dark:border-white/10">
+        <div className="aig-line rounded-lg border p-3">
           <Text className="font-medium">Question du graphe</Text>
           <Text className="mt-1 whitespace-pre-wrap">{hitl.question}</Text>
         </div>
@@ -503,8 +501,8 @@ function HitlPanel({
             {hitl.pendingTool.argumentsSummary}
           </Text>
           <Text className="mt-1 text-xs">
-            L’outil est retenu au point d’arrêt : il ne s’exécutera que si la décision est
-            « approuver ».
+            L’outil est retenu au point d’arrêt : il ne s’exécutera que si la décision est «
+            approuver ».
           </Text>
         </div>
       ) : null}
@@ -557,7 +555,10 @@ export default function BuilderWorkspace({
   const threadRef = useRef<HTMLDivElement | null>(null)
 
   const conversation = bundle?.conversation ?? null
-  const preview = useMemo(() => buildPreviewView(conversation?.latestPreview ?? null), [conversation])
+  const preview = useMemo(
+    () => buildPreviewView(conversation?.latestPreview ?? null),
+    [conversation],
+  )
   const lines = useMemo(() => buildChatLines(bundle?.messages ?? []), [bundle])
   const hitl = useMemo(
     () => buildHitlView(liveRun === undefined ? (bundle?.runState ?? null) : liveRun, conversation),
@@ -606,7 +607,12 @@ export default function BuilderWorkspace({
         setStream((current) =>
           result.error.status === null
             ? markStreamInterrupted(current, result.error.message)
-            : { ...current, phase: 'failed', label: 'Tour en échec', detail: result.error.message },
+            : {
+                ...current,
+                phase: 'failed',
+                label: 'Tour en échec',
+                detail: result.error.message,
+              },
         )
         setError(result.error)
         return
@@ -648,7 +654,10 @@ export default function BuilderWorkspace({
         `/api/agent-ops/projects/${encodeURIComponent(projectId)}/builder/message?stream=1`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'text/event-stream',
+          },
           body: JSON.stringify({ content }),
         },
       )
@@ -671,7 +680,9 @@ export default function BuilderWorkspace({
         body = null
       }
       const message =
-        body !== null && typeof body === 'object' && typeof (body as { error?: unknown }).error === 'string'
+        body !== null &&
+        typeof body === 'object' &&
+        typeof (body as { error?: unknown }).error === 'string'
           ? (body as { error: string }).error
           : `HTTP ${response.status}`
       const failure = classify(response.status, message)
@@ -843,22 +854,24 @@ export default function BuilderWorkspace({
   // Lecture impossible : on ne rend AUCUN champ plutôt que des champs vides.
   if (backendUnavailable || unreadable || !conversation) {
     return (
-      <div className="shell-page-bounded flex min-h-0 flex-col gap-3 max-lg:pl-14">
-        <header className="shrink-0 px-1">
-          <Heading level={1}>{projectName}</Heading>
-          <Text className="mt-1">{repoFullName ?? 'aucun dépôt lié'}</Text>
-        </header>
-        <Panel title="Conversation d’authoring" className="min-h-0 flex-1">
-          <Unavailable
-            reason="unread"
-            detail={
-              backendUnavailable
-                ? 'Le backend live n’est pas configuré. La conversation d’authoring n’a pas pu être lue — ce n’est pas un fil vide, c’est un fil inconnu.'
-                : 'La conversation d’authoring n’a pas pu être lue.'
-            }
-          />
-          {failure ? <Text className="mt-3 text-center font-mono text-xs">{failure}</Text> : null}
-        </Panel>
+      // Même cadre d'en-tête que la branche nominale : une surface qui change
+      // de hiérarchie typographique selon qu'elle a pu lire ou non se lit
+      // comme deux écrans différents.
+      <div className="flex h-svh min-h-0 flex-col">
+        <PageHeader title={projectName} description={repoFullName ?? 'aucun dépôt lié'} />
+        <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 py-4 sm:px-6">
+          <Panel title="Conversation d’authoring" className="min-h-0 flex-1">
+            <Unavailable
+              reason="unread"
+              detail={
+                backendUnavailable
+                  ? 'Le backend live n’est pas configuré. La conversation d’authoring n’a pas pu être lue — ce n’est pas un fil vide, c’est un fil inconnu.'
+                  : 'La conversation d’authoring n’a pas pu être lue.'
+              }
+            />
+            {failure ? <Text className="mt-3 text-center font-mono text-xs">{failure}</Text> : null}
+          </Panel>
+        </div>
       </div>
     )
   }
@@ -866,150 +879,153 @@ export default function BuilderWorkspace({
   const draftCreatedId = preview?.createdCopilotId ?? bundle?.createdCopilotId ?? null
 
   return (
-    <div className="shell-page-bounded flex min-h-0 flex-col gap-3 max-lg:pl-14">
-      <header className="flex shrink-0 flex-wrap items-center gap-2 px-1">
-        <div className="min-w-0 flex-1">
-          <Heading level={1} className="truncate">
-            {projectName}
-          </Heading>
-          <Text className="mt-1 truncate">
-            {repoFullName ?? 'aucun dépôt lié — l’architecte ne peut pas lire de code'}
-          </Text>
-        </div>
-        <Badge color={conversation.status === 'draft_created' ? 'emerald' : 'zinc'}>
-          {conversation.status}
-        </Badge>
-      </header>
+    // Zéro-scroll conservé : la colonne est bornée au viewport et ce sont les
+    // panneaux qui défilent. `PageBody` n'aurait posé aucune borne de hauteur.
+    <div className="flex h-svh min-h-0 flex-col">
+      {/* Le statut de conversation passe en `meta` : c'est le contexte chiffré
+          de la page, exactement ce que la rangée est faite pour porter. */}
+      <PageHeader
+        title={projectName}
+        description={repoFullName ?? 'aucun dépôt lié — l’architecte ne peut pas lire de code'}
+        meta={
+          <Badge color={conversation.status === 'draft_created' ? 'emerald' : 'zinc'}>
+            {conversation.status}
+          </Badge>
+        }
+      />
 
-      {error ? (
-        <div className="shrink-0 px-1">
-          <ErrorNote error={error} />
-        </div>
-      ) : null}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 py-4 sm:px-6">
+        {error ? (
+          <div className="shrink-0">
+            <ErrorNote error={error} />
+          </div>
+        ) : null}
 
-      {/* Grille bornée : c'est ELLE qui tient le zéro-scroll. Chaque panneau
+        {/* Grille bornée : c'est ELLE qui tient le zéro-scroll. Chaque panneau
           défile dans sa propre boîte, la page jamais. */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-2 xl:grid-cols-3">
-        <Panel
-          title="Conversation"
-          hint={messageCountLabel(lines.length)}
-          className="min-h-0 xl:col-span-1"
-          padded={false}
-          bodyClassName="flex flex-col min-h-0"
-        >
-          <div ref={threadRef} className="min-h-0 flex-1 overflow-y-auto">
-            {/* `emptyProven` était câblé en dur à `true` — la branche `'unread'`
-             * de `ChatThread` était donc MORTE, et un fil dont la lecture avait
-             * échoué affirmait « la lecture a réussi et le fil est réellement
-             * vide ». Le vide n'est prouvé que si la lecture a abouti ET a
-             * ramené un bundle : sinon on ne sait pas ce que contient le fil. */}
-            <ChatThread lines={lines} emptyProven={!unreadable && bundle !== null} />
-          </div>
-          <div className="shrink-0 border-t border-zinc-950/5 p-3 dark:border-white/5">
-            {/* La progression réelle du tour — ce que le flux dit, borné et scrollable. */}
-            {stream.phase !== 'idle' ? (
-              <div className="mb-3">
-                <StreamProgressNote progress={stream} />
-              </div>
-            ) : null}
-            <Textarea
-              value={draftMessage}
-              onChange={(event) => setDraftMessage(event.target.value)}
-              rows={3}
-              placeholder={
-                capability.canSendMessage
-                  ? 'Décrire l’agent voulu…'
-                  : 'La conversation n’accepte plus de tour.'
-              }
-              disabled={!capability.canSendMessage || busy !== null}
-            />
-            <div className="mt-2 flex items-center gap-2">
-              <Button
-                onClick={requestSendMessage}
-                disabled={
-                  !capability.canSendMessage || busy !== null || draftMessage.trim().length === 0
-                }
-              >
-                {/* Plus d'état aveugle : le libellé nomme la phase réelle du flux. */}
-                {busy === 'message' ? stream.label : 'Envoyer'}
-              </Button>
-              <Text className="text-xs">Appel modèle facturé — confirmation demandée.</Text>
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-2 xl:grid-cols-3">
+          <Panel
+            title="Conversation"
+            hint={messageCountLabel(lines.length)}
+            className="min-h-0 xl:col-span-1"
+            padded={false}
+            bodyClassName="flex flex-col min-h-0"
+          >
+            <div ref={threadRef} className="min-h-0 flex-1 overflow-y-auto">
+              {/* `emptyProven` était câblé en dur à `true` — la branche `'unread'`
+               * de `ChatThread` était donc MORTE, et un fil dont la lecture avait
+               * échoué affirmait « la lecture a réussi et le fil est réellement
+               * vide ». Le vide n'est prouvé que si la lecture a abouti ET a
+               * ramené un bundle : sinon on ne sait pas ce que contient le fil. */}
+              <ChatThread lines={lines} emptyProven={!unreadable && bundle !== null} />
             </div>
-            {/* Résultat INCONNU : la seule action honnête est de relire le serveur. */}
-            {stream.phase === 'interrupted' ? (
-              <div className="mt-2">
-                <Button plain onClick={refresh}>
-                  Recharger pour lire l’état réel
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        </Panel>
-
-        <Panel
-          title="Spécification"
-          hint={preview?.readyForApproval ? 'prête' : 'en cours'}
-          className="min-h-0"
-          padded={false}
-          bodyClassName="overflow-y-auto"
-        >
-          <SpecPanel
-            preview={preview}
-            onSelectOption={selectOption}
-            selecting={busy === 'select'}
-            canSelect={capability.canSendMessage && busy === null}
-          />
-        </Panel>
-
-        <Panel
-          title="Matérialisation"
-          hint={hitl.label}
-          className="min-h-0 lg:col-span-2 xl:col-span-1"
-          padded={false}
-          bodyClassName="overflow-y-auto"
-        >
-          <div className="flex flex-col">
-            <HitlPanel hitl={hitl} onDecide={requestDecision} pending={busy === 'decision'} />
-
-            <Divider soft />
-
-            <div className="flex flex-col gap-2 p-4">
-              {draftCreatedId ? (
-                <div className="rounded-lg border border-dashed border-emerald-500/40 p-3">
-                  <Text className="font-medium">Draft créé</Text>
-                  <Text className="mt-1 font-mono text-xs wrap-break-word">{draftCreatedId}</Text>
-                  <Text className="mt-1 text-xs">
-                    C’est la preuve de sortie de cette surface : un agent en statut draft, rattaché
-                    au projet. Sa qualification et sa promotion se font ailleurs.
-                  </Text>
+            <div className="aig-line-soft shrink-0 border-t p-3">
+              {/* La progression réelle du tour — ce que le flux dit, borné et scrollable. */}
+              {stream.phase !== 'idle' ? (
+                <div className="mb-3">
+                  <StreamProgressNote progress={stream} />
                 </div>
-              ) : (
-                <>
-                  <Button
-                    onClick={requestStartDraft}
-                    disabled={!capability.canStartDraft || busy !== null}
-                  >
-                    {busy === 'draft' ? 'Lancement…' : 'Matérialiser le draft'}
+              ) : null}
+              <Textarea
+                value={draftMessage}
+                onChange={(event) => setDraftMessage(event.target.value)}
+                rows={3}
+                placeholder={
+                  capability.canSendMessage
+                    ? 'Décrire l’agent voulu…'
+                    : 'La conversation n’accepte plus de tour.'
+                }
+                disabled={!capability.canSendMessage || busy !== null}
+              />
+              <div className="mt-2 flex items-center gap-2">
+                <Button
+                  onClick={requestSendMessage}
+                  disabled={
+                    !capability.canSendMessage || busy !== null || draftMessage.trim().length === 0
+                  }
+                >
+                  {/* Plus d'état aveugle : le libellé nomme la phase réelle du flux. */}
+                  {busy === 'message' ? stream.label : 'Envoyer'}
+                </Button>
+                <Text className="text-xs">Appel modèle facturé — confirmation demandée.</Text>
+              </div>
+              {/* Résultat INCONNU : la seule action honnête est de relire le serveur. */}
+              {stream.phase === 'interrupted' ? (
+                <div className="mt-2">
+                  <Button plain onClick={refresh}>
+                    Recharger pour lire l’état réel
                   </Button>
-                  {/* Un bouton fermé dit toujours POURQUOI il est fermé. */}
-                  {capability.draftBlockedReason ? (
-                    <Text className="text-xs">{capability.draftBlockedReason}</Text>
-                  ) : (
-                    <Text className="text-xs">
-                      Démarre un run LangGraph facturé qui s’arrête au point d’approbation humaine.
-                    </Text>
-                  )}
-                </>
-              )}
+                </div>
+              ) : null}
             </div>
-          </div>
-        </Panel>
-      </div>
+          </Panel>
 
-      <Text className="shrink-0 px-1 text-xs">
-        Aucune action de cette surface n’écrit sur GitHub. Toute mutation facturée passe par une
-        confirmation explicite.
-      </Text>
+          <Panel
+            title="Spécification"
+            hint={preview?.readyForApproval ? 'prête' : 'en cours'}
+            className="min-h-0"
+            padded={false}
+            bodyClassName="overflow-y-auto"
+          >
+            <SpecPanel
+              preview={preview}
+              onSelectOption={selectOption}
+              selecting={busy === 'select'}
+              canSelect={capability.canSendMessage && busy === null}
+            />
+          </Panel>
+
+          <Panel
+            title="Matérialisation"
+            hint={hitl.label}
+            className="min-h-0 lg:col-span-2 xl:col-span-1"
+            padded={false}
+            bodyClassName="overflow-y-auto"
+          >
+            <div className="flex flex-col">
+              <HitlPanel hitl={hitl} onDecide={requestDecision} pending={busy === 'decision'} />
+
+              <Divider soft />
+
+              <div className="flex flex-col gap-2 p-4">
+                {draftCreatedId ? (
+                  <div className="rounded-lg border border-dashed border-emerald-500/40 p-3">
+                    <Text className="font-medium">Draft créé</Text>
+                    <Text className="mt-1 font-mono text-xs wrap-break-word">{draftCreatedId}</Text>
+                    <Text className="mt-1 text-xs">
+                      C’est la preuve de sortie de cette surface : un agent en statut draft,
+                      rattaché au projet. Sa qualification et sa promotion se font ailleurs.
+                    </Text>
+                  </div>
+                ) : (
+                  <>
+                    <Button
+                      onClick={requestStartDraft}
+                      disabled={!capability.canStartDraft || busy !== null}
+                    >
+                      {busy === 'draft' ? 'Lancement…' : 'Matérialiser le draft'}
+                    </Button>
+                    {/* Un bouton fermé dit toujours POURQUOI il est fermé. */}
+                    {capability.draftBlockedReason ? (
+                      <Text className="text-xs">{capability.draftBlockedReason}</Text>
+                    ) : (
+                      <Text className="text-xs">
+                        Démarre un run LangGraph facturé qui s’arrête au point d’approbation
+                        humaine.
+                      </Text>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </Panel>
+        </div>
+
+        <Text className="aig-text-faint shrink-0 text-xs">
+          Aucune action de cette surface n’écrit sur GitHub. Toute mutation facturée passe par une
+          confirmation explicite.
+        </Text>
+      </div>
 
       {confirmer.descriptor ? (
         <CostedConfirmDialog

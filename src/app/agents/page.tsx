@@ -2,10 +2,11 @@ import type { Metadata } from 'next'
 
 import AppShell from '@/components/app-shell'
 import AgentRosterScreen from '@/components/agents/roster-screen'
-import { Unavailable } from '@/components/cockpit/primitives'
+import SurfaceState from '@/components/surface-state'
 import { navEntry } from '@/components/navigation'
-import { Text } from '@/components/ui/text'
 import { getAvailableAgents } from '@/lib/agent-mission-control/available-agents'
+import { resolveVisualizationsFor } from '@/components/visualizations/embed/registry'
+import type { ResolvedVisualization } from '@/components/visualizations/embed/contract'
 
 /**
  * Surface « /agents » — le roster, branché sur le contrat canonique.
@@ -30,29 +31,58 @@ export const dynamic = 'force-dynamic'
 
 async function loadRoster() {
   try {
-    return { agents: await getAvailableAgents(), failure: null as string | null }
+    return {
+      agents: await getAvailableAgents(),
+      failure: null as string | null,
+    }
   } catch (err) {
-    return { agents: null, failure: err instanceof Error ? err.message : 'lecture impossible' }
+    return {
+      agents: null,
+      failure: err instanceof Error ? err.message : 'lecture impossible',
+    }
+  }
+}
+
+/**
+ * Les panneaux de la fonction `agents` — accessoires, jamais porteurs.
+ *
+ * Leur échec de RÉSOLUTION ne doit pas emporter le roster : le catalogue est la
+ * donnée de cette page, les graphiques l'illustrent. Une source Grafana muette
+ * se dit d'elle-même dans son cadre (`NOT_CONFIGURED`, `UNAVAILABLE`) — ce
+ * `catch` ne couvre que l'échec du résolveur lui-même.
+ */
+async function loadAgentVisualizations(): Promise<ResolvedVisualization[]> {
+  try {
+    return await resolveVisualizationsFor('agents')
+  } catch {
+    return []
   }
 }
 
 export default async function Page() {
-  const { agents, failure } = await loadRoster()
+  const [{ agents, failure }, visualizations] = await Promise.all([
+    loadRoster(),
+    loadAgentVisualizations(),
+  ])
 
   // Backend muet : l'écran DIT qu'il ne sait pas. Il ne rend pas une liste vide,
   // qui se lirait comme « aucun agent » — l'inverse de la vérité.
   if (agents === null) {
     return (
       <AppShell>
-        <div className="p-6 pt-16 lg:pt-8">
-          <div className="mx-auto max-w-md rounded-2xl bg-white px-6 py-10 text-center shadow-xs ring-1 ring-zinc-950/5">
-            <div className="max-w-md px-6 text-center">
-              <Unavailable
-                reason="unread"
-                detail="Le catalogue d’agents n’a pas pu être lu. Aucune liste n’est affichée — une liste vide se lirait comme « aucun agent », ce qui n’est pas ce qui est su."
-              />
-              {failure ? <Text className="mt-3">{failure}</Text> : null}
-            </div>
+        <div className="h-full p-4 max-lg:pt-20">
+          <div className="aig-panel flex h-full items-center justify-center">
+            {/* Le flux interrompu, pas le blueprint : la source EXISTE, c'est la
+                lecture qui a échoué. Même geste que `/runs` sur la même nature
+                d'échec — un opérateur reconnaît l'état sans relire le texte. */}
+            <SurfaceState
+              kind="unavailable"
+              detail={
+                failure
+                  ? `Le catalogue d’agents n’a pas pu être lu — ${failure}. Aucune liste n’est affichée : une liste vide se lirait comme « aucun agent », ce qui n’est pas ce qui est su.`
+                  : 'Le catalogue d’agents n’a pas pu être lu. Aucune liste n’est affichée — une liste vide se lirait comme « aucun agent », ce qui n’est pas ce qui est su.'
+              }
+            />
           </div>
         </div>
       </AppShell>
@@ -61,7 +91,7 @@ export default async function Page() {
 
   return (
     <AppShell>
-      <AgentRosterScreen agents={agents} />
+      <AgentRosterScreen agents={agents} visualizations={visualizations} />
     </AppShell>
   )
 }

@@ -69,16 +69,18 @@ export function Panel({
   return (
     <section
       className={clsx(
-        'flex flex-col rounded-lg',
-        // Noir profond plutôt que le `zinc-900` du kit : sur un fond noir, un
-        // panneau gris-bleuté se lit comme une surface flottante alors qu'il
-        // porte l'information principale. Le contraste vient du LISERÉ, pas
-        // d'un écart de valeur entre le fond et la boîte.
-        // `dark` est posée SUR LA BOX, pas sur la page : le fond reste clair,
-        // et le kit Catalyst bascule ses `dark:text-white` À L'INTÉRIEUR de la
-        // box. Sans ce scope, `Strong` et `Heading` rendraient `text-zinc-950`
-        // — du noir sur noir, invisible.
-        'dark bg-black shadow-xs ring-1 ring-white/10',
+        'flex flex-col',
+        // GRAMMAIRE AIGENT — `aig-panel` porte le fond, le liseré, le rayon et
+        // l'élévation. Un seul jeton, donc onze écrans qui ne peuvent plus
+        // diverger.
+        //
+        // Le scope `dark bg-black` qui vivait ici a été RETIRÉ, pas déplacé :
+        // il n'avait de sens que parce que la page était blanche et qu'un
+        // panneau devait basculer Catalyst en sombre à l'intérieur de sa propre
+        // boîte. Le document est désormais sombre au niveau de `<html>`
+        // (`layout.tsx`) — reposer un `dark` local serait sans effet, et le
+        // `bg-black` écraserait le palier de clarté qui construit la hiérarchie.
+        'aig-panel',
         className,
       )}
     >
@@ -94,9 +96,7 @@ export function Panel({
             {title}
           </Subheading>
           {hint ? <Text className="ml-auto shrink-0 truncate">{hint}</Text> : null}
-          {actions ? (
-            <div className={clsx('min-w-0', actionsClass)}>{actions}</div>
-          ) : null}
+          {actions ? <div className={clsx('min-w-0', actionsClass)}>{actions}</div> : null}
         </div>
         <Divider soft />
       </header>
@@ -134,13 +134,13 @@ export function Unavailable({
     <div
       className={clsx(
         'flex flex-col items-center justify-center gap-2 rounded-lg',
-        'border border-dashed border-zinc-950/10 dark:border-white/10',
+        'aig-line-soft border border-dashed',
         compact ? 'px-2 py-1' : 'min-h-32 p-4',
       )}
     >
       <span
         className={clsx(
-          'rounded-md bg-zinc-950/5 font-medium text-zinc-500 uppercase dark:bg-white/5 dark:text-zinc-400',
+          'aig-raised aig-text-muted rounded-md font-medium uppercase',
           compact ? 'px-1.5 py-0.5 text-3xs' : 'px-2 py-0.5 text-xs',
         )}
       >
@@ -153,7 +153,7 @@ export function Unavailable({
 
 /** Marque d'absence inline — pour une valeur seule dans une cellule. */
 export function AbsentMark() {
-  return <span className="text-xs text-zinc-500 uppercase dark:text-zinc-400">{UNAVAILABLE_LABEL}</span>
+  return <span className="aig-text-muted text-xs uppercase">{UNAVAILABLE_LABEL}</span>
 }
 
 /**
@@ -173,7 +173,7 @@ export function NotMeasured({
 }>) {
   return (
     <span
-      className="text-xs text-zinc-500 uppercase dark:text-zinc-400"
+      className="aig-text-muted text-xs uppercase"
       title={why ?? 'Cette valeur n’a pas été mesurée — elle n’est pas nulle, elle est absente.'}
     >
       {label}
@@ -283,7 +283,14 @@ export function SegmentMeter({
   const safeFilled = Math.min(Math.max(filled, 0), safeTotal)
 
   if (safeTotal === 0) {
-    return <div className={clsx('h-1.5 w-full rounded-full bg-zinc-950/5 dark:bg-white/10', className)} />
+    return (
+      <div
+        className={clsx(
+          'h-1.5 w-full rounded-full bg-[color-mix(in_oklab,var(--aig-line)_60%,transparent)]',
+          className,
+        )}
+      />
+    )
   }
 
   if (safeTotal > 24) {
@@ -299,10 +306,7 @@ export function SegmentMeter({
       {Array.from({ length: safeTotal }, (_, i) => (
         <span
           key={i}
-          className={clsx(
-            'h-3.5 w-[3px] rounded-[1px]',
-            i >= safeFilled && 'bg-zinc-950/15 dark:bg-white/25',
-          )}
+          className={clsx('h-3.5 w-[3px] rounded-[1px]', i >= safeFilled && 'bg-[var(--aig-line)]')}
           style={i < safeFilled ? { background: color } : undefined}
         />
       ))}
@@ -325,7 +329,7 @@ export function BarMeter({
     <div
       aria-hidden
       className={clsx(
-        'h-1.5 w-full overflow-hidden rounded-full bg-zinc-950/5 dark:bg-white/10',
+        'h-1.5 w-full overflow-hidden rounded-full bg-[color-mix(in_oklab,var(--aig-line)_60%,transparent)]',
         className,
       )}
     >

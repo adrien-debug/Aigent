@@ -1,13 +1,18 @@
 /**
- * Overview — instruments et rosters sur fond clair, scroll document naturel.
+ * Aperçu — la surface d'arrivée : instruments, activité, rosters.
  *
- * Hiérarchie : bandeau KPI → activité (histogramme) → rosters (flux, projets).
- * Pas de bandeau shell : tout vit dans la zone de travail blanche.
+ * Hiérarchie : en-tête commun → bandeau KPI → activité (histogramme) → rosters
+ * (flux d'exécution, projets). Du global au particulier, comme `/runs`.
+ *
+ * L'écran rendait autrefois sur fond CLAIR avec son propre en-tête noir ; il
+ * suit désormais la grammaire du produit (`globals.css`) et l'en-tête commun du
+ * shell. Il n'a plus de langage à lui.
  *
  * Server Component : l'histogramme est le seul module client (Recharts).
  */
 import type { ReactNode } from 'react'
 import { navEntry } from '@/components/navigation'
+import { PageBody, PageHeader } from '@/components/app-shell'
 import { Link } from '@/components/ui/link'
 import type { DashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
 import { buildHourlyBuckets, buildStatusBreakdown } from '@/lib/cockpit/overview-series'
@@ -100,97 +105,89 @@ export default function CockpitOverview({
   const rankedProjects = projectCards
 
   return (
-    <div className="flex flex-col gap-4 p-6 pt-16 lg:pt-6 lg:px-8">
-      {/* En-tête de page — même surface noire que les boxes, titre blanc, et
-          les deux actions de l'écran à droite : la discrète en `white/10`,
-          l'action principale en accent. */}
-      <header className="dark rounded-lg bg-black px-6 py-5 ring-1 ring-white/10 md:flex md:items-center md:justify-between md:space-x-5">
-        <div className="flex items-start space-x-5">
-          <div className="shrink-0">
-            <div className="relative flex size-16 items-center justify-center rounded-full bg-white/5 outline -outline-offset-1 outline-white/10">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden className="size-7 text-white">
-                <path
-                  d="M12 2.2 21.8 12 12 21.8 2.2 12 12 2.2Z"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                  strokeLinejoin="round"
-                />
-                <path d="M12 7.4 16.6 12 12 16.6 7.4 12 12 7.4Z" fill="currentColor" fillOpacity="0.9" />
-              </svg>
-            </div>
-          </div>
+    <>
+      {/*
+       * L'en-tête est celui du SHELL, plus une bannière propre à cet écran.
+       *
+       * Ce qui vivait ici — une boîte noire de 16 unités de haut, une marque en
+       * médaillon, un bouton indigo — était le seul en-tête de ce genre du
+       * produit : les dix autres surfaces posaient un `Heading` nu. L'indigo,
+       * lui, était le seul accent non-cuivre de tout Aigent. Deux singularités
+       * pour une page d'accueil, c'est ainsi qu'un produit cesse de se
+       * ressembler à lui-même.
+       *
+       * Les deux actions restent : ce sont de vrais liens vers de vraies routes.
+       * Elles montent simplement dans l'en-tête commun.
+       */}
+      <PageHeader
+        title={ENTRY.name}
+        description={ENTRY.purpose}
+        actions={
+          <>
+            <Link
+              href="/runs"
+              className="aig-panel aig-text-muted inline-flex items-center justify-center px-3 py-2 text-sm font-semibold no-underline transition hover:text-white"
+            >
+              Voir les runs
+            </Link>
+            <Link
+              href="/actions"
+              className="aig-panel-raised aig-accent inline-flex items-center justify-center px-3 py-2 text-sm font-semibold no-underline transition hover:text-white"
+            >
+              File d’action
+            </Link>
+          </>
+        }
+      />
 
-          {/* Le padding vertical simule un centrage quand les deux lignes
-              tiennent sur une ligne, sans faire sauter la marque si le texte
-              passe à la ligne. */}
-          <div className="pt-1.5">
-            <h1 className="text-2xl font-bold text-white">{ENTRY.name}</h1>
-            <p className="text-sm font-medium text-gray-400">{ENTRY.purpose}</p>
-          </div>
-        </div>
+      <PageBody>
+        <KpiStrip kpis={overview.kpis} unread={unread} />
 
-        <div className="mt-6 flex flex-col-reverse justify-stretch space-y-4 space-y-reverse sm:flex-row-reverse sm:justify-end sm:space-y-0 sm:space-x-3 sm:space-x-reverse md:mt-0 md:flex-row md:space-x-3">
-          <Link
-            href="/runs"
-            className="inline-flex items-center justify-center rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white no-underline inset-ring inset-ring-white/5 hover:bg-white/20"
-          >
-            Voir les runs
-          </Link>
-          <Link
-            href="/actions"
-            className="inline-flex items-center justify-center rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white no-underline hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-          >
-            File d’action
-          </Link>
-        </div>
-      </header>
+        <Panel
+          title="Activité 24 h"
+          className="min-w-0"
+          padded={false}
+          bodyClassName="px-2 pt-3 pb-1"
+          actions={slices ? <StatusLegend slices={slices} /> : undefined}
+          hint={slices ? undefined : 'fenêtre non lue'}
+        >
+          {renderActivityPanel(buckets)}
+        </Panel>
 
-      <KpiStrip kpis={overview.kpis} unread={unread} />
-
-      <Panel
-        title="Activité 24 h"
-        className="min-w-0"
-        padded={false}
-        bodyClassName="px-2 pt-3 pb-1"
-        actions={slices ? <StatusLegend slices={slices} /> : undefined}
-        hint={slices ? undefined : 'fenêtre non lue'}
-      >
-        {renderActivityPanel(buckets)}
-      </Panel>
-
-      {/* 60 / 40 : le flux se lit ligne à ligne et garde la majorité, mais les
+        {/* 60 / 40 : le flux se lit ligne à ligne et garde la majorité, mais les
           projets portent DES CARTES — à 30 % la colonne n'en montrait que deux
           sur dix et coupait la troisième au bord. 40 % en fait une vraie
           seconde colonne au lieu d'un appoint tassé. */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[6fr_4fr] [&>*]:min-w-0">
-        <Panel
-          title="Flux d'exécution"
-          hint={runs ? `${runs.length} sur la fenêtre` : undefined}
-          className="min-w-0"
-          padded={false}
-        >
-          {renderRunStreamPanel(runs, nowMs)}
-        </Panel>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[6fr_4fr] [&>*]:min-w-0">
+          <Panel
+            title="Flux d'exécution"
+            hint={runs ? `${runs.length} sur la fenêtre` : undefined}
+            className="min-w-0"
+            padded={false}
+          >
+            {renderRunStreamPanel(runs, nowMs)}
+          </Panel>
 
-        <Panel
-          title="Projets"
-          hint={`${projectCards.length} au catalogue`}
-          className="min-w-0"
-          padded={false}
-        >
-          {projectCards.length === 0 ? (
-            <Unavailable reason="no-data" detail="Aucun projet dans le catalogue." />
-          ) : (
-            <ProjectCarousel cards={rankedProjects} />
-          )}
-        </Panel>
-      </div>
+          <Panel
+            title="Projets"
+            hint={`${projectCards.length} au catalogue`}
+            className="min-w-0"
+            padded={false}
+          >
+            {projectCards.length === 0 ? (
+              <Unavailable reason="no-data" detail="Aucun projet dans le catalogue." />
+            ) : (
+              <ProjectCarousel cards={rankedProjects} />
+            )}
+          </Panel>
+        </div>
 
-      {overview.dataWarnings.length > 0 ? (
-        <p className="truncate rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 font-mono text-2xs text-amber-800 dark:border-amber-500/25 dark:bg-amber-500/8 dark:text-amber-400">
-          {overview.dataWarnings.length} avertissement(s) de lecture — {overview.dataWarnings[0]}
-        </p>
-      ) : null}
-    </div>
+        {overview.dataWarnings.length > 0 ? (
+          <p className="aig-panel-raised aig-accent truncate px-3 py-2 font-mono text-2xs">
+            {overview.dataWarnings.length} avertissement(s) de lecture — {overview.dataWarnings[0]}
+          </p>
+        ) : null}
+      </PageBody>
+    </>
   )
 }

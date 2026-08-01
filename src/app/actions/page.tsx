@@ -1,13 +1,10 @@
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 
-import AppShell from '@/components/app-shell'
+import AppShell, { PageHeader } from '@/components/app-shell'
 import QueueConsole from '@/components/actions/queue-console'
 import { getActionsPageData } from '@/components/actions/server-reads'
 import { navEntry } from '@/components/navigation'
-import { Heading } from '@/components/ui/heading'
-import { Text } from '@/components/ui/text'
-import { Divider } from '@/components/ui/divider'
 import { getObsidianConfig } from '@/lib/agent-mission-control/obsidian-bridge'
 
 /**
@@ -44,7 +41,9 @@ async function resolveOrigin(): Promise<string> {
   const headerList = await headers()
   const host = headerList.get('x-forwarded-host') ?? headerList.get('host')
   if (!host) return ''
-  const protocol = headerList.get('x-forwarded-proto') ?? (host.startsWith('localhost') || host.startsWith('127.') ? 'http' : 'https')
+  const protocol =
+    headerList.get('x-forwarded-proto') ??
+    (host.startsWith('localhost') || host.startsWith('127.') ? 'http' : 'https')
   return `${protocol}://${host}`
 }
 
@@ -55,25 +54,23 @@ export default async function Page() {
 
   return (
     <AppShell>
-      {/* DEUX CONTRAINTES DE MISE EN PAGE, TOUTES DEUX MESURÉES
+      {/* ÉCRAN BORNÉ — la boîte ne grandit JAMAIS avec la donnée.
           ------------------------------------------------------
-          1. `h-svh` et non `h-full`. Le shell est en `min-h-svh` — une hauteur
-             MINIMALE, donc sans borne à référencer : un `h-full` ici ne
-             résolvait rien et la boîte de la file grandissait avec sa donnée
-             (mesuré : 4727 px de contenu pour 812 px de viewport, la page
-             entière s'allongeait au lieu que la liste défile dedans). La boîte
-             est bornée au viewport ; la donnée défile DEDANS.
-          2. `max-lg:pl-14` : le bouton de navigation du shell est `fixed`
-             (16,16 · 37×36 · z-30). Il ne défile pas, donc réserver la place
-             sous le seul en-tête ne protégeait que la position de scroll 0. */}
-      <div className="flex h-svh min-h-0 flex-col overflow-hidden p-4 max-lg:pl-14">
-        <header className="shrink-0 pb-4">
-          <Heading level={1}>{ENTRY.name}</Heading>
-          <Text className="mt-1">{ENTRY.purpose}</Text>
-          <Divider soft className="mt-4" />
-        </header>
+          `h-svh` et non `h-full` : le shell est en `min-h-svh`, une hauteur
+          MINIMALE, donc sans borne à référencer. Un `h-full` ici ne résolvait
+          rien et la boîte de la file grandissait avec sa donnée (mesuré :
+          4727 px de contenu pour 812 px de viewport, la page entière
+          s'allongeait au lieu que la liste défile dedans). La boîte est bornée
+          au viewport ; la donnée défile DEDANS.
 
-        <div className="min-h-0 flex-1">
+          C'est aussi pourquoi cet écran n'utilise PAS `PageBody`, qui ne pose
+          aucune borne de hauteur : seul l'EN-TÊTE est mutualisé. `PageHeader`
+          porte déjà la gouttière du bouton de navigation mobile, d'où la
+          disparition du `max-lg:pl-14` local. */}
+      <div className="flex h-svh min-h-0 flex-col overflow-hidden">
+        <PageHeader title={ENTRY.name} description={ENTRY.purpose} />
+
+        <div className="min-h-0 flex-1 px-4 py-4 sm:px-6">
           <QueueConsole
             queue={queue}
             obsidian={obsidian}

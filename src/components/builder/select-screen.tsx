@@ -16,10 +16,10 @@
  */
 import Link from 'next/link'
 
+import { PageHeader } from '@/components/app-shell'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Divider } from '@/components/ui/divider'
-import { Heading } from '@/components/ui/heading'
 import { Strong, Text } from '@/components/ui/text'
 import { Panel, Rail, SEVERITY, Unavailable, initialsOf } from '@/components/cockpit/primitives'
 import { projectCountLabel, type ProjectChoice } from './model'
@@ -30,7 +30,7 @@ function ProjectRow({ item }: Readonly<{ item: ProjectChoice }>) {
       <Rail color={item.repoLinked ? SEVERITY.good : SEVERITY.muted} />
       <Link
         href={item.href}
-        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-zinc-950/2.5 focus-visible:bg-zinc-950/2.5 focus-visible:outline-hidden dark:hover:bg-white/2.5 dark:focus-visible:bg-white/2.5"
+        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-white/4 focus-visible:bg-white/4 focus-visible:outline-hidden"
       >
         <Avatar square initials={initialsOf(item.name)} className="size-8 shrink-0" />
         <div className="min-w-0 flex-1">
@@ -82,7 +82,7 @@ function ProjectListBody({
   }
 
   return (
-    <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
+    <ul className="divide-y divide-white/5">
       {items.map((item) => (
         <ProjectRow key={item.id} item={item} />
       ))}
@@ -101,29 +101,33 @@ export default function BuilderSelectScreen({
   failure?: string | null
 }>) {
   return (
-    <div className="shell-page-bounded flex min-h-0 flex-col gap-3 max-lg:pl-14">
-      <header className="shrink-0 px-1">
-        <Heading level={1}>Builder</Heading>
-        <Text className="mt-1">
-          Conversation d’authoring : architecte, manifeste, matérialisation d’un agent.
+    // L'en-tête vient du shell ; le corps reste borné à la main. `PageBody` ne
+    // pose aucune borne de hauteur, et cet écran tient son zéro-scroll par une
+    // colonne `h-svh` dont seule la liste défile. `PageHeader` porte déjà la
+    // gouttière mobile — elle n'est pas redoublée ici.
+    <div className="flex h-svh min-h-0 flex-col">
+      <PageHeader
+        title="Builder"
+        description="Conversation d’authoring : architecte, manifeste, matérialisation d’un agent."
+      />
+
+      <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 py-4 sm:px-6">
+        <Panel
+          title="Choisir un projet"
+          hint={unreadable ? 'lecture échouée' : projectCountLabel(items.length)}
+          className="min-h-0 flex-1"
+          padded={false}
+          bodyClassName="overflow-y-auto"
+        >
+          <ProjectListBody unreadable={unreadable} failure={failure} items={items} />
+        </Panel>
+
+        <Divider soft className="shrink-0" />
+        <Text className="aig-text-faint shrink-0 text-xs">
+          La conversation d’authoring est persistée par projet : rouvrir un projet reprend le fil
+          exactement où il s’est arrêté, y compris une décision humaine restée en attente.
         </Text>
-      </header>
-
-      <Panel
-        title="Choisir un projet"
-        hint={unreadable ? 'lecture échouée' : projectCountLabel(items.length)}
-        className="min-h-0 flex-1"
-        padded={false}
-        bodyClassName="overflow-y-auto"
-      >
-        <ProjectListBody unreadable={unreadable} failure={failure} items={items} />
-      </Panel>
-
-      <Divider soft className="shrink-0" />
-      <Text className="shrink-0 px-1 text-xs">
-        La conversation d’authoring est persistée par projet : rouvrir un projet reprend le fil
-        exactement où il s’est arrêté, y compris une décision humaine restée en attente.
-      </Text>
+      </div>
     </div>
   )
 }

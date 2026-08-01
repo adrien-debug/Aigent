@@ -54,12 +54,36 @@ export type SurfaceRole = 'base' | 'subtle' | 'raised' | 'interactive' | 'overla
 /** Densité d'enveloppe, pour comparer deux traitements sans dupliquer le moteur. */
 export type EnvelopeDensity = 'comfortable' | 'compact'
 
+/**
+ * Fonction d'une visualisation — ce qu'elle sert à SAVOIR, pas où elle est.
+ *
+ * POURQUOI CE CHAMP. Sans lui, chaque page devait citer des identifiants en
+ * dur (`'runs-volume'`, `'success-rate'`…) pour composer sa grille : ajouter un
+ * panneau obligeait à éditer toutes les pages, et rien n'empêchait deux pages
+ * de montrer le même panneau sous deux titres. Une page demande désormais une
+ * FONCTION (« la fiabilité »), et le registre décide quels panneaux la servent.
+ *
+ * Ce n'est pas une catégorie décorative : c'est ce qui permet de dire « les
+ * bons graphiques aux bons endroits » sans empiler vingt cadres sur un écran.
+ */
+export type VisualizationFunction =
+  /** Ce qui se passe en ce moment — volume, flux, dernier événement. */
+  | 'activity'
+  /** Ce qui a réussi ou échoué — taux, états terminaux. */
+  | 'reliability'
+  /** Ce que ça a coûté en temps — latence, p95. */
+  | 'performance'
+  /** Qui a fait quoi — répartition par agent, couples projet/agent. */
+  | 'agents'
+
 /** Déclaration d'une visualisation, telle qu'écrite dans le registre. */
 export interface VisualizationDefinition {
   /** Identifiant stable — la SEULE chose qu'un client manipule. */
   id: string
   kind: VisualizationSourceKind
   title: string
+  /** À quel besoin de lecture ce panneau répond. */
+  fn: VisualizationFunction
   /** Ce que la visualisation montre, en français, pour un lecteur non technique. */
   description: string
   /** Identifiant du dashboard source. */

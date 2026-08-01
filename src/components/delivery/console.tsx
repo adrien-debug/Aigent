@@ -105,7 +105,13 @@ interface Outcome {
   wrote: boolean | null
 }
 
-const IDLE: Outcome = { phase: 'idle', title: '', detail: null, refused: false, wrote: null }
+const IDLE: Outcome = {
+  phase: 'idle',
+  title: '',
+  detail: null,
+  refused: false,
+  wrote: null,
+}
 
 /**
  * Une mutation en attente de confirmation.
@@ -174,10 +180,7 @@ function mutationCostLabel(kind: MutationCost['kind']): string {
   return 'écriture distante réelle'
 }
 
-function confirmDescription(
-  isDelivery: boolean | undefined,
-  realDeliveryEnabled: boolean,
-): string {
+function confirmDescription(isDelivery: boolean | undefined, realDeliveryEnabled: boolean): string {
   if (!isDelivery) return ''
   if (realDeliveryEnabled) {
     return 'Le verrou serveur est OUVERT : cette confirmation suffira à écrire réellement.'
@@ -191,8 +194,8 @@ function OutcomeNote({ outcome }: Readonly<OutcomeNoteProps>) {
   if (outcome.phase === 'running') {
     return (
       <Note tone="info" title={outcome.title}>
-        L’action est partie. Cette surface n’a pas de canal de progression : le résultat
-        arrivera avec la réponse de la route.
+        L’action est partie. Cette surface n’a pas de canal de progression : le résultat arrivera
+        avec la réponse de la route.
       </Note>
     )
   }
@@ -224,10 +227,22 @@ function OutcomeNote({ outcome }: Readonly<OutcomeNoteProps>) {
  * Déclaré au niveau module, et pas dans le rendu : un composant recréé à chaque
  * passe réinitialiserait son état (règle `react-hooks/static-components`).
  */
-function ActionButton({ job, busy, onOpen, disabled, disabledReason }: Readonly<ActionButtonProps>) {
+function ActionButton({
+  job,
+  busy,
+  onOpen,
+  disabled,
+  disabledReason,
+}: Readonly<ActionButtonProps>) {
   const title = disabled ? disabledReason : job.descriptor.intent
   return (
-    <Button type="button" outline disabled={disabled || busy} title={title} onClick={() => onOpen(job)}>
+    <Button
+      type="button"
+      outline
+      disabled={disabled || busy}
+      title={title}
+      onClick={() => onOpen(job)}
+    >
       {job.descriptor.label}
     </Button>
   )
@@ -266,7 +281,13 @@ export default function DeliveryConsole({ target }: Readonly<DeliveryConsoleProp
       const descriptor = real && job.realDescriptor ? job.realDescriptor : job.descriptor
       const body = real && job.realBody ? job.realBody : job.body
       setBusy(true)
-      setOutcome({ phase: 'running', title: `${descriptor.label}…`, detail: null, refused: false, wrote: null })
+      setOutcome({
+        phase: 'running',
+        title: `${descriptor.label}…`,
+        detail: null,
+        refused: false,
+        wrote: null,
+      })
       try {
         const res = await fetch(job.path, {
           method: 'POST',
@@ -309,7 +330,13 @@ export default function DeliveryConsole({ target }: Readonly<DeliveryConsoleProp
             wrote: read.wrote,
           })
         } else {
-          setOutcome({ phase: 'ok', title: job.consequence, detail: null, refused: false, wrote: null })
+          setOutcome({
+            phase: 'ok',
+            title: job.consequence,
+            detail: null,
+            refused: false,
+            wrote: null,
+          })
         }
 
         setPending(null)
@@ -354,11 +381,11 @@ export default function DeliveryConsole({ target }: Readonly<DeliveryConsoleProp
         </Note>
       ) : (
         <Note title="Shipping désactivé — toute livraison partira en dry-run">
-          Une écriture GitHub réelle exige DEUX verrous : la confirmation de l’opérateur ET un verrou
-          d’environnement côté serveur. Le second est fermé ici. Vous pouvez cocher la confirmation,
-          la route retombera quand même en dry-run et le répondra honnêtement — l’écran affichera
-          alors « dry-run », pas « livré ». Ce n’est pas une panne : c’est ce qui empêche une écriture
-          accidentelle sur le dépôt d’un client.
+          Une écriture GitHub réelle exige DEUX verrous : la confirmation de l’opérateur ET un
+          verrou d’environnement côté serveur. Le second est fermé ici. Vous pouvez cocher la
+          confirmation, la route retombera quand même en dry-run et le répondra honnêtement —
+          l’écran affichera alors « dry-run », pas « livré ». Ce n’est pas une panne : c’est ce qui
+          empêche une écriture accidentelle sur le dépôt d’un client.
         </Note>
       )}
 
@@ -384,9 +411,16 @@ export default function DeliveryConsole({ target }: Readonly<DeliveryConsoleProp
               path: (projectBase ?? '') + '/push-agent',
               // PAS de `confirm` : la route calcule `dryRun = true` par
               // construction, quelle que soit la configuration du serveur.
-              body: { copilotId: target.copilotId, deliveryMode: 'pull_request' },
+              body: {
+                copilotId: target.copilotId,
+                deliveryMode: 'pull_request',
+              },
               realDescriptor: PUSH_REAL,
-              realBody: { copilotId: target.copilotId, deliveryMode: 'pull_request', confirm: true },
+              realBody: {
+                copilotId: target.copilotId,
+                deliveryMode: 'pull_request',
+                confirm: true,
+              },
               consequence:
                 'Le paquet de l’agent a été construit et validé. Rien n’a été écrit sur le dépôt cible.',
               isDelivery: true,
@@ -394,8 +428,8 @@ export default function DeliveryConsole({ target }: Readonly<DeliveryConsoleProp
           />
         </div>
         <Text className="text-xs">
-          La livraison exige une version PROMUE en production : une version brouillon est refusée par
-          la route (422). C’est la maturité, pas l’interface, qui décide.
+          La livraison exige une version PROMUE en production : une version brouillon est refusée
+          par la route (422). C’est la maturité, pas l’interface, qui décide.
         </Text>
       </section>
 
@@ -420,8 +454,8 @@ export default function DeliveryConsole({ target }: Readonly<DeliveryConsoleProp
           />
         </div>
         <Text className="text-xs">
-          Le mode « execute » clone le dépôt dans un espace jetable et exécute ses propres scripts. Il
-          n’écrit jamais sur le dépôt distant — c’est une exécution, pas une livraison.
+          Le mode « execute » clone le dépôt dans un espace jetable et exécute ses propres scripts.
+          Il n’écrit jamais sur le dépôt distant — c’est une exécution, pas une livraison.
         </Text>
       </section>
 
@@ -447,9 +481,9 @@ export default function DeliveryConsole({ target }: Readonly<DeliveryConsoleProp
           />
         </div>
         <Text className="text-xs">
-          Le pack installe le canal de retour (registre, bindings, client de télémétrie). Il n’active
-          aucun agent : activer, rebinder et déployer sont des gestes du consommateur, qu’Aigent ne
-          voit pas.
+          Le pack installe le canal de retour (registre, bindings, client de télémétrie). Il
+          n’active aucun agent : activer, rebinder et déployer sont des gestes du consommateur,
+          qu’Aigent ne voit pas.
         </Text>
       </section>
 
@@ -529,8 +563,13 @@ function ConfirmBody({
             ) : null}
           </div>
 
-          {/* LA CIBLE — jamais implicite sur une écriture distante. */}
-          <div className="rounded-md border border-zinc-950/10 bg-zinc-950/2.5 px-3 py-2 dark:border-white/10 dark:bg-white/2.5">
+          {/* LA CIBLE — jamais implicite sur une écriture distante. Les trois
+              encadrés de ce dialogue (cible, ce que l'action ne fait pas,
+              conséquence) sont des boîtes qui doivent RESSORTIR du corps :
+              `aig-raised` porte exactement ce rôle, et remplace un fond dosé à
+              la main dont le scope `dark:` n'avait plus de moitié claire à
+              rendre depuis que le document entier est sombre. */}
+          <div className="aig-raised aig-line rounded-md border px-3 py-2">
             <Text className="text-xs">Dépôt cible</Text>
             <Text className="mt-0.5">
               <Strong>{repoFullName ?? 'aucun dépôt cible résolu'}</Strong>
@@ -539,12 +578,12 @@ function ConfirmBody({
 
           <Text>{effective.cost.detail}</Text>
 
-          <div className="rounded-md border border-zinc-950/10 bg-zinc-950/2.5 px-3 py-2 dark:border-white/10 dark:bg-white/2.5">
+          <div className="aig-raised aig-line rounded-md border px-3 py-2">
             <Text className="text-xs">Ce que cette action NE fait PAS</Text>
             <Text className="mt-0.5">{effective.doesNot}</Text>
           </div>
 
-          <div className="rounded-md border border-zinc-950/10 bg-zinc-950/2.5 px-3 py-2 dark:border-white/10 dark:bg-white/2.5">
+          <div className="aig-raised aig-line rounded-md border px-3 py-2">
             <Text className="text-xs">Si l’action réussit</Text>
             <Text className="mt-0.5">{job.consequence}</Text>
           </div>
@@ -553,7 +592,9 @@ function ConfirmBody({
             <CheckboxField>
               <Checkbox name="confirm" checked={armReal} onChange={onArmReal} disabled={busy} />
               <Label>
-                {job.isDelivery ? 'Demander une écriture RÉELLE' : 'Exécuter réellement les scripts du dépôt'}
+                {job.isDelivery
+                  ? 'Demander une écriture RÉELLE'
+                  : 'Exécuter réellement les scripts du dépôt'}
               </Label>
               <Description>
                 {job.realDescriptor.cost.detail}{' '}
@@ -581,8 +622,9 @@ function ConfirmBody({
 
           {/* Le coût, dit honnêtement : il n'est pas mesurable d'ici. */}
           <Text className="text-xs">
-            Coût : <Strong>non mesuré</Strong>. Cette surface n’a aucun moyen de chiffrer une écriture
-            distante ou une exécution de scripts dans un dépôt tiers — elle ne l’estime donc pas.
+            Coût : <Strong>non mesuré</Strong>. Cette surface n’a aucun moyen de chiffrer une
+            écriture distante ou une exécution de scripts dans un dépôt tiers — elle ne l’estime
+            donc pas.
           </Text>
         </div>
       </DialogBody>

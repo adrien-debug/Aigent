@@ -4,12 +4,13 @@ import AppShell from '@/components/app-shell'
 import RunsScreen from '@/components/runs/runs-screen'
 import { countProvenance } from '@/components/runs/run-view-model'
 import type { ProvenanceBreakdown } from '@/components/runs/run-view-model'
-import { Unavailable } from '@/components/cockpit/primitives'
-import { Text } from '@/components/ui/text'
+import SurfaceState from '@/components/surface-state'
 import { navEntry } from '@/components/navigation'
 import { listRecentRuntimeTelemetryEvents } from '@/lib/agent-mission-control/runtime-telemetry-store'
 import { deriveRunsMetrics } from '@/lib/runs-console/runs-metrics'
 import { getRunsPageData } from '@/lib/runs-console/runs-page-data'
+import { resolveVisualizationsFor } from '@/components/visualizations/embed/registry'
+import type { ResolvedVisualization } from '@/components/visualizations/embed/contract'
 
 /**
  * Surface « /runs » — historique des exécutions, en maître-détail.
@@ -68,6 +69,7 @@ async function loadRuns() {
     return {
       data: null,
       provenance: null,
+      visualizations: [] as ResolvedVisualization[],
       failure: err instanceof Error ? err.message : 'lecture impossible',
     }
   }
@@ -82,32 +84,54 @@ async function loadRuns() {
     provenance = null
   }
 
-  return { data: pageDataResult.value, provenance, failure: null as string | null }
+  /*
+   * Les panneaux Grafana — TROISIÈME tiers, et le moins porteur des trois.
+   *
+   * Chaque panneau porte déjà son propre état de vérité (`NOT_CONFIGURED`,
+   * `UNAVAILABLE`…), donc une source éteinte se DIT dans son cadre au lieu de
+   * casser la page. Le `catch` ne couvre donc pas « Grafana est muet » — ça,
+   * c'est un état résolu, pas une exception — mais l'échec du résolveur
+   * lui-même. Dans ce cas la bande disparaît : les runs, eux, sont réels et
+   * l'écran reste utile sans ses graphiques.
+   */
+  let visualizations: ResolvedVisualization[] = []
+  try {
+    visualizations = await resolveVisualizationsFor('activity', 'reliability', 'performance')
+  } catch {
+    visualizations = []
+  }
+
+  return {
+    data: pageDataResult.value,
+    provenance,
+    visualizations,
+    failure: null as string | null,
+  }
 }
 
-export default async function RunsPage({
-  searchParams,
-}: {
-  searchParams?: Promise<SearchParams>
-}) {
+export default async function RunsPage({ searchParams }: { searchParams?: Promise<SearchParams> }) {
   const params = (await searchParams) ?? {}
   const requestedRunId = firstValue(params.run)
 
-  const { data, provenance, failure } = await loadRuns()
+  const { data, provenance, visualizations, failure } = await loadRuns()
 
   // Backend muet : l'écran ne dégrade pas en « 0 run », il DIT qu'il ne sait pas.
   if (data === null) {
     return (
       <AppShell>
-        <div className="h-full p-4">
-          <div className="flex h-full items-center justify-center rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-            <div className="max-w-md px-6 text-center">
-              <Unavailable
-                reason="unread"
-                detail="La fenêtre de runs n'a pas pu être lue. Aucun run n'est affiché — une liste vide laisserait croire que la flotte est au repos."
-              />
-              {failure ? <Text className="mt-3">{failure}</Text> : null}
-            </div>
+        <div className="h-full p-4 max-lg:pt-20">
+          <div className="aig-panel flex h-full items-center justify-center">
+            {/* `unavailable` — le flux interrompu, pas le blueprint : l'adresse
+                est connue, c'est la LECTURE qui a échoué. La cause remonte
+                telle quelle, sans être maquillée en « aucun run ». */}
+            <SurfaceState
+              kind="unavailable"
+              detail={
+                failure
+                  ? `La fenêtre de runs n'a pas pu être lue — ${failure}. Aucun run n'est affiché : une liste vide laisserait croire que la flotte est au repos.`
+                  : "La fenêtre de runs n'a pas pu être lue. Aucun run n'est affiché — une liste vide laisserait croire que la flotte est au repos."
+              }
+            />
           </div>
         </div>
       </AppShell>
@@ -142,6 +166,7 @@ export default async function RunsPage({
         projectNameById={data.projectNameById}
         selectedRunId={requestedRunId}
         provenance={provenance}
+        visualizations={visualizations}
         nowMs={data.nowMs}
         windowRunCount={data.windowRunCount}
         windowTruncated={data.windowTruncated}

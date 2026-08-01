@@ -29,7 +29,10 @@ import { Badge } from '@/components/ui/badge'
 import { Strong, Text } from '@/components/ui/text'
 import { Fact, FactValue, NotMeasured } from '@/components/cockpit/primitives'
 import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
-import type { SandboxCheckStatus, SandboxStatus } from '@/lib/agent-mission-control/target-repo-sandbox'
+import type {
+  SandboxCheckStatus,
+  SandboxStatus,
+} from '@/lib/agent-mission-control/target-repo-sandbox'
 import type { DimensionStatus } from '@/lib/agent-mission-control/delivery-scorecard'
 
 import type { DeliveryState, DeliveryStateKind } from './model'
@@ -50,11 +53,21 @@ type NoteProps = {
   children?: ReactNode
 }
 
+/**
+ * Le liseré et le fond d'un encadré, par ton.
+ *
+ * Les trois tons PORTEURS DE SENS gardent leur teinte — et `structural` en
+ * particulier : le bleu de l'inconnue structurelle est la décision documentée en
+ * tête de ce fichier, pas une couleur de surface. Le ton NEUTRE, lui, n'affirmait
+ * rien : sa paire claire/sombre était une décision de surface que la grammaire
+ * nomme mieux (`aig-raised` = ce qui ressort du fond, `aig-line` = son liseré).
+ * Le scope `dark:` local disparaît : le document est sombre depuis `layout.tsx`.
+ */
 function noteRingClass(tone: NonNullable<NoteProps['tone']>): string {
   if (tone === 'blocked') return 'border-[#e8455f]/25 bg-[#e8455f]/5'
   if (tone === 'warn') return 'border-amber-400/25 bg-amber-400/5'
   if (tone === 'structural') return 'border-sky-400/25 bg-sky-400/5'
-  return 'border-zinc-950/10 bg-zinc-950/2.5 dark:border-white/10 dark:bg-white/2.5'
+  return 'aig-raised aig-line'
 }
 
 function sandboxCheckTitle(status: SandboxCheckStatus, reason?: string): string | undefined {
@@ -112,14 +125,20 @@ const KIND_MEANING: Record<DeliveryStateKind, string> = {
 export function DeliveryStateBadge({ state }: Readonly<DeliveryStateBadgeProps>) {
   if (state.reached === null) {
     return (
-      <Badge color="zinc" title={`${state.meaning}\n\nCette question n’a pas pu être posée : la lecture nécessaire n’a pas abouti.`}>
+      <Badge
+        color="zinc"
+        title={`${state.meaning}\n\nCette question n’a pas pu être posée : la lecture nécessaire n’a pas abouti.`}
+      >
         {UNAVAILABLE_LABEL}
       </Badge>
     )
   }
   const color: BadgeColor = state.reached ? KIND_COLOR[state.kind] : 'zinc'
   return (
-    <Badge color={color} title={`${state.meaning}\n\n(${KIND_LABEL[state.kind]}) ${KIND_MEANING[state.kind]}`}>
+    <Badge
+      color={color}
+      title={`${state.meaning}\n\n(${KIND_LABEL[state.kind]}) ${KIND_MEANING[state.kind]}`}
+    >
       {state.reached ? state.label : `Non — ${state.label.toLowerCase()}`}
     </Badge>
   )
@@ -129,7 +148,10 @@ export function DeliveryStateBadge({ state }: Readonly<DeliveryStateBadgeProps>)
 export function StateKindTag({ kind }: Readonly<StateKindTagProps>) {
   return (
     <span
-      className="text-3xs tracking-wide text-zinc-500 uppercase dark:text-zinc-400"
+      // Texte tertiaire : la nature d'un état accompagne son badge, elle ne lui
+      // dispute pas l'attention. `aig-text-faint` remplace la paire zinc
+      // claire/sombre — un seul jeton, plus de valeur à choisir.
+      className="aig-text-faint text-3xs tracking-wide uppercase"
       title={KIND_MEANING[kind]}
     >
       {KIND_LABEL[kind]}
@@ -207,10 +229,7 @@ const CHECK_LABEL: Record<SandboxCheckStatus, string> = {
 
 export function SandboxCheckBadge({ status, reason }: Readonly<SandboxCheckBadgeProps>) {
   return (
-    <Badge
-      color={CHECK_COLOR[status]}
-      title={sandboxCheckTitle(status, reason)}
-    >
+    <Badge color={CHECK_COLOR[status]} title={sandboxCheckTitle(status, reason)}>
       {CHECK_LABEL[status]}
     </Badge>
   )

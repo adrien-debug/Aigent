@@ -14,7 +14,7 @@ export default function NotFound() {
   return (
     <AppShell>
       <div className="h-full p-4">
-        <div className="flex h-full items-center justify-center rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div className="aig-panel flex h-full items-center justify-center">
           <div className="max-w-md px-6 text-center">
             <Heading level={1}>Agent inconnu</Heading>
             <Text className="mt-2">

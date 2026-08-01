@@ -39,7 +39,13 @@ import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox, CheckboxField } from '@/components/ui/checkbox'
-import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogDescription,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Description, Label } from '@/components/ui/fieldset'
 import { Strong, Text } from '@/components/ui/text'
 import { Unavailable } from '@/components/cockpit/primitives'
@@ -60,7 +66,8 @@ type BadgeColor = 'red' | 'amber' | 'emerald' | 'zinc' | 'blue'
 /** Couleur par catégorie — dérivée du sens, jamais décorative. */
 function kindColor(kind: OperatorQueueKind): BadgeColor {
   if (kind === 'run_needs_confirmation') return 'red'
-  if (kind === 'release_gate_red' || kind === 'sandbox_failed' || kind === 'mission_blocked') return 'red'
+  if (kind === 'release_gate_red' || kind === 'sandbox_failed' || kind === 'mission_blocked')
+    return 'red'
   if (kind === 'data_unavailable') return 'zinc'
   if (kind === 'improvement_decision') return 'blue'
   return 'amber'
@@ -117,9 +124,14 @@ function FilterSelect({
   if (!isDiscriminating(values)) return null
 
   return (
+    // Le `<select>` est natif — le kit n'en fournit pas. `aig-panel` lui donne
+    // le fond, le liseré et le rayon du produit ; `aig-line` monte le trait
+    // d'un cran parce qu'un contrôle cliquable doit se distinguer d'un panneau
+    // passif. La paire claire/sombre codée en dur a disparu : le document est
+    // sombre au niveau de `<html>`, la branche claire ne servait plus.
     <select
       aria-label={label}
-      className="rounded-lg border border-zinc-950/10 bg-white px-3 py-1.5 text-sm text-zinc-900 dark:border-white/10 dark:bg-zinc-900 dark:text-white"
+      className="aig-panel aig-line px-3 py-1.5 text-sm"
       value={selected ?? ''}
       onChange={(event) => onSelect(event.target.value || null)}
     >
@@ -169,10 +181,10 @@ function QueueRow({
         <Text className="mt-1 wrap-break-word">{item.meta}</Text>
 
         {state.phase === 'ok' ? (
-          <Text className="mt-2 text-emerald-700 dark:text-emerald-400">{state.message}</Text>
+          <Text className="mt-2 text-emerald-400">{state.message}</Text>
         ) : null}
         {state.phase === 'error' ? (
-          <Text className="mt-2 text-red-600 dark:text-red-400">{state.message}</Text>
+          <Text className="mt-2 text-red-400">{state.message}</Text>
         ) : null}
       </div>
 
@@ -236,8 +248,16 @@ export default function QueueConsole({
 
   const filters = useMemo(() => deriveQueueFilters(queue.items), [queue.items])
   const visible = useMemo(
-    () => filterQueue(queue.items, { kind, copilotId, projectId, status, riskOnly, actionableOnly }),
-    [queue.items, kind, copilotId, projectId, status, riskOnly, actionableOnly]
+    () =>
+      filterQueue(queue.items, {
+        kind,
+        copilotId,
+        projectId,
+        status,
+        riskOnly,
+        actionableOnly,
+      }),
+    [queue.items, kind, copilotId, projectId, status, riskOnly, actionableOnly],
   )
 
   const openConfirm = useCallback((item: OperatorQueueItem) => {
@@ -280,7 +300,10 @@ export default function QueueConsole({
             payload && typeof payload === 'object' && 'error' in payload
               ? String((payload as { error: unknown }).error)
               : `échec (HTTP ${response.status})`
-          setStates((prev) => ({ ...prev, [item.id]: { phase: 'error', message: detail } }))
+          setStates((prev) => ({
+            ...prev,
+            [item.id]: { phase: 'error', message: detail },
+          }))
           return
         }
 
@@ -304,22 +327,28 @@ export default function QueueConsole({
       } catch {
         setStates((prev) => ({
           ...prev,
-          [item.id]: { phase: 'error', message: 'La reprise a échoué : réseau ou serveur injoignable.' },
+          [item.id]: {
+            phase: 'error',
+            message: 'La reprise a échoué : réseau ou serveur injoignable.',
+          },
         }))
       } finally {
         setBusyId(null)
       }
     },
-    [closeConfirm, router]
+    [closeConfirm, router],
   )
 
   const failedSources = queue.sources.filter((source) => !source.ok)
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
-      {/* Pannes de source — nommées, jamais fondues dans un compteur. */}
+      {/* Pannes de source — nommées, jamais fondues dans un compteur. Elles
+          DOIVENT ressortir : `aig-panel-raised` monte la boîte d'un palier et
+          le liseré ambre porte la gravité. L'aplat `bg-amber-50/60` qui vivait
+          ici était calibré pour un fond blanc. */}
       {failedSources.length > 0 || queue.dataWarnings.length > 0 ? (
-        <section className="rounded-lg border border-amber-500/30 bg-amber-50/60 p-4 dark:bg-amber-950/20">
+        <section className="aig-panel-raised border-amber-500/40 p-4">
           <Strong className="block">Sources partiellement lues</Strong>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             {failedSources.map((source) => (
@@ -391,8 +420,10 @@ export default function QueueConsole({
         ) : null}
       </section>
 
-      {/* La file. Boîte bornée, la data défile DEDANS. */}
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+      {/* La file. Boîte bornée, la data défile DEDANS. `aig-panel` remplace le
+          trio fond / anneau / ombre codé en dur — un seul jeton pour la même
+          brique de surface que les autres écrans. */}
+      <section className="aig-panel flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
           {visible.length === 0 ? (
             <div className="flex h-full items-center justify-center p-6">
@@ -406,7 +437,7 @@ export default function QueueConsole({
               />
             </div>
           ) : (
-            <ul className="divide-y divide-zinc-950/5 dark:divide-white/10">
+            <ul className="divide-y divide-white/6">
               {visible.map((item) => (
                 <QueueRow
                   key={item.id}
@@ -425,7 +456,7 @@ export default function QueueConsole({
         {/* Pas de gouttière ici : la colonne entière de `/actions` en réserve
             déjà une sous `lg` (voir `src/app/actions/page.tsx`). En ajouter une
             seconde décalerait le pied sans raison. */}
-        <footer className="shrink-0 border-t border-zinc-950/5 px-4 py-2 dark:border-white/10">
+        <footer className="aig-line-soft shrink-0 border-t px-4 py-2">
           <Text className="text-xs">
             {visible.length} ligne(s) affichée(s) sur {queue.items.length} · composée le{' '}
             {new Date(queue.composedAt).toLocaleString('fr-FR')}
@@ -440,16 +471,17 @@ export default function QueueConsole({
       <Dialog open={pending !== null} onClose={closeConfirm}>
         <DialogTitle>Reprendre un run en attente de confirmation</DialogTitle>
         <DialogDescription>
-          {pending?.meta} — cette décision reprend le thread LangGraph et laisse l’outil approuvé s’exécuter
-          réellement. Elle est irréversible.
+          {pending?.meta} — cette décision reprend le thread LangGraph et laisse l’outil approuvé
+          s’exécuter réellement. Elle est irréversible.
         </DialogDescription>
         <DialogBody>
           <CheckboxField>
             <Checkbox name="armed" checked={armed} onChange={setArmed} />
             <Label>Je comprends que l’outil en attente va s’exécuter</Label>
             <Description>
-              L’approbation autorise une action que le manifeste de l’agent a marquée comme exigeant une
-              signature humaine. Refuser est aussi une décision : le run se termine en « bloqué ».
+              L’approbation autorise une action que le manifeste de l’agent a marquée comme exigeant
+              une signature humaine. Refuser est aussi une décision : le run se termine en « bloqué
+              ».
             </Description>
           </CheckboxField>
         </DialogBody>

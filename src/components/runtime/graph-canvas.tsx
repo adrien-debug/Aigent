@@ -73,10 +73,16 @@ function AigentNode({ data, selected }: NodeProps) {
   const d = data as CanvasNodeData
   const base =
     'rounded-lg border px-3 py-2 text-xs shadow-sm transition-colors min-w-[7rem] max-w-[12rem]'
-  const tone = d.terminal
-    ? 'border-zinc-300 bg-zinc-100 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
-    : 'border-sky-300 bg-white text-zinc-900 dark:border-sky-800 dark:bg-zinc-900 dark:text-zinc-100'
-  const ring = selected ? 'ring-2 ring-sky-500 ring-offset-1 dark:ring-offset-zinc-950' : ''
+  // Un nœud TERMINAL est une surface neutre (`aig-raised` + liseré franc) ; un
+  // nœud de travail est un panneau du produit dont SEUL le liseré reste sky —
+  // c'est lui qui porte la distinction, et il la porte en plus de la forme
+  // (cf. l'en-tête : jamais la couleur seule). Les paires `X dark:Y` tombent :
+  // le document est sombre depuis `layout.tsx`, la moitié claire ne se rendait
+  // plus. La sélection garde son anneau sky, qui est un état d'interaction.
+  const tone = d.terminal ? 'aig-raised aig-line' : 'aig-panel border-sky-800'
+  const ring = selected
+    ? 'ring-2 ring-sky-500 ring-offset-1 ring-offset-[color:var(--aig-subtle)]'
+    : ''
 
   return (
     <div className={`${base} ${tone} ${ring}`}>
@@ -92,16 +98,22 @@ function AigentNode({ data, selected }: NodeProps) {
         Elles sont invisibles (`opacity-0`) parce que le Canvas est en lecture
         seule : elles servent d'ancrage aux arêtes, pas de cible de connexion.
       */}
-      <Handle type="target" position={Position.Top} className="!size-1.5 !border-0 !bg-zinc-400 opacity-0" />
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="!size-1.5 !border-0 !bg-zinc-400 opacity-0"
+      />
       <div className="truncate font-semibold" title={d.label}>
         {d.label}
       </div>
       {d.nodeType ? (
-        <div className="mt-0.5 truncate text-3xs text-zinc-500 dark:text-zinc-400">
-          {d.nodeType}
-        </div>
+        <div className="aig-text-faint mt-0.5 truncate text-3xs">{d.nodeType}</div>
       ) : null}
-      <Handle type="source" position={Position.Bottom} className="!size-1.5 !border-0 !bg-zinc-400 opacity-0" />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="!size-1.5 !border-0 !bg-zinc-400 opacity-0"
+      />
     </div>
   )
 }
@@ -120,7 +132,7 @@ function Inspector({ node }: Readonly<{ node: Node | null }>) {
   if (!node) {
     return (
       <div className="flex h-full items-center justify-center p-4">
-        <Text className="text-center text-xs text-zinc-500">
+        <Text className="aig-text-muted text-center text-xs">
           Sélectionne un nœud pour l’inspecter.
         </Text>
       </div>
@@ -130,12 +142,15 @@ function Inspector({ node }: Readonly<{ node: Node | null }>) {
   const d = node.data as CanvasNodeData
 
   return (
-    <div className="scroll-thin flex h-full flex-col gap-3 overflow-y-auto p-3" data-testid="node-inspector">
+    <div
+      className="scroll-thin flex h-full flex-col gap-3 overflow-y-auto p-3"
+      data-testid="node-inspector"
+    >
       <div className="flex flex-col gap-1">
         <Heading level={3} className="truncate text-sm">
           {d.label}
         </Heading>
-        <Text className="truncate font-mono text-2xs text-zinc-500">{node.id}</Text>
+        <Text className="aig-text-muted truncate font-mono text-2xs">{node.id}</Text>
       </div>
 
       <div className="flex flex-wrap gap-1.5">
@@ -146,12 +161,12 @@ function Inspector({ node }: Readonly<{ node: Node | null }>) {
 
       <dl className="flex flex-col gap-1.5 text-xs">
         <div className="flex items-baseline justify-between gap-2">
-          <dt className="text-zinc-500">Arêtes entrantes</dt>
-          <dd className="font-mono text-zinc-900 dark:text-zinc-100">{d.inDegree}</dd>
+          <dt className="aig-text-muted">Arêtes entrantes</dt>
+          <dd className="font-mono">{d.inDegree}</dd>
         </div>
         <div className="flex items-baseline justify-between gap-2">
-          <dt className="text-zinc-500">Arêtes sortantes</dt>
-          <dd className="font-mono text-zinc-900 dark:text-zinc-100">{d.outDegree}</dd>
+          <dt className="aig-text-muted">Arêtes sortantes</dt>
+          <dd className="font-mono">{d.outDegree}</dd>
         </div>
       </dl>
 
@@ -160,10 +175,10 @@ function Inspector({ node }: Readonly<{ node: Node | null }>) {
         par `GET /assistants/{id}/graph`. Les afficher vides et dits absents est
         la seule option honnête : les remplir exigerait de les fabriquer.
       */}
-      <div className="mt-1 flex flex-col gap-1 border-t border-zinc-200 pt-2 dark:border-zinc-800">
-        <Text className="text-2xs text-zinc-500">
-          Modèle, outils et politiques ne sont pas exposés par la topologie de
-          l’Agent Server. Ils ne sont pas affichés plutôt que devinés.
+      <div className="aig-line-soft mt-1 flex flex-col gap-1 border-t pt-2">
+        <Text className="aig-text-muted text-2xs">
+          Modèle, outils et politiques ne sont pas exposés par la topologie de l’Agent Server. Ils
+          ne sont pas affichés plutôt que devinés.
         </Text>
       </div>
     </div>
@@ -255,7 +270,10 @@ function CanvasInner({ graphId, nodes: rawNodes, edges: rawEdges }: Readonly<Gra
     setNodes(mapped.nodes as unknown as Node[])
   }, [graphId, mapped.nodes, setNodes])
 
-  const selected = useMemo(() => nodes.find((n) => n.id === selectedId) ?? null, [nodes, selectedId])
+  const selected = useMemo(
+    () => nodes.find((n) => n.id === selectedId) ?? null,
+    [nodes, selectedId],
+  )
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2 lg:flex-row" data-testid="graph-canvas">
@@ -264,7 +282,7 @@ function CanvasInner({ graphId, nodes: rawNodes, edges: rawEdges }: Readonly<Gra
         l'élargissement du flex parent et provoquerait un overflow horizontal de
         la PAGE — exactement ce que la mission interdit.
       */}
-      <div className="relative min-h-[16rem] min-w-0 flex-1 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="aig-line-soft relative min-h-[16rem] min-w-0 flex-1 overflow-hidden rounded-lg border">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -282,7 +300,11 @@ function CanvasInner({ graphId, nodes: rawNodes, edges: rawEdges }: Readonly<Gra
           edgesFocusable={false}
           deleteKeyCode={null}
           proOptions={{ hideAttribution: false }}
-          className="bg-zinc-50 dark:bg-zinc-950"
+          // Le fond du graphe est un CREUX : c'est la surface qui accueille la
+          // donnée, elle descend d'un palier sous le panneau qui la contient.
+          // `bg-zinc-50 dark:bg-zinc-950` disait la même chose en deux valeurs
+          // arbitraires dont une seule se rendait encore.
+          className="aig-subtle"
         >
           <Background gap={16} className="opacity-60" />
           <Controls showInteractive={false} position="bottom-left" />
@@ -302,7 +324,7 @@ function CanvasInner({ graphId, nodes: rawNodes, edges: rawEdges }: Readonly<Gra
         L'inspecteur : colonne à droite sur desktop, bloc SOUS le graphe sur
         mobile. `shrink-0` + hauteur bornée pour qu'il ne mange jamais le graphe.
       */}
-      <div className="max-h-[14rem] min-h-[8rem] w-full shrink-0 overflow-hidden rounded-lg border border-zinc-200 lg:max-h-none lg:w-64 dark:border-zinc-800">
+      <div className="aig-line-soft max-h-[14rem] min-h-[8rem] w-full shrink-0 overflow-hidden rounded-lg border lg:max-h-none lg:w-64">
         <Inspector node={selected} />
       </div>
     </div>
@@ -320,12 +342,12 @@ export default function GraphCanvas(props: Readonly<GraphCanvasProps>) {
   if (nodes.length === 0) {
     return (
       <div
-        className="flex min-h-[12rem] flex-1 items-center justify-center rounded-lg border border-dashed border-zinc-300 p-6 dark:border-zinc-700"
+        className="aig-line-soft flex min-h-[12rem] flex-1 items-center justify-center rounded-lg border border-dashed p-6"
         data-testid="graph-canvas-empty"
       >
-        <Text className="max-w-md text-center text-xs text-zinc-500">
-          Aucun nœud à représenter. Ce n’est pas un graphe vide : le serveur ne
-          publie pas de topologie pour ce graphe.
+        <Text className="aig-text-muted max-w-md text-center text-xs">
+          Aucun nœud à représenter. Ce n’est pas un graphe vide : le serveur ne publie pas de
+          topologie pour ce graphe.
         </Text>
       </div>
     )
@@ -340,9 +362,8 @@ export default function GraphCanvas(props: Readonly<GraphCanvasProps>) {
       {dropped > 0 ? (
         // Une arête écartée est un fait, pas un détail : la taire donnerait un
         // graphe faux d'apparence saine.
-        <Text className="text-2xs text-amber-600 dark:text-amber-500">
-          {dropped} arête(s) écartée(s) : elles désignent un nœud absent de la
-          topologie publiée.
+        <Text className="text-2xs text-amber-500">
+          {dropped} arête(s) écartée(s) : elles désignent un nœud absent de la topologie publiée.
         </Text>
       ) : null}
       <ReactFlowProvider>

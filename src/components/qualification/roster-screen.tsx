@@ -11,9 +11,9 @@
  *  · le catalogue est vide              → « aucun agent », un vide PROUVÉ ;
  *  · un agent n'a aucune qualification  → « pas encore lancée », pas un échec.
  */
+import { PageBody, PageHeader } from '@/components/app-shell'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Heading } from '@/components/ui/heading'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
 import { Panel, Rail, SEVERITY, Unavailable, initialsOf } from '@/components/cockpit/primitives'
@@ -137,7 +137,10 @@ function CandidateRow({ candidate }: Readonly<CandidateRowProps>) {
       <Rail color={RAIL_COLOR[candidate.state]} />
       <Link
         href={'/qualification/' + candidate.copilotId}
-        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5"
+        // Le survol monte la ligne d'un palier de clarté au lieu de poser un
+        // voile blanc dosé à la main : `aig-raised` est le rôle « ce qui prend
+        // l'attention », et il est le même sur tous les bancs du produit.
+        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:aig-raised"
       >
         <Avatar square initials={initialsOf(candidate.name)} className="size-8 shrink-0" />
 
@@ -195,67 +198,78 @@ export default function QualificationRosterScreen({
   const guardUnknown = ranked.filter((c) => c.runBlockerCount === null).length
 
   return (
-    <div className="shell-page-bounded flex min-h-0 flex-col gap-3 max-lg:pl-14">
-      <header className="shrink-0 px-1">
-        <Heading level={1}>{navEntry('/qualification').name}</Heading>
-        <Text className="mt-1">{navEntry('/qualification').purpose}</Text>
-      </header>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <Badge color="zinc">{ranked.length} candidat(s)</Badge>
-        <Badge
-          color="emerald"
-          title="Tous les checks de la gate passent. « Promouvable » est un état — aucune promotion ne part toute seule."
+    // `PageHeader` porte déjà la gouttière mobile (`max-lg:pl-16`) et son
+    // `sticky` : la reposer ici la doublerait. Le conteneur ne garde donc que
+    // sa contrainte de hauteur — la page ne pousse pas le shell, c'est le banc
+    // qui défile dans sa box.
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <PageHeader
+        title={navEntry('/qualification').name}
+        description={navEntry('/qualification').purpose}
+        // Les compteurs sont le CONTEXTE CHIFFRÉ de la surface, pas une action :
+        // ils vont dans `meta`, la fente que `PageHeader` prévoit pour ça.
+        meta={
+          <>
+            <Badge color="zinc">{ranked.length} candidat(s)</Badge>
+            <Badge
+              color="emerald"
+              title="Tous les checks de la gate passent. « Promouvable » est un état — aucune promotion ne part toute seule."
+            >
+              {promotable} promouvable(s)
+            </Badge>
+            <Badge color="red">{blocked} bloquée(s)</Badge>
+            <Badge color="amber" title="Boucles d’amélioration qui attendent une décision humaine.">
+              {awaitingDecision} décision(s) attendue(s)
+            </Badge>
+            <Badge
+              color="zinc"
+              title="Sans version de production, le replay n’a rien à comparer : la route refuse de partir. C’est une dépendance circulaire, pas une panne."
+            >
+              {withoutBaseline} sans baseline de replay
+            </Badge>
+            {guardUnknown > 0 ? (
+              <Badge
+                color="zinc"
+                title="Aucun contrat canonique ne résout pour ces agents — catalogue non lu, ou agent absent du catalogue. L’état de leur garde d’exécution est INCONNU, jamais « non lançable »."
+              >
+                {guardUnknown} garde(s) non dérivable(s)
+              </Badge>
+            ) : null}
+            {qualificationReadFailures > 0 ? (
+              <Badge
+                color="zinc"
+                title="Le registre de qualification n’a pas pu être lu pour ces agents. Leur état est INCONNU, pas « pas encore lancé »."
+              >
+                {qualificationReadFailures} registre(s) non lu(s)
+              </Badge>
+            ) : null}
+          </>
+        }
+      />
+      <PageBody className="min-h-0 flex-1">
+        <Panel
+          title="Banc de qualification"
+          hint={ranked.length + ' au catalogue'}
+          className="min-h-80 min-w-0 xl:min-h-0 xl:flex-1"
+          padded={false}
+          bodyClassName="scroll-thin overflow-y-auto"
         >
-          {promotable} promouvable(s)
-        </Badge>
-        <Badge color="red">{blocked} bloquée(s)</Badge>
-        <Badge color="amber" title="Boucles d’amélioration qui attendent une décision humaine.">
-          {awaitingDecision} décision(s) attendue(s)
-        </Badge>
-        <Badge
-          color="zinc"
-          title="Sans version de production, le replay n’a rien à comparer : la route refuse de partir. C’est une dépendance circulaire, pas une panne."
-        >
-          {withoutBaseline} sans baseline de replay
-        </Badge>
-        {guardUnknown > 0 ? (
-          <Badge
-            color="zinc"
-            title="Aucun contrat canonique ne résout pour ces agents — catalogue non lu, ou agent absent du catalogue. L’état de leur garde d’exécution est INCONNU, jamais « non lançable »."
-          >
-            {guardUnknown} garde(s) non dérivable(s)
-          </Badge>
-        ) : null}
-        {qualificationReadFailures > 0 ? (
-          <Badge
-            color="zinc"
-            title="Le registre de qualification n’a pas pu être lu pour ces agents. Leur état est INCONNU, pas « pas encore lancé »."
-          >
-            {qualificationReadFailures} registre(s) non lu(s)
-          </Badge>
-        ) : null}
-      </div>
-
-      <Panel
-        title="Banc de qualification"
-        hint={ranked.length + ' au catalogue'}
-        className="min-h-80 min-w-0 xl:min-h-0 xl:flex-1"
-        padded={false}
-        bodyClassName="scroll-thin overflow-y-auto"
-      >
-        {ranked.length === 0 ? (
-          <Unavailable
-            reason="no-data"
-            detail="Aucun agent n’est persisté dans le catalogue : il n’y a rien à qualifier. La lecture a réussi — ce n’est pas une panne."
-          />
-        ) : (
-          <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
-            {ranked.map((candidate) => (
-              <CandidateRow key={candidate.copilotId} candidate={candidate} />
-            ))}
-          </ul>
-        )}
-      </Panel>
+          {ranked.length === 0 ? (
+            <Unavailable
+              reason="no-data"
+              detail="Aucun agent n’est persisté dans le catalogue : il n’y a rien à qualifier. La lecture a réussi — ce n’est pas une panne."
+            />
+          ) : (
+            // Séparateur discret de la grammaire : la paire claire/sombre
+            // dosée à la main n'avait plus de moitié claire à rendre.
+            <ul className="aig-line-soft divide-y divide-[color:var(--aig-line-soft)]">
+              {ranked.map((candidate) => (
+                <CandidateRow key={candidate.copilotId} candidate={candidate} />
+              ))}
+            </ul>
+          )}
+        </Panel>
+      </PageBody>
     </div>
   )
 }

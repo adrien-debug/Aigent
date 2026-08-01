@@ -17,19 +17,16 @@
  *
  * Chaque ligne mène à `/delivery/[copilotId]` — un lien réel, jamais un `#`.
  */
+import { PageBody, PageHeader } from '@/components/app-shell'
 import { Badge } from '@/components/ui/badge'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
 import { Avatar } from '@/components/ui/avatar'
 import { Panel, Rail, SEVERITY, Unavailable, initialsOf } from '@/components/cockpit/primitives'
+import { navEntry } from '@/components/navigation'
 
 import { Note, isoShort } from './atoms'
-import {
-  countDeliveryRows,
-  deliveryModeLabel,
-  sortDeliveryRows,
-  type DeliveryRow,
-} from './model'
+import { countDeliveryRows, deliveryModeLabel, sortDeliveryRows, type DeliveryRow } from './model'
 import type { ConsumerTelemetryFact } from './server-reads'
 
 type DeliveryRosterRowProps = { row: DeliveryRow }
@@ -111,8 +108,8 @@ function RosterTelemetryNote({ telemetry, telemetryFailure }: Readonly<RosterTel
   }
   return (
     <Note tone="info" title="Des agents déployés ont rapporté des runs">
-      {telemetry.consumerCount} événement(s) de provenance « consumer » sur{' '}
-      {telemetry.scannedCount} lu(s).
+      {telemetry.consumerCount} événement(s) de provenance « consumer » sur {telemetry.scannedCount}{' '}
+      lu(s).
     </Note>
   )
 }
@@ -129,7 +126,9 @@ function DeliveryRosterRow({ row }: Readonly<DeliveryRosterRowProps>) {
       <Rail color={rail} />
       <Link
         href={'/delivery/' + row.copilotId}
-        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5"
+        // Survol = un palier de clarté au-dessus du panneau, comme sur le banc
+        // de qualification. Le voile blanc dosé à la main disparaît.
+        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:aig-raised"
       >
         <Avatar square initials={initialsOf(row.copilotName)} className="size-8 shrink-0" />
 
@@ -182,86 +181,99 @@ export default function DeliveryRosterScreen({
   const ranked = sortDeliveryRows(rows)
 
   return (
-    <div className="shell-page-bounded flex min-h-0 flex-col gap-3 max-lg:pl-14">
-      {/* Bandeau de comptage — dérivé de la MÊME liste que la table affiche. */}
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <Badge color="zinc">{counts.total} agent(s)</Badge>
-        <Badge color="emerald" title="Un événement de livraison réel est persisté.">
-          {counts.delivered} livré(s)
-        </Badge>
-        <Badge color="zinc" title="Lecture réussie, aucun événement de livraison. Fait mesuré.">
-          {counts.neverDelivered} jamais livré(s)
-        </Badge>
-        {counts.notRead > 0 ? (
-          <Badge
-            color="amber"
-            title="Lectures d’événement de livraison qui ont ÉCHOUÉ. Ces agents ne sont PAS comptés comme « jamais livrés » — on ne sait pas."
-          >
-            {counts.notRead} non lu(s)
-          </Badge>
-        ) : null}
-        <Badge color="sky" title="Livraisons ayant ouvert une PR. Ouverte ≠ mergée.">
-          {counts.withPr} PR ouverte(s)
-        </Badge>
-        <Badge
-          color="zinc"
-          title="Agents dont le projet n’a aucun dépôt GitHub lié : aucune livraison n’y est possible."
-        >
-          {counts.withoutRepo} sans dépôt
-        </Badge>
-      </div>
+    // `PageHeader` porte la gouttière mobile et le `sticky` : les reposer ici
+    // les doublerait. Le conteneur ne garde que la contrainte de hauteur — la
+    // page ne pousse pas le shell, c'est le banc qui défile dans sa box.
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      {/* Le bandeau de comptage devient le `meta` de l'en-tête : c'est du
+          contexte chiffré de la surface, dérivé de la MÊME liste que la table
+          affiche, pas une action. */}
+      <PageHeader
+        title={navEntry('/delivery').name}
+        description={navEntry('/delivery').purpose}
+        meta={
+          <>
+            <Badge color="zinc">{counts.total} agent(s)</Badge>
+            <Badge color="emerald" title="Un événement de livraison réel est persisté.">
+              {counts.delivered} livré(s)
+            </Badge>
+            <Badge color="zinc" title="Lecture réussie, aucun événement de livraison. Fait mesuré.">
+              {counts.neverDelivered} jamais livré(s)
+            </Badge>
+            {counts.notRead > 0 ? (
+              <Badge
+                color="amber"
+                title="Lectures d’événement de livraison qui ont ÉCHOUÉ. Ces agents ne sont PAS comptés comme « jamais livrés » — on ne sait pas."
+              >
+                {counts.notRead} non lu(s)
+              </Badge>
+            ) : null}
+            <Badge color="sky" title="Livraisons ayant ouvert une PR. Ouverte ≠ mergée.">
+              {counts.withPr} PR ouverte(s)
+            </Badge>
+            <Badge
+              color="zinc"
+              title="Agents dont le projet n’a aucun dépôt GitHub lié : aucune livraison n’y est possible."
+            >
+              {counts.withoutRepo} sans dépôt
+            </Badge>
+          </>
+        }
+      />
 
-      {/* ── Le fait structurant de la surface, en tête ────────────────────── */}
-      <div className="grid shrink-0 gap-2 lg:grid-cols-2">
-        {realDeliveryEnabled ? (
-          <Note
-            title="Écriture GitHub réelle possible sur ce serveur"
-            tone="warn"
-          >
-            Le verrou serveur est ouvert. Une livraison confirmée écrira réellement sur un dépôt tiers.
-            Le dry-run reste le mode par défaut de chaque formulaire.
-          </Note>
-        ) : (
-          <Note title="Shipping désactivé — toute livraison partira en dry-run">
-            Une écriture GitHub réelle exige DEUX verrous : la confirmation de l’opérateur ET un verrou
-            d’environnement côté serveur. Le second est fermé ici, donc les routes de livraison
-            retombent en dry-run et le répondent honnêtement. Ce n’est pas une panne : c’est la
-            garantie produit qui empêche une écriture accidentelle sur le dépôt d’un client.
-          </Note>
-        )}
+      <PageBody className="min-h-0 flex-1">
+        {/* ── Le fait structurant de la surface, en tête ────────────────────── */}
+        <div className="grid shrink-0 gap-2 lg:grid-cols-2">
+          {realDeliveryEnabled ? (
+            <Note title="Écriture GitHub réelle possible sur ce serveur" tone="warn">
+              Le verrou serveur est ouvert. Une livraison confirmée écrira réellement sur un dépôt
+              tiers. Le dry-run reste le mode par défaut de chaque formulaire.
+            </Note>
+          ) : (
+            <Note title="Shipping désactivé — toute livraison partira en dry-run">
+              Une écriture GitHub réelle exige DEUX verrous : la confirmation de l’opérateur ET un
+              verrou d’environnement côté serveur. Le second est fermé ici, donc les routes de
+              livraison retombent en dry-run et le répondent honnêtement. Ce n’est pas une panne :
+              c’est la garantie produit qui empêche une écriture accidentelle sur le dépôt d’un
+              client.
+            </Note>
+          )}
 
-        <RosterTelemetryNote telemetry={telemetry} telemetryFailure={telemetryFailure} />
-      </div>
-
-      {deliveryReadFailures > 0 ? (
-        <div className="shrink-0">
-          <Note tone="warn" title={deliveryReadFailures + ' lecture(s) de livraison en échec'}>
-            Ces agents sont marqués « livraison non lue » et ne sont comptés ni parmi les livrés, ni
-            parmi les jamais livrés. Une panne de lecture n’est pas une absence de livraison.
-          </Note>
+          <RosterTelemetryNote telemetry={telemetry} telemetryFailure={telemetryFailure} />
         </div>
-      ) : null}
 
-      <Panel
-        title="Banc de livraison"
-        hint={ranked.length + ' au catalogue'}
-        className="min-h-80 min-w-0 xl:min-h-0 xl:flex-1"
-        padded={false}
-        bodyClassName="scroll-thin overflow-y-auto"
-      >
-        {ranked.length === 0 ? (
-          <Unavailable
-            reason="no-data"
-            detail="Aucun agent n’est persisté dans le catalogue. La lecture a réussi — il n’y a réellement rien, ce n’est pas une panne."
-          />
-        ) : (
-          <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
-            {ranked.map((row) => (
-              <DeliveryRosterRow key={row.copilotId} row={row} />
-            ))}
-          </ul>
-        )}
-      </Panel>
+        {deliveryReadFailures > 0 ? (
+          <div className="shrink-0">
+            <Note tone="warn" title={deliveryReadFailures + ' lecture(s) de livraison en échec'}>
+              Ces agents sont marqués « livraison non lue » et ne sont comptés ni parmi les livrés,
+              ni parmi les jamais livrés. Une panne de lecture n’est pas une absence de livraison.
+            </Note>
+          </div>
+        ) : null}
+
+        <Panel
+          title="Banc de livraison"
+          hint={ranked.length + ' au catalogue'}
+          className="min-h-80 min-w-0 xl:min-h-0 xl:flex-1"
+          padded={false}
+          bodyClassName="scroll-thin overflow-y-auto"
+        >
+          {ranked.length === 0 ? (
+            <Unavailable
+              reason="no-data"
+              detail="Aucun agent n’est persisté dans le catalogue. La lecture a réussi — il n’y a réellement rien, ce n’est pas une panne."
+            />
+          ) : (
+            // Séparateur discret de la grammaire — la paire claire/sombre dosée à
+            // la main n'avait plus de moitié claire à rendre.
+            <ul className="divide-y divide-[color:var(--aig-line-soft)]">
+              {ranked.map((row) => (
+                <DeliveryRosterRow key={row.copilotId} row={row} />
+              ))}
+            </ul>
+          )}
+        </Panel>
+      </PageBody>
     </div>
   )
 }

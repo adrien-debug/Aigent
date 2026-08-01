@@ -10,9 +10,12 @@
  * La ligne de liste ne montre que le nécessaire : nom, état principal,
  * dernière activité et signal critique éventuel. Le détail complet vit au clic.
  */
+import { PageBody, PageHeader } from '@/components/app-shell'
+import EmbeddedVisualization from '@/components/visualizations/embedded-visualization'
+import type { ResolvedVisualization } from '@/components/visualizations/embed/contract'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Heading, Subheading } from '@/components/ui/heading'
+import { Subheading } from '@/components/ui/heading'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
 import type { AvailableAgent } from '@/lib/agent-mission-control/available-agents'
@@ -46,7 +49,10 @@ function missingRequirement(agent: AvailableAgent): string | null {
 
 function criticalSignal(agent: AvailableAgent): { tone: 'amber' | 'red'; text: string } | null {
   if (agent.unresolvedToolIds.length > 0) {
-    return { tone: 'red', text: unresolvedToolsBadgeText(agent.unresolvedToolIds.length) }
+    return {
+      tone: 'red',
+      text: unresolvedToolsBadgeText(agent.unresolvedToolIds.length),
+    }
   }
   if (agent.runtimeProvisioned === false) {
     return { tone: 'amber', text: 'Assistant LangGraph non provisionne' }
@@ -80,12 +86,16 @@ function AgentRosterRow({ agent }: Readonly<{ agent: AvailableAgent }>) {
       <Rail color={RAIL_COLOR[agent.status]} />
       <Link
         href={`/agents/${agent.copilotId}`}
-        className="group flex items-start gap-4 px-5 py-4 transition hover:bg-zinc-950/2.5 focus-visible:bg-zinc-950/2.5"
+        className="group flex items-start gap-4 px-5 py-4 transition hover:bg-white/4 focus-visible:bg-white/4"
       >
+        {/* L'avatar était peint pour un fond blanc (`bg-zinc-950/3`,
+            `text-zinc-700`) : sur le graphite il disparaissait. `aig-raised`
+            le pose au palier au-dessus du panneau — la même mécanique que le
+            rail de navigation, donc une seule règle à retenir. */}
         <Avatar
           square
           initials={initialsOf(agent.name)}
-          className="size-10 shrink-0 bg-zinc-950/3 text-zinc-700 outline-zinc-950/10"
+          className="aig-raised size-10 shrink-0 outline-0"
         />
 
         <div className="min-w-0 flex-1">
@@ -96,14 +106,19 @@ function AgentRosterRow({ agent }: Readonly<{ agent: AvailableAgent }>) {
           <Text className="mt-1 truncate">
             {activity ? `Dernier run : ${activity} UTC` : 'Aucune activité enregistrée'}
           </Text>
+          {/* Teintes remontées d'un cran (600/700 → 400) : sur graphite, un
+              rouge 600 passe sous le seuil de lisibilité alors qu'il était
+              calibré pour un fond blanc. La SÉVÉRITÉ n'a pas changé. */}
           {signal ? (
-            <Text className={signal.tone === 'red' ? 'mt-1 text-red-600' : 'mt-1 text-amber-700'}>
+            <Text className={signal.tone === 'red' ? 'mt-1 text-red-400' : 'mt-1 text-amber-400'}>
               {signal.text}
             </Text>
           ) : null}
         </div>
 
-        <Text className="hidden shrink-0 text-sm text-zinc-400 transition group-hover:text-zinc-600 sm:block">
+        {/* L'affordance d'ouverture s'éclaire au survol : `aig-text-faint` au
+            repos, accent au survol — le seul accent du produit. */}
+        <Text className="aig-text-faint hidden shrink-0 text-sm transition group-hover:text-[var(--aig-accent)] sm:block">
           Ouvrir
         </Text>
       </Link>
@@ -111,52 +126,77 @@ function AgentRosterRow({ agent }: Readonly<{ agent: AvailableAgent }>) {
   )
 }
 
-export default function AgentRosterScreen({ agents }: Readonly<{ agents: AvailableAgent[] }>) {
+export default function AgentRosterScreen({
+  agents,
+  visualizations = [],
+}: Readonly<{
+  agents: AvailableAgent[]
+  /**
+   * Panneaux de la fonction `agents`, déjà résolus côté serveur.
+   *
+   * Ce sont les SEULS panneaux qui ont leur place ici : « runs par agent » et
+   * « couples projet/agent » répondent à la question de cette page. Le volume
+   * global ou la latence p95 vivent sur `/runs`, qui parle d'exécutions. Un
+   * écran qui montrerait les huit panneaux du registre ne serait plus un
+   * roster, ce serait un second dashboard.
+   */
+  visualizations?: readonly ResolvedVisualization[]
+}>) {
   const ranked = sortRoster(agents)
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-8 p-6 pt-16 lg:pt-8">
-      <header className="flex flex-col gap-4 border-b border-zinc-950/6 pb-6 sm:flex-row sm:items-end sm:justify-between">
-        {/* UN seul titre : le surtitre répétait « Agents » au-dessus du `H1`
-            « Agents ». Voir la même correction sur `SectionHeader` dans
-            `detail-screen.tsx`. */}
-        <div className="max-w-3xl">
-          <Heading level={1}>Agents</Heading>
-          <Text className="mt-3 text-base/7 text-zinc-600">
-            {rosterSummary(ranked)}. La liste montre l’essentiel pour décider quoi ouvrir, pas
-            tout ce que le contrat sait.
-          </Text>
-        </div>
+    <>
+      {/* L'en-tête n'est plus recomposé ici : `PageHeader` porte le titre, la
+          description, les actions, la gouttière mobile et le sticky pour les
+          onze surfaces. Un écran qui redessine son propre en-tête est
+          exactement la dérive que cette mission ferme. */}
+      <PageHeader
+        title="Agents"
+        description={`${rosterSummary(ranked)}. La liste montre l’essentiel pour décider quoi ouvrir, pas tout ce que le contrat sait.`}
+        actions={
+          <Button color="dark/zinc" href="/builder">
+            Nouveau copilot
+          </Button>
+        }
+      />
 
-        <Button color="dark/zinc" href="/builder">
-          Nouveau copilot
-        </Button>
-      </header>
-
-      <section className="rounded-2xl border border-zinc-950/6 bg-white shadow-sm">
-        <div className="border-b border-zinc-950/6 px-5 py-4">
-          <Subheading level={2}>Liste des agents</Subheading>
-          <Text className="mt-1">
-            Nom, état principal, dernière activité et signal critique éventuel. Le reste vient au
-            clic.
-          </Text>
-        </div>
-
-        {ranked.length === 0 ? (
-          <div className="px-5 py-10">
-            <Unavailable
-              reason="no-data"
-              detail="Aucun agent n'est persisté dans le catalogue. La lecture a réussi — il n'y a réellement rien, ce n'est pas une panne."
-            />
-          </div>
-        ) : (
-          <ul className="divide-y divide-zinc-950/6">
-            {ranked.map((agent) => (
-              <AgentRosterRow key={agent.copilotId} agent={agent} />
+      <PageBody>
+        {visualizations.length > 0 ? (
+          <section
+            className="viz-scope grid gap-3 md:grid-cols-2 [&>*]:min-w-0"
+            aria-label="Répartition par agent"
+          >
+            {visualizations.map((viz) => (
+              <EmbeddedVisualization key={viz.id} visualization={viz} density="compact" />
             ))}
-          </ul>
-        )}
-      </section>
-    </div>
+          </section>
+        ) : null}
+
+        <section className="aig-panel">
+          <div className="aig-line-soft border-b px-5 py-4">
+            <Subheading level={2}>Liste des agents</Subheading>
+            <Text className="mt-1">
+              Nom, état principal, dernière activité et signal critique éventuel. Le reste vient au
+              clic.
+            </Text>
+          </div>
+
+          {ranked.length === 0 ? (
+            <div className="px-5 py-10">
+              <Unavailable
+                reason="no-data"
+                detail="Aucun agent n'est persisté dans le catalogue. La lecture a réussi — il n'y a réellement rien, ce n'est pas une panne."
+              />
+            </div>
+          ) : (
+            <ul className="divide-y divide-white/6">
+              {ranked.map((agent) => (
+                <AgentRosterRow key={agent.copilotId} agent={agent} />
+              ))}
+            </ul>
+          )}
+        </section>
+      </PageBody>
+    </>
   )
 }

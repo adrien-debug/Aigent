@@ -38,7 +38,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   // sobrement plutôt que de propager l'erreur depuis les métadonnées.
   try {
     const detail = await getAgentDetail(copilotId)
-    return { title: detail ? `Aigent · ${detail.copilot.name}` : 'Aigent · Agent inconnu' }
+    return {
+      title: detail ? `Aigent · ${detail.copilot.name}` : 'Aigent · Agent inconnu',
+    }
   } catch {
     return { title: 'Aigent · Agent' }
   }
@@ -54,8 +56,8 @@ export default async function Page({ params }: PageProps) {
     const failure = err instanceof Error ? err.message : 'lecture impossible'
     return (
       <AppShell>
-        <div className="p-6 pt-16 lg:pt-8">
-          <div className="mx-auto max-w-md rounded-2xl bg-white px-6 py-10 text-center shadow-xs ring-1 ring-zinc-950/5">
+        <div className="h-full p-4">
+          <div className="aig-panel flex h-full items-center justify-center">
             <div className="max-w-md px-6 text-center">
               <Unavailable
                 reason="unread"
@@ -82,7 +84,10 @@ export default async function Page({ params }: PageProps) {
         const gate = await evaluateReleaseGate(copilotId, candidateVersionId)
         return { gate, failure: null as string | null }
       } catch (err) {
-        return { gate: null, failure: err instanceof Error ? err.message : 'évaluation impossible' }
+        return {
+          gate: null,
+          failure: err instanceof Error ? err.message : 'évaluation impossible',
+        }
       }
     })(),
     (async () => {
@@ -91,7 +96,10 @@ export default async function Page({ params }: PageProps) {
         const run = await getLatestQualificationRun(copilotId, candidateVersionId)
         return { run, failure: null as string | null }
       } catch (err) {
-        return { run: null, failure: err instanceof Error ? err.message : 'lecture impossible' }
+        return {
+          run: null,
+          failure: err instanceof Error ? err.message : 'lecture impossible',
+        }
       }
     })(),
   ])

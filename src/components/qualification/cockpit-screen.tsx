@@ -67,10 +67,13 @@ import { PROMOTION_STATUS_MEANING } from './model'
 function CockpitHeader({
   detail,
   state,
-}: Readonly<{ detail: QualificationDetail; state: keyof typeof GLOBAL_STATE_LABEL }>) {
+}: Readonly<{
+  detail: QualificationDetail
+  state: keyof typeof GLOBAL_STATE_LABEL
+}>) {
   const { copilotName, candidateVersion, productionVersionId, productionRead, versions } = detail
   const productionVersion = productionVersionId
-    ? versions.find((v) => v.id === productionVersionId) ?? null
+    ? (versions.find((v) => v.id === productionVersionId) ?? null)
     : null
 
   return (
@@ -89,19 +92,19 @@ function CockpitHeader({
             {candidateVersion ? (
               <Strong>{candidateVersion.label}</Strong>
             ) : (
-              <span className="text-amber-700 dark:text-amber-500">aucune version candidate</span>
+              <span className="text-amber-500">aucune version candidate</span>
             )}
           </Text>
           <Text className="text-sm">
             En production :{' '}
             {!productionRead ? (
-              <span className="text-zinc-500">non lue</span>
+              <span className="aig-text-muted">non lue</span>
             ) : productionVersion ? (
               <Strong>{productionVersion.label}</Strong>
             ) : productionVersionId ? (
               <Strong>{productionVersionId}</Strong>
             ) : (
-              <span className="text-amber-700 dark:text-amber-500">aucune</span>
+              <span className="text-amber-500">aucune</span>
             )}
           </Text>
         </div>
@@ -168,9 +171,7 @@ function StepRow({
           <Badge color={STEP_STATE_COLOR[step.state]}>{STEP_STATE_LABEL[step.state]}</Badge>
           {/* `whitespace-nowrap` : « 5/5 cas · 100 % » est UNE unité de sens,
               jamais un texte à couper au milieu. */}
-          {step.summary ? (
-            <Text className="text-sm whitespace-nowrap">{step.summary}</Text>
-          ) : null}
+          {step.summary ? <Text className="text-sm whitespace-nowrap">{step.summary}</Text> : null}
         </div>
         {step.detail ? <Text className="mt-1 text-xs">{step.detail}</Text> : null}
       </div>
@@ -214,8 +215,14 @@ const CONDITION_TITLE: Record<'tenue' | 'bloquante' | 'sans preuve', string> = {
 }
 
 function ConditionRow({ condition }: Readonly<{ condition: DecisionCondition }>) {
-  const color = condition.satisfied === true ? 'emerald' : condition.satisfied === false ? 'red' : 'zinc'
-  const label = condition.satisfied === true ? 'tenue' : condition.satisfied === false ? 'bloquante' : 'sans preuve'
+  const color =
+    condition.satisfied === true ? 'emerald' : condition.satisfied === false ? 'red' : 'zinc'
+  const label =
+    condition.satisfied === true
+      ? 'tenue'
+      : condition.satisfied === false
+        ? 'bloquante'
+        : 'sans preuve'
 
   return (
     <li className="flex items-start justify-between gap-3 py-1.5">
@@ -283,11 +290,12 @@ export default function QualificationCockpitScreen({
           mobile, la question « pourquoi c'est bloqué » prime sur le détail. */}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem] [&>*]:min-w-0">
         {/* ── Décision — première dans le DOM sur mobile, à droite en desktop ── */}
-        <section
-          aria-labelledby="decision"
-          className="lg:order-2 lg:sticky lg:top-4 lg:self-start"
-        >
-          <div className="rounded-lg bg-white p-4 shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <section aria-labelledby="decision" className="lg:order-2 lg:sticky lg:top-4 lg:self-start">
+          {/* `aig-panel` porte fond + liseré + rayon + élévation en un jeton :
+              la pile `bg-white/shadow-xs/ring-1` et son scope `dark:` disait la
+              même chose en quatre décisions locales, que rien ne synchronisait
+              avec les autres panneaux de l'écran. */}
+          <div className="aig-panel p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <Subheading level={2} id="decision">
                 Décision
@@ -301,13 +309,17 @@ export default function QualificationCockpitScreen({
               Gate de release et gate de promotion réunies : la seconde intègre la première.
             </Text>
 
+            {/* Ces deux encadrés gardent leur TEINTE : ici le rouge et le vert
+                doublent le mot, ils ne le remplacent pas — c'est le verdict de
+                la gate. Seul le fond CLAIR (`bg-red-50` / `bg-emerald-50`)
+                disparaît : sa moitié sombre était déjà la seule à se rendre. */}
             {decision.blockingCause ? (
-              <div className="mt-3 rounded-lg border border-red-500/25 bg-red-50/60 p-3 dark:bg-red-950/20">
+              <div className="mt-3 rounded-lg border border-red-500/25 bg-red-950/20 p-3">
                 <Strong className="block text-sm">Cause du blocage</Strong>
                 <Text className="mt-1 text-sm">{decision.blockingCause}</Text>
               </div>
             ) : (
-              <div className="mt-3 rounded-lg border border-emerald-500/25 bg-emerald-50/60 p-3 dark:bg-emerald-950/20">
+              <div className="mt-3 rounded-lg border border-emerald-500/25 bg-emerald-950/20 p-3">
                 <Text className="text-sm">Toutes les conditions de la gate tiennent.</Text>
               </div>
             )}
@@ -356,7 +368,7 @@ export default function QualificationCockpitScreen({
             {decision.blocking.length > 0 ? (
               <div className="mt-4">
                 <Strong className="block text-xs uppercase">Conditions bloquantes</Strong>
-                <ul className="mt-1 divide-y divide-zinc-950/5 dark:divide-white/10">
+                <ul className="mt-1 divide-y divide-[color:var(--aig-line-soft)]">
                   {decision.blocking.map((c) => (
                     <ConditionRow key={`${c.source}-${c.label}`} condition={c} />
                   ))}
@@ -367,7 +379,7 @@ export default function QualificationCockpitScreen({
             {decision.missing.length > 0 ? (
               <div className="mt-4">
                 <Strong className="block text-xs uppercase">Preuves manquantes</Strong>
-                <ul className="mt-1 divide-y divide-zinc-950/5 dark:divide-white/10">
+                <ul className="mt-1 divide-y divide-[color:var(--aig-line-soft)]">
                   {decision.missing.map((c) => (
                     <ConditionRow key={`${c.source}-${c.label}`} condition={c} />
                   ))}
@@ -377,10 +389,10 @@ export default function QualificationCockpitScreen({
 
             {decision.satisfied.length > 0 ? (
               <details className="mt-4">
-                <summary className="cursor-pointer text-xs uppercase text-zinc-500 dark:text-zinc-400">
+                <summary className="aig-text-faint cursor-pointer text-xs uppercase">
                   {decision.satisfied.length} condition(s) satisfaite(s)
                 </summary>
-                <ul className="mt-1 divide-y divide-zinc-950/5 dark:divide-white/10">
+                <ul className="mt-1 divide-y divide-[color:var(--aig-line-soft)]">
                   {decision.satisfied.map((c) => (
                     <ConditionRow key={`${c.source}-${c.label}`} condition={c} />
                   ))}
@@ -392,14 +404,14 @@ export default function QualificationCockpitScreen({
 
         {/* ── Pipeline ── */}
         <section aria-labelledby="parcours" className="lg:order-1">
-          <div className="rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div className="aig-panel">
             <div className="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-4">
               <Subheading level={2} id="parcours">
                 Parcours de qualification
               </Subheading>
               <Text className="text-xs">Tests → Benchmark → Shadow → Replay → Gate</Text>
             </div>
-            <ul className="divide-y divide-zinc-950/5 px-4 pb-2 dark:divide-white/10">
+            <ul className="divide-y divide-[color:var(--aig-line-soft)] px-4 pb-2">
               {pipeline.map((step) => (
                 <StepRow
                   key={step.id}
@@ -411,12 +423,16 @@ export default function QualificationCockpitScreen({
             </ul>
           </div>
 
-          {/* ── Zone secondaire : présente, repliée, jamais dominante ── */}
+          {/* ── Zone secondaire : présente, repliée, jamais dominante ──
+              Les quatre `details` portent le MÊME `aig-panel` que le pipeline
+              au-dessus : elles sont repliées, pas d'une autre matière. Avant, la
+              pile `bg-white/shadow-xs/ring-1` était recopiée cinq fois dans ce
+              seul fichier — cinq endroits où la valeur pouvait diverger. */}
           <div className="mt-4 flex flex-col gap-2">
-            <details className="rounded-lg bg-white px-4 py-3 shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+            <details className="aig-panel px-4 py-3">
               <summary className="cursor-pointer text-sm font-medium">
                 Historique des gates{' '}
-                <span className="text-zinc-500">
+                <span className="aig-text-muted">
                   ({detail.gateHistoryFailure ? 'illisible' : detail.gateHistory.length})
                 </span>
               </summary>
@@ -426,7 +442,7 @@ export default function QualificationCockpitScreen({
                 ) : detail.gateHistory.length === 0 ? (
                   <Text className="text-sm">Aucune évaluation persistée pour ce copilot.</Text>
                 ) : (
-                  <ul className="divide-y divide-zinc-950/5 dark:divide-white/10">
+                  <ul className="divide-y divide-[color:var(--aig-line-soft)]">
                     {detail.gateHistory.map((entry) => (
                       <li key={entry.id} className="flex items-center justify-between gap-3 py-1.5">
                         <Text className="min-w-0 truncate text-xs">
@@ -445,10 +461,10 @@ export default function QualificationCockpitScreen({
               </div>
             </details>
 
-            <details className="rounded-lg bg-white px-4 py-3 shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+            <details className="aig-panel px-4 py-3">
               <summary className="cursor-pointer text-sm font-medium">
                 Versions{' '}
-                <span className="text-zinc-500">
+                <span className="aig-text-muted">
                   ({detail.versionsFailure ? 'illisible' : detail.versions.length})
                 </span>
               </summary>
@@ -456,9 +472,12 @@ export default function QualificationCockpitScreen({
                 {detail.versionsFailure ? (
                   <Text className="text-sm">{detail.versionsFailure}</Text>
                 ) : (
-                  <ul className="divide-y divide-zinc-950/5 dark:divide-white/10">
+                  <ul className="divide-y divide-[color:var(--aig-line-soft)]">
                     {detail.versions.map((version) => (
-                      <li key={version.id} className="flex items-center justify-between gap-3 py-1.5">
+                      <li
+                        key={version.id}
+                        className="flex items-center justify-between gap-3 py-1.5"
+                      >
                         <Text className="min-w-0 truncate text-sm">{version.label}</Text>
                         <div className="flex shrink-0 items-center gap-1">
                           <Badge color="zinc">{version.stage}</Badge>
@@ -473,17 +492,17 @@ export default function QualificationCockpitScreen({
               </div>
             </details>
 
-            <details className="rounded-lg bg-white px-4 py-3 shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+            <details className="aig-panel px-4 py-3">
               <summary className="cursor-pointer text-sm font-medium">
                 Suites{' '}
-                <span className="text-zinc-500">
+                <span className="aig-text-muted">
                   {detail.testSuitesFailure || detail.benchmarkSuitesFailure
                     ? '(illisible)'
                     : `(${detail.testSuites.length} test · ${detail.benchmarkSuites.length} benchmark)`}
                 </span>
               </summary>
               <div className="mt-2">
-                <ul className="divide-y divide-zinc-950/5 dark:divide-white/10">
+                <ul className="divide-y divide-[color:var(--aig-line-soft)]">
                   {detail.testSuites.map((suite) => (
                     <li key={suite.id} className="flex items-center justify-between gap-3 py-1.5">
                       <Text className="min-w-0 truncate text-sm">{suite.name}</Text>
@@ -507,7 +526,7 @@ export default function QualificationCockpitScreen({
             {/* Actions avancées et destructrices : rangées, jamais alignées
                 avec le reste. La boucle d'amélioration et le retour arrière ne
                 sont pas des gestes de parcours courant. */}
-            <details className="rounded-lg bg-white px-4 py-3 shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+            <details className="aig-panel px-4 py-3">
               <summary className="cursor-pointer text-sm font-medium">Actions avancées</summary>
               <div className="mt-3 flex flex-col gap-4">
                 <QualificationConsole target={target} sections={['improvement']} />
