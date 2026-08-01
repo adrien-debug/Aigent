@@ -155,7 +155,16 @@ async function assertNoForeignOverlay(page, file) {
      */
     const OUTIL = /describe a change|github copilot|cursor tab|open in cursor/i
     const found = []
-    for (const el of document.querySelectorAll('body *')) {
+    /*
+     * TOUT le document, pas seulement `body *`.
+     *
+     * `<css-studio-panel>` est enfant direct de `<html>` — un `body *` ne le
+     * trouve JAMAIS. C'est ce détail qui a fait passer la sonde négative au
+     * vert alors que le panneau était bien rendu : l'assertion cherchait au
+     * mauvais endroit. Une gate qui interroge le mauvais périmètre est une
+     * gate qui ne mesure rien.
+     */
+    for (const el of document.querySelectorAll('html *')) {
       // Les <script> RSC portent du texte sérialisé : ils ne sont pas visibles
       // et n'ont rien à faire dans cette recherche.
       if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'NOSCRIPT') continue
