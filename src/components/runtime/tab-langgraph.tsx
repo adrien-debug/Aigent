@@ -369,9 +369,20 @@ function ServerStatePanel({ data }: Readonly<{ data: LangGraphTabData }>) {
  * La hauteur est BORNÉE (`h-[26rem]`) et ne suit pas la taille du graphe : un
  * graphe de 200 nœuds se navigue au zoom, il ne pousse pas la page.
  */
+/**
+ * Le panneau du graphe — il PREND la place, il ne l'attend pas.
+ *
+ * `flex-1` plutôt qu'une hauteur fixe : le Canvas occupe le viewport restant à
+ * 1440×900 comme à 1280×800. Le plancher `min-h-[22rem]` garantit qu'il reste
+ * lisible sur un écran court, où il devient alors scrollable avec le reste.
+ */
 function TopologyPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
   return (
-    <Panel title={`Topologie · ${data.graphId}`} className="min-h-0 shrink-0">
+    <Panel
+      title={`Topologie · ${data.graphId}`}
+      className="flex min-h-[22rem] flex-1 flex-col"
+      bodyClassName="flex min-h-0 flex-1 flex-col"
+    >
       <LoadedBlock loaded={data.topology} what="La topologie du graphe">
         {(topology) =>
           // Le serveur peut répondre SANS exposer sa topologie : c'est une
@@ -379,14 +390,17 @@ function TopologyPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
           !topology.topologyAvailable ? (
             <ProvenEmpty detail="Le serveur ne publie pas la topologie de ce graphe. Ce n’est pas un graphe sans nœuds — c’est une information que l’API ne rend pas." />
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex min-h-0 flex-1 flex-col gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge color="zinc">{topology.nodes.length} nœud(s)</Badge>
                 <Badge color="zinc">{topology.edges.length} arête(s)</Badge>
               </div>
-              <div className="flex h-[26rem] min-h-0 flex-col">
-                <GraphCanvas nodes={topology.nodes} edges={topology.edges} readOnly />
-              </div>
+              <GraphCanvas
+                graphId={topology.graphId}
+                nodes={topology.nodes}
+                edges={topology.edges}
+                readOnly
+              />
             </div>
           )
         }
@@ -396,20 +410,65 @@ function TopologyPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
 }
 
 /**
+ * Le sujet de cet onglet est LE GRAPHE — il passe donc en premier et prend
+ * l'essentiel du viewport.
+ *
+ * Avant ce rework, la topologie était le QUATRIÈME panneau : à 1440×900 comme à
+ * 1280×800 il fallait défiler pour l'atteindre, et sur mobile elle n'existait
+ * pas dans la première vue. Un écran dont le sujet est un graphe qui n'affiche
+ * pas le graphe se trompe de hiérarchie.
+ *
+ * RIEN N'EST SUPPRIMÉ. Endpoint, provisioning, assistants et threads restent
+ * intégralement disponibles — ils descendent dans un `<details>` replié. Le
+ * `<details>` natif est délibéré : il fonctionne sans JavaScript, reste dans le
+ * flux du document, et l'onglet garde sa nature de Server Component. Le piège
+ * de l'assistant (§2 du bandeau) reste donc lisible d'un clic, jamais perdu.
+ *
  * PAS de `xl:overflow-hidden` sur la colonne : au-delà de 1280 il cessait de
- * défiler et COUPAIT — « Assistants du serveur » et « Threads récents »
- * mesuraient 0 px, contenu inatteignable, sans qu'aucun signal ne l'indique.
- * Un onglet à six panneaux ne tient pas dans un viewport, et le nier ne le fait
- * pas rentrer : il défile ici, dans une zone bornée. Le zéro-scroll de la PAGE
- * reste tenu par le `h-full overflow-hidden` de `runtime-screen`.
+ * défiler et COUPAIT — contenu inatteignable, sans aucun signal. Le zéro-scroll
+ * de la PAGE reste tenu par le `h-full overflow-hidden` de `runtime-screen`.
  */
 export default function LangGraphTab({ data }: Readonly<{ data: LangGraphTabData }>) {
+  const reachable = data.assistants.ok
+
   return (
     <div className="scroll-thin flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
-      <EndpointPanel data={data} />
-      <ProvisioningPanel data={data} />
-      <ServerStatePanel data={data} />
+      {/*
+        Résumé serveur COMPACT — trois faits sur une ligne, pas un panneau.
+        Le détail complet vit dans la disclosure, à un clic.
+      */}
+      <div className="flex flex-wrap items-center gap-2 px-0.5" data-testid="langgraph-summary">
+        <Badge color={reachable ? 'emerald' : 'red'}>
+          {reachable ? 'serveur joignable' : 'serveur injoignable'}
+        </Badge>
+        <Badge color="zinc">graphe {data.graphId}</Badge>
+        <Badge color={data.secretConfigured ? 'emerald' : 'amber'}>
+          {data.secretConfigured ? 'secret présent' : 'secret absent'}
+        </Badge>
+        {data.endpoint.ok ? (
+          <code className="truncate text-[11px] text-zinc-500">{data.endpoint.data}</code>
+        ) : (
+          <Text className="truncate text-[11px] text-red-600 dark:text-red-500">endpoint refusé</Text>
+        )}
+      </div>
+
+      {/* LE SUJET — `flex-1` : la topologie prend la place restante. */}
       <TopologyPanel data={data} />
+
+      <details className="group shrink-0 rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium text-zinc-600 select-none hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
+          <span className="inline-block transition-transform group-open:rotate-90">▸</span>{' '}
+          Endpoint, provisioning et état du serveur
+          <span className="ml-1 font-normal text-zinc-500">
+            — dont le piège de l’assistant
+          </span>
+        </summary>
+        <div className="flex flex-col gap-3 border-t border-zinc-200 p-3 dark:border-zinc-800">
+          <EndpointPanel data={data} />
+          <ProvisioningPanel data={data} />
+          <ServerStatePanel data={data} />
+        </div>
+      </details>
     </div>
   )
 }

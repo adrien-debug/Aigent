@@ -5,10 +5,14 @@
  *
  * XYFlow REPRÉSENTE LangGraph, il ne le remplace pas. Ce composant ne crée pas
  * de nœud, n'en supprime aucun, ne relie rien et n'écrit jamais vers l'Agent
- * Server : il n'existe ici aucun chemin de mutation du manifeste. Le
- * déplacement d'un nœud reste dans l'état React et meurt avec le composant —
- * c'est délibéré, la disposition est DÉRIVÉE du graphe (voir
- * `graph-canvas-model`), donc jamais désynchronisée de lui.
+ * Server : il n'existe ici aucun chemin de mutation du manifeste.
+ *
+ * LA DISPOSITION EST PERSISTÉE, LE GRAPHE NE L'EST PAS. Déplacer un nœud écrit
+ * des COORDONNÉES dans un stockage client cloisonné par `graphId`
+ * (`graph-layout-store`) — jamais dans le manifeste, qui reste la propriété de
+ * l'Agent Server. Au montage, le graphe part de la disposition CALCULÉE, puis
+ * adopte celle qui a été stockée ; « Réinitialiser » efface le stockage et rend
+ * le calcul déterministe. Les deux ne peuvent donc jamais diverger.
  *
  * ÎLOT CLIENT. XYFlow mesure le DOM : il ne peut pas être un Server Component.
  * La frontière ne reçoit que des données sérialisables — jamais une fonction
@@ -31,12 +35,14 @@ import {
   type NodeProps,
   useEdgesState,
   useNodesState,
+  useReactFlow,
 } from '@xyflow/react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import '@xyflow/react/dist/style.css'
 
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Heading } from '@/components/ui/heading'
 import { Text } from '@/components/ui/text'
 import {
@@ -45,6 +51,15 @@ import {
   type TopologyEdgeInput,
   type TopologyNodeInput,
 } from './graph-canvas-model'
+import {
+  applyLayout,
+  clearLayout,
+  readLayoutSnapshot,
+  subscribeToLayout,
+  toStoredLayout,
+  writeLayout,
+  type StoredLayout,
+} from './graph-layout-store'
 
 /* ───────────────────────────── Nœud ───────────────────────────── */
 
@@ -160,22 +175,85 @@ function Inspector({ node }: Readonly<{ node: Node | null }>) {
 const NODE_TYPES = { aigentNode: AigentNode }
 
 export interface GraphCanvasProps {
+  /** Cloisonne la disposition persistée : deux graphes ne se mélangent pas. */
+  graphId: string
   nodes: readonly TopologyNodeInput[]
   edges: readonly TopologyEdgeInput[]
   /** Rendu en lecture seule — le seul mode existant aujourd'hui. */
   readOnly?: boolean
 }
 
-function CanvasInner({ nodes: rawNodes, edges: rawEdges }: Readonly<GraphCanvasProps>) {
+function CanvasInner({ graphId, nodes: rawNodes, edges: rawEdges }: Readonly<GraphCanvasProps>) {
   const mapped = useMemo(() => toCanvasGraph(rawNodes, rawEdges), [rawNodes, rawEdges])
 
-  const [nodes, , onNodesChange] = useNodesState<Node>(mapped.nodes as unknown as Node[])
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(mapped.nodes as unknown as Node[])
   const [edges, , onEdgesChange] = useEdgesState<Edge>(mapped.edges as unknown as Edge[])
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const flow = useReactFlow()
+
+  /*
+    RÉHYDRATATION AU PREMIER RENDU CLIENT, jamais pendant le rendu serveur.
+
+    `localStorage` n'existe pas côté serveur : le lire pendant le rendu
+    produirait un HTML serveur différent du premier rendu client, donc une
+    erreur d'hydratation React. `useSyncExternalStore` est fait exactement pour
+    ça — il déclare une valeur serveur (`null`) et une valeur client, sans
+    `setState` dans un effet et sans risque de divergence entre les deux.
+
+    Le graphe monte donc sur la disposition CALCULÉE — identique des deux côtés —
+    puis adopte la disposition stockée dès que le client prend la main.
+  */
+  const storedLayout = useSyncExternalStore(
+    subscribeToLayout,
+    () => readLayoutSnapshot(graphId),
+    () => null,
+  )
+  /** Vrai dès qu'une disposition persistée existe — pilote le bouton de reset. */
+  const hasStoredLayout = storedLayout !== null
+
+  /*
+    L'application de la disposition stockée est un EFFET sur l'état XYFlow, pas
+    un rendu dérivé : `useNodesState` détient les nœuds, y compris ceux que
+    l'utilisateur déplace. On la réapplique quand l'instantané change — c'est-à-
+    dire au premier rendu client, et après un reset.
+  */
+  const appliedRef = useRef<StoredLayout | null | undefined>(undefined)
+  useEffect(() => {
+    if (appliedRef.current === storedLayout) return
+    appliedRef.current = storedLayout
+    setNodes((current) => applyLayout(current, storedLayout))
+    // Le cadrage stocké est restauré APRÈS les positions : sinon `fitView`
+    // recadrerait par-dessus et annulerait visuellement la restauration.
+    if (storedLayout?.viewport) flow.setViewport(storedLayout.viewport)
+  }, [storedLayout, setNodes, flow])
 
   const onSelectionChange = useCallback(({ nodes: sel }: { nodes: Node[] }) => {
     setSelectedId(sel.length === 1 ? sel[0].id : null)
   }, [])
+
+  /*
+    On persiste à la FIN d'un glisser, pas à chaque image.
+
+    `onNodeDragStop` reçoit les nœuds courants en argument : on écrit depuis
+    eux, sans passer par un updater d'état — un updater doit rester PUR, et
+    écrire dans `localStorage` depuis l'intérieur ne l'est pas.
+  */
+  const onNodeDragStop = useCallback(
+    (_event: unknown, _node: Node, currentNodes: Node[]) => {
+      // Le CADRAGE est stocké avec les positions. Sans lui, `fitView` recadrait
+      // au rechargement et le nœud restauré RÉAPPARAISSAIT ailleurs à l'écran :
+      // les coordonnées du graphe étaient bonnes, leur projection ne l'était
+      // pas. Constaté par l'E2E, qui a refusé la capture.
+      writeLayout(graphId, toStoredLayout(currentNodes, flow.getViewport()))
+    },
+    [graphId, flow],
+  )
+
+  /** Efface la disposition stockée et revient au calcul déterministe. */
+  const onResetLayout = useCallback(() => {
+    clearLayout(graphId)
+    setNodes(mapped.nodes as unknown as Node[])
+  }, [graphId, mapped.nodes, setNodes])
 
   const selected = useMemo(() => nodes.find((n) => n.id === selectedId) ?? null, [nodes, selectedId])
 
@@ -186,17 +264,20 @@ function CanvasInner({ nodes: rawNodes, edges: rawEdges }: Readonly<GraphCanvasP
         l'élargissement du flex parent et provoquerait un overflow horizontal de
         la PAGE — exactement ce que la mission interdit.
       */}
-      <div className="relative min-h-[18rem] min-w-0 flex-1 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="relative min-h-[16rem] min-w-0 flex-1 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
         <ReactFlow
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onSelectionChange={onSelectionChange}
+          onNodeDragStop={onNodeDragStop}
           nodeTypes={NODE_TYPES}
-          fitView
-          // Aucune mutation du graphe : pas de création d'arête, pas de
-          // suppression. Le déplacement d'un nœud reste local et non persisté.
+          // `fitView` UNIQUEMENT sans disposition stockée : sinon il recadre
+          // par-dessus la restauration et l'annule visuellement.
+          fitView={!hasStoredLayout}
+          // Aucune mutation du GRAPHE : pas de création d'arête, pas de
+          // suppression. Seule la disposition bouge, et elle est stockée à part.
           nodesConnectable={false}
           edgesFocusable={false}
           deleteKeyCode={null}
@@ -207,9 +288,21 @@ function CanvasInner({ nodes: rawNodes, edges: rawEdges }: Readonly<GraphCanvasP
           <Controls showInteractive={false} position="bottom-left" />
           <MiniMap pannable zoomable className="!bottom-2 !right-2 hidden sm:block" />
         </ReactFlow>
+
+        {hasStoredLayout ? (
+          <div className="absolute right-2 top-2 z-10">
+            <Button plain onClick={onResetLayout} data-testid="reset-layout" className="!text-xs">
+              Réinitialiser la disposition
+            </Button>
+          </div>
+        ) : null}
       </div>
 
-      <div className="min-h-[9rem] w-full shrink-0 overflow-hidden rounded-lg border border-zinc-200 lg:h-auto lg:w-64 dark:border-zinc-800">
+      {/*
+        L'inspecteur : colonne à droite sur desktop, bloc SOUS le graphe sur
+        mobile. `shrink-0` + hauteur bornée pour qu'il ne mange jamais le graphe.
+      */}
+      <div className="max-h-[14rem] min-h-[8rem] w-full shrink-0 overflow-hidden rounded-lg border border-zinc-200 lg:max-h-none lg:w-64 dark:border-zinc-800">
         <Inspector node={selected} />
       </div>
     </div>
@@ -238,6 +331,8 @@ export default function GraphCanvas(props: Readonly<GraphCanvasProps>) {
     )
   }
 
+  // Le mapping est déterministe : ce second appel rend le MÊME résultat que
+  // celui de `CanvasInner`. On n'en lit que le compteur d'arêtes écartées.
   const dropped = toCanvasGraph(nodes, edges).droppedEdges
 
   return (

@@ -1,0 +1,263 @@
+{
+  "nodes": [
+    {
+      "id": "t",
+      "type": "text",
+      "x": "-620",
+      "y": "-460",
+      "width": 560,
+      "height": 80,
+      "text": "# Architecture Aigent\nRelevé du 2026-08-01 contre le code et les services vivants.",
+      "color": "6"
+    },
+    {
+      "id": "doc",
+      "type": "file",
+      "x": "-620",
+      "y": "-350",
+      "width": 560,
+      "height": 120,
+      "file": "Architecture Aigent.md"
+    },
+    {
+      "id": "ui",
+      "type": "text",
+      "x": "-620",
+      "y": "-160",
+      "width": 260,
+      "height": 110,
+      "text": "## Interface\n`src/app/` — Next\nport **3987**",
+      "color": "4"
+    },
+    {
+      "id": "proxy",
+      "type": "text",
+      "x": "-300",
+      "y": "-160",
+      "width": 260,
+      "height": 110,
+      "text": "## Garde\n`src/proxy.ts`\ngarde `/api/agent-ops/**`",
+      "color": "2"
+    },
+    {
+      "id": "api",
+      "type": "text",
+      "x": "-620",
+      "y": "0",
+      "width": 260,
+      "height": 110,
+      "text": "## API opérateur\n`/api/agent-ops/**`\ncookie ou `x-amc-key`",
+      "color": "4"
+    },
+    {
+      "id": "rt",
+      "type": "text",
+      "x": "-300",
+      "y": "0",
+      "width": 260,
+      "height": 110,
+      "text": "## Surfaces runtime\n`/api/runtime/v1/**`\n`/api/runtime-telemetry`\njetons distincts",
+      "color": "2"
+    },
+    {
+      "id": "lg",
+      "type": "text",
+      "x": "40",
+      "y": "-160",
+      "width": 260,
+      "height": 130,
+      "text": "## LangGraph\n`src/langgraph/`\nAPI 1.4.2 — port **2024**\ngraphe `agent_builder`",
+      "color": "5"
+    },
+    {
+      "id": "graph",
+      "type": "text",
+      "x": "40",
+      "y": "20",
+      "width": 260,
+      "height": 150,
+      "text": "## agent_builder\n**5 nœuds · 6 arêtes**\n`__start__ → agent`\n`agent ⇄ approval ⇄ tools`\n`agent → __end__`",
+      "color": "5"
+    },
+    {
+      "id": "db",
+      "type": "text",
+      "x": "-620",
+      "y": "160",
+      "width": 260,
+      "height": 120,
+      "text": "## Données\nPostgREST\n`runtime_telemetry_events`\n**38 runs observés**",
+      "color": "3"
+    },
+    {
+      "id": "metrics",
+      "type": "text",
+      "x": "-300",
+      "y": "160",
+      "width": 260,
+      "height": 120,
+      "text": "## Métriques\n`/api/agent-ops/metrics`\nformat Prometheus\nserver-only",
+      "color": "3"
+    },
+    {
+      "id": "lf",
+      "type": "text",
+      "x": "40",
+      "y": "220",
+      "width": 260,
+      "height": 110,
+      "text": "## Langfuse\nport **3801**\nprojet `aigent-local`\ntraces de run",
+      "color": "1"
+    },
+    {
+      "id": "prom",
+      "type": "text",
+      "x": "360",
+      "y": "160",
+      "width": 240,
+      "height": 100,
+      "text": "## Prometheus\nport **3804**\nscrape 15 s",
+      "color": "3"
+    },
+    {
+      "id": "graf",
+      "type": "text",
+      "x": "360",
+      "y": "290",
+      "width": 240,
+      "height": 100,
+      "text": "## Grafana\nport **3802**\ndashboard `aigent-runs`",
+      "color": "3"
+    },
+    {
+      "id": "n8n",
+      "type": "text",
+      "x": "40",
+      "y": "360",
+      "width": 260,
+      "height": 110,
+      "text": "## n8n\nport **3803**\nveille de santé de flotte",
+      "color": "1"
+    },
+    {
+      "id": "consumer",
+      "type": "text",
+      "x": "360",
+      "y": "-160",
+      "width": 240,
+      "height": 130,
+      "text": "## Consommateur\nexécute l'agent livré\nrapporte ses runs\n`active_in_consumer: unknown`",
+      "color": "6"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "fromNode": "ui",
+      "fromSide": "right",
+      "toNode": "proxy",
+      "toSide": "left"
+    },
+    {
+      "id": "e2",
+      "fromNode": "proxy",
+      "fromSide": "bottom",
+      "toNode": "api",
+      "toSide": "top",
+      "label": "autorise"
+    },
+    {
+      "id": "e3",
+      "fromNode": "api",
+      "fromSide": "right",
+      "toNode": "rt",
+      "toSide": "left"
+    },
+    {
+      "id": "e4",
+      "fromNode": "api",
+      "fromSide": "right",
+      "toNode": "lg",
+      "toSide": "left",
+      "label": "exécute"
+    },
+    {
+      "id": "e5",
+      "fromNode": "lg",
+      "fromSide": "bottom",
+      "toNode": "graph",
+      "toSide": "top"
+    },
+    {
+      "id": "e6",
+      "fromNode": "lg",
+      "fromSide": "right",
+      "toNode": "consumer",
+      "toSide": "left",
+      "label": "livre"
+    },
+    {
+      "id": "e7",
+      "fromNode": "consumer",
+      "fromSide": "bottom",
+      "toNode": "rt",
+      "toSide": "top",
+      "label": "télémétrie"
+    },
+    {
+      "id": "e8",
+      "fromNode": "rt",
+      "fromSide": "bottom",
+      "toNode": "db",
+      "toSide": "top",
+      "label": "écrit"
+    },
+    {
+      "id": "e9",
+      "fromNode": "db",
+      "fromSide": "right",
+      "toNode": "metrics",
+      "toSide": "left",
+      "label": "agrège"
+    },
+    {
+      "id": "e10",
+      "fromNode": "metrics",
+      "fromSide": "right",
+      "toNode": "prom",
+      "toSide": "left",
+      "label": "scrape"
+    },
+    {
+      "id": "e11",
+      "fromNode": "prom",
+      "fromSide": "bottom",
+      "toNode": "graf",
+      "toSide": "top",
+      "label": "sert"
+    },
+    {
+      "id": "e12",
+      "fromNode": "graph",
+      "fromSide": "bottom",
+      "toNode": "lf",
+      "toSide": "top",
+      "label": "trace"
+    },
+    {
+      "id": "e13",
+      "fromNode": "metrics",
+      "fromSide": "bottom",
+      "toNode": "n8n",
+      "toSide": "top",
+      "label": "lit"
+    },
+    {
+      "id": "e14",
+      "fromNode": "doc",
+      "fromSide": "bottom",
+      "toNode": "ui",
+      "toSide": "top"
+    }
+  ]
+}

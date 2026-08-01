@@ -1,0 +1,117 @@
+{
+  "id": "aigent-fleet-health",
+  "name": "Aigent — veille de santé de flotte",
+  "active": false,
+  "meta": {
+    "aigent_contrat": "DEUX AXES INDÉPENDANTS, jamais confondus. (1) Le STATUT TECHNIQUE n8n dit si le workflow s'est déroulé : `success` = les nœuds ont tourné. (2) Le VERDICT MÉTIER, dans le champ `verdict` de la sortie, dit ce qu'on a appris : HEALTHY / ATTENTION / UNAVAILABLE. Un run techniquement `success` porte très souvent un verdict ATTENTION ou UNAVAILABLE — c'est le fonctionnement NORMAL d'une sonde, pas une contradiction. Lire le statut n8n comme un verdict de santé de flotte est l'erreur que ce contrat existe pour empêcher. Preuve : exécution #5 (2026-08-01), statut technique `success`, verdict métier `UNAVAILABLE`, source Aigent coupée. Le seul cas où un verdict n'est PAS produit est un plantage réel de n8n lui-même."
+  },
+  "settings": { "executionOrder": "v1" },
+  "nodes": [
+    {
+      "id": "trigger",
+      "name": "Déclencheur manuel",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "parameters": {}
+    },
+    {
+      "id": "fetch-metrics",
+      "name": "Lire les métriques Aigent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0],
+      "parameters": {
+        "url": "=http://host.docker.internal:{{ $env.AIGENT_PORT || '3988' }}/api/agent-ops/metrics",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "neverError": true,
+              "fullResponse": true
+            }
+          },
+          "timeout": 15000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-amc-key",
+              "value": "={{ $env.AMC_API_KEY }}"
+            }
+          ]
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "Lecture seule. La clé vient de l'environnement du conteneur — jamais écrite dans ce fichier versionné. `onError: continueRegularOutput` : `neverError` ne couvre QUE les codes HTTP d'erreur, pas un refus de connexion TCP (constaté le 2026-08-01, instance coupée). Sans cela le workflow meurt au nœud HTTP et le verdict UNAVAILABLE structuré n'est jamais produit — on perd la distinction entre « flotte en panne » et « sonde en panne »."
+    },
+    {
+      "id": "parse",
+      "name": "Analyser et décider",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 0],
+      "parameters": {
+        "jsCode": "// Analyse le format d'exposition Prometheus servi par Aigent et produit\n// un verdict de flotte. AUCUN appel LLM : c'est de l'arithmétique.\n//\n// Règle de vérité : une métrique ABSENTE n'est pas un zéro. Si Aigent est\n// injoignable ou n'a rien mesuré, le verdict est UNAVAILABLE — jamais\n// « 0 run, tout va bien ».\n\nconst item = $input.first().json;\n\n// Le nœud HTTP change de forme selon `fullResponse` : avec, on a\n// {statusCode, body} ; sans, seulement {data}. On accepte les deux plutôt que\n// de dépendre d'une option — un garde qui exige `statusCode` déclare\n// faussement UNAVAILABLE alors que le corps est bien là (constaté le\n// 2026-08-01 sur l'exécution n°2).\nconst status = item.statusCode ?? item.status ?? null;\nconst body = typeof item.body === 'string' ? item.body\n  : typeof item.data === 'string' ? item.data\n  : '';\n\n// Le verdict se joue sur le CONTENU : un corps qui porte des métriques\n// Aigent est une preuve plus forte qu'un code de statut.\nconst hasMetrics = body.includes('aigent_runs_total');\nconst statusBad = status !== null && status !== 200;\n\nif (statusBad || !hasMetrics) {\n  return [{ json: {\n    verdict: 'UNAVAILABLE',\n    reason: statusBad\n      ? `source Aigent en erreur (HTTP ${status})`\n      : 'réponse sans métrique Aigent exploitable',\n    checkedAt: new Date().toISOString(),\n    llmCallsBilled: 0,\n  }}];\n}\n\n/** Lit une métrique sans label. Retourne null si absente — jamais 0. */\nfunction gauge(name) {\n  const m = body.match(new RegExp('^' + name + ' ([0-9.eE+-]+)$', 'm'));\n  return m ? Number(m[1]) : null;\n}\n\n/** Lit une métrique labellisée par status. */\nfunction byStatus(name, status) {\n  const m = body.match(new RegExp('^' + name + '\\\\{status=\"' + status + '\"\\\\} ([0-9.eE+-]+)$', 'm'));\n  return m ? Number(m[1]) : null;\n}\n\nconst totalRuns = gauge('aigent_runs_total');\nconst successRate = gauge('aigent_success_rate');\nconst p95 = gauge('aigent_run_latency_ms_p95');\nconst couples = gauge('aigent_reporting_agents');\nconst completed = byStatus('aigent_runs_by_status', 'completed');\nconst failed = byStatus('aigent_runs_by_status', 'failed');\nconst started = byStatus('aigent_runs_by_status', 'started');\nconst lastEvent = gauge('aigent_last_event_timestamp_seconds');\n\nif (totalRuns === null) {\n  return [{ json: {\n    verdict: 'UNAVAILABLE',\n    reason: 'aucune métrique de run exposée',\n    checkedAt: new Date().toISOString(),\n    llmCallsBilled: 0,\n  }}];\n}\n\n// Seuils explicites, lisibles, sans magie.\nconst SUCCESS_FLOOR = 0.8;\nconst P95_CEILING_MS = 30000;\n\nconst alerts = [];\nif (successRate !== null && successRate < SUCCESS_FLOOR) {\n  alerts.push(`taux de succès ${(successRate * 100).toFixed(1)}% sous le plancher de ${SUCCESS_FLOOR * 100}%`);\n}\nif (p95 !== null && p95 > P95_CEILING_MS) {\n  alerts.push(`p95 ${p95} ms au-dessus du plafond de ${P95_CEILING_MS} ms`);\n}\nif (successRate === null) {\n  alerts.push('taux de succès non mesuré — absence, pas 0 %');\n}\n\nconst ageHours = lastEvent !== null\n  ? Math.round((Date.now() / 1000 - lastEvent) / 3600)\n  : null;\nif (ageHours !== null && ageHours > 48) {\n  alerts.push(`dernier événement il y a ${ageHours} h — flotte possiblement silencieuse`);\n}\n\nreturn [{ json: {\n  verdict: alerts.length === 0 ? 'HEALTHY' : 'ATTENTION',\n  alerts,\n  metrics: {\n    totalRuns,\n    completed,\n    failed,\n    started,\n    successRate,\n    p95LatencyMs: p95,\n    reportingCouples: couples,\n    lastEventAgeHours: ageHours,\n  },\n  provenance: {\n    source: 'runtime_telemetry_events',\n    producer: 'summarizeFleetRuntimeTelemetry()',\n    route: '/api/agent-ops/metrics',\n  },\n  checkedAt: new Date().toISOString(),\n  llmCallsBilled: 0,\n}}];"
+      }
+    },
+    {
+      "id": "route",
+      "name": "Alerte ou RAS",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 0],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "version": 2 },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.verdict }}",
+              "rightValue": "HEALTHY",
+              "operator": { "type": "string", "operation": "notEquals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "emit-alert",
+      "name": "Consigner l'alerte",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, -100],
+      "parameters": {
+        "jsCode": "// Artefact d'alerte. Volontairement local : aucun webhook sortant, aucun\n// envoi externe non demandé. Ce que produit ce nœud est la charge utile\n// qu'un canal réel (Slack, ticket) consommerait.\nconst j = $input.first().json;\nreturn [{ json: {\n  artifact: 'aigent-fleet-alert',\n  severity: j.verdict === 'UNAVAILABLE' ? 'unknown' : 'warning',\n  title: `Flotte Aigent — ${j.verdict}`,\n  lines: j.alerts ?? [j.reason],\n  metrics: j.metrics ?? null,\n  provenance: j.provenance ?? null,\n  checkedAt: j.checkedAt,\n  llmCallsBilled: 0,\n}}];"
+      }
+    },
+    {
+      "id": "emit-ok",
+      "name": "Consigner le RAS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 100],
+      "parameters": {
+        "jsCode": "const j = $input.first().json;\nreturn [{ json: {\n  artifact: 'aigent-fleet-ok',\n  severity: 'info',\n  title: 'Flotte Aigent — conforme',\n  metrics: j.metrics,\n  provenance: j.provenance,\n  checkedAt: j.checkedAt,\n  llmCallsBilled: 0,\n}}];"
+      }
+    }
+  ],
+  "connections": {
+    "Déclencheur manuel": {
+      "main": [[{ "node": "Lire les métriques Aigent", "type": "main", "index": 0 }]]
+    },
+    "Lire les métriques Aigent": {
+      "main": [[{ "node": "Analyser et décider", "type": "main", "index": 0 }]]
+    },
+    "Analyser et décider": {
+      "main": [[{ "node": "Alerte ou RAS", "type": "main", "index": 0 }]]
+    },
+    "Alerte ou RAS": {
+      "main": [
+        [{ "node": "Consigner l'alerte", "type": "main", "index": 0 }],
+        [{ "node": "Consigner le RAS", "type": "main", "index": 0 }]
+      ]
+    }
+  }
+}

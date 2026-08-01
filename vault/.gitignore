@@ -1,0 +1,7 @@
+# État local d'Obsidian — change à chaque ouverture, aucune valeur partagée.
+.obsidian/workspace
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache
+.obsidian/plugins/
+.trash/

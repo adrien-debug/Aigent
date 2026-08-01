@@ -53,7 +53,9 @@
     "typecheck": "tsc --noEmit",
     "update:trading-tool-descriptions": "node --env-file=.env.local $(command -v npx) -y tsx --conditions=react-server scripts/update-trading-tool-descriptions.ts",
     "verify": "npm run check && npm run quality:dead && npm run test && npm run build",
-    "prove:learning-e2e": "node scripts/prove-learning-actions-e2e.mjs"
+    "prove:learning-e2e": "node scripts/prove-learning-actions-e2e.mjs",
+    "next": "node scripts/next-mission.mjs",
+    "check:vault": "node scripts/check-vault.mjs"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",

@@ -1,0 +1,223 @@
+{
+  "mission": "AIGENT-VISUAL-STACK-002",
+  "revision": "REWORK v1 — lots 1 et 7",
+  "generatedAt": "2026-08-01T19:48:34.225Z",
+  "git": {
+    "branch": "mission/aigent-visual-stack-002",
+    "sha": "294a41225121b52a226fcf2f93909ffdf694e217",
+    "cleanBeforeCapture": true,
+    "shaMeaning": "HEAD au moment du rendu. Le commit de livraison des preuves est son descendant direct : il n’ajoute que ces artefacts, aucun code."
+  },
+  "environment": {
+    "baseUrl": "http://127.0.0.1:3988",
+    "nodeVersion": "v22.22.1",
+    "mode": "next dev (Turbopack)",
+    "devOverlayHidden": "nextjs-portal — overlay de développement Next, absent en production, retiré car il recouvre le produit",
+    "degradedStatesSimulated": "Les captures « empty » et « unavailable » sont produites en substituant le contenu du panneau côté navigateur. L’Agent Server est PARTAGÉ avec d’autres chantiers de la machine : l’éteindre pour une capture n’est pas acceptable."
+  },
+  "e2e": {
+    "selectionDesktop": {
+      "nodeClicked": "__start__",
+      "inspectorOpened": true
+    },
+    "selectionMobile": {
+      "nodeClicked": "__start__",
+      "inspectorOpened": true
+    },
+    "layoutPersistence": {
+      "moved": true,
+      "persisted": true,
+      "reset": true
+    },
+    "tooling": {
+      "count": 7,
+      "statuses": [
+        "RUNNING",
+        "VERIFIED",
+        "CONNECTED",
+        "CONNECTED",
+        "CONNECTED",
+        "CONNECTED",
+        "INSTALLED"
+      ]
+    }
+  },
+  "captures": [
+    {
+      "file": "canvas-desktop-1440x900.png",
+      "horizontalOverflow": false,
+      "surface": "canvas",
+      "route": "/runtime?tab=langgraph",
+      "viewport": "1440x900",
+      "httpStatus": 200,
+      "canvasNodesRendered": 5,
+      "canvasEdgesRendered": 6
+    },
+    {
+      "file": "canvas-laptop-1280x800.png",
+      "horizontalOverflow": false,
+      "surface": "canvas",
+      "route": "/runtime?tab=langgraph",
+      "viewport": "1280x800",
+      "httpStatus": 200,
+      "canvasNodesRendered": 5,
+      "canvasEdgesRendered": 6
+    },
+    {
+      "file": "canvas-mobile-375x812.png",
+      "horizontalOverflow": false,
+      "surface": "canvas",
+      "route": "/runtime?tab=langgraph",
+      "viewport": "375x812",
+      "httpStatus": 200,
+      "canvasNodesRendered": 5,
+      "canvasEdgesRendered": 6
+    },
+    {
+      "file": "canvas-node-selected-inspector-desktop-1440x900.png",
+      "horizontalOverflow": false,
+      "surface": "canvas-selection",
+      "route": "/runtime?tab=langgraph",
+      "viewport": "1440x900",
+      "httpStatus": 200,
+      "canvasNodesRendered": 5
+    },
+    {
+      "file": "canvas-node-selected-inspector-mobile-375x812.png",
+      "horizontalOverflow": false,
+      "surface": "canvas-selection",
+      "route": "/runtime?tab=langgraph",
+      "viewport": "375x812",
+      "httpStatus": 200,
+      "canvasNodesRendered": 5
+    },
+    {
+      "file": "canvas-empty-1440x900.png",
+      "horizontalOverflow": false,
+      "surface": "canvas-empty",
+      "route": "/runtime?tab=langgraph",
+      "viewport": "1440x900",
+      "httpStatus": 200,
+      "simulated": true,
+      "canvasNodesRendered": 0
+    },
+    {
+      "file": "canvas-unavailable-1440x900.png",
+      "horizontalOverflow": false,
+      "surface": "canvas-unavailable",
+      "route": "/runtime?tab=langgraph",
+      "viewport": "1440x900",
+      "httpStatus": 200,
+      "simulated": true,
+      "canvasNodesRendered": 0
+    },
+    {
+      "file": "canvas-layout-persisted-1440x900.png",
+      "horizontalOverflow": false,
+      "surface": "canvas-layout-persisted",
+      "route": "/runtime?tab=langgraph",
+      "viewport": "1440x900",
+      "httpStatus": 200,
+      "canvasNodesRendered": 5
+    },
+    {
+      "file": "visual-tooling-desktop-1440x900.png",
+      "horizontalOverflow": false,
+      "surface": "visual-tooling",
+      "route": "/runtime?tab=visual-tooling",
+      "viewport": "1440x900",
+      "httpStatus": 200,
+      "toolsRendered": 7,
+      "statuses": [
+        "RUNNING",
+        "VERIFIED",
+        "CONNECTED",
+        "CONNECTED",
+        "CONNECTED",
+        "CONNECTED",
+        "INSTALLED"
+      ]
+    },
+    {
+      "file": "visual-tooling-mobile-375x812.png",
+      "horizontalOverflow": false,
+      "surface": "visual-tooling",
+      "route": "/runtime?tab=visual-tooling",
+      "viewport": "375x812",
+      "httpStatus": 200,
+      "toolsRendered": 7,
+      "statuses": [
+        "RUNNING",
+        "VERIFIED",
+        "CONNECTED",
+        "CONNECTED",
+        "CONNECTED",
+        "CONNECTED",
+        "INSTALLED"
+      ]
+    }
+  ],
+  "console": {
+    "errors": 0,
+    "warnings": 0,
+    "messages": [
+      {
+        "surface": "canvas@desktop",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "canvas@laptop",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "canvas@mobile",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "canvas-selection@desktop",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "canvas-selection@mobile",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "canvas-empty@desktop",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "canvas-unavailable@desktop",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "e2e-persistance",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "e2e-persistance",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "visual-tooling@desktop",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "visual-tooling@mobile",
+        "type": "log",
+        "text": "[HMR] connected"
+      }
+    ]
+  },
+  "violations": [],
+  "verdict": "PASS"
+}

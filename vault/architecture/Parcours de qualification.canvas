@@ -1,0 +1,230 @@
+{
+  "nodes": [
+    {
+      "id": "qt",
+      "type": "text",
+      "x": "-980",
+      "y": "-420",
+      "width": 600,
+      "height": 80,
+      "text": "# Parcours de qualification\nLe flux réel, relevé dans `src/lib/agent-mission-control/`.",
+      "color": "6"
+    },
+    {
+      "id": "qdoc",
+      "type": "file",
+      "x": "-980",
+      "y": "-310",
+      "width": 600,
+      "height": 110,
+      "file": "Parcours de qualification.md"
+    },
+    {
+      "id": "s1",
+      "type": "text",
+      "x": "-980",
+      "y": "-140",
+      "width": 220,
+      "height": 130,
+      "text": "## 1. Création\narchitect → manifest\nmatérialisation compensable",
+      "color": "4"
+    },
+    {
+      "id": "s2",
+      "type": "text",
+      "x": "-730",
+      "y": "-140",
+      "width": 220,
+      "height": 130,
+      "text": "## 2. Qualification\ntests ciblés\nauto-eval",
+      "color": "4"
+    },
+    {
+      "id": "s3",
+      "type": "text",
+      "x": "-480",
+      "y": "-140",
+      "width": 220,
+      "height": 130,
+      "text": "## 3. Benchmark\nsuites de référence\nscores persistés",
+      "color": "5"
+    },
+    {
+      "id": "s4",
+      "type": "text",
+      "x": "-230",
+      "y": "-140",
+      "width": 220,
+      "height": 130,
+      "text": "## 4. Shadow\ntourne en parallèle\nne sert pas",
+      "color": "5"
+    },
+    {
+      "id": "s5",
+      "type": "text",
+      "x": "20",
+      "y": "-140",
+      "width": 220,
+      "height": 130,
+      "text": "## 5. Replay\nrejeu d'historique\ncontre la candidate",
+      "color": "5"
+    },
+    {
+      "id": "s6",
+      "type": "text",
+      "x": "270",
+      "y": "-140",
+      "width": 220,
+      "height": 130,
+      "text": "## 6. Gate\nrelease gate\n9 contrôles live",
+      "color": "2"
+    },
+    {
+      "id": "s7",
+      "type": "text",
+      "x": "520",
+      "y": "-140",
+      "width": 220,
+      "height": 130,
+      "text": "## 7. Promotion\nRPC transactionnelle\n`promote_copilot_version`",
+      "color": "3"
+    },
+    {
+      "id": "s8",
+      "type": "text",
+      "x": "770",
+      "y": "-140",
+      "width": 220,
+      "height": 130,
+      "text": "## 8. Apprentissage\nboucle V2\ndepuis la télémétrie",
+      "color": "6"
+    },
+    {
+      "id": "active",
+      "type": "text",
+      "x": "-980",
+      "y": "60",
+      "width": 470,
+      "height": 120,
+      "text": "## `active` = PROUVÉ\nrun `completed` + zéro unsafe + modèle vérifié.\nJamais un simple changement de statut.",
+      "color": "2"
+    },
+    {
+      "id": "guard",
+      "type": "text",
+      "x": "-480",
+      "y": "60",
+      "width": 470,
+      "height": 140,
+      "text": "## Garde d'exécution — fail-closed\n`status === active`\n**et** `unresolvedToolIds` vide\n**et** `runtime === langgraph`\nsinon **409**",
+      "color": "1"
+    },
+    {
+      "id": "unknown",
+      "type": "text",
+      "x": "20",
+      "y": "60",
+      "width": 470,
+      "height": 140,
+      "text": "## Ce qu'Aigent ignore\nAprès provisioning, Aigent ne fait que POUSSER.\nactivate / rebind / deploy → consommateur.\n`active_in_consumer` reste **unknown**.",
+      "color": "6"
+    },
+    {
+      "id": "telem",
+      "type": "text",
+      "x": "520",
+      "y": "60",
+      "width": 470,
+      "height": 120,
+      "text": "## Retour\nLa télémétrie du consommateur alimente\nl'apprentissage V2. Canal unique,\ntable `runtime_telemetry_events`.",
+      "color": "3"
+    }
+  ],
+  "edges": [
+    {
+      "id": "qe0",
+      "fromNode": "qdoc",
+      "fromSide": "bottom",
+      "toNode": "s1",
+      "toSide": "top"
+    },
+    {
+      "id": "qe1",
+      "fromNode": "s1",
+      "fromSide": "right",
+      "toNode": "s2",
+      "toSide": "left"
+    },
+    {
+      "id": "qe2",
+      "fromNode": "s2",
+      "fromSide": "right",
+      "toNode": "s3",
+      "toSide": "left"
+    },
+    {
+      "id": "qe3",
+      "fromNode": "s3",
+      "fromSide": "right",
+      "toNode": "s4",
+      "toSide": "left"
+    },
+    {
+      "id": "qe4",
+      "fromNode": "s4",
+      "fromSide": "right",
+      "toNode": "s5",
+      "toSide": "left"
+    },
+    {
+      "id": "qe5",
+      "fromNode": "s5",
+      "fromSide": "right",
+      "toNode": "s6",
+      "toSide": "left"
+    },
+    {
+      "id": "qe6",
+      "fromNode": "s6",
+      "fromSide": "right",
+      "toNode": "s7",
+      "toSide": "left"
+    },
+    {
+      "id": "qe7",
+      "fromNode": "s7",
+      "fromSide": "right",
+      "toNode": "s8",
+      "toSide": "left"
+    },
+    {
+      "id": "qe9",
+      "fromNode": "s6",
+      "fromSide": "bottom",
+      "toNode": "guard",
+      "toSide": "top",
+      "label": "vérifie"
+    },
+    {
+      "id": "qe10",
+      "fromNode": "s7",
+      "fromSide": "bottom",
+      "toNode": "unknown",
+      "toSide": "top"
+    },
+    {
+      "id": "qe11",
+      "fromNode": "s8",
+      "fromSide": "bottom",
+      "toNode": "telem",
+      "toSide": "top"
+    },
+    {
+      "id": "qe12",
+      "fromNode": "telem",
+      "fromSide": "left",
+      "toNode": "unknown",
+      "toSide": "right"
+    }
+  ]
+}

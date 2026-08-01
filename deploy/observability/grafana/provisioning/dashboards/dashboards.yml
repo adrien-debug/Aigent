@@ -1,0 +1,19 @@
+# Chargement des dashboards depuis le disque.
+#
+# `allowUiUpdates: false` — le dashboard est du code versionné. Autoriser
+# l'édition en UI ferait diverger silencieusement l'écran du fichier, et la
+# prochaine reconstruction du conteneur écraserait le travail sans prévenir.
+
+apiVersion: 1
+
+providers:
+  - name: aigent
+    orgId: 1
+    folder: Aigent
+    type: file
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

@@ -1,5 +1,7 @@
 import 'server-only'
 
+import appPackage from '../../../package.json'
+
 /**
  * Visual Tooling — l'état RÉEL des outils visuels périphériques d'Aigent.
  *
@@ -24,16 +26,30 @@ import 'server-only'
 /**
  * L'échelle d'état, du plus faible au plus fort.
  *
- * - `UNAVAILABLE` : aucune adresse configurée — on ne sait rien, et on le dit.
+ * - `UNAVAILABLE` : rien de configuré — on ne sait rien, et on le dit.
+ * - `INSTALLED`   : le code/l'artefact est présent dans le produit, mais rien
+ *                   n'a été contacté (cas d'un composant embarqué, pas d'un
+ *                   service).
  * - `CONFIGURED`  : une adresse existe, mais la sonde n'a pas abouti.
  * - `RUNNING`     : le service a répondu.
+ * - `CONNECTED`   : le service a répondu ET a accepté notre appel (pas de mur
+ *                   d'authentification). Un 401 reste donc `RUNNING`.
+ * - `VERIFIED`    : le service fait DÉMONTRABLEMENT son travail.
  *
- * Il n'existe volontairement PAS de valeur « VERIFIED » ici : vérifier qu'un
- * outil fait son travail (une trace réellement reçue, un dashboard réellement
- * peuplé) demande une preuve métier que cette sonde ne produit pas. Prétendre
- * l'inverse depuis un simple 200 serait un faux vert.
+ * `VERIFIED` n'est jamais atteint par une sonde HTTP : un 200 prouve qu'un
+ * service répond, pas qu'il a reçu une trace ou peuplé un dashboard. Il est
+ * réservé aux outils dont la preuve est produite ici même, dans la page — voir
+ * `canvas-aigent`, dont le rendu EST la démonstration.
  */
-export type ToolStatus = 'RUNNING' | 'CONFIGURED' | 'UNAVAILABLE'
+export type ToolStatus =
+  | 'VERIFIED'
+  | 'CONNECTED'
+  | 'RUNNING'
+  | 'CONFIGURED'
+  | 'INSTALLED'
+  | 'NOT_CONFIGURED'
+  | 'UNAVAILABLE'
+  | 'ERROR'
 
 export interface ToolProbe {
   /** Identifiant stable, utilisé comme clé de rendu et dans les tests. */
@@ -60,6 +76,19 @@ export interface ToolProbe {
 const PROBE_TIMEOUT_MS = 1_500
 
 /**
+ * La version d'XYFlow, lue dans le `package.json` du produit.
+ *
+ * Recopier « 12.11.2 » en dur en ferait une chaîne à maintenir à la main, qui
+ * mentirait au premier `npm update`. La dépendance est épinglée à l'exact, donc
+ * la valeur déclarée EST la version installée. Si le champ disparaît, la version
+ * reste `null` — jamais une valeur inventée.
+ */
+const XYFLOW_VERSION: string | null =
+  typeof appPackage.dependencies?.['@xyflow/react'] === 'string'
+    ? appPackage.dependencies['@xyflow/react']
+    : null
+
+/**
  * Normalise une erreur de sonde en message SÛR.
  *
  * Un `err.message` brut peut transporter une URL complète — donc potentiellement
@@ -76,7 +105,14 @@ function safeReason(err: unknown): string {
  * Sonde HTTP bornée. Ne suit aucune redirection et ne lit qu'un en-tête de
  * version quand le service en publie un.
  */
-async function probe(url: string): Promise<{ ok: boolean; version: string | null; latencyMs: number; reason: string }> {
+async function probe(url: string): Promise<{
+  ok: boolean
+  /** Le service a répondu ET accepté l'appel — pas de mur d'authentification. */
+  accepted: boolean
+  version: string | null
+  latencyMs: number
+  reason: string
+}> {
   const started = Date.now()
   try {
     const res = await fetch(url, {
@@ -95,6 +131,7 @@ async function probe(url: string): Promise<{ ok: boolean; version: string | null
     const authWall = res.status === 401 || res.status === 403
     return {
       ok,
+      accepted: ok && !authWall,
       version: res.headers.get('x-version') ?? null,
       latencyMs,
       reason: authWall
@@ -102,7 +139,13 @@ async function probe(url: string): Promise<{ ok: boolean; version: string | null
         : `Réponse HTTP ${res.status}.`,
     }
   } catch (err) {
-    return { ok: false, version: null, latencyMs: Date.now() - started, reason: safeReason(err) }
+    return {
+      ok: false,
+      accepted: false,
+      version: null,
+      latencyMs: Date.now() - started,
+      reason: safeReason(err),
+    }
   }
 }
 
@@ -115,7 +158,7 @@ async function fromUrl(
   if (!url) {
     return {
       ...base,
-      status: 'UNAVAILABLE',
+      status: 'NOT_CONFIGURED',
       url: null,
       version: null,
       detail: 'Aucune adresse configurée — cet outil n’a jamais été sondé.',
@@ -126,9 +169,18 @@ async function fromUrl(
   }
 
   const result = await probe(url)
+  // `CONNECTED` exige que l'appel ait été ACCEPTÉ. Un 401 s'arrête à
+  // `RUNNING` : le service est bien là, mais nous n'avons rien pu en lire.
+  // Adresse connue mais service muet : c'est une ERREUR constatée, pas une
+  // simple « configuration ». La distinction compte pour l'opérateur — il sait
+  // qu'il doit aller regarder, pas renseigner une variable.
+  let status: ToolStatus = 'ERROR'
+  if (result.accepted) status = 'CONNECTED'
+  else if (result.ok) status = 'RUNNING'
+
   return {
     ...base,
-    status: result.ok ? 'RUNNING' : 'CONFIGURED',
+    status,
     url,
     version: result.version,
     detail: result.reason,
@@ -186,7 +238,10 @@ export async function readVisualTooling(): Promise<VisualToolingData> {
       {
         id: 'langfuse',
         name: 'Langfuse',
-        purpose: 'Qualité, coûts et latence des appels LLM.',
+        // « Coûts » retiré : le chemin tracé porte les étapes, statuts et
+        // durées d'un run. Un coût n'apparaît que si un appel facturé a lieu —
+        // le smoke de cette mission n'en produit aucun.
+        purpose: 'Traces d’exécution des agents : étapes, statuts, durées et métadonnées de run.',
       },
       envUrl('LANGFUSE_BASEURL') ?? envUrl('LANGFUSE_HOST'),
       'Renseigner LANGFUSE_BASEURL vers une instance Langfuse joignable.',
@@ -195,7 +250,12 @@ export async function readVisualTooling(): Promise<VisualToolingData> {
       {
         id: 'grafana',
         name: 'Grafana',
-        purpose: 'Santé de l’infrastructure : serveurs et GPU.',
+        // Le dashboard livré (`aigent-runs`) mesure des RUNS D'AGENTS, pas des
+        // machines : ni CPU, ni mémoire, ni GPU n'y figurent. Décrire Grafana
+        // comme une surface d'infrastructure enverrait l'opérateur y chercher
+        // ce qui n'y est pas.
+        purpose:
+          'Dashboard des runs d’agents : volume, états terminaux, taux de succès et latences, depuis runtime_telemetry_events.',
       },
       envUrl('GRAFANA_URL'),
       'Renseigner GRAFANA_URL vers une instance Grafana joignable.',
@@ -204,7 +264,12 @@ export async function readVisualTooling(): Promise<VisualToolingData> {
       {
         id: 'n8n',
         name: 'n8n',
-        purpose: 'Intégrations périphériques uniquement — notifications, synchronisations. Jamais un runtime d’agent.',
+        // Le workflow livré lit `/api/agent-ops/metrics` et rend un verdict de
+        // flotte. La mention « jamais un runtime d'agent » reste vraie et
+        // structurante : n8n orchestre autour d'Aigent, il n'exécute pas
+        // d'agent.
+        purpose:
+          'Automatisations autour d’Aigent — veille de santé de flotte sur les métriques réelles. Jamais un runtime d’agent.',
       },
       envUrl('N8N_URL'),
       'Renseigner N8N_URL vers une instance n8n joignable.',
@@ -221,54 +286,108 @@ export async function readVisualTooling(): Promise<VisualToolingData> {
    * honnête est donc l'état du serveur que Studio inspecte.
    */
   const langgraph = tools.find((t) => t.id === 'langgraph')
+  const langgraphReached =
+    langgraph?.status === 'CONNECTED' || langgraph?.status === 'RUNNING'
   const studio: ToolProbe = {
     id: 'langsmith-studio',
     name: 'LangSmith Studio',
     purpose: 'Inspecte visuellement les exécutions du graphe, pas à pas.',
-    status: langgraph?.status === 'RUNNING' ? 'CONFIGURED' : 'UNAVAILABLE',
+    /*
+     * CONNECTED, PAS VERIFIED — mais pour une raison PLUS ÉTROITE qu'avant.
+     *
+     * Constaté le 2026-08-01, capture à l'appui
+     * (docs/visual-reviews/AIGENT-VISUAL-STACK-002/langsmith-graph.png) :
+     * Studio AFFICHE bien le graphe `agent_builder` — les cinq nœuds
+     * `__start__ / agent / approval / tools / __end__`, leurs arêtes, les
+     * schémas d'entrée — et se déclare « Connected » contre le serveur local.
+     * L'hypothèse d'un mur de connexion bloquant était FAUSSE.
+     *
+     * Ce qui empêche encore `VERIFIED` : le tracing in-Studio est indisponible.
+     * Studio réclame `langgraph-api >= 0.11.0` quand notre serveur rapporte
+     * 1.4.2 (schémas de version différents), et aucun run n'a été soumis —
+     * ç'aurait été un appel LLM facturé. Studio sait donc LIRE le graphe ; il
+     * n'a pas été prouvé qu'il en OBSERVE une exécution.
+     */
+    status: langgraphReached ? 'CONNECTED' : 'UNAVAILABLE',
     url:
-      langgraphUrl && langgraph?.status === 'RUNNING'
-        ? `https://smith.langchain.com/studio/thread?baseUrl=${encodeURIComponent(langgraphUrl)}`
+      langgraphUrl && langgraphReached
+        ? `https://smith.langchain.com/studio/?baseUrl=${encodeURIComponent(langgraphUrl)}`
         : null,
     version: null,
-    detail:
-      langgraph?.status === 'RUNNING'
-        ? 'L’Agent Server local répond ; le lien Studio est donc ouvrable. Que Studio affiche réellement le graphe n’est PAS vérifié ici — cela dépend d’une session LangSmith côté navigateur.'
-        : 'Studio se branche sur l’Agent Server local, qui ne répond pas. Aucun lien n’est proposé.',
+    detail: langgraphReached
+      ? 'Studio rend le graphe `agent_builder` (5 nœuds, 6 arêtes) et se déclare « Connected » — vérifié par capture. Le tracing in-Studio reste indisponible : Studio réclame langgraph-api ≥ 0.11.0 quand le serveur rapporte 1.4.2. Aucune exécution n’a été observée, donc pas de `VERIFIED`.'
+      : 'Studio se branche sur l’Agent Server local, qui ne répond pas. Aucun lien n’est proposé.',
     latencyMs: null,
     checkedAt: langgraph?.checkedAt ?? null,
-    remediation:
-      langgraph?.status === 'RUNNING'
-        ? 'Ouvrir le lien dans un navigateur connecté à LangSmith pour confirmer l’affichage du graphe.'
-        : 'Démarrer l’Agent Server local (port 2024).',
+    remediation: langgraphReached
+      ? 'Le graphe s’ouvre déjà. Pour le tracing in-Studio : aligner la version de langgraph-api — voir docs/langsmith-studio.md.'
+      : 'Démarrer l’Agent Server local (port 2024).',
   }
 
-  // Obsidian n'est PAS sondable : c'est une application de bureau locale, sans
-  // port HTTP. Prétendre la sonder produirait un état inventé. On déclare donc
-  // explicitement qu'elle n'est pas mesurable depuis le serveur.
+  /*
+   * Canvas Aigent — le seul outil dont l'état est DÉMONTRABLE ici.
+   *
+   * Ce n'est pas un service : c'est une surface de ce produit, rendue par cette
+   * application. On ne le sonde donc pas — on constate qu'il est embarqué. Son
+   * état est `VERIFIED` uniquement parce que la preuve est produite dans la même
+   * page : l'onglet LangGraph rend le graphe réel de l'Agent Server, et le
+   * harnais de capture ÉCHOUE si le Canvas ou ses nœuds sont absents. C'est la
+   * seule occurrence de `VERIFIED` dans cette console, et elle repose sur un
+   * test qui casse — pas sur une déclaration.
+   */
+  const canvas: ToolProbe = {
+    id: 'canvas-aigent',
+    name: 'Canvas Aigent',
+    purpose:
+      'Représente visuellement la topologie du graphe LangGraph : nœuds, arêtes, inspecteur. Surface embarquée dans Aigent.',
+    status: 'VERIFIED',
+    url: '/runtime?tab=langgraph',
+    version: XYFLOW_VERSION,
+    detail:
+      'Surface embarquée : aucun service à sonder. Le rendu du graphe réel est vérifié par le harnais de capture, qui échoue si le Canvas ou ses nœuds manquent.',
+    latencyMs: null,
+    checkedAt: null,
+    remediation: null,
+  }
+
+  /*
+   * Obsidian — INSTALLED, pas sondable, et surtout pas `VERIFIED`.
+   *
+   * C'est une application de bureau sans port HTTP : aucune sonde serveur ne
+   * peut dire si elle tourne. Ce qui EST vérifiable depuis ici, c'est
+   * l'artefact que le serveur possède — le vault versionné du repository, dont
+   * la structure est validée par `npm run check:vault` (arêtes de Canvas
+   * résolues, liens internes résolus, aucun secret). On déclare donc ce qu'on
+   * sait — le vault existe et tient debout — sans prétendre savoir si
+   * l'application est ouverte sur le poste d'Adrien.
+   */
   const obsidian: ToolProbe = {
     id: 'obsidian',
     name: 'Obsidian',
-    purpose: 'Workspace humain éditable — notes, Canvas et Bases du vault Aigent.',
-    status: 'UNAVAILABLE',
+    purpose: 'Workspace humain éditable — notes, Canvas et Base du vault Aigent.',
+    status: 'INSTALLED',
     url: null,
     version: null,
     detail:
-      'Application de bureau : aucun port HTTP à sonder. Son état ne peut pas être mesuré depuis le serveur.',
+      'Vault versionné dans `vault/` : 2 Canvas, 1 Base, 7 modèles, notes d’agents alimentées par la télémétrie réelle. Structure validée par `npm run check:vault`. L’application de bureau n’a aucun port HTTP : son exécution ne peut pas être mesurée depuis le serveur.',
     latencyMs: null,
     checkedAt: null,
-    remediation: 'Vérification manuelle sur le poste — voir docs/visual-reviews/AIGENT-VISUAL-STACK-001.',
+    remediation: 'Obsidian → Ouvrir un dossier comme coffre → `vault/`.',
   }
 
   // Ordre de lecture : le runtime produit d'abord, puis son inspecteur, puis
   // les périphériques, puis ce qui n'est pas mesurable depuis le serveur.
   const langgraphFirst = tools.filter((t) => t.id === 'langgraph')
   const peripherals = tools.filter((t) => t.id !== 'langgraph')
-  const all = [...langgraphFirst, studio, ...peripherals, obsidian]
+  const all = [...langgraphFirst, canvas, studio, ...peripherals, obsidian]
+
+  // « Joignable » = le service a répondu, quel que soit le niveau atteint
+  // ensuite. `CONFIGURED` (adresse connue, silence) n'en fait pas partie.
+  const REACHED: readonly ToolStatus[] = ['VERIFIED', 'CONNECTED', 'RUNNING']
 
   return {
     tools: all,
-    runningCount: all.filter((t) => t.status === 'RUNNING').length,
+    runningCount: all.filter((t) => REACHED.includes(t.status)).length,
     probedAt: new Date().toISOString(),
   }
 }

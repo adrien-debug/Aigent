@@ -1,0 +1,41 @@
+# Prometheus — scrape des métriques MÉTIER d'Aigent.
+#
+# Une seule cible : la route d'exposition d'Aigent. Aucun exporter d'hôte,
+# aucun cAdvisor : ce dashboard parle de runs d'agents, pas de conteneurs. Une
+# métrique de CPU reste verte pendant qu'aucun agent ne tourne — c'est
+# précisément ce qu'on refuse d'afficher ici.
+#
+# `host.docker.internal` — Aigent tourne sur l'hôte (port 3987), pas dans ce
+# réseau Docker. Le serveur partagé n'est ni déplacé ni conteneurisé pour cette
+# mission ; c'est Prometheus qui sort le joindre.
+#
+# AUTH — la route vit sous `/api/agent-ops/**`, donc gardée par `src/proxy.ts`,
+# qui accepte le header `x-amc-key`. `http_headers` avec `_file` exige
+# Prometheus ≥ 3.0 (ici v3.1.0, vérifié) : la clé est lue dans un fichier monté
+# au runtime et n'apparaît JAMAIS dans ce YAML versionné.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    stack: aigent-obs
+
+scrape_configs:
+  - job_name: aigent
+    metrics_path: /api/agent-ops/metrics
+    scheme: http
+    http_headers:
+      x-amc-key:
+        files: [/etc/prometheus/secrets/amc_api_key]
+    static_configs:
+      # Port de l'instance qui SERT la route. Le serveur partagé (3987) tourne
+      # sur `main` et ne porte pas encore `/api/agent-ops/metrics` : le scraper
+      # y répondrait 404. Il n'est ni redémarré ni modifié pour cette mission —
+      # l'instance de mission écoute sur 3988. Repasser à 3987 une fois la PR
+      # mergée et le serveur partagé redémarré par son propriétaire.
+      - targets: ['host.docker.internal:3988']
+        labels:
+          service: aigent
+          source: runtime_telemetry_events
+    # Un scrape lent ne doit pas empiler les requêtes sur le serveur partagé.
+    scrape_timeout: 10s
