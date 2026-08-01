@@ -67,6 +67,7 @@
     "@tailwindcss/postcss": "^4.3.3",
     "@xyflow/react": "12.11.2",
     "clsx": "^2.1.1",
+    "cssstudio": "^1.2.0",
     "motion": "^12.43.0",
     "motion-plus": "^1.5.1",
     "next": "16.2.10",
