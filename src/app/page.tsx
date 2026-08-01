@@ -16,7 +16,11 @@ export const dynamic = 'force-dynamic'
 async function loadCockpit() {
   const nowMs = Date.now()
   try {
-    return { nowMs, overview: await getDashboardOverview(nowMs), failure: null as string | null }
+    return {
+      nowMs,
+      overview: await getDashboardOverview(nowMs),
+      failure: null as string | null,
+    }
   } catch (err) {
     return {
       nowMs,
@@ -32,13 +36,18 @@ export default async function HomePage() {
   if (overview === null) {
     return (
       <AppShell>
-        <div className="p-6 pt-16 lg:pt-6">
-          <div className="mx-auto max-w-md rounded-lg bg-[#0a0a0b] px-6 py-10 text-center shadow-xs ring-1 ring-white/10">
-            <Unavailable
-              reason="unread"
-              detail="Le backend n'a pas répondu. Aucun chiffre n'est affiché — un tableau qui invente des valeurs est plus dangereux qu'un tableau vide."
-            />
-            {failure ? <Text className="mt-3">{failure}</Text> : null}
+        {/* Le fond sombre codé en dur qui vivait ici n'a plus de raison d'être :
+            le document EST graphite et `aig-panel` porte le fond, le liseré et le
+            rayon en un seul rôle, identique aux dix autres surfaces. */}
+        <div className="h-full p-4">
+          <div className="aig-panel flex h-full items-center justify-center">
+            <div className="max-w-md px-6 text-center">
+              <Unavailable
+                reason="unread"
+                detail="Le backend n'a pas répondu. Aucun chiffre n'est affiché — un tableau qui invente des valeurs est plus dangereux qu'un tableau vide."
+              />
+              {failure ? <Text className="mt-3">{failure}</Text> : null}
+            </div>
           </div>
         </div>
       </AppShell>

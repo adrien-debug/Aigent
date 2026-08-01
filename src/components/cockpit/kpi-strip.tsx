@@ -33,10 +33,7 @@ function successRateColor(success24h: number | null): string {
   return BAD
 }
 
-function costSupportText(
-  cost: NonNullable<DashboardKpis['cost24h']>,
-  partial: boolean,
-): string {
+function costSupportText(cost: NonNullable<DashboardKpis['cost24h']>, partial: boolean): string {
   if (partial) {
     return `minorant · ${cost.measuredRuns}/${cost.totalRuns} runs mesurés`
   }
@@ -134,7 +131,7 @@ export default function KpiStrip({
        puisqu'une gouttière n'existe qu'ENTRE deux cellules. Les cellules
        reprennent le noir de la box ; `overflow-hidden` + le rayon de la `dl`
        recoupent les angles. */
-    <dl className="dark grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-lg bg-white/10 shadow-xs ring-1 ring-white/10 sm:grid-cols-3 xl:grid-cols-6 [&>*]:bg-black">
+    <dl className="aig-panel grid shrink-0 grid-cols-2 gap-px overflow-hidden bg-[var(--aig-line-soft)] sm:grid-cols-3 xl:grid-cols-6 [&>*]:bg-[var(--aig-base)]">
       <Cell
         label="Runs 24 h"
         value={kpis.runs24h}
@@ -177,7 +174,9 @@ export default function KpiStrip({
         label="Exécutables"
         value={kpis.executableNow}
         support={
-          executableTotal === null ? 'total du catalogue non lu' : `sur ${executableTotal} au catalogue`
+          executableTotal === null
+            ? 'total du catalogue non lu'
+            : `sur ${executableTotal} au catalogue`
         }
         valueColor={kpis.executableNow === 0 ? WARN : undefined}
         graphic={

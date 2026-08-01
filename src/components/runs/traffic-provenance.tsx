@@ -33,13 +33,15 @@ import type { ProvenanceBreakdown } from './run-view-model'
 
 /** Le compteur d'une provenance. Un `0` ici est une mesure, pas une absence :
  *  la lecture a réussi et a compté zéro événement de cette source. */
-function Count({ label, value, accent }: Readonly<{ label: string; value: number; accent?: boolean }>) {
+function Count({
+  label,
+  value,
+  accent,
+}: Readonly<{ label: string; value: number; accent?: boolean }>) {
   return (
     <div className="min-w-0">
       <Text className="truncate text-xs uppercase">{label}</Text>
-      <Strong className={accent ? 'tabular-nums text-zinc-950 dark:text-white' : 'tabular-nums'}>
-        {value}
-      </Strong>
+      <Strong className={accent ? 'tabular-nums text-white' : 'tabular-nums'}>{value}</Strong>
     </div>
   )
 }
@@ -54,7 +56,7 @@ export default function TrafficProvenance({
 
   if (state === 'unread' || breakdown === null) {
     return (
-      <div className="rounded-md border border-dashed border-zinc-950/10 px-3 py-2 dark:border-white/10">
+      <div className="aig-line-soft rounded-md border border-dashed px-3 py-2">
         <Badge color="zinc">Indisponible</Badge>
         <Text className="mt-1 block text-xs">
           Le flux d&apos;événements de télémétrie n&apos;a pas pu être lu. La part de trafic
@@ -66,7 +68,7 @@ export default function TrafficProvenance({
 
   if (state === 'silent') {
     return (
-      <div className="rounded-md border border-dashed border-zinc-950/10 px-3 py-2 dark:border-white/10">
+      <div className="aig-line-soft rounded-md border border-dashed px-3 py-2">
         <Badge color="zinc">Aucune mesure</Badge>
         <Text className="mt-1 block text-xs">
           Le canal de télémétrie a été lu et ne contient <Strong>aucun événement</Strong>, toutes
@@ -77,7 +79,7 @@ export default function TrafficProvenance({
   }
 
   return (
-    <div className="rounded-md border border-zinc-950/5 px-3 py-2 dark:border-white/10">
+    <div className="aig-line-soft rounded-md border px-3 py-2">
       <div className="flex items-center gap-2">
         {state === 'internal-only' ? (
           <Badge color="amber">Aucun trafic consommateur observé</Badge>
@@ -85,7 +87,8 @@ export default function TrafficProvenance({
           <Badge color="emerald">Trafic consommateur observé</Badge>
         )}
         <Text className="tabular-nums">
-          sur <Strong>{breakdown.total}</Strong> événement{breakdown.total > 1 ? 's' : ''} lu
+          sur <Strong>{breakdown.total}</Strong> événement
+          {breakdown.total > 1 ? 's' : ''} lu
           {breakdown.total > 1 ? 's' : ''}
         </Text>
       </div>
@@ -101,8 +104,8 @@ export default function TrafficProvenance({
         <Text className="mt-2 block text-xs">
           Tout le trafic lu provient d&apos;Aigent lui-même — runner interne, promotion, shadow,
           replay. <Strong>Aucun agent déployé chez un tiers n&apos;a rapporté de run.</Strong> La
-          boucle d&apos;amélioration n&apos;est pas alimentée par le terrain : ce n&apos;est pas
-          une panne de lecture, c&apos;est l&apos;état réel du canal.
+          boucle d&apos;amélioration n&apos;est pas alimentée par le terrain : ce n&apos;est pas une
+          panne de lecture, c&apos;est l&apos;état réel du canal.
         </Text>
       ) : null}
     </div>

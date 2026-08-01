@@ -1,5 +1,5 @@
 import AppShell from '@/components/app-shell'
-import { Text } from '@/components/ui/text'
+import SurfaceState from '@/components/surface-state'
 
 /**
  * L'aperçu lit six sources PostgREST avant de rendre quoi que ce soit. Sans ce
@@ -19,15 +19,9 @@ import { Text } from '@/components/ui/text'
 export default function Loading() {
   return (
     <AppShell>
-      <div className="h-full p-4">
-        <div className="flex h-full items-center justify-center rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-          <div className="flex items-center gap-3 px-6">
-            <span
-              aria-hidden="true"
-              className="pulse-live size-1.5 shrink-0 rounded-full bg-zinc-400 dark:bg-zinc-500"
-            />
-            <Text>Chargement de la surface…</Text>
-          </div>
+      <div className="h-full p-4 max-lg:pt-20">
+        <div className="aig-panel flex h-full items-center justify-center">
+          <SurfaceState kind="loading" detail="La surface est en cours de lecture." />
         </div>
       </div>
     </AppShell>

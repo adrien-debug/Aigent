@@ -20,12 +20,19 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 
+import { PageHeader } from '@/components/app-shell'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Divider } from '@/components/ui/divider'
-import { Heading } from '@/components/ui/heading'
 import { Strong, Text } from '@/components/ui/text'
-import { AbsentMark, Panel, Rail, SEVERITY, Unavailable, initialsOf } from '@/components/cockpit/primitives'
+import {
+  AbsentMark,
+  Panel,
+  Rail,
+  SEVERITY,
+  Unavailable,
+  initialsOf,
+} from '@/components/cockpit/primitives'
 import { UNAVAILABLE_LABEL, formatUsd } from '@/lib/agent-mission-control/format'
 import type { ProjectListItem, ProjectMeasure } from './model'
 
@@ -62,10 +69,13 @@ function ProjectListRow({ item }: Readonly<{ item: ProjectListItem }>) {
     <li className="relative">
       <Rail color={live ? SEVERITY.good : SEVERITY.muted} />
       {/* Toute la ligne est cliquable — le deep link est la raison d'être de
-          cette liste. `block` + `focus-visible` : atteignable au clavier. */}
+          cette liste. `block` + `focus-visible` : atteignable au clavier.
+          La paire `X dark:Y` est simplifiée à sa seule valeur sombre : le
+          document entier est graphite (`layout.tsx`), la branche claire ne se
+          déclenchait plus jamais. */}
       <Link
         href={item.href}
-        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-zinc-950/2.5 focus-visible:bg-zinc-950/2.5 focus-visible:outline-hidden dark:hover:bg-white/2.5 dark:focus-visible:bg-white/2.5"
+        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-white/4 focus-visible:bg-white/4 focus-visible:outline-hidden"
       >
         <Avatar square initials={initialsOf(item.name)} className="size-8 shrink-0" />
 
@@ -86,7 +96,7 @@ function ProjectListRow({ item }: Readonly<{ item: ProjectListItem }>) {
         <div className="shrink-0 text-right">
           <Text>
             {empty ? (
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">rien à mesurer</span>
+              <span className="aig-text-faint text-xs">rien à mesurer</span>
             ) : (
               <Measure
                 measure={item.runs}
@@ -102,11 +112,7 @@ function ProjectListRow({ item }: Readonly<{ item: ProjectListItem }>) {
             <Text className="tabular-nums">
               <Measure measure={item.cost} render={(usd) => <>{formatUsd(usd)}</>} />
               {' · '}
-              {item.passRate === null ? (
-                <AbsentMark />
-              ) : (
-                `${Math.round(item.passRate * 100)} %`
-              )}
+              {item.passRate === null ? <AbsentMark /> : `${Math.round(item.passRate * 100)} %`}
             </Text>
           )}
         </div>
@@ -142,7 +148,7 @@ function renderProjectCatalog(
     )
   }
   return (
-    <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
+    <ul className="divide-y divide-white/5">
       {items.map((item) => (
         <ProjectListRow key={item.id} item={item} />
       ))}
@@ -161,30 +167,35 @@ export default function ProjectsListScreen({
   failure?: string | null
 }>) {
   return (
-    <div className="shell-page-bounded flex min-h-0 flex-col gap-3 max-lg:pl-14">
-      <header className="shrink-0 px-1">
-        <Heading level={1}>Projets</Heading>
-        <Text className="mt-1">
-          Projets consommateurs, leur dépôt cible et les agents qui leur sont rattachés.
+    // L'en-tête vient du shell ; le corps reste BORNÉ à la main. `PageBody` ne
+    // pose aucune borne de hauteur, et cet écran tient son zéro-scroll par une
+    // colonne `h-svh overflow-hidden` dont seule la liste défile — l'y
+    // remplacer rendrait la page scrollable et la box grandirait avec la data.
+    // La gouttière mobile n'est pas redoublée : `PageHeader` porte la sienne.
+    <div className="flex h-svh min-h-0 flex-col">
+      <PageHeader
+        title="Projets"
+        description="Projets consommateurs, leur dépôt cible et les agents qui leur sont rattachés."
+      />
+
+      <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 py-4 sm:px-6">
+        <Panel
+          title="Catalogue"
+          hint={unreadable ? 'lecture échouée' : projectCountHint(items.length)}
+          className="min-h-0 flex-1"
+          padded={false}
+          bodyClassName="overflow-y-auto"
+        >
+          {renderProjectCatalog(unreadable, items, failure)}
+        </Panel>
+
+        <Divider soft className="shrink-0" />
+        <Text className="aig-text-faint shrink-0 text-xs">
+          Un projet sans agent n&apos;affiche ni coût ni compteur de runs : il n&apos;a rien à
+          mesurer. Une mesure absente sur un projet peuplé s&apos;affiche «&nbsp;{UNAVAILABLE_LABEL}
+          &nbsp;», jamais zéro.
         </Text>
-      </header>
-
-      <Panel
-        title="Catalogue"
-        hint={unreadable ? 'lecture échouée' : projectCountHint(items.length)}
-        className="min-h-0 flex-1"
-        padded={false}
-        bodyClassName="overflow-y-auto"
-      >
-        {renderProjectCatalog(unreadable, items, failure)}
-      </Panel>
-
-      <Divider soft className="shrink-0" />
-      <Text className="shrink-0 px-1 text-xs">
-        Un projet sans agent n&apos;affiche ni coût ni compteur de runs : il n&apos;a rien à
-        mesurer. Une mesure absente sur un projet peuplé s&apos;affiche{' '}
-        «&nbsp;{UNAVAILABLE_LABEL}&nbsp;», jamais zéro.
-      </Text>
+      </div>
     </div>
   )
 }

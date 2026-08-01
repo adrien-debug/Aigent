@@ -74,10 +74,12 @@ function SummaryBlock({ label, text }: Readonly<{ label: string; text: string }>
       {trimmed === '' ? (
         <div className="mt-1">
           <AbsentMark />
-          <Text className="mt-1 block text-xs">Aucun résumé n&apos;a été enregistré pour ce run.</Text>
+          <Text className="mt-1 block text-xs">
+            Aucun résumé n&apos;a été enregistré pour ce run.
+          </Text>
         </div>
       ) : (
-        <pre className="mt-1 max-h-32 overflow-y-auto rounded-md bg-zinc-950/3 p-2 font-mono text-xs whitespace-pre-wrap text-zinc-700 dark:bg-white/5 dark:text-zinc-300">
+        <pre className="aig-subtle aig-text-muted mt-1 max-h-32 overflow-y-auto rounded-md p-2 font-mono text-xs whitespace-pre-wrap">
           {trimmed}
         </pre>
       )}
@@ -112,7 +114,7 @@ function Timeline({ run }: Readonly<{ run: AgentRun }>) {
   }
 
   return (
-    <div className="rounded-md border border-dashed border-zinc-950/10 p-3 dark:border-white/10">
+    <div className="aig-line-soft rounded-md border border-dashed p-3">
       <div className="flex items-center gap-2">
         <Badge color="zinc">Non lisible</Badge>
         <Text className="tabular-nums">
@@ -122,9 +124,9 @@ function Timeline({ run }: Readonly<{ run: AgentRun }>) {
       </div>
       <Text className="mt-2 block text-xs">
         Le nombre est réel — il vient des identifiants portés par le run. Leur CONTENU (nature,
-        titre, durée, statut de chaque étape) n&apos;est exposé par aucun loader du plan de
-        contrôle : la seule lecture de `agent_run_steps` vit derrière la surface runtime, réservée
-        aux produits consommateurs. Aucune étape n&apos;est donc affichée ici, et aucune n&apos;est
+        titre, durée, statut de chaque étape) n&apos;est exposé par aucun loader du plan de contrôle
+        : la seule lecture de `agent_run_steps` vit derrière la surface runtime, réservée aux
+        produits consommateurs. Aucune étape n&apos;est donc affichée ici, et aucune n&apos;est
         inventée.
       </Text>
     </div>
@@ -150,7 +152,9 @@ export default function RunDetail({
     ? new Date(startedMs).toISOString().replace('T', ' ').slice(0, 19)
     : null
   // L'instant de rendu est injecté par la page : jamais de `Date.now()` ici.
-  const ageSeconds = Number.isFinite(startedMs) ? Math.max(0, Math.round((nowMs - startedMs) / 1000)) : null
+  const ageSeconds = Number.isFinite(startedMs)
+    ? Math.max(0, Math.round((nowMs - startedMs) / 1000))
+    : null
 
   return (
     <div>
@@ -168,7 +172,8 @@ export default function RunDetail({
         <Text className="truncate">
           {agentName ?? <span className="font-mono">{run.copilotId}</span>}
           {' · '}
-          {projectName ?? (run.projectId ? <span className="font-mono">{run.projectId}</span> : 'sans projet')}
+          {projectName ??
+            (run.projectId ? <span className="font-mono">{run.projectId}</span> : 'sans projet')}
         </Text>
         <Text className="mt-0.5 tabular-nums">
           {startedLabel === null ? (

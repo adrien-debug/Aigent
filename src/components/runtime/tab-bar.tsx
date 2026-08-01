@@ -31,11 +31,15 @@ export default function RuntimeTabBar({ current }: Readonly<{ current: RuntimeTa
                 // `aria-current` porte l'état pour un lecteur d'écran : la
                 // couleur seule ne dit pas « vous êtes ici ».
                 aria-current={active ? 'page' : undefined}
+                // L'onglet ACTIF est une sélection : il monte d'un palier
+                // (`aig-raised`), pas un voile blanc dosé à la main. L'onglet au
+                // repos est un texte secondaire (`aig-text-muted`) qui monte au
+                // survol. Les paires `X dark:Y` sont retirées : le document est
+                // sombre depuis `layout.tsx`, la moitié claire ne se rendait
+                // plus jamais.
                 className={clsx(
                   'block rounded-md px-3 py-1.5 text-sm/6 font-medium no-underline',
-                  active
-                    ? 'bg-zinc-950/5 text-zinc-950 dark:bg-white/10 dark:text-white'
-                    : 'text-zinc-500 hover:bg-zinc-950/3.5 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-white',
+                  active ? 'aig-raised' : 'aig-text-muted hover:aig-raised',
                 )}
               >
                 {tab.name}

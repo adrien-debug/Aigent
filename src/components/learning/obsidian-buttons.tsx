@@ -95,7 +95,11 @@ export function ObsidianNoteButton({
   config,
   item,
   origin,
-}: Readonly<{ config: ObsidianConfig; item: OperatorQueueItem; origin: string }>) {
+}: Readonly<{
+  config: ObsidianConfig
+  item: OperatorQueueItem
+  origin: string
+}>) {
   // Recalculé au rendu plutôt qu'au clic : si l'URI n'est pas constructible, le
   // bouton ne doit pas exister du tout.
   const result = useMemo(
@@ -104,7 +108,7 @@ export function ObsidianNoteButton({
         path: reviewNotePath(item),
         content: reviewNoteBody(item, origin),
       }),
-    [config, item, origin]
+    [config, item, origin],
   )
 
   if (!result.ok) return null
@@ -131,11 +135,11 @@ export function ObsidianCommands({ config }: Readonly<{ config: ObsidianConfig }
 
   if (config.availability === 'not_configured') {
     return (
-      <div className="rounded-lg border border-dashed border-zinc-950/10 p-4 dark:border-white/10">
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          <span className="font-medium text-zinc-700 dark:text-zinc-300">Obsidian non configuré.</span>{' '}
-          Renseignez <code className="rounded bg-zinc-950/5 px-1 dark:bg-white/10">AIGENT_OBSIDIAN_VAULT</code>{' '}
-          pour ouvrir le vault, créer des notes de review et atteindre le Canvas de supervision depuis Aigent.
+      <div className="aig-line rounded-lg border border-dashed p-4">
+        <p className="aig-text-muted text-sm">
+          <span className="font-medium text-white">Obsidian non configuré.</span> Renseignez{' '}
+          <code className="aig-subtle rounded px-1">AIGENT_OBSIDIAN_VAULT</code> pour ouvrir le
+          vault, créer des notes de review et atteindre le Canvas de supervision depuis Aigent.
         </p>
       </div>
     )
@@ -162,10 +166,10 @@ export function ObsidianCommands({ config }: Readonly<{ config: ObsidianConfig }
       </div>
 
       {!canvas.ok && canvas.reason === 'canvas_not_configured' ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="aig-text-muted text-sm">
           Aucun Canvas de supervision déclaré —{' '}
-          <code className="rounded bg-zinc-950/5 px-1 dark:bg-white/10">AIGENT_OBSIDIAN_CANVAS_PATH</code> est
-          vide. Le vault reste accessible.
+          <code className="aig-subtle rounded px-1">AIGENT_OBSIDIAN_CANVAS_PATH</code> est vide. Le
+          vault reste accessible.
         </p>
       ) : null}
     </div>

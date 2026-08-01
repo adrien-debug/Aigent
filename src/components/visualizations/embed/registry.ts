@@ -68,19 +68,27 @@ export function isAllowedOrigin(candidate: string): boolean {
 }
 
 /**
- * Le registre figé. Quatre panneaux réels du dashboard `aigent-runs`, dont les
- * identifiants ont été relevés dans
+ * Le registre figé — les HUIT panneaux réels du dashboard `aigent-runs`, dont
+ * les identifiants sont relevés dans
  * `deploy/observability/grafana/dashboards/aigent-runs.json`.
+ *
+ * Le registre en portait quatre (les pilotes du laboratoire) ; les quatre
+ * autres existaient déjà dans le dashboard sans être adressables depuis
+ * Aigent. Rien n'est inventé ici : chaque `panelId` correspond à un panneau
+ * présent dans le JSON du dashboard. Un identifiant absent du dashboard
+ * n'atteindrait de toute façon jamais `READY` — la sonde le verrait.
  */
 export const VISUALIZATIONS: readonly VisualizationDefinition[] = [
   {
     id: 'runs-volume',
     kind: 'grafana-panel',
+    fn: 'activity',
     title: 'Volume de runs',
     description: 'Nombre total de runs observés dans la fenêtre de télémétrie.',
     dashboardUid: 'aigent-runs',
     panelId: 1,
-    provenance: 'runtime_telemetry_events → summarizeFleetRuntimeTelemetry() → /api/agent-ops/metrics → Prometheus',
+    provenance:
+      'runtime_telemetry_events → summarizeFleetRuntimeTelemetry() → /api/agent-ops/metrics → Prometheus',
     aspectRatio: 16 / 9,
     minHeightPx: 220,
     timeFrom: 'now-24h',
@@ -88,12 +96,14 @@ export const VISUALIZATIONS: readonly VisualizationDefinition[] = [
   {
     id: 'success-rate',
     kind: 'grafana-panel',
+    fn: 'reliability',
     title: 'Taux de succès',
     description:
       'Part de runs terminaux réussis. Absent — et non 0 % — si aucun run terminal n’a été mesuré.',
     dashboardUid: 'aigent-runs',
     panelId: 3,
-    provenance: 'runtime_telemetry_events → summarizeFleetRuntimeTelemetry() → /api/agent-ops/metrics → Prometheus',
+    provenance:
+      'runtime_telemetry_events → summarizeFleetRuntimeTelemetry() → /api/agent-ops/metrics → Prometheus',
     aspectRatio: 16 / 9,
     minHeightPx: 220,
     timeFrom: 'now-24h',
@@ -101,12 +111,14 @@ export const VISUALIZATIONS: readonly VisualizationDefinition[] = [
   {
     id: 'terminal-states',
     kind: 'grafana-panel',
+    fn: 'reliability',
     title: 'États terminaux',
     description:
       'Répartition completed / failed / started. Les runs en vol ne sont jamais fondus dans les succès.',
     dashboardUid: 'aigent-runs',
     panelId: 6,
-    provenance: 'runtime_telemetry_events → summarizeFleetRuntimeTelemetry() → /api/agent-ops/metrics → Prometheus',
+    provenance:
+      'runtime_telemetry_events → summarizeFleetRuntimeTelemetry() → /api/agent-ops/metrics → Prometheus',
     aspectRatio: 4 / 3,
     minHeightPx: 320,
     timeFrom: 'now-24h',
@@ -114,20 +126,94 @@ export const VISUALIZATIONS: readonly VisualizationDefinition[] = [
   {
     id: 'latency-by-agent',
     kind: 'grafana-panel',
+    fn: 'performance',
     title: 'Latence moyenne par agent',
-    description:
-      'Série absente pour un agent sans latence mesurée — jamais une ligne à zéro.',
+    description: 'Série absente pour un agent sans latence mesurée — jamais une ligne à zéro.',
     dashboardUid: 'aigent-runs',
     panelId: 8,
-    provenance: 'runtime_telemetry_events → summarizeFleetRuntimeTelemetry() → /api/agent-ops/metrics → Prometheus',
+    provenance:
+      'runtime_telemetry_events → summarizeFleetRuntimeTelemetry() → /api/agent-ops/metrics → Prometheus',
     aspectRatio: 21 / 9,
     minHeightPx: 300,
+    timeFrom: 'now-24h',
+  },
+  {
+    id: 'agent-project-pairs',
+    kind: 'grafana-panel',
+    fn: 'agents',
+    title: 'Couples projet/agent',
+    description:
+      'Nombre de couples projet/agent distincts ayant émis de la télémétrie sur la fenêtre.',
+    dashboardUid: 'aigent-runs',
+    panelId: 2,
+    provenance:
+      'runtime_telemetry_events → summarizeFleetRuntimeTelemetry() → /api/agent-ops/metrics → Prometheus',
+    aspectRatio: 16 / 9,
+    minHeightPx: 220,
+    timeFrom: 'now-24h',
+  },
+  {
+    id: 'latency-p95',
+    kind: 'grafana-panel',
+    fn: 'performance',
+    title: 'Latence p95',
+    description:
+      'Latence au 95e centile sur les runs dont la durée a été mesurée. Absente si aucune durée ne l’a été.',
+    dashboardUid: 'aigent-runs',
+    panelId: 4,
+    provenance:
+      'runtime_telemetry_events → summarizeFleetRuntimeTelemetry() → /api/agent-ops/metrics → Prometheus',
+    aspectRatio: 16 / 9,
+    minHeightPx: 220,
+    timeFrom: 'now-24h',
+  },
+  {
+    id: 'last-event',
+    kind: 'grafana-panel',
+    fn: 'activity',
+    title: 'Dernier événement',
+    description:
+      'Ancienneté du dernier événement de télémétrie reçu — la mesure qui dit si le canal vit encore.',
+    dashboardUid: 'aigent-runs',
+    panelId: 5,
+    provenance:
+      'runtime_telemetry_events → summarizeFleetRuntimeTelemetry() → /api/agent-ops/metrics → Prometheus',
+    aspectRatio: 16 / 9,
+    minHeightPx: 220,
+    timeFrom: 'now-24h',
+  },
+  {
+    id: 'runs-by-agent',
+    kind: 'grafana-panel',
+    fn: 'agents',
+    title: 'Runs par agent',
+    description:
+      'Répartition des runs par agent sur la fenêtre. Un agent sans run n’apparaît pas — il n’est pas à zéro.',
+    dashboardUid: 'aigent-runs',
+    panelId: 7,
+    provenance:
+      'runtime_telemetry_events → summarizeFleetRuntimeTelemetry() → /api/agent-ops/metrics → Prometheus',
+    aspectRatio: 4 / 3,
+    minHeightPx: 320,
     timeFrom: 'now-24h',
   },
 ] as const
 
 export function findVisualization(id: string): VisualizationDefinition | null {
   return VISUALIZATIONS.find((v) => v.id === id) ?? null
+}
+
+/**
+ * Les panneaux qui servent une FONCTION donnée, dans l'ordre du registre.
+ *
+ * C'est ce qui permet à une page de demander « la fiabilité » sans citer
+ * d'identifiant : ajouter un panneau au registre l'expose immédiatement à la
+ * page qui porte cette fonction, sans toucher la page.
+ */
+export function visualizationsFor(
+  ...fns: readonly VisualizationDefinition['fn'][]
+): readonly VisualizationDefinition[] {
+  return VISUALIZATIONS.filter((v) => fns.includes(v.fn))
 }
 
 /** Construit l'URL d'embed d'un panneau. Aucun credential, jamais. */
@@ -149,7 +235,9 @@ function buildSourceUrl(origin: string, def: VisualizationDefinition): string {
 }
 
 /** Sonde bornée. Ne suit aucune redirection : un 302 vers un login est un refus. */
-async function probeEmbed(url: string): Promise<{ state: VisualizationState; reason: string | null }> {
+async function probeEmbed(
+  url: string,
+): Promise<{ state: VisualizationState; reason: string | null }> {
   try {
     const res = await fetch(url, {
       method: 'GET',
@@ -163,14 +251,21 @@ async function probeEmbed(url: string): Promise<{ state: VisualizationState; rea
     if (res.status >= 300 && res.status < 400) {
       return {
         state: 'UNAVAILABLE',
-        reason: 'La source redirige vers une authentification : l’embedding anonyme n’est pas autorisé.',
+        reason:
+          'La source redirige vers une authentification : l’embedding anonyme n’est pas autorisé.',
       }
     }
     if (res.status === 401 || res.status === 403) {
-      return { state: 'UNAVAILABLE', reason: `La source refuse l’appel (HTTP ${res.status}).` }
+      return {
+        state: 'UNAVAILABLE',
+        reason: `La source refuse l’appel (HTTP ${res.status}).`,
+      }
     }
     if (!res.ok) {
-      return { state: 'UNAVAILABLE', reason: `La source répond HTTP ${res.status}.` }
+      return {
+        state: 'UNAVAILABLE',
+        reason: `La source répond HTTP ${res.status}.`,
+      }
     }
     // Un `X-Frame-Options` restant rendrait l'iframe blanche sans erreur
     // visible : mieux vaut le dire que d'afficher un cadre vide.
@@ -204,7 +299,10 @@ export async function resolveVisualization(id: string): Promise<ResolvedVisualiz
   const def = findVisualization(id)
   if (!def) return null
 
-  const base: Omit<ResolvedVisualization, 'state' | 'reason' | 'embedUrl' | 'sourceUrl' | 'resolvedAt'> = def
+  const base: Omit<
+    ResolvedVisualization,
+    'state' | 'reason' | 'embedUrl' | 'sourceUrl' | 'resolvedAt'
+  > = def
 
   // Un mode déclaré mais non implémenté ne peut jamais être rendu. Sans ce
   // garde, ajouter une entrée `vega-spec` au registre suffirait à afficher un
@@ -260,5 +358,21 @@ export async function resolveVisualization(id: string): Promise<ResolvedVisualiz
 /** Résout tout le registre en parallèle : une source lente n'en bloque pas une autre. */
 export async function resolveAllVisualizations(): Promise<ResolvedVisualization[]> {
   const resolved = await Promise.all(VISUALIZATIONS.map((v) => resolveVisualization(v.id)))
+  return resolved.filter((v): v is ResolvedVisualization => v !== null)
+}
+
+/**
+ * Résout les panneaux d'une ou plusieurs FONCTIONS — ce qu'appelle une page
+ * produit.
+ *
+ * En parallèle, comme la résolution complète : une page qui demande quatre
+ * panneaux ne doit pas payer quatre timeouts en série si Grafana est éteint.
+ * Chaque panneau porte son propre état ; l'un muet n'emporte pas les autres.
+ */
+export async function resolveVisualizationsFor(
+  ...fns: readonly VisualizationDefinition['fn'][]
+): Promise<ResolvedVisualization[]> {
+  const defs = visualizationsFor(...fns)
+  const resolved = await Promise.all(defs.map((v) => resolveVisualization(v.id)))
   return resolved.filter((v): v is ResolvedVisualization => v !== null)
 }

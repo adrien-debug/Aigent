@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 /* En Tailwind v4, `dark:` suit `prefers-color-scheme` par défaut : la classe
  * `dark` posée sur <html> ne déclenche rien tant qu'on ne l'a pas déclarée
@@ -29,8 +29,158 @@
  * `src/lib/cockpit/status.ts` parce que Recharts les consomme en valeurs
  * littérales et qu'un jeton unique évite qu'une puce et sa barre divergent. */
 
+/* ═══════════════════════════════════════════════════════════════════════════
+ * GRAMMAIRE DE SURFACE AIGENT — les cinq rôles, globaux.
+ *
+ * D'OÙ ELLE VIENT. Ces jetons ne sont pas inventés ici : ce sont exactement
+ * ceux de `src/components/visualizations/visualizations.css`, éprouvés sur le
+ * laboratoire de visualisations (VISUALIZATION-LAB-003) puis PROMUS au produit.
+ * Le laboratoire garde son scope `.viz-scope` — un panneau Grafana embarqué a
+ * des contraintes de contraste que le reste du produit n'a pas — mais les
+ * valeurs sont alignées, donc les deux surfaces se lisent comme un seul système.
+ *
+ * POURQUOI CINQ RÔLES ET PAS UNE PALETTE. Une palette invite chaque écran à
+ * piocher ; un rôle dit à quoi sert la surface. Avant cette grammaire, `/`
+ * portait `bg-[#0a0a0b]`, `/agents` `bg-white`, `/qualification` `bg-zinc-900`
+ * et `/runs` un `dark` scopé sur chaque boîte — quatre langages sur un même
+ * produit, tous « corrects » isolément. Un rôle ferme cette porte : il n'y a
+ * plus de couleur à choisir, seulement une intention à nommer.
+ *
+ *   base        — le fond qui porte le contenu principal d'une zone ;
+ *   subtle      — un creux : ce qui accueille une donnée, un graphe, un état ;
+ *   raised      — ce qui demande l'attention (échec, alerte, sélection) ;
+ *   interactive — ce qui se clique ;
+ *   overlay     — ce qui se superpose (tiroir, en-tête collant, badge).
+ *
+ * GRAPHITE TRAVAILLÉ, JAMAIS #000. Les fonds montent par paliers de clarté :
+ * la hiérarchie se lit sans bordure, et un panneau Grafana sombre se détache du
+ * fond au lieu d'y disparaître. L'accent cuivre est déclaré une seule fois et
+ * s'emploie avec retenue — un accent partout n'accentue rien.
+ *
+ * CE QUE CETTE GRAMMAIRE N'EST PAS. Ce n'est pas un design system : aucun
+ * composant n'est créé ici, `src/components/ui/**` (Catalyst) n'est pas touché
+ * et reste la fondation. Ce sont des rôles de SURFACE que les composants
+ * Catalyst habitent.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Graphite — paliers de clarté, pas de noir absolu. */
+  --aig-base: oklch(0.19 0.006 264);
+  --aig-subtle: oklch(0.16 0.006 264);
+  --aig-raised: oklch(0.24 0.008 264);
+  --aig-line: oklch(0.32 0.008 264);
+  --aig-line-soft: oklch(0.27 0.008 264);
+
+  --aig-text: oklch(0.93 0.004 264);
+  --aig-text-muted: oklch(0.71 0.006 264);
+  --aig-text-faint: oklch(0.58 0.006 264);
+
+  /* Accent cuivre — l'unique accent du produit. */
+  --aig-accent: oklch(0.72 0.11 52);
+  --aig-accent-quiet: oklch(0.45 0.06 52);
+
+  --aig-radius: 0.75rem;
+
+  /* Élévations — trois, nommées. Une ombre arbitraire par écran est
+     exactement ce que cette grammaire remplace. */
+  --aig-elevation-flat: inset 0 1px 0 oklch(1 0 0 / 0.04);
+  --aig-elevation-raised:
+    inset 0 1px 0 oklch(1 0 0 / 0.05), 0 1px 2px oklch(0 0 0 / 0.4);
+  --aig-elevation-overlay:
+    inset 0 1px 0 oklch(1 0 0 / 0.06), 0 16px 40px -12px oklch(0 0 0 / 0.7);
+}
+
+/* Le produit est dark-first : le fond du document EST la grammaire. Sans ça,
+   chaque page devait poser son propre fond, et c'est ainsi que la dérive a
+   commencé. */
 html {
-  color-scheme: light;
+  color-scheme: dark;
+  background-color: var(--aig-subtle);
+}
+
+/* ─────────────────────────────── les 5 rôles ─────────────────────────────── */
+
+@utility aig-base {
+  background-color: var(--aig-base);
+  color: var(--aig-text);
+}
+
+@utility aig-subtle {
+  background-color: var(--aig-subtle);
+  color: var(--aig-text);
+}
+
+@utility aig-raised {
+  background-color: var(--aig-raised);
+  color: var(--aig-text);
+  box-shadow: var(--aig-elevation-raised);
+}
+
+@utility aig-interactive {
+  color: var(--aig-accent);
+  transition:
+    color 150ms ease,
+    background-color 150ms ease;
+}
+
+@utility aig-overlay {
+  background-color: color-mix(in oklab, var(--aig-raised) 92%, transparent);
+  backdrop-filter: blur(12px);
+  color: var(--aig-text);
+  box-shadow: var(--aig-elevation-overlay);
+}
+
+/* ───────────────────────── liserés, textes, accent ───────────────────────── */
+
+@utility aig-line {
+  border-color: var(--aig-line);
+}
+
+@utility aig-line-soft {
+  border-color: var(--aig-line-soft);
+}
+
+@utility aig-text-muted {
+  color: var(--aig-text-muted);
+}
+
+@utility aig-text-faint {
+  color: var(--aig-text-faint);
+}
+
+@utility aig-accent {
+  color: var(--aig-accent);
+}
+
+/* Le panneau — la brique de surface du produit. Un rôle `base`, un liseré
+   `line-soft`, un rayon unique. Aucun écran ne redéfinit ces trois valeurs. */
+@utility aig-panel {
+  background-color: var(--aig-base);
+  color: var(--aig-text);
+  border: 1px solid var(--aig-line-soft);
+  border-radius: var(--aig-radius);
+  box-shadow: var(--aig-elevation-flat);
+}
+
+/* Un panneau qui porte l'attention — même géométrie, élévation supérieure. */
+@utility aig-panel-raised {
+  background-color: var(--aig-raised);
+  color: var(--aig-text);
+  border: 1px solid var(--aig-line);
+  border-radius: var(--aig-radius);
+  box-shadow: var(--aig-elevation-raised);
+}
+
+/* Anneau de focus unique. Un produit qui varie son focus écran par écran est
+   inutilisable au clavier. */
+@utility aig-focus {
+  outline: 2px solid var(--aig-accent);
+  outline-offset: 2px;
+}
+
+.aig-scope :focus-visible {
+  outline: 2px solid var(--aig-accent);
+  outline-offset: 2px;
 }
 
 /* Les deux familles de conteneur racine d'écran — chacune recopiée à la main
@@ -65,8 +215,7 @@ html {
 
 /* Navigation — rail sombre glossy, scope isolé du body clair. */
 @utility shell-sidebar-surface {
-  background:
-    linear-gradient(165deg, #141414 0%, #0a0a0a 42%, #111111 100%);
+  background: linear-gradient(165deg, #141414 0%, #0a0a0a 42%, #111111 100%);
   border-right: 1px solid rgb(255 255 255 / 0.06);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
 }

@@ -168,16 +168,49 @@ describe('resolveVisualization', () => {
     expect(await resolveVisualization('inexistant')).toBeNull()
   })
 
-  it('expose les quatre panneaux exigés, tous en grafana-panel', async () => {
+  it('expose les huit panneaux du dashboard, tous en grafana-panel', async () => {
     const { VISUALIZATIONS } = await load()
 
-    expect(VISUALIZATIONS).toHaveLength(4)
+    expect(VISUALIZATIONS).toHaveLength(8)
     for (const viz of VISUALIZATIONS) {
       expect(viz.kind).toBe('grafana-panel')
       expect(viz.dashboardUid).toBe('aigent-runs')
       expect(viz.provenance).toContain('runtime_telemetry_events')
     }
-    // Les identifiants de panneaux relevés dans le dashboard versionné.
-    expect(VISUALIZATIONS.map((v) => v.panelId).sort((a, b) => a - b)).toEqual([1, 3, 6, 8])
+    // Les identifiants de panneaux relevés dans le dashboard versionné
+    // (`deploy/observability/grafana/dashboards/aigent-runs.json`). Le registre
+    // en portait quatre — les pilotes du laboratoire ; les quatre autres
+    // existaient déjà dans le dashboard sans être adressables depuis Aigent.
+    expect(VISUALIZATIONS.map((v) => v.panelId).sort((a, b) => a - b)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8,
+    ])
+  })
+
+  it('aucun identifiant ni panelId en double — un panneau, une entrée', async () => {
+    const { VISUALIZATIONS } = await load()
+
+    // Un doublon afficherait le même graphique sous deux titres, et deux pages
+    // pourraient diverger sur ce qu'il montre. Le registre est l'autorité.
+    expect(new Set(VISUALIZATIONS.map((v) => v.id)).size).toBe(VISUALIZATIONS.length)
+    expect(new Set(VISUALIZATIONS.map((v) => v.panelId)).size).toBe(VISUALIZATIONS.length)
+  })
+
+  it('la sélection par fonction ne rend que les panneaux de cette fonction', async () => {
+    const { visualizationsFor, VISUALIZATIONS } = await load()
+
+    // C'est ce qui permet à une page de demander « la fiabilité » sans citer
+    // d'identifiant en dur : si ce filtre laissait passer autre chose, `/runs`
+    // afficherait des panneaux que son éditorial exclut.
+    for (const fn of ['activity', 'reliability', 'performance', 'agents'] as const) {
+      const picked = visualizationsFor(fn)
+      expect(picked.length).toBeGreaterThan(0)
+      for (const viz of picked) expect(viz.fn).toBe(fn)
+    }
+
+    // La réunion des quatre fonctions couvre le registre entier : aucun panneau
+    // n'est orphelin, donc aucun n'est inatteignable depuis une page.
+    expect(visualizationsFor('activity', 'reliability', 'performance', 'agents')).toHaveLength(
+      VISUALIZATIONS.length,
+    )
   })
 })
