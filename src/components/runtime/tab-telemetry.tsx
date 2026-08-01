@@ -14,6 +14,7 @@
 import { Badge } from '@/components/ui/badge'
 import { Strong, Text } from '@/components/ui/text'
 import { Panel } from '@/components/cockpit/primitives'
+import EmbeddedVisualization from '@/components/visualizations/embedded-visualization'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type {
   RuntimeTelemetryEvent,
@@ -364,6 +365,21 @@ export default function TelemetryTab({ data }: Readonly<{ data: TelemetryTabData
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
       <HealthPanel health={data.health} />
       <FleetPanel fleet={data.fleet} />
+
+      {/* Les memes evenements, en forme plutot qu'en chiffres. Grafana dessine,
+          Aigent encadre — aucun graphique n'est recode ici. Un panneau dont la
+          source est muette rend son propre etat honnete. */}
+      {data.visualizations.length > 0 ? (
+        <section
+          className="viz-scope grid gap-3 md:grid-cols-2 [&>*]:min-w-0"
+          aria-label="Panneaux du canal de télémétrie"
+        >
+          {data.visualizations.map((viz) => (
+            <EmbeddedVisualization key={viz.id} visualization={viz} density="compact" />
+          ))}
+        </section>
+      ) : null}
+
       <ProvenancePanel events={data.events} />
       <EventsPanel events={data.events} />
     </div>
