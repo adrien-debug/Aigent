@@ -1,10 +1,10 @@
 {
   "mission": "AIGENT-VISUAL-STACK-002",
   "revision": "REWORK v1 — lots 1 et 7",
-  "generatedAt": "2026-08-01T18:07:50.926Z",
+  "generatedAt": "2026-08-01T19:05:28.925Z",
   "git": {
     "branch": "mission/aigent-visual-stack-002",
-    "sha": "b3b534f32245ed157457ca47445c342f96ce75ed",
+    "sha": "527a6fc4b5fd4f1303e422fa2202c8b549c6a256",
     "cleanBeforeCapture": true,
     "shaMeaning": "HEAD au moment du rendu. Le commit de livraison des preuves est son descendant direct : il n’ajoute que ces artefacts, aucun code."
   },
@@ -147,9 +147,9 @@
       "httpStatus": 200,
       "toolsRendered": 7,
       "statuses": [
-        "ERROR",
+        "RUNNING",
         "VERIFIED",
-        "UNAVAILABLE",
+        "CONNECTED",
         "CONNECTED",
         "CONNECTED",
         "CONNECTED",
@@ -160,7 +160,63 @@
   "console": {
     "errors": 0,
     "warnings": 0,
-    "messages": []
+    "messages": [
+      {
+        "surface": "canvas@desktop",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "canvas@laptop",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "canvas@mobile",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "canvas-selection@desktop",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "canvas-selection@mobile",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "canvas-empty@desktop",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "canvas-unavailable@desktop",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "e2e-persistance",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "e2e-persistance",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "visual-tooling@desktop",
+        "type": "log",
+        "text": "[HMR] connected"
+      },
+      {
+        "surface": "visual-tooling@mobile",
+        "type": "log",
+        "text": "[HMR] connected"
+      }
+    ]
   },
   "violations": [],
   "verdict": "PASS"

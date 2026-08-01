@@ -1,0 +1,34 @@
+{
+  "captures": [
+    {
+      "file": "grafana-dashboard.png",
+      "tool": "grafana",
+      "url": "http://127.0.0.1:3802/d/aigent-runs",
+      "assertion": "valeur réelle 38 présente dans le rendu",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "langfuse-trace.png",
+      "tool": "langfuse",
+      "url": "http://127.0.0.1:3801/project/aigent-local/traces",
+      "assertion": "trace de smoke visible dans la liste",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "n8n-execution.png",
+      "tool": "n8n",
+      "url": "http://127.0.0.1:3803/home/executions",
+      "assertion": "workflow et exécution réussie visibles",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "langsmith-graph.png",
+      "tool": "langsmith-studio",
+      "url": "https://smith.langchain.com/studio/",
+      "assertion": "graphe agent_builder rendu par Studio (__start__, agent, approval, tools, __end__), état « Connected »",
+      "viewport": "1440x900",
+      "limite": "Studio rend le graphe et se déclare « Connected ». Le tracing in-Studio reste indisponible : le bandeau réclame langgraph-api ≥ 0.11.0 et notre serveur rapporte 1.4.2. Aucun run n’a été soumis (Submit non actionné) — donc aucun appel LLM facturé."
+    }
+  ],
+  "violations": []
+}
