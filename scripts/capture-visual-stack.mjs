@@ -326,7 +326,20 @@ async function captureTooling(page, name) {
   if (count !== 7) fail(`${surface} : ${count} outil(s) rendus au lieu de 7`)
 
   const statuses = await rows.evaluateAll((els) => els.map((el) => el.dataset.status))
-  const VOCAB = ['VERIFIED', 'CONNECTED', 'RUNNING', 'CONFIGURED', 'INSTALLED', 'UNAVAILABLE']
+  // Vocabulaire complet de `ToolStatus`. `NOT_CONFIGURED` (rien à sonder) et
+  // `ERROR` (sondé, muet) sont deux absences DIFFÉRENTES : les fondre en une
+  // seule ferait chercher une panne là où il manque une variable, et
+  // inversement.
+  const VOCAB = [
+    'VERIFIED',
+    'CONNECTED',
+    'RUNNING',
+    'CONFIGURED',
+    'INSTALLED',
+    'NOT_CONFIGURED',
+    'UNAVAILABLE',
+    'ERROR',
+  ]
   for (const s of statuses) if (!VOCAB.includes(s)) fail(`${surface} : statut inconnu « ${s} »`)
 
   // Aucun service SONDÉ ne doit atteindre VERIFIED — seul le Canvas embarqué.
