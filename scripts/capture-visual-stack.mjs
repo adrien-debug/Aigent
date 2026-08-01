@@ -253,25 +253,46 @@ async function captureDegraded(page, name, headline, body) {
   await page.goto(`${BASE}${CANVAS_ROUTE}`, { waitUntil: 'networkidle', timeout: 60_000 })
   await settle(page)
 
-  // Remplace le CONTENU du panneau topologie par l'état dégradé réel, en
-  // réutilisant les mêmes textes que le produit rend dans ce cas.
+  /*
+   * ÉTAT COHÉRENT, PAS SEULEMENT UNE BOÎTE DE TEXTE.
+   *
+   * La v1 remplaçait le contenu du Canvas mais laissait les compteurs du VRAI
+   * graphe : la capture affichait « 5 nœud(s) · 6 arête(s) » au-dessus de
+   * « Aucun nœud à représenter ». Cet état n'existe nulle part dans le produit
+   * — une preuve d'un écran impossible ne prouve rien.
+   *
+   * Le graphe étant chargé côté serveur (RSC), `page.route` ne peut pas
+   * l'intercepter. On simule donc dans le DOM, mais on met à jour TOUT ce qui
+   * décrit la topologie : compteurs ET zone de rendu. La boîte prend la
+   * hauteur de son contenu au lieu d'étirer 600px de vide.
+   */
   await page.evaluate(
     ({ headline, body }) => {
+      // Compteurs : ils décrivent la topologie, ils doivent suivre.
+      for (const badge of document.querySelectorAll('span, div')) {
+        if (badge.children.length > 0) continue
+        const t = (badge.textContent ?? '').trim()
+        if (/^\d+ nœud\(s\)$/.test(t)) badge.textContent = '0 nœud(s)'
+        else if (/^\d+ arête\(s\)$/.test(t)) badge.textContent = '0 arête(s)'
+      }
+
       const canvas = document.querySelector('[data-testid="graph-canvas"]')
       const host = canvas?.parentElement
       if (!host) return
       host.innerHTML = ''
       const box = document.createElement('div')
       box.setAttribute('data-testid', 'graph-canvas-degraded')
+      // `min-height` modeste et pas de `flex:1` : la boîte s'ajuste à son
+      // texte plutôt que d'occuper toute la hauteur disponible.
       box.style.cssText =
-        'display:flex;flex:1;min-height:12rem;align-items:center;justify-content:center;border:1px dashed #d4d4d8;border-radius:.5rem;padding:1.5rem;text-align:center'
+        'display:flex;min-height:9rem;align-items:center;justify-content:center;border:1px dashed #52525b;border-radius:.5rem;padding:2rem 1.5rem;text-align:center'
       const inner = document.createElement('div')
       inner.style.cssText = 'max-width:36rem;display:flex;flex-direction:column;gap:.5rem'
       const h = document.createElement('div')
-      h.style.cssText = 'font-size:.8125rem;font-weight:600;color:#3f3f46'
+      h.style.cssText = 'font-size:.8125rem;font-weight:600;color:#e4e4e7'
       h.textContent = headline
       const p = document.createElement('div')
-      p.style.cssText = 'font-size:.75rem;color:#71717a;line-height:1.5'
+      p.style.cssText = 'font-size:.75rem;color:#a1a1aa;line-height:1.5'
       p.textContent = body
       inner.append(h, p)
       box.append(inner)
@@ -279,7 +300,7 @@ async function captureDegraded(page, name, headline, body) {
     },
     { headline, body },
   )
-  await page.waitForTimeout(250)
+  await page.waitForTimeout(400)
 
   await shoot(page, `canvas-${name}-1440x900.png`, {
     surface: `canvas-${name}`,
