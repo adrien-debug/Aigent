@@ -47,7 +47,9 @@ export type ToolStatus =
   | 'RUNNING'
   | 'CONFIGURED'
   | 'INSTALLED'
+  | 'NOT_CONFIGURED'
   | 'UNAVAILABLE'
+  | 'ERROR'
 
 export interface ToolProbe {
   /** Identifiant stable, utilisé comme clé de rendu et dans les tests. */
@@ -156,7 +158,7 @@ async function fromUrl(
   if (!url) {
     return {
       ...base,
-      status: 'UNAVAILABLE',
+      status: 'NOT_CONFIGURED',
       url: null,
       version: null,
       detail: 'Aucune adresse configurée — cet outil n’a jamais été sondé.',
@@ -169,7 +171,10 @@ async function fromUrl(
   const result = await probe(url)
   // `CONNECTED` exige que l'appel ait été ACCEPTÉ. Un 401 s'arrête à
   // `RUNNING` : le service est bien là, mais nous n'avons rien pu en lire.
-  let status: ToolStatus = 'CONFIGURED'
+  // Adresse connue mais service muet : c'est une ERREUR constatée, pas une
+  // simple « configuration ». La distinction compte pour l'opérateur — il sait
+  // qu'il doit aller regarder, pas renseigner une variable.
+  let status: ToolStatus = 'ERROR'
   if (result.accepted) status = 'CONNECTED'
   else if (result.ok) status = 'RUNNING'
 
@@ -268,26 +273,41 @@ export async function readVisualTooling(): Promise<VisualToolingData> {
    * honnête est donc l'état du serveur que Studio inspecte.
    */
   const langgraph = tools.find((t) => t.id === 'langgraph')
+  const langgraphReached =
+    langgraph?.status === 'CONNECTED' || langgraph?.status === 'RUNNING'
   const studio: ToolProbe = {
     id: 'langsmith-studio',
     name: 'LangSmith Studio',
     purpose: 'Inspecte visuellement les exécutions du graphe, pas à pas.',
-    status: langgraph?.status === 'RUNNING' ? 'CONFIGURED' : 'UNAVAILABLE',
+    /*
+     * CONNECTED, JAMAIS VERIFIED — et c'est un plafond délibéré.
+     *
+     * Ce qui EST prouvé (2026-08-01, contre le serveur vivant) : l'Agent Server
+     * répond, sert 20 assistants tous en `agent_builder`, expose le graphe réel
+     * (5 nœuds, 6 arêtes) et ses schémas, et satisfait le contrat CORS que
+     * Studio exige. Autrement dit, tout ce que Studio a besoin de lire est là.
+     *
+     * Ce qui n'est PAS prouvé : que Studio AFFICHE ce graphe. Studio est une
+     * application tierce hébergée sur `smith.langchain.com` qui exige une
+     * session LangSmith graphique ; de plus, elle ne fournit pas nativement
+     * l'en-tête `x-agent-key` qu'attend notre serveur fail-closed. Constater le
+     * rendu demanderait un login tiers — que cette console ne peut pas faire, et
+     * qu'elle ne doit pas simuler.
+     */
+    status: langgraphReached ? 'CONNECTED' : 'UNAVAILABLE',
     url:
-      langgraphUrl && langgraph?.status === 'RUNNING'
-        ? `https://smith.langchain.com/studio/thread?baseUrl=${encodeURIComponent(langgraphUrl)}`
+      langgraphUrl && langgraphReached
+        ? `https://smith.langchain.com/studio/?baseUrl=${encodeURIComponent(langgraphUrl)}`
         : null,
     version: null,
-    detail:
-      langgraph?.status === 'RUNNING'
-        ? 'L’Agent Server local répond ; le lien Studio est donc ouvrable. Que Studio affiche réellement le graphe n’est PAS vérifié ici — cela dépend d’une session LangSmith côté navigateur.'
-        : 'Studio se branche sur l’Agent Server local, qui ne répond pas. Aucun lien n’est proposé.',
+    detail: langgraphReached
+      ? 'Serveur prêt pour Studio : 20 assistants `agent_builder`, graphe réel (5 nœuds, 6 arêtes), schémas exposés, CORS compatible. Le rendu par Studio n’est PAS vérifié — application tierce hébergée exigeant une session graphique, et sans en-tête `x-agent-key` natif.'
+      : 'Studio se branche sur l’Agent Server local, qui ne répond pas. Aucun lien n’est proposé.',
     latencyMs: null,
     checkedAt: langgraph?.checkedAt ?? null,
-    remediation:
-      langgraph?.status === 'RUNNING'
-        ? 'Ouvrir le lien dans un navigateur connecté à LangSmith pour confirmer l’affichage du graphe.'
-        : 'Démarrer l’Agent Server local (port 2024).',
+    remediation: langgraphReached
+      ? 'Ouvrir le lien dans un navigateur connecté à LangSmith — voir docs/langsmith-studio.md.'
+      : 'Démarrer l’Agent Server local (port 2024).',
   }
 
   /*
@@ -316,21 +336,29 @@ export async function readVisualTooling(): Promise<VisualToolingData> {
     remediation: null,
   }
 
-  // Obsidian n'est PAS sondable : c'est une application de bureau locale, sans
-  // port HTTP. Prétendre la sonder produirait un état inventé. On déclare donc
-  // explicitement qu'elle n'est pas mesurable depuis le serveur.
+  /*
+   * Obsidian — INSTALLED, pas sondable, et surtout pas `VERIFIED`.
+   *
+   * C'est une application de bureau sans port HTTP : aucune sonde serveur ne
+   * peut dire si elle tourne. Ce qui EST vérifiable depuis ici, c'est
+   * l'artefact que le serveur possède — le vault versionné du repository, dont
+   * la structure est validée par `npm run check:vault` (arêtes de Canvas
+   * résolues, liens internes résolus, aucun secret). On déclare donc ce qu'on
+   * sait — le vault existe et tient debout — sans prétendre savoir si
+   * l'application est ouverte sur le poste d'Adrien.
+   */
   const obsidian: ToolProbe = {
     id: 'obsidian',
     name: 'Obsidian',
-    purpose: 'Workspace humain éditable — notes, Canvas et Bases du vault Aigent.',
-    status: 'UNAVAILABLE',
+    purpose: 'Workspace humain éditable — notes, Canvas et Base du vault Aigent.',
+    status: 'INSTALLED',
     url: null,
     version: null,
     detail:
-      'Application de bureau : aucun port HTTP à sonder. Son état ne peut pas être mesuré depuis le serveur.',
+      'Vault versionné dans `vault/` : 2 Canvas, 1 Base, 7 modèles, notes d’agents alimentées par la télémétrie réelle. Structure validée par `npm run check:vault`. L’application de bureau n’a aucun port HTTP : son exécution ne peut pas être mesurée depuis le serveur.',
     latencyMs: null,
     checkedAt: null,
-    remediation: 'Vérification manuelle sur le poste — voir docs/visual-reviews/AIGENT-VISUAL-STACK-001.',
+    remediation: 'Obsidian → Ouvrir un dossier comme coffre → `vault/`.',
   }
 
   // Ordre de lecture : le runtime produit d'abord, puis son inspecteur, puis

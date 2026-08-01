@@ -22,13 +22,15 @@ import type { ToolProbe, ToolStatus, VisualToolingData } from './visual-tooling'
  * Une couleur par état — mais l'état est TOUJOURS écrit en toutes lettres à
  * côté : la couleur seule n'est pas une information accessible.
  */
-const STATUS_COLOR: Record<ToolStatus, 'lime' | 'emerald' | 'amber' | 'sky' | 'zinc'> = {
+const STATUS_COLOR: Record<ToolStatus, 'lime' | 'emerald' | 'amber' | 'sky' | 'zinc' | 'red'> = {
   VERIFIED: 'emerald',
   CONNECTED: 'lime',
   RUNNING: 'lime',
   CONFIGURED: 'amber',
   INSTALLED: 'sky',
+  NOT_CONFIGURED: 'zinc',
   UNAVAILABLE: 'zinc',
+  ERROR: 'red',
 }
 
 /** Ce que chaque état signifie, dit à l'écran plutôt que supposé connu. */
@@ -38,7 +40,11 @@ const STATUS_MEANING: Record<ToolStatus, string> = {
   RUNNING: 'a répondu',
   CONFIGURED: 'adresse connue, sans réponse',
   INSTALLED: 'présent, non contacté',
-  UNAVAILABLE: 'non configuré',
+  // Deux absences DIFFÉRENTES, que la couleur seule confondrait : rien à
+  // sonder (personne ne l'a installé) vs sondé et muet (il est cassé).
+  NOT_CONFIGURED: 'aucune adresse — jamais sondé',
+  UNAVAILABLE: 'non mesurable depuis le serveur',
+  ERROR: 'adresse connue, sonde en échec',
 }
 
 /** Un lien externe s'ouvre dans un onglet neuf ; un lien interne, non. */
