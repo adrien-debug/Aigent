@@ -24,7 +24,9 @@
 import type { ReactNode } from 'react'
 import { navEntry } from '@/components/navigation'
 import { PageBody, PageHeader } from '@/components/app-shell'
+import { Badge } from '@/components/ui/badge'
 import { Link } from '@/components/ui/link'
+import { Text } from '@/components/ui/text'
 import type { DashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
 import { buildHourlyBuckets, buildStatusBreakdown } from '@/lib/cockpit/overview-series'
 import type { HourlyBucket } from '@/lib/cockpit/overview-series'
@@ -135,6 +137,13 @@ function renderRunStreamPanel(runs: NamedRun[] | null, nowMs: number): ReactNode
     return <Unavailable reason="no-data" detail="Aucun run sur les dernières 24 heures." />
   }
   return <RunStream runs={runs} nowMs={nowMs} />
+}
+
+function actionTone(status: string): 'amber' | 'red' | 'emerald' | 'zinc' {
+  if (status === 'blocked' || status === 'failed') return 'red'
+  if (status === 'ready_for_manual_test' || status === 'awaiting_approval') return 'amber'
+  if (status === 'completed' || status === 'merged_validated') return 'emerald'
+  return 'zinc'
 }
 
 export default function CockpitOverview({
@@ -271,6 +280,40 @@ export default function CockpitOverview({
             )}
           </QuietSection>
         </div>
+
+        <QuietSection
+          title="Événements importants"
+          hint={`${overview.actionItems.length} signal(aux)`}
+          href="/actions"
+          hrefLabel="File complète"
+        >
+          {overview.actionItems.length === 0 ? (
+            <div className="px-4 py-5">
+              <Unavailable
+                reason="no-data"
+                detail="Aucun signal bloquant sur la fenêtre actuelle. La lecture a réussi."
+              />
+            </div>
+          ) : (
+            <ul className="divide-y divide-(--aig-line-soft)">
+              {overview.actionItems.slice(0, 6).map((item) => (
+                <li key={item.id} className="flex items-start gap-3 px-4 py-3">
+                  <Badge color={actionTone(item.status)}>{item.status}</Badge>
+                  <div className="min-w-0 flex-1">
+                    <Text className="truncate text-sm text-white">{item.title}</Text>
+                    <Text className="truncate text-xs">{item.meta}</Text>
+                  </div>
+                  <Link
+                    href={item.href}
+                    className="aig-accent shrink-0 text-2xs no-underline transition hover:text-white"
+                  >
+                    Ouvrir →
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </QuietSection>
 
         {overview.dataWarnings.length > 0 ? (
           <p className="aig-accent truncate px-1 font-mono text-2xs">
