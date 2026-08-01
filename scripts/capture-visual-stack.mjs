@@ -280,6 +280,14 @@ async function captureDegraded(page, name, headline, body) {
       const host = canvas?.parentElement
       if (!host) return
       host.innerHTML = ''
+      /*
+       * Le panneau garde sinon la hauteur réservée au graphe : ~400px de fond
+       * noir sous un message de deux lignes, qu'on lit comme un masque plutôt
+       * que comme un état vide. On laisse le conteneur se dimensionner sur son
+       * contenu réel.
+       */
+      host.style.flex = '0 0 auto'
+      host.style.minHeight = '0'
       const box = document.createElement('div')
       box.setAttribute('data-testid', 'graph-canvas-degraded')
       // `min-height` modeste et pas de `flex:1` : la boîte s'ajuste à son
