@@ -75,7 +75,12 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
         // les points/libellés sortis du SVG en HTML — un `<circle>` dans un
         // viewBox étiré deviendrait un ovale.
         preserveAspectRatio="none"
-        className="h-40 w-full overflow-visible"
+        // Le graphe est l'ÉLÉMENT VISUEL MAJEUR de l'Aperçu, pas une vignette
+        // dans un panneau parmi d'autres : il monte de 160 px à 224/288 px
+        // selon la largeur disponible. À `h-40` sur une scène pleine largeur,
+        // 24 heures de données tenaient dans une bande écrasée où les creux et
+        // les pics se distinguaient à peine.
+        className="h-56 w-full overflow-visible xl:h-72"
         role="img"
         aria-label={`Activité par heure sur la fenêtre — ${buckets.reduce((n, b) => n + b.total, 0)} runs`}
       >

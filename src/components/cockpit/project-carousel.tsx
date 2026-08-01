@@ -161,7 +161,11 @@ function ProjectSlide({ card }: Readonly<{ card: ProjectCard }>) {
        carte fluide (`flex-1`, `%`) casserait le snap par page. On resserre de
        176 à 160 px pour qu'une colonne à 40 % en montre trois entières au lieu
        de deux et un moignon coupé au bord. */
-    <article className="aig-panel flex h-full w-40 flex-col divide-y divide-[color:var(--aig-line-soft)]">
+    /* `aig-inset` et non `aig-panel` : la carte est POSÉE DANS une section de
+       second rang, elle ne doit donc pas porter le même liseré fermé qu'un
+       panneau de premier rang — sinon dix cartes rajoutent dix cadres à un
+       écran qui vient d'en retirer trois. Elle se creuse dans son porteur. */
+    <article className="aig-inset flex h-full w-40 flex-col divide-y divide-[color:var(--aig-line-soft)]">
       <div className="flex flex-1 flex-col items-center px-3 py-4 text-center">
         {/* La MARQUE du projet — initiales pour l'instant. Le jour où un projet
             porte un logo, c'est ici qu'il se substitue, sans toucher au reste

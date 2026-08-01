@@ -70,6 +70,19 @@ function CloseMenuIcon() {
   )
 }
 
+/**
+ * Le rail de navigation.
+ *
+ * CE QUI CHANGE. `SidebarItem` de Catalyst marque l'entrée courante par un
+ * simple fond — sur onze entrées graphite, la marque était presque invisible et
+ * on ne savait pas où l'on était. On ajoute donc un LISERÉ CUIVRE à gauche de
+ * l'entrée active : c'est le seul endroit du produit où l'accent signale une
+ * position plutôt qu'une action, et c'est justifié — savoir où l'on se trouve
+ * est le premier service que rend une navigation.
+ *
+ * Le kit n'est PAS modifié (gate `check:ui-kit-integrity`) : le liseré est un
+ * `span` frère posé par la composition, pas une réécriture de `SidebarItem`.
+ */
 function NavigationSidebar({ pathname }: Readonly<{ pathname: string }>) {
   const current = activeNavHref(pathname)
 
@@ -78,25 +91,46 @@ function NavigationSidebar({ pathname }: Readonly<{ pathname: string }>) {
       <SidebarHeader className="aig-line-soft border-b">
         <div className="flex items-center gap-2.5">
           <Mark className="aig-accent size-5 shrink-0" />
-          <SidebarLabel className="font-semibold tracking-[0.22em]">AIGENT</SidebarLabel>
+          <div className="min-w-0">
+            <SidebarLabel className="aig-display font-semibold tracking-[0.24em]">
+              AIGENT
+            </SidebarLabel>
+            <p className="aig-text-faint text-3xs uppercase tracking-[0.18em]">Plan de contrôle</p>
+          </div>
         </div>
-        <p className="aig-text-faint mt-1 text-3xs uppercase tracking-[0.18em]">Plan de contrôle</p>
       </SidebarHeader>
 
       <SidebarBody>
         <SidebarSection>
           <SidebarHeading className="aig-text-faint">Surfaces</SidebarHeading>
-          {NAVIGATION.map((entry) => (
-            <SidebarItem key={entry.href} href={entry.href} current={current === entry.href}>
-              <entry.icon data-slot="icon" aria-hidden="true" />
-              <SidebarLabel>{entry.name}</SidebarLabel>
-            </SidebarItem>
-          ))}
+          {NAVIGATION.map((entry) => {
+            const isCurrent = current === entry.href
+            return (
+              <div key={entry.href} className="relative">
+                {isCurrent ? (
+                  <span
+                    aria-hidden
+                    className="absolute inset-y-1 left-0 z-10 w-0.5 rounded-full bg-[var(--aig-accent)]"
+                  />
+                ) : null}
+                <SidebarItem href={entry.href} current={isCurrent}>
+                  <entry.icon
+                    data-slot="icon"
+                    aria-hidden="true"
+                    className={clsx(isCurrent && 'text-[var(--aig-accent)]')}
+                  />
+                  <SidebarLabel className={clsx(isCurrent && 'font-semibold')}>
+                    {entry.name}
+                  </SidebarLabel>
+                </SidebarItem>
+              </div>
+            )
+          })}
         </SidebarSection>
       </SidebarBody>
 
       <SidebarFooter className="aig-line-soft border-t">
-        <div className="aig-panel flex items-center gap-3 p-3">
+        <div className="flex items-center gap-3 px-1 py-1">
           <Avatar square initials="A" className="aig-raised size-9 outline-0" />
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">Session locale</p>
@@ -121,6 +155,7 @@ export function PageHeader({
   description,
   actions,
   meta,
+  eyebrow,
 }: Readonly<{
   title: string
   description?: string
@@ -128,6 +163,8 @@ export function PageHeader({
   actions?: ReactNode
   /** Contexte chiffré de la page (fenêtre, plafond, provenance). */
   meta?: ReactNode
+  /** Le rang de la surface dans le produit — situe avant de nommer. */
+  eyebrow?: string
 }>) {
   return (
     // `shrink-0` : les écrans BORNÉS (`/actions`, `/projects`, `/builder`) sont
@@ -136,17 +173,31 @@ export function PageHeader({
     // comprimerait pour laisser de la place à une liste qui a déjà son propre
     // scroll. `sticky` reste inoffensif dans ce cas : sans scroll de document,
     // il n'a simplement rien à faire.
-    <header className="aig-overlay aig-line-soft sticky top-0 z-20 shrink-0 border-b px-4 py-4 sm:px-6 max-lg:pl-16">
-      <div className="flex flex-wrap items-start gap-x-6 gap-y-3">
+    //
+    // LA DESCRIPTION EST DESCENDUE D'UN RANG. Elle occupait la même ligne
+    // typographique que le titre et pesait autant que lui ; sur onze surfaces,
+    // l'en-tête ressemblait à un paragraphe de documentation posé au-dessus du
+    // produit. Le titre monte (`text-2xl`, blanc métallique), la description
+    // passe en `text-2xs` et se tronque à une ligne : elle situe, elle ne
+    // raconte plus.
+    <header className="aig-overlay aig-line-soft sticky top-0 z-20 shrink-0 border-b px-4 py-3.5 sm:px-6 max-lg:pl-16">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-semibold tracking-tight sm:text-xl">{title}</h1>
+          {eyebrow ? (
+            <p className="aig-text-faint text-3xs font-medium uppercase tracking-[0.2em]">
+              {eyebrow}
+            </p>
+          ) : null}
+          <h1 className="aig-display truncate text-xl font-semibold sm:text-2xl">{title}</h1>
           {description ? (
-            <p className="aig-text-muted mt-1 max-w-3xl text-sm">{description}</p>
+            <p className="aig-text-muted mt-0.5 max-w-4xl truncate text-2xs">{description}</p>
           ) : null}
         </div>
         {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
       </div>
-      {meta ? <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">{meta}</div> : null}
+      {meta ? (
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-2">{meta}</div>
+      ) : null}
     </header>
   )
 }
@@ -163,7 +214,15 @@ export function PageBody({
   children,
   className,
 }: Readonly<{ children: ReactNode; className?: string }>) {
-  return <div className={clsx('flex flex-col gap-4 px-4 py-4 sm:px-6', className)}>{children}</div>
+  // `gap-5` plutôt que `gap-4` : la respiration entre deux zones de RANG
+  // différent doit être plus large que celle entre deux éléments d'une même
+  // zone, sinon la page se lit comme une liste uniforme — c'est l'espacement,
+  // autant que la matière, qui construit la hiérarchie.
+  return (
+    <div className={clsx('flex min-w-0 flex-col gap-5 px-4 pb-6 pt-5 sm:px-6', className)}>
+      {children}
+    </div>
+  )
 }
 
 function MobileNavButton({ onOpen }: Readonly<{ onOpen: () => void }>) {
@@ -172,7 +231,10 @@ function MobileNavButton({ onOpen }: Readonly<{ onOpen: () => void }>) {
       type="button"
       onClick={onOpen}
       aria-label="Ouvrir la navigation"
-      className="aig-panel-raised fixed left-4 top-4 z-30 inline-flex size-10 items-center justify-center lg:hidden"
+      // `aig-overlay` et non `aig-panel-raised` : le bouton flotte AU-DESSUS du
+      // contenu qui défile dessous. Un panneau opaque s'y confondait avec une
+      // carte de la page ; l'overlay est le seul rôle qui dit « je surnage ».
+      className="aig-overlay aig-line-soft fixed left-4 top-3 z-30 inline-flex size-10 items-center justify-center rounded-lg border lg:hidden"
     >
       <OpenMenuIcon />
     </button>
@@ -194,12 +256,18 @@ export default function AppShell({ children }: Readonly<{ children?: ReactNode }
           transition
           className="fixed inset-y-0 left-0 z-50 w-full max-w-80 p-2 transition duration-300 ease-in-out data-closed:-translate-x-full"
         >
-          <div className="aig-panel-raised flex h-full flex-col">
-            <div className="flex justify-end px-4 pt-3">
+          {/* `overflow-y-auto` ici aussi : sur un téléphone en paysage (375×812
+              couché, ou tout appareil sous ~640 px de haut), les onze entrées
+              débordaient du panneau sans moyen d'y accéder. */}
+          <div className="aig-panel-raised scroll-thin flex h-full flex-col overflow-y-auto">
+            <div className="flex shrink-0 justify-end px-3 pt-3">
               <Headless.CloseButton
                 type="button"
                 aria-label="Fermer la navigation"
-                className="aig-text-muted rounded-lg p-2 transition hover:bg-white/8 hover:text-white"
+                // Cible tactile pleine (44 px) et contraste réel : l'icône
+                // était un glyphe gris de 20 px sans surface propre, quasi
+                // invisible sur le graphite du panneau.
+                className="aig-panel aig-text-muted inline-flex size-10 items-center justify-center transition hover:bg-white/8 hover:text-white"
               >
                 <CloseMenuIcon />
               </Headless.CloseButton>
@@ -210,13 +278,23 @@ export default function AppShell({ children }: Readonly<{ children?: ReactNode }
       </Headless.Dialog>
 
       {/* Rail permanent — un CREUX à gauche, pas une bande étrangère collée au
-          produit. Le liseré suffit à le séparer de la zone de travail. */}
-      <div className="aig-subtle aig-line-soft hidden w-64 shrink-0 border-r lg:sticky lg:top-0 lg:block lg:h-svh lg:max-h-svh lg:self-start">
+          produit. Le liseré suffit à le séparer de la zone de travail.
+
+          `overflow-y-auto` sur le rail : en FAIBLE HAUTEUR (fenêtre de 600 px,
+          écran 13" avec inspecteur ouvert), onze entrées + en-tête + pied
+          dépassent `h-svh`. Sans scroll propre, les dernières surfaces et le
+          bloc de session devenaient inatteignables — la navigation cessait de
+          naviguer. */}
+      <div className="aig-subtle aig-line-soft scroll-thin hidden w-64 shrink-0 border-r lg:sticky lg:top-0 lg:block lg:h-svh lg:max-h-svh lg:self-start lg:overflow-y-auto">
         <NavigationSidebar pathname={pathname} />
       </div>
 
-      {/* Zone de travail — elle monte d'un palier sur le rail. */}
-      <main className="aig-base min-w-0 flex-1">
+      {/* Zone de travail — elle monte d'un palier sur le rail.
+
+          `min-h-svh` + `flex-col` : les écrans qui veulent occuper la hauteur
+          (une scène dominante, un flux qui respire) peuvent le faire avec
+          `flex-1`, au lieu de flotter en haut d'un viewport à moitié vide. */}
+      <main className="aig-base flex min-h-svh min-w-0 flex-1 flex-col">
         <MobileNavButton onOpen={() => setShowSidebar(true)} />
         {children}
       </main>

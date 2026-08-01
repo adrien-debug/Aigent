@@ -1,12 +1,22 @@
 /**
- * Aperçu — la surface d'arrivée : instruments, activité, rosters.
+ * Aperçu — la surface d'arrivée. UNE scène, puis deux zones de second rang.
  *
- * Hiérarchie : en-tête commun → bandeau KPI → activité (histogramme) → rosters
- * (flux d'exécution, projets). Du global au particulier, comme `/runs`.
+ * LA HIÉRARCHIE EST MAINTENANT ÉDITORIALE, PAS SEULEMENT ORDONNÉE
+ * ---------------------------------------------------------------
+ * L'écran allait déjà « du global au particulier », mais en empilant trois
+ * `Panel` de rang strictement ÉGAL — bandeau KPI, activité, grille rosters.
+ * Même fond, même liseré, même rayon, même poids de titre. Un ordre de lecture
+ * juste ne suffit pas : sans différence de POIDS, les trois blocs se disputent
+ * le regard et l'écran se lit comme une grille de cadres noirs.
  *
- * L'écran rendait autrefois sur fond CLAIR avec son propre en-tête noir ; il
- * suit désormais la grammaire du produit (`globals.css`) et l'en-tête commun du
- * shell. Il n'a plus de langage à lui.
+ * Trois gestes, donc :
+ *  1. L'activité et ses mesures fusionnent en UNE scène (`aig-stage`) : la
+ *     courbe et les chiffres qui la qualifient parlent de la même fenêtre, ils
+ *     n'ont jamais eu de raison d'être deux boîtes voisines.
+ *  2. Les six KPI cessent d'être six cellules égales — deux MÈNENT en
+ *     `text-4xl`, quatre QUALIFIENT (voir `kpi-strip.tsx`).
+ *  3. Le flux et les projets descendent en second rang (`aig-quiet`) : plus de
+ *     liseré fermé, la valeur du fond suffit à les détacher.
  *
  * Server Component : l'histogramme est le seul module client (SVG écrit à la
  * main + Motion pour son entrée).
@@ -25,7 +35,7 @@ import { StatusLegend } from './charts'
 import KpiStrip from './kpi-strip'
 import RunStream from './run-stream'
 import ProjectCarousel from './project-carousel'
-import { Panel, Unavailable } from './primitives'
+import { Unavailable } from './primitives'
 
 const ENTRY = navEntry('/')
 
@@ -69,6 +79,52 @@ function renderActivityPanel(buckets: HourlyBucket[] | null): ReactNode {
     )
   }
   return <ActivityGraph buckets={buckets} />
+}
+
+/**
+ * Une section de SECOND RANG — présente, subordonnée, sans cadre complet.
+ *
+ * Ce n'est pas un `Panel` allégé : c'est l'autre moitié d'une hiérarchie à deux
+ * niveaux. `Panel` porte un liseré fermé sur ses quatre côtés, et trois `Panel`
+ * côte à côte se lisent comme trois objets de même importance. Ici la section
+ * se détache par la VALEUR de son fond et un filet de lumière sous son titre —
+ * elle appartient visiblement à la page plutôt que de flotter dessus.
+ *
+ * Le lien de l'en-tête est le « détail à la demande » : chaque zone dit où
+ * aller pour en voir plus, au lieu d'essayer de tout montrer.
+ */
+function QuietSection({
+  title,
+  hint,
+  href,
+  hrefLabel,
+  children,
+}: Readonly<{
+  title: string
+  hint?: string
+  href?: string
+  hrefLabel?: string
+  children: ReactNode
+}>) {
+  return (
+    <section className="aig-quiet flex min-w-0 flex-col overflow-hidden">
+      <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 pt-3.5 pb-2.5">
+        <h2 className="aig-display truncate text-sm font-semibold">{title}</h2>
+        {hint ? <p className="aig-text-faint truncate text-2xs">{hint}</p> : null}
+        {href && hrefLabel ? (
+          <Link
+            href={href}
+            className="aig-accent ml-auto shrink-0 text-2xs font-medium no-underline transition hover:text-white"
+          >
+            {hrefLabel} →
+          </Link>
+        ) : null}
+      </header>
+      {/* Le filet remplace la bordure du header : il articule sans découper. */}
+      <div className="aig-hairline mx-4" />
+      <div className="min-w-0 flex-1">{children}</div>
+    </section>
+  )
 }
 
 function renderRunStreamPanel(runs: NamedRun[] | null, nowMs: number): ReactNode {
@@ -121,6 +177,7 @@ export default function CockpitOverview({
        * Elles montent simplement dans l'en-tête commun.
        */}
       <PageHeader
+        eyebrow="Plan de contrôle"
         title={ENTRY.name}
         description={ENTRY.purpose}
         actions={
@@ -141,50 +198,82 @@ export default function CockpitOverview({
         }
       />
 
-      <PageBody>
-        <KpiStrip kpis={overview.kpis} unread={unread} />
+      <PageBody className="flex-1">
+        {/*
+         * LA SCÈNE — une seule zone dominante, et tout le reste en dessous.
+         *
+         * CE QUI A CHANGÉ. L'écran empilait trois `Panel` de rang strictement
+         * égal : le bandeau KPI, l'activité, puis la grille flux/projets. Même
+         * fond, même liseré, même rayon, même poids typographique — une pile de
+         * cadres noirs sans point d'entrée, exactement ce que cette mission
+         * doit supprimer.
+         *
+         * Ici, l'activité et ses mesures ne sont plus deux boîtes voisines :
+         * c'est UN objet. Les chiffres qui qualifient la fenêtre vivent dans la
+         * même surface que la courbe qui la dessine, parce qu'ils parlent de la
+         * même chose. La légende de statut monte dans l'en-tête de la scène.
+         */}
+        <section className="aig-stage flex min-w-0 flex-col overflow-hidden">
+          <header className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 pt-4 pb-3">
+            <div className="min-w-0">
+              <p className="aig-text-faint text-3xs font-medium uppercase tracking-[0.2em]">
+                Fenêtre 24 heures
+              </p>
+              <h2 className="aig-display text-base font-semibold">Activité de la flotte</h2>
+            </div>
+            {slices ? (
+              <div className="ml-auto min-w-0">
+                <StatusLegend slices={slices} />
+              </div>
+            ) : (
+              <p className="aig-text-faint ml-auto text-2xs">fenêtre non lue</p>
+            )}
+          </header>
 
-        <Panel
-          title="Activité 24 h"
-          className="min-w-0"
-          padded={false}
-          bodyClassName="px-2 pt-3 pb-1"
-          actions={slices ? <StatusLegend slices={slices} /> : undefined}
-          hint={slices ? undefined : 'fenêtre non lue'}
-        >
-          {renderActivityPanel(buckets)}
-        </Panel>
+          {/* Le graphe est posé dans un CREUX : il est accueilli par la scène,
+              il n'est pas une carte de plus posée dessus. */}
+          <div className="aig-inset mx-3 min-w-0">{renderActivityPanel(buckets)}</div>
 
-        {/* 60 / 40 : le flux se lit ligne à ligne et garde la majorité, mais les
-          projets portent DES CARTES — à 30 % la colonne n'en montrait que deux
-          sur dix et coupait la troisième au bord. 40 % en fait une vraie
-          seconde colonne au lieu d'un appoint tassé. */}
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[6fr_4fr] [&>*]:min-w-0">
-          <Panel
+          {/* Les mesures ferment la scène — elles qualifient la courbe qu'on
+              vient de lire, au lieu de la précéder hors contexte. */}
+          <div className="px-3 pt-3 pb-3">
+            <KpiStrip kpis={overview.kpis} unread={unread} />
+          </div>
+        </section>
+
+        {/* SECOND RANG — le flux et les projets. Ils ne portent plus de liseré
+            complet : `aig-quiet` les détache par la valeur, ce qui retire deux
+            cadres identiques de l'écran sans rien perdre de la structure.
+
+            60 / 40 : le flux se lit ligne à ligne et garde la majorité, mais les
+            projets portent DES CARTES — à 30 % la colonne n'en montrait que deux
+            sur dix et coupait la troisième au bord. */}
+        <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[6fr_4fr] [&>*]:min-w-0">
+          <QuietSection
             title="Flux d'exécution"
             hint={runs ? `${runs.length} sur la fenêtre` : undefined}
-            className="min-w-0"
-            padded={false}
+            href="/runs"
+            hrefLabel="Tous les runs"
           >
             {renderRunStreamPanel(runs, nowMs)}
-          </Panel>
+          </QuietSection>
 
-          <Panel
+          <QuietSection
             title="Projets"
             hint={`${projectCards.length} au catalogue`}
-            className="min-w-0"
-            padded={false}
+            href="/projects"
+            hrefLabel="Catalogue"
           >
             {projectCards.length === 0 ? (
               <Unavailable reason="no-data" detail="Aucun projet dans le catalogue." />
             ) : (
               <ProjectCarousel cards={rankedProjects} />
             )}
-          </Panel>
+          </QuietSection>
         </div>
 
         {overview.dataWarnings.length > 0 ? (
-          <p className="aig-panel-raised aig-accent truncate px-3 py-2 font-mono text-2xs">
+          <p className="aig-accent truncate px-1 font-mono text-2xs">
             {overview.dataWarnings.length} avertissement(s) de lecture — {overview.dataWarnings[0]}
           </p>
         ) : null}

@@ -53,6 +53,22 @@ function costSupportText(cost: NonNullable<DashboardKpis['cost24h']>, partial: b
   return `${cost.totalRuns} runs mesurés`
 }
 
+/**
+ * Une cellule du bandeau — en deux RANGS, pas en six exemplaires égaux.
+ *
+ * POURQUOI DEUX RANGS. Les six mesures avaient exactement le même poids
+ * typographique, la même cellule, la même surface. Un opérateur qui arrive sur
+ * l'écran n'avait aucun point d'entrée : « Runs 24 h » et « À décider » se
+ * disputaient le regard à égalité. Or ces six mesures ne valent pas la même
+ * chose — deux répondent à « est-ce que ça tourne et est-ce que ça tient ? »,
+ * les quatre autres qualifient.
+ *
+ *  · `rank="lead"`  — le chiffre porte l'écran : `text-4xl`, blanc métallique.
+ *  · `rank="quiet"` — la mesure qualifie : `text-xl`, libellé compact.
+ *
+ * Le rang est une décision ÉDITORIALE de l'appelant, pas une propriété de la
+ * donnée : la même mesure peut mener un écran et en qualifier un autre.
+ */
 function Cell({
   label,
   value,
@@ -62,6 +78,7 @@ function Cell({
   led,
   valueColor,
   unavailableReason,
+  rank = 'quiet',
 }: Readonly<{
   label: string
   /** `null` = non mesuré. La cellule le DIT au lieu d'afficher un chiffre. */
@@ -74,12 +91,30 @@ function Cell({
   led?: ReactNode
   valueColor?: string
   unavailableReason?: 'unread' | 'no-data'
+  rank?: 'lead' | 'quiet'
 }>) {
+  const lead = rank === 'lead'
+
   return (
-    <div className="flex min-w-0 flex-col justify-between gap-2 p-4">
+    <div
+      className={clsx(
+        'flex min-w-0 flex-col justify-between gap-2',
+        // Une menante vaut deux qualifiantes en largeur, à tous les points de
+        // rupture : c'est ce qui lui laisse la place d'un chiffre `text-4xl`
+        // sans le tronquer, et ce qui rend le rang lisible d'un coup d'œil.
+        lead ? 'col-span-2 gap-3 p-5' : 'p-4',
+      )}
+    >
       <dt className="flex items-center gap-2">
         {led}
-        <Text className="truncate">{label}</Text>
+        <Text
+          className={clsx(
+            'truncate',
+            lead && 'text-2xs font-medium uppercase tracking-[0.16em]',
+          )}
+        >
+          {label}
+        </Text>
       </dt>
 
       <dd className="min-w-0">
@@ -93,19 +128,37 @@ function Cell({
                 or un `<p>` ne peut contenir ni l'un ni l'autre — HTML invalide
                 et erreur d'hydratation React. */}
             <div className="flex min-w-0 items-baseline gap-1.5">
-              <Heading
-                level={3}
-                className={clsx('truncate tabular-nums', valueColor && 'text-(--kpi)')}
-                style={valueColor ? ({ '--kpi': valueColor } as React.CSSProperties) : undefined}
-              >
-                {value}
-              </Heading>
-              {unit ? <Text>{unit}</Text> : null}
+              {lead ? (
+                // Un `<p>` typé à la main plutôt que `Heading` : à `text-4xl`,
+                // le composant du kit impose sa propre échelle et son propre
+                // poids. On ne le modifie pas (gate d'intégrité) — on ne
+                // l'utilise simplement pas ici.
+                <p
+                  className={clsx(
+                    'aig-display truncate text-4xl font-semibold leading-none',
+                    valueColor && 'text-(--kpi)',
+                  )}
+                  style={valueColor ? ({ '--kpi': valueColor } as React.CSSProperties) : undefined}
+                >
+                  {value}
+                </p>
+              ) : (
+                <Heading
+                  level={3}
+                  className={clsx('truncate tabular-nums', valueColor && 'text-(--kpi)')}
+                  style={valueColor ? ({ '--kpi': valueColor } as React.CSSProperties) : undefined}
+                >
+                  {value}
+                </Heading>
+              )}
+              {unit ? (
+                <Text className={clsx(lead && 'aig-text-muted text-lg')}>{unit}</Text>
+              ) : null}
             </div>
             {graphic ? <div className="shrink-0 pb-1">{graphic}</div> : null}
           </div>
         )}
-        <Text className="truncate">{support}</Text>
+        <Text className={clsx('truncate', lead && 'mt-1.5')}>{support}</Text>
       </dd>
     </div>
   )
@@ -144,8 +197,15 @@ export default function KpiStrip({
        puisqu'une gouttière n'existe qu'ENTRE deux cellules. Les cellules
        reprennent le noir de la box ; `overflow-hidden` + le rayon de la `dl`
        recoupent les angles. */
-    <dl className="aig-panel grid shrink-0 grid-cols-2 gap-px overflow-hidden bg-[var(--aig-line-soft)] sm:grid-cols-3 xl:grid-cols-6 [&>*]:bg-[var(--aig-base)]">
+    /* DEUX MENANTES, QUATRE QUALIFIANTES — la grille suit l'éditorial.
+       Les deux premières cellules occupent chacune deux colonnes sur les six
+       de la rangée `xl` et portent leur chiffre en `text-4xl` ; les quatre
+       autres se rangent par deux dans les deux colonnes restantes. En dessous
+       de `xl` la grille dégrade proprement : 2 colonnes en mobile, 3 en `sm`,
+       les menantes gardant leur double largeur. */
+    <dl className="aig-panel grid shrink-0 grid-cols-2 gap-px overflow-hidden bg-[var(--aig-line-soft)] sm:grid-cols-4 xl:grid-cols-8 [&>*]:bg-[var(--aig-base)]">
       <Cell
+        rank="lead"
         label="Runs 24 h"
         value={kpis.runs24h}
         support={unread ? 'fenêtre non lue' : 'exécutions sur la fenêtre'}
@@ -154,6 +214,7 @@ export default function KpiStrip({
       />
 
       <Cell
+        rank="lead"
         label="Succès 24 h"
         value={kpis.success24h}
         unit="%"
@@ -165,6 +226,7 @@ export default function KpiStrip({
             <ArcGauge
               ratio={kpis.success24h / 100}
               color={successColor}
+              size={52}
               label={`${kpis.success24h} % de succès`}
             />
           )

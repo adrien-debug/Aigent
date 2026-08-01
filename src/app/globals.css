@@ -229,6 +229,109 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+ * COMPOSITION — le vocabulaire ÉDITORIAL, au-dessus des rôles de surface.
+ *
+ * LE PROBLÈME QUE ÇA RÉSOUT. Les cinq rôles disent de quelle MATIÈRE est une
+ * surface. Ils ne disent rien de son POIDS dans la page. Résultat : chaque
+ * écran empilait des `aig-panel` de rang égal — même fond, même liseré, même
+ * rayon — et le regard n'avait aucun point d'entrée. Onze écrans « corrects »
+ * qui se lisaient tous comme une grille de cadres noirs identiques.
+ *
+ * Ces utilitaires nomment donc un RANG, pas une couleur :
+ *   · `aig-stage`   — la zone dominante d'un écran. Une par page, jamais deux.
+ *   · `aig-quiet`   — le second rang : présent, subordonné, sans liseré complet.
+ *   · `aig-inset`   — un creux DANS une surface (le lit d'un graphe, d'un flux).
+ *   · `aig-hairline`— une séparation par la lumière, pas par une bordure.
+ *
+ * POURQUOI PAS DE NOUVEAUX JETONS DE COULEUR. Tout est dérivé des `--aig-*`
+ * existants par `color-mix`. Aucune valeur nouvelle n'entre dans le produit :
+ * c'est une couche de COMPOSITION, pas une deuxième palette.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* La scène — la surface dominante. Un dégradé très long (pas un effet : deux
+   paliers de la même échelle) donne de la matière à une grande zone que le
+   graphite plat rendrait morte sur 900 px de large. */
+@utility aig-stage {
+  background:
+    radial-gradient(
+      120% 100% at 0% 0%,
+      color-mix(in oklab, var(--aig-raised) 55%, transparent) 0%,
+      transparent 62%
+    ),
+    linear-gradient(
+      168deg,
+      color-mix(in oklab, var(--aig-base) 96%, white) 0%,
+      var(--aig-base) 48%,
+      color-mix(in oklab, var(--aig-subtle) 78%, var(--aig-base)) 100%
+    );
+  color: var(--aig-text);
+  border: 1px solid var(--aig-line-soft);
+  border-radius: calc(var(--aig-radius) * 1.5);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.06),
+    0 1px 2px oklch(0 0 0 / 0.35);
+}
+
+/* Le second rang. Pas de liseré complet : il se détache par la VALEUR, ce qui
+   évite d'ajouter une vingtième bordure identique à l'écran. */
+@utility aig-quiet {
+  background-color: color-mix(in oklab, var(--aig-base) 62%, transparent);
+  color: var(--aig-text);
+  border-radius: var(--aig-radius);
+}
+
+/* Le creux — ce qui ACCUEILLE (un graphe, un flux, une liste). Il descend sous
+   son porteur au lieu de monter, donc il se lit comme un lit, pas une carte. */
+@utility aig-inset {
+  background-color: color-mix(in oklab, var(--aig-subtle) 82%, black);
+  border-radius: calc(var(--aig-radius) - 0.125rem);
+  box-shadow: inset 0 1px 2px oklch(0 0 0 / 0.35);
+}
+
+/* Séparation par la lumière : un filet clair qui s'éteint aux extrémités. Une
+   bordure pleine découpe ; celle-ci articule. */
+@utility aig-hairline {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--aig-line) 85%, transparent) 18%,
+    color-mix(in oklab, var(--aig-line) 85%, transparent) 82%,
+    transparent
+  );
+  height: 1px;
+  border: 0;
+}
+
+/* Les blancs des titres et des grands chiffres tirent très légèrement vers le
+   métal froid. C'est ce qui distingue un cockpit d'une page de documentation —
+   à contraste identique (AA large tenu sur les trois fonds). */
+@utility aig-display {
+  color: oklch(0.97 0.004 250);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Le liseré d'accent qui ouvre une zone dominante — cuivre, court, jamais un
+   cadre complet. Un accent qui entoure n'accentue plus, il décore. */
+@utility aig-accent-edge {
+  position: relative;
+}
+.aig-accent-edge::before {
+  content: '';
+  position: absolute;
+  top: 1rem;
+  bottom: 1rem;
+  left: 0;
+  width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    var(--aig-accent),
+    color-mix(in oklab, var(--aig-accent) 15%, transparent)
+  );
+}
+
 /* Barres de défilement des panneaux internes : présentes, discrètes. Le kit
  * n'en fournit pas, et le cockpit borne ses zones — elles scrollent donc
  * toutes. */
