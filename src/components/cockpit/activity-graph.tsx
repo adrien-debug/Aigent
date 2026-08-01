@@ -56,16 +56,23 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
   const active = hovered === null ? null : points[hovered]
 
   return (
-    <div className="relative px-2 pt-2 pb-1" onPointerLeave={() => setHovered(null)}>
+    // Le padding est porté par le conteneur EXTÉRIEUR, et la boîte du tracé est
+    // `relative` sans marge : les surcouches (points, colonnes de survol,
+    // libellés) sont positionnées en pourcentage de CETTE boîte, donc tout
+    // décalage de padding les désalignerait de la courbe.
+    <div className="px-2 pt-2 pb-1" onPointerLeave={() => setHovered(null)}>
+      <div className="relative">
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        // Hauteur FIXE : sans elle, le SVG garde son ratio 600×220 et grandit
-        // en hauteur avec la largeur de l'écran — une ligne plate occupait
-        // 600 px de haut. La hauteur d'un graphe ne dépend pas de la taille de
-        // la fenêtre, elle dépend de ce qu'il y a à lire.
+        // Hauteur FIXE, et `none` pour que le tracé REMPLISSE sa boîte : au
+        // défaut (`meet`), le SVG conserve son ratio 600×220 et se réduit pour
+        // tenir dans la hauteur imposée — le dessin devenait minuscule, centré
+        // dans une bande vide.
         //
-        // `preserveAspectRatio` reste au défaut (`meet`) : le passer à `none`
-        // étirerait la géométrie, et les points ronds deviendraient des ovales.
+        // Conséquence assumée : l'axe X est étiré. Les points et les libellés
+        // le compensent (`vector-effect` sur les traits, `<circle>` remplacé
+        // par un cercle non déformé côté HTML — voir plus bas).
+        preserveAspectRatio="none"
         className="h-40 w-full overflow-visible"
         role="img"
         aria-label={`Activité par heure sur la fenêtre — ${buckets.reduce((n, b) => n + b.total, 0)} runs`}
@@ -104,6 +111,8 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
           transition={{ duration: 0.6, delay: 0.9 }}
         />
 
+        {/* `non-scaling-stroke` : sans lui, l'étirement horizontal du viewBox
+            épaissirait le trait de façon inégale selon la pente. */}
         <motion.path
           d={linePath}
           fill="none"
@@ -111,63 +120,70 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
           initial={{ pathLength: 0 }}
           animate={{ pathLength: 1 }}
           transition={{ duration: 1.4, ease: 'easeInOut' }}
         />
-
-        <motion.g
-          initial="hidden"
-          animate="visible"
-          variants={{
-            visible: { transition: { delayChildren: 0.2, staggerChildren: 1.2 / 24 } },
-          }}
-        >
-          {points.map((point, index) => (
-            <g key={point.bucket.hourMs}>
-              {/* Zone de capture large : viser un point de 4 px au pointeur est
-                  impossible, la colonne entière déclenche le survol. */}
-              <rect
-                x={point.x - step / 2}
-                y={0}
-                width={step}
-                height={HEIGHT}
-                fill="transparent"
-                onPointerEnter={() => setHovered(index)}
-                className="cursor-pointer"
-              />
-              <motion.circle
-                cx={point.x}
-                cy={point.y}
-                r="4"
-                fill="#000"
-                stroke={SEVERITY.good}
-                strokeWidth="1.5"
-                animate={{ scale: hovered === index ? 1.6 : 1 }}
-                variants={{
-                  hidden: { scale: 0, opacity: 0 },
-                  visible: { scale: 1, opacity: 1 },
-                }}
-              />
-            </g>
-          ))}
-        </motion.g>
-
-        {/* Un libellé toutes les six heures : les vingt-quatre se chevaucheraient. */}
-        {points.map((point, i) =>
-          i % 6 === 0 ? (
-            <text
-              key={point.bucket.hourMs}
-              x={point.x}
-              y={HEIGHT - 8}
-              textAnchor="middle"
-              className="fill-zinc-500 font-mono text-[9px]"
-            >
-              {point.bucket.label}
-            </text>
-          ) : null,
-        )}
       </svg>
+
+      {/* Les POINTS vivent hors du SVG, positionnés en pourcentage : dans un
+          viewBox étiré (`preserveAspectRatio="none"`), un `<circle>` devient un
+          ovale. En HTML ils restent ronds quelle que soit la largeur. */}
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        initial="hidden"
+        animate="visible"
+        variants={{
+          visible: { transition: { delayChildren: 0.2, staggerChildren: 1.2 / 24 } },
+        }}
+      >
+        {points.map((point, index) => (
+          <motion.span
+            key={point.bucket.hourMs}
+            className="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black ring-1.5"
+            // Les deux axes sont exprimés dans le repère du SVG puis convertis
+            // en pourcentage de la boîte : c'est la seule façon que le point
+            // tombe sur la courbe quelle que soit la largeur rendue.
+            style={{
+              left: `${(point.x / WIDTH) * 100}%`,
+              top: `${(point.y / HEIGHT) * 100}%`,
+              boxShadow: `0 0 0 1.5px ${SEVERITY.good}`,
+            }}
+            animate={{ scale: hovered === index ? 1.6 : 1 }}
+            variants={{ hidden: { scale: 0, opacity: 0 }, visible: { scale: 1, opacity: 1 } }}
+          />
+        ))}
+      </motion.div>
+
+      {/* Colonnes de survol — viser un point de 8 px au pointeur est
+          impossible, la colonne entière déclenche. */}
+      <div className="absolute inset-x-0 top-0 bottom-7 flex">
+        {points.map((point, index) => (
+          <button
+            key={point.bucket.hourMs}
+            type="button"
+            aria-label={`${point.bucket.label} — ${point.bucket.total} run(s)`}
+            className="h-full flex-1 cursor-pointer"
+            onPointerEnter={() => setHovered(index)}
+            onFocus={() => setHovered(index)}
+          />
+        ))}
+      </div>
+
+      {/* Un libellé toutes les six heures : les vingt-quatre se chevaucheraient. */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-1 flex">
+        {points.map((point, i) => (
+          <span
+            key={point.bucket.hourMs}
+            className="flex-1 text-center font-mono text-3xs text-zinc-500"
+          >
+            {i % 6 === 0 ? point.bucket.label : ''}
+          </span>
+        ))}
+        </div>
+      </div>
 
       <AnimatePresence>
         {active ? (

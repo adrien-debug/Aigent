@@ -122,11 +122,9 @@ export default function CockpitOverview({
         )}
       </Panel>
 
-      {/* Le flux prend la place : c'est lui qu'on lit ligne à ligne. Les
-          projets sont une colonne d'appoint, bornée en largeur fixe plutôt
-          qu'en fraction — sinon elle grandit avec l'écran alors que son
-          contenu, lui, ne change pas de taille. */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
+      {/* 70 / 30 : le flux se lit ligne à ligne et mérite la place, les projets
+          sont une colonne d'appoint. */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[7fr_3fr] [&>*]:min-w-0">
         <Panel
           title="Flux d'exécution"
           hint={runs ? `${runs.length} sur la fenêtre` : undefined}
