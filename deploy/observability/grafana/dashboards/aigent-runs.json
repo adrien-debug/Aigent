@@ -1,0 +1,266 @@
+{
+  "uid": "aigent-runs",
+  "title": "Aigent — runs & agents",
+  "description": "Métriques métier issues de runtime_telemetry_events via /api/agent-ops/metrics. Aucune métrique d'hôte : ce dashboard parle de runs d'agents, pas de conteneurs. Une valeur non mesurée n'est pas affichée comme 0 — elle est absente, et les panneaux le disent.",
+  "tags": ["aigent", "AIGENT-VISUAL-STACK-002"],
+  "timezone": "browser",
+  "editable": false,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Runs observés",
+      "description": "Total des runs présents dans la fenêtre de télémétrie.",
+      "datasource": { "type": "prometheus", "uid": "aigent-prometheus" },
+      "gridPos": { "h": 5, "w": 5, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aigent_runs_total",
+          "legendFormat": "runs",
+          "datasource": { "type": "prometheus", "uid": "aigent-prometheus" }
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "graphMode": "none",
+        "colorMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "source Aigent injoignable",
+          "color": { "mode": "fixed", "fixedColor": "text" }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Couples projet/agent",
+      "description": "Couples (projet, agent) ayant rapporté au moins un événement — la grain du rollup produit. Un copilot servant plusieurs projets compte une fois par projet.",
+      "datasource": { "type": "prometheus", "uid": "aigent-prometheus" },
+      "gridPos": { "h": 5, "w": 5, "x": 5, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aigent_reporting_agents",
+          "legendFormat": "agents",
+          "datasource": { "type": "prometheus", "uid": "aigent-prometheus" }
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "graphMode": "none",
+        "colorMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "noValue": "source Aigent injoignable" },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Taux de succès",
+      "description": "Part de runs terminaux réussis. ABSENT (et non 0 %) si aucun run terminal n'a été mesuré.",
+      "datasource": { "type": "prometheus", "uid": "aigent-prometheus" },
+      "gridPos": { "h": 5, "w": 5, "x": 10, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aigent_success_rate",
+          "legendFormat": "succès",
+          "datasource": { "type": "prometheus", "uid": "aigent-prometheus" }
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "graphMode": "none",
+        "colorMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "noValue": "non mesuré",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 0.5 },
+              { "color": "green", "value": 0.8 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Latence p95",
+      "description": "p95 calculée UNIQUEMENT sur les runs portant une latence réelle. Les runs sans mesure ne sont pas comptés comme 0 ms.",
+      "datasource": { "type": "prometheus", "uid": "aigent-prometheus" },
+      "gridPos": { "h": 5, "w": 4, "x": 15, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aigent_run_latency_ms_p95",
+          "legendFormat": "p95",
+          "datasource": { "type": "prometheus", "uid": "aigent-prometheus" }
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "graphMode": "none",
+        "colorMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": { "unit": "ms", "noValue": "non mesuré" },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Dernier événement",
+      "description": "Date du dernier événement de télémétrie réel. Un dashboard figé sur des données mortes est sinon indistinguable d'un dashboard à jour.",
+      "datasource": { "type": "prometheus", "uid": "aigent-prometheus" },
+      "gridPos": { "h": 5, "w": 5, "x": 19, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aigent_last_event_timestamp_seconds * 1000",
+          "legendFormat": "dernier",
+          "datasource": { "type": "prometheus", "uid": "aigent-prometheus" }
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "graphMode": "none",
+        "colorMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": { "unit": "dateTimeAsIso", "noValue": "aucun événement" },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "piechart",
+      "title": "Runs par état",
+      "description": "Répartition terminale réelle. `started` = runs encore en vol, jamais fondus dans les succès.",
+      "datasource": { "type": "prometheus", "uid": "aigent-prometheus" },
+      "gridPos": { "h": 9, "w": 8, "x": 0, "y": 5 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aigent_runs_by_status",
+          "legendFormat": "{{status}}",
+          "datasource": { "type": "prometheus", "uid": "aigent-prometheus" }
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value"] },
+        "pieType": "donut"
+      },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "noValue": "source Aigent injoignable" },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "completed" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "failed" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "started" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }]
+          }
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Runs par agent",
+      "description": "Un agent par ligne, labels bornés par le roster (project_id, agent_id). run_id est délibérément exclu : cardinalité non bornée.",
+      "datasource": { "type": "prometheus", "uid": "aigent-prometheus" },
+      "gridPos": { "h": 9, "w": 16, "x": 8, "y": 5 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aigent_agent_runs_total",
+          "legendFormat": "",
+          "format": "table",
+          "instant": true,
+          "datasource": { "type": "prometheus", "uid": "aigent-prometheus" }
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true, "job": true, "instance": true, "service": true, "stack": true, "source": true },
+            "renameByName": { "project_id": "Projet", "agent_id": "Agent", "Value": "Runs" }
+          }
+        },
+        { "id": "sortBy", "options": { "fields": {}, "sort": [{ "field": "Runs", "desc": true }] } }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "noValue": "source Aigent injoignable" },
+        "overrides": []
+      },
+      "options": { "showHeader": true, "cellHeight": "sm" }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Latence moyenne par agent",
+      "description": "Série ABSENTE pour un agent sans latence mesurée — pas une ligne à zéro.",
+      "datasource": { "type": "prometheus", "uid": "aigent-prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aigent_agent_run_latency_ms_avg",
+          "legendFormat": "{{agent_id}}",
+          "datasource": { "type": "prometheus", "uid": "aigent-prometheus" }
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "noValue": "aucune latence mesurée",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "showPoints": "auto",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+# Datasource provisionnée — reproductible, jamais cliquée à la main.
+#
+# `deleteDatasources` d'abord : sans lui, une datasource créée manuellement avec
+# le même nom survivrait et masquerait celle-ci, rendant le provisioning
+# non déterministe entre deux machines.
+
+apiVersion: 1
+
+deleteDatasources:
+  - name: Aigent Prometheus
+    orgId: 1
+
+datasources:
+  - name: Aigent Prometheus
+    uid: aigent-prometheus
+    type: prometheus
+    access: proxy
+    # Nom de service du compose : les deux conteneurs partagent le réseau.
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 15s
+      httpMethod: POST
