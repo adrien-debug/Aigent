@@ -29,8 +29,7 @@ import {
 import type { TooltipContentProps } from 'recharts'
 
 import { Badge } from '@/components/ui/badge'
-import { Divider } from '@/components/ui/divider'
-import { Strong, Text } from '@/components/ui/text'
+import { Muted } from '@/components/design/type'
 import type { HourlyBucket, StatusSlice } from '@/lib/cockpit/overview-series'
 import { RUN_STATUS_COLOR, RUN_STATUS_LABEL, RUN_STATUS_ORDER } from '@/lib/cockpit/status'
 
@@ -59,27 +58,31 @@ function RunsTooltip({ active, payload }: Readonly<TooltipContentProps>) {
   const present = RUN_STATUS_ORDER.filter((s) => bucket[s] > 0)
 
   return (
-    <div className="min-w-[9rem] rounded-lg bg-white px-3 py-2 shadow-lg ring-1 ring-zinc-950/5 dark:bg-zinc-800 dark:ring-white/10">
+    <div className="min-w-[9rem] border border-line-hi bg-ink-700 px-3 py-2 shadow-lg">
       <div className="flex items-baseline justify-between gap-4 pb-1.5">
-        <Strong>{bucket.label}</Strong>
-        <Text className="tabular-nums">
+        <span className="font-mono text-2xs tracking-[0.12em] text-fg uppercase">
+          {bucket.label}
+        </span>
+        <span className="font-mono text-2xs text-fg-mid tabular-nums">
           {bucket.total} run{bucket.total > 1 ? 's' : ''}
-        </Text>
+        </span>
       </div>
-      <Divider soft />
+      <span aria-hidden className="block h-px bg-line" />
       {present.length === 0 ? (
-        <Text className="pt-1.5">Aucune exécution sur cette heure.</Text>
+        <Muted className="pt-1.5">Aucune exécution sur cette heure.</Muted>
       ) : (
         <ul className="space-y-0.5 pt-1.5">
           {present.map((s) => (
             <li key={s} className="flex items-center gap-2">
               <span
                 aria-hidden
-                className="size-1.5 shrink-0 rounded-full"
+                className="size-1.5 shrink-0"
                 style={{ background: RUN_STATUS_COLOR[s] }}
               />
-              <Text className="flex-1">{RUN_STATUS_LABEL[s]}</Text>
-              <Strong className="tabular-nums">{bucket[s]}</Strong>
+              <span className="flex-1 text-xs text-fg-mid">{RUN_STATUS_LABEL[s]}</span>
+              <span className="font-mono text-xs font-semibold text-fg tabular-nums">
+                {bucket[s]}
+              </span>
             </li>
           ))}
         </ul>
@@ -137,7 +140,11 @@ export function HourlyRunsChart({ buckets }: Readonly<{ buckets: HourlyBucket[] 
             stackId="runs"
             name={RUN_STATUS_LABEL[s]}
             fill={`url(#fill-${s})`}
-            stroke="rgb(24 24 27)"
+            // Le filet entre deux segments empilés prend la couleur de la
+            // SURFACE, pas une valeur fixe : c'est lui qui creuse la respiration
+            // de 2 px. Sur l'encre, l'ancien `rgb(24 24 27)` dessinait un liseré
+            // plus clair que le fond au lieu de le trouer.
+            stroke="var(--color-ink-800)"
             strokeWidth={1.5}
             radius={[2, 2, 0, 0]}
             minPointSize={floorHeight}
