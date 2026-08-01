@@ -137,16 +137,9 @@ export function Unavailable({
   )
 }
 
-/**
- * Marque d'absence inline — pour une valeur seule dans une cellule.
- *
- * `text-fg-low` plutôt que `text-zinc-500` : ce jeton est un gris bleuté lisible
- * AUSSI BIEN sur l'encre des surfaces migrées que sur le fond clair de celles
- * qui ne le sont pas encore. Repeindre en dur pour l'une casserait l'autre —
- * ce composant est partagé par sept surfaces.
- */
+/** Marque d'absence inline — pour une valeur seule dans une cellule. */
 export function AbsentMark() {
-  return <span className="text-xs text-fg-low uppercase">{UNAVAILABLE_LABEL}</span>
+  return <span className="text-xs text-zinc-500 uppercase dark:text-zinc-400">{UNAVAILABLE_LABEL}</span>
 }
 
 /**

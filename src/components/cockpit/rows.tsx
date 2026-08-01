@@ -16,10 +16,7 @@ import type { ComponentProps } from 'react'
 
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-// `Strong`/`Text` du kit rendent `text-zinc-*` en dur, illisible sur l'encre.
-// `Badge` et `Avatar` restent : leurs couleurs sont sémantiques et tiennent sur
-// fond sombre — seule la TYPOGRAPHIE devait migrer.
-import { Muted } from '@/components/design/type'
+import { Strong, Text } from '@/components/ui/text'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { AgentCard, ProjectCard } from '@/lib/cockpit/named-runs'
 import { timeAgo } from '@/lib/cockpit/named-runs'
@@ -73,28 +70,25 @@ export function AgentRow({ card, nowMs }: Readonly<{ card: AgentCard; nowMs: num
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-2">
           {card.name ? (
-            <span className="truncate text-sm font-medium text-fg">{card.name}</span>
+            <Strong className="truncate">{card.name}</Strong>
           ) : (
-            <span className="truncate text-sm text-fg-low">Agent non résolu</span>
+            <Text className="truncate">Agent non résolu</Text>
           )}
           <Badge color={statusBadge}>{statusLabel}</Badge>
           {failing ? <Badge color="red">{card.failures24h} KO</Badge> : null}
         </div>
-        <Muted className="truncate">{card.projectName ?? 'Sans projet'}</Muted>
+        <Text className="truncate">{card.projectName ?? 'Sans projet'}</Text>
       </div>
 
       <div className="shrink-0 text-right">
-        <p className="text-xs text-fg-mid">
-          <span className="font-mono text-sm font-semibold text-fg tabular-nums">
-            {card.runs24h}
-          </span>{' '}
-          runs
-        </p>
-        <Muted className="font-mono tabular-nums">
+        <Text>
+          <Strong className="tabular-nums">{card.runs24h}</Strong> runs
+        </Text>
+        <Text className="tabular-nums">
           {card.costUsd === null ? <AbsentMark /> : formatUsd(card.costUsd)}
           {' · '}
           {card.lastRunMs === null ? '—' : timeAgo(card.lastRunMs, nowMs).replace('il y a ', '')}
-        </Muted>
+        </Text>
       </div>
     </RosterRow>
   )
@@ -110,12 +104,12 @@ export function ProjectRow({ card }: Readonly<{ card: ProjectCard }>) {
 
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-sm font-medium text-fg">{card.name}</span>
+          <Strong className="truncate">{card.name}</Strong>
           <Badge color={live ? 'emerald' : 'zinc'}>
             {card.activeCount}/{card.copilotCount}
           </Badge>
         </div>
-        <Muted className="truncate">{card.repoFullName ?? 'aucun repo lié'}</Muted>
+        <Text className="truncate">{card.repoFullName ?? 'aucun repo lié'}</Text>
       </div>
 
       <div className="shrink-0 text-right">
@@ -126,26 +120,23 @@ export function ProjectRow({ card }: Readonly<{ card: ProjectCard }>) {
          * « mesuré, calme » alors que le fait est « personne ». Troisième état,
          * comme le fait déjà la surface /projects. */}
         {card.copilotCount === 0 ? (
-          <Muted>rien à mesurer</Muted>
+          <Text>rien à mesurer</Text>
         ) : (
           <>
-            <p className="text-xs text-fg-mid">
+            <Text>
               {card.runs24h === null ? (
                 <AbsentMark />
               ) : (
                 <>
-                  <span className="font-mono text-sm font-semibold text-fg tabular-nums">
-                    {card.runs24h}
-                  </span>{' '}
-                  runs
+                  <Strong className="tabular-nums">{card.runs24h}</Strong> runs
                 </>
               )}
-            </p>
-            <Muted className="font-mono tabular-nums">
+            </Text>
+            <Text className="tabular-nums">
               {card.costLast24hUsd === null ? <AbsentMark /> : formatUsd(card.costLast24hUsd)}
               {' · '}
               {card.passRate === null ? '—' : `${Math.round(card.passRate * 100)} %`}
-            </Muted>
+            </Text>
           </>
         )}
       </div>

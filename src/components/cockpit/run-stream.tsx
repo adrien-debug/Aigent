@@ -10,10 +10,7 @@
  */
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-// `Table` du kit est conservée : elle porte le responsive, le `bleed` et ses
-// bordures, et la réécrire pour deux couleurs de texte serait disproportionné.
-// Seuls `Strong`/`Text` migrent — eux rendent `text-zinc-*` en dur.
-import { Muted } from '@/components/design/type'
+import { Strong, Text } from '@/components/ui/text'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { NamedRun } from '@/lib/cockpit/named-runs'
 import { clockTime, timeAgo } from '@/lib/cockpit/named-runs'
@@ -61,15 +58,11 @@ export default function RunStream({ runs, nowMs }: Readonly<{ runs: NamedRun[]; 
 
             <TableCell>
               {run.copilotName ? (
-                <span className="block truncate text-sm font-medium text-fg">
-                  {run.copilotName}
-                </span>
+                <Strong className="truncate">{run.copilotName}</Strong>
               ) : (
-                <span className="block truncate font-mono text-xs text-fg-low">
-                  {run.copilotId}
-                </span>
+                <Text className="truncate">{run.copilotId}</Text>
               )}
-              <Muted className="truncate">{run.projectName ?? 'sans projet'}</Muted>
+              <Text className="truncate">{run.projectName ?? 'sans projet'}</Text>
             </TableCell>
 
             <TableCell className="text-right tabular-nums">
