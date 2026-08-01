@@ -149,7 +149,10 @@ export default function AppShell({ children }: Readonly<{ children?: ReactNode }
         <NavigationSidebar pathname={pathname} />
       </div>
 
-      <main className="min-w-0 flex-1 bg-white">
+      {/* Pas de fond ici : c'est la PAGE qui décide de sa surface. Le shell en
+          imposait un (`bg-white`), ce qui encadrait de blanc toute page ayant
+          son propre fond. Les surfaces non migrées gardent le leur. */}
+      <main className="min-w-0 flex-1">
         <MobileNavButton onOpen={() => setShowSidebar(true)} />
         {children}
       </main>
