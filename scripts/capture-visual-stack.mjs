@@ -447,6 +447,31 @@ async function captureTooling(page, name) {
       }
     }
 
+    /*
+     * Le hint du panneau doit être LU, pas tronqué.
+     *
+     * Il vit hors des lignes d'outil, donc les assertions ci-dessus ne le
+     * couvraient pas : « … au dernier passage » s'affichait « au dernier
+     * passa » sans qu'aucune gate ne bronche. Un texte coupé ne dit pas ce
+     * qu'il prétend dire.
+     */
+    const truncated = await page.evaluate(() => {
+      const panel = document.querySelector('[data-testid="visual-tooling"]')
+      if (!panel) return []
+      return [...panel.querySelectorAll('p, span, div')]
+        .filter((el) => {
+          if (el.children.length > 0) return false
+          const style = getComputedStyle(el)
+          if (style.textOverflow !== 'ellipsis' && style.overflow !== 'hidden') return false
+          return el.scrollWidth > el.clientWidth + 1
+        })
+        .map((el) => (el.textContent ?? '').trim().slice(0, 50))
+        .slice(0, 5)
+    })
+    if (truncated.length > 0) {
+      fail(`${surface} : texte tronqué — ${truncated.join(' | ')}`)
+    }
+
     // Aucun texte ne doit sortir de son panneau.
     const escaping = await page.evaluate(() => {
       const panel = document.querySelector('[data-testid="visual-tooling"]')

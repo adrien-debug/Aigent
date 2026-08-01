@@ -192,7 +192,12 @@ export default function VisualToolingTab({ data }: Readonly<{ data: VisualToolin
     <div className="scroll-thin flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto" data-testid="visual-tooling">
       <Panel
         title="Outillage visuel"
-        hint={`${data.runningCount} sur ${data.tools.length} joignable(s) au dernier passage`}
+        // Court exprès : le hint de `Panel` est `shrink-0 truncate`, donc à
+        // 375px « … au dernier passage » se coupait en « au dernier passa ».
+        // Un texte tronqué ne dit pas ce qu'il prétend dire — mieux vaut une
+        // formulation qui tient. Le détail temporel reste sur chaque ligne
+        // (« contrôlé HH:MM:SS UTC »).
+        hint={`${data.runningCount}/${data.tools.length} joignables`}
       >
         <Text className="mb-1 text-[11px] text-zinc-500">
           Une sonde prouve qu’un service répond — pas qu’il fait son travail. Le
