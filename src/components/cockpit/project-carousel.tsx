@@ -105,9 +105,15 @@ function Navigation() {
   const { nextPage, prevPage, isNextActive, isPrevActive } = useCarousel()
 
   return (
+    /* Les flèches vivent DANS la boîte du carrousel, en bas à droite.
+       Elles étaient en `-top-8`, c'est-à-dire 32 px AU-DESSUS de leur
+       conteneur : elles atterrissaient dans l'en-tête du `Panel` et
+       recouvraient le hint « n au catalogue » (constaté à l'écran, le chevron
+       droit chevauchait le mot). On ne peut pas les passer en `actions` du
+       `Panel` : `useCarousel` n'existe que sous `<Carousel>`. */
     <nav
       aria-label="Pagination du catalogue"
-      className="absolute -top-8 right-4 z-10 flex items-center gap-1"
+      className="absolute right-0 -bottom-1 z-10 flex items-center gap-1"
     >
       <motion.button
         type="button"
@@ -151,7 +157,11 @@ function ProjectSlide({ card }: Readonly<{ card: ProjectCard }>) {
   const empty = card.copilotCount === 0
 
   return (
-    <article className="flex h-full w-44 flex-col divide-y divide-white/10 rounded-xl bg-white/5 ring-1 ring-white/10">
+    /* `w-40` fixe : le `Carousel` mesure ses slides pour paginer, donc une
+       carte fluide (`flex-1`, `%`) casserait le snap par page. On resserre de
+       176 à 160 px pour qu'une colonne à 40 % en montre trois entières au lieu
+       de deux et un moignon coupé au bord. */
+    <article className="flex h-full w-40 flex-col divide-y divide-white/10 rounded-xl bg-white/5 ring-1 ring-white/10">
       <div className="flex flex-1 flex-col items-center px-3 py-4 text-center">
         {/* La MARQUE du projet — initiales pour l'instant. Le jour où un projet
             porte un logo, c'est ici qu'il se substitue, sans toucher au reste
@@ -219,7 +229,9 @@ function ProjectSlide({ card }: Readonly<{ card: ProjectCard }>) {
 
 export default function ProjectCarousel({ cards }: Readonly<{ cards: ProjectCard[] }>) {
   return (
-    <div className="relative px-4 pt-2 pb-4">
+    /* `pb-10` réserve la bande où les flèches se sont réinstallées (elles
+       débordaient dans l'en-tête du `Panel`). */
+    <div className="relative px-4 pt-2 pb-10">
       <Carousel
         gap={12}
         snap="page"

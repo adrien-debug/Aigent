@@ -160,8 +160,11 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
       </motion.div>
 
       {/* Colonnes de survol — viser un point de 8 px au pointeur est
-          impossible, la colonne entière déclenche. */}
-      <div className="absolute inset-x-0 top-0 bottom-7 flex">
+          impossible, la colonne entière déclenche. `inset-0` et non
+          `bottom-7` : la réserve de 28 px servait aux libellés quand ils
+          vivaient DANS cette boîte ; ils sont sortis dessous, donc cette bande
+          n'était plus qu'une zone morte où le survol décrochait. */}
+      <div className="absolute inset-0 flex">
         {points.map((point, index) => (
           <button
             key={point.bucket.hourMs}
@@ -174,8 +177,21 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
         ))}
       </div>
 
-      {/* Un libellé toutes les six heures : les vingt-quatre se chevaucheraient. */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-1 flex">
+      </div>
+
+      {/* L'AXE EST SOUS LE TRACÉ, PAS DESSUS
+          -----------------------------------
+          Les libellés étaient `absolute … bottom-1` DANS la boîte du tracé :
+          le plancher du plot (`y=192` sur 220, soit ~139 px sur 160) tombe
+          plus bas qu'eux, donc la courbe et ses points passaient PAR-DESSUS
+          « 06:00 », « 12:00 », « 18:00 », « 00:00 » — illisibles dès que la
+          fenêtre est calme, c'est-à-dire exactement quand l'axe sert encore.
+          En flux normal, sous le SVG, plus aucun recouvrement possible.
+
+          Un libellé toutes les six heures : les vingt-quatre se
+          chevaucheraient. Les cases vides gardent leur `flex-1` pour que les
+          libellés restent alignés sur leur colonne. */}
+      <div aria-hidden className="mt-1 flex">
         {points.map((point, i) => (
           <span
             key={point.bucket.hourMs}
@@ -184,7 +200,6 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
             {i % 6 === 0 ? point.bucket.label : ''}
           </span>
         ))}
-        </div>
       </div>
 
       <AnimatePresence>

@@ -292,11 +292,18 @@ export function SegmentMeter({
 
   return (
     <div aria-hidden className={clsx('flex items-end gap-[2px]', className)}>
+      {/* Les crans ÉTEINTS portent la proportion autant que les allumés : à
+          `zinc-400/35` sur la cellule noire du bandeau KPI, les 11 crans
+          éteints d'un « 3 sur 14 » étaient quasi invisibles et la jauge se
+          lisait comme trois barres isolées, sans dénominateur. */}
       {Array.from({ length: safeTotal }, (_, i) => (
         <span
           key={i}
-          className="h-3.5 w-[3px] rounded-[1px]"
-          style={i < safeFilled ? { background: color } : { background: 'rgb(161 161 170 / 0.35)' }}
+          className={clsx(
+            'h-3.5 w-[3px] rounded-[1px]',
+            i >= safeFilled && 'bg-zinc-950/15 dark:bg-white/25',
+          )}
+          style={i < safeFilled ? { background: color } : undefined}
         />
       ))}
     </div>
