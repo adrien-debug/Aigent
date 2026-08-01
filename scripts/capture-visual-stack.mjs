@@ -99,8 +99,26 @@ function attachConsole(page) {
 /* ─────────────────────────── Outils de page ─────────────────────────── */
 
 /** Retire l'overlay de dev Next — absent en prod, il masquerait le produit. */
+/**
+ * Retire les surfaces de DÉVELOPPEMENT qui recouvrent le produit.
+ *
+ * `nextjs-portal` — l'overlay de Next, absent en production.
+ * `css-studio-panel` — le panneau de l'outil CSS Studio, injecté par le serveur
+ *   de dev. Il est ancré en bas de viewport sur 812px de haut et masquait les
+ *   dernières lignes de l'outillage et le bas du Canvas en 375×812. Il porte un
+ *   Shadow DOM, donc aucune recherche de texte ne le trouve — seule la balise
+ *   le trahit. Ni l'un ni l'autre n'appartient au produit : une preuve doit
+ *   montrer Aigent, pas l'outillage de son auteur.
+ */
 async function hideDevOverlay(page) {
-  await page.addStyleTag({ content: 'nextjs-portal{display:none!important}' }).catch(() => {})
+  await page
+    .addStyleTag({
+      content: [
+        'nextjs-portal{display:none!important}',
+        'css-studio-panel{display:none!important}',
+      ].join(''),
+    })
+    .catch(() => {})
 }
 
 async function hasHorizontalOverflow(page) {
@@ -148,12 +166,26 @@ async function assertNoForeignOverlay(page, file) {
       }
       const style = getComputedStyle(el)
       if (style.position !== 'fixed') continue
+      if (style.display === 'none' || style.visibility === 'hidden') continue
       const r = el.getBoundingClientRect()
-      const nearBottom = r.bottom > window.innerHeight - 8 && r.top > window.innerHeight / 2
+      if (r.width === 0 || r.height === 0) continue
+
+      /*
+       * Critère GÉOMÉTRIQUE, pas textuel — c'est ce qui manquait.
+       *
+       * Le panneau CSS Studio (`<css-studio-panel>`, injecté par le serveur de
+       * dev) porte un Shadow DOM : aucune recherche de texte ne le trouve. Il a
+       * ainsi traversé deux campagnes de captures en masquant le bas de
+       * l'écran. Un élément fixe qui couvre le bas du viewport masque du
+       * produit, quel que soit son contenu.
+       */
+      const coversBottom = r.bottom > window.innerHeight - 8
       const wide = r.width > window.innerWidth * 0.85
-      // Une barre fixe, large et collée en bas qui n'appartient pas au produit.
-      if (nearBottom && wide && r.height > 40 && !el.closest('[data-testid]')) {
-        found.push(`élément fixe en bas (${Math.round(r.width)}×${Math.round(r.height)})`)
+      const isProduct = el.closest('[data-testid]') !== null
+      if (coversBottom && wide && r.height > 40 && !isProduct) {
+        found.push(
+          `<${el.tagName.toLowerCase()}> fixe couvrant le bas (${Math.round(r.width)}×${Math.round(r.height)})`,
+        )
       }
     }
     return [...new Set(found)].slice(0, 4)
