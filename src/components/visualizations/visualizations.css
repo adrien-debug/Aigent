@@ -1,0 +1,206 @@
+/**
+ * Grammaire de surface des visualisations — AIGENT-VISUALIZATION-LAB-003.
+ *
+ * SCOPÉE, PAS GLOBALE. Toutes les variables sont déclarées sous `.viz-scope` :
+ * elles n'existent que dans la surface de visualisation et ne peuvent pas
+ * entrer en concurrence avec le thème du reste d'Aigent. Aucun token global
+ * n'est ajouté, `src/components/ui/**` n'est pas touché.
+ *
+ * CINQ RÔLES SÉMANTIQUES, pas cinq couleurs décoratives :
+ *   base        — le fond de l'enveloppe, celui qui porte le contenu ;
+ *   subtle      — un creux : ce qui accueille le graphique ou un état ;
+ *   raised      — ce qui demande l'attention (une source en échec) ;
+ *   interactive — ce qui se clique ;
+ *   overlay     — ce qui se superpose. JAMAIS au-dessus d'un graphique : réservé
+ *                 aux badges de l'en-tête.
+ *
+ * GRAPHITE NUANCÉ, PAS NOIR ABSOLU. Les fonds montent par paliers de clarté
+ * pour que la hiérarchie se lise sans bordure. Un `#000` uniforme écraserait
+ * les panneaux Grafana, eux-mêmes en thème sombre.
+ */
+
+.viz-scope {
+  /* Graphite — jamais #000 : le panneau Grafana doit se détacher du fond. */
+  --viz-base: oklch(0.19 0.006 264);
+  --viz-subtle: oklch(0.16 0.006 264);
+  --viz-raised: oklch(0.24 0.008 264);
+  --viz-line: oklch(0.32 0.008 264);
+
+  --viz-text: oklch(0.93 0.004 264);
+  --viz-text-muted: oklch(0.71 0.006 264);
+  --viz-text-faint: oklch(0.58 0.006 264);
+
+  /* Accent cuivre — repris du langage Aigent, déclaré ICI une seule fois
+     plutôt que dispersé en valeurs codées en dur dans les composants. */
+  --viz-accent: oklch(0.72 0.11 52);
+  --viz-accent-quiet: oklch(0.45 0.06 52);
+
+  --viz-radius: 0.75rem;
+}
+
+/* Thème clair : la grammaire s'inverse, les rôles restent identiques. */
+@media (prefers-color-scheme: light) {
+  .viz-scope {
+    --viz-base: oklch(0.99 0.002 264);
+    --viz-subtle: oklch(0.96 0.003 264);
+    --viz-raised: oklch(0.93 0.004 264);
+    --viz-line: oklch(0.87 0.005 264);
+    --viz-text: oklch(0.24 0.006 264);
+    --viz-text-muted: oklch(0.45 0.006 264);
+    --viz-text-faint: oklch(0.58 0.006 264);
+    --viz-accent: oklch(0.52 0.12 52);
+    --viz-accent-quiet: oklch(0.72 0.07 52);
+  }
+}
+
+/* ------------------------------------------------------------- les 5 rôles */
+
+.viz-surface-base {
+  background-color: var(--viz-base);
+  color: var(--viz-text);
+}
+
+.viz-surface-subtle {
+  background-color: var(--viz-subtle);
+}
+
+.viz-surface-raised {
+  background-color: var(--viz-raised);
+}
+
+.viz-surface-interactive {
+  background-color: transparent;
+  color: var(--viz-accent);
+  transition: color 140ms ease;
+}
+.viz-surface-interactive:hover {
+  color: var(--viz-text);
+}
+
+/* `overlay` — badges de l'en-tête UNIQUEMENT. Rien ne se superpose au graphe. */
+.viz-surface-overlay {
+  background-color: color-mix(in oklab, var(--viz-raised) 88%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+/* ------------------------------------------------------------- typographie */
+
+.viz-title {
+  color: var(--viz-text);
+}
+.viz-description,
+.viz-state-text {
+  color: var(--viz-text-muted);
+}
+.viz-provenance,
+.viz-mode,
+.viz-state-reason {
+  color: var(--viz-text-faint);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.viz-state-label {
+  color: var(--viz-text);
+}
+
+.viz-action {
+  color: var(--viz-accent);
+  text-decoration: none;
+  transition: color 140ms ease;
+}
+.viz-action:hover {
+  color: var(--viz-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+/* Focus visible : la navigation au clavier ne dépend pas du survol. */
+.viz-action:focus-visible {
+  outline: 2px solid var(--viz-accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* ------------------------------------------------------------------ badges */
+
+.viz-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.075rem 0.4rem;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  background-color: color-mix(in oklab, var(--viz-raised) 88%, transparent);
+  color: var(--viz-text-muted);
+  border: 1px solid var(--viz-line);
+}
+
+/* Un état READY se distingue, mais la couleur ne porte jamais l'information
+   seule : le texte du badge EST l'état. */
+.viz-badge[data-badge-state='READY'] {
+  color: oklch(0.78 0.13 155);
+  border-color: color-mix(in oklab, oklch(0.78 0.13 155) 35%, transparent);
+}
+.viz-badge[data-badge-state='UNAVAILABLE'] {
+  color: oklch(0.72 0.15 25);
+  border-color: color-mix(in oklab, oklch(0.72 0.15 25) 35%, transparent);
+}
+.viz-badge[data-badge-state='NOT_CONFIGURED'],
+.viz-badge[data-badge-state='EMPTY'] {
+  color: var(--viz-text-faint);
+}
+
+/* DÉMO — délibérément voyant : une simulation ne doit jamais se fondre. */
+.viz-badge-demo {
+  color: var(--viz-accent);
+  border-color: var(--viz-accent-quiet);
+  background-color: color-mix(in oklab, var(--viz-accent) 12%, transparent);
+}
+
+/* -------------------------------------------------------------- enveloppes */
+
+.viz-envelope {
+  border: 1px solid var(--viz-line);
+}
+
+.viz-frame {
+  border: 1px solid color-mix(in oklab, var(--viz-line) 60%, transparent);
+}
+
+/* --------------------------------------------------------- art des états */
+
+.viz-skeleton {
+  background-color: var(--viz-line);
+}
+.viz-node {
+  background-color: var(--viz-accent-quiet);
+}
+.viz-link {
+  background-color: var(--viz-line);
+}
+.viz-link-pulse {
+  background: linear-gradient(90deg, transparent, var(--viz-accent), transparent);
+}
+.viz-blueprint {
+  stroke: var(--viz-line);
+  fill: none;
+}
+.viz-interrupted {
+  stroke: color-mix(in oklab, oklch(0.72 0.15 25) 70%, var(--viz-line));
+  fill: none;
+}
+
+/*
+ * Dernier filet de sécurité : si l'utilisateur demande moins de mouvement et
+ * qu'une animation échappait au contrôle JS, le CSS la neutralise. La
+ * suppression du mouvement ne retire aucune information — les états restent
+ * écrits en toutes lettres.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .viz-scope *,
+  .viz-scope *::before,
+  .viz-scope *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

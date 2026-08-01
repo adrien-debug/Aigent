@@ -17,7 +17,7 @@
 import { Badge } from '@/components/ui/badge'
 import { Divider } from '@/components/ui/divider'
 import { Heading } from '@/components/ui/heading'
-import { Strong, Text } from '@/components/ui/text'
+import { Strong, Text, TextLink } from '@/components/ui/text'
 import { Panel } from '@/components/cockpit/primitives'
 import {
   LAB_PATTERNS,
@@ -127,6 +127,19 @@ export default function LabScreen() {
               Cette page n’est pas dans la navigation et n’a pas vocation à y entrer. Elle ne pose
               aucune règle : rien de ce qui est montré ici n’est imposé à un écran produit.
             </Text>
+          </div>
+        </Panel>
+
+        <Panel title="Laboratoire de visualisations" padded>
+          <div className="flex flex-col gap-2">
+            <Text className="text-sm">
+              Les panneaux Grafana embarqués et leurs états d’intégration vivent sur une page
+              distincte : elle sonde de <Strong>vraies</Strong> sources, là où cette page-ci
+              n’invente que des interactions.
+            </Text>
+            <div>
+              <TextLink href="/lab/visualizations">Ouvrir /lab/visualizations</TextLink>
+            </div>
           </div>
         </Panel>
 
