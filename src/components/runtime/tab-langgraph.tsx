@@ -292,7 +292,7 @@ function ServerStatePanel({ data }: Readonly<{ data: LangGraphTabData }>) {
                 <ProvenEmpty detail="Le serveur répond et ne porte aucun assistant. Tout run partirait donc sur le graphe nu." />
               </div>
             ) : (
-              <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
+              <ul className="divide-y divide-[color:var(--aig-line-soft)]">
                 {rows.map((assistant) => (
                   <li
                     key={assistant.assistantId}
@@ -325,7 +325,7 @@ function ServerStatePanel({ data }: Readonly<{ data: LangGraphTabData }>) {
                 <ProvenEmpty detail="Le serveur répond et ne porte aucun thread : aucune conversation n’est en cours ni conservée." />
               </div>
             ) : (
-              <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
+              <ul className="divide-y divide-[color:var(--aig-line-soft)]">
                 {rows.map((thread) => (
                   <li
                     key={thread.threadId}
@@ -446,24 +446,32 @@ export default function LangGraphTab({ data }: Readonly<{ data: LangGraphTabData
           {data.secretConfigured ? 'secret présent' : 'secret absent'}
         </Badge>
         {data.endpoint.ok ? (
-          <code className="truncate text-[11px] text-zinc-500">{data.endpoint.data}</code>
+          <code className="aig-text-muted truncate text-2xs">{data.endpoint.data}</code>
         ) : (
-          <Text className="truncate text-[11px] text-red-600 dark:text-red-500">endpoint refusé</Text>
+          // Le rouge est une SÉVÉRITÉ — un endpoint refusé est un défaut — donc
+          // il reste. Il monte en `-500` : le `-600` était calibré pour un fond
+          // blanc et s'éteignait sur le graphite de la grammaire.
+          <Text className="truncate text-2xs text-red-500">endpoint refusé</Text>
         )}
       </div>
 
       {/* LE SUJET — `flex-1` : la topologie prend la place restante. */}
       <TopologyPanel data={data} />
 
-      <details className="group shrink-0 rounded-lg border border-zinc-200 dark:border-zinc-800">
-        <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium text-zinc-600 select-none hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
+      {/* La disclosure est un CONTENANT replié, pas une alerte : liseré discret
+          de la grammaire, et un déclencheur en texte secondaire qui monte au
+          texte plein sous le curseur. Les paires `X dark:Y` tombent — le
+          document est sombre depuis `layout.tsx`, la moitié claire ne se rendait
+          plus jamais. */}
+      <details className="aig-line-soft group shrink-0 rounded-lg border">
+        <summary className="aig-text-muted cursor-pointer list-none px-3 py-2 text-xs font-medium select-none hover:text-[color:var(--aig-text)]">
           <span className="inline-block transition-transform group-open:rotate-90">▸</span>{' '}
           Endpoint, provisioning et état du serveur
-          <span className="ml-1 font-normal text-zinc-500">
+          <span className="aig-text-faint ml-1 font-normal">
             — dont le piège de l’assistant
           </span>
         </summary>
-        <div className="flex flex-col gap-3 border-t border-zinc-200 p-3 dark:border-zinc-800">
+        <div className="aig-line-soft flex flex-col gap-3 border-t p-3">
           <EndpointPanel data={data} />
           <ProvisioningPanel data={data} />
           <ServerStatePanel data={data} />

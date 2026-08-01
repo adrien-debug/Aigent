@@ -272,7 +272,9 @@ function ProvenancePanel({ events }: Readonly<{ events: TelemetryTabData['events
                       <div className="mt-0.5">
                         <FactValue>
                           {count}
-                          <span className="text-zinc-500 dark:text-zinc-400"> / {rows.length}</span>
+                          {/* Le dénominateur descend d'un cran : c'est le
+                              contexte du compte, pas le compte lui-même. */}
+                          <span className="aig-text-muted"> / {rows.length}</span>
                         </FactValue>
                       </div>
                     </div>
@@ -318,7 +320,7 @@ function EventsPanel({ events }: Readonly<{ events: TelemetryTabData['events'] }
               <ProvenEmpty detail="Aucun événement n’a été reçu. La lecture a réussi et la table est réellement vide." />
             </div>
           ) : (
-            <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
+            <ul className="divide-y divide-[color:var(--aig-line-soft)]">
               {rows.map((event) => (
                 <li
                   key={event.id}

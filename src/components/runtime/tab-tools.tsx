@@ -55,7 +55,7 @@ function ToolRow({
     <li className="px-4 py-3">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <Strong className="truncate">{tool.label}</Strong>
-        <code className="truncate text-xs text-zinc-500 dark:text-zinc-400">{tool.id}</code>
+        <code className="aig-text-muted truncate text-xs">{tool.id}</code>
         <MutationBadge mutates={tool.mutates} />
         <RiskBadge risk={tool.risk} />
         <ConfirmationBadge required={tool.requiresConfirmation} />
@@ -177,7 +177,7 @@ export default function ToolsTab({ data }: Readonly<{ data: ToolsTabData }>) {
                     </Text>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {unknown.map((id) => (
-                        <code key={id} className="text-xs text-zinc-500 dark:text-zinc-400">
+                        <code key={id} className="aig-text-muted text-xs">
                           {id}
                         </code>
                       ))}
@@ -204,7 +204,7 @@ export default function ToolsTab({ data }: Readonly<{ data: ToolsTabData }>) {
           backend. Seule la colonne d'usage devient inconnue, et chaque ligne le
           DIT plutôt que d'afficher « monté sur 0 agent », qui serait faux.
         */}
-        <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
+        <ul className="divide-y divide-[color:var(--aig-line-soft)]">
           {tools.map((tool) => (
             <ToolRow
               key={tool.id}

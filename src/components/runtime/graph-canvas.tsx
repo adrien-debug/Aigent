@@ -97,11 +97,14 @@ function AigentNode({ data, selected }: NodeProps) {
 
         Elles sont invisibles (`opacity-0`) parce que le Canvas est en lecture
         seule : elles servent d'ancrage aux arêtes, pas de cible de connexion.
+        Leur fond n'a donc aucune conséquence visuelle : il vaut le liseré de la
+        grammaire plutôt qu'un gris du kit, pour ne laisser aucune couleur
+        orpheline derrière un `opacity-0` qu'un futur retrait rendrait visible.
       */}
       <Handle
         type="target"
         position={Position.Top}
-        className="!size-1.5 !border-0 !bg-zinc-400 opacity-0"
+        className="!size-1.5 !border-0 !bg-[color:var(--aig-line)] opacity-0"
       />
       <div className="truncate font-semibold" title={d.label}>
         {d.label}
@@ -112,7 +115,7 @@ function AigentNode({ data, selected }: NodeProps) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!size-1.5 !border-0 !bg-zinc-400 opacity-0"
+        className="!size-1.5 !border-0 !bg-[color:var(--aig-line)] opacity-0"
       />
     </div>
   )

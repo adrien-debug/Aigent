@@ -19,23 +19,35 @@
  * les panneaux Grafana, eux-mêmes en thème sombre.
  */
 
+/**
+ * LES VALEURS SONT DÉRIVÉES DU PRODUIT, PLUS RECOPIÉES.
+ *
+ * Ces jetons ont été écrits ici en premier, puis promus au produit dans
+ * `globals.css` (`--aig-*`). Les deux jeux portaient donc les MÊMES valeurs
+ * dans DEUX fichiers — un doublon qui ne pouvait que diverger : retoucher le
+ * graphite du produit aurait laissé les enveloppes de panneaux sur l'ancienne
+ * échelle, au milieu des pages qui, elles, auraient bougé.
+ *
+ * `--aig-*` est désormais l'autorité, et `--viz-*` en est un alias. Le scope
+ * reste : il donne aux enveloppes un point d'accroche unique, et il documente
+ * que ces surfaces cohabitent avec des iframes dont on ne contrôle pas le
+ * thème. Le repli après la virgule couvre le cas où la feuille serait chargée
+ * sans la grammaire produit.
+ */
 .viz-scope {
-  /* Graphite — jamais #000 : le panneau Grafana doit se détacher du fond. */
-  --viz-base: oklch(0.19 0.006 264);
-  --viz-subtle: oklch(0.16 0.006 264);
-  --viz-raised: oklch(0.24 0.008 264);
-  --viz-line: oklch(0.32 0.008 264);
+  --viz-base: var(--aig-base, oklch(0.19 0.006 264));
+  --viz-subtle: var(--aig-subtle, oklch(0.16 0.006 264));
+  --viz-raised: var(--aig-raised, oklch(0.24 0.008 264));
+  --viz-line: var(--aig-line, oklch(0.32 0.008 264));
 
-  --viz-text: oklch(0.93 0.004 264);
-  --viz-text-muted: oklch(0.71 0.006 264);
-  --viz-text-faint: oklch(0.58 0.006 264);
+  --viz-text: var(--aig-text, oklch(0.93 0.004 264));
+  --viz-text-muted: var(--aig-text-muted, oklch(0.71 0.006 264));
+  --viz-text-faint: var(--aig-text-faint, oklch(0.58 0.006 264));
 
-  /* Accent cuivre — repris du langage Aigent, déclaré ICI une seule fois
-     plutôt que dispersé en valeurs codées en dur dans les composants. */
-  --viz-accent: oklch(0.72 0.11 52);
-  --viz-accent-quiet: oklch(0.45 0.06 52);
+  --viz-accent: var(--aig-accent, oklch(0.72 0.11 52));
+  --viz-accent-quiet: var(--aig-accent-quiet, oklch(0.45 0.06 52));
 
-  --viz-radius: 0.75rem;
+  --viz-radius: var(--aig-radius, 0.75rem);
 }
 
 /**

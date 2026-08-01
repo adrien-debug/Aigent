@@ -67,7 +67,7 @@ export default function ModelsTab({ data }: Readonly<{ data: ModelsTabData }>) {
                   {[row.urlEnvVar, row.modelEnvVar].map((name) => (
                     <code
                       key={name}
-                      className="text-xs text-zinc-500 dark:text-zinc-400"
+                      className="aig-text-muted text-xs"
                       title="Seule la PRÉSENCE de cette variable est lue — jamais sa valeur."
                     >
                       {name}
@@ -95,7 +95,11 @@ export default function ModelsTab({ data }: Readonly<{ data: ModelsTabData }>) {
               </div>
             ) : (
               <div className="flex flex-col">
-                <div className="grid shrink-0 grid-cols-2 gap-3 px-4 py-3 sm:grid-cols-4 dark:border-white/5">
+                {/* Le `dark:border-white/5` qui traînait ici ne posait AUCUNE
+                    bordure : sans utilitaire `border`, une couleur de liseré ne
+                    dessine rien. Il est retiré plutôt que traduit — la
+                    séparation d'avec la liste vient du `divide-y` en dessous. */}
+                <div className="grid shrink-0 grid-cols-2 gap-3 px-4 py-3 sm:grid-cols-4">
                   <Fact label="Agents" value={<FactValue>{agents.length}</FactValue>} />
                   <Fact
                     label="Modèle déclaré"
@@ -123,7 +127,7 @@ export default function ModelsTab({ data }: Readonly<{ data: ModelsTabData }>) {
                     }
                   />
                 </div>
-                <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
+                <ul className="divide-y divide-[color:var(--aig-line-soft)]">
                   {agents.map((agent) => {
                     // Un écart déclaré/prouvé n'est un écart que si les DEUX
                     // sont connus. Un `executedModel` absent est une absence de

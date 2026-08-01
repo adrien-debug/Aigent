@@ -84,7 +84,7 @@ function ProjectRow({
             // optionnel), pas une lecture manquée.
             <Text className="text-xs">aucun dépôt référencé</Text>
           ) : (
-            <code className="text-xs text-zinc-500 dark:text-zinc-400">{repoFullName}</code>
+            <code className="aig-text-muted text-xs">{repoFullName}</code>
           )}
         </div>
       </div>
@@ -155,7 +155,9 @@ export default function RepositoriesTab({ data }: Readonly<{ data: RepositoriesT
                   volontaire — sans elle, l'omission de la colonne « fichiers »
                   passerait pour un oubli et quelqu'un l'ajouterait.
                 */}
-                <div className="rounded-md border border-zinc-950/10 px-3 py-2 dark:border-white/10">
+                {/* Une réserve n'est pas une alerte : elle reste au liseré
+                    discret de la grammaire, sans monter d'un palier. */}
+                <div className="aig-line-soft rounded-md border px-3 py-2">
                   <Strong className="block">Pourquoi aucun arbre n’est affiché ici</Strong>
                   <Text className="mt-0.5">
                     La lecture d’arbre du produit demande bien à l’API GitHub si le résultat est
@@ -189,7 +191,7 @@ export default function RepositoriesTab({ data }: Readonly<{ data: RepositoriesT
                 <ProvenEmpty detail="Aucun projet n’est persisté. La lecture a réussi et la table est réellement vide." />
               </div>
             ) : (
-              <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
+              <ul className="divide-y divide-[color:var(--aig-line-soft)]">
                 {projects.map((project) => (
                   <ProjectRow key={project.id} project={project} visible={visible} />
                 ))}
@@ -213,7 +215,7 @@ export default function RepositoriesTab({ data }: Readonly<{ data: RepositoriesT
                 <ProvenEmpty detail="Le jeton GitHub a répondu et ne voit aucun dépôt. La lecture a réussi : la visibilité est réellement vide, ce n’est pas une panne." />
               </div>
             ) : (
-              <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
+              <ul className="divide-y divide-[color:var(--aig-line-soft)]">
                 {repos.map((repo) => (
                   <li
                     key={repo.fullName}

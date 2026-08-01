@@ -35,7 +35,7 @@ function ProviderCard({ row, usedBy }: Readonly<{ row: ProviderRow; usedBy: numb
     <li className="px-4 py-3">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <Strong className="truncate">{row.label}</Strong>
-        <code className="text-xs text-zinc-500 dark:text-zinc-400">{row.id}</code>
+        <code className="aig-text-muted text-xs">{row.id}</code>
         <ProviderWiringBadge wiring={row.wiring} />
         <Badge
           color={row.toolUse ? 'emerald' : 'zinc'}
@@ -64,7 +64,7 @@ function ProviderCard({ row, usedBy }: Readonly<{ row: ProviderRow; usedBy: numb
           {row.envVars.map((name) => (
             <code
               key={name}
-              className="text-xs text-zinc-500 dark:text-zinc-400"
+              className="aig-text-muted text-xs"
               title="Seule la PRÉSENCE de cette variable est lue. Sa valeur n’est jamais affichée, loggée ni transportée jusqu’à cet écran."
             >
               {name}
@@ -106,7 +106,7 @@ export default function ProvidersTab({ data }: Readonly<{ data: ProvidersTabData
               <li key={runtime.id} className="min-w-0">
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <Strong className="truncate">{runtime.label}</Strong>
-                  <code className="text-xs text-zinc-500 dark:text-zinc-400">{runtime.id}</code>
+                  <code className="aig-text-muted text-xs">{runtime.id}</code>
                   <Badge
                     color={runtime.engine === 'none' ? 'zinc' : 'emerald'}
                     title={
@@ -127,7 +127,9 @@ export default function ProvidersTab({ data }: Readonly<{ data: ProvidersTabData
               </li>
             ))}
           </ul>
-          <div className="rounded-md border border-zinc-950/10 px-3 py-2 dark:border-white/10">
+          {/* Un rappel de contrainte, pas une alerte : liseré discret de la
+              grammaire, aucun palier d'attention. */}
+          <div className="aig-line-soft rounded-md border px-3 py-2">
             <Text>
               LangGraph est le seul runtime produit exécutable, et cette contrainte est imposée à
               quatre endroits indépendants : le schéma de création, la garde d’exécution, le contrat
@@ -145,7 +147,7 @@ export default function ProvidersTab({ data }: Readonly<{ data: ProvidersTabData
         padded={false}
         bodyClassName="scroll-thin overflow-y-auto"
       >
-        <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
+        <ul className="divide-y divide-[color:var(--aig-line-soft)]">
           {data.providers.map((row) => (
             <ProviderCard
               key={row.id}

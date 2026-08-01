@@ -52,17 +52,27 @@ function isExternal(url: string): boolean {
   return url.startsWith('http://') || url.startsWith('https://')
 }
 
-/** Le disclosure de détail — même contenu aux deux compositions. */
+/**
+ * Le disclosure de détail — même contenu aux deux compositions.
+ *
+ * Le déclencheur est un texte secondaire qui monte au survol : la grammaire
+ * porte les deux niveaux (`aig-text-muted` au repos, texte plein au survol), là
+ * où la paire `text-zinc-500 / dark:hover:text-zinc-100` dosait une moitié
+ * claire qui ne se rendait jamais sous un document sombre.
+ */
 function ToolDetail({ tool }: Readonly<{ tool: ToolProbe }>) {
   return (
     <details className="group shrink-0">
-      <summary className="cursor-pointer list-none text-[11px] text-zinc-500 select-none hover:text-zinc-900 dark:hover:text-zinc-100">
+      <summary className="aig-text-muted cursor-pointer list-none text-2xs select-none hover:text-[color:var(--aig-text)]">
         <span className="inline-block transition-transform group-open:rotate-90">▸</span> Détail
       </summary>
-      <div className="mt-1 flex flex-col gap-1 border-l border-zinc-200 pl-2 dark:border-zinc-800">
-        <Text className="text-[11px] text-zinc-500">{tool.detail}</Text>
+      <div className="aig-line-soft mt-1 flex flex-col gap-1 border-l pl-2">
+        <Text className="aig-text-muted text-2xs">{tool.detail}</Text>
         {tool.remediation ? (
-          <Text className="text-[11px] text-amber-600 dark:text-amber-500">
+          // L'ambre est une SÉVÉRITÉ (« il manque quelque chose à faire »), pas
+          // une surface : elle reste, remontée en `-500` — la teinte `-600` avait
+          // été calibrée pour un fond blanc et s'éteignait sur graphite.
+          <Text className="text-2xs text-amber-500">
             Pour l’activer : {tool.remediation}
           </Text>
         ) : null}
@@ -100,7 +110,7 @@ function ToolActions({ tool }: Readonly<{ tool: ToolProbe }>) {
 
   if (tool.remediation) {
     return (
-      <span className="text-[11px] whitespace-nowrap text-zinc-500 italic">Configuration externe</span>
+      <span className="aig-text-muted text-2xs whitespace-nowrap italic">Configuration externe</span>
     )
   }
 
@@ -123,7 +133,7 @@ function ToolRow({ tool }: Readonly<{ tool: ToolProbe }>) {
       largeur la rend lisible.
     */
     <li
-      className="flex flex-col gap-1.5 border-b border-zinc-200 py-2 last:border-0 sm:grid sm:grid-cols-[6.5rem_minmax(0,1fr)_auto] sm:items-baseline sm:gap-x-3 sm:gap-y-0 sm:py-1.5 dark:border-zinc-800"
+      className="aig-line-soft flex flex-col gap-1.5 border-b py-2 last:border-0 sm:grid sm:grid-cols-[6.5rem_minmax(0,1fr)_auto] sm:items-baseline sm:gap-x-3 sm:gap-y-0 sm:py-1.5"
       data-testid="visual-tool-row"
       data-tool={tool.id}
       data-status={tool.status}
@@ -136,11 +146,13 @@ function ToolRow({ tool }: Readonly<{ tool: ToolProbe }>) {
 
         <div className="flex min-w-0 flex-1 flex-col sm:flex-none">
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-            <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{tool.name}</span>
+            {/* Le nom est le texte PLEIN de la grammaire — il n'a plus besoin
+                d'être repeint, `aig-panel` porte déjà la couleur de texte. */}
+            <span className="text-sm font-semibold">{tool.name}</span>
             {tool.version ? <Badge color="zinc">v{tool.version}</Badge> : null}
-            <Text className="text-[11px] text-zinc-500">{STATUS_MEANING[tool.status]}</Text>
+            <Text className="aig-text-muted text-2xs">{STATUS_MEANING[tool.status]}</Text>
             {tool.url ? (
-              <code className="hidden truncate font-mono text-[11px] text-zinc-500 sm:inline">
+              <code className="aig-text-muted hidden truncate font-mono text-2xs sm:inline">
                 {tool.url}
               </code>
             ) : null}
@@ -148,10 +160,10 @@ function ToolRow({ tool }: Readonly<{ tool: ToolProbe }>) {
 
           {/* Fonction et faits de sonde — sur une seule ligne dès `sm:`. */}
           <div className="hidden min-w-0 flex-wrap items-baseline gap-x-2 sm:flex">
-            <Text className="min-w-0 flex-1 truncate text-xs text-zinc-600 dark:text-zinc-400">
+            <Text className="aig-text-muted min-w-0 flex-1 truncate text-xs">
               {tool.purpose}
             </Text>
-            <span className="shrink-0 text-[11px] text-zinc-500">
+            <span className="aig-text-muted shrink-0 text-2xs">
               {tool.latencyMs !== null ? `${tool.latencyMs} ms · ` : ''}
               {tool.checkedAt === null ? 'jamais sondé' : `contrôlé ${tool.checkedAt.slice(11, 19)} UTC`}
             </span>
@@ -161,11 +173,11 @@ function ToolRow({ tool }: Readonly<{ tool: ToolProbe }>) {
       </div>
 
       {/* Région 2 mobile : la fonction, pleine largeur, sans troncature. */}
-      <Text className="text-xs text-zinc-600 sm:hidden dark:text-zinc-400">{tool.purpose}</Text>
+      <Text className="aig-text-muted text-xs sm:hidden">{tool.purpose}</Text>
 
       {/* Ligne 3 mobile : contrôle, détail et action. */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:hidden">
-        <span className="text-[11px] text-zinc-500">
+        <span className="aig-text-muted text-2xs">
           {/*
             Jamais de « 0 ms » ni de date fabriquée quand rien n'a été sondé :
             l'absence de contrôle est dite, pas coercée en zéro.
@@ -199,7 +211,7 @@ export default function VisualToolingTab({ data }: Readonly<{ data: VisualToolin
         // (« contrôlé HH:MM:SS UTC »).
         hint={`${data.runningCount}/${data.tools.length} joignables`}
       >
-        <Text className="mb-1 text-[11px] text-zinc-500">
+        <Text className="aig-text-muted mb-1 text-2xs">
           Une sonde prouve qu’un service répond — pas qu’il fait son travail. Le
           seul « VERIFIED » est le Canvas, prouvé par un harnais qui échoue si le
           graphe manque.

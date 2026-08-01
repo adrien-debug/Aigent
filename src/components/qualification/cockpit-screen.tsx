@@ -352,13 +352,14 @@ export default function QualificationCockpitScreen({
                   tone="blocked"
                   title={`La garde d’exécution refuserait un lancement — ${target.runBlockers.length} raison(s)`}
                 >
-                  <ul className="mt-1 list-disc pl-4">
-                    {target.runBlockers.map((blocker) => (
-                      <li key={blocker}>
-                        <Text className="text-sm">{blocker}</Text>
-                      </li>
-                    ))}
-                  </ul>
+                  {/* `Note` enveloppe ses enfants dans un `Text`, c'est-à-dire
+                      un `<p>`. Un `<ul>` là-dedans est du HTML invalide : le
+                      navigateur ferme le paragraphe avant la liste, l'arbre
+                      client cesse de correspondre au rendu serveur et React
+                      jette une erreur d'hydratation — constatée en console sur
+                      cette page. Les raisons se lisent aussi bien séparées par
+                      des points-virgules, dans le flux du paragraphe. */}
+                  {target.runBlockers.join(' ; ')}
                 </Note>
               </div>
             ) : null}
