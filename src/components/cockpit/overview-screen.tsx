@@ -16,7 +16,7 @@ import type { NamedRun, ProjectCard } from '@/lib/cockpit/named-runs'
 import { HourlyRunsChart, StatusLegend } from './charts'
 import KpiStrip from './kpi-strip'
 import RunStream from './run-stream'
-import { ProjectRow } from './rows'
+import ProjectCarousel from './project-carousel'
 import { Panel, Unavailable } from './primitives'
 
 const ENTRY = navEntry('/')
@@ -140,11 +140,7 @@ export default function CockpitOverview({
           {projectCards.length === 0 ? (
             <Unavailable reason="no-data" detail="Aucun projet dans le catalogue." />
           ) : (
-            <ul className="divide-y divide-zinc-950/5 dark:divide-white/5">
-              {rankedProjects.map((card) => (
-                <ProjectRow key={card.id} card={card} />
-              ))}
-            </ul>
+            <ProjectCarousel cards={rankedProjects} />
           )}
         </Panel>
       </div>
