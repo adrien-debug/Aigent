@@ -22,9 +22,6 @@
  */
 import 'server-only'
 
-import { resolveVisualizationsFor } from '@/components/visualizations/embed/registry'
-import type { ResolvedVisualization } from '@/components/visualizations/embed/contract'
-
 import { getAvailableAgents, type AvailableAgent } from '@/lib/agent-mission-control/available-agents'
 import { getProjects } from '@/lib/agent-mission-control/data'
 import { listRepos, type GithubRepoSummary } from '@/lib/agent-mission-control/github'
@@ -62,17 +59,6 @@ export interface TelemetryTabData {
   fleet: Loaded<RuntimeTelemetryFleetSummary>
   events: Loaded<RuntimeTelemetryEvent[]>
   /**
-   * Les panneaux Grafana du canal, deja resolus cote serveur.
-   *
-   * MEME SOURCE, DEUX LECTURES. Ces panneaux tracent exactement la table que
-   * cet onglet resume en chiffres — `runtime_telemetry_events`. Les mettre ici
-   * n'ajoute donc aucune donnee : ils donnent la FORME de ce que les `Fact`
-   * donnent en valeur. C'est la seule raison de leur presence, et c'est aussi
-   * pourquoi ils ne vont pas ailleurs dans Runtime : les autres onglets
-   * (outils, providers, modeles) ne parlent pas de cette table.
-   */
-  visualizations: readonly ResolvedVisualization[]
-  /**
    * Le diagnostic de santé du canal.
    *
    * `diagnoseTelemetryHealth` est PUR : c'est nous qui lui fournissons les
@@ -84,14 +70,9 @@ export interface TelemetryTabData {
 }
 
 export async function readTelemetryTab(): Promise<TelemetryTabData> {
-  const [fleet, events, visualizations] = await Promise.all([
+  const [fleet, events] = await Promise.all([
     load(() => summarizeFleetRuntimeTelemetry()),
     load(() => listRecentRuntimeTelemetryEvents(RECENT_EVENTS_LIMIT)),
-    // Accessoires : l'echec du RESOLVEUR ne doit pas emporter l'onglet. Une
-    // source Grafana muette, elle, se dit d'elle-meme dans son cadre.
-    resolveVisualizationsFor('activity', 'reliability').catch(
-      () => [] as ResolvedVisualization[],
-    ),
   ])
 
   const health = diagnoseTelemetryHealth({
@@ -122,7 +103,7 @@ export async function readTelemetryTab(): Promise<TelemetryTabData> {
     muteThresholdDays: MUTE_THRESHOLD_DAYS,
   })
 
-  return { fleet, events, health, visualizations }
+  return { fleet, events, health }
 }
 
 /* ───────────────────────────── LangGraph ────────────────────────────── */

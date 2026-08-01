@@ -5,8 +5,6 @@ import AgentRosterScreen from '@/components/agents/roster-screen'
 import SurfaceState from '@/components/surface-state'
 import { navEntry } from '@/components/navigation'
 import { getAvailableAgents } from '@/lib/agent-mission-control/available-agents'
-import { resolveVisualizationsFor } from '@/components/visualizations/embed/registry'
-import type { ResolvedVisualization } from '@/components/visualizations/embed/contract'
 
 /**
  * Surface « /agents » — le roster, branché sur le contrat canonique.
@@ -43,27 +41,8 @@ async function loadRoster() {
   }
 }
 
-/**
- * Les panneaux de la fonction `agents` — accessoires, jamais porteurs.
- *
- * Leur échec de RÉSOLUTION ne doit pas emporter le roster : le catalogue est la
- * donnée de cette page, les graphiques l'illustrent. Une source Grafana muette
- * se dit d'elle-même dans son cadre (`NOT_CONFIGURED`, `UNAVAILABLE`) — ce
- * `catch` ne couvre que l'échec du résolveur lui-même.
- */
-async function loadAgentVisualizations(): Promise<ResolvedVisualization[]> {
-  try {
-    return await resolveVisualizationsFor('agents')
-  } catch {
-    return []
-  }
-}
-
 export default async function Page() {
-  const [{ agents, failure }, visualizations] = await Promise.all([
-    loadRoster(),
-    loadAgentVisualizations(),
-  ])
+  const { agents, failure } = await loadRoster()
 
   // Backend muet : l'écran DIT qu'il ne sait pas. Il ne rend pas une liste vide,
   // qui se lirait comme « aucun agent » — l'inverse de la vérité.
@@ -91,7 +70,7 @@ export default async function Page() {
 
   return (
     <AppShell>
-      <AgentRosterScreen agents={agents} visualizations={visualizations} />
+      <AgentRosterScreen agents={agents} />
     </AppShell>
   )
 }

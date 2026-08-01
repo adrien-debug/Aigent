@@ -11,8 +11,6 @@
  * dernière activité et signal critique éventuel. Le détail complet vit au clic.
  */
 import { PageBody, PageHeader } from '@/components/app-shell'
-import EmbeddedVisualization from '@/components/visualizations/embedded-visualization'
-import type { ResolvedVisualization } from '@/components/visualizations/embed/contract'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Subheading } from '@/components/ui/heading'
@@ -111,77 +109,104 @@ function FleetFigure({
  */
 function FleetStage({
   agents,
-  visualizations,
 }: Readonly<{
   agents: readonly AvailableAgent[]
-  visualizations: readonly ResolvedVisualization[]
 }>) {
   const counts = countRoster(agents)
   const attention = agents.filter((agent) => criticalSignal(agent) !== null).length
 
   return (
     <section className="aig-stage aig-accent-edge p-5 sm:p-6" aria-label="Santé de la flotte">
-      <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
-        <div className="min-w-0 xl:flex-1">
-          <Text className="aig-text-faint text-2xs font-medium uppercase tracking-[0.18em]">
-            Santé de la flotte
+      <Text className="aig-text-faint text-2xs font-medium uppercase tracking-[0.18em]">
+        Santé de la flotte
+      </Text>
+
+      <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
+        <FleetFigure value={counts.total} label="Au catalogue" />
+        <FleetFigure
+          value={counts.active}
+          label="Actifs"
+          tone={counts.active > 0 ? 'good' : 'default'}
+          hint="run terminé, modèle prouvé"
+        />
+        <FleetFigure
+          value={counts.degraded}
+          label="Dégradés"
+          tone={counts.degraded > 0 ? 'bad' : 'default'}
+        />
+        <FleetFigure
+          value={attention}
+          label="Signal critique"
+          tone={attention > 0 ? 'warn' : 'default'}
+          hint="outil non résolu, assistant, résolution"
+        />
+      </div>
+
+      <div className="aig-hairline my-5" />
+
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <Text className="aig-text-muted text-sm">
+          {counts.withProvenExecutedModel} agent(s) ont un modèle PROUVÉ par un run réel
+        </Text>
+        <Text className="aig-text-muted text-sm">
+          {counts.inactive} inactif(s) · {counts.unavailable} indisponible(s)
+        </Text>
+        <Text
+          className={
+            counts.withUnresolvedTools > 0 ? 'text-sm text-red-400' : 'aig-text-muted text-sm'
+          }
+        >
+          {counts.withUnresolvedTools} avec outil non résolu
+        </Text>
+      </div>
+
+      <div className="aig-inset mt-5 grid gap-3 p-3 md:grid-cols-2">
+        <div className="rounded-lg border border-white/10 bg-white/2 p-3">
+          <Text className="aig-text-faint text-2xs uppercase tracking-[0.14em]">
+            Répartition runtime
           </Text>
-
-          <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
-            <FleetFigure value={counts.total} label="Au catalogue" />
-            <FleetFigure
-              value={counts.active}
-              label="Actifs"
-              tone={counts.active > 0 ? 'good' : 'default'}
-              hint="run terminé, modèle prouvé"
-            />
-            <FleetFigure
-              value={counts.degraded}
-              label="Dégradés"
-              tone={counts.degraded > 0 ? 'bad' : 'default'}
-            />
-            <FleetFigure
-              value={attention}
-              label="Signal critique"
-              tone={attention > 0 ? 'warn' : 'default'}
-              hint="outil non résolu, assistant, résolution"
-            />
-          </div>
-
-          <div className="aig-hairline my-5" />
-
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-            <Text className="aig-text-muted text-sm">
-              {counts.withProvenExecutedModel} agent(s) ont un modèle PROUVÉ par un run réel
-            </Text>
-            <Text className="aig-text-muted text-sm">
-              {counts.inactive} inactif(s) · {counts.unavailable} indisponible(s)
-            </Text>
-            <Text
-              className={
-                counts.withUnresolvedTools > 0
-                  ? 'text-sm text-red-400'
-                  : 'aig-text-muted text-sm'
-              }
-            >
-              {counts.withUnresolvedTools} avec outil non résolu
-            </Text>
-          </div>
-        </div>
-
-        {/* Les panneaux de répartition ne sont plus une bande de cartes de rang
-            égal en tête de page : ils habitent la scène, en second rang, dans un
-            creux qui les accueille au lieu de les faire flotter. */}
-        {visualizations.length > 0 ? (
-          <div
-            className="viz-scope aig-inset grid min-w-0 gap-3 p-3 md:grid-cols-2 xl:w-[26rem] xl:shrink-0 xl:grid-cols-1 [&>*]:min-w-0"
-            aria-label="Répartition par agent"
-          >
-            {visualizations.map((viz) => (
-              <EmbeddedVisualization key={viz.id} visualization={viz} density="compact" />
+          <div className="mt-2 space-y-2">
+            {[
+              { label: 'Actifs', value: counts.active, color: 'bg-emerald-400/80' },
+              { label: 'Dégradés', value: counts.degraded, color: 'bg-red-400/80' },
+              { label: 'Inactifs', value: counts.inactive, color: 'bg-zinc-400/80' },
+              { label: 'Indisponibles', value: counts.unavailable, color: 'bg-amber-400/80' },
+            ].map((row) => (
+              <div key={row.label}>
+                <div className="mb-1 flex items-center justify-between text-xs">
+                  <Text className="aig-text-muted">{row.label}</Text>
+                  <span className="tabular-nums text-white">{row.value}</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-white/10">
+                  <div
+                    className={`${row.color} h-full rounded-full`}
+                    style={{ width: `${(row.value / Math.max(1, counts.total)) * 100}%` }}
+                  />
+                </div>
+              </div>
             ))}
           </div>
-        ) : null}
+        </div>
+        <div className="rounded-lg border border-white/10 bg-white/2 p-3">
+          <Text className="aig-text-faint text-2xs uppercase tracking-[0.14em]">
+            Provenance état
+          </Text>
+          <div className="sr-only">{agents.length} agents analysés</div>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <Text className="aig-text-muted text-xs">Modèle prouvé</Text>
+            <span className="text-right tabular-nums text-white">{counts.withProvenExecutedModel}</span>
+            <Text className="aig-text-muted text-xs">Assistant manquant</Text>
+            <span className="text-right tabular-nums text-white">
+              {agents.filter((agent) => agent.runtimeProvisioned === false).length}
+            </span>
+            <Text className="aig-text-muted text-xs">Outils non résolus</Text>
+            <span className="text-right tabular-nums text-white">{counts.withUnresolvedTools}</span>
+            <Text className="aig-text-muted text-xs">Donnée indisponible</Text>
+            <span className="text-right tabular-nums text-white">
+              {agents.filter((agent) => agent.unavailableFields.length > 0).length}
+            </span>
+          </div>
+        </div>
       </div>
     </section>
   )
@@ -228,7 +253,7 @@ function AgentRosterRow({ agent }: Readonly<{ agent: AvailableAgent }>) {
 
         {/* L'affordance d'ouverture s'éclaire au survol : `aig-text-faint` au
             repos, accent au survol — le seul accent du produit. */}
-        <Text className="aig-text-faint hidden shrink-0 text-sm transition group-hover:text-[var(--aig-accent)] sm:block">
+        <Text className="aig-text-faint hidden shrink-0 text-sm transition group-hover:text-(--aig-accent) sm:block">
           Ouvrir
         </Text>
       </Link>
@@ -238,19 +263,8 @@ function AgentRosterRow({ agent }: Readonly<{ agent: AvailableAgent }>) {
 
 export default function AgentRosterScreen({
   agents,
-  visualizations = [],
 }: Readonly<{
   agents: AvailableAgent[]
-  /**
-   * Panneaux de la fonction `agents`, déjà résolus côté serveur.
-   *
-   * Ce sont les SEULS panneaux qui ont leur place ici : « runs par agent » et
-   * « couples projet/agent » répondent à la question de cette page. Le volume
-   * global ou la latence p95 vivent sur `/runs`, qui parle d'exécutions. Un
-   * écran qui montrerait les huit panneaux du registre ne serait plus un
-   * roster, ce serait un second dashboard.
-   */
-  visualizations?: readonly ResolvedVisualization[]
 }>) {
   const ranked = sortRoster(agents)
 
@@ -271,7 +285,7 @@ export default function AgentRosterScreen({
       />
 
       <PageBody className="gap-5">
-        <FleetStage agents={ranked} visualizations={visualizations} />
+        <FleetStage agents={ranked} />
 
         {/* Le roster n'est plus un panneau de plus dans une pile : c'est le
             CREUX qui accueille la liste, sous la scène. Il prend de la hauteur
@@ -284,7 +298,7 @@ export default function AgentRosterScreen({
             </Text>
           </div>
 
-          <div className="aig-inset min-h-[22rem] overflow-hidden">
+          <div className="aig-inset min-h-88 overflow-hidden">
             {ranked.length === 0 ? (
               <div className="px-5 py-10">
                 <Unavailable
@@ -293,7 +307,7 @@ export default function AgentRosterScreen({
                 />
               </div>
             ) : (
-              <ul className="scroll-thin max-h-[calc(100svh-24rem)] min-h-[22rem] divide-y divide-[color:var(--aig-line-soft)] overflow-y-auto">
+              <ul className="scroll-thin max-h-[calc(100svh-24rem)] min-h-88 divide-y divide-(--aig-line-soft) overflow-y-auto">
                 {ranked.map((agent) => (
                   <AgentRosterRow key={agent.copilotId} agent={agent} />
                 ))}

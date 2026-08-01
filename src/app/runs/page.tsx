@@ -9,8 +9,6 @@ import { navEntry } from '@/components/navigation'
 import { listRecentRuntimeTelemetryEvents } from '@/lib/agent-mission-control/runtime-telemetry-store'
 import { deriveRunsMetrics } from '@/lib/runs-console/runs-metrics'
 import { getRunsPageData } from '@/lib/runs-console/runs-page-data'
-import { resolveVisualizationsFor } from '@/components/visualizations/embed/registry'
-import type { ResolvedVisualization } from '@/components/visualizations/embed/contract'
 
 /**
  * Surface « /runs » — historique des exécutions, en maître-détail.
@@ -69,7 +67,6 @@ async function loadRuns() {
     return {
       data: null,
       provenance: null,
-      visualizations: [] as ResolvedVisualization[],
       failure: err instanceof Error ? err.message : 'lecture impossible',
     }
   }
@@ -84,27 +81,9 @@ async function loadRuns() {
     provenance = null
   }
 
-  /*
-   * Les panneaux Grafana — TROISIÈME tiers, et le moins porteur des trois.
-   *
-   * Chaque panneau porte déjà son propre état de vérité (`NOT_CONFIGURED`,
-   * `UNAVAILABLE`…), donc une source éteinte se DIT dans son cadre au lieu de
-   * casser la page. Le `catch` ne couvre donc pas « Grafana est muet » — ça,
-   * c'est un état résolu, pas une exception — mais l'échec du résolveur
-   * lui-même. Dans ce cas la bande disparaît : les runs, eux, sont réels et
-   * l'écran reste utile sans ses graphiques.
-   */
-  let visualizations: ResolvedVisualization[] = []
-  try {
-    visualizations = await resolveVisualizationsFor('activity', 'reliability', 'performance')
-  } catch {
-    visualizations = []
-  }
-
   return {
     data: pageDataResult.value,
     provenance,
-    visualizations,
     failure: null as string | null,
   }
 }
@@ -113,7 +92,7 @@ export default async function RunsPage({ searchParams }: { searchParams?: Promis
   const params = (await searchParams) ?? {}
   const requestedRunId = firstValue(params.run)
 
-  const { data, provenance, visualizations, failure } = await loadRuns()
+  const { data, provenance, failure } = await loadRuns()
 
   // Backend muet : l'écran ne dégrade pas en « 0 run », il DIT qu'il ne sait pas.
   if (data === null) {
@@ -166,7 +145,6 @@ export default async function RunsPage({ searchParams }: { searchParams?: Promis
         projectNameById={data.projectNameById}
         selectedRunId={requestedRunId}
         provenance={provenance}
-        visualizations={visualizations}
         nowMs={data.nowMs}
         windowRunCount={data.windowRunCount}
         windowTruncated={data.windowTruncated}

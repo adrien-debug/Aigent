@@ -11,10 +11,8 @@
  *
  *   1. LE SIGNAL PRINCIPAL (`aig-stage`, une seule zone par page) — les trois
  *      mesures qui décident si on reste sur cet écran (Runs, Réussite, Latence
- *      p95) en `aig-display` grand format, à côté du panneau d'ACTIVITÉ le plus
+ *      p95) en `aig-display` grand format, à côté d'une courbe d'ACTIVITÉ
  *      large. Ce qui est majeur est grand ; ce qui est mineur est petit à côté.
- *   2. LES ANALYSES SECONDAIRES (`aig-quiet`) — les autres panneaux Grafana,
- *      visiblement subordonnés : pas de liseré complet, densité `compact`.
  *   3. LE FLUX OPÉRATIONNEL (`aig-inset`) — la liste des runs dans un creux qui
  *      l'accueille, avec de la hauteur réelle et son propre défilement.
  *   4. LE DÉTAIL À LA DEMANDE — le run sélectionné, à côté du flux.
@@ -25,11 +23,8 @@
  * lisibles, simplement pas toutes à la même taille. Une mesure absente reste
  * absente (`Fact` rend `NotMeasured` sur `null`) — aucun `?? 0` n'existe ici.
  *
- * AUCUN GRAPHIQUE N'EST RECODÉ. Les séries appartiennent à Grafana, les
- * métriques à Prometheus. `EmbeddedVisualization` reste le seul moyen de les
- * afficher ; cet écran ne décide que de leur PLACE et de leur densité. Toute
- * visualisation reste sous un ancêtre `.viz-scope` — les variables `--viz-*` et
- * la garde `prefers-reduced-motion` y sont scopées.
+ * Les visualisations sont natives à l'écran et alimentées par les mêmes runs
+ * persistés que les KPI et le flux. Aucune iframe n'est rendue au premier niveau.
  *
  * Server Component pur : il reçoit la donnée déjà lue et la distribue. La
  * sélection passe par l'URL (`/runs?run=<id>`), donc aucun état client.
@@ -38,8 +33,6 @@ import type { ReactNode } from 'react'
 import { navEntry } from '@/components/navigation'
 import { PageBody, PageHeader } from '@/components/app-shell'
 import { Fact, FactValue, NotMeasured, Unavailable } from '@/components/cockpit/primitives'
-import EmbeddedVisualization from '@/components/visualizations/embedded-visualization'
-import type { ResolvedVisualization } from '@/components/visualizations/embed/contract'
 import type { AgentRun } from '@/lib/agent-mission-control/types'
 import type { RunsMetrics } from '@/lib/runs-console/runs-metrics'
 import { formatDuration, formatPercent } from '@/lib/runs-console/runs-metrics'
@@ -49,6 +42,7 @@ import RunList from './run-list'
 import TrafficProvenance from './traffic-provenance'
 import { resolveSelectedRun } from './run-view-model'
 import type { ProvenanceBreakdown } from './run-view-model'
+import { RunsActivityCard, RunsHealthCard } from './runs-native-visuals'
 
 const ENTRY = navEntry('/runs')
 
@@ -140,28 +134,6 @@ function RankTitle({ children, hint }: Readonly<{ children: ReactNode; hint?: st
   )
 }
 
-/**
- * ÉDITORIAL, PAS EXHAUSTIF. Le registre porte huit panneaux ; cet écran en
- * demande trois fonctions (activité, fiabilité, performance) et les répartit en
- * DEUX rangs de poids différents plutôt qu'en une grille de cadres égaux.
- *
- * Le panneau qui ouvre la scène est le plus large disponible (`aspectRatio` le
- * plus grand) : un panneau large écrasé perd ses axes, donc il prend la place
- * qu'il déclare. Tous les autres descendent en second rang, en `compact`.
- */
-function splitVisualizations(visualizations: readonly ResolvedVisualization[]): {
-  lead: ResolvedVisualization | null
-  secondary: readonly ResolvedVisualization[]
-} {
-  if (visualizations.length === 0) return { lead: null, secondary: [] }
-
-  let lead = visualizations[0]!
-  for (const viz of visualizations) {
-    if (viz.aspectRatio > lead.aspectRatio) lead = viz
-  }
-  return { lead, secondary: visualizations.filter((viz) => viz.id !== lead.id) }
-}
-
 export default function RunsScreen({
   runs,
   metrics,
@@ -169,7 +141,6 @@ export default function RunsScreen({
   projectNameById,
   selectedRunId,
   provenance,
-  visualizations,
   nowMs,
   windowRunCount,
   windowTruncated,
@@ -184,8 +155,6 @@ export default function RunsScreen({
   selectedRunId: string | null
   /** `null` = lecture du flux télémétrie échouée. Jamais un flux vide. */
   provenance: ProvenanceBreakdown | null
-  /** Panneaux déjà résolus côté serveur. Vide = aucune source configurée. */
-  visualizations: readonly ResolvedVisualization[]
   nowMs: number
   windowRunCount: number
   windowTruncated: boolean
@@ -199,7 +168,6 @@ export default function RunsScreen({
   // quand la fenêtre en contient 640 serait un total faux.
   const capped = windowRunCount > runs.length
   const windowHint = windowPanelHint(capped, runs.length, windowRunCount)
-  const { lead, secondary } = splitVisualizations(visualizations)
 
   let detailPanel: ReactNode
   if (notFound) {
@@ -243,16 +211,13 @@ export default function RunsScreen({
         }
       />
 
-      <PageBody className="viz-scope">
-        {/* ══ RANG 1 — LE SIGNAL PRINCIPAL ══════════════════════════════════
-            Une seule `aig-stage` par page. Les trois mesures qui décident si
-            l'opérateur reste ici, en grand, contre le panneau d'activité le
-            plus large. Le liseré cuivre ouvre la zone ; il n'entoure rien. */}
+      <PageBody>
+        {/* ══ RANG 1 — LE SIGNAL PRINCIPAL ══════════════════════════════════ */}
         <section
-          className="aig-stage aig-accent-edge grid gap-x-8 gap-y-6 p-5 sm:p-6 xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]"
+          className="aig-stage aig-accent-edge grid gap-x-8 gap-y-6 p-5 sm:p-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
           aria-label="Signal principal de la fenêtre"
         >
-          <div className="flex min-w-0 flex-col gap-5">
+          <div className="flex min-w-0 flex-col gap-4">
             <div className="min-w-0">
               <h2 className="aig-display text-base font-semibold">État de la fenêtre</h2>
               <p className="aig-text-muted mt-1 text-xs">{windowHint}</p>
@@ -275,45 +240,21 @@ export default function RunsScreen({
                 hint={`${metrics.measuredLatencyRuns} mesuré(s)`}
               />
             </div>
+
+            <RunsActivityCard runs={runs} nowMs={nowMs} />
           </div>
 
-          {/* Le panneau d'activité le plus large. Absent quand aucune source
-              n'est configurée : la scène tient sur ses mesures seules plutôt
-              que d'afficher un cadre vide. */}
-          {lead ? (
-            <div className="aig-inset min-w-0 self-start p-2">
-              <EmbeddedVisualization visualization={lead} density="compact" />
-            </div>
-          ) : null}
+          <RunsHealthCard runs={runs} />
         </section>
 
-        {/* ══ RANG 2 — LES ANALYSES SECONDAIRES ═════════════════════════════
-            Subordonnées et lisibles comme telles : `aig-quiet`, sans liseré
-            complet, densité compacte. Pas huit cadres égaux. */}
-        {secondary.length > 0 ? (
-          <section className="flex flex-col gap-2" aria-label="Analyses de la fenêtre">
-            <RankTitle hint="fiabilité · performance">Analyses</RankTitle>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
-              {secondary.map((viz) => (
-                <div key={viz.id} className="aig-quiet min-w-0 p-2">
-                  <EmbeddedVisualization visualization={viz} density="compact" />
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {/* ══ RANG 3 & 4 — LE FLUX, PUIS LE DÉTAIL ══════════════════════════
-            La liste vit dans un creux qui l'accueille et prend de la hauteur
-            réelle : elle défile chez elle, la page ne s'allonge pas avec la
-            fenêtre de runs. */}
+        {/* ══ RANG 2 & 3 — FLUX PRINCIPAL + DÉTAIL PROGRESSIF ═══════════════ */}
         <section
-          className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]"
+          className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
           aria-label="Flux des runs et détail"
         >
           <div className="flex min-w-0 flex-col gap-2">
             <RankTitle hint={windowTruncated ? 'fenêtre plafonnée' : windowHint}>Flux</RankTitle>
-            <div className="aig-inset scroll-thin min-h-0 max-h-[34rem] overflow-y-auto">
+            <div className="aig-inset scroll-thin min-h-0 max-h-176 overflow-y-auto">
               {runs.length === 0 ? (
                 <div className="p-4">
                   <Unavailable
@@ -334,7 +275,7 @@ export default function RunsScreen({
 
           <div className="flex min-w-0 flex-col gap-2">
             <RankTitle hint={selected ? 'run sélectionné' : undefined}>Détail</RankTitle>
-            <div className="aig-panel scroll-thin min-h-0 max-h-[34rem] overflow-y-auto">
+            <div className="aig-panel scroll-thin min-h-0 max-h-176 overflow-y-auto">
               {detailPanel}
             </div>
           </div>
