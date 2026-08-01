@@ -112,11 +112,13 @@ function SectionHeader({
 }>) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      {/* UN seul titre. Le surtitre rendait `title` une deuxième fois juste
+          au-dessus du `Subheading` : à l'écran on lisait « Overview /
+          Overview », « Activity / Activity ». Un surtitre n'a de sens que
+          s'il porte une information que le titre n'a pas — sinon c'est du
+          bruit qui double la hauteur de chaque en-tête de section. */}
       <div className="max-w-3xl">
-        <Text className="text-sm font-medium text-zinc-500">{title}</Text>
-        <Subheading level={2} className="mt-1">
-          {title}
-        </Subheading>
+        <Subheading level={2}>{title}</Subheading>
         <Text className="mt-2 text-base/7 text-zinc-600">{description}</Text>
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
@@ -208,8 +210,8 @@ function OverviewSection({ detail }: Readonly<{ detail: AgentDetail }>) {
   return (
     <section className="space-y-4">
       <SectionHeader
-        title="Overview"
-        description="Identite, projet cible, runtime et etat de service. Cette section repond a la question : que sert cet agent aujourd'hui et dans quel etat ?"
+        title="Aperçu"
+        description="Identité, projet cible, runtime et état de service. Cette section répond à la question : que sert cet agent aujourd’hui et dans quel état ?"
       />
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
@@ -226,11 +228,11 @@ function OverviewSection({ detail }: Readonly<{ detail: AgentDetail }>) {
               hint={currentVersion?.stage ?? undefined}
             />
             <DetailField
-              label="Modele configure"
+              label="Modèle configuré"
               value={agent && !isUnavailable(agent, 'configuredModel') ? <Strong>{agent.configuredModel}</Strong> : null}
             />
             <DetailField
-              label="Modele prouve"
+              label="Modèle prouvé"
               value={agent?.executedModel ? <Strong>{agent.executedModel}</Strong> : null}
             />
             <DetailField
@@ -286,7 +288,7 @@ function OverviewSection({ detail }: Readonly<{ detail: AgentDetail }>) {
                   <Badge color="zinc">jamais livre</Badge>
                 )
               }
-              hint={delivery ? delivery.status : 'Aucune poussee ou PR consumer enregistree.'}
+              hint={delivery ? delivery.status : 'Aucune poussée ou PR consumer enregistrée.'}
             />
           </div>
         </Surface>
@@ -308,7 +310,7 @@ function ActivitySection({ detail }: Readonly<{ detail: AgentDetail }>) {
     telemetry
       ? {
           key: 'telemetry',
-          title: 'Derniere telemetrie',
+          title: 'Dernière télémétrie',
           detail:
             telemetry.lastSeenAt === null
               ? 'Aucun evenement runtime rapporte'
@@ -322,7 +324,7 @@ function ActivitySection({ detail }: Readonly<{ detail: AgentDetail }>) {
     delivery
       ? {
           key: 'delivery',
-          title: 'Derniere livraison',
+          title: 'Dernière livraison',
           detail: `${delivery.targetRepo} · ${delivery.status}`,
         }
       : null,
@@ -342,8 +344,8 @@ function ActivitySection({ detail }: Readonly<{ detail: AgentDetail }>) {
   return (
     <section className="space-y-4">
       <SectionHeader
-        title="Activity"
-        description="Derniers runs et evenements importants. L'objectif ici est de voir ce qui s'est passe recemment avant de rentrer dans les preuves detaillees."
+        title="Activité"
+        description="Derniers runs et événements importants. L’objectif ici est de voir ce qui s’est passé récemment avant de rentrer dans les preuves détaillées."
       />
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
@@ -455,7 +457,7 @@ function QualificationSection({
       <div className="mt-4 space-y-4">
         <Unavailable
           reason="no-data"
-          detail="Aucune qualification n'a ete lancee pour la version courante."
+          detail="Aucune qualification n'a été lancée pour la version courante."
         />
       </div>
     )
@@ -476,7 +478,7 @@ function QualificationSection({
           <DetailField label="Suites benchmark" value={<Strong>{detail.benchmarkSuites.length}</Strong>} />
         </div>
         {qualification.steps.length === 0 ? (
-          <Text>Aucune etape ne porte encore de verdict exploitable.</Text>
+          <Text>Aucune étape ne porte encore de verdict exploitable.</Text>
         ) : (
           <ul className="divide-y divide-zinc-950/6">
             {qualification.steps.map((step) => (
@@ -500,8 +502,8 @@ function QualificationSection({
     <section className="space-y-4">
       <SectionHeader
         title="Qualification"
-        description="Confiance, tests et preuves de promotion. Cette section distingue ce qui passe, ce qui echoue et ce qui n'a jamais ete mesure."
-        action={<Button outline href={`/qualification/${detail.copilot.id}`}>Ouvrir la surface complete</Button>}
+        description="Confiance, tests et preuves de promotion. Cette section distingue ce qui passe, ce qui échoue et ce qui n’a jamais été mesuré."
+        action={<Button outline href={`/qualification/${detail.copilot.id}`}>Ouvrir la surface complète</Button>}
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -514,7 +516,7 @@ function QualificationSection({
                 detail={
                   gateFailure
                     ? `La gate n'a pas pu etre evaluee : ${gateFailure}`
-                    : "Aucune version candidate ne resout pour ce copilot."
+                    : "Aucune version candidate ne résout pour ce copilot."
                 }
               />
             </div>
@@ -566,7 +568,7 @@ function ConfigurationSection({ detail }: Readonly<{ detail: AgentDetail }>) {
     mountedToolsBody = (
       <Unavailable
         reason="unread"
-        detail="Aucune ligne canonique ne resout pour ce copilot — la liste d'outils montee ne peut pas etre etablie."
+        detail="Aucune ligne canonique ne résout pour ce copilot — la liste d'outils montée ne peut pas être établie."
       />
     )
   } else if (resolvedTools.length === 0 && unresolvedIds.length === 0) {
@@ -636,12 +638,12 @@ function ConfigurationSection({ detail }: Readonly<{ detail: AgentDetail }>) {
     <section className="space-y-4">
       <SectionHeader
         title="Configuration"
-        description="Outils, modele et parametres de fonctionnement. Cette section montre ce qui est monte aujourd'hui, pas toutes les metadonnees historiques."
+        description="Outils, modèle et paramètres de fonctionnement. Cette section montre ce qui est monté aujourd’hui, pas toutes les métadonnées historiques."
       />
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         <Surface className="p-5">
-          <Subheading level={3}>Parametres actifs</Subheading>
+          <Subheading level={3}>Paramètres actifs</Subheading>
           {manifest === undefined ? (
             <div className="mt-4">
               <Unavailable
@@ -699,9 +701,9 @@ function ConfigurationSection({ detail }: Readonly<{ detail: AgentDetail }>) {
 
         <Surface>
           <div className="border-b border-zinc-950/6 px-5 py-4">
-            <Subheading level={3}>Outils montes</Subheading>
+            <Subheading level={3}>Outils montés</Subheading>
             <Text className="mt-1">
-              {agent ? toolsCountHint(resolvedTools.length, unresolvedIds.length) : "Outils non resolus"}
+              {agent ? toolsCountHint(resolvedTools.length, unresolvedIds.length) : "Outils non résolus"}
             </Text>
           </div>
 

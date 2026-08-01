@@ -69,9 +69,11 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
         // tenir dans la hauteur imposée — le dessin devenait minuscule, centré
         // dans une bande vide.
         //
-        // Conséquence assumée : l'axe X est étiré. Les points et les libellés
-        // le compensent (`vector-effect` sur les traits, `<circle>` remplacé
-        // par un cercle non déformé côté HTML — voir plus bas).
+        // Conséquence assumée : l'axe X est étiré. Deux compensations, et
+        // deux seulement : `vector-effect` sur la COURBE (les lignes de grille
+        // sont horizontales, l'étirement horizontal ne les épaissit pas), et
+        // les points/libellés sortis du SVG en HTML — un `<circle>` dans un
+        // viewBox étiré deviendrait un ovale.
         preserveAspectRatio="none"
         className="h-40 w-full overflow-visible"
         role="img"
@@ -142,7 +144,7 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
         {points.map((point, index) => (
           <motion.span
             key={point.bucket.hourMs}
-            className="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black ring-1.5"
+            className="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black"
             // Les deux axes sont exprimés dans le repère du SVG puis convertis
             // en pourcentage de la boîte : c'est la seule façon que le point
             // tombe sur la courbe quelle que soit la largeur rendue.
@@ -158,8 +160,11 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
       </motion.div>
 
       {/* Colonnes de survol — viser un point de 8 px au pointeur est
-          impossible, la colonne entière déclenche. */}
-      <div className="absolute inset-x-0 top-0 bottom-7 flex">
+          impossible, la colonne entière déclenche. `inset-0` et non
+          `bottom-7` : la réserve de 28 px servait aux libellés quand ils
+          vivaient DANS cette boîte ; ils sont sortis dessous, donc cette bande
+          n'était plus qu'une zone morte où le survol décrochait. */}
+      <div className="absolute inset-0 flex">
         {points.map((point, index) => (
           <button
             key={point.bucket.hourMs}
@@ -172,8 +177,21 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
         ))}
       </div>
 
-      {/* Un libellé toutes les six heures : les vingt-quatre se chevaucheraient. */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-1 flex">
+      </div>
+
+      {/* L'AXE EST SOUS LE TRACÉ, PAS DESSUS
+          -----------------------------------
+          Les libellés étaient `absolute … bottom-1` DANS la boîte du tracé :
+          le plancher du plot (`y=192` sur 220, soit ~139 px sur 160) tombe
+          plus bas qu'eux, donc la courbe et ses points passaient PAR-DESSUS
+          « 06:00 », « 12:00 », « 18:00 », « 00:00 » — illisibles dès que la
+          fenêtre est calme, c'est-à-dire exactement quand l'axe sert encore.
+          En flux normal, sous le SVG, plus aucun recouvrement possible.
+
+          Un libellé toutes les six heures : les vingt-quatre se
+          chevaucheraient. Les cases vides gardent leur `flex-1` pour que les
+          libellés restent alignés sur leur colonne. */}
+      <div aria-hidden className="mt-1 flex">
         {points.map((point, i) => (
           <span
             key={point.bucket.hourMs}
@@ -182,7 +200,6 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
             {i % 6 === 0 ? point.bucket.label : ''}
           </span>
         ))}
-        </div>
       </div>
 
       <AnimatePresence>

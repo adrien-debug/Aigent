@@ -117,7 +117,13 @@ export default function RunsScreen({
   }
 
   return (
-    <div className="flex flex-col gap-3 p-4">
+    // `max-lg:pl-14` — le shell pose un bouton de navigation `position: fixed`
+    // en (16,16) · 37×36 · z-30. « Fixe » veut dire qu'il ne défile PAS :
+    // réserver la place sous le seul en-tête ne protégerait que la position de
+    // scroll 0. La gouttière est donc portée par la COLONNE entière. Au-delà
+    // de `lg` le rail est permanent, le bouton n'existe plus, la gouttière non
+    // plus. C'était le seul écran du produit à ne pas la poser.
+    <div className="flex flex-col gap-3 p-4 max-lg:pl-14">
       <header>
         <Heading level={1}>{ENTRY.name}</Heading>
         <Text className="mt-1">{ENTRY.purpose}</Text>

@@ -83,13 +83,19 @@ export function Panel({
       )}
     >
       <header className="shrink-0">
-        <div className="flex items-center gap-3 px-4 py-3">
+        {/* `flex-wrap` + des actions qui PEUVENT rétrécir : la légende de
+            statut de l'Aperçu porte cinq badges et était enveloppée en
+            `shrink-0`, ce qui neutralisait son propre `flex-wrap` — la boîte
+            ne pouvait pas descendre sous sa largeur max-content et l'en-tête
+            débordait en largeur contrainte. Le titre garde `shrink-0` (il
+            tronque déjà), le hint aussi ; seules les actions cèdent. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
           <Subheading level={2} className="shrink-0 truncate">
             {title}
           </Subheading>
           {hint ? <Text className="ml-auto shrink-0 truncate">{hint}</Text> : null}
           {actions ? (
-            <div className={clsx('shrink-0', actionsClass)}>{actions}</div>
+            <div className={clsx('min-w-0', actionsClass)}>{actions}</div>
           ) : null}
         </div>
         <Divider soft />
@@ -286,11 +292,18 @@ export function SegmentMeter({
 
   return (
     <div aria-hidden className={clsx('flex items-end gap-[2px]', className)}>
+      {/* Les crans ÉTEINTS portent la proportion autant que les allumés : à
+          `zinc-400/35` sur la cellule noire du bandeau KPI, les 11 crans
+          éteints d'un « 3 sur 14 » étaient quasi invisibles et la jauge se
+          lisait comme trois barres isolées, sans dénominateur. */}
       {Array.from({ length: safeTotal }, (_, i) => (
         <span
           key={i}
-          className="h-3.5 w-[3px] rounded-[1px]"
-          style={i < safeFilled ? { background: color } : { background: 'rgb(161 161 170 / 0.35)' }}
+          className={clsx(
+            'h-3.5 w-[3px] rounded-[1px]',
+            i >= safeFilled && 'bg-zinc-950/15 dark:bg-white/25',
+          )}
+          style={i < safeFilled ? { background: color } : undefined}
         />
       ))}
     </div>

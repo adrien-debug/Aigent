@@ -11,6 +11,7 @@ import { navEntry } from '@/components/navigation'
 import { Link } from '@/components/ui/link'
 import type { DashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
 import { buildHourlyBuckets, buildStatusBreakdown } from '@/lib/cockpit/overview-series'
+import type { HourlyBucket } from '@/lib/cockpit/overview-series'
 import { buildNamedRuns } from '@/lib/cockpit/named-runs'
 import type { NamedRun, ProjectCard } from '@/lib/cockpit/named-runs'
 import ActivityGraph from './activity-graph'
@@ -21,6 +22,48 @@ import ProjectCarousel from './project-carousel'
 import { Panel, Unavailable } from './primitives'
 
 const ENTRY = navEntry('/')
+
+/**
+ * Le corps du panneau d'activité — trois états, jamais confondus.
+ *
+ * LE TROISIÈME ÉTAT EST LA CORRECTION D'UN MENSONGE
+ * ------------------------------------------------
+ * Une fenêtre lue et VIDE produisait un tracé : 24 points alignés au fond du
+ * plot, reliés par une ligne verte continue. Constaté sur l'écran réel, DOM à
+ * l'appui — `aria-label="… — 0 runs"`, les 24 points à `top: 87.2727%`, le path
+ * entier à `y=192` — pendant que le KPI disait « Runs 24 h : 0 » et que le flux
+ * juste en dessous disait « Aucun run sur les dernières 24 heures ».
+ *
+ * Le plancher d'échelle (`Math.max(2, …)`) pose le zéro sur la ligne de grille
+ * du bas : RIEN ne distingue visuellement « 0 partout » de « 1 run/h partout ».
+ * Une courbe continue se lit comme une activité régulière — l'exact contraire
+ * de ce que la fenêtre mesure. Sur un écran dont toute la doctrine est « une
+ * absence n'est pas un zéro » (AGENTS.md § Vérité des données), c'était le
+ * mensonge le plus visible du cockpit.
+ *
+ * On rend donc l'ABSENCE, comme le fait le flux d'exécution sur la même donnée.
+ * `no-data` et non `unread` : la lecture a réussi, la flotte est réellement au
+ * repos, et c'est une mesure — pas une panne.
+ */
+function renderActivityPanel(buckets: HourlyBucket[] | null): ReactNode {
+  if (buckets === null) {
+    return (
+      <Unavailable
+        reason="unread"
+        detail="La fenêtre de runs n'a pas pu être lue — aucune courbe n'est tracée."
+      />
+    )
+  }
+  if (buckets.every((bucket) => bucket.total === 0)) {
+    return (
+      <Unavailable
+        reason="no-data"
+        detail="Aucun run sur les dernières 24 heures. La fenêtre a bien été lue — une courbe à plat se lirait comme une activité régulière."
+      />
+    )
+  }
+  return <ActivityGraph buckets={buckets} />
+}
 
 function renderRunStreamPanel(runs: NamedRun[] | null, nowMs: number): ReactNode {
   if (runs === null) {
@@ -112,19 +155,14 @@ export default function CockpitOverview({
         actions={slices ? <StatusLegend slices={slices} /> : undefined}
         hint={slices ? undefined : 'fenêtre non lue'}
       >
-        {buckets ? (
-          <ActivityGraph buckets={buckets} />
-        ) : (
-          <Unavailable
-            reason="unread"
-            detail="La fenêtre de runs n'a pas pu être lue — aucune courbe n'est tracée."
-          />
-        )}
+        {renderActivityPanel(buckets)}
       </Panel>
 
-      {/* 70 / 30 : le flux se lit ligne à ligne et mérite la place, les projets
-          sont une colonne d'appoint. */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[7fr_3fr] [&>*]:min-w-0">
+      {/* 60 / 40 : le flux se lit ligne à ligne et garde la majorité, mais les
+          projets portent DES CARTES — à 30 % la colonne n'en montrait que deux
+          sur dix et coupait la troisième au bord. 40 % en fait une vraie
+          seconde colonne au lieu d'un appoint tassé. */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[6fr_4fr] [&>*]:min-w-0">
         <Panel
           title="Flux d'exécution"
           hint={runs ? `${runs.length} sur la fenêtre` : undefined}
