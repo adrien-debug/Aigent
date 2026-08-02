@@ -30,7 +30,7 @@ placeholder honnête.
 | Learning `/learning` — supervision, file de revue, évaluations, connaissance | wired | `src/app/learning/page.tsx`, `src/components/learning/`, `src/lib/agent-mission-control/learning-overview.ts` |
 | Pont Obsidian — URI natives `open` / `new` / `search`, 4 templates | wired | `src/lib/agent-mission-control/obsidian-bridge.ts`, `docs/templates/obsidian/` |
 | Learning Runtime (H-Supervised) — client health/capabilities server-only | partial — contrat câblé, **aucun moteur en face** | `src/lib/agent-mission-control/learning-runtime.ts` |
-| Réglages | partial — `SurfacePlaceholder`, aucune lecture | `src/app/settings/page.tsx` |
+| Réglages | partial — UI placeholder, mais contrat backend de posture câblé (lecture opérateur) | `src/app/settings/page.tsx`, `src/app/api/agent-ops/settings/posture/route.ts`, `src/lib/agent-mission-control/settings-posture.ts` |
 | Kit UI — 14 primitives, empreinte SHA-256 | wired | `src/components/ui/`, `check:ui-kit-integrity` |
 | Tailwind v4 · Headless UI · Heroicons · Recharts | wired | `postcss.config.mjs`, `src/app/globals.css` |
 

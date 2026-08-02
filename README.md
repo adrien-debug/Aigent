@@ -39,7 +39,7 @@ desktop/mobile, revue visuelle R2 dans
 | `/runtime` | Santé du canal de télémétrie |
 | `/learning` | Supervision, file de revue, évaluations, pont Obsidian, Learning Runtime |
 | `/actions` | File opérateur complète — reprise des runs en attente d'approbation |
-| `/settings` | Réglages (placeholder) |
+| `/settings` | Réglages (UI placeholder, backend posture disponible via `/api/agent-ops/settings/posture`) |
 
 | Élément | État |
 |---|---|
@@ -87,6 +87,9 @@ State the restriction, not the headline:
 - **Provider `mistral`** is declared and **not wired** — it throws a typed error
   rather than falling back silently.
 - **Provider `local`** (vLLM) requires an explicit opt-in key.
+- **Settings backend** is wired read-only at
+  `/api/agent-ops/settings/posture` (redacted server-only posture contract); the
+  `/settings` UI remains intentionally placeholder for now.
 
 ## Stack
 
