@@ -51,9 +51,10 @@ desktop/mobile, revue visuelle R2 dans
 | Marketing `(site)/`, `/login`, `src/theme.css` | **Absents** et interdits de retour |
 | API · Backend | **Actifs** — `src/app/api/**`, `src/lib/**`, LangGraph, migrations |
 
-**Le design est libre** : aucune palette, aucun token, aucune structure de page
-n'est imposée (`CLAUDE.md` §8). Le kit `ui/` est un outil disponible, pas une
-obligation — les écrans peuvent s'en écarter.
+**Le design est libre** : aucun layout, aucune typographie, aucune navigation ni
+esthétique permanente n'est imposée (`CLAUDE.md` §8). Sur les surfaces de
+production, les jetons `--aig-*` restent l'autorité sémantique actuelle ; le
+kit `ui/` est un outil disponible, pas une obligation globale.
 
 `/lab` (Composer/Lab/Prototype) est une **surface d'exploration** : elle ne crée
 aucune règle produit et ne contourne ni l'accessibilité, ni la vérité des
