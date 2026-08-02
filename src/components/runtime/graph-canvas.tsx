@@ -18,9 +18,10 @@
  * La frontière ne reçoit que des données sérialisables — jamais une fonction
  * (`check:rsc-boundary`). Tous les handlers vivent ici.
  *
- * BOÎTE BORNÉE. La hauteur est fixée par le parent et ne grandit pas avec le
- * graphe : un graphe de 200 nœuds ne pousse pas la page, il se navigue au zoom
- * dans une boîte de taille constante. Zéro overflow horizontal global.
+ * HAUTEUR EXPLICITE. React Flow mesure son conteneur : sans hauteur fixée, le
+ * canvas s'effondre. Le conteneur porte donc un plancher (`min-h-[22rem]`) et
+ * une hauteur (`h-[28rem]`) ; le débordement du reste de la page est absorbé
+ * par le scroll de `PageBody`, pas par un parent flex borné.
  */
 import {
   Background,
@@ -134,7 +135,7 @@ function AigentNode({ data, selected }: NodeProps) {
 function Inspector({ node }: Readonly<{ node: Node | null }>) {
   if (!node) {
     return (
-      <div className="flex h-full items-center justify-center p-4">
+      <div className="flex min-h-[8rem] items-center justify-center p-4">
         <Text className="aig-text-muted text-center text-xs">
           Sélectionne un nœud pour l’inspecter.
         </Text>
@@ -146,7 +147,7 @@ function Inspector({ node }: Readonly<{ node: Node | null }>) {
 
   return (
     <div
-      className="scroll-thin flex h-full flex-col gap-3 overflow-y-auto p-3"
+      className="flex flex-col gap-3 p-3"
       data-testid="node-inspector"
     >
       <div className="flex flex-col gap-1">
@@ -279,13 +280,13 @@ function CanvasInner({ graphId, nodes: rawNodes, edges: rawEdges }: Readonly<Gra
   )
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2 lg:flex-row" data-testid="graph-canvas">
+    <div className="flex flex-col gap-2 lg:flex-row" data-testid="graph-canvas">
       {/*
         `min-w-0` sur la colonne du graphe : sans lui, un contenu large forcerait
         l'élargissement du flex parent et provoquerait un overflow horizontal de
-        la PAGE — exactement ce que la mission interdit.
+        la page.
       */}
-      <div className="aig-line-soft relative min-h-[16rem] min-w-0 flex-1 overflow-hidden rounded-lg border">
+      <div className="aig-line-soft relative h-[28rem] min-h-[22rem] min-w-0 overflow-hidden rounded-lg border">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -325,9 +326,10 @@ function CanvasInner({ graphId, nodes: rawNodes, edges: rawEdges }: Readonly<Gra
 
       {/*
         L'inspecteur : colonne à droite sur desktop, bloc SOUS le graphe sur
-        mobile. `shrink-0` + hauteur bornée pour qu'il ne mange jamais le graphe.
+        mobile. Pas de plafond de hauteur — le scroll de `PageBody` absorbe le
+        débordement.
       */}
-      <div className="aig-line-soft max-h-[14rem] min-h-[8rem] w-full shrink-0 overflow-hidden rounded-lg border lg:max-h-none lg:w-64">
+      <div className="aig-line-soft w-full shrink-0 rounded-lg border lg:w-64">
         <Inspector node={selected} />
       </div>
     </div>
@@ -345,7 +347,7 @@ export default function GraphCanvas(props: Readonly<GraphCanvasProps>) {
   if (nodes.length === 0) {
     return (
       <div
-        className="aig-line-soft flex min-h-[12rem] flex-1 items-center justify-center rounded-lg border border-dashed p-6"
+        className="aig-line-soft flex min-h-[12rem] items-center justify-center rounded-lg border border-dashed p-6"
         data-testid="graph-canvas-empty"
       >
         <Text className="aig-text-muted max-w-md text-center text-xs">
@@ -361,7 +363,7 @@ export default function GraphCanvas(props: Readonly<GraphCanvasProps>) {
   const dropped = toCanvasGraph(nodes, edges).droppedEdges
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+    <div className="flex flex-col gap-1.5">
       {dropped > 0 ? (
         // Une arête écartée est un fait, pas un détail : la taire donnerait un
         // graphe faux d'apparence saine.

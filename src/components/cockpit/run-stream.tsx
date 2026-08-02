@@ -1,10 +1,9 @@
 /**
  * Flux d'exécution — `Table` Catalyst officielle, sans aucune retouche du kit.
  *
- * Le kit n'a pas d'option « table bornée » : le défilement vertical est donc
- * porté par le CONTENEUR (`overflow-y-auto` dans le panneau), pas par une prop
- * ajoutée à `Table`. C'est la règle de la voie A — on compose autour du kit,
- * on ne le modifie pas.
+ * Le kit n'a pas d'option « table bornée » : le défilement vertical vit dans
+ * `PageBody` (shell), pas dans un conteneur local ni dans une prop de `Table`.
+ * Voie A — on compose autour du kit, on ne le modifie pas.
  *
  * Une mesure absente reste absente : ni « 0 ms », ni « $0.00 ».
  */

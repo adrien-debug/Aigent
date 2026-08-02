@@ -26,13 +26,12 @@
  * question du graphe, l'outil retenu au checkpoint (qui n'a PAS été exécuté) et
  * deux boutons de décision. Ce n'est pas peint comme une erreur.
  *
- * ZÉRO-SCROLL : la page ne défile jamais. Chaque panneau est borné (`min-h-0` +
- * `overflow-y-auto`) et c'est son contenu qui défile.
+ * Builder workspace — conversation, spécification, matérialisation.
  */
 import { useCallback, useMemo, useRef, useState, type ComponentProps } from 'react'
 import { useRouter } from 'next/navigation'
 
-import { PageHeader } from '@/components/app-shell'
+import { PageBody, PageHeader } from '@/components/app-shell'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Divider } from '@/components/ui/divider'
@@ -409,9 +408,6 @@ function SpecPanel({
  * nombre de fragments reçus. Il n'y a ni barre de pourcentage (aucun total
  * n'existe dans le protocole) ni liste d'appels d'outils (le protocole n'en
  * émet aucun — voir `StreamProgress` dans `model.ts`).
- *
- * ZÉRO-SCROLL : la prose reçue défile dans SA propre boîte bornée. Un tour long
- * ne fait pas grandir le panneau ni la page.
  */
 function StreamProgressNote({ progress }: Readonly<{ progress: StreamProgress }>) {
   if (progress.phase === 'idle') return null
@@ -437,7 +433,7 @@ function StreamProgressNote({ progress }: Readonly<{ progress: StreamProgress }>
           (`aig-subtle`), pas sur le fond du panneau. Hauteur bornée inchangée —
           la boîte ne grandit pas avec le flux. */}
       {progress.text.length > 0 ? (
-        <div className="aig-subtle max-h-40 min-h-0 overflow-y-auto rounded-md p-2">
+        <div className="aig-subtle rounded-md p-2">
           <Text className="text-xs whitespace-pre-wrap wrap-break-word">{progress.text}</Text>
         </div>
       ) : null}
@@ -857,10 +853,10 @@ export default function BuilderWorkspace({
       // Même cadre d'en-tête que la branche nominale : une surface qui change
       // de hiérarchie typographique selon qu'elle a pu lire ou non se lit
       // comme deux écrans différents.
-      <div className="flex h-full min-h-0 flex-col">
+      <div className="flex flex-col">
         <PageHeader title={projectName} description={repoFullName ?? 'aucun dépôt lié'} />
-        <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 py-4 sm:px-6">
-          <Panel title="Conversation d’authoring" className="min-h-0 flex-1">
+        <PageBody className="gap-3">
+          <Panel title="Conversation d’authoring">
             <Unavailable
               reason="unread"
               detail={
@@ -871,7 +867,7 @@ export default function BuilderWorkspace({
             />
             {failure ? <Text className="mt-3 text-center font-mono text-xs">{failure}</Text> : null}
           </Panel>
-        </div>
+        </PageBody>
       </div>
     )
   }
@@ -881,9 +877,7 @@ export default function BuilderWorkspace({
   return (
     // Zéro-scroll conservé : la colonne est bornée au viewport et ce sont les
     // panneaux qui défilent. `PageBody` n'aurait posé aucune borne de hauteur.
-    <div className="flex h-full min-h-0 flex-col">
-      {/* Le statut de conversation passe en `meta` : c'est le contexte chiffré
-          de la page, exactement ce que la rangée est faite pour porter. */}
+    <div className="flex flex-col">
       <PageHeader
         title={projectName}
         description={repoFullName ?? 'aucun dépôt lié — l’architecte ne peut pas lire de code'}
@@ -894,24 +888,22 @@ export default function BuilderWorkspace({
         }
       />
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 py-4 sm:px-6">
+      <PageBody className="gap-3">
         {error ? (
-          <div className="shrink-0">
+          <div>
             <ErrorNote error={error} />
           </div>
         ) : null}
 
-        {/* Grille bornée : c'est ELLE qui tient le zéro-scroll. Chaque panneau
-          défile dans sa propre boîte, la page jamais. */}
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
           <Panel
             title="Conversation"
             hint={messageCountLabel(lines.length)}
-            className="min-h-0 xl:col-span-1"
+            className="xl:col-span-1"
             padded={false}
-            bodyClassName="flex flex-col min-h-0"
+            bodyClassName="flex flex-col"
           >
-            <div ref={threadRef} className="min-h-0 flex-1 overflow-y-auto">
+            <div ref={threadRef}>
               {/* `emptyProven` était câblé en dur à `true` — la branche `'unread'`
                * de `ChatThread` était donc MORTE, et un fil dont la lecture avait
                * échoué affirmait « la lecture a réussi et le fil est réellement
@@ -963,9 +955,7 @@ export default function BuilderWorkspace({
           <Panel
             title="Spécification"
             hint={preview?.readyForApproval ? 'prête' : 'en cours'}
-            className="min-h-0"
             padded={false}
-            bodyClassName="overflow-y-auto"
           >
             <SpecPanel
               preview={preview}
@@ -978,9 +968,8 @@ export default function BuilderWorkspace({
           <Panel
             title="Matérialisation"
             hint={hitl.label}
-            className="min-h-0 lg:col-span-2 xl:col-span-1"
+            className="lg:col-span-2 xl:col-span-1"
             padded={false}
-            bodyClassName="overflow-y-auto"
           >
             <div className="flex flex-col">
               <HitlPanel hitl={hitl} onDecide={requestDecision} pending={busy === 'decision'} />
@@ -1021,11 +1010,11 @@ export default function BuilderWorkspace({
           </Panel>
         </div>
 
-        <Text className="aig-text-faint shrink-0 text-xs">
+        <Text className="aig-text-faint text-xs">
           Aucune action de cette surface n’écrit sur GitHub. Toute mutation facturée passe par une
           confirmation explicite.
         </Text>
-      </div>
+      </PageBody>
 
       {confirmer.descriptor ? (
         <CostedConfirmDialog

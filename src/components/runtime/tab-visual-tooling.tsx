@@ -210,7 +210,7 @@ function ToolRow({ tool }: Readonly<{ tool: ToolProbe }>) {
 
 export default function VisualToolingTab({ data }: Readonly<{ data: VisualToolingData }>) {
   return (
-    <div className="scroll-thin flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto" data-testid="visual-tooling">
+    <div className="flex flex-col gap-3" data-testid="visual-tooling">
       <Panel
         title="Outillage visuel"
         // Court exprès : le hint de `Panel` est `shrink-0 truncate`, donc à

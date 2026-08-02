@@ -222,7 +222,7 @@ function ReviewQueueZone({ overview }: Readonly<{ overview: LearningOverview }>)
       {/* La file est un FLUX : elle descend dans un creux qui l'accueille, avec
           de la hauteur réelle, plutôt que d'être posée sur une carte de rang
           égal au reste de l'écran. Box bornée, la donnée défile dedans. */}
-      <div className="aig-inset flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="aig-inset min-w-0">
         {items.length === 0 ? (
           <div className="p-4">
             <Unavailable
@@ -233,7 +233,7 @@ function ReviewQueueZone({ overview }: Readonly<{ overview: LearningOverview }>)
         ) : (
           // Le séparateur prend le liseré doux de la grammaire : il n'y a plus de
           // paire claire/sombre à arbitrer, le document est graphite partout.
-          <ul className="scroll-thin min-h-0 flex-1 divide-y divide-[color:var(--aig-line-soft)] overflow-y-auto">
+          <ul className="divide-y divide-[color:var(--aig-line-soft)]">
             {items.slice(0, REVIEW_QUEUE_PREVIEW).map((item) => (
               <li key={item.id} className="flex items-start justify-between gap-3 px-4 py-3">
                 <div className="min-w-0">
@@ -429,13 +429,6 @@ export default function LearningScreen({
   purpose: string
 }>) {
   return (
-    // Cette page est un DOCUMENT : ses quatre zones s'empilent et defilent avec
-    // la fenetre. `PageBody` ne borne pas la hauteur, c'est exactement ce qu'il
-    // faut ici — contrairement a `/actions`, dont la file est une boite bornee
-    // dans laquelle la donnee defile.
-    //
-    // La gouttiere du bouton de navigation mobile et le sticky de l'en-tete
-    // viennent de `PageHeader` : cet ecran n'a plus de geometrie a lui.
     <>
       {/* Les deux liens de sortie vivaient au fond du panneau « Évaluations »,
           qui est précisément la zone qui n'a rien à montrer : les commandes de

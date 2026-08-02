@@ -4,8 +4,8 @@ import AppShell from '@/components/app-shell'
 import RunsScreen from '@/components/runs/runs-screen'
 import { countProvenance } from '@/components/runs/run-view-model'
 import type { ProvenanceBreakdown } from '@/components/runs/run-view-model'
-import SurfaceState from '@/components/surface-state'
 import { navEntry } from '@/components/navigation'
+import { SurfaceUnavailable } from '@/components/surface-shell'
 import { listRecentRuntimeTelemetryEvents } from '@/lib/agent-mission-control/runtime-telemetry-store'
 import { deriveRunsMetrics } from '@/lib/runs-console/runs-metrics'
 import { getRunsPageData } from '@/lib/runs-console/runs-page-data'
@@ -98,21 +98,15 @@ export default async function RunsPage({ searchParams }: { searchParams?: Promis
   if (data === null) {
     return (
       <AppShell>
-        <div className="h-full p-4 max-lg:pt-20">
-          <div className="aig-panel flex h-full items-center justify-center">
-            {/* `unavailable` — le flux interrompu, pas le blueprint : l'adresse
-                est connue, c'est la LECTURE qui a échoué. La cause remonte
-                telle quelle, sans être maquillée en « aucun run ». */}
-            <SurfaceState
-              kind="unavailable"
-              detail={
-                failure
-                  ? `La fenêtre de runs n'a pas pu être lue — ${failure}. Aucun run n'est affiché : une liste vide laisserait croire que la flotte est au repos.`
-                  : "La fenêtre de runs n'a pas pu être lue. Aucun run n'est affiché — une liste vide laisserait croire que la flotte est au repos."
-              }
-            />
-          </div>
-        </div>
+        <SurfaceUnavailable
+          title={ENTRY.name}
+          description={ENTRY.purpose}
+          detail={
+            failure
+              ? `La fenêtre de runs n'a pas pu être lue — ${failure}. Aucun run n'est affiché : une liste vide laisserait croire que la flotte est au repos.`
+              : "La fenêtre de runs n'a pas pu être lue. Aucun run n'est affiché — une liste vide laisserait croire que la flotte est au repos."
+          }
+        />
       </AppShell>
     )
   }

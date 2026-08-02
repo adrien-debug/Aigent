@@ -1,5 +1,5 @@
 /**
- * Fiche d'un agent — page produit, sections longues, scroll document naturel.
+ * Fiche d'un agent — page produit, sections longues.
  *
  * Server Component pur : il reçoit `AgentDetail` plus la gate de release et les
  * distribue sans recalculer les verdicts canoniques. Le détail complet vient
@@ -495,13 +495,13 @@ function ActivitySection({ detail }: Readonly<{ detail: AgentDetail }>) {
 
           {/* Le flux de runs dans un CREUX, à hauteur bornée : la boîte ne
               grandit pas avec la donnée, la donnée défile dedans. */}
-          <div className="aig-inset min-h-0 flex-1 overflow-hidden">
+          <div className="aig-inset">
             {runs.length === 0 ? (
               <div className="p-4">
                 <Unavailable reason="no-data" detail="Aucun run n'est enregistre pour cet agent." />
               </div>
             ) : (
-              <ul className="scroll-thin max-h-[26rem] divide-y divide-[color:var(--aig-line-soft)] overflow-y-auto px-4">
+              <ul className="divide-y divide-[color:var(--aig-line-soft)] px-4">
                 {runs.slice(0, 12).map((run) => (
                   <li key={run.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
                     <div className="min-w-0 flex-1">
@@ -620,7 +620,7 @@ function QualificationSection({
         {qualification.steps.length === 0 ? (
           <Text>Aucune étape ne porte encore de verdict exploitable.</Text>
         ) : (
-          <ul className="aig-inset scroll-thin max-h-96 divide-y divide-[color:var(--aig-line-soft)] overflow-y-auto px-3">
+          <ul className="aig-inset divide-y divide-[color:var(--aig-line-soft)] px-3">
             {qualification.steps.map((step) => (
               <li
                 key={step.step + '-' + step.at}
@@ -680,7 +680,7 @@ function QualificationSection({
               </div>
               {/* La liste des checks est un flux : elle descend dans un creux
                   à hauteur bornée plutôt que d'allonger la boîte. */}
-              <ul className="aig-inset scroll-thin max-h-96 divide-y divide-[color:var(--aig-line-soft)] overflow-y-auto px-3">
+              <ul className="aig-inset divide-y divide-[color:var(--aig-line-soft)] px-3">
                 {sortChecks(gate.checks).map((check) => (
                   <li
                     key={check.id}
@@ -926,7 +926,7 @@ function ConfigurationSection({ detail }: Readonly<{ detail: AgentDetail }>) {
 
           {/* Le montage d'outils est une LISTE : creux à hauteur bornée, la
               donnée défile dedans plutôt que d'allonger la page. */}
-          <div className="aig-inset scroll-thin max-h-[30rem] min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="aig-inset p-4">
             {mountedToolsBody}
           </div>
         </div>

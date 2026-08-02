@@ -32,9 +32,9 @@
  * confirmation et le même armement du mode live. Toutes les données affichées
  * avant le sont encore.
  *
- * SCROLL : un seul conteneur défilant, celui de la page. Aucun panneau ne porte
- * de `overflow-y-auto` — les onze mini-scrolls imbriqués de la version
- * précédente rendaient toute lecture continue impossible.
+ * SCROLL : `PageBody` est le seul scroller. Aucun panneau ne porte de
+ * `overflow-y-auto` local — les mini-scrolls imbriqués de la version précédente
+ * rendaient toute lecture continue impossible.
  */
 import { PageBody, PageHeader } from '@/components/app-shell'
 import { Badge } from '@/components/ui/badge'
@@ -266,9 +266,7 @@ export default function QualificationCockpitScreen({
   const action = nextAction(pipeline, decision)
 
   return (
-    // UN SEUL conteneur de scroll : la page. Aucun panneau n'en porte un second.
-    // L'en-tete sort du corps pour que le sticky du shell fonctionne, et
-    // `PageBody` remplace `shell-page-document` + sa gouttiere mobile locale.
+    // Scroll unique via `PageBody`. L'en-tête sort du corps pour le sticky du shell.
     <>
       <CockpitHeader detail={detail} state={decision.state} />
 

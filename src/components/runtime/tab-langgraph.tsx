@@ -37,7 +37,7 @@ function EndpointPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
   const reachable = data.assistants.ok
 
   return (
-    <section className="min-h-0 shrink-0">
+    <section className="shrink-0">
       <h3 className="text-sm font-semibold">Agent Server</h3>
       <p className="aig-text-faint text-xs">joignabilité déduite d’une lecture réelle</p>
       <div className="aig-hairline my-2" />
@@ -146,7 +146,7 @@ function ProvisioningPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
     : null
 
   return (
-    <section className="min-h-0 shrink-0">
+    <section className="shrink-0">
       <h3 className="text-sm font-semibold">Provisioning des assistants</h3>
       <p className="aig-text-faint text-xs">le défaut qu’aucune gate ne détecte</p>
       <div className="aig-hairline my-2" />
@@ -359,19 +359,12 @@ function ServerStatePanel({ data }: Readonly<{ data: LangGraphTabData }>) {
  * lisible comme un flux. Il ne change RIEN au contrat — même source, même
  * traitement de l'indisponibilité, aucune écriture. Voir `graph-canvas.tsx`.
  *
- * La hauteur est BORNÉE (`h-[26rem]`) et ne suit pas la taille du graphe : un
- * graphe de 200 nœuds se navigue au zoom, il ne pousse pas la page.
- */
-/**
- * Le panneau du graphe — il PREND la place, il ne l'attend pas.
- *
- * `flex-1` plutôt qu'une hauteur fixe : le Canvas occupe le viewport restant à
- * 1440×900 comme à 1280×800. Le plancher `min-h-[22rem]` garantit qu'il reste
- * lisible sur un écran court, où il devient alors scrollable avec le reste.
+ * Le conteneur du graphe porte une hauteur explicite : React Flow ne mesure pas
+ * un parent flex sans borne. Le reste de l'onglet défile dans `PageBody`.
  */
 function TopologyPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
   return (
-    <section className="flex min-h-[22rem] flex-1 flex-col">
+    <section className="flex flex-col">
       <h3 className="text-sm font-semibold">Topologie · {data.graphId}</h3>
       <div className="aig-hairline my-2" />
       <LoadedBlock loaded={data.topology} what="La topologie du graphe">
@@ -381,16 +374,18 @@ function TopologyPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
           !topology.topologyAvailable ? (
             <ProvenEmpty detail="Le serveur ne publie pas la topologie de ce graphe. Ce n’est pas un graphe sans nœuds — c’est une information que l’API ne rend pas." />
           ) : (
-            <div className="flex min-h-0 flex-1 flex-col gap-2">
+            <div className="flex flex-col gap-2">
               <Text className="aig-text-faint text-xs">
                 {topology.nodes.length} nœud(s) · {topology.edges.length} arête(s)
               </Text>
-              <GraphCanvas
-                graphId={topology.graphId}
-                nodes={topology.nodes}
-                edges={topology.edges}
-                readOnly
-              />
+              <div className="min-h-[22rem]">
+                <GraphCanvas
+                  graphId={topology.graphId}
+                  nodes={topology.nodes}
+                  edges={topology.edges}
+                  readOnly
+                />
+              </div>
             </div>
           )
         }
@@ -414,15 +409,14 @@ function TopologyPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
  * flux du document, et l'onglet garde sa nature de Server Component. Le piège
  * de l'assistant (§2 du bandeau) reste donc lisible d'un clic, jamais perdu.
  *
- * PAS de `xl:overflow-hidden` sur la colonne : au-delà de 1280 il cessait de
- * défiler et COUPAIT — contenu inatteignable, sans aucun signal. Le zéro-scroll
- * de la PAGE reste tenu par le `h-full overflow-hidden` de `runtime-screen`.
+ * Le défilement vit dans `PageBody` : cet onglet reste dans le flux du document,
+ * sans chaîne `flex-1 min-h-0` qui supposerait un viewport borné.
  */
 export default function LangGraphTab({ data }: Readonly<{ data: LangGraphTabData }>) {
   const reachable = data.assistants.ok
 
   return (
-    <div className="scroll-thin flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+    <div className="flex flex-col gap-3">
       {/*
         Résumé serveur COMPACT — trois faits sur une ligne, pas un panneau.
         Le détail complet vit dans la disclosure, à un clic.
@@ -444,7 +438,7 @@ export default function LangGraphTab({ data }: Readonly<{ data: LangGraphTabData
         )}
       </div>
 
-      {/* LE SUJET — `flex-1` : la topologie prend la place restante. */}
+      {/* LE SUJET — topologie en tête de l'onglet. */}
       <TopologyPanel data={data} />
 
       {/* La disclosure est un CONTENANT replié, pas une alerte : liseré discret

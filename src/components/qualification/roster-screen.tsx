@@ -232,16 +232,12 @@ export default function QualificationRosterScreen({
   const guardUnknown = ranked.filter((c) => c.runBlockerCount === null).length
 
   return (
-    // `PageHeader` porte déjà la gouttière mobile (`max-lg:pl-16`) et son
-    // `sticky` : la reposer ici la doublerait. Le conteneur ne garde donc que
-    // sa contrainte de hauteur — la page ne pousse pas le shell, c'est le banc
-    // qui défile dans sa box.
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+    <>
       <PageHeader
         title={navEntry('/qualification').name}
         description={navEntry('/qualification').purpose}
       />
-      <PageBody className="min-h-0 flex-1 gap-5">
+      <PageBody className="gap-5">
         {/* ÉTAT DES CANDIDATS — la zone dominante. Ces chiffres vivaient en
             badges de 11 px dans le `meta` de l'en-tête : l'information
             principale de la surface rendue à la taille d'une étiquette. Ils
@@ -312,13 +308,13 @@ export default function QualificationRosterScreen({
         {/* Le banc descend dans un CREUX : il accueille la liste au lieu de la
             poser sur une énième carte de rang égal à la scène. La box reste
             bornée, la donnée défile dedans. */}
-        <section className="flex min-h-0 min-w-0 flex-col xl:flex-1">
+        <section className="flex min-w-0 flex-col">
           <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 pb-3">
             <Subheading level={2}>Banc de qualification</Subheading>
             <Text className="aig-text-muted text-sm">{ranked.length} au catalogue</Text>
           </div>
 
-          <div className="aig-inset flex min-h-80 min-w-0 flex-col overflow-hidden xl:min-h-0 xl:flex-1">
+          <div className="aig-inset min-w-0">
             {ranked.length === 0 ? (
               <div className="p-4">
                 <Unavailable
@@ -327,9 +323,7 @@ export default function QualificationRosterScreen({
                 />
               </div>
             ) : (
-              // Séparateur discret de la grammaire : la paire claire/sombre
-              // dosée à la main n'avait plus de moitié claire à rendre.
-              <ul className="scroll-thin min-h-0 flex-1 divide-y divide-[color:var(--aig-line-soft)] overflow-y-auto">
+              <ul className="divide-y divide-[color:var(--aig-line-soft)]">
                 {ranked.map((candidate) => (
                   <CandidateRow key={candidate.copilotId} candidate={candidate} />
                 ))}
@@ -338,6 +332,6 @@ export default function QualificationRosterScreen({
           </div>
         </section>
       </PageBody>
-    </div>
+    </>
   )
 }

@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 
 import AppShell from '@/components/app-shell'
 import AgentRosterScreen from '@/components/agents/roster-screen'
-import SurfaceState from '@/components/surface-state'
 import { navEntry } from '@/components/navigation'
+import { SurfaceUnavailable } from '@/components/surface-shell'
 import { getAvailableAgents } from '@/lib/agent-mission-control/available-agents'
 
 /**
@@ -49,21 +49,15 @@ export default async function Page() {
   if (agents === null) {
     return (
       <AppShell>
-        <div className="h-full p-4 max-lg:pt-20">
-          <div className="aig-panel flex h-full items-center justify-center">
-            {/* Le flux interrompu, pas le blueprint : la source EXISTE, c'est la
-                lecture qui a échoué. Même geste que `/runs` sur la même nature
-                d'échec — un opérateur reconnaît l'état sans relire le texte. */}
-            <SurfaceState
-              kind="unavailable"
-              detail={
-                failure
-                  ? `Le catalogue d’agents n’a pas pu être lu — ${failure}. Aucune liste n’est affichée : une liste vide se lirait comme « aucun agent », ce qui n’est pas ce qui est su.`
-                  : 'Le catalogue d’agents n’a pas pu être lu. Aucune liste n’est affichée — une liste vide se lirait comme « aucun agent », ce qui n’est pas ce qui est su.'
-              }
-            />
-          </div>
-        </div>
+        <SurfaceUnavailable
+          title={ENTRY.name}
+          description={ENTRY.purpose}
+          detail={
+            failure
+              ? `Le catalogue d’agents n’a pas pu être lu — ${failure}. Aucune liste n’est affichée : une liste vide se lirait comme « aucun agent », ce qui n’est pas ce qui est su.`
+              : 'Le catalogue d’agents n’a pas pu être lu. Aucune liste n’est affichée — une liste vide se lirait comme « aucun agent », ce qui n’est pas ce qui est su.'
+          }
+        />
       </AppShell>
     )
   }

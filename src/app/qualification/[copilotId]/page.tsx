@@ -4,7 +4,8 @@ import { notFound } from 'next/navigation'
 import AppShell from '@/components/app-shell'
 import QualificationCockpitScreen from '@/components/qualification/cockpit-screen'
 import { loadQualificationDetail } from '@/components/qualification/server-reads'
-import SurfaceState from '@/components/surface-state'
+import { navEntry } from '@/components/navigation'
+import { SurfaceUnavailable } from '@/components/surface-shell'
 
 /**
  * Fiche de qualification — `/qualification/[copilotId]`, deep link réel.
@@ -22,6 +23,8 @@ import SurfaceState from '@/components/surface-state'
  * `improvement_proposals` sont réellement vides en base. Rendre ce vide comme
  * une panne — ou l'inverse — serait le mensonge le plus facile de cet écran.
  */
+const ENTRY = navEntry('/qualification')
+
 export const dynamic = 'force-dynamic'
 
 type PageProps = { params: Promise<{ copilotId: string }> }
@@ -50,17 +53,11 @@ export default async function Page({ params }: PageProps) {
     const failure = err instanceof Error ? err.message : 'lecture impossible'
     return (
       <AppShell>
-        <div className="h-full p-4 max-lg:pt-20">
-          <div className="aig-panel flex h-full items-center justify-center">
-            {/* Le flux interrompu : la source EXISTE, c'est la lecture qui
-                a echoue. Meme geste sur toutes les surfaces — un operateur
-                reconnait l'etat sans relire le texte. */}
-            <SurfaceState
-              kind="unavailable"
-              detail={`La fiche de qualification n’a pas pu être lue. Ce n’est pas « agent inconnu » — c’est une lecture qui a échoué.${failure ? ` (${failure})` : ''}`}
-            />
-          </div>
-        </div>
+        <SurfaceUnavailable
+          title={ENTRY.name}
+          description={ENTRY.purpose}
+          detail={`La fiche de qualification n’a pas pu être lue. Ce n’est pas « agent inconnu » — c’est une lecture qui a échoué.${failure ? ` (${failure})` : ''}`}
+        />
       </AppShell>
     )
   }

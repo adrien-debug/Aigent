@@ -1,5 +1,6 @@
 import AppShell from '@/components/app-shell'
-import SurfaceState from '@/components/surface-state'
+import { navEntry } from '@/components/navigation'
+import { SurfaceLoading } from '@/components/surface-shell'
 
 /**
  * État de CHARGEMENT de `/runs` — le quatrième état, distinct des trois autres.
@@ -13,17 +14,16 @@ import SurfaceState from '@/components/surface-state'
  * `dynamic = 'force-dynamic'` sur la page fait que cet écran est réellement vu
  * pendant la lecture PostgREST, qui n'est pas instantanée.
  */
+const ENTRY = navEntry('/runs')
+
 export default function Loading() {
   return (
     <AppShell>
-      <div className="h-full p-4 max-lg:pt-20">
-        <div className="aig-panel flex h-full items-center justify-center">
-          <SurfaceState
-            kind="loading"
-            detail="La fenêtre de runs des dernières 24 heures est en cours de lecture. Aucun chiffre n’est affiché tant que la lecture n’a pas abouti."
-          />
-        </div>
-      </div>
+      <SurfaceLoading
+        title={ENTRY.name}
+        description={ENTRY.purpose}
+        detail="La fenêtre de runs des dernières 24 heures est en cours de lecture. Aucun chiffre n’est affiché tant que la lecture n’a pas abouti."
+      />
     </AppShell>
   )
 }

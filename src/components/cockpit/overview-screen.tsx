@@ -212,7 +212,7 @@ export default function CockpitOverview({
         }
       />
 
-      <PageBody className="flex min-h-0 flex-1 flex-col gap-4">
+      <PageBody className="gap-4">
         {/*
          * LA SCÈNE — une seule zone dominante, et tout le reste en dessous.
          *
@@ -227,7 +227,7 @@ export default function CockpitOverview({
          * même surface que la courbe qui la dessine, parce qu'ils parlent de la
          * même chose. La légende de statut monte dans l'en-tête de la scène.
          */}
-        <section className="aig-stage flex min-w-0 flex-col overflow-hidden">
+        <section className="aig-stage flex min-w-0 flex-col">
           <header className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 pt-4 pb-3">
             <div className="min-w-0">
               <p className="aig-text-faint text-3xs font-medium uppercase tracking-[0.2em]">
@@ -260,8 +260,8 @@ export default function CockpitOverview({
             60 / 40 : le flux se lit ligne à ligne et garde la majorité, mais les
             projets portent DES CARTES — à 30 % la colonne n'en montrait que deux
             sur dix et coupait la troisième au bord. */}
-        <section className="grid min-h-0 min-w-0 grid-cols-1 gap-5 xl:grid-cols-[6fr_4fr]">
-          <div className="flex min-h-0 min-w-0 flex-col">
+        <section className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[6fr_4fr]">
+          <div className="flex min-w-0 flex-col">
             <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-2">
               <h2 className="aig-display truncate text-sm font-semibold">Flux d&apos;exécution</h2>
               {runs ? <p className="aig-text-faint truncate text-2xs">{runs.length} sur la fenêtre</p> : null}
@@ -273,10 +273,10 @@ export default function CockpitOverview({
               </Link>
             </header>
             <div className="aig-hairline mb-3" />
-            <div className="min-h-0 flex-1 overflow-y-auto">{renderRunStreamPanel(runs, nowMs)}</div>
+            <div>{renderRunStreamPanel(runs, nowMs)}</div>
           </div>
 
-          <div className="flex min-h-0 min-w-0 flex-col border-l border-(--aig-line-soft) pl-4">
+          <div className="flex min-w-0 flex-col border-l border-(--aig-line-soft) pl-4">
             <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-2">
               <h2 className="aig-display truncate text-sm font-semibold">Projets</h2>
               <p className="aig-text-faint truncate text-2xs">{projectCards.length} au catalogue</p>
@@ -295,9 +295,7 @@ export default function CockpitOverview({
             {projectCards.length === 0 ? (
               <Unavailable reason="no-data" detail="Aucun projet dans le catalogue." />
             ) : (
-              <div className="scroll-thin min-h-0 max-h-64 shrink overflow-y-auto">
-                <ProjectList cards={rankedProjects} />
-              </div>
+              <ProjectList cards={rankedProjects} />
             )}
 
             <div className="aig-hairline my-3" />

@@ -457,7 +457,7 @@ function EventsPanel({ events }: Readonly<{ events: TelemetryTabData['events'] }
 
 export default function TelemetryTab({ data }: Readonly<{ data: TelemetryTabData }>) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+    <div className="flex flex-col gap-3">
       <HealthPanel health={data.health} />
       <FleetPanel fleet={data.fleet} />
 

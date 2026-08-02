@@ -31,7 +31,7 @@ export default function ModelsTab({ data }: Readonly<{ data: ModelsTabData }>) {
   const configuredLocal = data.local.filter((row) => row.configured)
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+    <div className="flex flex-col gap-3">
       <section className="min-h-0 shrink-0">
         <h3 className="text-sm font-semibold">Parc local — vLLM</h3>
         <p className="aig-text-faint text-xs">

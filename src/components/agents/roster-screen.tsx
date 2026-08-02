@@ -282,7 +282,7 @@ export default function AgentRosterScreen({
             </Text>
           </div>
 
-          <div className="aig-inset min-h-88 overflow-hidden">
+          <div className="aig-inset min-w-0">
             {ranked.length === 0 ? (
               <div className="px-5 py-10">
                 <Unavailable
@@ -291,7 +291,7 @@ export default function AgentRosterScreen({
                 />
               </div>
             ) : (
-              <ul className="scroll-thin max-h-[calc(100svh-24rem)] min-h-88 divide-y divide-(--aig-line-soft) overflow-y-auto">
+              <ul className="divide-y divide-(--aig-line-soft)">
                 {ranked.map((agent) => (
                   <AgentRosterRow key={agent.copilotId} agent={agent} />
                 ))}

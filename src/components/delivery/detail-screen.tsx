@@ -20,7 +20,7 @@
  * présente. Les deux premières ne se rendent jamais pareil.
  */
 import type { ReactNode } from 'react'
-import { PageHeader } from '@/components/app-shell'
+import { PageBody, PageHeader } from '@/components/app-shell'
 import { Badge } from '@/components/ui/badge'
 import { Divider } from '@/components/ui/divider'
 import { Link } from '@/components/ui/link'
@@ -156,7 +156,6 @@ function DeliveryEventPanel({ detail }: Readonly<DeliveryEventPanelProps>) {
       title="Dernière livraison"
       hint={detail.repoFullName ?? 'aucun dépôt cible'}
       className="min-h-56 min-w-0"
-      bodyClassName="scroll-thin overflow-y-auto"
     >
       {body}
     </Panel>
@@ -180,7 +179,6 @@ function DeliveryStatesPanel({ detail }: Readonly<DeliveryStatesPanelProps>) {
       hint={states.length + ' états distincts'}
       className="min-h-80 min-w-0"
       padded={false}
-      bodyClassName="scroll-thin overflow-y-auto"
     >
       {/* Le `border-*` de cette boîte n'a jamais eu de `border-width` : il ne
           peignait rien. Retiré plutôt que traduit — la grammaire ne reprend pas
@@ -231,7 +229,6 @@ function ScorecardPanel({ card, failure }: Readonly<ScorecardPanelProps>) {
       title="Scorecard de livraison"
       hint={scorecardPanelHint(card)}
       className="min-h-64 min-w-0"
-      bodyClassName="scroll-thin overflow-y-auto"
     >
       {body}
     </Panel>
@@ -335,7 +332,6 @@ function SandboxPanel({ report, failure }: Readonly<SandboxPanelProps>) {
       title="Sandbox du dépôt cible"
       hint={report ? report.repo : undefined}
       className="min-h-64 min-w-0"
-      bodyClassName="scroll-thin overflow-y-auto"
     >
       {body}
     </Panel>
@@ -517,7 +513,6 @@ function ConsumerPanel({ detail }: Readonly<ConsumerPanelProps>) {
       title="Runtime consommateur"
       hint={detail.repoFullName ?? undefined}
       className="min-h-64 min-w-0"
-      bodyClassName="scroll-thin overflow-y-auto"
     >
       <div className="flex flex-col gap-3">
         {/* ── Provisioning du pack d'accueil ── */}
@@ -578,16 +573,9 @@ export default function DeliveryDetailScreen({ detail }: Readonly<DeliveryDetail
         }
       />
 
-      {/* Cet écran recompose son corps à la main au lieu d'utiliser `PageBody`.
-          Il portait donc `min-h-0` sans `flex-1` ni `overflow-y-auto` : tant que
-          le document défilait, ça tenait par accident. Le document étant
-          désormais borné au viewport, il faut le scroll ICI — sans lui, mesuré
-          à 1280×800, NEUF sections passaient sous le pli sans aucun ancêtre
-          défilable pour les atteindre. */}
-      <div className="scroll-thin flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 sm:px-6">
-
+      <PageBody className="gap-3">
       {!detail.projectRead ? (
-        <div className="shrink-0">
+        <div>
           <Note tone="warn" title="Projet non lu">
             Le projet de cet agent n’a pas pu être lu : le dépôt cible affiché ci-dessus est peut-être
             incomplet. Ce n’est pas « aucun projet ».
@@ -596,11 +584,11 @@ export default function DeliveryDetailScreen({ detail }: Readonly<DeliveryDetail
       ) : null}
 
       {/* ─── Les huit états, en tête ─── */}
-      <div className="min-h-0 shrink-0">
+      <div>
         <DeliveryStatesPanel detail={detail} />
       </div>
 
-      <div className="grid shrink-0 gap-3 xl:grid-cols-2">
+      <div className="grid gap-3 xl:grid-cols-2">
         <DeliveryEventPanel detail={detail} />
         <ConsumerPanel detail={detail} />
         <ScorecardPanel card={detail.scorecard} failure={detail.scorecardFailure} />
@@ -608,7 +596,7 @@ export default function DeliveryDetailScreen({ detail }: Readonly<DeliveryDetail
       </div>
 
       {/* ─── Le poste de livraison ─── */}
-      <Panel title="Actions de livraison" className="min-h-0 shrink-0 min-w-0">
+      <Panel title="Actions de livraison" className="min-w-0">
         <DeliveryConsole
           target={{
             copilotId: detail.copilotId,
@@ -620,7 +608,7 @@ export default function DeliveryDetailScreen({ detail }: Readonly<DeliveryDetail
           }}
         />
       </Panel>
-      </div>
+      </PageBody>
     </>
   )
 }

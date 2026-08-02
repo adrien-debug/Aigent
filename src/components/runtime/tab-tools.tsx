@@ -105,7 +105,7 @@ export default function ToolsTab({ data }: Readonly<{ data: ToolsTabData }>) {
   const agents = data.agents.ok ? data.agents.data : null
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+    <div className="flex flex-col gap-3">
       <section className="min-h-0 shrink-0">
         <h3 className="text-sm font-semibold">Registre canonique des outils</h3>
         <p className="aig-text-faint text-xs">l’autorité unique</p>
@@ -186,7 +186,7 @@ export default function ToolsTab({ data }: Readonly<{ data: ToolsTabData }>) {
           backend. Seule la colonne d'usage devient inconnue, et chaque ligne le
           DIT plutôt que d'afficher « monté sur 0 agent », qui serait faux.
         */}
-        <ul className="scroll-thin divide-y divide-[color:var(--aig-line-soft)] overflow-y-auto">
+        <ul className="divide-y divide-[color:var(--aig-line-soft)]">
           {tools.map((tool) => (
             <ToolRow
               key={tool.id}

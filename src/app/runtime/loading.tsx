@@ -1,5 +1,6 @@
 import AppShell from '@/components/app-shell'
-import SurfaceState from '@/components/surface-state'
+import { navEntry } from '@/components/navigation'
+import { SurfaceLoading } from '@/components/surface-shell'
 
 /**
  * Attente de la surface Runtime.
@@ -10,14 +11,16 @@ import SurfaceState from '@/components/surface-state'
  * encore été lu, et sur une surface qui décrit ce qui est câblé ou non, ce faux
  * aperçu serait précisément le mensonge à éviter.
  */
+const ENTRY = navEntry('/runtime')
+
 export default function Loading() {
   return (
     <AppShell>
-      <div className="h-full p-4 max-lg:pt-20">
-        <div className="aig-panel flex h-full items-center justify-center">
-          <SurfaceState kind="loading" detail="Lecture de l’état du plan d’exécution. Aucun chiffre n’est affiché tant que la lecture n’a pas abouti." />
-        </div>
-      </div>
+      <SurfaceLoading
+        title={ENTRY.name}
+        description={ENTRY.purpose}
+        detail="Lecture de l’état du plan d’exécution. Aucun chiffre n’est affiché tant que la lecture n’a pas abouti."
+      />
     </AppShell>
   )
 }

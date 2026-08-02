@@ -1,5 +1,6 @@
 import AppShell from '@/components/app-shell'
-import SurfaceState from '@/components/surface-state'
+import { navEntry } from '@/components/navigation'
+import { SurfaceLoading } from '@/components/surface-shell'
 
 /**
  * L'aperçu lit six sources PostgREST avant de rendre quoi que ce soit. Sans ce
@@ -16,14 +17,16 @@ import SurfaceState from '@/components/surface-state'
  * ne traverse cet état que le temps d'un rendu. Quand une surface acquerra sa
  * propre lecture, elle apportera son propre `loading.tsx` qui pourra la nommer.
  */
+const ENTRY = navEntry('/')
+
 export default function Loading() {
   return (
     <AppShell>
-      <div className="h-full p-4 max-lg:pt-20">
-        <div className="aig-panel flex h-full items-center justify-center">
-          <SurfaceState kind="loading" detail="La surface est en cours de lecture." />
-        </div>
-      </div>
+      <SurfaceLoading
+        title={ENTRY.name}
+        description={ENTRY.purpose}
+        detail="La surface est en cours de lecture."
+      />
     </AppShell>
   )
 }

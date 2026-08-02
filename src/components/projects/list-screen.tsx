@@ -3,24 +3,11 @@
  *
  * Server Component : il reçoit des lignes déjà qualifiées par `./model` et les
  * rend. Aucune lecture ici.
- *
- * ZÉRO-SCROLL : la page est `h-full overflow-hidden` ; c'est la LISTE qui
- * défile, dans sa box de hauteur bornée (`Panel`). Une box ne grandit jamais
- * avec sa donnée.
- *
- * CE QUE CET ÉCRAN REFUSE D'AFFICHER
- * ----------------------------------
- * « $0.00 · 0 runs » sur un projet qui n'a aucun agent. Le data layer produit
- * bien un `0` là (`sumMeasuredHealth([])` → `{ value: 0 }`, documenté comme un
- * zéro mesuré : pas d'agent, pas de run, pas de coût) et ce n'est donc pas un
- * faux zéro au sens strict. Mais à l'écran, deux chiffres à zéro se lisent
- * comme « on a mesuré, c'est calme », alors que le fait réel est « il n'y a
- * personne ». On dit le fait. Voir `./model.ts` → `MeasureState`.
  */
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 
-import { PageHeader } from '@/components/app-shell'
+import { PageBody, PageHeader } from '@/components/app-shell'
 import { Avatar } from '@/components/ui/avatar'
 import { Divider } from '@/components/ui/divider'
 import { Strong, Text } from '@/components/ui/text'
@@ -64,11 +51,6 @@ function ProjectListRow({ item }: Readonly<{ item: ProjectListItem }>) {
 
   return (
     <li className="aig-line-soft border-b last:border-b-0">
-      {/* Toute la ligne est cliquable — le deep link est la raison d'être de
-          cette liste. `block` + `focus-visible` : atteignable au clavier.
-          La paire `X dark:Y` est simplifiée à sa seule valeur sombre : le
-          document entier est graphite (`layout.tsx`), la branche claire ne se
-          déclenchait plus jamais. */}
       <Link
         href={item.href}
         className="grid grid-cols-[minmax(0,1.4fr)_110px_90px_90px_80px] items-center gap-3 px-2 py-2.5 hover:bg-(--aig-line-soft) focus-visible:bg-(--aig-line-soft) focus-visible:outline-hidden sm:px-3"
@@ -153,19 +135,13 @@ export default function ProjectsListScreen({
   failure?: string | null
 }>) {
   return (
-    // L'en-tête vient du shell ; le corps reste BORNÉ à la main. `PageBody` ne
-    // pose aucune borne de hauteur, et cet écran tient son zéro-scroll par une
-    // colonne `h-full overflow-hidden` dont seule la liste défile — l'y
-    // remplacer rendrait la page scrollable et la box grandirait avec la data.
-    // La gouttière mobile n'est pas redoublée : `PageHeader` porte la sienne.
-    <div className="flex h-full min-h-0 flex-col">
+    <>
       <PageHeader
         title="Projets"
         description="Projets consommateurs, leur dépôt cible et les agents qui leur sont rattachés."
       />
-
-      <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 py-4 sm:px-6">
-        <section className="min-h-0 flex-1 overflow-y-auto">
+      <PageBody className="gap-3">
+        <section>
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold">Catalogue</h2>
             <Text className="aig-text-faint text-xs">
@@ -183,13 +159,13 @@ export default function ProjectsListScreen({
           {renderProjectCatalog(unreadable, items, failure)}
         </section>
 
-        <Divider soft className="shrink-0" />
-        <Text className="aig-text-faint shrink-0 text-xs">
+        <Divider soft />
+        <Text className="aig-text-faint text-xs">
           Un projet sans agent n&apos;affiche ni coût ni compteur de runs : il n&apos;a rien à
           mesurer. Une mesure absente sur un projet peuplé s&apos;affiche «&nbsp;{UNAVAILABLE_LABEL}
           &nbsp;», jamais zéro.
         </Text>
-      </div>
-    </div>
+      </PageBody>
+    </>
   )
 }

@@ -1,7 +1,4 @@
-import AppShell from '@/components/app-shell'
-import { Divider } from '@/components/ui/divider'
-import { Heading } from '@/components/ui/heading'
-import { Text } from '@/components/ui/text'
+import AppShell, { PageBody, PageHeader } from '@/components/app-shell'
 import { Unavailable } from '@/components/cockpit/primitives'
 
 /**
@@ -24,32 +21,17 @@ import { Unavailable } from '@/components/cockpit/primitives'
 export default function NotFound() {
   return (
     <AppShell>
-      <div className="h-full overflow-hidden p-4">
-        <section className="aig-panel flex h-full min-h-0 flex-col overflow-hidden">
-          <header className="shrink-0">
-            <div className="px-6 py-4">
-              <Heading level={1}>Page introuvable</Heading>
-              <Text className="mt-1">
-                Cette adresse ne correspond à aucune surface du plan de contrôle.
-              </Text>
-            </div>
-            <Divider soft />
-          </header>
-
-          <div className="min-h-0 flex-1 overflow-y-auto p-6">
-            <div className="mx-auto flex h-full max-w-xl items-center justify-center">
-              <div className="w-full">
-                {/* `block` : ici l'absence EST le contenu de la page. */}
-                <Unavailable
-                  block
-                  reason="no-data"
-                  detail="Aucune lecture n'a échoué et rien n'est en panne : le chemin demandé n'existe pas. Les surfaces réellement disponibles sont dans la navigation."
-                />
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
+      <PageHeader
+        title="Page introuvable"
+        description="Cette adresse ne correspond à aucune surface du plan de contrôle."
+      />
+      <PageBody>
+        <Unavailable
+          block
+          reason="no-data"
+          detail="Aucune lecture n'a échoué et rien n'est en panne : le chemin demandé n'existe pas. Les surfaces réellement disponibles sont dans la navigation."
+        />
+      </PageBody>
     </AppShell>
   )
 }

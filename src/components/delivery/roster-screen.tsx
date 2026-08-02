@@ -216,19 +216,13 @@ export default function DeliveryRosterScreen({
   const ranked = sortDeliveryRows(rows)
 
   return (
-    // `PageHeader` porte la gouttière mobile et le `sticky` : les reposer ici
-    // les doublerait. Le conteneur ne garde que la contrainte de hauteur — la
-    // page ne pousse pas le shell, c'est le banc qui défile dans sa box.
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      {/* Le bandeau de comptage devient le `meta` de l'en-tête : c'est du
-          contexte chiffré de la surface, dérivé de la MÊME liste que la table
-          affiche, pas une action. */}
+    <>
       <PageHeader
         title={navEntry('/delivery').name}
         description={navEntry('/delivery').purpose}
       />
 
-      <PageBody className="min-h-0 flex-1 gap-5">
+      <PageBody className="gap-5">
         {/* LES POUSSÉES — la zone dominante. Les six comptages vivaient en
             badges de 11 px dans le `meta` ; ils portent l'information
             principale de la surface et prennent la scène. Les `title`
@@ -329,13 +323,13 @@ export default function DeliveryRosterScreen({
 
         {/* Le banc dans un CREUX : il accueille la liste, il ne se pose pas en
             carte de rang égal à la scène. Box bornée, la donnée défile dedans. */}
-        <section className="flex min-h-0 min-w-0 flex-col xl:flex-1">
+        <section className="flex min-w-0 flex-col">
           <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 pb-3">
             <Subheading level={2}>Banc de livraison</Subheading>
             <Text className="aig-text-muted text-sm">{ranked.length} au catalogue</Text>
           </div>
 
-          <div className="aig-inset flex min-h-80 min-w-0 flex-col overflow-hidden xl:min-h-0 xl:flex-1">
+          <div className="aig-inset min-w-0">
             {ranked.length === 0 ? (
               <div className="p-4">
                 <Unavailable
@@ -344,9 +338,7 @@ export default function DeliveryRosterScreen({
                 />
               </div>
             ) : (
-              // Séparateur discret de la grammaire — la paire claire/sombre dosée à
-              // la main n'avait plus de moitié claire à rendre.
-              <ul className="scroll-thin min-h-0 flex-1 divide-y divide-[color:var(--aig-line-soft)] overflow-y-auto">
+              <ul className="divide-y divide-[color:var(--aig-line-soft)]">
                 {ranked.map((row) => (
                   <DeliveryRosterRow key={row.copilotId} row={row} />
                 ))}
@@ -355,6 +347,6 @@ export default function DeliveryRosterScreen({
           </div>
         </section>
       </PageBody>
-    </div>
+    </>
   )
 }

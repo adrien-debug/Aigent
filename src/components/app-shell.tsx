@@ -167,12 +167,8 @@ export function PageHeader({
   eyebrow?: string
 }>) {
   return (
-    // `shrink-0` : les écrans BORNÉS (`/actions`, `/projects`, `/builder`) sont
-    // des colonnes flex en `h-full overflow-hidden`. Sans lui, l'en-tête est le
-    // premier à céder quand la donnée pousse — le titre de la surface se
-    // comprimerait pour laisser de la place à une liste qui a déjà son propre
-    // scroll. `sticky` reste inoffensif dans ce cas : sans scroll de document,
-    // il n'a simplement rien à faire.
+    // `shrink-0` : dans une colonne flex, l'en-tête ne doit pas se comprimer
+    // quand le contenu pousse — le titre de la surface reste lisible.
     //
     // LA DESCRIPTION EST DESCENDUE D'UN RANG. Elle occupait la même ligne
     // typographique que le titre et pesait autant que lui ; sur onze surfaces,
@@ -219,19 +215,7 @@ export function PageBody({
   // zone, sinon la page se lit comme une liste uniforme — c'est l'espacement,
   // autant que la matière, qui construit la hiérarchie.
   //
-  // C'EST ICI QUE LE PRODUIT DÉFILE. Le document est borné au viewport
-  // (`layout.tsx`) et la zone de travail est en `overflow-hidden` : sans un
-  // scroller explicite à ce niveau, tout écran plus long que l'écran serait
-  // COUPÉ en silence — un contenu inatteignable sans que rien ne l'indique.
-  //
-  // `flex-1 min-h-0 overflow-y-auto` fait les trois choses nécessaires :
-  // occuper la hauteur restante sous l'en-tête, autoriser la descente sous la
-  // taille du contenu, et donner le scroll à cette zone plutôt qu'au document.
-  //
-  // Les écrans DÉJÀ bornés (`/runtime`, `/builder`, `/projects`) passent
-  // `min-h-0 flex-1` et gèrent leur propre défilement interne ; le
-  // `overflow-y-auto` d'ici n'a alors rien à faire — leur contenu ne dépasse
-  // pas — et il ne double donc pas la barre de défilement.
+  // Scroller unique de chaque surface (`layout.tsx` borne le document).
   // `relative` : les libellés d'accessibilité de Catalyst (`sr-only`) sont en
   // `position: absolute`. Sans bloc conteneur ici, ils se résolvaient sur le
   // VIEWPORT, échappaient au `overflow-hidden` du document et rallongeaient sa
@@ -315,16 +299,7 @@ export default function AppShell({ children }: Readonly<{ children?: ReactNode }
         <NavigationSidebar pathname={pathname} />
       </div>
 
-      {/* Zone de travail — elle monte d'un palier sur le rail.
-
-          `h-full min-h-0 overflow-hidden` + `flex-col` : la zone de travail est
-          BORNÉE au viewport, elle ne grandit plus avec son contenu. Les écrans
-          qui veulent occuper la hauteur le font avec `flex-1` ; ceux qui sont
-          plus longs que l'écran portent leur propre `overflow-y-auto`.
-
-          Le `min-h-0` n'est pas décoratif : sans lui, un enfant `flex-1` refuse
-          de descendre sous la taille de son contenu et le plafond de `h-full`
-          serait franchi en silence — le vide fantôme reviendrait. */}
+      {/* Zone de travail — colonne flex ; le scroll vit dans `PageBody`. */}
       <main className="aig-base relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <MobileNavButton onOpen={() => setShowSidebar(true)} />
         {children}

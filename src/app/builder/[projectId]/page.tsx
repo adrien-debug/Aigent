@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
 import AppShell from '@/components/app-shell'
+import { navEntry } from '@/components/navigation'
+import { SurfaceUnavailable } from '@/components/surface-shell'
 import BuilderWorkspace from '@/components/builder/workspace'
 import { getProject } from '@/lib/agent-mission-control/data'
 import { getProjectBuilderConversationBundle } from '@/lib/agent-mission-control/project-builder-conversation'
@@ -28,6 +30,8 @@ import type { ProjectBuilderConversationBundle } from '@/lib/agent-mission-contr
  * un id inconnu persisterait une conversation fantôme.
  */
 export const dynamic = 'force-dynamic'
+
+const ENTRY = navEntry('/builder')
 
 /** Même forme que le `PROJECT_ID_RE` des routes — un id hors forme n'existe pas. */
 const PROJECT_ID_RE = /^[a-z0-9-]{1,200}$/
@@ -74,14 +78,10 @@ export default async function Page({ params }: { params: Promise<{ projectId: st
   if (!backendConfigured()) {
     return (
       <AppShell>
-        <BuilderWorkspace
-          projectId={projectId}
-          projectName="Projet"
-          repoFullName={null}
-          bundle={null}
-          unreadable
-          failure={null}
-          backendUnavailable
+        <SurfaceUnavailable
+          title={ENTRY.name}
+          description={ENTRY.purpose}
+          detail="Le backend live n’est pas configuré. La conversation d’authoring n’a pas pu être lue — ce n’est pas un fil vide, c’est un fil inconnu."
         />
       </AppShell>
     )
@@ -99,16 +99,13 @@ export default async function Page({ params }: { params: Promise<{ projectId: st
   try {
     project = await getProject(projectId)
   } catch (err) {
+    const failure = err instanceof Error ? err.message : 'lecture impossible'
     return (
       <AppShell>
-        <BuilderWorkspace
-          projectId={projectId}
-          projectName="Projet"
-          repoFullName={null}
-          bundle={null}
-          unreadable
-          failure={err instanceof Error ? err.message : 'lecture impossible'}
-          backendUnavailable={false}
+        <SurfaceUnavailable
+          title={ENTRY.name}
+          description={ENTRY.purpose}
+          detail={`La conversation d’authoring n’a pas pu être lue — ${failure}.`}
         />
       </AppShell>
     )
@@ -127,6 +124,22 @@ export default async function Page({ params }: { params: Promise<{ projectId: st
     failure = err instanceof Error ? err.message : 'lecture impossible'
   }
 
+  if (bundle === null) {
+    return (
+      <AppShell>
+        <SurfaceUnavailable
+          title={ENTRY.name}
+          description={ENTRY.purpose}
+          detail={
+            failure
+              ? `La conversation d’authoring n’a pas pu être lue — ${failure}.`
+              : 'La conversation d’authoring n’a pas pu être lue.'
+          }
+        />
+      </AppShell>
+    )
+  }
+
   return (
     <AppShell>
       <BuilderWorkspace
@@ -134,8 +147,8 @@ export default async function Page({ params }: { params: Promise<{ projectId: st
         projectName={projectName}
         repoFullName={repoFullName}
         bundle={bundle}
-        unreadable={bundle === null}
-        failure={failure}
+        unreadable={false}
+        failure={null}
         backendUnavailable={false}
       />
     </AppShell>

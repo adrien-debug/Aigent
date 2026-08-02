@@ -342,7 +342,7 @@ export default function QueueConsole({
   const failedSources = queue.sources.filter((source) => !source.ok)
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
+    <div className="flex flex-col gap-4">
       {/* Pannes de source — nommées, jamais fondues dans un compteur. Elles
           DOIVENT ressortir : `aig-panel-raised` monte la boîte d'un palier et
           le liseré ambre porte la gravité. L'aplat `bg-amber-50/60` qui vivait
@@ -423,10 +423,9 @@ export default function QueueConsole({
       {/* La file. Boîte bornée, la data défile DEDANS. `aig-panel` remplace le
           trio fond / anneau / ombre codé en dur — un seul jeton pour la même
           brique de surface que les autres écrans. */}
-      <section className="aig-panel flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
+      <section className="aig-panel">
           {visible.length === 0 ? (
-            <div className="flex h-full items-center justify-center p-6">
+            <div className="flex items-center justify-center p-6">
               <Unavailable
                 reason="no-data"
                 detail={
@@ -451,12 +450,7 @@ export default function QueueConsole({
               ))}
             </ul>
           )}
-        </div>
-
-        {/* Pas de gouttière ici : la colonne entière de `/actions` en réserve
-            déjà une sous `lg` (voir `src/app/actions/page.tsx`). En ajouter une
-            seconde décalerait le pied sans raison. */}
-        <footer className="aig-line-soft shrink-0 border-t px-4 py-2">
+        <footer className="aig-line-soft border-t px-4 py-2">
           <Text className="text-xs">
             {visible.length} ligne(s) affichée(s) sur {queue.items.length} · composée le{' '}
             {new Date(queue.composedAt).toLocaleString('fr-FR')}

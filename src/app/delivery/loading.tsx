@@ -1,5 +1,6 @@
 import AppShell from '@/components/app-shell'
-import SurfaceState from '@/components/surface-state'
+import { navEntry } from '@/components/navigation'
+import { SurfaceLoading } from '@/components/surface-shell'
 
 /**
  * Attente de la surface Livraison — banc ET fiche (ce fichier couvre le segment
@@ -11,14 +12,16 @@ import SurfaceState from '@/components/surface-state'
  * pendant le chargement se lirait comme « jamais livré », c'est-à-dire une
  * affirmation. L'écran dit qu'il attend, rien de plus.
  */
+const ENTRY = navEntry('/delivery')
+
 export default function Loading() {
   return (
     <AppShell>
-      <div className="h-full p-4 max-lg:pt-20">
-        <div className="aig-panel flex h-full items-center justify-center">
-          <SurfaceState kind="loading" detail="Lecture des livraisons. Aucun chiffre n’est affiché tant que la lecture n’a pas abouti." />
-        </div>
-      </div>
+      <SurfaceLoading
+        title={ENTRY.name}
+        description={ENTRY.purpose}
+        detail="Lecture des livraisons. Aucun chiffre n’est affiché tant que la lecture n’a pas abouti."
+      />
     </AppShell>
   )
 }

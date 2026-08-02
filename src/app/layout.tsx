@@ -41,10 +41,10 @@ export default function RootLayout({
    * l'onglet remplissait fidèlement un parent lui-même non borné. Toute la chaîne
    * flex sous `main` était juste — elle était simplement ancrée dans le vide.
    *
-   * Le document est donc la RACINE bornée : il ne défile plus jamais. Ce sont les
-   * zones qui doivent défiler qui portent leur propre `overflow-y-auto`, ce qui
-   * exige `min-h-0` sur chaque maillon flex intermédiaire (sans lui, `flex-1`
-   * refuse de descendre sous la taille de son contenu).
+   * Le document est la racine bornée : il ne défile plus. Le défilement vit
+   * uniquement dans `PageBody` (`app-shell.tsx`) — pas de `overflow-y-auto` par
+   * zone. Chaque maillon flex intermédiaire sous `main` garde `min-h-0` (sans
+   * lui, `flex-1` refuse de descendre sous la taille de son contenu).
    */
   return (
     <html lang="fr" className="dark aig-scope h-svh overflow-hidden">

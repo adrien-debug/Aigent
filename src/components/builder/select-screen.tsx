@@ -3,20 +3,10 @@
  *
  * Server Component : il reçoit des lignes déjà qualifiées par `./model` et les
  * rend. Aucune lecture ici, aucune mutation.
- *
- * POURQUOI UN PROJET D'ABORD
- * --------------------------
- * La conversation d'authoring est PERSISTÉE PAR PROJET
- * (`project_builder_conversations.project_id`) et l'architecte lit le dépôt lié
- * pour proposer un agent qui colle au code réel. Sans projet, il n'y a ni fil à
- * reprendre ni dépôt à lire — la surface n'aurait rien à montrer.
- *
- * ZÉRO-SCROLL : la page est `h-full overflow-hidden` ; c'est la liste qui défile
- * dans sa box bornée.
  */
 import Link from 'next/link'
 
-import { PageHeader } from '@/components/app-shell'
+import { PageBody, PageHeader } from '@/components/app-shell'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Divider } from '@/components/ui/divider'
@@ -38,8 +28,6 @@ function ProjectRow({ item }: Readonly<{ item: ProjectChoice }>) {
             <Strong className="truncate">{item.name}</Strong>
             {item.repoLinked ? null : <Badge color="zinc">aucun dépôt</Badge>}
           </div>
-          {/* Pas de dépôt lié → on le DIT. L'architecte travaillera sans contexte
-              de code, ce qui change la qualité de ce qu'il propose. */}
           <Text className="truncate">
             {item.repoFullName ?? 'aucun dépôt lié — l’architecte ne pourra pas lire de code'}
           </Text>
@@ -92,7 +80,6 @@ function ProjectListBody({
 
 export default function BuilderSelectScreen({
   items,
-  /** `true` quand la lecture a ÉCHOUÉ — jamais quand elle est vide. */
   unreadable = false,
   failure,
 }: Readonly<{
@@ -101,33 +88,26 @@ export default function BuilderSelectScreen({
   failure?: string | null
 }>) {
   return (
-    // L'en-tête vient du shell ; le corps reste borné à la main. `PageBody` ne
-    // pose aucune borne de hauteur, et cet écran tient son zéro-scroll par une
-    // colonne `h-full` dont seule la liste défile. `PageHeader` porte déjà la
-    // gouttière mobile — elle n'est pas redoublée ici.
-    <div className="flex h-full min-h-0 flex-col">
+    <>
       <PageHeader
         title="Builder"
         description="Conversation d’authoring : architecte, manifeste, matérialisation d’un agent."
       />
-
-      <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 py-4 sm:px-6">
+      <PageBody className="gap-3">
         <Panel
           title="Choisir un projet"
           hint={unreadable ? 'lecture échouée' : projectCountLabel(items.length)}
-          className="min-h-0 flex-1"
           padded={false}
-          bodyClassName="overflow-y-auto"
         >
           <ProjectListBody unreadable={unreadable} failure={failure} items={items} />
         </Panel>
 
-        <Divider soft className="shrink-0" />
-        <Text className="aig-text-faint shrink-0 text-xs">
+        <Divider soft />
+        <Text className="aig-text-faint text-xs">
           La conversation d’authoring est persistée par projet : rouvrir un projet reprend le fil
           exactement où il s’est arrêté, y compris une décision humaine restée en attente.
         </Text>
-      </div>
-    </div>
+      </PageBody>
+    </>
   )
 }

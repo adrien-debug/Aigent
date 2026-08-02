@@ -333,7 +333,7 @@ async function main() {
       if (!list || list.children.length === 0) return { ok: false, rows: 0 }
       const template = [...list.children]
       // 24 lignes : largement au-delà de ce qu'un viewport de 812 px affiche,
-      // donc la boîte DOIT défiler et le pied rester lisible.
+      // donc PageBody DOIT défiler et le pied rester lisible.
       while (list.children.length < 24) {
         for (const row of template) {
           if (list.children.length >= 24) break
@@ -363,29 +363,65 @@ async function main() {
       longOverlap.overlaps.length ? `ex. « ${longOverlap.overlaps[0].text} »` : ''
     )
 
-    // La file défile-t-elle DANS sa boîte bornée, sans pousser la page ?
-    // On cherche le conteneur qui porte réellement les lignes, pas le premier
-    // `overflow-y:auto` venu — le shell en pose plusieurs.
-    const scrolls = await page.evaluate(() => {
+    // La page défile-t-elle via PageBody (scroller unique du shell) quand la
+    // file est longue, et le pied reste-t-il atteignable en bas de page ?
+    // Le document est `overflow-hidden` (`layout.tsx`) : ce n'est pas
+    // `document.scrollingElement` qui porte le défilement produit.
+    const pageScroll = await page.evaluate(() => {
       const list = document.querySelector('ul')
-      if (!list) return { found: false }
-      let box = list.parentElement
-      while (box && box !== document.body) {
-        const cs = getComputedStyle(box)
-        if ((cs.overflowY === 'auto' || cs.overflowY === 'scroll') && box.scrollHeight > box.clientHeight + 4) {
-          box.scrollTop = box.scrollHeight
-          const moved = box.scrollTop > 0
-          box.scrollTop = 0
-          return { found: true, moved, overflow: box.scrollHeight - box.clientHeight }
+      const footer = document.querySelector('footer')
+      if (!list || !footer) return { found: false, reason: 'liste ou pied introuvable' }
+
+      const scrollables = []
+      let el = list.parentElement
+      while (el && el !== document.documentElement) {
+        const cs = getComputedStyle(el)
+        if (
+          (cs.overflowY === 'auto' || cs.overflowY === 'scroll') &&
+          el.scrollHeight > el.clientHeight + 4
+        ) {
+          scrollables.push(el)
         }
-        box = box.parentElement
+        el = el.parentElement
       }
-      return { found: false }
+      // `PageBody` porte `scroll-thin` ; à défaut, le scroller le plus externe.
+      const scroller =
+        scrollables.find((node) => node.classList.contains('scroll-thin')) ??
+        scrollables[scrollables.length - 1]
+      if (!scroller) return { found: false, reason: 'aucun scroller overflow-y ne porte la liste' }
+
+      const overflow = scroller.scrollHeight - scroller.clientHeight
+      scroller.scrollTop = 0
+      const atTop = scroller.scrollTop
+      scroller.scrollTop = scroller.scrollHeight
+      const moved = scroller.scrollTop > atTop + 4
+
+      const footerRect = footer.getBoundingClientRect()
+      const footerReachable =
+        footerRect.top < window.innerHeight && footerRect.bottom > 0
+
+      scroller.scrollTop = 0
+      return {
+        found: true,
+        moved,
+        overflow,
+        footerReachable,
+        isPageBody: scroller.classList.contains('scroll-thin'),
+      }
     })
     check(
-      scrolls.found && scrolls.moved,
-      'la file défile DANS sa boîte bornée',
-      scrolls.found ? '' : 'aucun conteneur défilant ne porte la liste'
+      pageScroll.found && pageScroll.moved,
+      'PageBody défile quand la file est longue',
+      pageScroll.found
+        ? pageScroll.moved
+          ? ''
+          : `overflow ${pageScroll.overflow}px mais scrollTop immobile`
+        : (pageScroll.reason ?? 'scroller introuvable')
+    )
+    check(
+      pageScroll.found && pageScroll.footerReachable,
+      'le pied de la file reste atteignable en bas de page',
+      pageScroll.found && !pageScroll.footerReachable ? 'footer hors viewport après scroll' : ''
     )
 
     if (CAPTURE_DIR) {
@@ -427,7 +463,7 @@ async function main() {
     }
 
     // En DERNIER, une fois le scénario ENTIER joué : chargement, clonage,
-    // défilement dans la boîte, clic sur le tiroir, transition, captures.
+    // défilement PageBody, clic sur le tiroir, transition, captures.
     checkConsole('console', monitor)
     tally(monitor)
 

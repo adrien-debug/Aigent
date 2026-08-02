@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation'
 
 import AppShell from '@/components/app-shell'
 import AgentDetailScreen from '@/components/agents/detail-screen'
-import SurfaceState from '@/components/surface-state'
+import { navEntry } from '@/components/navigation'
+import { SurfaceUnavailable } from '@/components/surface-shell'
 import { getAgentDetail } from '@/lib/agent-mission-control/agent-detail'
 import { getLatestQualificationRun } from '@/lib/agent-mission-control/qualification-orchestrator'
 import { evaluateReleaseGate } from '@/lib/agent-mission-control/release-gate'
@@ -28,6 +29,8 @@ import { evaluateReleaseGate } from '@/lib/agent-mission-control/release-gate'
  *  · la lecture réussit, rien lu   → panneau « aucune mesure ».
  */
 export const dynamic = 'force-dynamic'
+
+const ENTRY = navEntry('/agents')
 
 type PageProps = { params: Promise<{ copilotId: string }> }
 
@@ -55,17 +58,11 @@ export default async function Page({ params }: PageProps) {
     const failure = err instanceof Error ? err.message : 'lecture impossible'
     return (
       <AppShell>
-        <div className="h-full p-4 max-lg:pt-20">
-          <div className="aig-panel flex h-full items-center justify-center">
-            {/* Le flux interrompu : la source EXISTE, c'est la lecture qui
-                a echoue. Meme geste sur toutes les surfaces — un operateur
-                reconnait l'etat sans relire le texte. */}
-            <SurfaceState
-              kind="unavailable"
-              detail={`La fiche de cet agent n’a pas pu être lue. Ce n’est pas « agent inconnu » — c’est une lecture qui a échoué.${failure ? ` (${failure})` : ''}`}
-            />
-          </div>
-        </div>
+        <SurfaceUnavailable
+          title={ENTRY.name}
+          description={ENTRY.purpose}
+          detail={`La fiche de cet agent n’a pas pu être lue. Ce n’est pas « agent inconnu » — c’est une lecture qui a échoué.${failure ? ` (${failure})` : ''}`}
+        />
       </AppShell>
     )
   }

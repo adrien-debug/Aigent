@@ -104,7 +104,7 @@ export default function RepositoriesTab({ data }: Readonly<{ data: RepositoriesT
     : null
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+    <div className="flex flex-col gap-3">
       <section className="min-h-0 shrink-0">
         <h3 className="text-sm font-semibold">Lisibilité des dépôts</h3>
         <p className="aig-text-faint text-xs">ce que le jeton configuré voit</p>

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 
 import AppShell from '@/components/app-shell'
 import { navEntry } from '@/components/navigation'
+import { SurfaceUnavailable } from '@/components/surface-shell'
 import ProjectsListScreen from '@/components/projects/list-screen'
 import { buildProjectList } from '@/components/projects/model'
 import { buildProjectOverview } from '@/lib/agent-mission-control/dashboard-overview'
@@ -52,9 +53,25 @@ async function loadProjects() {
 export default async function Page() {
   const { items, failure } = await loadProjects()
 
+  if (items === null) {
+    return (
+      <AppShell>
+        <SurfaceUnavailable
+          title={ENTRY.name}
+          description={ENTRY.purpose}
+          detail={
+            failure
+              ? `La liste des projets n’a pas pu être lue — ${failure}. Aucun projet n’est affiché — ce n’est pas un catalogue vide, c’est un catalogue inconnu.`
+              : 'La liste des projets n’a pas pu être lue. Aucun projet n’est affiché — ce n’est pas un catalogue vide, c’est un catalogue inconnu.'
+          }
+        />
+      </AppShell>
+    )
+  }
+
   return (
     <AppShell>
-      <ProjectsListScreen items={items ?? []} unreadable={items === null} failure={failure} />
+      <ProjectsListScreen items={items} />
     </AppShell>
   )
 }

@@ -167,9 +167,9 @@ export default function RunsScreen({
         }
       />
 
-      <PageBody className="flex min-h-0 flex-1 flex-col gap-3">
+      <PageBody className="gap-3">
         <section
-          className="aig-stage aig-accent-edge flex min-h-0 flex-1 flex-col gap-4 p-4 sm:p-5"
+          className="aig-stage aig-accent-edge flex flex-col gap-4 p-4 sm:p-5"
           aria-label="Scène principale des runs"
         >
           <div className="flex flex-wrap items-center gap-2">
@@ -193,7 +193,7 @@ export default function RunsScreen({
           </div>
 
           <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <div className="flex min-h-0 min-w-0 flex-col">
+            <div className="flex min-w-0 flex-col">
               <div className="grid grid-cols-3 gap-x-5 gap-y-4 pb-2">
                 <HeadlineMeasure label="Runs" value={String(metrics.total)} hint={windowTruncated ? `plafond ${tableRowCap}` : 'fenêtre lue'} />
                 <HeadlineMeasure
@@ -210,13 +210,13 @@ export default function RunsScreen({
 
               <div className="aig-hairline mb-3" />
 
-              <div className="min-h-0 flex-1">
+              <div>
                 <RunsActivityCanvas runs={runs} nowMs={nowMs} />
               </div>
 
               <div className="aig-hairline my-3" />
 
-              <div className="min-h-0 flex-1 overflow-y-auto">
+              <div>
                 {runs.length === 0 ? (
                   <Unavailable
                     reason="no-data"
@@ -233,7 +233,7 @@ export default function RunsScreen({
               </div>
             </div>
 
-            <aside className="flex min-h-0 min-w-0 flex-col gap-3 border-l border-(--aig-line-soft) pl-4">
+            <aside className="flex min-w-0 flex-col gap-3 border-l border-(--aig-line-soft) pl-4">
               <RunsTerminalStrip runs={runs} />
 
               <div className="aig-hairline" />
@@ -268,7 +268,7 @@ export default function RunsScreen({
 
               <div className="aig-hairline" />
 
-              <div className="min-h-0 flex-1 overflow-y-auto">
+              <div>
                 {selected ? (
                   <RunDetail
                     run={selected}

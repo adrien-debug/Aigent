@@ -78,7 +78,7 @@ export default function ProvidersTab({ data }: Readonly<{ data: ProvidersTabData
   const executable = runtimes.filter((rt) => rt.engine !== 'none')
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+    <div className="flex flex-col gap-3">
       <section className="min-h-0 shrink-0">
         <h3 className="text-sm font-semibold">Runtimes</h3>
         <p className="aig-text-faint text-xs">registre canonique</p>
@@ -137,7 +137,7 @@ export default function ProvidersTab({ data }: Readonly<{ data: ProvidersTabData
         <h3 className="text-sm font-semibold">Providers de modèle</h3>
         <p className="aig-text-faint text-xs">câblage réel, pas catalogue commercial</p>
         <div className="aig-hairline my-2" />
-        <ul className="scroll-thin divide-y divide-[color:var(--aig-line-soft)] overflow-y-auto">
+        <ul className="divide-y divide-[color:var(--aig-line-soft)]">
           {data.providers.map((row) => (
             <ProviderCard
               key={row.id}

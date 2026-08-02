@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import AppShell from '@/components/app-shell'
 import DeliveryRosterScreen from '@/components/delivery/roster-screen'
 import { loadDeliveryRoster } from '@/components/delivery/server-reads'
-import SurfaceState from '@/components/surface-state'
+import { SurfaceUnavailable } from '@/components/surface-shell'
 import { navEntry } from '@/components/navigation'
 
 /**
@@ -52,17 +52,11 @@ export default async function Page() {
   if (read === null) {
     return (
       <AppShell>
-        <div className="h-full p-4 max-lg:pt-20">
-          <div className="aig-panel flex h-full items-center justify-center">
-            {/* Le flux interrompu : la source EXISTE, c'est la lecture qui
-                a echoue. Meme geste sur toutes les surfaces — un operateur
-                reconnait l'etat sans relire le texte. */}
-            <SurfaceState
-              kind="unavailable"
-              detail={`Le registre des copilots n’a pas pu être lu. Aucun banc de livraison n’est affiché — une liste vide se lirait comme « aucun agent », ce qui n’est pas ce qui est su.${failure ? ` (${failure})` : ''}`}
-            />
-          </div>
-        </div>
+        <SurfaceUnavailable
+          title={ENTRY.name}
+          description={ENTRY.purpose}
+          detail={`Le registre des copilots n’a pas pu être lu. Aucun banc de livraison n’est affiché — une liste vide se lirait comme « aucun agent », ce qui n’est pas ce qui est su.${failure ? ` (${failure})` : ''}`}
+        />
       </AppShell>
     )
   }

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 
+import { PageBody, PageHeader } from '@/components/app-shell'
 import { Button } from '@/components/ui/button'
 import { Text } from '@/components/ui/text'
 
@@ -39,23 +40,27 @@ export default function AppRouteError({
   }, [error])
 
   return (
-    // `aig-subtle` porte le fond parce que cet écran s'affiche SANS shell : il
-    // n'hérite d'aucune surface parente et doit poser la sienne. Le panneau est
-    // `raised` — un rendu interrompu est précisément ce qui doit ressortir.
-    <div className="aig-subtle flex h-full items-center justify-center p-4">
-      <div className="aig-panel-raised max-w-md px-6 py-8 text-center">
-        <Text className="font-medium text-(--aig-text)">Cet écran n&apos;a pas pu s&apos;afficher.</Text>
-        <Text className="mt-2">
-          L&apos;affichage a été interrompu pendant le rendu. Aucun chiffre n&apos;est montré :
-          l&apos;état réel de la flotte est inconnu de cet écran, pas nul.
-        </Text>
-        {error.digest ? (
-          <Text className="mt-2 font-mono text-xs">digest {error.digest}</Text>
-        ) : null}
-        <Button className="mt-6" onClick={reset}>
-          Réessayer
-        </Button>
-      </div>
-    </div>
+    // Pas d'`AppShell` : si la panne vient du shell, l'englober ferait remonter
+    // l'erreur à la boundary parente. On reprend seulement la colonne `main` et
+    // `PageBody` — le scroll vit là, pas dans un `h-full` local.
+    <main className="aig-subtle relative flex h-svh min-h-0 flex-col overflow-hidden">
+      <PageHeader
+        title="Écran interrompu"
+        description="L'affichage a été interrompu pendant le rendu."
+      />
+      <PageBody>
+        <section className="aig-panel-raised mx-auto flex w-full max-w-md flex-col items-center justify-center gap-4 px-6 py-8 text-center">
+          <Text className="font-medium text-(--aig-text)">Cet écran n&apos;a pas pu s&apos;afficher.</Text>
+          <Text>
+            L&apos;affichage a été interrompu pendant le rendu. Aucun chiffre n&apos;est montré :
+            l&apos;état réel de la flotte est inconnu de cet écran, pas nul.
+          </Text>
+          {error.digest ? (
+            <Text className="font-mono text-xs">digest {error.digest}</Text>
+          ) : null}
+          <Button onClick={reset}>Réessayer</Button>
+        </section>
+      </PageBody>
+    </main>
   )
 }

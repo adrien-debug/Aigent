@@ -3,10 +3,6 @@
  *
  * Server Component. Il reçoit ce que la page a lu et le rend ; il ne lit rien.
  *
- * ZÉRO-SCROLL : `h-full overflow-hidden` de haut en bas, chaque panneau borné
- * par la grille, et seules les LISTES défilent dans leur box. Aucun panneau ne
- * grandit avec sa donnée.
- *
  * LA DISCIPLINE DE CET ÉCRAN
  * --------------------------
  * Chaque bloc n'est rendu que si la donnée qui le porte EXISTE, et l'absence
@@ -22,7 +18,7 @@ import type { ReactNode } from 'react'
 
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { PageHeader } from '@/components/app-shell'
+import { PageBody, PageHeader } from '@/components/app-shell'
 import { Divider } from '@/components/ui/divider'
 import { Subheading } from '@/components/ui/heading'
 import { Strong, Text } from '@/components/ui/text'
@@ -341,13 +337,7 @@ export default function ProjectDetailScreen({
   const summary = graph?.summary ?? null
 
   return (
-    // L'en-tête vient du shell ; le corps reste borné à la main (zéro-scroll :
-    // `PageBody` ne pose aucune borne de hauteur). `PageHeader` porte déjà la
-    // gouttière mobile, elle n'est pas redoublée.
-    <div className="flex h-full min-h-0 flex-col">
-      {/* Le nom du projet et son dépôt passent par le contrat commun ; ce qui
-          est propre à cet écran — avatar, retour au catalogue, et les cinq
-          faits agrégés — vit dans `meta`, la rangée de contexte de page. */}
+    <>
       <PageHeader
         title={name}
         description={
@@ -383,19 +373,16 @@ export default function ProjectDetailScreen({
         }
       />
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 py-4 sm:px-6">
+      <PageBody className="gap-3">
         {graph === null ? (
-          <div className="min-h-0 flex-1">
-            <Unavailable
-              reason="unread"
-              detail="Le graphe d'équipe de ce projet n'a pas pu être lu. Ni les agents, ni les relations, ni les missions ne sont affichés — ce projet n'est pas vide, il est inconnu de cet écran."
-            />
-          </div>
+          <Unavailable
+            reason="unread"
+            detail="Le graphe d'équipe de ce projet n'a pas pu être lu. Ni les agents, ni les relations, ni les missions ne sont affichés — ce projet n'est pas vide, il est inconnu de cet écran."
+          />
         ) : (
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-[1.3fr_1fr]">
-            {/* ── Colonne gauche : l'équipe et ses relations ── */}
-            <div className="grid min-h-0 grid-rows-[1.4fr_1fr] gap-3">
-              <section className="min-h-0 overflow-y-auto">
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1.3fr_1fr]">
+            <div className="grid gap-3">
+              <section>
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="text-sm font-semibold">Équipe</h2>
                   <Text className="aig-text-faint text-xs">
@@ -421,7 +408,7 @@ export default function ProjectDetailScreen({
                 )}
               </section>
 
-              <section className="min-h-0 overflow-y-auto">
+              <section>
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="text-sm font-semibold">Relations</h2>
                   <Text className="aig-text-faint text-xs">{relationCountHint(relations.length)}</Text>
@@ -457,9 +444,8 @@ export default function ProjectDetailScreen({
               </section>
             </div>
 
-            {/* ── Colonne droite : le dépôt et la livraison ── */}
-            <div className="grid min-h-0 grid-rows-[1fr_1fr_auto] gap-3">
-              <section className="min-h-0 overflow-auto px-1">
+            <div className="grid gap-3">
+              <section className="px-1">
                 <div className="flex items-center justify-between gap-2 px-3">
                   <h2 className="text-sm font-semibold">Dépôt</h2>
                   <Text className="aig-text-faint text-xs">
@@ -470,7 +456,7 @@ export default function ProjectDetailScreen({
                 <div className="px-3 pb-2">{repoPanelBody(repo)}</div>
               </section>
 
-              <section className="min-h-0 overflow-y-auto px-1">
+              <section className="px-1">
                 <div className="flex items-center justify-between gap-2 px-3">
                   <h2 className="text-sm font-semibold">Intelligence de dépôt</h2>
                   <Text className="aig-text-faint text-xs">
@@ -521,7 +507,7 @@ export default function ProjectDetailScreen({
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </PageBody>
+    </>
   )
 }
