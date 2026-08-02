@@ -28,13 +28,11 @@
  *     `aria-hidden` restent présents. Ce sont eux qui rendent le kit utilisable
  *     au clavier et en contraste forcé ; ils disparaissent sans bruit.
  *
- *  4. AUTORITÉ VISUELLE UNIQUE — aucune couleur Tailwind brute (`zinc-*`,
- *     `white`, `blue-500`…) ne revient dans le kit. C'est la règle qui empêche
- *     la double autorité de se reformer fichier par fichier. Le détail est
- *     tenu par `check:production-visual-authority`, qui scanne la production ;
- *     ici on garde
- *     un filet indépendant pour que la règle survive à la suppression de
- *     l'autre gate.
+ *  4. CATALYST OFFICIEL — le kit (`src/components/ui/*.tsx` Catalyst) ne doit
+ *     PAS être recoloré en `--aig-*`. La palette zinc + `dark:` vit dans le kit ;
+ *     le graphite produit vit dans `src/theme/*` et les utilities `aig-*`.
+ *     `check:production-visual-authority` tient la production hors couleurs brutes
+ *     de statut ; cette gate empêche le retour du fork recoloré.
  *
  * CE QU'ELLE NE GARANTIT PAS — que les écrans utilisent le kit, qu'ils ne le
  * combattent pas de l'extérieur (`className` agressifs, `!important`), ni que
@@ -48,6 +46,9 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const KIT_DIR = 'src/components/ui'
+
+/** Fichiers Aigent dans le dossier ui — hors périmètre Catalyst. */
+const KIT_META = new Set(['README.md', 'index.ts', 'ui-kit-catalog.tsx'])
 
 /**
  * Les primitives attendues et, pour chacune, les exports que le produit
@@ -79,9 +80,8 @@ const REQUIRED = {
   'textarea.tsx': ['Textarea'],
 }
 
-/** Couleur Tailwind brute — la marque d'une seconde autorité visuelle. */
-const RAW_COLOR =
-  /\b(?:bg|text|ring|border|fill|stroke|divide|outline|shadow|from|via|to|placeholder|decoration|accent|caret)-(?:(?:zinc|slate|gray|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}|white|black)(?:\/[\d.]+)?\b/g
+/** Recolorage fork — le kit officiel ne référence pas les jetons produit. */
+const AIG_TOKEN_IN_KIT = /--aig-[a-z-]+|var\(--aig-/g
 
 /**
  * Marqueurs d'accessibilité, avec le fichier qui doit les porter. Ce ne sont
@@ -292,88 +292,34 @@ for (const file of ['button.tsx', 'checkbox.tsx', 'textarea.tsx', 'badge.tsx']) 
   }
 }
 
-// ------------------------------------------------ 4. AUTORITÉ VISUELLE UNIQUE
-// Un fichier NON listé déposé dans le kit échappait au scan : la boucle ne
-// parcourait que les 14 noms connus. On scanne donc tout ce que le dossier
-// contient réellement.
+// ------------------------------------------- 4. CATALYST OFFICIEL (anti-fork)
+// Tout fichier .tsx du dossier est scanné, y compris les primitives ajoutées
+// hors des 14 d'origine — sauf les métafichiers Aigent listés dans KIT_META.
 for (const name of present) {
-  if (name in sources) continue
+  if (name in sources || KIT_META.has(name) || !name.endsWith('.tsx')) continue
   sources[name] = readFileSync(join(KIT_DIR, name), 'utf8')
-  notes.push(`fichier hors inventaire scanné : ${name}`)
+  markup[name] = codeOnly(sources[name], false)
+  notes.push(`primitive Catalyst hors inventaire initial : ${name}`)
 }
 
-let rawTotal = 0
+let forkHits = 0
 for (const [name, src] of Object.entries(sources)) {
-  // On ignore les commentaires : ils DOCUMENTENT la migration et citent donc
-  // les anciens jetons. Une gate qui interdit d'expliquer son propre travail
-  // pousse à effacer l'explication.
-  const code = src
+  if (KIT_META.has(name)) continue
+  const stripped = src
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .split('\n')
     .filter((l) => !l.trim().startsWith('//'))
     .join('\n')
-  const hits = code.match(RAW_COLOR) || []
+  const hits = stripped.match(AIG_TOKEN_IN_KIT) || []
   if (hits.length) {
-    rawTotal += hits.length
-    const uniq = [...new Set(hits)].slice(0, 6).join(', ')
-    errors.push(`COULEUR BRUTE       ${KIT_DIR}/${name} → ${hits.length}× (${uniq})`)
+    forkHits += hits.length
+    errors.push(
+      `FORK RECOLORÉ      ${KIT_DIR}/${name} → ${hits.length}× jeton --aig-* (kit = Catalyst officiel, non recoloré)`,
+    )
   }
 }
 
-// ------------------------------------------------------------------ 5. JETONS DS
-//
-// Le kit doit consommer l'échelle radius 4/8/16 et les alias sémantiques
-// `--shadow-*` / `--border-*`, pas des utilitaires Tailwind bruts ni des
-// valeurs arbitraires hors `var(--radius-*)`.
-const FORBIDDEN_RADIUS = /\brounded-(?:xl|2xl|3xl|t-3xl)\b/g
-const TOKENIZED_SHADOW = /shadow-\(--shadow-(?:sm|md|lg)\)/g
-const FORBIDDEN_SHADOW = /\bshadow-(?:sm|md|lg)\b/g
-const ARBITRARY_RADIUS = /rounded-\[(?!calc\(var\(--radius-)/g
-const RAW_OKLCH = /\boklch\s*\(/g
-
-const DS_EXCEPTIONS = new Set(['dialog.tsx'])
-
-for (const [name, src] of Object.entries(markup)) {
-  if (!src || DS_EXCEPTIONS.has(name)) continue
-  const forbiddenRadius = src.match(FORBIDDEN_RADIUS) || []
-  if (forbiddenRadius.length) {
-    errors.push(`JETON DS            ${KIT_DIR}/${name} → radius hors échelle (${[...new Set(forbiddenRadius)].join(', ')})`)
-  }
-  const arbitrary = src.match(ARBITRARY_RADIUS) || []
-  if (arbitrary.length) {
-    errors.push(`JETON DS            ${KIT_DIR}/${name} → radius arbitraire (${arbitrary.length}×)`)
-  }
-  const rawShadow = (src.replace(TOKENIZED_SHADOW, '')).match(FORBIDDEN_SHADOW) || []
-  if (rawShadow.length) {
-    errors.push(`JETON DS            ${KIT_DIR}/${name} → ombre brute (${[...new Set(rawShadow)].join(', ')})`)
-  }
-  const oklch = (sources[name] || '').replace(/\/\*[\s\S]*?\*\//g, '').match(RAW_OKLCH) || []
-  if (oklch.length) {
-    errors.push(`JETON DS            ${KIT_DIR}/${name} → oklch() littéral (${oklch.length}×)`)
-  }
-}
-
-// dialog.tsx : radius stage = lg autorisé ; ombres et bordures tokenisées
-const dialog = markup['dialog.tsx']
-if (dialog) {
-  if (/\brounded-(?:xl|2xl|3xl|t-3xl)\b/.test(dialog)) {
-    errors.push('JETON DS            dialog.tsx → radius hors échelle sur le panneau')
-  }
-  if (/\bshadow-(?:sm|md|lg)\b/.test(dialog.replace(TOKENIZED_SHADOW, ''))) {
-    errors.push('JETON DS            dialog.tsx → ombre brute (utiliser shadow-(--shadow-*))')
-  }
-}
-
-// Contrôles interactifs : radius md (8 px), pas lg (16 px réservé aux surfaces)
-const CONTROL_FILES = ['button.tsx', 'textarea.tsx', 'navbar.tsx', 'sidebar.tsx']
-for (const name of CONTROL_FILES) {
-  const src = markup[name]
-  if (src && /\brounded-lg\b/.test(src)) {
-    errors.push(`JETON DS            ${KIT_DIR}/${name} → rounded-lg sur contrôle (préférer rounded-md / --radius-md)`)
-  }
-}
-
-// ---------------------------------------------------------- 6. BARREL UI
+// ---------------------------------------------------------- 5. BARREL UI
 const BARREL = join(KIT_DIR, 'index.ts')
 if (present.has('index.ts')) {
   const barrelSrc = codeOnly(readFileSync(BARREL, 'utf8'), true)
@@ -402,7 +348,7 @@ if (errors.length === 0) {
     `  ${Object.keys(REQUIRED).length} primitive(s), ${Object.values(REQUIRED).flat().length} export(s) consommé(s) vérifié(s).`,
   )
   console.log(
-    '  Cible tactile 44 px (scope tactile), marqueurs d’accessibilité présents, 0 couleur Tailwind brute.',
+    '  Cible tactile 44 px (scope tactile), marqueurs d’accessibilité présents, kit Catalyst non recoloré (--aig-* absent).',
   )
   console.log(
     '  Ne garantit PAS que les écrans l’utilisent ni que les primitives fonctionnent : cette gate lit du texte, pas un rendu.',
@@ -413,15 +359,14 @@ if (errors.length === 0) {
 
 console.error('✗ ui-kit-integrity — la substance du kit a régressé.\n')
 for (const e of errors) console.error(`  ${e}`)
-if (rawTotal > 0) {
+if (forkHits > 0) {
   console.error(`
-Une couleur Tailwind brute dans le kit recrée la DOUBLE AUTORITÉ VISUELLE que
-cette gate existe pour empêcher : le produit parle \`--aig-*\`, le kit parlerait
-autre chose. Utilisez les jetons — \`text-(--aig-text)\`, \`bg-(--aig-raised)\`,
-\`border-(--aig-line)\`, \`--aig-severity-*\` pour la sémantique.`)
+Le kit doit rester Catalyst OFFICIEL (palette zinc + dark:). Le graphite produit
+vit dans \`src/theme/*\` et les utilities \`aig-*\` — pas dans \`src/components/ui/\`.
+Source de référence : \`vendor/catalyst-ui-kit/typescript/\`.`)
 }
 console.error(`
-Modifier le kit est LÉGITIME — c'est du code du repo, pas du vendor. Cette gate
-n'interdit pas le changement : elle interdit la PERTE (un export, la cible
-tactile, un marqueur d'accessibilité, l'autorité visuelle unique).`)
+Ne pas recolorer le kit : mettre à jour depuis \`vendor/catalyst-ui-kit/\` ou le
+zip Tailwind Plus. Cette gate interdit la perte (export, cible tactile, a11y)
+et le retour du fork recoloré.`)
 process.exit(1)
