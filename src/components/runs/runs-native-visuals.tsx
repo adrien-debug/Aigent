@@ -1,18 +1,21 @@
+import { Badge } from '@/components/ui/badge'
+import { Text } from '@/components/ui/text'
+import { SEVERITY } from '@/components/cockpit/primitives'
 import type { AgentRun } from '@/lib/agent-mission-control/types'
-import { buildRunsHourlyBuckets } from '@/lib/runs-console/runs-timeseries'
 import { formatDuration } from '@/lib/runs-console/runs-metrics'
+import { buildRunsHourlyBuckets } from '@/lib/runs-console/runs-timeseries'
 
-type DataGrade = 'LIVE' | 'SNAPSHOT' | 'DEMO' | 'UNAVAILABLE' | 'ERROR'
+export type DataGrade = 'LIVE' | 'SNAPSHOT' | 'DEMO' | 'UNAVAILABLE' | 'ERROR'
 
-function gradeTone(grade: DataGrade): string {
-  if (grade === 'LIVE') return 'text-emerald-300 border-emerald-400/35 bg-emerald-400/10'
-  if (grade === 'SNAPSHOT') return 'text-sky-300 border-sky-400/35 bg-sky-400/10'
-  if (grade === 'DEMO') return 'text-amber-300 border-amber-400/35 bg-amber-400/10'
-  if (grade === 'UNAVAILABLE') return 'text-zinc-300 border-zinc-500/40 bg-zinc-500/10'
-  return 'text-red-300 border-red-400/35 bg-red-400/10'
+function gradeBadgeColor(grade: DataGrade): 'emerald' | 'blue' | 'amber' | 'zinc' | 'red' {
+  if (grade === 'LIVE') return 'emerald'
+  if (grade === 'SNAPSHOT') return 'blue'
+  if (grade === 'DEMO') return 'amber'
+  if (grade === 'UNAVAILABLE') return 'zinc'
+  return 'red'
 }
 
-export function GradeBadge({
+export function SourceGrade({
   grade,
   label,
 }: Readonly<{
@@ -20,12 +23,9 @@ export function GradeBadge({
   label: string
 }>) {
   return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-[0.14em] uppercase ${gradeTone(grade)}`}
-      title={label}
-    >
+    <Badge color={gradeBadgeColor(grade)} title={label}>
       {grade}
-    </span>
+    </Badge>
   )
 }
 
@@ -53,7 +53,7 @@ function areaPath(values: number[], width: number, height: number): string {
   return `${line} L ${width} ${height} L 0 ${height} Z`
 }
 
-export function RunsActivityCard({
+export function RunsActivityCanvas({
   runs,
   nowMs,
 }: Readonly<{
@@ -62,12 +62,12 @@ export function RunsActivityCard({
 }>) {
   if (runs.length === 0) {
     return (
-      <div className="aig-subtle rounded-lg p-4">
+      <div className="flex h-full min-h-44 flex-col items-center justify-center gap-2">
         <div className="flex items-center gap-2">
-          <GradeBadge grade="SNAPSHOT" label="Fenêtre lue, aucune activité" />
-          <p className="aig-text-muted text-xs">Fenêtre 24 h</p>
+          <SourceGrade grade="SNAPSHOT" label="Fenêtre lue, aucune activité" />
+          <Text className="text-xs">Fenêtre 24 h</Text>
         </div>
-        <p className="aig-text-muted mt-2 text-sm">Aucun run observé sur la fenêtre lue.</p>
+        <Text className="text-sm">Aucun run observé sur la fenêtre lue.</Text>
       </div>
     )
   }
@@ -80,29 +80,44 @@ export function RunsActivityCard({
   const last = series.runsPerHour[series.runsPerHour.length - 1] ?? 0
 
   return (
-    <div className="aig-subtle rounded-lg p-3">
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <GradeBadge grade="SNAPSHOT" label="Série issue des runs persistés" />
-        <p className="aig-text-faint text-2xs uppercase tracking-[0.14em]">Activité horaire</p>
+    <div className="flex min-h-48 flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <SourceGrade grade="SNAPSHOT" label="Série issue des runs persistés" />
+        <Text className="aig-text-faint text-2xs uppercase tracking-[0.14em]">Activité horaire</Text>
       </div>
-      <svg viewBox="0 0 100 40" className="h-36 w-full">
+      <svg viewBox="0 0 100 40" className="h-48 w-full">
         <defs>
           <linearGradient id="runs-activity-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgb(52 211 153 / 0.35)" />
-            <stop offset="100%" stopColor="rgb(52 211 153 / 0)" />
+            <stop offset="0%" stopColor={SEVERITY.good} stopOpacity="0.28" />
+            <stop offset="100%" stopColor={SEVERITY.good} stopOpacity="0" />
           </linearGradient>
         </defs>
         {[0, 12, 24, 36].map((y) => (
-          <line key={y} x1="0" y1={y} x2="100" y2={y} className="stroke-white/8" strokeDasharray="1.6 2.4" />
+          <line
+            key={y}
+            x1="0"
+            y1={y}
+            x2="100"
+            y2={y}
+            className="text-(--aig-line-soft)"
+            stroke="currentColor"
+            strokeDasharray="1.6 2.4"
+          />
         ))}
         <path d={area} fill="url(#runs-activity-fill)" />
-        <path d={runLine} fill="none" stroke="rgb(52 211 153)" strokeWidth="1.1" strokeLinecap="round" />
-        <path d={errorLine} fill="none" stroke="rgb(248 113 113)" strokeWidth="0.9" strokeLinecap="round" />
+        <path d={runLine} fill="none" stroke={SEVERITY.good} strokeWidth="1.1" strokeLinecap="round" />
+        <path d={errorLine} fill="none" stroke={SEVERITY.bad} strokeWidth="0.9" strokeLinecap="round" />
       </svg>
-      <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
-        <p className="aig-text-muted">Pic: <span className="tabular-nums text-white">{peak}</span>/h</p>
-        <p className="aig-text-muted">Dernière heure: <span className="tabular-nums text-white">{last}</span></p>
-        <p className="aig-text-muted">Échelle: <span className="text-white">UTC</span></p>
+      <div className="grid grid-cols-3 gap-2 text-xs">
+        <p className="aig-text-muted">
+          Pic: <span className="aig-display tabular-nums">{peak}</span>/h
+        </p>
+        <p className="aig-text-muted">
+          Dernière heure: <span className="aig-display tabular-nums">{last}</span>
+        </p>
+        <p className="aig-text-muted">
+          Échelle: <span className="aig-display">UTC</span>
+        </p>
       </div>
       <div className="mt-2 flex justify-between text-(--aig-text-faint) text-[10px] tabular-nums">
         <span>{series.xLabels[0] ?? '--:--'}</span>
@@ -113,7 +128,7 @@ export function RunsActivityCard({
   )
 }
 
-export function RunsHealthCard({
+export function RunsTerminalStrip({
   runs,
 }: Readonly<{
   runs: AgentRun[]
@@ -137,42 +152,45 @@ export function RunsHealthCard({
       p95Samples.push(run.latencyMs)
     }
   }
-  p95Samples.sort((a, b) => a - b)
+  const ordered = p95Samples.toSorted((a, b) => a - b)
   const p95 =
-    p95Samples.length > 0
-      ? p95Samples[Math.floor(0.95 * (p95Samples.length - 1))]
+    ordered.length > 0
+      ? ordered[Math.floor(0.95 * (ordered.length - 1))]
       : null
 
   const rows = [
-    { label: 'Terminés', count: statusCounts.completed, color: 'bg-emerald-400/80' },
-    { label: 'Échecs', count: statusCounts.failed, color: 'bg-red-400/80' },
-    { label: 'Bloqués', count: statusCounts.blocked, color: 'bg-amber-400/80' },
-    { label: 'En cours', count: statusCounts.running, color: 'bg-sky-400/80' },
-    { label: 'Confirmation', count: statusCounts.needsConfirmation, color: 'bg-zinc-400/80' },
+    { label: 'Terminés', count: statusCounts.completed, color: SEVERITY.good },
+    { label: 'Échecs', count: statusCounts.failed, color: SEVERITY.bad },
+    { label: 'Bloqués', count: statusCounts.blocked, color: SEVERITY.warn },
+    { label: 'En cours', count: statusCounts.running, color: SEVERITY.running },
+    { label: 'Confirmation', count: statusCounts.needsConfirmation, color: SEVERITY.muted },
   ]
 
   return (
-    <div className="aig-subtle rounded-lg p-3">
-      <div className="mb-2 flex items-center gap-2">
-        <GradeBadge grade="SNAPSHOT" label="Répartition calculée sur la fenêtre" />
-        <p className="aig-text-faint text-2xs uppercase tracking-[0.14em]">Santé terminale</p>
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <SourceGrade grade="SNAPSHOT" label="Répartition calculée sur la fenêtre" />
+        <Text className="aig-text-faint text-2xs uppercase tracking-[0.14em]">Santé terminale</Text>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {rows.map((row) => (
           <div key={row.label}>
             <div className="mb-1 flex items-center justify-between text-xs">
               <span className="aig-text-muted">{row.label}</span>
-              <span className="tabular-nums text-white">{row.count}</span>
+              <span className="aig-display tabular-nums">{row.count}</span>
             </div>
-            <div className="h-1.5 rounded-full bg-white/10">
-              <div className={`${row.color} h-full rounded-full`} style={{ width: `${(row.count / total) * 100}%` }} />
+            <div className="h-1 rounded-full bg-(--aig-line-soft)">
+              <div
+                className="h-full rounded-full"
+                style={{ width: `${(row.count / total) * 100}%`, backgroundColor: row.color }}
+              />
             </div>
           </div>
         ))}
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+      <div className="grid grid-cols-2 gap-2 text-xs">
         <p className="aig-text-muted">p95 latence</p>
-        <p className="text-right tabular-nums text-white">{formatDuration(p95) ?? 'Non mesuré'}</p>
+        <p className="text-right tabular-nums">{formatDuration(p95) ?? 'Non mesuré'}</p>
       </div>
     </div>
   )

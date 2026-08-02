@@ -160,49 +160,46 @@ function FleetStage({
         </Text>
       </div>
 
-      <div className="aig-inset mt-5 grid gap-3 p-3 md:grid-cols-2">
-        <div className="rounded-lg border border-white/10 bg-white/2 p-3">
-          <Text className="aig-text-faint text-2xs uppercase tracking-[0.14em]">
-            Répartition runtime
-          </Text>
+      <div className="mt-5 grid gap-5 md:grid-cols-2">
+        <div>
+          <Text className="aig-text-faint text-2xs uppercase tracking-[0.14em]">Répartition runtime</Text>
           <div className="mt-2 space-y-2">
             {[
-              { label: 'Actifs', value: counts.active, color: 'bg-emerald-400/80' },
-              { label: 'Dégradés', value: counts.degraded, color: 'bg-red-400/80' },
-              { label: 'Inactifs', value: counts.inactive, color: 'bg-zinc-400/80' },
-              { label: 'Indisponibles', value: counts.unavailable, color: 'bg-amber-400/80' },
+              { label: 'Actifs', value: counts.active, color: SEVERITY.good },
+              { label: 'Dégradés', value: counts.degraded, color: SEVERITY.bad },
+              { label: 'Inactifs', value: counts.inactive, color: SEVERITY.muted },
+              { label: 'Indisponibles', value: counts.unavailable, color: SEVERITY.warn },
             ].map((row) => (
               <div key={row.label}>
                 <div className="mb-1 flex items-center justify-between text-xs">
                   <Text className="aig-text-muted">{row.label}</Text>
-                  <span className="tabular-nums text-white">{row.value}</span>
+                  <span className="aig-display tabular-nums">{row.value}</span>
                 </div>
-                <div className="h-1.5 rounded-full bg-white/10">
+                <div className="h-1 rounded-full bg-(--aig-line-soft)">
                   <div
-                    className={`${row.color} h-full rounded-full`}
-                    style={{ width: `${(row.value / Math.max(1, counts.total)) * 100}%` }}
+                    className="h-full rounded-full"
+                    style={{ width: `${(row.value / Math.max(1, counts.total)) * 100}%`, backgroundColor: row.color }}
                   />
                 </div>
               </div>
             ))}
           </div>
         </div>
-        <div className="rounded-lg border border-white/10 bg-white/2 p-3">
-          <Text className="aig-text-faint text-2xs uppercase tracking-[0.14em]">
-            Provenance état
-          </Text>
+
+        <div>
+          <Text className="aig-text-faint text-2xs uppercase tracking-[0.14em]">Provenance état</Text>
           <div className="sr-only">{agents.length} agents analysés</div>
           <div className="mt-2 grid grid-cols-2 gap-2">
             <Text className="aig-text-muted text-xs">Modèle prouvé</Text>
-            <span className="text-right tabular-nums text-white">{counts.withProvenExecutedModel}</span>
+            <span className="text-right tabular-nums">{counts.withProvenExecutedModel}</span>
             <Text className="aig-text-muted text-xs">Assistant manquant</Text>
-            <span className="text-right tabular-nums text-white">
+            <span className="text-right tabular-nums">
               {agents.filter((agent) => agent.runtimeProvisioned === false).length}
             </span>
             <Text className="aig-text-muted text-xs">Outils non résolus</Text>
-            <span className="text-right tabular-nums text-white">{counts.withUnresolvedTools}</span>
+            <span className="text-right tabular-nums">{counts.withUnresolvedTools}</span>
             <Text className="aig-text-muted text-xs">Donnée indisponible</Text>
-            <span className="text-right tabular-nums text-white">
+            <span className="text-right tabular-nums">
               {agents.filter((agent) => agent.unavailableFields.length > 0).length}
             </span>
           </div>
@@ -221,7 +218,7 @@ function AgentRosterRow({ agent }: Readonly<{ agent: AvailableAgent }>) {
       <Rail color={RAIL_COLOR[agent.status]} />
       <Link
         href={`/agents/${agent.copilotId}`}
-        className="group flex items-start gap-4 px-5 py-4 transition hover:bg-white/4 focus-visible:bg-white/4"
+        className="group flex items-start gap-4 px-5 py-4 transition hover:bg-(--aig-line-soft) focus-visible:bg-(--aig-line-soft)"
       >
         {/* L'avatar était peint pour un fond blanc (`bg-zinc-950/3`,
             `text-zinc-700`) : sur le graphite il disparaissait. `aig-raised`

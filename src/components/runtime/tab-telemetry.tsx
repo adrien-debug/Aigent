@@ -13,7 +13,7 @@
  */
 import { Badge } from '@/components/ui/badge'
 import { Strong, Text } from '@/components/ui/text'
-import { Panel } from '@/components/cockpit/primitives'
+import { SEVERITY } from '@/components/cockpit/primitives'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type {
   RuntimeTelemetryEvent,
@@ -83,11 +83,12 @@ function measurementTitle(state: TelemetryMeasurementState): string {
 
 function HealthPanel({ health }: Readonly<{ health: TelemetryHealthDiagnostic }>) {
   return (
-    <Panel
-      title="Santé du canal de retour"
-      hint="diagnostic dérivé, pas un statut posé"
-      className="min-h-0 shrink-0"
-    >
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-baseline gap-2">
+        <h2 className="aig-display text-sm font-semibold">Santé du canal de retour</h2>
+        <Text className="aig-text-faint text-2xs">diagnostic dérivé, pas un statut posé</Text>
+      </div>
+      <div className="aig-hairline" />
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Badge color={HEALTH_COLOR[health.status]} title={HEALTH_MEANING[health.status]}>
@@ -116,7 +117,7 @@ function HealthPanel({ health }: Readonly<{ health: TelemetryHealthDiagnostic }>
           />
         </div>
       </div>
-    </Panel>
+    </section>
   )
 }
 
@@ -124,11 +125,12 @@ function HealthPanel({ health }: Readonly<{ health: TelemetryHealthDiagnostic }>
 
 function FleetPanel({ fleet }: Readonly<{ fleet: TelemetryTabData['fleet'] }>) {
   return (
-    <Panel
-      title="Runs rapportés"
-      hint="fenêtre : 2000 derniers événements"
-      className="min-h-0 shrink-0"
-    >
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-baseline gap-2">
+        <h2 className="aig-display text-sm font-semibold">Runs rapportés</h2>
+        <Text className="aig-text-faint text-2xs">fenêtre : 2000 derniers événements</Text>
+      </div>
+      <div className="aig-hairline" />
       <LoadedBlock loaded={fleet} what="L’agrégat de la flotte">
         {(data: RuntimeTelemetryFleetSummary) =>
           data.totalRuns === 0 ? (
@@ -136,7 +138,6 @@ function FleetPanel({ fleet }: Readonly<{ fleet: TelemetryTabData['fleet'] }>) {
           ) : (
             <div className="flex flex-col gap-3">
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {/* Comptages : mesurés par construction, un 0 y est un vrai 0. */}
                 <Fact label="Runs" value={<FactValue>{data.totalRuns}</FactValue>} />
                 <Fact label="Terminés" value={<FactValue>{data.completedRuns}</FactValue>} />
                 <Fact label="Échoués" value={<FactValue>{data.failedRuns}</FactValue>} />
@@ -179,12 +180,6 @@ function FleetPanel({ fleet }: Readonly<{ fleet: TelemetryTabData['fleet'] }>) {
                   hint={data.costEstimated ? 'estimation tarifaire, pas une facturation' : undefined}
                 />
               </div>
-
-              {/*
-                La provenance des mesures, dite explicitement. C'est ce qui
-                distingue « mesuré à zéro » de « pas mesurable » sur cet écran, et
-                ça évite d'avoir à le deviner d'un tiret.
-              */}
               <div className="flex flex-wrap items-center gap-2">
                 <Text className="text-xs">Provenance :</Text>
                 {(
@@ -204,7 +199,6 @@ function FleetPanel({ fleet }: Readonly<{ fleet: TelemetryTabData['fleet'] }>) {
                   </Badge>
                 ))}
               </div>
-
               {data.topErrorCategories.length > 0 ? (
                 <div className="flex flex-wrap items-center gap-2">
                   <Text className="text-xs">Erreurs dominantes :</Text>
@@ -219,7 +213,7 @@ function FleetPanel({ fleet }: Readonly<{ fleet: TelemetryTabData['fleet'] }>) {
           )
         }
       </LoadedBlock>
-    </Panel>
+    </section>
   )
 }
 
@@ -247,7 +241,12 @@ function provenanceOf(event: RuntimeTelemetryEvent): 'internal' | 'consumer' | '
 
 function ProvenancePanel({ events }: Readonly<{ events: TelemetryTabData['events'] }>) {
   return (
-    <Panel title="Provenance des événements" hint="deux sources, un seul canal" className="min-h-0 shrink-0">
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-baseline gap-2">
+        <h2 className="aig-display text-sm font-semibold">Provenance des événements</h2>
+        <Text className="aig-text-faint text-2xs">deux sources, un seul canal</Text>
+      </div>
+      <div className="aig-hairline" />
       <LoadedBlock loaded={events} what="Le détail des événements">
         {(rows) =>
           rows.length === 0 ? (
@@ -281,7 +280,7 @@ function ProvenancePanel({ events }: Readonly<{ events: TelemetryTabData['events
                 })}
               </div>
               {rows.filter((e) => provenanceOf(e) === 'consumer').length === 0 ? (
-                <div className="rounded-md border border-amber-400/25 bg-amber-400/5 px-3 py-2">
+                <div className="aig-subtle px-3 py-2">
                   <Strong className="block">Zéro événement de source consommateur</Strong>
                   <Text className="mt-0.5">
                     Sur les {rows.length} événements lus, aucun ne provient d’un agent déployé chez un
@@ -295,7 +294,7 @@ function ProvenancePanel({ events }: Readonly<{ events: TelemetryTabData['events
           )
         }
       </LoadedBlock>
-    </Panel>
+    </section>
   )
 }
 
@@ -316,7 +315,7 @@ function gradeColor(grade: DataGrade): 'emerald' | 'blue' | 'amber' | 'zinc' | '
 function TelemetrySignals({ events }: Readonly<{ events: RuntimeTelemetryEvent[] }>) {
   if (events.length === 0) {
     return (
-      <div className="rounded-md border border-white/10 bg-white/2 px-3 py-2">
+      <div className="px-3 py-2">
         <div className="mb-1 flex items-center gap-2">
           <Badge color={gradeColor('SNAPSHOT')}>SNAPSHOT</Badge>
           <Text className="text-xs">Fenêtre lue, aucun événement</Text>
@@ -355,28 +354,37 @@ function TelemetrySignals({ events }: Readonly<{ events: RuntimeTelemetryEvent[]
     .join(' ')
 
   return (
-    <div className="rounded-md border border-white/10 bg-white/2 p-3">
+    <div className="p-3">
       <div className="mb-2 flex items-center gap-2">
         <Badge color={gradeColor('SNAPSHOT')}>SNAPSHOT</Badge>
         <Text className="text-xs">Série native sur événements persistés</Text>
       </div>
       <svg viewBox="0 0 100 30" className="h-24 w-full">
         {[0, 10, 20, 28].map((y) => (
-          <line key={y} x1="0" y1={y} x2="100" y2={y} className="stroke-white/8" strokeDasharray="1.6 2.4" />
+          <line
+            key={y}
+            x1="0"
+            y1={y}
+            x2="100"
+            y2={y}
+            className="text-(--aig-line-soft)"
+            stroke="currentColor"
+            strokeDasharray="1.6 2.4"
+          />
         ))}
-        <path d={line} fill="none" stroke="rgb(56 189 248)" strokeWidth="1.2" />
-        <path d={failLine} fill="none" stroke="rgb(248 113 113)" strokeWidth="1" />
+        <path d={line} fill="none" stroke={SEVERITY.running} strokeWidth="1.2" />
+        <path d={failLine} fill="none" stroke={SEVERITY.bad} strokeWidth="1" />
       </svg>
       <div className="mt-2 grid grid-cols-3 gap-2">
-        <div className="rounded bg-white/3 px-2 py-1">
+        <div className="aig-subtle rounded px-2 py-1">
           <Text className="text-2xs">Started</Text>
           <Strong className="tabular-nums">{status.started}</Strong>
         </div>
-        <div className="rounded bg-white/3 px-2 py-1">
+        <div className="aig-subtle rounded px-2 py-1">
           <Text className="text-2xs">Completed</Text>
           <Strong className="tabular-nums">{status.completed}</Strong>
         </div>
-        <div className="rounded bg-white/3 px-2 py-1">
+        <div className="aig-subtle rounded px-2 py-1">
           <Text className="text-2xs">Failed</Text>
           <Strong className="tabular-nums">{status.failed}</Strong>
         </div>
@@ -387,13 +395,12 @@ function TelemetrySignals({ events }: Readonly<{ events: RuntimeTelemetryEvent[]
 
 function EventsPanel({ events }: Readonly<{ events: TelemetryTabData['events'] }>) {
   return (
-    <Panel
-      title="Événements reçus"
-      hint="50 plus récents"
-      className="min-h-64 min-w-0 xl:flex-1"
-      padded={false}
-      bodyClassName="scroll-thin overflow-y-auto"
-    >
+    <section className="flex min-h-64 min-w-0 flex-1 flex-col">
+      <div className="flex flex-wrap items-baseline gap-2">
+        <h2 className="aig-display text-sm font-semibold">Événements reçus</h2>
+        <Text className="aig-text-faint text-2xs">50 plus récents</Text>
+      </div>
+      <div className="aig-hairline my-3" />
       <LoadedBlock loaded={events} what="Le journal des événements">
         {(rows) =>
           rows.length === 0 ? (
@@ -437,7 +444,7 @@ function EventsPanel({ events }: Readonly<{ events: TelemetryTabData['events'] }
           )
         }
       </LoadedBlock>
-    </Panel>
+    </section>
   )
 }
 

@@ -56,7 +56,9 @@ function RunRow({
         href={href}
         aria-current={selected ? 'true' : undefined}
         className={
-          selected ? 'aig-raised block py-2.5 pr-3 pl-3' : 'block py-2.5 pr-3 pl-3 hover:bg-white/5'
+          selected
+            ? 'aig-raised block py-2.5 pr-3 pl-3'
+            : 'block py-2.5 pr-3 pl-3 hover:bg-(--aig-line-soft)'
         }
       >
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
@@ -95,7 +97,7 @@ export default function RunList({
   buildHref: (runId: string) => string
 }>) {
   return (
-    <ul className="divide-y divide-[color:var(--aig-line-soft)]">
+    <ul className="divide-y divide-(--aig-line-soft)">
       {runs.map((run) => (
         <RunRow
           key={run.id}

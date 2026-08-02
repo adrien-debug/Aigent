@@ -29,10 +29,10 @@
  * Server Component pur : il reçoit la donnée déjà lue et la distribue. La
  * sélection passe par l'URL (`/runs?run=<id>`), donc aucun état client.
  */
-import type { ReactNode } from 'react'
 import { navEntry } from '@/components/navigation'
 import { PageBody, PageHeader } from '@/components/app-shell'
 import { Fact, FactValue, NotMeasured, Unavailable } from '@/components/cockpit/primitives'
+import { Link } from '@/components/ui/link'
 import type { AgentRun } from '@/lib/agent-mission-control/types'
 import type { RunsMetrics } from '@/lib/runs-console/runs-metrics'
 import { formatDuration, formatPercent } from '@/lib/runs-console/runs-metrics'
@@ -42,7 +42,7 @@ import RunList from './run-list'
 import TrafficProvenance from './traffic-provenance'
 import { resolveSelectedRun } from './run-view-model'
 import type { ProvenanceBreakdown } from './run-view-model'
-import { RunsActivityCard, RunsHealthCard } from './runs-native-visuals'
+import { RunsActivityCanvas, RunsTerminalStrip, SourceGrade } from './runs-native-visuals'
 
 const ENTRY = navEntry('/runs')
 
@@ -52,11 +52,6 @@ function windowPanelHint(capped: boolean, shownCount: number, windowRunCount: nu
   }
   const runWord = windowRunCount > 1 ? 'runs' : 'run'
   return `${windowRunCount} ${runWord} dans la fenêtre`
-}
-
-function terminalSuccessHint(terminal: number): string {
-  const word = terminal > 1 ? 'terminaux' : 'terminal'
-  return `sur ${terminal} ${word}`
 }
 
 /**
@@ -78,7 +73,7 @@ function HeadlineMeasure({
         {value === null ? (
           <NotMeasured />
         ) : (
-          <span className="aig-display text-3xl leading-none font-semibold sm:text-4xl">
+          <span className="aig-display text-3xl leading-none font-semibold sm:text-5xl">
             {value}
           </span>
         )}
@@ -121,19 +116,6 @@ function HeaderMeta({ label, value }: Readonly<{ label: string; value: string }>
   )
 }
 
-/** Le titre d'un rang — un mot, un filet de lumière, pas un en-tête de carte. */
-function RankTitle({ children, hint }: Readonly<{ children: ReactNode; hint?: string }>) {
-  return (
-    <div className="flex items-baseline gap-3">
-      <h2 className="aig-display shrink-0 text-xs font-semibold tracking-[0.16em] uppercase">
-        {children}
-      </h2>
-      {hint ? <span className="aig-text-faint shrink-0 truncate text-2xs">{hint}</span> : null}
-      <span aria-hidden className="aig-hairline min-w-0 flex-1" />
-    </div>
-  )
-}
-
 export default function RunsScreen({
   runs,
   metrics,
@@ -169,32 +151,6 @@ export default function RunsScreen({
   const capped = windowRunCount > runs.length
   const windowHint = windowPanelHint(capped, runs.length, windowRunCount)
 
-  let detailPanel: ReactNode
-  if (notFound) {
-    detailPanel = (
-      <Unavailable
-        reason="no-data"
-        detail={`Le run demandé n'est pas dans la fenêtre chargée. Il peut être plus ancien que 24 h, avoir été écarté par le plafond de ${tableRowCap} lignes, ou ne pas exister — cet écran ne peut pas trancher.`}
-      />
-    )
-  } else if (selected === null) {
-    detailPanel = (
-      <Unavailable
-        reason="no-data"
-        detail="Aucun run à détailler : la fenêtre ne contient aucun run."
-      />
-    )
-  } else {
-    detailPanel = (
-      <RunDetail
-        run={selected}
-        agentName={agentNameById.get(selected.copilotId) ?? null}
-        projectName={selected.projectId ? (projectNameById.get(selected.projectId) ?? null) : null}
-        nowMs={nowMs}
-      />
-    )
-  }
-
   return (
     <>
       <PageHeader
@@ -211,116 +167,133 @@ export default function RunsScreen({
         }
       />
 
-      <PageBody>
-        {/* ══ RANG 1 — LE SIGNAL PRINCIPAL ══════════════════════════════════ */}
+      <PageBody className="flex min-h-0 flex-1 flex-col gap-3">
         <section
-          className="aig-stage aig-accent-edge grid gap-x-8 gap-y-6 p-5 sm:p-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
-          aria-label="Signal principal de la fenêtre"
+          className="aig-stage aig-accent-edge flex min-h-0 flex-1 flex-col gap-4 p-4 sm:p-5"
+          aria-label="Scène principale des runs"
         >
-          <div className="flex min-w-0 flex-col gap-4">
-            <div className="min-w-0">
-              <h2 className="aig-display text-base font-semibold">État de la fenêtre</h2>
-              <p className="aig-text-muted mt-1 text-xs">{windowHint}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <SourceGrade grade="SNAPSHOT" label="Métriques calculées sur la fenêtre 24h" />
+            <span className="aig-text-muted text-xs">{windowHint}</span>
+            <span className="aig-text-faint text-xs">·</span>
+            <span className="aig-text-muted text-xs">
+              {selected ? `Run sélectionné: ${selected.id.slice(0, 8)}` : 'Sélectionnez un run'}
+            </span>
+            <div className="ml-auto flex items-center gap-2">
+              <Link
+                href="/runtime?tab=telemetry"
+                className="aig-text-muted text-xs no-underline transition hover:text-(--aig-accent)"
+              >
+                Canal runtime →
+              </Link>
+              <Link href="/actions" className="aig-accent text-xs no-underline transition hover:opacity-80">
+                File d’action →
+              </Link>
             </div>
-
-            <div className="grid grid-cols-2 gap-x-6 gap-y-5 xl:grid-cols-1">
-              <HeadlineMeasure label="Runs" value={String(metrics.total)} hint="rendus" />
-              <HeadlineMeasure
-                label="Réussite"
-                value={metrics.successRate === null ? null : formatPercent(metrics.successRate)}
-                hint={
-                  metrics.terminal === 0
-                    ? 'aucun run terminal'
-                    : terminalSuccessHint(metrics.terminal)
-                }
-              />
-              <HeadlineMeasure
-                label="Latence p95"
-                value={formatDuration(metrics.p95LatencyMs)}
-                hint={`${metrics.measuredLatencyRuns} mesuré(s)`}
-              />
-            </div>
-
-            <RunsActivityCard runs={runs} nowMs={nowMs} />
           </div>
 
-          <RunsHealthCard runs={runs} />
-        </section>
+          <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <div className="flex min-h-0 min-w-0 flex-col">
+              <div className="grid grid-cols-3 gap-x-5 gap-y-4 pb-2">
+                <HeadlineMeasure label="Runs" value={String(metrics.total)} hint={windowTruncated ? `plafond ${tableRowCap}` : 'fenêtre lue'} />
+                <HeadlineMeasure
+                  label="Réussite"
+                  value={metrics.successRate === null ? null : formatPercent(metrics.successRate)}
+                  hint={metrics.terminal === 0 ? 'aucun terminal' : `${metrics.completed}/${metrics.terminal}`}
+                />
+                <HeadlineMeasure
+                  label="Latence p95"
+                  value={formatDuration(metrics.p95LatencyMs)}
+                  hint={`${metrics.measuredLatencyRuns} mesuré(s)`}
+                />
+              </div>
 
-        {/* ══ RANG 2 & 3 — FLUX PRINCIPAL + DÉTAIL PROGRESSIF ═══════════════ */}
-        <section
-          className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
-          aria-label="Flux des runs et détail"
-        >
-          <div className="flex min-w-0 flex-col gap-2">
-            <RankTitle hint={windowTruncated ? 'fenêtre plafonnée' : windowHint}>Flux</RankTitle>
-            <div className="aig-inset scroll-thin min-h-0 max-h-176 overflow-y-auto">
-              {runs.length === 0 ? (
-                <div className="p-4">
+              <div className="aig-hairline mb-3" />
+
+              <div className="min-h-0 flex-1">
+                <RunsActivityCanvas runs={runs} nowMs={nowMs} />
+              </div>
+
+              <div className="aig-hairline my-3" />
+
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {runs.length === 0 ? (
                   <Unavailable
                     reason="no-data"
                     detail="Aucun run opérationnel sur les dernières 24 heures. La lecture a réussi — la fenêtre est réellement vide."
                   />
-                </div>
-              ) : (
-                <RunList
-                  runs={runs}
-                  agentNameById={agentNameById}
-                  selectedRunId={selected?.id ?? null}
-                  buildHref={buildHref}
+                ) : (
+                  <RunList
+                    runs={runs}
+                    agentNameById={agentNameById}
+                    selectedRunId={selected?.id ?? null}
+                    buildHref={buildHref}
+                  />
+                )}
+              </div>
+            </div>
+
+            <aside className="flex min-h-0 min-w-0 flex-col gap-3 border-l border-(--aig-line-soft) pl-4">
+              <RunsTerminalStrip runs={runs} />
+
+              <div className="aig-hairline" />
+
+              <div className="grid grid-cols-1 gap-y-1 sm:grid-cols-3 xl:grid-cols-1">
+                <MinorMeasure
+                  label="Échecs"
+                  value={String(metrics.failed)}
+                  hint={`${metrics.blocked} bloqué(s)`}
                 />
-              )}
-            </div>
-          </div>
+                <MinorMeasure
+                  label="Coût mesuré"
+                  value={metrics.measuredCostUsd === null ? null : formatUsd(metrics.measuredCostUsd)}
+                  hint={
+                    metrics.unmeasuredCostRuns > 0
+                      ? `${metrics.unmeasuredCostRuns} sans coût`
+                      : 'tous les runs mesurés'
+                  }
+                />
+                <MinorMeasure
+                  label="Appels d'outils"
+                  value={String(metrics.totalToolCalls)}
+                  hint={
+                    metrics.unsafeAttemptRuns > 0
+                      ? `${metrics.unsafeAttemptRuns} run(s) unsafe`
+                      : undefined
+                  }
+                />
+              </div>
 
-          <div className="flex min-w-0 flex-col gap-2">
-            <RankTitle hint={selected ? 'run sélectionné' : undefined}>Détail</RankTitle>
-            <div className="aig-panel scroll-thin min-h-0 max-h-176 overflow-y-auto">
-              {detailPanel}
-            </div>
+              <TrafficProvenance breakdown={provenance} />
+
+              <div className="aig-hairline" />
+
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {selected ? (
+                  <RunDetail
+                    run={selected}
+                    agentName={agentNameById.get(selected.copilotId) ?? null}
+                    projectName={selected.projectId ? (projectNameById.get(selected.projectId) ?? null) : null}
+                    nowMs={nowMs}
+                  />
+                ) : notFound ? (
+                  <Unavailable
+                    reason="no-data"
+                    detail={`Le run demandé n'est pas dans la fenêtre chargée. Il peut être plus ancien que 24 h, avoir été écarté par le plafond de ${tableRowCap} lignes, ou ne pas exister.`}
+                  />
+                ) : (
+                  <Unavailable
+                    reason="no-data"
+                    detail="Le détail complet d’un run apparaît ici après sélection dans le flux."
+                  />
+                )}
+                </div>
+            </aside>
           </div>
         </section>
 
-        {/* ══ RANG 5 — LE BAS DE PAGE ═══════════════════════════════════════
-            Les mesures secondaires et la provenance : conservées entières,
-            groupées, sans le chrome d'un panneau plein. */}
-        <section className="flex flex-col gap-2" aria-label="Mesures secondaires et provenance">
-          <RankTitle>Contexte</RankTitle>
-          <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-            <div className="aig-quiet grid min-w-0 grid-cols-1 gap-y-1 p-1 sm:grid-cols-3 xl:grid-cols-1">
-              <MinorMeasure
-                label="Échecs"
-                value={String(metrics.failed)}
-                hint={`${metrics.blocked} bloqué(s)`}
-              />
-              <MinorMeasure
-                label="Coût mesuré"
-                value={metrics.measuredCostUsd === null ? null : formatUsd(metrics.measuredCostUsd)}
-                hint={
-                  metrics.unmeasuredCostRuns > 0
-                    ? `${metrics.unmeasuredCostRuns} run(s) sans coût`
-                    : 'tous les runs mesurés'
-                }
-              />
-              <MinorMeasure
-                label="Appels d'outils"
-                value={String(metrics.totalToolCalls)}
-                hint={
-                  metrics.unsafeAttemptRuns > 0
-                    ? `${metrics.unsafeAttemptRuns} run(s) unsafe`
-                    : undefined
-                }
-              />
-            </div>
-
-            <TrafficProvenance breakdown={provenance} />
-          </div>
-        </section>
-
-        {/* Lecture partiellement dégradée : les runs sont réels, les libellés non
-            tous résolus. On le DIT plutôt que d'afficher des ids en silence. */}
         {degradedDetail ? (
-          <p className="aig-panel-raised aig-accent truncate px-3 py-2 font-mono text-2xs">
+          <p className="aig-accent truncate px-1 font-mono text-2xs">
             Libellés partiellement indisponibles — {degradedDetail}
           </p>
         ) : null}

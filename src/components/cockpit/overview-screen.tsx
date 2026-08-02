@@ -24,8 +24,8 @@
 import type { ReactNode } from 'react'
 import { navEntry } from '@/components/navigation'
 import { PageBody, PageHeader } from '@/components/app-shell'
-import { Badge } from '@/components/ui/badge'
 import { Link } from '@/components/ui/link'
+import { Badge } from '@/components/ui/badge'
 import { Text } from '@/components/ui/text'
 import type { DashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
 import { buildHourlyBuckets, buildStatusBreakdown } from '@/lib/cockpit/overview-series'
@@ -81,52 +81,6 @@ function renderActivityPanel(buckets: HourlyBucket[] | null): ReactNode {
     )
   }
   return <ActivityGraph buckets={buckets} />
-}
-
-/**
- * Une section de SECOND RANG — présente, subordonnée, sans cadre complet.
- *
- * Ce n'est pas un `Panel` allégé : c'est l'autre moitié d'une hiérarchie à deux
- * niveaux. `Panel` porte un liseré fermé sur ses quatre côtés, et trois `Panel`
- * côte à côte se lisent comme trois objets de même importance. Ici la section
- * se détache par la VALEUR de son fond et un filet de lumière sous son titre —
- * elle appartient visiblement à la page plutôt que de flotter dessus.
- *
- * Le lien de l'en-tête est le « détail à la demande » : chaque zone dit où
- * aller pour en voir plus, au lieu d'essayer de tout montrer.
- */
-function QuietSection({
-  title,
-  hint,
-  href,
-  hrefLabel,
-  children,
-}: Readonly<{
-  title: string
-  hint?: string
-  href?: string
-  hrefLabel?: string
-  children: ReactNode
-}>) {
-  return (
-    <section className="aig-quiet flex min-w-0 flex-col overflow-hidden">
-      <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 pt-3.5 pb-2.5">
-        <h2 className="aig-display truncate text-sm font-semibold">{title}</h2>
-        {hint ? <p className="aig-text-faint truncate text-2xs">{hint}</p> : null}
-        {href && hrefLabel ? (
-          <Link
-            href={href}
-            className="aig-accent ml-auto shrink-0 text-2xs font-medium no-underline transition hover:text-white"
-          >
-            {hrefLabel} →
-          </Link>
-        ) : null}
-      </header>
-      {/* Le filet remplace la bordure du header : il articule sans découper. */}
-      <div className="aig-hairline mx-4" />
-      <div className="min-w-0 flex-1">{children}</div>
-    </section>
-  )
 }
 
 function renderRunStreamPanel(runs: NamedRun[] | null, nowMs: number): ReactNode {
@@ -193,13 +147,13 @@ export default function CockpitOverview({
           <>
             <Link
               href="/runs"
-              className="aig-panel aig-text-muted inline-flex items-center justify-center px-3 py-2 text-sm font-semibold no-underline transition hover:text-white"
+              className="aig-text-muted inline-flex items-center justify-center px-3 py-2 text-sm font-semibold no-underline transition hover:text-(--aig-accent)"
             >
               Voir les runs
             </Link>
             <Link
               href="/actions"
-              className="aig-panel-raised aig-accent inline-flex items-center justify-center px-3 py-2 text-sm font-semibold no-underline transition hover:text-white"
+              className="aig-accent inline-flex items-center justify-center px-3 py-2 text-sm font-semibold no-underline transition hover:opacity-80"
             >
               File d’action
             </Link>
@@ -207,7 +161,7 @@ export default function CockpitOverview({
         }
       />
 
-      <PageBody className="flex-1">
+      <PageBody className="flex min-h-0 flex-1 flex-col gap-4">
         {/*
          * LA SCÈNE — une seule zone dominante, et tout le reste en dessous.
          *
@@ -239,9 +193,7 @@ export default function CockpitOverview({
             )}
           </header>
 
-          {/* Le graphe est posé dans un CREUX : il est accueilli par la scène,
-              il n'est pas une carte de plus posée dessus. */}
-          <div className="aig-inset mx-3 min-w-0">{renderActivityPanel(buckets)}</div>
+          <div className="min-w-0">{renderActivityPanel(buckets)}</div>
 
           {/* Les mesures ferment la scène — elles qualifient la courbe qu'on
               vient de lire, au lieu de la précéder hors contexte. */}
@@ -257,63 +209,78 @@ export default function CockpitOverview({
             60 / 40 : le flux se lit ligne à ligne et garde la majorité, mais les
             projets portent DES CARTES — à 30 % la colonne n'en montrait que deux
             sur dix et coupait la troisième au bord. */}
-        <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[6fr_4fr] [&>*]:min-w-0">
-          <QuietSection
-            title="Flux d'exécution"
-            hint={runs ? `${runs.length} sur la fenêtre` : undefined}
-            href="/runs"
-            hrefLabel="Tous les runs"
-          >
-            {renderRunStreamPanel(runs, nowMs)}
-          </QuietSection>
+        <section className="grid min-h-0 min-w-0 grid-cols-1 gap-5 xl:grid-cols-[6fr_4fr]">
+          <div className="flex min-h-0 min-w-0 flex-col">
+            <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-2">
+              <h2 className="aig-display truncate text-sm font-semibold">Flux d&apos;exécution</h2>
+              {runs ? <p className="aig-text-faint truncate text-2xs">{runs.length} sur la fenêtre</p> : null}
+              <Link
+                href="/runs"
+                className="aig-accent ml-auto shrink-0 text-2xs font-medium no-underline transition hover:opacity-80"
+              >
+                Tous les runs →
+              </Link>
+            </header>
+            <div className="aig-hairline mb-3" />
+            <div className="min-h-0 flex-1 overflow-y-auto">{renderRunStreamPanel(runs, nowMs)}</div>
+          </div>
 
-          <QuietSection
-            title="Projets"
-            hint={`${projectCards.length} au catalogue`}
-            href="/projects"
-            hrefLabel="Catalogue"
-          >
+          <div className="flex min-h-0 min-w-0 flex-col border-l border-(--aig-line-soft) pl-4">
+            <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-2">
+              <h2 className="aig-display truncate text-sm font-semibold">Projets</h2>
+              <p className="aig-text-faint truncate text-2xs">{projectCards.length} au catalogue</p>
+              <Link
+                href="/projects"
+                className="aig-accent ml-auto shrink-0 text-2xs font-medium no-underline transition hover:opacity-80"
+              >
+                Catalogue →
+              </Link>
+            </header>
+            <div className="aig-hairline mb-3" />
             {projectCards.length === 0 ? (
               <Unavailable reason="no-data" detail="Aucun projet dans le catalogue." />
             ) : (
               <ProjectCarousel cards={rankedProjects} />
             )}
-          </QuietSection>
-        </div>
 
-        <QuietSection
-          title="Événements importants"
-          hint={`${overview.actionItems.length} signal(aux)`}
-          href="/actions"
-          hrefLabel="File complète"
-        >
-          {overview.actionItems.length === 0 ? (
-            <div className="px-4 py-5">
+            <div className="aig-hairline my-3" />
+
+            <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-2">
+              <h2 className="aig-display truncate text-sm font-semibold">Événements importants</h2>
+              <p className="aig-text-faint truncate text-2xs">{overview.actionItems.length} signal(aux)</p>
+              <Link
+                href="/actions"
+                className="aig-accent ml-auto shrink-0 text-2xs font-medium no-underline transition hover:opacity-80"
+              >
+                File complète →
+              </Link>
+            </header>
+            {overview.actionItems.length === 0 ? (
               <Unavailable
                 reason="no-data"
                 detail="Aucun signal bloquant sur la fenêtre actuelle. La lecture a réussi."
               />
-            </div>
-          ) : (
-            <ul className="divide-y divide-(--aig-line-soft)">
-              {overview.actionItems.slice(0, 6).map((item) => (
-                <li key={item.id} className="flex items-start gap-3 px-4 py-3">
-                  <Badge color={actionTone(item.status)}>{item.status}</Badge>
-                  <div className="min-w-0 flex-1">
-                    <Text className="truncate text-sm text-white">{item.title}</Text>
-                    <Text className="truncate text-xs">{item.meta}</Text>
-                  </div>
-                  <Link
-                    href={item.href}
-                    className="aig-accent shrink-0 text-2xs no-underline transition hover:text-white"
-                  >
-                    Ouvrir →
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </QuietSection>
+            ) : (
+              <ul className="divide-y divide-(--aig-line-soft)">
+                {overview.actionItems.slice(0, 6).map((item) => (
+                  <li key={item.id} className="flex items-start gap-3 py-3">
+                    <Badge color={actionTone(item.status)}>{item.status}</Badge>
+                    <div className="min-w-0 flex-1">
+                      <Text className="aig-display truncate text-sm">{item.title}</Text>
+                      <Text className="truncate text-xs">{item.meta}</Text>
+                    </div>
+                    <Link
+                      href={item.href}
+                      className="aig-accent shrink-0 text-2xs no-underline transition hover:opacity-80"
+                    >
+                      Ouvrir →
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
 
         {overview.dataWarnings.length > 0 ? (
           <p className="aig-accent truncate px-1 font-mono text-2xs">
