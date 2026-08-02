@@ -82,7 +82,7 @@ function ProjectListBody({
   }
 
   return (
-    <ul className="divide-y divide-white/5">
+    <ul className="divide-y aig-line-soft">
       {items.map((item) => (
         <ProjectRow key={item.id} item={item} />
       ))}

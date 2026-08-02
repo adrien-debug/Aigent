@@ -14,16 +14,21 @@ import { Strong, Text } from '@/components/ui/text'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { AgentRun } from '@/lib/agent-mission-control/types'
 import { formatDuration } from '@/lib/runs-console/runs-metrics'
-import { AbsentMark, Rail, SEVERITY } from '@/components/cockpit/primitives'
+import { AbsentMark, Rail } from '@/components/cockpit/primitives'
+import { RUN_STATUS_COLOR } from '@/lib/cockpit/status'
 import { RUN_STATUS_BADGE, RUN_STATUS_LABEL } from './run-view-model'
 
-const RAIL_COLOR: Record<AgentRun['status'], string> = {
-  completed: SEVERITY.good,
-  running: SEVERITY.running,
-  failed: SEVERITY.bad,
-  blocked: SEVERITY.warn,
-  'needs-confirmation': SEVERITY.muted,
-}
+/**
+ * Le rail de sévérité DÉRIVE de l'autorité, il ne la recopie pas.
+ *
+ * Cette table avait divergé sur deux statuts : `blocked` en `warn` (l'ambre
+ * d'un avertissement, pour un verdict Sentinel TERMINAL) et
+ * `needs-confirmation` en `muted` — un gris translucide qui rendait « ce run
+ * attend un humain » comme un état inactif. `RUN_STATUS_COLOR` de
+ * `@/lib/cockpit/status` porte déjà exactement ce vocabulaire, pour les cinq
+ * statuts. On l'utilise.
+ */
+const RAIL_COLOR = RUN_STATUS_COLOR
 
 function RunRow({
   run,

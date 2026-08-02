@@ -415,7 +415,7 @@ export default function ProjectDetailScreen({
                     />
                   </div>
                 ) : (
-                  <ul className="divide-y divide-white/5">
+                  <ul className="divide-y aig-line-soft">
                     {agents.map((node) => (
                       <AgentRow key={node.id} node={node} />
                     ))}
@@ -438,7 +438,7 @@ export default function ProjectDetailScreen({
                     />
                   </div>
                 ) : (
-                  <ul className="divide-y divide-white/5">
+                  <ul className="divide-y aig-line-soft">
                     {relations.map((edge) => (
                       <li key={edge.id} className="flex items-center gap-2 px-4 py-2">
                         <div className="min-w-0 flex-1">

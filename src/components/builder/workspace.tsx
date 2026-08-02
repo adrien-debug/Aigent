@@ -341,7 +341,7 @@ function SpecPanel({
       {preview.tools.length > 0 ? (
         <div>
           <Text className="mb-1 font-medium">Outils ({preview.tools.length})</Text>
-          <ul className="divide-y divide-white/5">
+          <ul className="divide-y aig-line-soft">
             {preview.tools.map((tool) => (
               <ToolRow key={tool.name} tool={tool} />
             ))}

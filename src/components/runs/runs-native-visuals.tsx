@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge'
 import { Text } from '@/components/ui/text'
 import { SEVERITY } from '@/components/cockpit/primitives'
+import { RUN_STATUS_COLOR } from '@/lib/cockpit/status'
 import type { AgentRun } from '@/lib/agent-mission-control/types'
 import { formatDuration } from '@/lib/runs-console/runs-metrics'
 import { buildRunsHourlyBuckets } from '@/lib/runs-console/runs-timeseries'
@@ -158,12 +159,24 @@ export function RunsTerminalStrip({
       ? ordered[Math.floor(0.95 * (ordered.length - 1))]
       : null
 
+  /*
+   * Légende et rails parlent la MÊME langue — celle de `RUN_STATUS_COLOR`.
+   *
+   * Cette liste avait divergé de l'autorité sur deux entrées : « Bloqués » en
+   * `warn` (l'ambre d'un avertissement pour un verdict terminal) et
+   * « Confirmation » en `muted`. Une légende qui peint un statut autrement que
+   * le rail de la ligne qu'elle légende n'est plus une légende.
+   */
   const rows = [
-    { label: 'Terminés', count: statusCounts.completed, color: SEVERITY.good },
-    { label: 'Échecs', count: statusCounts.failed, color: SEVERITY.bad },
-    { label: 'Bloqués', count: statusCounts.blocked, color: SEVERITY.warn },
-    { label: 'En cours', count: statusCounts.running, color: SEVERITY.running },
-    { label: 'Confirmation', count: statusCounts.needsConfirmation, color: SEVERITY.muted },
+    { label: 'Terminés', count: statusCounts.completed, color: RUN_STATUS_COLOR.completed },
+    { label: 'Échecs', count: statusCounts.failed, color: RUN_STATUS_COLOR.failed },
+    { label: 'Bloqués', count: statusCounts.blocked, color: RUN_STATUS_COLOR.blocked },
+    { label: 'En cours', count: statusCounts.running, color: RUN_STATUS_COLOR.running },
+    {
+      label: 'Confirmation',
+      count: statusCounts.needsConfirmation,
+      color: RUN_STATUS_COLOR['needs-confirmation'],
+    },
   ]
 
   return (

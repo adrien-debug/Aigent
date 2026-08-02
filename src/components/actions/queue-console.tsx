@@ -437,7 +437,7 @@ export default function QueueConsole({
               />
             </div>
           ) : (
-            <ul className="divide-y divide-white/6">
+            <ul className="divide-y aig-line-soft">
               {visible.map((item) => (
                 <QueueRow
                   key={item.id}
