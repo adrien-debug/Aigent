@@ -1,0 +1,287 @@
+{
+  "label": "BEFORE",
+  "at": "2026-08-02T12:50:06.476Z",
+  "schemes": {
+    "dark": {
+      "rgb": {
+        "canvas": [
+          12,
+          13,
+          16
+        ],
+        "base": [
+          18,
+          20,
+          23
+        ],
+        "raised": [
+          29,
+          31,
+          35
+        ],
+        "lineSoft": [
+          36,
+          38,
+          42
+        ],
+        "line": [
+          49,
+          51,
+          55
+        ],
+        "inset": [
+          7,
+          7,
+          9
+        ],
+        "quietOnStage": [
+          11,
+          12,
+          14
+        ],
+        "text": [
+          230,
+          232,
+          235
+        ],
+        "textMuted": [
+          159,
+          161,
+          165
+        ],
+        "textFaint": [
+          120,
+          122,
+          126
+        ],
+        "textDisplay": [
+          243,
+          245,
+          248
+        ],
+        "accent": [
+          219,
+          144,
+          98
+        ],
+        "sevGood": [
+          13,
+          168,
+          127
+        ],
+        "sevWarn": [
+          190,
+          133,
+          15
+        ],
+        "sevBad": [
+          232,
+          69,
+          95
+        ],
+        "sevRunning": [
+          61,
+          130,
+          238
+        ],
+        "sevBlocked": [
+          142,
+          99,
+          238
+        ]
+      },
+      "hierarchy": {
+        "canvas -> base(scène)": 1.053,
+        "base(scène) -> inset(creux)": 1.091,
+        "canvas -> inset(creux)": 1.036,
+        "base(scène) -> raised(élevé)": 1.118,
+        "inset(creux) -> raised(élevé)": 1.22,
+        "lineSoft vs base": 1.217,
+        "line vs base": 1.458
+      },
+      "ordering": {
+        "insetDarkerThanCanvas": true,
+        "insetDarkerThanBase": true,
+        "raisedLighterThanBase": true,
+        "lumCanvas": 0.00403,
+        "lumInset": 0.00217,
+        "lumBase": 0.00691,
+        "lumRaised": 0.01363
+      },
+      "text": {
+        "text on canvas": 15.83,
+        "text on base": 15.03,
+        "text on inset": 16.396,
+        "text on raised": 13.443,
+        "muted on canvas": 7.51,
+        "muted on base": 7.13,
+        "muted on inset": 7.778,
+        "muted on raised": 6.378,
+        "faint on canvas": 4.519,
+        "faint on base": 4.291,
+        "faint on inset": 4.681,
+        "faint on raised": 3.838,
+        "display on base": 16.893,
+        "accent on base": 7.185,
+        "accent on inset": 7.838
+      },
+      "severityOnSurfaces": {
+        "good on base": 6.084,
+        "good on inset": 6.637,
+        "warn on base": 5.756,
+        "warn on inset": 6.279,
+        "bad on base": 4.786,
+        "bad on inset": 5.221,
+        "running on base": 4.943,
+        "blocked on base": 4.542
+      },
+      "stageSampled": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "bgImage": "radial-gradient(120% 100% at 0% 0%, oklab(0.239999 -0.000838"
+      }
+    },
+    "light": {
+      "rgb": {
+        "canvas": [
+          12,
+          13,
+          16
+        ],
+        "base": [
+          18,
+          20,
+          23
+        ],
+        "raised": [
+          29,
+          31,
+          35
+        ],
+        "lineSoft": [
+          36,
+          38,
+          42
+        ],
+        "line": [
+          49,
+          51,
+          55
+        ],
+        "inset": [
+          7,
+          7,
+          9
+        ],
+        "quietOnStage": [
+          11,
+          12,
+          14
+        ],
+        "text": [
+          230,
+          232,
+          235
+        ],
+        "textMuted": [
+          159,
+          161,
+          165
+        ],
+        "textFaint": [
+          120,
+          122,
+          126
+        ],
+        "textDisplay": [
+          243,
+          245,
+          248
+        ],
+        "accent": [
+          219,
+          144,
+          98
+        ],
+        "sevGood": [
+          13,
+          168,
+          127
+        ],
+        "sevWarn": [
+          190,
+          133,
+          15
+        ],
+        "sevBad": [
+          232,
+          69,
+          95
+        ],
+        "sevRunning": [
+          61,
+          130,
+          238
+        ],
+        "sevBlocked": [
+          142,
+          99,
+          238
+        ]
+      },
+      "hierarchy": {
+        "canvas -> base(scène)": 1.053,
+        "base(scène) -> inset(creux)": 1.091,
+        "canvas -> inset(creux)": 1.036,
+        "base(scène) -> raised(élevé)": 1.118,
+        "inset(creux) -> raised(élevé)": 1.22,
+        "lineSoft vs base": 1.217,
+        "line vs base": 1.458
+      },
+      "ordering": {
+        "insetDarkerThanCanvas": true,
+        "insetDarkerThanBase": true,
+        "raisedLighterThanBase": true,
+        "lumCanvas": 0.00403,
+        "lumInset": 0.00217,
+        "lumBase": 0.00691,
+        "lumRaised": 0.01363
+      },
+      "text": {
+        "text on canvas": 15.83,
+        "text on base": 15.03,
+        "text on inset": 16.396,
+        "text on raised": 13.443,
+        "muted on canvas": 7.51,
+        "muted on base": 7.13,
+        "muted on inset": 7.778,
+        "muted on raised": 6.378,
+        "faint on canvas": 4.519,
+        "faint on base": 4.291,
+        "faint on inset": 4.681,
+        "faint on raised": 3.838,
+        "display on base": 16.893,
+        "accent on base": 7.185,
+        "accent on inset": 7.838
+      },
+      "severityOnSurfaces": {
+        "good on base": 6.084,
+        "good on inset": 6.637,
+        "warn on base": 5.756,
+        "warn on inset": 6.279,
+        "bad on base": 4.786,
+        "bad on inset": 5.221,
+        "running on base": 4.943,
+        "blocked on base": 4.542
+      },
+      "stageSampled": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "bgImage": "radial-gradient(120% 100% at 0% 0%, oklab(0.239999 -0.000838"
+      }
+    }
+  },
+  "stageBox": {
+    "w": 1136,
+    "h": 731
+  },
+  "stageShotBytes": 150044
+}
