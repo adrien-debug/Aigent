@@ -119,34 +119,57 @@ export function Panel({
  * Absence de mesure. Deux raisons distinctes, jamais confondues :
  *  · `reason="unread"`  — la lecture a échoué (backend muet).
  *  · `reason="no-data"` — la lecture a réussi, il n'y avait rien à mesurer.
+ *
+ * UNE ABSENCE EST UNE LIGNE, PAS UN PANNEAU. Cette boîte mesurait `min-h-32`
+ * (128 px) avec un liseré pointillé et un contenu centré : une absence occupait
+ * donc plus de surface — et attirait plus l'œil — que la donnée qu'elle
+ * remplace. Sur `/agents/[id]`, trois absences empilées produisaient près de
+ * 400 px de vide encadré pour dire trois fois « il n'y a rien ».
+ *
+ * Le défaut est désormais une ligne compacte : le mot d'absence, son explication
+ * à côté, aucun cadre. Elle se lit, elle ne réclame pas.
+ *
+ * `block` reste pour le seul cas où l'absence EST le contenu de la page (une
+ * 404, un panneau vide qui doit occuper sa zone). C'est un opt-in explicite,
+ * jamais le défaut — sinon la boîte revient partout par inertie.
  */
 export function Unavailable({
   reason = 'unread',
   detail,
   compact = false,
+  block = false,
 }: Readonly<{
   reason?: 'unread' | 'no-data'
   detail?: string
+  /** Encore plus court : le libellé seul, sans explication. */
   compact?: boolean
+  /** L'absence est le contenu principal de sa zone (404, panneau vide dédié). */
+  block?: boolean
 }>) {
   const label = reason === 'unread' ? UNAVAILABLE_LABEL : 'Aucune mesure'
+
+  if (block) {
+    return (
+      <div className="aig-line-soft flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-4">
+        <span className="aig-raised aig-text-muted rounded-md px-2 py-0.5 text-xs font-medium uppercase">
+          {label}
+        </span>
+        {detail ? <Text className="max-w-[34ch] text-center">{detail}</Text> : null}
+      </div>
+    )
+  }
+
   return (
-    <div
-      className={clsx(
-        'flex flex-col items-center justify-center gap-2 rounded-lg',
-        'aig-line-soft border border-dashed',
-        compact ? 'px-2 py-1' : 'min-h-32 p-4',
-      )}
-    >
+    <div className={clsx('flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5', !compact && 'py-1')}>
       <span
         className={clsx(
-          'aig-raised aig-text-muted rounded-md font-medium uppercase',
-          compact ? 'px-1.5 py-0.5 text-3xs' : 'px-2 py-0.5 text-xs',
+          'aig-text-muted shrink-0 font-medium uppercase',
+          compact ? 'text-3xs' : 'text-2xs',
         )}
       >
         {label}
       </span>
-      {detail && !compact ? <Text className="max-w-[34ch] text-center">{detail}</Text> : null}
+      {detail && !compact ? <Text className="min-w-0 text-sm">{detail}</Text> : null}
     </div>
   )
 }

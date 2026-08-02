@@ -156,3 +156,81 @@ export const STAGE_DISPLAY_MEANING: Record<StageDisplay, string> = {
 export function isConsumerReportedStage(stage: LifecycleStage): boolean {
   return stage.key === 'active_in_consumer'
 }
+
+/* ─────────────────── Nature d'un obstacle de lancement ─────────────────── */
+
+/**
+ * De quelle NATURE est un obstacle — la distinction que l'écran doit rendre.
+ *
+ * `computeBlockers` répond à une seule question : « un run peut-il partir ? ».
+ * Sa réponse est juste, mais elle est BINAIRE, et l'écran la peignait telle
+ * quelle : tout obstacle sortait en rouge critique sous le titre « Lancement
+ * bloqué ». Un agent dont on n'a simplement jamais résolu la version se lisait
+ * donc exactement comme un agent qui déclare trois outils que le runner ne sait
+ * pas exécuter.
+ *
+ * Ce sont deux affirmations différentes, et `AGENTS.md § Vérité des données`
+ * exige de ne pas les confondre :
+ *
+ *  · `proven`  — une mesure a été prise et elle est NÉGATIVE. Quelque chose est
+ *                cassé, nommément : un outil déclaré sans handler exécutable,
+ *                un runtime qui n'est pas LangGraph. Le rouge est mérité.
+ *  · `absent`  — rien n'a été mesuré, ou une donnée requise n'a jamais été
+ *                résolue. Personne n'a échoué : il n'y a rien à lire. Le rouge
+ *                y serait un mensonge — il accuserait une panne qui n'existe
+ *                pas.
+ *
+ * La classification se fait sur le `code` de l'obstacle, qui est stable et
+ * défini au même endroit que les obstacles eux-mêmes (`agent-detail.ts`). Le
+ * DÉFAUT est `absent` : un code inconnu de cette table ne doit pas hériter du
+ * rouge par accident — on n'invente pas une panne qu'on n'a pas prouvée.
+ */
+export type BlockerNature = 'proven' | 'absent'
+
+/**
+ * Les codes qui portent un fait mesuré ET négatif. Tout le reste est une
+ * absence.
+ *
+ * `unresolved-tools` : le registre a été lu, les handlers cherchés, et ils
+ * n'existent pas — c'est une contradiction interne prouvée, pas un trou.
+ *
+ * `runtime-not-langgraph` : le runtime est RENSEIGNÉ et vaut autre chose que
+ * `langgraph`. La valeur est là, elle est lue, et elle interdit l'exécution.
+ * (Un runtime NON résolu, lui, arrive par `missing-*` et reste une absence.)
+ */
+const PROVEN_BLOCKER_CODES: ReadonlySet<string> = new Set([
+  'unresolved-tools',
+  'runtime-not-langgraph',
+])
+
+/**
+ * Le `code` d'un obstacle `status` porte le statut canonique dans son `label`,
+ * pas dans son code — il faut donc regarder le statut lui-même. `degraded` est
+ * le seul statut qui affirme un fait négatif prouvé (le catalogue a constaté des
+ * outils inexécutables) ; `unavailable` et `inactive` disent tous deux une
+ * absence : une donnée requise manque, ou l'activation n'a jamais eu lieu.
+ */
+export function blockerNature(code: string, agentStatus: string | undefined): BlockerNature {
+  if (PROVEN_BLOCKER_CODES.has(code)) return 'proven'
+  if (code === 'status') return agentStatus === 'degraded' ? 'proven' : 'absent'
+  return 'absent'
+}
+
+/**
+ * Le verdict de la fiche, dérivé de la NATURE de ses obstacles.
+ *
+ * Trois issues, pas deux — c'est tout l'objet de cette passe :
+ *  · `launchable`   — aucun obstacle.
+ *  · `blocked`      — au moins un obstacle PROUVÉ. Rouge, titre « bloqué ».
+ *  · `unmeasured`   — des obstacles, mais tous des absences. Neutre.
+ */
+export type ServiceVerdict = 'launchable' | 'blocked' | 'unmeasured'
+
+export function serviceVerdict(
+  blockers: readonly { code: string }[],
+  agentStatus: string | undefined,
+): ServiceVerdict {
+  if (blockers.length === 0) return 'launchable'
+  const hasProven = blockers.some((b) => blockerNature(b.code, agentStatus) === 'proven')
+  return hasProven ? 'blocked' : 'unmeasured'
+}

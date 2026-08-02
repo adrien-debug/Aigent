@@ -39,7 +39,9 @@ export default function NotFound() {
           <div className="min-h-0 flex-1 overflow-y-auto p-6">
             <div className="mx-auto flex h-full max-w-xl items-center justify-center">
               <div className="w-full">
+                {/* `block` : ici l'absence EST le contenu de la page. */}
                 <Unavailable
+                  block
                   reason="no-data"
                   detail="Aucune lecture n'a échoué et rien n'est en panne : le chemin demandé n'existe pas. Les surfaces réellement disponibles sont dans la navigation."
                 />

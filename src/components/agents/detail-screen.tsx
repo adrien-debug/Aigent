@@ -15,7 +15,7 @@ import { Subheading } from '@/components/ui/heading'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
 import { SEVERITY, Unavailable, initialsOf } from '@/components/cockpit/primitives'
-import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
+import { UNAVAILABLE_LABEL, formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import { formatDuration } from '@/lib/runs-console/runs-metrics'
 import type { AgentDetail } from '@/lib/agent-mission-control/agent-detail'
 import type { ReleaseGate } from '@/lib/agent-mission-control/release-gate'
@@ -28,7 +28,14 @@ import {
   RuntimeStatusBadge,
   StageBadge,
 } from './atoms'
-import { sortChecks, stageDisplay, summarizeGate, STAGE_DISPLAY_MEANING } from './evidence-model'
+import {
+  blockerNature,
+  serviceVerdict,
+  sortChecks,
+  stageDisplay,
+  summarizeGate,
+  STAGE_DISPLAY_MEANING,
+} from './evidence-model'
 import { isUnavailable } from './roster-model'
 
 /** Une date ISO → texte court et déterministe (UTC, sans locale). */
@@ -255,7 +262,30 @@ function OverviewSection({ detail }: Readonly<{ detail: AgentDetail }>) {
   const consumerStage = lifecycle.stages.find((stage) => stage.key === 'active_in_consumer')
   const consumerDisplay = consumerStage ? stageDisplay(consumerStage) : 'unknown'
   const reachedCount = lifecycle.stages.filter((stage) => stageDisplay(stage) === 'reached').length
-  const blocked = detail.blockers.length > 0
+
+  /*
+   * TROIS VERDICTS, PAS DEUX. `detail.executable` répond « un run peut-il
+   * partir ? » — une question binaire dont la réponse est juste. Mais l'écran
+   * la peignait telle quelle : toute réponse négative sortait en rouge critique
+   * sous « Lancement bloqué », qu'un outil soit réellement inexécutable ou
+   * qu'une version n'ait simplement jamais été résolue.
+   *
+   * `serviceVerdict` distingue la NATURE des obstacles : un fait mesuré et
+   * négatif (rouge, mérité) d'une absence de mesure (neutre). Le contrat de
+   * données n'est pas touché — `detail.executable` et `detail.blockers` sont
+   * lus tels quels, et TOUS les obstacles restent affichés.
+   */
+  const verdict = serviceVerdict(detail.blockers, agent?.status)
+  const blocked = verdict === 'blocked'
+  const unmeasured = verdict === 'unmeasured'
+
+  // Le mot d'absence vient de `UNAVAILABLE_LABEL`, jamais d'un littéral : le
+  // produit n'épelle ce mot qu'UNE fois (invariant tenu par `cost-truth.test`).
+  const VERDICT_TITLE: Record<typeof verdict, string> = {
+    launchable: 'Lançable maintenant',
+    blocked: 'Lancement bloqué',
+    unmeasured: UNAVAILABLE_LABEL,
+  }
 
   return (
     <section className="aig-stage aig-accent-edge p-5 sm:p-6" aria-label="État de service">
@@ -266,9 +296,20 @@ function OverviewSection({ detail }: Readonly<{ detail: AgentDetail }>) {
             État de service
           </Text>
 
-          <p className="aig-display mt-2 text-3xl font-semibold tracking-tight sm:text-4xl" style={detail.executable ? undefined : { color: SEVERITY.bad }}>
-            {detail.executable ? 'Lançable maintenant' : 'Lancement bloqué'}
+          {/* Seul un blocage PROUVÉ prend la couleur de sévérité. Une absence
+              reste dans le graphite du texte : elle se lit, elle n'alarme pas. */}
+          <p
+            className="aig-display mt-2 text-3xl font-semibold tracking-tight sm:text-4xl"
+            style={blocked ? { color: SEVERITY.bad } : undefined}
+          >
+            {VERDICT_TITLE[verdict]}
           </p>
+
+          {unmeasured ? (
+            <Text className="aig-text-muted mt-1 text-sm">
+              Aucune mesure runtime disponible pour cet agent.
+            </Text>
+          ) : null}
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <StageBadge
@@ -284,28 +325,45 @@ function OverviewSection({ detail }: Readonly<{ detail: AgentDetail }>) {
             <InlineStatus tone={blocked ? 'danger' : 'default'}>
               {blocked
                 ? `${detail.blockers.length} obstacle(s) concret(s) empechent un lancement.`
-                : 'Aucun obstacle runtime connu a ce stade.'}
+                : unmeasured
+                  ? `${detail.blockers.length} prérequis non mesuré(s) — rien n’a échoué, rien n’a été lu.`
+                  : 'Aucun obstacle runtime connu a ce stade.'}
             </InlineStatus>
           </div>
 
           {/* Un obstacle DOIT ressortir : `aig-panel-raised` monte la boîte
               d'un palier, le liseré rouge porte la gravité. Le couple
               `border-red-200 / bg-red-50` était un aplat pâle pensé pour un
-              fond blanc — sur graphite il éblouissait. */}
-          {blocked ? (
+              fond blanc — sur graphite il éblouissait.
+              CHAQUE obstacle porte désormais SA propre nature : dans un agent
+              `degraded`, l'outil inexécutable est rouge et le prérequis non
+              résolu qui l'accompagne reste neutre. Peindre toute la liste en
+              rouge parce qu'un seul élément est prouvé serait la même faute à
+              une échelle plus fine. */}
+          {detail.blockers.length > 0 ? (
             <ul className="mt-3 space-y-2">
-              {detail.blockers.slice(0, 3).map((blocker) => (
-                <li
-                  key={blocker.code}
-                  className="aig-panel-raised px-3 py-2"
-                  style={{ borderColor: 'color-mix(in oklab, var(--aig-severity-bad) 40%, transparent)' }}
-                >
-                  <Strong className="block">{blocker.label}</Strong>
-                  <Text className="mt-1 text-sm" style={{ color: SEVERITY.bad }}>
-                    {blocker.detail}
-                  </Text>
-                </li>
-              ))}
+              {detail.blockers.slice(0, 3).map((blocker) => {
+                const proven = blockerNature(blocker.code, agent?.status) === 'proven'
+                return (
+                  <li
+                    key={blocker.code}
+                    className={proven ? 'aig-panel-raised px-3 py-2' : 'aig-inset px-3 py-2'}
+                    style={
+                      proven
+                        ? { borderColor: 'color-mix(in oklab, var(--aig-severity-bad) 40%, transparent)' }
+                        : undefined
+                    }
+                  >
+                    <Strong className="block">{blocker.label}</Strong>
+                    <Text
+                      className={proven ? 'mt-1 text-sm' : 'aig-text-muted mt-1 text-sm'}
+                      style={proven ? { color: SEVERITY.bad } : undefined}
+                    >
+                      {blocker.detail}
+                    </Text>
+                  </li>
+                )
+              })}
             </ul>
           ) : null}
         </div>
