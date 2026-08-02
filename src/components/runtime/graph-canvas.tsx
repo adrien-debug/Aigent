@@ -79,9 +79,9 @@ function AigentNode({ data, selected }: NodeProps) {
   // (cf. l'en-tête : jamais la couleur seule). Les paires `X dark:Y` tombent :
   // le document est sombre depuis `layout.tsx`, la moitié claire ne se rendait
   // plus. La sélection garde son anneau sky, qui est un état d'interaction.
-  const tone = d.terminal ? 'aig-raised aig-line' : 'aig-panel border-sky-800'
+  const tone = d.terminal ? 'aig-raised aig-line' : 'aig-panel border-[color-mix(in_oklab,var(--aig-severity-running)_45%,transparent)]'
   const ring = selected
-    ? 'ring-2 ring-sky-500 ring-offset-1 ring-offset-[color:var(--aig-subtle)]'
+    ? 'ring-2 ring-(--aig-severity-running) ring-offset-1 ring-offset-[color:var(--aig-subtle)]'
     : ''
 
   return (
@@ -365,7 +365,7 @@ export default function GraphCanvas(props: Readonly<GraphCanvasProps>) {
       {dropped > 0 ? (
         // Une arête écartée est un fait, pas un détail : la taire donnerait un
         // graphe faux d'apparence saine.
-        <Text className="text-2xs text-amber-500">
+        <Text className="text-2xs text-(--aig-severity-warn)">
           {dropped} arête(s) écartée(s) : elles désignent un nœud absent de la topologie publiée.
         </Text>
       ) : null}

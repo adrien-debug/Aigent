@@ -1,0 +1,103 @@
+{
+  "generatedAt": "2026-08-02T00:08:59.328Z",
+  "baseUrl": "http://127.0.0.1:3987",
+  "agentRoute": "/agents/copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8",
+  "captures": [
+    {
+      "route": "/runs",
+      "file": "runs-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "route": "/runs",
+      "file": "runs-laptop-1280x800.png",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      }
+    },
+    {
+      "route": "/runs",
+      "file": "runs-mobile-375x812.png",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      }
+    },
+    {
+      "route": "/runs",
+      "file": "runs-low-height-1280x600.png",
+      "viewport": {
+        "width": 1280,
+        "height": 600
+      }
+    },
+    {
+      "route": "/",
+      "file": "overview-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "route": "/runtime?tab=telemetry",
+      "file": "runtime-telemetry-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "route": "/agents",
+      "file": "agents-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "route": "/agents/copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8",
+      "file": "agent-detail-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "route": "/learning",
+      "file": "learning-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "route": "/delivery",
+      "file": "delivery-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "route": "/qualification",
+      "file": "qualification-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "route": "contact-sheet",
+      "file": "contact-sheet.png",
+      "viewport": {
+        "width": 1800,
+        "height": 2600
+      }
+    }
+  ]
+}

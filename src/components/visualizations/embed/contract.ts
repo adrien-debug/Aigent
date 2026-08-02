@@ -48,9 +48,6 @@ export function isImplementedKind(kind: string): kind is VisualizationSourceKind
   return (IMPLEMENTED_KINDS as readonly string[]).includes(kind)
 }
 
-/** Rôles sémantiques de surface — locaux à la visualisation, jamais globaux. */
-export type SurfaceRole = 'base' | 'subtle' | 'raised' | 'interactive' | 'overlay'
-
 /** Densité d'enveloppe, pour comparer deux traitements sans dupliquer le moteur. */
 export type EnvelopeDensity = 'comfortable' | 'compact'
 
@@ -123,5 +120,3 @@ export const VISUALIZATION_TIMEOUT_MS = 4_000
  * (`GF_USERS_DEFAULT_THEME`). Aigent ne peut pas restyler une iframe
  * cross-origin, et prétendre le contraire produirait un habillage qui ment.
  */
-export const ALLOWED_THEME_PARAMS = ['theme'] as const
-export type AllowedThemeParam = (typeof ALLOWED_THEME_PARAMS)[number]

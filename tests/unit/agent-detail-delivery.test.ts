@@ -116,6 +116,7 @@ describe('getAgentDetail — delivery exposure', () => {
     mockDeliveryImpl = null
     mockDelivery = {
       id: 'evt-1',
+      versionId: 'v1',
       mode: 'pull_request',
       targetRepo: 'org/consumer-repo',
       targetBranch: 'main',

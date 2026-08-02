@@ -81,11 +81,15 @@ export async function scanProjectRepo(project: Project, ref?: string): Promise<R
 
   // 3. Design-system signals from path shape (no fetch).
   const dsSignals: string[] = []
-  if (files.some((p) => /components\/catalyst\//.test(p))) dsSignals.push('Catalyst primitives (components/ui/)')
+  if (files.some((p) => /components\/ui\//.test(p))) dsSignals.push('UI primitives (components/ui/)')
   if (files.some((p) => /tailwind\.config/.test(p)) || files.some((p) => p.endsWith('globals.css')))
     dsSignals.push('Tailwind config / globals.css')
-  if (files.some((p) => p.endsWith('check-catalyst.mjs'))) dsSignals.push('Catalyst gate (check-catalyst.mjs)')
-  if (files.some((p) => p.endsWith('check-palette.mjs'))) dsSignals.push('Palette/DS gate (check-palette.mjs)')
+  if (files.some((p) => p.endsWith('check-production-visual-authority.mjs'))) {
+    dsSignals.push('Production visual authority gate')
+  }
+  if (files.some((p) => p.endsWith('check-no-legacy-design-governance.mjs'))) {
+    dsSignals.push('Legacy design governance gate')
+  }
 
   // 4. Fetch a small, bounded set of key files for deeper signal.
   const stack: string[] = []

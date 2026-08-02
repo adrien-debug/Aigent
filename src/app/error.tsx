@@ -44,7 +44,7 @@ export default function AppRouteError({
     // `raised` — un rendu interrompu est précisément ce qui doit ressortir.
     <div className="aig-subtle flex h-full items-center justify-center p-4">
       <div className="aig-panel-raised max-w-md px-6 py-8 text-center">
-        <Text className="font-medium text-white">Cet écran n&apos;a pas pu s&apos;afficher.</Text>
+        <Text className="font-medium text-(--aig-text)">Cet écran n&apos;a pas pu s&apos;afficher.</Text>
         <Text className="mt-2">
           L&apos;affichage a été interrompu pendant le rendu. Aucun chiffre n&apos;est montré :
           l&apos;état réel de la flotte est inconnu de cet écran, pas nul.

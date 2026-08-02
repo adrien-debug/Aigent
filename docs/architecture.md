@@ -124,7 +124,8 @@ Tailwind v4 se branche par un unique plugin PostCSS (`postcss.config.mjs`) : il
 n'y a **pas** de `tailwind.config.js`, et une éventuelle config de thème vivrait
 dans `@theme` au sein de `src/app/globals.css`.
 
-Le front se reconstruit **bloc par bloc**, sur décision d'Adrien. Il reste
-**libre** : aucune palette, aucun système de tokens, aucune typographie ni
-structure de navigation n'est imposée par ce repository, et aucune gate visuelle
-n'existe (`CLAUDE.md` §8).
+Le front se reconstruit **bloc par bloc** sur décision d'Adrien. Aucun layout,
+aucune typographie, aucune navigation ni esthétique permanente ne sont imposés.
+Sur les surfaces de production, les jetons `--aig-*` constituent l'autorité
+sémantique actuelle ; Composer, Lab et Prototype restent libres pour
+l'exploration.

@@ -14,16 +14,21 @@ import { Strong, Text } from '@/components/ui/text'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { AgentRun } from '@/lib/agent-mission-control/types'
 import { formatDuration } from '@/lib/runs-console/runs-metrics'
-import { AbsentMark, Rail, SEVERITY } from '@/components/cockpit/primitives'
+import { AbsentMark, Rail } from '@/components/cockpit/primitives'
+import { RUN_STATUS_COLOR } from '@/lib/cockpit/status'
 import { RUN_STATUS_BADGE, RUN_STATUS_LABEL } from './run-view-model'
 
-const RAIL_COLOR: Record<AgentRun['status'], string> = {
-  completed: SEVERITY.good,
-  running: SEVERITY.running,
-  failed: SEVERITY.bad,
-  blocked: SEVERITY.warn,
-  'needs-confirmation': SEVERITY.muted,
-}
+/**
+ * Le rail de sévérité DÉRIVE de l'autorité, il ne la recopie pas.
+ *
+ * Cette table avait divergé sur deux statuts : `blocked` en `warn` (l'ambre
+ * d'un avertissement, pour un verdict Sentinel TERMINAL) et
+ * `needs-confirmation` en `muted` — un gris translucide qui rendait « ce run
+ * attend un humain » comme un état inactif. `RUN_STATUS_COLOR` de
+ * `@/lib/cockpit/status` porte déjà exactement ce vocabulaire, pour les cinq
+ * statuts. On l'utilise.
+ */
+const RAIL_COLOR = RUN_STATUS_COLOR
 
 function RunRow({
   run,
@@ -40,17 +45,28 @@ function RunRow({
 
   return (
     <li className="relative">
+      {/* Le rail de SÉVÉRITÉ reste collé au bord — c'est l'état du run, pas la
+          sélection. La sélection, elle, prend le relief et le cuivre : un seul
+          point focal par liste, et deux signaux qui ne se confondent pas. */}
       <Rail color={RAIL_COLOR[run.status]} />
+      {selected ? (
+        <span
+          aria-hidden
+          className="absolute inset-y-0 left-0.5 w-0.5 bg-[color:var(--aig-accent)]"
+        />
+      ) : null}
       {/* `aria-current` porte la sélection pour l'assistance vocale ; la teinte
           seule ne suffirait pas à la dire. */}
       <a
         href={href}
         aria-current={selected ? 'true' : undefined}
         className={
-          selected ? 'aig-raised block py-2.5 pr-4 pl-4' : 'block py-2.5 pr-4 pl-4 hover:bg-white/5'
+          selected
+            ? 'aig-raised block py-2.5 pr-3 pl-3'
+            : 'block py-2.5 pr-3 pl-3 hover:bg-(--aig-line-soft)'
         }
       >
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <Badge color={RUN_STATUS_BADGE[run.status]}>{RUN_STATUS_LABEL[run.status]}</Badge>
           {agentName ? (
             <Strong className="truncate">{agentName}</Strong>
@@ -86,7 +102,7 @@ export default function RunList({
   buildHref: (runId: string) => string
 }>) {
   return (
-    <ul className="divide-y divide-[color:var(--aig-line-soft)]">
+    <ul className="divide-y divide-(--aig-line-soft)">
       {runs.map((run) => (
         <RunRow
           key={run.id}

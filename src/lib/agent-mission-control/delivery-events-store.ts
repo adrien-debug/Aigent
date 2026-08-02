@@ -34,9 +34,9 @@ export interface DeliveryEventInput {
 
 export interface DeliveryEvent {
   id: string
-  copilotId?: string
-  versionId?: string | null
-  projectId?: string | null
+  copilotId: string
+  versionId: string | null
+  projectId: string | null
   mode: PushAgentDeliveryMode
   targetRepo: string
   targetBranch: string | null

@@ -76,7 +76,7 @@ export default function PatternMorph() {
               <button
                 type="button"
                 onClick={() => setOpenId(agent.id)}
-                className="flex w-full items-center gap-3 py-2.5 pr-4 pl-4 text-left transition hover:bg-white/5 focus-visible:bg-white/5 focus-visible:outline-hidden"
+                className="flex w-full items-center gap-3 py-2.5 pr-4 pl-4 text-left transition hover:bg-(--aig-line-soft) focus-visible:bg-(--aig-line-soft) focus-visible:outline-hidden"
               >
                 {/* `layoutId` absent quand la fiche est ouverte SUR CET agent :
                     deux éléments ne peuvent pas partager un calque au même
@@ -120,7 +120,7 @@ export default function PatternMorph() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.18 }}
                 onClick={() => setOpenId(null)}
-                className="absolute inset-0 z-10 rounded-lg bg-black/60"
+                className="absolute inset-0 z-10 rounded-lg bg-(--aig-scrim)"
               />
 
               <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-4">
@@ -185,7 +185,7 @@ export default function PatternMorph() {
                         {open.runBlockers.map((blocker) => (
                           <li
                             key={blocker}
-                            className="rounded-lg border border-red-500/25 bg-red-950/20 px-3 py-2"
+                            className="rounded-lg border border-[color-mix(in_oklab,var(--aig-severity-bad)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-bad)_12%,transparent)] px-3 py-2"
                           >
                             <Text className="text-xs">{blocker}</Text>
                           </li>
@@ -196,7 +196,7 @@ export default function PatternMorph() {
                     <button
                       type="button"
                       onClick={() => setOpenId(null)}
-                      className="aig-raised aig-accent mt-4 w-full rounded-lg px-4 py-2 text-sm font-medium transition hover:text-white"
+                      className="aig-raised aig-accent mt-4 w-full rounded-lg px-4 py-2 text-sm font-medium transition hover:text-(--aig-text)"
                     >
                       Fermer
                     </button>

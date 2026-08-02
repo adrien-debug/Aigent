@@ -75,7 +75,12 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
         // les points/libellés sortis du SVG en HTML — un `<circle>` dans un
         // viewBox étiré deviendrait un ovale.
         preserveAspectRatio="none"
-        className="h-40 w-full overflow-visible"
+        // Le graphe est l'ÉLÉMENT VISUEL MAJEUR de l'Aperçu, pas une vignette
+        // dans un panneau parmi d'autres : il monte de 160 px à 224/288 px
+        // selon la largeur disponible. À `h-40` sur une scène pleine largeur,
+        // 24 heures de données tenaient dans une bande écrasée où les creux et
+        // les pics se distinguaient à peine.
+        className="h-56 w-full overflow-visible xl:h-72"
         role="img"
         aria-label={`Activité par heure sur la fenêtre — ${buckets.reduce((n, b) => n + b.total, 0)} runs`}
       >
@@ -95,8 +100,7 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
               y1={y}
               x2={WIDTH - PAD_X}
               y2={y}
-              stroke="currentColor"
-              className="text-white/8"
+              stroke="var(--aig-line-soft)"
               strokeWidth="1"
               strokeDasharray="4,6"
             />
@@ -218,7 +222,7 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
           >
             <div className="aig-panel-raised flex items-baseline gap-1.5 rounded-full px-3 py-1.5">
               <AnimateNumber
-                className="text-lg font-semibold text-white tabular-nums"
+                className="aig-display text-lg font-semibold tabular-nums"
                 transition={{ type: 'spring', visualDuration: 0.4, bounce: 0.15 }}
               >
                 {active.bucket.total}

@@ -37,11 +37,17 @@ sentir. Ce n'est pas un chantier prioritaire.
 
 ## Modifier une primitive
 
-1. La gate `check:ui-kit-integrity` fige ce dossier par empreinte SHA-256 :
-   toute modification la fait échouer. **C'est voulu** — elle protège contre une
-   dérive silencieuse, pas contre une modification assumée.
-2. Après une modification volontaire :
-   `node scripts/check-ui-kit-integrity.mjs --update`
+1. La gate `check:ui-kit-integrity` ne fige plus ce dossier : elle en vérifie la
+   **substance**. Modifier une primitive est légitime et ne demande aucune
+   régénération. Ce qu'elle refuse, c'est la PERTE — un export que le produit
+   consomme, la cible tactile de 44 px, un marqueur d'accessibilité, ou le
+   retour d'une couleur Tailwind brute.
+2. **Les couleurs viennent des jetons `--aig-*`**, jamais de la palette Tailwind
+   (`zinc-*`, `white`, `sky-500`…). Le kit portait autrefois sa propre couche
+   esthétique : deux autorités visuelles pour une seule interface. Un état se
+   dit avec `--aig-severity-*`, qui porte le sens ; une teinte brute ne dit
+   qu'une couleur. Les variantes `dark:` n'ont plus lieu d'être — les jetons
+   sont déjà sombres.
 3. **Puis ouvrir un écran qui consomme la primitive, et regarder.**
 
 > ⚠️ Le point 3 n'est pas une politesse. Le 2026-07-31, une réécriture de ce kit

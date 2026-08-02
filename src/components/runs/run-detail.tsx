@@ -158,9 +158,12 @@ export default function RunDetail({
 
   return (
     <div>
-      {/* ── En-tête : identité du run ── */}
-      <div className="px-4 py-3">
-        <div className="flex min-w-0 items-center gap-2">
+      {/* ── En-tête : identité du run ──
+          `sticky` parce que le porteur est désormais une boîte BORNÉE qui
+          défile : sans lui, on lit une trace sans savoir de quel run elle
+          vient dès le premier coup de molette. */}
+      <div className="aig-panel-raised sticky top-0 z-10 px-4 py-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Badge color={RUN_STATUS_BADGE[run.status]}>{RUN_STATUS_LABEL[run.status]}</Badge>
           {run.unsafeAttemptCount > 0 ? (
             <Badge color="red">{run.unsafeAttemptCount} bloquée(s)</Badge>

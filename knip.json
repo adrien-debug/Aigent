@@ -7,7 +7,12 @@
     "tests/**/*.{ts,tsx}",
     "langgraph.json"
   ],
-  "project": ["src/**/*.{ts,tsx,mjs}", "scripts/**/*.{ts,mjs,js}", "tests/**/*.{ts,tsx}"],
+  "project": [
+    "src/**/*.{ts,tsx,mjs}",
+    "src/**/*.css",
+    "scripts/**/*.{ts,mjs,js}",
+    "tests/**/*.{ts,tsx}"
+  ],
   "ignoreExportsUsedInFile": true,
   "ignoreBinaries": ["gitleaks"],
   "ignore": [
@@ -16,7 +21,6 @@
   ],
   "ignoreIssues": {
     "src/lib/agent-mission-control/consumer-installations.ts": ["exports"]
-  },
-  "ignoreDependencies": ["tailwindcss", "motion"]
+  }
 }
 

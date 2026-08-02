@@ -33,10 +33,23 @@ export default function RootLayout({
    * `MotionProvider` respecte `prefers-reduced-motion` pour tout ce qui est
    * rendu dessous — y compris les animations écrites plus tard. Ses limites
    * connues sont documentées dans le composant.
+   *
+   * HAUTEUR — `h-svh overflow-hidden`, PAS `min-h-svh`.
+   *
+   * `min-height` pose un PLANCHER et jamais un PLAFOND : le document grandissait
+   * avec son contenu. Mesuré sur `/runtime` (2026-08-02, 1280×800) : le document
+   * faisait 4014 px, dont ~3730 px de vide non défilable, parce que le creux de
+   * l'onglet remplissait fidèlement un parent lui-même non borné. Toute la chaîne
+   * flex sous `main` était juste — elle était simplement ancrée dans le vide.
+   *
+   * Le document est donc la RACINE bornée : il ne défile plus jamais. Ce sont les
+   * zones qui doivent défiler qui portent leur propre `overflow-y-auto`, ce qui
+   * exige `min-h-0` sur chaque maillon flex intermédiaire (sans lui, `flex-1`
+   * refuse de descendre sous la taille de son contenu).
    */
   return (
-    <html lang="fr" className="dark aig-scope min-h-svh">
-      <body className="aig-subtle min-h-svh antialiased">
+    <html lang="fr" className="dark aig-scope h-svh overflow-hidden">
+      <body className="aig-subtle h-svh overflow-hidden antialiased">
         <MotionProvider>{children}</MotionProvider>
         {/* Outil de développement — inerte ET absent du bundle en production. */}
         <CssStudio />

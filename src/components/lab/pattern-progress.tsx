@@ -73,7 +73,7 @@ function DeterminateFill({ done }: Readonly<{ done: number }>) {
             texte, donc aucun risque qu'ils divergent. */}
         <div
           aria-hidden
-          className="text-4xl font-black tracking-tighter text-white/12 uppercase"
+          className="text-4xl font-black tracking-tighter text-[color-mix(in_oklab,var(--aig-text)_12%,transparent)] uppercase"
         >
           {word}
         </div>
@@ -103,7 +103,7 @@ function IndeterminateSweep() {
       <div className="relative">
         <div
           aria-hidden
-          className="text-4xl font-black tracking-tighter text-white/12 uppercase"
+          className="text-4xl font-black tracking-tighter text-[color-mix(in_oklab,var(--aig-text)_12%,transparent)] uppercase"
         >
           En cours
         </div>
@@ -188,7 +188,7 @@ export default function PatternProgress() {
           setKnowsTotal((k) => !k)
           setDone(0)
         }}
-        className="aig-line-soft self-start rounded-lg border px-3 py-1.5 text-xs font-medium transition hover:bg-white/5"
+        className="aig-line-soft self-start rounded-lg border px-3 py-1.5 text-xs font-medium transition hover:bg-(--aig-line-soft)"
       >
         {knowsTotal ? 'Voir le cas « total inconnu »' : 'Voir le cas « total connu »'}
       </button>

@@ -1,0 +1,702 @@
+{
+ "mission": "AIGENT-OPUS-013",
+ "base": "1d1bb5b",
+ "branch": "mission/aigent-pixel-runtime-loop-013",
+ "sha": "1d1bb5b9ee2caf489e92e21316c249ea2296a0b1",
+ "server": "http://localhost:3991",
+ "viewports": [
+  "1440x900",
+  "1280x800",
+  "1280x600",
+  "375x812"
+ ],
+ "combinations": 64,
+ "overflowX": 0,
+ "errors": 0,
+ "sweep": [
+  {
+   "route": "/",
+   "vw": "1440x900",
+   "overflowX": false,
+   "docScrollW": 1440,
+   "clientW": 1440,
+   "docScrollH": 900,
+   "clientH": 900,
+   "overflowers": [
+    "LI.ticker-item",
+    "ARTICLE.aig-inset flex h-full w-40 flex-col divi",
+    "DIV.flex flex-1 flex-col items-center px-3 p",
+    "SPAN.aig-raised flex size-12 shrink-0 items-c",
+    "STRONG.mt-2.5 block w-full truncate text-sm fon"
+   ]
+  },
+  {
+   "route": "/runs",
+   "vw": "1440x900",
+   "overflowX": false,
+   "docScrollW": 1440,
+   "clientW": 1440,
+   "docScrollH": 900,
+   "clientH": 900,
+   "overflowers": []
+  },
+  {
+   "route": "/agents",
+   "vw": "1440x900",
+   "overflowX": false,
+   "docScrollW": 1440,
+   "clientW": 1440,
+   "docScrollH": 900,
+   "clientH": 900,
+   "overflowers": []
+  },
+  {
+   "route": "/projects",
+   "vw": "1440x900",
+   "overflowX": false,
+   "docScrollW": 1440,
+   "clientW": 1440,
+   "docScrollH": 900,
+   "clientH": 900,
+   "overflowers": []
+  },
+  {
+   "route": "/builder",
+   "vw": "1440x900",
+   "overflowX": false,
+   "docScrollW": 1440,
+   "clientW": 1440,
+   "docScrollH": 900,
+   "clientH": 900,
+   "overflowers": []
+  },
+  {
+   "route": "/qualification",
+   "vw": "1440x900",
+   "overflowX": false,
+   "docScrollW": 1440,
+   "clientW": 1440,
+   "docScrollH": 900,
+   "clientH": 900,
+   "overflowers": []
+  },
+  {
+   "route": "/delivery",
+   "vw": "1440x900",
+   "overflowX": false,
+   "docScrollW": 1440,
+   "clientW": 1440,
+   "docScrollH": 900,
+   "clientH": 900,
+   "overflowers": []
+  },
+  {
+   "route": "/runtime",
+   "vw": "1440x900",
+   "overflowX": false,
+   "docScrollW": 1440,
+   "clientW": 1440,
+   "docScrollH": 900,
+   "clientH": 900,
+   "overflowers": []
+  },
+  {
+   "route": "/runtime?tab=visual-tooling",
+   "vw": "1440x900",
+   "overflowX": false,
+   "docScrollW": 1440,
+   "clientW": 1440,
+   "docScrollH": 900,
+   "clientH": 900,
+   "overflowers": []
+  },
+  {
+   "route": "/runtime?tab=telemetry",
+   "vw": "1440x900",
+   "overflowX": false,
+   "docScrollW": 1440,
+   "clientW": 1440,
+   "docScrollH": 900,
+   "clientH": 900,
+   "overflowers": []
+  },
+  {
+   "route": "/runtime?tab=langgraph",
+   "vw": "1440x900",
+   "overflowX": false,
+   "docScrollW": 1440,
+   "clientW": 1440,
+   "docScrollH": 900,
+   "clientH": 900,
+   "overflowers": []
+  },
+  {
+   "route": "/learning",
+   "vw": "1440x900",
+   "overflowX": false,
+   "docScrollW": 1440,
+   "clientW": 1440,
+   "docScrollH": 900,
+   "clientH": 900,
+   "overflowers": []
+  },
+  {
+   "route": "/actions",
+   "vw": "1440x900",
+   "overflowX": false,
+   "docScrollW": 1440,
+   "clientW": 1440,
+   "docScrollH": 900,
+   "clientH": 900,
+   "overflowers": []
+  },
+  {
+   "route": "/settings",
+   "vw": "1440x900",
+   "overflowX": false,
+   "docScrollW": 1440,
+   "clientW": 1440,
+   "docScrollH": 900,
+   "clientH": 900,
+   "overflowers": []
+  },
+  {
+   "route": "/lab",
+   "vw": "1440x900",
+   "overflowX": false,
+   "docScrollW": 1440,
+   "clientW": 1440,
+   "docScrollH": 900,
+   "clientH": 900,
+   "overflowers": []
+  },
+  {
+   "route": "/lab/visualizations",
+   "vw": "1440x900",
+   "overflowX": false,
+   "docScrollW": 1440,
+   "clientW": 1440,
+   "docScrollH": 900,
+   "clientH": 900,
+   "overflowers": []
+  },
+  {
+   "route": "/",
+   "vw": "1280x800",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 800,
+   "clientH": 800,
+   "overflowers": [
+    "LI.ticker-item",
+    "ARTICLE.aig-inset flex h-full w-40 flex-col divi",
+    "DIV.flex flex-1 flex-col items-center px-3 p",
+    "SPAN.aig-raised flex size-12 shrink-0 items-c",
+    "STRONG.mt-2.5 block w-full truncate text-sm fon"
+   ]
+  },
+  {
+   "route": "/runs",
+   "vw": "1280x800",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 800,
+   "clientH": 800,
+   "overflowers": []
+  },
+  {
+   "route": "/agents",
+   "vw": "1280x800",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 800,
+   "clientH": 800,
+   "overflowers": []
+  },
+  {
+   "route": "/projects",
+   "vw": "1280x800",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 800,
+   "clientH": 800,
+   "overflowers": []
+  },
+  {
+   "route": "/builder",
+   "vw": "1280x800",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 800,
+   "clientH": 800,
+   "overflowers": []
+  },
+  {
+   "route": "/qualification",
+   "vw": "1280x800",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 800,
+   "clientH": 800,
+   "overflowers": []
+  },
+  {
+   "route": "/delivery",
+   "vw": "1280x800",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 800,
+   "clientH": 800,
+   "overflowers": []
+  },
+  {
+   "route": "/runtime",
+   "vw": "1280x800",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 800,
+   "clientH": 800,
+   "overflowers": []
+  },
+  {
+   "route": "/runtime?tab=visual-tooling",
+   "vw": "1280x800",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 800,
+   "clientH": 800,
+   "overflowers": []
+  },
+  {
+   "route": "/runtime?tab=telemetry",
+   "vw": "1280x800",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 800,
+   "clientH": 800,
+   "overflowers": []
+  },
+  {
+   "route": "/runtime?tab=langgraph",
+   "vw": "1280x800",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 800,
+   "clientH": 800,
+   "overflowers": []
+  },
+  {
+   "route": "/learning",
+   "vw": "1280x800",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 800,
+   "clientH": 800,
+   "overflowers": []
+  },
+  {
+   "route": "/actions",
+   "vw": "1280x800",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 800,
+   "clientH": 800,
+   "overflowers": []
+  },
+  {
+   "route": "/settings",
+   "vw": "1280x800",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 800,
+   "clientH": 800,
+   "overflowers": []
+  },
+  {
+   "route": "/lab",
+   "vw": "1280x800",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 800,
+   "clientH": 800,
+   "overflowers": []
+  },
+  {
+   "route": "/lab/visualizations",
+   "vw": "1280x800",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 800,
+   "clientH": 800,
+   "overflowers": []
+  },
+  {
+   "route": "/",
+   "vw": "1280x600",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 600,
+   "clientH": 600,
+   "overflowers": [
+    "LI.ticker-item",
+    "ARTICLE.aig-inset flex h-full w-40 flex-col divi",
+    "DIV.flex flex-1 flex-col items-center px-3 p",
+    "SPAN.aig-raised flex size-12 shrink-0 items-c",
+    "STRONG.mt-2.5 block w-full truncate text-sm fon"
+   ]
+  },
+  {
+   "route": "/runs",
+   "vw": "1280x600",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 600,
+   "clientH": 600,
+   "overflowers": []
+  },
+  {
+   "route": "/agents",
+   "vw": "1280x600",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 600,
+   "clientH": 600,
+   "overflowers": []
+  },
+  {
+   "route": "/projects",
+   "vw": "1280x600",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 600,
+   "clientH": 600,
+   "overflowers": []
+  },
+  {
+   "route": "/builder",
+   "vw": "1280x600",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 600,
+   "clientH": 600,
+   "overflowers": []
+  },
+  {
+   "route": "/qualification",
+   "vw": "1280x600",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 600,
+   "clientH": 600,
+   "overflowers": []
+  },
+  {
+   "route": "/delivery",
+   "vw": "1280x600",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 600,
+   "clientH": 600,
+   "overflowers": []
+  },
+  {
+   "route": "/runtime",
+   "vw": "1280x600",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 600,
+   "clientH": 600,
+   "overflowers": []
+  },
+  {
+   "route": "/runtime?tab=visual-tooling",
+   "vw": "1280x600",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 600,
+   "clientH": 600,
+   "overflowers": []
+  },
+  {
+   "route": "/runtime?tab=telemetry",
+   "vw": "1280x600",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 600,
+   "clientH": 600,
+   "overflowers": []
+  },
+  {
+   "route": "/runtime?tab=langgraph",
+   "vw": "1280x600",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 600,
+   "clientH": 600,
+   "overflowers": []
+  },
+  {
+   "route": "/learning",
+   "vw": "1280x600",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 600,
+   "clientH": 600,
+   "overflowers": []
+  },
+  {
+   "route": "/actions",
+   "vw": "1280x600",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 600,
+   "clientH": 600,
+   "overflowers": []
+  },
+  {
+   "route": "/settings",
+   "vw": "1280x600",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 600,
+   "clientH": 600,
+   "overflowers": []
+  },
+  {
+   "route": "/lab",
+   "vw": "1280x600",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 600,
+   "clientH": 600,
+   "overflowers": []
+  },
+  {
+   "route": "/lab/visualizations",
+   "vw": "1280x600",
+   "overflowX": false,
+   "docScrollW": 1280,
+   "clientW": 1280,
+   "docScrollH": 600,
+   "clientH": 600,
+   "overflowers": []
+  },
+  {
+   "route": "/",
+   "vw": "375x812",
+   "overflowX": false,
+   "docScrollW": 375,
+   "clientW": 375,
+   "docScrollH": 812,
+   "clientH": 812,
+   "overflowers": [
+    "LI.ticker-item",
+    "ARTICLE.aig-inset flex h-full w-40 flex-col divi",
+    "DIV.flex flex-1 flex-col items-center px-3 p",
+    "DIV.grid shrink-0 grid-cols-2 divide-x divid",
+    "A.aig-text-muted flex items-center justify"
+   ]
+  },
+  {
+   "route": "/runs",
+   "vw": "375x812",
+   "overflowX": false,
+   "docScrollW": 375,
+   "clientW": 375,
+   "docScrollH": 812,
+   "clientH": 812,
+   "overflowers": []
+  },
+  {
+   "route": "/agents",
+   "vw": "375x812",
+   "overflowX": false,
+   "docScrollW": 375,
+   "clientW": 375,
+   "docScrollH": 812,
+   "clientH": 812,
+   "overflowers": []
+  },
+  {
+   "route": "/projects",
+   "vw": "375x812",
+   "overflowX": false,
+   "docScrollW": 375,
+   "clientW": 375,
+   "docScrollH": 812,
+   "clientH": 812,
+   "overflowers": []
+  },
+  {
+   "route": "/builder",
+   "vw": "375x812",
+   "overflowX": false,
+   "docScrollW": 375,
+   "clientW": 375,
+   "docScrollH": 812,
+   "clientH": 812,
+   "overflowers": []
+  },
+  {
+   "route": "/qualification",
+   "vw": "375x812",
+   "overflowX": false,
+   "docScrollW": 375,
+   "clientW": 375,
+   "docScrollH": 812,
+   "clientH": 812,
+   "overflowers": []
+  },
+  {
+   "route": "/delivery",
+   "vw": "375x812",
+   "overflowX": false,
+   "docScrollW": 375,
+   "clientW": 375,
+   "docScrollH": 812,
+   "clientH": 812,
+   "overflowers": []
+  },
+  {
+   "route": "/runtime",
+   "vw": "375x812",
+   "overflowX": false,
+   "docScrollW": 375,
+   "clientW": 375,
+   "docScrollH": 812,
+   "clientH": 812,
+   "overflowers": [
+    "NAV.min-w-0 shrink-0",
+    "UL.scroll-thin flex min-w-0 items-center ga",
+    "LI.shrink-0",
+    "A.block rounded-md px-3 py-1.5 text-sm/6 f"
+   ]
+  },
+  {
+   "route": "/runtime?tab=visual-tooling",
+   "vw": "375x812",
+   "overflowX": false,
+   "docScrollW": 375,
+   "clientW": 375,
+   "docScrollH": 812,
+   "clientH": 812,
+   "overflowers": [
+    "NAV.min-w-0 shrink-0",
+    "UL.scroll-thin flex min-w-0 items-center ga",
+    "LI.shrink-0",
+    "A.block rounded-md px-3 py-1.5 text-sm/6 f"
+   ]
+  },
+  {
+   "route": "/runtime?tab=telemetry",
+   "vw": "375x812",
+   "overflowX": false,
+   "docScrollW": 375,
+   "clientW": 375,
+   "docScrollH": 812,
+   "clientH": 812,
+   "overflowers": [
+    "NAV.min-w-0 shrink-0",
+    "UL.scroll-thin flex min-w-0 items-center ga",
+    "LI.shrink-0",
+    "A.block rounded-md px-3 py-1.5 text-sm/6 f"
+   ]
+  },
+  {
+   "route": "/runtime?tab=langgraph",
+   "vw": "375x812",
+   "overflowX": false,
+   "docScrollW": 375,
+   "clientW": 375,
+   "docScrollH": 812,
+   "clientH": 812,
+   "overflowers": [
+    "NAV.min-w-0 shrink-0",
+    "UL.scroll-thin flex min-w-0 items-center ga",
+    "LI.shrink-0",
+    "A.block rounded-md px-3 py-1.5 text-sm/6 f"
+   ]
+  },
+  {
+   "route": "/learning",
+   "vw": "375x812",
+   "overflowX": false,
+   "docScrollW": 375,
+   "clientW": 375,
+   "docScrollH": 812,
+   "clientH": 812,
+   "overflowers": []
+  },
+  {
+   "route": "/actions",
+   "vw": "375x812",
+   "overflowX": false,
+   "docScrollW": 375,
+   "clientW": 375,
+   "docScrollH": 812,
+   "clientH": 812,
+   "overflowers": []
+  },
+  {
+   "route": "/settings",
+   "vw": "375x812",
+   "overflowX": false,
+   "docScrollW": 375,
+   "clientW": 375,
+   "docScrollH": 812,
+   "clientH": 812,
+   "overflowers": []
+  },
+  {
+   "route": "/lab",
+   "vw": "375x812",
+   "overflowX": false,
+   "docScrollW": 375,
+   "clientW": 375,
+   "docScrollH": 812,
+   "clientH": 812,
+   "overflowers": []
+  },
+  {
+   "route": "/lab/visualizations",
+   "vw": "375x812",
+   "overflowX": false,
+   "docScrollW": 375,
+   "clientW": 375,
+   "docScrollH": 812,
+   "clientH": 812,
+   "overflowers": []
+  }
+ ]
+}

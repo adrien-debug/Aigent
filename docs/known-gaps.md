@@ -8,12 +8,18 @@
 > **Ce fichier n'est pas de la doctrine** : c'est un constat daté. Les règles
 > vivent dans `CLAUDE.md` et `AGENTS.md`. Mis à jour 2026-07-31 (tri docs).
 
-## 1. Une surface reste un placeholder
+## 1. Une surface UI reste un placeholder
 
-Le front a 16 routes (shell + listes + détails). Une seule n'a **pas encore de
-lecture** et affiche `SurfacePlaceholder` :
+Le front a 16 routes (shell + listes + détails). Une seule affiche encore
+`SurfacePlaceholder` :
 
-- `/settings` — réglages (prévue PR 8)
+- `/settings` — réglages (UI non branchée)
+
+Le backend Settings existe désormais en lecture opérateur :
+`GET /api/agent-ops/settings/posture` expose un contrat server-only expurgé
+(auth, backend GPU1, LangGraph, providers, observabilité, shipping GitHub,
+Learning Runtime) sans valeur de secret. Le manque restant est strictement UI :
+l'écran `/settings` n'interroge pas encore cette route.
 
 Ce n'est pas un faux zéro : le composant dit explicitement qu'aucune lecture n'a
 été tentée. Le reste du parcours (aperçu, runs, agents, projets, builder,
@@ -72,45 +78,41 @@ liste quelque chose qui ne peut pas tourner. C'est le **seul** provider dans ce
 cas : `openai`, `google` (tool-use inclus) et `local` (vLLM, opt-in) exécutent
 réellement.
 
-## 6. La dérive de version ne peut pas être calculée
+## 6. Dérive de version: calculable, avec zones d'inconnu explicites
 
-La trace de cycle de vie (`agent-lifecycle-trace.ts`) devrait comparer la
-dernière version LIVRÉE à la dernière version auto-déclarée par la télémétrie et
-signaler l'écart. Elle ne peut pas : la forme de lecture d'un `DeliveryEvent`
-(`delivery-events-store.ts`) ne porte pas de `versionId` — seule l'entrée
-d'écriture l'a — donc il n'existe aucune jointure d'une ligne de livraison vers
-un label de version.
+La trace de cycle de vie compare désormais la version LIVRÉE (par
+`agent_delivery_events.version_id`) et la version auto-déclarée par la
+télémétrie (`runtime_telemetry_events.agent_version`), avec quatre sorties
+explicites:
 
-La trace le rapporte honnêtement (`versionDrift.state: 'unknown'` + un détail qui
-nomme le manque) plutôt que de deviner une correspondance. Combler ça demande soit
-d'ajouter `version_id` au SELECT et au type de lecture, soit de persister un label
-de version sur la ligne.
+- `state: 'measured'` + `versionsMatch: true` quand les deux preuves concordent ;
+- `state: 'measured'` + `driftDetected: true` quand elles divergent ;
+- `state: 'unknown'` quand une preuve manque (pas de livraison, pas de
+  `version_id`, pas de version télémétrie) ;
+- `state: 'unknown'` si la lecture télémétrie échoue.
 
-## 7. « Actif chez le consommateur » est inconnaissable par conception
+Le calcul reste strictement non inférentiel: aucune déduction par timestamp,
+position de version, stage ou nom partiel.
 
-Contrairement au §6, ce n'est pas un TODO. `agent-lifecycle-trace.ts` fixe l'étape
-`active_in_consumer` à `reached: 'unknown'` parce qu'Aigent **n'a aucun canal de
-lecture** vers l'état d'activation d'un workspace consommateur (`AGENTS.md` :
-« Après provisioning, Aigent ne fait que POUSSER des agents »).
-`scripts/check-lifecycle-truth.mjs` impose que ça reste le littéral `'unknown'` et
-que ce ne soit jamais déduit d'un événement de livraison.
+## 7. `active_in_consumer` ne doit jamais être déduit des mauvaises preuves
 
-Une vraie réponse ici exige un canal de lecture côté consommateur — une décision
-produit, pas un branchement de données.
+L'étape `active_in_consumer` n'est jamais dérivée d'une livraison, d'un stage
+de version ou d'une télémétrie brute. Le resolver lifecycle consomme uniquement
+le verdict de `consumer-activation.ts` et conserve la distinction
+`unknown`/`unavailable` (lecture impossible).
 
 ## 8. Les gates de vérité sont plus étroites que leur réputation
 
 À énoncer tel quel, parce que l'inverse a déjà été cru dans ce repo :
 
-- `check:lifecycle-truth` ne scanne **qu'un seul fichier**.
-- `check:agent-truth` vérifie qu'aucun roster n'est *importé* et qu'aucun
-  provider/modèle n'est codé en dur dans le contrat canonique — pas que ce qui
-  est servi est **exécutable**.
-- `check:render-truth` couvre un périmètre étroit (`runs-console`, `cockpit`) —
-  pas les gros agrégateurs.
-- **Aucune gate ne scanne les agrégations** de `dashboard-overview.ts` /
-  `agent-detail.ts` / `data.ts`, là où la règle « une valeur non mesurée reste
-  `null` » compte le plus. Elle y tient par discipline humaine.
+- `check:lifecycle-truth` ne scanne **qu'un seul fichier** (`agent-lifecycle-trace.ts`).
+- `check:agent-truth` vérifie qu'aucun roster n'est *importé*, qu'aucun
+  provider/modèle n'est codé en dur dans le contrat canonique, et bloque aussi
+  les fallbacks provider/modèle inventés dans `dashboard-overview.ts`,
+  `agent-detail.ts` et `data.ts` — il ne prouve toujours pas l'exécutabilité.
+- `check:render-truth` couvre désormais aussi `dashboard-overview.ts`,
+  `agent-detail.ts` et `data.ts` contre les faux zéros, coercitions `NaN` et
+  absences présentées comme mesurées.
 - **Aucune gate ne détecte un assistant LangGraph manquant** — le symptôme
   documenté (agent d'apparence saine, `tool_call_count = 0`, « pas de données »)
   reste possible avec toutes les gates vertes.
@@ -158,6 +160,19 @@ personne qui a lu la source. Deux réflexes en découlent :
 1. quand un document et le code se contredisent, **le code a raison** ;
 2. les rapports de mission historiques vivent dans **l'historique git**, jamais
    comme règles actives.
+
+## 12. `quality:dead` reste bloqué par 3 exports frontend hors ownership
+
+Exécution prouvée sur la mission `AIGENT-CODEX-011` :
+
+- `npm run check` passe (incluant `audit:dead`).
+- `npm run quality:dead` échoue uniquement sur 3 `Unused exported types` :
+  `LabPatternId` (`src/components/lab/registry.ts`), `SurfaceRole` et
+  `AllowedThemeParam` (`src/components/visualizations/embed/contract.ts`).
+
+Ces fichiers appartiennent au lot frontend actif ; ils n'ont pas été modifiés
+ici par contrainte d'ownership explicite. Tant qu'ils restent exportés sans
+consommateur, `npm run verify` échoue sur l'étape Knip.
 
 ## Non vérifié dans cette passe
 

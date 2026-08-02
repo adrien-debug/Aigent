@@ -106,7 +106,7 @@ function EndpointPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
         </div>
 
         {data.endpoint.ok && !reachable ? (
-          <div className="rounded-md border border-red-400/25 bg-red-400/5 px-3 py-2">
+          <div className="rounded-md border border-[color-mix(in_oklab,var(--aig-severity-bad)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-bad)_8%,transparent)] px-3 py-2">
             <Strong className="block">L’Agent Server ne répond pas</Strong>
             <Text className="mt-0.5">
               L’endpoint est configuré et accepté, mais aucune lecture n’a abouti. Les panneaux
@@ -191,7 +191,7 @@ function ProvisioningPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
               </div>
 
               {bareGraph.length > 0 ? (
-                <div className="rounded-md border border-amber-400/25 bg-amber-400/5 px-3 py-2">
+                <div className="rounded-md border border-[color-mix(in_oklab,var(--aig-severity-warn)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-warn)_8%,transparent)] px-3 py-2">
                   <Strong className="block">
                     {bareGraph.length} agent(s) LangGraph tournent contre le graphe nu
                   </Strong>
@@ -216,7 +216,7 @@ function ProvisioningPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
               ) : null}
 
               {staleAssistant !== null && staleAssistant.length > 0 ? (
-                <div className="rounded-md border border-amber-400/25 bg-amber-400/5 px-3 py-2">
+                <div className="rounded-md border border-[color-mix(in_oklab,var(--aig-severity-warn)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-warn)_8%,transparent)] px-3 py-2">
                   <Strong className="block">
                     {staleAssistant.length} assistant(s) persisté(s) que le serveur ne connaît pas
                   </Strong>
@@ -451,7 +451,7 @@ export default function LangGraphTab({ data }: Readonly<{ data: LangGraphTabData
           // Le rouge est une SÉVÉRITÉ — un endpoint refusé est un défaut — donc
           // il reste. Il monte en `-500` : le `-600` était calibré pour un fond
           // blanc et s'éteignait sur le graphite de la grammaire.
-          <Text className="truncate text-2xs text-red-500">endpoint refusé</Text>
+          <Text className="truncate text-2xs text-(--aig-severity-bad)">endpoint refusé</Text>
         )}
       </div>
 

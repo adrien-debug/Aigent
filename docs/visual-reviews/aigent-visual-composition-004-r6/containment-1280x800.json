@@ -1,0 +1,366 @@
+{
+  "count": 19,
+  "results": [
+    {
+      "route": "/",
+      "status": 200,
+      "docScroll": 800,
+      "docClient": 800,
+      "documentScrolls": false,
+      "clippedCount": 0,
+      "clipped": [],
+      "scrollerCount": 1,
+      "scrollers": [
+        {
+          "cls": "scroll-thin relative flex min-h-0 min-w-0 flex-1 flex-col ga",
+          "client": 705,
+          "scroll": 821
+        }
+      ],
+      "newErrors": 0
+    },
+    {
+      "route": "/runs",
+      "status": 200,
+      "docScroll": 800,
+      "docClient": 800,
+      "documentScrolls": false,
+      "clippedCount": 0,
+      "clipped": [],
+      "scrollerCount": 1,
+      "scrollers": [
+        {
+          "cls": "scroll-thin relative flex min-h-0 min-w-0 flex-1 flex-col ga",
+          "client": 695,
+          "scroll": 905
+        }
+      ],
+      "newErrors": 0
+    },
+    {
+      "route": "/agents",
+      "status": 200,
+      "docScroll": 800,
+      "docClient": 800,
+      "documentScrolls": false,
+      "clippedCount": 0,
+      "clipped": [],
+      "scrollerCount": 2,
+      "scrollers": [
+        {
+          "cls": "scroll-thin relative flex min-h-0 min-w-0 flex-1 flex-col ga",
+          "client": 721,
+          "scroll": 993
+        },
+        {
+          "cls": "scroll-thin max-h-[calc(100svh-24rem)] min-h-88 divide-y div",
+          "client": 416,
+          "scroll": 1329
+        }
+      ],
+      "newErrors": 0
+    },
+    {
+      "route": "/projects",
+      "status": 200,
+      "docScroll": 800,
+      "docClient": 800,
+      "documentScrolls": false,
+      "clippedCount": 0,
+      "clipped": [],
+      "scrollerCount": 1,
+      "scrollers": [
+        {
+          "cls": "overflow-y-auto",
+          "client": 565,
+          "scroll": 689
+        }
+      ],
+      "newErrors": 0
+    },
+    {
+      "route": "/builder",
+      "status": 200,
+      "docScroll": 800,
+      "docClient": 800,
+      "documentScrolls": false,
+      "clippedCount": 0,
+      "clipped": [],
+      "scrollerCount": 1,
+      "scrollers": [
+        {
+          "cls": "overflow-y-auto",
+          "client": 565,
+          "scroll": 689
+        }
+      ],
+      "newErrors": 0
+    },
+    {
+      "route": "/qualification",
+      "status": 200,
+      "docScroll": 800,
+      "docClient": 800,
+      "documentScrolls": false,
+      "clippedCount": 0,
+      "clipped": [],
+      "scrollerCount": 1,
+      "scrollers": [
+        {
+          "cls": "scroll-thin min-h-0 flex-1 divide-y divide-[color:var(--aig-",
+          "client": 372,
+          "scroll": 965
+        }
+      ],
+      "newErrors": 0
+    },
+    {
+      "route": "/delivery",
+      "status": 200,
+      "docScroll": 800,
+      "docClient": 800,
+      "documentScrolls": false,
+      "clippedCount": 0,
+      "clipped": [],
+      "scrollerCount": 1,
+      "scrollers": [
+        {
+          "cls": "scroll-thin min-h-0 flex-1 divide-y divide-[color:var(--aig-",
+          "client": 299,
+          "scroll": 965
+        }
+      ],
+      "newErrors": 0
+    },
+    {
+      "route": "/runtime",
+      "status": 200,
+      "docScroll": 800,
+      "docClient": 800,
+      "documentScrolls": false,
+      "clippedCount": 0,
+      "clipped": [],
+      "scrollerCount": 1,
+      "scrollers": [
+        {
+          "cls": "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto",
+          "client": 492,
+          "scroll": 3693
+        }
+      ],
+      "newErrors": 0
+    },
+    {
+      "route": "/runtime?tab=telemetry",
+      "status": 200,
+      "docScroll": 800,
+      "docClient": 800,
+      "documentScrolls": false,
+      "clippedCount": 0,
+      "clipped": [],
+      "scrollerCount": 1,
+      "scrollers": [
+        {
+          "cls": "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto",
+          "client": 492,
+          "scroll": 3693
+        }
+      ],
+      "newErrors": 0
+    },
+    {
+      "route": "/learning",
+      "status": 200,
+      "docScroll": 800,
+      "docClient": 800,
+      "documentScrolls": false,
+      "clippedCount": 0,
+      "clipped": [],
+      "scrollerCount": 1,
+      "scrollers": [
+        {
+          "cls": "scroll-thin relative flex min-h-0 min-w-0 flex-1 flex-col ga",
+          "client": 721,
+          "scroll": 1478
+        }
+      ],
+      "newErrors": 0
+    },
+    {
+      "route": "/actions",
+      "status": 200,
+      "docScroll": 800,
+      "docClient": 800,
+      "documentScrolls": false,
+      "clippedCount": 0,
+      "clipped": [],
+      "scrollerCount": 0,
+      "scrollers": [],
+      "newErrors": 0
+    },
+    {
+      "route": "/settings",
+      "status": 200,
+      "docScroll": 800,
+      "docClient": 800,
+      "documentScrolls": false,
+      "clippedCount": 0,
+      "clipped": [],
+      "scrollerCount": 0,
+      "scrollers": [],
+      "newErrors": 0
+    },
+    {
+      "route": "/lab",
+      "status": 200,
+      "docScroll": 800,
+      "docClient": 800,
+      "documentScrolls": false,
+      "clippedCount": 0,
+      "clipped": [],
+      "scrollerCount": 1,
+      "scrollers": [
+        {
+          "cls": "scroll-thin relative flex min-h-0 min-w-0 flex-1 flex-col ga",
+          "client": 687,
+          "scroll": 2264
+        }
+      ],
+      "newErrors": 0
+    },
+    {
+      "route": "/lab/visualizations",
+      "status": 200,
+      "docScroll": 800,
+      "docClient": 800,
+      "documentScrolls": false,
+      "clippedCount": 0,
+      "clipped": [],
+      "scrollerCount": 1,
+      "scrollers": [
+        {
+          "cls": "viz-scope scroll-thin flex min-h-0 flex-1 flex-col gap-6 ove",
+          "client": 800,
+          "scroll": 3068
+        }
+      ],
+      "newErrors": 0
+    },
+    {
+      "route": "/agents/copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8",
+      "status": 200,
+      "docScroll": 800,
+      "docClient": 800,
+      "documentScrolls": false,
+      "clippedCount": 0,
+      "clipped": [],
+      "scrollerCount": 3,
+      "scrollers": [
+        {
+          "cls": "scroll-thin relative flex min-h-0 min-w-0 flex-1 flex-col ga",
+          "client": 679,
+          "scroll": 2343
+        },
+        {
+          "cls": "aig-inset scroll-thin max-h-96 divide-y divide-[color:var(--",
+          "client": 384,
+          "scroll": 716
+        },
+        {
+          "cls": "aig-inset scroll-thin max-h-[30rem] min-h-0 flex-1 overflow-",
+          "client": 480,
+          "scroll": 586
+        }
+      ],
+      "newErrors": 0
+    },
+    {
+      "route": "/delivery/copilot-market-intelligence",
+      "status": 200,
+      "docScroll": 800,
+      "docClient": 800,
+      "documentScrolls": false,
+      "clippedCount": 0,
+      "clipped": [],
+      "scrollerCount": 1,
+      "scrollers": [
+        {
+          "cls": "scroll-thin flex min-h-0 flex-1 flex-col gap-3 overflow-y-au",
+          "client": 705,
+          "scroll": 3123
+        }
+      ],
+      "newErrors": 0
+    },
+    {
+      "route": "/qualification/copilot-agent-builder-copilot-12775a21",
+      "status": 200,
+      "docScroll": 800,
+      "docClient": 800,
+      "documentScrolls": false,
+      "clippedCount": 0,
+      "clipped": [],
+      "scrollerCount": 1,
+      "scrollers": [
+        {
+          "cls": "scroll-thin relative flex min-h-0 min-w-0 flex-1 flex-col ga",
+          "client": 705,
+          "scroll": 1282
+        }
+      ],
+      "newErrors": 0
+    },
+    {
+      "route": "/projects/seed-project-lab",
+      "status": 200,
+      "docScroll": 800,
+      "docClient": 800,
+      "documentScrolls": false,
+      "clippedCount": 0,
+      "clipped": [],
+      "scrollerCount": 4,
+      "scrollers": [
+        {
+          "cls": "overflow-y-auto",
+          "client": 309,
+          "scroll": 413
+        },
+        {
+          "cls": "overflow-y-auto",
+          "client": 206,
+          "scroll": 409
+        },
+        {
+          "cls": "overflow-auto px-4 py-2",
+          "client": 124,
+          "scroll": 144
+        }
+      ],
+      "newErrors": 0
+    },
+    {
+      "route": "/builder/proj-accounting-agent",
+      "status": 200,
+      "docScroll": 800,
+      "docClient": 800,
+      "documentScrolls": false,
+      "clippedCount": 0,
+      "clipped": [],
+      "scrollerCount": 2,
+      "scrollers": [
+        {
+          "cls": "min-h-0 flex-1 overflow-y-auto",
+          "client": 403,
+          "scroll": 1516
+        },
+        {
+          "cls": "overflow-y-auto",
+          "client": 568,
+          "scroll": 826
+        }
+      ],
+      "newErrors": 0
+    }
+  ],
+  "consoleErrors": []
+}

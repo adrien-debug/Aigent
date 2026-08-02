@@ -306,11 +306,27 @@ export const RUN_STATUS_LABEL: Record<AgentRun['status'], string> = {
  * un run bloqué a été ARRÊTÉ par une garde (verdict terminal côté Sentinel), un
  * run échoué a planté. Les confondre en « rouge » perdrait l'information la plus
  * actionnable de la liste.
+ *
+ * CETTE TABLE A DÉRIVÉ, ET DEUX ÉCRANS SE CONTREDISAIENT. `status.ts` est
+ * l'autorité (`RUN_STATUS_COLOR`) et `cockpit/run-stream.tsx` la suivait ; ce
+ * fichier avait recopié une échelle proche mais fausse sur trois statuts :
+ *
+ *   - `needs-confirmation` en `zinc` alors que l'autorité dit `warn`. Un run
+ *     suspendu qui ATTEND UN HUMAIN était rendu dans le registre le plus éteint
+ *     de la liste — l'état le plus actionnable, peint comme le plus inerte.
+ *   - `blocked` en `amber` alors que l'autorité réserve `blocked` (violet) à ce
+ *     verdict terminal. L'ambre le confondait avec un simple avertissement.
+ *   - `running` en `sky` là où l'autorité dit `running` (bleu).
+ *
+ * Conséquence vécue : un même run changeait de couleur entre l'accueil et
+ * `/runs`. On DÉRIVE donc désormais de l'autorité au lieu de la recopier — une
+ * seconde source rend la divergence inévitable, c'est ce qui vient de se
+ * produire.
  */
-export const RUN_STATUS_BADGE: Record<AgentRun['status'], 'emerald' | 'sky' | 'red' | 'amber' | 'zinc'> = {
+export const RUN_STATUS_BADGE: Record<AgentRun['status'], 'emerald' | 'blue' | 'red' | 'purple' | 'amber'> = {
   completed: 'emerald',
-  running: 'sky',
+  running: 'blue',
   failed: 'red',
-  blocked: 'amber',
-  'needs-confirmation': 'zinc',
+  blocked: 'purple',
+  'needs-confirmation': 'amber',
 }

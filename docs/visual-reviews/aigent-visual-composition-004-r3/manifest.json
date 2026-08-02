@@ -1,0 +1,314 @@
+{
+  "generatedAt": "2026-08-02T00:23:46.654Z",
+  "captureCommitSha": "f146c58f2b7bc8ff06b7022245f973e2b08c0105",
+  "captureCommitShort": "f146c58",
+  "branchTarget": "mission/aigent-visual-composition-004",
+  "worktree": {
+    "path": "/Users/adrienbeyondcrypto/Aigent-r3-capture",
+    "detachedHead": true,
+    "clean": false,
+    "statusPorcelain": "?? docs/visual-reviews/aigent-visual-composition-004-r3/\n",
+    "cleanAtCaptureStart": true,
+    "cleanAtCaptureStartReason": "worktree created from pushed HEAD before any file creation",
+    "cleanAtCaptureEnd": false
+  },
+  "server": {
+    "baseUrl": "http://127.0.0.1:3997",
+    "port": 3997
+  },
+  "browser": {
+    "name": "chromium",
+    "version": "133.0.6943.16",
+    "headless": true
+  },
+  "routes": {
+    "agentDetailRoute": "/agents/copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8"
+  },
+  "captures": [
+    {
+      "route": "/runs",
+      "file": "runs-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "overlaysHidden": 1,
+      "consoleErrors": 0
+    },
+    {
+      "route": "/runs",
+      "file": "runs-laptop-1280x800.png",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overlaysHidden": 1,
+      "consoleErrors": 0
+    },
+    {
+      "route": "/runs",
+      "file": "runs-mobile-375x812.png",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overlaysHidden": 1,
+      "consoleErrors": 0
+    },
+    {
+      "route": "/runs",
+      "file": "runs-low-height-1280x600.png",
+      "viewport": {
+        "width": 1280,
+        "height": 600
+      },
+      "overlaysHidden": 1,
+      "consoleErrors": 0
+    },
+    {
+      "route": "/",
+      "file": "overview-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "overlaysHidden": 1,
+      "consoleErrors": 1
+    },
+    {
+      "route": "/runtime?tab=telemetry",
+      "file": "runtime-telemetry-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "overlaysHidden": 1,
+      "consoleErrors": 0
+    },
+    {
+      "route": "/agents",
+      "file": "agents-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "overlaysHidden": 1,
+      "consoleErrors": 0
+    },
+    {
+      "route": "/agents/copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8",
+      "file": "agent-detail-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "overlaysHidden": 1,
+      "consoleErrors": 0
+    },
+    {
+      "route": "/learning",
+      "file": "learning-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "overlaysHidden": 2,
+      "consoleErrors": 4
+    },
+    {
+      "route": "/delivery",
+      "file": "delivery-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "overlaysHidden": 1,
+      "consoleErrors": 0
+    },
+    {
+      "route": "/qualification",
+      "file": "qualification-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "overlaysHidden": 1,
+      "consoleErrors": 0
+    }
+  ],
+  "httpChecks": [
+    {
+      "route": "/runs",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "status": 200
+    },
+    {
+      "route": "/runs",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "status": 200
+    },
+    {
+      "route": "/runs",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "status": 200
+    },
+    {
+      "route": "/runs",
+      "viewport": {
+        "width": 1280,
+        "height": 600
+      },
+      "status": 200
+    },
+    {
+      "route": "/",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "status": 200
+    },
+    {
+      "route": "/runtime?tab=telemetry",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "status": 200
+    },
+    {
+      "route": "/agents",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "status": 200
+    },
+    {
+      "route": "/agents/copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "status": 200
+    },
+    {
+      "route": "/learning",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "status": 200
+    },
+    {
+      "route": "/delivery",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "status": 200
+    },
+    {
+      "route": "/qualification",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "status": 200
+    }
+  ],
+  "console": {
+    "totalErrors": 5,
+    "errors": [
+      {
+        "route": "/",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "type": "console",
+        "text": "%c%s%c [pending-architect-approvals] conversation list failed: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   Agent Mission Control is live-only: set AMC_DATA_SOURCE=gpu1, AMC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. No mock dataset is bundled."
+      },
+      {
+        "route": "/learning",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "type": "console",
+        "text": "%c%s%c [pending-architect-approvals] conversation list failed: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   Agent Mission Control is live-only: set AMC_DATA_SOURCE=gpu1, AMC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. No mock dataset is bundled."
+      },
+      {
+        "route": "/learning",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "type": "console",
+        "text": "%o\n\n%s Error: Agent Mission Control is live-only: set AMC_DATA_SOURCE=gpu1, AMC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. No mock dataset is bundled.\n    at requireBackend (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__0r52qy7._.js?0:5381:15)\n    at pgrestRaw (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__0r52qy7._.js?1:5415:27)\n    at pgrest (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__0r52qy7._.js?2:5448:27)\n    at rest (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__1_gv97v._.js?3:4240:195)\n    at getCopilots (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__1_gv97v._.js?4:4355:197)\n    at getDashboardOverview (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__0t99bcr._.js?5:11502:174)\n    at getLearningOverview (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__1lw_qr2._.js?6:11548:200)\n    at Page (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__1lw_qr2._.js?7:12061:217)\n    at resolveErrorDev (http://127.0.0.1:3997/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js:1919:105)\n    at processFullStringRow (http://127.0.0.1:3997/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js:2434:29)\n    at processFullBinaryRow (http://127.0.0.1:3997/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js:2393:9)\n    at processBinaryChunk (http://127.0.0.1:3997/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js:2502:221)\n    at progress (http://127.0.0.1:3997/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js:2689:13) The above error occurred in the <Page> component. It was handled by the <ErrorBoundaryHandler> error boundary."
+      },
+      {
+        "route": "/learning",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "type": "console",
+        "text": "[aigent] rendu interrompu Error: Agent Mission Control is live-only: set AMC_DATA_SOURCE=gpu1, AMC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. No mock dataset is bundled.\n    at requireBackend (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__0r52qy7._.js?0:5381:15)\n    at pgrestRaw (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__0r52qy7._.js?1:5415:27)\n    at pgrest (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__0r52qy7._.js?2:5448:27)\n    at rest (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__1_gv97v._.js?3:4240:195)\n    at getCopilots (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__1_gv97v._.js?4:4355:197)\n    at getDashboardOverview (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__0t99bcr._.js?5:11502:174)\n    at getLearningOverview (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__1lw_qr2._.js?6:11548:200)\n    at Page (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__1lw_qr2._.js?7:12061:217)\n    at resolveErrorDev (http://127.0.0.1:3997/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js:1919:105)\n    at processFullStringRow (http://127.0.0.1:3997/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js:2434:29)\n    at processFullBinaryRow (http://127.0.0.1:3997/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js:2393:9)\n    at processBinaryChunk (http://127.0.0.1:3997/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js:2502:221)\n    at progress (http://127.0.0.1:3997/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js:2689:13)"
+      },
+      {
+        "route": "/learning",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "type": "console",
+        "text": "[aigent] rendu interrompu Error: Agent Mission Control is live-only: set AMC_DATA_SOURCE=gpu1, AMC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. No mock dataset is bundled.\n    at requireBackend (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__0r52qy7._.js?0:5381:15)\n    at pgrestRaw (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__0r52qy7._.js?1:5415:27)\n    at pgrest (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__0r52qy7._.js?2:5448:27)\n    at rest (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__1_gv97v._.js?3:4240:195)\n    at getCopilots (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__1_gv97v._.js?4:4355:197)\n    at getDashboardOverview (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__0t99bcr._.js?5:11502:174)\n    at getLearningOverview (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__1lw_qr2._.js?6:11548:200)\n    at Page (about://React/Server/file:///Users/adrienbeyondcrypto/Aigent-r3-capture/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__1lw_qr2._.js?7:12061:217)\n    at resolveErrorDev (http://127.0.0.1:3997/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js:1919:105)\n    at processFullStringRow (http://127.0.0.1:3997/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js:2434:29)\n    at processFullBinaryRow (http://127.0.0.1:3997/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js:2393:9)\n    at processBinaryChunk (http://127.0.0.1:3997/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js:2502:221)\n    at progress (http://127.0.0.1:3997/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js:2689:13)"
+      }
+    ]
+  },
+  "state": {
+    "captureSource": "clean-worktree",
+    "overlayPolicy": "css-studio-panel and cursor overlays removed before screenshot",
+    "imagesInspected": true,
+    "inspectedFiles": [
+      "runs-desktop-1440x900.png",
+      "runs-laptop-1280x800.png",
+      "runs-mobile-375x812.png",
+      "runs-low-height-1280x600.png",
+      "overview-desktop-1440x900.png",
+      "runtime-telemetry-desktop-1440x900.png",
+      "agents-desktop-1440x900.png",
+      "agent-detail-desktop-1440x900.png",
+      "learning-desktop-1440x900.png",
+      "delivery-desktop-1440x900.png",
+      "qualification-desktop-1440x900.png",
+      "contact-sheet.png"
+    ]
+  },
+  "validation": {
+    "httpStatusRecheck": {
+      "runs": 200,
+      "overview": 200,
+      "runtimeTelemetry": 200,
+      "agents": 200,
+      "learning": 200,
+      "delivery": 200,
+      "qualification": 200,
+      "agentDetail": 200
+    },
+    "consolePostCapture": {
+      "totalErrors": 5,
+      "file": "console-errors-post-capture.json"
+    }
+  }
+}

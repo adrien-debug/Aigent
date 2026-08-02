@@ -1,0 +1,401 @@
+{
+  "generatedAt": "2026-08-02T00:41:29.749Z",
+  "captureCommitSha": "f146c58f2b7bc8ff06b7022245f973e2b08c0105",
+  "captureCommitShort": "f146c58",
+  "branchTarget": "mission/aigent-visual-composition-004",
+  "pr": 76,
+  "worktree": {
+    "path": "/Users/adrienbeyondcrypto/Aigent-r4-proof",
+    "detachedHead": true,
+    "trackedFilesCleanAtStart": true,
+    "trackedDirtyStatus": "",
+    "fullStatusAtGeneration": ""
+  },
+  "server": {
+    "baseUrl": "http://127.0.0.1:3987",
+    "port": 3987,
+    "mode": "production-preview"
+  },
+  "browser": {
+    "name": "chromium",
+    "version": "133.0.6943.16",
+    "headless": true
+  },
+  "captures": [
+    {
+      "route": "/runs",
+      "file": "runs-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "hiddenOverlayCount": 0,
+      "consoleErrors": 0,
+      "contentChecks": {
+        "hasLectureImpossible": false,
+        "hasDigest": false,
+        "hasKpiOrListSignal": true
+      }
+    },
+    {
+      "route": "/runs",
+      "file": "runs-laptop-1280x800.png",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "hiddenOverlayCount": 0,
+      "consoleErrors": 0,
+      "contentChecks": {
+        "hasLectureImpossible": false,
+        "hasDigest": false,
+        "hasKpiOrListSignal": true
+      }
+    },
+    {
+      "route": "/runs",
+      "file": "runs-mobile-375x812.png",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "hiddenOverlayCount": 0,
+      "consoleErrors": 0,
+      "contentChecks": {
+        "hasLectureImpossible": false,
+        "hasDigest": false,
+        "hasKpiOrListSignal": true
+      }
+    },
+    {
+      "route": "/runs",
+      "file": "runs-low-height-1280x600.png",
+      "viewport": {
+        "width": 1280,
+        "height": 600
+      },
+      "hiddenOverlayCount": 0,
+      "consoleErrors": 0,
+      "contentChecks": {
+        "hasLectureImpossible": false,
+        "hasDigest": false,
+        "hasKpiOrListSignal": true
+      }
+    },
+    {
+      "route": "/",
+      "file": "overview-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "hiddenOverlayCount": 0,
+      "consoleErrors": 0,
+      "contentChecks": {
+        "hasLectureImpossible": false,
+        "hasDigest": false,
+        "hasKpiOrListSignal": true
+      }
+    },
+    {
+      "route": "/runtime?tab=telemetry",
+      "file": "runtime-telemetry-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "hiddenOverlayCount": 0,
+      "consoleErrors": 0,
+      "contentChecks": {
+        "hasLectureImpossible": false,
+        "hasDigest": false,
+        "hasKpiOrListSignal": true
+      }
+    },
+    {
+      "route": "/agents",
+      "file": "agents-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "hiddenOverlayCount": 0,
+      "consoleErrors": 0,
+      "contentChecks": {
+        "hasLectureImpossible": false,
+        "hasDigest": false,
+        "hasKpiOrListSignal": true
+      }
+    },
+    {
+      "route": "/agents/copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8",
+      "file": "agent-detail-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "hiddenOverlayCount": 0,
+      "consoleErrors": 0,
+      "contentChecks": {
+        "hasLectureImpossible": true,
+        "hasDigest": false,
+        "hasKpiOrListSignal": true
+      }
+    },
+    {
+      "route": "/learning",
+      "file": "learning-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "hiddenOverlayCount": 0,
+      "consoleErrors": 0,
+      "contentChecks": {
+        "hasLectureImpossible": false,
+        "hasDigest": false,
+        "hasKpiOrListSignal": true
+      }
+    },
+    {
+      "route": "/delivery",
+      "file": "delivery-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "hiddenOverlayCount": 0,
+      "consoleErrors": 0,
+      "contentChecks": {
+        "hasLectureImpossible": false,
+        "hasDigest": false,
+        "hasKpiOrListSignal": true
+      }
+    },
+    {
+      "route": "/qualification",
+      "file": "qualification-desktop-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "hiddenOverlayCount": 0,
+      "consoleErrors": 0,
+      "contentChecks": {
+        "hasLectureImpossible": false,
+        "hasDigest": false,
+        "hasKpiOrListSignal": true
+      }
+    }
+  ],
+  "httpChecks": [
+    {
+      "route": "/runs",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "status": 200
+    },
+    {
+      "route": "/runs",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "status": 200
+    },
+    {
+      "route": "/runs",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "status": 200
+    },
+    {
+      "route": "/runs",
+      "viewport": {
+        "width": 1280,
+        "height": 600
+      },
+      "status": 200
+    },
+    {
+      "route": "/",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "status": 200
+    },
+    {
+      "route": "/runtime?tab=telemetry",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "status": 200
+    },
+    {
+      "route": "/agents",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "status": 200
+    },
+    {
+      "route": "/agents/copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "status": 200
+    },
+    {
+      "route": "/learning",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "status": 200
+    },
+    {
+      "route": "/delivery",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "status": 200
+    },
+    {
+      "route": "/qualification",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "status": 200
+    }
+  ],
+  "console": {
+    "totalErrors": 0,
+    "errors": []
+  },
+  "state": {
+    "captureSource": "clean-worktree-f146c58",
+    "overlayPolicy": "hide css-studio/cursor/issue badges before screenshot",
+    "imagesInspected": true,
+    "inspectedFiles": [
+      "runs-desktop-1440x900.png",
+      "runs-laptop-1280x800.png",
+      "runs-mobile-375x812.png",
+      "runs-low-height-1280x600.png",
+      "overview-desktop-1440x900.png",
+      "runtime-telemetry-desktop-1440x900.png",
+      "agents-desktop-1440x900.png",
+      "agent-detail-desktop-1440x900.png",
+      "learning-desktop-1440x900.png",
+      "delivery-desktop-1440x900.png",
+      "qualification-desktop-1440x900.png",
+      "contact-sheet.png"
+    ]
+  },
+  "validation": {
+    "httpStatuses": [
+      {
+        "route": "/runs",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "status": 200
+      },
+      {
+        "route": "/runs",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "status": 200
+      },
+      {
+        "route": "/runs",
+        "viewport": {
+          "width": 375,
+          "height": 812
+        },
+        "status": 200
+      },
+      {
+        "route": "/runs",
+        "viewport": {
+          "width": 1280,
+          "height": 600
+        },
+        "status": 200
+      },
+      {
+        "route": "/",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "status": 200
+      },
+      {
+        "route": "/runtime?tab=telemetry",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "status": 200
+      },
+      {
+        "route": "/agents",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "status": 200
+      },
+      {
+        "route": "/agents/copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "status": 200
+      },
+      {
+        "route": "/learning",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "status": 200
+      },
+      {
+        "route": "/delivery",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "status": 200
+      },
+      {
+        "route": "/qualification",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "status": 200
+      }
+    ],
+    "consoleErrors": {
+      "totalErrors": 0,
+      "errors": []
+    },
+    "note": "Agent detail contains local blocker badge text \"Lecture impossible\" inside the service-state card, but page content is fully rendered (not a full-screen read failure)."
+  }
+}

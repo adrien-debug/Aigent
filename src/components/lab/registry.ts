@@ -104,7 +104,7 @@ export const LAB_PATTERNS = [
     usedBy: 'src/components/ui/sidebar.tsx · src/components/ui/navbar.tsx',
     cost: 'Nul — déjà en production dans le kit.',
     caveat:
-      'Le kit est figé par empreinte SHA (`check:ui-kit-integrity`) : ce pattern se regarde ici, il ne se modifie pas depuis le lab.',
+      'Le kit est protégé contre la PERTE (`check:ui-kit-integrity`) : ce pattern se regarde ici, il ne se modifie pas depuis le lab.',
   },
   {
     id: 'progress',
@@ -127,8 +127,6 @@ export const LAB_PATTERNS = [
       'À l’usage, une cascade rejouée à chaque navigation devient fatigante et retarde la lecture. Elle n’a de sens que sur une vraie relecture (rafraîchissement), pas sur un simple retour à la page.',
   },
 ] as const satisfies readonly LabPattern[]
-
-export type LabPatternId = (typeof LAB_PATTERNS)[number]['id']
 
 /**
  * Le compte par état — le seul chiffre affiché en tête du lab.

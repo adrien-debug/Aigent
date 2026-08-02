@@ -25,8 +25,9 @@ authoring or runs.
 ## Frontend — 15 écrans qui tournent
 
 Le front historique a été supprimé (mission `frontend-reset`), puis reconstruit à
-partir du **2026-07-31**. État vérifié au 2026-07-31 (build vert, 4 écrans
-contrôlés dans un navigateur, zéro erreur console) :
+partir du **2026-07-31**. État revalidé au **2026-08-02** (build vert, captures
+desktop/mobile, revue visuelle R2 dans
+`docs/visual-reviews/aigent-visual-composition-004-r2/`) :
 
 | Route | Rôle |
 |---|---|
@@ -38,7 +39,7 @@ contrôlés dans un navigateur, zéro erreur console) :
 | `/runtime` | Santé du canal de télémétrie |
 | `/learning` | Supervision, file de revue, évaluations, pont Obsidian, Learning Runtime |
 | `/actions` | File opérateur complète — reprise des runs en attente d'approbation |
-| `/settings` | Réglages (placeholder) |
+| `/settings` | Réglages (UI placeholder, backend posture disponible via `/api/agent-ops/settings/posture`) |
 
 | Élément | État |
 |---|---|
@@ -50,18 +51,33 @@ contrôlés dans un navigateur, zéro erreur console) :
 | Marketing `(site)/`, `/login`, `src/theme.css` | **Absents** et interdits de retour |
 | API · Backend | **Actifs** — `src/app/api/**`, `src/lib/**`, LangGraph, migrations |
 
-**Le design est libre** : aucune palette, aucun token, aucune structure de page
-n'est imposée (`CLAUDE.md` §8). Le kit `ui/` est un outil disponible, pas une
-obligation — les écrans peuvent s'en écarter.
+**Le design est libre** : aucun layout, aucune typographie, aucune navigation ni
+esthétique permanente n'est imposée (`CLAUDE.md` §8). Sur les surfaces de
+production, les jetons `--aig-*` restent l'autorité sémantique actuelle ; le
+kit `ui/` est un outil disponible, pas une obligation globale.
 
-Deux gates encadrent le front, et **aucune des deux ne juge l'esthétique** :
+`/lab` (Composer/Lab/Prototype) est une **surface d'exploration** : elle ne crée
+aucune règle produit et ne contourne ni l'accessibilité, ni la vérité des
+données, ni la sécurité. Une promotion vers une surface production exige revue
+humaine, normalisation sémantique, responsive, a11y et tests adaptés.
+
+Trois gates encadrent le front, avec responsabilités séparées :
 - `check:no-legacy-front` — refuse le retour des surfaces démolies ;
   `src/components/` est autorisé.
-- `check:legacy-design-doctrine` — bloque la réinjection de l'ancienne doctrine
-  layout (zéro-scroll, DS Guardian, gates `check:ds`/`check:catalyst` supprimées).
-- `check:ui-kit-integrity` — fige le kit `ui/` par empreinte SHA-256 contre une
-  dérive silencieuse. Modifier une primitive **volontairement** :
-  `node scripts/check-ui-kit-integrity.mjs --update`.
+- `check:no-legacy-design-governance` — bloque uniquement le retour de l'ancienne
+  doctrine (zéro-scroll obligatoire, viewport lock, DS Guardian, `check:ds`,
+  `check:catalyst`, sync externe de gouvernance).
+- `check:production-visual-authority` — garde uniquement les surfaces de
+  production : autorité sémantique unique des statuts, pas de palette parallèle
+  structurante, pas de couleur littérale hors thème dans les écrans produit.
+  Exclusions explicites : `Composer`/`Lab`, prototypes, visualisations externes,
+  fichiers globaux de tokens.
+- `check:ui-kit-integrity` — vérifie la **substance** du kit `ui/` : les 14
+  primitives et leurs 43 exports consommés, la cible tactile de 44 px en
+  contexte tactile, les
+  marqueurs d'accessibilité, et zéro couleur Tailwind brute. Elle interdit la
+  **perte**, pas le changement : modifier une primitive est légitime et ne
+  demande aucune régénération.
 
 > ⚠️ **Angle mort connu.** Aucune gate ne mesure le rendu. Le 2026-07-31, une
 > réécriture du kit a supprimé 2438 lignes pour en écrire 257 (`TouchTarget` vidé
@@ -79,15 +95,24 @@ State the restriction, not the headline:
 - **Telemetry** is aggregated in `dashboard-overview.ts` and `agent-detail.ts`,
   and surfaced on `/` and `/runs`. A run that reported no usage shows
   `Non mesuré` — never a fabricated `0` (`docs/metrics-canon.md`).
-- **Consumer proof chain (installations)** now uses the dedicated route
+- **Consumer proof chain (installations)** uses the dedicated route
   `/api/runtime-telemetry/consumer`: each accepted event must match a real
   installation (`project_id`, `copilot_id`, `version_id`, `delivery_event_id`),
   and only rows with `version_verified=true` can contribute to
   `active_in_consumer`.
-- **Tool builder** works, but only `count_words` has a sandbox.
+- **Lifecycle version drift** is computed from persisted evidence only:
+  `agent_delivery_events.version_id` vs `runtime_telemetry_events.agent_version`.
+  Missing proof stays `unknown`; no timestamp/name/position inference.
+- **Tool builder** sandboxing is generic/fail-closed: explicit capability
+  allowlist, timeout, I/O bounds, isolated empty env context, and outcomes
+  limited to `certified | failed | unavailable`. `count_words` is the first
+  registered sandboxed tool.
 - **Provider `mistral`** is declared and **not wired** — it throws a typed error
   rather than falling back silently.
 - **Provider `local`** (vLLM) requires an explicit opt-in key.
+- **Settings backend** is wired read-only at
+  `/api/agent-ops/settings/posture` (redacted server-only posture contract); the
+  `/settings` UI remains intentionally placeholder for now.
 
 ## Stack
 
@@ -138,7 +163,7 @@ npm run test:live  # opt-in — tape gpu1 + OpenAI, coûte de l'argent
 ```
 
 `npm run check` enchaîne, dans l'ordre : `typecheck` · `lint:fast` · `lint` ·
-`check:no-legacy-front` · `check:legacy-design-doctrine` · `check:ui-kit-integrity` · `check:agent-truth` ·
+`check:no-legacy-front` · `check:no-legacy-design-governance` · `check:production-visual-authority` · `check:ui-kit-integrity` · `check:agent-truth` ·
 `check:lifecycle-truth` · `check:registry-parity` · `check:registry-integrity` ·
 `check:dev-port` · `check:render-truth` · `check:rsc-boundary` ·
 `check:schema-rebuildable` · `check:secrets` · `audit:dead`. Le premier rouge
@@ -160,7 +185,7 @@ qu'elle mesure.
 | Je veux toucher… | Ça vit dans… |
 |---|---|
 | Un écran | `src/app/<route>/page.tsx` + `src/components/<domaine>/` |
-| Une primitive UI | `src/components/ui/` — puis `check:ui-kit-integrity --update` |
+| Une primitive UI | `src/components/ui/` — couleurs en jetons `--aig-*`, puis regarder un écran qui la consomme |
 | La navigation | `src/components/navigation.ts` (source de vérité unique) |
 | La logique métier | `src/lib/agent-mission-control/` |
 | Une route API | `src/app/api/**` — server-only, fail-closed |
@@ -182,9 +207,11 @@ npm run verify               # avant un push qui touche le build
 
 1. **Port** — jamais 3000, 3001 ni 3210. Le dev est épinglé sur **3987**
    (`check:dev-port` le vérifie dans 4 résolveurs).
-2. **Kit UI** — modifier une primitive fait échouer `check:ui-kit-integrity`.
-   C'est voulu : la gate protège contre une dérive silencieuse. Modification
-   volontaire → `--update`, puis **regarder un écran qui la consomme**.
+2. **Kit UI** — modifier une primitive est légitime ; `check:ui-kit-integrity`
+   refuse la **perte** (un export consommé, la cible tactile de 44 px, un
+   marqueur d'accessibilité, une couleur Tailwind brute). Les couleurs viennent
+   des jetons `--aig-*`. Après modification, **regarder un écran qui la
+   consomme** : aucune gate ne mesure le rendu.
 3. **Aucune donnée fabriquée** — une valeur absente s'affiche `Non mesuré`,
    jamais `0`. `check:render-truth` et `check:lifecycle-truth` refusent les zéros
    inventés, les `NaN` coercés et les statuts non prouvés.

@@ -1,12 +1,22 @@
 /**
- * Aperçu — la surface d'arrivée : instruments, activité, rosters.
+ * Aperçu — la surface d'arrivée. UNE scène, puis deux zones de second rang.
  *
- * Hiérarchie : en-tête commun → bandeau KPI → activité (histogramme) → rosters
- * (flux d'exécution, projets). Du global au particulier, comme `/runs`.
+ * LA HIÉRARCHIE EST MAINTENANT ÉDITORIALE, PAS SEULEMENT ORDONNÉE
+ * ---------------------------------------------------------------
+ * L'écran allait déjà « du global au particulier », mais en empilant trois
+ * `Panel` de rang strictement ÉGAL — bandeau KPI, activité, grille rosters.
+ * Même fond, même liseré, même rayon, même poids de titre. Un ordre de lecture
+ * juste ne suffit pas : sans différence de POIDS, les trois blocs se disputent
+ * le regard et l'écran se lit comme une grille de cadres noirs.
  *
- * L'écran rendait autrefois sur fond CLAIR avec son propre en-tête noir ; il
- * suit désormais la grammaire du produit (`globals.css`) et l'en-tête commun du
- * shell. Il n'a plus de langage à lui.
+ * Trois gestes, donc :
+ *  1. L'activité et ses mesures fusionnent en UNE scène (`aig-stage`) : la
+ *     courbe et les chiffres qui la qualifient parlent de la même fenêtre, ils
+ *     n'ont jamais eu de raison d'être deux boîtes voisines.
+ *  2. Les six KPI cessent d'être six cellules égales — deux MÈNENT en
+ *     `text-4xl`, quatre QUALIFIENT (voir `kpi-strip.tsx`).
+ *  3. Le flux et les projets descendent en second rang (`aig-quiet`) : plus de
+ *     liseré fermé, la valeur du fond suffit à les détacher.
  *
  * Server Component : l'histogramme est le seul module client (SVG écrit à la
  * main + Motion pour son entrée).
@@ -15,6 +25,8 @@ import type { ReactNode } from 'react'
 import { navEntry } from '@/components/navigation'
 import { PageBody, PageHeader } from '@/components/app-shell'
 import { Link } from '@/components/ui/link'
+import { Badge } from '@/components/ui/badge'
+import { Text } from '@/components/ui/text'
 import type { DashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
 import { buildHourlyBuckets, buildStatusBreakdown } from '@/lib/cockpit/overview-series'
 import type { HourlyBucket } from '@/lib/cockpit/overview-series'
@@ -25,7 +37,7 @@ import { StatusLegend } from './charts'
 import KpiStrip from './kpi-strip'
 import RunStream from './run-stream'
 import ProjectCarousel from './project-carousel'
-import { Panel, Unavailable } from './primitives'
+import { Unavailable } from './primitives'
 
 const ENTRY = navEntry('/')
 
@@ -81,6 +93,13 @@ function renderRunStreamPanel(runs: NamedRun[] | null, nowMs: number): ReactNode
   return <RunStream runs={runs} nowMs={nowMs} />
 }
 
+function actionTone(status: string): 'amber' | 'red' | 'emerald' | 'zinc' {
+  if (status === 'blocked' || status === 'failed') return 'red'
+  if (status === 'ready_for_manual_test' || status === 'awaiting_approval') return 'amber'
+  if (status === 'completed' || status === 'merged_validated') return 'emerald'
+  return 'zinc'
+}
+
 export default function CockpitOverview({
   overview,
   nowMs,
@@ -121,19 +140,20 @@ export default function CockpitOverview({
        * Elles montent simplement dans l'en-tête commun.
        */}
       <PageHeader
+        eyebrow="Plan de contrôle"
         title={ENTRY.name}
         description={ENTRY.purpose}
         actions={
           <>
             <Link
               href="/runs"
-              className="aig-panel aig-text-muted inline-flex items-center justify-center px-3 py-2 text-sm font-semibold no-underline transition hover:text-white"
+              className="aig-text-muted inline-flex items-center justify-center px-3 py-2 text-sm font-semibold no-underline transition hover:text-(--aig-accent)"
             >
               Voir les runs
             </Link>
             <Link
               href="/actions"
-              className="aig-panel-raised aig-accent inline-flex items-center justify-center px-3 py-2 text-sm font-semibold no-underline transition hover:text-white"
+              className="aig-accent inline-flex items-center justify-center px-3 py-2 text-sm font-semibold no-underline transition hover:opacity-80"
             >
               File d’action
             </Link>
@@ -141,50 +161,129 @@ export default function CockpitOverview({
         }
       />
 
-      <PageBody>
-        <KpiStrip kpis={overview.kpis} unread={unread} />
+      <PageBody className="flex min-h-0 flex-1 flex-col gap-4">
+        {/*
+         * LA SCÈNE — une seule zone dominante, et tout le reste en dessous.
+         *
+         * CE QUI A CHANGÉ. L'écran empilait trois `Panel` de rang strictement
+         * égal : le bandeau KPI, l'activité, puis la grille flux/projets. Même
+         * fond, même liseré, même rayon, même poids typographique — une pile de
+         * cadres noirs sans point d'entrée, exactement ce que cette mission
+         * doit supprimer.
+         *
+         * Ici, l'activité et ses mesures ne sont plus deux boîtes voisines :
+         * c'est UN objet. Les chiffres qui qualifient la fenêtre vivent dans la
+         * même surface que la courbe qui la dessine, parce qu'ils parlent de la
+         * même chose. La légende de statut monte dans l'en-tête de la scène.
+         */}
+        <section className="aig-stage flex min-w-0 flex-col overflow-hidden">
+          <header className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 pt-4 pb-3">
+            <div className="min-w-0">
+              <p className="aig-text-faint text-3xs font-medium uppercase tracking-[0.2em]">
+                Fenêtre 24 heures
+              </p>
+              <h2 className="aig-display text-base font-semibold">Activité de la flotte</h2>
+            </div>
+            {slices ? (
+              <div className="ml-auto min-w-0">
+                <StatusLegend slices={slices} />
+              </div>
+            ) : (
+              <p className="aig-text-faint ml-auto text-2xs">fenêtre non lue</p>
+            )}
+          </header>
 
-        <Panel
-          title="Activité 24 h"
-          className="min-w-0"
-          padded={false}
-          bodyClassName="px-2 pt-3 pb-1"
-          actions={slices ? <StatusLegend slices={slices} /> : undefined}
-          hint={slices ? undefined : 'fenêtre non lue'}
-        >
-          {renderActivityPanel(buckets)}
-        </Panel>
+          <div className="min-w-0">{renderActivityPanel(buckets)}</div>
 
-        {/* 60 / 40 : le flux se lit ligne à ligne et garde la majorité, mais les
-          projets portent DES CARTES — à 30 % la colonne n'en montrait que deux
-          sur dix et coupait la troisième au bord. 40 % en fait une vraie
-          seconde colonne au lieu d'un appoint tassé. */}
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[6fr_4fr] [&>*]:min-w-0">
-          <Panel
-            title="Flux d'exécution"
-            hint={runs ? `${runs.length} sur la fenêtre` : undefined}
-            className="min-w-0"
-            padded={false}
-          >
-            {renderRunStreamPanel(runs, nowMs)}
-          </Panel>
+          {/* Les mesures ferment la scène — elles qualifient la courbe qu'on
+              vient de lire, au lieu de la précéder hors contexte. */}
+          <div className="px-3 pt-3 pb-3">
+            <KpiStrip kpis={overview.kpis} unread={unread} />
+          </div>
+        </section>
 
-          <Panel
-            title="Projets"
-            hint={`${projectCards.length} au catalogue`}
-            className="min-w-0"
-            padded={false}
-          >
+        {/* SECOND RANG — le flux et les projets. Ils ne portent plus de liseré
+            complet : `aig-quiet` les détache par la valeur, ce qui retire deux
+            cadres identiques de l'écran sans rien perdre de la structure.
+
+            60 / 40 : le flux se lit ligne à ligne et garde la majorité, mais les
+            projets portent DES CARTES — à 30 % la colonne n'en montrait que deux
+            sur dix et coupait la troisième au bord. */}
+        <section className="grid min-h-0 min-w-0 grid-cols-1 gap-5 xl:grid-cols-[6fr_4fr]">
+          <div className="flex min-h-0 min-w-0 flex-col">
+            <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-2">
+              <h2 className="aig-display truncate text-sm font-semibold">Flux d&apos;exécution</h2>
+              {runs ? <p className="aig-text-faint truncate text-2xs">{runs.length} sur la fenêtre</p> : null}
+              <Link
+                href="/runs"
+                className="aig-accent ml-auto shrink-0 text-2xs font-medium no-underline transition hover:opacity-80"
+              >
+                Tous les runs →
+              </Link>
+            </header>
+            <div className="aig-hairline mb-3" />
+            <div className="min-h-0 flex-1 overflow-y-auto">{renderRunStreamPanel(runs, nowMs)}</div>
+          </div>
+
+          <div className="flex min-h-0 min-w-0 flex-col border-l border-(--aig-line-soft) pl-4">
+            <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-2">
+              <h2 className="aig-display truncate text-sm font-semibold">Projets</h2>
+              <p className="aig-text-faint truncate text-2xs">{projectCards.length} au catalogue</p>
+              <Link
+                href="/projects"
+                className="aig-accent ml-auto shrink-0 text-2xs font-medium no-underline transition hover:opacity-80"
+              >
+                Catalogue →
+              </Link>
+            </header>
+            <div className="aig-hairline mb-3" />
             {projectCards.length === 0 ? (
               <Unavailable reason="no-data" detail="Aucun projet dans le catalogue." />
             ) : (
               <ProjectCarousel cards={rankedProjects} />
             )}
-          </Panel>
-        </div>
+
+            <div className="aig-hairline my-3" />
+
+            <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-2">
+              <h2 className="aig-display truncate text-sm font-semibold">Événements importants</h2>
+              <p className="aig-text-faint truncate text-2xs">{overview.actionItems.length} signal(aux)</p>
+              <Link
+                href="/actions"
+                className="aig-accent ml-auto shrink-0 text-2xs font-medium no-underline transition hover:opacity-80"
+              >
+                File complète →
+              </Link>
+            </header>
+            {overview.actionItems.length === 0 ? (
+              <Unavailable
+                reason="no-data"
+                detail="Aucun signal bloquant sur la fenêtre actuelle. La lecture a réussi."
+              />
+            ) : (
+              <ul className="divide-y divide-(--aig-line-soft)">
+                {overview.actionItems.slice(0, 6).map((item) => (
+                  <li key={item.id} className="flex items-start gap-3 py-3">
+                    <Badge color={actionTone(item.status)}>{item.status}</Badge>
+                    <div className="min-w-0 flex-1">
+                      <Text className="aig-display truncate text-sm">{item.title}</Text>
+                      <Text className="truncate text-xs">{item.meta}</Text>
+                    </div>
+                    <Link
+                      href={item.href}
+                      className="aig-accent shrink-0 text-2xs no-underline transition hover:opacity-80"
+                    >
+                      Ouvrir →
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
 
         {overview.dataWarnings.length > 0 ? (
-          <p className="aig-panel-raised aig-accent truncate px-3 py-2 font-mono text-2xs">
+          <p className="aig-accent truncate px-1 font-mono text-2xs">
             {overview.dataWarnings.length} avertissement(s) de lecture — {overview.dataWarnings[0]}
           </p>
         ) : null}

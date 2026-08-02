@@ -41,6 +41,7 @@ describe('persistDeliveryEvent', () => {
     })
     const body = calls[0].body as Record<string, unknown>
     expect(body.mode).toBe('pull_request')
+    expect(body.version_id).toBe('v-x')
     expect(body.delivery_branch).toBe('agent/btc-abc123')
     expect(body.pr_number).toBe(7)
     expect(body.pr_url).toBe('https://github.com/owner/repo/pull/7')
@@ -58,6 +59,7 @@ describe('getLatestDeliveryEvent', () => {
     getResponse = [
       {
         id: 'delivery_2',
+        version_id: 'v-2',
         mode: 'pull_request',
         target_repo: 'owner/repo',
         target_branch: 'main',
@@ -71,6 +73,7 @@ describe('getLatestDeliveryEvent', () => {
       },
     ]
     const e = await getLatestDeliveryEvent('copilot-x')
+    expect(e?.versionId).toBe('v-2')
     expect(e?.prNumber).toBe(9)
     expect(e?.deliveryBranch).toBe('agent/btc-xyz')
     const get = calls.find((c) => c.method === 'GET')!
