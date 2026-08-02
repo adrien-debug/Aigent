@@ -43,6 +43,7 @@ import type { TargetRepoSandboxReport } from '@/lib/agent-mission-control/target
 function event(over: Partial<DeliveryEvent> = {}): DeliveryEvent {
   return {
     id: 'delivery_1',
+    versionId: 'v1',
     mode: 'pull_request',
     targetRepo: 'acme/console',
     targetBranch: 'main',

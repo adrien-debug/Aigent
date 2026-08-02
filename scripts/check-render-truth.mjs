@@ -58,12 +58,15 @@
  *     the guard was passing GREEN over them without having scanned a single
  *     line. Two of the agents that built them flagged the hole themselves.
  *
- * Still NOT scanned, and it matters: the big aggregators
- * `dashboard-overview.ts`, `agent-detail.ts` and `data.ts`. They feed the
- * cockpit, so a fabricated zero born there arrives here already laundered and
- * this guard cannot see it. Extending to them is a separate mission — they are
- * large, and the metric-name list would need auditing against their contracts
- * first. Do not claim this guard covers them.
+ * EXTENDED 02/08/2026 to the truth aggregators that feed every restored
+ * surface:
+ *   · `src/lib/agent-mission-control/dashboard-overview.ts`
+ *   · `src/lib/agent-mission-control/agent-detail.ts`
+ *   · `src/lib/agent-mission-control/data.ts`
+ *
+ * Those files are scanned as EXPLICIT targets (not whole-directory recursion):
+ * broadening to all of `agent-mission-control/**` would pull in write paths and
+ * unrelated helpers where this guard's "metric rendering" checks do not apply.
  *
  * ANTI-BLINDNESS: a scan root that has vanished, or a run that opened zero files,
  * FAILS. A guard that measured nothing must never exit 0 silently.
@@ -91,6 +94,11 @@ const SCANNED_DIRS = [
   // exactement là qu'un `?? 0` transformerait une absence en fait rassurant.
   join(ROOT, 'src/components/actions'),
   join(ROOT, 'src/components/learning'),
+]
+const SCANNED_FILES = [
+  join(ROOT, 'src/lib/agent-mission-control/dashboard-overview.ts'),
+  join(ROOT, 'src/lib/agent-mission-control/agent-detail.ts'),
+  join(ROOT, 'src/lib/agent-mission-control/data.ts'),
 ]
 
 /**
@@ -317,6 +325,25 @@ async function main() {
   const assertedAbsence = []
   const matchedDebt = new Set()
   let scannedFiles = 0
+  const scanFile = async (file) => {
+    scannedFiles += 1
+    const rel = relative(ROOT, file)
+    const text = await readFile(file, 'utf8')
+
+    stripComments(text).forEach((line, i) => {
+      // Safety net for doc-comment remnants: never lint a bare JSDoc prose line
+      // as executable code.
+      if (/^\s*\*/.test(line)) return
+      const record = (bucket) => {
+        if (KNOWN_DEBT.has(rel)) matchedDebt.add(rel)
+        else bucket.push(`${rel}:${i + 1}  ${line.trim()}`)
+      }
+      if (METRIC_TO_ZERO_RE.test(line) && !RUNNING_SUM_RE.test(line)) record(metricToZero)
+      if (TYPEOF_GUARD_TO_ZERO_RE.test(line)) record(metricToZero)
+      if (NAN_COERCION_RE.test(line)) record(nanCoercions)
+      if (ASSERTED_ABSENCE_RE.test(line)) record(assertedAbsence)
+    })
+  }
 
   for (const dir of SCANNED_DIRS) {
     // Anti-cécité 1/2 : une racine de scan disparue fait ÉCHOUER la gate.
@@ -333,22 +360,18 @@ async function main() {
       process.exit(1)
     }
 
-    for await (const file of walk(dir)) {
-      scannedFiles += 1
-      const rel = relative(ROOT, file)
-      const text = await readFile(file, 'utf8')
+    for await (const file of walk(dir)) await scanFile(file)
+  }
 
-      stripComments(text).forEach((line, i) => {
-        const record = (bucket) => {
-          if (KNOWN_DEBT.has(rel)) matchedDebt.add(rel)
-          else bucket.push(`${rel}:${i + 1}  ${line.trim()}`)
-        }
-        if (METRIC_TO_ZERO_RE.test(line) && !RUNNING_SUM_RE.test(line)) record(metricToZero)
-        if (TYPEOF_GUARD_TO_ZERO_RE.test(line)) record(metricToZero)
-        if (NAN_COERCION_RE.test(line)) record(nanCoercions)
-        if (ASSERTED_ABSENCE_RE.test(line)) record(assertedAbsence)
-      })
+  for (const file of SCANNED_FILES) {
+    try {
+      await access(file)
+    } catch {
+      console.error(`\n✗ Render-truth guard FAILED — scan target missing: ${relative(ROOT, file)}`)
+      console.error("  Une cible explicite absente ne doit jamais être ignorée.\n")
+      process.exit(1)
     }
+    await scanFile(file)
   }
 
   let failed = false
@@ -378,7 +401,7 @@ async function main() {
     process.exit(1)
   }
 
-  const roots = SCANNED_DIRS.map((d) => relative(ROOT, d)).join(', ')
+  const roots = [...SCANNED_DIRS.map((d) => relative(ROOT, d)), ...SCANNED_FILES.map((f) => relative(ROOT, f))].join(', ')
   console.log(
     `✓ Render-truth guard passed — no fabricated zero, no NaN coercion and no asserted absence.\n` +
       `  ${scannedFiles} fichier(s) scanné(s) dans ${roots} (${KNOWN_DEBT.size} known debt file(s) exempted).`

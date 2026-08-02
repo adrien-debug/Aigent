@@ -129,6 +129,7 @@ const PROJECT: Project = {
 function deliveryEvent(status: string): DeliveryEvent {
   return {
     id: `evt_${status}`,
+    versionId: 'v1',
     mode: 'pull_request',
     targetRepo: 'adrien-debug/TradeAgent',
     targetBranch: 'main',

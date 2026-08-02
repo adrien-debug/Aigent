@@ -896,6 +896,7 @@ async function fetchLatestDeliveryEvents(): Promise<Map<string, DeliveryEvent>> 
     if (map.has(copilotId)) continue
     map.set(copilotId, {
       id: row.id as string,
+      versionId: (row.version_id as string | null) ?? null,
       mode: row.mode as DeliveryEvent['mode'],
       targetRepo: row.target_repo as string,
       targetBranch: (row.target_branch as string | null) ?? null,

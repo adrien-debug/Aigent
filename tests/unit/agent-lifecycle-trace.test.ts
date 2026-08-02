@@ -32,6 +32,7 @@ function version(overrides: Partial<CopilotVersion> = {}): CopilotVersion {
 function delivery(overrides: Partial<DeliveryEvent> = {}): DeliveryEvent {
   return {
     id: 'evt-1',
+    versionId: 'v1',
     mode: 'pull_request',
     targetRepo: 'org/consumer-repo',
     targetBranch: 'main',
@@ -147,15 +148,30 @@ describe('buildLifecycleTrace — stage sourcing', () => {
 })
 
 describe('buildLifecycleTrace — version drift', () => {
-  it('is unknown, never false, when the agent was never delivered', () => {
+  it('is unknown when the agent was never delivered', () => {
     const result = buildLifecycleTrace(baseInput({ delivery: null }))
     expect(result.versionDrift.state).toBe('unknown')
     expect(result.versionDrift.driftDetected).toBe(false)
+    expect(result.versionDrift.versionsMatch).toBeNull()
   })
 
-  it('is unknown, never false, when no version has been reported by telemetry', () => {
+  it('is unknown when the latest delivery has no version id', () => {
+    const result = buildLifecycleTrace(
+      baseInput({
+        versions: [version({ id: 'v1', label: 'v1.0.0' })],
+        delivery: delivery({ versionId: null }),
+        lastTelemetry: { agentVersion: 'v1.0.0', receivedAt: '2026-07-29T12:00:00Z' },
+      })
+    )
+    expect(result.versionDrift.state).toBe('unknown')
+    expect(result.versionDrift.driftDetected).toBe(false)
+    expect(result.versionDrift.versionsMatch).toBeNull()
+  })
+
+  it('is unknown when no version has been reported by telemetry', () => {
     const result = buildLifecycleTrace(baseInput({ delivery: delivery(), lastTelemetry: null }))
     expect(result.versionDrift.state).toBe('unknown')
+    expect(result.versionDrift.versionsMatch).toBeNull()
   })
 
   it('is unknown when the telemetry lookup itself failed', () => {
@@ -168,19 +184,53 @@ describe('buildLifecycleTrace — version drift', () => {
     )
     expect(result.versionDrift.state).toBe('unknown')
     expect(result.versionDrift.detail).toContain('lookup failed')
+    expect(result.versionDrift.versionsMatch).toBeNull()
   })
 
-  it('never fabricates driftDetected: true without a resolvable delivered-version label', () => {
+  it('reports match when telemetry reports the delivered version label exactly', () => {
     const result = buildLifecycleTrace(
       baseInput({
-        delivery: delivery(),
-        lastTelemetry: { agentVersion: 'v9.9.9', receivedAt: '2026-07-29T12:00:00Z' },
+        versions: [version({ id: 'v1', label: 'v1.0.0' })],
+        delivery: delivery({ versionId: 'v1' }),
+        lastTelemetry: { agentVersion: 'v1.0.0', receivedAt: '2026-07-29T12:00:00Z' },
       })
     )
-    // The delivery event's read shape has no versionId to resolve a label from
-    // (delivery-events-store.ts) — so drift must stay unknown, not guessed true.
+    expect(result.versionDrift.state).toBe('measured')
+    expect(result.versionDrift.lastDeliveredVersionId).toBe('v1')
+    expect(result.versionDrift.lastDeliveredVersionLabel).toBe('v1.0.0')
+    expect(result.versionDrift.lastReportedVersion).toBe('v1.0.0')
+    expect(result.versionDrift.versionsMatch).toBe(true)
     expect(result.versionDrift.driftDetected).toBe(false)
+  })
+
+  it('reports drift when telemetry reports a different version', () => {
+    const result = buildLifecycleTrace(
+      baseInput({
+        versions: [version({ id: 'v1', label: 'v1.0.0' })],
+        delivery: delivery({ versionId: 'v1' }),
+        lastTelemetry: { agentVersion: 'v2.0.0', receivedAt: '2026-07-29T12:00:00Z' },
+      })
+    )
+    expect(result.versionDrift.state).toBe('measured')
+    expect(result.versionDrift.lastDeliveredVersionId).toBe('v1')
+    expect(result.versionDrift.lastDeliveredVersionLabel).toBe('v1.0.0')
+    expect(result.versionDrift.lastReportedVersion).toBe('v2.0.0')
+    expect(result.versionDrift.versionsMatch).toBe(false)
+    expect(result.versionDrift.driftDetected).toBe(true)
+  })
+
+  it('still computes drift from delivered version id when local versions list cannot resolve the label', () => {
+    const result = buildLifecycleTrace(
+      baseInput({
+        versions: [],
+        delivery: delivery({ versionId: 'v1' }),
+        lastTelemetry: { agentVersion: 'v1', receivedAt: '2026-07-29T12:00:00Z' },
+      })
+    )
+    expect(result.versionDrift.state).toBe('measured')
+    expect(result.versionDrift.lastDeliveredVersionId).toBe('v1')
     expect(result.versionDrift.lastDeliveredVersionLabel).toBeNull()
-    expect(result.versionDrift.lastReportedVersion).toBe('v9.9.9')
+    expect(result.versionDrift.versionsMatch).toBe(true)
+    expect(result.versionDrift.driftDetected).toBe(false)
   })
 })
