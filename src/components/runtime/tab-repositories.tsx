@@ -24,7 +24,6 @@
 import { Badge } from '@/components/ui/badge'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
-import { Panel } from '@/components/cockpit/primitives'
 import type { GithubRepoSummary } from '@/lib/agent-mission-control/github'
 import type { Project } from '@/lib/agent-mission-control/types'
 import type { RepositoriesTabData } from './server-reads'
@@ -106,7 +105,10 @@ export default function RepositoriesTab({ data }: Readonly<{ data: RepositoriesT
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
-      <Panel title="Lisibilité des dépôts" hint="ce que le jeton configuré voit" className="min-h-0 shrink-0">
+      <section className="min-h-0 shrink-0">
+        <h3 className="text-sm font-semibold">Lisibilité des dépôts</h3>
+        <p className="aig-text-faint text-xs">ce que le jeton configuré voit</p>
+        <div className="aig-hairline my-2" />
         <LoadedBlock loaded={data.projects} what="La liste des projets">
           {(projects) => {
             const withRepo = projects.filter((p) => p.repoFullName)
@@ -137,7 +139,7 @@ export default function RepositoriesTab({ data }: Readonly<{ data: RepositoriesT
                 </div>
 
                 {!data.repos.ok ? (
-                  <div className="rounded-md border border-[color-mix(in_oklab,var(--aig-severity-warn)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-warn)_8%,transparent)] px-3 py-2">
+                  <div className="aig-line border-l pl-3">
                     <Strong className="block">La liste des dépôts n’a pas pu être lue</Strong>
                     <Text className="mt-0.5">
                       Aucun dépôt n’est marqué lisible ou illisible : la question reste ouverte pour
@@ -157,7 +159,7 @@ export default function RepositoriesTab({ data }: Readonly<{ data: RepositoriesT
                 */}
                 {/* Une réserve n'est pas une alerte : elle reste au liseré
                     discret de la grammaire, sans monter d'un palier. */}
-                <div className="aig-line-soft rounded-md border px-3 py-2">
+                <div className="aig-line border-l pl-3">
                   <Strong className="block">Pourquoi aucun arbre n’est affiché ici</Strong>
                   <Text className="mt-0.5">
                     La lecture d’arbre du produit demande bien à l’API GitHub si le résultat est
@@ -176,14 +178,11 @@ export default function RepositoriesTab({ data }: Readonly<{ data: RepositoriesT
             )
           }}
         </LoadedBlock>
-      </Panel>
+      </section>
 
-      <Panel
-        title="Projets et leurs dépôts"
-        className="min-h-56 min-w-0 xl:flex-1"
-        padded={false}
-        bodyClassName="scroll-thin overflow-y-auto"
-      >
+      <section className="min-h-56 min-w-0 xl:flex-1">
+        <h3 className="text-sm font-semibold">Projets et leurs dépôts</h3>
+        <div className="aig-hairline my-2" />
         <LoadedBlock loaded={data.projects} what="La liste des projets">
           {(projects) =>
             projects.length === 0 ? (
@@ -199,15 +198,12 @@ export default function RepositoriesTab({ data }: Readonly<{ data: RepositoriesT
             )
           }
         </LoadedBlock>
-      </Panel>
+      </section>
 
-      <Panel
-        title="Dépôts visibles du jeton"
-        hint="non filtrés par projet"
-        className="min-h-48 min-w-0 xl:flex-1"
-        padded={false}
-        bodyClassName="scroll-thin overflow-y-auto"
-      >
+      <section className="min-h-48 min-w-0 xl:flex-1">
+        <h3 className="text-sm font-semibold">Dépôts visibles du jeton</h3>
+        <p className="aig-text-faint text-xs">non filtrés par projet</p>
+        <div className="aig-hairline my-2" />
         <LoadedBlock loaded={data.repos} what="La liste des dépôts GitHub">
           {(repos: GithubRepoSummary[]) =>
             repos.length === 0 ? (
@@ -225,9 +221,9 @@ export default function RepositoriesTab({ data }: Readonly<{ data: RepositoriesT
                       <div className="flex min-w-0 items-center gap-2">
                         <Strong className="truncate">{repo.fullName}</Strong>
                         {repo.private ? (
-                          <Badge color="zinc" title="Dépôt privé — visible uniquement via le jeton configuré.">
+                          <Text className="aig-text-faint text-xs" title="Dépôt privé — visible uniquement via le jeton configuré.">
                             privé
-                          </Badge>
+                          </Text>
                         ) : null}
                       </div>
                       <div className="min-w-0 truncate">
@@ -252,7 +248,7 @@ export default function RepositoriesTab({ data }: Readonly<{ data: RepositoriesT
             )
           }
         </LoadedBlock>
-      </Panel>
+      </section>
     </div>
   )
 }

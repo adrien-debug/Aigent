@@ -25,7 +25,6 @@
  */
 import { Badge } from '@/components/ui/badge'
 import { Strong, Text } from '@/components/ui/text'
-import { Panel } from '@/components/cockpit/primitives'
 import { RUNTIME_IDS, RUNTIME_REGISTRY } from '@/lib/agent-mission-control/registry'
 import type { ProviderRow, ProvidersTabData } from './server-reads'
 import { Fact, FactValue, LoadedBlock, ProvenEmpty, ProviderWiringBadge } from './atoms'
@@ -37,16 +36,9 @@ function ProviderCard({ row, usedBy }: Readonly<{ row: ProviderRow; usedBy: numb
         <Strong className="truncate">{row.label}</Strong>
         <code className="aig-text-muted text-xs">{row.id}</code>
         <ProviderWiringBadge wiring={row.wiring} />
-        <Badge
-          color={row.toolUse ? 'emerald' : 'zinc'}
-          title={
-            row.toolUse
-              ? 'Le tool-use est réellement branché pour ce provider — pas seulement la complétion de texte.'
-              : 'Sans chemin d’appel, la question du tool-use ne se pose pas.'
-          }
-        >
+        <Text className="aig-text-faint text-xs">
           {row.toolUse ? 'tool-use câblé' : 'tool-use sans objet'}
-        </Badge>
+        </Text>
         {usedBy === null ? (
           <Badge color="zinc" title="Le catalogue d’agents n’a pas pu être lu : le nombre d’agents sur ce provider est inconnu, pas nul.">
             usage inconnu
@@ -87,7 +79,10 @@ export default function ProvidersTab({ data }: Readonly<{ data: ProvidersTabData
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
-      <Panel title="Runtimes" hint="registre canonique" className="min-h-0 shrink-0">
+      <section className="min-h-0 shrink-0">
+        <h3 className="text-sm font-semibold">Runtimes</h3>
+        <p className="aig-text-faint text-xs">registre canonique</p>
+        <div className="aig-hairline my-2" />
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Fact label="Runtimes déclarés" value={<FactValue>{runtimes.length}</FactValue>} />
@@ -117,11 +112,9 @@ export default function ProvidersTab({ data }: Readonly<{ data: ProvidersTabData
                   >
                     {runtime.engine === 'none' ? 'aucun moteur' : `moteur ${runtime.engine}`}
                   </Badge>
-                  {runtime.creatable ? (
-                    <Badge color="sky" title="Un auteur peut sélectionner ce runtime à la création d’un agent.">
-                      sélectionnable
-                    </Badge>
-                  ) : null}
+                  <Text className="aig-text-faint text-xs">
+                    {runtime.creatable ? 'sélectionnable' : 'non sélectionnable'}
+                  </Text>
                 </div>
                 <Text className="text-xs">{runtime.note}</Text>
               </li>
@@ -129,7 +122,7 @@ export default function ProvidersTab({ data }: Readonly<{ data: ProvidersTabData
           </ul>
           {/* Un rappel de contrainte, pas une alerte : liseré discret de la
               grammaire, aucun palier d'attention. */}
-          <div className="aig-line-soft rounded-md border px-3 py-2">
+          <div className="aig-line border-l pl-3">
             <Text>
               LangGraph est le seul runtime produit exécutable, et cette contrainte est imposée à
               quatre endroits indépendants : le schéma de création, la garde d’exécution, le contrat
@@ -138,16 +131,13 @@ export default function ProvidersTab({ data }: Readonly<{ data: ProvidersTabData
             </Text>
           </div>
         </div>
-      </Panel>
+      </section>
 
-      <Panel
-        title="Providers de modèle"
-        hint="câblage réel, pas catalogue commercial"
-        className="min-h-64 min-w-0 xl:flex-1"
-        padded={false}
-        bodyClassName="scroll-thin overflow-y-auto"
-      >
-        <ul className="divide-y divide-[color:var(--aig-line-soft)]">
+      <section className="min-h-64 min-w-0 xl:flex-1">
+        <h3 className="text-sm font-semibold">Providers de modèle</h3>
+        <p className="aig-text-faint text-xs">câblage réel, pas catalogue commercial</p>
+        <div className="aig-hairline my-2" />
+        <ul className="scroll-thin divide-y divide-[color:var(--aig-line-soft)] overflow-y-auto">
           {data.providers.map((row) => (
             <ProviderCard
               key={row.id}
@@ -156,9 +146,11 @@ export default function ProvidersTab({ data }: Readonly<{ data: ProvidersTabData
             />
           ))}
         </ul>
-      </Panel>
+      </section>
 
-      <Panel title="Providers observés sur le catalogue" className="min-h-0 shrink-0">
+      <section className="min-h-0 shrink-0">
+        <h3 className="text-sm font-semibold">Providers observés sur le catalogue</h3>
+        <div className="aig-hairline my-2" />
         <LoadedBlock loaded={data.agents} what="Le catalogue d’agents">
           {(rows) => {
             // `provider` est `null`-able au contrat et le reste : aucun provider
@@ -178,11 +170,9 @@ export default function ProvidersTab({ data }: Readonly<{ data: ProvidersTabData
             return (
               <div className="flex flex-col gap-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  {[...observed.entries()].map(([provider, count]) => (
-                    <Badge key={provider} color="sky">
-                      {provider} · {count}
-                    </Badge>
-                  ))}
+                  <Text className="aig-text-faint text-xs">
+                    {[...observed.entries()].map(([provider, count]) => `${provider} · ${count}`).join(' | ') || 'aucun provider observé'}
+                  </Text>
                   {unresolved > 0 ? (
                     <Badge
                       color="amber"
@@ -202,7 +192,7 @@ export default function ProvidersTab({ data }: Readonly<{ data: ProvidersTabData
             )
           }}
         </LoadedBlock>
-      </Panel>
+      </section>
     </div>
   )
 }

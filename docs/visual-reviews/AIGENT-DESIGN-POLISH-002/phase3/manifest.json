@@ -1,0 +1,41 @@
+{
+  "mission": "AIGENT-DESIGN-POLISH-002",
+  "phase": "phase3",
+  "generatedAtUtc": "2026-08-02T14:32:55Z",
+  "git": {
+    "branch": "mission/aigent-design-polish-002-phase2",
+    "sha": "5acc11b0"
+  },
+  "snapshots": {
+    "before": {
+      "mode": "development",
+      "metrics": "before/metrics.json",
+      "captureCount": 24
+    },
+    "after": {
+      "mode": "development",
+      "metrics": "after/metrics.json",
+      "captureCount": 24
+    }
+  },
+  "targets": {
+    "runtimeTabs": [
+      "langgraph",
+      "repositories",
+      "providers",
+      "tools",
+      "models"
+    ],
+    "routes": [
+      "/",
+      "/projects",
+      "/agents/[id]"
+    ],
+    "viewports": [
+      "1440x900",
+      "1280x800",
+      "375x812"
+    ]
+  },
+  "summary": "summary.json"
+}

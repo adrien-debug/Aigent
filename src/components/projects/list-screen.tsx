@@ -22,18 +22,14 @@ import Link from 'next/link'
 
 import { PageHeader } from '@/components/app-shell'
 import { Avatar } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { Divider } from '@/components/ui/divider'
 import { Strong, Text } from '@/components/ui/text'
 import {
   AbsentMark,
-  Panel,
-  Rail,
-  SEVERITY,
   Unavailable,
   initialsOf,
 } from '@/components/cockpit/primitives'
-import { UNAVAILABLE_LABEL, formatUsd } from '@/lib/agent-mission-control/format'
+import { UNAVAILABLE_LABEL } from '@/lib/agent-mission-control/format'
 import type { ProjectListItem, ProjectMeasure } from './model'
 
 function projectCountHint(count: number): string {
@@ -64,10 +60,10 @@ function Measure({
 function ProjectListRow({ item }: Readonly<{ item: ProjectListItem }>) {
   const live = item.activeCount > 0
   const empty = item.copilotCount === 0
+  const stateLabel = empty ? 'vide' : live ? 'actif' : 'inactif'
 
   return (
-    <li className="relative">
-      <Rail color={live ? SEVERITY.good : SEVERITY.muted} />
+    <li className="aig-line-soft border-b last:border-b-0">
       {/* Toute la ligne est cliquable — le deep link est la raison d'être de
           cette liste. `block` + `focus-visible` : atteignable au clavier.
           La paire `X dark:Y` est simplifiée à sa seule valeur sombre : le
@@ -75,46 +71,36 @@ function ProjectListRow({ item }: Readonly<{ item: ProjectListItem }>) {
           déclenchait plus jamais. */}
       <Link
         href={item.href}
-        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-(--aig-line-soft) focus-visible:bg-(--aig-line-soft) focus-visible:outline-hidden"
+        className="grid grid-cols-[minmax(0,1.4fr)_110px_90px_90px_80px] items-center gap-3 px-2 py-2.5 hover:bg-(--aig-line-soft) focus-visible:bg-(--aig-line-soft) focus-visible:outline-hidden sm:px-3"
       >
-        <Avatar square initials={initialsOf(item.name)} className="size-8 shrink-0" />
-
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex items-center gap-2">
+          <Avatar square initials={initialsOf(item.name)} className="size-8 shrink-0" />
           <div className="flex min-w-0 items-center gap-2">
-            <Strong className="truncate">{item.name}</Strong>
-            {empty ? (
-              <Badge color="zinc">aucun agent</Badge>
-            ) : (
-              <Badge color={live ? 'emerald' : 'zinc'}>
-                {item.activeCount}/{item.copilotCount}
-              </Badge>
-            )}
+            <div className="min-w-0">
+              <Strong className="truncate">{item.name}</Strong>
+              <Text className="truncate">{item.repoFullName ?? 'aucun dépôt lié'}</Text>
+            </div>
           </div>
-          <Text className="truncate">{item.repoFullName ?? 'aucun dépôt lié'}</Text>
         </div>
 
-        <div className="shrink-0 text-right">
-          <Text>
-            {empty ? (
-              <span className="aig-text-faint text-xs">rien à mesurer</span>
-            ) : (
-              <Measure
-                measure={item.runs}
-                render={(runs) => (
-                  <>
-                    <Strong className="tabular-nums">{runs}</Strong> runs
-                  </>
-                )}
-              />
-            )}
-          </Text>
-          {empty ? null : (
-            <Text className="tabular-nums">
-              <Measure measure={item.cost} render={(usd) => <>{formatUsd(usd)}</>} />
-              {' · '}
-              {item.passRate === null ? <AbsentMark /> : `${Math.round(item.passRate * 100)} %`}
-            </Text>
+        <Text className="shrink-0 text-right tabular-nums">{item.copilotCount}</Text>
+        <Text className="shrink-0 text-right tabular-nums">
+          {empty ? (
+            <span className="aig-text-faint text-xs">—</span>
+          ) : (
+            <Measure
+              measure={item.runs}
+              render={(runs) => (
+                <>
+                  <Strong className="tabular-nums">{runs}</Strong>
+                </>
+              )}
+            />
           )}
+        </Text>
+        <Text className="shrink-0 text-right">{stateLabel}</Text>
+        <div className="shrink-0 text-right">
+          <Text className="aig-text-faint text-xs">ouvrir</Text>
         </div>
       </Link>
     </li>
@@ -179,15 +165,23 @@ export default function ProjectsListScreen({
       />
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 py-4 sm:px-6">
-        <Panel
-          title="Catalogue"
-          hint={unreadable ? 'lecture échouée' : projectCountHint(items.length)}
-          className="min-h-0 flex-1"
-          padded={false}
-          bodyClassName="overflow-y-auto"
-        >
+        <section className="min-h-0 flex-1 overflow-y-auto">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold">Catalogue</h2>
+            <Text className="aig-text-faint text-xs">
+              {unreadable ? 'lecture échouée' : projectCountHint(items.length)}
+            </Text>
+          </div>
+          <div className="aig-hairline my-2" />
+          <div className="aig-text-faint grid grid-cols-[minmax(0,1.4fr)_110px_90px_90px_80px] gap-3 px-2 pb-1 text-2xs uppercase tracking-wide sm:px-3">
+            <span>Projet</span>
+            <span className="text-right">Agents</span>
+            <span className="text-right">Runs</span>
+            <span className="text-right">Etat</span>
+            <span className="text-right">Action</span>
+          </div>
           {renderProjectCatalog(unreadable, items, failure)}
-        </Panel>
+        </section>
 
         <Divider soft className="shrink-0" />
         <Text className="aig-text-faint shrink-0 text-xs">

@@ -23,7 +23,6 @@
 import { Badge } from '@/components/ui/badge'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
-import { Panel } from '@/components/cockpit/primitives'
 import type { AvailableAgent } from '@/lib/agent-mission-control/available-agents'
 import GraphCanvas from './graph-canvas'
 import type { LangGraphTabData } from './server-reads'
@@ -32,19 +31,16 @@ import { provisioningState } from './model'
 
 /* ──────────────────────────── L'endpoint ────────────────────────────── */
 
-function threadStatusBadgeColor(status: string): 'amber' | 'red' | 'zinc' {
-  if (status === 'interrupted') return 'amber'
-  if (status === 'error') return 'red'
-  return 'zinc'
-}
-
 function EndpointPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
   // Le serveur est réputé joignable UNIQUEMENT si une lecture a abouti. On ne
   // déduit rien de la seule présence d'une URL : une URL est une intention.
   const reachable = data.assistants.ok
 
   return (
-    <Panel title="Agent Server" hint="joignabilité déduite d’une lecture réelle" className="min-h-0 shrink-0">
+    <section className="min-h-0 shrink-0">
+      <h3 className="text-sm font-semibold">Agent Server</h3>
+      <p className="aig-text-faint text-xs">joignabilité déduite d’une lecture réelle</p>
+      <div className="aig-hairline my-2" />
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           {data.endpoint.ok ? (
@@ -66,15 +62,12 @@ function EndpointPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
               endpoint refusé
             </Badge>
           )}
-          <Badge
-            color={data.secretConfigured ? 'emerald' : 'amber'}
+          <Text
+            className="aig-text-faint text-xs"
             title="Présence de LANGGRAPH_SERVER_SECRET dans cet environnement. Seule sa PRÉSENCE est lue — jamais sa valeur, qui n’est ni affichée ni transportée jusqu’ici."
           >
-            {data.secretConfigured ? 'secret de service présent' : 'secret de service absent'}
-          </Badge>
-          <Badge color="zinc" title="Le graphe interrogé par cette surface.">
-            graphe {data.graphId}
-          </Badge>
+            {data.secretConfigured ? 'secret de service présent' : 'secret de service absent'} · graphe {data.graphId}
+          </Text>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -106,7 +99,7 @@ function EndpointPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
         </div>
 
         {data.endpoint.ok && !reachable ? (
-          <div className="rounded-md border border-[color-mix(in_oklab,var(--aig-severity-bad)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-bad)_8%,transparent)] px-3 py-2">
+          <div className="aig-line border-l pl-3">
             <Strong className="block">L’Agent Server ne répond pas</Strong>
             <Text className="mt-0.5">
               L’endpoint est configuré et accepté, mais aucune lecture n’a abouti. Les panneaux
@@ -117,7 +110,7 @@ function EndpointPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
           </div>
         ) : null}
       </div>
-    </Panel>
+    </section>
   )
 }
 
@@ -153,11 +146,10 @@ function ProvisioningPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
     : null
 
   return (
-    <Panel
-      title="Provisioning des assistants"
-      hint="le défaut qu’aucune gate ne détecte"
-      className="min-h-0 shrink-0"
-    >
+    <section className="min-h-0 shrink-0">
+      <h3 className="text-sm font-semibold">Provisioning des assistants</h3>
+      <p className="aig-text-faint text-xs">le défaut qu’aucune gate ne détecte</p>
+      <div className="aig-hairline my-2" />
       <LoadedBlock loaded={data.agents} what="Le catalogue d’agents">
         {(agents) => {
           const { langgraph, bareGraph, provisioned, staleAssistant } = crossReference(agents, serverIds)
@@ -191,7 +183,7 @@ function ProvisioningPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
               </div>
 
               {bareGraph.length > 0 ? (
-                <div className="rounded-md border border-[color-mix(in_oklab,var(--aig-severity-warn)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-warn)_8%,transparent)] px-3 py-2">
+                <div className="aig-line border-l pl-3">
                   <Strong className="block">
                     {bareGraph.length} agent(s) LangGraph tournent contre le graphe nu
                   </Strong>
@@ -216,7 +208,7 @@ function ProvisioningPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
               ) : null}
 
               {staleAssistant !== null && staleAssistant.length > 0 ? (
-                <div className="rounded-md border border-[color-mix(in_oklab,var(--aig-severity-warn)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-warn)_8%,transparent)] px-3 py-2">
+                <div className="aig-line border-l pl-3">
                   <Strong className="block">
                     {staleAssistant.length} assistant(s) persisté(s) que le serveur ne connaît pas
                   </Strong>
@@ -250,9 +242,9 @@ function ProvisioningPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
                     serverIds !== null &&
                     agent.assistantId !== null &&
                     !serverIds.has(agent.assistantId) ? (
-                      <Badge color="amber" title="L’identifiant persisté n’existe pas sur le serveur à cet instant.">
+                      <Text className="text-(--aig-severity-warn) text-xs" title="L’identifiant persisté n’existe pas sur le serveur à cet instant.">
                         inconnu du serveur
-                      </Badge>
+                      </Text>
                     ) : null}
                   </li>
                 ))}
@@ -261,7 +253,7 @@ function ProvisioningPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
           )
         }}
       </LoadedBlock>
-    </Panel>
+    </section>
   )
 }
 
@@ -278,13 +270,10 @@ function ProvisioningPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
 function ServerStatePanel({ data }: Readonly<{ data: LangGraphTabData }>) {
   return (
     <div className="grid min-h-96 shrink-0 grid-cols-1 gap-3 xl:grid-cols-2">
-      <Panel
-        title="Assistants du serveur"
-        hint="en mémoire, pas en base"
-        className="min-h-48 min-w-0"
-        padded={false}
-        bodyClassName="scroll-thin overflow-y-auto"
-      >
+      <section className="min-h-48 min-w-0">
+        <h3 className="text-sm font-semibold">Assistants du serveur</h3>
+        <p className="aig-text-faint text-xs">en mémoire, pas en base</p>
+        <div className="aig-hairline my-2" />
         <LoadedBlock loaded={data.assistants} what="La liste des assistants">
           {(rows) =>
             rows.length === 0 ? (
@@ -309,15 +298,12 @@ function ServerStatePanel({ data }: Readonly<{ data: LangGraphTabData }>) {
             )
           }
         </LoadedBlock>
-      </Panel>
+      </section>
 
-      <Panel
-        title="Threads récents"
-        hint="50 plus récents"
-        className="min-h-48 min-w-0"
-        padded={false}
-        bodyClassName="scroll-thin overflow-y-auto"
-      >
+      <section className="min-h-48 min-w-0">
+        <h3 className="text-sm font-semibold">Threads récents</h3>
+        <p className="aig-text-faint text-xs">50 plus récents</p>
+        <div className="aig-hairline my-2" />
         <LoadedBlock loaded={data.threads} what="La liste des threads">
           {(rows) =>
             rows.length === 0 ? (
@@ -331,8 +317,15 @@ function ServerStatePanel({ data }: Readonly<{ data: LangGraphTabData }>) {
                     key={thread.threadId}
                     className="flex items-center gap-2 px-4 py-2"
                   >
-                    <Badge
-                      color={threadStatusBadgeColor(thread.status)}
+                    <Text
+                      className="text-xs"
+                      style={
+                        thread.status === 'error'
+                          ? { color: 'var(--aig-severity-bad)' }
+                          : thread.status === 'interrupted'
+                            ? { color: 'var(--aig-severity-warn)' }
+                            : undefined
+                      }
                       title={
                         thread.status === 'interrupted'
                           ? 'Le run est en pause sur un interrupt et attend une confirmation humaine.'
@@ -340,7 +333,7 @@ function ServerStatePanel({ data }: Readonly<{ data: LangGraphTabData }>) {
                       }
                     >
                       {thread.status}
-                    </Badge>
+                    </Text>
                     <div className="min-w-0 flex-1">
                       <Text className="truncate text-xs">
                         <code>{thread.threadId}</code>
@@ -352,7 +345,7 @@ function ServerStatePanel({ data }: Readonly<{ data: LangGraphTabData }>) {
             )
           }
         </LoadedBlock>
-      </Panel>
+      </section>
     </div>
   )
 }
@@ -378,11 +371,9 @@ function ServerStatePanel({ data }: Readonly<{ data: LangGraphTabData }>) {
  */
 function TopologyPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
   return (
-    <Panel
-      title={`Topologie · ${data.graphId}`}
-      className="flex min-h-[22rem] flex-1 flex-col"
-      bodyClassName="flex min-h-0 flex-1 flex-col"
-    >
+    <section className="flex min-h-[22rem] flex-1 flex-col">
+      <h3 className="text-sm font-semibold">Topologie · {data.graphId}</h3>
+      <div className="aig-hairline my-2" />
       <LoadedBlock loaded={data.topology} what="La topologie du graphe">
         {(topology) =>
           // Le serveur peut répondre SANS exposer sa topologie : c'est une
@@ -391,10 +382,9 @@ function TopologyPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
             <ProvenEmpty detail="Le serveur ne publie pas la topologie de ce graphe. Ce n’est pas un graphe sans nœuds — c’est une information que l’API ne rend pas." />
           ) : (
             <div className="flex min-h-0 flex-1 flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge color="zinc">{topology.nodes.length} nœud(s)</Badge>
-                <Badge color="zinc">{topology.edges.length} arête(s)</Badge>
-              </div>
+              <Text className="aig-text-faint text-xs">
+                {topology.nodes.length} nœud(s) · {topology.edges.length} arête(s)
+              </Text>
               <GraphCanvas
                 graphId={topology.graphId}
                 nodes={topology.nodes}
@@ -405,7 +395,7 @@ function TopologyPanel({ data }: Readonly<{ data: LangGraphTabData }>) {
           )
         }
       </LoadedBlock>
-    </Panel>
+    </section>
   )
 }
 
@@ -441,10 +431,9 @@ export default function LangGraphTab({ data }: Readonly<{ data: LangGraphTabData
         <Badge color={reachable ? 'emerald' : 'red'}>
           {reachable ? 'serveur joignable' : 'serveur injoignable'}
         </Badge>
-        <Badge color="zinc">graphe {data.graphId}</Badge>
-        <Badge color={data.secretConfigured ? 'emerald' : 'amber'}>
-          {data.secretConfigured ? 'secret présent' : 'secret absent'}
-        </Badge>
+        <Text className="aig-text-faint text-xs">
+          graphe {data.graphId} · {data.secretConfigured ? 'secret présent' : 'secret absent'}
+        </Text>
         {data.endpoint.ok ? (
           <code className="aig-text-muted truncate text-2xs">{data.endpoint.data}</code>
         ) : (
