@@ -83,7 +83,7 @@ State the restriction, not the headline:
 - **Telemetry** is aggregated in `dashboard-overview.ts` and `agent-detail.ts`,
   and surfaced on `/` and `/runs`. A run that reported no usage shows
   `Non mesuré` — never a fabricated `0` (`docs/metrics-canon.md`).
-- **Tool builder** works, but only `count_words` has a sandbox.
+- **Tool builder** sandboxing is now generic/fail-closed: explicit capability allowlist, timeout, I/O bounds, isolated empty env context, and outcomes limited to `certified | failed | unavailable`. `count_words` is the first registered sandboxed tool.
 - **Provider `mistral`** is declared and **not wired** — it throws a typed error
   rather than falling back silently.
 - **Provider `local`** (vLLM) requires an explicit opt-in key.

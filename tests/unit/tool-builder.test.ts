@@ -22,18 +22,9 @@ import {
 import { advanceToolBuildMission } from '@/lib/agent-mission-control/tool-build-missions-store'
 import { runToolSandbox } from '@/lib/agent-mission-control/tool-builder/sandbox'
 import { countWords } from '@/lib/agent-mission-control/tool-builder/tools/count-words'
+import { TOOL_BUILDER_FIXTURES } from '@/lib/agent-mission-control/tool-builder/fixtures'
 
-const goodSpec: ToolBuildSpec = {
-  id: 'count_words',
-  version: '1.0.0',
-  label: 'Count words',
-  summary: 'Count words in a text.',
-  kind: 'local-deterministic',
-  mutates: false,
-  risk: 'low',
-  requiresConfirmation: false,
-  secretRefs: [],
-}
+const goodSpec: ToolBuildSpec = TOOL_BUILDER_FIXTURES.deterministicValid
 
 describe('validateToolSpec', () => {
   it('accepts a valid local-deterministic spec', () => {
@@ -190,17 +181,22 @@ describe('FULL PIPELINE end to end — spec → build → sandbox → certify', 
 })
 
 describe('advanceToolBuildMission — server runner', () => {
-  it('certifies count_words when sandbox exists', () => {
-    const mission = advanceToolBuildMission(startToolBuild(goodSpec))
+  it('certifies count_words when sandbox exists', async () => {
+    const mission = await advanceToolBuildMission(startToolBuild(goodSpec))
     expect(mission.state).toBe('CERTIFIED')
     expect(mission.evidence?.passed).toBeGreaterThan(0)
   })
 
-  it('rejects unknown tool ids with an honest reason', () => {
-    const mission = advanceToolBuildMission(
-      startToolBuild({ ...goodSpec, id: 'unknown_local_tool' }),
-    )
+  it('rejects a valid spec when its sandbox is unavailable', async () => {
+    const mission = await advanceToolBuildMission(startToolBuild(TOOL_BUILDER_FIXTURES.sandboxUnavailable))
     expect(mission.state).toBe('REJECTED')
-    expect(mission.rejectionReason).toMatch(/no sandbox implementation/)
+    expect(mission.rejectionReason).toMatch(/no sandbox registered/)
+    expect(mission.evidence?.ran).toBe(false)
+  })
+
+  it('rejects an invalid deterministic fixture before any sandbox run', async () => {
+    const mission = await advanceToolBuildMission(startToolBuild(TOOL_BUILDER_FIXTURES.deterministicInvalid))
+    expect(mission.state).toBe('REJECTED')
+    expect(mission.evidence).toBeNull()
   })
 })

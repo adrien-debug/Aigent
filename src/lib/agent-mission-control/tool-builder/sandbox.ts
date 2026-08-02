@@ -22,9 +22,52 @@ export interface ToolTestCase<I, O> {
   expected: O
 }
 
+export type ToolSandboxCapability = 'local-deterministic-exec' | string
+
+export type ToolSandboxStatus = 'certified' | 'failed' | 'unavailable'
+
+export interface ToolSandboxContext {
+  /** Intentionally empty env bag to prevent implicit secret reads. */
+  env: Readonly<Record<string, never>>
+}
+
+export interface LocalDeterministicSandbox<I, O> {
+  id: string
+  timeoutMs: number
+  maxCases: number
+  maxInputBytes: number
+  maxOutputBytes: number
+  capabilities: ReadonlyArray<ToolSandboxCapability>
+  execute: (input: I, context: ToolSandboxContext) => O | Promise<O>
+  cases: ReadonlyArray<ToolTestCase<I, O>>
+}
+
+export interface ToolSandboxRunResult {
+  status: ToolSandboxStatus
+  evidence: ToolTestEvidence
+  reason: string | null
+}
+
+const ALLOWED_CAPABILITIES = new Set<ToolSandboxCapability>(['local-deterministic-exec'])
+const EMPTY_CONTEXT: ToolSandboxContext = Object.freeze({ env: Object.freeze({}) })
+
 /** Structural equality good enough for JSON-serialisable tool outputs. */
 function deepEqual(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b)
+}
+
+function byteSize(value: unknown): number {
+  return Buffer.byteLength(JSON.stringify(value), 'utf8')
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`sandbox timeout after ${timeoutMs}ms`)), timeoutMs)
+    promise
+      .then((value) => resolve(value))
+      .catch((err) => reject(err))
+      .finally(() => clearTimeout(timer))
+  })
 }
 
 /**
@@ -61,5 +104,88 @@ export function runToolSandbox<I, O>(
     passed,
     failed,
     detail: failed === 0 ? `${passed}/${cases.length} passed` : failures.join(' | '),
+  }
+}
+
+/**
+ * Execute one local deterministic sandbox with strict fail-closed guards:
+ * - explicit capability allowlist,
+ * - timeout per invocation,
+ * - bounded input/output sizes,
+ * - isolated context (no env injection),
+ * - no success if sandbox is unavailable.
+ */
+export async function runLocalDeterministicSandbox<I, O>(
+  sandbox: LocalDeterministicSandbox<I, O>,
+): Promise<ToolSandboxRunResult> {
+  if (sandbox.cases.length === 0) {
+    return {
+      status: 'failed',
+      evidence: { ran: false, passed: 0, failed: 0, detail: 'no test cases — nothing to prove' },
+      reason: 'sandbox has no cases',
+    }
+  }
+  if (sandbox.cases.length > sandbox.maxCases) {
+    return {
+      status: 'failed',
+      evidence: {
+        ran: false,
+        passed: 0,
+        failed: sandbox.cases.length,
+        detail: `too many cases: ${sandbox.cases.length} > ${sandbox.maxCases}`,
+      },
+      reason: 'sandbox case limit exceeded',
+    }
+  }
+  if (sandbox.capabilities.some((cap) => !ALLOWED_CAPABILITIES.has(cap))) {
+    return {
+      status: 'unavailable',
+      evidence: { ran: false, passed: 0, failed: 0, detail: 'sandbox capability not allowlisted' },
+      reason: 'sandbox capabilities are not allowlisted',
+    }
+  }
+
+  let passed = 0
+  let failed = 0
+  const failures: string[] = []
+
+  for (const c of sandbox.cases) {
+    try {
+      const inputSize = byteSize(c.input)
+      if (inputSize > sandbox.maxInputBytes) {
+        failed++
+        failures.push(`${c.name}: input too large (${inputSize} > ${sandbox.maxInputBytes} bytes)`)
+        continue
+      }
+
+      const got = await withTimeout(Promise.resolve(sandbox.execute(c.input, EMPTY_CONTEXT)), sandbox.timeoutMs)
+      const outputSize = byteSize(got)
+      if (outputSize > sandbox.maxOutputBytes) {
+        failed++
+        failures.push(`${c.name}: output too large (${outputSize} > ${sandbox.maxOutputBytes} bytes)`)
+        continue
+      }
+
+      if (deepEqual(got, c.expected)) {
+        passed++
+      } else {
+        failed++
+        failures.push(`${c.name}: got ${JSON.stringify(got)}, expected ${JSON.stringify(c.expected)}`)
+      }
+    } catch (err) {
+      failed++
+      failures.push(`${c.name}: threw ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
+  return {
+    status: failed === 0 && passed > 0 ? 'certified' : 'failed',
+    evidence: {
+      ran: true,
+      passed,
+      failed,
+      detail: failed === 0 ? `${passed}/${sandbox.cases.length} passed` : failures.join(' | '),
+    },
+    reason: failed === 0 && passed > 0 ? null : 'sandbox evidence contains failures',
   }
 }
