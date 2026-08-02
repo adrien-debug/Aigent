@@ -191,6 +191,22 @@
   border-radius: 0;
 }
 
+/*
+ * Barre de squelette — l'attente doit se VOIR, sans rien affirmer.
+ *
+ * Piège payé une fois : `aig-inset-fill` ne pose qu'un `border-radius: 0`, pas
+ * de fond. Employé pour un squelette il rend des barres entièrement
+ * transparentes — l'état de chargement disparaît de l'écran tout en semblant
+ * codé. D'où cet utilitaire, qui porte un vrai aplat.
+ *
+ * Le ton est délibérément calme : un squelette trop contrasté se lit comme du
+ * contenu réel, et un compteur à zéro pendant l'attente serait une mesure
+ * fausse (`check:render-truth`). Il ne dit rien — c'est exact.
+ */
+@utility aig-skeleton-bar {
+  background-color: color-mix(in oklab, var(--aig-line-soft) 62%, var(--aig-base));
+}
+
 @utility aig-hairline {
   background: linear-gradient(
     90deg,

@@ -278,6 +278,19 @@ async function main() {
           }
 
           await page.screenshot({ path: join(OUT, `${label}.png`), fullPage: false })
+
+          /*
+             Les noms `*-after-*` que la mission exige nommément sont produits
+             ICI, par le même passage, et non copiés à la main après coup : une
+             preuve recopiée se périme en silence dès que l'écran change — elle
+             reste versionnée en montrant un état qui n'existe plus. Le suffixe
+             de taille est celui de la liste de preuves (`1440x900`, …), et
+             `desktop/laptop/mobile` reste le nom de travail du harnais. */
+          const sizeSuffix = vpName.replace(/^[a-z]+-/, '')
+          await page.screenshot({
+            path: join(OUT, `${screen.key}-after-${sizeSuffix}.png`),
+            fullPage: false,
+          })
           console.log(`✓ ${label}`)
         } catch (err) {
           failures.push(`${label} — ${err.message}`)
@@ -285,6 +298,79 @@ async function main() {
           await context.close()
         }
       }
+    }
+    /*
+     * LE CATALOGUE DE SURFACES — capturé PAR LE HARNAIS, pas à la main.
+     *
+     * `surface-catalog.png` fait partie des preuves exigées par la mission. Une
+     * capture prise à la main se périme en silence dès que la planche change :
+     * elle reste sur disque, versionnée, et montre un état qui n'existe plus.
+     * En la produisant ici, elle se régénère avec les autres et passe par les
+     * mêmes contrôles (console, débordement).
+     *
+     * `fullPage` : la planche est haute par construction ; la borner au viewport
+     * n'en montrerait que le premier tiers.
+     */
+    const catalogContext = await browser.newContext({
+      viewport: VIEWPORTS['desktop-1440x900'],
+      deviceScaleFactor: 1,
+    })
+    const catalogPage = await catalogContext.newPage()
+    const catalogErrors = []
+    catalogPage.on('console', (msg) => {
+      if (msg.type() === 'error') catalogErrors.push(msg.text())
+    })
+    catalogPage.on('pageerror', (err) => catalogErrors.push(`pageerror: ${err.message}`))
+    try {
+      const res = await catalogPage.goto(`${BASE}/lab/surfaces`, {
+        waitUntil: 'networkidle',
+        timeout: 60_000,
+      })
+      if (!res || res.status() >= 400) {
+        failures.push(`surface-catalog — HTTP ${res ? res.status() : 'sans réponse'}`)
+      } else {
+        await catalogPage.waitForTimeout(600)
+        const over = await catalogPage.evaluate(() => ({
+          scrollWidth: document.documentElement.scrollWidth,
+          clientWidth: document.documentElement.clientWidth,
+        }))
+        if (over.scrollWidth > over.clientWidth + 1) {
+          failures.push(
+            `surface-catalog — débordement horizontal : ${over.scrollWidth} > ${over.clientWidth}`,
+          )
+        }
+        if (catalogErrors.length > 0) {
+          failures.push(`surface-catalog — erreur(s) console : ${catalogErrors.slice(0, 3).join(' | ')}`)
+        }
+        /*
+           `fullPage: true` ne suffit PAS ici, et le constater coûte une preuve
+           tronquée : la planche défile dans un conteneur interne
+           (`overflow-y-auto`), donc le DOCUMENT ne défile pas et Playwright
+           n'a rien à étendre — la capture s'arrêtait au viewport, au tiers de
+           la page. On redimensionne donc la fenêtre à la hauteur réelle du
+           contenu avant de déclencher. */
+        const fullHeight = await catalogPage.evaluate(() => {
+          // Le scroller se trouve par MESURE, pas par nom de classe : viser
+          // `.overflow-y-auto` échoue dès que l'utilitaire est composé avec
+          // d'autres classes, et on retombe alors sur la hauteur du viewport
+          // (900px) en croyant avoir la page entière.
+          let tallest = document.documentElement.scrollHeight
+          for (const el of document.querySelectorAll('div')) {
+            if (el.scrollHeight > el.clientHeight + 50 && el.clientHeight > 100) {
+              tallest = Math.max(tallest, el.scrollHeight)
+            }
+          }
+          return Math.min(Math.max(tallest, 900), 12_000)
+        })
+        await catalogPage.setViewportSize({ width: 1440, height: Math.ceil(fullHeight) })
+        await catalogPage.waitForTimeout(400)
+        await catalogPage.screenshot({ path: join(OUT, 'surface-catalog.png'), fullPage: true })
+        console.log(`✓ surface-catalog (hauteur ${Math.ceil(fullHeight)}px)`)
+      }
+    } catch (err) {
+      failures.push(`surface-catalog — ${err.message}`)
+    } finally {
+      await catalogContext.close()
     }
   } finally {
     await browser.close()

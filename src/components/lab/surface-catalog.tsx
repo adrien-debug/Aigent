@@ -19,6 +19,14 @@ import type { ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Text } from '@/components/ui/text'
 import { SeverityChip, type SeverityTone } from '@/components/surface-primitives'
 import { NotMeasured, Unavailable } from '@/components/cockpit/primitives'
@@ -62,6 +70,34 @@ const TONE_LABEL: Record<SeverityTone, string> = {
   bad: 'Échoué',
   neutral: 'Neutre',
 }
+
+/*
+ * Décor de démonstration — inerte et assumé comme tel.
+ *
+ * Aucun de ces contenus ne prétend être une mesure : ils existent pour que les
+ * surfaces aient quelque chose à porter. Les noms restent volontairement
+ * génériques afin qu'on ne les confonde jamais avec un agent réel du catalogue.
+ */
+const DEMO_ROWS: ReadonlyArray<{ agent: string; tone: SeverityTone; duration: string }> = [
+  { agent: 'Agent de démonstration A', tone: 'good', duration: '4,3 s' },
+  { agent: 'Agent de démonstration B', tone: 'running', duration: '12,1 s' },
+  { agent: 'Agent de démonstration C', tone: 'bad', duration: '0,9 s' },
+]
+
+const DEMO_PROJECTS: ReadonlyArray<{
+  name: string
+  agents: number
+  note: string
+  tone: SeverityTone
+}> = [
+  { name: 'Projet de démonstration', agents: 4, note: 'Une carte se justifie ici : elle groupe un titre, un compte et une action.', tone: 'good' },
+  { name: 'Projet en attente', agents: 2, note: 'Le liseré suffit à séparer — aucune ombre portée.', tone: 'warn' },
+  { name: 'Projet vide', agents: 0, note: 'Un compte à zéro est une mesure réelle, pas une absence.', tone: 'neutral' },
+]
+
+/** Tracé fixe : une forme, jamais une série de mesures. */
+const DEMO_LINE =
+  'M0,96 L75,84 L150,88 L225,58 L300,66 L375,38 L450,46 L525,22 L600,30'
 
 export default function SurfaceCatalog() {
   return (
@@ -191,6 +227,149 @@ export default function SurfaceCatalog() {
             <Unavailable reason="unread" detail="La lecture a échoué — ce n'est pas un zéro." />
             <div className="aig-empty-well">
               <Text className="text-xs">Puits vide — un cadre pointillé, pas un panneau.</Text>
+            </div>
+          </div>
+        </Row>
+
+        <Row title="Tableau" hint="filets horizontaux, zéro zébrure">
+          <div className="aig-surface-elevated overflow-x-auto rounded-lg p-1.5">
+            <Table dense>
+              <TableHead>
+                <TableRow>
+                  <TableHeader>Agent</TableHeader>
+                  <TableHeader>Statut</TableHeader>
+                  <TableHeader className="text-right">Durée</TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {DEMO_ROWS.map((row) => (
+                  <TableRow key={row.agent}>
+                    <TableCell className="font-medium">{row.agent}</TableCell>
+                    <TableCell>
+                      <SeverityChip tone={row.tone}>{TONE_LABEL[row.tone]}</SeverityChip>
+                    </TableCell>
+                    <TableCell className="aig-text-muted text-right tabular-nums">
+                      {row.duration}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <p className="aig-text-muted text-2xs">
+            Sur fond clair, une zébrure ajoute un troisième gris qui n&apos;informe de rien : la
+            lecture ligne à ligne tient au filet horizontal seul.
+          </p>
+        </Row>
+
+        <Row title="Cartes projet" hint="une carte quand elle porte une fonction">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {DEMO_PROJECTS.map((project) => (
+              <div key={project.name} className="aig-surface-elevated flex flex-col gap-2 rounded-lg p-3.5">
+                <div className="flex min-w-0 items-baseline justify-between gap-2">
+                  <p className="aig-text truncate text-sm font-semibold">{project.name}</p>
+                  <span className="aig-text-muted shrink-0 text-3xs tabular-nums">
+                    {project.agents} agents
+                  </span>
+                </div>
+                <p className="aig-text-muted text-2xs leading-4">{project.note}</p>
+                <div className="aig-hairline" />
+                <div className="flex items-center justify-between gap-2">
+                  <SeverityChip tone={project.tone}>{TONE_LABEL[project.tone]}</SeverityChip>
+                  <span className="aig-link-accent text-2xs">Ouvrir →</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Row>
+
+        <Row title="Graphique" hint="cuivre, aplat dégradé, pas de grille lourde">
+          {/*
+            Une courbe INERTE et nommée comme telle : ces points sont une forme
+            de démonstration, pas une mesure. Un graphique de lab qui ressemble
+            à une donnée réelle est exactement le genre de faux zéro que
+            `check:render-truth` interdit ailleurs dans le produit.
+          */}
+          <figure className="aig-surface-elevated rounded-lg p-4">
+            <svg
+              viewBox="0 0 600 120"
+              role="img"
+              aria-label="Courbe de démonstration — forme inerte, aucune mesure"
+              className="h-28 w-full"
+            >
+              <defs>
+                <linearGradient id="catalog-area" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stopColor="var(--aig-accent)" stopOpacity="0.22" />
+                  <stop offset="100%" stopColor="var(--aig-accent)" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path d={`${DEMO_LINE} L600,120 L0,120 Z`} fill="url(#catalog-area)" />
+              <path
+                d={DEMO_LINE}
+                fill="none"
+                stroke="var(--aig-accent)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <figcaption className="aig-text-muted mt-2 text-2xs">
+              Forme de démonstration — aucune donnée réelle n&apos;est tracée ici.
+            </figcaption>
+          </figure>
+        </Row>
+
+        <Row title="Chargement" hint="squelette, jamais un zéro affiché">
+          {/*
+            Le squelette existe pour que l'attente ne s'écrive PAS « 0 ». Un
+            compteur à zéro pendant le chargement est une mesure fausse ; un
+            aplat neutre ne dit rien, ce qui est exact.
+          */}
+          <div className="aig-surface-elevated flex flex-col gap-3 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="aig-skeleton-bar h-9 w-9 shrink-0 rounded-md" />
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <div className="aig-skeleton-bar h-3 w-2/5 rounded-sm" />
+                <div className="aig-skeleton-bar h-2.5 w-1/4 rounded-sm" />
+              </div>
+            </div>
+            <div className="aig-skeleton-bar h-2.5 w-full rounded-sm" />
+            <div className="aig-skeleton-bar h-2.5 w-4/5 rounded-sm" />
+            <p className="aig-text-muted text-2xs">
+              Aucun chiffre pendant l&apos;attente : une valeur non lue ne s&apos;affiche jamais.
+            </p>
+          </div>
+        </Row>
+
+        <Row title="Overlay" hint="dialog, menu, drawer — le seul rang qui flotte">
+          {/*
+            Rendu STATIQUE : `Dialog` du kit est piloté par état et ne peut pas
+            s'ouvrir dans une page serveur. Ce qui est démontré ici est la
+            SURFACE (`aig-overlay` + son ombre), pas le comportement — c'est
+            précisément ce que la mission demande de calibrer.
+          */}
+          <div className="aig-inset relative overflow-hidden rounded-lg p-6">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="aig-overlay flex flex-col gap-2 rounded-lg p-4">
+                <p className="aig-text text-sm font-semibold">Confirmer la promotion</p>
+                <p className="aig-text-muted text-2xs leading-4">
+                  Un dialog flotte au-dessus du document : c&apos;est le seul rang autorisé à porter
+                  une vraie ombre.
+                </p>
+                <div className="mt-1 flex gap-2">
+                  <Button className="aig-btn-accent">Promouvoir</Button>
+                  <Button outline>Annuler</Button>
+                </div>
+              </div>
+              <div className="aig-overlay flex flex-col rounded-lg p-1.5">
+                {['Ouvrir la fiche', 'Relancer le run', 'Voir les preuves'].map((item) => (
+                  <span key={item} className="aig-text rounded-sm px-2.5 py-1.5 text-xs">
+                    {item}
+                  </span>
+                ))}
+                <div className="aig-hairline my-1" />
+                <span className="aig-text-muted px-2.5 py-1.5 text-xs">Menu — même surface</span>
+              </div>
             </div>
           </div>
         </Row>

@@ -120,9 +120,30 @@ n'est pas une preuve.
 
 `surface-catalog.png` existe désormais : la route `/lab/surfaces` rend un
 catalogue qui pose côte à côte les six rangs de surface, les trois rangs de
-texte, les six tons de sévérité, les actions, les champs, les états d'absence et
-les séparateurs. Elle est rendue **dans `AppShell`**, délibérément — c'est la
-seule façon de contrôler la sidebar sombre et le body clair ensemble.
+texte, les six tons de sévérité, les actions, les champs, les états d'absence,
+le **tableau**, les **cartes projet**, le **graphique cuivre**, l'état de
+**chargement** et l'**overlay** (dialog + menu), puis les séparateurs. Elle est
+rendue **dans `AppShell`**, délibérément — c'est la seule façon de contrôler la
+sidebar sombre et le body clair ensemble.
+
+Le tableau, les cartes, la courbe, le squelette et l'overlay ont été ajoutés
+après une première passe : la planche couvrait les surfaces et les états, mais
+pas les composants qui les portent. Trois points méritent d'être notés parce
+qu'ils ne se voient pas dans le code :
+
+- **La courbe est inerte et le dit.** Une forme fixe, légendée « aucune donnée
+  réelle n'est tracée ici » : un graphique de lab qui ressemble à une mesure est
+  exactement le faux zéro que `check:render-truth` interdit ailleurs.
+- **L'overlay est rendu statiquement.** `Dialog` du kit est piloté par état et ne
+  peut pas s'ouvrir dans une page serveur ; ce qui est démontré est la SURFACE
+  (`aig-overlay` et son ombre), pas le comportement — c'est ce que la mission
+  demande de calibrer.
+- **Le squelette a coûté un utilitaire.** `aig-inset-fill` ne pose qu'un
+  `border-radius: 0`, sans fond : employé pour un squelette, il rendait cinq
+  barres **entièrement transparentes** — l'état de chargement disparaissait de
+  l'écran tout en semblant codé. Mesuré au rendu (`rgba(0,0,0,0)`), corrigé par
+  `aig-skeleton-bar`, qui porte un vrai aplat volontairement calme : un squelette
+  trop contrasté se lit comme du contenu réel.
 
 Elle vit sous `/lab`, donc hors `NAVIGATION` et `notFound()` en production
 (même garde que `/lab`) : une planche de fabrication laissée accessible en
@@ -130,6 +151,39 @@ production serait lue comme du produit.
 
 Ce n'est **ni une gate, ni un Storybook, ni une doctrine** (`AGENTS.md` §
 Frontend). Elle n'impose rien, elle montre.
+
+## Les preuves se régénèrent — elles ne se recopient pas
+
+Toutes les images de ce dossier sont produites par
+`node scripts/capture-ds-surfaces-001.mjs`, **y compris** `surface-catalog.png`
+et les fichiers `*-after-*` que la mission exige nommément. Ils étaient d'abord
+copiés à la main : une preuve recopiée se périme en silence dès que l'écran
+change, elle reste versionnée en montrant un état qui n'existe plus. Deux pièges
+rencontrés en les intégrant au harnais :
+
+- **`fullPage: true` ne suffisait pas.** La planche défile dans un conteneur
+  interne (`overflow-y-auto`), donc le *document* ne défile pas et Playwright
+  n'avait rien à étendre : la capture s'arrêtait au viewport, au tiers de la
+  page. La fenêtre est maintenant redimensionnée à la hauteur réelle du contenu
+  (2788 px) avant déclenchement.
+- **Le scroller se trouve par mesure, pas par nom de classe.** Viser
+  `.overflow-y-auto` échoue dès que l'utilitaire est composé avec d'autres
+  classes — on retombe alors sur 900 px en croyant tenir la page entière.
+
+Les `*-before-*` sont les seuls fichiers que le harnais ne touche pas : ils
+montrent l'état antérieur et sont vérifiés inchangés après chaque passe.
+
+## Versionnement des preuves — exception ciblée
+
+`docs/visual-reviews/` est ignoré par `.gitignore`. Les preuves de cette mission
+sont ré-incluses par une exception **limitée à ce seul dossier** ; le reste,
+notamment les exemples Tailwind Plus vendorés, demeure hors historique.
+
+Le motif parent a dû passer de `docs/visual-reviews/` à `docs/visual-reviews/*` :
+avec un slash final, git exclut le RÉPERTOIRE et n'y descend jamais, si bien
+qu'aucune négation placée ensuite ne peut ré-inclure son contenu. Vérifié dans
+les deux sens — un nouveau fichier de la mission apparaît dans `git status`, un
+fichier d'un autre dossier de `visual-reviews` reste ignoré.
 
 ## Audit de contraste exhaustif — 13 surfaces
 
