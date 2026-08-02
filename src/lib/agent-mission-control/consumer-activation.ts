@@ -309,7 +309,8 @@ export function deriveConsumerActivation(
 /**
  * Read the activation state for one copilot from the live backend.
  *
- * Reads ONLY authenticated rows (`installation_id=not.is.null`) — the database
+ * Reads ONLY authenticated + version-verified rows
+ * (`installation_id=not.is.null&version_verified=eq.true`) — the database
  * filter is the same invariant `deriveConsumerActivation` re-checks in memory.
  *
  * Throws on a hard PostgREST error, same contract as the other telemetry reads:
@@ -324,6 +325,7 @@ export async function readConsumerActivation(
     'GET',
     `runtime_telemetry_events?agent_id=eq.${encodeURIComponent(copilotId)}` +
       '&installation_id=not.is.null' +
+      '&version_verified=eq.true' +
       '&select=event_type,received_at,installation_id,version_id' +
       '&order=received_at.desc&limit=500'
   )) as ConsumerEventRow[]

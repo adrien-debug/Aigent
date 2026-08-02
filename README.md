@@ -79,6 +79,11 @@ State the restriction, not the headline:
 - **Telemetry** is aggregated in `dashboard-overview.ts` and `agent-detail.ts`,
   and surfaced on `/` and `/runs`. A run that reported no usage shows
   `Non mesuré` — never a fabricated `0` (`docs/metrics-canon.md`).
+- **Consumer proof chain (installations)** now uses the dedicated route
+  `/api/runtime-telemetry/consumer`: each accepted event must match a real
+  installation (`project_id`, `copilot_id`, `version_id`, `delivery_event_id`),
+  and only rows with `version_verified=true` can contribute to
+  `active_in_consumer`.
 - **Tool builder** works, but only `count_words` has a sandbox.
 - **Provider `mistral`** is declared and **not wired** — it throws a typed error
   rather than falling back silently.

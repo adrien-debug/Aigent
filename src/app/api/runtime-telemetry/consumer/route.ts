@@ -7,6 +7,7 @@ import {
   authenticateInstallation,
   touchInstallationSeen,
 } from '@/lib/agent-mission-control/consumer-installations'
+import { getDeliveryEventById } from '@/lib/agent-mission-control/delivery-events-store'
 import { isPgrestTimeout, pgrest } from '@/lib/agent-mission-control/postgrest'
 
 /**
@@ -248,6 +249,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
+  // Version proof is fail-closed: this installation is pinned to ONE expected
+  // copilot version and ONE delivery event.
+  if (!installation.versionId || !installation.deliveryEventId || installation.versionId !== event.versionId) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
+  let delivery
+  try {
+    delivery = await getDeliveryEventById(installation.deliveryEventId)
+  } catch (err) {
+    console.error('[consumer-telemetry] delivery lookup failed', err instanceof Error ? err.message : err)
+    return NextResponse.json({ error: 'internal error' }, { status: isPgrestTimeout(err) ? 504 : 502 })
+  }
+  if (
+    !delivery ||
+    delivery.status !== 'delivered' ||
+    delivery.projectId !== installation.projectId ||
+    delivery.copilotId !== installation.copilotId ||
+    delivery.versionId !== installation.versionId
+  ) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
   try {
     await pgrest('POST', 'runtime_telemetry_events', {
       // NAMESPACED BY INSTALLATION. The caller does not choose a primary key in
@@ -271,6 +295,7 @@ export async function POST(request: Request) {
       // can present it as an observed fact — see the read contract.
       agent_version: event.versionId,
       version_id: event.versionId,
+      version_verified: true,
       run_id: event.runId,
       installation_id: installation.id,
       event_type: event.eventType,
@@ -298,7 +323,8 @@ export async function POST(request: Request) {
         consumerEnvironment: event.environment,
         // Travels with the row so a reader cannot mistake a claim for an
         // observation. See the `agent_version` note above.
-        versionClaimVerified: false,
+        versionClaimVerified: true,
+        deliveryEventId: installation.deliveryEventId,
       },
     })
   } catch (err) {

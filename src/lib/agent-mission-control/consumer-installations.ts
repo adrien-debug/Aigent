@@ -50,6 +50,25 @@ export interface ConsumerInstallation {
   /** Version the consumer reported LOADING. Null until proven; never inferred from a delivery. */
   lastVersionLoaded: string | null
   lastVersionLoadedAt: string | null
+  versionId: string | null
+  deliveryEventId: string | null
+  revokedReason: string | null
+}
+
+export interface ConsumerInstallationSecret {
+  installationId: string
+  token: string
+  tokenPrefix: string
+}
+
+export interface CreateConsumerInstallationInput {
+  id: string
+  projectId: string
+  copilotId: string
+  versionId: string
+  deliveryEventId: string
+  environment: ConsumerEnvironment
+  label: string | null
 }
 
 /** Bytes of entropy per installation token. 32 bytes = 256 bits. */
@@ -108,6 +127,9 @@ function rowToInstallation(row: Record<string, unknown>): ConsumerInstallation {
     lastSeenAt: (row.last_seen_at as string | null) ?? null,
     lastVersionLoaded: (row.last_version_loaded as string | null) ?? null,
     lastVersionLoadedAt: (row.last_version_loaded_at as string | null) ?? null,
+    versionId: (row.version_id as string | null) ?? null,
+    deliveryEventId: (row.delivery_event_id as string | null) ?? null,
+    revokedReason: (row.revoked_reason as string | null) ?? null,
   }
 }
 
@@ -184,4 +206,62 @@ export async function touchInstallationSeen(
       err instanceof Error ? err.message : err
     )
   }
+}
+
+export async function createConsumerInstallation(
+  input: CreateConsumerInstallationInput
+): Promise<ConsumerInstallationSecret> {
+  const generated = generateInstallationToken()
+  await pgrest('POST', 'consumer_installations', {
+    id: input.id,
+    project_id: input.projectId,
+    copilot_id: input.copilotId,
+    version_id: input.versionId,
+    delivery_event_id: input.deliveryEventId,
+    environment: input.environment,
+    label: input.label,
+    token_hash: generated.hash,
+    token_prefix: generated.prefix,
+    status: 'active',
+  })
+  return { installationId: input.id, token: generated.token, tokenPrefix: generated.prefix }
+}
+
+export async function getConsumerInstallation(installationId: string): Promise<ConsumerInstallation | null> {
+  const rows = (await pgrest(
+    'GET',
+    `consumer_installations?id=eq.${encodeURIComponent(installationId)}&limit=1`
+  )) as Record<string, unknown>[]
+  const row = Array.isArray(rows) ? rows[0] : undefined
+  return row ? rowToInstallation(row) : null
+}
+
+export async function listConsumerInstallations(
+  projectId: string,
+  copilotId?: string
+): Promise<ConsumerInstallation[]> {
+  const filters = [`project_id=eq.${encodeURIComponent(projectId)}`]
+  if (copilotId) filters.push(`copilot_id=eq.${encodeURIComponent(copilotId)}`)
+  const rows = (await pgrest(
+    'GET',
+    `consumer_installations?${filters.join('&')}&order=created_at.desc&limit=200`
+  )) as Record<string, unknown>[]
+  return Array.isArray(rows) ? rows.map(rowToInstallation) : []
+}
+
+export async function revokeConsumerInstallation(
+  installationId: string,
+  reason: string
+): Promise<ConsumerInstallation | null> {
+  const rows = (await pgrest(
+    'PATCH',
+    `consumer_installations?id=eq.${encodeURIComponent(installationId)}&status=eq.active`,
+    {
+      status: 'revoked',
+      revoked_at: new Date().toISOString(),
+      revoked_reason: reason,
+    }
+  )) as Record<string, unknown>[]
+  const row = Array.isArray(rows) ? rows[0] : undefined
+  return row ? rowToInstallation(row) : null
 }
