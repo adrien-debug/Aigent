@@ -5,7 +5,6 @@ import clsx from 'clsx'
 import { navEntry } from '@/components/navigation'
 import { PageBody, PageHeader } from '@/components/app-shell'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Unavailable } from '@/components/cockpit/primitives'
 import type { DashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
 import { buildHourlyBuckets, buildStatusBreakdown } from '@/lib/cockpit/overview-series'
@@ -57,7 +56,7 @@ export default function CockpitOverview({
       <PageBody>
         <section
           className={clsx(
-            'aig-stage aig-accent-edge flex min-w-0 flex-col px-4 py-5 sm:px-6 sm:py-6',
+            'aig-stage aig-accent-edge flex min-w-0 flex-col py-5 sm:py-6',
             showActivity ? 'gap-8' : 'gap-6',
           )}
           aria-label={ENTRY.name}
@@ -67,7 +66,7 @@ export default function CockpitOverview({
               {slices ? (
                 <>
                   <div className="col-span-full lg:col-span-1 flex items-end pb-2">
-                    <h2 className="aig-text-faint text-xs font-medium uppercase tracking-wider">
+                    <h2 className="text-white/40 text-xs font-light uppercase tracking-wider">
                       {`Fenêtre 24 heures${
                         windowState === 'unread' ? ' · non lue' : windowState === 'empty' ? ' · lue, vide' : ''
                       }`}
@@ -97,17 +96,17 @@ export default function CockpitOverview({
           <div className="aig-hairline" />
 
           <div className="overview-zone">
-            <header className="min-w-0 border-l-2 border-(--aig-accent) pl-4 py-0.5">
+            <header className="min-w-0 border-l-2 border-[#CD7F32] pl-4 py-0.5">
               <div className="flex items-center gap-2">
-                <p className="aig-text-faint text-xs font-medium uppercase tracking-wider">
+                <p className="text-white/40 text-xs font-light uppercase tracking-wider">
                   Zone opérateur
                 </p>
-                <Badge color="zinc" className="text-[0.65rem] uppercase tracking-widest px-1.5 py-0 rounded-sm font-semibold bg-white/5">
+                <div className="inline-flex items-center gap-1.5 rounded-sm px-1.5 py-0 text-[0.65rem] font-semibold bg-white/5 text-white/60 uppercase tracking-widest">
                   Operator
-                </Badge>
+                </div>
               </div>
               <h2 className="aig-h2 mt-1.5 text-[1.375rem] sm:text-[1.5rem]">Opérations & catalogue</h2>
-              <p className="aig-text-faint mt-1.5 text-xs uppercase tracking-wider">
+              <p className="text-white/40 mt-1.5 text-xs uppercase tracking-wider">
                 {hasRuns
                   ? 'Flux récent, projets et signaux de la fenêtre courante'
                   : 'Signaux et projets — flux vide sur la fenêtre 24 h'}

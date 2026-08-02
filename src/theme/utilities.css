@@ -1,87 +1,75 @@
 /* AIGENT-DS-REFACTOR-001 — utilitaires @utility aig-* (grammaire de surface). */
 
 @utility aig-base {
-  background-color: var(--aig-base);
-  color: var(--aig-text);
+  background-color: #050505;
+  color: white;
 }
 
 @utility aig-subtle {
-  background-color: var(--aig-subtle);
-  color: var(--aig-text);
+  background-color: #0a0a0a;
+  color: white;
 }
 
 @utility aig-raised {
-  background-color: var(--aig-raised);
-  color: var(--aig-text);
+  background-color: #111111;
+  color: white;
   box-shadow: var(--aig-elevation-raised);
 }
 
 @utility aig-overlay {
-  background-color: color-mix(in oklab, var(--aig-raised) 92%, transparent);
+  background-color: color-mix(in oklab, #111111 92%, transparent);
   backdrop-filter: blur(12px);
-  color: var(--aig-text);
+  color: white;
   box-shadow: var(--aig-elevation-overlay);
 }
 
 @utility aig-surface-elevated {
-  background-color: color-mix(in oklab, white 1%, transparent);
+  background-color: color-mix(in oklab, white 2%, transparent);
   background-image:
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E"),
-    linear-gradient(180deg, color-mix(in oklab, white 3%, transparent) 0%, transparent 100%);
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E"),
+    linear-gradient(135deg, color-mix(in oklab, white 4%, transparent) 0%, transparent 100%);
   border: 1px solid color-mix(in oklab, white 10%, transparent);
-  box-shadow: 0 8px 32px -8px oklch(0 0 0 / 0.6), inset 0 1px 0 color-mix(in oklab, white 5%, transparent);
+  box-shadow: 0 16px 40px -8px oklch(0 0 0 / 0.8), inset 0 1px 0 color-mix(in oklab, white 5%, transparent);
   backdrop-filter: blur(16px);
 }
 
-@utility aig-glow-good {
-  filter: drop-shadow(0 0 4px color-mix(in oklab, var(--aig-severity-good) 40%, transparent));
+@utility aig-glow-bronze {
+  filter: drop-shadow(0 0 8px color-mix(in oklab, #CD7F32 60%, transparent));
 }
 
-@utility aig-glow-warn {
-  filter: drop-shadow(0 0 4px color-mix(in oklab, var(--aig-severity-warn) 40%, transparent));
-}
-
-@utility aig-glow-bad {
-  filter: drop-shadow(0 0 4px color-mix(in oklab, var(--aig-severity-bad) 40%, transparent));
+@utility aig-glow-bronze-bright {
+  filter: drop-shadow(0 0 12px color-mix(in oklab, #FFB347 80%, transparent));
 }
 
 @utility aig-line {
-  border-color: var(--aig-line);
+  border-color: color-mix(in oklab, white 10%, transparent);
 }
 
 @utility aig-line-soft {
-  border-color: var(--aig-line-soft);
+  border-color: color-mix(in oklab, white 5%, transparent);
 }
 
 @utility aig-text {
-  color: var(--aig-text);
+  color: white;
 }
 
 @utility aig-text-muted {
-  color: var(--aig-text-muted);
+  color: color-mix(in oklab, white 60%, transparent);
 }
 
 @utility aig-text-faint {
-  color: var(--aig-text-faint);
+  color: color-mix(in oklab, white 40%, transparent);
 }
 
 @utility aig-accent {
-  color: var(--aig-accent);
+  color: #CD7F32;
 }
 
-/*
- * CTA produit sur `Button` Catalyst.
- *
- * Le bouton solide lit déjà `--btn-bg` / `--btn-border` / `--btn-hover-overlay`,
- * mais le kit pose ensuite ses propres variables de couleur. On garde donc
- * `!important` uniquement sur CES variables internes documentées, pas sur le
- * layout ni sur des hacks de densité.
- */
 @utility aig-btn-accent {
-  --btn-bg: var(--aig-accent);
-  --btn-border: var(--aig-accent-quiet);
-  --btn-hover-overlay: color-mix(in oklab, var(--aig-subtle) 80%, transparent);
-  color: var(--aig-subtle);
+  --btn-bg: #CD7F32;
+  --btn-border: #8B5A2B;
+  --btn-hover-overlay: color-mix(in oklab, white 10%, transparent);
+  color: white;
   transition:
     background-color 160ms ease,
     color 160ms ease,
@@ -89,22 +77,16 @@
 }
 
 .aig-btn-accent:hover {
-  --btn-bg: color-mix(in oklab, var(--aig-accent) 84%, white);
+  --btn-bg: #FFB347;
 }
 
 .aig-btn-accent:focus-visible {
-  outline: 2px solid color-mix(in oklab, var(--aig-accent) 62%, white);
+  outline: 2px solid color-mix(in oklab, #CD7F32 62%, white);
   outline-offset: 2px;
 }
 
-/*
- * Liens d'action discrets — `Button plain` ou `Link` Catalyst.
- *
- * `Button plain` impose encore `text-zinc-*` / `dark:text-white` au niveau du kit ;
- * le `!important` sur la couleur reste donc documenté et volontaire ici.
- */
 @utility aig-link-accent {
-  color: var(--aig-accent);
+  color: #CD7F32;
   text-decoration: none;
   transition:
     color 150ms ease,
@@ -113,48 +95,37 @@
 
 .aig-link-accent:hover,
 .aig-link-accent:focus-visible {
-  color: color-mix(in oklab, var(--aig-accent) 82%, white);
+  color: #FFB347;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .aig-link-accent:focus-visible {
-  outline: 2px solid color-mix(in oklab, var(--aig-accent) 45%, transparent);
+  outline: 2px solid color-mix(in oklab, #CD7F32 45%, transparent);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
 
 @utility aig-panel {
-  background-color: var(--aig-base);
-  color: var(--aig-text);
-  border: var(--border-width-default) solid var(--aig-line-soft);
+  background-color: #050505;
+  color: white;
+  border: 1px solid color-mix(in oklab, white 5%, transparent);
   border-radius: var(--aig-radius);
   box-shadow: var(--aig-elevation-flat);
 }
 
 @utility aig-panel-raised {
-  background-color: var(--aig-raised);
-  color: var(--aig-text);
-  border: var(--border-width-default) solid var(--aig-line);
+  background-color: #111111;
+  color: white;
+  border: 1px solid color-mix(in oklab, white 10%, transparent);
   border-radius: var(--aig-radius);
   box-shadow: var(--aig-elevation-raised);
 }
 
 @utility aig-stage {
-  background:
-    radial-gradient(
-      120% 100% at 0% 0%,
-      color-mix(in oklab, var(--aig-raised) 55%, transparent) 0%,
-      transparent 62%
-    ),
-    linear-gradient(
-      168deg,
-      color-mix(in oklab, var(--aig-base) 94%, white) 0%,
-      var(--aig-base) 48%,
-      color-mix(in oklab, var(--aig-base) 88%, var(--aig-subtle)) 100%
-    );
-  color: var(--aig-text);
-  border: var(--border-width-default) solid var(--aig-line-soft);
+  background: #050505;
+  color: white;
+  border: 1px solid color-mix(in oklab, white 5%, transparent);
   border-radius: var(--radius-lg);
   box-shadow:
     inset 0 1px 0 oklch(1 0 0 / 0.06),
@@ -162,18 +133,17 @@
 }
 
 @utility aig-quiet {
-  background-color: color-mix(in oklab, var(--aig-base) 62%, transparent);
-  color: var(--aig-text);
+  background-color: color-mix(in oklab, #050505 62%, transparent);
+  color: white;
   border-radius: var(--aig-radius);
 }
 
 @utility aig-inset {
-  background-color: oklch(0.203 0.006 264);
+  background-color: #000000;
   border-radius: var(--radius-md);
-  box-shadow: inset 0 1px 2px oklch(0 0 0 / 0.22);
+  box-shadow: inset 0 1px 4px oklch(0 0 0 / 0.8);
 }
 
-/* Plein cadre dans un `aig-stage overflow-hidden` — coins portés par le parent. */
 @utility aig-inset-fill {
   border-radius: 0;
 }
@@ -182,8 +152,8 @@
   background: linear-gradient(
     90deg,
     transparent,
-    color-mix(in oklab, var(--aig-line) 85%, transparent) 18%,
-    color-mix(in oklab, var(--aig-line) 85%, transparent) 82%,
+    color-mix(in oklab, white 10%, transparent) 18%,
+    color-mix(in oklab, white 10%, transparent) 82%,
     transparent
   );
   height: 1px;
@@ -191,14 +161,13 @@
 }
 
 @utility aig-display {
-  color: var(--aig-text-display);
+  color: white;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
 
-/* Hiérarchie typo Aperçu / surfaces produit — h1 vit dans PageHeader. */
 @utility aig-h2 {
-  color: var(--aig-text-display);
+  color: white;
   font-size: 1.125rem;
   line-height: 1.5rem;
   font-weight: 600;
@@ -206,7 +175,7 @@
 }
 
 @utility aig-h3 {
-  color: var(--aig-text-display);
+  color: white;
   font-size: 0.8125rem;
   line-height: 1.125rem;
   font-weight: 600;
@@ -215,7 +184,7 @@
 }
 
 @utility aig-kpi-lead {
-  color: var(--aig-text-display);
+  color: white;
   font-size: 1.75rem;
   line-height: 1;
   font-weight: 600;
@@ -224,14 +193,13 @@
 }
 
 @utility aig-kpi-quiet {
-  color: var(--aig-text-display);
+  color: color-mix(in oklab, white 60%, transparent);
   font-size: 1.25rem;
   line-height: 1.2;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
-/* Pastilles de sévérité — creux produit (pas Catalyst Badge). */
 @utility aig-chip {
   display: inline-flex;
   align-items: center;
@@ -244,42 +212,42 @@
 }
 
 @utility aig-chip-good {
-  background-color: color-mix(in oklab, var(--aig-severity-good) 15%, transparent);
-  color: var(--aig-severity-good);
+  background-color: color-mix(in oklab, #CD7F32 15%, transparent);
+  color: #CD7F32;
 }
 
 @utility aig-chip-running {
-  background-color: color-mix(in oklab, var(--aig-severity-running) 15%, transparent);
-  color: var(--aig-severity-running);
+  background-color: color-mix(in oklab, #FFB347 15%, transparent);
+  color: #FFB347;
 }
 
 @utility aig-chip-warn {
-  background-color: color-mix(in oklab, var(--aig-severity-warn) 15%, transparent);
-  color: var(--aig-severity-warn);
+  background-color: color-mix(in oklab, #FFB347 15%, transparent);
+  color: #FFB347;
 }
 
 @utility aig-chip-blocked {
-  background-color: color-mix(in oklab, var(--aig-severity-blocked) 15%, transparent);
-  color: var(--aig-severity-blocked);
+  background-color: color-mix(in oklab, #FFB347 15%, transparent);
+  color: #FFB347;
 }
 
 @utility aig-chip-bad {
-  background-color: color-mix(in oklab, var(--aig-severity-bad) 15%, transparent);
-  color: var(--aig-severity-bad);
+  background-color: color-mix(in oklab, #FFB347 15%, transparent);
+  color: #FFB347;
 }
 
 @utility aig-chip-neutral {
-  background-color: var(--aig-line-soft);
-  color: var(--aig-text-muted);
+  background-color: color-mix(in oklab, white 5%, transparent);
+  color: color-mix(in oklab, white 60%, transparent);
 }
 
 @utility aig-callout {
-  border-left: var(--border-width-default) solid var(--aig-line);
+  border-left: var(--border-width-default) solid color-mix(in oklab, white 10%, transparent);
   padding-left: 0.75rem;
 }
 
 @utility aig-empty-well {
-  border: var(--border-width-default) dashed color-mix(in oklab, var(--aig-line-soft) 80%, transparent);
+  border: var(--border-width-default) dashed color-mix(in oklab, white 10%, transparent);
   border-radius: var(--radius-md);
   background-color: transparent;
   padding: 0.375rem 0.5rem;
@@ -299,14 +267,14 @@
   border-radius: var(--radius-full);
   background: linear-gradient(
     180deg,
-    var(--aig-accent),
-    color-mix(in oklab, var(--aig-accent) 15%, transparent)
+    #CD7F32,
+    color-mix(in oklab, #CD7F32 15%, transparent)
   );
 }
 
 @utility scroll-thin {
   scrollbar-width: thin;
-  scrollbar-color: var(--aig-line) transparent;
+  scrollbar-color: color-mix(in oklab, white 10%, transparent) transparent;
 }
 
 .scroll-thin::-webkit-scrollbar {
@@ -319,12 +287,12 @@
 }
 
 .scroll-thin::-webkit-scrollbar-thumb {
-  background: var(--aig-line);
+  background: color-mix(in oklab, white 10%, transparent);
   border-radius: var(--radius-full);
 }
 
 .scroll-thin::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in oklab, var(--aig-line) 70%, var(--aig-text-muted));
+  background: color-mix(in oklab, white 20%, transparent);
 }
 
 @utility pulse-live {
