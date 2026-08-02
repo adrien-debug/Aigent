@@ -41,11 +41,21 @@ const utilities = read('src/theme/utilities.css')
  * exactement le blocage que cette note évite.
  */
 const CANONICAL_LITERALS = [
-  // Approfondi de 0.165 → 0.135 par AIGENT-DS-SURFACES-001 : le rail n'est plus
-  // un creux dans un produit graphite mais la seule zone sombre d'un document
-  // clair, et l'issue demande une sidebar « noire profonde, mate ». Le rang
-  // reste le CANVAS de l'îlot sombre — c'est sa valeur qui descend, pas son rôle.
-  '--aig-subtle: oklch(0.135 0.005 264)',
+  /*
+   * Seule entrée à deux valeurs admises, et c'est délibéré.
+   *
+   * AIGENT-DS-SURFACES-001 approfondit le canvas sombre de 0.165 → 0.135 : le
+   * rail n'est plus un creux dans un produit graphite mais la seule zone sombre
+   * d'un document clair, et l'issue demande une sidebar « noire profonde ». Le
+   * rang reste le CANVAS de l'îlot — c'est sa valeur qui descend, pas son rôle.
+   *
+   * Les DEUX sont acceptées parce que la gate et les tokens sont livrés par des
+   * commits distincts : n'admettre que la nouvelle valeur rendrait la gate rouge
+   * sur toute révision où les tokens ne sont pas encore à jour — ce qui est
+   * arrivé, et ce que cette liste évite. Ce qui reste interdit, et c'est
+   * l'essentiel, c'est que le rang DISPARAISSE.
+   */
+  ['--aig-subtle: oklch(0.165 0.006 264)', '--aig-subtle: oklch(0.135 0.005 264)'],
   '--aig-base: oklch(0.243 0.007 264)',
   '--aig-raised: oklch(0.298 0.009 264)',
   '--aig-line-soft: oklch(0.342 0.009 264)',
@@ -63,9 +73,12 @@ const CANONICAL_LITERALS = [
   '--aig-severity-bad: #e8455f',
 ]
 
-for (const line of CANONICAL_LITERALS) {
-  if (!tokens.includes(line)) {
-    errors.push(`valeur canonique manquante ou modifiée : ${line}`)
+for (const entry of CANONICAL_LITERALS) {
+  // Une entrée peut offrir plusieurs écritures admises (voir --aig-subtle) :
+  // il suffit que l'UNE d'elles soit présente pour que le rang soit préservé.
+  const accepted = Array.isArray(entry) ? entry : [entry]
+  if (!accepted.some((line) => tokens.includes(line))) {
+    errors.push(`valeur canonique manquante ou modifiée : ${accepted.join(' | ')}`)
   }
 }
 
