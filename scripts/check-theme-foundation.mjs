@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Gate AIGENT-DS-REFACTOR-001 — fondation tokens / theme.
+ * Gate AIGENT-DS-REFACTOR-001 + DESIGN-POLISH-002 phase 3 — fondation tokens / theme.
  *
  * Vérifie que :
  *  - les valeurs canoniques `--aig-*` n'ont pas bougé (source de vérité) ;
@@ -24,14 +24,14 @@ const globals = read('src/app/globals.css')
 const utilities = read('src/theme/utilities.css')
 
 const CANONICAL_LITERALS = [
-  '--aig-base: oklch(0.19 0.006 264)',
-  '--aig-subtle: oklch(0.16 0.006 264)',
-  '--aig-raised: oklch(0.24 0.008 264)',
-  '--aig-line: oklch(0.32 0.008 264)',
-  '--aig-line-soft: oklch(0.27 0.008 264)',
+  '--aig-subtle: oklch(0.165 0.006 264)',
+  '--aig-base: oklch(0.243 0.007 264)',
+  '--aig-raised: oklch(0.298 0.009 264)',
+  '--aig-line-soft: oklch(0.342 0.009 264)',
+  '--aig-line: oklch(0.408 0.01 264)',
   '--aig-text: oklch(0.93 0.004 264)',
   '--aig-text-muted: oklch(0.71 0.006 264)',
-  '--aig-text-faint: oklch(0.58 0.006 264)',
+  '--aig-text-faint: oklch(0.645 0.006 264)',
   '--aig-text-display: oklch(0.97 0.004 250)',
   '--aig-accent: oklch(0.72 0.11 52)',
   '--aig-accent-quiet: oklch(0.45 0.06 52)',
