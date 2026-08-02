@@ -63,9 +63,11 @@ Deux gates encadrent le front, et **aucune des deux ne juge l'esthétique** :
   et scanne les surfaces Factory reconstruites contre les couleurs structurelles
   interdites (`zinc-*`, `gray-*`, `slate-*`, `dark:*`, `bg/text white/black`,
   `hex`, `rgb/rgba/hsl` hors thème global).
-- `check:ui-kit-integrity` — fige le kit `ui/` par empreinte SHA-256 contre une
-  dérive silencieuse. Modifier une primitive **volontairement** :
-  `node scripts/check-ui-kit-integrity.mjs --update`.
+- `check:ui-kit-integrity` — vérifie la **substance** du kit `ui/` : les 14
+  primitives et leurs 43 exports consommés, la cible tactile de 44 px, les
+  marqueurs d'accessibilité, et zéro couleur Tailwind brute. Elle interdit la
+  **perte**, pas le changement : modifier une primitive est légitime et ne
+  demande aucune régénération.
 
 > ⚠️ **Angle mort connu.** Aucune gate ne mesure le rendu. Le 2026-07-31, une
 > réécriture du kit a supprimé 2438 lignes pour en écrire 257 (`TouchTarget` vidé
@@ -159,7 +161,7 @@ qu'elle mesure.
 | Je veux toucher… | Ça vit dans… |
 |---|---|
 | Un écran | `src/app/<route>/page.tsx` + `src/components/<domaine>/` |
-| Une primitive UI | `src/components/ui/` — puis `check:ui-kit-integrity --update` |
+| Une primitive UI | `src/components/ui/` — couleurs en jetons `--aig-*`, puis regarder un écran qui la consomme |
 | La navigation | `src/components/navigation.ts` (source de vérité unique) |
 | La logique métier | `src/lib/agent-mission-control/` |
 | Une route API | `src/app/api/**` — server-only, fail-closed |
@@ -181,9 +183,11 @@ npm run verify               # avant un push qui touche le build
 
 1. **Port** — jamais 3000, 3001 ni 3210. Le dev est épinglé sur **3987**
    (`check:dev-port` le vérifie dans 4 résolveurs).
-2. **Kit UI** — modifier une primitive fait échouer `check:ui-kit-integrity`.
-   C'est voulu : la gate protège contre une dérive silencieuse. Modification
-   volontaire → `--update`, puis **regarder un écran qui la consomme**.
+2. **Kit UI** — modifier une primitive est légitime ; `check:ui-kit-integrity`
+   refuse la **perte** (un export consommé, la cible tactile de 44 px, un
+   marqueur d'accessibilité, une couleur Tailwind brute). Les couleurs viennent
+   des jetons `--aig-*`. Après modification, **regarder un écran qui la
+   consomme** : aucune gate ne mesure le rendu.
 3. **Aucune donnée fabriquée** — une valeur absente s'affiche `Non mesuré`,
    jamais `0`. `check:render-truth` et `check:lifecycle-truth` refusent les zéros
    inventés, les `NaN` coercés et les statuts non prouvés.

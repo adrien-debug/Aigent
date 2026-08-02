@@ -31,7 +31,7 @@ placeholder honnête.
 | Pont Obsidian — URI natives `open` / `new` / `search`, 4 templates | wired | `src/lib/agent-mission-control/obsidian-bridge.ts`, `docs/templates/obsidian/` |
 | Learning Runtime (H-Supervised) — client health/capabilities server-only | partial — contrat câblé, **aucun moteur en face** | `src/lib/agent-mission-control/learning-runtime.ts` |
 | Réglages | partial — `SurfacePlaceholder`, aucune lecture | `src/app/settings/page.tsx` |
-| Kit UI — 14 primitives, empreinte SHA-256 | wired | `src/components/ui/`, `check:ui-kit-integrity` |
+| Kit UI — 14 primitives, jetons --aig-*, gate de substance | wired | `src/components/ui/`, `check:ui-kit-integrity` |
 | Tailwind v4 · Headless UI · Heroicons · Recharts | wired | `postcss.config.mjs`, `src/app/globals.css` |
 
 | Ce qui reste supprimé et interdit de retour | |

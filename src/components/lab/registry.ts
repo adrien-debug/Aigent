@@ -104,7 +104,7 @@ export const LAB_PATTERNS = [
     usedBy: 'src/components/ui/sidebar.tsx · src/components/ui/navbar.tsx',
     cost: 'Nul — déjà en production dans le kit.',
     caveat:
-      'Le kit est figé par empreinte SHA (`check:ui-kit-integrity`) : ce pattern se regarde ici, il ne se modifie pas depuis le lab.',
+      'Le kit est protégé contre la PERTE (`check:ui-kit-integrity`) : ce pattern se regarde ici, il ne se modifie pas depuis le lab.',
   },
   {
     id: 'progress',
