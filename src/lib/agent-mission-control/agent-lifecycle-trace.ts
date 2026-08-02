@@ -141,8 +141,11 @@ export interface ConsumerStageFacts {
 export interface VersionDriftReport {
   /** `unknown` when either side lacks a measured value — never guessed as "no drift". */
   state: EvidenceState
+  lastDeliveredVersionId: string | null
   lastDeliveredVersionLabel: string | null
   lastReportedVersion: string | null
+  /** Exact comparison verdict (version id and label), null when drift is unknown. */
+  versionsMatch: boolean | null
   driftDetected: boolean
   detail: string
 }
@@ -176,23 +179,23 @@ export interface LifecycleTrace {
 }
 
 function resolveVersionDrift(
+  versions: CopilotVersion[],
   delivery: DeliveryEvent | null,
   lastTelemetry: LifecycleTraceInput['lastTelemetry'],
   telemetryLookupFailed: boolean
 ): VersionDriftReport {
-  // deliveryVersion is looked up via the delivery event's `versionId` — but
-  // `DeliveryEvent` (delivery-events-store.ts) does not carry `versionId` on
-  // its read shape today (only on the write input). So the delivered label is
-  // resolvable only through the copilot's version list when the delivery
-  // event's target lines up with a known version; absent that join, this is
-  // honestly `unknown` rather than guessed from `productionVersionId`.
-  const lastDeliveredVersionLabel = null as string | null
+  const versionsById = new Map(versions.map((version) => [version.id, version]))
+  const lastDeliveredVersionId = delivery?.versionId ?? null
+  const lastDeliveredVersionLabel =
+    lastDeliveredVersionId === null ? null : (versionsById.get(lastDeliveredVersionId)?.label ?? null)
 
   if (telemetryLookupFailed) {
     return {
       state: 'unknown',
+      lastDeliveredVersionId,
       lastDeliveredVersionLabel,
       lastReportedVersion: null,
+      versionsMatch: null,
       driftDetected: false,
       detail: 'The telemetry lookup failed — version drift cannot be assessed.',
     }
@@ -200,28 +203,57 @@ function resolveVersionDrift(
 
   const lastReportedVersion = lastTelemetry?.agentVersion ?? null
 
-  if (delivery === null || lastReportedVersion === null) {
+  if (delivery === null) {
     return {
       state: 'unknown',
+      lastDeliveredVersionId,
       lastDeliveredVersionLabel,
       lastReportedVersion,
+      versionsMatch: null,
       driftDetected: false,
-      detail:
-        delivery === null
-          ? 'This agent has never been delivered — no delivered version to compare against.'
-          : 'No self-reported version has arrived in telemetry yet — no reported version to compare against.',
+      detail: 'This agent has never been delivered — no delivered version to compare against.',
     }
   }
 
+  if (lastDeliveredVersionId === null) {
+    return {
+      state: 'unknown',
+      lastDeliveredVersionId,
+      lastDeliveredVersionLabel,
+      lastReportedVersion,
+      versionsMatch: null,
+      driftDetected: false,
+      detail: 'The latest delivery row has no version id — delivered version is unknown and cannot be compared.',
+    }
+  }
+
+  if (lastReportedVersion === null) {
+    return {
+      state: 'unknown',
+      lastDeliveredVersionId,
+      lastDeliveredVersionLabel,
+      lastReportedVersion,
+      versionsMatch: null,
+      driftDetected: false,
+      detail: 'No self-reported version has arrived in telemetry yet — no reported version to compare against.',
+    }
+  }
+
+  const matchesDeliveredVersionId = lastReportedVersion === lastDeliveredVersionId
+  const matchesDeliveredLabel =
+    lastDeliveredVersionLabel !== null && lastReportedVersion === lastDeliveredVersionLabel
+  const versionsMatch = matchesDeliveredVersionId || matchesDeliveredLabel
+
   return {
-    state: 'unknown',
+    state: 'measured',
+    lastDeliveredVersionId,
     lastDeliveredVersionLabel,
     lastReportedVersion,
-    driftDetected: false,
-    detail:
-      'A delivery event exists and telemetry has reported a version, but the delivery event does not carry ' +
-      'the version id on its read shape, so the delivered version label cannot be resolved for comparison. ' +
-      'This is a real gap, not a computed match — recorded rather than guessed.',
+    versionsMatch,
+    driftDetected: !versionsMatch,
+    detail: versionsMatch
+      ? 'Delivered version and telemetry-reported version match exactly.'
+      : 'Delivered version and telemetry-reported version differ (version drift detected).',
   }
 }
 
@@ -413,6 +445,6 @@ export function buildLifecycleTrace(input: LifecycleTraceInput): LifecycleTrace 
 
   return {
     stages,
-    versionDrift: resolveVersionDrift(delivery, lastTelemetry, telemetryLookupFailed),
+    versionDrift: resolveVersionDrift(versions, delivery, lastTelemetry, telemetryLookupFailed),
   }
 }

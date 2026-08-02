@@ -7,7 +7,7 @@
  * legitimate artefacts (config, seeding, export) — they simply must never
  * become the catalogue the app serves.
  *
- * Three checks, each on a concrete import/read, never on a vague keyword:
+ * Four checks, each on a concrete import/read, never on a vague keyword:
  *
  *  1. NO ROSTER IN THE APP. `market/agents/roster.ts` and
  *     `dropship/agents/roster.ts` are pure config describing agents that may
@@ -22,6 +22,12 @@
  *     must not hard-code a provider or model name: an unresolved provider is
  *     `null` + `unavailableFields`, never `'openai'`; an unresolved model is
  *     `null`, never `'gpt-…'`.
+ *
+ *  4. NO FABRICATED PROVIDER/MODEL IN THE TRUTH AGGREGATORS.
+ *     `dashboard-overview.ts`, `agent-detail.ts` and `data.ts` are where the
+ *     restoration surfaces read their canonical facts. These files must never
+ *     fallback unresolved provider/model fields to string literals (`?? 'openai'`,
+ *     `|| 'gpt-…'`, `provider: 'openai'` in a derivation path).
  *
  * ANTI-CÉCITÉ (sonde du 26/07/2026). Les trois checks sont ancrés sur des
  * CHEMINS EN DUR. Un renommage les efface sans un mot — mesuré : en renommant
@@ -45,6 +51,11 @@ const RUNTIME_DIRS = ['app', 'components']
 
 /** The canonical agent contract — check 3 is meaningless if it moves. */
 const CONTRACT_REL = 'lib/agent-mission-control/available-agents.ts'
+const AGGREGATOR_TRUTH_RELS = [
+  'lib/agent-mission-control/dashboard-overview.ts',
+  'lib/agent-mission-control/agent-detail.ts',
+  'lib/agent-mission-control/data.ts',
+]
 
 /**
  * Les cibles que les regex prétendent garder. Si l'une disparaît, la règle
@@ -82,6 +93,13 @@ const FABRICATED_FALLBACK_RE = new RegExp(
   `(?:provider|model)\\w*\\s*(?:\\?\\?|\\|\\|)\\s*['"]${FABRICATED_LITERAL}['"]`,
   'i'
 )
+const FABRICATED_AGGREGATOR_FALLBACK_RE = new RegExp(
+  `(?:provider|resolvedProvider|model|resolvedModel|configuredModel|executedModel)\\w*\\s*(?:\\?\\?|\\|\\|)\\s*['"]${FABRICATED_LITERAL}['"]`,
+  'i'
+)
+const FABRICATED_AGGREGATOR_ASSIGNMENT_RE = new RegExp(
+  `(?:provider|resolvedProvider|model|resolvedModel|configuredModel|executedModel)\\s*[:=]\\s*['"]${FABRICATED_LITERAL}['"]`
+)
 
 async function* walk(dir) {
   let entries
@@ -105,9 +123,11 @@ async function main() {
   const rosterInApp = []
   const deliveryInApp = []
   const fabricatedDefaults = []
+  const fabricatedAggregatorValues = []
   // Compteurs d'aveuglement : ce que la gate a RÉELLEMENT ouvert.
   let runtimeFilesScanned = 0
   let contractSeen = false
+  const seenAggregatorFiles = new Set()
 
   for await (const file of walk(SRC)) {
     const rel = relative(SRC, file)
@@ -131,6 +151,16 @@ async function main() {
         }
       })
     }
+
+    if (AGGREGATOR_TRUTH_RELS.includes(rel)) {
+      seenAggregatorFiles.add(rel)
+      text.split('\n').forEach((line, i) => {
+        if (line.trimStart().startsWith('*') || line.trimStart().startsWith('//')) return
+        if (FABRICATED_AGGREGATOR_FALLBACK_RE.test(line) || FABRICATED_AGGREGATOR_ASSIGNMENT_RE.test(line)) {
+          fabricatedAggregatorValues.push(`${relative(ROOT, file)}:${i + 1}  ${line.trim()}`)
+        }
+      })
+    }
   }
 
   // ── Garde-fou anti-cécité, AVANT tout verdict ─────────────────────────────
@@ -141,6 +171,11 @@ async function main() {
   }
   if (!contractSeen) {
     blind.push(`le contrat canonique src/${CONTRACT_REL} n'a pas été rencontré — le check 3 n'a rien inspecté`)
+  }
+  for (const rel of AGGREGATOR_TRUTH_RELS) {
+    if (!seenAggregatorFiles.has(rel)) {
+      blind.push(`agrégateur de vérité non scanné : src/${rel} — le check 4 n'a pas couvert ce fichier`)
+    }
   }
   for (const target of GUARDED_TARGETS) {
     try {
@@ -168,6 +203,10 @@ async function main() {
   report(rosterInApp, 'agent roster(s) imported by a runtime path (config ≠ provisioned copilot)')
   report(deliveryInApp, 'static delivery package(s) read by a runtime path (snapshot ≠ live registry)')
   report(fabricatedDefaults, 'fabricated provider/model default(s) in the canonical agent contract')
+  report(
+    fabricatedAggregatorValues,
+    'fabricated provider/model fallback(s) in lifecycle truth aggregators'
+  )
 
   if (failed) {
     console.error('\nRuntime-truth guard FAILED.\n')

@@ -83,6 +83,9 @@ State the restriction, not the headline:
 - **Telemetry** is aggregated in `dashboard-overview.ts` and `agent-detail.ts`,
   and surfaced on `/` and `/runs`. A run that reported no usage shows
   `Non mesuré` — never a fabricated `0` (`docs/metrics-canon.md`).
+- **Lifecycle version drift** is computed from persisted evidence only:
+  `agent_delivery_events.version_id` vs `runtime_telemetry_events.agent_version`.
+  Missing proof stays `unknown`; no timestamp/name/position inference.
 - **Tool builder** works, but only `count_words` has a sandbox.
 - **Provider `mistral`** is declared and **not wired** — it throws a typed error
   rather than falling back silently.

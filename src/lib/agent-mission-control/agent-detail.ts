@@ -182,8 +182,10 @@ function computeMetrics(runs: AgentRun[]): AgentMetrics {
   const avgDurationMs =
     durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : null
 
-  const costed = recent.filter((r) => typeof r.costUsd === 'number' && Number.isFinite(r.costUsd))
-  const cost24hUsd = costed.length > 0 ? costed.reduce((a, r) => a + (r.costUsd ?? 0), 0) : null
+  const costed = recent
+    .map((r) => r.costUsd)
+    .filter((costUsd): costUsd is number => typeof costUsd === 'number' && Number.isFinite(costUsd))
+  const cost24hUsd = costed.length > 0 ? costed.reduce((sum, costUsd) => sum + costUsd, 0) : null
 
   // Tool-call count is only a MEASUREMENT over runs that actually reached
   // completion: an aborted/running/blocked run's `tool_call_count` reflects how
@@ -193,8 +195,13 @@ function computeMetrics(runs: AgentRun[]): AgentMetrics {
   // the "healthy catalogue / toolless execution" trap) is preserved as 0, not
   // collapsed into "no data".
   const completed = runs.filter((r) => r.status === 'completed')
+  const completedToolCallCounts = completed
+    .map((run) => run.toolCallCount)
+    .filter((count): count is number => typeof count === 'number' && Number.isFinite(count))
   const toolCallCount =
-    completed.length > 0 ? completed.reduce((a, r) => a + (r.toolCallCount ?? 0), 0) : null
+    completed.length > 0 && completedToolCallCounts.length === completed.length
+      ? completedToolCallCounts.reduce((sum, count) => sum + count, 0)
+      : null
   const toolCallCountState: AgentMetrics['toolCallCountState'] =
     toolCallCount === null ? 'UNKNOWN' : 'MEASURED'
 

@@ -328,6 +328,7 @@ vi.mock('@/lib/agent-mission-control/repo-intelligence-store', () => ({
 vi.mock('@/lib/agent-mission-control/delivery-events-store', () => ({
   getLatestDeliveryEvent: vi.fn(async () => ({
     id: 'd1',
+    versionId: 'v1',
     mode: 'pull_request',
     targetRepo: 'adrien-debug/TradeAgent',
     targetBranch: 'main',

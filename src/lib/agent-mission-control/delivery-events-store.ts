@@ -34,6 +34,7 @@ export interface DeliveryEventInput {
 
 export interface DeliveryEvent {
   id: string
+  versionId: string | null
   mode: PushAgentDeliveryMode
   targetRepo: string
   targetBranch: string | null
@@ -75,6 +76,7 @@ export async function getLatestDeliveryEvent(copilotId: string): Promise<Deliver
   if (!row) return null
   return {
     id: row.id as string,
+    versionId: (row.version_id as string | null) ?? null,
     mode: row.mode as PushAgentDeliveryMode,
     targetRepo: row.target_repo as string,
     targetBranch: (row.target_branch as string | null) ?? null,

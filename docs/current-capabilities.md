@@ -83,8 +83,9 @@ opérateur ; l'API sous `/api/agent-ops/**` reste la voie d'automatisation.
 | Runtime API v1 — le consommateur lit ses agents et poste ses runs | backend-only | `src/app/api/runtime/v1/**` (7 routes), `runtime-catalogue.ts` |
 
 **Après provisioning, Aigent ne fait que POUSSER.** Les gestes activate / rebind /
-deploy-version appartiennent au workspace consommateur — c'est la raison
-structurelle pour laquelle `active_in_consumer` reste `unknown`.
+deploy-version appartiennent au workspace consommateur. Le lifecycle ne déduit
+jamais `active_in_consumer` d'une livraison ni de la télémétrie brute : le seul
+verdict admissible vient de `consumer-activation.ts`.
 
 ## Télémétrie
 
