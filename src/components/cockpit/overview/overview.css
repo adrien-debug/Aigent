@@ -23,5 +23,11 @@
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .overview-zone {
+    gap: 1.75rem;
+  }
 }

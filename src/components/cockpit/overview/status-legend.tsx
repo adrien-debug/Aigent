@@ -3,19 +3,18 @@ import { RUN_STATUS_COLOR, RUN_STATUS_LABEL } from '@/lib/cockpit/status'
 
 export function StatusLegend({ slices }: Readonly<{ slices: StatusSlice[] }>) {
   return (
-    <p className="aig-text-muted flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-      {slices.map((slice, index) => (
-        <span key={slice.status} className="inline-flex items-center gap-1.5 tabular-nums">
-          {index > 0 ? <span className="aig-text-faint hidden sm:inline" aria-hidden>·</span> : null}
+    <ul className="grid min-w-0 grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3 lg:grid-cols-5">
+      {slices.map((slice) => (
+        <li key={slice.status} className="flex min-w-0 items-center gap-1.5 text-xs tabular-nums">
           <span
             aria-hidden
             className="size-1.5 shrink-0 rounded-full"
-            style={{ background: RUN_STATUS_COLOR[slice.status], opacity: slice.count === 0 ? 0.35 : 1 }}
+            style={{ background: RUN_STATUS_COLOR[slice.status] }}
           />
-          <span>{RUN_STATUS_LABEL[slice.status]}</span>
-          <span className="aig-text-faint">{slice.count}</span>
-        </span>
+          <span className="aig-text-muted truncate">{RUN_STATUS_LABEL[slice.status]}</span>
+          <span className="aig-text-faint shrink-0">{slice.count}</span>
+        </li>
       ))}
-    </p>
+    </ul>
   )
 }

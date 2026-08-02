@@ -7,9 +7,8 @@ import { PageBody, PageHeader } from '@/components/app-shell'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/components/ui/link'
-import { Text } from '@/components/ui/text'
 import { Unavailable, initialsOf } from '@/components/cockpit/primitives'
-import { SeverityChip, SurfaceSection, type SeverityTone } from '@/components/surface-primitives'
+import { SeverityChip, type SeverityTone } from '@/components/surface-primitives'
 import type { DashboardOverview, ProjectOverviewItem } from '@/lib/agent-mission-control/dashboard-overview'
 import { buildHourlyBuckets, buildStatusBreakdown } from '@/lib/cockpit/overview-series'
 import type { HourlyBucket } from '@/lib/cockpit/overview-series'
@@ -18,24 +17,34 @@ import type { NamedRun } from '@/lib/cockpit/named-runs'
 import ActivityGraph from './activity-graph'
 import KpiStrip from './kpi-strip'
 import RunStream from './run-stream'
+import { OverviewSection } from './section'
 import { StatusLegend } from './status-legend'
 
 const ENTRY = navEntry('/')
 
+function hasActivity(buckets: HourlyBucket[] | null): boolean {
+  return buckets !== null && buckets.some((bucket) => bucket.total > 0)
+}
+
 function ActivityPanel({ buckets }: Readonly<{ buckets: HourlyBucket[] | null }>) {
   if (buckets === null) {
     return (
-      <Unavailable reason="unread" detail="La fenêtre de runs n'a pas pu être lue." />
+      <Unavailable reason="unread" detail="La courbe d'activité n'a pas pu être lue sur la fenêtre." />
     )
   }
-  if (buckets.every((bucket) => bucket.total === 0)) {
-    return (
-      <Text className="aig-text-faint text-sm">
-        Aucun run sur les dernières 24 heures — la fenêtre a bien été lue.
-      </Text>
-    )
-  }
+  if (!hasActivity(buckets)) return null
   return <ActivityGraph buckets={buckets} />
+}
+
+function FluxAbsentLine() {
+  return (
+    <p className="aig-text-faint flex min-w-0 flex-wrap items-baseline gap-x-2 text-xs">
+      <span>Aucun run sur les dernières 24 h — fenêtre lue.</span>
+      <Link href="/runs" className="overview-link shrink-0 no-underline">
+        Historique complet →
+      </Link>
+    </p>
+  )
 }
 
 function RunStreamPanel({
@@ -43,10 +52,7 @@ function RunStreamPanel({
   nowMs,
 }: Readonly<{ runs: NamedRun[] | null; nowMs: number }>) {
   if (runs === null) {
-    return <Unavailable reason="unread" detail="La fenêtre de runs n'a pas pu être lue." />
-  }
-  if (runs.length === 0) {
-    return <Unavailable reason="no-data" detail="Aucun run sur les dernières 24 heures." />
+    return <Unavailable reason="unread" detail="Le flux de runs n'a pas pu être lu." />
   }
   return <RunStream runs={runs} nowMs={nowMs} />
 }
@@ -67,7 +73,10 @@ function ProjectList({ projects }: Readonly<{ projects: ProjectOverviewItem[] }>
           <li key={project.id} className="aig-line-soft border-b last:border-b-0">
             <Link
               href={`/projects/${project.id}`}
-              className="flex items-center gap-2.5 px-1 py-2.5 no-underline hover:bg-(--aig-line-soft) focus-visible:bg-(--aig-line-soft) focus-visible:outline-hidden"
+              className={clsx(
+                'flex items-center gap-2.5 px-1 no-underline hover:bg-(--aig-line-soft) focus-visible:bg-(--aig-line-soft) focus-visible:outline-hidden',
+                empty ? 'py-2' : 'py-2.5',
+              )}
             >
               <Avatar
                 square
@@ -77,23 +86,25 @@ function ProjectList({ projects }: Readonly<{ projects: ProjectOverviewItem[] }>
               <span className="min-w-0 flex-1">
                 <span
                   className={clsx(
-                    'aig-text block truncate text-sm font-medium',
-                    empty && 'aig-text-muted',
+                    'block truncate text-sm',
+                    empty ? 'aig-text-faint font-normal' : 'aig-text font-medium',
                   )}
                 >
                   {project.name}
                 </span>
-                <span className="aig-text-muted block truncate text-xs">
-                  {project.repoFullName ?? 'aucun dépôt lié'}
+                <span className="aig-text-faint block truncate text-xs">
+                  {empty
+                    ? 'aucun agent'
+                    : (project.repoFullName ?? 'aucun dépôt lié')}
                 </span>
               </span>
-              <span className="aig-text shrink-0 text-right tabular-nums">
+              <span className="aig-text-faint shrink-0 text-right text-xs tabular-nums">
                 {empty ? (
-                  <span className="aig-text-faint text-xs">—</span>
+                  '—'
                 ) : (
                   <>
-                    <span className="font-medium tabular-nums">{project.activeCount}</span>
-                    <span className="aig-text-faint">/{project.copilotCount}</span>
+                    <span className="aig-text font-medium tabular-nums">{project.activeCount}</span>
+                    <span>/{project.copilotCount}</span>
                   </>
                 )}
               </span>
@@ -107,7 +118,7 @@ function ProjectList({ projects }: Readonly<{ projects: ProjectOverviewItem[] }>
 
 function ProjectsBlock({ overview }: Readonly<{ overview: DashboardOverview }>) {
   return (
-    <SurfaceSection
+    <OverviewSection
       title="Projets"
       hint={`${overview.projects.length} au catalogue`}
       actions={sectionLink('/projects', 'Catalogue →')}
@@ -117,22 +128,21 @@ function ProjectsBlock({ overview }: Readonly<{ overview: DashboardOverview }>) 
       ) : (
         <ProjectList projects={overview.projects} />
       )}
-    </SurfaceSection>
+    </OverviewSection>
   )
 }
 
 function EventsBlock({ overview }: Readonly<{ overview: DashboardOverview }>) {
   return (
-    <SurfaceSection
+    <OverviewSection
       title="Événements importants"
       hint={`${overview.actionItems.length} signal(aux)`}
       actions={sectionLink('/actions', 'File complète →')}
     >
       {overview.actionItems.length === 0 ? (
-        <Unavailable
-          reason="no-data"
-          detail="Aucun signal bloquant sur la fenêtre actuelle. La lecture a réussi."
-        />
+        <p className="aig-text-faint text-xs">
+          Aucun signal bloquant sur la fenêtre actuelle — lecture réussie.
+        </p>
       ) : (
         <ul className="min-w-0">
           {overview.actionItems.slice(0, 6).map((item) => (
@@ -149,17 +159,7 @@ function EventsBlock({ overview }: Readonly<{ overview: DashboardOverview }>) {
           ))}
         </ul>
       )}
-    </SurfaceSection>
-  )
-}
-
-function CatalogColumn({ overview }: Readonly<{ overview: DashboardOverview }>) {
-  return (
-    <>
-      <ProjectsBlock overview={overview} />
-      <div className="aig-hairline my-4" />
-      <EventsBlock overview={overview} />
-    </>
+    </OverviewSection>
   )
 }
 
@@ -187,6 +187,8 @@ export default function CockpitOverview({
   const runs = buildNamedRuns(overview.windowRuns, overview.copilots, overview.projectRows)
   const unread = overview.windowRuns === null
   const hasRuns = runs !== null && runs.length > 0
+  const windowEmpty = !unread && overview.kpis.runs24h === 0
+  const showActivity = hasActivity(buckets)
 
   return (
     <>
@@ -208,70 +210,68 @@ export default function CockpitOverview({
 
       <PageBody>
         <section
-          className="aig-stage aig-accent-edge flex min-w-0 flex-col gap-8 px-3 py-4 sm:px-5 sm:py-5"
+          className={clsx(
+            'aig-stage aig-accent-edge flex min-w-0 flex-col px-4 py-5 sm:px-6 sm:py-6',
+            showActivity ? 'gap-8' : 'gap-6',
+          )}
           aria-label={ENTRY.name}
         >
-          {/* Zone signal — KPI d’abord, courbe seulement si elle porte de l’info */}
           <div className="overview-zone">
-            <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <p className="aig-text-faint text-2xs font-medium uppercase tracking-[0.18em]">
-                  Fenêtre 24 heures
-                </p>
-                <h2 className="aig-h2 mt-1">Activité de la flotte</h2>
-              </div>
-              {slices ? (
-                <div className="min-w-0 sm:max-w-md sm:pt-1">
-                  <StatusLegend slices={slices} />
-                </div>
-              ) : (
-                <p className="aig-text-faint text-xs">fenêtre non lue</p>
-              )}
-            </header>
+            <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-end lg:justify-between lg:gap-6">
+              <p className="aig-text-faint text-2xs font-medium uppercase tracking-[0.18em]">
+                Fenêtre 24 heures
+                {unread ? ' · non lue' : windowEmpty ? ' · lue, vide' : null}
+              </p>
+              {slices ? <StatusLegend slices={slices} /> : null}
+            </div>
 
             <KpiStrip kpis={overview.kpis} unread={unread} />
-            <ActivityPanel buckets={buckets} />
+
+            {showActivity ? (
+              <>
+                <div className="aig-hairline" />
+                <ActivityPanel buckets={buckets} />
+              </>
+            ) : windowEmpty ? (
+              <FluxAbsentLine />
+            ) : unread ? (
+              <Unavailable reason="unread" detail="La fenêtre de runs n'a pas pu être lue." />
+            ) : null}
           </div>
 
           <div className="aig-hairline" />
 
-          {/* Zone opérations — grille adaptée : pas de colonne vide quand le flux est vide */}
           <div className="overview-zone">
-            <header>
+            <header className="min-w-0">
               <h2 className="aig-h2">Opérations & catalogue</h2>
-              <Text className="aig-text-faint mt-1 text-xs">
-                Flux récent, projets et signaux de la fenêtre courante
-              </Text>
+              <p className="aig-text-faint mt-1 text-xs">
+                {hasRuns
+                  ? 'Flux récent, projets et signaux de la fenêtre courante'
+                  : 'Signaux et projets — flux vide sur la fenêtre 24 h'}
+              </p>
             </header>
 
             {hasRuns ? (
-              <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-                <SurfaceSection
+              <div className="grid min-w-0 grid-cols-1 gap-8 xl:grid-cols-2 xl:gap-10">
+                <OverviewSection
                   title="Flux d'exécution"
                   hint={`${runs.length} sur la fenêtre`}
                   actions={sectionLink('/runs', 'Tous les runs →')}
                 >
-                  <RunStreamPanel runs={runs} nowMs={nowMs} />
-                </SurfaceSection>
+                  <div className="aig-inset min-h-0 p-3 sm:p-4">
+                    <RunStreamPanel runs={runs} nowMs={nowMs} />
+                  </div>
+                </OverviewSection>
 
-                <div className="flex min-w-0 flex-col xl:aig-line-soft xl:border-l xl:pl-5">
-                  <CatalogColumn overview={overview} />
-                </div>
-              </div>
-            ) : (
-              <div className="flex min-w-0 flex-col gap-6">
-                <SurfaceSection
-                  title="Flux d'exécution"
-                  hint={runs ? '0 sur la fenêtre' : undefined}
-                  actions={sectionLink('/runs', 'Tous les runs →')}
-                >
-                  <RunStreamPanel runs={runs} nowMs={nowMs} />
-                </SurfaceSection>
-
-                <div className="grid min-w-0 grid-cols-1 gap-6 md:grid-cols-2">
+                <div className="flex min-w-0 flex-col gap-8 xl:gap-10">
                   <ProjectsBlock overview={overview} />
                   <EventsBlock overview={overview} />
                 </div>
+              </div>
+            ) : (
+              <div className="grid min-w-0 grid-cols-1 gap-8 md:grid-cols-2 md:items-start md:gap-10">
+                <EventsBlock overview={overview} />
+                <ProjectsBlock overview={overview} />
               </div>
             )}
           </div>
