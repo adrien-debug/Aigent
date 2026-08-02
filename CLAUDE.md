@@ -155,11 +155,27 @@ prouve uniquement ce que cette gate mesure — la carte des angles morts est dan
 
 ## 8. Front & design — libre
 
-Le futur front est libre. **Aucune règle de ce repository n'impose** Storybook,
-Catalyst, Tailwind, une palette, une typographie, un kit de composants, une
-structure de navigation, un système de tokens, une architecture de composants ou
-une doctrine visuelle. Aucune gate visuelle n'existe, et il ne faut pas en
-réintroduire une sans mission dédiée.
+Le futur front est libre, avec une frontière claire entre **production** et
+**exploration**.
+
+Sur les surfaces de **production**, on garde la cohérence sémantique :
+
+- une seule autorité de statut métier à la fois ;
+- les couleurs sémantiques passent par l'autorité de production en cours
+  (aujourd'hui les jetons `--aig-*`) ;
+- focus, disabled et accessibilité restent fiables ;
+- aucune valeur absente n'est inventée.
+
+Cette autorité est **actuelle**, pas éternelle : un token, une primitive ou le
+kit UI peuvent évoluer dans une mission dédiée, validée explicitement.
+
+Sur les surfaces **Composer / Lab / Prototype**, l'exploration est libre :
+palettes locales, gradients, classes Tailwind directes, composants
+expérimentaux, Motion/React Flow/canvas/visualisations. Une exploration ne
+devient jamais une règle produit automatiquement.
+
+Catalyst est un **outil disponible**, pas une obligation globale. Aucune gate ne
+doit figer un layout, une esthétique, une palette de marque ou une typographie.
 
 Ce qui reste, et qui ne touche pas au visuel :
 

@@ -17,7 +17,10 @@
  *     importe. Une mission « sortir de Catalyst » avait supprimé 2438 lignes
  *     pour en écrire 257 : `Button` était tombé de 6 couleurs consommées à 4.
  *
- *  2. CIBLE TACTILE — `TouchTarget` conserve sa zone de 44 px. La même mission
+ *  2. CIBLE TACTILE — `TouchTarget` conserve sa zone de 44 px en contexte
+ *     tactile (mobile / pointer coarse). En pointeur fin (desktop dense), le
+ *     contrôle compact reste permis.
+ *     La même mission
  *     l'avait vidée de sa substance ; les 15 gates sont restées vertes, le
  *     build aussi, les 2105 tests aussi (revert `5e2aa63`).
  *
@@ -28,7 +31,8 @@
  *  4. AUTORITÉ VISUELLE UNIQUE — aucune couleur Tailwind brute (`zinc-*`,
  *     `white`, `blue-500`…) ne revient dans le kit. C'est la règle qui empêche
  *     la double autorité de se reformer fichier par fichier. Le détail est
- *     tenu par `check:legacy-design-doctrine`, qui scanne le kit ; ici on garde
+ *     tenu par `check:production-visual-authority`, qui scanne la production ;
+ *     ici on garde
  *     un filet indépendant pour que la règle survive à la suppression de
  *     l'autre gate.
  *
@@ -237,8 +241,10 @@ if (unprotected.length > 0) {
 }
 
 // ------------------------------------------------------- 2. CIBLE TACTILE
-// La zone de confort de 44 px ne se lit pas dans un rendu : elle vit dans un
-// `span` absolu dont la taille est écrite en toutes lettres.
+// La zone de confort de 44 px vaut pour les interactions tactiles ; desktop
+// dense reste compact. Ici on vérifie la présence des deux parties :
+// - le plancher 44 px (`max(100%,2.75rem)`)
+// - la clause de scope tactile (`pointer-fine:hidden`)
 const button = markup['button.tsx']
 if (button) {
   if (!/TouchTarget/.test(button)) {
@@ -246,6 +252,10 @@ if (button) {
   } else if (!/\[max\(100%,2\.75rem\)\]/.test(button)) {
     errors.push(
       'CIBLE TACTILE       button.tsx → `TouchTarget` ne garantit plus 2.75rem (44 px)',
+    )
+  } else if (!/pointer-fine:hidden/.test(button)) {
+    errors.push(
+      'CIBLE TACTILE       button.tsx → `TouchTarget` doit rester scope tactile (`pointer-fine:hidden`)',
     )
   }
 }
@@ -317,7 +327,7 @@ if (errors.length === 0) {
     `  ${Object.keys(REQUIRED).length} primitive(s), ${Object.values(REQUIRED).flat().length} export(s) consommé(s) vérifié(s).`,
   )
   console.log(
-    '  Cible tactile 44 px, marqueurs d’accessibilité présents, 0 couleur Tailwind brute.',
+    '  Cible tactile 44 px (scope tactile), marqueurs d’accessibilité présents, 0 couleur Tailwind brute.',
   )
   console.log(
     '  Ne garantit PAS que les écrans l’utilisent ni que les primitives fonctionnent : cette gate lit du texte, pas un rendu.',

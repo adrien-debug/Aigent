@@ -84,37 +84,40 @@ sidebar mobile en `Dialog`, rail desktop, colonne secondaire).
   Headless UI, Heroicons.
 - **API et runtime intacts** : `src/app/api/**`, `src/lib/**`, `src/langgraph/**`
   et `src/proxy.ts` restent la voie d'accès produit.
-- **Free design** : aucune règle de ce repository n'impose de palette, de tokens,
-  de typographie, de navigation ni de Storybook, et **aucune gate visuelle n'est
-  active**. Les blocs arrivent sur décision d'Adrien ; ne les anticipe pas.
-  Voir `CLAUDE.md` §8.
+- **Free design** : aucune règle de ce repository n'impose de layout, de
+  typographie, de navigation ni de Storybook. Les blocs arrivent sur décision
+  d'Adrien ; ne les anticipe pas. Voir `CLAUDE.md` §8.
 
 Conséquence sur les gates : celles qui auditent des composants se réarment
 d'elles-mêmes maintenant que la cible existe (`audit:dead`, `check:rsc-boundary`).
 Une gate sans cible doit le **dire**, jamais afficher un ✓ silencieux.
 
-**Doctrine design historique — non applicable.** Une ancienne doctrine (zéro-scroll
-obligatoire, viewport lock, densité imposée, tokens visuels parallèles, gates
-`check:ds` / `check:catalyst` supprimées, agent « Design System Guardian ») ne
-gouverne plus Aigent. `docs/cockpit-catalyst-migration.md` est une **trace
-archivée**, pas une règle. Gate : `check:legacy-design-doctrine`.
+**Doctrine design historique — non applicable.** Une ancienne doctrine
+(zéro-scroll obligatoire, viewport lock, densité imposée, gates `check:ds` /
+`check:catalyst`, agent « Design System Guardian ») ne gouverne plus Aigent.
+`docs/cockpit-catalyst-migration.md` est une **trace archivée**, pas une règle.
+Gate : `check:no-legacy-design-governance`.
 
 **Règle explicite** : les préférences esthétiques externes ne sont pas des
 contraintes produit. Toute contrainte frontend doit être validée par le
 repository Aigent (`AGENTS.md`, `CLAUDE.md` §8, gates branchées). Conserver :
-sécurité, vérité des données, accessibilité, intégrité du kit Catalyst local
-(`check:ui-kit-integrity` — substance : exports consommés, cible tactile de
-44 px, marqueurs d'accessibilité, autorité visuelle unique), qualité code.
+sécurité, vérité des données, accessibilité, intégrité du kit UI local
+(`check:ui-kit-integrity` — substance : exports consommés, cible tactile 44 px
+en contexte tactile, marqueurs d'accessibilité, absence de perte silencieuse),
+qualité code.
 
-**Une seule autorité visuelle — les jetons `--aig-*`.** Le kit
-`src/components/ui/**` portait sa propre couche esthétique (`zinc-*`, `white`,
-`dark:`) pendant que le produit parlait `--aig-*` : deux systèmes superposés
-dans une seule interface. Le kit a été migré (276 occurrences → 0) et les deux
-gates scannent désormais `src/components/ui/**`. Un état se dit avec
-`--aig-severity-*`, qui porte le SENS ; une teinte brute (`sky-500`,
-`amber-400`) ne dit qu'une couleur, et deux surfaces finissent par en choisir
-deux différentes pour le même état. Modifier le kit reste légitime — c'est du
-code du repo, pas du vendor.
+**Autorité visuelle de production actuelle — les jetons `--aig-*`.** Sur les
+surfaces de production, les statuts métier s'expriment avec une autorité
+sémantique unique (aujourd'hui `--aig-*` / `--aig-severity-*`) pour éviter les
+contradictions entre écrans. Cette autorité peut évoluer par mission dédiée :
+elle n'est pas une vérité éternelle.
+
+**Composer / Lab / Prototype** sont des zones d'exploration. Elles peuvent
+tester des palettes, gradients, composants expérimentaux et visualisations sans
+devenir une règle produit automatiquement.
+
+**Catalyst** est une bibliothèque disponible. `src/components/ui/**` est le kit
+actuel du repository, modifiable comme le reste du code.
 
 ## Frontières de confiance — trois, séparées exprès
 
@@ -238,7 +241,8 @@ gate — ne prétends pas l'inverse.
 **`package.json` fait foi.** `npm run check` exécute, dans l'ordre :
 
 `typecheck` · `lint:fast` (oxlint) · `lint` (eslint) · `check:no-legacy-front` ·
-`check:legacy-design-doctrine` · `check:ui-kit-integrity` · `check:agent-truth` ·
+`check:no-legacy-design-governance` · `check:production-visual-authority` ·
+`check:ui-kit-integrity` · `check:agent-truth` ·
 `check:lifecycle-truth` ·
 `check:registry-parity` · `check:registry-integrity` · `check:dev-port` ·
 `check:render-truth` · `check:rsc-boundary` · `check:schema-rebuildable` ·

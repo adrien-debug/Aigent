@@ -25,7 +25,12 @@ function nextRepoIntelligence(): RepoIntelligence {
       repo: { owner: 'hearst', name: 'console', branch: 'main' },
       stack: ['next', 'react', 'tailwind', 'typescript'],
       packageManager: 'npm',
-      scripts: { dev: 'next dev', 'check:ds': 'node scripts/check-palette.mjs', 'check:catalyst': 'node scripts/check-catalyst.mjs', test: 'vitest run' },
+      scripts: {
+        dev: 'next dev',
+        'check:no-legacy-design-governance': 'node scripts/check-no-legacy-design-governance.mjs',
+        'check:production-visual-authority': 'node scripts/check-production-visual-authority.mjs',
+        test: 'vitest run',
+      },
       appRoutes: ['/admin', '/admin/agents'],
       apiRoutes: ['/api/agent-ops/copilots', '/api/agent-ops/projects'],
       components: ['Button', 'Table'],
@@ -33,7 +38,7 @@ function nextRepoIntelligence(): RepoIntelligence {
       tests: ['tests/unit/x.test.ts'],
       configFiles: ['tsconfig.json'],
       docs: ['README.md'],
-      designSystemSignals: ['Catalyst primitives', 'check:catalyst gate'],
+      designSystemSignals: ['UI primitives', 'Production visual authority gate'],
       envSignals: ['OPENAI_API_KEY', 'SUPABASE_SERVICE_ROLE_KEY'],
       riskNotes: ['mutating API routes without auth gate', 'secrets referenced in env'],
       scannedAt: '2026-07-16T00:00:00Z',
@@ -71,7 +76,7 @@ describe('buildRepoSuiteContext', () => {
     const ctx = buildRepoSuiteContext(nextRepoIntelligence())
     expect(ctx).not.toBeNull()
     expect(ctx!.stack).toContain('next')
-    expect(ctx!.scripts).toContain('check:catalyst') // script NAMES, not commands
+    expect(ctx!.scripts).toContain('check:production-visual-authority') // script NAMES, not commands
     expect(ctx!.apiRoutes).toContain('/api/agent-ops/copilots')
     expect(ctx!.designSystemSignals.length).toBeGreaterThan(0)
     expect(ctx!.envSignals).toContain('OPENAI_API_KEY')
@@ -136,7 +141,7 @@ describe('buildGeneratorRequest — repo-aware path', () => {
     const payload = req.userPayload.repoContext as Record<string, unknown>
     expect(payload).toBeDefined()
     // Real scripts/routes are present so the LLM can ground tests on them.
-    expect(payload.scripts).toContain('check:catalyst')
+    expect(payload.scripts).toContain('check:production-visual-authority')
     expect(payload.apiRoutes).toContain('/api/agent-ops/copilots')
     expect(payload.envSignals).toContain('OPENAI_API_KEY')
     // The system prompt now demands repo-grounded + no-invention.

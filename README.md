@@ -51,20 +51,30 @@ desktop/mobile, revue visuelle R2 dans
 | Marketing `(site)/`, `/login`, `src/theme.css` | **Absents** et interdits de retour |
 | API · Backend | **Actifs** — `src/app/api/**`, `src/lib/**`, LangGraph, migrations |
 
-**Le design est libre** : aucune palette, aucun token, aucune structure de page
-n'est imposée (`CLAUDE.md` §8). Le kit `ui/` est un outil disponible, pas une
-obligation — les écrans peuvent s'en écarter.
+**Le design est libre** : aucun layout, aucune typographie, aucune navigation ni
+esthétique permanente n'est imposée (`CLAUDE.md` §8). Sur les surfaces de
+production, les jetons `--aig-*` restent l'autorité sémantique actuelle ; le
+kit `ui/` est un outil disponible, pas une obligation globale.
 
-Deux gates encadrent le front, et **aucune des deux ne juge l'esthétique** :
+`/lab` (Composer/Lab/Prototype) est une **surface d'exploration** : elle ne crée
+aucune règle produit et ne contourne ni l'accessibilité, ni la vérité des
+données, ni la sécurité. Une promotion vers une surface production exige revue
+humaine, normalisation sémantique, responsive, a11y et tests adaptés.
+
+Trois gates encadrent le front, avec responsabilités séparées :
 - `check:no-legacy-front` — refuse le retour des surfaces démolies ;
   `src/components/` est autorisé.
-- `check:legacy-design-doctrine` — bloque la réinjection de l'ancienne doctrine
-  layout (zéro-scroll, DS Guardian, gates `check:ds`/`check:catalyst` supprimées)
-  et scanne les surfaces Factory reconstruites contre les couleurs structurelles
-  interdites (`zinc-*`, `gray-*`, `slate-*`, `dark:*`, `bg/text white/black`,
-  `hex`, `rgb/rgba/hsl` hors thème global).
+- `check:no-legacy-design-governance` — bloque uniquement le retour de l'ancienne
+  doctrine (zéro-scroll obligatoire, viewport lock, DS Guardian, `check:ds`,
+  `check:catalyst`, sync externe de gouvernance).
+- `check:production-visual-authority` — garde uniquement les surfaces de
+  production : autorité sémantique unique des statuts, pas de palette parallèle
+  structurante, pas de couleur littérale hors thème dans les écrans produit.
+  Exclusions explicites : `Composer`/`Lab`, prototypes, visualisations externes,
+  fichiers globaux de tokens.
 - `check:ui-kit-integrity` — vérifie la **substance** du kit `ui/` : les 14
-  primitives et leurs 43 exports consommés, la cible tactile de 44 px, les
+  primitives et leurs 43 exports consommés, la cible tactile de 44 px en
+  contexte tactile, les
   marqueurs d'accessibilité, et zéro couleur Tailwind brute. Elle interdit la
   **perte**, pas le changement : modifier une primitive est légitime et ne
   demande aucune régénération.
@@ -148,7 +158,7 @@ npm run test:live  # opt-in — tape gpu1 + OpenAI, coûte de l'argent
 ```
 
 `npm run check` enchaîne, dans l'ordre : `typecheck` · `lint:fast` · `lint` ·
-`check:no-legacy-front` · `check:legacy-design-doctrine` · `check:ui-kit-integrity` · `check:agent-truth` ·
+`check:no-legacy-front` · `check:no-legacy-design-governance` · `check:production-visual-authority` · `check:ui-kit-integrity` · `check:agent-truth` ·
 `check:lifecycle-truth` · `check:registry-parity` · `check:registry-integrity` ·
 `check:dev-port` · `check:render-truth` · `check:rsc-boundary` ·
 `check:schema-rebuildable` · `check:secrets` · `audit:dead`. Le premier rouge
