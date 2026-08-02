@@ -444,6 +444,33 @@ describe('POST /api/runtime-telemetry/consumer', () => {
     expect(insertedRows).toHaveLength(0)
   })
 
+  it('34c — non-delivered delivery event is rejected', async () => {
+    deliveryById['delivery-1'] = {
+      id: 'delivery-1',
+      projectId: 'proj-1',
+      copilotId: 'cop-1',
+      versionId: 'v-3',
+      status: 'failed',
+    }
+    const res = await POST(req(validEvent, auth()))
+    expect(res.status).toBe(401)
+    expect(insertedRows).toHaveLength(0)
+  })
+
+  it('34d — missing delivery proof is rejected', async () => {
+    deliveryById = {}
+    const res = await POST(req(validEvent, auth()))
+    expect(res.status).toBe(401)
+    expect(insertedRows).toHaveLength(0)
+  })
+
+  it('34e — accepted row is persisted with version_verified=true', async () => {
+    const res = await POST(req(validEvent, auth()))
+    expect(res.status).toBe(202)
+    expect(insertedRows).toHaveLength(1)
+    expect(insertedRows[0].version_verified).toBe(true)
+  })
+
   // ── MOYEN-5 — the secret scan must see the RAW payload ────────────────────
 
   it('35 — a secret in an UNDECLARED field is caught (raw scan, pre-Zod)', async () => {

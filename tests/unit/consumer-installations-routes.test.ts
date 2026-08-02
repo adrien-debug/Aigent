@@ -100,6 +100,30 @@ describe('consumer-installations routes', () => {
     expect(res.status).toBe(422)
   })
 
+  it('rejects non-delivered delivery event', async () => {
+    getDeliveryEventById.mockResolvedValue({
+      id: 'd-1',
+      copilotId: 'cop-1',
+      projectId: 'proj-1',
+      versionId: 'v-1',
+      status: 'failed',
+    })
+    const res = await POST_INSTALLATIONS(
+      new Request('http://x', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          copilotId: 'cop-1',
+          versionId: 'v-1',
+          deliveryEventId: 'd-1',
+          environment: 'development',
+        }),
+      }),
+      { params: Promise.resolve({ id: 'proj-1' }) }
+    )
+    expect(res.status).toBe(422)
+  })
+
   it('lists project installations', async () => {
     const res = await GET_INSTALLATIONS(new Request('http://x?copilotId=cop-1'), {
       params: Promise.resolve({ id: 'proj-1' }),
@@ -119,5 +143,22 @@ describe('consumer-installations routes', () => {
     )
     expect(res.status).toBe(200)
     expect(revokeConsumerInstallation).toHaveBeenCalledWith('inst-1', 'rotation test')
+  })
+
+  it('rejects revoke when installation is already revoked', async () => {
+    getConsumerInstallation.mockResolvedValue({
+      id: 'inst-1',
+      projectId: 'proj-1',
+      status: 'revoked',
+    })
+    const res = await POST_REVOKE(
+      new Request('http://x', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'rotation test' }),
+      }),
+      { params: Promise.resolve({ id: 'proj-1', installationId: 'inst-1' }) }
+    )
+    expect(res.status).toBe(409)
   })
 })
