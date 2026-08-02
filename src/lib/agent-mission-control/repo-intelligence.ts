@@ -178,10 +178,14 @@ export async function scanRepoIntelligence(project: Project, ref?: string): Prom
 
   // --- Design-system signals (path shape) ---
   const dsSignals: string[] = []
-  if (has(/components\/catalyst\//)) dsSignals.push('Catalyst primitives (components/ui/)')
+  if (has(/components\/ui\//)) dsSignals.push('UI primitives (components/ui/)')
   if (has(/tailwind\.config/) || has(/globals\.css$/)) dsSignals.push('Tailwind config / globals.css')
-  if (has(/check-catalyst\.mjs$/)) dsSignals.push('Catalyst gate (check-catalyst.mjs)')
-  if (has(/check-palette\.mjs$/)) dsSignals.push('Palette/DS gate (check-palette.mjs)')
+  if (has(/check-production-visual-authority\.mjs$/)) {
+    dsSignals.push('Production visual authority gate')
+  }
+  if (has(/check-no-legacy-design-governance\.mjs$/)) {
+    dsSignals.push('Legacy design governance gate')
+  }
 
   // --- Bounded key-file reads ---
   const stack: string[] = []

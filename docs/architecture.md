@@ -126,5 +126,6 @@ dans `@theme` au sein de `src/app/globals.css`.
 
 Le front se reconstruit **bloc par bloc**, sur décision d'Adrien. Il reste
 **libre** : aucune palette, aucun système de tokens, aucune typographie ni
-structure de navigation n'est imposée par ce repository, et aucune gate visuelle
-n'existe (`CLAUDE.md` §8).
+structure de navigation n'est imposée par ce repository. Les gates visuelles
+branchées sont limitées à la gouvernance legacy et à l'autorité visuelle des
+surfaces de production (`CLAUDE.md` §8).

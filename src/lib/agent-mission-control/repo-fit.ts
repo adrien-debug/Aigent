@@ -81,7 +81,7 @@ function allCasesText(cases: RepoFitCase[]): string {
   return cases.map(caseText).join('\n')
 }
 
-/** npm script names cited in a case, e.g. "npm run check:ds" / "run verify" / "`build`". */
+/** npm script names cited in a case, e.g. "npm run check" / "run verify" / "`build`". */
 const SCRIPT_CITATION_RE = /\b(?:npm run|pnpm|yarn|run)\s+([a-z][a-z0-9:_-]*)/gi
 
 function citedScripts(text: string): string[] {

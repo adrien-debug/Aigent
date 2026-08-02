@@ -31,7 +31,7 @@ placeholder honnête.
 | Pont Obsidian — URI natives `open` / `new` / `search`, 4 templates | wired | `src/lib/agent-mission-control/obsidian-bridge.ts`, `docs/templates/obsidian/` |
 | Learning Runtime (H-Supervised) — client health/capabilities server-only | partial — contrat câblé, **aucun moteur en face** | `src/lib/agent-mission-control/learning-runtime.ts` |
 | Réglages | partial — UI placeholder, mais contrat backend de posture câblé (lecture opérateur) | `src/app/settings/page.tsx`, `src/app/api/agent-ops/settings/posture/route.ts`, `src/lib/agent-mission-control/settings-posture.ts` |
-| Kit UI — 14 primitives, jetons `--aig-*`, empreinte SHA-256 | wired | `src/components/ui/`, `check:ui-kit-integrity` |
+| Kit UI — 14 primitives, jetons `--aig-*`, gate de substance (pas empreinte) | wired | `src/components/ui/`, `check:ui-kit-integrity` |
 | Tailwind v4 · Headless UI · Heroicons · Recharts | wired | `postcss.config.mjs`, `src/app/globals.css` |
 
 | Ce qui reste supprimé et interdit de retour | |
@@ -45,6 +45,10 @@ placeholder honnête.
 § Frontend). L'API HTTP reste la voie d'automatisation ; le front est la voie
 opérateur. Gate `check:no-legacy-front` : autorise `src/components/`, refuse le
 retour des surfaces démolies.
+
+`/lab` reste une surface d'exploration (Composer/Lab/Prototype), hors autorité
+visuelle de production : pas de règle produit automatique sans promotion
+explicite vers un écran de production.
 
 ## Authoring & lifecycle
 
@@ -130,7 +134,8 @@ node -e "console.log(require('./package.json').scripts.check)"
 ```
 
 Au moment de cette passe, `npm run check` enchaîne : `typecheck` · `lint:fast`
-· `lint` · `check:no-legacy-front` · `check:ui-kit-integrity` ·
+· `lint` · `check:no-legacy-front` · `check:no-legacy-design-governance` ·
+`check:production-visual-authority` · `check:ui-kit-integrity` ·
 `check:agent-truth` · `check:lifecycle-truth` · `check:registry-parity` ·
 `check:registry-integrity` · `check:dev-port` · `check:render-truth` ·
 `check:rsc-boundary` · `check:schema-rebuildable` · `check:secrets` ·

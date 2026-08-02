@@ -33,8 +33,8 @@ const ROOT = process.cwd()
  * Ce n'est PAS un retour de la doctrine de design. Une capture d'écran est une
  * PREUVE datée — « voilà ce que l'écran montrait à ce SHA » — pas une règle
  * esthétique. Aucune gate visuelle n'est réintroduite, aucune palette, aucun
- * token, aucun Storybook : `check:legacy-design-doctrine` continue de garder
- * ce flanc-là, et il reste vert.
+ * token, aucun Storybook : `check:no-legacy-design-governance` +
+ * `check:production-visual-authority` gardent ce flanc-là.
  */
 const FORBIDDEN_DIRS = [
   'design',
