@@ -71,17 +71,17 @@ export default function RuntimeScreen({
 
       <PageBody>
         <section
-          className="aig-stage aig-accent-edge flex flex-col p-4 sm:p-5"
+          className="aig-stage aig-accent-edge flex flex-col overflow-hidden"
           aria-label={tab.name}
         >
-          <div className="pb-3">
+          <div className="px-4 pb-3 pt-4 sm:px-5 sm:pt-5">
             <h2 className="aig-display text-xl font-semibold sm:text-2xl">{tab.name}</h2>
             <p className="aig-text-muted mt-1 max-w-3xl text-sm">{tab.purpose}</p>
           </div>
 
           <div className="aig-hairline" />
 
-          <div className="aig-inset flex min-w-0 flex-col p-3">
+          <div className="aig-inset aig-inset-fill flex min-w-0 flex-col p-3 sm:p-4">
             <TabPanel payload={payload} />
           </div>
         </section>

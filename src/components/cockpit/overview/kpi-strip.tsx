@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
-import clsx from 'clsx'
 
-import { Unavailable } from '@/components/cockpit/primitives'
+import { NotMeasured } from '@/components/cockpit/primitives'
+import { Text } from '@/components/ui/text'
 import type { DashboardKpis } from '@/lib/agent-mission-control/dashboard-overview'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import { SEVERITY } from '@/lib/cockpit/status'
@@ -18,11 +18,11 @@ function successRateColor(success24h: number | null): string {
 }
 
 function costSupportText(cost: NonNullable<DashboardKpis['cost24h']>, partial: boolean): string {
-  if (partial) return `minorant · ${cost.measuredRuns}/${cost.totalRuns} runs mesurés`
+  if (partial) return `minorant · ${cost.measuredRuns}/${cost.totalRuns} runs`
   return `${cost.totalRuns} runs mesurés`
 }
 
-function Cell({
+function LeadFigure({
   label,
   value,
   unit,
@@ -30,8 +30,7 @@ function Cell({
   graphic,
   led,
   valueColor,
-  unavailableReason,
-  rank = 'quiet',
+  unread,
 }: Readonly<{
   label: string
   value: string | number | null
@@ -40,52 +39,73 @@ function Cell({
   graphic?: ReactNode
   led?: ReactNode
   valueColor?: string
-  unavailableReason?: 'unread' | 'no-data'
-  rank?: 'lead' | 'quiet'
+  unread: boolean
 }>) {
-  const lead = rank === 'lead'
-
   return (
-    <div className={clsx('flex min-w-0 flex-col justify-between gap-2', lead && 'col-span-2 gap-3')}>
-      <dt className="flex items-center gap-2">
+    <div className="min-w-0">
+      <div className="flex items-center gap-2">
         {led}
-        <span
-          className={clsx(
-            'aig-text-faint truncate',
-            lead && 'text-2xs font-medium uppercase tracking-[0.16em]',
-          )}
-        >
+        <Text className="aig-text-faint truncate text-2xs font-medium uppercase tracking-[0.14em]">
           {label}
-        </span>
-      </dt>
-
-      <dd className="min-w-0">
-        {value === null ? (
-          <div className="w-fit">
-            <Unavailable reason={unavailableReason ?? 'unread'} compact />
-          </div>
-        ) : (
-          <div className="flex items-end justify-between gap-3">
-            <div className="flex min-w-0 items-baseline gap-1.5">
-              <p
-                className={clsx(
-                  'aig-display truncate tabular-nums font-semibold leading-none',
-                  lead ? 'text-4xl' : 'text-xl',
-                  valueColor && 'text-(--kpi)',
-                )}
-                style={valueColor ? ({ '--kpi': valueColor } as React.CSSProperties) : undefined}
+        </Text>
+      </div>
+      <div className="mt-2 flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          {value === null ? (
+            <NotMeasured
+              why={unread ? 'La fenêtre de runs n’a pas pu être lue.' : 'Aucune mesure sur la fenêtre.'}
+              label={unread ? undefined : 'aucune mesure'}
+            />
+          ) : (
+            <div className="flex items-baseline gap-1">
+              <span
+                className="aig-display text-3xl font-semibold tabular-nums sm:text-4xl"
+                style={valueColor ? { color: valueColor } : undefined}
               >
                 {value}
-              </p>
-              {unit ? (
-                <span className={clsx('aig-text-muted', lead && 'text-lg')}>{unit}</span>
-              ) : null}
+              </span>
+              {unit ? <span className="aig-text-muted text-lg">{unit}</span> : null}
             </div>
-            {graphic ? <div className="shrink-0 pb-1">{graphic}</div> : null}
-          </div>
-        )}
-        <p className={clsx('aig-text-muted truncate text-xs', lead && 'mt-1.5')}>{support}</p>
-      </dd>
+          )}
+          <Text className="aig-text-faint mt-1 truncate text-xs">{support}</Text>
+        </div>
+        {graphic ? <div className="shrink-0 pb-0.5">{graphic}</div> : null}
+      </div>
+    </div>
+  )
+}
+
+function QuietFigure({
+  label,
+  value,
+  support,
+  graphic,
+  led,
+  valueColor,
+}: Readonly<{
+  label: string
+  value: string | number | null
+  support: string
+  graphic?: ReactNode
+  led?: ReactNode
+  valueColor?: string
+}>) {
+  return (
+    <div className="min-w-0 flex-1 sm:min-w-28 sm:flex-none">
+      <div className="flex items-center gap-1.5">
+        {led}
+        <Text className="aig-text-faint truncate text-3xs uppercase tracking-[0.12em]">{label}</Text>
+      </div>
+      <div className="mt-1 flex items-end justify-between gap-2">
+        <span
+          className="aig-display text-xl font-semibold tabular-nums"
+          style={valueColor ? { color: valueColor } : undefined}
+        >
+          {value ?? '—'}
+        </span>
+        {graphic ? <div className="shrink-0">{graphic}</div> : null}
+      </div>
+      <Text className="aig-text-faint mt-0.5 truncate text-3xs">{support}</Text>
     </div>
   )
 }
@@ -94,7 +114,6 @@ export default function KpiStrip({
   kpis,
   unread,
 }: Readonly<{ kpis: DashboardKpis; unread: boolean }>) {
-  const reason = unread ? 'unread' : 'no-data'
   const successColor = successRateColor(kpis.success24h)
   const cost = kpis.cost24h
   const coverage = cost?.totalRuns && cost.totalRuns > 0 ? cost.measuredRuns / cost.totalRuns : 0
@@ -103,72 +122,78 @@ export default function KpiStrip({
   const executableTotal = kpis.executableTotal
 
   return (
-    <dl className="grid shrink-0 grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4 xl:grid-cols-8">
-      <Cell
-        rank="lead"
-        label="Runs 24 h"
-        value={kpis.runs24h}
-        support={unread ? 'fenêtre non lue' : 'exécutions sur la fenêtre'}
-        unavailableReason={reason}
-        led={<Led color={GOOD} live={(kpis.runs24h ?? 0) > 0} />}
-      />
-      <Cell
-        rank="lead"
-        label="Succès 24 h"
-        value={kpis.success24h}
-        unit="%"
-        support={kpis.success24h === null ? 'aucun run terminal' : 'sur les runs terminaux'}
-        valueColor={successColor}
-        unavailableReason={reason}
-        graphic={
-          kpis.success24h === null ? undefined : (
-            <ArcGauge
-              ratio={kpis.success24h / 100}
-              color={successColor}
-              size={52}
-              label={`${kpis.success24h} % de succès`}
-            />
-          )
-        }
-      />
-      <Cell
-        label="Coût 24 h"
-        value={cost === null ? null : formatUsd(cost.usd)}
-        support={cost === null ? 'aucun coût mesurable' : costSupportText(cost, partial)}
-        unavailableReason={reason}
-        graphic={
-          cost === null ? undefined : (
-            <BarMeter ratio={coverage} color={partial ? WARN : GOOD} className="w-16" />
-          )
-        }
-      />
-      <Cell
-        label="Exécutables"
-        value={kpis.executableNow}
-        support={
-          executableTotal === null ? 'total du catalogue non lu' : `sur ${executableTotal} au catalogue`
-        }
-        valueColor={kpis.executableNow === 0 ? WARN : undefined}
-        graphic={
-          executableTotal === null || kpis.executableNow === null ? undefined : (
-            <SegmentMeter filled={kpis.executableNow} total={executableTotal} color={GOOD} />
-          )
-        }
-      />
-      <Cell
-        label="Bloquées"
-        value={blocked}
-        support="livraisons à débloquer"
-        valueColor={blocked !== null && blocked > 0 ? BAD : undefined}
-        led={<Led color={blocked !== null && blocked > 0 ? BAD : SEVERITY.muted} />}
-      />
-      <Cell
-        label="À décider"
-        value={kpis.needsAction}
-        support="décisions en attente"
-        valueColor={kpis.needsAction > 0 ? WARN : undefined}
-        led={<Led color={kpis.needsAction > 0 ? WARN : SEVERITY.muted} />}
-      />
-    </dl>
+    <div className="flex min-w-0 flex-col gap-5">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        <LeadFigure
+          label="Runs 24 h"
+          value={unread ? null : kpis.runs24h}
+          support={unread ? 'fenêtre non lue' : 'exécutions sur la fenêtre'}
+          unread={unread}
+          led={<Led color={GOOD} live={(kpis.runs24h ?? 0) > 0} />}
+        />
+        <LeadFigure
+          label="Succès 24 h"
+          value={unread ? null : kpis.success24h}
+          unit={kpis.success24h === null ? undefined : '%'}
+          support={kpis.success24h === null ? 'aucun run terminal' : 'sur les runs terminaux'}
+          valueColor={kpis.success24h === null ? undefined : successColor}
+          unread={unread}
+          graphic={
+            kpis.success24h === null ? undefined : (
+              <ArcGauge
+                ratio={kpis.success24h / 100}
+                color={successColor}
+                size={48}
+                label={`${kpis.success24h} % de succès`}
+              />
+            )
+          }
+        />
+        <LeadFigure
+          label="Coût 24 h"
+          value={unread || cost === null ? null : formatUsd(cost.usd)}
+          support={cost === null ? 'aucun coût mesurable' : costSupportText(cost, partial)}
+          unread={unread}
+          graphic={
+            cost === null ? undefined : (
+              <BarMeter ratio={coverage} color={partial ? WARN : GOOD} className="w-14" />
+            )
+          }
+        />
+        <LeadFigure
+          label="Exécutables"
+          value={unread ? null : kpis.executableNow}
+          support={
+            executableTotal === null ? 'total du catalogue non lu' : `sur ${executableTotal} au catalogue`
+          }
+          valueColor={kpis.executableNow === 0 ? WARN : undefined}
+          unread={unread}
+          graphic={
+            executableTotal === null || kpis.executableNow === null ? undefined : (
+              <SegmentMeter filled={kpis.executableNow} total={executableTotal} color={GOOD} />
+            )
+          }
+        />
+      </div>
+
+      <div className="aig-hairline" />
+
+      <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
+        <QuietFigure
+          label="Bloquées"
+          value={blocked}
+          support="livraisons à débloquer"
+          valueColor={blocked !== null && blocked > 0 ? BAD : undefined}
+          led={<Led color={blocked !== null && blocked > 0 ? BAD : SEVERITY.muted} />}
+        />
+        <QuietFigure
+          label="À décider"
+          value={kpis.needsAction}
+          support="décisions en attente"
+          valueColor={kpis.needsAction > 0 ? WARN : undefined}
+          led={<Led color={kpis.needsAction > 0 ? WARN : SEVERITY.muted} />}
+        />
+      </div>
+    </div>
   )
 }

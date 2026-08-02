@@ -1,7 +1,11 @@
-import type { ReactNode } from 'react'
+import clsx from 'clsx'
+
 import { navEntry } from '@/components/navigation'
 import { PageBody, PageHeader } from '@/components/app-shell'
+import { Avatar } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
 import { Link } from '@/components/ui/link'
+import { Strong, Text } from '@/components/ui/text'
 import { Unavailable, initialsOf } from '@/components/cockpit/primitives'
 import { SeverityChip, SurfaceSection, type SeverityTone } from '@/components/surface-primitives'
 import type { DashboardOverview, ProjectOverviewItem } from '@/lib/agent-mission-control/dashboard-overview'
@@ -16,34 +20,20 @@ import { StatusLegend } from './status-legend'
 
 const ENTRY = navEntry('/')
 
-function OverviewStage({
-  header,
-  children,
-}: Readonly<{ header: ReactNode; children: ReactNode }>) {
-  return (
-    <section className="aig-stage aig-accent-edge flex min-w-0 flex-col p-4 sm:p-5">
-      {header}
-      <div className="aig-hairline" />
-      <div className="aig-inset mt-3 flex min-w-0 flex-col p-3">{children}</div>
-    </section>
-  )
-}
-
 function ActivityPanel({ buckets }: Readonly<{ buckets: HourlyBucket[] | null }>) {
   if (buckets === null) {
     return (
       <Unavailable
         reason="unread"
-        detail="La fenêtre de runs n'a pas pu être lue — aucune courbe n'est tracée."
+        detail="La fenêtre de runs n'a pas pu être lue."
       />
     )
   }
   if (buckets.every((bucket) => bucket.total === 0)) {
     return (
-      <Unavailable
-        reason="no-data"
-        detail="Aucun run sur les dernières 24 heures. La fenêtre a bien été lue — une courbe à plat se lirait comme une activité régulière."
-      />
+      <Text className="aig-text-faint text-sm">
+        Aucun run sur les dernières 24 heures — la fenêtre a bien été lue.
+      </Text>
     )
   }
   return <ActivityGraph buckets={buckets} />
@@ -63,32 +53,44 @@ function RunStreamPanel({
 }
 
 function ProjectList({ projects }: Readonly<{ projects: ProjectOverviewItem[] }>) {
+  const sorted = [...projects].sort((a, b) => {
+    const aScore = a.copilotCount > 0 ? 1 : 0
+    const bScore = b.copilotCount > 0 ? 1 : 0
+    if (aScore !== bScore) return bScore - aScore
+    return a.name.localeCompare(b.name, 'fr')
+  })
+
   return (
     <ul className="min-w-0">
-      {projects.map((project) => {
+      {sorted.map((project) => {
         const empty = project.copilotCount === 0
         return (
           <li key={project.id} className="aig-line-soft border-b last:border-b-0">
             <Link
               href={`/projects/${project.id}`}
-              className="flex items-center gap-2 px-1 py-2 no-underline hover:bg-(--aig-line-soft) focus-visible:bg-(--aig-line-soft) focus-visible:outline-hidden"
+              className="flex items-center gap-2.5 px-1 py-2.5 no-underline hover:bg-(--aig-line-soft) focus-visible:bg-(--aig-line-soft) focus-visible:outline-hidden"
             >
-              <span className="aig-text-faint w-6 shrink-0 text-2xs font-medium tabular-nums">
-                {initialsOf(project.name)}
-              </span>
+              <Avatar
+                square
+                initials={initialsOf(project.name)}
+                className={clsx('size-8 shrink-0', empty && 'opacity-60')}
+              />
               <span className="min-w-0 flex-1">
-                <span className="aig-text block truncate text-sm font-medium">{project.name}</span>
-                <span className="aig-text-faint block truncate text-2xs">
-                  {project.repoFullName ?? 'aucun dépôt lié'}
-                </span>
+                <Strong className={clsx('block truncate', empty && 'aig-text-muted')}>
+                  {project.name}
+                </Strong>
+                <Text className="truncate">{project.repoFullName ?? 'aucun dépôt lié'}</Text>
               </span>
-              <span className="aig-text shrink-0 text-right text-2xs tabular-nums">
+              <Text className="shrink-0 text-right tabular-nums">
                 {empty ? (
-                  <span className="aig-text-faint">—</span>
+                  <span className="aig-text-faint text-xs">—</span>
                 ) : (
-                  `${project.activeCount}/${project.copilotCount}`
+                  <>
+                    <Strong className="tabular-nums">{project.activeCount}</Strong>
+                    <span className="aig-text-faint">/{project.copilotCount}</span>
+                  </>
                 )}
-              </span>
+              </Text>
             </Link>
           </li>
         )
@@ -106,9 +108,9 @@ function actionTone(status: string): SeverityTone {
 
 function sectionLink(href: string, label: string) {
   return (
-    <Link href={href} className="aig-accent text-2xs font-medium no-underline transition hover:opacity-80">
+    <Button plain href={href} className="px-2! py-1! text-2xs">
       {label}
-    </Link>
+    </Button>
   )
 }
 
@@ -129,115 +131,107 @@ export default function CockpitOverview({
         description={ENTRY.purpose}
         actions={
           <>
-            <Link
-              href="/runs"
-              className="aig-text-muted inline-flex items-center justify-center px-3 py-2 text-sm font-semibold no-underline transition hover:aig-accent"
-            >
+            <Button plain href="/runs">
               Voir les runs
-            </Link>
-            <Link
-              href="/actions"
-              className="aig-accent inline-flex items-center justify-center px-3 py-2 text-sm font-semibold no-underline transition hover:opacity-80"
-            >
+            </Button>
+            <Button color="orange" href="/actions">
               File d’action
-            </Link>
+            </Button>
           </>
         }
       />
 
-      <PageBody className="gap-4">
-        <OverviewStage
-          header={
-            <header className="pb-3">
-              <p className="aig-text-faint text-3xs font-medium uppercase tracking-[0.2em]">
-                Fenêtre 24 heures
-              </p>
-              <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-2">
-                <h2 className="aig-display text-base font-semibold">Activité de la flotte</h2>
-                {slices ? (
-                  <div className="ml-auto min-w-0">
-                    <StatusLegend slices={slices} />
-                  </div>
-                ) : (
-                  <p className="aig-text-faint ml-auto text-2xs">fenêtre non lue</p>
-                )}
+      <PageBody>
+        <section
+          className="aig-stage aig-accent-edge flex min-w-0 flex-col gap-8 px-3 py-4 sm:px-5 sm:py-5"
+          aria-label={ENTRY.name}
+        >
+          <div className="flex min-w-0 flex-col gap-5">
+            <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <Text className="aig-text-faint text-2xs font-medium uppercase tracking-[0.18em]">
+                  Fenêtre 24 heures
+                </Text>
+                <h2 className="aig-h2 mt-1">Activité de la flotte</h2>
               </div>
+              {slices ? (
+                <div className="min-w-0 sm:max-w-md sm:pt-1">
+                  <StatusLegend slices={slices} />
+                </div>
+              ) : (
+                <Text className="aig-text-faint text-xs">fenêtre non lue</Text>
+              )}
             </header>
-          }
-        >
-          <ActivityPanel buckets={buckets} />
-          <div className="aig-line-soft mt-3 border-t pt-3">
+
             <KpiStrip kpis={overview.kpis} unread={unread} />
+            <ActivityPanel buckets={buckets} />
           </div>
-        </OverviewStage>
 
-        <OverviewStage
-          header={
-            <header className="pb-3">
-              <h2 className="aig-display text-base font-semibold">Opérations & catalogue</h2>
-              <p className="aig-text-faint mt-0.5 text-2xs">
+          <div className="aig-hairline" />
+
+          <div className="flex min-w-0 flex-col gap-5">
+            <header>
+              <h2 className="aig-h2">Opérations & catalogue</h2>
+              <Text className="aig-text-faint mt-1 text-xs">
                 Flux récent, projets et signaux de la fenêtre courante
-              </p>
+              </Text>
             </header>
-          }
-        >
-          <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[6fr_4fr]">
-            <SurfaceSection
-              title="Flux d'exécution"
-              hint={runs ? `${runs.length} sur la fenêtre` : undefined}
-              actions={sectionLink('/runs', 'Tous les runs →')}
-            >
-              <RunStreamPanel runs={runs} nowMs={nowMs} />
-            </SurfaceSection>
 
-            <div className="flex min-w-0 flex-col xl:aig-line-soft xl:border-l xl:pl-4">
+            <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[6fr_4fr]">
               <SurfaceSection
-                title="Projets"
-                hint={`${overview.projects.length} au catalogue`}
-                actions={sectionLink('/projects', 'Catalogue →')}
+                title="Flux d'exécution"
+                hint={runs ? `${runs.length} sur la fenêtre` : undefined}
+                actions={sectionLink('/runs', 'Tous les runs →')}
               >
-                {overview.projects.length === 0 ? (
-                  <Unavailable reason="no-data" detail="Aucun projet dans le catalogue." />
-                ) : (
-                  <ProjectList projects={overview.projects} />
-                )}
+                <RunStreamPanel runs={runs} nowMs={nowMs} />
               </SurfaceSection>
 
-              <div className="aig-hairline my-4" />
+              <div className="flex min-w-0 flex-col xl:aig-line-soft xl:border-l xl:pl-5">
+                <SurfaceSection
+                  title="Projets"
+                  hint={`${overview.projects.length} au catalogue`}
+                  actions={sectionLink('/projects', 'Catalogue →')}
+                >
+                  {overview.projects.length === 0 ? (
+                    <Unavailable reason="no-data" detail="Aucun projet dans le catalogue." />
+                  ) : (
+                    <ProjectList projects={overview.projects} />
+                  )}
+                </SurfaceSection>
 
-              <SurfaceSection
-                title="Événements importants"
-                hint={`${overview.actionItems.length} signal(aux)`}
-                actions={sectionLink('/actions', 'File complète →')}
-              >
-                {overview.actionItems.length === 0 ? (
-                  <Unavailable
-                    reason="no-data"
-                    detail="Aucun signal bloquant sur la fenêtre actuelle. La lecture a réussi."
-                  />
-                ) : (
-                  <ul className="divide-y divide-(--aig-line-soft)">
-                    {overview.actionItems.slice(0, 6).map((item) => (
-                      <li key={item.id} className="flex items-start gap-3 py-3">
-                        <SeverityChip tone={actionTone(item.status)}>{item.status}</SeverityChip>
-                        <div className="min-w-0 flex-1">
-                          <p className="aig-display truncate text-sm">{item.title}</p>
-                          <p className="aig-text-muted truncate text-xs">{item.meta}</p>
-                        </div>
-                        <Link
-                          href={item.href}
-                          className="aig-accent shrink-0 text-2xs no-underline transition hover:opacity-80"
-                        >
-                          Ouvrir →
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </SurfaceSection>
+                <div className="aig-hairline my-4" />
+
+                <SurfaceSection
+                  title="Événements importants"
+                  hint={`${overview.actionItems.length} signal(aux)`}
+                  actions={sectionLink('/actions', 'File complète →')}
+                >
+                  {overview.actionItems.length === 0 ? (
+                    <Unavailable
+                      reason="no-data"
+                      detail="Aucun signal bloquant sur la fenêtre actuelle. La lecture a réussi."
+                    />
+                  ) : (
+                    <ul className="divide-y divide-(--aig-line-soft)">
+                      {overview.actionItems.slice(0, 6).map((item) => (
+                        <li key={item.id} className="flex items-start gap-3 py-3">
+                          <SeverityChip tone={actionTone(item.status)}>{item.status}</SeverityChip>
+                          <div className="min-w-0 flex-1">
+                            <p className="aig-text truncate text-sm font-medium">{item.title}</p>
+                            <p className="aig-text-muted truncate text-xs">{item.meta}</p>
+                          </div>
+                          <Button plain href={item.href} className="px-2! py-1! text-2xs">
+                            Ouvrir →
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </SurfaceSection>
+              </div>
             </div>
           </div>
-        </OverviewStage>
+        </section>
 
         {overview.dataWarnings.length > 0 ? (
           <p className="aig-accent truncate px-1 font-mono text-2xs">

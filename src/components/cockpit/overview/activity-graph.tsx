@@ -35,12 +35,12 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
   const active = hovered === null ? null : points[hovered]
 
   return (
-    <div className="px-2 pt-2 pb-1" onPointerLeave={() => setHovered(null)}>
+    <div className="px-1 pt-1 pb-0" onPointerLeave={() => setHovered(null)}>
       <div className="relative">
         <svg
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           preserveAspectRatio="none"
-          className="h-56 w-full overflow-visible xl:h-72"
+          className="h-48 w-full overflow-visible xl:h-56"
           role="img"
           aria-label={`Activité par heure sur la fenêtre — ${buckets.reduce((n, b) => n + b.total, 0)} runs`}
         >
