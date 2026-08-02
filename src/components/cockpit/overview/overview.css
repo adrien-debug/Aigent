@@ -1,22 +1,45 @@
 /*
  * Grammaire locale — Aperçu (`/`) uniquement.
- * Couleurs et CTA produit : utilitaires globaux `aig-btn-accent` / `aig-link-accent`.
+ *
+ * SÉLECTEURS SIMPLES, PAS `@utility`. Ce fichier est importé depuis un
+ * composant (`screen.tsx`), donc hors de l'entrée Tailwind : un bloc
+ * `@utility` y est INERTE — il ne produit aucune règle. Mesuré au navigateur
+ * le 2026-08-03 : `.overview-scroll-list` (déclarée en `@utility`) rendait
+ * `max-height: none` / `overflow-y: visible`, c'est-à-dire rien du tout,
+ * pendant que le `@media` écrit en CSS ordinaire du même fichier s'appliquait
+ * normalement. Un scroller mort qui se lisait comme un scroller vivant.
+ *
+ * Les couleurs passent par `var(--aig-*)` : ce fichier est scanné par
+ * `check:production-visual-authority`.
  */
 
-@utility overview-zone {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 1.5rem;
+/* Ligne de liste — cible de survol/focus des rangées de l'Aperçu. */
+.overview-row {
+  border-radius: var(--aig-radius);
+  transition: background-color 140ms ease;
 }
 
-@media (min-width: 640px) {
-  .overview-zone {
-    gap: 1.75rem;
-  }
+.overview-row:hover {
+  background-color: color-mix(in oklab, var(--aig-raised) 55%, transparent);
 }
 
-@utility overview-scroll-list {
-  max-height: 20rem;
-  overflow-y: auto;
+/*
+ * FOCUS : un anneau, pas un fond. Le survol et le focus ont partagé le même
+ * changement de fond — mesuré, il vaut ≈1,37:1 contre la scène, très en dessous
+ * des 3:1 que WCAG 2.4.11 demande à un indicateur de focus. Un fond assez
+ * discret pour être élégant au survol ne peut pas, par construction, servir
+ * d'indicateur de focus. L'accent cuivre tranche nettement sur le graphite et
+ * reste dans l'autorité de thème ; `outline-offset` négatif garde l'anneau
+ * dans la ligne, sans pousser les voisines.
+ */
+.overview-row:focus-visible {
+  background-color: color-mix(in oklab, var(--aig-raised) 55%, transparent);
+  outline: 2px solid var(--aig-accent);
+  outline-offset: -2px;
+}
+
+/* Pastille de l'état vide, posée sur la trame du graphe fantôme. */
+.overview-ghost-label {
+  background-color: color-mix(in oklab, var(--aig-subtle) 82%, transparent);
+  backdrop-filter: blur(4px);
 }

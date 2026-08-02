@@ -17,13 +17,21 @@ function buildPath(points: readonly { x: number; y: number }[]): string {
   return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x},${p.y}`).join(' ')
 }
 
+/**
+ * Fenêtre sans activité.
+ *
+ * La trame occupait la hauteur du graphe réel (192 px, 224 px en `xl`) pour
+ * porter une seule phrase : une zone morte plus haute que le bandeau de
+ * mesures qu'elle suivait. L'absence garde une trame — elle dit « la fenêtre a
+ * été lue » — mais à une hauteur qui la met au rang de ce qu'elle porte.
+ */
 export function GhostActivityGraph() {
   return (
-    <div className="relative px-1 pt-1 pb-0">
+    <div className="relative">
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         preserveAspectRatio="none"
-        className="h-48 w-full overflow-visible xl:h-56"
+        className="h-24 w-full overflow-visible sm:h-28"
         role="img"
         aria-label="Aucune activité sur la fenêtre"
       >
@@ -50,8 +58,8 @@ export function GhostActivityGraph() {
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-zinc-400 text-xs uppercase tracking-wider bg-[#0a0a0a]/80 backdrop-blur-sm px-4 py-1.5 rounded-full border border-white/5 shadow-sm">
-          Ready to monitor — Aucun run sur les dernières 24 h
+        <span className="overview-ghost-label aig-text-muted aig-line-soft rounded-full border px-3 py-1 text-2xs uppercase tracking-[0.1em]">
+          Aucun run sur les dernières 24 h
         </span>
       </div>
     </div>
@@ -170,7 +178,7 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
         {points.map((point, i) => (
           <span
             key={point.bucket.hourMs}
-            className="text-zinc-400 flex-1 text-center font-mono text-3xs"
+            className="aig-text-muted flex-1 text-center font-mono text-3xs"
           >
             {i % 6 === 0 ? point.bucket.label : ''}
           </span>
@@ -194,7 +202,7 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
               >
                 {active.bucket.total}
               </AnimateNumber>
-              <span className="text-zinc-400 text-xs">
+              <span className="aig-text-muted text-xs">
                 run{active.bucket.total > 1 ? 's' : ''} · {active.bucket.label}
               </span>
             </div>

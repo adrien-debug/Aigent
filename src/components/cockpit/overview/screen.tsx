@@ -1,7 +1,5 @@
 import './overview.css'
 
-import clsx from 'clsx'
-
 import { navEntry } from '@/components/navigation'
 import { PageBody, PageHeader } from '@/components/app-shell'
 import { Button } from '@/components/ui/button'
@@ -23,6 +21,20 @@ import { windowReadState } from './model'
 
 const ENTRY = navEntry('/')
 
+/**
+ * UN SEUL AXE GAUCHE. La scène ne portait aucun padding horizontal : son
+ * contenu s'appuyait sur le bord de la boîte, et l'en-tête de la zone
+ * opérateur ajoutait par-dessus un liseré + `pl-4` qui décalait ce seul titre
+ * de 19 px vers la droite (mesuré). Le padding vit désormais sur la scène,
+ * une fois, et tout ce qu'elle contient — libellé de zone, bandeau, sections,
+ * lignes — démarre exactement sur la même verticale.
+ *
+ * DEUX ZONES DE MÊME RANG. « Fenêtre 24 heures » et « Opérations & catalogue »
+ * portent le même style de libellé : la symétrie de la page est structurelle
+ * (mêmes marges, mêmes rangs, même rythme), jamais imposée au contenu — les
+ * deux colonnes basses n'ont ni hauteur forcée ni `min-height` accordée à la
+ * main, elles descendent chacune à la hauteur de ce qu'elles portent.
+ */
 export default function CockpitOverview({
   overview,
   nowMs,
@@ -55,37 +67,24 @@ export default function CockpitOverview({
 
       <PageBody>
         <section
-          className={clsx(
-            'aig-stage flex min-w-0 flex-col py-5 sm:py-6',
-            showActivity ? 'gap-8' : 'gap-6',
-          )}
+          className="aig-stage flex min-w-0 flex-col gap-7 p-5 sm:gap-8 sm:p-6"
           aria-label={ENTRY.name}
         >
-          <div className="overview-zone aig-accent-edge">
-            <div className="grid min-w-0 grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-3 lg:grid-cols-6 lg:gap-x-6">
-              {slices ? (
-                <>
-                  <div className="col-span-full lg:col-span-2 flex items-center">
-                    <h2 className="text-zinc-400 text-xs font-light uppercase tracking-wider">
-                      {`Fenêtre 24 heures${
-                        windowState === 'unread' ? ' · non lue' : windowState === 'empty' ? ' · lue, vide' : ''
-                      }`}
-                    </h2>
-                  </div>
-                  <div className="col-span-full lg:col-span-4 flex items-center">
-                    <StatusLegend slices={slices} />
-                  </div>
-                </>
-              ) : null}
-
-              <KpiStrip kpis={overview.kpis} unread={unread} />
+          {/* ── Zone signal ─────────────────────────────────────────────── */}
+          <div className="flex min-w-0 flex-col gap-5">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-6 gap-y-2">
+              <h2 className="aig-text-muted text-2xs uppercase tracking-[0.14em]">
+                {`Fenêtre 24 heures${
+                  windowState === 'unread' ? ' · non lue' : windowState === 'empty' ? ' · lue, vide' : ''
+                }`}
+              </h2>
+              {slices ? <StatusLegend slices={slices} /> : null}
             </div>
 
+            <KpiStrip kpis={overview.kpis} unread={unread} />
+
             {showActivity ? (
-              <>
-                <div className="aig-hairline" />
-                <ActivityPanel buckets={buckets} />
-              </>
+              <ActivityPanel buckets={buckets} />
             ) : windowState === 'empty' ? (
               <FluxAbsentLine />
             ) : windowState === 'unread' ? (
@@ -95,36 +94,24 @@ export default function CockpitOverview({
 
           <div className="aig-hairline" />
 
-          <div className="overview-zone">
-            <header className="min-w-0 border-l-2 border-[#CD7F32] pl-4 py-0.5">
-              <div className="flex items-center gap-2">
-                <p className="text-zinc-400 text-xs font-light uppercase tracking-wider">
-                  Zone opérateur
-                </p>
-                <div className="inline-flex items-center gap-1.5 rounded-sm px-1.5 py-0 text-[0.65rem] font-semibold bg-white/5 text-zinc-400 uppercase tracking-widest">
-                  Operator
-                </div>
-              </div>
-              <h2 className="aig-h2 mt-1.5 text-[1.375rem] sm:text-[1.5rem]">Opérations & catalogue</h2>
-              <p className="text-zinc-400 mt-1.5 text-xs uppercase tracking-wider">
-                {hasRuns
-                  ? 'Flux récent, projets et signaux de la fenêtre courante'
-                  : 'Signaux et projets — flux vide sur la fenêtre 24 h'}
-              </p>
-            </header>
+          {/* ── Zone opérateur ──────────────────────────────────────────── */}
+          <div className="flex min-w-0 flex-col gap-5">
+            <h2 className="aig-text-muted text-2xs uppercase tracking-[0.14em]">
+              Opérations &amp; catalogue
+            </h2>
 
             {hasRuns && runs ? (
-              <div className="grid min-w-0 grid-cols-1 gap-8 xl:grid-cols-2 xl:items-stretch xl:gap-10">
-                <FluxBlock runs={runs} nowMs={nowMs} className="min-h-78 xl:h-full" />
-                <div className="grid min-w-0 gap-8 xl:h-full xl:grid-rows-2 xl:gap-8">
-                  <ProjectsBlock overview={overview} className="min-h-38 xl:h-full" />
-                  <EventsBlock overview={overview} className="min-h-38 xl:h-full" />
+              <div className="grid min-w-0 grid-cols-1 items-start gap-8 xl:grid-cols-2 xl:gap-10">
+                <FluxBlock runs={runs} />
+                <div className="grid min-w-0 items-start gap-8">
+                  <EventsBlock overview={overview} />
+                  <ProjectsBlock overview={overview} />
                 </div>
               </div>
             ) : (
-              <div className="grid min-w-0 grid-cols-1 gap-8 md:grid-cols-2 md:items-stretch md:gap-10">
-                <EventsBlock overview={overview} className="min-h-56 md:h-full" />
-                <ProjectsBlock overview={overview} className="min-h-56 md:h-full" />
+              <div className="grid min-w-0 grid-cols-1 items-start gap-8 md:grid-cols-2 md:gap-10">
+                <EventsBlock overview={overview} />
+                <ProjectsBlock overview={overview} />
               </div>
             )}
           </div>
