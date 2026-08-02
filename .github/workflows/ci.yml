@@ -25,9 +25,33 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Configure npm registries
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NPM_TOKEN:-}" ]; then
+            echo "::error::Missing required secret NPM_TOKEN for @motionplus/core (api.motion.dev)"
+            exit 1
+          fi
+          cat > "$RUNNER_TEMP/.npmrc" <<EOF
+          registry=https://registry.npmjs.org/
+          @motionplus:registry=https://api.motion.dev/npm/
+          //api.motion.dev/:_authToken=${NPM_TOKEN}
+          always-auth=false
+          EOF
+          echo "NPM_CONFIG_USERCONFIG=$RUNNER_TEMP/.npmrc" >> "$GITHUB_ENV"
 
       - name: Install dependencies
-        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ""
+          NPM_CONFIG_REGISTRY: https://registry.npmjs.org
+        run: |
+          npm config get registry
+          npm config get @motionplus:registry
+          npm ci
 
       # Requis par `npm run check:secrets` (étape de `npm run check`) —
       # gitleaks est absent des runners GitHub par défaut.
