@@ -1,15 +1,8 @@
 /**
- * Flux d'exécution — `Table` Catalyst officielle, sans aucune retouche du kit.
- *
- * Le kit n'a pas d'option « table bornée » : le défilement vertical vit dans
- * `PageBody` (shell), pas dans un conteneur local ni dans une prop de `Table`.
- * Voie A — on compose autour du kit, on ne le modifie pas.
- *
- * Une mesure absente reste absente : ni « 0 ms », ni « $0.00 ».
+ * Flux d'exécution — table Catalyst pour la structure tabulaire, donnée en `aig-*`.
  */
-import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Strong, Text } from '@/components/ui/text'
+import { SeverityChip, type SeverityTone } from '@/components/surface-primitives'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import type { NamedRun } from '@/lib/cockpit/named-runs'
 import { clockTime, timeAgo } from '@/lib/cockpit/named-runs'
@@ -17,13 +10,12 @@ import { RUN_STATUS_SINGULAR } from '@/lib/cockpit/status'
 import type { AgentRunStatus } from '@/lib/agent-mission-control/types'
 import { AbsentMark } from './primitives'
 
-/** Le statut d'un run — couleur ET mot portés par le `Badge` Catalyst. */
-const STATUS_BADGE: Record<AgentRunStatus, 'emerald' | 'blue' | 'amber' | 'purple' | 'red'> = {
-  completed: 'emerald',
-  running: 'blue',
-  'needs-confirmation': 'amber',
-  blocked: 'purple',
-  failed: 'red',
+const STATUS_TONE: Record<AgentRunStatus, SeverityTone> = {
+  completed: 'good',
+  running: 'running',
+  'needs-confirmation': 'warn',
+  blocked: 'blocked',
+  failed: 'bad',
 }
 
 function duration(ms: number): string {
@@ -49,30 +41,34 @@ export default function RunStream({ runs, nowMs }: Readonly<{ runs: NamedRun[]; 
       <TableBody>
         {runs.map((run) => (
           <TableRow key={run.id}>
-            <TableCell className="tabular-nums">{clockTime(run.startedAtMs)}</TableCell>
+            <TableCell className="aig-text tabular-nums">{clockTime(run.startedAtMs)}</TableCell>
 
             <TableCell className="hidden sm:table-cell">
-              <Badge color={STATUS_BADGE[run.status]}>{RUN_STATUS_SINGULAR[run.status]}</Badge>
+              <SeverityChip tone={STATUS_TONE[run.status]}>
+                {RUN_STATUS_SINGULAR[run.status]}
+              </SeverityChip>
             </TableCell>
 
             <TableCell>
               {run.copilotName ? (
-                <Strong className="truncate">{run.copilotName}</Strong>
+                <span className="aig-text block truncate font-medium">{run.copilotName}</span>
               ) : (
-                <Text className="truncate">{run.copilotId}</Text>
+                <span className="aig-text-muted block truncate text-sm">{run.copilotId}</span>
               )}
-              <Text className="truncate">{run.projectName ?? 'sans projet'}</Text>
+              <span className="aig-text-faint block truncate text-xs">
+                {run.projectName ?? 'sans projet'}
+              </span>
             </TableCell>
 
-            <TableCell className="text-right tabular-nums">
+            <TableCell className="aig-text text-right tabular-nums">
               {run.latencyMs === null ? <AbsentMark /> : duration(run.latencyMs)}
             </TableCell>
 
-            <TableCell className="text-right tabular-nums">
+            <TableCell className="aig-text text-right tabular-nums">
               {run.costUsd === null ? <AbsentMark /> : formatUsd(run.costUsd)}
             </TableCell>
 
-            <TableCell className="text-right whitespace-nowrap">
+            <TableCell className="aig-text-faint text-right whitespace-nowrap text-xs">
               {timeAgo(run.startedAtMs, nowMs).replace('il y a ', '')}
             </TableCell>
           </TableRow>

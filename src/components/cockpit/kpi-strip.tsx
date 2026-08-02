@@ -18,7 +18,6 @@ import type { ReactNode } from 'react'
 import clsx from 'clsx'
 
 import { Heading } from '@/components/ui/heading'
-import { Text } from '@/components/ui/text'
 import type { DashboardKpis } from '@/lib/agent-mission-control/dashboard-overview'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import { ArcGauge, BarMeter, Led, SEVERITY, SegmentMeter, Unavailable } from './primitives'
@@ -107,14 +106,14 @@ function Cell({
     >
       <dt className="flex items-center gap-2">
         {led}
-        <Text
+        <span
           className={clsx(
-            'truncate',
+            'aig-text-faint truncate',
             lead && 'text-2xs font-medium uppercase tracking-[0.16em]',
           )}
         >
           {label}
-        </Text>
+        </span>
       </dt>
 
       <dd className="min-w-0">
@@ -152,13 +151,13 @@ function Cell({
                 </Heading>
               )}
               {unit ? (
-                <Text className={clsx(lead && 'aig-text-muted text-lg')}>{unit}</Text>
+                <span className={clsx('aig-text-muted', lead && 'text-lg')}>{unit}</span>
               ) : null}
             </div>
             {graphic ? <div className="shrink-0 pb-1">{graphic}</div> : null}
           </div>
         )}
-        <Text className={clsx('truncate', lead && 'mt-1.5')}>{support}</Text>
+        <p className={clsx('aig-text-muted truncate text-xs', lead && 'mt-1.5')}>{support}</p>
       </dd>
     </div>
   )

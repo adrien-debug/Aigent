@@ -110,6 +110,53 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Pastilles de sévérité — creux produit (pas Catalyst Badge). */
+@utility aig-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: var(--radius-md);
+  padding: 0.125rem 0.375rem;
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+}
+
+@utility aig-chip-good {
+  background-color: color-mix(in oklab, var(--aig-severity-good) 15%, transparent);
+  color: var(--aig-severity-good);
+}
+
+@utility aig-chip-running {
+  background-color: color-mix(in oklab, var(--aig-severity-running) 15%, transparent);
+  color: var(--aig-severity-running);
+}
+
+@utility aig-chip-warn {
+  background-color: color-mix(in oklab, var(--aig-severity-warn) 15%, transparent);
+  color: var(--aig-severity-warn);
+}
+
+@utility aig-chip-blocked {
+  background-color: color-mix(in oklab, var(--aig-severity-blocked) 15%, transparent);
+  color: var(--aig-severity-blocked);
+}
+
+@utility aig-chip-bad {
+  background-color: color-mix(in oklab, var(--aig-severity-bad) 15%, transparent);
+  color: var(--aig-severity-bad);
+}
+
+@utility aig-chip-neutral {
+  background-color: var(--aig-line-soft);
+  color: var(--aig-text-muted);
+}
+
+@utility aig-callout {
+  border-left: var(--border-width-default) solid var(--aig-line);
+  padding-left: 0.75rem;
+}
+
 @utility aig-accent-edge {
   position: relative;
 }
