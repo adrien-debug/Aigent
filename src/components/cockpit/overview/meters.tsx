@@ -1,19 +1,5 @@
 import clsx from 'clsx'
 
-export function Led({
-  color,
-  live = false,
-  className,
-}: Readonly<{ color: string; live?: boolean; className?: string }>) {
-  return (
-    <span
-      aria-hidden
-      className={clsx('size-1.5 shrink-0 rounded-full', live && 'pulse-live', className)}
-      style={{ background: color }}
-    />
-  )
-}
-
 export function BarMeter({
   ratio,
   color,
@@ -24,7 +10,7 @@ export function BarMeter({
     <div
       aria-hidden
       className={clsx(
-        'h-1.5 w-full overflow-hidden rounded-full bg-[color-mix(in_oklab,var(--aig-line)_60%,transparent)]',
+        'h-1.5 w-full overflow-hidden rounded-full bg-[color-mix(in_oklab,var(--aig-line)_60%,transparent)] border border-white/5 shadow-inner',
         className,
       )}
     >
@@ -49,7 +35,7 @@ export function SegmentMeter({
     return (
       <div
         className={clsx(
-          'h-1.5 w-full rounded-full bg-[color-mix(in_oklab,var(--aig-line)_60%,transparent)]',
+          'h-1.5 w-full rounded-full bg-[color-mix(in_oklab,var(--aig-line)_60%,transparent)] border border-white/5 shadow-inner',
           className,
         )}
       />
@@ -69,11 +55,11 @@ export function SegmentMeter({
             key={i}
             className={clsx(
               'h-6 w-1.5 rounded-sm transition-all duration-300',
-              !isOn && 'bg-white/5 shadow-inner'
+              !isOn && 'bg-white/5 shadow-inner border border-white/5'
             )}
             style={isOn ? { 
               background: color,
-              boxShadow: `0 0 8px ${color}80` 
+              boxShadow: `0 0 4px ${color}60` 
             } : undefined}
           />
         )
@@ -120,6 +106,7 @@ export function ArcGauge({
         strokeLinecap="round"
         strokeDasharray={`${c * clamped} ${c}`}
         transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        style={{ filter: `drop-shadow(0 0 3px ${color}60)` }}
       />
     </svg>
   )

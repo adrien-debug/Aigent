@@ -59,6 +59,7 @@ const REQUIRED = {
   'badge.tsx': ['Badge', 'BadgeButton'],
   'button.tsx': ['Button', 'TouchTarget'],
   'checkbox.tsx': ['Checkbox', 'CheckboxField', 'CheckboxGroup'],
+  'description-list.tsx': ['DescriptionDetails', 'DescriptionList', 'DescriptionTerm'],
   'dialog.tsx': ['Dialog', 'DialogActions', 'DialogBody', 'DialogDescription', 'DialogTitle'],
   'divider.tsx': ['Divider'],
   'fieldset.tsx': ['Description', 'ErrorMessage', 'Field', 'Fieldset', 'Label', 'Legend'],

@@ -15,6 +15,7 @@ export {
   DialogTitle,
 } from './dialog'
 export { Divider } from './divider'
+export { DescriptionList, DescriptionTerm, DescriptionDetails } from './description-list'
 export { Description, ErrorMessage, Field, Fieldset, Label, Legend } from './fieldset'
 export { Heading, Subheading } from './heading'
 export { Link } from './link'

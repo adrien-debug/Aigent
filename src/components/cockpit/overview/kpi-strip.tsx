@@ -2,10 +2,11 @@ import type { CSSProperties, ReactNode } from 'react'
 import clsx from 'clsx'
 
 import { NotMeasured } from '@/components/cockpit/primitives'
+import { Badge } from '@/components/ui/badge'
 import type { DashboardKpis } from '@/lib/agent-mission-control/dashboard-overview'
 import { formatUsd } from '@/lib/agent-mission-control/format'
 import { SEVERITY } from '@/lib/cockpit/status'
-import { ArcGauge, BarMeter, Led, SegmentMeter } from './meters'
+import { ArcGauge, BarMeter, SegmentMeter } from './meters'
 
 const GOOD = SEVERITY.good
 const WARN = SEVERITY.warn
@@ -28,7 +29,7 @@ function Figure({
   unit,
   support,
   graphic,
-  led,
+  badge,
   valueColor,
   glowClass,
   dimmed = false,
@@ -38,18 +39,18 @@ function Figure({
   unit?: string
   support: string
   graphic?: ReactNode
-  led?: ReactNode
+  badge?: ReactNode
   valueColor?: string
   glowClass?: string
   dimmed?: boolean
 }>) {
   return (
     <div className="min-w-0 aig-surface-elevated rounded-xl p-4 flex flex-col justify-between">
-      <div className="flex min-h-4 items-center gap-1.5">
-        {led}
-        <p className="aig-text-faint truncate text-xs font-medium uppercase tracking-wider">
+      <div className="flex min-h-4 items-center justify-between gap-1.5">
+        <p className="aig-text-faint truncate text-xs font-semibold uppercase tracking-wider">
           {label}
         </p>
+        {badge}
       </div>
       <div className="mt-3 flex items-end justify-between gap-2 sm:gap-3">
         <div className="min-w-0">
@@ -104,7 +105,7 @@ export default function KpiStrip({
         value={unread ? null : kpis.runs24h}
         support={unread ? 'fenêtre non lue' : 'exécutions sur la fenêtre'}
         dimmed={windowEmpty && (kpis.runs24h ?? 0) === 0}
-        led={(kpis.runs24h ?? 0) > 0 ? <Led color={GOOD} live /> : null}
+        badge={(kpis.runs24h ?? 0) > 0 ? <Badge color="green" className="pulse-live">Actif</Badge> : null}
       />
       <Figure
         label="Succès 24 h"
@@ -152,6 +153,7 @@ export default function KpiStrip({
         support="bloquées à débloquer"
         valueColor={blocked !== null && blocked > 0 ? BAD : undefined}
         glowClass={blocked !== null && blocked > 0 ? 'aig-glow-bad' : undefined}
+        badge={blocked !== null && blocked > 0 ? <Badge color="red">Bloqué</Badge> : null}
       />
       <Figure
         label="Décisions"
@@ -159,6 +161,7 @@ export default function KpiStrip({
         support="opérateur en attente"
         valueColor={kpis.needsAction > 0 ? WARN : undefined}
         glowClass={kpis.needsAction > 0 ? 'aig-glow-warn' : undefined}
+        badge={kpis.needsAction > 0 ? <Badge color="amber">Attente</Badge> : null}
       />
     </>
   )

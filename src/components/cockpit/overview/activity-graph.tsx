@@ -29,44 +29,30 @@ export function GhostActivityGraph() {
           aria-label="Aucune activité sur la fenêtre"
         >
           <defs>
-            <linearGradient id="ghost-area" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="var(--aig-line)" stopOpacity="0.1" />
+            <pattern id="millimeter-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="var(--aig-line)" strokeWidth="0.5" strokeOpacity="0.3" />
+            </pattern>
+            <linearGradient id="ghost-fade" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="var(--aig-line)" stopOpacity="0.15" />
               <stop offset="100%" stopColor="var(--aig-line)" stopOpacity="0" />
             </linearGradient>
           </defs>
 
-          {[0, 0.5, 1].map((ratio) => {
-            const y = PAD_TOP + (HEIGHT - PAD_TOP - PAD_BOTTOM) * ratio
-            return (
-              <line
-                key={ratio}
-                x1={PAD_X}
-                y1={y}
-                x2={WIDTH - PAD_X}
-                y2={y}
-                stroke="var(--aig-line-soft)"
-                strokeWidth="1"
-                strokeDasharray="4,6"
-              />
-            )
-          })}
+          <rect x="0" y="0" width={WIDTH} height={HEIGHT - PAD_BOTTOM} fill="url(#millimeter-grid)" />
+          <rect x="0" y="0" width={WIDTH} height={HEIGHT - PAD_BOTTOM} fill="url(#ghost-fade)" />
 
           <path
-            d={`M ${PAD_X},${HEIGHT - PAD_BOTTOM} L ${WIDTH - PAD_X},${HEIGHT - PAD_BOTTOM}`}
+            d={`M ${PAD_X},${HEIGHT - PAD_BOTTOM} Q ${WIDTH / 2},${HEIGHT - PAD_BOTTOM - 20} ${WIDTH - PAD_X},${HEIGHT - PAD_BOTTOM}`}
             fill="none"
             stroke="var(--aig-line)"
-            strokeWidth="2"
-            strokeDasharray="4,6"
+            strokeWidth="1"
+            strokeOpacity="0.5"
             strokeLinecap="round"
-          />
-          <path
-            d={`M ${PAD_X},${HEIGHT - PAD_BOTTOM} L ${WIDTH - PAD_X},${HEIGHT - PAD_BOTTOM} L ${WIDTH - PAD_X},${HEIGHT - PAD_BOTTOM} L ${PAD_X},${HEIGHT - PAD_BOTTOM} Z`}
-            fill="url(#ghost-area)"
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="aig-text-faint text-xs uppercase tracking-wider bg-(--aig-base) px-3 py-1 rounded-full border border-(--aig-line-soft)">
-            Aucun run sur les dernières 24 h
+          <span className="aig-text-faint text-xs uppercase tracking-wider bg-(--aig-base)/80 backdrop-blur-sm px-4 py-1.5 rounded-full border border-(--aig-line-soft) shadow-sm">
+            Ready to monitor — Aucun run sur les dernières 24 h
           </span>
         </div>
       </div>

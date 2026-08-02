@@ -24,22 +24,22 @@
 }
 
 @utility aig-surface-elevated {
-  background-color: var(--aig-base);
-  background-image: linear-gradient(180deg, color-mix(in oklab, white 3%, transparent) 0%, transparent 100%);
-  border: 1px solid color-mix(in oklab, white 5%, transparent);
-  box-shadow: var(--shadow-2xl);
+  background-color: color-mix(in oklab, white 1%, transparent);
+  border: 1px solid color-mix(in oklab, white 10%, transparent);
+  box-shadow: 0 8px 32px -8px oklch(0 0 0 / 0.6), inset 0 1px 0 color-mix(in oklab, white 5%, transparent);
+  backdrop-filter: blur(16px);
 }
 
 @utility aig-glow-good {
-  filter: drop-shadow(0 0 12px color-mix(in oklab, var(--aig-severity-good) 50%, transparent));
+  filter: drop-shadow(0 0 4px color-mix(in oklab, var(--aig-severity-good) 40%, transparent));
 }
 
 @utility aig-glow-warn {
-  filter: drop-shadow(0 0 12px color-mix(in oklab, var(--aig-severity-warn) 50%, transparent));
+  filter: drop-shadow(0 0 4px color-mix(in oklab, var(--aig-severity-warn) 40%, transparent));
 }
 
 @utility aig-glow-bad {
-  filter: drop-shadow(0 0 12px color-mix(in oklab, var(--aig-severity-bad) 50%, transparent));
+  filter: drop-shadow(0 0 4px color-mix(in oklab, var(--aig-severity-bad) 40%, transparent));
 }
 
 @utility aig-line {

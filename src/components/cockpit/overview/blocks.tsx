@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/components/ui/link'
+import { DescriptionList, DescriptionTerm, DescriptionDetails } from '@/components/ui/description-list'
 import { NotMeasured, Unavailable, initialsOf } from '@/components/cockpit/primitives'
 import { SeverityChip } from '@/components/surface-primitives'
 import type { ActionItem, DashboardOverview, ProjectOverviewItem } from '@/lib/agent-mission-control/dashboard-overview'
@@ -75,7 +76,7 @@ function ProjectRow({ project }: Readonly<{ project: ProjectOverviewItem }>) {
       <Link
         href={`/projects/${project.id}`}
         className={clsx(
-          'flex min-h-12 items-center gap-3 px-3 rounded-lg border border-transparent transition-colors no-underline hover:border-(--aig-line-soft) hover:bg-white/[0.02] focus-visible:bg-white/[0.02] focus-visible:outline-hidden',
+          'flex min-h-12 items-center gap-3 px-3 rounded-lg border border-transparent transition-all duration-300 no-underline hover:border-white/10 hover:bg-white/[0.02] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] focus-visible:bg-white/[0.02] focus-visible:outline-hidden',
           empty ? 'py-2' : 'py-2.5',
         )}
       >
@@ -87,7 +88,7 @@ function ProjectRow({ project }: Readonly<{ project: ProjectOverviewItem }>) {
           />
           <div className="absolute inset-0 rounded-lg shadow-[inset_0_1px_2px_rgba(255,255,255,0.1)] pointer-events-none" />
         </div>
-        <span className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1">
           <span
             className={clsx(
               'block truncate text-sm',
@@ -103,17 +104,19 @@ function ProjectRow({ project }: Readonly<{ project: ProjectOverviewItem }>) {
               {project.repoFullName ?? 'aucun dépôt lié'}
             </span>
           )}
-        </span>
-        <span className="aig-text-faint shrink-0 text-right text-xs tabular-nums">
+        </div>
+        <div className="shrink-0 text-right">
           {empty ? (
             <NotMeasured label="—" why="Aucun agent actif dans ce projet." />
           ) : (
-            <>
-              <span className="aig-text font-medium tabular-nums">{project.activeCount}</span>
-              <span>/{project.copilotCount}</span>
-            </>
+            <DescriptionList className="!grid-cols-1 sm:!grid-cols-1 text-right !gap-0">
+              <DescriptionTerm className="!py-0 !border-0 !text-xs uppercase tracking-wider aig-text-faint">Agents actifs</DescriptionTerm>
+              <DescriptionDetails className="!py-0 !border-0 aig-text font-medium tabular-nums">
+                {project.activeCount} <span className="aig-text-faint font-normal">/ {project.copilotCount}</span>
+              </DescriptionDetails>
+            </DescriptionList>
           )}
-        </span>
+        </div>
       </Link>
     </li>
   )
@@ -133,7 +136,7 @@ function EventRow({ item }: Readonly<{ item: ActionItem }>) {
   const chip = actionItemChip(item)
 
   return (
-    <li className="mb-2 last:mb-0 flex min-h-12 items-center gap-3 py-2.5 px-3 rounded-lg border border-transparent transition-colors hover:border-(--aig-line-soft) hover:bg-white/[0.02]">
+    <li className="mb-2 last:mb-0 flex min-h-12 items-center gap-3 py-2.5 px-3 rounded-lg border border-transparent transition-all duration-300 hover:border-white/10 hover:bg-white/[0.02] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
       <SeverityChip tone={chip.tone} className="shrink-0">
         {chip.label}
       </SeverityChip>
