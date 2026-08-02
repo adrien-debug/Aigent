@@ -88,7 +88,10 @@ State the restriction, not the headline:
 - **Lifecycle version drift** is computed from persisted evidence only:
   `agent_delivery_events.version_id` vs `runtime_telemetry_events.agent_version`.
   Missing proof stays `unknown`; no timestamp/name/position inference.
-- **Tool builder** works, but only `count_words` has a sandbox.
+- **Tool builder** sandboxing is generic/fail-closed: explicit capability
+  allowlist, timeout, I/O bounds, isolated empty env context, and outcomes
+  limited to `certified | failed | unavailable`. `count_words` is the first
+  registered sandboxed tool.
 - **Provider `mistral`** is declared and **not wired** — it throws a typed error
   rather than falling back silently.
 - **Provider `local`** (vLLM) requires an explicit opt-in key.

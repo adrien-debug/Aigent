@@ -4,17 +4,15 @@ import { randomUUID } from 'node:crypto'
 
 import { pgrest } from './postgrest'
 import {
-  beginImplementing,
-  beginTesting,
-  certifyMission,
   startToolBuild,
   type ToolBuildMission,
   type ToolBuildSpec,
   type ToolBuildState,
 } from './tool-builder/mission'
-import { runToolSandbox } from './tool-builder/sandbox'
-import { countWords } from './tool-builder/tools/count-words'
+import { advanceToolBuildMission } from './tool-builder/advance'
 import type { IsoTimestamp } from './types'
+
+export { advanceToolBuildMission } from './tool-builder/advance'
 
 export interface ToolBuildMissionRow {
   id: string
@@ -51,36 +49,6 @@ function mapRow(raw: RawToolBuildMission): ToolBuildMissionRow {
   }
 }
 
-function runSandboxForSpec(spec: ToolBuildSpec) {
-  if (spec.id === 'count_words') {
-    return runToolSandbox(countWords, [
-      { name: 'empty', input: '', expected: { ok: true, words: 0, characters: 0, longestWord: 0 } },
-      { name: 'hello world', input: 'hello world', expected: { ok: true, words: 2, characters: 11, longestWord: 5 } },
-    ])
-  }
-  return null
-}
-
-/** Advance a mission through implement → test → certify when a sandbox exists. */
-export function advanceToolBuildMission(mission: ToolBuildMission): ToolBuildMission {
-  if (mission.state === 'REJECTED' || mission.state === 'CERTIFIED' || mission.state === 'DEPRECATED') {
-    return mission
-  }
-  let next = mission.state === 'DRAFT' ? beginImplementing(mission) : mission
-  if (next.state === 'IMPLEMENTING') next = beginTesting(next)
-  if (next.state !== 'TESTING') return next
-
-  const evidence = runSandboxForSpec(next.spec)
-  if (!evidence) {
-    return {
-      ...next,
-      state: 'REJECTED',
-      rejectionReason: `no sandbox implementation for tool id "${next.spec.id}" yet — only count_words is buildable today`,
-    }
-  }
-  return certifyMission(next, evidence)
-}
-
 async function persistMissionRow(id: string, mission: ToolBuildMission): Promise<ToolBuildMissionRow> {
   const now = new Date().toISOString()
   const rows = await pgrest<RawToolBuildMission[]>(
@@ -103,7 +71,7 @@ export async function startToolBuildMission(spec: ToolBuildSpec): Promise<ToolBu
   const id = randomUUID()
   const now = new Date().toISOString()
   let mission = startToolBuild(spec)
-  mission = advanceToolBuildMission(mission)
+  mission = await advanceToolBuildMission(mission)
 
   const rows = await pgrest<RawToolBuildMission[]>('POST', 'tool_build_missions', {
     id,
@@ -147,6 +115,6 @@ export async function retryToolBuildMission(id: string): Promise<ToolBuildMissio
     evidence: rows[0].evidence ?? null,
     rejectionReason: rows[0].rejection_reason,
   }
-  const advanced = advanceToolBuildMission(current)
+  const advanced = await advanceToolBuildMission(current)
   return persistMissionRow(id, advanced)
 }
