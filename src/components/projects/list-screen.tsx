@@ -169,10 +169,10 @@ export default function ProjectsListScreen({
   return (
     // L'en-tête vient du shell ; le corps reste BORNÉ à la main. `PageBody` ne
     // pose aucune borne de hauteur, et cet écran tient son zéro-scroll par une
-    // colonne `h-svh overflow-hidden` dont seule la liste défile — l'y
+    // colonne `h-full overflow-hidden` dont seule la liste défile — l'y
     // remplacer rendrait la page scrollable et la box grandirait avec la data.
     // La gouttière mobile n'est pas redoublée : `PageHeader` porte la sienne.
-    <div className="flex h-svh min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <PageHeader
         title="Projets"
         description="Projets consommateurs, leur dépôt cible et les agents qui leur sont rattachés."

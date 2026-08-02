@@ -168,7 +168,7 @@ export function PageHeader({
 }>) {
   return (
     // `shrink-0` : les écrans BORNÉS (`/actions`, `/projects`, `/builder`) sont
-    // des colonnes flex en `h-svh overflow-hidden`. Sans lui, l'en-tête est le
+    // des colonnes flex en `h-full overflow-hidden`. Sans lui, l'en-tête est le
     // premier à céder quand la donnée pousse — le titre de la surface se
     // comprimerait pour laisser de la place à une liste qui a déjà son propre
     // scroll. `sticky` reste inoffensif dans ce cas : sans scroll de document,
@@ -218,8 +218,34 @@ export function PageBody({
   // différent doit être plus large que celle entre deux éléments d'une même
   // zone, sinon la page se lit comme une liste uniforme — c'est l'espacement,
   // autant que la matière, qui construit la hiérarchie.
+  //
+  // C'EST ICI QUE LE PRODUIT DÉFILE. Le document est borné au viewport
+  // (`layout.tsx`) et la zone de travail est en `overflow-hidden` : sans un
+  // scroller explicite à ce niveau, tout écran plus long que l'écran serait
+  // COUPÉ en silence — un contenu inatteignable sans que rien ne l'indique.
+  //
+  // `flex-1 min-h-0 overflow-y-auto` fait les trois choses nécessaires :
+  // occuper la hauteur restante sous l'en-tête, autoriser la descente sous la
+  // taille du contenu, et donner le scroll à cette zone plutôt qu'au document.
+  //
+  // Les écrans DÉJÀ bornés (`/runtime`, `/builder`, `/projects`) passent
+  // `min-h-0 flex-1` et gèrent leur propre défilement interne ; le
+  // `overflow-y-auto` d'ici n'a alors rien à faire — leur contenu ne dépasse
+  // pas — et il ne double donc pas la barre de défilement.
+  // `relative` : les libellés d'accessibilité de Catalyst (`sr-only`) sont en
+  // `position: absolute`. Sans bloc conteneur ici, ils se résolvaient sur le
+  // VIEWPORT, échappaient au `overflow-hidden` du document et rallongeaient sa
+  // zone défilable — `/learning` mesurait 832 px pour 800 px de viewport et
+  // restait scrollable de 32 px. Les ancrer dans le scroller supprime ce
+  // débord sans toucher aux libellés, qui doivent rester lisibles par un
+  // lecteur d'écran.
   return (
-    <div className={clsx('flex min-w-0 flex-col gap-5 px-4 pb-6 pt-5 sm:px-6', className)}>
+    <div
+      className={clsx(
+        'scroll-thin relative flex min-h-0 min-w-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-6 pt-5 sm:px-6',
+        className,
+      )}
+    >
       {children}
     </div>
   )
@@ -246,7 +272,7 @@ export default function AppShell({ children }: Readonly<{ children?: ReactNode }
   const pathname = usePathname() ?? '/'
 
   return (
-    <div className="aig-subtle flex min-h-svh">
+    <div className="aig-subtle flex h-full min-h-0 overflow-hidden">
       <Headless.Dialog open={showSidebar} onClose={setShowSidebar} className="lg:hidden">
         <Headless.DialogBackdrop
           transition
@@ -282,19 +308,24 @@ export default function AppShell({ children }: Readonly<{ children?: ReactNode }
 
           `overflow-y-auto` sur le rail : en FAIBLE HAUTEUR (fenêtre de 600 px,
           écran 13" avec inspecteur ouvert), onze entrées + en-tête + pied
-          dépassent `h-svh`. Sans scroll propre, les dernières surfaces et le
+          dépassent la hauteur du rail. Sans scroll propre, les dernières surfaces et le
           bloc de session devenaient inatteignables — la navigation cessait de
           naviguer. */}
-      <div className="aig-subtle aig-line-soft scroll-thin hidden w-64 shrink-0 border-r lg:sticky lg:top-0 lg:block lg:h-svh lg:max-h-svh lg:self-start lg:overflow-y-auto">
+      <div className="aig-subtle aig-line-soft scroll-thin hidden w-64 shrink-0 border-r lg:block lg:h-full lg:min-h-0 lg:overflow-y-auto">
         <NavigationSidebar pathname={pathname} />
       </div>
 
       {/* Zone de travail — elle monte d'un palier sur le rail.
 
-          `min-h-svh` + `flex-col` : les écrans qui veulent occuper la hauteur
-          (une scène dominante, un flux qui respire) peuvent le faire avec
-          `flex-1`, au lieu de flotter en haut d'un viewport à moitié vide. */}
-      <main className="aig-base flex min-h-svh min-w-0 flex-1 flex-col">
+          `h-full min-h-0 overflow-hidden` + `flex-col` : la zone de travail est
+          BORNÉE au viewport, elle ne grandit plus avec son contenu. Les écrans
+          qui veulent occuper la hauteur le font avec `flex-1` ; ceux qui sont
+          plus longs que l'écran portent leur propre `overflow-y-auto`.
+
+          Le `min-h-0` n'est pas décoratif : sans lui, un enfant `flex-1` refuse
+          de descendre sous la taille de son contenu et le plafond de `h-full`
+          serait franchi en silence — le vide fantôme reviendrait. */}
+      <main className="aig-base relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <MobileNavButton onOpen={() => setShowSidebar(true)} />
         {children}
       </main>

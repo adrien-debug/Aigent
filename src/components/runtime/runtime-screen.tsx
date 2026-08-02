@@ -121,15 +121,13 @@ export default function RuntimeScreen({
            * chaîne de hauteur flex ; `min-h-0` sur la colonne parente est ce qui
            * autorise ce flex-enfant à descendre sous la taille de son contenu.
            *
-           * LIMITE MESURÉE (2026-08-02, 1280x800) : la box n'est PAS encore
-           * fixe. Le document défile toujours (4014 px) et le creux fait 3730 px
-           * sans défiler. La cause est AU-DESSUS de cet écran : tout le shell
-           * (`html` / `body` / `main`, app-shell.tsx) est en `min-h-svh`, qui
-           * pose un plancher et jamais un plafond — donc les ancêtres grandissent
-           * avec le contenu et ce `flex-1` remplit un parent non borné. Tenir un
-           * zéro-scroll ici exige de passer le shell en `h-svh overflow-hidden`,
-           * geste structurant sur toutes les routes, non fait ici.
-           * Détail : docs/visual-reviews/aigent-visual-composition-004-r5/. */}
+           * Cette chaîne était juste mais ancrée dans le vide : le shell était en
+           * `min-h-svh` (un plancher, jamais un plafond), donc ce `flex-1`
+           * remplissait fidèlement un parent non borné — 4014 px de document dont
+           * ~3730 px de vide non défilable. Le document est désormais borné au
+           * viewport (`layout.tsx` + `app-shell.tsx`) et la box tient enfin sa
+           * promesse : hauteur fixe, données qui défilent dedans.
+           * Mesures : docs/visual-reviews/aigent-visual-composition-004-r6/. */}
           <div className="aig-inset scroll-thin m-3 mt-3 flex min-h-0 flex-1 flex-col overflow-y-auto p-3 sm:mx-4 sm:mb-4">
             <TabPanel payload={payload} />
           </div>

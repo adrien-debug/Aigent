@@ -103,9 +103,9 @@ export default function BuilderSelectScreen({
   return (
     // L'en-tête vient du shell ; le corps reste borné à la main. `PageBody` ne
     // pose aucune borne de hauteur, et cet écran tient son zéro-scroll par une
-    // colonne `h-svh` dont seule la liste défile. `PageHeader` porte déjà la
+    // colonne `h-full` dont seule la liste défile. `PageHeader` porte déjà la
     // gouttière mobile — elle n'est pas redoublée ici.
-    <div className="flex h-svh min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <PageHeader
         title="Builder"
         description="Conversation d’authoring : architecte, manifeste, matérialisation d’un agent."
