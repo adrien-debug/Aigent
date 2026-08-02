@@ -7,7 +7,7 @@ export function StatusLegend({ slices }: Readonly<{ slices: StatusSlice[] }>) {
       {slices.map((slice) => (
         <div
           key={slice.status}
-          className="inline-flex items-center gap-x-1.5 rounded-md px-1.5 py-0.5 text-xs font-medium bg-white/5 text-(--aig-text-muted) border border-white/5"
+          className="inline-flex items-center gap-x-1.5 rounded-md px-1.5 py-0.5 text-xs font-medium bg-white/5 text-zinc-400 border border-white/5"
         >
           <span
             aria-hidden
@@ -18,7 +18,7 @@ export function StatusLegend({ slices }: Readonly<{ slices: StatusSlice[] }>) {
             }}
           />
           <span className="uppercase tracking-wider">{RUN_STATUS_LABEL[slice.status]}</span>
-          <span className="aig-text ml-0.5 tabular-nums">{slice.count}</span>
+          <span className="text-white ml-0.5 tabular-nums">{slice.count}</span>
         </div>
       ))}
     </div>

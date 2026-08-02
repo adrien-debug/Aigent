@@ -65,14 +65,14 @@ export default function CockpitOverview({
             <div className="grid min-w-0 grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-3 lg:grid-cols-6 lg:gap-x-6">
               {slices ? (
                 <>
-                  <div className="col-span-full lg:col-span-1 flex items-end pb-2">
-                    <h2 className="text-white/40 text-xs font-light uppercase tracking-wider">
+                  <div className="col-span-full lg:col-span-1 flex">
+                    <h2 className="text-zinc-400 text-xs font-light uppercase tracking-wider">
                       {`Fenêtre 24 heures${
                         windowState === 'unread' ? ' · non lue' : windowState === 'empty' ? ' · lue, vide' : ''
                       }`}
                     </h2>
                   </div>
-                  <div className="col-span-full lg:col-span-5 flex items-end pb-2">
+                  <div className="col-span-full lg:col-span-5 flex">
                     <StatusLegend slices={slices} />
                   </div>
                 </>
@@ -98,15 +98,15 @@ export default function CockpitOverview({
           <div className="overview-zone">
             <header className="min-w-0 border-l-2 border-[#CD7F32] pl-4 py-0.5">
               <div className="flex items-center gap-2">
-                <p className="text-white/40 text-xs font-light uppercase tracking-wider">
+                <p className="text-zinc-400 text-xs font-light uppercase tracking-wider">
                   Zone opérateur
                 </p>
-                <div className="inline-flex items-center gap-1.5 rounded-sm px-1.5 py-0 text-[0.65rem] font-semibold bg-white/5 text-white/60 uppercase tracking-widest">
+                <div className="inline-flex items-center gap-1.5 rounded-sm px-1.5 py-0 text-[0.65rem] font-semibold bg-white/5 text-zinc-400 uppercase tracking-widest">
                   Operator
                 </div>
               </div>
               <h2 className="aig-h2 mt-1.5 text-[1.375rem] sm:text-[1.5rem]">Opérations & catalogue</h2>
-              <p className="text-white/40 mt-1.5 text-xs uppercase tracking-wider">
+              <p className="text-zinc-400 mt-1.5 text-xs uppercase tracking-wider">
                 {hasRuns
                   ? 'Flux récent, projets et signaux de la fenêtre courante'
                   : 'Signaux et projets — flux vide sur la fenêtre 24 h'}

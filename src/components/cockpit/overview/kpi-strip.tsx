@@ -8,8 +8,6 @@ import { formatUsd } from '@/lib/agent-mission-control/format'
 import { ArcGauge, BarMeter, SegmentMeter } from './meters'
 
 const BRONZE_ACTIVE = '#CD7F32'
-const BRONZE_URGENT = '#FFB347'
-const BRONZE_PASSIVE = '#8B5A2B'
 
 function costSupportText(cost: NonNullable<DashboardKpis['cost24h']>, partial: boolean): string {
   if (partial) return `minorant · ${cost.measuredRuns}/${cost.totalRuns} runs`
@@ -23,7 +21,6 @@ function Figure({
   support,
   graphic,
   badge,
-  glowClass,
   dimmed = false,
 }: Readonly<{
   label: string
@@ -32,13 +29,12 @@ function Figure({
   support: string
   graphic?: ReactNode
   badge?: ReactNode
-  glowClass?: string
   dimmed?: boolean
 }>) {
   return (
     <div className="min-w-0 aig-surface-elevated rounded-xl p-4 flex flex-col justify-between">
       <div className="flex min-h-4 items-center justify-between gap-1.5">
-        <p className="text-white/40 truncate text-xs font-light uppercase tracking-wider">
+        <p className="text-zinc-400 truncate text-xs font-light uppercase tracking-wider">
           {label}
         </p>
         {badge}
@@ -56,16 +52,15 @@ function Figure({
                 <span
                   className={clsx(
                     dimmed
-                      ? 'text-white/60 text-[1.4rem] sm:text-[1.5rem] font-medium'
-                      : 'text-white text-[1.95rem] sm:text-[2.15rem] font-semibold',
-                    glowClass
+                      ? 'text-zinc-400 text-[1.4rem] sm:text-[1.5rem] font-medium'
+                      : 'text-white text-[1.95rem] sm:text-[2.15rem] font-semibold'
                   )}
                 >
                   {value}
                 </span>
-                {unit ? <span className="text-white/60 text-sm sm:text-base">{unit}</span> : null}
+                {unit ? <span className="text-zinc-400 text-sm sm:text-base">{unit}</span> : null}
               </div>
-              <p className="text-white/40 mt-1 min-h-4 truncate text-xs uppercase tracking-wider">{support}</p>
+              <p className="text-zinc-400 mt-1 min-h-4 truncate text-xs uppercase tracking-wider">{support}</p>
             </>
           )}
         </div>
@@ -95,9 +90,9 @@ export default function KpiStrip({
         dimmed={windowEmpty && (kpis.runs24h ?? 0) === 0}
         badge={
           (kpis.runs24h ?? 0) > 0 ? (
-            <div className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[0.65rem] font-medium bg-[#CD7F32]/10 text-[#CD7F32] border border-[#CD7F32]/20 pulse-live uppercase tracking-widest">
+            <Badge color="zinc" className="uppercase tracking-widest text-[0.65rem]">
               Actif
-            </div>
+            </Badge>
           ) : null
         }
       />
@@ -110,7 +105,7 @@ export default function KpiStrip({
           kpis.success24h === null ? undefined : (
             <ArcGauge
               ratio={kpis.success24h / 100}
-              color={kpis.success24h >= 90 ? BRONZE_ACTIVE : BRONZE_URGENT}
+              color={BRONZE_ACTIVE}
               size={44}
               label={`${kpis.success24h} % de succès`}
             />
@@ -123,7 +118,7 @@ export default function KpiStrip({
         support={cost === null ? 'aucun coût mesurable' : costSupportText(cost, partial)}
         graphic={
           cost === null ? undefined : (
-            <BarMeter ratio={coverage} color={partial ? BRONZE_URGENT : BRONZE_ACTIVE} className="w-12 sm:w-14" />
+            <BarMeter ratio={coverage} color={BRONZE_ACTIVE} className="w-12 sm:w-14" />
           )
         }
       />
@@ -143,12 +138,11 @@ export default function KpiStrip({
         label="Livraisons"
         value={blocked}
         support="bloquées à débloquer"
-        glowClass={blocked !== null && blocked > 0 ? 'aig-glow-bronze-bright' : undefined}
         badge={
           blocked !== null && blocked > 0 ? (
-            <div className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[0.65rem] font-medium bg-[#FFB347]/10 text-[#FFB347] border border-[#FFB347]/20 uppercase tracking-widest">
+            <Badge color="zinc" className="uppercase tracking-widest text-[0.65rem]">
               Bloqué
-            </div>
+            </Badge>
           ) : null
         }
       />
@@ -156,12 +150,11 @@ export default function KpiStrip({
         label="Décisions"
         value={kpis.needsAction}
         support="opérateur en attente"
-        glowClass={kpis.needsAction > 0 ? 'aig-glow-bronze' : undefined}
         badge={
           kpis.needsAction > 0 ? (
-            <div className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[0.65rem] font-medium bg-[#CD7F32]/10 text-[#CD7F32] border border-[#CD7F32]/20 uppercase tracking-widest">
+            <Badge color="zinc" className="uppercase tracking-widest text-[0.65rem]">
               Attente
-            </div>
+            </Badge>
           ) : null
         }
       />

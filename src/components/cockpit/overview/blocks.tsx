@@ -2,9 +2,9 @@ import type { ReactNode } from 'react'
 import clsx from 'clsx'
 
 import { Avatar } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/components/ui/link'
-import { DescriptionList, DescriptionTerm, DescriptionDetails } from '@/components/ui/description-list'
 import { NotMeasured, Unavailable, initialsOf } from '@/components/cockpit/primitives'
 import type { ActionItem, DashboardOverview, ProjectOverviewItem } from '@/lib/agent-mission-control/dashboard-overview'
 import type { HourlyBucket } from '@/lib/cockpit/overview-series'
@@ -35,7 +35,7 @@ function EmptyOverviewLine({
   return (
     <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
       <NotMeasured label="—" why={detail} />
-      <span className="text-white/40 min-w-0 text-xs">{detail}</span>
+      <span className="text-zinc-400 min-w-0 text-xs">{detail}</span>
       {href && action ? (
         <Link href={href} className="aig-link-accent shrink-0 whitespace-nowrap no-underline">
           {action} →
@@ -49,7 +49,7 @@ function EmptyInlineMeta({ detail }: Readonly<{ detail: string }>) {
   return (
     <span className="flex min-w-0 items-baseline gap-1.5">
       <NotMeasured label="—" why={detail} />
-      <span className="text-white/40 min-w-0 truncate text-xs">{detail}</span>
+      <span className="text-zinc-400 min-w-0 truncate text-xs">{detail}</span>
     </span>
   )
 }
@@ -92,7 +92,7 @@ function ProjectRow({ project }: Readonly<{ project: ProjectOverviewItem }>) {
           <span
             className={clsx(
               'block truncate text-sm',
-              empty ? 'text-white/40 font-normal' : 'text-white font-medium',
+              empty ? 'text-zinc-400 font-normal' : 'text-white font-medium',
             )}
           >
             {project.name}
@@ -100,7 +100,7 @@ function ProjectRow({ project }: Readonly<{ project: ProjectOverviewItem }>) {
           {empty ? (
             <EmptyInlineMeta detail="Aucun agent dans ce projet." />
           ) : (
-            <span className="text-white/40 block truncate text-xs uppercase tracking-wider">
+            <span className="text-zinc-400 block truncate text-xs uppercase tracking-wider">
               {project.repoFullName ?? 'aucun dépôt lié'}
             </span>
           )}
@@ -111,7 +111,7 @@ function ProjectRow({ project }: Readonly<{ project: ProjectOverviewItem }>) {
           ) : (
             <>
               <div className="text-white text-xs font-medium tabular-nums tracking-wider">
-                {project.activeCount} <span className="text-white/40 font-normal">/ {project.copilotCount}</span>
+                {project.activeCount} <span className="text-zinc-400 font-normal">/ {project.copilotCount}</span>
               </div>
               <BarMeter 
                 ratio={project.activeCount / project.copilotCount} 
@@ -141,12 +141,12 @@ function EventRow({ item }: Readonly<{ item: ActionItem }>) {
 
   return (
     <li className="mb-2 last:mb-0 flex min-h-12 items-center gap-3 py-2.5 px-3 rounded-lg border border-transparent transition-all duration-300 hover:border-white/10 hover:bg-white/[0.02] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-      <div className="shrink-0 inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[0.65rem] font-medium bg-[#FFB347]/10 text-[#FFB347] border border-[#FFB347]/20 uppercase tracking-widest">
+      <Badge color="zinc" className="shrink-0 uppercase tracking-widest text-[0.65rem]">
         {chip.label}
-      </div>
+      </Badge>
       <div className="min-w-0 flex-1">
         <p className="text-white truncate text-sm font-medium">{item.title}</p>
-        <p className="text-white/40 truncate text-xs uppercase tracking-wider">{item.meta}</p>
+        <p className="text-zinc-400 truncate text-xs uppercase tracking-wider">{item.meta}</p>
       </div>
       <SectionAction href={item.href}>{item.buttonLabel} →</SectionAction>
     </li>

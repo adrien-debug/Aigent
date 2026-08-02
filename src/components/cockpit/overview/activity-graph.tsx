@@ -19,44 +19,42 @@ function buildPath(points: readonly { x: number; y: number }[]): string {
 
 export function GhostActivityGraph() {
   return (
-    <div className="px-1 pt-1 pb-0">
-      <div className="relative">
-        <svg
-          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-          preserveAspectRatio="none"
-          className="h-48 w-full overflow-visible xl:h-56"
-          role="img"
-          aria-label="Aucune activité sur la fenêtre"
-        >
-          <defs>
-            <pattern id="millimeter-grid" width="20" height="20" patternUnits="userSpaceOnUse">
-              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="var(--aig-line)" strokeWidth="0.5" strokeOpacity="0.3" />
-            </pattern>
-            <linearGradient id="ghost-fade" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="var(--aig-line)" stopOpacity="0.15" />
-              <stop offset="100%" stopColor="var(--aig-line)" stopOpacity="0" />
-            </linearGradient>
-          </defs>
+    <div className="relative px-1 pt-1 pb-0">
+      <svg
+        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        preserveAspectRatio="none"
+        className="h-48 w-full overflow-visible xl:h-56"
+        role="img"
+        aria-label="Aucune activité sur la fenêtre"
+      >
+        <defs>
+          <pattern id="millimeter-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="var(--aig-line)" strokeWidth="0.5" strokeOpacity="0.3" />
+          </pattern>
+          <linearGradient id="ghost-fade" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="var(--aig-line)" stopOpacity="0.15" />
+            <stop offset="100%" stopColor="var(--aig-line)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
 
-          <rect x="0" y="0" width={WIDTH} height={HEIGHT - PAD_BOTTOM} fill="url(#millimeter-grid)" />
-          <rect x="0" y="0" width={WIDTH} height={HEIGHT - PAD_BOTTOM} fill="url(#ghost-fade)" />
+        <rect x="0" y="0" width={WIDTH} height={HEIGHT - PAD_BOTTOM} fill="url(#millimeter-grid)" />
+        <rect x="0" y="0" width={WIDTH} height={HEIGHT - PAD_BOTTOM} fill="url(#ghost-fade)" />
 
-          <path
-            d={`M ${PAD_X},${HEIGHT - PAD_BOTTOM} Q ${WIDTH / 2},${HEIGHT - PAD_BOTTOM - 20} ${WIDTH - PAD_X},${HEIGHT - PAD_BOTTOM}`}
-            fill="none"
-            stroke="var(--aig-line)"
-            strokeWidth="1"
-            strokeOpacity="0.5"
-            strokeLinecap="round"
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="aig-text-faint text-xs uppercase tracking-wider bg-(--aig-base)/80 backdrop-blur-sm px-4 py-1.5 rounded-full border border-(--aig-line-soft) shadow-sm">
-            Ready to monitor — Aucun run sur les dernières 24 h
-          </span>
-        </div>
-      </div>
+        <path
+          d={`M ${PAD_X},${HEIGHT - PAD_BOTTOM} Q ${WIDTH / 2},${HEIGHT - PAD_BOTTOM - 20} ${WIDTH - PAD_X},${HEIGHT - PAD_BOTTOM}`}
+          fill="none"
+          stroke="var(--aig-line)"
+          strokeWidth="1"
+          strokeOpacity="0.5"
+          strokeLinecap="round"
+        />
+      </svg>
       <div aria-hidden className="mt-1 flex h-3" />
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-zinc-400 text-xs uppercase tracking-wider bg-[#0a0a0a]/80 backdrop-blur-sm px-4 py-1.5 rounded-full border border-white/5 shadow-sm">
+          Ready to monitor — Aucun run sur les dernières 24 h
+        </span>
+      </div>
     </div>
   )
 }
@@ -173,7 +171,7 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
         {points.map((point, i) => (
           <span
             key={point.bucket.hourMs}
-            className="aig-text-faint flex-1 text-center font-mono text-3xs"
+            className="text-zinc-400 flex-1 text-center font-mono text-3xs"
           >
             {i % 6 === 0 ? point.bucket.label : ''}
           </span>
@@ -197,7 +195,7 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
               >
                 {active.bucket.total}
               </AnimateNumber>
-              <span className="aig-text-muted text-xs">
+              <span className="text-zinc-400 text-xs">
                 run{active.bucket.total > 1 ? 's' : ''} · {active.bucket.label}
               </span>
             </div>
