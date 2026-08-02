@@ -181,10 +181,10 @@ function QueueRow({
         <Text className="mt-1 wrap-break-word">{item.meta}</Text>
 
         {state.phase === 'ok' ? (
-          <Text className="mt-2 text-emerald-400">{state.message}</Text>
+          <Text className="mt-2 text-(--aig-severity-good)">{state.message}</Text>
         ) : null}
         {state.phase === 'error' ? (
-          <Text className="mt-2 text-red-400">{state.message}</Text>
+          <Text className="mt-2 text-(--aig-severity-bad)">{state.message}</Text>
         ) : null}
       </div>
 
@@ -348,7 +348,7 @@ export default function QueueConsole({
           le liseré ambre porte la gravité. L'aplat `bg-amber-50/60` qui vivait
           ici était calibré pour un fond blanc. */}
       {failedSources.length > 0 || queue.dataWarnings.length > 0 ? (
-        <section className="aig-panel-raised border-amber-500/40 p-4">
+        <section className="aig-panel-raised border-[color-mix(in_oklab,var(--aig-severity-warn)_40%,transparent)] p-4">
           <Strong className="block">Sources partiellement lues</Strong>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             {failedSources.map((source) => (

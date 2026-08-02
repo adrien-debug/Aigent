@@ -75,7 +75,7 @@ function ProjectListRow({ item }: Readonly<{ item: ProjectListItem }>) {
           déclenchait plus jamais. */}
       <Link
         href={item.href}
-        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-white/4 focus-visible:bg-white/4 focus-visible:outline-hidden"
+        className="flex items-center gap-3 py-2.5 pr-4 pl-4 hover:bg-(--aig-line-soft) focus-visible:bg-(--aig-line-soft) focus-visible:outline-hidden"
       >
         <Avatar square initials={initialsOf(item.name)} className="size-8 shrink-0" />
 
@@ -169,10 +169,10 @@ export default function ProjectsListScreen({
   return (
     // L'en-tête vient du shell ; le corps reste BORNÉ à la main. `PageBody` ne
     // pose aucune borne de hauteur, et cet écran tient son zéro-scroll par une
-    // colonne `h-svh overflow-hidden` dont seule la liste défile — l'y
+    // colonne `h-full overflow-hidden` dont seule la liste défile — l'y
     // remplacer rendrait la page scrollable et la box grandirait avec la data.
     // La gouttière mobile n'est pas redoublée : `PageHeader` porte la sienne.
-    <div className="flex h-svh min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <PageHeader
         title="Projets"
         description="Projets consommateurs, leur dépôt cible et les agents qui leur sont rattachés."

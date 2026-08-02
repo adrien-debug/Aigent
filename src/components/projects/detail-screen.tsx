@@ -345,7 +345,7 @@ export default function ProjectDetailScreen({
     // L'en-tête vient du shell ; le corps reste borné à la main (zéro-scroll :
     // `PageBody` ne pose aucune borne de hauteur). `PageHeader` porte déjà la
     // gouttière mobile, elle n'est pas redoublée.
-    <div className="flex h-svh min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       {/* Le nom du projet et son dépôt passent par le contrat commun ; ce qui
           est propre à cet écran — avatar, retour au catalogue, et les cinq
           faits agrégés — vit dans `meta`, la rangée de contexte de page. */}
@@ -359,7 +359,7 @@ export default function ProjectDetailScreen({
         actions={
           <Link
             href="/projects"
-            className="aig-text-muted shrink-0 text-sm/6 underline underline-offset-4 hover:text-white"
+            className="aig-text-muted shrink-0 text-sm/6 underline underline-offset-4 hover:text-(--aig-text)"
           >
             Retour au catalogue
           </Link>

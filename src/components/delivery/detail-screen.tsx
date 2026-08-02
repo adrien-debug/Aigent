@@ -572,13 +572,19 @@ export default function DeliveryDetailScreen({ detail }: Readonly<DeliveryDetail
           </>
         }
         actions={
-          <Link href="/delivery" className="aig-text-muted text-sm no-underline hover:text-white">
+          <Link href="/delivery" className="aig-text-muted text-sm no-underline hover:text-(--aig-text)">
             ← Banc de livraison
           </Link>
         }
       />
 
-      <div className="flex min-h-0 flex-col gap-3 px-4 py-4 sm:px-6">
+      {/* Cet écran recompose son corps à la main au lieu d'utiliser `PageBody`.
+          Il portait donc `min-h-0` sans `flex-1` ni `overflow-y-auto` : tant que
+          le document défilait, ça tenait par accident. Le document étant
+          désormais borné au viewport, il faut le scroll ICI — sans lui, mesuré
+          à 1280×800, NEUF sections passaient sous le pli sans aucun ancêtre
+          défilable pour les atteindre. */}
+      <div className="scroll-thin flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 sm:px-6">
 
       {!detail.projectRead ? (
         <div className="shrink-0">

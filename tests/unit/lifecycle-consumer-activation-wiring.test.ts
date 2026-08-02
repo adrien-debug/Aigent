@@ -274,6 +274,7 @@ describe('active_in_consumer — false is unreachable', () => {
       baseInput({
         delivery: {
           id: 'evt-1',
+          versionId: 'v3',
           mode: 'pull_request',
           targetRepo: 'org/consumer-repo',
           targetBranch: 'main',

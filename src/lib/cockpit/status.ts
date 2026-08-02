@@ -46,15 +46,6 @@ export const SEVERITY = {
   muted: 'rgb(161 161 170 / 0.35)',
 } as const
 
-/** Ordre d'empilement de l'histogramme ET ordre de la légende — le même. */
-export const RUN_STATUS_ORDER: readonly AgentRunStatus[] = [
-  'completed',
-  'running',
-  'needs-confirmation',
-  'blocked',
-  'failed',
-] as const
-
 export const RUN_STATUS_COLOR: Record<AgentRunStatus, string> = {
   completed: SEVERITY.good,
   running: SEVERITY.running,
@@ -80,11 +71,3 @@ export const RUN_STATUS_SINGULAR: Record<AgentRunStatus, string> = {
   failed: 'Échoué',
 }
 
-/** Statut d'un copilot — libellés seuls (la couleur voyage avec le Badge du kit). */
-export const COPILOT_STATUS_LABEL: Record<string, string> = {
-  active: 'Actif',
-  paused: 'En pause',
-  draft: 'Brouillon',
-  degraded: 'Dégradé',
-  archived: 'Archivé',
-}

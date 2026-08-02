@@ -137,7 +137,7 @@ export default function RepositoriesTab({ data }: Readonly<{ data: RepositoriesT
                 </div>
 
                 {!data.repos.ok ? (
-                  <div className="rounded-md border border-amber-400/25 bg-amber-400/5 px-3 py-2">
+                  <div className="rounded-md border border-[color-mix(in_oklab,var(--aig-severity-warn)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-warn)_8%,transparent)] px-3 py-2">
                     <Strong className="block">La liste des dépôts n’a pas pu être lue</Strong>
                     <Text className="mt-0.5">
                       Aucun dépôt n’est marqué lisible ou illisible : la question reste ouverte pour

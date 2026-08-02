@@ -12,8 +12,10 @@ export function Divider({
       className={clsx(
         className,
         'w-full border-t',
-        soft && 'border-zinc-950/5 dark:border-white/5',
-        !soft && 'border-zinc-950/10 dark:border-white/10'
+        // `soft` distingue deux POIDS de trait : le produit a exactement deux
+        // jetons pour ça, la nuance est conservée telle quelle.
+        soft && 'border-(--aig-line-soft)',
+        !soft && 'border-(--aig-line)'
       )}
     />
   )

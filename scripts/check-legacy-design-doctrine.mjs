@@ -9,14 +9,16 @@
  *  · `npm run check` ne réintroduit pas les gates layout supprimées ;
  *  · les chemins d'injection automatique (prompts repo-aware, orchestrateur,
  *    recommandations repo-intelligence, sandbox scripts) ne réinjectent pas la
- *    doctrine.
+ *    doctrine ;
+ *  · les surfaces Factory reconstruites n'introduisent pas de couleurs
+ *    structurelles brutes interdites (hors thème global et exceptions média marquées).
  *
- * Ce qu'elle NE GARANTIT PAS : le rendu des écrans, ni l'absence de commentaires
- * zéro-scroll dans des composants — c'est une mission layout distincte.
+ * Ce qu'elle NE GARANTIT PAS : le rendu des écrans, la hiérarchie des surfaces,
+ * le responsive, ni l'absence de commentaires zéro-scroll dans des composants.
  *
  * Voir `AGENTS.md` § Frontend — doctrine design historique.
  */
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = process.cwd()
@@ -29,6 +31,211 @@ function read(rel) {
     return ''
   }
   return readFileSync(path, 'utf8')
+}
+
+function walkFiles(relDir) {
+  const root = join(ROOT, relDir)
+  if (!existsSync(root)) return []
+  const out = []
+  const stack = [root]
+  while (stack.length > 0) {
+    const current = stack.pop()
+    const entries = readdirSync(current)
+    for (const entry of entries) {
+      const abs = join(current, entry)
+      const stats = statSync(abs)
+      if (stats.isDirectory()) {
+        stack.push(abs)
+        continue
+      }
+      out.push(abs)
+    }
+  }
+  return out.map((abs) => abs.slice(ROOT.length + 1))
+}
+
+/**
+ * Retire les commentaires SANS se laisser désarmer par une chaîne.
+ *
+ * La version naïve (`text.replace(/\/\*[\s\S]*?\*\//g, '')`) traitait un `/*`
+ * écrit DANS une chaîne comme un vrai début de commentaire, et avalait tout
+ * jusqu'au prochain `*​/` — y compris du code réel. Une violation posée entre
+ * les deux devenait invisible aux quatorze règles :
+ *
+ *   const A = 'doc /* legacy'
+ *   const skin = 'bg-zinc-900 text-white'   // ← avalé, donc jamais scanné
+ *   const B = '*​/ fin'
+ *
+ * On parcourt donc le texte caractère par caractère en suivant l'état lexical
+ * (chaîne simple/double, template, commentaire). Les chaînes sont CONSERVÉES —
+ * c'est là que vivent les noms de classe — et seuls les vrais commentaires
+ * tombent.
+ */
+function stripCodeComments(text) {
+  let out = ''
+  let state = 'code' // code | line | block | "'" | '"' | '`'
+  for (let i = 0; i < text.length; i += 1) {
+    const c = text[i]
+    const next = text[i + 1]
+    if (state === 'code') {
+      if (c === '/' && next === '*') {
+        state = 'block'
+        i += 1
+        continue
+      }
+      if (c === '/' && next === '/') {
+        state = 'line'
+        i += 1
+        continue
+      }
+      if (c === "'" || c === '"' || c === '`') state = c
+      out += c
+      continue
+    }
+    if (state === 'line') {
+      if (c === '\n') {
+        state = 'code'
+        out += c
+      }
+      continue
+    }
+    if (state === 'block') {
+      if (c === '*' && next === '/') {
+        state = 'code'
+        i += 1
+      }
+      continue
+    }
+    // Dans une chaîne : on conserve, en respectant l'échappement.
+    out += c
+    if (c === '\\') {
+      out += text[i + 1] ?? ''
+      i += 1
+      continue
+    }
+    if (c === state) state = 'code'
+  }
+  return out
+}
+
+function scanFactoryDoctrine() {
+  // PÉRIMÈTRE — il couvre désormais le KIT et les surfaces reconstruites.
+  //
+  // Il s'est longtemps arrêté à sept dossiers produit. Deux trous en
+  // découlaient, et la gate affichait « 0 violation » sans pouvoir les voir :
+  //  · `src/components/ui/**` (Catalyst) portait sa PROPRE couche esthétique
+  //    (`zinc-*`, `white`, `dark:`) — une seconde autorité visuelle, rendue par
+  //    43 fichiers produit via `Text`, 35 via `Badge`, 12 via `Button` ;
+  //  · `builder`, `projects`, `lab`, `app/error.tsx` échappaient au scan et y
+  //    ont laissé passer `bg-white/4`, `hover:text-white`, `text-white`.
+  const scanRoots = [
+    'src/components/ui',
+    'src/components/agents',
+    'src/components/qualification',
+    'src/components/delivery',
+    'src/components/runtime',
+    'src/components/learning',
+    'src/components/runs',
+    'src/components/cockpit',
+    'src/components/builder',
+    'src/components/projects',
+    'src/components/lab',
+    'src/components/actions',
+    'src/components/visualizations',
+    'src/components/app-shell.tsx',
+    'src/app/error.tsx',
+    'src/app/globals.css',
+  ]
+  const fileRegex = /\.(ts|tsx|js|jsx|mjs|cjs|mts|css)$/
+  const mediaExceptionMarker = 'DS_FACTORY_MEDIA_EXCEPTION'
+  const findings = []
+  const scannedFiles = []
+
+  const checks = [
+    { name: 'zinc-*', re: /\bzinc-[\w/-]+/g },
+    { name: 'gray-*', re: /\bgray-[\w/-]+/g },
+    { name: 'slate-*', re: /\bslate-[\w/-]+/g },
+    { name: 'dark:*', re: /\bdark:[^\s'"`]+/g },
+    { name: 'bg-white', re: /\bbg-white(?:\/[0-9]+)?\b/g },
+    { name: 'bg-black', re: /\bbg-black(?:\/[0-9]+)?\b/g },
+    { name: 'text-white', re: /\btext-white(?:\/[0-9]+)?\b/g },
+    { name: 'text-black', re: /\btext-black(?:\/[0-9]+)?\b/g },
+    { name: 'border-white/*', re: /\bborder-white(?:\/[0-9]+)?\b/g },
+    { name: 'border-black/*', re: /\bborder-black(?:\/[0-9]+)?\b/g },
+    { name: 'stroke-white/*', re: /\bstroke-white(?:\/[0-9]+)?\b/g },
+    { name: 'fill-white/*', re: /\bfill-white(?:\/[0-9]+)?\b/g },
+    // Un hex de COULEUR fait 3, 4, 6 ou 8 chiffres ET contient au moins une
+    // lettre a–f. Sans cette seconde condition, `#8841` d'un numéro de ticket
+    // était refusé comme une couleur — ce qui pousse à ne plus écrire de
+    // référence de ticket dans le code, un faux rouge coûteux.
+    // Angle mort assumé : une couleur purement numérique (`#123456`) passe.
+    // C'est le compromis inverse, et le moins nuisible des deux.
+    {
+      name: 'hex color',
+      re: /#(?=[0-9a-fA-F]*[a-fA-F])(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![0-9a-fA-F])/g,
+    },
+    // `oklch()` était le seul espace colorimétrique NON couvert — et c'est
+    // celui dans lequel les jetons `--aig-*` sont écrits, donc le plus naturel
+    // à recopier à la main. `var(--aig-…)` et `color-mix(…)` restent permis :
+    // on interdit la VALEUR littérale, pas la référence au jeton.
+    { name: 'rgb/rgba/hsl color', re: /\b(?:rgb|rgba|hsl|hsla)\(/g },
+    { name: 'oklch/lab/lch/color() littéral', re: /\b(?:oklch|oklab|lab|lch|color)\(/g },
+    // ACCENTS TAILWIND BRUTS — le trou par lequel une troisième palette entre.
+    // `sky-800`, `amber-500`, `red-500` passaient : la gate ne bannissait que
+    // les gris. Un état se dit avec `--aig-severity-*`, qui porte le SENS
+    // (bloqué ≠ avertissement) ; une teinte brute ne dit qu'une couleur, et
+    // deux surfaces finissent par en choisir deux différentes pour le même
+    // état. Les couleurs de marque restent possibles via l'exception média.
+    {
+      name: 'accent Tailwind brut',
+      re: /\b(?:bg|text|ring|border|fill|stroke|divide|outline|shadow|from|via|to|decoration|accent|caret)-(?:red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|stone|neutral)-\d{2,3}(?:\/[\d.]+)?\b/g,
+    },
+  ]
+
+  for (const root of scanRoots) {
+    const path = join(ROOT, root)
+    if (!existsSync(path)) continue
+    const paths = statSync(path).isDirectory() ? walkFiles(root) : [root]
+    for (const relPath of paths) {
+      if (!fileRegex.test(relPath)) continue
+      const raw = readFileSync(join(ROOT, relPath), 'utf8')
+      const text = stripCodeComments(raw)
+      scannedFiles.push(relPath)
+      const lines = text.split('\n')
+      for (let i = 0; i < lines.length; i += 1) {
+        const line = lines[i]
+        if (line.includes(mediaExceptionMarker)) continue
+        for (const check of checks) {
+          // `globals.css` DÉFINIT les jetons : c'est le seul endroit du produit
+          // où une valeur littérale est l'objet même du fichier. L'exempter des
+          // formats de couleur n'ouvre pas de porte — toute autre surface qui
+          // écrirait `oklch(...)` en dur est refusée.
+          const isColorFormat =
+            check.name === 'hex color' ||
+            check.name === 'rgb/rgba/hsl color' ||
+            check.name === 'oklch/lab/lch/color() littéral'
+          if (relPath === 'src/app/globals.css' && isColorFormat) continue
+          // Un ALIAS `var(--aig-x, <repli>)` n'est pas une palette parallèle :
+          // la valeur littérale n'y est qu'un repli si le jeton manque, et elle
+          // suit le jeton par construction. On l'autorise, mais UNIQUEMENT sous
+          // cette forme — une valeur posée seule reste refusée.
+          if (isColorFormat && /var\(--aig-[a-z-]+,/.test(line)) continue
+          if (check.re.test(line)) {
+            findings.push(`${relPath}:${i + 1} — ${check.name} interdit (${line.trim()})`)
+          }
+          check.re.lastIndex = 0
+        }
+      }
+    }
+  }
+
+  if (scannedFiles.length === 0) {
+    failures.push('factory-scan — aucune cible frontend scannée (gate vacante)')
+    return { scannedFiles, findings }
+  }
+
+  for (const finding of findings) failures.push(`factory-scan — ${finding}`)
+  return { scannedFiles, findings }
 }
 
 // 1. Doc historique — bandeau d'abrogation obligatoire.
@@ -100,6 +307,9 @@ if (
   failures.push('AGENTS.md — règle explicite sur les préférences esthétiques externes absente')
 }
 
+// 5. Doctrine Factory — interdiction des couleurs structurelles brutes.
+const factoryScan = scanFactoryDoctrine()
+
 if (failures.length > 0) {
   console.error('✗ Legacy design-doctrine guard FAILED:\n')
   for (const f of failures) console.error('  ' + f)
@@ -112,3 +322,4 @@ if (failures.length > 0) {
 
 console.log('✓ Legacy design-doctrine guard passed — injection bloquée, doc historique marquée.')
 console.log(`  ${injectionFiles.length} module(s) d'injection scanné(s), ${forbiddenInCheck.length} gate(s) layout interdites dans check.`)
+console.log(`  factory-scan: ${factoryScan.scannedFiles.length} fichier(s) frontend scanné(s), ${factoryScan.findings.length} violation(s).`)

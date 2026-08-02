@@ -103,7 +103,18 @@ archivée**, pas une règle. Gate : `check:legacy-design-doctrine`.
 contraintes produit. Toute contrainte frontend doit être validée par le
 repository Aigent (`AGENTS.md`, `CLAUDE.md` §8, gates branchées). Conserver :
 sécurité, vérité des données, accessibilité, intégrité du kit Catalyst local
-(`check:ui-kit-integrity` — empreinte, pas esthétique), qualité code.
+(`check:ui-kit-integrity` — substance : exports consommés, cible tactile de
+44 px, marqueurs d'accessibilité, autorité visuelle unique), qualité code.
+
+**Une seule autorité visuelle — les jetons `--aig-*`.** Le kit
+`src/components/ui/**` portait sa propre couche esthétique (`zinc-*`, `white`,
+`dark:`) pendant que le produit parlait `--aig-*` : deux systèmes superposés
+dans une seule interface. Le kit a été migré (276 occurrences → 0) et les deux
+gates scannent désormais `src/components/ui/**`. Un état se dit avec
+`--aig-severity-*`, qui porte le SENS ; une teinte brute (`sky-500`,
+`amber-400`) ne dit qu'une couleur, et deux surfaces finissent par en choisir
+deux différentes pour le même état. Modifier le kit reste légitime — c'est du
+code du repo, pas du vendor.
 
 ## Frontières de confiance — trois, séparées exprès
 
@@ -245,8 +256,9 @@ d'exploitation**, à lancer explicitement pour auditer la base. Leur option
 `--fix` **écrit en base** : ne la passe jamais par réflexe.
 
 Hors chaîne : `test:live` (opt-in, tape GPU1 + OpenAI, coûte de l'argent).
-**Aucune gate ne mesure le rendu** — `check:ui-kit-integrity` fige une empreinte
-SHA, pas les pixels.
+**Aucune gate ne mesure le rendu** — `check:ui-kit-integrity` lit du texte
+(exports, classes, marqueurs), pas des pixels. Un anneau de focus présent mais
+invisible, un contraste insuffisant ou une primitive cassée lui échappent.
 
 **Une gate verte est une information étroite** : elle dit « la règle que
 j'implémente n'est pas violée », jamais « l'écran est bon ». La carte des angles

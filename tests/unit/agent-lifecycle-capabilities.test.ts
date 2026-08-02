@@ -179,7 +179,18 @@ function makeDetail(overrides: { copilot?: Partial<Copilot>; hasManifest?: boole
     // unrelated to `agent-lifecycle-trace.ts` (the governed lifecycle
     // display) — this stub does not exercise the trace, so an empty shape
     // satisfies the type without asserting anything about it.
-    lifecycle: { stages: [], versionDrift: { state: 'unknown', lastDeliveredVersionLabel: null, lastReportedVersion: null, driftDetected: false, detail: '' } },
+    lifecycle: {
+      stages: [],
+      versionDrift: {
+        state: 'unknown',
+        lastDeliveredVersionId: null,
+        lastDeliveredVersionLabel: null,
+        lastReportedVersion: null,
+        versionsMatch: null,
+        driftDetected: false,
+        detail: '',
+      },
+    },
     telemetry: null,
   } as AgentDetail
 }

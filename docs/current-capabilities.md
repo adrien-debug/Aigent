@@ -30,8 +30,8 @@ placeholder honnête.
 | Learning `/learning` — supervision, file de revue, évaluations, connaissance | wired | `src/app/learning/page.tsx`, `src/components/learning/`, `src/lib/agent-mission-control/learning-overview.ts` |
 | Pont Obsidian — URI natives `open` / `new` / `search`, 4 templates | wired | `src/lib/agent-mission-control/obsidian-bridge.ts`, `docs/templates/obsidian/` |
 | Learning Runtime (H-Supervised) — client health/capabilities server-only | partial — contrat câblé, **aucun moteur en face** | `src/lib/agent-mission-control/learning-runtime.ts` |
-| Réglages | partial — `SurfacePlaceholder`, aucune lecture | `src/app/settings/page.tsx` |
-| Kit UI — 14 primitives, empreinte SHA-256 | wired | `src/components/ui/`, `check:ui-kit-integrity` |
+| Réglages | partial — UI placeholder, mais contrat backend de posture câblé (lecture opérateur) | `src/app/settings/page.tsx`, `src/app/api/agent-ops/settings/posture/route.ts`, `src/lib/agent-mission-control/settings-posture.ts` |
+| Kit UI — 14 primitives, jetons `--aig-*`, empreinte SHA-256 | wired | `src/components/ui/`, `check:ui-kit-integrity` |
 | Tailwind v4 · Headless UI · Heroicons · Recharts | wired | `postcss.config.mjs`, `src/app/globals.css` |
 
 | Ce qui reste supprimé et interdit de retour | |
@@ -83,8 +83,9 @@ opérateur ; l'API sous `/api/agent-ops/**` reste la voie d'automatisation.
 | Runtime API v1 — le consommateur lit ses agents et poste ses runs | backend-only | `src/app/api/runtime/v1/**` (7 routes), `runtime-catalogue.ts` |
 
 **Après provisioning, Aigent ne fait que POUSSER.** Les gestes activate / rebind /
-deploy-version appartiennent au workspace consommateur — c'est la raison
-structurelle pour laquelle `active_in_consumer` reste `unknown`.
+deploy-version appartiennent au workspace consommateur. Le lifecycle ne déduit
+jamais `active_in_consumer` d'une livraison ni de la télémétrie brute : le seul
+verdict admissible vient de `consumer-activation.ts`.
 
 ## Télémétrie
 
@@ -142,6 +143,12 @@ option `--fix` **écrit en base**. Ce sont des commandes d'exploitation manuelle
 
 `npm run verify` ajoute `quality:dead` (knip), `test` (vitest, suite offline) et
 `build`. `test:live` est opt-in, tape GPU1 + OpenAI et coûte de l'argent.
+
+Constat vérifié sur la mission `AIGENT-CODEX-011` : la chaîne `check` est verte,
+mais `quality:dead` échoue encore sur **3 types exportés non utilisés** dans le
+frontend actif (`src/components/lab/registry.ts`,
+`src/components/visualizations/embed/contract.ts`) laissés à l'intégrateur
+frontend propriétaire.
 
 **Aucune gate ne mesure le rendu** — c'est une décision (free design), pas un
 manque à combler par une gate visuelle. Ce que chaque gate ne garantit PAS est

@@ -41,7 +41,7 @@ function Count({
   return (
     <div className="min-w-0">
       <Text className="truncate text-xs uppercase">{label}</Text>
-      <Strong className={accent ? 'tabular-nums text-white' : 'tabular-nums'}>{value}</Strong>
+      <Strong className={accent ? 'aig-display tabular-nums' : 'tabular-nums'}>{value}</Strong>
     </div>
   )
 }
@@ -56,7 +56,7 @@ export default function TrafficProvenance({
 
   if (state === 'unread' || breakdown === null) {
     return (
-      <div className="aig-line-soft rounded-md border border-dashed px-3 py-2">
+      <div className="aig-quiet aig-line-soft min-w-0 border border-dashed px-3 py-2.5">
         <Badge color="zinc">Indisponible</Badge>
         <Text className="mt-1 block text-xs">
           Le flux d&apos;événements de télémétrie n&apos;a pas pu être lu. La part de trafic
@@ -68,7 +68,7 @@ export default function TrafficProvenance({
 
   if (state === 'silent') {
     return (
-      <div className="aig-line-soft rounded-md border border-dashed px-3 py-2">
+      <div className="aig-quiet aig-line-soft min-w-0 border border-dashed px-3 py-2.5">
         <Badge color="zinc">Aucune mesure</Badge>
         <Text className="mt-1 block text-xs">
           Le canal de télémétrie a été lu et ne contient <Strong>aucun événement</Strong>, toutes
@@ -79,8 +79,8 @@ export default function TrafficProvenance({
   }
 
   return (
-    <div className="aig-line-soft rounded-md border px-3 py-2">
-      <div className="flex items-center gap-2">
+    <div className="aig-quiet min-w-0 px-3 py-2.5">
+      <div className="flex flex-wrap items-center gap-2">
         {state === 'internal-only' ? (
           <Badge color="amber">Aucun trafic consommateur observé</Badge>
         ) : (
@@ -93,7 +93,7 @@ export default function TrafficProvenance({
         </Text>
       </div>
 
-      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">
+      <div className="aig-inset mt-2 grid grid-cols-2 gap-x-4 gap-y-2 p-2.5 sm:grid-cols-4">
         <Count label={PROVENANCE_LABEL.internal} value={breakdown.internal} />
         <Count label={PROVENANCE_LABEL.lifecycle} value={breakdown.lifecycle} />
         <Count label={PROVENANCE_LABEL.consumer} value={breakdown.consumer} accent />

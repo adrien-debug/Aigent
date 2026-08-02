@@ -75,7 +75,7 @@ export default function PatternCluster() {
             ref={thumbRef}
             type="button"
             onClick={openCluster}
-            className="flex flex-col items-center gap-2 rounded-2xl p-3 transition hover:bg-white/5 focus-visible:outline-hidden"
+            className="flex flex-col items-center gap-2 rounded-2xl p-3 transition hover:bg-(--aig-line-soft) focus-visible:outline-hidden"
           >
             <span className="aig-panel grid grid-cols-2 grid-rows-2 gap-1.5 rounded-2xl p-2.5">
               {SHARED.map((agent) => (
@@ -91,7 +91,7 @@ export default function PatternCluster() {
         <AnimatePresence>
           {isOpen ? (
             <motion.div
-              className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-black/60 p-4"
+              className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-(--aig-scrim) p-4"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0, transition: { delay: 0.05 } }}
@@ -103,7 +103,7 @@ export default function PatternCluster() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
                 >
-                  <Strong className="text-white">Équipe Dropship</Strong>
+                  <Strong className="text-(--aig-text)">Équipe Dropship</Strong>
                 </motion.div>
 
                 <div className="grid grid-cols-4 gap-x-5 gap-y-4">
@@ -138,7 +138,7 @@ export default function PatternCluster() {
                         }
                       >
                         <Tile initials={agent.initials} size="full" />
-                        <span className="text-xs text-white/80">{agent.name}</span>
+                        <span className="text-xs text-(--aig-text-muted)">{agent.name}</span>
                       </motion.div>
                     )
                   })}

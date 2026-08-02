@@ -491,7 +491,7 @@ function HitlPanel({
       ) : null}
 
       {hitl.pendingTool ? (
-        <div className="rounded-lg border border-dashed border-amber-500/40 p-3">
+        <div className="rounded-lg border border-dashed border-[color-mix(in_oklab,var(--aig-severity-warn)_40%,transparent)] p-3">
           <div className="flex flex-wrap items-center gap-2">
             <Strong className="font-mono text-xs">{hitl.pendingTool.name}</Strong>
             {hitl.pendingTool.risk ? <Badge color="amber">{hitl.pendingTool.risk}</Badge> : null}
@@ -857,7 +857,7 @@ export default function BuilderWorkspace({
       // Même cadre d'en-tête que la branche nominale : une surface qui change
       // de hiérarchie typographique selon qu'elle a pu lire ou non se lit
       // comme deux écrans différents.
-      <div className="flex h-svh min-h-0 flex-col">
+      <div className="flex h-full min-h-0 flex-col">
         <PageHeader title={projectName} description={repoFullName ?? 'aucun dépôt lié'} />
         <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 py-4 sm:px-6">
           <Panel title="Conversation d’authoring" className="min-h-0 flex-1">
@@ -881,7 +881,7 @@ export default function BuilderWorkspace({
   return (
     // Zéro-scroll conservé : la colonne est bornée au viewport et ce sont les
     // panneaux qui défilent. `PageBody` n'aurait posé aucune borne de hauteur.
-    <div className="flex h-svh min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       {/* Le statut de conversation passe en `meta` : c'est le contexte chiffré
           de la page, exactement ce que la rangée est faite pour porter. */}
       <PageHeader
@@ -989,7 +989,7 @@ export default function BuilderWorkspace({
 
               <div className="flex flex-col gap-2 p-4">
                 {draftCreatedId ? (
-                  <div className="rounded-lg border border-dashed border-emerald-500/40 p-3">
+                  <div className="rounded-lg border border-dashed border-[color-mix(in_oklab,var(--aig-severity-good)_40%,transparent)] p-3">
                     <Text className="font-medium">Draft créé</Text>
                     <Text className="mt-1 font-mono text-xs wrap-break-word">{draftCreatedId}</Text>
                     <Text className="mt-1 text-xs">

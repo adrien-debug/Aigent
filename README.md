@@ -25,8 +25,9 @@ authoring or runs.
 ## Frontend — 15 écrans qui tournent
 
 Le front historique a été supprimé (mission `frontend-reset`), puis reconstruit à
-partir du **2026-07-31**. État vérifié au 2026-07-31 (build vert, 4 écrans
-contrôlés dans un navigateur, zéro erreur console) :
+partir du **2026-07-31**. État revalidé au **2026-08-02** (build vert, captures
+desktop/mobile, revue visuelle R2 dans
+`docs/visual-reviews/aigent-visual-composition-004-r2/`) :
 
 | Route | Rôle |
 |---|---|
@@ -38,7 +39,7 @@ contrôlés dans un navigateur, zéro erreur console) :
 | `/runtime` | Santé du canal de télémétrie |
 | `/learning` | Supervision, file de revue, évaluations, pont Obsidian, Learning Runtime |
 | `/actions` | File opérateur complète — reprise des runs en attente d'approbation |
-| `/settings` | Réglages (placeholder) |
+| `/settings` | Réglages (UI placeholder, backend posture disponible via `/api/agent-ops/settings/posture`) |
 
 | Élément | État |
 |---|---|
@@ -58,10 +59,15 @@ Deux gates encadrent le front, et **aucune des deux ne juge l'esthétique** :
 - `check:no-legacy-front` — refuse le retour des surfaces démolies ;
   `src/components/` est autorisé.
 - `check:legacy-design-doctrine` — bloque la réinjection de l'ancienne doctrine
-  layout (zéro-scroll, DS Guardian, gates `check:ds`/`check:catalyst` supprimées).
-- `check:ui-kit-integrity` — fige le kit `ui/` par empreinte SHA-256 contre une
-  dérive silencieuse. Modifier une primitive **volontairement** :
-  `node scripts/check-ui-kit-integrity.mjs --update`.
+  layout (zéro-scroll, DS Guardian, gates `check:ds`/`check:catalyst` supprimées)
+  et scanne les surfaces Factory reconstruites contre les couleurs structurelles
+  interdites (`zinc-*`, `gray-*`, `slate-*`, `dark:*`, `bg/text white/black`,
+  `hex`, `rgb/rgba/hsl` hors thème global).
+- `check:ui-kit-integrity` — vérifie la **substance** du kit `ui/` : les 14
+  primitives et leurs 43 exports consommés, la cible tactile de 44 px, les
+  marqueurs d'accessibilité, et zéro couleur Tailwind brute. Elle interdit la
+  **perte**, pas le changement : modifier une primitive est légitime et ne
+  demande aucune régénération.
 
 > ⚠️ **Angle mort connu.** Aucune gate ne mesure le rendu. Le 2026-07-31, une
 > réécriture du kit a supprimé 2438 lignes pour en écrire 257 (`TouchTarget` vidé
@@ -79,10 +85,19 @@ State the restriction, not the headline:
 - **Telemetry** is aggregated in `dashboard-overview.ts` and `agent-detail.ts`,
   and surfaced on `/` and `/runs`. A run that reported no usage shows
   `Non mesuré` — never a fabricated `0` (`docs/metrics-canon.md`).
-- **Tool builder** works, but only `count_words` has a sandbox.
+- **Lifecycle version drift** is computed from persisted evidence only:
+  `agent_delivery_events.version_id` vs `runtime_telemetry_events.agent_version`.
+  Missing proof stays `unknown`; no timestamp/name/position inference.
+- **Tool builder** sandboxing is generic/fail-closed: explicit capability
+  allowlist, timeout, I/O bounds, isolated empty env context, and outcomes
+  limited to `certified | failed | unavailable`. `count_words` is the first
+  registered sandboxed tool.
 - **Provider `mistral`** is declared and **not wired** — it throws a typed error
   rather than falling back silently.
 - **Provider `local`** (vLLM) requires an explicit opt-in key.
+- **Settings backend** is wired read-only at
+  `/api/agent-ops/settings/posture` (redacted server-only posture contract); the
+  `/settings` UI remains intentionally placeholder for now.
 
 ## Stack
 
@@ -155,7 +170,7 @@ qu'elle mesure.
 | Je veux toucher… | Ça vit dans… |
 |---|---|
 | Un écran | `src/app/<route>/page.tsx` + `src/components/<domaine>/` |
-| Une primitive UI | `src/components/ui/` — puis `check:ui-kit-integrity --update` |
+| Une primitive UI | `src/components/ui/` — couleurs en jetons `--aig-*`, puis regarder un écran qui la consomme |
 | La navigation | `src/components/navigation.ts` (source de vérité unique) |
 | La logique métier | `src/lib/agent-mission-control/` |
 | Une route API | `src/app/api/**` — server-only, fail-closed |
@@ -177,9 +192,11 @@ npm run verify               # avant un push qui touche le build
 
 1. **Port** — jamais 3000, 3001 ni 3210. Le dev est épinglé sur **3987**
    (`check:dev-port` le vérifie dans 4 résolveurs).
-2. **Kit UI** — modifier une primitive fait échouer `check:ui-kit-integrity`.
-   C'est voulu : la gate protège contre une dérive silencieuse. Modification
-   volontaire → `--update`, puis **regarder un écran qui la consomme**.
+2. **Kit UI** — modifier une primitive est légitime ; `check:ui-kit-integrity`
+   refuse la **perte** (un export consommé, la cible tactile de 44 px, un
+   marqueur d'accessibilité, une couleur Tailwind brute). Les couleurs viennent
+   des jetons `--aig-*`. Après modification, **regarder un écran qui la
+   consomme** : aucune gate ne mesure le rendu.
 3. **Aucune donnée fabriquée** — une valeur absente s'affiche `Non mesuré`,
    jamais `0`. `check:render-truth` et `check:lifecycle-truth` refusent les zéros
    inventés, les `NaN` coercés et les statuts non prouvés.

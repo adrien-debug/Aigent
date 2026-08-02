@@ -85,7 +85,7 @@ function CockpitHeader({
       actions={
         <Link
           href={`/agents/${detail.copilotId}`}
-          className="aig-text-muted text-sm no-underline hover:text-white"
+          className="aig-text-muted text-sm no-underline hover:text-(--aig-text)"
         >
           Fiche complète de l’agent
         </Link>
@@ -98,7 +98,7 @@ function CockpitHeader({
             {candidateVersion ? (
               <Strong>{candidateVersion.label}</Strong>
             ) : (
-              <span className="text-amber-400">aucune version candidate</span>
+              <span style={{ color: 'var(--aig-severity-warn)' }}>aucune version candidate</span>
             )}
           </Text>
           <Text className="text-sm">
@@ -110,7 +110,7 @@ function CockpitHeader({
             ) : productionVersionId ? (
               <Strong>{productionVersionId}</Strong>
             ) : (
-              <span className="text-amber-400">aucune</span>
+              <span style={{ color: 'var(--aig-severity-warn)' }}>aucune</span>
             )}
           </Text>
         </>
@@ -312,12 +312,12 @@ export default function QualificationCockpitScreen({
                 la gate. Seul le fond CLAIR (`bg-red-50` / `bg-emerald-50`)
                 disparaît : sa moitié sombre était déjà la seule à se rendre. */}
             {decision.blockingCause ? (
-              <div className="mt-3 rounded-lg border border-red-500/25 bg-red-950/20 p-3">
+              <div className="mt-3 rounded-lg border border-[color-mix(in_oklab,var(--aig-severity-bad)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-bad)_10%,transparent)] p-3">
                 <Strong className="block text-sm">Cause du blocage</Strong>
                 <Text className="mt-1 text-sm">{decision.blockingCause}</Text>
               </div>
             ) : (
-              <div className="mt-3 rounded-lg border border-emerald-500/25 bg-emerald-950/20 p-3">
+              <div className="mt-3 rounded-lg border border-[color-mix(in_oklab,var(--aig-severity-good)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-good)_10%,transparent)] p-3">
                 <Text className="text-sm">Toutes les conditions de la gate tiennent.</Text>
               </div>
             )}

@@ -122,7 +122,7 @@ function Navigation() {
         onClick={prevPage}
         animate={{ opacity: isPrevActive ? 1 : 0.3 }}
         transition={{ duration: 0.3 }}
-        className="aig-raised flex size-7 items-center justify-center rounded-md transition hover:text-white"
+        className="aig-raised flex size-7 items-center justify-center rounded-md transition hover:text-(--aig-text)"
       >
         <ChevronLeftIcon />
       </motion.button>
@@ -134,7 +134,7 @@ function Navigation() {
         onClick={nextPage}
         animate={{ opacity: isNextActive ? 1 : 0.3 }}
         transition={{ duration: 0.3 }}
-        className="aig-raised flex size-7 items-center justify-center rounded-md transition hover:text-white"
+        className="aig-raised flex size-7 items-center justify-center rounded-md transition hover:text-(--aig-text)"
       >
         <ChevronRightIcon />
       </motion.button>
@@ -161,7 +161,11 @@ function ProjectSlide({ card }: Readonly<{ card: ProjectCard }>) {
        carte fluide (`flex-1`, `%`) casserait le snap par page. On resserre de
        176 à 160 px pour qu'une colonne à 40 % en montre trois entières au lieu
        de deux et un moignon coupé au bord. */
-    <article className="aig-panel flex h-full w-40 flex-col divide-y divide-[color:var(--aig-line-soft)]">
+    /* `aig-inset` et non `aig-panel` : la carte est POSÉE DANS une section de
+       second rang, elle ne doit donc pas porter le même liseré fermé qu'un
+       panneau de premier rang — sinon dix cartes rajoutent dix cadres à un
+       écran qui vient d'en retirer trois. Elle se creuse dans son porteur. */
+    <article className="aig-inset flex h-full w-40 flex-col divide-y divide-[color:var(--aig-line-soft)]">
       <div className="flex flex-1 flex-col items-center px-3 py-4 text-center">
         {/* La MARQUE du projet — initiales pour l'instant. Le jour où un projet
             porte un logo, c'est ici qu'il se substitue, sans toucher au reste
@@ -191,13 +195,13 @@ function ProjectSlide({ card }: Readonly<{ card: ProjectCard }>) {
           <dl className="mt-3 grid w-full grid-cols-2 gap-1">
             <div className="min-w-0">
               <dt className="aig-text-muted truncate text-2xs">Agents</dt>
-              <dd className="mt-0.5 truncate text-sm font-semibold text-white tabular-nums">
+              <dd className="aig-display mt-0.5 truncate text-sm font-semibold tabular-nums">
                 {card.activeCount}/{card.copilotCount}
               </dd>
             </div>
             <div className="min-w-0">
               <dt className="aig-text-muted truncate text-2xs">Runs</dt>
-              <dd className="mt-0.5 truncate text-sm font-semibold text-white tabular-nums">
+              <dd className="aig-display mt-0.5 truncate text-sm font-semibold tabular-nums">
                 {card.runs24h === null ? <AbsentMark /> : card.runs24h}
               </dd>
             </div>
@@ -207,17 +211,17 @@ function ProjectSlide({ card }: Readonly<{ card: ProjectCard }>) {
 
       {/* Pied d'actions — des liens RÉELS vers des routes qui existent, jamais
           un bouton décoratif. */}
-      <div className="grid shrink-0 grid-cols-2 divide-x divide-white/10">
+      <div className="grid shrink-0 grid-cols-2 divide-x divide-(--aig-line-soft)">
         <Link
           href={`/projects/${card.id}`}
-          className="aig-text-muted flex items-center justify-center gap-1.5 py-3 text-xs font-medium no-underline transition hover:bg-white/5 hover:text-white"
+          className="aig-text-muted flex items-center justify-center gap-1.5 py-3 text-xs font-medium no-underline transition hover:bg-(--aig-line-soft) hover:text-(--aig-text)"
         >
           <FolderIcon />
           Ouvrir
         </Link>
         <Link
           href={`/runs?project=${card.id}`}
-          className="aig-text-muted flex items-center justify-center gap-1.5 py-3 text-xs font-medium no-underline transition hover:bg-white/5 hover:text-white"
+          className="aig-text-muted flex items-center justify-center gap-1.5 py-3 text-xs font-medium no-underline transition hover:bg-(--aig-line-soft) hover:text-(--aig-text)"
         >
           <BoltIcon />
           Runs

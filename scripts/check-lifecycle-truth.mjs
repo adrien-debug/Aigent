@@ -45,6 +45,12 @@
  *     The rule that has NOT moved: activation is never derived from a delivery,
  *     from an Aigent-side status, or from any boolean lying around.
  *
+ *  6. VERSION DRIFT MUST BE ID-BASED, NEVER HEURISTIC. The drift resolver must
+ *     compare only measured version identifiers/labels (`delivery.versionId`,
+ *     telemetry `agentVersion`, and optional exact label lookup by id). It must
+ *     not infer "current" from timestamps, stage rank, array position or
+ *     production pointers.
+ *
  * SCOPE — ONE file, named explicitly rather than walked: the trace module
  * itself. This guard used to also name its display component under
  * `src/components/console/`; that file was deleted by the frontend reset and was
@@ -268,6 +274,41 @@ async function main() {
         violations.push(
           `${rel}  no 'unavailable' state present — a failed consumer-activation read must be reported as unavailable, never flattened into 'unknown'`
         )
+      }
+
+      // 6. Drift resolver must stay explicit and non-heuristic.
+      const driftResolver = src.match(
+        /function\s+resolveVersionDrift\s*\(([\s\S]*?)\)\s*:\s*VersionDriftReport\s*\{([\s\S]*?)\n\}/
+      )
+      if (!driftResolver) {
+        violations.push(`${rel}  no \`resolveVersionDrift(...): VersionDriftReport\` resolver found`)
+      } else {
+        const [, driftParams, driftBody] = driftResolver
+        for (const required of ['versions', 'delivery', 'lastTelemetry', 'telemetryLookupFailed']) {
+          if (!new RegExp(`\\b${required}\\b`).test(driftParams)) {
+            violations.push(
+              `${rel}  resolveVersionDrift is missing required input \`${required}\` — drift cannot be measured from complete evidence`
+            )
+          }
+        }
+        if (!/delivery\??\.versionId/.test(driftBody)) {
+          violations.push(
+            `${rel}  resolveVersionDrift does not read \`delivery.versionId\` — delivered version must come from persisted delivery evidence`
+          )
+        }
+        if (!/versionsMatch/.test(driftBody) || !/state:\s*'measured'/.test(driftBody)) {
+          violations.push(
+            `${rel}  resolveVersionDrift must compute an explicit measured match verdict when both proofs exist`
+          )
+        }
+        const forbiddenHeuristics = ['Date.parse', 'createdAt', 'currentVersion', '\\.stage\\b', 'versions\\[0\\]']
+        for (const heuristic of forbiddenHeuristics) {
+          if (new RegExp(heuristic).test(driftBody)) {
+            violations.push(
+              `${rel}  resolveVersionDrift uses heuristic \`${heuristic}\` — drift must never be inferred from timestamps, stage or position`
+            )
+          }
+        }
       }
     }
   }
