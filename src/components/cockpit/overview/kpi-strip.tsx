@@ -43,7 +43,6 @@ function Figure({
   valueColor?: string
   unread: boolean
   quietEmpty?: boolean
-  /** Métrique secondaire quand la fenêtre est vide (runs à 0). */
   dimmed?: boolean
 }>) {
   return (

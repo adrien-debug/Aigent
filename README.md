@@ -42,6 +42,7 @@ partir du **2026-07-31**. État revalidé au **2026-08-02** (build vert, gates s
 | Élément | État |
 |---|---|
 | Shell | `src/components/app-shell.tsx` — graphite continu (`--aig-*`), rail creux + zone de travail un palier au-dessus |
+| CTA / liens accent | `aig-btn-accent` et `aig-link-accent` dans `src/theme/utilities.css` — posés sur `Button` / `Link` Catalyst, pas de fork `ui/` |
 | `/agents` | Page pilote recomposée en liste produit + détail éditorial, sans grille de panneaux |
 | Kit UI | `src/components/ui/` — **14 primitives**, toutes consommées ; code du repo, linté (`src/components/ui/README.md`) |
 | Composants métier | `src/components/{cockpit,agents,runs,projects,builder,qualification,delivery,runtime}/` |
