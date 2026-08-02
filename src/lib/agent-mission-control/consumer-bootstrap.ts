@@ -11,7 +11,7 @@ import 'server-only'
 
 import type { Project } from './types'
 
-export const CONSUMER_PACK_VERSION = '1.0.0'
+export const CONSUMER_PACK_VERSION = '1.1.0'
 
 export const CONSUMER_READY_PATH = 'aigent/consumer-ready.json'
 export const BINDINGS_PATH = 'aigent/bindings.json'
@@ -102,7 +102,12 @@ AIGENT_PROJECT_KEY=${consumerProjectKey(project)}
 
 AIGENT_TELEMETRY_ENABLED=false
 AIGENT_TELEMETRY_ENDPOINT=
-AIGENT_TELEMETRY_TOKEN=
+AIGENT_INSTALLATION_TOKEN=
+AIGENT_INSTALLATION_ID=
+AIGENT_PROJECT_ID=
+AIGENT_COPILOT_ID=
+AIGENT_VERSION_ID=
+AIGENT_ENVIRONMENT=development
 `
 }
 
@@ -136,8 +141,13 @@ Restyle the intake page to match **your** design system — the scaffold is deli
 | Variable | Purpose |
 |----------|---------|
 | \`AIGENT_TELEMETRY_ENABLED\` | \`'true'\` to send execution events to Aigent |
-| \`AIGENT_TELEMETRY_ENDPOINT\` | Aigent \`/api/runtime-telemetry\` URL |
-| \`AIGENT_TELEMETRY_TOKEN\` | Bearer \`AIGENT_RUNTIME_TELEMETRY_TOKEN\` |
+| \`AIGENT_TELEMETRY_ENDPOINT\` | Aigent base URL (emitter targets \`/api/runtime-telemetry/consumer\`) |
+| \`AIGENT_INSTALLATION_TOKEN\` | Per-installation bearer token (one-time secret from Aigent) |
+| \`AIGENT_INSTALLATION_ID\` | Installation id created by Aigent |
+| \`AIGENT_PROJECT_ID\` | Aigent project id expected by the installation |
+| \`AIGENT_COPILOT_ID\` | Aigent copilot id expected by the installation |
+| \`AIGENT_VERSION_ID\` | Delivered Aigent version id expected by the installation |
+| \`AIGENT_ENVIRONMENT\` | \`production\` | \`staging\` | \`development\` |
 
 ## Optional DB
 
@@ -247,18 +257,34 @@ export type TelemetryStatus = 'started' | 'completed' | 'failed'
 export interface RuntimeTelemetryEvent {
   eventId: string
   runId: string
-  /** The agent (copilot) id, as published in the Aigent registry. */
-  agentId: string
-  /** The Aigent project key this consumer belongs to. */
+  /** The Aigent copilot id. */
+  copilotId: string
+  /** The exact Aigent version id executed by this run. */
+  versionId: string
+  /** The Aigent project id this installation belongs to. */
   projectId: string
+  /** The Aigent installation id. */
+  installationId: string
+  /** consumer runtime environment */
+  environment: 'production' | 'staging' | 'development'
+  eventType:
+    | 'consumer.installation_seen'
+    | 'consumer.version_loaded'
+    | 'consumer.run_started'
+    | 'consumer.run_completed'
+    | 'consumer.run_failed'
+    | 'consumer.heartbeat'
   /** ISO-8601 event time. */
   timestamp: string
-  status: TelemetryStatus
   latencyMs?: number
-  model?: string
-  provider?: 'openai' | 'gemini' | 'custom' | 'unknown'
+  usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number }
   /** Hash of an error message (never the raw message). Maps to error.messageHash. */
-  errorMessageHash?: string
+  error?: {
+    name?: string
+    code?: string
+    messageHash?: string
+    category?: 'provider_error' | 'timeout' | 'validation' | 'tool_error' | 'unknown'
+  }
 }
 
 function enabled(): boolean {
@@ -268,25 +294,27 @@ function enabled(): boolean {
 export async function emitRuntimeTelemetry(event: RuntimeTelemetryEvent): Promise<void> {
   if (!enabled()) return
   const endpoint = process.env.AIGENT_TELEMETRY_ENDPOINT
-  const token = process.env.AIGENT_TELEMETRY_TOKEN
+  const token = process.env.AIGENT_INSTALLATION_TOKEN
   if (!endpoint || !token) return
 
   // Build ONLY the keys Aigent's strict schema accepts.
   const payload: Record<string, unknown> = {
     eventId: event.eventId,
+    eventType: event.eventType,
     projectId: event.projectId,
-    agentId: event.agentId,
+    copilotId: event.copilotId,
+    versionId: event.versionId,
     runId: event.runId,
+    installationId: event.installationId,
+    environment: event.environment,
     timestamp: event.timestamp,
-    status: event.status,
   }
   if (typeof event.latencyMs === 'number') payload.latencyMs = event.latencyMs
-  if (event.model) payload.model = event.model
-  if (event.provider) payload.provider = event.provider
-  if (event.errorMessageHash) payload.error = { messageHash: event.errorMessageHash }
+  if (event.usage) payload.usage = event.usage
+  if (event.error) payload.error = event.error
 
   try {
-    await fetch(endpoint, {
+    await fetch(\`\${endpoint.replace(/\\/+$/, '')}/api/runtime-telemetry/consumer\`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -495,10 +523,18 @@ export async function POST(_req: Request, { params }: { params: Promise<{ slug: 
   void emitRuntimeTelemetry({
     eventId: crypto.randomUUID(),
     runId: \`activate-\${slug}-\${Date.now()}\`,
-    agentId: agent.copilotId,
-    projectId: process.env.AIGENT_PROJECT_KEY ?? agent.aigentProjectId,
+    eventType: 'consumer.version_loaded',
+    copilotId: process.env.AIGENT_COPILOT_ID ?? agent.copilotId,
+    versionId: process.env.AIGENT_VERSION_ID ?? agent.versionId ?? agent.version,
+    installationId: process.env.AIGENT_INSTALLATION_ID ?? '',
+    environment:
+      process.env.AIGENT_ENVIRONMENT === 'production' ||
+      process.env.AIGENT_ENVIRONMENT === 'staging' ||
+      process.env.AIGENT_ENVIRONMENT === 'development'
+        ? process.env.AIGENT_ENVIRONMENT
+        : 'development',
+    projectId: process.env.AIGENT_PROJECT_ID ?? agent.aigentProjectId ?? process.env.AIGENT_PROJECT_KEY ?? '',
     timestamp: now,
-    status: 'completed',
   })
 
   return NextResponse.json({ ok: true, binding: next })

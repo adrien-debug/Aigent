@@ -1,0 +1,33 @@
+{
+  "timestampUtc": "2026-08-02T09:37:00Z",
+  "commitSha": "2b117b097a17aa4eea4c3a93909b28adce9ad33c",
+  "migrationFile": "supabase/migrations/0046_consumer_installation_version_verification.sql",
+  "target": {
+    "host": "<masked>",
+    "database": "<masked>",
+    "user": "<masked>"
+  },
+  "command": "ssh gpu1 \"docker exec -i nexus-postgres psql -U postgres -d aigent -v ON_ERROR_STOP=1\" < supabase/migrations/0046_consumer_installation_version_verification.sql",
+  "firstPass": {
+    "exitCode": 0,
+    "result": "success",
+    "notices": [
+      "column version_id already exists",
+      "column delivery_event_id already exists",
+      "column revoked_reason already exists",
+      "column version_verified already exists",
+      "index consumer_installations_version_idx already exists",
+      "index consumer_installations_delivery_event_idx already exists",
+      "index runtime_telemetry_events_verified_consumer_idx already exists"
+    ]
+  },
+  "secondPassIdempotence": {
+    "exitCode": 0,
+    "result": "success",
+    "notices": [
+      "same already-exists notices",
+      "no destructive operation",
+      "no failure"
+    ]
+  }
+}

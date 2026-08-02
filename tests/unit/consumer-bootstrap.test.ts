@@ -60,20 +60,20 @@ describe('consumer-bootstrap', () => {
     expect(consumerProvisionBranchName('My Project!!')).toMatch(/^aigent\/provision-[a-z0-9-]+$/)
   })
 
-  // The scaffolded telemetry client MUST emit Aigent's strict ingestion
-  // contract (POST /api/runtime-telemetry): required { eventId, projectId,
-  // agentId, runId, timestamp, status } and NO unknown keys. The previous
-  // scaffold sent agentSlug/projectKey/targetRoute with no timestamp, which the
-  // .strict() schema rejected 400 — so nothing ever reached the dashboard.
+  // The scaffolded telemetry client MUST emit the consumer ingestion contract
+  // (POST /api/runtime-telemetry/consumer): required identity chain on each
+  // event and no legacy key drift.
   describe('telemetry client contract (must match the ingestion route schema)', () => {
     const pack = buildConsumerIntakePack(project, '2026-07-19T12:00:00Z')
     const telemetry = pack.find((f) => f.path === 'lib/aigent/telemetry-client.ts')!
     const activate = pack.find((f) => f.path === 'app/api/aigent/intake/[slug]/activate/route.ts')!
 
     it('the client emits the route-required field names', () => {
-      for (const key of ['eventId', 'projectId', 'agentId', 'runId', 'timestamp', 'status']) {
+      for (const key of ['eventId', 'eventType', 'projectId', 'copilotId', 'versionId', 'installationId', 'runId', 'environment', 'timestamp']) {
         expect(telemetry.content).toContain(key)
       }
+      expect(telemetry.content).toContain('/api/runtime-telemetry/consumer')
+      expect(telemetry.content).toContain('AIGENT_INSTALLATION_TOKEN')
     })
 
     it('the client no longer emits the rejected legacy field names', () => {
@@ -84,10 +84,12 @@ describe('consumer-bootstrap', () => {
     })
 
     it('the internal activate caller also uses the corrected shape', () => {
-      expect(activate.content).toContain('agentId:')
+      expect(activate.content).toContain('copilotId:')
+      expect(activate.content).toContain('versionId:')
+      expect(activate.content).toContain('installationId:')
       expect(activate.content).toContain('projectId:')
       expect(activate.content).toContain('timestamp:')
-      expect(activate.content).not.toContain('agentSlug:')
+      expect(activate.content).toContain("eventType: 'consumer.version_loaded'")
       expect(activate.content).not.toContain('projectKey:')
     })
   })

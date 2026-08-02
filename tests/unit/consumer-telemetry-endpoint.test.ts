@@ -26,6 +26,8 @@ interface InstallRow {
   last_seen_at: string | null
   last_version_loaded: string | null
   last_version_loaded_at: string | null
+  version_id: string | null
+  delivery_event_id: string | null
 }
 
 const activeInstallation: InstallRow = {
@@ -39,6 +41,8 @@ const activeInstallation: InstallRow = {
   last_seen_at: null,
   last_version_loaded: null,
   last_version_loaded_at: null,
+  version_id: 'v-3',
+  delivery_event_id: 'delivery-1',
 }
 
 /** Rows the mocked backend will match token_hash lookups against. */
@@ -46,6 +50,9 @@ let installationRows: InstallRow[] = [activeInstallation]
 let insertedRows: Record<string, unknown>[] = []
 let patchedRows: { path: string; body: unknown }[] = []
 let insertBehaviour: (() => void) | null = null
+let deliveryById: Record<string, { id: string; projectId: string | null; copilotId: string; versionId: string | null; status: string }> = {
+  'delivery-1': { id: 'delivery-1', projectId: 'proj-1', copilotId: 'cop-1', versionId: 'v-3', status: 'delivered' },
+}
 
 vi.mock('@/lib/agent-mission-control/postgrest', () => ({
   pgrest: vi.fn(async (method: string, path: string, body?: unknown) => {
@@ -66,6 +73,10 @@ vi.mock('@/lib/agent-mission-control/postgrest', () => ({
     return []
   }),
   isPgrestTimeout: () => false,
+}))
+
+vi.mock('@/lib/agent-mission-control/delivery-events-store', () => ({
+  getDeliveryEventById: vi.fn(async (id: string) => deliveryById[id] ?? null),
 }))
 
 import { POST } from '@/app/api/runtime-telemetry/consumer/route'
@@ -102,6 +113,9 @@ describe('POST /api/runtime-telemetry/consumer', () => {
     insertedRows = []
     patchedRows = []
     insertBehaviour = null
+    deliveryById = {
+      'delivery-1': { id: 'delivery-1', projectId: 'proj-1', copilotId: 'cop-1', versionId: 'v-3', status: 'delivered' },
+    }
   })
 
   afterEach(() => {
@@ -194,11 +208,11 @@ describe('POST /api/runtime-telemetry/consumer', () => {
 
   it('11 — version_loaded records the loaded version on the installation', async () => {
     const res = await POST(
-      req({ ...validEvent, eventType: 'consumer.version_loaded', versionId: 'v-9' }, auth())
+      req({ ...validEvent, eventType: 'consumer.version_loaded', versionId: 'v-3' }, auth())
     )
     expect(res.status).toBe(202)
     expect(patchedRows).toHaveLength(1)
-    expect((patchedRows[0].body as Record<string, unknown>).last_version_loaded).toBe('v-9')
+    expect((patchedRows[0].body as Record<string, unknown>).last_version_loaded).toBe('v-3')
   })
 
   // ── Mandatory identifiers ─────────────────────────────────────────────────
@@ -411,13 +425,50 @@ describe('POST /api/runtime-telemetry/consumer', () => {
 
   // ── MOYEN-4 — unverified versionId ────────────────────────────────────────
 
-  it('34 — a never-shipped versionId is accepted but marked UNVERIFIED', async () => {
+  it('34 — a never-shipped versionId is rejected', async () => {
     const res = await POST(req({ ...validEvent, versionId: 'v-NEVER-SHIPPED' }, auth()))
+    expect(res.status).toBe(401)
+    expect(insertedRows).toHaveLength(0)
+  })
+
+  it('34b — mismatched delivery event version is rejected', async () => {
+    deliveryById['delivery-1'] = {
+      id: 'delivery-1',
+      projectId: 'proj-1',
+      copilotId: 'cop-1',
+      versionId: 'v-else',
+      status: 'delivered',
+    }
+    const res = await POST(req(validEvent, auth()))
+    expect(res.status).toBe(401)
+    expect(insertedRows).toHaveLength(0)
+  })
+
+  it('34c — non-delivered delivery event is rejected', async () => {
+    deliveryById['delivery-1'] = {
+      id: 'delivery-1',
+      projectId: 'proj-1',
+      copilotId: 'cop-1',
+      versionId: 'v-3',
+      status: 'failed',
+    }
+    const res = await POST(req(validEvent, auth()))
+    expect(res.status).toBe(401)
+    expect(insertedRows).toHaveLength(0)
+  })
+
+  it('34d — missing delivery proof is rejected', async () => {
+    deliveryById = {}
+    const res = await POST(req(validEvent, auth()))
+    expect(res.status).toBe(401)
+    expect(insertedRows).toHaveLength(0)
+  })
+
+  it('34e — accepted row is persisted with version_verified=true', async () => {
+    const res = await POST(req(validEvent, auth()))
     expect(res.status).toBe(202)
-    // Deliberate: not checked against copilot_versions. The row must therefore
-    // carry the marker that stops a reader presenting it as observed fact.
-    const env = insertedRows[0].environment as Record<string, unknown>
-    expect(env.versionClaimVerified).toBe(false)
+    expect(insertedRows).toHaveLength(1)
+    expect(insertedRows[0].version_verified).toBe(true)
   })
 
   // ── MOYEN-5 — the secret scan must see the RAW payload ────────────────────

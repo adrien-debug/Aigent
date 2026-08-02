@@ -34,7 +34,9 @@ export interface DeliveryEventInput {
 
 export interface DeliveryEvent {
   id: string
+  copilotId?: string
   versionId: string | null
+  projectId?: string | null
   mode: PushAgentDeliveryMode
   targetRepo: string
   targetBranch: string | null
@@ -76,7 +78,35 @@ export async function getLatestDeliveryEvent(copilotId: string): Promise<Deliver
   if (!row) return null
   return {
     id: row.id as string,
+    copilotId: row.copilot_id as string,
     versionId: (row.version_id as string | null) ?? null,
+    projectId: (row.project_id as string | null) ?? null,
+    mode: row.mode as PushAgentDeliveryMode,
+    targetRepo: row.target_repo as string,
+    targetBranch: (row.target_branch as string | null) ?? null,
+    deliveryBranch: (row.delivery_branch as string | null) ?? null,
+    commitSha: (row.commit_sha as string | null) ?? null,
+    commitUrl: (row.commit_url as string | null) ?? null,
+    prUrl: (row.pr_url as string | null) ?? null,
+    prNumber: (row.pr_number as number | null) ?? null,
+    status: row.status as string,
+    createdAt: row.created_at as string,
+  }
+}
+
+/** Delivery event by id (for installation provisioning/version verification). */
+export async function getDeliveryEventById(eventId: string): Promise<DeliveryEvent | null> {
+  const rows = await pgrest<RawRow[]>(
+    'GET',
+    `agent_delivery_events?${eq('id', eventId)}&select=*&limit=1`
+  )
+  const row = rows[0]
+  if (!row) return null
+  return {
+    id: row.id as string,
+    copilotId: row.copilot_id as string,
+    versionId: (row.version_id as string | null) ?? null,
+    projectId: (row.project_id as string | null) ?? null,
     mode: row.mode as PushAgentDeliveryMode,
     targetRepo: row.target_repo as string,
     targetBranch: (row.target_branch as string | null) ?? null,

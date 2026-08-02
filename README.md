@@ -94,6 +94,11 @@ State the restriction, not the headline:
 - **Telemetry** is aggregated in `dashboard-overview.ts` and `agent-detail.ts`,
   and surfaced on `/` and `/runs`. A run that reported no usage shows
   `Non mesuré` — never a fabricated `0` (`docs/metrics-canon.md`).
+- **Consumer proof chain (installations)** uses the dedicated route
+  `/api/runtime-telemetry/consumer`: each accepted event must match a real
+  installation (`project_id`, `copilot_id`, `version_id`, `delivery_event_id`),
+  and only rows with `version_verified=true` can contribute to
+  `active_in_consumer`.
 - **Lifecycle version drift** is computed from persisted evidence only:
   `agent_delivery_events.version_id` vs `runtime_telemetry_events.agent_version`.
   Missing proof stays `unknown`; no timestamp/name/position inference.

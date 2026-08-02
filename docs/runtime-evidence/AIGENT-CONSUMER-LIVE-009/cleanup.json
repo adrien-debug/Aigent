@@ -1,0 +1,20 @@
+{
+  "timestampUtc": "2026-08-02T09:39:30Z",
+  "commitSha": "2b117b097a17aa4eea4c3a93909b28adce9ad33c",
+  "proofPrefix": "proof-aigent-consumer-live-009",
+  "deleted": [],
+  "kept": [
+    {
+      "kind": "consumer_installation",
+      "id": "inst-development-f84ae01bec344970a565",
+      "reason": "audit trail preserved; row is revoked and labeled as proof data"
+    },
+    {
+      "kind": "runtime_telemetry_event",
+      "id": "consumer:inst-development-f84ae01bec344970a565:proof-aigent-consumer-live-009-valid-20260802T093856Z",
+      "reason": "runtime audit evidence preserved"
+    }
+  ],
+  "preexistingDataDeleted": false,
+  "aggregateImpact": "No production installation remained active; proof installation is revoked."
+}
