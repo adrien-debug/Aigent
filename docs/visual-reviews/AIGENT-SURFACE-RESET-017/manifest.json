@@ -1,0 +1,159 @@
+{
+  "mission": "AIGENT-SURFACE-RESET-017",
+  "generatedAtUtc": "2026-08-02T11:14:40Z",
+  "git": {
+    "branch": "mission/aigent-surface-reset-017",
+    "sha": "112f863338ab5d0ba69e77bb89071d9796181686"
+  },
+  "audits": {
+    "beforeDevelopment": {
+      "path": "before/scroll-matrix.json",
+      "consoleEvents": 0,
+      "networkErrors": 0
+    },
+    "afterDevelopment": {
+      "path": "after/scroll-matrix.json",
+      "consoleEvents": 0,
+      "networkErrors": 0
+    },
+    "afterProduction": {
+      "path": "after/production/scroll-matrix.json",
+      "consoleEvents": 6,
+      "networkErrors": 110
+    }
+  },
+  "captures": [
+    {
+      "file": "before/desktop-1440x900.png",
+      "route": "/settings",
+      "viewport": "1440x900",
+      "mode": "development",
+      "commitSha": "112f863338ab5d0ba69e77bb89071d9796181686",
+      "consoleErrors": 0,
+      "documentScrollHeight": 900,
+      "documentClientHeight": 900,
+      "scrollPrincipal": "none",
+      "verticalScrollableElements": 0
+    },
+    {
+      "file": "before/laptop-1280x800.png",
+      "route": "/settings",
+      "viewport": "1280x800",
+      "mode": "development",
+      "commitSha": "112f863338ab5d0ba69e77bb89071d9796181686",
+      "consoleErrors": 0,
+      "documentScrollHeight": 800,
+      "documentClientHeight": 800,
+      "scrollPrincipal": "none",
+      "verticalScrollableElements": 0
+    },
+    {
+      "file": "before/mobile-375x812.png",
+      "route": "/settings",
+      "viewport": "375x812",
+      "mode": "development",
+      "commitSha": "112f863338ab5d0ba69e77bb89071d9796181686",
+      "consoleErrors": 0,
+      "documentScrollHeight": 812,
+      "documentClientHeight": 812,
+      "scrollPrincipal": "none",
+      "verticalScrollableElements": 0
+    },
+    {
+      "file": "before/mobile-drawer-open-375x812.png",
+      "route": "/settings",
+      "viewport": "375x812",
+      "mode": "development",
+      "commitSha": "112f863338ab5d0ba69e77bb89071d9796181686",
+      "consoleErrors": 0,
+      "documentScrollHeight": 812,
+      "documentClientHeight": 812,
+      "scrollPrincipal": "none",
+      "verticalScrollableElements": 0
+    },
+    {
+      "file": "after/desktop-1440x900.png",
+      "route": "/settings",
+      "viewport": "1440x900",
+      "mode": "production",
+      "commitSha": "112f863338ab5d0ba69e77bb89071d9796181686",
+      "consoleErrors": 6,
+      "documentScrollHeight": 900,
+      "documentClientHeight": 900,
+      "scrollPrincipal": "none",
+      "verticalScrollableElements": 0
+    },
+    {
+      "file": "after/laptop-1280x800.png",
+      "route": "/settings",
+      "viewport": "1280x800",
+      "mode": "production",
+      "commitSha": "112f863338ab5d0ba69e77bb89071d9796181686",
+      "consoleErrors": 6,
+      "documentScrollHeight": 800,
+      "documentClientHeight": 800,
+      "scrollPrincipal": "none",
+      "verticalScrollableElements": 0
+    },
+    {
+      "file": "after/mobile-375x812.png",
+      "route": "/settings",
+      "viewport": "375x812",
+      "mode": "production",
+      "commitSha": "112f863338ab5d0ba69e77bb89071d9796181686",
+      "consoleErrors": 6,
+      "documentScrollHeight": 812,
+      "documentClientHeight": 812,
+      "scrollPrincipal": "none",
+      "verticalScrollableElements": 0
+    },
+    {
+      "file": "after/mobile-drawer-open-375x812.png",
+      "route": "/settings",
+      "viewport": "375x812",
+      "mode": "production",
+      "commitSha": "112f863338ab5d0ba69e77bb89071d9796181686",
+      "consoleErrors": 6,
+      "documentScrollHeight": 812,
+      "documentClientHeight": 812,
+      "scrollPrincipal": "none",
+      "verticalScrollableElements": 0
+    },
+    {
+      "file": "after/table--runs-1440x900-development.png",
+      "route": "/runs",
+      "viewport": "1440x900",
+      "mode": "development",
+      "commitSha": "112f863338ab5d0ba69e77bb89071d9796181686",
+      "consoleErrors": 0,
+      "documentScrollHeight": 900,
+      "documentClientHeight": 900,
+      "scrollPrincipal": "PageBody",
+      "verticalScrollableElements": 1
+    },
+    {
+      "file": "after/long--agents-copilot-gold-trading-high-risk-copilot-draft-57917f07-bd916fd8-1440x900-development.png",
+      "route": "/agents/[copilotId]",
+      "viewport": "1440x900",
+      "mode": "development",
+      "commitSha": "112f863338ab5d0ba69e77bb89071d9796181686",
+      "consoleErrors": 0,
+      "documentScrollHeight": 900,
+      "documentClientHeight": 900,
+      "scrollPrincipal": "PageBody",
+      "verticalScrollableElements": 3
+    },
+    {
+      "file": "after/bounded--runtime-1440x900-development.png",
+      "route": "/runtime",
+      "viewport": "1440x900",
+      "mode": "development",
+      "commitSha": "112f863338ab5d0ba69e77bb89071d9796181686",
+      "consoleErrors": 0,
+      "documentScrollHeight": 900,
+      "documentClientHeight": 900,
+      "scrollPrincipal": "runtime panel",
+      "verticalScrollableElements": 1
+    }
+  ]
+}

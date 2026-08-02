@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AIGENT-SURFACE-RESET-017 — control</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          sans-serif;
+      }
+      body {
+        margin: 0;
+        background: #0e1116;
+        color: #e6e8ec;
+      }
+      main {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      h1,
+      h2 {
+        margin: 0 0 12px;
+      }
+      p,
+      li {
+        line-height: 1.45;
+      }
+      code {
+        background: #1a2029;
+        border: 1px solid #2a3342;
+        border-radius: 6px;
+        padding: 1px 6px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      th,
+      td {
+        border: 1px solid #2a3342;
+        padding: 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: #151a22;
+      }
+      .badge {
+        display: inline-block;
+        border: 1px solid #3a4457;
+        border-radius: 999px;
+        padding: 2px 8px;
+      }
+      .locked {
+        color: #9aa4b5;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>AIGENT-SURFACE-RESET-017 — Surface reset control</h1>
+      <p>
+        Contrat de suivi des étapes 01–03 (cartographie, contrat global, réparation shell) avec
+        statuts stricts.
+      </p>
+
+      <h2>Statuts autorisés</h2>
+      <ul>
+        <li><span class="badge">TODO</span></li>
+        <li><span class="badge">IN_PROGRESS</span></li>
+        <li><span class="badge">CODEX_DONE</span></li>
+        <li><span class="badge">OPUS_VALIDATED</span></li>
+        <li><span class="badge">VISUALLY_VALIDATED</span></li>
+      </ul>
+
+      <h2>Matrice routes × viewports</h2>
+      <p>
+        Routes : <code>/</code>, <code>/runs</code>, <code>/agents</code>,
+        <code>/agents/[copilotId]</code>, <code>/projects</code>, <code>/builder</code>,
+        <code>/qualification</code>, <code>/delivery</code>, <code>/runtime</code>,
+        <code>/learning</code>, <code>/actions</code>, <code>/settings</code>.
+      </p>
+      <p>Viewports : <code>1440x900</code>, <code>1280x800</code>, <code>375x812</code>.</p>
+      <p>
+        Preuves : <code>before/scroll-matrix.json</code>, <code>before/scroll-matrix.md</code>,
+        <code>after/scroll-matrix.json</code>, <code>after/scroll-matrix.md</code>.
+      </p>
+
+      <h2>Séquence d'étapes</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Étape</th>
+            <th>Statut</th>
+            <th>SHA</th>
+            <th>Date UTC</th>
+            <th>Fichiers modifiés</th>
+            <th>Preuves</th>
+            <th>Risques restants</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>01 — cartographier les hauteurs et scrolls</td>
+            <td><span class="badge">CODEX_DONE</span></td>
+            <td>112f863338ab5d0ba69e77bb89071d9796181686</td>
+            <td>2026-08-02T11:03:30Z</td>
+            <td><code>scripts/audit-surface-scroll.mjs</code></td>
+            <td>
+              <a href="./before/scroll-matrix.json">before/scroll-matrix.json</a>,
+              <a href="./before/scroll-matrix.md">before/scroll-matrix.md</a>
+            </td>
+            <td>Mesure pure development; limites de rendu production traitées à l'étape 03.</td>
+          </tr>
+          <tr>
+            <td>02 — choisir un contrat global unique</td>
+            <td><span class="badge">CODEX_DONE</span></td>
+            <td>112f863338ab5d0ba69e77bb89071d9796181686</td>
+            <td>2026-08-02T11:08:00Z</td>
+            <td><code>docs/visual-reviews/AIGENT-SURFACE-RESET-017/SCROLL-CONTRACT.md</code></td>
+            <td><a href="./SCROLL-CONTRACT.md">SCROLL-CONTRACT.md</a></td>
+            <td>Des scrolls internes métiers persistent sur routes hors scope shell.</td>
+          </tr>
+          <tr>
+            <td>03 — réparer le shell selon le contrat</td>
+            <td><span class="badge">CODEX_DONE</span></td>
+            <td>112f863338ab5d0ba69e77bb89071d9796181686</td>
+            <td>2026-08-02T11:14:40Z</td>
+            <td>
+              <code>src/components/app-shell.tsx</code>,
+              <code>tests/unit/app-shell-contract.test.ts</code>,
+              <code>scripts/audit-surface-scroll.mjs</code>
+            </td>
+            <td>
+              <a href="./after/scroll-matrix.json">after/scroll-matrix.json</a>,
+              <a href="./after/scroll-matrix.md">after/scroll-matrix.md</a>,
+              <a href="./manifest.json">manifest.json</a>,
+              <a href="./REVIEW.md">REVIEW.md</a>
+            </td>
+            <td>Multi-scrolls métiers résiduels + erreurs console production non shell.</td>
+          </tr>
+          <tr class="locked">
+            <td>04 — page agent detail refactor</td>
+            <td><span class="badge">LOCKED</span></td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+          </tr>
+          <tr class="locked">
+            <td>05 — page-level harmonization</td>
+            <td><span class="badge">LOCKED</span></td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+          </tr>
+          <tr class="locked">
+            <td>06 — advanced UX polishing</td>
+            <td><span class="badge">LOCKED</span></td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+          </tr>
+          <tr class="locked">
+            <td>07 — second pass cleanup</td>
+            <td><span class="badge">LOCKED</span></td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+          </tr>
+          <tr class="locked">
+            <td>08 — release readiness</td>
+            <td><span class="badge">LOCKED</span></td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+            <td>LOCKED</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Résultats de validation</h2>
+      <p>
+        Typecheck/Lint/Check/Knip/Test/Build/Verify/Secrets exécutés. Résultats consignés dans
+        <code>REVIEW.md</code>.
+      </p>
+
+      <h2>Verdict de passe</h2>
+      <p><strong>PARTIAL</strong> — shell stabilisé, mais multi-scrolls métiers résiduels hors scope.</p>
+    </main>
+  </body>
+</html>

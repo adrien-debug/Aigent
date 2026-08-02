@@ -27,7 +27,8 @@ authoring or runs.
 Le front historique a été supprimé (mission `frontend-reset`), puis reconstruit à
 partir du **2026-07-31**. État revalidé au **2026-08-02** (build vert, captures
 desktop/mobile, revue visuelle R2 dans
-`docs/visual-reviews/aigent-visual-composition-004-r2/`) :
+`docs/visual-reviews/aigent-visual-composition-004-r2/`, puis audit de stabilité
+surface/scroll dans `docs/visual-reviews/AIGENT-SURFACE-RESET-017/`) :
 
 | Route | Rôle |
 |---|---|
@@ -43,7 +44,7 @@ desktop/mobile, revue visuelle R2 dans
 
 | Élément | État |
 |---|---|
-| Shell | `src/components/app-shell.tsx` — rail noir glossy, zone de travail blanche, sans header ni colonne droite |
+| Shell | `src/components/app-shell.tsx` — shell borné (contrat app bounded), propriétaire de scroll principal explicite, sidebar sans double scroll, marqueur actif unique |
 | `/agents` | Page pilote recomposée en liste produit + détail éditorial, sans grille de panneaux |
 | Kit UI | `src/components/ui/` — **14 primitives**, toutes consommées ; code du repo, linté (`src/components/ui/README.md`) |
 | Composants métier | `src/components/{cockpit,agents,runs,projects,builder,qualification,delivery,runtime}/` |
