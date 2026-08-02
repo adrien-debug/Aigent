@@ -27,7 +27,7 @@ export function Avatar({
       className={clsx(
         className,
         // Basic layout
-        'inline-grid shrink-0 align-middle [--avatar-radius:20%] *:col-start-1 *:row-start-1',
+        'inline-grid shrink-0 align-middle [--avatar-radius:var(--radius-md)] *:col-start-1 *:row-start-1',
         'outline -outline-offset-1 outline-(--aig-line)',
         // Border radius
         square ? 'rounded-(--avatar-radius) *:rounded-(--avatar-radius)' : 'rounded-full *:rounded-full'
@@ -69,7 +69,7 @@ export const AvatarButton = forwardRef(function AvatarButton(
 ) {
   const classes = clsx(
     className,
-    square ? 'rounded-[20%]' : 'rounded-full',
+    square ? 'rounded-(--avatar-radius)' : 'rounded-full',
     'relative inline-grid focus:not-data-focus:outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-(--aig-accent)'
   )
 

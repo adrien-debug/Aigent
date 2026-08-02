@@ -320,6 +320,81 @@ for (const [name, src] of Object.entries(sources)) {
   }
 }
 
+// ------------------------------------------------------------------ 5. JETONS DS
+//
+// Le kit doit consommer l'échelle radius 4/8/16 et les alias sémantiques
+// `--shadow-*` / `--border-*`, pas des utilitaires Tailwind bruts ni des
+// valeurs arbitraires hors `var(--radius-*)`.
+const FORBIDDEN_RADIUS = /\brounded-(?:xl|2xl|3xl|t-3xl)\b/g
+const TOKENIZED_SHADOW = /shadow-\(--shadow-(?:sm|md|lg)\)/g
+const FORBIDDEN_SHADOW = /\bshadow-(?:sm|md|lg)\b/g
+const ARBITRARY_RADIUS = /rounded-\[(?!calc\(var\(--radius-)/g
+const RAW_OKLCH = /\boklch\s*\(/g
+
+const DS_EXCEPTIONS = new Set(['dialog.tsx'])
+
+for (const [name, src] of Object.entries(markup)) {
+  if (!src || DS_EXCEPTIONS.has(name)) continue
+  const forbiddenRadius = src.match(FORBIDDEN_RADIUS) || []
+  if (forbiddenRadius.length) {
+    errors.push(`JETON DS            ${KIT_DIR}/${name} → radius hors échelle (${[...new Set(forbiddenRadius)].join(', ')})`)
+  }
+  const arbitrary = src.match(ARBITRARY_RADIUS) || []
+  if (arbitrary.length) {
+    errors.push(`JETON DS            ${KIT_DIR}/${name} → radius arbitraire (${arbitrary.length}×)`)
+  }
+  const rawShadow = (src.replace(TOKENIZED_SHADOW, '')).match(FORBIDDEN_SHADOW) || []
+  if (rawShadow.length) {
+    errors.push(`JETON DS            ${KIT_DIR}/${name} → ombre brute (${[...new Set(rawShadow)].join(', ')})`)
+  }
+  const oklch = (sources[name] || '').replace(/\/\*[\s\S]*?\*\//g, '').match(RAW_OKLCH) || []
+  if (oklch.length) {
+    errors.push(`JETON DS            ${KIT_DIR}/${name} → oklch() littéral (${oklch.length}×)`)
+  }
+}
+
+// dialog.tsx : radius stage = lg autorisé ; ombres et bordures tokenisées
+const dialog = markup['dialog.tsx']
+if (dialog) {
+  if (/\brounded-(?:xl|2xl|3xl|t-3xl)\b/.test(dialog)) {
+    errors.push('JETON DS            dialog.tsx → radius hors échelle sur le panneau')
+  }
+  if (/\bshadow-(?:sm|md|lg)\b/.test(dialog.replace(TOKENIZED_SHADOW, ''))) {
+    errors.push('JETON DS            dialog.tsx → ombre brute (utiliser shadow-(--shadow-*))')
+  }
+}
+
+// Contrôles interactifs : radius md (8 px), pas lg (16 px réservé aux surfaces)
+const CONTROL_FILES = ['button.tsx', 'textarea.tsx', 'navbar.tsx', 'sidebar.tsx']
+for (const name of CONTROL_FILES) {
+  const src = markup[name]
+  if (src && /\brounded-lg\b/.test(src)) {
+    errors.push(`JETON DS            ${KIT_DIR}/${name} → rounded-lg sur contrôle (préférer rounded-md / --radius-md)`)
+  }
+}
+
+// ---------------------------------------------------------- 6. BARREL UI
+const BARREL = join(KIT_DIR, 'index.ts')
+if (present.has('index.ts')) {
+  const barrelSrc = codeOnly(readFileSync(BARREL, 'utf8'), true)
+  const expected = new Set(Object.values(REQUIRED).flat())
+  for (const symbol of expected) {
+    const re = new RegExp(`\\b${symbol}\\b`)
+    if (!re.test(barrelSrc)) {
+      errors.push(`BARREL UI           index.ts → export manquant : ${symbol}`)
+    }
+  }
+  const exportMatches = barrelSrc.matchAll(/export\s*\{([^}]+)\}/g)
+  for (const m of exportMatches) {
+    for (const raw of m[1].split(',')) {
+      const symbol = raw.trim().split(/\s+as\s+/)[0].trim()
+      if (symbol && !expected.has(symbol) && !symbol.startsWith('type ')) {
+        notes.push(`barrel export hors REQUIRED : ${symbol}`)
+      }
+    }
+  }
+}
+
 // ------------------------------------------------------------------ VERDICT
 if (errors.length === 0) {
   console.log('✓ ui-kit-integrity — substance du kit préservée.')

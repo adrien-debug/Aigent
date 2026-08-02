@@ -296,7 +296,7 @@ export async function readVisualTooling(): Promise<VisualToolingData> {
      * CONNECTED, PAS VERIFIED — mais pour une raison PLUS ÉTROITE qu'avant.
      *
      * Constaté le 2026-08-01, capture à l'appui
-     * (docs/visual-reviews/AIGENT-VISUAL-STACK-002/langsmith-graph.png) :
+     * Vérification manuelle LangSmith Studio (2026-08-01) :
      * Studio AFFICHE bien le graphe `agent_builder` — les cinq nœuds
      * `__start__ / agent / approval / tools / __end__`, leurs arêtes, les
      * schémas d'entrée — et se déclare « Connected » contre le serveur local.

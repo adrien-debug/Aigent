@@ -30,7 +30,7 @@
  *
  * Usage:
  *   node --env-file=.env.local scripts/export-agent-domain.mjs
- *   node --env-file=.env.local scripts/export-agent-domain.mjs --out delivery/agent-domain/export.json
+ *   node --env-file=.env.local scripts/export-agent-domain.mjs --out .tmp/agent-domain-export.json
  *
  * Restore: see scripts/restore-agent-domain.mjs (companion, --apply gated).
  */
@@ -46,7 +46,7 @@ if (!base || !key) {
 
 const argv = process.argv.slice(2)
 const outArg = argv.indexOf('--out')
-const OUT = outArg >= 0 ? argv[outArg + 1] : 'delivery/agent-domain/export.json'
+const OUT = outArg >= 0 ? argv[outArg + 1] : '.tmp/agent-domain-export.json'
 const stampArg = argv.indexOf('--stamp')
 const STAMP = stampArg >= 0 ? argv[stampArg + 1] : null // caller passes an ISO date; omitted → null (reproducible)
 

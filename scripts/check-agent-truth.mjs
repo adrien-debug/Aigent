@@ -14,9 +14,8 @@
  *     never have been provisioned. Importing one from `src/app` or
  *     `src/components` would publish a catalogue nobody can execute.
  *
- *  2. NO STATIC PACKAGE READ IN THE APP. `delivery/tradeagent/**` holds frozen,
- *     checksummed export packages. Reading them at request time would serve a
- *     snapshot as if it were the live registry.
+ *  2. NO STATIC PACKAGE READ IN THE APP. `tests/fixtures/tradeagent/**` and
+ *     legacy `delivery/tradeagent/**` paths must never be read at request time.
  *
  *  3. NO FABRICATED DEFAULT IN THE CANONICAL CONTRACT. `available-agents.ts`
  *     must not hard-code a provider or model name: an unresolved provider is
@@ -65,7 +64,7 @@ const AGGREGATOR_TRUTH_RELS = [
 const GUARDED_TARGETS = [
   join(SRC, 'lib/agent-mission-control/market/agents/roster.ts'),
   join(SRC, 'lib/agent-mission-control/dropship/agents/roster.ts'),
-  join(ROOT, 'delivery/tradeagent'),
+  join(ROOT, 'tests/fixtures/tradeagent'),
   join(SRC, CONTRACT_REL),
 ]
 

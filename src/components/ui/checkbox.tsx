@@ -48,16 +48,16 @@ export function CheckboxField({
 
 const base = [
   // Basic layout
-  'relative isolate flex size-4.5 items-center justify-center rounded-[0.3125rem] sm:size-4',
+  'relative isolate flex size-4.5 items-center justify-center rounded-sm sm:size-4',
   // Le pseudo `before` ne servait qu'au mode clair (il etait deja masque en
   // sombre). Dark-first : il reste masque, le controle porte le fond.
-  'before:absolute before:inset-0 before:-z-10 before:rounded-[calc(0.3125rem-1px)] before:hidden',
+  'before:absolute before:inset-0 before:-z-10 before:rounded-[calc(var(--radius-sm)-1px)] before:hidden',
   // Background color applied to control
   'bg-(--aig-line-soft) group-data-checked:bg-(--checkbox-checked-bg)',
   // Border
   'border border-(--aig-line) group-data-checked:border-(--checkbox-checked-border) group-data-hover:group-data-checked:border-(--checkbox-checked-border) group-data-hover:border-(--aig-line)',
   // Inner highlight shadow
-  'after:absolute after:-inset-px after:hidden after:rounded-[0.3125rem] after:shadow-[inset_0_1px_var(--aig-line-soft)] group-data-checked:after:block',
+  'after:absolute after:-inset-px after:hidden after:rounded-sm after:shadow-[inset_0_1px_var(--aig-line-soft)] group-data-checked:after:block',
   // Focus ring
   'group-data-focus:outline-2 group-data-focus:outline-offset-2 group-data-focus:outline-(--aig-accent)',
   // Disabled state

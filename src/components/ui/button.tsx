@@ -37,7 +37,7 @@ const solidBlocked =
 const styles = {
   base: [
     // Base
-    'relative isolate inline-flex items-baseline justify-center gap-x-2 rounded-lg border text-base/6 font-semibold',
+    'relative isolate inline-flex items-baseline justify-center gap-x-2 rounded-md border text-base/6 font-semibold',
     // Sizing
     'px-[calc(--spacing(3.5)-1px)] py-[calc(--spacing(2.5)-1px)] sm:px-[calc(--spacing(3)-1px)] sm:py-[calc(--spacing(1.5)-1px)] sm:text-sm/6',
     // Focus
@@ -52,16 +52,16 @@ const styles = {
     // the optical outline — the light-mode `before` layer is never rendered.
     'bg-(--btn-bg) border-(--btn-border)',
     // Background layer kept in the DOM for the stacking contract, hidden as in dark mode
-    'before:absolute before:inset-0 before:-z-10 before:rounded-[calc(var(--radius-lg)-1px)] before:bg-(--btn-bg)',
+    'before:absolute before:inset-0 before:-z-10 before:rounded-[calc(var(--radius-md)-1px)] before:bg-(--btn-bg)',
     'before:hidden',
     // Shim/overlay, inset to match button foreground and used for hover state + highlight shadow
-    'after:absolute after:inset-0 after:-z-10 after:rounded-[calc(var(--radius-lg)-1px)]',
+    'after:absolute after:inset-0 after:-z-10 after:rounded-[calc(var(--radius-md)-1px)]',
     // Inner highlight shadow
-    'after:shadow-[inset_0_1px_oklch(1_0_0/0.10)]',
+    'after:shadow-[inset_0_1px_var(--aig-line-soft)]',
     // Overlay on hover
     'data-active:after:bg-(--btn-hover-overlay) data-hover:after:bg-(--btn-hover-overlay)',
     // `after` layer expands to cover entire button
-    'after:-inset-px after:rounded-lg',
+    'after:-inset-px after:rounded-md',
     // Disabled
     'data-disabled:before:shadow-none data-disabled:after:shadow-none',
   ],

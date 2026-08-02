@@ -20,9 +20,8 @@
  *
  * Prohibition prose is allowed to name the banned ports — a rule has to be able
  * to say what it forbids — so lines that ban rather than use are exempt.
- * Historical records under docs/visual-reviews/ and delivery/ are exempt
- * wholesale: they describe runs that really happened on the old port, and
- * rewriting them would falsify the record.
+ * Historical mission captures lived under `docs/visual-reviews/` (removed —
+ * git history only). Fixture snapshots under `tests/fixtures/` are exempt.
  *
  * Pure Node, no deps. Run via `npm run check:dev-port`.
  */
@@ -50,8 +49,7 @@ const SCAN_EXT = /\.(ts|tsx|mjs|js|md|json)$/
  * done when the port really was 3210.
  */
 const EXEMPT = [
-  'docs/visual-reviews/',
-  'delivery/',
+  'tests/fixtures/',
   'node_modules/',
   '.next/',
   // This gate's own prose names the banned ports to forbid them.

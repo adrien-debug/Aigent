@@ -1,4 +1,0 @@
-1440x900: 19/19 OK · surfaces zinc residuelles: 0
-1280x800: 19/19 OK · surfaces zinc residuelles: 0
-375x812: 19/19 OK · surfaces zinc residuelles: 0
-console errors: 0

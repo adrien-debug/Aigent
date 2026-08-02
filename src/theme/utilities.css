@@ -1,0 +1,168 @@
+/* AIGENT-DS-REFACTOR-001 — utilitaires @utility aig-* (grammaire de surface). */
+
+@utility aig-base {
+  background-color: var(--aig-base);
+  color: var(--aig-text);
+}
+
+@utility aig-subtle {
+  background-color: var(--aig-subtle);
+  color: var(--aig-text);
+}
+
+@utility aig-raised {
+  background-color: var(--aig-raised);
+  color: var(--aig-text);
+  box-shadow: var(--aig-elevation-raised);
+}
+
+@utility aig-overlay {
+  background-color: color-mix(in oklab, var(--aig-raised) 92%, transparent);
+  backdrop-filter: blur(12px);
+  color: var(--aig-text);
+  box-shadow: var(--aig-elevation-overlay);
+}
+
+@utility aig-line {
+  border-color: var(--aig-line);
+}
+
+@utility aig-line-soft {
+  border-color: var(--aig-line-soft);
+}
+
+@utility aig-text-muted {
+  color: var(--aig-text-muted);
+}
+
+@utility aig-text-faint {
+  color: var(--aig-text-faint);
+}
+
+@utility aig-accent {
+  color: var(--aig-accent);
+}
+
+@utility aig-panel {
+  background-color: var(--aig-base);
+  color: var(--aig-text);
+  border: var(--border-width-default) solid var(--aig-line-soft);
+  border-radius: var(--aig-radius);
+  box-shadow: var(--aig-elevation-flat);
+}
+
+@utility aig-panel-raised {
+  background-color: var(--aig-raised);
+  color: var(--aig-text);
+  border: var(--border-width-default) solid var(--aig-line);
+  border-radius: var(--aig-radius);
+  box-shadow: var(--aig-elevation-raised);
+}
+
+@utility shell-page-document {
+  min-height: 100svh;
+  padding: calc(var(--spacing) * 4);
+}
+
+@utility aig-stage {
+  background:
+    radial-gradient(
+      120% 100% at 0% 0%,
+      color-mix(in oklab, var(--aig-raised) 55%, transparent) 0%,
+      transparent 62%
+    ),
+    linear-gradient(
+      168deg,
+      color-mix(in oklab, var(--aig-base) 96%, white) 0%,
+      var(--aig-base) 48%,
+      color-mix(in oklab, var(--aig-subtle) 78%, var(--aig-base)) 100%
+    );
+  color: var(--aig-text);
+  border: var(--border-width-default) solid var(--aig-line-soft);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.06),
+    0 1px 2px oklch(0 0 0 / 0.35);
+}
+
+@utility aig-quiet {
+  background-color: color-mix(in oklab, var(--aig-base) 62%, transparent);
+  color: var(--aig-text);
+  border-radius: var(--aig-radius);
+}
+
+@utility aig-inset {
+  background-color: color-mix(in oklab, var(--aig-subtle) 82%, black);
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 1px 2px oklch(0 0 0 / 0.35);
+}
+
+@utility aig-hairline {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--aig-line) 85%, transparent) 18%,
+    color-mix(in oklab, var(--aig-line) 85%, transparent) 82%,
+    transparent
+  );
+  height: 1px;
+  border: 0;
+}
+
+@utility aig-display {
+  color: var(--aig-text-display);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+@utility aig-accent-edge {
+  position: relative;
+}
+
+.aig-accent-edge::before {
+  content: '';
+  position: absolute;
+  top: 1rem;
+  bottom: 1rem;
+  left: 0;
+  width: 2px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(
+    180deg,
+    var(--aig-accent),
+    color-mix(in oklab, var(--aig-accent) 15%, transparent)
+  );
+}
+
+@utility scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--aig-line) transparent;
+}
+
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--aig-line);
+  border-radius: var(--radius-full);
+}
+
+.scroll-thin::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--aig-line) 70%, var(--aig-text-muted));
+}
+
+@utility pulse-live {
+  animation: cockpit-pulse 2.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-live {
+    animation: none;
+  }
+}

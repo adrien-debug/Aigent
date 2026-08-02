@@ -5,10 +5,10 @@
  * SNAPSHOT-ONLY. Zero network, zero OpenAI/Anthropic, zero secret, zero DB call
  * at export time. The source of truth is the FROZEN snapshot captured from the
  * gpu1 `aigent` PostgREST perimeter at commit d448441 and committed to
- * `delivery/tradeagent/_snapshot/db-truth.json`. This script is a pure function
+ * `tests/fixtures/tradeagent/db-truth.json`. This script is a pure function
  * of that file: same input bytes -> same output bytes, every run.
  *
- * It emits, under delivery/tradeagent/<slug>/ :
+ * It emits, under the chosen --out directory (default `.tmp/tradeagent-export`) per <slug>/ :
  *   - package.json  : identity, version, model, prompt/contract, tools,
  *                     provenance, evidence level, market compatibility,
  *                     the EXISTING benchmark (read, never regenerated).
@@ -30,7 +30,7 @@
  * must never be delivered.
  *
  * Run:  node scripts/export-trading-packages.mjs
- * Flags: --out <dir>   (default: delivery/tradeagent)  — used by the test harness
+ * Flags: --out <dir>   (default: .tmp/tradeagent-export)  — used by the test harness
  *        --check       print the global checksum and exit 0/1, write nothing new
  */
 
@@ -49,7 +49,7 @@ const SOURCE_COMMIT = 'd44844129bde0736915ccf30df8ef7cf9b8576ab'
 const SOURCE_LABEL = 'AIG-TRADE-001 / AIG-PACK-015'
 const CONTRACT_VERSION = 'v1.0.0' // mirrors market/contracts.ts CONTRACT_VERSION
 const PACKAGE_FORMAT_VERSION = '1.0.0'
-const SNAPSHOT_REL = 'delivery/tradeagent/_snapshot/db-truth.json'
+const SNAPSHOT_REL = 'tests/fixtures/tradeagent/db-truth.json'
 
 /**
  * TradeAgent backend market truth (reconciled from
@@ -396,7 +396,7 @@ function run(outDir) {
 // CLI
 // ---------------------------------------------------------------------------
 function parseArgs(argv) {
-  const args = { out: join(REPO, 'delivery', 'tradeagent'), check: false }
+  const args = { out: join(REPO, '.tmp', 'tradeagent-export'), check: false }
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--out') args.out = resolve(argv[++i])
     else if (argv[i] === '--check') args.check = true

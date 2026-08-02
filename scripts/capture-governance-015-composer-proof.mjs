@@ -10,7 +10,7 @@ const { chromium } = await import('playwright').catch(() => {
 
 const BASE = process.argv[2] ?? 'http://127.0.0.1:3987'
 const ROUTE = '/lab'
-const OUT = join(process.cwd(), 'docs/visual-reviews/AIGENT-GOVERNANCE-015')
+const OUT = join(process.cwd(), '.tmp/visual-reviews/AIGENT-GOVERNANCE-015')
 mkdirSync(OUT, { recursive: true })
 
 const VIEWPORTS = [
@@ -67,7 +67,7 @@ try {
       waitUntil: 'networkidle',
       timeout: 90_000,
     })
-    await page.addStyleTag({ content: 'nextjs-portal{display:none!important}css-studio-panel{display:none!important}' }).catch(() => {})
+    await page.addStyleTag({ content: 'nextjs-portal{display:none!important}' }).catch(() => {})
     await page.waitForTimeout(1200)
     await page.screenshot({ path: join(OUT, vp.file), fullPage: false })
     captures.push({

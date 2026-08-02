@@ -46,7 +46,7 @@ const { chromium } = await import('playwright').catch(() => {
 const BASE = process.argv[2] ?? 'http://127.0.0.1:3988'
 // Les preuves de la mission 001 restent intactes : elles appartiennent à
 // une PR déjà mergée et ne doivent pas être écrasées par cette passe.
-const OUT = join(process.cwd(), 'docs/visual-reviews/AIGENT-VISUAL-STACK-002')
+const OUT = join(process.cwd(), '.tmp/visual-reviews/AIGENT-VISUAL-STACK-002')
 
 const CANVAS_ROUTE = '/runtime?tab=langgraph'
 const TOOLING_ROUTE = '/runtime?tab=visual-tooling'
@@ -103,20 +103,11 @@ function attachConsole(page) {
  * Retire les surfaces de DÉVELOPPEMENT qui recouvrent le produit.
  *
  * `nextjs-portal` — l'overlay de Next, absent en production.
- * `css-studio-panel` — le panneau de l'outil CSS Studio, injecté par le serveur
- *   de dev. Il est ancré en bas de viewport sur 812px de haut et masquait les
- *   dernières lignes de l'outillage et le bas du Canvas en 375×812. Il porte un
- *   Shadow DOM, donc aucune recherche de texte ne le trouve — seule la balise
- *   le trahit. Ni l'un ni l'autre n'appartient au produit : une preuve doit
- *   montrer Aigent, pas l'outillage de son auteur.
  */
 async function hideDevOverlay(page) {
   await page
     .addStyleTag({
-      content: [
-        'nextjs-portal{display:none!important}',
-        'css-studio-panel{display:none!important}',
-      ].join(''),
+      content: ['nextjs-portal{display:none!important}'].join(''),
     })
     .catch(() => {})
 }

@@ -75,7 +75,7 @@ Il n'y a plus d'échappatoire de bypass d'authentification : la variable
 | `src/langgraph/` | le `StateGraph` `agent_builder`, son registre d'outils, son client PostgREST autonome |
 | `src/proxy.ts` | la garde d'identité |
 | `supabase/migrations/` | schéma versionné du périmètre `aigent` |
-| `scripts/` | gates (`check-*.mjs`), provisioning, preuves ponctuelles (`scripts/archive/`) |
+| `scripts/` | gates (`check-*.mjs`), provisioning, exports opérationnels |
 | `deploy/` | configuration conteneurs : `app/`, `db/` (PostgREST), `langgraph/` |
 | `tests/unit/` | suite offline (dans `verify`) |
 | `tests/live/` | suite opt-in — tape GPU1 + OpenAI, coûte de l'argent, jamais dans `verify` |
