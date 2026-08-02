@@ -128,8 +128,6 @@ export const LAB_PATTERNS = [
   },
 ] as const satisfies readonly LabPattern[]
 
-export type LabPatternId = (typeof LAB_PATTERNS)[number]['id']
-
 /**
  * Le compte par état — le seul chiffre affiché en tête du lab.
  *
