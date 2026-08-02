@@ -17,6 +17,64 @@ function buildPath(points: readonly { x: number; y: number }[]): string {
   return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x},${p.y}`).join(' ')
 }
 
+export function GhostActivityGraph() {
+  return (
+    <div className="px-1 pt-1 pb-0">
+      <div className="relative">
+        <svg
+          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+          preserveAspectRatio="none"
+          className="h-48 w-full overflow-visible xl:h-56"
+          role="img"
+          aria-label="Aucune activité sur la fenêtre"
+        >
+          <defs>
+            <linearGradient id="ghost-area" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="var(--aig-line)" stopOpacity="0.1" />
+              <stop offset="100%" stopColor="var(--aig-line)" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+
+          {[0, 0.5, 1].map((ratio) => {
+            const y = PAD_TOP + (HEIGHT - PAD_TOP - PAD_BOTTOM) * ratio
+            return (
+              <line
+                key={ratio}
+                x1={PAD_X}
+                y1={y}
+                x2={WIDTH - PAD_X}
+                y2={y}
+                stroke="var(--aig-line-soft)"
+                strokeWidth="1"
+                strokeDasharray="4,6"
+              />
+            )
+          })}
+
+          <path
+            d={`M ${PAD_X},${HEIGHT - PAD_BOTTOM} L ${WIDTH - PAD_X},${HEIGHT - PAD_BOTTOM}`}
+            fill="none"
+            stroke="var(--aig-line)"
+            strokeWidth="2"
+            strokeDasharray="4,6"
+            strokeLinecap="round"
+          />
+          <path
+            d={`M ${PAD_X},${HEIGHT - PAD_BOTTOM} L ${WIDTH - PAD_X},${HEIGHT - PAD_BOTTOM} L ${WIDTH - PAD_X},${HEIGHT - PAD_BOTTOM} L ${PAD_X},${HEIGHT - PAD_BOTTOM} Z`}
+            fill="url(#ghost-area)"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="aig-text-faint text-xs uppercase tracking-wider bg-(--aig-base) px-3 py-1 rounded-full border border-(--aig-line-soft)">
+            Aucun run sur les dernières 24 h
+          </span>
+        </div>
+      </div>
+      <div aria-hidden className="mt-1 flex h-3" />
+    </div>
+  )
+}
+
 export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBucket[] }>) {
   const [hovered, setHovered] = useState<number | null>(null)
 

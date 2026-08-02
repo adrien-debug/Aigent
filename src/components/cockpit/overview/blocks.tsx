@@ -9,7 +9,7 @@ import { SeverityChip } from '@/components/surface-primitives'
 import type { ActionItem, DashboardOverview, ProjectOverviewItem } from '@/lib/agent-mission-control/dashboard-overview'
 import type { HourlyBucket } from '@/lib/cockpit/overview-series'
 import type { NamedRun } from '@/lib/cockpit/named-runs'
-import ActivityGraph from './activity-graph'
+import ActivityGraph, { GhostActivityGraph } from './activity-graph'
 import { actionItemChip, sortOverviewProjects } from './model'
 import RunStream from './run-stream'
 import { OverviewSection } from './section'
@@ -59,37 +59,34 @@ export function ActivityPanel({ buckets }: Readonly<{ buckets: HourlyBucket[] | 
       <Unavailable reason="unread" detail="La courbe d'activité n'a pas pu être lue sur la fenêtre." />
     )
   }
-  if (!hasWindowActivity(buckets)) return null
+  if (!hasWindowActivity(buckets)) return <GhostActivityGraph />
   return <ActivityGraph buckets={buckets} />
 }
 
 export function FluxAbsentLine() {
-  return (
-    <EmptyOverviewLine
-      detail="Aucun run sur les dernières 24 h — fenêtre lue."
-      href="/runs"
-      action="Historique complet"
-    />
-  )
+  return <GhostActivityGraph />
 }
 
 function ProjectRow({ project }: Readonly<{ project: ProjectOverviewItem }>) {
   const empty = project.copilotCount === 0
 
   return (
-    <li className="aig-line-soft not-last:border-b">
+    <li className="mb-2 last:mb-0">
       <Link
         href={`/projects/${project.id}`}
         className={clsx(
-          'flex min-h-12 items-center gap-3 px-1 no-underline hover:bg-(--aig-line-soft) focus-visible:bg-(--aig-line-soft) focus-visible:outline-hidden',
+          'flex min-h-12 items-center gap-3 px-3 rounded-lg border border-transparent transition-colors no-underline hover:border-(--aig-line-soft) hover:bg-white/[0.02] focus-visible:bg-white/[0.02] focus-visible:outline-hidden',
           empty ? 'py-2' : 'py-2.5',
         )}
       >
-        <Avatar
-          square
-          initials={initialsOf(project.name)}
-          className={clsx('size-8 shrink-0', empty && 'opacity-60')}
-        />
+        <div className="relative shrink-0">
+          <Avatar
+            square
+            initials={initialsOf(project.name)}
+            className={clsx('size-8', empty && 'opacity-60')}
+          />
+          <div className="absolute inset-0 rounded-lg shadow-[inset_0_1px_2px_rgba(255,255,255,0.1)] pointer-events-none" />
+        </div>
         <span className="min-w-0 flex-1">
           <span
             className={clsx(
@@ -136,7 +133,7 @@ function EventRow({ item }: Readonly<{ item: ActionItem }>) {
   const chip = actionItemChip(item)
 
   return (
-    <li className="aig-line-soft flex min-h-12 items-center gap-3 py-2.5 not-last:border-b">
+    <li className="mb-2 last:mb-0 flex min-h-12 items-center gap-3 py-2.5 px-3 rounded-lg border border-transparent transition-colors hover:border-(--aig-line-soft) hover:bg-white/[0.02]">
       <SeverityChip tone={chip.tone} className="shrink-0">
         {chip.label}
       </SeverityChip>
@@ -165,7 +162,7 @@ export function ProjectsBlock({
           <EmptyOverviewLine detail="Aucun projet dans le catalogue." />
         </div>
       ) : (
-        <div className="overview-scroll-list scroll-thin min-h-0 flex-1">
+        <div className="overview-scroll-list scroll-thin min-h-0 flex-1 -mx-3">
           <ProjectList projects={overview.projects} />
         </div>
       )}
@@ -189,7 +186,7 @@ export function EventsBlock({
           <EmptyOverviewLine detail="Aucun signal bloquant sur la fenêtre actuelle — lecture réussie." />
         </div>
       ) : (
-        <div className="min-h-0 flex-1">
+        <div className="min-h-0 flex-1 -mx-3">
           <ul className="min-w-0">
             {overview.actionItems.slice(0, 6).map((item) => (
               <EventRow key={item.id} item={item} />

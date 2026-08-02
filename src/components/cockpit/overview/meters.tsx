@@ -61,14 +61,23 @@ export function SegmentMeter({
   }
 
   return (
-    <div aria-hidden className={clsx('flex items-end gap-[2px]', className)}>
-      {Array.from({ length: safeTotal }, (_, i) => (
-        <span
-          key={i}
-          className={clsx('h-3.5 w-[3px] rounded-[1px]', i >= safeFilled && 'bg-[var(--aig-line)]')}
-          style={i < safeFilled ? { background: color } : undefined}
-        />
-      ))}
+    <div aria-hidden className={clsx('flex items-end gap-[3px]', className)}>
+      {Array.from({ length: safeTotal }, (_, i) => {
+        const isOn = i < safeFilled;
+        return (
+          <span
+            key={i}
+            className={clsx(
+              'h-6 w-1.5 rounded-sm transition-all duration-300',
+              !isOn && 'bg-white/5 shadow-inner'
+            )}
+            style={isOn ? { 
+              background: color,
+              boxShadow: `0 0 8px ${color}80` 
+            } : undefined}
+          />
+        )
+      })}
     </div>
   )
 }

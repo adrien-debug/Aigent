@@ -30,6 +30,7 @@ function Figure({
   graphic,
   led,
   valueColor,
+  glowClass,
   dimmed = false,
 }: Readonly<{
   label: string
@@ -39,17 +40,18 @@ function Figure({
   graphic?: ReactNode
   led?: ReactNode
   valueColor?: string
+  glowClass?: string
   dimmed?: boolean
 }>) {
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 aig-surface-elevated rounded-xl p-4 flex flex-col justify-between">
       <div className="flex min-h-4 items-center gap-1.5">
         {led}
         <p className="aig-text-faint truncate text-xs font-medium uppercase tracking-wider">
           {label}
         </p>
       </div>
-      <div className="mt-1.5 flex items-end justify-between gap-2 sm:mt-2 sm:gap-3">
+      <div className="mt-3 flex items-end justify-between gap-2 sm:gap-3">
         <div className="min-w-0">
           {value === null ? (
             <NotMeasured
@@ -65,6 +67,7 @@ function Figure({
                       ? 'aig-kpi-quiet aig-text-faint text-[1.4rem] sm:text-[1.5rem]'
                       : 'aig-kpi-lead text-[1.95rem] sm:text-[2.15rem]',
                     valueColor && 'text-(--kpi)',
+                    glowClass
                   )}
                   style={valueColor ? ({ '--kpi': valueColor } as CSSProperties) : undefined}
                 >
@@ -148,12 +151,14 @@ export default function KpiStrip({
         value={blocked}
         support="bloquées à débloquer"
         valueColor={blocked !== null && blocked > 0 ? BAD : undefined}
+        glowClass={blocked !== null && blocked > 0 ? 'aig-glow-bad' : undefined}
       />
       <Figure
         label="Décisions"
         value={kpis.needsAction}
         support="opérateur en attente"
         valueColor={kpis.needsAction > 0 ? WARN : undefined}
+        glowClass={kpis.needsAction > 0 ? 'aig-glow-warn' : undefined}
       />
     </>
   )
