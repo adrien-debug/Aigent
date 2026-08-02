@@ -237,8 +237,8 @@ export default function DeliveryRosterScreen({
           className="aig-stage aig-accent-edge shrink-0 p-5 sm:p-6"
           aria-label="État des poussées"
         >
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
-            <div className="min-w-0 xl:flex-1">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+            <div className="min-w-0 lg:flex-1">
               <Text className="aig-text-faint text-2xs font-medium uppercase tracking-[0.18em]">
                 État des poussées
               </Text>
@@ -294,7 +294,7 @@ export default function DeliveryRosterScreen({
                 Ils tiennent maintenant dans un creux unique, au second rang,
                 titré par leur cause commune : ce que ce serveur peut faire et
                 ce qu'il sait. Aucun texte n'est retiré. */}
-            <div className="aig-inset flex min-w-0 flex-col gap-2 p-3 xl:w-[26rem] xl:shrink-0">
+            <div className="aig-inset flex min-w-0 flex-col gap-2 self-stretch p-3 lg:w-[24rem] lg:shrink-0 xl:w-[28rem]">
               <Text className="aig-text-faint text-2xs font-medium uppercase tracking-[0.18em]">
                 Canal de livraison — ce que ce serveur peut et sait
               </Text>

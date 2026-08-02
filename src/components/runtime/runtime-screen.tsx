@@ -114,13 +114,24 @@ export default function RuntimeScreen({
            * en porte six) dépassait la hauteur disponible et ses derniers
            * panneaux étaient COUPÉS à zéro — « Assistants du serveur » et
            * « Threads récents » mesuraient 0 px, contenu inatteignable, sans que
-           * rien ne l'indique. Le zéro-scroll de la PAGE est tenu par le
-           * `overflow-hidden` du parent ; c'est ici, dans la zone bornée, que la
-           * donnée doit défiler. Box fixe, data qui scrolle dedans. */}
-          <div className="m-3 mt-3 min-h-0 flex-1 overflow-hidden sm:m-4 sm:mt-3">
-            <div className="aig-inset scroll-thin flex h-full min-h-0 flex-col overflow-y-auto p-3">
-              <TabPanel payload={payload} />
-            </div>
+           * rien ne l'indique. C'est ici, dans la zone bornée, que la donnée
+           * doit défiler. */}
+          {/* Le creux EST le scroller — pas un conteneur de plus autour de lui.
+           * Une boîte intermédiaire (`m-3` + un enfant `h-full`) cassait la
+           * chaîne de hauteur flex ; `min-h-0` sur la colonne parente est ce qui
+           * autorise ce flex-enfant à descendre sous la taille de son contenu.
+           *
+           * LIMITE MESURÉE (2026-08-02, 1280x800) : la box n'est PAS encore
+           * fixe. Le document défile toujours (4014 px) et le creux fait 3730 px
+           * sans défiler. La cause est AU-DESSUS de cet écran : tout le shell
+           * (`html` / `body` / `main`, app-shell.tsx) est en `min-h-svh`, qui
+           * pose un plancher et jamais un plafond — donc les ancêtres grandissent
+           * avec le contenu et ce `flex-1` remplit un parent non borné. Tenir un
+           * zéro-scroll ici exige de passer le shell en `h-svh overflow-hidden`,
+           * geste structurant sur toutes les routes, non fait ici.
+           * Détail : docs/visual-reviews/aigent-visual-composition-004-r5/. */}
+          <div className="aig-inset scroll-thin m-3 mt-3 flex min-h-0 flex-1 flex-col overflow-y-auto p-3 sm:mx-4 sm:mb-4">
+            <TabPanel payload={payload} />
           </div>
         </section>
       </PageBody>

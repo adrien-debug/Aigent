@@ -294,11 +294,18 @@ function EvaluationsZone({ overview }: Readonly<{ overview: LearningOverview }>)
           cellule, illisible pour ce paragraphe. On garde donc sa MARQUE
           (le badge « Aucune mesure », qui porte le sens) et on rend la raison
           en texte aligné à gauche, à sa mesure. */}
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <Unavailable reason="no-data" compact />
-        <Text className="aig-text-muted min-w-0 flex-1 text-sm">
-          {overview.evaluations.reason}
-        </Text>
+      {/* La marque d'absence en TÊTE, pas centrée face au paragraphe : le badge
+          porte le verdict, la raison le développe en dessous. Centré, il se
+          lisait comme une puce de liste au milieu du texte. */}
+      <div className="mt-3">
+        {/* `Unavailable compact` est un bloc qui CENTRE son contenu : posé seul
+            il s'étirait sur toute la largeur et sa marque flottait au milieu.
+            Un conteneur `inline-block` le borne à la largeur de son contenu
+            sans toucher au composant, qui sert sept surfaces. */}
+        <div className="inline-block">
+          <Unavailable reason="no-data" compact />
+        </div>
+        <Text className="aig-text-muted mt-2 text-sm">{overview.evaluations.reason}</Text>
       </div>
 
       <Text className="aig-text-muted mt-3 text-xs">
