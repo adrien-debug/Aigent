@@ -5,6 +5,7 @@ import clsx from 'clsx'
 import { navEntry } from '@/components/navigation'
 import { PageBody, PageHeader } from '@/components/app-shell'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Unavailable } from '@/components/cockpit/primitives'
 import type { DashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'
 import { buildHourlyBuckets, buildStatusBreakdown } from '@/lib/cockpit/overview-series'
@@ -96,12 +97,17 @@ export default function CockpitOverview({
           <div className="aig-hairline" />
 
           <div className="overview-zone">
-            <header className="min-w-0">
-              <p className="aig-text-faint text-xs font-medium uppercase tracking-wider">
-                Zone opérateur
-              </p>
-              <h2 className="aig-h2 mt-2 text-[1.375rem] sm:text-[1.5rem]">Opérations & catalogue</h2>
-              <p className="aig-text-faint mt-2 text-xs uppercase tracking-wider">
+            <header className="min-w-0 border-l-2 border-(--aig-accent) pl-4 py-0.5">
+              <div className="flex items-center gap-2">
+                <p className="aig-text-faint text-xs font-medium uppercase tracking-wider">
+                  Zone opérateur
+                </p>
+                <Badge color="zinc" className="text-[0.65rem] uppercase tracking-widest px-1.5 py-0 rounded-sm font-semibold bg-white/5">
+                  Operator
+                </Badge>
+              </div>
+              <h2 className="aig-h2 mt-1.5 text-[1.375rem] sm:text-[1.5rem]">Opérations & catalogue</h2>
+              <p className="aig-text-faint mt-1.5 text-xs uppercase tracking-wider">
                 {hasRuns
                   ? 'Flux récent, projets et signaux de la fenêtre courante'
                   : 'Signaux et projets — flux vide sur la fenêtre 24 h'}

@@ -4,7 +4,6 @@ import clsx from 'clsx'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/components/ui/link'
-import { DescriptionList, DescriptionTerm, DescriptionDetails } from '@/components/ui/description-list'
 import { NotMeasured, Unavailable, initialsOf } from '@/components/cockpit/primitives'
 import { SeverityChip } from '@/components/surface-primitives'
 import type { ActionItem, DashboardOverview, ProjectOverviewItem } from '@/lib/agent-mission-control/dashboard-overview'
@@ -14,6 +13,7 @@ import ActivityGraph, { GhostActivityGraph } from './activity-graph'
 import { actionItemChip, sortOverviewProjects } from './model'
 import RunStream from './run-stream'
 import { OverviewSection } from './section'
+import { BarMeter } from './meters'
 
 export function hasWindowActivity(buckets: HourlyBucket[] | null): boolean {
   return buckets !== null && buckets.some((bucket) => bucket.total > 0)
@@ -105,16 +105,20 @@ function ProjectRow({ project }: Readonly<{ project: ProjectOverviewItem }>) {
             </span>
           )}
         </div>
-        <div className="shrink-0 text-right">
+        <div className="shrink-0 flex flex-col items-end justify-center gap-1.5 w-20">
           {empty ? (
             <NotMeasured label="—" why="Aucun agent actif dans ce projet." />
           ) : (
-            <DescriptionList className="!grid-cols-1 sm:!grid-cols-1 text-right !gap-0">
-              <DescriptionTerm className="!py-0 !border-0 !text-xs uppercase tracking-wider aig-text-faint">Agents actifs</DescriptionTerm>
-              <DescriptionDetails className="!py-0 !border-0 aig-text font-medium tabular-nums">
+            <>
+              <div className="aig-text text-xs font-medium tabular-nums tracking-wider">
                 {project.activeCount} <span className="aig-text-faint font-normal">/ {project.copilotCount}</span>
-              </DescriptionDetails>
-            </DescriptionList>
+              </div>
+              <BarMeter 
+                ratio={project.activeCount / project.copilotCount} 
+                color="var(--aig-severity-good)" 
+                className="w-full h-1" 
+              />
+            </>
           )}
         </div>
       </Link>
