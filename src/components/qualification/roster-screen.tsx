@@ -152,18 +152,13 @@ function CandidateFigure({
   hint?: string
   tone?: 'default' | 'good' | 'warn' | 'bad'
 }>) {
-  const toneClass =
-    tone === 'bad'
-      ? 'text-red-400'
-      : tone === 'warn'
-        ? 'text-amber-400'
-        : tone === 'good'
-          ? 'text-emerald-400'
-          : 'aig-display'
+  const toneColor = tone === 'bad' ? SEVERITY.bad : tone === 'warn' ? SEVERITY.warn : tone === 'good' ? SEVERITY.good : null
 
   return (
     <div className="min-w-0">
-      <div className={`text-3xl font-semibold tabular-nums sm:text-4xl ${toneClass}`}>{value}</div>
+      <div className="aig-display text-3xl font-semibold tabular-nums sm:text-4xl" style={toneColor ? { color: toneColor } : undefined}>
+        {value}
+      </div>
       <Text className="aig-text-muted mt-1 truncate text-sm">{label}</Text>
       {hint ? <Text className="aig-text-faint mt-0.5 truncate text-xs">{hint}</Text> : null}
     </div>

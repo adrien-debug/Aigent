@@ -137,7 +137,7 @@ export function ObsidianCommands({ config }: Readonly<{ config: ObsidianConfig }
     return (
       <div className="aig-line rounded-lg border border-dashed p-4">
         <p className="aig-text-muted text-sm">
-          <span className="font-medium text-white">Obsidian non configuré.</span> Renseignez{' '}
+          <span className="aig-display font-medium">Obsidian non configuré.</span> Renseignez{' '}
           <code className="aig-subtle rounded px-1">AIGENT_OBSIDIAN_VAULT</code> pour ouvrir le
           vault, créer des notes de review et atteindre le Canvas de supervision depuis Aigent.
         </p>

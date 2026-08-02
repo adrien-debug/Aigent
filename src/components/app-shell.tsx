@@ -250,7 +250,7 @@ export default function AppShell({ children }: Readonly<{ children?: ReactNode }
       <Headless.Dialog open={showSidebar} onClose={setShowSidebar} className="lg:hidden">
         <Headless.DialogBackdrop
           transition
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity data-closed:opacity-0"
+          className="fixed inset-0 z-40 bg-(--aig-scrim) backdrop-blur-sm transition-opacity data-closed:opacity-0"
         />
         <Headless.DialogPanel
           transition
@@ -267,7 +267,7 @@ export default function AppShell({ children }: Readonly<{ children?: ReactNode }
                 // Cible tactile pleine (44 px) et contraste réel : l'icône
                 // était un glyphe gris de 20 px sans surface propre, quasi
                 // invisible sur le graphite du panneau.
-                className="aig-panel aig-text-muted inline-flex size-10 items-center justify-center transition hover:bg-white/8 hover:text-white"
+                className="aig-panel aig-text-muted inline-flex size-10 items-center justify-center transition hover:bg-(--aig-line-soft) hover:text-(--aig-text)"
               >
                 <CloseMenuIcon />
               </Headless.CloseButton>

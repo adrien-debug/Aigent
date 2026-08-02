@@ -59,7 +59,10 @@ Deux gates encadrent le front, et **aucune des deux ne juge l'esthétique** :
 - `check:no-legacy-front` — refuse le retour des surfaces démolies ;
   `src/components/` est autorisé.
 - `check:legacy-design-doctrine` — bloque la réinjection de l'ancienne doctrine
-  layout (zéro-scroll, DS Guardian, gates `check:ds`/`check:catalyst` supprimées).
+  layout (zéro-scroll, DS Guardian, gates `check:ds`/`check:catalyst` supprimées)
+  et scanne les surfaces Factory reconstruites contre les couleurs structurelles
+  interdites (`zinc-*`, `gray-*`, `slate-*`, `dark:*`, `bg/text white/black`,
+  `hex`, `rgb/rgba/hsl` hors thème global).
 - `check:ui-kit-integrity` — fige le kit `ui/` par empreinte SHA-256 contre une
   dérive silencieuse. Modifier une primitive **volontairement** :
   `node scripts/check-ui-kit-integrity.mjs --update`.

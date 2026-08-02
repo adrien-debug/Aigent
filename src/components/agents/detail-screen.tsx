@@ -14,7 +14,7 @@ import { Divider } from '@/components/ui/divider'
 import { Subheading } from '@/components/ui/heading'
 import { Link } from '@/components/ui/link'
 import { Strong, Text } from '@/components/ui/text'
-import { Unavailable, initialsOf } from '@/components/cockpit/primitives'
+import { SEVERITY, Unavailable, initialsOf } from '@/components/cockpit/primitives'
 import { formatPercent, formatUsd } from '@/lib/agent-mission-control/format'
 import { formatDuration } from '@/lib/runs-console/runs-metrics'
 import type { AgentDetail } from '@/lib/agent-mission-control/agent-detail'
@@ -168,14 +168,13 @@ function Metric({
  * neutre passe par la grammaire, les deux tons de gravité restent explicites —
  * un statut « danger » ne doit jamais se confondre avec un texte secondaire.
  */
-function inlineStatusClasses(tone: Tone): string {
-  if (tone === 'danger') return 'text-red-400'
-  if (tone === 'warning') return 'text-amber-400'
-  return 'aig-text-muted'
-}
-
 function InlineStatus({ tone, children }: Readonly<{ tone: Tone; children: ReactNode }>) {
-  return <Text className={inlineStatusClasses(tone)}>{children}</Text>
+  const color = tone === 'danger' ? SEVERITY.bad : tone === 'warning' ? SEVERITY.warn : undefined
+  return (
+    <Text className={tone === 'default' ? 'aig-text-muted' : undefined} style={color ? { color } : undefined}>
+      {children}
+    </Text>
+  )
 }
 
 /**
@@ -267,11 +266,7 @@ function OverviewSection({ detail }: Readonly<{ detail: AgentDetail }>) {
             État de service
           </Text>
 
-          <p
-            className={`mt-2 text-3xl font-semibold tracking-tight sm:text-4xl ${
-              detail.executable ? 'aig-display' : 'text-red-400'
-            }`}
-          >
+          <p className="aig-display mt-2 text-3xl font-semibold tracking-tight sm:text-4xl" style={detail.executable ? undefined : { color: SEVERITY.bad }}>
             {detail.executable ? 'Lançable maintenant' : 'Lancement bloqué'}
           </p>
 
@@ -300,9 +295,15 @@ function OverviewSection({ detail }: Readonly<{ detail: AgentDetail }>) {
           {blocked ? (
             <ul className="mt-3 space-y-2">
               {detail.blockers.slice(0, 3).map((blocker) => (
-                <li key={blocker.code} className="aig-panel-raised border-red-500/40 px-3 py-2">
+                <li
+                  key={blocker.code}
+                  className="aig-panel-raised px-3 py-2"
+                  style={{ borderColor: 'color-mix(in oklab, var(--aig-severity-bad) 40%, transparent)' }}
+                >
                   <Strong className="block">{blocker.label}</Strong>
-                  <Text className="mt-1 text-sm text-red-400">{blocker.detail}</Text>
+                  <Text className="mt-1 text-sm" style={{ color: SEVERITY.bad }}>
+                    {blocker.detail}
+                  </Text>
                 </li>
               ))}
             </ul>
@@ -683,7 +684,10 @@ function ConfigurationSection({ detail }: Readonly<{ detail: AgentDetail }>) {
         {/* Même règle que les obstacles : la boîte ressort par l'élévation, pas
             par un aplat clair calibré pour un fond blanc. */}
         {unresolvedIds.length > 0 ? (
-          <div className="aig-panel-raised border-red-500/40 px-4 py-3">
+          <div
+            className="aig-panel-raised px-4 py-3"
+            style={{ borderColor: 'color-mix(in oklab, var(--aig-severity-bad) 40%, transparent)' }}
+          >
             <Strong className="block">
               {unresolvedIds.length} outil(s) declare(s) sans handler executable
             </Strong>

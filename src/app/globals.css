@@ -76,10 +76,12 @@
   --aig-text: oklch(0.93 0.004 264);
   --aig-text-muted: oklch(0.71 0.006 264);
   --aig-text-faint: oklch(0.58 0.006 264);
+  --aig-text-display: oklch(0.97 0.004 250);
 
   /* Accent cuivre — l'unique accent du produit. */
   --aig-accent: oklch(0.72 0.11 52);
   --aig-accent-quiet: oklch(0.45 0.06 52);
+  --aig-scrim: color-mix(in oklab, var(--aig-subtle) 68%, black);
 
   /*
    * SÉVÉRITÉ — le miroir CSS de `src/lib/cockpit/status.ts`, qui reste
@@ -307,7 +309,7 @@ body {
    métal froid. C'est ce qui distingue un cockpit d'une page de documentation —
    à contraste identique (AA large tenu sur les trois fonds). */
 @utility aig-display {
-  color: oklch(0.97 0.004 250);
+  color: var(--aig-text-display);
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
@@ -337,7 +339,7 @@ body {
  * toutes. */
 @utility scroll-thin {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-zinc-400) transparent;
+  scrollbar-color: var(--aig-line) transparent;
 }
 
 .scroll-thin::-webkit-scrollbar {
@@ -350,12 +352,12 @@ body {
 }
 
 .scroll-thin::-webkit-scrollbar-thumb {
-  background: var(--color-zinc-400);
+  background: var(--aig-line);
   border-radius: 9999px;
 }
 
 .scroll-thin::-webkit-scrollbar-thumb:hover {
-  background: var(--color-zinc-500);
+  background: color-mix(in oklab, var(--aig-line) 70%, var(--aig-text-muted));
 }
 
 /* Battement du témoin « système en ligne » — variation d'opacité seule, pas de

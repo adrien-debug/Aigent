@@ -100,8 +100,7 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
               y1={y}
               x2={WIDTH - PAD_X}
               y2={y}
-              stroke="currentColor"
-              className="text-white/8"
+              stroke="var(--aig-line-soft)"
               strokeWidth="1"
               strokeDasharray="4,6"
             />
@@ -223,7 +222,7 @@ export default function ActivityGraph({ buckets }: Readonly<{ buckets: HourlyBuc
           >
             <div className="aig-panel-raised flex items-baseline gap-1.5 rounded-full px-3 py-1.5">
               <AnimateNumber
-                className="text-lg font-semibold text-white tabular-nums"
+                className="aig-display text-lg font-semibold tabular-nums"
                 transition={{ type: 'spring', visualDuration: 0.4, bounce: 0.15 }}
               >
                 {active.bucket.total}

@@ -572,7 +572,7 @@ export default function DeliveryDetailScreen({ detail }: Readonly<DeliveryDetail
           </>
         }
         actions={
-          <Link href="/delivery" className="aig-text-muted text-sm no-underline hover:text-white">
+          <Link href="/delivery" className="aig-text-muted text-sm no-underline hover:text-(--aig-text)">
             ← Banc de livraison
           </Link>
         }

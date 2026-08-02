@@ -376,7 +376,7 @@ export function ArcGauge({
         cy={size / 2}
         r={r}
         fill="none"
-        stroke="rgb(161 161 170 / 0.3)"
+        stroke="var(--aig-line)"
         strokeWidth={stroke}
       />
       <circle

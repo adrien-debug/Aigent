@@ -70,7 +70,8 @@ function noteRingClass(tone: NonNullable<NoteProps['tone']>): string {
   // de n'en corriger qu'un.
   if (tone === 'blocked')
     return 'border-[color-mix(in_oklab,var(--aig-severity-bad)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-bad)_5%,transparent)]'
-  if (tone === 'warn') return 'border-amber-400/25 bg-amber-400/5'
+  if (tone === 'warn')
+    return 'border-[color-mix(in_oklab,var(--aig-severity-warn)_25%,transparent)] bg-[color-mix(in_oklab,var(--aig-severity-warn)_5%,transparent)]'
   if (tone === 'structural') return 'border-sky-400/25 bg-sky-400/5'
   return 'aig-raised aig-line'
 }

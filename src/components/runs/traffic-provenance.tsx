@@ -41,7 +41,7 @@ function Count({
   return (
     <div className="min-w-0">
       <Text className="truncate text-xs uppercase">{label}</Text>
-      <Strong className={accent ? 'tabular-nums text-white' : 'tabular-nums'}>{value}</Strong>
+      <Strong className={accent ? 'aig-display tabular-nums' : 'tabular-nums'}>{value}</Strong>
     </div>
   )
 }

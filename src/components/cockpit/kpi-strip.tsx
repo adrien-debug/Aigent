@@ -266,7 +266,7 @@ export default function KpiStrip({
         value={blocked}
         support="livraisons à débloquer"
         valueColor={blocked !== null && blocked > 0 ? BAD : undefined}
-        led={<Led color={blocked !== null && blocked > 0 ? BAD : 'rgb(161 161 170 / 0.5)'} />}
+        led={<Led color={blocked !== null && blocked > 0 ? BAD : SEVERITY.muted} />}
       />
 
       <Cell
@@ -274,7 +274,7 @@ export default function KpiStrip({
         value={kpis.needsAction}
         support="décisions en attente"
         valueColor={kpis.needsAction > 0 ? WARN : undefined}
-        led={<Led color={kpis.needsAction > 0 ? WARN : 'rgb(161 161 170 / 0.5)'} />}
+        led={<Led color={kpis.needsAction > 0 ? WARN : SEVERITY.muted} />}
       />
     </dl>
   )
