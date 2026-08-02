@@ -148,7 +148,7 @@ function renderProjectCatalog(
     )
   }
   return (
-    <ul className="divide-y divide-white/5">
+    <ul className="divide-y aig-line-soft">
       {items.map((item) => (
         <ProjectListRow key={item.id} item={item} />
       ))}

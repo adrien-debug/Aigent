@@ -156,14 +156,25 @@ function scanFactoryDoctrine() {
     { name: 'gray-*', re: /\bgray-[\w/-]+/g },
     { name: 'slate-*', re: /\bslate-[\w/-]+/g },
     { name: 'dark:*', re: /\bdark:[^\s'"`]+/g },
-    { name: 'bg-white', re: /\bbg-white(?:\/[0-9]+)?\b/g },
-    { name: 'bg-black', re: /\bbg-black(?:\/[0-9]+)?\b/g },
-    { name: 'text-white', re: /\btext-white(?:\/[0-9]+)?\b/g },
-    { name: 'text-black', re: /\btext-black(?:\/[0-9]+)?\b/g },
-    { name: 'border-white/*', re: /\bborder-white(?:\/[0-9]+)?\b/g },
-    { name: 'border-black/*', re: /\bborder-black(?:\/[0-9]+)?\b/g },
-    { name: 'stroke-white/*', re: /\bstroke-white(?:\/[0-9]+)?\b/g },
-    { name: 'fill-white/*', re: /\bfill-white(?:\/[0-9]+)?\b/g },
+    // UNE SEULE RÈGLE POUR TOUTES LES UTILITAIRES QUI PEIGNENT.
+    //
+    // Ces huit lignes ont longtemps énuméré `bg-` / `text-` / `border-` /
+    // `stroke-` / `fill-` une par une. `divide-` manquait — et six `<ul
+    // className="divide-y divide-white/5">` vivaient dans le produit pendant
+    // que cette gate affichait « 0 violation » sur les fichiers qui les
+    // contenaient. Pire, la dérive que l'invariant existe pour empêcher avait
+    // déjà commencé : cinq fichiers avaient choisi `/5`, un `/6`, pour le même
+    // séparateur.
+    //
+    // Une énumération de préfixes se périme à chaque utilitaire Tailwind qui
+    // peint quelque chose (`divide-`, `ring-`, `outline-`, `shadow-`,
+    // `accent-`, `caret-`, `decoration-`). On liste donc les préfixes en UN
+    // point, et l'ajout d'un futur préfixe est une entrée, pas une règle
+    // oubliée.
+    {
+      name: '<utilitaire>-white/black',
+      re: /\b(?:bg|text|border|stroke|fill|divide|ring|outline|shadow|accent|caret|decoration)-(?:white|black)(?:\/[0-9]+)?\b/g,
+    },
     // Un hex de COULEUR fait 3, 4, 6 ou 8 chiffres ET contient au moins une
     // lettre a–f. Sans cette seconde condition, `#8841` d'un numéro de ticket
     // était refusé comme une couleur — ce qui pousse à ne plus écrire de

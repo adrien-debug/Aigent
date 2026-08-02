@@ -131,9 +131,18 @@ function ToolRow({ tool }: Readonly<{ tool: ToolProbe }>) {
       Mobile empile donc verticalement : identité, puis fonction, puis les faits
       de sonde et l'action. La grille dense reprend à partir de `sm:`, où la
       largeur la rend lisible.
+
+      LA COLONNE DE STATUT SE MESURE, ELLE NE SE DEVINE PAS. Elle a valu
+      `6.5rem` — 104 px, une constante posée à la main. `NOT_CONFIGURED` rend
+      123 px : le badge débordait sa piste de 19 px et venait chevaucher le nom
+      de l'outil (mesuré à 1440×900 : bord droit du badge à x=449, début du nom
+      à x=442, soit -7 px). « NOT_CONFIGUREDGrafana » se lisait comme un seul
+      mot. `auto` laisse le PLUS LARGE des badges dimensionner la piste : le
+      `gap-x-3` redevient une gouttière réelle au lieu d'un reliquat, et aucun
+      libellé de statut futur ne pourra plus manger la colonne voisine.
     */
     <li
-      className="aig-line-soft flex flex-col gap-1.5 border-b py-2 last:border-0 sm:grid sm:grid-cols-[6.5rem_minmax(0,1fr)_auto] sm:items-baseline sm:gap-x-3 sm:gap-y-0 sm:py-1.5"
+      className="aig-line-soft flex flex-col gap-1.5 border-b py-2 last:border-0 sm:grid sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-baseline sm:gap-x-3 sm:gap-y-0 sm:py-1.5"
       data-testid="visual-tool-row"
       data-tool={tool.id}
       data-status={tool.status}
