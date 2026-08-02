@@ -60,7 +60,16 @@ const REQUIRED = {
   'heading.tsx': ['Heading', 'Subheading'],
   'link.tsx': ['Link'],
   'navbar.tsx': ['Navbar'],
-  'sidebar.tsx': ['Sidebar', 'SidebarBody', 'SidebarFooter', 'SidebarHeader', 'SidebarItem'],
+  'sidebar.tsx': [
+    'Sidebar',
+    'SidebarBody',
+    'SidebarFooter',
+    'SidebarHeader',
+    'SidebarHeading',
+    'SidebarItem',
+    'SidebarLabel',
+    'SidebarSection',
+  ],
   'table.tsx': ['Table', 'TableBody', 'TableCell', 'TableHead', 'TableHeader', 'TableRow'],
   'text.tsx': ['Code', 'Strong', 'Text', 'TextLink'],
   'textarea.tsx': ['Textarea'],
@@ -92,17 +101,90 @@ const present = new Set(
   readdirSync(KIT_DIR).filter((n) => n.endsWith('.tsx') || n.endsWith('.ts')),
 )
 
+/**
+ * Retire les commentaires, et — si `dropStrings` — les littéraux de chaîne.
+ *
+ * Les assertions POSITIVES de cette gate cherchent la présence d'un texte, et
+ * sur la source brute un commentaire suffisait à les satisfaire :
+ * `// export { Strong }` rendait la gate verte alors que l'export avait
+ * disparu. Deux régimes sont donc nécessaires :
+ *
+ *  · `dropStrings: true` pour ce qui doit être du CODE — les exports. Une
+ *    mention dans une chaîne ou un commentaire ne prouve rien.
+ *  · `dropStrings: false` pour ce qui vit LÉGITIMEMENT dans une chaîne — les
+ *    classes Tailwind (`forced-colors:`, `data-disabled:`, l'anneau de focus,
+ *    la cible tactile). Les vider reviendrait à ne plus rien pouvoir vérifier.
+ *
+ * Dans les deux cas les commentaires tombent : c'est par eux que passait
+ * l'essentiel des faux verts.
+ */
+function codeOnly(text, dropStrings = true) {
+  let out = ''
+  let state = 'code'
+  for (let i = 0; i < text.length; i += 1) {
+    const c = text[i]
+    const next = text[i + 1]
+    if (state === 'code') {
+      if (c === '/' && next === '*') {
+        state = 'block'
+        i += 1
+        continue
+      }
+      if (c === '/' && next === '/') {
+        state = 'line'
+        i += 1
+        continue
+      }
+      if (c === "'" || c === '"' || c === '`') {
+        state = c
+        if (!dropStrings) out += c
+        continue
+      }
+      out += c
+      continue
+    }
+    if (state === 'line') {
+      if (c === '\n') {
+        state = 'code'
+        out += c
+      }
+      continue
+    }
+    if (state === 'block') {
+      if (c === '*' && next === '/') {
+        state = 'code'
+        i += 1
+      }
+      continue
+    }
+    if (!dropStrings) out += c
+    if (c === '\\') {
+      if (!dropStrings) out += text[i + 1] ?? ''
+      i += 1
+      continue
+    }
+    if (c === state) state = 'code'
+  }
+  return out
+}
+
 const sources = {}
+/** Code sans chaînes — pour les assertions qui doivent porter sur du CODE. */
+const code = {}
+/** Code AVEC chaînes, commentaires retirés — pour les classes Tailwind. */
+const markup = {}
 for (const name of Object.keys(REQUIRED)) {
   if (!present.has(name)) {
     errors.push(`PRIMITIVE MANQUANTE  ${KIT_DIR}/${name}`)
     continue
   }
   sources[name] = readFileSync(join(KIT_DIR, name), 'utf8')
+  code[name] = codeOnly(sources[name], true)
+  markup[name] = codeOnly(sources[name], false)
 }
 
 for (const [name, exports] of Object.entries(REQUIRED)) {
-  const src = sources[name]
+  const src = code[name]
   if (!src) continue
   for (const symbol of exports) {
     // `export function X`, `export const X`, `export { X }`, `export const X = forwardRef`
@@ -113,10 +195,51 @@ for (const [name, exports] of Object.entries(REQUIRED)) {
   }
 }
 
+// ------------------------------ 1bis. LA LISTE NE DOIT PAS PRENDRE DE RETARD
+//
+// `REQUIRED` est écrite à la main, donc elle DÉRIVE : trois exports réellement
+// rendus par le shell applicatif (`SidebarHeading`, `SidebarLabel`,
+// `SidebarSection`) en étaient absents — les supprimer aurait cassé toutes les
+// routes en laissant cette gate verte, exactement le mode de défaillance
+// qu'elle prétend couvrir. On lit donc ce que le PRODUIT importe vraiment et on
+// exige que la liste le couvre.
+function consumedExports() {
+  const found = new Set()
+  const stack = ['src']
+  const IMPORT = /import\s+(?:type\s+)?\{([^}]*)\}\s*from\s*['"]@\/components\/ui\/[a-z-]+['"]/g
+  while (stack.length > 0) {
+    const dir = stack.pop()
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) {
+        if (path !== KIT_DIR) stack.push(path)
+        continue
+      }
+      if (!/\.tsx?$/.test(entry.name)) continue
+      const src = readFileSync(path, 'utf8')
+      for (const m of src.matchAll(IMPORT)) {
+        for (const raw of m[1].split(',')) {
+          const name = raw.replace(/\btype\b/, '').trim().split(/\s+as\s+/)[0].trim()
+          if (name) found.add(name)
+        }
+      }
+    }
+  }
+  return found
+}
+
+const listed = new Set(Object.values(REQUIRED).flat())
+const unprotected = [...consumedExports()].filter((s) => !listed.has(s)).sort()
+if (unprotected.length > 0) {
+  errors.push(
+    `LISTE INCOMPLÈTE    export(s) rendus par le produit mais absents de REQUIRED : ${unprotected.join(', ')}`,
+  )
+}
+
 // ------------------------------------------------------- 2. CIBLE TACTILE
 // La zone de confort de 44 px ne se lit pas dans un rendu : elle vit dans un
 // `span` absolu dont la taille est écrite en toutes lettres.
-const button = sources['button.tsx']
+const button = markup['button.tsx']
 if (button) {
   if (!/TouchTarget/.test(button)) {
     errors.push('CIBLE TACTILE       button.tsx → `TouchTarget` a disparu')
@@ -129,20 +252,46 @@ if (button) {
 
 // -------------------------------------------------------- 3. ACCESSIBILITÉ
 for (const { file, pattern, label } of A11Y) {
-  const src = sources[file]
+  const src = markup[file]
   if (src && !pattern.test(src)) errors.push(`ACCESSIBILITÉ       ${label} — marqueur absent`)
 }
 
-// Anneau de focus : présent dans tout composant focusable, quelle que soit sa
-// couleur (l'accent du produit ou autre) — c'est sa PRÉSENCE qui compte.
+// Anneau de focus. La couleur est libre (accent du produit ou autre) : ce qui
+// compte est qu'un anneau soit RÉELLEMENT dessiné quand l'élément prend le
+// focus.
+//
+// Le test précédent — `/outline|focus/` — était INFALSIFIABLE dans
+// `button.tsx` : le mot `outline` y apparaît huit fois comme nom de prop
+// (`styles.outline`, `outline?: never`, `if (outline)`). On pouvait remplacer
+// toute la règle de focus par `outline-none` et la gate restait verte. On exige
+// donc une classe qui LIE un déclencheur de focus à un anneau visible, et on
+// refuse explicitement sa suppression.
+// Les segments intermédiaires (`sm:`, `after:`, `not-data-focus:`) sont
+// autorisés entre le déclencheur et l'anneau : `textarea.tsx` dessine
+// légitimement le sien en `sm:focus-within:after:ring-2`.
+const FOCUS_RING =
+  /(?:data-focus:|focus-visible:|focus-within:|focus:)(?:[a-z-]+:)*(?:outline-(?!none\b|hidden\b)|ring-(?!0\b))/
 for (const file of ['button.tsx', 'checkbox.tsx', 'textarea.tsx', 'badge.tsx']) {
-  const src = sources[file]
-  if (src && !/outline|focus/.test(src)) {
-    errors.push(`ACCESSIBILITÉ       ${file} → aucun anneau de focus détecté`)
+  const src = markup[file]
+  if (!src) continue
+  if (!FOCUS_RING.test(src)) {
+    errors.push(`ACCESSIBILITÉ       ${file} → aucun anneau de focus réellement dessiné`)
+  }
+  if (/\boutline-none\b/.test(src)) {
+    errors.push(`ACCESSIBILITÉ       ${file} → \`outline-none\` supprime l'anneau de focus`)
   }
 }
 
 // ------------------------------------------------ 4. AUTORITÉ VISUELLE UNIQUE
+// Un fichier NON listé déposé dans le kit échappait au scan : la boucle ne
+// parcourait que les 14 noms connus. On scanne donc tout ce que le dossier
+// contient réellement.
+for (const name of present) {
+  if (name in sources) continue
+  sources[name] = readFileSync(join(KIT_DIR, name), 'utf8')
+  notes.push(`fichier hors inventaire scanné : ${name}`)
+}
+
 let rawTotal = 0
 for (const [name, src] of Object.entries(sources)) {
   // On ignore les commentaires : ils DOCUMENTENT la migration et citent donc

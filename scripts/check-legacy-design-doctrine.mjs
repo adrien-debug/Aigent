@@ -54,10 +54,68 @@ function walkFiles(relDir) {
   return out.map((abs) => abs.slice(ROOT.length + 1))
 }
 
+/**
+ * Retire les commentaires SANS se laisser désarmer par une chaîne.
+ *
+ * La version naïve (`text.replace(/\/\*[\s\S]*?\*\//g, '')`) traitait un `/*`
+ * écrit DANS une chaîne comme un vrai début de commentaire, et avalait tout
+ * jusqu'au prochain `*​/` — y compris du code réel. Une violation posée entre
+ * les deux devenait invisible aux quatorze règles :
+ *
+ *   const A = 'doc /* legacy'
+ *   const skin = 'bg-zinc-900 text-white'   // ← avalé, donc jamais scanné
+ *   const B = '*​/ fin'
+ *
+ * On parcourt donc le texte caractère par caractère en suivant l'état lexical
+ * (chaîne simple/double, template, commentaire). Les chaînes sont CONSERVÉES —
+ * c'est là que vivent les noms de classe — et seuls les vrais commentaires
+ * tombent.
+ */
 function stripCodeComments(text) {
-  return text
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/(^|\s)\/\/.*$/gm, '$1')
+  let out = ''
+  let state = 'code' // code | line | block | "'" | '"' | '`'
+  for (let i = 0; i < text.length; i += 1) {
+    const c = text[i]
+    const next = text[i + 1]
+    if (state === 'code') {
+      if (c === '/' && next === '*') {
+        state = 'block'
+        i += 1
+        continue
+      }
+      if (c === '/' && next === '/') {
+        state = 'line'
+        i += 1
+        continue
+      }
+      if (c === "'" || c === '"' || c === '`') state = c
+      out += c
+      continue
+    }
+    if (state === 'line') {
+      if (c === '\n') {
+        state = 'code'
+        out += c
+      }
+      continue
+    }
+    if (state === 'block') {
+      if (c === '*' && next === '/') {
+        state = 'code'
+        i += 1
+      }
+      continue
+    }
+    // Dans une chaîne : on conserve, en respectant l'échappement.
+    out += c
+    if (c === '\\') {
+      out += text[i + 1] ?? ''
+      i += 1
+      continue
+    }
+    if (c === state) state = 'code'
+  }
+  return out
 }
 
 function scanFactoryDoctrine() {
@@ -82,11 +140,13 @@ function scanFactoryDoctrine() {
     'src/components/builder',
     'src/components/projects',
     'src/components/lab',
+    'src/components/actions',
+    'src/components/visualizations',
     'src/components/app-shell.tsx',
     'src/app/error.tsx',
     'src/app/globals.css',
   ]
-  const fileRegex = /\.(ts|tsx|css)$/
+  const fileRegex = /\.(ts|tsx|js|jsx|mjs|cjs|mts|css)$/
   const mediaExceptionMarker = 'DS_FACTORY_MEDIA_EXCEPTION'
   const findings = []
   const scannedFiles = []
@@ -104,8 +164,22 @@ function scanFactoryDoctrine() {
     { name: 'border-black/*', re: /\bborder-black(?:\/[0-9]+)?\b/g },
     { name: 'stroke-white/*', re: /\bstroke-white(?:\/[0-9]+)?\b/g },
     { name: 'fill-white/*', re: /\bfill-white(?:\/[0-9]+)?\b/g },
-    { name: 'hex color', re: /#[0-9a-fA-F]{3,8}\b/g },
+    // Un hex de COULEUR fait 3, 4, 6 ou 8 chiffres ET contient au moins une
+    // lettre a–f. Sans cette seconde condition, `#8841` d'un numéro de ticket
+    // était refusé comme une couleur — ce qui pousse à ne plus écrire de
+    // référence de ticket dans le code, un faux rouge coûteux.
+    // Angle mort assumé : une couleur purement numérique (`#123456`) passe.
+    // C'est le compromis inverse, et le moins nuisible des deux.
+    {
+      name: 'hex color',
+      re: /#(?=[0-9a-fA-F]*[a-fA-F])(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![0-9a-fA-F])/g,
+    },
+    // `oklch()` était le seul espace colorimétrique NON couvert — et c'est
+    // celui dans lequel les jetons `--aig-*` sont écrits, donc le plus naturel
+    // à recopier à la main. `var(--aig-…)` et `color-mix(…)` restent permis :
+    // on interdit la VALEUR littérale, pas la référence au jeton.
     { name: 'rgb/rgba/hsl color', re: /\b(?:rgb|rgba|hsl|hsla)\(/g },
+    { name: 'oklch/lab/lch/color() littéral', re: /\b(?:oklch|oklab|lab|lch|color)\(/g },
     // ACCENTS TAILWIND BRUTS — le trou par lequel une troisième palette entre.
     // `sky-800`, `amber-500`, `red-500` passaient : la gate ne bannissait que
     // les gris. Un état se dit avec `--aig-severity-*`, qui porte le SENS
@@ -132,12 +206,20 @@ function scanFactoryDoctrine() {
         const line = lines[i]
         if (line.includes(mediaExceptionMarker)) continue
         for (const check of checks) {
-          if (
-            relPath === 'src/app/globals.css' &&
-            (check.name === 'hex color' || check.name === 'rgb/rgba/hsl color')
-          ) {
-            continue
-          }
+          // `globals.css` DÉFINIT les jetons : c'est le seul endroit du produit
+          // où une valeur littérale est l'objet même du fichier. L'exempter des
+          // formats de couleur n'ouvre pas de porte — toute autre surface qui
+          // écrirait `oklch(...)` en dur est refusée.
+          const isColorFormat =
+            check.name === 'hex color' ||
+            check.name === 'rgb/rgba/hsl color' ||
+            check.name === 'oklch/lab/lch/color() littéral'
+          if (relPath === 'src/app/globals.css' && isColorFormat) continue
+          // Un ALIAS `var(--aig-x, <repli>)` n'est pas une palette parallèle :
+          // la valeur littérale n'y est qu'un repli si le jeton manque, et elle
+          // suit le jeton par construction. On l'autorise, mais UNIQUEMENT sous
+          // cette forme — une valeur posée seule reste refusée.
+          if (isColorFormat && /var\(--aig-[a-z-]+,/.test(line)) continue
           if (check.re.test(line)) {
             findings.push(`${relPath}:${i + 1} — ${check.name} interdit (${line.trim()})`)
           }

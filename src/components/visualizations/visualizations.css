@@ -48,6 +48,11 @@
   --viz-accent-quiet: var(--aig-accent-quiet, oklch(0.45 0.06 52));
 
   --viz-radius: var(--aig-radius, 0.75rem);
+  /* États : ALIAS des sévérités du produit, pas une palette propre. Ces deux
+     valeurs étaient écrites en dur — un vert et un rouge d'état qui redisaient
+     `--aig-severity-good|bad` avec des valeurs à eux. */
+  --viz-severity-good: var(--aig-severity-good, #0da87f);
+  --viz-severity-bad: var(--aig-severity-bad, #e8455f);
 }
 
 /**
@@ -151,12 +156,12 @@
 /* Un état READY se distingue, mais la couleur ne porte jamais l'information
    seule : le texte du badge EST l'état. */
 .viz-badge[data-badge-state="READY"] {
-  color: oklch(0.78 0.13 155);
-  border-color: color-mix(in oklab, oklch(0.78 0.13 155) 35%, transparent);
+  color: var(--viz-severity-good);
+  border-color: color-mix(in oklab, var(--viz-severity-good) 35%, transparent);
 }
 .viz-badge[data-badge-state="UNAVAILABLE"] {
-  color: oklch(0.72 0.15 25);
-  border-color: color-mix(in oklab, oklch(0.72 0.15 25) 35%, transparent);
+  color: var(--viz-severity-bad);
+  border-color: color-mix(in oklab, var(--viz-severity-bad) 35%, transparent);
 }
 .viz-badge[data-badge-state="NOT_CONFIGURED"],
 .viz-badge[data-badge-state="EMPTY"] {
@@ -204,7 +209,7 @@
   fill: none;
 }
 .viz-interrupted {
-  stroke: color-mix(in oklab, oklch(0.72 0.15 25) 70%, var(--viz-line));
+  stroke: color-mix(in oklab, var(--viz-severity-bad) 70%, var(--viz-line));
   fill: none;
 }
 

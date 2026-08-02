@@ -81,7 +81,11 @@
   /* Accent cuivre — l'unique accent du produit. */
   --aig-accent: oklch(0.72 0.11 52);
   --aig-accent-quiet: oklch(0.45 0.06 52);
-  --aig-scrim: color-mix(in oklab, var(--aig-subtle) 68%, black);
+  /* Un scrim VOILE, il n'efface pas. `color-mix` de deux couleurs OPAQUES rend
+     une couleur opaque : le fond de modale était à alpha 1 et noircissait
+     complètement la page derrière lui, au lieu de la laisser deviner. Le mix se
+     fait donc avec `transparent`, qui porte l'alpha. */
+  --aig-scrim: color-mix(in oklab, var(--aig-subtle) 72%, transparent);
 
   /*
    * SÉVÉRITÉ — le miroir CSS de `src/lib/cockpit/status.ts`, qui reste
