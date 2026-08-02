@@ -1,5 +1,5 @@
 import AppShell from '@/components/app-shell'
-import CockpitOverview from '@/components/cockpit/overview-screen'
+import CockpitOverview from '@/components/cockpit/overview'
 import { navEntry } from '@/components/navigation'
 import { SurfaceUnavailable } from '@/components/surface-shell'
 import { getDashboardOverview } from '@/lib/agent-mission-control/dashboard-overview'

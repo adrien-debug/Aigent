@@ -1,6 +1,3 @@
-/**
- * Légende de statut du cockpit — pastilles `aig-chip`, pas Badge Catalyst.
- */
 import { SeverityChip } from '@/components/surface-primitives'
 import type { StatusSlice } from '@/lib/cockpit/overview-series'
 import { RUN_STATUS_COLOR, RUN_STATUS_LABEL } from '@/lib/cockpit/status'

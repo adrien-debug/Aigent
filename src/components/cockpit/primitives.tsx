@@ -13,9 +13,7 @@
  *  · `Unavailable`  — l'absence de mesure comme état de premier rang, avec la
  *                     distinction « lecture échouée » / « rien à mesurer »
  *                     (AGENTS.md § Vérité des données).
- *  · `Led`          — témoin d'activité temps réel.
  *  · `Rail`         — barre de sévérité en tête de ligne.
- *  · jauges         — proportions bornées (n sur total), pas des séries.
  *  · `Fact`/`FactValue`/`NotMeasured` — paire libellé/valeur, absence rendue.
  *
  * `SEVERITY` (couleur d'un `Rail`) vit dans `@/lib/cockpit/status` — c'est la
@@ -251,31 +249,7 @@ export function FactValue({ children }: Readonly<{ children: ReactNode }>) {
   return <Strong className="tabular-nums">{children}</Strong>
 }
 
-/* ─────────────────────────── Objets d'instrument ─────────────────────── */
-
-/**
- * Témoin lumineux. `live` fait battre la diode — réservé à ce qui est
- * réellement en vol, jamais posé pour décorer.
- */
-export function Led({
-  color,
-  live = false,
-  className,
-}: Readonly<{
-  color: string
-  live?: boolean
-  className?: string
-}>) {
-  return (
-    <span
-      aria-hidden
-      className={clsx('size-1.5 shrink-0 rounded-full', live && 'pulse-live', className)}
-      style={{ background: color }}
-    />
-  )
-}
-
-/** Rail de sévérité — la barre verticale colorée qui ouvre une ligne de liste. */
+/** Rail de sévérité — barre verticale colorée en tête de ligne. */
 export function Rail({ color, className }: Readonly<{ color: string; className?: string }>) {
   return (
     <span
@@ -283,137 +257,6 @@ export function Rail({ color, className }: Readonly<{ color: string; className?:
       className={clsx('absolute inset-y-0 left-0 w-0.5', className)}
       style={{ background: color }}
     />
-  )
-}
-
-/**
- * Mètre segmenté — `filled` sur `total`. Un cran allumé = une unité réelle.
- * Au-delà de 24 unités le comptage cesse d'être lisible et l'on retombe sur une
- * barre continue, qui dit la même proportion sans mentir sur la granularité.
- */
-export function SegmentMeter({
-  filled,
-  total,
-  color,
-  className,
-}: Readonly<{
-  filled: number
-  total: number
-  color: string
-  className?: string
-}>) {
-  const safeTotal = Math.max(total, 0)
-  const safeFilled = Math.min(Math.max(filled, 0), safeTotal)
-
-  if (safeTotal === 0) {
-    return (
-      <div
-        className={clsx(
-          'h-1.5 w-full rounded-full bg-[color-mix(in_oklab,var(--aig-line)_60%,transparent)]',
-          className,
-        )}
-      />
-    )
-  }
-
-  if (safeTotal > 24) {
-    return <BarMeter ratio={safeFilled / safeTotal} color={color} className={className} />
-  }
-
-  return (
-    <div aria-hidden className={clsx('flex items-end gap-[2px]', className)}>
-      {/* Les crans ÉTEINTS portent la proportion autant que les allumés : à
-          `zinc-400/35` sur la cellule noire du bandeau KPI, les 11 crans
-          éteints d'un « 3 sur 14 » étaient quasi invisibles et la jauge se
-          lisait comme trois barres isolées, sans dénominateur. */}
-      {Array.from({ length: safeTotal }, (_, i) => (
-        <span
-          key={i}
-          className={clsx('h-3.5 w-[3px] rounded-[1px]', i >= safeFilled && 'bg-[var(--aig-line)]')}
-          style={i < safeFilled ? { background: color } : undefined}
-        />
-      ))}
-    </div>
-  )
-}
-
-/** Barre de proportion bornée 0..1 — la couverture d'une mesure, pas une série. */
-export function BarMeter({
-  ratio,
-  color,
-  className,
-}: Readonly<{
-  ratio: number
-  color: string
-  className?: string
-}>) {
-  const pct = Math.min(Math.max(ratio, 0), 1) * 100
-  return (
-    <div
-      aria-hidden
-      className={clsx(
-        'h-1.5 w-full overflow-hidden rounded-full bg-[color-mix(in_oklab,var(--aig-line)_60%,transparent)]',
-        className,
-      )}
-    >
-      <div
-        className="h-full rounded-full transition-[width]"
-        style={{ width: `${pct}%`, background: color }}
-      />
-    </div>
-  )
-}
-
-/**
- * Jauge d'arc — un ratio borné 0..1, et rien d'autre. Elle n'apparaît que
- * lorsque la valeur EST mesurée : une jauge à zéro sur une donnée absente est
- * précisément le mensonge que cet écran refuse.
- */
-export function ArcGauge({
-  ratio,
-  color,
-  size = 44,
-  label,
-}: Readonly<{
-  ratio: number
-  color: string
-  size?: number
-  label?: string
-}>) {
-  const stroke = 3.5
-  const r = (size - stroke) / 2
-  const c = 2 * Math.PI * r
-  const clamped = Math.min(Math.max(ratio, 0), 1)
-
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox={`0 0 ${size} ${size}`}
-      role="img"
-      aria-label={label}
-      className="shrink-0"
-    >
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        fill="none"
-        stroke="var(--aig-line)"
-        strokeWidth={stroke}
-      />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        fill="none"
-        stroke={color}
-        strokeWidth={stroke}
-        strokeLinecap="round"
-        strokeDasharray={`${c * clamped} ${c}`}
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-      />
-    </svg>
   )
 }
 

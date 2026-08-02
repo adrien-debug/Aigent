@@ -27,17 +27,6 @@ export type NamedRun = {
   toolCallCount: number
 }
 
-export type ProjectCard = {
-  id: string
-  name: string
-  repoFullName: string | null
-  copilotCount: number
-  activeCount: number
-  runs24h: number | null
-  costLast24hUsd: number | null
-  passRate: number | null
-}
-
 /**
  * Index de résolution id → entité, construit une fois et partagé par les deux
  * dérivations ci-dessous (elles le bâtissaient chacune de leur côté).
